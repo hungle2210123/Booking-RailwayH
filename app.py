@@ -480,6 +480,15 @@ def view_bookings():
                              },
                              error_message=str(e))
 
+@app.route('/health')
+def health_check():
+    """Simple health check endpoint for Railway"""
+    return jsonify({
+        'status': 'healthy',
+        'message': 'Hotel Booking System is running',
+        'timestamp': datetime.now().isoformat()
+    })
+
 @app.route('/api/database/health')
 def database_health():
     """Check PostgreSQL database health"""
