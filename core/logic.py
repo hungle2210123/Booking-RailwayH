@@ -829,19 +829,39 @@ def extract_booking_info_from_image_content(image_data: bytes, google_api_key: s
         
         # Parse JSON from response with better error handling
         import json
+        import re
         try:
             # Clean the response text - sometimes Gemini adds extra text
             response_text = response.text.strip()
             print(f"🤖 Gemini response text: {response_text[:200]}...")
             
-            # Try to find JSON in the response
-            json_start = response_text.find('{')
-            json_end = response_text.rfind('}') + 1
+            # Try to find JSON in the response (look for arrays or objects)
+            json_start_obj = response_text.find('{')
+            json_start_arr = response_text.find('[')
+            
+            # Use whichever comes first (or exists)
+            if json_start_arr >= 0 and (json_start_obj < 0 or json_start_arr < json_start_obj):
+                json_start = json_start_arr
+                json_end = response_text.rfind(']') + 1
+            else:
+                json_start = json_start_obj
+                json_end = response_text.rfind('}') + 1
             
             if json_start >= 0 and json_end > json_start:
                 json_text = response_text[json_start:json_end]
+                
+                # Clean up common JSON issues from AI responses
+                # Remove trailing commas before closing braces/brackets
+                json_text = re.sub(r',(\s*[}\]])', r'\1', json_text)
+                
                 print(f"📝 Extracted JSON: {json_text}")
                 result = json.loads(json_text)
+                
+                # If result is an array, return the first booking for compatibility
+                if isinstance(result, list) and len(result) > 0:
+                    print(f"🎯 AI returned {len(result)} bookings, using first one")
+                    return result[0]
+                
                 return result
             else:
                 print(f"❌ No valid JSON found in response")
