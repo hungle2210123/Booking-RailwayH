@@ -44,16 +44,28 @@ app.secret_key = os.getenv("FLASK_SECRET_KEY", "a_default_secret_key_for_develop
 
 # PostgreSQL-only database configuration
 database_url = os.getenv('DATABASE_URL')
-if not database_url or 'port' in database_url.replace('postgresql://', '').split('@')[0]:
-    # Fallback for Railway if DATABASE_URL is not properly set
-    print("⚠️ DATABASE_URL not properly configured. Please add PostgreSQL database in Railway.")
+print(f"🔍 DATABASE_URL value: {database_url}")
+
+if not database_url or database_url == 'None' or len(database_url.strip()) == 0:
+    print("🚨 RAILWAY SETUP REQUIRED:")
     print("   1. Go to Railway dashboard")
     print("   2. Click '+ New' → 'Database' → 'PostgreSQL'") 
-    print("   3. Add environment variable: DATABASE_URL = ${{Postgres.DATABASE_URL}}")
-    database_url = "postgresql://postgres:password@localhost:5432/hotel_booking"  # Fallback for testing
+    print("   3. Click on your Web Service → Variables tab")
+    print("   4. Add: DATABASE_URL = ${{Postgres.DATABASE_URL}}")
+    print("   5. Save and wait for redeploy")
+    print("")
+    print("🔧 Using fallback database URL for now...")
+    database_url = "sqlite:///fallback.db"  # Use SQLite as fallback to prevent crashes
 
-app.config['SQLALCHEMY_DATABASE_URI'] = database_url
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+try:
+    app.config['SQLALCHEMY_DATABASE_URI'] = database_url
+    app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+    print(f"✅ Database configured: {database_url[:30]}...")
+except Exception as e:
+    print(f"❌ Database configuration error: {e}")
+    print("🔧 Using SQLite fallback...")
+    app.config['SQLALCHEMY_DATABASE_URI'] = "sqlite:///fallback.db"
+    app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 # Initialize PostgreSQL database service
 init_database_service(app)
