@@ -1,0 +1,45 @@
+# Flask Web Framework
+flask>=2.3.0,<3.0.0
+gunicorn==21.2.0
+
+# Core Data Processing
+pandas>=2.0.0,<3.0.0
+numpy>=1.21.0,<2.0.0
+
+# PostgreSQL Database (ONLY)
+psycopg2-binary>=2.9.0
+SQLAlchemy>=2.0.0
+Flask-SQLAlchemy>=3.0.0
+
+# Environment & Configuration
+python-dotenv>=1.0.0,<2.0.0
+python-dateutil>=2.8.0,<3.0.0
+
+# Image Processing & AI (for Gemini only - no Google Sheets APIs)
+Pillow>=10.0.0,<11.0.0
+google-generativeai>=0.3.0,<1.0.0
+
+# Data Visualization
+plotly>=5.15.0,<6.0.0
+
+# Web Utilities
+requests>=2.31.0
+beautifulsoup4>=4.12.0,<5.0.0
+
+# Web Framework Dependencies
+Werkzeug>=2.3.0,<2.4.0
+Jinja2>=3.1.0,<4.0.0
+
+# REMOVED GOOGLE SHEETS DEPENDENCIES:
+# - google-api-python-client (Google Sheets API)
+# - google-auth-httplib2 (Google Sheets Auth)
+# - google-auth-oauthlib (Google Sheets OAuth)
+# - gspread (Google Sheets client library)
+
+# REMOVED UNUSED DEPENDENCIES:
+# - openpyxl (Excel files not used)
+# - xlrd (Excel files not used)
+# - PyPDF2 (PDF processing not used)
+# - crawl4ai (Market intelligence simplified)
+# - playwright (Heavy web automation not needed)
+# - lxml (XML processing not used)

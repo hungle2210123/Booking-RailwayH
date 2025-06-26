@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Button Fix</title>
+    <script>
+        function testOpenCollectModal() {
+            console.log('Testing openCollectModal function...');
+            
+            // Test the exact call from your button
+            openCollectModal('FLASK_TEST_001', 'Flask Test User', 287777.0, 22211.0, 221111.0, 66666.0, 500000.0);
+        }
+        
+        // Mock function from external JS file
+        function openCollectModal(bookingId, guestName, totalAmount, commission = 0, roomFee = 0, taxiFee = 0, collectedAmount = 0) {
+            console.log('✅ openCollectModal called successfully!');
+            console.log('Parameters:', {bookingId, guestName, totalAmount, commission, roomFee, taxiFee, collectedAmount});
+            
+            // Test the problematic elements
+            const modalOriginalAmount = document.getElementById('modalOriginalAmount');
+            const modalCollectedAmount = document.getElementById('modalCollectedAmount');
+            const modalRemainingAmount = document.getElementById('modalRemainingAmount');
+            
+            console.log('Element check:', {
+                modalOriginalAmount: !!modalOriginalAmount,
+                modalCollectedAmount: !!modalCollectedAmount,
+                modalRemainingAmount: !!modalRemainingAmount
+            });
+            
+            if (modalOriginalAmount) {
+                modalOriginalAmount.textContent = totalAmount.toLocaleString() + 'đ';
+                console.log('✅ Set modalOriginalAmount');
+            } else {
+                console.error('❌ modalOriginalAmount not found');
+            }
+            
+            if (modalCollectedAmount) {
+                modalCollectedAmount.textContent = (collectedAmount || 0).toLocaleString() + 'đ';
+                console.log('✅ Set modalCollectedAmount');
+            } else {
+                console.error('❌ modalCollectedAmount not found');
+            }
+            
+            if (modalRemainingAmount) {
+                const remaining = Math.max(0, totalAmount - (collectedAmount || 0));
+                modalRemainingAmount.textContent = remaining.toLocaleString() + 'đ';
+                console.log('✅ Set modalRemainingAmount');
+            } else {
+                console.error('❌ modalRemainingAmount not found');
+            }
+            
+            alert('✅ Function test completed! Check console for details.');
+        }
+    </script>
+</head>
+<body>
+    <h1>Button Fix Test</h1>
+    
+    <!-- Mock the modal elements -->
+    <div id="modalOriginalAmount">Original Amount</div>
+    <div id="modalCollectedAmount">Collected Amount</div>
+    <div id="modalRemainingAmount">Remaining Amount</div>
+    
+    <!-- Test button with exact same call -->
+    <button onclick="openCollectModal('FLASK_TEST_001', 'Flask Test User', 287777.0, 22211.0, 221111.0, 66666.0, 500000.0)">
+        Test Collect Button (Same as Dashboard)
+    </button>
+    
+    <button onclick="testOpenCollectModal()">
+        Run Test Function
+    </button>
+    
+    <script>
+        console.log('Test page loaded. Elements found:', {
+            modalOriginalAmount: !!document.getElementById('modalOriginalAmount'),
+            modalCollectedAmount: !!document.getElementById('modalCollectedAmount'),
+            modalRemainingAmount: !!document.getElementById('modalRemainingAmount')
+        });
+    </script>
+</body>
+</html>

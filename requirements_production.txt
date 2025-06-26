@@ -1,0 +1,50 @@
+# ==========================================
+# HOTEL BOOKING SYSTEM - PRODUCTION DEPENDENCIES
+# Pure PostgreSQL Setup (No Google Sheets)
+# ==========================================
+
+# --- CORE FLASK FRAMEWORK ---
+flask==2.3.3
+gunicorn==21.2.0
+Werkzeug>=2.3.0,<3.0.0
+Jinja2>=3.1.0,<4.0.0
+
+# --- POSTGRESQL DATABASE ---
+psycopg2-binary>=2.9.0
+SQLAlchemy>=2.0.0
+Flask-SQLAlchemy>=3.0.0
+
+# --- DATA PROCESSING ---
+pandas>=2.0.0,<3.0.0
+numpy>=1.21.0,<2.0.0
+python-dateutil>=2.8.0,<3.0.0
+
+# --- EXCEL/CSV SUPPORT ---
+openpyxl>=3.1.0,<4.0.0
+xlrd==2.0.1
+
+# --- AI INTEGRATION (GEMINI) ---
+google-generativeai>=0.3.0,<1.0.0
+
+# --- UTILITIES ---
+python-dotenv>=1.0.0,<2.0.0
+Pillow>=10.0.0,<11.0.0
+beautifulsoup4>=4.12.0,<5.0.0
+PyPDF2>=3.0.0,<4.0.0
+requests>=2.31.0
+
+# --- VISUALIZATION (OPTIONAL) ---
+plotly>=5.15.0,<6.0.0
+
+# --- REMOVED DEPENDENCIES ---
+# These were used for Google Sheets integration (no longer needed):
+# - google-api-python-client
+# - google-auth-httplib2  
+# - google-auth-oauthlib
+# - gspread
+
+# --- DEVELOPMENT DEPENDENCIES (Optional) ---
+# Uncomment for development:
+# pytest>=7.0.0
+# black>=23.0.0
+# flake8>=6.0.0
