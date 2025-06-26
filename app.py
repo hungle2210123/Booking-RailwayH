@@ -1700,7 +1700,7 @@ def comprehensive_import():
         if not os.path.exists(excel_file_path):
             return jsonify({
                 'success': False,
-                'message': 'Excel file not found'
+                'message': f'Excel file not found: {excel_file_path}. Please upload csvtest.xlsx to the server.'
             }), 400
         
         # Step 1: Parse Excel file
@@ -2183,7 +2183,7 @@ def detailed_diagnostic():
         if not os.path.exists(excel_file_path):
             return jsonify({
                 'success': False,
-                'message': 'Excel file not found'
+                'message': f'Excel file not found: {excel_file_path}. Please upload csvtest.xlsx to the server.'
             }), 400
         
         print("📊 Parsing Excel file...")
@@ -2312,9 +2312,17 @@ def import_debug():
         # Parse Excel file
         excel_file_path = os.path.join(os.path.dirname(__file__), "csvtest.xlsx")
         sheets_data = parse_excel_file(excel_file_path)
+        
+        if not sheets_data:
+            return jsonify({'success': False, 'message': 'Excel file not found or could not be parsed'}), 400
+        
         customers_data = import_customers_from_sheet1(sheets_data.get('Sheet1', []))
         
-        excel_bookings = customers_data.get('bookings', [])
+        # Handle case where customers_data might be a list instead of dict
+        if isinstance(customers_data, list):
+            excel_bookings = customers_data
+        else:
+            excel_bookings = customers_data.get('bookings', [])
         
         # Debug each booking
         debug_results = {

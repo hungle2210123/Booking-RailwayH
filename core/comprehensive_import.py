@@ -23,6 +23,11 @@ def parse_excel_file(filepath: str) -> Dict[str, List[List[Any]]]:
     print("🔍 PARSING EXCEL FILE")
     print("=" * 50)
     
+    # Check if file exists first
+    if not os.path.exists(filepath):
+        print(f"❌ Error: Excel file not found: {filepath}")
+        return {}
+    
     try:
         with zipfile.ZipFile(filepath, 'r') as xlsx_file:
             # Get shared strings (text values)
