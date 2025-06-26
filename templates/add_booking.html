@@ -90,20 +90,58 @@
             </div>
         </div>
         
-        <!-- Multiple Bookings Result -->
-        <div id="multiple-bookings-result" class="mt-3" style="display: none;">
+        <!-- AI Extraction Results - Review Table -->
+        <div id="ai-results-review" class="mt-3" style="display: none;">
             <div class="alert alert-success">
-                <h5><i class="fas fa-users me-2"></i>Phát hiện nhiều khách hàng!</h5>
-                <p class="mb-0">AI đã tìm thấy <span id="booking-count">0</span> booking từ ảnh của bạn.</p>
+                <h5><i class="fas fa-check-circle me-2"></i>AI đã trích xuất thành công!</h5>
+                <p class="mb-0">Tìm thấy <span id="extracted-count">0</span> booking từ ảnh. Vui lòng kiểm tra và chỉnh sửa nếu cần:</p>
             </div>
-            <div id="bookings-table-container"></div>
-            <div class="mt-3">
-                <button id="save-all-bookings" class="btn btn-success btn-lg me-2">
-                    <i class="fas fa-save me-2"></i>Lưu tất cả booking
-                </button>
-                <button onclick="resetPhotoUpload()" class="btn btn-secondary btn-lg">
-                    <i class="fas fa-undo me-2"></i>Thử lại
-                </button>
+            
+            <!-- Review Table with Edit Capabilities -->
+            <div class="card">
+                <div class="card-header bg-info text-white">
+                    <h6 class="mb-0"><i class="fas fa-table me-2"></i>Xem trước và chỉnh sửa thông tin</h6>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-bordered table-hover mb-0" id="review-table">
+                            <thead class="table-primary">
+                                <tr>
+                                    <th width="5%">#</th>
+                                    <th width="15%">Tên khách *</th>
+                                    <th width="12%">Booking ID</th>
+                                    <th width="10%">Check-in *</th>
+                                    <th width="10%">Check-out *</th>
+                                    <th width="12%">Tổng tiền *</th>
+                                    <th width="12%">Hoa hồng</th>
+                                    <th width="10%">Email</th>
+                                    <th width="10%">Phone</th>
+                                    <th width="4%">Xóa</th>
+                                </tr>
+                            </thead>
+                            <tbody id="review-table-body">
+                                <!-- Dynamic content will be inserted here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="card-footer">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <button id="add-manual-row" class="btn btn-outline-primary">
+                                <i class="fas fa-plus me-2"></i>Thêm khách thủ công
+                            </button>
+                        </div>
+                        <div class="col-md-6 text-end">
+                            <button onclick="resetPhotoUpload()" class="btn btn-secondary me-2">
+                                <i class="fas fa-undo me-2"></i>Thử lại
+                            </button>
+                            <button id="confirm-save-all" class="btn btn-success btn-lg">
+                                <i class="fas fa-save me-2"></i>Xác nhận lưu tất cả
+                            </button>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -276,28 +314,16 @@ function processPhoto(imageData) {
             return;
         }
         
-        // Handle new smart response format
+        // Handle new smart response format - always show review table
         if (data.type === 'single') {
-            // Single booking detected - auto-fill form
-            console.log('📝 Single booking mode activated');
-            autoFillForm(data.booking);
-            
-            // Show duplicate warning if needed
-            if (data.duplicate_check && data.duplicate_check.has_duplicates) {
-                alert('⚠️ CẢNH BÁO: Khách này có thể đã tồn tại trong hệ thống!\\n' +
-                      'Vui lòng kiểm tra kỹ trước khi lưu.');
-            }
+            // Single booking detected - show in review table
+            console.log('📝 Single booking detected - showing review table');
+            showReviewTable([data.booking], data.duplicate_check);
             
         } else if (data.type === 'multiple') {
-            // Multiple bookings detected - show batch save interface
-            console.log('👥 Multiple bookings mode activated');
-            showMultipleBookingsInterface(data.bookings);
-            
-            // Show duplicate warning if needed
-            if (data.duplicate_check && data.duplicate_check.has_duplicates) {
-                alert('⚠️ CẢNH BÁO: Một số khách có thể đã tồn tại trong hệ thống!\\n' +
-                      'Hệ thống sẽ hiển thị chi tiết khi lưu.');
-            }
+            // Multiple bookings detected - show in review table
+            console.log('👥 Multiple bookings detected - showing review table');
+            showReviewTable(data.bookings, data.duplicate_check);
             
         } else {
             // Fallback for legacy response format
@@ -318,11 +344,8 @@ function processPhoto(imageData) {
                 return;
             }
             
-            if (validBookings.length === 1) {
-                autoFillForm(validBookings[0]);
-            } else {
-                showMultipleBookingsInterface(validBookings);
-            }
+            // Show all bookings in review table
+            showReviewTable(validBookings, null);
         }
     })
     .catch(error => {
@@ -332,111 +355,211 @@ function processPhoto(imageData) {
     });
 }
 
-function autoFillForm(booking) {
-    console.log('📝 Auto-filling form with single booking:', booking);
-    
-    try {
-        // Fill form fields
-        const fieldMappings = {
-            'Tên người đặt': booking.guest_name || '',
-            'Số đặt phòng': booking.booking_id || '',
-            'Email': booking.email || '',
-            'Số điện thoại': booking.phone || '',
-            'Số khách': booking.guest_count || '1',
-            'Ngày đến': booking.checkin_date || booking.check_in_date || '',
-            'Ngày đi': booking.checkout_date || booking.check_out_date || '',
-            'Tổng thanh toán': booking.room_amount || booking.total_payment || '',
-            'Hoa hồng': booking.commission || ''
-        };
-        
-        Object.entries(fieldMappings).forEach(([fieldId, value]) => {
-            const element = document.getElementById(fieldId);
-            if (element && value) {
-                element.value = value;
-                console.log(`✅ Filled ${fieldId}: ${value}`);
-            }
-        });
-        
-        alert('✅ Đã điền thông tin từ ảnh thành công!\\n\\n' + 
-              `Khách: ${booking.guest_name}\\n` +
-              `Booking ID: ${booking.booking_id}\\n` +
-              `Check-in: ${booking.checkin_date || booking.check_in_date}\\n` +
-              `Tổng tiền: ${(booking.room_amount || booking.total_payment || 0).toLocaleString('vi-VN')}đ`);
-              
-    } catch (error) {
-        console.error('❌ Error filling form:', error);
-        alert('⚠️ Đã trích xuất được thông tin nhưng có lỗi khi điền form. Vui lòng kiểm tra và điền thủ công.');
-    }
-}
+// Auto-fill function removed - now using review table for all scenarios
 
-function showMultipleBookingsInterface(bookings) {
-    console.log('👥 Showing multiple bookings interface:', bookings);
+function showReviewTable(bookings, duplicateCheck) {
+    console.log('📊 Showing review table for:', bookings);
     
     extractedBookings = bookings;
     
     // Update counter
-    document.getElementById('booking-count').textContent = bookings.length;
+    document.getElementById('extracted-count').textContent = bookings.length;
     
-    // Create bookings table
-    const tableHtml = `
-        <div class="table-responsive">
-            <table class="table table-bordered table-hover">
-                <thead class="table-primary">
-                    <tr>
-                        <th>Tên khách</th>
-                        <th>Booking ID</th>
-                        <th>Check-in</th>
-                        <th>Check-out</th>
-                        <th>Tổng tiền</th>
-                        <th>Hoa hồng</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    ${bookings.map(booking => `
-                        <tr>
-                            <td><strong>${booking.guest_name || 'N/A'}</strong></td>
-                            <td><code>${booking.booking_id || 'Tự tạo'}</code></td>
-                            <td>${booking.check_in_date || 'N/A'}</td>
-                            <td>${booking.check_out_date || 'N/A'}</td>
-                            <td><span class="text-success fw-bold">${(booking.total_payment || 0).toLocaleString()} VND</span></td>
-                            <td><span class="text-warning fw-bold">${(booking.commission || 0).toLocaleString()} VND</span></td>
-                        </tr>
-                    `).join('')}
-                </tbody>
-            </table>
-        </div>
-    `;
+    // Show duplicate warning if needed
+    if (duplicateCheck && duplicateCheck.has_duplicates) {
+        const duplicateCount = duplicateCheck.duplicates.length;
+        alert(`⚠️ CẢNH BÁO: Tìm thấy ${duplicateCount} khách có thể đã tồn tại trong hệ thống!\\n` +
+              'Vui lòng kiểm tra kỹ trong bảng xem trước trước khi lưu.');
+    }
     
-    document.getElementById('bookings-table-container').innerHTML = tableHtml;
-    document.getElementById('multiple-bookings-result').style.display = 'block';
+    // Create editable table rows
+    const tableBodyHtml = bookings.map((booking, index) => `
+        <tr data-index="${index}">
+            <td class="text-center fw-bold">${index + 1}</td>
+            <td>
+                <input type="text" class="form-control form-control-sm" 
+                       value="${booking.guest_name || ''}" 
+                       onchange="updateBookingData(${index}, 'guest_name', this.value)"
+                       placeholder="Tên khách hàng" required>
+            </td>
+            <td>
+                <input type="text" class="form-control form-control-sm" 
+                       value="${booking.booking_id || ''}" 
+                       onchange="updateBookingData(${index}, 'booking_id', this.value)"
+                       placeholder="Tự tạo">
+            </td>
+            <td>
+                <input type="date" class="form-control form-control-sm" 
+                       value="${booking.checkin_date || booking.check_in_date || ''}" 
+                       onchange="updateBookingData(${index}, 'checkin_date', this.value)" required>
+            </td>
+            <td>
+                <input type="date" class="form-control form-control-sm" 
+                       value="${booking.checkout_date || booking.check_out_date || ''}" 
+                       onchange="updateBookingData(${index}, 'checkout_date', this.value)" required>
+            </td>
+            <td>
+                <input type="number" class="form-control form-control-sm" 
+                       value="${booking.room_amount || booking.total_payment || ''}" 
+                       onchange="updateBookingData(${index}, 'room_amount', this.value)"
+                       placeholder="0" min="0" required>
+            </td>
+            <td>
+                <input type="number" class="form-control form-control-sm" 
+                       value="${booking.commission || ''}" 
+                       onchange="updateBookingData(${index}, 'commission', this.value)"
+                       placeholder="0" min="0">
+            </td>
+            <td>
+                <input type="email" class="form-control form-control-sm" 
+                       value="${booking.email || ''}" 
+                       onchange="updateBookingData(${index}, 'email', this.value)"
+                       placeholder="email@example.com">
+            </td>
+            <td>
+                <input type="tel" class="form-control form-control-sm" 
+                       value="${booking.phone || ''}" 
+                       onchange="updateBookingData(${index}, 'phone', this.value)"
+                       placeholder="+84...">
+            </td>
+            <td class="text-center">
+                <button type="button" class="btn btn-outline-danger btn-sm" 
+                        onclick="removeBookingRow(${index})" title="Xóa khách này">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </td>
+        </tr>
+    `).join('');
     
-    // Hide manual form temporarily
+    document.getElementById('review-table-body').innerHTML = tableBodyHtml;
+    document.getElementById('ai-results-review').style.display = 'block';
+    
+    // Hide manual form during review
     document.getElementById('manual-form-container').style.display = 'none';
 }
 
 function resetPhotoUpload() {
     document.getElementById('photo-processing').style.display = 'none';
-    document.getElementById('multiple-bookings-result').style.display = 'none';
+    document.getElementById('ai-results-review').style.display = 'none';
     document.getElementById('manual-form-container').style.display = 'block';
     document.getElementById('photo-input').value = '';
     extractedBookings = [];
 }
 
-// Save all bookings functionality
+function updateBookingData(index, field, value) {
+    if (extractedBookings[index]) {
+        extractedBookings[index][field] = value;
+        console.log(`📝 Updated booking ${index + 1} ${field}: ${value}`);
+    }
+}
+
+function removeBookingRow(index) {
+    if (confirm('Bạn có chắc muốn xóa khách này?')) {
+        extractedBookings.splice(index, 1);
+        console.log(`🗑️ Removed booking at index ${index}`);
+        
+        // Refresh the table
+        showReviewTable(extractedBookings, null);
+        
+        // Update counter
+        document.getElementById('extracted-count').textContent = extractedBookings.length;
+        
+        if (extractedBookings.length === 0) {
+            resetPhotoUpload();
+        }
+    }
+}
+
+function addManualRow() {
+    const newBooking = {
+        guest_name: '',
+        booking_id: '',
+        checkin_date: '',
+        checkout_date: '',
+        room_amount: '',
+        commission: '',
+        email: '',
+        phone: ''
+    };
+    
+    extractedBookings.push(newBooking);
+    console.log('➕ Added manual booking row');
+    
+    // Refresh the table
+    showReviewTable(extractedBookings, null);
+}
+
+function validateBookings() {
+    const errors = [];
+    
+    extractedBookings.forEach((booking, index) => {
+        const rowNum = index + 1;
+        
+        if (!booking.guest_name || booking.guest_name.trim() === '') {
+            errors.push(`Dòng ${rowNum}: Thiếu tên khách hàng`);
+        }
+        
+        if (!booking.checkin_date) {
+            errors.push(`Dòng ${rowNum}: Thiếu ngày check-in`);
+        }
+        
+        if (!booking.checkout_date) {
+            errors.push(`Dòng ${rowNum}: Thiếu ngày check-out`);
+        }
+        
+        if (!booking.room_amount || booking.room_amount <= 0) {
+            errors.push(`Dòng ${rowNum}: Thiếu hoặc sai tổng tiền`);
+        }
+        
+        // Validate dates
+        if (booking.checkin_date && booking.checkout_date) {
+            if (new Date(booking.checkin_date) >= new Date(booking.checkout_date)) {
+                errors.push(`Dòng ${rowNum}: Ngày check-out phải sau ngày check-in`);
+            }
+        }
+    });
+    
+    return errors;
+}
+
+// Save all bookings functionality with validation
 document.addEventListener('DOMContentLoaded', function() {
-    const saveButton = document.getElementById('save-all-bookings');
-    if (saveButton) {
-        saveButton.onclick = function() {
+    // Add manual row button
+    const addRowButton = document.getElementById('add-manual-row');
+    if (addRowButton) {
+        addRowButton.onclick = addManualRow;
+    }
+    
+    // Confirm save button
+    const confirmSaveButton = document.getElementById('confirm-save-all');
+    if (confirmSaveButton) {
+        confirmSaveButton.onclick = function() {
             if (extractedBookings.length === 0) {
                 alert('Không có booking nào để lưu');
                 return;
             }
             
-            console.log('💾 Saving all bookings:', extractedBookings);
+            // Validate all bookings
+            const errors = validateBookings();
+            if (errors.length > 0) {
+                alert('❌ Vui lòng sửa lỗi sau:\\n\\n' + errors.join('\\n'));
+                return;
+            }
+            
+            // Show confirmation
+            const confirmMessage = `Xác nhận lưu ${extractedBookings.length} booking:\\n\\n` +
+                extractedBookings.map((b, i) => `${i + 1}. ${b.guest_name} - ${(b.room_amount || 0).toLocaleString()}đ`).join('\\n') +
+                '\\n\\nBạn có chắc chắn muốn lưu?';
+                
+            if (!confirm(confirmMessage)) {
+                return;
+            }
+            
+            console.log('💾 Saving all bookings after validation:', extractedBookings);
             
             // Disable button and show loading
-            saveButton.disabled = true;
-            saveButton.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Đang lưu...';
+            confirmSaveButton.disabled = true;
+            confirmSaveButton.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Đang lưu...';
             
             // Create form and submit
             const form = document.createElement('form');
