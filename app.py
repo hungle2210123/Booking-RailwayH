@@ -42,20 +42,35 @@ app.config['ENV'] = 'production'
 app.config['DEBUG'] = False
 app.secret_key = os.getenv("FLASK_SECRET_KEY", "a_default_secret_key_for_development")
 
-# PostgreSQL-only database configuration
+# PostgreSQL-only database configuration for Railway
 database_url = os.getenv('DATABASE_URL')
-print(f"🔍 DATABASE_URL value: {database_url}")
+print(f"🔍 DATABASE_URL detected: {database_url[:50] if database_url else 'None'}...")
 
+# Railway PostgreSQL connection validation
 if not database_url or database_url == 'None' or len(database_url.strip()) == 0:
-    print("🚨 RAILWAY SETUP REQUIRED:")
-    print("   1. Go to Railway dashboard")
-    print("   2. Click '+ New' → 'Database' → 'PostgreSQL'") 
-    print("   3. Click on your Web Service → Variables tab")
-    print("   4. Add: DATABASE_URL = ${{Postgres.DATABASE_URL}}")
-    print("   5. Save and wait for redeploy")
+    print("🚨 RAILWAY POSTGRESQL NOT CONFIGURED!")
+    print("   📍 Current environment variables:")
+    for key in sorted(os.environ.keys()):
+        if 'DATABASE' in key or 'POSTGRES' in key:
+            print(f"      {key}: {os.environ[key][:30]}...")
     print("")
-    print("🔧 Using fallback database URL for now...")
-    database_url = "sqlite:///fallback.db"  # Use SQLite as fallback to prevent crashes
+    print("   🛠️ Railway Setup Steps:")
+    print("   1. Go to Railway dashboard → Your project")
+    print("   2. Click 'New' → 'Database' → 'PostgreSQL'") 
+    print("   3. Go to Web Service → Variables tab")
+    print("   4. Add variable: DATABASE_URL = ${{Postgres.DATABASE_URL}}")
+    print("   5. Click 'Deploy' and wait for redeploy")
+    print("")
+    print("🔧 FALLBACK: Using SQLite to prevent crash...")
+    database_url = "sqlite:///fallback.db"
+elif database_url.startswith('postgresql://'):
+    print("✅ RAILWAY POSTGRESQL DETECTED!")
+    print(f"   🏗️ Database host: {database_url.split('@')[1].split('/')[0] if '@' in database_url else 'unknown'}")
+    print("   🚀 Application will use PostgreSQL database")
+else:
+    print(f"⚠️ UNEXPECTED DATABASE_URL FORMAT: {database_url[:50]}...")
+    print("   Expected: postgresql://user:pass@host:port/dbname")
+    print("   🔧 Proceeding with provided URL...")
 
 try:
     app.config['SQLALCHEMY_DATABASE_URI'] = database_url
@@ -482,12 +497,45 @@ def view_bookings():
 
 @app.route('/health')
 def health_check():
-    """Simple health check endpoint for Railway"""
-    return jsonify({
-        'status': 'healthy',
-        'message': 'Hotel Booking System is running',
-        'timestamp': datetime.now().isoformat()
-    })
+    """Enhanced health check endpoint for Railway with database validation"""
+    try:
+        # Check database connection
+        database_url = os.getenv('DATABASE_URL', 'not_set')
+        db_type = 'postgresql' if database_url.startswith('postgresql://') else 'sqlite_fallback'
+        
+        # Test database connection
+        db_status = 'unknown'
+        db_error = None
+        try:
+            from core.models import db
+            with db.engine.connect() as conn:
+                conn.execute(text('SELECT 1'))
+            db_status = 'connected'
+        except Exception as e:
+            db_status = 'error'
+            db_error = str(e)
+        
+        return jsonify({
+            'status': 'healthy',
+            'message': 'Hotel Booking System is running',
+            'timestamp': datetime.now().isoformat(),
+            'database': {
+                'type': db_type,
+                'status': db_status,
+                'error': db_error,
+                'url_configured': database_url != 'not_set'
+            },
+            'railway': {
+                'postgresql_ready': db_type == 'postgresql' and db_status == 'connected',
+                'needs_setup': db_type == 'sqlite_fallback'
+            }
+        })
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'message': f'Health check failed: {str(e)}',
+            'timestamp': datetime.now().isoformat()
+        }), 500
 
 @app.route('/api/database/health')
 def database_health():
