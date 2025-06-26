@@ -15,7 +15,7 @@ from sqlalchemy import text
 
 # --- PostgreSQL-Only Configuration ---
 # Import pure PostgreSQL business logic modules
-from core.logic_postgresql import (
+from core.logic import (
     load_booking_data, create_demo_data,
     get_daily_activity, get_overall_calendar_day_info,
     extract_booking_info_from_image_content,
@@ -25,11 +25,11 @@ from core.logic_postgresql import (
     add_expense_to_database, get_expenses_from_database
 )
 
-# Import dashboard processing module
+# Import dashboard processing module  
 from core.dashboard_routes import process_dashboard_data, safe_to_dict_records
 
 # Import pure PostgreSQL database service
-from core.database_service_postgresql import init_database_service, get_database_service, DatabaseConfig
+from core.database_service import init_database_service, get_database_service, DatabaseConfig
 
 # Configuration
 BASE_DIR = Path(__file__).resolve().parent
