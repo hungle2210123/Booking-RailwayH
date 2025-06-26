@@ -2,28 +2,7 @@
 {% block title %}Thêm Đặt phòng{% endblock %}
 
 {% block content %}
-<h1 class="mb-4"><i class="fas fa-plus-circle me-2"></i>Thêm Đặt phòng <small class="text-muted">Manual + Photo + Bulk Import</small></h1>
-
-<!-- Tab Navigation -->
-<ul class="nav nav-tabs mb-4" id="addBookingTabs" role="tablist">
-    <li class="nav-item" role="presentation">
-        <button class="nav-link active" id="single-tab" data-bs-toggle="tab" data-bs-target="#single-booking" type="button" role="tab">
-            <i class="fas fa-user-plus me-2"></i>1 Khách
-        </button>
-    </li>
-    <li class="nav-item" role="presentation">
-        <button class="nav-link" id="bulk-tab" data-bs-toggle="tab" data-bs-target="#bulk-import" type="button" role="tab">
-            <i class="fas fa-users me-2"></i>Nhiều Khách (Excel/CSV)
-        </button>
-    </li>
-    <li class="nav-item" role="presentation">
-        <button class="nav-link" id="ai-tab" data-bs-toggle="tab" data-bs-target="#ai-photo" type="button" role="tab">
-            <i class="fas fa-camera me-2"></i>AI Photo
-        </button>
-    </li>
-</ul>
-
-<div class="tab-content" id="addBookingTabsContent">
+<h1 class="mb-4"><i class="fas fa-plus-circle me-2"></i>Thêm Đặt phòng <small class="text-muted">Photo AI + Manual</small></h1>
 
 <!-- Duplicate Warning Modal -->
 {% if duplicate_warning %}
@@ -84,333 +63,172 @@
 </div>
 {% endif %}
 
-<!-- Tab 1: Single Guest Manual Entry -->
-<div class="tab-pane fade show active" id="single-booking" role="tabpanel">
-    
-<!-- Photo Upload Section -->
+<!-- Smart Photo Upload Section -->
 <div class="card mb-4 border-primary">
     <div class="card-header bg-primary text-white" style="text-shadow: 1px 1px 2px rgba(0,0,0,0.5);">
-        <h6 class="mb-0 text-white fw-bold"><i class="fas fa-camera me-2"></i><span class="text-white">📸 Thêm từ Ảnh (Tùy chọn)</span></h6>
+        <h6 class="mb-0 text-white fw-bold">
+            <i class="fas fa-camera me-2"></i>
+            <span class="text-white">📸 AI Smart Upload - Tự động nhận diện 1 khách hoặc nhiều khách</span>
+        </h6>
     </div>
     <div class="card-body">
-        <div id="photo-upload-area" class="border-2 border-dashed border-primary rounded p-4 text-center" style="cursor: pointer; background-color: #f8f9ff;">
+        <div id="photo-upload-area" class="border-2 border-dashed border-primary rounded p-4 text-center" 
+             style="cursor: pointer; background-color: #f8f9ff;">
             <i class="fas fa-cloud-upload-alt fa-2x text-primary mb-2"></i>
-            <p class="mb-2">Dán ảnh (Ctrl+V) hoặc click để chọn file</p>
-            <small class="text-muted">AI sẽ tự động điền thông tin từ ảnh</small>
+            <p class="mb-2"><strong>Dán ảnh (Ctrl+V) hoặc click để chọn file</strong></p>
+            <small class="text-muted">AI sẽ tự động phân tích và quyết định: điền form (1 khách) hoặc lưu nhiều khách</small>
             <input type="file" id="photo-input" accept="image/*" style="display: none;">
         </div>
+        
+        <!-- Processing Status -->
         <div id="photo-processing" class="mt-3" style="display: none;">
-            <div class="d-flex align-items-center">
-                <div class="spinner-border spinner-border-sm text-primary me-2"></div>
-                <small class="text-primary">AI đang xử lý ảnh...</small>
+            <div class="alert alert-info">
+                <div class="d-flex align-items-center">
+                    <div class="spinner-border spinner-border-sm text-primary me-2"></div>
+                    <small class="text-primary"><strong>AI đang phân tích ảnh...</strong></small>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Multiple Bookings Result -->
+        <div id="multiple-bookings-result" class="mt-3" style="display: none;">
+            <div class="alert alert-success">
+                <h5><i class="fas fa-users me-2"></i>Phát hiện nhiều khách hàng!</h5>
+                <p class="mb-0">AI đã tìm thấy <span id="booking-count">0</span> booking từ ảnh của bạn.</p>
+            </div>
+            <div id="bookings-table-container"></div>
+            <div class="mt-3">
+                <button id="save-all-bookings" class="btn btn-success btn-lg me-2">
+                    <i class="fas fa-save me-2"></i>Lưu tất cả booking
+                </button>
+                <button onclick="resetPhotoUpload()" class="btn btn-secondary btn-lg">
+                    <i class="fas fa-undo me-2"></i>Thử lại
+                </button>
             </div>
         </div>
     </div>
 </div>
 
-<form method="POST" action="{{ url_for('add_booking') }}">
-    <div class="row g-3">
-        <!-- Essential Information -->
-        <div class="col-md-6">
-            <label for="Tên người đặt" class="form-label"><i class="fas fa-user me-1"></i>Tên người đặt *</label>
-            <input type="text" class="form-control" id="Tên người đặt" name="Tên người đặt" 
-                   value="{{ form_data.get('Tên người đặt', '') if form_data else '' }}" 
-                   placeholder="Nhập tên khách hàng" required>
-        </div>
-        <div class="col-md-6">
-            <label for="Số đặt phòng" class="form-label"><i class="fas fa-hashtag me-1"></i>Số đặt phòng</label>
-            <input type="text" class="form-control" id="Số đặt phòng" name="Số đặt phòng" 
-                   value="{{ form_data.get('Số đặt phòng', '') if form_data else '' }}" 
-                   placeholder="Nhập mã booking hoặc để AI tự điền">
-        </div>
-        
-        <!-- Contact Information -->
-        <div class="col-md-4">
-            <label for="Email" class="form-label"><i class="fas fa-envelope me-1"></i>Email</label>
-            <input type="email" class="form-control" id="Email" name="Email" 
-                   value="{{ form_data.get('Email', '') if form_data else '' }}" 
-                   placeholder="email@example.com">
-        </div>
-        <div class="col-md-4">
-            <label for="Số điện thoại" class="form-label"><i class="fas fa-phone me-1"></i>Số điện thoại</label>
-            <input type="tel" class="form-control" id="Số điện thoại" name="Số điện thoại" 
-                   value="{{ form_data.get('Số điện thoại', '') if form_data else '' }}" 
-                   placeholder="+84...">
-        </div>
-        <div class="col-md-4">
-            <label for="Số khách" class="form-label"><i class="fas fa-users me-1"></i>Số khách</label>
-            <input type="number" class="form-control" id="Số khách" name="Số khách" 
-                   value="{{ form_data.get('Số khách', '1') if form_data else '1' }}" 
-                   placeholder="1" min="1" max="10">
-        </div>
-
-        <!-- Dates -->
-        <div class="col-md-6">
-            <label for="Ngày đến" class="form-label"><i class="fas fa-calendar-check me-1"></i>Ngày đến (Check-in) *</label>
-            <input type="date" class="form-control" id="Ngày đến" name="Ngày đến" 
-                   value="{{ form_data.get('Ngày đến', '') if form_data else '' }}" required>
-        </div>
-        <div class="col-md-6">
-            <label for="Ngày đi" class="form-label"><i class="fas fa-calendar-times me-1"></i>Ngày đi (Check-out) *</label>
-            <input type="date" class="form-control" id="Ngày đi" name="Ngày đi" 
-                   value="{{ form_data.get('Ngày đi', '') if form_data else '' }}" required>
-        </div>
-
-        <!-- Payment Information -->
-        <div class="col-md-6">
-            <label for="Tổng thanh toán" class="form-label"><i class="fas fa-coins me-1"></i>Tổng thanh toán (VND) *</label>
-            <input type="number" step="any" class="form-control" id="Tổng thanh toán" name="Tổng thanh toán" 
-                   value="{{ form_data.get('Tổng thanh toán', '') if form_data else '' }}"
-                   placeholder="0" min="0" required>
-        </div>
-        <div class="col-md-6">
-            <label for="Hoa hồng" class="form-label"><i class="fas fa-percentage me-1"></i>Hoa hồng (VND)</label>
-            <input type="number" step="any" class="form-control" id="Hoa hồng" name="Hoa hồng" 
-                   value="{{ form_data.get('Hoa hồng', '') if form_data else '0' }}"
-                   placeholder="0" min="0">
-        </div>
-        
-        <!-- Status and Payment -->
-        <div class="col-md-6">
-            <label for="Tình trạng" class="form-label"><i class="fas fa-flag me-1"></i>Tình trạng</label>
-            <select class="form-select" id="Tình trạng" name="Tình trạng">
-                <option value="OK" {% if not form_data or form_data.get('Tình trạng') == 'OK' %}selected{% endif %}>✅ OK</option>
-                <option value="Đã hủy" {% if form_data and form_data.get('Tình trạng') == 'Đã hủy' %}selected{% endif %}>❌ Đã hủy</option>
-            </select>
-        </div>
-        <div class="col-md-6">
-            <label for="Người thu tiền" class="form-label"><i class="fas fa-user-tie me-1"></i>Người thu tiền</label>
-            <select class="form-select" id="Người thu tiền" name="Người thu tiền">
-                <option value="" {% if not form_data or not form_data.get('Người thu tiền') %}selected{% endif %}>🚫 Chưa thu</option>
-                <option value="LOC LE" {% if form_data and form_data.get('Người thu tiền') == 'LOC LE' %}selected{% endif %}>👤 LOC LE</option>
-                <option value="THAO LE" {% if form_data and form_data.get('Người thu tiền') == 'THAO LE' %}selected{% endif %}>👤 THAO LE</option>
-            </select>
-        </div>
-
-        <!-- Hidden fields with default values -->
-        <input type="hidden" name="Tên chỗ nghỉ" value="118 Hang Bac Hostel">
-        <input type="hidden" name="Được đặt vào" value="">
-        <input type="hidden" name="Tiền tệ" value="VND">
-        <input type="hidden" name="Vị trí" value="Hà Nội">
-        <input type="hidden" name="Thành viên Genius" value="Không">
-
-    </div>
-
-    <button type="submit" class="btn btn-primary mt-4">
-        <i class="fas fa-plus me-2"></i>Thêm 1 Đặt phòng
-    </button>
-    <a href="{{ url_for('view_bookings') }}" class="btn btn-secondary mt-4">Hủy</a>
-</form>
-
-</div> <!-- End Tab 1: Single Guest -->
-
-<!-- Tab 2: Bulk Import -->
-<div class="tab-pane fade" id="bulk-import" role="tabpanel">
-    <div class="card border-success">
-        <div class="card-header bg-success text-white">
-            <h5 class="mb-0"><i class="fas fa-users me-2"></i>Nhập Nhiều Khách từ Excel/CSV</h5>
+<!-- Manual Form (Auto-filled by AI or manual entry) -->
+<div id="manual-form-container">
+    <div class="card border-secondary">
+        <div class="card-header bg-secondary text-white">
+            <h6 class="mb-0"><i class="fas fa-edit me-2"></i>Form thủ công (tự động điền từ AI)</h6>
         </div>
         <div class="card-body">
-            <div class="alert alert-info">
-                <h6><i class="fas fa-info-circle me-2"></i>Hướng dẫn:</h6>
-                <ol class="mb-0">
-                    <li>Chuẩn bị file Excel/CSV với các cột: Tên khách, Ngày đến, Ngày đi, Tổng thanh toán, Hoa hồng</li>
-                    <li>Click nút "Nhập Excel" để tải lên file</li>
-                    <li>Hệ thống sẽ tự động xử lý và thêm tất cả booking vào database</li>
-                </ol>
-            </div>
-            
-            <div class="text-center p-4">
-                <div class="mb-3">
-                    <i class="fas fa-file-excel fa-4x text-success mb-3"></i>
-                    <h4>Nhập dữ liệu hàng loạt</h4>
-                    <p class="text-muted">Sử dụng file csvtest.xlsx có sẵn hoặc tải lên file của bạn</p>
-                </div>
-                
-                <button type="button" class="btn btn-success btn-lg me-3" onclick="importCSVData()">
-                    <i class="fas fa-upload me-2"></i>Nhập từ csvtest.xlsx
-                </button>
-                
-                <button type="button" class="btn btn-outline-success btn-lg" onclick="uploadCustomFile()">
-                    <i class="fas fa-cloud-upload-alt me-2"></i>Tải file khác
-                </button>
-                
-                <input type="file" id="custom-excel-file" accept=".xlsx,.xls,.csv" style="display: none;">
-            </div>
-            
-            <!-- Import Status -->
-            <div id="import-status" class="mt-4" style="display: none;">
-                <div class="card">
-                    <div class="card-body">
-                        <h6><i class="fas fa-chart-line me-2"></i>Kết quả Import:</h6>
-                        <div id="import-results"></div>
+            <form method="POST" action="{{ url_for('add_booking') }}">
+                <div class="row g-3">
+                    <!-- Essential Information -->
+                    <div class="col-md-6">
+                        <label for="Tên người đặt" class="form-label"><i class="fas fa-user me-1"></i>Tên người đặt *</label>
+                        <input type="text" class="form-control" id="Tên người đặt" name="Tên người đặt" 
+                               value="{{ form_data.get('Tên người đặt', '') if form_data else '' }}" 
+                               placeholder="Nhập tên khách hàng hoặc để AI tự điền" required>
                     </div>
+                    <div class="col-md-6">
+                        <label for="Số đặt phòng" class="form-label"><i class="fas fa-hashtag me-1"></i>Số đặt phòng</label>
+                        <input type="text" class="form-control" id="Số đặt phòng" name="Số đặt phòng" 
+                               value="{{ form_data.get('Số đặt phòng', '') if form_data else '' }}" 
+                               placeholder="Nhập mã booking hoặc để AI tự điền">
+                    </div>
+                    
+                    <!-- Contact Information -->
+                    <div class="col-md-4">
+                        <label for="Email" class="form-label"><i class="fas fa-envelope me-1"></i>Email</label>
+                        <input type="email" class="form-control" id="Email" name="Email" 
+                               value="{{ form_data.get('Email', '') if form_data else '' }}" 
+                               placeholder="email@example.com">
+                    </div>
+                    <div class="col-md-4">
+                        <label for="Số điện thoại" class="form-label"><i class="fas fa-phone me-1"></i>Số điện thoại</label>
+                        <input type="tel" class="form-control" id="Số điện thoại" name="Số điện thoại" 
+                               value="{{ form_data.get('Số điện thoại', '') if form_data else '' }}" 
+                               placeholder="+84...">
+                    </div>
+                    <div class="col-md-4">
+                        <label for="Số khách" class="form-label"><i class="fas fa-users me-1"></i>Số khách</label>
+                        <input type="number" class="form-control" id="Số khách" name="Số khách" 
+                               value="{{ form_data.get('Số khách', '1') if form_data else '1' }}" 
+                               placeholder="1" min="1" max="10">
+                    </div>
+
+                    <!-- Dates -->
+                    <div class="col-md-6">
+                        <label for="Ngày đến" class="form-label"><i class="fas fa-calendar-check me-1"></i>Ngày đến (Check-in) *</label>
+                        <input type="date" class="form-control" id="Ngày đến" name="Ngày đến" 
+                               value="{{ form_data.get('Ngày đến', '') if form_data else '' }}" required>
+                    </div>
+                    <div class="col-md-6">
+                        <label for="Ngày đi" class="form-label"><i class="fas fa-calendar-times me-1"></i>Ngày đi (Check-out) *</label>
+                        <input type="date" class="form-control" id="Ngày đi" name="Ngày đi" 
+                               value="{{ form_data.get('Ngày đi', '') if form_data else '' }}" required>
+                    </div>
+
+                    <!-- Payment Information -->
+                    <div class="col-md-6">
+                        <label for="Tổng thanh toán" class="form-label"><i class="fas fa-coins me-1"></i>Tổng thanh toán (VND) *</label>
+                        <input type="number" step="any" class="form-control" id="Tổng thanh toán" name="Tổng thanh toán" 
+                               value="{{ form_data.get('Tổng thanh toán', '') if form_data else '' }}"
+                               placeholder="0" min="0" required>
+                    </div>
+                    <div class="col-md-6">
+                        <label for="Hoa hồng" class="form-label"><i class="fas fa-percentage me-1"></i>Hoa hồng (VND)</label>
+                        <input type="number" step="any" class="form-control" id="Hoa hồng" name="Hoa hồng" 
+                               value="{{ form_data.get('Hoa hồng', '') if form_data else '0' }}"
+                               placeholder="0" min="0">
+                    </div>
+                    
+                    <!-- Status and Payment -->
+                    <div class="col-md-6">
+                        <label for="Tình trạng" class="form-label"><i class="fas fa-flag me-1"></i>Tình trạng</label>
+                        <select class="form-select" id="Tình trạng" name="Tình trạng">
+                            <option value="OK" {% if not form_data or form_data.get('Tình trạng') == 'OK' %}selected{% endif %}>✅ OK</option>
+                            <option value="Đã hủy" {% if form_data and form_data.get('Tình trạng') == 'Đã hủy' %}selected{% endif %}>❌ Đã hủy</option>
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label for="Người thu tiền" class="form-label"><i class="fas fa-user-tie me-1"></i>Người thu tiền</label>
+                        <select class="form-select" id="Người thu tiền" name="Người thu tiền">
+                            <option value="" {% if not form_data or not form_data.get('Người thu tiền') %}selected{% endif %}>🚫 Chưa thu</option>
+                            <option value="LOC LE" {% if form_data and form_data.get('Người thu tiền') == 'LOC LE' %}selected{% endif %}>👤 LOC LE</option>
+                            <option value="THAO LE" {% if form_data and form_data.get('Người thu tiền') == 'THAO LE' %}selected{% endif %}>👤 THAO LE</option>
+                        </select>
+                    </div>
+
+                    <!-- Hidden fields with default values -->
+                    <input type="hidden" name="Tên chỗ nghỉ" value="118 Hang Bac Hostel">
+                    <input type="hidden" name="Được đặt vào" value="">
+                    <input type="hidden" name="Tiền tệ" value="VND">
+                    <input type="hidden" name="Vị trí" value="Hà Nội">
+                    <input type="hidden" name="Thành viên Genius" value="Không">
                 </div>
-            </div>
+
+                <div class="mt-4">
+                    <button type="submit" class="btn btn-primary btn-lg me-2">
+                        <i class="fas fa-plus me-2"></i>Thêm 1 Đặt phòng
+                    </button>
+                    <a href="{{ url_for('view_bookings') }}" class="btn btn-secondary btn-lg">
+                        <i class="fas fa-arrow-left me-2"></i>Quay lại
+                    </a>
+                </div>
+            </form>
         </div>
     </div>
-</div> <!-- End Tab 2: Bulk Import -->
-
-<!-- Tab 3: AI Photo Processing -->
-<div class="tab-pane fade" id="ai-photo" role="tabpanel">
-    <div class="card border-info">
-        <div class="card-header bg-info text-white">
-            <h5 class="mb-0"><i class="fas fa-camera me-2"></i>Trích xuất từ Ảnh bằng AI</h5>
-        </div>
-        <div class="card-body">
-            <div class="alert alert-primary">
-                <h6><i class="fas fa-magic me-2"></i>AI sẽ tự động trích xuất:</h6>
-                <ul class="mb-0">
-                    <li>Tên khách hàng</li>
-                    <li>Mã booking</li>
-                    <li>Ngày check-in/check-out</li>
-                    <li>Số tiền và hoa hồng</li>
-                </ul>
-            </div>
-            
-            <div id="ai-photo-upload-area" class="border-2 border-dashed border-info rounded p-5 text-center" 
-                 style="cursor: pointer; background-color: #f0f8ff;">
-                <i class="fas fa-cloud-upload-alt fa-4x text-info mb-3"></i>
-                <h5>Dán ảnh (Ctrl+V) hoặc click để chọn</h5>
-                <p class="text-muted mb-0">AI sẽ tự động phân tích và tạo booking</p>
-                <input type="file" id="ai-photo-input" accept="image/*" style="display: none;">
-            </div>
-            
-            <div id="ai-processing" class="mt-4" style="display: none;">
-                <div class="alert alert-info">
-                    <div class="d-flex align-items-center">
-                        <div class="spinner-border spinner-border-sm text-info me-3"></div>
-                        <div>
-                            <strong>AI đang xử lý ảnh...</strong>
-                            <div class="small text-muted">Đang trích xuất thông tin booking</div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            
-            <div id="ai-results" class="mt-4" style="display: none;">
-                <div class="card">
-                    <div class="card-header">
-                        <h6 class="mb-0"><i class="fas fa-check me-2"></i>Thông tin đã trích xuất</h6>
-                    </div>
-                    <div class="card-body" id="extracted-data">
-                        <!-- AI results will be displayed here -->
-                    </div>
-                    <div class="card-footer">
-                        <button type="button" class="btn btn-primary" onclick="saveExtractedBooking()">
-                            <i class="fas fa-save me-2"></i>Lưu Booking này
-                        </button>
-                        <button type="button" class="btn btn-secondary" onclick="resetAIForm()">
-                            <i class="fas fa-redo me-2"></i>Thử lại
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</div> <!-- End Tab 3: AI Photo -->
-
-</div> <!-- End Tab Content -->
+</div>
 
 <script>
-// Photo processing functions
-function processPhoto(imageData) {
-    document.getElementById('photo-processing').style.display = 'block';
-    
-    fetch('/api/process_pasted_image', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ image_b64: imageData })
-    })
-    .then(response => response.json())
-    .then(data => {
-        document.getElementById('photo-processing').style.display = 'none';
-        
-        console.log('Photo processing response:', data);
-        
-        // Check for AI processing error
-        if (data.error) {
-            alert('❌ Lỗi xử lý ảnh: ' + data.error);
-            return;
-        }
-        
-        // Extract bookings array from various possible response formats
-        let bookings = [];
-        if (Array.isArray(data)) {
-            bookings = data;
-        } else if (data.bookings && Array.isArray(data.bookings)) {
-            bookings = data.bookings;
-        } else if (data.data && Array.isArray(data.data)) {
-            bookings = data.data;
-        }
-        
-        console.log('Extracted bookings:', bookings);
-        
-        // Check if multiple bookings were extracted
-        if (bookings.length > 1) {
-            // Multiple bookings detected - show save button
-            showMultipleBookingsInterface(bookings);
-            return;
-        }
-        
-        // Single booking - auto-fill form as before
-        if (bookings.length === 1 && !bookings[0].error) {
-            const booking = bookings[0];
-            console.log('🎯 Auto-filling form with booking data:', booking);
-            
-            // Auto-fill form with proper field mapping using getElementById
-            try {
-                // Fill all available fields that exist in the form
-                const fieldMappings = {
-                    'Tên người đặt': booking.guest_name || '',
-                    'Số đặt phòng': booking.booking_id || '',
-                    'Email': booking.email || '',
-                    'Số điện thoại': booking.phone || '',
-                    'Số khách': booking.guest_count || '1',
-                    'Ngày đến': booking.checkin_date || booking.check_in_date || '',
-                    'Ngày đi': booking.checkout_date || booking.check_out_date || '',
-                    'Tổng thanh toán': booking.room_amount || booking.total_payment || '',
-                    'Hoa hồng': booking.commission || ''
-                };
-                
-                // Fill each field safely
-                Object.entries(fieldMappings).forEach(([fieldId, value]) => {
-                    const element = document.getElementById(fieldId);
-                    if (element && value) {
-                        element.value = value;
-                        console.log(`✅ Filled ${fieldId}: ${value}`);
-                    } else if (!element) {
-                        console.warn(`⚠️ Field not found: ${fieldId}`);
-                    }
-                });
-                
-                console.log('✅ Form auto-filled successfully');
-                alert('✅ Đã điền thông tin từ ảnh thành công!\n\n' + 
-                      `Khách: ${booking.guest_name}\n` +
-                      `Booking ID: ${booking.booking_id}\n` +
-                      `Check-in: ${booking.checkin_date}\n` +
-                      `Tổng tiền: ${booking.room_amount?.toLocaleString('vi-VN')}đ`);
-                
-            } catch (error) {
-                console.error('❌ Error filling form fields:', error);
-                alert('⚠️ Đã trích xuất được thông tin nhưng có lỗi khi điền form. Vui lòng kiểm tra và điền thủ công.');
-            }
-        } else {
-            alert('⚠️ Không thể trích xuất thông tin booking từ ảnh này. Vui lòng thử ảnh khác hoặc nhập thủ công.');
-        }
-    })
-    .catch(error => {
-        document.getElementById('photo-processing').style.display = 'none';
-        console.error('Photo processing error:', error);
-    });
-}
+// Store extracted bookings for multiple booking scenario
+let extractedBookings = [];
 
-// Setup photo upload events
+// Photo upload functionality
 document.addEventListener('DOMContentLoaded', function() {
     const uploadArea = document.getElementById('photo-upload-area');
     const photoInput = document.getElementById('photo-input');
     
+    // Click to upload
     uploadArea.onclick = () => photoInput.click();
+    
+    // File selection
     photoInput.onchange = function(e) {
         if (e.target.files[0]) {
             const reader = new FileReader();
@@ -434,25 +252,139 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 });
 
-function showMultipleBookingsInterface(bookings) {
-    // Hide the regular form
-    document.querySelector('form').style.display = 'none';
+function processPhoto(imageData) {
+    console.log('🔍 Processing photo...');
     
-    // Create multiple bookings interface
-    const container = document.createElement('div');
-    container.id = 'multiple-bookings-container';
-    container.innerHTML = `
-        <div class="alert alert-success">
-            <h4><i class="fas fa-check-circle"></i> Tìm thấy ${bookings.length} booking!</h4>
-            <p>Hệ thống đã trích xuất thành công các booking từ ảnh của bạn.</p>
-        </div>
+    // Show processing indicator
+    document.getElementById('photo-processing').style.display = 'block';
+    document.getElementById('multiple-bookings-result').style.display = 'none';
+    
+    // Call AI processing endpoint
+    fetch('/api/process_pasted_image', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ image_b64: imageData })
+    })
+    .then(response => response.json())
+    .then(data => {
+        document.getElementById('photo-processing').style.display = 'none';
         
+        console.log('📋 AI Response:', data);
+        
+        if (data.error) {
+            alert('❌ Lỗi xử lý ảnh: ' + data.error);
+            return;
+        }
+        
+        // Handle new smart response format
+        if (data.type === 'single') {
+            // Single booking detected - auto-fill form
+            console.log('📝 Single booking mode activated');
+            autoFillForm(data.booking);
+            
+            // Show duplicate warning if needed
+            if (data.duplicate_check && data.duplicate_check.has_duplicates) {
+                alert('⚠️ CẢNH BÁO: Khách này có thể đã tồn tại trong hệ thống!\\n' +
+                      'Vui lòng kiểm tra kỹ trước khi lưu.');
+            }
+            
+        } else if (data.type === 'multiple') {
+            // Multiple bookings detected - show batch save interface
+            console.log('👥 Multiple bookings mode activated');
+            showMultipleBookingsInterface(data.bookings);
+            
+            // Show duplicate warning if needed
+            if (data.duplicate_check && data.duplicate_check.has_duplicates) {
+                alert('⚠️ CẢNH BÁO: Một số khách có thể đã tồn tại trong hệ thống!\\n' +
+                      'Hệ thống sẽ hiển thị chi tiết khi lưu.');
+            }
+            
+        } else {
+            // Fallback for legacy response format
+            console.log('🔄 Using legacy response format');
+            let bookings = [];
+            if (Array.isArray(data)) {
+                bookings = data;
+            } else if (data.bookings && Array.isArray(data.bookings)) {
+                bookings = data.bookings;
+            } else if (data.guest_name) {
+                bookings = [data];
+            }
+            
+            const validBookings = bookings.filter(booking => !booking.error);
+            
+            if (validBookings.length === 0) {
+                alert('⚠️ Không thể trích xuất thông tin booking từ ảnh này. Vui lòng thử ảnh khác hoặc nhập thủ công.');
+                return;
+            }
+            
+            if (validBookings.length === 1) {
+                autoFillForm(validBookings[0]);
+            } else {
+                showMultipleBookingsInterface(validBookings);
+            }
+        }
+    })
+    .catch(error => {
+        document.getElementById('photo-processing').style.display = 'none';
+        console.error('❌ Photo processing error:', error);
+        alert('❌ Lỗi kết nối khi xử lý ảnh: ' + error.message);
+    });
+}
+
+function autoFillForm(booking) {
+    console.log('📝 Auto-filling form with single booking:', booking);
+    
+    try {
+        // Fill form fields
+        const fieldMappings = {
+            'Tên người đặt': booking.guest_name || '',
+            'Số đặt phòng': booking.booking_id || '',
+            'Email': booking.email || '',
+            'Số điện thoại': booking.phone || '',
+            'Số khách': booking.guest_count || '1',
+            'Ngày đến': booking.checkin_date || booking.check_in_date || '',
+            'Ngày đi': booking.checkout_date || booking.check_out_date || '',
+            'Tổng thanh toán': booking.room_amount || booking.total_payment || '',
+            'Hoa hồng': booking.commission || ''
+        };
+        
+        Object.entries(fieldMappings).forEach(([fieldId, value]) => {
+            const element = document.getElementById(fieldId);
+            if (element && value) {
+                element.value = value;
+                console.log(`✅ Filled ${fieldId}: ${value}`);
+            }
+        });
+        
+        alert('✅ Đã điền thông tin từ ảnh thành công!\\n\\n' + 
+              `Khách: ${booking.guest_name}\\n` +
+              `Booking ID: ${booking.booking_id}\\n` +
+              `Check-in: ${booking.checkin_date || booking.check_in_date}\\n` +
+              `Tổng tiền: ${(booking.room_amount || booking.total_payment || 0).toLocaleString('vi-VN')}đ`);
+              
+    } catch (error) {
+        console.error('❌ Error filling form:', error);
+        alert('⚠️ Đã trích xuất được thông tin nhưng có lỗi khi điền form. Vui lòng kiểm tra và điền thủ công.');
+    }
+}
+
+function showMultipleBookingsInterface(bookings) {
+    console.log('👥 Showing multiple bookings interface:', bookings);
+    
+    extractedBookings = bookings;
+    
+    // Update counter
+    document.getElementById('booking-count').textContent = bookings.length;
+    
+    // Create bookings table
+    const tableHtml = `
         <div class="table-responsive">
-            <table class="table table-bordered">
+            <table class="table table-bordered table-hover">
                 <thead class="table-primary">
                     <tr>
                         <th>Tên khách</th>
-                        <th>Mã booking</th>
+                        <th>Booking ID</th>
                         <th>Check-in</th>
                         <th>Check-out</th>
                         <th>Tổng tiền</th>
@@ -462,52 +394,79 @@ function showMultipleBookingsInterface(bookings) {
                 <tbody>
                     ${bookings.map(booking => `
                         <tr>
-                            <td>${booking.guest_name || 'N/A'}</td>
-                            <td>${booking.booking_id || 'Tự tạo'}</td>
+                            <td><strong>${booking.guest_name || 'N/A'}</strong></td>
+                            <td><code>${booking.booking_id || 'Tự tạo'}</code></td>
                             <td>${booking.check_in_date || 'N/A'}</td>
                             <td>${booking.check_out_date || 'N/A'}</td>
-                            <td>${booking.total_payment ? booking.total_payment.toLocaleString() + ' VND' : 'N/A'}</td>
-                            <td>${booking.commission ? booking.commission.toLocaleString() + ' VND' : '0 VND'}</td>
+                            <td><span class="text-success fw-bold">${(booking.total_payment || 0).toLocaleString()} VND</span></td>
+                            <td><span class="text-warning fw-bold">${(booking.commission || 0).toLocaleString()} VND</span></td>
                         </tr>
                     `).join('')}
                 </tbody>
             </table>
         </div>
-        
-        <div class="d-flex gap-3 mt-3">
-            <form method="POST" action="/bookings/save_extracted" style="display: inline;">
-                <input type="hidden" name="extracted_json" value='${JSON.stringify(bookings)}'>
-                <button type="submit" class="btn btn-success btn-lg">
-                    <i class="fas fa-save"></i> Lưu tất cả ${bookings.length} booking
-                </button>
-            </form>
-            <button onclick="resetToSingleBooking()" class="btn btn-secondary btn-lg">
-                <i class="fas fa-undo"></i> Quay lại form đơn
-            </button>
-        </div>
     `;
     
-    // Insert after the photo upload section
-    const photoSection = document.querySelector('.card.mb-4.border-primary');
-    photoSection.parentNode.insertBefore(container, photoSection.nextSibling);
+    document.getElementById('bookings-table-container').innerHTML = tableHtml;
+    document.getElementById('multiple-bookings-result').style.display = 'block';
+    
+    // Hide manual form temporarily
+    document.getElementById('manual-form-container').style.display = 'none';
 }
 
-function resetToSingleBooking() {
-    const container = document.getElementById('multiple-bookings-container');
-    if (container) container.remove();
-    document.querySelector('form').style.display = 'block';
-    clearForm();
+function resetPhotoUpload() {
+    document.getElementById('photo-processing').style.display = 'none';
+    document.getElementById('multiple-bookings-result').style.display = 'none';
+    document.getElementById('manual-form-container').style.display = 'block';
+    document.getElementById('photo-input').value = '';
+    extractedBookings = [];
 }
+
+// Save all bookings functionality
+document.addEventListener('DOMContentLoaded', function() {
+    const saveButton = document.getElementById('save-all-bookings');
+    if (saveButton) {
+        saveButton.onclick = function() {
+            if (extractedBookings.length === 0) {
+                alert('Không có booking nào để lưu');
+                return;
+            }
+            
+            console.log('💾 Saving all bookings:', extractedBookings);
+            
+            // Disable button and show loading
+            saveButton.disabled = true;
+            saveButton.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Đang lưu...';
+            
+            // Create form and submit
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = '/bookings/save_extracted';
+            
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = 'extracted_json';
+            input.value = JSON.stringify(extractedBookings);
+            
+            form.appendChild(input);
+            document.body.appendChild(form);
+            form.submit();
+        };
+    }
+});
 
 function clearForm() {
     // Clear all form fields
     document.querySelectorAll('input, select').forEach(function(element) {
-        if (element.type === 'text' || element.type === 'number' || element.type === 'date') {
+        if (element.type === 'text' || element.type === 'number' || element.type === 'date' || element.type === 'email' || element.type === 'tel') {
             element.value = '';
         } else if (element.tagName === 'SELECT') {
             element.selectedIndex = 0;
         }
     });
+    
+    // Reset photo upload
+    resetPhotoUpload();
     
     // Hide any duplicate warning
     const warning = document.querySelector('.alert-warning');
@@ -518,209 +477,6 @@ function clearForm() {
     // Focus on first input
     document.querySelector('input[name="Tên người đặt"]').focus();
 }
-
-// Bulk Import Functions
-function importCSVData() {
-    const btn = document.getElementById('csvImportBtn') || event.target;
-    const originalText = btn.innerHTML;
-    
-    btn.disabled = true;
-    btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Đang nhập...';
-    
-    showImportStatus('Bắt đầu nhập dữ liệu từ csvtest.xlsx...', 'info');
-    
-    fetch('/api/comprehensive_import', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        }
-    })
-    .then(response => response.json())
-    .then(data => {
-        btn.disabled = false;
-        btn.innerHTML = originalText;
-        
-        if (data.success) {
-            showImportStatus(`✅ Import thành công! 
-                Đã thêm ${data.total_imported || 0} booking mới vào database.
-                Chi tiết: ${data.details || 'Dữ liệu đã được xử lý'}`, 'success');
-            
-            // Show detailed results
-            if (data.import_summary) {
-                document.getElementById('import-results').innerHTML = `
-                    <div class="row">
-                        <div class="col-md-6">
-                            <h6>📊 Thống kê:</h6>
-                            <ul>
-                                <li>Tổng bookings: ${data.import_summary.total_bookings || 0}</li>
-                                <li>Khách hàng: ${data.import_summary.total_customers || 0}</li>
-                                <li>Tổng doanh thu: ${data.import_summary.total_revenue || 0}đ</li>
-                            </ul>
-                        </div>
-                        <div class="col-md-6">
-                            <h6>✅ Đã nhập:</h6>
-                            <ul>
-                                <li>Bookings: ${data.imported_bookings || 0}</li>
-                                <li>Templates: ${data.imported_templates || 0}</li>
-                                <li>Expenses: ${data.imported_expenses || 0}</li>
-                            </ul>
-                        </div>
-                    </div>
-                `;
-            }
-        } else {
-            showImportStatus(`❌ Import thất bại: ${data.message || 'Lỗi không xác định'}`, 'danger');
-        }
-    })
-    .catch(error => {
-        btn.disabled = false;
-        btn.innerHTML = originalText;
-        showImportStatus(`❌ Lỗi kết nối: ${error.message}`, 'danger');
-    });
-}
-
-function uploadCustomFile() {
-    document.getElementById('custom-excel-file').click();
-}
-
-function showImportStatus(message, type) {
-    const statusDiv = document.getElementById('import-status');
-    const resultsDiv = document.getElementById('import-results');
-    
-    statusDiv.style.display = 'block';
-    resultsDiv.innerHTML = `<div class="alert alert-${type}">${message}</div>`;
-}
-
-// AI Photo Functions for Tab 3
-function setupAIPhotoTab() {
-    const aiUploadArea = document.getElementById('ai-photo-upload-area');
-    const aiPhotoInput = document.getElementById('ai-photo-input');
-    
-    if (aiUploadArea && aiPhotoInput) {
-        aiUploadArea.onclick = () => aiPhotoInput.click();
-        aiPhotoInput.onchange = function(e) {
-            if (e.target.files[0]) {
-                const reader = new FileReader();
-                reader.onload = e => processAIPhoto(e.target.result);
-                reader.readAsDataURL(e.target.files[0]);
-            }
-        };
-    }
-}
-
-function processAIPhoto(imageData) {
-    document.getElementById('ai-processing').style.display = 'block';
-    document.getElementById('ai-results').style.display = 'none';
-    
-    fetch('/api/process_pasted_image', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-            image: imageData
-        })
-    })
-    .then(response => response.json())
-    .then(data => {
-        document.getElementById('ai-processing').style.display = 'none';
-        
-        if (data.success) {
-            const extractedData = data.extracted_data;
-            document.getElementById('extracted-data').innerHTML = `
-                <div class="row">
-                    <div class="col-md-6">
-                        <strong>Tên khách:</strong> ${extractedData.guest_name || 'N/A'}<br>
-                        <strong>Booking ID:</strong> ${extractedData.booking_id || 'N/A'}<br>
-                        <strong>Email:</strong> ${extractedData.email || 'N/A'}<br>
-                        <strong>Điện thoại:</strong> ${extractedData.phone || 'N/A'}
-                    </div>
-                    <div class="col-md-6">
-                        <strong>Check-in:</strong> ${extractedData.checkin_date || 'N/A'}<br>
-                        <strong>Check-out:</strong> ${extractedData.checkout_date || 'N/A'}<br>
-                        <strong>Số tiền:</strong> ${extractedData.room_amount || 0}đ<br>
-                        <strong>Hoa hồng:</strong> ${extractedData.commission || 0}đ
-                    </div>
-                </div>
-            `;
-            
-            // Store extracted data for saving
-            window.extractedBookingData = extractedData;
-            document.getElementById('ai-results').style.display = 'block';
-        } else {
-            alert(`❌ Lỗi xử lý ảnh: ${data.message}`);
-        }
-    })
-    .catch(error => {
-        document.getElementById('ai-processing').style.display = 'none';
-        alert(`❌ Lỗi kết nối: ${error.message}`);
-    });
-}
-
-function saveExtractedBooking() {
-    if (!window.extractedBookingData) {
-        alert('Không có dữ liệu để lưu');
-        return;
-    }
-    
-    const data = window.extractedBookingData;
-    
-    // Create form data
-    const formData = new FormData();
-    formData.append('Tên người đặt', data.guest_name || '');
-    formData.append('Booking ID', data.booking_id || '');
-    formData.append('Email', data.email || '');
-    formData.append('Số điện thoại', data.phone || '');
-    formData.append('Ngày đến', data.checkin_date || '');
-    formData.append('Ngày đi', data.checkout_date || '');
-    formData.append('Tổng thanh toán', data.room_amount || 0);
-    formData.append('Hoa hồng', data.commission || 0);
-    formData.append('Trạng thái thanh toán', 'Chưa thanh toán');
-    formData.append('Thành viên Genius', 'Không');
-    
-    fetch('/add_booking', {
-        method: 'POST',
-        body: formData
-    })
-    .then(response => {
-        if (response.redirected) {
-            window.location.href = response.url;
-        } else {
-            return response.text();
-        }
-    })
-    .then(html => {
-        if (html) {
-            // If there's HTML content, it means there was an error or duplicate warning
-            alert('✅ Booking đã được tạo thành công!');
-            window.location.href = '/bookings';
-        }
-    })
-    .catch(error => {
-        alert(`❌ Lỗi lưu booking: ${error.message}`);
-    });
-}
-
-function resetAIForm() {
-    document.getElementById('ai-results').style.display = 'none';
-    document.getElementById('ai-processing').style.display = 'none';
-    document.getElementById('ai-photo-input').value = '';
-    window.extractedBookingData = null;
-}
-
-// Setup when document loads
-document.addEventListener('DOMContentLoaded', function() {
-    setupAIPhotoTab();
-    
-    // Setup custom file upload
-    const customFileInput = document.getElementById('custom-excel-file');
-    if (customFileInput) {
-        customFileInput.onchange = function(e) {
-            if (e.target.files[0]) {
-                alert('Tính năng upload file tùy chỉnh sẽ được phát triển trong tương lai.\n\nHiện tại vui lòng sử dụng "Nhập từ csvtest.xlsx"');
-            }
-        };
-    }
-});
 </script>
-{% endblock %} 
+
+{% endblock %}

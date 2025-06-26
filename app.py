@@ -973,56 +973,83 @@ def ai_assistant():
 
 @app.route('/api/process_pasted_image', methods=['POST'])
 def process_pasted_image():
-    """Process image with Gemini AI (no Google Sheets)"""
+    """Enhanced photo processing with smart single/multiple booking detection"""
+    data = request.get_json()
+    if not data or 'image_b64' not in data:
+        return jsonify({"error": "Yêu cầu không chứa dữ liệu ảnh."}), 400
+    
     try:
+        print("🔍 [PHOTO_PROCESSING] Starting AI image analysis...")
+        
         if not GOOGLE_API_KEY:
             return jsonify({'error': 'Google AI API not configured'}), 400
         
-        # Get image data from request - handle both file upload and JSON base64
-        image_data = None
+        # Decode image
+        image_header, image_b64_data = data['image_b64'].split(',', 1)
+        image_bytes = base64.b64decode(image_b64_data)
         
-        # Method 1: File upload (multipart/form-data)
-        if request.files.get('image'):
-            image_data = request.files.get('image').read()
+        # Extract booking data using AI
+        extracted_data = extract_booking_info_from_image_content(image_bytes, GOOGLE_API_KEY)
+        print(f"🤖 [AI_RESPONSE] Raw data: {extracted_data}")
+        
+        # Handle different AI response formats
+        bookings = []
+        if isinstance(extracted_data, dict):
+            if extracted_data.get('error'):
+                return jsonify({"error": extracted_data['error']})
+            elif extracted_data.get('guest_name'):
+                # Single booking object
+                bookings = [extracted_data]
+            else:
+                return jsonify({"error": "AI không thể nhận diện thông tin booking từ ảnh này"})
+        elif isinstance(extracted_data, list):
+            bookings = extracted_data
+        else:
+            return jsonify({"error": "Định dạng dữ liệu AI không hợp lệ"})
+        
+        # Filter out bookings with errors
+        valid_bookings = [b for b in bookings if not b.get('error') and b.get('guest_name')]
+        print(f"✅ [VALIDATION] Found {len(valid_bookings)} valid booking(s)")
+        
+        if not valid_bookings:
+            return jsonify({"error": "Không tìm thấy thông tin booking hợp lệ trong ảnh"})
+        
+        # Smart response based on number of bookings
+        if len(valid_bookings) == 1:
+            # Single booking - return for form auto-fill
+            booking = valid_bookings[0]
+            print(f"📝 [SINGLE_BOOKING] Auto-fill mode for: {booking.get('guest_name')}")
             
-        # Method 2: JSON with base64 data (application/json)  
-        elif request.is_json and request.json.get('image_b64'):
-            import base64
-            try:
-                # Remove data URL prefix if present (data:image/png;base64,)
-                base64_data = request.json.get('image_b64')
-                if ',' in base64_data:
-                    base64_data = base64_data.split(',')[1]
-                
-                image_data = base64.b64decode(base64_data)
-                print(f"✅ Decoded base64 image, size: {len(image_data)} bytes")
-                
-            except Exception as decode_error:
-                print(f"❌ Base64 decode error: {decode_error}")
-                return jsonify({'error': f'Invalid base64 image data: {str(decode_error)}'}), 400
-        
-        if not image_data:
-            return jsonify({'error': 'No image provided (expected file upload or base64 JSON)'}), 400
-        
-        # Extract booking info using Gemini
-        booking_info = extract_booking_info_from_image_content(
-            image_data, 
-            GOOGLE_API_KEY
-        )
-        
-        # Check if extraction was successful
-        if 'error' in booking_info:
-            return jsonify(booking_info), 400
-        
-        # Wrap successful extraction in expected format for frontend
-        print(f"✅ Booking info extracted successfully: {booking_info}")
-        return jsonify({
-            'success': True,
-            'bookings': [booking_info]  # Frontend expects array format
-        })
-    
+            # Check for duplicates
+            duplicate_check = check_duplicate_guests([booking])
+            
+            return jsonify({
+                "type": "single",
+                "booking": booking,
+                "duplicate_check": duplicate_check,
+                "message": f"Đã nhận diện 1 booking: {booking.get('guest_name')}"
+            })
+        else:
+            # Multiple bookings - return for batch save
+            print(f"👥 [MULTIPLE_BOOKINGS] Batch save mode for {len(valid_bookings)} bookings")
+            
+            # Check for duplicates across all bookings
+            duplicate_check = check_duplicate_guests(valid_bookings)
+            
+            return jsonify({
+                "type": "multiple", 
+                "bookings": valid_bookings,
+                "count": len(valid_bookings),
+                "duplicate_check": duplicate_check,
+                "message": f"Đã nhận diện {len(valid_bookings)} booking từ ảnh"
+            })
+            
+    except ValueError as ve:
+        print(f"❌ [VALIDATION_ERROR] {ve}")
+        return jsonify({"error": f"Dữ liệu ảnh không hợp lệ: {str(ve)}"}), 400
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        print(f"❌ [SERVER_ERROR] {e}")
+        return jsonify({"error": f"Lỗi xử lý phía server: {str(e)}"}), 500
 
 @app.route('/api/quick_notes', methods=['GET', 'POST'])
 def quick_notes():
