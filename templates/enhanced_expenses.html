@@ -1,0 +1,1298 @@
+{% extends "base.html" %}
+{% block title %}Chi Phí Tháng - Quản Lý Chi Tiết{% endblock %}
+
+{% block extra_css %}
+<style>
+/* Enhanced Expense Management Styles */
+.expense-tab-content {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 15px;
+    padding: 0;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+}
+
+.nav-tabs-custom {
+    border: none;
+    background: transparent;
+}
+
+.nav-tabs-custom .nav-link {
+    border: none;
+    background: rgba(255,255,255,0.1);
+    color: white;
+    margin-right: 10px;
+    border-radius: 10px 10px 0 0;
+    font-weight: 500;
+    transition: all 0.3s ease;
+}
+
+.nav-tabs-custom .nav-link:hover {
+    background: rgba(255,255,255,0.2);
+    color: white;
+}
+
+.nav-tabs-custom .nav-link.active {
+    background: white;
+    color: #667eea;
+    font-weight: 600;
+}
+
+.expense-category-card {
+    background: white;
+    border-radius: 12px;
+    padding: 20px;
+    margin: 15px 0;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    transition: transform 0.3s ease;
+}
+
+.expense-category-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+}
+
+.category-header {
+    display: flex;
+    align-items: center;
+    margin-bottom: 15px;
+}
+
+.category-icon {
+    width: 50px;
+    height: 50px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 15px;
+    font-size: 1.5rem;
+    color: white;
+}
+
+.quick-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 15px;
+    margin-bottom: 25px;
+}
+
+.stat-card {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 20px;
+    border-radius: 12px;
+    text-align: center;
+}
+
+.quick-action-btn {
+    border-radius: 25px;
+    padding: 10px 25px;
+    font-weight: 500;
+    transition: all 0.3s ease;
+}
+
+.expense-form-container {
+    background: white;
+    border-radius: 12px;
+    padding: 25px;
+    margin: 15px 0;
+}
+
+.expense-item {
+    background: #f8f9fa;
+    border-left: 4px solid #667eea;
+    border-radius: 8px;
+    padding: 15px;
+    margin: 10px 0;
+    transition: all 0.3s ease;
+}
+
+.expense-item:hover {
+    background: #e9ecef;
+    border-left-color: #764ba2;
+}
+
+/* Category-specific colors */
+.category-room-supplies { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); }
+.category-food-beverage { background: linear-gradient(135deg, #fa709a 0%, #fee140 100%); }
+.category-maintenance { background: linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%); }
+.category-transportation { background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%); }
+.category-marketing { background: linear-gradient(135deg, #fbc2eb 0%, #a6c1ee 100%); }
+.category-utilities { background: linear-gradient(135deg, #fa709a 0%, #fee140 100%); }
+
+/* Responsive design */
+@media (max-width: 768px) {
+    .expense-category-card {
+        padding: 15px;
+        margin: 10px 0;
+    }
+    
+    .quick-stats {
+        grid-template-columns: 1fr;
+    }
+    
+    .nav-tabs-custom .nav-link {
+        font-size: 12px;
+        padding: 8px 12px;
+    }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-3">
+    <!-- Enhanced Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="mb-1">💰 Quản Lý Chi Phí Tháng</h2>
+            <p class="text-muted mb-0">Theo dõi chi tiết các khoản chi tiêu theo danh mục</p>
+        </div>
+        <div class="btn-group">
+            <button class="btn btn-primary quick-action-btn" data-bs-toggle="modal" data-bs-target="#quickExpenseModal">
+                <i class="fas fa-plus me-2"></i>Thêm Nhanh
+            </button>
+            <button class="btn btn-success quick-action-btn" onclick="importExcelData()">
+                <i class="fas fa-upload me-2"></i>Nhập Excel
+            </button>
+            <button class="btn btn-outline-primary quick-action-btn" onclick="exportExpenseData()">
+                <i class="fas fa-download me-2"></i>Xuất Excel
+            </button>
+        </div>
+    </div>
+
+    <!-- Quick Statistics Dashboard -->
+    <div class="quick-stats">
+        <div class="stat-card">
+            <h3 id="totalMonthlyExpense">Đang tải...</h3>
+            <p class="mb-0">Chi Phí Tháng Này</p>
+        </div>
+        <div class="stat-card">
+            <h3 id="totalTransactions">-</h3>
+            <p class="mb-0">Tổng Giao Dịch</p>
+        </div>
+        <div class="stat-card">
+            <h3 id="averagePerDay">-</h3>
+            <p class="mb-0">Trung Bình/Ngày</p>
+        </div>
+        <div class="stat-card">
+            <h3 id="topCategory">-</h3>
+            <p class="mb-0">Danh Mục Chi Nhiều Nhất</p>
+        </div>
+    </div>
+
+    <!-- Enhanced Tabbed Interface -->
+    <div class="expense-tab-content">
+        <ul class="nav nav-tabs nav-tabs-custom px-3 pt-3" id="expenseTab" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="overview-tab" data-bs-toggle="tab" data-bs-target="#overview" type="button" role="tab">
+                    <i class="fas fa-chart-pie me-2"></i>Tổng Quan
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="room-supplies-tab" data-bs-toggle="tab" data-bs-target="#room-supplies" type="button" role="tab">
+                    <i class="fas fa-bed me-2"></i>Đồ Dùng Phòng
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="food-beverage-tab" data-bs-toggle="tab" data-bs-target="#food-beverage" type="button" role="tab">
+                    <i class="fas fa-utensils me-2"></i>Ăn Uống
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="maintenance-tab" data-bs-toggle="tab" data-bs-target="#maintenance" type="button" role="tab">
+                    <i class="fas fa-tools me-2"></i>Bảo Trì
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="transportation-tab" data-bs-toggle="tab" data-bs-target="#transportation" type="button" role="tab">
+                    <i class="fas fa-car me-2"></i>Di Chuyển
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="marketing-tab" data-bs-toggle="tab" data-bs-target="#marketing" type="button" role="tab">
+                    <i class="fas fa-bullhorn me-2"></i>Marketing
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="reports-tab" data-bs-toggle="tab" data-bs-target="#reports" type="button" role="tab">
+                    <i class="fas fa-chart-line me-2"></i>Báo Cáo
+                </button>
+            </li>
+        </ul>
+
+        <div class="tab-content p-4" id="expenseTabContent">
+            <!-- Overview Tab -->
+            <div class="tab-pane fade show active" id="overview" role="tabpanel">
+                <div class="expense-form-container">
+                    <h4><i class="fas fa-chart-pie me-2 text-primary"></i>Tổng Quan Chi Phí Tháng</h4>
+                    
+                    <!-- Month Selector -->
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <label for="overviewMonth" class="form-label">Chọn tháng:</label>
+                            <input type="month" class="form-control" id="overviewMonth" onchange="loadOverviewData()">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Tùy chọn hiển thị:</label>
+                            <div class="btn-group w-100" role="group">
+                                <input type="radio" class="btn-check" name="viewType" id="viewGrid" checked>
+                                <label class="btn btn-outline-primary" for="viewGrid">
+                                    <i class="fas fa-th me-1"></i>Lưới
+                                </label>
+                                <input type="radio" class="btn-check" name="viewType" id="viewChart">
+                                <label class="btn btn-outline-primary" for="viewChart">
+                                    <i class="fas fa-chart-bar me-1"></i>Biểu Đồ
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Category Grid View -->
+                    <div id="categoryGridView">
+                        <div class="row" id="categoryOverviewGrid">
+                            <!-- Dynamic category cards will be loaded here -->
+                        </div>
+                    </div>
+
+                    <!-- Chart View -->
+                    <div id="categoryChartView" style="display: none;">
+                        <canvas id="expenseChart" width="400" height="200"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Room Supplies Tab -->
+            <div class="tab-pane fade" id="room-supplies" role="tabpanel">
+                <div class="expense-category-card">
+                    <div class="category-header">
+                        <div class="category-icon category-room-supplies">
+                            <i class="fas fa-bed"></i>
+                        </div>
+                        <div>
+                            <h4 class="mb-1">Đồ Dùng Phòng</h4>
+                            <p class="text-muted mb-0">Vệ sinh, khăn giường, đồ tiện nghi phòng</p>
+                        </div>
+                    </div>
+                    
+                    <!-- Quick Add Form -->
+                    <div class="expense-form-container">
+                        <form class="row g-3" onsubmit="addCategoryExpense(event, 'room_supplies')">
+                            <div class="col-md-6">
+                                <label class="form-label">Mô tả chi phí:</label>
+                                <input type="text" class="form-control" name="description" placeholder="VD: Mua khăn tắm, xịt phòng..." required>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">Số tiền (VND):</label>
+                                <input type="number" class="form-control" name="amount" placeholder="50000" required>
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label">Ngày:</label>
+                                <input type="date" class="form-control" name="date" required>
+                            </div>
+                            <div class="col-md-1">
+                                <label class="form-label">&nbsp;</label>
+                                <button type="submit" class="btn btn-primary w-100">
+                                    <i class="fas fa-plus"></i>
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <!-- Expense List -->
+                    <div id="roomSuppliesExpenses">
+                        <!-- Dynamic content will be loaded here -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Food & Beverage Tab -->
+            <div class="tab-pane fade" id="food-beverage" role="tabpanel">
+                <div class="expense-category-card">
+                    <div class="category-header">
+                        <div class="category-icon category-food-beverage">
+                            <i class="fas fa-utensils"></i>
+                        </div>
+                        <div>
+                            <h4 class="mb-1">Ăn Uống</h4>
+                            <p class="text-muted mb-0">Thức ăn nhân viên, đồ uống, tiếp khách</p>
+                        </div>
+                    </div>
+                    
+                    <!-- Quick Add Form -->
+                    <div class="expense-form-container">
+                        <form class="row g-3" onsubmit="addCategoryExpense(event, 'food_beverage')">
+                            <div class="col-md-6">
+                                <label class="form-label">Mô tả chi phí:</label>
+                                <input type="text" class="form-control" name="description" placeholder="VD: Ăn trưa nhân viên, coffee..." required>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">Số tiền (VND):</label>
+                                <input type="number" class="form-control" name="amount" placeholder="100000" required>
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label">Ngày:</label>
+                                <input type="date" class="form-control" name="date" required>
+                            </div>
+                            <div class="col-md-1">
+                                <label class="form-label">&nbsp;</label>
+                                <button type="submit" class="btn btn-primary w-100">
+                                    <i class="fas fa-plus"></i>
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <!-- Expense List -->
+                    <div id="foodBeverageExpenses">
+                        <!-- Dynamic content will be loaded here -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Maintenance Tab -->
+            <div class="tab-pane fade" id="maintenance" role="tabpanel">
+                <div class="expense-category-card">
+                    <div class="category-header">
+                        <div class="category-icon category-maintenance">
+                            <i class="fas fa-tools"></i>
+                        </div>
+                        <div>
+                            <h4 class="mb-1">Bảo Trì & Sửa Chữa</h4>
+                            <p class="text-muted mb-0">Điện, nước, máy lạnh, wifi, sửa chữa phòng</p>
+                        </div>
+                    </div>
+                    
+                    <!-- Quick Add Form -->
+                    <div class="expense-form-container">
+                        <form class="row g-3" onsubmit="addCategoryExpense(event, 'maintenance')">
+                            <div class="col-md-6">
+                                <label class="form-label">Mô tả chi phí:</label>
+                                <input type="text" class="form-control" name="description" placeholder="VD: Sửa điện lạnh, thay bóng đèn..." required>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">Số tiền (VND):</label>
+                                <input type="number" class="form-control" name="amount" placeholder="200000" required>
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label">Ngày:</label>
+                                <input type="date" class="form-control" name="date" required>
+                            </div>
+                            <div class="col-md-1">
+                                <label class="form-label">&nbsp;</label>
+                                <button type="submit" class="btn btn-primary w-100">
+                                    <i class="fas fa-plus"></i>
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <!-- Expense List -->
+                    <div id="maintenanceExpenses">
+                        <!-- Dynamic content will be loaded here -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Transportation Tab -->
+            <div class="tab-pane fade" id="transportation" role="tabpanel">
+                <div class="expense-category-card">
+                    <div class="category-header">
+                        <div class="category-icon category-transportation">
+                            <i class="fas fa-car"></i>
+                        </div>
+                        <div>
+                            <h4 class="mb-1">Di Chuyển & Vận Chuyển</h4>
+                            <p class="text-muted mb-0">Taxi khách, giao hàng, xăng xe, Grab</p>
+                        </div>
+                    </div>
+                    
+                    <!-- Quick Add Form -->
+                    <div class="expense-form-container">
+                        <form class="row g-3" onsubmit="addCategoryExpense(event, 'transportation')">
+                            <div class="col-md-6">
+                                <label class="form-label">Mô tả chi phí:</label>
+                                <input type="text" class="form-control" name="description" placeholder="VD: Taxi đón khách, giao đồ ăn..." required>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">Số tiền (VND):</label>
+                                <input type="number" class="form-control" name="amount" placeholder="150000" required>
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label">Ngày:</label>
+                                <input type="date" class="form-control" name="date" required>
+                            </div>
+                            <div class="col-md-1">
+                                <label class="form-label">&nbsp;</label>
+                                <button type="submit" class="btn btn-primary w-100">
+                                    <i class="fas fa-plus"></i>
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <!-- Expense List -->
+                    <div id="transportationExpenses">
+                        <!-- Dynamic content will be loaded here -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Marketing Tab -->
+            <div class="tab-pane fade" id="marketing" role="tabpanel">
+                <div class="expense-category-card">
+                    <div class="category-header">
+                        <div class="category-icon category-marketing">
+                            <i class="fas fa-bullhorn"></i>
+                        </div>
+                        <div>
+                            <h4 class="mb-1">Marketing & Hoa Hồng</h4>
+                            <p class="text-muted mb-0">Hoa hồng Booking.com, quảng cáo, website</p>
+                        </div>
+                    </div>
+                    
+                    <!-- Quick Add Form -->
+                    <div class="expense-form-container">
+                        <form class="row g-3" onsubmit="addCategoryExpense(event, 'marketing')">
+                            <div class="col-md-6">
+                                <label class="form-label">Mô tả chi phí:</label>
+                                <input type="text" class="form-control" name="description" placeholder="VD: Hoa hồng booking, quảng cáo FB..." required>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">Số tiền (VND):</label>
+                                <input type="number" class="form-control" name="amount" placeholder="75000" required>
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label">Ngày:</label>
+                                <input type="date" class="form-control" name="date" required>
+                            </div>
+                            <div class="col-md-1">
+                                <label class="form-label">&nbsp;</label>
+                                <button type="submit" class="btn btn-primary w-100">
+                                    <i class="fas fa-plus"></i>
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <!-- Expense List -->
+                    <div id="marketingExpenses">
+                        <!-- Dynamic content will be loaded here -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Reports Tab -->
+            <div class="tab-pane fade" id="reports" role="tabpanel">
+                <div class="expense-form-container">
+                    <h4><i class="fas fa-chart-line me-2 text-primary"></i>Báo Cáo & Phân Tích</h4>
+                    
+                    <!-- Report Options -->
+                    <div class="row mb-4">
+                        <div class="col-md-4">
+                            <label for="reportMonth" class="form-label">Tháng báo cáo:</label>
+                            <input type="month" class="form-control" id="reportMonth">
+                        </div>
+                        <div class="col-md-4">
+                            <label for="reportType" class="form-label">Loại báo cáo:</label>
+                            <select class="form-select" id="reportType">
+                                <option value="summary">Tổng hợp theo danh mục</option>
+                                <option value="daily">Chi tiết theo ngày</option>
+                                <option value="comparison">So sánh tháng</option>
+                                <option value="trend">Xu hướng chi phí</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">&nbsp;</label>
+                            <button class="btn btn-primary w-100" onclick="generateReport()">
+                                <i class="fas fa-chart-bar me-2"></i>Tạo Báo Cáo
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Report Output -->
+                    <div id="reportOutput">
+                        <div class="text-center text-muted py-5">
+                            <i class="fas fa-chart-line fa-3x mb-3"></i>
+                            <h5>Chọn tùy chọn và nhấn "Tạo Báo Cáo"</h5>
+                            <p>Xem phân tích chi tiết về chi phí theo thời gian và danh mục</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Quick Expense Modal -->
+<div class="modal fade" id="quickExpenseModal" tabindex="-1" aria-labelledby="quickExpenseModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                <h5 class="modal-title text-white" id="quickExpenseModalLabel">
+                    <i class="fas fa-plus me-2"></i>Thêm Chi Phí Nhanh
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="quickExpenseForm">
+                    <div class="mb-3">
+                        <label for="quickCategory" class="form-label">Danh mục:</label>
+                        <select class="form-select" id="quickCategory" required>
+                            <option value="">Chọn danh mục...</option>
+                            <option value="room_supplies">🛏️ Đồ dùng phòng</option>
+                            <option value="food_beverage">🍽️ Ăn uống</option>
+                            <option value="maintenance">🔧 Bảo trì</option>
+                            <option value="transportation">🚗 Di chuyển</option>
+                            <option value="marketing">📢 Marketing</option>
+                            <option value="utilities">⚡ Tiện ích</option>
+                            <option value="miscellaneous">📦 Khác</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="quickDescription" class="form-label">Mô tả:</label>
+                        <input type="text" class="form-control" id="quickDescription" placeholder="Mô tả chi phí..." required>
+                    </div>
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label for="quickAmount" class="form-label">Số tiền (VND):</label>
+                            <input type="number" class="form-control" id="quickAmount" placeholder="100000" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="quickDate" class="form-label">Ngày:</label>
+                            <input type="date" class="form-control" id="quickDate" required>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                <button type="button" class="btn btn-primary" onclick="addQuickExpense()">
+                    <i class="fas fa-save me-1"></i>Lưu Chi Phí
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Enhanced Expense Management JavaScript
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize date fields
+    const today = new Date().toISOString().split('T')[0];
+    const currentMonth = new Date().toISOString().slice(0, 7);
+    
+    // Set default dates
+    document.getElementById('overviewMonth').value = currentMonth;
+    document.getElementById('reportMonth').value = currentMonth;
+    document.getElementById('quickDate').value = today;
+    
+    // Set dates for category forms
+    document.querySelectorAll('input[name="date"]').forEach(input => {
+        input.value = today;
+    });
+    
+    // Load initial data
+    loadOverviewData();
+    updateQuickStats();
+    
+    // Set up view type toggle
+    document.querySelectorAll('input[name="viewType"]').forEach(radio => {
+        radio.addEventListener('change', toggleView);
+    });
+});
+
+async function loadOverviewData() {
+    const selectedMonth = document.getElementById('overviewMonth').value;
+    
+    try {
+        const response = await fetch('/api/expenses');
+        const result = await response.json();
+        
+        if (result.success && result.expenses) {
+            // Filter expenses for selected month
+            const monthExpenses = filterExpensesByMonth(result.expenses, selectedMonth);
+            
+            // Group by category
+            const categoryData = groupExpensesByCategory(monthExpenses);
+            
+            // Update category grid
+            updateCategoryGrid(categoryData);
+            
+            // Update chart if visible
+            if (document.getElementById('viewChart').checked) {
+                updateExpenseChart(categoryData);
+            }
+        }
+    } catch (error) {
+        console.error('Error loading overview data:', error);
+    }
+}
+
+function filterExpensesByMonth(expenses, targetMonth) {
+    if (!targetMonth) return expenses;
+    
+    return expenses.filter(expense => {
+        const expenseDate = new Date(expense.Ngày || expense.date);
+        const expenseMonth = expenseDate.toISOString().slice(0, 7);
+        return expenseMonth === targetMonth;
+    });
+}
+
+function groupExpensesByCategory(expenses) {
+    const categories = {
+        'room_supplies': { name: 'Đồ Dùng Phòng', icon: 'fas fa-bed', color: '#4facfe', total: 0, count: 0 },
+        'food_beverage': { name: 'Ăn Uống', icon: 'fas fa-utensils', color: '#fa709a', total: 0, count: 0 },
+        'maintenance': { name: 'Bảo Trì', icon: 'fas fa-tools', color: '#ff9a9e', total: 0, count: 0 },
+        'transportation': { name: 'Di Chuyển', icon: 'fas fa-car', color: '#a8edea', total: 0, count: 0 },
+        'marketing': { name: 'Marketing', icon: 'fas fa-bullhorn', color: '#fbc2eb', total: 0, count: 0 },
+        'utilities': { name: 'Tiện Ích', icon: 'fas fa-bolt', color: '#fee140', total: 0, count: 0 }
+    };
+    
+    expenses.forEach(expense => {
+        const category = expense.category || 'miscellaneous';
+        const amount = parseFloat(expense['Số tiền'] || expense.amount || 0);
+        
+        if (categories[category]) {
+            categories[category].total += amount;
+            categories[category].count += 1;
+        }
+    });
+    
+    return categories;
+}
+
+function updateCategoryGrid(categoryData) {
+    const grid = document.getElementById('categoryOverviewGrid');
+    let html = '';
+    
+    Object.entries(categoryData).forEach(([key, data]) => {
+        html += `
+            <div class="col-md-6 col-lg-4 mb-3">
+                <div class="card h-100" style="border-left: 4px solid ${data.color};">
+                    <div class="card-body">
+                        <div class="d-flex align-items-center mb-2">
+                            <i class="${data.icon} fa-2x me-3" style="color: ${data.color};"></i>
+                            <div>
+                                <h6 class="mb-0">${data.name}</h6>
+                                <small class="text-muted">${data.count} giao dịch</small>
+                            </div>
+                        </div>
+                        <h4 class="text-end text-danger mb-0">${data.total.toLocaleString('vi-VN')}đ</h4>
+                    </div>
+                </div>
+            </div>
+        `;
+    });
+    
+    grid.innerHTML = html;
+}
+
+function toggleView() {
+    const gridView = document.getElementById('categoryGridView');
+    const chartView = document.getElementById('categoryChartView');
+    const showChart = document.getElementById('viewChart').checked;
+    
+    if (showChart) {
+        gridView.style.display = 'none';
+        chartView.style.display = 'block';
+        loadOverviewData(); // Reload to update chart
+    } else {
+        gridView.style.display = 'block';
+        chartView.style.display = 'none';
+    }
+}
+
+async function addCategoryExpense(event, category) {
+    event.preventDefault();
+    
+    const form = event.target;
+    const formData = new FormData(form);
+    
+    const expenseData = {
+        description: formData.get('description'),
+        amount: parseFloat(formData.get('amount')),
+        date: formData.get('date'),
+        category: category,
+        collector: 'CURRENT_USER'
+    };
+    
+    try {
+        const response = await fetch('/api/expenses', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(expenseData)
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            showSuccessToast('✅ Đã thêm chi phí thành công!');
+            form.reset();
+            form.querySelector('input[name="date"]').value = new Date().toISOString().split('T')[0];
+            
+            // Reload data
+            loadOverviewData();
+            updateQuickStats();
+            loadCategoryExpenses(category);
+        } else {
+            throw new Error(result.message || 'Lỗi không xác định');
+        }
+    } catch (error) {
+        console.error('Error adding expense:', error);
+        showErrorToast('❌ Lỗi thêm chi phí: ' + error.message);
+    }
+}
+
+async function addQuickExpense() {
+    const category = document.getElementById('quickCategory').value;
+    const description = document.getElementById('quickDescription').value;
+    const amount = document.getElementById('quickAmount').value;
+    const date = document.getElementById('quickDate').value;
+    
+    if (!category || !description || !amount || !date) {
+        showErrorToast('⚠️ Vui lòng điền đầy đủ thông tin');
+        return;
+    }
+    
+    const expenseData = {
+        description,
+        amount: parseFloat(amount),
+        date,
+        category,
+        collector: 'CURRENT_USER'
+    };
+    
+    try {
+        const response = await fetch('/api/expenses', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(expenseData)
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            showSuccessToast('✅ Đã thêm chi phí thành công!');
+            
+            // Close modal
+            const modal = bootstrap.Modal.getInstance(document.getElementById('quickExpenseModal'));
+            modal.hide();
+            
+            // Reset form
+            document.getElementById('quickExpenseForm').reset();
+            document.getElementById('quickDate').value = new Date().toISOString().split('T')[0];
+            
+            // Reload data
+            loadOverviewData();
+            updateQuickStats();
+        } else {
+            throw new Error(result.message || 'Lỗi không xác định');
+        }
+    } catch (error) {
+        console.error('Error adding expense:', error);
+        showErrorToast('❌ Lỗi thêm chi phí: ' + error.message);
+    }
+}
+
+async function updateQuickStats() {
+    try {
+        const response = await fetch('/api/expenses');
+        const result = await response.json();
+        
+        if (result.success && result.expenses) {
+            const currentMonth = new Date().toISOString().slice(0, 7);
+            const monthExpenses = filterExpensesByMonth(result.expenses, currentMonth);
+            
+            // Calculate stats
+            const totalAmount = monthExpenses.reduce((sum, exp) => sum + parseFloat(exp['Số tiền'] || exp.amount || 0), 0);
+            const totalCount = monthExpenses.length;
+            const averagePerDay = totalAmount / new Date().getDate();
+            
+            // Find top category
+            const categoryTotals = {};
+            monthExpenses.forEach(exp => {
+                const cat = exp.category || 'miscellaneous';
+                categoryTotals[cat] = (categoryTotals[cat] || 0) + parseFloat(exp['Số tiền'] || exp.amount || 0);
+            });
+            
+            const topCategory = Object.keys(categoryTotals).reduce((a, b) => categoryTotals[a] > categoryTotals[b] ? a : b, 'none');
+            
+            // Update UI
+            document.getElementById('totalMonthlyExpense').textContent = totalAmount.toLocaleString('vi-VN') + 'đ';
+            document.getElementById('totalTransactions').textContent = totalCount;
+            document.getElementById('averagePerDay').textContent = averagePerDay.toLocaleString('vi-VN') + 'đ';
+            document.getElementById('topCategory').textContent = getCategoryDisplayName(topCategory);
+        }
+    } catch (error) {
+        console.error('Error updating quick stats:', error);
+    }
+}
+
+function getCategoryDisplayName(category) {
+    const names = {
+        'room_supplies': 'Đồ Dùng Phòng',
+        'food_beverage': 'Ăn Uống', 
+        'maintenance': 'Bảo Trì',
+        'transportation': 'Di Chuyển',
+        'marketing': 'Marketing',
+        'utilities': 'Tiện Ích'
+    };
+    return names[category] || 'Khác';
+}
+
+function showSuccessToast(message) {
+    // Create and show success toast
+    const toast = document.createElement('div');
+    toast.className = 'position-fixed top-0 end-0 m-3 p-3 bg-success text-white rounded shadow';
+    toast.style.zIndex = '9999';
+    toast.innerHTML = message;
+    document.body.appendChild(toast);
+    
+    setTimeout(() => {
+        toast.remove();
+    }, 3000);
+}
+
+function showErrorToast(message) {
+    // Create and show error toast
+    const toast = document.createElement('div');
+    toast.className = 'position-fixed top-0 end-0 m-3 p-3 bg-danger text-white rounded shadow';
+    toast.style.zIndex = '9999';
+    toast.innerHTML = message;
+    document.body.appendChild(toast);
+    
+    setTimeout(() => {
+        toast.remove();
+    }, 5000);
+}
+
+async function exportExpenseData() {
+    try {
+        const response = await fetch('/api/expenses');
+        const result = await response.json();
+        
+        if (result.success && result.expenses) {
+            // Convert to CSV format
+            const csvContent = convertToCSV(result.expenses);
+            
+            // Download file
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            const url = URL.createObjectURL(blob);
+            link.setAttribute('href', url);
+            link.setAttribute('download', `chi-phi-${new Date().toISOString().slice(0, 10)}.csv`);
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            
+            showSuccessToast('✅ Đã xuất dữ liệu thành công!');
+        }
+    } catch (error) {
+        console.error('Error exporting data:', error);
+        showErrorToast('❌ Lỗi xuất dữ liệu: ' + error.message);
+    }
+}
+
+function convertToCSV(data) {
+    const headers = ['Ngày', 'Mô tả', 'Số tiền', 'Danh mục', 'Người ghi'];
+    const csvRows = [headers.join(',')];
+    
+    data.forEach(row => {
+        const values = [
+            row.Ngày || row.date,
+            `"${row['Mô tả'] || row.description}"`,
+            row['Số tiền'] || row.amount,
+            row.category || 'miscellaneous',
+            row['Người ghi'] || row.collector
+        ];
+        csvRows.push(values.join(','));
+    });
+    
+    return csvRows.join('\n');
+}
+
+async function generateReport() {
+    const month = document.getElementById('reportMonth').value;
+    const type = document.getElementById('reportType').value;
+    const output = document.getElementById('reportOutput');
+    
+    if (!month || !type) {
+        showErrorToast('⚠️ Vui lòng chọn tháng và loại báo cáo');
+        return;
+    }
+    
+    output.innerHTML = `
+        <div class="text-center py-4">
+            <div class="spinner-border text-primary" role="status"></div>
+            <p class="mt-2">Đang tạo báo cáo...</p>
+        </div>
+    `;
+    
+    try {
+        const response = await fetch('/api/expenses');
+        const result = await response.json();
+        
+        if (result.success && result.expenses) {
+            const monthExpenses = filterExpensesByMonth(result.expenses, month);
+            let reportHTML = '';
+            
+            switch (type) {
+                case 'summary':
+                    reportHTML = generateSummaryReport(monthExpenses);
+                    break;
+                case 'daily':
+                    reportHTML = generateDailyReport(monthExpenses);
+                    break;
+                case 'comparison':
+                    reportHTML = generateComparisonReport(result.expenses, month);
+                    break;
+                case 'trend':
+                    reportHTML = generateTrendReport(result.expenses);
+                    break;
+            }
+            
+            output.innerHTML = reportHTML;
+        }
+    } catch (error) {
+        console.error('Error generating report:', error);
+        output.innerHTML = `
+            <div class="alert alert-danger">
+                <i class="fas fa-exclamation-triangle me-2"></i>
+                Lỗi tạo báo cáo: ${error.message}
+            </div>
+        `;
+    }
+}
+
+function generateSummaryReport(expenses) {
+    const categoryData = groupExpensesByCategory(expenses);
+    const total = Object.values(categoryData).reduce((sum, cat) => sum + cat.total, 0);
+    
+    let html = `
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-chart-pie me-2"></i>Báo Cáo Tổng Hợp Theo Danh Mục</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Danh Mục</th>
+                                <th class="text-center">Số Giao Dịch</th>
+                                <th class="text-end">Tổng Tiền</th>
+                                <th class="text-center">Tỷ Lệ</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+    `;
+    
+    Object.entries(categoryData).forEach(([key, data]) => {
+        const percentage = total > 0 ? (data.total / total * 100) : 0;
+        html += `
+            <tr>
+                <td>
+                    <i class="${data.icon} me-2" style="color: ${data.color}"></i>
+                    ${data.name}
+                </td>
+                <td class="text-center">${data.count}</td>
+                <td class="text-end text-danger fw-bold">${data.total.toLocaleString('vi-VN')}đ</td>
+                <td class="text-center">
+                    <div class="progress" style="height: 20px;">
+                        <div class="progress-bar" role="progressbar" style="width: ${percentage}%; background-color: ${data.color}">
+                            ${percentage.toFixed(1)}%
+                        </div>
+                    </div>
+                </td>
+            </tr>
+        `;
+    });
+    
+    html += `
+                        </tbody>
+                        <tfoot>
+                            <tr class="table-primary">
+                                <th>TỔNG CỘNG</th>
+                                <th class="text-center">${expenses.length}</th>
+                                <th class="text-end text-danger fw-bold">${total.toLocaleString('vi-VN')}đ</th>
+                                <th class="text-center">100%</th>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    return html;
+}
+
+function generateDailyReport(expenses) {
+    // Group by date
+    const dailyData = {};
+    expenses.forEach(exp => {
+        const date = exp.Ngày || exp.date;
+        if (!dailyData[date]) {
+            dailyData[date] = { total: 0, count: 0, items: [] };
+        }
+        const amount = parseFloat(exp['Số tiền'] || exp.amount || 0);
+        dailyData[date].total += amount;
+        dailyData[date].count += 1;
+        dailyData[date].items.push(exp);
+    });
+    
+    let html = `
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-calendar-day me-2"></i>Báo Cáo Chi Tiết Theo Ngày</h5>
+            </div>
+            <div class="card-body">
+    `;
+    
+    Object.entries(dailyData)
+        .sort(([a], [b]) => new Date(b) - new Date(a))
+        .forEach(([date, data]) => {
+            html += `
+                <div class="card mb-3">
+                    <div class="card-header bg-light">
+                        <div class="row">
+                            <div class="col">
+                                <strong>${new Date(date).toLocaleDateString('vi-VN')}</strong>
+                            </div>
+                            <div class="col-auto">
+                                <span class="badge bg-primary">${data.count} giao dịch</span>
+                                <span class="badge bg-danger">${data.total.toLocaleString('vi-VN')}đ</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-sm">
+                                <tbody>
+            `;
+            
+            data.items.forEach(item => {
+                const amount = parseFloat(item['Số tiền'] || item.amount || 0);
+                html += `
+                    <tr>
+                        <td>${item['Mô tả'] || item.description}</td>
+                        <td class="text-center">
+                            <span class="badge bg-secondary">${getCategoryDisplayName(item.category)}</span>
+                        </td>
+                        <td class="text-end text-danger">${amount.toLocaleString('vi-VN')}đ</td>
+                    </tr>
+                `;
+            });
+            
+            html += `
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+    
+    html += `
+            </div>
+        </div>
+    `;
+    
+    return html;
+}
+
+function generateComparisonReport(allExpenses, currentMonth) {
+    // Get previous month
+    const currentDate = new Date(currentMonth + '-01');
+    const previousDate = new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1);
+    const previousMonth = previousDate.toISOString().slice(0, 7);
+    
+    const currentMonthExpenses = filterExpensesByMonth(allExpenses, currentMonth);
+    const previousMonthExpenses = filterExpensesByMonth(allExpenses, previousMonth);
+    
+    const currentTotal = currentMonthExpenses.reduce((sum, exp) => sum + parseFloat(exp['Số tiền'] || exp.amount || 0), 0);
+    const previousTotal = previousMonthExpenses.reduce((sum, exp) => sum + parseFloat(exp['Số tiền'] || exp.amount || 0), 0);
+    
+    const change = currentTotal - previousTotal;
+    const changePercent = previousTotal > 0 ? (change / previousTotal * 100) : 0;
+    
+    const html = `
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-chart-bar me-2"></i>So Sánh Tháng</h5>
+            </div>
+            <div class="card-body">
+                <div class="row text-center">
+                    <div class="col-md-4">
+                        <div class="card bg-primary text-white">
+                            <div class="card-body">
+                                <h3>${currentTotal.toLocaleString('vi-VN')}đ</h3>
+                                <p class="mb-0">Tháng Hiện Tại</p>
+                                <small>(${currentMonthExpenses.length} giao dịch)</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card bg-secondary text-white">
+                            <div class="card-body">
+                                <h3>${previousTotal.toLocaleString('vi-VN')}đ</h3>
+                                <p class="mb-0">Tháng Trước</p>
+                                <small>(${previousMonthExpenses.length} giao dịch)</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card ${change >= 0 ? 'bg-danger' : 'bg-success'} text-white">
+                            <div class="card-body">
+                                <h3>${change >= 0 ? '+' : ''}${change.toLocaleString('vi-VN')}đ</h3>
+                                <p class="mb-0">Thay Đổi</p>
+                                <small>(${changePercent >= 0 ? '+' : ''}${changePercent.toFixed(1)}%)</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="mt-4">
+                    <h6>Phân Tích:</h6>
+                    <div class="alert ${change >= 0 ? 'alert-warning' : 'alert-success'}">
+                        ${change >= 0 
+                            ? `<i class="fas fa-arrow-up me-2"></i>Chi phí tăng ${Math.abs(changePercent).toFixed(1)}% so với tháng trước. Cần xem xét tối ưu hóa chi phí.`
+                            : `<i class="fas fa-arrow-down me-2"></i>Chi phí giảm ${Math.abs(changePercent).toFixed(1)}% so với tháng trước. Xu hướng tích cực!`
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    return html;
+}
+
+function generateTrendReport(allExpenses) {
+    // Group by month for trend analysis
+    const monthlyData = {};
+    allExpenses.forEach(exp => {
+        const month = (exp.Ngày || exp.date).slice(0, 7);
+        if (!monthlyData[month]) {
+            monthlyData[month] = { total: 0, count: 0 };
+        }
+        monthlyData[month].total += parseFloat(exp['Số tiền'] || exp.amount || 0);
+        monthlyData[month].count += 1;
+    });
+    
+    let html = `
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-chart-line me-2"></i>Xu Hướng Chi Phí</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Tháng</th>
+                                <th class="text-center">Số Giao Dịch</th>
+                                <th class="text-end">Tổng Chi Phí</th>
+                                <th class="text-end">Trung Bình/Ngày</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+    `;
+    
+    Object.entries(monthlyData)
+        .sort(([a], [b]) => b.localeCompare(a))
+        .forEach(([month, data]) => {
+            const daysInMonth = new Date(month.split('-')[0], month.split('-')[1], 0).getDate();
+            const avgPerDay = data.total / daysInMonth;
+            
+            html += `
+                <tr>
+                    <td><strong>${month}</strong></td>
+                    <td class="text-center">${data.count}</td>
+                    <td class="text-end text-danger fw-bold">${data.total.toLocaleString('vi-VN')}đ</td>
+                    <td class="text-end">${avgPerDay.toLocaleString('vi-VN')}đ</td>
+                </tr>
+            `;
+        });
+    
+    html += `
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    return html;
+}
+
+// Excel Import Functionality
+async function importExcelData() {
+    const button = event.target;
+    const originalText = button.innerHTML;
+    
+    try {
+        // Show loading state
+        button.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Đang nhập...';
+        button.disabled = true;
+        
+        const response = await fetch('/api/import_excel_expenses', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            // Show success message
+            showNotification(`✅ Đã nhập thành công ${result.imported_count} khoản chi phí từ Excel!`, 'success');
+            
+            // Refresh the page to show new data
+            setTimeout(() => {
+                window.location.reload();
+            }, 2000);
+        } else {
+            showNotification(`❌ Lỗi nhập Excel: ${result.message}`, 'error');
+        }
+        
+    } catch (error) {
+        console.error('Import error:', error);
+        showNotification(`❌ Lỗi kết nối: ${error.message}`, 'error');
+    } finally {
+        // Restore button state
+        button.innerHTML = originalText;
+        button.disabled = false;
+    }
+}
+
+// Notification function
+function showNotification(message, type = 'info') {
+    // Create notification element
+    const notification = document.createElement('div');
+    notification.className = `alert alert-${type === 'success' ? 'success' : 'danger'} alert-dismissible fade show position-fixed`;
+    notification.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+    notification.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    
+    // Add to page
+    document.body.appendChild(notification);
+    
+    // Auto remove after 5 seconds
+    setTimeout(() => {
+        if (notification.parentNode) {
+            notification.remove();
+        }
+    }, 5000);
+}
+
+// Export Excel functionality placeholder
+function exportExpenseData() {
+    showNotification('🚧 Tính năng xuất Excel đang được phát triển...', 'info');
+}
+</script>
+{% endblock %}

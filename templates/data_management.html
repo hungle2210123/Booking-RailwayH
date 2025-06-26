@@ -1,0 +1,565 @@
+{% extends "base.html" %}
+{% block title %}Quản Lý Dữ Liệu Tổng Hợp{% endblock %}
+
+{% block extra_css %}
+<style>
+/* Data Management Styles */
+.data-management-container {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 20px;
+    padding: 0;
+    box-shadow: 0 15px 35px rgba(0,0,0,0.1);
+    overflow: hidden;
+}
+
+.data-header {
+    background: rgba(255,255,255,0.1);
+    backdrop-filter: blur(10px);
+    padding: 25px;
+    border-bottom: 1px solid rgba(255,255,255,0.2);
+}
+
+.data-content {
+    background: white;
+    padding: 30px;
+    margin: 0;
+}
+
+.import-section {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 15px;
+    padding: 25px;
+    color: white;
+    margin-bottom: 30px;
+}
+
+.import-progress {
+    background: rgba(255,255,255,0.2);
+    border-radius: 10px;
+    height: 8px;
+    overflow: hidden;
+    margin: 15px 0;
+}
+
+.import-progress-bar {
+    background: linear-gradient(90deg, #00ff88, #00ccff);
+    height: 100%;
+    width: 0%;
+    transition: width 0.3s ease;
+    border-radius: 10px;
+}
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 20px;
+    margin-bottom: 30px;
+}
+
+.stat-card {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 25px;
+    border-radius: 15px;
+    text-align: center;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    transition: transform 0.3s ease;
+}
+
+.stat-card:hover {
+    transform: translateY(-5px);
+}
+
+.stat-number {
+    font-size: 2.5rem;
+    font-weight: 700;
+    margin: 10px 0;
+}
+
+.stat-label {
+    opacity: 0.9;
+    font-weight: 500;
+}
+
+.data-tabs {
+    background: #f8f9fa;
+    border-radius: 15px;
+    overflow: hidden;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.05);
+}
+
+.nav-tabs-custom {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border: none;
+    padding: 0;
+}
+
+.nav-tabs-custom .nav-link {
+    color: rgba(255,255,255,0.8);
+    border: none;
+    padding: 15px 25px;
+    margin: 0;
+    background: transparent;
+    font-weight: 500;
+    transition: all 0.3s ease;
+}
+
+.nav-tabs-custom .nav-link:hover {
+    color: white;
+    background: rgba(255,255,255,0.1);
+}
+
+.nav-tabs-custom .nav-link.active {
+    color: white;
+    background: rgba(255,255,255,0.2);
+    font-weight: 600;
+}
+
+.tab-content {
+    padding: 25px;
+    background: white;
+}
+
+.data-table {
+    background: white;
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+}
+
+.data-table table {
+    margin: 0;
+}
+
+.data-table th {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    font-weight: 600;
+    border: none;
+    padding: 15px;
+}
+
+.data-table td {
+    padding: 12px 15px;
+    border-bottom: 1px solid #eee;
+    vertical-align: middle;
+}
+
+.data-table tr:hover {
+    background: #f8f9fa;
+}
+
+.import-btn {
+    background: linear-gradient(135deg, #00ff88 0%, #00ccff 100%);
+    border: none;
+    color: white;
+    padding: 15px 30px;
+    border-radius: 25px;
+    font-weight: 600;
+    font-size: 1.1rem;
+    box-shadow: 0 5px 15px rgba(0,255,136,0.3);
+    transition: all 0.3s ease;
+}
+
+.import-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(0,255,136,0.4);
+    color: white;
+}
+
+.import-btn:disabled {
+    background: #6c757d;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
+
+.notification {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 9999;
+    min-width: 350px;
+    border-radius: 10px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+}
+
+.progress-info {
+    font-size: 0.9rem;
+    margin-top: 10px;
+    opacity: 0.9;
+}
+
+@media (max-width: 768px) {
+    .stats-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .data-content {
+        padding: 20px;
+    }
+    
+    .stat-number {
+        font-size: 2rem;
+    }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-3">
+    <!-- Header Section -->
+    <div class="data-management-container">
+        <div class="data-header text-center">
+            <h1 class="mb-2 text-white">
+                <i class="fas fa-database me-3"></i>Quản Lý Dữ Liệu Tổng Hợp
+            </h1>
+            <p class="mb-0 text-white-50">
+                Nhập và quản lý khách hàng, chi phí, và mẫu tin nhắn từ Excel
+            </p>
+        </div>
+        
+        <div class="data-content">
+            <!-- Import Section -->
+            <div class="import-section">
+                <div class="row align-items-center">
+                    <div class="col-md-8">
+                        <h3 class="mb-2">
+                            <i class="fas fa-upload me-2"></i>Nhập Dữ Liệu Tổng Hợp
+                        </h3>
+                        <p class="mb-2">
+                            Nhập tất cả dữ liệu từ file Excel: khách hàng, đặt phòng, chi phí, và mẫu tin nhắn
+                        </p>
+                        <div class="progress-info">
+                            <span id="importStatus">Sẵn sàng nhập dữ liệu</span>
+                        </div>
+                        <div class="import-progress">
+                            <div class="import-progress-bar" id="importProgressBar"></div>
+                        </div>
+                    </div>
+                    <div class="col-md-4 text-center">
+                        <button class="btn import-btn" id="comprehensiveImportBtn" onclick="startComprehensiveImport()">
+                            <i class="fas fa-rocket me-2"></i>Bắt Đầu Nhập
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Statistics Section -->
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-number">{{ stats.customers }}</div>
+                    <div class="stat-label">
+                        <i class="fas fa-users me-1"></i>Khách Hàng
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">{{ stats.bookings }}</div>
+                    <div class="stat-label">
+                        <i class="fas fa-calendar-check me-1"></i>Đặt Phòng
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">{{ stats.templates }}</div>
+                    <div class="stat-label">
+                        <i class="fas fa-comment-dots me-1"></i>Mẫu Tin Nhắn
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">{{ stats.expenses }}</div>
+                    <div class="stat-label">
+                        <i class="fas fa-money-bill-wave me-1"></i>Chi Phí
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Data Tables Section -->
+            <div class="data-tabs">
+                <ul class="nav nav-tabs nav-tabs-custom" id="dataTab" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" id="customers-tab" data-bs-toggle="tab" data-bs-target="#customers" type="button" role="tab">
+                            <i class="fas fa-users me-2"></i>Khách Hàng
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="bookings-tab" data-bs-toggle="tab" data-bs-target="#bookings" type="button" role="tab">
+                            <i class="fas fa-calendar-check me-2"></i>Đặt Phòng
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="templates-tab" data-bs-toggle="tab" data-bs-target="#templates" type="button" role="tab">
+                            <i class="fas fa-comment-dots me-2"></i>Mẫu Tin Nhắn
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="expenses-tab" data-bs-toggle="tab" data-bs-target="#expenses" type="button" role="tab">
+                            <i class="fas fa-money-bill-wave me-2"></i>Chi Phí
+                        </button>
+                    </li>
+                </ul>
+                
+                <div class="tab-content" id="dataTabContent">
+                    <!-- Customers Tab -->
+                    <div class="tab-pane fade show active" id="customers" role="tabpanel">
+                        <h5 class="mb-3">Khách Hàng Gần Đây</h5>
+                        <div class="data-table">
+                            <table class="table table-striped mb-0">
+                                <thead>
+                                    <tr>
+                                        <th>Tên</th>
+                                        <th>Email</th>
+                                        <th>Điện Thoại</th>
+                                        <th>Quốc Tịch</th>
+                                        <th>Ngày Tạo</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for customer in recent_customers %}
+                                    <tr>
+                                        <td><strong>{{ customer.full_name }}</strong></td>
+                                        <td>{{ customer.email or '-' }}</td>
+                                        <td>{{ customer.phone or '-' }}</td>
+                                        <td>{{ customer.nationality or '-' }}</td>
+                                        <td>{{ customer.created_at[:10] if customer.created_at else '-' }}</td>
+                                    </tr>
+                                    {% else %}
+                                    <tr>
+                                        <td colspan="5" class="text-center text-muted">Chưa có dữ liệu khách hàng</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    
+                    <!-- Bookings Tab -->
+                    <div class="tab-pane fade" id="bookings" role="tabpanel">
+                        <h5 class="mb-3">Đặt Phòng Gần Đây</h5>
+                        <div class="data-table">
+                            <table class="table table-striped mb-0">
+                                <thead>
+                                    <tr>
+                                        <th>Mã Đặt Phòng</th>
+                                        <th>Khách Hàng</th>
+                                        <th>Check-in</th>
+                                        <th>Check-out</th>
+                                        <th>Tổng Tiền</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for booking in recent_bookings %}
+                                    <tr>
+                                        <td><strong>{{ booking.booking_id }}</strong></td>
+                                        <td>{{ booking.guest_name or '-' }}</td>
+                                        <td>{{ booking.checkin_date or '-' }}</td>
+                                        <td>{{ booking.checkout_date or '-' }}</td>
+                                        <td class="text-end">{{ "{:,.0f}".format(booking.total_amount) }}đ</td>
+                                    </tr>
+                                    {% else %}
+                                    <tr>
+                                        <td colspan="5" class="text-center text-muted">Chưa có dữ liệu đặt phòng</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    
+                    <!-- Templates Tab -->
+                    <div class="tab-pane fade" id="templates" role="tabpanel">
+                        <h5 class="mb-3">Mẫu Tin Nhắn</h5>
+                        <div class="data-table">
+                            <table class="table table-striped mb-0">
+                                <thead>
+                                    <tr>
+                                        <th>Tên Mẫu</th>
+                                        <th>Danh Mục</th>
+                                        <th>Nội Dung</th>
+                                        <th>Ngày Tạo</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for template in recent_templates %}
+                                    <tr>
+                                        <td><strong>{{ template.template_name }}</strong></td>
+                                        <td><span class="badge bg-primary">{{ template.category }}</span></td>
+                                        <td>{{ template.template_content[:50] }}{% if template.template_content|length > 50 %}...{% endif %}</td>
+                                        <td>{{ template.created_at[:10] if template.created_at else '-' }}</td>
+                                    </tr>
+                                    {% else %}
+                                    <tr>
+                                        <td colspan="4" class="text-center text-muted">Chưa có mẫu tin nhắn</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    
+                    <!-- Expenses Tab -->
+                    <div class="tab-pane fade" id="expenses" role="tabpanel">
+                        <h5 class="mb-3">Chi Phí Gần Đây</h5>
+                        <div class="data-table">
+                            <table class="table table-striped mb-0">
+                                <thead>
+                                    <tr>
+                                        <th>Mô Tả</th>
+                                        <th>Danh Mục</th>
+                                        <th>Số Tiền</th>
+                                        <th>Ngày</th>
+                                        <th>Người Thu</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for expense in recent_expenses %}
+                                    <tr>
+                                        <td>{{ expense.description[:30] }}{% if expense.description|length > 30 %}...{% endif %}</td>
+                                        <td><span class="badge bg-success">{{ expense.category }}</span></td>
+                                        <td class="text-end"><strong>{{ "{:,.0f}".format(expense.amount) }}đ</strong></td>
+                                        <td>{{ expense.expense_date or '-' }}</td>
+                                        <td>{{ expense.collector or '-' }}</td>
+                                    </tr>
+                                    {% else %}
+                                    <tr>
+                                        <td colspan="5" class="text-center text-muted">Chưa có dữ liệu chi phí</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Comprehensive Import Functionality
+let importInProgress = false;
+
+async function startComprehensiveImport() {
+    if (importInProgress) return;
+    
+    const btn = document.getElementById('comprehensiveImportBtn');
+    const status = document.getElementById('importStatus');
+    const progressBar = document.getElementById('importProgressBar');
+    
+    try {
+        importInProgress = true;
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Đang nhập...';
+        
+        // Update progress
+        updateProgress(10, 'Đang phân tích file Excel...');
+        
+        const response = await fetch('/api/comprehensive_import', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        updateProgress(50, 'Đang xử lý dữ liệu...');
+        
+        const result = await response.json();
+        
+        updateProgress(80, 'Đang lưu vào cơ sở dữ liệu...');
+        
+        if (result.success) {
+            updateProgress(100, 'Hoàn thành!');
+            
+            // Show detailed success notification
+            showNotification(
+                `✅ Nhập dữ liệu thành công!\n` +
+                `👥 Khách hàng: ${result.summary.customers_imported}\n` +
+                `📋 Đặt phòng: ${result.summary.bookings_imported}\n` +
+                `💬 Mẫu tin nhắn: ${result.summary.templates_imported}\n` +
+                `💰 Chi phí: ${result.summary.expenses_imported}\n` +
+                `📊 Tổng cộng: ${result.summary.total_imported} bản ghi`,
+                'success'
+            );
+            
+            // Refresh page after 3 seconds to show new data
+            setTimeout(() => {
+                window.location.reload();
+            }, 3000);
+            
+        } else {
+            updateProgress(0, 'Lỗi nhập dữ liệu');
+            showNotification(`❌ Lỗi: ${result.message}`, 'error');
+        }
+        
+    } catch (error) {
+        updateProgress(0, 'Lỗi kết nối');
+        showNotification(`❌ Lỗi kết nối: ${error.message}`, 'error');
+        console.error('Import error:', error);
+        
+    } finally {
+        importInProgress = false;
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-rocket me-2"></i>Bắt Đầu Nhập';
+        
+        // Reset progress after delay
+        setTimeout(() => {
+            updateProgress(0, 'Sẵn sàng nhập dữ liệu');
+        }, 5000);
+    }
+}
+
+function updateProgress(percentage, statusText) {
+    const progressBar = document.getElementById('importProgressBar');
+    const status = document.getElementById('importStatus');
+    
+    progressBar.style.width = percentage + '%';
+    status.textContent = statusText;
+}
+
+function showNotification(message, type = 'info') {
+    const alertClass = type === 'success' ? 'alert-success' : 'alert-danger';
+    
+    const notification = document.createElement('div');
+    notification.className = `alert ${alertClass} alert-dismissible fade show notification`;
+    notification.style.whiteSpace = 'pre-line';
+    notification.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    
+    document.body.appendChild(notification);
+    
+    setTimeout(() => {
+        if (notification.parentNode) {
+            notification.remove();
+        }
+    }, 8000);
+}
+
+// Auto-refresh status every 30 seconds
+setInterval(async () => {
+    if (!importInProgress) {
+        try {
+            const response = await fetch('/api/import_status');
+            const result = await response.json();
+            
+            if (result.success) {
+                // Update stats without full page reload
+                updateStats(result.status);
+            }
+        } catch (error) {
+            console.log('Status update failed:', error);
+        }
+    }
+}, 30000);
+
+function updateStats(status) {
+    const statCards = document.querySelectorAll('.stat-number');
+    if (statCards.length >= 4) {
+        statCards[0].textContent = status.customers_count;
+        statCards[1].textContent = status.bookings_count;
+        statCards[2].textContent = status.templates_count;
+        statCards[3].textContent = status.expenses_count;
+    }
+}
+</script>
+{% endblock %}

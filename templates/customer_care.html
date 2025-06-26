@@ -1,0 +1,318 @@
+{% extends "base.html" %}
+
+{% block title %}Chăm Sóc Khách Hàng - Koyeb Hotel{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1 class="h3 mb-0 text-dark">
+                    <i class="fas fa-headset me-2"></i>Chăm Sóc Khách Hàng
+                </h1>
+                <div class="text-muted">
+                    <i class="fas fa-calendar me-1"></i>{{ today.strftime('%d/%m/%Y') }}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Stats -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card border-primary">
+                <div class="card-body text-center">
+                    <i class="fas fa-users fa-2x text-primary mb-2"></i>
+                    <h5 class="card-title">{{ upcoming_arrivals|length }}</h5>
+                    <p class="card-text text-muted">Khách sắp đến (7 ngày)</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-success">
+                <div class="card-body text-center">
+                    <i class="fas fa-calendar-check fa-2x text-success mb-2"></i>
+                    <h5 class="card-title">{{ upcoming_arrivals|selectattr('days_until', 'equalto', 0)|list|length }}</h5>
+                    <p class="card-text text-muted">Check-in hôm nay</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-warning">
+                <div class="card-body text-center">
+                    <i class="fas fa-clock fa-2x text-warning mb-2"></i>
+                    <h5 class="card-title">{{ upcoming_arrivals|selectattr('days_until', 'equalto', 1)|list|length }}</h5>
+                    <p class="card-text text-muted">Check-in ngày mai</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-info">
+                <div class="card-body text-center">
+                    <i class="fas fa-money-bill-wave fa-2x text-info mb-2"></i>
+                    <h5 class="card-title">{{ (upcoming_arrivals|sum(attribute='total_amount')|int):,.0f }}đ</h5>
+                    <p class="card-text text-muted">Tổng doanh thu dự kiến</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Upcoming Arrivals -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-user-clock me-2"></i>Khách Hàng Sắp Đến (7 Ngày Tới)
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if upcoming_arrivals %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Khách hàng</th>
+                                    <th>Booking ID</th>
+                                    <th>Check-in</th>
+                                    <th>Check-out</th>
+                                    <th>Còn lại</th>
+                                    <th>Số tiền</th>
+                                    <th>Hoa hồng</th>
+                                    <th>Người thu</th>
+                                    <th>Thao tác</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for guest in upcoming_arrivals %}
+                                <tr class="{% if guest.days_until == 0 %}table-success{% elif guest.days_until == 1 %}table-warning{% endif %}">
+                                    <td>
+                                        <strong>{{ guest.guest_name }}</strong>
+                                        {% if guest.phone %}
+                                        <br><small class="text-muted"><i class="fas fa-phone"></i> {{ guest.phone }}</small>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ guest.booking_id }}</td>
+                                    <td>
+                                        {{ guest.checkin_date.strftime('%d/%m/%Y') }}
+                                        {% if guest.days_until == 0 %}
+                                        <span class="badge bg-success">Hôm nay</span>
+                                        {% elif guest.days_until == 1 %}
+                                        <span class="badge bg-warning">Ngày mai</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ guest.checkout_date.strftime('%d/%m/%Y') if guest.checkout_date else 'N/A' }}</td>
+                                    <td>
+                                        {% if guest.days_until == 0 %}
+                                        <span class="text-success"><strong>Hôm nay</strong></span>
+                                        {% elif guest.days_until == 1 %}
+                                        <span class="text-warning"><strong>1 ngày</strong></span>
+                                        {% else %}
+                                        <span class="text-muted">{{ guest.days_until }} ngày</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ "{:,.0f}".format(guest.total_amount) }}đ</td>
+                                    <td>
+                                        {% if guest.commission > 0 %}
+                                        <span class="text-danger">{{ "{:,.0f}".format(guest.commission) }}đ</span>
+                                        {% else %}
+                                        <span class="text-success">Không</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if guest.collector %}
+                                        <span class="badge bg-info">{{ guest.collector }}</span>
+                                        {% else %}
+                                        <span class="text-muted">Chưa có</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <div class="btn-group btn-group-sm">
+                                            <button type="button" class="btn btn-outline-primary" onclick="contactGuest('{{ guest.guest_name }}', '{{ guest.phone }}')">
+                                                <i class="fas fa-phone"></i>
+                                            </button>
+                                            <button type="button" class="btn btn-outline-info" onclick="sendWelcomeMessage('{{ guest.guest_name }}', '{{ guest.booking_id }}')">
+                                                <i class="fas fa-comment"></i>
+                                            </button>
+                                            <button type="button" class="btn btn-outline-success" onclick="markAsContacted('{{ guest.booking_id }}')">
+                                                <i class="fas fa-check"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-5">
+                        <i class="fas fa-calendar-times fa-3x text-muted mb-3"></i>
+                        <h5 class="text-muted">Không có khách hàng nào sắp đến trong 7 ngày tới</h5>
+                        <p class="text-muted">Tất cả các đặt phòng đều ổn định.</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Customer Service Actions -->
+    <div class="row mt-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-comments me-2"></i>Tin Nhắn Mẫu
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="list-group">
+                        <a href="#" class="list-group-item list-group-item-action" onclick="useTemplate('welcome')">
+                            <i class="fas fa-hand-wave me-2"></i>Tin nhắn chào mừng
+                        </a>
+                        <a href="#" class="list-group-item list-group-item-action" onclick="useTemplate('checkin_reminder')">
+                            <i class="fas fa-bell me-2"></i>Nhắc nhở check-in
+                        </a>
+                        <a href="#" class="list-group-item list-group-item-action" onclick="useTemplate('thankyou')">
+                            <i class="fas fa-heart me-2"></i>Cảm ơn khách hàng
+                        </a>
+                        <a href="#" class="list-group-item list-group-item-action" onclick="useTemplate('feedback')">
+                            <i class="fas fa-star me-2"></i>Yêu cầu đánh giá
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-tools me-2"></i>Công Cụ Hỗ Trợ
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <button class="btn btn-outline-primary" onclick="refreshCustomerData()">
+                            <i class="fas fa-sync me-2"></i>Làm mới dữ liệu
+                        </button>
+                        <button class="btn btn-outline-info" onclick="exportUpcomingGuests()">
+                            <i class="fas fa-download me-2"></i>Xuất danh sách khách
+                        </button>
+                        <button class="btn btn-outline-success" onclick="viewFullCalendar()">
+                            <i class="fas fa-calendar me-2"></i>Xem lịch đầy đủ
+                        </button>
+                        <button class="btn btn-outline-warning" onclick="manageTemplates()">
+                            <i class="fas fa-edit me-2"></i>Quản lý mẫu tin nhắn
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Customer Contact Modal -->
+<div class="modal fade" id="contactModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Liên Hệ Khách Hàng</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label">Tên khách hàng:</label>
+                    <p id="modalGuestName" class="fw-bold"></p>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Số điện thoại:</label>
+                    <p id="modalPhone" class="fw-bold"></p>
+                </div>
+                <div class="mb-3">
+                    <label for="messageTemplate" class="form-label">Tin nhắn:</label>
+                    <textarea id="messageTemplate" class="form-control" rows="4" placeholder="Nhập tin nhắn..."></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Đóng</button>
+                <button type="button" class="btn btn-primary" onclick="sendMessage()">
+                    <i class="fas fa-paper-plane me-1"></i>Gửi tin nhắn
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Customer Care JavaScript Functions
+function contactGuest(guestName, phone) {
+    document.getElementById('modalGuestName').textContent = guestName;
+    document.getElementById('modalPhone').textContent = phone || 'Không có số điện thoại';
+    document.getElementById('messageTemplate').value = `Xin chào ${guestName}, chúng tôi là đội ngũ Koyeb Hotel...`;
+    
+    const modal = new bootstrap.Modal(document.getElementById('contactModal'));
+    modal.show();
+}
+
+function sendWelcomeMessage(guestName, bookingId) {
+    const welcomeMessage = `Xin chào ${guestName}! Chúng tôi rất vui mừng chào đón bạn tại Koyeb Hotel. Mã đặt phòng của bạn là ${bookingId}. Nếu bạn có bất kỳ câu hỏi nào, vui lòng liên hệ với chúng tôi.`;
+    
+    document.getElementById('modalGuestName').textContent = guestName;
+    document.getElementById('messageTemplate').value = welcomeMessage;
+    
+    const modal = new bootstrap.Modal(document.getElementById('contactModal'));
+    modal.show();
+}
+
+function markAsContacted(bookingId) {
+    // Implement marking booking as contacted
+    console.log('Marking booking as contacted:', bookingId);
+    alert(`Đã đánh dấu booking ${bookingId} là đã liên hệ`);
+}
+
+function useTemplate(templateType) {
+    let template = '';
+    switch(templateType) {
+        case 'welcome':
+            template = 'Xin chào! Chúng tôi rất vui mừng chào đón bạn tại Koyeb Hotel. Chúc bạn có một kỳ nghỉ tuyệt vời!';
+            break;
+        case 'checkin_reminder':
+            template = 'Nhắc nhở: Thời gian check-in của bạn đang đến gần. Vui lòng đến khách sạn đúng giờ. Cảm ơn!';
+            break;
+        case 'thankyou':
+            template = 'Cảm ơn bạn đã lựa chọn Koyeb Hotel. Hy vọng bạn đã có những trải nghiệm tuyệt vời!';
+            break;
+        case 'feedback':
+            template = 'Chúng tôi rất mong nhận được đánh giá của bạn về dịch vụ của khách sạn. Xin cảm ơn!';
+            break;
+    }
+    document.getElementById('messageTemplate').value = template;
+}
+
+function sendMessage() {
+    const message = document.getElementById('messageTemplate').value;
+    if (message.trim()) {
+        alert('Tin nhắn đã được gửi thành công!');
+        bootstrap.Modal.getInstance(document.getElementById('contactModal')).hide();
+    } else {
+        alert('Vui lòng nhập tin nhắn!');
+    }
+}
+
+function refreshCustomerData() {
+    window.location.reload();
+}
+
+function exportUpcomingGuests() {
+    alert('Tính năng xuất danh sách sẽ được phát triển trong phiên bản tiếp theo');
+}
+
+function viewFullCalendar() {
+    window.location.href = '{{ url_for("calendar_view") }}';
+}
+
+function manageTemplates() {
+    alert('Tính năng quản lý mẫu tin nhắn sẽ được phát triển trong phiên bản tiếp theo');
+}
+</script>
+{% endblock %}

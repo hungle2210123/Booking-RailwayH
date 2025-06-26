@@ -1,0 +1,2016 @@
+{% extends "base.html" %}
+{% block title %}Quản lý Đặt phòng{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-2">
+    <!-- Header compact -->
+    <div class="d-flex justify-content-between align-items-center mb-1">
+        <h4 class="mb-0 text-primary">📋 Quản lý Đặt phòng <small class="text-muted">({{ booking_count }})</small></h4>
+        <div class="btn-group btn-group-sm">
+            <button id="delete-selected-btn" class="btn btn-danger" style="display:none;">
+                <i class="fas fa-trash-alt"></i> Xóa
+            </button>
+            <button id="ai-duplicate-filter-btn" class="btn btn-warning" title="AI phân tích và tìm booking trùng lặp">
+                <i class="fas fa-robot"></i> AI Filter Duplicates
+            </button>
+            <button id="test-ai-api-btn" class="btn btn-info btn-sm" title="Test AI API">
+                <i class="fas fa-flask"></i> Test API
+            </button>
+            <a href="{{ url_for('database_health') }}" class="btn btn-warning" title="Kiểm tra sức khỏe dữ liệu">
+                <i class="fas fa-heartbeat"></i> Data Health
+            </a>
+        </div>
+    </div>
+
+    <!-- Filter Active/All với style đẹp -->
+    <div class="row mb-3">
+        <div class="col-12">
+            <div class="card border-0 bg-light">
+                <div class="card-body py-2">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div class="d-flex align-items-center">
+                            <span class="text-muted me-3">
+                                <i class="fas fa-filter me-1"></i>Hiển thị:
+                            </span>
+                            <div class="btn-group" role="group">
+                                <input type="radio" class="btn-check" name="show_filter" id="show_active" 
+                                       autocomplete="off" {% if not show_all %}checked{% endif %}>
+                                <label class="btn btn-outline-primary btn-sm" for="show_active">
+                                    <i class="fas fa-users me-1"></i>Chỉ khách cần quan tâm
+                                </label>
+
+                                <input type="radio" class="btn-check" name="show_filter" id="show_all" 
+                                       autocomplete="off" {% if show_all %}checked{% endif %}>
+                                <label class="btn btn-outline-secondary btn-sm" for="show_all">
+                                    <i class="fas fa-list me-1"></i>Tất cả khách
+                                </label>
+                            </div>
+                        </div>
+                        <div class="text-end">
+                            {% if not show_all %}
+                            <small class="text-info">
+                                <i class="fas fa-info-circle me-1"></i>
+                                Hiển thị <strong>tất cả khách sắp đến</strong> và <strong>khách đang ở chưa thu tiền</strong>
+                            </small>
+                            {% else %}
+                            <small class="text-muted">
+                                <i class="fas fa-eye me-1"></i>Hiển thị tất cả khách (bao gồm đã hoàn thành)
+                            </small>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Search and Filter form với style mới -->
+    <div class="card mb-3 shadow-sm">
+        <div class="card-header bg-light">
+            <h6 class="mb-0">
+                <i class="fas fa-filter me-1 text-primary"></i>
+                Tìm kiếm và Lọc dữ liệu
+            </h6>
+        </div>
+        <div class="card-body">
+            <form method="GET" action="{{ url_for('view_bookings') }}">
+                <!-- Hidden fields để giữ states -->
+                <input type="hidden" name="show_all" value="{{ 'true' if show_all else 'false' }}">
+                <input type="hidden" name="auto_filter" value="{{ 'true' if auto_filter_duplicates else 'false' }}">
+                
+                <div class="row g-3">
+                    <!-- PROFESSIONAL SEARCH -->
+                    <div class="col-md-4">
+                        <label class="form-label small fw-medium">
+                            <i class="fas fa-search me-1"></i>Tìm kiếm nâng cao
+                        </label>
+                        <div class="input-group input-group-sm">
+                            <input type="text" name="search_term" id="searchInput" 
+                                   class="form-control" 
+                                   placeholder="Tên khách, booking ID, số điện thoại, ghi chú..." 
+                                   value="{{ search_term }}"
+                                   autocomplete="off">
+                            <button class="btn btn-outline-secondary" type="button" id="clearSearch" 
+                                    style="display: {% if search_term %}block{% else %}none{% endif %}">
+                                <i class="fas fa-times"></i>
+                            </button>
+                            <button class="btn btn-primary" type="submit">
+                                <i class="fas fa-search"></i>
+                            </button>
+                        </div>
+                        <div id="searchStats" class="small text-muted mt-1" style="display: none;">
+                            <i class="fas fa-info-circle"></i> <span id="searchStatsText"></span>
+                        </div>
+                    </div>
+                    
+                    <!-- PAGINATION CONTROLS -->
+                    <div class="col-md-2">
+                        <label class="form-label small fw-medium">
+                            <i class="fas fa-list me-1"></i>Hiển thị
+                        </label>
+                        <select name="per_page" class="form-select form-select-sm" onchange="this.form.submit()">
+                            <option value="25" {% if pagination.per_page == 25 %}selected{% endif %}>25 mục</option>
+                            <option value="50" {% if pagination.per_page == 50 %}selected{% endif %}>50 mục</option>
+                            <option value="100" {% if pagination.per_page == 100 %}selected{% endif %}>100 mục</option>
+                            <option value="200" {% if pagination.per_page == 200 %}selected{% endif %}>200 mục</option>
+                        </select>
+                    </div>
+                    
+                    <!-- Filter theo tháng -->
+                    <div class="col-md-2">
+                        <label class="form-label small fw-medium">Tháng</label>
+                        <select name="filter_month" class="form-select form-select-sm">
+                            <option value="">Tất cả</option>
+                            {% for i in range(1, 13) %}
+                            <option value="{{ i }}" {% if filter_month == i|string %}selected{% endif %}>
+                                Tháng {{ i }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <!-- Filter theo năm -->
+                    <div class="col-md-2">
+                        <label class="form-label small fw-medium">Năm</label>
+                        <select name="filter_year" class="form-select form-select-sm">
+                            <option value="">Tất cả</option>
+                            {% for year in range(2023, 2026) %}
+                            <option value="{{ year }}" {% if filter_year == year|string %}selected{% endif %}>
+                                {{ year }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <!-- Hoặc filter theo khoảng ngày -->
+                    <div class="col-md-2">
+                        <label class="form-label small fw-medium">Từ ngày</label>
+                        <input type="date" name="start_date" class="form-control form-control-sm" value="{{ start_date }}">
+                    </div>
+                    
+                    <div class="col-md-2">
+                        <label class="form-label small fw-medium">Đến ngày</label>
+                        <input type="date" name="end_date" class="form-control form-control-sm" value="{{ end_date }}">
+                    </div>
+                    
+                    <div class="col-md-1 d-flex align-items-end">
+                        <button type="submit" class="btn btn-primary btn-sm w-100">
+                            <i class="fas fa-search"></i>
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Tháng có sẵn -->
+                {% if available_months %}
+                <div class="mt-3">
+                    <small class="text-muted">Tháng có dữ liệu: </small>
+                    {% for period_str, year, month in available_months[:6] %}
+                    <a href="{{ url_for('view_bookings', filter_month=month, filter_year=year) }}" 
+                       class="badge bg-light text-dark text-decoration-none me-1">{{ period_str }}</a>
+                    {% endfor %}
+                    {% if available_months|length > 6 %}
+                    <small class="text-muted">...</small>
+                    {% endif %}
+                </div>
+                {% endif %}
+            </form>
+        </div>
+    </div>
+
+    <!-- Auto Duplicate Filter Report -->
+    {% if auto_filter_duplicates and duplicate_report.total_groups > 0 %}
+    <div class="card mb-3 border-warning">
+        <div class="card-header bg-warning text-dark">
+            <div class="d-flex justify-content-between align-items-center">
+                <h6 class="mb-0">
+                    <i class="fas fa-robot me-1"></i>
+                    AI Duplicate Filter Report
+                </h6>
+                <div class="d-flex align-items-center">
+                    <span class="badge bg-dark me-2">{{ filtered_count }} filtered</span>
+                    <a href="{{ url_for('view_bookings', auto_filter='false', search_term=search_term, filter_month=filter_month, filter_year=filter_year, start_date=start_date, end_date=end_date, show_all=show_all) }}" 
+                       class="btn btn-outline-dark btn-sm">
+                        <i class="fas fa-eye"></i> Show All
+                    </a>
+                </div>
+            </div>
+        </div>
+        <div class="card-body py-2">
+            <div class="row">
+                <div class="col-md-8">
+                    <p class="mb-1 text-success">
+                        <i class="fas fa-check-circle me-1"></i>
+                        <strong>{{ filtered_count }} duplicate bookings</strong> automatically filtered from {{ duplicate_report.total_groups }} groups.
+                        Click on any group below to review and delete manually.
+                    </p>
+                </div>
+                <div class="col-md-4 text-end">
+                    <small class="text-muted">
+                        Filtered: Same guest + similar dates (±3 days) + price (±100k VND)
+                    </small>
+                </div>
+            </div>
+            
+            <!-- Duplicate Groups Summary -->
+            <div class="mt-2">
+                <div class="row">
+                    {% for group in duplicate_report.duplicate_groups %}
+                    <div class="col-lg-6 mb-2">
+                        <div class="card border-light bg-light">
+                            <div class="card-body py-2 px-3">
+                                <div class="d-flex justify-content-between align-items-start">
+                                    <div class="flex-grow-1">
+                                        <strong class="text-primary">{{ group.main_booking.guest_name }}</strong>
+                                        <br>
+                                        <small class="text-muted">
+                                            {{ group.main_booking.check_in_date }} | 
+                                            {{ "{:,.0f}".format(group.main_booking.total_payment) }} VND
+                                        </small>
+                                        <br>
+                                        <small class="text-success">
+                                            <i class="fas fa-arrow-right me-1"></i>
+                                            {{ group.group_size - 1 }} similar booking(s) filtered
+                                        </small>
+                                    </div>
+                                    <div class="text-end">
+                                        <button class="btn btn-outline-danger btn-sm review-duplicate-btn" 
+                                                data-main-booking-id="{{ group.main_booking.booking_id }}"
+                                                data-group-index="{{ loop.index0 }}">
+                                            <i class="fas fa-eye"></i> Review
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Store duplicate data in JavaScript for safe access -->
+    <script type="application/json" id="duplicate-data">
+        {{ duplicate_report.duplicate_groups|tojson|safe }}
+    </script>
+    
+    {% elif auto_filter_duplicates %}
+    <div class="alert alert-success alert-dismissible mb-3" role="alert">
+        <i class="fas fa-check-circle me-1"></i>
+        <strong>No duplicates found!</strong> All bookings are unique.
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+    {% endif %}
+
+    {% if not auto_filter_duplicates %}
+    <div class="alert alert-info alert-dismissible mb-3" role="alert">
+        <i class="fas fa-info-circle me-1"></i>
+        Auto duplicate filtering is <strong>disabled</strong>. 
+        <a href="{{ url_for('view_bookings', auto_filter='true', search_term=search_term, filter_month=filter_month, filter_year=filter_year, start_date=start_date, end_date=end_date, show_all=show_all) }}" 
+           class="alert-link">Enable auto-filter</a> to hide duplicates automatically.
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+    {% endif %}
+
+    <!-- Table với compact style -->
+    <div class="table-responsive">
+        <table class="table table-sm table-striped table-hover mb-0" style="font-size: 0.85rem;">
+            <thead class="table-primary sticky-top">
+                <tr>
+                    <th style="width: 30px; padding: 4px 8px;">
+                        <input type="checkbox" id="select-all-bookings" class="form-check-input">
+                    </th>
+                    <th style="padding: 4px 8px;">
+                        <a href="{{ url_for('view_bookings', search_term=search_term, filter_month=filter_month, filter_year=filter_year, start_date=start_date, end_date=end_date, sort_by='Số đặt phòng', order='asc' if current_sort_by == 'Số đặt phòng' and current_order == 'desc' else 'desc') }}" class="text-dark text-decoration-none fw-medium">
+                            Số ĐB 
+                            {% if current_sort_by == 'Số đặt phòng' %}
+                                {% if current_order == 'asc' %}
+                                    <i class="fas fa-sort-up fa-xs text-primary"></i>
+                                {% else %}
+                                    <i class="fas fa-sort-down fa-xs text-primary"></i>
+                                {% endif %}
+                            {% else %}
+                                <i class="fas fa-sort fa-xs text-muted"></i>
+                            {% endif %}
+                        </a>
+                    </th>
+                    <th style="padding: 4px 8px;">
+                        <a href="{{ url_for('view_bookings', search_term=search_term, filter_month=filter_month, filter_year=filter_year, start_date=start_date, end_date=end_date, sort_by='Tên người đặt', order='asc' if current_sort_by == 'Tên người đặt' and current_order == 'desc' else 'desc') }}" class="text-dark text-decoration-none fw-medium">
+                            👤 Người đặt 
+                            {% if current_sort_by == 'Tên người đặt' %}
+                                {% if current_order == 'asc' %}
+                                    <i class="fas fa-sort-up fa-xs text-primary"></i>
+                                {% else %}
+                                    <i class="fas fa-sort-down fa-xs text-primary"></i>
+                                {% endif %}
+                            {% else %}
+                                <i class="fas fa-sort fa-xs text-muted"></i>
+                            {% endif %}
+                        </a>
+                    </th>
+                    <th style="padding: 4px 8px; min-width: 90px;">
+                        <a href="{{ url_for('view_bookings', search_term=search_term, filter_month=filter_month, filter_year=filter_year, start_date=start_date, end_date=end_date, sort_by='Check-in Date', order='asc' if current_sort_by == 'Check-in Date' and current_order == 'desc' else 'desc') }}" class="text-dark text-decoration-none fw-medium">
+                            📅 Check-in 
+                            {% if current_sort_by == 'Check-in Date' %}
+                                {% if current_order == 'asc' %}
+                                    <i class="fas fa-sort-up fa-xs text-primary"></i>
+                                {% else %}
+                                    <i class="fas fa-sort-down fa-xs text-primary"></i>
+                                {% endif %}
+                            {% else %}
+                                <i class="fas fa-sort fa-xs text-muted"></i>
+                            {% endif %}
+                        </a>
+                    </th>
+                    <th style="padding: 4px 8px; min-width: 90px;">
+                        <a href="{{ url_for('view_bookings', search_term=search_term, filter_month=filter_month, filter_year=filter_year, start_date=start_date, end_date=end_date, sort_by='Check-out Date', order='asc' if current_sort_by == 'Check-out Date' and current_order == 'desc' else 'desc') }}" class="text-dark text-decoration-none fw-medium">
+                            📅 Check-out 
+                            {% if current_sort_by == 'Check-out Date' %}
+                                {% if current_order == 'asc' %}
+                                    <i class="fas fa-sort-up fa-xs text-primary"></i>
+                                {% else %}
+                                    <i class="fas fa-sort-down fa-xs text-primary"></i>
+                                {% endif %}
+                            {% else %}
+                                <i class="fas fa-sort fa-xs text-muted"></i>
+                            {% endif %}
+                        </a>
+                    </th>
+                    <th style="padding: 4px 8px; width: 80px;">
+                        <a href="{{ url_for('view_bookings', search_term=search_term, filter_month=filter_month, filter_year=filter_year, start_date=start_date, end_date=end_date, sort_by='Tình trạng', order='asc' if current_sort_by == 'Tình trạng' and current_order == 'desc' else 'desc') }}" class="text-dark text-decoration-none fw-medium">
+                            ⚡ Trạng thái 
+                            {% if current_sort_by == 'Tình trạng' %}
+                                {% if current_order == 'asc' %}
+                                    <i class="fas fa-sort-up fa-xs text-primary"></i>
+                                {% else %}
+                                    <i class="fas fa-sort-down fa-xs text-primary"></i>
+                                {% endif %}
+                            {% else %}
+                                <i class="fas fa-sort fa-xs text-muted"></i>
+                            {% endif %}
+                        </a>
+                    </th>
+                    <th class="text-end" style="padding: 4px 8px;">
+                        <a href="{{ url_for('view_bookings', search_term=search_term, filter_month=filter_month, filter_year=filter_year, start_date=start_date, end_date=end_date, sort_by='Tổng thanh toán', order='asc' if current_sort_by == 'Tổng thanh toán' and current_order == 'desc' else 'desc') }}" class="text-dark text-decoration-none fw-medium">
+                            💰 Thanh toán 
+                            {% if current_sort_by == 'Tổng thanh toán' %}
+                                {% if current_order == 'asc' %}
+                                    <i class="fas fa-sort-up fa-xs text-primary"></i>
+                                {% else %}
+                                    <i class="fas fa-sort-down fa-xs text-primary"></i>
+                                {% endif %}
+                            {% else %}
+                                <i class="fas fa-sort fa-xs text-muted"></i>
+                            {% endif %}
+                        </a>
+                    </th>
+                    <th class="text-end" style="padding: 4px 8px;">
+                        <a href="{{ url_for('view_bookings', search_term=search_term, filter_month=filter_month, filter_year=filter_year, start_date=start_date, end_date=end_date, sort_by='Số tiền đã thu', order='asc' if current_sort_by == 'Số tiền đã thu' and current_order == 'desc' else 'desc') }}" class="text-dark text-decoration-none fw-medium">
+                            ✅ Đã thu 
+                            {% if current_sort_by == 'Số tiền đã thu' %}
+                                {% if current_order == 'asc' %}
+                                    <i class="fas fa-sort-up fa-xs text-primary"></i>
+                                {% else %}
+                                    <i class="fas fa-sort-down fa-xs text-primary"></i>
+                                {% endif %}
+                            {% else %}
+                                <i class="fas fa-sort fa-xs text-muted"></i>
+                            {% endif %}
+                        </a>
+                    </th>
+                    <th style="padding: 4px 8px;">
+                        <a href="{{ url_for('view_bookings', search_term=search_term, filter_month=filter_month, filter_year=filter_year, start_date=start_date, end_date=end_date, sort_by='Người thu tiền', order='asc' if current_sort_by == 'Người thu tiền' and current_order == 'desc' else 'desc') }}" class="text-dark text-decoration-none fw-medium">
+                            👨‍💼 Người thu 
+                            {% if current_sort_by == 'Người thu tiền' %}
+                                {% if current_order == 'asc' %}
+                                    <i class="fas fa-sort-up fa-xs text-primary"></i>
+                                {% else %}
+                                    <i class="fas fa-sort-down fa-xs text-primary"></i>
+                                {% endif %}
+                            {% else %}
+                                <i class="fas fa-sort fa-xs text-muted"></i>
+                            {% endif %}
+                        </a>
+                    </th>
+                    <th class="text-end" style="padding: 4px 8px;">
+                        <a href="{{ url_for('view_bookings', search_term=search_term, filter_month=filter_month, filter_year=filter_year, start_date=start_date, end_date=end_date, sort_by='Hoa hồng', order='asc' if current_sort_by == 'Hoa hồng' and current_order == 'desc' else 'desc') }}" class="text-dark text-decoration-none fw-medium">
+                            🎯 Hoa hồng 
+                            {% if current_sort_by == 'Hoa hồng' %}
+                                {% if current_order == 'asc' %}
+                                    <i class="fas fa-sort-up fa-xs text-primary"></i>
+                                {% else %}
+                                    <i class="fas fa-sort-down fa-xs text-primary"></i>
+                                {% endif %}
+                            {% else %}
+                                <i class="fas fa-sort fa-xs text-muted"></i>
+                            {% endif %}
+                        </a>
+                    </th>
+                    <th style="padding: 4px 8px;">
+                        <a href="{{ url_for('view_bookings', search_term=search_term, filter_month=filter_month, filter_year=filter_year, start_date=start_date, end_date=end_date, sort_by='Taxi', order='asc' if current_sort_by == 'Taxi' and current_order == 'desc' else 'desc') }}" class="text-dark text-decoration-none fw-medium">
+                            🚕 Taxi 
+                            {% if current_sort_by == 'Taxi' %}
+                                {% if current_order == 'asc' %}
+                                    <i class="fas fa-sort-up fa-xs text-primary"></i>
+                                {% else %}
+                                    <i class="fas fa-sort-down fa-xs text-primary"></i>
+                                {% endif %}
+                            {% else %}
+                                <i class="fas fa-sort fa-xs text-muted"></i>
+                            {% endif %}
+                        </a>
+                    </th>
+                    <th style="padding: 4px 8px; width: 60px;" class="text-dark fw-medium">Thao tác</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for booking in bookings %}
+                <tr class="align-middle">
+                    <td style="padding: 2px 8px;">
+                        <input type="checkbox" name="booking_select" class="booking-checkbox form-check-input" value="{{ booking['Số đặt phòng'] }}">
+                    </td>
+                    <td style="padding: 2px 8px;">
+                        <code class="small">{{ booking['Số đặt phòng'] }}</code>
+                    </td>
+                    <td style="padding: 2px 8px;">
+                        <span class="fw-medium">{{ booking.get('Tên người đặt', 'N/A') }}</span>
+                    </td>
+                    <td style="padding: 4px 8px; min-width: 90px;">
+                        <div class="text-center">
+                            {% set checkin_date = booking.get('Check-in Date') %}
+                            {% if checkin_date|is_valid_date %}
+                                <div class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1" style="font-size: 0.8rem;">
+                                    <i class="fas fa-calendar-check fa-xs me-1"></i>
+                                    <strong>{{ checkin_date|safe_date_format('%d/%m/%y') }}</strong>
+                                </div>
+                                {% set day_name = checkin_date|safe_day_name %}
+                                {% if day_name %}
+                                <small class="text-muted d-block">{{ day_name }}</small>
+                                {% endif %}
+                            {% else %}
+                                <div class="badge bg-warning-subtle text-warning border border-warning-subtle px-2 py-1" style="font-size: 0.8rem;">
+                                    <i class="fas fa-calendar-question fa-xs me-1"></i>
+                                    <strong>N/A</strong>
+                                </div>
+                                <!-- Enhanced debug info for admin -->
+                                {% if dev_mode %}
+                                <small class="text-danger d-block" style="font-size: 0.7rem;" title="⚠️ Lỗi dữ liệu: Cần cập nhật ngày check-in trong Google Sheets">
+                                    <i class="fas fa-exclamation-triangle fa-xs me-1"></i>Missing Date
+                                </small>
+                                {% else %}
+                                <small class="text-muted d-block" style="font-size: 0.7rem;">
+                                    Cần cập nhật
+                                </small>
+                                {% endif %}
+                            {% endif %}
+                        </div>
+                    </td>
+                    <td style="padding: 4px 8px; min-width: 90px;">
+                        <div class="text-center">
+                            {% set checkout_date = booking.get('Check-out Date') %}
+                            {% if checkout_date|is_valid_date %}
+                                <div class="badge bg-danger-subtle text-danger border border-danger-subtle px-2 py-1" style="font-size: 0.8rem;">
+                                    <i class="fas fa-calendar-times fa-xs me-1"></i>
+                                    <strong>{{ checkout_date|safe_date_format('%d/%m/%y') }}</strong>
+                                </div>
+                                {% set day_name = checkout_date|safe_day_name %}
+                                {% if day_name %}
+                                <small class="text-muted d-block">{{ day_name }}</small>
+                                {% endif %}
+                            {% else %}
+                                <div class="badge bg-warning-subtle text-warning border border-warning-subtle px-2 py-1" style="font-size: 0.8rem;">
+                                    <i class="fas fa-calendar-question fa-xs me-1"></i>
+                                    <strong>N/A</strong>
+                                </div>
+                                <!-- Enhanced debug info for admin -->
+                                {% if dev_mode %}
+                                <small class="text-danger d-block" style="font-size: 0.7rem;" title="⚠️ Lỗi dữ liệu: Cần cập nhật ngày check-out trong Google Sheets">
+                                    <i class="fas fa-exclamation-triangle fa-xs me-1"></i>Missing Date
+                                </small>
+                                {% else %}
+                                <small class="text-muted d-block" style="font-size: 0.7rem;">
+                                    Cần cập nhật
+                                </small>
+                                {% endif %}
+                            {% endif %}
+                        </div>
+                    </td>
+                    <td style="padding: 2px 8px;">
+                        <span class="badge {{ 'bg-success' if booking.get('Tình trạng') == 'OK' else 'bg-danger' }} badge-sm">
+                            {{ booking.get('Tình trạng', 'N/A') }}
+                        </span>
+                    </td>
+                    <td class="text-end" style="padding: 2px 8px;">
+                        <strong class="text-primary">{{ "{:,.0f}".format(booking.get('Tổng thanh toán', 0)) }}đ</strong>
+                    </td>
+                    <td class="text-end" style="padding: 2px 8px;">
+                        {% set collected_amount = booking.get('Số tiền đã thu', 0) %}
+                        {% set collector = booking.get('Người thu tiền', '') %}
+                        {% set valid_collectors = ['LOC LE', 'THAO LE'] %}
+                        {% set has_valid_collector = collector in valid_collectors %}
+                        {% set actual_collected = has_valid_collector and collected_amount or 0 %}
+                        {% if actual_collected > 0 %}
+                            <strong class="text-success">{{ "{:,.0f}".format(actual_collected) }}đ</strong>
+                        {% else %}
+                            <small class="text-muted">-</small>
+                        {% endif %}
+                    </td>
+                    <td style="padding: 2px 8px;">
+                        <small class="text-muted">{{ booking.get('Người thu tiền', 'N/A') }}</small>
+                    </td>
+                    <td class="text-end" style="padding: 2px 8px;">
+                        {% set commission = booking.get('Hoa hồng', 0) %}
+                        {% set commission_value = commission|float if commission else 0 %}
+                        {% if booking.get('Số đặt phòng') == '4792449210' %}
+                        <!-- DEBUG: Show actual values for booking 4792449210 -->
+                        <span class="text-info small">DEBUG: {{ commission }} ({{ commission_value }})</span><br>
+                        {% endif %}
+                        {% if commission_value > 0 %}
+                        <strong class="text-warning">{{ "{:,.0f}".format(commission_value) }}đ</strong>
+                        {% else %}
+                        <small class="text-muted">-</small>
+                        {% endif %}
+                    </td>
+                    <td style="padding: 2px 8px;">
+                        {% set taxi = booking.get('Taxi', 0) %}
+                        {% set taxi_value = taxi|float if taxi else 0 %}
+                        {% if taxi_value > 0 %}
+                        <span class="badge bg-info text-dark">{{ "{:,.0f}đ".format(taxi_value) }}</span>
+                        {% else %}
+                        <small class="text-muted">-</small>
+                        {% endif %}
+                    </td>
+                    <td style="padding: 2px 8px;">
+                        <a href="{{ url_for('edit_booking', booking_id=booking['Số đặt phòng']) }}" 
+                           class="btn btn-outline-primary btn-sm py-0 px-1" 
+                           title="Chỉnh sửa">
+                            <i class="fas fa-edit fa-xs"></i>
+                        </a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- PROFESSIONAL PAGINATION AND INFO -->
+    <div class="row mt-3 align-items-center">
+        <div class="col-md-6">
+            <div class="text-muted small">
+                <i class="fas fa-info-circle me-1"></i>
+                {% if pagination %}
+                Hiển thị <strong>{{ pagination.start_item }}-{{ pagination.end_item }}</strong> 
+                trong tổng số <strong>{{ pagination.total }}</strong> đặt phòng
+                {% if search_term %}
+                (đã lọc theo: "{{ search_term }}")
+                {% endif %}
+                {% else %}
+                Hiển thị {{ bookings|length }} đặt phòng
+                {% endif %}
+            </div>
+        </div>
+        <div class="col-md-6">
+            {% if pagination and pagination.total_pages > 1 %}
+            <nav aria-label="Phân trang đặt phòng">
+                <ul class="pagination pagination-sm justify-content-end mb-0">
+                    <!-- First page -->
+                    {% if pagination.page > 2 %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ url_for('view_bookings', page=1, per_page=pagination.per_page, search_term=search_term, show_all='true' if show_all else '', sort_by=sort_by, order=order) }}">
+                            <i class="fas fa-angle-double-left"></i>
+                        </a>
+                    </li>
+                    {% endif %}
+                    
+                    <!-- Previous page -->
+                    {% if pagination.has_prev %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ url_for('view_bookings', page=pagination.prev_page, per_page=pagination.per_page, search_term=search_term, show_all='true' if show_all else '', sort_by=sort_by, order=order) }}">
+                            <i class="fas fa-angle-left"></i> Trước
+                        </a>
+                    </li>
+                    {% endif %}
+                    
+                    <!-- Page numbers -->
+                    {% for page_num in pagination.page_range|default([pagination.page]) %}
+                    {% if page_num == pagination.page %}
+                    <li class="page-item active">
+                        <span class="page-link">{{ page_num }}</span>
+                    </li>
+                    {% else %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ url_for('view_bookings', page=page_num, per_page=pagination.per_page, search_term=search_term, show_all='true' if show_all else '', sort_by=sort_by, order=order) }}">
+                            {{ page_num }}
+                        </a>
+                    </li>
+                    {% endif %}
+                    {% endfor %}
+                    
+                    <!-- Next page -->
+                    {% if pagination.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ url_for('view_bookings', page=pagination.next_page, per_page=pagination.per_page, search_term=search_term, show_all='true' if show_all else '', sort_by=sort_by, order=order) }}">
+                            Sau <i class="fas fa-angle-right"></i>
+                        </a>
+                    </li>
+                    {% endif %}
+                    
+                    <!-- Last page -->
+                    {% if pagination.page < pagination.total_pages - 1 %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ url_for('view_bookings', page=pagination.total_pages, per_page=pagination.per_page, search_term=search_term, show_all='true' if show_all else '', sort_by=sort_by, order=order) }}">
+                            <i class="fas fa-angle-double-right"></i>
+                        </a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </nav>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- AI Duplicate Analysis Modal -->
+<div class="modal fade" id="aiDuplicateModal" tabindex="-1" aria-labelledby="aiDuplicateModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header bg-warning">
+                <h5 class="modal-title text-dark" id="aiDuplicateModalLabel">
+                    <i class="fas fa-robot me-2"></i>AI Duplicate Analysis Results
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" id="duplicateResults">
+                <div class="text-center">
+                    <div class="spinner-border text-warning" role="status">
+                        <span class="visually-hidden">Analyzing...</span>
+                    </div>
+                    <p class="mt-2">🤖 AI đang phân tích các booking trùng lặp...</p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Đóng</button>
+                <button type="button" class="btn btn-primary" id="refreshDuplicateAnalysis">
+                    <i class="fas fa-sync-alt me-1"></i>Phân tích lại
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.badge-sm {
+    font-size: 0.7rem;
+}
+.sticky-top {
+    position: sticky;
+    top: 0;
+    z-index: 1020;
+}
+</style>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const selectAllCheckbox = document.getElementById('select-all-checkbox');
+    const bookingCheckboxes = document.querySelectorAll('.booking-checkbox');
+    const deleteSelectedBtn = document.getElementById('delete-selected-btn');
+
+    function toggleDeleteButton() {
+        const anyChecked = Array.from(bookingCheckboxes).some(cb => cb.checked);
+        deleteSelectedBtn.style.display = anyChecked ? 'inline-block' : 'none';
+    }
+
+    selectAllCheckbox.addEventListener('change', function () {
+        bookingCheckboxes.forEach(checkbox => {
+            checkbox.checked = selectAllCheckbox.checked;
+        });
+        toggleDeleteButton();
+    });
+
+    bookingCheckboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', function () {
+            if (!this.checked) {
+                selectAllCheckbox.checked = false;
+            } else {
+                const allChecked = Array.from(bookingCheckboxes).every(cb => cb.checked);
+                selectAllCheckbox.checked = allChecked;
+            }
+            toggleDeleteButton();
+        });
+    });
+
+    deleteSelectedBtn.addEventListener('click', function () {
+        const selectedIds = Array.from(bookingCheckboxes)
+            .filter(cb => cb.checked)
+            .map(cb => cb.value);
+
+        if (selectedIds.length > 0 && confirm('Bạn có chắc chắn muốn xóa ' + selectedIds.length + ' mục đã chọn không?')) {
+            // Show loading state
+            const originalText = deleteSelectedBtn.innerHTML;
+            deleteSelectedBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Đang xóa...';
+            deleteSelectedBtn.disabled = true;
+            
+            // Create timeout controller - longer timeout for multiple deletions
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout for multiple items
+            
+            fetch('/bookings/delete_multiple', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ ids: selectedIds }),
+                signal: controller.signal
+            })
+            .then(response => {
+                clearTimeout(timeoutId);
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                deleteSelectedBtn.disabled = false;
+                deleteSelectedBtn.innerHTML = originalText;
+                
+                if (data.success) {
+                    alert('✅ Đã xóa các mục đã chọn thành công.');
+                    window.location.reload();
+                } else {
+                    alert('❌ Đã xảy ra lỗi khi xóa: ' + data.message);
+                }
+            })
+            .catch(error => {
+                clearTimeout(timeoutId);
+                deleteSelectedBtn.disabled = false;
+                deleteSelectedBtn.innerHTML = originalText;
+                
+                console.error('Lỗi:', error);
+                if (error.name === 'AbortError') {
+                    alert('⏱️ Timeout: Việc xóa mất quá nhiều thời gian. Vui lòng kiểm tra lại sau hoặc thử xóa từng mục một.');
+                } else {
+                    alert('❌ Đã xảy ra lỗi kết nối. Vui lòng thử lại sau.');
+                }
+            });
+        }
+    });
+
+    toggleDeleteButton(); // Initial check
+    
+    // === Filter Active/All Toggle ===
+    // REMOVED: Duplicate event listeners that conflict with initializeFilterToggle()
+    // The filter toggle is now handled by initializeFilterToggle() function which uses updateFilterView()
+    
+    // REMOVED: updateFilterAndReload function - replaced by updateFilterView in initializeFilterToggle()
+    
+    // === AI Duplicate Analysis ===
+    console.log('🔍 SEARCHING FOR AI DUPLICATE ELEMENTS...');
+    const aiDuplicateBtn = document.getElementById('ai-duplicate-filter-btn');
+    const duplicateModalElement = document.getElementById('aiDuplicateModal');
+    const duplicateResults = document.getElementById('duplicateResults');
+    const refreshAnalysisBtn = document.getElementById('refreshDuplicateAnalysis');
+    
+    // Debug: Check if elements exist
+    console.log('AI Duplicate elements found:', {
+        aiDuplicateBtn: !!aiDuplicateBtn,
+        duplicateModalElement: !!duplicateModalElement,
+        duplicateResults: !!duplicateResults,
+        refreshAnalysisBtn: !!refreshAnalysisBtn
+    });
+    
+    // Only proceed if all elements exist
+    if (!aiDuplicateBtn || !duplicateModalElement || !duplicateResults || !refreshAnalysisBtn) {
+        console.error('❌ AI Duplicate Analysis: Required elements not found');
+        console.log('Available button elements:', Array.from(document.querySelectorAll('button')).map(b => b.id || b.className));
+        console.log('Available modal elements:', Array.from(document.querySelectorAll('.modal')).map(m => m.id));
+        return;
+    }
+    
+    console.log('✅ All AI duplicate elements found, setting up...');
+    
+    const duplicateModal = new bootstrap.Modal(duplicateModalElement);
+    
+    // Function to perform duplicate analysis
+    function performDuplicateAnalysis() {
+        console.log('🤖 Starting AI duplicate analysis...');
+        
+        // Show loading state
+        duplicateResults.innerHTML = '<div class="text-center">' +
+            '<div class="spinner-border text-warning" role="status">' +
+            '<span class="visually-hidden">Analyzing...</span>' +
+            '</div>' +
+            '<p class="mt-2">🤖 AI đang phân tích các booking trùng lặp...</p>' +
+            '<small class="text-muted">Đang sử dụng logic AI để tìm khách có tên + giá + ngày tương tự...</small>' +
+            '</div>';
+        
+        // Call the API with timeout
+        const timeoutPromise = new Promise((_, reject) => {
+            setTimeout(() => reject(new Error('Request timeout after 45 seconds')), 45000);
+        });
+        
+        const fetchPromise = fetch('/api/analyze_duplicates')
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                return response.json();
+            });
+        
+        Promise.race([fetchPromise, timeoutPromise])
+            .then(data => {
+                console.log('AI Analysis result:', data);
+                
+                if (data.success) {
+                    displayDuplicateResults(data.data);
+                    
+                    // Show processing time if available
+                    if (data.processing_time) {
+                        console.log(`✅ Analysis completed in ${data.processing_time.toFixed(2)}s`);
+                    }
+                } else {
+                    duplicateResults.innerHTML = '<div class="alert alert-danger">' +
+                        '<h6><i class="fas fa-exclamation-triangle me-2"></i>Lỗi phân tích</h6>' +
+                        '<p class="mb-0">' + (data.message || 'Unknown error') + '</p>' +
+                        (data.error_type ? '<small class="text-muted d-block mt-1">Error type: ' + data.error_type + '</small>' : '') +
+                        '</div>';
+                }
+            })
+            .catch(error => {
+                console.error('Error analyzing duplicates:', error);
+                
+                let errorMessage = 'Không thể kết nối với server để phân tích. Vui lòng thử lại.';
+                let errorDetails = '';
+                
+                if (error.message.includes('timeout')) {
+                    errorMessage = 'Phân tích mất quá nhiều thời gian. Có thể do dữ liệu quá lớn.';
+                    errorDetails = '<small class="text-muted d-block mt-2">💡 Gợi ý: Hệ thống có thể đang xử lý nhiều dữ liệu. Hãy thử lại sau vài phút.</small>';
+                } else if (error.message.includes('HTTP')) {
+                    errorMessage = 'Server trả về lỗi: ' + error.message;
+                }
+                
+                duplicateResults.innerHTML = '<div class="alert alert-danger">' +
+                    '<h6><i class="fas fa-exclamation-triangle me-2"></i>Lỗi kết nối</h6>' +
+                    '<p class="mb-0">' + errorMessage + '</p>' +
+                    errorDetails +
+                    '</div>';
+            });
+    }
+    
+    // Function to display duplicate analysis results
+    function displayDuplicateResults(analysisData) {
+        const { duplicate_groups, total_groups, total_duplicates } = analysisData;
+        
+        if (total_groups === 0) {
+            duplicateResults.innerHTML = '<div class="alert alert-success text-center">' +
+                '<i class="fas fa-check-circle fa-3x text-success mb-3"></i>' +
+                '<h5>🎉 Không tìm thấy booking trùng lặp!</h5>' +
+                '<p class="mb-0">AI đã phân tích tất cả booking và không tìm thấy khách có tên + giá + ngày check-in/out tương tự.</p>' +
+                '<small class="text-muted">Dữ liệu đặt phòng của bạn rất sạch!</small>' +
+                '</div>';
+            return;
+        }
+        
+        let html = '<div class="alert alert-warning">' +
+            '<h6><i class="fas fa-exclamation-triangle me-2"></i>Phát hiện ' + total_groups + ' nhóm trùng lặp</h6>' +
+            '<p class="mb-0">Tổng cộng ' + total_duplicates + ' booking có thể trùng lặp được tìm thấy. Kiểm tra và xử lý theo nhu cầu.</p>' +
+            '</div>';
+        
+        duplicate_groups.forEach((group, index) => {
+            const { main_booking, similar_bookings, group_size } = group;
+            
+            // Safely handle booking data with fallbacks
+            const bookingId = main_booking.booking_id || 'N/A';
+            const guestName = main_booking.guest_name || 'N/A';
+            const checkIn = main_booking.check_in_date || 'N/A';
+            const checkOut = main_booking.check_out_date || 'N/A';
+            const totalPayment = main_booking.total_payment || 0;
+            const status = main_booking.status || 'Unknown';
+            
+            // Build the status badge safely
+            const statusClass = status === 'OK' ? 'bg-success' : 'bg-danger';
+            
+            html += '<div class="card mb-3 border-warning">' +
+                '<div class="card-header bg-warning-subtle">' +
+                '<h6 class="mb-0"><i class="fas fa-users me-2"></i>Nhóm ' + (index + 1) + ': ' + group_size + ' booking tương tự</h6>' +
+                '</div>' +
+                '<div class="card-body">' +
+                '<div class="row">' +
+                '<div class="col-md-6">' +
+                '<div class="card border-primary">' +
+                '<div class="card-header bg-primary text-white" style="text-shadow: 1px 1px 2px rgba(0,0,0,0.5);">' +
+                '<small class="text-white fw-bold"><i class="fas fa-star me-1"></i>Booking chính</small>' +
+                '</div>' +
+                '<div class="card-body bg-light">' +
+                '<p class="mb-1 text-dark"><strong>ID:</strong> ' + bookingId + '</p>' +
+                '<p class="mb-1 text-dark"><strong>Tên:</strong> ' + guestName + '</p>' +
+                '<p class="mb-1 text-dark"><strong>Check-in:</strong> ' + checkIn + '</p>' +
+                '<p class="mb-1 text-dark"><strong>Check-out:</strong> ' + checkOut + '</p>' +
+                '<p class="mb-1 text-dark"><strong>Giá:</strong> ' + (totalPayment || 0).toLocaleString() + 'đ</p>' +
+                '<p class="mb-2 text-dark"><strong>Trạng thái:</strong> <span class="badge ' + statusClass + '">' + status + '</span></p>' +
+                '<div class="d-grid gap-2">' +
+                '<button class="btn btn-danger btn-sm" onclick="deleteBooking(\'' + bookingId + '\')">' +
+                '<i class="fas fa-trash me-1"></i>Xóa Booking này</button>' +
+                '<button class="btn btn-info btn-sm" onclick="showBookingDetails(\'' + bookingId + '\')">' +
+                '<i class="fas fa-eye me-1"></i>Xem chi tiết</button>' +
+                '</div></div></div></div>' +
+                '<div class="col-md-6">' +
+                '<div class="card border-danger">' +
+                '<div class="card-header bg-danger text-white">' +
+                '<small><i class="fas fa-exclamation-triangle me-1"></i>' + similar_bookings.length + ' booking tương tự</small>' +
+                '</div>' +
+                '<div class="card-body bg-light">';
+            
+            // Store main booking ID for use in inner loop (now using safe bookingId)
+            const mainBookingId = bookingId;
+            
+            similar_bookings.forEach((similar, idx) => {
+                // Safely handle similar booking data
+                const similId = similar.booking_id || 'N/A';
+                const similName = similar.guest_name || 'N/A';
+                const similCheckIn = similar.check_in_date || 'N/A';
+                const similPayment = similar.total_payment || 0;
+                const similDateDiff = similar.date_diff || 0;
+                const similPriceDiff = similar.price_diff || 0;
+                
+                html += '<div class="border-bottom pb-2 mb-2">' +
+                    '<p class="mb-1 text-dark"><small><strong>ID:</strong> ' + similId + '</small></p>' +
+                    '<p class="mb-1 text-dark"><small><strong>Tên:</strong> ' + similName + '</small></p>' +
+                    '<p class="mb-1 text-dark"><small><strong>Check-in:</strong> ' + similCheckIn + '</small></p>' +
+                    '<p class="mb-1 text-dark"><small><strong>Giá:</strong> ' + (similPayment || 0).toLocaleString() + 'đ</small></p>' +
+                    '<p class="mb-1"><small>' +
+                    '<span class="badge bg-info">±' + similDateDiff + ' ngày</span> ' +
+                    '<span class="badge bg-warning text-dark">±' + (similPriceDiff || 0).toLocaleString() + 'đ</span>' +
+                    '</small></p>' +
+                    '<div class="btn-group btn-group-sm">' +
+                    '<button class="btn btn-outline-danger" onclick="deleteBooking(\'' + similId + '\')">' +
+                    '<i class="fas fa-trash"></i> Xóa</button>' +
+                    '<button class="btn btn-outline-info" onclick="showBookingDetails(\'' + similId + '\')">' +
+                    '<i class="fas fa-eye"></i> Chi tiết</button>' +
+                    '<button class="btn btn-outline-warning" onclick="compareBookings(\'' + mainBookingId + '\', \'' + similId + '\')">' +
+                    '<i class="fas fa-not-equal"></i> So sánh</button>' +
+                    '</div></div>';
+            });
+            
+            html += '</div></div></div></div>' +
+                '<div class="mt-3">' +
+                '<small class="text-muted">' +
+                '<i class="fas fa-lightbulb me-1"></i>' +
+                '<strong>Gợi ý:</strong> Kiểm tra các booking này có phải của cùng một khách không. ' +
+                'Nếu có, có thể cần xóa booking trùng lặp hoặc cập nhật thông tin.' +
+                '</small>' +
+                '</div>' +
+                '</div>' +
+                '</div>';
+        });
+        
+        duplicateResults.innerHTML = html;
+    }
+    
+    // Event listeners for AI duplicate functionality
+    try {
+        // Add click event listener
+        aiDuplicateBtn.addEventListener('click', function() {
+            console.log('🟢 AI Duplicate Filter button clicked via addEventListener');
+            try {
+                console.log('🔵 Opening modal and starting analysis...');
+                duplicateModal.show();
+                performDuplicateAnalysis();
+            } catch (error) {
+                console.error('❌ Error in AI duplicate click handler:', error);
+                alert('Error: ' + error.message);
+            }
+        });
+        
+        // Add fallback onclick handler
+        aiDuplicateBtn.onclick = function() {
+            console.log('🟡 AI Duplicate Filter button clicked via onclick fallback');
+            try {
+                duplicateModal.show();
+                performDuplicateAnalysis();
+            } catch (error) {
+                console.error('❌ Error in fallback onclick handler:', error);
+                alert('Error: ' + error.message);
+            }
+        };
+        
+        refreshAnalysisBtn.addEventListener('click', function() {
+            console.log('🔄 Refresh Analysis button clicked');
+            try {
+                performDuplicateAnalysis();
+            } catch (error) {
+                console.error('❌ Error in refresh analysis handler:', error);
+            }
+        });
+        
+        console.log('AI Duplicate Analysis: Event listeners attached successfully');
+        
+    } catch (error) {
+        console.error('❌ Error setting up AI duplicate analysis:', error);
+    }
+    
+    // Add Test API button functionality
+    const testApiBtn = document.getElementById('test-ai-api-btn');
+    if (testApiBtn) {
+        testApiBtn.addEventListener('click', function() {
+            console.log('🧪 Testing AI API directly...');
+            
+            // Show immediate feedback
+            this.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Testing...';
+            this.disabled = true;
+            
+            // Add timeout to test API call
+            const testTimeoutPromise = new Promise((_, reject) => {
+                setTimeout(() => reject(new Error('Test timeout after 30 seconds')), 30000);
+            });
+            
+            const testFetchPromise = fetch('/api/analyze_duplicates')
+                .then(response => {
+                    console.log('📡 API Response status:', response.status);
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                    }
+                    return response.json();
+                });
+            
+            Promise.race([testFetchPromise, testTimeoutPromise])
+                .then(data => {
+                    console.log('✅ API Response data:', data);
+                    const summary = {
+                        success: data.success,
+                        duplicates_found: data.data?.total_duplicates || 0,
+                        processing_time: data.processing_time ? `${data.processing_time.toFixed(2)}s` : 'N/A',
+                        message: data.message
+                    };
+                    alert('API Test Result:\n' + JSON.stringify(summary, null, 2));
+                })
+                .catch(error => {
+                    console.error('❌ API Test failed:', error);
+                    alert('API Test Failed: ' + error.message);
+                })
+                .finally(() => {
+                    this.innerHTML = '<i class="fas fa-flask"></i> Test API';
+                    this.disabled = false;
+                });
+        });
+    }
+        
+        // Load duplicate data from script tag
+        let duplicateGroups = [];
+        try {
+            const duplicateDataScript = document.getElementById('duplicate-data');
+            if (duplicateDataScript) {
+                duplicateGroups = JSON.parse(duplicateDataScript.textContent);
+                console.log('Loaded duplicate groups data:', duplicateGroups);
+            }
+        } catch (error) {
+            console.error('Error loading duplicate groups data:', error);
+        }
+        
+        // Add event listeners for review duplicate buttons (from auto-filter)
+        document.addEventListener('click', function(e) {
+            if (e.target.classList.contains('review-duplicate-btn') || e.target.closest('.review-duplicate-btn')) {
+                const button = e.target.classList.contains('review-duplicate-btn') ? e.target : e.target.closest('.review-duplicate-btn');
+                const mainBookingId = button.getAttribute('data-main-booking-id');
+                const groupIndex = parseInt(button.getAttribute('data-group-index'));
+                
+                console.log('Review button clicked for booking:', mainBookingId, 'group index:', groupIndex);
+                
+                try {
+                    // Get both main booking and similar bookings for comparison
+                    if (duplicateGroups && duplicateGroups[groupIndex]) {
+                        const group = duplicateGroups[groupIndex];
+                        const mainBooking = group.main_booking;
+                        const similarBookings = group.similar_bookings || [];
+                        console.log('Found main booking:', mainBooking);
+                        console.log('Found similar bookings:', similarBookings);
+                        showDuplicateComparison(mainBooking, similarBookings);
+                    } else {
+                        console.warn('No duplicate group found for index:', groupIndex);
+                        showDuplicateDetail(mainBookingId, []);
+                    }
+                } catch (error) {
+                    console.error('Error accessing duplicate group data:', error);
+                    showDuplicateDetail(mainBookingId, []);
+                }
+            }
+        });
+        
+    // End of DOMContentLoaded
+});
+
+// Delete booking function for duplicate analysis with improved error handling
+function deleteBooking(bookingId) {
+    if (confirm('Bạn có chắc chắn muốn xóa booking "' + bookingId + '" không?')) {
+        console.log('Deleting booking:', bookingId);
+        
+        // Show loading indicator
+        const button = event.target;
+        const originalText = button.innerHTML;
+        button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Đang xóa...';
+        button.disabled = true;
+        
+        // Simple timeout approach for better browser compatibility
+        let timeoutId;
+        const timeoutPromise = new Promise((_, reject) => {
+            timeoutId = setTimeout(() => reject(new Error('Request timeout')), 15000);
+        });
+        
+        // Try multiple delete endpoint first
+        const fetchPromise = fetch('/bookings/delete_multiple', {
+            method: 'POST',
+            headers: { 
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            },
+            body: JSON.stringify({ ids: [bookingId] })
+        });
+        
+        Promise.race([fetchPromise, timeoutPromise])
+        .then(response => {
+            clearTimeout(timeoutId);
+            console.log('Delete response status:', response.status);
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            console.log('Delete response data:', data);
+            button.disabled = false;
+            button.innerHTML = originalText;
+            
+            if (data.success) {
+                alert('✅ Đã xóa booking thành công!');
+                // Refresh duplicate analysis to show updated results
+                performDuplicateAnalysis();
+            } else {
+                alert('❌ Lỗi khi xóa: ' + (data.message || 'Unknown error'));
+            }
+        })
+        .catch(error => {
+            clearTimeout(timeoutId);
+            console.error('Primary delete failed, trying fallback:', error);
+            
+            // Check if it's a timeout error
+            if (error.message === 'Request timeout') {
+                console.log('Request timed out, trying fallback with shorter timeout');
+            }
+            
+            // Fallback: try individual delete endpoint with shorter timeout
+            let fallbackTimeoutId;
+            const fallbackTimeoutPromise = new Promise((_, reject) => {
+                fallbackTimeoutId = setTimeout(() => reject(new Error('Fallback timeout')), 10000);
+            });
+            
+            const fallbackFetchPromise = fetch(`/booking/${bookingId}/delete`, {
+                method: 'POST',
+                headers: { 
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                }
+            });
+            
+            Promise.race([fallbackFetchPromise, fallbackTimeoutPromise])
+            .then(response => {
+                clearTimeout(fallbackTimeoutId);
+                button.disabled = false;
+                button.innerHTML = originalText;
+                
+                if (response.ok) {
+                    alert('✅ Đã xóa booking thành công!');
+                    performDuplicateAnalysis();
+                } else {
+                    throw new Error(`Fallback failed: ${response.status}`);
+                }
+            })
+            .catch(fallbackError => {
+                clearTimeout(fallbackTimeoutId);
+                button.disabled = false;
+                button.innerHTML = originalText;
+                
+                console.error('Both delete methods failed:', fallbackError);
+                
+                if (fallbackError.message === 'Fallback timeout') {
+                    alert('⏱️ Timeout: Kết nối quá chậm. Vui lòng kiểm tra lại sau vài phút hoặc xóa từ trang quản lý booking.');
+                } else {
+                    alert('❌ Lỗi kết nối khi xóa booking. Vui lòng thử lại hoặc xóa từ trang quản lý booking.');
+                }
+            });
+        });
+    }
+}
+
+// === Auto-filter Duplicate Detail Function ===
+function showDuplicateDetail(mainBookingId, similarBookings) {
+    console.log('Showing duplicate detail for:', mainBookingId, similarBookings);
+    
+    // Create detail modal content
+    let modalContent = '<div class="modal fade" id="duplicateDetailModal" tabindex="-1">' +
+        '<div class="modal-dialog modal-lg">' +
+        '<div class="modal-content">' +
+        '<div class="modal-header bg-warning text-dark">' +
+        '<h5 class="modal-title">' +
+        '<i class="fas fa-exclamation-triangle me-2"></i>' +
+        'Duplicate Group Details' +
+        '</h5>' +
+        '<button type="button" class="btn-close" data-bs-dismiss="modal"></button>' +
+        '</div>' +
+        '<div class="modal-body">' +
+        '<div class="alert alert-info">' +
+        '<strong>Main booking ID:</strong> ' + mainBookingId + ' (kept visible)' +
+        '</div>' +
+        '<h6>Filtered similar bookings:</h6>' +
+        '<div class="row">';
+    
+    similarBookings.forEach((booking, index) => {
+        modalContent += '<div class="col-md-6 mb-3">' +
+            '<div class="card border-danger">' +
+            '<div class="card-body">' +
+            '<h6 class="card-title text-danger">' + (booking.guest_name || 'N/A') + '</h6>' +
+            '<p class="card-text">' +
+            '<strong>ID:</strong> ' + (booking.booking_id || 'N/A') + '<br>' +
+            '<strong>Check-in:</strong> ' + (booking.check_in_date || 'N/A') + '<br>' +
+            '<strong>Check-out:</strong> ' + (booking.check_out_date || 'N/A') + '<br>' +
+            '<strong>Price:</strong> ' + (booking.total_payment || 0).toLocaleString() + ' VND<br>' +
+            '<strong>Status:</strong> ' + (booking.status || 'Unknown') +
+            '</p>' +
+            '<div class="mb-2">' +
+            '<span class="badge bg-info">±' + (booking.date_diff || 0) + ' days</span> ' +
+            '<span class="badge bg-warning text-dark">±' + (booking.price_diff || 0).toLocaleString() + ' VND</span>' +
+            '</div>' +
+            '<button class="btn btn-danger btn-sm w-100" onclick="deleteDuplicateBooking(\'' + (booking.booking_id || '') + '\')">' +
+            '<i class="fas fa-trash me-1"></i>Delete This Booking' +
+            '</button>' +
+            '</div>' +
+            '</div>' +
+            '</div>';
+    });
+    
+    modalContent += '</div>' +
+        '</div>' +
+        '<div class="modal-footer">' +
+        '<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>' +
+        '</div>' +
+        '</div>' +
+        '</div>' +
+        '</div>';
+    
+    // Remove existing modal if it exists
+    const existingModal = document.getElementById('duplicateDetailModal');
+    if (existingModal) {
+        existingModal.remove();
+    }
+    
+    // Add new modal to body
+    document.body.insertAdjacentHTML('beforeend', modalContent);
+    
+    // Show the modal
+    const modal = new bootstrap.Modal(document.getElementById('duplicateDetailModal'));
+    modal.show();
+}
+
+// New function to show booking comparison with both main and duplicate bookings
+function showDuplicateComparison(mainBooking, similarBookings) {
+    console.log('Showing duplicate comparison for main booking:', mainBooking, 'and similar bookings:', similarBookings);
+    
+    // Build comparison modal content
+    let modalContent = '<div class="modal fade" id="duplicateComparisonModal" tabindex="-1">' +
+        '<div class="modal-dialog modal-xl">' +
+        '<div class="modal-content">' +
+        '<div class="modal-header bg-warning text-dark">' +
+        '<h5 class="modal-title">' +
+        '<i class="fas fa-balance-scale me-2"></i>' +
+        'Compare Duplicate Bookings - Choose Which to Keep' +
+        '</h5>' +
+        '<button type="button" class="btn-close" data-bs-dismiss="modal"></button>' +
+        '</div>' +
+        '<div class="modal-body">' +
+        '<div class="alert alert-info">' +
+        '<i class="fas fa-info-circle me-2"></i>' +
+        '<strong>Instructions:</strong> Compare the bookings below and delete the duplicate(s). ' +
+        'Keep the booking with the most complete/accurate information.' +
+        '</div>' +
+        '<div class="row">';
+    
+    // Add main booking card
+    modalContent += '<div class="col-md-6 mb-3">' +
+        '<div class="card border-success">' +
+        '<div class="card-header bg-success text-white">' +
+        '<h6 class="mb-0"><i class="fas fa-star me-2"></i>Main Booking (Currently Kept)</h6>' +
+        '</div>' +
+        '<div class="card-body">' +
+        '<table class="table table-sm">' +
+        '<tr><td><strong>ID:</strong></td><td>' + (mainBooking.booking_id || 'N/A') + '</td></tr>' +
+        '<tr><td><strong>Guest Name:</strong></td><td>' + (mainBooking.guest_name || 'N/A') + '</td></tr>' +
+        '<tr><td><strong>Check-in:</strong></td><td>' + (mainBooking.check_in_date || 'N/A') + '</td></tr>' +
+        '<tr><td><strong>Check-out:</strong></td><td>' + (mainBooking.check_out_date || 'N/A') + '</td></tr>' +
+        '<tr><td><strong>Total Payment:</strong></td><td>' + (mainBooking.total_payment || 0).toLocaleString() + ' VND</td></tr>' +
+        '<tr><td><strong>Status:</strong></td><td><span class="badge ' + (mainBooking.status === 'OK' ? 'bg-success' : 'bg-danger') + '">' + (mainBooking.status || 'Unknown') + '</span></td></tr>' +
+        '<tr><td><strong>Commission:</strong></td><td>' + (mainBooking.commission || 0).toLocaleString() + ' VND</td></tr>' +
+        '<tr><td><strong>Accommodation:</strong></td><td>' + (mainBooking.accommodation_name || 'N/A') + '</td></tr>' +
+        '</table>' +
+        '<div class="d-grid mt-3">' +
+        '<button class="btn btn-danger" onclick="deleteDuplicateBooking(\'' + (mainBooking.booking_id || '') + '\')">' +
+        '<i class="fas fa-trash me-2"></i>Delete This Main Booking' +
+        '</button>' +
+        '</div>' +
+        '</div>' +
+        '</div>' +
+        '</div>';
+    
+    // Add similar bookings
+    similarBookings.forEach((booking, index) => {
+        modalContent += '<div class="col-md-6 mb-3">' +
+            '<div class="card border-danger">' +
+            '<div class="card-header bg-danger text-white">' +
+            '<h6 class="mb-0"><i class="fas fa-exclamation-triangle me-2"></i>Duplicate #' + (index + 1) + '</h6>' +
+            '</div>' +
+            '<div class="card-body">' +
+            '<table class="table table-sm">' +
+            '<tr><td><strong>ID:</strong></td><td>' + (booking.booking_id || 'N/A') + '</td></tr>' +
+            '<tr><td><strong>Guest Name:</strong></td><td>' + (booking.guest_name || 'N/A') + '</td></tr>' +
+            '<tr><td><strong>Check-in:</strong></td><td>' + (booking.check_in_date || 'N/A') + '</td></tr>' +
+            '<tr><td><strong>Check-out:</strong></td><td>' + (booking.check_out_date || 'N/A') + '</td></tr>' +
+            '<tr><td><strong>Total Payment:</strong></td><td>' + (booking.total_payment || 0).toLocaleString() + ' VND</td></tr>' +
+            '<tr><td><strong>Status:</strong></td><td><span class="badge ' + (booking.status === 'OK' ? 'bg-success' : 'bg-danger') + '">' + (booking.status || 'Unknown') + '</span></td></tr>' +
+            '<tr><td><strong>Commission:</strong></td><td>' + (booking.commission || 0).toLocaleString() + ' VND</td></tr>' +
+            '<tr><td><strong>Accommodation:</strong></td><td>' + (booking.accommodation_name || 'N/A') + '</td></tr>' +
+            '</table>';
+        
+        // Add differences highlighting
+        if (booking.date_diff !== undefined || booking.price_diff !== undefined) {
+            modalContent += '<div class="alert alert-warning alert-sm">' +
+                '<small><strong>Differences:</strong> ';
+            if (booking.date_diff !== undefined) {
+                modalContent += '±' + booking.date_diff + ' days ';
+            }
+            if (booking.price_diff !== undefined) {
+                modalContent += '±' + (booking.price_diff || 0).toLocaleString() + ' VND';
+            }
+            modalContent += '</small></div>';
+        }
+        
+        modalContent += '<div class="d-grid mt-3">' +
+            '<button class="btn btn-danger" onclick="deleteDuplicateBooking(\'' + (booking.booking_id || '') + '\')">' +
+            '<i class="fas fa-trash me-2"></i>Delete This Duplicate' +
+            '</button>' +
+            '</div>' +
+            '</div>' +
+            '</div>' +
+            '</div>';
+    });
+    
+    modalContent += '</div>' +
+        '</div>' +
+        '<div class="modal-footer">' +
+        '<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">' +
+        '<i class="fas fa-times me-2"></i>Close Without Changes' +
+        '</button>' +
+        '<button type="button" class="btn btn-info" onclick="refreshDuplicateAnalysis()">' +
+        '<i class="fas fa-sync me-2"></i>Refresh Analysis' +
+        '</button>' +
+        '</div>' +
+        '</div>' +
+        '</div>' +
+        '</div>';
+    
+    // Remove existing modal if it exists
+    const existingModal = document.getElementById('duplicateComparisonModal');
+    if (existingModal) {
+        existingModal.remove();
+    }
+    
+    // Add new modal to body
+    document.body.insertAdjacentHTML('beforeend', modalContent);
+    
+    // Show the modal
+    const modal = new bootstrap.Modal(document.getElementById('duplicateComparisonModal'));
+    modal.show();
+}
+
+function deleteDuplicateBooking(bookingId) {
+    if (!confirm('Are you sure you want to delete booking ' + bookingId + '?')) {
+        return;
+    }
+    
+    const button = event.target;
+    const originalText = button.innerHTML;
+    button.disabled = true;
+    button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Deleting...';
+    
+    fetch('/api/delete_booking/' + bookingId, {
+        method: 'DELETE',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        button.disabled = false;
+        button.innerHTML = originalText;
+        
+        if (data.success) {
+            // Show success message without alert (less intrusive)
+            showToast('✅ Booking deleted successfully!', 'success');
+            
+            // Close any open modals
+            const detailModal = bootstrap.Modal.getInstance(document.getElementById('duplicateDetailModal'));
+            const comparisonModal = bootstrap.Modal.getInstance(document.getElementById('duplicateComparisonModal'));
+            if (detailModal) detailModal.hide();
+            if (comparisonModal) comparisonModal.hide();
+            
+            // Remove the booking from the DOM dynamically instead of page reload
+            removeDynamicallyBookingFromDisplay(bookingId);
+            
+            // Update booking counts and statistics
+            updateBookingStatistics();
+        } else {
+            alert('❌ Error deleting booking: ' + (data.message || 'Unknown error'));
+        }
+    })
+    .catch(error => {
+        button.disabled = false;
+        button.innerHTML = originalText;
+        console.error('Error deleting booking:', error);
+        alert('❌ Network error deleting booking. Please try again.');
+    });
+}
+
+// Helper function to dynamically remove booking from display
+function removeDynamicallyBookingFromDisplay(bookingId) {
+    // Find and remove the booking row from the table
+    const bookingRows = document.querySelectorAll('tbody tr');
+    bookingRows.forEach(row => {
+        // Check if this row contains the booking ID
+        const cells = row.querySelectorAll('td');
+        cells.forEach(cell => {
+            if (cell.textContent.includes(bookingId)) {
+                // Add fade out animation
+                row.style.transition = 'all 0.3s ease';
+                row.style.opacity = '0';
+                row.style.transform = 'translateX(-20px)';
+                
+                // Remove the row after animation
+                setTimeout(() => {
+                    row.remove();
+                    console.log(`✅ Removed booking ${bookingId} from display`);
+                }, 300);
+            }
+        });
+    });
+}
+
+// Helper function to update booking statistics after deletion
+function updateBookingStatistics() {
+    // Update the total booking count in the header
+    const remainingRows = document.querySelectorAll('tbody tr').length;
+    const headerElement = document.querySelector('.d-flex.justify-content-between h2');
+    if (headerElement) {
+        // Update the count in parentheses
+        headerElement.innerHTML = headerElement.innerHTML.replace(/\(\d+\)/, `(${remainingRows})`);
+    }
+    
+    // Trigger duplicate analysis refresh if the analyze button is visible
+    const analyzeBtn = document.querySelector('button[onclick="performDuplicateAnalysis()"]');
+    if (analyzeBtn && !analyzeBtn.disabled) {
+        console.log('🔄 Refreshing duplicate analysis after deletion...');
+        setTimeout(() => {
+            performDuplicateAnalysis();
+        }, 500);
+    }
+}
+
+// Helper function to show toast notifications (non-blocking)
+function showToast(message, type = 'success') {
+    const colors = {
+        success: 'bg-success',
+        error: 'bg-danger', 
+        info: 'bg-info',
+        warning: 'bg-warning'
+    };
+    
+    const toast = document.createElement('div');
+    toast.className = `position-fixed top-0 end-0 m-3 p-3 ${colors[type]} text-white rounded shadow`;
+    toast.style.zIndex = '9999';
+    toast.style.minWidth = '300px';
+    toast.innerHTML = `
+        <div class="d-flex align-items-center">
+            <div class="flex-grow-1">${message}</div>
+            <button type="button" class="btn-close btn-close-white ms-2" onclick="this.parentElement.parentElement.remove()"></button>
+        </div>
+    `;
+    
+    document.body.appendChild(toast);
+    
+    // Auto-remove after 5 seconds
+    setTimeout(() => {
+        if (toast.parentElement) {
+            toast.style.transition = 'all 0.3s ease';
+            toast.style.opacity = '0';
+            toast.style.transform = 'translateX(100%)';
+            setTimeout(() => toast.remove(), 300);
+        }
+    }, 5000);
+}
+
+// Show booking details function
+function showBookingDetails(bookingId) {
+    console.log('Showing details for booking:', bookingId);
+    
+    // Create a simple alert for now - can be enhanced later
+    alert(`📋 Chi tiết booking ${bookingId}\n\nChức năng này sẽ được phát triển thêm để hiển thị thông tin chi tiết booking trong modal popup.`);
+}
+
+// Compare two bookings function
+function compareBookings(mainBookingId, similarBookingId) {
+    console.log('Comparing bookings:', mainBookingId, 'vs', similarBookingId);
+    
+    // For now, show a simple comparison alert
+    if (confirm('🔍 So sánh booking ' + mainBookingId + ' với ' + similarBookingId + '\n\nBạn có muốn mở cả 2 booking trong tab mới để so sánh không?')) {
+        // Open both bookings in new tabs for manual comparison
+        window.open('/booking/' + mainBookingId + '/edit', '_blank');
+        window.open('/booking/' + similarBookingId + '/edit', '_blank');
+    }
+}
+
+function refreshDuplicateAnalysis() {
+    console.log('Refreshing duplicate analysis...');
+    // Close any open modals
+    const modals = document.querySelectorAll('.modal');
+    modals.forEach(modal => {
+        const modalInstance = bootstrap.Modal.getInstance(modal);
+        if (modalInstance) {
+            modalInstance.hide();
+        }
+    });
+    
+    // Reload the page to get fresh data
+    window.location.reload();
+}
+
+// ============================================================================
+// PROFESSIONAL SEARCH & UX ENHANCEMENTS
+// ============================================================================
+
+document.addEventListener('DOMContentLoaded', function() {
+    initializeProfessionalSearch();
+    initializeProfessionalPagination();
+    displaySearchStats();
+});
+
+function initializeProfessionalSearch() {
+    const searchInput = document.getElementById('searchInput');
+    const clearButton = document.getElementById('clearSearch');
+    const searchStats = document.getElementById('searchStats');
+    
+    if (!searchInput) return;
+    
+    // Professional search input handling
+    searchInput.addEventListener('input', function() {
+        const hasValue = this.value.trim().length > 0;
+        clearButton.style.display = hasValue ? 'block' : 'none';
+        
+        // Show real-time feedback
+        if (hasValue && this.value.length >= 2) {
+            searchStats.style.display = 'block';
+            document.getElementById('searchStatsText').textContent = 
+                `Nhấn Enter để tìm kiếm "${this.value.trim()}"`;
+        } else {
+            searchStats.style.display = 'none';
+        }
+    });
+    
+    // Clear search functionality
+    clearButton.addEventListener('click', function() {
+        searchInput.value = '';
+        this.style.display = 'none';
+        searchStats.style.display = 'none';
+        
+        // Auto-submit to clear results
+        const form = searchInput.closest('form');
+        if (form) {
+            // Remove search_term parameter and submit
+            const url = new URL(window.location);
+            url.searchParams.delete('search_term');
+            url.searchParams.set('page', '1'); // Reset to first page
+            window.location.href = url.toString();
+        }
+    });
+    
+    // Professional keyboard navigation
+    searchInput.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            this.blur();
+            if (this.value) {
+                clearButton.click();
+            }
+        }
+    });
+}
+
+function initializeProfessionalPagination() {
+    // Add loading states to pagination links
+    const paginationLinks = document.querySelectorAll('.pagination .page-link');
+    
+    paginationLinks.forEach(link => {
+        link.addEventListener('click', function(e) {
+            // Add loading state
+            const originalText = this.innerHTML;
+            this.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+            this.style.pointerEvents = 'none';
+            
+            // Restore if navigation doesn't happen (in case of errors)
+            setTimeout(() => {
+                this.innerHTML = originalText;
+                this.style.pointerEvents = 'auto';
+            }, 5000);
+        });
+    });
+}
+
+function displaySearchStats() {
+    {% if search_term and pagination %}
+    // Show search results summary
+    const searchStats = document.getElementById('searchStats');
+    const searchStatsText = document.getElementById('searchStatsText');
+    
+    if (searchStats && searchStatsText) {
+        searchStats.style.display = 'block';
+        const totalResults = {{ pagination.total }};
+        const currentPage = {{ pagination.page }};
+        const totalPages = {{ pagination.total_pages }};
+        
+        if (totalResults === 0) {
+            searchStatsText.innerHTML = '<span class="text-warning">Không tìm thấy kết quả nào</span>';
+        } else {
+            searchStatsText.innerHTML = 
+                `Tìm thấy <strong>${totalResults}</strong> kết quả` +
+                (totalPages > 1 ? ` (trang ${currentPage}/${totalPages})` : '');
+        }
+    }
+    {% endif %}
+}
+
+// Professional table enhancements
+function enhanceTableExperience() {
+    // Add row hover effects
+    const tableRows = document.querySelectorAll('tbody tr');
+    tableRows.forEach(row => {
+        row.addEventListener('mouseenter', function() {
+            this.style.backgroundColor = '#f8f9fa';
+        });
+        
+        row.addEventListener('mouseleave', function() {
+            this.style.backgroundColor = '';
+        });
+    });
+}
+
+// Initialize table enhancements
+document.addEventListener('DOMContentLoaded', enhanceTableExperience);
+
+// ============================================================================
+// DELETE MULTIPLE BOOKINGS FUNCTIONALITY
+// ============================================================================
+
+document.addEventListener('DOMContentLoaded', function() {
+    initializeDeleteFunctionality();
+    initializeFilterToggle();
+});
+
+function initializeDeleteFunctionality() {
+    const deleteBtn = document.getElementById('delete-selected-btn');
+    const selectAllCheckbox = document.getElementById('select-all-bookings');
+    
+    if (!deleteBtn) return;
+    
+    // Handle delete button click
+    deleteBtn.addEventListener('click', function() {
+        const selectedCheckboxes = document.querySelectorAll('input[name="booking_select"]:checked');
+        
+        if (selectedCheckboxes.length === 0) {
+            alert('Vui lòng chọn ít nhất một booking để xóa');
+            return;
+        }
+        
+        const bookingIds = Array.from(selectedCheckboxes).map(cb => cb.value);
+        
+        if (confirm(`Bạn có chắc chắn muốn xóa ${bookingIds.length} booking đã chọn không?\n\nHành động này không thể hoàn tác!`)) {
+            deleteMultipleBookings(bookingIds);
+        }
+    });
+    
+    // Handle individual checkbox changes
+    document.addEventListener('change', function(e) {
+        if (e.target.name === 'booking_select') {
+            updateDeleteButtonVisibility();
+        }
+    });
+    
+    // Handle select all checkbox
+    if (selectAllCheckbox) {
+        selectAllCheckbox.addEventListener('change', function() {
+            const individualCheckboxes = document.querySelectorAll('input[name="booking_select"]');
+            individualCheckboxes.forEach(cb => {
+                cb.checked = this.checked;
+            });
+            updateDeleteButtonVisibility();
+        });
+    }
+}
+
+function updateDeleteButtonVisibility() {
+    const selectedCheckboxes = document.querySelectorAll('input[name="booking_select"]:checked');
+    const deleteBtn = document.getElementById('delete-selected-btn');
+    const selectAllCheckbox = document.getElementById('select-all-bookings');
+    
+    if (deleteBtn) {
+        if (selectedCheckboxes.length > 0) {
+            deleteBtn.style.display = 'inline-block';
+            deleteBtn.innerHTML = `<i class="fas fa-trash-alt"></i> Xóa (${selectedCheckboxes.length})`;
+        } else {
+            deleteBtn.style.display = 'none';
+        }
+    }
+    
+    // Update select all checkbox state
+    if (selectAllCheckbox) {
+        const allCheckboxes = document.querySelectorAll('input[name="booking_select"]');
+        if (allCheckboxes.length > 0) {
+            selectAllCheckbox.checked = selectedCheckboxes.length === allCheckboxes.length;
+            selectAllCheckbox.indeterminate = selectedCheckboxes.length > 0 && selectedCheckboxes.length < allCheckboxes.length;
+        }
+    }
+}
+
+function deleteMultipleBookings(bookingIds) {
+    const deleteBtn = document.getElementById('delete-selected-btn');
+    
+    // Show loading state
+    const originalText = deleteBtn.innerHTML;
+    deleteBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Đang xóa...';
+    deleteBtn.disabled = true;
+    
+    fetch('/bookings/delete_multiple', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            booking_ids: bookingIds
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showToast(data.message, 'success');
+            
+            // Reload page after short delay to show updated data
+            setTimeout(() => {
+                window.location.reload();
+            }, 1500);
+        } else {
+            showToast(data.message, 'error');
+            
+            // Restore button state
+            deleteBtn.innerHTML = originalText;
+            deleteBtn.disabled = false;
+        }
+    })
+    .catch(error => {
+        console.error('Delete error:', error);
+        showToast('Lỗi kết nối. Vui lòng thử lại sau.', 'error');
+        
+        // Restore button state
+        deleteBtn.innerHTML = originalText;
+        deleteBtn.disabled = false;
+    });
+}
+
+// ============================================================================
+// FILTER TOGGLE FUNCTIONALITY
+// ============================================================================
+
+function initializeFilterToggle() {
+    console.log('🔍 Initializing filter toggle...');
+    const showActiveRadio = document.getElementById('show_active');
+    const showAllRadio = document.getElementById('show_all');
+    
+    console.log('Filter elements found:', {
+        showActiveRadio: !!showActiveRadio,
+        showAllRadio: !!showAllRadio
+    });
+    
+    if (showActiveRadio) {
+        showActiveRadio.addEventListener('change', function() {
+            console.log('🟢 Show Active radio clicked, checked:', this.checked, 'ID:', this.id);
+            if (this.checked && this.id === 'show_active') {
+                console.log('🎯 Switching to ACTIVE filter (show_all=false)');
+                window.updateFilterView(false); // Show interested guests
+            }
+        });
+    } else {
+        console.error('❌ show_active radio button not found');
+    }
+    
+    if (showAllRadio) {
+        showAllRadio.addEventListener('change', function() {
+            console.log('🟢 Show All radio clicked, checked:', this.checked, 'ID:', this.id);
+            if (this.checked && this.id === 'show_all') {
+                console.log('🎯 Switching to ALL filter (show_all=true)');
+                window.updateFilterView(true); // Show all guests
+            }
+        });
+    } else {
+        console.error('❌ show_all radio button not found');
+    }
+    
+    console.log('✅ Filter toggle initialization complete');
+}
+
+// Local reference for use within DOMContentLoaded
+function updateFilterView(showAll) {
+    return window.updateFilterView(showAll);
+}
+</script>
+
+<!-- Global AI Test Functions (Outside DOMContentLoaded) -->
+<script>
+// Make updateFilterView globally accessible (MUST be outside DOMContentLoaded)
+window.updateFilterView = function(showAll) {
+    console.log('🔄 window.updateFilterView called with showAll:', showAll);
+    
+    // Get current URL parameters
+    const url = new URL(window.location);
+    console.log('Current URL:', url.toString());
+    
+    // Update show_all parameter
+    url.searchParams.set('show_all', showAll ? 'true' : 'false');
+    console.log('Updated URL will be:', url.toString());
+    
+    // Reset to first page when changing filter
+    url.searchParams.set('page', '1');
+    
+    // Show loading state
+    const filterButtons = document.querySelectorAll('input[name="show_filter"]');
+    console.log('Found filter buttons:', filterButtons.length);
+    filterButtons.forEach(btn => btn.disabled = true);
+    
+    // Add loading indicator
+    const loadingIndicator = document.createElement('div');
+    loadingIndicator.className = 'position-fixed top-50 start-50 translate-middle bg-primary text-white p-3 rounded shadow';
+    loadingIndicator.style.zIndex = '9999';
+    loadingIndicator.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Đang tải dữ liệu...';
+    document.body.appendChild(loadingIndicator);
+    
+    console.log('🚀 Navigating to:', url.toString());
+    // Navigate to new URL
+    window.location.href = url.toString();
+};
+
+// Global function to test AI button (can be called from console)
+window.testAIDuplicateButton = function() {
+    console.log('🧪 Manual AI Duplicate Button Test');
+    const btn = document.getElementById('ai-duplicate-filter-btn');
+    const modal = document.getElementById('aiDuplicateModal');
+    
+    console.log('Button found:', !!btn);
+    console.log('Modal found:', !!modal);
+    
+    if (btn) {
+        console.log('🔥 Clicking button programmatically...');
+        btn.click();
+    } else {
+        console.log('❌ Button not found!');
+    }
+};
+
+// Global function to test filter buttons
+window.testShowAllFilter = function() {
+    console.log('🧪 Testing Show All Filter');
+    const showAllRadio = document.getElementById('show_all');
+    console.log('Show All radio found:', !!showAllRadio);
+    if (showAllRadio) {
+        console.log('Current checked state:', showAllRadio.checked);
+        console.log('🔥 Manually calling window.updateFilterView(true)...');
+        window.updateFilterView(true);
+    }
+};
+
+window.testShowActiveFilter = function() {
+    console.log('🧪 Testing Show Active Filter');
+    const showActiveRadio = document.getElementById('show_active');
+    console.log('Show Active radio found:', !!showActiveRadio);
+    if (showActiveRadio) {
+        console.log('Current checked state:', showActiveRadio.checked);
+        console.log('🔥 Manually calling window.updateFilterView(false)...');
+        window.updateFilterView(false);
+    }
+};
+
+// Global function to test API directly (can be called from console)  
+window.testAIAPI = function() {
+    console.log('🔥 Testing AI API directly...');
+    
+    const globalTimeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Global test timeout after 30 seconds')), 30000);
+    });
+    
+    const globalFetchPromise = fetch('/api/analyze_duplicates')
+        .then(response => {
+            console.log('Response status:', response.status);
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            return response.json();
+        });
+    
+    Promise.race([globalFetchPromise, globalTimeoutPromise])
+        .then(data => {
+            console.log('API Response:', data);
+            alert('API works! Check console for details.');
+        })
+        .catch(error => {
+            console.error('API Error:', error);
+            alert('API failed: ' + error.message);
+        });
+};
+
+// Global function to force AI modal open
+window.forceOpenAIModal = function() {
+    console.log('🔧 Force opening AI modal...');
+    const modal = document.getElementById('aiDuplicateModal');
+    if (modal) {
+        const bootstrapModal = new bootstrap.Modal(modal);
+        bootstrapModal.show();
+        console.log('✅ Modal opened');
+    } else {
+        console.log('❌ Modal not found');
+    }
+};
+
+console.log('✅ Global AI test functions loaded');
+
+// Debug function to check AI button setup
+window.checkAIButtonSetup = function() {
+    console.log('🔍 Checking AI Button Setup...');
+    
+    const btn = document.getElementById('ai-duplicate-filter-btn');
+    const modal = document.getElementById('aiDuplicateModal');
+    const results = document.getElementById('duplicateResults');
+    
+    console.log('Elements found:');
+    console.log('  Button:', !!btn, btn);
+    console.log('  Modal:', !!modal, modal);
+    console.log('  Results div:', !!results, results);
+    
+    if (btn) {
+        console.log('Button properties:');
+        console.log('  ID:', btn.id);
+        console.log('  Classes:', btn.className);
+        console.log('  Disabled:', btn.disabled);
+        console.log('  OnClick:', btn.onclick);
+        console.log('  Event listeners:', getEventListeners ? getEventListeners(btn) : 'getEventListeners not available');
+    }
+    
+    return {
+        button: !!btn,
+        modal: !!modal,
+        results: !!results
+    };
+};
+</script>
+
+<!-- AI Duplicate Analysis Modal -->
+<div class="modal fade" id="aiDuplicateModal" tabindex="-1" aria-labelledby="aiDuplicateModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-warning">
+                <h5 class="modal-title" id="aiDuplicateModalLabel">
+                    <i class="fas fa-robot me-2"></i>AI Duplicate Analysis
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div id="duplicateResults">
+                    <div class="text-center">
+                        <div class="spinner-border text-warning" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <p class="mt-2">🤖 AI đang phân tích các booking trùng lặp...</p>
+                        <small class="text-muted">Đang sử dụng logic AI để tìm khách có tên + giá + ngày tương tự...</small>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Đóng</button>
+                <button type="button" class="btn btn-primary" id="refreshDuplicateAnalysis">
+                    <i class="fas fa-sync-alt me-1"></i>Phân tích lại
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

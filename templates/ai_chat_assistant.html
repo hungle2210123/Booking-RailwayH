@@ -1,0 +1,1270 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Message Optimizer - Tối ưu câu nói của bạn</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .loading-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);display:none;align-items:center;justify-content:center;z-index:9998;}
+        .image-paste-area{border:2px dashed #dee2e6;border-radius:8px;padding:40px;text-align:center;background:#f8f9fa;transition:all 0.3s;cursor:pointer;}
+        .image-paste-area:hover{border-color:#0d6efd;background:#e7f3ff;}
+        .image-paste-area.dragover{border-color:#0d6efd;background:#e7f3ff;transform:scale(1.02);}
+        .image-preview{max-width:100%;max-height:400px;border-radius:8px;box-shadow:0 4px 8px rgba(0,0,0,0.1);}
+        .response-area{background:#f8f9fa;border-radius:8px;padding:20px;margin-top:20px;min-height:150px;}
+        .copy-button{position:absolute;top:10px;right:10px;}
+        .ai-response{position:relative;background:white;border-radius:8px;padding:15px;border-left:4px solid #28a745;box-shadow:0 2px 4px rgba(0,0,0,0.05);}
+        .analysis-info{background:#e3f2fd;border-radius:6px;padding:12px;margin-bottom:15px;font-size:0.9em;}
+        .template-match{background:#fff3cd;border-radius:6px;padding:10px;margin:10px 0;border-left:3px solid #ffc107;}
+        
+        /* Enhanced Template Preview Styles */
+        #templatePreview {
+            transition: opacity 0.3s ease, transform 0.3s ease;
+            transform: translateY(0);
+        }
+        #templatePreview.show {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        #templatePreview.hide {
+            opacity: 0;
+            transform: translateY(-10px);
+        }
+        
+        /* Dropdown Enhanced Styles */
+        #specificTemplate {
+            transition: all 0.3s ease;
+            position: relative;
+        }
+        #specificTemplate:focus {
+            border-color: #0d6efd;
+            box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
+        }
+        
+        /* Quick Preview Tooltip */
+        #quickPreviewTooltip {
+            transition: opacity 0.2s ease;
+            word-wrap: break-word;
+            border: 1px solid rgba(255,255,255,0.2);
+            backdrop-filter: blur(4px);
+        }
+        
+        /* Template Preview Box Enhanced */
+        .alert.alert-light {
+            transition: all 0.3s ease;
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            border: 1px solid #dee2e6;
+        }
+        
+        /* Copy Button in Preview */
+        .btn-outline-secondary {
+            transition: all 0.2s ease;
+        }
+        .btn-outline-secondary:hover {
+            transform: scale(1.05);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+        }
+        
+        /* Debug Console Styles (for development) */
+        .debug-info {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            padding: 8px;
+            font-family: monospace;
+            font-size: 0.8rem;
+            margin-top: 10px;
+            display: none; /* Hidden by default, can be shown for debugging */
+        }
+        
+        /* Mobile-specific improvements */
+        @media (max-width: 768px) {
+            .container-fluid {
+                padding: 10px;
+            }
+            
+            .card {
+                margin-bottom: 15px;
+            }
+            
+            .image-paste-area {
+                padding: 25px 15px;
+                font-size: 0.9rem;
+            }
+            
+            .image-paste-area h5 {
+                font-size: 1.1rem;
+            }
+            
+            .image-preview {
+                max-height: 250px;
+            }
+            
+            .btn-sm {
+                font-size: 0.8rem;
+                padding: 4px 8px;
+            }
+            
+            .form-select-sm {
+                font-size: 0.85rem;
+            }
+            
+            .response-area {
+                padding: 15px;
+                font-size: 0.9rem;
+            }
+            
+            .ai-response {
+                padding: 12px;
+            }
+            
+            .template-match {
+                padding: 8px;
+                font-size: 0.85rem;
+            }
+            
+            .analysis-info {
+                padding: 10px;
+                font-size: 0.85rem;
+            }
+            
+            .copy-button {
+                position: static;
+                margin-top: 10px;
+                width: 100%;
+            }
+            
+            /* Better mobile touch targets */
+            .btn {
+                min-height: 44px;
+                min-width: 44px;
+            }
+            
+            .image-paste-area {
+                min-height: 140px;
+                cursor: pointer;
+                -webkit-tap-highlight-color: rgba(0,123,255,0.1);
+            }
+            
+            /* Mobile upload buttons */
+            .d-block.d-md-none .btn {
+                margin: 5px 2px;
+                flex: 1;
+            }
+        }
+        
+        /* Touch improvements */
+        .btn, .image-paste-area, .copy-btn {
+            -webkit-tap-highlight-color: transparent;
+            transition: transform 0.1s ease;
+        }
+        
+        .btn:active, .image-paste-area:active {
+            transform: scale(0.98);
+        }
+    </style>
+</head>
+<body>
+    <div class="container-fluid">
+        <div class="d-flex justify-content-between align-items-center my-4">
+            <h1 class="mb-0">
+                <i class="fas fa-robot text-primary"></i> AI Message Optimizer
+            </h1>
+            <div>
+                <button class="btn btn-info me-2" onclick="viewTemplates()">
+                    <i class="fas fa-list"></i> Xem mẫu tin nhắn
+                </button>
+                <button class="btn btn-success" onclick="clearAll()">
+                    <i class="fas fa-refresh"></i> Làm mới
+                </button>
+            </div>
+        </div>
+        
+        <div class="row">
+            <!-- Phần tải ảnh -->
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">
+                            <i class="fas fa-image"></i> Tải Ảnh Đoạn Chat
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="imagePasteArea" class="image-paste-area" onclick="selectImageFile()">
+                            <i class="fas fa-cloud-upload-alt fa-3x text-muted mb-3"></i>
+                            <h5>Dán ảnh, chọn file hoặc chụp ảnh</h5>
+                            <p class="text-muted mb-2">
+                                Hỗ trợ: PNG, JPG, JPEG<br>
+                                <kbd>Ctrl+V</kbd> để dán ảnh từ clipboard
+                            </p>
+                            <!-- Mobile-specific upload options -->
+                            <div class="d-block d-md-none mt-2">
+                                <button type="button" class="btn btn-outline-primary btn-sm me-2" onclick="selectImageFile()">
+                                    <i class="fas fa-folder-open"></i> Chọn từ thư viện
+                                </button>
+                                <button type="button" class="btn btn-outline-success btn-sm" onclick="capturePhoto()">
+                                    <i class="fas fa-camera"></i> Chụp ảnh
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <input type="file" id="imageFileInput" accept="image/*" style="display: none;">
+                        <input type="file" id="cameraInput" accept="image/*" capture="environment" style="display: none;">
+                        
+                        <div id="imagePreviewContainer" class="mt-3" style="display: none;">
+                            <img id="imagePreview" class="image-preview" alt="Xem trước ảnh">
+                            <div class="mt-2">
+                                <button class="btn btn-danger btn-sm" onclick="removeImage()">
+                                    <i class="fas fa-trash"></i> Xóa ảnh
+                                </button>
+                                <button class="btn btn-primary btn-sm ms-2" onclick="analyzeImage()">
+                                    <i class="fas fa-magic"></i> Phân tích với AI
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Phần cấu hình và kết quả AI -->
+            <div class="col-md-6">
+                <!-- AI Configuration Panel -->
+                <div class="card mb-3">
+                    <div class="card-header">
+                        <h6 class="mb-0">
+                            <i class="fas fa-cogs"></i> Tùy Chọn Phản Hồi AI
+                        </h6>
+                    </div>
+                    <div class="card-body py-2">
+                        <!-- UPDATED: Custom Instructions Section - TẬP TRUNG CHỦ YẾU -->
+                        <div class="row mb-3">
+                            <div class="col-12">
+                                <div class="card border-primary">
+                                    <div class="card-header bg-primary text-white">
+                                        <h6 class="mb-0">
+                                            <i class="fas fa-comment-dots me-1"></i>💬 Câu bạn muốn nói với khách - CHÍNH
+                                        </h6>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="input-group">
+                                            <input type="text" id="customInstructions" class="form-control" 
+                                                   placeholder="VD: chúng tôi sẽ không tính thêm phí cho bạn..."
+                                                   maxlength="300">
+                                            <button class="btn btn-outline-secondary" type="button" id="voiceInputBtn" 
+                                                    onclick="toggleVoiceInput()" title="Nói câu muốn trả lời">
+                                                <i class="fas fa-microphone" id="voiceIcon"></i>
+                                            </button>
+                                            <button class="btn btn-outline-info" type="button" 
+                                                    onclick="showInstructionExamples()" title="Xem ví dụ">
+                                                <i class="fas fa-lightbulb"></i>
+                                            </button>
+                                        </div>
+                                        <div class="form-text">
+                                            🎯 <strong>AI sẽ tối ưu câu này thành tiếng Anh chuyên nghiệp</strong> phù hợp với context chat
+                                        </div>
+                                        
+                                        <!-- Voice Status -->
+                                        <div id="voiceStatus" class="mt-2" style="display: none;">
+                                            <span class="badge bg-danger">
+                                                <i class="fas fa-microphone me-1"></i>Đang nghe... Nói câu bạn muốn trả lời
+                                            </span>
+                                        </div>
+                                        
+                                        <!-- Quick Examples -->
+                                        <div id="instructionExamples" class="mt-2" style="display: none;">
+                                            <div class="row">
+                                                <div class="col-md-6">
+                                                    <button class="btn btn-sm btn-outline-primary w-100 mb-1" 
+                                                            onclick="setInstruction('chúng tôi sẽ không tính thêm phí cho bạn')">
+                                                        Không tính phí
+                                                    </button>
+                                                    <button class="btn btn-sm btn-outline-success w-100 mb-1" 
+                                                            onclick="setInstruction('xin lỗi vì sự bất tiện, chúng tôi sẽ khắc phục ngay')">
+                                                        Xin lỗi & khắc phục
+                                                    </button>
+                                                </div>
+                                                <div class="col-md-6">
+                                                    <button class="btn btn-sm btn-outline-warning w-100 mb-1" 
+                                                            onclick="setInstruction('chúng tôi có phòng khác tốt hơn với giá đặc biệt')">
+                                                        Đề xuất phòng khác
+                                                    </button>
+                                                    <button class="btn btn-sm btn-outline-info w-100 mb-1" 
+                                                            onclick="setInstruction('tôi sẽ kiểm tra và gọi lại cho bạn trong 10 phút')">
+                                                        Kiểm tra & gọi lại
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- Templates Section - PHỤ (optional) -->
+                        <div class="row align-items-center">
+                            <div class="col-12">
+                                <div class="card border-light">
+                                    <div class="card-header bg-light">
+                                        <h6 class="mb-0 text-muted">
+                                            <i class="fas fa-list me-1"></i>🔧 Mẫu tin nhắn (tùy chọn) - PHỤ
+                                        </h6>
+                                    </div>
+                                    <div class="card-body py-2">
+                                        <div class="row align-items-center">
+                                            <div class="col-md-4">
+                                                <label for="templateCategory" class="form-label small mb-1">Loại mẫu:</label>
+                                                <select id="templateCategory" class="form-select form-select-sm" onchange="loadSpecificTemplates()">
+                                                    <option value="">Không dùng mẫu</option>
+                                                </select>
+                                            </div>
+                                            <div class="col-md-4">
+                                                <label for="specificTemplate" class="form-label small mb-1">Mẫu cụ thể:</label>
+                                                <select id="specificTemplate" class="form-select form-select-sm" disabled onchange="previewSelectedTemplate()">
+                                                    <option value="">Chọn loại trước</option>
+                                                </select>
+                                            </div>
+                                            <div class="col-md-4">
+                                                <label class="form-label small mb-1">Tông phản hồi:</label>
+                                                <div class="btn-group w-100" role="group">
+                                                    <input type="radio" class="btn-check" name="responseMode" id="responseModeAuto" value="auto" checked>
+                                                    <label class="btn btn-outline-secondary btn-sm" for="responseModeAuto">Auto</label>
+                                                    
+                                                    <input type="radio" class="btn-check" name="responseMode" id="responseModeYes" value="yes">
+                                                    <label class="btn btn-outline-success btn-sm" for="responseModeYes">Tích cực</label>
+                                                    
+                                                    <input type="radio" class="btn-check" name="responseMode" id="responseModeNo" value="no">
+                                                    <label class="btn btn-outline-danger btn-sm" for="responseModeNo">Từ chối</label>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="form-text small text-muted">
+                                            💡 Chỉ dùng mẫu khi muốn tham khảo - AI sẽ ưu tiên hướng dẫn tùy chỉnh bên trên
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Template Preview Area -->
+                        <div id="templatePreview" class="mt-2" style="display: none;">
+                            <div class="alert alert-light border-start border-4 border-primary py-2 px-3 mb-0">
+                                <small class="text-muted d-block mb-1">Preview mẫu đã chọn:</small>
+                                <div id="templatePreviewContent" class="small"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- AI Response Area -->
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">
+                            <i class="fas fa-comments"></i> Phản Hồi AI
+                        </h5>
+                        <div id="processingStatus" class="text-muted" style="display: none;">
+                            <i class="fas fa-spinner fa-spin"></i> Đang phân tích...
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div id="responseArea" class="response-area">
+                            <div class="text-center text-muted">
+                                <i class="fas fa-robot fa-2x mb-3 text-primary"></i>
+                                <h6 class="text-primary">💬 AI Message Optimizer - Tối ưu câu nói của bạn</h6>
+                                <p class="mb-3">Nhập <strong>câu bạn muốn nói</strong> (tiếng Việt), AI sẽ tối ưu thành tiếng Anh chuyên nghiệp phù hợp với context!</p>
+                                
+                                <div class="alert alert-primary border-primary border-2 mt-3" style="font-size: 0.9em; background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);">
+                                    <h6 class="text-primary mb-3"><i class="fas fa-star me-1"></i> Tính năng Message Optimization mới!</h6>
+                                    <div class="row text-start">
+                                        <div class="col-md-6 mb-2">
+                                            <i class="fas fa-comment-dots me-2 text-primary"></i>
+                                            <strong>Nhập câu muốn nói:</strong><br>
+                                            <small class="text-muted">VD: "chúng tôi sẽ không tính phí thêm"</small>
+                                        </div>
+                                        <div class="col-md-6 mb-2">
+                                            <i class="fas fa-magic me-2 text-success"></i>
+                                            <strong>AI tối ưu contextual:</strong><br>
+                                            <small class="text-muted">→ "No worries! We won't charge any additional fees."</small>
+                                        </div>
+                                        <div class="col-md-6 mb-2">
+                                            <i class="fas fa-microphone me-2 text-warning"></i>
+                                            <strong>Voice input:</strong><br>
+                                            <small class="text-muted">Nói câu muốn trả lời thay vì gõ</small>
+                                        </div>
+                                        <div class="col-md-6 mb-2">
+                                            <i class="fas fa-comments me-2 text-info"></i>
+                                            <strong>Context-aware:</strong><br>
+                                            <small class="text-muted">Đọc toàn bộ chat để phù hợp</small>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="mt-3 p-3 bg-light border rounded">
+                                    <div class="row align-items-center">
+                                        <div class="col-md-8">
+                                            <small class="text-muted">
+                                                <i class="fas fa-lightbulb me-1 text-warning"></i>
+                                                <strong>Mới:</strong> Nói những gì bạn muốn, AI sẽ tối ưu cho phù hợp!
+                                            </small>
+                                        </div>
+                                        <div class="col-md-4 text-end">
+                                            <span class="badge bg-success px-3 py-2">
+                                                <i class="fas fa-check-circle me-1"></i> Message-Ready
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Phần hướng dẫn -->
+        <div class="row mt-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">
+                            <i class="fas fa-info-circle"></i> Hướng Dẫn Sử Dụng
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-3">
+                                <div class="text-center">
+                                    <i class="fas fa-comment-dots fa-2x text-primary mb-2"></i>
+                                    <h6>Bước 1: Nhập Câu Muốn Nói</h6>
+                                    <p class="small text-muted">Nhập (VN) hoặc nói câu bạn muốn trả lời khách</p>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="text-center">
+                                    <i class="fas fa-upload fa-2x text-info mb-2"></i>
+                                    <h6>Bước 2: Tải Ảnh Chat</h6>
+                                    <p class="small text-muted">Dán hoặc chọn ảnh đoạn chat để AI hiểu context</p>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="text-center">
+                                    <i class="fas fa-magic fa-2x text-warning mb-2"></i>
+                                    <h6>Bước 3: AI Tối Ưu</h6>
+                                    <p class="small text-muted">AI chuyển VN→EN chuyên nghiệp theo context</p>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="text-center">
+                                    <i class="fas fa-copy fa-2x text-success mb-2"></i>
+                                    <h6>Bước 4: Copy & Gửi</h6>
+                                    <p class="small text-muted">Copy câu tiếng Anh đã tối ưu</p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Message Optimization Highlight -->
+                        <div class="row mt-4">
+                            <div class="col-12">
+                                <div class="alert alert-success">
+                                    <h6><i class="fas fa-star"></i> Tính năng mới: AI Message Optimization</h6>
+                                    <ul class="mb-0 small">
+                                        <li><strong>Nhập câu muốn nói (VN):</strong> "chúng tôi sẽ không tính phí thêm"</li>
+                                        <li><strong>AI tối ưu context-aware:</strong> → "No worries! We won't charge any additional fees."</li>
+                                        <li><strong>Voice input:</strong> Nói câu muốn trả lời thay vì gõ</li>
+                                        <li><strong>Context-smart:</strong> Đọc toàn bộ chat để câu phù hợp với tình huống</li>
+                                        <li><strong>Professional tone:</strong> Tự động chuyển thành tiếng Anh chuyên nghiệp</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="loading-overlay">
+        <div class="spinner-border text-light" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+    </div>
+    
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        let currentImageData = null;
+        let allTemplates = []; // Store all templates for filtering
+        
+        // NEW: Voice Recognition variables
+        let recognition = null;
+        let isListening = false;
+        
+        // Load page
+        document.addEventListener('DOMContentLoaded', function() {
+            setupImageHandling();
+            loadTemplateCategories(); // Load template options on page load
+            initializeRealtimePreview(); // Initialize realtime preview
+            setupVoiceRecognition(); // NEW: Setup voice recognition
+            
+            console.log('AI Chat Assistant page loaded successfully'); // Debug log
+        });
+        
+        // ==================== NEW: VOICE RECOGNITION FUNCTIONS ====================
+        
+        // Setup Web Speech API
+        function setupVoiceRecognition() {
+            if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+                const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+                recognition = new SpeechRecognition();
+                
+                recognition.continuous = false;
+                recognition.interimResults = false;
+                recognition.lang = 'vi-VN'; // Vietnamese
+                
+                recognition.onstart = function() {
+                    console.log('Voice recognition started');
+                    document.getElementById('voiceStatus').style.display = 'block';
+                    document.getElementById('voiceIcon').className = 'fas fa-stop-circle text-danger';
+                    isListening = true;
+                };
+                
+                recognition.onresult = function(event) {
+                    const transcript = event.results[0][0].transcript;
+                    console.log('Voice input received:', transcript);
+                    document.getElementById('customInstructions').value = transcript;
+                    showVoiceSuccess('Đã nhận diện: "' + transcript + '"');
+                };
+                
+                recognition.onerror = function(event) {
+                    console.error('Voice recognition error:', event.error);
+                    let errorMessage = 'Lỗi nhận diện giọng nói';
+                    switch(event.error) {
+                        case 'no-speech':
+                            errorMessage = 'Không phát hiện giọng nói. Vui lòng thử lại.';
+                            break;
+                        case 'audio-capture':
+                            errorMessage = 'Không thể truy cập microphone. Kiểm tra quyền truy cập.';
+                            break;
+                        case 'not-allowed':
+                            errorMessage = 'Microphone bị từ chối. Cho phép truy cập microphone.';
+                            break;
+                    }
+                    showVoiceError(errorMessage);
+                };
+                
+                recognition.onend = function() {
+                    console.log('Voice recognition ended');
+                    document.getElementById('voiceStatus').style.display = 'none';
+                    document.getElementById('voiceIcon').className = 'fas fa-microphone';
+                    isListening = false;
+                };
+                
+                console.log('Voice recognition setup complete');
+            } else {
+                console.log('Voice recognition not supported in this browser');
+                document.getElementById('voiceInputBtn').style.display = 'none';
+            }
+        }
+        
+        // Toggle voice input
+        function toggleVoiceInput() {
+            if (!recognition) {
+                alert('Trình duyệt không hỗ trợ nhận diện giọng nói.');
+                return;
+            }
+            
+            if (isListening) {
+                recognition.stop();
+            } else {
+                try {
+                    recognition.start();
+                } catch (error) {
+                    console.error('Error starting voice recognition:', error);
+                    showVoiceError('Không thể bắt đầu nhận diện giọng nói. Vui lòng thử lại.');
+                }
+            }
+        }
+        
+        // Show/hide message examples
+        function showInstructionExamples() {
+            const examples = document.getElementById('instructionExamples');
+            if (examples.style.display === 'none' || examples.style.display === '') {
+                examples.style.display = 'block';
+            } else {
+                examples.style.display = 'none';
+            }
+        }
+        
+        // Set predefined message
+        function setInstruction(message) {
+            document.getElementById('customInstructions').value = message;
+            document.getElementById('instructionExamples').style.display = 'none';
+            showVoiceSuccess('Đã chọn: "' + message + '"');
+        }
+        
+        // Get current AI configuration with custom instructions
+        function getCurrentAIConfig() {
+            const categorySelect = document.getElementById('templateCategory');
+            const specificSelect = document.getElementById('specificTemplate');
+            const responseModeRadios = document.getElementsByName('responseMode');
+            const customInstructions = document.getElementById('customInstructions').value.trim(); // NEW
+            
+            let selectedTemplate = null;
+            if (specificSelect.value && specificSelect.categoryTemplates) {
+                try {
+                    const templateIndex = parseInt(specificSelect.value);
+                    selectedTemplate = specificSelect.categoryTemplates[templateIndex];
+                } catch (error) {
+                    console.error('Error getting selected template:', error);
+                }
+            }
+            
+            let responseMode = 'auto';
+            for (const radio of responseModeRadios) {
+                if (radio.checked) {
+                    responseMode = radio.value;
+                    break;
+                }
+            }
+            
+            return {
+                selectedCategory: categorySelect.value,
+                selectedTemplate: selectedTemplate,
+                responseMode: responseMode,
+                customInstructions: customInstructions // NEW
+            };
+        }
+        
+        // Voice feedback functions
+        function showVoiceSuccess(message) {
+            const toast = document.createElement('div');
+            toast.className = 'position-fixed top-0 end-0 m-3 alert alert-success alert-dismissible';
+            toast.style.zIndex = '9999';
+            toast.innerHTML = `<i class="fas fa-microphone-alt"></i> ${message}<button type="button" class="btn-close" data-bs-dismiss="alert"></button>`;
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 4000);
+        }
+        
+        function showVoiceError(message) {
+            const toast = document.createElement('div');
+            toast.className = 'position-fixed top-0 end-0 m-3 alert alert-danger alert-dismissible';
+            toast.style.zIndex = '9999';
+            toast.innerHTML = `<i class="fas fa-exclamation-triangle"></i> ${message}<button type="button" class="btn-close" data-bs-dismiss="alert"></button>`;
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 6000);
+        }
+        
+        // Load template categories from API
+        async function loadTemplateCategories() {
+            try {
+                const response = await fetch('/api/templates');
+                if (response.ok) {
+                    allTemplates = await response.json();
+                    populateTemplateCategoryDropdown();
+                }
+            } catch (error) {
+                console.error('Error loading templates:', error);
+            }
+        }
+        
+        // Populate template category dropdown
+        function populateTemplateCategoryDropdown() {
+            const categorySelect = document.getElementById('templateCategory');
+            const categories = [...new Set(allTemplates.map(t => t.Category))].sort();
+            
+            // Clear existing options except first one
+            categorySelect.innerHTML = '<option value="">Tự động chọn</option>';
+            
+            // Add category options
+            categories.forEach(category => {
+                const option = document.createElement('option');
+                option.value = category;
+                option.textContent = category;
+                categorySelect.appendChild(option);
+            });
+        }
+        
+        // Load specific templates when category is selected
+        function loadSpecificTemplates() {
+            const categorySelect = document.getElementById('templateCategory');
+            const specificSelect = document.getElementById('specificTemplate');
+            const selectedCategory = categorySelect.value;
+            
+            console.log('Loading templates for category:', selectedCategory); // Debug log
+            
+            // Clear specific template dropdown
+            specificSelect.innerHTML = '<option value="">Chọn mẫu cụ thể</option>';
+            specificSelect.disabled = !selectedCategory;
+            
+            // Hide template preview
+            hideTemplatePreview();
+            
+            if (selectedCategory) {
+                // Filter templates by category
+                const categoryTemplates = allTemplates.filter(t => t.Category === selectedCategory);
+                console.log('Found templates:', categoryTemplates); // Debug log
+                
+                // Populate specific template dropdown - FIX: Don't stringify, use index
+                categoryTemplates.forEach((template, index) => {
+                    const option = document.createElement('option');
+                    option.value = index.toString(); // Use index instead of stringified JSON
+                    option.textContent = template.Label; // Show label properly
+                    option.setAttribute('data-category', selectedCategory);
+                    option.setAttribute('data-template-index', index.toString());
+                    specificSelect.appendChild(option);
+                });
+                
+                // Store category templates for later access
+                specificSelect.categoryTemplates = categoryTemplates;
+                specificSelect.disabled = false;
+            }
+        }
+        
+        // Hide template preview
+        function hideTemplatePreview() {
+            document.getElementById('templatePreview').style.display = 'none';
+        }
+        
+        // Preview selected template with enhanced debugging
+        function previewSelectedTemplate() {
+            const categorySelect = document.getElementById('templateCategory');
+            const specificSelect = document.getElementById('specificTemplate');
+            const previewDiv = document.getElementById('templatePreview');
+            const previewContent = document.getElementById('templatePreviewContent');
+            
+            console.log('Preview function called, selected value:', specificSelect.value); // Debug log
+            
+            if (specificSelect.value && specificSelect.value !== '' && specificSelect.categoryTemplates) {
+                try {
+                    const templateIndex = parseInt(specificSelect.value);
+                    const template = specificSelect.categoryTemplates[templateIndex];
+                    
+                    console.log('Selected template:', template); // Debug log
+                    
+                    if (template) {
+                        const previewHTML = `
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <strong class="text-primary">${template.Category} - ${template.Label}:</strong>
+                                    <div class="mt-1">${template.Message}</div>
+                                </div>
+                                <button class="btn btn-sm btn-outline-secondary" onclick="copyTemplatePreview()">
+                                    <i class="fas fa-copy"></i>
+                                </button>
+                            </div>
+                        `;
+                        
+                        previewContent.innerHTML = previewHTML;
+                        previewDiv.style.display = 'block';
+                        
+                        // Add smooth animation
+                        previewDiv.style.opacity = '0';
+                        setTimeout(() => {
+                            previewDiv.style.transition = 'opacity 0.3s ease';
+                            previewDiv.style.opacity = '1';
+                        }, 10);
+                        
+                        console.log('Preview displayed successfully'); // Debug log
+                    }
+                    
+                } catch (error) {
+                    console.error('Error getting template:', error);
+                    hideTemplatePreview();
+                }
+            } else {
+                hideTemplatePreview();
+            }
+        }
+        
+        // Copy template preview to clipboard
+        function copyTemplatePreview() {
+            const specificSelect = document.getElementById('specificTemplate');
+            if (specificSelect.value && specificSelect.categoryTemplates) {
+                try {
+                    const templateIndex = parseInt(specificSelect.value);
+                    const template = specificSelect.categoryTemplates[templateIndex];
+                    if (template && template.Message) {
+                        copyToClipboard(template.Message);
+                        showSuccess('Đã copy mẫu tin nhắn!');
+                    }
+                } catch (error) {
+                    console.error('Error copying template:', error);
+                }
+            }
+        }
+        
+        // Enable hover preview for dropdown options
+        function enableHoverPreview() {
+            const specificSelect = document.getElementById('specificTemplate');
+            const tooltip = document.getElementById('quickPreviewTooltip');
+            
+            // Add event listeners for option hover (when dropdown is open)
+            specificSelect.addEventListener('mouseover', function(e) {
+                if (e.target.tagName === 'OPTION' && e.target.value) {
+                    showQuickPreview(e.target.value, e.target);
+                }
+            });
+            
+            // Also show preview when option is focused (keyboard navigation)
+            specificSelect.addEventListener('focus', function(e) {
+                const selectedOption = this.options[this.selectedIndex];
+                if (selectedOption && selectedOption.value) {
+                    showQuickPreview(selectedOption.value, selectedOption);
+                }
+            });
+        }
+        
+        // Disable hover preview
+        function disableHoverPreview() {
+            hideQuickPreview();
+        }
+        
+        // Show quick preview tooltip
+        function showQuickPreview(templateValue, targetElement) {
+            if (!templateValue) return;
+            
+            try {
+                const template = JSON.parse(templateValue);
+                const tooltip = document.getElementById('quickPreviewTooltip');
+                
+                tooltip.innerHTML = `
+                    <div><strong>${template.Category} - ${template.Label}</strong></div>
+                    <div class="mt-1 text-light">${template.Message.substring(0, 100)}${template.Message.length > 100 ? '...' : ''}</div>
+                `;
+                
+                // Position tooltip
+                const selectRect = document.getElementById('specificTemplate').getBoundingClientRect();
+                tooltip.style.display = 'block';
+                tooltip.style.left = '0px';
+                tooltip.style.top = '100%';
+                
+            } catch (error) {
+                console.error('Error showing quick preview:', error);
+            }
+        }
+        
+        // Hide quick preview tooltip
+        function hideQuickPreview() {
+            const tooltip = document.getElementById('quickPreviewTooltip');
+            tooltip.style.display = 'none';
+        }
+        
+        // Enhanced template preview with real-time updates
+        function initializeRealtimePreview() {
+            const specificSelect = document.getElementById('specificTemplate');
+            
+            // Add input event for immediate response
+            specificSelect.addEventListener('input', function() {
+                previewSelectedTemplate();
+            });
+            
+            // Add click event for mobile devices
+            specificSelect.addEventListener('click', function() {
+                setTimeout(previewSelectedTemplate, 100); // Small delay for option selection
+            });
+            
+            // Keyboard navigation support
+            specificSelect.addEventListener('keydown', function(e) {
+                if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+                    setTimeout(previewSelectedTemplate, 50);
+                }
+            });
+        }
+        
+        // Get current AI configuration
+        function getCurrentAIConfig() {
+            const categorySelect = document.getElementById('templateCategory');
+            const specificSelect = document.getElementById('specificTemplate');
+            const responseModeRadios = document.getElementsByName('responseMode');
+            
+            let selectedTemplate = null;
+            if (specificSelect.value && specificSelect.categoryTemplates) {
+                try {
+                    const templateIndex = parseInt(specificSelect.value);
+                    selectedTemplate = specificSelect.categoryTemplates[templateIndex];
+                } catch (error) {
+                    console.error('Error getting selected template:', error);
+                }
+            }
+            
+            let responseMode = 'auto';
+            for (const radio of responseModeRadios) {
+                if (radio.checked) {
+                    responseMode = radio.value;
+                    break;
+                }
+            }
+            
+            return {
+                selectedCategory: categorySelect.value,
+                selectedTemplate: selectedTemplate,
+                responseMode: responseMode
+            };
+        }
+        
+        // Setup image upload and paste handling
+        function setupImageHandling() {
+            const pasteArea = document.getElementById('imagePasteArea');
+            const fileInput = document.getElementById('imageFileInput');
+            const cameraInput = document.getElementById('cameraInput');
+            
+            // Handle paste event
+            document.addEventListener('paste', function(e) {
+                const items = e.clipboardData.items;
+                for (let item of items) {
+                    if (item.type.indexOf('image') !== -1) {
+                        e.preventDefault();
+                        const file = item.getAsFile();
+                        handleImageFile(file);
+                        break;
+                    }
+                }
+            });
+            
+            // Handle drag and drop
+            pasteArea.addEventListener('dragover', function(e) {
+                e.preventDefault();
+                pasteArea.classList.add('dragover');
+            });
+            
+            pasteArea.addEventListener('dragleave', function(e) {
+                e.preventDefault();
+                pasteArea.classList.remove('dragover');
+            });
+            
+            pasteArea.addEventListener('drop', function(e) {
+                e.preventDefault();
+                pasteArea.classList.remove('dragover');
+                
+                const files = e.dataTransfer.files;
+                if (files.length > 0 && files[0].type.startsWith('image/')) {
+                    handleImageFile(files[0]);
+                }
+            });
+            
+            // Handle file input (gallery)
+            fileInput.addEventListener('change', function(e) {
+                if (e.target.files.length > 0) {
+                    handleImageFile(e.target.files[0]);
+                }
+            });
+            
+            // Handle camera input
+            cameraInput.addEventListener('change', function(e) {
+                if (e.target.files.length > 0) {
+                    handleImageFile(e.target.files[0]);
+                }
+            });
+            
+            // Check if device is mobile for better UX
+            if (isMobile()) {
+                console.log('Mobile device detected, enabling mobile-specific features');
+                pasteArea.querySelector('h5').textContent = 'Chạm để chọn ảnh hoặc chụp ảnh';
+                pasteArea.querySelector('p').innerHTML = `
+                    Hỗ trợ: PNG, JPG, JPEG<br>
+                    <small>Chụp ảnh trực tiếp hoặc chọn từ thư viện</small>
+                `;
+            }
+        }
+        
+        // Select image file
+        function selectImageFile() {
+            document.getElementById('imageFileInput').click();
+        }
+        
+        // Capture photo (mobile camera)
+        function capturePhoto() {
+            document.getElementById('cameraInput').click();
+        }
+        
+        // Check if device is mobile
+        function isMobile() {
+            return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
+                   (window.innerWidth <= 768);
+        }
+        
+        // Handle image file with compression for mobile
+        function handleImageFile(file) {
+            if (!file.type.startsWith('image/')) {
+                alert('Vui lòng chọn file ảnh (PNG, JPG, JPEG)');
+                return;
+            }
+            
+            // Check file size (limit for mobile)
+            const maxSize = isMobile() ? 5 * 1024 * 1024 : 10 * 1024 * 1024; // 5MB mobile, 10MB desktop
+            if (file.size > maxSize) {
+                alert(`File quá lớn. Vui lòng chọn ảnh nhỏ hơn ${isMobile() ? '5MB' : '10MB'}`);
+                return;
+            }
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                currentImageData = e.target.result;
+                showImagePreview(e.target.result);
+                
+                // Show success message for mobile users
+                if (isMobile()) {
+                    showSuccess('Đã tải ảnh thành công! Nhấn "Phân tích với AI" để tiếp tục.');
+                }
+            };
+            
+            reader.onerror = function() {
+                alert('Lỗi khi đọc file ảnh. Vui lòng thử lại.');
+            };
+            
+            reader.readAsDataURL(file);
+        }
+        
+        // Show image preview
+        function showImagePreview(imageSrc) {
+            const previewContainer = document.getElementById('imagePreviewContainer');
+            const imagePreview = document.getElementById('imagePreview');
+            
+            imagePreview.src = imageSrc;
+            previewContainer.style.display = 'block';
+            
+            // Hide paste area
+            document.getElementById('imagePasteArea').style.display = 'none';
+        }
+        
+        // Remove image
+        function removeImage() {
+            currentImageData = null;
+            document.getElementById('imagePreviewContainer').style.display = 'none';
+            document.getElementById('imagePasteArea').style.display = 'block';
+            document.getElementById('imageFileInput').value = '';
+            
+            // Clear response area
+            document.getElementById('responseArea').innerHTML = `
+                <div class="text-center text-muted">
+                    <i class="fas fa-robot fa-2x mb-3"></i>
+                    <p>Tải ảnh đoạn chat lên và nhấn "Phân tích với AI" để nhận được phản hồi thông minh từ AI lễ tân.</p>
+                </div>
+            `;
+        }
+        
+        // Analyze image with AI
+        async function analyzeImage() {
+            if (!currentImageData) {
+                alert('Vui lòng tải ảnh trước!');
+                return;
+            }
+            
+            showLoading(true);
+            document.getElementById('processingStatus').style.display = 'block';
+            
+            try {
+                // Get current AI configuration
+                const aiConfig = getCurrentAIConfig();
+                
+                // Prepare request data
+                const requestData = {
+                    image_b64: currentImageData,
+                    ai_config: aiConfig
+                };
+                
+                const response = await fetch('/api/ai_chat_analyze', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(requestData)
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const result = await response.json();
+                
+                if (result.error) {
+                    throw new Error(result.error);
+                }
+                
+                displayAIResponse(result, aiConfig);
+                
+            } catch (error) {
+                console.error('AI Analysis error:', error);
+                showError('Lỗi khi phân tích ảnh: ' + error.message);
+            } finally {
+                showLoading(false);
+                document.getElementById('processingStatus').style.display = 'none';
+            }
+        }
+        
+        // Display AI response
+        function displayAIResponse(result, aiConfig) {
+            const responseArea = document.getElementById('responseArea');
+            
+            let html = '';
+            
+            // AI Configuration Used
+            if (aiConfig) {
+                html += `
+                    <div class="alert alert-info border-start border-4 border-info py-2 px-3 mb-3">
+                        <h6 class="mb-2"><i class="fas fa-cogs"></i> Cấu hình AI đã sử dụng:</h6>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <strong>Câu muốn nói:</strong> 
+                                ${aiConfig.customInstructions ? 
+                                    `<span class="badge bg-primary">✓ Đã tối ưu</span>` : 
+                                    '<span class="badge bg-light text-dark">Phản hồi tự động</span>'}
+                            </div>
+                            <div class="col-md-6">
+                                <strong>Tông phản hồi:</strong> 
+                                <span class="badge ${aiConfig.responseMode === 'yes' ? 'bg-success' : 
+                                    aiConfig.responseMode === 'no' ? 'bg-danger' : 'bg-secondary'}">
+                                    ${aiConfig.responseMode === 'yes' ? 'Tích cực' : 
+                                      aiConfig.responseMode === 'no' ? 'Từ chối' : 'Tự động'}
+                                </span>
+                            </div>
+                        </div>
+                        ${aiConfig.customInstructions ? `
+                            <div class="mt-2 pt-2 border-top border-light">
+                                <small class="text-muted"><strong>Câu gốc của bạn:</strong></small>
+                                <div class="small mt-1 fst-italic">"${aiConfig.customInstructions}"</div>
+                            </div>
+                        ` : ''}
+                        ${aiConfig.selectedTemplate ? `
+                            <div class="mt-1">
+                                <small class="text-muted"><strong>Template tham khảo:</strong> ${aiConfig.selectedTemplate.Label}</small>
+                            </div>
+                        ` : ''}
+                    </div>
+                `;
+            }
+            
+            // PRIORITY: Message Optimization Applied
+            if (result.user_message_optimized && result.user_message_optimized !== 'false') {
+                html += `
+                    <div class="alert alert-success border-start border-4 border-success py-2 px-3 mb-3">
+                        <h6><i class="fas fa-check-circle"></i> ✅ Câu của bạn đã được tối ưu thành công!</h6>
+                        <p class="mb-0 small">AI đã chuyển đổi câu Việt thành tiếng Anh chuyên nghiệp phù hợp với context.</p>
+                    </div>
+                `;
+            }
+            
+            // NEW: Conversation Context Analysis
+            if (result.conversation_context) {
+                html += `
+                    <div class="alert alert-primary border-start border-4 border-primary py-3 px-3 mb-3">
+                        <h6><i class="fas fa-comments"></i> Phân tích Bối cảnh Cuộc hội thoại:</h6>
+                        <p class="mb-2" style="line-height: 1.6;">${result.conversation_context}</p>
+                        ${result.previous_interactions ? `
+                            <div class="mt-2 pt-2 border-top border-light">
+                                <small class="text-muted"><strong>Tương tác trước đó:</strong></small>
+                                <div class="small mt-1">${result.previous_interactions}</div>
+                            </div>
+                        ` : ''}
+                    </div>
+                `;
+            }
+            
+            // NEW: Latest Message Analysis
+            if (result.latest_message_analysis) {
+                html += `
+                    <div class="alert alert-warning border-start border-4 border-warning py-2 px-3 mb-3">
+                        <h6><i class="fas fa-search"></i> Phân tích Tin nhắn Mới nhất:</h6>
+                        <p class="mb-0">${result.latest_message_analysis}</p>
+                    </div>
+                `;
+            }
+            
+            // Template matches
+            if (result.matched_templates && result.matched_templates.length > 0) {
+                html += `<h6><i class="fas fa-lightbulb"></i> Mẫu tin nhắn phù hợp:</h6>`;
+                result.matched_templates.forEach(template => {
+                    html += `
+                        <div class="template-match">
+                            <strong>${template.category} - ${template.label}</strong>
+                            <p class="mb-0 mt-1">${template.message}</p>
+                        </div>
+                    `;
+                });
+            }
+            
+            // AI Response - Priority hiển thị
+            if (result.ai_response) {
+                const responseTitle = result.user_message_optimized && result.user_message_optimized !== 'false' ? 
+                    "💬 Câu đã tối ưu (Tiếng Anh chuyên nghiệp)" : 
+                    "🤖 Phản hồi AI (Tự động)";
+                    
+                html += `
+                    <div class="ai-response">
+                        <div class="d-flex justify-content-between align-items-start mb-2">
+                            <h6><i class="fas fa-robot text-success"></i> ${responseTitle}:</h6>
+                            <button class="btn btn-sm btn-outline-primary copy-button" onclick="copyToClipboard(\`${result.ai_response.replace(/`/g, '\\`')}\`)">
+                                <i class="fas fa-copy"></i> Copy
+                            </button>
+                        </div>
+                        <div style="white-space: pre-wrap; line-height: 1.6; background: #f8f9fa; padding: 15px; border-radius: 8px; border-left: 4px solid #28a745;">${result.ai_response}</div>
+                    </div>
+                `;
+            }
+            
+            // NEW: Context Rationale
+            if (result.context_rationale) {
+                html += `
+                    <div class="alert alert-light border-start border-4 border-secondary py-2 px-3 mt-3">
+                        <h6><i class="fas fa-lightbulb"></i> Lý do Context ảnh hưởng đến phản hồi:</h6>
+                        <p class="mb-0 small text-muted">${result.context_rationale}</p>
+                    </div>
+                `;
+            }
+            
+            // Fallback for old analysis_info (for backward compatibility)
+            if (!result.conversation_context && result.analysis_info) {
+                html += `
+                    <div class="analysis-info">
+                        <h6><i class="fas fa-search"></i> Phân tích nội dung:</h6>
+                        <p class="mb-0">${result.analysis_info}</p>
+                    </div>
+                `;
+            }
+            
+            responseArea.innerHTML = html;
+        }
+        
+        // Copy to clipboard
+        async function copyToClipboard(text) {
+            try {
+                await navigator.clipboard.writeText(text);
+                showSuccess('Đã copy phản hồi!');
+            } catch (error) {
+                const textArea = document.createElement('textarea');
+                textArea.value = text;
+                document.body.appendChild(textArea);
+                textArea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textArea);
+                showSuccess('Đã copy phản hồi!');
+            }
+        }
+        
+        // Utility functions
+        function showLoading(show) {
+            document.querySelector('.loading-overlay').style.display = show ? 'flex' : 'none';
+        }
+        
+        function showSuccess(message) {
+            const toast = document.createElement('div');
+            toast.className = 'position-fixed top-0 end-0 m-3 alert alert-success alert-dismissible';
+            toast.style.zIndex = '9999';
+            toast.innerHTML = `<i class="fas fa-check-circle"></i> ${message}<button type="button" class="btn-close" data-bs-dismiss="alert"></button>`;
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 3000);
+        }
+        
+        function showError(message) {
+            const toast = document.createElement('div');
+            toast.className = 'position-fixed top-0 end-0 m-3 alert alert-danger alert-dismissible';
+            toast.style.zIndex = '9999';
+            toast.innerHTML = `<i class="fas fa-exclamation-circle"></i> ${message}<button type="button" class="btn-close" data-bs-dismiss="alert"></button>`;
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 5000);
+        }
+        
+        function viewTemplates() { window.location.href = '/templates'; }
+        function clearAll() { removeImage(); }
+    </script>
+</body>
+</html>
+        

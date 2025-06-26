@@ -1,0 +1,690 @@
+{% extends "base.html" %}
+
+{% block title %}Chi tiết Ngày {{ date }}{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h1 class="mb-4">📅 Chi tiết Hoạt động Ngày {{ date }}</h1>
+    
+    <!-- Ultra-Optimized Commission Legend -->
+    <div class="commission-legend mb-4">
+        <div class="legend-title">
+            <h6><i class="fas fa-info-circle"></i> Hướng Dẫn Đọc Hoa Hồng</h6>
+        </div>
+        <div class="legend-items">
+            <div class="legend-item commission">
+                <div class="legend-color commission-color"></div>
+                <span><strong>Vàng/Cam:</strong> Khách có hoa hồng - cần trừ chi phí</span>
+            </div>
+            <div class="legend-item no-commission">
+                <div class="legend-color no-commission-color"></div>
+                <span><strong>Xanh:</strong> Khách không hoa hồng - lợi nhuận thuần</span>
+            </div>
+            <div class="legend-item calculation">
+                <div class="legend-icon">
+                    <i class="fas fa-calculator text-primary"></i>
+                </div>
+                <span><strong>Công thức:</strong> Doanh thu thực = Tổng doanh thu - Hoa hồng</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Commission Overview Section -->
+    {% set all_bookings = check_in + staying_over + check_out %}
+    {% set commission_bookings = [] %}
+    {% set no_commission_bookings = [] %}
+    {% for booking in all_bookings %}
+        {% set commission = booking.get('Hoa hồng', 0) or 0 %}
+        {% if commission > 0 %}
+            {% set _ = commission_bookings.append(booking) %}
+        {% else %}
+            {% set _ = no_commission_bookings.append(booking) %}
+        {% endif %}
+    {% endfor %}
+    
+    {% if all_bookings %}
+    <div class="commission-overview mb-4">
+        <div class="row">
+            <div class="col-lg-3 col-6 mb-3">
+                <div class="stat-card commission-stat">
+                    <div class="stat-icon">
+                        <i class="fas fa-percentage text-warning"></i>
+                    </div>
+                    <div class="stat-info">
+                        <h5 class="text-warning mb-1">{{ commission_bookings|length }}</h5>
+                        <small class="text-muted">Có hoa hồng</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-3 col-6 mb-3">
+                <div class="stat-card no-commission-stat">
+                    <div class="stat-icon">
+                        <i class="fas fa-check text-success"></i>
+                    </div>
+                    <div class="stat-info">
+                        <h5 class="text-success mb-1">{{ no_commission_bookings|length }}</h5>
+                        <small class="text-muted">Không hoa hồng</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-3 col-6 mb-3">
+                <div class="stat-card total-stat">
+                    <div class="stat-icon">
+                        <i class="fas fa-users text-info"></i>
+                    </div>
+                    <div class="stat-info">
+                        <h5 class="text-info mb-1">{{ all_bookings|length }}</h5>
+                        <small class="text-muted">Tổng khách</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-3 col-6 mb-3">
+                <div class="stat-card commission-rate-stat">
+                    <div class="stat-icon">
+                        <i class="fas fa-chart-pie text-primary"></i>
+                    </div>
+                    <div class="stat-info">
+                        <h5 class="text-primary mb-1">{{ "%.0f"|format((commission_bookings|length / all_bookings|length) * 100) }}%</h5>
+                        <small class="text-muted">Tỷ lệ có hoa hồng</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Quick Commission List -->
+        {% if commission_bookings %}
+        <div class="alert alert-warning">
+            <h6 class="alert-heading mb-2"><i class="fas fa-percentage"></i> Khách có hoa hồng hôm nay:</h6>
+            <div class="commission-quick-list">
+                {% for booking in commission_bookings %}
+                    {% set commission = booking.get('Hoa hồng', 0) or 0 %}
+                    <span class="badge bg-warning text-dark me-2 mb-1">
+                        {{ booking.get('Tên người đặt', 'N/A') }}: {{ "{:,.0f}".format(commission) }}đ
+                    </span>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+        
+        {% if no_commission_bookings %}
+        <div class="alert alert-success">
+            <h6 class="alert-heading mb-2"><i class="fas fa-check"></i> Khách không hoa hồng:</h6>
+            <div class="no-commission-quick-list">
+                {% for booking in no_commission_bookings %}
+                    <span class="badge bg-success text-white me-2 mb-1">
+                        {{ booking.get('Tên người đặt', 'N/A') }}
+                    </span>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    <div class="row">
+        <!-- Cột Check-in -->
+        <div class="col-lg-4 mb-4">
+            <div class="card h-100">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0">🛬 Khách Check-in ({{ check_in|length }})</h5>
+                </div>
+                <div class="card-body">
+                    {% if check_in %}
+                        {% for booking in check_in %}
+                            {% set commission = booking.get('Hoa hồng', 0) or 0 %}
+                            {% set has_commission = commission > 0 %}
+                            <div class="guest-card {{ 'has-commission' if has_commission else 'no-commission' }}">
+                                <div class="guest-header">
+                                    <p class="guest-name">{{ booking.get('Tên người đặt', 'N/A') }}</p>
+                                    {% if has_commission %}
+                                        <span class="commission-badge badge bg-warning text-dark">
+                                            <i class="fas fa-percentage"></i> {{ "{:,.0f}".format(commission) }}đ
+                                        </span>
+                                    {% else %}
+                                        <span class="commission-badge badge bg-success">
+                                            <i class="fas fa-check"></i> Không hoa hồng
+                                        </span>
+                                    {% endif %}
+                                </div>
+                                <p class="room-type">{{ booking.get('Tên chỗ nghỉ', 'N/A') }}</p>
+                                <p class="details">
+                                    <strong>Mã ĐP:</strong> {{ booking.get('Số đặt phòng', 'N/A') }}<br>
+                                    <strong>Trả phòng:</strong> {{ booking['Check-out Date'].strftime('%d/%m/%Y') if booking['Check-out Date'] and pd.notna(booking['Check-out Date']) else 'N/A' }}<br>
+                                    {% set total_nights = (booking['Check-out Date'] - booking['Check-in Date']).days if booking['Check-in Date'] and booking['Check-out Date'] and pd.notna(booking['Check-in Date']) and pd.notna(booking['Check-out Date']) else 1 %}
+                                    {% set total_payment = booking.get('Tổng thanh toán', 0) %}
+                                    {% set per_night_rate = (total_payment / total_nights) if total_nights > 0 else total_payment %}
+                                    <strong>Ở:</strong> {{ total_nights }} đêm<br>
+                                    <strong>Người thu:</strong> {{ booking.get('Người thu tiền', 'N/A') }}<br>
+                                    <strong>Thanh toán:</strong> {{ "{:,.0f}".format(total_payment) }}đ<br>
+                                    {% if has_commission %}
+                                        <strong class="text-primary">💰 Sau trừ hoa hồng:</strong> <span class="text-primary">{{ "{:,.0f}".format((total_payment - commission) / total_nights) }}đ/đêm</span><br>
+                                    {% endif %}
+                                    <strong class="text-info">💰 Giá/đêm:</strong> <span class="text-info">{{ "{:,.0f}".format(per_night_rate) }}đ</span>
+                                </p>
+                            </div>
+                        {% endfor %}
+                    {% else %}
+                        <p class="text-muted mb-0">Không có khách check-in hôm nay.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Cột Đang ở -->
+        <div class="col-lg-4 mb-4">
+            <div class="card h-100">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0">🏨 Khách Đang Ở ({{ staying_over|length }})</h5>
+                </div>
+                <div class="card-body">
+                    {% if staying_over %}
+                        {% for booking in staying_over %}
+                            {% set commission = booking.get('Hoa hồng', 0) or 0 %}
+                            {% set has_commission = commission > 0 %}
+                            <div class="guest-card {{ 'has-commission' if has_commission else 'no-commission' }}">
+                                <div class="guest-header">
+                                    <p class="guest-name">{{ booking.get('Tên người đặt', 'N/A') }}</p>
+                                    {% if has_commission %}
+                                        <span class="commission-badge badge bg-warning text-dark">
+                                            <i class="fas fa-percentage"></i> {{ "{:,.0f}".format(commission) }}đ
+                                        </span>
+                                    {% else %}
+                                        <span class="commission-badge badge bg-success">
+                                            <i class="fas fa-check"></i> Không hoa hồng
+                                        </span>
+                                    {% endif %}
+                                </div>
+                                <p class="room-type">{{ booking.get('Tên chỗ nghỉ', 'N/A') }}</p>
+                                <p class="details">
+                                    <strong>Mã ĐP:</strong> {{ booking.get('Số đặt phòng', 'N/A') }}<br>
+                                    <strong>Ở từ:</strong> {{ booking['Check-in Date'].strftime('%d/%m') if booking['Check-in Date'] and pd.notna(booking['Check-in Date']) else 'N/A' }} - <strong>Trả:</strong> {{ booking['Check-out Date'].strftime('%d/%m') if booking['Check-out Date'] and pd.notna(booking['Check-out Date']) else 'N/A' }}<br>
+                                    {% set total_nights = (booking['Check-out Date'] - booking['Check-in Date']).days if booking['Check-in Date'] and booking['Check-out Date'] and pd.notna(booking['Check-in Date']) and pd.notna(booking['Check-out Date']) else 1 %}
+                                    {% set total_payment = booking.get('Tổng thanh toán', 0) %}
+                                    {% set per_night_rate = (total_payment / total_nights) if total_nights > 0 else total_payment %}
+                                    <strong>Ở:</strong> {{ total_nights }} đêm<br>
+                                    <strong>Đã ở:</strong> {{ (current_date - booking['Check-in Date']).days if booking['Check-in Date'] and pd.notna(booking['Check-in Date']) else 'N/A' }} đêm<br>
+                                    <strong>Người thu:</strong> {{ booking.get('Người thu tiền', 'N/A') }}<br>
+                                    <strong>Thanh toán:</strong> {{ "{:,.0f}".format(total_payment) }}đ<br>
+                                    {% if has_commission %}
+                                        <strong class="text-primary">💰 Sau trừ hoa hồng:</strong> <span class="text-primary">{{ "{:,.0f}".format((total_payment - commission) / total_nights) }}đ/đêm</span><br>
+                                    {% endif %}
+                                    <strong class="text-info">💰 Giá/đêm:</strong> <span class="text-info">{{ "{:,.0f}".format(per_night_rate) }}đ</span>
+                                </p>
+                            </div>
+                        {% endfor %}
+                    {% else %}
+                        <p class="text-muted mb-0">Không có khách đang ở lại.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Cột Check-out -->
+        <div class="col-lg-4 mb-4">
+            <div class="card h-100">
+                <div class="card-header bg-warning text-dark">
+                    <h5 class="mb-0">🛫 Khách Check-out ({{ check_out|length }})</h5>
+                </div>
+                <div class="card-body">
+                    {% if check_out %}
+                        {% for booking in check_out %}
+                            {% set commission = booking.get('Hoa hồng', 0) or 0 %}
+                            {% set has_commission = commission > 0 %}
+                            <div class="guest-card {{ 'has-commission' if has_commission else 'no-commission' }}">
+                                <div class="guest-header">
+                                    <p class="guest-name">{{ booking.get('Tên người đặt', 'N/A') }}</p>
+                                    {% if has_commission %}
+                                        <span class="commission-badge badge bg-warning text-dark">
+                                            <i class="fas fa-percentage"></i> {{ "{:,.0f}".format(commission) }}đ
+                                        </span>
+                                    {% else %}
+                                        <span class="commission-badge badge bg-success">
+                                            <i class="fas fa-check"></i> Không hoa hồng
+                                        </span>
+                                    {% endif %}
+                                </div>
+                                <p class="room-type">{{ booking.get('Tên chỗ nghỉ', 'N/A') }}</p>
+                                <p class="details">
+                                    <strong>Mã ĐP:</strong> {{ booking.get('Số đặt phòng', 'N/A') }}<br>
+                                    {% set total_nights = (booking['Check-out Date'] - booking['Check-in Date']).days if booking['Check-in Date'] and booking['Check-out Date'] and pd.notna(booking['Check-in Date']) and pd.notna(booking['Check-out Date']) else 1 %}
+                                    {% set total_payment = booking.get('Tổng thanh toán', 0) %}
+                                    {% set per_night_rate = (total_payment / total_nights) if total_nights > 0 else total_payment %}
+                                    <strong>Thời gian ở:</strong> {{ total_nights }} đêm<br>
+                                    <strong>Người thu:</strong> {{ booking.get('Người thu tiền', 'N/A') }}<br>
+                                    <strong>Thanh toán:</strong> {{ "{:,.0f}".format(total_payment) }}đ<br>
+                                    {% if has_commission %}
+                                        <strong class="text-primary">💰 Sau trừ hoa hồng:</strong> <span class="text-primary">{{ "{:,.0f}".format((total_payment - commission) / total_nights) }}đ/đêm</span><br>
+                                    {% endif %}
+                                    <strong class="text-info">💰 Giá/đêm:</strong> <span class="text-info">{{ "{:,.0f}".format(per_night_rate) }}đ</span>
+                                </p>
+                            </div>
+                        {% endfor %}
+                    {% else %}
+                        <p class="text-muted mb-0">Không có khách check-out hôm nay.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Revenue Summary Section -->
+    {% if day_revenue_info and day_revenue_info.daily_total > 0 %}
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0">💰 Tổng Kết Doanh Thu Ngày {{ date }}</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="revenue-summary">
+                                <h6 class="text-success"><i class="fas fa-coins"></i> Tổng Doanh Thu</h6>
+                                <p class="h4 text-success">{{ "{:,.0f}".format(day_revenue_info.daily_total) }}đ</p>
+                                
+                                {% if day_revenue_info.daily_total_minus_commission != day_revenue_info.daily_total %}
+                                <hr>
+                                <h6 class="text-primary"><i class="fas fa-minus-circle"></i> Doanh Thu Sau Trừ Hoa Hồng</h6>
+                                <p class="h4 text-primary">{{ "{:,.0f}".format(day_revenue_info.daily_total_minus_commission) }}đ</p>
+                                
+                                <small class="text-muted">
+                                    <i class="fas fa-percentage"></i> Tổng hoa hồng: {{ "{:,.0f}".format(day_revenue_info.total_commission) }}đ
+                                </small>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="guest-summary">
+                                <h6 class="text-info"><i class="fas fa-users"></i> Thống Kê Khách</h6>
+                                <p class="h5 text-info">{{ day_revenue_info.guest_count }} khách</p>
+                                <small class="text-muted">
+                                    Doanh thu trung bình mỗi khách: {{ "{:,.0f}".format(day_revenue_info.daily_total / day_revenue_info.guest_count) }}đ
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Detailed Booking Breakdown -->
+                    {% if day_revenue_info.bookings %}
+                    <hr>
+                    <h6 class="mb-3"><i class="fas fa-list"></i> Chi Tiết Từng Booking - Phân Tích Hoa Hồng</h6>
+                    <div class="table-responsive">
+                        <table class="table table-sm table-hover booking-breakdown-table">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th><i class="fas fa-user"></i> Khách</th>
+                                    <th><i class="fas fa-tag"></i> Mã Booking</th>
+                                    <th><i class="fas fa-coins text-success"></i> Doanh thu ngày</th>
+                                    <th><i class="fas fa-minus-circle text-primary"></i> Sau trừ hoa hồng</th>
+                                    <th><i class="fas fa-percentage text-warning"></i> Hoa hồng</th>
+                                    <th><i class="fas fa-info-circle"></i> Trạng thái</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for booking in day_revenue_info.bookings %}
+                                {% set has_commission = booking.commission_amount > 0 %}
+                                <tr class="{{ 'commission-row' if has_commission else 'no-commission-row' }}">
+                                    <td>
+                                        <strong>{{ booking.guest_name }}</strong>
+                                        {% if has_commission %}
+                                            <i class="fas fa-percentage text-warning ms-1" title="Có hoa hồng"></i>
+                                        {% else %}
+                                            <i class="fas fa-check text-success ms-1" title="Không hoa hồng"></i>
+                                        {% endif %}
+                                    </td>
+                                    <td><small class="text-muted">{{ booking.booking_id }}</small></td>
+                                    <td>
+                                        <span class="badge bg-success text-white">
+                                            {{ "{:,.0f}".format(booking.daily_amount) }}đ
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-primary text-white">
+                                            {{ "{:,.0f}".format(booking.daily_amount_minus_commission) }}đ
+                                        </span>
+                                    </td>
+                                    <td>
+                                        {% if has_commission %}
+                                            <span class="badge bg-warning text-dark">
+                                                {{ "{:,.0f}".format(booking.commission_amount / booking.nights) }}đ
+                                            </span>
+                                        {% else %}
+                                            <span class="badge bg-light text-muted">0đ</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if has_commission %}
+                                            <span class="badge bg-warning text-dark">
+                                                <i class="fas fa-percentage"></i> CÓ HOA HỒNG
+                                            </span>
+                                        {% else %}
+                                            <span class="badge bg-success text-white">
+                                                <i class="fas fa-check"></i> KHÔNG HOA HỒNG
+                                            </span>
+                                        {% endif %}
+                                        <br><small class="text-muted">
+                                            Tổng: {{ "{:,.0f}".format(booking.total_amount) }}đ ({{ booking.nights }} đêm)
+                                        </small>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                            <tfoot class="table-light">
+                                <tr class="fw-bold">
+                                    <td colspan="2">TỔNG CỘNG</td>
+                                    <td>
+                                        <span class="badge bg-success text-white">
+                                            {{ "{:,.0f}".format(day_revenue_info.daily_total) }}đ
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-primary text-white">
+                                            {{ "{:,.0f}".format(day_revenue_info.daily_total_minus_commission) }}đ
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-warning text-dark">
+                                            {{ "{:,.0f}".format(day_revenue_info.total_commission) }}đ
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <small class="text-muted">
+                                            Tiết kiệm: {{ "{:,.0f}".format(day_revenue_info.total_commission) }}đ
+                                        </small>
+                                    </td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <a href="{{ url_for('calendar_view') }}" class="btn btn-secondary mt-3">&larr; Quay lại Lịch</a>
+</div>
+
+<style>
+    .guest-card {
+        border-bottom: 1px solid #eee;
+        padding-bottom: 10px;
+        margin-bottom: 10px;
+    }
+    .guest-card:last-child {
+        border-bottom: none;
+        margin-bottom: 0;
+        padding-bottom: 0;
+    }
+    .guest-name { font-weight: bold; font-size: 1.1em; }
+    .room-type { font-style: italic; color: #555; }
+    .details { font-size: 0.9em; color: #666; margin-top: 5px; }
+    
+    .revenue-summary, .guest-summary {
+        text-align: center;
+        padding: 15px;
+        border-radius: 8px;
+        background: rgba(0,0,0,0.02);
+    }
+    
+    .revenue-summary h6, .guest-summary h6 {
+        margin-bottom: 10px;
+        font-weight: 600;
+    }
+    
+    .table th {
+        border-top: none;
+        font-weight: 600;
+        font-size: 0.9rem;
+    }
+    
+    .table td {
+        vertical-align: middle;
+        font-size: 0.9rem;
+    }
+    
+    /* Commission Overview Styling */
+    .commission-overview {
+        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+        border-radius: 12px;
+        padding: 20px;
+        border: 1px solid #dee2e6;
+    }
+    
+    .stat-card {
+        background: white;
+        border-radius: 10px;
+        padding: 15px;
+        display: flex;
+        align-items: center;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        transition: transform 0.2s ease;
+        border-left: 4px solid transparent;
+    }
+    
+    .stat-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+    
+    .commission-stat {
+        border-left-color: #ffc107;
+    }
+    
+    .no-commission-stat {
+        border-left-color: #28a745;
+    }
+    
+    .total-stat {
+        border-left-color: #17a2b8;
+    }
+    
+    .commission-rate-stat {
+        border-left-color: #007bff;
+    }
+    
+    .stat-icon {
+        font-size: 2rem;
+        margin-right: 15px;
+        min-width: 50px;
+        text-align: center;
+    }
+    
+    .stat-info h5 {
+        font-size: 1.5rem;
+        font-weight: 700;
+        margin: 0;
+    }
+    
+    .stat-info small {
+        font-size: 0.85rem;
+        font-weight: 500;
+    }
+    
+    /* Guest Card Enhancements */
+    .guest-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 8px;
+    }
+    
+    .commission-badge {
+        font-size: 0.75rem;
+        font-weight: 600;
+        padding: 4px 8px;
+        border-radius: 6px;
+        white-space: nowrap;
+        margin-left: 8px;
+    }
+    
+    .guest-card.has-commission {
+        border-left: 4px solid #ffc107;
+        background: rgba(255, 193, 7, 0.05);
+    }
+    
+    .guest-card.no-commission {
+        border-left: 4px solid #28a745;
+        background: rgba(40, 167, 69, 0.05);
+    }
+    
+    /* Quick Lists */
+    .commission-quick-list .badge,
+    .no-commission-quick-list .badge {
+        font-size: 0.8rem;
+        padding: 6px 10px;
+    }
+    
+    /* Mobile Responsive */
+    @media (max-width: 768px) {
+        .commission-overview {
+            padding: 15px;
+        }
+        
+        .stat-card {
+            padding: 12px;
+        }
+        
+        .stat-icon {
+            font-size: 1.5rem;
+            margin-right: 10px;
+            min-width: 40px;
+        }
+        
+        .stat-info h5 {
+            font-size: 1.2rem;
+        }
+        
+        .stat-info small {
+            font-size: 0.8rem;
+        }
+        
+        .guest-header {
+            flex-direction: column;
+            align-items: flex-start;
+        }
+        
+        .commission-badge {
+            margin-left: 0;
+            margin-top: 5px;
+        }
+        
+        .commission-quick-list .badge,
+        .no-commission-quick-list .badge {
+            font-size: 0.75rem;
+            padding: 4px 8px;
+        }
+    }
+    
+    /* Enhanced Table Styling */
+    .booking-breakdown-table {
+        border-radius: 8px;
+        overflow: hidden;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    
+    .booking-breakdown-table .commission-row {
+        background: rgba(255, 193, 7, 0.05);
+        border-left: 3px solid #ffc107;
+    }
+    
+    .booking-breakdown-table .no-commission-row {
+        background: rgba(40, 167, 69, 0.05);
+        border-left: 3px solid #28a745;
+    }
+    
+    .booking-breakdown-table thead th {
+        border: none;
+        font-weight: 600;
+        font-size: 0.9rem;
+        padding: 12px 8px;
+    }
+    
+    .booking-breakdown-table tbody td {
+        padding: 10px 8px;
+        vertical-align: middle;
+    }
+    
+    .booking-breakdown-table tfoot td {
+        border-top: 2px solid #dee2e6;
+        padding: 12px 8px;
+        background: rgba(248, 249, 250, 0.8);
+    }
+    
+    .booking-breakdown-table .badge {
+        font-size: 0.8rem;
+        padding: 5px 8px;
+        font-weight: 600;
+    }
+    
+    /* Ultra-Optimized Commission Legend */
+    .commission-legend {
+        background: linear-gradient(135deg, #e3f2fd 0%, #f3e5f5 100%);
+        border: 2px solid #1976d2;
+        border-radius: 10px;
+        padding: 15px;
+        box-shadow: 0 2px 8px rgba(25, 118, 210, 0.2);
+    }
+    
+    .legend-title h6 {
+        color: #1976d2;
+        font-weight: 700;
+        margin-bottom: 10px;
+        text-align: center;
+    }
+    
+    .legend-items {
+        display: flex;
+        justify-content: space-around;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 15px;
+    }
+    
+    .legend-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 0.9rem;
+        font-weight: 500;
+    }
+    
+    .legend-color {
+        width: 20px;
+        height: 20px;
+        border-radius: 4px;
+        border: 2px solid #fff;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+    }
+    
+    .commission-color {
+        background: linear-gradient(135deg, #ffc107 0%, #ff9800 100%);
+    }
+    
+    .no-commission-color {
+        background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+    }
+    
+    .legend-icon {
+        width: 20px;
+        height: 20px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 14px;
+    }
+    
+    @media (max-width: 768px) {
+        .legend-items {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 10px;
+        }
+        
+        .legend-item {
+            font-size: 0.85rem;
+        }
+    }
+</style>
+{% endblock %} 

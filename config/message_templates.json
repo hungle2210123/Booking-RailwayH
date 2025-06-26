@@ -1,0 +1,97 @@
+[
+    {
+        "Category": "DON PHONG",
+        "Label": "DEFAULT",
+        "Message": "Youre welcome! Please feel free to relax and get some breakfast.\nWell get your room ready and clean for you, and Ill let you know as soon as possible when its all set"
+    },
+    {
+        "Category": "WELCOME",
+        "Label": "1.",
+        "Message": "Welcome!\nThanks for your reservation. We look forward to seeing you soon"
+    },
+    {
+        "Category": "WELCOME",
+        "Label": "2.",
+        "Message": "Hello Alejandro,\nIve received your reservation for 118 Hang Bac.\nCould you please let me know your approximate arrival time for today?"
+    },
+    {
+        "Category": "ARRIVAL",
+        "Label": "DEFAULT",
+        "Message": "When you arrive at 118 Hang Bac, please text me  I will guide you to your room."
+    },
+    {
+        "Category": "EARLY CHECK IN",
+        "Label": "DEFAULT",
+        "Message": "Hello, Im so sorry, but the room isnt available right now.\nYoure welcome to leave your luggage here and use the Wi-Fi."
+    },
+    {
+        "Category": "EARLY CHECK IN",
+        "Label": "Ill check again around 12",
+        "Message": "00 AM and let you know as soon as possible when its all set"
+    },
+    {
+        "Category": "CHECK IN",
+        "Label": "DEFAULT",
+        "Message": "When you arrive at 118 Hang Bac Street, you will see a souvenir shop at the front.\nPlease walk into the shop about 10 meters, and you will find a staircase on your right-hand side.\nGo up the stairs, then look for your room number.\nThe door will be unlocked, and the key will be inside the room."
+    },
+    {
+        "Category": "FEED BACK",
+        "Label": "DEFAULT",
+        "Message": "We hope you had a wonderful stay!\nWed love to hear about your experience – feel free to leave us a review on Booking.com"
+    },
+    {
+        "Category": "PARK",
+        "Label": "DEFAULT",
+        "Message": "Please park your motorbike across the street, but make sure not to block their right-side door."
+    },
+    {
+        "Category": "LAUNDRY",
+        "Label": "DEFAULT",
+        "Message": "you're welcome to use the washer and dryer on the 3rd floor for free.\nWe would appreciate it if you could use them for larger loads when possible. Thank you!"
+    },
+    {
+        "Category": "TAXI",
+        "Label": "1",
+        "Message": "Once you have landed and are outside the terminal, please go to Pillar 14. It will be easier for my driver to find you there. Thank you!"
+    },
+    {
+        "Category": "TAXI",
+        "Label": "2",
+        "Message": "Okay, your driver is booked. I'll send the driver's info very soon. When you arrive, please try to connect to airport WiFi; the driver will contact you on WhatsApp\nCould I get your flight number so my driver can check the arrival time and gate to pick you up?"
+    },
+    {
+        "Category": "TAXI",
+        "Label": "3",
+        "Message": "Have you arranged transportation from the airport yet? I have a driver who offers cheap taxi rates. Would you like me to book it for you? If you'd like to confirm the booking, kindly let me know\nIt's only 280,000 VND. That's cheaper than usual because I have my own driver readily available at the airport . You're welcome to check normal prices and compare. Please feel free to message me if you need anything, and I'll arrange a driver for you right at the airport"
+    },
+    {
+        "Category": "NOT BOOKING",
+        "Label": "DEFAULT",
+        "Message": "Regarding payment, I can offer you a 150,000 VND (approx. $5.80 USD) discount if you're comfortable paying me directly in cash for the room, rather than through the booking platform.\nThis is just an option, of course – no pressure at all! Please let me know if you're interested ."
+    },
+    {
+        "Category": "HET PHONG",
+        "Label": "2",
+        "Message": "We sincerely apologize for this inconvenience. Due to an unforeseen and critical issue, namely an electrical leak, the room you booked is unfortunately no longer available. For your safety, we must address this immediately. Therefore, we unfortunately need to cancel your booking. We sincerely apologize for this situation and seek your understanding for this necessary cancellation.\n\nThank you for your understanding. We hope to have the pleasure of welcoming you on your next visit. Have a pleasant evening"
+    },
+    {
+        "Category": "FEED BACK",
+        "Label": "bye bye",
+        "Message": "We hope you had a wonderful stay!\n\nFor your next trip, if you need a room, please feel free to contact us directly. As a thank you for being a valued guest, we'd be happy to offer you a 10% discount on your next booking when you reserve directly with us. We look forward to welcoming you again next time\n\nIf you need a taxi to the airport, please don't hesitate to let me know. I can arrange one for you at a special discounted rate that our guests often appreciate."
+    },
+    {
+        "Category": "NOT BOOKING",
+        "Label": "2",
+        "Message": "Regarding payment, I can offer you a 150,000 VND (approx. $5.80 USD) discount if you're comfortable paying me directly in cash for the room, rather than through the booking platform.This is just an option, of course – no pressure at all! Please let me know if you're interested .If you agree to this, I will then cancel your reservation on the booking app."
+    },
+    {
+        "Category": "FEED BACK",
+        "Label": "3",
+        "Message": "As a gesture of our sincere apology, we'd like to make two separate offers. First, we'd like to offer you a 10% discount for your next booking with us. Second, when you are leaving Hanoi, we can also arrange an airport taxi for you for the special price of just 250,000 VND. Please contact us in advance if you wish to use these offers."
+    },
+    {
+        "Category": "HET PHONG",
+        "Label": "4",
+        "Message": "Jack, I am so incredibly sorry, but we have an emergency.\nWe've just discovered a serious electrical problem in your room. For your safety, we absolutely cannot let you check in.\n\nThis means we must unfortunately cancel your booking. I am so sorry for this terrible timing."
+    }
+]

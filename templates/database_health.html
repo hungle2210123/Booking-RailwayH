@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+
+{% block title %}Database Health{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h1 class="mb-4">🏥 Database Health Check</h1>
+    
+    <div class="row">
+        <!-- Health Status -->
+        <div class="col-md-6 mb-4">
+            <div class="card">
+                <div class="card-header bg-{% if health.status == 'healthy' %}success{% else %}danger{% endif %} text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-{% if health.status == 'healthy' %}check-circle{% else %}exclamation-triangle{% endif %}"></i>
+                        Connection Status
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if health.status == 'healthy' %}
+                        <div class="alert alert-success">
+                            <i class="fas fa-check-circle"></i> Database connection is healthy
+                        </div>
+                        <p><strong>Backend:</strong> {{ health.backend }}</p>
+                        <p><strong>Response Time:</strong> {{ health.response_time_ms }}ms</p>
+                    {% else %}
+                        <div class="alert alert-danger">
+                            <i class="fas fa-exclamation-triangle"></i> Database connection failed
+                        </div>
+                        <p><strong>Error:</strong> {{ health.error }}</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <!-- Statistics -->
+        <div class="col-md-6 mb-4">
+            <div class="card">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-chart-bar"></i>
+                        Database Statistics
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-4">
+                            <h3 class="text-primary">{{ stats.total_bookings }}</h3>
+                            <small class="text-muted">Total Bookings</small>
+                        </div>
+                        <div class="col-4">
+                            <h3 class="text-success">{{ stats.active_bookings }}</h3>
+                            <small class="text-muted">Active Bookings</small>
+                        </div>
+                        <div class="col-4">
+                            <h3 class="text-warning">{{ stats.this_month_bookings }}</h3>
+                            <small class="text-muted">This Month</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Gemini AI Status -->
+    <div class="row">
+        <div class="col-12 mb-4">
+            <div class="card">
+                <div class="card-header bg-warning text-dark">
+                    <h5 class="mb-0">
+                        <i class="fas fa-robot"></i>
+                        AI Services Status
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if config.GOOGLE_API_KEY and config.GOOGLE_API_KEY != 'your_gemini_api_key' %}
+                        <div class="alert alert-success">
+                            <i class="fas fa-check-circle"></i> Gemini AI API key configured
+                            <small class="d-block text-muted">AI Duplicate Analysis and Image Processing available</small>
+                        </div>
+                    {% else %}
+                        <div class="alert alert-warning">
+                            <i class="fas fa-exclamation-triangle"></i> Gemini AI API key not configured
+                            <small class="d-block text-muted">AI features will not work until API key is set</small>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="text-center">
+        <a href="{{ url_for('view_bookings') }}" class="btn btn-primary">
+            <i class="fas fa-arrow-left"></i> Back to Bookings
+        </a>
+        <button onclick="location.reload()" class="btn btn-secondary">
+            <i class="fas fa-refresh"></i> Refresh Check
+        </button>
+    </div>
+</div>
+{% endblock %}

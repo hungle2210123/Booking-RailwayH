@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Thêm Đặt Phòng từ Ảnh</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 20px; background-color: #f8f9fa; color: #333; }
+        .container { max-width: 1000px; margin: auto; background: white; padding: 25px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+        h1 { color: #0056b3; }
+        #paste-area { border: 2px dashed #007bff; border-radius: 8px; padding: 40px; text-align: center; background-color: #f0f8ff; cursor: pointer; transition: background-color 0.3s; }
+        #paste-area:hover { background-color: #e7f3ff; }
+        #results-container { margin-top: 20px; }
+        .spinner { border: 4px solid #f3f3f3; border-top: 4px solid #3498db; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 20px auto; display: none; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .error-message { color: #d9534f; background-color: #f2dede; border: 1px solid #ebccd1; padding: 15px; border-radius: 5px; margin-top: 15px; }
+        .success-message { color: #28a745; background-color: #d4edda; border: 1px solid #c3e6cb; padding: 15px; border-radius: 5px; margin-top: 15px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { border: 1px solid #dee2e6; padding: 12px; text-align: left; }
+        th { background-color: #e9ecef; }
+        .save-button { background-color: #28a745; color: white; padding: 12px 20px; border: none; border-radius: 5px; font-size: 16px; cursor: pointer; margin-top: 20px; }
+        .save-button:hover { background-color: #218838; }
+        .header-container { text-align: center; margin-bottom: 20px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header-container">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <button onclick="goBack()" style="background-color: #6c757d; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; font-size: 14px; display: flex; align-items: center; gap: 8px;">
+                    <span>←</span> Quay lại
+                </button>
+                <h1 style="margin: 0; color: #0056b3;">📸 Thêm Đặt Phòng từ Ảnh</h1>
+                <div style="width: 100px;"></div> <!-- Spacer for center alignment -->
+            </div>
+        </div>
+        <p>Dán (Ctrl+V) hình ảnh chứa danh sách đặt phòng vào khu vực dưới đây.</p>
+        
+        <div id="paste-area">
+            <p>🖼️ Dán hình ảnh vào đây (Ctrl+V)</p>
+            <p style="margin-top: 10px; font-size: 14px; color: #666;">
+                Hoặc <button type="button" id="file-select-btn" style="background: #007bff; color: white; border: none; padding: 5px 10px; border-radius: 3px; cursor: pointer;">📁 Chọn file ảnh</button>
+            </p>
+            <input type="file" id="file-input" accept="image/*" style="display: none;">
+        </div>
+
+        <div id="results-container">
+            <div id="spinner" class="spinner"></div>
+            <div id="message-box"></div>
+            <form id="save-form" action="/bookings/save_extracted" method="POST" style="display: none;">
+                <input type="hidden" name="extracted_json" id="extracted_json_input">
+                <div id="results-table"></div>
+                <button type="submit" class="save-button">💾 Lưu các đặt phòng hợp lệ</button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // Function to go back to previous page
+        function goBack() {
+            // Try to go back in browser history first
+            if (window.history.length > 1) {
+                window.history.back();
+            } else {
+                // Fallback to bookings page if no history
+                window.location.href = '/bookings';
+            }
+        }
+        
+        // Unified function to process image
+        async function processImage(imageFile) {
+            const pasteArea = document.getElementById('paste-area');
+            const spinner = document.getElementById('spinner');
+            const messageBox = document.getElementById('message-box');
+            const saveForm = document.getElementById('save-form');
+            const resultsTable = document.getElementById('results-table');
+
+            // Clear previous results
+            messageBox.innerHTML = '';
+            resultsTable.innerHTML = '';
+            saveForm.style.display = 'none';
+            spinner.style.display = 'block';
+            pasteArea.style.display = 'none';
+
+            const reader = new FileReader();
+            reader.onload = async (e) => {
+                const base64Image = e.target.result;
+                
+                try {
+                    const response = await fetch('/api/process_pasted_image', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ image_b64: base64Image })
+                    });
+
+                    spinner.style.display = 'none';
+
+                    if (!response.ok) {
+                        const errorData = await response.json().catch(() => ({}));
+                        throw new Error(errorData.error || `Lỗi từ server: ${response.status} ${response.statusText}`);
+                    }
+
+                    let apiResponse = await response.json(); // ✅ SỬA: đổi const thành let
+                    console.log('API Response received:', apiResponse);
+
+                    // === XỬ LÝ DUPLICATE CHECK ===
+                    let extractedData = apiResponse;
+                    let duplicateCheck = null;
+                    
+                    // Kiểm tra nếu API trả về duplicate check
+                    if (apiResponse && apiResponse.duplicate_check) {
+                        duplicateCheck = apiResponse.duplicate_check;
+                        extractedData = apiResponse.bookings || apiResponse;
+                        
+                        // ✅ FIX: Chỉ hiển thị duplicate warning nếu thực sự có duplicate
+                        if (duplicateCheck.has_duplicates && duplicateCheck.duplicates && duplicateCheck.duplicates.length > 0) {
+                            await showDuplicateWarning(duplicateCheck);
+                            return;
+                        }
+                    }
+
+                    console.log('🔍 Raw API Response:', extractedData);
+                    console.log('🔍 ExtractedData type:', typeof extractedData, 'Array?', Array.isArray(extractedData));
+                    
+                    // Xử lý trường hợp API trả về object với error message
+                    if (extractedData && extractedData.error) {
+                        messageBox.innerHTML = `<div class="error-message">❌ Lỗi xử lý ảnh: ${extractedData.error}</div>`;
+                        pasteArea.style.display = 'block';
+                        return;
+                    }
+
+                    // Kiểm tra và chuẩn hóa dữ liệu trả về
+                    let bookingsArray = null;
+                    
+                    if (Array.isArray(extractedData)) {
+                        bookingsArray = extractedData;
+                        console.log('✅ Data is already an array:', bookingsArray);
+                    } else if (extractedData && typeof extractedData === 'object') {
+                        console.log('🔄 Data is object, searching for bookings array...');
+                        
+                        // Tìm array trong các properties của object
+                        const possibleKeys = ['bookings', 'data', 'results', 'items'];
+                        for (const key of possibleKeys) {
+                            if (Array.isArray(extractedData[key])) {
+                                bookingsArray = extractedData[key];
+                                console.log(`✅ Found bookings in property '${key}':`, bookingsArray);
+                                break;
+                            }
+                        }
+                        
+                        // Nếu không tìm thấy, tìm bất kỳ array nào
+                        if (!bookingsArray) {
+                            for (const key in extractedData) {
+                                if (Array.isArray(extractedData[key])) {
+                                    bookingsArray = extractedData[key];
+                                    console.log(`✅ Found array in property '${key}':`, bookingsArray);
+                                    break;
+                                }
+                            }
+                        }
+                        
+                        // ✅ FIX: Special case for duplicate check with clean bookings
+                        if (!bookingsArray && duplicateCheck && duplicateCheck.clean_bookings) {
+                            bookingsArray = duplicateCheck.clean_bookings;
+                            console.log('✅ Using clean_bookings from duplicate check:', bookingsArray);
+                        }
+                        
+                        // Nếu vẫn không tìm thấy, thử convert object thành array
+                        if (!bookingsArray && Object.keys(extractedData).length > 0) {
+                            bookingsArray = [extractedData];
+                            console.log('🔄 Converting single object to array:', bookingsArray);
+                        }
+                    }
+                    
+                    // Kiểm tra kết quả cuối cùng
+                    if (!bookingsArray || !Array.isArray(bookingsArray) || bookingsArray.length === 0) {
+                        console.log('❌ No valid bookings found');
+                        messageBox.innerHTML = `<div class="error-message">
+                            ❌ Không tìm thấy đặt phòng nào trong ảnh. Vui lòng thử:
+                            <ul style="margin-top: 10px;">
+                                <li>📷 Chụp ảnh rõ nét hơn</li>
+                                <li>📝 Đảm bảo văn bản trong ảnh dễ đọc</li>
+                                <li>📋 Ảnh chứa thông tin đặt phòng hoàn chỉnh</li>
+                                <li>🔍 Thử với ảnh khác</li>
+                            </ul>
+                        </div>`;
+                        pasteArea.style.display = 'block';
+                        return;
+                    }
+                    
+                    // ✅ SỬA: Sử dụng array đã chuẩn hóa
+                    extractedData = bookingsArray;
+                    console.log(`✅ Final bookings data (${extractedData.length} items):`, extractedData);
+
+                    if (extractedData.length === 0) {
+                        messageBox.innerHTML = `<div class="error-message">Không tìm thấy thông tin đặt phòng nào trong ảnh này.</div>`;
+                        pasteArea.style.display = 'block';
+                        return;
+                    }
+
+                    // Hiển thị kết quả với xử lý lỗi tốt hơn
+                    let tableHtml = '<table><thead><tr><th>Tên khách</th><th>Mã đặt phòng</th><th>Ngày đến</th><th>Ngày đi</th><th>Loại phòng</th><th>Tổng tiền</th><th>Hoa hồng</th><th>Trạng thái</th></tr></thead><tbody>';
+                    let validBookings = [];
+                    let invalidCount = 0;
+
+                    for (const booking of extractedData) {
+                        console.log('🔍 Processing booking:', booking);
+                        
+                        // Nếu có lỗi trong từng booking, hiển thị lỗi đó
+                        if (booking.error) {
+                            invalidCount++;
+                            tableHtml += `<tr style="background-color: #f8d7da;"><td colspan="8" class="error-message">❌ ${booking.error}</td></tr>`;
+                            continue;
+                        }
+                        
+                        // Validate required fields với thông báo cụ thể hơn
+                        const hasGuestName = booking.guest_name && booking.guest_name.trim() !== '';
+                        const hasCheckinDate = booking.check_in_date && booking.check_in_date.trim() !== '';
+                        const hasCheckoutDate = booking.check_out_date && booking.check_out_date.trim() !== '';
+                        
+                        if (!hasGuestName || !hasCheckinDate || !hasCheckoutDate) {
+                            invalidCount++;
+                            const missingFields = [];
+                            if (!hasGuestName) missingFields.push('👤 Tên khách');
+                            if (!hasCheckinDate) missingFields.push('📅 Ngày đến');
+                            if (!hasCheckoutDate) missingFields.push('📅 Ngày đi');
+                            
+                            tableHtml += `<tr style="background-color: #f8d7da;">
+                                <td colspan="8" class="error-message">❌ Thiếu thông tin: ${missingFields.join(', ')}</td>
+                            </tr>`;
+                            continue;
+                        }
+                        
+                        // Booking hợp lệ
+                        validBookings.push(booking);
+                        
+                        // Xử lý hoa hồng an toàn
+                        const commission = booking.commission || 0;
+                        const commissionDisplay = commission > 0 ? 
+                            `💰 ${commission.toLocaleString('vi-VN')} VND` : '➖ Chưa có';
+                        
+                        // Xử lý tổng tiền an toàn
+                        const totalPayment = booking.total_payment || 0;
+                        const totalPaymentDisplay = totalPayment > 0 ?
+                            `💸 ${totalPayment.toLocaleString('vi-VN')} VND` : '➖ Chưa có';
+                        
+                        tableHtml += `
+                            <tr style="background-color: #d4edda;">
+                                <td>👤 ${booking.guest_name || 'N/A'}</td>
+                                <td>🏷️ ${booking.booking_id || 'Tự tạo'}</td>
+                                <td>📅 ${booking.check_in_date || 'N/A'}</td>
+                                <td>📅 ${booking.check_out_date || 'N/A'}</td>
+                                <td>🏠 ${booking.room_type || 'N/A'}</td>
+                                <td style="font-weight: bold;">${totalPaymentDisplay}</td>
+                                <td style="color: #e67e22; font-weight: bold;">${commissionDisplay}</td>
+                                <td>✅ Hợp lệ</td>
+                            </tr>
+                        `;
+                    }
+                    tableHtml += '</tbody></table>';
+                    resultsTable.innerHTML = tableHtml;
+
+                    // Nếu có booking hợp lệ, hiển thị form lưu
+                    if (validBookings.length > 0) {
+                        document.getElementById('extracted_json_input').value = JSON.stringify(validBookings);
+                        saveForm.style.display = 'block';
+                        
+                        let successMessage = `🎉 Đã trích xuất thành công <strong>${validBookings.length}</strong> đặt phòng hợp lệ`;
+                        if (invalidCount > 0) {
+                            successMessage += ` (⚠️ ${invalidCount} mục không hợp lệ)`;
+                        }
+                        successMessage += '.<br>📋 Kiểm tra thông tin và nhấn <strong>💾 Lưu</strong> để thêm vào hệ thống.';
+                        
+                        messageBox.innerHTML = `<div class="success-message">${successMessage}</div>`;
+                        
+                        // Scroll to results để user dễ thấy
+                        resultsTable.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    } else {
+                        let errorMessage = `❌ Không có đặt phòng nào hợp lệ để lưu`;
+                        if (invalidCount > 0) {
+                            errorMessage += ` (🔍 Đã tìm thấy ${invalidCount} mục nhưng thiếu thông tin quan trọng)`;
+                        }
+                        errorMessage += `.<br><br>💡 <strong>Gợi ý khắc phục:</strong>
+                            <ul style="margin-top: 8px; text-align: left;">
+                                <li>📸 Chụp ảnh rõ nét và đủ sáng</li>
+                                <li>📋 Đảm bảo ảnh có đầy đủ: Tên khách, Ngày đến, Ngày đi</li>
+                                <li>🔤 Văn bản trong ảnh dễ đọc, không bị che khuất</li>
+                                <li>🔄 Thử chụp ảnh khác hoặc screenshot từ màn hình</li>
+                            </ul>`;
+                        
+                        messageBox.innerHTML = `<div class="error-message">${errorMessage}</div>`;
+                    }
+
+                } catch (error) {
+                    spinner.style.display = 'none';
+                    messageBox.innerHTML = `<div class="error-message">Lỗi nghiêm trọng: ${error.message}</div>`;
+                    pasteArea.style.display = 'block';
+                }
+            };
+            reader.readAsDataURL(imageFile);
+        }
+
+        // Paste event handler
+        document.addEventListener('paste', async (event) => {
+            const items = (event.clipboardData || window.clipboardData).items;
+            let imageFile = null;
+
+            for (const item of items) {
+                if (item.type.indexOf('image') !== -1) {
+                    imageFile = item.getAsFile();
+                    break;
+                }
+            }
+
+            if (!imageFile) {
+                document.getElementById('message-box').innerHTML = `<div class="error-message">❌ Dữ liệu dán vào không phải là hình ảnh. Vui lòng copy ảnh và thử lại.</div>`;
+                return;
+            }
+
+            await processImage(imageFile);
+        });
+
+        // File input event handler
+        document.addEventListener('DOMContentLoaded', function() {
+            const fileSelectBtn = document.getElementById('file-select-btn');
+            const fileInput = document.getElementById('file-input');
+
+            fileSelectBtn.addEventListener('click', function() {
+                fileInput.click();
+            });
+
+            fileInput.addEventListener('change', async function(event) {
+                const file = event.target.files[0];
+                if (file && file.type.startsWith('image/')) {
+                    await processImage(file);
+                } else {
+                    document.getElementById('message-box').innerHTML = `<div class="error-message">❌ Vui lòng chọn file ảnh hợp lệ (PNG, JPG, JPEG).</div>`;
+                }
+            });
+        });
+
+        // === DUPLICATE WARNING FUNCTIONS ===
+        async function showDuplicateWarning(duplicateCheck) {
+            const messageBox = document.getElementById('message-box');
+            const resultsTable = document.getElementById('results-table');
+            const saveForm = document.getElementById('save-form');
+            const pasteArea = document.getElementById('paste-area');
+            
+            // Hide paste area and show duplicate warning
+            pasteArea.style.display = 'none';
+            saveForm.style.display = 'none';
+            
+            let warningHtml = `
+                <div class="error-message" style="background: linear-gradient(135deg, #ff9500 0%, #ff6b35 100%); color: white; border: none;">
+                    <h4><i class="fas fa-exclamation-triangle me-2"></i>⚠️ Phát hiện khách trùng lặp!</h4>
+                    <p>Tìm thấy <strong>${duplicateCheck.duplicates.length}</strong> khách có thể đã tồn tại trong hệ thống:</p>
+                </div>
+                
+                <div style="margin: 20px 0;">
+                    <h5>🔍 Danh sách khách trùng lặp:</h5>
+            `;
+            
+            duplicateCheck.duplicates.forEach((dup, index) => {
+                const newBooking = dup.new_booking;
+                const existingBooking = dup.existing_booking;
+                
+                warningHtml += `
+                    <div style="border: 2px solid #ff9500; border-radius: 8px; padding: 15px; margin: 10px 0; background: #fff3e0;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                            <strong style="color: #e65100;">Khách #${index + 1}: ${newBooking.guest_name}</strong>
+                            <div>
+                                <button class="btn btn-success btn-sm me-2" onclick="keepNewBooking(${index})" 
+                                        style="background: #4caf50; color: white; border: none; padding: 5px 10px; border-radius: 4px;">
+                                    ✅ Giữ booking mới
+                                </button>
+                                <button class="btn btn-danger btn-sm" onclick="skipDuplicateBooking(${index})"
+                                        style="background: #f44336; color: white; border: none; padding: 5px 10px; border-radius: 4px;">
+                                    ❌ Bỏ qua (có thể trùng)
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                            <div style="border: 2px solid #4caf50; border-radius: 6px; padding: 10px;">
+                                <h6 style="color: #2e7d32; margin-bottom: 8px;">📝 Booking MỚI (từ ảnh)</h6>
+                                <div><strong>Tên:</strong> ${newBooking.guest_name}</div>
+                                <div><strong>Check-in:</strong> ${newBooking.check_in_date}</div>
+                                <div><strong>Check-out:</strong> ${newBooking.check_out_date}</div>
+                                <div><strong>Phòng:</strong> ${newBooking.room_type || 'N/A'}</div>
+                                <div><strong>Tổng tiền:</strong> ${newBooking.total_payment ? newBooking.total_payment.toLocaleString() + 'đ' : 'N/A'}</div>
+                            </div>
+                            
+                            <div style="border: 2px solid #ff5722; border-radius: 6px; padding: 10px;">
+                                <h6 style="color: #d84315; margin-bottom: 8px;">🗃️ Booking HIỆN TẠI (trong hệ thống)</h6>
+                                <div><strong>ID:</strong> ${existingBooking.booking_id}</div>
+                                <div><strong>Tên:</strong> ${existingBooking.guest_name}</div>
+                                <div><strong>Check-in:</strong> ${existingBooking.check_in_date}</div>
+                                <div><strong>Check-out:</strong> ${existingBooking.check_out_date}</div>
+                                <div><strong>Tổng tiền:</strong> ${existingBooking.total_payment ? existingBooking.total_payment.toLocaleString() + 'đ' : 'N/A'}</div>
+                                <div><strong>Trạng thái:</strong> <span style="color: ${existingBooking.status === 'OK' ? '#4caf50' : '#f44336'};">${existingBooking.status}</span></div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            warningHtml += `
+                </div>
+                
+                <div style="background: #e3f2fd; border-radius: 8px; padding: 15px; margin: 20px 0;">
+                    <h6 style="color: #1976d2; margin-bottom: 10px;">💡 Hướng dẫn:</h6>
+                    <ul style="color: #424242; margin: 0;">
+                        <li><strong>✅ Giữ booking mới:</strong> Nếu đây là booking khác (cùng tên nhưng khác thời gian/phòng)</li>
+                        <li><strong>❌ Bỏ qua:</strong> Nếu đây là booking trùng lặp (cùng khách, cùng thời gian)</li>
+                        <li><strong>🔍 So sánh kỹ:</strong> Ngày check-in, phòng, tổng tiền để quyết định chính xác</li>
+                    </ul>
+                </div>
+                
+                <div style="text-align: center; margin: 20px 0;">
+                    <button class="btn btn-primary" onclick="processAfterDuplicateCheck()"
+                            style="background: #2196f3; color: white; border: none; padding: 12px 25px; border-radius: 6px; font-size: 16px;">
+                        🔄 Xử lý booking đã chọn
+                    </button>
+                    <button class="btn btn-secondary" onclick="resetForm()"
+                            style="background: #757575; color: white; border: none; padding: 12px 25px; border-radius: 6px; font-size: 16px; margin-left: 10px;">
+                        🔙 Quay lại
+                    </button>
+                </div>
+            `;
+            
+            messageBox.innerHTML = warningHtml;
+            
+            // Store duplicate data globally for later processing
+            window.duplicateCheckData = duplicateCheck;
+            window.selectedBookings = [...duplicateCheck.clean_bookings]; // Start with non-duplicate bookings
+        }
+        
+        function keepNewBooking(index) {
+            const duplicate = window.duplicateCheckData.duplicates[index];
+            window.selectedBookings.push(duplicate.new_booking);
+            
+            // Update UI to show selection
+            const button = event.target;
+            button.style.background = '#4caf50';
+            button.innerHTML = '✅ Đã chọn';
+            button.disabled = true;
+            
+            // Disable other button
+            const skipButton = button.nextElementSibling;
+            skipButton.style.background = '#ccc';
+            skipButton.disabled = true;
+        }
+        
+        function skipDuplicateBooking(index) {
+            // Don't add to selected bookings
+            
+            // Update UI to show selection
+            const button = event.target;
+            button.style.background = '#f44336';
+            button.innerHTML = '❌ Đã bỏ qua';
+            button.disabled = true;
+            
+            // Disable other button
+            const keepButton = button.previousElementSibling;
+            keepButton.style.background = '#ccc';
+            keepButton.disabled = true;
+        }
+        
+        function processAfterDuplicateCheck() {
+            if (!window.selectedBookings || window.selectedBookings.length === 0) {
+                alert('❌ Không có booking nào được chọn để xử lý!');
+                return;
+            }
+            
+            // Process selected bookings as normal
+            processSelectedBookings(window.selectedBookings);
+        }
+        
+        function processSelectedBookings(bookings) {
+            const messageBox = document.getElementById('message-box');
+            const resultsTable = document.getElementById('results-table');
+            const saveForm = document.getElementById('save-form');
+            
+            // Build results table
+            let tableHtml = '<table><thead><tr><th>Tên khách</th><th>Mã đặt phòng</th><th>Ngày đến</th><th>Ngày đi</th><th>Loại phòng</th><th>Tổng tiền</th><th>Hoa hồng</th><th>Trạng thái</th></tr></thead><tbody>';
+            
+            bookings.forEach((booking) => {
+                const commission = booking.commission || 0;
+                const commissionDisplay = commission > 0 ? 
+                    `💰 ${commission.toLocaleString('vi-VN')} VND` : '➖ Chưa có';
+                
+                const totalPayment = booking.total_payment || 0;
+                const totalPaymentDisplay = totalPayment > 0 ?
+                    `💸 ${totalPayment.toLocaleString('vi-VN')} VND` : '➖ Chưa có';
+                
+                tableHtml += `
+                    <tr style="background-color: #d4edda;">
+                        <td>👤 ${booking.guest_name || 'N/A'}</td>
+                        <td>🏷️ ${booking.booking_id || 'Tự tạo'}</td>
+                        <td>📅 ${booking.check_in_date || 'N/A'}</td>
+                        <td>📅 ${booking.check_out_date || 'N/A'}</td>
+                        <td>🏠 ${booking.room_type || 'N/A'}</td>
+                        <td style="font-weight: bold;">${totalPaymentDisplay}</td>
+                        <td style="color: #e67e22; font-weight: bold;">${commissionDisplay}</td>
+                        <td>✅ Hợp lệ</td>
+                    </tr>
+                `;
+            });
+            tableHtml += '</tbody></table>';
+            resultsTable.innerHTML = tableHtml;
+            
+            // Set up save form
+            document.getElementById('extracted_json_input').value = JSON.stringify(bookings);
+            saveForm.style.display = 'block';
+            
+            messageBox.innerHTML = `<div class="success-message">🎉 Đã xử lý xong duplicate check! Tìm thấy <strong>${bookings.length}</strong> booking hợp lệ để lưu.</div>`;
+            
+            // Scroll to results
+            resultsTable.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+        
+        function resetForm() {
+            location.reload();
+        }
+    </script>
+</body>
+</html>

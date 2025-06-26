@@ -1,0 +1,4107 @@
+{% extends "base.html" %}
+
+{% block title %}AI Assistant - Lễ Tân Thông Minh{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <div class="d-flex justify-content-between align-items-center my-4">
+        <h1 class="mb-0">
+            <i class="fas fa-robot text-primary"></i> AI Assistant Hub
+        </h1>
+        <div class="badge bg-primary">Lễ Tân Thông Minh 2.0</div>
+    </div>
+    
+    <!-- Tab Navigation -->
+    <ul class="nav nav-pills nav-fill mb-4" id="aiTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active fw-bold" id="chat-tab" data-bs-toggle="pill" data-bs-target="#chat-panel" type="button" role="tab">
+                <i class="fas fa-comments me-2"></i>AI Chat Assistant
+                <small class="d-block text-muted mt-1">Phân tích đoạn chat & tạo phản hồi AI</small>
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link fw-bold" id="voice-tab" data-bs-toggle="pill" data-bs-target="#voice-panel" type="button" role="tab">
+                <i class="fas fa-microphone-alt me-2"></i>Voice Translator
+                <small class="d-block text-muted mt-1">Dịch giọng nói thông minh</small>
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link fw-bold" id="templates-tab" data-bs-toggle="pill" data-bs-target="#templates-panel" type="button" role="tab">
+                <i class="fas fa-clipboard-list me-2"></i>Mẫu Tin Nhắn
+                <small class="d-block text-muted mt-1">Quản lý templates messages</small>
+            </button>
+        </li>
+    </ul>
+
+    <!-- Tab Content -->
+    <div class="tab-content" id="aiTabsContent">
+        <!-- AI Chat Assistant Panel -->
+        <div class="tab-pane fade show active" id="chat-panel" role="tabpanel">
+            
+            <!-- 🧠 NEW: RAG Chat Interface -->
+            <div class="card mb-4" style="border: 2px solid #667eea;">
+                <div class="card-header" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                    <h5 class="mb-0 text-white fw-bold">
+                        <i class="fas fa-brain me-2"></i>🧠 RAG Chat Assistant - Smart Hotel Q&A
+                    </h5>
+                    <small class="text-white-50">Ask questions about hotel policies, Hanoi attractions, or guest services</small>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-8">
+                            <div class="input-group mb-3">
+                                <input type="text" id="ragQueryInput" class="form-control" 
+                                       placeholder="Ask me anything: check-in time, nearby restaurants, taxi prices..."
+                                       onkeypress="if(event.key==='Enter') sendRAGQuery()">
+                                <input type="text" id="ragGuestName" class="form-control" 
+                                       placeholder="Guest name (optional)" style="max-width: 150px;">
+                                <button class="btn btn-primary" onclick="sendRAGQuery()">
+                                    <i class="fas fa-search"></i> Ask RAG
+                                </button>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="btn-group w-100" role="group">
+                                <button class="btn btn-outline-info btn-sm" onclick="ragQuickQuestion('check-in time')">
+                                    <i class="fas fa-clock"></i> Check-in
+                                </button>
+                                <button class="btn btn-outline-warning btn-sm" onclick="ragQuickQuestion('taxi airport')">
+                                    <i class="fas fa-taxi"></i> Taxi
+                                </button>
+                                <button class="btn btn-outline-success btn-sm" onclick="ragQuickQuestion('food recommendations')">
+                                    <i class="fas fa-utensils"></i> Food
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 🚀 NEW: Gemini Enhancement Toggle -->
+                    <div class="row mb-3">
+                        <div class="col-12">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" id="geminiModeToggle" checked>
+                                    <label class="form-check-label fw-bold" for="geminiModeToggle">
+                                        🚀 Gemini AI Enhancement
+                                    </label>
+                                    <small class="d-block text-muted">Advanced reasoning, multi-turn conversation, better understanding</small>
+                                </div>
+                                <div class="text-end">
+                                    <span id="ragModeIndicator" class="badge bg-success">Gemini Mode</span>
+                                    <div class="small text-muted" id="ragModeDescription">Natural language AI</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- RAG Response Area -->
+                    <div id="ragResponseArea" class="mt-3" style="display: none;">
+                        <div class="card bg-light">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between align-items-start mb-2">
+                                    <h6 class="text-primary mb-0">
+                                        <i class="fas fa-robot"></i> RAG Response
+                                    </h6>
+                                    <div class="d-flex align-items-center">
+                                        <span id="ragConfidence" class="badge bg-success me-2">High Confidence</span>
+                                        <span id="ragTimestamp" class="text-muted small"></span>
+                                    </div>
+                                </div>
+                                <div id="ragAnswer" class="mb-3"></div>
+                                
+                                <!-- Guest Context (if available) -->
+                                <div id="ragGuestContext" style="display: none;">
+                                    <div class="alert alert-info py-2">
+                                        <i class="fas fa-user"></i> <strong>Guest Context:</strong>
+                                        <span id="ragGuestInfo"></span>
+                                    </div>
+                                </div>
+                                
+                                <!-- Sources -->
+                                <div id="ragSources" class="mb-2">
+                                    <small class="text-muted">
+                                        <i class="fas fa-book"></i> <strong>Sources:</strong>
+                                        <span id="ragSourcesList"></span>
+                                    </small>
+                                </div>
+                                
+                                <!-- Suggestions -->
+                                <div id="ragSuggestions" class="mb-2">
+                                    <small class="text-muted">
+                                        <i class="fas fa-lightbulb"></i> <strong>Suggestions:</strong>
+                                        <div id="ragSuggestionsList"></div>
+                                    </small>
+                                </div>
+                                
+                                <div class="d-flex justify-content-end">
+                                    <button class="btn btn-sm btn-outline-secondary me-2" onclick="copyRAGResponse()">
+                                        <i class="fas fa-copy"></i> Copy
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-primary" onclick="clearRAGResponse()">
+                                        <i class="fas fa-refresh"></i> Clear
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="row">
+                <!-- Phần tải ảnh -->
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0">
+                                <i class="fas fa-image"></i> Tải Ảnh Đoạn Chat
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div id="imagePasteArea" class="image-paste-area">
+                                <i class="fas fa-cloud-upload-alt fa-3x text-muted mb-3"></i>
+                                <h5>Dán ảnh, chọn file hoặc chụp ảnh</h5>
+                                <p class="text-muted mb-2">
+                                    Hỗ trợ: PNG, JPG, JPEG<br>
+                                    <kbd>Ctrl+V</kbd> để dán ảnh từ clipboard
+                                </p>
+                                <div class="d-block d-md-none mt-2">
+                                    <div class="row g-2">
+                                        <div class="col-6">
+                                            <button type="button" class="btn btn-outline-primary btn-sm w-100" onclick="selectImageFile()">
+                                                <i class="fas fa-folder-open"></i><br>
+                                                <small>Chọn ảnh</small>
+                                            </button>
+                                        </div>
+                                        <div class="col-6">
+                                            <button type="button" class="btn btn-outline-success btn-sm w-100" onclick="capturePhoto()">
+                                                <i class="fas fa-camera"></i><br>
+                                                <small>Camera sau</small>
+                                            </button>
+                                        </div>
+                                        <div class="col-6">
+                                            <button type="button" class="btn btn-outline-info btn-sm w-100" onclick="captureFrontPhoto()">
+                                                <i class="fas fa-camera-retro"></i><br>
+                                                <small>Camera trước</small>
+                                            </button>
+                                        </div>
+                                        <div class="col-6">
+                                            <button type="button" class="btn btn-outline-warning btn-sm w-100" onclick="triggerSafariPicker()">
+                                                <i class="fab fa-safari"></i><br>
+                                                <small>Safari Fix</small>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="d-none d-md-block mt-2">
+                                    <button type="button" class="btn btn-outline-primary btn-sm me-2" onclick="selectImageFile()">
+                                        <i class="fas fa-folder-open"></i> Chọn từ thư viện
+                                    </button>
+                                    <button type="button" class="btn btn-outline-success btn-sm" onclick="capturePhoto()">
+                                        <i class="fas fa-camera"></i> Chụp ảnh
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <input type="file" id="imageFileInput" 
+                                   accept="image/*,image/png,image/jpeg,image/jpg,image/gif,image/webp" 
+                                   style="display: none;">
+                            <input type="file" id="cameraInput" 
+                                   accept="image/*,image/png,image/jpeg,image/jpg" 
+                                   capture="environment" 
+                                   style="display: none;">
+                            <input type="file" id="frontCameraInput" 
+                                   accept="image/*,image/png,image/jpeg,image/jpg" 
+                                   capture="user" 
+                                   style="display: none;">
+                            
+                            <div id="imagePreviewContainer" class="mt-3" style="display: none;">
+                                <img id="imagePreview" class="image-preview" alt="Xem trước ảnh">
+                                <div class="mt-2">
+                                    <button class="btn btn-danger btn-sm" onclick="removeImage()">
+                                        <i class="fas fa-trash"></i> Xóa ảnh
+                                    </button>
+                                    <button class="btn btn-primary btn-sm ms-2" onclick="analyzeImage()">
+                                        <i class="fas fa-magic"></i> Phân tích với AI
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Phần cấu hình và kết quả AI -->
+                <div class="col-md-6">
+                    <!-- AI Configuration Panel -->
+                    <div class="card mb-3">
+                        <div class="card-header">
+                            <h6 class="mb-0">
+                                <i class="fas fa-cogs"></i> Tùy Chọn Phản Hồi AI
+                            </h6>
+                        </div>
+                        <div class="card-body py-2">
+                            <div class="row align-items-center">
+                                <div class="col-md-4">
+                                    <label for="templateCategory" class="form-label small mb-1">Mẫu tin nhắn:</label>
+                                    <select id="templateCategory" class="form-select form-select-sm" onchange="loadSpecificTemplates()">
+                                        <option value="">Tự động chọn</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-4">
+                                    <label for="specificTemplate" class="form-label small mb-1">Mẫu cụ thể:</label>
+                                    <select id="specificTemplate" class="form-select form-select-sm" disabled onchange="previewSelectedTemplate()">
+                                        <option value="">Chọn category trước</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label small mb-1">Phong cách trả lời:</label>
+                                    <div class="btn-group w-100" role="group">
+                                        <input type="radio" class="btn-check" name="responseMode" id="responseModeAuto" value="auto" checked>
+                                        <label class="btn btn-outline-secondary btn-sm" for="responseModeAuto">Auto</label>
+                                        
+                                        <input type="radio" class="btn-check" name="responseMode" id="responseModeYes" value="yes">
+                                        <label class="btn btn-outline-success btn-sm" for="responseModeYes">Yes</label>
+                                        
+                                        <input type="radio" class="btn-check" name="responseMode" id="responseModeNo" value="no">
+                                        <label class="btn btn-outline-danger btn-sm" for="responseModeNo">No</label>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Custom Instructions Section -->
+                            <div class="row mt-3">
+                                <div class="col-12">
+                                    <div class="card border-info bg-light">
+                                        <div class="card-header py-2 custom-instructions-header">
+                                            <small class="fw-bold">
+                                                <i class="fas fa-magic me-1"></i>Hướng dẫn tùy chỉnh (Custom Instructions)
+                                            </small>
+                                            <button class="btn btn-sm btn-outline-light ms-2" onclick="toggleCustomInstructions()" id="customToggleBtn">
+                                                <i class="fas fa-chevron-down" id="customToggleIcon"></i>
+                                            </button>
+                                        </div>
+                                        <div class="card-body py-2" id="customInstructionsSection" style="display: none;">
+                                            <div class="mb-2">
+                                                <label class="form-label small mb-1">
+                                                    <strong>Hướng dẫn AI theo ý muốn của bạn:</strong>
+                                                    <span class="text-muted">(Text hoặc Voice)</span>
+                                                </label>
+                                                <div class="input-group">
+                                                    <textarea id="customInstructions" class="form-control" rows="3" 
+                                                        placeholder="VD: Trả lời ngắn gọn và thân thiện, sử dụng emoji, đề cập đến tên khách hàng..."></textarea>
+                                                    <button class="btn btn-outline-danger" type="button" onclick="startVoiceInstructions()" id="voiceInstructBtn">
+                                                        <i class="fas fa-microphone"></i>
+                                                    </button>
+                                                </div>
+                                                <div class="form-text">
+                                                    <i class="fas fa-info-circle"></i> AI sẽ ưu tiên hướng dẫn này khi tạo phản hồi. 
+                                                    Bạn có thể nhập bằng text hoặc dùng voice (nút mic).
+                                                </div>
+                                            </div>
+                                            <div class="d-flex gap-2">
+                                                <button class="btn btn-sm btn-outline-info" onclick="loadSampleInstructions()">
+                                                    <i class="fas fa-lightbulb"></i> Mẫu
+                                                </button>
+                                                <button class="btn btn-sm btn-outline-danger" onclick="clearCustomInstructions()">
+                                                    <i class="fas fa-trash"></i> Xóa
+                                                </button>
+                                                <button class="btn btn-sm btn-outline-success" onclick="saveCustomInstructions()">
+                                                    <i class="fas fa-save"></i> Lưu
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div id="templatePreview" class="mt-2" style="display: none;">
+                                <div class="alert alert-light border-start border-4 border-primary py-2 px-3 mb-0">
+                                    <small class="text-muted d-block mb-1">Preview mẫu đã chọn:</small>
+                                    <div id="templatePreviewContent" class="small"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- AI Response Area -->
+                    <div class="card">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0">
+                                <i class="fas fa-comments"></i> Phản Hồi AI
+                            </h5>
+                            <div id="processingStatus" class="text-muted" style="display: none;">
+                                <i class="fas fa-spinner fa-spin"></i> Đang phân tích...
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <div id="responseArea" class="response-area">
+                                <div class="text-center text-muted">
+                                    <i class="fas fa-robot fa-2x mb-3 text-primary"></i>
+                                    <h6 class="text-primary">🧠 AI Chat Assistant - Context-Aware Intelligence</h6>
+                                    <p class="mb-3">Tải ảnh đoạn chat lên, AI sẽ đọc và hiểu <strong>toàn bộ bối cảnh</strong> để đưa ra phản hồi thông minh!</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Voice Translator Panel -->
+        <div class="tab-pane fade" id="voice-panel" role="tabpanel">
+            <div class="card">
+                <div class="card-header bg-gradient" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                    <h5 class="mb-0 text-dark fw-bold" style="text-shadow: 1px 1px 2px rgba(255,255,255,0.6);">
+                        <i class="fas fa-microphone-alt me-2 text-dark"></i>Voice Translator - Smart Voice Translation
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <!-- Language Selection -->
+                    <div class="row mb-4">
+                        <div class="col-md-5">
+                            <label class="form-label fw-bold">
+                                <i class="fas fa-flag"></i> Ngôn ngữ nguồn:
+                            </label>
+                            <select id="sourceLanguage" class="form-select language-select">
+                                <option value="vi">🇻🇳 Tiếng Việt</option>
+                                <option value="en">🇺🇸 English</option>
+                                <option value="zh">🇨🇳 中文</option>
+                                <option value="ja">🇯🇵 日本語</option>
+                                <option value="ko">🇰🇷 한국어</option>
+                                <option value="fr">🇫🇷 Français</option>
+                                <option value="de">🇩🇪 Deutsch</option>
+                                <option value="es">🇪🇸 Español</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2 d-flex align-items-end justify-content-center">
+                            <button class="btn btn-outline-secondary" onclick="swapLanguages()">
+                                <i class="fas fa-exchange-alt"></i>
+                            </button>
+                        </div>
+                        <div class="col-md-5">
+                            <label class="form-label fw-bold">
+                                <i class="fas fa-language"></i> Ngôn ngữ đích:
+                            </label>
+                            <select id="targetLanguage" class="form-select language-select">
+                                <option value="en">🇺🇸 English</option>
+                                <option value="vi">🇻🇳 Tiếng Việt</option>
+                                <option value="zh">🇨🇳 中文</option>
+                                <option value="ja">🇯🇵 日本語</option>
+                                <option value="ko">🇰🇷 한국어</option>
+                                <option value="fr">🇫🇷 Français</option>
+                                <option value="de">🇩🇪 Deutsch</option>
+                                <option value="es">🇪🇸 Español</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Voice Recording and Text Input Section -->
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <!-- Voice Recording -->
+                            <div class="text-center p-4" style="border: 2px dashed #dee2e6; border-radius: 15px;">
+                                <h5 class="mb-3">
+                                    <span id="statusIndicator" class="status-indicator status-ready"></span>
+                                    <span id="statusText">Sẵn sàng ghi âm</span>
+                                </h5>
+                                <button id="recordButton" class="record-button mb-3" onclick="toggleRecording()">
+                                    <i class="fas fa-microphone"></i>
+                                </button>
+                                <div>
+                                    <small class="text-muted">Nhấn để bắt đầu/dừng ghi âm</small>
+                                </div>
+                                
+                                <div id="supportInfo" class="mt-2">
+                                    <small class="text-muted">
+                                        <i class="fas fa-info-circle"></i> 
+                                        <span id="supportText">Đang kiểm tra hỗ trợ microphone...</span>
+                                    </small>
+                                </div>
+                            </div>
+                            
+                            <!-- Speech Recognition Result -->
+                            <div class="mt-3">
+                                <label class="form-label fw-bold">
+                                    <i class="fas fa-comment-dots"></i> Văn bản nhận diện:
+                                </label>
+                                <textarea id="recognizedText" class="form-control text-area" 
+                                    placeholder="Văn bản từ giọng nói sẽ hiển thị ở đây..."
+                                    oninput="checkTranslateButton()" readonly></textarea>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <!-- Manual Text Input -->
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">
+                                    <i class="fas fa-keyboard"></i> Hoặc nhập văn bản thủ công:
+                                </label>
+                                <textarea id="manualText" class="form-control text-area" 
+                                    placeholder="Nhập văn bản cần dịch ở đây..."
+                                    oninput="syncTextAndCheck()"></textarea>
+                            </div>
+                            
+                            <!-- Translate Button -->
+                            <div class="text-center mb-3">
+                                <button id="translateButton" class="btn translate-btn" onclick="translateText()">
+                                    <i class="fas fa-language"></i> Dịch Ngay
+                                </button>
+                            </div>
+                            
+                            <!-- Translation Result -->
+                            <div class="result-area position-relative" id="translationResult" style="display: none;">
+                                <button class="copy-btn" onclick="copyTranslation()">
+                                    <i class="fas fa-copy"></i> Copy
+                                </button>
+                                <h6 class="text-primary mb-2">
+                                    <i class="fas fa-globe"></i> Kết quả dịch:
+                                </h6>
+                                <div id="translatedText" class="fw-bold" style="font-size: 1.1rem; line-height: 1.6;"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Templates Panel -->
+        <div class="tab-pane fade" id="templates-panel" role="tabpanel">
+            <div class="card">
+                <div class="card-header bg-gradient" style="background: linear-gradient(135deg, #17a2b8 0%, #138496 100%);">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0 text-white fw-bold" style="text-shadow: 1px 1px 2px rgba(0,0,0,0.3);">
+                            <i class="fas fa-clipboard-list me-2 text-white"></i>Quản lý Mẫu Tin Nhắn
+                        </h5>
+                        <div>
+                            <button class="btn btn-warning btn-sm me-2 fw-bold" onclick="showAddTemplateModal()">
+                                <i class="fas fa-plus text-dark"></i> Thêm mẫu
+                            </button>
+                            <button class="btn btn-success btn-sm me-2 fw-bold" onclick="importFromSheets()">
+                                <i class="fas fa-download text-white"></i> Import
+                            </button>
+                            <button class="btn btn-danger btn-sm fw-bold" onclick="exportToSheets()">
+                                <i class="fas fa-upload text-white"></i> Export
+                            </button>
+                            <button class="btn btn-info btn-sm fw-bold" onclick="testSheetsConnection()" title="Test Google Sheets connection">
+                                <i class="fas fa-link text-white"></i> Test
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div id="templatesContainer">
+                        <div class="text-center p-4">
+                            <div class="spinner-border" role="status">
+                                <span class="visually-hidden">Đang tải...</span>
+                            </div>
+                            <p class="mt-2">Đang tải danh sách mẫu tin nhắn...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-md-3">
+                            <button class="btn btn-info w-100 mb-2" onclick="viewTemplates()">
+                                <i class="fas fa-list me-2"></i>Xem mẫu tin nhắn
+                            </button>
+                        </div>
+                        <div class="col-md-3">
+                            <button class="btn btn-success w-100 mb-2" onclick="clearAll()">
+                                <i class="fas fa-refresh me-2"></i>Làm mới tất cả
+                            </button>
+                        </div>
+                        <div class="col-md-3">
+                            <button class="btn btn-warning w-100 mb-2" onclick="switchToVoice()">
+                                <i class="fas fa-microphone-alt me-2"></i>Chuyển sang Voice
+                            </button>
+                        </div>
+                        <div class="col-md-3">
+                            <button class="btn btn-secondary w-100 mb-2" onclick="switchToChat()">
+                                <i class="fas fa-comments me-2"></i>Chuyển sang Chat AI
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="loading-overlay">
+    <div class="spinner-border text-light" role="status">
+        <span class="visually-hidden">Loading...</span>
+    </div>
+</div>
+
+<!-- Modal thêm mẫu tin nhắn -->
+<div class="modal fade" id="addTemplateModal" tabindex="-1" aria-labelledby="addTemplateModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-info text-white">
+                <h5 class="modal-title" id="addTemplateModalLabel">
+                    <i class="fas fa-plus"></i> Thêm Mẫu Tin Nhắn Mới
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="addTemplateForm">
+                    <div class="mb-3">
+                        <label for="addTemplateCategory" class="form-label">Danh mục <span class="text-danger">*</span></label>
+                        <select class="form-select" id="addTemplateCategory" required>
+                            <option value="">-- Chọn danh mục --</option>
+                            <option value="WELCOME">WELCOME</option>
+                            <option value="ARRIVAL">ARRIVAL</option>
+                            <option value="CHECK IN">CHECK IN</option>
+                            <option value="EARLY CHECK IN">EARLY CHECK IN</option>
+                            <option value="DON PHONG">DON PHONG</option>
+                            <option value="HET PHONG">HET PHONG</option>
+                            <option value="FEED BACK">FEED BACK</option>
+                            <option value="TAXI">TAXI</option>
+                            <option value="PARK">PARK</option>
+                            <option value="LAUNDRY">LAUNDRY</option>
+                            <option value="NOT BOOKING">NOT BOOKING</option>
+                            <option value="OTHER">Khác (nhập thủ công)</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3" id="customCategoryDiv" style="display: none;">
+                        <label for="customCategory" class="form-label">Danh mục tùy chỉnh <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="customCategory" placeholder="Nhập tên danh mục mới">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="templateLabel" class="form-label">Nhãn <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="templateLabel" placeholder="VD: DEFAULT, 1, 2, v.v." required>
+                        <div class="form-text">Sử dụng "DEFAULT" cho mẫu mặc định hoặc số thứ tự cho các biến thể</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="templateMessage" class="form-label">Nội dung tin nhắn <span class="text-danger">*</span></label>
+                        <textarea class="form-control" id="templateMessage" rows="6" placeholder="Nhập nội dung tin nhắn..." required></textarea>
+                        <div class="form-text">Có thể sử dụng xuống dòng bằng cách nhấn Enter</div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                <button type="button" class="btn btn-primary" onclick="addNewTemplate()">
+                    <i class="fas fa-save"></i> Thêm & Export
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block head_extra %}
+<style>
+    .loading-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);display:none;align-items:center;justify-content:center;z-index:9998;}
+    .image-paste-area{border:2px dashed #dee2e6;border-radius:8px;padding:40px;text-align:center;background:#f8f9fa;transition:all 0.3s;cursor:pointer;}
+    .image-paste-area:hover{border-color:#0d6efd;background:#e7f3ff;}
+    .image-paste-area.dragover{border-color:#0d6efd;background:#e7f3ff;transform:scale(1.02);}
+    .image-preview{max-width:100%;max-height:400px;border-radius:8px;box-shadow:0 4px 8px rgba(0,0,0,0.1);}
+    .response-area{background:#f8f9fa;border-radius:8px;padding:20px;margin-top:20px;min-height:150px;}
+    .copy-button{position:absolute;top:10px;right:10px;}
+    .ai-response{position:relative;background:white;border-radius:8px;padding:15px;border-left:4px solid #28a745;box-shadow:0 2px 4px rgba(0,0,0,0.05);}
+    .analysis-info{background:#e3f2fd;border-radius:6px;padding:12px;margin-bottom:15px;font-size:0.9em;}
+    .template-match{background:#fff3cd;border-radius:6px;padding:10px;margin:10px 0;border-left:3px solid #ffc107;}
+
+    /* Voice Translator Styles */
+    .record-button {
+        width: 120px;
+        height: 120px;
+        border-radius: 50%;
+        border: none;
+        background: linear-gradient(135deg, #ff6b6b, #ee5a24);
+        color: white;
+        font-size: 2.5rem;
+        transition: all 0.3s ease;
+        cursor: pointer;
+    }
+    .record-button:hover {
+        transform: scale(1.05);
+        box-shadow: 0 10px 30px rgba(255, 107, 107, 0.4);
+    }
+    .record-button:disabled {
+        background: #ccc;
+        cursor: not-allowed;
+        transform: none;
+    }
+    .record-button.recording {
+        background: linear-gradient(135deg, #ff4757, #ff3838);
+        animation: pulse 1.5s ease-in-out infinite alternate;
+    }
+    @keyframes pulse {
+        0% { transform: scale(1); }
+        100% { transform: scale(1.1); }
+    }
+    .language-select {
+        background: rgba(255, 255, 255, 0.9);
+        border: 2px solid #e3f2fd;
+        border-radius: 15px;
+        padding: 10px 15px;
+        font-weight: 500;
+    }
+    .text-area {
+        background: rgba(248, 249, 250, 0.8);
+        border: 2px solid #e9ecef;
+        border-radius: 15px;
+        min-height: 120px;
+        resize: vertical;
+        font-size: 16px;
+    }
+    .text-area:focus {
+        border-color: #667eea;
+        box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+    }
+    .translate-btn {
+        background: linear-gradient(135deg, #28a745, #20c997);
+        border: none;
+        border-radius: 50px;
+        padding: 12px 30px;
+        font-weight: 600;
+        transition: all 0.3s ease;
+        color: white;
+    }
+    .translate-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 25px rgba(40, 167, 69, 0.3);
+        color: white;
+    }
+    .translate-btn:disabled {
+        background: #6c757d;
+        transform: none;
+        box-shadow: none;
+        color: white;
+    }
+    .result-area {
+        background: linear-gradient(135deg, #e3f2fd, #f3e5f5);
+        border-radius: 15px;
+        padding: 20px;
+        border-left: 5px solid #2196f3;
+    }
+    .copy-btn {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        background: rgba(33, 150, 243, 0.1);
+        border: 1px solid #2196f3;
+        border-radius: 8px;
+        color: #2196f3;
+        padding: 5px 10px;
+        font-size: 0.85rem;
+    }
+    .status-indicator {
+        display: inline-block;
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        margin-right: 8px;
+    }
+    .status-ready { background-color: #28a745; }
+    .status-listening { background-color: #ff6b6b; animation: blink 1s infinite; }
+    .status-processing { background-color: #ffc107; }
+    @keyframes blink {
+        0%, 50% { opacity: 1; }
+        51%, 100% { opacity: 0.3; }
+    }
+
+    /* Tab styles */
+    .nav-pills .nav-link {
+        border-radius: 15px;
+        margin: 0 5px;
+        transition: all 0.3s ease;
+    }
+    .nav-pills .nav-link.active {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+    }
+    .nav-pills .nav-link:not(.active):hover {
+        background: rgba(102, 126, 234, 0.1);
+        transform: translateY(-1px);
+    }
+
+    /* Mobile optimizations */
+    @media (max-width: 768px) {
+        .record-button {
+            width: 100px;
+            height: 100px;
+            font-size: 2rem;
+        }
+        .translate-btn {
+            width: 100%;
+            padding: 15px;
+            font-size: 16px;
+        }
+        .image-paste-area {
+            padding: 25px 15px;
+            font-size: 0.9rem;
+        }
+        .nav-pills .nav-link {
+            font-size: 0.9rem;
+            padding: 10px;
+        }
+        
+        /* Safari mobile specific fixes */
+        input[type="file"] {
+            -webkit-appearance: none;
+            appearance: none;
+        }
+        
+        /* Better touch targets for mobile */
+        .btn-sm {
+            padding: 0.5rem 0.75rem;
+            font-size: 0.85rem;
+            min-height: 40px; /* Better touch target */
+        }
+        
+        /* Image preview improvements for mobile */
+        .image-preview {
+            max-height: 300px; /* Smaller on mobile */
+        }
+        
+        /* Grid improvements for mobile buttons */
+        .row.g-2 > .col-6 {
+            padding: 0.25rem;
+        }
+        
+        .row.g-2 .btn {
+            padding: 0.75rem 0.5rem;
+            font-size: 0.8rem;
+            line-height: 1.2;
+        }
+    }
+    
+    /* iOS Safari specific fixes */
+    @supports (-webkit-touch-callout: none) {
+        .image-paste-area {
+            /* Better touch handling on iOS */
+            -webkit-touch-callout: default;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+        
+        input[type="file"] {
+            /* iOS file input fixes */
+            opacity: 0;
+            position: absolute;
+            z-index: -1;
+        }
+    }
+
+    /* ✅ CUSTOM INSTRUCTIONS STYLING FIXES */
+    .custom-instructions-header {
+        background: linear-gradient(135deg, #17a2b8 0%, #138496 100%) !important;
+        border: none !important;
+    }
+    
+    .custom-instructions-header * {
+        color: #ffffff !important;
+        text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+    }
+    
+    .custom-instructions-header .btn-outline-light {
+        border-color: rgba(255,255,255,0.5) !important;
+        color: #ffffff !important;
+    }
+    
+    .custom-instructions-header .btn-outline-light:hover {
+        background-color: rgba(255,255,255,0.2) !important;
+        border-color: #ffffff !important;
+        color: #ffffff !important;
+    }
+    
+    /* Make sure labels in custom instructions are visible */
+    #customInstructionsSection .form-label {
+        color: #212529 !important;
+        font-weight: 600;
+    }
+    
+    #customInstructionsSection .form-text {
+        color: #6c757d !important;
+    }
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Emergency debugging - check if JavaScript loads at all
+    console.log('🚨 EMERGENCY DEBUG: JavaScript is loading...');
+    console.log('🚨 EMERGENCY DEBUG: Script execution started');
+    
+    // Test function that can be called from console
+    window.testFunction = function() {
+        alert('JavaScript is working!');
+        console.log('✅ JavaScript execution confirmed');
+    };
+    
+    // Immediately test basic function definition
+    console.log('🚨 EMERGENCY DEBUG: About to define selectImageFile...');
+    
+    // Combined AI Assistant functionality
+    let currentImageData = null;
+    let allTemplates = [];
+    let templates = []; // Templates for management tab
+    let isTemplatesLoaded = false; // Template loading state
+    let recognition = null;
+    let isRecording = false;
+    let finalTranscript = '';
+    
+    // Voice instruction variables
+    let voiceInstructionRecognition = null;
+    let isVoiceInstructionRecording = false;
+    
+    // ===== GLOBAL FUNCTIONS FOR ONCLICK HANDLERS =====
+    // These functions need to be in global scope to work with onclick attributes
+    
+    // Image handling functions
+    window.selectImageFile = function() {
+        console.log('🚨 GLOBAL: selectImageFile called');
+        const input = document.getElementById('imageFileInput');
+        if (input) input.click();
+        else console.error('imageFileInput not found');
+    };
+    console.log('🚨 EMERGENCY DEBUG: selectImageFile defined successfully');
+    
+    window.capturePhoto = function() {
+        console.log('🚨 GLOBAL: capturePhoto called');
+        const input = document.getElementById('cameraInput');
+        if (input) input.click();
+        else console.error('cameraInput not found');
+    };
+    
+    window.captureFrontPhoto = function() {
+        console.log('🚨 GLOBAL: captureFrontPhoto called');
+        const input = document.getElementById('frontCameraInput');
+        if (input) input.click();
+        else console.error('frontCameraInput not found');
+    };
+    
+    window.triggerSafariPicker = function() {
+        console.log('🚨 GLOBAL: triggerSafariPicker called');
+        // Create a temporary input with different attributes for Safari
+        const tempInput = document.createElement('input');
+        tempInput.type = 'file';
+        tempInput.accept = 'image/png,image/jpeg,image/jpg,image/gif,image/webp,image/*';
+        tempInput.multiple = false;
+        tempInput.style.display = 'none';
+        
+        // Add event listener
+        tempInput.addEventListener('change', function(e) {
+            if (e.target.files.length > 0) {
+                handleImageFile(e.target.files[0]);
+            }
+            document.body.removeChild(tempInput);
+        });
+        
+        document.body.appendChild(tempInput);
+        setTimeout(() => tempInput.click(), 100);
+    };
+    
+    window.removeImage = function() {
+        console.log('🚨 GLOBAL: removeImage called');
+        currentImageData = null;
+        const previewContainer = document.getElementById('imagePreviewContainer');
+        const pasteArea = document.getElementById('imagePasteArea');
+        const fileInput = document.getElementById('imageFileInput');
+        
+        if (previewContainer) previewContainer.style.display = 'none';
+        if (pasteArea) pasteArea.style.display = 'block';
+        if (fileInput) fileInput.value = '';
+        
+        const responseArea = document.getElementById('responseArea');
+        if (responseArea) {
+            responseArea.innerHTML = `
+                <div class="text-center text-muted">
+                    <i class="fas fa-robot fa-2x mb-3 text-primary"></i>
+                    <h6 class="text-primary">🧠 AI Chat Assistant - Context-Aware Intelligence</h6>
+                    <p class="mb-3">Tải ảnh đoạn chat lên, AI sẽ đọc và hiểu <strong>toàn bộ bối cảnh</strong> để đưa ra phản hồi thông minh!</p>
+                </div>
+            `;
+        }
+    };
+    
+    window.analyzeImage = function() {
+        console.log('🚨 GLOBAL: analyzeImage called');
+        if (!currentImageData) {
+            alert('Vui lòng tải ảnh trước!');
+            return;
+        }
+        
+        // Call analysis function directly without Async suffix
+        try {
+            if (!currentImageData) {
+                alert('Vui lòng tải ảnh trước!');
+                return;
+            }
+            
+            showLoading(true);
+            document.getElementById('processingStatus').style.display = 'block';
+            
+            const aiConfig = getCurrentAIConfig();
+            const requestData = {
+                image_b64: currentImageData,
+                ai_config: aiConfig
+            };
+            
+            fetch('/api/ai_chat_analyze', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(requestData)
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                return response.json();
+            })
+            .then(result => {
+                if (result.error) {
+                    throw new Error(result.error);
+                }
+                displayAIResponse(result, aiConfig);
+            })
+            .catch(error => {
+                console.error('AI Analysis error:', error);
+                showError('Lỗi khi phân tích ảnh: ' + error.message);
+            })
+            .finally(() => {
+                showLoading(false);
+                document.getElementById('processingStatus').style.display = 'none';
+            });
+            
+        } catch (error) {
+            console.error('Error in analyzeImage:', error);
+            showError('Lỗi khi phân tích ảnh: ' + error.message);
+        }
+    };
+    
+    // Voice functions
+    window.toggleRecording = function() {
+        console.log('🚨 GLOBAL: toggleRecording called');
+        
+        // Call the internal function to avoid naming conflicts
+        if (typeof toggleRecordingInternal === 'function') {
+            toggleRecordingInternal();
+        } else {
+            alert('Chức năng ghi âm đang được khởi tạo...');
+        }
+    };
+    
+    window.translateText = function() {
+        console.log('🚨 GLOBAL: translateText called');
+        if (typeof translateTextAsync === 'function') {
+            translateTextAsync();
+        } else {
+            alert('Chức năng dịch đang được khởi tạo...');
+        }
+    };
+    
+    // Template functions
+    window.showAddTemplateModal = function() {
+        console.log('🚨 GLOBAL: showAddTemplateModal called');
+        try {
+            // Reset form
+            const form = document.getElementById('addTemplateForm');
+            if (form) {
+                form.reset();
+            }
+            
+            const customDiv = document.getElementById('customCategoryDiv');
+            if (customDiv) {
+                customDiv.style.display = 'none';
+            }
+            
+            // Show modal
+            const modalElement = document.getElementById('addTemplateModal');
+            if (modalElement) {
+                const modal = new bootstrap.Modal(modalElement);
+                modal.show();
+                console.log('✅ Add template modal opened');
+            } else {
+                console.error('❌ Add template modal element not found');
+            }
+        } catch (error) {
+            console.error('❌ Error opening add template modal:', error);
+        }
+    };
+    
+    window.importFromSheets = function() {
+        console.log('🚨 GLOBAL: importFromSheets called');
+        
+        // Implement the actual import functionality
+        try {
+            if (confirm('Import templates từ Google Sheets?\n\nThao tác này sẽ thay thế toàn bộ templates hiện tại.')) {
+                showLoading(true);
+                
+                fetch('/templates/import', {
+                    method: 'GET',
+                    headers: {
+                        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
+                    }
+                })
+                .then(response => {
+                    if (response.ok) {
+                        showSuccess('✅ Đã import templates thành công từ Google Sheets!');
+                        // Reload templates to show updated data
+                        isTemplatesLoaded = false;
+                        templates = [];
+                        allTemplates = [];
+                        setTimeout(() => {
+                            loadTemplatesForTab();
+                            loadTemplateCategories();
+                        }, 1000);
+                    } else {
+                        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                    }
+                })
+                .catch(error => {
+                    console.error('Import error:', error);
+                    showError('❌ Lỗi import templates: ' + error.message);
+                })
+                .finally(() => {
+                    showLoading(false);
+                });
+            }
+        } catch (error) {
+            console.error('Error in importFromSheets:', error);
+            showError('Lỗi khi import: ' + error.message);
+        }
+    };
+    
+    window.toggleCustomInstructions = function() {
+        console.log('🚨 GLOBAL: toggleCustomInstructions called');
+        const section = document.getElementById('customInstructionsSection');
+        const icon = document.getElementById('customToggleIcon');
+        if (section && icon) {
+            if (section.style.display === 'none') {
+                section.style.display = 'block';
+                icon.className = 'fas fa-chevron-up';
+            } else {
+                section.style.display = 'none';
+                icon.className = 'fas fa-chevron-down';
+            }
+        }
+    };
+    
+    // Additional missing global functions
+    window.exportToSheets = function() {
+        console.log('🚨 GLOBAL: exportToSheets called');
+        if (typeof exportToSheetsAsync === 'function') {
+            exportToSheetsAsync();
+        } else {
+            alert('Chức năng export đang được khởi tạo...');
+        }
+    };
+    
+    window.swapLanguages = function() {
+        console.log('🚨 GLOBAL: swapLanguages called');
+        if (typeof swapLanguagesAsync === 'function') {
+            swapLanguagesAsync();
+        } else {
+            // Simple swap logic for immediate feedback
+            const fromLang = document.getElementById('fromLanguage');
+            const toLang = document.getElementById('toLanguage');
+            if (fromLang && toLang) {
+                const temp = fromLang.value;
+                fromLang.value = toLang.value;
+                toLang.value = temp;
+            }
+        }
+    };
+    
+    window.copyTranslation = function() {
+        console.log('🚨 GLOBAL: copyTranslation called');
+        const outputText = document.getElementById('outputText');
+        if (outputText && outputText.value) {
+            navigator.clipboard.writeText(outputText.value).then(() => {
+                alert('Đã copy!');
+            }).catch(() => {
+                alert('Không thể copy');
+            });
+        }
+    };
+    
+    window.startVoiceInstructions = function() {
+        console.log('🚨 GLOBAL: startVoiceInstructions called');
+        if (typeof startVoiceInstructionsAsync === 'function') {
+            startVoiceInstructionsAsync();
+        } else {
+            alert('Chức năng ghi âm hướng dẫn đang được khởi tạo...');
+        }
+    };
+    
+    window.loadSampleInstructions = function() {
+        console.log('🚨 GLOBAL: loadSampleInstructions called');
+        const textarea = document.getElementById('customInstructionsText');
+        if (textarea) {
+            textarea.value = 'Bạn là trợ lý AI thông minh chuyên về quản lý khách sạn. Hãy phản hồi một cách chuyên nghiệp và hữu ích.';
+        }
+    };
+    
+    window.clearCustomInstructions = function() {
+        console.log('🚨 GLOBAL: clearCustomInstructions called');
+        const textarea = document.getElementById('customInstructionsText');
+        if (textarea) {
+            textarea.value = '';
+        }
+    };
+    
+    window.saveCustomInstructions = function() {
+        console.log('🚨 GLOBAL: saveCustomInstructions called');
+        const textarea = document.getElementById('customInstructionsText');
+        if (textarea) {
+            localStorage.setItem('customInstructions', textarea.value);
+            alert('Đã lưu hướng dẫn tùy chỉnh!');
+        }
+    };
+    
+    window.testSheetsConnection = function() {
+        console.log('🚨 GLOBAL: testSheetsConnection called');
+        if (typeof testSheetsConnectionAsync === 'function') {
+            testSheetsConnectionAsync();
+        } else {
+            alert('Chức năng test kết nối đang được khởi tạo...');
+        }
+    };
+    
+    window.viewTemplates = function() {
+        console.log('🚨 GLOBAL: viewTemplates called');
+        const templatesTab = document.getElementById('templates-tab');
+        if (templatesTab) {
+            templatesTab.click();
+        }
+    };
+    
+    window.clearAll = function() {
+        console.log('🚨 GLOBAL: clearAll called');
+        if (confirm('Xóa tất cả dữ liệu?')) {
+            const textareas = document.querySelectorAll('textarea');
+            textareas.forEach(textarea => textarea.value = '');
+        }
+    };
+    
+    window.switchToVoice = function() {
+        console.log('🚨 GLOBAL: switchToVoice called');
+        const voiceTab = document.getElementById('voice-tab');
+        if (voiceTab) {
+            voiceTab.click();
+        }
+    };
+    
+    window.switchToChat = function() {
+        console.log('🚨 GLOBAL: switchToChat called');
+        const chatTab = document.getElementById('chat-tab');
+        if (chatTab) {
+            chatTab.click();
+        }
+    };
+    
+    // Add stronger debounce protection
+    let isAddingTemplate = false;
+    let lastClickTime = 0;
+    
+    window.addNewTemplate = async function() {
+        const currentTime = Date.now();
+        console.log('🚨 GLOBAL: addNewTemplate called at', currentTime);
+        
+        // Prevent rapid clicks (less than 1 second apart)
+        if (currentTime - lastClickTime < 1000) {
+            console.log('⚠️ Rapid click detected, ignoring (too fast)');
+            return;
+        }
+        
+        // Prevent multiple simultaneous calls
+        if (isAddingTemplate) {
+            console.log('⚠️ Template addition already in progress, ignoring duplicate call');
+            return;
+        }
+        
+        lastClickTime = currentTime;
+        isAddingTemplate = true;
+        
+        try {
+            const form = document.getElementById('addTemplateForm');
+            if (!form) {
+                console.error('❌ Add template form not found');
+                isAddingTemplate = false;
+                return;
+            }
+            
+            // Get form data with correct IDs from modal
+            const categorySelect = document.getElementById('addTemplateCategory');
+            const labelInput = document.getElementById('templateLabel');
+            const contentTextarea = document.getElementById('templateMessage');
+            const customCategoryInput = document.getElementById('customCategory');
+            
+            console.log('🔍 Debug - Form elements:', {
+                categorySelect: categorySelect ? 'Found' : 'NOT FOUND',
+                labelInput: labelInput ? 'Found' : 'NOT FOUND', 
+                contentTextarea: contentTextarea ? 'Found' : 'NOT FOUND',
+                customCategoryInput: customCategoryInput ? 'Found' : 'NOT FOUND'
+            });
+            
+            if (!categorySelect || !labelInput || !contentTextarea) {
+                console.error('❌ Required form elements not found');
+                isAddingTemplate = false;
+                return;
+            }
+            
+            let category = categorySelect.value;
+            const label = labelInput.value.trim();
+            const content = contentTextarea.value.trim();
+            
+            console.log('🔍 Debug - Raw form values:', {
+                category: category,
+                label: label,
+                content: content,
+                categoryLength: category.length,
+                labelLength: label.length,
+                contentLength: content.length
+            });
+            
+            // Handle custom category
+            if (category === 'OTHER' && customCategoryInput) {
+                const customCategory = customCategoryInput.value.trim();
+                if (customCategory) {
+                    category = customCategory;
+                } else {
+                    console.error('❌ Custom category required when OTHER selected');
+                    isAddingTemplate = false;
+                    return;
+                }
+            }
+            
+            if (!category || !label || !content) {
+                console.error('❌ All fields are required');
+                console.log('Debug - Field values:', { category, label, content });
+                isAddingTemplate = false;
+                return;
+            }
+            
+            // Debug: Log the payload being sent
+            const payload = {
+                Category: category,
+                Label: label,
+                Message: content
+            };
+            console.log('🔍 Debug - Sending payload:', payload);
+            
+            // Show loading state - find the specific button
+            const submitBtn = document.querySelector('#addTemplateModal .btn-primary');
+            if (submitBtn) {
+                const originalText = submitBtn.textContent;
+                submitBtn.textContent = 'Đang lưu...';
+                submitBtn.disabled = true;
+                
+                // Submit to server
+                const response = await fetch('/api/templates/add', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(payload)
+                });
+                
+                if (response.ok) {
+                    console.log('✅ Template added successfully');
+                    
+                    // Close modal
+                    const modalElement = document.getElementById('addTemplateModal');
+                    const modal = bootstrap.Modal.getInstance(modalElement);
+                    if (modal) {
+                        modal.hide();
+                    }
+                    
+                    // Reload templates
+                    window.globalTemplates = [];
+                    if (typeof loadTemplatesForTab === 'function') {
+                        await loadTemplatesForTab();
+                    }
+                } else {
+                    const error = await response.json();
+                    console.error('❌ Server error:', error);
+                    
+                    // Show error feedback on button
+                    if (submitBtn) {
+                        submitBtn.textContent = '❌ ' + (error.message || 'Lỗi lưu');
+                        submitBtn.classList.add('btn-danger');
+                        submitBtn.classList.remove('btn-primary');
+                        
+                        // Reset button after 3 seconds
+                        setTimeout(() => {
+                            submitBtn.textContent = originalText;
+                            submitBtn.classList.remove('btn-danger');
+                            submitBtn.classList.add('btn-primary');
+                            submitBtn.disabled = false;
+                        }, 3000);
+                    }
+                    return; // Exit early for errors
+                }
+                
+                // Restore button only on success
+                if (submitBtn) {
+                    submitBtn.textContent = originalText;
+                    submitBtn.disabled = false;
+                }
+            }
+        } catch (error) {
+            console.error('❌ Error adding template:', error);
+        } finally {
+            // Always reset the flag
+            isAddingTemplate = false;
+        }
+    };
+    
+    window.copyTemplatePreview = function() {
+        console.log('🚨 GLOBAL: copyTemplatePreview called');
+        const preview = document.getElementById('templatePreview');
+        if (preview && preview.textContent) {
+            navigator.clipboard.writeText(preview.textContent).then(() => {
+                alert('Đã copy template preview!');
+            }).catch(() => {
+                alert('Không thể copy');
+            });
+        }
+    };
+    
+    window.copyToClipboard = function(text) {
+        console.log('🚨 GLOBAL: copyToClipboard called');
+        navigator.clipboard.writeText(text).then(() => {
+            alert('Đã copy!');
+        }).catch(() => {
+            alert('Không thể copy');
+        });
+    };
+    
+    window.openInSafari = function() {
+        console.log('🚨 GLOBAL: openInSafari called');
+        if (window.navigator.standalone) {
+            window.location.href = window.location.href;
+        } else {
+            window.open(window.location.href, '_blank');
+        }
+    };
+    
+    // Template tab specific functions - they'll be properly implemented after templates load
+    window.retryLoadTemplates = function() {
+        console.log('🚨 GLOBAL: retryLoadTemplates called');
+        if (typeof retryLoadTemplatesAsync === 'function') {
+            retryLoadTemplatesAsync();
+        } else {
+            alert('Chức năng reload templates đang được khởi tạo...');
+        }
+    };
+    
+    window.testTemplatesConnection = function() {
+        console.log('🚨 GLOBAL: testTemplatesConnection called');
+        if (typeof testTemplatesConnectionAsync === 'function') {
+            testTemplatesConnectionAsync();
+        } else {
+            alert('Chức năng test templates đang được khởi tạo...');
+        }
+    };
+    
+    window.toggleCategoryForTab = function(categoryId) {
+        console.log('🚨 GLOBAL: toggleCategoryForTab called with:', categoryId);
+        if (typeof toggleCategoryForTabAsync === 'function') {
+            toggleCategoryForTabAsync(categoryId);
+        } else {
+            // Simple toggle logic for immediate feedback
+            const content = document.getElementById(`category-${categoryId}`);
+            const icon = document.getElementById(`icon-${categoryId}`);
+            if (content && icon) {
+                if (content.style.display === 'block') {
+                    content.style.display = 'none';
+                    icon.className = 'fas fa-chevron-down';
+                } else {
+                    content.style.display = 'block';
+                    icon.className = 'fas fa-chevron-up';
+                }
+            }
+        }
+    };
+    
+    window.useTemplateFromTab = function(templateId) {
+        console.log('🚨 GLOBAL: useTemplateFromTab called with:', templateId);
+        if (typeof useTemplateFromTabAsync === 'function') {
+            useTemplateFromTabAsync(templateId);
+        } else {
+            alert('Template function đang được khởi tạo...');
+        }
+    };
+    
+    window.copyTemplateFromTab = function(templateId) {
+        console.log('🚨 GLOBAL: copyTemplateFromTab called with:', templateId);
+        try {
+            // Find template from global templates array
+            if (typeof window.globalTemplates !== 'undefined' && window.globalTemplates.length > 0) {
+                const template = window.globalTemplates.find(t => t.id === templateId);
+                if (template && template.content) {
+                    copyToClipboard(template.content);
+                    console.log(`✅ Copied template: ${template.label}`);
+                    return;
+                }
+            }
+            
+            // Fallback: try to get from UI elements
+            const templateElement = document.querySelector(`[data-template-id="${templateId}"]`);
+            if (templateElement) {
+                const content = templateElement.getAttribute('data-template-content') || 
+                              templateElement.textContent.trim();
+                if (content) {
+                    copyToClipboard(content);
+                    console.log('✅ Copied template content from UI');
+                    return;
+                }
+            }
+            
+            console.error('❌ Template not found or no content');
+        } catch (error) {
+            console.error('❌ Copy template error:', error);
+        }
+    };
+    
+    window.expandAllCategories = function() {
+        console.log('🚨 GLOBAL: expandAllCategories called');
+        if (typeof expandAllCategoriesAsync === 'function') {
+            expandAllCategoriesAsync();
+        } else {
+            // Simple expand logic for immediate feedback
+            const allContent = document.querySelectorAll('[id^="category-"]');
+            const allIcons = document.querySelectorAll('[id^="icon-"]');
+            allContent.forEach(content => content.style.display = 'block');
+            allIcons.forEach(icon => icon.className = 'fas fa-chevron-up');
+        }
+    };
+    
+    // Initialize on page load
+    document.addEventListener('DOMContentLoaded', function() {
+        console.log('🚨 EMERGENCY DEBUG: DOMContentLoaded fired - AI Assistant Hub initializing...');
+        console.log('🚨 EMERGENCY DEBUG: Document ready state:', document.readyState);
+        
+        // Test if we can find basic elements
+        const testElement = document.getElementById('imagePasteArea');
+        console.log('🚨 EMERGENCY DEBUG: imagePasteArea element found:', !!testElement);
+        
+        // Test if we can add event listeners
+        try {
+            window.addEventListener('test', function() {});
+            console.log('🚨 EMERGENCY DEBUG: Event listeners working');
+        } catch (error) {
+            console.error('🚨 EMERGENCY DEBUG: Event listeners broken:', error);
+        }
+        
+        // Test if Bootstrap is loaded
+        try {
+            if (typeof bootstrap !== 'undefined') {
+                console.log('🚨 EMERGENCY DEBUG: Bootstrap is loaded');
+            } else {
+                console.error('🚨 EMERGENCY DEBUG: Bootstrap is NOT loaded - tabs won\'t work');
+            }
+        } catch (error) {
+            console.error('🚨 EMERGENCY DEBUG: Bootstrap check failed:', error);
+        }
+        
+        // Detect Safari and show additional help
+        try {
+            detectBrowserAndShowHelp();
+            console.log('🚨 EMERGENCY DEBUG: detectBrowserAndShowHelp completed');
+        } catch (error) {
+            console.error('🚨 EMERGENCY DEBUG: detectBrowserAndShowHelp failed:', error);
+        }
+        
+        // Initialize AI Chat Assistant with error handling
+        try {
+            setupImageHandling();
+            console.log('✅ Image handling initialized');
+        } catch (error) {
+            console.error('❌ Error initializing image handling:', error);
+        }
+        
+        try {
+            console.log('🚨 EMERGENCY DEBUG: About to call loadTemplateCategories...');
+            loadTemplateCategories().catch(error => {
+                console.error('🚨 EMERGENCY DEBUG: Template loading failed but continuing:', error);
+            });
+            console.log('✅ Template categories loading started');
+        } catch (error) {
+            console.error('❌ Error loading template categories:', error);
+        }
+        
+        // Initialize Voice Translator
+        try {
+            checkSpeechRecognitionSupport();
+            console.log('✅ Speech recognition support checked');
+        } catch (error) {
+            console.error('❌ Error checking speech recognition:', error);
+        }
+        
+        try {
+            checkTranslateButton();
+            console.log('✅ Translate button checked');
+        } catch (error) {
+            console.error('❌ Error checking translate button:', error);
+        }
+        
+        // Debug: Add template loading button for debugging
+        console.log('🚀 AI Assistant Hub initialization completed');
+        
+        // LINK GLOBAL FUNCTIONS TO LOCAL ASYNC IMPLEMENTATIONS
+        try {
+            // Link the async functions to global scope
+            window.analyzeImageAsync = analyzeImage;
+            window.toggleRecordingAsync = toggleRecording;
+            window.translateTextAsync = translateText;
+            window.showAddTemplateModalAsync = showAddTemplateModal;
+            window.importFromSheetsAsync = importFromSheets;
+            
+            console.log('🚨 EMERGENCY DEBUG: Available functions check:');
+            console.log('- selectImageFile:', typeof window.selectImageFile);
+            console.log('- toggleRecording:', typeof window.toggleRecording);
+            console.log('- analyzeImage:', typeof window.analyzeImage);
+            console.log('- removeImage:', typeof window.removeImage);
+            console.log('- toggleCustomInstructions:', typeof window.toggleCustomInstructions);
+            console.log('- showAddTemplateModal:', typeof window.showAddTemplateModal);
+            console.log('- importFromSheets:', typeof window.importFromSheets);
+            
+        } catch (error) {
+            console.error('🚨 EMERGENCY: Function linking failed:', error);
+        }
+        
+        // Enhanced event listener for templates tab with auto-import
+        const templatesTab = document.getElementById('templates-tab');
+        if (templatesTab) {
+            // Handle both click and bootstrap tab events
+            templatesTab.addEventListener('click', function() {
+                console.log('[TEMPLATES] Templates tab clicked, loaded:', isTemplatesLoaded);
+                if (!isTemplatesLoaded) {
+                    console.log('[TEMPLATES] Auto-importing from Google Sheets on first load...');
+                    autoImportAndLoadTemplates();
+                }
+            });
+            
+            // Also listen for Bootstrap tab shown event
+            templatesTab.addEventListener('shown.bs.tab', function() {
+                console.log('[TEMPLATES] Templates tab shown via Bootstrap, loaded:', isTemplatesLoaded);
+                if (!isTemplatesLoaded) {
+                    console.log('[TEMPLATES] Auto-importing from Google Sheets on tab show...');
+                    autoImportAndLoadTemplates();
+                }
+            });
+        }
+        
+        // Handle category change for add template modal
+        const categorySelect = document.getElementById('addTemplateCategory');
+        if (categorySelect) {
+            categorySelect.addEventListener('change', function() {
+                const customDiv = document.getElementById('customCategoryDiv');
+                if (this.value === 'OTHER') {
+                    customDiv.style.display = 'block';
+                    document.getElementById('customCategory').required = true;
+                } else {
+                    customDiv.style.display = 'none';
+                    document.getElementById('customCategory').required = false;
+                }
+            });
+        }
+        
+        // Debug: Check if templates should load immediately
+        console.log('[TEMPLATES] DOM loaded, checking if templates tab is active...');
+        if (templatesTab && templatesTab.classList.contains('active')) {
+            console.log('[TEMPLATES] Templates tab is already active, loading templates...');
+            loadTemplatesForTab();
+        }
+        
+        // Auto-load templates if templates tab is in URL hash
+        if (window.location.hash === '#templates-panel' || window.location.hash.includes('templates')) {
+            console.log('[TEMPLATES] Templates tab detected in URL hash, loading templates...');
+            setTimeout(() => {
+                const templatesTab = document.getElementById('templates-tab');
+                if (templatesTab) {
+                    templatesTab.click();
+                }
+            }, 500);
+        }
+    });
+    
+    // Browser detection and help for Safari users
+    function detectBrowserAndShowHelp() {
+        const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+        const isMobile = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        
+        console.log('Browser detection:', {
+            isSafari: isSafari,
+            isIOS: isIOS,
+            isMobile: isMobile,
+            userAgent: navigator.userAgent
+        });
+        
+        if (isSafari || isIOS) {
+            // Add Safari-specific help text
+            setTimeout(() => {
+                const helpDiv = document.createElement('div');
+                helpDiv.className = 'alert alert-info alert-dismissible fade show mt-2';
+                helpDiv.innerHTML = `
+                    <i class="fas fa-info-circle me-2"></i>
+                    <strong>Safari users:</strong> Nếu gặp vấn đề chọn ảnh, hãy thử nút "Safari Fix" màu vàng. 
+                    Trên iOS, bạn có thể cần cho phép quyền truy cập ảnh trong Settings.
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                `;
+                
+                const pasteArea = document.getElementById('imagePasteArea');
+                if (pasteArea && pasteArea.parentNode) {
+                    pasteArea.parentNode.insertBefore(helpDiv, pasteArea);
+                }
+            }, 2000);
+        }
+    }
+    
+    // ==================== AI CHAT ASSISTANT FUNCTIONS ====================
+    
+    // Load template categories from API
+    async function loadTemplateCategories() {
+        try {
+            console.log('🔄 Loading template categories...');
+            
+            // Simplified fetch without timeout for maximum compatibility
+            console.log('🚨 EMERGENCY DEBUG: Starting template fetch...');
+            
+            const response = await fetch('/api/templates', {
+                method: 'GET',
+                headers: {
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json'
+                }
+            });
+            
+            console.log('🚨 EMERGENCY DEBUG: Template fetch completed, status:', response.status);
+            
+            console.log('📡 Template API response status:', response.status);
+            
+            if (response.ok) {
+                const responseData = await response.json();
+                console.log('📋 Raw API response:', responseData);
+                
+                // Validate and ensure allTemplates is always an array
+                if (Array.isArray(responseData)) {
+                    allTemplates = responseData;
+                } else if (responseData && Array.isArray(responseData.templates)) {
+                    allTemplates = responseData.templates;
+                } else {
+                    console.error('Invalid API response format:', responseData);
+                    allTemplates = []; // Fallback to empty array
+                    throw new Error('API returned invalid data format');
+                }
+                
+                console.log('📋 Templates loaded:', allTemplates.length, 'templates');
+                populateTemplateCategoryDropdown();
+                console.log('✅ Template categories populated successfully');
+            } else {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+        } catch (error) {
+            console.error('❌ Error loading templates:', error);
+            
+            // Ensure allTemplates is always an array to prevent map errors
+            allTemplates = [];
+            
+            // Show user-friendly error
+            const categorySelect = document.getElementById('templateCategory');
+            if (categorySelect) {
+                categorySelect.innerHTML = '<option value="">⚠️ Lỗi tải templates</option>';
+            }
+            
+            // Show error notification
+            showError(`Không thể tải message templates: ${error.message}`);
+        }
+    }
+    
+    // Populate template category dropdown
+    function populateTemplateCategoryDropdown() {
+        const categorySelect = document.getElementById('templateCategory');
+        
+        // Validate allTemplates is an array before using map
+        if (!Array.isArray(allTemplates)) {
+            console.error('allTemplates is not an array:', allTemplates);
+            categorySelect.innerHTML = '<option value="">⚠️ Lỗi templates data</option>';
+            return;
+        }
+        
+        const categories = [...new Set(allTemplates.map(t => t.Category))].sort();
+        
+        categorySelect.innerHTML = '<option value="">Tự động chọn</option>';
+        
+        categories.forEach(category => {
+            const option = document.createElement('option');
+            option.value = category;
+            option.textContent = category;
+            categorySelect.appendChild(option);
+        });
+    }
+    
+    // Load specific templates when category is selected
+    function loadSpecificTemplates() {
+        const categorySelect = document.getElementById('templateCategory');
+        const specificSelect = document.getElementById('specificTemplate');
+        const selectedCategory = categorySelect.value;
+        
+        specificSelect.innerHTML = '<option value="">Chọn mẫu cụ thể</option>';
+        specificSelect.disabled = !selectedCategory;
+        hideTemplatePreview();
+        
+        if (selectedCategory && Array.isArray(allTemplates)) {
+            const categoryTemplates = allTemplates.filter(t => t.Category === selectedCategory);
+            
+            categoryTemplates.forEach((template, index) => {
+                const option = document.createElement('option');
+                option.value = index.toString();
+                option.textContent = template.Label;
+                specificSelect.appendChild(option);
+            });
+            
+            specificSelect.categoryTemplates = categoryTemplates;
+            specificSelect.disabled = false;
+        }
+    }
+    
+    // Preview selected template
+    function previewSelectedTemplate() {
+        const specificSelect = document.getElementById('specificTemplate');
+        const previewDiv = document.getElementById('templatePreview');
+        const previewContent = document.getElementById('templatePreviewContent');
+        
+        if (specificSelect.value && specificSelect.categoryTemplates) {
+            try {
+                const templateIndex = parseInt(specificSelect.value);
+                const template = specificSelect.categoryTemplates[templateIndex];
+                
+                if (template) {
+                    previewContent.innerHTML = `
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <strong class="text-primary">${template.Category} - ${template.Label}:</strong>
+                                <div class="mt-1">${template.Message}</div>
+                            </div>
+                            <button class="btn btn-sm btn-outline-secondary" onclick="copyTemplatePreview()">
+                                <i class="fas fa-copy"></i>
+                            </button>
+                        </div>
+                    `;
+                    previewDiv.style.display = 'block';
+                }
+            } catch (error) {
+                console.error('Error getting template:', error);
+                hideTemplatePreview();
+            }
+        } else {
+            hideTemplatePreview();
+        }
+    }
+    
+    function hideTemplatePreview() {
+        document.getElementById('templatePreview').style.display = 'none';
+    }
+    
+    function copyTemplatePreview() {
+        const specificSelect = document.getElementById('specificTemplate');
+        if (specificSelect.value && specificSelect.categoryTemplates) {
+            try {
+                const templateIndex = parseInt(specificSelect.value);
+                const template = specificSelect.categoryTemplates[templateIndex];
+                if (template && template.Message) {
+                    copyToClipboard(template.Message);
+                    showSuccess('Đã copy mẫu tin nhắn!');
+                }
+            } catch (error) {
+                console.error('Error copying template:', error);
+            }
+        }
+    }
+    
+    // Setup image upload and paste handling
+    let imageHandlingInitialized = false;
+    
+    function setupImageHandling() {
+        if (imageHandlingInitialized) {
+            console.log('⚠️ Image handling already initialized, skipping...');
+            return;
+        }
+        
+        const pasteArea = document.getElementById('imagePasteArea');
+        const fileInput = document.getElementById('imageFileInput');
+        const cameraInput = document.getElementById('cameraInput');
+        
+        // Check if required elements exist
+        if (!pasteArea || !fileInput || !cameraInput) {
+            console.error('❌ Image handling: Required elements not found');
+            return;
+        }
+        
+        console.log('✅ Image handling: All elements found, setting up events');
+        
+        // Handle paste event (only add once to document)
+        document.addEventListener('paste', function(e) {
+            const items = e.clipboardData.items;
+            for (let item of items) {
+                if (item.type.indexOf('image') !== -1) {
+                    e.preventDefault();
+                    const file = item.getAsFile();
+                    handleImageFile(file);
+                    break;
+                }
+            }
+        });
+        
+        // Handle drag and drop
+        pasteArea.addEventListener('dragover', function(e) {
+            e.preventDefault();
+            pasteArea.classList.add('dragover');
+        });
+        
+        pasteArea.addEventListener('dragleave', function(e) {
+            e.preventDefault();
+            pasteArea.classList.remove('dragover');
+        });
+        
+        pasteArea.addEventListener('drop', function(e) {
+            e.preventDefault();
+            pasteArea.classList.remove('dragover');
+            
+            const files = e.dataTransfer.files;
+            if (files.length > 0 && files[0].type.startsWith('image/')) {
+                handleImageFile(files[0]);
+            }
+        });
+        
+        // Handle file inputs (only add once per input)
+        fileInput.addEventListener('change', function(e) {
+            if (e.target.files.length > 0) {
+                handleImageFile(e.target.files[0]);
+            }
+        });
+        
+        cameraInput.addEventListener('change', function(e) {
+            if (e.target.files.length > 0) {
+                handleImageFile(e.target.files[0]);
+            }
+        });
+        
+        // Handle front camera input
+        const frontCameraInput = document.getElementById('frontCameraInput');
+        if (frontCameraInput) {
+            frontCameraInput.addEventListener('change', function(e) {
+                if (e.target.files.length > 0) {
+                    handleImageFile(e.target.files[0]);
+                }
+            });
+        }
+        
+        imageHandlingInitialized = true;
+        console.log('✅ Image handling initialization complete - protected from duplicate setup');
+    }
+    
+    // Image handling functions moved to global scope above DOMContentLoaded
+    
+    function handleImageFile(file) {
+        console.log('Processing file:', file.name, 'Type:', file.type, 'Size:', file.size);
+        
+        if (!file.type.startsWith('image/')) {
+            alert('Vui lòng chọn file ảnh (PNG, JPG, JPEG)');
+            return;
+        }
+        
+        const maxSize = 10 * 1024 * 1024; // 10MB
+        if (file.size > maxSize) {
+            alert('File quá lớn. Vui lòng chọn ảnh nhỏ hơn 10MB');
+            return;
+        }
+        
+        // Show loading for large files
+        if (file.size > 1024 * 1024) { // > 1MB
+            showLoading(true);
+        }
+        
+        const reader = new FileReader();
+        
+        reader.onload = function(e) {
+            try {
+                currentImageData = e.target.result;
+                showImagePreview(e.target.result);
+                showLoading(false);
+                console.log('Image loaded successfully');
+            } catch (error) {
+                console.error('Error processing image:', error);
+                showError('Lỗi khi xử lý ảnh: ' + error.message);
+                showLoading(false);
+            }
+        };
+        
+        reader.onerror = function(error) {
+            console.error('FileReader error:', error);
+            showError('Lỗi khi đọc file ảnh');
+            showLoading(false);
+        };
+        
+        // Start reading file
+        try {
+            reader.readAsDataURL(file);
+        } catch (error) {
+            console.error('Error starting file read:', error);
+            showError('Lỗi khi khởi tạo đọc file');
+            showLoading(false);
+        }
+    }
+    
+    function showImagePreview(imageSrc) {
+        const previewContainer = document.getElementById('imagePreviewContainer');
+        const imagePreview = document.getElementById('imagePreview');
+        
+        try {
+            imagePreview.src = imageSrc;
+            imagePreview.onload = function() {
+                previewContainer.style.display = 'block';
+                document.getElementById('imagePasteArea').style.display = 'none';
+                showSuccess('Ảnh đã được tải lên thành công! 📸');
+                console.log('Image preview shown successfully');
+            };
+            
+            imagePreview.onerror = function() {
+                console.error('Error displaying image preview');
+                showError('Lỗi hiển thị ảnh preview');
+                removeImage(); // Reset state
+            };
+        } catch (error) {
+            console.error('Error in showImagePreview:', error);
+            showError('Lỗi khi hiển thị ảnh: ' + error.message);
+        }
+    }
+    
+    function removeImage() {
+        currentImageData = null;
+        document.getElementById('imagePreviewContainer').style.display = 'none';
+        document.getElementById('imagePasteArea').style.display = 'block';
+        document.getElementById('imageFileInput').value = '';
+        
+        document.getElementById('responseArea').innerHTML = `
+            <div class="text-center text-muted">
+                <i class="fas fa-robot fa-2x mb-3 text-primary"></i>
+                <h6 class="text-primary">🧠 AI Chat Assistant - Context-Aware Intelligence</h6>
+                <p class="mb-3">Tải ảnh đoạn chat lên, AI sẽ đọc và hiểu <strong>toàn bộ bối cảnh</strong> để đưa ra phản hồi thông minh!</p>
+            </div>
+        `;
+    }
+    
+    async function analyzeImage() {
+        if (!currentImageData) {
+            alert('Vui lòng tải ảnh trước!');
+            return;
+        }
+        
+        showLoading(true);
+        document.getElementById('processingStatus').style.display = 'block';
+        
+        try {
+            const aiConfig = getCurrentAIConfig();
+            const requestData = {
+                image_b64: currentImageData,
+                ai_config: aiConfig
+            };
+            
+            const response = await fetch('/api/ai_chat_analyze', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(requestData)
+            });
+            
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            
+            const result = await response.json();
+            if (result.error) {
+                throw new Error(result.error);
+            }
+            
+            displayAIResponse(result, aiConfig);
+            
+        } catch (error) {
+            console.error('AI Analysis error:', error);
+            showError('Lỗi khi phân tích ảnh: ' + error.message);
+        } finally {
+            showLoading(false);
+            document.getElementById('processingStatus').style.display = 'none';
+        }
+    }
+    
+    function getCurrentAIConfig() {
+        const categorySelect = document.getElementById('templateCategory');
+        const specificSelect = document.getElementById('specificTemplate');
+        const responseModeRadios = document.getElementsByName('responseMode');
+        const customInstructions = document.getElementById('customInstructions').value.trim();
+        
+        let selectedTemplate = null;
+        if (specificSelect.value && specificSelect.categoryTemplates) {
+            try {
+                const templateIndex = parseInt(specificSelect.value);
+                selectedTemplate = specificSelect.categoryTemplates[templateIndex];
+            } catch (error) {
+                console.error('Error getting selected template:', error);
+            }
+        }
+        
+        let responseMode = 'auto';
+        for (const radio of responseModeRadios) {
+            if (radio.checked) {
+                responseMode = radio.value;
+                break;
+            }
+        }
+        
+        return {
+            selectedCategory: categorySelect.value,
+            selectedTemplate: selectedTemplate,
+            responseMode: responseMode,
+            customInstructions: customInstructions
+        };
+    }
+    
+    function displayAIResponse(result, aiConfig) {
+        const responseArea = document.getElementById('responseArea');
+        
+        let html = '';
+        
+        if (aiConfig) {
+            html += `
+                <div class="alert alert-info border-start border-4 border-info py-2 px-3 mb-3">
+                    <h6 class="mb-2"><i class="fas fa-cogs"></i> Cấu hình AI đã sử dụng:</h6>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <strong>Template:</strong> ${aiConfig.selectedTemplate ? 
+                                `${aiConfig.selectedTemplate.Category} - ${aiConfig.selectedTemplate.Label}` : 
+                                'Tự động chọn'}
+                        </div>
+                        <div class="col-md-6">
+                            <strong>Phong cách:</strong> 
+                            <span class="badge ${aiConfig.responseMode === 'yes' ? 'bg-success' : 
+                                aiConfig.responseMode === 'no' ? 'bg-danger' : 'bg-secondary'}">
+                                ${aiConfig.responseMode === 'yes' ? 'Tích cực (Yes)' : 
+                                  aiConfig.responseMode === 'no' ? 'Tiêu cực (No)' : 'Tự động (Auto)'}
+                            </span>
+                        </div>
+                    </div>
+                    ${aiConfig.customInstructions ? `
+                        <div class="mt-2">
+                            <strong>Custom Instructions:</strong> 
+                            <div class="small bg-light p-2 rounded">${aiConfig.customInstructions}</div>
+                        </div>
+                    ` : ''}
+                </div>
+            `;
+        }
+        
+        if (result.conversation_context) {
+            html += `
+                <div class="alert alert-primary border-start border-4 border-primary py-3 px-3 mb-3">
+                    <h6><i class="fas fa-comments"></i> Phân tích Bối cảnh Cuộc hội thoại:</h6>
+                    <p class="mb-2" style="line-height: 1.6;">${result.conversation_context}</p>
+                </div>
+            `;
+        }
+        
+        if (result.ai_response) {
+            html += `
+                <div class="ai-response">
+                    <div class="d-flex justify-content-between align-items-start mb-2">
+                        <h6><i class="fas fa-robot text-success"></i> Phản hồi AI (Có context):</h6>
+                        <button class="btn btn-sm btn-outline-primary copy-button" onclick="copyToClipboard(\`${result.ai_response.replace(/`/g, '\\`')}\`)">
+                            <i class="fas fa-copy"></i> Copy
+                        </button>
+                    </div>
+                    <div style="white-space: pre-wrap; line-height: 1.6; background: #f8f9fa; padding: 15px; border-radius: 8px; border-left: 4px solid #28a745;">${result.ai_response}</div>
+                </div>
+            `;
+        }
+        
+        responseArea.innerHTML = html;
+    }
+    
+    // ==================== VOICE TRANSLATOR FUNCTIONS ====================
+    
+    function checkSpeechRecognitionSupport() {
+        const supportText = document.getElementById('supportText');
+        const recordButton = document.getElementById('recordButton');
+        
+        // Enhanced browser detection
+        const isMobile = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+        const isAndroid = /Android/i.test(navigator.userAgent);
+        const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent) || isIOS;
+        const isSecureContext = window.location.protocol === 'https:' || window.location.hostname === 'localhost';
+        
+        console.log('Browser detection:', {
+            isMobile, isIOS, isAndroid, isSafari, isSecureContext,
+            userAgent: navigator.userAgent,
+            hasWebkitSpeech: 'webkitSpeechRecognition' in window,
+            hasSpeech: 'SpeechRecognition' in window,
+            location: window.location.href
+        });
+        
+        // Check for speech recognition availability
+        const hasWebkitSpeech = 'webkitSpeechRecognition' in window;
+        const hasSpeech = 'SpeechRecognition' in window;
+        const speechAvailable = hasWebkitSpeech || hasSpeech;
+        
+        if (speechAvailable) {
+            if (!isSecureContext && !isIOS) {
+                supportText.innerHTML = '⚠️ Cần HTTPS để sử dụng voice recognition. <br><small class="text-muted">Hiện tại: ' + window.location.protocol + '</small>';
+                recordButton.disabled = true;
+                return;
+            }
+            
+            if (isIOS && isPWA) {
+                supportText.innerHTML = '⚠️ PWA Mode: Voice có thể không hoạt động. <br><a href="#" onclick="openInSafari()" class="btn btn-sm btn-primary mt-2">Mở trong Safari</a>';
+                recordButton.disabled = false;
+            } else if (isSafari || isIOS) {
+                supportText.innerHTML = '✅ Safari: Hỗ trợ voice. Click MIC và nói <strong>ngay lập tức</strong>.';
+                // Pre-test Safari speech recognition
+                testSafariSpeechSupport();
+            } else if (isAndroid) {
+                supportText.innerHTML = '✅ Android: Hỗ trợ đầy đủ. Nhấn MIC để bắt đầu.';
+            } else {
+                supportText.innerHTML = '✅ Desktop: Hỗ trợ nhận diện giọng nói';
+            }
+            initializeSpeechRecognition();
+        } else {
+            if (isIOS && isPWA) {
+                supportText.innerHTML = '❌ PWA Mode: Voice không khả dụng. <br><a href="#" onclick="openInSafari()" class="btn btn-sm btn-primary mt-2">Mở trong Safari</a>';
+            } else if (isIOS || isSafari) {
+                supportText.innerHTML = '❌ Safari: Speech recognition không khả dụng. <br><small>Kiểm tra cài đặt Safari hoặc thử reload trang.</small>';
+            } else {
+                supportText.innerHTML = '❌ Trình duyệt không hỗ trợ nhận diện giọng nói. <br><small>Sử dụng Chrome hoặc Safari để có tính năng này.</small>';
+            }
+            recordButton.disabled = true;
+            recordButton.innerHTML = '<i class="fas fa-times"></i>';
+        }
+    }
+    
+    function testSafariSpeechSupport() {
+        try {
+            const SpeechRecognition = window.webkitSpeechRecognition || window.SpeechRecognition;
+            const testRecognition = new SpeechRecognition();
+            console.log('✅ Safari speech recognition test: Successful initialization');
+            
+            // Test basic properties
+            testRecognition.continuous = false;
+            testRecognition.interimResults = false;
+            testRecognition.lang = 'vi-VN';
+            
+            // Clean up test instance
+            testRecognition = null;
+        } catch (error) {
+            console.error('❌ Safari speech recognition test failed:', error);
+            const supportText = document.getElementById('supportText');
+            supportText.innerHTML = '❌ Safari: Speech recognition không khả dụng. <br><small>Lỗi: ' + error.message + '</small>';
+            document.getElementById('recordButton').disabled = true;
+        }
+    }
+    
+    function openInSafari() {
+        const currentUrl = window.location.href;
+        // Open current page in Safari browser
+        if (confirm('Mở trong Safari để sử dụng voice?\n\nVoice recognition có thể hoạt động tốt hơn trong Safari.')) {
+            // Create a link that opens in Safari
+            const link = document.createElement('a');
+            link.href = currentUrl;
+            link.target = '_blank';
+            link.rel = 'noopener';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+    }
+    
+    function initializeSpeechRecognition() {
+        try {
+            const SpeechRecognition = window.webkitSpeechRecognition || window.SpeechRecognition;
+            recognition = new SpeechRecognition();
+            
+            // Enhanced browser detection
+            const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+            const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+            const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent) || isIOS;
+            
+            // Safari and iOS optimized settings
+            if (isSafari || isIOS) {
+                recognition.continuous = false;          // Safari works better with single recognition
+                recognition.interimResults = false;     // More reliable on Safari
+                recognition.maxAlternatives = 1;        // Reduce complexity
+                
+                // Add Safari-specific event handlers
+                recognition.onspeechstart = function() {
+                    console.log('Safari: Speech detected');
+                    updateStatus('listening', '🎤 Safari đang nghe...');
+                };
+                
+                recognition.onspeechend = function() {
+                    console.log('Safari: Speech ended');
+                    updateStatus('processing', '⏳ Safari đang xử lý...');
+                };
+                
+                recognition.onsoundstart = function() {
+                    console.log('Safari: Sound detected');
+                };
+                
+                recognition.onsoundend = function() {
+                    console.log('Safari: Sound ended');
+                };
+            } else {
+                // Android and desktop settings
+                recognition.continuous = !isMobile;
+                recognition.interimResults = true;
+                recognition.maxAlternatives = 1;
+            }
+            
+            // Start with default language
+            recognition.lang = getLanguageCode(document.getElementById('sourceLanguage').value);
+            
+            recognition.onstart = function() {
+                console.log('Speech recognition started');
+                updateStatus('listening', '🎤 Đang nghe... (nói ngay)');
+                const button = document.getElementById('recordButton');
+                button.innerHTML = '<i class="fas fa-stop"></i>';
+                button.classList.add('recording');
+                button.style.backgroundColor = '#dc3545';
+                isRecording = true;
+                
+                // Auto-stop on mobile after 10 seconds
+                if (isMobile) {
+                    setTimeout(() => {
+                        if (isRecording) {
+                            recognition.stop();
+                        }
+                    }, 10000);
+                }
+            };
+            
+            recognition.onresult = function(event) {
+                console.log('Speech recognition result:', event.results);
+                let interimTranscript = '';
+                let newFinalTranscript = '';
+                
+                for (let i = event.resultIndex; i < event.results.length; i++) {
+                    const transcript = event.results[i][0].transcript;
+                    console.log(`Result ${i}: "${transcript}" (final: ${event.results[i].isFinal})`);
+                    
+                    if (event.results[i].isFinal) {
+                        newFinalTranscript += transcript;
+                    } else {
+                        interimTranscript += transcript;
+                    }
+                }
+                
+                if (newFinalTranscript) {
+                    finalTranscript += newFinalTranscript;
+                    console.log('Final transcript updated:', finalTranscript);
+                }
+                
+                const fullText = finalTranscript + interimTranscript;
+                document.getElementById('recognizedText').value = fullText;
+                document.getElementById('manualText').value = fullText;
+                checkTranslateButton();
+                
+                // On mobile, auto-translate when we get final result
+                if (isMobile && newFinalTranscript) {
+                    setTimeout(() => {
+                        if (document.getElementById('translateButton') && !document.getElementById('translateButton').disabled) {
+                            performTranslation();
+                        }
+                    }, 500);
+                }
+            };
+            
+            recognition.onerror = function(event) {
+                console.error('Speech recognition error:', event.error, event);
+                let errorMessage = 'Lỗi nhận diện giọng nói';
+                
+                const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+                const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent) || isIOS;
+                
+                switch(event.error) {
+                    case 'aborted':
+                        if (isSafari || isIOS) {
+                            errorMessage = '❌ Safari: Voice bị ngắt';
+                            updateStatus('error', errorMessage);
+                            setTimeout(() => {
+                                showSafariTroubleshootingModal();
+                            }, 500);
+                        } else {
+                            errorMessage = '⚠️ Voice bị ngắt. Thử lại.';
+                        }
+                        break;
+                    case 'no-speech':
+                        if (isSafari || isIOS) {
+                            errorMessage = '⚠️ Safari: Không nghe thấy giọng nói. Nói ngay sau khi nhấn MIC.';
+                        } else {
+                            errorMessage = '⚠️ Không nghe thấy giọng nói. Thử lại.';
+                        }
+                        break;
+                    case 'audio-capture':
+                        if (isSafari || isIOS) {
+                            errorMessage = '❌ Safari: Không thể truy cập microphone';
+                            setTimeout(() => {
+                                showSafariPermissionGuide();
+                            }, 500);
+                        } else {
+                            errorMessage = '❌ Không thể truy cập microphone';
+                        }
+                        break;
+                    case 'not-allowed':
+                        if (isSafari || isIOS) {
+                            errorMessage = '❌ Safari: Microphone bị chặn';
+                            setTimeout(() => {
+                                showSafariPermissionGuide();
+                            }, 500);
+                        } else {
+                            errorMessage = '❌ Microphone bị chặn. Cho phép trong cài đặt browser.';
+                        }
+                        break;
+                    case 'network':
+                        errorMessage = '❌ Lỗi mạng. Kiểm tra kết nối internet.';
+                        break;
+                    case 'service-not-allowed':
+                        if (isSafari || isIOS) {
+                            errorMessage = '❌ Safari: Speech service không được phép';
+                            setTimeout(() => {
+                                showSafariTroubleshootingModal();
+                            }, 500);
+                        } else {
+                            errorMessage = '❌ Speech service không được phép';
+                        }
+                        break;
+                    default:
+                        if (isIOS && isPWA) {
+                            errorMessage = `❌ PWA Error: ${event.error} - Thử mở trong Safari`;
+                        } else if (isSafari || isIOS) {
+                            errorMessage = `❌ Safari Error: ${event.error}`;
+                            setTimeout(() => {
+                                showSafariTroubleshootingModal();
+                            }, 500);
+                        } else {
+                            errorMessage = `❌ Lỗi: ${event.error}`;
+                        }
+                }
+                
+                updateStatus('error', errorMessage);
+                resetRecordButton();
+            };
+            
+            recognition.onend = function() {
+                console.log('Speech recognition ended');
+                isRecording = false;
+                updateStatus('ready', finalTranscript ? '✅ Đã ghi âm xong' : 'Sẵn sàng ghi âm');
+                resetRecordButton();
+            };
+            
+            console.log('Speech recognition initialized successfully');
+            
+        } catch (error) {
+            console.error('Failed to initialize speech recognition:', error);
+            document.getElementById('supportText').innerHTML = '❌ Lỗi khởi tạo nhận diện giọng nói';
+        }
+    }
+    
+    function getLanguageCode(langCode) {
+        const langMap = {
+            'vi': 'vi-VN', 'en': 'en-US', 'zh': 'zh-CN', 'ja': 'ja-JP',
+            'ko': 'ko-KR', 'fr': 'fr-FR', 'de': 'de-DE', 'es': 'es-ES'
+        };
+        return langMap[langCode] || langCode;
+    }
+    
+    function toggleRecordingInternal() {
+        console.log('Toggle recording clicked, recognition:', !!recognition, 'isRecording:', isRecording);
+        
+        const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent) || /iPad|iPhone|iPod/.test(navigator.userAgent);
+        
+        if (!recognition) {
+            if (isSafari) {
+                showSafariPermissionGuide();
+            } else {
+                alert('Speech recognition không khả dụng!\n\nKiểm tra:\n- Dùng Chrome/Safari\n- Cho phép truy cập microphone\n- Kết nối internet ổn định');
+            }
+            return;
+        }
+        
+        if (isRecording) {
+            console.log('Stopping recognition...');
+            recognition.stop();
+        } else {
+            try {
+                if (isSafari) {
+                    // Safari-specific handling - direct start for better compatibility
+                    console.log('Safari detected: Starting recognition directly');
+                    updateStatus('ready', '🎤 Safari: Chuẩn bị...');
+                    
+                    // Give Safari a moment to prepare
+                    setTimeout(() => {
+                        startRecognition();
+                    }, 100);
+                } else {
+                    // Other browsers - request permission first
+                    if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+                        navigator.mediaDevices.getUserMedia({ audio: true })
+                            .then(stream => {
+                                console.log('Microphone access granted');
+                                // Stop the stream since speech recognition will handle it
+                                stream.getTracks().forEach(track => track.stop());
+                                startRecognition();
+                            })
+                            .catch(error => {
+                                console.error('Microphone access denied:', error);
+                                alert('❌ Không thể truy cập microphone!\n\nCách khắc phục:\n1. Cho phép microphone trong browser\n2. Kiểm tra cài đặt thiết bị\n3. Thử làm mới trang');
+                            });
+                    } else {
+                        // Fallback for browsers without getUserMedia
+                        startRecognition();
+                    }
+                }
+            } catch (error) {
+                console.error('Error starting recognition:', error);
+                if (isSafari) {
+                    showSafariTroubleshootingModal();
+                } else {
+                    alert('Lỗi khởi động ghi âm: ' + error.message);
+                }
+            }
+        }
+    }
+    
+    function startRecognition() {
+        try {
+            console.log('Starting speech recognition...');
+            recognition.lang = getLanguageCode(document.getElementById('sourceLanguage').value);
+            finalTranscript = '';
+            document.getElementById('recognizedText').value = '';
+            document.getElementById('manualText').value = '';
+            
+            // Clear any previous errors
+            updateStatus('ready', 'Đang khởi động...');
+            
+            recognition.start();
+        } catch (error) {
+            console.error('Recognition start error:', error);
+            if (error.name === 'InvalidStateError') {
+                alert('⚠️ Microphone đang được sử dụng.\nĐợi 1 giây rồi thử lại.');
+            } else {
+                alert('Lỗi khởi động: ' + error.message);
+            }
+        }
+    }
+    
+    function updateStatus(status, text) {
+        const indicator = document.getElementById('statusIndicator');
+        const statusText = document.getElementById('statusText');
+        
+        indicator.className = 'status-indicator status-' + status;
+        statusText.textContent = text;
+    }
+    
+    function resetRecordButton() {
+        const button = document.getElementById('recordButton');
+        if (button) {
+            button.innerHTML = '<i class="fas fa-microphone"></i>';
+            button.classList.remove('recording');
+            button.style.backgroundColor = '';
+            button.style.animation = '';
+        }
+    }
+    
+    function syncTextAndCheck() {
+        const manualText = document.getElementById('manualText').value;
+        document.getElementById('recognizedText').value = manualText;
+        finalTranscript = manualText;
+        checkTranslateButton();
+    }
+    
+    function checkTranslateButton() {
+        const recognizedText = document.getElementById('recognizedText').value.trim();
+        const manualText = document.getElementById('manualText').value.trim();
+        const translateButton = document.getElementById('translateButton');
+        
+        if (recognizedText || manualText) {
+            translateButton.disabled = false;
+            translateButton.classList.remove('btn-secondary');
+            translateButton.classList.add('translate-btn');
+        } else {
+            translateButton.disabled = true;
+            translateButton.classList.add('btn-secondary');
+            translateButton.classList.remove('translate-btn');
+        }
+    }
+    
+    async function translateText() {
+        const text = document.getElementById('recognizedText').value.trim() || 
+                    document.getElementById('manualText').value.trim();
+        
+        if (!text) {
+            alert('Vui lòng nhập văn bản cần dịch!');
+            return;
+        }
+        
+        const sourceLanguage = document.getElementById('sourceLanguage').value;
+        const targetLanguage = document.getElementById('targetLanguage').value;
+        
+        if (sourceLanguage === targetLanguage) {
+            alert('Ngôn ngữ nguồn và đích không thể giống nhau!');
+            return;
+        }
+        
+        updateStatus('processing', 'Đang dịch...');
+        const translateButton = document.getElementById('translateButton');
+        const originalText = translateButton.innerHTML;
+        translateButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Đang dịch...';
+        translateButton.disabled = true;
+        
+        try {
+            const response = await fetch('/api/translate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    text: text,
+                    source_lang: sourceLanguage,
+                    target_lang: targetLanguage
+                })
+            });
+            
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            
+            const result = await response.json();
+            if (result.error) {
+                throw new Error(result.error);
+            }
+            
+            document.getElementById('translatedText').textContent = result.translated_text;
+            document.getElementById('translationResult').style.display = 'block';
+            updateStatus('ready', 'Dịch thành công!');
+            
+        } catch (error) {
+            console.error('Translation error:', error);
+            alert('Lỗi khi dịch: ' + error.message);
+            updateStatus('ready', 'Lỗi dịch thuật');
+        } finally {
+            translateButton.innerHTML = originalText;
+            checkTranslateButton();
+        }
+    }
+    
+    // Safari-specific troubleshooting functions
+    function showSafariPermissionGuide() {
+        const message = `🔧 Safari Voice Recognition Guide:
+
+📱 BƯỚC 1: Kiểm tra Microphone Permission
+• Safari > Preferences > Websites > Microphone
+• Tìm trang web này và chọn "Allow"
+
+📱 BƯỚC 2: Kiểm tra System Settings (iOS)
+• Settings > Safari > Camera & Microphone
+• Bật "Camera & Microphone Access"
+
+📱 BƯỚC 3: Reload trang
+• Command+R (Mac) hoặc Pull down (iOS)
+
+🎤 BƯỚC 4: Thử lại
+• Click MIC và nói NGAY LẬP TỨC
+• Safari cần bạn nói trong vòng 3-5 giây
+
+⚠️ Nếu vẫn lỗi: Thử chuyển sang Chrome`;
+
+        if (confirm(message + '\n\nMở Chrome hoặc tiếp tục với Safari?')) {
+            // User chose to continue with Safari
+            console.log('User continuing with Safari after permission guide');
+        } else {
+            // User wants to try Chrome
+            const chromeUrl = window.location.href.replace(/safari/i, 'chrome');
+            window.open(chromeUrl, '_blank');
+        }
+    }
+    
+    function showSafariTroubleshootingModal() {
+        const troubleshootingSteps = `🛠️ Safari Voice Troubleshooting:
+
+🔍 COMMON ISSUES:
+• Speech recognition service offline 
+• Browser needs user interaction first
+• Microphone access denied
+
+🔧 SOLUTIONS:
+1. Reload trang (Command+R)
+2. Kiểm tra internet connection
+3. Thử click MIC nhiều lần
+4. Nói NGAY sau khi nhấn (trong 2 giây)
+5. Nói to và rõ ràng
+
+📱 iOS SPECIFIC:
+• Đảm bảo không ở Silent mode
+• Kiểm tra Do Not Disturb
+• Thử tắt/bật Airplane mode
+
+🌐 ALTERNATIVE:
+• Thử Chrome browser
+• Thử Desktop Safari
+• Sử dụng typing thay vì voice`;
+
+        alert(troubleshootingSteps);
+    }
+    
+    async function copyTranslation() {
+        const translatedText = document.getElementById('translatedText').textContent;
+        
+        try {
+            await navigator.clipboard.writeText(translatedText);
+            const copyBtn = document.querySelector('.copy-btn');
+            const originalText = copyBtn.innerHTML;
+            copyBtn.innerHTML = '<i class="fas fa-check"></i> Copied!';
+            copyBtn.classList.add('btn-success');
+            
+            setTimeout(() => {
+                copyBtn.innerHTML = originalText;
+                copyBtn.classList.remove('btn-success');
+            }, 2000);
+            
+        } catch (error) {
+            alert('Đã copy vào clipboard!');
+        }
+    }
+    
+    function swapLanguages() {
+        const sourceSelect = document.getElementById('sourceLanguage');
+        const targetSelect = document.getElementById('targetLanguage');
+        
+        const tempValue = sourceSelect.value;
+        sourceSelect.value = targetSelect.value;
+        targetSelect.value = tempValue;
+        
+        if (recognition) {
+            recognition.lang = getLanguageCode(sourceSelect.value);
+        }
+    }
+    
+    // ==================== UTILITY FUNCTIONS ====================
+    
+    async function copyToClipboard(text) {
+        try {
+            await navigator.clipboard.writeText(text);
+            showSuccess('Đã copy phản hồi!');
+        } catch (error) {
+            const textArea = document.createElement('textarea');
+            textArea.value = text;
+            document.body.appendChild(textArea);
+            textArea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textArea);
+            showSuccess('Đã copy phản hồi!');
+        }
+    }
+    
+    function showLoading(show) {
+        try {
+            const overlay = document.querySelector('.loading-overlay');
+            if (overlay) {
+                overlay.style.display = show ? 'flex' : 'none';
+                console.log('🚨 EMERGENCY DEBUG: Loading overlay', show ? 'shown' : 'hidden');
+            } else {
+                console.error('🚨 EMERGENCY DEBUG: Loading overlay element not found');
+            }
+        } catch (error) {
+            console.error('🚨 EMERGENCY DEBUG: showLoading error:', error);
+        }
+    }
+    
+    function showSuccess(message) {
+        const toast = document.createElement('div');
+        toast.className = 'position-fixed top-0 end-0 m-3 alert alert-success alert-dismissible';
+        toast.style.zIndex = '9999';
+        toast.innerHTML = `<i class="fas fa-check-circle"></i> ${message}<button type="button" class="btn-close" data-bs-dismiss="alert"></button>`;
+        document.body.appendChild(toast);
+        setTimeout(() => toast.remove(), 3000);
+    }
+    
+    function showError(message) {
+        const toast = document.createElement('div');
+        toast.className = 'position-fixed top-0 end-0 m-3 alert alert-danger alert-dismissible';
+        toast.style.zIndex = '9999';
+        toast.innerHTML = `<i class="fas fa-exclamation-circle"></i> ${message}<button type="button" class="btn-close" data-bs-dismiss="alert"></button>`;
+        document.body.appendChild(toast);
+        setTimeout(() => toast.remove(), 5000);
+    }
+    
+    // Quick action functions - MOVED TO END OF FILE TO AVOID DUPLICATES
+    
+    // ==================== CUSTOM INSTRUCTIONS FUNCTIONS ====================
+    // Note: voiceInstructionRecognition already declared above, removing duplicate
+    
+    function toggleCustomInstructions() {
+        const section = document.getElementById('customInstructionsSection');
+        const icon = document.getElementById('customToggleIcon');
+        
+        if (section.style.display === 'none') {
+            section.style.display = 'block';
+            icon.className = 'fas fa-chevron-up';
+            // Load saved instructions
+            loadSavedInstructions();
+        } else {
+            section.style.display = 'none';
+            icon.className = 'fas fa-chevron-down';
+        }
+    }
+    
+    function loadSavedInstructions() {
+        const saved = localStorage.getItem('aiCustomInstructions');
+        if (saved) {
+            document.getElementById('customInstructions').value = saved;
+        }
+    }
+    
+    function saveCustomInstructions() {
+        const instructions = document.getElementById('customInstructions').value.trim();
+        if (instructions) {
+            localStorage.setItem('aiCustomInstructions', instructions);
+            showSuccess('💾 Đã lưu custom instructions!');
+        } else {
+            localStorage.removeItem('aiCustomInstructions');
+            showSuccess('🗑️ Đã xóa custom instructions!');
+        }
+    }
+    
+    function clearCustomInstructions() {
+        document.getElementById('customInstructions').value = '';
+        localStorage.removeItem('aiCustomInstructions');
+        showSuccess('🗑️ Đã xóa custom instructions!');
+    }
+    
+    function loadSampleInstructions() {
+        const samples = [
+            "Trả lời ngắn gọn và thân thiện, sử dụng emoji phù hợp, luôn đề cập đến tên khách hàng",
+            "Phản hồi chuyên nghiệp và lịch sự, tập trung vào giải pháp, không dùng emoji",
+            "Trả lời chi tiết và nhiệt tình, giải thích rõ ràng các dịch vụ, sử dụng tone tích cực",
+            "Phong cách thân mật như bạn bè, dùng ngôn ngữ đơn giản, nhiều emoji vui vẻ",
+            "Tập trung vào việc bán hàng, đề xuất upgrade dịch vụ, nhấn mạnh ưu đãi"
+        ];
+        
+        const randomSample = samples[Math.floor(Math.random() * samples.length)];
+        document.getElementById('customInstructions').value = randomSample;
+        showSuccess('💡 Đã tải mẫu instructions!');
+    }
+    
+    function startVoiceInstructions() {
+        const btn = document.getElementById('voiceInstructBtn');
+        
+        if (isVoiceInstructionRecording) {
+            stopVoiceInstructions();
+            return;
+        }
+        
+        // Enhanced mobile detection and support
+        const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+        const isPWA = window.matchMedia('(display-mode: standalone)').matches || 
+                     window.navigator.standalone === true;
+        
+        if (!('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) {
+            if (isIOS && isPWA) {
+                showError('❌ PWA Mode: Voice không khả dụng.\n\nMở trong Safari browser để sử dụng voice.');
+            } else if (isIOS) {
+                showError('❌ iOS: Cần sử dụng Safari browser để dùng voice');
+            } else {
+                showError('❌ Trình duyệt không hỗ trợ nhận diện giọng nói');
+            }
+            return;
+        }
+        
+        // Special handling for PWA mode
+        if (isIOS && isPWA) {
+            if (!confirm('⚠️ PWA Mode phát hiện!\n\nVoice có thể không hoạt động trong app mode.\n\nBạn có muốn thử không? (Khuyến nghị: Dùng Safari browser)')) {
+                return;
+            }
+        }
+        
+        // Request microphone permission first on mobile
+        if (isMobile && navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+            navigator.mediaDevices.getUserMedia({ audio: true })
+                .then(stream => {
+                    console.log('Microphone access granted for voice instructions');
+                    stream.getTracks().forEach(track => track.stop());
+                    initVoiceInstructionRecognition();
+                })
+                .catch(error => {
+                    console.error('Microphone access denied for voice instructions:', error);
+                    showError('❌ Không thể truy cập microphone!\nCho phép microphone trong browser settings.');
+                    return;
+                });
+        } else {
+            initVoiceInstructionRecognition();
+        }
+    }
+    
+    function initVoiceInstructionRecognition() {
+        const btn = document.getElementById('voiceInstructBtn');
+        const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+        
+        try {
+            const SpeechRecognition = window.webkitSpeechRecognition || window.SpeechRecognition;
+            voiceInstructionRecognition = new SpeechRecognition();
+            
+            // Mobile-optimized settings
+            voiceInstructionRecognition.continuous = !isMobile;
+            voiceInstructionRecognition.interimResults = !isIOS; // iOS works better without interim
+            voiceInstructionRecognition.maxAlternatives = 1;
+            voiceInstructionRecognition.lang = 'vi-VN';
+            
+            voiceInstructionRecognition.onstart = function() {
+                console.log('Voice instruction recognition started');
+                isVoiceInstructionRecording = true;
+                btn.innerHTML = '<i class="fas fa-stop"></i>';
+                btn.className = 'btn btn-danger';
+                btn.style.animation = 'pulse 1s infinite';
+                showSuccess('🎤 Đang nghe... Nói hướng dẫn cho AI (max 15s)');
+                
+                // Auto-stop on mobile after 15 seconds
+                if (isMobile) {
+                    setTimeout(() => {
+                        if (isVoiceInstructionRecording) {
+                            voiceInstructionRecognition.stop();
+                        }
+                    }, 15000);
+                }
+            };
+            
+            voiceInstructionRecognition.onresult = function(event) {
+                console.log('Voice instruction result:', event.results);
+                let transcript = '';
+                let finalText = '';
+                
+                for (let i = event.resultIndex; i < event.results.length; i++) {
+                    const text = event.results[i][0].transcript;
+                    if (event.results[i].isFinal) {
+                        finalText += text;
+                    } else {
+                        transcript += text;
+                    }
+                }
+                
+                // Update textarea with current text
+                if (finalText) {
+                    document.getElementById('customInstructions').value = finalText;
+                    showSuccess('✅ Đã ghi nhận hướng dẫn bằng voice!');
+                } else if (transcript) {
+                    // Show interim results
+                    document.getElementById('customInstructions').placeholder = `Đang nghe: "${transcript}"...`;
+                }
+            };
+            
+            voiceInstructionRecognition.onerror = function(event) {
+                console.error('Voice instruction error:', event.error, event);
+                let errorMessage = 'Lỗi nhận diện giọng nói';
+                
+                const isPWA = window.matchMedia('(display-mode: standalone)').matches || 
+                             window.navigator.standalone === true;
+                const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+                
+                switch(event.error) {
+                    case 'aborted':
+                        if (isIOS && isPWA) {
+                            errorMessage = '❌ PWA Mode: Voice Instructions bị chặn.\n\n🔧 Giải pháp: Mở trong Safari browser';
+                            showError(errorMessage);
+                            setTimeout(() => {
+                                if (confirm('Voice Instructions không hoạt động trong PWA mode.\n\nMở trong Safari browser?')) {
+                                    openInSafari();
+                                }
+                            }, 1000);
+                        } else {
+                            errorMessage = '⚠️ Voice Instructions bị ngắt. Thử lại.';
+                        }
+                        break;
+                    case 'no-speech':
+                        errorMessage = '⚠️ Không nghe thấy giọng nói. Thử lại.';
+                        break;
+                    case 'audio-capture':
+                        errorMessage = '❌ Không thể truy cập microphone';
+                        break;
+                    case 'not-allowed':
+                        errorMessage = '❌ Microphone bị chặn. Cho phép trong cài đặt browser.';
+                        break;
+                    case 'network':
+                        errorMessage = '❌ Lỗi mạng. Kiểm tra kết nối internet.';
+                        break;
+                    default:
+                        if (isIOS && isPWA) {
+                            errorMessage = `❌ PWA Error: ${event.error}\n\nThử mở trong Safari browser`;
+                        } else {
+                            errorMessage = `❌ Lỗi: ${event.error}`;
+                        }
+                }
+                
+                showError(errorMessage);
+                stopVoiceInstructions();
+            };
+            
+            voiceInstructionRecognition.onend = function() {
+                console.log('Voice instruction recognition ended');
+                stopVoiceInstructions();
+            };
+            
+            // Start recognition
+            voiceInstructionRecognition.start();
+            
+        } catch (error) {
+            console.error('Failed to initialize voice instruction recognition:', error);
+            showError('❌ Lỗi khởi tạo nhận diện giọng nói: ' + error.message);
+        }
+    }
+    
+    function stopVoiceInstructions() {
+        if (voiceInstructionRecognition) {
+            voiceInstructionRecognition.stop();
+        }
+        
+        isVoiceInstructionRecording = false;
+        const btn = document.getElementById('voiceInstructBtn');
+        btn.innerHTML = '<i class="fas fa-microphone"></i>';
+        btn.className = 'btn btn-outline-danger';
+    }
+
+    // ==================== TEMPLATES MANAGEMENT FUNCTIONS ====================
+    // Variables declared at top of file to avoid duplicates
+
+    // Enhanced load templates with proper error handling
+    async function loadTemplatesForTab() {
+        const container = document.getElementById('templatesContainer');
+        
+        // Show loading with detailed status
+        container.innerHTML = `
+            <div class="text-center p-4">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Đang tải...</span>
+                </div>
+                <p class="mt-2 text-muted">Đang tải danh sách mẫu tin nhắn...</p>
+                <small class="text-muted">Kết nối API templates...</small>
+            </div>
+        `;
+        
+        try {
+            console.log('[TEMPLATES] Starting to load templates from API...');
+            
+            const response = await fetch('/api/templates', {
+                method: 'GET',
+                headers: {
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json'
+                }
+            });
+            
+            console.log('[TEMPLATES] Response status:', response.status);
+            console.log('[TEMPLATES] Response headers:', response.headers);
+            
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            
+            const data = await response.json();
+            console.log('[TEMPLATES] Received data:', data);
+            console.log('[TEMPLATES] Data type:', typeof data);
+            console.log('[TEMPLATES] Is array:', Array.isArray(data));
+            
+            // Handle different response formats
+            let templatesData = [];
+            
+            if (data.success === false) {
+                // API returned error format
+                console.error('[TEMPLATES] API returned error:', data.error);
+                throw new Error(data.error || 'API returned error status');
+            } else if (Array.isArray(data)) {
+                // Direct array format
+                templatesData = data;
+            } else if (data.templates && Array.isArray(data.templates)) {
+                // Wrapped in templates property
+                templatesData = data.templates;
+            } else {
+                console.error('[TEMPLATES] Unexpected data format:', data);
+                throw new Error('Invalid data format from API');
+            }
+            
+            console.log('[TEMPLATES] Processing templates data:', templatesData);
+            
+            // Transform data for display
+            templates = templatesData.map((item, index) => {
+                console.log(`[TEMPLATES] Processing template ${index}:`, item);
+                
+                return {
+                    id: index.toString(),
+                    name: `${item.Category || 'Chung'} - ${item.Label || 'DEFAULT'}`,
+                    content: item.Message || item.Content || item.content || '',
+                    category: item.Category || 'Chung',
+                    label: item.Label || 'DEFAULT'
+                };
+            });
+            
+            // Store templates globally for copy function access
+            window.globalTemplates = templates;
+            console.log('[TEMPLATES] Templates stored globally:', templates);
+            
+            console.log('[TEMPLATES] Transformed templates:', templates);
+            
+            isTemplatesLoaded = true;
+            renderTemplatesForTab();
+            
+        } catch (error) {
+            console.error('[TEMPLATES] Load error:', error);
+            
+            // Show detailed error message
+            container.innerHTML = `
+                <div class="alert alert-danger" role="alert">
+                    <h6><i class="fas fa-exclamation-triangle"></i> Lỗi tải mẫu tin nhắn</h6>
+                    <p class="mb-2"><strong>Chi tiết lỗi:</strong> ${error.message}</p>
+                    <div class="mt-3">
+                        <button class="btn btn-primary btn-sm me-2" onclick="retryLoadTemplates()">
+                            <i class="fas fa-retry"></i> Thử lại
+                        </button>
+                        <button class="btn btn-outline-secondary btn-sm" onclick="testTemplatesConnection()">
+                            <i class="fas fa-info-circle"></i> Test API
+                        </button>
+                    </div>
+                </div>
+            `;
+            
+            // Also show toast notification
+            showError('Không thể tải mẫu tin nhắn: ' + error.message);
+        }
+    }
+    
+    // Test connection function
+    async function testTemplatesConnection() {
+        try {
+            showLoading(true);
+            
+            const response = await fetch('/api/templates/debug');
+            const result = await response.json();
+            
+            console.log('[TEMPLATES] Debug result:', result);
+            
+            if (result.file_exists) {
+                showSuccess('✅ Kết nối templates API thành công!');
+                if (result.templates_count > 0) {
+                    showSuccess(`📋 Tìm thấy ${result.templates_count} templates`);
+                }
+            } else {
+                showError('⚠️ File templates không tồn tại');
+            }
+            
+        } catch (error) {
+            console.error('[TEMPLATES] Test connection error:', error);
+            showError('❌ Lỗi kết nối: ' + error.message);
+        } finally {
+            showLoading(false);
+        }
+    }
+
+    // Retry function
+    async function retryLoadTemplates() {
+        console.log('[TEMPLATES] Retrying template load...');
+        templates = [];
+        isTemplatesLoaded = false;
+        await loadTemplatesForTab();
+    }
+
+    // Enhanced render function with better error handling
+    function renderTemplatesForTab() {
+        const container = document.getElementById('templatesContainer');
+        
+        if (!templates || templates.length === 0) {
+            container.innerHTML = `
+                <div class="text-center p-4">
+                    <div class="text-muted mb-3">
+                        <i class="fas fa-inbox fa-3x mb-3"></i>
+                        <h6>Chưa có mẫu tin nhắn nào</h6>
+                        <p>Hãy thêm mẫu tin nhắn đầu tiên hoặc import từ Google Sheets</p>
+                    </div>
+                    <div class="d-flex gap-2 justify-content-center">
+                        <button class="btn btn-primary btn-sm" onclick="showAddTemplateModal()">
+                            <i class="fas fa-plus"></i> Thêm mẫu đầu tiên
+                        </button>
+                        <button class="btn btn-outline-success btn-sm" onclick="importFromSheets()">
+                            <i class="fas fa-download"></i> Import từ Sheets
+                        </button>
+                    </div>
+                </div>
+            `;
+            return;
+        }
+        
+        try {
+            // Group templates by category
+            const groupedTemplates = {};
+            templates.forEach(template => {
+                const category = template.category || 'Khác';
+                if (!groupedTemplates[category]) {
+                    groupedTemplates[category] = [];
+                }
+                groupedTemplates[category].push(template);
+            });
+            
+            console.log('[TEMPLATES] Grouped templates:', groupedTemplates);
+            
+            // Render categories
+            const categoriesHtml = Object.keys(groupedTemplates).map(category => {
+                const categoryTemplates = groupedTemplates[category];
+                const categoryId = category.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_]/g, '');
+                
+                return `
+                    <div class="template-category mb-3 border rounded">
+                        <div class="template-header p-3 bg-light rounded-top" onclick="toggleCategoryForTab('${categoryId}')" style="cursor: pointer;">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <h6 class="mb-1 text-primary">
+                                        <i class="fas fa-folder me-2"></i>${category}
+                                    </h6>
+                                    <small class="text-muted">
+                                        <i class="fas fa-file-text me-1"></i>${categoryTemplates.length} mẫu tin nhắn
+                                    </small>
+                                </div>
+                                <i class="fas fa-chevron-down transition-all" id="icon-${categoryId}"></i>
+                            </div>
+                        </div>
+                        <div class="template-content border-top" id="category-${categoryId}" style="display: none;">
+                            <div class="p-3">
+                                ${categoryTemplates.map(template => `
+                                    <div class="template-item border-start border-3 border-primary ms-2 ps-3 mb-3 bg-light rounded">
+                                        <div class="d-flex justify-content-between align-items-start mb-2">
+                                            <div class="flex-grow-1">
+                                                <h6 class="mb-1 text-secondary">
+                                                    <i class="fas fa-tag me-1"></i>
+                                                    ${template.label !== 'DEFAULT' ? template.label : 'Mặc định'}
+                                                </h6>
+                                                <small class="text-muted">Template ID: ${template.id}</small>
+                                            </div>
+                                            <div class="template-actions">
+                                                <button class="btn btn-sm btn-primary me-1" onclick="useTemplateFromTab('${template.id}')" title="Sử dụng template">
+                                                    <i class="fas fa-paper-plane"></i>
+                                                </button>
+                                                <button class="btn btn-sm btn-outline-secondary me-1" onclick="copyTemplateFromTab('${template.id}')" title="Copy nội dung">
+                                                    <i class="fas fa-copy"></i>
+                                                </button>
+                                                <button class="btn btn-sm btn-outline-warning me-1" onclick="editTemplate('${template.id}', '${template.category}', '${template.label}', '${template.content.replace(/'/g, "\\'")}', '${template.usage || ""}')" title="Sửa template">
+                                                    <i class="fas fa-edit"></i>
+                                                </button>
+                                                <button class="btn btn-sm btn-outline-danger" onclick="deleteTemplate('${template.id}', '${template.label}')" title="Xóa template">
+                                                    <i class="fas fa-trash"></i>
+                                                </button>
+                                            </div>
+                                        </div>
+                                        <div class="template-content-text bg-white p-3 rounded border" style="white-space: pre-wrap; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.5; max-height: 200px; overflow-y: auto;">
+                                            ${template.content || 'Nội dung trống'}
+                                        </div>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+            
+            container.innerHTML = `
+                <div class="templates-list">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <div>
+                            <h6 class="mb-0">
+                                <i class="fas fa-clipboard-list text-primary me-2"></i>
+                                Tổng cộng: ${templates.length} mẫu tin nhắn
+                            </h6>
+                            <small class="text-muted">Trong ${Object.keys(groupedTemplates).length} danh mục</small>
+                        </div>
+                        <button class="btn btn-sm btn-outline-primary" onclick="expandAllCategories()">
+                            <i class="fas fa-expand-arrows-alt"></i> Mở rộng tất cả
+                        </button>
+                    </div>
+                    ${categoriesHtml}
+                </div>
+            `;
+            
+            console.log('[TEMPLATES] Render completed successfully');
+            
+        } catch (error) {
+            console.error('[TEMPLATES] Render error:', error);
+            container.innerHTML = `
+                <div class="alert alert-warning" role="alert">
+                    <h6><i class="fas fa-exclamation-triangle"></i> Lỗi hiển thị templates</h6>
+                    <p>Đã tải được dữ liệu nhưng không thể hiển thị: ${error.message}</p>
+                    <button class="btn btn-sm btn-primary" onclick="retryLoadTemplates()">
+                        <i class="fas fa-retry"></i> Thử lại
+                    </button>
+                </div>
+            `;
+        }
+    }
+
+    // Enhanced toggle function
+    function toggleCategoryForTab(categoryId) {
+        try {
+            const content = document.getElementById(`category-${categoryId}`);
+            const icon = document.getElementById(`icon-${categoryId}`);
+            
+            if (!content || !icon) {
+                console.error('[TEMPLATES] Toggle elements not found:', categoryId);
+                return;
+            }
+            
+            if (content.style.display === 'block') {
+                content.style.display = 'none';
+                icon.className = 'fas fa-chevron-down transition-all';
+            } else {
+                content.style.display = 'block';
+                icon.className = 'fas fa-chevron-up transition-all';
+            }
+        } catch (error) {
+            console.error('[TEMPLATES] Toggle error:', error);
+        }
+    }
+
+    // Expand all categories
+    function expandAllCategories() {
+        try {
+            const allContent = document.querySelectorAll('[id^="category-"]');
+            const allIcons = document.querySelectorAll('[id^="icon-"]');
+            
+            allContent.forEach(content => {
+                content.style.display = 'block';
+            });
+            
+            allIcons.forEach(icon => {
+                icon.className = 'fas fa-chevron-up transition-all';
+            });
+            
+            showSuccess('✅ Đã mở rộng tất cả danh mục');
+        } catch (error) {
+            console.error('[TEMPLATES] Expand all error:', error);
+        }
+    }
+
+    // Enhanced template actions
+    function useTemplateFromTab(id) {
+        try {
+            const template = templates.find(t => t.id === id);
+            if (!template) {
+                showError('Không tìm thấy template với ID: ' + id);
+                return;
+            }
+            
+            if (!template.content) {
+                showError('Template này không có nội dung');
+                return;
+            }
+            
+            copyToClipboard(template.content);
+            showSuccess(`✅ Đã copy "${template.name}" để sử dụng!`);
+            
+        } catch (error) {
+            console.error('[TEMPLATES] Use template error:', error);
+            showError('Lỗi khi sử dụng template: ' + error.message);
+        }
+    }
+
+    function copyTemplateFromTab(id) {
+        try {
+            const template = templates.find(t => t.id === id);
+            if (!template) {
+                showError('Không tìm thấy template với ID: ' + id);
+                return;
+            }
+            
+            if (!template.content) {
+                showError('Template này không có nội dung để copy');
+                return;
+            }
+            
+            copyToClipboard(template.content);
+            showSuccess(`📋 Đã copy nội dung "${template.label}"!`);
+            
+        } catch (error) {
+            console.error('[TEMPLATES] Copy template error:', error);
+            showError('Lỗi khi copy template: ' + error.message);
+        }
+    }
+
+    // Templates tab event listeners now handled in main DOMContentLoaded
+    
+    // Auto-import and load templates (silent import for default behavior)
+    async function autoImportAndLoadTemplates() {
+        console.log('[AUTO-IMPORT] Starting automatic import from Google Sheets...');
+        
+        try {
+            // Silent import without user confirmation
+            const response = await fetch('/templates/import', {
+                method: 'GET',
+                headers: {
+                    'Accept': 'application/json, text/html'
+                }
+            });
+            
+            if (response.status === 200 || response.redirected) {
+                console.log('[AUTO-IMPORT] Silent import successful');
+                
+                // Force reload templates
+                templates = []; // Clear cache
+                isTemplatesLoaded = false; // Reset flag
+                
+                await loadTemplatesForTab();
+                // Also reload for AI chat
+                await loadTemplateCategories();
+                
+                // Mark as loaded
+                isTemplatesLoaded = true;
+                
+                console.log('[AUTO-IMPORT] Templates auto-loaded successfully');
+            } else {
+                console.log('[AUTO-IMPORT] Import failed, falling back to regular load');
+                // Fallback to regular loading if import fails
+                await loadTemplatesForTab();
+            }
+        } catch (error) {
+            console.log('[AUTO-IMPORT] Error during auto-import, falling back to regular load:', error);
+            // Fallback to regular loading if import fails
+            await loadTemplatesForTab();
+        }
+    }
+
+    // Import from Google Sheets (manual with confirmation)
+    async function importFromSheets() {
+        showLoading(true);
+        try {
+            console.log('[IMPORT] Starting manual import from Google Sheets...');
+            
+            const response = await fetch('/templates/import', {
+                method: 'GET',
+                headers: {
+                    'Accept': 'application/json, text/html'
+                }
+            });
+            
+            console.log('[IMPORT] Response status:', response.status);
+            console.log('[IMPORT] Response redirected:', response.redirected);
+            console.log('[IMPORT] Response URL:', response.url);
+            
+            if (response.status === 200 || response.redirected) {
+                showSuccess('✅ Import thành công từ Google Sheets!');
+                
+                // Force reload templates
+                console.log('[IMPORT] Reloading templates after import...');
+                templates = []; // Clear cache
+                isTemplatesLoaded = false; // Reset flag
+                
+                await loadTemplatesForTab();
+                // Also reload for AI chat
+                await loadTemplateCategories();
+                
+                console.log('[IMPORT] Templates reloaded successfully');
+            } else {
+                // Try to get error message from response
+                let errorMessage = `HTTP ${response.status}`;
+                try {
+                    const errorText = await response.text();
+                    console.log('[IMPORT] Error response:', errorText);
+                    errorMessage = errorText || errorMessage;
+                } catch (e) {
+                    console.log('[IMPORT] Could not read error response:', e);
+                }
+                throw new Error(errorMessage);
+            }
+        } catch (error) {
+            console.error('[IMPORT] Import error:', error);
+            showError('❌ Lỗi khi import từ Sheets: ' + error.message + '. Vui lòng kiểm tra Google Sheets có worksheet "MessageTemplate" không?');
+        } finally {
+            showLoading(false);
+        }
+    }
+    
+    // Export to Google Sheets
+    async function exportToSheets() {
+        showLoading(true);
+        try {
+            console.log('[EXPORT] Starting export to Google Sheets...');
+            
+            // Check if we have templates to export
+            if (!templates || templates.length === 0) {
+                showError('❌ Không có mẫu tin nhắn để export. Vui lòng thêm ít nhất 1 template trước.');
+                return;
+            }
+            
+            const response = await fetch('/templates/export', {
+                method: 'GET',
+                headers: {
+                    'Accept': 'application/json, text/html'
+                }
+            });
+            
+            console.log('[EXPORT] Response status:', response.status);
+            console.log('[EXPORT] Response redirected:', response.redirected);
+            
+            if (response.status === 200 || response.redirected) {
+                showSuccess('✅ Export thành công ra Google Sheets!');
+                console.log('[EXPORT] Export completed successfully');
+            } else {
+                // Try to get error message from response
+                let errorMessage = `HTTP ${response.status}`;
+                try {
+                    const errorText = await response.text();
+                    console.log('[EXPORT] Error response:', errorText);
+                    errorMessage = errorText || errorMessage;
+                } catch (e) {
+                    console.log('[EXPORT] Could not read error response:', e);
+                }
+                throw new Error(errorMessage);
+            }
+        } catch (error) {
+            console.error('[EXPORT] Export error:', error);
+            showError('❌ Lỗi khi export ra Sheets: ' + error.message);
+        } finally {
+            showLoading(false);
+        }
+    }
+    
+    // Show add template modal
+    function showAddTemplateModal() {
+        // Reset form
+        document.getElementById('addTemplateForm').reset();
+        document.getElementById('customCategoryDiv').style.display = 'none';
+        
+        // Show modal
+        const modal = new bootstrap.Modal(document.getElementById('addTemplateModal'));
+        modal.show();
+    }
+    
+    // Template modal category handling now in main DOMContentLoaded
+    
+    // Add new template
+    async function addNewTemplate() {
+        console.log('🔧 Starting addNewTemplate function...');
+        
+        const form = document.getElementById('addTemplateForm');
+        
+        // Get form data first with enhanced element checking
+        const categorySelect = document.getElementById('addTemplateCategory');
+        
+        // Debug: Check if we have the right element
+        console.log('🔍 Element debugging:', {
+            categorySelectElement: categorySelect,
+            categorySelectId: categorySelect ? categorySelect.id : 'NOT FOUND',
+            categorySelectTagName: categorySelect ? categorySelect.tagName : 'NOT FOUND',
+            allElementsWithSameId: document.querySelectorAll('#addTemplateCategory').length
+        });
+        
+        if (!categorySelect) {
+            showError('❌ Lỗi: Không tìm thấy dropdown danh mục!');
+            return;
+        }
+        
+        const customCategory = document.getElementById('customCategory').value.trim();
+        const label = document.getElementById('templateLabel').value.trim();
+        const message = document.getElementById('templateMessage').value.trim();
+        
+        console.log('📝 Form data:', {
+            categoryValue: categorySelect.value,
+            customCategory: customCategory,
+            label: label,
+            message: message
+        });
+        
+        // Determine final category
+        let finalCategory = categorySelect.value;
+        if (finalCategory === 'OTHER' && customCategory) {
+            finalCategory = customCategory.toUpperCase();
+        }
+        
+        console.log('🎯 Final category determined:', finalCategory);
+        
+        // Enhanced validation with detailed logging
+        if (!finalCategory || finalCategory === '' || finalCategory === 'OTHER') {
+            console.error('❌ Category validation failed:', {
+                finalCategory: finalCategory,
+                categorySelectValue: categorySelect.value,
+                customCategory: customCategory
+            });
+            
+            // Highlight the category field
+            categorySelect.classList.add('is-invalid');
+            setTimeout(() => categorySelect.classList.remove('is-invalid'), 3000);
+            
+            if (categorySelect.value === 'OTHER' && !customCategory) {
+                showError('❌ Bạn đã chọn "Khác" - vui lòng nhập tên danh mục tùy chỉnh!');
+            } else if (!categorySelect.value) {
+                showError('❌ Vui lòng chọn danh mục từ dropdown!');
+            } else {
+                showError('❌ Lỗi danh mục: "' + finalCategory + '"');
+            }
+            return;
+        }
+        
+        if (!label || label === '') {
+            console.error('❌ Label validation failed');
+            const labelField = document.getElementById('templateLabel');
+            labelField.classList.add('is-invalid');
+            setTimeout(() => labelField.classList.remove('is-invalid'), 3000);
+            showError('❌ Vui lòng nhập nhãn!');
+            return;
+        }
+        
+        if (!message || message === '') {
+            console.error('❌ Message validation failed');
+            const messageField = document.getElementById('templateMessage');
+            messageField.classList.add('is-invalid');
+            setTimeout(() => messageField.classList.remove('is-invalid'), 3000);
+            showError('❌ Vui lòng nhập nội dung tin nhắn!');
+            return;
+        }
+        
+        console.log('✅ All validations passed, proceeding with template creation...');
+        
+        // Prepare new template data
+        const newTemplate = {
+            Category: finalCategory,
+            Label: label,
+            Message: message
+        };
+        
+        showLoading(true);
+        
+        try {
+            // Call API to add new template
+            const response = await fetch('/api/templates/add', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(newTemplate)
+            });
+            
+            if (response.ok) {
+                const result = await response.json();
+                showSuccess(result.message || '✅ Đã thêm mẫu tin nhắn thành công và export ra Google Sheets!');
+                
+                // Close modal
+                const modal = bootstrap.Modal.getInstance(document.getElementById('addTemplateModal'));
+                modal.hide();
+                
+                // Reload templates
+                templates = []; // Clear cache
+                await loadTemplatesForTab();
+                // Also reload for AI chat
+                await loadTemplateCategories();
+            } else {
+                const error = await response.json();
+                throw new Error(error.message || 'Lỗi khi thêm mẫu tin nhắn');
+            }
+        } catch (error) {
+            console.error('Add template error:', error);
+            showError('❌ Lỗi khi thêm mẫu tin nhắn: ' + error.message);
+        } finally {
+            showLoading(false);
+        }
+    }
+    
+    // Edit template function
+    async function editTemplate(templateId, currentCategory, currentLabel, currentContent, currentUsage) {
+        // Show loading and populate edit modal
+        const editModal = document.createElement('div');
+        editModal.className = 'modal fade';
+        editModal.id = 'editTemplateModal';
+        editModal.innerHTML = `
+            <div class="modal-dialog modal-lg modal-dialog-centered">
+                <div class="modal-content">
+                    <div class="modal-header bg-warning">
+                        <h5 class="modal-title text-dark">
+                            <i class="fas fa-edit me-2"></i>Sửa Mẫu Tin Nhắn
+                        </h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <form id="editTemplateForm">
+                            <div class="mb-3">
+                                <label for="editTemplateCategory" class="form-label">Danh mục</label>
+                                <input type="text" class="form-control" id="editTemplateCategory" value="${currentCategory}" required>
+                            </div>
+                            <div class="mb-3">
+                                <label for="editTemplateLabel" class="form-label">Nhãn</label>
+                                <input type="text" class="form-control" id="editTemplateLabel" value="${currentLabel}" required>
+                            </div>
+                            <div class="mb-3">
+                                <label for="editTemplateMessage" class="form-label">Nội dung tin nhắn</label>
+                                <textarea class="form-control" id="editTemplateMessage" rows="6" required>${currentContent}</textarea>
+                            </div>
+                        </form>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                        <button type="button" class="btn btn-warning" onclick="saveTemplateEdit('${templateId}')">
+                            <i class="fas fa-save me-1"></i>Cập nhật Template
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(editModal);
+        const modal = new bootstrap.Modal(editModal);
+        modal.show();
+        
+        // Clean up modal when hidden
+        editModal.addEventListener('hidden.bs.modal', function() {
+            document.body.removeChild(editModal);
+        });
+    }
+    
+    // Save template edit
+    async function saveTemplateEdit(templateId) {
+        const category = document.getElementById('editTemplateCategory').value.trim();
+        const label = document.getElementById('editTemplateLabel').value.trim();
+        const message = document.getElementById('editTemplateMessage').value.trim();
+        
+        if (!category || !label || !message) {
+            alert('⚠️ Vui lòng điền đầy đủ thông tin');
+            return;
+        }
+        
+        const submitBtn = document.querySelector('#editTemplateModal .btn-warning');
+        const originalText = submitBtn.innerHTML;
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Đang cập nhật...';
+        
+        try {
+            const response = await fetch(`/api/templates/${templateId}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    Category: category,
+                    Label: label,
+                    Message: message
+                })
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                showSuccess('✅ Đã cập nhật template thành công!');
+                
+                // Close modal
+                const modal = bootstrap.Modal.getInstance(document.getElementById('editTemplateModal'));
+                modal.hide();
+                
+                // Refresh templates
+                templates = []; // Clear cache
+                isTemplatesLoaded = false;
+                await autoImportAndLoadTemplates();
+            } else {
+                throw new Error(result.message || 'Lỗi không xác định');
+            }
+        } catch (error) {
+            console.error('Error editing template:', error);
+            showError('❌ Lỗi cập nhật template: ' + error.message);
+        } finally {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = originalText;
+        }
+    }
+    
+    // Delete template function
+    async function deleteTemplate(templateId, templateLabel) {
+        if (!confirm(`❌ Bạn có chắc muốn xóa template "${templateLabel}"?\n\nHành động này không thể hoàn tác!`)) {
+            return;
+        }
+        
+        try {
+            const response = await fetch(`/api/templates/${templateId}`, {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    template_id: templateId
+                })
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                showSuccess('🗑️ Đã xóa template thành công!');
+                
+                // Refresh templates
+                templates = []; // Clear cache
+                isTemplatesLoaded = false;
+                await autoImportAndLoadTemplates();
+            } else {
+                throw new Error(result.message || 'Lỗi không xác định');
+            }
+        } catch (error) {
+            console.error('Error deleting template:', error);
+            showError('❌ Lỗi xóa template: ' + error.message);
+        }
+    }
+    
+    // Helper functions for quick actions
+    function viewTemplates() {
+        // Switch to templates tab and force load
+        console.log('[TEMPLATES] viewTemplates() called - switching to templates tab');
+        const templatesTabElement = document.getElementById('templates-tab');
+        const templatesTab = new bootstrap.Tab(templatesTabElement);
+        templatesTab.show();
+        
+        // Force load templates if not loaded
+        if (!isTemplatesLoaded) {
+            console.log('[TEMPLATES] Forcing template load...');
+            loadTemplatesForTab();
+        }
+    }
+    
+    function clearAll() {
+        // Clear all chat data
+        currentImageData = null;
+        const chatAnalysisResult = document.getElementById('chatAnalysisResult');
+        if (chatAnalysisResult) {
+            chatAnalysisResult.innerHTML = '';
+        }
+        
+        const imagePreview = document.getElementById('imagePreview');
+        if (imagePreview) {
+            imagePreview.style.display = 'none';
+        }
+        
+        showSuccess('✅ Đã xóa tất cả dữ liệu!');
+    }
+    
+    function switchToVoice() {
+        const voiceTabElement = document.getElementById('voice-tab');
+        const voiceTab = new bootstrap.Tab(voiceTabElement);
+        voiceTab.show();
+    }
+    
+    function switchToChat() {
+        const chatTabElement = document.getElementById('chat-tab');
+        const chatTab = new bootstrap.Tab(chatTabElement);
+        chatTab.show();
+    }
+    
+    // Test Google Sheets connection
+    async function testSheetsConnection() {
+        showLoading(true);
+        try {
+            console.log('[TEST] Testing Google Sheets connection...');
+            
+            const response = await fetch('/api/templates/debug', {
+                method: 'GET',
+                headers: {
+                    'Accept': 'application/json'
+                }
+            });
+            
+            if (response.ok) {
+                const data = await response.json();
+                console.log('[TEST] Debug response:', data);
+                
+                let message = '📊 **Kết quả test kết nối:**\n\n';
+                message += `🗂️ **File local:** ${data.file_exists ? '✅ Tồn tại' : '❌ Không tồn tại'}\n`;
+                message += `📁 **Đường dẫn:** ${data.file_path}\n`;
+                message += `📝 **Số templates:** ${data.templates_count}\n`;
+                
+                if (data.sample_template) {
+                    message += `📋 **Template mẫu:** ${data.sample_template.Category} - ${data.sample_template.Label}\n`;
+                }
+                
+                if (data.error) {
+                    message += `⚠️ **Lỗi:** ${data.error}\n`;
+                }
+                
+                // Additional advice
+                message += '\n💡 **Để import từ Google Sheets:**\n';
+                message += '1. Đảm bảo có worksheet tên "MessageTemplate"\n';
+                message += '2. Worksheet phải có cột: Category, Label, Message\n';
+                message += '3. Kiểm tra quyền truy cập Google Sheets\n';
+                
+                showSuccess(message);
+            } else {
+                throw new Error(`Test failed: HTTP ${response.status}`);
+            }
+        } catch (error) {
+            console.error('[TEST] Connection test error:', error);
+            showError('❌ Lỗi test kết nối: ' + error.message);
+        } finally {
+            showLoading(false);
+        }
+    }
+
+    // 🧠 RAG Chat Functions with Gemini Enhancement
+    let ragCurrentQuery = '';
+    let ragCurrentResponse = null;
+    let ragConversationId = null;
+
+    // Initialize conversation ID
+    function initializeRAGConversation() {
+        ragConversationId = `conv_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        console.log(`🔄 Started new conversation: ${ragConversationId}`);
+    }
+
+    async function sendRAGQuery() {
+        const query = document.getElementById('ragQueryInput').value.trim();
+        const guestName = document.getElementById('ragGuestName').value.trim();
+        const geminiMode = document.getElementById('geminiModeToggle').checked;
+        
+        if (!query) {
+            alert('Please enter a question!');
+            return;
+        }
+        
+        ragCurrentQuery = query;
+        
+        // Initialize conversation if needed
+        if (!ragConversationId) {
+            initializeRAGConversation();
+        }
+        
+        console.log(`🧠 Sending ${geminiMode ? 'Gemini' : 'Simple'} RAG query: "${query}" for guest: "${guestName}"`);
+        
+        try {
+            // Show loading state
+            document.getElementById('ragResponseArea').style.display = 'block';
+            document.getElementById('ragAnswer').innerHTML = `
+                <div class="d-flex align-items-center">
+                    <i class="fas fa-spinner fa-spin me-2"></i> 
+                    ${geminiMode ? 'Gemini AI thinking...' : 'RAG processing...'}
+                </div>
+            `;
+            
+            // Choose endpoint based on mode
+            const endpoint = geminiMode ? '/api/ai_chat_gemini_rag' : '/api/ai_chat_rag';
+            
+            // Prepare request data
+            const requestData = {
+                message: query,
+                guest_name: guestName
+            };
+            
+            // Add conversation ID for Gemini mode
+            if (geminiMode) {
+                requestData.conversation_id = ragConversationId;
+            }
+            
+            // Send request
+            const response = await fetch(endpoint, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(requestData)
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                displayRAGResponse(result);
+                // Clear input after successful query
+                document.getElementById('ragQueryInput').value = '';
+            } else {
+                throw new Error(result.error || 'Unknown error');
+            }
+            
+        } catch (error) {
+            console.error('RAG query error:', error);
+            document.getElementById('ragAnswer').innerHTML = 
+                `<div class="text-danger"><i class="fas fa-exclamation-triangle"></i> Error: ${error.message}</div>`;
+        }
+    }
+
+    // Handle mode toggle
+    document.addEventListener('DOMContentLoaded', function() {
+        const toggle = document.getElementById('geminiModeToggle');
+        const indicator = document.getElementById('ragModeIndicator');
+        const description = document.getElementById('ragModeDescription');
+        
+        function updateModeDisplay() {
+            if (toggle.checked) {
+                indicator.className = 'badge bg-success';
+                indicator.textContent = '🚀 Gemini Mode';
+                description.textContent = 'Natural language AI with advanced reasoning';
+            } else {
+                indicator.className = 'badge bg-info';
+                indicator.textContent = '🧠 Simple RAG';
+                description.textContent = 'Fast keyword-based matching';
+            }
+        }
+        
+        toggle.addEventListener('change', function() {
+            updateModeDisplay();
+            // Reset conversation when switching modes
+            ragConversationId = null;
+            console.log(`🔄 Switched to ${this.checked ? 'Gemini' : 'Simple'} mode`);
+        });
+        
+        // Initial setup
+        updateModeDisplay();
+    });
+
+    function displayRAGResponse(result) {
+        ragCurrentResponse = result;
+        
+        // Display main answer with enhanced formatting for Gemini responses
+        const answerHtml = result.gemini_enhanced ? 
+            `<div class="fw-bold mb-2">${result.answer.replace(/\n/g, '<br>')}</div>` :
+            `<div class="fw-bold mb-2">${result.answer}</div>`;
+            
+        document.getElementById('ragAnswer').innerHTML = answerHtml;
+        
+        // Update confidence badge with model information
+        const confidence = result.confidence || 0;
+        const confidenceBadge = document.getElementById('ragConfidence');
+        
+        if (result.gemini_enhanced) {
+            confidenceBadge.className = 'badge bg-gradient me-2';
+            confidenceBadge.style.background = 'linear-gradient(45deg, #667eea, #764ba2)';
+            confidenceBadge.textContent = '🚀 Gemini Enhanced';
+        } else if (confidence > 0.8) {
+            confidenceBadge.className = 'badge bg-success me-2';
+            confidenceBadge.textContent = 'High Confidence';
+        } else if (confidence > 0.5) {
+            confidenceBadge.className = 'badge bg-warning me-2';
+            confidenceBadge.textContent = 'Medium Confidence';
+        } else {
+            confidenceBadge.className = 'badge bg-secondary me-2';
+            confidenceBadge.textContent = 'Low Confidence';
+        }
+        
+        // Display timestamp with model info
+        const modelInfo = result.model_used ? ` (${result.model_used})` : '';
+        document.getElementById('ragTimestamp').textContent = 
+            new Date(result.timestamp).toLocaleTimeString() + modelInfo;
+        
+        // Display guest context if available
+        if (result.booking_context && result.booking_context.guest_name) {
+            const guestContext = document.getElementById('ragGuestContext');
+            const guestInfo = document.getElementById('ragGuestInfo');
+            
+            const context = result.booking_context;
+            const contextInfo = result.contextual_info || {};
+            
+            let guestInfoHtml = `${context.guest_name}`;
+            if (contextInfo.vip_status) {
+                guestInfoHtml += ` <span class="badge bg-gold">VIP</span>`;
+            }
+            if (contextInfo.status_message) {
+                guestInfoHtml += ` - ${contextInfo.status_message}`;
+            }
+            if (context.booking_id) {
+                guestInfoHtml += ` (${context.booking_id})`;
+            }
+            
+            guestInfo.innerHTML = guestInfoHtml;
+            guestContext.style.display = 'block';
+        } else {
+            document.getElementById('ragGuestContext').style.display = 'none';
+        }
+        
+        // Display sources
+        if (result.sources && result.sources.length > 0) {
+            document.getElementById('ragSourcesList').textContent = result.sources.join(', ');
+        } else {
+            document.getElementById('ragSourcesList').textContent = 'Hotel Knowledge Base';
+        }
+        
+        // Display suggestions
+        if (result.suggestions && result.suggestions.length > 0) {
+            const suggestionsList = document.getElementById('ragSuggestionsList');
+            suggestionsList.innerHTML = result.suggestions.map(suggestion => 
+                `<div class="mt-1">• ${suggestion}</div>`
+            ).join('');
+        } else {
+            document.getElementById('ragSuggestionsList').innerHTML = '<div class="mt-1">Ask about check-in/out times, local attractions, or services</div>';
+        }
+        
+        console.log('✅ RAG response displayed successfully');
+    }
+
+    function ragQuickQuestion(question) {
+        document.getElementById('ragQueryInput').value = question;
+        sendRAGQuery();
+    }
+
+    function copyRAGResponse() {
+        if (!ragCurrentResponse) {
+            alert('No response to copy!');
+            return;
+        }
+        
+        let copyText = `Question: ${ragCurrentQuery}\n\nAnswer: ${ragCurrentResponse.answer}`;
+        
+        if (ragCurrentResponse.suggestions && ragCurrentResponse.suggestions.length > 0) {
+            copyText += `\n\nSuggestions:\n${ragCurrentResponse.suggestions.map(s => `• ${s}`).join('\n')}`;
+        }
+        
+        // Copy to clipboard
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(copyText).then(() => {
+                showSuccess('📋 RAG response copied to clipboard!');
+            }).catch(err => {
+                console.error('Failed to copy:', err);
+                fallbackCopyRAG(copyText);
+            });
+        } else {
+            fallbackCopyRAG(copyText);
+        }
+    }
+
+    function fallbackCopyRAG(text) {
+        const textArea = document.createElement('textarea');
+        textArea.value = text;
+        textArea.style.position = 'fixed';
+        textArea.style.opacity = '0';
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        
+        try {
+            document.execCommand('copy');
+            showSuccess('📋 RAG response copied to clipboard!');
+        } catch (err) {
+            console.error('Fallback copy failed:', err);
+            alert(`RAG Response:\n\n${text}`);
+        }
+        
+        document.body.removeChild(textArea);
+    }
+
+    function clearRAGResponse() {
+        document.getElementById('ragResponseArea').style.display = 'none';
+        ragCurrentQuery = '';
+        ragCurrentResponse = null;
+    }
+
+    // Global functions for RAG (making them available in global scope)
+    window.sendRAGQuery = sendRAGQuery;
+    window.ragQuickQuestion = ragQuickQuestion;
+    window.copyRAGResponse = copyRAGResponse;
+    window.clearRAGResponse = clearRAGResponse;
+
+    console.log('✅ RAG Chat functions initialized');
+</script>
+{% endblock %}

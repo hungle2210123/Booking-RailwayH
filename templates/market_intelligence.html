@@ -1,0 +1,643 @@
+{% extends "base.html" %}
+
+{% block title %}Hotel Market Intelligence - Hotel Management{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header Section -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card border-0 bg-gradient" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                <div class="card-body text-white">
+                    <h1 class="h2 mb-3">
+                        <i class="fas fa-chart-line me-3"></i>Hotel Market Intelligence
+                    </h1>
+                    <p class="lead mb-0">Analyze competitor pricing, market trends, and discover opportunities in Hanoi's accommodation market</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Market Analysis Controls -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-search me-2"></i>Market Analysis Controls</h5>
+                </div>
+                <div class="card-body">
+                    <form id="marketAnalysisForm">
+                        <div class="row g-3">
+                            <div class="col-md-4">
+                                <label for="location" class="form-label">
+                                    <i class="fas fa-map-marker-alt me-1"></i>Location
+                                </label>
+                                <select class="form-select" id="location" name="location">
+                                    <option value="Hanoi" selected>Hanoi</option>
+                                    <option value="Ho Chi Minh City">Ho Chi Minh City</option>
+                                    <option value="Da Nang">Da Nang</option>
+                                    <option value="Hoi An">Hoi An</option>
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <label for="maxPrice" class="form-label">
+                                    <i class="fas fa-dollar-sign me-1"></i>Max Price (VND)
+                                </label>
+                                <select class="form-select" id="maxPrice" name="max_price">
+                                    <option value="300000">Under 300,000</option>
+                                    <option value="500000" selected>Under 500,000</option>
+                                    <option value="1000000">Under 1,000,000</option>
+                                    <option value="2000000">Under 2,000,000</option>
+                                </select>
+                            </div>
+                            <div class="col-md-4 d-flex align-items-end">
+                                <button type="submit" class="btn btn-primary w-100" id="analyzeBtn">
+                                    <i class="fas fa-chart-pie me-2"></i>Analyze Market
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <!-- Manual URL Input Section -->
+                        <div class="row g-3 mt-3">
+                            <div class="col-12">
+                                <div class="border-top pt-3">
+                                    <h6 class="text-muted mb-3">
+                                        <i class="fas fa-link me-2"></i>Manual URL Analysis (Optional)
+                                    </h6>
+                                    <div class="row g-3">
+                                        <div class="col-md-8">
+                                            <label for="customUrl" class="form-label">
+                                                Booking.com Search URL
+                                            </label>
+                                            <input type="url" 
+                                                   class="form-control" 
+                                                   id="customUrl" 
+                                                   name="custom_url"
+                                                   placeholder="https://www.booking.com/searchresults.html?ss=Hanoi..."
+                                                   title="Paste a Booking.com search results URL to analyze specific search criteria">
+                                        </div>
+                                        <div class="col-md-4 d-flex align-items-end">
+                                            <button type="button" class="btn btn-secondary w-100" id="analyzeUrlBtn">
+                                                <i class="fas fa-external-link-alt me-2"></i>Analyze URL
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <small class="text-muted">
+                                        <i class="fas fa-info-circle me-1"></i>
+                                        Paste a Booking.com search URL to analyze specific results. Useful for custom filters, locations, or date ranges.
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Results Loading State -->
+    <div class="row mb-4" id="loadingSection" style="display: none;">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body text-center py-5">
+                    <div class="spinner-border text-primary mb-3" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <h5>Analyzing Market Data...</h5>
+                    <p class="text-muted">Gathering intelligence from multiple sources</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Market Summary Cards -->
+    <div class="row mb-4" id="summarySection" style="display: none;">
+        <div class="col-md-3 mb-3">
+            <div class="card bg-primary text-white">
+                <div class="card-body text-center">
+                    <i class="fas fa-building fa-2x mb-2"></i>
+                    <h3 class="card-title" id="totalProperties">-</h3>
+                    <p class="card-text">Total Properties</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card bg-success text-white">
+                <div class="card-body text-center">
+                    <i class="fas fa-money-bill-wave fa-2x mb-2"></i>
+                    <h3 class="card-title" id="avgPrice">-</h3>
+                    <p class="card-text">Average Price</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card bg-info text-white">
+                <div class="card-body text-center">
+                    <i class="fas fa-chart-line fa-2x mb-2"></i>
+                    <h3 class="card-title" id="priceRange">-</h3>
+                    <p class="card-text">Price Range</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card bg-warning text-white">
+                <div class="card-body text-center">
+                    <i class="fas fa-database fa-2x mb-2"></i>
+                    <h3 class="card-title" id="dataSource">-</h3>
+                    <p class="card-text">Data Source</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Analysis Charts -->
+    <div class="row mb-4" id="chartsSection" style="display: none;">
+        <div class="col-md-6 mb-3">
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0"><i class="fas fa-chart-pie me-2"></i>Price Distribution</h6>
+                </div>
+                <div class="card-body">
+                    <canvas id="priceDistributionChart" height="300"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6 mb-3">
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0"><i class="fas fa-chart-bar me-2"></i>Property Types</h6>
+                </div>
+                <div class="card-body">
+                    <canvas id="propertyTypesChart" height="300"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Detailed Results Table -->
+    <div class="row mb-4" id="resultsSection" style="display: none;">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h6 class="mb-0"><i class="fas fa-table me-2"></i>Detailed Property Analysis</h6>
+                    <div class="btn-group btn-group-sm" role="group">
+                        <button type="button" class="btn btn-outline-primary" id="exportBtn">
+                            <i class="fas fa-download me-1"></i>Export
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary" id="refreshBtn">
+                            <i class="fas fa-sync me-1"></i>Refresh
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover" id="propertiesTable">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th><i class="fas fa-hashtag me-1"></i>#</th>
+                                    <th><i class="fas fa-building me-1"></i>Property Name</th>
+                                    <th><i class="fas fa-money-bill me-1"></i>Price</th>
+                                    <th><i class="fas fa-map-marker-alt me-1"></i>Location</th>
+                                    <th><i class="fas fa-star me-1"></i>Rating</th>
+                                    <th><i class="fas fa-tag me-1"></i>Type</th>
+                                    <th><i class="fas fa-concierge-bell me-1"></i>Amenities</th>
+                                </tr>
+                            </thead>
+                            <tbody id="propertiesTableBody">
+                                <!-- Dynamic content will be inserted here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Market Insights -->
+    <div class="row mb-4" id="insightsSection" style="display: none;">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0"><i class="fas fa-lightbulb me-2"></i>Market Insights & Recommendations</h6>
+                </div>
+                <div class="card-body">
+                    <div id="marketInsights">
+                        <!-- Dynamic insights will be inserted here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0"><i class="fas fa-clock me-2"></i>Analysis History</h6>
+                </div>
+                <div class="card-body">
+                    <div id="analysisHistory">
+                        <!-- Analysis history will be shown here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Error Section -->
+    <div class="row mb-4" id="errorSection" style="display: none;">
+        <div class="col-12">
+            <div class="alert alert-danger" role="alert">
+                <i class="fas fa-exclamation-triangle me-2"></i>
+                <strong>Analysis Error:</strong>
+                <span id="errorMessage">An error occurred while analyzing market data.</span>
+                <button type="button" class="btn btn-sm btn-outline-danger ms-3" onclick="retryAnalysis()">
+                    <i class="fas fa-redo me-1"></i>Retry
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Chart.js for data visualization -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
+let currentAnalysis = null;
+let priceDistributionChart = null;
+let propertyTypesChart = null;
+
+// Form submission handler
+document.getElementById('marketAnalysisForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    performMarketAnalysis();
+});
+
+// Export button handler
+document.getElementById('exportBtn').addEventListener('click', function() {
+    if (currentAnalysis) {
+        exportToJSON();
+    }
+});
+
+// Refresh button handler
+document.getElementById('refreshBtn').addEventListener('click', function() {
+    performMarketAnalysis();
+});
+
+function performMarketAnalysis() {
+    const formData = new FormData(document.getElementById('marketAnalysisForm'));
+    const data = Object.fromEntries(formData);
+    
+    // Show loading state
+    showSection('loadingSection');
+    hideAllResultSections();
+    
+    // Update button state
+    const analyzeBtn = document.getElementById('analyzeBtn');
+    analyzeBtn.disabled = true;
+    analyzeBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Analyzing...';
+    
+    // Make API call
+    fetch('/api/market_intelligence', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            currentAnalysis = data;
+            displayResults(data);
+            addToHistory(data);
+        } else {
+            showError(data.error || 'Unknown error occurred');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showError('Network error occurred. Please try again.');
+    })
+    .finally(() => {
+        // Reset button state
+        analyzeBtn.disabled = false;
+        analyzeBtn.innerHTML = '<i class="fas fa-chart-pie me-2"></i>Analyze Market';
+        hideSection('loadingSection');
+    });
+}
+
+function displayResults(data) {
+    const summary = data.summary;
+    const analysis = data.analysis;
+    const properties = data.market_data.apartments || [];
+    
+    // Update summary cards
+    document.getElementById('totalProperties').textContent = summary.total_properties;
+    document.getElementById('avgPrice').textContent = formatPrice(summary.average_price);
+    document.getElementById('priceRange').textContent = 
+        `${formatPrice(summary.price_range.min)} - ${formatPrice(summary.price_range.max)}`;
+    document.getElementById('dataSource').textContent = summary.data_source;
+    
+    // Show summary section
+    showSection('summarySection');
+    
+    // Create charts
+    createPriceDistributionChart(analysis.price_distribution);
+    createPropertyTypesChart(analysis.property_types);
+    showSection('chartsSection');
+    
+    // Populate results table
+    populatePropertiesTable(properties);
+    showSection('resultsSection');
+    
+    // Display insights
+    displayInsights(analysis.recommendations);
+    showSection('insightsSection');
+}
+
+function createPriceDistributionChart(priceDistribution) {
+    const ctx = document.getElementById('priceDistributionChart').getContext('2d');
+    
+    if (priceDistributionChart) {
+        priceDistributionChart.destroy();
+    }
+    
+    const data = {
+        labels: ['Budget (Under 300k)', 'Mid-range (300k-400k)', 'Premium (400k+)'],
+        datasets: [{
+            data: [
+                priceDistribution.budget?.count || 0,
+                priceDistribution.mid_range?.count || 0,
+                priceDistribution.premium?.count || 0
+            ],
+            backgroundColor: [
+                '#28a745',
+                '#ffc107',
+                '#dc3545'
+            ],
+            borderWidth: 2,
+            borderColor: '#fff'
+        }]
+    };
+    
+    priceDistributionChart = new Chart(ctx, {
+        type: 'doughnut',
+        data: data,
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom'
+                }
+            }
+        }
+    });
+}
+
+function createPropertyTypesChart(propertyTypes) {
+    const ctx = document.getElementById('propertyTypesChart').getContext('2d');
+    
+    if (propertyTypesChart) {
+        propertyTypesChart.destroy();
+    }
+    
+    const labels = Object.keys(propertyTypes);
+    const data = Object.values(propertyTypes);
+    
+    propertyTypesChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Properties',
+                data: data,
+                backgroundColor: '#667eea',
+                borderColor: '#764ba2',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true
+                }
+            },
+            plugins: {
+                legend: {
+                    display: false
+                }
+            }
+        }
+    });
+}
+
+function populatePropertiesTable(properties) {
+    const tbody = document.getElementById('propertiesTableBody');
+    tbody.innerHTML = '';
+    
+    properties.forEach((property, index) => {
+        const row = document.createElement('tr');
+        
+        // Price category badge
+        const priceNum = property.price_num || 0;
+        let categoryBadge = '';
+        if (priceNum < 300000) {
+            categoryBadge = '<span class="badge bg-success">Budget</span>';
+        } else if (priceNum < 400000) {
+            categoryBadge = '<span class="badge bg-warning">Mid-range</span>';
+        } else {
+            categoryBadge = '<span class="badge bg-danger">Premium</span>';
+        }
+        
+        // Amenities display
+        const amenities = property.amenities || [];
+        const amenitiesText = amenities.slice(0, 3).join(', ') + (amenities.length > 3 ? '...' : '');
+        
+        row.innerHTML = `
+            <td>${index + 1}</td>
+            <td>
+                <strong>${property.name}</strong><br>
+                <small class="text-muted">${categoryBadge}</small>
+            </td>
+            <td>
+                <strong>${property.price}</strong><br>
+                <small class="text-muted">per night</small>
+            </td>
+            <td>${property.address}</td>
+            <td>
+                ${property.star_rating !== 'N/A' ? 
+                    `<i class="fas fa-star text-warning"></i> ${property.star_rating}` : 
+                    '<span class="text-muted">No rating</span>'
+                }
+                ${property.booking_rating ? 
+                    `<br><small class="text-muted">Booking: ${property.booking_rating}/10</small>` : ''
+                }
+            </td>
+            <td>${property.property_type}</td>
+            <td><small>${amenitiesText}</small></td>
+        `;
+        
+        tbody.appendChild(row);
+    });
+}
+
+function displayInsights(recommendations) {
+    const insightsContainer = document.getElementById('marketInsights');
+    
+    let insightsHTML = '<div class="row">';
+    
+    recommendations.forEach((recommendation, index) => {
+        insightsHTML += `
+            <div class="col-12 mb-3">
+                <div class="d-flex align-items-start">
+                    <div class="badge bg-primary rounded-pill me-3 mt-1">${index + 1}</div>
+                    <div>
+                        <p class="mb-0">${recommendation}</p>
+                    </div>
+                </div>
+            </div>
+        `;
+    });
+    
+    insightsHTML += '</div>';
+    insightsContainer.innerHTML = insightsHTML;
+}
+
+function addToHistory(data) {
+    const historyContainer = document.getElementById('analysisHistory');
+    const timestamp = new Date().toLocaleString();
+    
+    const historyItem = document.createElement('div');
+    historyItem.className = 'border-bottom pb-2 mb-2';
+    historyItem.innerHTML = `
+        <small class="text-muted">${timestamp}</small><br>
+        <strong>${data.summary.location}</strong><br>
+        <span class="badge bg-secondary">${data.summary.total_properties} properties</span>
+    `;
+    
+    historyContainer.insertBefore(historyItem, historyContainer.firstChild);
+    
+    // Keep only last 5 history items
+    while (historyContainer.children.length > 5) {
+        historyContainer.removeChild(historyContainer.lastChild);
+    }
+}
+
+function exportToJSON() {
+    if (!currentAnalysis) return;
+    
+    const dataStr = JSON.stringify(currentAnalysis, null, 2);
+    const dataBlob = new Blob([dataStr], {type: 'application/json'});
+    
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(dataBlob);
+    link.download = `market_analysis_${new Date().toISOString().split('T')[0]}.json`;
+    link.click();
+}
+
+function formatPrice(price) {
+    if (price === 0) return '0';
+    return `${price.toLocaleString()}đ`;
+}
+
+function showSection(sectionId) {
+    document.getElementById(sectionId).style.display = 'block';
+}
+
+function hideSection(sectionId) {
+    document.getElementById(sectionId).style.display = 'none';
+}
+
+function hideAllResultSections() {
+    const sections = ['summarySection', 'chartsSection', 'resultsSection', 'insightsSection', 'errorSection'];
+    sections.forEach(section => hideSection(section));
+}
+
+function showError(message) {
+    document.getElementById('errorMessage').textContent = message;
+    showSection('errorSection');
+}
+
+function retryAnalysis() {
+    hideSection('errorSection');
+    performMarketAnalysis();
+}
+
+// Auto-load default analysis on page load
+document.addEventListener('DOMContentLoaded', function() {
+    // Add a slight delay to ensure page is fully loaded
+    setTimeout(() => {
+        performMarketAnalysis();
+    }, 500);
+    
+    // Add event listener for manual URL analysis
+    document.getElementById('analyzeUrlBtn').addEventListener('click', function() {
+        const customUrl = document.getElementById('customUrl').value.trim();
+        
+        if (!customUrl) {
+            alert('Please enter a Booking.com URL to analyze');
+            return;
+        }
+        
+        if (!customUrl.includes('booking.com')) {
+            alert('Please enter a valid Booking.com URL');
+            return;
+        }
+        
+        console.log('Analyzing custom URL:', customUrl);
+        
+        // Use custom URL for analysis
+        performCustomUrlAnalysis(customUrl);
+    });
+});
+
+function performCustomUrlAnalysis(customUrl) {
+    console.log('Starting custom URL analysis...');
+    
+    // Show loading
+    showSection('loadingSection');
+    hideAllResultSections();
+    
+    // Update button state
+    const analyzeUrlBtn = document.getElementById('analyzeUrlBtn');
+    const originalText = analyzeUrlBtn.innerHTML;
+    analyzeUrlBtn.disabled = true;
+    analyzeUrlBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Analyzing...';
+    
+    // Make API call with custom URL
+    fetch('/api/market_intelligence', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            custom_url: customUrl,
+            location: 'Custom URL',
+            max_price: 999999999
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            currentAnalysis = data;
+            displayResults(data);
+            addToHistory(data);
+        } else {
+            showError(data.error || 'Unknown error occurred');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showError('Network error occurred. Please try again.');
+    })
+    .finally(() => {
+        // Reset button state
+        analyzeUrlBtn.disabled = false;
+        analyzeUrlBtn.innerHTML = originalText;
+        hideSection('loadingSection');
+    });
+}
+</script>
+{% endblock %}

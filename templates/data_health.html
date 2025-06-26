@@ -1,0 +1,277 @@
+{% extends "base.html" %}
+{% block title %}Data Health Dashboard{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-2">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h4 class="mb-0 text-primary">
+            <i class="fas fa-heartbeat"></i> Data Health Dashboard
+        </h4>
+        <div class="btn-group">
+            <button class="btn btn-info" onclick="checkDataIssues()">
+                <i class="fas fa-search"></i> Kiểm tra dữ liệu
+            </button>
+            <a href="{{ url_for('view_bookings') }}" class="btn btn-secondary">
+                <i class="fas fa-arrow-left"></i> Quay lại
+            </a>
+        </div>
+    </div>
+
+    <!-- Summary Cards -->
+    <div class="row mb-4" id="summaryCards" style="display: none;">
+        <div class="col-md-3">
+            <div class="card text-white bg-primary">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h6 class="card-title">Tổng booking</h6>
+                            <h4 id="totalBookings">-</h4>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-list fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-white bg-danger">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h6 class="card-title">Thiếu Check-in</h6>
+                            <h4 id="missingCheckin">-</h4>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-calendar-check fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-white bg-warning">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h6 class="card-title">Thiếu Check-out</h6>
+                            <h4 id="missingCheckout">-</h4>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-calendar-times fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-white bg-info">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h6 class="card-title">Thiếu thanh toán</h6>
+                            <h4 id="missingPayment">-</h4>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-money-bill fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading -->
+    <div id="loadingArea" class="text-center py-5" style="display: none;">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+        <p class="mt-3 text-muted">Đang kiểm tra dữ liệu...</p>
+    </div>
+
+    <!-- Issues Table -->
+    <div id="issuesArea" style="display: none;">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-exclamation-triangle text-warning"></i> 
+                    Các vấn đề cần xử lý
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-sm table-striped">
+                        <thead class="table-dark">
+                            <tr>
+                                <th>Booking ID</th>
+                                <th>Tên khách</th>
+                                <th>Vấn đề</th>
+                                <th>Cột</th>
+                                <th>Giá trị hiện tại</th>
+                                <th>Mức độ</th>
+                                <th>Thao tác</th>
+                            </tr>
+                        </thead>
+                        <tbody id="issuesTableBody">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- No Issues -->
+    <div id="noIssuesArea" class="text-center py-5" style="display: none;">
+        <i class="fas fa-check-circle fa-3x text-success mb-3"></i>
+        <h5 class="text-success">Tuyệt vời! Không có vấn đề nào về dữ liệu</h5>
+        <p class="text-muted">Tất cả booking đều có đầy đủ thông tin cần thiết.</p>
+    </div>
+
+    <!-- Instructions -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0">
+                        <i class="fas fa-info-circle"></i> Hướng dẫn sửa lỗi
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6 class="text-danger">❌ Thiếu ngày Check-in/Check-out:</h6>
+                            <ol class="small">
+                                <li>Mở Google Sheets booking data</li>
+                                <li>Tìm hàng có Booking ID bị lỗi</li>
+                                <li>Thêm ngày đúng định dạng: <code>DD/MM/YYYY</code></li>
+                                <li>Lưu và đồng bộ dữ liệu</li>
+                            </ol>
+                        </div>
+                        <div class="col-md-6">
+                            <h6 class="text-warning">⚠️ Thiếu thông tin thanh toán:</h6>
+                            <ol class="small">
+                                <li>Kiểm tra cột "Tổng thanh toán"</li>
+                                <li>Nhập số tiền đúng (VD: 800000)</li>
+                                <li>Kiểm tra cột "Người thu tiền"</li>
+                                <li>Cập nhật trạng thái booking</li>
+                            </ol>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function checkDataIssues() {
+        document.getElementById('loadingArea').style.display = 'block';
+        document.getElementById('summaryCards').style.display = 'none';
+        document.getElementById('issuesArea').style.display = 'none';
+        document.getElementById('noIssuesArea').style.display = 'none';
+        
+        fetch('/api/check_data_issues')
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('loadingArea').style.display = 'none';
+                
+                if (data.error) {
+                    alert('Lỗi: ' + data.error);
+                    return;
+                }
+                
+                // Update summary cards
+                document.getElementById('totalBookings').textContent = data.total_bookings;
+                document.getElementById('missingCheckin').textContent = data.summary.missing_checkin;
+                document.getElementById('missingCheckout').textContent = data.summary.missing_checkout;
+                document.getElementById('missingPayment').textContent = data.summary.missing_payment;
+                document.getElementById('summaryCards').style.display = 'block';
+                
+                if (data.total_issues === 0) {
+                    document.getElementById('noIssuesArea').style.display = 'block';
+                } else {
+                    displayIssues(data.issues);
+                    document.getElementById('issuesArea').style.display = 'block';
+                }
+            })
+            .catch(error => {
+                document.getElementById('loadingArea').style.display = 'none';
+                console.error('Error:', error);
+                alert('Lỗi khi kiểm tra dữ liệu: ' + error.message);
+            });
+    }
+    
+    function displayIssues(issues) {
+        const tbody = document.getElementById('issuesTableBody');
+        tbody.innerHTML = '';
+        
+        issues.forEach(issue => {
+            const row = document.createElement('tr');
+            
+            // Determine severity badge
+            let severityBadge = '';
+            if (issue.severity === 'high') {
+                severityBadge = '<span class="badge bg-danger">Cao</span>';
+            } else if (issue.severity === 'medium') {
+                severityBadge = '<span class="badge bg-warning">Trung bình</span>';
+            } else {
+                severityBadge = '<span class="badge bg-info">Thấp</span>';
+            }
+            
+            row.innerHTML = `
+                <td><code class="small">${issue.booking_id}</code></td>
+                <td><strong>${issue.guest_name}</strong></td>
+                <td>${issue.issue}</td>
+                <td><code class="small">${issue.column}</code></td>
+                <td><span class="text-muted">${issue.current_value}</span></td>
+                <td>${severityBadge}</td>
+                <td>
+                    <button class="btn btn-sm btn-primary" onclick="editBooking('${issue.booking_id}')">
+                        <i class="fas fa-edit"></i> Sửa
+                    </button>
+                    <button class="btn btn-sm btn-info" onclick="debugBooking('${issue.booking_id}')" title="Debug">
+                        <i class="fas fa-bug"></i>
+                    </button>
+                </td>
+            `;
+            tbody.appendChild(row);
+        });
+    }
+    
+    function editBooking(bookingId) {
+        window.location.href = `/booking/${bookingId}/edit`;
+    }
+    
+    function debugBooking(bookingId) {
+        fetch(`/api/debug_booking/${bookingId}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    alert('Lỗi debug: ' + data.error);
+                    return;
+                }
+                
+                // Show debug info in a modal or new window
+                const debugWindow = window.open('', '_blank', 'width=800,height=600');
+                debugWindow.document.write(`
+                    <html>
+                    <head><title>Debug Booking ${bookingId}</title></head>
+                    <body>
+                    <h2>Debug Info for Booking ${bookingId}</h2>
+                    <pre>${JSON.stringify(data, null, 2)}</pre>
+                    </body>
+                    </html>
+                `);
+            })
+            .catch(error => {
+                alert('Lỗi debug: ' + error.message);
+            });
+    }
+    
+    // Auto check on page load
+    document.addEventListener('DOMContentLoaded', function() {
+        // Auto-run check after a short delay
+        setTimeout(checkDataIssues, 500);
+    });
+</script>
+{% endblock %}

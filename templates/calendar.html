@@ -1,0 +1,660 @@
+{% extends "base.html" %}
+
+{% block title %}Lịch Đặt Phòng{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-3 mt-3">
+    <div class="row">
+        <div class="col-12">
+            <!-- Header với navigation -->
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <a href="{{ url_for('calendar_view', year=prev_month.year, month=prev_month.month) }}" 
+                   class="btn btn-outline-primary btn-sm">
+                    <i class="fas fa-chevron-left"></i> Tháng {{ prev_month.month }}
+                </a>
+                <h3 class="mb-0 text-primary">
+                    📅 Lịch Đặt Phòng - Tháng {{ current_month.month }}/{{ current_month.year }}
+                </h3>
+                <a href="{{ url_for('calendar_view', year=next_month.year, month=next_month.month) }}" 
+                   class="btn btn-outline-primary btn-sm">
+                    Tháng {{ next_month.month }} <i class="fas fa-chevron-right"></i>
+                </a>
+            </div>
+
+            <!-- Legend -->
+            <div class="d-flex justify-content-center mb-3">
+                <div class="legend d-flex gap-3">
+                    <span class="legend-item">
+                        <span class="legend-color bg-danger"></span> Hết phòng
+                    </span>
+                    <span class="legend-item">
+                        <span class="legend-color bg-primary"></span> Có khách
+                    </span>
+                    <span class="legend-item">
+                        <span class="legend-color bg-warning"></span> Trống
+                    </span>
+                    <span class="legend-item">
+                        <span class="legend-color bg-light border"></span> Không có dữ liệu
+                    </span>
+                </div>
+            </div>
+            
+            <!-- Mobile/Small screen scroll hint -->
+            <div class="mobile-scroll-hint d-block d-lg-none mb-2">
+                <small class="text-muted">
+                    <i class="fas fa-arrows-alt-h"></i> <span class="scroll-hint-text">Kéo ngang để xem đầy đủ 7 ngày trong tuần</span>
+                </small>
+            </div>
+
+            <!-- Calendar Grid -->
+            <div class="calendar-container">
+                <div class="calendar-grid">
+                    <!-- Header days -->
+                    <div class="calendar-header">
+                        <div class="day-header sunday">Chủ nhật</div>
+                        <div class="day-header">Thứ hai</div>
+                        <div class="day-header">Thứ ba</div>
+                        <div class="day-header">Thứ tư</div>
+                        <div class="day-header">Thứ năm</div>
+                        <div class="day-header">Thứ sáu</div>
+                        <div class="day-header saturday">Thứ bảy</div>
+                    </div>
+
+                    <!-- Calendar days -->
+                    <div class="calendar-body">
+                        {% for week in calendar_data %}
+                            {% for date, date_str, info in week %}
+                                <div class="calendar-day 
+                                    {% if not date %}empty-day{% endif %}
+                                    {% if date and date == today %}today{% endif %}
+                                    {% if date and date.weekday() == 6 %}sunday{% endif %}
+                                    {% if date and date.weekday() == 5 %}saturday{% endif %}
+                                    {% if info %}{{ info.status_color }}{% endif %}">
+                                    
+                                    {% if date %}
+                                        <a href="{{ url_for('calendar_details', date_str=date_str) }}" class="day-link">
+                                            <div class="day-content">
+                                                <div class="date-number">{{ date.day }}</div>
+                                                
+                                                {% if info %}
+                                                    <div class="status-indicator">
+                                                        <span class="status-badge {{ info.status_color }}">
+                                                            {{ info.status_text }}
+                                                        </span>
+                                                    </div>
+                                                    
+                                                    <!-- Hiển thị thông tin chi tiết -->
+                                                    <div class="booking-details">
+                                                        <small class="text-primary">
+                                                            <i class="fas fa-bed"></i> {{ info.occupied_units }}/{{ info.occupied_units + info.available_units }}
+                                                        </small>
+                                                        {% if info.available_units > 0 %}
+                                                            <small class="text-success">
+                                                                <i class="fas fa-check"></i> {{ info.available_units }} trống
+                                                            </small>
+                                                        {% else %}
+                                                            <small class="text-danger">
+                                                                <i class="fas fa-times"></i> Hết phòng
+                                                            </small>
+                                                        {% endif %}
+                                                    </div>
+                                                {% else %}
+                                                    <div class="status-indicator">
+                                                        <span class="status-badge bg-light text-muted">Trống</span>
+                                                    </div>
+                                                {% endif %}
+                                                
+                                                <!-- Revenue Total with Commission Breakdown -->
+                                                {% set revenue_info = revenue_by_date.get(date) %}
+                                                {% if revenue_info and revenue_info.daily_total > 0 %}
+                                                <div class="revenue-total">
+                                                    <small class="text-success fw-bold">
+                                                        <i class="fas fa-coins"></i> {{ "{:,.0f}".format(revenue_info.daily_total) }}đ
+                                                    </small>
+                                                    {% if revenue_info.daily_total_minus_commission != revenue_info.daily_total %}
+                                                    <small class="text-primary fw-bold" style="display: block; margin-top: 2px;">
+                                                        <i class="fas fa-minus-circle"></i> {{ "{:,.0f}".format(revenue_info.daily_total_minus_commission) }}đ
+                                                    </small>
+                                                    <small class="text-muted" style="font-size: 0.55rem;">
+                                                        (Trừ hoa hồng: {{ "{:,.0f}".format(revenue_info.total_commission) }}đ)
+                                                    </small>
+                                                    {% endif %}
+                                                </div>
+                                                {% endif %}
+                                            </div>
+                                        </a>
+                                    {% endif %}
+                                </div>
+                            {% endfor %}
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+/* Calendar container */
+.calendar-container {
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    overflow: hidden;
+    overflow-x: auto; /* Cho phép scroll ngang trên mọi kích thước */
+    min-width: 100%;
+    position: relative;
+}
+
+/* Smooth scrolling */
+.calendar-container {
+    scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch; /* Smooth scrolling trên iOS */
+}
+
+/* Scrollbar styling */
+.calendar-container::-webkit-scrollbar {
+    height: 8px;
+}
+
+.calendar-container::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 4px;
+}
+
+.calendar-container::-webkit-scrollbar-thumb {
+    background: #888;
+    border-radius: 4px;
+}
+
+.calendar-container::-webkit-scrollbar-thumb:hover {
+    background: #555;
+}
+
+/* Calendar grid layout */
+.calendar-grid {
+    display: flex;
+    flex-direction: column;
+    min-width: 800px; /* Tăng width tối thiểu để đảm bảo hiển thị tốt */
+}
+
+.calendar-header {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    min-width: 100%;
+}
+
+.day-header {
+    padding: 12px 8px;
+    text-align: center;
+    color: white;
+    font-weight: 600;
+    font-size: 0.9rem;
+    border-right: 1px solid rgba(255,255,255,0.2);
+    min-width: 110px; /* Tăng width tối thiểu */
+}
+
+.day-header:last-child {
+    border-right: none;
+}
+
+.day-header.sunday, .day-header.saturday {
+    background: rgba(255,255,255,0.1);
+}
+
+/* Calendar body */
+.calendar-body {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    grid-auto-rows: minmax(120px, auto);
+    min-width: 100%;
+}
+
+/* Individual day cells */
+.calendar-day {
+    border: 1px solid #e9ecef;
+    border-collapse: collapse;
+    position: relative;
+    transition: all 0.2s ease;
+    background: white;
+    min-width: 110px; /* Tăng width tối thiểu */
+}
+
+.calendar-day:hover {
+    background: #f8f9fa;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    z-index: 2;
+}
+
+.calendar-day.empty-day {
+    background: #f8f9fa;
+    opacity: 0.3;
+}
+
+.calendar-day.today {
+    background: linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%);
+    border: 2px solid #ffc107;
+    font-weight: bold;
+}
+
+.calendar-day.sunday, .calendar-day.saturday {
+    background: #f1f3f4;
+}
+
+/* Day link */
+.day-link {
+    display: block;
+    width: 100%;
+    height: 100%;
+    text-decoration: none;
+    color: inherit;
+    padding: 8px;
+}
+
+.day-link:hover {
+    color: inherit;
+    text-decoration: none;
+}
+
+/* Day content layout */
+.day-content {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+.date-number {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: #2c3e50;
+    text-align: right;
+    margin-bottom: 4px;
+}
+
+.today .date-number {
+    color: #856404;
+}
+
+/* Status indicator */
+.status-indicator {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 4px 0;
+}
+
+.status-badge {
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-align: center;
+    min-width: 60px;
+}
+
+.status-badge.full, .status-badge.bg-danger {
+    background-color: #dc3545 !important;
+    color: white;
+}
+
+.status-badge.occupied, .status-badge.bg-primary {
+    background-color: #0d6efd !important;
+    color: white;
+}
+
+.status-badge.empty, .status-badge.bg-warning {
+    background-color: #ffc107 !important;
+    color: #000;
+}
+
+.status-badge.bg-light {
+    background-color: #f8f9fa !important;
+    color: #6c757d;
+    border: 1px solid #dee2e6;
+}
+
+/* Booking details */
+.booking-details {
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    margin-top: auto;
+    padding-top: 4px;
+    border-top: 1px solid #eee;
+}
+
+.booking-details small {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    font-size: 0.7rem;
+}
+
+/* Revenue Total Styling */
+.revenue-total {
+    text-align: center;
+    margin-top: 4px;
+    padding: 3px 4px;
+    background: rgba(40, 167, 69, 0.1);
+    border-radius: 4px;
+    border: 1px solid rgba(40, 167, 69, 0.2);
+    line-height: 1.1;
+}
+
+.revenue-total small {
+    font-size: 0.65rem;
+    color: #28a745;
+    display: block;
+}
+
+.revenue-total small.text-primary {
+    color: #0d6efd !important;
+    margin-top: 1px;
+}
+
+.revenue-total small.text-muted {
+    color: #6c757d !important;
+    font-size: 0.55rem;
+    margin-top: 1px;
+}
+
+/* Legend */
+.legend {
+    flex-wrap: wrap;
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.85rem;
+    color: #495057;
+}
+
+.legend-color {
+    width: 16px;
+    height: 16px;
+    border-radius: 3px;
+    display: inline-block;
+}
+
+/* Mobile scroll hint */
+.mobile-scroll-hint {
+    text-align: center;
+    background: #e3f2fd;
+    border: 1px solid #bbdefb;
+    border-radius: 6px;
+    padding: 8px 12px;
+    animation: fadeIn 0.5s ease-in;
+}
+
+.scroll-hint-text {
+    display: inline;
+}
+
+@media (max-width: 399px) {
+    .scroll-hint-text {
+        display: block;
+        margin-top: 4px;
+    }
+    
+    .mobile-scroll-hint {
+        padding: 6px 8px;
+    }
+    
+    .mobile-scroll-hint small {
+        font-size: 0.75rem;
+    }
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* Calendar resize indicator */
+.calendar-container {
+    position: relative;
+}
+
+.calendar-container::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 30px;
+    height: 100%;
+    background: linear-gradient(to left, rgba(255,255,255,0.9), transparent);
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    z-index: 1;
+}
+
+.calendar-container:hover::before {
+    opacity: 1;
+}
+
+/* Scroll position indicators */
+.calendar-container {
+    background-image: 
+        radial-gradient(ellipse at left, rgba(0,0,0,.2) 0%, transparent 75%),
+        radial-gradient(ellipse at right, rgba(0,0,0,.2) 0%, transparent 75%);
+    background-size: 10px 100%, 10px 100%;
+    background-attachment: local, local;
+    background-repeat: no-repeat;
+    background-position: left, right;
+}
+
+/* Responsive Design - Nhiều breakpoint để xử lý mọi kích thước */
+
+/* Extra Large Desktop - từ 1200px trở lên */
+@media (min-width: 1200px) {
+    .calendar-grid {
+        min-width: 900px;
+    }
+    
+    .day-header, .calendar-day {
+        min-width: 128px;
+    }
+    
+    .day-header {
+        padding: 15px 10px;
+        font-size: 1rem;
+    }
+}
+
+/* Large Desktop - 992px đến 1199px */
+@media (max-width: 1199px) and (min-width: 992px) {
+    .calendar-grid {
+        min-width: 800px;
+    }
+    
+    .day-header, .calendar-day {
+        min-width: 114px;
+    }
+    
+    .day-header {
+        padding: 12px 8px;
+        font-size: 0.95rem;
+    }
+}
+
+/* Medium Desktop/Laptop - 768px đến 991px */
+@media (max-width: 991px) and (min-width: 768px) {
+    .calendar-grid {
+        min-width: 720px;
+    }
+    
+    .day-header, .calendar-day {
+        min-width: 102px;
+    }
+    
+    .day-header {
+        padding: 10px 6px;
+        font-size: 0.9rem;
+    }
+    
+    .calendar-body {
+        grid-auto-rows: minmax(110px, auto);
+    }
+    
+    .status-badge {
+        font-size: 0.75rem;
+        padding: 3px 7px;
+    }
+}
+
+/* Small Desktop/Large Tablet - 576px đến 767px */
+@media (max-width: 767px) and (min-width: 576px) {
+    .calendar-grid {
+        min-width: 650px;
+    }
+    
+    .day-header, .calendar-day {
+        min-width: 92px;
+    }
+    
+    .day-header {
+        padding: 8px 4px;
+        font-size: 0.85rem;
+    }
+    
+    .calendar-body {
+        grid-auto-rows: minmax(100px, auto);
+    }
+    
+    .date-number {
+        font-size: 1rem;
+    }
+    
+    .status-badge {
+        font-size: 0.7rem;
+        padding: 2px 6px;
+        min-width: 45px;
+    }
+    
+    .booking-details {
+        flex-direction: column;
+        gap: 2px;
+    }
+    
+    .booking-details small {
+        font-size: 0.65rem;
+    }
+}
+
+/* Mobile - dưới 576px */
+@media (max-width: 575px) {
+    .calendar-container {
+        margin-left: -15px;
+        margin-right: -15px;
+        border-radius: 0;
+    }
+    
+    .calendar-grid {
+        min-width: 580px; /* Đảm bảo hiển thị đủ 7 ngày */
+    }
+    
+    .day-header, .calendar-day {
+        min-width: 82px;
+    }
+    
+    .day-header {
+        padding: 6px 3px;
+        font-size: 0.8rem;
+    }
+    
+    .calendar-body {
+        grid-auto-rows: minmax(85px, auto);
+    }
+    
+    .date-number {
+        font-size: 0.95rem;
+    }
+    
+    .status-badge {
+        font-size: 0.65rem;
+        padding: 2px 5px;
+        min-width: 40px;
+    }
+    
+    .booking-details small {
+        font-size: 0.6rem;
+    }
+    
+    .revenue-total small {
+        font-size: 0.55rem;
+    }
+    
+    .legend {
+        flex-direction: column;
+        gap: 8px;
+    }
+}
+
+/* Extra Small Mobile - dưới 400px */
+@media (max-width: 399px) {
+    .calendar-grid {
+        min-width: 560px;
+    }
+    
+    .day-header, .calendar-day {
+        min-width: 80px;
+    }
+    
+    .day-header {
+        padding: 5px 2px;
+        font-size: 0.75rem;
+    }
+    
+    .calendar-body {
+        grid-auto-rows: minmax(80px, auto);
+    }
+    
+    .date-number {
+        font-size: 0.9rem;
+    }
+    
+    .status-badge {
+        font-size: 0.6rem;
+        padding: 1px 4px;
+        min-width: 35px;
+    }
+    
+    .booking-details {
+        display: none; /* Ẩn details trên màn hình rất nhỏ */
+    }
+    
+    .revenue-total small {
+        font-size: 0.5rem;
+    }
+    
+    /* Hide commission details on very small screens */
+    .revenue-total small.text-muted {
+        display: none;
+    }
+}
+
+/* Responsive cho header navigation */
+@media (max-width: 767px) {
+    .d-flex.justify-content-between.align-items-center {
+        flex-direction: column;
+        gap: 15px;
+    }
+    
+    .d-flex.justify-content-between.align-items-center h3 {
+        order: -1;
+        font-size: 1.3rem;
+        text-align: center;
+    }
+    
+    .d-flex.justify-content-between.align-items-center .btn {
+        min-width: 120px;
+    }
+}
+</style>
+{% endblock %} 

@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <title>Sửa Đặt Phòng</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px 0;
+        }
+        .container { 
+            max-width: 900px; 
+            margin: auto; 
+            background: white; 
+            border-radius: 15px; 
+            box-shadow: 0 15px 35px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        .header {
+            background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+            color: white;
+            padding: 25px;
+            text-align: center;
+        }
+        .nav-tabs {
+            border-bottom: none;
+            background: #f8f9fa;
+            padding: 0 20px;
+        }
+        .nav-tabs .nav-link {
+            border: none;
+            color: #6c757d;
+            font-weight: 600;
+            padding: 15px 25px;
+            margin-right: 5px;
+            border-radius: 10px 10px 0 0;
+            transition: all 0.3s ease;
+        }
+        .nav-tabs .nav-link:hover {
+            background: rgba(52, 152, 219, 0.1);
+            color: #3498db;
+        }
+        .nav-tabs .nav-link.active {
+            background: white;
+            color: #2c3e50;
+            border-bottom: 3px solid #3498db;
+        }
+        .tab-content {
+            padding: 30px;
+        }
+        .form-group { 
+            margin-bottom: 20px; 
+        }
+        label { 
+            display: block; 
+            margin-bottom: 8px; 
+            font-weight: 600;
+            color: #2c3e50;
+        }
+        input, select, textarea { 
+            width: 100%; 
+            padding: 12px 15px; 
+            border-radius: 8px; 
+            border: 2px solid #e9ecef; 
+            box-sizing: border-box;
+            transition: border-color 0.3s ease;
+            font-size: 14px;
+        }
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: #3498db;
+            box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+        }
+        .form-row { 
+            display: grid; 
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px; 
+        }
+        .btn { 
+            padding: 12px 25px; 
+            border: none; 
+            border-radius: 8px; 
+            cursor: pointer; 
+            font-size: 16px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+        .btn-primary { 
+            background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+            color: white; 
+        }
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(52, 152, 219, 0.4);
+        }
+        .btn-secondary { 
+            background: #6c757d; 
+            color: white; 
+            text-decoration: none; 
+        }
+        .btn-secondary:hover {
+            background: #5a6268;
+            transform: translateY(-2px);
+        }
+        .actions {
+            background: #f8f9fa;
+            padding: 20px 30px;
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            border-top: 1px solid #dee2e6;
+        }
+        .payment-section {
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .checkbox-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            align-items: center;
+        }
+        .checkbox-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 15px;
+            background: white;
+            border-radius: 8px;
+            border: 2px solid #e9ecef;
+            transition: all 0.3s ease;
+        }
+        .checkbox-item:hover {
+            border-color: #3498db;
+            background: rgba(52, 152, 219, 0.05);
+        }
+        .checkbox-item input[type="checkbox"] {
+            width: auto;
+            margin: 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1><i class="fas fa-edit me-2"></i>Sửa thông tin đặt phòng</h1>
+            <p class="mb-0"><strong>Mã đặt phòng:</strong> <span class="badge bg-light text-dark fs-6">{{ booking['Số đặt phòng'] }}</span></p>
+        </div>
+
+        <!-- Navigation Tabs -->
+        <ul class="nav nav-tabs" id="bookingTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="info-tab" data-bs-toggle="tab" data-bs-target="#info" type="button" role="tab">
+                    <i class="fas fa-info-circle me-2"></i>Thông tin cơ bản
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="payment-tab" data-bs-toggle="tab" data-bs-target="#payment" type="button" role="tab">
+                    <i class="fas fa-money-bill-wave me-2"></i>Thu tiền & Ghi chú
+                </button>
+            </li>
+        </ul>
+
+        <form method="POST" action="{{ url_for('edit_booking', booking_id=booking['Số đặt phòng']) }}" id="editForm">
+            <div class="tab-content" id="bookingTabContent">
+                <!-- Tab 1: Thông tin cơ bản -->
+                <div class="tab-pane fade show active" id="info" role="tabpanel">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="guest_name"><i class="fas fa-user me-1"></i>Tên người đặt</label>
+                            <input type="text" id="guest_name" name="guest_name" value="{{ booking.get('Tên người đặt', '') }}" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="room_type"><i class="fas fa-bed me-1"></i>Tên chỗ nghỉ</label>
+                            <input type="text" id="room_type" name="Tên chỗ nghỉ" value="{{ booking.get('Tên chỗ nghỉ', '') }}" required>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="check_in_date"><i class="fas fa-calendar-check me-1"></i>Ngày đến</label>
+                            <input type="date" id="check_in_date" name="checkin_date" 
+                                   value="{{ booking['Check-in Date'].strftime('%Y-%m-%d') if booking['Check-in Date'] else '' }}" 
+                                   required>
+                        </div>
+                        <div class="form-group">
+                            <label for="check_out_date"><i class="fas fa-calendar-times me-1"></i>Ngày đi</label>
+                            <input type="date" id="check_out_date" name="checkout_date" 
+                                   value="{{ booking['Check-out Date'].strftime('%Y-%m-%d') if booking['Check-out Date'] else '' }}" 
+                                   required>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="total_payment"><i class="fas fa-coins me-1"></i>Tổng thanh toán (VND)</label>
+                            <input type="number" id="total_payment" name="room_amount" value="{{ booking.get('Tổng thanh toán', 0) }}" step="any" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="commission"><i class="fas fa-percentage me-1 text-warning"></i>Hoa hồng (VND)</label>
+                            <input type="number" id="commission" name="commission" value="{{ booking.get('Hoa hồng', 0) }}" 
+                                   placeholder="Nhập số tiền hoa hồng" min="0" step="any">
+                            <small class="text-muted">Tiền hoa hồng cho booking này</small>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="status"><i class="fas fa-flag me-1"></i>Tình trạng</label>
+                            <select id="status" name="Tình trạng">
+                                <option value="OK" {% if booking.get('Tình trạng') == 'OK' %}selected{% endif %}>✅ OK</option>
+                                <option value="Đã hủy" {% if booking.get('Tình trạng') == 'Đã hủy' %}selected{% endif %}>❌ Đã hủy</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="taxi"><i class="fas fa-taxi me-1"></i>Taxi</label>
+                            <input type="number" id="taxi" name="taxi_amount" value="{{ booking.get('Taxi', 0) }}" 
+                                   placeholder="Số tiền taxi (VND)" min="0" step="any">
+                            <small class="text-muted">Ghi chú về dịch vụ taxi</small>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tab 2: Thu tiền & Ghi chú -->
+                <div class="tab-pane fade" id="payment" role="tabpanel">
+                    <div class="payment-section">
+                        <h5><i class="fas fa-hand-holding-usd me-2 text-primary"></i>Thông tin thu tiền</h5>
+                        
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="collector"><i class="fas fa-user-tie me-1"></i>Người thu tiền</label>
+                                <select id="collector" name="collector">
+                                    <option value="N/A" {% if booking.get('Người thu tiền') == 'N/A' or not booking.get('Người thu tiền') %}selected{% endif %}>🚫 Chưa có</option>
+                                    <option value="LOC LE" {% if booking.get('Người thu tiền') == 'LOC LE' %}selected{% endif %}>👤 LOC LE</option>
+                                    <option value="THAO LE" {% if booking.get('Người thu tiền') == 'THAO LE' %}selected{% endif %}>👤 THAO LE</option>
+                                </select>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="extra_taxi_fee"><i class="fas fa-taxi me-1"></i>Phí taxi thêm (VND)</label>
+                                <input type="number" id="extra_taxi_fee" name="Phí taxi thêm" value="{{ booking.get('Phí taxi thêm', 0) }}" placeholder="0">
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label><i class="fas fa-check-square me-1"></i>Các khoản thu thêm</label>
+                            <div class="checkbox-group">
+                                <div class="checkbox-item">
+                                    <input type="checkbox" id="has_taxi" name="Có taxi" value="1" 
+                                           {% if booking.get('Có taxi') %}checked{% endif %}>
+                                    <label for="has_taxi">🚕 Có taxi</label>
+                                </div>
+                                <div class="checkbox-item">
+                                    <input type="checkbox" id="no_taxi" name="Không có taxi" value="1" 
+                                           {% if booking.get('Không có taxi') %}checked{% endif %}>
+                                    <label for="no_taxi">🚫 Không có taxi</label>
+                                </div>
+                                <div class="checkbox-item">
+                                    <input type="checkbox" id="private_guest" name="Khách riêng" value="1" 
+                                           {% if booking.get('Khách riêng') %}checked{% endif %}>
+                                    <label for="private_guest">👥 Thu tiền khách riêng</label>
+                                </div>
+                                <div class="checkbox-item">
+                                    <input type="checkbox" id="extra_service" name="Dịch vụ thêm" value="1" 
+                                           {% if booking.get('Dịch vụ thêm') %}checked{% endif %}>
+                                    <label for="extra_service">⭐ Dịch vụ thêm</label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="payment_notes"><i class="fas fa-sticky-note me-1"></i>Ghi chú thu tiền</label>
+                            <textarea id="payment_notes" name="notes" rows="4" 
+                                      placeholder="Ghi chú về việc thu tiền, phương thức thanh toán, v.v...">{{ booking.get('Ghi chú thanh toán', '') }}</textarea>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="actions">
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-save me-2"></i>Lưu thay đổi
+                </button>
+                <a href="{{ url_for('view_bookings') }}" class="btn btn-secondary">
+                    <i class="fas fa-times me-2"></i>Hủy
+                </a>
+            </div>
+        </form>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.getElementById('editForm').addEventListener('submit', function(e) {
+            var checkIn = new Date(document.getElementById('check_in_date').value);
+            var checkOut = new Date(document.getElementById('check_out_date').value);
+            
+            if (checkOut <= checkIn) {
+                e.preventDefault();
+                alert('⚠️ Ngày trả phòng phải sau ngày nhận phòng!');
+                return false;
+            }
+            
+            // Show loading
+            const submitBtn = e.target.querySelector('button[type="submit"]');
+            const originalText = submitBtn.innerHTML;
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Đang lưu...';
+            submitBtn.disabled = true;
+            
+            // ✅ TRIGGER DASHBOARD REFRESH EVENT
+            const bookingId = "{{ booking.get('Số đặt phòng', '') }}";
+            console.log(`[EDIT_BOOKING] Triggering dashboard refresh for booking: ${bookingId}`);
+            
+            // Store update info for parent windows/tabs
+            if (window.opener) {
+                // Notify parent window (if opened as popup)
+                window.opener.postMessage({
+                    type: 'bookingUpdated',
+                    bookingId: bookingId,
+                    action: 'edit_booking'
+                }, '*');
+            }
+            
+            // Store in localStorage for cross-tab communication
+            localStorage.setItem('lastBookingUpdate', JSON.stringify({
+                bookingId: bookingId,
+                timestamp: Date.now(),
+                action: 'edit_booking'
+            }));
+            
+            // Dispatch custom event for same page
+            window.dispatchEvent(new CustomEvent('bookingUpdated', {
+                detail: { 
+                    bookingId: bookingId, 
+                    action: 'edit_booking',
+                    timestamp: Date.now()
+                }
+            }));
+        });
+
+        // Auto-save functionality (optional)
+        let autoSaveTimer;
+        document.querySelectorAll('input, select, textarea').forEach(element => {
+            element.addEventListener('input', function() {
+                clearTimeout(autoSaveTimer);
+                autoSaveTimer = setTimeout(() => {
+                    console.log('Auto-save triggered');
+                    // Implement auto-save here if needed
+                }, 2000);
+            });
+        });
+    </script>
+</body>
+</html> 
