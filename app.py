@@ -1020,8 +1020,15 @@ def process_pasted_image():
             booking = valid_bookings[0]
             print(f"📝 [SINGLE_BOOKING] Auto-fill mode for: {booking.get('guest_name')}")
             
-            # Check for duplicates
-            duplicate_check = check_duplicate_guests([booking])
+            # Check for duplicates - load current data first
+            from core.logic_postgresql import load_booking_data
+            current_df = load_booking_data()
+            duplicates = check_duplicate_guests(
+                current_df, 
+                booking.get('guest_name', ''), 
+                booking.get('checkin_date') or booking.get('check_in_date', '')
+            )
+            duplicate_check = {"has_duplicates": len(duplicates) > 0, "duplicates": duplicates}
             
             return jsonify({
                 "type": "single",
@@ -1033,8 +1040,20 @@ def process_pasted_image():
             # Multiple bookings - return for batch save
             print(f"👥 [MULTIPLE_BOOKINGS] Batch save mode for {len(valid_bookings)} bookings")
             
-            # Check for duplicates across all bookings
-            duplicate_check = check_duplicate_guests(valid_bookings)
+            # Check for duplicates across all bookings - load current data first
+            from core.logic_postgresql import load_booking_data
+            current_df = load_booking_data()
+            duplicate_results = []
+            for booking in valid_bookings:
+                duplicates = check_duplicate_guests(
+                    current_df,
+                    booking.get('guest_name', ''),
+                    booking.get('checkin_date') or booking.get('check_in_date', '')
+                )
+                if duplicates:
+                    duplicate_results.extend(duplicates)
+            
+            duplicate_check = {"has_duplicates": len(duplicate_results) > 0, "duplicates": duplicate_results}
             
             return jsonify({
                 "type": "multiple", 
