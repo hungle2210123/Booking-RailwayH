@@ -2,7 +2,28 @@
 {% block title %}Thêm Đặt phòng{% endblock %}
 
 {% block content %}
-<h1 class="mb-4"><i class="fas fa-plus-circle me-2"></i>Thêm Đặt phòng <small class="text-muted">Manual + Photo</small></h1>
+<h1 class="mb-4"><i class="fas fa-plus-circle me-2"></i>Thêm Đặt phòng <small class="text-muted">Manual + Photo + Bulk Import</small></h1>
+
+<!-- Tab Navigation -->
+<ul class="nav nav-tabs mb-4" id="addBookingTabs" role="tablist">
+    <li class="nav-item" role="presentation">
+        <button class="nav-link active" id="single-tab" data-bs-toggle="tab" data-bs-target="#single-booking" type="button" role="tab">
+            <i class="fas fa-user-plus me-2"></i>1 Khách
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="bulk-tab" data-bs-toggle="tab" data-bs-target="#bulk-import" type="button" role="tab">
+            <i class="fas fa-users me-2"></i>Nhiều Khách (Excel/CSV)
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="ai-tab" data-bs-toggle="tab" data-bs-target="#ai-photo" type="button" role="tab">
+            <i class="fas fa-camera me-2"></i>AI Photo
+        </button>
+    </li>
+</ul>
+
+<div class="tab-content" id="addBookingTabsContent">
 
 <!-- Duplicate Warning Modal -->
 {% if duplicate_warning %}
@@ -63,6 +84,9 @@
 </div>
 {% endif %}
 
+<!-- Tab 1: Single Guest Manual Entry -->
+<div class="tab-pane fade show active" id="single-booking" role="tabpanel">
+    
 <!-- Photo Upload Section -->
 <div class="card mb-4 border-primary">
     <div class="card-header bg-primary text-white" style="text-shadow: 1px 1px 2px rgba(0,0,0,0.5);">
@@ -172,9 +196,121 @@
 
     </div>
 
-    <button type="submit" class="btn btn-primary mt-4">Thêm Đặt phòng</button>
+    <button type="submit" class="btn btn-primary mt-4">
+        <i class="fas fa-plus me-2"></i>Thêm 1 Đặt phòng
+    </button>
     <a href="{{ url_for('view_bookings') }}" class="btn btn-secondary mt-4">Hủy</a>
 </form>
+
+</div> <!-- End Tab 1: Single Guest -->
+
+<!-- Tab 2: Bulk Import -->
+<div class="tab-pane fade" id="bulk-import" role="tabpanel">
+    <div class="card border-success">
+        <div class="card-header bg-success text-white">
+            <h5 class="mb-0"><i class="fas fa-users me-2"></i>Nhập Nhiều Khách từ Excel/CSV</h5>
+        </div>
+        <div class="card-body">
+            <div class="alert alert-info">
+                <h6><i class="fas fa-info-circle me-2"></i>Hướng dẫn:</h6>
+                <ol class="mb-0">
+                    <li>Chuẩn bị file Excel/CSV với các cột: Tên khách, Ngày đến, Ngày đi, Tổng thanh toán, Hoa hồng</li>
+                    <li>Click nút "Nhập Excel" để tải lên file</li>
+                    <li>Hệ thống sẽ tự động xử lý và thêm tất cả booking vào database</li>
+                </ol>
+            </div>
+            
+            <div class="text-center p-4">
+                <div class="mb-3">
+                    <i class="fas fa-file-excel fa-4x text-success mb-3"></i>
+                    <h4>Nhập dữ liệu hàng loạt</h4>
+                    <p class="text-muted">Sử dụng file csvtest.xlsx có sẵn hoặc tải lên file của bạn</p>
+                </div>
+                
+                <button type="button" class="btn btn-success btn-lg me-3" onclick="importCSVData()">
+                    <i class="fas fa-upload me-2"></i>Nhập từ csvtest.xlsx
+                </button>
+                
+                <button type="button" class="btn btn-outline-success btn-lg" onclick="uploadCustomFile()">
+                    <i class="fas fa-cloud-upload-alt me-2"></i>Tải file khác
+                </button>
+                
+                <input type="file" id="custom-excel-file" accept=".xlsx,.xls,.csv" style="display: none;">
+            </div>
+            
+            <!-- Import Status -->
+            <div id="import-status" class="mt-4" style="display: none;">
+                <div class="card">
+                    <div class="card-body">
+                        <h6><i class="fas fa-chart-line me-2"></i>Kết quả Import:</h6>
+                        <div id="import-results"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div> <!-- End Tab 2: Bulk Import -->
+
+<!-- Tab 3: AI Photo Processing -->
+<div class="tab-pane fade" id="ai-photo" role="tabpanel">
+    <div class="card border-info">
+        <div class="card-header bg-info text-white">
+            <h5 class="mb-0"><i class="fas fa-camera me-2"></i>Trích xuất từ Ảnh bằng AI</h5>
+        </div>
+        <div class="card-body">
+            <div class="alert alert-primary">
+                <h6><i class="fas fa-magic me-2"></i>AI sẽ tự động trích xuất:</h6>
+                <ul class="mb-0">
+                    <li>Tên khách hàng</li>
+                    <li>Mã booking</li>
+                    <li>Ngày check-in/check-out</li>
+                    <li>Số tiền và hoa hồng</li>
+                </ul>
+            </div>
+            
+            <div id="ai-photo-upload-area" class="border-2 border-dashed border-info rounded p-5 text-center" 
+                 style="cursor: pointer; background-color: #f0f8ff;">
+                <i class="fas fa-cloud-upload-alt fa-4x text-info mb-3"></i>
+                <h5>Dán ảnh (Ctrl+V) hoặc click để chọn</h5>
+                <p class="text-muted mb-0">AI sẽ tự động phân tích và tạo booking</p>
+                <input type="file" id="ai-photo-input" accept="image/*" style="display: none;">
+            </div>
+            
+            <div id="ai-processing" class="mt-4" style="display: none;">
+                <div class="alert alert-info">
+                    <div class="d-flex align-items-center">
+                        <div class="spinner-border spinner-border-sm text-info me-3"></div>
+                        <div>
+                            <strong>AI đang xử lý ảnh...</strong>
+                            <div class="small text-muted">Đang trích xuất thông tin booking</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div id="ai-results" class="mt-4" style="display: none;">
+                <div class="card">
+                    <div class="card-header">
+                        <h6 class="mb-0"><i class="fas fa-check me-2"></i>Thông tin đã trích xuất</h6>
+                    </div>
+                    <div class="card-body" id="extracted-data">
+                        <!-- AI results will be displayed here -->
+                    </div>
+                    <div class="card-footer">
+                        <button type="button" class="btn btn-primary" onclick="saveExtractedBooking()">
+                            <i class="fas fa-save me-2"></i>Lưu Booking này
+                        </button>
+                        <button type="button" class="btn btn-secondary" onclick="resetAIForm()">
+                            <i class="fas fa-redo me-2"></i>Thử lại
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div> <!-- End Tab 3: AI Photo -->
+
+</div> <!-- End Tab Content -->
 
 <script>
 // Photo processing functions
@@ -382,5 +518,209 @@ function clearForm() {
     // Focus on first input
     document.querySelector('input[name="Tên người đặt"]').focus();
 }
+
+// Bulk Import Functions
+function importCSVData() {
+    const btn = document.getElementById('csvImportBtn') || event.target;
+    const originalText = btn.innerHTML;
+    
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Đang nhập...';
+    
+    showImportStatus('Bắt đầu nhập dữ liệu từ csvtest.xlsx...', 'info');
+    
+    fetch('/api/comprehensive_import', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+        
+        if (data.success) {
+            showImportStatus(`✅ Import thành công! 
+                Đã thêm ${data.total_imported || 0} booking mới vào database.
+                Chi tiết: ${data.details || 'Dữ liệu đã được xử lý'}`, 'success');
+            
+            // Show detailed results
+            if (data.import_summary) {
+                document.getElementById('import-results').innerHTML = `
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6>📊 Thống kê:</h6>
+                            <ul>
+                                <li>Tổng bookings: ${data.import_summary.total_bookings || 0}</li>
+                                <li>Khách hàng: ${data.import_summary.total_customers || 0}</li>
+                                <li>Tổng doanh thu: ${data.import_summary.total_revenue || 0}đ</li>
+                            </ul>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>✅ Đã nhập:</h6>
+                            <ul>
+                                <li>Bookings: ${data.imported_bookings || 0}</li>
+                                <li>Templates: ${data.imported_templates || 0}</li>
+                                <li>Expenses: ${data.imported_expenses || 0}</li>
+                            </ul>
+                        </div>
+                    </div>
+                `;
+            }
+        } else {
+            showImportStatus(`❌ Import thất bại: ${data.message || 'Lỗi không xác định'}`, 'danger');
+        }
+    })
+    .catch(error => {
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+        showImportStatus(`❌ Lỗi kết nối: ${error.message}`, 'danger');
+    });
+}
+
+function uploadCustomFile() {
+    document.getElementById('custom-excel-file').click();
+}
+
+function showImportStatus(message, type) {
+    const statusDiv = document.getElementById('import-status');
+    const resultsDiv = document.getElementById('import-results');
+    
+    statusDiv.style.display = 'block';
+    resultsDiv.innerHTML = `<div class="alert alert-${type}">${message}</div>`;
+}
+
+// AI Photo Functions for Tab 3
+function setupAIPhotoTab() {
+    const aiUploadArea = document.getElementById('ai-photo-upload-area');
+    const aiPhotoInput = document.getElementById('ai-photo-input');
+    
+    if (aiUploadArea && aiPhotoInput) {
+        aiUploadArea.onclick = () => aiPhotoInput.click();
+        aiPhotoInput.onchange = function(e) {
+            if (e.target.files[0]) {
+                const reader = new FileReader();
+                reader.onload = e => processAIPhoto(e.target.result);
+                reader.readAsDataURL(e.target.files[0]);
+            }
+        };
+    }
+}
+
+function processAIPhoto(imageData) {
+    document.getElementById('ai-processing').style.display = 'block';
+    document.getElementById('ai-results').style.display = 'none';
+    
+    fetch('/api/process_pasted_image', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            image: imageData
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        document.getElementById('ai-processing').style.display = 'none';
+        
+        if (data.success) {
+            const extractedData = data.extracted_data;
+            document.getElementById('extracted-data').innerHTML = `
+                <div class="row">
+                    <div class="col-md-6">
+                        <strong>Tên khách:</strong> ${extractedData.guest_name || 'N/A'}<br>
+                        <strong>Booking ID:</strong> ${extractedData.booking_id || 'N/A'}<br>
+                        <strong>Email:</strong> ${extractedData.email || 'N/A'}<br>
+                        <strong>Điện thoại:</strong> ${extractedData.phone || 'N/A'}
+                    </div>
+                    <div class="col-md-6">
+                        <strong>Check-in:</strong> ${extractedData.checkin_date || 'N/A'}<br>
+                        <strong>Check-out:</strong> ${extractedData.checkout_date || 'N/A'}<br>
+                        <strong>Số tiền:</strong> ${extractedData.room_amount || 0}đ<br>
+                        <strong>Hoa hồng:</strong> ${extractedData.commission || 0}đ
+                    </div>
+                </div>
+            `;
+            
+            // Store extracted data for saving
+            window.extractedBookingData = extractedData;
+            document.getElementById('ai-results').style.display = 'block';
+        } else {
+            alert(`❌ Lỗi xử lý ảnh: ${data.message}`);
+        }
+    })
+    .catch(error => {
+        document.getElementById('ai-processing').style.display = 'none';
+        alert(`❌ Lỗi kết nối: ${error.message}`);
+    });
+}
+
+function saveExtractedBooking() {
+    if (!window.extractedBookingData) {
+        alert('Không có dữ liệu để lưu');
+        return;
+    }
+    
+    const data = window.extractedBookingData;
+    
+    // Create form data
+    const formData = new FormData();
+    formData.append('Tên người đặt', data.guest_name || '');
+    formData.append('Booking ID', data.booking_id || '');
+    formData.append('Email', data.email || '');
+    formData.append('Số điện thoại', data.phone || '');
+    formData.append('Ngày đến', data.checkin_date || '');
+    formData.append('Ngày đi', data.checkout_date || '');
+    formData.append('Tổng thanh toán', data.room_amount || 0);
+    formData.append('Hoa hồng', data.commission || 0);
+    formData.append('Trạng thái thanh toán', 'Chưa thanh toán');
+    formData.append('Thành viên Genius', 'Không');
+    
+    fetch('/add_booking', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => {
+        if (response.redirected) {
+            window.location.href = response.url;
+        } else {
+            return response.text();
+        }
+    })
+    .then(html => {
+        if (html) {
+            // If there's HTML content, it means there was an error or duplicate warning
+            alert('✅ Booking đã được tạo thành công!');
+            window.location.href = '/bookings';
+        }
+    })
+    .catch(error => {
+        alert(`❌ Lỗi lưu booking: ${error.message}`);
+    });
+}
+
+function resetAIForm() {
+    document.getElementById('ai-results').style.display = 'none';
+    document.getElementById('ai-processing').style.display = 'none';
+    document.getElementById('ai-photo-input').value = '';
+    window.extractedBookingData = null;
+}
+
+// Setup when document loads
+document.addEventListener('DOMContentLoaded', function() {
+    setupAIPhotoTab();
+    
+    // Setup custom file upload
+    const customFileInput = document.getElementById('custom-excel-file');
+    if (customFileInput) {
+        customFileInput.onchange = function(e) {
+            if (e.target.files[0]) {
+                alert('Tính năng upload file tùy chỉnh sẽ được phát triển trong tương lai.\n\nHiện tại vui lòng sử dụng "Nhập từ csvtest.xlsx"');
+            }
+        };
+    }
+});
 </script>
 {% endblock %} 
