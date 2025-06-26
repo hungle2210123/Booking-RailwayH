@@ -692,12 +692,12 @@ def expenses_api():
             }
             
             if add_expense_to_database(expense_data):
-                return jsonify({'status': 'success', 'message': 'Expense added successfully'})
+                return jsonify({'success': True, 'status': 'success', 'message': 'Expense added successfully'})
             else:
-                return jsonify({'status': 'error', 'message': 'Failed to add expense'}), 400
+                return jsonify({'success': False, 'status': 'error', 'message': 'Failed to add expense'}), 400
         
         except Exception as e:
-            return jsonify({'status': 'error', 'message': str(e)}), 500
+            return jsonify({'success': False, 'status': 'error', 'message': str(e)}), 500
 
 @app.route('/calendar/')
 @app.route('/calendar/<int:year>/<int:month>')
