@@ -15,7 +15,7 @@ from sqlalchemy import text
 
 # --- PostgreSQL-Only Configuration ---
 # Import pure PostgreSQL business logic modules
-from core.logic import (
+from core.logic_postgresql import (
     load_booking_data, create_demo_data,
     get_daily_activity, get_overall_calendar_day_info,
     extract_booking_info_from_image_content,
@@ -29,7 +29,7 @@ from core.logic import (
 from core.dashboard_routes import process_dashboard_data, safe_to_dict_records
 
 # Import pure PostgreSQL database service
-from core.database_service import init_database_service, get_database_service, DatabaseConfig
+from core.database_service_postgresql import init_database_service, get_database_service, DatabaseConfig
 
 # Configuration
 BASE_DIR = Path(__file__).resolve().parent
@@ -230,6 +230,10 @@ def dashboard():
     df, _ = load_data(force_fresh=force_fresh)
     sort_by = request.args.get('sort_by', 'Tháng')
     sort_order = request.args.get('sort_order', 'desc')
+    
+    print(f"📅 [DASHBOARD_MAIN] Date filter: {start_date.strftime('%Y-%m-%d')} to {end_date.strftime('%Y-%m-%d')}")
+    print(f"📅 [DASHBOARD_MAIN] Total bookings loaded: {len(df)}")
+    
     dashboard_data = prepare_dashboard_data(df, start_date, end_date, sort_by, sort_order)
 
     # Process all dashboard data
@@ -653,13 +657,22 @@ def edit_booking(booking_id):
                 flash('Check-out date is required', 'error')
                 return render_template('edit_booking.html', booking=booking)
             
+            # Helper function to safely convert to float, treating empty strings as 0
+            def safe_float(value, default=0):
+                if value is None or value == '' or value == 'None':
+                    return default
+                try:
+                    return float(value)
+                except (ValueError, TypeError):
+                    return default
+            
             update_data = {
                 'guest_name': request.form.get('guest_name'),
                 'checkin_date': datetime.strptime(checkin_date_str, '%Y-%m-%d').date(),
                 'checkout_date': datetime.strptime(checkout_date_str, '%Y-%m-%d').date(),
-                'room_amount': float(request.form.get('room_amount', 0)),
-                'commission': float(request.form.get('commission', 0)),
-                'taxi_amount': float(request.form.get('taxi_amount', 0)),
+                'room_amount': safe_float(request.form.get('room_amount'), 0),
+                'commission': safe_float(request.form.get('commission'), 0),
+                'taxi_amount': safe_float(request.form.get('taxi_amount'), 0),
                 'collector': request.form.get('collector', ''),
                 'notes': request.form.get('notes', '')
             }
@@ -769,13 +782,389 @@ def expenses_api():
                 'collector': request.json.get('collector', '')
             }
             
-            if add_expense_to_database(expense_data):
-                return jsonify({'success': True, 'status': 'success', 'message': 'Expense added successfully'})
+            expense_id = add_expense_to_database(expense_data)
+            if expense_id:
+                return jsonify({
+                    'success': True, 
+                    'status': 'success', 
+                    'message': 'Expense added successfully',
+                    'expense_id': expense_id  # Return expense_id for auto-categorization
+                })
             else:
                 return jsonify({'success': False, 'status': 'error', 'message': 'Failed to add expense'}), 400
         
         except Exception as e:
             return jsonify({'success': False, 'status': 'error', 'message': str(e)}), 500
+
+@app.route('/api/expenses/<int:expense_id>', methods=['DELETE', 'PUT'])
+def expense_operations(expense_id):
+    """Delete or update specific expense"""
+    if request.method == 'DELETE':
+        try:
+            print(f"🗑️ [DELETE_EXPENSE] Attempting to delete expense ID: {expense_id}")
+            
+            # Use database service instead of direct model access
+            from core.models import db, Expense, ExpenseCategory
+            
+            # Find the expense in the database
+            expense = db.session.query(Expense).filter_by(expense_id=expense_id).first()
+            
+            if not expense:
+                print(f"❌ [DELETE_EXPENSE] Expense {expense_id} not found")
+                return jsonify({'success': False, 'status': 'error', 'message': 'Expense not found'}), 404
+            
+            # CRITICAL FIX: Delete category first to avoid foreign key constraint violations
+            print(f"🗑️ [DELETE_EXPENSE] Checking for existing categorization...")
+            existing_category = ExpenseCategory.query.filter_by(expense_id=expense_id).first()
+            if existing_category:
+                print(f"🗑️ [DELETE_EXPENSE] Found category {existing_category.category}, deleting...")
+                db.session.delete(existing_category)
+            
+            # Then delete the expense
+            print(f"🗑️ [DELETE_EXPENSE] Deleting expense {expense_id}...")
+            db.session.delete(expense)
+            db.session.commit()
+            
+            print(f"✅ [DELETE_EXPENSE] Successfully deleted expense {expense_id} and its categorization")
+            return jsonify({'success': True, 'status': 'success', 'message': 'Expense deleted successfully'})
+            
+        except Exception as e:
+            print(f"❌ [DELETE_EXPENSE] Error deleting expense {expense_id}: {e}")
+            import traceback
+            traceback.print_exc()
+            
+            # Try to rollback
+            try:
+                from core.models import db
+                db.session.rollback()
+            except:
+                pass
+                
+            return jsonify({'success': False, 'status': 'error', 'message': f'Failed to delete expense: {str(e)}'}), 500
+    
+    elif request.method == 'PUT':
+        try:
+            print(f"✏️ [UPDATE_EXPENSE] Attempting to update expense ID: {expense_id}")
+            
+            # Import here to avoid circular imports
+            from core.models import db, Expense
+            
+            # Find the expense
+            expense = db.session.query(Expense).filter_by(expense_id=expense_id).first()
+            if not expense:
+                print(f"❌ [UPDATE_EXPENSE] Expense {expense_id} not found")
+                return jsonify({'success': False, 'status': 'error', 'message': 'Expense not found'}), 404
+            
+            # Get update data
+            data = request.get_json()
+            if not data:
+                return jsonify({'success': False, 'status': 'error', 'message': 'No update data provided'}), 400
+            
+            # Update fields if provided
+            if 'date' in data:
+                expense.expense_date = datetime.strptime(data['date'], '%Y-%m-%d').date()
+            if 'amount' in data:
+                expense.amount = float(data['amount'])
+            if 'description' in data:
+                expense.description = data['description']
+            if 'category' in data:
+                expense.category = data['category']
+            if 'collector' in data:
+                expense.collector = data['collector']
+            
+            # Save changes
+            db.session.commit()
+            
+            print(f"✅ [UPDATE_EXPENSE] Successfully updated expense {expense_id}")
+            return jsonify({'success': True, 'status': 'success', 'message': 'Expense updated successfully'})
+            
+        except Exception as e:
+            db.session.rollback()
+            print(f"❌ [UPDATE_EXPENSE] Error updating expense {expense_id}: {e}")
+            return jsonify({'success': False, 'status': 'error', 'message': f'Failed to update expense: {str(e)}'}), 500
+
+@app.route('/api/fix_expense_descriptions', methods=['POST'])
+def fix_expense_descriptions():
+    """Fix expense descriptions that show dates instead of content"""
+    try:
+        print("🔧 [FIX_DESCRIPTIONS] Starting expense description fix...")
+        
+        # Correct descriptions mapping based on your data
+        CORRECT_DESCRIPTIONS = {
+            118: "ăn đêm", 117: "mua dầu ăn", 116: "thay hộp cửa cuốn", 115: "Hưng mượn",
+            114: "mua trứng", 113: "an cơm trưa", 112: "sửa xe", 111: "đổ xăng",
+            110: "mua cháo", 109: "Ăn bánh xèo", 108: "mua sữa tắm", 107: "thanh toán shopeee",
+            106: "thanh toán visa", 105: "Ăn phở rán", 104: "in tờ hướng dẫn", 103: "mua chậu giặt cây lau",
+            102: "ăn đêm", 101: "Đổ xăng", 100: "Ăn bún riêu", 99: "Mua dầu gội + sáp thơm",
+            98: "thanh toán booking ta hien Hưng", 97: "mua đèn ( 3 bóng , 1 ray )", 96: "mua tương ớt",
+            95: "trả tiền xe", 94: "Ăn cơm", 93: "Mua tủ quần áo", 92: "Gửi hàng cho Hưng",
+            91: "ăn nướng", 90: "Ăn vặt", 89: "Mua 1 chậu ngâm tẩy", 88: "Mua 2 chai xịt phòng"
+        }
+        
+        # Import models
+        from core.models import db, Expense
+        
+        fixed_count = 0
+        not_found_count = 0
+        
+        for expense_id, correct_description in CORRECT_DESCRIPTIONS.items():
+            # Find the expense
+            expense = Expense.query.filter_by(expense_id=expense_id).first()
+            
+            if expense:
+                old_desc = expense.description
+                expense.description = correct_description
+                print(f"✅ Fixed ID {expense_id}: '{old_desc}' → '{correct_description}'")
+                fixed_count += 1
+            else:
+                print(f"⚠️ Expense ID {expense_id} not found in database")
+                not_found_count += 1
+        
+        # Commit all changes
+        db.session.commit()
+        
+        message = f"Fixed {fixed_count} expense descriptions successfully!"
+        if not_found_count > 0:
+            message += f" ({not_found_count} IDs not found)"
+            
+        print(f"🎉 [FIX_DESCRIPTIONS] {message}")
+        
+        return jsonify({
+            'success': True,
+            'message': message,
+            'fixed_count': fixed_count,
+            'not_found_count': not_found_count
+        })
+        
+    except Exception as e:
+        print(f"❌ [FIX_DESCRIPTIONS] Error: {e}")
+        # Rollback on error
+        try:
+            from core.models import db
+            db.session.rollback()
+        except:
+            pass
+            
+        return jsonify({
+            'success': False,
+            'message': f'Error fixing descriptions: {str(e)}'
+        }), 500
+
+@app.route('/api/expense_categories', methods=['GET', 'POST'])
+def expense_categories_api():
+    """Save and load expense categorizations (Personal/Work)"""
+    try:
+        from core.models import db, ExpenseCategory
+        
+        if request.method == 'GET':
+            # Load all categorizations
+            categories = ExpenseCategory.query.all()
+            result = {}
+            for cat in categories:
+                result[str(cat.expense_id)] = cat.category
+            
+            print(f"📂 [LOAD_CATEGORIES] Loaded {len(result)} categorizations")
+            return jsonify({
+                'success': True,
+                'categories': result
+            })
+            
+        elif request.method == 'POST':
+            # Save categorizations
+            data = request.get_json()
+            expense_ids = data.get('expense_ids', [])
+            category = data.get('category', '')
+            
+            if not expense_ids or category not in ['personal', 'work']:
+                return jsonify({
+                    'success': False,
+                    'message': 'Invalid expense IDs or category'
+                }), 400
+            
+            saved_count = 0
+            for expense_id in expense_ids:
+                # Check if categorization already exists
+                existing = ExpenseCategory.query.filter_by(expense_id=expense_id).first()
+                
+                if existing:
+                    # Update existing
+                    existing.category = category
+                    from sqlalchemy.sql import func
+                    existing.updated_at = func.current_timestamp()
+                else:
+                    # Create new
+                    new_cat = ExpenseCategory(
+                        expense_id=expense_id,
+                        category=category
+                    )
+                    db.session.add(new_cat)
+                
+                saved_count += 1
+                print(f"💾 [SAVE_CATEGORY] Expense {expense_id} → {category}")
+            
+            db.session.commit()
+            
+            return jsonify({
+                'success': True,
+                'message': f'Saved {saved_count} categorizations successfully!',
+                'saved_count': saved_count
+            })
+            
+    except Exception as e:
+        print(f"❌ [EXPENSE_CATEGORIES] Error: {e}")
+        db.session.rollback() 
+        return jsonify({
+            'success': False,
+            'message': f'Error with categorizations: {str(e)}'
+        }), 500
+
+@app.route('/api/create_categories_table', methods=['POST'])
+def create_categories_table():
+    """Create expense_categories table if it doesn't exist"""
+    try:
+        from core.models import db, ExpenseCategory
+        
+        # Create the table
+        db.create_all()
+        
+        print("✅ [CREATE_TABLE] expense_categories table created successfully")
+        return jsonify({
+            'success': True,
+            'message': 'Categories table created successfully!'
+        })
+        
+    except Exception as e:
+        print(f"❌ [CREATE_TABLE] Error: {e}")
+        return jsonify({
+            'success': False,
+            'message': f'Error creating table: {str(e)}'
+        }), 500
+
+@app.route('/bookings/save_extracted', methods=['POST'])
+def save_extracted_bookings():
+    """Save multiple extracted bookings from AI photo processing"""
+    try:
+        print("🚀 [SAVE_EXTRACTED] API called - saving multiple bookings")
+        
+        # Get extracted bookings from form data
+        extracted_json = request.form.get('extracted_json')
+        if not extracted_json:
+            print("❌ [SAVE_EXTRACTED] No extracted_json provided")
+            flash('Không có dữ liệu booking để lưu', 'error')
+            return redirect(url_for('add_booking'))
+        
+        try:
+            bookings_data = json.loads(extracted_json)
+            print(f"📊 [SAVE_EXTRACTED] Received {len(bookings_data)} bookings to save")
+        except json.JSONDecodeError as e:
+            print(f"❌ [SAVE_EXTRACTED] JSON decode error: {e}")
+            flash('Dữ liệu booking không hợp lệ', 'error')
+            return redirect(url_for('add_booking'))
+        
+        if not isinstance(bookings_data, list) or len(bookings_data) == 0:
+            print("❌ [SAVE_EXTRACTED] Invalid bookings data format")
+            flash('Dữ liệu booking không hợp lệ', 'error')
+            return redirect(url_for('add_booking'))
+        
+        # Process and save each booking
+        saved_count = 0
+        failed_bookings = []
+        existing_bookings = []  # Track bookings that already exist
+        
+        for i, booking_data in enumerate(bookings_data):
+            try:
+                guest_name = booking_data.get('guest_name', '')
+                booking_id = booking_data.get('booking_id', '')
+                
+                print(f"💾 [SAVE_EXTRACTED] Processing booking {i+1}: {guest_name}")
+                
+                # Check if booking ID already exists
+                existing_booking = load_booking_data()
+                if not existing_booking.empty and booking_id and booking_id in existing_booking['Số đặt phòng'].values:
+                    print(f"ℹ️ [SAVE_EXTRACTED] Booking ID {booking_id} already exists - skipping (not an error)")
+                    existing_bookings.append(f"Booking {i+1}: {guest_name} - Already exists in system ({booking_id})")
+                    continue
+                
+                # Generate unique booking ID if empty or duplicate
+                if not booking_id:
+                    booking_id = f"AI_{datetime.now().strftime('%Y%m%d%H%M%S')}{i:02d}"
+                    print(f"🔄 [SAVE_EXTRACTED] Generated new booking ID: {booking_id}")
+                
+                # Generate unique email to avoid constraint violations
+                unique_email = f"guest{booking_id.lower()}@ai-extracted.local"
+                print(f"📧 [SAVE_EXTRACTED] Generated unique email: {unique_email}")
+                
+                # Convert to expected format for add_new_booking function
+                processed_booking = {
+                    'guest_name': guest_name,
+                    'booking_id': booking_id,
+                    'email': unique_email,  # ✅ Always provide unique email
+                    'phone': '',  # Empty phone is safe
+                    'nationality': '',
+                    'passport_number': '',
+                    'checkin_date': datetime.strptime(booking_data.get('checkin_date'), '%Y-%m-%d').date() if booking_data.get('checkin_date') else None,
+                    'checkout_date': datetime.strptime(booking_data.get('checkout_date'), '%Y-%m-%d').date() if booking_data.get('checkout_date') else None,
+                    'room_amount': float(booking_data.get('room_amount', 0)),
+                    'commission': float(booking_data.get('commission', 0)),
+                    'taxi_amount': float(booking_data.get('taxi_amount', 0)),
+                    'collector': '',  # Will be set when payment is collected
+                    'notes': f"Imported via AI photo processing on {datetime.now().strftime('%Y-%m-%d %H:%M')}"
+                }
+                
+                # Validate required fields
+                if not processed_booking['guest_name']:
+                    raise ValueError("Missing guest name")
+                if not processed_booking['checkin_date']:
+                    raise ValueError("Missing check-in date")
+                if not processed_booking['checkout_date']:
+                    raise ValueError("Missing check-out date")
+                if processed_booking['room_amount'] <= 0:
+                    raise ValueError("Invalid room amount")
+                
+                # Save booking using existing function
+                if add_new_booking(processed_booking):
+                    saved_count += 1
+                    print(f"✅ [SAVE_EXTRACTED] Saved booking {i+1}: {processed_booking['guest_name']}")
+                else:
+                    failed_bookings.append(f"Booking {i+1}: {booking_data.get('guest_name', 'Unknown')} - Database save failed")
+                    
+            except Exception as booking_error:
+                print(f"❌ [SAVE_EXTRACTED] Error saving booking {i+1}: {booking_error}")
+                import traceback
+                traceback.print_exc()
+                failed_bookings.append(f"Booking {i+1}: {booking_data.get('guest_name', 'Unknown')} - {str(booking_error)}")
+        
+        # Prepare result message
+        if saved_count > 0:
+            success_msg = f"✅ Đã lưu thành công {saved_count} booking"
+            if existing_bookings or failed_bookings:
+                total_skipped = len(existing_bookings) + len(failed_bookings)
+                success_msg += f" (bỏ qua {total_skipped} booking)"
+            flash(success_msg, 'success')
+        
+        # Show existing bookings as info (not errors)
+        if existing_bookings:
+            for existing in existing_bookings:
+                flash(f"ℹ️ {existing}", 'info')
+        
+        # Show actual errors
+        if failed_bookings:
+            for error in failed_bookings:
+                flash(f"❌ {error}", 'error')
+        
+        # If nothing was saved and no existing bookings
+        if saved_count == 0 and len(existing_bookings) == 0:
+            flash('❌ Không thể lưu booking nào. Vui lòng kiểm tra dữ liệu và thử lại.', 'error')
+        
+        print(f"🎯 [SAVE_EXTRACTED] Complete: {saved_count} saved, {len(existing_bookings)} existing, {len(failed_bookings)} failed")
+        return redirect(url_for('view_bookings'))
+        
+    except Exception as e:
+        print(f"❌ [SAVE_EXTRACTED] Fatal error: {e}")
+        import traceback
+        traceback.print_exc()
+        flash(f'❌ Lỗi hệ thống khi lưu booking: {str(e)}', 'error')
+        return redirect(url_for('add_booking'))
 
 @app.route('/calendar/')
 @app.route('/calendar/<int:year>/<int:month>')
@@ -919,6 +1308,149 @@ def calendar_details(date_str):
         flash(f'Error loading calendar details: {str(e)}', 'error')
         return redirect(url_for('calendar_view'))
 
+# Photo Processing Endpoint - Enhanced with Multiple Booking Support
+@app.route('/api/check_existing_bookings', methods=['POST'])
+def check_existing_bookings():
+    """Check which bookings already exist in the system"""
+    try:
+        data = request.get_json()
+        bookings_to_check = data.get('bookings', [])
+        
+        existing_booking_data = load_booking_data()
+        existing_ids = set()
+        if not existing_booking_data.empty and 'Số đặt phòng' in existing_booking_data.columns:
+            existing_ids = set(existing_booking_data['Số đặt phòng'].dropna().astype(str))
+        
+        # Check each booking
+        results = []
+        for i, booking in enumerate(bookings_to_check):
+            booking_id = str(booking.get('booking_id', '')).strip()
+            guest_name = booking.get('guest_name', '')
+            
+            is_existing = booking_id in existing_ids if booking_id else False
+            
+            results.append({
+                'index': i,
+                'guest_name': guest_name,
+                'booking_id': booking_id,
+                'exists': is_existing,
+                'status': 'existing' if is_existing else 'new'
+            })
+        
+        return jsonify({
+            'success': True,
+            'results': results,
+            'total_existing': sum(1 for r in results if r['exists'])
+        })
+        
+    except Exception as e:
+        print(f"❌ [CHECK_EXISTING] Error: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/process_pasted_image', methods=['POST'])
+def process_pasted_image():
+    """Enhanced photo processing with smart single/multiple booking detection"""
+    try:
+        # Configure Gemini API
+        GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
+        if not GOOGLE_API_KEY:
+            return jsonify({'error': 'Google AI API not configured'}), 400
+        
+        # Get image data from request - handle both file upload and JSON base64
+        image_data = None
+        
+        # Method 1: File upload (multipart/form-data)
+        if request.files.get('image'):
+            image_data = request.files.get('image').read()
+            
+        # Method 2: JSON with base64 data (application/json)  
+        elif request.is_json and request.json.get('image_b64'):
+            import base64
+            try:
+                # Remove data URL prefix if present (data:image/png;base64,)
+                base64_data = request.json.get('image_b64')
+                if ',' in base64_data:
+                    base64_data = base64_data.split(',')[1]
+                
+                image_data = base64.b64decode(base64_data)
+                print(f"✅ Decoded base64 image, size: {len(image_data)} bytes")
+                
+            except Exception as decode_error:
+                print(f"❌ Base64 decode error: {decode_error}")
+                return jsonify({'error': f'Invalid base64 image data: {str(decode_error)}'}), 400
+        
+        if not image_data:
+            return jsonify({'error': 'No image provided (expected file upload or base64 JSON)'}), 400
+        
+        print("🔍 [PHOTO_PROCESSING] Starting AI image analysis...")
+        
+        # Extract booking info using Gemini
+        booking_info = extract_booking_info_from_image_content(image_data, GOOGLE_API_KEY)
+        
+        # Check if extraction was successful
+        if 'error' in booking_info:
+            return jsonify(booking_info), 400
+        
+        print(f"✅ Booking info extracted successfully: {booking_info}")
+        print(f"🤖 [AI_RESPONSE] Raw data: {booking_info}")
+        
+        # Handle new format from AI with type detection
+        if 'type' in booking_info:
+            # New format from enhanced AI prompt
+            if booking_info['type'] == 'single':
+                # Single booking detected
+                booking = booking_info['booking']
+                
+                # Check for duplicates
+                df = load_booking_data()
+                duplicates = check_duplicate_guests(df, booking.get('guest_name', ''), booking.get('checkin_date', ''))
+                duplicate_check = {"has_duplicates": len(duplicates) > 0, "duplicates": duplicates}
+                
+                return jsonify({
+                    'type': 'single',
+                    'booking': booking,
+                    'duplicate_check': duplicate_check,
+                    'message': f"Đã nhận diện 1 booking: {booking.get('guest_name', 'Unknown')}"
+                })
+                
+            elif booking_info['type'] == 'multiple':
+                # Multiple bookings detected
+                bookings = booking_info.get('bookings', [])
+                
+                # Check for duplicates across all bookings
+                df = load_booking_data()
+                all_duplicates = []
+                for booking in bookings:
+                    duplicates = check_duplicate_guests(df, booking.get('guest_name', ''), booking.get('checkin_date', ''))
+                    all_duplicates.extend(duplicates)
+                
+                duplicate_check = {"has_duplicates": len(all_duplicates) > 0, "duplicates": all_duplicates}
+                
+                return jsonify({
+                    'type': 'multiple',
+                    'bookings': bookings,
+                    'count': len(bookings),
+                    'duplicate_check': duplicate_check,
+                    'message': f"Đã nhận diện {len(bookings)} booking từ ảnh"
+                })
+        
+        # Legacy format fallback (single booking without type)
+        df = load_booking_data()
+        duplicates = check_duplicate_guests(df, booking_info.get('guest_name', ''), booking_info.get('checkin_date', ''))
+        duplicate_check = {"has_duplicates": len(duplicates) > 0, "duplicates": duplicates}
+        
+        return jsonify({
+            'success': True,
+            'bookings': [booking_info],  # Legacy format
+            'duplicate_check': duplicate_check
+        })
+    
+    except Exception as e:
+        print(f"❌ Photo processing error: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
+
 # Customer Care Management - DISABLED
 # @app.route('/customer_care')
 # def customer_care():
@@ -971,104 +1503,6 @@ def ai_assistant():
     """AI Assistant interface"""
     return render_template('ai_assistant.html')
 
-@app.route('/api/process_pasted_image', methods=['POST'])
-def process_pasted_image():
-    """Enhanced photo processing with smart single/multiple booking detection"""
-    data = request.get_json()
-    if not data or 'image_b64' not in data:
-        return jsonify({"error": "Yêu cầu không chứa dữ liệu ảnh."}), 400
-    
-    try:
-        print("🔍 [PHOTO_PROCESSING] Starting AI image analysis...")
-        
-        if not GOOGLE_API_KEY:
-            return jsonify({'error': 'Google AI API not configured'}), 400
-        
-        # Decode image
-        image_header, image_b64_data = data['image_b64'].split(',', 1)
-        image_bytes = base64.b64decode(image_b64_data)
-        
-        # Extract booking data using AI
-        extracted_data = extract_booking_info_from_image_content(image_bytes, GOOGLE_API_KEY)
-        print(f"🤖 [AI_RESPONSE] Raw data: {extracted_data}")
-        
-        # Handle different AI response formats
-        bookings = []
-        if isinstance(extracted_data, dict):
-            if extracted_data.get('error'):
-                return jsonify({"error": extracted_data['error']})
-            elif extracted_data.get('guest_name'):
-                # Single booking object
-                bookings = [extracted_data]
-            else:
-                return jsonify({"error": "AI không thể nhận diện thông tin booking từ ảnh này"})
-        elif isinstance(extracted_data, list):
-            bookings = extracted_data
-        else:
-            return jsonify({"error": "Định dạng dữ liệu AI không hợp lệ"})
-        
-        # Filter out bookings with errors
-        valid_bookings = [b for b in bookings if not b.get('error') and b.get('guest_name')]
-        print(f"✅ [VALIDATION] Found {len(valid_bookings)} valid booking(s)")
-        
-        if not valid_bookings:
-            return jsonify({"error": "Không tìm thấy thông tin booking hợp lệ trong ảnh"})
-        
-        # Smart response based on number of bookings
-        if len(valid_bookings) == 1:
-            # Single booking - return for form auto-fill
-            booking = valid_bookings[0]
-            print(f"📝 [SINGLE_BOOKING] Auto-fill mode for: {booking.get('guest_name')}")
-            
-            # Check for duplicates - load current data first
-            from core.logic_postgresql import load_booking_data
-            current_df = load_booking_data()
-            duplicates = check_duplicate_guests(
-                current_df, 
-                booking.get('guest_name', ''), 
-                booking.get('checkin_date') or booking.get('check_in_date', '')
-            )
-            duplicate_check = {"has_duplicates": len(duplicates) > 0, "duplicates": duplicates}
-            
-            return jsonify({
-                "type": "single",
-                "booking": booking,
-                "duplicate_check": duplicate_check,
-                "message": f"Đã nhận diện 1 booking: {booking.get('guest_name')}"
-            })
-        else:
-            # Multiple bookings - return for batch save
-            print(f"👥 [MULTIPLE_BOOKINGS] Batch save mode for {len(valid_bookings)} bookings")
-            
-            # Check for duplicates across all bookings - load current data first
-            from core.logic_postgresql import load_booking_data
-            current_df = load_booking_data()
-            duplicate_results = []
-            for booking in valid_bookings:
-                duplicates = check_duplicate_guests(
-                    current_df,
-                    booking.get('guest_name', ''),
-                    booking.get('checkin_date') or booking.get('check_in_date', '')
-                )
-                if duplicates:
-                    duplicate_results.extend(duplicates)
-            
-            duplicate_check = {"has_duplicates": len(duplicate_results) > 0, "duplicates": duplicate_results}
-            
-            return jsonify({
-                "type": "multiple", 
-                "bookings": valid_bookings,
-                "count": len(valid_bookings),
-                "duplicate_check": duplicate_check,
-                "message": f"Đã nhận diện {len(valid_bookings)} booking từ ảnh"
-            })
-            
-    except ValueError as ve:
-        print(f"❌ [VALIDATION_ERROR] {ve}")
-        return jsonify({"error": f"Dữ liệu ảnh không hợp lệ: {str(ve)}"}), 400
-    except Exception as e:
-        print(f"❌ [SERVER_ERROR] {e}")
-        return jsonify({"error": f"Lỗi xử lý phía server: {str(e)}"}), 500
 
 @app.route('/api/quick_notes', methods=['GET', 'POST'])
 def quick_notes():
@@ -1084,14 +1518,25 @@ def quick_notes():
         elif request.method == 'POST':
             # Create new quick note
             data = request.get_json()
+            print(f"📝 [CREATE_QUICK_NOTE] Creating note: {data}")
+            
+            # Validate required fields
+            if not data.get('content'):
+                return jsonify({'error': 'Content is required'}), 400
+            
             note = db_service.create_quick_note(
-                note_type=data.get('note_type', 'general'),
+                note_type=data.get('type', data.get('note_type', 'general')),  # Handle both 'type' and 'note_type'
                 content=data.get('content', ''),
                 guest_name=data.get('guest_name'),
                 booking_id=data.get('booking_id'),
                 priority=data.get('priority', 'normal')
             )
-            return jsonify(note.to_dict()), 201
+            print(f"✅ [CREATE_QUICK_NOTE] Note created successfully: {note.note_id}")
+            return jsonify({
+                'success': True,
+                'message': 'Note created successfully',
+                'note': note.to_dict()
+            }), 201
     
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -1110,19 +1555,52 @@ def quick_note_detail(note_id):
         
         elif request.method == 'PUT':
             data = request.get_json()
+            print(f"✏️ [UPDATE_QUICK_NOTE] Updating note {note_id}: {data}")
             note = db_service.update_quick_note(note_id, data)
             if not note:
-                return jsonify({'error': 'Note not found'}), 404
-            return jsonify(note.to_dict())
+                return jsonify({'success': False, 'error': 'Note not found'}), 404
+            print(f"✅ [UPDATE_QUICK_NOTE] Note {note_id} updated successfully")
+            return jsonify({
+                'success': True,
+                'message': 'Note updated successfully',
+                'note': note.to_dict()
+            })
         
         elif request.method == 'DELETE':
-            if db_service.delete_quick_note(note_id):
-                return jsonify({'message': 'Note deleted successfully'})
+            print(f"🗑️ [DELETE_QUICK_NOTE] Attempting to delete note ID: {note_id}")
+            
+            # ✅ ENHANCED: Check if note exists first for better debugging
+            existing_note = db_service.get_quick_note(note_id)
+            if not existing_note:
+                print(f"❌ [DELETE_QUICK_NOTE] Note {note_id} does not exist in database")
+                
+                # List recent notes for debugging
+                all_notes = db_service.get_quick_notes()
+                print(f"🔍 [DELETE_DEBUG] Found {len(all_notes)} total notes in database")
+                if all_notes:
+                    recent_notes = all_notes[:5]  # Show first 5
+                    print(f"🔍 [DELETE_DEBUG] Recent note IDs: {[n.note_id for n in recent_notes]}")
+                
+                return jsonify({
+                    'success': False, 
+                    'error': f'QuickNote with ID {note_id} not found',
+                    'debug_info': f'Database contains {len(all_notes)} notes total'
+                }), 404
+            
+            print(f"🗑️ [DELETE_QUICK_NOTE] Found note: '{existing_note.note_content[:50]}...'")
+            success = db_service.delete_quick_note(note_id)
+            if success:
+                print(f"✅ [DELETE_QUICK_NOTE] Successfully deleted note {note_id}")
+                return jsonify({'success': True, 'message': 'Note deleted successfully'})
             else:
-                return jsonify({'error': 'Note not found'}), 404
+                print(f"❌ [DELETE_QUICK_NOTE] Deletion failed for note {note_id}")
+                return jsonify({'success': False, 'error': 'Deletion failed'}), 500
     
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        print(f"❌ [DELETE_QUICK_NOTE] Error deleting note {note_id}: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/api/arrival_times', methods=['GET', 'POST'])
 def arrival_times():
@@ -1138,12 +1616,27 @@ def arrival_times():
         elif request.method == 'POST':
             # Create or update arrival time
             data = request.get_json()
-            arrival_time = db_service.upsert_arrival_time(
-                booking_id=data.get('booking_id'),
-                estimated_arrival=data.get('estimated_arrival'),
-                notes=data.get('notes')
-            )
-            return jsonify(arrival_time.to_dict())
+            print(f"🕐 [ARRIVAL_TIME] Received data: {data}")
+            
+            booking_id = data.get('booking_id')
+            estimated_arrival = data.get('estimated_arrival')
+            notes = data.get('notes', '')
+            
+            if not booking_id:
+                return jsonify({'success': False, 'error': 'booking_id is required'}), 400
+            
+            try:
+                arrival_time = db_service.upsert_arrival_time(
+                    booking_id=booking_id,
+                    estimated_arrival=estimated_arrival,
+                    notes=notes
+                )
+                print(f"🕐 [ARRIVAL_TIME] Successfully saved: booking_id={booking_id}, time={estimated_arrival}")
+                return jsonify({'success': True, 'data': arrival_time.to_dict()})
+            
+            except Exception as e:
+                print(f"🕐 [ARRIVAL_TIME] Error saving: {e}")
+                return jsonify({'success': False, 'error': str(e)}), 500
     
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -2912,6 +3405,580 @@ def verify_templates():
     except Exception as e:
         print(f"Error verifying templates: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/monthly_guest_details', methods=['POST'])
+def get_monthly_guest_details():
+    """Get detailed guest breakdown for a specific month and collection status"""
+    try:
+        data = request.get_json()
+        month = data.get('month')  # Format: 'YYYY-MM'
+        collection_type = data.get('type')  # 'collected' or 'uncollected'
+        
+        print(f"🔍 [MONTHLY_DETAILS] Requested: {month} - {collection_type}")
+        
+        if not month or not collection_type:
+            return jsonify({'success': False, 'message': 'Missing month or type parameter'}), 400
+        
+        # Load data and filter for the specific month and checked-in guests only
+        df = load_booking_data()
+        if df.empty:
+            return jsonify({'success': True, 'guests': [], 'total_amount': 0, 'count': 0})
+        
+        # Filter for specific month and checked-in guests
+        from datetime import date
+        today = date.today()
+        
+        df['Check-in Date'] = pd.to_datetime(df['Check-in Date'], errors='coerce')
+        month_mask = df['Check-in Date'].dt.strftime('%Y-%m') == month
+        checked_in_mask = df['Check-in Date'].dt.date <= today
+        
+        month_guests = df[month_mask & checked_in_mask].copy()
+        
+        print(f"🔍 [MONTHLY_DETAILS] Found {len(month_guests)} guests for {month}")
+        
+        if month_guests.empty:
+            return jsonify({'success': True, 'guests': [], 'total_amount': 0, 'count': 0})
+        
+        # Filter by collection status
+        valid_collectors = ['LOC LE', 'THAO LE']
+        
+        if collection_type == 'collected':
+            # Guests collected by LOC LE or THAO LE
+            filtered_guests = month_guests[month_guests['Người thu tiền'].isin(valid_collectors)].copy()
+            status_label = "Đã thu (LOC LE + THAO LE)"
+        else:  # uncollected
+            # Guests NOT collected by LOC LE or THAO LE
+            filtered_guests = month_guests[~month_guests['Người thu tiền'].isin(valid_collectors)].copy()
+            status_label = "Chưa thu (Không phải LOC LE/THAO LE)"
+        
+        print(f"🔍 [MONTHLY_DETAILS] {status_label}: {len(filtered_guests)} guests")
+        
+        # Prepare guest details
+        guest_details = []
+        total_amount = 0
+        
+        for _, guest in filtered_guests.iterrows():
+            guest_name = guest.get('Tên người đặt', 'N/A')
+            booking_id = guest.get('Số đặt phòng', 'N/A')
+            amount = float(guest.get('Tổng thanh toán', 0))
+            commission = float(guest.get('Hoa hồng', 0))
+            taxi = float(guest.get('Taxi', 0))
+            collector = guest.get('Người thu tiền', 'N/A')
+            checkin_date = guest.get('Check-in Date')
+            checkout_date = guest.get('Check-out Date')
+            
+            # Format dates safely
+            try:
+                checkin_str = checkin_date.strftime('%d/%m/%Y') if pd.notna(checkin_date) else 'N/A'
+                checkout_str = checkout_date.strftime('%d/%m/%Y') if pd.notna(checkout_date) else 'N/A'
+            except:
+                checkin_str = str(checkin_date) if checkin_date else 'N/A'
+                checkout_str = str(checkout_date) if checkout_date else 'N/A'
+            
+            guest_details.append({
+                'guest_name': guest_name,
+                'booking_id': str(booking_id),
+                'amount': amount,
+                'commission': commission,
+                'taxi': taxi,
+                'collector': collector,
+                'checkin_date': checkin_str,
+                'checkout_date': checkout_str,
+                'is_valid_collector': collector in valid_collectors
+            })
+            
+            total_amount += amount
+        
+        # Sort by amount (highest first)
+        guest_details.sort(key=lambda x: x['amount'], reverse=True)
+        
+        # Log summary for debugging
+        print(f"💰 [MONTHLY_SUMMARY] {month} {status_label}:")
+        print(f"💰   Total guests: {len(guest_details)}")
+        print(f"💰   Total amount: {total_amount:,.0f}đ")
+        
+        # Show breakdown by collector
+        if collection_type == 'uncollected':
+            collector_breakdown = {}
+            for guest in guest_details:
+                collector = guest['collector']
+                if collector not in collector_breakdown:
+                    collector_breakdown[collector] = {'count': 0, 'amount': 0}
+                collector_breakdown[collector]['count'] += 1
+                collector_breakdown[collector]['amount'] += guest['amount']
+            
+            print(f"🚨 [INVALID_COLLECTORS] Breakdown of who collected but shouldn't be counted:")
+            for collector, data in collector_breakdown.items():
+                print(f"🚨   '{collector}': {data['count']} guests, {data['amount']:,.0f}đ")
+        
+        return jsonify({
+            'success': True,
+            'guests': guest_details,
+            'total_amount': total_amount,
+            'count': len(guest_details),
+            'month': month,
+            'type': collection_type,
+            'status_label': status_label
+        })
+        
+    except Exception as e:
+        print(f"❌ [MONTHLY_DETAILS] Error: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'message': f'Server error: {str(e)}'}), 500
+
+@app.route('/api/collector_guest_details', methods=['POST'])
+def get_collector_guest_details():
+    """Get detailed guest breakdown for a specific collector in the current period"""
+    try:
+        data = request.get_json()
+        collector_name = data.get('collector')
+        start_date = data.get('start_date')  # Optional
+        end_date = data.get('end_date')  # Optional
+        
+        print(f"🔍 [COLLECTOR_DETAILS] Requested: {collector_name}")
+        
+        if not collector_name:
+            return jsonify({'success': False, 'message': 'Missing collector parameter'}), 400
+        
+        # Load data and filter for checked-in guests only
+        df = load_booking_data()
+        if df.empty:
+            return jsonify({'success': True, 'guests': [], 'total_amount': 0, 'count': 0})
+        
+        # Filter for checked-in guests
+        from datetime import date, datetime
+        today = date.today()
+        
+        df['Check-in Date'] = pd.to_datetime(df['Check-in Date'], errors='coerce')
+        checked_in_mask = df['Check-in Date'].dt.date <= today
+        
+        # ✅ CRITICAL FIX: Use EXACT same logic as collector chart calculation
+        # Apply date range filter FIRST, then checked-in filter (same as chart)
+        if start_date and end_date:
+            try:
+                # ✅ CRITICAL FIX: Use EXACT same datetime conversion as chart
+                # Chart receives datetime objects, we need to match that exactly
+                start_dt = datetime.strptime(start_date, '%Y-%m-%d')
+                end_dt = datetime.strptime(end_date, '%Y-%m-%d')
+                
+                print(f"🔍 [COLLECTOR_DETAILS] Date conversion: {start_date} → {start_dt}, {end_date} → {end_dt}")
+                
+                # Step 1: Apply period filter FIRST (EXACTLY same as chart)
+                # ✅ CRITICAL: Use date-only comparison to avoid time zone issues
+                start_date_only = start_dt.date()
+                end_date_only = end_dt.date()
+                
+                period_mask = (df['Check-in Date'].dt.date >= start_date_only) & (df['Check-in Date'].dt.date <= end_date_only)
+                period_df = df[period_mask].copy()
+                
+                print(f"🔍 [COLLECTOR_DETAILS] Period filter applied: {len(df)} → {len(period_df)} guests")
+                print(f"🔍 [COLLECTOR_DETAILS] Date range (date only): {start_date_only} to {end_date_only}")
+                print(f"🔍 [COLLECTOR_DETAILS] MUST MATCH chart: Should be 36 guests exactly")
+                
+                # Step 2: Apply checked-in filter to period data (same as chart)
+                checked_in_mask_period = period_df['Check-in Date'].dt.date <= today
+                filtered_df = period_df[checked_in_mask_period].copy()
+                
+                period_label = f"từ {start_date} đến {end_date}"
+                print(f"🔍 [COLLECTOR_DETAILS] CHART LOGIC: Period first ({len(period_df)}) → Checked-in ({len(filtered_df)})")
+                print(f"🔍 [COLLECTOR_DETAILS] MUST MATCH chart: Should be 34 checked-in guests exactly")
+            except:
+                filtered_df = df[checked_in_mask].copy()
+                period_label = "tất cả thời gian"
+        else:
+            filtered_df = df[checked_in_mask].copy()
+            period_label = "tất cả thời gian"
+        
+        print(f"🔍 [COLLECTOR_DETAILS] Total checked-in guests: {len(filtered_df)}")
+        print(f"🔍 [COLLECTOR_DETAILS] Period: {period_label}")
+        print(f"🔍 [COLLECTOR_DETAILS] Date range received: start={start_date}, end={end_date}")
+        
+        # Filter by specific collector
+        collector_guests_all = filtered_df[filtered_df['Người thu tiền'] == collector_name].copy()
+        
+        # ✅ CRITICAL FIX: Apply same filters as chart calculation
+        collector_guests = collector_guests_all[collector_guests_all['Tổng thanh toán'] > 0].copy()
+        
+        print(f"🔍 [COLLECTOR_DETAILS] {collector_name} guests (all): {len(collector_guests_all)}")
+        print(f"🔍 [COLLECTOR_DETAILS] {collector_name} guests (amount > 0): {len(collector_guests)}")
+        
+        # Debug total calculation
+        if not collector_guests.empty:
+            detail_total = collector_guests['Tổng thanh toán'].sum()
+            detail_total_all = collector_guests_all['Tổng thanh toán'].sum()
+            print(f"🔍 [COLLECTOR_DETAILS] {collector_name} total amount (filtered): {detail_total:,.0f}đ")
+            print(f"🔍 [COLLECTOR_DETAILS] {collector_name} total amount (all): {detail_total_all:,.0f}đ")
+            print(f"🔍 [COLLECTOR_DETAILS] This should match the chart button amount")
+            
+            # Specific LOC LE tracking to match chart
+            if collector_name == 'LOC LE':
+                print(f"🎯 [DETAILS_LOC_LE] Final: {len(collector_guests)} guests, {detail_total:,.0f}đ")
+        
+        if collector_guests.empty:
+            return jsonify({
+                'success': True, 
+                'guests': [], 
+                'total_amount': 0, 
+                'count': 0,
+                'collector': collector_name,
+                'period': period_label
+            })
+        
+        # Prepare guest details
+        guest_details = []
+        total_amount = 0
+        total_commission = 0
+        total_taxi = 0
+        
+        for _, guest in collector_guests.iterrows():
+            guest_name = guest.get('Tên người đặt', 'N/A')
+            booking_id = guest.get('Số đặt phòng', 'N/A')
+            amount = float(guest.get('Tổng thanh toán', 0))
+            commission = float(guest.get('Hoa hồng', 0))
+            taxi = float(guest.get('Taxi', 0))
+            checkin_date = guest.get('Check-in Date')
+            checkout_date = guest.get('Check-out Date')
+            
+            # Format dates safely
+            try:
+                checkin_str = checkin_date.strftime('%d/%m/%Y') if pd.notna(checkin_date) else 'N/A'
+                checkout_str = checkout_date.strftime('%d/%m/%Y') if pd.notna(checkout_date) else 'N/A'
+            except:
+                checkin_str = str(checkin_date) if checkin_date else 'N/A'
+                checkout_str = str(checkout_date) if checkout_date else 'N/A'
+            
+            guest_details.append({
+                'guest_name': guest_name,
+                'booking_id': str(booking_id),
+                'amount': amount,
+                'commission': commission,
+                'taxi': taxi,
+                'checkin_date': checkin_str,
+                'checkout_date': checkout_str
+            })
+            
+            total_amount += amount
+            total_commission += commission
+            total_taxi += taxi
+        
+        # Sort by amount (highest first)
+        guest_details.sort(key=lambda x: x['amount'], reverse=True)
+        
+        # Log summary for debugging
+        print(f"💰 [COLLECTOR_SUMMARY] {collector_name} ({period_label}):")
+        print(f"💰   Total guests: {len(guest_details)}")
+        print(f"💰   Total amount: {total_amount:,.0f}đ")
+        print(f"💰   Total commission: {total_commission:,.0f}đ")
+        print(f"💰   Total taxi: {total_taxi:,.0f}đ")
+        
+        return jsonify({
+            'success': True,
+            'guests': guest_details,
+            'total_amount': total_amount,
+            'total_commission': total_commission,
+            'total_taxi': total_taxi,
+            'count': len(guest_details),
+            'collector': collector_name,
+            'period': period_label
+        })
+        
+    except Exception as e:
+        print(f"❌ [COLLECTOR_DETAILS] Error: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'message': f'Server error: {str(e)}'}), 500
+
+@app.route('/api/debug_collector_comparison', methods=['POST'])
+def debug_collector_comparison():
+    """Debug endpoint to compare collector amounts from different calculations"""
+    try:
+        data = request.get_json()
+        start_date = data.get('start_date')
+        end_date = data.get('end_date')
+        
+        print(f"🔧 [DEBUG_COMPARISON] Analyzing period: {start_date} to {end_date}")
+        
+        # Load raw data
+        df = load_booking_data()
+        if df.empty:
+            return jsonify({'success': False, 'message': 'No data available'})
+        
+        # Apply same filtering logic as dashboard
+        from datetime import date, datetime
+        today = date.today()
+        
+        df['Check-in Date'] = pd.to_datetime(df['Check-in Date'], errors='coerce')
+        checked_in_mask = df['Check-in Date'].dt.date <= today
+        
+        # Apply date range filter
+        if start_date and end_date:
+            try:
+                start_dt = datetime.strptime(start_date, '%Y-%m-%d').date()
+                end_dt = datetime.strptime(end_date, '%Y-%m-%d').date()
+                period_mask = (df['Check-in Date'].dt.date >= start_dt) & (df['Check-in Date'].dt.date <= end_dt)
+                filtered_df = df[checked_in_mask & period_mask].copy()
+            except:
+                filtered_df = df[checked_in_mask].copy()
+        else:
+            filtered_df = df[checked_in_mask].copy()
+        
+        print(f"🔧 [DEBUG_COMPARISON] Filtered data: {len(filtered_df)} records")
+        
+        # Method 1: Dashboard calculation (prepare_dashboard_data logic)
+        try:
+            if start_date and end_date:
+                start_dt = datetime.strptime(start_date, '%Y-%m-%d')
+                end_dt = datetime.strptime(end_date, '%Y-%m-%d')
+                dashboard_data = prepare_dashboard_data(df, start_dt, end_dt, 'checkin_date', 'asc')
+            else:
+                # Use default date range if not provided
+                from datetime import timedelta
+                today = datetime.now()
+                start_dt = today.replace(day=1)  # First day of current month
+                end_dt = today
+                dashboard_data = prepare_dashboard_data(df, start_dt, end_dt, 'checkin_date', 'asc')
+        except Exception as e:
+            print(f"🔧 [DEBUG_COMPARISON] Dashboard data preparation failed: {e}")
+            dashboard_data = {'collector_revenue_selected': pd.DataFrame()}
+        collector_revenue_selected = dashboard_data.get('collector_revenue_selected', pd.DataFrame())
+        
+        # Method 2: Direct calculation
+        valid_collectors = ['LOC LE', 'THAO LE']
+        direct_collector_data = {}
+        
+        for collector in valid_collectors:
+            collector_guests = filtered_df[filtered_df['Người thu tiền'] == collector].copy()
+            if not collector_guests.empty:
+                total_amount = collector_guests['Tổng thanh toán'].sum()
+                total_commission = collector_guests['Hoa hồng'].sum()
+                guest_count = len(collector_guests)
+                
+                direct_collector_data[collector] = {
+                    'amount': float(total_amount),
+                    'commission': float(total_commission),
+                    'count': guest_count,
+                    'guests': []
+                }
+                
+                # Add individual guest details
+                for _, guest in collector_guests.iterrows():
+                    direct_collector_data[collector]['guests'].append({
+                        'name': guest.get('Tên người đặt', 'N/A'),
+                        'booking_id': str(guest.get('Số đặt phòng', 'N/A')),
+                        'amount': float(guest.get('Tổng thanh toán', 0)),
+                        'commission': float(guest.get('Hoa hồng', 0)),
+                        'checkin_date': guest.get('Check-in Date').strftime('%Y-%m-%d') if pd.notna(guest.get('Check-in Date')) else 'N/A'
+                    })
+        
+        # Method 3: Monthly revenue calculation (for comparison)
+        monthly_data = {}
+        if start_date and end_date:
+            try:
+                month_str = start_date[:7]  # YYYY-MM format
+                month_mask = filtered_df['Check-in Date'].dt.strftime('%Y-%m') == month_str
+                month_guests = filtered_df[month_mask].copy()
+                
+                for collector in valid_collectors:
+                    month_collector_guests = month_guests[month_guests['Người thu tiền'] == collector].copy()
+                    if not month_collector_guests.empty:
+                        monthly_data[collector] = {
+                            'amount': float(month_collector_guests['Tổng thanh toán'].sum()),
+                            'count': len(month_collector_guests)
+                        }
+            except:
+                pass
+        
+        # Format dashboard data for comparison
+        dashboard_collector_data = {}
+        if not collector_revenue_selected.empty:
+            for _, row in collector_revenue_selected.iterrows():
+                collector = row.get('Người thu tiền', 'Unknown')
+                dashboard_collector_data[collector] = {
+                    'amount': float(row.get('Tổng thanh toán', 0)),
+                    'commission': float(row.get('Hoa hồng', 0)),
+                    'count': int(row.get('Số đặt phòng', 0))
+                }
+        
+        # Create comparison results
+        comparison_results = {
+            'period': f"{start_date} to {end_date}" if start_date and end_date else "All time",
+            'total_filtered_records': len(filtered_df),
+            'dashboard_calculation': dashboard_collector_data,
+            'direct_calculation': direct_collector_data,
+            'monthly_calculation': monthly_data,
+            'discrepancies': []
+        }
+        
+        # Find discrepancies
+        for collector in valid_collectors:
+            dashboard_amount = dashboard_collector_data.get(collector, {}).get('amount', 0)
+            direct_amount = direct_collector_data.get(collector, {}).get('amount', 0)
+            monthly_amount = monthly_data.get(collector, {}).get('amount', 0)
+            
+            if dashboard_amount != direct_amount or dashboard_amount != monthly_amount:
+                comparison_results['discrepancies'].append({
+                    'collector': collector,
+                    'dashboard_amount': dashboard_amount,
+                    'direct_amount': direct_amount,
+                    'monthly_amount': monthly_amount,
+                    'dashboard_vs_direct': dashboard_amount - direct_amount,
+                    'dashboard_vs_monthly': dashboard_amount - monthly_amount
+                })
+        
+        print(f"🔧 [DEBUG_COMPARISON] Found {len(comparison_results['discrepancies'])} discrepancies")
+        
+        return jsonify({
+            'success': True,
+            'comparison': comparison_results
+        })
+        
+    except Exception as e:
+        print(f"❌ [DEBUG_COMPARISON] Error: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'message': f'Server error: {str(e)}'}), 500
+
+@app.route('/api/debug_june_revenue_specific', methods=['POST'])
+def debug_june_revenue_specific():
+    """Debug the specific June revenue discrepancy: 36,109,006 vs 31,976,006"""
+    try:
+        print(f"🔧 [JUNE_DEBUG] Investigating June revenue discrepancy...")
+        
+        # Load raw data
+        df = load_booking_data()
+        if df.empty:
+            return jsonify({'success': False, 'message': 'No data available'})
+        
+        from datetime import date, datetime
+        today = date.today()
+        
+        df['Check-in Date'] = pd.to_datetime(df['Check-in Date'], errors='coerce')
+        
+        # Method 1: Monthly revenue calculation (shows 36,109,006)
+        print(f"🔧 [JUNE_DEBUG] === MONTHLY REVENUE CALCULATION ===")
+        checked_in_mask = df['Check-in Date'].dt.date <= today
+        df_checked_in = df[checked_in_mask].copy()
+        
+        # Filter for June 2025
+        june_mask = df_checked_in['Check-in Date'].dt.strftime('%Y-%m') == '2025-06'
+        june_guests_monthly = df_checked_in[june_mask].copy()
+        
+        print(f"🔧 [JUNE_DEBUG] Monthly method: {len(june_guests_monthly)} June guests")
+        
+        valid_collectors = ['LOC LE', 'THAO LE']
+        june_collected_monthly = june_guests_monthly[june_guests_monthly['Người thu tiền'].isin(valid_collectors)].copy()
+        june_monthly_total = june_collected_monthly['Tổng thanh toán'].sum()
+        
+        print(f"🔧 [JUNE_DEBUG] Monthly collected total: {june_monthly_total:,.0f}đ from {len(june_collected_monthly)} guests")
+        
+        # Method 2: Collector chart calculation (shows 31,976,006)  
+        print(f"🔧 [JUNE_DEBUG] === COLLECTOR CHART CALCULATION ===")
+        
+        # Use period filter (June 1 to June 30)
+        start_dt = datetime.strptime('2025-06-01', '%Y-%m-%d').date()
+        end_dt = datetime.strptime('2025-06-30', '%Y-%m-%d').date()
+        
+        period_mask = (df['Check-in Date'].dt.date >= start_dt) & (df['Check-in Date'].dt.date <= end_dt)
+        checked_in_period_mask = df['Check-in Date'].dt.date <= today
+        
+        june_guests_chart = df[checked_in_period_mask & period_mask].copy()
+        
+        print(f"🔧 [JUNE_DEBUG] Chart method: {len(june_guests_chart)} June guests (with period filter)")
+        
+        june_collected_chart = june_guests_chart[june_guests_chart['Người thu tiền'].isin(valid_collectors)].copy()
+        june_chart_total = june_collected_chart['Tổng thanh toán'].sum()
+        
+        print(f"🔧 [JUNE_DEBUG] Chart collected total: {june_chart_total:,.0f}đ from {len(june_collected_chart)} guests")
+        
+        # Find the difference
+        difference = june_monthly_total - june_chart_total
+        print(f"🔧 [JUNE_DEBUG] DIFFERENCE: {difference:,.0f}đ")
+        
+        # Find guests that are in monthly but not in chart
+        monthly_booking_ids = set(june_collected_monthly['Số đặt phòng'].astype(str))
+        chart_booking_ids = set(june_collected_chart['Số đặt phòng'].astype(str))
+        
+        missing_in_chart = monthly_booking_ids - chart_booking_ids
+        extra_in_monthly = chart_booking_ids - monthly_booking_ids
+        
+        print(f"🔧 [JUNE_DEBUG] Missing in chart: {len(missing_in_chart)} bookings")
+        print(f"🔧 [JUNE_DEBUG] Extra in monthly: {len(extra_in_monthly)} bookings")
+        
+        # Get details of missing guests
+        missing_guests = []
+        if missing_in_chart:
+            missing_df = june_collected_monthly[june_collected_monthly['Số đặt phòng'].astype(str).isin(missing_in_chart)]
+            for _, guest in missing_df.iterrows():
+                missing_guests.append({
+                    'name': guest.get('Tên người đặt', 'N/A'),
+                    'booking_id': str(guest.get('Số đặt phòng', 'N/A')),
+                    'amount': float(guest.get('Tổng thanh toán', 0)),
+                    'collector': guest.get('Người thu tiền', 'N/A'),
+                    'checkin_date': guest.get('Check-in Date').strftime('%Y-%m-%d') if pd.notna(guest.get('Check-in Date')) else 'N/A',
+                    'reason': 'In monthly calculation but not in chart calculation'
+                })
+        
+        # Check all June guests regardless of collection status
+        print(f"🔧 [JUNE_DEBUG] === ALL JUNE GUESTS ANALYSIS ===")
+        all_june_monthly = df_checked_in[june_mask].copy()
+        all_june_chart = df[checked_in_period_mask & period_mask].copy()
+        
+        print(f"🔧 [JUNE_DEBUG] All June guests (monthly): {len(all_june_monthly)}")
+        print(f"🔧 [JUNE_DEBUG] All June guests (chart): {len(all_june_chart)}")
+        
+        # Collector breakdown
+        monthly_collectors = {}
+        chart_collectors = {}
+        
+        for collector in valid_collectors:
+            monthly_collector_amount = june_collected_monthly[june_collected_monthly['Người thu tiền'] == collector]['Tổng thanh toán'].sum()
+            chart_collector_amount = june_collected_chart[june_collected_chart['Người thu tiền'] == collector]['Tổng thanh toán'].sum()
+            
+            monthly_collectors[collector] = {
+                'amount': float(monthly_collector_amount),
+                'count': len(june_collected_monthly[june_collected_monthly['Người thu tiền'] == collector])
+            }
+            chart_collectors[collector] = {
+                'amount': float(chart_collector_amount),
+                'count': len(june_collected_chart[june_collected_chart['Người thu tiền'] == collector])
+            }
+            
+            print(f"🔧 [JUNE_DEBUG] {collector}:")
+            print(f"🔧 [JUNE_DEBUG]   Monthly: {monthly_collector_amount:,.0f}đ ({monthly_collectors[collector]['count']} guests)")
+            print(f"🔧 [JUNE_DEBUG]   Chart: {chart_collector_amount:,.0f}đ ({chart_collectors[collector]['count']} guests)")
+            print(f"🔧 [JUNE_DEBUG]   Diff: {monthly_collector_amount - chart_collector_amount:,.0f}đ")
+        
+        return jsonify({
+            'success': True,
+            'analysis': {
+                'monthly_total': float(june_monthly_total),
+                'chart_total': float(june_chart_total),
+                'difference': float(difference),
+                'monthly_guest_count': len(june_collected_monthly),
+                'chart_guest_count': len(june_collected_chart),
+                'missing_guests': missing_guests,
+                'collector_breakdown': {
+                    'monthly': monthly_collectors,
+                    'chart': chart_collectors
+                },
+                'all_guests_count': {
+                    'monthly': len(all_june_monthly),
+                    'chart': len(all_june_chart)
+                }
+            }
+        })
+        
+    except Exception as e:
+        print(f"❌ [JUNE_DEBUG] Error: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'message': f'Server error: {str(e)}'}), 500
+
+@app.route('/debug_collector_comparison')
+def debug_collector_comparison_page():
+    """Debug page to compare collector calculations"""
+    return render_template('debug_collector_comparison.html')
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))

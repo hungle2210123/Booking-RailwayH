@@ -111,6 +111,23 @@
     margin-bottom: 4px !important;
     border-radius: 6px !important;
 }
+
+/* QuickNotes Template Button Styling */
+.template-btn {
+    transition: all 0.2s ease;
+    border: 2px solid transparent !important;
+}
+
+.template-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.template-btn.active {
+    border: 2px solid currentColor !important;
+    box-shadow: 0 0 0 3px rgba(255,255,255,0.3);
+    transform: scale(1.05);
+}
 </style>
 {% endblock %}
 
@@ -348,8 +365,8 @@
                                     </div>
                                     <div class="text-muted" style="font-size: 11px;">
                                         <i class="fas fa-calendar me-1"></i>{{ notification.checkin_date }}
-                                        <button class="btn btn-sm p-0 ms-2 text-primary" onclick="editGuestArrivalTime('{{ notification.booking_id }}', '{{ notification.guest_name }}')" title="Chỉnh giờ">
-                                            <i class="fas fa-clock me-1"></i><span id="time-{{ notification.booking_id }}">14:00</span>
+                                        <button class="btn btn-sm p-0 ms-2 text-primary" onclick="editGuestArrivalTime('{{ notification.booking_id }}', '{{ notification.guest_name }}')" title="Set time">
+                                            <i class="fas fa-clock me-1"></i><span id="time-{{ notification.booking_id }}">--:--</span>
                                         </button>
                                         {% if notification.priority == 'critical' %}
                                         <span class="badge bg-danger ms-1 px-1" style="font-size: 9px; animation: pulse 2s infinite;">
@@ -520,7 +537,7 @@
                             </div>
                         </div>
                         <div class="btn-group btn-group-sm" role="group">
-                            <button class="btn btn-light btn-sm px-2" data-bs-toggle="modal" data-bs-target="#expenseModal" title="Thêm chi phí">
+                            <button class="btn btn-light btn-sm px-2" data-bs-toggle="modal" data-bs-target="#expenseModal" title="Thêm chi phí" onclick="prepareExpenseModal()">
                                 <i class="fas fa-plus"></i>
                             </button>
                             <button class="btn btn-outline-light btn-sm px-2" data-bs-toggle="modal" data-bs-target="#expenseReviewModal" title="Xem chi tiết">
@@ -852,7 +869,7 @@
                 <div class="card-header bg-light">
                     <h6 class="mb-0">
                         <i class="fas fa-table me-1 text-primary"></i> 
-                        Chi tiết Doanh thu theo tháng (Bao gồm khách chưa thu tiền)
+                        Chi tiết Doanh thu theo tháng (CHỈ khách đã check-in)
                     </h6>
                 </div>
                 <div class="card-body">
@@ -878,6 +895,15 @@
                                     <th class="text-center border-0">
                                         <i class="fas fa-percentage me-1 text-primary"></i>Tỷ lệ thu
                                     </th>
+                                    <th class="text-center border-0">
+                                        <i class="fas fa-users me-1 text-success"></i>Tổng khách
+                                    </th>
+                                    <th class="text-end border-0">
+                                        <i class="fas fa-money-bill-wave me-1 text-info"></i>TB/khách
+                                    </th>
+                                    <th class="text-end border-0">
+                                        <i class="fas fa-coins me-1 text-warning"></i>Tổng hoa hồng
+                                    </th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -887,14 +913,18 @@
                                         <div class="fw-bold text-primary">{{ row.get('Tháng', 'N/A') }}</div>
                                     </td>
                                     <td class="text-end">
-                                        <div class="fw-bold text-success">
-                                            {{ "{:,.0f}".format(row.get('Đã thu', 0) | float) }}đ
-                                        </div>
+                                        <button class="btn btn-link fw-bold text-success p-0 border-0 bg-transparent" 
+                                                onclick="showMonthlyGuestDetails('{{ row.get('Tháng', 'N/A') }}', 'collected', {{ row.get('Đã thu', 0) | float }})"
+                                                title="Click để xem chi tiết khách đã thu">
+                                            <i class="fas fa-eye me-1"></i>{{ "{:,.0f}".format(row.get('Đã thu', 0) | float) }}đ
+                                        </button>
                                     </td>
                                     <td class="text-end">
-                                        <div class="fw-bold text-danger">
-                                            {{ "{:,.0f}".format(row.get('Chưa thu', 0) | float) }}đ
-                                        </div>
+                                        <button class="btn btn-link fw-bold text-danger p-0 border-0 bg-transparent" 
+                                                onclick="showMonthlyGuestDetails('{{ row.get('Tháng', 'N/A') }}', 'uncollected', {{ row.get('Chưa thu', 0) | float }})"
+                                                title="Click để xem chi tiết khách chưa thu">
+                                            <i class="fas fa-exclamation-triangle me-1"></i>{{ "{:,.0f}".format(row.get('Chưa thu', 0) | float) }}đ
+                                        </button>
                                     </td>
                                     <td class="text-center">
                                         {% set uncollected_count = row.get('Số khách chưa thu', 0) %}
@@ -929,10 +959,50 @@
                                             </div>
                                         </div>
                                     </td>
+                                    <td class="text-center">
+                                        {% set total_guests = row.get('Tổng khách', 0) %}
+                                        {% set collected_guests = row.get('Khách đã thu', 0) %}
+                                        <div class="fw-bold text-info">{{ total_guests }}</div>
+                                        <small class="text-muted">{{ collected_guests }} đã thu</small>
+                                    </td>
+                                    <td class="text-end">
+                                        {% set avg_spending = row.get('Chi tiêu TB/khách', 0) %}
+                                        <div class="fw-bold text-primary">
+                                            {{ "{:,.0f}".format(avg_spending | float) }}đ
+                                        </div>
+                                    </td>
+                                    <td class="text-end">
+                                        {% set total_commission = row.get('Tổng hoa hồng', 0) %}
+                                        <div class="fw-bold text-warning">
+                                            {{ "{:,.0f}".format(total_commission | float) }}đ
+                                        </div>
+                                    </td>
                                 </tr>
                                 {% endfor %}
                             </tbody>
                         </table>
+                    </div>
+                    
+                    <!-- Enhanced Statistics Summary -->
+                    <div class="alert alert-info mt-3 mb-0">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <h6><i class="fas fa-check-circle text-success me-1"></i>Cải tiến thống kê:</h6>
+                                <ul class="mb-0 small">
+                                    <li>✅ <strong>Chỉ tính khách đã check-in</strong> (loại trừ khách chưa đến)</li>
+                                    <li>📊 <strong>Chi tiêu trung bình</strong> per khách chi tiết</li>
+                                    <li>💰 <strong>Hoa hồng trung bình</strong> per khách rõ ràng</li>
+                                </ul>
+                            </div>
+                            <div class="col-md-6">
+                                <h6><i class="fas fa-info-circle text-info me-1"></i>Ý nghĩa các cột:</h6>
+                                <ul class="mb-0 small">
+                                    <li><strong>Tổng khách:</strong> Số khách đã check-in trong tháng</li>
+                                    <li><strong>TB/khách:</strong> Trung bình chi tiêu mỗi khách</li>
+                                    <li><strong>Hoa hồng TB:</strong> Trung bình hoa hồng mỗi khách</li>
+                                </ul>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -942,11 +1012,61 @@
                 <div class="card-header bg-light">
                     <h6 class="mb-0">
                         <i class="fas fa-chart-pie me-1 text-primary"></i> 
-                        Phân bổ theo Người thu
+                        Phân bổ theo Người thu (Chi tiết)
                     </h6>
+                    <small class="text-muted">✅ Validation: CHỈ LOC LE & THAO LE, theo ngày đã chọn</small>
                 </div>
                 <div class="card-body">
-                    <div id="collectorChart" style="height: 300px;"></div>
+                    <div id="collectorChart" style="height: 320px;"></div>
+                    
+                    <!-- ✅ ENHANCED: Detailed Collector Statistics Table -->
+                    {% if monthly_revenue_with_unpaid %}
+                    <div class="mt-3">
+                        <h6 class="text-muted mb-2">
+                            <i class="fas fa-users me-1"></i>Chi tiết thu tiền:
+                        </h6>
+                        <div id="collectorStatsTable">
+                            <!-- This will be populated by JavaScript from the collector chart data -->
+                            <div class="table-responsive">
+                                <table class="table table-sm table-hover">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th><i class="fas fa-user me-1"></i>Người thu</th>
+                                            <th class="text-end"><i class="fas fa-money-bill me-1"></i>Số tiền</th>
+                                            <th class="text-center"><i class="fas fa-calendar me-1"></i>Số đặt phòng</th>
+                                            <th class="text-center"><i class="fas fa-percentage me-1"></i>Tỷ lệ</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="collectorStatsBody">
+                                        <tr>
+                                            <td colspan="4" class="text-center text-muted">
+                                                <i class="fas fa-spinner fa-spin me-1"></i>Đang tải dữ liệu...
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        
+                        <!-- Validation Info -->
+                        <div class="alert alert-info mt-2 mb-0">
+                            <div class="row">
+                                <div class="col-6">
+                                    <small>
+                                        <i class="fas fa-check-circle text-success me-1"></i>
+                                        <strong>Validation:</strong> Chỉ LOC LE & THAO LE
+                                    </small>
+                                </div>
+                                <div class="col-6">
+                                    <small>
+                                        <i class="fas fa-calendar-check text-primary me-1"></i>
+                                        <strong>Lọc theo ngày:</strong> Theo khoảng thời gian đã chọn
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
                 </div>
             </div>
         </div>
@@ -1150,6 +1270,107 @@
         </div>
     </div>
 </div>
+
+<!-- Monthly Guest Details Modal -->
+<div class="modal fade" id="monthlyGuestDetailsModal" tabindex="-1" aria-labelledby="monthlyGuestDetailsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header bg-info text-white">
+                <h5 class="modal-title" id="monthlyGuestDetailsModalLabel">
+                    <i class="fas fa-users me-2"></i>Chi tiết khách hàng theo tháng
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <!-- Loading State -->
+                <div id="monthlyGuestLoading" class="text-center py-4">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Đang tải...</span>
+                    </div>
+                    <div class="mt-2">Đang tải dữ liệu khách hàng...</div>
+                </div>
+
+                <!-- Guest Details Content -->
+                <div id="monthlyGuestContent" style="display: none;">
+                    <!-- Summary Info -->
+                    <div class="alert alert-light border-0 mb-3">
+                        <div class="row align-items-center">
+                            <div class="col-md-8">
+                                <h6 class="mb-1">
+                                    <i class="fas fa-calendar me-1"></i><span id="modalMonth"></span> - 
+                                    <span id="modalStatusLabel" class="fw-bold"></span>
+                                </h6>
+                                <small class="text-muted">
+                                    <i class="fas fa-info-circle me-1"></i>Danh sách chi tiết khách hàng và số tiền tương ứng
+                                </small>
+                            </div>
+                            <div class="col-md-4 text-end">
+                                <div class="fw-bold text-primary fs-5">
+                                    Tổng: <span id="modalTotalAmount"></span>đ
+                                </div>
+                                <small class="text-muted">
+                                    <span id="modalGuestCount"></span> khách hàng
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Guest Table -->
+                    <div class="table-responsive" style="max-height: 500px; overflow-y: auto;">
+                        <table class="table table-hover table-sm">
+                            <thead class="table-light sticky-top">
+                                <tr>
+                                    <th><i class="fas fa-user me-1"></i>Tên khách</th>
+                                    <th><i class="fas fa-hashtag me-1"></i>Mã đặt phòng</th>
+                                    <th class="text-end"><i class="fas fa-money-bill me-1"></i>Số tiền</th>
+                                    <th class="text-center"><i class="fas fa-user-check me-1"></i>Người thu</th>
+                                    <th class="text-center"><i class="fas fa-calendar me-1"></i>Check-in</th>
+                                    <th class="text-center"><i class="fas fa-calendar-times me-1"></i>Check-out</th>
+                                    <th class="text-end"><i class="fas fa-percentage me-1"></i>Hoa hồng</th>
+                                    <th class="text-end"><i class="fas fa-taxi me-1"></i>Taxi</th>
+                                </tr>
+                            </thead>
+                            <tbody id="monthlyGuestTableBody">
+                                <!-- Will be populated by JavaScript -->
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Summary Section for Uncollected -->
+                    <div id="uncollectedSummary" style="display: none;" class="mt-4">
+                        <div class="alert alert-warning">
+                            <h6><i class="fas fa-exclamation-triangle me-1"></i>Phân tích người thu không hợp lệ:</h6>
+                            <div id="invalidCollectorBreakdown"></div>
+                            <small class="text-muted mt-2 d-block">
+                                <i class="fas fa-info-circle me-1"></i>
+                                Những khách này được đánh dấu là "đã thu" nhưng không phải do LOC LE hoặc THAO LE thu, 
+                                gây ra sự khác biệt giữa tổng doanh thu và biểu đồ người thu.
+                            </small>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Error State -->
+                <div id="monthlyGuestError" style="display: none;" class="alert alert-danger">
+                    <h6><i class="fas fa-exclamation-triangle me-1"></i>Lỗi tải dữ liệu</h6>
+                    <p id="monthlyGuestErrorMessage"></p>
+                    <button class="btn btn-sm btn-outline-danger" onclick="retryLoadMonthlyGuests()">
+                        <i class="fas fa-retry me-1"></i>Thử lại
+                    </button>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="fas fa-times me-1"></i>Đóng
+                </button>
+                <button type="button" class="btn btn-primary" onclick="exportMonthlyGuestData()">
+                    <i class="fas fa-download me-1"></i>Xuất Excel
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 {% endblock %}
 
 {% block scripts %}
@@ -1162,6 +1383,116 @@ var currentBookingData = {};
 // Pass chart data from server to dashboard.js
 const monthlyRevenueChartData = {{ monthly_revenue_chart_json | tojson | safe }};
 const collectorChartData = {{ collector_chart_json | tojson | safe }};
+
+// ✅ ENHANCED: Populate collector statistics table from chart data
+function populateCollectorStatsTable() {
+    try {
+        const statsBody = document.getElementById('collectorStatsBody');
+        if (!statsBody || !collectorChartData || !collectorChartData.data || collectorChartData.data.length === 0) {
+            return;
+        }
+
+        const chartData = collectorChartData.data[0];
+        if (!chartData.labels || !chartData.values) {
+            statsBody.innerHTML = `
+                <tr>
+                    <td colspan="4" class="text-center text-muted">
+                        <i class="fas fa-exclamation-triangle me-1"></i>Không có dữ liệu người thu
+                    </td>
+                </tr>
+            `;
+            return;
+        }
+
+        let tableRows = '';
+        const total = chartData.values.reduce((sum, val) => sum + val, 0);
+
+        for (let i = 0; i < chartData.labels.length; i++) {
+            const collector = chartData.labels[i];
+            const amount = chartData.values[i];
+            const percentage = total > 0 ? (amount / total * 100).toFixed(1) : 0;
+            const bookings = chartData.customdata ? chartData.customdata[i][0] : 'N/A';
+            const commission = chartData.customdata ? chartData.customdata[i][1] : 0;
+
+            // Color coding for collectors
+            let badgeClass = collector === 'LOC LE' ? 'bg-primary' : collector === 'THAO LE' ? 'bg-success' : 'bg-secondary';
+
+            tableRows += `
+                <tr>
+                    <td>
+                        <span class="badge ${badgeClass} me-1"></span>
+                        <strong>${collector}</strong>
+                    </td>
+                    <td class="text-end">
+                        <button class="btn btn-link fw-bold text-dark p-0 border-0 bg-transparent" 
+                                onclick="showCollectorGuestDetails('${collector}', ${amount}, ${bookings})"
+                                title="Click để xem chi tiết khách của ${collector}">
+                            <i class="fas fa-eye me-1"></i>${amount.toLocaleString()}đ
+                        </button>
+                        ${commission > 0 ? `<small class="text-muted d-block">HH: ${commission.toLocaleString()}đ</small>` : ''}
+                    </td>
+                    <td class="text-center">
+                        <span class="badge bg-light text-dark">${bookings}</span>
+                    </td>
+                    <td class="text-center">
+                        <div class="progress" style="height: 20px; width: 60px;">
+                            <div class="progress-bar ${badgeClass.replace('bg-', 'bg-')}" 
+                                 style="width: ${percentage}%;"
+                                 title="${percentage}%">
+                                <small class="fw-bold text-white">${percentage}%</small>
+                            </div>
+                        </div>
+                    </td>
+                </tr>
+            `;
+        }
+
+        // Add total row
+        const totalBookings = chartData.customdata ? 
+            chartData.customdata.reduce((sum, item) => sum + item[0], 0) : 'N/A';
+        const totalCommission = chartData.customdata ? 
+            chartData.customdata.reduce((sum, item) => sum + item[1], 0) : 0;
+
+        tableRows += `
+            <tr class="table-info fw-bold">
+                <td><i class="fas fa-calculator me-1"></i><strong>TỔNG CỘNG</strong></td>
+                <td class="text-end">
+                    <div class="fw-bold text-primary">${total.toLocaleString()}đ</div>
+                    ${totalCommission > 0 ? `<small class="text-muted">HH: ${totalCommission.toLocaleString()}đ</small>` : ''}
+                </td>
+                <td class="text-center">
+                    <span class="badge bg-primary">${totalBookings}</span>
+                </td>
+                <td class="text-center">
+                    <span class="badge bg-success">100%</span>
+                </td>
+            </tr>
+        `;
+
+        statsBody.innerHTML = tableRows;
+        console.log('✅ [COLLECTOR_STATS] Table populated with detailed collector data');
+
+    } catch (error) {
+        console.error('❌ [COLLECTOR_STATS] Error populating table:', error);
+        const statsBody = document.getElementById('collectorStatsBody');
+        if (statsBody) {
+            statsBody.innerHTML = `
+                <tr>
+                    <td colspan="4" class="text-center text-danger">
+                        <i class="fas fa-exclamation-triangle me-1"></i>Lỗi hiển thị dữ liệu
+                    </td>
+                </tr>
+            `;
+        }
+    }
+}
+
+// Initialize collector stats table when page loads
+document.addEventListener('DOMContentLoaded', function() {
+    setTimeout(() => {
+        populateCollectorStatsTable();
+    }, 100);
+});
 
 // Quick Notes functionality
 document.addEventListener('DOMContentLoaded', function() {
@@ -1779,17 +2110,18 @@ async function loadQuickNotesFromServer() {
         const response = await fetch('/api/quick_notes');
         const data = await response.json();
         
-        if (data.success && data.notes) {
+        // ✅ CRITICAL FIX: Backend returns array directly, not wrapped object
+        if (Array.isArray(data)) {
             // Convert server format to client format
-            const convertedNotes = data.notes.map(note => ({
-                id: note.id,
-                type: note.type,
+            const convertedNotes = data.map(note => ({
+                id: note.note_id.toString(), // ✅ FIX: Use note_id not id
+                type: note.note_type, // ✅ FIX: Use note_type not type  
                 content: note.content,
-                date: note.date,
-                time: note.time,
-                guestName: note.guestname || '',
-                created_at: note.createdat,
-                completed: note.completed === 'true'
+                date: note.date || new Date().toISOString().split('T')[0], // Fallback to today
+                time: note.time || '12:00', // Fallback time
+                guestName: note.created_by || '',
+                created_at: note.created_at,
+                completed: note.completed || false
             }));
             
             // Also save to localStorage for offline access
@@ -1797,6 +2129,7 @@ async function loadQuickNotesFromServer() {
             
             return convertedNotes;
         } else {
+            console.error('Unexpected response format:', data);
             throw new Error('Failed to load from server');
         }
     } catch (error) {
@@ -2083,11 +2416,11 @@ async function syncQuickNotes() {
     
     try {
         const serverNotes = await loadQuickNotesFromServer();
-        showDashboardToast(`☁️ Đã sync ${serverNotes.length} notes từ Google Sheets!`, 'success');
+        showDashboardToast(`✅ Đã tải ${serverNotes.length} ghi chú từ database!`, 'success');
         loadQuickNotesOnDashboard();
     } catch (error) {
         console.error('Sync error:', error);
-        showDashboardToast('❌ Lỗi khi sync từ Google Sheets!', 'error');
+        showDashboardToast('❌ Lỗi khi tải ghi chú từ database!', 'error');
     } finally {
         syncBtn.innerHTML = originalHtml;
         syncBtn.disabled = false;
@@ -2365,8 +2698,22 @@ function saveQuickNote() {
     .then(data => {
         console.log(`[QuickNote] API Response Data:`, data);
         if (data.success) {
-            console.log(`Note ${isEditing ? 'updated' : 'saved'} to Google Sheets successfully`);
-            showDashboardToast(`✅ Đã ${isEditing ? 'cập nhật' : 'lưu'} quick note vào Google Sheets!`, 'success');
+            console.log(`Note ${isEditing ? 'updated' : 'saved'} to database successfully`);
+            
+            // ✅ CRITICAL FIX: Update localStorage with real database ID from server
+            if (!isEditing && data.note && data.note.note_id) {
+                let savedNotes = JSON.parse(localStorage.getItem('quickNotes') || '[]');
+                // Find the note we just created (it will have the timestamp ID)
+                const noteIndex = savedNotes.findIndex(note => note.id === noteData.id);
+                if (noteIndex !== -1) {
+                    // Update with real database ID
+                    savedNotes[noteIndex].id = data.note.note_id.toString();
+                    localStorage.setItem('quickNotes', JSON.stringify(savedNotes));
+                    console.log(`[QuickNote] Updated localStorage ID: ${noteData.id} → ${data.note.note_id}`);
+                }
+            }
+            
+            showDashboardToast(`✅ Đã ${isEditing ? 'cập nhật' : 'lưu'} ghi chú thành công!`, 'success');
             
             // FIXED: Close modal and reload to show fresh data
             forceCloseModal('quickNotesModal');
@@ -2376,12 +2723,12 @@ function saveQuickNote() {
             }, 500);
         } else {
             console.error('Server save failed:', data.message || data.error || 'Unknown error');
-            showDashboardToast(`⚠️ Đã ${isEditing ? 'cập nhật' : 'lưu'} local, nhưng lỗi khi sync lên Google Sheets: ${data.message || data.error || 'Unknown error'}`, 'warning');
+            showDashboardToast(`❌ Lỗi khi ${isEditing ? 'cập nhật' : 'lưu'} ghi chú: ${data.message || data.error || 'Unknown error'}`, 'error');
         }
     })
     .catch(error => {
         console.error('Error saving to server:', error);
-        showDashboardToast(`⚠️ Đã lưu local, nhưng lỗi khi sync lên Google Sheets: ${error.message}`, 'warning');
+        showDashboardToast(`❌ Lỗi kết nối database: ${error.message}`, 'error');
     });
     
     // Reset form (non-blocking)
@@ -2553,31 +2900,39 @@ if (quickNotesModalForReset) {
     });
 }
 
-function selectNoteType(type) {
-    document.getElementById('noteType').value = type;
+// New template function - more flexible and user-friendly
+function useTemplate(noteType, contentTemplate) {
+    // Set note type
+    document.getElementById('noteType').value = noteType;
     
-    // Update button styles
-    document.querySelectorAll('.note-type-btn').forEach(btn => {
-        btn.classList.remove('active');
-    });
-    event.target.classList.add('active');
-    
-    // Set default content based on type
+    // Set content template (user can modify freely)
     const contentField = document.getElementById('noteContent');
-    switch(type) {
-        case 'thu-tien':
-            contentField.value = 'Thu tiền từ khách: ';
-            break;
-        case 'huy-phong':
-            contentField.value = 'Hủy phòng cho khách: ';
-            break;
-        case 'taxi':
-            contentField.value = 'Đặt taxi cho khách: ';
-            break;
-        default:
-            contentField.value = '';
-    }
+    contentField.value = contentTemplate;
+    
+    // Focus on content field for immediate editing
     contentField.focus();
+    
+    // Move cursor to end of template text
+    const textLength = contentTemplate.length;
+    contentField.setSelectionRange(textLength, textLength);
+    
+    // Visual feedback - highlight selected template
+    document.querySelectorAll('.template-btn').forEach(btn => {
+        btn.classList.remove('active', 'btn-success', 'btn-danger', 'btn-warning', 'btn-info');
+    });
+    
+    // Highlight the clicked template button
+    if (event && event.target) {
+        const btn = event.target.closest('.template-btn');
+        if (btn) {
+            btn.classList.add('active');
+            // Add appropriate color class
+            if (noteType === 'Thu tiền') btn.classList.add('btn-success');
+            else if (noteType === 'Hủy phòng') btn.classList.add('btn-danger');
+            else if (noteType === 'Taxi') btn.classList.add('btn-warning');
+            else btn.classList.add('btn-info');
+        }
+    }
 }
 
 // ==================== EDIT AMOUNT MODAL FUNCTIONS ====================
@@ -2881,50 +3236,88 @@ async function editDefaultArrivalTime() {
 
 async function editGuestArrivalTime(bookingId, guestName) {
     const currentTimeElement = document.getElementById(`time-${bookingId}`);
-    const currentTime = currentTimeElement.textContent;
-    const newTime = prompt(`Nhập thời gian đến cho ${guestName} (HH:MM):`, currentTime);
+    const currentTime = currentTimeElement.textContent === '--:--' ? '' : currentTimeElement.textContent;
     
-    if (newTime && /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/.test(newTime)) {
-        try {
-            // Save to server first
-            const response = await fetch('/api/arrival_times', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    type: 'guest',
-                    booking_id: bookingId,
-                    time: newTime
-                })
-            });
+    // Simple input that accepts numbers like 12, 13, etc.
+    const input = prompt(`Nhập giờ đến cho ${guestName} (ví dụ: 12, 13, 14):`, currentTime.split(':')[0] || '');
+    
+    if (input === null) return; // User cancelled
+    if (input === '') {
+        // Clear the time
+        await saveArrivalTime(bookingId, guestName, '', '--:--');
+        return;
+    }
+    
+    // Convert simple number input to HH:MM format
+    const hour = parseInt(input);
+    if (isNaN(hour) || hour < 0 || hour > 23) {
+        showDashboardToast('❌ Giờ không hợp lệ! Nhập số từ 0-23', 'error');
+        return;
+    }
+    
+    const newTime = hour.toString().padStart(2, '0') + ':00';
+    
+    if (newTime) {
+        await saveArrivalTime(bookingId, guestName, newTime, newTime);
+    }
+}
+
+// Separate function to handle saving arrival time
+async function saveArrivalTime(bookingId, guestName, timeValue, displayTime) {
+    const currentTimeElement = document.getElementById(`time-${bookingId}`);
+    
+    try {
+        // Save to server first with corrected API call
+        const response = await fetch('/api/arrival_times', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                booking_id: bookingId,
+                estimated_arrival: timeValue || null,
+                notes: `Updated by user for ${guestName}`
+            })
+        });
+        
+        const result = await response.json();
+        
+        if (response.ok && !result.error) {
+            // Update UI after successful server save
+            currentTimeElement.textContent = displayTime;
             
-            const result = await response.json();
-            
-            if (result.success) {
-                // Update UI after successful server save
-                currentTimeElement.textContent = newTime;
-                showDashboardToast(`⏰ Đã lưu thời gian cho ${guestName}: ${newTime} (sync tất cả thiết bị)`, 'success');
-                
-                // Also save to localStorage as backup
-                const guestTimes = JSON.parse(localStorage.getItem('guestArrivalTimes') || '{}');
-                guestTimes[bookingId] = newTime;
-                localStorage.setItem('guestArrivalTimes', JSON.stringify(guestTimes));
+            if (timeValue) {
+                showDashboardToast(`⏰ Đã lưu thời gian cho ${guestName}: ${displayTime}`, 'success');
+                // Schedule notification check
+                scheduleArrivalNotification(bookingId, guestName, timeValue);
             } else {
-                throw new Error(result.message || 'Server error');
+                showDashboardToast(`⏰ Đã xóa thời gian cho ${guestName}`, 'success');
             }
-        } catch (error) {
-            console.error('Error saving guest time:', error);
-            showDashboardToast('❌ Lỗi lưu server. Chỉ lưu trên thiết bị này.', 'warning');
             
-            // Fallback to localStorage only
-            currentTimeElement.textContent = newTime;
+            // Also save to localStorage as backup
             const guestTimes = JSON.parse(localStorage.getItem('guestArrivalTimes') || '{}');
-            guestTimes[bookingId] = newTime;
+            if (timeValue) {
+                guestTimes[bookingId] = timeValue;
+            } else {
+                delete guestTimes[bookingId];
+            }
             localStorage.setItem('guestArrivalTimes', JSON.stringify(guestTimes));
+        } else {
+            throw new Error(result.error || 'Server save failed');
         }
-    } else if (newTime) {
-        showDashboardToast('❌ Định dạng thời gian không hợp lệ! Sử dụng HH:MM', 'error');
+    } catch (error) {
+        console.error('Error saving guest time:', error);
+        showDashboardToast(`❌ Lỗi lưu server: ${error.message}. Chỉ lưu trên thiết bị này.`, 'warning');
+        
+        // Fallback to localStorage only
+        currentTimeElement.textContent = displayTime;
+        const guestTimes = JSON.parse(localStorage.getItem('guestArrivalTimes') || '{}');
+        if (timeValue) {
+            guestTimes[bookingId] = timeValue;
+        } else {
+            delete guestTimes[bookingId];
+        }
+        localStorage.setItem('guestArrivalTimes', JSON.stringify(guestTimes));
     }
 }
 
@@ -3137,36 +3530,50 @@ function quickNotify(type, guestName) {
             </div>
             <div class="modal-body">
                 <form id="quickNotesForm">
-                    <!-- Note Type Selection -->
+                    <!-- Quick Selection Templates (Optional) -->
                     <div class="mb-4">
-                        <label class="form-label fw-bold">Chọn loại ghi chú:</label>
-                        <div class="row g-3">
-                            <div class="col-md-4">
-                                <button type="button" class="btn btn-outline-success w-100 note-type-btn" onclick="selectNoteType('thu-tien')">
-                                    <i class="fas fa-money-bill-wave d-block mb-2" style="font-size: 2rem;"></i>
-                                    <div class="fw-bold">Thu tiền</div>
-                                    <small>Nhắc thu tiền khách</small>
+                        <label class="form-label fw-bold">
+                            <i class="fas fa-magic me-2"></i>Mẫu nhanh (tùy chọn):
+                        </label>
+                        <div class="text-muted small mb-3">
+                            <i class="fas fa-info-circle me-1"></i>
+                            Chọn mẫu để viết nhanh hơn, hoặc bỏ qua và viết tự do
+                        </div>
+                        <div class="row g-2">
+                            <div class="col-md-3">
+                                <button type="button" class="btn btn-outline-success btn-sm w-100 template-btn" onclick="useTemplate('Thu tiền', 'Thu tiền từ khách: ')">
+                                    <i class="fas fa-money-bill-wave me-1"></i>Thu tiền
                                 </button>
                             </div>
-                            <div class="col-md-4">
-                                <button type="button" class="btn btn-outline-danger w-100 note-type-btn" onclick="selectNoteType('huy-phong')">
-                                    <i class="fas fa-times-circle d-block mb-2" style="font-size: 2rem;"></i>
-                                    <div class="fw-bold">Hủy phòng</div>
-                                    <small>Xử lý hủy booking</small>
+                            <div class="col-md-3">
+                                <button type="button" class="btn btn-outline-danger btn-sm w-100 template-btn" onclick="useTemplate('Hủy phòng', 'Hủy phòng cho khách: ')">
+                                    <i class="fas fa-times-circle me-1"></i>Hủy phòng
                                 </button>
                             </div>
-                            <div class="col-md-4">
-                                <button type="button" class="btn btn-outline-warning w-100 note-type-btn" onclick="selectNoteType('taxi')">
-                                    <i class="fas fa-taxi d-block mb-2" style="font-size: 2rem;"></i>
-                                    <div class="fw-bold">Taxi</div>
-                                    <small>Đặt taxi cho khách</small>
+                            <div class="col-md-3">
+                                <button type="button" class="btn btn-outline-warning btn-sm w-100 template-btn" onclick="useTemplate('Taxi', 'Đặt taxi cho khách: ')">
+                                    <i class="fas fa-taxi me-1"></i>Taxi
+                                </button>
+                            </div>
+                            <div class="col-md-3">
+                                <button type="button" class="btn btn-outline-info btn-sm w-100 template-btn" onclick="useTemplate('Ghi chú', '')">
+                                    <i class="fas fa-sticky-note me-1"></i>Tự do
                                 </button>
                             </div>
                         </div>
                     </div>
                     
-                    <!-- Hidden field for note type -->
-                    <input type="hidden" id="noteType" name="noteType">
+                    <!-- Note Type (visible field) -->
+                    <div class="mb-3">
+                        <label for="noteType" class="form-label fw-bold">Loại ghi chú:</label>
+                        <input type="text" class="form-control" id="noteType" name="noteType" 
+                               placeholder="VD: Thu tiền, Taxi, Ghi chú quan trọng..." 
+                               value="Ghi chú" required>
+                        <div class="form-text">
+                            <i class="fas fa-lightbulb me-1"></i>
+                            Bạn có thể nhập bất kỳ loại ghi chú nào
+                        </div>
+                    </div>
                     
                     <!-- Note Content -->
                     <div class="mb-3">
@@ -3304,6 +3711,28 @@ document.addEventListener('DOMContentLoaded', async function() {
                         <label for="expenseDate" class="form-label">Ngày</label>
                         <input type="date" class="form-control" id="expenseDate" required>
                     </div>
+                    
+                    <!-- NEW: Category Selection -->
+                    <div class="mb-3">
+                        <label class="form-label">Phân loại (tùy chọn)</label>
+                        <div class="btn-group w-100" role="group">
+                            <input type="radio" class="btn-check" name="expenseCategory" id="personalCategory" value="personal">
+                            <label class="btn btn-outline-success" for="personalCategory">
+                                <i class="fas fa-user me-1"></i>Cá Nhân
+                            </label>
+                            
+                            <input type="radio" class="btn-check" name="expenseCategory" id="workCategory" value="work">
+                            <label class="btn btn-outline-info" for="workCategory">
+                                <i class="fas fa-briefcase me-1"></i>Công Việc
+                            </label>
+                            
+                            <input type="radio" class="btn-check" name="expenseCategory" id="uncategorizedCategory" value="" checked>
+                            <label class="btn btn-outline-secondary" for="uncategorizedCategory">
+                                <i class="fas fa-question-circle me-1"></i>Chưa phân loại
+                            </label>
+                        </div>
+                        <small class="text-muted">Bạn có thể phân loại sau khi thêm</small>
+                    </div>
                 </form>
             </div>
             <div class="modal-footer">
@@ -3320,34 +3749,105 @@ document.addEventListener('DOMContentLoaded', async function() {
 <div class="modal fade" id="expenseReviewModal" tabindex="-1" aria-labelledby="expenseReviewModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-lg modal-dialog-centered">
         <div class="modal-content">
-            <div class="modal-header" style="background: linear-gradient(135deg, #fd79a8 0%, #e84393 100%);">
+            <div class="modal-header" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
                 <h5 class="modal-title text-white" id="expenseReviewModalLabel">
-                    <i class="fas fa-chart-line me-2"></i>Chi Tiết Chi Phí Tháng
+                    <i class="fas fa-chart-pie me-2"></i>Phân Loại Chi Phí: Cá Nhân & Công Việc
                 </h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
-                <!-- Month Selection -->
+                <!-- Month Selection & Controls -->
                 <div class="row mb-3">
-                    <div class="col-md-6">
-                        <label for="reviewMonth" class="form-label">Chọn tháng xem:</label>
+                    <div class="col-md-3">
+                        <label for="reviewMonth" class="form-label">Chọn tháng:</label>
                         <input type="month" class="form-control" id="reviewMonth">
                     </div>
-                    <div class="col-md-6 d-flex align-items-end">
-                        <button class="btn btn-primary" onclick="loadExpenseReview()" style="background: linear-gradient(135deg, #fd79a8 0%, #e84393 100%); border: none;">
-                            <i class="fas fa-search me-1"></i>Xem Chi Tiết
+                    <div class="col-md-3 d-flex align-items-end">
+                        <button class="btn btn-primary w-100" onclick="loadExpenseReview()" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none;">
+                            <i class="fas fa-search me-1"></i>Tải dữ liệu
                         </button>
+                    </div>
+                    <div class="col-md-3 d-flex align-items-end">
+                        <button class="btn btn-warning w-100" onclick="fixExpenseDescriptions()" id="fixDescBtn">
+                            <i class="fas fa-tools me-1"></i>Sửa Nội Dung
+                        </button>
+                    </div>
+                    <div class="col-md-3 d-flex align-items-end">
+                        <div class="btn-group w-100" role="group">
+                            <button class="btn btn-success btn-sm" onclick="categorizeSelected('personal')">
+                                <i class="fas fa-user me-1"></i>Cá Nhân
+                            </button>
+                            <button class="btn btn-info btn-sm" onclick="categorizeSelected('work')">
+                                <i class="fas fa-briefcase me-1"></i>Công Việc
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Category Summary Cards -->
+                <div class="row mb-3" id="categorySummary" style="display: none;">
+                    <div class="col-md-6">
+                        <div class="card border-success">
+                            <div class="card-header text-black" style="background-color: #d4edda;">
+                                <i class="fas fa-user me-1"></i><strong>Chi Phí Cá Nhân</strong>
+                            </div>
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between">
+                                    <span>Số giao dịch:</span>
+                                    <span id="personalCount" class="fw-bold">0</span>
+                                </div>
+                                <div class="d-flex justify-content-between">
+                                    <span>Tổng tiền:</span>
+                                    <span id="personalTotal" class="fw-bold" style="color: #000000;">0đ</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="card border-info">
+                            <div class="card-header text-black" style="background-color: #cce7f0;">
+                                <i class="fas fa-briefcase me-1"></i><strong>Chi Phí Công Việc</strong>
+                            </div>
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between">
+                                    <span>Số giao dịch:</span>
+                                    <span id="workCount" class="fw-bold">0</span>
+                                </div>
+                                <div class="d-flex justify-content-between">
+                                    <span>Tổng tiền:</span>
+                                    <span id="workTotal" class="fw-bold" style="color: #000000;">0đ</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Multi-Select Controls -->
+                <div class="d-flex justify-content-between align-items-center mb-3" id="multiSelectControls" style="display: none;">
+                    <div>
+                        <button class="btn btn-outline-primary btn-sm" onclick="selectAllExpenses()">
+                            <i class="fas fa-check-square me-1"></i>Chọn Tất Cả
+                        </button>
+                        <button class="btn btn-outline-secondary btn-sm" onclick="clearAllSelections()">
+                            <i class="fas fa-square me-1"></i>Bỏ Chọn
+                        </button>
+                    </div>
+                    <div>
+                        <span class="text-muted">Đã chọn: <span id="selectedCount" class="fw-bold">0</span> giao dịch</span>
                     </div>
                 </div>
                 
                 <!-- Monthly Summary -->
                 <div id="expenseReviewSummary" class="alert alert-info" style="display: none;">
                     <div class="row">
-                        <div class="col-6">
-                            <strong>Tổng số giao dịch:</strong> <span id="reviewTotalCount">0</span>
+                        <div class="col-4">
+                            <strong>Tổng giao dịch:</strong> <span id="reviewTotalCount">0</span>
                         </div>
-                        <div class="col-6">
+                        <div class="col-4">
                             <strong>Tổng chi phí:</strong> <span id="reviewTotalAmount" class="text-danger">0đ</span>
+                        </div>
+                        <div class="col-4">
+                            <strong>Chưa phân loại:</strong> <span id="uncategorizedAmount" class="text-warning">0đ</span>
                         </div>
                     </div>
                 </div>
@@ -3586,12 +4086,45 @@ async function loadMonthlyExpenses() {
     }
 }
 
+// Prepare expense modal with default values
+function prepareExpenseModal() {
+    // Set today's date as default
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById('expenseDate').value = today;
+    
+    // Reset form to default state
+    document.getElementById('expenseForm').reset();
+    document.getElementById('expenseDate').value = today; // Set again after reset
+    
+    // Reset category to uncategorized
+    document.getElementById('uncategorizedCategory').checked = true;
+    
+    // Reset submit button
+    const submitBtn = document.querySelector('#expenseModal .btn-primary');
+    if (submitBtn) {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = '<i class="fas fa-save me-1"></i>Lưu Chi Phí';
+        submitBtn.className = 'btn btn-primary';
+    }
+    
+    // Focus on description field after modal opens
+    setTimeout(() => {
+        const descField = document.getElementById('expenseDescription');
+        if (descField) {
+            descField.focus();
+        }
+    }, 300);
+}
+
 // Add expense function (FIXED - No more UI freezing)
 async function addExpense() {
     const description = document.getElementById('expenseDescription').value.trim();
     const amount = document.getElementById('expenseAmount').value;
     const date = document.getElementById('expenseDate').value;
     const submitBtn = document.querySelector('#expenseModal .btn-primary');
+    
+    // NEW: Get selected category
+    const selectedCategory = document.querySelector('input[name="expenseCategory"]:checked')?.value || '';
     
     // Validation
     if (!description || !amount || !date) {
@@ -3641,6 +4174,33 @@ async function addExpense() {
         if (result.success) {
             console.log('✅ Expense added successfully');
             
+            const newExpenseId = result.expense_id;
+            
+            // NEW: Auto-categorize if category was selected
+            if (selectedCategory && newExpenseId) {
+                console.log(`📂 [AUTO_CATEGORIZE] Setting expense ${newExpenseId} as ${selectedCategory}`);
+                
+                try {
+                    const categoryResponse = await fetch('/api/expense_categories', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            expense_ids: [newExpenseId],
+                            category: selectedCategory
+                        })
+                    });
+                    
+                    const categoryData = await categoryResponse.json();
+                    if (categoryData.success) {
+                        console.log('✅ [AUTO_CATEGORIZE] Category saved successfully');
+                    }
+                } catch (catError) {
+                    console.error('❌ [AUTO_CATEGORIZE] Failed to save category:', catError);
+                }
+            }
+            
             // Success feedback
             if (submitBtn) {
                 submitBtn.innerHTML = '<i class="fas fa-check me-1"></i>Đã lưu!';
@@ -3649,13 +4209,22 @@ async function addExpense() {
             
             // Clean reset and close
             document.getElementById('expenseForm').reset();
+            // Reset category selection to uncategorized
+            document.getElementById('uncategorizedCategory').checked = true;
             
             // Close modal properly with force cleanup
             forceCloseModal('expenseModal');
             
-            // Reload data after a short delay
-            setTimeout(() => {
+            // NEW: Auto-refresh expense review if it's open
+            setTimeout(async () => {
                 loadMonthlyExpenses().catch(console.error);
+                
+                // If expense review modal is open, refresh it too
+                const expenseReviewModal = document.getElementById('expenseReviewModal');
+                if (expenseReviewModal && expenseReviewModal.classList.contains('show')) {
+                    console.log('🔄 [AUTO_REFRESH] Refreshing expense review after add');
+                    await loadExpenseReview();
+                }
             }, 500);
             
         } else {
@@ -3713,7 +4282,11 @@ if (expenseReviewModal) {
     });
 }
 
-// Load expense review function
+// Global variables for expense categorization
+let currentExpenses = [];
+let expenseCategories = {};
+
+// Load expense review function with categorization
 async function loadExpenseReview() {
     const selectedMonth = document.getElementById('reviewMonth').value;
     if (!selectedMonth) {
@@ -3728,90 +4301,495 @@ async function loadExpenseReview() {
         }
         
         const result = await response.json();
-        const reviewList = document.getElementById('expenseReviewList');
-        const reviewSummary = document.getElementById('expenseReviewSummary');
-        const reviewTotalCount = document.getElementById('reviewTotalCount');
-        const reviewTotalAmount = document.getElementById('reviewTotalAmount');
         
         if (result.success && result.data && result.data.length > 0) {
             // Parse selected month
             const [year, month] = selectedMonth.split('-').map(Number);
             
             // Filter expenses for selected month
-            const monthlyExpenses = result.data.filter(expense => {
+            currentExpenses = result.data.filter(expense => {
                 if (!expense.date) return false;
                 const expenseDate = new Date(expense.date);
                 return expenseDate.getMonth() + 1 === month && 
                        expenseDate.getFullYear() === year;
             });
             
-            if (monthlyExpenses.length > 0) {
-                // Calculate totals
-                const totalAmount = monthlyExpenses.reduce((sum, expense) => {
-                    return sum + parseFloat(expense.amount || 0);
-                }, 0);
+            if (currentExpenses.length > 0) {
+                // LOAD EXISTING CATEGORIZATIONS FROM DATABASE
+                console.log('📂 [LOAD_CATEGORIES] Loading existing categorizations from PostgreSQL...');
                 
-                // Update summary
-                reviewTotalCount.textContent = monthlyExpenses.length;
-                reviewTotalAmount.textContent = `${totalAmount.toLocaleString()}đ`;
-                reviewSummary.style.display = 'block';
+                try {
+                    const categoryResponse = await fetch('/api/expense_categories');
+                    const categoryData = await categoryResponse.json();
+                    
+                    if (categoryData.success) {
+                        expenseCategories = categoryData.categories || {};
+                        console.log(`✅ [LOAD_CATEGORIES] Loaded ${Object.keys(expenseCategories).length} categorizations:`, expenseCategories);
+                    } else {
+                        console.log('⚠️ [LOAD_CATEGORIES] No existing categories found, starting fresh');
+                        expenseCategories = {};
+                    }
+                } catch (error) {
+                    console.error('❌ [LOAD_CATEGORIES] Error loading categories:', error);
+                    expenseCategories = {};
+                }
                 
-                // Generate expense list
-                let html = '<div class="table-responsive"><table class="table table-hover"><thead><tr><th>Ngày</th><th>Nội dung</th><th class="text-end">Số tiền</th><th class="text-center">Thao tác</th></tr></thead><tbody>';
+                // Show controls
+                document.getElementById('multiSelectControls').style.display = 'flex';
+                document.getElementById('categorySummary').style.display = 'block';
                 
-                monthlyExpenses
-                    .sort((a, b) => new Date(b.date) - new Date(a.date)) // Sort by date desc
-                    .forEach(expense => {
-                        const amount = parseFloat(expense.amount || 0);
-                        const date = new Date(expense.date).toLocaleDateString('vi-VN');
-                        
-                        html += `
-                            <tr>
-                                <td><small class="text-muted">${date}</small></td>
-                                <td>${expense.description || 'N/A'}</td>
-                                <td class="text-end text-danger fw-bold">-${amount.toLocaleString()}đ</td>
-                                <td class="text-center">
-                                    <div class="btn-group btn-group-sm" role="group">
-                                        <button class="btn btn-outline-primary btn-sm" onclick="editExpense('${expense.created_at}', '${expense.description}', ${expense.amount}, '${expense.date}')" title="Sửa">
-                                            <i class="fas fa-edit"></i>
-                                        </button>
-                                        <button class="btn btn-outline-danger btn-sm" onclick="deleteExpense('${expense.created_at}')" title="Xóa">
-                                            <i class="fas fa-trash"></i>
-                                        </button>
-                                    </div>
-                                </td>
-                            </tr>
-                        `;
-                    });
-                
-                html += '</tbody></table></div>';
-                reviewList.innerHTML = html;
+                // Generate enhanced expense list with checkboxes
+                renderExpenseList();
+                updateSummary();
             } else {
-                reviewSummary.style.display = 'none';
-                reviewList.innerHTML = `
-                    <div class="text-center text-muted py-4">
-                        <i class="fas fa-inbox fa-2x mb-2"></i>
-                        <p>Không có chi phí nào trong tháng ${selectedMonth}</p>
-                    </div>
-                `;
+                showNoDataMessage(`Không có chi phí nào trong tháng ${selectedMonth}`);
             }
         } else {
-            reviewSummary.style.display = 'none';
-            reviewList.innerHTML = `
-                <div class="text-center text-muted py-4">
-                    <i class="fas fa-database fa-2x mb-2"></i>
-                    <p>Không có dữ liệu chi phí</p>
-                </div>
-            `;
+            showNoDataMessage('Không có dữ liệu chi phí');
         }
     } catch (error) {
         console.error('Error loading expense review:', error);
-        reviewList.innerHTML = `
-            <div class="text-center text-danger py-4">
-                <i class="fas fa-exclamation-triangle fa-2x mb-2"></i>
-                <p>Lỗi tải dữ liệu: ${error.message}</p>
+        showErrorMessage('Lỗi tải dữ liệu: ' + error.message);
+    }
+}
+
+function renderExpenseList() {
+    const reviewList = document.getElementById('expenseReviewList');
+    
+    // Sort expenses by date (newest first) and categorize
+    const sortedExpenses = currentExpenses
+        .sort((a, b) => new Date(b.date || b.expense_date) - new Date(a.date || a.expense_date));
+    
+    const personalExpenses = [];
+    const workExpenses = [];
+    const uncategorizedExpenses = [];
+    
+    sortedExpenses.forEach(expense => {
+        const expenseId = expense.expense_id || expense.id || expense.created_at;
+        const category = expenseCategories[expenseId] || '';
+        
+        if (category === 'personal') {
+            personalExpenses.push(expense);
+        } else if (category === 'work') {
+            workExpenses.push(expense);
+        } else {
+            uncategorizedExpenses.push(expense);
+        }
+    });
+    
+    let html = `
+        <!-- PROFESSIONAL CATEGORIZED EXPENSE DISPLAY -->
+        <div class="expense-categories-container">
+            
+            <!-- Multi-select controls at top -->
+            <div class="card border-0 mb-3">
+                <div class="card-body p-2" style="background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);">
+                    <div class="d-flex align-items-center justify-content-between">
+                        <div class="d-flex align-items-center">
+                            <input type="checkbox" class="form-check-input me-2" id="selectAllCheckbox" onchange="toggleSelectAll()">
+                            <small class="text-muted">Chọn tất cả (<span id="selectedCount">0</span> đã chọn)</small>
+                        </div>
+                        <div class="btn-group btn-group-sm">
+                            <button class="btn btn-success btn-sm" onclick="categorizeSelected('personal')">
+                                <i class="fas fa-user me-1"></i>Cá Nhân
+                            </button>
+                            <button class="btn btn-info btn-sm" onclick="categorizeSelected('work')">
+                                <i class="fas fa-briefcase me-1"></i>Công Việc
+                            </button>
+                        </div>
+                    </div>
+                </div>
             </div>
+    `;
+    
+    // Personal Expenses Section
+    if (personalExpenses.length > 0) {
+        const personalTotal = personalExpenses.reduce((sum, exp) => sum + parseFloat(exp.amount || 0), 0);
+        html += generateCategorySection('personal', 'Cá Nhân', personalExpenses, personalTotal, 'success', 'user');
+    }
+    
+    // Work Expenses Section  
+    if (workExpenses.length > 0) {
+        const workTotal = workExpenses.reduce((sum, exp) => sum + parseFloat(exp.amount || 0), 0);
+        html += generateCategorySection('work', 'Công Việc', workExpenses, workTotal, 'info', 'briefcase');
+    }
+    
+    // Uncategorized Expenses Section
+    if (uncategorizedExpenses.length > 0) {
+        const uncategorizedTotal = uncategorizedExpenses.reduce((sum, exp) => sum + parseFloat(exp.amount || 0), 0);
+        html += generateCategorySection('uncategorized', 'Chưa Phân Loại', uncategorizedExpenses, uncategorizedTotal, 'secondary', 'question-circle');
+    }
+    
+    html += '</div>';
+    reviewList.innerHTML = html;
+}
+
+// Generate professional category section with HIGH CONTRAST headers
+function generateCategorySection(categoryKey, categoryName, expenses, total, colorClass, iconClass) {
+    // FIXED: Use solid dark headers with white text for maximum visibility
+    let headerStyle = '';
+    let borderColor = '';
+    
+    if (colorClass === 'success') {
+        // Personal - Light Green Background with BLACK text
+        headerStyle = 'background: #d4edda; color: black;'; // Light green with black text
+        borderColor = 'border-success';
+    } else if (colorClass === 'info') {
+        // Work - Light Blue Background with BLACK text
+        headerStyle = 'background: #cce7f0; color: black;'; // Light blue with black text
+        borderColor = 'border-info';
+    } else {
+        // Uncategorized - Light Gray Background with BLACK text
+        headerStyle = 'background: #f8f9fa; color: black;'; // Light gray with black text
+        borderColor = 'border-secondary';
+    }
+    
+    let html = `
+        <div class="card ${borderColor} mb-4">
+            <div class="card-header d-flex justify-content-between align-items-center" style="${headerStyle}">
+                <div>
+                    <h6 class="mb-0 fw-bold text-black">
+                        <i class="fas fa-${iconClass} me-2"></i>${categoryName}
+                    </h6>
+                    <small class="text-black">${expenses.length} giao dịch</small>
+                </div>
+                <div class="text-end">
+                    <div class="fw-bold fs-5 text-black">${total.toLocaleString()}đ</div>
+                    <small class="text-black">Tổng cộng</small>
+                </div>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th width="40px" class="text-center">
+                                    <i class="fas fa-check-square text-${colorClass}"></i>
+                                </th>
+                                <th>Ngày</th>
+                                <th>Nội dung</th>
+                                <th class="text-end">Số tiền</th>
+                                <th class="text-center">Thao tác</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+    `;
+    
+    expenses.forEach(expense => {
+        const amount = parseFloat(expense.amount || 0);
+        const expenseDate = expense.date || expense.expense_date || expense.created_at;
+        const date = expenseDate ? new Date(expenseDate).toLocaleDateString('vi-VN') : 'N/A';
+        const expenseId = expense.expense_id || expense.id || expense.created_at;
+        
+        // Get description from corrected data
+        let description = expense.description || expense.content || 'N/A';
+        const safeDescription = String(description).replace(/'/g, '').replace(/"/g, '');
+        
+        html += `
+            <tr class="expense-row" data-expense-id="${expenseId}">
+                <td class="text-center">
+                    <input type="checkbox" class="form-check-input expense-checkbox" 
+                           value="${expenseId}" 
+                           onchange="updateSelectedCount()">
+                </td>
+                <td>
+                    <span class="badge bg-light text-dark">${date}</span>
+                </td>
+                <td>
+                    <div class="fw-semibold">${description}</div>
+                </td>
+                <td class="text-end">
+                    <span class="fw-bold text-${colorClass}">${amount.toLocaleString()}đ</span>
+                </td>
+                <td class="text-center">
+                    <button class="btn btn-outline-danger btn-sm" 
+                            onclick="deleteExpense(${expenseId}, '${safeDescription}', '${date}')"
+                            title="Xóa giao dịch">
+                        <i class="fas fa-trash-alt"></i>
+                    </button>
+                </td>
+            </tr>
         `;
+    });
+    
+    html += `
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    return html;
+}
+
+function updateSummary() {
+    // Calculate totals
+    const totalAmount = currentExpenses.reduce((sum, expense) => sum + parseFloat(expense.amount || 0), 0);
+    
+    let personalTotal = 0, workTotal = 0, personalCount = 0, workCount = 0;
+    
+    currentExpenses.forEach(expense => {
+        const amount = parseFloat(expense.amount || 0);
+        const expenseId = expense.expense_id || expense.id || expense.created_at;
+        const category = expenseCategories[expenseId];
+        
+        if (category === 'personal') {
+            personalTotal += amount;
+            personalCount++;
+        } else if (category === 'work') {
+            workTotal += amount;
+            workCount++;
+        }
+    });
+    
+    const uncategorizedAmount = totalAmount - personalTotal - workTotal;
+    
+    // Update UI
+    document.getElementById('reviewTotalCount').textContent = currentExpenses.length;
+    document.getElementById('reviewTotalAmount').textContent = `${totalAmount.toLocaleString()}đ`;
+    document.getElementById('uncategorizedAmount').textContent = `${uncategorizedAmount.toLocaleString()}đ`;
+    
+    document.getElementById('personalCount').textContent = personalCount;
+    document.getElementById('personalTotal').textContent = `${personalTotal.toLocaleString()}đ`;
+    document.getElementById('workCount').textContent = workCount;
+    document.getElementById('workTotal').textContent = `${workTotal.toLocaleString()}đ`;
+    
+    document.getElementById('expenseReviewSummary').style.display = 'block';
+}
+
+function showNoDataMessage(message) {
+    document.getElementById('expenseReviewSummary').style.display = 'none';
+    document.getElementById('multiSelectControls').style.display = 'none';
+    document.getElementById('categorySummary').style.display = 'none';
+    
+    const reviewList = document.getElementById('expenseReviewList');
+    reviewList.innerHTML = `
+        <div class="text-center text-muted py-4">
+            <i class="fas fa-calendar-times fa-2x mb-2"></i>
+            <p>${message}</p>
+        </div>
+    `;
+}
+
+function showErrorMessage(message) {
+    document.getElementById('expenseReviewSummary').style.display = 'none';
+    document.getElementById('multiSelectControls').style.display = 'none';
+    document.getElementById('categorySummary').style.display = 'none';
+    
+    const reviewList = document.getElementById('expenseReviewList');
+    reviewList.innerHTML = `
+        <div class="text-center text-danger py-4">
+            <i class="fas fa-exclamation-triangle fa-2x mb-2"></i>
+            <p>${message}</p>
+        </div>
+    `;
+}
+
+// Categorize selected expenses (WITH POSTGRESQL PERSISTENCE)
+function categorizeSelected(category) {
+    const selectedCheckboxes = document.querySelectorAll('.expense-checkbox:checked');
+    
+    if (selectedCheckboxes.length === 0) {
+        alert('⚠️ Vui lòng chọn ít nhất một giao dịch để phân loại');
+        return;
+    }
+    
+    const categoryName = category === 'personal' ? 'Cá Nhân' : 'Công Việc';
+    if (confirm(`📂 Phân loại ${selectedCheckboxes.length} giao dịch vào "${categoryName}"?`)) {
+        
+        // Get expense IDs from selected checkboxes
+        const expenseIds = Array.from(selectedCheckboxes).map(cb => parseInt(cb.value));
+        
+        console.log(`💾 [CATEGORIZE] Saving ${expenseIds.length} expenses as ${category}:`, expenseIds);
+        
+        // SAVE TO POSTGRESQL DATABASE
+        fetch('/api/expense_categories', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                expense_ids: expenseIds,
+                category: category
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                console.log(`✅ [CATEGORIZE] Successfully saved to database:`, data);
+                
+                // Update local storage only after successful database save
+                selectedCheckboxes.forEach(checkbox => {
+                    expenseCategories[checkbox.value] = category;
+                });
+                
+                // Clear selections and refresh display
+                clearAllSelections();
+                renderExpenseList();
+                updateSummary();
+                
+                showExpenseToast(`✅ Đã phân loại ${selectedCheckboxes.length} giao dịch vào "${categoryName}" và lưu vào database`, 'success');
+            } else {
+                console.error('❌ [CATEGORIZE] Database save failed:', data.message);
+                showExpenseToast(`❌ Lỗi lưu phân loại: ${data.message}`, 'danger');
+            }
+        })
+        .catch(error => {
+            console.error('❌ [CATEGORIZE] Network error:', error);
+            showExpenseToast(`❌ Lỗi kết nối database: ${error.message}`, 'danger');
+        });
+    }
+}
+
+// Select all expenses
+function selectAllExpenses() {
+    const checkboxes = document.querySelectorAll('.expense-checkbox');
+    const selectAllCheckbox = document.getElementById('selectAllCheckbox');
+    
+    checkboxes.forEach(checkbox => {
+        checkbox.checked = true;
+    });
+    
+    if (selectAllCheckbox) {
+        selectAllCheckbox.checked = true;
+    }
+    
+    updateSelectedCount();
+}
+
+// Clear all selections
+function clearAllSelections() {
+    const checkboxes = document.querySelectorAll('.expense-checkbox');
+    const selectAllCheckbox = document.getElementById('selectAllCheckbox');
+    
+    checkboxes.forEach(checkbox => {
+        checkbox.checked = false;
+    });
+    
+    if (selectAllCheckbox) {
+        selectAllCheckbox.checked = false;
+    }
+    
+    updateSelectedCount();
+}
+
+// Toggle select all functionality
+function toggleSelectAll() {
+    const selectAllCheckbox = document.getElementById('selectAllCheckbox');
+    const expenseCheckboxes = document.querySelectorAll('.expense-checkbox');
+    
+    if (selectAllCheckbox && selectAllCheckbox.checked) {
+        selectAllExpenses();
+    } else {
+        clearAllSelections();
+    }
+}
+
+// Update selected count display
+function updateSelectedCount() {
+    const selectedCheckboxes = document.querySelectorAll('.expense-checkbox:checked');
+    const countElement = document.getElementById('selectedCount');
+    const selectAllCheckbox = document.getElementById('selectAllCheckbox');
+    const totalCheckboxes = document.querySelectorAll('.expense-checkbox');
+    
+    if (countElement) {
+        countElement.textContent = selectedCheckboxes.length;
+    }
+    
+    // Update select all checkbox state
+    if (selectAllCheckbox) {
+        if (selectedCheckboxes.length === 0) {
+            selectAllCheckbox.checked = false;
+            selectAllCheckbox.indeterminate = false;
+        } else if (selectedCheckboxes.length === totalCheckboxes.length) {
+            selectAllCheckbox.checked = true;
+            selectAllCheckbox.indeterminate = false;
+        } else {
+            selectAllCheckbox.checked = false;
+            selectAllCheckbox.indeterminate = true;
+        }
+    }
+}
+
+// Toast notification for expense operations
+function showExpenseToast(message, type = 'info') {
+    // Remove existing expense toasts
+    const existing = document.querySelectorAll('.expense-toast');
+    existing.forEach(el => el.remove());
+    
+    const alertClass = type === 'success' ? 'alert-success' : 
+                      type === 'error' ? 'alert-danger' : 
+                      type === 'warning' ? 'alert-warning' : 'alert-info';
+    
+    const toast = document.createElement('div');
+    toast.className = `alert ${alertClass} alert-dismissible fade show expense-toast`;
+    toast.style.cssText = `
+        position: fixed;
+        top: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 9999;
+        min-width: 300px;
+        max-width: 500px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    `;
+    toast.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    
+    document.body.appendChild(toast);
+    
+    // Auto remove after 4 seconds
+    setTimeout(() => {
+        if (toast.parentNode) {
+            toast.remove();
+        }
+    }, 4000);
+}
+
+// Fix expense descriptions function
+async function fixExpenseDescriptions() {
+    const btn = document.getElementById('fixDescBtn');
+    const originalText = btn.innerHTML;
+    
+    if (btn.disabled) return;
+    
+    if (!confirm('🔧 Sửa tất cả nội dung chi phí từ ngày thành mô tả đúng?\n\nVí dụ: "2025-06-25" → "mua dầu ăn"\n\nBạn có muốn tiếp tục?')) {
+        return;
+    }
+    
+    try {
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Đang sửa...';
+        
+        showExpenseToast('🔧 Đang sửa nội dung chi phí...', 'info');
+        
+        const response = await fetch('/api/fix_expense_descriptions', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            showExpenseToast(`✅ ${result.message}`, 'success');
+            
+            // Reload expense data after fix
+            setTimeout(() => {
+                loadExpenseReview();
+            }, 1000);
+        } else {
+            showExpenseToast(`❌ Lỗi: ${result.message}`, 'error');
+        }
+        
+    } catch (error) {
+        console.error('Fix descriptions error:', error);
+        showExpenseToast(`❌ Lỗi kết nối: ${error.message}`, 'error');
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = originalText;
     }
 }
 
@@ -4398,6 +5376,568 @@ async function clearImportedData() {
         btn.disabled = false;
         btn.innerHTML = originalText;
     }
+}
+
+// =====================================================
+// ARRIVAL TIME NOTIFICATION SYSTEM
+// =====================================================
+
+// Global notification tracking
+let arrivalNotifications = new Map();
+let notificationCheckInterval = null;
+
+// Schedule notification for arrival time (2 hours in advance)
+function scheduleArrivalNotification(bookingId, guestName, arrivalTime) {
+    try {
+        const [hour, minute] = arrivalTime.split(':').map(Number);
+        const today = new Date();
+        const arrivalDateTime = new Date(today.getFullYear(), today.getMonth(), today.getDate(), hour, minute);
+        
+        // Calculate notification time (2 hours before arrival)
+        const notificationTime = new Date(arrivalDateTime.getTime() - (2 * 60 * 60 * 1000));
+        const now = new Date();
+        
+        // Only schedule if notification time is in the future
+        if (notificationTime > now) {
+            arrivalNotifications.set(bookingId, {
+                guestName: guestName,
+                arrivalTime: arrivalTime,
+                notificationTime: notificationTime,
+                shown: false
+            });
+            
+            console.log(`📅 Scheduled notification for ${guestName} at ${notificationTime.toLocaleTimeString()}`);
+        }
+    } catch (error) {
+        console.error('Error scheduling notification:', error);
+    }
+}
+
+// Check for notifications that should be shown
+function checkArrivalNotifications() {
+    const now = new Date();
+    
+    arrivalNotifications.forEach((notification, bookingId) => {
+        if (!notification.shown && now >= notification.notificationTime) {
+            showArrivalNotification(bookingId, notification);
+            notification.shown = true;
+        }
+    });
+}
+
+// Show arrival notification pinned to top
+function showArrivalNotification(bookingId, notification) {
+    // Remove any existing arrival notifications
+    const existingNotif = document.querySelector('.arrival-notification-alert');
+    if (existingNotif) {
+        existingNotif.remove();
+    }
+    
+    // Create notification element
+    const notificationHtml = `
+        <div class="alert alert-warning arrival-notification-alert position-fixed w-100 shadow-lg" 
+             style="top: 0; left: 0; z-index: 9999; border-radius: 0; margin: 0; animation: slideInFromTop 0.5s ease;">
+            <div class="container-fluid">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div class="d-flex align-items-center">
+                        <i class="fas fa-clock text-warning me-2"></i>
+                        <strong>⚠️ Arrival Alert:</strong> 
+                        <span class="ms-2">${notification.guestName} arriving at ${notification.arrivalTime} (in ~2 hours)</span>
+                    </div>
+                    <div>
+                        <button class="btn btn-sm btn-outline-warning me-2" onclick="openCollectModal('${bookingId}', '${notification.guestName}')">
+                            <i class="fas fa-money-bill-wave me-1"></i>Collect Payment
+                        </button>
+                        <button class="btn btn-close btn-sm" onclick="dismissArrivalNotification()" aria-label="Close"></button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // Insert at top of page
+    document.body.insertAdjacentHTML('afterbegin', notificationHtml);
+    
+    // Auto-dismiss after 10 minutes
+    setTimeout(() => {
+        dismissArrivalNotification();
+    }, 10 * 60 * 1000);
+}
+
+// Dismiss arrival notification
+function dismissArrivalNotification() {
+    const notification = document.querySelector('.arrival-notification-alert');
+    if (notification) {
+        notification.style.animation = 'slideOutToTop 0.5s ease';
+        setTimeout(() => {
+            notification.remove();
+        }, 500);
+    }
+}
+
+// Initialize arrival time system when page loads
+function initializeArrivalTimeSystem() {
+    console.log('🚀 Initializing arrival time system...');
+    
+    // Load saved arrival times from localStorage
+    const savedTimes = JSON.parse(localStorage.getItem('guestArrivalTimes') || '{}');
+    
+    // Update display and schedule notifications for existing times
+    Object.entries(savedTimes).forEach(([bookingId, timeValue]) => {
+        const timeElement = document.getElementById(`time-${bookingId}`);
+        if (timeElement && timeValue) {
+            timeElement.textContent = timeValue;
+            
+            // Extract guest name from nearby elements
+            const button = timeElement.closest('button');
+            const guestName = button ? button.getAttribute('onclick')?.match(/'([^']*)'.*'([^']*)'/)?.[2] || 'Guest' : 'Guest';
+            
+            // Schedule notification if within today
+            scheduleArrivalNotification(bookingId, guestName, timeValue);
+        }
+    });
+    
+    // Start notification checking (every minute)
+    if (notificationCheckInterval) {
+        clearInterval(notificationCheckInterval);
+    }
+    notificationCheckInterval = setInterval(checkArrivalNotifications, 60000);
+    
+    console.log('✅ Arrival time system initialized');
+}
+
+// Add CSS animations for notifications
+const arrivalNotificationStyles = `
+<style>
+@keyframes slideInFromTop {
+    0% { transform: translateY(-100%); opacity: 0; }
+    100% { transform: translateY(0); opacity: 1; }
+}
+
+@keyframes slideOutToTop {
+    0% { transform: translateY(0); opacity: 1; }
+    100% { transform: translateY(-100%); opacity: 0; }
+}
+
+.arrival-notification-alert {
+    border-left: 5px solid #ffc107 !important;
+    background: linear-gradient(135deg, rgba(255, 193, 7, 0.1) 0%, rgba(255, 193, 7, 0.05) 100%) !important;
+}
+</style>
+`;
+
+// Inject styles
+document.head.insertAdjacentHTML('beforeend', arrivalNotificationStyles);
+
+// Initialize system when DOM is ready
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initializeArrivalTimeSystem);
+} else {
+    initializeArrivalTimeSystem();
+}
+
+// ==================== MONTHLY GUEST DETAILS FUNCTIONALITY ====================
+let currentMonthlyData = null;
+
+function showMonthlyGuestDetails(month, type, totalAmount) {
+    console.log(`🔍 [MONTHLY_MODAL] Opening details for ${month} - ${type} - ${totalAmount}đ`);
+    
+    // Show modal and loading state
+    const modal = new bootstrap.Modal(document.getElementById('monthlyGuestDetailsModal'));
+    modal.show();
+    
+    // Reset modal state
+    document.getElementById('monthlyGuestLoading').style.display = 'block';
+    document.getElementById('monthlyGuestContent').style.display = 'none';
+    document.getElementById('monthlyGuestError').style.display = 'none';
+    
+    // Store current data for export
+    currentMonthlyData = { month, type, totalAmount };
+    
+    // Call API to get guest details
+    fetch('/api/monthly_guest_details', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            month: month,
+            type: type
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        console.log('🔍 [MONTHLY_MODAL] API Response:', data);
+        
+        if (data.success) {
+            displayMonthlyGuestDetails(data);
+        } else {
+            showMonthlyGuestError(data.message || 'Lỗi không xác định');
+        }
+    })
+    .catch(error => {
+        console.error('🔍 [MONTHLY_MODAL] Error:', error);
+        showMonthlyGuestError('Lỗi kết nối: ' + error.message);
+    });
+}
+
+function displayMonthlyGuestDetails(data) {
+    // Hide loading, show content
+    document.getElementById('monthlyGuestLoading').style.display = 'none';
+    document.getElementById('monthlyGuestContent').style.display = 'block';
+    
+    // Update summary info
+    document.getElementById('modalMonth').textContent = data.month;
+    document.getElementById('modalStatusLabel').textContent = data.status_label;
+    document.getElementById('modalTotalAmount').textContent = data.total_amount.toLocaleString();
+    document.getElementById('modalGuestCount').textContent = data.count;
+    
+    // Populate guest table
+    const tableBody = document.getElementById('monthlyGuestTableBody');
+    tableBody.innerHTML = '';
+    
+    if (data.guests && data.guests.length > 0) {
+        data.guests.forEach((guest, index) => {
+            const row = createGuestTableRow(guest, index + 1);
+            tableBody.appendChild(row);
+        });
+        
+        // Show uncollected summary if this is uncollected data
+        if (data.type === 'uncollected') {
+            showInvalidCollectorBreakdown(data.guests);
+        } else {
+            document.getElementById('uncollectedSummary').style.display = 'none';
+        }
+    } else {
+        tableBody.innerHTML = `
+            <tr>
+                <td colspan="8" class="text-center text-muted py-4">
+                    <i class="fas fa-inbox me-1"></i>Không có khách hàng nào trong danh mục này
+                </td>
+            </tr>
+        `;
+    }
+}
+
+function createGuestTableRow(guest, index) {
+    const row = document.createElement('tr');
+    
+    // Determine row styling based on collector validity
+    const isValidCollector = guest.is_valid_collector;
+    const rowClass = isValidCollector ? '' : 'table-warning';
+    row.className = rowClass;
+    
+    row.innerHTML = `
+        <td>
+            <div class="fw-bold">${guest.guest_name}</div>
+            <small class="text-muted">#${index}</small>
+        </td>
+        <td>
+            <span class="font-monospace text-primary">${guest.booking_id}</span>
+        </td>
+        <td class="text-end">
+            <div class="fw-bold ${isValidCollector ? 'text-success' : 'text-warning'}">
+                ${guest.amount.toLocaleString()}đ
+            </div>
+        </td>
+        <td class="text-center">
+            <span class="badge ${getCollectorBadgeClass(guest.collector)}">
+                ${guest.collector}
+            </span>
+        </td>
+        <td class="text-center">
+            <small>${guest.checkin_date}</small>
+        </td>
+        <td class="text-center">
+            <small>${guest.checkout_date}</small>
+        </td>
+        <td class="text-end">
+            <small class="text-warning">${guest.commission.toLocaleString()}đ</small>
+        </td>
+        <td class="text-end">
+            <small class="text-info">${guest.taxi.toLocaleString()}đ</small>
+        </td>
+    `;
+    
+    return row;
+}
+
+function getCollectorBadgeClass(collector) {
+    switch(collector) {
+        case 'LOC LE': return 'bg-primary';
+        case 'THAO LE': return 'bg-success';
+        default: return 'bg-warning text-dark';
+    }
+}
+
+function showInvalidCollectorBreakdown(guests) {
+    const invalidCollectors = {};
+    
+    guests.forEach(guest => {
+        if (!guest.is_valid_collector) {
+            const collector = guest.collector;
+            if (!invalidCollectors[collector]) {
+                invalidCollectors[collector] = { count: 0, amount: 0 };
+            }
+            invalidCollectors[collector].count++;
+            invalidCollectors[collector].amount += guest.amount;
+        }
+    });
+    
+    if (Object.keys(invalidCollectors).length > 0) {
+        let breakdownHtml = '<div class="row">';
+        
+        Object.entries(invalidCollectors).forEach(([collector, data]) => {
+            breakdownHtml += `
+                <div class="col-md-6">
+                    <div class="d-flex justify-content-between">
+                        <span><strong>"${collector}":</strong></span>
+                        <span>${data.count} khách, ${data.amount.toLocaleString()}đ</span>
+                    </div>
+                </div>
+            `;
+        });
+        
+        breakdownHtml += '</div>';
+        
+        document.getElementById('invalidCollectorBreakdown').innerHTML = breakdownHtml;
+        document.getElementById('uncollectedSummary').style.display = 'block';
+    } else {
+        document.getElementById('uncollectedSummary').style.display = 'none';
+    }
+}
+
+function showMonthlyGuestError(message) {
+    document.getElementById('monthlyGuestLoading').style.display = 'none';
+    document.getElementById('monthlyGuestContent').style.display = 'none';
+    document.getElementById('monthlyGuestError').style.display = 'block';
+    document.getElementById('monthlyGuestErrorMessage').textContent = message;
+}
+
+function retryLoadMonthlyGuests() {
+    if (currentMonthlyData) {
+        showMonthlyGuestDetails(currentMonthlyData.month, currentMonthlyData.type, currentMonthlyData.totalAmount);
+    }
+}
+
+function exportMonthlyGuestData() {
+    // Placeholder for Excel export functionality
+    alert('Chức năng xuất Excel sẽ được triển khai trong phiên bản tiếp theo');
+}
+
+// ==================== COLLECTOR GUEST DETAILS FUNCTIONALITY ====================
+let currentCollectorData = null;
+
+function showCollectorGuestDetails(collectorName, totalAmount, bookingCount) {
+    console.log(`🔍 [COLLECTOR_MODAL] Opening details for ${collectorName} - ${totalAmount}đ - ${bookingCount} bookings`);
+    
+    // Reuse the monthly guest details modal with different content
+    const modal = new bootstrap.Modal(document.getElementById('monthlyGuestDetailsModal'));
+    modal.show();
+    
+    // Update modal title for collector details
+    document.getElementById('monthlyGuestDetailsModalLabel').innerHTML = 
+        '<i class="fas fa-user-check me-2"></i>Chi tiết khách của người thu';
+    
+    // Reset modal state
+    document.getElementById('monthlyGuestLoading').style.display = 'block';
+    document.getElementById('monthlyGuestContent').style.display = 'none';
+    document.getElementById('monthlyGuestError').style.display = 'none';
+    
+    // Store current data for export
+    currentCollectorData = { collector: collectorName, amount: totalAmount, bookings: bookingCount };
+    
+    // Get current date filter from dashboard (if available)
+    const dateRange = getSelectedDateRange();
+    const startDate = dateRange?.start || null;
+    const endDate = dateRange?.end || null;
+    
+    console.log('🔍 [COLLECTOR_MODAL] Date range from dashboard:', dateRange);
+    console.log('🔍 [COLLECTOR_MODAL] Sending dates:', startDate, 'to', endDate);
+    
+    // Call API to get collector guest details
+    fetch('/api/collector_guest_details', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            collector: collectorName,
+            start_date: startDate,
+            end_date: endDate
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        console.log('🔍 [COLLECTOR_MODAL] API Response:', data);
+        
+        if (data.success) {
+            displayCollectorGuestDetails(data);
+        } else {
+            showMonthlyGuestError(data.message || 'Lỗi không xác định');
+        }
+    })
+    .catch(error => {
+        console.error('🔍 [COLLECTOR_MODAL] Error:', error);
+        showMonthlyGuestError('Lỗi kết nối: ' + error.message);
+    });
+}
+
+function displayCollectorGuestDetails(data) {
+    // Hide loading, show content
+    document.getElementById('monthlyGuestLoading').style.display = 'none';
+    document.getElementById('monthlyGuestContent').style.display = 'block';
+    
+    // Update summary info for collector details
+    document.getElementById('modalMonth').textContent = data.period || 'Khoảng thời gian đã chọn';
+    document.getElementById('modalStatusLabel').textContent = `Người thu: ${data.collector}`;
+    document.getElementById('modalTotalAmount').textContent = data.total_amount.toLocaleString();
+    document.getElementById('modalGuestCount').textContent = data.count;
+    
+    // Populate guest table
+    const tableBody = document.getElementById('monthlyGuestTableBody');
+    tableBody.innerHTML = '';
+    
+    if (data.guests && data.guests.length > 0) {
+        data.guests.forEach((guest, index) => {
+            const row = createCollectorGuestTableRow(guest, index + 1, data.collector);
+            tableBody.appendChild(row);
+        });
+        
+        // Hide uncollected summary for collector details
+        document.getElementById('uncollectedSummary').style.display = 'none';
+        
+        // Show collector summary instead
+        showCollectorSummary(data);
+    } else {
+        tableBody.innerHTML = `
+            <tr>
+                <td colspan="8" class="text-center text-muted py-4">
+                    <i class="fas fa-inbox me-1"></i>${data.collector} chưa thu tiền từ khách nào trong khoảng thời gian này
+                </td>
+            </tr>
+        `;
+    }
+}
+
+function createCollectorGuestTableRow(guest, index, collector) {
+    const row = document.createElement('tr');
+    
+    // Color coding based on collector
+    const collectorClass = collector === 'LOC LE' ? 'table-primary' : 
+                          collector === 'THAO LE' ? 'table-success' : 'table-light';
+    row.className = collectorClass;
+    
+    row.innerHTML = `
+        <td>
+            <div class="fw-bold">${guest.guest_name}</div>
+            <small class="text-muted">#${index}</small>
+        </td>
+        <td>
+            <span class="font-monospace text-primary">${guest.booking_id}</span>
+        </td>
+        <td class="text-end">
+            <div class="fw-bold text-success">
+                ${guest.amount.toLocaleString()}đ
+            </div>
+        </td>
+        <td class="text-center">
+            <span class="badge ${getCollectorBadgeClass(collector)}">
+                ${collector}
+            </span>
+        </td>
+        <td class="text-center">
+            <small>${guest.checkin_date}</small>
+        </td>
+        <td class="text-center">
+            <small>${guest.checkout_date}</small>
+        </td>
+        <td class="text-end">
+            <small class="text-warning">${guest.commission.toLocaleString()}đ</small>
+        </td>
+        <td class="text-end">
+            <small class="text-info">${guest.taxi.toLocaleString()}đ</small>
+        </td>
+    `;
+    
+    return row;
+}
+
+function showCollectorSummary(data) {
+    const summaryDiv = document.getElementById('uncollectedSummary');
+    summaryDiv.style.display = 'block';
+    
+    const breakdownDiv = document.getElementById('invalidCollectorBreakdown');
+    breakdownDiv.innerHTML = `
+        <div class="row">
+            <div class="col-md-4">
+                <div class="text-center">
+                    <div class="fw-bold text-primary fs-5">${data.total_amount.toLocaleString()}đ</div>
+                    <small class="text-muted">Tổng doanh thu</small>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="text-center">
+                    <div class="fw-bold text-warning fs-5">${data.total_commission.toLocaleString()}đ</div>
+                    <small class="text-muted">Tổng hoa hồng</small>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="text-center">
+                    <div class="fw-bold text-info fs-5">${data.total_taxi.toLocaleString()}đ</div>
+                    <small class="text-muted">Tổng taxi</small>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // Update the alert header
+    const alertHeader = summaryDiv.querySelector('h6');
+    alertHeader.innerHTML = `<i class="fas fa-user-check me-1"></i>Tổng kết thu tiền của ${data.collector}:`;
+    
+    // Update the description
+    const alertDescription = summaryDiv.querySelector('.text-muted');
+    alertDescription.innerHTML = `
+        <i class="fas fa-info-circle me-1"></i>
+        Danh sách tất cả ${data.count} khách hàng mà ${data.collector} đã thu tiền trong khoảng thời gian đã chọn.
+    `;
+}
+
+function getSelectedDateRange() {
+    // Try to get date range from dashboard filter if available
+    try {
+        const startInput = document.querySelector('input[name="start_date"]');
+        const endInput = document.querySelector('input[name="end_date"]');
+        
+        if (startInput && endInput && startInput.value && endInput.value) {
+            console.log('🔍 [DATE_RANGE] Found date inputs:', startInput.value, 'to', endInput.value);
+            return {
+                start: startInput.value,
+                end: endInput.value
+            };
+        }
+        
+        // Fallback: Try to get from URL parameters
+        const urlParams = new URLSearchParams(window.location.search);
+        const startDate = urlParams.get('start_date');
+        const endDate = urlParams.get('end_date');
+        
+        if (startDate && endDate) {
+            console.log('🔍 [DATE_RANGE] Found URL params:', startDate, 'to', endDate);
+            return {
+                start: startDate,
+                end: endDate
+            };
+        }
+        
+        console.log('🔍 [DATE_RANGE] No date range found - using all time');
+        return null;
+    } catch (e) {
+        console.log('🔍 [DATE_RANGE] Error getting date range:', e);
+        return null;
+    }
+    
+    return null;
 }
 
 </script>

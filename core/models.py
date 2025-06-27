@@ -164,9 +164,9 @@ class QuickNote(db.Model):
     created_at = Column(DateTime, default=func.current_timestamp())
     created_by = Column(String(255))
     
-    # Constraints (matches database_init.sql)
+    # Constraints - Allow flexible note types
     __table_args__ = (
-        CheckConstraint("note_type IN ('Thu tiền', 'Hủy phòng', 'Taxi', 'general')", name='chk_note_type'),
+        CheckConstraint("note_type IS NOT NULL AND LENGTH(note_type) > 0", name='chk_note_type'),
     )
     
     def __repr__(self):
@@ -218,6 +218,40 @@ class Expense(db.Model):
             'category': self.category,
             'collector': self.collector,
             'created_at': self.created_at.isoformat() if self.created_at else None
+        }
+
+# =====================================================
+# EXPENSE_CATEGORIES TABLE - Personal/Work categorization
+# =====================================================
+class ExpenseCategory(db.Model):
+    __tablename__ = 'expense_categories'
+    
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    expense_id = Column(Integer, ForeignKey('expenses.expense_id', ondelete='CASCADE'), nullable=False, unique=True, index=True)
+    category = Column(String(20), nullable=False, index=True)
+    
+    # Audit fields
+    created_at = Column(DateTime, default=func.current_timestamp())
+    updated_at = Column(DateTime, default=func.current_timestamp(), onupdate=func.current_timestamp())
+    
+    # Relationship
+    expense = relationship("Expense", backref="category_info")
+    
+    # Constraints
+    __table_args__ = (
+        CheckConstraint("category IN ('personal', 'work')", name='chk_valid_category'),
+    )
+    
+    def __repr__(self):
+        return f"<ExpenseCategory {self.expense_id}: {self.category}>"
+    
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'expense_id': self.expense_id,
+            'category': self.category,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None
         }
 
 # =====================================================

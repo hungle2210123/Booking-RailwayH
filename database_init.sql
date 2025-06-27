@@ -99,7 +99,7 @@ CREATE TABLE IF NOT EXISTS quick_notes (
     
     -- Constraints
     CONSTRAINT chk_note_type CHECK (
-        note_type IN ('Thu tiền', 'Hủy phòng', 'Taxi', 'general')
+        note_type IN ('Thu tiền', 'Hủy phòng', 'Taxi', 'general', 'Ghi chú')
     )
 );
 

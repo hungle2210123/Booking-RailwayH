@@ -384,6 +384,7 @@ class PostgreSQLDatabaseService:
                          booking_id: str = None, priority: str = 'normal') -> QuickNote:
         """Create new quick note"""
         try:
+            logger.info(f"Creating quick note: type={note_type}, content={content[:50]}...")
             note = QuickNote(
                 note_type=note_type,
                 note_content=content,  # Use correct column name
@@ -391,6 +392,7 @@ class PostgreSQLDatabaseService:
             )
             db.session.add(note)
             db.session.commit()
+            logger.info(f"Successfully created quick note {note.note_id}")
             return note
         except Exception as e:
             db.session.rollback()
@@ -398,17 +400,29 @@ class PostgreSQLDatabaseService:
             raise PostgreSQLError(f"Failed to create quick note: {str(e)}")
     
     def update_quick_note(self, note_id: int, data: Dict[str, Any]) -> Optional[QuickNote]:
-        """Update quick note"""
+        """Update quick note with proper field mapping"""
         try:
             note = db.session.query(QuickNote).filter_by(note_id=note_id).first()
             if not note:
                 return None
             
+            # Map frontend fields to database fields
+            field_mapping = {
+                'type': 'note_type',
+                'content': 'note_content', 
+                'guest_name': 'created_by',
+                'completed': 'is_completed'
+            }
+            
             for key, value in data.items():
-                if hasattr(note, key):
-                    setattr(note, key, value)
+                # Use mapped field name if available, otherwise use direct field name
+                db_field = field_mapping.get(key, key)
+                if hasattr(note, db_field):
+                    setattr(note, db_field, value)
+                    logger.info(f"Updated {db_field} = {value}")
             
             db.session.commit()
+            logger.info(f"Successfully updated quick note {note_id}")
             return note
         except Exception as e:
             db.session.rollback()
@@ -418,16 +432,22 @@ class PostgreSQLDatabaseService:
     def delete_quick_note(self, note_id: int) -> bool:
         """Delete quick note"""
         try:
+            logger.info(f"Attempting to delete quick note {note_id}")
             note = db.session.query(QuickNote).filter_by(note_id=note_id).first()
             if not note:
+                logger.warning(f"Quick note {note_id} not found")
                 return False
             
+            logger.info(f"Deleting quick note {note_id}: {note.note_content[:50]}...")
             db.session.delete(note)
             db.session.commit()
+            logger.info(f"Successfully deleted quick note {note_id}")
             return True
         except Exception as e:
             db.session.rollback()
             logger.error(f"Error deleting quick note {note_id}: {e}")
+            import traceback
+            traceback.print_exc()
             return False
     
     # =====================================================

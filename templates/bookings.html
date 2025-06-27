@@ -180,7 +180,7 @@
     <!-- Auto Duplicate Filter Report -->
     {% if auto_filter_duplicates and duplicate_report.total_groups > 0 %}
     <div class="card mb-3 border-warning">
-        <div class="card-header bg-warning text-dark">
+        <div class="card-header text-black" style="background-color: #ffeaa7;">
             <div class="d-flex justify-content-between align-items-center">
                 <h6 class="mb-0">
                     <i class="fas fa-robot me-1"></i>
@@ -364,19 +364,10 @@
                             {% endif %}
                         </a>
                     </th>
-                    <th class="text-end" style="padding: 4px 8px;">
-                        <a href="{{ url_for('view_bookings', search_term=search_term, filter_month=filter_month, filter_year=filter_year, start_date=start_date, end_date=end_date, sort_by='Số tiền đã thu', order='asc' if current_sort_by == 'Số tiền đã thu' and current_order == 'desc' else 'desc') }}" class="text-dark text-decoration-none fw-medium">
-                            ✅ Đã thu 
-                            {% if current_sort_by == 'Số tiền đã thu' %}
-                                {% if current_order == 'asc' %}
-                                    <i class="fas fa-sort-up fa-xs text-primary"></i>
-                                {% else %}
-                                    <i class="fas fa-sort-down fa-xs text-primary"></i>
-                                {% endif %}
-                            {% else %}
-                                <i class="fas fa-sort fa-xs text-muted"></i>
-                            {% endif %}
-                        </a>
+                    <th class="text-center" style="padding: 4px 8px;">
+                        <span class="fw-medium">
+                            ⚡ Trạng thái
+                        </span>
                     </th>
                     <th style="padding: 4px 8px;">
                         <a href="{{ url_for('view_bookings', search_term=search_term, filter_month=filter_month, filter_year=filter_year, start_date=start_date, end_date=end_date, sort_by='Người thu tiền', order='asc' if current_sort_by == 'Người thu tiền' and current_order == 'desc' else 'desc') }}" class="text-dark text-decoration-none fw-medium">
@@ -503,16 +494,16 @@
                     <td class="text-end" style="padding: 2px 8px;">
                         <strong class="text-primary">{{ "{:,.0f}".format(booking.get('Tổng thanh toán', 0)) }}đ</strong>
                     </td>
-                    <td class="text-end" style="padding: 2px 8px;">
-                        {% set collected_amount = booking.get('Số tiền đã thu', 0) %}
+                    <td class="text-center" style="padding: 2px 8px;">
                         {% set collector = booking.get('Người thu tiền', '') %}
                         {% set valid_collectors = ['LOC LE', 'THAO LE'] %}
                         {% set has_valid_collector = collector in valid_collectors %}
-                        {% set actual_collected = has_valid_collector and collected_amount or 0 %}
-                        {% if actual_collected > 0 %}
-                            <strong class="text-success">{{ "{:,.0f}".format(actual_collected) }}đ</strong>
+                        {% if has_valid_collector %}
+                            <i class="fas fa-check-circle text-success"></i>
+                            <small class="text-success">Đã thu</small>
                         {% else %}
-                            <small class="text-muted">-</small>
+                            <i class="fas fa-clock text-muted"></i>
+                            <small class="text-muted">Chưa thu</small>
                         {% endif %}
                     </td>
                     <td style="padding: 2px 8px;">

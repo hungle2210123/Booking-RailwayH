@@ -1,35 +1,23 @@
+# 🚀 Railway Deployment - Git Ignore
+
+# Environment and secrets
+.env
+*.env
+.env.local
+.env.production
+credentials.json
+
 # Python
 __pycache__/
 *.py[cod]
 *$py.class
 *.so
 .Python
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-*.egg-info/
-.installed.cfg
-*.egg
-MANIFEST
-
-# Virtual Environment
-venv/
 env/
+venv/
 ENV/
-
-# Environment Variables
-.env
-.env.local
-.env.production
+env.bak/
+venv.bak/
 
 # IDE
 .vscode/
@@ -38,20 +26,73 @@ ENV/
 *.swo
 *~
 
-# Logs
-*.log
-logs/
-
-# Database
-*.db
-*.sqlite
-*.sqlite3
-
 # OS
 .DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
 Thumbs.db
+
+# Debug and test files
+test_*.py
+debug_*.py
+verify_*.py
+check_*.py
+fix_*.py
+analyze_*.py
+read_*.py
+import_*.py
+manual_*.py
+run_*.py
+*_test.py
+*_debug.py
+*_fix.py
+
+# Documentation files (keep main README.md)
+*.md
+\!README.md
+\!PROJECT_DOCUMENTATION.md
+
+# Excel and data files
+*.xlsx
+*.xls
+*.csv
+*.jpg
+*.jpeg
+*.png
+*.gif
+
+# SQL scripts (except main schema)
+*.sql
+\!database_init.sql
 
 # Temporary files
 *.tmp
 *.temp
-~$*
+*.log
+*.backup
+*.bak
+
+# Build files
+build/
+dist/
+*.egg-info/
+
+# Debug templates
+templates/debug_*.html
+templates/test_*.html
+
+# Development scripts
+*.bat
+*.sh
+\!start.sh
+\!build.sh
+
+# Railway specific (keep main config)
+\!railway.json
+\!Procfile
+\!requirements.txt
+\!runtime.txt
+EOF < /dev/null

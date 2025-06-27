@@ -72,8 +72,8 @@
         </h6>
     </div>
     <div class="card-body">
-        <div id="photo-upload-area" class="border-2 border-dashed border-primary rounded p-4 text-center" 
-             style="cursor: pointer; background-color: #f8f9ff;">
+        <div id="photo-upload-area" class="border-2 border-dashed border-primary rounded p-4 text-center photo-upload-zone" 
+             style="cursor: pointer; background-color: #f8f9ff; transition: all 0.3s ease;">
             <i class="fas fa-cloud-upload-alt fa-2x text-primary mb-2"></i>
             <p class="mb-2"><strong>Dán ảnh (Ctrl+V) hoặc click để chọn file</strong></p>
             <small class="text-muted">AI sẽ tự động phân tích và quyết định: điền form (1 khách) hoặc lưu nhiều khách</small>
@@ -108,15 +108,13 @@
                             <thead class="table-primary">
                                 <tr>
                                     <th width="5%">#</th>
-                                    <th width="15%">Tên khách *</th>
-                                    <th width="12%">Booking ID</th>
-                                    <th width="10%">Check-in *</th>
-                                    <th width="10%">Check-out *</th>
-                                    <th width="12%">Tổng tiền *</th>
-                                    <th width="12%">Hoa hồng</th>
-                                    <th width="10%">Email</th>
-                                    <th width="10%">Phone</th>
-                                    <th width="4%">Xóa</th>
+                                    <th width="20%">Tên khách *</th>
+                                    <th width="15%">Booking ID</th>
+                                    <th width="12%">Check-in *</th>
+                                    <th width="12%">Check-out *</th>
+                                    <th width="15%">Tổng tiền *</th>
+                                    <th width="15%">Hoa hồng</th>
+                                    <th width="6%">Xóa</th>
                                 </tr>
                             </thead>
                             <tbody id="review-table-body">
@@ -258,44 +256,340 @@
 // Store extracted bookings for multiple booking scenario
 let extractedBookings = [];
 
-// Photo upload functionality
-document.addEventListener('DOMContentLoaded', function() {
+// IMMEDIATE GLOBAL FUNCTIONS - Available from page load
+window.testPhotoUpload = function() {
+    console.log('🧪 Testing photo upload functionality...');
+    const uploadArea = document.getElementById('photo-upload-area');
+    const photoInput = document.getElementById('photo-input');
+    console.log('📁 Upload area element:', uploadArea);
+    console.log('📂 Photo input element:', photoInput);
+    
+    if (uploadArea && photoInput) {
+        console.log('✅ Elements found');
+        alert('✅ Elements found!\nUpload area: ' + (uploadArea ? 'OK' : 'Missing') + '\nPhoto input: ' + (photoInput ? 'OK' : 'Missing'));
+        return true;
+    } else {
+        console.error('❌ Elements missing');
+        alert('❌ Elements missing!\nUpload area: ' + (uploadArea ? 'OK' : 'Missing') + '\nPhoto input: ' + (photoInput ? 'OK' : 'Missing'));
+        return false;
+    }
+};
+
+window.fixPhotoUpload = function() {
+    console.log('🔧 Manual photo upload fix...');
     const uploadArea = document.getElementById('photo-upload-area');
     const photoInput = document.getElementById('photo-input');
     
+    if (!uploadArea || !photoInput) {
+        alert('❌ Cannot fix: Elements not found');
+        return false;
+    }
+    
+    // Direct onclick assignment
+    uploadArea.onclick = function(e) {
+        console.log('🔧 MANUAL CLICK: Opening file dialog');
+        e.preventDefault();
+        e.stopPropagation();
+        photoInput.click();
+    };
+    
+    // File change handler
+    photoInput.onchange = function(e) {
+        console.log('🔧 MANUAL FILE: File selected', e.target.files[0]);
+        if (e.target.files[0]) {
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                console.log('🔧 MANUAL PROCESS: Processing photo');
+                if (typeof processPhoto === 'function') {
+                    processPhoto(event.target.result);
+                } else {
+                    alert('❌ processPhoto function not found');
+                }
+            };
+            reader.readAsDataURL(e.target.files[0]);
+        }
+    };
+    
+    alert('✅ Photo upload manually fixed!\nTry clicking the upload area now.');
+    return true;
+};
+
+// NUCLEAR OPTION - Simple direct fix
+window.nuclearFixPhotoUpload = function() {
+    console.log('💥 NUCLEAR: Direct HTML replacement');
+    const uploadArea = document.getElementById('photo-upload-area');
+    if (uploadArea) {
+        uploadArea.innerHTML = `
+            <input type="file" accept="image/*" 
+                   style="display:block;margin:20px auto;padding:20px;border:2px dashed #007bff;background:#f8f9ff;cursor:pointer;width:90%;text-align:center;"
+                   onchange="
+                       console.log('💥 NUCLEAR FILE SELECTED');
+                       if(this.files[0]) {
+                           const reader = new FileReader();
+                           reader.onload = function(e) {
+                               console.log('💥 NUCLEAR PROCESSING');
+                               if(typeof processPhoto === 'function') {
+                                   processPhoto(e.target.result);
+                               } else {
+                                   alert('processPhoto function not available');
+                               }
+                           };
+                           reader.readAsDataURL(this.files[0]);
+                       }
+                   ">
+            <div style="pointer-events:none;margin-top:10px;">
+                <i class="fas fa-cloud-upload-alt fa-2x text-primary mb-2"></i>
+                <p><strong>NUCLEAR MODE: Click to select image file</strong></p>
+            </div>
+        `;
+        alert('💥 Nuclear mode activated!\nUpload area replaced with direct file input.');
+        return true;
+    } else {
+        alert('❌ Upload area not found');
+        return false;
+    }
+};
+
+// Test that functions are defined
+console.log('🧪 FUNCTIONS TEST: testPhotoUpload defined:', typeof window.testPhotoUpload);
+console.log('🔧 FUNCTIONS TEST: fixPhotoUpload defined:', typeof window.fixPhotoUpload);
+console.log('💥 FUNCTIONS TEST: nuclearFixPhotoUpload defined:', typeof window.nuclearFixPhotoUpload);
+
+// EMERGENCY FIX: Direct element binding without waiting for DOMContentLoaded
+function initPhotoUploadImmediate() {
+    console.log('🚨 EMERGENCY: Direct photo upload initialization...');
+    
+    const uploadArea = document.getElementById('photo-upload-area');
+    const photoInput = document.getElementById('photo-input');
+    
+    console.log('🔍 Direct check - Upload Area:', uploadArea);
+    console.log('🔍 Direct check - Photo Input:', photoInput);
+    
+    if (uploadArea && photoInput) {
+        // Remove any existing event listeners
+        uploadArea.onclick = null;
+        photoInput.onchange = null;
+        
+        // Add direct event listeners
+        uploadArea.addEventListener('click', function(e) {
+            console.log('🚨 EMERGENCY CLICK: Upload area clicked');
+            e.preventDefault();
+            e.stopPropagation();
+            photoInput.click();
+        });
+        
+        photoInput.addEventListener('change', function(e) {
+            console.log('🚨 EMERGENCY CHANGE: File selected', e.target.files[0]);
+            if (e.target.files[0]) {
+                const reader = new FileReader();
+                reader.onload = function(event) {
+                    console.log('🚨 EMERGENCY PROCESS: Processing photo');
+                    processPhoto(event.target.result);
+                };
+                reader.readAsDataURL(e.target.files[0]);
+            }
+        });
+        
+        // Add paste support to document
+        document.addEventListener('paste', function(e) {
+            console.log('🚨 EMERGENCY PASTE: Paste detected');
+            if (e.clipboardData && e.clipboardData.items) {
+                for (let item of e.clipboardData.items) {
+                    if (item.type.startsWith('image/')) {
+                        console.log('🚨 EMERGENCY IMAGE: Processing pasted image');
+                        const file = item.getAsFile();
+                        if (file) {
+                            const reader = new FileReader();
+                            reader.onload = function(event) {
+                                processPhoto(event.target.result);
+                            };
+                            reader.readAsDataURL(file);
+                        }
+                        break;
+                    }
+                }
+            }
+        });
+        
+        console.log('🚨 EMERGENCY SUCCESS: Photo upload initialized directly');
+        window.emergencyPhotoUploadFixed = true;
+        return true;
+    } else {
+        console.error('🚨 EMERGENCY FAIL: Elements not found');
+        return false;
+    }
+}
+
+// Try immediate initialization
+if (document.readyState === 'loading') {
+    console.log('📄 Document still loading, waiting...');
+} else {
+    console.log('📄 Document already loaded, initializing immediately');
+    initPhotoUploadImmediate();
+}
+
+// Photo upload functionality - Primary initialization
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('🚀 Initializing photo upload functionality...');
+    
+    // Skip if emergency fix already worked
+    if (window.emergencyPhotoUploadFixed) {
+        console.log('✅ Emergency fix already applied, skipping normal initialization');
+        return;
+    }
+    
+    const uploadArea = document.getElementById('photo-upload-area');
+    const photoInput = document.getElementById('photo-input');
+    
+    if (!uploadArea) {
+        console.error('❌ photo-upload-area element not found!');
+        return;
+    }
+    
+    if (!photoInput) {
+        console.error('❌ photo-input element not found!');
+        return;
+    }
+    
+    console.log('✅ Photo upload elements found, attaching event listeners...');
+    
     // Click to upload
-    uploadArea.onclick = () => photoInput.click();
+    uploadArea.onclick = function(e) {
+        console.log('📁 Upload area clicked, opening file dialog...');
+        e.preventDefault();
+        e.stopPropagation();
+        photoInput.click();
+    };
     
     // File selection
     photoInput.onchange = function(e) {
+        console.log('📂 File selected:', e.target.files[0]);
         if (e.target.files[0]) {
             const reader = new FileReader();
-            reader.onload = e => processPhoto(e.target.result);
+            reader.onload = function(event) {
+                console.log('📸 File read complete, processing photo...');
+                processPhoto(event.target.result);
+            };
             reader.readAsDataURL(e.target.files[0]);
         }
     };
     
     // Paste support
     document.addEventListener('paste', function(e) {
+        console.log('📋 Paste event detected');
+        
+        if (!e.clipboardData || !e.clipboardData.items) {
+            console.log('⚠️ No clipboard data available');
+            return;
+        }
+        
         const items = e.clipboardData.items;
-        for (let item of items) {
+        console.log('📋 Clipboard items:', items.length);
+        
+        for (let i = 0; i < items.length; i++) {
+            const item = items[i];
+            console.log(`📋 Item ${i}: type=${item.type}, kind=${item.kind}`);
+            
             if (item.type.startsWith('image/')) {
+                console.log('🖼️ Image found in clipboard, processing...');
+                e.preventDefault();
+                e.stopPropagation();
+                
                 const file = item.getAsFile();
-                const reader = new FileReader();
-                reader.onload = e => processPhoto(e.target.result);
-                reader.readAsDataURL(file);
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = function(event) {
+                        console.log('📸 Pasted image read complete, processing photo...');
+                        processPhoto(event.target.result);
+                    };
+                    reader.readAsDataURL(file);
+                }
                 break;
             }
         }
     });
+    
+    console.log('✅ Photo upload functionality initialized successfully');
+    window.photoUploadInitialized = true;
+    
+    // Test function for debugging
+    window.testPhotoUpload = function() {
+        console.log('🧪 Testing photo upload functionality...');
+        console.log('📁 Upload area element:', uploadArea);
+        console.log('📂 Photo input element:', photoInput);
+        console.log('🎯 Upload area onclick:', uploadArea.onclick);
+        console.log('🎯 Photo input onchange:', photoInput.onchange);
+        
+        if (uploadArea && photoInput) {
+            console.log('✅ All elements found and configured');
+            alert('✅ Photo upload elements are properly configured!\n\nTry:\n• Click the upload area\n• Paste an image (Ctrl+V)\n• Check browser console for detailed logs');
+        } else {
+            console.error('❌ Some elements are missing');
+            alert('❌ Photo upload elements are missing. Check browser console for details.');
+        }
+    };
+    
+    // Manual fix function for users
+    window.fixPhotoUpload = function() {
+        console.log('🔧 Manual photo upload fix...');
+        const success = initPhotoUploadImmediate();
+        if (success) {
+            alert('✅ Photo upload manually fixed!\n\nTry clicking the upload area or pasting an image now.');
+        } else {
+            alert('❌ Manual fix failed. Check browser console for details.');
+        }
+    };
 });
+
+// Fallback initialization - in case DOMContentLoaded already fired
+setTimeout(function() {
+    if (!window.photoUploadInitialized && !window.emergencyPhotoUploadFixed) {
+        console.log('🔄 Running fallback photo upload initialization...');
+        
+        const success = initPhotoUploadImmediate();
+        if (success) {
+            console.log('✅ Fallback initialization successful');
+            window.photoUploadInitialized = true;
+        } else {
+            console.error('❌ Fallback initialization failed');
+        }
+    }
+}, 1000);
+
+// Additional aggressive retry for stubborn cases
+setTimeout(function() {
+    if (!window.photoUploadInitialized && !window.emergencyPhotoUploadFixed) {
+        console.log('🚨 AGGRESSIVE RETRY: Final attempt at photo upload initialization...');
+        
+        const uploadArea = document.getElementById('photo-upload-area');
+        const photoInput = document.getElementById('photo-input');
+        
+        if (uploadArea && photoInput) {
+            // Use more aggressive event binding
+            uploadArea.setAttribute('onclick', 'document.getElementById("photo-input").click(); console.log("🚨 ONCLICK ATTR: Clicked via attribute");');
+            
+            // Also add addEventListener as backup
+            uploadArea.addEventListener('click', function(e) {
+                console.log('🚨 AGGRESSIVE: Click event fired');
+                document.getElementById('photo-input').click();
+            }, true); // Use capture phase
+            
+            console.log('🚨 AGGRESSIVE: Applied onclick attribute and capture listener');
+        }
+    }
+}, 3000);
 
 function processPhoto(imageData) {
     console.log('🔍 Processing photo...');
     
     // Show processing indicator
     document.getElementById('photo-processing').style.display = 'block';
-    document.getElementById('multiple-bookings-result').style.display = 'none';
+    
+    // Hide AI results if previously shown
+    const aiResults = document.getElementById('ai-results-review');
+    if (aiResults) {
+        aiResults.style.display = 'none';
+    }
     
     // Call AI processing endpoint
     fetch('/api/process_pasted_image', {
@@ -305,7 +599,11 @@ function processPhoto(imageData) {
     })
     .then(response => response.json())
     .then(data => {
-        document.getElementById('photo-processing').style.display = 'none';
+        // Hide processing indicator with null check
+        const processingEl = document.getElementById('photo-processing');
+        if (processingEl) {
+            processingEl.style.display = 'none';
+        }
         
         console.log('📋 AI Response:', data);
         
@@ -349,7 +647,11 @@ function processPhoto(imageData) {
         }
     })
     .catch(error => {
-        document.getElementById('photo-processing').style.display = 'none';
+        // Hide processing indicator with null check
+        const processingEl = document.getElementById('photo-processing');
+        if (processingEl) {
+            processingEl.style.display = 'none';
+        }
         console.error('❌ Photo processing error:', error);
         alert('❌ Lỗi kết nối khi xử lý ảnh: ' + error.message);
     });
@@ -362,25 +664,134 @@ function showReviewTable(bookings, duplicateCheck) {
     
     extractedBookings = bookings;
     
-    // Update counter
-    document.getElementById('extracted-count').textContent = bookings.length;
-    
-    // Show duplicate warning if needed
-    if (duplicateCheck && duplicateCheck.has_duplicates) {
-        const duplicateCount = duplicateCheck.duplicates.length;
-        alert(`⚠️ CẢNH BÁO: Tìm thấy ${duplicateCount} khách có thể đã tồn tại trong hệ thống!\\n` +
-              'Vui lòng kiểm tra kỹ trong bảng xem trước trước khi lưu.');
+    // Update counter with null check
+    const countEl = document.getElementById('extracted-count');
+    if (countEl) {
+        countEl.textContent = bookings.length;
     }
     
-    // Create editable table rows
-    const tableBodyHtml = bookings.map((booking, index) => `
-        <tr data-index="${index}">
+    // Check for existing bookings in database
+    checkExistingBookings(bookings).then(() => {
+        // Show duplicate warning if needed
+        if (duplicateCheck && duplicateCheck.has_duplicates) {
+            const duplicateCount = duplicateCheck.duplicates.length;
+            const duplicateNames = duplicateCheck.duplicates.map(dup => dup.guest_name).join(', ');
+            alert(`⚠️ CẢNH BÁO TRÙNG LẶP: Tìm thấy ${duplicateCount} khách có thể đã tồn tại!\\n\\n` +
+                  `Khách trùng lặp: ${duplicateNames}\\n\\n` +
+                  '🔍 Các dòng bị trùng lặp được đánh dấu VÀNG với biểu tượng ⚠️\\n' +
+                  'Vui lòng kiểm tra kỹ trước khi lưu để tránh tạo booking trùng lặp!');
+        }
+        
+        // Generate the table after checking existing bookings
+        generateReviewTableHtml(duplicateCheck);
+    });
+}
+
+// Check for existing bookings in database
+async function checkExistingBookings(bookings) {
+    try {
+        console.log('🔍 Checking for existing bookings...');
+        
+        const response = await fetch('/api/check_existing_bookings', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ bookings: bookings })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            console.log('📋 Existing bookings check results:', data.results);
+            
+            // Mark bookings as existing
+            data.results.forEach(result => {
+                if (result.exists && extractedBookings[result.index]) {
+                    extractedBookings[result.index].exists_in_db = true;
+                    extractedBookings[result.index].status = 'existing';
+                }
+            });
+            
+            // Show summary if there are existing bookings
+            if (data.total_existing > 0) {
+                console.log(`⚠️ Found ${data.total_existing} existing bookings`);
+                
+                // Show notification about existing bookings
+                const existingNames = data.results
+                    .filter(r => r.exists)
+                    .map(r => r.guest_name)
+                    .join(', ');
+                
+                // Add a notification area
+                let notificationArea = document.getElementById('existing-bookings-notification');
+                if (!notificationArea) {
+                    notificationArea = document.createElement('div');
+                    notificationArea.id = 'existing-bookings-notification';
+                    notificationArea.className = 'alert alert-info mb-3';
+                    document.getElementById('ai-results-review').insertBefore(
+                        notificationArea, 
+                        document.getElementById('ai-results-review').firstChild.nextSibling
+                    );
+                }
+                
+                notificationArea.innerHTML = `
+                    <h6><i class="fas fa-info-circle me-2"></i>📋 Booking đã tồn tại trong hệ thống</h6>
+                    <p class="mb-2">Tìm thấy <strong>${data.total_existing}</strong> booking đã tồn tại: <strong>${existingNames}</strong></p>
+                    <p class="mb-0">
+                        <i class="fas fa-lightbulb me-1"></i>
+                        <strong>Gợi ý:</strong> Các booking màu cam có thể được xóa trước khi lưu để tránh trùng lặp.
+                        <button class="btn btn-sm btn-outline-danger ms-2" onclick="removeAllExistingBookings()">
+                            <i class="fas fa-trash me-1"></i>Xóa tất cả booking đã tồn tại
+                        </button>
+                    </p>
+                `;
+            }
+        }
+    } catch (error) {
+        console.error('❌ Error checking existing bookings:', error);
+    }
+}
+
+function generateReviewTableHtml(duplicateCheck) {
+    // Create editable table rows with duplicate and existing indicators
+    const tableBodyHtml = extractedBookings.map((booking, index) => {
+        // Check if this guest might be a duplicate
+        const guestName = booking.guest_name || '';
+        const isDuplicate = duplicateCheck && duplicateCheck.has_duplicates && 
+                           duplicateCheck.duplicates.some(dup => {
+                               const dupName = dup.guest_name || '';
+                               const currentName = guestName || '';
+                               if (!dupName || !currentName) return false;
+                               return dupName.toLowerCase().includes(currentName.toLowerCase()) ||
+                                      currentName.toLowerCase().includes(dupName.toLowerCase());
+                           });
+        
+        // Check if booking already exists in database
+        const existsInDb = booking.exists_in_db || false;
+        
+        let statusIcon = '';
+        let rowClass = '';
+        
+        if (existsInDb) {
+            // Existing booking - orange background with database icon
+            statusIcon = '<i class="fas fa-database text-danger ms-1" title="📋 Booking đã tồn tại trong hệ thống"></i>';
+            rowClass = 'table-warning border border-danger';
+        } else if (isDuplicate) {
+            // Potential duplicate - yellow background with warning
+            statusIcon = '<i class="fas fa-exclamation-triangle text-warning ms-1" title="⚠️ Khách có thể đã tồn tại trong hệ thống"></i>';
+            rowClass = 'table-warning';
+        }
+        
+        return `
+        <tr data-index="${index}" class="${rowClass}">
             <td class="text-center fw-bold">${index + 1}</td>
             <td>
-                <input type="text" class="form-control form-control-sm" 
-                       value="${booking.guest_name || ''}" 
-                       onchange="updateBookingData(${index}, 'guest_name', this.value)"
-                       placeholder="Tên khách hàng" required>
+                <div class="d-flex align-items-center">
+                    <input type="text" class="form-control form-control-sm flex-grow-1" 
+                           value="${guestName}" 
+                           onchange="updateBookingData(${index}, 'guest_name', this.value)"
+                           placeholder="Tên khách hàng" required>
+                    ${statusIcon}
+                </div>
             </td>
             <td>
                 <input type="text" class="form-control form-control-sm" 
@@ -410,39 +821,56 @@ function showReviewTable(bookings, duplicateCheck) {
                        onchange="updateBookingData(${index}, 'commission', this.value)"
                        placeholder="0" min="0">
             </td>
-            <td>
-                <input type="email" class="form-control form-control-sm" 
-                       value="${booking.email || ''}" 
-                       onchange="updateBookingData(${index}, 'email', this.value)"
-                       placeholder="email@example.com">
-            </td>
-            <td>
-                <input type="tel" class="form-control form-control-sm" 
-                       value="${booking.phone || ''}" 
-                       onchange="updateBookingData(${index}, 'phone', this.value)"
-                       placeholder="+84...">
-            </td>
             <td class="text-center">
                 <button type="button" class="btn btn-outline-danger btn-sm" 
                         onclick="removeBookingRow(${index})" title="Xóa khách này">
                     <i class="fas fa-trash"></i>
                 </button>
             </td>
-        </tr>
-    `).join('');
+        </tr>`;
+    }).join('');
     
-    document.getElementById('review-table-body').innerHTML = tableBodyHtml;
-    document.getElementById('ai-results-review').style.display = 'block';
+    // Update table content with null check
+    const tableBodyEl = document.getElementById('review-table-body');
+    if (tableBodyEl) {
+        tableBodyEl.innerHTML = tableBodyHtml;
+    }
     
-    // Hide manual form during review
-    document.getElementById('manual-form-container').style.display = 'none';
+    // Show AI results with null check
+    const resultsEl = document.getElementById('ai-results-review');
+    if (resultsEl) {
+        resultsEl.style.display = 'block';
+    }
+    
+    // Hide manual form during review with null check
+    const manualFormEl = document.getElementById('manual-form-container');
+    if (manualFormEl) {
+        manualFormEl.style.display = 'none';
+    }
 }
 
 function resetPhotoUpload() {
-    document.getElementById('photo-processing').style.display = 'none';
-    document.getElementById('ai-results-review').style.display = 'none';
-    document.getElementById('manual-form-container').style.display = 'block';
-    document.getElementById('photo-input').value = '';
+    // Hide processing and results with null checks
+    const processingEl = document.getElementById('photo-processing');
+    if (processingEl) {
+        processingEl.style.display = 'none';
+    }
+    
+    const resultsEl = document.getElementById('ai-results-review');
+    if (resultsEl) {
+        resultsEl.style.display = 'none';
+    }
+    
+    const manualFormEl = document.getElementById('manual-form-container');
+    if (manualFormEl) {
+        manualFormEl.style.display = 'block';
+    }
+    
+    const photoInputEl = document.getElementById('photo-input');
+    if (photoInputEl) {
+        photoInputEl.value = '';
+    }
+    
     extractedBookings = [];
 }
 
@@ -459,10 +887,44 @@ function removeBookingRow(index) {
         console.log(`🗑️ Removed booking at index ${index}`);
         
         // Refresh the table
-        showReviewTable(extractedBookings, null);
+        generateReviewTableHtml(null);
         
         // Update counter
         document.getElementById('extracted-count').textContent = extractedBookings.length;
+        
+        if (extractedBookings.length === 0) {
+            resetPhotoUpload();
+        }
+    }
+}
+
+function removeAllExistingBookings() {
+    const existingBookings = extractedBookings.filter(booking => booking.exists_in_db);
+    
+    if (existingBookings.length === 0) {
+        alert('Không có booking nào đã tồn tại để xóa.');
+        return;
+    }
+    
+    const confirmMsg = `Bạn có chắc muốn xóa ${existingBookings.length} booking đã tồn tại?\\n\\n` +
+                      existingBookings.map(b => `• ${b.guest_name} (${b.booking_id})`).join('\\n');
+    
+    if (confirm(confirmMsg)) {
+        // Remove all existing bookings
+        extractedBookings = extractedBookings.filter(booking => !booking.exists_in_db);
+        console.log(`🗑️ Removed ${existingBookings.length} existing bookings`);
+        
+        // Refresh the table
+        generateReviewTableHtml(null);
+        
+        // Update counter
+        document.getElementById('extracted-count').textContent = extractedBookings.length;
+        
+        // Remove notification
+        const notification = document.getElementById('existing-bookings-notification');
+        if (notification) {
+            notification.remove();
+        }
         
         if (extractedBookings.length === 0) {
             resetPhotoUpload();
@@ -477,16 +939,14 @@ function addManualRow() {
         checkin_date: '',
         checkout_date: '',
         room_amount: '',
-        commission: '',
-        email: '',
-        phone: ''
+        commission: ''
     };
     
     extractedBookings.push(newBooking);
     console.log('➕ Added manual booking row');
     
     // Refresh the table
-    showReviewTable(extractedBookings, null);
+    generateReviewTableHtml(null);
 }
 
 function validateBookings() {
@@ -601,5 +1061,107 @@ function clearForm() {
     document.querySelector('input[name="Tên người đặt"]').focus();
 }
 </script>
+
+<style>
+/* Duplicate guest styling */
+.table-warning {
+    background-color: #fff3cd !important;
+    border-left: 4px solid #ffc107 !important;
+}
+
+.table-warning:hover {
+    background-color: #ffeaa7 !important;
+}
+
+/* Duplicate warning icon animation */
+.fas.fa-exclamation-triangle.text-warning {
+    animation: pulse-warning 2s infinite;
+}
+
+@keyframes pulse-warning {
+    0% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.1); opacity: 0.8; }
+    100% { transform: scale(1); opacity: 1; }
+}
+
+/* Enhanced alert styling for duplicate notification */
+.alert.alert-success {
+    position: relative;
+}
+
+.alert.alert-success .fas.fa-check-circle {
+    color: #28a745;
+}
+
+/* Existing booking styling */
+.table-warning.border-danger {
+    background-color: #fff3cd !important;
+    border-left: 4px solid #dc3545 !important;
+}
+
+.table-warning.border-danger:hover {
+    background-color: #ffeaa7 !important;
+}
+
+/* Existing booking icon animation */
+.fas.fa-database.text-danger {
+    animation: pulse-danger 2s infinite;
+}
+
+@keyframes pulse-danger {
+    0% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.1); opacity: 0.8; }
+    100% { transform: scale(1); opacity: 1; }
+}
+
+/* Enhanced existing bookings notification */
+#existing-bookings-notification {
+    border-left: 4px solid #17a2b8;
+    background: linear-gradient(135deg, #17a2b8 0%, #138496 100%);
+    color: white;
+}
+
+#existing-bookings-notification h6 {
+    color: white;
+    margin-bottom: 0.5rem;
+}
+
+#existing-bookings-notification .btn-outline-danger {
+    border-color: white;
+    color: white;
+}
+
+#existing-bookings-notification .btn-outline-danger:hover {
+    background-color: white;
+    color: #dc3545;
+}
+
+/* Photo upload area styling */
+.photo-upload-zone {
+    transition: all 0.3s ease !important;
+    cursor: pointer !important;
+    user-select: none;
+}
+
+.photo-upload-zone:hover {
+    background-color: #e3f2fd !important;
+    border-color: #1976d2 !important;
+    transform: scale(1.02);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+.photo-upload-zone:active {
+    transform: scale(0.98);
+    background-color: #bbdefb !important;
+}
+
+.photo-upload-zone i {
+    transition: transform 0.3s ease;
+}
+
+.photo-upload-zone:hover i {
+    transform: scale(1.1);
+}
+</style>
 
 {% endblock %}

@@ -204,30 +204,56 @@ def create_demo_data():
 def add_new_booking(booking_data: Dict) -> bool:
     """Add new booking to PostgreSQL"""
     from .models import db, Guest, Booking
+    import uuid
     
     try:
-        # Check if guest exists
-        guest = db.session.query(Guest).filter_by(
-            full_name=booking_data.get('guest_name', ''),
-            email=booking_data.get('email', '')
-        ).first()
+        print(f"🔍 [ADD_NEW_BOOKING] Processing: {booking_data.get('guest_name', 'Unknown')}")
+        
+        # Handle empty email - convert to None to avoid unique constraint issues
+        email = booking_data.get('email', '').strip()
+        if not email or len(email) == 0:
+            email = None
+            print(f"🔍 [ADD_NEW_BOOKING] Empty email converted to None")
+        
+        # Check if guest exists (only by name if no email)
+        if email:
+            guest = db.session.query(Guest).filter_by(
+                full_name=booking_data.get('guest_name', ''),
+                email=email
+            ).first()
+        else:
+            # If no email, just check by name for potential match
+            guest = db.session.query(Guest).filter_by(
+                full_name=booking_data.get('guest_name', '')
+            ).filter(Guest.email.is_(None)).first()
         
         if not guest:
+            print(f"🔍 [ADD_NEW_BOOKING] Creating new guest")
             # Create new guest
             guest = Guest(
                 full_name=booking_data.get('guest_name', ''),
-                email=booking_data.get('email', ''),
+                email=email,  # Will be None if empty
                 phone=booking_data.get('phone', ''),
                 nationality=booking_data.get('nationality', ''),
                 passport_number=booking_data.get('passport_number', '')
             )
             db.session.add(guest)
             db.session.flush()
+            print(f"✅ [ADD_NEW_BOOKING] New guest created: ID {guest.guest_id}")
+        else:
+            print(f"✅ [ADD_NEW_BOOKING] Existing guest found: ID {guest.guest_id}")
+        
+        # Generate unique booking ID if not provided
+        booking_id = booking_data.get('booking_id', '').strip()
+        if not booking_id:
+            booking_id = f"PHOTO_{uuid.uuid4().hex[:8].upper()}"
+            print(f"🔍 [ADD_NEW_BOOKING] Generated booking ID: {booking_id}")
         
         # Create new booking
         booking = Booking(
-            booking_id=booking_data.get('booking_id', ''),
+            booking_id=booking_id,
             guest_id=guest.guest_id,
+            guest_name=booking_data.get('guest_name', ''),  # Denormalized for quick access
             checkin_date=booking_data.get('checkin_date'),
             checkout_date=booking_data.get('checkout_date'),
             room_amount=booking_data.get('room_amount', 0),
@@ -240,12 +266,14 @@ def add_new_booking(booking_data: Dict) -> bool:
         
         db.session.add(booking)
         db.session.commit()
-        print(f"Added new booking: {booking_data.get('booking_id')}")
+        print(f"✅ [ADD_NEW_BOOKING] Successfully added booking: {booking_id}")
         return True
         
     except Exception as e:
         db.session.rollback()
-        print(f"Error adding booking: {e}")
+        print(f"❌ [ADD_NEW_BOOKING] Error adding booking: {e}")
+        import traceback
+        traceback.print_exc()
         return False
 
 def update_booking(booking_id: str, update_data: Dict) -> bool:
@@ -277,7 +305,14 @@ def update_booking(booking_id: str, update_data: Dict) -> bool:
         if 'room_amount' in update_data:
             booking.room_amount = update_data['room_amount']
         if 'commission' in update_data:
-            booking.commission = update_data['commission']
+            old_commission = booking.commission or 0
+            new_commission = update_data['commission']
+            booking.commission = new_commission
+            print(f"[UPDATE_BOOKING] 💰 COMMISSION UPDATE:")
+            print(f"[UPDATE_BOOKING]   - OLD commission: {old_commission}")
+            print(f"[UPDATE_BOOKING]   - NEW commission: {new_commission}")
+            print(f"[UPDATE_BOOKING]   - Type: {type(new_commission)}")
+            print(f"[UPDATE_BOOKING]   - After assignment: {booking.commission}")
         if 'collected_amount' in update_data:
             old_collected_amount = booking.collected_amount or 0
             new_collected_amount = update_data['collected_amount']
@@ -520,29 +555,99 @@ def prepare_dashboard_data(df: pd.DataFrame, start_date: datetime, end_date: dat
             'monthly_collected_revenue': pd.DataFrame()
         }
     
-    # Filter data by date range
-    mask = (df['Check-in Date'] >= start_date) & (df['Check-in Date'] <= end_date)
+    # Filter data by date range for metrics but not for ALL-TIME chart
+    # ✅ CRITICAL: Use date-only comparison for consistency with details API
+    start_date_only = start_date.date()
+    end_date_only = end_date.date()
+    mask = (df['Check-in Date'].dt.date >= start_date_only) & (df['Check-in Date'].dt.date <= end_date_only)
     filtered_df = df[mask]
     
-    # Calculate totals
+    print(f"🔍 [CHART_LOGIC] Step 1 - Period filter: {len(df)} → {len(filtered_df)} guests")
+    print(f"🔍 [CHART_LOGIC] Date range (date only): {start_date_only} to {end_date_only}")
+    
+    # Calculate totals for selected period
     total_revenue = filtered_df['Tổng thanh toán'].sum() if 'Tổng thanh toán' in filtered_df.columns else 0
     total_guests = len(filtered_df)
     
-    # Monthly revenue analysis
-    if not filtered_df.empty and 'Check-in Date' in filtered_df.columns:
-        monthly_revenue = filtered_df.groupby(
-            filtered_df['Check-in Date'].dt.to_period('M')
+    # ✅ Monthly revenue analysis - USE ALL DATA for chart (including May and all months)
+    print(f"🔍 [PREPARE_DASHBOARD] Creating monthly revenue chart with ALL {len(df)} bookings")
+    if not df.empty and 'Check-in Date' in df.columns:
+        # Use full df instead of filtered_df to show ALL months
+        monthly_revenue = df.groupby(
+            df['Check-in Date'].dt.to_period('M')
         )['Tổng thanh toán'].sum().reset_index()
         monthly_revenue['Tháng'] = monthly_revenue['Check-in Date'].astype(str)
         monthly_revenue = monthly_revenue[['Tháng', 'Tổng thanh toán']]
+        print(f"📊 [PREPARE_DASHBOARD] Created monthly revenue chart with {len(monthly_revenue)} months: {monthly_revenue['Tháng'].tolist()}")
     else:
         monthly_revenue = pd.DataFrame(columns=['Tháng', 'Tổng thanh toán'])
     
-    # Collector revenue
+    # ✅ CRITICAL FIX: Use FILTERED period data to match date filter selection
     if 'Người thu tiền' in filtered_df.columns:
-        collector_revenue = filtered_df.groupby('Người thu tiền')['Tổng thanh toán'].sum().reset_index()
+        # Only include valid collectors with actual collected amounts
+        valid_collectors = ['LOC LE', 'THAO LE']
+        
+        print(f"💰 [COLLECTOR_VALIDATION] Using FILTERED period data: {start_date.date()} to {end_date.date()}")
+        print(f"🔍 [CHART_LOGIC] Step 1 - Period filter result: {len(filtered_df)} guests")
+        
+        # ✅ CRITICAL FIX: Apply same checked-in filter as monthly revenue
+        from datetime import date
+        today = date.today()
+        checked_in_mask = filtered_df['Check-in Date'].dt.date <= today
+        period_checked_in = filtered_df[checked_in_mask].copy()
+        
+        print(f"🔍 [CHART_LOGIC] Step 2 - Checked-in filter: {len(filtered_df)} → {len(period_checked_in)} guests")
+        print(f"💰 [COLLECTOR_VALIDATION] Period checked-in only: {len(period_checked_in)} (excluded {len(filtered_df) - len(period_checked_in)} future)")
+        
+        # Now apply collector validation to period checked-in guests only
+        valid_collector_df = period_checked_in[
+            (period_checked_in['Người thu tiền'].isin(valid_collectors)) & 
+            (period_checked_in['Tổng thanh toán'] > 0)
+        ].copy()
+        
+        print(f"💰 [COLLECTOR_VALIDATION] Valid collector records: {len(valid_collector_df)}")
+        
+        # ✅ ENHANCED DEBUG: Show all collectors in FILTERED PERIOD checked-in data
+        if 'Người thu tiền' in period_checked_in.columns:
+            debug_collector_counts = period_checked_in['Người thu tiền'].value_counts(dropna=False)
+            debug_collector_revenue = period_checked_in.groupby('Người thu tiền', dropna=False)['Tổng thanh toán'].sum()
+            
+            print(f"🔍 [COLLECTOR_CHART_DEBUG] All collectors in FILTERED PERIOD checked-in data:")
+            for collector, count in debug_collector_counts.items():
+                revenue = debug_collector_revenue.get(collector, 0)
+                is_valid = collector in valid_collectors
+                print(f"🔍   '{collector}': {count} guests, {revenue:,.0f}đ {'✅' if is_valid else '❌'}")
+                
+            # Specific LOC LE tracking
+            loc_le_count = debug_collector_counts.get('LOC LE', 0)
+            loc_le_revenue = debug_collector_revenue.get('LOC LE', 0)
+            print(f"🎯 [CHART_LOC_LE] Final: {loc_le_count} guests, {loc_le_revenue:,.0f}đ")
+        
+        if not valid_collector_df.empty:
+            # Group by collector and calculate detailed stats
+            collector_revenue = valid_collector_df.groupby('Người thu tiền').agg({
+                'Tổng thanh toán': 'sum',
+                'Số đặt phòng': 'count',  # Count bookings
+                'Hoa hồng': 'sum'  # Sum commission if available
+            }).reset_index()
+            
+            # Add percentage calculation
+            total_collected = collector_revenue['Tổng thanh toán'].sum()
+            collector_revenue['Tỷ lệ %'] = (collector_revenue['Tổng thanh toán'] / total_collected * 100).round(1)
+            
+            # Add validation info
+            print(f"💰 [COLLECTOR_CHART_TOTAL] Total collected by valid collectors: {total_collected:,.0f}đ")
+            for _, row in collector_revenue.iterrows():
+                collector_name = row['Người thu tiền']
+                amount = row['Tổng thanh toán']
+                count = row['Số đặt phòng']
+                percentage = row['Tỷ lệ %']
+                print(f"💰 [COLLECTOR_DETAIL] {collector_name}: {amount:,.0f}đ ({count} bookings, {percentage}%)")
+        else:
+            print(f"💰 [COLLECTOR_WARNING] No valid collections found for period")
+            collector_revenue = pd.DataFrame(columns=['Người thu tiền', 'Tổng thanh toán', 'Số đặt phòng', 'Hoa hồng', 'Tỷ lệ %'])
     else:
-        collector_revenue = pd.DataFrame(columns=['Người thu tiền', 'Tổng thanh toán'])
+        collector_revenue = pd.DataFrame(columns=['Người thu tiền', 'Tổng thanh toán', 'Số đặt phòng', 'Hoa hồng', 'Tỷ lệ %'])
     
     return {
         'total_revenue_selected': total_revenue,
@@ -702,8 +807,8 @@ def analyze_existing_duplicates(df: pd.DataFrame) -> Dict[str, List]:
 # EXPENSE MANAGEMENT
 # ==============================================================================
 
-def add_expense_to_database(expense_data: Dict) -> bool:
-    """Add expense to PostgreSQL"""
+def add_expense_to_database(expense_data: Dict) -> int:
+    """Add expense to PostgreSQL and return expense_id"""
     from .models import db, Expense
     
     try:
@@ -717,13 +822,15 @@ def add_expense_to_database(expense_data: Dict) -> bool:
         
         db.session.add(expense)
         db.session.commit()
-        print(f"Added expense: {expense_data.get('description')}")
-        return True
+        
+        expense_id = expense.expense_id
+        print(f"✅ Added expense ID {expense_id}: {expense_data.get('description')}")
+        return expense_id  # Return the expense_id instead of True
         
     except Exception as e:
         db.session.rollback()
-        print(f"Error adding expense: {e}")
-        return False
+        print(f"❌ Error adding expense: {e}")
+        return None  # Return None instead of False
 
 def get_expenses_from_database() -> pd.DataFrame:
     """Get all expenses from PostgreSQL with English field names for API compatibility"""
@@ -812,17 +919,55 @@ def extract_booking_info_from_image_content(image_data: bytes, google_api_key: s
             return {'error': 'PIL not available for image processing'}
         
         prompt = """
-        Extract booking information from this image and return as JSON:
+        Extract ALL booking information from this image. If there are multiple bookings/guests, extract all of them.
+        Return as JSON in this exact format:
+        
+        For SINGLE booking:
         {
-            "guest_name": "full name",
-            "booking_id": "booking ID", 
-            "checkin_date": "YYYY-MM-DD",
-            "checkout_date": "YYYY-MM-DD",
-            "room_amount": number,
-            "commission": number,
-            "email": "email if available",
-            "phone": "phone if available"
+            "type": "single",
+            "booking": {
+                "guest_name": "full name",
+                "booking_id": "booking ID", 
+                "checkin_date": "YYYY-MM-DD",
+                "checkout_date": "YYYY-MM-DD",
+                "room_amount": number,
+                "commission": number,
+                "email": "email if available",
+                "phone": "phone if available"
+            }
         }
+        
+        For MULTIPLE bookings:
+        {
+            "type": "multiple",
+            "count": number_of_bookings,
+            "bookings": [
+                {
+                    "guest_name": "full name 1",
+                    "booking_id": "booking ID 1", 
+                    "checkin_date": "YYYY-MM-DD",
+                    "checkout_date": "YYYY-MM-DD",
+                    "room_amount": number,
+                    "commission": number,
+                    "email": "email if available",
+                    "phone": "phone if available"
+                },
+                {
+                    "guest_name": "full name 2",
+                    "booking_id": "booking ID 2",
+                    "checkin_date": "YYYY-MM-DD", 
+                    "checkout_date": "YYYY-MM-DD",
+                    "room_amount": number,
+                    "commission": number,
+                    "email": "email if available",
+                    "phone": "phone if available"
+                }
+            ]
+        }
+        
+        Important: Look carefully for multiple guest names, booking IDs, or booking entries in the image. 
+        If you see multiple bookings, return type "multiple" with all bookings in the array.
+        If you see only one booking, return type "single" with the booking object.
         """
         
         response = model.generate_content([prompt, image])
