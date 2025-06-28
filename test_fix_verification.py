@@ -1,30 +1,35 @@
-#!/usr/bin/env python3
-"""
-Test script to verify the KeyError fix in analyze_existing_duplicates function
-"""
+#\!/usr/bin/env python3
+# Quick test to verify the collector chart vs details fix
+import requests
 
-# Test the specific code structure that was causing the KeyError
-test_booking = {
-    'Số đặt phòng': 'TEST001',
-    'Tên người đặt': 'Test Guest',
-    'Tổng thanh toán': 500000
-}
+def test_collector_fix():
+    print("🔧 Testing Collector Chart vs Details Fix...")
+    print("=" * 50)
+    
+    # Test collector details API
+    print("\n2. Testing LOC LE collector details...")
+    try:
+        response = requests.post("http://localhost:5000/api/collector_guest_details", 
+                               json={
+                                   "collector": "LOC LE",
+                                   "start_date": "2025-06-01",
+                                   "end_date": "2025-06-30"
+                               })
+        
+        if response.status_code == 200:
+            data = response.json()
+            if data["success"]:
+                detail_amount = data["total_amount"]
+                detail_count = data["count"]
+                print(f"✅ Details API: LOC LE = {detail_amount:,.0f}đ ({detail_count} guests)")
+                print("📊 Check server console for matching amounts!")
+            else:
+                print(f"❌ Details API error: {data.get('message')}")
+        else:
+            print(f"❌ Details API HTTP error: {response.status_code}")
+            
+    except Exception as e:
+        print(f"❌ Details API exception: {e}")
 
-# This should work now - accessing the Vietnamese column name
-booking_id = test_booking['Số đặt phòng']
-print(f"✅ Successfully accessed booking ID: {booking_id}")
-
-# Test the dictionary structure that analyze_existing_duplicates now returns
-current_dict = {
-    'Số đặt phòng': test_booking.get('Số đặt phòng', 'N/A'),
-    'guest_name': test_booking.get('Tên người đặt', 'N/A'),
-    'amount': test_booking.get('Tổng thanh toán', 0)
-}
-
-print(f"✅ Dictionary structure: {current_dict}")
-print(f"✅ Accessing booking ID from dict: {current_dict['Số đặt phòng']}")
-
-print("\n🎉 Fix verification completed successfully!")
-print("The KeyError should now be resolved because:")
-print("1. analyze_existing_duplicates now returns 'Số đặt phòng' as the booking ID key")
-print("2. app_postgresql.py expects booking['Số đặt phòng'] which will now work")
+if __name__ == "__main__":
+    test_collector_fix()
