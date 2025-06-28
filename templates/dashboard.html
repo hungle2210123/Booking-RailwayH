@@ -198,6 +198,12 @@
                                 <i class="fas fa-sync-alt me-1"></i>Refresh Data
                             </button>
                             <button type="button" class="btn btn-sm btn-outline-success" 
+                                    onclick="openDataSyncModal()" 
+                                    data-action="data-sync"
+                                    title="Đồng bộ dữ liệu từ database local">
+                                <i class="fas fa-cloud-upload-alt me-1"></i>Sync Data
+                            </button>
+                            <button type="button" class="btn btn-sm btn-outline-success" 
                                     onclick="window.location.reload()" 
                                     title="Tải lại toàn bộ trang">
                                 <i class="fas fa-redo me-1"></i>Reload Page
@@ -6006,7 +6012,249 @@ function getSelectedDateRange() {
     return null;
 }
 
+// =====================================================
+// DATA SYNCHRONIZATION FUNCTIONS
+// =====================================================
+
+function openDataSyncModal() {
+    const modal = new bootstrap.Modal(document.getElementById('dataSyncModal'));
+    modal.show();
+    
+    // Check sync status immediately
+    checkSyncStatus();
+}
+
+function checkSyncStatus() {
+    const statusDiv = document.getElementById('syncStatus');
+    const syncButton = document.getElementById('startSyncButton');
+    
+    statusDiv.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Checking database status...';
+    syncButton.disabled = true;
+    
+    fetch('/api/sync/status')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                displaySyncStatus(data);
+                syncButton.disabled = !data.sync_needed;
+            } else {
+                statusDiv.innerHTML = `<div class="alert alert-danger"><i class="fas fa-exclamation-triangle me-2"></i>${data.message}</div>`;
+            }
+        })
+        .catch(error => {
+            console.error('Sync status check failed:', error);
+            statusDiv.innerHTML = '<div class="alert alert-danger"><i class="fas fa-exclamation-triangle me-2"></i>Failed to check sync status</div>';
+        });
+}
+
+function displaySyncStatus(data) {
+    const statusDiv = document.getElementById('syncStatus');
+    
+    let html = '<div class="row">';
+    
+    // Local database status
+    html += '<div class="col-md-6">';
+    html += '<div class="card border-primary mb-3">';
+    html += '<div class="card-header bg-primary text-white"><i class="fas fa-database me-2"></i>Local Database</div>';
+    html += '<div class="card-body">';
+    
+    if (data.local_status) {
+        html += '<div class="text-success mb-2"><i class="fas fa-check-circle me-1"></i>Connected</div>';
+        html += '<table class="table table-sm">';
+        Object.entries(data.differences).forEach(([table, counts]) => {
+            html += `<tr><td>${table}</td><td class="text-end">${counts.local}</td></tr>`;
+        });
+        html += '</table>';
+    } else {
+        html += '<div class="text-danger"><i class="fas fa-times-circle me-1"></i>Connection Failed</div>';
+        if (data.local_error) {
+            html += `<small class="text-muted">${data.local_error}</small>`;
+        }
+    }
+    
+    html += '</div></div></div>';
+    
+    // Railway database status
+    html += '<div class="col-md-6">';
+    html += '<div class="card border-success mb-3">';
+    html += '<div class="card-header bg-success text-white"><i class="fas fa-cloud me-2"></i>Railway Database</div>';
+    html += '<div class="card-body">';
+    
+    if (data.railway_status) {
+        html += '<div class="text-success mb-2"><i class="fas fa-check-circle me-1"></i>Connected</div>';
+        html += '<table class="table table-sm">';
+        Object.entries(data.differences).forEach(([table, counts]) => {
+            html += `<tr><td>${table}</td><td class="text-end">${counts.railway}</td></tr>`;
+        });
+        html += '</table>';
+    } else {
+        html += '<div class="text-danger"><i class="fas fa-times-circle me-1"></i>Connection Failed</div>';
+        if (data.railway_error) {
+            html += `<small class="text-muted">${data.railway_error}</small>`;
+        }
+    }
+    
+    html += '</div></div></div>';
+    html += '</div>';
+    
+    // Sync recommendation
+    if (data.sync_needed) {
+        html += '<div class="alert alert-warning">';
+        html += '<h6><i class="fas fa-exclamation-triangle me-2"></i>Sync Recommended</h6>';
+        html += '<p class="mb-2">Differences found between local and Railway databases:</p>';
+        html += '<ul class="mb-0">';
+        Object.entries(data.differences).forEach(([table, counts]) => {
+            if (counts.difference !== 0) {
+                const action = counts.difference > 0 ? 'add' : 'remove';
+                const icon = counts.difference > 0 ? 'plus' : 'minus';
+                html += `<li><i class="fas fa-${icon} me-1"></i>${table}: ${action} ${Math.abs(counts.difference)} records</li>`;
+            }
+        });
+        html += '</ul></div>';
+    } else {
+        html += '<div class="alert alert-success">';
+        html += '<i class="fas fa-check-circle me-2"></i>Databases are synchronized!';
+        html += '</div>';
+    }
+    
+    statusDiv.innerHTML = html;
+}
+
+function startDataSync() {
+    const syncButton = document.getElementById('startSyncButton');
+    const progressDiv = document.getElementById('syncProgress');
+    
+    syncButton.disabled = true;
+    syncButton.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Syncing...';
+    
+    progressDiv.innerHTML = '<div class="progress mb-3"><div class="progress-bar progress-bar-striped progress-bar-animated" style="width: 0%"></div></div>';
+    
+    // Simulate progress updates
+    let progress = 0;
+    const progressInterval = setInterval(() => {
+        progress += 10;
+        document.querySelector('.progress-bar').style.width = progress + '%';
+        if (progress >= 90) {
+            clearInterval(progressInterval);
+        }
+    }, 500);
+    
+    fetch('/api/sync/import_from_local', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        clearInterval(progressInterval);
+        document.querySelector('.progress-bar').style.width = '100%';
+        
+        setTimeout(() => {
+            if (data.success) {
+                progressDiv.innerHTML = displaySyncResults(data);
+                // Refresh the page after successful sync
+                setTimeout(() => {
+                    window.location.reload();
+                }, 3000);
+            } else {
+                progressDiv.innerHTML = displaySyncErrors(data);
+            }
+            
+            syncButton.disabled = false;
+            syncButton.innerHTML = '<i class="fas fa-sync-alt me-2"></i>Start Sync';
+        }, 1000);
+    })
+    .catch(error => {
+        clearInterval(progressInterval);
+        console.error('Sync failed:', error);
+        progressDiv.innerHTML = '<div class="alert alert-danger"><i class="fas fa-exclamation-triangle me-2"></i>Sync failed: ' + error.message + '</div>';
+        
+        syncButton.disabled = false;
+        syncButton.innerHTML = '<i class="fas fa-sync-alt me-2"></i>Start Sync';
+    });
+}
+
+function displaySyncResults(data) {
+    let html = '<div class="alert alert-success">';
+    html += '<h6><i class="fas fa-check-circle me-2"></i>Sync Completed Successfully!</h6>';
+    html += '<p class="mb-2">Data synchronization results:</p>';
+    html += '<ul class="mb-0">';
+    
+    Object.entries(data.details).forEach(([table, result]) => {
+        const icon = result.success ? 'check' : 'exclamation-triangle';
+        const color = result.success ? 'text-success' : 'text-danger';
+        html += `<li class="${color}"><i class="fas fa-${icon} me-1"></i>${table}: ${result.imported} records imported</li>`;
+    });
+    
+    html += '</ul>';
+    html += '<p class="mt-2 mb-0"><small class="text-muted">Page will refresh automatically in 3 seconds...</small></p>';
+    html += '</div>';
+    
+    return html;
+}
+
+function displaySyncErrors(data) {
+    let html = '<div class="alert alert-danger">';
+    html += '<h6><i class="fas fa-exclamation-triangle me-2"></i>Sync Completed with Errors</h6>';
+    html += '<p class="mb-2">' + data.message + '</p>';
+    
+    if (data.errors && data.errors.length > 0) {
+        html += '<ul class="mb-0">';
+        data.errors.forEach(error => {
+            html += `<li>${error}</li>`;
+        });
+        html += '</ul>';
+    }
+    
+    html += '</div>';
+    return html;
+}
+
 </script>
+
+<!-- Data Synchronization Modal -->
+<div class="modal fade" id="dataSyncModal" tabindex="-1" aria-labelledby="dataSyncModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title" id="dataSyncModalLabel">
+                    <i class="fas fa-cloud-upload-alt me-2"></i>Database Synchronization
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <p class="text-muted">
+                        <i class="fas fa-info-circle me-2"></i>
+                        This tool synchronizes data from your local PostgreSQL database to the Railway PostgreSQL database.
+                        It will update all tables including bookings, guests, expenses, and templates.
+                    </p>
+                </div>
+                
+                <div id="syncStatus">
+                    <div class="text-center py-4">
+                        <i class="fas fa-spinner fa-spin fa-2x text-muted"></i>
+                        <p class="mt-2 text-muted">Loading sync status...</p>
+                    </div>
+                </div>
+                
+                <div id="syncProgress"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="fas fa-times me-1"></i>Cancel
+                </button>
+                <button type="button" class="btn btn-primary" id="startSyncButton" onclick="startDataSync()">
+                    <i class="fas fa-sync-alt me-2"></i>Start Sync
+                </button>
+                <button type="button" class="btn btn-outline-primary" onclick="checkSyncStatus()">
+                    <i class="fas fa-refresh me-1"></i>Refresh Status
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
 
 <script src="{{ url_for('static', filename='js/dashboard.js') }}">
 

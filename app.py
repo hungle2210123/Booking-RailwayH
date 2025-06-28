@@ -4044,5 +4044,100 @@ def debug_collector_comparison_page():
     """Debug page to compare collector calculations"""
     return render_template('debug_collector_comparison.html')
 
+# =====================================================
+# DATA SYNCHRONIZATION API ENDPOINTS
+# =====================================================
+
+@app.route('/api/sync/test_connections')
+def api_test_sync_connections():
+    """Test connections to both local and Railway databases"""
+    try:
+        from core.sync_service import DataSyncService
+        
+        sync_service = DataSyncService()
+        results = sync_service.test_connections()
+        
+        return jsonify({
+            'success': True,
+            'connections': results
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': f'Connection test failed: {str(e)}'
+        }), 500
+
+@app.route('/api/sync/import_from_local', methods=['POST'])
+def api_import_from_local():
+    """Import data from local database to Railway"""
+    try:
+        from core.sync_service import DataSyncService
+        
+        print("🔄 Starting data sync from local to Railway...")
+        
+        sync_service = DataSyncService()
+        sync_result = sync_service.sync_from_local_to_railway()
+        
+        if sync_result['success']:
+            print("✅ Data sync completed successfully")
+            return jsonify(sync_result)
+        else:
+            print(f"⚠️ Data sync completed with errors: {sync_result['errors']}")
+            return jsonify(sync_result), 422
+            
+    except Exception as e:
+        print(f"❌ Data sync failed: {str(e)}")
+        return jsonify({
+            'success': False,
+            'message': f'Data sync failed: {str(e)}',
+            'errors': [str(e)]
+        }), 500
+
+@app.route('/api/sync/status')
+def api_sync_status():
+    """Get current database status and record counts"""
+    try:
+        from core.sync_service import DataSyncService
+        
+        sync_service = DataSyncService()
+        connections = sync_service.test_connections()
+        
+        # Calculate sync recommendation
+        local_counts = connections.get('local_counts', {})
+        railway_counts = connections.get('railway_counts', {})
+        
+        sync_needed = False
+        differences = {}
+        
+        for table in ['bookings', 'guests', 'notes', 'expenses', 'templates']:
+            local_count = local_counts.get(table, 0)
+            railway_count = railway_counts.get(table, 0)
+            diff = local_count - railway_count
+            
+            differences[table] = {
+                'local': local_count,
+                'railway': railway_count,
+                'difference': diff
+            }
+            
+            if diff != 0:
+                sync_needed = True
+        
+        return jsonify({
+            'success': True,
+            'local_status': connections['local_status'],
+            'railway_status': connections['railway_status'],
+            'sync_needed': sync_needed,
+            'differences': differences,
+            'local_error': connections.get('local_error'),
+            'railway_error': connections.get('railway_error')
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': f'Status check failed: {str(e)}'
+        }), 500
+
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
