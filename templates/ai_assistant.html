@@ -3050,7 +3050,7 @@
                 console.log(`[TEMPLATES] Processing template ${index}:`, item);
                 
                 return {
-                    id: index.toString(),
+                    id: item.id || index.toString(),
                     name: `${item.Category || 'Chung'} - ${item.Label || 'DEFAULT'}`,
                     content: item.Message || item.Content || item.content || '',
                     category: item.Category || 'Chung',
@@ -3695,9 +3695,9 @@
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
-                    Category: category,
-                    Label: label,
-                    Message: message
+                    category: category,
+                    template_name: label,
+                    template_content: message
                 })
             });
             
@@ -3737,10 +3737,7 @@
                 method: 'DELETE',
                 headers: {
                     'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    template_id: templateId
-                })
+                }
             });
             
             const result = await response.json();

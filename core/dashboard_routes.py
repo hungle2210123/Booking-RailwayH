@@ -1027,7 +1027,7 @@ def create_collector_chart(dashboard_data):
             'pull': [0.05 if i == 0 else 0 for i in range(len(valid_data))]
         }],
         'layout': {
-            'title': {'text': '💰 Doanh thu theo Người thu (Chi tiết)', 'x': 0.5, 'y': 0.95,
+            'title': {'text': '💰 Revenue by Collector (Details)', 'x': 0.5, 'y': 0.95,
                      'font': {'size': 14, 'family': 'Arial Bold', 'color': '#2c3e50'}},
             'showlegend': True, 'height': 320,
             'legend': {'orientation': 'v', 'x': 1.05, 'y': 0.5,
@@ -1036,7 +1036,7 @@ def create_collector_chart(dashboard_data):
             'plot_bgcolor': 'rgba(248,249,250,0.8)', 'paper_bgcolor': 'rgba(0,0,0,0)',
             'font': {'family': 'Arial, sans-serif', 'size': 11, 'color': '#2c3e50'},
             'annotations': [{
-                'text': f'<b>Tổng thu</b><br>{total_amount:,.0f}đ<br><small>({len(valid_data)} người thu)</small>',
+                'text': f'<b>Total revenue</b><br>{total_amount:,.0f}đ<br><small>({len(valid_data)} collectors)</small>',
                 'x': 0.5, 'y': 0.5,
                 'font': {'size': 13, 'family': 'Arial Bold', 'color': '#2c3e50'},
                 'showarrow': False
@@ -1105,6 +1105,16 @@ def process_arrival_notifications(df):
                             commission_level = 'normal'
                             commission_priority = 'high'
                         
+                        # Check arrival confirmation status from database
+                        arrival_confirmed = False
+                        try:
+                            from core.models import Booking
+                            booking = Booking.query.get(booking_id)
+                            if booking:
+                                arrival_confirmed = booking.arrival_confirmed or False
+                        except:
+                            arrival_confirmed = False
+                        
                         notifications.append({
                             'type': 'arrival',
                             'priority': commission_priority,
@@ -1115,6 +1125,7 @@ def process_arrival_notifications(df):
                             'Hoa hồng': hoa_hong,
                             'commission_level': commission_level,
                             'days_until': 1,
+                            'arrival_confirmed': arrival_confirmed,
                             'message': f'Khách {guest_name} sẽ đến vào ngày mai ({checkin_date.strftime("%d/%m/%Y")})'
                         })
                     
@@ -1143,6 +1154,16 @@ def process_arrival_notifications(df):
                             commission_level = 'normal'
                             commission_priority = 'urgent'
                         
+                        # Check arrival confirmation status from database
+                        arrival_confirmed = False
+                        try:
+                            from core.models import Booking
+                            booking = Booking.query.get(booking_id)
+                            if booking:
+                                arrival_confirmed = booking.arrival_confirmed or False
+                        except:
+                            arrival_confirmed = False
+                        
                         notifications.append({
                             'type': 'arrival',
                             'priority': commission_priority,
@@ -1153,6 +1174,7 @@ def process_arrival_notifications(df):
                             'Hoa hồng': hoa_hong,
                             'commission_level': commission_level,
                             'days_until': 0,
+                            'arrival_confirmed': arrival_confirmed,
                             'message': f'Khách {guest_name} đến HÔM NAY ({checkin_date.strftime("%d/%m/%Y")})'
                         })
                         

@@ -82,6 +82,9 @@ class Booking(db.Model):
     # Booking status
     booking_status = Column(String(50), default='confirmed', index=True)
     
+    # Arrival confirmation for commission notifications
+    arrival_confirmed = Column(Boolean, default=False, nullable=False)
+    arrival_confirmed_at = Column(DateTime, nullable=True)
     
     # Notes and comments
     booking_notes = Column(Text)

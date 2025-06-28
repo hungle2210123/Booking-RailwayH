@@ -3163,9 +3163,9 @@ def add_template():
         print(f"Error adding template: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
-@app.route('/api/templates/<template_id>', methods=['GET', 'DELETE'])
+@app.route('/api/templates/<template_id>', methods=['GET', 'PUT', 'DELETE'])
 def handle_template(template_id):
-    """Get or delete a specific template from PostgreSQL database"""
+    """Get, update or delete a specific template from PostgreSQL database"""
     try:
         from core.models import MessageTemplate, db
         
@@ -3184,6 +3184,36 @@ def handle_template(template_id):
                     'Message': template.template_content,
                     'id': template.template_id,
                     'created_at': template.created_at.isoformat() if template.created_at else None
+                }
+            })
+        
+        elif request.method == 'PUT':
+            # Update template with new data
+            data = request.get_json()
+            if not data:
+                return jsonify({'success': False, 'error': 'No data provided'}), 400
+            
+            # Update template fields
+            if 'category' in data:
+                template.category = data['category']
+            if 'template_name' in data:
+                template.template_name = data['template_name']
+            if 'template_content' in data:
+                template.template_content = data['template_content']
+            
+            # Save to database
+            db.session.commit()
+            
+            print(f"📋 Templates API: Updated template '{template.template_name}' (ID: {template_id})")
+            
+            return jsonify({
+                'success': True,
+                'message': f'Template {template_id} updated successfully',
+                'template': {
+                    'Category': template.category or 'General',
+                    'Label': template.template_name,
+                    'Message': template.template_content,
+                    'id': template.template_id
                 }
             })
         
@@ -3404,6 +3434,40 @@ def verify_templates():
         
     except Exception as e:
         print(f"Error verifying templates: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/confirm_guest_arrival', methods=['POST'])
+def confirm_guest_arrival():
+    """Confirm guest arrival to enable commission notifications"""
+    try:
+        data = request.get_json()
+        booking_id = data.get('booking_id')
+        
+        if not booking_id:
+            return jsonify({'success': False, 'error': 'Booking ID required'}), 400
+        
+        from core.models import Booking, db
+        
+        # Find booking
+        booking = Booking.query.get(booking_id)
+        if not booking:
+            return jsonify({'success': False, 'error': 'Booking not found'}), 404
+        
+        # Update arrival confirmation status
+        booking.arrival_confirmed = True
+        booking.arrival_confirmed_at = datetime.now()
+        db.session.commit()
+        
+        print(f"✅ Guest arrival confirmed for booking {booking_id}: {booking.guest_name}")
+        
+        return jsonify({
+            'success': True,
+            'message': f'Arrival confirmed for {booking.guest_name}',
+            'booking_id': booking_id
+        })
+        
+    except Exception as e:
+        print(f"Error confirming guest arrival: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/api/monthly_guest_details', methods=['POST'])

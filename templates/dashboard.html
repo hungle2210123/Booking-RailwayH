@@ -339,10 +339,7 @@
                             <button class="btn btn-light btn-sm px-2" onclick="copyArrivalTaxiMessage('Khách')" title="Copy taxi message">
                                 <i class="fas fa-copy"></i>
                             </button>
-                            <button class="btn btn-light btn-sm px-2" onclick="editDefaultArrivalTime()" title="Chỉnh thời gian">
-                                <i class="fas fa-clock"></i>
-                            </button>
-                            <small class="text-white ms-2" id="defaultArrivalTime">14:00</small>
+                            <small class="text-white ms-2">Khách Đến</small>
                         </div>
                     </div>
                     <div>
@@ -367,6 +364,9 @@
                                         <i class="fas fa-calendar me-1"></i>{{ notification.checkin_date }}
                                         <button class="btn btn-sm p-0 ms-2 text-primary" onclick="editGuestArrivalTime('{{ notification.booking_id }}', '{{ notification.guest_name }}')" title="Set time">
                                             <i class="fas fa-clock me-1"></i><span id="time-{{ notification.booking_id }}">--:--</span>
+                                        </button>
+                                        <button class="btn btn-sm p-0 ms-1 text-danger" onclick="clearGuestArrivalTime('{{ notification.booking_id }}', '{{ notification.guest_name }}')" title="Clear time" style="display: none;" id="clear-{{ notification.booking_id }}">
+                                            <i class="fas fa-times"></i>
                                         </button>
                                         {% if notification.priority == 'critical' %}
                                         <span class="badge bg-danger ms-1 px-1" style="font-size: 9px; animation: pulse 2s infinite;">
@@ -1300,8 +1300,16 @@
                                     <i class="fas fa-calendar me-1"></i><span id="modalMonth"></span> - 
                                     <span id="modalStatusLabel" class="fw-bold"></span>
                                 </h6>
+                                <div class="mb-2">
+                                    <span class="badge bg-secondary me-2">
+                                        <i class="fas fa-clock me-1"></i>Period: <span id="modalDateRange">Loading...</span>
+                                    </span>
+                                    <span class="badge bg-info">
+                                        <i class="fas fa-filter me-1"></i>Current Filter Applied
+                                    </span>
+                                </div>
                                 <small class="text-muted">
-                                    <i class="fas fa-info-circle me-1"></i>Danh sách chi tiết khách hàng và số tiền tương ứng
+                                    <i class="fas fa-info-circle me-1"></i>Detailed guest breakdown with payment amounts
                                 </small>
                             </div>
                             <div class="col-md-4 text-end">
@@ -2144,11 +2152,10 @@ function displayQuickNotes(notes, container) {
     
     if (activeNotes.length === 0) {
         container.innerHTML = `
-            <div class="text-center py-3">
-                <i class="fas fa-sticky-note fa-3x text-white-50 mb-3"></i>
-                <p class="mb-2 text-white fw-bold">Chưa có Quick Notes nào</p>
-                <button class="btn btn-light btn-sm" data-bs-toggle="modal" data-bs-target="#quickNotesModal">
-                    <i class="fas fa-plus me-1"></i>Tạo Note đầu tiên
+            <div class="text-center py-2">
+                <small class="text-white-50">No quick notes</small>
+                <button class="btn btn-light btn-sm ms-2" data-bs-toggle="modal" data-bs-target="#quickNotesModal">
+                    <i class="fas fa-plus me-1"></i>Add Note
                 </button>
             </div>
         `;
@@ -2158,19 +2165,31 @@ function displayQuickNotes(notes, container) {
     const typeIcons = {
         'thu-tien': 'fas fa-money-bill-wave',
         'huy-phong': 'fas fa-times-circle',
-        'taxi': 'fas fa-taxi'
+        'taxi': 'fas fa-taxi',
+        'Ghi chú': 'fas fa-sticky-note',
+        'Thu tiền': 'fas fa-money-bill-wave',
+        'Hủy phòng': 'fas fa-times-circle',
+        'Taxi': 'fas fa-taxi'
     };
     
     const typeNames = {
         'thu-tien': 'Thu tiền lại',
         'huy-phong': 'Hủy phòng', 
-        'taxi': 'Taxi'
+        'taxi': 'Taxi',
+        'Ghi chú': 'Ghi chú',
+        'Thu tiền': 'Thu tiền',
+        'Hủy phòng': 'Hủy phòng',
+        'Taxi': 'Taxi'
     };
     
     const typeColors = {
         'thu-tien': 'success',
         'huy-phong': 'danger',
-        'taxi': 'warning'
+        'taxi': 'warning',
+        'Ghi chú': 'info',
+        'Thu tiền': 'success',
+        'Hủy phòng': 'danger',
+        'Taxi': 'warning'
     };
     
     // Sort by reminder date/time
@@ -2198,43 +2217,28 @@ function displayQuickNotes(notes, container) {
         }
         
         return `
-            <div class="col-12 mb-3">
-                <div class="card border-0 bg-white shadow-sm">
-                    <div class="card-body p-4">
-                        <div class="d-flex justify-content-between align-items-start mb-2">
-                            <div class="d-flex align-items-center">
-                                <i class="${typeIcons[note.type]} text-${typeColors[note.type]} me-2"></i>
-                                <strong class="text-dark">${typeNames[note.type]}</strong>
-                            </div>
-                            <div class="btn-group btn-group-sm" role="group">
-                                <button class="btn btn-outline-primary btn-sm" onclick="editQuickNote('${note.id}', '${note.type}', '${note.content.replace(/'/g, "\\'")}', '${note.date}', '${note.time}', '${note.guestName || ""}')" title="Sửa note">
-                                    <i class="fas fa-edit"></i>
-                                </button>
-                                <button class="btn btn-success btn-sm" onclick="markNoteCompleted('${note.id}')" title="Hoàn thành và xóa note">
-                                    <i class="fas fa-check"></i>
-                                </button>
-                                <button class="btn btn-outline-danger btn-sm" onclick="deleteQuickNote('${note.id}')" title="Xóa note">
-                                    <i class="fas fa-trash"></i>
-                                </button>
-                            </div>
+            <div class="col-12 mb-1">
+                <div class="bg-white rounded border p-2 d-flex justify-content-between align-items-center">
+                    <div class="d-flex align-items-center flex-grow-1">
+                        <i class="${typeIcons[note.type] || 'fas fa-sticky-note'} text-${typeColors[note.type] || 'secondary'} me-2"></i>
+                        <div class="me-2">
+                            <span class="fw-bold text-dark small">${typeNames[note.type] || note.type || 'Note'}</span>
+                            ${timeStatus}
                         </div>
-                        <div class="bg-light rounded p-3 mb-3">
-                            <p class="text-dark mb-0" style="font-size: 16px; line-height: 1.5; font-weight: 500;">${note.content}</p>
-                        </div>
-                        <div class="d-flex justify-content-between align-items-center">
-                            <small class="text-muted">
-                                <i class="fas fa-user me-1"></i>${note.guestName}
-                            </small>
-                            <div>
-                                <small class="text-muted d-block">
-                                    <i class="fas fa-calendar me-1"></i>${note.date} ${note.time}
-                                </small>
-                                ${timeStatus}
-                            </div>
-                        </div>
+                        <div class="text-muted small flex-grow-1">${note.content || 'Không có ghi chú'}</div>
+                    </div>
+                    <div class="btn-group btn-group-sm" role="group">
+                        <button class="btn btn-outline-primary btn-sm px-1" onclick="editQuickNote('${note.id}', '${note.type}', '${note.content.replace(/'/g, "\\'")}', '${note.date}', '${note.time}', '${note.guestName || ""}')" title="Edit">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button class="btn btn-success btn-sm px-1" onclick="markNoteCompleted('${note.id}')" title="Complete">
+                            <i class="fas fa-check"></i>
+                        </button>
+                        <button class="btn btn-outline-danger btn-sm px-1" onclick="deleteQuickNote('${note.id}')" title="Delete">
+                            <i class="fas fa-trash"></i>
+                        </button>
                     </div>
                 </div>
-            </div>
         `;
     }).join('');
     
@@ -3179,58 +3183,18 @@ function createArrivalNotification() {
     }
 }
 
-async function editDefaultArrivalTime() {
-    const currentTime = document.getElementById('defaultArrivalTime').textContent;
-    const newTime = prompt('Nhập thời gian check-in mặc định (HH:MM):', currentTime);
+// Clear guest arrival time
+async function clearGuestArrivalTime(bookingId, guestName) {
+    if (!confirm(`Clear arrival time for ${guestName}?`)) {
+        return;
+    }
     
-    if (newTime && /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/.test(newTime)) {
-        try {
-            // Save to server first
-            const response = await fetch('/api/arrival_times', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    type: 'default',
-                    time: newTime
-                })
-            });
-            
-            const result = await response.json();
-            
-            if (result.success) {
-                // Update UI after successful server save
-                document.getElementById('defaultArrivalTime').textContent = newTime;
-                
-                // Update all guest times to new default (only visual, guests keep their custom times)
-                const timeElements = document.querySelectorAll('[id^="time-"]');
-                timeElements.forEach(el => {
-                    // Only update if guest doesn't have custom time
-                    const bookingId = el.id.replace('time-', '');
-                    const guestTimes = JSON.parse(localStorage.getItem('guestArrivalTimes') || '{}');
-                    if (!guestTimes[bookingId]) {
-                        el.textContent = newTime;
-                    }
-                });
-                
-                showDashboardToast(`⏰ Đã lưu thời gian mặc định: ${newTime} (sync tất cả thiết bị)`, 'success');
-                
-                // Also save to localStorage as backup
-                localStorage.setItem('defaultArrivalTime', newTime);
-            } else {
-                throw new Error(result.message || 'Server error');
-            }
-        } catch (error) {
-            console.error('Error saving default time:', error);
-            showDashboardToast('❌ Lỗi lưu server. Chỉ lưu trên thiết bị này.', 'warning');
-            
-            // Fallback to localStorage only
-            document.getElementById('defaultArrivalTime').textContent = newTime;
-            localStorage.setItem('defaultArrivalTime', newTime);
-        }
-    } else if (newTime) {
-        showDashboardToast('❌ Định dạng thời gian không hợp lệ! Sử dụng HH:MM', 'error');
+    await saveArrivalTime(bookingId, guestName, '', '--:--');
+    
+    // Hide delete button
+    const clearButton = document.getElementById(`clear-${bookingId}`);
+    if (clearButton) {
+        clearButton.style.display = 'none';
     }
 }
 
@@ -3290,8 +3254,18 @@ async function saveArrivalTime(bookingId, guestName, timeValue, displayTime) {
                 showDashboardToast(`⏰ Đã lưu thời gian cho ${guestName}: ${displayTime}`, 'success');
                 // Schedule notification check
                 scheduleArrivalNotification(bookingId, guestName, timeValue);
+                // Show delete button
+                const clearButton = document.getElementById(`clear-${bookingId}`);
+                if (clearButton) {
+                    clearButton.style.display = 'inline-block';
+                }
             } else {
                 showDashboardToast(`⏰ Đã xóa thời gian cho ${guestName}`, 'success');
+                // Hide delete button
+                const clearButton = document.getElementById(`clear-${bookingId}`);
+                if (clearButton) {
+                    clearButton.style.display = 'none';
+                }
             }
             
             // Also save to localStorage as backup
@@ -3320,6 +3294,7 @@ async function saveArrivalTime(bookingId, guestName, timeValue, displayTime) {
         localStorage.setItem('guestArrivalTimes', JSON.stringify(guestTimes));
     }
 }
+
 
 function copyTaxiMessage(guestName) {
     // Sample taxi message template
@@ -5397,7 +5372,7 @@ function scheduleArrivalNotification(bookingId, guestName, arrivalTime) {
         const notificationTime = new Date(arrivalDateTime.getTime() - (2 * 60 * 60 * 1000));
         const now = new Date();
         
-        // Only schedule if notification time is in the future
+        // Schedule notification or show immediately if time has passed
         if (notificationTime > now) {
             arrivalNotifications.set(bookingId, {
                 guestName: guestName,
@@ -5407,6 +5382,20 @@ function scheduleArrivalNotification(bookingId, guestName, arrivalTime) {
             });
             
             console.log(`📅 Scheduled notification for ${guestName} at ${notificationTime.toLocaleTimeString()}`);
+        } else if (arrivalDateTime > now) {
+            // Notification time has passed but arrival hasn't happened yet - show immediately
+            arrivalNotifications.set(bookingId, {
+                guestName: guestName,
+                arrivalTime: arrivalTime,
+                notificationTime: notificationTime,
+                shown: false
+            });
+            
+            console.log(`⚠️ Notification time passed, showing immediately for ${guestName}`);
+            showArrivalNotification(bookingId, arrivalNotifications.get(bookingId));
+            arrivalNotifications.get(bookingId).shown = true;
+        } else {
+            console.log(`⏰ Arrival time ${arrivalTime} has already passed for ${guestName}`);
         }
     } catch (error) {
         console.error('Error scheduling notification:', error);
@@ -5425,7 +5414,7 @@ function checkArrivalNotifications() {
     });
 }
 
-// Show arrival notification pinned to top
+// Show arrival notification inline at top (like commission warning)
 function showArrivalNotification(bookingId, notification) {
     // Remove any existing arrival notifications
     const existingNotif = document.querySelector('.arrival-notification-alert');
@@ -5433,30 +5422,48 @@ function showArrivalNotification(bookingId, notification) {
         existingNotif.remove();
     }
     
-    // Create notification element
+    // Create notification element with same style as commission warning
     const notificationHtml = `
-        <div class="alert alert-warning arrival-notification-alert position-fixed w-100 shadow-lg" 
-             style="top: 0; left: 0; z-index: 9999; border-radius: 0; margin: 0; animation: slideInFromTop 0.5s ease;">
-            <div class="container-fluid">
-                <div class="d-flex justify-content-between align-items-center">
+        <div class="row mb-2">
+            <div class="col-12">
+                <div class="alert alert-info alert-dismissible fade show arrival-notification-alert" role="alert" style="background: linear-gradient(135deg, #cff4fc 0%, #b6effb 100%); border: 2px solid #0dcaf0; animation: subtlePulse 3s ease-in-out infinite;">
                     <div class="d-flex align-items-center">
-                        <i class="fas fa-clock text-warning me-2"></i>
-                        <strong>⚠️ Arrival Alert:</strong> 
-                        <span class="ms-2">${notification.guestName} arriving at ${notification.arrivalTime} (in ~2 hours)</span>
-                    </div>
-                    <div>
-                        <button class="btn btn-sm btn-outline-warning me-2" onclick="openCollectModal('${bookingId}', '${notification.guestName}')">
-                            <i class="fas fa-money-bill-wave me-1"></i>Collect Payment
-                        </button>
-                        <button class="btn btn-close btn-sm" onclick="dismissArrivalNotification()" aria-label="Close"></button>
+                        <i class="fas fa-clock text-info me-2 fs-5"></i>
+                        <div class="flex-grow-1">
+                            <h6 class="alert-heading mb-1">
+                                <strong>⏰ ARRIVAL ALERT!</strong>
+                            </h6>
+                            <p class="mb-1">
+                                <strong>${notification.guestName}</strong> arriving at <strong>${notification.arrivalTime}</strong> (in ~2 hours)
+                            </p>
+                            <div class="mt-2">
+                                <button class="btn btn-success btn-sm me-2" onclick="confirmGuestArrival('${bookingId}', '${notification.guestName}')">
+                                    <i class="fas fa-check me-1"></i>Confirm Arrival
+                                </button>
+                                <button class="btn btn-outline-primary btn-sm" onclick="openCollectModal('${bookingId}', '${notification.guestName}')">
+                                    <i class="fas fa-money-bill-wave me-1"></i>Collect Payment
+                                </button>
+                            </div>
+                        </div>
+                        <button type="button" class="btn-close" onclick="dismissArrivalNotification()" aria-label="Close"></button>
                     </div>
                 </div>
             </div>
         </div>
     `;
     
-    // Insert at top of page
-    document.body.insertAdjacentHTML('afterbegin', notificationHtml);
+    // Find the commission warning section and insert after it
+    const commissionWarning = document.querySelector('.alert-warning');
+    if (commissionWarning && commissionWarning.closest('.row')) {
+        // Insert after commission warning
+        commissionWarning.closest('.row').insertAdjacentHTML('afterend', notificationHtml);
+    } else {
+        // Fallback: insert at top of notifications area
+        const notificationsArea = document.querySelector('.row.mb-2');
+        if (notificationsArea) {
+            notificationsArea.insertAdjacentHTML('beforebegin', notificationHtml);
+        }
+    }
     
     // Auto-dismiss after 10 minutes
     setTimeout(() => {
@@ -5464,14 +5471,59 @@ function showArrivalNotification(bookingId, notification) {
     }, 10 * 60 * 1000);
 }
 
+// Confirm guest arrival from notification
+async function confirmGuestArrival(bookingId, guestName) {
+    if (!confirm(`Confirm that ${guestName} has arrived?`)) {
+        return;
+    }
+    
+    try {
+        const response = await fetch('/api/confirm_guest_arrival', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                booking_id: bookingId
+            })
+        });
+        
+        const result = await response.json();
+        
+        if (response.ok && result.success) {
+            showDashboardToast(`✅ Confirmed arrival for ${guestName}!`, 'success');
+            
+            // Dismiss the arrival notification
+            dismissArrivalNotification();
+            
+            // Remove from notifications map
+            arrivalNotifications.delete(bookingId);
+            
+        } else {
+            throw new Error(result.message || 'Confirmation failed');
+        }
+    } catch (error) {
+        console.error('Error confirming guest arrival:', error);
+        showDashboardToast(`❌ Error confirming arrival: ${error.message}`, 'error');
+    }
+}
+
 // Dismiss arrival notification
 function dismissArrivalNotification() {
     const notification = document.querySelector('.arrival-notification-alert');
     if (notification) {
-        notification.style.animation = 'slideOutToTop 0.5s ease';
+        // For inline notifications, use a fade out animation
+        notification.style.transition = 'opacity 0.3s ease';
+        notification.style.opacity = '0';
         setTimeout(() => {
-            notification.remove();
-        }, 500);
+            // Remove the entire row container
+            const row = notification.closest('.row');
+            if (row) {
+                row.remove();
+            } else {
+                notification.remove();
+            }
+        }, 300);
     }
 }
 
@@ -5481,12 +5533,21 @@ function initializeArrivalTimeSystem() {
     
     // Load saved arrival times from localStorage
     const savedTimes = JSON.parse(localStorage.getItem('guestArrivalTimes') || '{}');
+    console.log('📋 Saved arrival times:', savedTimes);
     
     // Update display and schedule notifications for existing times
     Object.entries(savedTimes).forEach(([bookingId, timeValue]) => {
+        console.log(`🔍 Processing saved time for booking ${bookingId}: ${timeValue}`);
         const timeElement = document.getElementById(`time-${bookingId}`);
         if (timeElement && timeValue) {
             timeElement.textContent = timeValue;
+            console.log(`✅ Updated display for ${bookingId} to show ${timeValue}`);
+            
+            // Show delete button for existing times
+            const clearButton = document.getElementById(`clear-${bookingId}`);
+            if (clearButton) {
+                clearButton.style.display = 'inline-block';
+            }
             
             // Extract guest name from nearby elements
             const button = timeElement.closest('button');
@@ -5506,28 +5567,7 @@ function initializeArrivalTimeSystem() {
     console.log('✅ Arrival time system initialized');
 }
 
-// Add CSS animations for notifications
-const arrivalNotificationStyles = `
-<style>
-@keyframes slideInFromTop {
-    0% { transform: translateY(-100%); opacity: 0; }
-    100% { transform: translateY(0); opacity: 1; }
-}
-
-@keyframes slideOutToTop {
-    0% { transform: translateY(0); opacity: 1; }
-    100% { transform: translateY(-100%); opacity: 0; }
-}
-
-.arrival-notification-alert {
-    border-left: 5px solid #ffc107 !important;
-    background: linear-gradient(135deg, rgba(255, 193, 7, 0.1) 0%, rgba(255, 193, 7, 0.05) 100%) !important;
-}
-</style>
-`;
-
-// Inject styles
-document.head.insertAdjacentHTML('beforeend', arrivalNotificationStyles);
+// CSS for inline notifications already handled by Bootstrap classes
 
 // Initialize system when DOM is ready
 if (document.readyState === 'loading') {
@@ -5591,6 +5631,20 @@ function displayMonthlyGuestDetails(data) {
     document.getElementById('modalStatusLabel').textContent = data.status_label;
     document.getElementById('modalTotalAmount').textContent = data.total_amount.toLocaleString();
     document.getElementById('modalGuestCount').textContent = data.count;
+    
+    // Update date range indicator - show actual month period
+    if (data.month && data.month.includes('2025-')) {
+        // Month format: "2025-05" -> show as "2025-05-01 to 2025-05-31"
+        const yearMonth = data.month;
+        const [year, month] = yearMonth.split('-');
+        const lastDay = new Date(year, month, 0).getDate(); // Get last day of month
+        document.getElementById('modalDateRange').textContent = `${yearMonth}-01 to ${yearMonth}-${lastDay}`;
+    } else {
+        // Fallback to dashboard filter for other cases
+        const startDate = document.querySelector('input[name="start_date"]')?.value || 'Not set';
+        const endDate = document.querySelector('input[name="end_date"]')?.value || 'Not set';
+        document.getElementById('modalDateRange').textContent = `${startDate} to ${endDate}`;
+    }
     
     // Populate guest table
     const tableBody = document.getElementById('monthlyGuestTableBody');
@@ -5789,10 +5843,22 @@ function displayCollectorGuestDetails(data) {
     document.getElementById('monthlyGuestContent').style.display = 'block';
     
     // Update summary info for collector details
-    document.getElementById('modalMonth').textContent = data.period || 'Khoảng thời gian đã chọn';
-    document.getElementById('modalStatusLabel').textContent = `Người thu: ${data.collector}`;
+    document.getElementById('modalMonth').textContent = data.period || 'Selected Period';
+    document.getElementById('modalStatusLabel').textContent = `Collector: ${data.collector}`;
     document.getElementById('modalTotalAmount').textContent = data.total_amount.toLocaleString();
     document.getElementById('modalGuestCount').textContent = data.count;
+    
+    // Update date range indicator - use actual period from API response
+    if (data.period && data.period.includes('từ') && data.period.includes('đến')) {
+        // Period format: "từ 2025-05-01 đến 2025-05-31"
+        const periodText = data.period.replace('từ ', '').replace(' đến ', ' to ');
+        document.getElementById('modalDateRange').textContent = periodText;
+    } else {
+        // Fallback to dashboard filter if period format is different
+        const startDate = document.querySelector('input[name="start_date"]')?.value || 'Not set';
+        const endDate = document.querySelector('input[name="end_date"]')?.value || 'Not set';
+        document.getElementById('modalDateRange').textContent = `${startDate} to ${endDate}`;
+    }
     
     // Populate guest table
     const tableBody = document.getElementById('monthlyGuestTableBody');
