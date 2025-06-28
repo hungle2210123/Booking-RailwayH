@@ -154,14 +154,14 @@ class DataSyncService:
         return df
     
     def import_table_data(self, railway_conn, table_name, df):
-        """Import DataFrame to Railway table"""
+        """Import DataFrame to Railway table with proper ID handling"""
         if df.empty:
             return False, []
         
         cursor = railway_conn.cursor()
         
         try:
-            # Get existing columns
+            # Get existing columns and primary key info
             cursor.execute("""
                 SELECT column_name 
                 FROM information_schema.columns 
@@ -170,12 +170,47 @@ class DataSyncService:
             
             existing_columns = [row[0] for row in cursor.fetchall()]
             
+            # Get primary key column
+            cursor.execute("""
+                SELECT column_name
+                FROM information_schema.key_column_usage
+                WHERE table_name = %s AND table_schema = 'public'
+                AND constraint_name = (
+                    SELECT constraint_name
+                    FROM information_schema.table_constraints
+                    WHERE table_name = %s AND table_schema = 'public'
+                    AND constraint_type = 'PRIMARY KEY'
+                )
+            """, (table_name, table_name))
+            
+            pk_result = cursor.fetchone()
+            primary_key = pk_result[0] if pk_result else None
+            
             # Filter DataFrame columns
             df_columns = [col for col in df.columns if col in existing_columns]
             df_filtered = df[df_columns].copy()
             
-            # Clear existing data
+            # Clear existing data and reset sequences
             cursor.execute(f"TRUNCATE TABLE {table_name} RESTART IDENTITY CASCADE")
+            
+            # If there's a primary key and it's an auto-increment, exclude it from INSERT
+            # to let the database generate new IDs
+            insert_columns = df_columns.copy()
+            if primary_key and primary_key in insert_columns:
+                # Check if it's an auto-increment column
+                cursor.execute("""
+                    SELECT column_default
+                    FROM information_schema.columns
+                    WHERE table_name = %s AND column_name = %s AND table_schema = 'public'
+                """, (table_name, primary_key))
+                
+                default_result = cursor.fetchone()
+                if default_result and default_result[0] and 'nextval' in str(default_result[0]):
+                    # It's auto-increment, remove from insert columns
+                    insert_columns.remove(primary_key)
+                    df_filtered = df_filtered.drop(columns=[primary_key])
+            
+            print(f"📋 Importing {len(df_filtered)} records to {table_name} (columns: {insert_columns})")
             
             # Insert new data
             imported_ids = []
@@ -188,9 +223,15 @@ class DataSyncService:
                     else:
                         values.append(val)
                 
-                columns = ', '.join(row.index)
-                placeholders = ', '.join(['%s'] * len(row))
-                query = f"INSERT INTO {table_name} ({columns}) VALUES ({placeholders}) RETURNING *"
+                columns = ', '.join(insert_columns)
+                placeholders = ', '.join(['%s'] * len(insert_columns))
+                
+                if primary_key and primary_key not in insert_columns:
+                    # Return the generated primary key
+                    query = f"INSERT INTO {table_name} ({columns}) VALUES ({placeholders}) RETURNING {primary_key}"
+                else:
+                    query = f"INSERT INTO {table_name} ({columns}) VALUES ({placeholders}) RETURNING *"
+                
                 cursor.execute(query, tuple(values))
                 result = cursor.fetchone()
                 if result:
@@ -202,6 +243,7 @@ class DataSyncService:
         except Exception as e:
             railway_conn.rollback()
             current_app.logger.error(f"Import failed for {table_name}: {e}")
+            print(f"❌ Import failed for {table_name}: {e}")
             return False, []
         finally:
             cursor.close()
@@ -229,7 +271,10 @@ class DataSyncService:
             
             sync_result['details'] = {}
             
-            # Export from local and import to Railway
+            # Export from local and import to Railway with dependency handling
+            valid_guest_ids = []
+            valid_booking_ids = []
+            
             for table in tables:
                 try:
                     # Export from local
@@ -238,8 +283,26 @@ class DataSyncService:
                     # Clean data
                     df = self.clean_data_for_import(df, table)
                     
+                    # Special handling for tables with foreign key dependencies
+                    if table == 'bookings' and valid_guest_ids:
+                        # Only import bookings for valid guests
+                        df = df[df['guest_id'].isin(valid_guest_ids)] if 'guest_id' in df.columns else df
+                    elif table == 'arrival_times' and valid_booking_ids:
+                        # Only import arrival times for valid bookings
+                        df = df[df['booking_id'].isin(valid_booking_ids)] if 'booking_id' in df.columns else df
+                    elif table == 'expense_categories':
+                        # For expense_categories, we need to map to new expense IDs
+                        # Skip this table for now and handle it after expenses are imported
+                        continue
+                    
                     # Import to Railway
                     success, imported_ids = self.import_table_data(railway_conn, table, df)
+                    
+                    # Store valid IDs for dependent tables
+                    if table == 'guests' and success:
+                        valid_guest_ids = imported_ids
+                    elif table == 'bookings' and success:
+                        valid_booking_ids = imported_ids
                     
                     sync_result['details'][table] = {
                         'exported': len(df),
@@ -253,6 +316,41 @@ class DataSyncService:
                 except Exception as e:
                     sync_result['errors'].append(f"Error processing {table}: {str(e)}")
                     sync_result['details'][table] = {'exported': 0, 'imported': 0, 'success': False}
+            
+            # Handle expense_categories separately with proper expense ID mapping
+            try:
+                if 'expenses' in sync_result['details'] and sync_result['details']['expenses']['success']:
+                    # Get expense categories from local
+                    expense_cats_df = pd.read_sql_query("SELECT * FROM expense_categories", local_conn)
+                    
+                    if not expense_cats_df.empty:
+                        # Get expense ID mapping from Railway
+                        railway_cursor = railway_conn.cursor()
+                        railway_cursor.execute("SELECT expense_id FROM expenses ORDER BY expense_id")
+                        new_expense_ids = [row[0] for row in railway_cursor.fetchall()]
+                        railway_cursor.close()
+                        
+                        # Map old expense IDs to new ones
+                        if len(new_expense_ids) >= len(expense_cats_df):
+                            expense_cats_df['expense_id'] = new_expense_ids[:len(expense_cats_df)]
+                            
+                            # Import with new IDs
+                            success, imported_ids = self.import_table_data(railway_conn, 'expense_categories', expense_cats_df)
+                            
+                            sync_result['details']['expense_categories'] = {
+                                'exported': len(expense_cats_df),
+                                'imported': len(imported_ids) if success else 0,
+                                'success': success
+                            }
+                        else:
+                            sync_result['errors'].append("Expense categories count mismatch")
+                            sync_result['details']['expense_categories'] = {'exported': len(expense_cats_df), 'imported': 0, 'success': False}
+                    else:
+                        sync_result['details']['expense_categories'] = {'exported': 0, 'imported': 0, 'success': True}
+                        
+            except Exception as e:
+                sync_result['errors'].append(f"Error processing expense_categories: {str(e)}")
+                sync_result['details']['expense_categories'] = {'exported': 0, 'imported': 0, 'success': False}
             
             # Close connections
             local_conn.close()
