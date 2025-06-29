@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Database Sync Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .status-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 8px;
+        }
+        .status-connected { background-color: #28a745; }
+        .status-disconnected { background-color: #dc3545; }
+        .status-unknown { background-color: #6c757d; }
+        
+        .sync-card {
+            transition: all 0.3s ease;
+            border: 2px solid transparent;
+        }
+        .sync-card:hover {
+            border-color: #007bff;
+            box-shadow: 0 4px 8px rgba(0,123,255,0.2);
+        }
+        
+        .progress-step {
+            padding: 10px;
+            margin: 5px 0;
+            border-radius: 5px;
+            background: #f8f9fa;
+        }
+        .progress-step.success { background: #d4edda; color: #155724; }
+        .progress-step.error { background: #f8d7da; color: #721c24; }
+        .progress-step.processing { background: #fff3cd; color: #856404; }
+    </style>
+</head>
+<body class="bg-light">
+    <div class="container-fluid py-4">
+        <div class="row">
+            <div class="col-12">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h1><i class="fas fa-sync-alt me-2"></i>Database Sync Dashboard</h1>
+                    <a href="/" class="btn btn-outline-primary">
+                        <i class="fas fa-arrow-left me-2"></i>Back to Main Dashboard
+                    </a>
+                </div>
+                
+                <!-- Connection Status -->
+                <div class="row mb-4">
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="card-header bg-primary text-white">
+                                <h5><i class="fas fa-home me-2"></i>Local PostgreSQL</h5>
+                            </div>
+                            <div class="card-body">
+                                <div id="localStatus" class="d-flex align-items-center">
+                                    <span class="status-indicator status-unknown"></span>
+                                    <span>Testing connection...</span>
+                                </div>
+                                <div id="localData" class="mt-2 small text-muted"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="card-header bg-success text-white">
+                                <h5><i class="fas fa-cloud me-2"></i>Railway PostgreSQL</h5>
+                            </div>
+                            <div class="card-body">
+                                <div id="railwayStatus" class="d-flex align-items-center">
+                                    <span class="status-indicator status-unknown"></span>
+                                    <span>Testing connection...</span>
+                                </div>
+                                <div id="railwayData" class="mt-2 small text-muted"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Sync Options -->
+                <div class="row mb-4">
+                    <div class="col-md-6">
+                        <div class="card sync-card h-100">
+                            <div class="card-header bg-info text-white">
+                                <h5><i class="fas fa-upload me-2"></i>Local → Railway</h5>
+                            </div>
+                            <div class="card-body">
+                                <p class="card-text">Sync your local development data to Railway for production use. This will overwrite Railway data.</p>
+                                <ul class="small">
+                                    <li>✅ Preserves your local development work</li>
+                                    <li>🚀 Updates production with latest data</li>
+                                    <li>⚠️ Overwrites existing Railway data</li>
+                                </ul>
+                                <button id="syncLocalToRailway" class="btn btn-info w-100">
+                                    <i class="fas fa-cloud-upload-alt me-2"></i>Sync to Railway
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="card sync-card h-100">
+                            <div class="card-header bg-warning text-white">
+                                <h5><i class="fas fa-download me-2"></i>Railway → Local</h5>
+                            </div>
+                            <div class="card-body">
+                                <p class="card-text">Download production data from Railway to your local database for development and testing.</p>
+                                <ul class="small">
+                                    <li>💻 Updates local with production data</li>
+                                    <li>🧪 Better testing with real data</li>
+                                    <li>⚠️ Overwrites existing local data</li>
+                                </ul>
+                                <button id="syncRailwayToLocal" class="btn btn-warning w-100">
+                                    <i class="fas fa-cloud-download-alt me-2"></i>Sync to Local
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Progress Display -->
+                <div class="card d-none" id="progressCard">
+                    <div class="card-header">
+                        <h5><i class="fas fa-tasks me-2"></i>Sync Progress</h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="progressContainer"></div>
+                        <div class="progress mt-3">
+                            <div id="progressBar" class="progress-bar" role="progressbar" style="width: 0%"></div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Results Display -->
+                <div class="card d-none" id="resultsCard">
+                    <div class="card-header">
+                        <h5><i class="fas fa-chart-bar me-2"></i>Sync Results</h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="resultsContainer"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        let syncInProgress = false;
+        
+        // Test connections on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            testConnections();
+        });
+        
+        async function testConnections() {
+            try {
+                const response = await fetch('/api/test_connections', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    updateConnectionStatus('local', result.local);
+                    updateConnectionStatus('railway', result.railway);
+                } else {
+                    updateConnectionStatus('local', {connected: false, error: 'Test failed'});
+                    updateConnectionStatus('railway', {connected: false, error: 'Test failed'});
+                }
+            } catch (error) {
+                console.error('Connection test failed:', error);
+                updateConnectionStatus('local', {connected: false, error: error.message});
+                updateConnectionStatus('railway', {connected: false, error: error.message});
+            }
+        }
+        
+        function updateConnectionStatus(type, status) {
+            const statusElement = document.getElementById(`${type}Status`);
+            const dataElement = document.getElementById(`${type}Data`);
+            const indicator = statusElement.querySelector('.status-indicator');
+            const text = statusElement.querySelector('span:last-child');
+            
+            if (status.connected) {
+                indicator.className = 'status-indicator status-connected';
+                text.textContent = 'Connected';
+                if (status.data) {
+                    dataElement.textContent = status.data;
+                }
+            } else {
+                indicator.className = 'status-indicator status-disconnected';
+                text.textContent = 'Disconnected';
+                if (status.error) {
+                    dataElement.textContent = `Error: ${status.error}`;
+                }
+            }
+        }
+        
+        // Sync Local to Railway
+        document.getElementById('syncLocalToRailway').addEventListener('click', function() {
+            if (syncInProgress) return;
+            
+            if (confirm('This will overwrite all data in Railway with your local data. Continue?')) {
+                performSync('/api/sync_local_to_railway', 'Local → Railway');
+            }
+        });
+        
+        // Sync Railway to Local
+        document.getElementById('syncRailwayToLocal').addEventListener('click', function() {
+            if (syncInProgress) return;
+            
+            if (confirm('This will overwrite all local data with Railway data. Continue?')) {
+                performSync('/api/sync_railway_to_local', 'Railway → Local');
+            }
+        });
+        
+        async function performSync(endpoint, direction) {
+            syncInProgress = true;
+            
+            // Disable buttons
+            document.getElementById('syncLocalToRailway').disabled = true;
+            document.getElementById('syncRailwayToLocal').disabled = true;
+            
+            // Show progress card
+            const progressCard = document.getElementById('progressCard');
+            const resultsCard = document.getElementById('resultsCard');
+            progressCard.classList.remove('d-none');
+            resultsCard.classList.add('d-none');
+            
+            const progressContainer = document.getElementById('progressContainer');
+            const progressBar = document.getElementById('progressBar');
+            
+            progressContainer.innerHTML = `<div class="progress-step processing">🔄 Starting ${direction} sync...</div>`;
+            progressBar.style.width = '10%';
+            
+            try {
+                const response = await fetch(endpoint, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                const result = await response.json();
+                
+                progressBar.style.width = '100%';
+                
+                // Show results
+                displayResults(result, direction);
+                
+            } catch (error) {
+                progressContainer.innerHTML += `<div class="progress-step error">❌ Sync failed: ${error.message}</div>`;
+                progressBar.style.width = '100%';
+                progressBar.classList.add('bg-danger');
+            }
+            
+            // Re-enable buttons
+            syncInProgress = false;
+            document.getElementById('syncLocalToRailway').disabled = false;
+            document.getElementById('syncRailwayToLocal').disabled = false;
+            
+            // Refresh connection status
+            setTimeout(testConnections, 1000);
+        }
+        
+        function displayResults(result, direction) {
+            const resultsCard = document.getElementById('resultsCard');
+            const resultsContainer = document.getElementById('resultsContainer');
+            
+            let html = `<h6>📊 ${direction} Sync Results</h6>`;
+            
+            if (result.success) {
+                html += `<div class="alert alert-success">✅ Sync completed successfully!</div>`;
+            } else {
+                html += `<div class="alert alert-danger">❌ Sync completed with errors</div>`;
+            }
+            
+            // Summary
+            if (result.summary) {
+                html += `
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <div class="card bg-light">
+                                <div class="card-body text-center">
+                                    <h5>${result.summary.successful_exports || 0}</h5>
+                                    <small>Tables Exported</small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card bg-light">
+                                <div class="card-body text-center">
+                                    <h5>${result.summary.successful_imports || 0}</h5>
+                                    <small>Tables Imported</small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card bg-light">
+                                <div class="card-body text-center">
+                                    <h5>${result.summary.total_tables || 0}</h5>
+                                    <small>Total Tables</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            // Verification counts
+            if (result.verification) {
+                html += `<h6>📋 Final Record Counts</h6><div class="row mb-3">`;
+                for (const [table, count] of Object.entries(result.verification)) {
+                    html += `
+                        <div class="col-md-4">
+                            <div class="card">
+                                <div class="card-body text-center">
+                                    <h5>${count}</h5>
+                                    <small>${table.charAt(0).toUpperCase() + table.slice(1)}</small>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }
+                html += `</div>`;
+            }
+            
+            // Errors
+            if (result.summary && result.summary.errors && result.summary.errors.length > 0) {
+                html += `<h6>⚠️ Errors</h6><ul class="list-group">`;
+                result.summary.errors.forEach(error => {
+                    html += `<li class="list-group-item list-group-item-danger">${error}</li>`;
+                });
+                html += `</ul>`;
+            }
+            
+            resultsContainer.innerHTML = html;
+            resultsCard.classList.remove('d-none');
+        }
+    </script>
+</body>
+</html>

@@ -34,29 +34,82 @@ from core.database_service_postgresql import init_database_service, get_database
 # Import crawling service for authenticated web scraping
 from core.crawl_service import CrawlIntegration
 
+# Import sync API blueprint
+from railway_sync_api import sync_bp
+
 # Configuration
 BASE_DIR = Path(__file__).resolve().parent
 load_dotenv(BASE_DIR / ".env")
 
 app = Flask(__name__, template_folder=BASE_DIR / "templates", static_folder=BASE_DIR / "static")
 
+# Register sync blueprint
+app.register_blueprint(sync_bp)
+
 # Production configuration
 app.config['ENV'] = 'production'
 app.config['DEBUG'] = False
 app.secret_key = os.getenv("FLASK_SECRET_KEY", "a_default_secret_key_for_development")
 
-# PostgreSQL-only database configuration for Railway
-database_url = os.getenv('DATABASE_URL')
-print(f"🔍 DATABASE_URL detected: {database_url[:50] if database_url else 'None'}...")
-print(f"🔍 Full DATABASE_URL length: {len(database_url) if database_url else 0} characters")
+# ========================================
+# SMART DATABASE CONFIGURATION
+# ========================================
 
-# Also check for Railway's native PostgreSQL service
-railway_postgres_url = os.getenv('POSTGRES_URL') or os.getenv('RAILWAY_POSTGRES_URL')
-if railway_postgres_url:
-    print(f"🔍 Railway POSTGRES_URL found: {railway_postgres_url[:50]}...")
-    if not database_url or 'DATABASE_URL = ' in database_url:
-        print("🔧 Using Railway's native PostgreSQL URL instead...")
+# Get database source preference
+database_source = os.getenv('DATABASE_SOURCE', 'auto').lower()
+local_db_url = os.getenv('LOCAL_DATABASE_URL')
+railway_db_url = os.getenv('RAILWAY_DATABASE_URL')
+explicit_db_url = os.getenv('DATABASE_URL')
+
+print(f"🎯 DATABASE_SOURCE setting: {database_source}")
+print(f"🔍 Local DB available: {'✅' if local_db_url else '❌'}")
+print(f"🔍 Railway DB available: {'✅' if railway_db_url else '❌'}")
+print(f"🔍 Explicit DATABASE_URL: {'✅' if explicit_db_url else '❌'}")
+
+# Smart database selection logic
+database_url = None
+
+if database_source == 'local':
+    if local_db_url:
+        database_url = local_db_url
+        print(f"🏠 Using LOCAL PostgreSQL: {database_url[:50]}...")
+    else:
+        print(f"❌ LOCAL database requested but LOCAL_DATABASE_URL not set")
+        
+elif database_source == 'railway':
+    if railway_db_url:
+        database_url = railway_db_url
+        print(f"🚂 Using RAILWAY PostgreSQL: {database_url[:50]}...")
+    else:
+        print(f"❌ RAILWAY database requested but RAILWAY_DATABASE_URL not set")
+        
+elif database_source == 'auto':
+    # Auto-detect: Railway environment variables take precedence, then local
+    railway_postgres_url = os.getenv('POSTGRES_URL') or os.getenv('RAILWAY_POSTGRES_URL')
+    
+    if railway_postgres_url:
         database_url = railway_postgres_url
+        print(f"🚂 AUTO: Using Railway's native PostgreSQL: {database_url[:50]}...")
+    elif explicit_db_url:
+        database_url = explicit_db_url
+        print(f"🔧 AUTO: Using explicit DATABASE_URL: {database_url[:50]}...")
+    elif railway_db_url:
+        database_url = railway_db_url
+        print(f"🚂 AUTO: Using configured Railway DB: {database_url[:50]}...")
+    elif local_db_url:
+        database_url = local_db_url
+        print(f"🏠 AUTO: Using local PostgreSQL: {database_url[:50]}...")
+    else:
+        print(f"❌ AUTO: No database URL found")
+        
+else:
+    print(f"❌ Invalid DATABASE_SOURCE: {database_source}. Use 'local', 'railway', or 'auto'")
+
+if database_url:
+    print(f"✅ Selected database: {database_url[:50]}...")
+    print(f"📏 Database URL length: {len(database_url)} characters")
+else:
+    print(f"🚨 No database configured!")
 
 # Fix common Railway environment variable issues
 if database_url:
