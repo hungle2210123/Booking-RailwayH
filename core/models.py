@@ -35,9 +35,10 @@ class Guest(db.Model):
     # Relationships
     bookings = relationship("Booking", back_populates="guest", cascade="all, delete-orphan")
     
-    # Constraints
+    # Constraints (removed PostgreSQL-specific regex for SQLite compatibility)
     __table_args__ = (
-        CheckConstraint("email ~* '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$'", name='email_format'),
+        # CheckConstraint for email validation removed to ensure SQLite compatibility
+        # Email validation will be handled at application level
     )
     
     def __repr__(self):

@@ -68,11 +68,16 @@ elif database_url.startswith('postgresql://'):
             print(f"   🏗️ Database host: {host_part}")
         print("   🚀 Application will use PostgreSQL database")
         
-        # Validate URL format by attempting to parse it
+        # Basic validation - just check it's a proper postgresql:// URL
         from urllib.parse import urlparse
         parsed = urlparse(database_url)
-        if not all([parsed.scheme, parsed.netloc, parsed.username, parsed.password]):
-            raise ValueError("Invalid PostgreSQL URL format")
+        
+        # Only check essential components for PostgreSQL
+        if parsed.scheme == 'postgresql' and parsed.netloc and parsed.hostname:
+            print(f"   ✅ Database: {parsed.path.lstrip('/') or 'default'}")
+            print(f"   ✅ Host: {parsed.hostname}:{parsed.port or 5432}")
+        else:
+            raise ValueError(f"Invalid PostgreSQL URL - missing required components")
         
     except Exception as url_error:
         print(f"⚠️ POSTGRESQL URL VALIDATION FAILED: {url_error}")
