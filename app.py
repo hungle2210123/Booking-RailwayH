@@ -50,6 +50,17 @@ database_url = os.getenv('DATABASE_URL')
 print(f"🔍 DATABASE_URL detected: {database_url[:50] if database_url else 'None'}...")
 print(f"🔍 Full DATABASE_URL length: {len(database_url) if database_url else 0} characters")
 
+# Fix common Railway environment variable issues
+if database_url:
+    # Remove "DATABASE_URL=" prefix if it exists (common Railway config error)
+    if database_url.startswith('DATABASE_URL='):
+        print("🔧 Fixing DATABASE_URL prefix issue...")
+        database_url = database_url.replace('DATABASE_URL=', '')
+        print(f"🔧 Cleaned URL: {database_url[:50]}...")
+    
+    # Remove any quotes that might be added
+    database_url = database_url.strip('\'"')
+
 # Debug: Check if URL is being truncated
 if database_url and len(database_url) < 90:  # Expected length is ~92 characters
     print(f"⚠️ WARNING: DATABASE_URL appears truncated (expected ~92 chars, got {len(database_url)})")
@@ -5359,6 +5370,43 @@ def railway_sync_page():
     """Railway sync management page"""
     railway_url = os.getenv('RAILWAY_DATABASE_URL')
     return render_template('railway_sync.html', railway_url=railway_url)
+
+@app.route('/debug/env')
+def debug_environment():
+    """Debug environment variables for Railway troubleshooting"""
+    env_info = {}
+    
+    # Check all database-related environment variables
+    for key in os.environ.keys():
+        if 'DATABASE' in key or 'POSTGRES' in key or 'DB' in key:
+            value = os.environ[key]
+            # Only show first 20 and last 20 characters for security
+            if len(value) > 40:
+                masked_value = f"{value[:20]}...{value[-20:]}"
+            else:
+                masked_value = f"{value[:10]}..." if len(value) > 10 else value
+            env_info[key] = {
+                'value': masked_value,
+                'length': len(value),
+                'starts_with': value[:50] if len(value) > 50 else value,
+                'type': type(value).__name__
+            }
+    
+    return jsonify({
+        'environment_variables': env_info,
+        'total_env_vars': len(os.environ),
+        'database_related_vars': len(env_info),
+        'debug_notes': {
+            'expected_database_url_length': 92,
+            'expected_format': 'postgresql://postgres:password@host:port/database',
+            'common_issues': [
+                'Variable name included in value (DATABASE_URL=postgresql://...)',
+                'Truncated URL due to character limits',
+                'Special characters not properly escaped',
+                'Wrong variable name or reference format'
+            ]
+        }
+    })
 
 @app.route('/api/railway_sync', methods=['POST', 'GET'])
 def railway_sync():
