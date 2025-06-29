@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Firecrawl API Test - Hotel Booking Crawler</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .test-container {
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .status-box {
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 10px 0;
+            background: #f8f9fa;
+        }
+        .success { border-color: #28a745; background: #d4edda; }
+        .error { border-color: #dc3545; background: #f8d7da; }
+        .loading { border-color: #007bff; background: #cce5ff; }
+        .result-card {
+            background: white;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 10px 0;
+            border-left: 4px solid #28a745;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .json-display {
+            background: #f8f9fa;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 10px;
+            white-space: pre-wrap;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1><i class="fas fa-spider me-2"></i>Firecrawl API Test</h1>
+        <p class="text-muted">Test crawling the Booking.com admin panel with your API key</p>
+        
+        <!-- API Key Setup -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5><i class="fas fa-key me-2"></i>Step 1: API Configuration</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-8">
+                        <label class="form-label">Firecrawl API Key:</label>
+                        <input type="password" id="apiKey" class="form-control" 
+                               value="fc-d59dc4eba8ae49cf8ea57c690e48b273" 
+                               placeholder="Enter your Firecrawl API key">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">&nbsp;</label>
+                        <button id="testConnection" class="btn btn-primary d-block">
+                            <i class="fas fa-plug me-2"></i>Test Connection
+                        </button>
+                    </div>
+                </div>
+                <div id="connectionStatus" class="mt-3"></div>
+            </div>
+        </div>
+
+        <!-- URL Input -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5><i class="fas fa-link me-2"></i>Step 2: URL to Crawl</h5>
+            </div>
+            <div class="card-body">
+                <label class="form-label">Booking.com Admin URL:</label>
+                <textarea id="crawlUrl" class="form-control" rows="3">https://admin.booking.com/hotel/hoteladmin/extranet_ng/manage/search_reservations.html?upcoming_reservations=1&source=nav&hotel_id=14171449&lang=vi&reservation_status=ok&ses=86efaa7b09747bf63604a42f9e02e818&date_from=2025-07-01&date_to=2025-08-31&date_type=arrival</textarea>
+                <div class="mt-2">
+                    <small class="text-muted">
+                        <i class="fas fa-info-circle me-1"></i>
+                        This URL should contain your booking reservations data
+                    </small>
+                </div>
+            </div>
+        </div>
+
+        <!-- Crawl Action -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5><i class="fas fa-spider me-2"></i>Step 3: Start Crawling</h5>
+            </div>
+            <div class="card-body">
+                <button id="startCrawl" class="btn btn-success btn-lg" disabled>
+                    <i class="fas fa-play me-2"></i>Crawl Booking Data
+                </button>
+                <div id="crawlStatus" class="mt-3"></div>
+            </div>
+        </div>
+
+        <!-- Results -->
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-chart-bar me-2"></i>Results</h5>
+            </div>
+            <div class="card-body">
+                <div id="resultsContainer"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'https://api.firecrawl.dev/v0';
+        let apiKey = '';
+
+        // Test API connection
+        document.getElementById('testConnection').addEventListener('click', async () => {
+            apiKey = document.getElementById('apiKey').value.trim();
+            const statusDiv = document.getElementById('connectionStatus');
+            
+            if (!apiKey) {
+                statusDiv.innerHTML = '<div class="status-box error"><i class="fas fa-times me-2"></i>Please enter your API key</div>';
+                return;
+            }
+
+            statusDiv.innerHTML = '<div class="status-box loading"><i class="fas fa-spinner fa-spin me-2"></i>Testing connection...</div>';
+
+            try {
+                // Test with a simple URL
+                const response = await fetch(`${API_BASE}/scrape`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${apiKey}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        url: 'https://example.com',
+                        crawlerOptions: {
+                            onlyMainContent: true
+                        }
+                    })
+                });
+
+                if (response.ok) {
+                    statusDiv.innerHTML = '<div class="status-box success"><i class="fas fa-check me-2"></i>API connection successful! Ready to crawl.</div>';
+                    document.getElementById('startCrawl').disabled = false;
+                } else {
+                    const errorData = await response.text();
+                    statusDiv.innerHTML = `<div class="status-box error"><i class="fas fa-times me-2"></i>API Error (${response.status}): ${errorData}</div>`;
+                }
+            } catch (error) {
+                statusDiv.innerHTML = `<div class="status-box error"><i class="fas fa-times me-2"></i>Connection failed: ${error.message}</div>`;
+            }
+        });
+
+        // Start crawling
+        document.getElementById('startCrawl').addEventListener('click', async () => {
+            const url = document.getElementById('crawlUrl').value.trim();
+            const statusDiv = document.getElementById('crawlStatus');
+            const resultsDiv = document.getElementById('resultsContainer');
+
+            if (!url) {
+                statusDiv.innerHTML = '<div class="status-box error"><i class="fas fa-times me-2"></i>Please enter a URL to crawl</div>';
+                return;
+            }
+
+            // Clear previous results
+            resultsDiv.innerHTML = '';
+            statusDiv.innerHTML = '<div class="status-box loading"><i class="fas fa-spinner fa-spin me-2"></i>Crawling page... This may take 10-15 seconds.</div>';
+
+            try {
+                const response = await fetch(`${API_BASE}/scrape`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${apiKey}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        url: url,
+                        crawlerOptions: {
+                            includeHtml: true,
+                            onlyMainContent: false,  // Get full page for admin panels
+                            screenshot: true,
+                            waitFor: 8000  // Wait 8 seconds for JavaScript
+                        }
+                    })
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    statusDiv.innerHTML = '<div class="status-box success"><i class="fas fa-check me-2"></i>Crawling completed successfully!</div>';
+                    displayResults(data);
+                } else {
+                    const errorData = await response.text();
+                    statusDiv.innerHTML = `<div class="status-box error"><i class="fas fa-times me-2"></i>Crawl failed (${response.status}): ${errorData}</div>`;
+                }
+            } catch (error) {
+                statusDiv.innerHTML = `<div class="status-box error"><i class="fas fa-times me-2"></i>Crawl error: ${error.message}</div>`;
+            }
+        });
+
+        // Display results
+        function displayResults(data) {
+            const resultsDiv = document.getElementById('resultsContainer');
+            
+            if (!data || !data.data) {
+                resultsDiv.innerHTML = '<div class="alert alert-warning">No data returned from crawl</div>';
+                return;
+            }
+
+            const crawlData = data.data;
+            let html = '';
+
+            // Summary
+            html += `
+                <div class="result-card">
+                    <h6><i class="fas fa-info-circle me-2"></i>Crawl Summary</h6>
+                    <p><strong>URL:</strong> ${crawlData.url || 'Unknown'}</p>
+                    <p><strong>Title:</strong> ${crawlData.title || 'No title'}</p>
+                    <p><strong>Text Length:</strong> ${crawlData.markdown ? crawlData.markdown.length : 0} characters</p>
+                    <p><strong>Screenshot:</strong> ${crawlData.screenshot ? '✅ Available' : '❌ Not available'}</p>
+                </div>
+            `;
+
+            // Text content preview
+            if (crawlData.markdown) {
+                html += `
+                    <div class="result-card">
+                        <h6><i class="fas fa-file-text me-2"></i>Extracted Text (First 2000 chars)</h6>
+                        <div class="json-display">${crawlData.markdown.substring(0, 2000)}${crawlData.markdown.length > 2000 ? '...' : ''}</div>
+                    </div>
+                `;
+            }
+
+            // Screenshot
+            if (crawlData.screenshot) {
+                html += `
+                    <div class="result-card">
+                        <h6><i class="fas fa-camera me-2"></i>Screenshot</h6>
+                        <img src="${crawlData.screenshot}" class="img-fluid" style="max-height: 400px; border: 1px solid #ddd;">
+                        <div class="mt-2">
+                            <button class="btn btn-sm btn-primary" onclick="downloadScreenshot('${crawlData.screenshot}')">
+                                <i class="fas fa-download me-2"></i>Download Screenshot
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }
+
+            // Raw JSON data
+            html += `
+                <div class="result-card">
+                    <h6><i class="fas fa-code me-2"></i>Raw JSON Response</h6>
+                    <div class="json-display">${JSON.stringify(data, null, 2)}</div>
+                </div>
+            `;
+
+            resultsDiv.innerHTML = html;
+        }
+
+        // Download screenshot
+        function downloadScreenshot(dataUrl) {
+            const link = document.createElement('a');
+            link.href = dataUrl;
+            link.download = 'booking-admin-screenshot.png';
+            link.click();
+        }
+
+        // Auto-test connection on page load
+        window.addEventListener('load', () => {
+            // Auto-click test connection if API key is already filled
+            if (document.getElementById('apiKey').value) {
+                document.getElementById('testConnection').click();
+            }
+        });
+    </script>
+</body>
+</html>

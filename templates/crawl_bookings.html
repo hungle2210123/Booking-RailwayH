@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Crawl Bookings - Hotel Management</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .crawl-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .step-card {
+            border: 2px solid #e3f2fd;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            background: linear-gradient(135deg, #f8f9ff 0%, #ffffff 100%);
+        }
+        .step-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        .step-number {
+            background: #2196F3;
+            color: white;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 15px;
+            font-weight: bold;
+        }
+        .platform-btn {
+            margin: 5px;
+            padding: 10px 20px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            background: white;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .platform-btn:hover, .platform-btn.active {
+            border-color: #2196F3;
+            background: #e3f2fd;
+        }
+        .url-input {
+            background: #f8f9fa;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            padding: 8px 12px;
+            margin: 5px 0;
+            width: 100%;
+        }
+        .results-container {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 20px;
+            margin-top: 20px;
+        }
+        .loading-spinner {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+        .booking-card {
+            background: white;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 10px 0;
+            border-left: 4px solid #4CAF50;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .success-icon { color: #4CAF50; }
+        .error-icon { color: #f44336; }
+        .warning-icon { color: #ff9800; }
+    </style>
+</head>
+<body>
+    <div class="crawl-container">
+        <!-- Header -->
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1><i class="fas fa-spider me-2"></i>Crawl Booking Data</h1>
+            <a href="{{ url_for('dashboard') }}" class="btn btn-outline-primary">
+                <i class="fas fa-arrow-left me-2"></i>Back to Dashboard
+            </a>
+        </div>
+
+        <!-- Step 1: Setup Profile -->
+        <div class="step-card">
+            <div class="step-header">
+                <div class="step-number">1</div>
+                <h3>Setup Crawling Profile</h3>
+            </div>
+            <p class="text-muted">Setup browser profile with saved login for automatic booking extraction</p>
+            
+            <div class="row">
+                <div class="col-md-6">
+                    <label class="form-label">Select Platform:</label>
+                    <div>
+                        <button class="platform-btn" data-platform="booking.com">
+                            <i class="fas fa-bed me-2"></i>Booking.com
+                        </button>
+                        <button class="platform-btn" data-platform="agoda.com">
+                            <i class="fas fa-hotel me-2"></i>Agoda
+                        </button>
+                        <button class="platform-btn" data-platform="airbnb.com">
+                            <i class="fas fa-home me-2"></i>Airbnb
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="col-md-6" id="credentialsForm" style="display: none;">
+                    <label class="form-label">Login Credentials:</label>
+                    <input type="email" id="username" class="form-control mb-2" placeholder="Email/Username">
+                    <input type="password" id="password" class="form-control mb-2" placeholder="Password">
+                    <button id="setupProfile" class="btn btn-primary">
+                        <i class="fas fa-user-cog me-2"></i>Setup Profile
+                    </button>
+                </div>
+            </div>
+            
+            <div id="profileStatus" class="mt-3"></div>
+        </div>
+
+        <!-- Step 2: Add URLs -->
+        <div class="step-card">
+            <div class="step-header">
+                <div class="step-number">2</div>
+                <h3>Add Booking URLs</h3>
+            </div>
+            <p class="text-muted">Add booking detail URLs to extract data from</p>
+            
+            <div class="row">
+                <div class="col-md-8">
+                    <textarea id="urlList" class="form-control" rows="6" 
+                              placeholder="Enter booking URLs (one per line):&#10;https://booking.com/booking-details/12345&#10;https://agoda.com/reservation/67890&#10;https://airbnb.com/trips/54321"></textarea>
+                </div>
+                <div class="col-md-4">
+                    <div class="d-grid gap-2">
+                        <button id="validateUrls" class="btn btn-outline-primary">
+                            <i class="fas fa-check me-2"></i>Validate URLs
+                        </button>
+                        <button id="startCrawl" class="btn btn-success" disabled>
+                            <i class="fas fa-spider me-2"></i>Start Crawling
+                        </button>
+                    </div>
+                    
+                    <div class="mt-3">
+                        <small class="text-muted">
+                            <i class="fas fa-info-circle me-1"></i>
+                            Make sure you're logged in to the platform first
+                        </small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Step 3: Results -->
+        <div class="step-card">
+            <div class="step-header">
+                <div class="step-number">3</div>
+                <h3>Extraction Results</h3>
+            </div>
+            
+            <div class="loading-spinner" id="loadingSpinner">
+                <div class="spinner-border text-primary" role="status"></div>
+                <p class="mt-2">Crawling booking data...</p>
+            </div>
+            
+            <div id="resultsContainer" class="results-container" style="display: none;">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5>Extracted Bookings</h5>
+                    <button id="saveAllBookings" class="btn btn-success" style="display: none;">
+                        <i class="fas fa-save me-2"></i>Save All to Database
+                    </button>
+                </div>
+                <div id="bookingResults"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        let selectedPlatform = null;
+        let extractedBookings = [];
+
+        // Platform selection
+        document.querySelectorAll('.platform-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                // Remove active class from all buttons
+                document.querySelectorAll('.platform-btn').forEach(b => b.classList.remove('active'));
+                
+                // Add active class to clicked button
+                btn.classList.add('active');
+                selectedPlatform = btn.dataset.platform;
+                
+                // Show credentials form
+                document.getElementById('credentialsForm').style.display = 'block';
+            });
+        });
+
+        // Setup profile
+        document.getElementById('setupProfile').addEventListener('click', async () => {
+            if (!selectedPlatform) {
+                alert('Please select a platform first');
+                return;
+            }
+
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+
+            if (!username || !password) {
+                alert('Please enter both username and password');
+                return;
+            }
+
+            const statusDiv = document.getElementById('profileStatus');
+            statusDiv.innerHTML = '<div class="spinner-border spinner-border-sm me-2"></div>Setting up profile...';
+
+            try {
+                const response = await fetch('/api/setup_crawl_profile', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        platform: selectedPlatform,
+                        credentials: {
+                            username: username,
+                            password: password
+                        }
+                    })
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    statusDiv.innerHTML = `<div class="alert alert-success"><i class="fas fa-check-circle me-2"></i>${result.message}</div>`;
+                    // Clear password field for security
+                    document.getElementById('password').value = '';
+                } else {
+                    statusDiv.innerHTML = `<div class="alert alert-danger"><i class="fas fa-exclamation-circle me-2"></i>${result.message}</div>`;
+                }
+            } catch (error) {
+                statusDiv.innerHTML = `<div class="alert alert-danger"><i class="fas fa-exclamation-circle me-2"></i>Error: ${error.message}</div>`;
+            }
+        });
+
+        // Validate URLs
+        document.getElementById('validateUrls').addEventListener('click', () => {
+            const urlText = document.getElementById('urlList').value;
+            const urls = urlText.split('\n').filter(url => url.trim().length > 0);
+
+            if (urls.length === 0) {
+                alert('Please enter at least one URL');
+                return;
+            }
+
+            // Basic URL validation
+            const validUrls = urls.filter(url => {
+                try {
+                    new URL(url.trim());
+                    return true;
+                } catch {
+                    return false;
+                }
+            });
+
+            if (validUrls.length !== urls.length) {
+                alert(`${urls.length - validUrls.length} invalid URLs found. Please check your input.`);
+                return;
+            }
+
+            document.getElementById('startCrawl').disabled = false;
+            alert(`${validUrls.length} valid URLs ready for crawling`);
+        });
+
+        // Start crawling
+        document.getElementById('startCrawl').addEventListener('click', async () => {
+            const urlText = document.getElementById('urlList').value;
+            const urls = urlText.split('\n').filter(url => url.trim().length > 0);
+
+            if (urls.length === 0) {
+                alert('Please enter URLs first');
+                return;
+            }
+
+            // Show loading
+            document.getElementById('loadingSpinner').style.display = 'block';
+            document.getElementById('resultsContainer').style.display = 'none';
+
+            try {
+                const response = await fetch('/api/crawl_bookings', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        urls: urls.map(url => url.trim())
+                    })
+                });
+
+                const result = await response.json();
+
+                // Hide loading
+                document.getElementById('loadingSpinner').style.display = 'none';
+                document.getElementById('resultsContainer').style.display = 'block';
+
+                if (result.success) {
+                    extractedBookings = result.data;
+                    displayResults(extractedBookings);
+                    
+                    if (extractedBookings.length > 0) {
+                        document.getElementById('saveAllBookings').style.display = 'block';
+                    }
+                } else {
+                    document.getElementById('bookingResults').innerHTML = 
+                        `<div class="alert alert-danger"><i class="fas fa-exclamation-circle me-2"></i>${result.message}</div>`;
+                }
+            } catch (error) {
+                document.getElementById('loadingSpinner').style.display = 'none';
+                document.getElementById('resultsContainer').style.display = 'block';
+                document.getElementById('bookingResults').innerHTML = 
+                    `<div class="alert alert-danger"><i class="fas fa-exclamation-circle me-2"></i>Error: ${error.message}</div>`;
+            }
+        });
+
+        // Display results
+        function displayResults(bookings) {
+            const container = document.getElementById('bookingResults');
+            
+            if (bookings.length === 0) {
+                container.innerHTML = '<div class="alert alert-warning"><i class="fas fa-exclamation-triangle me-2"></i>No booking data extracted</div>';
+                return;
+            }
+
+            let html = `<div class="alert alert-success"><i class="fas fa-check-circle me-2"></i>Successfully extracted ${bookings.length} bookings</div>`;
+
+            bookings.forEach((booking, index) => {
+                html += `
+                    <div class="booking-card">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <h6><i class="fas fa-user me-2"></i>${booking.guest_name || 'Unknown Guest'}</h6>
+                                <p class="mb-1"><strong>Booking ID:</strong> ${booking.booking_id || 'N/A'}</p>
+                                <p class="mb-1"><strong>Check-in:</strong> ${booking.checkin_date || 'N/A'}</p>
+                                <p class="mb-1"><strong>Check-out:</strong> ${booking.checkout_date || 'N/A'}</p>
+                                <p class="mb-1"><strong>Amount:</strong> ${booking.room_amount ? booking.room_amount.toLocaleString() + 'đ' : 'N/A'}</p>
+                                <p class="mb-0"><strong>Commission:</strong> ${booking.commission ? booking.commission.toLocaleString() + 'đ' : 'N/A'}</p>
+                            </div>
+                            <div>
+                                <small class="text-muted">
+                                    <i class="fas fa-link me-1"></i>
+                                    <a href="${booking.source_url}" target="_blank">Source</a>
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+
+            container.innerHTML = html;
+        }
+
+        // Save all bookings
+        document.getElementById('saveAllBookings').addEventListener('click', async () => {
+            if (extractedBookings.length === 0) {
+                alert('No bookings to save');
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/save_extracted_bookings', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        bookings: extractedBookings
+                    })
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    alert(`Successfully saved ${result.saved_count} bookings to database`);
+                    // Redirect to dashboard
+                    window.location.href = '/dashboard';
+                } else {
+                    alert(`Error saving bookings: ${result.message}`);
+                }
+            } catch (error) {
+                alert(`Error saving bookings: ${error.message}`);
+            }
+        });
+    </script>
+</body>
+</html>

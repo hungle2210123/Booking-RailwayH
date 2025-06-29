@@ -464,26 +464,68 @@ class PostgreSQLDatabaseService:
     
     def upsert_arrival_time(self, booking_id: str, estimated_arrival: str = None, 
                            notes: str = None) -> ArrivalTime:
-        """Create or update arrival time"""
+        """Create or update arrival time with proper conflict handling"""
         try:
+            # First, try to find existing record
             arrival_time = db.session.query(ArrivalTime).filter_by(booking_id=booking_id).first()
             
-            if not arrival_time:
+            if arrival_time:
+                # Update existing record
+                print(f"🔄 [UPSERT_ARRIVAL] Updating existing arrival_id={arrival_time.arrival_id} for booking_id={booking_id}")
+                if estimated_arrival:
+                    from datetime import datetime
+                    arrival_time.arrival_time = datetime.strptime(estimated_arrival, '%H:%M').time()
+                
+                if notes:
+                    arrival_time.notes = notes
+                    
+                arrival_time.updated_at = datetime.now()
+                
+            else:
+                # Create new record
+                print(f"🆕 [UPSERT_ARRIVAL] Creating new arrival time for booking_id={booking_id}")
                 arrival_time = ArrivalTime(booking_id=booking_id)
+                
+                if estimated_arrival:
+                    from datetime import datetime
+                    arrival_time.arrival_time = datetime.strptime(estimated_arrival, '%H:%M').time()
+                
+                if notes:
+                    arrival_time.notes = notes
+                
+                # Don't set arrival_id - let auto-increment handle it
                 db.session.add(arrival_time)
             
-            if estimated_arrival:
-                from datetime import datetime
-                arrival_time.arrival_time = datetime.strptime(estimated_arrival, '%H:%M').time()  # Use correct column name
-            
-            if notes:
-                arrival_time.notes = notes  # Use correct column name
-            
+            # Commit with better error handling
             db.session.commit()
+            print(f"✅ [UPSERT_ARRIVAL] Successfully saved arrival_id={arrival_time.arrival_id}")
             return arrival_time
+            
         except Exception as e:
             db.session.rollback()
             logger.error(f"Error upserting arrival time: {e}")
+            
+            # If it's a unique constraint violation, try to handle it gracefully
+            if "duplicate key value violates unique constraint" in str(e):
+                print(f"🔧 [UPSERT_ARRIVAL] Handling unique constraint violation for booking_id={booking_id}")
+                try:
+                    # Force refresh and try update again
+                    db.session.expunge_all()  # Clear session
+                    existing = db.session.query(ArrivalTime).filter_by(booking_id=booking_id).first()
+                    if existing:
+                        print(f"🔄 [UPSERT_ARRIVAL] Found existing record, updating instead")
+                        if estimated_arrival:
+                            from datetime import datetime
+                            existing.arrival_time = datetime.strptime(estimated_arrival, '%H:%M').time()
+                        if notes:
+                            existing.notes = notes
+                        existing.updated_at = datetime.now()
+                        db.session.commit()
+                        return existing
+                except Exception as retry_error:
+                    db.session.rollback()
+                    print(f"❌ [UPSERT_ARRIVAL] Retry failed: {retry_error}")
+            
             raise PostgreSQLError(f"Failed to upsert arrival time: {str(e)}")
     
     def get_health_status(self) -> Dict[str, Any]:

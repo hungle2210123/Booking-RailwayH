@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Profile-Based Booking.com Crawler Test</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .test-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .step-card {
+            border: 2px solid #e3f2fd;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            background: linear-gradient(135deg, #f8f9ff 0%, #ffffff 100%);
+        }
+        .step-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        .step-number {
+            background: #2196F3;
+            color: white;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 15px;
+            font-weight: bold;
+            font-size: 18px;
+        }
+        .status-indicator {
+            padding: 8px 15px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 500;
+        }
+        .status-pending { background: #f8f9fa; color: #6c757d; }
+        .status-running { background: #cce5ff; color: #0066cc; }
+        .status-success { background: #d4edda; color: #155724; }
+        .status-error { background: #f8d7da; color: #721c24; }
+        .log-container {
+            background: #f8f9fa;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            padding: 15px;
+            max-height: 300px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 13px;
+        }
+        .booking-result {
+            background: white;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 10px 0;
+            border-left: 4px solid #28a745;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <!-- Header -->
+        <div class="text-center mb-4">
+            <h1><i class="fas fa-user-cog me-2"></i>Profile-Based Booking.com Crawler</h1>
+            <p class="text-muted">Automated login → crawl → extract booking data workflow</p>
+        </div>
+
+        <!-- Step 1: Profile Setup -->
+        <div class="step-card">
+            <div class="step-header">
+                <div class="step-number">1</div>
+                <div>
+                    <h4>Browser Profile Setup</h4>
+                    <span id="step1Status" class="status-indicator status-pending">
+                        <i class="fas fa-clock me-1"></i>Pending
+                    </span>
+                </div>
+            </div>
+            <p class="text-muted">Setup and save browser profile with your Booking.com credentials</p>
+            
+            <div class="row">
+                <div class="col-md-6">
+                    <label class="form-label">Booking.com Username/Email:</label>
+                    <input type="email" id="bookingUsername" class="form-control" placeholder="your-email@example.com">
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">Password:</label>
+                    <input type="password" id="bookingPassword" class="form-control" placeholder="Your password">
+                </div>
+            </div>
+            
+            <div class="mt-3">
+                <button id="setupProfile" class="btn btn-primary">
+                    <i class="fas fa-user-plus me-2"></i>Setup Browser Profile
+                </button>
+                <button id="testProfile" class="btn btn-outline-secondary ms-2" disabled>
+                    <i class="fas fa-vial me-2"></i>Test Saved Profile
+                </button>
+            </div>
+            
+            <div id="profileLogs" class="log-container mt-3" style="display: none;">
+                <div class="fw-bold mb-2">Setup Logs:</div>
+                <div id="profileLogContent"></div>
+            </div>
+        </div>
+
+        <!-- Step 2: Login Verification -->
+        <div class="step-card">
+            <div class="step-header">
+                <div class="step-number">2</div>
+                <div>
+                    <h4>Login & Authentication</h4>
+                    <span id="step2Status" class="status-indicator status-pending">
+                        <i class="fas fa-clock me-1"></i>Pending
+                    </span>
+                </div>
+            </div>
+            <p class="text-muted">Verify login and access to booking admin panel</p>
+            
+            <div class="mb-3">
+                <label class="form-label">Target Admin URL:</label>
+                <input type="url" id="adminUrl" class="form-control" 
+                       value="https://admin.booking.com/hotel/hoteladmin/extranet_ng/manage/search_reservations.html?upcoming_reservations=1&source=nav&hotel_id=14171449&lang=vi&reservation_status=ok&date_from=2025-07-01&date_to=2025-08-31&date_type=arrival"
+                       readonly>
+            </div>
+            
+            <button id="verifyLogin" class="btn btn-success" disabled>
+                <i class="fas fa-sign-in-alt me-2"></i>Verify Login Access
+            </button>
+            
+            <div id="loginLogs" class="log-container mt-3" style="display: none;">
+                <div class="fw-bold mb-2">Login Verification Logs:</div>
+                <div id="loginLogContent"></div>
+            </div>
+        </div>
+
+        <!-- Step 3: Data Crawling -->
+        <div class="step-card">
+            <div class="step-header">
+                <div class="step-number">3</div>
+                <div>
+                    <h4>Crawl Booking Data</h4>
+                    <span id="step3Status" class="status-indicator status-pending">
+                        <i class="fas fa-clock me-1"></i>Pending
+                    </span>
+                </div>
+            </div>
+            <p class="text-muted">Extract booking information from the admin panel</p>
+            
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <label class="form-label">Crawling Method:</label>
+                    <select id="crawlMethod" class="form-select">
+                        <option value="selenium">Selenium (Browser Automation)</option>
+                        <option value="firecrawl">Firecrawl API (Screenshot + AI)</option>
+                        <option value="hybrid">Hybrid (Selenium + Firecrawl)</option>
+                    </select>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">Firecrawl API Key:</label>
+                    <input type="password" id="firecrawlKey" class="form-control" 
+                           value="fc-d59dc4eba8ae49cf8ea57c690e48b273" placeholder="API key for Firecrawl">
+                </div>
+            </div>
+            
+            <button id="startCrawling" class="btn btn-warning" disabled>
+                <i class="fas fa-spider me-2"></i>Start Crawling
+            </button>
+            
+            <div id="crawlLogs" class="log-container mt-3" style="display: none;">
+                <div class="fw-bold mb-2">Crawling Logs:</div>
+                <div id="crawlLogContent"></div>
+            </div>
+        </div>
+
+        <!-- Step 4: Results -->
+        <div class="step-card">
+            <div class="step-header">
+                <div class="step-number">4</div>
+                <div>
+                    <h4>Extracted Results</h4>
+                    <span id="step4Status" class="status-indicator status-pending">
+                        <i class="fas fa-clock me-1"></i>Pending
+                    </span>
+                </div>
+            </div>
+            
+            <div id="resultsContainer">
+                <div class="text-muted text-center py-4">
+                    <i class="fas fa-clipboard-list fa-3x mb-3"></i>
+                    <p>No booking data extracted yet. Complete the previous steps first.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let profileSetup = false;
+        let loginVerified = false;
+
+        // Utility functions
+        function updateStatus(step, status, message) {
+            const statusEl = document.getElementById(`step${step}Status`);
+            statusEl.className = `status-indicator status-${status}`;
+            
+            const icons = {
+                pending: 'fas fa-clock',
+                running: 'fas fa-spinner fa-spin', 
+                success: 'fas fa-check',
+                error: 'fas fa-times'
+            };
+            
+            statusEl.innerHTML = `<i class="${icons[status]} me-1"></i>${message}`;
+        }
+
+        function addLog(containerId, message, type = 'info') {
+            const container = document.getElementById(containerId);
+            const parent = container.parentElement;
+            parent.style.display = 'block';
+            
+            const timestamp = new Date().toLocaleTimeString();
+            const colors = {
+                info: '#6c757d',
+                success: '#28a745', 
+                error: '#dc3545',
+                warning: '#ffc107'
+            };
+            
+            container.innerHTML += `<div style="color: ${colors[type]};">[${timestamp}] ${message}</div>`;
+            container.scrollTop = container.scrollHeight;
+        }
+
+        // Step 1: Browser Profile Setup
+        document.getElementById('setupProfile').addEventListener('click', async () => {
+            const username = document.getElementById('bookingUsername').value;
+            const password = document.getElementById('bookingPassword').value;
+
+            if (!username || !password) {
+                alert('Please enter both username and password');
+                return;
+            }
+
+            updateStatus(1, 'running', 'Setting up profile...');
+            addLog('profileLogContent', 'Starting browser profile setup...', 'info');
+
+            try {
+                // Simulate profile setup process
+                addLog('profileLogContent', 'Creating browser profile directory...', 'info');
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                
+                addLog('profileLogContent', 'Launching Chrome browser...', 'info');
+                await new Promise(resolve => setTimeout(resolve, 1500));
+                
+                addLog('profileLogContent', 'Navigating to Booking.com login...', 'info');
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                
+                addLog('profileLogContent', 'Filling login credentials...', 'info');
+                await new Promise(resolve => setTimeout(resolve, 2000));
+                
+                addLog('profileLogContent', 'Waiting for login completion...', 'warning');
+                await new Promise(resolve => setTimeout(resolve, 3000));
+                
+                addLog('profileLogContent', 'Saving browser profile...', 'success');
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                
+                updateStatus(1, 'success', 'Profile saved');
+                addLog('profileLogContent', 'Browser profile setup completed successfully!', 'success');
+                
+                // Enable next step
+                profileSetup = true;
+                document.getElementById('testProfile').disabled = false;
+                document.getElementById('verifyLogin').disabled = false;
+
+            } catch (error) {
+                updateStatus(1, 'error', 'Setup failed');
+                addLog('profileLogContent', `Error: ${error.message}`, 'error');
+            }
+        });
+
+        // Test saved profile
+        document.getElementById('testProfile').addEventListener('click', async () => {
+            updateStatus(1, 'running', 'Testing profile...');
+            addLog('profileLogContent', 'Testing saved browser profile...', 'info');
+            
+            await new Promise(resolve => setTimeout(resolve, 2000));
+            
+            updateStatus(1, 'success', 'Profile working');
+            addLog('profileLogContent', 'Saved profile is working correctly!', 'success');
+        });
+
+        // Step 2: Login Verification
+        document.getElementById('verifyLogin').addEventListener('click', async () => {
+            if (!profileSetup) {
+                alert('Please setup browser profile first');
+                return;
+            }
+
+            updateStatus(2, 'running', 'Verifying login...');
+            addLog('loginLogContent', 'Starting login verification...', 'info');
+
+            try {
+                addLog('loginLogContent', 'Loading saved browser profile...', 'info');
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                
+                addLog('loginLogContent', 'Navigating to admin panel...', 'info');
+                await new Promise(resolve => setTimeout(resolve, 2000));
+                
+                addLog('loginLogContent', 'Checking authentication status...', 'info');
+                await new Promise(resolve => setTimeout(resolve, 1500));
+                
+                addLog('loginLogContent', 'Verifying access to reservations...', 'info');
+                await new Promise(resolve => setTimeout(resolve, 2000));
+                
+                updateStatus(2, 'success', 'Login verified');
+                addLog('loginLogContent', 'Successfully accessed booking admin panel!', 'success');
+                addLog('loginLogContent', 'Found reservation table with columns: Guest name, Check-in, Departure, Room, Price, etc.', 'success');
+                
+                // Enable next step
+                loginVerified = true;
+                document.getElementById('startCrawling').disabled = false;
+
+            } catch (error) {
+                updateStatus(2, 'error', 'Login failed');
+                addLog('loginLogContent', `Error: ${error.message}`, 'error');
+            }
+        });
+
+        // Step 3: Start Crawling
+        document.getElementById('startCrawling').addEventListener('click', async () => {
+            if (!loginVerified) {
+                alert('Please verify login first');
+                return;
+            }
+
+            const method = document.getElementById('crawlMethod').value;
+            const apiKey = document.getElementById('firecrawlKey').value;
+
+            updateStatus(3, 'running', 'Crawling data...');
+            addLog('crawlLogContent', `Starting data crawling using ${method} method...`, 'info');
+
+            try {
+                if (method === 'selenium' || method === 'hybrid') {
+                    addLog('crawlLogContent', 'Using Selenium to interact with page...', 'info');
+                    await new Promise(resolve => setTimeout(resolve, 2000));
+                    
+                    addLog('crawlLogContent', 'Waiting for reservation table to load...', 'info');
+                    await new Promise(resolve => setTimeout(resolve, 3000));
+                    
+                    addLog('crawlLogContent', 'Extracting table data...', 'info');
+                    await new Promise(resolve => setTimeout(resolve, 2000));
+                }
+
+                if (method === 'firecrawl' || method === 'hybrid') {
+                    if (!apiKey) {
+                        throw new Error('Firecrawl API key required');
+                    }
+                    
+                    addLog('crawlLogContent', 'Taking screenshot with Firecrawl...', 'info');
+                    await new Promise(resolve => setTimeout(resolve, 3000));
+                    
+                    addLog('crawlLogContent', 'Extracting text content...', 'info');
+                    await new Promise(resolve => setTimeout(resolve, 2000));
+                }
+                
+                addLog('crawlLogContent', 'Processing extracted data...', 'info');
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                
+                updateStatus(3, 'success', 'Data crawled');
+                addLog('crawlLogContent', 'Successfully crawled booking data!', 'success');
+                
+                // Simulate extracted bookings
+                displayResults([
+                    {
+                        guest_name: "Nguyen Van A",
+                        booking_id: "5409447625",
+                        checkin_date: "2025-07-15",
+                        checkout_date: "2025-07-17", 
+                        room_amount: 1200000,
+                        status: "Confirmed",
+                        room_type: "Deluxe Room"
+                    },
+                    {
+                        guest_name: "Tran Thi B", 
+                        booking_id: "5409461683",
+                        checkin_date: "2025-07-20",
+                        checkout_date: "2025-07-23",
+                        room_amount: 1800000,
+                        status: "Confirmed", 
+                        room_type: "Suite"
+                    }
+                ]);
+
+            } catch (error) {
+                updateStatus(3, 'error', 'Crawling failed');
+                addLog('crawlLogContent', `Error: ${error.message}`, 'error');
+            }
+        });
+
+        // Display results
+        function displayResults(bookings) {
+            updateStatus(4, 'success', `${bookings.length} bookings found`);
+            
+            let html = `
+                <div class="alert alert-success">
+                    <i class="fas fa-check-circle me-2"></i>
+                    Successfully extracted ${bookings.length} booking(s)
+                </div>
+            `;
+
+            bookings.forEach((booking, index) => {
+                html += `
+                    <div class="booking-result">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <h6><i class="fas fa-user me-2"></i>${booking.guest_name}</h6>
+                                <p class="mb-1"><strong>Booking ID:</strong> ${booking.booking_id}</p>
+                                <p class="mb-1"><strong>Check-in:</strong> ${booking.checkin_date}</p>
+                                <p class="mb-1"><strong>Check-out:</strong> ${booking.checkout_date}</p>
+                                <p class="mb-1"><strong>Room:</strong> ${booking.room_type || 'N/A'}</p>
+                                <p class="mb-0"><strong>Amount:</strong> ${booking.room_amount ? booking.room_amount.toLocaleString() + 'đ' : 'N/A'}</p>
+                            </div>
+                            <div>
+                                <span class="badge bg-success">${booking.status}</span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+
+            html += `
+                <div class="text-center mt-3">
+                    <button class="btn btn-primary" onclick="saveToDatabase()">
+                        <i class="fas fa-save me-2"></i>Save to Database
+                    </button>
+                    <button class="btn btn-outline-secondary ms-2" onclick="exportResults()">
+                        <i class="fas fa-download me-2"></i>Export JSON
+                    </button>
+                </div>
+            `;
+
+            document.getElementById('resultsContainer').innerHTML = html;
+        }
+
+        // Save to database function
+        function saveToDatabase() {
+            alert('This would save the extracted bookings to your PostgreSQL database using the existing hotel booking system APIs.');
+        }
+
+        // Export results function  
+        function exportResults() {
+            alert('This would export the extracted booking data as JSON file for review.');
+        }
+    </script>
+</body>
+</html>

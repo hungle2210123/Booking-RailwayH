@@ -2121,14 +2121,37 @@
         
         if (result.ai_response) {
             html += `
-                <div class="ai-response">
-                    <div class="d-flex justify-content-between align-items-start mb-2">
-                        <h6><i class="fas fa-robot text-success"></i> Phản hồi AI (Có context):</h6>
-                        <button class="btn btn-sm btn-outline-primary copy-button" onclick="copyToClipboard(\`${result.ai_response.replace(/`/g, '\\`')}\`)">
-                            <i class="fas fa-copy"></i> Copy
+                <div class="ai-response mb-4">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h6 class="mb-0"><i class="fas fa-robot text-success"></i> 📋 Ready to Copy & Send:</h6>
+                        <button class="btn btn-sm btn-success copy-button" onclick="copyToClipboard(\`${result.ai_response.replace(/`/g, '\\`').replace(/\n/g, '\\n')}\`)">
+                            <i class="fas fa-copy"></i> Copy Response
                         </button>
                     </div>
-                    <div style="white-space: pre-wrap; line-height: 1.6; background: #f8f9fa; padding: 15px; border-radius: 8px; border-left: 4px solid #28a745;">${result.ai_response}</div>
+                    <div class="response-box" style="
+                        white-space: pre-wrap; 
+                        line-height: 1.6; 
+                        background: #ffffff; 
+                        padding: 20px; 
+                        border-radius: 12px; 
+                        border: 2px solid #28a745;
+                        box-shadow: 0 2px 8px rgba(40, 167, 69, 0.1);
+                        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                        font-size: 15px;
+                        color: #2d3436;
+                        position: relative;
+                        cursor: text;
+                    " onclick="copyToClipboard(\`${result.ai_response.replace(/`/g, '\\`').replace(/\n/g, '\\n')}\`)">
+                        <div style="position: absolute; top: 10px; right: 15px; background: #28a745; color: white; padding: 4px 8px; border-radius: 6px; font-size: 11px; font-weight: 600;">
+                            Click to Copy
+                        </div>
+                        ${result.ai_response}
+                    </div>
+                    <div class="text-center mt-2">
+                        <small class="text-muted">
+                            <i class="fas fa-info-circle"></i> This response is ready to copy and paste to your customer
+                        </small>
+                    </div>
                 </div>
             `;
         }
@@ -3203,7 +3226,7 @@
                                                 <button class="btn btn-sm btn-outline-secondary me-1" onclick="copyTemplateFromTab('${template.id}')" title="Copy nội dung">
                                                     <i class="fas fa-copy"></i>
                                                 </button>
-                                                <button class="btn btn-sm btn-outline-warning me-1" onclick="editTemplate('${template.id}', '${template.category}', '${template.label}', '${template.content.replace(/'/g, "\\'")}', '${template.usage || ""}')" title="Sửa template">
+                                                <button class="btn btn-sm btn-outline-warning me-1" onclick="editTemplateById('${template.id}')" title="Sửa template">
                                                     <i class="fas fa-edit"></i>
                                                 </button>
                                                 <button class="btn btn-sm btn-outline-danger" onclick="deleteTemplate('${template.id}', '${template.label}')" title="Xóa template">
@@ -3621,6 +3644,46 @@
         }
     }
     
+    // New safe edit template function that fetches data from API
+    async function editTemplateById(templateId) {
+        try {
+            console.log(`🔍 Fetching template ${templateId} for editing...`);
+            
+            // Fetch template data from API to avoid string escaping issues
+            const response = await fetch(`/api/templates/${templateId}`, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            });
+            
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            
+            const result = await response.json();
+            
+            if (result.success && result.template) {
+                const template = result.template;
+                console.log('✅ Template fetched successfully:', template.Label);
+                
+                // Call the original edit function with fetched data
+                editTemplate(
+                    templateId, 
+                    template.Category || 'General', 
+                    template.Label || '', 
+                    template.Message || '', 
+                    ''
+                );
+            } else {
+                throw new Error(result.error || 'Failed to fetch template');
+            }
+        } catch (error) {
+            console.error('Error fetching template for edit:', error);
+            alert(`❌ Lỗi khi tải template: ${error.message}`);
+        }
+    }
+
     // Edit template function
     async function editTemplate(templateId, currentCategory, currentLabel, currentContent, currentUsage) {
         // Show loading and populate edit modal

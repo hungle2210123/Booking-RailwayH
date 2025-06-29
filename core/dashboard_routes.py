@@ -1,6 +1,6 @@
 # dashboard_routes.py - Dashboard logic module
 from flask import render_template, request
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 import calendar
 import pandas as pd
 import plotly.express as px
@@ -10,7 +10,7 @@ import warnings
 
 def safe_to_dict_records(df):
     """
-    Safely convert DataFrame to dict records, handling duplicate columns
+    Safely convert DataFrame to dict records, handling duplicate columns and undefined values
     """
     if df.empty:
         return []
@@ -21,13 +21,30 @@ def safe_to_dict_records(df):
             print("WARNING: DataFrame has duplicate columns, cleaning...")
             # Keep only the first occurrence of each column
             df = df.loc[:, ~df.columns.duplicated()]
+        
+        # Clean DataFrame to prevent JSON serialization errors
+        df_clean = df.copy()
+        
+        # Replace NaN, None, and other problematic values
+        df_clean = df_clean.fillna('')  # Replace NaN with empty string
+        
+        # Handle any remaining undefined/problematic values
+        for col in df_clean.columns:
+            df_clean[col] = df_clean[col].apply(lambda x: x if x is not None and str(x) != 'nan' and str(x) != 'NaT' else '')
+        
+        # Convert any remaining complex objects to strings
+        for col in df_clean.columns:
+            if df_clean[col].dtype == 'object':
+                df_clean[col] = df_clean[col].astype(str).replace('nan', '').replace('None', '')
             
         # Suppress the warning temporarily
         with warnings.catch_warnings():
             warnings.filterwarnings("ignore", message="DataFrame columns are not unique")
-            return df.to_dict('records')
+            return df_clean.to_dict('records')
     except Exception as e:
         print(f"Error in safe_to_dict_records: {e}")
+        import traceback
+        traceback.print_exc()
         return []
 
 
@@ -51,6 +68,13 @@ def process_dashboard_data(df, start_date, end_date, sort_by, sort_order, dashbo
     # ✅ CORRECTED: Monthly revenue shows ALL months (each with accurate per-month amounts)
     # Collector chart uses date filter for period-specific view
     monthly_revenue_with_unpaid = process_monthly_revenue_with_unpaid(df)
+    
+    # ✅ NEW: Additional monthly revenue calculated by daily distribution (like calendar)
+    # Divides booking amounts across each night of stay for more accurate monthly totals
+    monthly_revenue_daily_distribution = process_monthly_revenue_with_unpaid_enhanced(df, use_daily_distribution=True)
+    
+    # ✅ NEW: Weekly revenue details (8 weeks) - identical structure to monthly section
+    weekly_revenue_with_unpaid = process_weekly_revenue_with_unpaid(df)
     
     # Xử lý doanh thu theo tuần (4 tuần gần nhất)
     weekly_revenue_analysis = process_weekly_revenue_analysis(df, weeks_back=4)
@@ -92,6 +116,8 @@ def process_dashboard_data(df, start_date, end_date, sort_by, sort_order, dashbo
         'monthly_collected_revenue_list': monthly_collected_revenue_list,
         'monthly_revenue_chart_json': monthly_revenue_chart_json,
         'monthly_revenue_with_unpaid': monthly_revenue_with_unpaid,
+        'monthly_revenue_daily_distribution': monthly_revenue_daily_distribution,
+        'weekly_revenue_with_unpaid': weekly_revenue_with_unpaid,
         'weekly_revenue_analysis': weekly_revenue_analysis,
         'overdue_unpaid_guests': overdue_unpaid_guests,
         'overdue_total_amount': overdue_total_amount,
@@ -420,8 +446,51 @@ def process_overdue_guests(df):
     return overdue_unpaid_guests, overdue_total_amount
 
 
-def process_monthly_revenue_with_unpaid(df, start_date=None, end_date=None):
-    """Xử lý doanh thu theo tháng bao gồm khách chưa thu và hoa hồng - HIỂN THỊ TẤT CẢ THÁNG"""
+def process_monthly_revenue_with_unpaid_enhanced(df, start_date=None, end_date=None, use_daily_distribution=False):
+    """
+    ENHANCED: Dual-method monthly revenue processing with optimization
+    
+    Parameters:
+    - use_daily_distribution: If True, uses the new daily distribution method
+                             If False, uses traditional method (backward compatible)
+    """
+    if use_daily_distribution:
+        print("📅 [ENHANCED] Using daily distribution method for monthly revenue...")
+        
+        # Use the new dual method and extract daily distribution results
+        dual_results = calculate_revenue_optimized_dual_method(df)
+        monthly_data = dual_results.get('daily_distribution_method', {}).get('monthly_summary', [])
+        
+        # Convert to traditional format for compatibility
+        monthly_revenue_with_unpaid = []
+        for month_data in monthly_data:
+            monthly_revenue_with_unpaid.append({
+                'Tháng': month_data['month'],
+                'Đã thu': month_data['collected_amount'],
+                'Chưa thu': month_data['uncollected_amount'],
+                'Tổng cộng': month_data['total_amount'],
+                'Hoa hồng đã thu': month_data['commission'] * (month_data['collected_amount'] / month_data['total_amount']) if month_data['total_amount'] > 0 else 0,
+                'Hoa hồng chưa thu': month_data['commission'] * (month_data['uncollected_amount'] / month_data['total_amount']) if month_data['total_amount'] > 0 else 0,
+                'Tổng hoa hồng': month_data['commission'],
+                'Số khách đã thu': round(month_data['collected_guest_nights']),
+                'Số khách chưa thu': round(month_data['uncollected_guest_nights']),
+                'Tổng số khách': round(month_data['guest_nights']),
+                'Tỷ lệ thu': (month_data['collected_amount'] / month_data['total_amount'] * 100) if month_data['total_amount'] > 0 else 0,
+                'Method': 'Daily Distribution'
+            })
+        
+        # Sort by month
+        monthly_revenue_with_unpaid.sort(key=lambda x: x['Tháng'])
+        
+        print(f"✅ [ENHANCED] Daily distribution method completed. {len(monthly_revenue_with_unpaid)} months processed")
+        return monthly_revenue_with_unpaid
+    else:
+        print("💰 [ENHANCED] Using traditional method for monthly revenue...")
+        # Use original traditional method
+        return process_monthly_revenue_with_unpaid_original(df, start_date, end_date)
+
+def process_monthly_revenue_with_unpaid_original(df, start_date=None, end_date=None):
+    """Xử lý doanh thu theo tháng bao gồm khách chưa thu và hoa hồng - HIỂN THỊ TẤT CẢ THÁNG (TRADITIONAL METHOD)"""
     monthly_revenue_with_unpaid = []
     
     try:
@@ -629,6 +698,162 @@ def process_monthly_revenue_with_unpaid(df, start_date=None, end_date=None):
     
     return monthly_revenue_with_unpaid
 
+# Backward compatibility alias - existing code can continue using the original function name
+def process_monthly_revenue_with_unpaid(df, start_date=None, end_date=None):
+    """
+    BACKWARD COMPATIBILITY: Wrapper for existing code
+    
+    By default, uses the traditional method to maintain existing behavior.
+    To use the new daily distribution method, call process_monthly_revenue_with_unpaid_enhanced() directly.
+    """
+    return process_monthly_revenue_with_unpaid_enhanced(df, start_date, end_date, use_daily_distribution=False)
+
+def process_weekly_revenue_with_unpaid(df, start_date=None, end_date=None):
+    """Xử lý doanh thu theo tuần bao gồm khách chưa thu và hoa hồng - HIỂN THỊ CHỈ 8 TUẦN RECENT"""
+    weekly_revenue_with_unpaid = []
+    
+    try:
+        if df.empty or 'Check-in Date' not in df.columns:
+            return weekly_revenue_with_unpaid
+            
+        # Filter for recent 8 weeks only
+        from datetime import date, timedelta
+        today = date.today()
+        eight_weeks_ago = today - timedelta(weeks=8)
+        
+        df_period = df[df['Check-in Date'].notna()].copy()
+        recent_mask = df_period['Check-in Date'].dt.date >= eight_weeks_ago
+        df_recent = df_period[recent_mask].copy()
+        
+        print(f"🔍 [WEEKLY_REVENUE] Processing {len(df_recent)} recent bookings (LAST 8 WEEKS)")
+        
+        if df_recent.empty:
+            return weekly_revenue_with_unpaid
+            
+        # Ensure commission column exists
+        if 'Hoa hồng' not in df_recent.columns:
+            df_recent['Hoa hồng'] = 0
+            
+        # Filter for checked-in guests only (exclude future arrivals)
+        checked_in_mask = df_recent['Check-in Date'].dt.date <= today
+        df_checked_in = df_recent[checked_in_mask].copy()
+        
+        print(f"🏨 [WEEKLY_CHECKED_IN] Total recent: {len(df_recent)}, Checked-in only: {len(df_checked_in)}")
+        
+        if df_checked_in.empty:
+            return weekly_revenue_with_unpaid
+        
+        # Add week calculation
+        df_checked_in['Week_Start'] = df_checked_in['Check-in Date'].dt.to_period('W').dt.start_time
+        df_checked_in['Week_Label'] = df_checked_in['Week_Start'].dt.strftime('%Y-W%U (%m/%d)')
+        
+        # Split collected vs uncollected
+        valid_collectors = ['LOC LE', 'THAO LE']
+        collected_mask = df_checked_in['Người thu tiền'].isin(valid_collectors)
+        collected_df = df_checked_in[collected_mask].copy()
+        uncollected_df = df_checked_in[~collected_mask].copy()
+        
+        # Process collected revenue by week
+        if not collected_df.empty:
+            collected_weekly = collected_df.groupby('Week_Label').agg({
+                'Tổng thanh toán': 'sum',
+                'Hoa hồng': 'sum',
+                'Week_Start': 'first'
+            }).reset_index()
+        else:
+            collected_weekly = pd.DataFrame(columns=['Week_Label', 'Tổng thanh toán', 'Hoa hồng', 'Week_Start'])
+        
+        # Process uncollected revenue by week
+        if not uncollected_df.empty:
+            uncollected_weekly = uncollected_df.groupby('Week_Label').agg({
+                'Tổng thanh toán': 'sum', 
+                'Hoa hồng': 'sum',
+                'Số đặt phòng': 'count',
+                'Week_Start': 'first'
+            }).reset_index()
+            uncollected_weekly = uncollected_weekly.rename(columns={'Số đặt phòng': 'Số khách chưa thu'})
+        else:
+            uncollected_weekly = pd.DataFrame(columns=['Week_Label', 'Tổng thanh toán', 'Hoa hồng', 'Số khách chưa thu', 'Week_Start'])
+        
+        # Merge data
+        if not collected_weekly.empty and not uncollected_weekly.empty:
+            merged_data = pd.merge(
+                collected_weekly[['Week_Label', 'Tổng thanh toán', 'Hoa hồng', 'Week_Start']].rename(columns={
+                    'Tổng thanh toán': 'Đã thu',
+                    'Hoa hồng': 'Hoa hồng_collected'
+                }),
+                uncollected_weekly[['Week_Label', 'Tổng thanh toán', 'Hoa hồng', 'Số khách chưa thu']].rename(columns={
+                    'Tổng thanh toán': 'Chưa thu',
+                    'Hoa hồng': 'Hoa hồng_uncollected'
+                }),
+                on='Week_Label', how='outer'
+            ).fillna(0)
+            merged_data['Hoa hồng'] = merged_data['Hoa hồng_collected'] + merged_data['Hoa hồng_uncollected']
+            merged_data = merged_data.drop(columns=['Hoa hồng_collected', 'Hoa hồng_uncollected'])
+        elif not collected_weekly.empty:
+            merged_data = collected_weekly.rename(columns={'Tổng thanh toán': 'Đã thu'})
+            merged_data[['Chưa thu', 'Số khách chưa thu']] = 0
+        elif not uncollected_weekly.empty:
+            merged_data = uncollected_weekly.rename(columns={'Tổng thanh toán': 'Chưa thu'})
+            merged_data['Đã thu'] = 0
+        else:
+            merged_data = pd.DataFrame(columns=['Week_Label', 'Đã thu', 'Chưa thu', 'Hoa hồng', 'Số khách chưa thu', 'Week_Start'])
+        
+        if not merged_data.empty:
+            # Add calculations
+            merged_data['Tổng cộng'] = merged_data['Đã thu'] + merged_data['Chưa thu']
+            merged_data['Tỷ lệ thu'] = (merged_data['Đã thu'] / merged_data['Tổng cộng'] * 100).round(1)
+            
+            # Add guest counts
+            if not df_checked_in.empty:
+                guest_counts = df_checked_in.groupby('Week_Label').size().reset_index(name='Tổng khách')
+                collected_counts = collected_df.groupby('Week_Label').size().reset_index(name='Khách đã thu') if not collected_df.empty else pd.DataFrame(columns=['Week_Label', 'Khách đã thu'])
+                
+                merged_data = pd.merge(merged_data, guest_counts, on='Week_Label', how='left')
+                merged_data = pd.merge(merged_data, collected_counts, on='Week_Label', how='left')
+                merged_data['Khách đã thu'] = merged_data['Khách đã thu'].fillna(0)
+                
+                # Calculate average per guest
+                merged_data['TB/khách'] = (merged_data['Tổng cộng'] / merged_data['Tổng khách']).round(0)
+            
+            # Sort by week start date (most recent first)
+            if 'Week_Start' in merged_data.columns:
+                merged_data = merged_data.sort_values('Week_Start', ascending=False)
+            
+            # Rename Week_Label to Tuần for display
+            merged_data = merged_data.rename(columns={'Week_Label': 'Tuần'})
+            
+            # Convert to records and handle NaN values
+            def safe_to_dict_records(df):
+                try:
+                    records = df.to_dict('records')
+                    for record in records:
+                        for key, value in record.items():
+                            if pd.isna(value) or value == float('inf') or value == float('-inf'):
+                                record[key] = 0
+                    return records
+                except Exception as e:
+                    print(f"Error converting to dict: {e}")
+                    return []
+            
+            weekly_revenue_with_unpaid = safe_to_dict_records(merged_data)
+            
+            print(f"📋 [WEEKLY_SUMMARY] Generated table with {len(weekly_revenue_with_unpaid)} weeks")
+            for row in weekly_revenue_with_unpaid:
+                week = row.get('Tuần', 'N/A')
+                collected = row.get('Đã thu', 0)
+                uncollected = row.get('Chưa thu', 0)
+                total = row.get('Tổng cộng', 0)
+                print(f"📋   {week}: Collected={collected:,.0f}đ, Uncollected={uncollected:,.0f}đ, Total={total:,.0f}đ")
+    
+    except Exception as e:
+        import traceback
+        print(f"❌ [WEEKLY_REVENUE_ERROR] {e}")
+        traceback.print_exc()
+        return []
+    
+    return weekly_revenue_with_unpaid
+
 def process_weekly_revenue_analysis(df, weeks_back=4):
     """Tạo phân tích doanh thu theo tuần cho 4 tuần gần nhất"""
     weekly_revenue_analysis = []
@@ -820,6 +1045,222 @@ def get_daily_totals(df):
     
     return daily_totals
 
+
+def calculate_revenue_optimized_dual_method(df):
+    """
+    OPTIMIZED REVENUE CALCULATION - DUAL METHOD
+    
+    Method 1: Traditional calculation (kept as is)
+    - Based on original booking amounts and collected amounts
+    - Used for existing payment tracking and collection status
+    
+    Method 2: Daily distribution calculation (new - like calendar)
+    - Divides amounts across each night of stay
+    - More accurate for monthly revenue totals
+    - Better represents actual daily occupancy value
+    
+    Returns both methods for comparison and optimization
+    """
+    result = {
+        'traditional_method': {},
+        'daily_distribution_method': {},
+        'comparison_summary': {}
+    }
+    
+    try:
+        if df.empty:
+            return result
+            
+        # ==================== METHOD 1: TRADITIONAL (KEPT AS IS) ====================
+        print("💰 [DUAL_METHOD] Calculating traditional method (existing)...")
+        
+        # Traditional: Group by check-in month (current method)
+        df_traditional = df[df['Check-in Date'].notna()].copy()
+        
+        # Separate collected vs uncollected (existing logic)
+        valid_collectors = ['LOC LE', 'THAO LE']
+        collected_traditional = df_traditional[df_traditional['Người thu tiền'].isin(valid_collectors)]
+        uncollected_traditional = df_traditional[~df_traditional['Người thu tiền'].isin(valid_collectors)]
+        
+        # Group by month (traditional way)
+        if not collected_traditional.empty:
+            collected_traditional['Month'] = collected_traditional['Check-in Date'].dt.to_period('M')
+            traditional_collected = collected_traditional.groupby('Month').agg({
+                'Tổng thanh toán': 'sum',
+                'Số tiền đã thu': 'sum',
+                'Hoa hồng': 'sum',
+                'Số đặt phòng': 'count'
+            }).reset_index()
+            traditional_collected['Tháng'] = traditional_collected['Month'].dt.strftime('%Y-%m')
+        else:
+            traditional_collected = pd.DataFrame()
+            
+        if not uncollected_traditional.empty:
+            uncollected_traditional['Month'] = uncollected_traditional['Check-in Date'].dt.to_period('M')
+            traditional_uncollected = uncollected_traditional.groupby('Month').agg({
+                'Tổng thanh toán': 'sum',
+                'Số tiền đã thu': 'sum',
+                'Hoa hồng': 'sum',
+                'Số đặt phòng': 'count'
+            }).reset_index()
+            traditional_uncollected['Tháng'] = traditional_uncollected['Month'].dt.strftime('%Y-%m')
+        else:
+            traditional_uncollected = pd.DataFrame()
+        
+        result['traditional_method'] = {
+            'collected': traditional_collected.to_dict('records') if not traditional_collected.empty else [],
+            'uncollected': traditional_uncollected.to_dict('records') if not traditional_uncollected.empty else []
+        }
+        
+        # ==================== METHOD 2: DAILY DISTRIBUTION (NEW) ====================
+        print("📅 [DUAL_METHOD] Calculating daily distribution method (new)...")
+        
+        daily_revenue_data = {}
+        monthly_summary = {}
+        
+        # Process each booking and distribute across stay duration
+        df_valid = df[
+            (df['Check-in Date'].notna()) &
+            (df['Check-out Date'].notna()) &
+            (df['Tổng thanh toán'].notna()) &
+            (df['Tổng thanh toán'] > 0) &
+            (df['Tình trạng'] != 'Đã hủy')
+        ].copy()
+        
+        for _, booking in df_valid.iterrows():
+            checkin_date = booking['Check-in Date'].date()
+            checkout_date = booking['Check-out Date'].date()
+            total_amount = float(booking['Tổng thanh toán'])
+            collected_amount = float(booking.get('Số tiền đã thu', 0))
+            commission = float(booking.get('Hoa hồng', 0))
+            collector = booking.get('Người thu tiền', '')
+            
+            # Calculate nights and daily rates
+            nights = (checkout_date - checkin_date).days
+            if nights <= 0:
+                nights = 1
+                
+            daily_total = total_amount / nights
+            daily_collected = collected_amount / nights
+            daily_commission = commission / nights
+            
+            # Determine if this is collected or uncollected
+            is_collected = collector in valid_collectors
+            
+            # Distribute across each day of stay
+            current_date = checkin_date
+            while current_date < checkout_date:
+                date_str = current_date.strftime('%Y-%m-%d')
+                month_str = current_date.strftime('%Y-%m')
+                
+                # Initialize daily data
+                if date_str not in daily_revenue_data:
+                    daily_revenue_data[date_str] = {
+                        'date': date_str,
+                        'month': month_str,
+                        'total_amount': 0,
+                        'collected_amount': 0,
+                        'uncollected_amount': 0,
+                        'commission': 0,
+                        'guest_count': 0,
+                        'collected_guest_count': 0,
+                        'uncollected_guest_count': 0
+                    }
+                
+                # Add daily amounts
+                daily_revenue_data[date_str]['total_amount'] += daily_total
+                daily_revenue_data[date_str]['commission'] += daily_commission
+                daily_revenue_data[date_str]['guest_count'] += 1/nights  # Fractional guest per night
+                
+                if is_collected:
+                    daily_revenue_data[date_str]['collected_amount'] += daily_total
+                    daily_revenue_data[date_str]['collected_guest_count'] += 1/nights
+                else:
+                    daily_revenue_data[date_str]['uncollected_amount'] += daily_total
+                    daily_revenue_data[date_str]['uncollected_guest_count'] += 1/nights
+                
+                current_date += timedelta(days=1)
+        
+        # Aggregate daily data to monthly
+        for date_str, day_data in daily_revenue_data.items():
+            month = day_data['month']
+            
+            if month not in monthly_summary:
+                monthly_summary[month] = {
+                    'month': month,
+                    'total_amount': 0,
+                    'collected_amount': 0,
+                    'uncollected_amount': 0,
+                    'commission': 0,
+                    'guest_nights': 0,
+                    'collected_guest_nights': 0,
+                    'uncollected_guest_nights': 0
+                }
+            
+            monthly_summary[month]['total_amount'] += day_data['total_amount']
+            monthly_summary[month]['collected_amount'] += day_data['collected_amount']
+            monthly_summary[month]['uncollected_amount'] += day_data['uncollected_amount']
+            monthly_summary[month]['commission'] += day_data['commission']
+            monthly_summary[month]['guest_nights'] += day_data['guest_count']
+            monthly_summary[month]['collected_guest_nights'] += day_data['collected_guest_count']
+            monthly_summary[month]['uncollected_guest_nights'] += day_data['uncollected_guest_count']
+        
+        result['daily_distribution_method'] = {
+            'daily_data': daily_revenue_data,
+            'monthly_summary': list(monthly_summary.values())
+        }
+        
+        # ==================== COMPARISON SUMMARY ====================
+        print("🔍 [DUAL_METHOD] Creating comparison summary...")
+        
+        comparison = {
+            'total_bookings_processed': len(df_valid),
+            'method_differences': [],
+            'recommended_usage': {
+                'traditional': 'Use for payment collection tracking, current dashboard displays',
+                'daily_distribution': 'Use for accurate monthly revenue reports, calendar integration'
+            }
+        }
+        
+        # Compare monthly totals between methods
+        traditional_months = set()
+        if not traditional_collected.empty:
+            traditional_months.update(traditional_collected['Tháng'].tolist())
+        if not traditional_uncollected.empty:
+            traditional_months.update(traditional_uncollected['Tháng'].tolist())
+        
+        daily_months = set([m['month'] for m in monthly_summary.values()])
+        
+        for month in traditional_months.union(daily_months):
+            # Get traditional method total
+            trad_collected = traditional_collected[traditional_collected['Tháng'] == month]['Tổng thanh toán'].sum() if not traditional_collected.empty else 0
+            trad_uncollected = traditional_uncollected[traditional_uncollected['Tháng'] == month]['Tổng thanh toán'].sum() if not traditional_uncollected.empty else 0
+            trad_total = trad_collected + trad_uncollected
+            
+            # Get daily distribution total
+            daily_total = monthly_summary.get(month, {}).get('total_amount', 0)
+            
+            difference = abs(trad_total - daily_total)
+            difference_percent = (difference / max(trad_total, daily_total) * 100) if max(trad_total, daily_total) > 0 else 0
+            
+            comparison['method_differences'].append({
+                'month': month,
+                'traditional_total': trad_total,
+                'daily_distribution_total': daily_total,
+                'difference_amount': difference,
+                'difference_percent': difference_percent
+            })
+        
+        result['comparison_summary'] = comparison
+        
+        print(f"✅ [DUAL_METHOD] Complete. Processed {len(df_valid)} bookings")
+        print(f"📊 [DUAL_METHOD] Traditional months: {len(traditional_months)}, Daily distribution months: {len(daily_months)}")
+        
+        return result
+        
+    except Exception as e:
+        print(f"❌ [DUAL_METHOD] Error: {e}")
+        return result
 
 def get_daily_revenue_by_stay(df):
     """Calculate daily revenue by dividing total booking amount by stay duration

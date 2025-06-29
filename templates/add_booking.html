@@ -2,6 +2,63 @@
 {% block title %}Thêm Đặt phòng{% endblock %}
 
 {% block content %}
+<style>
+.apartment-card {
+    transition: all 0.3s ease;
+    background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
+}
+
+.apartment-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+}
+
+.apartment-card.selected {
+    transform: scale(1.02);
+    box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+}
+
+#selected-apartment-info {
+    animation: slideDown 0.5s ease-out;
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.form-control-sm:focus {
+    border-color: #28a745;
+    box-shadow: 0 0 0 0.2rem rgba(40, 167, 69, 0.25);
+}
+
+#generated-url {
+    background-color: #f8f9fa;
+    font-family: 'Courier New', monospace;
+    font-size: 10px !important;
+}
+
+.alert-info {
+    background: linear-gradient(135deg, #d1ecf1 0%, #b8daff 100%);
+    border: none;
+}
+
+.alert-primary {
+    background: linear-gradient(135deg, #cce7ff 0%, #b3d9ff 100%);
+    border: none;
+}
+
+.alert-warning {
+    background: linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%);
+    border: none;
+}
+</style>
 <h1 class="mb-4"><i class="fas fa-plus-circle me-2"></i>Thêm Đặt phòng <small class="text-muted">Photo AI + Manual</small></h1>
 
 <!-- Duplicate Warning Modal -->
@@ -78,6 +135,102 @@
             <p class="mb-2"><strong>Dán ảnh (Ctrl+V) hoặc click để chọn file</strong></p>
             <small class="text-muted">AI sẽ tự động phân tích và quyết định: điền form (1 khách) hoặc lưu nhiều khách</small>
             <input type="file" id="photo-input" accept="image/*" style="display: none;">
+        </div>
+
+        <!-- OR DIVIDER -->
+        <div class="text-center my-3">
+            <span class="badge bg-secondary px-3 py-2">HOẶC</span>
+        </div>
+
+        <!-- PROFESSIONAL APARTMENT MANAGEMENT SECTION -->
+        <div class="border-2 border-dashed border-success rounded p-4" style="background-color: #f8fff8;">
+            <div class="text-center mb-4">
+                <i class="fas fa-building fa-2x text-success mb-2"></i>
+                <h5 class="text-success mb-0"><strong>🏢 Quản lý Căn hộ & Crawl Booking.com</strong></h5>
+                <small class="text-muted">Hệ thống crawl chuyên nghiệp cho 2 căn hộ của bạn</small>
+            </div>
+            
+            <!-- Apartment Selection Cards -->
+            <div class="row mb-4">
+                <div class="col-md-6">
+                    <div class="card apartment-card" id="apartment-1" onclick="selectApartment(1)" style="cursor: pointer; border: 2px solid #e9ecef;">
+                        <div class="card-body text-center">
+                            <i class="fas fa-home fa-2x text-primary mb-2"></i>
+                            <h6 class="card-title text-primary">🏠 Căn hộ 1</h6>
+                            <small class="text-muted">Hotel ID: 14171449</small>
+                            <div class="mt-2">
+                                <span class="badge bg-light text-dark">Mặc định: 01/07 → 31/08</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card apartment-card" id="apartment-2" onclick="selectApartment(2)" style="cursor: pointer; border: 2px solid #e9ecef;">
+                        <div class="card-body text-center">
+                            <i class="fas fa-building fa-2x text-warning mb-2"></i>
+                            <h6 class="card-title text-warning">🏢 Căn hộ 2</h6>
+                            <small class="text-muted">Hotel ID: 14174292</small>
+                            <div class="mt-2">
+                                <span class="badge bg-light text-dark">Mặc định: 27/06 → 31/08</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Selected Apartment Info -->
+            <div id="selected-apartment-info" class="alert alert-info" style="display: none;">
+                <div class="row align-items-center">
+                    <div class="col-md-3">
+                        <strong id="selected-apartment-name">Chưa chọn căn hộ</strong>
+                        <br><small id="selected-apartment-id" class="text-muted">Hotel ID: ---</small>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="row">
+                            <div class="col-6">
+                                <label class="form-label small">Từ ngày:</label>
+                                <input type="date" id="crawl-date-from" class="form-control form-control-sm">
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label small">Đến ngày:</label>
+                                <input type="date" id="crawl-date-to" class="form-control form-control-sm">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <button id="start-crawl-btn" class="btn btn-success w-100" disabled>
+                            <i class="fas fa-spider me-2"></i>Bắt đầu Crawl
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Advanced Options -->
+                <div class="mt-3 pt-3 border-top">
+                    <div class="row align-items-center">
+                        <div class="col-md-6">
+                            <label class="form-label small">Browser Profile:</label>
+                            <select id="crawl-profile-select" class="form-select form-select-sm">
+                                <option value="booking_fixed_profile">booking_fixed_profile (Recommended)</option>
+                                <option value="booking_manual_profile">booking_manual_profile</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small">Generated URL:</label>
+                            <input type="text" id="generated-url" class="form-control form-control-sm" readonly style="font-size: 11px;">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Crawl Processing Status -->
+        <div id="crawl-processing" class="mt-3" style="display: none;">
+            <div class="alert alert-info">
+                <div class="d-flex align-items-center">
+                    <div class="spinner-border spinner-border-sm text-primary me-2"></div>
+                    <small class="text-primary"><strong>🕷️ Đang crawl admin panel và phân tích bằng AI...</strong></small>
+                </div>
+            </div>
         </div>
         
         <!-- Processing Status -->
@@ -253,8 +406,48 @@
 </div>
 
 <script>
-// Store extracted bookings for multiple booking scenario
+// Store extracted bookings for multiple booking scenario with session persistence
 let extractedBookings = [];
+
+// Session persistence functions
+function saveExtractedBookingsToSession() {
+    try {
+        sessionStorage.setItem('hotel_extracted_bookings', JSON.stringify(extractedBookings));
+        console.log('💾 Saved extracted bookings to session:', extractedBookings.length);
+    } catch (error) {
+        console.warn('⚠️ Failed to save to sessionStorage:', error);
+    }
+}
+
+function loadExtractedBookingsFromSession() {
+    try {
+        const saved = sessionStorage.getItem('hotel_extracted_bookings');
+        if (saved) {
+            extractedBookings = JSON.parse(saved);
+            console.log('📂 Loaded extracted bookings from session:', extractedBookings.length);
+            
+            // If we have data, show the review table
+            if (extractedBookings.length > 0) {
+                console.log('🔄 Restoring review table with session data...');
+                showReviewTable(extractedBookings, null);
+            }
+            return true;
+        }
+    } catch (error) {
+        console.warn('⚠️ Failed to load from sessionStorage:', error);
+        extractedBookings = [];
+    }
+    return false;
+}
+
+function clearExtractedBookingsSession() {
+    try {
+        sessionStorage.removeItem('hotel_extracted_bookings');
+        console.log('🗑️ Cleared extracted bookings from session');
+    } catch (error) {
+        console.warn('⚠️ Failed to clear sessionStorage:', error);
+    }
+}
 
 // IMMEDIATE GLOBAL FUNCTIONS - Available from page load
 window.testPhotoUpload = function() {
@@ -664,6 +857,9 @@ function showReviewTable(bookings, duplicateCheck) {
     
     extractedBookings = bookings;
     
+    // Save to session storage
+    saveExtractedBookingsToSession();
+    
     // Update counter with null check
     const countEl = document.getElementById('extracted-count');
     if (countEl) {
@@ -872,12 +1068,18 @@ function resetPhotoUpload() {
     }
     
     extractedBookings = [];
+    
+    // Clear session storage
+    clearExtractedBookingsSession();
 }
 
 function updateBookingData(index, field, value) {
     if (extractedBookings[index]) {
         extractedBookings[index][field] = value;
         console.log(`📝 Updated booking ${index + 1} ${field}: ${value}`);
+        
+        // Save changes to session
+        saveExtractedBookingsToSession();
     }
 }
 
@@ -885,6 +1087,9 @@ function removeBookingRow(index) {
     if (confirm('Bạn có chắc muốn xóa khách này?')) {
         extractedBookings.splice(index, 1);
         console.log(`🗑️ Removed booking at index ${index}`);
+        
+        // Save changes to session
+        saveExtractedBookingsToSession();
         
         // Refresh the table
         generateReviewTableHtml(null);
@@ -913,6 +1118,9 @@ function removeAllExistingBookings() {
         // Remove all existing bookings
         extractedBookings = extractedBookings.filter(booking => !booking.exists_in_db);
         console.log(`🗑️ Removed ${existingBookings.length} existing bookings`);
+        
+        // Save changes to session
+        saveExtractedBookingsToSession();
         
         // Refresh the table
         generateReviewTableHtml(null);
@@ -944,6 +1152,9 @@ function addManualRow() {
     
     extractedBookings.push(newBooking);
     console.log('➕ Added manual booking row');
+    
+    // Save changes to session
+    saveExtractedBookingsToSession();
     
     // Refresh the table
     generateReviewTableHtml(null);
@@ -1060,6 +1271,665 @@ function clearForm() {
     // Focus on first input
     document.querySelector('input[name="Tên người đặt"]').focus();
 }
+
+// ============================
+// PROFESSIONAL APARTMENT MANAGEMENT SYSTEM
+// ============================
+
+// Apartment configurations
+const APARTMENTS = {
+    1: {
+        name: '🏠 Căn hộ 1',
+        hotelId: '14171449',
+        defaultDateFrom: '2025-07-01',
+        defaultDateTo: '2025-08-31',
+        color: 'primary',
+        baseUrl: 'https://admin.booking.com/hotel/hoteladmin/extranet_ng/manage/search_reservations.html'
+    },
+    2: {
+        name: '🏢 Căn hộ 2', 
+        hotelId: '14174292',
+        defaultDateFrom: '2025-06-27',
+        defaultDateTo: '2025-08-31',
+        color: 'warning',
+        baseUrl: 'https://admin.booking.com/hotel/hoteladmin/extranet_ng/manage/search_reservations.html'
+    }
+};
+
+let selectedApartment = null;
+
+// Initialize apartment management
+document.addEventListener('DOMContentLoaded', function() {
+    // Set default dates to current month
+    const today = new Date();
+    const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
+    const lastDay = new Date(today.getFullYear(), today.getMonth() + 2, 0); // Next month end
+    
+    document.getElementById('crawl-date-from').value = firstDay.toISOString().split('T')[0];
+    document.getElementById('crawl-date-to').value = lastDay.toISOString().split('T')[0];
+    
+    // Add event listeners
+    document.getElementById('crawl-date-from').addEventListener('change', updateGeneratedUrl);
+    document.getElementById('crawl-date-to').addEventListener('change', updateGeneratedUrl);
+});
+
+function selectApartment(apartmentId) {
+    selectedApartment = apartmentId;
+    const apartment = APARTMENTS[apartmentId];
+    
+    // Update visual selection
+    document.querySelectorAll('.apartment-card').forEach(card => {
+        card.style.border = '2px solid #e9ecef';
+        card.style.transform = 'scale(1)';
+    });
+    
+    const selectedCard = document.getElementById(`apartment-${apartmentId}`);
+    selectedCard.style.border = `3px solid var(--bs-${apartment.color})`;
+    selectedCard.style.transform = 'scale(1.02)';
+    selectedCard.style.transition = 'all 0.3s ease';
+    
+    // Show apartment info panel
+    const infoPanel = document.getElementById('selected-apartment-info');
+    infoPanel.style.display = 'block';
+    infoPanel.className = `alert alert-${apartment.color}`;
+    
+    // Update apartment details
+    document.getElementById('selected-apartment-name').textContent = apartment.name;
+    document.getElementById('selected-apartment-id').textContent = `Hotel ID: ${apartment.hotelId}`;
+    
+    // Set default dates
+    document.getElementById('crawl-date-from').value = apartment.defaultDateFrom;
+    document.getElementById('crawl-date-to').value = apartment.defaultDateTo;
+    
+    // Enable crawl button
+    document.getElementById('start-crawl-btn').disabled = false;
+    
+    // Update URL
+    updateGeneratedUrl();
+    
+    // Scroll to info panel
+    infoPanel.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    
+    console.log(`✅ Selected apartment ${apartmentId}: ${apartment.name}`);
+}
+
+function updateGeneratedUrl() {
+    if (!selectedApartment) return;
+    
+    const apartment = APARTMENTS[selectedApartment];
+    const dateFrom = document.getElementById('crawl-date-from').value;
+    const dateTo = document.getElementById('crawl-date-to').value;
+    
+    if (!dateFrom || !dateTo) return;
+    
+    // Build the complete URL
+    const urlParams = new URLSearchParams({
+        'upcoming_reservations': '1',
+        'source': 'nav',
+        'hotel_id': apartment.hotelId,
+        'lang': 'vi',
+        'reservation_status': 'ok',
+        'date_from': dateFrom,
+        'date_to': dateTo,
+        'date_type': 'arrival'
+    });
+    
+    // Add session parameter for apartment 2 if needed
+    if (selectedApartment === 2) {
+        urlParams.set('ses', '93a2f637e391ca2393f6e8d3e559c666');
+    }
+    
+    const fullUrl = `${apartment.baseUrl}?${urlParams.toString()}`;
+    document.getElementById('generated-url').value = fullUrl;
+    
+    console.log(`🔗 Generated URL for ${apartment.name}:`, fullUrl);
+}
+
+document.getElementById('start-crawl-btn').addEventListener('click', async function() {
+    if (!selectedApartment) {
+        alert('❌ Vui lòng chọn căn hộ trước khi crawl');
+        return;
+    }
+    
+    const apartment = APARTMENTS[selectedApartment];
+    const adminUrl = document.getElementById('generated-url').value;
+    const profileName = document.getElementById('crawl-profile-select').value;
+    const crawlBtn = document.getElementById('start-crawl-btn');
+    const crawlProcessing = document.getElementById('crawl-processing');
+    
+    if (!adminUrl) {
+        alert('❌ URL không hợp lệ. Vui lòng chọn ngày crawl.');
+        return;
+    }
+
+    // Show loading state with apartment info
+    crawlBtn.disabled = true;
+    crawlBtn.innerHTML = `<i class="fas fa-spinner fa-spin me-2"></i>Đang crawl ${apartment.name}...`;
+    
+    // Update crawl processing message
+    const dateFrom = document.getElementById('crawl-date-from').value;
+    const dateTo = document.getElementById('crawl-date-to').value;
+    crawlProcessing.innerHTML = `
+        <div class="alert alert-info">
+            <div class="d-flex align-items-center">
+                <div class="spinner-border spinner-border-sm text-${apartment.color} me-3"></div>
+                <div>
+                    <strong>🕷️ Đang crawl ${apartment.name} (ID: ${apartment.hotelId})</strong><br>
+                    <small class="text-muted">📅 Từ ${dateFrom} đến ${dateTo} | 🛡️ Smart cleanup bảo vệ dev tools của bạn</small>
+                </div>
+            </div>
+        </div>
+    `;
+    crawlProcessing.style.display = 'block';
+
+    try {
+        console.log('🕷️ Starting admin panel crawl...');
+        console.log('ℹ️ Note: Using smart cleanup that preserves your dev tools and other Chrome windows');
+        
+        const response = await fetch('/api/crawl_admin_bookings', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                target_url: adminUrl,
+                profile_name: profileName
+            })
+        });
+
+        const result = await response.json();
+
+        if (result.success && result.bookings && result.bookings.length > 0) {
+            console.log(`✅ Successfully crawled ${result.bookings_count} bookings from ${apartment.name}`);
+            
+            // Process crawled bookings for display in the review table
+            const processedBookings = result.bookings.map((booking, index) => ({
+                id: index + 1,
+                guest_name: booking.guest_name || 'Unknown',
+                booking_id: booking.booking_id || 'N/A',
+                check_in_date: booking.checkin_date || 'N/A',
+                check_out_date: booking.checkout_date || 'N/A',
+                room_type: booking.room_type || 'N/A',
+                room_amount: booking.room_amount || 0,
+                commission: booking.commission || 0,
+                email: booking.email || '',
+                phone: booking.phone || '',
+                source: `${apartment.name}_crawl`,
+                apartment_id: selectedApartment,
+                apartment_name: apartment.name
+            }));
+
+            // Display results with real-time duplicate detection
+            await displayCrawlResults(processedBookings, result.bookings_count);
+            
+            // Hide crawl processing, show success
+            crawlProcessing.style.display = 'none';
+            
+            // Show enhanced success message with duplicate info
+            const dateRange = `${dateFrom} → ${dateTo}`;
+            showTemporaryMessage(`✅ Crawl thành công ${apartment.name}!\n📊 Đã trích xuất ${result.bookings_count} booking\n📅 Thời gian: ${dateRange}\n🔍 Real-time duplicate detection hoàn tất`, 'success');
+
+        } else {
+            throw new Error(result.error || 'Không có booking nào được trích xuất');
+        }
+
+    } catch (error) {
+        console.error('❌ Crawl failed:', error);
+        crawlProcessing.style.display = 'none';
+        showTemporaryMessage('❌ Crawl thất bại: ' + error.message, 'error');
+    } finally {
+        // Reset button state with apartment context
+        crawlBtn.disabled = false;
+        if (selectedApartment) {
+            crawlBtn.innerHTML = `<i class="fas fa-spider me-2"></i>Crawl ${APARTMENTS[selectedApartment].name}`;
+        } else {
+            crawlBtn.innerHTML = '<i class="fas fa-spider me-2"></i>Bắt đầu Crawl';
+        }
+    }
+});
+
+// Real-time duplicate detection for crawled bookings
+async function detectCrawledDuplicates(crawledBookings) {
+    try {
+        console.log('🔍 Starting real-time duplicate detection for crawled bookings...');
+        
+        // Call the backend API to check for duplicates
+        const response = await fetch('/api/check_existing_bookings', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                bookings: crawledBookings.map(booking => ({
+                    booking_id: booking.booking_id,
+                    guest_name: booking.guest_name,
+                    check_in_date: booking.check_in_date,
+                    check_out_date: booking.check_out_date,
+                    room_amount: booking.room_amount
+                }))
+            })
+        });
+        
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+        }
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            const duplicates = result.existing_bookings || [];
+            console.log(`🔍 Duplicate detection complete: ${duplicates.length} duplicates found`);
+            
+            return {
+                duplicates: duplicates,
+                total_checked: crawledBookings.length,
+                duplicate_count: duplicates.length
+            };
+        } else {
+            throw new Error(result.error || 'Duplicate detection failed');
+        }
+        
+    } catch (error) {
+        console.warn('⚠️ Duplicate detection failed:', error);
+        // Return empty result on error to not break the crawling process
+        return {
+            duplicates: [],
+            total_checked: crawledBookings.length,
+            duplicate_count: 0
+        };
+    }
+}
+
+async function displayCrawlResults(bookings, count) {
+    // Show the AI results review section
+    const aiResultsReview = document.getElementById('ai-results-review');
+    const extractedCountSpan = document.getElementById('extracted-count');
+    const aiResultsTable = document.getElementById('review-table');
+
+    // Real-time duplicate detection for crawled bookings
+    const duplicateInfo = await detectCrawledDuplicates(bookings);
+    
+    // Update count with duplicate information
+    if (duplicateInfo.duplicates.length > 0) {
+        extractedCountSpan.innerHTML = `${count} <span class="badge bg-warning ms-1">${duplicateInfo.duplicates.length} duplicates</span>`;
+    } else {
+        extractedCountSpan.textContent = count;
+    }
+
+    // Build table HTML
+    let tableHtml = `
+        <div class="table-responsive">
+            <table class="table table-striped table-hover">
+                <thead class="table-primary">
+                    <tr>
+                        <th>STT</th>
+                        <th>Tên khách</th>
+                        <th>Mã booking</th>
+                        <th>Check-in</th>
+                        <th>Check-out</th>
+                        <th>Số tiền</th>
+                        <th>Hoa hồng</th>
+                        <th>Nguồn</th>
+                        <th>Thao tác</th>
+                    </tr>
+                </thead>
+                <tbody>
+    `;
+
+    bookings.forEach((booking) => {
+        const isDuplicate = duplicateInfo.duplicates.some(dup => 
+            dup.booking_id === booking.booking_id || 
+            (dup.guest_name.toLowerCase() === booking.guest_name.toLowerCase() && 
+             Math.abs(new Date(dup.check_in_date) - new Date(booking.check_in_date)) <= 3 * 24 * 60 * 60 * 1000)
+        );
+        
+        const rowClass = isDuplicate ? 'duplicate-row' : '';
+        const duplicateIcon = isDuplicate ? '<i class="fas fa-users duplicate-icon me-1" title="Có thể trùng lặp với booking hiện tại"></i>' : '';
+        
+        tableHtml += `
+            <tr class="${rowClass}" ${isDuplicate ? 'data-bs-toggle="tooltip" title="⚠️ Booking có thể trùng lặp"' : ''}>
+                <td>${booking.id}</td>
+                <td><strong>${duplicateIcon}${booking.guest_name}</strong></td>
+                <td><code>${booking.booking_id}</code></td>
+                <td>${booking.check_in_date}</td>
+                <td>${booking.check_out_date}</td>
+                <td><span class="text-success">${booking.room_amount.toLocaleString()} VND</span></td>
+                <td><span class="text-warning">${booking.commission.toLocaleString()} VND</span></td>
+                <td><span class="badge ${isDuplicate ? 'duplicate-badge' : 'bg-success'}">🕷️ ${isDuplicate ? 'Crawl (Duplicate?)' : 'Crawl'}</span></td>
+                <td>
+                    <button class="btn btn-sm btn-primary" onclick="fillFormWithBooking(${JSON.stringify(booking).replace(/"/g, '&quot;')})">
+                        <i class="fas fa-edit me-1"></i>Điền form
+                    </button>
+                    ${isDuplicate ? '<br><small class="text-danger"><i class="fas fa-exclamation-triangle"></i> Check duplicate</small>' : ''}
+                </td>
+            </tr>
+        `;
+    });
+
+    tableHtml += `
+                </tbody>
+            </table>
+        </div>
+    `;
+    
+    // Add duplicate summary if duplicates found
+    if (duplicateInfo.duplicates.length > 0) {
+        tableHtml += `
+            <div class="alert duplicate-alert mt-3" role="alert">
+                <h6 class="alert-heading">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    Phát hiện ${duplicateInfo.duplicate_count} booking có thể trùng lặp
+                </h6>
+                <p class="mb-2">
+                    Các booking được đánh dấu <span class="duplicate-badge">⚠️ yellow</span> 
+                    có thể đã tồn tại trong hệ thống. Vui lòng kiểm tra kỹ trước khi lưu.
+                </p>
+                <div class="row">
+                    <div class="col-md-6">
+                        <small class="text-muted">
+                            💡 <strong>Gợi ý:</strong> Sử dụng 
+                            <a href="/duplicate_management" target="_blank" class="alert-link">Quản lý Trùng lặp</a> 
+                            để phân tích chi tiết.
+                        </small>
+                    </div>
+                    <div class="col-md-6 text-end">
+                        <button class="btn btn-sm btn-warning" onclick="showDuplicateDetails()">
+                            <i class="fas fa-eye me-1"></i>Xem chi tiết
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+    
+    // Add action buttons
+    const duplicateWarning = duplicateInfo.duplicates.length > 0 ? 
+        ` <small class="text-warning">(${duplicateInfo.duplicate_count} duplicates detected)</small>` : '';
+    
+    tableHtml += `
+        <div class="mt-3 text-center">
+            <button class="btn btn-success btn-lg" onclick="saveAllCrawledBookings(${JSON.stringify(bookings).replace(/"/g, '&quot;')})">
+                <i class="fas fa-save me-2"></i>Lưu tất cả ${count} booking${duplicateWarning}
+            </button>
+            ${duplicateInfo.duplicates.length > 0 ? `
+                <button class="btn btn-outline-warning btn-lg ms-2" onclick="saveNonDuplicateBookings(${JSON.stringify(bookings).replace(/"/g, '&quot;')}, ${JSON.stringify(duplicateInfo.duplicates).replace(/"/g, '&quot;')})">
+                    <i class="fas fa-filter me-2"></i>Chỉ lưu booking mới (${count - duplicateInfo.duplicate_count})
+                </button>
+            ` : ''}
+        </div>
+    `;
+
+    if (aiResultsTable) {
+        aiResultsTable.innerHTML = tableHtml;
+        aiResultsReview.style.display = 'block';
+    } else {
+        console.error('❌ aiResultsTable element not found, creating temporary display');
+        // Create a temporary display area
+        aiResultsReview.innerHTML = `
+            <div class="alert alert-success">
+                <h5><i class="fas fa-check-circle me-2"></i>🎉 Crawl thành công!</h5>
+                <p class="mb-0">Đã trích xuất <strong>${count}</strong> booking từ admin panel!</p>
+                <div class="mt-3">
+                    ${bookings.map((booking, i) => `
+                        <div class="card mb-2">
+                            <div class="card-body">
+                                <strong>${i+1}. ${booking.guest_name}</strong> - 
+                                Mã: <code>${booking.booking_id}</code> - 
+                                ${booking.check_in_date} đến ${booking.check_out_date} - 
+                                <span class="text-success">${booking.room_amount?.toLocaleString()} VND</span>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+                <div class="mt-3">
+                    <button class="btn btn-success me-2" onclick="saveBulkBookings()">
+                        <i class="fas fa-save me-2"></i>Lưu tất cả ${count} booking
+                    </button>
+                    <button class="btn btn-secondary" onclick="location.reload()">
+                        <i class="fas fa-sync me-2"></i>Làm mới trang
+                    </button>
+                </div>
+            </div>
+        `;
+        aiResultsReview.style.display = 'block';
+    }
+
+    // Scroll to results
+    aiResultsReview.scrollIntoView({ behavior: 'smooth' });
+}
+
+function fillFormWithBooking(booking) {
+    // Fill the manual form with booking data (with null checks)
+    try {
+        const setFieldValue = (selector, value) => {
+            const field = document.querySelector(selector);
+            if (field) {
+                field.value = value || '';
+            } else {
+                console.warn(`Field not found: ${selector}`);
+            }
+        };
+
+        setFieldValue('input[name="Tên người đặt"]', booking.guest_name);
+        setFieldValue('input[name="Email"]', booking.email);
+        setFieldValue('input[name="Số điện thoại"]', booking.phone);
+        setFieldValue('input[name="Ngày đến"]', booking.check_in_date || booking.checkin_date);
+        setFieldValue('input[name="Ngày đi"]', booking.check_out_date || booking.checkout_date);
+        setFieldValue('input[name="Loại phòng"]', booking.room_type || 'Standard');
+        setFieldValue('input[name="Tổng thanh toán"]', booking.room_amount || 0);
+        setFieldValue('input[name="Hoa hồng"]', booking.commission || 0);
+        setFieldValue('input[name="Số đặt phòng"]', booking.booking_id);
+
+        // Scroll to form
+        const firstField = document.querySelector('input[name="Tên người đặt"]');
+        if (firstField) {
+            firstField.scrollIntoView({ behavior: 'smooth' });
+            firstField.focus();
+        }
+
+        showTemporaryMessage('✅ Đã điền form với thông tin booking: ' + booking.guest_name, 'success');
+    } catch (error) {
+        console.error('Error filling form:', error);
+        showTemporaryMessage('❌ Lỗi khi điền form: ' + error.message, 'error');
+    }
+}
+
+function saveBulkBookings() {
+    // Use globally stored bookings
+    if (!window.extractedBookings || window.extractedBookings.length === 0) {
+        alert('❌ Không có booking nào để lưu');
+        return;
+    }
+    
+    saveAllCrawledBookings(window.extractedBookings);
+}
+
+function saveAllCrawledBookings(bookings) {
+    if (!bookings || bookings.length === 0) {
+        alert('❌ Không có booking nào để lưu');
+        return;
+    }
+
+    // Prepare data for bulk save
+    const bulkData = bookings.map(booking => ({
+        guest_name: booking.guest_name,
+        email: booking.email,
+        phone: booking.phone,
+        check_in_date: booking.check_in_date,
+        check_out_date: booking.check_out_date,
+        room_type: booking.room_type,
+        room_amount: booking.room_amount,
+        commission: booking.commission,
+        booking_id: booking.booking_id,
+        status: 'confirmed',
+        source: 'admin_crawl'
+    }));
+
+    // Show confirmation
+    if (confirm(`🤔 Xác nhận lưu ${bookings.length} booking vào database?\n\nCác booking sẽ được kiểm tra duplicate trước khi lưu.`)) {
+        // Send to existing bulk save endpoint (you may need to create this)
+        fetch('/api/save_bulk_bookings', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ bookings: bulkData })
+        })
+        .then(response => response.json())
+        .then(result => {
+            if (result.success) {
+                let message = `📊 Kết quả lưu:\n✅ ${result.saved_count} booking mới\n`;
+                if (result.skipped_count > 0) {
+                    message += `⚠️ ${result.skipped_count} booking đã tồn tại\n`;
+                }
+                if (result.failed_count > 0) {
+                    message += `❌ ${result.failed_count} booking lỗi\n`;
+                }
+                
+                showTemporaryMessage(message, result.saved_count > 0 ? 'success' : 'warning');
+                
+                // Clear session storage after successful save
+                if (result.saved_count > 0) {
+                    clearSessionAfterSave();
+                }
+                
+                // Only redirect if we saved something new
+                if (result.saved_count > 0) {
+                    setTimeout(() => {
+                        window.location.href = '/';  // Dashboard is at root
+                    }, 3000);
+                }
+            } else {
+                showTemporaryMessage('❌ Lỗi khi lưu: ' + result.error, 'error');
+            }
+        })
+        .catch(error => {
+            showTemporaryMessage('❌ Network error: ' + error.message, 'error');
+        });
+    }
+}
+
+function showTemporaryMessage(message, type) {
+    // Create temporary message element
+    const messageDiv = document.createElement('div');
+    messageDiv.className = `alert alert-${type === 'success' ? 'success' : 'danger'} alert-dismissible fade show`;
+    messageDiv.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+
+    // Insert at top of page
+    const container = document.querySelector('.container-fluid');
+    container.insertBefore(messageDiv, container.firstChild);
+
+    // Auto-remove after 5 seconds
+    setTimeout(() => {
+        if (messageDiv.parentNode) {
+            messageDiv.remove();
+        }
+    }, 5000);
+}
+
+// Duplicate management helper functions for crawled bookings
+function showDuplicateDetails() {
+    const detailsModal = `
+        <div class="modal fade" id="duplicateDetailsModal" tabindex="-1">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">
+                            <i class="fas fa-users me-2"></i>Chi tiết Duplicate Detection
+                        </h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="alert alert-info">
+                            <h6><i class="fas fa-info-circle me-2"></i>Duplicate Detection Logic</h6>
+                            <p class="mb-1">Hệ thống phát hiện duplicate dựa trên:</p>
+                            <ul class="mb-0">
+                                <li><strong>Booking ID:</strong> Trùng khớp hoàn toàn</li>
+                                <li><strong>Tên khách + Ngày:</strong> Tên giống nhau và check-in trong vòng 3 ngày</li>
+                                <li><strong>Real-time:</strong> Kiểm tra với database hiện tại</li>
+                            </ul>
+                        </div>
+                        <p>Những booking được đánh dấu <span class="badge bg-warning">⚠️ yellow</span> có khả năng cao đã tồn tại trong hệ thống.</p>
+                        <p><strong>Khuyến nghị:</strong> Kiểm tra kỹ và sử dụng chức năng "Chỉ lưu booking mới" để tránh duplicate.</p>
+                    </div>
+                    <div class="modal-footer">
+                        <a href="/duplicate_management" target="_blank" class="btn btn-primary">
+                            <i class="fas fa-external-link-alt me-1"></i>Mở Duplicate Management
+                        </a>
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Đóng</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // Add modal to page and show
+    document.body.insertAdjacentHTML('beforeend', detailsModal);
+    const modal = new bootstrap.Modal(document.getElementById('duplicateDetailsModal'));
+    modal.show();
+    
+    // Remove modal after hide
+    document.getElementById('duplicateDetailsModal').addEventListener('hidden.bs.modal', function () {
+        this.remove();
+    });
+}
+
+function saveNonDuplicateBookings(allBookings, duplicates) {
+    // Filter out duplicate bookings
+    const nonDuplicateBookings = allBookings.filter(booking => {
+        return !duplicates.some(dup => 
+            dup.booking_id === booking.booking_id || 
+            (dup.guest_name.toLowerCase() === booking.guest_name.toLowerCase() && 
+             Math.abs(new Date(dup.check_in_date) - new Date(booking.check_in_date)) <= 3 * 24 * 60 * 60 * 1000)
+        );
+    });
+    
+    if (nonDuplicateBookings.length === 0) {
+        showTemporaryMessage('❌ Không có booking mới để lưu. Tất cả đều là duplicate.', 'error');
+        return;
+    }
+    
+    const confirmMessage = `Bạn có chắc muốn lưu ${nonDuplicateBookings.length} booking mới?\n\n${duplicates.length} booking duplicate sẽ được bỏ qua.`;
+    
+    if (confirm(confirmMessage)) {
+        saveAllCrawledBookings(nonDuplicateBookings);
+    }
+}
+
+// Page initialization - load session data when page loads
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('🚀 Page loaded - checking for session persistence...');
+    
+    // Try to load extracted bookings from session
+    const hasSessionData = loadExtractedBookingsFromSession();
+    
+    if (hasSessionData) {
+        console.log('✅ Session data restored successfully');
+        // Hide manual form if we have extracted data
+        const manualFormEl = document.getElementById('manual-form-container');
+        if (manualFormEl && extractedBookings.length > 0) {
+            manualFormEl.style.display = 'none';
+        }
+    } else {
+        console.log('📝 No session data found - starting fresh');
+    }
+});
+
+// Clear session when user successfully saves bookings
+function clearSessionAfterSave() {
+    clearExtractedBookingsSession();
+    console.log('✅ Session cleared after successful save');
+}
+
+// Clear session when navigating away (optional - for clean state)
+window.addEventListener('beforeunload', function() {
+    // Note: We intentionally DON'T clear session here to preserve data across refreshes
+    // Session will only be cleared on successful save or manual reset
+    console.log('🔄 Page unloading - session data preserved');
+});
 </script>
 
 <style>

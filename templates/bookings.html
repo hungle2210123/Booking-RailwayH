@@ -1,17 +1,94 @@
 {% extends "base.html" %}
 {% block title %}Quản lý Đặt phòng{% endblock %}
 
+{% block head_extra %}
+<style>
+/* Enhanced Duplicate Booking Visual Markers - Strong Visual Distinction */
+.duplicate-row {
+    background: linear-gradient(135deg, rgba(220, 53, 69, 0.15) 0%, rgba(255, 193, 7, 0.1) 100%) !important;
+    border-left: 4px solid #dc3545 !important;
+    border-right: 2px solid #ffc107 !important;
+    box-shadow: inset 0 0 0 1px rgba(220, 53, 69, 0.1) !important;
+}
+
+.duplicate-row:hover {
+    background: linear-gradient(135deg, rgba(220, 53, 69, 0.25) 0%, rgba(255, 193, 7, 0.15) 100%) !important;
+    transform: translateX(2px);
+    transition: all 0.3s ease;
+    box-shadow: 2px 2px 8px rgba(220, 53, 69, 0.2) !important;
+}
+
+/* Remove any remaining pseudo-element icons */
+.duplicate-row::before,
+.duplicate-row::after,
+.table-warning::before,
+.table-warning::after,
+.border-warning::before,
+.border-warning::after {
+    content: none !important;
+    display: none !important;
+}
+
+/* Ensure no tooltip icons appear */
+.duplicate-row[data-bs-toggle="tooltip"]::before {
+    content: none !important;
+    display: none !important;
+}
+
+/* Enhanced duplicate guest name styling */
+.duplicate-row .text-warning.fw-bold {
+    color: #dc3545 !important; /* Strong red for better visibility */
+    font-weight: 700 !important;
+    text-shadow: 0 0 2px rgba(220, 53, 69, 0.4);
+    text-decoration: underline;
+    text-decoration-color: rgba(220, 53, 69, 0.5);
+}
+
+/* Add DUPLICATE badge */
+.duplicate-row .fw-medium::after {
+    content: " [DUPLICATE]";
+    font-size: 0.7rem;
+    color: #dc3545;
+    font-weight: 600;
+    background: rgba(220, 53, 69, 0.1);
+    padding: 1px 4px;
+    border-radius: 3px;
+    margin-left: 5px;
+}
+
+/* Fixed table layout improvements */
+.table-fixed {
+    table-layout: fixed;
+}
+
+.table-fixed td, .table-fixed th {
+    word-wrap: break-word;
+    overflow: hidden;
+}
+
+/* Clean row styling */
+.align-middle td {
+    vertical-align: middle !important;
+}
+
+/* Improved text display */
+.fw-medium {
+    font-weight: 500 !important;
+}
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="container-fluid px-2">
-    <!-- Header compact -->
-    <div class="d-flex justify-content-between align-items-center mb-1">
-        <h4 class="mb-0 text-primary">📋 Quản lý Đặt phòng <small class="text-muted">({{ booking_count }})</small></h4>
+    <!-- Enhanced Header with Tabs -->
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h4 class="mb-0 text-primary">
+            <i class="fas fa-tasks me-2"></i>Quản lý Đặt phòng Tích hợp 
+            <small class="text-muted">({{ booking_count }} booking)</small>
+        </h4>
         <div class="btn-group btn-group-sm">
             <button id="delete-selected-btn" class="btn btn-danger" style="display:none;">
                 <i class="fas fa-trash-alt"></i> Xóa
-            </button>
-            <button id="ai-duplicate-filter-btn" class="btn btn-warning" title="AI phân tích và tìm booking trùng lặp">
-                <i class="fas fa-robot"></i> AI Filter Duplicates
             </button>
             <button id="test-ai-api-btn" class="btn btn-info btn-sm" title="Test AI API">
                 <i class="fas fa-flask"></i> Test API
@@ -22,8 +99,39 @@
         </div>
     </div>
 
-    <!-- Filter Active/All với style đẹp -->
-    <div class="row mb-3">
+    <!-- Integrated Tab Navigation -->
+    <div class="card mb-3">
+        <div class="card-header p-0">
+            <ul class="nav nav-tabs card-header-tabs" id="bookingTabs" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active" id="all-bookings-tab" data-bs-toggle="tab" data-bs-target="#all-bookings" type="button" role="tab">
+                        <i class="fas fa-clipboard-list me-1"></i>Tất cả Booking <span class="badge bg-primary ms-1">{{ booking_count }}</span>
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="duplicate-management-tab" data-bs-toggle="tab" data-bs-target="#duplicate-management" type="button" role="tab">
+                        <i class="fas fa-exclamation-triangle me-1 text-warning"></i>Quản lý Duplicate 
+                        <span class="badge bg-warning ms-1" id="duplicate-count-badge">
+                            {% if duplicate_report and duplicate_report.duplicate_booking_ids %}{{ duplicate_report.duplicate_booking_ids|length }}{% else %}0{% endif %}
+                        </span>
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="bulk-actions-tab" data-bs-toggle="tab" data-bs-target="#bulk-actions" type="button" role="tab">
+                        <i class="fas fa-cogs me-1"></i>Bulk Actions
+                    </button>
+                </li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- Tab Content Container -->
+    <div class="tab-content" id="bookingTabsContent">
+        
+        <!-- All Bookings Tab -->
+        <div class="tab-pane fade show active" id="all-bookings" role="tabpanel" aria-labelledby="all-bookings-tab">
+            <!-- Filter Active/All với style đẹp -->
+            <div class="row mb-3">
         <div class="col-12">
             <div class="card border-0 bg-light">
                 <div class="card-body py-2">
@@ -177,89 +285,38 @@
         </div>
     </div>
 
-    <!-- Auto Duplicate Filter Report -->
-    {% if auto_filter_duplicates and duplicate_report.total_groups > 0 %}
-    <div class="card mb-3 border-warning">
-        <div class="card-header text-black" style="background-color: #ffeaa7;">
-            <div class="d-flex justify-content-between align-items-center">
-                <h6 class="mb-0">
-                    <i class="fas fa-robot me-1"></i>
-                    AI Duplicate Filter Report
-                </h6>
-                <div class="d-flex align-items-center">
-                    <span class="badge bg-dark me-2">{{ filtered_count }} filtered</span>
-                    <a href="{{ url_for('view_bookings', auto_filter='false', search_term=search_term, filter_month=filter_month, filter_year=filter_year, start_date=start_date, end_date=end_date, show_all=show_all) }}" 
-                       class="btn btn-outline-dark btn-sm">
-                        <i class="fas fa-eye"></i> Show All
-                    </a>
-                </div>
-            </div>
-        </div>
-        <div class="card-body py-2">
-            <div class="row">
-                <div class="col-md-8">
-                    <p class="mb-1 text-success">
-                        <i class="fas fa-check-circle me-1"></i>
-                        <strong>{{ filtered_count }} duplicate bookings</strong> automatically filtered from {{ duplicate_report.total_groups }} groups.
-                        Click on any group below to review and delete manually.
-                    </p>
-                </div>
-                <div class="col-md-4 text-end">
-                    <small class="text-muted">
-                        Filtered: Same guest + similar dates (±3 days) + price (±100k VND)
-                    </small>
-                </div>
-            </div>
-            
-            <!-- Duplicate Groups Summary -->
-            <div class="mt-2">
-                <div class="row">
-                    {% for group in duplicate_report.duplicate_groups %}
-                    <div class="col-lg-6 mb-2">
-                        <div class="card border-light bg-light">
-                            <div class="card-body py-2 px-3">
-                                <div class="d-flex justify-content-between align-items-start">
-                                    <div class="flex-grow-1">
-                                        <strong class="text-primary">{{ group.main_booking.guest_name }}</strong>
-                                        <br>
-                                        <small class="text-muted">
-                                            {{ group.main_booking.check_in_date }} | 
-                                            {{ "{:,.0f}".format(group.main_booking.total_payment) }} VND
-                                        </small>
-                                        <br>
-                                        <small class="text-success">
-                                            <i class="fas fa-arrow-right me-1"></i>
-                                            {{ group.group_size - 1 }} similar booking(s) filtered
-                                        </small>
-                                    </div>
-                                    <div class="text-end">
-                                        <button class="btn btn-outline-danger btn-sm review-duplicate-btn" 
-                                                data-main-booking-id="{{ group.main_booking.booking_id }}"
-                                                data-group-index="{{ loop.index0 }}">
-                                            <i class="fas fa-eye"></i> Review
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    {% endfor %}
-                </div>
-            </div>
-        </div>
-    </div>
+    <!-- This section is removed - no auto-filter notification shown -->
     
     <!-- Store duplicate data in JavaScript for safe access -->
     <script type="application/json" id="duplicate-data">
-        {{ duplicate_report.duplicate_groups|tojson|safe }}
+        {% if duplicate_report and duplicate_report.duplicate_groups %}
+            {% set groups = duplicate_report.duplicate_groups %}
+            {% if groups %}
+                {{ groups|tojson|safe }}
+            {% else %}
+                []
+            {% endif %}
+        {% else %}
+            []
+        {% endif %}
     </script>
     
-    {% elif auto_filter_duplicates %}
-    <div class="alert alert-success alert-dismissible mb-3" role="alert">
-        <i class="fas fa-check-circle me-1"></i>
-        <strong>No duplicates found!</strong> All bookings are unique.
-        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-    </div>
+    <!-- AI Duplicate Detection Notification (Always Enabled) -->
+    {% if duplicate_report %}
+        {% if duplicate_report.total_groups == 0 and duplicate_report.duplicate_booking_ids|length == 0 %}
+        <div class="alert alert-success alert-dismissible mb-3" role="alert">
+            <i class="fas fa-check-circle me-1"></i>
+            <strong>No duplicates detected!</strong> All bookings appear to be unique.
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+        {% elif duplicate_report.total_groups == 0 and duplicate_report.duplicate_booking_ids|length > 0 %}
+        <div class="alert alert-info alert-dismissible mb-3" role="alert">
+            <i class="fas fa-info-circle me-1"></i>
+            <strong>Duplicates detected but no filtering groups created.</strong> Some bookings may have similarities but don't meet automatic filtering criteria.
+            <a href="#duplicate-management-tab" onclick="document.getElementById('duplicate-management-tab').click()" class="alert-link">Review in Duplicate Management tab</a>.
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+        {% endif %}
     {% endif %}
 
     {% if not auto_filter_duplicates %}
@@ -272,15 +329,41 @@
     </div>
     {% endif %}
 
+    <!-- Duplicate Visual Markers Information (always show when duplicates exist) -->
+    {% if duplicate_report and duplicate_report.duplicate_booking_ids and duplicate_report.duplicate_booking_ids|length > 0 %}
+    <div class="duplicate-alert mb-3" role="alert">
+        <div class="d-flex align-items-center">
+            <div class="flex-grow-1">
+                <h6 class="alert-heading mb-1">
+                    <i class="fas fa-users me-2"></i>
+                    <strong>{{ duplicate_report.duplicate_booking_ids|length }} Duplicate Bookings Detected</strong>
+                </h6>
+                <p class="mb-1">
+                    Duplicate bookings are highlighted with <span class="duplicate-badge">⚠️ yellow background</span> 
+                    and <i class="fas fa-users duplicate-icon subtle"></i> icons in the table below.
+                </p>
+                <small class="text-muted">
+                    💡 Use the <strong>"Quản lý Duplicate"</strong> tab above for detailed analysis and cleanup.
+                </small>
+            </div>
+            <div class="text-end">
+                <button class="btn btn-sm btn-outline-warning" onclick="document.getElementById('duplicate-management-tab').click()">
+                    <i class="fas fa-cogs me-1"></i>Manage
+                </button>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
     <!-- Table với compact style -->
     <div class="table-responsive">
-        <table class="table table-sm table-striped table-hover mb-0" style="font-size: 0.85rem;">
+        <table class="table table-sm table-striped table-hover mb-0" style="font-size: 0.85rem; table-layout: fixed;">
             <thead class="table-primary sticky-top">
                 <tr>
                     <th style="width: 30px; padding: 4px 8px;">
                         <input type="checkbox" id="select-all-bookings" class="form-check-input">
                     </th>
-                    <th style="padding: 4px 8px;">
+                    <th style="padding: 4px 8px; width: 100px;">
                         <a href="{{ url_for('view_bookings', search_term=search_term, filter_month=filter_month, filter_year=filter_year, start_date=start_date, end_date=end_date, sort_by='Số đặt phòng', order='asc' if current_sort_by == 'Số đặt phòng' and current_order == 'desc' else 'desc') }}" class="text-dark text-decoration-none fw-medium">
                             Số ĐB 
                             {% if current_sort_by == 'Số đặt phòng' %}
@@ -294,7 +377,7 @@
                             {% endif %}
                         </a>
                     </th>
-                    <th style="padding: 4px 8px;">
+                    <th style="padding: 4px 8px; width: 150px;">
                         <a href="{{ url_for('view_bookings', search_term=search_term, filter_month=filter_month, filter_year=filter_year, start_date=start_date, end_date=end_date, sort_by='Tên người đặt', order='asc' if current_sort_by == 'Tên người đặt' and current_order == 'desc' else 'desc') }}" class="text-dark text-decoration-none fw-medium">
                             👤 Người đặt 
                             {% if current_sort_by == 'Tên người đặt' %}
@@ -416,7 +499,9 @@
             </thead>
             <tbody>
                 {% for booking in bookings %}
-                <tr class="align-middle">
+                {% set is_duplicate = booking['Số đặt phòng'] in duplicate_report.duplicate_booking_ids if duplicate_report and duplicate_report.duplicate_booking_ids else false %}
+                <tr class="align-middle {% if is_duplicate %}duplicate-row{% endif %}" 
+                    {% if is_duplicate %}data-bs-toggle="tooltip" title="Booking trùng lặp - Click Duplicates button để xem chi tiết"{% endif %}>
                     <td style="padding: 2px 8px;">
                         <input type="checkbox" name="booking_select" class="booking-checkbox form-check-input" value="{{ booking['Số đặt phòng'] }}">
                     </td>
@@ -424,14 +509,16 @@
                         <code class="small">{{ booking['Số đặt phòng'] }}</code>
                     </td>
                     <td style="padding: 2px 8px;">
-                        <span class="fw-medium">{{ booking.get('Tên người đặt', 'N/A') }}</span>
+                        <span class="fw-medium {% if is_duplicate %}text-warning fw-bold{% else %}text-dark{% endif %}" 
+                              {% if is_duplicate %}title="Duplicate Booking - Click Duplicates button for details"{% endif %}>
+                            {{ booking.get('Tên người đặt', 'N/A') }}
+                        </span>
                     </td>
                     <td style="padding: 4px 8px; min-width: 90px;">
                         <div class="text-center">
                             {% set checkin_date = booking.get('Check-in Date') %}
                             {% if checkin_date|is_valid_date %}
                                 <div class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1" style="font-size: 0.8rem;">
-                                    <i class="fas fa-calendar-check fa-xs me-1"></i>
                                     <strong>{{ checkin_date|safe_date_format('%d/%m/%y') }}</strong>
                                 </div>
                                 {% set day_name = checkin_date|safe_day_name %}
@@ -440,13 +527,12 @@
                                 {% endif %}
                             {% else %}
                                 <div class="badge bg-warning-subtle text-warning border border-warning-subtle px-2 py-1" style="font-size: 0.8rem;">
-                                    <i class="fas fa-calendar-question fa-xs me-1"></i>
                                     <strong>N/A</strong>
                                 </div>
                                 <!-- Enhanced debug info for admin -->
                                 {% if dev_mode %}
-                                <small class="text-danger d-block" style="font-size: 0.7rem;" title="⚠️ Lỗi dữ liệu: Cần cập nhật ngày check-in trong Google Sheets">
-                                    <i class="fas fa-exclamation-triangle fa-xs me-1"></i>Missing Date
+                                <small class="text-danger d-block" style="font-size: 0.7rem;" title="Lỗi dữ liệu: Cần cập nhật ngày check-in trong Google Sheets">
+                                    Missing Date
                                 </small>
                                 {% else %}
                                 <small class="text-muted d-block" style="font-size: 0.7rem;">
@@ -461,7 +547,6 @@
                             {% set checkout_date = booking.get('Check-out Date') %}
                             {% if checkout_date|is_valid_date %}
                                 <div class="badge bg-danger-subtle text-danger border border-danger-subtle px-2 py-1" style="font-size: 0.8rem;">
-                                    <i class="fas fa-calendar-times fa-xs me-1"></i>
                                     <strong>{{ checkout_date|safe_date_format('%d/%m/%y') }}</strong>
                                 </div>
                                 {% set day_name = checkout_date|safe_day_name %}
@@ -470,13 +555,12 @@
                                 {% endif %}
                             {% else %}
                                 <div class="badge bg-warning-subtle text-warning border border-warning-subtle px-2 py-1" style="font-size: 0.8rem;">
-                                    <i class="fas fa-calendar-question fa-xs me-1"></i>
                                     <strong>N/A</strong>
                                 </div>
                                 <!-- Enhanced debug info for admin -->
                                 {% if dev_mode %}
                                 <small class="text-danger d-block" style="font-size: 0.7rem;" title="⚠️ Lỗi dữ liệu: Cần cập nhật ngày check-out trong Google Sheets">
-                                    <i class="fas fa-exclamation-triangle fa-xs me-1"></i>Missing Date
+                                    Missing Date
                                 </small>
                                 {% else %}
                                 <small class="text-muted d-block" style="font-size: 0.7rem;">
@@ -499,11 +583,9 @@
                         {% set valid_collectors = ['LOC LE', 'THAO LE'] %}
                         {% set has_valid_collector = collector in valid_collectors %}
                         {% if has_valid_collector %}
-                            <i class="fas fa-check-circle text-success"></i>
-                            <small class="text-success">Đã thu</small>
+                            <span class="badge bg-success-subtle text-success">Collected</span>
                         {% else %}
-                            <i class="fas fa-clock text-muted"></i>
-                            <small class="text-muted">Chưa thu</small>
+                            <span class="badge bg-warning-subtle text-warning">Pending</span>
                         {% endif %}
                     </td>
                     <td style="padding: 2px 8px;">
@@ -619,6 +701,196 @@
             {% endif %}
         </div>
     </div>
+        </div>
+        <!-- End All Bookings Tab -->
+        
+        <!-- Duplicate Management Tab -->
+        <div class="tab-pane fade" id="duplicate-management" role="tabpanel" aria-labelledby="duplicate-management-tab">
+            <!-- Information Banner -->
+            <div class="alert alert-info border-0 shadow-sm mb-4">
+                <div class="d-flex align-items-center">
+                    <i class="fas fa-info-circle fa-2x me-3 text-primary"></i>
+                    <div>
+                        <h6 class="mb-1"><strong>Duplicate Management - Tích hợp hoàn toàn</strong></h6>
+                        <p class="mb-0">
+                            Chức năng quản lý trùng lặp đã được tích hợp trực tiếp vào giao diện quản lý booking. 
+                            Dùng tab này để phân tích và xử lý các booking có thể bị trùng lặp trong hệ thống.
+                        </p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="row mb-4">
+                <!-- Statistics Cards -->
+                <div class="col-md-3">
+                    <div class="card bg-warning text-white text-center">
+                        <div class="card-body">
+                            <i class="fas fa-exclamation-triangle fa-2x mb-2"></i>
+                            <h4 id="integrated-total-groups">0</h4>
+                            <small>Nhóm trùng lặp</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card bg-warning text-center">
+                        <div class="card-body">
+                            <i class="fas fa-user-friends fa-2x mb-2"></i>
+                            <h4 id="integrated-total-bookings">0</h4>
+                            <small>Booking trùng lặp</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card bg-info text-white text-center">
+                        <div class="card-body">
+                            <i class="fas fa-clock fa-2x mb-2"></i>
+                            <h4 id="integrated-processing-time">0s</h4>
+                            <small>Thời gian phân tích</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card bg-success text-white text-center">
+                        <div class="card-body">
+                            <i class="fas fa-check-circle fa-2x mb-2"></i>
+                            <h4 id="integrated-processed-guests">0</h4>
+                            <small>Khách đã kiểm tra</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Actions Bar -->
+            <div class="card mb-4">
+                <div class="card-body">
+                    <div class="row align-items-center">
+                        <div class="col-md-6">
+                            <button id="integrated-refresh-duplicates" class="btn btn-primary me-2">
+                                <i class="fas fa-sync me-1"></i>Làm mới phân tích
+                            </button>
+                            <button id="integrated-delete-all-selected" class="btn btn-danger btn-delete-selected me-2" disabled>
+                                <i class="fas fa-trash me-1"></i>Xóa đã chọn (<span id="integrated-selected-count">0</span>)
+                            </button>
+                            <button id="integrated-select-all-duplicates" class="btn btn-outline-secondary">
+                                <i class="fas fa-check-square me-1"></i>Chọn tất cả duplicate
+                            </button>
+                        </div>
+                        <div class="col-md-6 text-end">
+                            <div class="loading-spinner" id="integrated-loading-spinner" style="display: none;">
+                                <div class="spinner-border text-primary me-2"></div>
+                                <span>Đang phân tích duplicates...</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Duplicate Groups Container -->
+            <div id="integrated-duplicates-container">
+                <!-- Duplicate groups will be loaded here -->
+            </div>
+
+            <!-- No Duplicates Message -->
+            <div id="integrated-no-duplicates" class="text-center py-5" style="display: none;">
+                <i class="fas fa-check-circle fa-3x text-success mb-3"></i>
+                <h4 class="text-success">Không có booking trùng lặp!</h4>
+                <p class="text-muted">Tất cả bookings trong hệ thống đều là duy nhất.</p>
+            </div>
+        </div>
+        <!-- End Duplicate Management Tab -->
+        
+        <!-- Bulk Actions Tab -->
+        <div class="tab-pane fade" id="bulk-actions" role="tabpanel" aria-labelledby="bulk-actions-tab">
+            <!-- Information Banner -->
+            <div class="alert alert-success border-0 shadow-sm mb-4">
+                <div class="d-flex align-items-center">
+                    <i class="fas fa-rocket fa-2x me-3 text-success"></i>
+                    <div>
+                        <h6 class="mb-1"><strong>Bulk Actions - Thao tác hàng loạt</strong></h6>
+                        <p class="mb-0">
+                            Sử dụng các checkbox ở tab "Tất cả Booking" để chọn nhiều booking cùng lúc, 
+                            sau đó thực hiện các thao tác hàng loạt tại đây.
+                        </p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="row">
+                <div class="col-md-4">
+                    <div class="card border-success">
+                        <div class="card-header bg-success text-white">
+                            <h5 class="mb-0"><i class="fas fa-download me-2"></i>Export Data</h5>
+                        </div>
+                        <div class="card-body">
+                            <p class="text-muted">Xuất dữ liệu booking theo nhiều định dạng khác nhau</p>
+                            <div class="d-grid gap-2">
+                                <button class="btn btn-success" disabled>
+                                    <i class="fas fa-file-excel me-1"></i>Export Excel
+                                    <small class="d-block">Định dạng .xlsx với đầy đủ thông tin</small>
+                                </button>
+                                <button class="btn btn-outline-success" disabled>
+                                    <i class="fas fa-file-csv me-1"></i>Export CSV
+                                    <small class="d-block">Định dạng .csv để import vào tool khác</small>
+                                </button>
+                            </div>
+                            <small class="text-muted mt-2 d-block">
+                                <i class="fas fa-info-circle me-1"></i>Chọn booking ở tab "Tất cả Booking" để kích hoạt
+                            </small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card border-warning">
+                        <div class="card-header bg-warning text-dark">
+                            <h5 class="mb-0"><i class="fas fa-edit me-2"></i>Bulk Edit</h5>
+                        </div>
+                        <div class="card-body">
+                            <p class="text-muted">Chỉnh sửa nhiều booking cùng lúc</p>
+                            <div class="d-grid gap-2">
+                                <button class="btn btn-warning" disabled>
+                                    <i class="fas fa-user-edit me-1"></i>Cập nhật người thu
+                                    <small class="d-block">Thay đổi người thu tiền hàng loạt</small>
+                                </button>
+                                <button class="btn btn-outline-warning" disabled>
+                                    <i class="fas fa-calendar-alt me-1"></i>Cập nhật trạng thái
+                                    <small class="d-block">Đánh dấu hoàn thành/hủy hàng loạt</small>
+                                </button>
+                            </div>
+                            <small class="text-muted mt-2 d-block">
+                                <i class="fas fa-info-circle me-1"></i>Tính năng sẽ được triển khai sau
+                            </small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card border-danger">
+                        <div class="card-header bg-danger text-white">
+                            <h5 class="mb-0"><i class="fas fa-trash me-2"></i>Bulk Delete</h5>
+                        </div>
+                        <div class="card-body">
+                            <p class="text-muted">Xóa nhiều booking cùng lúc (cẩn thận!)</p>
+                            <div class="d-grid gap-2">
+                                <button class="btn btn-danger" id="bulk-delete-selected" style="display: none;">
+                                    <i class="fas fa-trash-alt me-1"></i>Xóa booking đã chọn
+                                    <small class="d-block">Xóa các booking được tích chọn</small>
+                                </button>
+                                <button class="btn btn-outline-danger" disabled>
+                                    <i class="fas fa-broom me-1"></i>Xóa duplicate
+                                    <small class="d-block">Tự động xóa booking trùng lặp</small>
+                                </button>
+                            </div>
+                            <small class="text-danger mt-2 d-block">
+                                <i class="fas fa-exclamation-triangle me-1"></i>Thao tác không thể hoàn tác!
+                            </small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- End Bulk Actions Tab -->
+        
+    </div>
+    <!-- End Tab Content Container -->
 </div>
 
 <!-- AI Duplicate Analysis Modal -->
@@ -658,6 +930,69 @@
     top: 0;
     z-index: 1020;
 }
+
+/* Enhanced Tab Styling */
+.nav-tabs .nav-link {
+    transition: all 0.3s ease;
+    border-bottom: 3px solid transparent;
+}
+
+.nav-tabs .nav-link:hover {
+    background-color: rgba(0, 123, 255, 0.1);
+    transform: translateY(-1px);
+}
+
+.nav-tabs .nav-link.active {
+    background-color: #f8f9fa;
+    border-bottom-color: #007bff;
+    font-weight: 600;
+}
+
+.nav-tabs .nav-link .badge {
+    transition: all 0.3s ease;
+}
+
+.nav-tabs .nav-link:hover .badge {
+    transform: scale(1.1);
+}
+
+/* Tab Content Enhancements */
+.tab-pane {
+    animation: fadeIn 0.3s ease-in-out;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* Enhanced Card Styling for Tabs */
+.tab-pane .card {
+    transition: all 0.3s ease;
+}
+
+.tab-pane .card:hover {
+    box-shadow: 0 4px 8px rgba(0,0,0,0.12);
+    transform: translateY(-2px);
+}
+
+/* Enhanced Alert Styling */
+.alert {
+    border-radius: 0.75rem;
+    border: none;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+/* Button Enhancements in Tabs */
+.tab-pane .btn[disabled] {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.tab-pane .btn:not([disabled]):hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+}
 </style>
 {% endblock %}
 
@@ -669,9 +1004,17 @@ document.addEventListener('DOMContentLoaded', function () {
     const bookingCheckboxes = document.querySelectorAll('.booking-checkbox');
     const deleteSelectedBtn = document.getElementById('delete-selected-btn');
 
+    // Add null checks to prevent errors
+    if (!selectAllCheckbox || !deleteSelectedBtn) {
+        console.log('⚠️ [BOOKINGS] Required elements not found, skipping bulk selection setup');
+        return;
+    }
+
     function toggleDeleteButton() {
         const anyChecked = Array.from(bookingCheckboxes).some(cb => cb.checked);
-        deleteSelectedBtn.style.display = anyChecked ? 'inline-block' : 'none';
+        if (deleteSelectedBtn) {
+            deleteSelectedBtn.style.display = anyChecked ? 'inline-block' : 'none';
+        }
     }
 
     selectAllCheckbox.addEventListener('change', function () {
@@ -693,7 +1036,8 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     });
 
-    deleteSelectedBtn.addEventListener('click', function () {
+    if (deleteSelectedBtn) {
+        deleteSelectedBtn.addEventListener('click', function () {
         const selectedIds = Array.from(bookingCheckboxes)
             .filter(cb => cb.checked)
             .map(cb => cb.value);
@@ -747,7 +1091,8 @@ document.addEventListener('DOMContentLoaded', function () {
                 }
             });
         }
-    });
+        });
+    }
 
     toggleDeleteButton(); // Initial check
     
@@ -2004,4 +2349,306 @@ window.checkAIButtonSetup = function() {
         </div>
     </div>
 </div>
+
+<!-- Integrated Duplicate Management JavaScript -->
+<script>
+// Integrated duplicate management functionality
+let integratedDuplicatesData = [];
+let integratedSelectedBookings = new Set();
+
+// Load integrated duplicates when tab is shown
+document.getElementById('duplicate-management-tab').addEventListener('shown.bs.tab', function() {
+    loadIntegratedDuplicates();
+});
+
+// Event listeners for integrated duplicate management
+document.addEventListener('DOMContentLoaded', function() {
+    // Integrated duplicate management buttons
+    const refreshBtn = document.getElementById('integrated-refresh-duplicates');
+    const deleteBtn = document.getElementById('integrated-delete-all-selected');
+    const selectAllBtn = document.getElementById('integrated-select-all-duplicates');
+    
+    if (refreshBtn) refreshBtn.addEventListener('click', loadIntegratedDuplicates);
+    if (deleteBtn) deleteBtn.addEventListener('click', deleteIntegratedSelectedBookings);
+    if (selectAllBtn) selectAllBtn.addEventListener('click', selectAllIntegratedDuplicates);
+});
+
+async function loadIntegratedDuplicates() {
+    const spinner = document.getElementById('integrated-loading-spinner');
+    const container = document.getElementById('integrated-duplicates-container');
+    const noDataMsg = document.getElementById('integrated-no-duplicates');
+    
+    if (!spinner || !container) return;
+    
+    spinner.style.display = 'block';
+    container.innerHTML = '';
+    if (noDataMsg) noDataMsg.style.display = 'none';
+    
+    try {
+        const response = await fetch('/api/duplicate_management');
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            integratedDuplicatesData = result.duplicates || [];
+            updateIntegratedStatistics(result);
+            
+            if (integratedDuplicatesData.length === 0) {
+                if (noDataMsg) noDataMsg.style.display = 'block';
+            } else {
+                renderIntegratedDuplicateGroups();
+            }
+        } else {
+            throw new Error(result.error || 'Failed to load duplicates');
+        }
+    } catch (error) {
+        console.error('Error loading integrated duplicates:', error);
+        container.innerHTML = `
+            <div class="alert alert-danger">
+                <i class="fas fa-exclamation-triangle me-2"></i>
+                <strong>Lỗi khi tải dữ liệu duplicate:</strong> ${error.message}
+                <div class="mt-2">
+                    <button class="btn btn-sm btn-outline-danger" onclick="loadIntegratedDuplicates()">
+                        <i class="fas fa-redo me-1"></i>Thử lại
+                    </button>
+                </div>
+            </div>
+        `;
+        integratedDuplicatesData = [];
+        integratedSelectedBookings.clear();
+        updateIntegratedSelectedCount();
+    } finally {
+        spinner.style.display = 'none';
+    }
+}
+
+function updateIntegratedStatistics(result) {
+    const elements = {
+        'integrated-total-groups': result.total_groups || 0,
+        'integrated-processing-time': (result.processing_info?.processing_time || 0).toFixed(2) + 's',
+        'integrated-processed-guests': result.processing_info?.processed_guests || 0
+    };
+    
+    Object.entries(elements).forEach(([id, value]) => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = value;
+    });
+    
+    // Count total duplicate bookings
+    let totalBookings = 0;
+    if (result.duplicates && Array.isArray(result.duplicates)) {
+        result.duplicates.forEach(group => {
+            if (group.bookings && Array.isArray(group.bookings)) {
+                totalBookings += group.bookings.length;
+            }
+        });
+    }
+    
+    const totalBookingsEl = document.getElementById('integrated-total-bookings');
+    if (totalBookingsEl) totalBookingsEl.textContent = totalBookings;
+    
+    // Update tab badge
+    const tabBadge = document.getElementById('duplicate-count-badge');
+    if (tabBadge) tabBadge.textContent = totalBookings;
+}
+
+function renderIntegratedDuplicateGroups() {
+    const container = document.getElementById('integrated-duplicates-container');
+    if (!container) return;
+    
+    container.innerHTML = '';
+    
+    integratedDuplicatesData.forEach((group, groupIndex) => {
+        if (!group || !group.guest_name || !Array.isArray(group.bookings)) return;
+        
+        const groupHtml = `
+            <div class="duplicate-group p-4 mb-3" data-group="${groupIndex}">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5 class="mb-0">
+                        <i class="fas fa-user-friends text-warning me-2"></i>
+                        ${group.guest_name}
+                        <small class="text-muted">(${group.bookings.length} bookings)</small>
+                    </h5>
+                    <div>
+                        <span class="badge bg-warning text-dark">
+                            <i class="fas fa-calendar-alt me-1"></i>
+                            Chênh lệch: ${Math.abs(group.date_difference_days || 0)} ngày
+                        </span>
+                    </div>
+                </div>
+                
+                <div class="row">
+                    ${group.bookings.map((booking, bookingIndex) => `
+                        <div class="col-md-6 mb-3">
+                            <div class="booking-card p-3 ${integratedSelectedBookings.has(booking.booking_id) ? 'selected' : ''}" 
+                                 data-booking-id="${booking.booking_id}" 
+                                 onclick="toggleIntegratedBookingSelection('${booking.booking_id}')">
+                                <div class="d-flex justify-content-between align-items-start mb-2">
+                                    <h6 class="mb-0">
+                                        <i class="fas fa-bookmark me-1"></i>
+                                        ${booking.booking_id}
+                                    </h6>
+                                    <div>
+                                        <input type="checkbox" class="form-check-input me-2" 
+                                               ${integratedSelectedBookings.has(booking.booking_id) ? 'checked' : ''}
+                                               onchange="toggleIntegratedBookingSelection('${booking.booking_id}')">
+                                        <span class="badge ${booking.booking_status === 'confirmed' ? 'bg-success' : 'bg-warning'}">
+                                            ${booking.booking_status || 'N/A'}
+                                        </span>
+                                    </div>
+                                </div>
+                                
+                                <div class="row text-sm">
+                                    <div class="col-6">
+                                        <strong>Check-in:</strong><br>
+                                        <i class="fas fa-calendar-check text-success"></i> ${booking.checkin_date || 'N/A'}
+                                    </div>
+                                    <div class="col-6">
+                                        <strong>Check-out:</strong><br>
+                                        <i class="fas fa-calendar-times text-danger"></i> ${booking.checkout_date || 'N/A'}
+                                    </div>
+                                </div>
+                                
+                                <hr class="my-2">
+                                
+                                <div class="row text-sm">
+                                    <div class="col-6">
+                                        <strong>Tổng tiền:</strong><br>
+                                        <span class="text-success fw-bold">${(booking.room_amount || 0).toLocaleString()}đ</span>
+                                    </div>
+                                    <div class="col-6">
+                                        <strong>Hoa hồng:</strong><br>
+                                        <span class="text-warning fw-bold">${(booking.commission || 0).toLocaleString()}đ</span>
+                                    </div>
+                                </div>
+                                
+                                ${booking.collected_amount > 0 ? `
+                                    <div class="mt-2">
+                                        <small class="text-success">
+                                            <i class="fas fa-check-circle"></i> 
+                                            Đã thu: ${(booking.collected_amount || 0).toLocaleString()}đ
+                                            ${booking.collector ? `(${booking.collector})` : ''}
+                                        </small>
+                                    </div>
+                                ` : ''}
+                                
+                                <div class="mt-2">
+                                    <small class="text-muted">
+                                        <i class="fas fa-clock"></i> Tạo: ${booking.created_at || 'N/A'}
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        `;
+        
+        container.innerHTML += groupHtml;
+    });
+    
+    updateIntegratedSelectedCount();
+}
+
+function toggleIntegratedBookingSelection(bookingId) {
+    if (integratedSelectedBookings.has(bookingId)) {
+        integratedSelectedBookings.delete(bookingId);
+    } else {
+        integratedSelectedBookings.add(bookingId);
+    }
+    
+    const card = document.querySelector(`[data-booking-id="${bookingId}"]`);
+    const checkbox = card?.querySelector('input[type="checkbox"]');
+    
+    if (card && checkbox) {
+        if (integratedSelectedBookings.has(bookingId)) {
+            card.classList.add('selected');
+            checkbox.checked = true;
+        } else {
+            card.classList.remove('selected');
+            checkbox.checked = false;
+        }
+    }
+    
+    updateIntegratedSelectedCount();
+}
+
+function updateIntegratedSelectedCount() {
+    const count = integratedSelectedBookings.size;
+    const countEl = document.getElementById('integrated-selected-count');
+    const deleteBtn = document.getElementById('integrated-delete-all-selected');
+    
+    if (countEl) countEl.textContent = count;
+    if (deleteBtn) {
+        deleteBtn.disabled = count === 0;
+        deleteBtn.innerHTML = `<i class="fas fa-trash me-1"></i>Xóa đã chọn (${count})`;
+    }
+}
+
+function selectAllIntegratedDuplicates() {
+    integratedDuplicatesData.forEach(group => {
+        for (let i = 1; i < group.bookings.length; i++) {
+            integratedSelectedBookings.add(group.bookings[i].booking_id);
+        }
+    });
+    renderIntegratedDuplicateGroups();
+}
+
+async function deleteIntegratedSelectedBookings() {
+    if (integratedSelectedBookings.size === 0) return;
+    
+    const confirmed = confirm(`Bạn có chắc muốn xóa ${integratedSelectedBookings.size} booking đã chọn?\n\nHành động này không thể hoàn tác!`);
+    if (!confirmed) return;
+    
+    const deleteBtn = document.getElementById('integrated-delete-all-selected');
+    if (deleteBtn) {
+        deleteBtn.disabled = true;
+        deleteBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Đang xóa...';
+    }
+    
+    let successCount = 0;
+    let failCount = 0;
+    
+    for (const bookingId of integratedSelectedBookings) {
+        try {
+            const response = await fetch('/api/delete_duplicate_booking', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ booking_id: bookingId })
+            });
+            
+            const result = await response.json();
+            if (result.success) {
+                successCount++;
+            } else {
+                failCount++;
+                console.error(`Failed to delete ${bookingId}:`, result.error);
+            }
+        } catch (error) {
+            failCount++;
+            console.error(`Error deleting ${bookingId}:`, error);
+        }
+    }
+    
+    if (successCount > 0) {
+        alert(`✅ Đã xóa thành công ${successCount} booking!${failCount > 0 ? `\n❌ Lỗi: ${failCount} booking` : ''}`);
+        integratedSelectedBookings.clear();
+        loadIntegratedDuplicates();
+        
+        // Refresh main booking list if visible
+        if (document.getElementById('all-bookings').classList.contains('show')) {
+            window.location.reload();
+        }
+    } else {
+        alert('❌ Không thể xóa booking nào. Vui lòng thử lại.');
+    }
+    
+    if (deleteBtn) {
+        deleteBtn.disabled = false;
+        deleteBtn.innerHTML = '<i class="fas fa-trash me-1"></i>Xóa đã chọn (0)';
+    }
+}
+</script>
+
 {% endblock %} 

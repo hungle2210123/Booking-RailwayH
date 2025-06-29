@@ -1,0 +1,387 @@
+{% extends "base.html" %}
+{% block title %}Revenue Calculation Comparison Test{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col-12">
+            <h1 class="text-primary">
+                <i class="fas fa-calculator me-2"></i>Revenue Calculation Method Comparison
+            </h1>
+            <p class="text-muted">
+                Test and compare traditional vs daily distribution revenue calculation methods
+            </p>
+        </div>
+    </div>
+
+    <!-- Comparison Controls -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="mb-0"><i class="fas fa-cog me-2"></i>Comparison Settings</h5>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-3">
+                    <label class="form-label">Calculation Method</label>
+                    <select id="methodSelect" class="form-select">
+                        <option value="both">Both Methods (Compare)</option>
+                        <option value="traditional">Traditional Only</option>
+                        <option value="daily_distribution">Daily Distribution Only</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Analysis Period</label>
+                    <select id="monthsSelect" class="form-select">
+                        <option value="3">Last 3 Months</option>
+                        <option value="6" selected>Last 6 Months</option>
+                        <option value="12">Last 12 Months</option>
+                        <option value="24">Last 24 Months</option>
+                    </select>
+                </div>
+                <div class="col-md-3 d-flex align-items-end">
+                    <button id="runComparison" class="btn btn-primary">
+                        <i class="fas fa-play me-1"></i>Run Comparison
+                    </button>
+                </div>
+                <div class="col-md-3 d-flex align-items-end">
+                    <button id="downloadResults" class="btn btn-success" style="display: none;">
+                        <i class="fas fa-download me-1"></i>Download Results
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading State -->
+    <div id="loadingState" class="text-center py-5" style="display: none;">
+        <div class="spinner-border text-primary mb-3"></div>
+        <h5>Calculating Revenue Methods...</h5>
+        <p class="text-muted">This may take a few seconds for large datasets</p>
+    </div>
+
+    <!-- Results Container -->
+    <div id="resultsContainer" style="display: none;">
+        
+        <!-- Summary Statistics -->
+        <div id="summaryStats" class="row mb-4">
+            <!-- Will be populated by JavaScript -->
+        </div>
+
+        <!-- Method Comparison Tabs -->
+        <div class="card">
+            <div class="card-header">
+                <ul class="nav nav-tabs card-header-tabs" id="comparisonTabs" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" id="traditional-tab" data-bs-toggle="tab" data-bs-target="#traditional" type="button" role="tab">
+                            <i class="fas fa-chart-line me-1"></i>Traditional Method
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="daily-distribution-tab" data-bs-toggle="tab" data-bs-target="#daily-distribution" type="button" role="tab">
+                            <i class="fas fa-calendar-alt me-1"></i>Daily Distribution Method
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="comparison-tab" data-bs-toggle="tab" data-bs-target="#comparison" type="button" role="tab">
+                            <i class="fas fa-balance-scale me-1"></i>Side-by-Side Comparison
+                        </button>
+                    </li>
+                </ul>
+            </div>
+            <div class="card-body">
+                <div class="tab-content" id="comparisonTabsContent">
+                    
+                    <!-- Traditional Method Tab -->
+                    <div class="tab-pane fade show active" id="traditional" role="tabpanel">
+                        <div class="alert alert-info">
+                            <h6><i class="fas fa-info-circle me-2"></i>Traditional Method (Current)</h6>
+                            <p class="mb-0">Groups bookings by check-in month and counts the full booking amount in that month. This is the current method used in the system.</p>
+                        </div>
+                        <div id="traditionalResults">
+                            <!-- Table will be populated by JavaScript -->
+                        </div>
+                    </div>
+
+                    <!-- Daily Distribution Method Tab -->
+                    <div class="tab-pane fade" id="daily-distribution" role="tabpanel">
+                        <div class="alert alert-success">
+                            <h6><i class="fas fa-calendar-check me-2"></i>Daily Distribution Method (New)</h6>
+                            <p class="mb-0">Divides booking amounts across each night of stay, providing more accurate monthly revenue distribution. Better for multi-night stays.</p>
+                        </div>
+                        <div id="dailyDistributionResults">
+                            <!-- Table will be populated by JavaScript -->
+                        </div>
+                    </div>
+
+                    <!-- Comparison Tab -->
+                    <div class="tab-pane fade" id="comparison" role="tabpanel">
+                        <div class="alert alert-warning">
+                            <h6><i class="fas fa-balance-scale me-2"></i>Method Comparison</h6>
+                            <p class="mb-0">Side-by-side comparison showing differences between the two calculation methods.</p>
+                        </div>
+                        <div id="comparisonResults">
+                            <!-- Comparison table will be populated by JavaScript -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Error State -->
+    <div id="errorState" class="alert alert-danger" style="display: none;">
+        <h5><i class="fas fa-exclamation-triangle me-2"></i>Error</h5>
+        <p id="errorMessage">An error occurred while calculating revenue methods.</p>
+    </div>
+</div>
+
+<script>
+let currentResults = null;
+
+document.addEventListener('DOMContentLoaded', function() {
+    document.getElementById('runComparison').addEventListener('click', runComparison);
+    document.getElementById('downloadResults').addEventListener('click', downloadResults);
+});
+
+async function runComparison() {
+    const method = document.getElementById('methodSelect').value;
+    const months = document.getElementById('monthsSelect').value;
+    
+    // Show loading state
+    document.getElementById('loadingState').style.display = 'block';
+    document.getElementById('resultsContainer').style.display = 'none';
+    document.getElementById('errorState').style.display = 'none';
+    document.getElementById('downloadResults').style.display = 'none';
+    
+    try {
+        console.log(`🔍 Running comparison: method=${method}, months=${months}`);
+        
+        const response = await fetch(`/api/revenue_calculation_comparison?method=${method}&months=${months}`);
+        const data = await response.json();
+        
+        if (data.success) {
+            currentResults = data;
+            displayResults(data);
+            document.getElementById('downloadResults').style.display = 'inline-block';
+        } else {
+            showError(data.error || 'Unknown error occurred');
+        }
+        
+    } catch (error) {
+        console.error('Comparison error:', error);
+        showError(error.message);
+    } finally {
+        document.getElementById('loadingState').style.display = 'none';
+    }
+}
+
+function displayResults(data) {
+    // Show results container
+    document.getElementById('resultsContainer').style.display = 'block';
+    
+    // Display summary statistics
+    displaySummaryStats(data);
+    
+    // Display method results
+    if (data.methods.traditional) {
+        displayMethodResults('traditionalResults', data.methods.traditional, 'table-primary');
+    }
+    
+    if (data.methods.daily_distribution) {
+        displayMethodResults('dailyDistributionResults', data.methods.daily_distribution, 'table-success');
+    }
+    
+    // Display comparison if both methods are present
+    if (data.methods.traditional && data.methods.daily_distribution) {
+        displayComparison(data);
+    }
+}
+
+function displaySummaryStats(data) {
+    const container = document.getElementById('summaryStats');
+    
+    if (data.summary) {
+        container.innerHTML = `
+            <div class="col-md-3">
+                <div class="card bg-primary text-white">
+                    <div class="card-body text-center">
+                        <h4>${data.total_bookings}</h4>
+                        <small>Total Bookings Analyzed</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card bg-info text-white">
+                    <div class="card-body text-center">
+                        <h4>${formatCurrency(data.summary.traditional_total_revenue)}</h4>
+                        <small>Traditional Method Total</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card bg-success text-white">
+                    <div class="card-body text-center">
+                        <h4>${formatCurrency(data.summary.daily_distribution_total_revenue)}</h4>
+                        <small>Daily Distribution Total</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card bg-warning text-dark">
+                    <div class="card-body text-center">
+                        <h4>${data.summary.difference_percent.toFixed(2)}%</h4>
+                        <small>Difference Between Methods</small>
+                    </div>
+                </div>
+            </div>
+        `;
+    } else {
+        container.innerHTML = `
+            <div class="col-12">
+                <div class="card bg-light">
+                    <div class="card-body text-center">
+                        <h5>${data.total_bookings} Total Bookings</h5>
+                        <small>Analysis Period: ${data.analysis_months} months</small>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+}
+
+function displayMethodResults(containerId, methodData, tableClass) {
+    const container = document.getElementById(containerId);
+    
+    if (!methodData.data || methodData.data.length === 0) {
+        container.innerHTML = '<p class="text-muted">No data available for this method.</p>';
+        return;
+    }
+    
+    const tableRows = methodData.data.map(month => `
+        <tr>
+            <td>${month['Tháng']}</td>
+            <td class="text-end">${formatCurrency(month['Đã thu'] || 0)}</td>
+            <td class="text-end">${formatCurrency(month['Chưa thu'] || 0)}</td>
+            <td class="text-end fw-bold">${formatCurrency(month['Tổng cộng'] || 0)}</td>
+            <td class="text-end">${formatCurrency(month['Tổng hoa hồng'] || 0)}</td>
+            <td class="text-center">${(month['Tỷ lệ thu'] || 0).toFixed(1)}%</td>
+            <td class="text-center">${month['Tổng số khách'] || 0}</td>
+        </tr>
+    `).join('');
+    
+    container.innerHTML = `
+        <div class="table-responsive">
+            <table class="table ${tableClass}">
+                <thead>
+                    <tr>
+                        <th>Tháng</th>
+                        <th class="text-end">Đã Thu</th>
+                        <th class="text-end">Chưa Thu</th>
+                        <th class="text-end">Tổng Cộng</th>
+                        <th class="text-end">Hoa Hồng</th>
+                        <th class="text-center">Tỷ Lệ Thu</th>
+                        <th class="text-center">Số Khách</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${tableRows}
+                </tbody>
+            </table>
+        </div>
+        <small class="text-muted">
+            <i class="fas fa-info-circle me-1"></i>
+            ${methodData.description}
+        </small>
+    `;
+}
+
+function displayComparison(data) {
+    const container = document.getElementById('comparisonResults');
+    const traditional = data.methods.traditional.data;
+    const dailyDist = data.methods.daily_distribution.data;
+    
+    // Create month-by-month comparison
+    const monthMap = new Map();
+    
+    traditional.forEach(month => {
+        monthMap.set(month['Tháng'], { traditional: month });
+    });
+    
+    dailyDist.forEach(month => {
+        if (monthMap.has(month['Tháng'])) {
+            monthMap.get(month['Tháng']).daily = month;
+        } else {
+            monthMap.set(month['Tháng'], { daily: month });
+        }
+    });
+    
+    const comparisonRows = Array.from(monthMap.entries())
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([month, methods]) => {
+            const tradTotal = methods.traditional?.['Tổng cộng'] || 0;
+            const dailyTotal = methods.daily?.['Tổng cộng'] || 0;
+            const difference = tradTotal - dailyTotal;
+            const diffPercent = tradTotal > 0 ? (difference / tradTotal * 100) : 0;
+            
+            return `
+                <tr>
+                    <td>${month}</td>
+                    <td class="text-end">${formatCurrency(tradTotal)}</td>
+                    <td class="text-end">${formatCurrency(dailyTotal)}</td>
+                    <td class="text-end ${difference > 0 ? 'text-danger' : difference < 0 ? 'text-success' : ''}">${formatCurrency(difference)}</td>
+                    <td class="text-center ${Math.abs(diffPercent) > 5 ? 'fw-bold' : ''}">${diffPercent.toFixed(2)}%</td>
+                </tr>
+            `;
+        }).join('');
+    
+    container.innerHTML = `
+        <div class="table-responsive">
+            <table class="table table-bordered">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Tháng</th>
+                        <th class="text-end">Traditional Method</th>
+                        <th class="text-end">Daily Distribution</th>
+                        <th class="text-end">Difference</th>
+                        <th class="text-center">Diff %</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${comparisonRows}
+                </tbody>
+            </table>
+        </div>
+        <div class="mt-3">
+            <h6>Analysis Summary:</h6>
+            <ul>
+                <li><strong>Total Revenue Difference:</strong> ${formatCurrency(data.summary.difference_amount)} (${data.summary.difference_percent.toFixed(2)}%)</li>
+                <li><strong>Recommendation:</strong> ${data.summary.recommendation}</li>
+            </ul>
+        </div>
+    `;
+}
+
+function showError(message) {
+    document.getElementById('errorMessage').textContent = message;
+    document.getElementById('errorState').style.display = 'block';
+}
+
+function formatCurrency(amount) {
+    return (amount || 0).toLocaleString('vi-VN') + 'đ';
+}
+
+function downloadResults() {
+    if (!currentResults) return;
+    
+    const blob = new Blob([JSON.stringify(currentResults, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `revenue_comparison_${new Date().toISOString().split('T')[0]}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+}
+</script>
+{% endblock %}

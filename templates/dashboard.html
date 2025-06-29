@@ -22,6 +22,45 @@
     background: linear-gradient(135deg, rgba(40, 167, 69, 0.1) 0%, rgba(40, 167, 69, 0.05) 100%) !important;
 }
 
+/* Duplicate Guest Highlighting */
+.duplicate-guest {
+    border-right: 4px solid #e74c3c !important;
+    background: linear-gradient(135deg, rgba(231, 76, 60, 0.1) 0%, rgba(231, 76, 60, 0.05) 100%) !important;
+    position: relative;
+}
+
+.duplicate-guest::after {
+    content: '';
+    position: absolute;
+    top: -2px;
+    right: -2px;
+    width: 12px;
+    height: 12px;
+    background: #e74c3c;
+    border-radius: 50%;
+    animation: duplicatePulse 2s ease-in-out infinite;
+}
+
+.high-commission-duplicate {
+    border: 2px solid #dc3545 !important;
+    border-left: 4px solid #dc3545 !important;
+    border-right: 4px solid #e74c3c !important;
+    background: linear-gradient(135deg, rgba(220, 53, 69, 0.15) 0%, rgba(231, 76, 60, 0.1) 100%) !important;
+    animation: criticalPulse 2s ease-in-out infinite;
+}
+
+@keyframes duplicatePulse {
+    0% { background: #e74c3c; opacity: 1; }
+    50% { background: #c0392b; opacity: 0.7; }
+    100% { background: #e74c3c; opacity: 1; }
+}
+
+@keyframes criticalPulse {
+    0% { box-shadow: 0 2px 8px rgba(220, 53, 69, 0.3), 0 0 0 0 rgba(231, 76, 60, 0.4); }
+    50% { box-shadow: 0 2px 12px rgba(220, 53, 69, 0.5), 0 0 0 4px rgba(231, 76, 60, 0.2); }
+    100% { box-shadow: 0 2px 8px rgba(220, 53, 69, 0.3), 0 0 0 0 rgba(231, 76, 60, 0.4); }
+}
+
 .commission-display {
     margin-top: 2px;
 }
@@ -203,6 +242,12 @@
                                     title="Đồng bộ dữ liệu từ database local">
                                 <i class="fas fa-cloud-upload-alt me-1"></i>Sync Data
                             </button>
+                            <button type="button" class="btn btn-sm btn-outline-info" 
+                                    onclick="window.location.href='/crawl'" 
+                                    data-action="crawl-bookings"
+                                    title="Crawl booking data from websites automatically">
+                                <i class="fas fa-spider me-1"></i>Crawl Bookings
+                            </button>
                             <button type="button" class="btn btn-sm btn-outline-success" 
                                     onclick="window.location.reload()" 
                                     title="Tải lại toàn bộ trang">
@@ -250,6 +295,14 @@
                                     title="Xóa dữ liệu đã nhập để nhập lại">
                                 <i class="fas fa-trash me-1"></i>Clear & Re-import
                             </button>
+                            <!-- Duplicate Management Button with Dynamic Highlighting -->
+                            <a href="{{ url_for('duplicate_management_page') }}" 
+                               class="btn btn-sm duplicate-button {% if duplicate_guests and duplicate_guests|length > 0 %}with-count{% endif %}" 
+                               title="{% if duplicate_guests and duplicate_guests|length > 0 %}Tìm thấy {{ duplicate_guests|length }} khách trùng lặp - Click để xem{% else %}Quản lý khách trùng lặp{% endif %}"
+                               {% if duplicate_guests and duplicate_guests|length > 0 %}data-count="{{ duplicate_guests|length }}"{% endif %}>
+                                <i class="fas fa-users me-1"></i>
+                                Duplicates
+                            </a>
                             <a href="{{ url_for('view_bookings', show_all='true') }}" 
                                class="btn btn-sm btn-outline-info" 
                                title="Xem tất cả booking">
@@ -320,9 +373,6 @@
                                 </span>
                             {% endfor %}
                         </p>
-                        <small class="text-muted">
-                            💰 Tổng hoa hồng hôm nay: <strong>{{ "{:,.0f}".format(total_commission_amount) }}đ</strong>
-                        </small>
                     </div>
                     <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
                 </div>
@@ -353,11 +403,26 @@
                         {% set commission = notification.get('Hoa hồng', 0)|float %}
                         {% set is_high_commission = commission > 150000 %}
                         {% set has_commission = commission > 0 %}
-                        <div class="bg-white bg-opacity-90 rounded mb-1 px-2 py-1 {{ 'high-commission-guest' if is_high_commission else ('commission-guest' if has_commission else 'no-commission-guest') }}">
+                        {% set guest_name = notification.guest_name %}
+                        {% set is_duplicate = guest_name in duplicate_guests if duplicate_guests else false %}
+                        {% set duplicate_count = duplicate_guests.get(guest_name, 0) if duplicate_guests else 0 %}
+                        <div class="bg-white bg-opacity-90 rounded mb-1 px-2 py-1 
+                             {% if is_high_commission and is_duplicate %}high-commission-duplicate duplicate-container high-priority
+                             {% elif is_duplicate %}duplicate-guest duplicate-container
+                             {% elif is_high_commission %}high-commission-guest
+                             {% elif has_commission %}commission-guest
+                             {% else %}no-commission-guest
+                             {% endif %}">
                             <div class="d-flex justify-content-between align-items-center">
                                 <div class="flex-grow-1">
                                     <div class="fw-bold text-dark small">
                                         {{ notification.guest_name }}
+                                        {% if is_duplicate %}
+                                        <a href="{{ url_for('duplicate_management_page') }}?guest={{ notification.guest_name|urlencode }}" 
+                                           class="text-decoration-none" title="Có {{ duplicate_count }} booking trùng lặp - Click để xem">
+                                            <i class="fas fa-users duplicate-icon ms-1"></i>
+                                        </a>
+                                        {% endif %}
                                         {% if is_high_commission %}
                                         <i class="fas fa-exclamation-triangle text-danger ms-1" title="Hoa hồng cao > 150k"></i>
                                         {% elif has_commission %}
@@ -442,11 +507,26 @@
                         {% set commission = notification.get('Hoa hồng', 0)|float %}
                         {% set is_high_commission = commission > 150000 %}
                         {% set has_commission = commission > 0 %}
-                        <div class="bg-white bg-opacity-90 rounded mb-1 px-2 py-1 {{ 'high-commission-guest' if is_high_commission else ('commission-guest' if has_commission else 'no-commission-guest') }}">
+                        {% set guest_name = notification.guest_name %}
+                        {% set is_duplicate = guest_name in duplicate_guests if duplicate_guests else false %}
+                        {% set duplicate_count = duplicate_guests.get(guest_name, 0) if duplicate_guests else 0 %}
+                        <div class="bg-white bg-opacity-90 rounded mb-1 px-2 py-1 
+                             {% if is_high_commission and is_duplicate %}high-commission-duplicate duplicate-container high-priority
+                             {% elif is_duplicate %}duplicate-guest duplicate-container
+                             {% elif is_high_commission %}high-commission-guest
+                             {% elif has_commission %}commission-guest
+                             {% else %}no-commission-guest
+                             {% endif %}">
                             <div class="d-flex justify-content-between align-items-center">
                                 <div class="flex-grow-1">
                                     <div class="fw-bold text-dark small">
                                         {{ notification.guest_name }}
+                                        {% if is_duplicate %}
+                                        <a href="{{ url_for('duplicate_management_page') }}?guest={{ notification.guest_name|urlencode }}" 
+                                           class="text-decoration-none" title="Có {{ duplicate_count }} booking trùng lặp - Click để xem">
+                                            <i class="fas fa-users duplicate-icon ms-1"></i>
+                                        </a>
+                                        {% endif %}
                                         {% if is_high_commission %}
                                         <i class="fas fa-exclamation-triangle text-danger ms-1" title="Hoa hồng cao > 150k"></i>
                                         {% elif has_commission %}
@@ -1073,6 +1153,410 @@
                         </div>
                     </div>
                     {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- ✅ NEW: Monthly Revenue by Daily Distribution (Like Calendar) -->
+    {% if monthly_revenue_daily_distribution %}
+    <div class="row mt-4">
+        <div class="col-xl-8">
+            <div class="card shadow-sm border-success">
+                <div class="card-header bg-success text-white">
+                    <h6 class="mb-0">
+                        <i class="fas fa-calendar-day me-1"></i> 
+                        Doanh thu theo tháng (Phương pháp phân bổ theo ngày)
+                    </h6>
+                    <small class="opacity-75">
+                        <i class="fas fa-info-circle me-1"></i>
+                        Tính toán bằng cách chia số tiền booking cho số đêm ở, sau đó cộng lại theo tháng
+                    </small>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info mb-3">
+                        <div class="row">
+                            <div class="col-md-8">
+                                <h6><i class="fas fa-lightbulb me-2"></i>Phương pháp tính toán mới (Như lịch doanh thu)</h6>
+                                <p class="mb-1">
+                                    <strong>Ví dụ:</strong> Khách ở 3 đêm với tổng 600,000đ → 200,000đ/đêm → Phân bổ vào từng ngày thực tế
+                                </p>
+                                <small class="text-muted">
+                                    Phương pháp này cho kết quả chính xác hơn cho việc phân tích doanh thu theo tháng, đặc biệt với khách ở nhiều đêm.
+                                </small>
+                            </div>
+                            <div class="col-md-4 text-end">
+                                <span class="badge bg-success fs-6">Phương pháp mới</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle">
+                            <thead class="table-success">
+                                <tr>
+                                    <th class="border-0">
+                                        <i class="fas fa-calendar-alt me-1"></i>Tháng
+                                    </th>
+                                    <th class="text-end border-0">
+                                        <i class="fas fa-check-circle me-1 text-success"></i>Đã thu
+                                    </th>
+                                    <th class="text-end border-0">
+                                        <i class="fas fa-clock me-1 text-warning"></i>Chưa thu
+                                    </th>
+                                    <th class="text-end border-0">
+                                        <i class="fas fa-coins me-1 text-info"></i>Tổng cộng
+                                    </th>
+                                    <th class="text-center border-0">
+                                        <i class="fas fa-percentage me-1 text-primary"></i>Tỷ lệ thu
+                                    </th>
+                                    <th class="text-center border-0">
+                                        <i class="fas fa-users me-1 text-success"></i>Tổng khách<br>
+                                        <small class="text-dark fw-normal">(riêng biệt)</small>
+                                    </th>
+                                    <th class="text-end border-0">
+                                        <i class="fas fa-money-bill-wave me-1 text-info"></i>TB/khách
+                                    </th>
+                                    <th class="text-end border-0">
+                                        <i class="fas fa-coins me-1 text-warning"></i>Hoa hồng
+                                    </th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for row in monthly_revenue_daily_distribution %}
+                                <tr class="border-bottom">
+                                    <td>
+                                        <div class="fw-bold text-success">{{ row.get('Tháng', 'N/A') }}</div>
+                                    </td>
+                                    <td class="text-end">
+                                        <span class="text-success fw-bold">
+                                            {{ "{:,.0f}".format(row.get('Đã thu', 0)) }}đ
+                                        </span>
+                                    </td>
+                                    <td class="text-end">
+                                        <span class="text-warning fw-bold">
+                                            {{ "{:,.0f}".format(row.get('Chưa thu', 0)) }}đ
+                                        </span>
+                                    </td>
+                                    <td class="text-end">
+                                        <span class="text-primary fw-bold fs-6">
+                                            {{ "{:,.0f}".format(row.get('Tổng cộng', 0)) }}đ
+                                        </span>
+                                    </td>
+                                    <td class="text-center">
+                                        {% set collection_rate = row.get('Tỷ lệ thu', 0) %}
+                                        <span class="badge {% if collection_rate >= 80 %}bg-success{% elif collection_rate >= 50 %}bg-warning{% else %}bg-danger{% endif %}">
+                                            {{ "{:.1f}".format(collection_rate) }}%
+                                        </span>
+                                    </td>
+                                    <td class="text-center">
+                                        <div class="d-flex align-items-center justify-content-center gap-2">
+                                            <span class="badge bg-info">
+                                                {{ "{:.0f}".format(row.get('Tổng số khách', 0)) }} khách
+                                            </span>
+                                            {% if row.get('Tổng số khách', 0) > 0 %}
+                                            <button class="btn btn-outline-info btn-sm px-2 py-1" 
+                                                    onclick="showDailyCustomerBreakdown('{{ row.get('Tháng', 'N/A') }}')"
+                                                    title="Xem chi tiết khách theo ngày">
+                                                <i class="fas fa-calendar-day"></i>
+                                            </button>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                    <td class="text-end">
+                                        <span class="text-info fw-bold">
+                                            {% set avg_per_guest = (row.get('Tổng cộng', 0) / row.get('Tổng số khách', 1)) if row.get('Tổng số khách', 0) > 0 else 0 %}
+                                            {{ "{:,.0f}".format(avg_per_guest) }}đ
+                                        </span>
+                                    </td>
+                                    <td class="text-end">
+                                        <span class="text-warning">
+                                            {{ "{:,.0f}".format(row.get('Tổng hoa hồng', 0)) }}đ
+                                        </span>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <div class="mt-3">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="alert alert-light border-start border-success border-3">
+                                    <h6 class="text-success"><i class="fas fa-calculator me-2"></i>Phương pháp tính toán:</h6>
+                                    <ul class="mb-0 small">
+                                        <li><strong>Chia theo đêm:</strong> Tổng tiền booking ÷ số đêm ở</li>
+                                        <li><strong>Phân bổ ngày:</strong> Từng đêm được tính vào ngày thực tế</li>
+                                        <li><strong>Tổng tháng:</strong> Cộng tất cả các ngày trong tháng</li>
+                                    </ul>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="alert alert-light border-start border-info border-3">
+                                    <h6 class="text-info"><i class="fas fa-chart-line me-2"></i>Ưu điểm:</h6>
+                                    <ul class="mb-0 small">
+                                        <li><strong>Chính xác hơn:</strong> Phản ánh đúng giá trị từng ngày</li>
+                                        <li><strong>Phù hợp lịch:</strong> Tương thích với lịch doanh thu</li>
+                                        <li><strong>Phân tích tốt:</strong> Dễ so sánh theo tháng</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-4">
+            <div class="card shadow-sm border-info h-100">
+                <div class="card-header bg-info text-white">
+                    <h6 class="mb-0">
+                        <i class="fas fa-info-circle me-1"></i>Phương pháp phân bổ theo ngày
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-light border-success">
+                        <h6 class="text-success"><i class="fas fa-calculator me-2"></i>Cách tính toán:</h6>
+                        <ol class="mb-2 small">
+                            <li><strong>Chia đều:</strong> Tổng tiền ÷ số đêm ở</li>
+                            <li><strong>Phân bổ:</strong> Mỗi đêm = 1/n tổng tiền</li>
+                            <li><strong>Cộng tháng:</strong> Tất cả ngày trong tháng</li>
+                        </ol>
+                        <div class="bg-light p-2 rounded small">
+                            <strong>Ví dụ cụ thể:</strong><br>
+                            Khách A: 15-17/6 (3 đêm) - 600,000đ<br>
+                            → 15/6: 200,000đ<br>
+                            → 16/6: 200,000đ<br>
+                            → 17/6: 200,000đ
+                        </div>
+                    </div>
+                    
+                    <div class="alert alert-light border-warning">
+                        <h6 class="text-warning"><i class="fas fa-balance-scale me-2"></i>So sánh với phương pháp cũ:</h6>
+                        <ul class="mb-0 small">
+                            <li><strong>Phương pháp cũ:</strong> Tất cả 600,000đ vào ngày check-in</li>
+                            <li><strong>Phương pháp mới:</strong> 200,000đ cho mỗi ngày thực tế</li>
+                            <li><strong>Kết quả:</strong> Phân tích chính xác hơn theo tháng</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="mt-3">
+                        <div class="row text-center">
+                            <div class="col-6">
+                                <div class="border rounded p-2">
+                                    <i class="fas fa-chart-line text-success fs-4"></i>
+                                    <div class="small text-muted">Phù hợp</div>
+                                    <div class="fw-bold small">Phân tích lịch</div>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="border rounded p-2">
+                                    <i class="fas fa-bullseye text-info fs-4"></i>
+                                    <div class="small text-muted">Chính xác</div>
+                                    <div class="fw-bold small">Doanh thu ngày</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- ✅ NEW: Weekly Revenue Details Section (Subsection) -->
+    {% if weekly_revenue_with_unpaid %}
+    <div class="row mt-4">
+        <div class="col-xl-8">
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-light">
+                    <h6 class="mb-0">
+                        <i class="fas fa-calendar-week me-1 text-info"></i> 
+                        Chi tiết Doanh thu theo tuần (CHỈ khách đã check-in) - 8 tuần gần nhất
+                        <small class="text-muted ms-2">
+                            <i class="fas fa-info-circle me-1"></i>Subsection of Monthly Details
+                        </small>
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle">
+                            <thead class="table-info">
+                                <tr>
+                                    <th class="border-0">
+                                        <i class="fas fa-calendar-week me-1"></i>Tuần
+                                    </th>
+                                    <th class="text-end border-0">
+                                        <i class="fas fa-check-circle me-1 text-success"></i>Đã thu
+                                    </th>
+                                    <th class="text-end border-0">
+                                        <i class="fas fa-clock me-1 text-warning"></i>Chưa thu
+                                    </th>
+                                    <th class="text-center border-0">
+                                        <i class="fas fa-users me-1 text-info"></i>Khách chưa thu
+                                    </th>
+                                    <th class="text-end border-0">
+                                        <i class="fas fa-coins me-1 text-info"></i>Tổng cộng
+                                    </th>
+                                    <th class="text-center border-0">
+                                        <i class="fas fa-percentage me-1 text-primary"></i>Tỷ lệ thu
+                                    </th>
+                                    <th class="text-center border-0">
+                                        <i class="fas fa-users me-1 text-success"></i>Tổng khách
+                                    </th>
+                                    <th class="text-end border-0">
+                                        <i class="fas fa-money-bill-wave me-1 text-info"></i>TB/khách
+                                    </th>
+                                    <th class="text-end border-0">
+                                        <i class="fas fa-coins me-1 text-warning"></i>Tổng hoa hồng
+                                    </th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for row in weekly_revenue_with_unpaid %}
+                                <tr class="border-bottom">
+                                    <td>
+                                        <div class="fw-bold text-info small">{{ row.get('Tuần', 'N/A') }}</div>
+                                    </td>
+                                    <td class="text-end">
+                                        <button class="btn btn-link fw-bold text-success p-0 border-0 bg-transparent small" 
+                                                onclick="showWeeklyGuestDetails('{{ row.get('Tuần', 'N/A') }}', 'collected', {{ row.get('Đã thu', 0) | float }})"
+                                                title="Click để xem chi tiết khách đã thu">
+                                            <i class="fas fa-eye me-1"></i>{{ "{:,.0f}".format(row.get('Đã thu', 0) | float) }}đ
+                                        </button>
+                                    </td>
+                                    <td class="text-end">
+                                        <button class="btn btn-link fw-bold text-danger p-0 border-0 bg-transparent small" 
+                                                onclick="showWeeklyGuestDetails('{{ row.get('Tuần', 'N/A') }}', 'uncollected', {{ row.get('Chưa thu', 0) | float }})"
+                                                title="Click để xem chi tiết khách chưa thu">
+                                            <i class="fas fa-eye me-1"></i>{{ "{:,.0f}".format(row.get('Chưa thu', 0) | float) }}đ
+                                        </button>
+                                    </td>
+                                    <td class="text-center">
+                                        <span class="badge bg-warning text-dark small">{{ row.get('Số khách chưa thu', 0) | int }}</span>
+                                    </td>
+                                    <td class="text-end">
+                                        <div class="fw-bold text-primary small">{{ "{:,.0f}".format((row.get('Đã thu', 0) | float) + (row.get('Chưa thu', 0) | float)) }}đ</div>
+                                    </td>
+                                    <td class="text-center">
+                                        {% set percentage = ((row.get('Đã thu', 0) | float) / ((row.get('Đã thu', 0) | float) + (row.get('Chưa thu', 0) | float)) * 100) if ((row.get('Đã thu', 0) | float) + (row.get('Chưa thu', 0) | float)) > 0 else 0 %}
+                                        <div class="progress progress-sm" style="height: 8px;">
+                                            <div class="progress-bar {% if percentage >= 90 %}bg-success{% elif percentage >= 70 %}bg-warning{% else %}bg-danger{% endif %}" 
+                                                 style="width: {{ percentage }}%"></div>
+                                        </div>
+                                        <small class="text-muted">{{ "%.1f"|format(percentage) }}%</small>
+                                    </td>
+                                    <td class="text-center">
+                                        <span class="badge bg-info text-white small">{{ row.get('Tổng khách', 0) | int }}</span>
+                                    </td>
+                                    <td class="text-end">
+                                        <div class="text-muted small">{{ "{:,.0f}".format(row.get('TB/khách', 0) | float) }}đ</div>
+                                    </td>
+                                    <td class="text-end">
+                                        <div class="text-warning fw-bold small">{{ "{:,.0f}".format(row.get('Hoa hồng', 0) | float) }}đ</div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <!-- Weekly Summary Stats -->
+                    <div class="row mt-3">
+                        <div class="col-md-3">
+                            <div class="text-center">
+                                <div class="text-success fw-bold h6">
+                                    {% set weekly_total_collected = weekly_revenue_with_unpaid | sum(attribute='Đã thu') %}
+                                    {{ "{:,.0f}".format(weekly_total_collected) }}đ
+                                </div>
+                                <small class="text-muted">Tổng đã thu (8 tuần)</small>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="text-center">
+                                <div class="text-danger fw-bold h6">
+                                    {% set weekly_total_uncollected = weekly_revenue_with_unpaid | sum(attribute='Chưa thu') %}
+                                    {{ "{:,.0f}".format(weekly_total_uncollected) }}đ
+                                </div>
+                                <small class="text-muted">Tổng chưa thu (8 tuần)</small>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="text-center">
+                                <div class="text-primary fw-bold h6">
+                                    {{ "{:,.0f}".format(weekly_total_collected + weekly_total_uncollected) }}đ
+                                </div>
+                                <small class="text-muted">Tổng doanh thu (8 tuần)</small>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="text-center">
+                                <div class="text-warning fw-bold h6">
+                                    {% set weekly_total_commission = weekly_revenue_with_unpaid | sum(attribute='Hoa hồng') %}
+                                    {{ "{:,.0f}".format(weekly_total_commission) }}đ
+                                </div>
+                                <small class="text-muted">Tổng hoa hồng (8 tuần)</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-4">
+            <div class="card shadow-sm border-primary h-100">
+                <div class="card-header bg-primary text-white">
+                    <h6 class="mb-0">
+                        <i class="fas fa-calendar-week me-1"></i>Phân tích theo tuần
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-light border-info">
+                        <h6 class="text-info"><i class="fas fa-chart-bar me-2"></i>Thống kê tuần:</h6>
+                        <div class="row text-center mb-2">
+                            <div class="col-6">
+                                <div class="border rounded p-2 bg-light">
+                                    <i class="fas fa-calendar-alt text-info fs-5"></i>
+                                    <div class="fw-bold small text-primary">8 tuần</div>
+                                    <div class="small text-muted">Gần nhất</div>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="border rounded p-2 bg-light">
+                                    <i class="fas fa-users text-success fs-5"></i>
+                                    <div class="fw-bold small text-success">Check-in</div>
+                                    <div class="small text-muted">Đã ở</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="alert alert-light border-warning">
+                        <h6 class="text-warning"><i class="fas fa-lightbulb me-2"></i>Mục đích:</h6>
+                        <ul class="mb-0 small">
+                            <li><strong>Xu hướng:</strong> Phát hiện mùa cao điểm/thấp điểm</li>
+                            <li><strong>So sánh:</strong> Hiệu suất các tuần gần đây</li>
+                            <li><strong>Dự báo:</strong> Lập kế hoạch kinh doanh</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="alert alert-light border-success">
+                        <h6 class="text-success"><i class="fas fa-trophy me-2"></i>Chỉ số quan trọng:</h6>
+                        <div class="small">
+                            <div class="d-flex justify-content-between mb-1">
+                                <span><i class="fas fa-percentage text-primary"></i> Tỷ lệ thu:</span>
+                                <span class="fw-bold">Mục tiêu >80%</span>
+                            </div>
+                            <div class="d-flex justify-content-between mb-1">
+                                <span><i class="fas fa-money-bill text-success"></i> TB/khách:</span>
+                                <span class="fw-bold">Đánh giá hiệu quả</span>
+                            </div>
+                            <div class="d-flex justify-content-between">
+                                <span><i class="fas fa-chart-line text-info"></i> Xu hướng:</span>
+                                <span class="fw-bold">Tăng/giảm theo tuần</span>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -5786,6 +6270,127 @@ function exportMonthlyGuestData() {
     alert('Chức năng xuất Excel sẽ được triển khai trong phiên bản tiếp theo');
 }
 
+// ==================== WEEKLY GUEST DETAILS FUNCTIONALITY ====================
+let currentWeeklyData = null;
+
+function showWeeklyGuestDetails(week, type, totalAmount) {
+    console.log(`🔍 [WEEKLY_MODAL] Opening details for ${week} - ${type} - ${totalAmount}đ`);
+    
+    // Reuse the monthly guest details modal but update the title
+    const modal = new bootstrap.Modal(document.getElementById('monthlyGuestDetailsModal'));
+    modal.show();
+    
+    // Update modal title for weekly data
+    document.getElementById('monthlyGuestDetailsModalLabel').innerHTML = 
+        `<i class="fas fa-calendar-week me-2"></i>Chi tiết khách ${type === 'collected' ? 'đã thu' : 'chưa thu'} - Tuần ${week}`;
+    
+    // Reset modal state
+    document.getElementById('monthlyGuestLoading').style.display = 'block';
+    document.getElementById('monthlyGuestContent').style.display = 'none';
+    document.getElementById('monthlyGuestError').style.display = 'none';
+    
+    // Store current data for retry functionality
+    currentWeeklyData = { week, type, totalAmount };
+    
+    // Fetch weekly guest details
+    fetch('/api/weekly_guest_details', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            week: week,
+            type: type
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        console.log('🔍 [WEEKLY_MODAL] API Response:', data);
+        
+        if (data.success) {
+            displayWeeklyGuestDetails(data);
+        } else {
+            showWeeklyGuestError(data.message || 'Lỗi không xác định');
+        }
+    })
+    .catch(error => {
+        console.error('🔍 [WEEKLY_MODAL] Error:', error);
+        showWeeklyGuestError('Lỗi kết nối: ' + error.message);
+    });
+}
+
+function displayWeeklyGuestDetails(data) {
+    // Hide loading and show content
+    document.getElementById('monthlyGuestLoading').style.display = 'none';
+    document.getElementById('monthlyGuestContent').style.display = 'block';
+    
+    // Update summary info
+    const guestCount = data.guests ? data.guests.length : 0;
+    const totalAmount = data.total_amount || 0;
+    const weekLabel = data.week || 'N/A';
+    const typeLabel = data.type === 'collected' ? 'đã thu' : 'chưa thu';
+    
+    // Update summary text (reuse monthly elements)
+    document.querySelector('#monthlyGuestContent .alert-info .fw-bold').innerHTML = 
+        `Tuần ${weekLabel}: ${guestCount} khách ${typeLabel} - Tổng: ${totalAmount.toLocaleString()}đ`;
+    
+    // Populate table with weekly guest data
+    const tableBody = document.getElementById('monthlyGuestTableBody');
+    tableBody.innerHTML = '';
+    
+    if (data.guests && data.guests.length > 0) {
+        data.guests.forEach((guest, index) => {
+            const row = `
+                <tr>
+                    <td>${index + 1}</td>
+                    <td>
+                        <div class="fw-bold">${guest.guest_name || 'N/A'}</div>
+                        <small class="text-muted">${guest.booking_id || 'N/A'}</small>
+                    </td>
+                    <td>
+                        <small class="text-muted">
+                            ${guest.checkin_date || 'N/A'} → ${guest.checkout_date || 'N/A'}
+                        </small>
+                    </td>
+                    <td class="text-end">
+                        <div class="fw-bold">${(guest.room_amount || 0).toLocaleString()}đ</div>
+                    </td>
+                    <td class="text-center">
+                        <span class="badge ${guest.collector === 'LOC LE' ? 'bg-success' : guest.collector === 'THAO LE' ? 'bg-primary' : 'bg-secondary'}">
+                            ${guest.collector || 'Chưa thu'}
+                        </span>
+                    </td>
+                    <td class="text-end">
+                        <div class="text-warning fw-bold">${(guest.commission || 0).toLocaleString()}đ</div>
+                    </td>
+                </tr>
+            `;
+            tableBody.innerHTML += row;
+        });
+    } else {
+        tableBody.innerHTML = `
+            <tr>
+                <td colspan="6" class="text-center text-muted py-4">
+                    <i class="fas fa-inbox me-2"></i>Không có dữ liệu cho tuần này
+                </td>
+            </tr>
+        `;
+    }
+}
+
+function showWeeklyGuestError(message) {
+    document.getElementById('monthlyGuestLoading').style.display = 'none';
+    document.getElementById('monthlyGuestContent').style.display = 'none';
+    document.getElementById('monthlyGuestError').style.display = 'block';
+    document.getElementById('monthlyGuestErrorMessage').textContent = message;
+}
+
+function retryLoadWeeklyGuests() {
+    if (currentWeeklyData) {
+        showWeeklyGuestDetails(currentWeeklyData.week, currentWeeklyData.type, currentWeeklyData.totalAmount);
+    }
+}
+
 // ==================== COLLECTOR GUEST DETAILS FUNCTIONALITY ====================
 let currentCollectorData = null;
 
@@ -6257,8 +6862,256 @@ function displaySyncErrors(data) {
     </div>
 </div>
 
-<script src="{{ url_for('static', filename='js/dashboard.js') }}">
+<!-- Daily Customer Breakdown Modal -->
+<div class="modal fade" id="dailyCustomerBreakdownModal" tabindex="-1" aria-labelledby="dailyCustomerBreakdownModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header bg-info text-white">
+                <h5 class="modal-title" id="dailyCustomerBreakdownModalLabel">
+                    <i class="fas fa-calendar-day me-2"></i>Chi tiết khách theo ngày - <span id="modalMonthTitle">Tháng</span>
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    <strong>QUAN TRỌNG - Hiểu về số lượng khách:</strong>
+                    <ul class="mb-2">
+                        <li><strong>36 khách trong tháng 6</strong> = 36 khách riêng biệt (unique customers)</li>
+                        <li><strong>KHÔNG phải</strong> 3-4 khách × 30 ngày = 90-120 khách</li>
+                        <li><strong>Vì sao?</strong> Cùng 1 khách ở nhiều đêm chỉ đếm 1 lần</li>
+                    </ul>
+                </div>
+                
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle me-2"></i>
+                    <strong>Phương pháp phân bổ theo ngày:</strong> Mỗi khách được tính vào từng ngày trong suốt thời gian lưu trú của họ.
+                    Ví dụ: Khách ở 3 đêm sẽ được tính vào 3 ngày riêng biệt (nhưng vẫn chỉ là 1 khách duy nhất).
+                </div>
+                
+                <div class="row mb-3">
+                    <div class="col-md-3">
+                        <div class="card border-success">
+                            <div class="card-body text-center">
+                                <i class="fas fa-users text-success fs-4"></i>
+                                <div class="fw-bold text-success mt-2" id="totalCustomerDays">0</div>
+                                <small class="text-muted">Tổng khách-ngày<br><span class="text-primary">(3-4/ngày × 30 ngày)</span></small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card border-info">
+                            <div class="card-body text-center">
+                                <i class="fas fa-user-friends text-info fs-4"></i>
+                                <div class="fw-bold text-info mt-2" id="uniqueCustomers">0</div>
+                                <small class="text-muted">Khách riêng biệt<br><span class="text-warning">(36 khách duy nhất)</span></small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card border-warning">
+                            <div class="card-body text-center">
+                                <i class="fas fa-calendar-alt text-warning fs-4"></i>
+                                <div class="fw-bold text-warning mt-2" id="activeDays">0</div>
+                                <small class="text-muted">Ngày có khách</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card border-primary">
+                            <div class="card-body text-center">
+                                <i class="fas fa-bed text-primary fs-4"></i>
+                                <div class="fw-bold text-primary mt-2" id="averageOccupancy">0</div>
+                                <small class="text-muted">TB khách/ngày</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="table-responsive">
+                    <table class="table table-bordered table-hover">
+                        <thead class="table-info">
+                            <tr>
+                                <th class="text-center">Ngày</th>
+                                <th class="text-center">Số khách</th>
+                                <th>Danh sách khách hàng</th>
+                                <th class="text-center">Tổng đêm ở</th>
+                            </tr>
+                        </thead>
+                        <tbody id="dailyCustomerTableBody">
+                            <!-- Content will be populated by JavaScript -->
+                        </tbody>
+                    </table>
+                </div>
+                
+                <div id="loadingIndicator" class="text-center py-4">
+                    <div class="spinner-border text-info" role="status">
+                        <span class="visually-hidden">Đang tải...</span>
+                    </div>
+                    <div class="mt-2 text-muted">Đang tải dữ liệu chi tiết...</div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <div class="me-auto text-muted small">
+                    <i class="fas fa-lightbulb me-1"></i>
+                    Phương pháp này giúp phân tích chính xác hơn số lượng khách theo từng ngày
+                </div>
+                <button type="button" class="btn btn-primary" data-bs-dismiss="modal">
+                    <i class="fas fa-times me-1"></i>Đóng
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
 
+<script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
 
+<script>
+/**
+ * Show daily customer breakdown for a specific month
+ * @param {string} month - Month in format "YYYY-MM" or "Tháng M/YYYY"
+ */
+function showDailyCustomerBreakdown(month) {
+    console.log('🔍 [DAILY_BREAKDOWN] Requested month:', month);
+    console.log('🔍 [DAILY_BREAKDOWN] Month type:', typeof month);
+    
+    // Update modal title
+    document.getElementById('modalMonthTitle').textContent = month;
+    
+    // Show modal
+    const modal = new bootstrap.Modal(document.getElementById('dailyCustomerBreakdownModal'));
+    modal.show();
+    
+    // Show loading indicator
+    document.getElementById('loadingIndicator').style.display = 'block';
+    document.getElementById('dailyCustomerTableBody').innerHTML = '';
+    
+    // Reset summary cards
+    document.getElementById('totalCustomerDays').textContent = '0';
+    document.getElementById('uniqueCustomers').textContent = '0';
+    document.getElementById('activeDays').textContent = '0';
+    document.getElementById('averageOccupancy').textContent = '0';
+    
+    // Make API call to get daily breakdown
+    fetch('/api/daily_customer_breakdown', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            month: month,
+            method: 'daily_distribution'
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        console.log('📊 [DAILY_BREAKDOWN] API Response:', data);
+        
+        if (data.success) {
+            populateDailyBreakdownTable(data.daily_data, data.summary);
+        } else {
+            showErrorInTable(data.message || 'Lỗi không xác định');
+        }
+    })
+    .catch(error => {
+        console.error('❌ [DAILY_BREAKDOWN] Error:', error);
+        showErrorInTable('Lỗi kết nối: ' + error.message);
+    })
+    .finally(() => {
+        document.getElementById('loadingIndicator').style.display = 'none';
+    });
+}
+
+/**
+ * Populate the daily breakdown table with data
+ * @param {Array} dailyData - Array of daily customer data
+ * @param {Object} summary - Summary statistics
+ */
+function populateDailyBreakdownTable(dailyData, summary) {
+    const tableBody = document.getElementById('dailyCustomerTableBody');
+    
+    // Update summary cards
+    if (summary) {
+        document.getElementById('totalCustomerDays').textContent = summary.total_customer_days || 0;
+        document.getElementById('uniqueCustomers').textContent = summary.unique_customers || 0;
+        document.getElementById('activeDays').textContent = summary.active_days || 0;
+        document.getElementById('averageOccupancy').textContent = summary.average_occupancy ? summary.average_occupancy.toFixed(1) : '0.0';
+    }
+    
+    if (!dailyData || dailyData.length === 0) {
+        tableBody.innerHTML = `
+            <tr>
+                <td colspan="4" class="text-center text-muted py-4">
+                    <i class="fas fa-calendar-times fs-3 mb-2"></i><br>
+                    Không có dữ liệu khách hàng cho tháng này
+                </td>
+            </tr>
+        `;
+        return;
+    }
+    
+    // Sort daily data by date
+    dailyData.sort((a, b) => new Date(a.date) - new Date(b.date));
+    
+    let tableHTML = '';
+    
+    dailyData.forEach(dayData => {
+        const date = new Date(dayData.date);
+        const dayName = date.toLocaleDateString('vi-VN', { weekday: 'short' });
+        const dayNumber = date.getDate();
+        const customerCount = dayData.customers ? dayData.customers.length : 0;
+        
+        tableHTML += `
+            <tr class="${customerCount > 5 ? 'table-warning' : ''}">
+                <td class="text-center">
+                    <div class="fw-bold">${dayNumber}</div>
+                    <small class="text-muted">${dayName}</small>
+                </td>
+                <td class="text-center">
+                    <span class="badge ${customerCount > 0 ? 'bg-info' : 'bg-secondary'}">${customerCount} khách</span>
+                </td>
+                <td>
+        `;
+        
+        if (dayData.customers && dayData.customers.length > 0) {
+            dayData.customers.forEach((customer, index) => {
+                const badgeClass = index % 3 === 0 ? 'bg-primary' : index % 3 === 1 ? 'bg-success' : 'bg-warning';
+                tableHTML += `
+                    <span class="badge ${badgeClass} me-1 mb-1" title="Check-in: ${customer.checkin_date}, Check-out: ${customer.checkout_date}">
+                        ${customer.guest_name}
+                    </span>
+                `;
+            });
+        } else {
+            tableHTML += '<span class="text-muted">Không có khách</span>';
+        }
+        
+        tableHTML += `
+                </td>
+                <td class="text-center">
+                    <span class="text-info fw-bold">${dayData.total_nights || 0}</span>
+                </td>
+            </tr>
+        `;
+    });
+    
+    tableBody.innerHTML = tableHTML;
+}
+
+/**
+ * Show error message in the table
+ * @param {string} message - Error message to display
+ */
+function showErrorInTable(message) {
+    const tableBody = document.getElementById('dailyCustomerTableBody');
+    tableBody.innerHTML = `
+        <tr>
+            <td colspan="4" class="text-center text-danger py-4">
+                <i class="fas fa-exclamation-triangle fs-3 mb-2"></i><br>
+                ${message}
+            </td>
+        </tr>
+    `;
+}
 </script>
 {% endblock %}

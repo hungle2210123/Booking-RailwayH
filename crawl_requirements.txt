@@ -1,0 +1,21 @@
+# Additional requirements for web crawling functionality
+# Add these to your main requirements.txt
+
+# Web scraping and browser automation
+selenium==4.15.2
+webdriver-manager==4.0.1
+
+# Async HTTP requests for Firecrawl API
+aiohttp==3.9.1
+asyncio-requests==0.1.4
+
+# Enhanced browser control
+undetected-chromedriver==3.5.4
+
+# Optional: For advanced crawling features
+scrapy==2.11.0
+playwright==1.40.0
+
+# Image processing (already in main requirements)
+# Pillow>=9.0.0
+# opencv-python>=4.5.0

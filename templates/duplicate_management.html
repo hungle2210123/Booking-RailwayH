@@ -1,0 +1,710 @@
+{% extends "base.html" %}
+{% block title %}Quản lý Khách trùng lặp{% endblock %}
+
+{% block content %}
+<style>
+.duplicate-group {
+    border: 2px solid #ffc107;
+    border-radius: 10px;
+    margin-bottom: 20px;
+    background: linear-gradient(135deg, #fff9e6 0%, #fff3cd 100%);
+}
+
+.booking-card {
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    background: #ffffff;
+    transition: all 0.3s ease;
+}
+
+.booking-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+.booking-card.selected {
+    border-color: #dc3545;
+    background: #f8d7da;
+}
+
+.comparison-table {
+    background: #f8f9fa;
+    border-radius: 8px;
+}
+
+.comparison-table td {
+    vertical-align: middle;
+    padding: 8px 12px;
+}
+
+.difference {
+    background-color: #fff3cd;
+    font-weight: bold;
+}
+
+.btn-delete-selected {
+    background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+    border: none;
+    box-shadow: 0 2px 4px rgba(220,53,69,0.3);
+}
+
+.duplicate-stats {
+    background: linear-gradient(135deg, #17a2b8 0%, #138496 100%);
+    color: white;
+    border-radius: 10px;
+}
+
+.loading-spinner {
+    display: none;
+}
+</style>
+
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <h1 class="mb-4">
+                <i class="fas fa-users me-2"></i>Quản lý Khách trùng lặp
+                <small class="text-muted">Phát hiện và xử lý booking duplicate</small>
+                <!-- Guest Filter Indicator -->
+                <div id="guest-filter-indicator" class="d-none mt-2">
+                    <span class="badge bg-primary fs-6">
+                        <i class="fas fa-filter me-1"></i>Đang lọc: <span id="filtered-guest-name"></span>
+                        <button class="btn btn-sm ms-2 p-0" onclick="clearGuestFilter()" title="Xóa bộ lọc">
+                            <i class="fas fa-times text-white"></i>
+                        </button>
+                    </span>
+                </div>
+            </h1>
+
+            <!-- Statistics Cards -->
+            <div class="row mb-4">
+                <div class="col-md-3">
+                    <div class="card duplicate-stats text-center">
+                        <div class="card-body">
+                            <i class="fas fa-exclamation-triangle fa-2x mb-2"></i>
+                            <h4 id="total-groups">0</h4>
+                            <small>Nhóm trùng lặp</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card bg-warning text-center">
+                        <div class="card-body">
+                            <i class="fas fa-user-friends fa-2x mb-2"></i>
+                            <h4 id="total-bookings">0</h4>
+                            <small>Booking trùng lặp</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card bg-info text-white text-center">
+                        <div class="card-body">
+                            <i class="fas fa-clock fa-2x mb-2"></i>
+                            <h4 id="processing-time">0s</h4>
+                            <small>Thời gian phân tích</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card bg-success text-white text-center">
+                        <div class="card-body">
+                            <i class="fas fa-check-circle fa-2x mb-2"></i>
+                            <h4 id="processed-guests">0</h4>
+                            <small>Khách đã kiểm tra</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Actions Bar -->
+            <div class="card mb-4">
+                <div class="card-body">
+                    <div class="row align-items-center">
+                        <div class="col-md-6">
+                            <button id="refresh-duplicates" class="btn btn-primary me-2">
+                                <i class="fas fa-sync me-1"></i>Làm mới phân tích
+                            </button>
+                            <button id="delete-all-selected" class="btn btn-danger btn-delete-selected me-2" disabled>
+                                <i class="fas fa-trash me-1"></i>Xóa đã chọn (<span id="selected-count">0</span>)
+                            </button>
+                            <button id="select-all-duplicates" class="btn btn-outline-secondary">
+                                <i class="fas fa-check-square me-1"></i>Chọn tất cả duplicate
+                            </button>
+                        </div>
+                        <div class="col-md-6 text-end">
+                            <div class="loading-spinner" id="loading-spinner">
+                                <div class="spinner-border text-primary me-2"></div>
+                                <span>Đang phân tích duplicates...</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Duplicate Groups Container -->
+            <div id="duplicates-container">
+                <!-- Duplicate groups will be loaded here -->
+            </div>
+
+            <!-- No Duplicates Message -->
+            <div id="no-duplicates" class="text-center py-5" style="display: none;">
+                <i class="fas fa-check-circle fa-3x text-success mb-3"></i>
+                <h4 class="text-success">Không có booking trùng lặp!</h4>
+                <p class="text-muted">Tất cả bookings trong hệ thống đều là duy nhất.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Comparison Modal -->
+<div class="modal fade" id="comparisonModal" tabindex="-1">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-balance-scale me-2"></i>So sánh chi tiết Booking
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="comparison-content">
+                <!-- Comparison content will be loaded here -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Đóng</button>
+                <button type="button" class="btn btn-danger" id="delete-from-comparison">
+                    <i class="fas fa-trash me-1"></i>Xóa booking đã chọn
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let duplicatesData = [];
+let selectedBookings = new Set();
+
+// Load duplicates on page load
+document.addEventListener('DOMContentLoaded', function() {
+    loadDuplicates();
+    
+    // Event listeners
+    document.getElementById('refresh-duplicates').addEventListener('click', loadDuplicates);
+    document.getElementById('delete-all-selected').addEventListener('click', deleteSelectedBookings);
+    document.getElementById('select-all-duplicates').addEventListener('click', selectAllDuplicates);
+});
+
+async function loadDuplicates() {
+    const spinner = document.getElementById('loading-spinner');
+    const container = document.getElementById('duplicates-container');
+    const noDataMsg = document.getElementById('no-duplicates');
+    
+    // Validate required elements exist
+    if (!spinner || !container) {
+        console.error('Required DOM elements not found for duplicate loading');
+        return;
+    }
+    
+    // Show loading state
+    spinner.style.display = 'block';
+    container.innerHTML = '';
+    if (noDataMsg) {
+        noDataMsg.style.display = 'none';
+    }
+    
+    try {
+        // Check for guest filter parameter from URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const guestFilter = urlParams.get('guest');
+        
+        // Build API URL with guest filter if provided
+        let apiUrl = '/api/duplicate_management';
+        if (guestFilter) {
+            apiUrl += `?guest=${encodeURIComponent(guestFilter)}`;
+            console.log(`🔍 Loading duplicates for guest: ${guestFilter}`);
+            
+            // Show guest filter indicator
+            showGuestFilterIndicator(guestFilter);
+        } else {
+            // Hide guest filter indicator if no filter
+            hideGuestFilterIndicator();
+        }
+        
+        const response = await fetch(apiUrl);
+        
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        
+        const result = await response.json();
+        
+        // Validate response structure
+        if (!result || typeof result !== 'object') {
+            throw new Error('Invalid response format');
+        }
+        
+        if (result.success) {
+            // Validate duplicates data
+            duplicatesData = Array.isArray(result.duplicates) ? result.duplicates : [];
+            
+            // Update statistics with error handling
+            try {
+                updateStatistics(result);
+            } catch (statsError) {
+                console.warn('Error updating statistics:', statsError);
+            }
+            
+            if (duplicatesData.length === 0) {
+                if (noDataMsg) {
+                    noDataMsg.style.display = 'block';
+                }
+            } else {
+                renderDuplicateGroups();
+            }
+        } else {
+            throw new Error(result.error || 'Failed to load duplicates');
+        }
+    } catch (error) {
+        console.error('Error loading duplicates:', error);
+        
+        // Enhanced error display
+        const errorHtml = `
+            <div class="alert alert-danger">
+                <i class="fas fa-exclamation-triangle me-2"></i>
+                <strong>Lỗi khi tải dữ liệu duplicate:</strong> ${error.message}
+                <div class="mt-2">
+                    <button class="btn btn-sm btn-outline-danger" onclick="loadDuplicates()">
+                        <i class="fas fa-redo me-1"></i>Thử lại
+                    </button>
+                </div>
+            </div>
+        `;
+        container.innerHTML = errorHtml;
+        
+        // Reset data state on error
+        duplicatesData = [];
+        selectedBookings.clear();
+        updateSelectedCount();
+        
+    } finally {
+        if (spinner) {
+            spinner.style.display = 'none';
+        }
+    }
+}
+
+function updateStatistics(result) {
+    // Add null checks for all statistics elements
+    const totalGroupsEl = document.getElementById('total-groups');
+    const processingTimeEl = document.getElementById('processing-time');
+    const processedGuestsEl = document.getElementById('processed-guests');
+    const totalBookingsEl = document.getElementById('total-bookings');
+    
+    if (totalGroupsEl) {
+        totalGroupsEl.textContent = result.total_groups || 0;
+    }
+    
+    if (processingTimeEl) {
+        processingTimeEl.textContent = (result.processing_info?.processing_time || 0).toFixed(2) + 's';
+    }
+    
+    if (processedGuestsEl) {
+        processedGuestsEl.textContent = result.processing_info?.processed_guests || 0;
+    }
+    
+    // Count total duplicate bookings
+    let totalBookings = 0;
+    if (result.duplicates && Array.isArray(result.duplicates)) {
+        result.duplicates.forEach(group => {
+            if (group.bookings && Array.isArray(group.bookings)) {
+                totalBookings += group.bookings.length;
+            }
+        });
+    }
+    
+    if (totalBookingsEl) {
+        totalBookingsEl.textContent = totalBookings;
+    }
+}
+
+function renderDuplicateGroups() {
+    const container = document.getElementById('duplicates-container');
+    const noDataMsg = document.getElementById('no-duplicates');
+    
+    if (!container) {
+        console.error('Duplicates container not found');
+        return;
+    }
+    
+    // Clear container first
+    container.innerHTML = '';
+    
+    // Enhanced data validation
+    if (!duplicatesData || !Array.isArray(duplicatesData) || duplicatesData.length === 0) {
+        if (noDataMsg) {
+            noDataMsg.style.display = 'block';
+        }
+        updateSelectedCount();
+        return;
+    }
+    
+    if (noDataMsg) {
+        noDataMsg.style.display = 'none';
+    }
+    
+    try {
+        duplicatesData.forEach((group, groupIndex) => {
+            // Validate group structure
+            if (!group || !group.guest_name || !Array.isArray(group.bookings)) {
+                console.warn(`Invalid group structure at index ${groupIndex}:`, group);
+                return; // Skip invalid groups
+            }
+        const groupHtml = `
+            <div class="duplicate-group p-4" data-group="${groupIndex}">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5 class="mb-0">
+                        <i class="fas fa-user-friends text-warning me-2"></i>
+                        ${group.guest_name}
+                        <small class="text-muted">(${group.bookings.length} bookings)</small>
+                    </h5>
+                    <div>
+                        <span class="badge bg-warning text-dark">
+                            <i class="fas fa-calendar-alt me-1"></i>
+                            Chênh lệch: ${Math.abs(group.date_difference_days)} ngày
+                        </span>
+                        <button class="btn btn-sm btn-info ms-2" onclick="showComparison(${groupIndex})">
+                            <i class="fas fa-balance-scale me-1"></i>So sánh
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="row">
+                    ${group.bookings.map((booking, bookingIndex) => `
+                        <div class="col-md-6 mb-3">
+                            <div class="booking-card p-3 ${selectedBookings.has(booking.booking_id) ? 'selected' : ''}" 
+                                 data-booking-id="${booking.booking_id}" 
+                                 onclick="toggleBookingSelection('${booking.booking_id}')">
+                                <div class="d-flex justify-content-between align-items-start mb-2">
+                                    <h6 class="mb-0">
+                                        <i class="fas fa-bookmark me-1"></i>
+                                        ${booking.booking_id}
+                                    </h6>
+                                    <div>
+                                        <input type="checkbox" class="form-check-input me-2" 
+                                               ${selectedBookings.has(booking.booking_id) ? 'checked' : ''}
+                                               onchange="toggleBookingSelection('${booking.booking_id}')">
+                                        <span class="badge ${booking.booking_status === 'confirmed' ? 'bg-success' : 'bg-warning'}">
+                                            ${booking.booking_status}
+                                        </span>
+                                    </div>
+                                </div>
+                                
+                                <div class="row text-sm">
+                                    <div class="col-6">
+                                        <strong>Check-in:</strong><br>
+                                        <i class="fas fa-calendar-check text-success"></i> ${booking.checkin_date}
+                                    </div>
+                                    <div class="col-6">
+                                        <strong>Check-out:</strong><br>
+                                        <i class="fas fa-calendar-times text-danger"></i> ${booking.checkout_date}
+                                    </div>
+                                </div>
+                                
+                                <hr class="my-2">
+                                
+                                <div class="row text-sm">
+                                    <div class="col-6">
+                                        <strong>Tổng tiền:</strong><br>
+                                        <span class="text-success fw-bold">${booking.room_amount.toLocaleString()}đ</span>
+                                    </div>
+                                    <div class="col-6">
+                                        <strong>Hoa hồng:</strong><br>
+                                        <span class="text-warning fw-bold">${booking.commission.toLocaleString()}đ</span>
+                                    </div>
+                                </div>
+                                
+                                ${booking.collected_amount > 0 ? `
+                                    <div class="mt-2">
+                                        <small class="text-success">
+                                            <i class="fas fa-check-circle"></i> 
+                                            Đã thu: ${booking.collected_amount.toLocaleString()}đ
+                                            ${booking.collector ? `(${booking.collector})` : ''}
+                                        </small>
+                                    </div>
+                                ` : ''}
+                                
+                                <div class="mt-2">
+                                    <small class="text-muted">
+                                        <i class="fas fa-clock"></i> Tạo: ${booking.created_at}
+                                    </small>
+                                </div>
+                                
+                                ${booking.booking_notes ? `
+                                    <div class="mt-2">
+                                        <small class="text-info">
+                                            <i class="fas fa-sticky-note"></i> ${booking.booking_notes}
+                                        </small>
+                                    </div>
+                                ` : ''}
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        `;
+        
+            container.innerHTML += groupHtml;
+        });
+        
+        updateSelectedCount();
+        
+    } catch (error) {
+        console.error('Error rendering duplicate groups:', error);
+        container.innerHTML = `
+            <div class="alert alert-danger">
+                <i class="fas fa-exclamation-triangle me-2"></i>
+                Lỗi khi hiển thị dữ liệu duplicate. Vui lòng thử lại.
+            </div>
+        `;
+        
+        // Reset selected count on error
+        selectedBookings.clear();
+        updateSelectedCount();
+    }
+}
+
+function toggleBookingSelection(bookingId) {
+    if (selectedBookings.has(bookingId)) {
+        selectedBookings.delete(bookingId);
+    } else {
+        selectedBookings.add(bookingId);
+    }
+    
+    // Update UI with null checks
+    const card = document.querySelector(`[data-booking-id="${bookingId}"]`);
+    if (!card) {
+        console.warn(`Booking card not found for ID: ${bookingId}`);
+        return;
+    }
+    
+    const checkbox = card.querySelector('input[type="checkbox"]');
+    if (!checkbox) {
+        console.warn(`Checkbox not found for booking ID: ${bookingId}`);
+        return;
+    }
+    
+    if (selectedBookings.has(bookingId)) {
+        card.classList.add('selected');
+        checkbox.checked = true;
+    } else {
+        card.classList.remove('selected');
+        checkbox.checked = false;
+    }
+    
+    updateSelectedCount();
+}
+
+function updateSelectedCount() {
+    const count = selectedBookings.size;
+    const selectedCountEl = document.getElementById('selected-count');
+    const deleteButtonEl = document.getElementById('delete-all-selected');
+    
+    // Add null checks to prevent errors
+    if (selectedCountEl) {
+        selectedCountEl.textContent = count;
+    }
+    if (deleteButtonEl) {
+        deleteButtonEl.disabled = count === 0;
+        deleteButtonEl.innerHTML = `<i class="fas fa-trash me-1"></i>Xóa đã chọn (${count})`;
+    }
+}
+
+function selectAllDuplicates() {
+    // Select all bookings except the first one in each group (keep the oldest)
+    duplicatesData.forEach(group => {
+        // Skip first booking (oldest), select the rest
+        for (let i = 1; i < group.bookings.length; i++) {
+            selectedBookings.add(group.bookings[i].booking_id);
+        }
+    });
+    
+    // Re-render to update selection
+    renderDuplicateGroups();
+}
+
+async function deleteSelectedBookings() {
+    if (selectedBookings.size === 0) return;
+    
+    const confirmed = confirm(`Bạn có chắc muốn xóa ${selectedBookings.size} booking đã chọn?\n\nHành động này không thể hoàn tác!`);
+    if (!confirmed) return;
+    
+    const deleteBtn = document.getElementById('delete-all-selected');
+    deleteBtn.disabled = true;
+    deleteBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Đang xóa...';
+    
+    let successCount = 0;
+    let failCount = 0;
+    
+    for (const bookingId of selectedBookings) {
+        try {
+            const response = await fetch('/api/delete_duplicate_booking', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ booking_id: bookingId })
+            });
+            
+            const result = await response.json();
+            if (result.success) {
+                successCount++;
+            } else {
+                failCount++;
+                console.error(`Failed to delete ${bookingId}:`, result.error);
+            }
+        } catch (error) {
+            failCount++;
+            console.error(`Error deleting ${bookingId}:`, error);
+        }
+    }
+    
+    // Show result
+    if (successCount > 0) {
+        alert(`✅ Đã xóa thành công ${successCount} booking!${failCount > 0 ? `\n❌ Lỗi: ${failCount} booking` : ''}`);
+        selectedBookings.clear();
+        loadDuplicates(); // Refresh data
+    } else {
+        alert('❌ Không thể xóa booking nào. Vui lòng thử lại.');
+    }
+    
+    // Reset button
+    deleteBtn.disabled = false;
+    deleteBtn.innerHTML = '<i class="fas fa-trash me-1"></i>Xóa đã chọn (0)';
+}
+
+function showComparison(groupIndex) {
+    const group = duplicatesData[groupIndex];
+    const modal = new bootstrap.Modal(document.getElementById('comparisonModal'));
+    
+    let comparisonHtml = `
+        <h6 class="mb-3">So sánh booking của: <strong>${group.guest_name}</strong></h6>
+        <div class="table-responsive">
+            <table class="table table-bordered comparison-table">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Thông tin</th>
+                        ${group.bookings.map((booking, index) => `
+                            <th class="text-center">
+                                Booking ${index + 1}<br>
+                                <small class="text-muted">${booking.booking_id}</small>
+                            </th>
+                        `).join('')}
+                    </tr>
+                </thead>
+                <tbody>
+    `;
+    
+    const fields = [
+        { key: 'checkin_date', label: 'Check-in', icon: 'calendar-check' },
+        { key: 'checkout_date', label: 'Check-out', icon: 'calendar-times' },
+        { key: 'room_amount', label: 'Tổng tiền', icon: 'money-bill', format: 'currency' },
+        { key: 'commission', label: 'Hoa hồng', icon: 'percentage', format: 'currency' },
+        { key: 'collected_amount', label: 'Đã thu', icon: 'check-circle', format: 'currency' },
+        { key: 'collector', label: 'Người thu', icon: 'user' },
+        { key: 'booking_status', label: 'Trạng thái', icon: 'info-circle' },
+        { key: 'created_at', label: 'Thời gian tạo', icon: 'clock' }
+    ];
+    
+    fields.forEach(field => {
+        const values = group.bookings.map(booking => booking[field.key] || '');
+        const hassDifference = new Set(values).size > 1;
+        
+        comparisonHtml += `
+            <tr${hassDifference ? ' class="difference"' : ''}>
+                <td><i class="fas fa-${field.icon} me-2"></i>${field.label}</td>
+                ${values.map(value => {
+                    let displayValue = value;
+                    if (field.format === 'currency' && value) {
+                        displayValue = parseFloat(value).toLocaleString() + 'đ';
+                    }
+                    return `<td class="text-center">${displayValue}</td>`;
+                }).join('')}
+            </tr>
+        `;
+    });
+    
+    comparisonHtml += `
+                </tbody>
+            </table>
+        </div>
+        
+        <div class="alert alert-info mt-3">
+            <i class="fas fa-info-circle me-2"></i>
+            <strong>Hướng dẫn:</strong> Các dòng được tô vàng cho thấy sự khác biệt giữa các booking. 
+            Bạn nên giữ lại booking có thông tin đầy đủ nhất và xóa các booking khác.
+        </div>
+        
+        <div class="mt-3">
+            <h6>Chọn booking để xóa:</h6>
+            ${group.bookings.map((booking, index) => `
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="comparison-${booking.booking_id}" 
+                           value="${booking.booking_id}">
+                    <label class="form-check-label" for="comparison-${booking.booking_id}">
+                        Booking ${index + 1}: ${booking.booking_id} - ${booking.checkin_date}
+                        ${booking.collected_amount > 0 ? ' (Đã thu tiền)' : ''}
+                    </label>
+                </div>
+            `).join('')}
+        </div>
+    `;
+    
+    document.getElementById('comparison-content').innerHTML = comparisonHtml;
+    modal.show();
+}
+
+// Delete from comparison modal
+document.getElementById('delete-from-comparison').addEventListener('click', async function() {
+    const checkedBoxes = document.querySelectorAll('#comparison-content input[type="checkbox"]:checked');
+    if (checkedBoxes.length === 0) {
+        alert('Vui lòng chọn ít nhất một booking để xóa.');
+        return;
+    }
+    
+    const bookingIds = Array.from(checkedBoxes).map(cb => cb.value);
+    const confirmed = confirm(`Bạn có chắc muốn xóa ${bookingIds.length} booking đã chọn?`);
+    if (!confirmed) return;
+    
+    // Add to selected bookings and delete
+    bookingIds.forEach(id => selectedBookings.add(id));
+    await deleteSelectedBookings();
+    
+    // Close modal
+    bootstrap.Modal.getInstance(document.getElementById('comparisonModal')).hide();
+});
+
+// Guest Filter Functions for Dashboard Integration
+function showGuestFilterIndicator(guestName) {
+    const indicator = document.getElementById('guest-filter-indicator');
+    const nameSpan = document.getElementById('filtered-guest-name');
+    
+    if (indicator && nameSpan) {
+        nameSpan.textContent = guestName;
+        indicator.classList.remove('d-none');
+        indicator.classList.add('d-block');
+    }
+}
+
+function hideGuestFilterIndicator() {
+    const indicator = document.getElementById('guest-filter-indicator');
+    if (indicator) {
+        indicator.classList.remove('d-block');
+        indicator.classList.add('d-none');
+    }
+}
+
+function clearGuestFilter() {
+    // Remove guest parameter from URL and reload
+    const url = new URL(window.location);
+    url.searchParams.delete('guest');
+    window.location.href = url.toString();
+}
+</script>
+{% endblock %}

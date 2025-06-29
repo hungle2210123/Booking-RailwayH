@@ -1,0 +1,340 @@
+/* 
+ * Comprehensive Duplicate Visual Marking System
+ * Consistent styling for duplicate indicators across all interfaces
+ */
+
+/* === DUPLICATE VISUAL INDICATORS === */
+
+/* Primary duplicate warning color scheme */
+:root {
+    --duplicate-warning-primary: #ffc107;
+    --duplicate-warning-secondary: #ff6b35;
+    --duplicate-danger: #dc3545;
+    --duplicate-bg-light: rgba(255, 193, 7, 0.1);
+    --duplicate-bg-medium: rgba(255, 193, 7, 0.2);
+    --duplicate-border: #ffc107;
+}
+
+/* === TABLE ROW DUPLICATE STYLING === */
+.duplicate-row {
+    background: linear-gradient(135deg, var(--duplicate-bg-light) 0%, var(--duplicate-bg-medium) 100%) !important;
+    border-left: 4px solid var(--duplicate-border) !important;
+    position: relative;
+    transition: all 0.3s ease;
+}
+
+.duplicate-row:hover {
+    background: var(--duplicate-bg-medium) !important;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(255, 193, 7, 0.3);
+}
+
+.duplicate-row::before {
+    content: '⚠️';
+    position: absolute;
+    left: -12px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: var(--duplicate-warning-primary);
+    color: white;
+    font-size: 10px;
+    padding: 2px 4px;
+    border-radius: 3px;
+    font-weight: bold;
+    z-index: 1;
+}
+
+/* === DUPLICATE ICONS === */
+.duplicate-icon {
+    color: var(--duplicate-danger);
+    animation: duplicatePulse 2s ease-in-out infinite;
+    margin-right: 0.5rem;
+}
+
+.duplicate-icon.subtle {
+    animation: none;
+    color: var(--duplicate-warning-primary);
+}
+
+@keyframes duplicatePulse {
+    0% { color: var(--duplicate-danger); opacity: 1; }
+    50% { color: var(--duplicate-warning-secondary); opacity: 0.7; }
+    100% { color: var(--duplicate-danger); opacity: 1; }
+}
+
+/* === DUPLICATE BADGES === */
+.duplicate-badge {
+    background: linear-gradient(135deg, var(--duplicate-warning-primary) 0%, var(--duplicate-warning-secondary) 100%);
+    color: white;
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.375rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    animation: badgePulse 3s ease-in-out infinite;
+}
+
+.duplicate-badge.critical {
+    background: linear-gradient(135deg, var(--duplicate-danger) 0%, #b91c1c 100%);
+    animation: criticalPulse 2s ease-in-out infinite;
+}
+
+@keyframes badgePulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+    100% { transform: scale(1); }
+}
+
+@keyframes criticalPulse {
+    0% { 
+        transform: scale(1); 
+        box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.4); 
+    }
+    50% { 
+        transform: scale(1.05); 
+        box-shadow: 0 0 0 4px rgba(220, 53, 69, 0.2); 
+    }
+    100% { 
+        transform: scale(1); 
+        box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.4); 
+    }
+}
+
+/* === DUPLICATE CARDS/CONTAINERS === */
+.duplicate-container {
+    border: 2px solid var(--duplicate-border);
+    border-radius: 0.5rem;
+    background: linear-gradient(135deg, var(--duplicate-bg-light) 0%, var(--duplicate-bg-medium) 100%);
+    position: relative;
+    transition: all 0.3s ease;
+}
+
+.duplicate-container:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(255, 193, 7, 0.3);
+}
+
+.duplicate-container.high-priority {
+    border-color: var(--duplicate-danger);
+    background: linear-gradient(135deg, rgba(220, 53, 69, 0.1) 0%, rgba(220, 53, 69, 0.05) 100%);
+}
+
+.duplicate-container::after {
+    content: '';
+    position: absolute;
+    top: -2px;
+    right: -2px;
+    width: 12px;
+    height: 12px;
+    background: var(--duplicate-danger);
+    border-radius: 50%;
+    animation: duplicateDot 2s ease-in-out infinite;
+}
+
+@keyframes duplicateDot {
+    0% { background: var(--duplicate-danger); opacity: 1; }
+    50% { background: var(--duplicate-warning-secondary); opacity: 0.7; }
+    100% { background: var(--duplicate-danger); opacity: 1; }
+}
+
+/* === DUPLICATE ALERTS === */
+.duplicate-alert {
+    background: linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%);
+    border: 2px solid var(--duplicate-warning-primary);
+    border-radius: 0.75rem;
+    position: relative;
+    overflow: hidden;
+}
+
+.duplicate-alert::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, var(--duplicate-warning-primary) 0%, var(--duplicate-warning-secondary) 100%);
+    animation: progressPulse 3s ease-in-out infinite;
+}
+
+@keyframes progressPulse {
+    0% { opacity: 0.8; }
+    50% { opacity: 1; }
+    100% { opacity: 0.8; }
+}
+
+/* === DUPLICATE BUTTONS === */
+.duplicate-button {
+    background: linear-gradient(135deg, var(--duplicate-warning-primary) 0%, var(--duplicate-warning-secondary) 100%);
+    border: none;
+    color: white;
+    position: relative;
+    overflow: hidden;
+    transition: all 0.3s ease;
+}
+
+.duplicate-button:hover {
+    background: linear-gradient(135deg, var(--duplicate-warning-secondary) 0%, var(--duplicate-danger) 100%);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(255, 193, 7, 0.4);
+}
+
+.duplicate-button.with-count::after {
+    content: attr(data-count);
+    position: absolute;
+    top: -8px;
+    right: -8px;
+    background: var(--duplicate-danger);
+    color: white;
+    border-radius: 50%;
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.75rem;
+    font-weight: bold;
+    animation: countPulse 2s ease-in-out infinite;
+}
+
+@keyframes countPulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.1); }
+    100% { transform: scale(1); }
+}
+
+/* === TOOLTIP ENHANCEMENTS === */
+.duplicate-tooltip {
+    background: rgba(0, 0, 0, 0.9);
+    color: white;
+    padding: 0.5rem;
+    border-radius: 0.375rem;
+    font-size: 0.875rem;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+/* === RESPONSIVE ADJUSTMENTS === */
+@media (max-width: 768px) {
+    .duplicate-row::before {
+        left: -8px;
+        font-size: 8px;
+        padding: 1px 3px;
+    }
+    
+    .duplicate-icon {
+        font-size: 0.875rem;
+    }
+    
+    .duplicate-badge {
+        font-size: 0.7rem;
+        padding: 0.2rem 0.4rem;
+    }
+    
+    .duplicate-container::after {
+        width: 10px;
+        height: 10px;
+    }
+}
+
+/* === ACCESSIBILITY ENHANCEMENTS === */
+@media (prefers-reduced-motion: reduce) {
+    .duplicate-icon,
+    .duplicate-badge,
+    .duplicate-container::after,
+    .duplicate-alert::before,
+    .duplicate-button.with-count::after {
+        animation: none;
+    }
+    
+    .duplicate-row,
+    .duplicate-container,
+    .duplicate-button {
+        transition: none;
+    }
+}
+
+/* === HIGH CONTRAST MODE === */
+@media (prefers-contrast: high) {
+    .duplicate-row {
+        border-left-width: 6px;
+        background: #fff3cd !important;
+    }
+    
+    .duplicate-icon {
+        color: #000;
+        font-weight: bold;
+    }
+    
+    .duplicate-badge {
+        background: #000;
+        color: #fff;
+    }
+    
+    .duplicate-container {
+        border-width: 3px;
+        background: #fff3cd;
+    }
+}
+
+/* === PRINT STYLES === */
+@media print {
+    .duplicate-row {
+        background: #f8f9fa !important;
+        border-left: 4px solid #000 !important;
+    }
+    
+    .duplicate-icon {
+        color: #000;
+    }
+    
+    .duplicate-badge {
+        background: #000;
+        color: #fff;
+    }
+    
+    .duplicate-container {
+        border: 2px solid #000;
+        background: #f8f9fa;
+    }
+    
+    /* Hide animations and hover effects in print */
+    .duplicate-row::before,
+    .duplicate-container::after {
+        display: none;
+    }
+}
+
+/* === UTILITY CLASSES === */
+.duplicate-hidden { display: none; }
+.duplicate-visible { display: block; }
+.duplicate-highlight { background-color: rgba(255, 193, 7, 0.3) !important; }
+.duplicate-text { color: var(--duplicate-danger); }
+.duplicate-text-warning { color: var(--duplicate-warning-primary); }
+.duplicate-bg { background-color: var(--duplicate-bg-light); }
+.duplicate-border { border-color: var(--duplicate-border); }
+
+/* === INTEGRATION CLASSES === */
+/* For Bootstrap table integration */
+.table .duplicate-row td {
+    border-top: 1px solid var(--duplicate-border);
+}
+
+/* For card integration */
+.card.duplicate-container {
+    border-color: var(--duplicate-border);
+}
+
+/* For list group integration */
+.list-group-item.duplicate-container {
+    border-color: var(--duplicate-border);
+    background: var(--duplicate-bg-light);
+}
+
+/* For navbar/navigation integration */
+.nav-link.duplicate-indicator {
+    color: var(--duplicate-warning-primary) !important;
+    font-weight: 600;
+}
+
+.nav-link.duplicate-indicator:hover {
+    color: var(--duplicate-danger) !important;
+}

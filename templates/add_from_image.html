@@ -34,14 +34,62 @@
                 <div style="width: 100px;"></div> <!-- Spacer for center alignment -->
             </div>
         </div>
-        <p>Dán (Ctrl+V) hình ảnh chứa danh sách đặt phòng vào khu vực dưới đây.</p>
-        
-        <div id="paste-area">
-            <p>🖼️ Dán hình ảnh vào đây (Ctrl+V)</p>
-            <p style="margin-top: 10px; font-size: 14px; color: #666;">
-                Hoặc <button type="button" id="file-select-btn" style="background: #007bff; color: white; border: none; padding: 5px 10px; border-radius: 3px; cursor: pointer;">📁 Chọn file ảnh</button>
-            </p>
-            <input type="file" id="file-input" accept="image/*" style="display: none;">
+        <!-- Method Selection -->
+        <div style="margin-bottom: 20px;">
+            <div style="display: flex; gap: 10px; justify-content: center;">
+                <button id="method-image" class="method-btn active" style="padding: 10px 20px; border: 2px solid #007bff; border-radius: 5px; background: #007bff; color: white; cursor: pointer;">
+                    📸 Upload Image
+                </button>
+                <button id="method-crawl" class="method-btn" style="padding: 10px 20px; border: 2px solid #007bff; border-radius: 5px; background: white; color: #007bff; cursor: pointer;">
+                    🕷️ Crawl Admin Panel
+                </button>
+            </div>
+        </div>
+
+        <!-- Image Upload Section -->
+        <div id="image-section">
+            <p>Dán (Ctrl+V) hình ảnh chứa danh sách đặt phòng vào khu vực dưới đây.</p>
+            
+            <div id="paste-area">
+                <p>🖼️ Dán hình ảnh vào đây (Ctrl+V)</p>
+                <p style="margin-top: 10px; font-size: 14px; color: #666;">
+                    Hoặc <button type="button" id="file-select-btn" style="background: #007bff; color: white; border: none; padding: 5px 10px; border-radius: 3px; cursor: pointer;">📁 Chọn file ảnh</button>
+                </p>
+                <input type="file" id="file-input" accept="image/*" style="display: none;">
+            </div>
+        </div>
+
+        <!-- Admin Panel Crawl Section -->
+        <div id="crawl-section" style="display: none;">
+            <p>🕷️ Automatically crawl and extract booking data from your Booking.com admin panel.</p>
+            
+            <div style="border: 2px solid #28a745; border-radius: 8px; padding: 20px; background-color: #f8fff8;">
+                <div style="margin-bottom: 15px;">
+                    <label style="display: block; margin-bottom: 5px; font-weight: bold;">Admin Panel URL:</label>
+                    <input type="text" id="admin-url" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;" 
+                           value="https://admin.booking.com/hotel/hoteladmin/extranet_ng/manage/search_reservations.html?upcoming_reservations=1&source=nav&hotel_id=14171449&lang=vi&reservation_status=ok&date_from=2025-07-01&date_to=2025-08-31&date_type=arrival"
+                           placeholder="Enter your Booking.com admin panel URL">
+                </div>
+                
+                <div style="margin-bottom: 15px;">
+                    <label style="display: block; margin-bottom: 5px; font-weight: bold;">Browser Profile:</label>
+                    <select id="profile-select" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+                        <option value="booking_fixed_profile">booking_fixed_profile (Default)</option>
+                        <option value="booking_manual_profile">booking_manual_profile</option>
+                    </select>
+                </div>
+                
+                <div style="text-align: center;">
+                    <button id="crawl-btn" style="background: #28a745; color: white; border: none; padding: 12px 24px; border-radius: 5px; cursor: pointer; font-size: 16px;">
+                        🕷️ Start Crawling
+                    </button>
+                </div>
+                
+                <div style="margin-top: 15px; padding: 10px; background: #e7f3ff; border-radius: 4px; font-size: 14px;">
+                    <strong>Note:</strong> Make sure you have setup your browser profile first using the profile setup scripts.
+                    If crawling fails, run <code>python fixed_profile_setup.py</code> to refresh your login profile.
+                </div>
+            </div>
         </div>
 
         <div id="results-container">
@@ -522,6 +570,101 @@
         function resetForm() {
             location.reload();
         }
+
+        // Method switching functionality
+        document.getElementById('method-image').addEventListener('click', function() {
+            // Switch to image upload method
+            document.getElementById('method-image').classList.add('active');
+            document.getElementById('method-crawl').classList.remove('active');
+            document.getElementById('method-image').style.background = '#007bff';
+            document.getElementById('method-image').style.color = 'white';
+            document.getElementById('method-crawl').style.background = 'white';
+            document.getElementById('method-crawl').style.color = '#007bff';
+            
+            document.getElementById('image-section').style.display = 'block';
+            document.getElementById('crawl-section').style.display = 'none';
+        });
+
+        document.getElementById('method-crawl').addEventListener('click', function() {
+            // Switch to crawl method
+            document.getElementById('method-crawl').classList.add('active');
+            document.getElementById('method-image').classList.remove('active');
+            document.getElementById('method-crawl').style.background = '#28a745';
+            document.getElementById('method-crawl').style.color = 'white';
+            document.getElementById('method-image').style.background = 'white';
+            document.getElementById('method-image').style.color = '#007bff';
+            
+            document.getElementById('image-section').style.display = 'none';
+            document.getElementById('crawl-section').style.display = 'block';
+        });
+
+        // Crawling functionality
+        document.getElementById('crawl-btn').addEventListener('click', async function() {
+            const adminUrl = document.getElementById('admin-url').value;
+            const profileName = document.getElementById('profile-select').value;
+            const messageBox = document.getElementById('message-box');
+            const spinner = document.getElementById('spinner');
+            const crawlBtn = document.getElementById('crawl-btn');
+
+            if (!adminUrl) {
+                messageBox.innerHTML = '<div class="error-message">❌ Please enter the admin panel URL</div>';
+                return;
+            }
+
+            // Show loading state
+            spinner.style.display = 'block';
+            crawlBtn.disabled = true;
+            crawlBtn.innerHTML = '🕷️ Crawling...';
+            messageBox.innerHTML = '<div style="color: #007bff; padding: 15px; background: #f0f8ff; border: 1px solid #007bff; border-radius: 5px;">🔍 Starting admin panel crawl... This may take 15-20 seconds.</div>';
+
+            try {
+                const response = await fetch('/api/crawl_admin_bookings', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        target_url: adminUrl,
+                        profile_name: profileName
+                    })
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    messageBox.innerHTML = `<div class="success-message">🎉 Successfully crawled ${result.bookings_count} bookings from admin panel!</div>`;
+                    
+                    if (result.bookings && result.bookings.length > 0) {
+                        // Process the crawled bookings similar to image processing
+                        const processedBookings = result.bookings.map(booking => ({
+                            guest_name: booking.guest_name,
+                            booking_id: booking.booking_id,
+                            check_in_date: booking.checkin_date,
+                            check_out_date: booking.checkout_date,
+                            room_type: booking.room_type || 'N/A',
+                            total_payment: booking.room_amount,
+                            commission: booking.commission,
+                            email: booking.email || '',
+                            phone: booking.phone || '',
+                            source: 'admin_crawl'
+                        }));
+
+                        // Check for duplicates and display results
+                        checkDuplicatesAndDisplay(processedBookings);
+                    }
+                } else {
+                    messageBox.innerHTML = `<div class="error-message">❌ Crawling failed: ${result.error}</div>`;
+                }
+
+            } catch (error) {
+                messageBox.innerHTML = `<div class="error-message">❌ Network error: ${error.message}</div>`;
+            } finally {
+                // Reset loading state
+                spinner.style.display = 'none';
+                crawlBtn.disabled = false;
+                crawlBtn.innerHTML = '🕷️ Start Crawling';
+            }
+        });
     </script>
 </body>
 </html>
