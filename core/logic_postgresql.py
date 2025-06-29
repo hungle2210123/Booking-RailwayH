@@ -694,7 +694,7 @@ def analyze_existing_duplicates(df: pd.DataFrame) -> Dict[str, List]:
     
     if df.empty:
         print("🤖 [DUPLICATE_ANALYSIS] DataFrame is empty")
-        return {'duplicate_groups': [], 'total_duplicates': 0}
+        return {'duplicate_groups': [], 'total_duplicates': 0, 'total_groups': 0}
     
     try:
         # Check required columns
@@ -703,7 +703,7 @@ def analyze_existing_duplicates(df: pd.DataFrame) -> Dict[str, List]:
         if missing_columns:
             print(f"🤖 [DUPLICATE_ANALYSIS] Missing columns: {missing_columns}")
             print(f"🤖 [DUPLICATE_ANALYSIS] Available columns: {list(df.columns)}")
-            return {'duplicate_groups': [], 'total_duplicates': 0}
+            return {'duplicate_groups': [], 'total_duplicates': 0, 'total_groups': 0}
         
         # Ensure dates are properly formatted
         df_work = df.copy()
@@ -711,13 +711,22 @@ def analyze_existing_duplicates(df: pd.DataFrame) -> Dict[str, List]:
             df_work['Check-in Date'] = pd.to_datetime(df_work['Check-in Date'])
         except Exception as date_error:
             print(f"🤖 [DUPLICATE_ANALYSIS] Date conversion error: {date_error}")
-            return {'duplicate_groups': [], 'total_duplicates': 0}
+            return {'duplicate_groups': [], 'total_duplicates': 0, 'total_groups': 0}
         
         # Filter out null values
         df_clean = df_work.dropna(subset=['Tên người đặt', 'Check-in Date'])
         
         unique_guests = df_clean['Tên người đặt'].unique()
         print(f"🤖 [DUPLICATE_ANALYSIS] Processing {len(unique_guests)} unique guests from {len(df_clean)} bookings")
+        
+        # DEBUG: Show first few guest names and their booking counts
+        guest_counts = df_clean['Tên người đặt'].value_counts()
+        multi_booking_guests = guest_counts[guest_counts > 1]
+        print(f"🤖 [DUPLICATE_ANALYSIS] Guests with multiple bookings: {len(multi_booking_guests)}")
+        if len(multi_booking_guests) > 0:
+            print(f"🤖 [DUPLICATE_ANALYSIS] Top guests with multiple bookings:")
+            for name, count in multi_booking_guests.head(5).items():
+                print(f"   - {name}: {count} bookings")
         
         duplicate_groups = []
         processed_count = 0
@@ -761,6 +770,11 @@ def analyze_existing_duplicates(df: pd.DataFrame) -> Dict[str, List]:
                         date_diff = (next_date - current_date).days
                         
                         if abs(date_diff) <= 3:
+                            # DEBUG: Log found duplicate
+                            print(f"🤖 [DUPLICATE_FOUND] Guest: {name}, Date diff: {date_diff} days")
+                            print(f"   Booking 1: {current.get('Số đặt phòng', 'N/A')} on {current_date.date()}")
+                            print(f"   Booking 2: {next_booking.get('Số đặt phòng', 'N/A')} on {next_date.date()}")
+                            
                             # Limit dictionary conversion to avoid memory issues
                             current_dict = {
                                 'Số đặt phòng': current.get('Số đặt phòng', 'N/A'),
@@ -792,6 +806,7 @@ def analyze_existing_duplicates(df: pd.DataFrame) -> Dict[str, List]:
         return {
             'duplicate_groups': duplicate_groups,
             'total_duplicates': len(duplicate_groups),
+            'total_groups': len(duplicate_groups),  # Add this for template compatibility
             'processing_time': total_time,
             'processed_guests': processed_count,
             'total_guests': len(unique_guests)
@@ -801,7 +816,7 @@ def analyze_existing_duplicates(df: pd.DataFrame) -> Dict[str, List]:
         print(f"🤖 [DUPLICATE_ANALYSIS] Error analyzing duplicates: {e}")
         import traceback
         traceback.print_exc()
-        return {'duplicate_groups': [], 'total_duplicates': 0, 'error': str(e)}
+        return {'duplicate_groups': [], 'total_duplicates': 0, 'total_groups': 0, 'error': str(e)}
 
 # ==============================================================================
 # EXPENSE MANAGEMENT

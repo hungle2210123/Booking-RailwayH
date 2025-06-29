@@ -4143,7 +4143,8 @@ async function addExpense() {
             body: JSON.stringify({
                 description: description,
                 amount: parseFloat(amount),
-                date: date
+                date: date,
+                category: selectedCategory
             }),
             signal: controller.signal
         });

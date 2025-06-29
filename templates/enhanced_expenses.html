@@ -835,9 +835,12 @@ function getCategoryDisplayName(category) {
         'maintenance': 'Bảo Trì',
         'transportation': 'Di Chuyển',
         'marketing': 'Marketing',
-        'utilities': 'Tiện Ích'
+        'utilities': 'Tiện Ích',
+        'personal': 'Cá Nhân',
+        'work': 'Công Việc',
+        'general': 'Khác'
     };
-    return names[category] || 'Khác';
+    return names[category] || 'Không phân loại';
 }
 
 function showSuccessToast(message) {

@@ -31,6 +31,9 @@ from core.dashboard_routes import process_dashboard_data, safe_to_dict_records
 # Import pure PostgreSQL database service
 from core.database_service_postgresql import init_database_service, get_database_service, DatabaseConfig
 
+# Import crawling service for authenticated web scraping
+from core.crawl_service import CrawlIntegration
+
 # Configuration
 BASE_DIR = Path(__file__).resolve().parent
 load_dotenv(BASE_DIR / ".env")
@@ -239,6 +242,19 @@ def dashboard():
     # Process all dashboard data
     processed_data = process_dashboard_data(df, start_date, end_date, sort_by, sort_order, dashboard_data)
 
+    # Add duplicate detection for dashboard integration
+    duplicate_guests = {}
+    try:
+        if not df.empty:
+            # Group by guest name and count duplicates
+            guest_counts = df.groupby('Tên người đặt').size()
+            # Only include guests with more than 1 booking
+            duplicate_guests = {name: count for name, count in guest_counts.items() if count > 1}
+            print(f"🔍 [DASHBOARD] Found {len(duplicate_guests)} guests with duplicates")
+    except Exception as e:
+        print(f"⚠️ [DASHBOARD] Error detecting duplicates: {e}")
+        duplicate_guests = {}
+
     # Render template with processed data
     return render_template(
         'dashboard.html',
@@ -249,6 +265,7 @@ def dashboard():
         current_sort_by=sort_by,
         current_sort_order=sort_order,
         collector_revenue_list=safe_to_dict_records(dashboard_data.get('collector_revenue_selected', pd.DataFrame())),
+        duplicate_guests=duplicate_guests,  # Add duplicate detection data
         **processed_data
     )
 
@@ -338,23 +355,42 @@ def view_bookings():
             print(f"   📞 Phone matches: {phone_mask.sum()}")
             print(f"   📋 Notes matches: {notes_mask.sum()}")
         
-        # Auto duplicate filter
+        # Duplicate detection and marking (NO AUTO-HIDING)
         duplicate_report = {'total_groups': 0, 'total_duplicates': 0, 'filtered_count': 0}
-        if auto_filter:
-            duplicates = analyze_existing_duplicates(filtered_df)
-            duplicate_booking_ids = set()
-            for group in duplicates['duplicate_groups']:
-                for booking in group['bookings'][1:]:  # Keep first, mark others as duplicates
-                    duplicate_booking_ids.add(booking['Số đặt phòng'])
-            
-            # Create duplicate report for template
-            duplicate_report = {
-                'total_groups': duplicates.get('total_groups', 0),
-                'total_duplicates': duplicates.get('total_duplicates', 0),
-                'filtered_count': len(duplicate_booking_ids)
-            }
-            
+        duplicate_booking_ids = set()
+        
+        # Always analyze duplicates but don't auto-filter unless specifically requested
+        duplicates = analyze_existing_duplicates(filtered_df)
+        
+        # Mark duplicate bookings for visual indication (don't hide them)
+        for group in duplicates['duplicate_groups']:
+            for booking in group['bookings'][1:]:  # Mark duplicates (keep first)
+                duplicate_booking_ids.add(booking['Số đặt phòng'])
+        
+        # Create duplicate report for template
+        duplicate_report = {
+            'total_groups': duplicates.get('total_groups', 0),
+            'total_duplicates': duplicates.get('total_duplicates', 0),
+            'filtered_count': len(duplicate_booking_ids),
+            'duplicate_booking_ids': list(duplicate_booking_ids)  # For marking in template
+        }
+        
+        # DEBUG: Log duplicate detection results
+        print(f"🔍 [DUPLICATE_DEBUG] Duplicate analysis results:")
+        print(f"   - total_groups: {duplicate_report['total_groups']}")
+        print(f"   - total_duplicates: {duplicate_report['total_duplicates']}")
+        print(f"   - filtered_count: {duplicate_report['filtered_count']}")
+        print(f"   - duplicate_booking_ids count: {len(duplicate_report['duplicate_booking_ids'])}")
+        print(f"   - duplicate_booking_ids: {duplicate_report['duplicate_booking_ids'][:5]}...")  # Show first 5
+        print(f"   - duplicates raw result keys: {list(duplicates.keys())}")
+        print(f"   - duplicates raw result: {duplicates}")
+        
+        # Only hide duplicates if auto_filter is specifically enabled AND user wants to hide duplicates
+        if auto_filter and request.args.get('hide_duplicates') == 'true':
+            print(f"🔍 [BOOKINGS] Hiding {len(duplicate_booking_ids)} duplicate bookings (user requested)")
             filtered_df = filtered_df[~filtered_df['Số đặt phòng'].isin(duplicate_booking_ids)]
+        else:
+            print(f"🔍 [BOOKINGS] Keeping {len(duplicate_booking_ids)} duplicate bookings visible for manual review")
         
         # "Only interested guests" filter - DEFAULT: Show actionable guests
         if not show_all:
@@ -584,6 +620,11 @@ def test_database_connection():
             'error': str(e),
             'message': 'Database connection failed'
         }), 500
+
+@app.route('/duplicate_management')
+def duplicate_management_page():
+    """Duplicate management interface"""
+    return render_template('duplicate_management.html')
 
 @app.route('/bookings/add', methods=['GET', 'POST'])
 def add_booking():
@@ -981,34 +1022,85 @@ def expense_categories_api():
                     'message': 'Invalid expense IDs or category'
                 }), 400
             
+            # Remove duplicates from expense_ids to prevent constraint violations
+            unique_expense_ids = list(set(expense_ids))
+            
             saved_count = 0
-            for expense_id in expense_ids:
-                # Check if categorization already exists
-                existing = ExpenseCategory.query.filter_by(expense_id=expense_id).first()
-                
-                if existing:
-                    # Update existing
-                    existing.category = category
-                    from sqlalchemy.sql import func
-                    existing.updated_at = func.current_timestamp()
-                else:
-                    # Create new
-                    new_cat = ExpenseCategory(
-                        expense_id=expense_id,
-                        category=category
+            errors = []
+            
+            # Fix sequence issue by resetting PostgreSQL auto-increment sequence first
+            from sqlalchemy import text
+            
+            try:
+                # Reset the sequence to avoid ID conflicts
+                db.session.execute(text("SELECT setval('expense_categories_id_seq', (SELECT COALESCE(MAX(id), 0) + 1 FROM expense_categories), false)"))
+                print("🔧 [SEQUENCE_FIX] Reset auto-increment sequence for expense_categories")
+            except Exception as seq_error:
+                print(f"⚠️ [SEQUENCE_WARNING] Could not reset sequence: {seq_error}")
+            
+            for expense_id in unique_expense_ids:
+                try:
+                    print(f"🔍 [UPSERT_CATEGORY] Processing expense {expense_id} → {category}")
+                    
+                    # First try to update existing record
+                    update_result = db.session.execute(
+                        text("""
+                            UPDATE expense_categories 
+                            SET category = :category, updated_at = CURRENT_TIMESTAMP 
+                            WHERE expense_id = :expense_id
+                            RETURNING id, expense_id, category
+                        """), 
+                        {"expense_id": expense_id, "category": category}
                     )
-                    db.session.add(new_cat)
-                
-                saved_count += 1
-                print(f"💾 [SAVE_CATEGORY] Expense {expense_id} → {category}")
+                    
+                    row = update_result.fetchone()
+                    if row:
+                        print(f"✅ [UPDATE_SUCCESS] Updated expense {expense_id} → {category} (Record ID: {row[0]})")
+                        saved_count += 1
+                    else:
+                        # No existing record, create new one
+                        insert_result = db.session.execute(
+                            text("""
+                                INSERT INTO expense_categories (expense_id, category, created_at, updated_at)
+                                VALUES (:expense_id, :category, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                                RETURNING id, expense_id, category
+                            """), 
+                            {"expense_id": expense_id, "category": category}
+                        )
+                        
+                        row = insert_result.fetchone()
+                        if row:
+                            print(f"✅ [INSERT_SUCCESS] Created expense {expense_id} → {category} (Record ID: {row[0]})")
+                            saved_count += 1
+                        else:
+                            errors.append(f"Expense {expense_id}: Failed to insert or update")
+                    
+                except Exception as item_error:
+                    # Simple error handling for UPSERT approach
+                    print(f"❌ [UPSERT_ERROR] Failed to process expense {expense_id}: {str(item_error)}")
+                    db.session.rollback()
+                    errors.append(f"Expense {expense_id}: {str(item_error)}")
             
-            db.session.commit()
+            # Final commit for any remaining changes
+            try:
+                db.session.commit()
+            except Exception as final_error:
+                db.session.rollback()
+                errors.append(f"Final commit failed: {str(final_error)}")
             
-            return jsonify({
-                'success': True,
-                'message': f'Saved {saved_count} categorizations successfully!',
-                'saved_count': saved_count
-            })
+            if errors:
+                return jsonify({
+                    'success': saved_count > 0,
+                    'message': f'Saved {saved_count} categorizations. Errors: {"; ".join(errors)}',
+                    'saved_count': saved_count,
+                    'errors': errors
+                }), 422 if saved_count > 0 else 500
+            else:
+                return jsonify({
+                    'success': True,
+                    'message': f'Saved {saved_count} categorizations successfully!',
+                    'saved_count': saved_count
+                })
             
     except Exception as e:
         print(f"❌ [EXPENSE_CATEGORIES] Error: {e}")
@@ -3591,6 +3683,106 @@ def get_monthly_guest_details():
         traceback.print_exc()
         return jsonify({'success': False, 'message': f'Server error: {str(e)}'}), 500
 
+@app.route('/api/weekly_guest_details', methods=['POST'])
+def get_weekly_guest_details():
+    """Get detailed guest breakdown for a specific week and collection status"""
+    try:
+        data = request.get_json()
+        week = data.get('week')  # Format: 'YYYY-W24 (MM/DD)'
+        collection_type = data.get('type')  # 'collected' or 'uncollected'
+        
+        print(f"🔍 [WEEKLY_DETAILS] Requested: {week} - {collection_type}")
+        
+        if not week or not collection_type:
+            return jsonify({'success': False, 'message': 'Missing week or type parameter'}), 400
+        
+        # Load data and filter for the specific week and checked-in guests only
+        df = load_booking_data()
+        if df.empty:
+            return jsonify({'success': True, 'guests': [], 'total_amount': 0, 'count': 0})
+        
+        # Parse week format: '2025-W26 (06/23)' -> extract year and week number
+        import re
+        week_match = re.match(r'(\d{4})-W(\d+)', week)
+        if not week_match:
+            return jsonify({'success': False, 'message': 'Invalid week format'}), 400
+        
+        year = int(week_match.group(1))
+        week_num = int(week_match.group(2))
+        
+        # Filter for specific week and checked-in guests
+        from datetime import date, timedelta
+        import pandas as pd
+        
+        today = date.today()
+        checked_in_mask = df['Check-in Date'].dt.date <= today
+        df_checked_in = df[checked_in_mask].copy()
+        
+        # Add week calculation
+        df_checked_in['Week_Start'] = df_checked_in['Check-in Date'].dt.to_period('W').dt.start_time
+        df_checked_in['Week_Label'] = df_checked_in['Week_Start'].dt.strftime('%Y-W%U (%m/%d)')
+        
+        # Filter for the specific week
+        week_mask = df_checked_in['Week_Label'] == week
+        week_df = df_checked_in[week_mask].copy()
+        
+        print(f"🔍 [WEEKLY_DETAILS] Found {len(week_df)} total guests for week {week}")
+        
+        if week_df.empty:
+            return jsonify({'success': True, 'guests': [], 'total_amount': 0, 'count': 0})
+        
+        # Filter based on collection status
+        valid_collectors = ['LOC LE', 'THAO LE']
+        if collection_type == 'collected':
+            filtered_df = week_df[week_df['Người thu tiền'].isin(valid_collectors)].copy()
+            status_label = 'đã thu'
+        else:  # uncollected
+            filtered_df = week_df[~week_df['Người thu tiền'].isin(valid_collectors)].copy()
+            status_label = 'chưa thu'
+        
+        print(f"🔍 [WEEKLY_DETAILS] Found {len(filtered_df)} guests {status_label} for week {week}")
+        
+        # Prepare guest details
+        guest_details = []
+        total_amount = 0
+        
+        for _, guest in filtered_df.iterrows():
+            amount = float(guest.get('Tổng thanh toán', 0) or 0)
+            commission = float(guest.get('Hoa hồng', 0) or 0)
+            total_amount += amount
+            
+            guest_info = {
+                'guest_name': guest.get('Tên khách', 'N/A'),
+                'booking_id': guest.get('Số đặt phòng', 'N/A'),
+                'checkin_date': guest.get('Check-in Date').strftime('%Y-%m-%d') if pd.notna(guest.get('Check-in Date')) else 'N/A',
+                'checkout_date': guest.get('Check-out Date').strftime('%Y-%m-%d') if pd.notna(guest.get('Check-out Date')) else 'N/A',
+                'room_amount': amount,
+                'commission': commission,
+                'collector': guest.get('Người thu tiền', 'Chưa thu')
+            }
+            guest_details.append(guest_info)
+        
+        # Sort by room amount (highest first)
+        guest_details.sort(key=lambda x: x['room_amount'], reverse=True)
+        
+        print(f"✅ [WEEKLY_DETAILS] Returning {len(guest_details)} guests, total: {total_amount:,.0f}đ")
+        
+        return jsonify({
+            'success': True,
+            'guests': guest_details,
+            'total_amount': total_amount,
+            'count': len(guest_details),
+            'week': week,
+            'type': collection_type,
+            'status_label': status_label
+        })
+        
+    except Exception as e:
+        print(f"❌ [WEEKLY_DETAILS] Error: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'message': f'Server error: {str(e)}'}), 500
+
 @app.route('/api/collector_guest_details', methods=['POST'])
 def get_collector_guest_details():
     """Get detailed guest breakdown for a specific collector in the current period"""
@@ -4138,6 +4330,445 @@ def api_sync_status():
             'success': False,
             'message': f'Status check failed: {str(e)}'
         }), 500
+
+# Initialize crawling integration
+CrawlIntegration.setup_crawl_routes(app)
+
+@app.route('/api/crawl_admin_bookings', methods=['POST'])
+def crawl_admin_bookings():
+    """API endpoint for crawling booking admin panel with AI extraction"""
+    try:
+        import psutil
+        import time
+        from pathlib import Path
+        from selenium import webdriver
+        from selenium.webdriver.chrome.options import Options
+        from selenium.webdriver.support.ui import WebDriverWait
+        from selenium.webdriver.support import expected_conditions as EC
+        from selenium.webdriver.common.by import By
+        
+        data = request.get_json()
+        target_url = data.get('target_url')
+        profile_name = data.get('profile_name', 'booking_fixed_profile')
+        
+        if not target_url:
+            return jsonify({'success': False, 'error': 'Target URL required'}), 400
+        
+        # Check if profile exists
+        profile_path = Path.cwd() / "browser_profiles" / profile_name
+        if not profile_path.exists():
+            return jsonify({'success': False, 'error': 'Browser profile not found. Please setup profile first.'}), 400
+        
+        GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
+        if not GOOGLE_API_KEY:
+            return jsonify({'success': False, 'error': 'Google AI API not configured'}), 400
+        
+        print(f"🕷️ Starting admin panel crawl for: {target_url}")
+        
+        # Smart Chrome cleanup using dedicated function
+        from smart_chrome_cleanup import smart_chrome_cleanup
+        smart_chrome_cleanup(profile_name)
+        
+        driver = None
+        try:
+            # Setup Chrome with saved profile
+            chrome_options = Options()
+            chrome_options.add_argument(f"--user-data-dir={profile_path}")
+            chrome_options.add_argument("--no-sandbox")
+            chrome_options.add_argument("--disable-dev-shm-usage")
+            chrome_options.add_argument("--force-device-scale-factor=1")
+            chrome_options.add_argument("--remote-debugging-port=9227")
+            
+            print("🌐 Opening browser with saved profile...")
+            driver = webdriver.Chrome(options=chrome_options)
+            
+            print(f"📍 Navigating to admin panel...")
+            driver.get(target_url)
+            time.sleep(10)
+            
+            # Check if logged in
+            if "login" in driver.current_url.lower():
+                return jsonify({'success': False, 'error': 'Profile expired - redirected to login'}), 400
+            
+            print("✅ Successfully accessed admin panel!")
+            
+            # Wait for table to load
+            try:
+                WebDriverWait(driver, 20).until(
+                    EC.presence_of_element_located((By.CSS_SELECTOR, "table, .bui-table"))
+                )
+                print("✅ Table loaded!")
+            except:
+                print("⚠️ Table not found, proceeding anyway...")
+            
+            time.sleep(5)
+            
+            # Get full page screenshot
+            total_height = driver.execute_script("return document.body.scrollHeight")
+            driver.set_window_size(1920, total_height)
+            time.sleep(2)
+            
+            print("📸 Taking full page screenshot...")
+            screenshot_base64 = driver.get_screenshot_as_base64()
+            screenshot_bytes = base64.b64decode(screenshot_base64)
+            
+            print(f"📊 Screenshot size: {len(screenshot_bytes)} bytes")
+            
+            # Process with AI
+            print("🤖 Processing with Gemini AI...")
+            booking_info = extract_booking_info_from_image_content(screenshot_bytes, GOOGLE_API_KEY)
+            
+            if 'error' in booking_info:
+                return jsonify({'success': False, 'error': booking_info['error']}), 400
+            
+            # Process AI results into standard format
+            bookings = []
+            extracted_count = 0
+            
+            if booking_info.get('type') == 'multiple' and 'bookings' in booking_info:
+                for booking in booking_info['bookings']:
+                    if booking.get('guest_name'):
+                        booking['source'] = 'admin_crawl'
+                        booking['extracted_at'] = datetime.now().isoformat()
+                        bookings.append(booking)
+                        extracted_count += 1
+            elif booking_info.get('guest_name'):
+                booking_info['source'] = 'admin_crawl'
+                booking_info['extracted_at'] = datetime.now().isoformat()
+                bookings.append(booking_info)
+                extracted_count = 1
+            
+            print(f"🎉 Successfully extracted {extracted_count} bookings!")
+            
+            return jsonify({
+                'success': True,
+                'bookings_count': extracted_count,
+                'bookings': bookings,
+                'message': f'Successfully extracted {extracted_count} bookings from admin panel'
+            })
+            
+        except Exception as e:
+            print(f"❌ Crawling error: {str(e)}")
+            return jsonify({'success': False, 'error': str(e)}), 500
+            
+        finally:
+            if driver:
+                try:
+                    driver.quit()
+                except:
+                    pass
+        
+    except Exception as e:
+        print(f"❌ [CRAWL_ADMIN] Error: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/save_bulk_bookings', methods=['POST'])
+def save_bulk_bookings():
+    """Save multiple bookings extracted from crawling"""
+    try:
+        data = request.get_json()
+        if not data or 'bookings' not in data:
+            return jsonify({'success': False, 'error': 'No bookings data provided'}), 400
+        
+        bookings = data['bookings']
+        print(f"💾 [BULK_SAVE] Attempting to save {len(bookings)} bookings...")
+        
+        saved_count = 0
+        failed_count = 0
+        skipped_count = 0
+        errors = []
+        skipped = []
+        
+        for i, booking_data in enumerate(bookings):
+            try:
+                # Validate required fields
+                if not booking_data.get('guest_name'):
+                    errors.append(f"Booking {i+1}: Missing guest name")
+                    failed_count += 1
+                    continue
+                
+                # Check if booking already exists
+                booking_id = booking_data.get('booking_id', '').strip()
+                if booking_id:
+                    from core.models import db, Booking
+                    existing_booking = db.session.query(Booking).filter_by(booking_id=booking_id).first()
+                    if existing_booking:
+                        skipped.append(f"Booking {i+1} ({booking_data.get('guest_name')}): Already exists - ID {booking_id}")
+                        skipped_count += 1
+                        print(f"⚠️ [BULK_SAVE] Booking {booking_id} already exists, skipping...")
+                        continue
+                
+                # Convert date strings to date objects
+                from datetime import datetime
+                checkin_date = None
+                checkout_date = None
+                
+                try:
+                    checkin_str = booking_data.get('check_in_date') or booking_data.get('checkin_date')
+                    if checkin_str:
+                        checkin_date = datetime.strptime(checkin_str, '%Y-%m-%d').date()
+                        
+                    checkout_str = booking_data.get('check_out_date') or booking_data.get('checkout_date')
+                    if checkout_str:
+                        checkout_date = datetime.strptime(checkout_str, '%Y-%m-%d').date()
+                        
+                except ValueError as e:
+                    errors.append(f"Booking {i+1}: Invalid date format - {str(e)}")
+                    failed_count += 1
+                    continue
+                
+                if not checkin_date or not checkout_date:
+                    errors.append(f"Booking {i+1}: Missing required check-in or check-out date")
+                    failed_count += 1
+                    continue
+                
+                # Format booking data for database
+                formatted_booking = {
+                    'guest_name': booking_data.get('guest_name', ''),
+                    'booking_id': booking_data.get('booking_id', ''),
+                    'checkin_date': checkin_date,  # Use correct field name
+                    'checkout_date': checkout_date,  # Use correct field name
+                    'room_amount': float(booking_data.get('room_amount', 0)),
+                    'commission': float(booking_data.get('commission', 0)),
+                    'taxi_amount': float(booking_data.get('taxi_amount', 0)),
+                    'email': booking_data.get('email', ''),
+                    'phone': booking_data.get('phone', ''),
+                    'notes': f"Imported from admin crawl - {booking_data.get('source', 'unknown')}"
+                }
+                
+                # Add to database using existing function (returns boolean)
+                result = add_new_booking(formatted_booking)
+                
+                if result:  # Boolean check, not dict
+                    saved_count += 1
+                    print(f"✅ [BULK_SAVE] Saved booking {i+1}: {booking_data.get('guest_name')}")
+                else:
+                    errors.append(f"Booking {i+1}: Database save failed")
+                    failed_count += 1
+                    
+            except Exception as e:
+                errors.append(f"Booking {i+1}: {str(e)}")
+                failed_count += 1
+                print(f"❌ [BULK_SAVE] Error saving booking {i+1}: {e}")
+        
+        print(f"📊 [BULK_SAVE] Results: {saved_count} saved, {skipped_count} skipped (already exist), {failed_count} failed")
+        
+        return jsonify({
+            'success': True,
+            'saved_count': saved_count,
+            'skipped_count': skipped_count,
+            'failed_count': failed_count,
+            'errors': errors,
+            'skipped': skipped,
+            'message': f'Bulk save completed: {saved_count} new bookings saved, {skipped_count} already existed, {failed_count} failed'
+        })
+        
+    except Exception as e:
+        print(f"❌ [BULK_SAVE] Critical error: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/duplicate_management', methods=['GET'])
+def duplicate_management():
+    """Get comprehensive duplicate analysis for manual review"""
+    try:
+        from core.logic_postgresql import load_booking_data, analyze_existing_duplicates
+        from core.models import db, Booking
+        
+        # Get guest filter parameter for dashboard integration
+        guest_filter = request.args.get('guest', '').strip()
+        
+        print("🔍 [DUPLICATE_MGMT] Starting comprehensive duplicate analysis...")
+        if guest_filter:
+            print(f"🔍 [DUPLICATE_MGMT] Filtering for guest: {guest_filter}")
+        
+        # Load all booking data
+        df = load_booking_data()
+        if df.empty:
+            return jsonify({'success': True, 'duplicates': [], 'total_groups': 0})
+        
+        # Get detailed duplicate analysis
+        duplicates_result = analyze_existing_duplicates(df)
+        
+        # Enhanced duplicate information with database details
+        enhanced_duplicates = []
+        
+        for group in duplicates_result.get('duplicate_groups', []):
+            # Apply guest filter if specified
+            if guest_filter and guest_filter.lower() not in group['guest_name'].lower():
+                continue
+                
+            enhanced_group = {
+                'guest_name': group['guest_name'],
+                'date_difference_days': group['date_difference_days'],
+                'bookings': []
+            }
+            
+            # Get full booking details from database
+            for booking_info in group['bookings']:
+                booking_id = booking_info.get('Số đặt phòng')
+                if booking_id:
+                    # Get full booking from database
+                    full_booking = db.session.query(Booking).filter_by(booking_id=booking_id).first()
+                    if full_booking:
+                        enhanced_booking = {
+                            'booking_id': full_booking.booking_id,
+                            'guest_name': full_booking.guest_name,
+                            'checkin_date': full_booking.checkin_date.strftime('%Y-%m-%d') if full_booking.checkin_date else 'N/A',
+                            'checkout_date': full_booking.checkout_date.strftime('%Y-%m-%d') if full_booking.checkout_date else 'N/A',
+                            'room_amount': float(full_booking.room_amount or 0),
+                            'commission': float(full_booking.commission or 0),
+                            'taxi_amount': float(full_booking.taxi_amount or 0),
+                            'collected_amount': float(full_booking.collected_amount or 0),
+                            'collector': full_booking.collector or '',
+                            'booking_status': full_booking.booking_status,
+                            'booking_notes': full_booking.booking_notes or '',
+                            'created_at': full_booking.created_at.strftime('%Y-%m-%d %H:%M:%S') if full_booking.created_at else 'N/A'
+                        }
+                        enhanced_group['bookings'].append(enhanced_booking)
+            
+            # Only include groups with multiple bookings
+            if len(enhanced_group['bookings']) > 1:
+                enhanced_duplicates.append(enhanced_group)
+        
+        print(f"🔍 [DUPLICATE_MGMT] Found {len(enhanced_duplicates)} duplicate groups")
+        
+        return jsonify({
+            'success': True,
+            'duplicates': enhanced_duplicates,
+            'total_groups': len(enhanced_duplicates),
+            'processing_info': {
+                'total_guests': duplicates_result.get('total_guests', 0),
+                'processed_guests': duplicates_result.get('processed_guests', 0),
+                'processing_time': duplicates_result.get('processing_time', 0)
+            }
+        })
+        
+    except Exception as e:
+        print(f"❌ [DUPLICATE_MGMT] Error: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/delete_duplicate_booking', methods=['POST'])
+def delete_duplicate_booking():
+    """Delete a specific booking from a duplicate group"""
+    try:
+        data = request.get_json()
+        booking_id = data.get('booking_id')
+        
+        if not booking_id:
+            return jsonify({'success': False, 'error': 'Booking ID required'}), 400
+        
+        print(f"🗑️ [DELETE_DUPLICATE] Attempting to delete booking: {booking_id}")
+        
+        # Use existing delete function
+        success = delete_booking_by_id(booking_id)
+        
+        if success:
+            print(f"✅ [DELETE_DUPLICATE] Successfully deleted booking: {booking_id}")
+            return jsonify({'success': True, 'message': f'Deleted booking {booking_id}'})
+        else:
+            return jsonify({'success': False, 'error': 'Failed to delete booking'}), 400
+            
+    except Exception as e:
+        print(f"❌ [DELETE_DUPLICATE] Error: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/revenue_calculation_comparison', methods=['GET'])
+def revenue_calculation_comparison():
+    """
+    API endpoint to compare traditional vs daily distribution revenue calculation methods
+    
+    Query parameters:
+    - method: 'traditional', 'daily_distribution', or 'both' (default: 'both')
+    - months: number of months to analyze (default: 6)
+    """
+    try:
+        from core.dashboard_routes import process_monthly_revenue_with_unpaid_enhanced, calculate_revenue_optimized_dual_method
+        from core.logic_postgresql import load_booking_data
+        
+        # Get parameters
+        method = request.args.get('method', 'both')
+        months = int(request.args.get('months', 6))
+        
+        print(f"🔍 [REVENUE_COMPARISON] Method: {method}, Months: {months}")
+        
+        # Load booking data
+        df = load_booking_data()
+        
+        if df.empty:
+            return jsonify({
+                'success': False,
+                'error': 'No booking data available',
+                'data': {}
+            })
+        
+        result = {
+            'success': True,
+            'comparison_date': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+            'total_bookings': len(df),
+            'analysis_months': months,
+            'methods': {}
+        }
+        
+        if method in ['traditional', 'both']:
+            print("💰 [REVENUE_COMPARISON] Calculating traditional method...")
+            traditional_data = process_monthly_revenue_with_unpaid_enhanced(
+                df, use_daily_distribution=False
+            )
+            result['methods']['traditional'] = {
+                'name': 'Traditional Method (Current)',
+                'description': 'Groups bookings by check-in month, counts full booking amount in that month',
+                'data': traditional_data[-months:] if traditional_data else [],
+                'total_months': len(traditional_data) if traditional_data else 0
+            }
+        
+        if method in ['daily_distribution', 'both']:
+            print("📅 [REVENUE_COMPARISON] Calculating daily distribution method...")
+            daily_data = process_monthly_revenue_with_unpaid_enhanced(
+                df, use_daily_distribution=True
+            )
+            result['methods']['daily_distribution'] = {
+                'name': 'Daily Distribution Method (New)',
+                'description': 'Divides booking amounts across each night of stay, more accurate for monthly totals',
+                'data': daily_data[-months:] if daily_data else [],
+                'total_months': len(daily_data) if daily_data else 0
+            }
+        
+        if method == 'both':
+            print("🔍 [REVENUE_COMPARISON] Creating detailed comparison...")
+            dual_results = calculate_revenue_optimized_dual_method(df)
+            result['detailed_comparison'] = dual_results.get('comparison_summary', {})
+            
+            # Calculate summary statistics
+            traditional_total = sum([month.get('Tổng cộng', 0) for month in result['methods']['traditional']['data']])
+            daily_total = sum([month.get('Tổng cộng', 0) for month in result['methods']['daily_distribution']['data']])
+            
+            result['summary'] = {
+                'traditional_total_revenue': traditional_total,
+                'daily_distribution_total_revenue': daily_total,
+                'difference_amount': abs(traditional_total - daily_total),
+                'difference_percent': (abs(traditional_total - daily_total) / max(traditional_total, daily_total) * 100) if max(traditional_total, daily_total) > 0 else 0,
+                'recommendation': 'Daily distribution method provides more accurate monthly revenue distribution, especially for multi-night stays'
+            }
+        
+        print(f"✅ [REVENUE_COMPARISON] Comparison completed successfully")
+        return jsonify(result)
+        
+    except Exception as e:
+        print(f"❌ [REVENUE_COMPARISON] Error: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'data': {}
+        }), 500
+
+@app.route('/revenue_comparison_test')
+def revenue_comparison_test():
+    """Test page to demonstrate dual revenue calculation methods"""
+    return render_template('revenue_comparison_test.html')
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
