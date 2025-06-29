@@ -51,29 +51,39 @@ print(f"🔍 DATABASE_URL detected: {database_url[:50] if database_url else 'Non
 
 # Railway PostgreSQL connection validation
 if not database_url or database_url == 'None' or len(database_url.strip()) == 0:
-    print("🚨 RAILWAY POSTGRESQL NOT CONFIGURED!")
+    print("🚨 POSTGRESQL NOT CONFIGURED!")
     print("   📍 Current environment variables:")
     for key in sorted(os.environ.keys()):
         if 'DATABASE' in key or 'POSTGRES' in key:
             print(f"      {key}: {os.environ[key][:30]}...")
     print("")
-    print("   🛠️ Railway Setup Steps:")
-    print("   1. Go to Railway dashboard → Your project")
-    print("   2. Click 'New' → 'Database' → 'PostgreSQL'") 
-    print("   3. Go to Web Service → Variables tab")
-    print("   4. Add variable: DATABASE_URL = ${{Postgres.DATABASE_URL}}")
-    print("   5. Click 'Deploy' and wait for redeploy")
-    print("")
     print("🔧 FALLBACK: Using SQLite to prevent crash...")
     database_url = "sqlite:///fallback.db"
 elif database_url.startswith('postgresql://'):
-    print("✅ RAILWAY POSTGRESQL DETECTED!")
-    print(f"   🏗️ Database host: {database_url.split('@')[1].split('/')[0] if '@' in database_url else 'unknown'}")
-    print("   🚀 Application will use PostgreSQL database")
+    print("✅ POSTGRESQL DETECTED!")
+    try:
+        # Extract host from URL for display
+        if '@' in database_url:
+            host_part = database_url.split('@')[1].split('/')[0] if '/' in database_url.split('@')[1] else database_url.split('@')[1]
+            print(f"   🏗️ Database host: {host_part}")
+        print("   🚀 Application will use PostgreSQL database")
+        
+        # Validate URL format by attempting to parse it
+        from urllib.parse import urlparse
+        parsed = urlparse(database_url)
+        if not all([parsed.scheme, parsed.netloc, parsed.username, parsed.password]):
+            raise ValueError("Invalid PostgreSQL URL format")
+        
+    except Exception as url_error:
+        print(f"⚠️ POSTGRESQL URL VALIDATION FAILED: {url_error}")
+        print(f"   URL: {database_url[:50]}...")
+        print("   🔧 USING FALLBACK SQLite...")
+        database_url = "sqlite:///fallback.db"
 else:
     print(f"⚠️ UNEXPECTED DATABASE_URL FORMAT: {database_url[:50]}...")
     print("   Expected: postgresql://user:pass@host:port/dbname")
-    print("   🔧 Proceeding with provided URL...")
+    print("   🔧 USING FALLBACK SQLite...")
+    database_url = "sqlite:///fallback.db"
 
 try:
     app.config['SQLALCHEMY_DATABASE_URI'] = database_url
@@ -5325,6 +5335,255 @@ def fix_quicknotes_constraint():
 def revenue_comparison_test():
     """Test page to demonstrate dual revenue calculation methods"""
     return render_template('revenue_comparison_test.html')
+
+
+@app.route('/railway_sync')
+def railway_sync_page():
+    """Railway sync management page"""
+    railway_url = os.getenv('RAILWAY_DATABASE_URL')
+    return render_template('railway_sync.html', railway_url=railway_url)
+
+@app.route('/api/railway_sync', methods=['POST', 'GET'])
+def railway_sync():
+    """API endpoint to sync data from current database to Railway"""
+    try:
+        import psycopg2
+        from sqlalchemy import create_engine, text
+        import pandas as pd
+        
+        # Get Railway database URL
+        railway_url = os.getenv('RAILWAY_DATABASE_URL')
+        if not railway_url:
+            return jsonify({
+                'success': False,
+                'message': 'RAILWAY_DATABASE_URL not configured in environment variables'
+            }), 400
+        
+        print(f"🔍 Railway URL: {railway_url[:50]}...")
+        
+        # Test Railway connection
+        print("🔌 Testing Railway connection...")
+        railway_engine = create_engine(railway_url)
+        
+        with railway_engine.connect() as conn:
+            result = conn.execute(text("SELECT version()"))
+            version = result.fetchone()[0]
+            print(f"✅ Railway connection successful!")
+        
+        # Get current database data
+        current_engine = create_engine(app.config['SQLALCHEMY_DATABASE_URI'])
+        
+        sync_results = {}
+        
+        # Create Railway schema
+        with railway_engine.connect() as railway_conn:
+            print("🏗️ Creating Railway schema...")
+            
+            schema_sql = """
+            -- Drop existing tables to recreate with correct structure
+            DROP TABLE IF EXISTS bookings CASCADE;
+            DROP TABLE IF EXISTS quick_notes CASCADE;
+            DROP TABLE IF EXISTS expenses CASCADE;
+            DROP TABLE IF EXISTS message_templates CASCADE;
+            DROP TABLE IF EXISTS guests CASCADE;
+            
+            -- Guests table
+            CREATE TABLE guests (
+                guest_id SERIAL PRIMARY KEY,
+                guest_name VARCHAR(255) NOT NULL,
+                email VARCHAR(255),
+                phone VARCHAR(50),
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+            
+            -- Bookings table (simplified structure matching your data)
+            CREATE TABLE bookings (
+                booking_id SERIAL PRIMARY KEY,
+                guest_name VARCHAR(255) NOT NULL,
+                checkin_date DATE,
+                checkout_date DATE,
+                room_amount DECIMAL(12, 2) DEFAULT 0.00,
+                taxi_amount DECIMAL(12, 2) DEFAULT 0.00,
+                commission DECIMAL(12, 2) DEFAULT 0.00,
+                collected_amount DECIMAL(12, 2) DEFAULT 0.00,
+                collector VARCHAR(100),
+                booking_status VARCHAR(50) DEFAULT 'active',
+                booking_notes TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                arrival_confirmed BOOLEAN DEFAULT FALSE,
+                arrival_confirmed_at TIMESTAMP NULL
+            );
+            
+            -- Quick notes table
+            CREATE TABLE quick_notes (
+                note_id SERIAL PRIMARY KEY,
+                note_type VARCHAR(50) NOT NULL,
+                note_content TEXT NOT NULL,
+                is_completed BOOLEAN DEFAULT FALSE,
+                completed_at TIMESTAMP NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                created_by VARCHAR(255)
+            );
+            
+            -- Expenses table
+            CREATE TABLE expenses (
+                expense_id SERIAL PRIMARY KEY,
+                description TEXT NOT NULL,
+                amount DECIMAL(10, 2) NOT NULL,
+                expense_date DATE DEFAULT CURRENT_DATE,
+                category VARCHAR(100),
+                collector VARCHAR(100),
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+            
+            -- Message templates table
+            CREATE TABLE message_templates (
+                template_id SERIAL PRIMARY KEY,
+                template_name VARCHAR(255) NOT NULL,
+                category VARCHAR(100) DEFAULT 'General',
+                template_content TEXT NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+            
+            -- Arrival times table
+            CREATE TABLE IF NOT EXISTS arrival_times (
+                arrival_id SERIAL PRIMARY KEY,
+                booking_id INTEGER,
+                guest_name VARCHAR(255),
+                arrival_date DATE,
+                arrival_time TIME,
+                status VARCHAR(50) DEFAULT 'pending',
+                notes TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+            
+            -- Expense categories table
+            CREATE TABLE IF NOT EXISTS expense_categories (
+                category_id SERIAL PRIMARY KEY,
+                expense_id INTEGER,
+                category VARCHAR(100) NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+            """
+            
+            railway_conn.execute(text(schema_sql))
+            railway_conn.commit()
+            print("✅ Railway schema created!")
+        
+        # Transfer data table by table
+        tables_to_sync = [
+            ('bookings', ['guest_name', 'checkin_date', 'checkout_date', 'room_amount', 'taxi_amount', 'commission', 'collected_amount', 'collector', 'booking_status', 'booking_notes', 'created_at', 'updated_at', 'arrival_confirmed', 'arrival_confirmed_at']),
+            ('quick_notes', ['note_type', 'note_content', 'is_completed', 'completed_at', 'created_at', 'created_by']),
+            ('expenses', ['description', 'amount', 'expense_date', 'category', 'collector', 'created_at']),
+            ('message_templates', ['template_name', 'category', 'template_content', 'created_at', 'updated_at']),
+            ('arrival_times', ['booking_id', 'guest_name', 'arrival_date', 'arrival_time', 'status', 'notes', 'created_at', 'updated_at']),
+            ('expense_categories', ['expense_id', 'category', 'created_at', 'updated_at'])
+        ]
+        
+        for table_name, columns in tables_to_sync:
+            try:
+                print(f"📦 Transferring {table_name}...")
+                
+                # Get data from current database
+                with current_engine.connect() as current_conn:
+                    # Get available columns
+                    check_query = f"SELECT column_name FROM information_schema.columns WHERE table_name = '{table_name}'"
+                    available_cols = current_conn.execute(text(check_query)).fetchall()
+                    available_columns = [col[0] for col in available_cols]
+                    
+                    # Filter columns to only those that exist
+                    valid_columns = [col for col in columns if col in available_columns]
+                    
+                    if not valid_columns:
+                        print(f"   ⚠️ No valid columns found for {table_name}")
+                        continue
+                    
+                    # Read data
+                    cols_str = ', '.join(valid_columns)
+                    query = f"SELECT {cols_str} FROM {table_name}"
+                    df = pd.read_sql_query(query, current_conn)
+                    
+                    print(f"   📤 Found {len(df)} records")
+                    
+                    if df.empty:
+                        sync_results[table_name] = {'transferred': 0, 'success': True}
+                        continue
+                
+                # Insert into Railway
+                with railway_engine.connect() as railway_conn:
+                    # Clear table
+                    railway_conn.execute(text(f"TRUNCATE TABLE {table_name} RESTART IDENTITY CASCADE"))
+                    
+                    # Insert data row by row to handle NULLs properly
+                    inserted_count = 0
+                    for _, row in df.iterrows():
+                        # Prepare values, handling NaN/None
+                        values = []
+                        for col in valid_columns:
+                            val = row[col]
+                            if pd.isna(val) or val is None or str(val) == 'NaT':
+                                values.append(None)
+                            else:
+                                values.append(val)
+                        
+                        # Create insert query
+                        placeholders = ', '.join([':val' + str(i) for i in range(len(values))])
+                        cols_str = ', '.join(valid_columns)
+                        query = f"INSERT INTO {table_name} ({cols_str}) VALUES ({placeholders})"
+                        
+                        # Create parameter dict
+                        params = {f'val{i}': val for i, val in enumerate(values)}
+                        
+                        railway_conn.execute(text(query), params)
+                        inserted_count += 1
+                    
+                    railway_conn.commit()
+                    print(f"   ✅ Transferred {inserted_count} records")
+                    
+                    sync_results[table_name] = {
+                        'transferred': inserted_count,
+                        'success': True
+                    }
+                    
+            except Exception as table_error:
+                print(f"   ❌ Failed to transfer {table_name}: {table_error}")
+                sync_results[table_name] = {
+                    'transferred': 0,
+                    'success': False,
+                    'error': str(table_error)
+                }
+        
+        # Calculate summary
+        total_transferred = sum(result.get('transferred', 0) for result in sync_results.values())
+        successful_tables = sum(1 for result in sync_results.values() if result.get('success', False))
+        total_tables = len(sync_results)
+        
+        overall_success = successful_tables == total_tables and total_transferred > 0
+        
+        return jsonify({
+            'success': overall_success,
+            'message': f"Sync completed! {successful_tables}/{total_tables} tables successful, {total_transferred} total records transferred",
+            'details': sync_results,
+            'summary': {
+                'total_transferred': total_transferred,
+                'successful_tables': successful_tables,
+                'total_tables': total_tables
+            }
+        })
+        
+    except Exception as e:
+        print(f"❌ Railway sync error: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            'success': False,
+            'message': f'Railway sync failed: {str(e)}'
+        }), 500
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
