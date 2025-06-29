@@ -50,20 +50,40 @@ database_url = os.getenv('DATABASE_URL')
 print(f"🔍 DATABASE_URL detected: {database_url[:50] if database_url else 'None'}...")
 print(f"🔍 Full DATABASE_URL length: {len(database_url) if database_url else 0} characters")
 
+# Also check for Railway's native PostgreSQL service
+railway_postgres_url = os.getenv('POSTGRES_URL') or os.getenv('RAILWAY_POSTGRES_URL')
+if railway_postgres_url:
+    print(f"🔍 Railway POSTGRES_URL found: {railway_postgres_url[:50]}...")
+    if not database_url or 'DATABASE_URL = ' in database_url:
+        print("🔧 Using Railway's native PostgreSQL URL instead...")
+        database_url = railway_postgres_url
+
 # Fix common Railway environment variable issues
 if database_url:
+    print(f"🔍 Raw DATABASE_URL: {database_url}")
+    
     # Remove "DATABASE_URL=" or "DATABASE_URL = " prefix if it exists (common Railway config error)
     if database_url.startswith('DATABASE_URL'):
         print("🔧 Fixing DATABASE_URL prefix issue...")
         # Handle both "DATABASE_URL=" and "DATABASE_URL = " formats
         if database_url.startswith('DATABASE_URL = '):
-            database_url = database_url.replace('DATABASE_URL = ', '')
+            database_url = database_url.replace('DATABASE_URL = ', '', 1)
         elif database_url.startswith('DATABASE_URL='):
-            database_url = database_url.replace('DATABASE_URL=', '')
-        print(f"🔧 Cleaned URL: {database_url[:50]}...")
+            database_url = database_url.replace('DATABASE_URL=', '', 1)
+        print(f"🔧 After prefix removal: {database_url[:50]}...")
     
     # Remove any quotes that might be added
+    original_url = database_url
     database_url = database_url.strip('\'"')
+    if original_url != database_url:
+        print(f"🔧 Removed quotes: {database_url[:50]}...")
+    
+    # Final validation
+    if database_url:
+        print(f"🔧 Final cleaned URL: {database_url[:50]}...")
+        print(f"🔧 Final URL length: {len(database_url)} characters")
+    else:
+        print("❌ URL became empty after cleaning!")
 
 # Debug: Check if URL is being truncated
 if database_url and len(database_url) < 90:  # Expected length is ~92 characters
