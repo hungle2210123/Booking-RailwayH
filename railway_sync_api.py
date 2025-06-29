@@ -111,7 +111,9 @@ def import_csv_to_table(host, port, user, database, password, table, filename):
 @sync_bp.route('/sync_dashboard')
 def sync_dashboard():
     """Render sync dashboard page"""
-    return render_template('sync_dashboard.html')
+    import os
+    current_source = os.getenv('DATABASE_SOURCE', 'auto')
+    return render_template('sync_dashboard.html', current_database_source=current_source)
 
 @sync_bp.route('/api/test_connections', methods=['POST'])
 def test_connections():
@@ -338,6 +340,91 @@ def sync_railway_to_local():
         results['success'] = results['summary']['successful_imports'] >= 2
         
         return jsonify(results)
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@sync_bp.route('/api/switch_database', methods=['POST'])
+def switch_database():
+    """Switch database source"""
+    try:
+        data = request.get_json()
+        source = data.get('source', '').lower()
+        
+        if source not in ['local', 'railway', 'auto']:
+            return jsonify({'success': False, 'error': 'Invalid source. Use: local, railway, or auto'}), 400
+        
+        # Update .env file
+        env_file = Path('.env')
+        if not env_file.exists():
+            return jsonify({'success': False, 'error': '.env file not found'}), 500
+        
+        # Read current .env content
+        with open(env_file, 'r') as f:
+            lines = f.readlines()
+        
+        # Update DATABASE_SOURCE line
+        updated = False
+        for i, line in enumerate(lines):
+            if line.startswith('DATABASE_SOURCE='):
+                lines[i] = f'DATABASE_SOURCE={source}\n'
+                updated = True
+                break
+        
+        if not updated:
+            # Add DATABASE_SOURCE if not found
+            lines.append(f'DATABASE_SOURCE={source}\n')
+        
+        # Write updated content
+        with open(env_file, 'w') as f:
+            f.writelines(lines)
+        
+        return jsonify({
+            'success': True, 
+            'message': f'Switched to {source.upper()} database',
+            'restart_required': True
+        })
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@sync_bp.route('/api/get_database_status', methods=['GET'])
+def get_database_status():
+    """Get current database configuration status"""
+    try:
+        import os
+        from dotenv import load_dotenv
+        load_dotenv()
+        
+        source = os.getenv('DATABASE_SOURCE', 'auto')
+        local_url = os.getenv('LOCAL_DATABASE_URL')
+        railway_url = os.getenv('RAILWAY_DATABASE_URL')
+        current_url = os.getenv('DATABASE_URL')
+        
+        # Determine which database is actually being used
+        active_database = 'unknown'
+        if current_url:
+            if 'localhost' in current_url:
+                active_database = 'local'
+            elif 'railway' in current_url or 'mainline.proxy.rlwy.net' in current_url:
+                active_database = 'railway'
+            else:
+                active_database = 'external'
+        
+        return jsonify({
+            'success': True,
+            'current_source': source,
+            'active_database': active_database,
+            'available': {
+                'local': bool(local_url),
+                'railway': bool(railway_url)
+            },
+            'urls': {
+                'local': local_url[:50] + '...' if local_url else None,
+                'railway': railway_url[:50] + '...' if railway_url else None,
+                'current': current_url[:50] + '...' if current_url else None
+            }
+        })
         
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500

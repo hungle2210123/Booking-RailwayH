@@ -49,6 +49,39 @@
                     </a>
                 </div>
                 
+                <!-- Database Selector -->
+                <div class="row mb-4">
+                    <div class="col-12">
+                        <div class="card border-primary">
+                            <div class="card-header bg-primary text-white">
+                                <h5><i class="fas fa-database me-2"></i>Database Source Selection</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="row align-items-center">
+                                    <div class="col-md-6">
+                                        <p class="mb-2"><strong>Current Source:</strong> <span id="currentSource" class="badge bg-secondary">Loading...</span></p>
+                                        <p class="mb-0"><strong>Active Database:</strong> <span id="activeDatabase" class="badge bg-info">Loading...</span></p>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="btn-group w-100" role="group">
+                                            <button type="button" class="btn btn-outline-primary" id="switchLocal">
+                                                <i class="fas fa-home me-1"></i>Local
+                                            </button>
+                                            <button type="button" class="btn btn-outline-success" id="switchRailway">
+                                                <i class="fas fa-cloud me-1"></i>Railway
+                                            </button>
+                                            <button type="button" class="btn btn-outline-secondary" id="switchAuto">
+                                                <i class="fas fa-magic me-1"></i>Auto
+                                            </button>
+                                        </div>
+                                        <small class="text-muted mt-2 d-block">⚠️ Switching requires app restart</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
                 <!-- Connection Status -->
                 <div class="row mb-4">
                     <div class="col-md-6">
@@ -153,7 +186,9 @@
         
         // Test connections on page load
         document.addEventListener('DOMContentLoaded', function() {
+            loadDatabaseStatus();
             testConnections();
+            setupDatabaseSwitchers();
         });
         
         async function testConnections() {
@@ -267,6 +302,146 @@
             
             // Refresh connection status
             setTimeout(testConnections, 1000);
+        }
+        
+        // Database Source Management
+        async function loadDatabaseStatus() {
+            try {
+                const response = await fetch('/api/get_database_status');
+                const result = await response.json();
+                
+                if (result.success) {
+                    updateDatabaseStatus(result);
+                } else {
+                    console.error('Failed to load database status:', result.error);
+                }
+            } catch (error) {
+                console.error('Error loading database status:', error);
+            }
+        }
+        
+        function updateDatabaseStatus(status) {
+            // Update current source display
+            const sourceElement = document.getElementById('currentSource');
+            sourceElement.textContent = status.current_source.toUpperCase();
+            sourceElement.className = `badge bg-${getSourceColor(status.current_source)}`;
+            
+            // Update active database display
+            const activeElement = document.getElementById('activeDatabase');
+            activeElement.textContent = status.active_database.toUpperCase();
+            activeElement.className = `badge bg-${getDatabaseColor(status.active_database)}`;
+            
+            // Update button states
+            updateButtonStates(status.current_source);
+        }
+        
+        function getSourceColor(source) {
+            switch(source) {
+                case 'local': return 'primary';
+                case 'railway': return 'success';
+                case 'auto': return 'secondary';
+                default: return 'dark';
+            }
+        }
+        
+        function getDatabaseColor(database) {
+            switch(database) {
+                case 'local': return 'primary';
+                case 'railway': return 'success';
+                default: return 'warning';
+            }
+        }
+        
+        function updateButtonStates(currentSource) {
+            // Reset all buttons
+            document.getElementById('switchLocal').className = 'btn btn-outline-primary';
+            document.getElementById('switchRailway').className = 'btn btn-outline-success';
+            document.getElementById('switchAuto').className = 'btn btn-outline-secondary';
+            
+            // Highlight active button
+            switch(currentSource) {
+                case 'local':
+                    document.getElementById('switchLocal').className = 'btn btn-primary';
+                    break;
+                case 'railway':
+                    document.getElementById('switchRailway').className = 'btn btn-success';
+                    break;
+                case 'auto':
+                    document.getElementById('switchAuto').className = 'btn btn-secondary';
+                    break;
+            }
+        }
+        
+        function setupDatabaseSwitchers() {
+            document.getElementById('switchLocal').addEventListener('click', () => switchDatabase('local'));
+            document.getElementById('switchRailway').addEventListener('click', () => switchDatabase('railway'));
+            document.getElementById('switchAuto').addEventListener('click', () => switchDatabase('auto'));
+        }
+        
+        async function switchDatabase(source) {
+            if (syncInProgress) return;
+            
+            const sourceNames = {
+                'local': 'Local PostgreSQL (your 76 bookings)',
+                'railway': 'Railway PostgreSQL (production)',
+                'auto': 'Auto-detection'
+            };
+            
+            if (!confirm(`Switch to ${sourceNames[source]}?\n\nThis will require restarting the Flask app to take effect.`)) {
+                return;
+            }
+            
+            try {
+                // Disable all buttons during switch
+                document.getElementById('switchLocal').disabled = true;
+                document.getElementById('switchRailway').disabled = true;
+                document.getElementById('switchAuto').disabled = true;
+                
+                const response = await fetch('/api/switch_database', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ source: source })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    // Show success message
+                    const alertDiv = document.createElement('div');
+                    alertDiv.className = 'alert alert-success alert-dismissible fade show';
+                    alertDiv.innerHTML = `
+                        <strong>✅ Database switched successfully!</strong><br>
+                        ${result.message}<br>
+                        <strong>⚠️ Please restart your Flask app to apply changes.</strong>
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    `;
+                    
+                    // Insert at top of page
+                    const container = document.querySelector('.container-fluid');
+                    container.insertBefore(alertDiv, container.firstChild);
+                    
+                    // Update status display
+                    loadDatabaseStatus();
+                    
+                    // Auto-dismiss after 10 seconds
+                    setTimeout(() => {
+                        alertDiv.remove();
+                    }, 10000);
+                    
+                } else {
+                    alert(`Error: ${result.error}`);
+                }
+                
+            } catch (error) {
+                alert(`Failed to switch database: ${error.message}`);
+            } finally {
+                // Re-enable buttons
+                document.getElementById('switchLocal').disabled = false;
+                document.getElementById('switchRailway').disabled = false;
+                document.getElementById('switchAuto').disabled = false;
+            }
         }
         
         function displayResults(result, direction) {

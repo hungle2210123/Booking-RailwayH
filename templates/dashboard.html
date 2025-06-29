@@ -314,6 +314,27 @@
                                title="Sync data between Local PostgreSQL and Railway">
                                 <i class="fas fa-sync-alt me-1"></i>Database Sync
                             </a>
+                            <div class="btn-group" role="group">
+                                <button type="button" class="btn btn-sm btn-outline-secondary dropdown-toggle" 
+                                        data-bs-toggle="dropdown" title="Quick database switch">
+                                    <i class="fas fa-database me-1"></i><span id="currentDbIndicator">DB</span>
+                                </button>
+                                <ul class="dropdown-menu">
+                                    <li><a class="dropdown-item" href="#" onclick="quickSwitchDatabase('local')">
+                                        <i class="fas fa-home me-2"></i>Local PostgreSQL
+                                    </a></li>
+                                    <li><a class="dropdown-item" href="#" onclick="quickSwitchDatabase('railway')">
+                                        <i class="fas fa-cloud me-2"></i>Railway PostgreSQL
+                                    </a></li>
+                                    <li><a class="dropdown-item" href="#" onclick="quickSwitchDatabase('auto')">
+                                        <i class="fas fa-magic me-2"></i>Auto Detection
+                                    </a></li>
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li><a class="dropdown-item" href="/sync_dashboard">
+                                        <i class="fas fa-cog me-2"></i>Advanced Settings
+                                    </a></li>
+                                </ul>
+                            </div>
                             <!-- Duplicate Management Button with Dynamic Highlighting -->
                             <a href="{{ url_for('duplicate_management_page') }}" 
                                class="btn btn-sm duplicate-button {% if duplicate_guests and duplicate_guests|length > 0 %}with-count{% endif %}" 
@@ -7217,5 +7238,61 @@ function showErrorInTable(message) {
         </tr>
     `;
 }
+
+// Quick Database Switcher
+async function quickSwitchDatabase(source) {
+    const sourceNames = {
+        'local': 'Local PostgreSQL (your data)',
+        'railway': 'Railway PostgreSQL (production)',
+        'auto': 'Auto-detection'
+    };
+    
+    if (!confirm(`Switch to ${sourceNames[source]}?\n\nThis will require restarting the Flask app.`)) {
+        return;
+    }
+    
+    try {
+        const response = await fetch('/api/switch_database', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ source: source })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            // Update indicator
+            const indicator = document.getElementById('currentDbIndicator');
+            indicator.textContent = source.toUpperCase();
+            indicator.className = source === 'local' ? 'text-primary' : 
+                                 source === 'railway' ? 'text-success' : 'text-secondary';
+            
+            // Show success message
+            alert(`✅ Switched to ${sourceNames[source]}\n\n⚠️ Please restart your Flask app to apply changes.`);
+        } else {
+            alert(`Error: ${result.error}`);
+        }
+        
+    } catch (error) {
+        alert(`Failed to switch database: ${error.message}`);
+    }
+}
+
+// Load current database status on page load
+document.addEventListener('DOMContentLoaded', function() {
+    fetch('/api/get_database_status')
+        .then(response => response.json())
+        .then(result => {
+            if (result.success) {
+                const indicator = document.getElementById('currentDbIndicator');
+                indicator.textContent = result.current_source.toUpperCase();
+                indicator.className = result.current_source === 'local' ? 'text-primary' : 
+                                     result.current_source === 'railway' ? 'text-success' : 'text-secondary';
+            }
+        })
+        .catch(error => console.error('Failed to load database status:', error));
+});
 </script>
 {% endblock %}
