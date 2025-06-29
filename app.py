@@ -5397,6 +5397,87 @@ def railway_sync_page():
     railway_url = os.getenv('RAILWAY_DATABASE_URL')
     return render_template('railway_sync.html', railway_url=railway_url)
 
+@app.route('/debug/local_postgres')
+def debug_local_postgres():
+    """Test local PostgreSQL connection for Railway sync"""
+    try:
+        import psycopg2
+        from core.sync_service import DataSyncService
+        
+        # Test local connection using sync service
+        sync_service = DataSyncService()
+        connection_results = sync_service.test_connections()
+        
+        # Also test alternative connection strings
+        alternative_urls = [
+            "postgresql://postgres:postgres@localhost:5432/hotel_booking",
+            "postgresql://postgres:admin@localhost:5432/hotel_booking", 
+            "postgresql://postgres@localhost:5432/hotel_booking",
+            "postgresql://postgres:locloc123@localhost:5432/postgres",
+            "postgresql://postgres:postgres@localhost:5432/postgres"
+        ]
+        
+        alternative_results = {}
+        for url in alternative_urls:
+            try:
+                conn = psycopg2.connect(url)
+                cursor = conn.cursor()
+                cursor.execute("SELECT version()")
+                version = cursor.fetchone()[0]
+                
+                cursor.execute("SELECT current_database()")
+                database = cursor.fetchone()[0]
+                
+                cursor.execute("""
+                    SELECT table_name 
+                    FROM information_schema.tables 
+                    WHERE table_schema = 'public'
+                    ORDER BY table_name
+                """)
+                tables = cursor.fetchall()
+                
+                alternative_results[url] = {
+                    'status': 'success',
+                    'version': version[:100],
+                    'database': database,
+                    'tables': len(tables),
+                    'table_list': [t[0] for t in tables]
+                }
+                
+                cursor.close()
+                conn.close()
+                
+            except Exception as e:
+                alternative_results[url] = {
+                    'status': 'failed',
+                    'error': str(e)
+                }
+        
+        return jsonify({
+            'sync_service_test': connection_results,
+            'alternative_connections': alternative_results,
+            'current_local_url': sync_service.local_db_url,
+            'railway_url_status': 'connected' if connection_results.get('railway_status') else 'failed',
+            'recommendations': {
+                'working_connections': [url for url, result in alternative_results.items() if result.get('status') == 'success'],
+                'has_booking_data': [url for url, result in alternative_results.items() 
+                                   if result.get('status') == 'success' and 
+                                   any('booking' in table for table in result.get('table_list', []))]
+            }
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'error': str(e),
+            'message': 'Could not test local PostgreSQL connections',
+            'troubleshooting': [
+                'Check if PostgreSQL service is running',
+                'Verify PostgreSQL password',
+                'Ensure hotel_booking database exists',
+                'Try connecting with pgAdmin first'
+            ]
+        }), 500
+
 @app.route('/debug/env')
 def debug_environment():
     """Debug environment variables for Railway troubleshooting"""
