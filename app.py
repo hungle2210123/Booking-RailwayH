@@ -52,10 +52,14 @@ print(f"🔍 Full DATABASE_URL length: {len(database_url) if database_url else 0
 
 # Fix common Railway environment variable issues
 if database_url:
-    # Remove "DATABASE_URL=" prefix if it exists (common Railway config error)
-    if database_url.startswith('DATABASE_URL='):
+    # Remove "DATABASE_URL=" or "DATABASE_URL = " prefix if it exists (common Railway config error)
+    if database_url.startswith('DATABASE_URL'):
         print("🔧 Fixing DATABASE_URL prefix issue...")
-        database_url = database_url.replace('DATABASE_URL=', '')
+        # Handle both "DATABASE_URL=" and "DATABASE_URL = " formats
+        if database_url.startswith('DATABASE_URL = '):
+            database_url = database_url.replace('DATABASE_URL = ', '')
+        elif database_url.startswith('DATABASE_URL='):
+            database_url = database_url.replace('DATABASE_URL=', '')
         print(f"🔧 Cleaned URL: {database_url[:50]}...")
     
     # Remove any quotes that might be added
