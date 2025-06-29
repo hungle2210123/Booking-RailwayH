@@ -319,6 +319,19 @@ def dashboard():
         print(f"⚠️ [DASHBOARD] Error detecting duplicates: {e}")
         duplicate_guests = {}
 
+    # Ensure chart data is always available with proper fallbacks
+    if 'monthly_revenue_chart_json' not in processed_data or not processed_data['monthly_revenue_chart_json']:
+        processed_data['monthly_revenue_chart_json'] = {'data': [], 'layout': {'title': {'text': 'No monthly revenue data available'}}}
+        print("⚠️ [DASHBOARD] Added fallback for monthly_revenue_chart_json")
+    
+    if 'collector_chart_json' not in processed_data or not processed_data['collector_chart_json']:
+        processed_data['collector_chart_json'] = {'data': [], 'layout': {'title': {'text': 'No collector data available'}}}
+        print("⚠️ [DASHBOARD] Added fallback for collector_chart_json")
+    
+    print(f"📊 [DASHBOARD] Chart data status:")
+    print(f"   - Monthly chart: {'available' if processed_data.get('monthly_revenue_chart_json', {}).get('data') else 'empty'}")
+    print(f"   - Collector chart: {'available' if processed_data.get('collector_chart_json', {}).get('data') else 'empty'}")
+    
     # Render template with processed data
     return render_template(
         'dashboard.html',
@@ -5408,13 +5421,16 @@ def debug_local_postgres():
         sync_service = DataSyncService()
         connection_results = sync_service.test_connections()
         
-        # Also test alternative connection strings
+        # Also test alternative connection strings (focus on hotel_booking database)
         alternative_urls = [
-            "postgresql://postgres:postgres@localhost:5432/hotel_booking",
-            "postgresql://postgres:admin@localhost:5432/hotel_booking", 
-            "postgresql://postgres@localhost:5432/hotel_booking",
-            "postgresql://postgres:locloc123@localhost:5432/postgres",
-            "postgresql://postgres:postgres@localhost:5432/postgres"
+            "postgresql://postgres:locloc123@localhost:5432/hotel_booking",  # Current config
+            "postgresql://postgres:postgres@localhost:5432/hotel_booking",   # Default password
+            "postgresql://postgres:admin@localhost:5432/hotel_booking",      # Admin password
+            "postgresql://postgres@localhost:5432/hotel_booking",            # No password
+            "postgresql://postgres:123456@localhost:5432/hotel_booking",     # Common password
+            "postgresql://postgres:password@localhost:5432/hotel_booking",   # Common password
+            "postgresql://postgres:locloc123@localhost:5432/postgres",       # Working connection
+            "postgresql://postgres:postgres@localhost:5432/postgres"         # Test postgres DB
         ]
         
         alternative_results = {}
@@ -5756,6 +5772,102 @@ def railway_sync():
             'success': False,
             'message': f'Railway sync failed: {str(e)}'
         }), 500
+
+
+@app.route('/railway/health')
+def railway_health_check():
+    """Railway deployment health check endpoint"""
+    try:
+        from core.models import db
+        from core.database_service_postgresql import get_database_service
+        
+        health_data = {
+            'status': 'healthy',
+            'timestamp': datetime.now().isoformat(),
+            'environment': {
+                'DATABASE_URL': 'present' if os.getenv('DATABASE_URL') else 'missing',
+                'RAILWAY_DATABASE_URL': 'present' if os.getenv('RAILWAY_DATABASE_URL') else 'missing',
+                'GOOGLE_API_KEY': 'present' if os.getenv('GOOGLE_API_KEY') else 'missing'
+            },
+            'database': {
+                'connection': 'unknown',
+                'booking_count': 0
+            },
+            'features': {
+                'ai_processing': bool(os.getenv('GOOGLE_API_KEY')),
+                'postgresql': True,
+                'charts': True
+            }
+        }
+        
+        # Test database connection
+        try:
+            db_service = get_database_service()
+            if db_service:
+                from core.models import Booking
+                booking_count = Booking.query.count()
+                health_data['database']['connection'] = 'connected'
+                health_data['database']['booking_count'] = booking_count
+            else:
+                health_data['database']['connection'] = 'failed'
+                health_data['status'] = 'degraded'
+        except Exception as db_error:
+            health_data['database']['connection'] = f'error: {str(db_error)}'
+            health_data['status'] = 'degraded'
+        
+        return jsonify(health_data)
+        
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'error': str(e),
+            'timestamp': datetime.now().isoformat()
+        }), 500
+
+@app.route('/railway/chart-data')
+def railway_chart_data():
+    """Railway-specific chart data endpoint for debugging"""
+    try:
+        # Load minimal data for chart testing
+        df, _ = load_data(force_fresh=False)
+        
+        if df.empty:
+            return jsonify({
+                'monthly_revenue_chart': {'data': [], 'layout': {'title': 'No data available'}},
+                'collector_chart': {'data': [], 'layout': {'title': 'No data available'}},
+                'data_status': 'empty'
+            })
+        
+        # Get today's date for filtering
+        today = datetime.today()
+        start_date = today.replace(day=1)
+        end_date = today
+        
+        # Get dashboard data
+        dashboard_data = prepare_dashboard_data(df, start_date, end_date, 'Tháng', 'desc')
+        
+        # Create chart data
+        from core.dashboard_routes import create_revenue_chart, create_collector_chart
+        
+        monthly_revenue_list = safe_to_dict_records(dashboard_data.get('monthly_revenue_all_time', pd.DataFrame()))
+        monthly_chart = create_revenue_chart(monthly_revenue_list)
+        
+        collector_chart = create_collector_chart(dashboard_data)
+        
+        return jsonify({
+            'monthly_revenue_chart': monthly_chart,
+            'collector_chart': collector_chart,
+            'data_status': 'success',
+            'booking_count': len(df),
+            'dashboard_data_keys': list(dashboard_data.keys())
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'error': str(e),
+            'data_status': 'error'
+        }), 500
+
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))

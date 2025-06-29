@@ -1878,9 +1878,94 @@
 var currentEditBookingData = {};
 var currentBookingData = {};
 
-// Pass chart data from server to dashboard.js
-const monthlyRevenueChartData = {{ monthly_revenue_chart_json | tojson | safe }};
-const collectorChartData = {{ collector_chart_json | tojson | safe }};
+// ==================== DEFENSIVE CHART DATA HANDLING ====================
+// Ensure chart data variables exist and are valid, even if backend fails
+
+// Declare variables first, then get data from backend with fallbacks
+let monthlyRevenueChartData, collectorChartData;
+
+// Enhanced error handling for chart rendering
+function safeRenderChart(containerId, chartData, chartTitle) {
+    try {
+        const container = document.getElementById(containerId);
+        if (!container) {
+            console.warn(`Chart container ${containerId} not found`);
+            return;
+        }
+        
+        if (!chartData || !chartData.data || chartData.data.length === 0) {
+            container.innerHTML = `
+                <div class="alert alert-info text-center">
+                    <i class="fas fa-chart-bar me-2"></i>
+                    ${chartTitle} - No data available for the selected period
+                </div>
+            `;
+            return;
+        }
+        
+        // Use Plotly if available, otherwise show fallback
+        if (typeof Plotly !== 'undefined') {
+            Plotly.newPlot(containerId, chartData.data, chartData.layout || {}, {responsive: true});
+            console.log(`✅ Successfully rendered ${chartTitle}`);
+        } else {
+            container.innerHTML = `
+                <div class="alert alert-warning text-center">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    ${chartTitle} - Chart library not loaded
+                </div>
+            `;
+        }
+    } catch (error) {
+        console.error(`Error rendering ${chartTitle}:`, error);
+        const container = document.getElementById(containerId);
+        if (container) {
+            container.innerHTML = `
+                <div class="alert alert-danger text-center">
+                    <i class="fas fa-times-circle me-2"></i>
+                    ${chartTitle} - Chart rendering failed
+                </div>
+            `;
+        }
+    }
+}
+
+// Initialize charts when DOM is ready
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('🔧 Initializing defensive chart rendering...');
+    
+    // Initialize monthly revenue chart
+    safeRenderChart('monthlyRevenueChart', monthlyRevenueChartData, 'Monthly Revenue Chart');
+    
+    // Initialize collector chart  
+    safeRenderChart('collectorChart', collectorChartData, 'Collector Revenue Chart');
+    
+    // Initialize collector stats table
+    if (typeof populateCollectorStatsTable === 'function') {
+        try {
+            populateCollectorStatsTable();
+        } catch (error) {
+            console.error('Error populating collector stats:', error);
+        }
+    }
+});
+
+// ==================== END DEFENSIVE HANDLING ====================
+
+
+// Initialize chart data from backend with error handling
+try {
+    monthlyRevenueChartData = {{ monthly_revenue_chart_json | tojson | safe }} || { data: [], layout: { title: { text: 'No monthly revenue data available' } } };
+    collectorChartData = {{ collector_chart_json | tojson | safe }} || { data: [], layout: { title: { text: 'No collector data available' } } };
+    
+    console.log('📊 Chart data initialization:', {
+        monthlyRevenue: monthlyRevenueChartData && monthlyRevenueChartData.data ? 'available' : 'empty',
+        collector: collectorChartData && collectorChartData.data ? 'available' : 'empty'
+    });
+} catch (error) {
+    console.error('❌ Error initializing chart data:', error);
+    monthlyRevenueChartData = { data: [], layout: { title: { text: 'Chart data error' } } };
+    collectorChartData = { data: [], layout: { title: { text: 'Chart data error' } } };
+}
 
 // ✅ ENHANCED: Populate collector statistics table from chart data
 function populateCollectorStatsTable() {

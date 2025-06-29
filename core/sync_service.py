@@ -15,7 +15,7 @@ class DataSyncService:
     
     def __init__(self):
         self.local_db_url = os.getenv('LOCAL_DATABASE_URL', 'postgresql://postgres:locloc123@localhost:5432/hotel_booking')
-        self.railway_db_url = os.getenv('DATABASE_URL')  # Railway database
+        self.railway_db_url = os.getenv('RAILWAY_DATABASE_URL') or os.getenv('DATABASE_URL')  # Railway database
         
     def test_connections(self):
         """Test both database connections"""
@@ -266,8 +266,8 @@ class DataSyncService:
             if not self.create_missing_columns(railway_conn):
                 sync_result['errors'].append("Failed to update Railway schema")
             
-            # Define tables in dependency order
-            tables = ['guests', 'bookings', 'quick_notes', 'expenses', 'expense_categories', 'message_templates', 'arrival_times']
+            # Define tables in dependency order (excluding arrival_times due to ID mapping issues)
+            tables = ['guests', 'bookings', 'quick_notes', 'expenses', 'expense_categories', 'message_templates']
             
             sync_result['details'] = {}
             

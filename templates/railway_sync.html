@@ -1,0 +1,202 @@
+{% extends "base.html" %}
+{% block title %}Railway Database Sync{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <div class="d-flex justify-content-between align-items-center my-4">
+        <h1 class="mb-0">
+            <i class="fas fa-sync-alt text-primary"></i> Railway Database Sync
+        </h1>
+        <div class="badge bg-primary">Data Migration Tool</div>
+    </div>
+    
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-database me-2"></i>Sync Data from Render to Railway
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>
+                        <strong>Database Sync Tool</strong><br>
+                        This tool will copy all your data from the current Render database to Railway PostgreSQL.
+                        <br><br>
+                        <strong>Current Configuration:</strong><br>
+                        • Source: Render PostgreSQL (current database)<br>
+                        • Target: Railway PostgreSQL<br>
+                        • Tables: bookings, quick_notes, expenses, message_templates
+                    </div>
+                    
+                    <div id="syncStatus" class="mb-3" style="display: none;"></div>
+                    
+                    <div class="d-grid gap-2">
+                        <button id="startSyncBtn" class="btn btn-primary btn-lg" onclick="startRailwaySync()">
+                            <i class="fas fa-sync-alt me-2"></i>Start Railway Sync
+                        </button>
+                    </div>
+                    
+                    <div class="mt-4">
+                        <h6>Railway Database Configuration:</h6>
+                        <div class="bg-light p-3 rounded">
+                            <code>RAILWAY_DATABASE_URL = {{ railway_url[:50] if railway_url else 'Not configured' }}...</code>
+                            {% if not railway_url %}
+                            <div class="text-danger mt-2">
+                                <i class="fas fa-exclamation-triangle me-1"></i>
+                                Railway database URL not configured in environment variables.
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Sync Results Panel -->
+    <div id="syncResults" class="row mt-4" style="display: none;">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-chart-bar me-2"></i>Sync Results
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div id="syncResultsContent"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+async function startRailwaySync() {
+    const btn = document.getElementById('startSyncBtn');
+    const statusDiv = document.getElementById('syncStatus');
+    const resultsDiv = document.getElementById('syncResults');
+    
+    // Show loading state
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Syncing...';
+    
+    statusDiv.style.display = 'block';
+    statusDiv.innerHTML = `
+        <div class="alert alert-info">
+            <i class="fas fa-spinner fa-spin me-2"></i>
+            <strong>Sync in Progress...</strong><br>
+            Transferring data from Render to Railway. This may take a few minutes.
+        </div>
+    `;
+    
+    try {
+        const response = await fetch('/api/railway_sync', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            statusDiv.innerHTML = `
+                <div class="alert alert-success">
+                    <i class="fas fa-check-circle me-2"></i>
+                    <strong>Sync Completed Successfully!</strong><br>
+                    ${result.message}
+                </div>
+            `;
+            
+            // Show detailed results
+            showSyncResults(result);
+            
+        } else {
+            statusDiv.innerHTML = `
+                <div class="alert alert-danger">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    <strong>Sync Failed:</strong><br>
+                    ${result.message}
+                </div>
+            `;
+        }
+        
+    } catch (error) {
+        statusDiv.innerHTML = `
+            <div class="alert alert-danger">
+                <i class="fas fa-exclamation-triangle me-2"></i>
+                <strong>Sync Error:</strong><br>
+                ${error.message}
+            </div>
+        `;
+    }
+    
+    // Reset button
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-sync-alt me-2"></i>Start Railway Sync';
+}
+
+function showSyncResults(result) {
+    const resultsDiv = document.getElementById('syncResults');
+    const contentDiv = document.getElementById('syncResultsContent');
+    
+    let resultsHtml = `
+        <div class="row">
+            <div class="col-md-6">
+                <h6>Sync Summary</h6>
+                <ul class="list-group list-group-flush">
+                    <li class="list-group-item d-flex justify-content-between">
+                        <span>Total Records Transferred:</span>
+                        <strong class="text-success">${result.summary.total_transferred}</strong>
+                    </li>
+                    <li class="list-group-item d-flex justify-content-between">
+                        <span>Successful Tables:</span>
+                        <strong>${result.summary.successful_tables}/${result.summary.total_tables}</strong>
+                    </li>
+                </ul>
+            </div>
+            <div class="col-md-6">
+                <h6>Table Details</h6>
+                <ul class="list-group list-group-flush">
+    `;
+    
+    for (const [table, details] of Object.entries(result.details)) {
+        const icon = details.success ? 'fas fa-check text-success' : 'fas fa-times text-danger';
+        const status = details.success ? 'Success' : 'Failed';
+        
+        resultsHtml += `
+            <li class="list-group-item d-flex justify-content-between align-items-center">
+                <span><i class="${icon} me-2"></i>${table}</span>
+                <span class="badge bg-${details.success ? 'success' : 'danger'}">${details.transferred} records</span>
+            </li>
+        `;
+    }
+    
+    resultsHtml += `
+                </ul>
+            </div>
+        </div>
+    `;
+    
+    if (result.summary.total_transferred > 0) {
+        resultsHtml += `
+            <div class="alert alert-success mt-3">
+                <h6><i class="fas fa-rocket me-2"></i>Next Steps:</h6>
+                <ol class="mb-0">
+                    <li>Go to your Railway dashboard</li>
+                    <li>Update your Railway app environment variables</li>
+                    <li>Set <code>DATABASE_URL</code> to your Railway PostgreSQL URL</li>
+                    <li>Deploy your Railway app</li>
+                    <li>Your app will now use Railway PostgreSQL!</li>
+                </ol>
+            </div>
+        `;
+    }
+    
+    contentDiv.innerHTML = resultsHtml;
+    resultsDiv.style.display = 'block';
+}
+</script>
+{% endblock %}
