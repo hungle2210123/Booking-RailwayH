@@ -62,12 +62,14 @@ if railway_postgres_url:
 if database_url:
     print(f"🔍 Raw DATABASE_URL: {database_url}")
     
-    # Remove "DATABASE_URL=" or "DATABASE_URL = " prefix if it exists (common Railway config error)
+    # Remove "DATABASE_URL=" or "DATABASE_URL = " or "DATABASE_URL =" prefix if it exists
     if database_url.startswith('DATABASE_URL'):
         print("🔧 Fixing DATABASE_URL prefix issue...")
-        # Handle both "DATABASE_URL=" and "DATABASE_URL = " formats
+        # Handle all variations: "DATABASE_URL=", "DATABASE_URL = ", "DATABASE_URL ="
         if database_url.startswith('DATABASE_URL = '):
             database_url = database_url.replace('DATABASE_URL = ', '', 1)
+        elif database_url.startswith('DATABASE_URL ='):
+            database_url = database_url.replace('DATABASE_URL =', '', 1)
         elif database_url.startswith('DATABASE_URL='):
             database_url = database_url.replace('DATABASE_URL=', '', 1)
         print(f"🔧 After prefix removal: {database_url[:50]}...")
