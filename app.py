@@ -62,6 +62,10 @@ if railway_postgres_url:
 if database_url:
     print(f"🔍 Raw DATABASE_URL: {database_url}")
     
+    # Remove line breaks and normalize whitespace - CRITICAL FIX
+    database_url = ' '.join(database_url.split())
+    print(f"🔧 After line break removal: {database_url[:50]}...")
+    
     # Remove "DATABASE_URL=" or "DATABASE_URL = " or "DATABASE_URL =" prefix if it exists
     if database_url.startswith('DATABASE_URL'):
         print("🔧 Fixing DATABASE_URL prefix issue...")
