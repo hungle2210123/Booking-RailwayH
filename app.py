@@ -48,6 +48,13 @@ app.secret_key = os.getenv("FLASK_SECRET_KEY", "a_default_secret_key_for_develop
 # PostgreSQL-only database configuration for Railway
 database_url = os.getenv('DATABASE_URL')
 print(f"🔍 DATABASE_URL detected: {database_url[:50] if database_url else 'None'}...")
+print(f"🔍 Full DATABASE_URL length: {len(database_url) if database_url else 0} characters")
+
+# Debug: Check if URL is being truncated
+if database_url and len(database_url) < 90:  # Expected length is ~92 characters
+    print(f"⚠️ WARNING: DATABASE_URL appears truncated (expected ~92 chars, got {len(database_url)})")
+    print(f"⚠️ Current URL: {database_url}")
+    print("⚠️ Expected format: postgresql://postgres:VmyAveAhkGVOFlSiVBWgyIEAUbKAXEPi@mainline.proxy.rlwy.net:36647/railway")
 
 # Railway PostgreSQL connection validation
 if not database_url or database_url == 'None' or len(database_url.strip()) == 0:
@@ -76,6 +83,11 @@ elif database_url.startswith('postgresql://'):
         if parsed.scheme == 'postgresql' and parsed.netloc and parsed.hostname:
             print(f"   ✅ Database: {parsed.path.lstrip('/') or 'default'}")
             print(f"   ✅ Host: {parsed.hostname}:{parsed.port or 5432}")
+            
+            # Convert to SQLAlchemy-compatible URL for better compatibility
+            if not database_url.startswith('postgresql+psycopg2://'):
+                database_url = database_url.replace('postgresql://', 'postgresql+psycopg2://')
+                print(f"   🔧 Using SQLAlchemy driver: postgresql+psycopg2://")
         else:
             raise ValueError(f"Invalid PostgreSQL URL - missing required components")
         
