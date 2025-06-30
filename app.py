@@ -4701,42 +4701,93 @@ def get_crawl_capabilities():
     try:
         print("🔍 [CRAWL_CAPABILITIES] Starting crawl capabilities check...")
         
+        # Simple Railway environment detection
+        railway_env = os.getenv('RAILWAY_PROJECT_ID') is not None
+        print(f"🌍 [CRAWL_CAPABILITIES] Railway environment: {railway_env}")
+        
+        # Try to import railway crawl service, fallback if not available
         try:
             from core.railway_crawl_service import railway_crawl_service
             print("✅ [CRAWL_CAPABILITIES] Railway crawl service imported successfully")
+            
+            is_available = railway_crawl_service.is_crawling_available()
+            environment = 'cloud' if railway_crawl_service.is_railway else 'local'
+            methods = railway_crawl_service.get_crawling_methods()
+            
         except ImportError as import_error:
-            print(f"❌ [CRAWL_CAPABILITIES] Import error: {import_error}")
-            raise import_error
-        
-        print("🔧 [CRAWL_CAPABILITIES] Checking if crawling is available...")
-        is_available = railway_crawl_service.is_crawling_available()
-        print(f"📊 [CRAWL_CAPABILITIES] Is available: {is_available}")
-        
-        print("🔧 [CRAWL_CAPABILITIES] Getting environment info...")
-        environment = 'cloud' if railway_crawl_service.is_railway else 'local'
-        print(f"🌍 [CRAWL_CAPABILITIES] Environment: {environment}")
-        
-        print("🔧 [CRAWL_CAPABILITIES] Getting crawling methods...")
-        methods = railway_crawl_service.get_crawling_methods()
-        print(f"📋 [CRAWL_CAPABILITIES] Methods: {len(methods)} found")
+            print(f"⚠️ [CRAWL_CAPABILITIES] Railway crawl service not available: {import_error}")
+            print("🔧 [CRAWL_CAPABILITIES] Using fallback crawl detection...")
+            
+            # Fallback crawl detection for Railway deployment
+            is_available = False
+            environment = 'cloud' if railway_env else 'local'
+            methods = []
+            
+            if railway_env:
+                # On Railway, only API-based crawling could be available
+                firecrawl_key = os.getenv('FIRECRAWL_API_KEY')
+                if firecrawl_key:
+                    is_available = True
+                    methods.append({
+                        'id': 'firecrawl',
+                        'name': 'Firecrawl API',
+                        'description': 'Cloud-based web scraping service',
+                        'supported': True
+                    })
+                methods.append({
+                    'id': 'selenium',
+                    'name': 'Selenium Browser Automation',
+                    'description': 'Not available on cloud platforms',
+                    'supported': False,
+                    'reason': 'Requires Chrome browser and display server'
+                })
+            else:
+                # Local environment - check for selenium
+                try:
+                    import selenium
+                    is_available = True
+                    methods.append({
+                        'id': 'selenium',
+                        'name': 'Selenium Browser Automation',
+                        'description': 'Full browser automation with saved profiles',
+                        'supported': True
+                    })
+                except ImportError:
+                    methods.append({
+                        'id': 'selenium',
+                        'name': 'Selenium Browser Automation',
+                        'description': 'Install selenium package to enable',
+                        'supported': False,
+                        'reason': 'Selenium package not installed'
+                    })
         
         capabilities = {
             'is_available': is_available,
             'environment': environment,
-            'methods': methods
+            'methods': methods,
+            'alternatives': [
+                '📸 Upload booking screenshots for AI extraction',
+                '✏️ Manual booking entry',
+                '📋 Import from CSV/Excel files'
+            ]
         }
         
-        print("✅ [CRAWL_CAPABILITIES] Capabilities check completed successfully")
+        print(f"✅ [CRAWL_CAPABILITIES] Capabilities: available={is_available}, env={environment}, methods={len(methods)}")
         return jsonify(capabilities)
         
     except Exception as e:
-        print(f"❌ [CRAWL_CAPABILITIES] Error: {e}")
+        print(f"❌ [CRAWL_CAPABILITIES] Unexpected error: {e}")
         import traceback
         traceback.print_exc()
         return jsonify({
             'is_available': False,
             'environment': 'unknown',
             'methods': [],
+            'alternatives': [
+                '📸 Upload booking screenshots for AI extraction',
+                '✏️ Manual booking entry', 
+                '📋 Import from CSV/Excel files'
+            ],
             'error': str(e)
         }), 500
 
