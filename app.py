@@ -25,8 +25,13 @@ from core.logic_postgresql import (
     add_expense_to_database, get_expenses_from_database
 )
 
-# Import AI duplicate detector
-from core.ai_duplicate_detector import ai_duplicate_detector
+# Import AI duplicate detector (optional for Railway deployment)
+try:
+    from core.ai_duplicate_detector import ai_duplicate_detector
+    print("✅ AI duplicate detector loaded")
+except ImportError:
+    print("⚠️ AI duplicate detector not available - using fallback")
+    ai_duplicate_detector = None
 
 # Import dashboard processing module  
 from core.dashboard_routes import process_dashboard_data, safe_to_dict_records
@@ -1816,10 +1821,14 @@ def process_pasted_image():
             # Legacy format fallback (single booking without type)
             bookings_list = [booking_info]
         
-        # Use AI duplicate detector for comprehensive analysis
-        print(f"🤖 [AI_DUPLICATE] Starting AI duplicate detection for {len(bookings_list)} bookings...")
-        df = load_booking_data()
-        ai_analysis = ai_duplicate_detector.create_filtered_response(bookings_list, df)
+        # Use AI duplicate detector for comprehensive analysis (if available)
+        ai_analysis = {'analysis': 'AI duplicate detection not available'}
+        if ai_duplicate_detector:
+            print(f"🤖 [AI_DUPLICATE] Starting AI duplicate detection for {len(bookings_list)} bookings...")
+            df = load_booking_data()
+            ai_analysis = ai_duplicate_detector.create_filtered_response(bookings_list, df)
+        else:
+            print("⚠️ [AI_DUPLICATE] AI duplicate detector not available - skipping analysis")
         
         # Format response with AI analysis
         response_data = {
@@ -4809,11 +4818,14 @@ def crawl_admin_bookings():
             
             print(f"🎉 Successfully extracted {extracted_count} bookings!")
             
-            # Apply AI duplicate detection to crawled bookings
-            if bookings:
+            # Apply AI duplicate detection to crawled bookings (if available)
+            ai_analysis = {'analysis': 'AI duplicate detection not available'}
+            if bookings and ai_duplicate_detector:
                 print(f"🤖 [AI_DUPLICATE] Applying AI duplicate detection to crawled bookings...")
                 df = load_booking_data()
                 ai_analysis = ai_duplicate_detector.create_filtered_response(bookings, df)
+            elif bookings:
+                print("⚠️ [AI_DUPLICATE] AI duplicate detector not available - skipping analysis")
                 
                 return jsonify({
                     'success': True,
