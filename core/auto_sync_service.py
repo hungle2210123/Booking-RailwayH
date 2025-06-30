@@ -216,7 +216,7 @@ class AutoSyncService:
             return pd.DataFrame()
     
     def import_table_data(self, engine, table: str, df: pd.DataFrame, sync_mode: str = 'append'):
-        """Import DataFrame to table with proper error handling"""
+        """Import DataFrame to table with proper error handling and transaction management"""
         try:
             if df.empty:
                 logger.warning(f"⚠️ No data to import for {table}")
@@ -228,24 +228,34 @@ class AutoSyncService:
             with engine.connect() as conn:
                 # Handle different sync modes
                 if sync_mode == 'replace':
-                    # Clear table first
-                    conn.execute(text(f"TRUNCATE TABLE {table} RESTART IDENTITY CASCADE"))
-                    df.to_sql(table, conn, if_exists='append', index=False)
-                    logger.info(f"✅ Replaced {len(df)} records in {table}")
-                    conn.commit()
-                    return {'success': True, 'message': f'Replaced {len(df)} records', 'records_processed': len(df)}
+                    # Clear table first in its own transaction
+                    trans = conn.begin()
+                    try:
+                        conn.execute(text(f"TRUNCATE TABLE {table} RESTART IDENTITY CASCADE"))
+                        df.to_sql(table, conn, if_exists='append', index=False)
+                        trans.commit()
+                        logger.info(f"✅ Replaced {len(df)} records in {table}")
+                        return {'success': True, 'message': f'Replaced {len(df)} records', 'records_processed': len(df)}
+                    except Exception as e:
+                        trans.rollback()
+                        raise e
                     
                 elif sync_mode == 'append':
-                    # Add only new records (requires duplicate detection)
-                    df.to_sql(table, conn, if_exists='append', index=False)
-                    logger.info(f"✅ Appended {len(df)} records to {table}")
-                    conn.commit()
-                    return {'success': True, 'message': f'Appended {len(df)} records', 'records_processed': len(df)}
+                    # Add only new records in transaction
+                    trans = conn.begin()
+                    try:
+                        df.to_sql(table, conn, if_exists='append', index=False)
+                        trans.commit()
+                        logger.info(f"✅ Appended {len(df)} records to {table}")
+                        return {'success': True, 'message': f'Appended {len(df)} records', 'records_processed': len(df)}
+                    except Exception as e:
+                        trans.rollback()
+                        raise e
                     
                 elif sync_mode == 'upsert':
-                    # Smart merge (update existing, insert new) - with detailed error tracking
+                    # Smart merge (update existing, insert new) - NO outer transaction for individual record control
                     result = self._upsert_table_data(conn, table, df)
-                    conn.commit()
+                    # Note: _upsert_table_data now handles its own transactions per record
                     return result
                     
                 return {'success': False, 'message': f'Unknown sync mode: {sync_mode}', 'records_processed': 0}
@@ -332,50 +342,52 @@ class AutoSyncService:
                 DO NOTHING
             """
         
-        # 🚀 ENHANCED: Try batch processing first, fallback to individual rows on failure
-        try:
-            # Pre-clean all data
-            cleaned_data = []
-            for _, row in df.iterrows():
+        # 🚀 CRITICAL FIX: Individual transactions to prevent InFailedSqlTransaction cascade
+        logger.info(f"🚀 Processing {len(df)} records individually with separate transactions for {table}")
+        
+        # Process each record in its own transaction to prevent cascade failures
+        for i, row in df.iterrows():
+            primary_key_value = row.get(primary_key, 'unknown')
+            clean_row_data = None
+            
+            try:
                 clean_row_data = self._clean_row_data(row.to_dict())
+                
+                # Special handling for bookings table
                 if table == 'bookings':
                     clean_row_data = self._clean_booking_data(clean_row_data)
-                cleaned_data.append(clean_row_data)
-            
-            # Try batch execution first
-            logger.info(f"🚀 Attempting batch UPSERT for {len(cleaned_data)} records in {table}")
-            conn.execute(text(upsert_sql), cleaned_data)
-            records_processed = len(cleaned_data)
-            logger.info(f"✅ Batch UPSERT successful: {records_processed} records")
-            
-        except Exception as batch_error:
-            logger.warning(f"⚠️ Batch UPSERT failed for {table}: {batch_error}")
-            logger.info(f"🔄 Falling back to individual row processing...")
-            
-            # Fallback to individual row processing with enhanced error handling
-            for i, row in df.iterrows():
-                try:
-                    clean_row_data = self._clean_row_data(row.to_dict())
-                    
-                    # Special handling for bookings table
-                    if table == 'bookings':
-                        clean_row_data = self._clean_booking_data(clean_row_data)
-                    
+                
+                # 🚀 CRITICAL: Use autocommit for individual records to avoid transaction state issues
+                with conn.begin() as transaction:
                     conn.execute(text(upsert_sql), clean_row_data)
-                    records_processed += 1
+                    # Transaction auto-commits on successful exit
                     
-                except Exception as row_error:
-                    primary_key_value = row.get(primary_key, 'unknown')
-                    error_msg = str(row_error)
+                records_processed += 1
+                
+                if records_processed % 10 == 0:
+                    logger.info(f"✅ Processed {records_processed}/{len(df)} records for {table}")
                     
-                    # 🛠️ ENHANCED: Try multiple fallback strategies
-                    if self._handle_constraint_violation(conn, table, clean_row_data, primary_key_value, upsert_sql, error_msg):
-                        records_processed += 1
-                        continue
-                    
-                    # If all fallbacks fail, record the failure
+            except Exception as row_error:
+                error_msg = str(row_error)
+                logger.warning(f"⚠️ Record {primary_key}={primary_key_value} failed: {error_msg}")
+                
+                # 🛠️ ENHANCED: Try fallback strategies with fresh transaction
+                fallback_success = False
+                if clean_row_data:  # Only try fallback if we have clean data
+                    try:
+                        with conn.begin() as fallback_transaction:
+                            if self._handle_constraint_violation_with_transaction(conn, table, clean_row_data, primary_key_value, upsert_sql, error_msg):
+                                # Transaction auto-commits on successful exit
+                                fallback_success = True
+                                records_processed += 1
+                                logger.info(f"✅ Fallback successful for {primary_key}={primary_key_value}")
+                    except Exception as fallback_error:
+                        logger.error(f"❌ Fallback failed for {primary_key}={primary_key_value}: {fallback_error}")
+                
+                if not fallback_success:
+                    # If all attempts fail, record the failure
                     failed_records.append(f"{primary_key}={primary_key_value}: {error_msg}")
-                    logger.error(f"❌ Failed to upsert record {primary_key}={primary_key_value}: {error_msg}")
+                    logger.error(f"❌ All attempts failed for record {primary_key}={primary_key_value}: {error_msg}")
         
         if failed_records:
             logger.warning(f"⚠️ {len(failed_records)} records failed to upsert in {table}")
@@ -385,23 +397,20 @@ class AutoSyncService:
         logger.info(f"📊 UPSERT RESULT for {table}: {records_processed}/{len(df)} records processed successfully")
         return records_processed
     
-    def _handle_constraint_violation(self, conn, table: str, row_data: dict, primary_key_value: str, upsert_sql: str, error_msg: str) -> bool:
-        """Enhanced constraint violation handler with multiple fallback strategies"""
+    def _handle_constraint_violation_with_transaction(self, conn, table: str, row_data: dict, primary_key_value: str, upsert_sql: str, error_msg: str) -> bool:
+        """Enhanced constraint violation handler with multiple fallback strategies and transaction management"""
         
         # Strategy 1: Try with minimal data for bookings
         if table == 'bookings' and ('constraint' in error_msg.lower() or 'foreign key' in error_msg.lower()):
-            logger.warning(f"⚠️ Constraint violation for booking {primary_key_value}, trying minimal data fallback...")
             try:
                 minimal_data = self._get_minimal_booking_data(row_data)
                 conn.execute(text(upsert_sql), minimal_data)
-                logger.info(f"✅ Minimal data fallback successful for booking {primary_key_value}")
                 return True
             except Exception as fallback_error:
                 logger.warning(f"⚠️ Minimal data fallback failed: {fallback_error}")
         
         # Strategy 2: Try without problematic fields
         if 'null value' in error_msg.lower() or 'not null' in error_msg.lower():
-            logger.warning(f"⚠️ NULL constraint violation for {primary_key_value}, trying with required fields only...")
             try:
                 # Remove fields that might be NULL
                 safe_data = {k: v for k, v in row_data.items() if v is not None and v != ''}
@@ -414,7 +423,6 @@ class AutoSyncService:
                     })
                 
                 conn.execute(text(upsert_sql), safe_data)
-                logger.info(f"✅ NULL-safe fallback successful for {primary_key_value}")
                 return True
             except Exception as safe_error:
                 logger.warning(f"⚠️ NULL-safe fallback failed: {safe_error}")
@@ -422,14 +430,12 @@ class AutoSyncService:
         # Strategy 3: Try UPDATE only (in case record exists but INSERT fails)
         if table == 'bookings':
             try:
-                logger.warning(f"⚠️ Trying UPDATE-only for existing record {primary_key_value}...")
                 update_fields = [k for k in row_data.keys() if k != 'booking_id']
                 if update_fields:
                     update_clause = ', '.join([f"{field} = :{field}" for field in update_fields])
                     update_sql = f"UPDATE {table} SET {update_clause} WHERE booking_id = :booking_id"
                     result = conn.execute(text(update_sql), row_data)
                     if result.rowcount > 0:
-                        logger.info(f"✅ UPDATE-only successful for {primary_key_value}")
                         return True
             except Exception as update_error:
                 logger.warning(f"⚠️ UPDATE-only fallback failed: {update_error}")
@@ -549,23 +555,38 @@ class AutoSyncService:
     
     def _get_minimal_booking_data(self, row_data: dict) -> dict:
         """Get minimal booking data with only required fields for fallback"""
-        required_fields = [
-            'booking_id', 'guest_name', 'check_in_date', 'check_out_date', 
-            'room_amount', 'accommodation_name', 'location', 'status'
-        ]
+        # 🚀 CRITICAL: Use actual database column names from schema
+        minimal = {
+            'booking_id': row_data.get('booking_id', 'UNKNOWN'),
+            'guest_name': row_data.get('guest_name', 'Unknown Guest'),
+            'checkin_date': row_data.get('checkin_date') or row_data.get('check_in_date'),
+            'checkout_date': row_data.get('checkout_date') or row_data.get('check_out_date'),
+            'room_amount': float(row_data.get('room_amount', 0.0)),
+            'commission': float(row_data.get('commission', 0.0)),
+            'taxi_amount': float(row_data.get('taxi_amount', 0.0)),
+            'collected_amount': float(row_data.get('collected_amount', 0.0)),
+            'booking_status': row_data.get('booking_status', 'OK'),
+            'collector': row_data.get('collector', ''),
+            'booking_notes': row_data.get('booking_notes'),
+            'arrival_confirmed': bool(row_data.get('arrival_confirmed', False))
+        }
         
-        minimal = {}
-        for field in required_fields:
-            if field in row_data:
-                minimal[field] = row_data[field]
-                
-        # Set safe defaults for required fields
-        minimal.setdefault('guest_name', 'Unknown Guest')
-        minimal.setdefault('room_amount', 0.0)
-        minimal.setdefault('accommodation_name', '118 Hang Bac Hostel')
-        minimal.setdefault('location', 'Hà Nội')
-        minimal.setdefault('status', 'OK')
-        minimal.setdefault('email', f"guest{minimal.get('booking_id', 'unknown')}@sync-fallback.local")
+        # Handle datetime fields safely
+        import datetime
+        if not minimal['checkin_date']:
+            minimal['checkin_date'] = datetime.datetime.now().date()
+        if not minimal['checkout_date']:
+            minimal['checkout_date'] = datetime.datetime.now().date() + datetime.timedelta(days=1)
+            
+        # Add timestamps if missing
+        now = datetime.datetime.now()
+        minimal.setdefault('created_at', row_data.get('created_at', now))
+        minimal.setdefault('updated_at', now)
+        minimal.setdefault('arrival_confirmed_at', row_data.get('arrival_confirmed_at'))
+        
+        # Remove guest_id to avoid foreign key issues
+        if 'guest_id' in minimal:
+            del minimal['guest_id']
         
         return minimal
     
