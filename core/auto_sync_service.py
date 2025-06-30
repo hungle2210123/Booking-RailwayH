@@ -249,37 +249,26 @@ class AutoSyncService:
             # Clean DataFrame to handle NaT and other problematic values
             df = self._clean_dataframe(df)
                 
+            # 🚀 CRITICAL FIX: Use autocommit connection to avoid transaction nesting issues
             with engine.connect() as conn:
+                # Set autocommit mode to avoid transaction conflicts
+                conn = conn.execution_options(autocommit=True)
+                
                 # Handle different sync modes
                 if sync_mode == 'replace':
-                    # Clear table first in its own transaction
-                    trans = conn.begin()
-                    try:
-                        conn.execute(text(f"TRUNCATE TABLE {table} RESTART IDENTITY CASCADE"))
-                        df.to_sql(table, conn, if_exists='append', index=False)
-                        trans.commit()
-                        logger.info(f"✅ Replaced {len(df)} records in {table}")
-                        return {'success': True, 'message': f'Replaced {len(df)} records', 'records_processed': len(df)}
-                    except Exception as e:
-                        trans.rollback()
-                        raise e
+                    conn.execute(text(f"TRUNCATE TABLE {table} RESTART IDENTITY CASCADE"))
+                    df.to_sql(table, conn, if_exists='append', index=False)
+                    logger.info(f"✅ Replaced {len(df)} records in {table}")
+                    return {'success': True, 'message': f'Replaced {len(df)} records', 'records_processed': len(df)}
                     
                 elif sync_mode == 'append':
-                    # Add only new records in transaction
-                    trans = conn.begin()
-                    try:
-                        df.to_sql(table, conn, if_exists='append', index=False)
-                        trans.commit()
-                        logger.info(f"✅ Appended {len(df)} records to {table}")
-                        return {'success': True, 'message': f'Appended {len(df)} records', 'records_processed': len(df)}
-                    except Exception as e:
-                        trans.rollback()
-                        raise e
+                    df.to_sql(table, conn, if_exists='append', index=False)
+                    logger.info(f"✅ Appended {len(df)} records to {table}")
+                    return {'success': True, 'message': f'Appended {len(df)} records', 'records_processed': len(df)}
                     
                 elif sync_mode == 'upsert':
-                    # Smart merge (update existing, insert new) - NO outer transaction for individual record control
+                    # Smart merge (update existing, insert new) - with autocommit connection
                     result = self._upsert_table_data(conn, table, df)
-                    # Note: _upsert_table_data now handles its own transactions per record
                     return result
                     
                 return {'success': False, 'message': f'Unknown sync mode: {sync_mode}', 'records_processed': 0}
@@ -368,7 +357,20 @@ class AutoSyncService:
             """
         
         # 🚀 CRITICAL FIX: Individual transactions to prevent InFailedSqlTransaction cascade
-        logger.info(f"🚀 Processing {len(df)} records individually with separate transactions for {table}")
+        logger.info(f"🚀 Processing {len(df)} records individually with autocommit for {table}")
+        
+        # 🚀 CRITICAL: Set a timeout to prevent infinite loops
+        import signal
+        def timeout_handler(signum, frame):
+            raise TimeoutError(f"UPSERT timeout for {table} after processing {records_processed} records")
+        
+        # Only set alarm on Unix systems (not Windows)
+        try:
+            signal.signal(signal.SIGALRM, timeout_handler)
+            signal.alarm(300)  # 5 minute timeout
+        except AttributeError:
+            # Windows doesn't support SIGALRM, skip timeout
+            pass
         
         # Process each record in its own transaction to prevent cascade failures
         for i, row in df.iterrows():
@@ -385,10 +387,9 @@ class AutoSyncService:
                     clean_row_data = self._clean_guest_data(clean_row_data)
                     logger.debug(f"🚀 Cleaned guest data: {clean_row_data}")
                 
-                # 🚀 CRITICAL: Use autocommit for individual records to avoid transaction state issues
-                with conn.begin() as transaction:
-                    conn.execute(text(upsert_sql), clean_row_data)
-                    # Transaction auto-commits on successful exit
+                # 🚀 CRITICAL FIX: Execute without nested transactions to avoid SQLAlchemy conflicts
+                conn.execute(text(upsert_sql), clean_row_data)
+                conn.commit()  # Manual commit for each record
                     
                 records_processed += 1
                 
@@ -399,17 +400,20 @@ class AutoSyncService:
                 error_msg = str(row_error)
                 logger.warning(f"⚠️ Record {primary_key}={primary_key_value} failed: {error_msg}")
                 
-                # 🛠️ ENHANCED: Try fallback strategies with fresh transaction
+                # 🛠️ ENHANCED: Try fallback strategies without nested transactions
                 fallback_success = False
                 if clean_row_data:  # Only try fallback if we have clean data
                     try:
-                        with conn.begin() as fallback_transaction:
-                            if self._handle_constraint_violation_with_transaction(conn, table, clean_row_data, primary_key_value, upsert_sql, error_msg):
-                                # Transaction auto-commits on successful exit
-                                fallback_success = True
-                                records_processed += 1
-                                logger.info(f"✅ Fallback successful for {primary_key}={primary_key_value}")
+                        if self._handle_constraint_violation_with_transaction(conn, table, clean_row_data, primary_key_value, upsert_sql, error_msg):
+                            conn.commit()  # Manual commit for fallback
+                            fallback_success = True
+                            records_processed += 1
+                            logger.info(f"✅ Fallback successful for {primary_key}={primary_key_value}")
                     except Exception as fallback_error:
+                        try:
+                            conn.rollback()  # Rollback failed fallback
+                        except:
+                            pass  # Ignore rollback errors
                         logger.error(f"❌ Fallback failed for {primary_key}={primary_key_value}: {fallback_error}")
                 
                 if not fallback_success:
@@ -422,6 +426,12 @@ class AutoSyncService:
             for failure in failed_records[:5]:  # Log first 5 failures
                 logger.warning(f"   - {failure}")
         
+        # Clear timeout if set
+        try:
+            signal.alarm(0)
+        except:
+            pass
+            
         success_rate = f"{records_processed}/{len(df)}"
         if table == 'guests':
             logger.info(f"👥 GUESTS UPSERT RESULT: {success_rate} records processed successfully")
