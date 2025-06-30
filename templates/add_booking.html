@@ -527,10 +527,12 @@ window.selectApartment = function selectApartment(apartmentId) {
         // Update the generated URL with your complete URL
         updateGeneratedUrl();
         
-        // Update crawl button text
+        // Update crawl button text and ensure it's enabled
         const crawlBtn = document.getElementById('start-crawl-btn');
         if (crawlBtn) {
             crawlBtn.innerHTML = `<i class="fas fa-spider me-2"></i>Crawl ${apartment.name}`;
+            // Ensure button is enabled when apartment is selected
+            crawlBtn.disabled = false;
         }
     }
 };
@@ -1884,6 +1886,20 @@ async function checkCrawlingCapabilities() {
             }
         } else {
             console.log('✅ Web crawling is available');
+            
+            // Enable crawling interface when available
+            const crawlApartmentCards = document.querySelectorAll('.apartment-card');
+            crawlApartmentCards.forEach(card => {
+                card.style.opacity = '1';
+                card.style.pointerEvents = 'auto';
+            });
+            
+            // Enable start crawl button
+            const startCrawlBtn = document.getElementById('start-crawl-btn');
+            if (startCrawlBtn) {
+                startCrawlBtn.disabled = false;
+                startCrawlBtn.innerHTML = '<i class="fas fa-spider me-2"></i>Bắt đầu Crawl';
+            }
             
             // Show Railway success message if on Railway
             if (capabilities.environment === 'railway' && capabilities.supported_methods > 0) {
