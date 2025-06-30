@@ -1774,12 +1774,15 @@ async function checkCrawlingCapabilities() {
                 
                 if (capabilities.environment === 'cloud') {
                     messageSpan.innerHTML = `
-                        Running on cloud platform (${capabilities.environment}). Web crawling with Selenium requires Chrome browser and display server which are not available.<br>
-                        <strong>Available alternatives:</strong>
-                        <ul class="mt-2 mb-0">
-                            <li>📸 Upload booking screenshots for AI extraction</li>
-                            <li>✏️ Manual booking entry</li>
-                            <li>📋 Import from CSV/Excel files</li>
+                        <div class="alert alert-info border-0 small mb-2">
+                            <i class="fas fa-info-circle me-1"></i><strong>Cloud Platform Info:</strong> 
+                            Direct website crawling is not available on cloud platforms.
+                        </div>
+                        <strong>✅ Available booking methods:</strong>
+                        <ul class="mt-2 mb-0 small">
+                            <li>📸 <strong>Upload booking screenshots</strong> for AI extraction</li>
+                            <li>✏️ <strong>Manual booking entry</strong> using the form below</li>
+                            <li>📋 <strong>Import from CSV/Excel files</strong></li>
                         </ul>
                     `;
                 } else {
@@ -1818,14 +1821,25 @@ async function checkCrawlingCapabilities() {
         }
         
     } catch (error) {
-        console.error('❌ Failed to check crawling capabilities:', error);
-        // Show generic error message
+        console.log('ℹ️ Crawl capabilities check failed (normal on some platforms):', error);
+        // Show fallback message - not an error, just info
         const statusDiv = document.getElementById('crawl-environment-status');
         const messageSpan = document.getElementById('crawl-environment-message');
         
         if (statusDiv && messageSpan) {
             statusDiv.style.display = 'block';
-            messageSpan.innerHTML = 'Unable to determine crawling capabilities. Please try alternative methods.';
+            messageSpan.innerHTML = `
+                <div class="alert alert-info border-0 small mb-2">
+                    <i class="fas fa-info-circle me-1"></i><strong>Platform Info:</strong> 
+                    Direct website crawling may not be available.
+                </div>
+                <strong>✅ Available booking methods:</strong>
+                <ul class="mt-2 mb-0 small">
+                    <li>📸 <strong>Upload booking screenshots</strong> for AI extraction</li>
+                    <li>✏️ <strong>Manual booking entry</strong> using the form below</li>
+                    <li>📋 <strong>Import from CSV/Excel files</strong></li>
+                </ul>
+            `;
         }
     }
 }
