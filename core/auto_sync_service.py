@@ -206,11 +206,34 @@ class AutoSyncService:
         return status
     
     def export_table_data(self, engine, table: str) -> pd.DataFrame:
-        """Export table data to DataFrame"""
+        """Export table data to DataFrame with enhanced debugging"""
         try:
             with engine.connect() as conn:
+                # 🚀 ENHANCED: Check if table exists and has data
+                try:
+                    # Test if table exists
+                    test_query = f"SELECT COUNT(*) FROM {table}"
+                    result = conn.execute(text(test_query))
+                    record_count = result.scalar()
+                    logger.info(f"🔍 Table {table} exists with {record_count} records")
+                    
+                    if record_count == 0:
+                        logger.warning(f"⚠️ Table {table} is empty - creating empty DataFrame")
+                        return pd.DataFrame()
+                        
+                except Exception as table_error:
+                    logger.error(f"❌ Table {table} doesn't exist or is inaccessible: {table_error}")
+                    return pd.DataFrame()
+                
+                # Export the data
                 df = pd.read_sql_table(table, conn)
-                logger.info(f"📊 Exported {len(df)} records from {table}")
+                logger.info(f"📊 Successfully exported {len(df)} records from {table}")
+                
+                # 🚀 DEBUG: Show column structure for guests table
+                if table == 'guests' and not df.empty:
+                    logger.info(f"🔍 Guests table columns: {list(df.columns)}")
+                    logger.info(f"🔍 Sample guests data: {df.head(1).to_dict('records') if len(df) > 0 else 'No data'}")
+                
                 return df
         except Exception as e:
             logger.error(f"❌ Error exporting {table}: {e}")
@@ -355,9 +378,12 @@ class AutoSyncService:
             try:
                 clean_row_data = self._clean_row_data(row.to_dict())
                 
-                # Special handling for bookings table
+                # Special handling for specific tables
                 if table == 'bookings':
                     clean_row_data = self._clean_booking_data(clean_row_data)
+                elif table == 'guests':
+                    clean_row_data = self._clean_guest_data(clean_row_data)
+                    logger.debug(f"🚀 Cleaned guest data: {clean_row_data}")
                 
                 # 🚀 CRITICAL: Use autocommit for individual records to avoid transaction state issues
                 with conn.begin() as transaction:
@@ -366,7 +392,7 @@ class AutoSyncService:
                     
                 records_processed += 1
                 
-                if records_processed % 10 == 0:
+                if records_processed % 10 == 0 or table == 'guests':
                     logger.info(f"✅ Processed {records_processed}/{len(df)} records for {table}")
                     
             except Exception as row_error:
@@ -396,7 +422,11 @@ class AutoSyncService:
             for failure in failed_records[:5]:  # Log first 5 failures
                 logger.warning(f"   - {failure}")
         
-        logger.info(f"📊 UPSERT RESULT for {table}: {records_processed}/{len(df)} records processed successfully")
+        success_rate = f"{records_processed}/{len(df)}"
+        if table == 'guests':
+            logger.info(f"👥 GUESTS UPSERT RESULT: {success_rate} records processed successfully")
+        else:
+            logger.info(f"📊 UPSERT RESULT for {table}: {success_rate} records processed successfully")
         return records_processed
     
     def _handle_constraint_violation_with_transaction(self, conn, table: str, row_data: dict, primary_key_value: str, upsert_sql: str, error_msg: str) -> bool:
@@ -616,8 +646,17 @@ class AutoSyncService:
         """Special cleaning for guest data to handle constraints"""
         cleaned = row_data.copy()
         
+        # 🚀 CRITICAL: Handle field name mapping between different schemas
+        # Map guest_name → full_name for proper guests table structure
+        if 'guest_name' in cleaned:
+            cleaned['full_name'] = cleaned['guest_name']
+            if 'guest_name' in cleaned and 'full_name' in cleaned:
+                del cleaned['guest_name']  # Remove the mapped field
+        
         # Ensure required fields have sensible defaults
-        if 'guest_name' in cleaned and (cleaned['guest_name'] is None or cleaned['guest_name'] == ''):
+        if 'full_name' in cleaned and (cleaned['full_name'] is None or cleaned['full_name'] == ''):
+            cleaned['full_name'] = 'Unknown Guest'
+        elif 'guest_name' in cleaned and (cleaned['guest_name'] is None or cleaned['guest_name'] == ''):
             cleaned['guest_name'] = 'Unknown Guest'
             
         # Handle email conflicts (make unique if empty)
