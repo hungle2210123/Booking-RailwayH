@@ -33,8 +33,17 @@ class AutoSyncService:
     """Automatic bidirectional database synchronization service"""
     
     def __init__(self):
+        # Smart database URL detection for Railway deployment
+        database_url = os.getenv('DATABASE_URL')
+        
         self.local_url = os.getenv('LOCAL_DATABASE_URL')
-        self.railway_url = os.getenv('RAILWAY_DATABASE_URL')
+        self.railway_url = os.getenv('RAILWAY_DATABASE_URL') or database_url
+        
+        # On Railway, use DATABASE_URL for both if no specific URLs provided
+        if not self.local_url and not self.railway_url and database_url:
+            self.railway_url = database_url
+            logger.info("🚂 Railway deployment detected: Using DATABASE_URL for sync")
+        
         self.sync_interval = int(os.getenv('AUTO_SYNC_INTERVAL', '300'))  # 5 minutes default
         self.is_running = False
         self.sync_thread = None
@@ -124,9 +133,21 @@ class AutoSyncService:
             
         logger.info("🔍 Analyzing sync status (fresh calculation)...")
         
-        # Get counts from both databases
+        # Get counts from both databases (handle single database deployments)
         local_counts = self.get_table_counts(self.local_engine) if self.local_engine else {}
         railway_counts = self.get_table_counts(self.railway_engine) if self.railway_engine else {}
+        
+        # For Railway-only deployment, show status but indicate no sync needed
+        if not self.local_engine and self.railway_engine:
+            logger.info("🚂 Railway-only deployment: Auto sync disabled")
+            return SyncStatus(
+                local_count=0,
+                railway_count=sum(railway_counts.values()),
+                last_sync_time=self.last_check_time,
+                sync_needed=False,
+                recommended_direction='none',
+                differences={}
+            )
         
         # Calculate totals
         local_total = sum(local_counts.values())

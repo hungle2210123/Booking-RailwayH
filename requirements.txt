@@ -38,8 +38,9 @@ selenium>=4.15.0,<5.0.0
 psutil>=5.9.0,<6.0.0
 firecrawl-py>=0.0.5,<1.0.0
 
-# --- VISUALIZATION (OPTIONAL) ---
+# --- VISUALIZATION & ANALYTICS ---
 plotly>=5.15.0,<6.0.0
+scipy>=1.10.0,<2.0.0
 
 # --- REMOVED DEPENDENCIES ---
 # These were used for Google Sheets integration (no longer needed):

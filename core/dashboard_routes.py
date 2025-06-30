@@ -202,24 +202,27 @@ def create_revenue_chart(monthly_revenue_list):
             annotation_font=dict(size=12, color="rgba(52, 73, 94, 1)")
         )
         
-        # Add trend line
-        from scipy import stats
-        if len(monthly_revenue_df_sorted) > 1:
-            x_numeric = range(len(monthly_revenue_df_sorted))
-            slope, intercept, r_value, p_value, std_err = stats.linregress(x_numeric, revenues)
-            trend_line = [slope * x + intercept for x in x_numeric]
-            
-            trend_color = '#27ae60' if slope > 0 else '#e74c3c'
-            trend_direction = '📈 Tăng' if slope > 0 else '📉 Giảm'
-            
-            fig.add_trace(go.Scatter(
-                x=monthly_revenue_df_sorted['Tháng'],
-                y=trend_line,
-                mode='lines',
-                name=f'Xu hướng {trend_direction}',
-                line=dict(color=trend_color, width=3, dash='dot'),
-                hovertemplate='Xu hướng: ' + trend_direction + '<extra></extra>'
-            ))
+        # Add trend line (optional - requires scipy)
+        try:
+            from scipy import stats
+            if len(monthly_revenue_df_sorted) > 1:
+                x_numeric = range(len(monthly_revenue_df_sorted))
+                slope, intercept, r_value, p_value, std_err = stats.linregress(x_numeric, revenues)
+                trend_line = [slope * x + intercept for x in x_numeric]
+                
+                trend_color = '#27ae60' if slope > 0 else '#e74c3c'
+                trend_direction = '📈 Tăng' if slope > 0 else '📉 Giảm'
+                
+                fig.add_trace(go.Scatter(
+                    x=monthly_revenue_df_sorted['Tháng'],
+                    y=trend_line,
+                    mode='lines',
+                    name=f'Xu hướng {trend_direction}',
+                    line=dict(color=trend_color, width=3, dash='dot'),
+                    hovertemplate='Xu hướng: ' + trend_direction + '<extra></extra>'
+                ))
+        except ImportError:
+            print("ℹ️ scipy not available - skipping trend line analysis")
         
         # Enhanced layout for strategic management
         fig.update_layout(
@@ -782,12 +785,18 @@ def process_weekly_revenue_with_unpaid(df, start_date=None, end_date=None):
                     'Tổng thanh toán': 'Đã thu',
                     'Hoa hồng': 'Hoa hồng_collected'
                 }),
-                uncollected_weekly[['Week_Label', 'Tổng thanh toán', 'Hoa hồng', 'Số khách chưa thu']].rename(columns={
+                uncollected_weekly[['Week_Label', 'Tổng thanh toán', 'Hoa hồng', 'Số khách chưa thu', 'Week_Start']].rename(columns={
                     'Tổng thanh toán': 'Chưa thu',
-                    'Hoa hồng': 'Hoa hồng_uncollected'
+                    'Hoa hồng': 'Hoa hồng_uncollected',
+                    'Week_Start': 'Week_Start_uncollected'
                 }),
                 on='Week_Label', how='outer'
             ).fillna(0)
+            
+            # Fill missing Week_Start values using the uncollected Week_Start
+            merged_data['Week_Start'] = merged_data['Week_Start'].fillna(merged_data['Week_Start_uncollected'])
+            merged_data = merged_data.drop(columns=['Week_Start_uncollected'])
+            
             merged_data['Hoa hồng'] = merged_data['Hoa hồng_collected'] + merged_data['Hoa hồng_uncollected']
             merged_data = merged_data.drop(columns=['Hoa hồng_collected', 'Hoa hồng_uncollected'])
         elif not collected_weekly.empty:
@@ -818,7 +827,15 @@ def process_weekly_revenue_with_unpaid(df, start_date=None, end_date=None):
             
             # Sort by week start date (most recent first)
             if 'Week_Start' in merged_data.columns:
-                merged_data = merged_data.sort_values('Week_Start', ascending=False)
+                try:
+                    # Ensure Week_Start column has consistent datetime types
+                    merged_data['Week_Start'] = pd.to_datetime(merged_data['Week_Start'])
+                    merged_data = merged_data.sort_values('Week_Start', ascending=False)
+                except Exception as e:
+                    print(f"⚠️ [WEEKLY_REVENUE_SORT] Could not sort by Week_Start: {e}")
+                    # Fallback: sort by Week_Label if Week_Start sorting fails
+                    if 'Week_Label' in merged_data.columns:
+                        merged_data = merged_data.sort_values('Week_Label', ascending=False)
             
             # Rename Week_Label to Tuần for display
             merged_data = merged_data.rename(columns={'Week_Label': 'Tuần'})
@@ -1084,6 +1101,7 @@ def calculate_revenue_optimized_dual_method(df):
         
         # Group by month (traditional way)
         if not collected_traditional.empty:
+            collected_traditional = collected_traditional.copy()  # Fix pandas warning
             collected_traditional['Month'] = collected_traditional['Check-in Date'].dt.to_period('M')
             traditional_collected = collected_traditional.groupby('Month').agg({
                 'Tổng thanh toán': 'sum',
@@ -1096,7 +1114,8 @@ def calculate_revenue_optimized_dual_method(df):
             traditional_collected = pd.DataFrame()
             
         if not uncollected_traditional.empty:
-            uncollected_traditional['Month'] = uncollected_traditional['Check-in Date'].dt.to_period('M')
+            uncollected_traditional = uncollected_traditional.copy()
+            uncollected_traditional.loc[:, 'Month'] = uncollected_traditional['Check-in Date'].dt.to_period('M')
             traditional_uncollected = uncollected_traditional.groupby('Month').agg({
                 'Tổng thanh toán': 'sum',
                 'Số tiền đã thu': 'sum',
