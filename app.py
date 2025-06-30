@@ -1822,7 +1822,15 @@ def process_pasted_image():
             bookings_list = [booking_info]
         
         # Use AI duplicate detector for comprehensive analysis (if available)
-        ai_analysis = {'analysis': 'AI duplicate detection not available'}
+        ai_analysis = {
+            'analysis': {
+                'new_bookings': len(bookings_list),
+                'duplicates_found': 0,
+                'summary': 'AI duplicate detection not available'
+            },
+            'filtering_options': [],
+            'recommendations': []
+        }
         if ai_duplicate_detector:
             print(f"🤖 [AI_DUPLICATE] Starting AI duplicate detection for {len(bookings_list)} bookings...")
             df = load_booking_data()
@@ -4819,7 +4827,15 @@ def crawl_admin_bookings():
             print(f"🎉 Successfully extracted {extracted_count} bookings!")
             
             # Apply AI duplicate detection to crawled bookings (if available)
-            ai_analysis = {'analysis': 'AI duplicate detection not available'}
+            ai_analysis = {
+                'analysis': {
+                    'new_bookings': len(bookings) if bookings else 0,
+                    'duplicates_found': 0,
+                    'summary': 'AI duplicate detection not available'
+                },
+                'filtering_options': [],
+                'recommendations': []
+            }
             if bookings and ai_duplicate_detector:
                 print(f"🤖 [AI_DUPLICATE] Applying AI duplicate detection to crawled bookings...")
                 df = load_booking_data()
