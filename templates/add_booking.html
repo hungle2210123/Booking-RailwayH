@@ -58,8 +58,42 @@
     background: linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%);
     border: none;
 }
+
+/* Professional Interface Styling */
+.form-label {
+    color: #000 !important;
+    font-weight: 600 !important;
+}
+
+h1, h2, h3, h4, h5, h6 {
+    color: #000 !important;
+}
+
+.card-header h6 {
+    color: #000 !important;
+}
+
+.table th {
+    color: #000 !important;
+    font-weight: 600 !important;
+}
+
+/* Clean button styling */
+.btn {
+    font-weight: 500;
+}
+
+/* Remove excessive spacing */
+.bulk-actions .btn-group {
+    gap: 0.5rem;
+}
+
+/* Professional table styling */
+.table-striped > tbody > tr:nth-of-type(odd) > td {
+    background-color: rgba(0,0,0,.02);
+}
 </style>
-<h1 class="mb-4"><i class="fas fa-plus-circle me-2"></i>Thêm Đặt phòng <small class="text-muted">Photo AI + Manual</small></h1>
+<h1 class="mb-4" style="color: #000;"><i class="fas fa-plus-circle me-2"></i>Thêm Đặt phòng <small style="color: #666; font-weight: 400;">Photo AI + Manual</small></h1>
 
 <!-- Duplicate Warning Modal -->
 {% if duplicate_warning %}
@@ -309,25 +343,27 @@
                         </table>
                     </div>
                 </div>
-                <div class="card-footer">
-                    <div class="row">
-                        <div class="col-md-6">
-                            <button id="add-manual-row" class="btn btn-outline-primary">
-                                <i class="fas fa-plus me-2"></i>Thêm khách thủ công
-                            </button>
-                        </div>
-                        <div class="col-md-6 text-end">
-                            <div class="form-check form-check-inline me-3">
-                                <input class="form-check-input" type="checkbox" id="force-add-duplicates" value="true">
-                                <label class="form-check-label fw-bold text-warning" for="force-add-duplicates">
-                                    <i class="fas fa-exclamation-triangle me-1"></i>Thêm booking trùng lặp
-                                </label>
+                <div class="card-footer bg-light">
+                    <div class="row align-items-center">
+                        <div class="col-md-8">
+                            <div class="d-flex align-items-center gap-3">
+                                <button id="add-manual-row" class="btn btn-outline-primary btn-sm">
+                                    <i class="fas fa-plus me-1"></i>Thêm khách
+                                </button>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="force-add-duplicates" value="true">
+                                    <label class="form-check-label" for="force-add-duplicates" style="color: #000; font-weight: 500;">
+                                        <i class="fas fa-copy me-1 text-warning"></i>Cho phép trùng lặp
+                                    </label>
+                                </div>
                             </div>
-                            <button onclick="resetPhotoUpload()" class="btn btn-secondary me-2">
-                                <i class="fas fa-undo me-2"></i>Thử lại
+                        </div>
+                        <div class="col-md-4 text-end">
+                            <button onclick="resetPhotoUpload()" class="btn btn-outline-secondary me-2">
+                                <i class="fas fa-undo me-1"></i>Làm lại
                             </button>
-                            <button id="confirm-save-all" class="btn btn-success btn-lg">
-                                <i class="fas fa-save me-2"></i>Xác nhận lưu tất cả
+                            <button id="confirm-save-all" class="btn btn-success">
+                                <i class="fas fa-check me-1"></i>Lưu tất cả
                             </button>
                         </div>
                     </div>
@@ -340,8 +376,8 @@
 <!-- Manual Form (Auto-filled by AI or manual entry) -->
 <div id="manual-form-container">
     <div class="card border-secondary">
-        <div class="card-header bg-secondary text-white">
-            <h6 class="mb-0"><i class="fas fa-edit me-2"></i>Form thủ công (tự động điền từ AI)</h6>
+        <div class="card-header bg-light">
+            <h6 class="mb-0" style="color: #000;"><i class="fas fa-edit me-2"></i>Form thủ công (tự động điền từ AI)</h6>
         </div>
         <div class="card-body">
             <form method="POST" action="{{ url_for('add_booking') }}">
@@ -431,12 +467,12 @@
                     <input type="hidden" name="Thành viên Genius" value="Không">
                 </div>
 
-                <div class="mt-4">
-                    <button type="submit" class="btn btn-primary btn-lg me-2">
-                        <i class="fas fa-plus me-2"></i>Thêm 1 Đặt phòng
+                <div class="mt-4 d-flex gap-2">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-plus me-1"></i>Thêm đặt phòng
                     </button>
-                    <a href="{{ url_for('view_bookings') }}" class="btn btn-secondary btn-lg">
-                        <i class="fas fa-arrow-left me-2"></i>Quay lại
+                    <a href="{{ url_for('view_bookings') }}" class="btn btn-outline-secondary">
+                        <i class="fas fa-arrow-left me-1"></i>Quay lại
                     </a>
                 </div>
             </form>
@@ -1108,48 +1144,43 @@ function addBulkActionButtons() {
     // Check if buttons already exist
     if (cardHeader.querySelector('.bulk-actions')) return;
     
-    // Create bulk action container
+    // Create simplified action container
     const bulkActionsDiv = document.createElement('div');
-    bulkActionsDiv.className = 'bulk-actions mt-2 pt-2 border-top';
+    bulkActionsDiv.className = 'bulk-actions mt-3 pt-3 border-top';
     bulkActionsDiv.innerHTML = `
-        <div class="row">
+        <div class="row align-items-center mb-2">
             <div class="col-md-8">
-                <h6 class="mb-2 text-white">🚀 Tác vụ hàng loạt (nhanh hơn):</h6>
+                <h6 class="mb-0" style="color: #000;">📋 Xử lý dữ liệu đã trích xuất</h6>
             </div>
             <div class="col-md-4 text-end">
-                <small class="text-white-50">Tổng: <span id="total-duplicates-count">${duplicateGroups ? duplicateGroups.length : 0}</span> trùng lặp</small>
+                <small style="color: #666;">Tổng: <span id="total-duplicates-count">${duplicateGroups ? duplicateGroups.length : 0}</span> booking</small>
             </div>
         </div>
-        <div class="btn-group w-100" role="group">
-            <button type="button" class="btn btn-success btn-sm" onclick="bulkKeepAll()" title="Giữ tất cả booking mới (tạo duplicate)">
-                <i class="fas fa-check-circle me-1"></i>Giữ tất cả (${duplicateGroups ? duplicateGroups.length : 0})
-            </button>
-            <button type="button" class="btn btn-warning btn-sm" onclick="bulkReplaceAll()" title="Thay thế tất cả booking cũ">
-                <i class="fas fa-sync-alt me-1"></i>Thay thế tất cả (${duplicateGroups ? duplicateGroups.length : 0})
-            </button>
-            <button type="button" class="btn btn-danger btn-sm" onclick="bulkSkipAll()" title="Bỏ qua tất cả booking mới">
-                <i class="fas fa-times-circle me-1"></i>Bỏ qua tất cả (${duplicateGroups ? duplicateGroups.length : 0})
-            </button>
-            <button type="button" class="btn btn-info btn-sm" onclick="bulkSelectByConfidence()" title="Chọn theo độ tin cậy">
-                <i class="fas fa-magic me-1"></i>Tự động chọn
-            </button>
+        
+        <!-- SIMPLIFIED: Only essential actions -->
+        <div class="row g-2">
+            <div class="col-md-4">
+                <button type="button" class="btn btn-success w-100" onclick="bulkKeepAll()" title="Thêm tất cả booking (kể cả trùng lặp)">
+                    <i class="fas fa-plus me-1"></i>Thêm tất cả
+                </button>
+            </div>
+            <div class="col-md-4">
+                <button type="button" class="btn btn-warning w-100" onclick="bulkReplaceAll()" title="Thay thế booking trùng lặp">
+                    <i class="fas fa-sync-alt me-1"></i>Thay thế trùng lặp
+                </button>
+            </div>
+            <div class="col-md-4">
+                <button type="button" class="btn btn-outline-secondary w-100" onclick="clearAllSelections()" title="Bỏ chọn tất cả">
+                    <i class="fas fa-eraser me-1"></i>Đặt lại
+                </button>
+            </div>
         </div>
         
-        <!-- OPTIMIZED: Simple one-click selection actions -->
-        <div class="btn-group w-100 mt-2" role="group">
-            <button type="button" class="btn btn-warning btn-sm" onclick="replaceSelectedBookings()" 
-                    title="Thay thế các booking đã chọn" disabled id="replace-selected-btn" data-original-text="Thay thế đã chọn">
-                <i class="fas fa-sync-alt me-1"></i>Thay thế đã chọn
-            </button>
-            <button type="button" class="btn btn-outline-secondary btn-sm" onclick="clearAllSelections()" 
-                    title="Bỏ chọn tất cả">
-                <i class="fas fa-eraser me-1"></i>Bỏ chọn tất cả
-            </button>
+        <div class="mt-2">
+            <small style="color: #666;">
+                💡 Kiểm tra và chỉnh sửa thông tin trong bảng, sau đó chọn hành động phù hợp
+            </small>
         </div>
-        
-        <small class="text-white-50 mt-1 d-block">
-            💡 Tip: Chọn checkbox để sử dụng hành động "đã chọn", hoặc dùng "tất cả" để xử lý toàn bộ
-        </small>
     `;
     
     cardHeader.appendChild(bulkActionsDiv);
@@ -1384,7 +1415,7 @@ function generateReviewTableHtml(duplicateCheck) {
                 <input type="checkbox" class="form-check-input duplicate-select" 
                        data-index="${index}" 
                        onchange="updateSelection(${index})"
-                       title="Chọn để thực hiện hành động hàng loạt">
+                       title="Chọn khách này">
             </td>
             <td>
                 <div class="d-flex align-items-center">
