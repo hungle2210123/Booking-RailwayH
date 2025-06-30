@@ -78,6 +78,22 @@ def execute_insert_update_delete(query: str, params: dict = None) -> bool:
 # CORE DATA FUNCTIONS - POSTGRESQL ONLY
 # ==============================================================================
 
+def load_booking_data_for_calculations(force_fresh: bool = False) -> pd.DataFrame:
+    """Load booking data EXCLUDING cancelled bookings - for calculations and analytics"""
+    df = load_booking_data(force_fresh=force_fresh)
+    if df.empty:
+        return df
+    
+    # Filter out cancelled bookings for all calculations and features
+    if 'Tình trạng' in df.columns:
+        initial_count = len(df)
+        df = df[df['Tình trạng'] != 'Đã hủy']
+        filtered_count = initial_count - len(df)
+        if filtered_count > 0:
+            print(f"🔍 [CALCULATIONS] Excluded {filtered_count} cancelled bookings from calculations")
+    
+    return df
+
 def load_booking_data(force_fresh: bool = False) -> pd.DataFrame:
     """Load all booking data from PostgreSQL"""
     if force_fresh:
@@ -158,7 +174,8 @@ def create_demo_data():
         for guest in demo_guests:
             db.session.add(guest)
         
-        db.session.flush()  # Get guest IDs
+        # Commit to get auto-assigned guest_ids (let PostgreSQL handle ID assignment)
+        db.session.commit()
         
         # Create demo bookings
         today = datetime.now().date()
@@ -201,6 +218,31 @@ def create_demo_data():
         print(f"Error creating demo data: {e}")
         return False
 
+def _fix_guest_sequence() -> bool:
+    """Fix PostgreSQL guest_id sequence to prevent duplicate key violations"""
+    try:
+        print("🔧 [FIX_SEQUENCE] Fixing PostgreSQL guest_id sequence...")
+        
+        from .models import db, Guest
+        from sqlalchemy import text
+        
+        with db.engine.connect() as conn:
+            # Get the maximum guest_id currently in the table
+            result = conn.execute(text("SELECT COALESCE(MAX(guest_id), 0) FROM guests"))
+            max_guest_id = result.scalar()
+            
+            # Set the sequence to the next available value
+            next_value = max_guest_id + 1
+            conn.execute(text(f"SELECT setval('guests_guest_id_seq', {next_value})"))
+            conn.commit()
+            
+            print(f"✅ [FIX_SEQUENCE] Guest sequence fixed! Next guest_id will be: {next_value}")
+            return True
+            
+    except Exception as e:
+        print(f"❌ [FIX_SEQUENCE] Failed to fix guest sequence: {e}")
+        return False
+
 def add_new_booking(booking_data: Dict) -> bool:
     """Add new booking to PostgreSQL"""
     from .models import db, Guest, Booking
@@ -238,7 +280,8 @@ def add_new_booking(booking_data: Dict) -> bool:
                 passport_number=booking_data.get('passport_number', '')
             )
             db.session.add(guest)
-            db.session.flush()
+            # Commit to get auto-assigned guest_id (let PostgreSQL handle ID assignment)
+            db.session.commit()
             print(f"✅ [ADD_NEW_BOOKING] New guest created: ID {guest.guest_id}")
         else:
             print(f"✅ [ADD_NEW_BOOKING] Existing guest found: ID {guest.guest_id}")
@@ -271,6 +314,14 @@ def add_new_booking(booking_data: Dict) -> bool:
         
     except Exception as e:
         db.session.rollback()
+        
+        # Check if this is a sequence/duplicate key error and try to fix it
+        if "duplicate key value violates unique constraint" in str(e) and "guests_pkey" in str(e):
+            print(f"🔧 [ADD_NEW_BOOKING] Guest ID sequence issue detected, attempting fix...")
+            if _fix_guest_sequence():
+                print(f"✅ [ADD_NEW_BOOKING] Sequence fixed, retrying booking creation...")
+                return add_new_booking(booking_data)  # Retry once
+        
         print(f"❌ [ADD_NEW_BOOKING] Error adding booking: {e}")
         import traceback
         traceback.print_exc()
@@ -371,8 +422,8 @@ def update_booking(booking_id: str, update_data: Dict) -> bool:
         print(f"Error updating booking: {e}")
         return False
 
-def delete_booking_by_id(booking_id: str) -> bool:
-    """Delete booking from PostgreSQL"""
+def cancel_booking_by_id(booking_id: str) -> bool:
+    """Cancel booking in PostgreSQL (soft cancel - preserves data)"""
     from .models import db, Booking
     
     try:
@@ -381,16 +432,22 @@ def delete_booking_by_id(booking_id: str) -> bool:
             print(f"Booking {booking_id} not found")
             return False
         
-        # Soft delete - mark as deleted
-        booking.booking_status = 'deleted'
+        # Soft cancel - mark as cancelled (preserves all data)
+        booking.booking_status = 'cancelled'
         db.session.commit()
-        print(f"Deleted booking: {booking_id}")
+        print(f"Cancelled booking: {booking_id}")
         return True
         
     except Exception as e:
         db.session.rollback()
-        print(f"Error deleting booking: {e}")
+        print(f"Error cancelling booking: {e}")
         return False
+
+# Legacy function for backward compatibility
+def delete_booking_by_id(booking_id: str) -> bool:
+    """Legacy function - redirects to cancel_booking_by_id for data preservation"""
+    print(f"⚠️ [LEGACY] delete_booking_by_id called - redirecting to cancel for booking: {booking_id}")
+    return cancel_booking_by_id(booking_id)
 
 # ==============================================================================
 # DATA ANALYSIS FUNCTIONS
@@ -408,11 +465,17 @@ def get_daily_activity(df: pd.DataFrame, target_date: datetime.date) -> Dict[str
     
     if 'Check-in Date' in df.columns:
         df_checkin = pd.to_datetime(df['Check-in Date'])
-        arrivals = df[df_checkin.dt.date == target_date]
+        arrivals = df[
+            (df_checkin.dt.date == target_date) & 
+            (df['Tình trạng'] != 'Đã hủy')  # Exclude cancelled bookings
+        ]
     
     if 'Check-out Date' in df.columns:
         df_checkout = pd.to_datetime(df['Check-out Date'])
-        departures = df[df_checkout.dt.date == target_date]
+        departures = df[
+            (df_checkout.dt.date == target_date) & 
+            (df['Tình trạng'] != 'Đã hủy')  # Exclude cancelled bookings
+        ]
     
     # Guests staying (checked in BEFORE date, checking out after date)
     # FIXED: Exclude guests checking in on the same day to prevent double counting
@@ -422,7 +485,7 @@ def get_daily_activity(df: pd.DataFrame, target_date: datetime.date) -> Dict[str
         staying = df[
             (df_checkin.dt.date < target_date) &  # CHANGED: < instead of <= to exclude check-in day
             (df_checkout.dt.date > target_date) &
-            (df['Tình trạng'] == 'OK')
+            (df['Tình trạng'] != 'Đã hủy')  # Exclude cancelled bookings (more inclusive than just 'OK')
         ]
     
     return {
@@ -560,6 +623,12 @@ def prepare_dashboard_data(df: pd.DataFrame, start_date: datetime, end_date: dat
     start_date_only = start_date.date()
     end_date_only = end_date.date()
     mask = (df['Check-in Date'].dt.date >= start_date_only) & (df['Check-in Date'].dt.date <= end_date_only)
+    
+    # Exclude cancelled bookings from dashboard calculations
+    if 'Tình trạng' in df.columns:
+        mask = mask & (df['Tình trạng'] != 'Đã hủy')
+        print(f"🔍 [DASHBOARD_FILTER] Excluding cancelled bookings from dashboard calculations")
+    
     filtered_df = df[mask]
     
     print(f"🔍 [CHART_LOGIC] Step 1 - Period filter: {len(df)} → {len(filtered_df)} guests")
@@ -713,8 +782,16 @@ def analyze_existing_duplicates(df: pd.DataFrame) -> Dict[str, List]:
             print(f"🤖 [DUPLICATE_ANALYSIS] Date conversion error: {date_error}")
             return {'duplicate_groups': [], 'total_duplicates': 0, 'total_groups': 0}
         
-        # Filter out null values
+        # Filter out null values and cancelled bookings
         df_clean = df_work.dropna(subset=['Tên người đặt', 'Check-in Date'])
+        
+        # Exclude cancelled bookings from duplicate detection
+        if 'Tình trạng' in df_clean.columns:
+            initial_count = len(df_clean)
+            df_clean = df_clean[df_clean['Tình trạng'] != 'Đã hủy']
+            cancelled_count = initial_count - len(df_clean)
+            if cancelled_count > 0:
+                print(f"🤖 [DUPLICATE_ANALYSIS] Excluded {cancelled_count} cancelled bookings from duplicate detection")
         
         unique_guests = df_clean['Tên người đặt'].unique()
         print(f"🤖 [DUPLICATE_ANALYSIS] Processing {len(unique_guests)} unique guests from {len(df_clean)} bookings")

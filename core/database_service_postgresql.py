@@ -103,6 +103,8 @@ class PostgreSQLDatabaseService:
     def __init__(self):
         self.backend_name = "PostgreSQL"
         logger.info("PostgreSQL Database Service initialized")
+        # Check and fix guest sequence on startup
+        self._ensure_guest_sequence_correct()
     
     def get_connection(self):
         """Get PostgreSQL database connection"""
@@ -179,7 +181,7 @@ class PostgreSQLDatabaseService:
                 ).first()
                 
                 if not guest:
-                    # Create new guest
+                    # Create new guest - let PostgreSQL auto-increment handle guest_id
                     guest = Guest(
                         full_name=booking_data.get('guest_name', ''),
                         email=booking_data.get('email', ''),
@@ -188,7 +190,8 @@ class PostgreSQLDatabaseService:
                         passport_number=booking_data.get('passport_number', '')
                     )
                     db.session.add(guest)
-                    db.session.flush()
+                    # Commit the guest first to get the auto-assigned guest_id
+                    db.session.commit()
                 
                 # Create new booking
                 booking = Booking(
@@ -217,6 +220,14 @@ class PostgreSQLDatabaseService:
                 
         except Exception as e:
             db.session.rollback()
+            
+            # Check if this is a sequence/duplicate key error and try to fix it
+            if "duplicate key value violates unique constraint" in str(e) and "guests_pkey" in str(e):
+                logger.warning(f"Guest ID sequence issue detected, attempting fix...")
+                if self._fix_guest_sequence():
+                    logger.info("Sequence fixed, retrying booking creation...")
+                    return self.create_booking(booking_data)  # Retry once
+            
             logger.error(f"Error creating booking: {e}")
             raise PostgreSQLError(f"Failed to create booking: {str(e)}")
     
@@ -396,6 +407,14 @@ class PostgreSQLDatabaseService:
             return note
         except Exception as e:
             db.session.rollback()
+            
+            # Check if this is a sequence/duplicate key error and try to fix it
+            if "duplicate key value violates unique constraint" in str(e) and "quick_notes_pkey" in str(e):
+                logger.warning(f"Quick note ID sequence issue detected, attempting fix...")
+                if self._fix_quick_note_sequence():
+                    logger.info("Sequence fixed, retrying note creation...")
+                    return self.create_quick_note(note_type, content, guest_name, booking_id, priority)  # Retry once
+            
             logger.error(f"Error creating quick note: {e}")
             raise PostgreSQLError(f"Failed to create quick note: {str(e)}")
     
@@ -527,6 +546,87 @@ class PostgreSQLDatabaseService:
                     print(f"❌ [UPSERT_ARRIVAL] Retry failed: {retry_error}")
             
             raise PostgreSQLError(f"Failed to upsert arrival time: {str(e)}")
+    
+    def _fix_guest_sequence(self) -> bool:
+        """Fix PostgreSQL guest_id sequence to prevent duplicate key violations"""
+        try:
+            logger.info("🔧 Fixing PostgreSQL guest_id sequence...")
+            
+            with self.get_connection() as conn:
+                # Get the maximum guest_id currently in the table
+                result = conn.execute(text("SELECT COALESCE(MAX(guest_id), 0) FROM guests"))
+                max_guest_id = result.scalar()
+                
+                # Set the sequence to the next available value
+                next_value = max_guest_id + 1
+                conn.execute(text(f"SELECT setval('guests_guest_id_seq', {next_value})"))
+                conn.commit()
+                
+                logger.info(f"✅ Guest sequence fixed! Next guest_id will be: {next_value}")
+                return True
+                
+        except Exception as e:
+            logger.error(f"❌ Failed to fix guest sequence: {e}")
+            return False
+
+    def _fix_quick_note_sequence(self) -> bool:
+        """Fix PostgreSQL note_id sequence to prevent duplicate key violations"""
+        try:
+            logger.info("🔧 Fixing PostgreSQL note_id sequence...")
+            
+            with self.get_connection() as conn:
+                # Get the maximum note_id currently in the table
+                result = conn.execute(text("SELECT COALESCE(MAX(note_id), 0) FROM quick_notes"))
+                max_note_id = result.scalar()
+                
+                # Set the sequence to the next available value
+                next_value = max_note_id + 1
+                conn.execute(text(f"SELECT setval('quick_notes_note_id_seq', {next_value})"))
+                conn.commit()
+                
+                logger.info(f"✅ Quick note sequence fixed! Next note_id will be: {next_value}")
+                return True
+                
+        except Exception as e:
+            logger.error(f"❌ Failed to fix quick note sequence: {e}")
+            return False
+    
+    def _ensure_guest_sequence_correct(self):
+        """Ensure guest sequence is correctly set on startup"""
+        try:
+            # Delay execution to ensure database is ready
+            import time
+            time.sleep(1)
+            
+            with self.get_connection() as conn:
+                # Check if sequence exists and get max guest_id
+                try:
+                    result = conn.execute(text("SELECT COALESCE(MAX(guest_id), 0) FROM guests"))
+                    max_guest_id = result.scalar()
+                    
+                    # Get current sequence value (if initialized)
+                    try:
+                        curr_result = conn.execute(text("SELECT currval('guests_guest_id_seq')"))
+                        current_seq = curr_result.scalar()
+                    except:
+                        # Sequence not initialized yet, that's ok
+                        current_seq = 0
+                    
+                    # Only fix if there's a clear issue
+                    if max_guest_id > 0 and current_seq <= max_guest_id:
+                        logger.info(f"🔧 Guest sequence needs adjustment: max_id={max_guest_id}, seq={current_seq}")
+                        self._fix_guest_sequence()
+                    else:
+                        logger.info("✅ Guest sequence looks correct")
+                        
+                except Exception as e:
+                    # If table doesn't exist yet, that's fine
+                    if "does not exist" not in str(e):
+                        logger.warning(f"Could not check guest sequence on startup: {e}")
+                        
+        except Exception as e:
+            # Don't fail startup if sequence check fails
+            logger.warning(f"Guest sequence startup check failed (non-critical): {e}")
     
     def get_health_status(self) -> Dict[str, Any]:
         """Get PostgreSQL health status"""

@@ -75,6 +75,27 @@
 .fw-medium {
     font-weight: 500 !important;
 }
+
+/* CSS styling for cancelled bookings */
+.cancelled-row {
+    background-color: #f8f9fa !important;
+    opacity: 0.75;
+    position: relative;
+}
+
+.cancelled-row::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 4px;
+    background-color: #6c757d;
+}
+
+.cancelled-row:hover {
+    background-color: #e9ecef !important;
+}
 </style>
 {% endblock %}
 
@@ -87,8 +108,8 @@
             <small class="text-muted">({{ booking_count }} booking)</small>
         </h4>
         <div class="btn-group btn-group-sm">
-            <button id="delete-selected-btn" class="btn btn-danger" style="display:none;">
-                <i class="fas fa-trash-alt"></i> Xóa
+            <button id="delete-selected-btn" class="btn btn-warning" style="display:none;">
+                <i class="fas fa-ban"></i> Hủy
             </button>
             <button id="test-ai-api-btn" class="btn btn-info btn-sm" title="Test AI API">
                 <i class="fas fa-flask"></i> Test API
@@ -355,6 +376,28 @@
     </div>
     {% endif %}
 
+    <!-- Bulk Actions for Selected Bookings -->
+    <!-- Floating Bulk Actions Bar - Appears when bookings are selected -->
+    <div id="bulk-actions" class="position-fixed bottom-0 start-50 translate-middle-x bg-warning border border-warning-subtle rounded-top shadow-lg p-3" style="display: none; z-index: 1050; min-width: 400px;">
+        <div class="d-flex align-items-center justify-content-between">
+            <div class="text-dark fw-bold">
+                <i class="fas fa-tasks me-2"></i>
+                <span id="selected-count">0</span> booking được chọn
+            </div>
+            <div>
+                <button type="button" class="btn btn-sm btn-dark me-2" onclick="cancelSelectedBookings()" title="Hủy các booking đã chọn">
+                    <i class="fas fa-ban me-1"></i>Hủy đã chọn
+                </button>
+                <button type="button" class="btn btn-sm btn-outline-dark" onclick="clearAllSelections()" title="Bỏ chọn tất cả">
+                    <i class="fas fa-times me-1"></i>Bỏ chọn
+                </button>
+                <button type="button" class="btn btn-sm btn-outline-dark ms-1" onclick="hideBulkActions()" title="Đóng">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- Table với compact style -->
     <div class="table-responsive">
         <table class="table table-sm table-striped table-hover mb-0" style="font-size: 0.85rem; table-layout: fixed;">
@@ -500,8 +543,10 @@
             <tbody>
                 {% for booking in bookings %}
                 {% set is_duplicate = booking['Số đặt phòng'] in duplicate_report.duplicate_booking_ids if duplicate_report and duplicate_report.duplicate_booking_ids else false %}
-                <tr class="align-middle {% if is_duplicate %}duplicate-row{% endif %}" 
-                    {% if is_duplicate %}data-bs-toggle="tooltip" title="Booking trùng lặp - Click Duplicates button để xem chi tiết"{% endif %}>
+                {% set is_cancelled = booking.get('Tình trạng') == 'Đã hủy' %}
+                <tr class="align-middle {% if is_duplicate %}duplicate-row{% endif %}{% if is_cancelled %} cancelled-row{% endif %}" 
+                    {% if is_duplicate %}data-bs-toggle="tooltip" title="Booking trùng lặp - Click Duplicates button để xem chi tiết"{% endif %}
+                    {% if is_cancelled %}data-bs-toggle="tooltip" title="Booking đã được hủy - vẫn lưu trữ để quản lý"{% endif %}>
                     <td style="padding: 2px 8px;">
                         <input type="checkbox" name="booking_select" class="booking-checkbox form-check-input" value="{{ booking['Số đặt phòng'] }}">
                     </td>
@@ -571,9 +616,16 @@
                         </div>
                     </td>
                     <td style="padding: 2px 8px;">
-                        <span class="badge {{ 'bg-success' if booking.get('Tình trạng') == 'OK' else 'bg-danger' }} badge-sm">
-                            {{ booking.get('Tình trạng', 'N/A') }}
-                        </span>
+                        {% set status = booking.get('Tình trạng', 'N/A') %}
+                        {% if status == 'OK' %}
+                            <span class="badge bg-success badge-sm">{{ status }}</span>
+                        {% elif status == 'Đã hủy' %}
+                            <span class="badge bg-danger text-white fw-bold" title="Booking đã được hủy - vẫn lưu trữ để quản lý" style="font-size: 0.75rem; padding: 4px 8px; text-shadow: 0 0 3px rgba(0,0,0,0.5); border: 1px solid #dc3545;">
+                                <i class="fas fa-ban me-1" style="font-size: 0.7rem;"></i>{{ status }}
+                            </span>
+                        {% else %}
+                            <span class="badge bg-danger badge-sm">{{ status }}</span>
+                        {% endif %}
                     </td>
                     <td class="text-end" style="padding: 2px 8px;">
                         <strong class="text-primary">{{ "{:,.0f}".format(booking.get('Tổng thanh toán', 0)) }}đ</strong>
@@ -1057,7 +1109,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ ids: selectedIds }),
+                body: JSON.stringify({ booking_ids: selectedIds }),
                 signal: controller.signal
             })
             .then(response => {
@@ -1247,8 +1299,8 @@ document.addEventListener('DOMContentLoaded', function () {
                 '<p class="mb-1 text-dark"><strong>Giá:</strong> ' + (totalPayment || 0).toLocaleString() + 'đ</p>' +
                 '<p class="mb-2 text-dark"><strong>Trạng thái:</strong> <span class="badge ' + statusClass + '">' + status + '</span></p>' +
                 '<div class="d-grid gap-2">' +
-                '<button class="btn btn-danger btn-sm" onclick="deleteBooking(\'' + bookingId + '\')">' +
-                '<i class="fas fa-trash me-1"></i>Xóa Booking này</button>' +
+                '<button class="btn btn-warning btn-sm" onclick="cancelBooking(\'' + bookingId + '\')">' +
+                '<i class="fas fa-ban me-1"></i>Hủy Booking này</button>' +
                 '<button class="btn btn-info btn-sm" onclick="showBookingDetails(\'' + bookingId + '\')">' +
                 '<i class="fas fa-eye me-1"></i>Xem chi tiết</button>' +
                 '</div></div></div></div>' +
@@ -1281,8 +1333,8 @@ document.addEventListener('DOMContentLoaded', function () {
                     '<span class="badge bg-warning text-dark">±' + (similPriceDiff || 0).toLocaleString() + 'đ</span>' +
                     '</small></p>' +
                     '<div class="btn-group btn-group-sm">' +
-                    '<button class="btn btn-outline-danger" onclick="deleteBooking(\'' + similId + '\')">' +
-                    '<i class="fas fa-trash"></i> Xóa</button>' +
+                    '<button class="btn btn-outline-warning" onclick="cancelBooking(\'' + similId + '\')">' +
+                    '<i class="fas fa-ban"></i> Hủy</button>' +
                     '<button class="btn btn-outline-info" onclick="showBookingDetails(\'' + similId + '\')">' +
                     '<i class="fas fa-eye"></i> Chi tiết</button>' +
                     '<button class="btn btn-outline-warning" onclick="compareBookings(\'' + mainBookingId + '\', \'' + similId + '\')">' +
@@ -1437,15 +1489,15 @@ document.addEventListener('DOMContentLoaded', function () {
     // End of DOMContentLoaded
 });
 
-// Delete booking function for duplicate analysis with improved error handling
-function deleteBooking(bookingId) {
-    if (confirm('Bạn có chắc chắn muốn xóa booking "' + bookingId + '" không?')) {
-        console.log('Deleting booking:', bookingId);
+// Cancel booking function for duplicate analysis with improved error handling
+function cancelBooking(bookingId) {
+    if (confirm('Bạn có chắc chắn muốn hủy booking "' + bookingId + '" không?\n\nBooking sẽ được đánh dấu là "Đã hủy" và vẫn hiển thị để quản lý.')) {
+        console.log('Cancelling booking:', bookingId);
         
         // Show loading indicator
         const button = event.target;
         const originalText = button.innerHTML;
-        button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Đang xóa...';
+        button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Đang hủy...';
         button.disabled = true;
         
         // Simple timeout approach for better browser compatibility
@@ -1461,7 +1513,7 @@ function deleteBooking(bookingId) {
                 'Content-Type': 'application/json',
                 'Accept': 'application/json'
             },
-            body: JSON.stringify({ ids: [bookingId] })
+            body: JSON.stringify({ booking_ids: [bookingId] })
         });
         
         Promise.race([fetchPromise, timeoutPromise])
@@ -1479,16 +1531,16 @@ function deleteBooking(bookingId) {
             button.innerHTML = originalText;
             
             if (data.success) {
-                alert('✅ Đã xóa booking thành công!');
+                alert('✅ Đã hủy booking thành công!\n\nBooking sẽ hiển thị với trạng thái "Đã hủy".');
                 // Refresh duplicate analysis to show updated results
                 performDuplicateAnalysis();
             } else {
-                alert('❌ Lỗi khi xóa: ' + (data.message || 'Unknown error'));
+                alert('❌ Lỗi khi hủy: ' + (data.message || 'Unknown error'));
             }
         })
         .catch(error => {
             clearTimeout(timeoutId);
-            console.error('Primary delete failed, trying fallback:', error);
+            console.error('Primary cancel failed, trying fallback:', error);
             
             // Check if it's a timeout error
             if (error.message === 'Request timeout') {
@@ -1625,8 +1677,8 @@ function showDuplicateComparison(mainBooking, similarBookings) {
         '<div class="modal-body">' +
         '<div class="alert alert-info">' +
         '<i class="fas fa-info-circle me-2"></i>' +
-        '<strong>Instructions:</strong> Compare the bookings below and delete the duplicate(s). ' +
-        'Keep the booking with the most complete/accurate information.' +
+        '<strong>Instructions:</strong> Compare the bookings below and cancel the duplicate(s). ' +
+        'Keep the booking with the most complete/accurate information. Cancelled bookings will remain visible with "Đã hủy" status.' +
         '</div>' +
         '<div class="row">';
     
@@ -1648,8 +1700,8 @@ function showDuplicateComparison(mainBooking, similarBookings) {
         '<tr><td><strong>Accommodation:</strong></td><td>' + (mainBooking.accommodation_name || 'N/A') + '</td></tr>' +
         '</table>' +
         '<div class="d-grid mt-3">' +
-        '<button class="btn btn-danger" onclick="deleteDuplicateBooking(\'' + (mainBooking.booking_id || '') + '\')">' +
-        '<i class="fas fa-trash me-2"></i>Delete This Main Booking' +
+        '<button class="btn btn-warning" onclick="cancelDuplicateBooking(\'' + (mainBooking.booking_id || '') + '\')">' +
+        '<i class="fas fa-ban me-2"></i>Cancel This Main Booking' +
         '</button>' +
         '</div>' +
         '</div>' +
@@ -1689,8 +1741,8 @@ function showDuplicateComparison(mainBooking, similarBookings) {
         }
         
         modalContent += '<div class="d-grid mt-3">' +
-            '<button class="btn btn-danger" onclick="deleteDuplicateBooking(\'' + (booking.booking_id || '') + '\')">' +
-            '<i class="fas fa-trash me-2"></i>Delete This Duplicate' +
+            '<button class="btn btn-warning" onclick="cancelDuplicateBooking(\'' + (booking.booking_id || '') + '\')">' +
+            '<i class="fas fa-ban me-2"></i>Cancel This Duplicate' +
             '</button>' +
             '</div>' +
             '</div>' +
@@ -1726,15 +1778,15 @@ function showDuplicateComparison(mainBooking, similarBookings) {
     modal.show();
 }
 
-function deleteDuplicateBooking(bookingId) {
-    if (!confirm('Are you sure you want to delete booking ' + bookingId + '?')) {
+function cancelDuplicateBooking(bookingId) {
+    if (!confirm('Bạn có chắc chắn muốn hủy booking ' + bookingId + ' không?\n\nBooking sẽ được đánh dấu là "Đã hủy" và vẫn hiển thị để quản lý.')) {
         return;
     }
     
     const button = event.target;
     const originalText = button.innerHTML;
     button.disabled = true;
-    button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Deleting...';
+    button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Đang hủy...';
     
     fetch('/api/delete_booking/' + bookingId, {
         method: 'DELETE',
@@ -1749,7 +1801,7 @@ function deleteDuplicateBooking(bookingId) {
         
         if (data.success) {
             // Show success message without alert (less intrusive)
-            showToast('✅ Booking deleted successfully!', 'success');
+            showToast('✅ Booking đã được hủy thành công! Sẽ hiển thị với trạng thái "Đã hủy".', 'success');
             
             // Close any open modals
             const detailModal = bootstrap.Modal.getInstance(document.getElementById('duplicateDetailModal'));
@@ -1757,26 +1809,58 @@ function deleteDuplicateBooking(bookingId) {
             if (detailModal) detailModal.hide();
             if (comparisonModal) comparisonModal.hide();
             
-            // Remove the booking from the DOM dynamically instead of page reload
-            removeDynamicallyBookingFromDisplay(bookingId);
+            // Instead of removing, update the booking status in display
+            updateBookingStatusInDisplay(bookingId, 'Đã hủy');
             
             // Update booking counts and statistics
             updateBookingStatistics();
         } else {
-            alert('❌ Error deleting booking: ' + (data.message || 'Unknown error'));
+            alert('❌ Lỗi khi hủy booking: ' + (data.message || 'Unknown error'));
         }
     })
     .catch(error => {
         button.disabled = false;
         button.innerHTML = originalText;
-        console.error('Error deleting booking:', error);
-        alert('❌ Network error deleting booking. Please try again.');
+        console.error('Error cancelling booking:', error);
+        alert('❌ Lỗi mạng khi hủy booking. Vui lòng thử lại.');
     });
 }
 
-// Helper function to dynamically remove booking from display
+// Legacy function for backward compatibility
+function deleteDuplicateBooking(bookingId) {
+    console.log('⚠️ Legacy deleteDuplicateBooking called - redirecting to cancelDuplicateBooking');
+    return cancelDuplicateBooking(bookingId);
+}
+
+// Helper function to update booking status in display (for cancelled bookings)
+function updateBookingStatusInDisplay(bookingId, newStatus) {
+    const bookingRows = document.querySelectorAll('tbody tr');
+    bookingRows.forEach(row => {
+        const cells = row.querySelectorAll('td');
+        cells.forEach(cell => {
+            if (cell.textContent.includes(bookingId)) {
+                // Find the status cell (usually has badge class)
+                const statusCell = row.querySelector('.badge');
+                if (statusCell) {
+                    // Update status text and styling
+                    statusCell.textContent = newStatus;
+                    statusCell.className = 'badge bg-secondary'; // Gray for cancelled
+                    
+                    // Add visual indicator that this booking is cancelled
+                    row.style.transition = 'all 0.3s ease';
+                    row.style.backgroundColor = '#f8f9fa'; // Light gray background
+                    row.style.opacity = '0.8'; // Slightly faded
+                    
+                    console.log(`✅ Updated booking ${bookingId} status to: ${newStatus}`);
+                }
+            }
+        });
+    });
+}
+
+// Helper function to dynamically remove booking from display (legacy - for hard delete)
 function removeDynamicallyBookingFromDisplay(bookingId) {
-    // Find and remove the booking row from the table
+    console.log('⚠️ removeDynamicallyBookingFromDisplay called - booking will be removed from display');
     const bookingRows = document.querySelectorAll('tbody tr');
     bookingRows.forEach(row => {
         // Check if this row contains the booking ID
@@ -1811,10 +1895,19 @@ function updateBookingStatistics() {
     // Trigger duplicate analysis refresh if the analyze button is visible
     const analyzeBtn = document.querySelector('button[onclick="performDuplicateAnalysis()"]');
     if (analyzeBtn && !analyzeBtn.disabled) {
-        console.log('🔄 Refreshing duplicate analysis after deletion...');
+        console.log('🔄 Refreshing duplicate analysis after cancellation...');
         setTimeout(() => {
             performDuplicateAnalysis();
-        }, 500);
+        }, 1500); // Increased delay to ensure database commit
+    }
+    
+    // Also refresh integrated duplicates if present
+    const integratedRefreshBtn = document.getElementById('integrated-refresh-duplicates');
+    if (integratedRefreshBtn) {
+        console.log('🔄 Refreshing integrated duplicate management after cancellation...');
+        setTimeout(() => {
+            integratedRefreshBtn.click();
+        }, 1500); // Increased delay to ensure database commit
     }
 }
 
@@ -2033,8 +2126,8 @@ function initializeDeleteFunctionality() {
         
         const bookingIds = Array.from(selectedCheckboxes).map(cb => cb.value);
         
-        if (confirm(`Bạn có chắc chắn muốn xóa ${bookingIds.length} booking đã chọn không?\n\nHành động này không thể hoàn tác!`)) {
-            deleteMultipleBookings(bookingIds);
+        if (confirm(`Bạn có chắc chắn muốn hủy ${bookingIds.length} booking đã chọn không?\n\nCác booking sẽ được đánh dấu là "Đã hủy" và vẫn hiển thị để quản lý.`)) {
+            cancelMultipleBookings(bookingIds);
         }
     });
     
@@ -2065,7 +2158,8 @@ function updateDeleteButtonVisibility() {
     if (deleteBtn) {
         if (selectedCheckboxes.length > 0) {
             deleteBtn.style.display = 'inline-block';
-            deleteBtn.innerHTML = `<i class="fas fa-trash-alt"></i> Xóa (${selectedCheckboxes.length})`;
+            deleteBtn.innerHTML = `<i class="fas fa-ban"></i> Hủy (${selectedCheckboxes.length})`;
+            deleteBtn.className = 'btn btn-warning btn-sm'; // Change to warning color
         } else {
             deleteBtn.style.display = 'none';
         }
@@ -2081,12 +2175,12 @@ function updateDeleteButtonVisibility() {
     }
 }
 
-function deleteMultipleBookings(bookingIds) {
+function cancelMultipleBookings(bookingIds) {
     const deleteBtn = document.getElementById('delete-selected-btn');
     
     // Show loading state
     const originalText = deleteBtn.innerHTML;
-    deleteBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Đang xóa...';
+    deleteBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Đang hủy...';
     deleteBtn.disabled = true;
     
     fetch('/bookings/delete_multiple', {
@@ -2095,20 +2189,26 @@ function deleteMultipleBookings(bookingIds) {
             'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-            booking_ids: bookingIds
+            booking_ids: bookingIds  // Use 'booking_ids' to match the backend endpoint
         })
     })
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            showToast(data.message, 'success');
+            const cancelledCount = data.deleted_count || bookingIds.length;
+            showToast(`✅ Đã hủy thành công ${cancelledCount} booking! Sẽ hiển thị với trạng thái "Đã hủy".`, 'success');
+            
+            // Clear selections before reload
+            const allCheckboxes = document.querySelectorAll('input[name="booking_select"]');
+            allCheckboxes.forEach(cb => cb.checked = false);
+            updateDeleteButtonVisibility();
             
             // Reload page after short delay to show updated data
             setTimeout(() => {
                 window.location.reload();
             }, 1500);
         } else {
-            showToast(data.message, 'error');
+            showToast('❌ Lỗi khi hủy bookings: ' + (data.message || 'Unknown error'), 'error');
             
             // Restore button state
             deleteBtn.innerHTML = originalText;
@@ -2116,13 +2216,19 @@ function deleteMultipleBookings(bookingIds) {
         }
     })
     .catch(error => {
-        console.error('Delete error:', error);
-        showToast('Lỗi kết nối. Vui lòng thử lại sau.', 'error');
+        console.error('Cancel error:', error);
+        showToast('❌ Lỗi kết nối khi hủy bookings. Vui lòng thử lại sau.', 'error');
         
         // Restore button state
         deleteBtn.innerHTML = originalText;
         deleteBtn.disabled = false;
     });
+}
+
+// Legacy function for backward compatibility
+function deleteMultipleBookings(bookingIds) {
+    console.log('⚠️ Legacy deleteMultipleBookings called - redirecting to cancelMultipleBookings');
+    return cancelMultipleBookings(bookingIds);
 }
 
 // ============================================================================
@@ -2170,6 +2276,128 @@ function initializeFilterToggle() {
 function updateFilterView(showAll) {
     return window.updateFilterView(showAll);
 }
+
+// ===================================================================
+// MISSING BULK CANCELLATION FUNCTIONS - FIX FOR "No booking IDs provided" ERROR
+// ===================================================================
+
+// Function called by "Hủy các booking đã chọn" button
+function cancelSelectedBookings() {
+    console.log('🔄 cancelSelectedBookings() called');
+    
+    const selectedCheckboxes = document.querySelectorAll('input[name="booking_select"]:checked');
+    console.log('📋 Selected checkboxes found:', selectedCheckboxes.length);
+    
+    if (selectedCheckboxes.length === 0) {
+        alert('Vui lòng chọn ít nhất một booking để hủy');
+        return;
+    }
+    
+    const bookingIds = Array.from(selectedCheckboxes).map(cb => cb.value);
+    console.log('🎯 Booking IDs to cancel:', bookingIds);
+    
+    if (confirm(`Bạn có chắc chắn muốn hủy ${bookingIds.length} booking đã chọn không?\n\nCác booking sẽ được đánh dấu là "Đã hủy" và vẫn được lưu trữ để quản lý.`)) {
+        console.log('✅ User confirmed cancellation, calling cancelMultipleBookings()');
+        cancelMultipleBookings(bookingIds); // Use the existing working function
+    } else {
+        console.log('❌ User cancelled the operation');
+    }
+}
+
+// Function called by "Bỏ chọn tất cả" button  
+function clearAllSelections() {
+    console.log('🔄 clearAllSelections() called');
+    
+    const allCheckboxes = document.querySelectorAll('input[name="booking_select"]');
+    const selectAllCheckbox = document.getElementById('select-all-bookings');
+    
+    console.log('📋 Clearing', allCheckboxes.length, 'checkboxes');
+    
+    // Uncheck all checkboxes
+    allCheckboxes.forEach(cb => cb.checked = false);
+    if (selectAllCheckbox) selectAllCheckbox.checked = false;
+    
+    // Update UI
+    updateSelectedCount();
+    hideBulkActions();
+    
+    console.log('✅ All selections cleared');
+}
+
+// Helper function to update the selected count display
+function updateSelectedCount() {
+    const selectedCount = document.querySelectorAll('input[name="booking_select"]:checked').length;
+    const countElement = document.getElementById('selected-count');
+    
+    if (countElement) {
+        countElement.textContent = selectedCount;
+        console.log('📊 Updated selected count to:', selectedCount);
+    }
+}
+
+// Helper function to hide bulk actions bar
+function hideBulkActions() {
+    const bulkActionsDiv = document.getElementById('bulk-actions');
+    if (bulkActionsDiv) {
+        bulkActionsDiv.style.display = 'none';
+        console.log('👁️ Bulk actions hidden');
+    }
+}
+
+// Helper function to show bulk actions bar
+function showBulkActions() {
+    const bulkActionsDiv = document.getElementById('bulk-actions');
+    if (bulkActionsDiv) {
+        bulkActionsDiv.style.display = 'block';
+        console.log('👁️ Bulk actions shown');
+    }
+}
+
+// Main function to show/hide bulk actions when selections change
+function updateBulkActionsVisibility() {
+    const selectedCount = document.querySelectorAll('input[name="booking_select"]:checked').length;
+    
+    if (selectedCount > 0) {
+        showBulkActions();
+        updateSelectedCount();
+    } else {
+        hideBulkActions();
+    }
+}
+
+// Enhanced checkbox event listener
+function setupBulkSelectionListeners() {
+    console.log('🔄 Setting up bulk selection listeners');
+    
+    // Individual checkboxes
+    const bookingCheckboxes = document.querySelectorAll('input[name="booking_select"]');
+    bookingCheckboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', function() {
+            console.log('📋 Individual checkbox changed:', this.value, this.checked);
+            updateBulkActionsVisibility();
+        });
+    });
+    
+    // Select all checkbox
+    const selectAllCheckbox = document.getElementById('select-all-bookings');
+    if (selectAllCheckbox) {
+        selectAllCheckbox.addEventListener('change', function() {
+            console.log('📋 Select all checkbox changed:', this.checked);
+            const bookingCheckboxes = document.querySelectorAll('input[name="booking_select"]');
+            bookingCheckboxes.forEach(cb => cb.checked = this.checked);
+            updateBulkActionsVisibility();
+        });
+    }
+    
+    console.log('✅ Bulk selection listeners setup complete');
+}
+
+// Initialize when page loads
+document.addEventListener('DOMContentLoaded', function() {
+    setupBulkSelectionListeners();
+    console.log('✅ Bulk selection system initialized');
+});
+
 </script>
 
 <!-- Global AI Test Functions (Outside DOMContentLoaded) -->
@@ -2288,6 +2516,34 @@ window.forceOpenAIModal = function() {
 };
 
 console.log('✅ Global AI test functions loaded');
+console.log('✅ Bulk cancellation functions loaded');
+
+// Test function for bulk cancellation (can be called from console)
+window.testBulkCancellation = function() {
+    console.log('🧪 Testing bulk cancellation functions...');
+    console.log('Functions available:');
+    console.log('- cancelSelectedBookings:', typeof cancelSelectedBookings);
+    console.log('- clearAllSelections:', typeof clearAllSelections);
+    console.log('- updateBulkActionsVisibility:', typeof updateBulkActionsVisibility);
+    
+    const checkboxes = document.querySelectorAll('input[name="booking_select"]');
+    console.log('Booking checkboxes found:', checkboxes.length);
+    
+    const bulkActions = document.getElementById('bulk-actions');
+    console.log('Bulk actions element found:', !!bulkActions);
+    
+    // Test showing/hiding bulk actions
+    if (checkboxes.length > 0) {
+        console.log('✅ Testing: Select first checkbox...');
+        checkboxes[0].checked = true;
+        updateBulkActionsVisibility();
+        
+        setTimeout(() => {
+            console.log('✅ Testing: Clear selections...');
+            clearAllSelections();
+        }, 2000);
+    }
+};
 
 // Debug function to check AI button setup
 window.checkAIButtonSetup = function() {
@@ -2650,5 +2906,117 @@ async function deleteIntegratedSelectedBookings() {
     }
 }
 </script>
+
+<!-- CSS Styling for Cancelled Bookings - 100% Identical to Duplicate Styling -->
+<style>
+.cancelled-row {
+    background: linear-gradient(135deg, rgba(108, 117, 125, 0.15) 0%, rgba(173, 181, 189, 0.1) 100%) !important;
+    border-left: 4px solid #6c757d !important;
+    border-right: 2px solid #adb5bd !important;
+    box-shadow: inset 0 0 0 1px rgba(108, 117, 125, 0.1) !important;
+}
+
+.cancelled-row:hover {
+    background: linear-gradient(135deg, rgba(108, 117, 125, 0.25) 0%, rgba(173, 181, 189, 0.15) 100%) !important;
+    transform: translateX(2px);
+    transition: all 0.3s ease;
+    box-shadow: 2px 2px 8px rgba(108, 117, 125, 0.2) !important;
+}
+
+/* Pseudo-element cleanup to avoid visual conflicts */
+.cancelled-row::before,
+.cancelled-row::after {
+    content: none !important;
+    display: none !important;
+}
+
+.cancelled-row[data-bs-toggle="tooltip"]::before {
+    content: none !important;
+    display: none !important;
+}
+
+/* Enhanced guest name styling for cancelled bookings - MORE VISIBLE */
+.cancelled-row .text-warning.fw-bold {
+    color: #495057 !important;
+    font-weight: 700 !important;
+    font-size: 1.05em !important;
+    text-shadow: 0 0 3px rgba(73, 80, 87, 0.6);
+    text-decoration: line-through;
+    text-decoration-color: #dc3545;
+    text-decoration-thickness: 2px;
+}
+
+/* Make other text in cancelled rows visible but NOT crossed out */
+.cancelled-row td {
+    color: #495057 !important;
+    font-weight: 600 !important;
+    font-size: 1.02em !important;
+}
+
+/* Make all text in cancelled rows more visible */
+.cancelled-row {
+    color: #495057 !important;
+    font-weight: 600 !important;
+}
+
+/* CANCELLED badge - BIGGER and MORE VISIBLE */
+.cancelled-row .fw-medium::after {
+    content: " [CANCELLED]";
+    font-size: 0.85rem !important;
+    color: #dc3545 !important;
+    font-weight: 700 !important;
+    background: rgba(220, 53, 69, 0.15) !important;
+    padding: 3px 8px !important;
+    border-radius: 4px;
+    margin-left: 8px;
+    border: 1px solid rgba(220, 53, 69, 0.3);
+    text-shadow: 0 0 2px rgba(220, 53, 69, 0.5);
+}
+
+/* Clean badge styling */
+.cancelled-row .badge {
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+/* Extra small badge for cancelled bookings */
+.badge-xs {
+    font-size: 0.6rem;
+    padding: 2px 6px;
+    line-height: 1.2;
+}
+
+/* Tooltip styling for cancelled bookings */
+.cancelled-row[data-bs-toggle="tooltip"] {
+    cursor: help;
+}
+
+/* Bulk actions styling */
+#bulk-actions {
+    border-left: 4px solid #ffc107;
+    animation: slideDown 0.3s ease-out;
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Update button hover effects */
+.btn-warning:hover {
+    background-color: #e0a800;
+    border-color: #d39e00;
+}
+
+/* Selection feedback */
+.booking-checkbox:checked + td {
+    background-color: #fff3cd;
+}
+</style>
 
 {% endblock %} 
