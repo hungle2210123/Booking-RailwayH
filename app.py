@@ -1823,10 +1823,20 @@ def check_existing_bookings():
 def process_pasted_image():
     """Enhanced photo processing with smart single/multiple booking detection"""
     try:
+        # 🚂 RAILWAY DEBUG: Enhanced logging for deployment debugging
+        railway_env = os.getenv('RAILWAY_PROJECT_ID') is not None
+        environment = 'railway' if railway_env else 'local'
+        print(f"🌍 [PHOTO_PROCESSING] Environment: {environment}")
+        print(f"📝 [PHOTO_PROCESSING] Request method: {request.method}")
+        print(f"📝 [PHOTO_PROCESSING] Content type: {request.content_type}")
+        print(f"📝 [PHOTO_PROCESSING] Request size: {request.content_length}")
+        
         # Configure Gemini API
         GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
         if not GOOGLE_API_KEY:
-            return jsonify({'error': 'Google AI API not configured'}), 400
+            error_msg = f'Google AI API not configured on {environment}'
+            print(f"❌ [PHOTO_PROCESSING] {error_msg}")
+            return jsonify({'error': error_msg, 'environment': environment}), 400
         
         # Get image data from request - handle both file upload and JSON base64
         image_data = None
@@ -1922,10 +1932,96 @@ def process_pasted_image():
         return jsonify(response_data)
     
     except Exception as e:
-        print(f"❌ Photo processing error: {e}")
+        # 🚂 RAILWAY DEBUG: Enhanced error logging for deployment debugging
+        railway_env = os.getenv('RAILWAY_PROJECT_ID') is not None
+        environment = 'railway' if railway_env else 'local'
+        
+        print(f"❌ [PHOTO_PROCESSING] Error on {environment}: {e}")
         import traceback
         traceback.print_exc()
-        return jsonify({'error': str(e)}), 500
+        
+        # Enhanced error response for Railway debugging
+        return jsonify({
+            'error': str(e),
+            'environment': environment,
+            'error_type': type(e).__name__,
+            'debug_info': {
+                'railway_project_id': os.getenv('RAILWAY_PROJECT_ID'),
+                'google_api_configured': bool(os.getenv("GOOGLE_API_KEY")),
+                'request_content_type': request.content_type,
+                'request_method': request.method
+            }
+        }), 500
+
+@app.route('/api/railway_image_diagnostic', methods=['GET', 'POST'])
+def railway_image_diagnostic():
+    """Railway-specific diagnostic endpoint for image upload debugging"""
+    try:
+        railway_env = os.getenv('RAILWAY_PROJECT_ID') is not None
+        
+        diagnostic_info = {
+            'success': True,
+            'environment': 'railway' if railway_env else 'local',
+            'timestamp': datetime.now().isoformat(),
+            'api_configuration': {
+                'google_api_key_configured': bool(os.getenv("GOOGLE_API_KEY")),
+                'google_api_key_length': len(os.getenv("GOOGLE_API_KEY", "")) if os.getenv("GOOGLE_API_KEY") else 0,
+                'railway_project_id': os.getenv('RAILWAY_PROJECT_ID', 'Not set'),
+                'flask_debug': app.config.get('DEBUG', False)
+            },
+            'request_info': {
+                'method': request.method,
+                'content_type': request.content_type,
+                'content_length': request.content_length,
+                'headers': dict(request.headers),
+                'origin': request.headers.get('Origin'),
+                'user_agent': request.headers.get('User-Agent', '')[:100]  # Truncate for readability
+            }
+        }
+        
+        if request.method == 'POST':
+            # Test image upload functionality
+            diagnostic_info['upload_test'] = {
+                'files_received': len(request.files),
+                'json_received': request.is_json,
+                'form_data_received': bool(request.form)
+            }
+            
+            if request.files.get('test_image'):
+                test_file = request.files.get('test_image')
+                diagnostic_info['upload_test']['test_file'] = {
+                    'filename': test_file.filename,
+                    'content_type': test_file.content_type,
+                    'size': len(test_file.read())
+                }
+                test_file.seek(0)  # Reset file pointer
+            
+            if request.is_json and request.json.get('test_b64'):
+                import base64
+                try:
+                    base64_data = request.json.get('test_b64')
+                    if ',' in base64_data:
+                        base64_data = base64_data.split(',')[1]
+                    decoded = base64.b64decode(base64_data)
+                    diagnostic_info['upload_test']['base64_test'] = {
+                        'original_length': len(request.json.get('test_b64')),
+                        'decoded_size': len(decoded),
+                        'decode_successful': True
+                    }
+                except Exception as b64_error:
+                    diagnostic_info['upload_test']['base64_test'] = {
+                        'decode_successful': False,
+                        'error': str(b64_error)
+                    }
+        
+        return jsonify(diagnostic_info)
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'environment': 'railway' if os.getenv('RAILWAY_PROJECT_ID') else 'local'
+        }), 500
 
 # Customer Care Management - DISABLED
 # @app.route('/customer_care')
