@@ -4864,8 +4864,9 @@ def get_crawl_capabilities():
             # Enhanced capability info
             capability_info = {
                 'success': True,
-                'environment': environment,
+                'environment': 'railway' if railway_env else environment,  # FIXED: Correct environment detection
                 'crawling_available': is_available,
+                'is_available': is_available,  # FIXED: Added for frontend compatibility
                 'total_methods': len(methods),
                 'supported_methods': len([m for m in methods if m.get('supported', False)]),
                 'methods': methods,
@@ -4947,8 +4948,9 @@ def get_crawl_capabilities():
         
         capabilities = {
             'success': True,
-            'environment': environment,
+            'environment': 'railway' if railway_env else environment,  # FIXED: Correct environment detection
             'crawling_available': is_available,
+            'is_available': is_available,  # FIXED: Added for frontend compatibility
             'total_methods': len(methods),
             'supported_methods': len([m for m in methods if m.get('supported', False)]),
             'methods': methods,
