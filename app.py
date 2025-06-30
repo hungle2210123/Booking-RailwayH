@@ -1061,16 +1061,50 @@ def delete_multiple_bookings():
 
 @app.route('/api/expenses', methods=['GET', 'POST'])
 def expenses_api():
-    """Expense management with PostgreSQL"""
+    """Expense management with PostgreSQL and Railway compatibility"""
     if request.method == 'GET':
         try:
-            expenses_df = get_expenses_from_database()
-            expenses_list = safe_to_dict_records(expenses_df)
-            print(f"💰 EXPENSES API: Found {len(expenses_list)} expenses in database")
+            print(f"🔍 [EXPENSES_API] Starting expenses loading...")
+            
+            # 🚀 RAILWAY FIX: Enhanced error handling for database connection issues
+            try:
+                expenses_df = get_expenses_from_database()
+                print(f"🔍 [EXPENSES_API] Database query successful, got DataFrame with {len(expenses_df)} rows")
+            except Exception as db_error:
+                print(f"❌ [EXPENSES_API] Database error: {db_error}")
+                # Railway fallback: return empty data instead of crashing
+                return jsonify({
+                    'success': True, 
+                    'data': [], 
+                    'status': 'success',
+                    'warning': f'Database connection issue on Railway: {str(db_error)}',
+                    'environment': 'railway' if os.getenv('RAILWAY_PROJECT_ID') else 'local'
+                })
+            
+            # Convert to records with enhanced error handling
+            try:
+                expenses_list = safe_to_dict_records(expenses_df)
+                print(f"💰 [EXPENSES_API] Successfully converted to {len(expenses_list)} expense records")
+            except Exception as convert_error:
+                print(f"❌ [EXPENSES_API] Conversion error: {convert_error}")
+                # Fallback conversion
+                expenses_list = expenses_df.to_dict('records') if not expenses_df.empty else []
+                print(f"🔄 [EXPENSES_API] Fallback conversion: {len(expenses_list)} records")
+            
             # Return format expected by frontend JavaScript
             return jsonify({'success': True, 'data': expenses_list, 'status': 'success'})
         except Exception as e:
-            print(f"❌ EXPENSES API ERROR: {e}")
+            print(f"❌ [EXPENSES_API] CRITICAL ERROR: {e}")
+            import traceback
+            traceback.print_exc()
+            # Railway-safe error response
+            return jsonify({
+                'success': False, 
+                'data': [], 
+                'status': 'error',
+                'error': f'Expenses loading failed: {str(e)}',
+                'environment': 'railway' if os.getenv('RAILWAY_PROJECT_ID') else 'local'
+            }), 500
             return jsonify({'success': False, 'error': str(e), 'status': 'error'}), 500
     
     elif request.method == 'POST':
@@ -4815,14 +4849,28 @@ def crawl_admin_bookings():
         if not target_url:
             return jsonify({'success': False, 'error': 'Target URL required'}), 400
         
-        # Check if crawling is available in current environment
+        # 🚀 RAILWAY FIX: Enhanced crawling availability check
+        is_railway = os.getenv('RAILWAY_PROJECT_ID') is not None
+        print(f"🔍 [CRAWL_ADMIN] Environment: {'Railway' if is_railway else 'Local'}")
+        
         if not railway_crawl_service.is_crawling_available():
             available_methods = railway_crawl_service.get_crawling_methods()
+            error_msg = 'Web crawling not available on Railway deployment' if is_railway else 'Web crawling not available in current environment'
+            
             return jsonify({
                 'success': False,
-                'error': 'Web crawling not available in current environment',
+                'error': error_msg,
                 'available_methods': available_methods,
-                'suggestion': 'Use screenshot upload or manual entry instead'
+                'suggestion': 'Use screenshot upload or manual entry instead',
+                'details': {
+                    'environment': 'railway' if is_railway else 'local',
+                    'reason': 'Chrome browser and display server not available on cloud platforms' if is_railway else 'Selenium or dependencies not installed',
+                    'alternatives': [
+                        '📸 Upload booking screenshots for AI extraction',
+                        '✏️ Manual booking entry through the form', 
+                        '📋 Import from CSV/Excel files'
+                    ]
+                }
             }), 400
         
         # Use Railway-compatible crawling if on cloud platform
