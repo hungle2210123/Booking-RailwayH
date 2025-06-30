@@ -49,6 +49,9 @@ from sync_api_routes import sync_api_bp
 # Import auto sync service
 from core.auto_sync_service import auto_sync_service
 
+# Import optimized crawling and performance monitoring
+from core.performance_dashboard import performance_bp
+
 # Configuration
 BASE_DIR = Path(__file__).resolve().parent
 load_dotenv(BASE_DIR / ".env")
@@ -58,6 +61,9 @@ app = Flask(__name__, template_folder=BASE_DIR / "templates", static_folder=BASE
 # Register sync blueprints
 app.register_blueprint(sync_bp)
 app.register_blueprint(sync_api_bp)
+
+# Register performance monitoring blueprint
+app.register_blueprint(performance_bp)
 
 # Production configuration with temporary debug for auto sync
 railway_env = os.getenv('RAILWAY_PROJECT_ID') is not None
@@ -5015,11 +5021,52 @@ def crawl_admin_bookings():
                 ]
             }), 400
         
-        # Use Railway-compatible crawling if on cloud platform
+        # 🚀 OPTIMIZED: Use high-performance crawler for Railway
         if railway_crawl_service.is_railway:
-            print(f"🌐 Using cloud-compatible crawling for: {target_url}")
-            result = railway_crawl_service.crawl_admin_bookings_api(target_url, profile_name)
-            return jsonify(result)
+            print(f"🌐 Using optimized cloud-compatible crawling for: {target_url}")
+            
+            # Import optimized crawler
+            try:
+                from core.optimized_railway_crawler import optimized_crawler
+                import asyncio
+                
+                # Use optimized crawler with all performance features
+                async def optimized_crawl():
+                    return await optimized_crawler.crawl_with_retry(target_url, {
+                        'required_features': ['javascript'] if 'booking.com' in target_url else [],
+                        'cache_type': 'booking_data'
+                    })
+                
+                # Run async crawler
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                try:
+                    crawl_result = loop.run_until_complete(optimized_crawl())
+                    
+                    # Format result for compatibility
+                    result = {
+                        'success': True,
+                        'method': 'optimized_crawler',
+                        'environment': 'railway',
+                        'data': crawl_result,
+                        'message': '✅ High-performance crawling successful',
+                        'performance_optimized': True
+                    }
+                    
+                    # Add performance metrics
+                    performance_report = optimized_crawler.get_performance_report()
+                    if 'summary' in performance_report:
+                        result['performance_metrics'] = performance_report['summary']
+                    
+                    return jsonify(result)
+                    
+                finally:
+                    loop.close()
+                    
+            except ImportError:
+                print("⚠️ Optimized crawler not available, falling back to standard service")
+                result = railway_crawl_service.crawl_admin_bookings_api(target_url, profile_name)
+                return jsonify(result)
         
         # Original Selenium-based crawling for local development
         print(f"🕷️ Using Selenium crawling for: {target_url}")
