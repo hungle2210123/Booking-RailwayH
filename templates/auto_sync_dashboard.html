@@ -263,13 +263,17 @@ document.addEventListener('DOMContentLoaded', function() {
     setInterval(refreshSyncStatus, 30000); // Refresh every 30 seconds
 });
 
-async function refreshSyncStatus() {
+async function refreshSyncStatus(forceRefresh = false) {
     try {
-        console.log('🔄 Refreshing sync status...');
+        console.log(`🔄 Refreshing sync status (force_refresh=${forceRefresh})...`);
         
-        // Add cache-busting to prevent stale data
+        // Add cache-busting and force refresh parameter
         const timestamp = new Date().getTime();
-        const response = await fetch(`/api/auto-sync/status?_t=${timestamp}`, {
+        const url = forceRefresh 
+            ? `/api/auto-sync/status?force_refresh=true&_t=${timestamp}`
+            : `/api/auto-sync/status?_t=${timestamp}`;
+            
+        const response = await fetch(url, {
             cache: 'no-cache',
             headers: {
                 'Cache-Control': 'no-cache, no-store, must-revalidate',
@@ -442,18 +446,37 @@ async function performSync(direction) {
         const data = await response.json();
         
         if (data.success) {
-            showToast('✅ Sync completed successfully!', 'success');
+            // 🚀 ENHANCED: Show detailed sync results with verification
+            const syncResult = data.sync_result;
+            const verification = data.verification_status;
             
-            // Force cache invalidation and multiple refreshes
-            setTimeout(async () => {
-                console.log('🔄 Post-sync status refresh (immediate)');
-                await refreshSyncStatus();
-            }, 500);
+            if (verification) {
+                const syncStillNeeded = verification.sync_needed ? ' (Sync still needed)' : ' (In sync)';
+                showToast(`✅ Sync completed! Local: ${verification.local_count}, Railway: ${verification.railway_count}${syncStillNeeded}`, 'success');
+            } else {
+                showToast('✅ Sync completed successfully!', 'success');
+            }
             
+            // 🚀 ENHANCED: More aggressive refresh strategy
+            console.log('🔄 Starting aggressive post-sync refresh sequence...');
+            
+            // Immediate refresh (bypass all caches)
             setTimeout(async () => {
-                console.log('🔄 Post-sync status refresh (delayed)');
-                await refreshSyncStatus();
-            }, 2000);
+                console.log('🔄 Post-sync refresh #1 (immediate, force_refresh=true)');
+                await refreshSyncStatus(true);
+            }, 100);
+            
+            // Secondary refresh to catch any delayed updates
+            setTimeout(async () => {
+                console.log('🔄 Post-sync refresh #2 (1 second delay, force_refresh=true)');
+                await refreshSyncStatus(true);
+            }, 1000);
+            
+            // Final verification refresh
+            setTimeout(async () => {
+                console.log('🔄 Post-sync refresh #3 (final verification, force_refresh=true)');
+                await refreshSyncStatus(true);
+            }, 3000);
             
             loadSyncHistory();
         } else {

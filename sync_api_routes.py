@@ -16,7 +16,11 @@ sync_api_bp = Blueprint('sync_api', __name__)
 def get_sync_status():
     """Get current sync status between local and Railway"""
     try:
-        status = auto_sync_service.analyze_sync_status()
+        # Check for force refresh parameter (used after sync operations)
+        force_refresh = request.args.get('force_refresh', 'false').lower() == 'true'
+        
+        logger.info(f"🔍 Getting sync status (force_refresh={force_refresh})")
+        status = auto_sync_service.analyze_sync_status(force_refresh=force_refresh)
         
         return jsonify({
             'success': True,
@@ -94,9 +98,24 @@ def perform_sync():
                 'error': f'Invalid sync direction: {sync_direction}'
             }), 400
         
+        # 🚀 ENHANCED: Force immediate cache invalidation and status refresh after manual sync
+        logger.info("🔄 Manual sync completed - forcing cache invalidation")
+        auto_sync_service._last_status_cache = None
+        auto_sync_service._last_status_time = None
+        
+        # Verify sync results immediately
+        logger.info("🔍 Verifying sync results...")
+        verification_status = auto_sync_service.analyze_sync_status(force_refresh=True)
+        logger.info(f"📊 Post-manual-sync verification: Local={verification_status.local_count}, Railway={verification_status.railway_count}, Sync needed={verification_status.sync_needed}")
+        
         return jsonify({
             'success': True,
-            'sync_result': result
+            'sync_result': result,
+            'verification_status': {
+                'local_count': verification_status.local_count,
+                'railway_count': verification_status.railway_count,
+                'sync_needed': verification_status.sync_needed
+            }
         })
         
     except Exception as e:

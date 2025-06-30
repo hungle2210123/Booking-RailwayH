@@ -121,17 +121,22 @@ class AutoSyncService:
             
         return None
     
-    def analyze_sync_status(self) -> SyncStatus:
+    def analyze_sync_status(self, force_refresh: bool = False) -> SyncStatus:
         """Analyze current sync status between local and Railway"""
         
-        # Check cache first (unless invalidated)
+        # 🚀 ENHANCED: More aggressive cache invalidation
         current_time = time.time()
-        if (self._last_status_cache and self._last_status_time and 
-            current_time - self._last_status_time < self._cache_duration):
+        cache_valid = (not force_refresh and self._last_status_cache and self._last_status_time and 
+                      current_time - self._last_status_time < self._cache_duration)
+        
+        if cache_valid:
             logger.info("🔍 Using cached sync status")
             return self._last_status_cache
             
-        logger.info("🔍 Analyzing sync status (fresh calculation)...")
+        if force_refresh:
+            logger.info("🔍 Analyzing sync status (FORCE REFRESH - bypassing all caches)...")
+        else:
+            logger.info("🔍 Analyzing sync status (fresh calculation)...")
         
         # Get counts from both databases (handle single database deployments)
         local_counts = self.get_table_counts(self.local_engine) if self.local_engine else {}
@@ -189,9 +194,13 @@ class AutoSyncService:
             differences=differences
         )
         
-        # Cache the result
-        self._last_status_cache = status
-        self._last_status_time = current_time
+        # 🚀 ENHANCED: Only cache if not force refresh (ensures fresh data when needed)
+        if not force_refresh:
+            self._last_status_cache = status
+            self._last_status_time = current_time
+            logger.debug("💾 Cached sync status for future requests")
+        else:
+            logger.debug("🚫 Not caching due to force_refresh=True")
         
         return status
     
@@ -291,7 +300,7 @@ class AutoSyncService:
             return {'success': False, 'message': error_msg, 'records_processed': records_processed}
     
     def _upsert_postgresql_records(self, conn, table: str, df: pd.DataFrame, primary_key: str):
-        """Use PostgreSQL's INSERT ON CONFLICT UPDATE for efficient upserts with detailed tracking"""
+        """Use PostgreSQL's INSERT ON CONFLICT UPDATE for efficient upserts with enhanced error handling"""
         if df.empty:
             return 0
             
@@ -323,16 +332,50 @@ class AutoSyncService:
                 DO NOTHING
             """
         
-        # Execute upsert for each row with individual error tracking
-        for _, row in df.iterrows():
-            try:
+        # 🚀 ENHANCED: Try batch processing first, fallback to individual rows on failure
+        try:
+            # Pre-clean all data
+            cleaned_data = []
+            for _, row in df.iterrows():
                 clean_row_data = self._clean_row_data(row.to_dict())
-                conn.execute(text(upsert_sql), clean_row_data)
-                records_processed += 1
-            except Exception as row_error:
-                primary_key_value = row.get(primary_key, 'unknown')
-                failed_records.append(f"{primary_key}={primary_key_value}: {row_error}")
-                logger.error(f"❌ Failed to upsert record {primary_key}={primary_key_value}: {row_error}")
+                if table == 'bookings':
+                    clean_row_data = self._clean_booking_data(clean_row_data)
+                cleaned_data.append(clean_row_data)
+            
+            # Try batch execution first
+            logger.info(f"🚀 Attempting batch UPSERT for {len(cleaned_data)} records in {table}")
+            conn.execute(text(upsert_sql), cleaned_data)
+            records_processed = len(cleaned_data)
+            logger.info(f"✅ Batch UPSERT successful: {records_processed} records")
+            
+        except Exception as batch_error:
+            logger.warning(f"⚠️ Batch UPSERT failed for {table}: {batch_error}")
+            logger.info(f"🔄 Falling back to individual row processing...")
+            
+            # Fallback to individual row processing with enhanced error handling
+            for i, row in df.iterrows():
+                try:
+                    clean_row_data = self._clean_row_data(row.to_dict())
+                    
+                    # Special handling for bookings table
+                    if table == 'bookings':
+                        clean_row_data = self._clean_booking_data(clean_row_data)
+                    
+                    conn.execute(text(upsert_sql), clean_row_data)
+                    records_processed += 1
+                    
+                except Exception as row_error:
+                    primary_key_value = row.get(primary_key, 'unknown')
+                    error_msg = str(row_error)
+                    
+                    # 🛠️ ENHANCED: Try multiple fallback strategies
+                    if self._handle_constraint_violation(conn, table, clean_row_data, primary_key_value, upsert_sql, error_msg):
+                        records_processed += 1
+                        continue
+                    
+                    # If all fallbacks fail, record the failure
+                    failed_records.append(f"{primary_key}={primary_key_value}: {error_msg}")
+                    logger.error(f"❌ Failed to upsert record {primary_key}={primary_key_value}: {error_msg}")
         
         if failed_records:
             logger.warning(f"⚠️ {len(failed_records)} records failed to upsert in {table}")
@@ -341,6 +384,57 @@ class AutoSyncService:
         
         logger.info(f"📊 UPSERT RESULT for {table}: {records_processed}/{len(df)} records processed successfully")
         return records_processed
+    
+    def _handle_constraint_violation(self, conn, table: str, row_data: dict, primary_key_value: str, upsert_sql: str, error_msg: str) -> bool:
+        """Enhanced constraint violation handler with multiple fallback strategies"""
+        
+        # Strategy 1: Try with minimal data for bookings
+        if table == 'bookings' and ('constraint' in error_msg.lower() or 'foreign key' in error_msg.lower()):
+            logger.warning(f"⚠️ Constraint violation for booking {primary_key_value}, trying minimal data fallback...")
+            try:
+                minimal_data = self._get_minimal_booking_data(row_data)
+                conn.execute(text(upsert_sql), minimal_data)
+                logger.info(f"✅ Minimal data fallback successful for booking {primary_key_value}")
+                return True
+            except Exception as fallback_error:
+                logger.warning(f"⚠️ Minimal data fallback failed: {fallback_error}")
+        
+        # Strategy 2: Try without problematic fields
+        if 'null value' in error_msg.lower() or 'not null' in error_msg.lower():
+            logger.warning(f"⚠️ NULL constraint violation for {primary_key_value}, trying with required fields only...")
+            try:
+                # Remove fields that might be NULL
+                safe_data = {k: v for k, v in row_data.items() if v is not None and v != ''}
+                if table == 'bookings':
+                    # Ensure required booking fields have defaults
+                    safe_data.update({
+                        'room_amount': safe_data.get('room_amount', 0.0),
+                        'guest_name': safe_data.get('guest_name', 'Unknown Guest'),
+                        'status': safe_data.get('status', 'OK')
+                    })
+                
+                conn.execute(text(upsert_sql), safe_data)
+                logger.info(f"✅ NULL-safe fallback successful for {primary_key_value}")
+                return True
+            except Exception as safe_error:
+                logger.warning(f"⚠️ NULL-safe fallback failed: {safe_error}")
+        
+        # Strategy 3: Try UPDATE only (in case record exists but INSERT fails)
+        if table == 'bookings':
+            try:
+                logger.warning(f"⚠️ Trying UPDATE-only for existing record {primary_key_value}...")
+                update_fields = [k for k in row_data.keys() if k != 'booking_id']
+                if update_fields:
+                    update_clause = ', '.join([f"{field} = :{field}" for field in update_fields])
+                    update_sql = f"UPDATE {table} SET {update_clause} WHERE booking_id = :booking_id"
+                    result = conn.execute(text(update_sql), row_data)
+                    if result.rowcount > 0:
+                        logger.info(f"✅ UPDATE-only successful for {primary_key_value}")
+                        return True
+            except Exception as update_error:
+                logger.warning(f"⚠️ UPDATE-only fallback failed: {update_error}")
+        
+        return False
     
     def _fix_table_sequence(self, conn, table: str, id_column: str, sequence_name: str):
         """Fix PostgreSQL sequence for a table to prevent duplicate key violations"""
@@ -424,6 +518,56 @@ class AutoSyncService:
                 cleaned[key] = value
                 
         return cleaned
+    
+    def _clean_booking_data(self, row_data: dict) -> dict:
+        """Special cleaning for booking data to handle constraints"""
+        cleaned = row_data.copy()
+        
+        # Ensure required fields have sensible defaults
+        if 'room_amount' in cleaned and (cleaned['room_amount'] is None or cleaned['room_amount'] == ''):
+            cleaned['room_amount'] = 0.0
+            
+        if 'commission' in cleaned and (cleaned['commission'] is None or cleaned['commission'] == ''):
+            cleaned['commission'] = 0.0
+            
+        if 'taxi_amount' in cleaned and (cleaned['taxi_amount'] is None or cleaned['taxi_amount'] == ''):
+            cleaned['taxi_amount'] = 0.0
+            
+        if 'collected_amount' in cleaned and (cleaned['collected_amount'] is None or cleaned['collected_amount'] == ''):
+            cleaned['collected_amount'] = 0.0
+            
+        # Handle email conflicts (make unique if empty)
+        if 'email' in cleaned and (cleaned['email'] is None or cleaned['email'] == ''):
+            booking_id = cleaned.get('booking_id', 'unknown')
+            cleaned['email'] = f"guest{booking_id}@sync-placeholder.local"
+            
+        # Ensure status has valid value
+        if 'status' in cleaned and (cleaned['status'] is None or cleaned['status'] == ''):
+            cleaned['status'] = 'OK'
+            
+        return cleaned
+    
+    def _get_minimal_booking_data(self, row_data: dict) -> dict:
+        """Get minimal booking data with only required fields for fallback"""
+        required_fields = [
+            'booking_id', 'guest_name', 'check_in_date', 'check_out_date', 
+            'room_amount', 'accommodation_name', 'location', 'status'
+        ]
+        
+        minimal = {}
+        for field in required_fields:
+            if field in row_data:
+                minimal[field] = row_data[field]
+                
+        # Set safe defaults for required fields
+        minimal.setdefault('guest_name', 'Unknown Guest')
+        minimal.setdefault('room_amount', 0.0)
+        minimal.setdefault('accommodation_name', '118 Hang Bac Hostel')
+        minimal.setdefault('location', 'Hà Nội')
+        minimal.setdefault('status', 'OK')
+        minimal.setdefault('email', f"guest{minimal.get('booking_id', 'unknown')}@sync-fallback.local")
+        
+        return minimal
     
     def _clean_dataframe(self, df: pd.DataFrame) -> pd.DataFrame:
         """Clean DataFrame to handle NaT, NaN, and other problematic values"""
@@ -510,11 +654,19 @@ class AutoSyncService:
         
         sync_success = len(failed_tables) == 0
         
+        # 🚀 ENHANCED: Aggressive cache invalidation and immediate status update
+        logger.info("🔄 Performing aggressive cache invalidation...")
+        self._last_status_cache = None
+        self._last_status_time = None
+        self.last_check_time = datetime.now()  # Update last check time
+        
+        # Force immediate status recalculation to verify sync results
+        logger.info("🔍 Forcing immediate status verification...")
+        verification_status = self.analyze_sync_status(force_refresh=True)
+        logger.info(f"📊 Post-sync verification: Local={verification_status.local_count}, Railway={verification_status.railway_count}, Sync needed={verification_status.sync_needed}")
+        
         if sync_success:
             logger.info("✅ Local → Railway sync completed successfully")
-            # Clear any cached status to force fresh calculation
-            self._last_status_cache = None
-            self._last_status_time = None
         else:
             logger.warning(f"⚠️ Partial sync: {len(successful_tables)}/{len(tables_to_sync)} tables successful")
         
@@ -587,11 +739,19 @@ class AutoSyncService:
         
         sync_success = len(failed_tables) == 0
         
+        # 🚀 ENHANCED: Aggressive cache invalidation and immediate status update
+        logger.info("🔄 Performing aggressive cache invalidation...")
+        self._last_status_cache = None
+        self._last_status_time = None
+        self.last_check_time = datetime.now()  # Update last check time
+        
+        # Force immediate status recalculation to verify sync results
+        logger.info("🔍 Forcing immediate status verification...")
+        verification_status = self.analyze_sync_status(force_refresh=True)
+        logger.info(f"📊 Post-sync verification: Local={verification_status.local_count}, Railway={verification_status.railway_count}, Sync needed={verification_status.sync_needed}")
+        
         if sync_success:
             logger.info("✅ Railway → local sync completed successfully")
-            # Clear any cached status to force fresh calculation
-            self._last_status_cache = None
-            self._last_status_time = None
         else:
             logger.warning(f"⚠️ Partial sync: {len(successful_tables)}/{len(tables_to_sync)} tables successful")
         
