@@ -1,0 +1,581 @@
+{% extends "base.html" %}
+
+{% block title %}Auto Sync Dashboard{% endblock %}
+
+{% block extra_css %}
+<style>
+.sync-card {
+    transition: all 0.3s ease;
+    border-left: 4px solid transparent;
+}
+
+.sync-card.sync-needed {
+    border-left-color: #ffc107;
+    background: linear-gradient(135deg, rgba(255, 193, 7, 0.1) 0%, rgba(255, 193, 7, 0.05) 100%);
+}
+
+.sync-card.in-sync {
+    border-left-color: #28a745;
+    background: linear-gradient(135deg, rgba(40, 167, 69, 0.1) 0%, rgba(40, 167, 69, 0.05) 100%);
+}
+
+.sync-notification {
+    animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.7; }
+    100% { opacity: 1; }
+}
+
+.database-status {
+    display: inline-block;
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 0.8em;
+    font-weight: bold;
+}
+
+.database-status.connected {
+    background: #d4edda;
+    color: #155724;
+}
+
+.database-status.disconnected {
+    background: #f8d7da;
+    color: #721c24;
+}
+
+.sync-direction {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    padding: 15px;
+    margin: 10px 0;
+    border-radius: 8px;
+    background: #f8f9fa;
+}
+
+.sync-arrow {
+    font-size: 1.5em;
+    color: #007bff;
+    animation: arrow-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes arrow-pulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.2); }
+}
+
+.table-count {
+    font-family: 'Courier New', monospace;
+    background: #f8f9fa;
+    padding: 2px 6px;
+    border-radius: 4px;
+    border: 1px solid #dee2e6;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1><i class="fas fa-sync-alt me-2"></i>Auto Sync Dashboard</h1>
+        <div class="btn-group">
+            <button id="refresh-status" class="btn btn-outline-primary">
+                <i class="fas fa-refresh me-1"></i>Refresh
+            </button>
+            <button id="toggle-auto-sync" class="btn btn-outline-success">
+                <i class="fas fa-play me-1"></i>Start Auto
+            </button>
+        </div>
+    </div>
+
+    <!-- Sync Status Overview -->
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <div id="sync-status-card" class="card sync-card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-database me-2"></i>Database Sync Status
+                        <span id="sync-status-badge" class="badge bg-secondary ms-2">Checking...</span>
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6><i class="fas fa-home me-1"></i>Local Database</h6>
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="database-status" id="local-status">Checking...</span>
+                                <span class="table-count" id="local-count">0 records</span>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <h6><i class="fas fa-cloud me-1"></i>Railway Database</h6>
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="database-status" id="railway-status">Checking...</span>
+                                <span class="table-count" id="railway-count">0 records</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div id="sync-direction-display" class="sync-direction" style="display: none;">
+                        <div class="text-center">
+                            <strong id="sync-direction-text">No sync needed</strong>
+                            <div id="sync-arrow-container"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0"><i class="fas fa-cog me-1"></i>Auto Sync Settings</h6>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label for="sync-interval" class="form-label">Sync Interval (minutes)</label>
+                        <input type="range" class="form-range" id="sync-interval" min="1" max="60" value="5">
+                        <div class="d-flex justify-content-between">
+                            <small>1 min</small>
+                            <small id="interval-display">5 min</small>
+                            <small>1 hour</small>
+                        </div>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="auto-sync-enabled">
+                        <label class="form-check-label" for="auto-sync-enabled">
+                            Enable Auto Sync
+                        </label>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notifications -->
+    <div id="sync-notifications" class="row mb-4" style="display: none;">
+        <div class="col-12">
+            <div class="alert alert-warning sync-notification">
+                <h6><i class="fas fa-exclamation-triangle me-2"></i>Sync Notifications</h6>
+                <div id="notifications-list"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Table-by-Table Breakdown -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0"><i class="fas fa-table me-1"></i>Table Breakdown</h6>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-sm" id="table-breakdown">
+                            <thead>
+                                <tr>
+                                    <th>Table</th>
+                                    <th>Local</th>
+                                    <th>Railway</th>
+                                    <th>Difference</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td colspan="5" class="text-center text-muted">Loading...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Manual Sync Actions -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0"><i class="fas fa-arrow-right me-1"></i>Manual Sync</h6>
+                </div>
+                <div class="card-body">
+                    <div class="btn-group w-100 mb-3">
+                        <button class="btn btn-outline-primary" onclick="performSync('local_to_railway')">
+                            <i class="fas fa-upload me-1"></i>Local → Railway
+                        </button>
+                        <button class="btn btn-outline-success" onclick="performSync('railway_to_local')">
+                            <i class="fas fa-download me-1"></i>Railway → Local
+                        </button>
+                        <button class="btn btn-outline-info" onclick="performSync('smart')">
+                            <i class="fas fa-magic me-1"></i>Smart Sync
+                        </button>
+                    </div>
+                    <div id="sync-progress" class="progress" style="display: none;">
+                        <div class="progress-bar progress-bar-striped progress-bar-animated" style="width: 100%">
+                            Syncing...
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0"><i class="fas fa-history me-1"></i>Recent Sync History</h6>
+                </div>
+                <div class="card-body">
+                    <div id="sync-history" class="list-group list-group-flush">
+                        <div class="list-group-item text-center text-muted">No sync history</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let syncStatusData = null;
+let autoSyncRunning = false;
+
+// Initialize dashboard
+document.addEventListener('DOMContentLoaded', function() {
+    refreshSyncStatus();
+    loadSyncHistory();
+    
+    // Setup interval slider
+    const intervalSlider = document.getElementById('sync-interval');
+    const intervalDisplay = document.getElementById('interval-display');
+    
+    intervalSlider.addEventListener('input', function() {
+        const minutes = this.value;
+        intervalDisplay.textContent = minutes + ' min';
+    });
+    
+    // Setup auto refresh
+    setInterval(refreshSyncStatus, 30000); // Refresh every 30 seconds
+});
+
+async function refreshSyncStatus() {
+    try {
+        console.log('🔄 Refreshing sync status...');
+        
+        // Add cache-busting to prevent stale data
+        const timestamp = new Date().getTime();
+        const response = await fetch(`/api/auto-sync/status?_t=${timestamp}`, {
+            cache: 'no-cache',
+            headers: {
+                'Cache-Control': 'no-cache, no-store, must-revalidate',
+                'Pragma': 'no-cache',
+                'Expires': '0'
+            }
+        });
+        const data = await response.json();
+        
+        if (data.success) {
+            syncStatusData = data.status;
+            autoSyncRunning = data.auto_sync_running;
+            
+            updateSyncStatusDisplay();
+            updateTableBreakdown();
+            checkSyncNotifications();
+            updateAutoSyncToggle();
+        } else {
+            console.error('Failed to get sync status:', data.error);
+        }
+        
+    } catch (error) {
+        console.error('Error refreshing sync status:', error);
+    }
+}
+
+function updateSyncStatusDisplay() {
+    const statusCard = document.getElementById('sync-status-card');
+    const statusBadge = document.getElementById('sync-status-badge');
+    const localStatus = document.getElementById('local-status');
+    const railwayStatus = document.getElementById('railway-status');
+    const localCount = document.getElementById('local-count');
+    const railwayCount = document.getElementById('railway-count');
+    const syncDirection = document.getElementById('sync-direction-display');
+    
+    // Update card class
+    statusCard.className = syncStatusData.sync_needed ? 'card sync-card sync-needed' : 'card sync-card in-sync';
+    
+    // Update status badge
+    if (syncStatusData.sync_needed) {
+        statusBadge.className = 'badge bg-warning ms-2';
+        statusBadge.textContent = 'Sync Needed';
+    } else {
+        statusBadge.className = 'badge bg-success ms-2';
+        statusBadge.textContent = 'In Sync';
+    }
+    
+    // Update database statuses
+    localStatus.className = 'database-status connected';
+    localStatus.textContent = 'Connected';
+    railwayStatus.className = 'database-status connected';
+    railwayStatus.textContent = 'Connected';
+    
+    // Update counts
+    localCount.textContent = `${syncStatusData.local_count.toLocaleString()} records`;
+    railwayCount.textContent = `${syncStatusData.railway_count.toLocaleString()} records`;
+    
+    // Update sync direction
+    if (syncStatusData.sync_needed) {
+        syncDirection.style.display = 'block';
+        const directionText = document.getElementById('sync-direction-text');
+        const arrowContainer = document.getElementById('sync-arrow-container');
+        
+        if (syncStatusData.recommended_direction === 'local_to_railway') {
+            directionText.textContent = 'Recommend: Local → Railway';
+            arrowContainer.innerHTML = '<i class="fas fa-arrow-right sync-arrow"></i>';
+        } else if (syncStatusData.recommended_direction === 'railway_to_local') {
+            directionText.textContent = 'Recommend: Railway → Local';
+            arrowContainer.innerHTML = '<i class="fas fa-arrow-left sync-arrow"></i>';
+        } else {
+            directionText.textContent = 'Complex sync needed';
+            arrowContainer.innerHTML = '<i class="fas fa-arrows-alt-h sync-arrow"></i>';
+        }
+    } else {
+        syncDirection.style.display = 'none';
+    }
+}
+
+function updateTableBreakdown() {
+    const tbody = document.querySelector('#table-breakdown tbody');
+    tbody.innerHTML = '';
+    
+    if (!syncStatusData.differences || Object.keys(syncStatusData.differences).length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">All tables in sync</td></tr>';
+        return;
+    }
+    
+    for (const [table, diff] of Object.entries(syncStatusData.differences)) {
+        const row = tbody.insertRow();
+        
+        row.insertCell(0).innerHTML = `<strong>${table}</strong>`;
+        row.insertCell(1).innerHTML = `<span class="table-count">${diff.local}</span>`;
+        row.insertCell(2).innerHTML = `<span class="table-count">${diff.railway}</span>`;
+        
+        const diffCell = row.insertCell(3);
+        if (diff.local > diff.railway) {
+            diffCell.innerHTML = `<span class="text-primary">+${diff.difference} local</span>`;
+        } else {
+            diffCell.innerHTML = `<span class="text-info">+${diff.difference} railway</span>`;
+        }
+        
+        const actionCell = row.insertCell(4);
+        if (diff.local > diff.railway) {
+            actionCell.innerHTML = '<button class="btn btn-sm btn-outline-primary" onclick="performTableSync(\'' + table + '\', \'local_to_railway\')"><i class="fas fa-arrow-right"></i></button>';
+        } else {
+            actionCell.innerHTML = '<button class="btn btn-sm btn-outline-info" onclick="performTableSync(\'' + table + '\', \'railway_to_local\')"><i class="fas fa-arrow-left"></i></button>';
+        }
+    }
+}
+
+async function checkSyncNotifications() {
+    try {
+        const response = await fetch('/api/sync/notifications');
+        const data = await response.json();
+        
+        const notificationsDiv = document.getElementById('sync-notifications');
+        const notificationsList = document.getElementById('notifications-list');
+        
+        if (data.success && data.count > 0) {
+            notificationsDiv.style.display = 'block';
+            
+            notificationsList.innerHTML = data.notifications.map(notification => 
+                `<div class="d-flex justify-content-between align-items-center mb-2">
+                    <div>
+                        <strong>${notification.title}</strong><br>
+                        <small>${notification.message}</small>
+                    </div>
+                    <button class="btn btn-sm btn-outline-primary" onclick="handleNotificationAction('${notification.action}')">
+                        Sync Now
+                    </button>
+                </div>`
+            ).join('');
+        } else {
+            notificationsDiv.style.display = 'none';
+        }
+        
+    } catch (error) {
+        console.error('Error checking notifications:', error);
+    }
+}
+
+function updateAutoSyncToggle() {
+    const toggleBtn = document.getElementById('toggle-auto-sync');
+    const autoSyncCheckbox = document.getElementById('auto-sync-enabled');
+    
+    if (autoSyncRunning) {
+        toggleBtn.innerHTML = '<i class="fas fa-stop me-1"></i>Stop Auto';
+        toggleBtn.className = 'btn btn-outline-danger';
+        autoSyncCheckbox.checked = true;
+    } else {
+        toggleBtn.innerHTML = '<i class="fas fa-play me-1"></i>Start Auto';
+        toggleBtn.className = 'btn btn-outline-success';
+        autoSyncCheckbox.checked = false;
+    }
+}
+
+async function performSync(direction) {
+    const progressBar = document.getElementById('sync-progress');
+    progressBar.style.display = 'block';
+    
+    try {
+        const response = await fetch('/api/sync/perform', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ direction: direction })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            showToast('✅ Sync completed successfully!', 'success');
+            
+            // Force cache invalidation and multiple refreshes
+            setTimeout(async () => {
+                console.log('🔄 Post-sync status refresh (immediate)');
+                await refreshSyncStatus();
+            }, 500);
+            
+            setTimeout(async () => {
+                console.log('🔄 Post-sync status refresh (delayed)');
+                await refreshSyncStatus();
+            }, 2000);
+            
+            loadSyncHistory();
+        } else {
+            showToast('❌ Sync failed: ' + data.error, 'error');
+        }
+        
+    } catch (error) {
+        showToast('❌ Sync error: ' + error.message, 'error');
+    } finally {
+        progressBar.style.display = 'none';
+    }
+}
+
+async function performTableSync(table, direction) {
+    try {
+        const response = await fetch('/api/sync/perform', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ 
+                direction: direction,
+                tables: [table]
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            showToast(`✅ ${table} synced successfully!`, 'success');
+            refreshSyncStatus();
+        } else {
+            showToast(`❌ Failed to sync ${table}: ` + data.error, 'error');
+        }
+        
+    } catch (error) {
+        showToast(`❌ Error syncing ${table}: ` + error.message, 'error');
+    }
+}
+
+async function toggleAutoSync() {
+    const endpoint = autoSyncRunning ? '/api/sync/auto/stop' : '/api/sync/auto/start';
+    
+    try {
+        const response = await fetch(endpoint, { method: 'POST' });
+        const data = await response.json();
+        
+        if (data.success) {
+            autoSyncRunning = data.running;
+            updateAutoSyncToggle();
+            showToast(data.message, 'success');
+        } else {
+            showToast('❌ Failed to toggle auto sync: ' + data.error, 'error');
+        }
+        
+    } catch (error) {
+        showToast('❌ Error: ' + error.message, 'error');
+    }
+}
+
+async function loadSyncHistory() {
+    try {
+        const response = await fetch('/api/sync/history');
+        const data = await response.json();
+        
+        const historyDiv = document.getElementById('sync-history');
+        
+        if (data.success && data.history.length > 0) {
+            historyDiv.innerHTML = data.history.map(sync => {
+                const time = new Date(sync.timestamp).toLocaleTimeString();
+                const status = sync.success ? '✅' : '❌';
+                const actions = sync.actions_taken.join(', ');
+                
+                return `<div class="list-group-item">
+                    <div class="d-flex justify-content-between">
+                        <small><strong>${status} ${time}</strong></small>
+                    </div>
+                    <small class="text-muted">${actions}</small>
+                </div>`;
+            }).join('');
+        } else {
+            historyDiv.innerHTML = '<div class="list-group-item text-center text-muted">No sync history</div>';
+        }
+        
+    } catch (error) {
+        console.error('Error loading sync history:', error);
+    }
+}
+
+function handleNotificationAction(action) {
+    if (action === 'sync_local_to_railway') {
+        performSync('local_to_railway');
+    } else if (action === 'sync_railway_to_local') {
+        performSync('railway_to_local');
+    } else if (action === 'show_sync_details') {
+        // Scroll to table breakdown
+        document.getElementById('table-breakdown').scrollIntoView({ behavior: 'smooth' });
+    }
+}
+
+function showToast(message, type) {
+    // Simple toast notification (you can replace with your preferred toast library)
+    const toastClass = type === 'success' ? 'alert-success' : 'alert-danger';
+    const toast = document.createElement('div');
+    toast.className = `alert ${toastClass} position-fixed`;
+    toast.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+    toast.innerHTML = message;
+    
+    document.body.appendChild(toast);
+    
+    setTimeout(() => {
+        toast.remove();
+    }, 3000);
+}
+
+// Event listeners
+document.getElementById('refresh-status').addEventListener('click', refreshSyncStatus);
+document.getElementById('toggle-auto-sync').addEventListener('click', toggleAutoSync);
+document.getElementById('auto-sync-enabled').addEventListener('change', function() {
+    if (this.checked !== autoSyncRunning) {
+        toggleAutoSync();
+    }
+});
+</script>
+{% endblock %}
