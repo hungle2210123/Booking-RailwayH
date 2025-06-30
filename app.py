@@ -1400,6 +1400,10 @@ def save_extracted_bookings():
         
         # Get extracted bookings from form data
         extracted_json = request.form.get('extracted_json')
+        force_add_duplicates = request.form.get('force_add_duplicates') == 'true'
+        
+        print(f"🔧 [SAVE_EXTRACTED] Force add duplicates: {force_add_duplicates}")
+        
         if not extracted_json:
             print("❌ [SAVE_EXTRACTED] No extracted_json provided")
             flash('Không có dữ liệu booking để lưu', 'error')
@@ -1421,6 +1425,7 @@ def save_extracted_bookings():
         # Process and save each booking
         saved_count = 0
         replaced_count = 0
+        forced_duplicate_count = 0  # Track bookings added despite being duplicates
         failed_bookings = []
         existing_bookings = []  # Track bookings that already exist
         
@@ -1434,12 +1439,22 @@ def save_extracted_bookings():
                 # Check if this is a replacement operation FIRST (before checking existing)
                 is_replacement = booking_data.get('replace_mode') and booking_data.get('replace_existing_id')
                 
-                # Check if booking ID already exists (only skip if NOT a replacement)
+                # Check if booking ID already exists (only skip if NOT a replacement AND force_add not enabled)
                 existing_booking = load_booking_data()
-                if not is_replacement and not existing_booking.empty and booking_id and booking_id in existing_booking['Số đặt phòng'].values:
+                booking_exists = not existing_booking.empty and booking_id and booking_id in existing_booking['Số đặt phòng'].values
+                
+                if booking_exists and not is_replacement and not force_add_duplicates:
                     print(f"ℹ️ [SAVE_EXTRACTED] Booking ID {booking_id} already exists - skipping (not an error)")
                     existing_bookings.append(f"Booking {i+1}: {guest_name} - Already exists in system ({booking_id})")
                     continue
+                elif booking_exists and force_add_duplicates:
+                    print(f"💪 [SAVE_EXTRACTED] Booking ID {booking_id} already exists - FORCE ADDING as requested")
+                    # Generate new unique booking ID for the duplicate
+                    original_booking_id = booking_id
+                    booking_id = f"{booking_id}_DUP_{datetime.now().strftime('%H%M%S')}"
+                    print(f"🆔 [SAVE_EXTRACTED] Generated duplicate booking ID: {booking_id}")
+                    booking_data['booking_id'] = booking_id  # Update the booking data
+                    forced_duplicate_count += 1
                 elif is_replacement:
                     print(f"🔄 [SAVE_EXTRACTED] Replacement mode detected for {guest_name} - proceeding with replacement")
                 
@@ -1546,6 +1561,10 @@ def save_extracted_bookings():
                 total_skipped = len(existing_bookings) + len(failed_bookings)
                 success_msg += f" (bỏ qua {total_skipped} booking)"
             flash(success_msg, 'success')
+            
+            # Show forced duplicates message
+            if forced_duplicate_count > 0:
+                flash(f"💪 Đã thêm {forced_duplicate_count} booking trùng lặp với ID mới (có thể chỉnh sửa riêng biệt)", 'warning')
             
         # Show replacement summary if any
         if replaced_count > 0:

@@ -150,6 +150,19 @@
                 <small class="text-muted">Hệ thống crawl chuyên nghiệp cho 2 căn hộ của bạn</small>
             </div>
             
+            <!-- Environment Status Display -->
+            <div id="crawl-environment-status" class="mb-3" style="display: none;">
+                <div class="alert alert-warning">
+                    <div class="d-flex align-items-center">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        <div>
+                            <strong>Web Crawling Not Available</strong><br>
+                            <span id="crawl-environment-message">Checking environment...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
             <!-- Apartment Selection Cards -->
             <div class="row mb-4">
                 <div class="col-md-6">
@@ -255,19 +268,39 @@
                 <div class="card-header bg-info text-white">
                     <h6 class="mb-0"><i class="fas fa-table me-2"></i>Xem trước và chỉnh sửa thông tin</h6>
                 </div>
+                
+                <!-- Persistent Action Notifications Panel -->
+                <div id="action-notifications-panel" style="display: none;">
+                    <div class="alert alert-info border-0 mb-2">
+                        <h6 class="mb-2">
+                            <i class="fas fa-clipboard-check me-2"></i>📋 Lựa chọn của bạn:
+                        </h6>
+                        <div id="action-notifications-list" class="small">
+                            <!-- Notifications will be added here -->
+                        </div>
+                        <button onclick="clearAllNotifications()" class="btn btn-sm btn-outline-secondary mt-2">
+                            <i class="fas fa-trash me-1"></i>Xóa tất cả thông báo
+                        </button>
+                    </div>
+                </div>
+                
                 <div class="card-body p-0">
                     <div class="table-responsive">
                         <table class="table table-bordered table-hover mb-0" id="review-table">
                             <thead class="table-primary">
                                 <tr>
-                                    <th width="5%">#</th>
-                                    <th width="20%">Tên khách *</th>
-                                    <th width="15%">Booking ID</th>
-                                    <th width="12%">Check-in *</th>
-                                    <th width="12%">Check-out *</th>
-                                    <th width="15%">Tổng tiền *</th>
-                                    <th width="15%">Hoa hồng</th>
-                                    <th width="6%">Xóa</th>
+                                    <th width="4%">#</th>
+                                    <th width="6%" class="text-center">
+                                        <input type="checkbox" id="select-all-duplicates" class="form-check-input" onchange="toggleSelectAll()" title="Chọn tất cả">
+                                        <div class="small">Chọn</div>
+                                    </th>
+                                    <th width="18%">Tên khách *</th>
+                                    <th width="14%">Booking ID</th>
+                                    <th width="11%">Check-in *</th>
+                                    <th width="11%">Check-out *</th>
+                                    <th width="14%">Tổng tiền *</th>
+                                    <th width="14%">Hoa hồng</th>
+                                    <th width="8%">Xóa</th>
                                 </tr>
                             </thead>
                             <tbody id="review-table-body">
@@ -284,6 +317,12 @@
                             </button>
                         </div>
                         <div class="col-md-6 text-end">
+                            <div class="form-check form-check-inline me-3">
+                                <input class="form-check-input" type="checkbox" id="force-add-duplicates" value="true">
+                                <label class="form-check-label fw-bold text-warning" for="force-add-duplicates">
+                                    <i class="fas fa-exclamation-triangle me-1"></i>Thêm booking trùng lặp
+                                </label>
+                            </div>
                             <button onclick="resetPhotoUpload()" class="btn btn-secondary me-2">
                                 <i class="fas fa-undo me-2"></i>Thử lại
                             </button>
@@ -408,6 +447,9 @@
 <script>
 // Store extracted bookings for multiple booking scenario with session persistence
 let extractedBookings = [];
+
+// Apartment selection variables  
+let selectedApartment = null;
 
 // Session persistence functions
 function saveExtractedBookingsToSession() {
@@ -805,8 +847,16 @@ function processPhoto(imageData) {
             return;
         }
         
-        // Handle new smart response format - always show review table
-        if (data.type === 'single') {
+        // Handle new AI analysis response format
+        if (data.ai_analysis && data.filtering_options) {
+            // New AI analysis format - show enhanced review with filtering options
+            console.log('🤖 AI analysis detected - showing enhanced review');
+            console.log('AI Analysis:', data.ai_analysis);
+            console.log('Filtering Options:', data.filtering_options);
+            
+            showAIAnalysisResults(data);
+            
+        } else if (data.type === 'single') {
             // Single booking detected - show in review table
             console.log('📝 Single booking detected - showing review table');
             showReviewTable([data.booking], data.duplicate_check);
@@ -850,6 +900,318 @@ function processPhoto(imageData) {
     });
 }
 
+// Show AI analysis results with filtering options
+function showAIAnalysisResults(data) {
+    console.log('🤖 [AI_ANALYSIS] Displaying AI analysis results...');
+    
+    // Store analysis data globally for later use
+    currentAIAnalysisData = data;
+    
+    const analysis = data.ai_analysis;
+    const options = data.filtering_options;
+    const recommendations = data.recommendations;
+    
+    // Hide processing indicator
+    const processingEl = document.getElementById('photo-processing');
+    if (processingEl) {
+        processingEl.style.display = 'none';
+    }
+    
+    // Show AI analysis summary
+    const aiResultsDiv = document.getElementById('ai-results-review');
+    if (aiResultsDiv) {
+        aiResultsDiv.style.display = 'block';
+        
+        // Update the success message with AI analysis
+        const successAlert = aiResultsDiv.querySelector('.alert-success');
+        if (successAlert) {
+            successAlert.innerHTML = `
+                <h5><i class="fas fa-robot me-2"></i>🤖 AI đã phân tích thành công!</h5>
+                <div class="row">
+                    <div class="col-md-8">
+                        <p class="mb-2"><strong>Tổng số booking:</strong> ${analysis.total_extracted}</p>
+                        <p class="mb-2"><strong>🆕 Booking mới:</strong> ${analysis.new_bookings}</p>
+                        <p class="mb-2"><strong>🔄 Có thể trùng lặp:</strong> ${analysis.duplicates_found}</p>
+                    </div>
+                    <div class="col-md-4">
+                        <select id="ai-filter-select" class="form-select form-select-sm mb-2">
+                            <option value="new_only">Chỉ booking mới (${options.add_all_new.count})</option>
+                            <option value="all_extracted">Tất cả booking (${options.add_all_extracted.count})</option>
+                            <option value="manual_review">Xem trùng lặp (${options.manual_review.count})</option>
+                        </select>
+                        <div class="btn-group w-100">
+                            <button type="button" class="btn btn-sm btn-success" onclick="selectAllNewBookings()" title="Chọn chỉ booking mới">
+                                <i class="fas fa-check"></i> Mới
+                            </button>
+                            <button type="button" class="btn btn-sm btn-info" onclick="selectAllExtractedBookings()" title="Chọn tất cả booking">
+                                <i class="fas fa-list"></i> Tất cả
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div class="mt-2">
+                    ${recommendations.map(rec => `<div class="small text-info">${rec}</div>`).join('')}
+                </div>
+            `;
+        }
+    }
+    
+    // Show filtered bookings by default (new bookings only)
+    showFilteredBookings('new_only', data);
+    
+    // Add event listener for filter changes
+    const filterSelect = document.getElementById('ai-filter-select');
+    if (filterSelect) {
+        filterSelect.addEventListener('change', function() {
+            showFilteredBookings(this.value, data);
+        });
+    }
+}
+
+// Show bookings based on selected filter
+function showFilteredBookings(filterType, data) {
+    console.log(`🔧 [AI_FILTER] Applying filter: ${filterType}`);
+    
+    const options = data.filtering_options;
+    let bookingsToShow = [];
+    let duplicateInfo = null;
+    
+    switch (filterType) {
+        case 'new_only':
+            bookingsToShow = options.add_all_new.bookings;
+            extractedBookings = bookingsToShow; // Update global variable
+            showReviewTable(bookingsToShow, null);
+            break;
+            
+        case 'all_extracted':
+            bookingsToShow = options.add_all_extracted.bookings;
+            extractedBookings = bookingsToShow; // Update global variable
+            showReviewTable(bookingsToShow, null);
+            break;
+            
+        case 'manual_review':
+            // Show duplicate analysis
+            showDuplicateAnalysis(options.manual_review.duplicates);
+            return; // Don't show regular review table
+    }
+    
+    console.log(`✅ [AI_FILTER] Showing ${bookingsToShow.length} bookings for filter: ${filterType}`);
+}
+
+// Show detailed duplicate analysis
+function showDuplicateAnalysis(duplicateGroupsData) {
+    console.log('🔍 [DUPLICATE_ANALYSIS] Showing duplicate analysis...');
+    
+    // Store duplicate groups globally for action handling
+    duplicateGroups = duplicateGroupsData;
+    
+    // Add bulk action buttons
+    addBulkActionButtons();
+    
+    // Create a special duplicate review interface
+    const reviewTableBody = document.getElementById('review-table-body');
+    if (!reviewTableBody) return;
+    
+    reviewTableBody.innerHTML = '';
+    
+    duplicateGroups.forEach((group, groupIndex) => {
+        const extractedBooking = group.extracted_booking;
+        const matchingExisting = group.matching_existing;
+        const confidence = group.confidence;
+        const recommendation = group.recommendation;
+        
+        // Add extracted booking row with duplicate warning
+        const row = reviewTableBody.insertRow();
+        row.className = 'table-warning';
+        
+        // Add cells
+        row.insertCell(0).innerHTML = `<strong>${groupIndex + 1}</strong><br><small class="text-danger">⚠️ Trùng lặp</small>`;
+        row.insertCell(1).innerHTML = `<input type="text" class="form-control form-control-sm" value="${extractedBooking.guest_name || ''}" onchange="updateBookingField(${groupIndex}, 'guest_name', this.value)">`;
+        row.insertCell(2).innerHTML = `<input type="text" class="form-control form-control-sm" value="${extractedBooking.booking_id || ''}" onchange="updateBookingField(${groupIndex}, 'booking_id', this.value)">`;
+        row.insertCell(3).innerHTML = `<input type="date" class="form-control form-control-sm" value="${extractedBooking.checkin_date || extractedBooking.check_in_date || ''}" onchange="updateBookingField(${groupIndex}, 'checkin_date', this.value)">`;
+        row.insertCell(4).innerHTML = `<input type="date" class="form-control form-control-sm" value="${extractedBooking.checkout_date || extractedBooking.check_out_date || ''}" onchange="updateBookingField(${groupIndex}, 'checkout_date', this.value)">`;
+        row.insertCell(5).innerHTML = `<input type="number" class="form-control form-control-sm" value="${extractedBooking.room_amount || ''}" onchange="updateBookingField(${groupIndex}, 'room_amount', this.value)">`;
+        row.insertCell(6).innerHTML = `<input type="number" class="form-control form-control-sm" value="${extractedBooking.commission || ''}" onchange="updateBookingField(${groupIndex}, 'commission', this.value)">`;
+        row.insertCell(7).innerHTML = `
+            <div class="btn-group">
+                <button type="button" class="btn btn-sm btn-success" onclick="keepExtractedBooking(${groupIndex})" title="Giữ booking này">
+                    <i class="fas fa-check"></i>
+                </button>
+                <button type="button" class="btn btn-sm btn-warning" onclick="replaceExistingBooking(${groupIndex})" title="Thay thế booking cũ">
+                    <i class="fas fa-sync-alt"></i>
+                </button>
+                <button type="button" class="btn btn-sm btn-danger" onclick="skipDuplicateBooking(${groupIndex})" title="Bỏ qua (trùng lặp)">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        `;
+        
+        // Add existing booking info row
+        if (matchingExisting && matchingExisting.length > 0) {
+            const existingRow = reviewTableBody.insertRow();
+            existingRow.className = 'table-info';
+            
+            const existing = matchingExisting[0]; // Show first match
+            existingRow.insertCell(0).innerHTML = `<small class="text-muted">Existing</small>`;
+            existingRow.insertCell(1).innerHTML = `<small class="text-muted">${existing['Tên người đặt'] || ''}</small>`;
+            existingRow.insertCell(2).innerHTML = `<small class="text-muted">${existing['Số đặt phòng'] || ''}</small>`;
+            existingRow.insertCell(3).innerHTML = `<small class="text-muted">${existing['Check-in Date'] || ''}</small>`;
+            existingRow.insertCell(4).innerHTML = `<small class="text-muted">${existing['Check-out Date'] || ''}</small>`;
+            existingRow.insertCell(5).innerHTML = `<small class="text-muted">${existing['Tổng thanh toán'] || ''}</small>`;
+            existingRow.insertCell(6).innerHTML = `<small class="text-muted">${existing['Hoa hồng'] || ''}</small>`;
+            existingRow.insertCell(7).innerHTML = `<small class="text-success">Confidence: ${(confidence * 100).toFixed(1)}%</small>`;
+        }
+    });
+}
+
+// Add bulk action buttons for faster duplicate handling
+function addBulkActionButtons() {
+    console.log('➕ Adding bulk action buttons for duplicate handling');
+    
+    // Find the card header to add buttons
+    const cardHeader = document.querySelector('#ai-results-review .card-header');
+    if (!cardHeader) return;
+    
+    // Check if buttons already exist
+    if (cardHeader.querySelector('.bulk-actions')) return;
+    
+    // Create bulk action container
+    const bulkActionsDiv = document.createElement('div');
+    bulkActionsDiv.className = 'bulk-actions mt-2 pt-2 border-top';
+    bulkActionsDiv.innerHTML = `
+        <div class="row">
+            <div class="col-md-8">
+                <h6 class="mb-2 text-white">🚀 Tác vụ hàng loạt (nhanh hơn):</h6>
+            </div>
+            <div class="col-md-4 text-end">
+                <small class="text-white-50">Tổng: <span id="total-duplicates-count">${duplicateGroups ? duplicateGroups.length : 0}</span> trùng lặp</small>
+            </div>
+        </div>
+        <div class="btn-group w-100" role="group">
+            <button type="button" class="btn btn-success btn-sm" onclick="bulkKeepAll()" title="Giữ tất cả booking mới (tạo duplicate)">
+                <i class="fas fa-check-circle me-1"></i>Giữ tất cả (${duplicateGroups ? duplicateGroups.length : 0})
+            </button>
+            <button type="button" class="btn btn-warning btn-sm" onclick="bulkReplaceAll()" title="Thay thế tất cả booking cũ">
+                <i class="fas fa-sync-alt me-1"></i>Thay thế tất cả (${duplicateGroups ? duplicateGroups.length : 0})
+            </button>
+            <button type="button" class="btn btn-danger btn-sm" onclick="bulkSkipAll()" title="Bỏ qua tất cả booking mới">
+                <i class="fas fa-times-circle me-1"></i>Bỏ qua tất cả (${duplicateGroups ? duplicateGroups.length : 0})
+            </button>
+            <button type="button" class="btn btn-info btn-sm" onclick="bulkSelectByConfidence()" title="Chọn theo độ tin cậy">
+                <i class="fas fa-magic me-1"></i>Tự động chọn
+            </button>
+        </div>
+        
+        <!-- OPTIMIZED: Simple one-click selection actions -->
+        <div class="btn-group w-100 mt-2" role="group">
+            <button type="button" class="btn btn-warning btn-sm" onclick="replaceSelectedBookings()" 
+                    title="Thay thế các booking đã chọn" disabled id="replace-selected-btn" data-original-text="Thay thế đã chọn">
+                <i class="fas fa-sync-alt me-1"></i>Thay thế đã chọn
+            </button>
+            <button type="button" class="btn btn-outline-secondary btn-sm" onclick="clearAllSelections()" 
+                    title="Bỏ chọn tất cả">
+                <i class="fas fa-eraser me-1"></i>Bỏ chọn tất cả
+            </button>
+        </div>
+        
+        <small class="text-white-50 mt-1 d-block">
+            💡 Tip: Chọn checkbox để sử dụng hành động "đã chọn", hoặc dùng "tất cả" để xử lý toàn bộ
+        </small>
+    `;
+    
+    cardHeader.appendChild(bulkActionsDiv);
+}
+
+// Bulk action functions
+function bulkKeepAll() {
+    if (!duplicateGroups || duplicateGroups.length === 0) return;
+    
+    const confirmMsg = `✅ Giữ tất cả ${duplicateGroups.length} booking mới?\n\n` +
+        `Sẽ tạo booking mới cho tất cả (cho phép trùng lặp)\n` +
+        `Các booking hiện tại sẽ không bị thay đổi.`;
+    
+    if (confirm(confirmMsg)) {
+        duplicateGroups.forEach((group, index) => {
+            keepExtractedBooking(index);
+        });
+        
+        addPersistentNotification('bulk_keep', `✅ Hàng loạt: Giữ tất cả ${duplicateGroups.length} booking`, 'success');
+        console.log(`✅ [BULK] Kept all ${duplicateGroups.length} bookings`);
+    }
+}
+
+function bulkReplaceAll() {
+    if (!duplicateGroups || duplicateGroups.length === 0) return;
+    
+    const confirmMsg = `🔄 Thay thế tất cả ${duplicateGroups.length} booking cũ?\n\n` +
+        `Sẽ cập nhật tất cả booking hiện tại với dữ liệu mới.\n` +
+        `⚠️ Thao tác này không thể hoàn tác!`;
+    
+    if (confirm(confirmMsg)) {
+        let successCount = 0;
+        duplicateGroups.forEach((group, index) => {
+            try {
+                replaceExistingBooking(index);
+                successCount++;
+            } catch (error) {
+                console.error(`❌ [BULK] Failed to replace booking ${index}:`, error);
+            }
+        });
+        
+        addPersistentNotification('bulk_replace', `🔄 Hàng loạt: Thay thế ${successCount}/${duplicateGroups.length} booking`, 'warning');
+        console.log(`🔄 [BULK] Replaced ${successCount}/${duplicateGroups.length} bookings`);
+    }
+}
+
+function bulkSkipAll() {
+    if (!duplicateGroups || duplicateGroups.length === 0) return;
+    
+    const confirmMsg = `❌ Bỏ qua tất cả ${duplicateGroups.length} booking mới?\n\n` +
+        `Sẽ không lưu booking nào từ danh sách trùng lặp.\n` +
+        `Chỉ các booking hiện tại được giữ lại.`;
+    
+    if (confirm(confirmMsg)) {
+        duplicateGroups.forEach((group, index) => {
+            skipDuplicateBooking(index);
+        });
+        
+        addPersistentNotification('bulk_skip', `❌ Hàng loạt: Bỏ qua tất cả ${duplicateGroups.length} booking`, 'danger');
+        console.log(`❌ [BULK] Skipped all ${duplicateGroups.length} bookings`);
+    }
+}
+
+function bulkSelectByConfidence() {
+    if (!duplicateGroups || duplicateGroups.length === 0) return;
+    
+    const confirmMsg = `🤖 Tự động chọn theo độ tin cậy?\n\n` +
+        `• Độ tin cậy > 90%: Thay thế\n` +
+        `• Độ tin cậy 70-90%: Giữ lại\n` +
+        `• Độ tin cậy < 70%: Bỏ qua\n\n` +
+        `Áp dụng logic này cho ${duplicateGroups.length} booking?`;
+    
+    if (confirm(confirmMsg)) {
+        let replaced = 0, kept = 0, skipped = 0;
+        
+        duplicateGroups.forEach((group, index) => {
+            const confidence = group.confidence || 0;
+            
+            if (confidence > 0.9) {
+                replaceExistingBooking(index);
+                replaced++;
+            } else if (confidence >= 0.7) {
+                keepExtractedBooking(index);
+                kept++;
+            } else {
+                skipDuplicateBooking(index);
+                skipped++;
+            }
+        });
+        
+        addPersistentNotification('bulk_auto', `🤖 Tự động: ${replaced} thay thế, ${kept} giữ, ${skipped} bỏ qua`, 'info');
+        console.log(`🤖 [BULK_AUTO] Processed: ${replaced} replaced, ${kept} kept, ${skipped} skipped`);
+    }
+}
+
 // Auto-fill function removed - now using review table for all scenarios
 
 function showReviewTable(bookings, duplicateCheck) {
@@ -880,6 +1242,11 @@ function showReviewTable(bookings, duplicateCheck) {
         
         // Generate the table after checking existing bookings
         generateReviewTableHtml(duplicateCheck);
+        
+        // Initialize selection system after table generation
+        setTimeout(() => {
+            initializeSelectionAfterTableGeneration();
+        }, 100);
     });
 }
 
@@ -980,6 +1347,12 @@ function generateReviewTableHtml(duplicateCheck) {
         return `
         <tr data-index="${index}" class="${rowClass}">
             <td class="text-center fw-bold">${index + 1}</td>
+            <td class="text-center">
+                <input type="checkbox" class="form-check-input duplicate-select" 
+                       data-index="${index}" 
+                       onchange="updateSelection(${index})"
+                       title="Chọn để thực hiện hành động hàng loạt">
+            </td>
             <td>
                 <div class="d-flex align-items-center">
                     <input type="text" class="form-control form-control-sm flex-grow-1" 
@@ -1094,6 +1467,11 @@ function removeBookingRow(index) {
         // Refresh the table
         generateReviewTableHtml(null);
         
+        // Initialize selection system after table generation
+        setTimeout(() => {
+            initializeSelectionAfterTableGeneration();
+        }, 100);
+        
         // Update counter
         document.getElementById('extracted-count').textContent = extractedBookings.length;
         
@@ -1124,6 +1502,11 @@ function removeAllExistingBookings() {
         
         // Refresh the table
         generateReviewTableHtml(null);
+        
+        // Initialize selection system after table generation
+        setTimeout(() => {
+            initializeSelectionAfterTableGeneration();
+        }, 100);
         
         // Update counter
         document.getElementById('extracted-count').textContent = extractedBookings.length;
@@ -1158,6 +1541,11 @@ function addManualRow() {
     
     // Refresh the table
     generateReviewTableHtml(null);
+    
+    // Initialize selection system after table generation
+    setTimeout(() => {
+        initializeSelectionAfterTableGeneration();
+    }, 100);
 }
 
 function validateBookings() {
@@ -1217,16 +1605,40 @@ document.addEventListener('DOMContentLoaded', function() {
                 return;
             }
             
+            // Check if force add duplicates is enabled
+            const forceAddCheckbox = document.getElementById('force-add-duplicates');
+            const forceAddEnabled = forceAddCheckbox.checked;
+            
             // Show confirmation
-            const confirmMessage = `Xác nhận lưu ${extractedBookings.length} booking:\\n\\n` +
-                extractedBookings.map((b, i) => `${i + 1}. ${b.guest_name} - ${(b.room_amount || 0).toLocaleString()}đ`).join('\\n') +
-                '\\n\\nBạn có chắc chắn muốn lưu?';
+            let confirmMessage = `Xác nhận lưu ${extractedBookings.length} booking:\\n\\n` +
+                extractedBookings.map((b, i) => `${i + 1}. ${b.guest_name} - ${(b.room_amount || 0).toLocaleString()}đ`).join('\\n');
+            
+            if (forceAddEnabled) {
+                confirmMessage += '\\n\\n⚠️ CHẾ ĐỘ THÊM BOOKING TRÙNG LẶP ĐƯỢC BẬT\\n' +
+                    'Booking trùng lặp sẽ được tạo ID mới và thêm vào hệ thống.\\n' +
+                    'Bạn có thể chỉnh sửa chúng riêng biệt sau này.';
+            }
+            
+            confirmMessage += '\\n\\nBạn có chắc chắn muốn lưu?';
                 
             if (!confirm(confirmMessage)) {
                 return;
             }
             
             console.log('💾 Saving all bookings after validation:', extractedBookings);
+            
+            // Debug: Log replacement bookings specifically
+            const replacementBookings = extractedBookings.filter(b => b.replace_mode);
+            console.log(`🔄 [SAVE_DEBUG] Replacement bookings count: ${replacementBookings.length}`);
+            replacementBookings.forEach((booking, index) => {
+                console.log(`🔄 [SAVE_DEBUG] Replacement ${index + 1}:`, {
+                    guest_name: booking.guest_name,
+                    booking_id: booking.booking_id,
+                    replace_existing_id: booking.replace_existing_id,
+                    replace_mode: booking.replace_mode,
+                    room_amount: booking.room_amount
+                });
+            });
             
             // Disable button and show loading
             confirmSaveButton.disabled = true;
@@ -1242,7 +1654,18 @@ document.addEventListener('DOMContentLoaded', function() {
             input.name = 'extracted_json';
             input.value = JSON.stringify(extractedBookings);
             
+            // Add force add duplicates checkbox value
+            const forceAddCheckbox = document.getElementById('force-add-duplicates');
+            const forceAddInput = document.createElement('input');
+            forceAddInput.type = 'hidden';
+            forceAddInput.name = 'force_add_duplicates';
+            forceAddInput.value = forceAddCheckbox.checked ? 'true' : 'false';
+            
+            console.log('📤 [SAVE_DEBUG] JSON being sent to backend:', input.value);
+            console.log('💪 [SAVE_DEBUG] Force add duplicates:', forceAddInput.value);
+            
             form.appendChild(input);
+            form.appendChild(forceAddInput);
             document.body.appendChild(form);
             form.submit();
         };
@@ -1296,24 +1719,8 @@ const APARTMENTS = {
     }
 };
 
-let selectedApartment = null;
-
-// Initialize apartment management
-document.addEventListener('DOMContentLoaded', function() {
-    // Set default dates to current month
-    const today = new Date();
-    const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
-    const lastDay = new Date(today.getFullYear(), today.getMonth() + 2, 0); // Next month end
-    
-    document.getElementById('crawl-date-from').value = firstDay.toISOString().split('T')[0];
-    document.getElementById('crawl-date-to').value = lastDay.toISOString().split('T')[0];
-    
-    // Add event listeners
-    document.getElementById('crawl-date-from').addEventListener('change', updateGeneratedUrl);
-    document.getElementById('crawl-date-to').addEventListener('change', updateGeneratedUrl);
-});
-
-function selectApartment(apartmentId) {
+// Apartment selection function - MUST be available immediately for onclick handlers  
+window.selectApartment = function selectApartment(apartmentId) {
     selectedApartment = apartmentId;
     const apartment = APARTMENTS[apartmentId];
     
@@ -1341,8 +1748,18 @@ function selectApartment(apartmentId) {
     document.getElementById('crawl-date-from').value = apartment.defaultDateFrom;
     document.getElementById('crawl-date-to').value = apartment.defaultDateTo;
     
-    // Enable crawl button
-    document.getElementById('start-crawl-btn').disabled = false;
+    // Enable crawl button only if crawling is available
+    const startCrawlBtn = document.getElementById('start-crawl-btn');
+    const statusDiv = document.getElementById('crawl-environment-status');
+    if (statusDiv && statusDiv.style.display === 'block') {
+        // Crawling not available
+        startCrawlBtn.disabled = true;
+        startCrawlBtn.innerHTML = '<i class="fas fa-ban me-2"></i>Not Available';
+    } else {
+        // Crawling available
+        startCrawlBtn.disabled = false;
+        startCrawlBtn.innerHTML = '<i class="fas fa-spider me-2"></i>Bắt đầu Crawl';
+    }
     
     // Update URL
     updateGeneratedUrl();
@@ -1351,7 +1768,100 @@ function selectApartment(apartmentId) {
     infoPanel.scrollIntoView({ behavior: 'smooth', block: 'center' });
     
     console.log(`✅ Selected apartment ${apartmentId}: ${apartment.name}`);
+};
+
+// Check crawling capabilities and show environment status
+async function checkCrawlingCapabilities() {
+    try {
+        console.log('🔍 Checking crawling capabilities...');
+        const response = await fetch('/api/crawl_capabilities');
+        const capabilities = await response.json();
+        
+        console.log('📊 Crawling capabilities:', capabilities);
+        
+        if (!capabilities.is_available) {
+            // Show warning message
+            const statusDiv = document.getElementById('crawl-environment-status');
+            const messageSpan = document.getElementById('crawl-environment-message');
+            
+            if (statusDiv && messageSpan) {
+                statusDiv.style.display = 'block';
+                
+                if (capabilities.environment === 'cloud') {
+                    messageSpan.innerHTML = `
+                        Running on cloud platform (${capabilities.environment}). Web crawling with Selenium requires Chrome browser and display server which are not available.<br>
+                        <strong>Available alternatives:</strong>
+                        <ul class="mt-2 mb-0">
+                            <li>📸 Upload booking screenshots for AI extraction</li>
+                            <li>✏️ Manual booking entry</li>
+                            <li>📋 Import from CSV/Excel files</li>
+                        </ul>
+                    `;
+                } else {
+                    messageSpan.innerHTML = `
+                        Web crawling not available in current environment.<br>
+                        <strong>Available alternatives:</strong>
+                        <ul class="mt-2 mb-0">
+                            <li>📸 Upload booking screenshots for AI extraction</li>
+                            <li>✏️ Manual booking entry</li>
+                            <li>📋 Import from CSV/Excel files</li>
+                        </ul>
+                    `;
+                }
+                
+                // Disable crawling interface
+                const crawlApartmentCards = document.querySelectorAll('.apartment-card');
+                crawlApartmentCards.forEach(card => {
+                    card.style.opacity = '0.5';
+                    card.style.pointerEvents = 'none';
+                    card.onclick = null;
+                });
+                
+                const startCrawlBtn = document.getElementById('start-crawl-btn');
+                if (startCrawlBtn) {
+                    startCrawlBtn.disabled = true;
+                    startCrawlBtn.innerHTML = '<i class="fas fa-ban me-2"></i>Not Available';
+                }
+            }
+        } else {
+            console.log('✅ Web crawling is available');
+            // Hide status div if crawling is available
+            const statusDiv = document.getElementById('crawl-environment-status');
+            if (statusDiv) {
+                statusDiv.style.display = 'none';
+            }
+        }
+        
+    } catch (error) {
+        console.error('❌ Failed to check crawling capabilities:', error);
+        // Show generic error message
+        const statusDiv = document.getElementById('crawl-environment-status');
+        const messageSpan = document.getElementById('crawl-environment-message');
+        
+        if (statusDiv && messageSpan) {
+            statusDiv.style.display = 'block';
+            messageSpan.innerHTML = 'Unable to determine crawling capabilities. Please try alternative methods.';
+        }
+    }
 }
+
+// Initialize apartment management
+document.addEventListener('DOMContentLoaded', function() {
+    // Check crawling capabilities on page load
+    checkCrawlingCapabilities();
+    
+    // Set default dates to current month
+    const today = new Date();
+    const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
+    const lastDay = new Date(today.getFullYear(), today.getMonth() + 2, 0); // Next month end
+    
+    document.getElementById('crawl-date-from').value = firstDay.toISOString().split('T')[0];
+    document.getElementById('crawl-date-to').value = lastDay.toISOString().split('T')[0];
+    
+    // Add event listeners
+    document.getElementById('crawl-date-from').addEventListener('change', updateGeneratedUrl);
+    document.getElementById('crawl-date-to').addEventListener('change', updateGeneratedUrl);
+});
 
 function updateGeneratedUrl() {
     if (!selectedApartment) return;
@@ -1442,32 +1952,59 @@ document.getElementById('start-crawl-btn').addEventListener('click', async funct
         if (result.success && result.bookings && result.bookings.length > 0) {
             console.log(`✅ Successfully crawled ${result.bookings_count} bookings from ${apartment.name}`);
             
-            // Process crawled bookings for display in the review table
-            const processedBookings = result.bookings.map((booking, index) => ({
-                id: index + 1,
-                guest_name: booking.guest_name || 'Unknown',
-                booking_id: booking.booking_id || 'N/A',
-                check_in_date: booking.checkin_date || 'N/A',
-                check_out_date: booking.checkout_date || 'N/A',
-                room_type: booking.room_type || 'N/A',
-                room_amount: booking.room_amount || 0,
-                commission: booking.commission || 0,
-                email: booking.email || '',
-                phone: booking.phone || '',
-                source: `${apartment.name}_crawl`,
-                apartment_id: selectedApartment,
-                apartment_name: apartment.name
-            }));
+            // Check if AI analysis is available
+            if (result.ai_analysis && result.filtering_options) {
+                console.log('🤖 AI analysis available from crawling - using enhanced display');
+                
+                // Process crawled bookings for AI display
+                const processedResult = {
+                    ...result,
+                    message: `🤖 AI analyzed ${result.bookings_count} crawled bookings from ${apartment.name}`,
+                    bookings: result.bookings.map((booking, index) => ({
+                        ...booking,
+                        id: index + 1,
+                        source: `${apartment.name}_crawl`,
+                        apartment_id: selectedApartment,
+                        apartment_name: apartment.name
+                    }))
+                };
+                
+                // Use AI analysis display
+                showAIAnalysisResults(processedResult);
+                
+            } else {
+                // Fallback to traditional display
+                console.log('📊 Using traditional crawl display');
+                
+                const processedBookings = result.bookings.map((booking, index) => ({
+                    id: index + 1,
+                    guest_name: booking.guest_name || 'Unknown',
+                    booking_id: booking.booking_id || 'N/A',
+                    check_in_date: booking.checkin_date || 'N/A',
+                    check_out_date: booking.checkout_date || 'N/A',
+                    room_type: booking.room_type || 'N/A',
+                    room_amount: booking.room_amount || 0,
+                    commission: booking.commission || 0,
+                    email: booking.email || '',
+                    phone: booking.phone || '',
+                    source: `${apartment.name}_crawl`,
+                    apartment_id: selectedApartment,
+                    apartment_name: apartment.name
+                }));
 
-            // Display results with real-time duplicate detection
-            await displayCrawlResults(processedBookings, result.bookings_count);
+                // Display results with real-time duplicate detection
+                await displayCrawlResults(processedBookings, result.bookings_count);
+            }
             
             // Hide crawl processing, show success
             crawlProcessing.style.display = 'none';
             
-            // Show enhanced success message with duplicate info
+            // Show enhanced success message 
             const dateRange = `${dateFrom} → ${dateTo}`;
-            showTemporaryMessage(`✅ Crawl thành công ${apartment.name}!\n📊 Đã trích xuất ${result.bookings_count} booking\n📅 Thời gian: ${dateRange}\n🔍 Real-time duplicate detection hoàn tất`, 'success');
+            const duplicateInfo = result.ai_analysis ? 
+                `\n🤖 AI: ${result.ai_analysis.new_bookings} mới, ${result.ai_analysis.duplicates_found} trùng lặp` : 
+                '\n🔍 Duplicate detection hoàn tất';
+            showTemporaryMessage(`✅ Crawl thành công ${apartment.name}!\n📊 Đã trích xuất ${result.bookings_count} booking\n📅 Thời gian: ${dateRange}${duplicateInfo}`, 'success');
 
         } else {
             throw new Error(result.error || 'Không có booking nào được trích xuất');
@@ -1924,6 +2461,663 @@ function clearSessionAfterSave() {
     console.log('✅ Session cleared after successful save');
 }
 
+// Global variables for duplicate handling
+let duplicateGroups = [];
+let keptBookings = [];
+let currentAIAnalysisData = null;
+
+function selectAllNewBookings() {
+    console.log('✅ [SELECT_ALL] Selecting all new bookings from AI analysis');
+    
+    if (currentAIAnalysisData && currentAIAnalysisData.filtering_options) {
+        const newBookings = currentAIAnalysisData.filtering_options.add_all_new.bookings;
+        
+        // Clear current selection
+        extractedBookings = [];
+        keptBookings = [];
+        
+        // Add all new bookings
+        newBookings.forEach(booking => {
+            extractedBookings.push(booking);
+            keptBookings.push(booking);
+        });
+        
+        // Show regular review table with new bookings only
+        showReviewTable(newBookings, null);
+        
+        showToast(`✅ Đã chọn ${newBookings.length} booking mới`, 'success');
+    }
+}
+
+function selectAllExtractedBookings() {
+    console.log('📋 [SELECT_ALL] Selecting all extracted bookings');
+    
+    if (currentAIAnalysisData && currentAIAnalysisData.filtering_options) {
+        const allBookings = currentAIAnalysisData.filtering_options.add_all_extracted.bookings;
+        
+        // Clear current selection
+        extractedBookings = [];
+        keptBookings = [];
+        
+        // Add all bookings
+        allBookings.forEach(booking => {
+            extractedBookings.push(booking);
+            keptBookings.push(booking);
+        });
+        
+        // Show regular review table with all bookings
+        showReviewTable(allBookings, null);
+        
+        showToast(`✅ Đã chọn tất cả ${allBookings.length} booking`, 'info');
+    }
+}
+
+// Keep extracted booking - adds to final selection  
+function keepExtractedBooking(index) {
+    console.log(`✅ [KEEP] Keeping extracted booking at index ${index}`);
+    
+    if (duplicateGroups[index]) {
+        const booking = duplicateGroups[index].extracted_booking;
+        
+        // Create unique identifier for this booking
+        booking.unique_id = `keep_${index}_${Date.now()}`;
+        booking.original_booking_id = booking.booking_id;
+        
+        // Add to kept bookings if not already there
+        if (!keptBookings.find(b => b.unique_id === booking.unique_id)) {
+            keptBookings.push(booking);
+        }
+        
+        // Add to extracted bookings if not already there
+        if (!extractedBookings.find(b => b.unique_id === booking.unique_id)) {
+            extractedBookings.push(booking);
+        }
+        
+        // Visual feedback
+        const row = document.querySelector(`tr[data-index="${index}"]`);
+        if (row) {
+            row.classList.remove('table-warning');
+            row.classList.add('table-success');
+            row.querySelector('.btn-success').innerHTML = '<i class="fas fa-check-circle"></i> Kept';
+            row.querySelector('.btn-success').disabled = true;
+        }
+        
+        addPersistentNotification('keep', `✅ Giữ lại: ${booking.guest_name}`, 'success');
+        
+        // Update summary
+        updateDuplicateSummary();
+    }
+}
+
+// Skip duplicate booking - removes from selection
+function skipDuplicateBooking(index) {
+    console.log(`❌ [SKIP] Skipping duplicate booking at index ${index}`);
+    
+    if (duplicateGroups[index]) {
+        const booking = duplicateGroups[index].extracted_booking;
+        
+        // Create unique identifier for this booking to match with keep/replace
+        const uniqueKeepId = `keep_${index}_`;
+        const uniqueReplaceId = `replace_${index}_`;
+        
+        // Remove from kept bookings (match by index pattern since it might have been kept or replaced)
+        keptBookings = keptBookings.filter(b => 
+            !b.unique_id || (!b.unique_id.startsWith(uniqueKeepId) && !b.unique_id.startsWith(uniqueReplaceId))
+        );
+        
+        // Remove from extracted bookings (match by index pattern)
+        extractedBookings = extractedBookings.filter(b => 
+            !b.unique_id || (!b.unique_id.startsWith(uniqueKeepId) && !b.unique_id.startsWith(uniqueReplaceId))
+        );
+        
+        // Visual feedback
+        const row = document.querySelector(`tr[data-index="${index}"]`);
+        if (row) {
+            row.classList.remove('table-warning');
+            row.classList.add('table-danger');
+            row.querySelector('.btn-danger').innerHTML = '<i class="fas fa-times-circle"></i> Skipped';
+            row.querySelector('.btn-danger').disabled = true;
+            row.style.opacity = '0.6';
+        }
+        
+        addPersistentNotification('skip', `❌ Bỏ qua: ${booking.guest_name}`, 'danger');
+        
+        // Update summary
+        updateDuplicateSummary();
+    }
+}
+
+// Replace existing booking - updates old booking with new data
+function replaceExistingBooking(index) {
+    console.log(`🔄 [REPLACE] Replacing existing booking at index ${index}`);
+    
+    if (duplicateGroups[index]) {
+        const newBooking = duplicateGroups[index].extracted_booking;
+        const existingBookings = duplicateGroups[index].matching_existing;
+        
+        if (existingBookings && existingBookings.length > 0) {
+            const existingBooking = existingBookings[0]; // Use first match
+            
+            // Show confirmation dialog with details
+            const confirmMsg = `🔄 Bạn có chắc muốn thay thế booking cũ?\n\n` +
+                `📋 BOOKING CŨ (sẽ bị thay thế):\n` +
+                `• Tên: ${existingBooking['Tên người đặt'] || 'N/A'}\n` +
+                `• Mã: ${existingBooking['Số đặt phòng'] || 'N/A'}\n` +
+                `• Check-in: ${existingBooking['Check-in Date'] || 'N/A'}\n` +
+                `• Số tiền: ${existingBooking['Tổng thanh toán'] || 'N/A'}\n\n` +
+                `🆕 BOOKING MỚI (sẽ thay thế):\n` +
+                `• Tên: ${newBooking.guest_name || 'N/A'}\n` +
+                `• Mã: ${newBooking.booking_id || 'N/A'}\n` +
+                `• Check-in: ${newBooking.checkin_date || newBooking.check_in_date || 'N/A'}\n` +
+                `• Số tiền: ${newBooking.room_amount || 'N/A'}\n\n` +
+                `⚠️ Thao tác này sẽ cập nhật thông tin booking cũ với dữ liệu mới!`;
+            
+            if (confirm(confirmMsg)) {
+                // Mark booking for replacement instead of creating new
+                newBooking.replace_existing_id = existingBooking['Số đặt phòng'];
+                newBooking.replace_mode = true;
+                
+                // Create unique identifier to avoid conflicts with same booking_id
+                const originalBookingId = newBooking.booking_id;
+                newBooking.unique_id = `replace_${index}_${Date.now()}`;
+                newBooking.original_booking_id = originalBookingId;
+                
+                console.log(`🔄 [REPLACE_DEBUG] Marking booking for replacement:`);
+                console.log(`   - New Booking ID: ${newBooking.booking_id}`);
+                console.log(`   - Replace Existing ID: ${newBooking.replace_existing_id}`);
+                console.log(`   - Replace Mode: ${newBooking.replace_mode}`);
+                
+                // Add to kept bookings for processing - use unique_id to avoid conflicts
+                const existingKeptIndex = keptBookings.findIndex(b => b.unique_id === newBooking.unique_id);
+                if (existingKeptIndex === -1) {
+                    keptBookings.push(newBooking);
+                    console.log(`✅ [REPLACE_DEBUG] Added to keptBookings: ${newBooking.guest_name} (${newBooking.unique_id})`);
+                } else {
+                    // Update existing booking with replacement data
+                    keptBookings[existingKeptIndex] = newBooking;
+                    console.log(`🔄 [REPLACE_DEBUG] Updated existing in keptBookings: ${newBooking.guest_name} (${newBooking.unique_id})`);
+                }
+                
+                // Add to extracted bookings if not already there - use unique_id to avoid conflicts
+                const existingExtractedIndex = extractedBookings.findIndex(b => b.unique_id === newBooking.unique_id);
+                if (existingExtractedIndex === -1) {
+                    extractedBookings.push(newBooking);
+                    console.log(`✅ [REPLACE_DEBUG] Added to extractedBookings: ${newBooking.guest_name} (${newBooking.unique_id})`);
+                } else {
+                    // Update existing booking with replacement data
+                    extractedBookings[existingExtractedIndex] = newBooking;
+                    console.log(`🔄 [REPLACE_DEBUG] Updated existing in extractedBookings: ${newBooking.guest_name} (${newBooking.unique_id})`);
+                }
+                
+                console.log(`📊 [REPLACE_DEBUG] Current arrays:`)
+                console.log(`   - keptBookings count: ${keptBookings.length}`);
+                console.log(`   - extractedBookings count: ${extractedBookings.length}`);
+                console.log(`   - Replacement bookings: ${keptBookings.filter(b => b.replace_mode).length}`);
+                
+                // Visual feedback - orange color for replacement
+                const row = document.querySelector(`tr[data-index="${index}"]`);
+                if (row) {
+                    row.classList.remove('table-warning');
+                    row.classList.add('table-info');
+                    const replaceBtn = row.querySelector('.btn-warning');
+                    if (replaceBtn) {
+                        replaceBtn.innerHTML = '<i class="fas fa-sync-alt"></i> Replacing';
+                        replaceBtn.disabled = true;
+                        replaceBtn.classList.remove('btn-warning');
+                        replaceBtn.classList.add('btn-info');
+                    }
+                }
+                
+                addPersistentNotification('replace', `🔄 Thay thế: ${newBooking.guest_name} → ${existingBooking['Tên người đặt']}`, 'warning');
+                
+                // Update summary
+                updateDuplicateSummary();
+                
+                console.log(`🔄 Booking marked for replacement: ${newBooking.guest_name}`);
+            }
+        } else {
+            showToast(`❌ Không tìm thấy booking cũ để thay thế`, 'error');
+        }
+    }
+}
+
+// Update duplicate handling summary
+function updateDuplicateSummary() {
+    const summaryEl = document.getElementById('duplicate-summary');
+    if (summaryEl) {
+        const totalDuplicates = duplicateGroups.length;
+        const keptCount = keptBookings.filter(b => !b.replace_mode).length;
+        const replacedCount = keptBookings.filter(b => b.replace_mode).length;
+        const skippedCount = totalDuplicates - keptCount - replacedCount;
+        
+        summaryEl.innerHTML = `
+            <div class="row">
+                <div class="col-md-3">
+                    <span class="badge bg-success">✅ Kept: ${keptCount}</span>
+                </div>
+                <div class="col-md-3">
+                    <span class="badge bg-warning">🔄 Replace: ${replacedCount}</span>
+                </div>
+                <div class="col-md-3">
+                    <span class="badge bg-danger">❌ Skipped: ${skippedCount}</span>
+                </div>
+                <div class="col-md-3">
+                    <span class="badge bg-primary">📋 Final: ${extractedBookings.length}</span>
+                </div>
+            </div>
+        `;
+    }
+}
+
+// Persistent notification system
+let actionNotifications = [];
+
+function addPersistentNotification(type, message, style) {
+    console.log(`📋 Adding persistent notification: ${type} - ${message}`);
+    
+    // Add to notifications array
+    const notification = {
+        id: Date.now(),
+        type: type,
+        message: message,
+        style: style,
+        timestamp: new Date().toLocaleTimeString()
+    };
+    
+    actionNotifications.push(notification);
+    
+    // Update display
+    updateNotificationPanel();
+    
+    // Show quick toast for immediate feedback
+    showQuickToast(message, style);
+}
+
+function updateNotificationPanel() {
+    const panel = document.getElementById('action-notifications-panel');
+    const list = document.getElementById('action-notifications-list');
+    
+    if (actionNotifications.length > 0) {
+        panel.style.display = 'block';
+        
+        // Group notifications by type
+        const grouped = actionNotifications.reduce((acc, notif) => {
+            if (!acc[notif.type]) acc[notif.type] = [];
+            acc[notif.type].push(notif);
+            return acc;
+        }, {});
+        
+        // Generate HTML for each group
+        let html = '';
+        Object.keys(grouped).forEach(type => {
+            const items = grouped[type];
+            const count = items.length;
+            const lastItem = items[items.length - 1];
+            
+            let icon = '📋';
+            let color = 'text-info';
+            if (type === 'keep') { icon = '✅'; color = 'text-success'; }
+            if (type === 'replace') { icon = '🔄'; color = 'text-warning'; }
+            if (type === 'skip') { icon = '❌'; color = 'text-danger'; }
+            
+            html += `
+                <div class="d-flex justify-content-between align-items-center mb-1 p-2 border rounded ${color}">
+                    <div>
+                        <strong>${icon} ${type.toUpperCase()}: ${count} booking(s)</strong>
+                        <div class="small">${lastItem.message}</div>
+                    </div>
+                    <div class="small text-muted">${lastItem.timestamp}</div>
+                </div>
+            `;
+        });
+        
+        list.innerHTML = html;
+    } else {
+        panel.style.display = 'none';
+    }
+}
+
+function clearAllNotifications() {
+    actionNotifications = [];
+    updateNotificationPanel();
+    console.log('🗑️ Cleared all action notifications');
+}
+
+function showQuickToast(message, type) {
+    // Quick 2-second toast for immediate feedback
+    const toast = document.createElement('div');
+    toast.className = `alert alert-${type} position-fixed`;
+    toast.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px; opacity: 0.95;';
+    toast.innerHTML = `
+        <div class="d-flex align-items-center">
+            <i class="fas fa-${type === 'success' ? 'check-circle' : type === 'danger' ? 'exclamation-triangle' : type === 'warning' ? 'exclamation-triangle' : 'info-circle'} me-2"></i>
+            ${message}
+        </div>
+    `;
+    
+    document.body.appendChild(toast);
+    
+    // Auto remove after 2 seconds
+    setTimeout(() => {
+        if (toast.parentNode) {
+            toast.parentNode.removeChild(toast);
+        }
+    }, 2000);
+}
+
+// Toast notification function
+function showToast(message, type = 'info') {
+    const toast = document.createElement('div');
+    toast.className = `alert alert-${type === 'success' ? 'success' : type === 'error' ? 'danger' : type === 'warning' ? 'warning' : 'info'} position-fixed`;
+    toast.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px; opacity: 0.95;';
+    toast.innerHTML = `
+        <div class="d-flex align-items-center">
+            <i class="fas fa-${type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-triangle' : type === 'warning' ? 'exclamation-triangle' : 'info-circle'} me-2"></i>
+            ${message}
+        </div>
+    `;
+    
+    document.body.appendChild(toast);
+    
+    // Fade in
+    setTimeout(() => {
+        toast.style.opacity = '1';
+    }, 100);
+    
+    // Auto remove after 3 seconds
+    setTimeout(() => {
+        toast.style.opacity = '0';
+        setTimeout(() => {
+            if (toast.parentNode) {
+                toast.parentNode.removeChild(toast);
+            }
+        }, 300);
+    }, 3000);
+}
+
+// ==============================================
+// MULTI-SELECT FUNCTIONALITY FOR DUPLICATE MANAGEMENT
+// ==============================================
+
+// Track selected duplicate bookings
+let selectedDuplicates = new Set();
+
+// Initialize selection system
+function initializeSelection() {
+    selectedDuplicates.clear();
+    updateSelectionControls();
+    console.log('🎯 Selection system initialized');
+}
+
+// Toggle select all/none with visual feedback
+function toggleSelectAll() {
+    const selectAllCheckbox = document.getElementById('select-all-duplicates');
+    const duplicateCheckboxes = document.querySelectorAll('.duplicate-select');
+    
+    if (selectAllCheckbox.checked) {
+        // Select all with visual feedback
+        duplicateCheckboxes.forEach(checkbox => {
+            checkbox.checked = true;
+            const index = parseInt(checkbox.dataset.index);
+            selectedDuplicates.add(index);
+            
+            // Apply visual selection to row
+            const row = checkbox.closest('tr');
+            row.classList.add('table-info', 'selected-row');
+            row.style.backgroundColor = '#e3f2fd';
+            row.style.borderLeft = '4px solid #2196f3';
+            
+            // Add checkmark icon
+            const guestNameCell = row.querySelector('td:nth-child(3) .d-flex');
+            if (guestNameCell && !guestNameCell.querySelector('.selection-checkmark')) {
+                const checkmark = document.createElement('i');
+                checkmark.className = 'fas fa-check-circle text-success selection-checkmark me-2';
+                checkmark.style.fontSize = '1.1em';
+                guestNameCell.insertBefore(checkmark, guestNameCell.firstChild);
+            }
+        });
+        console.log(`✅ Selected all ${selectedDuplicates.size} bookings`);
+    } else {
+        // Deselect all and remove visual feedback
+        duplicateCheckboxes.forEach(checkbox => {
+            checkbox.checked = false;
+            
+            // Remove visual selection from row
+            const row = checkbox.closest('tr');
+            row.classList.remove('table-info', 'selected-row');
+            row.style.backgroundColor = '';
+            row.style.borderLeft = '';
+            
+            // Remove checkmark icon
+            const checkmark = row.querySelector('.selection-checkmark');
+            if (checkmark) {
+                checkmark.remove();
+            }
+        });
+        selectedDuplicates.clear();
+        console.log('❌ Deselected all bookings');
+    }
+    
+    updateSelectionControls();
+}
+
+// Update individual selection with enhanced visual feedback
+function updateSelection(index) {
+    const checkbox = document.querySelector(`.duplicate-select[data-index="${index}"]`);
+    const row = checkbox.closest('tr');
+    
+    if (checkbox.checked) {
+        selectedDuplicates.add(index);
+        
+        // Enhanced visual feedback like booking management
+        row.classList.add('table-info', 'selected-row');
+        row.style.backgroundColor = '#e3f2fd';
+        row.style.borderLeft = '4px solid #2196f3';
+        
+        // Add checkmark icon to guest name cell
+        const guestNameCell = row.querySelector('td:nth-child(3) .d-flex');
+        if (guestNameCell && !guestNameCell.querySelector('.selection-checkmark')) {
+            const checkmark = document.createElement('i');
+            checkmark.className = 'fas fa-check-circle text-success selection-checkmark me-2';
+            checkmark.style.fontSize = '1.1em';
+            guestNameCell.insertBefore(checkmark, guestNameCell.firstChild);
+        }
+        
+        console.log(`✅ Selected booking ${index + 1}`);
+    } else {
+        selectedDuplicates.delete(index);
+        
+        // Remove visual selection
+        row.classList.remove('table-info', 'selected-row');
+        row.style.backgroundColor = '';
+        row.style.borderLeft = '';
+        
+        // Remove checkmark icon
+        const checkmark = row.querySelector('.selection-checkmark');
+        if (checkmark) {
+            checkmark.remove();
+        }
+        
+        console.log(`❌ Deselected booking ${index + 1}`);
+    }
+    
+    // Update select all checkbox state
+    const selectAllCheckbox = document.getElementById('select-all-duplicates');
+    const totalCheckboxes = document.querySelectorAll('.duplicate-select').length;
+    const selectedCount = selectedDuplicates.size;
+    
+    if (selectedCount === 0) {
+        selectAllCheckbox.indeterminate = false;
+        selectAllCheckbox.checked = false;
+    } else if (selectedCount === totalCheckboxes) {
+        selectAllCheckbox.indeterminate = false;
+        selectAllCheckbox.checked = true;
+    } else {
+        selectAllCheckbox.indeterminate = true;
+        selectAllCheckbox.checked = false;
+    }
+    
+    updateSelectionControls();
+}
+
+// Update selection controls and feedback
+function updateSelectionControls() {
+    const selectedCount = selectedDuplicates.size;
+    
+    // Update selection counter in bulk action buttons
+    updateBulkActionButtons(selectedCount);
+    
+    // No notifications during selection - just visual feedback
+}
+
+// Update replace button with selection count - simplified
+function updateBulkActionButtons(selectedCount) {
+    const replaceBtn = document.getElementById('replace-selected-btn');
+    
+    if (replaceBtn) {
+        const originalText = replaceBtn.getAttribute('data-original-text') || 'Thay thế đã chọn';
+        
+        if (selectedCount > 0) {
+            replaceBtn.textContent = `Thay thế đã chọn (${selectedCount})`;
+            replaceBtn.disabled = false;
+            replaceBtn.classList.add('btn-pulse');
+            replaceBtn.classList.remove('btn-outline-warning');
+            replaceBtn.classList.add('btn-warning');
+        } else {
+            replaceBtn.textContent = originalText;
+            replaceBtn.disabled = true;
+            replaceBtn.classList.remove('btn-pulse', 'btn-warning');
+            replaceBtn.classList.add('btn-outline-warning');
+        }
+    }
+}
+
+// Get currently selected booking data
+function getSelectedBookings() {
+    const selectedBookings = [];
+    selectedDuplicates.forEach(index => {
+        if (extractedBookings[index]) {
+            selectedBookings.push({
+                index: index,
+                data: extractedBookings[index]
+            });
+        }
+    });
+    return selectedBookings;
+}
+
+// Reset selection after bulk action
+function resetSelection() {
+    selectedDuplicates.clear();
+    document.querySelectorAll('.duplicate-select').forEach(checkbox => {
+        checkbox.checked = false;
+    });
+    document.getElementById('select-all-duplicates').checked = false;
+    document.getElementById('select-all-duplicates').indeterminate = false;
+    updateSelectionControls();
+    console.log('🔄 Selection reset');
+}
+
+// ==============================================
+// OPTIMIZED SELECTION-BASED ACTIONS
+// ==============================================
+
+// Simple one-click replace selected bookings
+function replaceSelectedBookings() {
+    const selectedBookings = getSelectedBookings();
+    
+    if (selectedBookings.length === 0) {
+        alert('⚠️ Vui lòng chọn ít nhất 1 booking để thay thế!');
+        return;
+    }
+    
+    // Simple confirmation like booking management delete
+    const guestNames = selectedBookings.map(({ data }) => data.guest_name).join(', ');
+    const confirmMsg = `🔄 Thay thế ${selectedBookings.length} booking đã chọn?\n\n` +
+        `${guestNames}\n\n` +
+        `⚠️ Thao tác này sẽ cập nhật dữ liệu hiện tại và không thể hoàn tác!`;
+    
+    if (confirm(confirmMsg)) {
+        let successCount = 0;
+        
+        selectedBookings.forEach(({ index, data }) => {
+            try {
+                replaceExistingBooking(index);
+                successCount++;
+                console.log(`🔄 Replaced: ${data.guest_name}`);
+            } catch (error) {
+                console.error(`❌ Failed to replace ${data.guest_name}:`, error);
+            }
+        });
+        
+        // Simple success message, no persistent notifications
+        if (successCount === selectedBookings.length) {
+            alert(`✅ Đã thay thế thành công ${successCount} booking!`);
+        } else {
+            alert(`⚠️ Đã thay thế ${successCount}/${selectedBookings.length} booking. Một số có lỗi.`);
+        }
+        
+        clearAllSelections();
+    }
+}
+
+// Clear all selections - simple function
+function clearAllSelections() {
+    // Clear selection state
+    selectedDuplicates.clear();
+    
+    // Remove checkboxes and visual feedback
+    document.querySelectorAll('.duplicate-select').forEach(checkbox => {
+        checkbox.checked = false;
+        
+        const row = checkbox.closest('tr');
+        row.classList.remove('table-info', 'selected-row');
+        row.style.backgroundColor = '';
+        row.style.borderLeft = '';
+        
+        // Remove checkmark icons
+        const checkmark = row.querySelector('.selection-checkmark');
+        if (checkmark) {
+            checkmark.remove();
+        }
+    });
+    
+    // Clear select all checkbox
+    const selectAllCheckbox = document.getElementById('select-all-duplicates');
+    if (selectAllCheckbox) {
+        selectAllCheckbox.checked = false;
+        selectAllCheckbox.indeterminate = false;
+    }
+    
+    // Update button state
+    updateBulkActionButtons(0);
+    
+    console.log('🔄 Cleared all selections');
+}
+
+// Initialize selection system when table is generated
+function initializeSelectionAfterTableGeneration() {
+    // Initialize selection state
+    initializeSelection();
+    
+    // Add visual enhancements for checkboxes
+    const checkboxes = document.querySelectorAll('.duplicate-select');
+    checkboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', function() {
+            const row = this.closest('tr');
+            if (this.checked) {
+                row.classList.add('table-info');
+                row.style.backgroundColor = '#e3f2fd';
+            } else {
+                row.classList.remove('table-info');
+                row.style.backgroundColor = '';
+            }
+        });
+    });
+    
+    console.log(`🎯 Selection system initialized for ${checkboxes.length} bookings`);
+}
+
 // Clear session when navigating away (optional - for clean state)
 window.addEventListener('beforeunload', function() {
     // Note: We intentionally DON'T clear session here to preserve data across refreshes
@@ -1952,6 +3146,109 @@ window.addEventListener('beforeunload', function() {
     0% { transform: scale(1); opacity: 1; }
     50% { transform: scale(1.1); opacity: 0.8; }
     100% { transform: scale(1); opacity: 1; }
+}
+
+/* ================================================= */
+/* MULTI-SELECT FUNCTIONALITY STYLING */
+/* ================================================= */
+
+/* Pulse animation for active selection buttons */
+.btn-pulse {
+    animation: btn-pulse 1.5s infinite;
+    box-shadow: 0 0 10px rgba(13, 110, 253, 0.5);
+}
+
+@keyframes btn-pulse {
+    0% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.05); opacity: 0.9; }
+    100% { transform: scale(1); opacity: 1; }
+}
+
+/* Selected row styling - enhanced like booking management */
+.selected-row {
+    background-color: #e3f2fd !important;
+    border-left: 4px solid #2196f3 !important;
+    box-shadow: 0 2px 4px rgba(33, 150, 243, 0.1);
+    transition: all 0.2s ease;
+}
+
+.selected-row:hover {
+    background-color: #bbdefb !important;
+    box-shadow: 0 4px 8px rgba(33, 150, 243, 0.2);
+}
+
+/* Selection checkmark styling */
+.selection-checkmark {
+    color: #28a745 !important;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.1);
+    animation: checkmark-appear 0.3s ease-in-out;
+}
+
+@keyframes checkmark-appear {
+    0% { 
+        opacity: 0; 
+        transform: scale(0.5); 
+    }
+    100% { 
+        opacity: 1; 
+        transform: scale(1); 
+    }
+}
+
+/* Selection checkbox styling */
+.duplicate-select {
+    transform: scale(1.2);
+    cursor: pointer;
+}
+
+.duplicate-select:checked {
+    background-color: #2196f3;
+    border-color: #2196f3;
+}
+
+/* Select all checkbox styling */
+#select-all-duplicates {
+    transform: scale(1.1);
+    cursor: pointer;
+}
+
+#select-all-duplicates:indeterminate {
+    background-color: #ffc107;
+    border-color: #ffc107;
+}
+
+/* Enhanced bulk action button styling */
+.btn-outline-success:disabled,
+.btn-outline-warning:disabled,
+.btn-outline-danger:disabled,
+.btn-outline-secondary:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.btn-outline-success:not(:disabled):hover,
+.btn-outline-warning:not(:disabled):hover,
+.btn-outline-danger:not(:disabled):hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+}
+
+/* Selection count indicator */
+.selection-count-indicator {
+    display: inline-block;
+    background: #007bff;
+    color: white;
+    padding: 2px 6px;
+    border-radius: 10px;
+    font-size: 0.75rem;
+    margin-left: 5px;
+    animation: count-pulse 1s infinite;
+}
+
+@keyframes count-pulse {
+    0% { background-color: #007bff; }
+    50% { background-color: #0056b3; }
+    100% { background-color: #007bff; }
 }
 
 /* Enhanced alert styling for duplicate notification */
