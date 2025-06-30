@@ -5069,6 +5069,10 @@ def crawl_admin_bookings():
                 print("⚠️ Optimized crawler not available, falling back to standard service")
                 result = railway_crawl_service.crawl_admin_bookings_api(target_url, profile_name)
                 return jsonify(result)
+            except Exception as e:
+                print(f"⚠️ Optimized crawler failed: {str(e)}, falling back to standard service")
+                result = railway_crawl_service.crawl_admin_bookings_api(target_url, profile_name)
+                return jsonify(result)
         
         # Original Selenium-based crawling for local development
         print(f"🕷️ Using Selenium crawling for: {target_url}")

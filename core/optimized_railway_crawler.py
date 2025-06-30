@@ -291,31 +291,40 @@ class OptimizedRailwayCrawler:
         candidates = []
         
         for service_name, config in self.services.items():
+            logger.info(f"DEBUG: Checking service {service_name}")
+            
             # Check if service is available
             api_key_env = config.get('api_key_env')
             if api_key_env and not os.getenv(api_key_env):
+                logger.info(f"DEBUG: {service_name} - API key {api_key_env} not configured")
                 continue
             
             # Check circuit breaker
             can_call, reason = self.circuit_breaker.can_call_service(service_name)
             if not can_call:
+                logger.info(f"DEBUG: {service_name} - Circuit breaker: {reason}")
                 continue
             
             # Check rate limits
             can_request, limit_reason = self.rate_limiter.can_make_request(service_name)
             if not can_request:
+                logger.info(f"DEBUG: {service_name} - Rate limit: {limit_reason}")
                 continue
             
             # Check if meets requirements
             performance = config['performance_score']
             if performance < requirements['min_performance']:
+                logger.info(f"DEBUG: {service_name} - Performance too low: {performance} < {requirements['min_performance']}")
                 continue
             
             # Check feature requirements
             required_features = requirements.get('features', [])
             service_features = config.get('features', [])
             if not all(feature in service_features for feature in required_features):
+                logger.info(f"DEBUG: {service_name} - Missing features: {required_features} not in {service_features}")
                 continue
+            
+            logger.info(f"DEBUG: {service_name} - PASSED all checks")
             
             # Calculate cost efficiency
             cost = self.rate_limiter.rate_limits[service_name]['cost_per_request']
