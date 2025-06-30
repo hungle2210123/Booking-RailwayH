@@ -491,7 +491,6 @@ let selectedApartment = null;
 window.selectApartment = function selectApartment(apartmentId) {
     selectedApartment = apartmentId;
     
-    // Simple selection logic that works even if APARTMENTS isn't defined yet
     console.log('🏠 Apartment selected:', apartmentId);
     
     // Update visual selection
@@ -507,10 +506,32 @@ window.selectApartment = function selectApartment(apartmentId) {
         selectedCard.style.transition = 'all 0.3s ease';
     }
     
-    // Show apartment info panel if it exists
+    // Show apartment info panel and update details
     const infoPanel = document.getElementById('selected-apartment-info');
-    if (infoPanel) {
+    if (infoPanel && APARTMENTS[apartmentId]) {
+        const apartment = APARTMENTS[apartmentId];
         infoPanel.style.display = 'block';
+        
+        // Update apartment name and ID display
+        const nameElement = document.getElementById('selected-apartment-name');
+        const idElement = document.getElementById('selected-apartment-id');
+        if (nameElement) nameElement.textContent = apartment.name;
+        if (idElement) idElement.textContent = `Hotel ID: ${apartment.hotelId}`;
+        
+        // Set default dates for this apartment
+        const dateFromField = document.getElementById('crawl-date-from');
+        const dateToField = document.getElementById('crawl-date-to');
+        if (dateFromField) dateFromField.value = apartment.defaultDateFrom;
+        if (dateToField) dateToField.value = apartment.defaultDateTo;
+        
+        // Update the generated URL with your complete URL
+        updateGeneratedUrl();
+        
+        // Update crawl button text
+        const crawlBtn = document.getElementById('start-crawl-btn');
+        if (crawlBtn) {
+            crawlBtn.innerHTML = `<i class="fas fa-spider me-2"></i>Crawl ${apartment.name}`;
+        }
     }
 };
 
@@ -1762,7 +1783,7 @@ function clearForm() {
 // PROFESSIONAL APARTMENT MANAGEMENT SYSTEM
 // ============================
 
-// Apartment configurations
+// Apartment configurations with your complete URLs
 const APARTMENTS = {
     1: {
         name: '🏠 Căn hộ 1',
@@ -1770,15 +1791,15 @@ const APARTMENTS = {
         defaultDateFrom: '2025-07-01',
         defaultDateTo: '2025-08-31',
         color: 'primary',
-        baseUrl: 'https://admin.booking.com/hotel/hoteladmin/extranet_ng/manage/search_reservations.html'
+        crawlUrl: 'https://admin.booking.com/hotel/hoteladmin/extranet_ng/manage/search_reservations.html?source=nav&upcoming_reservations=1&hotel_id=14171449&lang=vi&reservation_status=ok&ses=a13063e715cdfe50124272d69958fc9b&date_from=2025-07-01&date_to=2025-08-31&date_type=arrival'
     },
     2: {
         name: '🏢 Căn hộ 2', 
         hotelId: '14174292',
-        defaultDateFrom: '2025-06-27',
+        defaultDateFrom: '2025-07-01',
         defaultDateTo: '2025-08-31',
         color: 'warning',
-        baseUrl: 'https://admin.booking.com/hotel/hoteladmin/extranet_ng/manage/search_reservations.html'
+        crawlUrl: 'https://admin.booking.com/hotel/hoteladmin/extranet_ng/manage/search_reservations.html?upcoming_reservations=1&source=nav&hotel_id=14174292&lang=vi&reservation_status=ok&ses=a13063e715cdfe50124272d69958fc9b&date_from=2025-07-01&date_to=2025-08-31&date_type=arrival'
     }
 };
 
@@ -1942,29 +1963,20 @@ function updateGeneratedUrl() {
     const dateFrom = document.getElementById('crawl-date-from').value;
     const dateTo = document.getElementById('crawl-date-to').value;
     
-    if (!dateFrom || !dateTo) return;
+    // Use your complete crawl URL directly, but update dates if different
+    let fullUrl = apartment.crawlUrl;
     
-    // Build the complete URL
-    const urlParams = new URLSearchParams({
-        'upcoming_reservations': '1',
-        'source': 'nav',
-        'hotel_id': apartment.hotelId,
-        'lang': 'vi',
-        'reservation_status': 'ok',
-        'date_from': dateFrom,
-        'date_to': dateTo,
-        'date_type': 'arrival'
-    });
-    
-    // Add session parameter for apartment 2 if needed
-    if (selectedApartment === 2) {
-        urlParams.set('ses', '93a2f637e391ca2393f6e8d3e559c666');
+    // If dates are provided and different from defaults, update the URL
+    if (dateFrom && dateTo) {
+        const url = new URL(fullUrl);
+        url.searchParams.set('date_from', dateFrom);
+        url.searchParams.set('date_to', dateTo);
+        fullUrl = url.toString();
     }
     
-    const fullUrl = `${apartment.baseUrl}?${urlParams.toString()}`;
     document.getElementById('generated-url').value = fullUrl;
     
-    console.log(`🔗 Generated URL for ${apartment.name}:`, fullUrl);
+    console.log(`🔗 Using your configured URL for ${apartment.name}:`, fullUrl);
 }
 
 document.getElementById('start-crawl-btn').addEventListener('click', async function() {
