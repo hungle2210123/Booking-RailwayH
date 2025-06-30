@@ -16,7 +16,7 @@ from sqlalchemy import text
 # --- PostgreSQL-Only Configuration ---
 # Import pure PostgreSQL business logic modules
 from core.logic_postgresql import (
-    load_booking_data, create_demo_data,
+    load_booking_data, load_booking_data_for_calculations, create_demo_data,
     get_daily_activity, get_overall_calendar_day_info,
     extract_booking_info_from_image_content,
     check_duplicate_guests, analyze_existing_duplicates,
@@ -24,6 +24,9 @@ from core.logic_postgresql import (
     prepare_dashboard_data,
     add_expense_to_database, get_expenses_from_database
 )
+
+# Import AI duplicate detector
+from core.ai_duplicate_detector import ai_duplicate_detector
 
 # Import dashboard processing module  
 from core.dashboard_routes import process_dashboard_data, safe_to_dict_records
@@ -34,8 +37,12 @@ from core.database_service_postgresql import init_database_service, get_database
 # Import crawling service for authenticated web scraping
 from core.crawl_service import CrawlIntegration
 
-# Import sync API blueprint
+# Import sync API blueprints
 from railway_sync_api import sync_bp
+from sync_api_routes import sync_api_bp
+
+# Import auto sync service
+from core.auto_sync_service import auto_sync_service
 
 # Configuration
 BASE_DIR = Path(__file__).resolve().parent
@@ -43,12 +50,14 @@ load_dotenv(BASE_DIR / ".env")
 
 app = Flask(__name__, template_folder=BASE_DIR / "templates", static_folder=BASE_DIR / "static")
 
-# Register sync blueprint
+# Register sync blueprints
 app.register_blueprint(sync_bp)
+app.register_blueprint(sync_api_bp)
 
-# Production configuration
+# Production configuration with temporary debug for auto sync
+railway_env = os.getenv('RAILWAY_PROJECT_ID') is not None
 app.config['ENV'] = 'production'
-app.config['DEBUG'] = False
+app.config['DEBUG'] = railway_env  # Enable debug on Railway to troubleshoot auto sync menu
 app.secret_key = os.getenv("FLASK_SECRET_KEY", "a_default_secret_key_for_development")
 
 # ========================================
@@ -328,6 +337,71 @@ def quick_collect():
     """Quick payment collection page - bypasses broken frontend"""
     return render_template('quick_collect.html')
 
+@app.route('/auto_sync')
+def auto_sync_dashboard():
+    """Auto sync dashboard for managing bidirectional database synchronization"""
+    try:
+        # Debug info for Railway deployment
+        print("🔍 Auto sync dashboard accessed")
+        print(f"🔍 Template folder: {app.template_folder}")
+        
+        # Check if template exists
+        import os
+        template_path = os.path.join(app.template_folder, 'auto_sync_dashboard.html')
+        template_exists = os.path.exists(template_path)
+        print(f"🔍 Template exists: {template_exists}")
+        
+        if not template_exists:
+            return f"<h1>Debug: Template Missing</h1><p>Template path: {template_path}</p><p>Template folder: {app.template_folder}</p>"
+        
+        return render_template('auto_sync_dashboard.html')
+        
+    except Exception as e:
+        print(f"❌ Auto sync dashboard error: {e}")
+        import traceback
+        traceback.print_exc()
+        return f"<h1>Auto Sync Dashboard Error</h1><p>Error: {str(e)}</p><pre>{traceback.format_exc()}</pre>"
+
+@app.route('/debug/routes')
+def debug_routes():
+    """Debug route to check all registered routes"""
+    try:
+        routes_info = []
+        for rule in app.url_map.iter_rules():
+            routes_info.append({
+                'route': rule.rule,
+                'endpoint': rule.endpoint,
+                'methods': list(rule.methods)
+            })
+        
+        # Check specifically for auto sync route
+        auto_sync_routes = [r for r in routes_info if 'auto' in r['route'].lower() or 'sync' in r['endpoint'].lower()]
+        
+        html = "<h1>Route Debug Info</h1>"
+        html += f"<h2>Total Routes: {len(routes_info)}</h2>"
+        html += "<h3>Auto Sync Related Routes:</h3><ul>"
+        
+        if auto_sync_routes:
+            for route in auto_sync_routes:
+                html += f"<li><strong>{route['route']}</strong> → {route['endpoint']} ({route['methods']})</li>"
+        else:
+            html += "<li>❌ No auto sync routes found</li>"
+        
+        html += "</ul>"
+        
+        # Test url_for
+        try:
+            with app.app_context():
+                auto_sync_url = url_for('auto_sync_dashboard')
+                html += f"<h3>url_for Test:</h3><p>✅ url_for('auto_sync_dashboard') = {auto_sync_url}</p>"
+        except Exception as e:
+            html += f"<h3>url_for Test:</h3><p>❌ url_for failed: {str(e)}</p>"
+        
+        return html
+        
+    except Exception as e:
+        return f"<h1>Debug Error</h1><p>{str(e)}</p>"
+
 @app.route('/')
 def dashboard():
     """PostgreSQL-powered dashboard route"""
@@ -593,7 +667,11 @@ def view_bookings():
                 (
                     payment_issue_mask &
                     (filtered_df['Check-out Date'].dt.date >= today)
-                )
+                ) |
+                
+                # Condition 3: ALWAYS show cancelled bookings for management visibility
+                # (regardless of dates or payment status - they should remain visible)
+                (filtered_df['Tình trạng'] == 'Đã hủy')
             )
             
             # Apply the filter
@@ -607,13 +685,15 @@ def view_bookings():
                 (payment_issue_mask) & 
                 (filtered_df['Check-out Date'].dt.date >= today)
             ])
+            cancelled_guests = len(filtered_df[filtered_df['Tình trạng'] == 'Đã hủy'])
             
             print(f"🔍 EXPANDED INTERESTED GUESTS FILTER RESULTS:")
             print(f"   📊 Total guests filtered: {before_count} → {after_count}")
             print(f"   🏨 All upcoming guests: {upcoming_guests}")
             print(f"   💰 Current/staying unpaid guests: {current_unpaid_guests}")
-            print(f"   📅 Focus: All future arrivals + current unpaid guests")
-            print(f"   🎯 Logic: Future check-ins OR (unpaid AND not checked out yet)")
+            print(f"   ❌ Cancelled bookings (always visible): {cancelled_guests}")
+            print(f"   📅 Focus: All future arrivals + current unpaid guests + cancelled bookings")
+            print(f"   🎯 Logic: Future check-ins OR (unpaid AND not checked out yet) OR cancelled")
             
         else:
             print(f"📋 SHOWING ALL GUESTS: {len(filtered_df)} total guests")
@@ -911,9 +991,9 @@ def delete_booking_api(booking_id):
     try:
         if delete_booking_by_id(booking_id):
             # Cache removed - data will be fresh automatically
-            return jsonify({'status': 'success', 'message': 'Booking deleted successfully'})
+            return jsonify({'status': 'success', 'message': 'Booking cancelled successfully'})
         else:
-            return jsonify({'status': 'error', 'message': 'Failed to delete booking'}), 400
+            return jsonify({'status': 'error', 'message': 'Failed to cancel booking'}), 400
     
     except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)}), 500
@@ -941,17 +1021,17 @@ def delete_multiple_bookings():
             try:
                 if delete_booking_by_id(booking_id):
                     deleted_count += 1
-                    print(f"✅ DELETED: Booking {booking_id}")
+                    print(f"✅ CANCELLED: Booking {booking_id}")
                 else:
                     failed_ids.append(booking_id)
                     print(f"❌ FAILED: Booking {booking_id}")
             except Exception as e:
                 failed_ids.append(booking_id)
-                print(f"❌ ERROR deleting booking {booking_id}: {str(e)}")
+                print(f"❌ ERROR cancelling booking {booking_id}: {str(e)}")
         
         # Prepare response
         if deleted_count > 0:
-            message = f"Đã xóa thành công {deleted_count} booking"
+            message = f"Đã hủy thành công {deleted_count} booking"
             if failed_ids:
                 message += f", thất bại {len(failed_ids)} booking"
             
@@ -1335,6 +1415,7 @@ def save_extracted_bookings():
         
         # Process and save each booking
         saved_count = 0
+        replaced_count = 0
         failed_bookings = []
         existing_bookings = []  # Track bookings that already exist
         
@@ -1345,12 +1426,17 @@ def save_extracted_bookings():
                 
                 print(f"💾 [SAVE_EXTRACTED] Processing booking {i+1}: {guest_name}")
                 
-                # Check if booking ID already exists
+                # Check if this is a replacement operation FIRST (before checking existing)
+                is_replacement = booking_data.get('replace_mode') and booking_data.get('replace_existing_id')
+                
+                # Check if booking ID already exists (only skip if NOT a replacement)
                 existing_booking = load_booking_data()
-                if not existing_booking.empty and booking_id and booking_id in existing_booking['Số đặt phòng'].values:
+                if not is_replacement and not existing_booking.empty and booking_id and booking_id in existing_booking['Số đặt phòng'].values:
                     print(f"ℹ️ [SAVE_EXTRACTED] Booking ID {booking_id} already exists - skipping (not an error)")
                     existing_bookings.append(f"Booking {i+1}: {guest_name} - Already exists in system ({booking_id})")
                     continue
+                elif is_replacement:
+                    print(f"🔄 [SAVE_EXTRACTED] Replacement mode detected for {guest_name} - proceeding with replacement")
                 
                 # Generate unique booking ID if empty or duplicate
                 if not booking_id:
@@ -1361,21 +1447,42 @@ def save_extracted_bookings():
                 unique_email = f"guest{booking_id.lower()}@ai-extracted.local"
                 print(f"📧 [SAVE_EXTRACTED] Generated unique email: {unique_email}")
                 
+                # Parse dates with multiple format support
+                checkin_date = None
+                checkout_date = None
+                
+                # Try multiple date formats
+                checkin_str = booking_data.get('checkin_date') or booking_data.get('check_in_date', '')
+                checkout_str = booking_data.get('checkout_date') or booking_data.get('check_out_date', '')
+                
+                date_formats = ['%Y-%m-%d', '%m/%d/%Y', '%d/%m/%Y', '%Y/%m/%d']
+                
+                for date_format in date_formats:
+                    try:
+                        if checkin_str and not checkin_date:
+                            checkin_date = datetime.strptime(str(checkin_str), date_format).date()
+                        if checkout_str and not checkout_date:
+                            checkout_date = datetime.strptime(str(checkout_str), date_format).date()
+                        if checkin_date and checkout_date:
+                            break
+                    except ValueError:
+                        continue
+                
                 # Convert to expected format for add_new_booking function
                 processed_booking = {
-                    'guest_name': guest_name,
-                    'booking_id': booking_id,
-                    'email': unique_email,  # ✅ Always provide unique email
-                    'phone': '',  # Empty phone is safe
-                    'nationality': '',
-                    'passport_number': '',
-                    'checkin_date': datetime.strptime(booking_data.get('checkin_date'), '%Y-%m-%d').date() if booking_data.get('checkin_date') else None,
-                    'checkout_date': datetime.strptime(booking_data.get('checkout_date'), '%Y-%m-%d').date() if booking_data.get('checkout_date') else None,
-                    'room_amount': float(booking_data.get('room_amount', 0)),
-                    'commission': float(booking_data.get('commission', 0)),
-                    'taxi_amount': float(booking_data.get('taxi_amount', 0)),
-                    'collector': '',  # Will be set when payment is collected
-                    'notes': f"Imported via AI photo processing on {datetime.now().strftime('%Y-%m-%d %H:%M')}"
+                    'guest_name': str(guest_name).strip() if guest_name else '',
+                    'booking_id': str(booking_id).strip() if booking_id else '',
+                    'email': unique_email,
+                    'phone': str(booking_data.get('phone', '')).strip(),
+                    'nationality': str(booking_data.get('nationality', '')).strip(),
+                    'passport_number': str(booking_data.get('passport_number', '')).strip(),
+                    'checkin_date': checkin_date,
+                    'checkout_date': checkout_date,
+                    'room_amount': float(booking_data.get('room_amount', 0)) if booking_data.get('room_amount') else 0.0,
+                    'commission': float(booking_data.get('commission', 0)) if booking_data.get('commission') else 0.0,
+                    'taxi_amount': float(booking_data.get('taxi_amount', 0)) if booking_data.get('taxi_amount') else 0.0,
+                    'collector': '',
+                    'notes': f"AI extracted on {datetime.now().strftime('%Y-%m-%d %H:%M')}"
                 }
                 
                 # Validate required fields
@@ -1388,12 +1495,31 @@ def save_extracted_bookings():
                 if processed_booking['room_amount'] <= 0:
                     raise ValueError("Invalid room amount")
                 
-                # Save booking using existing function
-                if add_new_booking(processed_booking):
-                    saved_count += 1
-                    print(f"✅ [SAVE_EXTRACTED] Saved booking {i+1}: {processed_booking['guest_name']}")
+                # Check if this is a replacement operation
+                print(f"🔍 [DEBUG] Checking booking {i+1} for replacement mode:")
+                print(f"   - replace_mode: {booking_data.get('replace_mode')}")
+                print(f"   - replace_existing_id: {booking_data.get('replace_existing_id')}")
+                
+                if booking_data.get('replace_mode') and booking_data.get('replace_existing_id'):
+                    # Handle replacement of existing booking
+                    replace_existing_id = booking_data.get('replace_existing_id')
+                    print(f"🔄 [REPLACE_MODE] Replacing existing booking ID: {replace_existing_id}")
+                    print(f"🔄 [REPLACE_MODE] New data: {processed_booking['guest_name']} - {processed_booking['room_amount']}")
+                    
+                    if update_booking(replace_existing_id, processed_booking):
+                        replaced_count += 1
+                        print(f"✅ [SAVE_EXTRACTED] Replaced booking {i+1}: {processed_booking['guest_name']} (ID: {replace_existing_id})")
+                    else:
+                        failed_bookings.append(f"Booking {i+1}: {booking_data.get('guest_name', 'Unknown')} - Replacement failed")
+                        print(f"❌ [REPLACE_MODE] Replacement failed for booking {i+1}")
                 else:
-                    failed_bookings.append(f"Booking {i+1}: {booking_data.get('guest_name', 'Unknown')} - Database save failed")
+                    print(f"➕ [NEW_BOOKING] Creating new booking for {processed_booking['guest_name']}")
+                    # Save as new booking using existing function
+                    if add_new_booking(processed_booking):
+                        saved_count += 1
+                        print(f"✅ [SAVE_EXTRACTED] Saved booking {i+1}: {processed_booking['guest_name']}")
+                    else:
+                        failed_bookings.append(f"Booking {i+1}: {booking_data.get('guest_name', 'Unknown')} - Database save failed")
                     
             except Exception as booking_error:
                 print(f"❌ [SAVE_EXTRACTED] Error saving booking {i+1}: {booking_error}")
@@ -1402,12 +1528,23 @@ def save_extracted_bookings():
                 failed_bookings.append(f"Booking {i+1}: {booking_data.get('guest_name', 'Unknown')} - {str(booking_error)}")
         
         # Prepare result message
-        if saved_count > 0:
-            success_msg = f"✅ Đã lưu thành công {saved_count} booking"
+        total_processed = saved_count + replaced_count
+        if total_processed > 0:
+            success_parts = []
+            if saved_count > 0:
+                success_parts.append(f"{saved_count} booking mới")
+            if replaced_count > 0:
+                success_parts.append(f"{replaced_count} booking đã thay thế")
+            
+            success_msg = f"✅ Đã xử lý thành công {' và '.join(success_parts)}"
             if existing_bookings or failed_bookings:
                 total_skipped = len(existing_bookings) + len(failed_bookings)
                 success_msg += f" (bỏ qua {total_skipped} booking)"
             flash(success_msg, 'success')
+            
+        # Show replacement summary if any
+        if replaced_count > 0:
+            flash(f"🔄 Đã thay thế {replaced_count} booking cũ với dữ liệu mới", 'info')
         
         # Show existing bookings as info (not errors)
         if existing_bookings:
@@ -1419,11 +1556,11 @@ def save_extracted_bookings():
             for error in failed_bookings:
                 flash(f"❌ {error}", 'error')
         
-        # If nothing was saved and no existing bookings
-        if saved_count == 0 and len(existing_bookings) == 0:
+        # If nothing was processed and no existing bookings
+        if total_processed == 0 and len(existing_bookings) == 0:
             flash('❌ Không thể lưu booking nào. Vui lòng kiểm tra dữ liệu và thử lại.', 'error')
         
-        print(f"🎯 [SAVE_EXTRACTED] Complete: {saved_count} saved, {len(existing_bookings)} existing, {len(failed_bookings)} failed")
+        print(f"🎯 [SAVE_EXTRACTED] Complete: {saved_count} saved, {replaced_count} replaced, {len(existing_bookings)} existing, {len(failed_bookings)} failed")
         return redirect(url_for('view_bookings'))
         
     except Exception as e:
@@ -1443,7 +1580,7 @@ def calendar_view(year=None, month=None):
     
     # Check if fresh data is requested
     force_fresh = request.args.get('refresh') == 'true'
-    df = load_booking_data(force_fresh=force_fresh)
+    df = load_booking_data_for_calculations(force_fresh=force_fresh)  # Exclude cancelled bookings
     
     # Generate calendar data in weeks format expected by template
     cal = calendar.monthrange(year, month)
@@ -1536,8 +1673,8 @@ def calendar_details(date_str):
         # Parse the date
         date_obj = datetime.strptime(date_str, "%Y-%m-%d").date()
         
-        # Load booking data
-        df = load_booking_data()
+        # Load booking data excluding cancelled bookings for calendar calculations
+        df = load_booking_data_for_calculations()
         
         # Get detailed day information
         day_info = get_overall_calendar_day_info(df, date_str, TOTAL_HOTEL_CAPACITY)
@@ -1667,50 +1804,42 @@ def process_pasted_image():
             if booking_info['type'] == 'single':
                 # Single booking detected
                 booking = booking_info['booking']
-                
-                # Check for duplicates
-                df = load_booking_data()
-                duplicates = check_duplicate_guests(df, booking.get('guest_name', ''), booking.get('checkin_date', ''))
-                duplicate_check = {"has_duplicates": len(duplicates) > 0, "duplicates": duplicates}
-                
-                return jsonify({
-                    'type': 'single',
-                    'booking': booking,
-                    'duplicate_check': duplicate_check,
-                    'message': f"Đã nhận diện 1 booking: {booking.get('guest_name', 'Unknown')}"
-                })
+                bookings_list = [booking]
                 
             elif booking_info['type'] == 'multiple':
                 # Multiple bookings detected
-                bookings = booking_info.get('bookings', [])
-                
-                # Check for duplicates across all bookings
-                df = load_booking_data()
-                all_duplicates = []
-                for booking in bookings:
-                    duplicates = check_duplicate_guests(df, booking.get('guest_name', ''), booking.get('checkin_date', ''))
-                    all_duplicates.extend(duplicates)
-                
-                duplicate_check = {"has_duplicates": len(all_duplicates) > 0, "duplicates": all_duplicates}
-                
-                return jsonify({
-                    'type': 'multiple',
-                    'bookings': bookings,
-                    'count': len(bookings),
-                    'duplicate_check': duplicate_check,
-                    'message': f"Đã nhận diện {len(bookings)} booking từ ảnh"
-                })
+                bookings_list = booking_info.get('bookings', [])
+            else:
+                # Unknown type, treat as single
+                bookings_list = [booking_info.get('booking', booking_info)]
+        else:
+            # Legacy format fallback (single booking without type)
+            bookings_list = [booking_info]
         
-        # Legacy format fallback (single booking without type)
+        # Use AI duplicate detector for comprehensive analysis
+        print(f"🤖 [AI_DUPLICATE] Starting AI duplicate detection for {len(bookings_list)} bookings...")
         df = load_booking_data()
-        duplicates = check_duplicate_guests(df, booking_info.get('guest_name', ''), booking_info.get('checkin_date', ''))
-        duplicate_check = {"has_duplicates": len(duplicates) > 0, "duplicates": duplicates}
+        ai_analysis = ai_duplicate_detector.create_filtered_response(bookings_list, df)
         
-        return jsonify({
+        # Format response with AI analysis
+        response_data = {
             'success': True,
-            'bookings': [booking_info],  # Legacy format
-            'duplicate_check': duplicate_check
-        })
+            'type': 'multiple' if len(bookings_list) > 1 else 'single',
+            'total_extracted': len(bookings_list),
+            'ai_analysis': ai_analysis['analysis'],
+            'filtering_options': ai_analysis['filtering_options'], 
+            'recommendations': ai_analysis['recommendations'],
+            'message': f"🤖 AI đã phân tích {len(bookings_list)} booking - {ai_analysis['analysis']['new_bookings']} mới, {ai_analysis['analysis']['duplicates_found']} trùng lặp"
+        }
+        
+        # Include individual booking data for backward compatibility
+        if len(bookings_list) == 1:
+            response_data['booking'] = bookings_list[0]
+        else:
+            response_data['bookings'] = bookings_list
+            response_data['count'] = len(bookings_list)
+        
+        return jsonify(response_data)
     
     except Exception as e:
         print(f"❌ Photo processing error: {e}")
@@ -3771,8 +3900,8 @@ def get_monthly_guest_details():
         if not month or not collection_type:
             return jsonify({'success': False, 'message': 'Missing month or type parameter'}), 400
         
-        # Load data and filter for the specific month and checked-in guests only
-        df = load_booking_data()
+        # Load data excluding cancelled bookings and filter for the specific month and checked-in guests only
+        df = load_booking_data_for_calculations()
         if df.empty:
             return jsonify({'success': True, 'guests': [], 'total_amount': 0, 'count': 0})
         
@@ -3892,8 +4021,8 @@ def get_weekly_guest_details():
         if not week or not collection_type:
             return jsonify({'success': False, 'message': 'Missing week or type parameter'}), 400
         
-        # Load data and filter for the specific week and checked-in guests only
-        df = load_booking_data()
+        # Load data excluding cancelled bookings and filter for the specific week and checked-in guests only
+        df = load_booking_data_for_calculations()
         if df.empty:
             return jsonify({'success': True, 'guests': [], 'total_amount': 0, 'count': 0})
         
@@ -3993,8 +4122,8 @@ def get_collector_guest_details():
         if not collector_name:
             return jsonify({'success': False, 'message': 'Missing collector parameter'}), 400
         
-        # Load data and filter for checked-in guests only
-        df = load_booking_data()
+        # Load data excluding cancelled bookings and filter for checked-in guests only
+        df = load_booking_data_for_calculations()
         if df.empty:
             return jsonify({'success': True, 'guests': [], 'total_amount': 0, 'count': 0})
         
@@ -4530,10 +4659,61 @@ def api_sync_status():
 # Initialize crawling integration
 CrawlIntegration.setup_crawl_routes(app)
 
+@app.route('/api/crawl_capabilities', methods=['GET'])
+def get_crawl_capabilities():
+    """Get available crawling methods for current environment"""
+    try:
+        from core.railway_crawl_service import railway_crawl_service
+        
+        capabilities = {
+            'is_available': railway_crawl_service.is_crawling_available(),
+            'environment': 'cloud' if railway_crawl_service.is_railway else 'local',
+            'methods': railway_crawl_service.get_crawling_methods()
+        }
+        
+        return jsonify(capabilities)
+        
+    except Exception as e:
+        return jsonify({
+            'is_available': False,
+            'environment': 'unknown',
+            'methods': [],
+            'error': str(e)
+        }), 500
+
 @app.route('/api/crawl_admin_bookings', methods=['POST'])
 def crawl_admin_bookings():
     """API endpoint for crawling booking admin panel with AI extraction"""
     try:
+        # Import Railway-compatible crawling service
+        from core.railway_crawl_service import railway_crawl_service
+        
+        data = request.get_json()
+        target_url = data.get('target_url')
+        profile_name = data.get('profile_name', 'booking_fixed_profile')
+        
+        if not target_url:
+            return jsonify({'success': False, 'error': 'Target URL required'}), 400
+        
+        # Check if crawling is available in current environment
+        if not railway_crawl_service.is_crawling_available():
+            available_methods = railway_crawl_service.get_crawling_methods()
+            return jsonify({
+                'success': False,
+                'error': 'Web crawling not available in current environment',
+                'available_methods': available_methods,
+                'suggestion': 'Use screenshot upload or manual entry instead'
+            }), 400
+        
+        # Use Railway-compatible crawling if on cloud platform
+        if railway_crawl_service.is_railway:
+            print(f"🌐 Using cloud-compatible crawling for: {target_url}")
+            result = railway_crawl_service.crawl_admin_bookings_api(target_url, profile_name)
+            return jsonify(result)
+        
+        # Original Selenium-based crawling for local development
+        print(f"🕷️ Using Selenium crawling for: {target_url}")
+        
         import psutil
         import time
         from pathlib import Path
@@ -4542,13 +4722,6 @@ def crawl_admin_bookings():
         from selenium.webdriver.support.ui import WebDriverWait
         from selenium.webdriver.support import expected_conditions as EC
         from selenium.webdriver.common.by import By
-        
-        data = request.get_json()
-        target_url = data.get('target_url')
-        profile_name = data.get('profile_name', 'booking_fixed_profile')
-        
-        if not target_url:
-            return jsonify({'success': False, 'error': 'Target URL required'}), 400
         
         # Check if profile exists
         profile_path = Path.cwd() / "browser_profiles" / profile_name
@@ -4636,12 +4809,28 @@ def crawl_admin_bookings():
             
             print(f"🎉 Successfully extracted {extracted_count} bookings!")
             
-            return jsonify({
-                'success': True,
-                'bookings_count': extracted_count,
-                'bookings': bookings,
-                'message': f'Successfully extracted {extracted_count} bookings from admin panel'
-            })
+            # Apply AI duplicate detection to crawled bookings
+            if bookings:
+                print(f"🤖 [AI_DUPLICATE] Applying AI duplicate detection to crawled bookings...")
+                df = load_booking_data()
+                ai_analysis = ai_duplicate_detector.create_filtered_response(bookings, df)
+                
+                return jsonify({
+                    'success': True,
+                    'bookings_count': extracted_count,
+                    'bookings': bookings,
+                    'ai_analysis': ai_analysis['analysis'],
+                    'filtering_options': ai_analysis['filtering_options'],
+                    'recommendations': ai_analysis['recommendations'],
+                    'message': f"🤖 AI analyzed {extracted_count} crawled bookings - {ai_analysis['analysis']['new_bookings']} new, {ai_analysis['analysis']['duplicates_found']} duplicates"
+                })
+            else:
+                return jsonify({
+                    'success': True,
+                    'bookings_count': 0,
+                    'bookings': [],
+                    'message': 'No bookings found in admin panel'
+                })
             
         except Exception as e:
             print(f"❌ Crawling error: {str(e)}")
@@ -4777,8 +4966,8 @@ def duplicate_management():
         if guest_filter:
             print(f"🔍 [DUPLICATE_MGMT] Filtering for guest: {guest_filter}")
         
-        # Load all booking data
-        df = load_booking_data()
+        # Load all booking data with fresh connection to ensure latest status updates
+        df = load_booking_data(force_fresh=True)
         if df.empty:
             return jsonify({'success': True, 'duplicates': [], 'total_groups': 0})
         
@@ -4889,8 +5078,8 @@ def revenue_calculation_comparison():
         
         print(f"🔍 [REVENUE_COMPARISON] Method: {method}, Months: {months}")
         
-        # Load booking data
-        df = load_booking_data()
+        # Load booking data excluding cancelled bookings for revenue calculations
+        df = load_booking_data_for_calculations()
         
         if df.empty:
             return jsonify({
@@ -4998,8 +5187,8 @@ def daily_customer_breakdown():
             print(f"❌ [DAILY_BREAKDOWN] Month parsing error: {e}")
             return jsonify({'success': False, 'message': f'Định dạng tháng không hợp lệ: {month}'}), 400
         
-        # Load booking data
-        df = load_booking_data()
+        # Load booking data excluding cancelled bookings for calculations
+        df = load_booking_data_for_calculations()
         if df.empty:
             return jsonify({'success': False, 'message': 'Không có dữ liệu booking'}), 400
             
