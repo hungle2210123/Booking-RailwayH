@@ -451,17 +451,30 @@ let extractedBookings = [];
 // Apartment selection variables  
 let selectedApartment = null;
 
-// Apartment configurations
-const APARTMENTS = {
-    1: {
-        name: 'Căn hộ 1 - Studio',
-        color: 'primary',
-        capacity: 2
-    },
-    2: {
-        name: 'Căn hộ 2 - 1 phòng ngủ', 
-        color: 'success',
-        capacity: 4
+// Define selectApartment function EARLY so onclick handlers can access it
+window.selectApartment = function selectApartment(apartmentId) {
+    selectedApartment = apartmentId;
+    
+    // Simple selection logic that works even if APARTMENTS isn't defined yet
+    console.log('🏠 Apartment selected:', apartmentId);
+    
+    // Update visual selection
+    document.querySelectorAll('.apartment-card').forEach(card => {
+        card.style.border = '2px solid #e9ecef';
+        card.style.transform = 'scale(1)';
+    });
+    
+    const selectedCard = document.getElementById(`apartment-${apartmentId}`);
+    if (selectedCard) {
+        selectedCard.style.border = '3px solid #007bff';
+        selectedCard.style.transform = 'scale(1.02)';
+        selectedCard.style.transition = 'all 0.3s ease';
+    }
+    
+    // Show apartment info panel if it exists
+    const infoPanel = document.getElementById('selected-apartment-info');
+    if (infoPanel) {
+        infoPanel.style.display = 'block';
     }
 };
 
@@ -1732,56 +1745,9 @@ const APARTMENTS = {
     }
 };
 
-// Apartment selection function - MUST be available immediately for onclick handlers  
-window.selectApartment = function selectApartment(apartmentId) {
-    selectedApartment = apartmentId;
-    const apartment = APARTMENTS[apartmentId];
-    
-    // Update visual selection
-    document.querySelectorAll('.apartment-card').forEach(card => {
-        card.style.border = '2px solid #e9ecef';
-        card.style.transform = 'scale(1)';
-    });
-    
-    const selectedCard = document.getElementById(`apartment-${apartmentId}`);
-    selectedCard.style.border = `3px solid var(--bs-${apartment.color})`;
-    selectedCard.style.transform = 'scale(1.02)';
-    selectedCard.style.transition = 'all 0.3s ease';
-    
-    // Show apartment info panel
-    const infoPanel = document.getElementById('selected-apartment-info');
-    infoPanel.style.display = 'block';
-    infoPanel.className = `alert alert-${apartment.color}`;
-    
-    // Update apartment details
-    document.getElementById('selected-apartment-name').textContent = apartment.name;
-    document.getElementById('selected-apartment-id').textContent = `Hotel ID: ${apartment.hotelId}`;
-    
-    // Set default dates
-    document.getElementById('crawl-date-from').value = apartment.defaultDateFrom;
-    document.getElementById('crawl-date-to').value = apartment.defaultDateTo;
-    
-    // Enable crawl button only if crawling is available
-    const startCrawlBtn = document.getElementById('start-crawl-btn');
-    const statusDiv = document.getElementById('crawl-environment-status');
-    if (statusDiv && statusDiv.style.display === 'block') {
-        // Crawling not available
-        startCrawlBtn.disabled = true;
-        startCrawlBtn.innerHTML = '<i class="fas fa-ban me-2"></i>Not Available';
-    } else {
-        // Crawling available
-        startCrawlBtn.disabled = false;
-        startCrawlBtn.innerHTML = '<i class="fas fa-spider me-2"></i>Bắt đầu Crawl';
-    }
-    
-    // Update URL
-    updateGeneratedUrl();
-    
-    // Scroll to info panel
-    infoPanel.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    
-    console.log(`✅ Selected apartment ${apartmentId}: ${apartment.name}`);
-};
+// selectApartment function moved to beginning of script for immediate availability
+
+// Apartment selection helper functions
 
 // Check crawling capabilities and show environment status
 async function checkCrawlingCapabilities() {
