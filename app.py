@@ -4699,17 +4699,40 @@ CrawlIntegration.setup_crawl_routes(app)
 def get_crawl_capabilities():
     """Get available crawling methods for current environment"""
     try:
-        from core.railway_crawl_service import railway_crawl_service
+        print("🔍 [CRAWL_CAPABILITIES] Starting crawl capabilities check...")
+        
+        try:
+            from core.railway_crawl_service import railway_crawl_service
+            print("✅ [CRAWL_CAPABILITIES] Railway crawl service imported successfully")
+        except ImportError as import_error:
+            print(f"❌ [CRAWL_CAPABILITIES] Import error: {import_error}")
+            raise import_error
+        
+        print("🔧 [CRAWL_CAPABILITIES] Checking if crawling is available...")
+        is_available = railway_crawl_service.is_crawling_available()
+        print(f"📊 [CRAWL_CAPABILITIES] Is available: {is_available}")
+        
+        print("🔧 [CRAWL_CAPABILITIES] Getting environment info...")
+        environment = 'cloud' if railway_crawl_service.is_railway else 'local'
+        print(f"🌍 [CRAWL_CAPABILITIES] Environment: {environment}")
+        
+        print("🔧 [CRAWL_CAPABILITIES] Getting crawling methods...")
+        methods = railway_crawl_service.get_crawling_methods()
+        print(f"📋 [CRAWL_CAPABILITIES] Methods: {len(methods)} found")
         
         capabilities = {
-            'is_available': railway_crawl_service.is_crawling_available(),
-            'environment': 'cloud' if railway_crawl_service.is_railway else 'local',
-            'methods': railway_crawl_service.get_crawling_methods()
+            'is_available': is_available,
+            'environment': environment,
+            'methods': methods
         }
         
+        print("✅ [CRAWL_CAPABILITIES] Capabilities check completed successfully")
         return jsonify(capabilities)
         
     except Exception as e:
+        print(f"❌ [CRAWL_CAPABILITIES] Error: {e}")
+        import traceback
+        traceback.print_exc()
         return jsonify({
             'is_available': False,
             'environment': 'unknown',

@@ -632,12 +632,14 @@ function initPhotoUploadImmediate() {
         uploadArea.onclick = null;
         photoInput.onchange = null;
         
-        // Add direct event listeners
+        // Add direct event listeners - SIMPLIFIED
         uploadArea.addEventListener('click', function(e) {
             console.log('🚨 EMERGENCY CLICK: Upload area clicked');
             e.preventDefault();
             e.stopPropagation();
-            photoInput.click();
+            setTimeout(() => {
+                photoInput.click();
+            }, 100);
         });
         
         photoInput.addEventListener('change', function(e) {
@@ -715,12 +717,16 @@ document.addEventListener('DOMContentLoaded', function() {
     
     console.log('✅ Photo upload elements found, attaching event listeners...');
     
-    // Click to upload
+    // Click to upload - SIMPLIFIED
     uploadArea.onclick = function(e) {
         console.log('📁 Upload area clicked, opening file dialog...');
         e.preventDefault();
         e.stopPropagation();
-        photoInput.click();
+        
+        // Force click the file input
+        setTimeout(() => {
+            photoInput.click();
+        }, 100);
     };
     
     // File selection
