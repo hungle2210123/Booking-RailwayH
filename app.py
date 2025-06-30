@@ -5182,6 +5182,16 @@ def crawl_admin_bookings():
                 print(f"🤖 [AI_DUPLICATE] Applying AI duplicate detection to crawled bookings...")
                 df = load_booking_data()
                 ai_analysis = ai_duplicate_detector.create_filtered_response(bookings, df)
+                
+                return jsonify({
+                    'success': True,
+                    'bookings_count': extracted_count,
+                    'bookings': bookings,
+                    'ai_analysis': ai_analysis['analysis'],
+                    'filtering_options': ai_analysis['filtering_options'],
+                    'recommendations': ai_analysis['recommendations'],
+                    'message': f"🤖 AI analyzed {extracted_count} crawled bookings - {ai_analysis['analysis']['new_bookings']} new, {ai_analysis['analysis']['duplicates_found']} duplicates"
+                })
             elif bookings:
                 print("⚠️ [AI_DUPLICATE] AI duplicate detector not available - skipping analysis")
                 
