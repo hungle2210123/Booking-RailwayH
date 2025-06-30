@@ -451,6 +451,20 @@ let extractedBookings = [];
 // Apartment selection variables  
 let selectedApartment = null;
 
+// Apartment configurations
+const APARTMENTS = {
+    1: {
+        name: 'Căn hộ 1 - Studio',
+        color: 'primary',
+        capacity: 2
+    },
+    2: {
+        name: 'Căn hộ 2 - 1 phòng ngủ', 
+        color: 'success',
+        capacity: 4
+    }
+};
+
 // Session persistence functions
 function saveExtractedBookingsToSession() {
     try {
@@ -1654,8 +1668,7 @@ document.addEventListener('DOMContentLoaded', function() {
             input.name = 'extracted_json';
             input.value = JSON.stringify(extractedBookings);
             
-            // Add force add duplicates checkbox value
-            const forceAddCheckbox = document.getElementById('force-add-duplicates');
+            // Add force add duplicates checkbox value (reuse already declared variable)
             const forceAddInput = document.createElement('input');
             forceAddInput.type = 'hidden';
             forceAddInput.name = 'force_add_duplicates';
