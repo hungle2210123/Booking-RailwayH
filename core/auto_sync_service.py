@@ -55,8 +55,9 @@ class AutoSyncService:
         self._last_status_time = None
         self._cache_duration = 30  # Cache for 30 seconds
         
-        # Tables to monitor for changes
+        # Tables to monitor for changes (ORDER MATTERS: guests first to avoid FK violations)
         self.monitored_tables = [
+            'guests',           # 🚀 CRITICAL: Must sync guests FIRST to avoid FK violations in bookings
             'bookings',
             'expenses', 
             'quick_notes',
@@ -270,8 +271,17 @@ class AutoSyncService:
         errors = []
         
         try:
-            if table == 'bookings' and 'booking_id' in df.columns:
-                # Use PostgreSQL ON CONFLICT for bookings
+            # 🚀 PRIORITIZE GUESTS TABLE: Handle guests first to establish FK relationships
+            if table == 'guests' and 'guest_id' in df.columns:
+                # Fix sequence first to prevent conflicts
+                sequence_fixed = self._fix_table_sequence(conn, table, 'guest_id', 'guests_guest_id_seq')
+                if not sequence_fixed:
+                    errors.append("Failed to fix sequence for guests")
+                # Use PostgreSQL ON CONFLICT for guests
+                records_processed = self._upsert_postgresql_records(conn, table, df, 'guest_id')
+                
+            elif table == 'bookings' and 'booking_id' in df.columns:
+                # Use PostgreSQL ON CONFLICT for bookings (after guests are synced)
                 records_processed = self._upsert_postgresql_records(conn, table, df, 'booking_id')
                 
             elif table == 'quick_notes' and 'note_id' in df.columns:
@@ -281,14 +291,6 @@ class AutoSyncService:
                     errors.append("Failed to fix sequence for quick_notes")
                 # Use PostgreSQL ON CONFLICT for quick_notes
                 records_processed = self._upsert_postgresql_records(conn, table, df, 'note_id')
-                
-            elif table == 'guests' and 'guest_id' in df.columns:
-                # Fix sequence first to prevent conflicts
-                sequence_fixed = self._fix_table_sequence(conn, table, 'guest_id', 'guests_guest_id_seq')
-                if not sequence_fixed:
-                    errors.append("Failed to fix sequence for guests")
-                # Use PostgreSQL ON CONFLICT for guests
-                records_processed = self._upsert_postgresql_records(conn, table, df, 'guest_id')
                 
             else:
                 # For other tables, use manual check and upsert
@@ -400,41 +402,98 @@ class AutoSyncService:
     def _handle_constraint_violation_with_transaction(self, conn, table: str, row_data: dict, primary_key_value: str, upsert_sql: str, error_msg: str) -> bool:
         """Enhanced constraint violation handler with multiple fallback strategies and transaction management"""
         
-        # Strategy 1: Try with minimal data for bookings
+        # Strategy 1: Try with minimal data for bookings (without guest_id to avoid FK issues)
         if table == 'bookings' and ('constraint' in error_msg.lower() or 'foreign key' in error_msg.lower()):
             try:
                 minimal_data = self._get_minimal_booking_data(row_data)
-                conn.execute(text(upsert_sql), minimal_data)
+                
+                # 🚀 CRITICAL: Create special SQL without guest_id to avoid FK violations
+                minimal_columns = ', '.join(minimal_data.keys())
+                minimal_placeholders = ', '.join([f":{col}" for col in minimal_data.keys()])
+                
+                # Build fallback UPSERT without guest_id
+                update_cols_minimal = [col for col in minimal_data.keys() if col != 'booking_id']
+                if update_cols_minimal:
+                    update_clause_minimal = ', '.join([f"{col} = EXCLUDED.{col}" for col in update_cols_minimal])
+                    fallback_sql = f"""
+                        INSERT INTO {table} ({minimal_columns}) 
+                        VALUES ({minimal_placeholders})
+                        ON CONFLICT (booking_id) 
+                        DO UPDATE SET {update_clause_minimal}
+                    """
+                else:
+                    fallback_sql = f"""
+                        INSERT INTO {table} ({minimal_columns}) 
+                        VALUES ({minimal_placeholders})
+                        ON CONFLICT (booking_id) 
+                        DO NOTHING
+                    """
+                
+                conn.execute(text(fallback_sql), minimal_data)
                 return True
             except Exception as fallback_error:
                 logger.warning(f"⚠️ Minimal data fallback failed: {fallback_error}")
         
-        # Strategy 2: Try without problematic fields
-        if 'null value' in error_msg.lower() or 'not null' in error_msg.lower():
+        # Strategy 2: Try without problematic fields (and guest_id if FK issue)
+        if 'null value' in error_msg.lower() or 'not null' in error_msg.lower() or 'foreign key' in error_msg.lower():
             try:
-                # Remove fields that might be NULL
+                # Remove fields that might be NULL or cause FK violations
                 safe_data = {k: v for k, v in row_data.items() if v is not None and v != ''}
+                
+                # 🚀 CRITICAL: Remove guest_id if foreign key violation
+                if 'foreign key' in error_msg.lower() and 'guest_id' in safe_data:
+                    del safe_data['guest_id']
+                
                 if table == 'bookings':
                     # Ensure required booking fields have defaults
                     safe_data.update({
                         'room_amount': safe_data.get('room_amount', 0.0),
                         'guest_name': safe_data.get('guest_name', 'Unknown Guest'),
-                        'status': safe_data.get('status', 'OK')
+                        'booking_status': safe_data.get('booking_status', 'OK')
                     })
                 
-                conn.execute(text(upsert_sql), safe_data)
+                # Create custom SQL for the safe data (may not include guest_id)
+                if 'guest_id' not in safe_data and table == 'bookings':
+                    # Use the fallback SQL without guest_id
+                    safe_columns = ', '.join(safe_data.keys())
+                    safe_placeholders = ', '.join([f":{col}" for col in safe_data.keys()])
+                    update_cols_safe = [col for col in safe_data.keys() if col != 'booking_id']
+                    
+                    if update_cols_safe:
+                        update_clause_safe = ', '.join([f"{col} = EXCLUDED.{col}" for col in update_cols_safe])
+                        safe_sql = f"""
+                            INSERT INTO {table} ({safe_columns}) 
+                            VALUES ({safe_placeholders})
+                            ON CONFLICT (booking_id) 
+                            DO UPDATE SET {update_clause_safe}
+                        """
+                    else:
+                        safe_sql = f"""
+                            INSERT INTO {table} ({safe_columns}) 
+                            VALUES ({safe_placeholders})
+                            ON CONFLICT (booking_id) 
+                            DO NOTHING
+                        """
+                    
+                    conn.execute(text(safe_sql), safe_data)
+                else:
+                    conn.execute(text(upsert_sql), safe_data)
+                
                 return True
             except Exception as safe_error:
-                logger.warning(f"⚠️ NULL-safe fallback failed: {safe_error}")
+                logger.warning(f"⚠️ NULL/FK-safe fallback failed: {safe_error}")
         
-        # Strategy 3: Try UPDATE only (in case record exists but INSERT fails)
+        # Strategy 3: Try UPDATE only without guest_id (in case record exists but INSERT fails)
         if table == 'bookings':
             try:
-                update_fields = [k for k in row_data.keys() if k != 'booking_id']
+                # Remove guest_id from UPDATE to avoid FK violations
+                update_data = {k: v for k, v in row_data.items() if k != 'guest_id'}
+                update_fields = [k for k in update_data.keys() if k != 'booking_id']
+                
                 if update_fields:
                     update_clause = ', '.join([f"{field} = :{field}" for field in update_fields])
                     update_sql = f"UPDATE {table} SET {update_clause} WHERE booking_id = :booking_id"
-                    result = conn.execute(text(update_sql), row_data)
+                    result = conn.execute(text(update_sql), update_data)
                     if result.rowcount > 0:
                         return True
             except Exception as update_error:
@@ -553,6 +612,25 @@ class AutoSyncService:
             
         return cleaned
     
+    def _clean_guest_data(self, row_data: dict) -> dict:
+        """Special cleaning for guest data to handle constraints"""
+        cleaned = row_data.copy()
+        
+        # Ensure required fields have sensible defaults
+        if 'guest_name' in cleaned and (cleaned['guest_name'] is None or cleaned['guest_name'] == ''):
+            cleaned['guest_name'] = 'Unknown Guest'
+            
+        # Handle email conflicts (make unique if empty)
+        if 'email' in cleaned and (cleaned['email'] is None or cleaned['email'] == ''):
+            guest_id = cleaned.get('guest_id', 'unknown')
+            cleaned['email'] = f"guest{guest_id}@sync-placeholder.local"
+            
+        # Handle phone defaults
+        if 'phone' in cleaned and (cleaned['phone'] is None or cleaned['phone'] == ''):
+            cleaned['phone'] = ''
+            
+        return cleaned
+    
     def _get_minimal_booking_data(self, row_data: dict) -> dict:
         """Get minimal booking data with only required fields for fallback"""
         # 🚀 CRITICAL: Use actual database column names from schema
@@ -584,9 +662,15 @@ class AutoSyncService:
         minimal.setdefault('updated_at', now)
         minimal.setdefault('arrival_confirmed_at', row_data.get('arrival_confirmed_at'))
         
-        # Remove guest_id to avoid foreign key issues
+        # 🚀 CRITICAL: Always remove guest_id to avoid foreign key issues in sync
         if 'guest_id' in minimal:
             del minimal['guest_id']
+        
+        # Also remove any other potentially problematic FK fields
+        problematic_fks = ['guest_id']
+        for fk_field in problematic_fks:
+            if fk_field in minimal:
+                del minimal[fk_field]
         
         return minimal
     
