@@ -4837,52 +4837,89 @@ CrawlIntegration.setup_crawl_routes(app)
 
 @app.route('/api/crawl_capabilities', methods=['GET'])
 def get_crawl_capabilities():
-    """Get available crawling methods for current environment"""
+    """Get comprehensive crawling capabilities for current environment"""
     try:
-        print("🔍 [CRAWL_CAPABILITIES] Starting crawl capabilities check...")
+        print("🔍 [CRAWL_CAPABILITIES] Starting comprehensive crawl capabilities check...")
         
-        # Simple Railway environment detection
+        # Railway environment detection
         railway_env = os.getenv('RAILWAY_PROJECT_ID') is not None
         print(f"🌍 [CRAWL_CAPABILITIES] Railway environment: {railway_env}")
         
-        # Try to import railway crawl service, fallback if not available
+        # Import enhanced railway crawl service
         try:
             from core.railway_crawl_service import railway_crawl_service
-            print("✅ [CRAWL_CAPABILITIES] Railway crawl service imported successfully")
+            print("✅ [CRAWL_CAPABILITIES] Enhanced railway crawl service imported successfully")
             
             is_available = railway_crawl_service.is_crawling_available()
-            environment = 'cloud' if railway_crawl_service.is_railway else 'local'
+            environment = 'railway' if railway_crawl_service.is_railway else 'local'
             methods = railway_crawl_service.get_crawling_methods()
+            setup_instructions = railway_crawl_service._get_setup_instructions()
+            
+            # Enhanced capability info
+            capability_info = {
+                'success': True,
+                'environment': environment,
+                'crawling_available': is_available,
+                'total_methods': len(methods),
+                'supported_methods': len([m for m in methods if m.get('supported', False)]),
+                'methods': methods,
+                'setup_instructions': setup_instructions,
+                'api_keys_configured': {
+                    'firecrawl': bool(os.getenv('FIRECRAWL_API_KEY')),
+                    'scrapfly': bool(os.getenv('SCRAPFLY_API_KEY')),
+                    'scraperapi': bool(os.getenv('SCRAPERAPI_KEY')),
+                    'brightdata': bool(os.getenv('BRIGHTDATA_API_KEY'))
+                },
+                'recommendations': []
+            }
+            
+            # Add recommendations based on environment
+            if railway_env and not is_available:
+                capability_info['recommendations'].append({
+                    'type': 'setup',
+                    'message': 'Configure at least one API-based crawling service for Railway deployment',
+                    'priority': 'high',
+                    'suggested_service': 'firecrawl'
+                })
+            elif railway_env and is_available:
+                capability_info['recommendations'].append({
+                    'type': 'success',
+                    'message': f'✅ Railway crawling ready with {len([m for m in methods if m.get("supported", False)])} method(s)',
+                    'priority': 'info'
+                })
+            
+            print(f"📊 [CRAWL_CAPABILITIES] Found {len(methods)} total methods, {len([m for m in methods if m.get('supported', False)])} supported")
+            return jsonify(capability_info)
             
         except ImportError as import_error:
-            print(f"⚠️ [CRAWL_CAPABILITIES] Railway crawl service not available: {import_error}")
-            print("🔧 [CRAWL_CAPABILITIES] Using fallback crawl detection...")
+            print(f"⚠️ [CRAWL_CAPABILITIES] Railway crawl service import failed: {import_error}")
             
-            # Fallback crawl detection for Railway deployment
+            # Basic fallback detection
             is_available = False
-            environment = 'cloud' if railway_env else 'local'
+            environment = 'railway' if railway_env else 'local'
             methods = []
             
-            if railway_env:
-                # On Railway, only API-based crawling could be available
-                firecrawl_key = os.getenv('FIRECRAWL_API_KEY')
-                if firecrawl_key:
-                    is_available = True
-                    methods.append({
-                        'id': 'firecrawl',
-                        'name': 'Firecrawl API',
-                        'description': 'Cloud-based web scraping service',
-                        'supported': True
-                    })
+            # Check for basic API keys
+            if os.getenv('FIRECRAWL_API_KEY'):
+                is_available = True
                 methods.append({
-                    'id': 'selenium',
-                    'name': 'Selenium Browser Automation',
-                    'description': 'Not available on cloud platforms',
-                    'supported': False,
-                    'reason': 'Requires Chrome browser and display server'
+                    'id': 'firecrawl',
+                    'name': 'Firecrawl API (Basic)',
+                    'description': 'Cloud-based web scraping service',
+                    'supported': True,
+                    'priority': 1
                 })
-            else:
-                # Local environment - check for selenium
+            
+            methods.append({
+                'id': 'direct_http',
+                'name': 'Direct HTTP Requests',
+                'description': 'Basic HTTP scraping (limited functionality)',
+                'supported': True,
+                'priority': 5
+            })
+            
+            # Check for Selenium in local environment
+            if not railway_env:
                 try:
                     import selenium
                     is_available = True
@@ -4890,7 +4927,8 @@ def get_crawl_capabilities():
                         'id': 'selenium',
                         'name': 'Selenium Browser Automation',
                         'description': 'Full browser automation with saved profiles',
-                        'supported': True
+                        'supported': True,
+                        'priority': 0
                     })
                 except ImportError:
                     methods.append({
@@ -4902,14 +4940,24 @@ def get_crawl_capabilities():
                     })
         
         capabilities = {
-            'is_available': is_available,
+            'success': True,
             'environment': environment,
+            'crawling_available': is_available,
+            'total_methods': len(methods),
+            'supported_methods': len([m for m in methods if m.get('supported', False)]),
             'methods': methods,
             'alternatives': [
                 '📸 Upload booking screenshots for AI extraction',
                 '✏️ Manual booking entry',
                 '📋 Import from CSV/Excel files'
-            ]
+            ],
+            'setup_instructions': {
+                'firecrawl': {
+                    'name': 'Firecrawl API (Recommended)',
+                    'steps': ['Visit https://firecrawl.dev', 'Sign up for account', 'Get API key', 'Set FIRECRAWL_API_KEY environment variable'],
+                    'cost': 'Free tier: 500 requests/month'
+                }
+            }
         }
         
         print(f"✅ [CRAWL_CAPABILITIES] Capabilities: available={is_available}, env={environment}, methods={len(methods)}")
@@ -4945,28 +4993,26 @@ def crawl_admin_bookings():
         if not target_url:
             return jsonify({'success': False, 'error': 'Target URL required'}), 400
         
-        # 🚀 RAILWAY FIX: Enhanced crawling availability check
+        # 🚀 RAILWAY ENHANCEMENT: Use comprehensive crawling service
         is_railway = os.getenv('RAILWAY_PROJECT_ID') is not None
         print(f"🔍 [CRAWL_ADMIN] Environment: {'Railway' if is_railway else 'Local'}")
         
         if not railway_crawl_service.is_crawling_available():
             available_methods = railway_crawl_service.get_crawling_methods()
-            error_msg = 'Web crawling not available on Railway deployment' if is_railway else 'Web crawling not available in current environment'
+            setup_instructions = railway_crawl_service._get_setup_instructions()
             
             return jsonify({
                 'success': False,
-                'error': error_msg,
+                'error': f'No crawling methods available. Configure API keys to enable Railway crawling.',
+                'environment': 'railway' if is_railway else 'local',
                 'available_methods': available_methods,
-                'suggestion': 'Use screenshot upload or manual entry instead',
-                'details': {
-                    'environment': 'railway' if is_railway else 'local',
-                    'reason': 'Chrome browser and display server not available on cloud platforms' if is_railway else 'Selenium or dependencies not installed',
-                    'alternatives': [
-                        '📸 Upload booking screenshots for AI extraction',
-                        '✏️ Manual booking entry through the form', 
-                        '📋 Import from CSV/Excel files'
-                    ]
-                }
+                'setup_instructions': setup_instructions,
+                'recommendation': 'Set up Firecrawl API for best Railway compatibility',
+                'alternatives': [
+                    '📸 Upload booking screenshots for AI extraction',
+                    '✏️ Manual booking entry through the form', 
+                    '📋 Import from CSV/Excel files'
+                ]
             }), 400
         
         # Use Railway-compatible crawling if on cloud platform
