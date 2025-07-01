@@ -52,6 +52,9 @@ from core.auto_sync_service import auto_sync_service
 # Import optimized crawling and performance monitoring
 from core.performance_dashboard import performance_bp
 
+# Import test dashboard blueprint
+from core.test_dashboard_route import test_dashboard_bp
+
 # Configuration
 BASE_DIR = Path(__file__).resolve().parent
 load_dotenv(BASE_DIR / ".env")
@@ -61,6 +64,7 @@ app = Flask(__name__, template_folder=BASE_DIR / "templates", static_folder=BASE
 # Register sync blueprints
 app.register_blueprint(sync_bp)
 app.register_blueprint(sync_api_bp)
+app.register_blueprint(test_dashboard_bp)
 
 # Register performance monitoring blueprint
 app.register_blueprint(performance_bp)

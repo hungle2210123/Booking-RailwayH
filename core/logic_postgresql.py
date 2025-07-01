@@ -605,128 +605,62 @@ def get_overall_calendar_day_info(df: pd.DataFrame, target_date: str, total_capa
 
 def prepare_dashboard_data(df: pd.DataFrame, start_date: datetime, end_date: datetime, 
                           sort_by: str, sort_order: str) -> Dict[str, Any]:
-    """Prepare dashboard data from PostgreSQL"""
-    if df.empty:
-        return {
-            'total_revenue_selected': 0,
-            'total_guests_selected': 0,
-            'monthly_revenue_all_time': pd.DataFrame(),
-            'collector_revenue_selected': pd.DataFrame(),
-            'genius_stats': pd.DataFrame(),
-            'monthly_guests_all_time': pd.DataFrame(),
-            'weekly_guests_all_time': pd.DataFrame(),
-            'monthly_collected_revenue': pd.DataFrame()
-        }
+    """Prepare dashboard data from PostgreSQL using optimized SQL queries"""
     
-    # Filter data by date range for metrics but not for ALL-TIME chart
-    # ✅ CRITICAL: Use date-only comparison for consistency with details API
-    start_date_only = start_date.date()
-    end_date_only = end_date.date()
-    mask = (df['Check-in Date'].dt.date >= start_date_only) & (df['Check-in Date'].dt.date <= end_date_only)
-    
-    # Exclude cancelled bookings from dashboard calculations
-    if 'Tình trạng' in df.columns:
-        mask = mask & (df['Tình trạng'] != 'Đã hủy')
-        print(f"🔍 [DASHBOARD_FILTER] Excluding cancelled bookings from dashboard calculations")
-    
-    filtered_df = df[mask]
-    
-    print(f"🔍 [CHART_LOGIC] Step 1 - Period filter: {len(df)} → {len(filtered_df)} guests")
-    print(f"🔍 [CHART_LOGIC] Date range (date only): {start_date_only} to {end_date_only}")
-    
-    # Calculate totals for selected period
-    total_revenue = filtered_df['Tổng thanh toán'].sum() if 'Tổng thanh toán' in filtered_df.columns else 0
-    total_guests = len(filtered_df)
-    
-    # ✅ Monthly revenue analysis - USE ALL DATA for chart (including May and all months)
-    print(f"🔍 [PREPARE_DASHBOARD] Creating monthly revenue chart with ALL {len(df)} bookings")
-    if not df.empty and 'Check-in Date' in df.columns:
-        # Use full df instead of filtered_df to show ALL months
-        monthly_revenue = df.groupby(
-            df['Check-in Date'].dt.to_period('M')
-        )['Tổng thanh toán'].sum().reset_index()
-        monthly_revenue['Tháng'] = monthly_revenue['Check-in Date'].astype(str)
-        monthly_revenue = monthly_revenue[['Tháng', 'Tổng thanh toán']]
-        print(f"📊 [PREPARE_DASHBOARD] Created monthly revenue chart with {len(monthly_revenue)} months: {monthly_revenue['Tháng'].tolist()}")
-    else:
-        monthly_revenue = pd.DataFrame(columns=['Tháng', 'Tổng thanh toán'])
-    
-    # ✅ CRITICAL FIX: Use FILTERED period data to match date filter selection
-    if 'Người thu tiền' in filtered_df.columns:
-        # Only include valid collectors with actual collected amounts
-        valid_collectors = ['LOC LE', 'THAO LE']
-        
-        print(f"💰 [COLLECTOR_VALIDATION] Using FILTERED period data: {start_date.date()} to {end_date.date()}")
-        print(f"🔍 [CHART_LOGIC] Step 1 - Period filter result: {len(filtered_df)} guests")
-        
-        # ✅ CRITICAL FIX: Apply same checked-in filter as monthly revenue
-        from datetime import date
-        today = date.today()
-        checked_in_mask = filtered_df['Check-in Date'].dt.date <= today
-        period_checked_in = filtered_df[checked_in_mask].copy()
-        
-        print(f"🔍 [CHART_LOGIC] Step 2 - Checked-in filter: {len(filtered_df)} → {len(period_checked_in)} guests")
-        print(f"💰 [COLLECTOR_VALIDATION] Period checked-in only: {len(period_checked_in)} (excluded {len(filtered_df) - len(period_checked_in)} future)")
-        
-        # Now apply collector validation to period checked-in guests only
-        valid_collector_df = period_checked_in[
-            (period_checked_in['Người thu tiền'].isin(valid_collectors)) & 
-            (period_checked_in['Tổng thanh toán'] > 0)
-        ].copy()
-        
-        print(f"💰 [COLLECTOR_VALIDATION] Valid collector records: {len(valid_collector_df)}")
-        
-        # ✅ ENHANCED DEBUG: Show all collectors in FILTERED PERIOD checked-in data
-        if 'Người thu tiền' in period_checked_in.columns:
-            debug_collector_counts = period_checked_in['Người thu tiền'].value_counts(dropna=False)
-            debug_collector_revenue = period_checked_in.groupby('Người thu tiền', dropna=False)['Tổng thanh toán'].sum()
-            
-            print(f"🔍 [COLLECTOR_CHART_DEBUG] All collectors in FILTERED PERIOD checked-in data:")
-            for collector, count in debug_collector_counts.items():
-                revenue = debug_collector_revenue.get(collector, 0)
-                is_valid = collector in valid_collectors
-                print(f"🔍   '{collector}': {count} guests, {revenue:,.0f}đ {'✅' if is_valid else '❌'}")
-                
-            # Specific LOC LE tracking
-            loc_le_count = debug_collector_counts.get('LOC LE', 0)
-            loc_le_revenue = debug_collector_revenue.get('LOC LE', 0)
-            print(f"🎯 [CHART_LOC_LE] Final: {loc_le_count} guests, {loc_le_revenue:,.0f}đ")
-        
-        if not valid_collector_df.empty:
-            # Group by collector and calculate detailed stats
-            collector_revenue = valid_collector_df.groupby('Người thu tiền').agg({
-                'Tổng thanh toán': 'sum',
-                'Số đặt phòng': 'count',  # Count bookings
-                'Hoa hồng': 'sum'  # Sum commission if available
-            }).reset_index()
-            
-            # Add percentage calculation
-            total_collected = collector_revenue['Tổng thanh toán'].sum()
-            collector_revenue['Tỷ lệ %'] = (collector_revenue['Tổng thanh toán'] / total_collected * 100).round(1)
-            
-            # Add validation info
-            print(f"💰 [COLLECTOR_CHART_TOTAL] Total collected by valid collectors: {total_collected:,.0f}đ")
-            for _, row in collector_revenue.iterrows():
-                collector_name = row['Người thu tiền']
-                amount = row['Tổng thanh toán']
-                count = row['Số đặt phòng']
-                percentage = row['Tỷ lệ %']
-                print(f"💰 [COLLECTOR_DETAIL] {collector_name}: {amount:,.0f}đ ({count} bookings, {percentage}%)")
-        else:
-            print(f"💰 [COLLECTOR_WARNING] No valid collections found for period")
-            collector_revenue = pd.DataFrame(columns=['Người thu tiền', 'Tổng thanh toán', 'Số đặt phòng', 'Hoa hồng', 'Tỷ lệ %'])
-    else:
-        collector_revenue = pd.DataFrame(columns=['Người thu tiền', 'Tổng thanh toán', 'Số đặt phòng', 'Hoa hồng', 'Tỷ lệ %'])
-    
+    start_date_str = start_date.strftime('%Y-%m-%d')
+    end_date_str = end_date.strftime('%Y-%m-%d')
+
+    # Optimized query for selected period metrics
+    query_selected = """
+    SELECT
+        COALESCE(SUM(room_amount), 0) as total_revenue,
+        COUNT(booking_id) as total_guests
+    FROM bookings
+    WHERE checkin_date BETWEEN :start_date AND :end_date
+      AND booking_status != 'cancelled';
+    """
+    selected_metrics = execute_query(query_selected, {"start_date": start_date_str, "end_date": end_date_str}).iloc[0]
+
+    # Optimized query for monthly revenue (all time)
+    query_monthly = """
+    SELECT
+        to_char(checkin_date, 'YYYY-MM') as "Tháng",
+        SUM(room_amount) as "Tổng thanh toán"
+    FROM bookings
+    WHERE booking_status != 'cancelled'
+    GROUP BY 1
+    ORDER BY 1;
+    """
+    monthly_revenue = execute_query(query_monthly)
+
+    # Optimized query for collector revenue (selected period)
+    query_collector = """
+    SELECT
+        collector as "Người thu tiền",
+        SUM(room_amount) as "Tổng thanh toán",
+        COUNT(booking_id) as "Số đặt phòng",
+        SUM(commission) as "Hoa hồng"
+    FROM bookings
+    WHERE checkin_date BETWEEN :start_date AND :end_date
+      AND booking_status != 'cancelled'
+      AND collector IN ('LOC LE', 'THAO LE')
+    GROUP BY 1;
+    """
+    collector_revenue = execute_query(query_collector, {"start_date": start_date_str, "end_date": end_date_str})
+
+    if not collector_revenue.empty:
+        total_collected = collector_revenue['Tổng thanh toán'].sum()
+        collector_revenue['Tỷ lệ %'] = (collector_revenue['Tổng thanh toán'] / total_collected * 100).round(1) if total_collected > 0 else 0
+
     return {
-        'total_revenue_selected': total_revenue,
-        'total_guests_selected': total_guests,
+        'total_revenue_selected': selected_metrics['total_revenue'],
+        'total_guests_selected': selected_metrics['total_guests'],
         'monthly_revenue_all_time': monthly_revenue,
         'collector_revenue_selected': collector_revenue,
-        'genius_stats': pd.DataFrame(),  # Placeholder
-        'monthly_guests_all_time': pd.DataFrame(),  # Placeholder
-        'weekly_guests_all_time': pd.DataFrame(),  # Placeholder
-        'monthly_collected_revenue': pd.DataFrame()  # Placeholder
+        'genius_stats': pd.DataFrame(),
+        'monthly_guests_all_time': pd.DataFrame(),
+        'weekly_guests_all_time': pd.DataFrame(),
+        'monthly_collected_revenue': pd.DataFrame()
     }
 
 # ==============================================================================
@@ -902,8 +836,29 @@ def analyze_existing_duplicates(df: pd.DataFrame) -> Dict[str, List]:
 def add_expense_to_database(expense_data: Dict) -> int:
     """Add expense to PostgreSQL and return expense_id"""
     from .models import db, Expense
+    from sqlalchemy.exc import IntegrityError
     
     try:
+        # CRITICAL FIX: Check and fix sequence if needed
+        try:
+            # Check if we have a sequence collision issue
+            max_id_result = db.session.execute(db.text('SELECT COALESCE(MAX(expense_id), 0) FROM expenses')).scalar()
+            current_seq_result = db.session.execute(db.text('SELECT last_value FROM expenses_expense_id_seq')).scalar()
+            
+            print(f"🔍 [EXPENSE_FIX] Max expense_id in table: {max_id_result}")
+            print(f"🔍 [EXPENSE_FIX] Current sequence value: {current_seq_result}")
+            
+            # Fix sequence if it's behind the actual data
+            if max_id_result >= current_seq_result:
+                new_seq_value = max_id_result + 1
+                db.session.execute(db.text(f'SELECT setval(\'expenses_expense_id_seq\', {new_seq_value})'))
+                db.session.commit()
+                print(f"✅ [EXPENSE_FIX] Reset sequence to {new_seq_value}")
+                
+        except Exception as seq_error:
+            print(f"⚠️ [EXPENSE_FIX] Sequence check failed: {seq_error}")
+            # Continue anyway - the insert might still work
+        
         expense = Expense(
             expense_date=expense_data.get('date'),
             amount=expense_data.get('amount', 0),
@@ -916,13 +871,46 @@ def add_expense_to_database(expense_data: Dict) -> int:
         db.session.commit()
         
         expense_id = expense.expense_id
-        print(f"✅ Added expense ID {expense_id}: {expense_data.get('description')}")
-        return expense_id  # Return the expense_id instead of True
+        print(f"✅ [EXPENSE_SUCCESS] Added expense ID {expense_id}: {expense_data.get('description')}")
+        return expense_id
+        
+    except IntegrityError as integrity_error:
+        db.session.rollback()
+        print(f"❌ [EXPENSE_INTEGRITY] Integrity error: {integrity_error}")
+        
+        # Try to fix sequence and retry once
+        try:
+            print("🔄 [EXPENSE_RETRY] Attempting to fix sequence and retry...")
+            max_id_result = db.session.execute(db.text('SELECT COALESCE(MAX(expense_id), 0) FROM expenses')).scalar()
+            new_seq_value = max_id_result + 1
+            db.session.execute(db.text(f'SELECT setval(\'expenses_expense_id_seq\', {new_seq_value})'))
+            db.session.commit()
+            
+            # Retry the insert
+            expense = Expense(
+                expense_date=expense_data.get('date'),
+                amount=expense_data.get('amount', 0),
+                description=expense_data.get('description', ''),
+                category=expense_data.get('category', 'general'),
+                collector=expense_data.get('collector', '')
+            )
+            
+            db.session.add(expense)
+            db.session.commit()
+            
+            expense_id = expense.expense_id
+            print(f"✅ [EXPENSE_RETRY_SUCCESS] Added expense ID {expense_id} after sequence fix")
+            return expense_id
+            
+        except Exception as retry_error:
+            db.session.rollback()
+            print(f"❌ [EXPENSE_RETRY_FAILED] Retry failed: {retry_error}")
+            return None
         
     except Exception as e:
         db.session.rollback()
-        print(f"❌ Error adding expense: {e}")
-        return None  # Return None instead of False
+        print(f"❌ [EXPENSE_ERROR] Error adding expense: {e}")
+        return None
 
 def get_expenses_from_database() -> pd.DataFrame:
     """Get all expenses from PostgreSQL with English field names for API compatibility"""

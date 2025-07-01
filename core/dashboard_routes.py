@@ -1530,6 +1530,7 @@ def create_collector_chart(dashboard_data):
 def process_arrival_notifications(df):
     """
     Xử lý thông báo khách đến - chỉ hiển thị khách đến hôm nay và ngày mai
+    UPDATED: Exclude cancelled guests from notifications completely
     """
     try:
         if df.empty:
@@ -1544,6 +1545,11 @@ def process_arrival_notifications(df):
         # Lọc khách check-in - chỉ xử lý khách đến từ hôm nay trở đi
         for index, row in df.iterrows():
             try:
+                # CRITICAL FIX: Skip cancelled guests completely
+                booking_status = row.get('Tình trạng', 'OK')
+                if booking_status == 'Đã hủy':
+                    continue  # Skip cancelled guests entirely
+                
                 checkin_date = row.get('Check-in Date')
                 if checkin_date:
                     # Xử lý nhiều định dạng ngày
@@ -1597,6 +1603,9 @@ def process_arrival_notifications(df):
                         except:
                             arrival_confirmed = False
                         
+                        # Build message (no cancellation status needed since cancelled guests are excluded)
+                        message = f'Khách {guest_name} sẽ đến vào ngày mai ({checkin_date.strftime("%d/%m/%Y")})'
+                        
                         notifications.append({
                             'type': 'arrival',
                             'priority': commission_priority,
@@ -1608,7 +1617,9 @@ def process_arrival_notifications(df):
                             'commission_level': commission_level,
                             'days_until': 1,
                             'arrival_confirmed': arrival_confirmed,
-                            'message': f'Khách {guest_name} sẽ đến vào ngày mai ({checkin_date.strftime("%d/%m/%Y")})'
+                            'is_cancelled': False,  # Always false since cancelled guests are excluded
+                            'booking_status': booking_status,
+                            'message': message
                         })
                     
                     # Khách đến hôm nay
@@ -1646,6 +1657,9 @@ def process_arrival_notifications(df):
                         except:
                             arrival_confirmed = False
                         
+                        # Build message (no cancellation status needed since cancelled guests are excluded)
+                        message = f'Khách {guest_name} đến HÔM NAY ({checkin_date.strftime("%d/%m/%Y")})'
+                        
                         notifications.append({
                             'type': 'arrival',
                             'priority': commission_priority,
@@ -1657,7 +1671,9 @@ def process_arrival_notifications(df):
                             'commission_level': commission_level,
                             'days_until': 0,
                             'arrival_confirmed': arrival_confirmed,
-                            'message': f'Khách {guest_name} đến HÔM NAY ({checkin_date.strftime("%d/%m/%Y")})'
+                            'is_cancelled': False,  # Always false since cancelled guests are excluded
+                            'booking_status': booking_status,
+                            'message': message
                         })
                         
             except Exception as e:
@@ -1688,6 +1704,7 @@ def process_arrival_notifications(df):
 def process_departure_notifications(df):
     """
     Xử lý thông báo khách đi - hiển thị 1 ngày trước để chuẩn bị taxi/dịch vụ
+    UPDATED: Exclude cancelled guests from notifications completely
     """
     try:
         if df.empty:
@@ -1702,6 +1719,11 @@ def process_departure_notifications(df):
         # Lọc khách check-out ngày mai (để chuẩn bị dịch vụ)
         for index, row in df.iterrows():
             try:
+                # CRITICAL FIX: Skip cancelled guests completely
+                booking_status = row.get('Tình trạng', 'OK')
+                if booking_status == 'Đã hủy':
+                    continue  # Skip cancelled guests entirely
+                
                 checkout_date = row.get('Check-out Date')
                 if checkout_date:
                     # Xử lý nhiều định dạng ngày
@@ -1738,6 +1760,9 @@ def process_departure_notifications(df):
                         elif hoa_hong > 0:
                             commission_level = 'normal'
                         
+                        # Build message (no cancellation status needed since cancelled guests are excluded)
+                        message = f'Khách {guest_name} sẽ đi vào ngày mai ({checkout_date.strftime("%d/%m/%Y")}) - Chuẩn bị taxi/dịch vụ'
+                        
                         notifications.append({
                             'type': 'departure',
                             'priority': 'high',
@@ -1748,7 +1773,9 @@ def process_departure_notifications(df):
                             'Hoa hồng': hoa_hong,
                             'commission_level': commission_level,
                             'days_until': 1,
-                            'message': f'Khách {guest_name} sẽ đi vào ngày mai ({checkout_date.strftime("%d/%m/%Y")}) - Chuẩn bị taxi/dịch vụ'
+                            'is_cancelled': False,  # Always false since cancelled guests are excluded
+                            'booking_status': booking_status,
+                            'message': message
                         })
                     
                     # Khách đi hôm nay
@@ -1773,6 +1800,9 @@ def process_departure_notifications(df):
                         elif hoa_hong > 0:
                             commission_level = 'normal'
                         
+                        # Build message (no cancellation status needed since cancelled guests are excluded)
+                        message = f'Khách {guest_name} đi HÔM NAY ({checkout_date.strftime("%d/%m/%Y")}) - Hỗ trợ taxi ngay'
+                        
                         notifications.append({
                             'type': 'departure',
                             'priority': 'urgent',
@@ -1783,7 +1813,9 @@ def process_departure_notifications(df):
                             'Hoa hồng': hoa_hong,
                             'commission_level': commission_level,
                             'days_until': 0,
-                            'message': f'Khách {guest_name} đi HÔM NAY ({checkout_date.strftime("%d/%m/%Y")}) - Hỗ trợ taxi ngay'
+                            'is_cancelled': False,  # Always false since cancelled guests are excluded
+                            'booking_status': booking_status,
+                            'message': message
                         })
                         
             except Exception as e:
