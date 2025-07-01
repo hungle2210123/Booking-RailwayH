@@ -392,18 +392,42 @@ class PostgreSQLDatabaseService:
             return None
     
     def create_quick_note(self, note_type: str, content: str, guest_name: str = None, 
-                         booking_id: str = None, priority: str = 'normal') -> QuickNote:
-        """Create new quick note"""
+                         booking_id: str = None, priority: str = 'normal', 
+                         note_date: str = None, note_time: str = None) -> QuickNote:
+        """Create new quick note with optional date/time scheduling"""
         try:
             logger.info(f"Creating quick note: type={note_type}, content={content[:50]}...")
+            
+            # Parse date and time if provided
+            scheduled_date = None
+            scheduled_time = None
+            
+            if note_date:
+                try:
+                    from datetime import datetime
+                    scheduled_date = datetime.strptime(note_date, '%Y-%m-%d').date()
+                    logger.info(f"Parsed scheduled date: {scheduled_date}")
+                except ValueError:
+                    logger.warning(f"Invalid date format: {note_date}")
+            
+            if note_time:
+                try:
+                    from datetime import datetime
+                    scheduled_time = datetime.strptime(note_time, '%H:%M').time()
+                    logger.info(f"Parsed scheduled time: {scheduled_time}")
+                except ValueError:
+                    logger.warning(f"Invalid time format: {note_time}")
+            
             note = QuickNote(
                 note_type=note_type,
                 note_content=content,  # Use correct column name
-                created_by=guest_name  # Map guest_name to created_by
+                created_by=guest_name,  # Map guest_name to created_by
+                date=scheduled_date,    # Set scheduled date
+                time=scheduled_time     # Set scheduled time
             )
             db.session.add(note)
             db.session.commit()
-            logger.info(f"Successfully created quick note {note.note_id}")
+            logger.info(f"Successfully created quick note {note.note_id} with date={scheduled_date}, time={scheduled_time}")
             return note
         except Exception as e:
             db.session.rollback()
@@ -413,7 +437,7 @@ class PostgreSQLDatabaseService:
                 logger.warning(f"Quick note ID sequence issue detected, attempting fix...")
                 if self._fix_quick_note_sequence():
                     logger.info("Sequence fixed, retrying note creation...")
-                    return self.create_quick_note(note_type, content, guest_name, booking_id, priority)  # Retry once
+                    return self.create_quick_note(note_type, content, guest_name, booking_id, priority, note_date, note_time)  # Retry once
             
             logger.error(f"Error creating quick note: {e}")
             raise PostgreSQLError(f"Failed to create quick note: {str(e)}")

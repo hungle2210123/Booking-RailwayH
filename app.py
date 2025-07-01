@@ -2143,7 +2143,9 @@ def quick_notes():
                 content=data.get('content', ''),
                 guest_name=data.get('guest_name'),
                 booking_id=data.get('booking_id'),
-                priority=data.get('priority', 'normal')
+                priority=data.get('priority', 'normal'),
+                note_date=data.get('date'),  # Pass scheduled date from frontend
+                note_time=data.get('time')   # Pass scheduled time from frontend
             )
             print(f"✅ [CREATE_QUICK_NOTE] Note created successfully: {note.note_id}")
             return jsonify({
@@ -4490,8 +4492,9 @@ def get_collector_chart_data():
         start_date = data.get('start_date')
         end_date = data.get('end_date')
         use_current_filter = data.get('use_current_filter', False)
+        use_all_time = data.get('use_all_time', False)
         
-        print(f"🗓️ [COLLECTOR_CHART_API] Request: start={start_date}, end={end_date}, use_current={use_current_filter}")
+        print(f"🗓️ [COLLECTOR_CHART_API] Request: start={start_date}, end={end_date}, use_current={use_current_filter}, use_all_time={use_all_time}")
         
         # Load booking data
         df = load_booking_data_for_calculations()
@@ -4511,7 +4514,7 @@ def get_collector_chart_data():
         df['Check-in Date'] = pd.to_datetime(df['Check-in Date'], errors='coerce')
         checked_in_mask = df['Check-in Date'].dt.date <= today
         
-        if start_date and end_date and not use_current_filter:
+        if start_date and end_date and not use_current_filter and not use_all_time:
             try:
                 start_dt = datetime.strptime(start_date, '%Y-%m-%d').date()
                 end_dt = datetime.strptime(end_date, '%Y-%m-%d').date()
@@ -4523,6 +4526,11 @@ def get_collector_chart_data():
                 print(f"🗓️ [COLLECTOR_CHART_API] Date parsing error: {e}")
                 filtered_df = df[checked_in_mask].copy()
                 period_label = "tất cả thời gian"
+        elif use_all_time:
+            # Use all time data - ignore any date filters
+            filtered_df = df[checked_in_mask].copy()
+            period_label = "tất cả thời gian"
+            print(f"🗓️ [COLLECTOR_CHART_API] Using ALL TIME data (ignoring date filters)")
         else:
             # Use current dashboard filter or all time
             filtered_df = df[checked_in_mask].copy()

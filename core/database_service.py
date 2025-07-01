@@ -381,16 +381,39 @@ class PostgreSQLDatabaseService:
             return None
     
     def create_quick_note(self, note_type: str, content: str, guest_name: str = None, 
-                         booking_id: str = None, priority: str = 'normal') -> QuickNote:
-        """Create new quick note"""
+                         booking_id: str = None, priority: str = 'normal', 
+                         note_date: str = None, note_time: str = None) -> QuickNote:
+        """Create new quick note with optional scheduled date and time"""
         try:
+            from datetime import datetime, date, time
+            
+            # Parse date and time if provided
+            parsed_date = None
+            parsed_time = None
+            
+            if note_date:
+                try:
+                    parsed_date = datetime.strptime(note_date, '%Y-%m-%d').date()
+                except ValueError:
+                    logger.warning(f"Invalid date format: {note_date}")
+            
+            if note_time:
+                try:
+                    parsed_time = datetime.strptime(note_time, '%H:%M').time()
+                except ValueError:
+                    logger.warning(f"Invalid time format: {note_time}")
+            
             note = QuickNote(
                 note_type=note_type,
                 note_content=content,  # Use correct column name
-                created_by=guest_name  # Map guest_name to created_by
+                created_by=guest_name,  # Map guest_name to created_by
+                date=parsed_date,  # Set scheduled date
+                time=parsed_time   # Set scheduled time
             )
             db.session.add(note)
             db.session.commit()
+            
+            logger.info(f"Created quick note with date={parsed_date}, time={parsed_time}")
             return note
         except Exception as e:
             db.session.rollback()
@@ -398,17 +421,43 @@ class PostgreSQLDatabaseService:
             raise PostgreSQLError(f"Failed to create quick note: {str(e)}")
     
     def update_quick_note(self, note_id: int, data: Dict[str, Any]) -> Optional[QuickNote]:
-        """Update quick note"""
+        """Update quick note with proper date/time parsing"""
         try:
+            from datetime import datetime, date, time
+            
             note = db.session.query(QuickNote).filter_by(note_id=note_id).first()
             if not note:
                 return None
             
             for key, value in data.items():
-                if hasattr(note, key):
+                if key == 'date' and value:
+                    # Parse date string to date object
+                    try:
+                        parsed_date = datetime.strptime(value, '%Y-%m-%d').date()
+                        setattr(note, key, parsed_date)
+                    except ValueError:
+                        logger.warning(f"Invalid date format in update: {value}")
+                elif key == 'time' and value:
+                    # Parse time string to time object
+                    try:
+                        parsed_time = datetime.strptime(value, '%H:%M').time()
+                        setattr(note, key, parsed_time)
+                    except ValueError:
+                        logger.warning(f"Invalid time format in update: {value}")
+                elif key == 'content':
+                    # Map frontend 'content' to database 'note_content'
+                    setattr(note, 'note_content', value)
+                elif key == 'type':
+                    # Map frontend 'type' to database 'note_type'
+                    setattr(note, 'note_type', value)
+                elif key == 'completed':
+                    # Map frontend 'completed' to database 'is_completed'
+                    setattr(note, 'is_completed', value)
+                elif hasattr(note, key):
                     setattr(note, key, value)
             
             db.session.commit()
+            logger.info(f"Updated quick note {note_id} with data: {data}")
             return note
         except Exception as e:
             db.session.rollback()

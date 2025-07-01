@@ -164,6 +164,10 @@ class QuickNote(db.Model):
     is_completed = Column(Boolean, default=False, index=True)
     completed_at = Column(DateTime)
     
+    # Scheduled date and time (when the note is intended for)
+    date = Column(Date)  # The date this note is scheduled for
+    time = Column(Time)  # The time this note is scheduled for
+    
     # Audit fields (matches database_init.sql)
     created_at = Column(DateTime, default=func.current_timestamp())
     created_by = Column(String(255))
@@ -183,6 +187,8 @@ class QuickNote(db.Model):
             'content': self.note_content,  # Map to expected frontend field name
             'completed': self.is_completed,  # Map to expected frontend field name
             'completed_at': self.completed_at.isoformat() if self.completed_at else None,
+            'date': self.date.isoformat() if self.date else None,  # Scheduled date
+            'time': self.time.isoformat() if self.time else None,  # Scheduled time
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'created_by': self.created_by
         }

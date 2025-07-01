@@ -48,6 +48,13 @@ function createMonthlyRevenueChart(chartData) {
 }
 
 function createCollectorChart(chartData) {
+    // Check if month selector exists - if so, skip old chart rendering
+    const monthSelect = document.getElementById('collectorMonthSelect');
+    if (monthSelect) {
+        console.log('📊 [OLD_DASHBOARD_JS] Month selector detected - skipping old collector chart rendering');
+        return;
+    }
+    
     if (chartData && typeof chartData === 'object' && 
         Object.keys(chartData).length > 0 && chartData.data && 
         Array.isArray(chartData.data) && chartData.data.length > 0 &&
@@ -65,9 +72,8 @@ function createCollectorChart(chartData) {
                 '<div class="alert alert-danger">Lỗi hiển thị biểu đồ: ' + error.message + '</div>';
         }
     } else {
-        console.log('No collector chart data available or empty values');
-        document.getElementById('collectorChart').innerHTML = 
-            '<div class="text-center py-5"><i class="fas fa-chart-pie fa-3x text-muted mb-3"></i><p class="text-muted">Không có dữ liệu người thu tiền</p></div>';
+        console.log('📊 [OLD_DASHBOARD_JS] No collector chart data available or empty values - but month selector will handle this');
+        // Don't show error message - let the month selector handle chart rendering
     }
 }
 

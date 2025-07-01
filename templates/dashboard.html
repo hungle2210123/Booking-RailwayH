@@ -6591,11 +6591,14 @@ function showCollectorGuestDetails(collectorName, totalAmount, bookingCount) {
     let endDate = null;
     
     if (currentSelectedCollectorMonth === 'current') {
-        // Use current dashboard filter
-        const dateRange = getSelectedDateRange();
-        startDate = dateRange?.start || null;
-        endDate = dateRange?.end || null;
-        console.log('🔍 [COLLECTOR_MODAL] Using dashboard date range:', dateRange);
+        // Use ACTUAL current month (same logic as chart)
+        const today = new Date();
+        const currentYear = today.getFullYear();
+        const currentMonth = today.getMonth() + 1;
+        startDate = `${currentYear}-${String(currentMonth).padStart(2, '0')}-01`;
+        const lastDay = new Date(currentYear, currentMonth, 0).getDate();
+        endDate = `${currentYear}-${String(currentMonth).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+        console.log('🔍 [COLLECTOR_MODAL] Using ACTUAL current month:', { startDate, endDate });
     } else if (currentSelectedCollectorMonth && currentSelectedCollectorMonth !== 'no-data' && currentSelectedCollectorMonth !== 'error') {
         // Use specific month
         const [year, month] = currentSelectedCollectorMonth.split('-');
@@ -7403,15 +7406,23 @@ async function initializeCollectorMonthSelector() {
                 return;
             }
             
+            // Add "current month" option first
+            const today = new Date();
+            const currentMonthValue = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+            const currentMonthName = today.toLocaleDateString('vi-VN', { year: 'numeric', month: 'long' });
+            
+            const currentOption = document.createElement('option');
+            currentOption.value = 'current';
+            currentOption.textContent = `${currentMonthName} (tháng hiện tại)`;
+            currentOption.selected = true; // Default to current month
+            monthSelect.appendChild(currentOption);
+            
             // Add months with data (sorted by date, most recent first)
             const sortedMonths = result.months.sort((a, b) => {
                 return new Date(b.year, b.month - 1) - new Date(a.year, a.month - 1);
             });
             
-            const today = new Date();
-            const currentMonth = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
-            
-            sortedMonths.forEach(monthInfo => {
+            sortedMonths.forEach((monthInfo, index) => {
                 const monthValue = monthInfo.value;
                 
                 // Create Vietnamese month name
@@ -7426,7 +7437,7 @@ async function initializeCollectorMonthSelector() {
                 option.textContent = `${monthName} (${monthInfo.total_amount.toLocaleString()}đ)`;
                 
                 // Mark current month if it matches
-                if (monthValue === currentMonth) {
+                if (monthValue === currentMonthValue) {
                     option.textContent += ' - hiện tại';
                 }
                 
@@ -7501,18 +7512,22 @@ async function updateCollectorChart() {
         let periodText = '';
         
         if (selectedMonth === 'current') {
-            // Use current dashboard filter
-            const dateRange = getSelectedDateRange();
-            if (dateRange) {
-                requestData = {
-                    start_date: dateRange.start,
-                    end_date: dateRange.end
-                };
-                periodText = `Từ ${dateRange.start} đến ${dateRange.end}`;
-            } else {
-                requestData = { use_current_filter: true };
-                periodText = 'Theo bộ lọc hiện tại';
-            }
+            // Use ACTUAL current month (July 2025) - not all-time data
+            const today = new Date();
+            const currentYear = today.getFullYear();
+            const currentMonth = today.getMonth() + 1; // 1-based month
+            const startDate = `${currentYear}-${String(currentMonth).padStart(2, '0')}-01`;
+            const lastDay = new Date(currentYear, currentMonth, 0).getDate();
+            const endDate = `${currentYear}-${String(currentMonth).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+            
+            requestData = {
+                start_date: startDate,
+                end_date: endDate
+            };
+            
+            const monthName = today.toLocaleDateString('vi-VN', { year: 'numeric', month: 'long' });
+            periodText = `${monthName} (tháng hiện tại)`;
+            console.log('🗓️ [COLLECTOR_MONTH] Using ACTUAL current month:', { startDate, endDate, monthName });
         } else if (selectedMonth === 'no-data' || selectedMonth === 'error') {
             // Handle no data cases
             throw new Error('Không có dữ liệu có sẵn');
@@ -7560,37 +7575,194 @@ async function updateCollectorChart() {
         console.log('🗓️ [COLLECTOR_MONTH] API Response:', result);
         
         if (result.success) {
+            // FORCE CLEAR the chart container before any processing
+            const chartDiv = document.getElementById('collectorChart');
+            if (chartDiv) {
+                chartDiv.innerHTML = '';
+                console.log('🗓️ [COLLECTOR_MONTH] ✅ Chart container forcibly cleared');
+            }
+            
             // Update chart
             const chartData = result.chart_data;
-            if (window.Plotly && chartData && chartData.data && chartData.data.length > 0 && chartData.layout) {
-                await Plotly.react(chartDiv, chartData.data, chartData.layout);
-                console.log('🗓️ [COLLECTOR_MONTH] Chart updated successfully');
+            
+            console.log('🗓️ [COLLECTOR_MONTH] Chart data structure:', {
+                chartData: chartData,
+                hasData: chartData && chartData.data,
+                dataLength: chartData && chartData.data ? chartData.data.length : 'N/A',
+                hasLayout: chartData && chartData.layout,
+                plotlyAvailable: !!window.Plotly
+            });
+            
+            // Hide loading state
+            if (loadingDiv) loadingDiv.classList.add('d-none');
+            
+            // AGGRESSIVE chart rendering - prioritize showing data over error checking
+            if (window.Plotly && chartData) {
+                console.log('🗓️ [COLLECTOR_MONTH] Chart rendering conditions:', {
+                    plotly: !!window.Plotly,
+                    chartData: !!chartData,
+                    data: chartData.data,
+                    dataLength: chartData.data ? chartData.data.length : 0,
+                    layout: chartData.layout,
+                    dataType: typeof chartData.data,
+                    hasValues: chartData.data && chartData.data[0] && chartData.data[0].values
+                });
+                
+                try {
+                    // FORCE CLEAR any existing error messages
+                    chartDiv.innerHTML = '';
+                    
+                    // More flexible data detection - be very permissive
+                    const hasValidData = chartData.data && chartData.data.length > 0;
+                    
+                    if (hasValidData) {
+                        const firstDataset = chartData.data[0];
+                        const dataValues = firstDataset.values || firstDataset.y || [];
+                        const hasActualData = dataValues.length > 0 && dataValues.some(val => val > 0);
+                        const dataSum = dataValues.reduce((a, b) => a + b, 0);
+                        
+                        console.log('🗓️ [COLLECTOR_MONTH] Data analysis:', {
+                            hasValidData: hasValidData,
+                            dataValues: dataValues,
+                            hasActualData: hasActualData,
+                            dataSum: dataSum,
+                            firstDataset: firstDataset
+                        });
+                        
+                        if (hasActualData && dataSum > 0) {
+                            // FORCE render the chart - data exists and has values
+                            await Plotly.newPlot(chartDiv, chartData.data, chartData.layout || {}, {responsive: true});
+                            console.log('🗓️ [COLLECTOR_MONTH] ✅ Chart FORCE rendered successfully with data');
+                        } else if (dataValues.length > 0) {
+                            // Data structure exists but all values are 0
+                            console.log('🗓️ [COLLECTOR_MONTH] ⚠️ Chart data exists but all values are 0');
+                            chartDiv.innerHTML = `
+                                <div class="d-flex align-items-center justify-content-center h-100">
+                                    <div class="text-center text-muted">
+                                        <i class="fas fa-info-circle fa-3x mb-3 opacity-50"></i>
+                                        <h6>Chưa thu tiền</h6>
+                                        <small>Có booking nhưng chưa thu tiền trong khoảng thời gian này</small>
+                                    </div>
+                                </div>
+                            `;
+                        } else {
+                            // Try to render anyway - maybe the data structure is different
+                            console.log('🗓️ [COLLECTOR_MONTH] 🚀 Attempting EMERGENCY render with unknown data structure');
+                            try {
+                                await Plotly.newPlot(chartDiv, chartData.data, chartData.layout || {}, {responsive: true});
+                                console.log('🗓️ [COLLECTOR_MONTH] ✅ EMERGENCY render successful');
+                            } catch (emergencyError) {
+                                console.error('🗓️ [COLLECTOR_MONTH] Emergency render failed:', emergencyError);
+                                chartDiv.innerHTML = `
+                                    <div class="d-flex align-items-center justify-content-center h-100">
+                                        <div class="text-center text-muted">
+                                            <i class="fas fa-info-circle fa-3x mb-3 opacity-50"></i>
+                                            <h6>Chưa thu tiền</h6>
+                                            <small>Có booking nhưng chưa thu tiền trong khoảng thời gian này</small>
+                                        </div>
+                                    </div>
+                                `;
+                            }
+                        }
+                    } else {
+                        // Truly no data structure at all
+                        console.log('🗓️ [COLLECTOR_MONTH] ⚠️ No chart data structure to display');
+                        chartDiv.innerHTML = `
+                            <div class="d-flex align-items-center justify-content-center h-100">
+                                <div class="text-center text-muted">
+                                    <i class="fas fa-chart-pie fa-3x mb-3 opacity-50"></i>
+                                    <h6>Không có dữ liệu thu tiền</h6>
+                                    <small>Không có dữ liệu thu tiền cho khoảng thời gian này</small>
+                                </div>
+                            </div>
+                        `;
+                    }
+                } catch (error) {
+                    console.error('🗓️ [COLLECTOR_MONTH] Chart rendering error:', error);
+                    // Fallback rendering attempt
+                    try {
+                        await Plotly.newPlot(chartDiv, chartData.data || [], chartData.layout || {});
+                        console.log('🗓️ [COLLECTOR_MONTH] ✅ Fallback chart rendering successful');
+                    } catch (fallbackError) {
+                        console.error('🗓️ [COLLECTOR_MONTH] Fallback rendering failed:', fallbackError);
+                        chartDiv.innerHTML = `
+                            <div class="d-flex align-items-center justify-content-center h-100">
+                                <div class="text-center text-danger">
+                                    <i class="fas fa-exclamation-triangle fa-3x mb-3"></i>
+                                    <h6>Lỗi hiển thị biểu đồ</h6>
+                                    <small>Không thể hiển thị biểu đồ</small>
+                                </div>
+                            </div>
+                        `;
+                    }
+                }
             } else {
-                // Show no data message (but this shouldn't happen if we only show months with data)
+                console.error('🗓️ [COLLECTOR_MONTH] Missing requirements for chart rendering');
                 chartDiv.innerHTML = `
                     <div class="d-flex align-items-center justify-content-center h-100">
-                        <div class="text-center text-muted">
-                            <i class="fas fa-chart-pie fa-3x mb-3 opacity-50"></i>
-                            <h6>Không có dữ liệu</h6>
-                            <small>Không có dữ liệu thu tiền cho khoảng thời gian này</small>
+                        <div class="text-center text-danger">
+                            <i class="fas fa-exclamation-triangle fa-3x mb-3"></i>
+                            <h6>Lỗi tải biểu đồ</h6>
+                            <small>Plotly không khả dụng hoặc dữ liệu không hợp lệ</small>
                         </div>
                     </div>
                 `;
             }
             
-            // Update statistics table
+            // Update statistics table - enhanced logic
+            console.log('🗓️ [COLLECTOR_MONTH] Stats data check:', {
+                hasStatsData: !!result.stats_data,
+                statsLength: result.stats_data ? result.stats_data.length : 0,
+                hasChartData: !!(chartData && chartData.data),
+                chartDataLength: chartData && chartData.data ? chartData.data.length : 0
+            });
+            
             if (result.stats_data && result.stats_data.length > 0) {
                 updateCollectorStatsTable(result.stats_data);
+                console.log('🗓️ [COLLECTOR_MONTH] ✅ Stats table updated with data');
             } else {
-                // Show no stats message
-                if (statsBody) {
-                    statsBody.innerHTML = `
-                        <tr>
-                            <td colspan="4" class="text-center text-muted">
-                                <i class="fas fa-info-circle me-1"></i>Không có dữ liệu thu tiền cho tháng này
-                            </td>
-                        </tr>
-                    `;
+                // Only show no data message if there's truly no data
+                // Use same logic as chart for consistency
+                const hasValidData = chartData && chartData.data && chartData.data.length > 0 && chartData.data[0];
+                const dataValues = hasValidData ? (chartData.data[0].values || chartData.data[0].y || []) : [];
+                const hasActualData = dataValues.length > 0 && dataValues.some(val => val > 0);
+                
+                if (hasValidData && hasActualData) {
+                    // Chart has data but stats don't - show processing message
+                    if (statsBody) {
+                        statsBody.innerHTML = `
+                            <tr>
+                                <td colspan="4" class="text-center text-muted">
+                                    <i class="fas fa-sync fa-spin me-1"></i>Đang xử lý dữ liệu thống kê...
+                                </td>
+                            </tr>
+                        `;
+                    }
+                    console.log('🗓️ [COLLECTOR_MONTH] ⚠️ Chart has data but stats missing');
+                } else if (hasValidData && dataValues.length > 0) {
+                    // Data exists but all values are 0 - show no collection message
+                    if (statsBody) {
+                        statsBody.innerHTML = `
+                            <tr>
+                                <td colspan="4" class="text-center text-muted">
+                                    <i class="fas fa-info-circle me-1"></i>Có booking nhưng chưa thu tiền trong tháng này
+                                </td>
+                            </tr>
+                        `;
+                    }
+                    console.log('🗓️ [COLLECTOR_MONTH] ℹ️ No collections for selected period');
+                } else {
+                    // Neither chart nor stats have data - truly empty
+                    if (statsBody) {
+                        statsBody.innerHTML = `
+                            <tr>
+                                <td colspan="4" class="text-center text-muted">
+                                    <i class="fas fa-info-circle me-1"></i>Không có dữ liệu thu tiền cho tháng này
+                                </td>
+                            </tr>
+                        `;
+                    }
+                    console.log('🗓️ [COLLECTOR_MONTH] ℹ️ No data for selected period');
                 }
             }
             
