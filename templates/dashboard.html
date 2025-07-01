@@ -7531,6 +7531,15 @@ async function updateCollectorChart() {
             const monthName = new Date(parseInt(year), parseInt(month) - 1, 1)
                 .toLocaleDateString('vi-VN', { year: 'numeric', month: 'long' });
             periodText = monthName;
+            
+            console.log('🗓️ [COLLECTOR_MONTH] Month calculation:', {
+                selectedMonth: selectedMonth,
+                year: year,
+                month: month,
+                startDate: startDate,
+                endDate: endDate,
+                monthName: monthName
+            });
         }
         
         // Update period display

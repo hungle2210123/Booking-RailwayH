@@ -4530,6 +4530,14 @@ def get_collector_chart_data():
             print(f"🗓️ [COLLECTOR_CHART_API] Using current filter/all time")
         
         print(f"🗓️ [COLLECTOR_CHART_API] Filtered data: {len(filtered_df)} records")
+        print(f"🗓️ [COLLECTOR_CHART_API] Date range used: {period_label}")
+        
+        # Debug: Show what collectors exist in filtered data
+        if 'Người thu tiền' in filtered_df.columns:
+            collector_counts = filtered_df['Người thu tiền'].value_counts(dropna=False)
+            print(f"🗓️ [COLLECTOR_CHART_API] All collectors in filtered data:")
+            for collector, count in collector_counts.items():
+                print(f"🗓️   - '{collector}': {count} bookings")
         
         # Apply collector validation (same as dashboard logic)
         valid_collectors = ['LOC LE', 'THAO LE']
@@ -4541,6 +4549,16 @@ def get_collector_chart_data():
             valid_collector_df = filtered_df[valid_collector_mask & amount_mask].copy()
             
             print(f"🗓️ [COLLECTOR_CHART_API] Valid collector records: {len(valid_collector_df)}")
+            
+            # Debug: Show valid collector breakdown
+            if not valid_collector_df.empty:
+                valid_collector_counts = valid_collector_df['Người thu tiền'].value_counts()
+                print(f"🗓️ [COLLECTOR_CHART_API] Valid collector breakdown:")
+                for collector, count in valid_collector_counts.items():
+                    amount = valid_collector_df[valid_collector_df['Người thu tiền'] == collector]['Tổng thanh toán'].sum()
+                    print(f"🗓️   - {collector}: {count} bookings, {amount:,.0f}đ")
+            else:
+                print(f"🗓️ [COLLECTOR_CHART_API] ❌ No valid collector records found after filtering")
             
             if not valid_collector_df.empty:
                 # Group by collector and calculate stats
@@ -4654,11 +4672,19 @@ def get_collector_available_months():
         if df.empty:
             return jsonify({'success': True, 'months': []})
         
-        # Apply collector validation
+        # Apply collector validation (same logic as chart API)
         valid_collectors = ['LOC LE', 'THAO LE']
         
         # Ensure Check-in Date is datetime
         df['Check-in Date'] = pd.to_datetime(df['Check-in Date'], errors='coerce')
+        
+        # Apply same filtering as chart API - only checked-in guests
+        from datetime import date
+        today = date.today()
+        checked_in_mask = df['Check-in Date'].dt.date <= today
+        
+        print(f"🗓️ [AVAILABLE_MONTHS] Total records: {len(df)}")
+        print(f"🗓️ [AVAILABLE_MONTHS] Checked-in records: {checked_in_mask.sum()}")
         
         # Filter for valid collector bookings with amounts > 0
         if 'Người thu tiền' in df.columns and 'Tổng thanh toán' in df.columns:
@@ -4666,7 +4692,11 @@ def get_collector_available_months():
             amount_mask = pd.to_numeric(df['Tổng thanh toán'], errors='coerce') > 0
             date_mask = df['Check-in Date'].notna()
             
-            valid_df = df[valid_collector_mask & amount_mask & date_mask].copy()
+            # Apply all filters including checked-in filter
+            all_filters = valid_collector_mask & amount_mask & date_mask & checked_in_mask
+            valid_df = df[all_filters].copy()
+            
+            print(f"🗓️ [AVAILABLE_MONTHS] After all filters: {len(valid_df)} records")
             
             if not valid_df.empty:
                 # Extract year-month combinations
