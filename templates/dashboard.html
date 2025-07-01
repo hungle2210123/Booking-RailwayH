@@ -1136,13 +1136,34 @@
         <div class="col-xl-4">
             <div class="card shadow-sm border-0">
                 <div class="card-header bg-light">
-                    <h6 class="mb-0">
-                        <i class="fas fa-chart-pie me-1 text-primary"></i> 
-                        Phân bổ theo Người thu (Chi tiết)
-                    </h6>
-                    <small class="text-muted">✅ Validation: CHỈ LOC LE & THAO LE, theo ngày đã chọn</small>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="mb-0">
+                                <i class="fas fa-chart-pie me-1 text-primary"></i> 
+                                Phân bổ theo Người thu (Chi tiết)
+                            </h6>
+                            <small class="text-muted">✅ Validation: CHỈ LOC LE & THAO LE</small>
+                        </div>
+                        <div class="d-flex align-items-center gap-2">
+                            <label for="collectorMonthSelect" class="form-label mb-0 text-muted small">
+                                <i class="fas fa-calendar-alt me-1"></i>Chọn tháng:
+                            </label>
+                            <select id="collectorMonthSelect" class="form-select form-select-sm" style="width: 150px;" onchange="updateCollectorChart()">
+                                <option value="current">Hiện tại</option>
+                            </select>
+                        </div>
+                    </div>
                 </div>
                 <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <span id="collectorChartPeriod" class="text-muted small">
+                            <i class="fas fa-info-circle me-1"></i>Hiển thị theo khoảng thời gian đã chọn
+                        </span>
+                        <div id="collectorChartLoading" class="d-none">
+                            <span class="spinner-border spinner-border-sm text-primary me-1"></span>
+                            <small class="text-muted">Đang tải...</small>
+                        </div>
+                    </div>
                     <div id="collectorChart" style="height: 320px;"></div>
                     
                     <!-- ✅ ENHANCED: Detailed Collector Statistics Table -->
@@ -7293,6 +7314,266 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         })
         .catch(error => console.error('Failed to load database status:', error));
+        
+    // Initialize collector month selector
+    initializeCollectorMonthSelector();
 });
+
+// =====================================================
+// COLLECTOR MONTH SELECTOR FUNCTIONALITY
+// =====================================================
+
+function initializeCollectorMonthSelector() {
+    console.log('🗓️ [COLLECTOR_MONTH] Initializing month selector...');
+    
+    const monthSelect = document.getElementById('collectorMonthSelect');
+    if (!monthSelect) {
+        console.warn('🗓️ [COLLECTOR_MONTH] Month selector not found');
+        return;
+    }
+    
+    // Generate month options (last 12 months + current + next 2 months)
+    const today = new Date();
+    const months = [];
+    
+    // Add last 12 months
+    for (let i = 12; i >= 1; i--) {
+        const date = new Date(today.getFullYear(), today.getMonth() - i, 1);
+        months.push(date);
+    }
+    
+    // Add current month
+    months.push(new Date(today.getFullYear(), today.getMonth(), 1));
+    
+    // Add next 2 months
+    for (let i = 1; i <= 2; i++) {
+        const date = new Date(today.getFullYear(), today.getMonth() + i, 1);
+        months.push(date);
+    }
+    
+    // Clear existing options except "current"
+    monthSelect.innerHTML = '<option value="current">Hiện tại (theo bộ lọc)</option>';
+    
+    // Add month options
+    months.forEach(date => {
+        const monthValue = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+        const monthName = date.toLocaleDateString('vi-VN', { 
+            year: 'numeric', 
+            month: 'long' 
+        });
+        
+        const option = document.createElement('option');
+        option.value = monthValue;
+        option.textContent = monthName;
+        
+        // Mark current month as selected by default
+        if (date.getFullYear() === today.getFullYear() && date.getMonth() === today.getMonth()) {
+            option.textContent += ' (hiện tại)';
+        }
+        
+        monthSelect.appendChild(option);
+    });
+    
+    console.log('🗓️ [COLLECTOR_MONTH] Month selector initialized with', months.length, 'months');
+}
+
+async function updateCollectorChart() {
+    const monthSelect = document.getElementById('collectorMonthSelect');
+    const loadingDiv = document.getElementById('collectorChartLoading');
+    const periodSpan = document.getElementById('collectorChartPeriod');
+    const chartDiv = document.getElementById('collectorChart');
+    const statsBody = document.getElementById('collectorStatsBody');
+    
+    if (!monthSelect || !chartDiv) {
+        console.error('🗓️ [COLLECTOR_MONTH] Required elements not found');
+        return;
+    }
+    
+    const selectedMonth = monthSelect.value;
+    console.log('🗓️ [COLLECTOR_MONTH] Updating chart for month:', selectedMonth);
+    
+    // Show loading
+    if (loadingDiv) loadingDiv.classList.remove('d-none');
+    if (statsBody) {
+        statsBody.innerHTML = `
+            <tr>
+                <td colspan="4" class="text-center text-muted">
+                    <i class="fas fa-spinner fa-spin me-1"></i>Đang tải dữ liệu...
+                </td>
+            </tr>
+        `;
+    }
+    
+    try {
+        let requestData = {};
+        let periodText = '';
+        
+        if (selectedMonth === 'current') {
+            // Use current dashboard filter
+            const dateRange = getSelectedDateRange();
+            if (dateRange) {
+                requestData = {
+                    start_date: dateRange.start,
+                    end_date: dateRange.end
+                };
+                periodText = `Từ ${dateRange.start} đến ${dateRange.end}`;
+            } else {
+                requestData = { use_current_filter: true };
+                periodText = 'Theo bộ lọc hiện tại';
+            }
+        } else {
+            // Use specific month
+            const [year, month] = selectedMonth.split('-');
+            const startDate = `${year}-${month}-01`;
+            const lastDay = new Date(parseInt(year), parseInt(month), 0).getDate();
+            const endDate = `${year}-${month}-${String(lastDay).padStart(2, '0')}`;
+            
+            requestData = {
+                start_date: startDate,
+                end_date: endDate
+            };
+            
+            const monthName = new Date(parseInt(year), parseInt(month) - 1, 1)
+                .toLocaleDateString('vi-VN', { year: 'numeric', month: 'long' });
+            periodText = monthName;
+        }
+        
+        // Update period display
+        if (periodSpan) {
+            periodSpan.innerHTML = `<i class="fas fa-info-circle me-1"></i>Hiển thị: ${periodText}`;
+        }
+        
+        // Fetch collector data for selected period
+        const response = await fetch('/api/collector_chart_data', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(requestData)
+        });
+        
+        const result = await response.json();
+        console.log('🗓️ [COLLECTOR_MONTH] API Response:', result);
+        
+        if (result.success) {
+            // Update chart
+            const chartData = result.chart_data;
+            if (window.Plotly && chartData && chartData.data && chartData.layout) {
+                await Plotly.react(chartDiv, chartData.data, chartData.layout);
+                console.log('🗓️ [COLLECTOR_MONTH] Chart updated successfully');
+            } else {
+                // Show no data message
+                chartDiv.innerHTML = `
+                    <div class="d-flex align-items-center justify-content-center h-100">
+                        <div class="text-center text-muted">
+                            <i class="fas fa-chart-pie fa-3x mb-3 opacity-50"></i>
+                            <h6>Không có dữ liệu</h6>
+                            <small>Không có dữ liệu thu tiền cho khoảng thời gian này</small>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            // Update statistics table
+            updateCollectorStatsTable(result.stats_data);
+            
+        } else {
+            throw new Error(result.message || 'Failed to fetch collector data');
+        }
+        
+    } catch (error) {
+        console.error('🗓️ [COLLECTOR_MONTH] Error updating chart:', error);
+        
+        // Show error in chart
+        chartDiv.innerHTML = `
+            <div class="d-flex align-items-center justify-content-center h-100">
+                <div class="text-center text-danger">
+                    <i class="fas fa-exclamation-triangle fa-3x mb-3"></i>
+                    <h6>Lỗi tải dữ liệu</h6>
+                    <small>${error.message}</small>
+                </div>
+            </div>
+        `;
+        
+        // Show error in table
+        if (statsBody) {
+            statsBody.innerHTML = `
+                <tr>
+                    <td colspan="4" class="text-center text-danger">
+                        <i class="fas fa-exclamation-triangle me-1"></i>Lỗi tải dữ liệu: ${error.message}
+                    </td>
+                </tr>
+            `;
+        }
+    } finally {
+        // Hide loading
+        if (loadingDiv) loadingDiv.classList.add('d-none');
+    }
+}
+
+function updateCollectorStatsTable(statsData) {
+    const statsBody = document.getElementById('collectorStatsBody');
+    if (!statsBody || !statsData) {
+        return;
+    }
+    
+    if (!statsData.length) {
+        statsBody.innerHTML = `
+            <tr>
+                <td colspan="4" class="text-center text-muted">
+                    <i class="fas fa-info-circle me-1"></i>Không có dữ liệu thu tiền
+                </td>
+            </tr>
+        `;
+        return;
+    }
+    
+    let tableRows = '';
+    const total = statsData.reduce((sum, item) => sum + (item.amount || 0), 0);
+    
+    statsData.forEach(item => {
+        const collector = item.collector || 'N/A';
+        const amount = item.amount || 0;
+        const bookings = item.bookings || 0;
+        const commission = item.commission || 0;
+        const percentage = total > 0 ? (amount / total * 100).toFixed(1) : 0;
+        
+        // Color coding for collectors
+        let badgeClass = collector === 'LOC LE' ? 'bg-primary' : 
+                        collector === 'THAO LE' ? 'bg-success' : 'bg-secondary';
+        
+        tableRows += `
+            <tr>
+                <td>
+                    <span class="badge ${badgeClass} me-1"></span>
+                    <strong>${collector}</strong>
+                </td>
+                <td class="text-end">
+                    <button class="btn btn-link fw-bold text-dark p-0 border-0 bg-transparent" 
+                            onclick="showCollectorGuestDetails('${collector}', ${amount}, ${bookings})"
+                            title="Click để xem chi tiết khách của ${collector}">
+                        <i class="fas fa-eye me-1"></i>${amount.toLocaleString()}đ
+                    </button>
+                    ${commission > 0 ? `<small class="text-muted d-block">HH: ${commission.toLocaleString()}đ</small>` : ''}
+                </td>
+                <td class="text-center">
+                    <span class="badge bg-light text-dark">${bookings}</span>
+                </td>
+                <td class="text-center">
+                    <div class="progress" style="height: 20px; width: 60px;">
+                        <div class="progress-bar ${badgeClass.replace('bg-', 'bg-')}" 
+                             role="progressbar" style="width: ${percentage}%" 
+                             title="${percentage}%">
+                            <small class="text-white fw-bold">${percentage}%</small>
+                        </div>
+                    </div>
+                </td>
+            </tr>
+        `;
+    });
+    
+    statsBody.innerHTML = tableRows;
+    console.log('🗓️ [COLLECTOR_MONTH] Statistics table updated');
+}
 </script>
 {% endblock %}

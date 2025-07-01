@@ -4482,6 +4482,167 @@ def get_collector_guest_details():
         traceback.print_exc()
         return jsonify({'success': False, 'message': f'Server error: {str(e)}'}), 500
 
+@app.route('/api/collector_chart_data', methods=['POST'])
+def get_collector_chart_data():
+    """Get collector chart data for a specific period - supports month selection"""
+    try:
+        data = request.get_json()
+        start_date = data.get('start_date')
+        end_date = data.get('end_date')
+        use_current_filter = data.get('use_current_filter', False)
+        
+        print(f"🗓️ [COLLECTOR_CHART_API] Request: start={start_date}, end={end_date}, use_current={use_current_filter}")
+        
+        # Load booking data
+        df = load_booking_data_for_calculations()
+        if df.empty:
+            return jsonify({
+                'success': True, 
+                'chart_data': {}, 
+                'stats_data': [], 
+                'message': 'No data available'
+            })
+        
+        # Apply date filtering
+        from datetime import datetime, date
+        today = date.today()
+        
+        # Ensure Check-in Date is datetime
+        df['Check-in Date'] = pd.to_datetime(df['Check-in Date'], errors='coerce')
+        checked_in_mask = df['Check-in Date'].dt.date <= today
+        
+        if start_date and end_date and not use_current_filter:
+            try:
+                start_dt = datetime.strptime(start_date, '%Y-%m-%d').date()
+                end_dt = datetime.strptime(end_date, '%Y-%m-%d').date()
+                period_mask = (df['Check-in Date'].dt.date >= start_dt) & (df['Check-in Date'].dt.date <= end_dt)
+                filtered_df = df[checked_in_mask & period_mask].copy()
+                period_label = f"từ {start_date} đến {end_date}"
+                print(f"🗓️ [COLLECTOR_CHART_API] Using specific date range: {start_date} to {end_date}")
+            except Exception as e:
+                print(f"🗓️ [COLLECTOR_CHART_API] Date parsing error: {e}")
+                filtered_df = df[checked_in_mask].copy()
+                period_label = "tất cả thời gian"
+        else:
+            # Use current dashboard filter or all time
+            filtered_df = df[checked_in_mask].copy()
+            period_label = "theo bộ lọc hiện tại"
+            print(f"🗓️ [COLLECTOR_CHART_API] Using current filter/all time")
+        
+        print(f"🗓️ [COLLECTOR_CHART_API] Filtered data: {len(filtered_df)} records")
+        
+        # Apply collector validation (same as dashboard logic)
+        valid_collectors = ['LOC LE', 'THAO LE']
+        
+        # Filter for valid collector bookings with amounts > 0
+        if 'Người thu tiền' in filtered_df.columns and 'Tổng thanh toán' in filtered_df.columns:
+            valid_collector_mask = filtered_df['Người thu tiền'].isin(valid_collectors)
+            amount_mask = pd.to_numeric(filtered_df['Tổng thanh toán'], errors='coerce') > 0
+            valid_collector_df = filtered_df[valid_collector_mask & amount_mask].copy()
+            
+            print(f"🗓️ [COLLECTOR_CHART_API] Valid collector records: {len(valid_collector_df)}")
+            
+            if not valid_collector_df.empty:
+                # Group by collector and calculate stats
+                collector_stats = valid_collector_df.groupby('Người thu tiền').agg({
+                    'Tổng thanh toán': 'sum',
+                    'Số đặt phòng': 'count',
+                    'Hoa hồng': 'sum'
+                }).reset_index()
+                
+                # Convert to stats format for table
+                stats_data = []
+                chart_labels = []
+                chart_values = []
+                chart_customdata = []
+                
+                total_collected = collector_stats['Tổng thanh toán'].sum()
+                
+                for _, row in collector_stats.iterrows():
+                    collector = row['Người thu tiền']
+                    amount = row['Tổng thanh toán']
+                    bookings = row['Số đặt phòng']
+                    commission = row['Hoa hồng'] if pd.notna(row['Hoa hồng']) else 0
+                    
+                    stats_data.append({
+                        'collector': collector,
+                        'amount': amount,
+                        'bookings': bookings,
+                        'commission': commission
+                    })
+                    
+                    chart_labels.append(collector)
+                    chart_values.append(amount)
+                    chart_customdata.append([bookings, commission])
+                    
+                    print(f"🗓️ [COLLECTOR_CHART_API] {collector}: {amount:,.0f}đ ({bookings} bookings)")
+                
+                # Create chart data in Plotly format
+                if chart_labels and chart_values:
+                    chart_data = {
+                        'data': [{
+                            'type': 'pie',
+                            'labels': chart_labels,
+                            'values': chart_values,
+                            'customdata': chart_customdata,
+                            'hovertemplate': '<b>%{label}</b><br>' +
+                                           'Số tiền: %{value:,.0f}đ<br>' +
+                                           'Số booking: %{customdata[0]}<br>' +
+                                           'Hoa hồng: %{customdata[1]:,.0f}đ<br>' +
+                                           'Tỷ lệ: %{percent}<extra></extra>',
+                            'hole': 0.4,
+                            'marker': {
+                                'colors': ['#1f77b4' if label == 'LOC LE' else '#2ca02c' if label == 'THAO LE' else '#ff7f0e' 
+                                          for label in chart_labels]
+                            }
+                        }],
+                        'layout': {
+                            'title': {
+                                'text': f'Phân bổ thu tiền - {period_label}',
+                                'x': 0.5,
+                                'font': {'size': 14}
+                            },
+                            'showlegend': True,
+                            'legend': {
+                                'orientation': 'v',
+                                'x': 1,
+                                'y': 0.5
+                            },
+                            'margin': {'l': 20, 'r': 80, 't': 40, 'b': 20},
+                            'annotations': [{
+                                'text': f'{total_collected:,.0f}đ<br><small>Tổng cộng</small>',
+                                'x': 0.5,
+                                'y': 0.5,
+                                'font_size': 12,
+                                'showarrow': False
+                            }]
+                        }
+                    }
+                else:
+                    chart_data = {}
+            else:
+                print(f"🗓️ [COLLECTOR_CHART_API] No valid collections found")
+                stats_data = []
+                chart_data = {}
+        else:
+            print(f"🗓️ [COLLECTOR_CHART_API] Missing required columns")
+            stats_data = []
+            chart_data = {}
+        
+        return jsonify({
+            'success': True,
+            'chart_data': chart_data,
+            'stats_data': stats_data,
+            'period': period_label,
+            'total_records': len(filtered_df)
+        })
+        
+    except Exception as e:
+        print(f"❌ [COLLECTOR_CHART_API] Error: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'message': f'Server error: {str(e)}'}), 500
+
 @app.route('/api/debug_collector_comparison', methods=['POST'])
 def debug_collector_comparison():
     """Debug endpoint to compare collector amounts from different calculations"""
