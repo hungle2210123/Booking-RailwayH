@@ -4606,7 +4606,7 @@ def get_collector_chart_data():
                             'hovertemplate': '<b>%{label}</b><br>' +
                                            'Số tiền: %{value:,.0f}đ<br>' +
                                            'Số booking: %{customdata[0]}<br>' +
-                                           'Hoa hồng: %{customdata[1]:,.0f}đ<br>' +
+                                           'Hoa hồng: %{customdata[1]:.0f}đ<br>' +
                                            'Tỷ lệ: %{percent}<extra></extra>',
                             'hole': 0.4,
                             'marker': {
