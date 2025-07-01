@@ -2000,10 +2000,15 @@ document.addEventListener('DOMContentLoaded', function() {
     // Initialize collector chart  
     safeRenderChart('collectorChart', collectorChartData, 'Collector Revenue Chart');
     
-    // Initialize collector stats table
+    // Initialize collector stats table (only if month selector not active)
     if (typeof populateCollectorStatsTable === 'function') {
         try {
-            populateCollectorStatsTable();
+            // Only populate if month selector is not active or is set to 'current'
+            if (typeof currentSelectedCollectorMonth === 'undefined' || currentSelectedCollectorMonth === 'current') {
+                populateCollectorStatsTable();
+            } else {
+                console.log('📊 [INIT] Skipping old collector stats - month selector active');
+            }
         } catch (error) {
             console.error('Error populating collector stats:', error);
         }
@@ -2033,11 +2038,21 @@ function populateCollectorStatsTable() {
     try {
         const statsBody = document.getElementById('collectorStatsBody');
         if (!statsBody || !collectorChartData || !collectorChartData.data || collectorChartData.data.length === 0) {
+            // Don't show error message if month selector is active
+            if (typeof currentSelectedCollectorMonth !== 'undefined' && currentSelectedCollectorMonth !== 'current') {
+                console.log('📊 [COLLECTOR_STATS] Skipping old chart data - month selector active');
+                return;
+            }
             return;
         }
 
         const chartData = collectorChartData.data[0];
         if (!chartData.labels || !chartData.values) {
+            // Don't show error message if month selector is active
+            if (typeof currentSelectedCollectorMonth !== 'undefined' && currentSelectedCollectorMonth !== 'current') {
+                console.log('📊 [COLLECTOR_STATS] Skipping old chart data - month selector active');
+                return;
+            }
             statsBody.innerHTML = `
                 <tr>
                     <td colspan="4" class="text-center text-muted">
@@ -2131,10 +2146,15 @@ function populateCollectorStatsTable() {
     }
 }
 
-// Initialize collector stats table when page loads
+// Initialize collector stats table when page loads (only if month selector not active)
 document.addEventListener('DOMContentLoaded', function() {
     setTimeout(() => {
-        populateCollectorStatsTable();
+        // Only populate if month selector is not active or is set to 'current'
+        if (typeof currentSelectedCollectorMonth === 'undefined' || currentSelectedCollectorMonth === 'current') {
+            populateCollectorStatsTable();
+        } else {
+            console.log('📊 [DOM_READY] Skipping old collector stats - month selector active');
+        }
     }, 100);
 });
 

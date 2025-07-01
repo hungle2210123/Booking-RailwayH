@@ -4455,8 +4455,8 @@ def get_collector_guest_details():
             total_commission += commission
             total_taxi += taxi
         
-        # Sort by amount (highest first)
-        guest_details.sort(key=lambda x: x['amount'], reverse=True)
+        # Sort by check-in date (earliest first)
+        guest_details.sort(key=lambda x: x['checkin_date'])
         
         # Log summary for debugging
         print(f"💰 [COLLECTOR_SUMMARY] {collector_name} ({period_label}):")
