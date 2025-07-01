@@ -2000,18 +2000,16 @@ document.addEventListener('DOMContentLoaded', function() {
     // Initialize collector chart  
     safeRenderChart('collectorChart', collectorChartData, 'Collector Revenue Chart');
     
-    // Initialize collector stats table (only if month selector not active)
-    if (typeof populateCollectorStatsTable === 'function') {
+    // Initialize collector stats table (only if month selector doesn't exist)
+    const monthSelect = document.getElementById('collectorMonthSelect');
+    if (!monthSelect && typeof populateCollectorStatsTable === 'function') {
         try {
-            // Only populate if month selector is not active or is set to 'current'
-            if (typeof currentSelectedCollectorMonth === 'undefined' || currentSelectedCollectorMonth === 'current') {
-                populateCollectorStatsTable();
-            } else {
-                console.log('📊 [INIT] Skipping old collector stats - month selector active');
-            }
+            populateCollectorStatsTable();
         } catch (error) {
             console.error('Error populating collector stats:', error);
         }
+    } else if (monthSelect) {
+        console.log('📊 [INIT] Month selector detected - skipping old collector stats function');
     }
 });
 
@@ -2037,26 +2035,33 @@ try {
 function populateCollectorStatsTable() {
     try {
         const statsBody = document.getElementById('collectorStatsBody');
+        const monthSelect = document.getElementById('collectorMonthSelect');
+        
+        // If month selector exists, don't use this old function at all
+        if (monthSelect) {
+            console.log('📊 [COLLECTOR_STATS] Month selector detected - skipping old function completely');
+            return;
+        }
+        
         if (!statsBody || !collectorChartData || !collectorChartData.data || collectorChartData.data.length === 0) {
-            // Don't show error message if month selector is active
-            if (typeof currentSelectedCollectorMonth !== 'undefined' && currentSelectedCollectorMonth !== 'current') {
-                console.log('📊 [COLLECTOR_STATS] Skipping old chart data - month selector active');
-                return;
-            }
+            // Only show loading message, not error message
+            statsBody.innerHTML = `
+                <tr>
+                    <td colspan="4" class="text-center text-muted">
+                        <i class="fas fa-spinner fa-spin me-1"></i>Đang tải dữ liệu...
+                    </td>
+                </tr>
+            `;
             return;
         }
 
         const chartData = collectorChartData.data[0];
         if (!chartData.labels || !chartData.values) {
-            // Don't show error message if month selector is active
-            if (typeof currentSelectedCollectorMonth !== 'undefined' && currentSelectedCollectorMonth !== 'current') {
-                console.log('📊 [COLLECTOR_STATS] Skipping old chart data - month selector active');
-                return;
-            }
+            // Only show loading message, not error message
             statsBody.innerHTML = `
                 <tr>
                     <td colspan="4" class="text-center text-muted">
-                        <i class="fas fa-exclamation-triangle me-1"></i>Không có dữ liệu người thu
+                        <i class="fas fa-spinner fa-spin me-1"></i>Đang tải dữ liệu...
                     </td>
                 </tr>
             `;
@@ -2146,14 +2151,14 @@ function populateCollectorStatsTable() {
     }
 }
 
-// Initialize collector stats table when page loads (only if month selector not active)
+// Initialize collector stats table when page loads (only if month selector doesn't exist)
 document.addEventListener('DOMContentLoaded', function() {
     setTimeout(() => {
-        // Only populate if month selector is not active or is set to 'current'
-        if (typeof currentSelectedCollectorMonth === 'undefined' || currentSelectedCollectorMonth === 'current') {
+        const monthSelect = document.getElementById('collectorMonthSelect');
+        if (!monthSelect && typeof populateCollectorStatsTable === 'function') {
             populateCollectorStatsTable();
-        } else {
-            console.log('📊 [DOM_READY] Skipping old collector stats - month selector active');
+        } else if (monthSelect) {
+            console.log('📊 [DOM_READY] Month selector detected - skipping old collector stats function');
         }
     }, 100);
 });
@@ -7429,11 +7434,29 @@ async function initializeCollectorMonthSelector() {
             });
             
             console.log('🗓️ [COLLECTOR_MONTH] Month selector initialized with', sortedMonths.length, 'months with data');
+            
+            // Immediately load data for the default selection (current)
+            setTimeout(() => {
+                updateCollectorChart();
+            }, 100);
+            
         } else {
             throw new Error(result.message || 'Failed to load available months');
         }
     } catch (error) {
         console.error('🗓️ [COLLECTOR_MONTH] Error loading available months:', error);
+        
+        // Clear the table to remove any error messages
+        const statsBody = document.getElementById('collectorStatsBody');
+        if (statsBody) {
+            statsBody.innerHTML = `
+                <tr>
+                    <td colspan="4" class="text-center text-muted">
+                        <i class="fas fa-exclamation-triangle me-1"></i>Lỗi tải danh sách tháng
+                    </td>
+                </tr>
+            `;
+        }
         
         // Fallback: show error option
         monthSelect.innerHTML = `
@@ -7598,15 +7621,21 @@ async function updateCollectorChart() {
 
 function updateCollectorStatsTable(statsData) {
     const statsBody = document.getElementById('collectorStatsBody');
-    if (!statsBody || !statsData) {
+    if (!statsBody) {
+        console.error('🗓️ [COLLECTOR_MONTH] Stats table body not found');
         return;
     }
     
-    if (!statsData.length) {
+    console.log('🗓️ [COLLECTOR_MONTH] Updating stats table with data:', statsData);
+    
+    // Always clear existing content first
+    statsBody.innerHTML = '';
+    
+    if (!statsData || !statsData.length) {
         statsBody.innerHTML = `
             <tr>
                 <td colspan="4" class="text-center text-muted">
-                    <i class="fas fa-info-circle me-1"></i>Không có dữ liệu thu tiền
+                    <i class="fas fa-info-circle me-1"></i>Không có dữ liệu thu tiền cho tháng này
                 </td>
             </tr>
         `;
