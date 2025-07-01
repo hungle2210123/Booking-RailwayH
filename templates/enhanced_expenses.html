@@ -632,9 +632,34 @@ function filterExpensesByMonth(expenses, targetMonth) {
     if (!targetMonth) return expenses;
     
     return expenses.filter(expense => {
-        const expenseDate = new Date(expense.Ngày || expense.date);
-        const expenseMonth = expenseDate.toISOString().slice(0, 7);
-        return expenseMonth === targetMonth;
+        try {
+            // Get date string from expense
+            const dateStr = expense.Ngày || expense.date || expense.expense_date;
+            if (!dateStr) {
+                console.warn('Expense missing date:', expense);
+                return false;
+            }
+            
+            // Handle different date formats
+            let expenseMonth;
+            if (dateStr.includes('-')) {
+                // Format: YYYY-MM-DD or YYYY-MM
+                expenseMonth = dateStr.slice(0, 7);
+            } else {
+                // Try to parse as date and format
+                const expenseDate = new Date(dateStr);
+                if (isNaN(expenseDate)) {
+                    console.warn('Invalid date format:', dateStr);
+                    return false;
+                }
+                expenseMonth = expenseDate.toISOString().slice(0, 7);
+            }
+            
+            return expenseMonth === targetMonth;
+        } catch (error) {
+            console.error('Date filtering error:', error, expense);
+            return false;
+        }
     });
 }
 

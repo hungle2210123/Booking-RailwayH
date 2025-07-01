@@ -1074,16 +1074,37 @@ def expenses_api():
             
             # 🚀 RAILWAY FIX: Enhanced error handling for database connection issues
             try:
+                # First, check if expenses table exists
+                from core.models import db
+                from sqlalchemy import text
+                
+                # Test table existence
+                with db.engine.connect() as conn:
+                    table_check = conn.execute(text("SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'expenses')")).scalar()
+                    print(f"🔍 [EXPENSES_API] Expenses table exists: {table_check}")
+                    
+                    if table_check:
+                        # Check table structure
+                        columns_result = conn.execute(text("SELECT column_name, data_type FROM information_schema.columns WHERE table_name = 'expenses'"))
+                        columns = columns_result.fetchall()
+                        print(f"🔍 [EXPENSES_API] Table structure: {columns}")
+                
                 expenses_df = get_expenses_from_database()
                 print(f"🔍 [EXPENSES_API] Database query successful, got DataFrame with {len(expenses_df)} rows")
+                
+                if not expenses_df.empty:
+                    print(f"🔍 [EXPENSES_API] DataFrame columns: {list(expenses_df.columns)}")
+                    
             except Exception as db_error:
                 print(f"❌ [EXPENSES_API] Database error: {db_error}")
+                import traceback
+                traceback.print_exc()
                 # Railway fallback: return empty data instead of crashing
                 return jsonify({
                     'success': True, 
                     'data': [], 
                     'status': 'success',
-                    'warning': f'Database connection issue on Railway: {str(db_error)}',
+                    'warning': f'Database connection issue: {str(db_error)}',
                     'environment': 'railway' if os.getenv('RAILWAY_PROJECT_ID') else 'local'
                 })
             
@@ -1091,11 +1112,21 @@ def expenses_api():
             try:
                 expenses_list = safe_to_dict_records(expenses_df)
                 print(f"💰 [EXPENSES_API] Successfully converted to {len(expenses_list)} expense records")
+                
+                # Debug: Print first record structure if exists
+                if expenses_list:
+                    print(f"🔍 [EXPENSES_API] Sample record structure: {list(expenses_list[0].keys())}")
+                    print(f"🔍 [EXPENSES_API] Sample record: {expenses_list[0]}")
+                    
             except Exception as convert_error:
                 print(f"❌ [EXPENSES_API] Conversion error: {convert_error}")
                 # Fallback conversion
                 expenses_list = expenses_df.to_dict('records') if not expenses_df.empty else []
                 print(f"🔄 [EXPENSES_API] Fallback conversion: {len(expenses_list)} records")
+                
+                # Debug fallback structure too
+                if expenses_list:
+                    print(f"🔍 [EXPENSES_API] Fallback sample: {expenses_list[0]}")
             
             # Return format expected by frontend JavaScript
             return jsonify({'success': True, 'data': expenses_list, 'status': 'success'})
@@ -1111,7 +1142,6 @@ def expenses_api():
                 'error': f'Expenses loading failed: {str(e)}',
                 'environment': 'railway' if os.getenv('RAILWAY_PROJECT_ID') else 'local'
             }), 500
-            return jsonify({'success': False, 'error': str(e), 'status': 'error'}), 500
     
     elif request.method == 'POST':
         try:
