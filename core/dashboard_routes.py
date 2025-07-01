@@ -301,7 +301,10 @@ def process_overdue_guests(df):
     
     try:
         if df.empty or 'Check-in Date' not in df.columns:
+            print("🔍 [OVERDUE] DataFrame is empty or missing Check-in Date column")
             return overdue_unpaid_guests, overdue_total_amount
+            
+        print(f"🔍 [OVERDUE] Starting with {len(df)} total bookings (including ALL duplicates)")
             
         today = datetime.today().date()
         df_work = df.copy()
@@ -325,7 +328,26 @@ def process_overdue_guests(df):
         overdue_mask = past_checkin & not_collected & not_cancelled
         overdue_df = df_valid[overdue_mask].copy()
         
+        print(f"🔍 [OVERDUE] Filtering results:")
+        print(f"  - Past check-in: {past_checkin.sum()} bookings")
+        print(f"  - Not collected: {not_collected.sum()} bookings") 
+        print(f"  - Not cancelled: {not_cancelled.sum()} bookings")
+        print(f"  - Final overdue (ALL filters): {len(overdue_df)} bookings")
+        
         if not overdue_df.empty:
+            # Debug: Show some guest names to verify duplicates are included
+            guest_names = overdue_df['Tên người đặt'].tolist()[:10]  # First 10 names
+            print(f"🔍 [OVERDUE] Sample guest names: {guest_names}")
+            
+            # Check for duplicates in overdue list
+            duplicate_names = overdue_df['Tên người đặt'].value_counts()
+            duplicates_found = duplicate_names[duplicate_names > 1]
+            if not duplicates_found.empty:
+                print(f"🔍 [OVERDUE] Found {len(duplicates_found)} guests with multiple overdue bookings:")
+                for name, count in duplicates_found.head().items():
+                    print(f"  - {name}: {count} overdue bookings")
+            else:
+                print("🔍 [OVERDUE] No duplicate guests found in overdue list")
             # Calculate overdue days
             checkin_dates = overdue_df['Check-in Date'].dt.date
             days_overdue_list = [(today - date).days if date else 0 for date in checkin_dates]
