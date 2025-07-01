@@ -4643,6 +4643,85 @@ def get_collector_chart_data():
         traceback.print_exc()
         return jsonify({'success': False, 'message': f'Server error: {str(e)}'}), 500
 
+@app.route('/api/collector_available_months', methods=['GET'])
+def get_collector_available_months():
+    """Get list of months that have collector data available"""
+    try:
+        print(f"🗓️ [AVAILABLE_MONTHS] Getting months with collector data...")
+        
+        # Load booking data
+        df = load_booking_data_for_calculations()
+        if df.empty:
+            return jsonify({'success': True, 'months': []})
+        
+        # Apply collector validation
+        valid_collectors = ['LOC LE', 'THAO LE']
+        
+        # Ensure Check-in Date is datetime
+        df['Check-in Date'] = pd.to_datetime(df['Check-in Date'], errors='coerce')
+        
+        # Filter for valid collector bookings with amounts > 0
+        if 'Người thu tiền' in df.columns and 'Tổng thanh toán' in df.columns:
+            valid_collector_mask = df['Người thu tiền'].isin(valid_collectors)
+            amount_mask = pd.to_numeric(df['Tổng thanh toán'], errors='coerce') > 0
+            date_mask = df['Check-in Date'].notna()
+            
+            valid_df = df[valid_collector_mask & amount_mask & date_mask].copy()
+            
+            if not valid_df.empty:
+                # Extract year-month combinations
+                valid_df['YearMonth'] = valid_df['Check-in Date'].dt.strftime('%Y-%m')
+                unique_months = valid_df['YearMonth'].unique()
+                
+                # Convert to list of month objects with additional info
+                available_months = []
+                for month_str in sorted(unique_months):
+                    year, month = month_str.split('-')
+                    
+                    # Get stats for this month
+                    month_mask = valid_df['YearMonth'] == month_str
+                    month_data = valid_df[month_mask]
+                    
+                    total_amount = month_data['Tổng thanh toán'].sum()
+                    total_bookings = len(month_data)
+                    collectors = month_data['Người thu tiền'].value_counts().to_dict()
+                    
+                    # Create month name in Vietnamese
+                    from datetime import datetime
+                    date_obj = datetime(int(year), int(month), 1)
+                    month_name = date_obj.strftime('%B %Y')  # Will be localized to Vietnamese in frontend
+                    
+                    available_months.append({
+                        'value': month_str,
+                        'year': int(year),
+                        'month': int(month),
+                        'month_name': month_name,
+                        'total_amount': total_amount,
+                        'total_bookings': total_bookings,
+                        'collectors': collectors
+                    })
+                
+                print(f"🗓️ [AVAILABLE_MONTHS] Found {len(available_months)} months with collector data")
+                for month_info in available_months:
+                    print(f"🗓️   - {month_info['value']}: {month_info['total_amount']:,.0f}đ ({month_info['total_bookings']} bookings)")
+                
+                return jsonify({
+                    'success': True, 
+                    'months': available_months
+                })
+            else:
+                print(f"🗓️ [AVAILABLE_MONTHS] No valid collector data found")
+                return jsonify({'success': True, 'months': []})
+        else:
+            print(f"🗓️ [AVAILABLE_MONTHS] Missing required columns")
+            return jsonify({'success': True, 'months': []})
+        
+    except Exception as e:
+        print(f"❌ [AVAILABLE_MONTHS] Error: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'message': f'Server error: {str(e)}'}), 500
+
 @app.route('/api/debug_collector_comparison', methods=['POST'])
 def debug_collector_comparison():
     """Debug endpoint to compare collector amounts from different calculations"""

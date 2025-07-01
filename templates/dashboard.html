@@ -6559,13 +6559,34 @@ function showCollectorGuestDetails(collectorName, totalAmount, bookingCount) {
     // Store current data for export
     currentCollectorData = { collector: collectorName, amount: totalAmount, bookings: bookingCount };
     
-    // Get current date filter from dashboard (if available)
-    const dateRange = getSelectedDateRange();
-    const startDate = dateRange?.start || null;
-    const endDate = dateRange?.end || null;
+    console.log(`🔍 [COLLECTOR_MODAL] Current selected month: ${currentSelectedCollectorMonth}`);
     
-    console.log('🔍 [COLLECTOR_MODAL] Date range from dashboard:', dateRange);
-    console.log('🔍 [COLLECTOR_MODAL] Sending dates:', startDate, 'to', endDate);
+    // Determine date range based on selected month
+    let startDate = null;
+    let endDate = null;
+    
+    if (currentSelectedCollectorMonth === 'current') {
+        // Use current dashboard filter
+        const dateRange = getSelectedDateRange();
+        startDate = dateRange?.start || null;
+        endDate = dateRange?.end || null;
+        console.log('🔍 [COLLECTOR_MODAL] Using dashboard date range:', dateRange);
+    } else if (currentSelectedCollectorMonth && currentSelectedCollectorMonth !== 'no-data' && currentSelectedCollectorMonth !== 'error') {
+        // Use specific month
+        const [year, month] = currentSelectedCollectorMonth.split('-');
+        startDate = `${year}-${month}-01`;
+        const lastDay = new Date(parseInt(year), parseInt(month), 0).getDate();
+        endDate = `${year}-${month}-${String(lastDay).padStart(2, '0')}`;
+        console.log('🔍 [COLLECTOR_MODAL] Using selected month range:', startDate, 'to', endDate);
+    } else {
+        // Fallback to dashboard filter
+        const dateRange = getSelectedDateRange();
+        startDate = dateRange?.start || null;
+        endDate = dateRange?.end || null;
+        console.log('🔍 [COLLECTOR_MODAL] Fallback to dashboard filter:', dateRange);
+    }
+    
+    console.log('🔍 [COLLECTOR_MODAL] Final date range:', startDate, 'to', endDate);
     
     // Call API to get collector guest details
     fetch('/api/collector_guest_details', {
@@ -7323,7 +7344,10 @@ document.addEventListener('DOMContentLoaded', function() {
 // COLLECTOR MONTH SELECTOR FUNCTIONALITY
 // =====================================================
 
-function initializeCollectorMonthSelector() {
+// Global variable to track current selected month for collector details
+let currentSelectedCollectorMonth = 'current';
+
+async function initializeCollectorMonthSelector() {
     console.log('🗓️ [COLLECTOR_MONTH] Initializing month selector...');
     
     const monthSelect = document.getElementById('collectorMonthSelect');
@@ -7332,49 +7356,71 @@ function initializeCollectorMonthSelector() {
         return;
     }
     
-    // Generate month options (last 12 months + current + next 2 months)
-    const today = new Date();
-    const months = [];
-    
-    // Add last 12 months
-    for (let i = 12; i >= 1; i--) {
-        const date = new Date(today.getFullYear(), today.getMonth() - i, 1);
-        months.push(date);
-    }
-    
-    // Add current month
-    months.push(new Date(today.getFullYear(), today.getMonth(), 1));
-    
-    // Add next 2 months
-    for (let i = 1; i <= 2; i++) {
-        const date = new Date(today.getFullYear(), today.getMonth() + i, 1);
-        months.push(date);
-    }
-    
-    // Clear existing options except "current"
-    monthSelect.innerHTML = '<option value="current">Hiện tại (theo bộ lọc)</option>';
-    
-    // Add month options
-    months.forEach(date => {
-        const monthValue = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-        const monthName = date.toLocaleDateString('vi-VN', { 
-            year: 'numeric', 
-            month: 'long' 
-        });
+    try {
+        // Fetch available months with collector data
+        const response = await fetch('/api/collector_available_months');
+        const result = await response.json();
         
-        const option = document.createElement('option');
-        option.value = monthValue;
-        option.textContent = monthName;
+        console.log('🗓️ [COLLECTOR_MONTH] Available months response:', result);
         
-        // Mark current month as selected by default
-        if (date.getFullYear() === today.getFullYear() && date.getMonth() === today.getMonth()) {
-            option.textContent += ' (hiện tại)';
+        if (result.success && result.months) {
+            // Clear existing options
+            monthSelect.innerHTML = '<option value="current">Hiện tại (theo bộ lọc)</option>';
+            
+            if (result.months.length === 0) {
+                // No months with data available
+                const option = document.createElement('option');
+                option.value = 'no-data';
+                option.textContent = 'Không có dữ liệu thu tiền';
+                option.disabled = true;
+                monthSelect.appendChild(option);
+                console.log('🗓️ [COLLECTOR_MONTH] No months with collector data found');
+                return;
+            }
+            
+            // Add months with data (sorted by date, most recent first)
+            const sortedMonths = result.months.sort((a, b) => {
+                return new Date(b.year, b.month - 1) - new Date(a.year, a.month - 1);
+            });
+            
+            const today = new Date();
+            const currentMonth = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+            
+            sortedMonths.forEach(monthInfo => {
+                const monthValue = monthInfo.value;
+                
+                // Create Vietnamese month name
+                const date = new Date(monthInfo.year, monthInfo.month - 1, 1);
+                const monthName = date.toLocaleDateString('vi-VN', { 
+                    year: 'numeric', 
+                    month: 'long' 
+                });
+                
+                const option = document.createElement('option');
+                option.value = monthValue;
+                option.textContent = `${monthName} (${monthInfo.total_amount.toLocaleString()}đ)`;
+                
+                // Mark current month if it matches
+                if (monthValue === currentMonth) {
+                    option.textContent += ' - hiện tại';
+                }
+                
+                monthSelect.appendChild(option);
+            });
+            
+            console.log('🗓️ [COLLECTOR_MONTH] Month selector initialized with', sortedMonths.length, 'months with data');
+        } else {
+            throw new Error(result.message || 'Failed to load available months');
         }
+    } catch (error) {
+        console.error('🗓️ [COLLECTOR_MONTH] Error loading available months:', error);
         
-        monthSelect.appendChild(option);
-    });
-    
-    console.log('🗓️ [COLLECTOR_MONTH] Month selector initialized with', months.length, 'months');
+        // Fallback: show error option
+        monthSelect.innerHTML = `
+            <option value="current">Hiện tại (theo bộ lọc)</option>
+            <option value="error" disabled>Lỗi tải danh sách tháng</option>
+        `;
+    }
 }
 
 async function updateCollectorChart() {
@@ -7391,6 +7437,9 @@ async function updateCollectorChart() {
     
     const selectedMonth = monthSelect.value;
     console.log('🗓️ [COLLECTOR_MONTH] Updating chart for month:', selectedMonth);
+    
+    // Store selected month globally for collector details
+    currentSelectedCollectorMonth = selectedMonth;
     
     // Show loading
     if (loadingDiv) loadingDiv.classList.remove('d-none');
@@ -7421,6 +7470,9 @@ async function updateCollectorChart() {
                 requestData = { use_current_filter: true };
                 periodText = 'Theo bộ lọc hiện tại';
             }
+        } else if (selectedMonth === 'no-data' || selectedMonth === 'error') {
+            // Handle no data cases
+            throw new Error('Không có dữ liệu có sẵn');
         } else {
             // Use specific month
             const [year, month] = selectedMonth.split('-');
@@ -7458,11 +7510,11 @@ async function updateCollectorChart() {
         if (result.success) {
             // Update chart
             const chartData = result.chart_data;
-            if (window.Plotly && chartData && chartData.data && chartData.layout) {
+            if (window.Plotly && chartData && chartData.data && chartData.data.length > 0 && chartData.layout) {
                 await Plotly.react(chartDiv, chartData.data, chartData.layout);
                 console.log('🗓️ [COLLECTOR_MONTH] Chart updated successfully');
             } else {
-                // Show no data message
+                // Show no data message (but this shouldn't happen if we only show months with data)
                 chartDiv.innerHTML = `
                     <div class="d-flex align-items-center justify-content-center h-100">
                         <div class="text-center text-muted">
@@ -7475,7 +7527,20 @@ async function updateCollectorChart() {
             }
             
             // Update statistics table
-            updateCollectorStatsTable(result.stats_data);
+            if (result.stats_data && result.stats_data.length > 0) {
+                updateCollectorStatsTable(result.stats_data);
+            } else {
+                // Show no stats message
+                if (statsBody) {
+                    statsBody.innerHTML = `
+                        <tr>
+                            <td colspan="4" class="text-center text-muted">
+                                <i class="fas fa-info-circle me-1"></i>Không có dữ liệu thu tiền cho tháng này
+                            </td>
+                        </tr>
+                    `;
+                }
+            }
             
         } else {
             throw new Error(result.message || 'Failed to fetch collector data');
