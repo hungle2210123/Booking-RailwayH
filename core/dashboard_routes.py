@@ -224,7 +224,7 @@ def create_revenue_chart(monthly_revenue_list):
         except ImportError:
             print("ℹ️ scipy not available - skipping trend line analysis")
         
-        # Enhanced layout for strategic management
+        # Enhanced layout for strategic management - FIXED titlefont → title_font
         fig.update_layout(
             title={
                 'text': f'📊 Phân tích Doanh thu Chiến lược theo Tháng<br>' +
@@ -234,7 +234,7 @@ def create_revenue_chart(monthly_revenue_list):
             },
             xaxis=dict(
                 title='Tháng',
-                titlefont=dict(size=14, family='Arial Black'),
+                title_font=dict(size=14, family='Arial Black'),  # FIXED: titlefont → title_font
                 tickfont=dict(size=12),
                 showgrid=True,
                 gridwidth=1,
@@ -242,7 +242,7 @@ def create_revenue_chart(monthly_revenue_list):
             ),
             yaxis=dict(
                 title='Doanh thu (VND)',
-                titlefont=dict(size=14, family='Arial Black'),
+                title_font=dict(size=14, family='Arial Black'),  # FIXED: titlefont → title_font
                 tickfont=dict(size=12),
                 tickformat=',.0f',
                 showgrid=True,
