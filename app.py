@@ -52,8 +52,13 @@ from core.auto_sync_service import auto_sync_service
 # Import optimized crawling and performance monitoring
 from core.performance_dashboard import performance_bp
 
-# Import test dashboard blueprint
-from core.test_dashboard_route import test_dashboard_bp
+# Import test dashboard blueprint (optional - for development/testing only)
+try:
+    from core.test_dashboard_route import test_dashboard_bp
+    test_dashboard_available = True
+except ImportError:
+    print("ℹ️  Test dashboard module not available (expected in production)")
+    test_dashboard_available = False
 
 # Configuration
 BASE_DIR = Path(__file__).resolve().parent
@@ -64,7 +69,13 @@ app = Flask(__name__, template_folder=BASE_DIR / "templates", static_folder=BASE
 # Register sync blueprints
 app.register_blueprint(sync_bp)
 app.register_blueprint(sync_api_bp)
-app.register_blueprint(test_dashboard_bp)
+
+# Register test dashboard blueprint (only if available)
+if test_dashboard_available:
+    app.register_blueprint(test_dashboard_bp)
+    print("✅ Test dashboard blueprint registered")
+else:
+    print("ℹ️  Test dashboard blueprint skipped (not available in production)")
 
 # Register performance monitoring blueprint
 app.register_blueprint(performance_bp)
