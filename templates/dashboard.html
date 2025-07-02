@@ -4,6 +4,59 @@
 
 {% block extra_css %}
 <style>
+/* Cancellation Notification Styles */
+.cancellation-notification-banner {
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+    background: linear-gradient(135deg, #ff6b6b 0%, #ffa726 100%);
+    color: white;
+    padding: 10px 0;
+    margin: -15px -15px 20px -15px;
+    box-shadow: 0 4px 20px rgba(255, 107, 107, 0.3);
+    animation: notificationSlide 0.5s ease-out;
+}
+
+.urgent-alert-item {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    padding: 8px 12px;
+    margin: 5px 0;
+    border-left: 4px solid #fff;
+    backdrop-filter: blur(10px);
+}
+
+.alert-priority-high {
+    border-left-color: #ff4757 !important;
+    background: rgba(255, 71, 87, 0.2) !important;
+}
+
+.alert-priority-medium {
+    border-left-color: #ffa726 !important;
+    background: rgba(255, 167, 38, 0.2) !important;
+}
+
+.notification-badge {
+    background: #ff4757;
+    color: white;
+    border-radius: 50%;
+    padding: 2px 6px;
+    font-size: 11px;
+    font-weight: bold;
+    margin-left: 5px;
+    animation: badgePulse 2s infinite;
+}
+
+@keyframes notificationSlide {
+    from { transform: translateY(-100%); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+}
+
+@keyframes badgePulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.2); }
+}
+
 /* Commission Guest Highlighting */
 .high-commission-guest {
     border-left: 4px solid #dc3545 !important;
@@ -187,6 +240,7 @@
 
 {% block content %}
 <div class="container-fluid px-4">
+
     <!-- ⚠️ PIN NOTIFICATION CHO NGÀY QUÁ TẢI (FIXED TOP) -->
     {% if overcrowded_days and overcrowded_days|length > 0 %}
     {% set urgent_days = overcrowded_days | selectattr('alert_level', 'equalto', 'urgent') | list %}
@@ -379,6 +433,97 @@
             </form>
         </div>
     </div>
+
+    <!-- 🚨 CANCELLATION ALERTS - COMPACT -->
+    {% if cancellation_notifications and cancellation_notifications.summary.total_alerts > 0 %}
+    <div class="alert alert-warning border-0 shadow-sm mb-3 py-2" style="background: linear-gradient(135deg, #ff9500 0%, #ff6b35 100%);">
+        <div class="d-flex align-items-center justify-content-between mb-2">
+            <h6 class="mb-0 text-white fw-bold small">
+                🚨 CANCELLATION ALERTS ({{ cancellation_notifications.summary.total_alerts }})
+            </h6>
+            <button class="btn btn-light btn-sm py-1 px-2" onclick="toggleCancellationTable()">
+                <i class="fas fa-chevron-down" id="tableToggleIcon"></i>
+            </button>
+        </div>
+        
+        <div id="cancellationTable" class="table-responsive" style="display: block;">
+            <table class="table table-sm table-light mb-0" style="font-size: 0.85rem;">
+                <thead class="table-dark">
+                    <tr>
+                        <th class="py-1">Type</th>
+                        <th class="py-1">Guest Name</th>
+                        <th class="py-1">Check-in</th>
+                        <th class="py-1">Check-out</th>
+                        <th class="py-1">Amount</th>
+                        <th class="py-1">Commission</th>
+                        <th class="py-1">Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- Le Thuong Alerts (High Priority) -->
+                    {% for alert in cancellation_notifications.specific_guest_alerts %}
+                    <tr class="table-danger" id="alert-{{ alert.booking_id }}">
+                        <td class="py-1 text-center">
+                            <span class="badge bg-danger" style="font-size: 0.7rem;">🚨</span>
+                        </td>
+                        <td class="py-1 fw-bold">{{ alert.guest_name }}</td>
+                        <td class="py-1">{{ alert.checkin_date }}</td>
+                        <td class="py-1">{{ alert.checkout_date }}</td>
+                        <td class="py-1">{{ "{:,.0f}".format(alert.room_amount) }}đ</td>
+                        <td class="py-1">{{ "{:,.0f}".format(alert.get('commission', 0)) }}đ</td>
+                        <td class="py-1">
+                            <button class="btn btn-danger btn-sm py-0 px-2" style="font-size: 0.75rem;"
+                                    onclick="confirmCancellation('{{ alert.booking_id }}', '{{ alert.guest_name }}', 'le_thuong')">
+                                Cancel
+                            </button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                    
+                    <!-- Zero Commission Alerts (Private Bookings) -->
+                    {% for alert in cancellation_notifications.zero_commission_alerts %}
+                    <tr class="table-warning" id="alert-{{ alert.booking_id }}">
+                        <td class="py-1 text-center">
+                            <span class="badge bg-warning" style="font-size: 0.7rem;">💼</span>
+                        </td>
+                        <td class="py-1 fw-bold">{{ alert.guest_name }}</td>
+                        <td class="py-1">{{ alert.checkin_date }}</td>
+                        <td class="py-1">{{ alert.checkout_date }}</td>
+                        <td class="py-1">{{ "{:,.0f}".format(alert.room_amount) }}đ</td>
+                        <td class="py-1 text-danger fw-bold">0đ</td>
+                        <td class="py-1">
+                            <button class="btn btn-warning btn-sm py-0 px-2" style="font-size: 0.75rem;"
+                                    onclick="confirmCancellation('{{ alert.booking_id }}', '{{ alert.guest_name }}', 'zero_commission')">
+                                Cancel
+                            </button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                    
+                    <!-- Cancelled Guests -->
+                    {% for alert in cancellation_notifications.cancellation_status_alerts %}
+                    <tr class="table-secondary" id="alert-{{ alert.booking_id }}">
+                        <td class="py-1 text-center">
+                            <span class="badge bg-secondary" style="font-size: 0.7rem;">❌</span>
+                        </td>
+                        <td class="py-1 fw-bold text-decoration-line-through">{{ alert.guest_name }}</td>
+                        <td class="py-1">{{ alert.checkin_date }}</td>
+                        <td class="py-1">{{ alert.checkout_date }}</td>
+                        <td class="py-1 text-muted">{{ "{:,.0f}".format(alert.room_amount) }}đ</td>
+                        <td class="py-1 text-muted">{{ "{:,.0f}".format(alert.commission) }}đ</td>
+                        <td class="py-1">
+                            <button class="btn btn-secondary btn-sm py-0 px-2" style="font-size: 0.75rem;"
+                                    onclick="confirmCancellation('{{ alert.booking_id }}', '{{ alert.guest_name }}', 'cancelled')">
+                                Verify
+                            </button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
 
     <!-- 🔔 ARRIVAL & DEPARTURE NOTIFICATIONS (QUICKNOTES STYLE) -->
     {% if arrival_notifications or departure_notifications %}
@@ -7870,5 +8015,106 @@ function updateCollectorStatsTable(statsData) {
     statsBody.innerHTML = tableRows;
     console.log('🗓️ [COLLECTOR_MONTH] Statistics table updated');
 }
+
+// ==================== CANCELLATION NOTIFICATION FUNCTIONS ====================
+
+function toggleCancellationTable() {
+    const table = document.getElementById('cancellationTable');
+    const icon = document.getElementById('tableToggleIcon');
+    
+    if (table.style.display === 'none') {
+        table.style.display = 'block';
+        icon.className = 'fas fa-chevron-up';
+    } else {
+        table.style.display = 'none';
+        icon.className = 'fas fa-chevron-down';
+    }
+}
+
+async function confirmCancellation(bookingId, guestName, cancellationType) {
+    const confirmation = confirm(`Confirm cancellation for ${guestName} (Booking: ${bookingId})?\n\nThis will record that you have cancelled this booking on the booking app.`);
+    
+    if (!confirmation) return;
+    
+    try {
+        const response = await fetch('/api/confirm_cancellation', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                booking_id: bookingId,
+                guest_name: guestName,
+                cancellation_type: cancellationType
+            })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            alert(`✅ Cancellation confirmed for ${guestName}\n\nAction recorded in database.`);
+            
+            // Hide the specific alert row
+            const alertRow = document.getElementById(`alert-${bookingId}`);
+            if (alertRow) {
+                alertRow.style.animation = 'fadeOut 0.5s ease-out';
+                setTimeout(() => {
+                    alertRow.remove();
+                    
+                    // Check if any alerts remain
+                    const remainingRows = document.querySelectorAll('tr[id^="alert-"]');
+                    if (remainingRows.length === 0) {
+                        const banner = document.querySelector('.alert.alert-warning');
+                        if (banner) {
+                            banner.style.display = 'none';
+                        }
+                    }
+                }, 500);
+            }
+        } else {
+            alert(`❌ Error: ${result.error}`);
+        }
+        
+    } catch (error) {
+        console.error('Cancellation confirmation error:', error);
+        alert('❌ Error processing cancellation. Please try again.');
+    }
+}
+
+async function handleCancellation(bookingId, alertType) {
+    // Legacy function - redirect to new confirmation function
+    const guestName = 'Guest';
+    await confirmCancellation(bookingId, guestName, alertType);
+}
+
+// Auto-refresh notifications every 5 minutes
+setInterval(async function() {
+    try {
+        const response = await fetch('/api/urgent_alerts');
+        const data = await response.json();
+        
+        if (data.success && data.count > 0) {
+            console.log(`🚨 [AUTO_REFRESH] ${data.count} urgent alerts detected`);
+            // Could implement auto-update UI here
+        }
+    } catch (error) {
+        console.error('Failed to refresh notifications:', error);
+    }
+}, 300000); // 5 minutes
+
+// Add fadeOut animation CSS if not already present
+if (!document.querySelector('style[data-cancellation-animations]')) {
+    const style = document.createElement('style');
+    style.setAttribute('data-cancellation-animations', 'true');
+    style.textContent = `
+        @keyframes fadeOut {
+            from { opacity: 1; transform: translateX(0); }
+            to { opacity: 0; transform: translateX(100%); }
+        }
+    `;
+    document.head.appendChild(style);
+}
+
+console.log('🚨 [CANCELLATION_SYSTEM] Notification system initialized');
 </script>
 {% endblock %}

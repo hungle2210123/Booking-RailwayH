@@ -176,6 +176,36 @@ class QuickNote(db.Model):
     __table_args__ = (
         CheckConstraint("note_type IS NOT NULL AND LENGTH(note_type) > 0", name='chk_note_type'),
     )
+
+# CANCELLATION_ACTIONS TABLE - Track booking cancellations
+# =====================================================
+class CancellationAction(db.Model):
+    __tablename__ = 'cancellation_actions'
+    
+    action_id = Column(Integer, primary_key=True)
+    booking_id = Column(String(50), nullable=False, index=True)
+    guest_name = Column(String(255), nullable=False)
+    cancellation_type = Column(String(50), nullable=False)  # 'le_thuong', 'zero_commission', 'cancelled'
+    action_status = Column(String(50), nullable=False, default='pending', index=True)  # 'pending', 'confirmed', 'cancelled_on_app'
+    confirmed_by = Column(String(100))  # Who confirmed the cancellation
+    confirmation_date = Column(DateTime)
+    notes = Column(Text)
+    created_at = Column(DateTime, default=func.current_timestamp())
+    updated_at = Column(DateTime, default=func.current_timestamp())
+    
+    def to_dict(self):
+        return {
+            'action_id': self.action_id,
+            'booking_id': self.booking_id,
+            'guest_name': self.guest_name,
+            'cancellation_type': self.cancellation_type,
+            'action_status': self.action_status,
+            'confirmed_by': self.confirmed_by,
+            'confirmation_date': self.confirmation_date.isoformat() if self.confirmation_date else None,
+            'notes': self.notes,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None
+        }
     
     def __repr__(self):
         return f"<QuickNote {self.note_id}: {self.note_type}>"

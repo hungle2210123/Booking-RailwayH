@@ -363,6 +363,136 @@ def quick_collect():
     """Quick payment collection page - bypasses broken frontend"""
     return render_template('quick_collect.html')
 
+@app.route('/api/cancellation_notifications')
+def api_cancellation_notifications():
+    """API endpoint for cancellation notifications"""
+    try:
+        from core.cancellation_notifications import get_cancellation_notifications
+        notifications = get_cancellation_notifications()
+        return jsonify({
+            'success': True,
+            'notifications': notifications,
+            'timestamp': datetime.now().isoformat()
+        })
+    except Exception as e:
+        print(f"❌ [API_CANCELLATION_NOTIFICATIONS] Error: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'notifications': {'summary': {'total_alerts': 0}}
+        }), 500
+
+@app.route('/api/urgent_alerts')
+def api_urgent_alerts():
+    """API endpoint for urgent cancellation alerts only"""
+    try:
+        from core.cancellation_notifications import get_urgent_cancellation_alerts
+        urgent_alerts = get_urgent_cancellation_alerts()
+        return jsonify({
+            'success': True,
+            'urgent_alerts': urgent_alerts,
+            'count': len(urgent_alerts),
+            'timestamp': datetime.now().isoformat()
+        })
+    except Exception as e:
+        print(f"❌ [API_URGENT_ALERTS] Error: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'urgent_alerts': []
+        }), 500
+
+@app.route('/api/debug_cancellations')
+def api_debug_cancellations():
+    """Debug endpoint to check cancellation data"""
+    try:
+        from core.cancellation_notifications import debug_guest_data, get_cancellation_notifications
+        debug_info = debug_guest_data()
+        notifications = get_cancellation_notifications()
+        
+        return jsonify({
+            'success': True,
+            'debug_info': debug_info,
+            'notifications_summary': notifications['summary'],
+            'notifications_detailed': {
+                'le_thuong_alerts': len(notifications['specific_guest_alerts']),
+                'zero_commission_alerts': len(notifications['zero_commission_alerts']),
+                'cancelled_alerts': len(notifications['cancellation_status_alerts'])
+            },
+            'timestamp': datetime.now().isoformat()
+        })
+    except Exception as e:
+        print(f"❌ [API_DEBUG_CANCELLATIONS] Error: {e}")
+        import traceback
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'traceback': traceback.format_exc()
+        }), 500
+
+@app.route('/api/confirm_cancellation', methods=['POST'])
+def api_confirm_cancellation():
+    """Confirm cancellation action and save to database"""
+    try:
+        data = request.get_json()
+        booking_id = data.get('booking_id')
+        guest_name = data.get('guest_name')
+        cancellation_type = data.get('cancellation_type')
+        confirmed_by = 'System User'  # You can enhance this with actual user tracking
+        
+        if not all([booking_id, guest_name, cancellation_type]):
+            return jsonify({
+                'success': False,
+                'error': 'Missing required fields'
+            }), 400
+        
+        # Import model
+        from core.models import db, CancellationAction
+        
+        # Check if already confirmed
+        existing = CancellationAction.query.filter_by(
+            booking_id=booking_id,
+            action_status='confirmed'
+        ).first()
+        
+        if existing:
+            return jsonify({
+                'success': False,
+                'error': 'Cancellation already confirmed for this booking'
+            }), 400
+        
+        # Create new cancellation action record
+        cancellation_action = CancellationAction(
+            booking_id=booking_id,
+            guest_name=guest_name,
+            cancellation_type=cancellation_type,
+            action_status='confirmed',
+            confirmed_by=confirmed_by,
+            confirmation_date=datetime.now(),
+            notes=f'Confirmed cancellation on booking app for {cancellation_type} guest'
+        )
+        
+        db.session.add(cancellation_action)
+        db.session.commit()
+        
+        print(f"✅ [CONFIRM_CANCELLATION] Booking {booking_id} - {guest_name} - {cancellation_type}")
+        
+        return jsonify({
+            'success': True,
+            'message': f'Cancellation confirmed for {guest_name}',
+            'action_id': cancellation_action.action_id,
+            'timestamp': datetime.now().isoformat()
+        })
+        
+    except Exception as e:
+        print(f"❌ [API_CONFIRM_CANCELLATION] Error: {e}")
+        import traceback
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'traceback': traceback.format_exc()
+        }), 500
+
 @app.route('/auto_sync')
 def auto_sync_dashboard():
     """Auto sync dashboard for managing bidirectional database synchronization"""
@@ -430,7 +560,7 @@ def debug_routes():
 
 @app.route('/')
 def dashboard():
-    """PostgreSQL-powered dashboard route"""
+    """PostgreSQL-powered dashboard route with cancellation notifications"""
     start_date_str = request.args.get('start_date')
     end_date_str = request.args.get('end_date')
 
@@ -457,6 +587,17 @@ def dashboard():
     
     print(f"📅 [DASHBOARD_MAIN] Date filter: {start_date.strftime('%Y-%m-%d')} to {end_date.strftime('%Y-%m-%d')}")
     print(f"📅 [DASHBOARD_MAIN] Total bookings loaded: {len(df)}")
+    
+    # Get cancellation notifications
+    try:
+        from core.cancellation_notifications import get_cancellation_notifications, get_urgent_cancellation_alerts
+        cancellation_notifications = get_cancellation_notifications()
+        urgent_alerts = get_urgent_cancellation_alerts()
+        print(f"🚨 [CANCELLATION_ALERTS] Total alerts: {cancellation_notifications['summary']['total_alerts']}")
+    except Exception as e:
+        print(f"⚠️ [CANCELLATION_ALERTS] Error loading notifications: {e}")
+        cancellation_notifications = {'summary': {'total_alerts': 0}}
+        urgent_alerts = []
     
     dashboard_data = prepare_dashboard_data(df, start_date, end_date, sort_by, sort_order)
 
@@ -489,7 +630,7 @@ def dashboard():
     print(f"   - Monthly chart: {'available' if processed_data.get('monthly_revenue_chart_json', {}).get('data') else 'empty'}")
     print(f"   - Collector chart: {'available' if processed_data.get('collector_chart_json', {}).get('data') else 'empty'}")
     
-    # Render template with processed data
+    # Render template with processed data and cancellation notifications
     return render_template(
         'dashboard.html',
         total_revenue=dashboard_data.get('total_revenue_selected', 0),
@@ -500,6 +641,8 @@ def dashboard():
         current_sort_order=sort_order,
         collector_revenue_list=safe_to_dict_records(dashboard_data.get('collector_revenue_selected', pd.DataFrame())),
         duplicate_guests=duplicate_guests,  # Add duplicate detection data
+        cancellation_notifications=cancellation_notifications,  # Cancellation alerts
+        urgent_alerts=urgent_alerts,  # High-priority alerts
         **processed_data
     )
 
@@ -6210,6 +6353,124 @@ Friendly English response generated using Gemini AI analysis of your chat screen
         return jsonify({
             'success': False,
             'message': f'Server error: {str(e)}'
+        }), 500
+
+@app.route('/api/translate', methods=['POST'])
+def translate_text():
+    """Translation API endpoint for voice translator"""
+    try:
+        print("🌐 [TRANSLATE] Translation API called")
+        
+        # Get JSON data
+        data = request.get_json()
+        if not data:
+            return jsonify({'error': 'No data provided'}), 400
+        
+        text = data.get('text', '').strip()
+        source_lang = data.get('source_lang', 'auto')
+        target_lang = data.get('target_lang', 'en')
+        
+        print(f"🌐 [TRANSLATE] Text: {text[:100]}...")
+        print(f"🌐 [TRANSLATE] {source_lang} → {target_lang}")
+        
+        if not text:
+            return jsonify({'error': 'No text provided for translation'}), 400
+        
+        # Check if source and target languages are the same
+        if source_lang == target_lang:
+            return jsonify({'error': 'Source and target languages cannot be the same'}), 400
+        
+        # Try to use Google Translate via Gemini AI for better quality
+        try:
+            import google.generativeai as genai
+            
+            # Use the existing API key from environment
+            api_key = os.getenv('GOOGLE_API_KEY')
+            if api_key:
+                genai.configure(api_key=api_key)
+                model = genai.GenerativeModel('gemini-1.5-flash')
+                
+                # Create translation prompt
+                lang_names = {
+                    'en': 'English',
+                    'vi': 'Vietnamese', 
+                    'fr': 'French',
+                    'es': 'Spanish',
+                    'de': 'German',
+                    'ja': 'Japanese',
+                    'ko': 'Korean',
+                    'zh': 'Chinese',
+                    'auto': 'automatically detected language'
+                }
+                
+                source_name = lang_names.get(source_lang, source_lang)
+                target_name = lang_names.get(target_lang, target_lang)
+                
+                prompt = f"""Translate the following text from {source_name} to {target_name}. 
+Provide only the translation, no explanations or additional text.
+
+Text to translate: {text}"""
+                
+                response = model.generate_content(prompt)
+                translated_text = response.text.strip()
+                
+                print(f"✅ [TRANSLATE] Gemini translation successful: {translated_text[:100]}...")
+                
+                return jsonify({
+                    'success': True,
+                    'translated_text': translated_text,
+                    'source_language': source_lang,
+                    'target_language': target_lang,
+                    'method': 'Gemini AI'
+                })
+            
+        except Exception as ai_error:
+            print(f"⚠️ [TRANSLATE] Gemini AI translation failed: {ai_error}")
+        
+        # Fallback to simple mock translation for development
+        # In production, you'd integrate with Google Translate API or similar
+        print("🔄 [TRANSLATE] Using fallback mock translation")
+        
+        # Simple mock translation responses
+        mock_translations = {
+            ('vi', 'en'): {
+                'xin chào': 'hello',
+                'cảm ơn': 'thank you',
+                'tạm biệt': 'goodbye',
+                'chào bạn': 'hello friend'
+            },
+            ('en', 'vi'): {
+                'hello': 'xin chào',
+                'thank you': 'cảm ơn',
+                'goodbye': 'tạm biệt',
+                'hello friend': 'chào bạn'
+            }
+        }
+        
+        # Try to find mock translation
+        text_lower = text.lower()
+        lang_pair = (source_lang, target_lang)
+        
+        if lang_pair in mock_translations and text_lower in mock_translations[lang_pair]:
+            translated_text = mock_translations[lang_pair][text_lower]
+        else:
+            # Generate a basic mock response
+            translated_text = f"[Mock Translation] {text} ({source_lang} → {target_lang})"
+        
+        print(f"✅ [TRANSLATE] Mock translation: {translated_text}")
+        
+        return jsonify({
+            'success': True,
+            'translated_text': translated_text,
+            'source_language': source_lang,
+            'target_language': target_lang,
+            'method': 'Mock/Development'
+        })
+        
+    except Exception as e:
+        print(f"❌ [TRANSLATE] Translation API error: {e}")
+        return jsonify({
+            'error': f'Translation failed: {str(e)}'
         }), 500
 
 @app.route('/fix_quicknotes_sequence')
