@@ -14,6 +14,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy application code
 COPY . .
 
+# Ensure Railway environment file is available
+COPY .env.railway .
+
 # Set environment variables
 ENV PYTHONPATH=/app
 ENV FLASK_APP=app.py

@@ -62,7 +62,24 @@ except ImportError:
 
 # Configuration
 BASE_DIR = Path(__file__).resolve().parent
-load_dotenv(BASE_DIR / ".env")
+
+# Smart environment file loading
+# Railway auto-detection: Load .env.railway if in Railway environment
+is_railway = bool(os.getenv('RAILWAY_ENVIRONMENT_ID') or os.getenv('RAILWAY_PROJECT_ID') or os.getenv('RAILWAY_SERVICE_ID'))
+
+if is_railway:
+    # Railway environment detected - use Railway-specific config
+    railway_env_path = BASE_DIR / ".env.railway"
+    if railway_env_path.exists():
+        load_dotenv(railway_env_path)
+        print(f"🚂 Railway environment detected - loaded: {railway_env_path}")
+    else:
+        load_dotenv(BASE_DIR / ".env")  # Fallback to .env
+        print(f"⚠️ Railway detected but .env.railway not found - using .env fallback")
+else:
+    # Local environment - use standard .env file
+    load_dotenv(BASE_DIR / ".env")
+    print(f"🏠 Local environment - loaded: {BASE_DIR / '.env'}")
 
 app = Flask(__name__, template_folder=BASE_DIR / "templates", static_folder=BASE_DIR / "static")
 

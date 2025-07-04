@@ -17,7 +17,8 @@
       "Bash(apt:*)",
       "Bash(apt install:*)",
       "Bash(sudo apt:*)",
-      "Bash(sudo apt install:*)"
+      "Bash(sudo apt install:*)",
+      "mcp__sequential-thinking__sequentialthinking"
     ],
     "deny": []
   }
