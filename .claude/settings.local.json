@@ -24,7 +24,8 @@
       "Bash(claude mcp remove:*)",
       "Bash(claude mcp add:*)",
       "Bash(claude mcp:*)",
-      "mcp__brave-search__brave_web_search"
+      "mcp__brave-search__brave_web_search",
+      "Bash(touch:*)"
     ],
     "deny": []
   }
