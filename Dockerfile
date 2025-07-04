@@ -1,20 +1,21 @@
-# MINIMAL Railway Test Dockerfile - Fast Build
+# NUCLEAR FIX: Simple Start Script Approach
 FROM python:3.11-slim
 
 WORKDIR /app
 
-# Use minimal requirements for fast testing
+# Install minimal requirements
 COPY requirements-minimal.txt .
 RUN pip install --no-cache-dir -r requirements-minimal.txt
 
-# Copy only essential files
+# Copy application files
 COPY app.py .
 COPY core/ ./core/
 COPY templates/ ./templates/
 COPY static/ ./static/
 
-# Railway will provide environment variables automatically
-# No need to copy .env file
+# Copy and make start script executable
+COPY start.sh .
+RUN chmod +x start.sh
 
-# Railway PORT injection
-CMD gunicorn app:app --host 0.0.0.0 --port $PORT
+# Use simple bash script that Railway can definitely execute
+CMD ["./start.sh"]
