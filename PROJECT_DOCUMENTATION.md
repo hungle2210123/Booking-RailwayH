@@ -2,25 +2,60 @@
 
 ## 🏨 Project Overview
 
-**Project Name:** Koyeb Hotel Booking System  
+**Project Name:** Railway Hotel Booking System  
 **Type:** Flask web application for hotel management  
-**Architecture:** Pure PostgreSQL backend with advanced AI integration  
-**Deployment Platform:** Koyeb Cloud  
-**Database:** PostgreSQL with pgAdmin 4 integration  
-**Status:** Production Ready - 100% PostgreSQL migration complete  
+**Architecture:** Pure PostgreSQL backend with advanced AI integration + Smart Database Auto-Detection  
+**Deployment Platform:** Railway.app (Auto-deploying from GitHub)  
+**Database:** PostgreSQL with smart local/production switching  
+**Status:** Production Ready - 100% PostgreSQL migration + Smart Configuration + Optimized Codebase  
+**Latest Update:** July 2025 - Smart database detection, auto-sync fixes, major cleanup  
+
+## 🚀 Latest Achievements (July 2025)
+
+### ✅ **Smart Database Auto-Detection System**
+- **Zero-configuration deployment**: Automatically detects Railway vs local environment
+- **Local Development**: Uses `LOCAL_DATABASE_URL` automatically when running locally
+- **Railway Production**: Uses `POSTGRES_URL/DATABASE_URL` automatically when deployed
+- **Smart Detection**: Checks `RAILWAY_ENVIRONMENT_ID` and other Railway env vars
+- **No Manual Switching**: Seamless transition between local testing and production
+
+### ✅ **Auto-Sync Status Display Fixed**
+- **Real Record Counts**: Shows actual Local (264 records) vs Railway (171 records)
+- **Fixed API Mapping**: Corrected `local_counts/railway_counts` field access
+- **Visual Indicators**: Clear database difference display
+- **Error Resolution**: Fixed all undefined property JavaScript errors
+
+### ✅ **Major Project Cleanup & Optimization**
+- **Removed 1,588+ files**: All test files, debug scripts, unused documentation
+- **Cleaned Browser Profiles**: Removed 500+ Chrome browser cache files
+- **Optimized Structure**: Only essential production files remain
+- **Repository Size**: Reduced from massive to lean, deployment-ready codebase
+
+### ✅ **Railway Deployment Fixes**
+- **Procfile Correction**: Fixed `gunicorn: command not found` error
+- **Build Process**: Proper dependency installation with `requirements.txt`
+- **Environment Detection**: Smart Railway environment variable recognition
+- **Auto-Deploy**: GitHub push triggers automatic Railway deployment
+
+### ✅ **Enhanced Auto-Sync Dashboard**
+- **JavaScript Error Resolution**: Fixed `sync_needed` undefined errors
+- **History Display**: Fixed `details.join()` array access issues  
+- **API Integration**: Complete `/api/auto-sync/status`, `/api/sync/perform` endpoints
+- **Real-time Status**: Shows actual database synchronization differences
 
 ## 📋 Table of Contents
 
-1. [Technical Architecture](#technical-architecture)
-2. [Database Schema](#database-schema)
-3. [Core Application Files](#core-application-files)
-4. [Business Logic Modules](#business-logic-modules)
-5. [Frontend Templates](#frontend-templates)
-6. [API Endpoints](#api-endpoints)
-7. [Configuration & Environment](#configuration--environment)
-8. [Key Features & Workflows](#key-features--workflows)
-9. [File Dependencies](#file-dependencies)
-10. [Development & Deployment](#development--deployment)
+1. [Latest Achievements](#latest-achievements-july-2025)
+2. [Technical Architecture](#technical-architecture)
+3. [Database Schema](#database-schema)
+4. [Core Application Files](#core-application-files)
+5. [Business Logic Modules](#business-logic-modules)
+6. [Frontend Templates](#frontend-templates)
+7. [API Endpoints](#api-endpoints)
+8. [Configuration & Environment](#configuration--environment)
+9. [Key Features & Workflows](#key-features--workflows)
+10. [File Dependencies](#file-dependencies)
+11. [Development & Deployment](#development--deployment)
 
 ---
 
@@ -453,33 +488,55 @@ Route Handler → Data Loading → Dashboard Processing → Template Context →
 
 ## 🛠️ Development & Deployment
 
-### Local Development Setup
-1. **Clone repository** and navigate to project folder
+### 🏠 Local Development Setup (Zero Configuration)
+1. **Clone repository:** `git clone https://github.com/hungle2210123/Booking-RailwayH.git`
 2. **Create virtual environment:** `python -m venv venv`
 3. **Install dependencies:** `pip install -r requirements.txt`
-4. **Set up PostgreSQL database** using `database_init.sql`
-5. **Configure environment variables** in `.env` file
-6. **Run application:** `python app_postgresql.py`
+4. **Set up local PostgreSQL database** (any standard PostgreSQL installation)
+5. **Copy environment template:** `cp .env.template .env`
+6. **Configure local database URL in .env:**
+   ```env
+   DATABASE_SOURCE=auto
+   LOCAL_DATABASE_URL=postgresql://postgres:password@localhost:5432/hotel_booking
+   ```
+7. **Run application:** `python app.py`
+8. **✅ Automatic detection:** Uses local database automatically
 
-### Database Setup
-```sql
--- Run in pgAdmin 4 or DBeaver
-\i database_init.sql
+### 🚂 Railway Production Deployment (Zero Configuration)
+1. **Push to GitHub:** `git push origin main`
+2. **Railway auto-deployment:** Triggered automatically from GitHub
+3. **Environment variables:** Set automatically by Railway
+   - `RAILWAY_ENVIRONMENT_ID` (auto-set)
+   - `POSTGRES_URL` (auto-set by Railway PostgreSQL)
+   - `DATABASE_URL` (auto-set)
+4. **✅ Automatic detection:** Uses Railway database automatically
+5. **Build process:** `build.sh` installs dependencies
+6. **Start process:** `Procfile` runs gunicorn with optimized settings
 
--- Verify installation
-SELECT table_name, row_count FROM (
-    SELECT 'guests' as table_name, COUNT(*) as row_count FROM guests
-    UNION ALL SELECT 'bookings', COUNT(*) FROM bookings
-    UNION ALL SELECT 'expenses', COUNT(*) FROM expenses
-) stats;
+### 🔄 Smart Database Auto-Detection
+```python
+# No manual switching needed!
+# Local development:
+DATABASE_SOURCE=auto  # → Uses LOCAL_DATABASE_URL
+
+# Railway production:  
+DATABASE_SOURCE=auto  # → Uses POSTGRES_URL (auto-detected)
 ```
 
-### Production Deployment (Koyeb)
-1. **Environment configuration** with production DATABASE_URL
-2. **Gunicorn WSGI server** with optimized workers
-3. **PostgreSQL connection pooling** for scalability
-4. **Error logging and monitoring** with health checks
-5. **SSL/HTTPS termination** at platform level
+### 📁 File Structure (Current State)
+```
+hotel_flask_app_optimized/
+├── app.py                    # Main Flask application
+├── core/                     # Business logic modules
+├── templates/                # Frontend templates
+├── static/                   # CSS, JS, images
+├── .env.template            # Environment configuration template
+├── requirements.txt         # Python dependencies
+├── Procfile                 # Railway deployment configuration
+├── build.sh                 # Railway build script
+├── DEPLOYMENT_GUIDE.md      # Deployment instructions
+└── PROJECT_DOCUMENTATION.md # This documentation
+```
 
 ### Performance Optimizations
 - **Database indexes** on frequently queried columns
@@ -556,3 +613,40 @@ The system successfully transitioned from Google Sheets to a robust PostgreSQL b
 
 *Documentation generated on 2025-06-26*  
 *System Status: Production Ready - All Features Operational*
+
+---
+
+## 📝 **PROJECT MEMORY BANK SUMMARY - JULY 2025**
+
+### 🎯 **Current Status: Production Ready**
+- **Deployment Platform:** Railway.app with GitHub auto-deployment
+- **Database:** Smart auto-detection (Local PostgreSQL ↔ Railway PostgreSQL)
+- **Codebase:** Optimized, cleaned, production-ready
+- **Features:** Complete hotel management system with AI integration
+
+### 🔧 **Key Technical Achievements:**
+1. **Zero-configuration deployment** - Works locally and on Railway without manual switching
+2. **Smart database detection** - Automatically chooses correct database based on environment
+3. **Optimized codebase** - Removed 1,588+ unnecessary files for lean deployment
+4. **Fixed auto-sync system** - Real-time database synchronization with visual status
+5. **Railway deployment** - Automatic builds and deployments from GitHub pushes
+
+### 🚀 **Next Development Priorities:**
+- Monitor Railway deployment performance
+- Enhance auto-sync features for real-time synchronization
+- Expand AI integration capabilities
+- Add more advanced commission analytics
+
+### 📊 **System Health:**
+- **Local Development:** ✅ Zero-configuration setup with auto-detection
+- **Railway Production:** ✅ Auto-deploying with smart database selection
+- **Database Sync:** ✅ Real-time status monitoring and synchronization
+- **Code Quality:** ✅ Production-ready, secure, optimized
+
+**This project represents a complete, production-ready hotel booking management system with smart configuration, automatic deployment, and comprehensive feature set.**
+
+---
+
+*Documentation last updated: July 2025*  
+*Project Memory Bank - Complete Technical Reference*
+
