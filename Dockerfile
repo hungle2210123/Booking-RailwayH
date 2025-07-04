@@ -1,4 +1,4 @@
-# NUCLEAR FIX: Simple Start Script Approach
+# ULTIMATE NUCLEAR FIX: Give Railway Exactly What It Wants
 FROM python:3.11-slim
 
 WORKDIR /app
@@ -13,9 +13,9 @@ COPY core/ ./core/
 COPY templates/ ./templates/
 COPY static/ ./static/
 
-# Copy and make start script executable
-COPY start.sh .
-RUN chmod +x start.sh
+# Create the EXACT file Railway is hardcoded to look for
+COPY docker-entrypoint.sh /docker-entrypoint.sh
+RUN chmod +x /docker-entrypoint.sh
 
-# Use simple bash script that Railway can definitely execute
-CMD ["./start.sh"]
+# Railway will automatically use /docker-entrypoint.sh
+ENTRYPOINT ["/docker-entrypoint.sh"]
