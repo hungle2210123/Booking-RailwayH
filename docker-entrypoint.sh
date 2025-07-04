@@ -6,5 +6,5 @@ echo "PORT: $PORT"
 echo "All Environment Variables:"
 env | grep -E "(PORT|DATABASE)" || echo "No relevant env vars found"
 
-# Start gunicorn with PORT handling
-exec gunicorn app:app --host 0.0.0.0 --port ${PORT:-8080} --workers 1 --timeout 120
+# Start gunicorn with correct syntax
+exec gunicorn app:app --bind 0.0.0.0:${PORT:-8080} --workers 1 --timeout 120
