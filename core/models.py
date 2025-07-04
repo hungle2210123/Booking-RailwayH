@@ -177,6 +177,20 @@ class QuickNote(db.Model):
         CheckConstraint("note_type IS NOT NULL AND LENGTH(note_type) > 0", name='chk_note_type'),
     )
 
+    def to_dict(self):
+        """Convert QuickNote instance to dictionary"""
+        return {
+            'note_id': self.note_id,
+            'note_type': self.note_type,
+            'note_content': self.note_content,
+            'is_completed': self.is_completed,
+            'completed_at': self.completed_at.isoformat() if self.completed_at else None,
+            'date': self.date.isoformat() if self.date else None,
+            'time': self.time.isoformat() if self.time else None,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'created_by': self.created_by
+        }
+
 # CANCELLATION_ACTIONS TABLE - Track booking cancellations
 # =====================================================
 class CancellationAction(db.Model):

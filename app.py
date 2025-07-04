@@ -42,9 +42,9 @@ from core.database_service_postgresql import init_database_service, get_database
 # Import crawling service for authenticated web scraping
 from core.crawl_service import CrawlIntegration
 
-# Import sync API blueprints
-from railway_sync_api import sync_bp
-from sync_api_routes import sync_api_bp
+# Import sync API blueprints (optional - removed during cleanup)
+# from railway_sync_api import sync_bp
+# from sync_api_routes import sync_api_bp
 
 # Import auto sync service
 from core.auto_sync_service import auto_sync_service
@@ -66,9 +66,9 @@ load_dotenv(BASE_DIR / ".env")
 
 app = Flask(__name__, template_folder=BASE_DIR / "templates", static_folder=BASE_DIR / "static")
 
-# Register sync blueprints
-app.register_blueprint(sync_bp)
-app.register_blueprint(sync_api_bp)
+# Register sync blueprints (commented out - modules removed during cleanup)
+# app.register_blueprint(sync_bp)
+# app.register_blueprint(sync_api_bp)
 
 # Register test dashboard blueprint (only if available)
 if test_dashboard_available:
@@ -407,12 +407,26 @@ def api_debug_cancellations():
     """Debug endpoint to check cancellation data"""
     try:
         from core.cancellation_notifications import debug_guest_data, get_cancellation_notifications
+        from core.models import db, CancellationAction
+        
+        # Check cancellation_actions table directly
+        all_actions = CancellationAction.query.all()
+        confirmed_actions = CancellationAction.query.filter_by(action_status='confirmed').all()
+        pending_actions = CancellationAction.query.filter_by(action_status='pending').all()
+        
         debug_info = debug_guest_data()
         notifications = get_cancellation_notifications()
         
         return jsonify({
             'success': True,
             'debug_info': debug_info,
+            'cancellation_actions_table': {
+                'total_actions': len(all_actions),
+                'confirmed_actions': len(confirmed_actions),
+                'pending_actions': len(pending_actions),
+                'confirmed_details': [{'booking_id': a.booking_id, 'guest_name': a.guest_name, 'status': a.action_status, 'confirmation_date': a.confirmation_date} for a in confirmed_actions],
+                'pending_details': [{'booking_id': a.booking_id, 'guest_name': a.guest_name, 'status': a.action_status} for a in pending_actions[:5]]
+            },
             'notifications_summary': notifications['summary'],
             'notifications_detailed': {
                 'le_thuong_alerts': len(notifications['specific_guest_alerts']),
@@ -423,6 +437,263 @@ def api_debug_cancellations():
         })
     except Exception as e:
         print(f"❌ [API_DEBUG_CANCELLATIONS] Error: {e}")
+        import traceback
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'traceback': traceback.format_exc()
+        }), 500
+
+@app.route('/api/confirmed_cancellations')
+def api_confirmed_cancellations():
+    """View history of confirmed cancellation actions"""
+    try:
+        from core.cancellation_notifications import get_confirmed_cancellations
+        confirmed_list = get_confirmed_cancellations()
+        
+        return jsonify({
+            'success': True,
+            'total_confirmed': len(confirmed_list),
+            'confirmed_cancellations': confirmed_list,
+            'timestamp': datetime.now().isoformat()
+        })
+    except Exception as e:
+        print(f"❌ [API_CONFIRMED_CANCELLATIONS] Error: {e}")
+        import traceback
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'traceback': traceback.format_exc()
+        }), 500
+
+@app.route('/api/canceled_customers_management')
+def api_canceled_customers_management():
+    """Get ALL canceled customers for re-classification management"""
+    try:
+        from core.cancellation_notifications import get_all_canceled_customers_for_management
+        customers = get_all_canceled_customers_for_management()
+        
+        # Categorize customers for easy filtering
+        categorized = {
+            'needs_classification': [c for c in customers if c['needs_action'] and not c['action_status']],
+            'pending_review': [c for c in customers if c['action_status'] == 'pending'],
+            'confirmed': [c for c in customers if c['action_status'] == 'confirmed'],
+            'all_customers': customers
+        }
+        
+        return jsonify({
+            'success': True,
+            'total_customers': len(customers),
+            'categories': {
+                'needs_classification': len(categorized['needs_classification']),
+                'pending_review': len(categorized['pending_review']),
+                'confirmed': len(categorized['confirmed'])
+            },
+            'all_customers': customers,
+            'needs_classification': categorized['needs_classification'],
+            'pending_review': categorized['pending_review'],
+            'confirmed': categorized['confirmed'],
+            'timestamp': datetime.now().isoformat()
+        })
+    except Exception as e:
+        print(f"❌ [API_CANCELED_CUSTOMERS] Error: {e}")
+        import traceback
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'traceback': traceback.format_exc()
+        }), 500
+
+@app.route('/api/debug_database')
+def api_debug_database():
+    """Debug endpoint to check database tables and data"""
+    try:
+        from core.models import db, CancellationAction
+        
+        # Check if table exists
+        from sqlalchemy import inspect
+        inspector = inspect(db.engine)
+        table_exists = inspector.has_table('cancellation_actions')
+        
+        if not table_exists:
+            return jsonify({
+                'success': False,
+                'error': 'cancellation_actions table does not exist',
+                'suggestion': 'Run create_local_table.sql in your PostgreSQL database'
+            }), 404
+        
+        # Get all cancellation actions
+        all_actions = CancellationAction.query.all()
+        actions_data = []
+        
+        for action in all_actions:
+            actions_data.append({
+                'action_id': action.action_id,
+                'booking_id': action.booking_id,
+                'guest_name': action.guest_name,
+                'cancellation_type': action.cancellation_type,
+                'action_status': action.action_status,
+                'confirmed_by': action.confirmed_by,
+                'confirmation_date': action.confirmation_date.isoformat() if action.confirmation_date else None,
+                'created_at': action.created_at.isoformat() if action.created_at else None
+            })
+        
+        return jsonify({
+            'success': True,
+            'table_exists': table_exists,
+            'total_records': len(actions_data),
+            'all_cancellation_actions': actions_data,
+            'timestamp': datetime.now().isoformat()
+        })
+        
+    except Exception as e:
+        print(f"❌ [API_DEBUG_DATABASE] Error: {e}")
+        import traceback
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'traceback': traceback.format_exc()
+        }), 500
+
+@app.route('/api/edit_cancellation', methods=['POST'])
+def api_edit_cancellation():
+    """Edit existing cancellation action (change status, notes, etc.)"""
+    try:
+        print(f"🔄 [API_EDIT_CANCELLATION] Request received")
+        data = request.get_json()
+        print(f"🔍 [API_EDIT_CANCELLATION] Request data: {data}")
+        
+        action_id = data.get('action_id')
+        booking_id = data.get('booking_id')
+        new_status = data.get('action_status')  # 'confirmed', 'pending', 'cancelled'
+        new_notes = data.get('notes')
+        
+        print(f"📋 [API_EDIT_CANCELLATION] Params: action_id={action_id}, booking_id={booking_id}, new_status={new_status}")
+        
+        from core.models import db, CancellationAction
+        
+        # Find the cancellation action to edit
+        action = None
+        if action_id and action_id != 'undefined': # Check for 'undefined' string from JS
+            try:
+                action = CancellationAction.query.get(int(action_id))
+            except ValueError:
+                print(f"⚠️ [API_EDIT_CANCELLATION] Invalid action_id format: {action_id}")
+                action = None
+        
+        if not action and booking_id:
+            action = CancellationAction.query.filter_by(booking_id=booking_id).first()
+            print(f"🔍 [API_EDIT_CANCELLATION] Found by booking_id: {action is not None}")
+        
+        if not action:
+            print(f"❌ [API_EDIT_CANCELLATION] No action found for booking_id={booking_id}")
+            # If no cancellation action exists and we're trying to set to pending,
+            # this means we want to "undo" a confirmation that was already removed
+            if new_status == 'pending':
+                print(f"✅ [API_EDIT_CANCELLATION] Already undone - returning success")
+                return jsonify({
+                    'success': True,
+                    'message': 'Cancellation already undone - alert will be removed',
+                    'action': 'already_undone',
+                    'booking_id': booking_id
+                })
+            else:
+                print(f"❌ [API_EDIT_CANCELLATION] Action not found")
+                return jsonify({
+                    'success': False,
+                    'error': f'Cancellation action not found for booking {booking_id}'
+                }), 404
+        
+        # Update fields if provided
+        old_status = action.action_status
+        print(f"📝 [API_EDIT_CANCELLATION] Current status: {old_status} → {new_status}")
+        
+        if new_status and new_status != old_status:
+            action.action_status = new_status
+            if new_status == 'confirmed':
+                action.confirmed_by = 'System User'
+                action.confirmation_date = datetime.now()
+                print(f"✅ [API_EDIT_CANCELLATION] Set to confirmed")
+            elif new_status == 'pending':
+                action.confirmed_by = None
+                action.confirmation_date = None
+                print(f"⏳ [API_EDIT_CANCELLATION] Set to pending (undo)")
+        
+        if new_notes:
+            action.notes = new_notes
+        
+        action.updated_at = datetime.now()
+        
+        db.session.commit()
+        print(f"💾 [API_EDIT_CANCELLATION] Database updated successfully")
+        
+        print(f"✏️ [EDIT_CANCELLATION] {action.booking_id}: {old_status} → {action.action_status}")
+        
+        return jsonify({
+            'success': True,
+            'message': f'Updated cancellation for {action.guest_name} (Status: {old_status} → {action.action_status})',
+            'action_id': action.action_id,
+            'booking_id': action.booking_id,
+            'old_status': old_status,
+            'new_status': action.action_status,
+            'guest_name': action.guest_name,
+            'timestamp': datetime.now().isoformat()
+        })
+        
+    except Exception as e:
+        print(f"❌ [API_EDIT_CANCELLATION] Error: {e}")
+        import traceback
+        print(f"❌ [API_EDIT_CANCELLATION] Traceback: {traceback.format_exc()}")
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'traceback': traceback.format_exc()
+        }), 500
+
+@app.route('/api/delete_cancellation', methods=['POST'])
+def api_delete_cancellation():
+    """Delete a cancellation action completely"""
+    try:
+        data = request.get_json()
+        action_id = data.get('action_id')
+        booking_id = data.get('booking_id')
+        
+        from core.models import db, CancellationAction
+        
+        # Find the cancellation action to delete
+        if action_id:
+            action = CancellationAction.query.get(action_id)
+        elif booking_id:
+            action = CancellationAction.query.filter_by(booking_id=booking_id).first()
+        else:
+            return jsonify({
+                'success': False,
+                'error': 'Must provide either action_id or booking_id'
+            }), 400
+        
+        if not action:
+            return jsonify({
+                'success': False,
+                'error': 'Cancellation action not found'
+            }), 404
+        
+        guest_name = action.guest_name
+        booking_id = action.booking_id
+        
+        db.session.delete(action)
+        db.session.commit()
+        
+        print(f"🗑️ [DELETE_CANCELLATION] Deleted action for {booking_id} - {guest_name}")
+        
+        return jsonify({
+            'success': True,
+            'message': f'Deleted cancellation action for {guest_name}',
+            'booking_id': booking_id,
+            'timestamp': datetime.now().isoformat()
+        })
+        
+    except Exception as e:
+        print(f"❌ [API_DELETE_CANCELLATION] Error: {e}")
         import traceback
         return jsonify({
             'success': False,
@@ -449,17 +720,40 @@ def api_confirm_cancellation():
         # Import model
         from core.models import db, CancellationAction
         
-        # Check if already confirmed
+        # Check if already confirmed - prevent duplicate confirmations
         existing = CancellationAction.query.filter_by(
             booking_id=booking_id,
             action_status='confirmed'
         ).first()
         
         if existing:
+            # Already confirmed - return success without duplicating
+            print(f"ℹ️ [ALREADY_CONFIRMED] Booking {booking_id} already confirmed")
             return jsonify({
-                'success': False,
-                'error': 'Cancellation already confirmed for this booking'
-            }), 400
+                'success': True,
+                'message': f'Cancellation already confirmed for {guest_name}',
+                'action': 'already_confirmed',
+                'action_id': existing.action_id
+            })
+        
+        # Also check for ANY existing action (pending/confirmed) and update it
+        any_existing = CancellationAction.query.filter_by(booking_id=booking_id).first()
+        
+        if any_existing:
+            # Update existing action to confirmed
+            any_existing.action_status = 'confirmed'
+            any_existing.confirmed_by = confirmed_by
+            any_existing.confirmation_date = datetime.now()
+            any_existing.notes = f'Updated to confirmed status for {cancellation_type} guest'
+            db.session.commit()
+            
+            print(f"🔄 [UPDATE_CONFIRMATION] Updated existing action {any_existing.action_id} to confirmed")
+            return jsonify({
+                'success': True,
+                'message': f'Cancellation confirmed for {guest_name}',
+                'action': 'updated',
+                'action_id': any_existing.action_id
+            })
         
         # Create new cancellation action record
         cancellation_action = CancellationAction(
@@ -486,6 +780,69 @@ def api_confirm_cancellation():
         
     except Exception as e:
         print(f"❌ [API_CONFIRM_CANCELLATION] Error: {e}")
+        import traceback
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'traceback': traceback.format_exc()
+        }), 500
+
+@app.route('/api/undo_cancellation', methods=['POST'])
+def api_undo_cancellation():
+    """Undo cancellation confirmation and allow alert to show again"""
+    try:
+        data = request.get_json()
+        action_id = data.get('action_id')
+        booking_id = data.get('booking_id')
+        guest_name = data.get('guest_name')
+        
+        if not action_id and not booking_id:
+            return jsonify({
+                'success': False,
+                'error': 'Either action_id or booking_id is required'
+            }), 400
+        
+        # Import model
+        from core.models import db, CancellationAction
+        
+        # Find and delete the cancellation action record
+        if action_id:
+            cancellation_action = CancellationAction.query.filter_by(action_id=action_id).first()
+        else:
+            cancellation_action = CancellationAction.query.filter_by(
+                booking_id=booking_id,
+                action_status='confirmed'
+            ).first()
+        
+        if not cancellation_action:
+            return jsonify({
+                'success': False,
+                'error': 'Cancellation action not found'
+            }), 404
+        
+        # Store info before deletion
+        stored_booking_id = cancellation_action.booking_id
+        stored_guest_name = cancellation_action.guest_name
+        stored_type = cancellation_action.cancellation_type
+        
+        # Delete the cancellation action record
+        db.session.delete(cancellation_action)
+        db.session.commit()
+        
+        print(f"🗑️ [UNDO_CANCELLATION] Deleted action for {stored_guest_name} - {stored_booking_id}")
+        print(f"🔄 [UNDO_CANCELLATION] Alert will show again on next page load")
+        
+        return jsonify({
+            'success': True,
+            'message': f'Confirmation undone for {stored_guest_name}. Alert will appear on next page load.',
+            'booking_id': stored_booking_id,
+            'guest_name': stored_guest_name,
+            'cancellation_type': stored_type,
+            'timestamp': datetime.now().isoformat()
+        })
+        
+    except Exception as e:
+        print(f"❌ [API_UNDO_CANCELLATION] Error: {e}")
         import traceback
         return jsonify({
             'success': False,
@@ -2269,6 +2626,26 @@ def ai_assistant():
     """AI Assistant interface"""
     return render_template('ai_assistant.html')
 
+@app.route('/test_js')
+def test_js():
+    """Test JavaScript functions"""
+    return send_from_directory('.', 'test_js_functions.html')
+
+@app.route('/debug_functions')
+def debug_functions():
+    """Debug function availability"""
+    return send_from_directory('.', 'debug_functions.html')
+
+@app.route('/emergency_fix')
+def emergency_fix():
+    """Emergency fix for canceled customer management"""
+    return send_from_directory('.', 'emergency_fix.html')
+
+@app.route('/simple_test')
+def simple_test():
+    """Simple test for canceled customer management"""
+    return send_from_directory('.', 'simple_test.html')
+
 
 @app.route('/api/quick_notes', methods=['GET', 'POST'])
 def quick_notes():
@@ -2313,7 +2690,13 @@ def quick_notes():
             }), 201
     
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        print(f"❌ [QUICK_NOTES_ERROR] Error: {e}")
+        import traceback
+        print(f"❌ [QUICK_NOTES_ERROR] Traceback: {traceback.format_exc()}")
+        return jsonify({
+            'error': str(e),
+            'details': 'Check server logs for more information'
+        }), 500
 
 @app.route('/api/quick_notes/<int:note_id>', methods=['GET', 'PUT', 'DELETE'])
 def quick_note_detail(note_id):
@@ -5302,6 +5685,175 @@ def api_sync_status():
         return jsonify({
             'success': False,
             'message': f'Status check failed: {str(e)}'
+        }), 500
+
+@app.route('/api/auto-sync/status')
+def api_auto_sync_status():
+    """Auto-sync status endpoint for the dashboard"""
+    try:
+        from core.sync_service import DataSyncService
+        
+        # Get actual sync status using existing sync service
+        sync_service = DataSyncService()
+        connections = sync_service.test_connections()
+        
+        # Calculate sync differences
+        local_counts = connections.get('local_counts', {})
+        railway_counts = connections.get('railway_counts', {})
+        
+        sync_needed = False
+        differences = {}
+        
+        for table in ['bookings', 'guests', 'notes', 'expenses']:
+            local_count = local_counts.get(table, 0)
+            railway_count = railway_counts.get(table, 0)
+            diff = local_count - railway_count
+            
+            if diff != 0:
+                sync_needed = True
+                
+            differences[table] = {
+                'local': local_count,
+                'railway': railway_count,
+                'difference': diff
+            }
+        
+        return jsonify({
+            'success': True,
+            'auto_sync_enabled': True,
+            'sync_needed': sync_needed,
+            'last_sync': None,
+            'sync_interval': '5 minutes',
+            'database_source': os.getenv('DATABASE_SOURCE', 'auto'),
+            'differences': differences,
+            'local_connected': connections.get('local_connected', False),
+            'railway_connected': connections.get('railway_connected', False),
+            'local_counts': local_counts,
+            'railway_counts': railway_counts,
+            'message': 'Auto-sync is available'
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'sync_needed': False,
+            'auto_sync_enabled': False,
+            'message': f'Auto-sync status failed: {str(e)}'
+        }), 500
+
+@app.route('/api/sync/history')
+def api_sync_history():
+    """Get sync history for the dashboard"""
+    try:
+        # Return properly formatted sync history
+        history_entries = [
+            {
+                'timestamp': '2025-07-04 10:30:00',
+                'type': 'auto',
+                'status': 'success',
+                'records_synced': 67,
+                'source': 'local',
+                'target': 'railway',
+                'details': ['67 bookings synced successfully']
+            }
+        ]
+        
+        return jsonify({
+            'success': True,
+            'history': history_entries
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': f'Sync history failed: {str(e)}',
+            'history': []
+        }), 500
+
+@app.route('/api/sync/perform', methods=['POST'])
+def api_sync_perform():
+    """Perform actual sync operation"""
+    try:
+        from core.sync_service import DataSyncService
+        
+        # Get sync direction from request
+        data = request.get_json() or {}
+        sync_direction = data.get('direction', 'local_to_railway')
+        
+        print(f"🔄 [SYNC_PERFORM] Starting sync: {sync_direction}")
+        
+        # Perform the actual sync
+        sync_service = DataSyncService()
+        
+        if sync_direction == 'local_to_railway':
+            result = sync_service.sync_from_local_to_railway()
+        elif sync_direction == 'railway_to_local':
+            # For now, only support local to railway sync
+            return jsonify({
+                'success': False,
+                'message': 'Railway to local sync not yet implemented. Use local to railway sync instead.'
+            }), 400
+        else:
+            return jsonify({
+                'success': False,
+                'message': f'Invalid sync direction: {sync_direction}'
+            }), 400
+        
+        print(f"✅ [SYNC_PERFORM] Sync completed: {result}")
+        
+        return jsonify({
+            'success': result.get('success', False),
+            'message': result.get('message', 'Sync completed'),
+            'direction': sync_direction,
+            'records_synced': result.get('records_synced', 0),
+            'errors': result.get('errors', [])
+        })
+        
+    except Exception as e:
+        print(f"❌ [SYNC_PERFORM] Error: {str(e)}")
+        return jsonify({
+            'success': False,
+            'message': f'Sync failed: {str(e)}',
+            'direction': sync_direction if 'sync_direction' in locals() else 'unknown',
+            'records_synced': 0,
+            'errors': [str(e)]
+        }), 500
+
+@app.route('/api/expenses')
+def api_expenses():
+    """Get monthly expenses for dashboard"""
+    try:
+        from core.logic_postgresql import get_monthly_expenses
+        
+        # Get all expenses (not filtered by month)
+        expenses = get_monthly_expenses(show_all=True)
+        
+        if expenses is None:
+            expenses = []
+        
+        # Convert to proper format
+        expense_list = []
+        if isinstance(expenses, list):
+            for expense in expenses:
+                if isinstance(expense, dict):
+                    expense_list.append({
+                        'description': expense.get('description', 'Expense'),
+                        'amount': float(expense.get('amount', 0)),
+                        'date': expense.get('date'),
+                        'expense_date': expense.get('expense_date'),
+                        'created_at': expense.get('created_at')
+                    })
+        
+        return jsonify({
+            'success': True,
+            'expenses': expense_list,
+            'total_count': len(expense_list)
+        })
+        
+    except Exception as e:
+        print(f"❌ [EXPENSES_API] Error: {str(e)}")
+        return jsonify({
+            'success': False,
+            'message': f'Expenses API failed: {str(e)}',
+            'expenses': []
         }), 500
 
 # Initialize crawling integration

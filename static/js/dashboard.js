@@ -450,6 +450,228 @@ window.addEventListener('bookingUpdated', function(event) {
     refreshDashboardData();
 });
 
+// ==================== CANCELLATION MANAGEMENT FUNCTIONS ====================
+// Unified function to toggle and load cancellation management
+async function toggleCancellationManagement() {
+    const managementTable = document.getElementById('managementTable');
+    const icon = document.getElementById('managementToggleIcon');
+    const button = document.getElementById('toggleCancellationBtn');
+    
+    if (managementTable.style.display === 'none' || managementTable.style.display === '') {
+        // Show and load data
+        managementTable.style.display = 'block';
+        icon.className = 'fas fa-chevron-up ms-1';
+        button.innerHTML = '<i class="fas fa-eye-slash me-1"></i>Hide Confirmed<i class="fas fa-chevron-up ms-1" id="managementToggleIcon"></i>';
+        
+        // Load confirmed cancellations
+        await loadConfirmedCancellations();
+    } else {
+        // Hide
+        managementTable.style.display = 'none';
+        icon.className = 'fas fa-chevron-down ms-1';
+        button.innerHTML = '<i class="fas fa-eye me-1"></i>Show Confirmed<i class="fas fa-chevron-down ms-1" id="managementToggleIcon"></i>';
+    }
+}
+
+// Improved function to load confirmed cancellations with better UI
+async function loadConfirmedCancellations() {
+    const confirmedListDiv = document.getElementById('confirmedCancellationsList');
+    confirmedListDiv.innerHTML = `
+        <div class="text-center py-3">
+            <i class="fas fa-spinner fa-spin fa-2x text-info mb-2"></i>
+            <p class="text-muted">Loading confirmed cancellations...</p>
+        </div>
+    `;
+
+    try {
+        const response = await fetch('/api/confirmed_cancellations');
+        const result = await response.json();
+
+        if (result.success) {
+            const cancellations = result.confirmed_cancellations;
+            if (cancellations.length === 0) {
+                confirmedListDiv.innerHTML = `
+                    <div class="text-center py-4">
+                        <i class="fas fa-check-circle fa-3x text-success mb-3"></i>
+                        <h6 class="text-muted">No Confirmed Cancellations</h6>
+                        <p class="small text-muted">All cancellation alerts are active!</p>
+                    </div>
+                `;
+                return;
+            }
+
+            let html = `
+                <div class="alert alert-info border-0 mb-3">
+                    <i class="fas fa-info-circle me-2"></i>
+                    <strong>${cancellations.length}</strong> confirmed cancellation(s). Use "Undo" to restore alerts.
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-hover table-striped">
+                        <thead class="table-dark">
+                            <tr>
+                                <th><i class="fas fa-hashtag me-1"></i>Booking ID</th>
+                                <th><i class="fas fa-user me-1"></i>Guest Name</th>
+                                <th><i class="fas fa-tag me-1"></i>Type</th>
+                                <th><i class="fas fa-calendar me-1"></i>Confirmed At</th>
+                                <th><i class="fas fa-cogs me-1"></i>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+            `;
+            
+            cancellations.forEach(c => {
+                const actionId = c.action_id || '';
+                const bookingId = c.booking_id || '';
+                const guestName = c.guest_name || '';
+                const confirmedDate = new Date(c.confirmation_date).toLocaleDateString('vi-VN');
+                
+                const typeIcon = c.cancellation_type === 'le_thuong' ? '🚨' :
+                                c.cancellation_type === 'zero_commission' ? '💼' : '❌';
+
+                html += `
+                    <tr>
+                        <td class="fw-bold">${bookingId}</td>
+                        <td>${guestName}</td>
+                        <td>${typeIcon} <span class="badge bg-secondary">${c.cancellation_type}</span></td>
+                        <td class="small">${confirmedDate}</td>
+                        <td>
+                            <div class="btn-group" role="group">
+                                <button class="btn btn-sm btn-outline-warning" 
+                                        onclick="undoConfirmation('${actionId}', '${bookingId}', '${guestName}')" 
+                                        title="Restore cancellation alert">
+                                    <i class="fas fa-undo me-1"></i>Undo
+                                </button>
+                                <button class="btn btn-sm btn-outline-danger" 
+                                        onclick="deleteCancellation('${actionId}', '${guestName}')" 
+                                        title="Permanently delete">
+                                    <i class="fas fa-trash me-1"></i>Delete
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            });
+            
+            html += '</tbody></table></div>';
+            confirmedListDiv.innerHTML = html;
+        } else {
+            confirmedListDiv.innerHTML = `
+                <div class="alert alert-danger">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    Error loading data: ${result.error || 'Unknown error'}
+                </div>
+            `;
+        }
+    } catch (error) {
+        console.error('Error fetching confirmed cancellations:', error);
+        confirmedListDiv.innerHTML = `
+            <div class="alert alert-danger">
+                <i class="fas fa-wifi me-2"></i>
+                Connection error: ${error.message}
+            </div>
+        `;
+    }
+}
+
+async function deleteCancellation(actionId, guestName) {
+    if (!confirm(`Bạn có chắc chắn muốn xóa vĩnh viễn xác nhận hủy bỏ cho ${guestName} không? Hành động này không thể hoàn tác.`)) {
+        return;
+    }
+    try {
+        const response = await fetch('/api/delete_cancellation', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action_id: actionId })
+        });
+        const result = await response.json();
+        if (result.success) {
+            showSuccessAlert(`✅ Đã xóa xác nhận hủy bỏ cho ${guestName}.`);
+            loadConfirmedCancellations(); // Refresh the list
+        } else {
+            alert(`❌ Lỗi xóa: ${result.message || 'Không xác định'}`);
+        }
+    } catch (error) {
+        console.error('Error deleting cancellation:', error);
+        alert(`❌ Lỗi kết nối: ${error.message}`);
+    }
+}
+
+async function undoConfirmation(actionId, bookingId, guestName) {
+    if (!confirm(`Bạn có chắc chắn muốn hoàn tác xác nhận hủy bỏ cho ${guestName} (Booking ID: ${bookingId}) không? Điều này sẽ đưa booking trở lại trạng thái chờ xử lý.`)) {
+        return;
+    }
+    try {
+        const response = await fetch('/api/edit_cancellation', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action_id: actionId, booking_id: bookingId, action_status: 'pending' })
+        });
+        const result = await response.json();
+        if (result.success) {
+            showSuccessAlert(`✅ Đã hoàn tác xác nhận hủy bỏ cho ${guestName}.`);
+            // Refresh the entire page to reload server-side cancellation alerts
+            setTimeout(() => {
+                console.log('🔄 Reloading page to refresh cancellation alerts...');
+                window.location.reload();
+            }, 1500);
+        } else {
+            alert(`❌ Lỗi hoàn tác: ${result.message || 'Không xác định'}`);
+        }
+    } catch (error) {
+        console.error('Error undoing confirmation:', error);
+        alert(`❌ Lỗi kết nối: ${error.message}`);
+    }
+}
+
+async function debugCancellationSystem() {
+    console.log("🐛 Debugging cancellation system...");
+    try {
+        const response = await fetch('/api/debug_cancellations');
+        const result = await response.json();
+
+        let debugMessage = "<h3>Cancellation Debug Info:</h3>";
+        if (result.success) {
+            debugMessage += `<p><strong>Total Alerts Summary:</strong> ${JSON.stringify(result.notifications_summary, null, 2)}</p>`;
+            debugMessage += `<p><strong>Detailed Alerts:</strong> ${JSON.stringify(result.notifications_detailed, null, 2)}</p>`;
+            debugMessage += `<p><strong>Debug Info:</strong> ${JSON.stringify(result.debug_info, null, 2)}</p>`;
+        } else {
+            debugMessage += `<p class="text-danger">Error: ${result.error}</p>`;
+            debugMessage += `<pre>${result.traceback}</pre>`;
+        }
+        
+        // Display in a modal or alert
+        const debugModal = document.createElement('div');
+        debugModal.className = 'modal fade';
+        debugModal.innerHTML = `
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header bg-dark text-white">
+                        <h5 class="modal-title">Cancellation System Debug</h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        ${debugMessage}
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    </div>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(debugModal);
+        const bsDebugModal = new bootstrap.Modal(debugModal);
+        bsDebugModal.show();
+        
+        debugModal.addEventListener('hidden.bs.modal', function() {
+            debugModal.remove();
+        });
+
+    } catch (error) {
+        console.error("Error debugging cancellation system:", error);
+        alert("Error debugging cancellation system: " + error.message);
+    }
+}
+
 // Add refresh button functionality if exists
 document.addEventListener('DOMContentLoaded', function() {
     const refreshBtn = document.querySelector('[data-action="refresh-dashboard"]');
@@ -459,3 +681,187 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 });
+
+// ==================== CANCELED CUSTOMER MANAGEMENT FUNCTIONS ====================
+// These functions are now handled by the template - static versions removed to avoid conflicts
+
+// Old canceled customer functions removed - now handled by template
+
+// Customer details function removed - no longer needed
+
+// Global function assignments for cancellation management
+window.toggleCancellationManagement = toggleCancellationManagement;
+window.loadConfirmedCancellations = loadConfirmedCancellations;
+window.undoConfirmation = undoConfirmation;
+window.deleteCancellation = deleteCancellation;
+
+// Canceled customer management now handled by template functions - old auto-load code removed
+
+// Debug function for troubleshooting cancellation issues
+window.debugCancellationData = async function() {
+    console.log('🔧 [DEBUG] Starting comprehensive cancellation debug...');
+    
+    try {
+        // Test the debug endpoint
+        const debugResponse = await fetch('/api/debug_cancellations');
+        const debugData = await debugResponse.json();
+        
+        console.log('🔍 [DEBUG] Debug API Response:', debugData);
+        
+        // Test the confirmed cancellations endpoint
+        const confirmedResponse = await fetch('/api/confirmed_cancellations');
+        const confirmedData = await confirmedResponse.json();
+        
+        console.log('📋 [DEBUG] Confirmed Cancellations API Response:', confirmedData);
+        
+        // Display results
+        const results = {
+            debugEndpoint: debugData,
+            confirmedEndpoint: confirmedData,
+            summary: {
+                totalActions: debugData.success ? debugData.cancellation_actions_table?.total_actions : 'Error',
+                confirmedActions: debugData.success ? debugData.cancellation_actions_table?.confirmed_actions : 'Error',
+                confirmedFromAPI: confirmedData.success ? confirmedData.total_confirmed : 'Error'
+            }
+        };
+        
+        alert(`🔧 Cancellation Debug Results:
+        
+Total Actions in Database: ${results.summary.totalActions}
+Confirmed Actions in Database: ${results.summary.confirmedActions}
+Confirmed Actions from API: ${results.summary.confirmedFromAPI}
+
+Check browser console for detailed logs.`);
+        
+        return results;
+        
+    } catch (error) {
+        console.error('❌ [DEBUG] Error:', error);
+        alert('❌ Debug failed: ' + error.message);
+    }
+};
+
+// Function to manually reload confirmed cancellations
+window.reloadConfirmedCancellations = async function() {
+    console.log('🔄 [RELOAD] Manually reloading confirmed cancellations...');
+    try {
+        await loadConfirmedCancellations();
+        console.log('✅ [RELOAD] Successfully reloaded confirmed cancellations');
+    } catch (error) {
+        console.error('❌ [RELOAD] Error:', error);
+        alert('❌ Reload failed: ' + error.message);
+    }
+};
+
+// Function to test the canceled customer management API
+window.testCanceledCustomerAPI = async function() {
+    console.log('🧪 [TEST] Testing canceled customer management API...');
+    try {
+        const response = await fetch('/api/canceled_customers_management');
+        const result = await response.json();
+        
+        console.log('📊 [TEST] API Response:', result);
+        
+        if (result.success) {
+            const summary = `🧪 Canceled Customer API Test Results:
+            
+✅ API Working: ${result.success}
+📊 Total Customers: ${result.total_customers}
+📋 Categories:
+  - Need Classification: ${result.categories.needs_classification}
+  - Pending Review: ${result.categories.pending_review}  
+  - Confirmed: ${result.categories.confirmed}
+
+Check browser console for detailed data.`;
+            
+            alert(summary);
+            return result;
+        } else {
+            alert('❌ API Error: ' + result.error);
+        }
+    } catch (error) {
+        console.error('❌ [TEST] API Error:', error);
+        alert('❌ API Test Failed: ' + error.message);
+    }
+};
+
+// Fix for modal backdrop issues
+window.clearAllModalBackdrops = function() {
+    console.log('🧹 [MODAL_FIX] Clearing all modal backdrops...');
+    
+    // Remove all modal backdrops
+    const backdrops = document.querySelectorAll('.modal-backdrop');
+    backdrops.forEach(backdrop => {
+        console.log('🗑️ [MODAL_FIX] Removing backdrop:', backdrop);
+        backdrop.remove();
+    });
+    
+    // Reset body styling
+    document.body.classList.remove('modal-open');
+    document.body.style.overflow = '';
+    document.body.style.paddingRight = '';
+    
+    // Hide any visible modals
+    const modals = document.querySelectorAll('.modal.show');
+    modals.forEach(modal => {
+        console.log('🚫 [MODAL_FIX] Hiding modal:', modal);
+        modal.classList.remove('show');
+        modal.style.display = 'none';
+    });
+    
+    console.log('✅ [MODAL_FIX] All modal backdrops cleared');
+    alert('✅ Modal backdrops cleared! Page should be interactive again.');
+};
+
+// Comprehensive system status check
+window.checkCancellationSystemStatus = function() {
+    console.log('🏥 [SYSTEM_CHECK] Running comprehensive cancellation system check...');
+    
+    const results = {
+        functions: {},
+        elements: {},
+        apis: {}
+    };
+    
+    // Check if functions are available
+    results.functions.toggleCancellationManagement = typeof window.toggleCancellationManagement === 'function';
+    results.functions.loadConfirmedCancellations = typeof window.loadConfirmedCancellations === 'function';
+    results.functions.undoConfirmation = typeof window.undoConfirmation === 'function';
+    results.functions.deleteCancellation = typeof window.deleteCancellation === 'function';
+    results.functions.clearAllModalBackdrops = typeof window.clearAllModalBackdrops === 'function';
+    
+    // Check if DOM elements exist
+    results.elements.managementTable = !!document.getElementById('managementTable');
+    results.elements.toggleButton = !!document.getElementById('toggleCancellationBtn');
+    results.elements.confirmedList = !!document.getElementById('confirmedCancellationsList');
+    results.elements.toggleIcon = !!document.getElementById('managementToggleIcon');
+    
+    // Display results
+    const functionStatus = Object.values(results.functions).every(v => v);
+    const elementStatus = Object.values(results.elements).every(v => v);
+    
+    console.log('📊 [SYSTEM_CHECK] Results:', results);
+    
+    alert(`🏥 Cancellation System Status Check:
+
+✅ Functions Available: ${functionStatus ? 'ALL OK' : 'MISSING SOME'}
+✅ DOM Elements: ${elementStatus ? 'ALL OK' : 'MISSING SOME'}
+
+Functions:
+- toggleCancellationManagement: ${results.functions.toggleCancellationManagement ? '✅' : '❌'}
+- loadConfirmedCancellations: ${results.functions.loadConfirmedCancellations ? '✅' : '❌'}
+- undoConfirmation: ${results.functions.undoConfirmation ? '✅' : '❌'}
+- deleteCancellation: ${results.functions.deleteCancellation ? '✅' : '❌'}
+- clearAllModalBackdrops: ${results.functions.clearAllModalBackdrops ? '✅' : '❌'}
+
+DOM Elements:
+- Management Table: ${results.elements.managementTable ? '✅' : '❌'}
+- Toggle Button: ${results.elements.toggleButton ? '✅' : '❌'}
+- Confirmed List: ${results.elements.confirmedList ? '✅' : '❌'}
+- Toggle Icon: ${results.elements.toggleIcon ? '✅' : '❌'}
+
+Check console for detailed results.`);
+    
+    return results;
+};
+

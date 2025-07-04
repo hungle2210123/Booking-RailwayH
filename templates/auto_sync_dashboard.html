@@ -309,11 +309,12 @@ function updateSyncStatusDisplay() {
     const railwayCount = document.getElementById('railway-count');
     const syncDirection = document.getElementById('sync-direction-display');
     
-    // Update card class
-    statusCard.className = syncStatusData.sync_needed ? 'card sync-card sync-needed' : 'card sync-card in-sync';
+    // Update card class - FIXED: Add null check
+    const syncNeeded = syncStatusData && syncStatusData.sync_needed ? syncStatusData.sync_needed : false;
+    statusCard.className = syncNeeded ? 'card sync-card sync-needed' : 'card sync-card in-sync';
     
     // Update status badge
-    if (syncStatusData.sync_needed) {
+    if (syncNeeded) {
         statusBadge.className = 'badge bg-warning ms-2';
         statusBadge.textContent = 'Sync Needed';
     } else {
@@ -327,12 +328,19 @@ function updateSyncStatusDisplay() {
     railwayStatus.className = 'database-status connected';
     railwayStatus.textContent = 'Connected';
     
-    // Update counts
-    localCount.textContent = `${syncStatusData.local_count.toLocaleString()} records`;
-    railwayCount.textContent = `${syncStatusData.railway_count.toLocaleString()} records`;
+    // Update counts - FIXED: Use correct API field names (local_counts/railway_counts)
+    const localCounts = syncStatusData && syncStatusData.local_counts ? syncStatusData.local_counts : {};
+    const railwayCounts = syncStatusData && syncStatusData.railway_counts ? syncStatusData.railway_counts : {};
+    
+    // Calculate total records from all tables
+    const localTotal = Object.values(localCounts).reduce((sum, count) => sum + (count || 0), 0);
+    const railwayTotal = Object.values(railwayCounts).reduce((sum, count) => sum + (count || 0), 0);
+    
+    localCount.textContent = `${localTotal.toLocaleString()} records`;
+    railwayCount.textContent = `${railwayTotal.toLocaleString()} records`;
     
     // Update sync direction
-    if (syncStatusData.sync_needed) {
+    if (syncNeeded) {
         syncDirection.style.display = 'block';
         const directionText = document.getElementById('sync-direction-text');
         const arrowContainer = document.getElementById('sync-arrow-container');
@@ -451,8 +459,11 @@ async function performSync(direction) {
             const verification = data.verification_status;
             
             if (verification) {
-                const syncStillNeeded = verification.sync_needed ? ' (Sync still needed)' : ' (In sync)';
-                showToast(`✅ Sync completed! Local: ${verification.local_count}, Railway: ${verification.railway_count}${syncStillNeeded}`, 'success');
+                // FIXED: Add null check for verification.sync_needed
+                const syncStillNeeded = verification && verification.sync_needed ? ' (Sync still needed)' : ' (In sync)';
+                const localCount = verification && verification.local_count ? verification.local_count : 0;
+                const railwayCount = verification && verification.railway_count ? verification.railway_count : 0;
+                showToast(`✅ Sync completed! Local: ${localCount}, Railway: ${railwayCount}${syncStillNeeded}`, 'success');
             } else {
                 showToast('✅ Sync completed successfully!', 'success');
             }
@@ -547,8 +558,9 @@ async function loadSyncHistory() {
         if (data.success && data.history.length > 0) {
             historyDiv.innerHTML = data.history.map(sync => {
                 const time = new Date(sync.timestamp).toLocaleTimeString();
-                const status = sync.success ? '✅' : '❌';
-                const actions = sync.actions_taken.join(', ');
+                const status = sync.status === 'success' ? '✅' : '❌';
+                // FIXED: Use details array instead of actions_taken, with null check
+                const actions = sync.details && Array.isArray(sync.details) ? sync.details.join(', ') : 'No details available';
                 
                 return `<div class="list-group-item">
                     <div class="d-flex justify-content-between">

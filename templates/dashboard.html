@@ -108,6 +108,126 @@
     100% { background: #e74c3c; opacity: 1; }
 }
 
+/* Compact Cancellation Management Styles - SCOPED TO CANCELLATION TABLES ONLY */
+.compact-cancellation-table {
+    font-size: 0.75rem;
+}
+
+.compact-cancellation-table .table th,
+.compact-cancellation-table .table td {
+    padding: 0.25rem 0.5rem;
+    vertical-align: middle;
+    border-width: 1px;
+}
+
+.compact-cancellation-table .btn-group-sm .btn {
+    padding: 0.125rem 0.375rem;
+    font-size: 0.7rem;
+    line-height: 1.2;
+    border-radius: 0.2rem;
+}
+
+.compact-cancellation-table .badge {
+    font-size: 0.6rem;
+    padding: 0.25em 0.5em;
+}
+
+/* SCOPED: Only apply compact styles within cancellation management */
+.compact-cancellation-table .compact-row {
+    height: 32px;
+    max-height: 32px;
+}
+
+.compact-cancellation-table .compact-text {
+    font-size: 0.8rem;
+    line-height: 1.1;
+    margin-bottom: 0;
+}
+
+.compact-cancellation-table .compact-subtext {
+    font-size: 0.65rem;
+    line-height: 1;
+    margin-bottom: 0;
+    opacity: 0.8;
+}
+
+.compact-cancellation-table .compact-btn {
+    padding: 2px 6px !important;
+    font-size: 0.7rem !important;
+    line-height: 1 !important;
+    min-width: 24px;
+    height: 24px;
+}
+
+.compact-cancellation-table .compact-badge {
+    font-size: 0.6rem !important;
+    padding: 0.2em 0.4em !important;
+    line-height: 1 !important;
+}
+
+/* Canceled Customer Management Highlighting */
+.canceled-customer {
+    border-left: 6px solid #dc3545 !important;
+    background: linear-gradient(135deg, rgba(220, 53, 69, 0.1) 0%, rgba(220, 53, 69, 0.05) 100%) !important;
+    box-shadow: 0 2px 4px rgba(220, 53, 69, 0.15) !important;
+    position: relative;
+}
+
+.canceled-customer::before {
+    content: '❌';
+    position: absolute;
+    top: 50%;
+    left: -3px;
+    transform: translateY(-50%);
+    background: #dc3545;
+    color: white;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    z-index: 1;
+}
+
+.zero-commission-customer {
+    border-left: 6px solid #007bff !important;
+    background: linear-gradient(135deg, rgba(0, 123, 255, 0.1) 0%, rgba(0, 123, 255, 0.05) 100%) !important;
+    box-shadow: 0 2px 4px rgba(0, 123, 255, 0.15) !important;
+    position: relative;
+}
+
+.zero-commission-customer::before {
+    content: '💼';
+    position: absolute;
+    top: 50%;
+    left: -3px;
+    transform: translateY(-50%);
+    background: #007bff;
+    color: white;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    z-index: 1;
+}
+
+.high-priority-customer {
+    animation: subtlePulse 3s ease-in-out infinite;
+    border-left: 6px solid #dc3545 !important;
+    background: linear-gradient(135deg, rgba(220, 53, 69, 0.15) 0%, rgba(255, 193, 7, 0.1) 100%) !important;
+    box-shadow: 0 3px 8px rgba(220, 53, 69, 0.25) !important;
+}
+
+.other-customer {
+    border-left: 6px solid #6c757d !important;
+    background: linear-gradient(135deg, rgba(108, 117, 125, 0.05) 0%, rgba(108, 117, 125, 0.02) 100%) !important;
+}
+
 @keyframes criticalPulse {
     0% { box-shadow: 0 2px 8px rgba(220, 53, 69, 0.3), 0 0 0 0 rgba(231, 76, 60, 0.4); }
     50% { box-shadow: 0 2px 12px rgba(220, 53, 69, 0.5), 0 0 0 4px rgba(231, 76, 60, 0.2); }
@@ -441,9 +561,14 @@
             <h6 class="mb-0 text-white fw-bold small">
                 🚨 CANCELLATION ALERTS ({{ cancellation_notifications.summary.total_alerts }})
             </h6>
-            <button class="btn btn-light btn-sm py-1 px-2" onclick="toggleCancellationTable()">
-                <i class="fas fa-chevron-down" id="tableToggleIcon"></i>
-            </button>
+            <div class="btn-group">
+                <button class="btn btn-light btn-sm py-1 px-2" onclick="toggleCancellationTable()">
+                    <i class="fas fa-chevron-down" id="tableToggleIcon"></i>
+                </button>
+                <button class="btn btn-info btn-sm py-1 px-2" onclick="debugCancellationSystem()" title="Debug Undo System">
+                    <i class="fas fa-bug"></i>
+                </button>
+            </div>
         </div>
         
         <div id="cancellationTable" class="table-responsive" style="display: block;">
@@ -472,10 +597,16 @@
                         <td class="py-1">{{ "{:,.0f}".format(alert.room_amount) }}đ</td>
                         <td class="py-1">{{ "{:,.0f}".format(alert.get('commission', 0)) }}đ</td>
                         <td class="py-1">
-                            <button class="btn btn-danger btn-sm py-0 px-2" style="font-size: 0.75rem;"
-                                    onclick="confirmCancellation('{{ alert.booking_id }}', '{{ alert.guest_name }}', 'le_thuong')">
-                                Cancel
-                            </button>
+                            <div class="btn-group" role="group">
+                                <button class="btn btn-danger btn-sm py-0 px-1" style="font-size: 0.7rem;"
+                                        onclick="confirmCancellation({{ alert.booking_id|tojson }}, {{ alert.guest_name|tojson }}, 'le_thuong', true)">
+                                    ✓ Cancel
+                                </button>
+                                <button class="btn btn-outline-secondary btn-sm py-0 px-1" style="font-size: 0.7rem;"
+                                        onclick="dismissAlert({{ alert.booking_id|tojson }})">
+                                    ✗ Keep
+                                </button>
+                            </div>
                         </td>
                     </tr>
                     {% endfor %}
@@ -492,10 +623,16 @@
                         <td class="py-1">{{ "{:,.0f}".format(alert.room_amount) }}đ</td>
                         <td class="py-1 text-danger fw-bold">0đ</td>
                         <td class="py-1">
-                            <button class="btn btn-warning btn-sm py-0 px-2" style="font-size: 0.75rem;"
-                                    onclick="confirmCancellation('{{ alert.booking_id }}', '{{ alert.guest_name }}', 'zero_commission')">
-                                Cancel
-                            </button>
+                            <div class="btn-group" role="group">
+                                <button class="btn btn-warning btn-sm py-0 px-1" style="font-size: 0.7rem;"
+                                        onclick="confirmCancellation('{{ alert.booking_id }}', '{{ alert.guest_name }}', 'zero_commission', true)">
+                                    ✓ Cancel
+                                </button>
+                                <button class="btn btn-outline-secondary btn-sm py-0 px-1" style="font-size: 0.7rem;"
+                                        onclick="dismissAlert({{ alert.booking_id|tojson }})">
+                                    ✗ Keep
+                                </button>
+                            </div>
                         </td>
                     </tr>
                     {% endfor %}
@@ -512,10 +649,16 @@
                         <td class="py-1 text-muted">{{ "{:,.0f}".format(alert.room_amount) }}đ</td>
                         <td class="py-1 text-muted">{{ "{:,.0f}".format(alert.commission) }}đ</td>
                         <td class="py-1">
-                            <button class="btn btn-secondary btn-sm py-0 px-2" style="font-size: 0.75rem;"
-                                    onclick="confirmCancellation('{{ alert.booking_id }}', '{{ alert.guest_name }}', 'cancelled')">
-                                Verify
-                            </button>
+                            <div class="btn-group" role="group">
+                                <button class="btn btn-secondary btn-sm py-0 px-1" style="font-size: 0.7rem;"
+                                        onclick="confirmCancellation('{{ alert.booking_id }}', '{{ alert.guest_name }}', 'cancelled', true)">
+                                    ✓ Verify
+                                </button>
+                                <button class="btn btn-outline-secondary btn-sm py-0 px-1" style="font-size: 0.7rem;"
+                                        onclick="dismissAlert({{ alert.booking_id|tojson }})">
+                                    ✗ Ignore
+                                </button>
+                            </div>
                         </td>
                     </tr>
                     {% endfor %}
@@ -524,6 +667,100 @@
         </div>
     </div>
     {% endif %}
+
+    <!-- 🔄 UNIFIED CANCELLATION MANAGEMENT WITH TABS -->
+    <div class="alert alert-light border border-warning shadow-sm mb-3 py-3">
+        <div class="d-flex align-items-center justify-content-between mb-2">
+            <h6 class="mb-0 text-warning fw-bold">
+                <i class="fas fa-users-cog me-2"></i>🔄 CANCELLATION MANAGEMENT CENTER
+                <small class="text-muted ms-2">(Unified Management)</small>
+                <span class="badge bg-warning text-dark ms-2" id="totalCancellationBadge">Loading...</span>
+            </h6>
+            <div class="btn-group" role="group">
+                <button class="btn btn-outline-warning btn-sm" id="toggleCancellationCenter" onclick="toggleCancellationCenter()">
+                    <i class="fas fa-eye me-1"></i>Show Management
+                    <i class="fas fa-chevron-down ms-1" id="cancellationCenterIcon"></i>
+                </button>
+            </div>
+        </div>
+        
+        <div class="small text-muted mb-2">
+            <i class="fas fa-info-circle me-1"></i>
+            Unified management for all cancellation-related customers. Use tabs to switch between pending and confirmed actions.
+        </div>
+        
+        <div id="cancellationManagementCenter" class="mt-3" style="display: none;">
+            <!-- Tab Navigation -->
+            <ul class="nav nav-tabs nav-fill mb-3" id="cancellationTabs" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active" id="pending-tab" data-bs-toggle="tab" data-bs-target="#pending-pane" 
+                            type="button" role="tab" onclick="switchCancellationTab('pending')">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        <strong>Pending Classification</strong>
+                        <span class="badge bg-danger ms-2" id="pendingBadge">0</span>
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="confirmed-tab" data-bs-toggle="tab" data-bs-target="#confirmed-pane" 
+                            type="button" role="tab" onclick="switchCancellationTab('confirmed')">
+                        <i class="fas fa-check-circle me-2"></i>
+                        <strong>Confirmed Actions</strong>
+                        <span class="badge bg-success ms-2" id="confirmedBadge">0</span>
+                    </button>
+                </li>
+            </ul>
+
+            <!-- Tab Content -->
+            <div class="tab-content" id="cancellationTabContent">
+                <!-- Pending Classification Tab -->
+                <div class="tab-pane fade show active" id="pending-pane" role="tabpanel">
+                    <div class="row mb-3">
+                        <div class="col-12">
+                            <div class="alert alert-info py-2 mb-2" style="font-size: 0.85rem;">
+                                <div class="row text-center">
+                                    <div class="col-4">
+                                        <div class="d-flex align-items-center justify-content-center">
+                                            <div style="width: 20px; height: 20px; background: #dc3545; border-radius: 3px; margin-right: 8px;"></div>
+                                            <span><strong>❌ Canceled</strong></span>
+                                        </div>
+                                        <small class="text-muted">Guests with canceled bookings</small>
+                                    </div>
+                                    <div class="col-4">
+                                        <div class="d-flex align-items-center justify-content-center">
+                                            <div style="width: 20px; height: 20px; background: #007bff; border-radius: 3px; margin-right: 8px;"></div>
+                                            <span><strong>💼 Zero Commission</strong></span>
+                                        </div>
+                                        <small class="text-muted">Private bookings (0đ commission)</small>
+                                    </div>
+                                    <div class="col-4">
+                                        <div class="d-flex align-items-center justify-content-center">
+                                            <div style="width: 20px; height: 20px; background: #6c757d; border-radius: 3px; margin-right: 8px;"></div>
+                                            <span><strong>⚠️ Other Issues</strong></span>
+                                        </div>
+                                        <small class="text-muted">Other classification needed</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="pendingCustomersList">
+                        <!-- Will be populated by JavaScript -->
+                    </div>
+                </div>
+
+                <!-- Confirmed Actions Tab -->
+                <div class="tab-pane fade" id="confirmed-pane" role="tabpanel">
+                    <div class="alert alert-success py-2 mb-3" style="font-size: 0.85rem;">
+                        <i class="fas fa-info-circle me-2"></i>
+                        <strong>Confirmed Actions:</strong> These customers have been processed. Use "Undo" to restore alerts if situations change.
+                    </div>
+                    <div id="confirmedActionsList">
+                        <!-- Will be populated by JavaScript -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <!-- 🔔 ARRIVAL & DEPARTURE NOTIFICATIONS (QUICKNOTES STYLE) -->
     {% if arrival_notifications or departure_notifications %}
@@ -2308,21 +2545,65 @@ document.addEventListener('DOMContentLoaded', function() {
     }, 100);
 });
 
-// Quick Notes functionality
+// Quick Notes functionality - Enhanced error handling
 document.addEventListener('DOMContentLoaded', function() {
     // Load QuickNotes asynchronously to prevent blocking
     setTimeout(() => {
         try {
-            loadQuickNotesOnDashboard();
+            // Check if function exists before calling
+            if (typeof loadQuickNotesOnDashboard === 'function') {
+                loadQuickNotesOnDashboard();
+                console.log('✅ QuickNotes loaded successfully');
+            } else {
+                console.warn('⚠️ loadQuickNotesOnDashboard function not found');
+                // Try to load QuickNotes from external source or show fallback
+                const container = document.getElementById('quickNotesContainer');
+                if (container) {
+                    container.innerHTML = `
+                        <div class="text-center py-2">
+                            <small class="text-muted">QuickNotes loading...</small>
+                            <div class="spinner-border spinner-border-sm ms-2" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                        </div>
+                    `;
+                    
+                    // Try to reload QuickNotes from server
+                    fetch('/api/quick_notes')
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.success && data.notes) {
+                                let notesHtml = '';
+                                data.notes.forEach(note => {
+                                    notesHtml += `
+                                        <div class="mb-1 p-1 bg-light rounded">
+                                            <small>${note.content || ''}</small>
+                                        </div>
+                                    `;
+                                });
+                                container.innerHTML = notesHtml || '<small class="text-muted">No notes</small>';
+                            } else {
+                                container.innerHTML = '<small class="text-muted">No notes available</small>';
+                            }
+                        })
+                        .catch(err => {
+                            console.error('QuickNotes API error:', err);
+                            container.innerHTML = '<small class="text-muted">Notes unavailable</small>';
+                        });
+                }
+            }
         } catch (error) {
-            console.error('Failed to load QuickNotes:', error);
-            document.getElementById('quickNotesContainer').innerHTML = `
-                <div class="text-center py-1">
-                    <small class="text-white">Lỗi tải ghi chú</small>
-                </div>
-            `;
+            console.error('❌ Failed to load QuickNotes:', error);
+            const container = document.getElementById('quickNotesContainer');
+            if (container) {
+                container.innerHTML = `
+                    <div class="text-center py-1">
+                        <small class="text-danger">Error loading notes</small>
+                    </div>
+                `;
+            }
         }
-    }, 50);
+    }, 100); // Increased delay to let other scripts load first
 });
 
 // DISABLED: This function has been moved to /static/js/dashboard.js to avoid conflicts
@@ -3034,7 +3315,7 @@ function displayQuickNotes(notes, container) {
                         <div class="text-muted small flex-grow-1">${note.content || 'Không có ghi chú'}</div>
                     </div>
                     <div class="btn-group btn-group-sm" role="group">
-                        <button class="btn btn-outline-primary btn-sm px-1" onclick="editQuickNote('${note.id}', '${note.type}', '${note.content.replace(/'/g, "\\'")}', '${note.date}', '${note.time}', '${note.guestName || ""}')" title="Edit">
+                        <button class="btn btn-outline-primary btn-sm px-1" onclick="editQuickNote('${note.id}', '${note.type}', '${(note.content || '').replace(/'/g, "\\'")}', '${note.date}', '${note.time}', '${note.guestName || ""}')" title="Edit">
                             <i class="fas fa-edit"></i>
                         </button>
                         <button class="btn btn-success btn-sm px-1" onclick="markNoteCompleted('${note.id}')" title="Complete">
@@ -5693,7 +5974,7 @@ async function deleteExpense(expenseId) {
         const response = await fetch(`/api/expenses/${expenseId}`, {
             method: 'DELETE',
             headers: {
-                'Content-Type': 'application/json',
+                'Content-Type': 'application/json'
             }
         });
         
@@ -8031,10 +8312,13 @@ function toggleCancellationTable() {
     }
 }
 
-async function confirmCancellation(bookingId, guestName, cancellationType) {
-    const confirmation = confirm(`Confirm cancellation for ${guestName} (Booking: ${bookingId})?\n\nThis will record that you have cancelled this booking on the booking app.`);
-    
-    if (!confirmation) return;
+async function confirmCancellation(bookingId, guestName, cancellationType, directConfirm = false) {
+    if (!directConfirm) {
+        const confirmation = confirm(`Confirm cancellation for ${guestName} (Booking: ${bookingId})?
+
+This will record that you have cancelled this booking on the booking app.`);
+        if (!confirmation) return;
+    }
     
     try {
         const response = await fetch('/api/confirm_cancellation', {
@@ -8071,6 +8355,15 @@ async function confirmCancellation(bookingId, guestName, cancellationType) {
                     }
                 }, 500);
             }
+            
+            // Refresh canceled customer management table if it's visible
+            if (canceledCustomerTableVisible && typeof fetchAndDisplayCanceledCustomers === 'function') {
+                console.log('🔄 [CONFIRM_CANCELLATION] Refreshing canceled customer table');
+                setTimeout(() => {
+                    fetchAndDisplayCanceledCustomers();
+                    fetchCanceledCustomerCount();
+                }, 600);
+            }
         } else {
             alert(`❌ Error: ${result.error}`);
         }
@@ -8081,10 +8374,299 @@ async function confirmCancellation(bookingId, guestName, cancellationType) {
     }
 }
 
+// Dismiss alert without confirming cancellation
+function dismissAlert(bookingId) {
+    const alertRow = document.getElementById(`alert-${bookingId}`);
+    if (alertRow) {
+        alertRow.style.animation = 'fadeOut 0.5s ease-out';
+        setTimeout(() => {
+            alertRow.remove();
+            
+            // Check if any alerts remain
+            const remainingRows = document.querySelectorAll('tr[id^="alert-"]');
+            if (remainingRows.length === 0) {
+                const banner = document.querySelector('.alert.alert-warning');
+                if (banner) {
+                    banner.style.display = 'none';
+                }
+            }
+        }, 500);
+    }
+}
+
 async function handleCancellation(bookingId, alertType) {
     // Legacy function - redirect to new confirmation function
     const guestName = 'Guest';
     await confirmCancellation(bookingId, guestName, alertType);
+}
+
+// Toggle management table visibility
+function toggleManagementTable() {
+    const table = document.getElementById('managementTable');
+    const icon = document.getElementById('managementToggleIcon');
+    
+    if (table.style.display === 'none') {
+        table.style.display = 'block';
+        icon.className = 'fas fa-chevron-up';
+    } else {
+        table.style.display = 'none';
+        icon.className = 'fas fa-chevron-down';
+    }
+}
+
+// View confirmed cancellations
+async function viewConfirmedCancellations() {
+    try {
+        const response = await fetch('/api/confirmed_cancellations');
+        const data = await response.json();
+        
+        if (data.success) {
+            displayConfirmedCancellations(data.confirmed_cancellations);
+            
+            // Show the management table
+            const table = document.getElementById('managementTable');
+            const icon = document.getElementById('managementToggleIcon');
+            table.style.display = 'block';
+            icon.className = 'fas fa-chevron-up';
+        } else {
+            alert('Failed to load confirmed cancellations: ' + data.error);
+        }
+    } catch (error) {
+        console.error('Error loading confirmed cancellations:', error);
+        alert('Error loading confirmed cancellations');
+    }
+}
+
+// Display confirmed cancellations in table
+function displayConfirmedCancellations(cancellations) {
+    const container = document.getElementById('confirmedCancellationsList');
+    
+    if (cancellations.length === 0) {
+        container.innerHTML = `
+            <div class="text-center text-muted py-4">
+                <i class="fas fa-check-circle fs-3 mb-2 text-success"></i><br>
+                <strong>No Confirmed Cancellations</strong><br>
+                <small>All cancellations are properly handled!</small>
+            </div>
+        `;
+        return;
+    }
+    
+    let html = `
+        <div class="mb-3">
+            <div class="alert alert-success border-0 shadow-sm py-2">
+                <i class="fas fa-info-circle me-1"></i>
+                <strong>${cancellations.length}</strong> confirmed cancellation(s) found. 
+                Use "Undo" to restore alerts if guest situation changes.
+            </div>
+        </div>
+        <table class="table table-hover table-bordered mb-0" style="font-size: 0.9rem;">
+            <thead class="table-primary">
+                <tr>
+                    <th class="py-2"><i class="fas fa-hashtag me-1"></i>Booking ID</th>
+                    <th class="py-2"><i class="fas fa-user me-1"></i>Guest Name</th>
+                    <th class="py-2"><i class="fas fa-tag me-1"></i>Type</th>
+                    <th class="py-2"><i class="fas fa-check-circle me-1"></i>Status</th>
+                    <th class="py-2"><i class="fas fa-calendar me-1"></i>Confirmed</th>
+                    <th class="py-2"><i class="fas fa-cogs me-1"></i>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+    `;
+    
+    cancellations.forEach(cancellation => {
+        const statusBadge = cancellation.action_status === 'confirmed' ? 
+            '<span class="badge bg-success">Confirmed</span>' : 
+            '<span class="badge bg-warning">Pending</span>';
+            
+        const typeIcon = cancellation.cancellation_type === 'le_thuong' ? '🚨' :
+                        cancellation.cancellation_type === 'zero_commission' ? '💼' : '❌';
+        
+        html += `
+            <tr>
+                <td class="py-2 fw-bold">${cancellation.booking_id}</td>
+                <td class="py-2">${cancellation.guest_name}</td>
+                <td class="py-2">${typeIcon} <span class="badge bg-secondary">${cancellation.cancellation_type}</span></td>
+                <td class="py-2">${statusBadge}</td>
+                <td class="py-2 small">${new Date(cancellation.confirmation_date).toLocaleDateString()}</td>
+                <td class="py-2">
+                    <div class="btn-group" role="group">
+                        <button class="btn btn-outline-warning btn-sm" 
+                                onclick="undoConfirmation('${cancellation.action_id}', '${cancellation.booking_id}', '${cancellation.guest_name}')"
+                                title="Restore cancellation alert">
+                            <i class="fas fa-undo me-1"></i>Undo
+                        </button>
+                        <button class="btn btn-outline-danger btn-sm" 
+                                onclick="deleteCancellation('${cancellation.action_id}', '${cancellation.guest_name}')"
+                                title="Permanently delete cancellation record">
+                            <i class="fas fa-trash me-1"></i>Delete
+                        </button>
+                    </div>
+                </td>
+            </tr>
+        `;
+    });
+    
+    html += '</tbody></table>';
+    container.innerHTML = html;
+}
+
+// Debug function to check cancellation system status
+async function debugCancellationSystem() {
+    console.log('🔧 [DEBUG] Starting cancellation system debug...');
+    
+    try {
+        // Check database table
+        const dbResponse = await fetch('/api/debug_database');
+        const dbData = await dbResponse.json();
+        console.log('🗃️ [DEBUG] Database status:', dbData);
+        
+        if (!dbData.success) {
+            alert('❌ Database issue: ' + dbData.error);
+            return;
+        }
+        
+        // Check confirmed cancellations
+        const confirmedResponse = await fetch('/api/confirmed_cancellations');
+        const confirmedData = await confirmedResponse.json();
+        console.log('📋 [DEBUG] Confirmed cancellations:', confirmedData);
+        
+        alert(`✅ Debug complete:
+- Database table exists: ${dbData.table_exists}
+- Total cancellation records: ${dbData.total_records}
+- Confirmed cancellations: ${confirmedData.total_confirmed}
+Check browser console for detailed logs.`);
+        
+    } catch (error) {
+        console.error('💥 [DEBUG] Error:', error);
+        alert('💥 Debug failed: ' + error.message);
+    }
+}
+
+// Manual refresh function for cancellation alerts
+async function refreshCancellationAlerts() {
+    console.log('🔄 [REFRESH] Refreshing cancellation alerts...');
+    
+    try {
+        const response = await fetch('/api/cancellation_notifications');
+        const data = await response.json();
+        
+        if (data.success) {
+            console.log('✅ [REFRESH] Cancellation alerts refreshed successfully');
+            // Reload the page to show updated alerts
+            window.location.reload();
+        } else {
+            console.error('❌ [REFRESH] Failed to refresh alerts:', data.error);
+            alert('Failed to refresh alerts: ' + data.error);
+        }
+    } catch (error) {
+        console.error('💥 [REFRESH] Error refreshing alerts:', error);
+        alert('Error refreshing alerts: ' + error.message);
+    }
+}
+
+// Edit cancellation status
+async function editCancellationStatus(bookingId, newStatus) {
+    console.log(`🔄 [EDIT_CANCELLATION] Starting: bookingId=${bookingId}, newStatus=${newStatus}`);
+    
+    try {
+        const response = await fetch('/api/edit_cancellation', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                booking_id: bookingId,
+                action_status: newStatus
+            })
+        });
+        
+        console.log(`📡 [EDIT_CANCELLATION] Response status: ${response.status}`);
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        console.log('🔍 [EDIT_CANCELLATION] Response data:', data);
+        
+        if (data.success) {
+            console.log(`✅ [EDIT_CANCELLATION] Success: ${data.message}`);
+            alert(`✅ Status updated: ${data.message}`);
+            
+            // Refresh the list first
+            await viewConfirmedCancellations();
+            
+            // Then refresh the page to update alerts
+            console.log('🔄 [EDIT_CANCELLATION] Reloading page in 1 second...');
+            setTimeout(() => {
+                console.log('🔄 [EDIT_CANCELLATION] Page reload triggered');
+                window.location.reload();
+            }, 1000);
+        } else {
+            console.error(`❌ [EDIT_CANCELLATION] Failed: ${data.error}`);
+            alert('❌ Failed to update status: ' + (data.error || 'Unknown error'));
+        }
+    } catch (error) {
+        console.error('💥 [EDIT_CANCELLATION] Exception:', error);
+        alert('💥 Error updating cancellation status: ' + error.message);
+    }
+},
+            body: JSON.stringify({
+                booking_id: bookingId,
+                action_status: newStatus
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            alert(`Status updated: ${data.message}`);
+            // Refresh the list
+            viewConfirmedCancellations();
+            // Refresh the page to update alerts
+            setTimeout(() => window.location.reload(), 1000);
+        } else {
+            alert('Failed to update status: ' + data.error);
+        }
+    } catch (error) {
+        console.error('Error updating cancellation status:', error);
+        alert('Error updating cancellation status');
+    }
+}
+
+// Delete cancellation
+async function deleteCancellation(bookingId) {
+    if (!confirm('Are you sure you want to delete this cancellation action? This cannot be undone.')) {
+        return;
+    }
+    
+    try {
+        const response = await fetch('/api/delete_cancellation', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                booking_id: bookingId
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            alert(`Deleted: ${data.message}`);
+            // Refresh the list
+            viewConfirmedCancellations();
+            // Refresh the page to update alerts
+            setTimeout(() => window.location.reload(), 1000);
+        } else {
+            alert('Failed to delete: ' + data.error);
+        }
+    } catch (error) {
+        console.error('Error deleting cancellation:', error);
+        alert('Error deleting cancellation');
+    }
 }
 
 // Auto-refresh notifications every 5 minutes
@@ -8116,5 +8698,2150 @@ if (!document.querySelector('style[data-cancellation-animations]')) {
 }
 
 console.log('🚨 [CANCELLATION_SYSTEM] Notification system initialized');
+
+// 🔧 EMERGENCY FIX: Ensure cancellation functions are globally accessible
+window.viewConfirmedCancellations = viewConfirmedCancellations;
+window.toggleManagementTable = toggleManagementTable;
+window.clearAllModalBackdrops = clearAllModalBackdrops;
+
+// 🔧 DEBUGGING: Test function availability
+function testCancellationFunctions() {
+    console.log('🔍 [DEBUG] Testing cancellation functions...');
+    console.log('🔍 viewConfirmedCancellations available:', typeof window.viewConfirmedCancellations);
+    console.log('🔍 toggleManagementTable available:', typeof window.toggleManagementTable);
+    console.log('🔍 clearAllModalBackdrops available:', typeof window.clearAllModalBackdrops);
+}
+
+// 🔧 FALLBACK: If functions still not available, create emergency versions
+if (typeof window.viewConfirmedCancellations === 'undefined') {
+    console.warn('⚠️ [EMERGENCY] viewConfirmedCancellations not found, creating fallback...');
+    window.viewConfirmedCancellations = async function() {
+        console.log('🚨 [EMERGENCY] Using fallback viewConfirmedCancellations');
+        try {
+            const response = await fetch('/api/confirmed_cancellations');
+            const data = await response.json();
+            
+            if (data.success) {
+                alert(`Found ${data.total_confirmed} confirmed cancellations. Check console for details.`);
+                console.log('📋 [EMERGENCY] Confirmed cancellations:', data.confirmed_cancellations);
+            } else {
+                alert('Failed to load confirmed cancellations: ' + data.error);
+            }
+        } catch (error) {
+            console.error('💥 [EMERGENCY] Error loading confirmed cancellations:', error);
+            alert('Error loading confirmed cancellations: ' + error.message);
+        }
+    };
+}
+
+if (typeof window.toggleManagementTable === 'undefined') {
+    console.warn('⚠️ [EMERGENCY] toggleManagementTable not found, creating fallback...');
+    window.toggleManagementTable = function() {
+        console.log('🚨 [EMERGENCY] Using fallback toggleManagementTable');
+        const table = document.getElementById('managementTable');
+        const icon = document.getElementById('managementToggleIcon');
+        
+        if (table) {
+            if (table.style.display === 'none') {
+                table.style.display = 'block';
+                if (icon) icon.className = 'fas fa-chevron-up';
+            } else {
+                table.style.display = 'none';
+                if (icon) icon.className = 'fas fa-chevron-down';
+            }
+        }
+    };
+}
+
+// 🔧 GLOBAL ACCESS: Make test function available in console
+window.testCancellationFunctions = testCancellationFunctions;
+
+// 🔧 AUTO-TEST: Run test on page load
+setTimeout(testCancellationFunctions, 1000);
+
+console.log('✅ [CANCELLATION_FIX] Emergency fixes and global functions registered');
+
+// 🚨 CRITICAL FIX: Direct function definitions to ensure availability
+window.viewConfirmedCancellations = async function() {
+    console.log('🔍 [DIRECT_FIX] viewConfirmedCancellations called');
+    try {
+        const response = await fetch('/api/confirmed_cancellations');
+        const data = await response.json();
+        
+        if (data.success) {
+            displayConfirmedCancellations(data.confirmed_cancellations);
+            
+            // Show the management table
+            const table = document.getElementById('managementTable');
+            const icon = document.getElementById('managementToggleIcon');
+            if (table) {
+                table.style.display = 'block';
+                if (icon) icon.className = 'fas fa-chevron-up';
+            }
+        } else {
+            alert('Failed to load confirmed cancellations: ' + (data.error || 'Unknown error'));
+        }
+    } catch (error) {
+        console.error('💥 [DIRECT_FIX] Error loading confirmed cancellations:', error);
+        alert('Error loading confirmed cancellations: ' + error.message);
+    }
+};
+
+window.toggleManagementTable = function() {
+    console.log('🔍 [DIRECT_FIX] toggleManagementTable called');
+    const table = document.getElementById('managementTable');
+    const icon = document.getElementById('managementToggleIcon');
+    
+    if (table) {
+        if (table.style.display === 'none') {
+            table.style.display = 'block';
+            if (icon) icon.className = 'fas fa-chevron-up';
+        } else {
+            table.style.display = 'none';
+            if (icon) icon.className = 'fas fa-chevron-down';
+        }
+    }
+};
+
+// Also define the displayConfirmedCancellations function if it doesn't exist
+if (typeof window.displayConfirmedCancellations === 'undefined') {
+    window.displayConfirmedCancellations = function(cancellations) {
+        console.log('🔍 [DIRECT_FIX] displayConfirmedCancellations called with:', cancellations);
+        const container = document.getElementById('confirmedCancellationsList');
+        if (!container) return;
+        
+        if (!cancellations || cancellations.length === 0) {
+            container.innerHTML = `
+                <div class="text-center text-muted py-4">
+                    <i class="fas fa-info-circle fs-3 mb-2"></i><br>
+                    No confirmed cancellations found
+                </div>
+            `;
+            return;
+        }
+        
+        let html = `
+            <table class="table table-striped table-hover table-sm">
+                <thead>
+                    <tr>
+                        <th class="py-1">Guest Name</th>
+                        <th class="py-1">Booking ID</th>
+                        <th class="py-1">Check-in Date</th>
+                        <th class="py-1">Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+        `;
+        
+        cancellations.forEach(cancellation => {
+            html += `
+                <tr>
+                    <td class="py-1 small">${cancellation.guest_name || 'N/A'}</td>
+                    <td class="py-1 small">${cancellation.booking_id || 'N/A'}</td>
+                    <td class="py-1 small">${cancellation.checkin_date || 'N/A'}</td>
+                    <td class="py-1"><span class="badge bg-warning">${cancellation.status || 'Confirmed'}</span></td>
+                </tr>
+            `;
+        });
+        
+        html += `
+                </tbody>
+            </table>
+        `;
+        
+        container.innerHTML = html;
+    };
+}
+
+console.log('🚀 [DIRECT_FIX] All cancellation functions now directly available globally');
+
+// ==================== CANCELED CUSTOMER MANAGEMENT FUNCTIONS ====================
+
+// Simple test function to verify script loading
+console.log('🚀 [SCRIPT_LOADING] Canceled customer management script starting to load...');
+
+// Test function for immediate availability
+window.simpleTest = function() {
+    console.log('✅ [SIMPLE_TEST] Basic function works!');
+    alert('Basic function works!');
+};
+
+// Global variable to track canceled customer table state
+let canceledCustomerTableVisible = false;
+
+// Toggle canceled customer management table
+async function toggleCanceledCustomerManagement() {
+    console.log('🔄 [CANCELED_CUSTOMER] Toggling canceled customer management table');
+    
+    const table = document.getElementById('canceledCustomerTable');
+    const button = document.getElementById('toggleCanceledCustomerBtn');
+    const icon = document.getElementById('canceledCustomerToggleIcon');
+    const badge = document.getElementById('canceledCustomerBadge');
+    
+    if (!canceledCustomerTableVisible) {
+        // Show table and fetch data
+        table.style.display = 'block';
+        button.innerHTML = '<i class="fas fa-eye-slash me-1"></i>Hide All Canceled <i class="fas fa-chevron-up ms-1"></i>';
+        icon.className = 'fas fa-chevron-up';
+        canceledCustomerTableVisible = true;
+        
+        // Fetch and display canceled customers
+        await fetchAndDisplayCanceledCustomers();
+    } else {
+        // Hide table
+        table.style.display = 'none';
+        button.innerHTML = '<i class="fas fa-eye me-1"></i>Show All Canceled <i class="fas fa-chevron-down ms-1"></i>';
+        icon.className = 'fas fa-chevron-down';
+        canceledCustomerTableVisible = false;
+    }
+}
+
+// Fetch and display canceled customers
+async function fetchAndDisplayCanceledCustomers() {
+    console.log('📡 [CANCELED_CUSTOMER] Fetching canceled customers data...');
+    
+    const container = document.getElementById('canceledCustomerList');
+    const badge = document.getElementById('canceledCustomerBadge');
+    
+    try {
+        // Show loading state
+        container.innerHTML = `
+            <div class="text-center py-3">
+                <div class="spinner-border text-warning" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+                <div class="mt-2 text-muted">Loading canceled customers...</div>
+            </div>
+        `;
+        badge.textContent = 'Loading...';
+        
+        const response = await fetch('/api/canceled_customers_management');
+        const data = await response.json();
+        
+        console.log('🔍 [API_RESPONSE] Raw data received:', data);
+        
+        if (data.success) {
+            console.log(`📊 [DATA_ANALYSIS] Total customers: ${data.total_customers}`);
+            console.log(`📊 [DATA_ANALYSIS] All customers array length: ${data.all_customers?.length || 0}`);
+            console.log(`📊 [DATA_ANALYSIS] Sample customers:`, data.all_customers?.slice(0, 3));
+            
+            displayCanceledCustomers(data);
+            badge.textContent = data.total_customers;
+            console.log(`✅ [CANCELED_CUSTOMER] Successfully loaded ${data.total_customers} customers`);
+        } else {
+            console.error('❌ [API_ERROR] API returned error:', data);
+            throw new Error(data.error || 'Failed to fetch canceled customers');
+        }
+        
+    } catch (error) {
+        console.error('❌ [CANCELED_CUSTOMER] Error fetching data:', error);
+        container.innerHTML = `
+            <div class="alert alert-danger">
+                <i class="fas fa-exclamation-triangle me-2"></i>
+                Error loading canceled customers: ${error.message}
+                <br><small>Check console for details</small>
+            </div>
+        `;
+        badge.textContent = 'Error';
+    }
+}
+
+// Display canceled customers in a compact table
+function displayCanceledCustomers(data) {
+    console.log('📋 [CANCELED_CUSTOMER] Displaying customers:', data);
+    
+    const container = document.getElementById('canceledCustomerList');
+    const customers = data.all_customers || [];
+    
+    if (customers.length === 0) {
+        console.log('ℹ️ [NO_CUSTOMERS] No customers found in data');
+        container.innerHTML = `
+            <div class="alert alert-info text-center">
+                <i class="fas fa-info-circle me-2"></i>
+                <strong>No canceled customers found</strong>
+                <br><small>This could mean:</small>
+                <ul class="list-unstyled mt-2">
+                    <li>• All customers are properly classified</li>
+                    <li>• No canceled customers in the system</li>
+                    <li>• Database might not have test data</li>
+                </ul>
+                <div class="mt-2">
+                    <button class="btn btn-sm btn-outline-primary" onclick="fetchAndDisplayCanceledCustomers()">
+                        <i class="fas fa-refresh me-1"></i>Retry
+                    </button>
+                </div>
+            </div>
+        `;
+        return;
+    }
+    
+    // Filter out confirmed cancellations (those that don't need to show up anymore)
+    const activeCustomers = customers.filter(customer => customer.action_status !== 'confirmed');
+    
+    let html = `
+        <div class="alert alert-info py-2 mb-3">
+            <div class="row text-center">
+                <div class="col-md-3">
+                    <strong class="text-danger">${data.needs_classification?.length || 0}</strong>
+                    <br><small>Need Action</small>
+                </div>
+                <div class="col-md-3">
+                    <strong class="text-warning">${data.pending_review?.length || 0}</strong>
+                    <br><small>Pending</small>
+                </div>
+                <div class="col-md-3">
+                    <strong class="text-success">${data.confirmed?.length || 0}</strong>
+                    <br><small>Confirmed</small>
+                </div>
+                <div class="col-md-3">
+                    <strong class="text-primary">${customers.length}</strong>
+                    <br><small>Total</small>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Legend for Visual Highlighting -->
+        <div class="row mb-3">
+            <div class="col-12">
+                <div class="alert alert-info py-2 mb-2" style="font-size: 0.85rem;">
+                    <div class="row text-center">
+                        <div class="col-4">
+                            <div class="d-flex align-items-center justify-content-center">
+                                <div style="width: 20px; height: 20px; background: #dc3545; border-radius: 3px; margin-right: 8px;"></div>
+                                <span><strong>❌ Canceled Customers</strong></span>
+                            </div>
+                            <small class="text-muted">Guests with canceled bookings</small>
+                        </div>
+                        <div class="col-4">
+                            <div class="d-flex align-items-center justify-content-center">
+                                <div style="width: 20px; height: 20px; background: #007bff; border-radius: 3px; margin-right: 8px;"></div>
+                                <span><strong>💼 Zero Commission</strong></span>
+                            </div>
+                            <small class="text-muted">Private bookings (0đ commission)</small>
+                        </div>
+                        <div class="col-4">
+                            <div class="d-flex align-items-center justify-content-center">
+                                <div style="width: 20px; height: 20px; background: #6c757d; border-radius: 3px; margin-right: 8px;"></div>
+                                <span><strong>⚠️ Other Issues</strong></span>
+                            </div>
+                            <small class="text-muted">Other classification needed</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="table-responsive">
+            <table class="table table-sm table-hover mb-0" style="font-size: 0.85rem;">
+                <thead class="table-warning">
+                    <tr>
+                        <th class="py-2">Guest</th>
+                        <th class="py-2">Booking</th>
+                        <th class="py-2">Category</th>
+                        <th class="py-2">Amount</th>
+                        <th class="py-2">Status</th>
+                        <th class="py-2">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+    `;
+    
+    activeCustomers.forEach(customer => {
+        const statusClass = customer.action_status === 'confirmed' ? 'success' : 
+                           customer.action_status === 'pending' ? 'warning' : 'danger';
+        const categoryIcon = customer.is_canceled ? '❌' : customer.is_zero_commission ? '💼' : '⚠️';
+        
+        // Enhanced visual highlighting for customer types
+        let rowClass = '';
+        let borderColor = '';
+        let backgroundColor = '';
+        
+        if (customer.is_canceled) {
+            // Canceled customers - Red highlighting
+            rowClass = 'canceled-customer';
+            borderColor = '#dc3545';
+            backgroundColor = 'rgba(220, 53, 69, 0.1)';
+        } else if (customer.is_zero_commission) {
+            // Zero commission customers - Blue highlighting  
+            rowClass = 'zero-commission-customer';
+            borderColor = '#007bff';
+            backgroundColor = 'rgba(0, 123, 255, 0.1)';
+        } else {
+            // Other customers - Default styling
+            rowClass = 'other-customer';
+            borderColor = '#6c757d';
+            backgroundColor = 'rgba(108, 117, 125, 0.05)';
+        }
+        
+        // Add priority overlay if high priority
+        if (customer.priority === 'High') {
+            rowClass += ' high-priority-customer';
+            borderColor = '#dc3545';
+            backgroundColor = 'rgba(220, 53, 69, 0.15)';
+        }
+        
+        html += `
+            <tr class="${rowClass}" style="border-left: 6px solid ${borderColor}; background: ${backgroundColor}; border-radius: 4px; margin-bottom: 2px;">
+                <td class="py-2">
+                    <div class="fw-bold text-dark" style="font-size: 0.9rem;">${customer.guest_name}</div>
+                    <small class="text-muted">${customer.checkin_date} → ${customer.checkout_date}</small>
+                </td>
+                <td class="py-2">
+                    <span class="badge bg-secondary">${customer.booking_id}</span>
+                </td>
+                <td class="py-2">
+                    <div class="d-flex align-items-center">
+                        <span class="me-2" style="font-size: 1.2rem;">${categoryIcon}</span>
+                        <span class="badge ${customer.is_canceled ? 'bg-danger text-white' : customer.is_zero_commission ? 'bg-primary text-white' : 'bg-secondary text-white'} fw-bold">
+                            ${customer.category}
+                        </span>
+                    </div>
+                </td>
+                <td class="py-2">
+                    <div class="fw-bold">${customer.room_amount?.toLocaleString() || 0}đ</div>
+                    ${customer.commission > 0 ? `<small class="text-warning">+${customer.commission?.toLocaleString() || 0}đ commission</small>` : ''}
+                </td>
+                <td class="py-2">
+                    <span class="badge bg-${statusClass}">${customer.status_description}</span>
+                    ${customer.has_checked_out ? '<br><small class="text-muted">Checked out</small>' : ''}
+                </td>
+                <td class="py-2">
+                    <div class="btn-group-vertical" role="group" style="gap: 2px;">
+                        ${customer.action_status !== 'confirmed' ? `
+                            <button class="btn btn-success btn-sm py-1 px-2" 
+                                    onclick="confirmCancellation('${customer.booking_id}', '${customer.guest_name}', '${customer.is_canceled ? 'cancelled' : 'zero_commission'}', true)"
+                                    title="Confirm this customer has been handled">
+                                <i class="fas fa-check"></i> Confirm
+                            </button>
+                        ` : `
+                            <button class="btn btn-warning btn-sm py-1 px-2" 
+                                    onclick="undoConfirmation('${customer.action_id}', '${customer.booking_id}', '${customer.guest_name}')"
+                                    title="Undo confirmation - will show in alerts again">
+                                <i class="fas fa-undo"></i> Undo
+                            </button>
+                        `}
+                    </div>
+                </td>
+            </tr>
+        `;
+    });
+    
+    html += `
+                </tbody>
+            </table>
+        </div>
+        
+        <div class="mt-3 text-center">
+            <button class="btn btn-outline-secondary btn-sm" onclick="fetchAndDisplayCanceledCustomers()">
+                <i class="fas fa-sync-alt me-1"></i>Refresh Data
+            </button>
+        </div>
+    `;
+    
+    container.innerHTML = html;
+    console.log(`📋 [CANCELED_CUSTOMER] Displayed ${activeCustomers.length} active customers out of ${customers.length} total`);
+}
+
+// Initialize canceled customer badge on page load
+document.addEventListener('DOMContentLoaded', function() {
+    fetchCanceledCustomerCount();
+});
+
+// Fetch and update canceled customer count for badge
+async function fetchCanceledCustomerCount() {
+    try {
+        const response = await fetch('/api/canceled_customers_management');
+        const data = await response.json();
+        
+        if (data.success) {
+            const badge = document.getElementById('canceledCustomerBadge');
+            const activeCount = data.all_customers?.filter(c => c.action_status !== 'confirmed').length || 0;
+            badge.textContent = activeCount;
+            badge.className = activeCount > 0 ? 'badge bg-warning text-dark ms-2' : 'badge bg-success text-white ms-2';
+        }
+    } catch (error) {
+        console.error('❌ [CANCELED_CUSTOMER] Error fetching count:', error);
+        const badge = document.getElementById('canceledCustomerBadge');
+        badge.textContent = 'Error';
+        badge.className = 'badge bg-danger text-white ms-2';
+    }
+}
+
+// Undo confirmation function (restore alert)
+async function undoConfirmation(actionId, bookingId, guestName) {
+    console.log(`🔄 [UNDO_CONFIRMATION] Starting: actionId=${actionId}, bookingId=${bookingId}, guest=${guestName}`);
+    
+    const confirmation = confirm(`Undo confirmation for ${guestName}?\n\nThis will restore the cancellation alert and remove the confirmation record.`);
+    if (!confirmation) return;
+    
+    try {
+        const response = await fetch('/api/undo_cancellation', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                action_id: actionId,
+                booking_id: bookingId,
+                guest_name: guestName
+            })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            alert(`✅ Confirmation undone for ${guestName}\n\nCancellation alert will show again on next page load.`);
+            
+            // Refresh canceled customer management table if it's visible
+            if (canceledCustomerTableVisible && typeof fetchAndDisplayCanceledCustomers === 'function') {
+                console.log('🔄 [UNDO_CONFIRMATION] Refreshing canceled customer table');
+                fetchAndDisplayCanceledCustomers();
+                fetchCanceledCustomerCount();
+            }
+            
+            // Optionally reload the page to show the alert again
+            if (confirm('Reload page to see the restored alert?')) {
+                window.location.reload();
+            }
+        } else {
+            alert(`❌ Error: ${result.error}`);
+        }
+        
+    } catch (error) {
+        console.error('Undo confirmation error:', error);
+        alert('❌ Error processing undo. Please try again.');
+    }
+}
+
+// Make functions globally available with error handling
+try {
+    window.toggleCanceledCustomerManagement = toggleCanceledCustomerManagement;
+    window.fetchAndDisplayCanceledCustomers = fetchAndDisplayCanceledCustomers;
+    window.displayCanceledCustomers = displayCanceledCustomers;
+    window.undoConfirmation = undoConfirmation;
+    window.fetchCanceledCustomerCount = fetchCanceledCustomerCount;
+
+    console.log('🚀 [CANCELED_CUSTOMER] Canceled customer management functions loaded and globally available');
+    
+    // Set up button event listener immediately
+    function setupCanceledCustomerButton() {
+        const canceledBtn = document.getElementById('toggleCanceledCustomerBtn');
+        if (canceledBtn && !canceledBtn.hasAttribute('data-listener-attached')) {
+            canceledBtn.onclick = function() {
+                console.log('🔘 [BUTTON_CLICK] Canceled customer button clicked via event listener');
+                toggleCanceledCustomerManagement();
+            };
+            canceledBtn.setAttribute('data-listener-attached', 'true');
+            console.log('✅ [EVENT_LISTENER] Button event listener attached');
+            return true;
+        }
+        return false;
+    }
+    
+    // Try to setup button immediately
+    if (!setupCanceledCustomerButton()) {
+        // If button not found, retry after a short delay
+        setTimeout(() => {
+            if (!setupCanceledCustomerButton()) {
+                console.error('❌ [EVENT_LISTENER] Button still not found after retry');
+            }
+        }, 100);
+    }
+    
+    // Immediate verification
+    if (typeof window.toggleCanceledCustomerManagement === 'function') {
+        console.log('✅ [VERIFICATION] toggleCanceledCustomerManagement is properly available');
+    } else {
+        console.error('❌ [VERIFICATION] toggleCanceledCustomerManagement is NOT available');
+    }
+    
+    // Test function accessibility in multiple ways
+    setTimeout(() => {
+        console.log('🔍 [DELAYED_CHECK] Function availability after 100ms:');
+        console.log('   toggleCanceledCustomerManagement:', typeof window.toggleCanceledCustomerManagement);
+        console.log('   fetchAndDisplayCanceledCustomers:', typeof window.fetchAndDisplayCanceledCustomers);
+        
+        // Also make them available as global variables (not just window properties)
+        if (typeof window.toggleCanceledCustomerManagement === 'function') {
+            window.eval('var toggleCanceledCustomerManagement = window.toggleCanceledCustomerManagement;');
+            console.log('✅ [GLOBAL_VAR] Created global variable toggleCanceledCustomerManagement');
+        }
+        
+        // Create a simple global function for emergency fallback
+        window.showCanceledCustomers = function() {
+            console.log('🚨 [FALLBACK] Emergency fallback function called');
+            if (typeof window.toggleCanceledCustomerManagement === 'function') {
+                window.toggleCanceledCustomerManagement();
+            } else {
+                alert('Function not available. Please refresh the page.');
+            }
+        };
+        
+        // Debug function to test API directly
+        window.testCanceledCustomersAPI = async function() {
+            console.log('🧪 [DEBUG] Testing canceled customers API...');
+            try {
+                const response = await fetch('/api/canceled_customers_management');
+                const data = await response.json();
+                console.log('🧪 [DEBUG] API Response:', data);
+                return data;
+            } catch (error) {
+                console.error('🧪 [DEBUG] API Error:', error);
+                return null;
+            }
+        };
+    }, 100);
+    
+} catch (error) {
+    console.error('❌ [FUNCTION_ASSIGNMENT_ERROR]', error);
+}
+
+// NUCLEAR OPTION: Direct event listener attachment
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('🚀 [DOM_READY] Setting up direct event listeners...');
+    
+    const toggleBtn = document.getElementById('toggleCanceledCustomerBtn');
+    if (toggleBtn) {
+        // Remove any existing onclick to prevent conflicts
+        toggleBtn.removeAttribute('onclick');
+        
+        // Add direct event listener
+        toggleBtn.addEventListener('click', async function(e) {
+            e.preventDefault();
+            console.log('🔘 [DIRECT_CLICK] Button clicked via event listener');
+            
+            try {
+                if (typeof window.toggleCanceledCustomerManagement === 'function') {
+                    console.log('🚀 [DIRECT_CALL] Calling function via window object');
+                    await window.toggleCanceledCustomerManagement();
+                } else if (typeof toggleCanceledCustomerManagement !== 'undefined') {
+                    console.log('🚀 [DIRECT_CALL] Calling function via local scope');
+                    await toggleCanceledCustomerManagement();
+                } else {
+                    console.error('❌ [DIRECT_CALL] Function not found in any scope');
+                    alert('Function not available. Please refresh the page.');
+                }
+            } catch (error) {
+                console.error('❌ [DIRECT_CALL_ERROR]', error);
+                alert('Error calling function: ' + error.message);
+            }
+        });
+        
+        console.log('✅ [DOM_READY] Direct event listener attached successfully');
+    } else {
+        console.error('❌ [DOM_READY] Toggle button not found');
+    }
+});
+
+// EMERGENCY MANUAL TESTING FUNCTION (available in browser console)
+window.testCanceledFunction = function() {
+    console.log('🧪 [MANUAL_TEST] Testing canceled customer function...');
+    
+    console.log('Available functions:');
+    console.log('  - window.toggleCanceledCustomerManagement:', typeof window.toggleCanceledCustomerManagement);
+    console.log('  - toggleCanceledCustomerManagement (global):', typeof toggleCanceledCustomerManagement);
+    
+    try {
+        if (typeof window.toggleCanceledCustomerManagement === 'function') {
+            console.log('🚀 [MANUAL_TEST] Calling via window...');
+            window.toggleCanceledCustomerManagement();
+            return 'SUCCESS: Function called via window';
+        } else {
+            return 'ERROR: Function not available in window';
+        }
+    } catch (error) {
+        console.error('❌ [MANUAL_TEST] Error:', error);
+        return 'ERROR: ' + error.message;
+    }
+};
+
+console.log('🔧 [EMERGENCY] Manual test function available: testCanceledFunction()');
+
+// ULTIMATE NUCLEAR FIX: Replace all onclick attributes
+setTimeout(() => {
+    console.log('🚀 [NUCLEAR_FIX] Applying ultimate fix...');
+    
+    // Find all buttons with onclick containing "toggleCanceledCustomerManagement"
+    const buttons = document.querySelectorAll('button[onclick*="toggleCanceledCustomerManagement"]');
+    
+    buttons.forEach((button, index) => {
+        console.log(`🔧 [NUCLEAR_FIX] Fixing button ${index + 1}:`, button.id);
+        
+        // Remove the problematic onclick
+        button.removeAttribute('onclick');
+        
+        // Add our own click handler
+        button.addEventListener('click', async function(e) {
+            e.preventDefault();
+            console.log('🔘 [NUCLEAR_CLICK] Button clicked!');
+            
+            try {
+                // Call the function directly
+                await toggleCanceledCustomerManagement();
+            } catch (error) {
+                console.error('❌ [NUCLEAR_CLICK] Error:', error);
+                alert('Error: ' + error.message);
+            }
+        });
+        
+        console.log(`✅ [NUCLEAR_FIX] Button ${index + 1} fixed`);
+    });
+    
+    console.log(`🎯 [NUCLEAR_FIX] Fixed ${buttons.length} buttons`);
+}, 2000); // Wait 2 seconds to ensure everything is loaded
+
+// SUPER SIMPLE DIRECT FIX - No dependencies
+setTimeout(() => {
+    console.log('🔥 [SUPER_SIMPLE_FIX] Applying direct button fix...');
+    
+    const btn = document.getElementById('toggleCanceledCustomerBtn');
+    if (btn) {
+        console.log('🎯 [SUPER_SIMPLE_FIX] Found button, applying fix...');
+        
+        // Remove onclick completely
+        btn.onclick = null;
+        btn.removeAttribute('onclick');
+        
+        // Add simple click handler
+        btn.onclick = async function() {
+            console.log('🔘 [SUPER_SIMPLE_CLICK] Button clicked!');
+            
+            const table = document.getElementById('canceledCustomerTable');
+            const list = document.getElementById('canceledCustomerList');
+            
+            if (!table || !list) {
+                alert('Required elements not found!');
+                return;
+            }
+            
+            if (table.style.display === 'none' || !table.style.display) {
+                // Show table
+                console.log('📋 [SUPER_SIMPLE] Showing table...');
+                table.style.display = 'block';
+                btn.innerHTML = '<i class="fas fa-eye-slash me-1"></i>Hide All Canceled <i class="fas fa-chevron-up ms-1"></i>';
+                
+                // Load data
+                list.innerHTML = '<div class="text-center py-3"><div class="spinner-border text-warning"></div><div class="mt-2">Loading...</div></div>';
+                
+                try {
+                    const response = await fetch('/api/canceled_customers_management');
+                    const data = await response.json();
+                    
+                    if (data.success && data.all_customers) {
+                        const customers = data.all_customers;
+                        let html = `
+                            <div class="table-responsive">
+                                <table class="table table-sm table-hover">
+                                    <thead class="table-warning">
+                                        <tr><th>Guest</th><th>Booking</th><th>Status</th><th>Actions</th></tr>
+                                    </thead>
+                                    <tbody>
+                        `;
+                        
+                        customers.forEach(customer => {
+                            html += `
+                                <tr>
+                                    <td>${customer.guest_name || 'N/A'}</td>
+                                    <td>${customer.booking_id || 'N/A'}</td>
+                                    <td><span class="badge bg-warning">${customer.status_description || 'Unknown'}</span></td>
+                                    <td><button class="btn btn-success btn-sm"><i class="fas fa-check"></i> Confirm</button></td>
+                                </tr>
+                            `;
+                        });
+                        
+                        html += '</tbody></table></div>';
+                        list.innerHTML = html;
+                        
+                        console.log(`✅ [SUPER_SIMPLE] Loaded ${customers.length} customers`);
+                    } else {
+                        list.innerHTML = '<div class="alert alert-warning">No customers found</div>';
+                    }
+                    
+                } catch (error) {
+                    console.error('❌ [SUPER_SIMPLE] Error:', error);
+                    list.innerHTML = '<div class="alert alert-danger">Error loading data</div>';
+                }
+                
+            } else {
+                // Hide table
+                console.log('🙈 [SUPER_SIMPLE] Hiding table...');
+                table.style.display = 'none';
+                btn.innerHTML = '<i class="fas fa-eye me-1"></i>Show All Canceled <i class="fas fa-chevron-down ms-1"></i>';
+            }
+        };
+        
+        console.log('✅ [SUPER_SIMPLE_FIX] Button fix applied successfully!');
+    } else {
+        console.error('❌ [SUPER_SIMPLE_FIX] Button not found!');
+    }
+}, 3000); // Wait 3 seconds
+
+// IMMEDIATE DOM READY FIX - No delays
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('🚀 [IMMEDIATE_FIX] DOM ready, applying immediate fixes...');
+    
+    // Initialize canceled customer badge count
+    fetchCanceledCustomerCount();
+    
+    // Canceled customer button is now handled where the function is defined
+    // This avoids timing issues with function availability
+    console.log('✅ [IMMEDIATE_FIX] Canceled customer button setup moved to function definition area');
+    
+    // Fix the management table button
+    const managementBtn = document.getElementById('toggleCancellationBtn');
+    if (managementBtn) {
+        console.log('🎯 [IMMEDIATE_FIX] Fixing management button...');
+        
+        managementBtn.onclick = function() {
+            console.log('🔘 [IMMEDIATE_CLICK] Management button clicked!');
+            const table = document.getElementById('managementTable');
+            if (table) {
+                if (table.style.display === 'none') {
+                    table.style.display = 'block';
+                    managementBtn.innerHTML = '<i class="fas fa-eye-slash me-1"></i>Hide Confirmed <i class="fas fa-chevron-up ms-1"></i>';
+                } else {
+                    table.style.display = 'none';
+                    managementBtn.innerHTML = '<i class="fas fa-eye me-1"></i>Show Confirmed <i class="fas fa-chevron-down ms-1"></i>';
+                }
+            }
+        };
+        
+        console.log('✅ [IMMEDIATE_FIX] Management button fixed!');
+    }
+    
+    console.log('🎉 [IMMEDIATE_FIX] All buttons fixed immediately!');
+});
+</script>
+
+<!-- SIMPLE WORKING FUNCTIONS - No complex syntax -->
+<script>
+console.log('🔥 [SIMPLE_SCRIPT] Starting simple script block...');
+
+// Immediate test function
+window.immediateTest = function() {
+    console.log('✅ [IMMEDIATE] This function is available immediately!');
+    alert('Immediate function works!');
+};
+
+// Ultra-simple functions that definitely work
+async function simpleCanceledToggle() {
+    console.log('🔄 [SIMPLE] Canceled customer toggle clicked');
+    
+    const table = document.getElementById('canceledCustomerTable');
+    const list = document.getElementById('canceledCustomerList');
+    const btn = document.getElementById('toggleCanceledCustomerBtn');
+    
+    if (!table || !list || !btn) {
+        alert('Elements not found!');
+        return;
+    }
+    
+    if (table.style.display === 'none' || table.style.display === '') {
+        // Show table
+        table.style.display = 'block';
+        btn.innerHTML = '<i class="fas fa-eye-slash me-1"></i>Hide All Canceled <i class="fas fa-chevron-up ms-1"></i>';
+        
+        // Load data
+        list.innerHTML = '<div class="text-center py-3"><div class="spinner-border text-warning"></div><div class="mt-2">Loading...</div></div>';
+        
+        try {
+            const response = await fetch('/api/canceled_customers_management');
+            const data = await response.json();
+            
+            if (data.success && data.all_customers) {
+                // Sort customers by check-in date (newest first) in frontend
+                const sortedCustomers = data.all_customers.sort(function(a, b) {
+                    const dateA = new Date(a.checkin_date || '1900-01-01');
+                    const dateB = new Date(b.checkin_date || '1900-01-01');
+                    return dateB - dateA; // Newest first
+                });
+                
+                let html = '<div class="table-responsive"><table class="table table-sm table-hover"><thead class="table-warning"><tr><th>Guest</th><th>Booking</th><th>Check-in Date</th><th>Status</th><th>Actions</th></tr></thead><tbody>';
+                
+                sortedCustomers.forEach(function(customer) {
+                    // Format check-in date
+                    let checkinDate = 'N/A';
+                    if (customer.checkin_date) {
+                        try {
+                            const date = new Date(customer.checkin_date);
+                            checkinDate = date.toLocaleDateString('en-GB'); // DD/MM/YYYY format
+                        } catch (e) {
+                            checkinDate = customer.checkin_date;
+                        }
+                    }
+                    
+                    html += '<tr>';
+                    html += '<td>' + (customer.guest_name || 'N/A') + '</td>';
+                    html += '<td>' + (customer.booking_id || 'N/A') + '</td>';
+                    html += '<td><small><strong>' + checkinDate + '</strong></small></td>';
+                    html += '<td><span class="badge bg-warning">' + (customer.status_description || 'Unknown') + '</span></td>';
+                    html += '<td><button class="btn btn-success btn-sm" onclick="confirmCancellation(\'' + customer.booking_id + '\', \'' + customer.guest_name + '\')"><i class="fas fa-check"></i> Confirm</button></td>';
+                    html += '</tr>';
+                });
+                
+                html += '</tbody></table></div>';
+                list.innerHTML = html;
+                console.log('✅ [SIMPLE] Loaded ' + data.all_customers.length + ' customers');
+            } else {
+                list.innerHTML = '<div class="alert alert-warning">No customers found</div>';
+            }
+        } catch (error) {
+            console.error('❌ [SIMPLE] Error:', error);
+            list.innerHTML = '<div class="alert alert-danger">Error loading data</div>';
+        }
+    } else {
+        // Hide table
+        table.style.display = 'none';
+        btn.innerHTML = '<i class="fas fa-eye me-1"></i>Show All Canceled <i class="fas fa-chevron-down ms-1"></i>';
+    }
+}
+
+async function simpleManagementToggle() {
+    console.log('🔄 [SIMPLE] Management toggle clicked');
+    
+    const table = document.getElementById('managementTable');
+    const list = document.getElementById('confirmedCancellationsList');
+    const btn = document.getElementById('toggleCancellationBtn');
+    
+    if (table && btn) {
+        if (table.style.display === 'none' || table.style.display === '') {
+            // Show table
+            table.style.display = 'block';
+            btn.innerHTML = '<i class="fas fa-eye-slash me-1"></i>Hide Confirmed <i class="fas fa-chevron-up ms-1"></i>';
+            
+            // Load confirmed actions data if list element exists
+            if (list) {
+                list.innerHTML = '<div class="text-center py-3"><div class="spinner-border text-info"></div><div class="mt-2">Loading confirmed actions...</div></div>';
+                await refreshConfirmedActionsTable();
+            }
+        } else {
+            // Hide table
+            table.style.display = 'none';
+            btn.innerHTML = '<i class="fas fa-eye me-1"></i>Show Confirmed <i class="fas fa-chevron-down ms-1"></i>';
+        }
+    }
+}
+
+// Function to confirm cancellation and sync with PostgreSQL
+async function confirmCancellation(bookingId, guestName) {
+    console.log('🔄 [CONFIRM] Confirming cancellation for:', guestName, '(' + bookingId + ')');
+    
+    try {
+        // Show loading state
+        const button = event.target;
+        const originalHTML = button.innerHTML;
+        button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Confirming...';
+        button.disabled = true;
+        
+        // Send confirmation to PostgreSQL
+        const response = await fetch('/api/confirm_cancellation', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                booking_id: bookingId,
+                guest_name: guestName,
+                cancellation_type: 'customer_cancellation',
+                action_status: 'confirmed',
+                confirmed_by: 'User',
+                notes: 'Confirmed via canceled customer management interface'
+            })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            console.log('✅ [CONFIRM] Successfully confirmed in PostgreSQL:', result.action);
+            
+            // Remove the row from table
+            const row = button.closest('tr');
+            if (row) {
+                row.style.backgroundColor = '#d4edda';
+                row.innerHTML = '<td colspan="4" class="text-center text-success"><i class="fas fa-check-circle"></i> <strong>Confirmed Successfully</strong> - Will be removed from future listings</td>';
+                
+                setTimeout(function() {
+                    row.remove();
+                }, 2000);
+            }
+            
+            // Update badge count
+            const badge = document.getElementById('canceledCustomerBadge');
+            if (badge) {
+                const currentCount = parseInt(badge.textContent) || 0;
+                badge.textContent = Math.max(0, currentCount - 1);
+            }
+            
+            // Refresh the confirmed actions table if visible
+            refreshConfirmedActionsTable();
+            
+            // FORCE REFRESH the canceled customer table to ensure customer disappears
+            setTimeout(function() {
+                console.log('🔄 [FORCE_REFRESH] Refreshing canceled customer table...');
+                const canceledTable = document.getElementById('canceledCustomerTable');
+                if (canceledTable && canceledTable.style.display === 'block') {
+                    simpleCanceledToggle(); // Hide
+                    setTimeout(function() {
+                        simpleCanceledToggle(); // Show with refreshed data
+                    }, 1000);
+                }
+            }, 2500);
+            
+        } else {
+            console.error('❌ [CONFIRM] Error:', result.message);
+            alert('Error confirming cancellation: ' + result.message);
+            
+            // Restore button
+            button.innerHTML = originalHTML;
+            button.disabled = false;
+        }
+        
+    } catch (error) {
+        console.error('❌ [CONFIRM] Network error:', error);
+        alert('Network error: ' + error.message);
+        
+        // Restore button
+        button.innerHTML = originalHTML;
+        button.disabled = false;
+    }
+}
+
+// Function to refresh confirmed actions table
+async function refreshConfirmedActionsTable() {
+    console.log('🔄 [REFRESH] Refreshing confirmed actions table...');
+    
+    const managementList = document.getElementById('confirmedCancellationsList');
+    if (!managementList) {
+        console.log('🔍 [REFRESH] Management table not found, trying to find it...');
+        console.log('Available elements:', document.getElementById('managementTable'));
+        return;
+    }
+    
+    try {
+        // Use the correct API endpoint for confirmed cancellations
+        const response = await fetch('/api/confirmed_cancellations');
+        const data = await response.json();
+        
+        console.log('🔍 [REFRESH] API Response:', data);
+        
+        if (data.success && data.confirmed_cancellations) {
+            let html = '';
+            const confirmedActions = data.confirmed_cancellations;
+            
+            if (confirmedActions.length === 0) {
+                html = '<div class="alert alert-info text-center"><i class="fas fa-info-circle"></i> No confirmed actions found</div>';
+            } else {
+                html = '<div class="table-responsive"><table class="table table-sm table-hover"><thead class="table-info"><tr><th>Guest</th><th>Booking ID</th><th>Type</th><th>Confirmed Date</th><th>Actions</th></tr></thead><tbody>';
+                
+                confirmedActions.forEach(function(action) {
+                    // Format the date
+                    let confirmDate = 'N/A';
+                    if (action.confirmation_date) {
+                        try {
+                            const date = new Date(action.confirmation_date);
+                            confirmDate = date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
+                        } catch (e) {
+                            confirmDate = action.confirmation_date;
+                        }
+                    }
+                    
+                    html += '<tr>';
+                    html += '<td>' + (action.guest_name || 'N/A') + '</td>';
+                    html += '<td>' + (action.booking_id || 'N/A') + '</td>';
+                    html += '<td><span class="badge bg-secondary">' + (action.cancellation_type || 'Unknown') + '</span></td>';
+                    html += '<td><small>' + confirmDate + '</small></td>';
+                    html += '<td>';
+                    html += '<button class="btn btn-warning btn-sm me-1" onclick="undoConfirmation(\'' + action.action_id + '\', \'' + action.booking_id + '\', \'' + action.guest_name + '\')"><i class="fas fa-undo"></i> Undo</button>';
+                    html += '<button class="btn btn-danger btn-sm" onclick="deleteConfirmation(\'' + action.action_id + '\', \'' + action.booking_id + '\', \'' + action.guest_name + '\')"><i class="fas fa-trash"></i> Delete</button>';
+                    html += '</td>';
+                    html += '</tr>';
+                });
+                
+                html += '</tbody></table></div>';
+            }
+            
+            managementList.innerHTML = html;
+            console.log('✅ [REFRESH] Confirmed actions table refreshed with ' + confirmedActions.length + ' items');
+            
+            // Update badge if it exists
+            const badge = document.getElementById('confirmedBadge');
+            if (badge) {
+                badge.textContent = confirmedActions.length;
+            }
+            
+        } else {
+            console.error('❌ [REFRESH] Invalid API response:', data);
+            managementList.innerHTML = '<div class="alert alert-danger">Error: ' + (data.message || 'Invalid response') + '</div>';
+        }
+        
+    } catch (error) {
+        console.error('❌ [REFRESH] Error refreshing table:', error);
+        managementList.innerHTML = '<div class="alert alert-danger">Network error: ' + error.message + '</div>';
+    }
+}
+
+// Function to edit confirmation
+async function editConfirmation(actionId, bookingId) {
+    console.log('🔄 [EDIT] Editing confirmation for action:', actionId);
+    
+    const newStatus = prompt('Enter new status (pending/confirmed):', 'pending');
+    if (!newStatus || !['pending', 'confirmed'].includes(newStatus.toLowerCase())) {
+        alert('Invalid status. Please enter "pending" or "confirmed".');
+        return;
+    }
+    
+    const notes = prompt('Enter notes (optional):', '');
+    
+    try {
+        const response = await fetch('/api/edit_cancellation', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                action_id: actionId,
+                booking_id: bookingId,
+                action_status: newStatus.toLowerCase(),
+                notes: notes || ''
+            })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            console.log('✅ [EDIT] Successfully edited');
+            alert('Confirmation updated successfully!');
+            
+            // Refresh both tables
+            refreshConfirmedActionsTable();
+            
+            // If canceled customer table is visible, refresh it too
+            const canceledTable = document.getElementById('canceledCustomerTable');
+            if (canceledTable && canceledTable.style.display === 'block') {
+                simpleCanceledToggle();
+                setTimeout(function() {
+                    simpleCanceledToggle();
+                }, 500);
+            }
+            
+        } else {
+            alert('Error editing confirmation: ' + result.message);
+        }
+        
+    } catch (error) {
+        console.error('❌ [EDIT] Error:', error);
+        alert('Network error: ' + error.message);
+    }
+}
+
+// Function to delete confirmation
+async function deleteConfirmation(actionId, bookingId, guestName) {
+    console.log('🔄 [DELETE] Deleting confirmation for action:', actionId);
+    
+    if (!confirm('Are you sure you want to permanently delete this confirmation for ' + guestName + '?')) {
+        return;
+    }
+    
+    try {
+        const response = await fetch('/api/delete_cancellation', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                action_id: actionId,
+                booking_id: bookingId
+            })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            console.log('✅ [DELETE] Successfully deleted');
+            alert('Confirmation deleted successfully!');
+            
+            // Refresh both tables
+            refreshConfirmedActionsTable();
+            
+            // If canceled customer table is visible, refresh it too
+            const canceledTable = document.getElementById('canceledCustomerTable');
+            if (canceledTable && canceledTable.style.display === 'block') {
+                simpleCanceledToggle();
+                setTimeout(function() {
+                    simpleCanceledToggle();
+                }, 500);
+            }
+            
+        } else {
+            alert('Error deleting confirmation: ' + result.message);
+        }
+        
+    } catch (error) {
+        console.error('❌ [DELETE] Error:', error);
+        alert('Network error: ' + error.message);
+    }
+}
+
+// Function to undo confirmation - restores customer to canceled list
+async function undoConfirmation(actionId, bookingId, guestName) {
+    console.log('🔄 [UNDO] Undoing confirmation for action:', actionId);
+    
+    if (!confirm('Are you sure you want to undo this confirmation for ' + guestName + '? The customer will reappear in the canceled customer list.')) {
+        return;
+    }
+    
+    try {
+        const response = await fetch('/api/undo_cancellation', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                action_id: actionId,
+                booking_id: bookingId
+            })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            console.log('✅ [UNDO] Successfully undone - customer will reappear in canceled list');
+            alert('Confirmation undone! Customer will reappear in canceled customer list.');
+            
+            // Refresh both tables
+            refreshConfirmedActionsTable();
+            
+            // If canceled customer table is visible, refresh it too
+            const canceledTable = document.getElementById('canceledCustomerTable');
+            if (canceledTable && canceledTable.style.display === 'block') {
+                simpleCanceledToggle();
+                setTimeout(function() {
+                    simpleCanceledToggle();
+                }, 500);
+            }
+            
+        } else {
+            alert('Error undoing confirmation: ' + result.message);
+        }
+        
+    } catch (error) {
+        console.error('❌ [UNDO] Error:', error);
+        alert('Network error: ' + error.message);
+    }
+}
+
+// ==================== WORKING CANCELED CUSTOMER FUNCTIONS ====================
+
+// Working version of the canceled customer management
+window.workingCanceledCustomers = async function() {
+    console.log('🔥 [WORKING] Working canceled customers function called');
+    
+    const table = document.getElementById('canceledCustomerTable');
+    const list = document.getElementById('canceledCustomerList');
+    const btn = document.getElementById('toggleCanceledCustomerBtn');
+    
+    if (!table || !list || !btn) {
+        alert('Required elements not found!');
+        return;
+    }
+    
+    if (table.style.display === 'none' || !table.style.display) {
+        // Show table
+        table.style.display = 'block';
+        btn.innerHTML = '<i class="fas fa-eye-slash me-1"></i>Hide All Canceled <i class="fas fa-chevron-up ms-1"></i>';
+        
+        // Show loading
+        list.innerHTML = '<div class="text-center py-3"><div class="spinner-border text-warning"></div><div class="mt-2">Loading...</div></div>';
+        
+        try {
+            console.log('📡 [WORKING] Fetching data from API...');
+            const response = await fetch('/api/canceled_customers_management');
+            const data = await response.json();
+            
+            console.log('📊 [WORKING] API Response:', data);
+            
+            if (data.success) {
+                const customers = data.all_customers || [];
+                console.log(`📋 [WORKING] Found ${customers.length} customers`);
+                
+                if (customers.length === 0) {
+                    list.innerHTML = `
+                        <div class="alert alert-info text-center">
+                            <i class="fas fa-info-circle me-2"></i>
+                            <strong>No canceled customers found</strong>
+                            <p class="mb-0">No customers need classification right now!</p>
+                        </div>
+                    `;
+                } else {
+                    // Build simple table
+                    let html = `
+                        <div class="table-responsive">
+                            <table class="table table-sm table-striped">
+                                <thead class="table-warning">
+                                    <tr>
+                                        <th>Guest Name</th>
+                                        <th>Booking ID</th>
+                                        <th>Category</th>
+                                        <th>Status</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                    `;
+                    
+                    customers.forEach(customer => {
+                        const categoryIcon = customer.is_canceled ? '❌' : customer.is_zero_commission ? '💼' : '⚠️';
+                        const categoryClass = customer.is_canceled ? 'table-danger' : customer.is_zero_commission ? 'table-info' : 'table-secondary';
+                        
+                        html += `
+                            <tr class="${categoryClass}">
+                                <td><strong>${customer.guest_name || 'N/A'}</strong></td>
+                                <td><span class="badge bg-secondary">${customer.booking_id || 'N/A'}</span></td>
+                                <td>${categoryIcon} ${customer.category || 'Unknown'}</td>
+                                <td><span class="badge bg-warning">${customer.status_description || 'Pending'}</span></td>
+                                <td>
+                                    <button class="btn btn-success btn-sm" onclick="confirmCustomer('${customer.booking_id}', '${customer.guest_name}')">
+                                        <i class="fas fa-check"></i> Confirm
+                                    </button>
+                                </td>
+                            </tr>
+                        `;
+                    });
+                    
+                    html += '</tbody></table></div>';
+                    list.innerHTML = html;
+                }
+                
+                // Update badge
+                const badge = document.getElementById('canceledCustomerBadge');
+                if (badge) {
+                    badge.textContent = customers.length;
+                }
+                
+            } else {
+                list.innerHTML = '<div class="alert alert-danger">Error: ' + (data.error || 'Unknown error') + '</div>';
+            }
+            
+        } catch (error) {
+            console.error('❌ [WORKING] Error:', error);
+            list.innerHTML = '<div class="alert alert-danger">Network error: ' + error.message + '</div>';
+        }
+        
+    } else {
+        // Hide table
+        table.style.display = 'none';
+        btn.innerHTML = '<i class="fas fa-eye me-1"></i>Show All Canceled <i class="fas fa-chevron-down ms-1"></i>';
+    }
+};
+
+// Set up the button to use the working function
+setTimeout(function() {
+    const btn = document.getElementById('toggleCanceledCustomerBtn');
+    if (btn) {
+        btn.onclick = window.workingCanceledCustomers;
+        console.log('✅ [WORKING] Button connected to working function');
+    }
+}, 100);
+
+// ==================== UNIFIED CANCELLATION MANAGEMENT FUNCTIONS ====================
+
+// Main toggle function for the unified center
+window.toggleCancellationCenter = async function() {
+    console.log('🔄 [UNIFIED] Toggling cancellation management center');
+    
+    const center = document.getElementById('cancellationManagementCenter');
+    const button = document.getElementById('toggleCancellationCenter');
+    const icon = document.getElementById('cancellationCenterIcon');
+    
+    if (!center || !button) {
+        alert('Elements not found!');
+        return;
+    }
+    
+    if (center.style.display === 'none' || !center.style.display) {
+        // Show center
+        center.style.display = 'block';
+        button.innerHTML = '<i class="fas fa-eye-slash me-1"></i>Hide Management <i class="fas fa-chevron-up ms-1"></i>';
+        if (icon) icon.className = 'fas fa-chevron-up';
+        
+        // Load data for both tabs
+        await loadPendingCustomers();
+        await loadConfirmedActions();
+    } else {
+        // Hide center
+        center.style.display = 'none';
+        button.innerHTML = '<i class="fas fa-eye me-1"></i>Show Management <i class="fas fa-chevron-down ms-1"></i>';
+        if (icon) icon.className = 'fas fa-chevron-down';
+    }
+};
+
+// Switch between tabs
+window.switchCancellationTab = function(tabType) {
+    console.log('📋 [TAB] Switching to tab:', tabType);
+    
+    // Update active tab classes
+    const pendingTab = document.getElementById('pending-tab');
+    const confirmedTab = document.getElementById('confirmed-tab');
+    const pendingPane = document.getElementById('pending-pane');
+    const confirmedPane = document.getElementById('confirmed-pane');
+    
+    if (tabType === 'pending') {
+        pendingTab.classList.add('active');
+        confirmedTab.classList.remove('active');
+        pendingPane.classList.add('show', 'active');
+        confirmedPane.classList.remove('show', 'active');
+    } else {
+        confirmedTab.classList.add('active');
+        pendingTab.classList.remove('active');
+        confirmedPane.classList.add('show', 'active');
+        pendingPane.classList.remove('show', 'active');
+    }
+};
+
+// Load pending customers (same as previous function but optimized)
+window.loadPendingCustomers = async function() {
+    console.log('📡 [PENDING] Loading pending customers...');
+    
+    const container = document.getElementById('pendingCustomersList');
+    const badge = document.getElementById('pendingBadge');
+    
+    try {
+        container.innerHTML = '<div class="text-center py-3"><div class="spinner-border text-warning"></div><div class="mt-2">Loading...</div></div>';
+        
+        const response = await fetch('/api/canceled_customers_management');
+        const data = await response.json();
+        
+        if (data.success) {
+            const customers = data.all_customers || [];
+            console.log(`📋 [PENDING] Found ${customers.length} customers`);
+            
+            if (customers.length === 0) {
+                container.innerHTML = `
+                    <div class="alert alert-info text-center">
+                        <i class="fas fa-info-circle me-2"></i>
+                        <strong>No pending customers found</strong>
+                        <p class="mb-0">All customers are properly classified!</p>
+                    </div>
+                `;
+                badge.textContent = '0';
+            } else {
+                // Build compact table
+                let html = `
+                    <div class="table-responsive compact-cancellation-table">
+                        <table class="table table-sm table-hover">
+                            <thead class="table-warning">
+                                <tr>
+                                    <th style="width: 25%">Guest</th>
+                                    <th style="width: 15%">Booking</th>
+                                    <th style="width: 20%">Category</th>
+                                    <th style="width: 15%">Status</th>
+                                    <th style="width: 25%">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                `;
+                
+                customers.forEach((customer, index) => {
+                    const categoryIcon = customer.is_canceled ? '❌' : customer.is_zero_commission ? '💼' : '⚠️';
+                    const categoryClass = customer.is_canceled ? 'table-danger' : customer.is_zero_commission ? 'table-info' : 'table-secondary';
+                    
+                    // Create unique ID for this customer row
+                    const rowId = `pending-customer-${index}`;
+                    
+                    html += `
+                        <tr class="${categoryClass} compact-row" id="${rowId}">
+                            <td>
+                                <div class="compact-text fw-bold">${customer.guest_name || 'N/A'}</div>
+                                <div class="compact-subtext text-muted">${customer.checkin_date || ''}</div>
+                            </td>
+                            <td>
+                                <span class="badge bg-secondary compact-badge">${customer.booking_id || 'N/A'}</span>
+                            </td>
+                            <td>
+                                <div class="d-flex align-items-center">
+                                    <span class="me-1" style="font-size: 0.7rem;">${categoryIcon}</span>
+                                    <span class="badge ${customer.is_canceled ? 'bg-danger' : customer.is_zero_commission ? 'bg-primary' : 'bg-secondary'} compact-badge">
+                                        ${customer.category || 'Unknown'}
+                                    </span>
+                                </div>
+                            </td>
+                            <td>
+                                <span class="badge bg-warning compact-badge">${customer.status_description || 'Pending'}</span>
+                            </td>
+                            <td>
+                                <div class="btn-group btn-group-sm">
+                                    <button class="btn btn-success compact-btn" 
+                                            data-booking-id="${customer.booking_id}" 
+                                            data-guest-name="${customer.guest_name || ''}"
+                                            onclick="handleConfirmCustomer(this)" title="Confirm classification">
+                                        <i class="fas fa-check"></i>
+                                    </button>
+                                    <button class="btn btn-info compact-btn" 
+                                            onclick="handleEditCustomer('${customer.guest_name || ''}', '${customer.booking_id || ''}')" title="Edit details">
+                                        <i class="fas fa-edit"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    `;
+                });
+                
+                html += '</tbody></table></div>';
+                container.innerHTML = html;
+                badge.textContent = customers.length;
+            }
+            
+            // Update total badge
+            const totalBadge = document.getElementById('totalCancellationBadge');
+            if (totalBadge) {
+                totalBadge.textContent = customers.length;
+            }
+            
+        } else {
+            container.innerHTML = '<div class="alert alert-danger">Error: ' + (data.error || 'Unknown error') + '</div>';
+            badge.textContent = 'Error';
+        }
+        
+    } catch (error) {
+        console.error('❌ [PENDING] Error:', error);
+        container.innerHTML = '<div class="alert alert-danger">Network error: ' + error.message + '</div>';
+        badge.textContent = 'Error';
+    }
+};
+
+// Load confirmed actions
+window.loadConfirmedActions = async function() {
+    console.log('📡 [CONFIRMED] Loading confirmed actions...');
+    
+    const container = document.getElementById('confirmedActionsList');
+    const badge = document.getElementById('confirmedBadge');
+    
+    try {
+        container.innerHTML = '<div class="text-center py-3"><div class="spinner-border text-success"></div><div class="mt-2">Loading...</div></div>';
+        
+        // Load confirmed cancellations from API
+        const response = await fetch('/api/confirmed_cancellations');
+        const data = await response.json();
+        
+        if (data.success) {
+            const confirmedActions = data.confirmed_cancellations || [];
+            console.log(`📋 [CONFIRMED] Found ${confirmedActions.length} confirmed actions`);
+            
+            if (confirmedActions.length === 0) {
+                container.innerHTML = `
+                    <div class="alert alert-info text-center">
+                        <i class="fas fa-info-circle me-2"></i>
+                        <strong>No confirmed actions yet</strong>
+                        <p class="mb-0">Confirmed actions will appear here after processing.</p>
+                    </div>
+                `;
+                badge.textContent = '0';
+            } else {
+                // Build confirmed actions table
+                let html = `
+                    <div class="table-responsive compact-cancellation-table">
+                        <table class="table table-sm table-hover">
+                            <thead class="table-success">
+                                <tr>
+                                    <th style="width: 25%">Guest</th>
+                                    <th style="width: 15%">Booking</th>
+                                    <th style="width: 20%">Type</th>
+                                    <th style="width: 20%">Confirmed Date</th>
+                                    <th style="width: 20%">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                `;
+                
+                confirmedActions.forEach((action, index) => {
+                    const confirmDate = action.confirmation_date ? new Date(action.confirmation_date).toLocaleDateString() : 'N/A';
+                    const rowId = `confirmed-action-${index}`;
+                    
+                    html += `
+                        <tr class="compact-row" id="${rowId}">
+                            <td>
+                                <div class="compact-text fw-bold">${action.guest_name || 'N/A'}</div>
+                                <div class="compact-subtext text-muted">ID: ${action.booking_id || 'N/A'}</div>
+                            </td>
+                            <td>
+                                <span class="badge bg-secondary compact-badge">${action.booking_id || 'N/A'}</span>
+                            </td>
+                            <td>
+                                <span class="badge bg-info compact-badge">${action.cancellation_type || 'Cancellation'}</span>
+                            </td>
+                            <td>
+                                <div class="compact-subtext text-success fw-bold">${confirmDate}</div>
+                            </td>
+                            <td>
+                                <div class="btn-group btn-group-sm">
+                                    <button class="btn btn-warning compact-btn" 
+                                            data-action-id="${action.action_id}"
+                                            data-booking-id="${action.booking_id}" 
+                                            data-guest-name="${action.guest_name || ''}"
+                                            onclick="handleUndoConfirmation(this)" title="Undo confirmation">
+                                        <i class="fas fa-undo"></i>
+                                    </button>
+                                    <button class="btn btn-danger compact-btn" 
+                                            data-action-id="${action.action_id}"
+                                            data-booking-id="${action.booking_id}" 
+                                            data-guest-name="${action.guest_name || ''}"
+                                            onclick="handleDeleteConfirmation(this)" title="Delete action">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    `;
+                });
+                
+                html += '</tbody></table></div>';
+                container.innerHTML = html;
+                badge.textContent = confirmedActions.length;
+            }
+            
+        } else {
+            container.innerHTML = '<div class="alert alert-danger">Error: ' + (data.error || 'Unknown error') + '</div>';
+            badge.textContent = 'Error';
+        }
+        
+    } catch (error) {
+        console.error('❌ [CONFIRMED] Error:', error);
+        container.innerHTML = '<div class="alert alert-danger">Network error: ' + error.message + '</div>';
+        badge.textContent = 'Error';
+    }
+};
+
+// Confirm customer function (enhanced with real API call)
+window.confirmCustomer = async function(bookingId, guestName, buttonElement) {
+    console.log('✅ [CONFIRM] Confirming customer:', guestName, bookingId);
+    
+    if (!bookingId || !guestName) {
+        alert('Error: Missing booking ID or guest name');
+        return;
+    }
+    
+    if (confirm(`Confirm cancellation classification for:\n\n${guestName} (${bookingId})\n\nThis will move them to confirmed actions.`)) {
+        try {
+            // Show loading state
+            if (buttonElement) {
+                buttonElement.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
+                buttonElement.disabled = true;
+            }
+            
+            // Make API call to confirm the customer
+            const response = await fetch('/api/confirm_cancellation', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    booking_id: bookingId,
+                    guest_name: guestName,
+                    cancellation_type: 'customer_classification',
+                    notes: 'Confirmed via unified cancellation management interface'
+                })
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                // Success feedback
+                if (buttonElement) {
+                    const row = buttonElement.closest('tr');
+                    if (row) {
+                        row.style.background = 'linear-gradient(90deg, #d4edda, #f8f9fa)';
+                        row.style.opacity = '0.7';
+                    }
+                    buttonElement.innerHTML = '<i class="fas fa-check"></i> Confirmed';
+                    buttonElement.className = 'btn btn-success btn-sm';
+                }
+                
+                // Show success message
+                alert(`✅ ${guestName} has been confirmed and moved to confirmed actions!`);
+                
+                // Reload both tabs
+                await loadPendingCustomers();
+                await loadConfirmedActions();
+                
+            } else {
+                throw new Error(result.message || 'Failed to confirm customer');
+            }
+            
+        } catch (error) {
+            console.error('❌ [CONFIRM] Error:', error);
+            alert(`Error confirming ${guestName}: ${error.message}`);
+            
+            // Reset button state
+            if (buttonElement) {
+                buttonElement.innerHTML = '<i class="fas fa-check"></i>';
+                buttonElement.disabled = false;
+            }
+        }
+    }
+};
+
+// Undo confirmation function
+window.undoConfirmation = async function(actionId, bookingId, guestName, buttonElement) {
+    console.log('↩️ [UNDO] Undoing confirmation for:', guestName, bookingId, actionId);
+    
+    if (!actionId || !bookingId || !guestName) {
+        alert('Error: Missing required parameters for undo operation');
+        return;
+    }
+    
+    if (confirm(`Undo confirmation for:\n\n${guestName} (${bookingId})\n\nThis will move them back to pending classification.`)) {
+        try {
+            // Show loading state
+            if (buttonElement) {
+                buttonElement.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+                buttonElement.disabled = true;
+            }
+            
+            // Make API call to undo confirmation
+            const response = await fetch('/api/undo_cancellation', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    action_id: actionId,
+                    booking_id: bookingId,
+                    guest_name: guestName
+                })
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                alert(`↩️ ${guestName} has been moved back to pending classification!`);
+                
+                // Reload both tabs
+                await loadPendingCustomers();
+                await loadConfirmedActions();
+                
+            } else {
+                throw new Error(result.message || 'Failed to undo confirmation');
+            }
+            
+        } catch (error) {
+            console.error('❌ [UNDO] Error:', error);
+            alert(`Error undoing ${guestName}: ${error.message}`);
+            
+            // Reset button state
+            if (buttonElement) {
+                buttonElement.innerHTML = '<i class="fas fa-undo"></i>';
+                buttonElement.disabled = false;
+            }
+        }
+    }
+};
+
+// Delete confirmation function
+window.deleteConfirmation = async function(actionId, bookingId, guestName, buttonElement) {
+    console.log('🗑️ [DELETE] Deleting confirmation for:', guestName, bookingId, actionId);
+    
+    if (!actionId || !bookingId || !guestName) {
+        alert('Error: Missing required parameters for delete operation');
+        return;
+    }
+    
+    if (confirm(`DELETE confirmation record for:\n\n${guestName} (${bookingId})\n\n⚠️ WARNING: This cannot be undone!`)) {
+        try {
+            // Show loading state
+            if (buttonElement) {
+                buttonElement.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+                buttonElement.disabled = true;
+            }
+            
+            // Make API call to delete confirmation record
+            const response = await fetch('/api/delete_cancellation', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    action_id: actionId,
+                    booking_id: bookingId,
+                    guest_name: guestName
+                })
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                alert(`🗑️ Confirmation record for ${guestName} has been deleted!`);
+                
+                // Reload both tabs
+                await loadPendingCustomers();
+                await loadConfirmedActions();
+                
+            } else {
+                throw new Error(result.message || 'Failed to delete confirmation');
+            }
+            
+        } catch (error) {
+            console.error('❌ [DELETE] Error:', error);
+            alert(`Error deleting ${guestName}: ${error.message}`);
+            
+            // Reset button state
+            if (buttonElement) {
+                buttonElement.innerHTML = '<i class="fas fa-trash"></i>';
+                buttonElement.disabled = false;
+            }
+        }
+    }
+};
+
+// Safe handler functions that use data attributes
+window.handleConfirmCustomer = async function(buttonElement) {
+    const bookingId = buttonElement.getAttribute('data-booking-id');
+    const guestName = buttonElement.getAttribute('data-guest-name');
+    
+    console.log('✅ [HANDLE_CONFIRM] Button clicked:', { bookingId, guestName });
+    
+    if (!bookingId || !guestName) {
+        alert('Error: Missing booking ID or guest name');
+        return;
+    }
+    
+    await window.confirmCustomer(bookingId, guestName, buttonElement);
+};
+
+window.handleUndoConfirmation = async function(buttonElement) {
+    const actionId = buttonElement.getAttribute('data-action-id');
+    const bookingId = buttonElement.getAttribute('data-booking-id');
+    const guestName = buttonElement.getAttribute('data-guest-name');
+    
+    console.log('↩️ [HANDLE_UNDO] Button clicked:', { actionId, bookingId, guestName });
+    
+    if (!actionId || !bookingId || !guestName) {
+        alert('Error: Missing required parameters for undo operation');
+        return;
+    }
+    
+    await window.undoConfirmation(actionId, bookingId, guestName, buttonElement);
+};
+
+window.handleDeleteConfirmation = async function(buttonElement) {
+    const actionId = buttonElement.getAttribute('data-action-id');
+    const bookingId = buttonElement.getAttribute('data-booking-id');
+    const guestName = buttonElement.getAttribute('data-guest-name');
+    
+    console.log('🗑️ [HANDLE_DELETE] Button clicked:', { actionId, bookingId, guestName });
+    
+    if (!actionId || !bookingId || !guestName) {
+        alert('Error: Missing required parameters for delete operation');
+        return;
+    }
+    
+    await window.deleteConfirmation(actionId, bookingId, guestName, buttonElement);
+};
+
+window.handleEditCustomer = function(guestName, bookingId) {
+    console.log('✏️ [HANDLE_EDIT] Edit requested for:', guestName, bookingId);
+    alert(`Edit functionality not yet implemented for: ${guestName} (${bookingId})`);
+};
+
+// Test API function
+window.testAPI = async function() {
+    try {
+        const response = await fetch('/api/canceled_customers_management');
+        const data = await response.json();
+        console.log('🧪 [TEST] API Result:', data);
+        return data;
+    } catch (error) {
+        console.error('🧪 [TEST] API Error:', error);
+        return null;
+    }
+};
+
+// Wrap all new cancellation functions in error handling to prevent breaking other functionality
+try {
+    console.log('🚀 [SIMPLE] Simple functions loaded successfully');
+    console.log('✅ [ACTIONS] Action functions (confirm, undo, refresh) loaded');
+    console.log('🔥 [WORKING] Working canceled customer functions loaded');
+    
+    // Test that all critical functions are defined
+    const requiredFunctions = [
+        'toggleCancellationCenter',
+        'loadPendingCustomers', 
+        'loadConfirmedActions',
+        'confirmCustomer',
+        'handleConfirmCustomer',
+        'handleUndoConfirmation',
+        'handleDeleteConfirmation'
+    ];
+    
+    const missingFunctions = [];
+    requiredFunctions.forEach(funcName => {
+        if (typeof window[funcName] !== 'function') {
+            missingFunctions.push(funcName);
+        }
+    });
+    
+    if (missingFunctions.length > 0) {
+        console.warn('⚠️ Missing cancellation functions:', missingFunctions);
+    } else {
+        console.log('✅ All cancellation management functions loaded successfully');
+    }
+    
+} catch (error) {
+    console.error('❌ Error in cancellation management functions:', error);
+    // Don't let cancellation errors break the rest of the dashboard
+}
+
+// ========================================
+// RESTORE MISSING DATA FUNCTIONALITY 
+// ========================================
+// This fixes QuickNotes and Monthly Expenses that might not be loading
+
+(function() {
+    console.log('🔧 RESTORING MISSING DATA FUNCTIONALITY');
+    
+    // 1. Restore QuickNotes functionality (use existing function)
+    function restoreQuickNotes() {
+        console.log('📝 Restoring QuickNotes...');
+        
+        // Use the existing loadQuickNotesOnDashboard function if available
+        if (typeof loadQuickNotesOnDashboard === 'function') {
+            try {
+                loadQuickNotesOnDashboard();
+                console.log('✅ QuickNotes restored using existing function');
+                return;
+            } catch (error) {
+                console.log('⚠️ Existing QuickNotes function failed:', error);
+            }
+        }
+        
+        // Fallback: Direct API call
+        const container = document.getElementById('quickNotesContainer');
+        if (!container) return;
+        
+        fetch('/api/quick_notes')
+            .then(response => response.json())
+            .then(data => {
+                if (data.success && data.notes && Array.isArray(data.notes)) {
+                    let html = '';
+                    data.notes.forEach(note => {
+                        html += `
+                            <div class="mb-1 p-1 bg-light rounded border-start border-primary border-2">
+                                <small class="text-dark">${note.content || note.note_content || ''}</small>
+                            </div>
+                        `;
+                    });
+                    container.innerHTML = html || '<small class="text-muted">No notes available</small>';
+                    console.log('✅ QuickNotes restored via API fallback');
+                } else {
+                    container.innerHTML = '<small class="text-muted">No notes available</small>';
+                }
+            })
+            .catch(error => {
+                console.log('⚠️ QuickNotes API error:', error.message);
+                container.innerHTML = `
+                    <div class="text-center p-1">
+                        <small class="text-muted">
+                            <i class="fas fa-sticky-note me-1"></i>Notes unavailable
+                        </small>
+                    </div>
+                `;
+            });
+    }
+    
+    // 2. Restore Monthly Expenses functionality  
+    function restoreMonthlyExpenses() {
+        const possibleContainers = ['monthlyExpenses', 'expensesContainer', 'expensesList'];
+        let expenseContainer = null;
+        
+        for (const id of possibleContainers) {
+            const element = document.getElementById(id);
+            if (element) {
+                expenseContainer = element;
+                break;
+            }
+        }
+        
+        if (!expenseContainer) return;
+        
+        expenseContainer.innerHTML = `
+            <div class="d-flex align-items-center justify-content-center p-2">
+                <div class="spinner-border spinner-border-sm me-2" role="status"></div>
+                <small class="text-muted">Loading expenses...</small>
+            </div>
+        `;
+        
+        // Try Expenses API
+        fetch('/api/expenses')
+            .then(response => response.json())
+            .then(data => {
+                if (data.success && data.expenses && Array.isArray(data.expenses)) {
+                    let html = '<div class="row g-1">';
+                    
+                    data.expenses.forEach(expense => {
+                        const amount = expense.amount || expense.expense_amount || 0;
+                        const description = expense.description || expense.expense_description || 'Expense';
+                        
+                        html += `
+                            <div class="col-12">
+                                <div class="card border-start border-danger border-2">
+                                    <div class="card-body p-2">
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            <small class="fw-bold">${description}</small>
+                                            <span class="badge bg-danger">${amount.toLocaleString()}đ</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    });
+                    
+                    html += '</div>';
+                    expenseContainer.innerHTML = html;
+                    console.log('✅ Monthly Expenses restored');
+                } else {
+                    expenseContainer.innerHTML = `
+                        <div class="text-center p-2">
+                            <small class="text-muted">
+                                <i class="fas fa-receipt me-1"></i>No expenses
+                            </small>
+                        </div>
+                    `;
+                }
+            })
+            .catch(error => {
+                console.log('⚠️ Expenses API not available:', error.message);
+                expenseContainer.innerHTML = `
+                    <div class="text-center p-2">
+                        <small class="text-muted">
+                            <i class="fas fa-receipt me-1"></i>Expenses unavailable
+                        </small>
+                    </div>
+                `;
+            });
+    }
+    
+    // 3. Only restore if data is missing (don't interfere with existing functions)
+    setTimeout(() => {
+        try {
+            // Only restore QuickNotes if container is empty or shows error
+            const quickContainer = document.getElementById('quickNotesContainer');
+            if (quickContainer && (quickContainer.innerHTML.includes('unavailable') || quickContainer.innerHTML.includes('error') || quickContainer.innerHTML.trim() === '')) {
+                console.log('🔧 QuickNotes appears to need restoration');
+                restoreQuickNotes();
+            }
+            
+            // Only restore expenses if container is empty or shows error
+            const expenseContainers = ['monthlyExpenses', 'expensesContainer', 'expensesList'];
+            for (const id of expenseContainers) {
+                const container = document.getElementById(id);
+                if (container && (container.innerHTML.includes('unavailable') || container.innerHTML.includes('error') || container.innerHTML.trim() === '')) {
+                    console.log('🔧 Monthly Expenses appears to need restoration');
+                    restoreMonthlyExpenses();
+                    break;
+                }
+            }
+        } catch (error) {
+            console.error('Error checking data restoration:', error);
+        }
+    }, 2000); // Increased delay to let existing functions try first
+    
+    // 4. Make functions globally available for manual restore
+    window.restoreQuickNotes = restoreQuickNotes;
+    window.restoreMonthlyExpenses = restoreMonthlyExpenses;
+    
+    // 5. Add missing fixQuickNotes function for console use
+    window.fixQuickNotes = function() {
+        console.log('🔧 Manual QuickNotes fix requested');
+        if (typeof loadQuickNotesOnDashboard === 'function') {
+            loadQuickNotesOnDashboard();
+            console.log('✅ QuickNotes refreshed using existing function');
+        } else {
+            restoreQuickNotes();
+            console.log('✅ QuickNotes restored using fallback');
+        }
+    };
+    
+    // 6. Add function to show all monthly expenses (not just current month)
+    window.showAllMonthlyExpenses = function() {
+        console.log('💰 Showing all monthly expenses...');
+        
+        const containers = ['monthlyExpenses', 'expensesContainer', 'expensesList'];
+        let container = null;
+        
+        for (const id of containers) {
+            const el = document.getElementById(id);
+            if (el) {
+                container = el;
+                break;
+            }
+        }
+        
+        if (!container) {
+            console.log('❌ No expense container found');
+            return;
+        }
+        
+        fetch('/api/expenses')
+            .then(response => response.json())
+            .then(data => {
+                if (data.success && data.expenses) {
+                    console.log(`💰 Processing ${data.expenses.length} total expenses`);
+                    
+                    let html = '<div class="row g-1">';
+                    let totalAmount = 0;
+                    
+                    data.expenses.forEach(expense => {
+                        const amount = expense.amount || expense.expense_amount || 0;
+                        const description = expense.description || expense.expense_description || 'Expense';
+                        const date = expense.date || expense.expense_date || expense.created_at;
+                        
+                        totalAmount += amount;
+                        
+                        html += `
+                            <div class="col-12">
+                                <div class="card border-start border-danger border-2 mb-1">
+                                    <div class="card-body p-2">
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            <div>
+                                                <small class="fw-bold">${description}</small>
+                                                ${date ? `<div class="text-muted" style="font-size: 0.7rem;">${new Date(date).toLocaleDateString()}</div>` : ''}
+                                            </div>
+                                            <span class="badge bg-danger">${amount.toLocaleString()}đ</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    });
+                    
+                    // Add total at the top
+                    html = `
+                        <div class="col-12 mb-2">
+                            <div class="alert alert-danger p-2 mb-0">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <strong>Total Monthly Expenses:</strong>
+                                    <span class="badge bg-dark fs-6">${totalAmount.toLocaleString()}đ</span>
+                                </div>
+                            </div>
+                        </div>
+                    ` + html;
+                    
+                    html += '</div>';
+                    container.innerHTML = html;
+                    console.log(`✅ Displayed ${data.expenses.length} expenses, total: ${totalAmount.toLocaleString()}đ`);
+                } else {
+                    container.innerHTML = '<div class="alert alert-info p-2">No expenses found</div>';
+                }
+            })
+            .catch(error => {
+                console.error('❌ Error loading expenses:', error);
+                container.innerHTML = '<div class="alert alert-danger p-2">Error loading expenses</div>';
+            });
+    };
+    
+    console.log('✅ Data restore functions loaded');
+    console.log('🛠️ Available functions: restoreQuickNotes(), restoreMonthlyExpenses(), fixQuickNotes(), showAllMonthlyExpenses()');
+    
+})();
+
 </script>
 {% endblock %}
