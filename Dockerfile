@@ -12,7 +12,9 @@ COPY app.py .
 COPY core/ ./core/
 COPY templates/ ./templates/
 COPY static/ ./static/
-COPY .env .
+
+# Railway will provide environment variables automatically
+# No need to copy .env file
 
 # Railway PORT injection
 CMD gunicorn app:app --host 0.0.0.0 --port $PORT
