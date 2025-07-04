@@ -17,9 +17,14 @@ COPY . .
 # Set environment variables
 ENV PYTHONPATH=/app
 ENV FLASK_APP=app.py
+ENV PORT=5000
 
 # Expose port
-EXPOSE 5000
+EXPOSE $PORT
+
+# Create startup script that handles PORT environment variable
+COPY start.sh /start.sh
+RUN chmod +x /start.sh
 
 # Command to run the application
-CMD ["python", "-m", "gunicorn", "app:app", "--bind", "0.0.0.0:5000", "--workers", "1", "--timeout", "120"]
+CMD ["/start.sh"]
