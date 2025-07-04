@@ -119,23 +119,26 @@ elif database_source == 'railway':
         print(f"❌ RAILWAY database requested but RAILWAY_DATABASE_URL not set")
         
 elif database_source == 'auto':
-    # Auto-detect: Railway environment variables take precedence, then local
-    railway_postgres_url = os.getenv('POSTGRES_URL') or os.getenv('RAILWAY_POSTGRES_URL')
+    # Smart Auto-detect: Check Railway environment first, then fallback to local
+    is_railway = bool(os.getenv('RAILWAY_ENVIRONMENT_ID') or os.getenv('RAILWAY_PROJECT_ID') or os.getenv('RAILWAY_SERVICE_ID'))
+    railway_postgres_url = os.getenv('POSTGRES_URL') or os.getenv('RAILWAY_POSTGRES_URL') or os.getenv('DATABASE_URL')
     
-    if railway_postgres_url:
+    print(f"🔍 Railway environment detected: {'✅' if is_railway else '❌'}")
+    
+    if is_railway and railway_postgres_url:
         database_url = railway_postgres_url
-        print(f"🚂 AUTO: Using Railway's native PostgreSQL: {database_url[:50]}...")
-    elif explicit_db_url:
-        database_url = explicit_db_url
-        print(f"🔧 AUTO: Using explicit DATABASE_URL: {database_url[:50]}...")
+        print(f"🚂 AUTO: Railway deployment - Using Railway PostgreSQL: {database_url[:50]}...")
+    elif railway_postgres_url:
+        database_url = railway_postgres_url
+        print(f"🔧 AUTO: Using DATABASE_URL/POSTGRES_URL: {database_url[:50]}...")
     elif railway_db_url:
         database_url = railway_db_url
         print(f"🚂 AUTO: Using configured Railway DB: {database_url[:50]}...")
     elif local_db_url:
         database_url = local_db_url
-        print(f"🏠 AUTO: Using local PostgreSQL: {database_url[:50]}...")
+        print(f"🏠 AUTO: Development mode - Using local PostgreSQL: {database_url[:50]}...")
     else:
-        print(f"❌ AUTO: No database URL found")
+        print(f"❌ AUTO: No database URL found - Check your environment variables")
         
 else:
     print(f"❌ Invalid DATABASE_SOURCE: {database_source}. Use 'local', 'railway', or 'auto'")
