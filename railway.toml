@@ -1,0 +1,13 @@
+[build]
+builder = "dockerfile"
+
+[deploy]
+startCommand = "/docker-entrypoint.sh"
+restartPolicyType = "on_failure"
+restartPolicyMaxRetries = 3
+
+[variables]
+# Railway will automatically inject these
+PORT = { default = "5000" }
+PYTHONPATH = "/app"
+FLASK_APP = "app.py"

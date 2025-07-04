@@ -14,13 +14,16 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy application code
 COPY . .
 
+# Copy and setup entrypoint script
+COPY docker-entrypoint.sh /docker-entrypoint.sh
+RUN chmod +x /docker-entrypoint.sh
+
 # Set environment variables
 ENV PYTHONPATH=/app
 ENV FLASK_APP=app.py
 
-# Expose port (Railway will assign the actual port)
+# Expose port
 EXPOSE 5000
 
-# CRITICAL FIX: Use shell form to enable environment variable substitution
-# Railway injects PORT at runtime, shell form processes $PORT correctly
-CMD python -m gunicorn app:app --bind 0.0.0.0:${PORT:-5000} --workers 1 --timeout 120
+# Use entrypoint script to handle Railway's PORT variable issues
+ENTRYPOINT ["/docker-entrypoint.sh"]
