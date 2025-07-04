@@ -1,18 +1,32 @@
-# MINIMAL RAILWAY REQUIREMENTS - Fast Build
-# Core Flask application + Essential packages for your app
+# COMPLETE RAILWAY REQUIREMENTS - All Imports Covered
+# Based on actual import analysis of the codebase
 
+# Core Flask Framework
 flask==2.3.3
 gunicorn==21.2.0
+Flask-SQLAlchemy>=3.0.0
+
+# Database
 psycopg2-binary>=2.9.0
 SQLAlchemy>=2.0.0
-Flask-SQLAlchemy>=3.0.0
+
+# Core Python packages
 python-dotenv>=1.0.0
 requests>=2.31.0
 
-# Essential packages your app imports
+# Data Processing (REQUIRED by your code)
 pandas>=2.0.0,<3.0.0
-google-generativeai>=0.3.0,<1.0.0
+numpy>=1.21.0,<2.0.0
 python-dateutil>=2.8.0,<3.0.0
 
-# Required by dashboard_routes.py
+# Visualization (REQUIRED by dashboard_routes.py)
 plotly>=5.15.0,<6.0.0
+
+# AI Integration (REQUIRED by app.py)
+google-generativeai>=0.3.0,<1.0.0
+
+# Async HTTP (REQUIRED by optimized_railway_crawler.py)
+aiohttp>=3.9.0,<4.0.0
+
+# Google Sheets (REQUIRED by some modules)
+gspread>=5.0.0
