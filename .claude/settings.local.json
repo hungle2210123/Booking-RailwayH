@@ -20,7 +20,11 @@
       "Bash(sudo apt install:*)",
       "mcp__sequential-thinking__sequentialthinking",
       "mcp__context7__resolve-library-id",
-      "mcp__context7__get-library-docs"
+      "mcp__context7__get-library-docs",
+      "Bash(claude mcp remove:*)",
+      "Bash(claude mcp add:*)",
+      "Bash(claude mcp:*)",
+      "mcp__brave-search__brave_web_search"
     ],
     "deny": []
   }

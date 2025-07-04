@@ -14,10 +14,6 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy application code
 COPY . .
 
-# Copy Railway startup script
-COPY railway_start.py /app/railway_start.py
-RUN chmod +x /app/railway_start.py
-
 # Set environment variables
 ENV PYTHONPATH=/app
 ENV FLASK_APP=app.py
@@ -25,5 +21,6 @@ ENV FLASK_APP=app.py
 # Expose port (Railway will assign the actual port)
 EXPOSE 5000
 
-# Use smart Railway startup script that handles PORT issues
-CMD ["python", "/app/railway_start.py"]
+# CRITICAL FIX: Use shell form to enable environment variable substitution
+# Railway injects PORT at runtime, shell form processes $PORT correctly
+CMD python -m gunicorn app:app --bind 0.0.0.0:${PORT:-5000} --workers 1 --timeout 120
