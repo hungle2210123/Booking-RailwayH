@@ -1,82 +1,101 @@
 #!/usr/bin/env python3
 """
-Simple data export using built-in modules
+Simple CSV export that doesn't require additional packages
 """
 
 import os
 import sys
-import json
-from datetime import datetime
 
-# Simple environment variable reader
-def load_env_file():
-    """Load .env file manually"""
-    env_vars = {}
-    try:
-        with open('.env', 'r') as f:
-            for line in f:
-                line = line.strip()
-                if line and not line.startswith('#') and '=' in line:
-                    key, value = line.split('=', 1)
-                    env_vars[key] = value
-    except FileNotFoundError:
-        print("❌ .env file not found")
-    return env_vars
+def create_sql_dump():
+    """Create SQL dump using pg_dump if available"""
+    print("🔍 Attempting SQL dump...")
+    
+    # Try different pg_dump locations
+    pg_dump_paths = [
+        'pg_dump',
+        '/usr/bin/pg_dump', 
+        '/usr/local/bin/pg_dump',
+        'C:\\Program Files\\PostgreSQL\\15\\bin\\pg_dump.exe',
+        'C:\\Program Files\\PostgreSQL\\14\\bin\\pg_dump.exe',
+        'C:\\Program Files\\PostgreSQL\\13\\bin\\pg_dump.exe',
+    ]
+    
+    local_db = "postgresql://postgres:locloc123@localhost:5432/hotel_booking"
+    
+    for pg_dump in pg_dump_paths:
+        try:
+            import subprocess
+            
+            # Try to run pg_dump
+            output_file = "local_data_dump.sql"
+            cmd = [pg_dump, local_db, '-f', output_file]
+            
+            result = subprocess.run(cmd, capture_output=True, text=True)
+            
+            if result.returncode == 0:
+                print(f"✅ SQL dump created: {output_file}")
+                return output_file
+            else:
+                print(f"❌ pg_dump failed: {result.stderr}")
+                continue
+                
+        except FileNotFoundError:
+            continue
+        except Exception as e:
+            print(f"❌ Error with {pg_dump}: {e}")
+            continue
+    
+    print("❌ pg_dump not found or failed")
+    return None
 
-def test_connection():
-    """Test if we can connect to local database"""
-    env_vars = load_env_file()
-    local_db_url = env_vars.get('LOCAL_DATABASE_URL')
-    
-    print(f"🔍 Checking local database connection...")
-    print(f"📊 LOCAL_DATABASE_URL: {local_db_url[:50] if local_db_url else 'Not found'}...")
-    
-    if not local_db_url:
-        print("❌ LOCAL_DATABASE_URL not found in .env")
-        return False
-    
-    try:
-        import psycopg2
-        conn = psycopg2.connect(local_db_url)
-        cursor = conn.cursor()
-        
-        # Test query
-        cursor.execute("SELECT COUNT(*) FROM bookings;")
-        count = cursor.fetchone()[0]
-        print(f"✅ Connection successful! Found {count} bookings")
-        
-        # Show sample data
-        cursor.execute("SELECT guest_name, room_amount FROM bookings LIMIT 3;")
-        samples = cursor.fetchall()
-        
-        print("📋 Sample bookings:")
-        for guest_name, room_amount in samples:
-            print(f"   - {guest_name}: {room_amount}đ")
-        
-        cursor.close()
-        conn.close()
-        return True
-        
-    except ImportError:
-        print("❌ psycopg2 not available. Install with: pip install psycopg2-binary")
-        return False
-    except Exception as e:
-        print(f"❌ Database connection failed: {e}")
-        return False
+def manual_instructions():
+    """Provide manual export instructions"""
+    print("""
+📋 MANUAL DATA EXPORT INSTRUCTIONS
+
+Since automatic export requires packages not installed, here are manual options:
+
+OPTION 1: Use pgAdmin (Recommended)
+1. Open pgAdmin
+2. Connect to local PostgreSQL (localhost:5432, user: postgres, password: locloc123)
+3. Right-click hotel_booking database → Backup
+4. Choose Custom format, save as hotel_booking_backup.backup
+5. Use this file to restore to Railway
+
+OPTION 2: Use psql command line
+1. Open command prompt
+2. Run: pg_dump -U postgres -h localhost -d hotel_booking > hotel_booking_dump.sql
+3. Enter password: locloc123
+4. Upload this SQL file to Railway
+
+OPTION 3: Use Railway CLI (Easiest)
+1. Install Railway CLI: npm install -g @railway/cli
+2. Login: railway login
+3. Connect to your project: railway link
+4. Import data: railway run psql < hotel_booking_dump.sql
+
+OPTION 4: Via Web Interface
+1. Export your data via your local Flask app (http://localhost:5000)
+2. Use any export feature in your booking system
+3. Import via Railway Flask app bulk import
+
+🎯 RAILWAY DATABASE CONNECTION:
+postgresql://postgres:VmyAveAhkGVOFlSiVBWgyIEAUbKAXEPi@postgres.railway.internal:5432/railway
+""")
 
 if __name__ == "__main__":
-    print("🏨 Hotel Booking System - Connection Test")
-    print("=" * 50)
+    print("🏨 Simple Data Export Tool")
+    print("=" * 40)
     
-    success = test_connection()
+    # Try SQL dump first
+    dump_file = create_sql_dump()
     
-    if success:
-        print("\n✅ Your local database is accessible!")
-        print("📋 Next: Install psycopg2-binary to export data")
-        print("Command: pip install psycopg2-binary python-dotenv")
+    if dump_file:
+        print(f"\n✅ SUCCESS: {dump_file} created")
+        print(f"📋 Next steps:")
+        print(f"1. Upload this file to Railway using Railway CLI or pgAdmin")
+        print(f"2. Restore to Railway PostgreSQL database")
+        print(f"3. Verify data in your Railway app")
     else:
-        print("\n❌ Cannot access local database")
-        print("🔧 Troubleshooting:")
-        print("1. Make sure PostgreSQL is running locally")
-        print("2. Check .env file has correct LOCAL_DATABASE_URL")
-        print("3. Install required packages: pip install psycopg2-binary")
+        print("\n⚠️ Automatic export failed")
+        manual_instructions()
