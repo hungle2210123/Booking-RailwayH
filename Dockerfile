@@ -14,17 +14,12 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy application code
 COPY . .
 
-# Copy and setup entrypoint script
-COPY entrypoint.sh /entrypoint.sh
-RUN chmod +x /entrypoint.sh
-
 # Set environment variables
 ENV PYTHONPATH=/app
 ENV FLASK_APP=app.py
-ENV PORT=5000
 
-# Expose port
-EXPOSE $PORT
+# Expose port 8080 (Railway's preferred internal port)
+EXPOSE 8080
 
-# Use entrypoint script
-ENTRYPOINT ["/entrypoint.sh"]
+# Run gunicorn on fixed port 8080
+CMD ["python", "-m", "gunicorn", "app:app", "--bind", "0.0.0.0:8080", "--workers", "1", "--timeout", "120"]
