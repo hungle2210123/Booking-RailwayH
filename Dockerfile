@@ -14,15 +14,16 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy application code
 COPY . .
 
-# Ensure Railway environment file is available
-COPY .env.railway .
+# Copy Railway startup script
+COPY railway_start.py /app/railway_start.py
+RUN chmod +x /app/railway_start.py
 
 # Set environment variables
 ENV PYTHONPATH=/app
 ENV FLASK_APP=app.py
 
-# Expose port 8080 (Railway's preferred internal port)
-EXPOSE 8080
+# Expose port (Railway will assign the actual port)
+EXPOSE 5000
 
-# Run gunicorn on fixed port 8080
-CMD ["python", "-m", "gunicorn", "app:app", "--bind", "0.0.0.0:8080", "--workers", "1", "--timeout", "120"]
+# Use smart Railway startup script that handles PORT issues
+CMD ["python", "/app/railway_start.py"]

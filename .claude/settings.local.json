@@ -18,7 +18,9 @@
       "Bash(apt install:*)",
       "Bash(sudo apt:*)",
       "Bash(sudo apt install:*)",
-      "mcp__sequential-thinking__sequentialthinking"
+      "mcp__sequential-thinking__sequentialthinking",
+      "mcp__context7__resolve-library-id",
+      "mcp__context7__get-library-docs"
     ],
     "deny": []
   }
