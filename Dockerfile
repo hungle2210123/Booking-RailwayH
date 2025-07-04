@@ -1,16 +1,18 @@
-# ULTIMATE Railway-Optimized Dockerfile
-# Based on Official Railway Flask Guide + Successful GitHub Examples
+# MINIMAL Railway Test Dockerfile - Fast Build
 FROM python:3.11-slim
 
 WORKDIR /app
 
-# Copy and install dependencies
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+# Use minimal requirements for fast testing
+COPY requirements-minimal.txt .
+RUN pip install --no-cache-dir -r requirements-minimal.txt
 
-# Copy application code
-COPY . .
+# Copy only essential files
+COPY app.py .
+COPY core/ ./core/
+COPY templates/ ./templates/
+COPY static/ ./static/
+COPY .env .
 
-# CRITICAL: Railway injects PORT at runtime, not build time
-# Use shell form CMD for proper environment variable substitution
+# Railway PORT injection
 CMD gunicorn app:app --host 0.0.0.0 --port $PORT
