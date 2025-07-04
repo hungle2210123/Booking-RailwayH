@@ -14,6 +14,10 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy application code
 COPY . .
 
+# Copy and setup entrypoint script
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
 # Set environment variables
 ENV PYTHONPATH=/app
 ENV FLASK_APP=app.py
@@ -22,9 +26,5 @@ ENV PORT=5000
 # Expose port
 EXPOSE $PORT
 
-# Create startup script that handles PORT environment variable
-COPY start.sh /start.sh
-RUN chmod +x /start.sh
-
-# Command to run the application
-CMD ["/start.sh"]
+# Use entrypoint script
+ENTRYPOINT ["/entrypoint.sh"]
