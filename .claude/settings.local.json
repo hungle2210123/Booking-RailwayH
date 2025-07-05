@@ -46,7 +46,8 @@
       "Bash(chmod:*)",
       "Bash(./backup_railway.sh:*)",
       "Bash(./CLEANUP_SCRIPT.bat)",
-      "Bash(echo:*)"
+      "Bash(echo:*)",
+      "Bash(mv:*)"
     ],
     "deny": []
   },

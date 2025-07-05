@@ -14,8 +14,8 @@ COPY templates/ ./templates/
 COPY static/ ./static/
 
 # Copy entrypoint script
-COPY entrypoint.sh /entrypoint.sh
-RUN chmod +x /entrypoint.sh
+COPY docker-entrypoint.sh /docker-entrypoint.sh
+RUN chmod +x /docker-entrypoint.sh
 
 # Use our entrypoint script
-CMD ["/entrypoint.sh"]
+CMD ["/docker-entrypoint.sh"]
