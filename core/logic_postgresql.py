@@ -45,7 +45,7 @@ def get_db_connection():
     from .models import db
     return db.engine.connect()
 
-def execute_query(query: str, params: dict = None, force_fresh: bool = False) -> pd.DataFrame:
+def execute_query(query: str, params: dict = None, force_fresh: bool = False, allow_fallback: bool = False) -> pd.DataFrame:
     """Execute SQL query and return DataFrame"""
     try:
         if force_fresh:
@@ -61,6 +61,9 @@ def execute_query(query: str, params: dict = None, force_fresh: bool = False) ->
             return result
     except Exception as e:
         print(f"Database query error: {e}")
+        # If allow_fallback is True, re-raise the error so calling code can handle it
+        if allow_fallback:
+            raise e
         return pd.DataFrame()
 
 def execute_insert_update_delete(query: str, params: dict = None) -> bool:
@@ -135,11 +138,14 @@ def load_booking_data(force_fresh: bool = False) -> pd.DataFrame:
     
     # Try the full query first (works for local with guests table)
     try:
-        df = execute_query(query, force_fresh=force_fresh)
+        df = execute_query(query, force_fresh=force_fresh, allow_fallback=True)
         if not df.empty:
             return process_booking_dataframe(df)
+        else:
+            print("⚠️ Full query returned empty result, trying fallback...")
     except Exception as e:
         print(f"⚠️ Full query failed (likely missing guests table): {e}")
+        print("🔄 Switching to Railway-compatible fallback query...")
     
     # Fallback query without guests table (works for Railway)
     fallback_query = """
