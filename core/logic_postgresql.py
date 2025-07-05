@@ -99,7 +99,50 @@ def load_booking_data(force_fresh: bool = False) -> pd.DataFrame:
     if force_fresh:
         print("🔄 FORCE FRESH: Loading data with fresh database connection")
     
+    # Smart query that works with or without guests table
     query = """
+    SELECT 
+        b.booking_id as "Số đặt phòng",
+        COALESCE(g.full_name, b.guest_name) as "Tên người đặt", 
+        '118 Hang Bac Hostel' as "Tên chỗ nghỉ",
+        b.checkin_date as "Check-in Date",
+        b.checkout_date as "Check-out Date",
+        b.room_amount as "Tổng thanh toán",
+        COALESCE(b.collected_amount, 0) as "Số tiền đã thu",
+        b.commission as "Hoa hồng",
+        b.taxi_amount as "Taxi",
+        b.collector as "Người thu tiền",
+        CASE 
+            WHEN b.booking_status IN ('confirmed', 'ok', 'mới') THEN 'OK'
+            WHEN b.booking_status IN ('cancelled', 'đã hủy') THEN 'Đã hủy'
+            WHEN b.booking_status = 'pending' THEN 'Chờ xử lý'
+            ELSE COALESCE(b.booking_status, 'OK')
+        END as "Tình trạng",
+        b.booking_notes as "Ghi chú thanh toán",
+        'VND' as "Tiền tệ",
+        'Hà Nội' as "Vị trí",
+        'Không' as "Thành viên Genius",
+        CASE WHEN b.taxi_amount > 0 THEN true ELSE false END as "Có taxi",
+        CASE WHEN b.taxi_amount > 0 THEN false ELSE true END as "Không có taxi",
+        b.created_at,
+        b.updated_at
+    FROM bookings b
+    LEFT JOIN guests g ON b.guest_id = g.guest_id
+    -- Exclude deleted bookings from all queries
+    WHERE (b.booking_status != 'deleted' OR b.booking_status IS NULL)
+    ORDER BY b.checkin_date DESC NULLS LAST
+    """
+    
+    # Try the full query first (works for local with guests table)
+    try:
+        df = execute_query(query, force_fresh=force_fresh)
+        if not df.empty:
+            return process_booking_dataframe(df)
+    except Exception as e:
+        print(f"⚠️ Full query failed (likely missing guests table): {e}")
+    
+    # Fallback query without guests table (works for Railway)
+    fallback_query = """
     SELECT 
         b.booking_id as "Số đặt phòng",
         b.guest_name as "Tên người đặt", 
@@ -131,8 +174,16 @@ def load_booking_data(force_fresh: bool = False) -> pd.DataFrame:
     ORDER BY b.checkin_date DESC NULLS LAST
     """
     
-    df = execute_query(query, force_fresh=force_fresh)
+    print("🔄 Using fallback query without guests table...")
+    df = execute_query(fallback_query, force_fresh=force_fresh)
     
+    if df.empty:
+        return pd.DataFrame()
+    
+    return process_booking_dataframe(df)
+
+def process_booking_dataframe(df):
+    """Process the booking dataframe with proper data types"""
     if df.empty:
         return pd.DataFrame()
     
@@ -148,7 +199,7 @@ def load_booking_data(force_fresh: bool = False) -> pd.DataFrame:
         if col in df.columns:
             df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0)
     
-    print(f"Loaded {len(df)} bookings from PostgreSQL")
+    print(f"✅ Loaded {len(df)} bookings from PostgreSQL")
     return df
 
 def create_demo_data():
