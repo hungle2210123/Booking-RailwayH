@@ -102,7 +102,7 @@ def load_booking_data(force_fresh: bool = False) -> pd.DataFrame:
     query = """
     SELECT 
         b.booking_id as "Số đặt phòng",
-        COALESCE(g.full_name, b.guest_name) as "Tên người đặt", 
+        b.guest_name as "Tên người đặt", 
         '118 Hang Bac Hostel' as "Tên chỗ nghỉ",
         b.checkin_date as "Check-in Date",
         b.checkout_date as "Check-out Date",
@@ -126,7 +126,6 @@ def load_booking_data(force_fresh: bool = False) -> pd.DataFrame:
         b.created_at,
         b.updated_at
     FROM bookings b
-    LEFT JOIN guests g ON b.guest_id = g.guest_id
     -- Exclude deleted bookings from all queries
     WHERE (b.booking_status != 'deleted' OR b.booking_status IS NULL)
     ORDER BY b.checkin_date DESC NULLS LAST
