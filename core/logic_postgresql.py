@@ -994,9 +994,10 @@ def extract_booking_info_from_image_content(image_data: bytes, google_api_key: s
         model = genai.GenerativeModel('gemini-2.5-flash-preview-05-20')
         
         # Convert image for Gemini
-        image = Image.open(BytesIO(image_data)) if Image else None
-        if not image:
-            return {'error': 'PIL not available for image processing'}
+        if not Image:
+            return {'error': 'PIL not available for image processing on railway'}
+        
+        image = Image.open(BytesIO(image_data))
         
         prompt = """
         Extract ALL booking information from this image. If there are multiple bookings/guests, extract all of them.

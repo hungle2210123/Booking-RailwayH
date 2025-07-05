@@ -2237,6 +2237,38 @@ function deleteMultipleBookings(bookingIds) {
 
 function initializeFilterToggle() {
     console.log('🔍 Initializing filter toggle...');
+    
+    // Check for saved filter preference and restore if needed
+    const savedFilter = localStorage.getItem('guestFilterShowAll');
+    const currentShowAll = new URLSearchParams(window.location.search).get('show_all') === 'true';
+    
+    console.log('💾 Saved filter preference:', savedFilter);
+    console.log('🔍 Current URL show_all:', currentShowAll);
+    
+    // If there's a saved preference and it differs from current URL, redirect to saved preference
+    if (savedFilter !== null) {
+        const shouldShowAll = savedFilter === 'true';
+        if (shouldShowAll !== currentShowAll) {
+            // Check if we just restored the filter to prevent infinite loops
+            const justRestored = sessionStorage.getItem('guestFilterJustRestored');
+            if (!justRestored) {
+                console.log('🔄 Filter mismatch detected - restoring saved preference');
+                console.log(`   Saved: ${shouldShowAll}, Current: ${currentShowAll}`);
+                // Set flag to prevent infinite loops
+                sessionStorage.setItem('guestFilterJustRestored', 'true');
+                // Use setTimeout to avoid interfering with page load
+                setTimeout(() => {
+                    window.updateFilterView(shouldShowAll);
+                }, 100);
+                return; // Don't continue with setup since we're redirecting
+            } else {
+                // Clear the flag after one restore attempt
+                sessionStorage.removeItem('guestFilterJustRestored');
+                console.log('🛑 Skipping filter restore to prevent infinite loop');
+            }
+        }
+    }
+    
     const showActiveRadio = document.getElementById('show_active');
     const showAllRadio = document.getElementById('show_all');
     
@@ -2405,6 +2437,10 @@ document.addEventListener('DOMContentLoaded', function() {
 // Make updateFilterView globally accessible (MUST be outside DOMContentLoaded)
 window.updateFilterView = function(showAll) {
     console.log('🔄 window.updateFilterView called with showAll:', showAll);
+    
+    // Store filter preference in localStorage for persistence
+    localStorage.setItem('guestFilterShowAll', showAll ? 'true' : 'false');
+    console.log('💾 Saved filter preference to localStorage:', showAll);
     
     // Get current URL parameters
     const url = new URL(window.location);

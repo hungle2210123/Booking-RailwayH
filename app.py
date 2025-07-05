@@ -870,6 +870,97 @@ def api_undo_cancellation():
             'traceback': traceback.format_exc()
         }), 500
 
+@app.route('/api/set_ok_status', methods=['POST'])
+def api_set_ok_status():
+    """Set OK status for a guest (meaning no more cancellation issues)"""
+    try:
+        data = request.get_json()
+        booking_id = data.get('booking_id')
+        guest_name = data.get('guest_name')
+        cancellation_type = data.get('cancellation_type', 'ok_status')
+        confirmed_by = 'System User'  # You can enhance this with actual user tracking
+        
+        if not all([booking_id, guest_name]):
+            return jsonify({
+                'success': False,
+                'error': 'Missing required fields: booking_id and guest_name'
+            }), 400
+        
+        # Import models
+        from core.models import db, CancellationAction, Booking
+        
+        # CRITICAL: Update booking status to restore full functionality
+        booking = Booking.query.filter_by(booking_id=booking_id).first()
+        if not booking:
+            return jsonify({
+                'success': False,
+                'error': f'Booking {booking_id} not found'
+            }), 404
+            
+        # Restore booking to confirmed status (enables all features)
+        old_status = booking.booking_status
+        booking.booking_status = 'confirmed'
+        booking.booking_notes = f"{booking.booking_notes or ''} [OK Status: Restored from {old_status}]".strip()
+        
+        print(f"🔄 [RESTORE_BOOKING] {booking_id} status: {old_status} → confirmed")
+        
+        # Check if there's already an action for this booking - update it instead of creating new
+        existing = CancellationAction.query.filter_by(
+            booking_id=booking_id,
+            guest_name=guest_name
+        ).first()
+        
+        if existing:
+            # Update existing action to OK status
+            existing.cancellation_type = 'ok_status'
+            existing.action_status = 'ok'
+            existing.confirmed_by = confirmed_by
+            existing.confirmation_date = datetime.now()
+            existing.notes = f'Guest marked as OK - booking restored to full functionality'
+            db.session.commit()
+            
+            print(f"🔄 [UPDATE_OK_STATUS] Updated existing action {existing.action_id} to OK status")
+            return jsonify({
+                'success': True,
+                'message': f'{guest_name} restored to full functionality - booking status: {old_status} → confirmed',
+                'action': 'updated',
+                'action_id': existing.action_id,
+                'booking_status_change': f'{old_status} → confirmed'
+            })
+        
+        # Create new OK status record
+        ok_action = CancellationAction(
+            booking_id=booking_id,
+            guest_name=guest_name,
+            cancellation_type='ok_status',
+            action_status='ok',
+            confirmed_by=confirmed_by,
+            confirmation_date=datetime.now(),
+            notes=f'Guest marked as OK - booking restored to full functionality from {old_status}'
+        )
+        
+        db.session.add(ok_action)
+        db.session.commit()
+        
+        print(f"✅ [SET_OK_STATUS] Booking {booking_id} - {guest_name} - restored to full functionality")
+        
+        return jsonify({
+            'success': True,
+            'message': f'{guest_name} restored to full functionality - booking status: {old_status} → confirmed',
+            'action_id': ok_action.action_id,
+            'booking_status_change': f'{old_status} → confirmed',
+            'timestamp': datetime.now().isoformat()
+        })
+        
+    except Exception as e:
+        print(f"❌ [API_SET_OK_STATUS] Error: {e}")
+        import traceback
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'traceback': traceback.format_exc()
+        }), 500
+
 @app.route('/auto_sync')
 def auto_sync_dashboard():
     """Auto sync dashboard for managing bidirectional database synchronization"""
@@ -1459,6 +1550,17 @@ def add_booking():
                 'notes': request.form.get('Ghi chú', '')
             }
             
+            # Pre-flight check for Railway deployment
+            try:
+                from core.models import db
+                from sqlalchemy import text
+                db.session.execute(text('SELECT 1'))
+                print("✅ [PRE_FLIGHT] Database connection verified")
+            except Exception as db_test_error:
+                print(f"❌ [PRE_FLIGHT] Database connection failed: {db_test_error}")
+                flash(f'Database connection error: {str(db_test_error)}', 'error')
+                return render_template('add_booking.html')
+            
             if add_new_booking(booking_data):
                 # Cache removed - data will be fresh automatically
                 flash('Booking added successfully!', 'success')
@@ -1467,7 +1569,17 @@ def add_booking():
                 flash('Error adding booking to database', 'error')
         
         except Exception as e:
-            flash(f'Error adding booking: {str(e)}', 'error')
+            import traceback
+            error_msg = f'Error adding booking: {str(e)}'
+            print(f"❌ [ADD_BOOKING_ERROR] {error_msg}")
+            print(f"❌ [ADD_BOOKING_TRACEBACK] {traceback.format_exc()}")
+            
+            # Check for common Railway issues
+            if "database" in str(e).lower() or "connection" in str(e).lower():
+                print(f"🔍 [RAILWAY_DEBUG] Possible database connection issue")
+                print(f"🔍 [RAILWAY_DEBUG] DATABASE_URL exists: {'DATABASE_URL' in os.environ}")
+            
+            flash(error_msg, 'error')
     
     return render_template('add_booking.html')
 
@@ -4277,11 +4389,23 @@ def get_templates():
                 'Category': category,
                 'Label': label,
                 'Message': template.template_content,
+                # Frontend expects these lowercase fields
+                'category': category,
+                'label': label, 
+                'content': template.template_content,
                 'id': template.template_id,
                 'created_at': template.created_at.isoformat() if template.created_at else None
             })
         
         print(f"📋 Templates API: Processed {len(templates_data)} templates")
+        
+        # Debug: Show sample template structure
+        if templates_data:
+            sample = templates_data[0]
+            print(f"📋 Sample template structure:")
+            print(f"   - label: '{sample.get('label', 'MISSING')}'")
+            print(f"   - content length: {len(sample.get('content', ''))}")
+            print(f"   - id: {sample.get('id', 'MISSING')}")
         
         # Group by category for better organization
         from collections import defaultdict
@@ -4293,6 +4417,7 @@ def get_templates():
         
         # Return in format expected by JavaScript
         return jsonify({
+            'success': True,
             'templates': templates_data
         })
     except Exception as e:
@@ -4321,6 +4446,34 @@ def add_template():
         if not name or not content:
             print(f"❌ [TEMPLATE_ADD] Missing fields - name: {name}, content: {content}")
             return jsonify({'success': False, 'error': 'Name and content are required'}), 400
+        
+        # Fix sequence if needed (check if sequence is behind the actual data)
+        try:
+            # Get the current max ID in the table
+            max_id = db.session.query(db.func.max(MessageTemplate.template_id)).scalar() or 0
+            
+            # Get the current sequence value without advancing it
+            sequence_val = db.session.execute(db.text("SELECT last_value FROM message_templates_template_id_seq")).scalar()
+            
+            print(f"🔍 [TEMPLATE_ADD] Sequence check: max_id={max_id}, sequence_val={sequence_val}")
+            
+            # If sequence is behind, reset it
+            if sequence_val <= max_id:
+                reset_val = max_id + 1
+                db.session.execute(db.text(f"SELECT setval('message_templates_template_id_seq', {reset_val})"))
+                db.session.commit()
+                print(f"🔧 [TEMPLATE_ADD] Fixed sequence: set to {reset_val} (was {sequence_val}, max_id was {max_id})")
+        except Exception as seq_error:
+            print(f"⚠️ [TEMPLATE_ADD] Sequence fix error: {seq_error}")
+            # Try a simpler approach - just reset to max+1
+            try:
+                max_id = db.session.query(db.func.max(MessageTemplate.template_id)).scalar() or 0
+                reset_val = max_id + 1
+                db.session.execute(db.text(f"SELECT setval('message_templates_template_id_seq', {reset_val})"))
+                db.session.commit()
+                print(f"🔧 [TEMPLATE_ADD] Fallback sequence fix: set to {reset_val}")
+            except Exception as fallback_error:
+                print(f"❌ [TEMPLATE_ADD] Fallback sequence fix failed: {fallback_error}")
         
         # Create new template in database
         new_template = MessageTemplate(
@@ -4582,6 +4735,42 @@ def import_templates_from_json():
         
     except Exception as e:
         print(f"❌ Error importing templates: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/templates/fix_sequence', methods=['POST'])
+def fix_template_sequence():
+    """Fix the template_id sequence to prevent duplicate key errors"""
+    try:
+        from core.models import MessageTemplate, db
+        
+        # Get the current max ID in the table
+        max_id = db.session.query(db.func.max(MessageTemplate.template_id)).scalar() or 0
+        
+        # Get the current sequence value
+        try:
+            sequence_val = db.session.execute(db.text("SELECT last_value FROM message_templates_template_id_seq")).scalar()
+        except:
+            sequence_val = 0
+            
+        # Reset sequence to max+1
+        reset_val = max_id + 1
+        db.session.execute(db.text(f"SELECT setval('message_templates_template_id_seq', {reset_val})"))
+        db.session.commit()
+        
+        print(f"🔧 [FIX_SEQUENCE] Fixed template sequence: max_id={max_id}, old_sequence={sequence_val}, new_sequence={reset_val}")
+        
+        return jsonify({
+            'success': True,
+            'message': f'Sequence fixed: set to {reset_val}',
+            'details': {
+                'max_id': max_id,
+                'old_sequence': sequence_val,
+                'new_sequence': reset_val
+            }
+        })
+        
+    except Exception as e:
+        print(f"❌ [FIX_SEQUENCE] Error: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/api/templates/verify', methods=['GET'])
@@ -5106,7 +5295,14 @@ def get_collector_chart_data():
             collector_counts = filtered_df['Người thu tiền'].value_counts(dropna=False)
             print(f"🗓️ [COLLECTOR_CHART_API] All collectors in filtered data:")
             for collector, count in collector_counts.items():
-                print(f"🗓️   - '{collector}': {count} bookings")
+                amount = filtered_df[filtered_df['Người thu tiền'] == collector]['Tổng thanh toán'].sum() if 'Tổng thanh toán' in filtered_df.columns else 0
+                print(f"🗓️   - '{collector}': {count} bookings, {amount:,.0f}đ")
+        
+        # Debug: Show some sample data
+        if not filtered_df.empty:
+            print(f"🗓️ [COLLECTOR_CHART_API] Sample of filtered data:")
+            sample_cols = ['Check-in Date', 'Người thu tiền', 'Tổng thanh toán'] if all(col in filtered_df.columns for col in ['Check-in Date', 'Người thu tiền', 'Tổng thanh toán']) else filtered_df.columns[:3]
+            print(filtered_df[sample_cols].head())
         
         # Apply collector validation (same as dashboard logic)
         valid_collectors = ['LOC LE', 'THAO LE']
@@ -5230,6 +5426,80 @@ def get_collector_chart_data():
         traceback.print_exc()
         return jsonify({'success': False, 'message': f'Server error: {str(e)}'}), 500
 
+@app.route('/api/railway_status', methods=['GET'])
+def railway_status():
+    """Debug endpoint for Railway deployment status"""
+    try:
+        # Check environment
+        env_status = {
+            'DATABASE_URL': 'DATABASE_URL' in os.environ,
+            'GOOGLE_API_KEY': 'GOOGLE_API_KEY' in os.environ,
+            'RAILWAY': 'RAILWAY' in os.environ,
+            'PORT': os.environ.get('PORT', 'Not set')
+        }
+        
+        # Check database connection
+        from core.models import db
+        try:
+            from sqlalchemy import text
+            db.session.execute(text('SELECT 1'))
+            db_status = 'Connected'
+        except Exception as e:
+            db_status = f'Error: {str(e)}'
+        
+        # Check if we can load booking data
+        try:
+            df = load_booking_data_for_calculations()
+            data_status = f'Loaded {len(df)} bookings'
+        except Exception as e:
+            data_status = f'Error: {str(e)}'
+        
+        return jsonify({
+            'environment': env_status,
+            'database': db_status,
+            'data_loading': data_status,
+            'timestamp': datetime.now().isoformat()
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/railway_setup_guide', methods=['GET'])
+def railway_setup_guide():
+    """Railway deployment setup guide"""
+    setup_steps = {
+        'title': 'Railway Deployment Setup Guide',
+        'current_issues': [],
+        'required_env_vars': {
+            'DATABASE_URL': {
+                'description': 'PostgreSQL database connection string',
+                'format': 'postgresql://username:password@hostname:port/database_name',
+                'current': 'DATABASE_URL' in os.environ
+            },
+            'GOOGLE_API_KEY': {
+                'description': 'Google AI API key for image processing',
+                'format': 'AIza...',
+                'current': 'GOOGLE_API_KEY' in os.environ
+            }
+        },
+        'setup_steps': [
+            '1. Go to Railway dashboard',
+            '2. Add PostgreSQL service to your project',
+            '3. Connect database service to your app',
+            '4. Set environment variables in Railway settings',
+            '5. Redeploy your application',
+            '6. Test with /api/railway_status endpoint'
+        ]
+    }
+    
+    # Check current status
+    if 'DATABASE_URL' not in os.environ:
+        setup_steps['current_issues'].append('DATABASE_URL environment variable missing')
+    
+    if 'GOOGLE_API_KEY' not in os.environ:
+        setup_steps['current_issues'].append('GOOGLE_API_KEY environment variable missing')
+    
+    return jsonify(setup_steps)
+
 @app.route('/api/collector_available_months', methods=['GET'])
 def get_collector_available_months():
     """Get list of months that have collector data available"""
@@ -5247,13 +5517,8 @@ def get_collector_available_months():
         # Ensure Check-in Date is datetime
         df['Check-in Date'] = pd.to_datetime(df['Check-in Date'], errors='coerce')
         
-        # Apply same filtering as chart API - only checked-in guests
-        from datetime import date
-        today = date.today()
-        checked_in_mask = df['Check-in Date'].dt.date <= today
-        
+        # Don't filter by checked-in date - show all months with data
         print(f"🗓️ [AVAILABLE_MONTHS] Total records: {len(df)}")
-        print(f"🗓️ [AVAILABLE_MONTHS] Checked-in records: {checked_in_mask.sum()}")
         
         # Filter for valid collector bookings with amounts > 0
         if 'Người thu tiền' in df.columns and 'Tổng thanh toán' in df.columns:
@@ -5261,8 +5526,8 @@ def get_collector_available_months():
             amount_mask = pd.to_numeric(df['Tổng thanh toán'], errors='coerce') > 0
             date_mask = df['Check-in Date'].notna()
             
-            # Apply all filters including checked-in filter
-            all_filters = valid_collector_mask & amount_mask & date_mask & checked_in_mask
+            # Apply all filters - removed checked-in filter to show all months
+            all_filters = valid_collector_mask & amount_mask & date_mask
             valid_df = df[all_filters].copy()
             
             print(f"🗓️ [AVAILABLE_MONTHS] After all filters: {len(valid_df)} records")
@@ -5303,6 +5568,20 @@ def get_collector_available_months():
                 print(f"🗓️ [AVAILABLE_MONTHS] Found {len(available_months)} months with collector data")
                 for month_info in available_months:
                     print(f"🗓️   - {month_info['value']}: {month_info['total_amount']:,.0f}đ ({month_info['total_bookings']} bookings)")
+                
+                # DEBUG: Check specifically for May and June 2025
+                may_2025 = df[(df['Check-in Date'].dt.year == 2025) & (df['Check-in Date'].dt.month == 5)]
+                june_2025 = df[(df['Check-in Date'].dt.year == 2025) & (df['Check-in Date'].dt.month == 6)]
+                print(f"🔍 [DEBUG_MAY_JUNE] May 2025 bookings: {len(may_2025)} total")
+                print(f"🔍 [DEBUG_MAY_JUNE] June 2025 bookings: {len(june_2025)} total")
+                
+                # Check if they have collector data
+                if not may_2025.empty:
+                    may_collectors = may_2025['Người thu tiền'].value_counts(dropna=False)
+                    print(f"🔍 [DEBUG_MAY] May collectors: {dict(may_collectors)}")
+                if not june_2025.empty:
+                    june_collectors = june_2025['Người thu tiền'].value_counts(dropna=False)
+                    print(f"🔍 [DEBUG_JUNE] June collectors: {dict(june_collectors)}")
                 
                 return jsonify({
                     'success': True, 
@@ -6751,11 +7030,13 @@ def ai_chat_analyze():
             
             # Extract AI configuration
             ai_config = data.get('ai_config', {})
-            custom_instructions = ai_config.get('customInstructions', '')
+            custom_instructions = ai_config.get('custom_instructions', '') or ai_config.get('customInstructions', '')
             selected_template = ai_config.get('selectedTemplate')
-            response_mode = ai_config.get('responseMode', 'auto')
+            response_mode = ai_config.get('response_mode', 'auto') or ai_config.get('responseMode', 'auto')
             
             print(f"📝 [AI_CHAT_ANALYZE] AI Config: {ai_config}")
+            print(f"📝 [AI_CHAT_ANALYZE] Custom Instructions: '{custom_instructions}'")
+            print(f"📝 [AI_CHAT_ANALYZE] Response Mode: '{response_mode}'")
             print(f"📸 [AI_CHAT_ANALYZE] Image data length: {len(image_b64)}")
             
             try:
@@ -6781,8 +7062,12 @@ def ai_chat_analyze():
                         genai.configure(api_key=api_key)
                         model = genai.GenerativeModel('gemini-1.5-flash')
                         
-                        # Create prompt based on AI config
-                        ai_prompt = f"""You are a friendly hotel receptionist responding to a guest. Analyze this chat screenshot and provide ONLY a direct response message in English that can be copied and pasted.
+                        # Create prompt based on AI config with custom instructions priority
+                        if custom_instructions:
+                            ai_prompt = f"""You are a friendly hotel receptionist responding to a guest. Analyze this chat screenshot and provide ONLY a direct response message in English that can be copied and pasted.
+
+🎯 PRIORITY INSTRUCTIONS (MUST FOLLOW EXACTLY):
+{custom_instructions}
 
 Communication Style:
 - Write in English like a friendly, helpful friend
@@ -6794,7 +7079,27 @@ Communication Style:
 Context:
 - Response mode: {response_mode} (yes=positive, no=declining, auto=appropriate)
 - Template context: {selected_template['Label'] if selected_template else 'General service'}
-- Custom instructions: {custom_instructions or 'Friendly conversational English'}
+
+Requirements:
+- FOLLOW THE PRIORITY INSTRUCTIONS ABOVE FIRST
+- ONLY provide the message text ready to copy/paste
+- Write in natural, conversational English
+- Be brief but ensure the guest understands
+- Sound like a friendly native English speaker
+- NO explanations, NO analysis, JUST the response message"""
+                        else:
+                            ai_prompt = f"""You are a friendly hotel receptionist responding to a guest. Analyze this chat screenshot and provide ONLY a direct response message in English that can be copied and pasted.
+
+Communication Style:
+- Write in English like a friendly, helpful friend
+- Be conversational and natural (how foreigners normally talk)
+- Keep it brief but clear so the guest understands
+- Maintain polite professionalism while being warm and approachable
+- Use casual but respectful language (like "Hey!", "Sure thing!", "No worries!", etc.)
+
+Context:
+- Response mode: {response_mode} (yes=positive, no=declining, auto=appropriate)
+- Template context: {selected_template['Label'] if selected_template else 'General service'}
 
 Requirements:
 - ONLY provide the message text ready to copy/paste
@@ -6802,6 +7107,10 @@ Requirements:
 - Be brief but ensure the guest understands
 - Sound like a friendly native English speaker
 - NO explanations, NO analysis, JUST the response message"""
+                        
+                        print(f"🤖 [AI_CHAT_ANALYZE] Using AI prompt with custom instructions: {bool(custom_instructions)}")
+                        if custom_instructions:
+                            print(f"🎯 [AI_CHAT_ANALYZE] Priority Instructions: '{custom_instructions}'")
 
                         # Prepare image for Gemini
                         from PIL import Image

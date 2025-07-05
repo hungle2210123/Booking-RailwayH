@@ -23,7 +23,7 @@
 
             <!-- Legend -->
             <div class="d-flex justify-content-center mb-3">
-                <div class="legend d-flex gap-3">
+                <div class="legend d-flex gap-3 flex-wrap">
                     <span class="legend-item">
                         <span class="legend-color bg-danger"></span> Hết phòng
                     </span>
@@ -35,6 +35,12 @@
                     </span>
                     <span class="legend-item">
                         <span class="legend-color bg-light border"></span> Không có dữ liệu
+                    </span>
+                    <span class="legend-item">
+                        <span style="display: inline-block; width: 8px; height: 8px; background-color: #28a745; border-radius: 50%; margin-right: 4px;"></span> Check-in
+                    </span>
+                    <span class="legend-item">
+                        <span style="display: inline-block; width: 8px; height: 8px; background-color: #dc3545; border-radius: 50%; margin-right: 4px;"></span> Check-out
                     </span>
                 </div>
             </div>
@@ -104,6 +110,24 @@
                                                     </div>
                                                 {% endif %}
                                                 
+                                                <!-- Check-in/Check-out Indicators -->
+                                                {% if info and (info.arrivals_count > 0 or info.departures_count > 0) %}
+                                                <div class="checkin-checkout-indicators" style="margin-top: 4px; margin-bottom: 4px;">
+                                                    {% if info.arrivals_count > 0 %}
+                                                        <span class="checkin-indicator" style="display: inline-block; margin-right: 4px;" title="{{ info.arrivals_count }} khách check-in">
+                                                            <span style="display: inline-block; width: 8px; height: 8px; background-color: #28a745; border-radius: 50%; margin-right: 2px;"></span>
+                                                            <small style="font-size: 0.6rem; color: #28a745; font-weight: bold;">{{ info.arrivals_count }}</small>
+                                                        </span>
+                                                    {% endif %}
+                                                    {% if info.departures_count > 0 %}
+                                                        <span class="checkout-indicator" style="display: inline-block;" title="{{ info.departures_count }} khách check-out">
+                                                            <span style="display: inline-block; width: 8px; height: 8px; background-color: #dc3545; border-radius: 50%; margin-right: 2px;"></span>
+                                                            <small style="font-size: 0.6rem; color: #dc3545; font-weight: bold;">{{ info.departures_count }}</small>
+                                                        </span>
+                                                    {% endif %}
+                                                </div>
+                                                {% endif %}
+
                                                 <!-- Revenue Total with Commission Breakdown -->
                                                 {% set revenue_info = revenue_by_date.get(date) %}
                                                 {% if revenue_info and revenue_info.daily_total > 0 %}

@@ -197,7 +197,7 @@ def get_confirmed_cancellations() -> List[Dict[str, Any]]:
         ca.notes,
         ca.created_at
     FROM cancellation_actions ca
-    WHERE ca.action_status = 'confirmed'
+    WHERE ca.action_status IN ('confirmed', 'ok')
     ORDER BY ca.confirmation_date DESC
     LIMIT 20
     """
@@ -261,8 +261,8 @@ def get_all_canceled_customers_for_management() -> List[Dict[str, Any]]:
         /* Include zero commission customers (potential private bookings) */
         OR b.commission = 0
     )
-    /* CRITICAL FIX: Exclude customers with confirmed cancellation actions */
-    AND (ca.action_status IS NULL OR ca.action_status != 'confirmed')
+    /* CRITICAL FIX: Exclude customers with confirmed or OK status actions */
+    AND (ca.action_status IS NULL OR (ca.action_status != 'confirmed' AND ca.action_status != 'ok'))
     ORDER BY 
         b.booking_id,
         /* Prioritize by cancellation status, then by check-in date (newest first) */
@@ -278,8 +278,6 @@ def get_all_canceled_customers_for_management() -> List[Dict[str, Any]]:
     if df.empty:
         print("🔍 [CANCELED_CUSTOMERS] No canceled customers found in database")
         return []
-    
-    print(f"🔍 [CANCELED_CUSTOMERS] Found {len(df)} potential canceled customers before filtering")
     
     # Debug: Check for duplicates by guest name
     guest_counts = df['guest_name'].value_counts()
@@ -348,6 +346,7 @@ def get_all_canceled_customers_for_management() -> List[Dict[str, Any]]:
             'priority': 'High' if (is_canceled and not has_checked_out) else 'Medium' if is_zero_commission else 'Low',
             'status_description': (
                 'Confirmed' if action_status == 'confirmed' else
+                'OK (Resolved)' if action_status == 'ok' else
                 'Pending Review' if action_status == 'pending' else  
                 'Needs Classification'
             )
@@ -355,17 +354,5 @@ def get_all_canceled_customers_for_management() -> List[Dict[str, Any]]:
         
         customers.append(customer_data)
     
-    print(f"✅ [CANCELED_CUSTOMERS] Returning {len(customers)} customers after filtering (excluded confirmed)")
-    
-    # Debug: Show final customer list by name
-    if customers:
-        customer_names = [c['guest_name'] for c in customers]
-        name_counts = {}
-        for name in customer_names:
-            name_counts[name] = name_counts.get(name, 0) + 1
-        
-        print("🔍 [FINAL_LIST] Customers in canceled list:")
-        for name, count in name_counts.items():
-            print(f"   - {name}: {count} booking(s)")
     
     return customers

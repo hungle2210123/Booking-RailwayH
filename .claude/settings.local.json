@@ -25,8 +25,33 @@
       "Bash(claude mcp:*)",
       "mcp__brave-search__brave_web_search",
       "Bash(touch:*)",
-      "Bash(pg_dump:*)"
+      "Bash(pg_dump:*)",
+      "Bash(rg:*)",
+      "Bash(npx:*)",
+      "Bash(mkdir:*)",
+      "Bash(timeout 5 npx task-master-ai init)",
+      "Bash(timeout 10 npx task-master-ai:*)",
+      "Bash(npm install:*)",
+      "Bash(git clone:*)",
+      "Bash(timeout:*)",
+      "Bash(sed:*)",
+      "Bash(npm uninstall:*)",
+      "Bash(sudo rm:*)",
+      "Bash(claude --version)",
+      "Bash(source ~/.bashrc)",
+      "Bash(sudo npm uninstall -g @anthropic/claude @anthropic-ai/claude-code)",
+      "Bash(code:*)",
+      "Bash(cp:*)",
+      "Bash(awk:*)",
+      "Bash(chmod:*)",
+      "Bash(./backup_railway.sh:*)",
+      "Bash(./CLEANUP_SCRIPT.bat)",
+      "Bash(echo:*)"
     ],
     "deny": []
-  }
+  },
+  "enableAllProjectMcpServers": true,
+  "enabledMcpjsonServers": [
+    "taskmaster-ai"
+  ]
 }
