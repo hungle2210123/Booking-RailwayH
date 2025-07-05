@@ -1032,15 +1032,12 @@ def dashboard():
     start_date_str = request.args.get('start_date')
     end_date_str = request.args.get('end_date')
 
-    # Set default date range to current month for better user experience
+    # Set default date range to all-time view for Railway compatibility
     if not start_date_str or not end_date_str:
-        today_full = datetime.today()
-        # Start from beginning of current month
-        start_date = today_full.replace(day=1)
-        # End at end of current month
-        _, last_day = calendar.monthrange(today_full.year, today_full.month)
-        end_date = today_full.replace(day=last_day)
-        print(f"📅 DASHBOARD DEFAULT: Current month {start_date.strftime('%Y-%m-%d')} to {end_date.strftime('%Y-%m-%d')}")
+        # Default to all-time view to show complete data
+        start_date = datetime(2020, 1, 1)  # Start from way back
+        end_date = datetime.today() + timedelta(days=365)  # Future end date
+        print(f"📅 DASHBOARD DEFAULT: All-time view {start_date.strftime('%Y-%m-%d')} to {end_date.strftime('%Y-%m-%d')}")
     else:
         start_date = datetime.strptime(start_date_str, '%Y-%m-%d')
         end_date = datetime.strptime(end_date_str, '%Y-%m-%d')
