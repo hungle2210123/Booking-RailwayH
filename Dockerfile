@@ -13,9 +13,9 @@ COPY core/ ./core/
 COPY templates/ ./templates/
 COPY static/ ./static/
 
-# Create the EXACT file Railway is hardcoded to look for
-COPY docker-entrypoint.sh /docker-entrypoint.sh
-RUN chmod +x /docker-entrypoint.sh
+# Copy entrypoint script
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
 
-# Railway will automatically use /docker-entrypoint.sh
-ENTRYPOINT ["/docker-entrypoint.sh"]
+# Use our entrypoint script
+ENTRYPOINT ["/entrypoint.sh"]
