@@ -4347,7 +4347,17 @@ def get_templates():
     """Get all message templates from PostgreSQL database"""
     try:
         # Import the MessageTemplate model
-        from core.models import MessageTemplate
+        from core.models import MessageTemplate, db
+        
+        # Test raw SQL query first to debug columns issue
+        try:
+            raw_result = db.session.execute(text("SELECT template_id, template_name, category, template_content FROM message_templates LIMIT 1")).fetchall()
+            print(f"🔍 Raw SQL works: {len(raw_result)} rows")
+        except Exception as raw_error:
+            print(f"❌ Raw SQL error: {raw_error}")
+            # Fallback to table existence check
+            tables_result = db.session.execute(text("SELECT table_name FROM information_schema.tables WHERE table_name='message_templates'")).fetchall()
+            print(f"🔍 Table exists check: {tables_result}")
         
         # Query all templates from database ordered by category and name
         templates_query = MessageTemplate.query.order_by(MessageTemplate.category, MessageTemplate.template_name).all()
