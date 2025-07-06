@@ -165,8 +165,9 @@ class QuickNote(db.Model):
     completed_at = Column(DateTime)
     
     # Scheduled date and time (when the note is intended for)
-    date = Column(Date)  # The date this note is scheduled for
-    time = Column(Time)  # The time this note is scheduled for
+    # NOTE: These columns don't exist in Railway table, commented out for compatibility
+    # date = Column(Date)  # The date this note is scheduled for
+    # time = Column(Time)  # The time this note is scheduled for
     
     # Audit fields (matches database_init.sql)
     created_at = Column(DateTime, default=func.current_timestamp())
@@ -178,18 +179,22 @@ class QuickNote(db.Model):
     )
 
     def to_dict(self):
-        """Convert QuickNote instance to dictionary"""
+        """Convert QuickNote instance to dictionary - Railway compatible"""
         return {
             'note_id': self.note_id,
             'note_type': self.note_type,
             'note_content': self.note_content,
             'is_completed': self.is_completed,
             'completed_at': self.completed_at.isoformat() if self.completed_at else None,
-            'date': self.date.isoformat() if self.date else None,
-            'time': self.time.isoformat() if self.time else None,
+            # Handle optional date/time fields safely
+            'date': getattr(self, 'date', None).isoformat() if getattr(self, 'date', None) else None,
+            'time': getattr(self, 'time', None).isoformat() if getattr(self, 'time', None) else None,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'created_by': self.created_by
         }
+    
+    def __repr__(self):
+        return f"<QuickNote {self.note_id}: {self.note_type}>"
 
 # CANCELLATION_ACTIONS TABLE - Track booking cancellations
 # =====================================================
@@ -222,20 +227,7 @@ class CancellationAction(db.Model):
         }
     
     def __repr__(self):
-        return f"<QuickNote {self.note_id}: {self.note_type}>"
-    
-    def to_dict(self):
-        return {
-            'note_id': self.note_id,
-            'note_type': self.note_type,
-            'content': self.note_content,  # Map to expected frontend field name
-            'completed': self.is_completed,  # Map to expected frontend field name
-            'completed_at': self.completed_at.isoformat() if self.completed_at else None,
-            'date': self.date.isoformat() if self.date else None,  # Scheduled date
-            'time': self.time.isoformat() if self.time else None,  # Scheduled time
-            'created_at': self.created_at.isoformat() if self.created_at else None,
-            'created_by': self.created_by
-        }
+        return f"<CancellationAction {self.action_id}: {self.guest_name}>"
 
 # =====================================================
 # EXPENSES TABLE - Financial tracking

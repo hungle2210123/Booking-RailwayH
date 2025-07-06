@@ -35,7 +35,7 @@ def get_cancellation_notifications() -> Dict[str, List[Dict[str, Any]]]:
     query = """
     SELECT 
         b.booking_id,
-        g.full_name as guest_name,
+        COALESCE(g.full_name, b.guest_name, 'Unknown Guest') as guest_name,
         b.checkin_date,
         b.checkout_date,
         b.room_amount,
@@ -46,14 +46,9 @@ def get_cancellation_notifications() -> Dict[str, List[Dict[str, Any]]]:
         b.booking_notes,
         b.created_at
     FROM bookings b
-    JOIN guests g ON b.guest_id = g.guest_id
+    LEFT JOIN guests g ON b.guest_id = g.guest_id
     WHERE b.booking_status != 'deleted'
     AND b.checkout_date >= CURRENT_DATE
-    AND b.booking_id NOT IN (
-        SELECT DISTINCT ca.booking_id 
-        FROM cancellation_actions ca 
-        WHERE ca.action_status = 'confirmed'
-    )
     ORDER BY b.checkout_date ASC
     """
     
@@ -151,7 +146,7 @@ def debug_guest_data() -> Dict[str, Any]:
     query = """
     SELECT 
         b.booking_id,
-        g.full_name as guest_name,
+        COALESCE(g.full_name, b.guest_name, 'Unknown Guest') as guest_name,
         b.checkin_date,
         b.checkout_date,
         b.room_amount,
@@ -159,7 +154,7 @@ def debug_guest_data() -> Dict[str, Any]:
         b.booking_status,
         b.created_at
     FROM bookings b
-    JOIN guests g ON b.guest_id = g.guest_id
+    LEFT JOIN guests g ON b.guest_id = g.guest_id
     WHERE b.booking_status != 'deleted'
     ORDER BY b.created_at DESC
     LIMIT 20
@@ -181,46 +176,66 @@ def debug_guest_data() -> Dict[str, Any]:
 
 def get_confirmed_cancellations() -> List[Dict[str, Any]]:
     """
-    Get history of confirmed cancellation actions
-    Useful for tracking what has been processed
+    Get history of confirmed cancellation actions from the cancellation_actions table
     """
+    
+    # Debug: First check if table is accessible with simple query
+    test_query = "SELECT COUNT(*) as total FROM cancellation_actions"
+    test_df = execute_query(test_query, force_fresh=True)
+    
+    if not test_df.empty:
+        total_actions = test_df.iloc[0]['total']
+        print(f"🔍 [CONFIRMED_CANCELLATIONS] Total actions in table: {total_actions}")
+    else:
+        print("❌ [CONFIRMED_CANCELLATIONS] Cannot access cancellation_actions table")
+        return []
     
     query = """
     SELECT 
-        ca.action_id,
-        ca.booking_id,
-        ca.guest_name,
-        ca.cancellation_type,
-        ca.action_status,
-        ca.confirmed_by,
-        ca.confirmation_date,
-        ca.notes,
-        ca.created_at
-    FROM cancellation_actions ca
-    WHERE ca.action_status IN ('confirmed', 'ok')
-    ORDER BY ca.confirmation_date DESC
+        action_id,
+        booking_id,
+        guest_name,
+        cancellation_type,
+        action_status,
+        confirmed_by,
+        confirmation_date,
+        notes,
+        created_at
+    FROM cancellation_actions
+    WHERE action_status IN ('confirmed', 'ok')
+    ORDER BY confirmation_date DESC
     LIMIT 20
     """
     
-    df = execute_query(query)
+    try:
+        df = execute_query(query, force_fresh=True)
+        
+        if df.empty:
+            print("ℹ️ [CONFIRMED_CANCELLATIONS] No confirmed actions found in database")
+            return []
+        
+        print(f"✅ [CONFIRMED_CANCELLATIONS] Found {len(df)} confirmed actions")
+        
+        confirmed_list = []
+        for _, action in df.iterrows():
+            confirmed_list.append({
+                'action_id': action['action_id'] if pd.notna(action['action_id']) else None,
+                'booking_id': action['booking_id'],
+                'guest_name': action['guest_name'],
+                'cancellation_type': action['cancellation_type'] if pd.notna(action['cancellation_type']) else None,
+                'confirmed_by': action['confirmed_by'] if pd.notna(action['confirmed_by']) else None,
+                'confirmation_date': _safe_date_format(action['confirmation_date']),
+                'notes': action['notes'] if pd.notna(action['notes']) else None,
+                'created_at': action['created_at'] if pd.notna(action['created_at']) else None,
+                'action_status': action['action_status']
+            })
+        
+        return confirmed_list
     
-    if df.empty:
+    except Exception as e:
+        print(f"❌ [CONFIRMED_CANCELLATIONS] Error querying cancellation_actions table: {e}")
+        print("ℹ️ [CONFIRMED_CANCELLATIONS] Falling back to empty list")
         return []
-    
-    confirmed_list = []
-    for _, action in df.iterrows():
-        confirmed_list.append({
-            'action_id': action['action_id'] if pd.notna(action['action_id']) else None,
-            'booking_id': action['booking_id'],
-            'guest_name': action['guest_name'],
-            'cancellation_type': action['cancellation_type'] if pd.notna(action['cancellation_type']) else None,
-            'confirmed_by': action['confirmed_by'] if pd.notna(action['confirmed_by']) else None,
-            'confirmation_date': _safe_date_format(action['confirmation_date']),
-            'notes': action['notes'] if pd.notna(action['notes']) else None,
-            'created_at': action['created_at'] if pd.notna(action['created_at']) else None
-        })
-    
-    return confirmed_list
 
 
 def get_all_canceled_customers_for_management() -> List[Dict[str, Any]]:
@@ -230,10 +245,11 @@ def get_all_canceled_customers_for_management() -> List[Dict[str, Any]]:
     Allows manual re-classification of cancellation confirmations
     """
     
+    # Join with cancellation_actions to get real action status
     query = """
-    SELECT DISTINCT ON (b.booking_id)
+    SELECT 
         b.booking_id,
-        g.full_name as guest_name,
+        COALESCE(g.full_name, b.guest_name, 'Unknown Guest') as guest_name,
         b.checkin_date,
         b.checkout_date,
         b.room_amount,
@@ -243,52 +259,55 @@ def get_all_canceled_customers_for_management() -> List[Dict[str, Any]]:
         COALESCE(b.collected_amount, 0) as collected_amount,
         b.booking_notes,
         b.created_at,
-        ca.action_id,
         ca.action_status,
         ca.confirmation_date,
-        ca.cancellation_type,
-        ca.notes as cancellation_notes
+        ca.confirmed_by
     FROM bookings b
-    JOIN guests g ON b.guest_id = g.guest_id
+    LEFT JOIN guests g ON b.guest_id = g.guest_id
     LEFT JOIN cancellation_actions ca ON b.booking_id = ca.booking_id
     WHERE b.booking_status != 'deleted'
     AND (
-        /* Include canceled customers */
         b.booking_status ILIKE '%cancel%' 
         OR b.booking_status ILIKE '%hủy%'
         OR b.booking_status = 'đã hủy'
         OR b.booking_status = 'cancelled'
-        /* Include zero commission customers (potential private bookings) */
         OR b.commission = 0
     )
-    /* CRITICAL FIX: Exclude customers with confirmed or OK status actions */
-    AND (ca.action_status IS NULL OR (ca.action_status != 'confirmed' AND ca.action_status != 'ok'))
-    ORDER BY 
-        b.booking_id,
-        /* Prioritize by cancellation status, then by check-in date (newest first) */
-        CASE 
-            WHEN ca.action_status = 'pending' THEN 1
-            WHEN ca.action_status IS NULL THEN 2  
-        END,
-        b.checkin_date DESC
+    ORDER BY b.checkin_date DESC
     """
     
-    df = execute_query(query)
+    # Force fresh data to avoid stale cache issues
+    df = execute_query(query, force_fresh=True)
     
     if df.empty:
         print("🔍 [CANCELED_CUSTOMERS] No canceled customers found in database")
         return []
     
-    # Debug: Check for duplicates by guest name
+    # Debug: Check for duplicates by guest name and action status distribution
     guest_counts = df['guest_name'].value_counts()
     duplicates = guest_counts[guest_counts > 1]
     if not duplicates.empty:
         print("🔍 [DUPLICATE_DEBUG] Guests with multiple entries:")
         for guest_name, count in duplicates.items():
             print(f"   - {guest_name}: {count} entries")
-            guest_bookings = df[df['guest_name'] == guest_name][['booking_id', 'action_status', 'booking_status']]
+            guest_bookings = df[df['guest_name'] == guest_name][['booking_id', 'booking_status', 'action_status']]
             for _, booking in guest_bookings.iterrows():
-                print(f"     * Booking {booking['booking_id']}: status={booking['booking_status']}, action={booking['action_status']}")
+                action_status = booking['action_status'] if pd.notna(booking['action_status']) else 'pending'
+                print(f"     * Booking {booking['booking_id']}: status={booking['booking_status']}, action={action_status}")
+    
+    # Debug: Action status distribution
+    print("🔍 [ACTION_STATUS_DEBUG] Action status distribution:")
+    action_status_counts = df['action_status'].value_counts(dropna=False)
+    for status, count in action_status_counts.items():
+        status_label = 'NULL/pending' if pd.isna(status) else status
+        print(f"   - {status_label}: {count} customers")
+    
+    # Debug: Show which specific customers still need action
+    null_action_customers = df[df['action_status'].isna()][['guest_name', 'booking_id', 'booking_status', 'commission']]
+    if not null_action_customers.empty:
+        print("🔍 [NULL_ACTION_CUSTOMERS] Customers still needing action:")
+        for _, customer in null_action_customers.iterrows():
+            print(f"   - {customer['guest_name']} ({customer['booking_id']}): status={customer['booking_status']}, commission={customer['commission']}")
     
     customers = []
     for _, customer in df.iterrows():
@@ -308,14 +327,9 @@ def get_all_canceled_customers_for_management() -> List[Dict[str, Any]]:
             except (AttributeError, TypeError):
                 has_checked_out = False
         
-        # Determine current action status
-        action_status = customer.get('action_status')
-        needs_action = action_status != 'confirmed'
-        
-        # CRITICAL SAFETY CHECK: Skip any confirmed customers that might slip through
-        if action_status == 'confirmed':
-            print(f"🔍 [SAFETY_FILTER] Skipping confirmed customer: {customer['guest_name']} ({customer['booking_id']})")
-            continue
+        # Use real action status from database
+        action_status = customer['action_status'] if pd.notna(customer['action_status']) else None
+        needs_action = action_status not in ['confirmed', 'ok']
         
         customer_data = {
             'booking_id': customer['booking_id'],
@@ -328,12 +342,13 @@ def get_all_canceled_customers_for_management() -> List[Dict[str, Any]]:
             'collected_amount': float(customer['collected_amount']) if pd.notna(customer['collected_amount']) else 0,
             'booking_notes': customer['booking_notes'] if pd.notna(customer['booking_notes']) else None,
             
-            # Cancellation action info
-            'action_id': customer.get('action_id') if pd.notna(customer.get('action_id')) else None,
+            # Real cancellation action info from database
+            'action_id': customer.get('action_id') if pd.notna(customer.get('action_id', None)) else None,
             'action_status': action_status,
-            'confirmation_date': _safe_date_format(customer.get('confirmation_date')),
-            'cancellation_type': customer.get('cancellation_type') if pd.notna(customer.get('cancellation_type')) else None,
-            'cancellation_notes': customer.get('cancellation_notes') if pd.notna(customer.get('cancellation_notes')) else None,
+            'confirmation_date': _safe_date_format(customer['confirmation_date']) if pd.notna(customer['confirmation_date']) else None,
+            'confirmed_by': customer['confirmed_by'] if pd.notna(customer['confirmed_by']) else None,
+            'cancellation_type': 'confirmed' if action_status in ['confirmed', 'ok'] else 'pending_classification',
+            'cancellation_notes': None,
             
             # Classification helpers
             'is_canceled': is_canceled,
@@ -344,12 +359,7 @@ def get_all_canceled_customers_for_management() -> List[Dict[str, Any]]:
             # Visual categorization
             'category': 'Canceled Customer' if is_canceled else 'Zero Commission',
             'priority': 'High' if (is_canceled and not has_checked_out) else 'Medium' if is_zero_commission else 'Low',
-            'status_description': (
-                'Confirmed' if action_status == 'confirmed' else
-                'OK (Resolved)' if action_status == 'ok' else
-                'Pending Review' if action_status == 'pending' else  
-                'Needs Classification'
-            )
+            'status_description': 'Confirmed' if action_status == 'confirmed' else 'OK Status' if action_status == 'ok' else 'Needs Classification'
         }
         
         customers.append(customer_data)

@@ -378,7 +378,36 @@ class PostgreSQLDatabaseService:
     def get_quick_notes(self) -> List[QuickNote]:
         """Get all quick notes"""
         try:
-            return db.session.query(QuickNote).filter_by(is_completed=False).order_by(QuickNote.created_at.desc()).all()
+            # Use raw SQL to avoid model column issues
+            from sqlalchemy import text
+            query = text("""
+                SELECT note_id, 
+                       note_content as content,
+                       created_at, 
+                       created_at as updated_at,
+                       note_type,
+                       is_completed,
+                       created_by
+                FROM quick_notes 
+                ORDER BY created_at DESC
+                LIMIT 10
+            """)
+            result = db.session.execute(query).fetchall()
+            
+            # Convert to QuickNote instances for compatibility
+            notes = []
+            for row in result:
+                # Create a QuickNote instance directly
+                note = QuickNote()
+                note.note_id = row[0]
+                note.note_content = row[1]
+                note.created_at = row[2]
+                note.note_type = row[4] or 'general'
+                note.is_completed = row[5] or False
+                note.created_by = row[6] or ''
+                note.completed_at = None  # Set to None since Railway table doesn't have this data
+                notes.append(note)
+            return notes
         except Exception as e:
             logger.error(f"Error getting quick notes: {e}")
             return []
@@ -418,12 +447,12 @@ class PostgreSQLDatabaseService:
                 except ValueError:
                     logger.warning(f"Invalid time format: {note_time}")
             
+            # Create note with only the columns that exist in Railway table
             note = QuickNote(
                 note_type=note_type,
-                note_content=content,  # Use correct column name
-                created_by=guest_name,  # Map guest_name to created_by
-                date=scheduled_date,    # Set scheduled date
-                time=scheduled_time     # Set scheduled time
+                note_content=content,
+                created_by=guest_name or '',
+                is_completed=False
             )
             db.session.add(note)
             db.session.commit()

@@ -421,38 +421,19 @@
                         <div class="btn-group" role="group">
                             <button type="button" class="btn btn-sm btn-outline-primary" 
                                     onclick="refreshDashboardData()" 
-                                    data-action="refresh-dashboard"
-                                    title="Làm mới dữ liệu overdue payment">
-                                <i class="fas fa-sync-alt me-1"></i>Refresh Data
+                                    title="Refresh dashboard data">
+                                <i class="fas fa-sync-alt me-1"></i>Refresh
                             </button>
                             <button type="button" class="btn btn-sm btn-outline-success" 
-                                    onclick="openDataSyncModal()" 
-                                    data-action="data-sync"
-                                    title="Đồng bộ dữ liệu từ database local">
-                                <i class="fas fa-cloud-upload-alt me-1"></i>Sync Data
+                                    onclick="importCSVData()" 
+                                    title="Import CSV data">
+                                <i class="fas fa-upload me-1"></i>Import CSV
                             </button>
                             <button type="button" class="btn btn-sm btn-outline-info" 
                                     onclick="window.location.href='/crawl'" 
-                                    data-action="crawl-bookings"
-                                    title="Crawl booking data from websites automatically">
-                                <i class="fas fa-spider me-1"></i>Crawl Bookings
+                                    title="Crawl booking data">
+                                <i class="fas fa-spider me-1"></i>Crawl
                             </button>
-                            <button type="button" class="btn btn-sm btn-outline-success" 
-                                    onclick="window.location.reload()" 
-                                    title="Tải lại toàn bộ trang">
-                                <i class="fas fa-redo me-1"></i>Reload Page
-                            </button>
-                            <button type="button" class="btn btn-sm btn-warning" 
-                                    onclick="fixDatabaseConstraint()" 
-                                    id="fixConstraintBtn"
-                                    title="Sửa lỗi constraint để cho phép status tiếng Việt">
-                                <i class="fas fa-wrench me-1"></i>Fix DB
-                            </button>
-                            <button type="button" class="btn btn-sm btn-success" 
-                                    onclick="importCSVData()" 
-                                    id="csvImportBtn"
-                                    title="Nhập dữ liệu từ file CSV">
-                                <i class="fas fa-upload me-1"></i>Nhập CSV
                             </button>
                             <button type="button" class="btn btn-sm btn-info" 
                                     onclick="runDiagnostic()" 
@@ -677,9 +658,15 @@
                 <span class="badge bg-warning text-dark ms-2" id="totalCancellationBadge">Loading...</span>
             </h6>
             <div class="btn-group" role="group">
-                <button class="btn btn-outline-warning btn-sm" id="toggleCancellationCenter" onclick="toggleCancellationCenter()">
-                    <i class="fas fa-eye me-1"></i>Show Management
-                    <i class="fas fa-chevron-down ms-1" id="cancellationCenterIcon"></i>
+                <button class="btn btn-success btn-sm" disabled>
+                    <i class="fas fa-eye me-1"></i>Always Visible
+                    <i class="fas fa-check ms-1"></i>
+                </button>
+                <button class="btn btn-warning btn-sm" onclick="highlightUpcomingCheckins()">
+                    <i class="fas fa-exclamation-triangle me-1"></i>Highlight Urgent (2 days)
+                </button>
+                <button class="btn btn-secondary btn-sm" onclick="testCancellationAPI()">
+                    <i class="fas fa-bug me-1"></i>Test API
                 </button>
             </div>
         </div>
@@ -689,7 +676,34 @@
             Unified management for all cancellation-related customers. Use tabs to switch between pending and confirmed actions.
         </div>
         
-        <div id="cancellationManagementCenter" class="mt-3" style="display: none;">
+        <div id="cancellationManagementCenter" class="mt-3" style="display: block;">
+            <!-- Month Filter for Cancellation Management -->
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <div class="d-flex align-items-center gap-2">
+                        <label for="cancellationMonthFilter" class="form-label mb-0 text-muted small">
+                            <i class="fas fa-calendar-alt me-1"></i>Filter by month:
+                        </label>
+                        <select id="cancellationMonthFilter" class="form-select form-select-sm" style="width: 200px;" onchange="applyCancellationMonthFilter()">
+                            <option value="">All months</option>
+                            <option value="2025-07">July 2025</option>
+                            <option value="2025-06">June 2025</option>
+                            <option value="2025-05">May 2025</option>
+                            <option value="2025-04">April 2025</option>
+                            <option value="2025-03">March 2025</option>
+                            <option value="2025-02">February 2025</option>
+                            <option value="2025-01">January 2025</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="col-md-6 text-end">
+                    <small class="text-muted">
+                        <i class="fas fa-info-circle me-1"></i>
+                        <span id="cancellationFilterStatus">Showing all customers</span>
+                    </small>
+                </div>
+            </div>
+            
             <!-- Tab Navigation -->
             <ul class="nav nav-tabs nav-fill mb-3" id="cancellationTabs" role="tablist">
                 <li class="nav-item" role="presentation">
@@ -3214,27 +3228,43 @@ function loadQuickNotesOnDashboard() {
 
 async function loadQuickNotesFromServer() {
     try {
+        console.log('📋 [LOAD_SERVER] Fetching quick notes from server...');
         const response = await fetch('/api/quick_notes');
+        
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        
         const data = await response.json();
+        console.log('📋 [LOAD_SERVER] Server response:', data);
         
         // ✅ CRITICAL FIX: Backend returns array directly, not wrapped object
         if (Array.isArray(data)) {
+            console.log(`📋 [LOAD_SERVER] Processing ${data.length} notes from server`);
+            
             // Convert server format to client format
-            const convertedNotes = data.map(note => ({
-                id: note.note_id.toString(), // ✅ FIX: Use note_id not id
-                type: note.note_type, // ✅ FIX: Use note_type not type  
-                content: note.content,
-                date: note.date || new Date().toISOString().split('T')[0], // Fallback to today
-                time: note.time || '12:00', // Fallback time
-                guestName: note.created_by || '',
-                created_at: note.created_at,
-                completed: note.completed || false
-            }));
+            const convertedNotes = data.map(note => {
+                console.log('📋 [CONVERT] Converting note:', note);
+                return {
+                    id: note.note_id?.toString() || Math.random().toString(), // ✅ FIX: Use note_id not id
+                    type: note.note_type || 'general', // ✅ FIX: Use note_type not type  
+                    content: note.content || note.note_content || '', // Handle both content formats
+                    date: note.date || new Date().toISOString().split('T')[0], // Fallback to today
+                    time: note.time || '12:00', // Fallback time
+                    guestName: note.created_by || '',
+                    created_at: note.created_at,
+                    completed: note.completed || note.is_completed || false
+                };
+            });
+            
+            console.log('📋 [LOAD_SERVER] Converted notes:', convertedNotes);
             
             // Also save to localStorage for offline access
             localStorage.setItem('quickNotes', JSON.stringify(convertedNotes));
             
             return convertedNotes;
+        } else if (data && data.error) {
+            throw new Error(`Server error: ${data.error}`);
         } else {
             console.error('Unexpected response format:', data);
             throw new Error('Failed to load from server');
@@ -3246,18 +3276,48 @@ async function loadQuickNotesFromServer() {
 }
 
 function displayQuickNotes(notes, container) {
-    // Filter active notes (not completed)
-    const activeNotes = notes.filter(note => !note.completed);
+    console.log('📋 [DISPLAY] Displaying notes:', notes);
+    console.log(`📋 [DISPLAY] Total notes received: ${notes ? notes.length : 'null/undefined'}`);
     
-    if (activeNotes.length === 0) {
+    if (!notes || !Array.isArray(notes)) {
+        console.log('📋 [DISPLAY] Notes is not an array, showing error message');
         container.innerHTML = `
             <div class="text-center py-2">
-                <small class="text-white-50">No quick notes</small>
-                <button class="btn btn-light btn-sm ms-2" data-bs-toggle="modal" data-bs-target="#quickNotesModal">
-                    <i class="fas fa-plus me-1"></i>Add Note
+                <small class="text-white-50">Error loading notes</small>
+                <button class="btn btn-light btn-sm ms-2" onclick="loadQuickNotesOnDashboard()">
+                    <i class="fas fa-sync me-1"></i>Retry
                 </button>
             </div>
         `;
+        return;
+    }
+    
+    // Filter active notes (not completed) - show all notes for debugging
+    const activeNotes = notes.filter(note => !note.completed);
+    console.log(`📋 [DISPLAY] Active notes (not completed): ${activeNotes.length}`);
+    console.log('📋 [DISPLAY] Sample active note:', activeNotes[0]);
+    
+    if (activeNotes.length === 0) {
+        console.log('📋 [DISPLAY] No active notes, checking if all are completed...');
+        if (notes.length > 0) {
+            container.innerHTML = `
+                <div class="text-center py-2">
+                    <small class="text-white-50">All notes completed (${notes.length} total)</small>
+                    <button class="btn btn-light btn-sm ms-2" data-bs-toggle="modal" data-bs-target="#quickNotesModal">
+                        <i class="fas fa-plus me-1"></i>Add Note
+                    </button>
+                </div>
+            `;
+        } else {
+            container.innerHTML = `
+                <div class="text-center py-2">
+                    <small class="text-white-50">No notes found</small>
+                    <button class="btn btn-light btn-sm ms-2" data-bs-toggle="modal" data-bs-target="#quickNotesModal">
+                        <i class="fas fa-plus me-1"></i>Add Note
+                    </button>
+                </div>
+            `;
+        }
         return;
     }
     
@@ -9448,6 +9508,32 @@ document.addEventListener('DOMContentLoaded', function() {
     // Initialize canceled customer badge count
     fetchCanceledCustomerCount();
     
+    // Initialize cancellation management center data immediately
+    setTimeout(async () => {
+        console.log('🔄 [INIT] Starting cancellation management initialization...');
+        
+        // Force load the data
+        try {
+            if (typeof window.loadPendingCustomers === 'function') {
+                console.log('🔄 [INIT] Loading pending customers...');
+                await window.loadPendingCustomers();
+                console.log('✅ [INIT] Pending customers loaded');
+            } else {
+                console.warn('⚠️ [INIT] loadPendingCustomers function not found');
+            }
+            
+            if (typeof window.loadConfirmedActions === 'function') {
+                console.log('🔄 [INIT] Loading confirmed actions...');
+                await window.loadConfirmedActions();
+                console.log('✅ [INIT] Confirmed actions loaded');
+            } else {
+                console.warn('⚠️ [INIT] loadConfirmedActions function not found');
+            }
+        } catch (error) {
+            console.error('❌ [INIT] Error loading cancellation data:', error);
+        }
+    }, 3000);
+    
     // Canceled customer button is now handled where the function is defined
     // This avoids timing issues with function availability
     console.log('✅ [IMMEDIATE_FIX] Canceled customer button setup moved to function definition area');
@@ -10010,36 +10096,107 @@ setTimeout(function() {
 
 // ==================== UNIFIED CANCELLATION MANAGEMENT FUNCTIONS ====================
 
-// Main toggle function for the unified center
+// Main toggle function for the unified center (now always visible)
 window.toggleCancellationCenter = async function() {
-    console.log('🔄 [UNIFIED] Toggling cancellation management center');
+    // Function kept for compatibility but center is now always visible
+    console.log('🔄 [UNIFIED] Cancellation management center is now always visible');
+    return;
+}
+
+// Function to highlight cancelled guests checking in within 2 days
+window.highlightUpcomingCheckins = function() {
+    console.log('🔔 [HIGHLIGHT] Highlighting cancelled guests checking in within 2 days');
     
-    const center = document.getElementById('cancellationManagementCenter');
-    const button = document.getElementById('toggleCancellationCenter');
-    const icon = document.getElementById('cancellationCenterIcon');
+    const today = new Date();
+    const todayStr = today.toISOString().split('T')[0];
     
-    if (!center || !button) {
-        alert('Elements not found!');
-        return;
-    }
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const tomorrowStr = tomorrow.toISOString().split('T')[0];
     
-    if (center.style.display === 'none' || !center.style.display) {
-        // Show center
-        center.style.display = 'block';
-        button.innerHTML = '<i class="fas fa-eye-slash me-1"></i>Hide Management <i class="fas fa-chevron-up ms-1"></i>';
-        if (icon) icon.className = 'fas fa-chevron-up';
+    const dayAfterTomorrow = new Date();
+    dayAfterTomorrow.setDate(dayAfterTomorrow.getDate() + 2);
+    const dayAfterTomorrowStr = dayAfterTomorrow.toISOString().split('T')[0];
+    
+    // Clear previous highlights
+    document.querySelectorAll('#pendingTableBody tr').forEach(row => {
+        row.classList.remove('table-danger', 'table-warning');
+        row.style.animation = '';
+        const urgentBadge = row.querySelector('.badge-urgent');
+        if (urgentBadge) urgentBadge.remove();
+    });
+    
+    // Find all pending classification rows (cancelled guests)
+    const pendingRows = document.querySelectorAll('#pendingTableBody tr');
+    let upcomingCount = 0;
+    
+    pendingRows.forEach(row => {
+        const checkinCell = row.querySelector('td:nth-child(4)'); // Check-in date column
+        if (checkinCell) {
+            const checkinDate = checkinCell.textContent.trim();
+            
+            // If cancelled guest is checking in today, tomorrow, or day after tomorrow
+            if (checkinDate === todayStr || checkinDate === tomorrowStr || checkinDate === dayAfterTomorrowStr) {
+                row.classList.add('table-danger');
+                row.style.animation = 'pulse 2s infinite';
+                row.style.border = '2px solid #dc3545';
+                
+                // Add urgent notification badge
+                const guestCell = row.querySelector('td:first-child');
+                if (guestCell && !guestCell.querySelector('.badge-urgent')) {
+                    const urgentBadge = document.createElement('span');
+                    urgentBadge.className = 'badge bg-danger badge-urgent ms-2';
+                    urgentBadge.innerHTML = '<i class="fas fa-exclamation-triangle me-1"></i>NOTIFY GUEST!';
+                    urgentBadge.style.fontSize = '10px';
+                    urgentBadge.style.animation = 'pulse 1.5s infinite';
+                    guestCell.appendChild(urgentBadge);
+                }
+                upcomingCount++;
+            }
+        }
+    });
+    
+    // Show notification with appropriate message
+    if (upcomingCount > 0) {
+        const message = `🚨 URGENT: Found ${upcomingCount} CANCELLED guests checking in within 2 days!\n\nThese guests need to be notified about their cancellation status.\nThey are highlighted in red with pulse animation.`;
+        alert(message);
         
-        // Load data for both tabs
-        await loadPendingCustomers();
-        await loadConfirmedActions();
-        
-        // Restore the previously active tab
-        setTimeout(restoreActiveTab, 100);
+        // Scroll to show the highlighted guests
+        const firstHighlighted = document.querySelector('#pendingTableBody tr.table-danger');
+        if (firstHighlighted) {
+            firstHighlighted.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
     } else {
-        // Hide center
-        center.style.display = 'none';
-        button.innerHTML = '<i class="fas fa-eye me-1"></i>Show Management <i class="fas fa-chevron-down ms-1"></i>';
-        if (icon) icon.className = 'fas fa-chevron-down';
+        alert('✅ No cancelled guests checking in within the next 2 days.');
+    }
+};
+
+// Test function to debug API endpoints
+window.testCancellationAPI = async function() {
+    console.log('🧪 [TEST] Testing cancellation API endpoints...');
+    
+    try {
+        // Test pending customers API
+        console.log('🧪 [TEST] Testing /api/canceled_customers_management...');
+        const pendingResponse = await fetch('/api/canceled_customers_management');
+        const pendingData = await pendingResponse.json();
+        console.log('🧪 [TEST] Pending API response:', pendingData);
+        
+        // Test confirmed actions API  
+        console.log('🧪 [TEST] Testing /api/confirmed_cancellations...');
+        const confirmedResponse = await fetch('/api/confirmed_cancellations');
+        const confirmedData = await confirmedResponse.json();
+        console.log('🧪 [TEST] Confirmed API response:', confirmedData);
+        
+        // Display results
+        const pendingCount = pendingData.success ? (pendingData.all_customers?.length || 0) : 0;
+        const confirmedCount = confirmedData.success ? (confirmedData.confirmed_cancellations?.length || 0) : 0;
+        
+        alert(`API Test Results:\n\nPending customers: ${pendingCount}\nConfirmed actions: ${confirmedCount}\n\nCheck console for detailed data.`);
+        
+    } catch (error) {
+        console.error('🧪 [TEST] API test error:', error);
+        alert('❌ API test failed. Check console for details.');
     }
 };
 
@@ -10047,7 +10204,7 @@ window.toggleCancellationCenter = async function() {
 window.currentCancellationTab = 'pending'; // Default to pending tab
 
 // Switch between tabs
-window.switchCancellationTab = function(tabType) {
+window.switchCancellationTab = async function(tabType) {
     console.log('📋 [TAB] Switching to tab:', tabType);
     
     // Store current tab for persistence
@@ -10065,11 +10222,23 @@ window.switchCancellationTab = function(tabType) {
         confirmedTab.classList.remove('active');
         pendingPane.classList.add('show', 'active');
         confirmedPane.classList.remove('show', 'active');
+        
+        // Load pending customers data and update badge
+        if (typeof window.loadPendingCustomers === 'function') {
+            console.log('🔄 [TAB] Loading pending customers...');
+            await window.loadPendingCustomers();
+        }
     } else {
         confirmedTab.classList.add('active');
         pendingTab.classList.remove('active');
         confirmedPane.classList.add('show', 'active');
         pendingPane.classList.remove('show', 'active');
+        
+        // Load confirmed actions data
+        if (typeof window.loadConfirmedActions === 'function') {
+            console.log('🔄 [TAB] Loading confirmed actions...');
+            await window.loadConfirmedActions();
+        }
     }
 };
 
@@ -10104,6 +10273,46 @@ window.restoreActiveTab = function() {
     window.currentCancellationTab = savedTab;
 };
 
+// Month filter for cancellation management
+let originalCancellationData = {
+    pending: [],
+    confirmed: []
+};
+
+window.applyCancellationMonthFilter = function() {
+    const monthFilter = document.getElementById('cancellationMonthFilter').value;
+    const statusElement = document.getElementById('cancellationFilterStatus');
+    
+    console.log('📅 [MONTH_FILTER] Applying filter:', monthFilter || 'All months');
+    
+    // Update status text
+    if (monthFilter) {
+        const monthName = monthFilter.replace('2025-', '').replace('07', 'July').replace('06', 'June')
+            .replace('05', 'May').replace('04', 'April').replace('03', 'March')
+            .replace('02', 'February').replace('01', 'January');
+        statusElement.textContent = `Filtered by ${monthName} 2025`;
+    } else {
+        statusElement.textContent = 'Showing all customers';
+    }
+    
+    // Reload data with filter applied
+    loadPendingCustomers();
+    loadConfirmedActions();
+};
+
+window.filterCustomersByMonth = function(customers, monthFilter) {
+    if (!monthFilter) return customers;
+    
+    return customers.filter(customer => {
+        const checkinDate = customer.checkin_date;
+        if (!checkinDate) return false;
+        
+        // Extract YYYY-MM from check-in date
+        const customerMonth = checkinDate.substring(0, 7); // Gets "2025-07" from "2025-07-15"
+        return customerMonth === monthFilter;
+    });
+};
+
 // Load pending customers (same as previous function but optimized)
 window.loadPendingCustomers = async function() {
     console.log('📡 [PENDING] Loading pending customers...');
@@ -10118,8 +10327,22 @@ window.loadPendingCustomers = async function() {
         const data = await response.json();
         
         if (data.success) {
-            const customers = data.all_customers || [];
-            console.log(`📋 [PENDING] Found ${customers.length} customers`);
+            let allCustomers = data.all_customers || [];
+            console.log(`📋 [PENDING] Found ${allCustomers.length} total customers`);
+            
+            // Filter to ONLY customers that need action (not confirmed)
+            let customers = allCustomers.filter(customer => customer.needs_action === true);
+            console.log(`📋 [PENDING] After filtering needs_action: ${customers.length} pending customers`);
+            
+            // Store original data for filtering
+            originalCancellationData.pending = customers;
+            
+            // Apply month filter
+            const monthFilter = document.getElementById('cancellationMonthFilter')?.value;
+            if (monthFilter) {
+                customers = filterCustomersByMonth(customers, monthFilter);
+                console.log(`📅 [PENDING] After month filter: ${customers.length} customers`);
+            }
             
             if (customers.length === 0) {
                 container.innerHTML = `
@@ -10277,12 +10500,57 @@ window.loadConfirmedActions = async function() {
     try {
         container.innerHTML = '<div class="text-center py-3"><div class="spinner-border text-success"></div><div class="mt-2">Loading...</div></div>';
         
-        // Load confirmed cancellations from API
-        const response = await fetch('/api/confirmed_cancellations');
+        // Load confirmed cancellations from debug_database API (which works!)
+        const response = await fetch('/api/debug_database');
         const data = await response.json();
         
-        if (data.success) {
-            const confirmedActions = data.confirmed_cancellations || [];
+        // Filter to confirmed actions only (same logic as the broken API)
+        let confirmedActions = [];
+        if (data.success && data.all_cancellation_actions) {
+            confirmedActions = data.all_cancellation_actions.filter(action => 
+                action.action_status === 'confirmed' || action.action_status === 'ok'
+            );
+            
+            // Store original data for filtering
+            originalCancellationData.confirmed = confirmedActions;
+            
+            // Apply month filter by check-in date if available
+            const monthFilter = document.getElementById('cancellationMonthFilter')?.value;
+            if (monthFilter) {
+                // For confirmed actions, we need to get the booking data to filter by check-in
+                // Since we don't have check-in date in cancellation_actions, we'll filter by confirmation_date
+                confirmedActions = confirmedActions.filter(action => {
+                    const confirmDate = action.confirmation_date;
+                    if (!confirmDate) return false;
+                    
+                    // Extract YYYY-MM from confirmation date
+                    const actionMonth = confirmDate.substring(0, 7);
+                    return actionMonth === monthFilter;
+                });
+                console.log(`📅 [CONFIRMED] After month filter: ${confirmedActions.length} actions`);
+            }
+            
+            // Sort by confirmation_date descending
+            confirmedActions.sort((a, b) => 
+                (b.confirmation_date || '1900-01-01').localeCompare(a.confirmation_date || '1900-01-01')
+            );
+            // Limit to 20 most recent
+            confirmedActions = confirmedActions.slice(0, 20);
+        }
+        
+        // Convert to expected format
+        const modifiedData = {
+            success: true,
+            confirmed_cancellations: confirmedActions,
+            total_confirmed: confirmedActions.length,
+            timestamp: new Date().toISOString()
+        };
+        
+        // Use the modified data
+        const finalData = modifiedData;
+        
+        if (finalData.success) {
+            const confirmedActions = finalData.confirmed_cancellations || [];
             console.log(`📋 [CONFIRMED] Found ${confirmedActions.length} confirmed actions`);
             
             if (confirmedActions.length === 0) {
@@ -10417,12 +10685,20 @@ window.confirmCustomer = async function(bookingId, guestName, buttonElement) {
                 // Show success message
                 alert(`✅ ${guestName} has been confirmed and moved to confirmed actions!`);
                 
-                // Reload both tabs
-                await loadPendingCustomers();
-                await loadConfirmedActions();
-                
-                // Restore the active tab
-                setTimeout(restoreActiveTab, 100);
+                // Force refresh if database commit required it
+                if (result.refresh_required) {
+                    console.log('🔄 [CONFIRM] Database refresh required - reloading with delay');
+                    setTimeout(async () => {
+                        await loadPendingCustomers();
+                        await loadConfirmedActions();
+                        restoreActiveTab();
+                    }, 500);
+                } else {
+                    // Normal reload
+                    await loadPendingCustomers();
+                    await loadConfirmedActions();
+                    setTimeout(restoreActiveTab, 100);
+                }
                 
             } else {
                 throw new Error(result.message || 'Failed to confirm customer');
@@ -10736,6 +11012,23 @@ try {
             window.currentCancellationTab = savedTab;
             console.log('🔄 [INIT] Restored saved tab preference:', savedTab);
         }
+        
+        // Immediately load pending customers data to update badge
+        setTimeout(async () => {
+            try {
+                console.log('🔄 [IMMEDIATE] Loading cancellation management data...');
+                if (typeof window.loadPendingCustomers === 'function') {
+                    await window.loadPendingCustomers();
+                    console.log('✅ [IMMEDIATE] Pending customers loaded and badge updated');
+                }
+                if (typeof window.loadConfirmedActions === 'function') {
+                    await window.loadConfirmedActions();
+                    console.log('✅ [IMMEDIATE] Confirmed actions loaded');
+                }
+            } catch (error) {
+                console.error('❌ [IMMEDIATE] Error loading cancellation data:', error);
+            }
+        }, 500); // Small delay to ensure DOM is ready
     }
     
 } catch (error) {

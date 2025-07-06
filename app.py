@@ -136,24 +136,26 @@ elif database_source == 'railway':
         print(f"❌ RAILWAY database requested but RAILWAY_DATABASE_URL not set")
         
 elif database_source == 'auto':
-    # Smart Auto-detect: Check Railway environment first, then fallback to local
-    is_railway = bool(os.getenv('RAILWAY_ENVIRONMENT_ID') or os.getenv('RAILWAY_PROJECT_ID') or os.getenv('RAILWAY_SERVICE_ID'))
+    # Smart Auto-detect: Prefer Railway for data completeness, fallback to local
+    is_railway_deployed = bool(os.getenv('RAILWAY_ENVIRONMENT_ID') or os.getenv('RAILWAY_PROJECT_ID') or os.getenv('RAILWAY_SERVICE_ID'))
     railway_postgres_url = os.getenv('POSTGRES_URL') or os.getenv('RAILWAY_POSTGRES_URL') or os.getenv('DATABASE_URL')
     
-    print(f"🔍 Railway environment detected: {'✅' if is_railway else '❌'}")
+    print(f"🔍 Railway deployment detected: {'✅' if is_railway_deployed else '❌'}")
+    print(f"🔍 Railway DB configured: {'✅' if railway_db_url else '❌'}")
     
-    if is_railway and railway_postgres_url:
+    # Priority: Railway production URL > Railway configured URL > Local DB
+    if is_railway_deployed and railway_postgres_url:
         database_url = railway_postgres_url
-        print(f"🚂 AUTO: Railway deployment - Using Railway PostgreSQL: {database_url[:50]}...")
+        print(f"🚂 AUTO: Railway production - Using Railway PostgreSQL: {database_url[:50]}...")
+    elif railway_db_url:
+        database_url = railway_db_url
+        print(f"🧪 AUTO: Development with Railway data - Using Railway DB: {database_url[:50]}...")
     elif railway_postgres_url:
         database_url = railway_postgres_url
         print(f"🔧 AUTO: Using DATABASE_URL/POSTGRES_URL: {database_url[:50]}...")
-    elif railway_db_url:
-        database_url = railway_db_url
-        print(f"🚂 AUTO: Using configured Railway DB: {database_url[:50]}...")
     elif local_db_url:
         database_url = local_db_url
-        print(f"🏠 AUTO: Development mode - Using local PostgreSQL: {database_url[:50]}...")
+        print(f"🏠 AUTO: Local development - Using local PostgreSQL: {database_url[:50]}...")
     else:
         print(f"❌ AUTO: No database URL found - Check your environment variables")
         
@@ -466,10 +468,39 @@ def api_debug_cancellations():
 
 @app.route('/api/confirmed_cancellations')
 def api_confirmed_cancellations():
-    """View history of confirmed cancellation actions"""
+    """View history of confirmed cancellation actions - uses debug_database approach"""
     try:
-        from core.cancellation_notifications import get_confirmed_cancellations
-        confirmed_list = get_confirmed_cancellations()
+        # Get ALL actions using the EXACT same approach as debug_database (which works)
+        from core.models import db, CancellationAction
+        
+        # Use the exact same query as debug_database endpoint
+        all_actions = CancellationAction.query.all()
+        
+        print(f"✅ [API_CONFIRMED_CANCELLATIONS] Got {len(all_actions)} total actions from database")
+        
+        # Filter to only confirmed/ok actions (client-side filtering like debug_database does)
+        confirmed_list = []
+        for action in all_actions:
+            if action.action_status in ['confirmed', 'ok']:
+                confirmed_list.append({
+                    'action_id': action.action_id,
+                    'booking_id': action.booking_id,
+                    'guest_name': action.guest_name,
+                    'cancellation_type': action.cancellation_type,
+                    'action_status': action.action_status,
+                    'confirmed_by': action.confirmed_by,
+                    'confirmation_date': action.confirmation_date.isoformat() if action.confirmation_date else None,
+                    'notes': action.notes,
+                    'created_at': action.created_at.isoformat() if action.created_at else None
+                })
+        
+        # Sort by confirmation_date descending
+        confirmed_list.sort(key=lambda x: x['confirmation_date'] or '1900-01-01', reverse=True)
+        
+        # Limit to 20 most recent
+        confirmed_list = confirmed_list[:20]
+        
+        print(f"✅ [API_CONFIRMED_CANCELLATIONS] Filtered to {len(confirmed_list)} confirmed actions")
         
         return jsonify({
             'success': True,
@@ -493,13 +524,28 @@ def api_canceled_customers_management():
         from core.cancellation_notifications import get_all_canceled_customers_for_management
         customers = get_all_canceled_customers_for_management()
         
-        # Categorize customers for easy filtering
+        # Categorize customers based on real action status
         categorized = {
-            'needs_classification': [c for c in customers if c['needs_action'] and not c['action_status']],
+            'needs_classification': [c for c in customers if c['needs_action']],
             'pending_review': [c for c in customers if c['action_status'] == 'pending'],
-            'confirmed': [c for c in customers if c['action_status'] == 'confirmed'],
+            'confirmed': [c for c in customers if c['action_status'] in ['confirmed', 'ok']],
             'all_customers': customers
         }
+        
+        # Debug categorization
+        print(f"🔍 [CATEGORIZATION_DEBUG] Total customers: {len(customers)}")
+        print(f"🔍 [CATEGORIZATION_DEBUG] Needs classification: {len(categorized['needs_classification'])}")
+        print(f"🔍 [CATEGORIZATION_DEBUG] Pending review: {len(categorized['pending_review'])}")
+        print(f"🔍 [CATEGORIZATION_DEBUG] Confirmed: {len(categorized['confirmed'])}")
+        
+        # Debug sample of each category
+        if categorized['needs_classification']:
+            sample = categorized['needs_classification'][0]
+            print(f"🔍 [NEEDS_ACTION_SAMPLE] {sample['guest_name']} ({sample['booking_id']}): action_status='{sample['action_status']}', needs_action={sample['needs_action']}")
+        
+        if categorized['confirmed']:
+            sample = categorized['confirmed'][0]
+            print(f"🔍 [CONFIRMED_SAMPLE] {sample['guest_name']} ({sample['booking_id']}): action_status='{sample['action_status']}', needs_action={sample['needs_action']}")
         
         return jsonify({
             'success': True,
@@ -522,6 +568,50 @@ def api_canceled_customers_management():
             'success': False,
             'error': str(e),
             'traceback': traceback.format_exc()
+        }), 500
+
+@app.route('/api/debug_confirmed_cancellations')
+def api_debug_confirmed_cancellations():
+    """Debug endpoint specifically for confirmed cancellations"""
+    try:
+        from core.logic_postgresql import execute_query
+        
+        # Test simple count query
+        count_query = "SELECT COUNT(*) as total FROM cancellation_actions"
+        count_result = execute_query(count_query)
+        total_actions = count_result.iloc[0]['total'] if not count_result.empty else 0
+        
+        # Test confirmed/ok query
+        confirmed_query = "SELECT COUNT(*) as confirmed_count FROM cancellation_actions WHERE action_status IN ('confirmed', 'ok')"
+        confirmed_result = execute_query(confirmed_query)
+        confirmed_count = confirmed_result.iloc[0]['confirmed_count'] if not confirmed_result.empty else 0
+        
+        # Get actual confirmed records
+        records_query = """
+        SELECT action_id, booking_id, guest_name, action_status, confirmation_date 
+        FROM cancellation_actions 
+        WHERE action_status IN ('confirmed', 'ok') 
+        ORDER BY confirmation_date DESC 
+        LIMIT 5
+        """
+        records_result = execute_query(records_query)
+        sample_records = records_result.to_dict('records') if not records_result.empty else []
+        
+        return jsonify({
+            'success': True,
+            'total_actions': total_actions,
+            'confirmed_count': confirmed_count,
+            'sample_confirmed_records': sample_records,
+            'debug_info': 'This endpoint tests confirmed cancellations functionality',
+            'timestamp': datetime.now().isoformat()
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'debug_info': 'Error testing confirmed cancellations functionality',
+            'timestamp': datetime.now().isoformat()
         }), 500
 
 @app.route('/api/debug_database')
@@ -765,15 +855,28 @@ def api_confirm_cancellation():
             any_existing.confirmed_by = confirmed_by
             any_existing.confirmation_date = datetime.now()
             any_existing.notes = f'Updated to confirmed status for {cancellation_type} guest'
-            db.session.commit()
             
-            print(f"🔄 [UPDATE_CONFIRMATION] Updated existing action {any_existing.action_id} to confirmed")
-            return jsonify({
-                'success': True,
-                'message': f'Cancellation confirmed for {guest_name}',
-                'action': 'updated',
-                'action_id': any_existing.action_id
-            })
+            try:
+                db.session.commit()
+                print(f"🔄 [UPDATE_CONFIRMATION] Updated existing action {any_existing.action_id} to confirmed")
+                
+                # Force cache refresh by disposing the connection pool
+                db.engine.dispose()
+                
+                return jsonify({
+                    'success': True,
+                    'message': f'Cancellation confirmed for {guest_name}',
+                    'action': 'updated',
+                    'action_id': any_existing.action_id,
+                    'refresh_required': True
+                })
+            except Exception as commit_error:
+                db.session.rollback()
+                print(f"❌ [COMMIT_ERROR] Failed to commit update: {commit_error}")
+                return jsonify({
+                    'success': False,
+                    'error': f'Database commit failed: {str(commit_error)}'
+                }), 500
         
         # Create new cancellation action record
         cancellation_action = CancellationAction(
@@ -787,16 +890,28 @@ def api_confirm_cancellation():
         )
         
         db.session.add(cancellation_action)
-        db.session.commit()
         
-        print(f"✅ [CONFIRM_CANCELLATION] Booking {booking_id} - {guest_name} - {cancellation_type}")
-        
-        return jsonify({
-            'success': True,
-            'message': f'Cancellation confirmed for {guest_name}',
-            'action_id': cancellation_action.action_id,
-            'timestamp': datetime.now().isoformat()
-        })
+        try:
+            db.session.commit()
+            print(f"✅ [CONFIRM_CANCELLATION] Booking {booking_id} - {guest_name} - {cancellation_type}")
+            
+            # Force cache refresh by disposing the connection pool
+            db.engine.dispose()
+            
+            return jsonify({
+                'success': True,
+                'message': f'Cancellation confirmed for {guest_name}',
+                'action_id': cancellation_action.action_id,
+                'timestamp': datetime.now().isoformat(),
+                'refresh_required': True
+            })
+        except Exception as commit_error:
+            db.session.rollback()
+            print(f"❌ [COMMIT_ERROR] Failed to commit new action: {commit_error}")
+            return jsonify({
+                'success': False,
+                'error': f'Database commit failed: {str(commit_error)}'
+            }), 500
         
     except Exception as e:
         print(f"❌ [API_CONFIRM_CANCELLATION] Error: {e}")
@@ -1200,6 +1315,58 @@ def view_bookings():
             print(f"   📞 Phone matches: {phone_mask.sum()}")
             print(f"   📋 Notes matches: {notes_mask.sum()}")
         
+        # DATE FILTERING (MONTH/YEAR/DATE RANGE)
+        filter_month = request.args.get('filter_month', '').strip()
+        filter_year = request.args.get('filter_year', '').strip()
+        start_date = request.args.get('start_date', '').strip()
+        end_date = request.args.get('end_date', '').strip()
+        
+        # Apply month/year filtering
+        if filter_month or filter_year or start_date or end_date:
+            original_count = len(filtered_df)
+            
+            # Convert check-in date to datetime for filtering
+            if 'Check-in Date' in filtered_df.columns:
+                filtered_df['Check-in Date'] = pd.to_datetime(filtered_df['Check-in Date'], errors='coerce')
+                
+                # Filter by month
+                if filter_month:
+                    try:
+                        month_num = int(filter_month)
+                        filtered_df = filtered_df[filtered_df['Check-in Date'].dt.month == month_num]
+                        print(f"📅 [MONTH_FILTER] Filtered to month {month_num}: {len(filtered_df)} bookings")
+                    except (ValueError, TypeError):
+                        print(f"⚠️ [MONTH_FILTER] Invalid month parameter: {filter_month}")
+                
+                # Filter by year
+                if filter_year:
+                    try:
+                        year_num = int(filter_year)
+                        filtered_df = filtered_df[filtered_df['Check-in Date'].dt.year == year_num]
+                        print(f"📅 [YEAR_FILTER] Filtered to year {year_num}: {len(filtered_df)} bookings")
+                    except (ValueError, TypeError):
+                        print(f"⚠️ [YEAR_FILTER] Invalid year parameter: {filter_year}")
+                
+                # Filter by date range
+                if start_date:
+                    try:
+                        start_dt = pd.to_datetime(start_date)
+                        filtered_df = filtered_df[filtered_df['Check-in Date'] >= start_dt]
+                        print(f"📅 [START_DATE] Filtered from {start_date}: {len(filtered_df)} bookings")
+                    except (ValueError, TypeError):
+                        print(f"⚠️ [START_DATE] Invalid start date: {start_date}")
+                
+                if end_date:
+                    try:
+                        end_dt = pd.to_datetime(end_date)
+                        filtered_df = filtered_df[filtered_df['Check-in Date'] <= end_dt]
+                        print(f"📅 [END_DATE] Filtered to {end_date}: {len(filtered_df)} bookings")
+                    except (ValueError, TypeError):
+                        print(f"⚠️ [END_DATE] Invalid end date: {end_date}")
+                
+                filtered_count = len(filtered_df)
+                print(f"📅 [DATE_FILTER_SUMMARY] {original_count} → {filtered_count} bookings after date filtering")
+        
         # Duplicate detection and marking (NO AUTO-HIDING)
         duplicate_report = {'total_groups': 0, 'total_duplicates': 0, 'filtered_count': 0}
         duplicate_booking_ids = set()
@@ -1396,7 +1563,12 @@ def view_bookings():
                 booking_count=total_bookings,
                 current_sort_by=sort_by,
                 current_order=order,
-                pagination=pagination_info
+                pagination=pagination_info,
+                # Date filter parameters
+                filter_month=filter_month,
+                filter_year=filter_year,
+                start_date=start_date,
+                end_date=end_date
             )
         
     except Exception as e:
@@ -1410,6 +1582,10 @@ def view_bookings():
                              bookings=[], 
                              total_bookings=0,
                              search_term='',
+                             filter_month='',
+                             filter_year='',
+                             start_date='',
+                             end_date='',
                              sort_by='Check-in Date',
                              order='desc',
                              auto_filter=False,
@@ -2787,8 +2963,33 @@ def quick_notes():
         
         if request.method == 'GET':
             # Get all quick notes
+            print(f"📋 [GET_QUICK_NOTES] Loading quick notes...")
             notes = db_service.get_quick_notes()
-            return jsonify([note.to_dict() for note in notes])
+            print(f"📋 [GET_QUICK_NOTES] Found {len(notes)} notes")
+            
+            if notes:
+                print(f"📋 [GET_QUICK_NOTES] Sample note: {notes[0]}")
+                print(f"📋 [GET_QUICK_NOTES] Sample note has to_dict: {hasattr(notes[0], 'to_dict')}")
+            
+            # Convert to dict safely
+            result = []
+            for note in notes:
+                try:
+                    result.append(note.to_dict())
+                except Exception as e:
+                    print(f"❌ [QUICK_NOTES_ERROR] Error converting note {note.note_id}: {e}")
+                    # Create manual dict if to_dict fails
+                    result.append({
+                        'note_id': note.note_id,
+                        'note_type': note.note_type,
+                        'content': note.note_content,
+                        'completed': note.is_completed,
+                        'created_at': note.created_at.isoformat() if note.created_at else None,
+                        'created_by': note.created_by
+                    })
+            
+            print(f"📋 [GET_QUICK_NOTES] Returning {len(result)} formatted notes")
+            return jsonify(result)
         
         elif request.method == 'POST':
             # Create new quick note

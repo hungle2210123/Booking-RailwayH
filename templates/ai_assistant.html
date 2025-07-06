@@ -942,10 +942,27 @@
         color: #6c757d !important;
     }
     
-    /* Template list styling */
+    /* Template list styling - Optimized for full display */
     .templates-list {
-        max-height: 500px;
-        overflow-y: auto;
+        /* Removed height restriction to show all templates without scrolling */
+        /* max-height: 500px; */
+        /* overflow-y: auto; */
+        padding: 0.5rem 0; /* Add some padding for better spacing */
+    }
+    
+    /* Make template panel card body more spacious */
+    #templates-panel .card-body {
+        padding: 1.5rem; /* Increased padding for better spacing */
+        min-height: auto; /* Ensure no minimum height restrictions */
+    }
+    
+    /* Optimize template container */
+    #templatesContainer {
+        width: 100%;
+        /* Remove any height restrictions */
+        height: auto !important;
+        max-height: none !important;
+        overflow: visible !important;
     }
     
     .category-section {
@@ -970,6 +987,41 @@
         transition: all 0.2s ease;
         background: #ffffff;
         border: 1px solid #e9ecef !important;
+        margin-bottom: 0.75rem !important; /* Reduce spacing between items */
+        padding: 0.75rem !important; /* More compact padding */
+    }
+    
+    /* Optimized template item styling */
+    .template-item-optimized {
+        transition: all 0.2s ease;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        margin-bottom: 0.5rem !important;
+    }
+    
+    .template-item-optimized:hover {
+        box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+        transform: translateY(-1px);
+        border-color: #007bff !important;
+    }
+    
+    .template-title-header {
+        transition: all 0.2s ease;
+    }
+    
+    .template-title-header:hover {
+        background-color: #f8f9fa !important;
+    }
+    
+    .transition-icon {
+        transition: transform 0.2s ease;
+    }
+    
+    .template-details {
+        border-top: 1px solid #f0f0f0;
+    }
+    
+    .template-details .p-3 {
+        background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
     }
     
     .template-item:hover {
@@ -1603,7 +1655,7 @@
                             <i class="fas fa-chevron-down float-end mt-1"></i>
                         </h6>
                     </div>
-                    <div class="collapse show" id="${categoryId}">
+                    <div class="collapse" id="${categoryId}">
                         <div class="category-body border border-top-0 rounded-bottom p-2">
             `;
             
@@ -1623,28 +1675,45 @@
                     }
                 }
                 
+                // Create optimized template item with collapsible details
                 html += `
-                    <div class="template-item border p-2 mb-2 rounded bg-light">
-                        <div class="d-flex justify-content-between align-items-start mb-1">
-                            <div class="flex-grow-1">
-                                <div class="d-flex align-items-center mb-1">
-                                    <h6 class="mb-0 me-2">${templateLabel}</h6>
-                                    <span class="badge ${versionInfo === 'DEFAULT' ? 'bg-success' : 'bg-info'} small">${versionInfo}</span>
-                                </div>
-                                <small class="text-muted">ID: ${templateId}</small>
+                    <div class="template-item-optimized border rounded bg-white mb-2">
+                        <!-- Template Title Header (Always Visible) -->
+                        <div class="template-title-header p-2 d-flex justify-content-between align-items-center" 
+                             style="cursor: pointer; border-bottom: 1px solid #f0f0f0;" 
+                             onclick="toggleTemplateDetails('${templateId}')">
+                            <div class="d-flex align-items-center">
+                                <i class="fas fa-chevron-right me-2 text-muted transition-icon" id="chevron-${templateId}"></i>
+                                <span class="fw-medium text-dark">${templateLabel}</span>
+                                <span class="badge ${versionInfo === 'DEFAULT' ? 'bg-success' : 'bg-info'} ms-2 small">${versionInfo}</span>
                             </div>
+                            <small class="text-muted">ID: ${templateId}</small>
                         </div>
-                        <p class="text-muted small mb-2" style="font-size: 0.8rem;">${templateContent.substring(0, 100)}${templateContent.length > 100 ? '...' : ''}</p>
-                        <div class="d-flex gap-1">
-                            <button class="btn btn-sm btn-primary" onclick="useTemplate('${templateId}')" title="Copy content to clipboard">
-                                <i class="fas fa-copy"></i> Copy
-                            </button>
-                            <button class="btn btn-sm btn-outline-secondary" onclick="previewTemplate('${templateId}')" title="Preview full content">
-                                <i class="fas fa-eye"></i> Preview
-                            </button>
-                            <button class="btn btn-sm btn-outline-danger" onclick="deleteTemplate('${templateId}')" data-template-name="${templateLabel}" title="Delete this template">
-                                <i class="fas fa-trash"></i> Delete
-                            </button>
+                        
+                        <!-- Template Details (Collapsible) -->
+                        <div class="template-details collapse" id="details-${templateId}">
+                            <div class="p-3 bg-light">
+                                <!-- Content Preview -->
+                                <div class="mb-3">
+                                    <small class="text-muted fw-bold d-block mb-1">Preview:</small>
+                                    <p class="text-muted small mb-0" style="font-size: 0.85rem; line-height: 1.4;">
+                                        ${templateContent.substring(0, 150)}${templateContent.length > 150 ? '...' : ''}
+                                    </p>
+                                </div>
+                                
+                                <!-- Action Buttons -->
+                                <div class="d-flex gap-2 flex-wrap">
+                                    <button class="btn btn-sm btn-primary" onclick="useTemplate('${templateId}')" title="Copy content to clipboard">
+                                        <i class="fas fa-copy"></i> Copy
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-info" onclick="previewTemplate('${templateId}')" title="Preview full content">
+                                        <i class="fas fa-eye"></i> Preview
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-danger" onclick="deleteTemplate('${templateId}')" data-template-name="${templateLabel}" title="Delete this template">
+                                        <i class="fas fa-trash"></i> Delete
+                                    </button>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 `;
@@ -1816,6 +1885,29 @@
             deleteButton.innerHTML = originalContent;
             deleteButton.disabled = false;
         });
+    };
+    
+    // Toggle template details (show/hide content and buttons)
+    window.toggleTemplateDetails = function(templateId) {
+        const detailsElement = document.getElementById(`details-${templateId}`);
+        const chevronElement = document.getElementById(`chevron-${templateId}`);
+        
+        if (!detailsElement || !chevronElement) return;
+        
+        // Toggle Bootstrap collapse
+        const bsCollapse = new bootstrap.Collapse(detailsElement, {
+            toggle: false
+        });
+        
+        if (detailsElement.classList.contains('show')) {
+            // Currently expanded, collapse it
+            bsCollapse.hide();
+            chevronElement.className = 'fas fa-chevron-right me-2 text-muted transition-icon';
+        } else {
+            // Currently collapsed, expand it
+            bsCollapse.show();
+            chevronElement.className = 'fas fa-chevron-down me-2 text-muted transition-icon';
+        }
     };
     
     // Auto-load templates when page loads
