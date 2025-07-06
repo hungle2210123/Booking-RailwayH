@@ -1235,6 +1235,9 @@ def view_bookings():
     import time
     start_time = time.time()
     
+    # Debug all request parameters
+    print(f"🚨 [VIEW_BOOKINGS_DEBUG] Full request args: {dict(request.args)}")
+    
     try:
         # Check if we need to force fresh data (e.g., after payment collection)
         force_fresh = request.args.get('refresh', 'false').lower() == 'true'
@@ -1285,6 +1288,11 @@ def view_bookings():
         
         # Filter data
         filtered_df = df.copy()
+        print(f"🚨 [VIEW_BOOKINGS_DEBUG] Initial data loaded: {len(filtered_df)} rows")
+        if not filtered_df.empty:
+            print(f"🚨 [VIEW_BOOKINGS_DEBUG] Columns: {list(filtered_df.columns)}")
+            if 'Check-in Date' in filtered_df.columns:
+                print(f"🚨 [VIEW_BOOKINGS_DEBUG] Sample check-in dates: {filtered_df['Check-in Date'].head(3).tolist()}")
     
         # PROFESSIONAL SEARCH IMPLEMENTATION
         if search_term:
@@ -1320,6 +1328,9 @@ def view_bookings():
         filter_year = request.args.get('filter_year', '').strip()
         start_date = request.args.get('start_date', '').strip()
         end_date = request.args.get('end_date', '').strip()
+        
+        print(f"🚨 [DATE_FILTER_DEBUG] filter_month='{filter_month}', filter_year='{filter_year}', start_date='{start_date}', end_date='{end_date}'")
+        print(f"🚨 [DATE_FILTER_DEBUG] Will apply filtering: {bool(filter_month or filter_year or start_date or end_date)}")
         
         # Apply month/year filtering
         if filter_month or filter_year or start_date or end_date:
