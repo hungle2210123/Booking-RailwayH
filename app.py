@@ -1305,7 +1305,7 @@ def view_bookings():
             combined_mask = name_mask | booking_id_mask | phone_mask | notes_mask
             
             # Apply search filter
-            filtered_df = filtered_df[combined_mask]
+            filtered_df = filtered_df.loc[combined_mask].copy()
             
             # Search analytics
             search_results_count = len(filtered_df)
@@ -1333,7 +1333,7 @@ def view_bookings():
                 if filter_month:
                     try:
                         month_num = int(filter_month)
-                        filtered_df = filtered_df[filtered_df['Check-in Date'].dt.month == month_num]
+                        filtered_df = filtered_df.loc[filtered_df['Check-in Date'].dt.month == month_num].copy()
                         print(f"📅 [MONTH_FILTER] Filtered to month {month_num}: {len(filtered_df)} bookings")
                     except (ValueError, TypeError):
                         print(f"⚠️ [MONTH_FILTER] Invalid month parameter: {filter_month}")
@@ -1342,7 +1342,7 @@ def view_bookings():
                 if filter_year:
                     try:
                         year_num = int(filter_year)
-                        filtered_df = filtered_df[filtered_df['Check-in Date'].dt.year == year_num]
+                        filtered_df = filtered_df.loc[filtered_df['Check-in Date'].dt.year == year_num].copy()
                         print(f"📅 [YEAR_FILTER] Filtered to year {year_num}: {len(filtered_df)} bookings")
                     except (ValueError, TypeError):
                         print(f"⚠️ [YEAR_FILTER] Invalid year parameter: {filter_year}")
@@ -1351,7 +1351,7 @@ def view_bookings():
                 if start_date:
                     try:
                         start_dt = pd.to_datetime(start_date)
-                        filtered_df = filtered_df[filtered_df['Check-in Date'] >= start_dt]
+                        filtered_df = filtered_df.loc[filtered_df['Check-in Date'] >= start_dt].copy()
                         print(f"📅 [START_DATE] Filtered from {start_date}: {len(filtered_df)} bookings")
                     except (ValueError, TypeError):
                         print(f"⚠️ [START_DATE] Invalid start date: {start_date}")
@@ -1359,7 +1359,7 @@ def view_bookings():
                 if end_date:
                     try:
                         end_dt = pd.to_datetime(end_date)
-                        filtered_df = filtered_df[filtered_df['Check-in Date'] <= end_dt]
+                        filtered_df = filtered_df.loc[filtered_df['Check-in Date'] <= end_dt].copy()
                         print(f"📅 [END_DATE] Filtered to {end_date}: {len(filtered_df)} bookings")
                     except (ValueError, TypeError):
                         print(f"⚠️ [END_DATE] Invalid end date: {end_date}")
@@ -1441,7 +1441,7 @@ def view_bookings():
         # Only hide duplicates if auto_filter is specifically enabled AND user wants to hide duplicates
         if auto_filter and request.args.get('hide_duplicates') == 'true':
             print(f"🔍 [BOOKINGS] Hiding {len(duplicate_booking_ids)} duplicate bookings (user requested)")
-            filtered_df = filtered_df[~filtered_df['Số đặt phòng'].isin(duplicate_booking_ids)]
+            filtered_df = filtered_df.loc[~filtered_df['Số đặt phòng'].isin(duplicate_booking_ids)].copy()
         else:
             print(f"🔍 [BOOKINGS] Keeping {len(duplicate_booking_ids)} duplicate bookings visible for manual review")
         
@@ -1453,6 +1453,9 @@ def view_bookings():
             # Convert date columns for comparison
             filtered_df['Check-in Date'] = pd.to_datetime(filtered_df['Check-in Date'], errors='coerce')
             filtered_df['Check-out Date'] = pd.to_datetime(filtered_df['Check-out Date'], errors='coerce')
+            
+            # Reset index to ensure clean boolean indexing
+            filtered_df = filtered_df.reset_index(drop=True)
             
             # Create mask for "interested" guests who need attention
             # EXPANDED FILTER: Show guests who need payment collection or management
@@ -1478,18 +1481,18 @@ def view_bookings():
                 (filtered_df['Tình trạng'] == 'Đã hủy')
             )
             
-            # Apply the filter
+            # Apply the filter using loc for clean indexing
             before_count = len(filtered_df)
-            filtered_df = filtered_df[interested_mask]
+            filtered_df = filtered_df.loc[interested_mask].copy()
             after_count = len(filtered_df)
             
             # Debug information for expanded filter
-            upcoming_guests = len(filtered_df[filtered_df['Check-in Date'].dt.date >= today])
-            current_unpaid_guests = len(filtered_df[
+            upcoming_guests = len(filtered_df.loc[filtered_df['Check-in Date'].dt.date >= today])
+            current_unpaid_guests = len(filtered_df.loc[
                 (payment_issue_mask) & 
                 (filtered_df['Check-out Date'].dt.date >= today)
             ])
-            cancelled_guests = len(filtered_df[filtered_df['Tình trạng'] == 'Đã hủy'])
+            cancelled_guests = len(filtered_df.loc[filtered_df['Tình trạng'] == 'Đã hủy'])
             
             print(f"🔍 EXPANDED INTERESTED GUESTS FILTER RESULTS:")
             print(f"   📊 Total guests filtered: {before_count} → {after_count}")
@@ -5100,11 +5103,11 @@ def get_monthly_guest_details():
         
         if collection_type == 'collected':
             # Guests collected by LOC LE or THAO LE
-            filtered_guests = month_guests[month_guests['Người thu tiền'].isin(valid_collectors)].copy()
+            filtered_guests = month_guests.loc[month_guests['Người thu tiền'].isin(valid_collectors)].copy()
             status_label = "Đã thu (LOC LE + THAO LE)"
         else:  # uncollected
             # Guests NOT collected by LOC LE or THAO LE
-            filtered_guests = month_guests[~month_guests['Người thu tiền'].isin(valid_collectors)].copy()
+            filtered_guests = month_guests.loc[~month_guests['Người thu tiền'].isin(valid_collectors)].copy()
             status_label = "Chưa thu (Không phải LOC LE/THAO LE)"
         
         print(f"🔍 [MONTHLY_DETAILS] {status_label}: {len(filtered_guests)} guests")
@@ -5234,10 +5237,10 @@ def get_weekly_guest_details():
         # Filter based on collection status
         valid_collectors = ['LOC LE', 'THAO LE']
         if collection_type == 'collected':
-            filtered_df = week_df[week_df['Người thu tiền'].isin(valid_collectors)].copy()
+            filtered_df = week_df.loc[week_df['Người thu tiền'].isin(valid_collectors)].copy()
             status_label = 'đã thu'
         else:  # uncollected
-            filtered_df = week_df[~week_df['Người thu tiền'].isin(valid_collectors)].copy()
+            filtered_df = week_df.loc[~week_df['Người thu tiền'].isin(valid_collectors)].copy()
             status_label = 'chưa thu'
         
         print(f"🔍 [WEEKLY_DETAILS] Found {len(filtered_df)} guests {status_label} for week {week}")
@@ -5351,10 +5354,10 @@ def get_collector_guest_details():
         print(f"🔍 [COLLECTOR_DETAILS] Date range received: start={start_date}, end={end_date}")
         
         # Filter by specific collector
-        collector_guests_all = filtered_df[filtered_df['Người thu tiền'] == collector_name].copy()
+        collector_guests_all = filtered_df.loc[filtered_df['Người thu tiền'] == collector_name].copy()
         
         # ✅ CRITICAL FIX: Apply same filters as chart calculation
-        collector_guests = collector_guests_all[collector_guests_all['Tổng thanh toán'] > 0].copy()
+        collector_guests = collector_guests_all.loc[collector_guests_all['Tổng thanh toán'] > 0].copy()
         
         print(f"🔍 [COLLECTOR_DETAILS] {collector_name} guests (all): {len(collector_guests_all)}")
         print(f"🔍 [COLLECTOR_DETAILS] {collector_name} guests (amount > 0): {len(collector_guests)}")
@@ -5506,7 +5509,7 @@ def get_collector_chart_data():
             collector_counts = filtered_df['Người thu tiền'].value_counts(dropna=False)
             print(f"🗓️ [COLLECTOR_CHART_API] All collectors in filtered data:")
             for collector, count in collector_counts.items():
-                amount = filtered_df[filtered_df['Người thu tiền'] == collector]['Tổng thanh toán'].sum() if 'Tổng thanh toán' in filtered_df.columns else 0
+                amount = filtered_df.loc[filtered_df['Người thu tiền'] == collector, 'Tổng thanh toán'].sum() if 'Tổng thanh toán' in filtered_df.columns else 0
                 print(f"🗓️   - '{collector}': {count} bookings, {amount:,.0f}đ")
         
         # Debug: Show some sample data
@@ -5522,7 +5525,7 @@ def get_collector_chart_data():
         if 'Người thu tiền' in filtered_df.columns and 'Tổng thanh toán' in filtered_df.columns:
             valid_collector_mask = filtered_df['Người thu tiền'].isin(valid_collectors)
             amount_mask = pd.to_numeric(filtered_df['Tổng thanh toán'], errors='coerce') > 0
-            valid_collector_df = filtered_df[valid_collector_mask & amount_mask].copy()
+            valid_collector_df = filtered_df.loc[valid_collector_mask & amount_mask].copy()
             
             print(f"🗓️ [COLLECTOR_CHART_API] Valid collector records: {len(valid_collector_df)}")
             
@@ -5870,7 +5873,7 @@ def debug_collector_comparison():
         direct_collector_data = {}
         
         for collector in valid_collectors:
-            collector_guests = filtered_df[filtered_df['Người thu tiền'] == collector].copy()
+            collector_guests = filtered_df.loc[filtered_df['Người thu tiền'] == collector].copy()
             if not collector_guests.empty:
                 total_amount = collector_guests['Tổng thanh toán'].sum()
                 total_commission = collector_guests['Hoa hồng'].sum()
@@ -5899,10 +5902,10 @@ def debug_collector_comparison():
             try:
                 month_str = start_date[:7]  # YYYY-MM format
                 month_mask = filtered_df['Check-in Date'].dt.strftime('%Y-%m') == month_str
-                month_guests = filtered_df[month_mask].copy()
+                month_guests = filtered_df.loc[month_mask].copy()
                 
                 for collector in valid_collectors:
-                    month_collector_guests = month_guests[month_guests['Người thu tiền'] == collector].copy()
+                    month_collector_guests = month_guests.loc[month_guests['Người thu tiền'] == collector].copy()
                     if not month_collector_guests.empty:
                         monthly_data[collector] = {
                             'amount': float(month_collector_guests['Tổng thanh toán'].sum()),

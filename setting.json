@@ -1,0 +1,19 @@
+{
+  "mcpServers": {
+    "desktop-commander": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@wonderwhy-er/desktop-commander"
+      ]
+    },
+    "fetch": {
+      "command": "node",
+      "args": [
+        "/usr/lib/node_modules/@google/gemini-cli/dist/index.js"
+      ]
+    }
+  },
+  "theme": "Default",
+  "selectedAuthType": "oauth-personal"
+}
