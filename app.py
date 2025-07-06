@@ -1333,8 +1333,25 @@ def view_bookings():
                 if filter_month:
                     try:
                         month_num = int(filter_month)
+                        print(f"📅 [MONTH_FILTER] Before filtering: {len(filtered_df)} bookings")
+                        print(f"📅 [MONTH_FILTER] Looking for month: {month_num}")
+                        
+                        # Debug: Show sample dates and their months
+                        if not filtered_df.empty:
+                            sample_dates = filtered_df['Check-in Date'].dropna().head(5)
+                            print(f"📅 [MONTH_FILTER] Sample check-in dates: {sample_dates.tolist()}")
+                            print(f"📅 [MONTH_FILTER] Sample months: {sample_dates.dt.month.tolist()}")
+                            
+                            # Show all unique months in the data
+                            unique_months = filtered_df['Check-in Date'].dt.month.dropna().unique()
+                            print(f"📅 [MONTH_FILTER] Available months in data: {sorted(unique_months)}")
+                        
                         filtered_df = filtered_df.loc[filtered_df['Check-in Date'].dt.month == month_num].copy()
-                        print(f"📅 [MONTH_FILTER] Filtered to month {month_num}: {len(filtered_df)} bookings")
+                        print(f"📅 [MONTH_FILTER] After filtering to month {month_num}: {len(filtered_df)} bookings")
+                        
+                        if len(filtered_df) == 0:
+                            print(f"🚨 [MONTH_FILTER] No bookings found for month {month_num}! This could be normal if no data exists for this month.")
+                            
                     except (ValueError, TypeError):
                         print(f"⚠️ [MONTH_FILTER] Invalid month parameter: {filter_month}")
                 
