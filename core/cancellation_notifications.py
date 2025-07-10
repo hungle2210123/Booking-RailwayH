@@ -267,8 +267,8 @@ def get_all_canceled_customers_for_management() -> List[Dict[str, Any]]:
     LEFT JOIN cancellation_actions ca ON b.booking_id = ca.booking_id
     WHERE b.booking_status != 'deleted'
     AND (
-        b.booking_status ILIKE '%cancel%' 
-        OR b.booking_status ILIKE '%hủy%'
+        LOWER(b.booking_status) LIKE '%cancel%' 
+        OR LOWER(b.booking_status) LIKE '%hủy%'
         OR b.booking_status = 'đã hủy'
         OR b.booking_status = 'cancelled'
         OR b.commission = 0

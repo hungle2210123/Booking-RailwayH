@@ -52,6 +52,8 @@ from core.auto_sync_service import auto_sync_service
 # Import optimized crawling and performance monitoring
 from core.performance_dashboard import performance_bp
 
+# Learning mode removed for simplicity
+
 # Import test dashboard blueprint (optional - for development/testing only)
 try:
     from core.test_dashboard_route import test_dashboard_bp
@@ -86,6 +88,8 @@ app = Flask(__name__, template_folder=BASE_DIR / "templates", static_folder=BASE
 # Register sync blueprints (commented out - modules removed during cleanup)
 # app.register_blueprint(sync_bp)
 # app.register_blueprint(sync_api_bp)
+
+# Learning mode blueprint removed
 
 # Register test dashboard blueprint (only if available)
 if test_dashboard_available:
@@ -1932,16 +1936,28 @@ def expenses_api():
                 from core.models import db
                 from sqlalchemy import text
                 
-                # Test table existence
+                # Test table existence using SQLite/PostgreSQL compatible query
                 with db.engine.connect() as conn:
-                    table_check = conn.execute(text("SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'expenses')")).scalar()
-                    print(f"🔍 [EXPENSES_API] Expenses table exists: {table_check}")
-                    
-                    if table_check:
-                        # Check table structure
-                        columns_result = conn.execute(text("SELECT column_name, data_type FROM information_schema.columns WHERE table_name = 'expenses'"))
-                        columns = columns_result.fetchall()
-                        print(f"🔍 [EXPENSES_API] Table structure: {columns}")
+                    try:
+                        # Try PostgreSQL first
+                        table_check = conn.execute(text("SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'expenses')")).scalar()
+                        print(f"🔍 [EXPENSES_API] Expenses table exists: {table_check}")
+                        
+                        if table_check:
+                            # Check table structure
+                            columns_result = conn.execute(text("SELECT column_name, data_type FROM information_schema.columns WHERE table_name = 'expenses'"))
+                            columns = columns_result.fetchall()
+                            print(f"🔍 [EXPENSES_API] Table structure: {columns}")
+                    except:
+                        # Fallback to SQLite
+                        table_check = conn.execute(text("SELECT name FROM sqlite_master WHERE type='table' AND name='expenses'")).fetchone()
+                        print(f"🔍 [EXPENSES_API] Expenses table exists (SQLite): {table_check is not None}")
+                        
+                        if table_check:
+                            # Check table structure for SQLite
+                            columns_result = conn.execute(text("PRAGMA table_info(expenses)"))
+                            columns = columns_result.fetchall()
+                            print(f"🔍 [EXPENSES_API] Table structure (SQLite): {columns}")
                 
                 expenses_df = get_expenses_from_database()
                 print(f"🔍 [EXPENSES_API] Database query successful, got DataFrame with {len(expenses_df)} rows")

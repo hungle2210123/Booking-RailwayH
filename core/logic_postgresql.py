@@ -677,17 +677,41 @@ def prepare_dashboard_data(df: pd.DataFrame, start_date: datetime, end_date: dat
     """
     selected_metrics = execute_query(query_selected, {"start_date": start_date_str, "end_date": end_date_str}).iloc[0]
 
-    # Optimized query for monthly revenue (all time)
-    query_monthly = """
-    SELECT
-        to_char(checkin_date, 'YYYY-MM') as "Tháng",
-        SUM(room_amount) as "Tổng thanh toán"
-    FROM bookings
-    WHERE booking_status != 'cancelled'
-    GROUP BY 1
-    ORDER BY 1;
-    """
-    monthly_revenue = execute_query(query_monthly)
+    # Optimized query for monthly revenue (all time) - Database compatible
+    # Try PostgreSQL first, fallback to SQLite if needed
+    try:
+        query_monthly = """
+        SELECT
+            to_char(checkin_date, 'YYYY-MM') as "Tháng",
+            SUM(room_amount) as "Tổng thanh toán"
+        FROM bookings
+        WHERE booking_status != 'cancelled'
+        GROUP BY 1
+        ORDER BY 1;
+        """
+        monthly_revenue = execute_query(query_monthly)
+        print(f"💰 [MONTHLY_REVENUE] PostgreSQL query returned {len(monthly_revenue)} rows")
+        if not monthly_revenue.empty:
+            print(f"💰 [MONTHLY_REVENUE] Sample data: {monthly_revenue.head(3).to_dict('records')}")
+        else:
+            print("💰 [MONTHLY_REVENUE] No data returned from PostgreSQL query")
+    except Exception as e:
+        print(f"⚠️ [MONTHLY_REVENUE] PostgreSQL query failed, trying SQLite: {e}")
+        query_monthly = """
+        SELECT
+            strftime('%Y-%m', checkin_date) as "Tháng",
+            SUM(room_amount) as "Tổng thanh toán"
+        FROM bookings
+        WHERE booking_status != 'cancelled'
+        GROUP BY 1
+        ORDER BY 1;
+        """
+        monthly_revenue = execute_query(query_monthly)
+        print(f"💰 [MONTHLY_REVENUE] SQLite query returned {len(monthly_revenue)} rows")
+        if not monthly_revenue.empty:
+            print(f"💰 [MONTHLY_REVENUE] Sample data: {monthly_revenue.head(3).to_dict('records')}")
+        else:
+            print("💰 [MONTHLY_REVENUE] No data returned from SQLite query")
 
     # Optimized query for collector revenue (selected period)
     query_collector = """

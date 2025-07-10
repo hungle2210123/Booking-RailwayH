@@ -510,30 +510,6 @@
         </div>
     </div>
 
-    <!-- Filter Form -->
-    <div class="card mb-4">
-        <div class="card-header">
-            <i class="fas fa-filter"></i>
-            Tùy chỉnh khoảng thời gian
-        </div>
-        <div class="card-body">
-            <form method="get" action="{{ url_for('dashboard') }}" class="row g-3 align-items-center">
-                <div class="col-md-5">
-                    <label for="start_date" class="form-label">Ngày bắt đầu</label>
-                    <input type="date" id="start_date" name="start_date" class="form-control" value="{{ start_date }}">
-                </div>
-                <div class="col-md-5">
-                    <label for="end_date" class="form-label">Ngày kết thúc</label>
-                    <input type="date" id="end_date" name="end_date" class="form-control" value="{{ end_date }}">
-                </div>
-                <div class="col-md-2 d-flex align-items-end">
-                    <button type="submit" class="btn btn-primary w-100">
-                        <i class="fas fa-search"></i> Lọc
-                    </button>
-                </div>
-            </form>
-        </div>
-    </div>
 
     <!-- 🚨 CANCELLATION ALERTS - COMPACT -->
     {% if cancellation_notifications and cancellation_notifications.summary.total_alerts > 0 %}
@@ -1532,34 +1508,102 @@
         <div class="col-xl-4">
             <div class="card shadow-sm border-0">
                 <div class="card-header bg-light">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <h6 class="mb-0">
-                                <i class="fas fa-chart-pie me-1 text-primary"></i> 
-                                Phân bổ theo Người thu (Chi tiết)
+                    <h6 class="mb-0">
+                        <i class="fas fa-chart-pie me-1 text-primary"></i> 
+                        Phân bổ theo Người thu (Chi tiết)
+                    </h6>
+                    <small class="text-muted">✅ Validation: CHỈ LOC LE & THAO LE</small>
+                </div>
+                
+                <!-- 🎯 PROMINENT DATE PICKER SECTION -->
+                <div class="card-body border-bottom" style="background-color: #f8f9fa;">
+                    <div class="row">
+                        <div class="col-md-12">
+                            <h6 class="text-primary mb-3">
+                                <i class="fas fa-calendar-alt me-2"></i>
+                                Chọn khoảng thời gian để xem thống kê
                             </h6>
-                            <small class="text-muted">✅ Validation: CHỈ LOC LE & THAO LE</small>
-                        </div>
-                        <div class="d-flex align-items-center gap-2">
-                            <label for="collectorMonthSelect" class="form-label mb-0 text-muted small">
-                                <i class="fas fa-calendar-alt me-1"></i>Chọn tháng:
-                            </label>
-                            <select id="collectorMonthSelect" class="form-select form-select-sm" style="width: 150px;" onchange="updateCollectorChart()">
-                                <option value="loading">Đang tải...</option>
-                            </select>
+                            
+                            <!-- Date Type Selection Buttons -->
+                            <div class="btn-group w-100 mb-3" role="group">
+                                <input type="radio" class="btn-check" name="collectorDateTypeRadio" id="collectorDateMonth" autocomplete="off" checked>
+                                <label class="btn btn-outline-primary" for="collectorDateMonth" onclick="setCollectorDateType('month')">
+                                    <i class="fas fa-calendar me-1"></i> Theo tháng
+                                </label>
+                                
+                                <input type="radio" class="btn-check" name="collectorDateTypeRadio" id="collectorDateCustom" autocomplete="off">
+                                <label class="btn btn-outline-success" for="collectorDateCustom" onclick="setCollectorDateType('custom')">
+                                    <i class="fas fa-calendar-alt me-1"></i> Tùy chọn ngày
+                                </label>
+                                
+                                <input type="radio" class="btn-check" name="collectorDateTypeRadio" id="collectorDateAll" autocomplete="off">
+                                <label class="btn btn-outline-info" for="collectorDateAll" onclick="setCollectorDateType('all')">
+                                    <i class="fas fa-globe me-1"></i> Tất cả thời gian
+                                </label>
+                            </div>
+                            
+                            <!-- Month Selector -->
+                            <div id="collectorMonthContainer" class="mb-3">
+                                <label class="form-label fw-bold text-primary">Chọn tháng:</label>
+                                <select id="collectorMonthSelect" class="form-select" onchange="updateCollectorChart()">
+                                    <option value="loading">Đang tải...</option>
+                                </select>
+                            </div>
+                            
+                            <!-- Custom Date Range Selector -->
+                            <div id="collectorCustomDateContainer" class="d-none">
+                                <div class="alert alert-success border-0" style="background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);">
+                                    <h6 class="alert-heading mb-2">
+                                        <i class="fas fa-calendar-check me-2"></i>
+                                        Chọn khoảng ngày tùy chỉnh
+                                    </h6>
+                                    <p class="mb-3 small">Ví dụ: Từ 15/6 đến 31/6 để xem thống kê của người thu tiền trong khoảng này</p>
+                                    
+                                    <div class="row g-3">
+                                        <div class="col-md-6">
+                                            <label class="form-label fw-bold">
+                                                <i class="fas fa-play text-success me-1"></i>
+                                                Từ ngày:
+                                            </label>
+                                            <input type="date" id="collectorStartDate" class="form-control form-control-lg border-success" onchange="updateCollectorChart()" placeholder="Chọn ngày bắt đầu">
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label class="form-label fw-bold">
+                                                <i class="fas fa-stop text-danger me-1"></i>
+                                                Đến ngày:
+                                            </label>
+                                            <input type="date" id="collectorEndDate" class="form-control form-control-lg border-success" onchange="updateCollectorChart()" placeholder="Chọn ngày kết thúc">
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="mt-3">
+                                        <small class="text-muted">
+                                            <i class="fas fa-info-circle me-1"></i>
+                                            Biểu đồ sẽ tự động cập nhật khi bạn chọn ngày
+                                        </small>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Current Selection Display -->
+                            <div class="alert alert-primary border-0 mb-0" style="background: linear-gradient(135deg, #cce5ff 0%, #b3d7ff 100%);">
+                                <div class="d-flex align-items-center">
+                                    <i class="fas fa-info-circle me-2"></i>
+                                    <span id="collectorChartPeriod" class="fw-bold">
+                                        Hiển thị theo khoảng thời gian đã chọn
+                                    </span>
+                                    <div id="collectorChartLoading" class="d-none ms-auto">
+                                        <span class="spinner-border spinner-border-sm text-primary me-1"></span>
+                                        <small>Đang tải...</small>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
+                
                 <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-center mb-3">
-                        <span id="collectorChartPeriod" class="text-muted small">
-                            <i class="fas fa-info-circle me-1"></i>Hiển thị theo khoảng thời gian đã chọn
-                        </span>
-                        <div id="collectorChartLoading" class="d-none">
-                            <span class="spinner-border spinner-border-sm text-primary me-1"></span>
-                            <small class="text-muted">Đang tải...</small>
-                        </div>
-                    </div>
+                    <!-- Chart will be here -->
                     <div id="collectorChart" style="height: 320px;"></div>
                     
                     <!-- ✅ ENHANCED: Detailed Collector Statistics Table -->
@@ -2333,6 +2377,81 @@
 // ==================== GLOBAL VARIABLES - MUST BE FIRST ====================
 var currentEditBookingData = {};
 var currentBookingData = {};
+
+// ==================== COLLECTOR DATE PICKER FUNCTION - PRIORITY LOAD ====================
+// CRITICAL: Load this function FIRST so HTML buttons can call it immediately
+window.setCollectorDateType = function(dateType) {
+    console.log('🎯 [COLLECTOR_DATE_PICKER] Setting date type to:', dateType);
+    
+    const monthContainer = document.getElementById('collectorMonthContainer');
+    const customContainer = document.getElementById('collectorCustomDateContainer');
+    
+    // Update button states
+    const monthButton = document.getElementById('collectorDateMonth');
+    const customButton = document.getElementById('collectorDateCustom');
+    const allButton = document.getElementById('collectorDateAll');
+    
+    if (monthButton) monthButton.checked = (dateType === 'month');
+    if (customButton) customButton.checked = (dateType === 'custom');
+    if (allButton) allButton.checked = (dateType === 'all');
+    
+    if (dateType === 'month') {
+        if (monthContainer) {
+            monthContainer.classList.remove('d-none');
+            monthContainer.style.display = 'block';
+        }
+        if (customContainer) {
+            customContainer.classList.add('d-none');
+            customContainer.style.display = 'none';
+        }
+        console.log('📅 Showing month selector');
+        
+    } else if (dateType === 'custom') {
+        if (monthContainer) {
+            monthContainer.classList.add('d-none');
+            monthContainer.style.display = 'none';
+        }
+        if (customContainer) {
+            customContainer.classList.remove('d-none');
+            customContainer.style.display = 'block';
+        }
+        
+        // Set default dates if empty
+        const startDate = document.getElementById('collectorStartDate');
+        const endDate = document.getElementById('collectorEndDate');
+        if (startDate && !startDate.value) {
+            startDate.value = '2025-06-15';
+            console.log('📅 Set example start date:', startDate.value);
+        }
+        if (endDate && !endDate.value) {
+            endDate.value = '2025-06-30';
+            console.log('📅 Set example end date:', endDate.value);
+        }
+        
+        console.log('✅ CUSTOM DATE PICKER NOW VISIBLE!');
+        console.log('📅 You can now select dates like June 15 to June 31');
+        
+    } else if (dateType === 'all') {
+        if (monthContainer) {
+            monthContainer.classList.add('d-none');
+            monthContainer.style.display = 'none';
+        }
+        if (customContainer) {
+            customContainer.classList.add('d-none');
+            customContainer.style.display = 'none';
+        }
+        console.log('📅 Showing all time data');
+    }
+    
+    // Update chart if function exists
+    if (typeof updateCollectorChart === 'function') {
+        updateCollectorChart();
+    } else {
+        console.log('⚠️ updateCollectorChart not yet loaded, will trigger later');
+    }
+};
+
+console.log('🚀 [PRIORITY] setCollectorDateType function loaded FIRST!');
 
 // ==================== DEFENSIVE CHART DATA HANDLING ====================
 // Ensure chart data variables exist and are valid, even if backend fails
@@ -7879,6 +7998,22 @@ document.addEventListener('DOMContentLoaded', function() {
             // Trigger chart update
             updateCollectorChart();
         }
+        
+        // Initialize date picker to default "month" mode
+        const dateType = document.getElementById('collectorDateType');
+        if (dateType && dateType.value !== 'month') {
+            dateType.value = 'month';
+            toggleCollectorDatePicker();
+        }
+        
+        // Log available debug functions
+        console.log('🛠️ Debug functions available:');
+        console.log('   - testCollectorDatePicker() - Test NEW button-based date picker');
+        console.log('   - demonstrateCustomDates() - Demo: Select June 15 to June 31');
+        console.log('   - setCollectorDateType("custom") - Show custom date picker');
+        console.log('   - verifyCollectorElements() - Check if all elements exist');
+        console.log('   - debugMonthlyRevenueChart() - Debug monthly revenue chart');
+        console.log('   - Click "Tùy chọn ngày" button to see custom date inputs');
     }, 2000);
 });
 
@@ -8043,19 +8178,164 @@ async function initializeCollectorMonthSelector() {
     }
 }
 
+// Note: setCollectorDateType function moved to PRIORITY LOAD section at top
+
+// Keep old function for backward compatibility
+window.toggleCollectorDatePicker = function() {
+    console.log('⚠️ Using legacy function - redirecting to button interface');
+    // Default to month view
+    setCollectorDateType('month');
+}
+
+// Updated test function for new button-based interface
+window.testCollectorDatePicker = function() {
+    console.log('🧪 Testing NEW button-based collector date picker...');
+    
+    // Test button elements
+    const monthButton = document.getElementById('collectorDateMonth');
+    const customButton = document.getElementById('collectorDateCustom');
+    const allButton = document.getElementById('collectorDateAll');
+    const monthContainer = document.getElementById('collectorMonthContainer');
+    const customContainer = document.getElementById('collectorCustomDateContainer');
+    
+    console.log('✅ Button elements found:', {
+        monthButton: !!monthButton,
+        customButton: !!customButton,
+        allButton: !!allButton,
+        monthContainer: !!monthContainer,
+        customContainer: !!customContainer
+    });
+    
+    console.log('🔄 Testing custom date picker...');
+    
+    // Click the custom date button
+    if (customButton) {
+        customButton.checked = true;
+        setCollectorDateType('custom');
+        
+        setTimeout(() => {
+            const startInput = document.getElementById('collectorStartDate');
+            const endInput = document.getElementById('collectorEndDate');
+            
+            console.log('✅ RESULT:', {
+                customContainerVisible: customContainer ? !customContainer.classList.contains('d-none') : false,
+                startInput: !!startInput,
+                endInput: !!endInput,
+                startValue: startInput ? startInput.value : 'not found',
+                endValue: endInput ? endInput.value : 'not found'
+            });
+            
+            if (customContainer && !customContainer.classList.contains('d-none')) {
+                console.log('🎉 SUCCESS! Custom date picker is now visible!');
+                console.log('📅 You can now select custom dates like June 15 to June 31');
+            } else {
+                console.error('❌ FAILED! Custom date picker not visible');
+            }
+        }, 200);
+    } else {
+        console.error('❌ Custom button not found');
+    }
+};
+
+// Simple demonstration function
+window.demonstrateCustomDates = function() {
+    console.log('🎯 DEMONSTRATING: How to select June 15 to June 31');
+    
+    // Step 1: Click custom date button
+    console.log('Step 1: Clicking "Tùy chọn ngày" button...');
+    setCollectorDateType('custom');
+    
+    setTimeout(() => {
+        // Step 2: Set dates
+        const startInput = document.getElementById('collectorStartDate');
+        const endInput = document.getElementById('collectorEndDate');
+        
+        if (startInput && endInput) {
+            console.log('Step 2: Setting dates...');
+            startInput.value = '2025-06-15';
+            endInput.value = '2025-06-31';
+            
+            console.log('✅ COMPLETED! Dates set to:');
+            console.log('   📅 From: June 15, 2025');
+            console.log('   📅 To: June 31, 2025');
+            console.log('   📊 Chart will update automatically');
+            
+            // Trigger chart update
+            updateCollectorChart();
+        } else {
+            console.error('❌ Date inputs not found');
+        }
+    }, 300);
+};
+
+// Add immediate verification function
+window.verifyCollectorElements = function() {
+    console.log('🔍 Verifying collector date picker elements...');
+    const elements = {
+        dateType: document.getElementById('collectorDateType'),
+        monthContainer: document.getElementById('collectorMonthContainer'), 
+        customContainer: document.getElementById('collectorCustomDateContainer'),
+        startDate: document.getElementById('collectorStartDate'),
+        endDate: document.getElementById('collectorEndDate')
+    };
+    
+    Object.keys(elements).forEach(key => {
+        const element = elements[key];
+        console.log(`${key}:`, element ? '✅ Found' : '❌ Not found');
+    });
+    
+    return elements;
+};
+
+// Debug function for monthly revenue chart
+window.debugMonthlyRevenueChart = function() {
+    console.log('🔍 Debugging monthly revenue chart...');
+    console.log('monthlyRevenueChartData:', monthlyRevenueChartData);
+    
+    if (monthlyRevenueChartData) {
+        console.log('Chart data available:', !!monthlyRevenueChartData.data);
+        console.log('Data length:', monthlyRevenueChartData.data ? monthlyRevenueChartData.data.length : 0);
+        if (monthlyRevenueChartData.data && monthlyRevenueChartData.data.length > 0) {
+            console.log('First data trace:', monthlyRevenueChartData.data[0]);
+        }
+    } else {
+        console.log('❌ monthlyRevenueChartData is not defined');
+    }
+    
+    // Check chart container
+    const chartContainer = document.getElementById('monthlyRevenueChart');
+    console.log('Chart container found:', !!chartContainer);
+    if (chartContainer) {
+        console.log('Chart container content:', chartContainer.innerHTML.substring(0, 200) + '...');
+    }
+};
+
 async function updateCollectorChart() {
     const monthSelect = document.getElementById('collectorMonthSelect');
+    const startDateInput = document.getElementById('collectorStartDate');
+    const endDateInput = document.getElementById('collectorEndDate');
     const loadingDiv = document.getElementById('collectorChartLoading');
     const periodSpan = document.getElementById('collectorChartPeriod');
     const chartDiv = document.getElementById('collectorChart');
     const statsBody = document.getElementById('collectorStatsBody');
     
-    if (!monthSelect || !chartDiv) {
-        console.error('🗓️ [COLLECTOR_MONTH] Required elements not found');
+    if (!chartDiv) {
+        console.error('🗓️ [COLLECTOR_CHART] Chart container not found');
         return;
     }
     
-    const selectedMonth = monthSelect.value;
+    // Determine which date type is selected from radio buttons
+    let selectedDateType = 'month'; // default
+    if (document.getElementById('collectorDateCustom') && document.getElementById('collectorDateCustom').checked) {
+        selectedDateType = 'custom';
+    } else if (document.getElementById('collectorDateAll') && document.getElementById('collectorDateAll').checked) {
+        selectedDateType = 'all';
+    } else if (document.getElementById('collectorDateMonth') && document.getElementById('collectorDateMonth').checked) {
+        selectedDateType = 'month';
+    }
+    
+    const selectedMonth = monthSelect ? monthSelect.value : null;
+    console.log('🔧 [COLLECTOR_CHART] Date type detected:', selectedDateType);
     
     // Store selected month globally for collector details
     currentSelectedCollectorMonth = selectedMonth;
@@ -8076,37 +8356,69 @@ async function updateCollectorChart() {
         let requestData = {};
         let periodText = '';
         
-        if (selectedMonth === 'current') {
-            // Use July 2025 (current month)
-            const startDate = '2025-07-01';
-            const endDate = '2025-07-31';
+        if (selectedDateType === 'all') {
+            // Show all time data
+            requestData = {
+                use_all_time: true
+            };
+            periodText = 'tất cả thời gian';
+            
+        } else if (selectedDateType === 'custom') {
+            // Use custom date range
+            const startDate = startDateInput.value;
+            const endDate = endDateInput.value;
+            
+            if (!startDate || !endDate) {
+                throw new Error('Vui lòng chọn đầy đủ ngày bắt đầu và kết thúc');
+            }
+            
+            if (startDate > endDate) {
+                throw new Error('Ngày bắt đầu không được lớn hơn ngày kết thúc');
+            }
             
             requestData = {
                 start_date: startDate,
                 end_date: endDate
             };
             
-            periodText = `tháng 7 năm 2025 (tháng hiện tại)`;
-        } else if (selectedMonth === 'no-data' || selectedMonth === 'error') {
-            // Handle no data cases
-            throw new Error('Không có dữ liệu có sẵn');
-        } else {
-            // Use specific month
-            const [year, month] = selectedMonth.split('-');
-            const startDate = `${year}-${month}-01`;
-            const lastDay = new Date(parseInt(year), parseInt(month), 0).getDate();
-            const endDate = `${year}-${month}-${String(lastDay).padStart(2, '0')}`;
+            const startDateObj = new Date(startDate);
+            const endDateObj = new Date(endDate);
+            const startDateStr = startDateObj.toLocaleDateString('vi-VN');
+            const endDateStr = endDateObj.toLocaleDateString('vi-VN');
+            periodText = `từ ${startDateStr} đến ${endDateStr}`;
             
-            requestData = {
-                start_date: startDate,
-                end_date: endDate
-            };
-            
-            const monthName = new Date(parseInt(year), parseInt(month) - 1, 1)
-                .toLocaleDateString('vi-VN', { year: 'numeric', month: 'long' });
-            periodText = monthName;
-            
-            // Month calculation
+        } else if (selectedDateType === 'month') {
+            // Use month selection
+            if (selectedMonth === 'current') {
+                // Use July 2025 (current month)
+                const startDate = '2025-07-01';
+                const endDate = '2025-07-31';
+                
+                requestData = {
+                    start_date: startDate,
+                    end_date: endDate
+                };
+                
+                periodText = `tháng 7 năm 2025 (tháng hiện tại)`;
+            } else if (selectedMonth === 'no-data' || selectedMonth === 'error') {
+                // Handle no data cases
+                throw new Error('Không có dữ liệu có sẵn');
+            } else {
+                // Use specific month
+                const [year, month] = selectedMonth.split('-');
+                const startDate = `${year}-${month}-01`;
+                const lastDay = new Date(parseInt(year), parseInt(month), 0).getDate();
+                const endDate = `${year}-${month}-${String(lastDay).padStart(2, '0')}`;
+                
+                requestData = {
+                    start_date: startDate,
+                    end_date: endDate
+                };
+                
+                const monthName = new Date(parseInt(year), parseInt(month) - 1, 1)
+                    .toLocaleDateString('vi-VN', { year: 'numeric', month: 'long' });
+                periodText = monthName;
+            }
         }
         
         // Update period display
@@ -11359,35 +11671,92 @@ if (typeof window.updateCollectorChart !== 'function') {
         const loadingDiv = document.getElementById('collectorChartLoading');
         const chartDiv = document.getElementById('collectorChart');
         const statsBody = document.getElementById('collectorStatsBody');
+        const periodDisplay = document.getElementById('collectorChartPeriod');
         
-        if (!monthSelect || !chartDiv) {
-            console.error('🗓️ [EMERGENCY_COLLECTOR] Required elements not found');
+        if (!chartDiv) {
+            console.error('🗓️ [EMERGENCY_COLLECTOR] Chart div not found');
             return;
         }
-        
-        const selectedMonth = monthSelect.value;
         
         // Show loading
         if (loadingDiv) loadingDiv.classList.remove('d-none');
         
         try {
             let requestData = {};
+            let periodText = '';
             
-            if (selectedMonth === 'current') {
-                requestData = {
-                    start_date: '2025-06-01',
-                    end_date: '2025-06-30'
-                };
-            } else {
-                const [year, month] = selectedMonth.split('-');
-                const startDate = `${year}-${month}-01`;
-                const lastDay = new Date(parseInt(year), parseInt(month), 0).getDate();
-                const endDate = `${year}-${month}-${String(lastDay).padStart(2, '0')}`;
+            // Determine which mode is active by checking which container is visible
+            const monthContainer = document.getElementById('collectorMonthContainer');
+            const customContainer = document.getElementById('collectorCustomDateContainer');
+            
+            const isMonthMode = monthContainer && !monthContainer.classList.contains('d-none');
+            const isCustomMode = customContainer && !customContainer.classList.contains('d-none');
+            
+            console.log('🗓️ [UPDATE_CHART] Mode detection:', {
+                isMonthMode,
+                isCustomMode,
+                monthVisible: monthContainer ? monthContainer.style.display !== 'none' : false,
+                customVisible: customContainer ? customContainer.style.display !== 'none' : false
+            });
+            
+            if (isCustomMode) {
+                // Custom date mode
+                const startInput = document.getElementById('collectorStartDate');
+                const endInput = document.getElementById('collectorEndDate');
                 
-                requestData = {
-                    start_date: startDate,
-                    end_date: endDate
-                };
+                if (startInput && endInput && startInput.value && endInput.value) {
+                    requestData = {
+                        start_date: startInput.value,
+                        end_date: endInput.value
+                    };
+                    periodText = `từ ${startInput.value} đến ${endInput.value}`;
+                    console.log('🗓️ [CUSTOM_MODE] Using custom dates:', requestData);
+                } else {
+                    console.warn('🗓️ [CUSTOM_MODE] Custom date inputs missing or empty');
+                    requestData = { use_all_time: true };
+                    periodText = 'tất cả thời gian (custom dates not set)';
+                }
+                
+            } else if (isMonthMode && monthSelect) {
+                // Month mode
+                const selectedMonth = monthSelect.value;
+                
+                if (selectedMonth === 'current') {
+                    const today = new Date();
+                    const year = today.getFullYear();
+                    const month = String(today.getMonth() + 1).padStart(2, '0');
+                    requestData = {
+                        start_date: `${year}-${month}-01`,
+                        end_date: `${year}-${month}-31`
+                    };
+                    periodText = 'tháng hiện tại';
+                } else if (selectedMonth && selectedMonth !== 'loading') {
+                    const [year, month] = selectedMonth.split('-');
+                    const startDate = `${year}-${month}-01`;
+                    const lastDay = new Date(parseInt(year), parseInt(month), 0).getDate();
+                    const endDate = `${year}-${month}-${String(lastDay).padStart(2, '0')}`;
+                    
+                    requestData = {
+                        start_date: startDate,
+                        end_date: endDate
+                    };
+                    periodText = `tháng ${month}/${year}`;
+                } else {
+                    requestData = { use_all_time: true };
+                    periodText = 'tất cả thời gian';
+                }
+                console.log('🗓️ [MONTH_MODE] Using month:', selectedMonth, requestData);
+                
+            } else {
+                // All-time mode (default)
+                requestData = { use_all_time: true };
+                periodText = 'tất cả thời gian';
+                console.log('🗓️ [ALL_TIME_MODE] Using all time data');
+            }
+            
+            // Update period display
+            if (periodDisplay) {
+                periodDisplay.textContent = `Hiển thị ${periodText}`;
             }
             
             
@@ -11608,6 +11977,15 @@ window.checkJulyPayments = async function() {
 
 console.log('🚨 [EMERGENCY] Collector chart functions registered globally');
 console.log('🧪 Available test functions: testCollectorChart(month), testCollectorAPI(month), debugCollectorChart(), checkJulyPayments()');
+
+// Final verification that our new debug functions are available
+setTimeout(() => {
+    console.log('🔧 [FINAL_CHECK] Debug functions loaded:');
+    console.log('   - testCollectorDatePicker:', typeof window.testCollectorDatePicker);
+    console.log('   - verifyCollectorElements:', typeof window.verifyCollectorElements);  
+    console.log('   - debugMonthlyRevenueChart:', typeof window.debugMonthlyRevenueChart);
+    console.log('   - toggleCollectorDatePicker:', typeof window.toggleCollectorDatePicker);
+}, 3000);
 
 </script>
 {% endblock %}

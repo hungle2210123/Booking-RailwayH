@@ -11,3 +11,4 @@ restartPolicyMaxRetries = 3
 PORT = { default = "5000" }
 PYTHONPATH = "/app"
 FLASK_APP = "app.py"
+DATABASE_SOURCE = "auto"
