@@ -116,10 +116,9 @@ def load_booking_data(force_fresh: bool = False) -> pd.DataFrame:
         b.taxi_amount as "Taxi",
         b.collector as "Người thu tiền",
         CASE 
-            WHEN b.booking_status IN ('confirmed', 'ok', 'mới') THEN 'OK'
-            WHEN b.booking_status IN ('cancelled', 'đã hủy') THEN 'Đã hủy'
+            WHEN b.booking_status IN ('cancelled', 'đã hủy', 'deleted') THEN 'Đã hủy'
             WHEN b.booking_status = 'pending' THEN 'Chờ xử lý'
-            ELSE COALESCE(b.booking_status, 'OK')
+            ELSE 'OK'
         END as "Tình trạng",
         b.booking_notes as "Ghi chú thanh toán",
         'VND' as "Tiền tệ",
@@ -161,10 +160,9 @@ def load_booking_data(force_fresh: bool = False) -> pd.DataFrame:
         b.taxi_amount as "Taxi",
         b.collector as "Người thu tiền",
         CASE 
-            WHEN b.booking_status IN ('confirmed', 'ok', 'mới') THEN 'OK'
-            WHEN b.booking_status IN ('cancelled', 'đã hủy') THEN 'Đã hủy'
+            WHEN b.booking_status IN ('cancelled', 'đã hủy', 'deleted') THEN 'Đã hủy'
             WHEN b.booking_status = 'pending' THEN 'Chờ xử lý'
-            ELSE COALESCE(b.booking_status, 'OK')
+            ELSE 'OK'
         END as "Tình trạng",
         b.booking_notes as "Ghi chú thanh toán",
         'VND' as "Tiền tệ",
@@ -204,6 +202,16 @@ def process_booking_dataframe(df):
     for col in numeric_columns:
         if col in df.columns:
             df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0)
+    
+    # Ensure required text fields are not null to prevent frontend errors
+    text_columns = ['Tên người đặt', 'Số đặt phòng', 'Tình trạng', 'Người thu tiền']
+    for col in text_columns:
+        if col in df.columns:
+            df[col] = df[col].fillna('N/A').astype(str)
+    
+    # Ensure Tình trạng has valid values only
+    if 'Tình trạng' in df.columns:
+        df['Tình trạng'] = df['Tình trạng'].apply(lambda x: x if x in ['OK', 'Đã hủy', 'Chờ xử lý'] else 'OK')
     
     print(f"✅ Loaded {len(df)} bookings from PostgreSQL")
     return df
