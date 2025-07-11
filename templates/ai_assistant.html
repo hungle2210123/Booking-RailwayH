@@ -1901,12 +1901,26 @@
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                alert(`Template "${templateName}" deleted successfully!`);
+                // Show success toast instead of alert
+                showTemplateToast(`🗑️ Template "${templateName}" deleted successfully!`, 'success');
                 
-                // Reload templates to update the display
-                loadTemplates();
+                // Remove the template card with animation
+                const templateCard = deleteButton.closest('.col-md-6');
+                if (templateCard) {
+                    templateCard.style.transition = 'opacity 0.3s, transform 0.3s';
+                    templateCard.style.opacity = '0.5';
+                    templateCard.style.transform = 'scale(0.95)';
+                    setTimeout(() => {
+                        templateCard.remove();
+                        // Reload templates to update the display after animation
+                        loadTemplates();
+                    }, 300);
+                } else {
+                    // Fallback: reload immediately if can't find card
+                    loadTemplates();
+                }
             } else {
-                alert('Failed to delete template: ' + (data.error || 'Unknown error'));
+                showTemplateToast(`❌ Failed to delete template: ${data.error || 'Unknown error'}`, 'error');
                 
                 // Restore button state
                 deleteButton.innerHTML = originalContent;
@@ -1915,13 +1929,45 @@
         })
         .catch(error => {
             console.error('Error deleting template:', error);
-            alert('Error deleting template: ' + error.message);
+            showTemplateToast(`❌ Error deleting template: ${error.message}`, 'error');
             
             // Restore button state
             deleteButton.innerHTML = originalContent;
             deleteButton.disabled = false;
         });
     };
+    
+    // Helper function for template toast notifications
+    function showTemplateToast(message, type = 'success') {
+        const colors = {
+            success: 'bg-success',
+            error: 'bg-danger',
+            info: 'bg-info',
+            warning: 'bg-warning'
+        };
+        
+        const toast = document.createElement('div');
+        toast.className = `position-fixed top-0 end-0 m-3 p-3 ${colors[type]} text-white rounded shadow`;
+        toast.style.zIndex = '9999';
+        toast.style.minWidth = '300px';
+        toast.innerHTML = `
+            <div class="d-flex align-items-center">
+                <div class="flex-grow-1">${message}</div>
+                <button type="button" class="btn-close btn-close-white ms-2" onclick="this.parentElement.parentElement.remove()"></button>
+            </div>
+        `;
+        
+        document.body.appendChild(toast);
+        
+        // Auto remove after 5 seconds
+        setTimeout(() => {
+            if (toast.parentElement) {
+                toast.style.transition = 'opacity 0.3s';
+                toast.style.opacity = '0';
+                setTimeout(() => toast.remove(), 300);
+            }
+        }, 5000);
+    }
     
     // Toggle template details (show/hide content and buttons)
     window.toggleTemplateDetails = function(templateId) {

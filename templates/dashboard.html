@@ -355,6 +355,217 @@
     box-shadow: 0 4px 8px rgba(0,123,255,0.3) !important;
     color: white !important;
 }
+
+/* ==============================
+   🚀 MOBILE RESPONSIVENESS FIXES
+   ============================== */
+
+/* Mobile-first responsive breakpoints */
+@media (max-width: 768px) {
+    /* Fix table overflow and column collapse */
+    .table-responsive {
+        border: none !important;
+        overflow-x: auto !important;
+        -webkit-overflow-scrolling: touch !important;
+        margin: 0 !important;
+    }
+    
+    /* Compact table styling for mobile */
+    .table-responsive table {
+        min-width: 600px !important;
+        font-size: 12px !important;
+        white-space: nowrap !important;
+    }
+    
+    .table-responsive th,
+    .table-responsive td {
+        padding: 4px 6px !important;
+        vertical-align: middle !important;
+        border: 1px solid #dee2e6 !important;
+    }
+    
+    /* Compact cancellation table for mobile */
+    .compact-cancellation-table {
+        font-size: 11px !important;
+    }
+    
+    .compact-cancellation-table table {
+        min-width: 700px !important;
+    }
+    
+    .compact-cancellation-table th,
+    .compact-cancellation-table td {
+        padding: 3px 4px !important;
+        font-size: 10px !important;
+    }
+    
+    /* Button groups - stack vertically on mobile */
+    .btn-group {
+        display: flex !important;
+        flex-direction: column !important;
+        width: 100% !important;
+    }
+    
+    .btn-group .btn {
+        border-radius: 4px !important;
+        margin-bottom: 2px !important;
+        font-size: 11px !important;
+        padding: 4px 8px !important;
+    }
+    
+    /* Cards responsive sizing */
+    .card {
+        margin-bottom: 15px !important;
+    }
+    
+    .card-body {
+        padding: 10px !important;
+    }
+    
+    /* Chart containers */
+    #collectorChart,
+    #monthlyRevenueChart {
+        height: 250px !important;
+    }
+    
+    /* Modal adjustments for mobile */
+    .modal-dialog {
+        margin: 10px !important;
+        max-width: calc(100vw - 20px) !important;
+    }
+    
+    .modal-body {
+        padding: 10px !important;
+    }
+    
+    /* Guest cards in overdue section */
+    .overdue-guest-card {
+        padding: 8px !important;
+        margin-bottom: 8px !important;
+        font-size: 12px !important;
+    }
+    
+    /* Responsive text sizing */
+    .fs-6 { font-size: 12px !important; }
+    .fs-5 { font-size: 14px !important; }
+    .fs-4 { font-size: 16px !important; }
+    
+    /* Action buttons in tables */
+    .table .btn {
+        font-size: 10px !important;
+        padding: 2px 4px !important;
+    }
+    
+    /* Fix dropdown menus on mobile */
+    .dropdown-menu {
+        font-size: 12px !important;
+        min-width: auto !important;
+    }
+    
+    /* Responsive columns */
+    .col-xl-4,
+    .col-xl-6,
+    .col-xl-8 {
+        margin-bottom: 15px !important;
+    }
+}
+
+/* Tablet portrait adjustments */
+@media (max-width: 992px) and (min-width: 769px) {
+    .table-responsive table {
+        font-size: 13px !important;
+    }
+    
+    .table-responsive th,
+    .table-responsive td {
+        padding: 6px 8px !important;
+    }
+    
+    .card-body {
+        padding: 12px !important;
+    }
+}
+
+/* Extra small mobile devices */
+@media (max-width: 576px) {
+    /* Container adjustments */
+    .container-fluid {
+        padding-left: 8px !important;
+        padding-right: 8px !important;
+    }
+    
+    /* Ultra-compact tables */
+    .table-responsive table {
+        min-width: 550px !important;
+        font-size: 10px !important;
+    }
+    
+    .table-responsive th,
+    .table-responsive td {
+        padding: 2px 3px !important;
+        font-size: 9px !important;
+    }
+    
+    /* Button sizing */
+    .btn-sm {
+        font-size: 9px !important;
+        padding: 2px 4px !important;
+    }
+    
+    /* Chart height reduction */
+    #collectorChart,
+    #monthlyRevenueChart {
+        height: 200px !important;
+    }
+    
+    /* Card spacing */
+    .card {
+        margin-bottom: 10px !important;
+        border-radius: 8px !important;
+    }
+    
+    .card-header {
+        padding: 8px 10px !important;
+        font-size: 13px !important;
+    }
+    
+    /* Text truncation for long content */
+    .table td {
+        max-width: 80px !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+    }
+}
+
+/* Specific fixes for booking management tables */
+.booking-management-table {
+    width: 100% !important;
+    table-layout: fixed !important;
+}
+
+.booking-management-table th:nth-child(1) { width: 25% !important; } /* Guest Name */
+.booking-management-table th:nth-child(2) { width: 15% !important; } /* Booking ID */
+.booking-management-table th:nth-child(3) { width: 15% !important; } /* Check-in */
+.booking-management-table th:nth-child(4) { width: 15% !important; } /* Check-out */
+.booking-management-table th:nth-child(5) { width: 15% !important; } /* Amount */
+.booking-management-table th:nth-child(6) { width: 15% !important; } /* Actions */
+
+/* Horizontal scroll indicator */
+.table-responsive::after {
+    content: "← Swipe to see more →";
+    display: block;
+    text-align: center;
+    font-size: 10px;
+    color: #6c757d;
+    padding: 5px;
+    border-top: 1px solid #dee2e6;
+}
+
+@media (min-width: 769px) {
+    .table-responsive::after {
+        display: none !important;
+    }
+}
 </style>
 {% endblock %}
 
@@ -408,104 +619,24 @@
         <li class="breadcrumb-item active">Tổng quan về hiệu suất khách sạn</li>
     </ol>
 
-    <!-- ⚡ DASHBOARD CONTROLS - Quick Actions -->
+    <!-- Essential Controls Only -->
     <div class="row mb-3">
         <div class="col-12">
-            <div class="card border-0 bg-light">
-                <div class="card-body py-2">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div class="d-flex align-items-center">
-                            <i class="fas fa-tools text-primary me-2"></i>
-                            <small class="text-muted fw-bold">Dashboard Controls</small>
-                        </div>
-                        <div class="btn-group" role="group">
-                            <button type="button" class="btn btn-sm btn-outline-primary" 
-                                    onclick="refreshDashboardData()" 
-                                    title="Refresh dashboard data">
-                                <i class="fas fa-sync-alt me-1"></i>Refresh
-                            </button>
-                            <button type="button" class="btn btn-sm btn-outline-success" 
-                                    onclick="importCSVData()" 
-                                    title="Import CSV data">
-                                <i class="fas fa-upload me-1"></i>Import CSV
-                            </button>
-                            <button type="button" class="btn btn-sm btn-outline-info" 
-                                    onclick="window.location.href='/crawl'" 
-                                    title="Crawl booking data">
-                                <i class="fas fa-spider me-1"></i>Crawl
-                            </button>
-                            </button>
-                            <button type="button" class="btn btn-sm btn-info" 
-                                    onclick="runDiagnostic()" 
-                                    id="diagnosticBtn"
-                                    title="Kiểm tra dữ liệu đã nhập">
-                                <i class="fas fa-stethoscope me-1"></i>Check Data
-                            </button>
-                            <button type="button" class="btn btn-sm btn-primary" 
-                                    onclick="runDetailedDiagnostic()" 
-                                    id="detailedDiagnosticBtn"
-                                    title="So sánh Excel vs Database chi tiết">
-                                <i class="fas fa-search me-1"></i>Deep Check
-                            </button>
-                            <button type="button" class="btn btn-sm btn-warning" 
-                                    onclick="runImportDebug()" 
-                                    id="importDebugBtn"
-                                    title="Debug chi tiết từng booking bị reject">
-                                <i class="fas fa-bug me-1"></i>Debug Import
-                            </button>
-                            <button type="button" class="btn btn-sm btn-secondary" 
-                                    onclick="addGuestNameColumn()" 
-                                    id="addColumnBtn"
-                                    title="Thêm cột guest_name vào PostgreSQL">
-                                <i class="fas fa-columns me-1"></i>Add Column
-                            </button>
-                            <button type="button" class="btn btn-sm btn-danger" 
-                                    onclick="clearImportedData()" 
-                                    id="clearDataBtn"
-                                    title="Xóa dữ liệu đã nhập để nhập lại">
-                                <i class="fas fa-trash me-1"></i>Clear & Re-import
-                            </button>
-                            <a href="/sync_dashboard" class="btn btn-sm btn-gradient" 
-                               title="Sync data between Local PostgreSQL and Railway">
-                                <i class="fas fa-sync-alt me-1"></i>Database Sync
-                            </a>
-                            <div class="btn-group" role="group">
-                                <button type="button" class="btn btn-sm btn-outline-secondary dropdown-toggle" 
-                                        data-bs-toggle="dropdown" title="Quick database switch">
-                                    <i class="fas fa-database me-1"></i><span id="currentDbIndicator">DB</span>
-                                </button>
-                                <ul class="dropdown-menu">
-                                    <li><a class="dropdown-item" href="#" onclick="quickSwitchDatabase('local')">
-                                        <i class="fas fa-home me-2"></i>Local PostgreSQL
-                                    </a></li>
-                                    <li><a class="dropdown-item" href="#" onclick="quickSwitchDatabase('railway')">
-                                        <i class="fas fa-cloud me-2"></i>Railway PostgreSQL
-                                    </a></li>
-                                    <li><a class="dropdown-item" href="#" onclick="quickSwitchDatabase('auto')">
-                                        <i class="fas fa-magic me-2"></i>Auto Detection
-                                    </a></li>
-                                    <li><hr class="dropdown-divider"></li>
-                                    <li><a class="dropdown-item" href="/sync_dashboard">
-                                        <i class="fas fa-cog me-2"></i>Advanced Settings
-                                    </a></li>
-                                </ul>
-                            </div>
-                            <!-- Duplicate Management Button with Dynamic Highlighting -->
-                            <a href="{{ url_for('duplicate_management_page') }}" 
-                               class="btn btn-sm duplicate-button {% if duplicate_guests and duplicate_guests|length > 0 %}with-count{% endif %}" 
-                               title="{% if duplicate_guests and duplicate_guests|length > 0 %}Tìm thấy {{ duplicate_guests|length }} khách trùng lặp - Click để xem{% else %}Quản lý khách trùng lặp{% endif %}"
-                               {% if duplicate_guests and duplicate_guests|length > 0 %}data-count="{{ duplicate_guests|length }}"{% endif %}>
-                                <i class="fas fa-users me-1"></i>
-                                Duplicates
-                            </a>
-                            <a href="{{ url_for('view_bookings', show_all='true') }}" 
-                               class="btn btn-sm btn-outline-info" 
-                               title="Xem tất cả booking">
-                                <i class="fas fa-list me-1"></i>All Bookings
-                            </a>
-                        </div>
-                    </div>
-                </div>
+            <div class="d-flex justify-content-end gap-2">
+                <!-- Keep only essential duplicate management -->
+                <a href="{{ url_for('duplicate_management_page') }}" 
+                   class="btn btn-sm duplicate-button {% if duplicate_guests and duplicate_guests|length > 0 %}with-count{% endif %}" 
+                   title="{% if duplicate_guests and duplicate_guests|length > 0 %}Tìm thấy {{ duplicate_guests|length }} khách trùng lặp - Click để xem{% else %}Quản lý khách trùng lặp{% endif %}"
+                   {% if duplicate_guests and duplicate_guests|length > 0 %}data-count="{{ duplicate_guests|length }}"{% endif %}>
+                    <i class="fas fa-users me-1"></i>
+                    Duplicates
+                </a>
+                <!-- Keep only all bookings link -->
+                <a href="{{ url_for('view_bookings', show_all='true') }}" 
+                   class="btn btn-sm btn-outline-info" 
+                   title="Xem tất cả booking">
+                    <i class="fas fa-list me-1"></i>All Bookings
+                </a>
             </div>
         </div>
     </div>
@@ -528,8 +659,8 @@
             </div>
         </div>
         
-        <div id="cancellationTable" class="table-responsive" style="display: block;">
-            <table class="table table-sm table-light mb-0" style="font-size: 0.85rem;">
+        <div id="cancellationTable" class="table-responsive compact-cancellation-table" style="display: block;">
+            <table class="table table-sm table-light mb-0 booking-management-table" style="font-size: 0.85rem;">
                 <thead class="table-dark">
                     <tr>
                         <th class="py-1">Type</th>
@@ -1067,7 +1198,7 @@
             </div>
         
             <div class="table-responsive">
-                <table class="table table-sm table-borderless mb-0">
+                <table class="table table-sm table-borderless mb-0 booking-management-table">
                     <tbody>
                         {% for guest in overdue_unpaid_guests[:5] %}
                         <tr class="bg-white bg-opacity-90">
@@ -2313,9 +2444,9 @@
                         </div>
                     </div>
 
-                    <!-- Guest Table -->
+                    <!-- Guest Table - Mobile Optimized -->
                     <div class="table-responsive" style="max-height: 500px; overflow-y: auto;">
-                        <table class="table table-hover table-sm">
+                        <table class="table table-hover table-sm booking-management-table">
                             <thead class="table-light sticky-top">
                                 <tr>
                                     <th><i class="fas fa-user me-1"></i>Tên khách</th>
@@ -5757,8 +5888,10 @@ function generateCategorySection(categoryKey, categoryName, expenses, total, col
                 </td>
                 <td class="text-center">
                     <button class="btn btn-outline-danger btn-sm" 
-                            onclick="deleteExpense(${expenseId}, '${safeDescription}', '${date}')"
-                            title="Xóa giao dịch">
+                            onclick="deleteExpense(${expenseId})"
+                            data-expense-description="${description}"
+                            data-expense-date="${date}"
+                            title="Xóa giao dịch: ${description}">
                         <i class="fas fa-trash-alt"></i>
                     </button>
                 </td>
@@ -6155,13 +6288,28 @@ async function saveExpenseEdit(expenseId) {
     }
 }
 
-// Delete expense function
+// Enhanced individual expense delete function
 async function deleteExpense(expenseId) {
-    if (!confirm('❌ Bạn có chắc muốn xóa chi phí này?\n\nHành động này không thể hoàn tác!')) {
+    // Get expense details from the button that triggered this
+    const button = event.target.closest('button');
+    const description = button.getAttribute('data-expense-description') || 'Unknown expense';
+    const date = button.getAttribute('data-expense-date') || 'Unknown date';
+    
+    // Show detailed confirmation dialog
+    const confirmMessage = `❌ Bạn có chắc muốn xóa chi phí này?\n\nChi tiết:\n📝 ${description}\n📅 ${date}\n\n⚠️ Hành động này không thể hoàn tác!`;
+    
+    if (!confirm(confirmMessage)) {
         return;
     }
     
+    // Show loading state on button
+    const originalContent = button.innerHTML;
+    button.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+    button.disabled = true;
+    
     try {
+        console.log(`🗑️ [DELETE_EXPENSE] Deleting expense ID: ${expenseId} (${description})`);
+        
         const response = await fetch(`/api/expenses/${expenseId}`, {
             method: 'DELETE',
             headers: {
@@ -6172,17 +6320,34 @@ async function deleteExpense(expenseId) {
         const result = await response.json();
         
         if (result.success) {
-            showExpenseToast('🗑️ Đã xóa chi phí thành công!', 'success');
+            console.log(`✅ [DELETE_EXPENSE] Successfully deleted expense ${expenseId}`);
+            showExpenseToast(`🗑️ Đã xóa chi phí "${description}" thành công!`, 'success');
             
-            // Refresh expense review and monthly expenses
-            await loadExpenseReview();
-            await loadMonthlyExpenses();
+            // Remove the row from the table immediately for better UX
+            const row = button.closest('tr');
+            if (row) {
+                row.style.transition = 'opacity 0.3s';
+                row.style.opacity = '0.5';
+                setTimeout(() => row.remove(), 300);
+            }
+            
+            // Refresh expense data to update totals
+            setTimeout(async () => {
+                await loadExpenseReview();
+                await loadMonthlyExpenses();
+            }, 500);
+            
         } else {
             throw new Error(result.message || 'Lỗi không xác định');
         }
     } catch (error) {
-        console.error('Error deleting expense:', error);
-        showExpenseToast('❌ Lỗi xóa chi phí: ' + error.message, 'error');
+        console.error(`❌ [DELETE_EXPENSE] Error deleting expense ${expenseId}:`, error);
+        
+        // Restore button state on error
+        button.innerHTML = originalContent;
+        button.disabled = false;
+        
+        showExpenseToast(`❌ Lỗi xóa chi phí "${description}": ${error.message}`, 'error');
     }
 }
 
