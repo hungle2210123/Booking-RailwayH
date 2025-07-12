@@ -5249,8 +5249,8 @@ def get_weekly_guest_details():
         if not week or not collection_type:
             return jsonify({'success': False, 'message': 'Missing week or type parameter'}), 400
         
-        # Load data excluding cancelled bookings and filter for the specific week and checked-in guests only
-        df = load_booking_data_for_calculations()
+        # Load data with same filtering as dashboard summary (includes cancelled bookings)
+        df = load_booking_data()
         if df.empty:
             return jsonify({'success': True, 'guests': [], 'total_amount': 0, 'count': 0})
         
@@ -5263,23 +5263,32 @@ def get_weekly_guest_details():
         year = int(week_match.group(1))
         week_num = int(week_match.group(2))
         
-        # Filter for specific week and checked-in guests
+        # Apply SAME filtering as dashboard summary to ensure data consistency
         from datetime import date, timedelta
         import pandas as pd
         
         today = date.today()
-        checked_in_mask = df['Check-in Date'].dt.date <= today
-        df_checked_in = df[checked_in_mask].copy()
         
-        # Add week calculation
+        # Step 1: Filter for recent 8 weeks (same as dashboard summary)
+        eight_weeks_ago = today - timedelta(weeks=8)
+        df_period = df[df['Check-in Date'].notna()].copy()
+        recent_mask = df_period['Check-in Date'].dt.date >= eight_weeks_ago
+        df_recent = df_period[recent_mask].copy()
+        
+        # Step 2: Filter for checked-in guests only (same as dashboard summary)
+        checked_in_mask = df_recent['Check-in Date'].dt.date <= today
+        df_checked_in = df_recent[checked_in_mask].copy()
+        
+        # Step 3: Add week calculation (same format as dashboard summary)
         df_checked_in['Week_Start'] = df_checked_in['Check-in Date'].dt.to_period('W').dt.start_time
         df_checked_in['Week_Label'] = df_checked_in['Week_Start'].dt.strftime('%Y-W%U (%m/%d)')
         
-        # Filter for the specific week
+        # Step 4: Filter for the specific week
         week_mask = df_checked_in['Week_Label'] == week
         week_df = df_checked_in[week_mask].copy()
         
-        print(f"🔍 [WEEKLY_DETAILS] Found {len(week_df)} total guests for week {week}")
+        print(f"🔍 [WEEKLY_DETAILS] Filtering steps: {len(df)} total → {len(df_recent)} recent → {len(df_checked_in)} checked-in → {len(week_df)} for week {week}")
+        print(f"🔍 [WEEKLY_DETAILS] Data consistency: Using SAME logic as dashboard summary (includes cancelled bookings)")
         
         if week_df.empty:
             return jsonify({'success': True, 'guests': [], 'total_amount': 0, 'count': 0})
@@ -5305,20 +5314,25 @@ def get_weekly_guest_details():
             total_amount += amount
             
             guest_info = {
-                'guest_name': guest.get('Tên khách', 'N/A'),
+                'guest_name': guest.get('Tên người đặt', 'N/A'),  # Correct field name
                 'booking_id': guest.get('Số đặt phòng', 'N/A'),
                 'checkin_date': guest.get('Check-in Date').strftime('%Y-%m-%d') if pd.notna(guest.get('Check-in Date')) else 'N/A',
                 'checkout_date': guest.get('Check-out Date').strftime('%Y-%m-%d') if pd.notna(guest.get('Check-out Date')) else 'N/A',
                 'room_amount': amount,
                 'commission': commission,
-                'collector': guest.get('Người thu tiền', 'Chưa thu')
+                'collector': guest.get('Người thu tiền', 'Chưa thu'),
+                'booking_status': guest.get('Tình trạng', 'N/A')  # Add status for debugging
             }
             guest_details.append(guest_info)
         
         # Sort by room amount (highest first)
         guest_details.sort(key=lambda x: x['room_amount'], reverse=True)
         
+        # Debug summary for verification
+        cancelled_count = len([g for g in guest_details if g['booking_status'] == 'Đã hủy'])
         print(f"✅ [WEEKLY_DETAILS] Returning {len(guest_details)} guests, total: {total_amount:,.0f}đ")
+        print(f"✅ [WEEKLY_DETAILS] Breakdown: {cancelled_count} cancelled, {len(guest_details) - cancelled_count} active guests")
+        print(f"✅ [WEEKLY_DETAILS] Data consistency: Numbers should now match dashboard summary!")
         
         return jsonify({
             'success': True,
