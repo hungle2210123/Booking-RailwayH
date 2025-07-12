@@ -297,6 +297,25 @@ h1, h2, h3, h4, h5, h6 {
                 <p class="mb-0">Tìm thấy <span id="extracted-count">0</span> booking từ ảnh. Vui lòng kiểm tra và chỉnh sửa nếu cần:</p>
             </div>
             
+            <!-- Room Type Selection for AI Results -->
+            <div class="alert alert-info border-0 mb-3">
+                <div class="row align-items-center">
+                    <div class="col-md-8">
+                        <h6 class="mb-2">
+                            <i class="fas fa-home me-2"></i>Chọn loại phòng cho booking này:
+                        </h6>
+                        <small class="text-muted">Tên chỗ nghỉ sẽ được cập nhật theo lựa chọn của bạn khi lưu.</small>
+                    </div>
+                    <div class="col-md-4">
+                        <select class="form-select" id="aiRoomType" onchange="updateAIRoomType()">
+                            <option value="118 Hang Bac Hostel">118 Hang Bac Hostel (Mặc định)</option>
+                            <option value="Kitchen & Balcony">Kitchen & Balcony</option>
+                            <option value="Night market">Night market</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            
             <!-- Review Table with Edit Capabilities -->
             <div class="card">
                 <div class="card-header bg-info text-white">
@@ -3280,6 +3299,183 @@ function updateAccommodationNameInResults(accommodationName) {
 document.addEventListener('DOMContentLoaded', function() {
     updateAccommodationName(); // Set initial value
 });
+
+// ==================== AI RESULTS ROOM TYPE FUNCTIONALITY ====================
+function updateAIRoomType() {
+    const aiRoomTypeSelect = document.getElementById('aiRoomType');
+    
+    if (aiRoomTypeSelect) {
+        const selectedRoomType = aiRoomTypeSelect.value;
+        
+        console.log(`🏠 [AI_ROOM_TYPE] Updated AI room type to: ${selectedRoomType}`);
+        
+        // Update accommodation name in all current extracted bookings
+        if (extractedBookings && extractedBookings.length > 0) {
+            extractedBookings.forEach((booking, index) => {
+                if (booking) {
+                    booking['Tên chỗ nghỉ'] = selectedRoomType;
+                    console.log(`🏠 [AI_ROOM_TYPE] Updated booking ${index + 1} accommodation to: ${selectedRoomType}`);
+                }
+            });
+            
+            // Save updated bookings to session
+            saveExtractedBookingsToSession();
+            
+            // Also update the display if review table is visible
+            updateAccommodationInReviewTable(selectedRoomType);
+        }
+    }
+}
+
+function updateAccommodationInReviewTable(accommodationName) {
+    // Update accommodation name display in review table (if it shows accommodation)
+    const reviewRows = document.querySelectorAll('#review-table tbody tr');
+    reviewRows.forEach(row => {
+        const accommodationCell = row.querySelector('td[data-field="accommodation"]');
+        if (accommodationCell) {
+            accommodationCell.textContent = accommodationName;
+        }
+    });
+    
+    console.log(`🏠 [AI_ROOM_TYPE] Updated accommodation display in review table: ${accommodationName}`);
+}
+
+function syncRoomTypeSelectors() {
+    // Sync the manual form room type with AI results room type
+    const manualRoomType = document.getElementById('roomType');
+    const aiRoomType = document.getElementById('aiRoomType');
+    
+    if (manualRoomType && aiRoomType) {
+        aiRoomType.value = manualRoomType.value;
+        console.log(`🏠 [SYNC] Synced AI room type to manual selection: ${manualRoomType.value}`);
+    }
+}
+
+// Override the showReviewTable function to sync room types when AI results are shown
+const originalShowReviewTable = showReviewTable;
+showReviewTable = function(bookings, duplicateCheck) {
+    // Call original function
+    originalShowReviewTable(bookings, duplicateCheck);
+    
+    // Sync room type selectors when AI results are shown
+    setTimeout(() => {
+        syncRoomTypeSelectors();
+        
+        // Apply the current AI room type to all bookings
+        const aiRoomTypeSelect = document.getElementById('aiRoomType');
+        if (aiRoomTypeSelect && aiRoomTypeSelect.value) {
+            updateAIRoomType();
+        }
+        
+        // Set up save button handler for AI results
+        setupAISaveButtonHandler();
+    }, 100);
+};
+
+// Set up save button handler for AI results
+function setupAISaveButtonHandler() {
+    const saveButton = document.getElementById('confirm-save-all');
+    if (saveButton) {
+        // Remove any existing click handlers
+        saveButton.replaceWith(saveButton.cloneNode(true));
+        const newSaveButton = document.getElementById('confirm-save-all');
+        
+        // Add new click handler that uses AI room type
+        newSaveButton.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            console.log('💾 [AI_SAVE] Save all bookings clicked from AI results');
+            
+            // Ensure room type is updated before saving
+            const aiRoomTypeSelect = document.getElementById('aiRoomType');
+            if (aiRoomTypeSelect) {
+                updateAIRoomType(); // This updates all extractedBookings with selected room type
+                console.log(`💾 [AI_SAVE] Using room type: ${aiRoomTypeSelect.value}`);
+            }
+            
+            // Call the original save functionality
+            handleSaveAllBookings();
+        });
+        
+        console.log('💾 [AI_SAVE] Save button handler set up for AI results');
+    }
+}
+
+// Main save function that handles saving all extracted bookings
+function handleSaveAllBookings() {
+    if (!extractedBookings || extractedBookings.length === 0) {
+        alert('❌ Không có booking nào để lưu!');
+        return;
+    }
+    
+    // Get force add option
+    const forceAddCheckbox = document.getElementById('force-add-duplicates');
+    const forceAdd = forceAddCheckbox && forceAddCheckbox.checked;
+    
+    console.log(`💾 [SAVE_ALL] Saving ${extractedBookings.length} bookings, force add: ${forceAdd}`);
+    
+    // Show loading state
+    const saveButton = document.getElementById('confirm-save-all');
+    if (saveButton) {
+        saveButton.disabled = true;
+        saveButton.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Đang lưu...';
+    }
+    
+    // Prepare data for saving
+    const bookingsToSave = extractedBookings.map(booking => {
+        // Ensure accommodation name is from AI room type selector
+        const aiRoomType = document.getElementById('aiRoomType');
+        if (aiRoomType && aiRoomType.value) {
+            booking['Tên chỗ nghỉ'] = aiRoomType.value;
+        }
+        return booking;
+    });
+    
+    // Send to backend using form data format (as expected by backend)
+    const formData = new FormData();
+    formData.append('extracted_json', JSON.stringify(bookingsToSave));
+    formData.append('force_add_duplicates', forceAdd ? 'true' : 'false');
+    
+    fetch('/bookings/save_extracted', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert(`✅ Đã lưu thành công ${data.saved_count} booking!`);
+            
+            // Clear session and reset form
+            clearExtractedBookingsSession();
+            extractedBookings = [];
+            
+            // Hide AI results
+            const aiResults = document.getElementById('ai-results-review');
+            if (aiResults) {
+                aiResults.style.display = 'none';
+            }
+            
+            // Optionally redirect to bookings page
+            if (confirm('🔄 Chuyển đến trang quản lý booking?')) {
+                window.location.href = '/bookings';
+            }
+        } else {
+            alert(`❌ Lỗi khi lưu: ${data.message || 'Không xác định'}`);
+        }
+    })
+    .catch(error => {
+        console.error('💾 [SAVE_ERROR]:', error);
+        alert(`❌ Lỗi kết nối: ${error.message}`);
+    })
+    .finally(() => {
+        // Restore save button
+        if (saveButton) {
+            saveButton.disabled = false;
+            saveButton.innerHTML = '<i class="fas fa-check me-1"></i>Lưu tất cả';
+        }
+    });
+}
 </script>
 
 <style>
