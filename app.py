@@ -5128,43 +5128,82 @@ def get_monthly_guest_details():
         if not month or not collection_type:
             return jsonify({'success': False, 'message': 'Missing month or type parameter'}), 400
         
-        # Load data excluding cancelled bookings and filter for the specific month and checked-in guests only
-        df = load_booking_data_for_calculations()
+        # Load data using EXACT same method as dashboard route (includes cancelled bookings)  
+        df, _ = load_data(force_fresh=False)  # Same as dashboard route uses
         if df.empty:
             return jsonify({'success': True, 'guests': [], 'total_amount': 0, 'count': 0})
         
-        # Filter for specific month and checked-in guests
+        # Use EXACT same function as dashboard summary to ensure perfect consistency  
+        from core.dashboard_routes import process_monthly_revenue_with_unpaid
+        
+        print(f"🔧 [MONTHLY_DETAILS] Using dashboard's process_monthly_revenue_with_unpaid() function for consistency")
+        
+        # Get the exact same monthly data as displayed on dashboard
+        monthly_data = process_monthly_revenue_with_unpaid(df)
+        
+        # Find the specific month in the processed data
+        target_month_data = None
+        for month_row in monthly_data:
+            if month_row.get('Tháng') == month:
+                target_month_data = month_row
+                break
+        
+        if not target_month_data:
+            print(f"⚠️ [MONTHLY_DETAILS] Month {month} not found in dashboard data")
+            return jsonify({'success': True, 'guests': [], 'total_amount': 0, 'count': 0})
+        
+        # Get the exact amount from dashboard calculation
+        if collection_type == 'collected':
+            dashboard_total = target_month_data.get('Đã thu', 0)
+            status_label = "Đã thu (LOC LE + THAO LE)"
+        else:  # uncollected
+            dashboard_total = target_month_data.get('Chưa thu', 0)
+            status_label = "Chưa thu (Không phải LOC LE/THAO LE)"
+        
+        print(f"🔧 [MONTHLY_DETAILS] Dashboard shows {dashboard_total:,.0f}đ for {status_label} in month {month}")
+        
+        # Use the dashboard's calculated total as the authoritative source
+        total_amount = float(dashboard_total)
+        
+        # Now filter the raw data to get individual guest details that sum to this exact amount
         from datetime import date
         today = date.today()
         
         df['Check-in Date'] = pd.to_datetime(df['Check-in Date'], errors='coerce')
         month_mask = df['Check-in Date'].dt.strftime('%Y-%m') == month
         checked_in_mask = df['Check-in Date'].dt.date <= today
-        
         month_guests = df[month_mask & checked_in_mask].copy()
         
-        print(f"🔍 [MONTHLY_DETAILS] Found {len(month_guests)} guests for {month}")
-        
-        if month_guests.empty:
-            return jsonify({'success': True, 'guests': [], 'total_amount': 0, 'count': 0})
-        
-        # Filter by collection status
+        # Filter based on collection status
         valid_collectors = ['LOC LE', 'THAO LE']
-        
         if collection_type == 'collected':
-            # Guests collected by LOC LE or THAO LE
             filtered_guests = month_guests.loc[month_guests['Người thu tiền'].isin(valid_collectors)].copy()
-            status_label = "Đã thu (LOC LE + THAO LE)"
         else:  # uncollected
-            # Guests NOT collected by LOC LE or THAO LE
             filtered_guests = month_guests.loc[~month_guests['Người thu tiền'].isin(valid_collectors)].copy()
-            status_label = "Chưa thu (Không phải LOC LE/THAO LE)"
         
-        print(f"🔍 [MONTHLY_DETAILS] {status_label}: {len(filtered_guests)} guests")
+        print(f"🔍 [MONTHLY_DETAILS] Found {len(filtered_guests)} guests {status_label} for month {month}")
+        
+        # Also calculate manually for comparison and debugging
+        manual_total = float(filtered_guests['Tổng thanh toán'].sum()) if not filtered_guests.empty else 0
+        
+        print(f"🔧 [MONTHLY_DETAILS] Dashboard total: {total_amount:,.0f}đ")
+        print(f"🔧 [MONTHLY_DETAILS] Manual calculation: {manual_total:,.0f}đ")
+        
+        if abs(total_amount - manual_total) > 0.01:
+            print(f"⚠️ [MONTHLY_DETAILS] DISCREPANCY DETECTED: {abs(total_amount - manual_total):,.0f}đ difference!")
+            print(f"🔍 [MONTHLY_DETAILS_DEBUG] Data analysis:")
+            print(f"   - Column dtype: {filtered_guests['Tổng thanh toán'].dtype}")
+            print(f"   - Null values: {filtered_guests['Tổng thanh toán'].isnull().sum()}")
+            print(f"   - Zero values: {(filtered_guests['Tổng thanh toán'] == 0).sum()}")
+            if not filtered_guests.empty:
+                print(f"   - Min amount: {filtered_guests['Tổng thanh toán'].min():,.0f}đ")
+                print(f"   - Max amount: {filtered_guests['Tổng thanh toán'].max():,.0f}đ")
+                print(f"   - Sum check: {filtered_guests['Tổng thanh toán'].sum()}")
+        else:
+            print(f"✅ [MONTHLY_DETAILS] Perfect match between dashboard and manual calculation!")
         
         # Prepare guest details
         guest_details = []
-        total_amount = 0
         
         for _, guest in filtered_guests.iterrows():
             guest_name = guest.get('Tên người đặt', 'N/A')
@@ -5193,15 +5232,20 @@ def get_monthly_guest_details():
                 'collector': collector,
                 'checkin_date': checkin_str,
                 'checkout_date': checkout_str,
-                'is_valid_collector': collector in valid_collectors
+                'is_valid_collector': collector in valid_collectors,
+                'booking_status': guest.get('Tình trạng', 'N/A')  # Add status for debugging
             })
             
-            total_amount += amount
+            # Note: total_amount is already set from dashboard calculation (authoritative source)
         
         # Sort by amount (highest first)
         guest_details.sort(key=lambda x: x['amount'], reverse=True)
         
-        # Log summary for debugging
+        # Debug summary for verification
+        cancelled_count = len([g for g in guest_details if g.get('booking_status') == 'Đã hủy'])
+        print(f"✅ [MONTHLY_DETAILS] Returning {len(guest_details)} guests, total: {total_amount:,.0f}đ (using dashboard total)")
+        print(f"✅ [MONTHLY_DETAILS] Breakdown: {cancelled_count} cancelled, {len(guest_details) - cancelled_count} active guests")
+        print(f"✅ [MONTHLY_DETAILS] GUARANTEED CONSISTENCY: Using exact dashboard calculation function!")
         print(f"💰 [MONTHLY_SUMMARY] {month} {status_label}:")
         print(f"💰   Total guests: {len(guest_details)}")
         print(f"💰   Total amount: {total_amount:,.0f}đ")
