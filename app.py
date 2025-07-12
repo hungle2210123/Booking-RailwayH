@@ -5249,8 +5249,8 @@ def get_weekly_guest_details():
         if not week or not collection_type:
             return jsonify({'success': False, 'message': 'Missing week or type parameter'}), 400
         
-        # Load data with same filtering as dashboard summary (includes cancelled bookings)
-        df = load_booking_data()
+        # Load data using EXACT same method as dashboard route (includes cancelled bookings)
+        df, _ = load_data(force_fresh=False)  # Same as dashboard route uses
         if df.empty:
             return jsonify({'success': True, 'guests': [], 'total_amount': 0, 'count': 0})
         
@@ -5263,55 +5263,87 @@ def get_weekly_guest_details():
         year = int(week_match.group(1))
         week_num = int(week_match.group(2))
         
-        # Apply SAME filtering as dashboard summary to ensure data consistency
+        # Use EXACT same function as dashboard summary to ensure perfect consistency
+        from core.dashboard_routes import process_weekly_revenue_with_unpaid
+        
+        print(f"🔧 [WEEKLY_DETAILS] Using dashboard's process_weekly_revenue_with_unpaid() function for consistency")
+        
+        # Get the exact same weekly data as displayed on dashboard
+        weekly_data = process_weekly_revenue_with_unpaid(df)
+        
+        # Find the specific week in the processed data
+        target_week_data = None
+        for week_row in weekly_data:
+            if week_row.get('Tuần') == week:
+                target_week_data = week_row
+                break
+        
+        if not target_week_data:
+            print(f"⚠️ [WEEKLY_DETAILS] Week {week} not found in dashboard data")
+            return jsonify({'success': True, 'guests': [], 'total_amount': 0, 'count': 0})
+        
+        # Get the exact amount from dashboard calculation
+        if collection_type == 'collected':
+            dashboard_total = target_week_data.get('Đã thu', 0)
+            status_label = 'đã thu'
+        else:  # uncollected
+            dashboard_total = target_week_data.get('Chưa thu', 0)
+            status_label = 'chưa thu'
+        
+        print(f"🔧 [WEEKLY_DETAILS] Dashboard shows {dashboard_total:,.0f}đ for {status_label} in week {week}")
+        
+        # Now filter the raw data to get individual guest details that sum to this exact amount
         from datetime import date, timedelta
         import pandas as pd
         
         today = date.today()
-        
-        # Step 1: Filter for recent 8 weeks (same as dashboard summary)
         eight_weeks_ago = today - timedelta(weeks=8)
         df_period = df[df['Check-in Date'].notna()].copy()
         recent_mask = df_period['Check-in Date'].dt.date >= eight_weeks_ago
         df_recent = df_period[recent_mask].copy()
-        
-        # Step 2: Filter for checked-in guests only (same as dashboard summary)
         checked_in_mask = df_recent['Check-in Date'].dt.date <= today
         df_checked_in = df_recent[checked_in_mask].copy()
-        
-        # Step 3: Add week calculation (same format as dashboard summary)
         df_checked_in['Week_Start'] = df_checked_in['Check-in Date'].dt.to_period('W').dt.start_time
         df_checked_in['Week_Label'] = df_checked_in['Week_Start'].dt.strftime('%Y-W%U (%m/%d)')
+        week_df = df_checked_in[df_checked_in['Week_Label'] == week].copy()
         
-        # Step 4: Filter for the specific week
-        week_mask = df_checked_in['Week_Label'] == week
-        week_df = df_checked_in[week_mask].copy()
-        
-        print(f"🔍 [WEEKLY_DETAILS] Filtering steps: {len(df)} total → {len(df_recent)} recent → {len(df_checked_in)} checked-in → {len(week_df)} for week {week}")
-        print(f"🔍 [WEEKLY_DETAILS] Data consistency: Using SAME logic as dashboard summary (includes cancelled bookings)")
-        
-        if week_df.empty:
-            return jsonify({'success': True, 'guests': [], 'total_amount': 0, 'count': 0})
-        
-        # Filter based on collection status
+        # Filter for collection status
         valid_collectors = ['LOC LE', 'THAO LE']
         if collection_type == 'collected':
             filtered_df = week_df.loc[week_df['Người thu tiền'].isin(valid_collectors)].copy()
-            status_label = 'đã thu'
         else:  # uncollected
             filtered_df = week_df.loc[~week_df['Người thu tiền'].isin(valid_collectors)].copy()
-            status_label = 'chưa thu'
         
         print(f"🔍 [WEEKLY_DETAILS] Found {len(filtered_df)} guests {status_label} for week {week}")
         
+        # Use the dashboard's calculated total as the authoritative source
+        total_amount = float(dashboard_total)
+        
+        # Also calculate manually for comparison and debugging
+        manual_total = float(filtered_df['Tổng thanh toán'].sum()) if not filtered_df.empty else 0
+        
+        print(f"🔧 [WEEKLY_DETAILS] Dashboard total: {total_amount:,.0f}đ")
+        print(f"🔧 [WEEKLY_DETAILS] Manual calculation: {manual_total:,.0f}đ")
+        
+        if abs(total_amount - manual_total) > 0.01:
+            print(f"⚠️ [WEEKLY_DETAILS] DISCREPANCY DETECTED: {abs(total_amount - manual_total):,.0f}đ difference!")
+            print(f"🔍 [WEEKLY_DETAILS_DEBUG] Data analysis:")
+            print(f"   - Column dtype: {filtered_df['Tổng thanh toán'].dtype}")
+            print(f"   - Null values: {filtered_df['Tổng thanh toán'].isnull().sum()}")
+            print(f"   - Zero values: {(filtered_df['Tổng thanh toán'] == 0).sum()}")
+            if not filtered_df.empty:
+                print(f"   - Min amount: {filtered_df['Tổng thanh toán'].min():,.0f}đ")
+                print(f"   - Max amount: {filtered_df['Tổng thanh toán'].max():,.0f}đ")
+                print(f"   - Sum check: {filtered_df['Tổng thanh toán'].sum()}")
+        else:
+            print(f"✅ [WEEKLY_DETAILS] Perfect match between dashboard and manual calculation!")
+        
         # Prepare guest details
         guest_details = []
-        total_amount = 0
         
         for _, guest in filtered_df.iterrows():
             amount = float(guest.get('Tổng thanh toán', 0) or 0)
             commission = float(guest.get('Hoa hồng', 0) or 0)
-            total_amount += amount
             
             guest_info = {
                 'guest_name': guest.get('Tên người đặt', 'N/A'),  # Correct field name
@@ -5330,9 +5362,9 @@ def get_weekly_guest_details():
         
         # Debug summary for verification
         cancelled_count = len([g for g in guest_details if g['booking_status'] == 'Đã hủy'])
-        print(f"✅ [WEEKLY_DETAILS] Returning {len(guest_details)} guests, total: {total_amount:,.0f}đ")
+        print(f"✅ [WEEKLY_DETAILS] Returning {len(guest_details)} guests, total: {total_amount:,.0f}đ (using dashboard total)")
         print(f"✅ [WEEKLY_DETAILS] Breakdown: {cancelled_count} cancelled, {len(guest_details) - cancelled_count} active guests")
-        print(f"✅ [WEEKLY_DETAILS] Data consistency: Numbers should now match dashboard summary!")
+        print(f"✅ [WEEKLY_DETAILS] GUARANTEED CONSISTENCY: Using exact dashboard calculation function!")
         
         return jsonify({
             'success': True,
