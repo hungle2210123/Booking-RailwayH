@@ -74,7 +74,12 @@
       "mcp__firecrawl-advanced__firecrawl_scrape",
       "mcp__memory__create_entities",
       "mcp__memory__create_relations",
-      "mcp__memory__add_observations"
+      "mcp__memory__add_observations",
+      "Bash(npm info:*)",
+      "Bash(node:*)",
+      "Bash(pip3 list:*)",
+      "Bash(PGPASSWORD=locloc123 psql -h localhost -U postgres -l)",
+      "Bash(PGPASSWORD=locloc123 psql -h localhost -U postgres -d hotel_booking -c \"SELECT COUNT(*) FROM bookings;\")"
     ],
     "deny": []
   },

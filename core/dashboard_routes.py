@@ -543,6 +543,15 @@ def process_monthly_revenue_with_unpaid_original(df, start_date=None, end_date=N
         checked_in_mask = df_period['Check-in Date'].dt.date <= today
         df_checked_in = df_period[checked_in_mask].copy()
         
+        # ✅ CRITICAL: Exclude cancelled bookings from revenue calculations
+        if 'Tình trạng' in df_checked_in.columns:
+            initial_count = len(df_checked_in)
+            df_checked_in = df_checked_in[df_checked_in['Tình trạng'] != 'Đã hủy'].copy()
+            excluded_cancelled = initial_count - len(df_checked_in)
+            print(f"🚫 [CANCELLED_FILTER] Excluded {excluded_cancelled} cancelled bookings from revenue calculations")
+        else:
+            print(f"⚠️ [CANCELLED_FILTER] 'Tình trạng' column not found, cannot filter cancelled bookings")
+        
         print(f"🏨 [CHECKED_IN_FILTER] Total bookings: {len(df_period)}, Checked-in only: {len(df_checked_in)}")
         print(f"🏨 [CHECKED_IN_FILTER] Excluded future arrivals: {len(df_period) - len(df_checked_in)} guests")
         
@@ -762,6 +771,15 @@ def process_weekly_revenue_with_unpaid(df, start_date=None, end_date=None):
         # Filter for checked-in guests only (exclude future arrivals)
         checked_in_mask = df_recent['Check-in Date'].dt.date <= today
         df_checked_in = df_recent[checked_in_mask].copy()
+        
+        # ✅ CRITICAL: Exclude cancelled bookings from revenue calculations
+        if 'Tình trạng' in df_checked_in.columns:
+            initial_count = len(df_checked_in)
+            df_checked_in = df_checked_in[df_checked_in['Tình trạng'] != 'Đã hủy'].copy()
+            excluded_cancelled = initial_count - len(df_checked_in)
+            print(f"🚫 [WEEKLY_CANCELLED_FILTER] Excluded {excluded_cancelled} cancelled bookings from weekly revenue calculations")
+        else:
+            print(f"⚠️ [WEEKLY_CANCELLED_FILTER] 'Tình trạng' column not found, cannot filter cancelled bookings")
         
         print(f"🏨 [WEEKLY_CHECKED_IN] Total recent: {len(df_recent)}, Checked-in only: {len(df_checked_in)}")
         

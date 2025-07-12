@@ -1,0 +1,96 @@
+📊 VISUAL GUIDE: Where to Find Your Date Picker
+========================================================
+
+🔍 LOCATION: "Phân bổ theo Người thu (Chi tiết)" section
+📍 EXACT POSITION: Right side of dashboard, look for this layout:
+
+┌─────────────────────────────────────────────────────────┐
+│ 📊 Phân bổ theo Người thu (Chi tiết)                    │
+│ ✅ Validation: CHỈ LOC LE & THAO LE                     │
+├─────────────────────────────────────────────────────────┤
+│ 📅 Chọn khoảng thời gian để xem thống kê                │
+│                                                         │
+│ ┌─────────────┬─────────────────┬──────────────────┐    │
+│ │ 📅 Theo tháng │ 📅 Tùy chọn ngày │ 🌐 Tất cả thời gian │    │
+│ └─────────────┴─────────────────┴──────────────────┘    │
+│                                                         │
+│ WHEN YOU CLICK "📅 Tùy chọn ngày":                      │
+│ ┌──────────────────────────────────────────────────┐    │
+│ │ ✅ Chọn khoảng ngày tùy chỉnh                     │    │
+│ │ Ví dụ: Từ 15/6 đến 31/6 để xem thống kê          │    │
+│ │                                                  │    │
+│ │ ▶️ Từ ngày: [2025-06-15]  🛑 Đến ngày: [2025-06-31] │    │
+│ │                                                  │    │
+│ │ ℹ️ Biểu đồ sẽ tự động cập nhật khi bạn chọn ngày  │    │
+│ └──────────────────────────────────────────────────┘    │
+│                                                         │
+│ ℹ️ Hiển thị theo khoảng thời gian đã chọn               │
+├─────────────────────────────────────────────────────────┤
+│         [Your Collector Chart Here]                     │
+└─────────────────────────────────────────────────────────┘
+
+🎯 STEP-BY-STEP INSTRUCTIONS:
+
+1️⃣ START YOUR APP:
+   cd /mnt/c/Users/T14/Desktop/hotel_flask_app/hotel_flask_app_optimized
+   python3 app.py
+
+2️⃣ OPEN DASHBOARD:
+   http://localhost:5000
+
+3️⃣ FIND THE SECTION:
+   Scroll down to find "Phân bổ theo Người thu (Chi tiết)"
+   It's a white card with a light gray header
+
+4️⃣ LOOK FOR THE BUTTONS:
+   At the top of this card, you'll see 3 buttons in a row:
+   [📅 Theo tháng] [📅 Tùy chọn ngày] [🌐 Tất cả thời gian]
+
+5️⃣ CLICK "TÙY CHỌN NGÀY":
+   A green box will appear with date input fields
+
+6️⃣ SET YOUR DATES:
+   - Từ ngày: 2025-06-15 (June 15th)
+   - Đến ngày: 2025-06-31 (June 31st)
+
+7️⃣ CHART UPDATES:
+   The collector chart will automatically update with your selected dates
+
+🚨 TROUBLESHOOTING:
+
+❌ "I don't see the buttons"
+✅ Make sure you're looking at the right section: "Phân bổ theo Người thu (Chi tiết)"
+✅ Check if JavaScript is enabled in your browser
+✅ Try refreshing the page (Ctrl+F5)
+
+❌ "The buttons don't work"
+✅ Open browser console (F12) and check for JavaScript errors
+✅ Try running: setCollectorDateType('custom') in the console
+
+❌ "The green box doesn't appear"
+✅ Clear browser cache and reload
+✅ Check if the Flask app is running without errors
+
+🧪 TESTING COMMANDS:
+Open browser console (F12) and paste these commands:
+
+// Show custom date picker
+setCollectorDateType('custom');
+
+// Set example dates
+document.getElementById('collectorStartDate').value = '2025-06-15';
+document.getElementById('collectorEndDate').value = '2025-06-31';
+
+// Update chart
+updateCollectorChart();
+
+📞 SUPPORT:
+If you still can't see the interface, run this in browser console:
+console.log('Elements check:', {
+    button: !!document.getElementById('collectorDateCustom'),
+    container: !!document.getElementById('collectorCustomDateContainer'),
+    startDate: !!document.getElementById('collectorStartDate'),
+    endDate: !!document.getElementById('collectorEndDate')
+});
+
+This will tell us which elements are missing.

@@ -5128,8 +5128,9 @@ def get_monthly_guest_details():
         if not month or not collection_type:
             return jsonify({'success': False, 'message': 'Missing month or type parameter'}), 400
         
-        # Load data using EXACT same method as dashboard route (includes cancelled bookings)  
+        # Load data using EXACT same method as dashboard route
         df, _ = load_data(force_fresh=False)  # Same as dashboard route uses
+        # Note: Cancelled bookings are now filtered out inside the revenue calculation functions
         if df.empty:
             return jsonify({'success': True, 'guests': [], 'total_amount': 0, 'count': 0})
         

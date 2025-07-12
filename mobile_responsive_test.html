@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🚀 Mobile Responsiveness Test</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
+    
+    <style>
+        /* ==============================
+           🚀 MOBILE RESPONSIVENESS FIXES
+           ============================== */
+
+        /* Mobile-first responsive breakpoints */
+        @media (max-width: 768px) {
+            /* Fix table overflow and column collapse */
+            .table-responsive {
+                border: none !important;
+                overflow-x: auto !important;
+                -webkit-overflow-scrolling: touch !important;
+                margin: 0 !important;
+            }
+            
+            /* Compact table styling for mobile */
+            .table-responsive table {
+                min-width: 600px !important;
+                font-size: 12px !important;
+                white-space: nowrap !important;
+            }
+            
+            .table-responsive th,
+            .table-responsive td {
+                padding: 4px 6px !important;
+                vertical-align: middle !important;
+                border: 1px solid #dee2e6 !important;
+            }
+            
+            /* Compact cancellation table for mobile */
+            .compact-cancellation-table {
+                font-size: 11px !important;
+            }
+            
+            .compact-cancellation-table table {
+                min-width: 700px !important;
+            }
+            
+            .compact-cancellation-table th,
+            .compact-cancellation-table td {
+                padding: 3px 4px !important;
+                font-size: 10px !important;
+            }
+        }
+
+        /* Specific fixes for booking management tables */
+        .booking-management-table {
+            width: 100% !important;
+            table-layout: fixed !important;
+        }
+
+        .booking-management-table th:nth-child(1) { width: 25% !important; } /* Guest Name */
+        .booking-management-table th:nth-child(2) { width: 15% !important; } /* Booking ID */
+        .booking-management-table th:nth-child(3) { width: 15% !important; } /* Check-in */
+        .booking-management-table th:nth-child(4) { width: 15% !important; } /* Check-out */
+        .booking-management-table th:nth-child(5) { width: 15% !important; } /* Amount */
+        .booking-management-table th:nth-child(6) { width: 15% !important; } /* Actions */
+
+        /* Horizontal scroll indicator */
+        .table-responsive::after {
+            content: "← Swipe to see more →";
+            display: block;
+            text-align: center;
+            font-size: 10px;
+            color: #6c757d;
+            padding: 5px;
+            border-top: 1px solid #dee2e6;
+        }
+
+        @media (min-width: 769px) {
+            .table-responsive::after {
+                display: none !important;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container-fluid p-3">
+        <div class="alert alert-info">
+            <h4>🚀 Mobile Responsiveness Test</h4>
+            <p>This page tests the mobile responsiveness fixes for booking management tables.</p>
+            <small>Resize your browser window or view on mobile to test responsiveness.</small>
+        </div>
+
+        <!-- Test Booking Management Table -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5>📱 Booking Management Table - Mobile Test</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive compact-cancellation-table">
+                    <table class="table table-sm table-hover booking-management-table">
+                        <thead class="table-dark">
+                            <tr>
+                                <th>Guest Name</th>
+                                <th>Booking ID</th>
+                                <th>Check-in</th>
+                                <th>Check-out</th>
+                                <th>Amount</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>John Doe Smith Johnson</td>
+                                <td>BK123456789</td>
+                                <td>2025-07-15</td>
+                                <td>2025-07-18</td>
+                                <td>2,500,000đ</td>
+                                <td>
+                                    <button class="btn btn-sm btn-outline-danger">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>Maria Garcia Lopez Rodriguez</td>
+                                <td>BK987654321</td>
+                                <td>2025-07-20</td>
+                                <td>2025-07-25</td>
+                                <td>4,200,000đ</td>
+                                <td>
+                                    <button class="btn btn-sm btn-outline-primary">
+                                        <i class="fas fa-edit"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>Alexander Dimitri Volkov</td>
+                                <td>BK555777999</td>
+                                <td>2025-08-01</td>
+                                <td>2025-08-05</td>
+                                <td>3,800,000đ</td>
+                                <td>
+                                    <button class="btn btn-sm btn-outline-success">
+                                        <i class="fas fa-check"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Test Responsive Behavior -->
+        <div class="row">
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h6>📊 Desktop View</h6>
+                    </div>
+                    <div class="card-body">
+                        <p>On desktop (768px+):</p>
+                        <ul>
+                            <li>✅ Normal table layout</li>
+                            <li>✅ Full column widths</li>
+                            <li>✅ Standard font sizes</li>
+                            <li>✅ No scroll indicator</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h6>📱 Mobile View</h6>
+                    </div>
+                    <div class="card-body">
+                        <p>On mobile (768px-):</p>
+                        <ul>
+                            <li>✅ Horizontal scroll</li>
+                            <li>✅ Compact font sizes</li>
+                            <li>✅ Fixed column widths</li>
+                            <li>✅ Scroll indicator</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Viewport Info -->
+        <div class="alert alert-secondary mt-3">
+            <h6>🔍 Current Viewport Info</h6>
+            <p id="viewportInfo">Loading...</p>
+        </div>
+    </div>
+
+    <script>
+        // Display viewport info
+        function updateViewportInfo() {
+            const width = window.innerWidth;
+            const height = window.innerHeight;
+            let device = '';
+            
+            if (width <= 576) device = '📱 Extra Small Mobile';
+            else if (width <= 768) device = '📱 Mobile';
+            else if (width <= 992) device = '📱 Tablet';
+            else if (width <= 1200) device = '💻 Desktop';
+            else device = '🖥️ Large Desktop';
+            
+            document.getElementById('viewportInfo').innerHTML = `
+                <strong>Width:</strong> ${width}px | 
+                <strong>Height:</strong> ${height}px | 
+                <strong>Device:</strong> ${device}
+            `;
+        }
+        
+        // Update on load and resize
+        updateViewportInfo();
+        window.addEventListener('resize', updateViewportInfo);
+        
+        console.log('🧪 Mobile Responsiveness Test Loaded');
+        console.log('📱 Resize window to test different breakpoints');
+    </script>
+</body>
+</html>

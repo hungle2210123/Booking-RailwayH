@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>🧪 Test: Fixed setCollectorDateType Function</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+    <div class="container mt-4">
+        <div class="alert alert-success">
+            <h4>🧪 Function Fix Test</h4>
+            <p>This page tests the fix for the <code>setCollectorDateType</code> function that was causing errors.</p>
+        </div>
+        
+        <!-- Replica of the actual collector section interface -->
+        <div class="card shadow-sm border-0">
+            <div class="card-header bg-light">
+                <h6 class="mb-0">
+                    <i class="fas fa-chart-pie me-1 text-primary"></i> 
+                    Phân bổ theo Người thu (Chi tiết) - TEST
+                </h6>
+            </div>
+            
+            <div class="card-body border-bottom" style="background-color: #f8f9fa;">
+                <div class="row">
+                    <div class="col-md-12">
+                        <h6 class="text-primary mb-3">
+                            <i class="fas fa-calendar-alt me-2"></i>
+                            Chọn khoảng thời gian để xem thống kê
+                        </h6>
+                        
+                        <!-- Date Type Selection Buttons -->
+                        <div class="btn-group w-100 mb-3" role="group">
+                            <input type="radio" class="btn-check" name="collectorDateTypeRadio" id="collectorDateMonth" autocomplete="off" checked>
+                            <label class="btn btn-outline-primary" for="collectorDateMonth" onclick="setCollectorDateType('month')">
+                                <i class="fas fa-calendar me-1"></i> Theo tháng
+                            </label>
+                            
+                            <input type="radio" class="btn-check" name="collectorDateTypeRadio" id="collectorDateCustom" autocomplete="off">
+                            <label class="btn btn-outline-success" for="collectorDateCustom" onclick="setCollectorDateType('custom')">
+                                <i class="fas fa-calendar-alt me-1"></i> Tùy chọn ngày
+                            </label>
+                            
+                            <input type="radio" class="btn-check" name="collectorDateTypeRadio" id="collectorDateAll" autocomplete="off">
+                            <label class="btn btn-outline-info" for="collectorDateAll" onclick="setCollectorDateType('all')">
+                                <i class="fas fa-globe me-1"></i> Tất cả thời gian
+                            </label>
+                        </div>
+                        
+                        <!-- Month Selector -->
+                        <div id="collectorMonthContainer" class="mb-3">
+                            <label class="form-label fw-bold text-primary">Chọn tháng:</label>
+                            <select id="collectorMonthSelect" class="form-select">
+                                <option value="current">Tháng hiện tại</option>
+                                <option value="2025-07">Tháng 7/2025</option>
+                                <option value="2025-06">Tháng 6/2025</option>
+                            </select>
+                        </div>
+                        
+                        <!-- Custom Date Range Selector -->
+                        <div id="collectorCustomDateContainer" class="d-none">
+                            <div class="alert alert-success border-0" style="background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);">
+                                <h6 class="alert-heading mb-2">
+                                    <i class="fas fa-calendar-check me-2"></i>
+                                    Chọn khoảng ngày tùy chỉnh
+                                </h6>
+                                <p class="mb-3 small">Ví dụ: Từ 15/6 đến 31/6 để xem thống kê của người thu tiền trong khoảng này</p>
+                                
+                                <div class="row g-3">
+                                    <div class="col-md-6">
+                                        <label class="form-label fw-bold">
+                                            <i class="fas fa-play text-success me-1"></i>
+                                            Từ ngày:
+                                        </label>
+                                        <input type="date" id="collectorStartDate" class="form-control form-control-lg border-success" placeholder="Chọn ngày bắt đầu">
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label fw-bold">
+                                            <i class="fas fa-stop text-danger me-1"></i>
+                                            Đến ngày:
+                                        </label>
+                                        <input type="date" id="collectorEndDate" class="form-control form-control-lg border-success" placeholder="Chọn ngày kết thúc">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Test Results -->
+                        <div id="testResults" class="alert alert-info">
+                            <div id="status">Ready to test...</div>
+                        </div>
+                        
+                        <!-- Manual Test Buttons -->
+                        <div class="mt-3">
+                            <h6>Manual Test Buttons:</h6>
+                            <button class="btn btn-primary me-2" onclick="testFunction('month')">Test Month</button>
+                            <button class="btn btn-success me-2" onclick="testFunction('custom')">Test Custom</button>
+                            <button class="btn btn-info me-2" onclick="testFunction('all')">Test All Time</button>
+                            <button class="btn btn-warning" onclick="runFullTest()">Run Full Test</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Copy of the priority-loaded function from dashboard.html
+        window.setCollectorDateType = function(dateType) {
+            console.log('🎯 [COLLECTOR_DATE_PICKER] Setting date type to:', dateType);
+            
+            const monthContainer = document.getElementById('collectorMonthContainer');
+            const customContainer = document.getElementById('collectorCustomDateContainer');
+            const status = document.getElementById('status');
+            
+            // Update button states
+            const monthButton = document.getElementById('collectorDateMonth');
+            const customButton = document.getElementById('collectorDateCustom');
+            const allButton = document.getElementById('collectorDateAll');
+            
+            if (monthButton) monthButton.checked = (dateType === 'month');
+            if (customButton) customButton.checked = (dateType === 'custom');
+            if (allButton) allButton.checked = (dateType === 'all');
+            
+            if (dateType === 'month') {
+                if (monthContainer) {
+                    monthContainer.classList.remove('d-none');
+                    monthContainer.style.display = 'block';
+                }
+                if (customContainer) {
+                    customContainer.classList.add('d-none');
+                    customContainer.style.display = 'none';
+                }
+                status.innerHTML = '✅ Month selector shown';
+                console.log('📅 Showing month selector');
+                
+            } else if (dateType === 'custom') {
+                if (monthContainer) {
+                    monthContainer.classList.add('d-none');
+                    monthContainer.style.display = 'none';
+                }
+                if (customContainer) {
+                    customContainer.classList.remove('d-none');
+                    customContainer.style.display = 'block';
+                }
+                
+                // Set default dates if empty
+                const startDate = document.getElementById('collectorStartDate');
+                const endDate = document.getElementById('collectorEndDate');
+                if (startDate && !startDate.value) {
+                    startDate.value = '2025-06-15';
+                    console.log('📅 Set example start date:', startDate.value);
+                }
+                if (endDate && !endDate.value) {
+                    endDate.value = '2025-06-30';
+                    console.log('📅 Set example end date:', endDate.value);
+                }
+                
+                status.innerHTML = '✅ CUSTOM DATE PICKER NOW VISIBLE!<br>📅 Example dates: June 15-30, 2025<br>🎯 You can now change these to any dates you want!';
+                console.log('✅ CUSTOM DATE PICKER NOW VISIBLE!');
+                
+            } else if (dateType === 'all') {
+                if (monthContainer) {
+                    monthContainer.classList.add('d-none');
+                    monthContainer.style.display = 'none';
+                }
+                if (customContainer) {
+                    customContainer.classList.add('d-none');
+                    customContainer.style.display = 'none';
+                }
+                status.innerHTML = '✅ All time view shown (no date controls)';
+                console.log('📅 Showing all time data');
+            }
+        };
+
+        // Test functions
+        window.testFunction = function(type) {
+            console.log(`🧪 Testing ${type} function...`);
+            try {
+                setCollectorDateType(type);
+                document.getElementById('status').innerHTML += `<br>✅ ${type} test passed!`;
+            } catch (error) {
+                console.error(`❌ ${type} test failed:`, error);
+                document.getElementById('status').innerHTML += `<br>❌ ${type} test failed: ${error.message}`;
+            }
+        };
+
+        window.runFullTest = function() {
+            console.log('🧪 Running full test suite...');
+            const status = document.getElementById('status');
+            status.innerHTML = '🧪 Running full test...<br>';
+            
+            // Test function existence
+            if (typeof setCollectorDateType === 'function') {
+                status.innerHTML += '✅ setCollectorDateType function exists<br>';
+            } else {
+                status.innerHTML += '❌ setCollectorDateType function missing<br>';
+                return;
+            }
+            
+            // Test all modes
+            setTimeout(() => testFunction('month'), 500);
+            setTimeout(() => testFunction('custom'), 1000);
+            setTimeout(() => testFunction('all'), 1500);
+            setTimeout(() => {
+                status.innerHTML += '<br>🎯 Full test complete! Check console for details.';
+            }, 2000);
+        };
+
+        // Auto-run test on load
+        console.log('🚀 Test page loaded!');
+        console.log('🔍 setCollectorDateType function available:', typeof setCollectorDateType);
+        
+        // Initialize with month view
+        setTimeout(() => {
+            setCollectorDateType('month');
+        }, 100);
+    </script>
+</body>
+</html>
