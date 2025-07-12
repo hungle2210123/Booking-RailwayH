@@ -7283,9 +7283,12 @@ function displayWeeklyGuestDetails(data) {
     const weekLabel = data.week || 'N/A';
     const typeLabel = data.type === 'collected' ? 'đã thu' : 'chưa thu';
     
-    // Update summary text (reuse monthly elements)
-    document.querySelector('#monthlyGuestContent .alert-info .fw-bold').innerHTML = 
-        `Tuần ${weekLabel}: ${guestCount} khách ${typeLabel} - Tổng: ${totalAmount.toLocaleString()}đ`;
+    // Update summary text using correct modal elements
+    document.getElementById('modalMonth').innerHTML = `Tuần ${weekLabel}`;
+    document.getElementById('modalStatusLabel').innerHTML = `${guestCount} khách ${typeLabel}`;
+    document.getElementById('modalTotalAmount').innerHTML = totalAmount.toLocaleString();
+    document.getElementById('modalGuestCount').innerHTML = guestCount;
+    document.getElementById('modalDateRange').innerHTML = `Tuần ${weekLabel}`;
     
     // Populate table with weekly guest data
     const tableBody = document.getElementById('monthlyGuestTableBody');
