@@ -1508,9 +1508,12 @@ def view_bookings():
                     (filtered_df['Check-out Date'].dt.date >= today)
                 ) |
                 
-                # Condition 3: ALWAYS show cancelled bookings for management visibility
-                # (regardless of dates or payment status - they should remain visible)
-                (filtered_df['Tình trạng'] == 'Đã hủy')
+                # Condition 3: Show cancelled bookings only if checkout date hasn't passed yet
+                # (cancelled guests still need attention until their checkout date passes)
+                (
+                    (filtered_df['Tình trạng'] == 'Đã hủy') &
+                    (filtered_df['Check-out Date'].dt.date >= today)
+                )
             )
             
             # Apply the filter using loc for clean indexing
@@ -1524,15 +1527,18 @@ def view_bookings():
                 (payment_issue_mask) & 
                 (filtered_df['Check-out Date'].dt.date >= today)
             ])
-            cancelled_guests = len(filtered_df.loc[filtered_df['Tình trạng'] == 'Đã hủy'])
+            cancelled_guests_still_relevant = len(filtered_df.loc[
+                (filtered_df['Tình trạng'] == 'Đã hủy') &
+                (filtered_df['Check-out Date'].dt.date >= today)
+            ])
             
             print(f"🔍 EXPANDED INTERESTED GUESTS FILTER RESULTS:")
             print(f"   📊 Total guests filtered: {before_count} → {after_count}")
             print(f"   🏨 All upcoming guests: {upcoming_guests}")
             print(f"   💰 Current/staying unpaid guests: {current_unpaid_guests}")
-            print(f"   ❌ Cancelled bookings (always visible): {cancelled_guests}")
-            print(f"   📅 Focus: All future arrivals + current unpaid guests + cancelled bookings")
-            print(f"   🎯 Logic: Future check-ins OR (unpaid AND not checked out yet) OR cancelled")
+            print(f"   ❌ Cancelled bookings (checkout date not passed): {cancelled_guests_still_relevant}")
+            print(f"   📅 Focus: All future arrivals + current unpaid guests + active cancelled bookings")
+            print(f"   🎯 Logic: Future check-ins OR (unpaid AND not checked out yet) OR (cancelled AND checkout date not passed)")
             
         else:
             print(f"📋 SHOWING ALL GUESTS: {len(filtered_df)} total guests")
