@@ -5175,6 +5175,15 @@ def get_monthly_guest_details():
         checked_in_mask = df['Check-in Date'].dt.date <= today
         month_guests = df[month_mask & checked_in_mask].copy()
         
+        # ✅ CRITICAL: Exclude cancelled bookings from guest details (same as revenue calculation)
+        if 'Tình trạng' in month_guests.columns:
+            initial_guest_count = len(month_guests)
+            month_guests = month_guests[month_guests['Tình trạng'] != 'Đã hủy'].copy()
+            excluded_cancelled_guests = initial_guest_count - len(month_guests)
+            print(f"🚫 [MONTHLY_GUEST_FILTER] Excluded {excluded_cancelled_guests} cancelled guests from detail view")
+        else:
+            print(f"⚠️ [MONTHLY_GUEST_FILTER] 'Tình trạng' column not found in guest details")
+        
         # Filter based on collection status
         valid_collectors = ['LOC LE', 'THAO LE']
         if collection_type == 'collected':
@@ -5351,6 +5360,15 @@ def get_weekly_guest_details():
         df_checked_in['Week_Start'] = df_checked_in['Check-in Date'].dt.to_period('W').dt.start_time
         df_checked_in['Week_Label'] = df_checked_in['Week_Start'].dt.strftime('%Y-W%U (%m/%d)')
         week_df = df_checked_in[df_checked_in['Week_Label'] == week].copy()
+        
+        # ✅ CRITICAL: Exclude cancelled bookings from guest details (same as revenue calculation)
+        if 'Tình trạng' in week_df.columns:
+            initial_week_count = len(week_df)
+            week_df = week_df[week_df['Tình trạng'] != 'Đã hủy'].copy()
+            excluded_cancelled_weekly = initial_week_count - len(week_df)
+            print(f"🚫 [WEEKLY_GUEST_FILTER] Excluded {excluded_cancelled_weekly} cancelled guests from weekly detail view")
+        else:
+            print(f"⚠️ [WEEKLY_GUEST_FILTER] 'Tình trạng' column not found in weekly guest details")
         
         # Filter for collection status
         valid_collectors = ['LOC LE', 'THAO LE']
