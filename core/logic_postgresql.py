@@ -107,7 +107,7 @@ def load_booking_data(force_fresh: bool = False) -> pd.DataFrame:
     SELECT 
         b.booking_id as "Số đặt phòng",
         COALESCE(g.full_name, b.guest_name) as "Tên người đặt", 
-        '118 Hang Bac Hostel' as "Tên chỗ nghỉ",
+        COALESCE(b.accommodation_name, '118 Hang Bac Hostel') as "Tên chỗ nghỉ",
         b.checkin_date as "Check-in Date",
         b.checkout_date as "Check-out Date",
         b.room_amount as "Tổng thanh toán",
@@ -151,7 +151,7 @@ def load_booking_data(force_fresh: bool = False) -> pd.DataFrame:
     SELECT 
         b.booking_id as "Số đặt phòng",
         b.guest_name as "Tên người đặt", 
-        '118 Hang Bac Hostel' as "Tên chỗ nghỉ",
+        COALESCE(b.accommodation_name, '118 Hang Bac Hostel') as "Tên chỗ nghỉ",
         b.checkin_date as "Check-in Date",
         b.checkout_date as "Check-out Date",
         b.room_amount as "Tổng thanh toán",
@@ -361,6 +361,7 @@ def add_new_booking(booking_data: Dict) -> bool:
             booking_id=booking_id,
             guest_id=guest.guest_id,
             guest_name=booking_data.get('guest_name', ''),  # Denormalized for quick access
+            accommodation_name=booking_data.get('accommodation_name', '118 Hang Bac Hostel'),  # Room type/property
             checkin_date=booking_data.get('checkin_date'),
             checkout_date=booking_data.get('checkout_date'),
             room_amount=booking_data.get('room_amount', 0),
@@ -453,6 +454,8 @@ def update_booking(booking_id: str, update_data: Dict) -> bool:
             booking.booking_notes = update_data['booking_notes']
         if 'status' in update_data:
             booking.booking_status = update_data['status']
+        if 'accommodation_name' in update_data:
+            booking.accommodation_name = update_data['accommodation_name']
         
         # CRITICAL: Flush and refresh to ensure changes are visible to other connections
         db.session.flush()
@@ -507,11 +510,54 @@ def cancel_booking_by_id(booking_id: str) -> bool:
         print(f"Error cancelling booking: {e}")
         return False
 
-# Legacy function for backward compatibility
-def delete_booking_by_id(booking_id: str) -> bool:
-    """Legacy function - redirects to cancel_booking_by_id for data preservation"""
-    print(f"⚠️ [LEGACY] delete_booking_by_id called - redirecting to cancel for booking: {booking_id}")
+def soft_delete_booking_by_id(booking_id: str) -> bool:
+    """Soft delete - mark as cancelled but preserve all data"""
+    print(f"🔄 [SOFT_DELETE] Marking booking as cancelled (preserving data): {booking_id}")
     return cancel_booking_by_id(booking_id)
+
+def delete_booking_by_id(booking_id: str) -> bool:
+    """Permanently delete booking and all associated data from PostgreSQL"""
+    from .models import db, Booking, Guest
+    
+    try:
+        print(f"🗑️ [DELETE] Permanently deleting booking: {booking_id}")
+        
+        # Find the booking
+        booking = db.session.query(Booking).filter_by(booking_id=booking_id).first()
+        if not booking:
+            print(f"❌ [DELETE] Booking {booking_id} not found")
+            return False
+        
+        guest_id = booking.guest_id
+        guest_name = booking.guest_name
+        
+        # Delete the booking record permanently
+        db.session.delete(booking)
+        print(f"🗑️ [DELETE] Removed booking record: {booking_id}")
+        
+        # Check if the guest has any other bookings
+        other_bookings = db.session.query(Booking).filter_by(guest_id=guest_id).count()
+        
+        if other_bookings == 0:
+            # Delete the guest record if no other bookings exist
+            guest = db.session.query(Guest).filter_by(guest_id=guest_id).first()
+            if guest:
+                db.session.delete(guest)
+                print(f"🗑️ [DELETE] Removed guest record: {guest_name} (ID: {guest_id})")
+        else:
+            print(f"ℹ️ [DELETE] Guest {guest_name} has {other_bookings} other bookings, keeping guest record")
+        
+        # Commit all changes
+        db.session.commit()
+        print(f"✅ [DELETE] Successfully deleted booking {booking_id} and associated data")
+        return True
+        
+    except Exception as e:
+        db.session.rollback()
+        print(f"❌ [DELETE] Error deleting booking {booking_id}: {e}")
+        import traceback
+        traceback.print_exc()
+        return False
 
 # ==============================================================================
 # DATA ANALYSIS FUNCTIONS
@@ -1078,14 +1124,20 @@ def extract_booking_info_from_image_content(image_data: bytes, google_api_key: s
         return {'error': 'Gemini AI not available'}
     
     try:
+        print(f"🔑 [GEMINI] Configuring API key (length: {len(google_api_key) if google_api_key else 0})")
         genai.configure(api_key=google_api_key)
+        
+        print(f"🤖 [GEMINI] Creating model: gemini-2.5-flash-preview-05-20")
         model = genai.GenerativeModel('gemini-2.5-flash-preview-05-20')
         
         # Convert image for Gemini
         if not Image:
+            print(f"❌ PIL not available for image processing")
             return {'error': 'PIL not available for image processing on railway'}
         
+        print(f"🖼️ [GEMINI] Processing image data (size: {len(image_data)} bytes)")
         image = Image.open(BytesIO(image_data))
+        print(f"🖼️ [GEMINI] Image opened successfully: {image.format} {image.size}")
         
         prompt = """
         Extract ALL booking information from this image. If there are multiple bookings/guests, extract all of them.
@@ -1139,14 +1191,32 @@ def extract_booking_info_from_image_content(image_data: bytes, google_api_key: s
         If you see only one booking, return type "single" with the booking object.
         """
         
+        print(f"🤖 [GEMINI] Sending image to Gemini AI with room type: {room_type}")
         response = model.generate_content([prompt, image])
+        
+        # Check if response generation was successful
+        if not response:
+            print(f"❌ Gemini API returned no response object")
+            return {'error': 'Gemini API failed to generate response'}
+        
+        print(f"🤖 [GEMINI] Response received, checking content...")
         
         # Parse JSON from response with better error handling
         import json
         try:
+            # Check if response.text exists and is not None
+            if not hasattr(response, 'text') or response.text is None:
+                print(f"❌ Gemini response.text is None or missing")
+                return {'error': 'Gemini API returned empty response', 'response_object': str(response)}
+            
             # Clean the response text - sometimes Gemini adds extra text
             response_text = response.text.strip()
             print(f"🤖 Gemini response text: {response_text[:200]}...")
+            
+            # Check if response text is empty
+            if not response_text:
+                print(f"❌ Gemini response text is empty")
+                return {'error': 'Gemini API returned empty text response'}
             
             # Try to find JSON in the response
             json_start = response_text.find('{')
@@ -1165,7 +1235,7 @@ def extract_booking_info_from_image_content(image_data: bytes, google_api_key: s
             print(f"❌ JSON decode error: {json_error}")
             return {
                 'error': f'Invalid JSON from AI: {str(json_error)}',
-                'raw_response': response.text[:500]  # First 500 chars for debugging
+                'raw_response': response.text[:500] if response.text else 'No response text'
             }
         
     except Exception as e:

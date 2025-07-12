@@ -78,9 +78,9 @@ class AIDuplicateDetector:
             'reasons': []
         }
         
-        guest_name = booking.get('guest_name', '').strip()
+        guest_name = (booking.get('guest_name') or '').strip()
         checkin_date = booking.get('checkin_date') or booking.get('check_in_date', '')
-        booking_id = booking.get('booking_id', '').strip()
+        booking_id = (booking.get('booking_id') or '').strip()
         
         if not guest_name:
             analysis['recommendation'] = 'review'

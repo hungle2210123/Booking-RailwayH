@@ -1837,6 +1837,10 @@ def edit_booking(booking_id):
                 except (ValueError, TypeError):
                     return default
             
+            # Get room type selection
+            room_type = request.form.get('Tên chỗ nghỉ', '118 Hang Bac Hostel')
+            print(f"🏠 [EDIT_BOOKING] Room type updated to: {room_type}")
+            
             update_data = {
                 'guest_name': request.form.get('guest_name'),
                 'checkin_date': datetime.strptime(checkin_date_str, '%Y-%m-%d').date(),
@@ -1845,7 +1849,8 @@ def edit_booking(booking_id):
                 'commission': safe_float(request.form.get('commission'), 0),
                 'taxi_amount': safe_float(request.form.get('taxi_amount'), 0),
                 'collector': request.form.get('collector', ''),
-                'notes': request.form.get('notes', '')
+                'notes': request.form.get('notes', ''),
+                'accommodation_name': room_type  # Save room type to database
             }
             
             if update_booking(booking_id, update_data):
@@ -1928,6 +1933,38 @@ def delete_multiple_bookings():
     except Exception as e:
         print(f"❌ DELETE MULTIPLE ERROR: {str(e)}")
         return jsonify({'success': False, 'message': f'Lỗi server: {str(e)}'}), 500
+
+@app.route('/api/delete_booking', methods=['POST'])
+def delete_single_booking():
+    """Delete a single booking from PostgreSQL"""
+    try:
+        data = request.get_json()
+        if not data or 'booking_id' not in data:
+            return jsonify({'success': False, 'error': 'No booking ID provided'}), 400
+        
+        booking_id = data['booking_id']
+        if not booking_id:
+            return jsonify({'success': False, 'error': 'Invalid booking ID'}), 400
+        
+        print(f"🗑️ DELETE SINGLE: Attempting to delete booking {booking_id}")
+        
+        # Delete the booking
+        if delete_booking_by_id(booking_id):
+            print(f"✅ DELETED: Booking {booking_id}")
+            return jsonify({
+                'success': True, 
+                'message': f'Đã xóa thành công booking {booking_id}'
+            })
+        else:
+            print(f"❌ FAILED: Could not delete booking {booking_id}")
+            return jsonify({
+                'success': False, 
+                'error': f'Không thể xóa booking {booking_id}'
+            }), 400
+            
+    except Exception as e:
+        print(f"❌ DELETE SINGLE ERROR: {str(e)}")
+        return jsonify({'success': False, 'error': f'Lỗi server: {str(e)}'}), 500
 
 @app.route('/api/expenses', methods=['GET', 'POST'])
 def expenses_api():
@@ -2354,21 +2391,18 @@ def save_extracted_bookings():
         
         if not extracted_json:
             print("❌ [SAVE_EXTRACTED] No extracted_json provided")
-            flash('Không có dữ liệu booking để lưu', 'error')
-            return redirect(url_for('add_booking'))
+            return jsonify({'success': False, 'error': 'Không có dữ liệu booking để lưu'})
         
         try:
             bookings_data = json.loads(extracted_json)
             print(f"📊 [SAVE_EXTRACTED] Received {len(bookings_data)} bookings to save")
         except json.JSONDecodeError as e:
             print(f"❌ [SAVE_EXTRACTED] JSON decode error: {e}")
-            flash('Dữ liệu booking không hợp lệ', 'error')
-            return redirect(url_for('add_booking'))
+            return jsonify({'success': False, 'error': 'Dữ liệu booking không hợp lệ'})
         
         if not isinstance(bookings_data, list) or len(bookings_data) == 0:
             print("❌ [SAVE_EXTRACTED] Invalid bookings data format")
-            flash('Dữ liệu booking không hợp lệ', 'error')
-            return redirect(url_for('add_booking'))
+            return jsonify({'success': False, 'error': 'Dữ liệu booking không hợp lệ'})
         
         # Process and save each booking
         saved_count = 0
@@ -2442,6 +2476,10 @@ def save_extracted_bookings():
                     except ValueError:
                         continue
                 
+                # Extract accommodation name from the booking data (set by frontend)
+                accommodation_name = booking_data.get('Tên chỗ nghỉ', '118 Hang Bac Hostel')
+                print(f"🏠 [SAVE_EXTRACTED] Room type selected: {accommodation_name}")
+                
                 # Convert to expected format for add_new_booking function
                 processed_booking = {
                     'guest_name': str(guest_name).strip() if guest_name else '',
@@ -2450,6 +2488,7 @@ def save_extracted_bookings():
                     'phone': str(booking_data.get('phone', '')).strip(),
                     'nationality': str(booking_data.get('nationality', '')).strip(),
                     'passport_number': str(booking_data.get('passport_number', '')).strip(),
+                    'accommodation_name': accommodation_name,  # Include room type/property name
                     'checkin_date': checkin_date,
                     'checkout_date': checkout_date,
                     'room_amount': float(booking_data.get('room_amount', 0)) if booking_data.get('room_amount') else 0.0,
@@ -2459,9 +2498,23 @@ def save_extracted_bookings():
                     'notes': f"AI extracted on {datetime.now().strftime('%Y-%m-%d %H:%M')}"
                 }
                 
-                # Validate required fields
+                # Validate and clean guest name (ensure it's text, not ID)
                 if not processed_booking['guest_name']:
                     raise ValueError("Missing guest name")
+                
+                # Ensure guest name contains letters (not just numbers)
+                guest_name_clean = processed_booking['guest_name'].strip()
+                if guest_name_clean.isdigit():
+                    print(f"⚠️ [SAVE_EXTRACTED] Guest name is numeric ID '{guest_name_clean}', skipping this booking")
+                    raise ValueError(f"Guest name appears to be an ID number: {guest_name_clean}")
+                
+                if len(guest_name_clean) < 2:
+                    print(f"⚠️ [SAVE_EXTRACTED] Guest name too short '{guest_name_clean}', skipping this booking")
+                    raise ValueError(f"Guest name too short: {guest_name_clean}")
+                
+                # Update with cleaned name
+                processed_booking['guest_name'] = guest_name_clean
+                
                 if not processed_booking['checkin_date']:
                     raise ValueError("Missing check-in date")
                 if not processed_booking['checkout_date']:
@@ -2541,14 +2594,22 @@ def save_extracted_bookings():
             flash('❌ Không thể lưu booking nào. Vui lòng kiểm tra dữ liệu và thử lại.', 'error')
         
         print(f"🎯 [SAVE_EXTRACTED] Complete: {saved_count} saved, {replaced_count} replaced, {len(existing_bookings)} existing, {len(failed_bookings)} failed")
-        return redirect(url_for('view_bookings'))
+        
+        # Return JSON response for frontend compatibility
+        return jsonify({
+            'success': True,
+            'saved_count': saved_count,
+            'replaced_count': replaced_count,
+            'existing_count': len(existing_bookings),
+            'failed_count': len(failed_bookings),
+            'message': f'Đã xử lý {total_processed} booking thành công'
+        })
         
     except Exception as e:
         print(f"❌ [SAVE_EXTRACTED] Fatal error: {e}")
         import traceback
         traceback.print_exc()
-        flash(f'❌ Lỗi hệ thống khi lưu booking: {str(e)}', 'error')
-        return redirect(url_for('add_booking'))
+        return jsonify({'success': False, 'error': f'Lỗi hệ thống khi lưu booking: {str(e)}'})
 
 @app.route('/calendar/')
 @app.route('/calendar/<int:year>/<int:month>')

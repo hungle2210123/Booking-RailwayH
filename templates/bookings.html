@@ -666,11 +666,19 @@
                         {% endif %}
                     </td>
                     <td style="padding: 2px 8px;">
-                        <a href="{{ url_for('edit_booking', booking_id=booking['Số đặt phòng']) }}" 
-                           class="btn btn-outline-primary btn-sm py-0 px-1" 
-                           title="Chỉnh sửa">
-                            <i class="fas fa-edit fa-xs"></i>
-                        </a>
+                        <div class="btn-group" role="group">
+                            <a href="{{ url_for('edit_booking', booking_id=booking['Số đặt phòng']) }}" 
+                               class="btn btn-outline-primary btn-sm py-0 px-1" 
+                               title="Chỉnh sửa">
+                                <i class="fas fa-edit fa-xs"></i>
+                            </a>
+                            <button type="button" 
+                                    class="btn btn-outline-danger btn-sm py-0 px-1" 
+                                    title="🗑️ XÓA VĨNH VIỄN tất cả dữ liệu booking và khách hàng"
+                                    onclick="deleteBooking('{{ booking['Số đặt phòng'] }}', '{{ booking.get('Tên người đặt', 'N/A') }}')">
+                                <i class="fas fa-trash fa-xs"></i>
+                            </button>
+                        </div>
                     </td>
                 </tr>
                 {% endfor %}
@@ -2609,6 +2617,53 @@ window.checkAIButtonSetup = function() {
         results: !!results
     };
 };
+
+// Delete single booking function - PERMANENT DELETION
+function deleteBooking(bookingId, guestName) {
+    if (confirm(`🗑️ XÓA VĨNH VIỄN TẤT CẢ DỮ LIỆU\n\nBạn có chắc chắn muốn xóa hoàn toàn booking này không?\n\nKhách: ${guestName}\nMã booking: ${bookingId}\n\n⚠️ CẢNH BÁO: \n• Tất cả dữ liệu sẽ bị xóa vĩnh viễn\n• Không thể khôi phục\n• Dữ liệu khách hàng cũng sẽ bị xóa nếu không có booking khác\n\nBấm OK để XÓA VĨNH VIỄN`)) {
+        // Show loading state
+        const button = event.target.closest('button');
+        const originalHtml = button.innerHTML;
+        button.innerHTML = '<i class="fas fa-spinner fa-spin fa-xs"></i>';
+        button.disabled = true;
+        
+        fetch('/api/delete_booking', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ booking_id: bookingId })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Remove the row from the table
+                const row = button.closest('tr');
+                row.style.transition = 'opacity 0.3s ease';
+                row.style.opacity = '0';
+                setTimeout(() => {
+                    row.remove();
+                    // Show success message
+                    alert(`✅ ĐÃ XÓA VĨNH VIỄN\n\nBooking của ${guestName} và tất cả dữ liệu liên quan đã được xóa hoàn toàn khỏi hệ thống.`);
+                    // Reload the page to update counts
+                    window.location.reload();
+                }, 300);
+            } else {
+                alert(`❌ Lỗi khi xóa booking: ${data.error}`);
+                // Restore button
+                button.innerHTML = originalHtml;
+                button.disabled = false;
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('❌ Lỗi kết nối khi xóa booking');
+            // Restore button
+            button.innerHTML = originalHtml;
+            button.disabled = false;
+        });
+    }
+}
 </script>
 
 <!-- AI Duplicate Analysis Modal -->
