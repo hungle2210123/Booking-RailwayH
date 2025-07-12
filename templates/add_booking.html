@@ -382,6 +382,19 @@ h1, h2, h3, h4, h5, h6 {
         <div class="card-body">
             <form method="POST" action="{{ url_for('add_booking') }}">
                 <div class="row g-3">
+                    <!-- Room Type Selection -->
+                    <div class="col-12">
+                        <div class="alert alert-info border-0">
+                            <i class="fas fa-home me-2"></i><strong>Chọn loại phòng:</strong> Khi AI xử lý ảnh, tên chỗ nghỉ sẽ được tự động đặt theo lựa chọn của bạn.
+                        </div>
+                        <label for="roomType" class="form-label"><i class="fas fa-building me-1"></i>Loại phòng *</label>
+                        <select class="form-select" id="roomType" name="roomType" required onchange="updateAccommodationName()">
+                            <option value="118 Hang Bac Hostel">118 Hang Bac Hostel (Mặc định)</option>
+                            <option value="Kitchen & Balcony">Kitchen & Balcony</option>
+                            <option value="Night market">Night market</option>
+                        </select>
+                    </div>
+                    
                     <!-- Essential Information -->
                     <div class="col-md-6">
                         <label for="Tên người đặt" class="form-label"><i class="fas fa-user me-1"></i>Tên người đặt *</label>
@@ -460,7 +473,7 @@ h1, h2, h3, h4, h5, h6 {
                     </div>
 
                     <!-- Hidden fields with default values -->
-                    <input type="hidden" name="Tên chỗ nghỉ" value="118 Hang Bac Hostel">
+                    <input type="hidden" id="accommodationName" name="Tên chỗ nghỉ" value="118 Hang Bac Hostel">
                     <input type="hidden" name="Được đặt vào" value="">
                     <input type="hidden" name="Tiền tệ" value="VND">
                     <input type="hidden" name="Vị trí" value="Hà Nội">
@@ -918,11 +931,20 @@ function processPhoto(imageData) {
         aiResults.style.display = 'none';
     }
     
-    // Call AI processing endpoint
+    // Get selected room type
+    const roomTypeSelect = document.getElementById('roomType');
+    const selectedRoomType = roomTypeSelect ? roomTypeSelect.value : '118 Hang Bac Hostel';
+    
+    console.log(`🏠 [PHOTO_PROCESSING] Using room type: ${selectedRoomType}`);
+    
+    // Call AI processing endpoint with room type
     fetch('/api/process_pasted_image', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ image_b64: imageData })
+        body: JSON.stringify({ 
+            image_b64: imageData,
+            room_type: selectedRoomType 
+        })
     })
     .then(response => response.json())
     .then(data => {
@@ -3223,6 +3245,40 @@ window.addEventListener('beforeunload', function() {
     // Note: We intentionally DON'T clear session here to preserve data across refreshes
     // Session will only be cleared on successful save or manual reset
     console.log('🔄 Page unloading - session data preserved');
+});
+
+// ==================== ROOM TYPE FUNCTIONALITY ====================
+function updateAccommodationName() {
+    const roomTypeSelect = document.getElementById('roomType');
+    const accommodationInput = document.getElementById('accommodationName');
+    
+    if (roomTypeSelect && accommodationInput) {
+        const selectedRoomType = roomTypeSelect.value;
+        accommodationInput.value = selectedRoomType;
+        
+        console.log(`🏠 [ROOM_TYPE] Updated accommodation name to: ${selectedRoomType}`);
+        
+        // Also update any displayed accommodation name if AI results are visible
+        updateAccommodationNameInResults(selectedRoomType);
+    }
+}
+
+function updateAccommodationNameInResults(accommodationName) {
+    // Update accommodation name in any visible AI results or review tables
+    const reviewRows = document.querySelectorAll('#review-table-body tr');
+    reviewRows.forEach(row => {
+        const accommodationCell = row.querySelector('td[data-field="accommodation"]');
+        if (accommodationCell) {
+            accommodationCell.textContent = accommodationName;
+        }
+    });
+    
+    console.log(`🏠 [ROOM_TYPE] Updated ${reviewRows.length} review table rows with new accommodation name`);
+}
+
+// Initialize room type selector on page load
+document.addEventListener('DOMContentLoaded', function() {
+    updateAccommodationName(); // Set initial value
 });
 </script>
 

@@ -1072,7 +1072,7 @@ get_expenses_from_sheet = get_expenses_from_database
 # IMAGE PROCESSING (Gemini AI)
 # ==============================================================================
 
-def extract_booking_info_from_image_content(image_data: bytes, google_api_key: str) -> Dict:
+def extract_booking_info_from_image_content(image_data: bytes, google_api_key: str, room_type: str = '118 Hang Bac Hostel') -> Dict:
     """Extract booking information from image using Gemini AI"""
     if not genai or not google_api_key:
         return {'error': 'Gemini AI not available'}

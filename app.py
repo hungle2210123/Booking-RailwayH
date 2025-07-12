@@ -2776,10 +2776,18 @@ def process_pasted_image():
         if not image_data:
             return jsonify({'error': 'No image provided (expected file upload or base64 JSON)'}), 400
         
+        # Get room type from request (if provided)
+        room_type = '118 Hang Bac Hostel'  # Default
+        if request.is_json and request.json.get('room_type'):
+            room_type = request.json.get('room_type')
+            print(f"🏠 [ROOM_TYPE] Using selected room type: {room_type}")
+        else:
+            print(f"🏠 [ROOM_TYPE] Using default room type: {room_type}")
+        
         print("🔍 [PHOTO_PROCESSING] Starting AI image analysis...")
         
-        # Extract booking info using Gemini
-        booking_info = extract_booking_info_from_image_content(image_data, GOOGLE_API_KEY)
+        # Extract booking info using Gemini with room type
+        booking_info = extract_booking_info_from_image_content(image_data, GOOGLE_API_KEY, room_type)
         
         # Check if extraction was successful
         if 'error' in booking_info:
@@ -2805,6 +2813,12 @@ def process_pasted_image():
         else:
             # Legacy format fallback (single booking without type)
             bookings_list = [booking_info]
+        
+        # ✅ POST-PROCESS: Set room type for all bookings based on user selection
+        for booking in bookings_list:
+            if isinstance(booking, dict):
+                booking['Tên chỗ nghỉ'] = room_type
+                print(f"🏠 [ROOM_TYPE] Set accommodation name to '{room_type}' for booking: {booking.get('Tên người đặt', 'N/A')}")
         
         # Use AI duplicate detector for comprehensive analysis (if available)
         ai_analysis = {
