@@ -1636,9 +1636,14 @@ function showDuplicateDetail(mainBookingId, similarBookings) {
             '<span class="badge bg-info">±' + (booking.date_diff || 0) + ' days</span> ' +
             '<span class="badge bg-warning text-dark">±' + (booking.price_diff || 0).toLocaleString() + ' VND</span>' +
             '</div>' +
-            '<button class="btn btn-danger btn-sm w-100" onclick="deleteDuplicateBooking(\'' + (booking.booking_id || '') + '\')">' +
-            '<i class="fas fa-trash me-1"></i>Delete This Booking' +
+            '<div class="btn-group w-100 mb-2">' +
+            '<button class="btn btn-warning btn-sm" onclick="deleteDuplicateBooking(\'' + (booking.booking_id || '') + '\')">' +
+            '<i class="fas fa-ban me-1"></i>Cancel' +
             '</button>' +
+            '<button class="btn btn-danger btn-sm" onclick="permanentlyDeleteBooking(\'' + (booking.booking_id || '') + '\')">' +
+            '<i class="fas fa-trash me-1"></i>Delete' +
+            '</button>' +
+            '</div>' +
             '</div>' +
             '</div>' +
             '</div>';
@@ -1707,9 +1712,12 @@ function showDuplicateComparison(mainBooking, similarBookings) {
         '<tr><td><strong>Commission:</strong></td><td>' + (mainBooking.commission || 0).toLocaleString() + ' VND</td></tr>' +
         '<tr><td><strong>Accommodation:</strong></td><td>' + (mainBooking.accommodation_name || 'N/A') + '</td></tr>' +
         '</table>' +
-        '<div class="d-grid mt-3">' +
+        '<div class="btn-group w-100 mt-3">' +
         '<button class="btn btn-warning" onclick="cancelDuplicateBooking(\'' + (mainBooking.booking_id || '') + '\')">' +
-        '<i class="fas fa-ban me-2"></i>Cancel This Main Booking' +
+        '<i class="fas fa-ban me-2"></i>Cancel Main Booking' +
+        '</button>' +
+        '<button class="btn btn-danger" onclick="permanentlyDeleteBooking(\'' + (mainBooking.booking_id || '') + '\')">' +
+        '<i class="fas fa-trash me-2"></i>Delete Main Booking' +
         '</button>' +
         '</div>' +
         '</div>' +
@@ -1748,9 +1756,12 @@ function showDuplicateComparison(mainBooking, similarBookings) {
             modalContent += '</small></div>';
         }
         
-        modalContent += '<div class="d-grid mt-3">' +
+        modalContent += '<div class="btn-group w-100 mt-3">' +
             '<button class="btn btn-warning" onclick="cancelDuplicateBooking(\'' + (booking.booking_id || '') + '\')">' +
-            '<i class="fas fa-ban me-2"></i>Cancel This Duplicate' +
+            '<i class="fas fa-ban me-2"></i>Cancel Duplicate' +
+            '</button>' +
+            '<button class="btn btn-danger" onclick="permanentlyDeleteBooking(\'' + (booking.booking_id || '') + '\')">' +
+            '<i class="fas fa-trash me-2"></i>Delete Duplicate' +
             '</button>' +
             '</div>' +
             '</div>' +
@@ -1796,8 +1807,8 @@ function cancelDuplicateBooking(bookingId) {
     button.disabled = true;
     button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Đang hủy...';
     
-    fetch('/api/delete_booking/' + bookingId, {
-        method: 'DELETE',
+    fetch('/api/cancel_booking/' + bookingId, {
+        method: 'POST',
         headers: {
             'Content-Type': 'application/x-www-form-urlencoded',
         }
@@ -1838,6 +1849,52 @@ function cancelDuplicateBooking(bookingId) {
 function deleteDuplicateBooking(bookingId) {
     console.log('⚠️ Legacy deleteDuplicateBooking called - redirecting to cancelDuplicateBooking');
     return cancelDuplicateBooking(bookingId);
+}
+
+function permanentlyDeleteBooking(bookingId) {
+    if (!confirm('🚨 CẢNH BÁO: Bạn có chắc chắn muốn XÓA VĨNH VIỄN booking ' + bookingId + ' không?\n\n⚠️ Hành động này KHÔNG THỂ HOÀN TÁC!\n⚠️ Booking sẽ bị xóa hoàn toàn khỏi cơ sở dữ liệu!\n\nNếu bạn chỉ muốn hủy booking, hãy chọn "Cancel" và sử dụng chức năng "Cancel" thay vì "Delete".')) {
+        return;
+    }
+    
+    const button = event.target;
+    const originalText = button.innerHTML;
+    button.disabled = true;
+    button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Đang xóa...';
+    
+    fetch('/api/delete_booking/' + bookingId, {
+        method: 'DELETE',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        button.disabled = false;
+        button.innerHTML = originalText;
+        
+        if (data.success) {
+            showToast('🗑️ Booking đã được XÓA VĨNH VIỄN! Dữ liệu không thể khôi phục.', 'success');
+            
+            // Close any open modals
+            const detailModal = bootstrap.Modal.getInstance(document.getElementById('duplicateDetailModal'));
+            const comparisonModal = bootstrap.Modal.getInstance(document.getElementById('duplicateComparisonModal'));
+            if (detailModal) detailModal.hide();
+            if (comparisonModal) comparisonModal.hide();
+            
+            // Refresh the page after a short delay
+            setTimeout(() => {
+                window.location.reload();
+            }, 1500);
+        } else {
+            showToast('❌ Lỗi khi xóa booking: ' + (data.message || 'Unknown error'), 'error');
+        }
+    })
+    .catch(error => {
+        button.disabled = false;
+        button.innerHTML = originalText;
+        console.error('Error:', error);
+        showToast('❌ Lỗi kết nối khi xóa booking: ' + error.message, 'error');
+    });
 }
 
 // Helper function to update booking status in display (for cancelled bookings)

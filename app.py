@@ -20,7 +20,7 @@ from core.logic_postgresql import (
     get_daily_activity, get_overall_calendar_day_info,
     extract_booking_info_from_image_content,
     check_duplicate_guests, analyze_existing_duplicates,
-    add_new_booking, update_booking, delete_booking_by_id,
+    add_new_booking, update_booking, delete_booking_by_id, cancel_booking_by_id,
     prepare_dashboard_data,
     add_expense_to_database, get_expenses_from_database
 )
@@ -1865,18 +1865,30 @@ def edit_booking(booking_id):
     
     return render_template('edit_booking.html', booking=booking)
 
+@app.route('/api/cancel_booking/<booking_id>', methods=['POST'])
+def cancel_booking_api(booking_id):
+    """Cancel booking (soft cancel - changes status to 'cancelled')"""
+    try:
+        if cancel_booking_by_id(booking_id):
+            return jsonify({'status': 'success', 'success': True, 'message': 'Booking cancelled successfully'})
+        else:
+            return jsonify({'status': 'error', 'success': False, 'message': 'Failed to cancel booking'}), 400
+    
+    except Exception as e:
+        return jsonify({'status': 'error', 'success': False, 'message': str(e)}), 500
+
 @app.route('/api/delete_booking/<booking_id>', methods=['DELETE'])
 def delete_booking_api(booking_id):
-    """Delete booking from PostgreSQL"""
+    """Delete booking permanently from PostgreSQL"""
     try:
         if delete_booking_by_id(booking_id):
             # Cache removed - data will be fresh automatically
-            return jsonify({'status': 'success', 'message': 'Booking cancelled successfully'})
+            return jsonify({'status': 'success', 'success': True, 'message': 'Booking deleted permanently'})
         else:
-            return jsonify({'status': 'error', 'message': 'Failed to cancel booking'}), 400
+            return jsonify({'status': 'error', 'success': False, 'message': 'Failed to delete booking'}), 400
     
     except Exception as e:
-        return jsonify({'status': 'error', 'message': str(e)}), 500
+        return jsonify({'status': 'error', 'success': False, 'message': str(e)}), 500
 
 @app.route('/bookings/delete_multiple', methods=['POST'])
 def delete_multiple_bookings():
