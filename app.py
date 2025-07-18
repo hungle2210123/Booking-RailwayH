@@ -1508,12 +1508,9 @@ def view_bookings():
                     (filtered_df['Check-out Date'].dt.date >= today)
                 ) |
                 
-                # Condition 3: Show cancelled bookings only if checkout date hasn't passed yet
-                # (cancelled guests still need attention until their checkout date passes)
-                (
-                    (filtered_df['Tình trạng'] == 'Đã hủy') &
-                    (filtered_df['Check-out Date'].dt.date >= today)
-                )
+                # Condition 3: Always show cancelled bookings for management visibility
+                # (cancelled guests should always be visible for record keeping)
+                (filtered_df['Tình trạng'] == 'Đã hủy')
             )
             
             # Apply the filter using loc for clean indexing
