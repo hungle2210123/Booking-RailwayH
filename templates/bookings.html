@@ -2248,20 +2248,24 @@ function cancelMultipleBookings(bookingIds) {
     deleteBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Đang hủy...';
     deleteBtn.disabled = true;
     
-    fetch('/bookings/delete_multiple', {
+    // Use the new cancel multiple endpoint
+    fetch('/bookings/cancel_multiple', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-            booking_ids: bookingIds  // Use 'booking_ids' to match the backend endpoint
+            booking_ids: bookingIds
         })
     })
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            const cancelledCount = data.deleted_count || bookingIds.length;
-            showToast(`✅ Đã hủy thành công ${cancelledCount} booking! Sẽ hiển thị với trạng thái "Đã hủy".`, 'success');
+            let message = `✅ Đã hủy thành công ${data.cancelled_count} booking! Sẽ hiển thị với trạng thái "Đã hủy".`;
+            if (data.failed_count > 0) {
+                message += `\n⚠️ ${data.failed_count} booking không thể hủy.`;
+            }
+            showToast(message, 'success');
             
             // Clear selections before reload
             const allCheckboxes = document.querySelectorAll('input[name="booking_select"]');

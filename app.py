@@ -1890,9 +1890,9 @@ def delete_booking_api(booking_id):
     except Exception as e:
         return jsonify({'status': 'error', 'success': False, 'message': str(e)}), 500
 
-@app.route('/bookings/delete_multiple', methods=['POST'])
-def delete_multiple_bookings():
-    """Delete multiple bookings from PostgreSQL"""
+@app.route('/bookings/cancel_multiple', methods=['POST'])
+def cancel_multiple_bookings():
+    """Cancel multiple bookings (soft cancel - changes status to 'cancelled')"""
     try:
         data = request.get_json()
         if not data or 'booking_ids' not in data:
@@ -1902,10 +1902,68 @@ def delete_multiple_bookings():
         if not isinstance(booking_ids, list) or len(booking_ids) == 0:
             return jsonify({'success': False, 'message': 'Invalid booking IDs list'}), 400
         
-        print(f"🗑️ DELETE MULTIPLE: Attempting to delete {len(booking_ids)} bookings")
+        print(f"🔄 CANCEL MULTIPLE: Attempting to cancel {len(booking_ids)} bookings")
+        print(f"🔄 BOOKING IDS: {booking_ids}")
+        
+        # Cancel each booking (soft cancel)
+        cancelled_count = 0
+        failed_ids = []
+        
+        for booking_id in booking_ids:
+            try:
+                if cancel_booking_by_id(booking_id):
+                    cancelled_count += 1
+                    print(f"✅ CANCELLED: Booking {booking_id}")
+                else:
+                    failed_ids.append(booking_id)
+                    print(f"❌ FAILED TO CANCEL: Booking {booking_id}")
+            except Exception as e:
+                failed_ids.append(booking_id)
+                print(f"❌ ERROR cancelling booking {booking_id}: {str(e)}")
+        
+        # Prepare response
+        if cancelled_count > 0:
+            message = f"Đã hủy thành công {cancelled_count} booking"
+            if failed_ids:
+                message += f", thất bại {len(failed_ids)} booking"
+            
+            print(f"🎯 CANCEL RESULT: {cancelled_count} success, {len(failed_ids)} failed")
+            return jsonify({
+                'success': True,
+                'message': message,
+                'cancelled_count': cancelled_count,
+                'failed_count': len(failed_ids),
+                'failed_ids': failed_ids
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'message': 'Không thể hủy booking nào',
+                'cancelled_count': 0,
+                'failed_count': len(failed_ids),
+                'failed_ids': failed_ids
+            }), 400
+    
+    except Exception as e:
+        print(f"❌ ERROR in cancel_multiple_bookings: {str(e)}")
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+@app.route('/bookings/delete_multiple', methods=['POST'])
+def delete_multiple_bookings():
+    """PERMANENTLY DELETE multiple bookings from PostgreSQL (NOT CANCEL)"""
+    try:
+        data = request.get_json()
+        if not data or 'booking_ids' not in data:
+            return jsonify({'success': False, 'message': 'No booking IDs provided'}), 400
+        
+        booking_ids = data['booking_ids']
+        if not isinstance(booking_ids, list) or len(booking_ids) == 0:
+            return jsonify({'success': False, 'message': 'Invalid booking IDs list'}), 400
+        
+        print(f"🗑️ DELETE MULTIPLE: Attempting to PERMANENTLY DELETE {len(booking_ids)} bookings")
         print(f"🗑️ BOOKING IDS: {booking_ids}")
         
-        # Delete each booking
+        # PERMANENTLY DELETE each booking
         deleted_count = 0
         failed_ids = []
         
@@ -1913,17 +1971,17 @@ def delete_multiple_bookings():
             try:
                 if delete_booking_by_id(booking_id):
                     deleted_count += 1
-                    print(f"✅ CANCELLED: Booking {booking_id}")
+                    print(f"✅ DELETED PERMANENTLY: Booking {booking_id}")
                 else:
                     failed_ids.append(booking_id)
-                    print(f"❌ FAILED: Booking {booking_id}")
+                    print(f"❌ FAILED TO DELETE: Booking {booking_id}")
             except Exception as e:
                 failed_ids.append(booking_id)
-                print(f"❌ ERROR cancelling booking {booking_id}: {str(e)}")
+                print(f"❌ ERROR deleting booking {booking_id}: {str(e)}")
         
         # Prepare response
         if deleted_count > 0:
-            message = f"Đã hủy thành công {deleted_count} booking"
+            message = f"Đã XÓA VĨNH VIỄN {deleted_count} booking"
             if failed_ids:
                 message += f", thất bại {len(failed_ids)} booking"
             
