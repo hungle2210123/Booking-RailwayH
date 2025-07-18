@@ -1498,19 +1498,22 @@ def view_bookings():
             )
             
             interested_mask = (
-                # Condition 1: All upcoming guests (future check-ins)
-                (filtered_df['Check-in Date'].dt.date >= today) |
-                
-                # Condition 2: Current/past guests with payment issues who haven't checked out yet
-                # (checked out after today OR haven't checked out yet)
+                # Condition 1: All upcoming guests (future check-ins) - but exclude cancelled ones
                 (
-                    payment_issue_mask &
-                    (filtered_df['Check-out Date'].dt.date >= today)
+                    (filtered_df['Check-in Date'].dt.date >= today) &
+                    (filtered_df['Tình trạng'] != 'Đã hủy')
                 ) |
                 
-                # Condition 3: Always show cancelled bookings for management visibility
-                # (cancelled guests should always be visible for record keeping)
-                (filtered_df['Tình trạng'] == 'Đã hủy')
+                # Condition 2: Current/past guests with payment issues who haven't checked out yet
+                # (checked out after today OR haven't checked out yet) - but exclude cancelled ones
+                (
+                    payment_issue_mask &
+                    (filtered_df['Check-out Date'].dt.date >= today) &
+                    (filtered_df['Tình trạng'] != 'Đã hủy')
+                )
+                
+                # Condition 3: Cancelled bookings are excluded from "interested guests"
+                # They will only appear in "All guests" view (when show_all=True)
             )
             
             # Apply the filter using loc for clean indexing
