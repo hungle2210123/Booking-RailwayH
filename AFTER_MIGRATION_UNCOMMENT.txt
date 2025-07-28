@@ -1,0 +1,45 @@
+===============================================
+AFTER RUNNING SQL MIGRATION - UNCOMMENT THESE
+===============================================
+
+After successfully running RUN_THIS_SQL_MIGRATION.sql, you need to uncomment these lines:
+
+1. In core/models.py around line 69:
+   UNCOMMENT: accommodation_name = Column(String(255), nullable=True, default='118 Hang Bac Hostel', index=True)
+
+2. In core/logic_postgresql.py - replace ALL instances of:
+   '118 Hang Bac Hostel' as "Tên chỗ nghỉ",
+   WITH:
+   COALESCE(b.accommodation_name, '118 Hang Bac Hostel') as "Tên chỗ nghỉ",
+
+3. In core/logic_postgresql.py around line 364:
+   UNCOMMENT: accommodation_name=booking_data.get('accommodation_name', '118 Hang Bac Hostel'),
+
+4. In core/logic_postgresql.py around line 458:
+   UNCOMMENT: if 'accommodation_name' in update_data:
+               booking.accommodation_name = update_data['accommodation_name']
+
+5. In app.py around line 2496:
+   UNCOMMENT: 'accommodation_name': accommodation_name,
+
+6. In app.py around line 1858:
+   REPLACE the notes combination with:
+   'accommodation_name': room_type
+
+===============================================
+HOW TO KNOW IF MIGRATION WORKED:
+===============================================
+
+1. Run the SQL migration
+2. Check that no errors occurred
+3. Restart your Flask application
+4. If you see "accommodation_name does not exist" errors, the migration didn't work
+5. If the application loads normally, the migration was successful
+
+===============================================
+THEN TEST:
+===============================================
+
+1. AI Booking: Upload image → Select "Kitchen & Balcony" → Save → Check if it shows "Kitchen & Balcony" in booking list
+2. Edit Booking: Edit any booking → Change room type → Save → Verify it shows correct room type
+3. Revenue Reports: Check that room types appear correctly in calendar details and revenue schedules
