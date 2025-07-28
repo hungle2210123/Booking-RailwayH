@@ -8483,4 +8483,9 @@ def railway_chart_data():
 
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+    # For local development only
+    port = os.environ.get('PORT')
+    if port and port.isdigit():
+        app.run(host='0.0.0.0', port=int(port))
+    else:
+        app.run(host='0.0.0.0', port=5000)
