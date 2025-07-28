@@ -1,4 +1,4 @@
-# Simplified Dockerfile for Railway Free Plan
+# Ultra Simple Dockerfile for Railway Free Plan
 FROM python:3.11-slim
 
 WORKDIR /app
@@ -13,17 +13,8 @@ COPY core/ ./core/
 COPY templates/ ./templates/
 COPY static/ ./static/
 
-# Create entrypoint inline to avoid file copy issues
-RUN echo '#!/bin/bash\n\
-set -e\n\
-echo "🚀 Railway Docker Starting..."\n\
-if [ -z "$PORT" ] || [ "$PORT" = "null" ] || [ "$PORT" = "" ]; then\n\
-    export PORT=5000\n\
-fi\n\
-if ! [[ "$PORT" =~ ^[0-9]+$ ]]; then\n\
-    export PORT=5000\n\
-fi\n\
-echo "✅ Using PORT: $PORT"\n\
-exec python -m gunicorn app:app --bind "0.0.0.0:$PORT" --workers 1 --timeout 120' > /entrypoint.sh && chmod +x /entrypoint.sh
+# Set default PORT if not provided
+ENV PORT=5000
 
-CMD ["/entrypoint.sh"]
+# Direct command without script
+CMD python -m gunicorn app:app --bind 0.0.0.0:$PORT --workers 1 --timeout 120
