@@ -80,7 +80,8 @@
       "Bash(pip3 list:*)",
       "Bash(PGPASSWORD=locloc123 psql -h localhost -U postgres -l)",
       "Bash(PGPASSWORD=locloc123 psql -h localhost -U postgres -d hotel_booking -c \"SELECT COUNT(*) FROM bookings;\")",
-      "Bash(dos2unix:*)"
+      "Bash(dos2unix:*)",
+      "Bash(git remote:*)"
     ],
     "deny": []
   },
