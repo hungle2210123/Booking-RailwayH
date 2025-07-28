@@ -150,10 +150,27 @@ elif 'Tổng thanh toán' in header:
 ```
 
 ### **Production Deployment**
-**Platform:** Render.com  
-**URL:** https://hotel-booking-system-kdfq.onrender.com  
-**Database:** PostgreSQL (managed)  
+**Platform:** Railway.app  
+**Database:** PostgreSQL (Railway managed)  
 **Performance:** Sub-100ms response times
+
+#### **🚨 CRITICAL: Railway Free Plan Deployment Fix**
+**Problem:** `Error: '$PORT' is not a valid port number`  
+**Root Cause:** Docker shell expansion issues on Railway free plan
+
+**✅ WORKING SOLUTION:**
+1. **Disable Dockerfile:** Rename to `Dockerfile.disabled`
+2. **Use Nixpacks Builder:** Set `builder = "nixpacks"` in `railway.toml`
+3. **Python Runner Script:** Create `run.py` that reads PORT from `os.environ` directly
+4. **Update Procfile:** Use `web: python run.py`
+
+**Key Files:**
+- `railway.toml` - Set Nixpacks builder, remove startCommand
+- `Procfile` - Simple `web: python run.py` 
+- `run.py` - Handles PORT validation without shell expansion
+- `Dockerfile.disabled` - Keep as backup, don't use for deployment
+
+**Why This Works:** Eliminates all shell variable expansion dependencies that cause PORT parsing errors on Railway's free plan.
 
 ## 🔧 Technical Guidelines
 
@@ -198,6 +215,9 @@ elif 'Tổng thanh toán' in header:
 # Local development
 cd /mnt/c/Users/T14/Desktop/hotel_flask_app/hotel_flask_app_optimized
 python3 app.py
+
+# Railway deployment (after free plan fixes)
+python run.py  # Test the Railway runner script locally
 
 # Test AI processing
 # - Upload booking screenshot
