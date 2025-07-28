@@ -1,5 +1,4 @@
 [build]
-builder = "heroku/buildpacks:20"
 
 [deploy]
 restartPolicyType = "on_failure"
