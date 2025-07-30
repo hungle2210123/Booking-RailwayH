@@ -1343,16 +1343,20 @@ def get_daily_revenue_by_stay(df):
         df_clean['Check-in Date'] = pd.to_datetime(df_clean['Check-in Date'], errors='coerce', dayfirst=True)
         df_clean['Check-out Date'] = pd.to_datetime(df_clean['Check-out Date'], errors='coerce', dayfirst=True)
         
-        # Filter valid bookings
+        # Filter valid bookings - FIXED: Include bookings that overlap with our date range
         valid_bookings = df_clean[
             (df_clean['Check-in Date'].notna()) &
             (df_clean['Check-out Date'].notna()) &
-            (df_clean['Check-in Date'] >= pd.Timestamp(check_start)) &
-            (df_clean['Check-in Date'] <= pd.Timestamp(check_end)) &
+            (df_clean['Check-in Date'] <= pd.Timestamp(check_end)) &  # Check-in before end date
+            (df_clean['Check-out Date'] >= pd.Timestamp(check_start)) &  # Check-out after start date  
             (df_clean['Tình trạng'] != 'Đã hủy') &
             (df_clean['Tổng thanh toán'].notna()) &
             (df_clean['Tổng thanh toán'] > 0)
         ].copy()
+        
+        print(f"🔧 [REVENUE_FIX] Date range: {check_start.date()} to {check_end.date()}")
+        print(f"🔧 [REVENUE_FIX] Previous filter would exclude long-stay guests!")
+        print(f"🔧 [REVENUE_FIX] New logic: Include bookings that OVERLAP with date range")
         
         if valid_bookings.empty:
             print("🚨 [REVENUE_DEBUG] No valid bookings found after filtering!")
