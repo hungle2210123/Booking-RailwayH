@@ -1850,6 +1850,7 @@ def edit_booking(booking_id):
                 'taxi_amount': safe_float(request.form.get('taxi_amount'), 0),
                 'collector': request.form.get('collector', ''),
                 'notes': request.form.get('notes', ''),
+                'status': request.form.get('Tình trạng', ''),  # Add status field extraction
                 'accommodation_name': room_type  # Save room type to database
             }
             
