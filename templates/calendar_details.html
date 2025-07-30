@@ -134,17 +134,24 @@
                             {% set commission = booking.get('Hoa hồng', 0) or 0 %}
                             {% set has_commission = commission > 0 %}
                             <div class="guest-card {{ 'has-commission' if has_commission else 'no-commission' }}">
-                                <div class="guest-header">
-                                    <p class="guest-name">{{ booking.get('Tên người đặt', 'N/A') }}</p>
-                                    {% if has_commission %}
-                                        <span class="commission-badge badge bg-warning text-dark">
-                                            <i class="fas fa-percentage"></i> {{ "{:,.0f}".format(commission) }}đ
-                                        </span>
-                                    {% else %}
-                                        <span class="commission-badge badge bg-success">
-                                            <i class="fas fa-check"></i> Không hoa hồng
-                                        </span>
-                                    {% endif %}
+                                <div class="guest-header d-flex justify-content-between align-items-start">
+                                    <div>
+                                        <p class="guest-name">{{ booking.get('Tên người đặt', 'N/A') }}</p>
+                                        {% if has_commission %}
+                                            <span class="commission-badge badge bg-warning text-dark">
+                                                <i class="fas fa-percentage"></i> {{ "{:,.0f}".format(commission) }}đ
+                                            </span>
+                                        {% else %}
+                                            <span class="commission-badge badge bg-success">
+                                                <i class="fas fa-check"></i> Không hoa hồng
+                                            </span>
+                                        {% endif %}
+                                    </div>
+                                    <button class="btn btn-sm btn-outline-danger px-2 py-1" 
+                                            onclick="quickCancelCalendarGuest('{{ booking.get('Số đặt phòng', '') }}', '{{ booking.get('Tên người đặt', 'N/A') }}')" 
+                                            title="Hủy booking">
+                                        <i class="fas fa-times"></i>
+                                    </button>
                                 </div>
                                 <p class="room-type">{{ booking.get('Tên chỗ nghỉ', 'N/A') }}</p>
                                 <p class="details">
@@ -182,17 +189,24 @@
                             {% set commission = booking.get('Hoa hồng', 0) or 0 %}
                             {% set has_commission = commission > 0 %}
                             <div class="guest-card {{ 'has-commission' if has_commission else 'no-commission' }}">
-                                <div class="guest-header">
-                                    <p class="guest-name">{{ booking.get('Tên người đặt', 'N/A') }}</p>
-                                    {% if has_commission %}
-                                        <span class="commission-badge badge bg-warning text-dark">
-                                            <i class="fas fa-percentage"></i> {{ "{:,.0f}".format(commission) }}đ
-                                        </span>
-                                    {% else %}
-                                        <span class="commission-badge badge bg-success">
-                                            <i class="fas fa-check"></i> Không hoa hồng
-                                        </span>
-                                    {% endif %}
+                                <div class="guest-header d-flex justify-content-between align-items-start">
+                                    <div>
+                                        <p class="guest-name">{{ booking.get('Tên người đặt', 'N/A') }}</p>
+                                        {% if has_commission %}
+                                            <span class="commission-badge badge bg-warning text-dark">
+                                                <i class="fas fa-percentage"></i> {{ "{:,.0f}".format(commission) }}đ
+                                            </span>
+                                        {% else %}
+                                            <span class="commission-badge badge bg-success">
+                                                <i class="fas fa-check"></i> Không hoa hồng
+                                            </span>
+                                        {% endif %}
+                                    </div>
+                                    <button class="btn btn-sm btn-outline-danger px-2 py-1" 
+                                            onclick="quickCancelCalendarGuest('{{ booking.get('Số đặt phòng', '') }}', '{{ booking.get('Tên người đặt', 'N/A') }}')" 
+                                            title="Hủy booking">
+                                        <i class="fas fa-times"></i>
+                                    </button>
                                 </div>
                                 <p class="room-type">{{ booking.get('Tên chỗ nghỉ', 'N/A') }}</p>
                                 <p class="details">
@@ -231,17 +245,24 @@
                             {% set commission = booking.get('Hoa hồng', 0) or 0 %}
                             {% set has_commission = commission > 0 %}
                             <div class="guest-card {{ 'has-commission' if has_commission else 'no-commission' }}">
-                                <div class="guest-header">
-                                    <p class="guest-name">{{ booking.get('Tên người đặt', 'N/A') }}</p>
-                                    {% if has_commission %}
-                                        <span class="commission-badge badge bg-warning text-dark">
-                                            <i class="fas fa-percentage"></i> {{ "{:,.0f}".format(commission) }}đ
-                                        </span>
-                                    {% else %}
-                                        <span class="commission-badge badge bg-success">
-                                            <i class="fas fa-check"></i> Không hoa hồng
-                                        </span>
-                                    {% endif %}
+                                <div class="guest-header d-flex justify-content-between align-items-start">
+                                    <div>
+                                        <p class="guest-name">{{ booking.get('Tên người đặt', 'N/A') }}</p>
+                                        {% if has_commission %}
+                                            <span class="commission-badge badge bg-warning text-dark">
+                                                <i class="fas fa-percentage"></i> {{ "{:,.0f}".format(commission) }}đ
+                                            </span>
+                                        {% else %}
+                                            <span class="commission-badge badge bg-success">
+                                                <i class="fas fa-check"></i> Không hoa hồng
+                                            </span>
+                                        {% endif %}
+                                    </div>
+                                    <button class="btn btn-sm btn-outline-danger px-2 py-1" 
+                                            onclick="quickCancelCalendarGuest('{{ booking.get('Số đặt phòng', '') }}', '{{ booking.get('Tên người đặt', 'N/A') }}')" 
+                                            title="Hủy booking">
+                                        <i class="fas fa-times"></i>
+                                    </button>
                                 </div>
                                 <p class="room-type">{{ booking.get('Tên chỗ nghỉ', 'N/A') }}</p>
                                 <p class="details">
@@ -318,6 +339,7 @@
                                     <th><i class="fas fa-minus-circle text-primary"></i> Sau trừ hoa hồng</th>
                                     <th><i class="fas fa-percentage text-warning"></i> Hoa hồng</th>
                                     <th><i class="fas fa-info-circle"></i> Trạng thái</th>
+                                    <th><i class="fas fa-cog"></i> Hành động</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -366,6 +388,13 @@
                                             Tổng: {{ "{:,.0f}".format(booking.total_amount) }}đ ({{ booking.nights }} đêm)
                                         </small>
                                     </td>
+                                    <td>
+                                        <button class="btn btn-sm btn-outline-danger px-2 py-1" 
+                                                onclick="quickCancelCalendarGuest('{{ booking.booking_id }}', '{{ booking.guest_name }}')" 
+                                                title="Hủy booking">
+                                            <i class="fas fa-times"></i>
+                                        </button>
+                                    </td>
                                 </tr>
                                 {% endfor %}
                             </tbody>
@@ -392,6 +421,7 @@
                                             Tiết kiệm: {{ "{:,.0f}".format(day_revenue_info.total_commission) }}đ
                                         </small>
                                     </td>
+                                    <td></td>
                                 </tr>
                             </tfoot>
                         </table>
@@ -687,4 +717,35 @@
         }
     }
 </style>
+
+<script>
+// Quick cancel function for calendar guest cards
+function quickCancelCalendarGuest(bookingId, guestName) {
+    const confirmed = confirm(`🚨 Hủy đặt phòng cho ${guestName}?\n\nMã booking: ${bookingId}\n\nXác nhận hủy booking này?`);
+    if (confirmed) {
+        // Use fetch to call the existing cancel booking API
+        fetch(`/api/cancel_booking/${bookingId}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert(`✅ Đã hủy booking thành công cho ${guestName}`);
+                // Reload the page to reflect changes
+                window.location.reload();
+            } else {
+                alert(`❌ Lỗi hủy booking: ${data.message || 'Unknown error'}`);
+            }
+        })
+        .catch(error => {
+            console.error('Error canceling booking:', error);
+            alert(`❌ Lỗi kết nối: ${error.message}`);
+        });
+    }
+}
+</script>
+
 {% endblock %} 
