@@ -103,8 +103,16 @@ class PostgreSQLDatabaseService:
     def __init__(self):
         self.backend_name = "PostgreSQL"
         logger.info("PostgreSQL Database Service initialized")
-        # Check and fix guest sequence on startup
-        self._ensure_guest_sequence_correct()
+        # Check and fix guest sequence on startup (skip if no app context)
+        try:
+            from flask import has_app_context
+            if has_app_context():
+                self._ensure_guest_sequence_correct()
+            else:
+                logger.info("⏳ Skipping sequence check - no app context (will check later)")
+        except ImportError:
+            # Fallback if Flask not available
+            self._ensure_guest_sequence_correct()
     
     def get_connection(self):
         """Get PostgreSQL database connection"""
@@ -647,9 +655,23 @@ class PostgreSQLDatabaseService:
     def _ensure_guest_sequence_correct(self):
         """Ensure guest sequence is correctly set on startup"""
         try:
-            # Delay execution to ensure database is ready
+            # Wait for database with exponential backoff
             import time
-            time.sleep(1)
+            max_retries = 3
+            for attempt in range(max_retries):
+                try:
+                    # Test connection first
+                    with self.get_connection() as test_conn:
+                        test_conn.execute(text("SELECT 1"))
+                    break
+                except Exception as e:
+                    if attempt < max_retries - 1:
+                        wait_time = 2 ** attempt  # 1s, 2s, 4s
+                        logger.info(f"🔄 Database not ready (attempt {attempt + 1}/{max_retries}), waiting {wait_time}s...")
+                        time.sleep(wait_time)
+                    else:
+                        logger.warning("⚠️ Database not ready after retries, skipping sequence check")
+                        return
             
             with self.get_connection() as conn:
                 # Check if sequence exists and get max guest_id
@@ -679,7 +701,12 @@ class PostgreSQLDatabaseService:
                         
         except Exception as e:
             # Don't fail startup if sequence check fails
-            logger.warning(f"Guest sequence startup check failed (non-critical): {e}")
+            if "Working outside of application context" in str(e):
+                logger.info("ℹ️ Sequence check deferred - Flask app context not available at startup")
+            elif "database system is starting up" in str(e):
+                logger.info("🔄 Database still starting up - sequence check will retry later")
+            else:
+                logger.warning(f"Guest sequence startup check failed (non-critical): {e}")
     
     def get_health_status(self) -> Dict[str, Any]:
         """Get PostgreSQL health status"""
