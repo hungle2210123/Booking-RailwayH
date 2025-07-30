@@ -2690,8 +2690,8 @@ def calendar_view(year=None, month=None):
         today = datetime.today()
         year, month = today.year, today.month
     
-    # Check if fresh data is requested
-    force_fresh = request.args.get('refresh') == 'true'
+    # Always force fresh data for calendar to fix revenue calculation issues
+    force_fresh = True  # Force fresh data to ensure accurate revenue calculations
     df = load_booking_data_for_calculations(force_fresh=force_fresh)  # Exclude cancelled bookings
     
     # Generate calendar data in weeks format expected by template
@@ -2730,6 +2730,8 @@ def calendar_view(year=None, month=None):
     from core.dashboard_routes import get_daily_revenue_by_stay
     daily_revenue_data = get_daily_revenue_by_stay(df)
     
+    print(f"🔍 [CALENDAR_DEBUG] Daily revenue data keys: {list(daily_revenue_data.keys())}")
+    
     revenue_by_date = {}
     for day in range(1, num_days + 1):
         date_str = f"{year}-{month:02d}-{day:02d}"
@@ -2738,6 +2740,7 @@ def calendar_view(year=None, month=None):
         # Use optimized daily revenue data if available, fallback to calendar info
         if date_obj in daily_revenue_data:
             revenue_info = daily_revenue_data[date_obj]
+            print(f"🎯 [CALENDAR_DEBUG] {date_str}: Using optimized data - {revenue_info['daily_total']:,.0f}đ")
             revenue_by_date[date_obj] = type('obj', (object,), {
                 'daily_total': revenue_info['daily_total'],
                 'daily_total_minus_commission': revenue_info['daily_total_minus_commission'],
@@ -2746,8 +2749,10 @@ def calendar_view(year=None, month=None):
         else:
             # Fallback to calendar info for dates without revenue data
             day_info = get_overall_calendar_day_info(df, date_str, TOTAL_HOTEL_CAPACITY)
+            fallback_revenue = day_info.get('daily_revenue', 0)
+            print(f"⚠️ [CALENDAR_DEBUG] {date_str}: Using fallback data - {fallback_revenue:,.0f}đ")
             revenue_by_date[date_obj] = type('obj', (object,), {
-                'daily_total': day_info.get('daily_revenue', 0),
+                'daily_total': fallback_revenue,
                 'daily_total_minus_commission': day_info.get('revenue_minus_commission', 0),
                 'total_commission': day_info.get('commission_total', 0)
             })()
