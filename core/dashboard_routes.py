@@ -1364,6 +1364,20 @@ def get_daily_revenue_by_stay(df):
         
         print(f"🎯 [REVENUE_DEBUG] Found {len(valid_bookings)} valid bookings to process")
         
+        # Debug: Show sample bookings for July 1-7 to understand the data
+        july_early_bookings = valid_bookings[
+            (valid_bookings['Check-in Date'] <= pd.Timestamp('2025-07-07')) &
+            (valid_bookings['Check-out Date'] >= pd.Timestamp('2025-07-01'))
+        ]
+        print(f"📅 [JULY_1_7_DEBUG] Found {len(july_early_bookings)} bookings overlapping July 1-7:")
+        for idx, booking in july_early_bookings.head(10).iterrows():
+            guest_name = booking.get('Tên người đặt', 'N/A')
+            checkin = booking['Check-in Date'].date()
+            checkout = booking['Check-out Date'].date()  
+            total = booking.get('Tổng thanh toán', 0)
+            commission = booking.get('Hoa hồng', 0)
+            print(f"  - {guest_name}: {checkin} to {checkout}, {total:,.0f}đ (commission: {commission:,.0f}đ)")
+        
         for _, booking in valid_bookings.iterrows():
             checkin_date = booking['Check-in Date'].date()
             checkout_date = booking['Check-out Date'].date()
@@ -1438,12 +1452,26 @@ def get_daily_revenue_by_stay(df):
         print(f"   🎯 Per-night distribution: ACTIVE (fixes arrival-only revenue bug)")
         
         # Debug specific dates mentioned by user
+        july_1 = datetime(2025, 7, 1).date()
         july_5 = datetime(2025, 7, 5).date()
         july_7 = datetime(2025, 7, 7).date()
-        if july_5 in daily_revenue:
-            print(f"🎯 [JULY_5_DEBUG] Revenue: {daily_revenue[july_5]['daily_total']:,.0f}đ")
-        if july_7 in daily_revenue:
-            print(f"🎯 [JULY_7_DEBUG] Revenue: {daily_revenue[july_7]['daily_total']:,.0f}đ")
+        july_10 = datetime(2025, 7, 10).date()
+        july_15 = datetime(2025, 7, 15).date()
+        
+        for debug_date in [july_1, july_5, july_7, july_10, july_15]:
+            if debug_date in daily_revenue:
+                guest_count = daily_revenue[debug_date]['guest_count']
+                total_revenue = daily_revenue[debug_date]['daily_total']
+                print(f"🎯 [DATE_DEBUG] {debug_date}: {guest_count} guests, {total_revenue:,.0f}đ")
+                
+                # Show individual bookings for problem dates
+                if debug_date in [july_1, july_5, july_7]:
+                    bookings = daily_revenue[debug_date]['bookings']
+                    print(f"  📋 [BOOKING_LIST] {len(bookings)} bookings on {debug_date}:")
+                    for booking in bookings[:5]:  # Show first 5
+                        print(f"    - {booking['guest_name']}: {booking['daily_amount']:,.0f}đ")
+            else:
+                print(f"❌ [DATE_DEBUG] {debug_date}: NO DATA")
         
     except Exception as e:
         print(f"Error calculating daily revenue by stay: {e}")
