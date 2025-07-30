@@ -1328,7 +1328,10 @@ def get_daily_revenue_by_stay(df):
     
     try:
         if df.empty:
+            print("🚨 [REVENUE_DEBUG] DataFrame is empty!")
             return daily_revenue
+        
+        print(f"🔍 [REVENUE_DEBUG] Processing {len(df)} bookings for daily revenue")
             
         today = datetime.today()
         check_start = today - timedelta(days=30)  # 30 days ago
@@ -1352,7 +1355,10 @@ def get_daily_revenue_by_stay(df):
         ].copy()
         
         if valid_bookings.empty:
+            print("🚨 [REVENUE_DEBUG] No valid bookings found after filtering!")
             return daily_revenue
+        
+        print(f"🎯 [REVENUE_DEBUG] Found {len(valid_bookings)} valid bookings to process")
         
         for _, booking in valid_bookings.iterrows():
             checkin_date = booking['Check-in Date'].date()
@@ -1426,6 +1432,14 @@ def get_daily_revenue_by_stay(df):
         print(f"   🏷️ Total commission distributed: {total_commission_calculated:,.0f}đ")
         print(f"   📊 Days with revenue: {total_days_with_revenue}")
         print(f"   🎯 Per-night distribution: ACTIVE (fixes arrival-only revenue bug)")
+        
+        # Debug specific dates mentioned by user
+        july_5 = datetime(2025, 7, 5).date()
+        july_7 = datetime(2025, 7, 7).date()
+        if july_5 in daily_revenue:
+            print(f"🎯 [JULY_5_DEBUG] Revenue: {daily_revenue[july_5]['daily_total']:,.0f}đ")
+        if july_7 in daily_revenue:
+            print(f"🎯 [JULY_7_DEBUG] Revenue: {daily_revenue[july_7]['daily_total']:,.0f}đ")
         
     except Exception as e:
         print(f"Error calculating daily revenue by stay: {e}")
