@@ -2783,6 +2783,45 @@ def calendar_view(year=None, month=None):
         revenue_by_date=revenue_by_date  # Add revenue data for template
     )
 
+@app.route('/debug_revenue')
+def debug_revenue():
+    """Debug route to test revenue calculations"""
+    try:
+        # Load fresh data
+        df = load_booking_data_for_calculations(force_fresh=True)
+        print(f"🔍 [DEBUG_ROUTE] Loaded {len(df)} bookings")
+        
+        # Test specific dates
+        july_5_info = get_overall_calendar_day_info(df, "2025-07-05", TOTAL_HOTEL_CAPACITY)
+        july_7_info = get_overall_calendar_day_info(df, "2025-07-07", TOTAL_HOTEL_CAPACITY)
+        
+        # Test optimized revenue function
+        from core.dashboard_routes import get_daily_revenue_by_stay
+        daily_revenue_data = get_daily_revenue_by_stay(df)
+        
+        july_5_optimized = daily_revenue_data.get(datetime(2025, 7, 5).date(), {})
+        july_7_optimized = daily_revenue_data.get(datetime(2025, 7, 7).date(), {})
+        
+        result = f"""
+        <h1>Revenue Debug Results</h1>
+        <h2>July 5, 2025</h2>
+        <p><strong>Calendar method:</strong> {july_5_info.get('daily_revenue', 0):,.0f}đ</p>
+        <p><strong>Optimized method:</strong> {july_5_optimized.get('daily_total', 0):,.0f}đ</p>
+        
+        <h2>July 7, 2025</h2>
+        <p><strong>Calendar method:</strong> {july_7_info.get('daily_revenue', 0):,.0f}đ</p>
+        <p><strong>Optimized method:</strong> {july_7_optimized.get('daily_total', 0):,.0f}đ</p>
+        
+        <h2>Total Bookings</h2>
+        <p><strong>Total bookings loaded:</strong> {len(df)}</p>
+        <p><strong>Daily revenue data keys:</strong> {len(daily_revenue_data)}</p>
+        """
+        
+        return result
+        
+    except Exception as e:
+        return f"Error: {str(e)}"
+
 @app.route('/calendar_details/<date_str>')
 def calendar_details(date_str):
     """Calendar details view for specific date"""
