@@ -1000,6 +1000,9 @@
                                     <button class="btn btn-sm btn-outline-primary px-1 mb-1" onclick="copyArrivalTaxiMessage('{{ notification.guest_name }}')" title="Copy taxi message">
                                         <i class="fas fa-copy"></i>
                                     </button>
+                                    <button class="btn btn-sm btn-outline-danger px-1 mb-1" onclick="quickCancelCheckinGuest('{{ notification.booking_id }}', '{{ notification.guest_name }}')" title="Quick cancel booking">
+                                        <i class="fas fa-times"></i>
+                                    </button>
                                     <div class="small fw-bold text-success">{{ "{:,.0f}".format(notification.total_amount|float) }}đ</div>
                                     {% if has_commission %}
                                     <div class="commission-display" style="font-size: 10px;">
@@ -4864,6 +4867,15 @@ function fallbackCopyPayment(text, guestName, discountAmount, finalAmount) {
     }
     
     document.body.removeChild(textArea);
+}
+
+// Quick cancel function for check-in guests
+function quickCancelCheckinGuest(bookingId, guestName) {
+    const confirmed = confirm(`🚨 Hủy đặt phòng cho ${guestName}?\n\nMã booking: ${bookingId}\n\nXác nhận hủy booking này?`);
+    if (confirmed) {
+        // Use the existing confirmCancellation function with 'arrival' type
+        confirmCancellation(bookingId, guestName, 'arrival', true);
+    }
 }
 
 function createDepartureNotification() {
