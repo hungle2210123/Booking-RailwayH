@@ -2797,13 +2797,50 @@ def calendar_details(date_str):
         check_out = activity.get('departures', [])
         staying_over = activity.get('staying', [])
         
-        # Calculate revenue info
+        # Calculate revenue info with detailed booking breakdown
+        all_guests = check_in + check_out + staying_over
+        detailed_bookings = []
+        
+        for guest in all_guests:
+            try:
+                # Get booking financial data
+                total_amount = float(guest.get('Tổng thanh toán', 0))
+                commission_amount = float(guest.get('Hoa hồng', 0))
+                
+                # Calculate nights stayed
+                checkin_date = guest['Check-in Date']
+                checkout_date = guest['Check-out Date']
+                
+                if pd.notna(checkin_date) and pd.notna(checkout_date):
+                    nights = (checkout_date - checkin_date).days
+                    if nights <= 0:
+                        nights = 1
+                    
+                    # Calculate daily revenue for this guest
+                    daily_amount = total_amount / nights
+                    daily_commission = commission_amount / nights
+                    daily_amount_minus_commission = daily_amount - daily_commission
+                    
+                    # Add to detailed bookings
+                    detailed_bookings.append(type('obj', (object,), {
+                        'booking_id': guest.get('Số đặt phòng', 'N/A'),
+                        'guest_name': guest.get('Tên người đặt', 'N/A'),
+                        'daily_amount': daily_amount,
+                        'daily_amount_minus_commission': daily_amount_minus_commission,
+                        'commission_amount': commission_amount,
+                        'total_amount': total_amount,
+                        'nights': nights
+                    })())
+                    
+            except (ValueError, TypeError, AttributeError):
+                continue
+        
         day_revenue_info = type('obj', (object,), {
             'daily_total': day_info.get('daily_revenue', 0),
             'daily_total_minus_commission': day_info.get('revenue_minus_commission', 0),
             'total_commission': day_info.get('commission_total', 0),
             'guest_count': len(check_in) + len(check_out) + len(staying_over),
-            'bookings': []  # Could be enhanced later with per-booking breakdown
+            'bookings': detailed_bookings
         })()
         
         return render_template(
