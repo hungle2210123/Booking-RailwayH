@@ -709,7 +709,7 @@
                     <!-- First page -->
                     {% if pagination.page > 2 %}
                     <li class="page-item">
-                        <a class="page-link" href="{{ url_for('view_bookings', page=1, per_page=pagination.per_page, search_term=search_term, show_all='true' if show_all else '', sort_by=sort_by, order=order) }}">
+                        <a class="page-link" href="{{ url_for('view_bookings', page=1, per_page=pagination.per_page, search_term=search_term, show_all='true' if show_all else '', sort_by=sort_by, order=order, filter_month=filter_month, filter_year=filter_year, start_date=start_date, end_date=end_date) }}">
                             <i class="fas fa-angle-double-left"></i>
                         </a>
                     </li>
@@ -718,7 +718,7 @@
                     <!-- Previous page -->
                     {% if pagination.has_prev %}
                     <li class="page-item">
-                        <a class="page-link" href="{{ url_for('view_bookings', page=pagination.prev_page, per_page=pagination.per_page, search_term=search_term, show_all='true' if show_all else '', sort_by=sort_by, order=order) }}">
+                        <a class="page-link" href="{{ url_for('view_bookings', page=pagination.prev_page, per_page=pagination.per_page, search_term=search_term, show_all='true' if show_all else '', sort_by=sort_by, order=order, filter_month=filter_month, filter_year=filter_year, start_date=start_date, end_date=end_date) }}">
                             <i class="fas fa-angle-left"></i> Trước
                         </a>
                     </li>
@@ -732,7 +732,7 @@
                     </li>
                     {% else %}
                     <li class="page-item">
-                        <a class="page-link" href="{{ url_for('view_bookings', page=page_num, per_page=pagination.per_page, search_term=search_term, show_all='true' if show_all else '', sort_by=sort_by, order=order) }}">
+                        <a class="page-link" href="{{ url_for('view_bookings', page=page_num, per_page=pagination.per_page, search_term=search_term, show_all='true' if show_all else '', sort_by=sort_by, order=order, filter_month=filter_month, filter_year=filter_year, start_date=start_date, end_date=end_date) }}">
                             {{ page_num }}
                         </a>
                     </li>
@@ -742,7 +742,7 @@
                     <!-- Next page -->
                     {% if pagination.has_next %}
                     <li class="page-item">
-                        <a class="page-link" href="{{ url_for('view_bookings', page=pagination.next_page, per_page=pagination.per_page, search_term=search_term, show_all='true' if show_all else '', sort_by=sort_by, order=order) }}">
+                        <a class="page-link" href="{{ url_for('view_bookings', page=pagination.next_page, per_page=pagination.per_page, search_term=search_term, show_all='true' if show_all else '', sort_by=sort_by, order=order, filter_month=filter_month, filter_year=filter_year, start_date=start_date, end_date=end_date) }}">
                             Sau <i class="fas fa-angle-right"></i>
                         </a>
                     </li>
@@ -751,7 +751,7 @@
                     <!-- Last page -->
                     {% if pagination.page < pagination.total_pages - 1 %}
                     <li class="page-item">
-                        <a class="page-link" href="{{ url_for('view_bookings', page=pagination.total_pages, per_page=pagination.per_page, search_term=search_term, show_all='true' if show_all else '', sort_by=sort_by, order=order) }}">
+                        <a class="page-link" href="{{ url_for('view_bookings', page=pagination.total_pages, per_page=pagination.per_page, search_term=search_term, show_all='true' if show_all else '', sort_by=sort_by, order=order, filter_month=filter_month, filter_year=filter_year, start_date=start_date, end_date=end_date) }}">
                             <i class="fas fa-angle-double-right"></i>
                         </a>
                     </li>
