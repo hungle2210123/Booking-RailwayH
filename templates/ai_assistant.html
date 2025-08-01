@@ -2960,6 +2960,40 @@
     
     console.log('🔧 ENHANCED TEST: All functionality added');
 
+    // ===== UTILITY FUNCTIONS =====
+    
+    // Simple toast notification function
+    function showToast(message, type = 'info') {
+        const colors = {
+            'success': 'bg-success',
+            'error': 'bg-danger',
+            'warning': 'bg-warning',
+            'info': 'bg-info'
+        };
+        
+        const toast = document.createElement('div');
+        toast.className = `position-fixed top-0 end-0 m-3 p-3 ${colors[type]} text-white rounded shadow`;
+        toast.style.zIndex = '9999';
+        toast.style.minWidth = '300px';
+        toast.innerHTML = `
+            <div class="d-flex align-items-center">
+                <div class="flex-grow-1">${message}</div>
+                <button type="button" class="btn-close btn-close-white ms-2" onclick="this.parentElement.parentElement.remove()"></button>
+            </div>
+        `;
+        
+        document.body.appendChild(toast);
+        
+        // Auto remove after 5 seconds
+        setTimeout(() => {
+            if (toast.parentElement) {
+                toast.style.transition = 'opacity 0.3s';
+                toast.style.opacity = '0';
+                setTimeout(() => toast.remove(), 300);
+            }
+        }, 5000);
+    }
+
     // ===== MULTI-IMAGE FUNCTIONALITY =====
     
     // Global variables for multi-image modal
@@ -3066,7 +3100,6 @@
         
         const formData = new FormData();
         formData.append('image', file);
-        formData.append('template_id', currentTemplateIdForImages);
         
         try {
             const response = await fetch(`/api/templates/${currentTemplateIdForImages}/images`, {
@@ -3082,7 +3115,11 @@
                 loadCurrentTemplateImages(currentTemplateIdForImages);
                 loadTemplateImages(currentTemplateIdForImages); // Refresh main gallery
             } else {
-                showToast(data.message || 'Không thể thêm hình ảnh', 'error');
+                if (data.migration_needed) {
+                    showToast('Database cần được migration. Vui lòng chạy migration trước!', 'warning');
+                } else {
+                    showToast(data.error || 'Không thể thêm hình ảnh', 'error');
+                }
             }
         } catch (error) {
             console.error('Error uploading image:', error);
@@ -3204,18 +3241,18 @@
         }
     });
     
-    // Modify the existing renderTemplates function to load images for each template
-    const originalRenderTemplates = window.renderTemplates;
-    window.renderTemplates = function(templates) {
-        // Call original function
-        if (originalRenderTemplates) {
-            originalRenderTemplates(templates);
-        }
+    // Enhance the existing renderTemplates function to load images
+    const originalRenderTemplates = renderTemplates;
+    renderTemplates = function() {
+        // Call original function (no parameters - it uses window.templates directly)
+        originalRenderTemplates();
         
-        // Load images for each template
-        templates.forEach(template => {
-            setTimeout(() => loadTemplateImages(template.id), 100);
-        });
+        // Load images for each template after rendering
+        if (window.templates && window.templates.length > 0) {
+            window.templates.forEach(template => {
+                setTimeout(() => loadTemplateImages(template.id), 100);
+            });
+        }
     };
 
 </script>

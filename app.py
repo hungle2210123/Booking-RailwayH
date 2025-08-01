@@ -5444,17 +5444,21 @@ def get_template_images(template_id):
         if not template:
             return jsonify({'success': False, 'error': 'Template not found'}), 404
         
-        # Get all images for this template
+        # Get all images for this template (with fallback if table doesn't exist)
         images = []
-        if template.images:
-            for img in template.images:
-                images.append({
-                    'id': img.image_id,
-                    'filename': img.image_filename,
-                    'url': f'/api/templates/images/serve/{img.image_filename}',
-                    'alt_text': img.alt_text,
-                    'order': img.image_order
-                })
+        try:
+            if template.images:
+                for img in template.images:
+                    images.append({
+                        'id': img.image_id,
+                        'filename': img.image_filename,
+                        'url': f'/api/templates/images/serve/{img.image_filename}',
+                        'alt_text': img.alt_text,
+                        'order': img.image_order
+                    })
+        except Exception as e:
+            print(f"Warning: Could not load template images, table might not exist: {e}")
+            # Return empty images array if table doesn't exist
         
         # Sort by order
         images.sort(key=lambda x: x['order'])
@@ -5480,8 +5484,12 @@ def add_template_images(template_id):
         if not template:
             return jsonify({'success': False, 'error': 'Template not found'}), 404
         
-        # Check how many images the template already has
-        current_image_count = len(template.images) if template.images else 0
+        # Check how many images the template already has (with fallback if table doesn't exist)
+        try:
+            current_image_count = len(template.images) if template.images else 0
+        except Exception as e:
+            print(f"Warning: template_images table might not exist: {e}")
+            current_image_count = 0
         
         # Get uploaded file (single image)
         if 'image' not in request.files:
@@ -5518,29 +5526,47 @@ def add_template_images(template_id):
         os.makedirs(os.path.dirname(full_path), exist_ok=True)
         file.save(full_path)
         
-        # Create database record
-        template_image = TemplateImage(
-            template_id=template_id,
-            image_path=upload_path,
-            image_filename=unique_filename,
-            image_order=current_image_count + 1
-        )
-        
-        db.session.add(template_image)
-        db.session.commit()
-        
-        print(f"📋 Template Images: Added image to template {template_id}")
-        
-        return jsonify({
-            'success': True,
-            'message': 'Successfully added image',
-            'image': {
-                'id': template_image.image_id,
-                'filename': unique_filename,
-                'url': f'/api/templates/images/serve/{unique_filename}',
-                'order': current_image_count + 1
-            }
-        })
+        # Create database record (with error handling for missing table)
+        try:
+            template_image = TemplateImage(
+                template_id=template_id,
+                image_path=upload_path,
+                image_filename=unique_filename,
+                image_order=current_image_count + 1
+            )
+            
+            db.session.add(template_image)
+            db.session.commit()
+            
+            print(f"📋 Template Images: Added image to template {template_id}")
+            
+            return jsonify({
+                'success': True,
+                'message': 'Successfully added image',
+                'image': {
+                    'id': template_image.image_id,
+                    'filename': unique_filename,
+                    'url': f'/api/templates/images/serve/{unique_filename}',
+                    'order': current_image_count + 1
+                }
+            })
+            
+        except Exception as db_error:
+            # If database operation fails, clean up the file
+            try:
+                if os.path.exists(full_path):
+                    os.remove(full_path)
+            except:
+                pass
+                
+            if 'template_images' in str(db_error).lower():
+                return jsonify({
+                    'success': False, 
+                    'error': 'Database not ready. Please run database migration first.',
+                    'migration_needed': True
+                }), 400
+            else:
+                raise db_error
         
     except Exception as e:
         print(f"Error adding template images: {e}")
