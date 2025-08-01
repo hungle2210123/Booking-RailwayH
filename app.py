@@ -4877,12 +4877,36 @@ def get_templates():
             # Use template_name as label (it should already be improved from import)
             label = template.template_name or 'Unnamed Template'
             
-            # Generate image URL if image exists
-            image_url = None
+            # Generate image URLs for multiple images
+            images = []
+            legacy_image_url = None
+            
+            # Check for new multi-image system
+            if hasattr(template, 'images') and template.images:
+                for img in sorted(template.images, key=lambda x: x.image_order):
+                    image_filename = os.path.basename(img.image_path)
+                    images.append({
+                        'id': img.image_id,
+                        'url': f'/api/templates/image/{image_filename}',
+                        'filename': img.image_filename,
+                        'order': img.image_order,
+                        'alt_text': img.alt_text
+                    })
+            
+            # Legacy single image support
             if template.image_path:
-                # Extract filename from path
                 image_filename = os.path.basename(template.image_path)
-                image_url = f'/api/templates/image/{image_filename}'
+                legacy_image_url = f'/api/templates/image/{image_filename}'
+                
+                # If no multi-images, create from legacy
+                if not images:
+                    images.append({
+                        'id': None,
+                        'url': legacy_image_url,
+                        'filename': image_filename,
+                        'order': 1,
+                        'alt_text': None
+                    })
             
             templates_data.append({
                 'Category': category,
@@ -4894,7 +4918,8 @@ def get_templates():
                 'content': template.template_content,
                 'id': template.template_id,
                 'image_path': template.image_path,
-                'image_url': image_url,
+                'image_url': legacy_image_url,  # Keep for backward compatibility
+                'images': images,  # New multi-image support
                 'created_at': template.created_at.isoformat() if template.created_at else None
             })
         
@@ -5407,6 +5432,123 @@ def serve_template_image(filename):
     except Exception as e:
         print(f"Error serving template image: {e}")
         return jsonify({'error': 'Image not found'}), 404
+
+@app.route('/api/templates/<template_id>/images', methods=['POST'])
+def add_template_images():
+    """Add multiple images to a template"""
+    try:
+        from core.models import MessageTemplate, TemplateImage, db
+        
+        template_id = request.form.get('template_id')
+        if not template_id:
+            return jsonify({'success': False, 'error': 'Template ID required'}), 400
+        
+        # Find the template
+        template = MessageTemplate.query.get(template_id)
+        if not template:
+            return jsonify({'success': False, 'error': 'Template not found'}), 404
+        
+        # Check how many images the template already has
+        current_image_count = len(template.images) if template.images else 0
+        
+        # Get uploaded files
+        uploaded_files = request.files.getlist('images')
+        if not uploaded_files or all(f.filename == '' for f in uploaded_files):
+            return jsonify({'success': False, 'error': 'No images provided'}), 400
+        
+        # Limit to 3 images total
+        max_images = 3
+        if current_image_count + len(uploaded_files) > max_images:
+            return jsonify({
+                'success': False, 
+                'error': f'Maximum {max_images} images allowed per template. Currently have {current_image_count}.'
+            }), 400
+        
+        saved_images = []
+        
+        for i, file in enumerate(uploaded_files):
+            if file.filename == '':
+                continue
+                
+            # Check file extension
+            allowed_extensions = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
+            if not ('.' in file.filename and file.filename.rsplit('.', 1)[1].lower() in allowed_extensions):
+                continue
+            
+            # Generate secure filename
+            filename = secure_filename(file.filename)
+            timestamp = int(time.time())
+            name, ext = os.path.splitext(filename)
+            unique_filename = f"template_{template_id}_{timestamp}_{i}_{name}{ext}"
+            
+            # Save file
+            upload_path = os.path.join('static', 'images', 'templates', unique_filename)
+            full_path = os.path.join(os.getcwd(), upload_path)
+            
+            # Ensure directory exists
+            os.makedirs(os.path.dirname(full_path), exist_ok=True)
+            file.save(full_path)
+            
+            # Create database record
+            template_image = TemplateImage(
+                template_id=template_id,
+                image_path=upload_path,
+                image_filename=unique_filename,
+                image_order=current_image_count + i + 1
+            )
+            
+            db.session.add(template_image)
+            saved_images.append({
+                'filename': unique_filename,
+                'path': upload_path,
+                'order': current_image_count + i + 1
+            })
+        
+        db.session.commit()
+        
+        print(f"📋 Template Images: Added {len(saved_images)} images to template {template_id}")
+        
+        return jsonify({
+            'success': True,
+            'message': f'Successfully added {len(saved_images)} images',
+            'images': saved_images
+        })
+        
+    except Exception as e:
+        print(f"Error adding template images: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/templates/images/<image_id>', methods=['DELETE'])
+def delete_template_image(image_id):
+    """Delete a specific template image"""
+    try:
+        from core.models import TemplateImage, db
+        
+        # Find the image
+        template_image = TemplateImage.query.get(image_id)
+        if not template_image:
+            return jsonify({'success': False, 'error': 'Image not found'}), 404
+        
+        # Delete file from filesystem
+        try:
+            full_path = os.path.join(os.getcwd(), template_image.image_path)
+            if os.path.exists(full_path):
+                os.remove(full_path)
+        except Exception as e:
+            print(f"Warning: Could not delete file {template_image.image_path}: {e}")
+        
+        # Delete from database
+        db.session.delete(template_image)
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Image deleted successfully'
+        })
+        
+    except Exception as e:
+        print(f"Error deleting template image: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/migrate')
 def migration_tool():

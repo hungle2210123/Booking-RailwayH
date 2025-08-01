@@ -871,6 +871,86 @@
         color: #198754 !important;
         font-weight: 500;
     }
+
+    /* Multi-image gallery styles */
+    .template-images-gallery .image-gallery-item {
+        border-radius: 8px;
+        overflow: hidden;
+        transition: transform 0.2s ease;
+        background: white;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .template-images-gallery .image-gallery-item:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+
+    .image-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: linear-gradient(135deg, rgba(0,0,0,0.3) 0%, rgba(0,0,0,0.1) 100%);
+        opacity: 0;
+        transition: opacity 0.3s ease;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        padding: 8px;
+    }
+
+    .image-gallery-item:hover .image-overlay {
+        opacity: 1;
+    }
+
+    .image-counter {
+        color: white;
+        background: rgba(0,0,0,0.7);
+        padding: 2px 6px;
+        border-radius: 12px;
+        font-size: 11px;
+        font-weight: 600;
+        align-self: flex-start;
+    }
+
+    .image-actions {
+        display: flex;
+        gap: 4px;
+        justify-content: center;
+    }
+
+    .image-actions .btn {
+        padding: 4px 6px;
+        font-size: 11px;
+        border: none;
+        border-radius: 4px;
+        opacity: 0.9;
+    }
+
+    .image-actions .btn:hover {
+        opacity: 1;
+        transform: scale(1.1);
+    }
+
+    .template-empty-images {
+        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+        border: 2px dashed #dee2e6;
+        transition: all 0.3s ease;
+    }
+
+    .template-empty-images:hover {
+        border-color: #0d6efd;
+        background: linear-gradient(135deg, #e7f3ff 0%, #cce7ff 100%);
+    }
+
+    .btn-xs {
+        padding: 2px 4px;
+        font-size: 10px;
+        line-height: 1.2;
+        border-radius: 3px;
+    }
     
     @keyframes fadeInUp {
         from {
@@ -2414,48 +2494,73 @@
                                     </p>
                                 </div>
                                 
-                                <!-- Template Image Section -->
+                                <!-- Template Images Gallery Section -->
                                 <div class="mb-3">
                                     <div class="d-flex justify-content-between align-items-center mb-2">
                                         <small class="text-muted fw-bold">
-                                            <i class="fas fa-image me-1"></i>Hình ảnh đính kèm:
+                                            <i class="fas fa-images me-1"></i>Hình ảnh đính kèm:
+                                            ${template.images && template.images.length > 0 ? 
+                                                \`<span class="badge bg-info ms-1">\${template.images.length}</span>\` : ''}
                                         </small>
-                                        ${!template.image_url ? `
-                                        <button class="btn btn-sm btn-outline-primary" onclick="showAddImageModal('${templateId}', '${templateLabel}')" title="Add image to this template">
-                                            <i class="fas fa-plus me-1"></i> Thêm hình ảnh
-                                        </button>
-                                        ` : ''}
-                                    </div>
-                                    
-                                    ${template.image_url ? `
-                                    <div class="template-image-container" style="max-width: 300px;">
-                                        <img src="${template.image_url}" 
-                                             class="img-thumbnail template-image" 
-                                             style="max-width: 100%; max-height: 200px; cursor: pointer;" 
-                                             onclick="showImageModal('${template.image_url}', '${templateLabel}')"
-                                             alt="Template Image"
-                                             title="Click to view full size">
-                                        <div class="mt-2">
-                                            <button class="btn btn-sm btn-outline-success" onclick="copyImageToClipboard('${template.image_url}', '${templateLabel}')" title="Copy image to clipboard">
-                                                <i class="fas fa-copy"></i> Copy Image
-                                            </button>
-                                            <button class="btn btn-sm btn-outline-info" onclick="downloadImage('${template.image_url}', '${templateLabel}')" title="Download image">
-                                                <i class="fas fa-download"></i> Download
-                                            </button>
-                                            <button class="btn btn-sm btn-outline-warning" onclick="showAddImageModal('${templateId}', '${templateLabel}')" title="Replace image">
-                                                <i class="fas fa-edit"></i> Replace
-                                            </button>
+                                        <div class="btn-group">
+                                            ${(!template.images || template.images.length < 3) ? 
+                                                \`<button class="btn btn-sm btn-outline-primary" onclick="showMultiImageModal('\${templateId}', '\${templateLabel}')" title="Add more images (max 3 total)">
+                                                    <i class="fas fa-plus me-1"></i> Thêm ảnh
+                                                </button>\` : ''}
                                         </div>
                                     </div>
-                                    ` : `
-                                    <div class="text-center py-3 border rounded bg-light">
-                                        <i class="fas fa-image text-muted mb-2" style="font-size: 2rem;"></i>
-                                        <p class="text-muted small mb-2">Chưa có hình ảnh đính kèm</p>
-                                        <button class="btn btn-sm btn-primary" onclick="showAddImageModal('${templateId}', '${templateLabel}')">
-                                            <i class="fas fa-plus me-1"></i> Thêm hình ảnh
-                                        </button>
-                                    </div>
-                                    `}
+                                    
+                                    ${template.images && template.images.length > 0 ? 
+                                        \`<!-- Image Gallery Grid -->
+                                        <div class="template-images-gallery">
+                                            <div class="row g-2">
+                                                \${template.images.map((img, index) => \`
+                                                <div class="col-md-4">
+                                                    <div class="image-gallery-item position-relative">
+                                                        <img src="\${img.url}" 
+                                                             class="img-thumbnail template-gallery-image" 
+                                                             style="width: 100%; height: 120px; object-fit: cover; cursor: pointer;" 
+                                                             onclick="showImageModal('\${img.url}', '\${templateLabel} - Image \${index + 1}')"
+                                                             alt="Template Image \${index + 1}"
+                                                             title="Click to view full size">
+                                                        <div class="image-overlay">
+                                                            <small class="image-counter">\${index + 1}</small>
+                                                            <div class="image-actions">
+                                                                <button class="btn btn-xs btn-success" onclick="copyImageToClipboard('\${img.url}', '\${templateLabel}')" title="Copy">
+                                                                    <i class="fas fa-copy"></i>
+                                                                </button>
+                                                                <button class="btn btn-xs btn-info" onclick="downloadImage('\${img.url}', '\${templateLabel}_\${index + 1}')" title="Download">
+                                                                    <i class="fas fa-download"></i>
+                                                                </button>
+                                                                \${img.id ? \`
+                                                                <button class="btn btn-xs btn-danger" onclick="deleteTemplateImage('\${img.id}', '\${templateId}')" title="Delete">
+                                                                    <i class="fas fa-times"></i>
+                                                                </button>
+                                                                \` : ''}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                \`).join('')}
+                                            </div>
+                                            <div class="mt-2 text-center">
+                                                <small class="text-muted">
+                                                    <i class="fas fa-info-circle me-1"></i>
+                                                    \${template.images.length} / 3 hình ảnh. Click vào ảnh để xem full size.
+                                                </small>
+                                            </div>
+                                        </div>\` : 
+                                        \`<!-- Empty State -->
+                                        <div class="text-center py-4 border rounded bg-light template-empty-images">
+                                            <i class="fas fa-images text-muted mb-2" style="font-size: 2.5rem;"></i>
+                                            <p class="text-muted mb-3">Chưa có hình ảnh đính kèm</p>
+                                            <button class="btn btn-primary" onclick="showMultiImageModal('\${templateId}', '\${templateLabel}')">
+                                                <i class="fas fa-plus me-2"></i> Thêm hình ảnh (tối đa 3)
+                                            </button>
+                                            <div class="mt-2">
+                                                <small class="text-muted">Hỗ trợ: PNG, JPG, JPEG, GIF, WEBP</small>
+                                            </div>
+                                        </div>\`}
                                 </div>
                                 
                                 <!-- Action Buttons -->

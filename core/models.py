@@ -315,7 +315,10 @@ class MessageTemplate(db.Model):
     
     # Content
     template_content = Column(Text, nullable=False)
-    image_path = Column(String(500), nullable=True)  # Path to uploaded image
+    image_path = Column(String(500), nullable=True)  # Legacy single image support
+    
+    # Relationships
+    images = relationship("TemplateImage", back_populates="template", cascade="all, delete-orphan")
     
     # Audit fields
     created_at = Column(DateTime, default=func.current_timestamp())
@@ -332,6 +335,43 @@ class MessageTemplate(db.Model):
             'category': self.category,
             'template_content': self.template_content,
             'image_path': self.image_path,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None
+        }
+
+# =====================================================
+# TEMPLATE_IMAGES TABLE - Multiple images per template
+# =====================================================
+class TemplateImage(db.Model):
+    __tablename__ = 'template_images'
+    
+    image_id = Column(Integer, primary_key=True, autoincrement=True)
+    template_id = Column(Integer, ForeignKey('message_templates.template_id', ondelete='CASCADE'), nullable=False)
+    
+    # Image details
+    image_path = Column(String(500), nullable=False)
+    image_filename = Column(String(255), nullable=False)
+    image_order = Column(Integer, default=1)  # For ordering multiple images
+    alt_text = Column(String(255), nullable=True)  # Optional description
+    
+    # Audit fields
+    created_at = Column(DateTime, default=func.current_timestamp())
+    updated_at = Column(DateTime, default=func.current_timestamp(), onupdate=func.current_timestamp())
+    
+    # Relationships
+    template = relationship("MessageTemplate", back_populates="images")
+    
+    def __repr__(self):
+        return f"<TemplateImage {self.image_id}: {self.image_filename}>"
+    
+    def to_dict(self):
+        return {
+            'image_id': self.image_id,
+            'template_id': self.template_id,
+            'image_path': self.image_path,
+            'image_filename': self.image_filename,
+            'image_order': self.image_order,
+            'alt_text': self.alt_text,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None
         }
