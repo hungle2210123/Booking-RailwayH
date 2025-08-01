@@ -5433,15 +5433,47 @@ def serve_template_image(filename):
         print(f"Error serving template image: {e}")
         return jsonify({'error': 'Image not found'}), 404
 
+@app.route('/api/templates/<template_id>/images', methods=['GET'])
+def get_template_images(template_id):
+    """Get all images for a template"""
+    try:
+        from core.models import MessageTemplate, TemplateImage
+        
+        # Find the template
+        template = MessageTemplate.query.get(template_id)
+        if not template:
+            return jsonify({'success': False, 'error': 'Template not found'}), 404
+        
+        # Get all images for this template
+        images = []
+        if template.images:
+            for img in template.images:
+                images.append({
+                    'id': img.image_id,
+                    'filename': img.image_filename,
+                    'url': f'/api/templates/images/serve/{img.image_filename}',
+                    'alt_text': img.alt_text,
+                    'order': img.image_order
+                })
+        
+        # Sort by order
+        images.sort(key=lambda x: x['order'])
+        
+        return jsonify({
+            'success': True,
+            'images': images,
+            'count': len(images)
+        })
+        
+    except Exception as e:
+        print(f"Error getting template images: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 @app.route('/api/templates/<template_id>/images', methods=['POST'])
-def add_template_images():
-    """Add multiple images to a template"""
+def add_template_images(template_id):
+    """Add a single image to a template"""
     try:
         from core.models import MessageTemplate, TemplateImage, db
-        
-        template_id = request.form.get('template_id')
-        if not template_id:
-            return jsonify({'success': False, 'error': 'Template ID required'}), 400
         
         # Find the template
         template = MessageTemplate.query.get(template_id)
@@ -5451,67 +5483,63 @@ def add_template_images():
         # Check how many images the template already has
         current_image_count = len(template.images) if template.images else 0
         
-        # Get uploaded files
-        uploaded_files = request.files.getlist('images')
-        if not uploaded_files or all(f.filename == '' for f in uploaded_files):
-            return jsonify({'success': False, 'error': 'No images provided'}), 400
+        # Get uploaded file (single image)
+        if 'image' not in request.files:
+            return jsonify({'success': False, 'error': 'No image file provided'}), 400
+        
+        file = request.files['image']
+        if file.filename == '':
+            return jsonify({'success': False, 'error': 'No image selected'}), 400
         
         # Limit to 3 images total
         max_images = 3
-        if current_image_count + len(uploaded_files) > max_images:
+        if current_image_count >= max_images:
             return jsonify({
                 'success': False, 
                 'error': f'Maximum {max_images} images allowed per template. Currently have {current_image_count}.'
             }), 400
         
-        saved_images = []
+        # Check file extension
+        allowed_extensions = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
+        if not ('.' in file.filename and file.filename.rsplit('.', 1)[1].lower() in allowed_extensions):
+            return jsonify({'success': False, 'error': 'Invalid file type. Allowed: PNG, JPG, JPEG, GIF, WEBP'}), 400
         
-        for i, file in enumerate(uploaded_files):
-            if file.filename == '':
-                continue
-                
-            # Check file extension
-            allowed_extensions = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
-            if not ('.' in file.filename and file.filename.rsplit('.', 1)[1].lower() in allowed_extensions):
-                continue
-            
-            # Generate secure filename
-            filename = secure_filename(file.filename)
-            timestamp = int(time.time())
-            name, ext = os.path.splitext(filename)
-            unique_filename = f"template_{template_id}_{timestamp}_{i}_{name}{ext}"
-            
-            # Save file
-            upload_path = os.path.join('static', 'images', 'templates', unique_filename)
-            full_path = os.path.join(os.getcwd(), upload_path)
-            
-            # Ensure directory exists
-            os.makedirs(os.path.dirname(full_path), exist_ok=True)
-            file.save(full_path)
-            
-            # Create database record
-            template_image = TemplateImage(
-                template_id=template_id,
-                image_path=upload_path,
-                image_filename=unique_filename,
-                image_order=current_image_count + i + 1
-            )
-            
-            db.session.add(template_image)
-            saved_images.append({
-                'filename': unique_filename,
-                'path': upload_path,
-                'order': current_image_count + i + 1
-            })
+        # Generate secure filename
+        filename = secure_filename(file.filename)
+        timestamp = int(time.time())
+        name, ext = os.path.splitext(filename)
+        unique_filename = f"template_{template_id}_{timestamp}_{name}{ext}"
         
+        # Save file
+        upload_path = os.path.join('static', 'images', 'templates', unique_filename)
+        full_path = os.path.join(os.getcwd(), upload_path)
+        
+        # Ensure directory exists
+        os.makedirs(os.path.dirname(full_path), exist_ok=True)
+        file.save(full_path)
+        
+        # Create database record
+        template_image = TemplateImage(
+            template_id=template_id,
+            image_path=upload_path,
+            image_filename=unique_filename,
+            image_order=current_image_count + 1
+        )
+        
+        db.session.add(template_image)
         db.session.commit()
         
-        print(f"📋 Template Images: Added {len(saved_images)} images to template {template_id}")
+        print(f"📋 Template Images: Added image to template {template_id}")
         
         return jsonify({
             'success': True,
-            'message': f'Successfully added {len(saved_images)} images',
-            'images': saved_images
+            'message': 'Successfully added image',
+            'image': {
+                'id': template_image.image_id,
+                'filename': unique_filename,
+                'url': f'/api/templates/images/serve/{unique_filename}',
+                'order': current_image_count + 1
+            }
         })
         
     except Exception as e:
@@ -5557,48 +5585,67 @@ def migration_tool():
 
 @app.route('/api/migrate_database', methods=['POST'])
 def migrate_database():
-    """Temporary route to add missing image_path column to message_templates table"""
+    """Enhanced migration route for multi-image functionality"""
     try:
         from core.models import db
         from sqlalchemy import text
         
-        # Check if column already exists
-        check_sql = """
+        migration_results = []
+        
+        # 1. Check and add image_path column to message_templates table
+        check_column_sql = """
         SELECT column_name 
         FROM information_schema.columns 
         WHERE table_name = 'message_templates' 
         AND column_name = 'image_path';
         """
         
-        result = db.session.execute(text(check_sql)).fetchone()
+        result = db.session.execute(text(check_column_sql)).fetchone()
         
-        if result:
-            return jsonify({
-                'success': True,
-                'message': 'Column image_path already exists in message_templates table',
-                'action': 'no_action_needed'
-            })
+        if not result:
+            # Add the missing column
+            alter_sql = "ALTER TABLE message_templates ADD COLUMN image_path VARCHAR(500);"
+            db.session.execute(text(alter_sql))
+            migration_results.append("Added image_path column to message_templates")
+        else:
+            migration_results.append("image_path column already exists")
         
-        # Add the missing column
-        alter_sql = "ALTER TABLE message_templates ADD COLUMN image_path VARCHAR(500);"
-        db.session.execute(text(alter_sql))
+        # 2. Check and create template_images table
+        check_table_sql = """
+        SELECT table_name 
+        FROM information_schema.tables 
+        WHERE table_name = 'template_images';
+        """
+        
+        table_result = db.session.execute(text(check_table_sql)).fetchone()
+        
+        if not table_result:
+            # Create template_images table
+            create_table_sql = """
+            CREATE TABLE template_images (
+                image_id SERIAL PRIMARY KEY,
+                template_id INTEGER NOT NULL,
+                image_path VARCHAR(500) NOT NULL,
+                image_filename VARCHAR(255) NOT NULL,
+                image_order INTEGER DEFAULT 1,
+                alt_text VARCHAR(255),
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (template_id) REFERENCES message_templates(template_id) ON DELETE CASCADE
+            );
+            """
+            db.session.execute(text(create_table_sql))
+            migration_results.append("Created template_images table")
+        else:
+            migration_results.append("template_images table already exists")
+        
         db.session.commit()
         
-        # Verify the column was added
-        verify_result = db.session.execute(text(check_sql)).fetchone()
-        
-        if verify_result:
-            return jsonify({
-                'success': True,
-                'message': 'Successfully added image_path column to message_templates table',
-                'action': 'column_added'
-            })
-        else:
-            return jsonify({
-                'success': False,
-                'message': 'Failed to verify column addition',
-                'action': 'verification_failed'
-            })
+        return jsonify({
+            'success': True,
+            'message': 'Database migration completed successfully',
+            'results': migration_results
+        })
             
     except Exception as e:
         db.session.rollback()

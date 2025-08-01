@@ -730,6 +730,78 @@
     </div>
 </div>
 
+<!-- Multi-Image Upload Modal -->
+<div class="modal fade" id="multiImageModal" tabindex="-1" aria-labelledby="multiImageModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title" id="multiImageModalLabel">
+                    <i class="fas fa-images me-2"></i>Quản lý hình ảnh (2-3 ảnh)
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle me-2"></i>
+                    <strong id="multiImageTemplateName"></strong> - Bạn có thể thêm 2-3 hình ảnh cho template này
+                </div>
+                
+                <!-- Current Images Display -->
+                <div id="currentImagesContainer" class="mb-4">
+                    <h6 class="fw-bold">
+                        <i class="fas fa-images me-2"></i>Hình ảnh hiện tại:
+                    </h6>
+                    <div id="currentImagesList" class="row g-2">
+                        <!-- Will be populated by JavaScript -->
+                    </div>
+                </div>
+                
+                <!-- Upload New Image -->
+                <div class="upload-section">
+                    <h6 class="fw-bold">
+                        <i class="fas fa-plus me-2"></i>Thêm hình ảnh mới:
+                    </h6>
+                    <div class="d-flex gap-2 mb-3">
+                        <button type="button" class="btn btn-outline-primary" onclick="triggerMultiImageUpload()">
+                            <i class="fas fa-upload me-1"></i> Chọn hình ảnh
+                        </button>
+                        <button type="button" class="btn btn-outline-success" onclick="triggerMultiCameraUpload()">
+                            <i class="fas fa-camera me-1"></i> Chụp ảnh
+                        </button>
+                    </div>
+                    
+                    <input type="file" class="d-none" id="multiImageUpload" accept="image/*">
+                    <input type="file" class="d-none" id="multiCameraUpload" accept="image/*" capture="camera">
+                    
+                    <div id="newImagePreview" style="display: none;" class="mt-3">
+                        <div class="card">
+                            <div class="card-body">
+                                <div class="d-flex align-items-center gap-3">
+                                    <img id="newImagePreviewImg" class="img-thumbnail" style="max-width: 100px; max-height: 100px;" alt="Preview">
+                                    <div>
+                                        <div class="text-success small mb-2">
+                                            <i class="fas fa-check-circle me-1"></i>Hình ảnh đã được chọn
+                                        </div>
+                                        <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeNewImagePreview()">
+                                            <i class="fas fa-times me-1"></i> Xóa
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Đóng</button>
+                <button type="button" class="btn btn-success" onclick="uploadNewImageToTemplate()" id="uploadNewImageBtn" disabled>
+                    <i class="fas fa-upload"></i> Thêm hình ảnh
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 {% endblock %}
 
 {% block head_extra %}
@@ -1173,6 +1245,76 @@
     .nav-pills .nav-link:not(.active):hover {
         background: rgba(102, 126, 234, 0.1);
         transform: translateY(-1px);
+    }
+
+    /* Multi-Image Gallery Styles */
+    .template-images-container {
+        min-height: 50px;
+    }
+    
+    .template-images-gallery {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        padding: 10px;
+        background-color: #f8f9fa;
+        border-radius: 8px;
+        border: 1px solid #dee2e6;
+    }
+    
+    .template-image-item {
+        position: relative;
+        border-radius: 8px;
+        overflow: hidden;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        transition: transform 0.2s ease;
+    }
+    
+    .template-image-item:hover {
+        transform: scale(1.05);
+    }
+    
+    .template-image-item img {
+        width: 80px;
+        height: 80px;
+        object-fit: cover;
+        cursor: pointer;
+    }
+    
+    .template-image-delete {
+        position: absolute;
+        top: -8px;
+        right: -8px;
+        background: #dc3545;
+        color: white;
+        border: none;
+        border-radius: 50%;
+        width: 20px;
+        height: 20px;
+        font-size: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        z-index: 10;
+    }
+    
+    .template-image-delete:hover {
+        background: #c82333;
+    }
+    
+    .template-empty-images {
+        text-align: center;
+        padding: 20px;
+        color: #6c757d;
+        border: 2px dashed #dee2e6;
+        border-radius: 8px;
+        background: #f8f9fa;
+    }
+    
+    .template-empty-images:hover {
+        border-color: #007bff;
+        background: #e7f3ff;
     }
 
     /* Mobile optimizations */
@@ -2499,68 +2641,16 @@
                                     <div class="d-flex justify-content-between align-items-center mb-2">
                                         <small class="text-muted fw-bold">
                                             <i class="fas fa-images me-1"></i>Hình ảnh đính kèm:
-                                            ${template.images && template.images.length > 0 ? 
-                                                \`<span class="badge bg-info ms-1">\${template.images.length}</span>\` : ''}
                                         </small>
-                                        <div class="btn-group">
-                                            ${(!template.images || template.images.length < 3) ? 
-                                                \`<button class="btn btn-sm btn-outline-primary" onclick="showMultiImageModal('\${templateId}', '\${templateLabel}')" title="Add more images (max 3 total)">
-                                                    <i class="fas fa-plus me-1"></i> Thêm ảnh
-                                                </button>\` : ''}
-                                        </div>
+                                        <button class="btn btn-sm btn-outline-primary" onclick="showMultiImageModal('${templateId}')" title="Add images to this template" data-template-name="${templateLabel.replace(/'/g, '&#39;').replace(/"/g, '&quot;')}">
+                                            <i class="fas fa-plus me-1"></i> Thêm ảnh
+                                        </button>
                                     </div>
                                     
-                                    ${template.images && template.images.length > 0 ? 
-                                        \`<!-- Image Gallery Grid -->
-                                        <div class="template-images-gallery">
-                                            <div class="row g-2">
-                                                \${template.images.map((img, index) => \`
-                                                <div class="col-md-4">
-                                                    <div class="image-gallery-item position-relative">
-                                                        <img src="\${img.url}" 
-                                                             class="img-thumbnail template-gallery-image" 
-                                                             style="width: 100%; height: 120px; object-fit: cover; cursor: pointer;" 
-                                                             onclick="showImageModal('\${img.url}', '\${templateLabel} - Image \${index + 1}')"
-                                                             alt="Template Image \${index + 1}"
-                                                             title="Click to view full size">
-                                                        <div class="image-overlay">
-                                                            <small class="image-counter">\${index + 1}</small>
-                                                            <div class="image-actions">
-                                                                <button class="btn btn-xs btn-success" onclick="copyImageToClipboard('\${img.url}', '\${templateLabel}')" title="Copy">
-                                                                    <i class="fas fa-copy"></i>
-                                                                </button>
-                                                                <button class="btn btn-xs btn-info" onclick="downloadImage('\${img.url}', '\${templateLabel}_\${index + 1}')" title="Download">
-                                                                    <i class="fas fa-download"></i>
-                                                                </button>
-                                                                \${img.id ? \`
-                                                                <button class="btn btn-xs btn-danger" onclick="deleteTemplateImage('\${img.id}', '\${templateId}')" title="Delete">
-                                                                    <i class="fas fa-times"></i>
-                                                                </button>
-                                                                \` : ''}
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                                \`).join('')}
-                                            </div>
-                                            <div class="mt-2 text-center">
-                                                <small class="text-muted">
-                                                    <i class="fas fa-info-circle me-1"></i>
-                                                    \${template.images.length} / 3 hình ảnh. Click vào ảnh để xem full size.
-                                                </small>
-                                            </div>
-                                        </div>\` : 
-                                        \`<!-- Empty State -->
-                                        <div class="text-center py-4 border rounded bg-light template-empty-images">
-                                            <i class="fas fa-images text-muted mb-2" style="font-size: 2.5rem;"></i>
-                                            <p class="text-muted mb-3">Chưa có hình ảnh đính kèm</p>
-                                            <button class="btn btn-primary" onclick="showMultiImageModal('\${templateId}', '\${templateLabel}')">
-                                                <i class="fas fa-plus me-2"></i> Thêm hình ảnh (tối đa 3)
-                                            </button>
-                                            <div class="mt-2">
-                                                <small class="text-muted">Hỗ trợ: PNG, JPG, JPEG, GIF, WEBP</small>
-                                            </div>
-                                        </div>\`}
+                                    <!-- Multi-image gallery container -->
+                                    <div id="template-images-${templateId}" class="template-images-container mt-2">
+                                        <!-- Will be populated by loadTemplateImages() -->
+                                    </div>
                                 </div>
                                 
                                 <!-- Action Buttons -->
@@ -2571,7 +2661,7 @@
                                     <button class="btn btn-sm btn-outline-info" onclick="previewTemplate('${templateId}')" title="Preview full content">
                                         <i class="fas fa-eye"></i> Preview
                                     </button>
-                                    <button class="btn btn-sm btn-outline-danger" onclick="deleteTemplate('${templateId}')" data-template-name="${templateLabel}" title="Delete this template">
+                                    <button class="btn btn-sm btn-outline-danger" onclick="deleteTemplate('${templateId}')" data-template-name="${templateLabel.replace(/'/g, '&#39;').replace(/"/g, '&quot;')}" title="Delete this template">
                                         <i class="fas fa-trash"></i> Delete
                                     </button>
                                 </div>
@@ -2869,6 +2959,264 @@
     });
     
     console.log('🔧 ENHANCED TEST: All functionality added');
+
+    // ===== MULTI-IMAGE FUNCTIONALITY =====
+    
+    // Global variables for multi-image modal
+    let currentTemplateIdForImages = null;
+    
+    // Show multi-image modal
+    window.showMultiImageModal = function(templateId) {
+        console.log('showMultiImageModal called with ID:', templateId);
+        currentTemplateIdForImages = templateId;
+        
+        const template = window.templates.find(t => t.id == templateId);
+        if (!template) {
+            console.error('Template not found:', templateId);
+            return;
+        }
+        
+        // Set template name in modal
+        document.getElementById('multiImageTemplateName').textContent = template.label;
+        
+        // Load current images
+        loadCurrentTemplateImages(templateId);
+        
+        // Show modal
+        const modal = new bootstrap.Modal(document.getElementById('multiImageModal'));
+        modal.show();
+    };
+    
+    // Load current images for template
+    async function loadCurrentTemplateImages(templateId) {
+        try {
+            const response = await fetch(`/api/templates/${templateId}/images`);
+            const data = await response.json();
+            
+            const container = document.getElementById('currentImagesList');
+            
+            if (data.success && data.images && data.images.length > 0) {
+                let html = '';
+                data.images.forEach((image, index) => {
+                    html += `
+                        <div class="col-md-4">
+                            <div class="template-image-item">
+                                <img src="${image.url}" alt="Template Image ${index + 1}" 
+                                     onclick="showImageModal('${image.url}', 'Template Image')" 
+                                     class="img-fluid">
+                                <button class="template-image-delete" 
+                                        onclick="deleteTemplateImage(${image.id})"
+                                        title="Xóa hình ảnh này">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                });
+                container.innerHTML = html;
+            } else {
+                container.innerHTML = `
+                    <div class="col-12">
+                        <div class="template-empty-images">
+                            <i class="fas fa-images text-muted mb-2" style="font-size: 2rem;"></i>
+                            <p class="mb-0 text-muted">Chưa có hình ảnh nào</p>
+                        </div>
+                    </div>
+                `;
+            }
+        } catch (error) {
+            console.error('Error loading template images:', error);
+            showToast('Không thể tải hình ảnh template', 'error');
+        }
+    }
+    
+    // Trigger image upload
+    window.triggerMultiImageUpload = function() {
+        document.getElementById('multiImageUpload').click();
+    };
+    
+    // Trigger camera upload
+    window.triggerMultiCameraUpload = function() {
+        document.getElementById('multiCameraUpload').click();
+    };
+    
+    // Remove new image preview
+    window.removeNewImagePreview = function() {
+        document.getElementById('newImagePreview').style.display = 'none';
+        document.getElementById('multiImageUpload').value = '';
+        document.getElementById('multiCameraUpload').value = '';
+        document.getElementById('uploadNewImageBtn').disabled = true;
+    };
+    
+    // Upload new image to template
+    window.uploadNewImageToTemplate = async function() {
+        if (!currentTemplateIdForImages) {
+            showToast('Lỗi: Không xác định được template', 'error');
+            return;
+        }
+        
+        const fileInput = document.getElementById('multiImageUpload');
+        const cameraInput = document.getElementById('multiCameraUpload');
+        const file = fileInput.files[0] || cameraInput.files[0];
+        
+        if (!file) {
+            showToast('Vui lòng chọn hình ảnh', 'warning');
+            return;
+        }
+        
+        const formData = new FormData();
+        formData.append('image', file);
+        formData.append('template_id', currentTemplateIdForImages);
+        
+        try {
+            const response = await fetch(`/api/templates/${currentTemplateIdForImages}/images`, {
+                method: 'POST',
+                body: formData
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                showToast('Thêm hình ảnh thành công!', 'success');
+                removeNewImagePreview();
+                loadCurrentTemplateImages(currentTemplateIdForImages);
+                loadTemplateImages(currentTemplateIdForImages); // Refresh main gallery
+            } else {
+                showToast(data.message || 'Không thể thêm hình ảnh', 'error');
+            }
+        } catch (error) {
+            console.error('Error uploading image:', error);
+            showToast('Lỗi khi tải hình ảnh lên', 'error');
+        }
+    };
+    
+    // Delete template image
+    window.deleteTemplateImage = async function(imageId) {
+        if (!confirm('Bạn có chắc chắn muốn xóa hình ảnh này?')) {
+            return;
+        }
+        
+        try {
+            const response = await fetch(`/api/templates/images/${imageId}`, {
+                method: 'DELETE'
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                showToast('Đã xóa hình ảnh', 'success');
+                loadCurrentTemplateImages(currentTemplateIdForImages);
+                loadTemplateImages(currentTemplateIdForImages); // Refresh main gallery
+            } else {
+                showToast(data.message || 'Không thể xóa hình ảnh', 'error');
+            }
+        } catch (error) {
+            console.error('Error deleting image:', error);
+            showToast('Lỗi khi xóa hình ảnh', 'error');
+        }
+    };
+    
+    // Load template images for main gallery display
+    async function loadTemplateImages(templateId) {
+        try {
+            const response = await fetch(`/api/templates/${templateId}/images`);
+            const data = await response.json();
+            
+            const container = document.getElementById(`template-images-${templateId}`);
+            if (!container) return;
+            
+            if (data.success && data.images && data.images.length > 0) {
+                let html = '<div class="template-images-gallery">';
+                data.images.forEach((image, index) => {
+                    html += `
+                        <div class="template-image-item">
+                            <img src="${image.url}" alt="Image ${index + 1}" 
+                                 onclick="showImageModal('${image.url}', 'Template Image')" 
+                                 title="Click để xem chi tiết">
+                        </div>
+                    `;
+                });
+                html += '</div>';
+                container.innerHTML = html;
+            } else {
+                container.innerHTML = `
+                    <div class="template-empty-images" onclick="showMultiImageModal('${templateId}')">
+                        <i class="fas fa-plus-circle text-muted mb-2" style="font-size: 1.5rem;"></i>
+                        <p class="mb-0 text-muted small">Click để thêm hình ảnh</p>
+                    </div>
+                `;
+            }
+        } catch (error) {
+            console.error('Error loading template images:', error);
+            const container = document.getElementById(`template-images-${templateId}`);
+            if (container) {
+                container.innerHTML = `
+                    <div class="template-empty-images">
+                        <i class="fas fa-exclamation-triangle text-warning mb-2" style="font-size: 1.5rem;"></i>
+                        <p class="mb-0 text-muted small">Lỗi tải hình ảnh</p>
+                    </div>
+                `;
+            }
+        }
+    }
+    
+    // Setup file input handlers for multi-image modal
+    document.addEventListener('DOMContentLoaded', function() {
+        const multiImageUpload = document.getElementById('multiImageUpload');
+        const multiCameraUpload = document.getElementById('multiCameraUpload');
+        
+        if (multiImageUpload) {
+            multiImageUpload.addEventListener('change', function(e) {
+                const file = e.target.files[0];
+                if (file) {
+                    const preview = document.getElementById('newImagePreview');
+                    const previewImg = document.getElementById('newImagePreviewImg');
+                    const uploadBtn = document.getElementById('uploadNewImageBtn');
+                    
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        previewImg.src = e.target.result;
+                        preview.style.display = 'block';
+                        uploadBtn.disabled = false;
+                    };
+                    reader.readAsDataURL(file);
+                }
+            });
+        }
+        
+        if (multiCameraUpload) {
+            multiCameraUpload.addEventListener('change', function(e) {
+                const file = e.target.files[0];
+                if (file) {
+                    const preview = document.getElementById('newImagePreview');
+                    const previewImg = document.getElementById('newImagePreviewImg');
+                    const uploadBtn = document.getElementById('uploadNewImageBtn');
+                    
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        previewImg.src = e.target.result;
+                        preview.style.display = 'block';
+                        uploadBtn.disabled = false;
+                    };
+                    reader.readAsDataURL(file);
+                }
+            });
+        }
+    });
+    
+    // Modify the existing renderTemplates function to load images for each template
+    const originalRenderTemplates = window.renderTemplates;
+    window.renderTemplates = function(templates) {
+        // Call original function
+        if (originalRenderTemplates) {
+            originalRenderTemplates(templates);
+        }
+        
+        // Load images for each template
+        templates.forEach(template => {
+            setTimeout(() => loadTemplateImages(template.id), 100);
+        });
+    };
 
 </script>
 {% endblock %}
