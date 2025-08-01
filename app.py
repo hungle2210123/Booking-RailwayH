@@ -5408,6 +5408,64 @@ def serve_template_image(filename):
         print(f"Error serving template image: {e}")
         return jsonify({'error': 'Image not found'}), 404
 
+@app.route('/migrate')
+def migration_tool():
+    """Serve the database migration tool page"""
+    return send_from_directory('.', 'run_migration.html')
+
+@app.route('/api/migrate_database', methods=['POST'])
+def migrate_database():
+    """Temporary route to add missing image_path column to message_templates table"""
+    try:
+        from core.models import db
+        from sqlalchemy import text
+        
+        # Check if column already exists
+        check_sql = """
+        SELECT column_name 
+        FROM information_schema.columns 
+        WHERE table_name = 'message_templates' 
+        AND column_name = 'image_path';
+        """
+        
+        result = db.session.execute(text(check_sql)).fetchone()
+        
+        if result:
+            return jsonify({
+                'success': True,
+                'message': 'Column image_path already exists in message_templates table',
+                'action': 'no_action_needed'
+            })
+        
+        # Add the missing column
+        alter_sql = "ALTER TABLE message_templates ADD COLUMN image_path VARCHAR(500);"
+        db.session.execute(text(alter_sql))
+        db.session.commit()
+        
+        # Verify the column was added
+        verify_result = db.session.execute(text(check_sql)).fetchone()
+        
+        if verify_result:
+            return jsonify({
+                'success': True,
+                'message': 'Successfully added image_path column to message_templates table',
+                'action': 'column_added'
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'message': 'Failed to verify column addition',
+                'action': 'verification_failed'
+            })
+            
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({
+            'success': False,
+            'message': f'Migration failed: {str(e)}',
+            'action': 'error'
+        }), 500
+
 @app.route('/api/confirm_guest_arrival', methods=['POST'])
 def confirm_guest_arrival():
     """Confirm guest arrival to enable commission notifications"""
