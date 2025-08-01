@@ -1,5 +1,6 @@
 import os
 from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, send_from_directory
+from werkzeug.utils import secure_filename
 from dotenv import load_dotenv
 import json
 from functools import lru_cache
@@ -4876,6 +4877,13 @@ def get_templates():
             # Use template_name as label (it should already be improved from import)
             label = template.template_name or 'Unnamed Template'
             
+            # Generate image URL if image exists
+            image_url = None
+            if template.image_path:
+                # Extract filename from path
+                image_filename = os.path.basename(template.image_path)
+                image_url = f'/api/templates/image/{image_filename}'
+            
             templates_data.append({
                 'Category': category,
                 'Label': label,
@@ -4885,6 +4893,8 @@ def get_templates():
                 'label': label, 
                 'content': template.template_content,
                 'id': template.template_id,
+                'image_path': template.image_path,
+                'image_url': image_url,
                 'created_at': template.created_at.isoformat() if template.created_at else None
             })
         
@@ -5028,11 +5038,30 @@ def handle_template(template_id):
             if not data:
                 return jsonify({'success': False, 'error': 'No data provided'}), 400
             
-            # Update template fields with multiple field name support
+            # Track if name is being updated for validation
+            new_name = None
+            if 'template_name' in data or 'name' in data or 'Label' in data:
+                new_name = data.get('template_name') or data.get('name') or data.get('Label')
+                
+                # Validate unique name if it's being changed
+                if new_name and new_name != template.template_name:
+                    existing_template = MessageTemplate.query.filter(
+                        MessageTemplate.template_name == new_name,
+                        MessageTemplate.template_id != template_id
+                    ).first()
+                    
+                    if existing_template:
+                        print(f"❌ [TEMPLATE_UPDATE] Name '{new_name}' already exists for template ID {existing_template.template_id}")
+                        return jsonify({
+                            'success': False, 
+                            'error': f'Template name "{new_name}" already exists. Please choose a different name.'
+                        }), 400
+                
+                template.template_name = new_name
+            
+            # Update other template fields with multiple field name support
             if 'category' in data or 'Category' in data:
                 template.category = data.get('category') or data.get('Category')
-            if 'template_name' in data or 'name' in data or 'Label' in data:
-                template.template_name = data.get('template_name') or data.get('name') or data.get('Label')
             if 'template_content' in data or 'content' in data or 'Message' in data:
                 template.template_content = data.get('template_content') or data.get('content') or data.get('Message')
             
@@ -5307,6 +5336,77 @@ def verify_templates():
     except Exception as e:
         print(f"Error verifying templates: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/templates/upload_image', methods=['POST'])
+def upload_template_image():
+    """Upload an image for a message template"""
+    try:
+        from core.models import MessageTemplate, db
+        
+        # Check if template_id is provided
+        template_id = request.form.get('template_id')
+        if not template_id:
+            return jsonify({'success': False, 'error': 'Template ID required'}), 400
+        
+        # Check if file is provided
+        if 'image' not in request.files:
+            return jsonify({'success': False, 'error': 'No image file provided'}), 400
+        
+        file = request.files['image']
+        if file.filename == '':
+            return jsonify({'success': False, 'error': 'No file selected'}), 400
+        
+        # Check file extension
+        allowed_extensions = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
+        if not ('.' in file.filename and file.filename.rsplit('.', 1)[1].lower() in allowed_extensions):
+            return jsonify({'success': False, 'error': 'Invalid file type. Allowed: PNG, JPG, JPEG, GIF, WEBP'}), 400
+        
+        # Find the template
+        template = MessageTemplate.query.get(template_id)
+        if not template:
+            return jsonify({'success': False, 'error': 'Template not found'}), 404
+        
+        # Generate secure filename
+        filename = secure_filename(file.filename)
+        # Add timestamp to avoid conflicts
+        timestamp = int(time.time())
+        name, ext = os.path.splitext(filename)
+        unique_filename = f"template_{template_id}_{timestamp}_{name}{ext}"
+        
+        # Save file
+        upload_path = os.path.join('static', 'images', 'templates', unique_filename)
+        full_path = os.path.join(os.getcwd(), upload_path)
+        
+        # Ensure directory exists
+        os.makedirs(os.path.dirname(full_path), exist_ok=True)
+        file.save(full_path)
+        
+        # Update template with image path
+        template.image_path = upload_path
+        db.session.commit()
+        
+        print(f"📋 Template Image: Uploaded {unique_filename} for template {template_id}")
+        
+        return jsonify({
+            'success': True,
+            'message': 'Image uploaded successfully',
+            'image_path': upload_path,
+            'image_url': f'/api/templates/image/{unique_filename}'
+        })
+        
+    except Exception as e:
+        print(f"Error uploading template image: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/templates/image/<filename>')
+def serve_template_image(filename):
+    """Serve template images"""
+    try:
+        template_images_dir = os.path.join('static', 'images', 'templates')
+        return send_from_directory(template_images_dir, filename)
+    except Exception as e:
+        print(f"Error serving template image: {e}")
+        return jsonify({'error': 'Image not found'}), 404
 
 @app.route('/api/confirm_guest_arrival', methods=['POST'])
 def confirm_guest_arrival():

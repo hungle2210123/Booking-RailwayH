@@ -315,7 +315,7 @@ class MessageTemplate(db.Model):
     
     # Content
     template_content = Column(Text, nullable=False)
-    
+    image_path = Column(String(500), nullable=True)  # Path to uploaded image
     
     # Audit fields
     created_at = Column(DateTime, default=func.current_timestamp())
@@ -331,6 +331,7 @@ class MessageTemplate(db.Model):
             'template_name': self.template_name,
             'category': self.category,
             'template_content': self.template_content,
+            'image_path': self.image_path,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None
         }

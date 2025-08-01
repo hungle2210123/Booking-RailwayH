@@ -587,6 +587,23 @@
                         <textarea class="form-control" id="templateMessage" rows="6" placeholder="Nhập nội dung tin nhắn..." required></textarea>
                         <div class="form-text">Có thể sử dụng xuống dòng bằng cách nhấn Enter</div>
                     </div>
+                    
+                    <div class="mb-3">
+                        <label for="templateImage" class="form-label">
+                            <i class="fas fa-image me-2"></i>Hình ảnh đính kèm (tùy chọn)
+                        </label>
+                        <input type="file" class="form-control" id="templateImage" accept="image/*">
+                        <div class="form-text">
+                            <i class="fas fa-info-circle me-1"></i>
+                            Hỗ trợ: PNG, JPG, JPEG, GIF, WEBP. Hình ảnh sẽ được lưu để dễ dàng copy trên các thiết bị khác.
+                        </div>
+                        <div id="imagePreview" class="mt-2" style="display: none;">
+                            <img id="previewImg" class="img-thumbnail" style="max-width: 200px; max-height: 200px;" alt="Preview">
+                            <button type="button" class="btn btn-sm btn-outline-danger ms-2" onclick="removeImagePreview()">
+                                <i class="fas fa-times"></i> Xóa
+                            </button>
+                        </div>
+                    </div>
                 </form>
             </div>
             <div class="modal-footer">
@@ -598,6 +615,32 @@
         </div>
     </div>
 </div>
+
+<!-- Image Modal for Template Images -->
+<div class="modal fade" id="imageModal" tabindex="-1" aria-labelledby="imageModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-info text-white">
+                <h5 class="modal-title" id="imageModalLabel">
+                    <i class="fas fa-image me-2"></i>Template Image
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body text-center">
+                <img id="modalImage" class="img-fluid" style="max-height: 70vh;" alt="Template Image">
+                <div class="mt-3">
+                    <button class="btn btn-success me-2" onclick="copyImageFromModal()" title="Copy image to clipboard">
+                        <i class="fas fa-copy"></i> Copy to Clipboard
+                    </button>
+                    <button class="btn btn-info" onclick="downloadImageFromModal()" title="Download image">
+                        <i class="fas fa-download"></i> Download
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 {% endblock %}
 
 {% block head_extra %}
@@ -653,6 +696,56 @@
     .ai-message {
         background: linear-gradient(135deg, #667eea10 0%, #764ba220 100%);
         border-left: 4px solid #667eea;
+    }
+    
+    /* Template name editing styles */
+    .template-name-container {
+        position: relative;
+    }
+    
+    .template-name-edit {
+        border: 2px solid #0d6efd !important;
+        border-radius: 4px !important;
+        background: white !important;
+        font-weight: 500 !important;
+        font-size: 14px !important;
+        transition: all 0.2s ease !important;
+    }
+    
+    .template-name-edit:focus {
+        border-color: #0a58ca !important;
+        box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25) !important;
+        outline: none !important;
+    }
+    
+    .template-edit-btn {
+        opacity: 0.6;
+        transition: all 0.2s ease;
+        border: 1px solid #dee2e6;
+    }
+    
+    .template-edit-btn:hover {
+        opacity: 1;
+        border-color: #6c757d;
+        background-color: #f8f9fa;
+    }
+    
+    .template-edit-actions .btn {
+        font-size: 12px;
+        padding: 4px 8px;
+        min-width: 32px;
+    }
+    
+    .template-name-container:hover .template-edit-btn {
+        opacity: 1;
+    }
+    
+    .template-name-display {
+        transition: all 0.2s ease;
+    }
+    
+    .template-title-header:hover .template-name-display {
+        color: #0d6efd !important;
     }
     
     @keyframes fadeInUp {
@@ -1222,6 +1315,30 @@
         modal.show();
     };
     
+    // Image preview functions for template modal
+    window.removeImagePreview = function() {
+        document.getElementById('imagePreview').style.display = 'none';
+        document.getElementById('templateImage').value = '';
+    };
+    
+    // Add event listener for image preview
+    document.addEventListener('DOMContentLoaded', function() {
+        const imageInput = document.getElementById('templateImage');
+        if (imageInput) {
+            imageInput.addEventListener('change', function(e) {
+                const file = e.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        document.getElementById('previewImg').src = e.target.result;
+                        document.getElementById('imagePreview').style.display = 'block';
+                    };
+                    reader.readAsDataURL(file);
+                }
+            });
+        }
+    });
+
     window.addNewTemplate = function() {
         console.log('addNewTemplate called');
         
@@ -1277,18 +1394,37 @@
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                alert('Mẫu tin nhắn đã được thêm thành công!');
+                // Check if there's an image to upload
+                const imageFile = document.getElementById('templateImage').files[0];
                 
-                // Close modal
-                const modal = bootstrap.Modal.getInstance(document.getElementById('addTemplateModal'));
-                modal.hide();
-                
-                // Clear form
-                document.getElementById('addTemplateForm').reset();
-                document.getElementById('customCategoryDiv').style.display = 'none';
-                
-                // Reload templates
-                loadTemplates();
+                if (imageFile) {
+                    // Upload image for the newly created template
+                    const formData = new FormData();
+                    formData.append('template_id', data.template.id);
+                    formData.append('image', imageFile);
+                    
+                    fetch('/api/templates/upload_image', {
+                        method: 'POST',
+                        body: formData
+                    })
+                    .then(response => response.json())
+                    .then(imageData => {
+                        if (imageData.success) {
+                            alert('Mẫu tin nhắn và hình ảnh đã được thêm thành công!');
+                        } else {
+                            alert('Mẫu tin nhắn đã được thêm, nhưng có lỗi khi tải hình ảnh: ' + (imageData.error || 'Unknown error'));
+                        }
+                        finishAddTemplate();
+                    })
+                    .catch(error => {
+                        console.error('Error uploading image:', error);
+                        alert('Mẫu tin nhắn đã được thêm, nhưng có lỗi khi tải hình ảnh: ' + error.message);
+                        finishAddTemplate();
+                    });
+                } else {
+                    alert('Mẫu tin nhắn đã được thêm thành công!');
+                    finishAddTemplate();
+                }
             } else {
                 alert('Lỗi khi thêm mẫu tin nhắn: ' + (data.error || 'Unknown error'));
             }
@@ -1298,6 +1434,21 @@
             alert('Lỗi khi thêm mẫu tin nhắn: ' + error.message);
         });
     };
+    
+    // Helper function to clean up after adding template
+    function finishAddTemplate() {
+        // Close modal
+        const modal = bootstrap.Modal.getInstance(document.getElementById('addTemplateModal'));
+        modal.hide();
+        
+        // Clear form
+        document.getElementById('addTemplateForm').reset();
+        document.getElementById('customCategoryDiv').style.display = 'none';
+        document.getElementById('imagePreview').style.display = 'none';
+        
+        // Reload templates
+        loadTemplates();
+    }
     
     window.importFromSheets = function() {
         console.log('importFromSheets called');
@@ -1374,6 +1525,201 @@
     
     console.log('🔧 MINIMAL TEST: All functions defined');
     
+    // Image handling functions for templates
+    window.showImageModal = function(imageUrl, templateLabel) {
+        const modal = new bootstrap.Modal(document.getElementById('imageModal'));
+        const modalImage = document.getElementById('modalImage');
+        const modalTitle = document.getElementById('imageModalLabel');
+        
+        modalImage.src = imageUrl;
+        modalTitle.innerHTML = `<i class="fas fa-image me-2"></i>${templateLabel} - Image`;
+        
+        // Store current image data for modal functions
+        window.currentModalImageUrl = imageUrl;
+        window.currentModalImageName = templateLabel.replace(/[^a-zA-Z0-9]/g, '_') + '_image';
+        
+        modal.show();
+    };
+    
+    window.copyImageToClipboard = async function(imageUrl, templateLabel) {
+        try {
+            // Fetch the image as a blob
+            const response = await fetch(imageUrl);
+            const blob = await response.blob();
+            
+            // Copy to clipboard using the modern Clipboard API
+            if (navigator.clipboard && window.ClipboardItem) {
+                const item = new ClipboardItem({ [blob.type]: blob });
+                await navigator.clipboard.write([item]);
+                alert('Hình ảnh đã được copy vào clipboard!');
+            } else {
+                // Fallback: show modal for manual copy
+                showImageModal(imageUrl, templateLabel);
+                alert('Vui lòng nhấn chuột phải vào hình ảnh và chọn "Copy image" để copy vào clipboard.');
+            }
+        } catch (error) {
+            console.error('Error copying image:', error);
+            // Fallback: show modal for manual copy
+            showImageModal(imageUrl, templateLabel);
+            alert('Không thể tự động copy. Vui lòng nhấn chuột phải vào hình ảnh và chọn "Copy image".');
+        }
+    };
+    
+    window.downloadImage = function(imageUrl, templateLabel) {
+        const link = document.createElement('a');
+        link.href = imageUrl;
+        link.download = templateLabel.replace(/[^a-zA-Z0-9]/g, '_') + '_image.jpg';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    };
+    
+    window.copyImageFromModal = async function() {
+        if (window.currentModalImageUrl) {
+            try {
+                const response = await fetch(window.currentModalImageUrl);
+                const blob = await response.blob();
+                
+                if (navigator.clipboard && window.ClipboardItem) {
+                    const item = new ClipboardItem({ [blob.type]: blob });
+                    await navigator.clipboard.write([item]);
+                    alert('Hình ảnh đã được copy vào clipboard!');
+                } else {
+                    alert('Vui lòng nhấn chuột phải vào hình ảnh và chọn "Copy image".');
+                }
+            } catch (error) {
+                console.error('Error copying image from modal:', error);
+                alert('Vui lòng nhấn chuột phải vào hình ảnh và chọn "Copy image".');
+            }
+        }
+    };
+    
+    window.downloadImageFromModal = function() {
+        if (window.currentModalImageUrl && window.currentModalImageName) {
+            const link = document.createElement('a');
+            link.href = window.currentModalImageUrl;
+            link.download = window.currentModalImageName + '.jpg';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+    };
+    
+    // Template name editing functions
+    window.editTemplateName = function(templateId) {
+        const displayElement = document.getElementById(`name-display-${templateId}`);
+        const editElement = document.getElementById(`name-edit-${templateId}`);
+        const editBtn = document.getElementById(`edit-btn-${templateId}`);
+        const editActions = document.getElementById(`edit-actions-${templateId}`);
+        
+        if (displayElement && editElement && editBtn && editActions) {
+            // Hide display elements
+            displayElement.classList.add('d-none');
+            editBtn.classList.add('d-none');
+            
+            // Show edit elements
+            editElement.classList.remove('d-none');
+            editActions.classList.remove('d-none');
+            
+            // Focus on input and select text
+            editElement.focus();
+            editElement.select();
+            
+            console.log(`Edit mode activated for template ${templateId}`);
+        }
+    };
+    
+    window.saveTemplateName = function(templateId) {
+        const editElement = document.getElementById(`name-edit-${templateId}`);
+        const newName = editElement.value.trim();
+        
+        if (!newName) {
+            alert('Tên template không được để trống!');
+            return;
+        }
+        
+        // Check for duplicate names (basic client-side check)
+        const existingNames = window.templates
+            .filter(t => t.id != templateId)
+            .map(t => t.label.toLowerCase());
+            
+        if (existingNames.includes(newName.toLowerCase())) {
+            alert('Tên template đã tồn tại! Vui lòng chọn tên khác.');
+            return;
+        }
+        
+        console.log(`Saving template name: ${templateId} -> ${newName}`);
+        
+        // Send update to backend
+        fetch(`/api/templates/${templateId}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                template_name: newName
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Update the display
+                const displayElement = document.getElementById(`name-display-${templateId}`);
+                if (displayElement) {
+                    displayElement.textContent = newName;
+                }
+                
+                // Update the templates array
+                const templateIndex = window.templates.findIndex(t => t.id == templateId);
+                if (templateIndex !== -1) {
+                    window.templates[templateIndex].label = newName;
+                    window.templates[templateIndex].Label = newName; // Both cases for compatibility
+                }
+                
+                cancelEditTemplateName(templateId);
+                alert('Tên template đã được cập nhật thành công!');
+            } else {
+                alert('Lỗi khi cập nhật tên template: ' + (data.error || 'Unknown error'));
+            }
+        })
+        .catch(error => {
+            console.error('Error updating template name:', error);
+            alert('Lỗi khi cập nhật tên template: ' + error.message);
+        });
+    };
+    
+    window.cancelEditTemplateName = function(templateId) {
+        const displayElement = document.getElementById(`name-display-${templateId}`);
+        const editElement = document.getElementById(`name-edit-${templateId}`);
+        const editBtn = document.getElementById(`edit-btn-${templateId}`);
+        const editActions = document.getElementById(`edit-actions-${templateId}`);
+        
+        if (displayElement && editElement && editBtn && editActions) {
+            // Reset input value to original
+            editElement.value = displayElement.textContent;
+            
+            // Hide edit elements
+            editElement.classList.add('d-none');
+            editActions.classList.add('d-none');
+            
+            // Show display elements
+            displayElement.classList.remove('d-none');
+            editBtn.classList.remove('d-none');
+            
+            console.log(`Edit mode cancelled for template ${templateId}`);
+        }
+    };
+    
+    window.handleTemplateNameKeypress = function(event, templateId) {
+        if (event.key === 'Enter') {
+            event.preventDefault();
+            saveTemplateName(templateId);
+        } else if (event.key === 'Escape') {
+            event.preventDefault();
+            cancelEditTemplateName(templateId);
+        }
+    };
+
     // Add image paste functionality
     let currentImageData = null;
     
@@ -1720,7 +2066,30 @@
                              onclick="toggleTemplateDetails('${templateId}')">
                             <div class="d-flex align-items-center">
                                 <i class="fas fa-chevron-right me-2 text-muted transition-icon" id="chevron-${templateId}"></i>
-                                <span class="fw-medium text-dark">${templateLabel}</span>
+                                <div class="template-name-container d-flex align-items-center">
+                                    <span class="fw-medium text-dark template-name-display" id="name-display-${templateId}">${templateLabel}</span>
+                                    <input type="text" class="form-control form-control-sm template-name-edit d-none" 
+                                           id="name-edit-${templateId}" value="${templateLabel}" 
+                                           style="width: 200px;" onblur="cancelEditTemplateName('${templateId}')" 
+                                           onkeypress="handleTemplateNameKeypress(event, '${templateId}')">
+                                    <button class="btn btn-sm btn-outline-secondary ms-2 template-edit-btn" 
+                                            onclick="event.stopPropagation(); editTemplateName('${templateId}')" 
+                                            id="edit-btn-${templateId}" title="Edit template name">
+                                        <i class="fas fa-edit"></i>
+                                    </button>
+                                    <div class="template-edit-actions d-none" id="edit-actions-${templateId}">
+                                        <button class="btn btn-sm btn-success ms-1" 
+                                                onclick="event.stopPropagation(); saveTemplateName('${templateId}')" 
+                                                title="Save changes">
+                                            <i class="fas fa-check"></i>
+                                        </button>
+                                        <button class="btn btn-sm btn-secondary ms-1" 
+                                                onclick="event.stopPropagation(); cancelEditTemplateName('${templateId}')" 
+                                                title="Cancel">
+                                            <i class="fas fa-times"></i>
+                                        </button>
+                                    </div>
+                                </div>
                                 <span class="badge ${versionInfo === 'DEFAULT' ? 'bg-success' : 'bg-info'} ms-2 small">${versionInfo}</span>
                             </div>
                             <small class="text-muted">ID: ${templateId}</small>
@@ -1736,6 +2105,31 @@
                                         ${templateContent.substring(0, 150)}${templateContent.length > 150 ? '...' : ''}
                                     </p>
                                 </div>
+                                
+                                ${template.image_url ? `
+                                <!-- Template Image -->
+                                <div class="mb-3">
+                                    <small class="text-muted fw-bold d-block mb-1">
+                                        <i class="fas fa-image me-1"></i>Hình ảnh đính kèm:
+                                    </small>
+                                    <div class="template-image-container" style="max-width: 300px;">
+                                        <img src="${template.image_url}" 
+                                             class="img-thumbnail template-image" 
+                                             style="max-width: 100%; max-height: 200px; cursor: pointer;" 
+                                             onclick="showImageModal('${template.image_url}', '${templateLabel}')"
+                                             alt="Template Image"
+                                             title="Click to view full size">
+                                        <div class="mt-2">
+                                            <button class="btn btn-sm btn-outline-success" onclick="copyImageToClipboard('${template.image_url}', '${templateLabel}')" title="Copy image to clipboard">
+                                                <i class="fas fa-copy"></i> Copy Image
+                                            </button>
+                                            <button class="btn btn-sm btn-outline-info" onclick="downloadImage('${template.image_url}', '${templateLabel}')" title="Download image">
+                                                <i class="fas fa-download"></i> Download
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                                ` : ''}
                                 
                                 <!-- Action Buttons -->
                                 <div class="d-flex gap-2 flex-wrap">
