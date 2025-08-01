@@ -5604,6 +5604,44 @@ def delete_template_image(image_id):
         print(f"Error deleting template image: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
+@app.route('/api/templates/<template_id>/legacy-image', methods=['DELETE'])
+def delete_legacy_image(template_id):
+    """Delete legacy image from message_templates.image_path"""
+    try:
+        from core.models import MessageTemplate, db
+        
+        # Find the template
+        template = MessageTemplate.query.get(template_id)
+        if not template:
+            return jsonify({'success': False, 'error': 'Template not found'}), 404
+        
+        if not template.image_path:
+            return jsonify({'success': False, 'error': 'No legacy image found'}), 404
+        
+        # Delete file from filesystem
+        try:
+            full_path = os.path.join(os.getcwd(), template.image_path)
+            if os.path.exists(full_path):
+                os.remove(full_path)
+                print(f"📋 Deleted legacy image file: {full_path}")
+        except Exception as e:
+            print(f"Warning: Could not delete legacy image file {template.image_path}: {e}")
+        
+        # Clear the image_path column
+        template.image_path = None
+        db.session.commit()
+        
+        print(f"📋 Legacy image deleted for template {template_id}")
+        
+        return jsonify({
+            'success': True,
+            'message': 'Legacy image deleted successfully'
+        })
+        
+    except Exception as e:
+        print(f"Error deleting legacy image: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 @app.route('/migrate')
 def migration_tool():
     """Serve the database migration tool page"""

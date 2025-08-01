@@ -3021,28 +3021,54 @@
         modal.show();
     };
     
-    // Load current images for template
+    // Load current images for template (Enhanced with legacy support)
     async function loadCurrentTemplateImages(templateId) {
         try {
-            const response = await fetch(`/api/templates/${templateId}/images`);
-            const data = await response.json();
-            
             const container = document.getElementById('currentImagesList');
             
-            if (data.success && data.images && data.images.length > 0) {
+            // Get images from loaded template data (includes both legacy and new)
+            const template = window.templates ? window.templates.find(t => t.id == templateId) : null;
+            let images = [];
+            
+            if (template && template.images && template.images.length > 0) {
+                images = template.images;
+                console.log(`📋 Modal: Found ${images.length} images for template ${templateId}`);
+            } else {
+                // Fallback to API call
+                try {
+                    const response = await fetch(`/api/templates/${templateId}/images`);
+                    const data = await response.json();
+                    if (data.success && data.images) {
+                        images = data.images;
+                    }
+                } catch (apiError) {
+                    console.log('API fallback failed:', apiError);
+                }
+            }
+            
+            if (images && images.length > 0) {
                 let html = '';
-                data.images.forEach((image, index) => {
+                images.forEach((image, index) => {
+                    const imageUrl = image.url || image.image_url || '#';
+                    const deleteButton = image.id ? 
+                        `<button class="template-image-delete" 
+                                onclick="deleteTemplateImage(${image.id})"
+                                title="Xóa hình ảnh này">
+                            <i class="fas fa-times"></i>
+                        </button>` : 
+                        `<button class="template-image-delete" 
+                                onclick="deleteLegacyImage('${templateId}')"
+                                title="Xóa hình ảnh (legacy)">
+                            <i class="fas fa-times"></i>
+                        </button>`;
+                        
                     html += `
                         <div class="col-md-4">
                             <div class="template-image-item">
-                                <img src="${image.url}" alt="Template Image ${index + 1}" 
-                                     onclick="showImageModal('${image.url}', 'Template Image')" 
+                                <img src="${imageUrl}" alt="Template Image ${index + 1}" 
+                                     onclick="showImageModal('${imageUrl}', 'Template Image')" 
                                      class="img-fluid">
-                                <button class="template-image-delete" 
-                                        onclick="deleteTemplateImage(${image.id})"
-                                        title="Xóa hình ảnh này">
-                                    <i class="fas fa-times"></i>
-                                </button>
+                                ${deleteButton}
                             </div>
                         </div>
                     `;
@@ -3153,28 +3179,69 @@
         }
     };
     
-    // Load template images for main gallery display
+    // Load template images for main gallery display (Enhanced with legacy support)
     async function loadTemplateImages(templateId) {
         try {
-            const response = await fetch(`/api/templates/${templateId}/images`);
-            const data = await response.json();
-            
             const container = document.getElementById(`template-images-${templateId}`);
             if (!container) return;
             
-            if (data.success && data.images && data.images.length > 0) {
+            // First try to get images from already loaded template data (includes legacy images)
+            const template = window.templates ? window.templates.find(t => t.id == templateId) : null;
+            let images = [];
+            
+            if (template && template.images && template.images.length > 0) {
+                // Use images from template data (includes both legacy and new images)
+                images = template.images;
+                console.log(`📋 Found ${images.length} images for template ${templateId} from loaded data`);
+            } else {
+                // Fallback: Try API call for new images only
+                try {
+                    const response = await fetch(`/api/templates/${templateId}/images`);
+                    const data = await response.json();
+                    if (data.success && data.images) {
+                        images = data.images;
+                        console.log(`📋 Found ${images.length} images for template ${templateId} from API`);
+                    }
+                } catch (apiError) {
+                    console.log(`📋 API call failed, using empty images array:`, apiError);
+                }
+            }
+            
+            if (images && images.length > 0) {
                 let html = '<div class="template-images-gallery">';
-                data.images.forEach((image, index) => {
+                images.forEach((image, index) => {
+                    const imageUrl = image.url || image.image_url || '#';
+                    const deleteButton = image.id ? 
+                        `<button class="template-image-delete" 
+                                onclick="deleteTemplateImage(${image.id})"
+                                title="Xóa hình ảnh này">
+                            <i class="fas fa-times"></i>
+                        </button>` : 
+                        `<button class="template-image-delete" 
+                                onclick="deleteLegacyImage('${templateId}')"
+                                title="Xóa hình ảnh (legacy)">
+                            <i class="fas fa-times"></i>
+                        </button>`;
+                    
                     html += `
                         <div class="template-image-item">
-                            <img src="${image.url}" alt="Image ${index + 1}" 
-                                 onclick="showImageModal('${image.url}', 'Template Image')" 
+                            <img src="${imageUrl}" alt="Image ${index + 1}" 
+                                 onclick="showImageModal('${imageUrl}', 'Template Image')" 
                                  title="Click để xem chi tiết">
+                            ${deleteButton}
                         </div>
                     `;
                 });
                 html += '</div>';
                 container.innerHTML = html;
+                
+                // Show image count
+                const countHtml = `<div class="text-center mt-2">
+                    <small class="text-muted">
+                        <i class="fas fa-images me-1"></i>${images.length} hình ảnh
+                    </small>
+                </div>`;
+                container.innerHTML += countHtml;
             } else {
                 container.innerHTML = `
                     <div class="template-empty-images" onclick="showMultiImageModal('${templateId}')">
@@ -3196,6 +3263,32 @@
             }
         }
     }
+    
+    // Delete legacy image (from image_path column)
+    window.deleteLegacyImage = async function(templateId) {
+        if (!confirm('Bạn có chắc chắn muốn xóa hình ảnh này? (Legacy image)')) {
+            return;
+        }
+        
+        try {
+            const response = await fetch(`/api/templates/${templateId}/legacy-image`, {
+                method: 'DELETE'
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                showToast('Đã xóa hình ảnh legacy', 'success');
+                // Reload templates to refresh the display
+                loadTemplates();
+            } else {
+                showToast(data.message || 'Không thể xóa hình ảnh legacy', 'error');
+            }
+        } catch (error) {
+            console.error('Error deleting legacy image:', error);
+            showToast('Lỗi khi xóa hình ảnh legacy', 'error');
+        }
+    };
     
     // Setup file input handlers for multi-image modal
     document.addEventListener('DOMContentLoaded', function() {
