@@ -5427,8 +5427,26 @@ def upload_template_image():
 def serve_template_image(filename):
     """Serve template images"""
     try:
-        template_images_dir = os.path.join('static', 'images', 'templates')
-        return send_from_directory(template_images_dir, filename)
+        # Try multiple possible directories
+        possible_dirs = [
+            os.path.join('static', 'images', 'templates'),
+            os.path.join('static', 'template_images'),
+            os.path.join('static', 'images'),
+            'static'
+        ]
+        
+        for template_images_dir in possible_dirs:
+            full_path = os.path.join(template_images_dir, filename)
+            if os.path.exists(full_path):
+                print(f"📋 Serving image from: {full_path}")
+                return send_from_directory(template_images_dir, filename)
+        
+        # If not found in any directory, log the issue
+        print(f"❌ Image not found in any directory: {filename}")
+        print(f"📋 Checked directories: {possible_dirs}")
+        
+        return jsonify({'error': 'Image not found'}), 404
+        
     except Exception as e:
         print(f"Error serving template image: {e}")
         return jsonify({'error': 'Image not found'}), 404
@@ -5452,7 +5470,7 @@ def get_template_images(template_id):
                     images.append({
                         'id': img.image_id,
                         'filename': img.image_filename,
-                        'url': f'/api/templates/images/serve/{img.image_filename}',
+                        'url': f'/api/templates/image/{img.image_filename}',
                         'alt_text': img.alt_text,
                         'order': img.image_order
                     })
@@ -5546,7 +5564,7 @@ def add_template_images(template_id):
                 'image': {
                     'id': template_image.image_id,
                     'filename': unique_filename,
-                    'url': f'/api/templates/images/serve/{unique_filename}',
+                    'url': f'/api/templates/image/{unique_filename}',
                     'order': current_image_count + 1
                 }
             })

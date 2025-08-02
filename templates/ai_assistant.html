@@ -3343,7 +3343,9 @@
         // Load images for each template after rendering
         if (window.templates && window.templates.length > 0) {
             window.templates.forEach(template => {
-                setTimeout(() => loadTemplateImages(template.id), 100);
+                if (template.id) {  // Only load if template has valid ID
+                    setTimeout(() => loadTemplateImages(template.id), 100);
+                }
             });
         }
     };
