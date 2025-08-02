@@ -55,7 +55,7 @@
                         <div class="d-flex justify-content-between align-items-center">
                             <h6 class="mb-0 text-white fw-bold">
                                 <i class="fas fa-user-times me-2"></i>
-                                Khách Đã Hủy - Có Thể Phục Hồi
+                                Khách Đã Hủy - Chưa Check-in (Có Thể Phục Hồi)
                                 <span id="canceledGuestsCount" class="badge bg-light text-dark ms-2">0</span>
                             </h6>
                             <div class="btn-group" role="group">
@@ -68,7 +68,7 @@
                             </div>
                         </div>
                         <small class="text-white-50 d-block mt-1">
-                            Click "Phục hồi" để chuyển khách từ trạng thái hủy về OK - giúp lấp đầy lịch trống
+                            Chỉ hiển thị khách đã hủy nhưng chưa check-in (ngày đến >= hôm nay) - Click "Phục hồi" để chuyển về OK
                         </small>
                     </div>
                     <div class="card-body p-0" id="canceledGuestsContent" style="display: none;">
@@ -113,7 +113,7 @@
                         <div id="canceledGuestsList" style="display: none;">
                             <div class="manual-list-header p-2 bg-light border-top">
                                 <h6 class="mb-0 text-secondary">
-                                    <i class="fas fa-list me-2"></i>Danh Sách Thủ Công - Tất cả khách đã hủy
+                                    <i class="fas fa-list me-2"></i>Danh Sách Khách Đã Hủy - Chưa Check-in
                                 </h6>
                             </div>
                             <div class="table-responsive" style="max-height: 300px; overflow-y: auto;">
@@ -138,7 +138,7 @@
                         <!-- Empty State -->
                         <div id="canceledGuestsEmpty" style="display: none;" class="text-center p-3">
                             <i class="fas fa-check-circle text-success mb-1" style="font-size: 1.5rem;"></i>
-                            <small class="text-muted">Không có khách nào đã hủy trong khoảng thời gian này</small>
+                            <small class="text-muted">Không có khách đã hủy nào chưa check-in trong khoảng thời gian này</small>
                         </div>
                     </div>
                 </div>
@@ -1148,10 +1148,25 @@ function refreshCanceledGuests() {
             loadingDiv.style.display = 'none';
             
             if (data.success && data.canceled_bookings && data.canceled_bookings.length > 0) {
-                canceledGuestsData = data.canceled_bookings;
-                displayCanceledGuests(canceledGuestsData);
-                countBadge.textContent = canceledGuestsData.length;
-                listDiv.style.display = 'block';
+                // Filter to only show guests who haven't checked in yet (future check-in dates)
+                const today = new Date();
+                today.setHours(0, 0, 0, 0); // Reset time to start of day for accurate comparison
+                
+                const futureGuestsOnly = data.canceled_bookings.filter(guest => {
+                    const checkinDate = new Date(guest.checkin_date);
+                    checkinDate.setHours(0, 0, 0, 0);
+                    return checkinDate >= today; // Only future or today check-ins
+                });
+                
+                if (futureGuestsOnly.length > 0) {
+                    canceledGuestsData = futureGuestsOnly;
+                    displayCanceledGuests(canceledGuestsData);
+                    countBadge.textContent = canceledGuestsData.length;
+                    listDiv.style.display = 'block';
+                } else {
+                    countBadge.textContent = '0';
+                    emptyDiv.style.display = 'block';
+                }
             } else {
                 countBadge.textContent = '0';
                 emptyDiv.style.display = 'block';
