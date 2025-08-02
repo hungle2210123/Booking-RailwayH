@@ -5660,6 +5660,341 @@ def delete_legacy_image(template_id):
         print(f"Error deleting legacy image: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
+@app.route('/api/canceled_bookings', methods=['GET'])
+def get_canceled_bookings():
+    """Get all canceled bookings for calendar management"""
+    try:
+        from core.models import Booking, Guest, db
+        from datetime import datetime, timedelta
+        
+        # Get date range for filtering (current month ± 2 months for context)
+        today = datetime.now().date()
+        start_date = today.replace(day=1) - timedelta(days=60)  # 2 months ago
+        end_date = today + timedelta(days=90)  # 3 months ahead
+        
+        # Query canceled bookings within date range
+        canceled_bookings = db.session.query(Booking, Guest).outerjoin(
+            Guest, Booking.guest_id == Guest.guest_id
+        ).filter(
+            Booking.booking_status.in_(['cancelled', 'đã hủy']),
+            Booking.checkin_date >= start_date,
+            Booking.checkin_date <= end_date,
+            Booking.booking_status != 'deleted'
+        ).order_by(Booking.checkin_date.asc()).all()
+        
+        canceled_list = []
+        for booking, guest in canceled_bookings:
+            guest_name = guest.full_name if guest else booking.guest_name or 'Unknown Guest'
+            
+            # Calculate price per night
+            nights = (booking.checkout_date - booking.checkin_date).days if booking.checkout_date and booking.checkin_date else 1
+            nights = max(1, nights)  # Ensure at least 1 night
+            price_per_night = float(booking.room_amount or 0) / nights
+            
+            canceled_list.append({
+                'booking_id': booking.booking_id,
+                'guest_name': guest_name,
+                'checkin_date': booking.checkin_date.isoformat() if booking.checkin_date else None,
+                'checkout_date': booking.checkout_date.isoformat() if booking.checkout_date else None,
+                'total_amount': float(booking.room_amount or 0),
+                'price_per_night': round(price_per_night, 0),
+                'nights': nights,
+                'commission': float(booking.commission or 0),
+                'collector': booking.collector,
+                'booking_notes': booking.booking_notes,
+                'canceled_date': booking.updated_at.isoformat() if booking.updated_at else None
+            })
+        
+        print(f"📋 Found {len(canceled_list)} canceled bookings")
+        
+        return jsonify({
+            'success': True,
+            'canceled_bookings': canceled_list,
+            'count': len(canceled_list),
+            'date_range': {
+                'start': start_date.isoformat(),
+                'end': end_date.isoformat()
+            }
+        })
+        
+    except Exception as e:
+        print(f"Error fetching canceled bookings: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/restore_booking/<booking_id>', methods=['POST'])
+def restore_booking(booking_id):
+    """Restore a canceled booking back to confirmed status"""
+    try:
+        from core.models import Booking, db
+        from datetime import datetime
+        
+        # Find the booking
+        booking = Booking.query.filter_by(booking_id=booking_id).first()
+        if not booking:
+            return jsonify({'success': False, 'error': 'Booking not found'}), 404
+        
+        # Check if booking is actually canceled
+        if booking.booking_status not in ['cancelled', 'đã hủy']:
+            return jsonify({
+                'success': False, 
+                'error': f'Booking is not canceled (current status: {booking.booking_status})'
+            }), 400
+        
+        # Check for date conflicts with existing confirmed bookings
+        # This is a simplified check - you might want to add more sophisticated room availability logic
+        conflicting_bookings = Booking.query.filter(
+            Booking.booking_id != booking_id,
+            Booking.booking_status.in_(['confirmed', 'mới']),
+            ((Booking.checkin_date <= booking.checkout_date) & (Booking.checkout_date >= booking.checkin_date))
+        ).all()
+        
+        # For now, we'll allow restoration but warn about conflicts
+        conflicts_count = len(conflicting_bookings)
+        
+        # Restore the booking
+        old_status = booking.booking_status
+        booking.booking_status = 'confirmed'
+        booking.updated_at = datetime.now()
+        
+        # Add note about restoration
+        restore_note = f"[RESTORED {datetime.now().strftime('%Y-%m-%d %H:%M')}] From {old_status} to confirmed"
+        if booking.booking_notes:
+            booking.booking_notes += f"\n{restore_note}"
+        else:
+            booking.booking_notes = restore_note
+        
+        db.session.commit()
+        
+        print(f"📋 Restored booking {booking_id} from {old_status} to confirmed")
+        
+        return jsonify({
+            'success': True,
+            'message': 'Booking restored successfully',
+            'booking_id': booking_id,
+            'old_status': old_status,
+            'new_status': 'confirmed',
+            'conflicts_detected': conflicts_count,
+            'conflicts_warning': f'{conflicts_count} potential room conflicts detected' if conflicts_count > 0 else None
+        })
+        
+    except Exception as e:
+        print(f"Error restoring booking {booking_id}: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/ai_calendar_suggestions', methods=['POST'])
+def get_ai_calendar_suggestions():
+    """Get AI-powered suggestions for optimal calendar filling using canceled guests"""
+    try:
+        from core.models import Booking, Guest, db
+        from datetime import datetime, timedelta
+        import calendar as cal
+        
+        # Get request parameters
+        data = request.get_json() or {}
+        year = int(data.get('year', datetime.now().year))
+        month = int(data.get('month', datetime.now().month))
+        
+        print(f"🤖 AI Calendar Suggestions for {month}/{year}")
+        
+        # 1. Analyze calendar gaps for the specified month
+        start_date = datetime(year, month, 1).date()
+        end_date = (datetime(year, month, cal.monthrange(year, month)[1])).date()
+        
+        # Get all confirmed bookings for the month
+        confirmed_bookings = Booking.query.filter(
+            Booking.booking_status.in_(['confirmed', 'mới']),
+            Booking.checkin_date <= end_date,
+            Booking.checkout_date >= start_date,
+            Booking.booking_status != 'deleted'
+        ).all()
+        
+        # Identify empty days
+        occupied_dates = set()
+        revenue_by_date = {}
+        
+        for booking in confirmed_bookings:
+            current_date = max(booking.checkin_date, start_date)
+            end_booking_date = min(booking.checkout_date, end_date + timedelta(days=1))
+            
+            while current_date < end_booking_date:
+                occupied_dates.add(current_date)
+                if current_date not in revenue_by_date:
+                    revenue_by_date[current_date] = 0
+                
+                # Calculate daily revenue
+                total_nights = (booking.checkout_date - booking.checkin_date).days
+                if total_nights > 0:
+                    daily_revenue = float(booking.room_amount or 0) / total_nights
+                    revenue_by_date[current_date] += daily_revenue
+                
+                current_date += timedelta(days=1)
+        
+        # Find empty days
+        empty_days = []
+        current_date = start_date
+        while current_date <= end_date:
+            if current_date not in occupied_dates:
+                empty_days.append({
+                    'date': current_date.strftime('%Y-%m-%d'),
+                    'day_name': current_date.strftime('%A'),
+                    'day_number': current_date.day
+                })
+            current_date += timedelta(days=1)
+        
+        # 2. Get canceled bookings that could fill empty days
+        canceled_bookings = db.session.query(Booking, Guest).outerjoin(
+            Guest, Booking.guest_id == Guest.guest_id
+        ).filter(
+            Booking.booking_status.in_(['cancelled', 'đã hủy']),
+            Booking.checkin_date >= start_date - timedelta(days=30),  # Include nearby dates
+            Booking.checkin_date <= end_date + timedelta(days=30),
+            Booking.booking_status != 'deleted'
+        ).all()
+        
+        canceled_guests = []
+        for booking, guest in canceled_bookings:
+            guest_name = guest.full_name if guest else booking.guest_name or 'Unknown'
+            
+            # Calculate pricing
+            total_nights = (booking.checkout_date - booking.checkin_date).days
+            total_amount = float(booking.room_amount or 0)
+            price_per_night = total_amount / total_nights if total_nights > 0 else total_amount
+            
+            canceled_guests.append({
+                'booking_id': booking.booking_id,
+                'guest_name': guest_name,
+                'checkin_date': booking.checkin_date.strftime('%Y-%m-%d'),
+                'checkout_date': booking.checkout_date.strftime('%Y-%m-%d'),
+                'total_amount': total_amount,
+                'price_per_night': price_per_night,
+                'nights': total_nights,
+                'commission': float(booking.commission or 0)
+            })
+        
+        # 3. Prepare data for Gemini AI analysis
+        analysis_prompt = f"""
+You are a hotel revenue optimization expert. Analyze the calendar data and suggest the best strategy for filling empty days with canceled guests.
+
+**CALENDAR ANALYSIS FOR {month}/{year}:**
+
+**Empty Days ({len(empty_days)} days):**
+{[day['date'] + ' (' + day['day_name'] + ')' for day in empty_days]}
+
+**Available Canceled Guests ({len(canceled_guests)} guests):**
+{chr(10).join([f"- {guest['guest_name']}: {guest['checkin_date']} to {guest['checkout_date']} ({guest['nights']} nights) - {guest['price_per_night']:,.0f}đ/night (Total: {guest['total_amount']:,.0f}đ)" for guest in canceled_guests[:10]])}
+
+**Current Month Revenue:** {sum(revenue_by_date.values()):,.0f}đ from {len(occupied_dates)} occupied days
+
+**ANALYSIS REQUIREMENTS:**
+1. **Priority Strategy**: Focus on highest revenue per night first
+2. **Date Matching**: Suggest guests whose dates overlap with empty calendar days
+3. **Revenue Optimization**: Calculate potential revenue increase
+4. **Practical Considerations**: Consider guest stay duration and pricing
+
+**RESPONSE FORMAT (JSON):**
+{{
+    "strategy_summary": "Brief summary of the optimal strategy",
+    "total_potential_revenue": "Total additional revenue possible",
+    "top_recommendations": [
+        {{
+            "guest_name": "Guest name",
+            "booking_id": "Booking ID", 
+            "reason": "Why this guest is recommended",
+            "priority": "high/medium/low",
+            "revenue_impact": "Additional revenue from this guest",
+            "action": "Restore this booking immediately"
+        }}
+    ],
+    "insights": [
+        "Key insight 1",
+        "Key insight 2", 
+        "Key insight 3"
+    ]
+}}
+
+Provide smart, actionable recommendations that maximize revenue while filling the most empty days.
+"""
+
+        # 4. Call Gemini AI for analysis
+        try:
+            model = genai.GenerativeModel('gemini-pro')
+            response = model.generate_content(analysis_prompt)
+            
+            # Parse AI response
+            ai_text = response.text.strip()
+            print(f"🤖 Gemini Response Length: {len(ai_text)} characters")
+            
+            # Try to extract JSON from response
+            import re
+            json_match = re.search(r'\{.*\}', ai_text, re.DOTALL)
+            if json_match:
+                ai_suggestions = json.loads(json_match.group())
+            else:
+                # Fallback if JSON parsing fails
+                ai_suggestions = {
+                    "strategy_summary": "AI analysis temporarily unavailable - showing basic revenue optimization",
+                    "total_potential_revenue": f"{sum(guest['total_amount'] for guest in canceled_guests[:5]):,.0f}đ",
+                    "top_recommendations": [
+                        {
+                            "guest_name": guest['guest_name'],
+                            "booking_id": guest['booking_id'],
+                            "reason": f"High value at {guest['price_per_night']:,.0f}đ/night",
+                            "priority": "high" if guest['price_per_night'] > 500000 else "medium",
+                            "revenue_impact": f"{guest['total_amount']:,.0f}đ",
+                            "action": "Consider for restoration"
+                        } for guest in sorted(canceled_guests, key=lambda x: x['price_per_night'], reverse=True)[:3]
+                    ],
+                    "insights": [
+                        f"You have {len(empty_days)} empty days this month",
+                        f"Top canceled guest offers {max([g['price_per_night'] for g in canceled_guests], default=0):,.0f}đ/night",
+                        "Focus on high-value guests first"
+                    ]
+                }
+                
+        except Exception as ai_error:
+            print(f"AI Analysis Error: {ai_error}")
+            # Provide fallback analysis
+            ai_suggestions = {
+                "strategy_summary": "Basic optimization - restore highest value guests first",
+                "total_potential_revenue": f"{sum(guest['total_amount'] for guest in canceled_guests[:5]):,.0f}đ",
+                "top_recommendations": [
+                    {
+                        "guest_name": guest['guest_name'],
+                        "booking_id": guest['booking_id'],
+                        "reason": f"High revenue potential at {guest['price_per_night']:,.0f}đ/night",
+                        "priority": "high" if guest['price_per_night'] > 500000 else "medium",
+                        "revenue_impact": f"{guest['total_amount']:,.0f}đ",
+                        "action": "Restore booking"
+                    } for guest in sorted(canceled_guests, key=lambda x: x['price_per_night'], reverse=True)[:3]
+                ],
+                "insights": [
+                    f"{len(empty_days)} empty days need filling",
+                    f"{len(canceled_guests)} canceled guests available",
+                    "Prioritize by price per night"
+                ]
+            }
+        
+        return jsonify({
+            'success': True,
+            'calendar_analysis': {
+                'month': month,
+                'year': year,
+                'empty_days': empty_days,
+                'occupied_days': len(occupied_dates),
+                'current_revenue': sum(revenue_by_date.values()),
+                'canceled_guests_available': len(canceled_guests)
+            },
+            'ai_suggestions': ai_suggestions,
+            'raw_data': {
+                'canceled_guests': canceled_guests[:10],  # Limit for UI
+                'empty_days_count': len(empty_days)
+            }
+        })
+        
+    except Exception as e:
+        print(f"Error in AI calendar suggestions: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 @app.route('/migrate')
 def migration_tool():
     """Serve the database migration tool page"""
