@@ -72,61 +72,73 @@
                         </small>
                     </div>
                     <div class="card-body p-0" id="canceledGuestsContent" style="display: none;">
-                        <!-- AI Suggestions Section -->
+                        <!-- AI Suggestions Section - Compact Horizontal Layout -->
                         <div id="aiSuggestionsSection" class="ai-suggestions-container" style="display: none;">
-                            <div class="ai-header p-3" style="background: linear-gradient(135deg, #e3f2fd 0%, #f3e5f5 100%); border-bottom: 1px solid #dee2e6;">
-                                <div class="d-flex justify-content-between align-items-center mb-3">
+                            <div class="ai-header p-2" style="background: linear-gradient(135deg, #e3f2fd 0%, #f3e5f5 100%); border-bottom: 1px solid #dee2e6;">
+                                <div class="d-flex justify-content-between align-items-center mb-2">
                                     <h6 class="mb-0 text-primary fw-bold">
-                                        <i class="fas fa-robot me-2"></i>
-                                        AI Gemini - Gợi Ý Tối Ưu Lịch
+                                        <i class="fas fa-robot me-2"></i>AI Gemini - Gợi Ý Tối Ưu
                                         <span id="aiLoadingSpinner" class="ms-2" style="display: none;">
                                             <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
                                         </span>
                                     </h6>
                                     <button class="btn btn-sm btn-primary" onclick="getAISuggestions()" id="aiRefreshBtn">
-                                        <i class="fas fa-magic"></i> Phân tích AI
+                                        <i class="fas fa-magic"></i> Phân tích
                                     </button>
                                 </div>
-                                <div id="aiInsights" class="ai-insights mb-3" style="display: none;">
+                                <div id="aiInsights" class="ai-insights-compact mb-2" style="display: none;">
                                     <!-- AI insights will be populated here -->
                                 </div>
                             </div>
                             
-                            <div id="aiRecommendations" class="ai-recommendations p-3" style="display: none;">
+                            <div id="aiRecommendations" class="ai-recommendations-compact p-2" style="display: none; max-height: 250px; overflow-y: auto;">
                                 <!-- AI recommendations will be populated here -->
                             </div>
                             
-                            <div id="aiError" class="alert alert-warning m-3" style="display: none;">
+                            <div id="aiError" class="alert alert-warning m-2 py-2" style="display: none;">
                                 <i class="fas fa-exclamation-triangle"></i>
-                                AI analysis not available. Showing manual list below.
+                                AI analysis not available. Using manual list below.
                             </div>
                         </div>
                         
                         <!-- Loading State -->
-                        <div id="canceledGuestsLoading" class="text-center p-4">
-                            <div class="spinner-border text-primary" role="status">
+                        <div id="canceledGuestsLoading" class="text-center p-3">
+                            <div class="spinner-border spinner-border-sm text-primary" role="status">
                                 <span class="visually-hidden">Đang tải...</span>
                             </div>
-                            <p class="mt-2 text-muted">Đang tải danh sách khách đã hủy...</p>
+                            <small class="mt-2 text-muted d-block">Đang tải danh sách khách đã hủy...</small>
                         </div>
                         
-                        <!-- Manual Guest List -->
+                        <!-- Manual Guest List - Compact Horizontal Layout -->
                         <div id="canceledGuestsList" style="display: none;">
-                            <div class="manual-list-header p-3 bg-light border-top">
+                            <div class="manual-list-header p-2 bg-light border-top">
                                 <h6 class="mb-0 text-secondary">
-                                    <i class="fas fa-list me-2"></i>Danh Sách Thủ Công
-                                    <small class="text-muted">- Tất cả khách đã hủy</small>
+                                    <i class="fas fa-list me-2"></i>Danh Sách Thủ Công - Tất cả khách đã hủy
                                 </h6>
                             </div>
-                            <div id="manualGuestsList" class="p-3">
-                                <!-- Manual list will be populated by JavaScript -->
+                            <div class="table-responsive" style="max-height: 300px; overflow-y: auto;">
+                                <table class="table table-sm table-hover mb-0" id="manualGuestsTable">
+                                    <thead class="table-light sticky-top">
+                                        <tr>
+                                            <th width="25%"><i class="fas fa-user"></i> Khách</th>
+                                            <th width="20%"><i class="fas fa-calendar"></i> Ngày</th>
+                                            <th width="15%"><i class="fas fa-coins"></i> Tổng</th>
+                                            <th width="15%"><i class="fas fa-chart-line"></i> /Đêm</th>
+                                            <th width="10%"><i class="fas fa-bed"></i> Đêm</th>
+                                            <th width="15%"><i class="fas fa-cog"></i> Thao tác</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="manualGuestsList">
+                                        <!-- Manual list will be populated by JavaScript -->
+                                    </tbody>
+                                </table>
                             </div>
                         </div>
                         
                         <!-- Empty State -->
-                        <div id="canceledGuestsEmpty" style="display: none;" class="text-center p-4">
-                            <i class="fas fa-check-circle text-success mb-2" style="font-size: 2rem;"></i>
-                            <p class="text-muted mb-0">Không có khách nào đã hủy trong khoảng thời gian này</p>
+                        <div id="canceledGuestsEmpty" style="display: none;" class="text-center p-3">
+                            <i class="fas fa-check-circle text-success mb-1" style="font-size: 1.5rem;"></i>
+                            <small class="text-muted">Không có khách nào đã hủy trong khoảng thời gian này</small>
                         </div>
                     </div>
                 </div>
@@ -859,7 +871,7 @@
     }
 }
 
-/* AI Suggestions Styling */
+/* AI Suggestions Styling - Compact Version */
 .ai-suggestions-container {
     border-bottom: 2px solid #dee2e6;
 }
@@ -869,73 +881,66 @@
     border-bottom: 1px solid #dee2e6;
 }
 
-.ai-insights {
+.ai-insights-compact {
     display: flex;
-    gap: 15px;
+    gap: 10px;
     flex-wrap: wrap;
 }
 
 .ai-insight-item {
-    background: rgba(255, 255, 255, 0.8);
-    border-radius: 8px;
-    padding: 8px 12px;
-    border-left: 3px solid #2196f3;
-    font-size: 0.85rem;
+    background: rgba(255, 255, 255, 0.9);
+    border-radius: 4px;
+    padding: 4px 8px;
+    border-left: 2px solid #2196f3;
+    font-size: 0.75rem;
+    white-space: nowrap;
 }
 
-.ai-recommendations {
-    max-height: 400px;
+.ai-recommendations-compact {
+    max-height: 250px;
     overflow-y: auto;
 }
 
-.ai-recommendation-item {
-    border: 2px solid #4caf50;
-    border-radius: 12px;
+.ai-recommendation-item-compact {
+    border: 1px solid #4caf50;
+    border-radius: 6px;
     background: linear-gradient(135deg, #f8fffe 0%, #e8f5e8 100%);
-    margin-bottom: 15px;
-    padding: 15px;
-    position: relative;
-    transition: all 0.3s ease;
+    margin-bottom: 8px;
+    padding: 8px 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    transition: all 0.2s ease;
 }
 
-.ai-recommendation-item:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(76, 175, 80, 0.2);
+.ai-recommendation-item-compact:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 3px 10px rgba(76, 175, 80, 0.2);
 }
 
-.ai-recommendation-item.priority-high {
+.ai-recommendation-item-compact.priority-high {
     border-color: #ff5722;
     background: linear-gradient(135deg, #fff8f5 0%, #ffe8e0 100%);
 }
 
-.ai-recommendation-item.priority-high:hover {
-    box-shadow: 0 6px 20px rgba(255, 87, 34, 0.2);
-}
-
-.ai-recommendation-header {
-    display: flex;
-    justify-content: between;
-    align-items: flex-start;
-    margin-bottom: 10px;
-}
-
-.ai-guest-info {
+.ai-guest-info-compact {
     flex: 1;
+    margin-right: 10px;
 }
 
-.ai-guest-name {
+.ai-guest-name-compact {
     font-weight: bold;
-    font-size: 1.1em;
-    margin-bottom: 5px;
+    font-size: 0.9em;
+    margin-bottom: 2px;
     color: #2e7d32;
 }
 
 .ai-priority-badge {
-    font-size: 0.75rem;
-    padding: 3px 8px;
-    border-radius: 12px;
+    font-size: 0.65rem;
+    padding: 2px 6px;
+    border-radius: 8px;
     font-weight: 600;
-    margin-left: 8px;
+    margin-left: 6px;
 }
 
 .ai-priority-badge.high {
@@ -953,47 +958,45 @@
     color: white;
 }
 
-.ai-reason {
-    background: rgba(33, 150, 243, 0.1);
-    border-radius: 6px;
-    padding: 8px 10px;
-    margin: 8px 0;
-    font-size: 0.9rem;
+.ai-reason-compact {
+    font-size: 0.75rem;
     color: #1565c0;
-    border-left: 3px solid #2196f3;
+    margin-bottom: 2px;
 }
 
-.ai-revenue-impact {
+.ai-revenue-impact-compact {
     font-weight: bold;
     color: #4caf50;
-    font-size: 1.1em;
+    font-size: 0.8em;
 }
 
-.ai-action-button {
+.ai-action-button-compact {
     background: linear-gradient(135deg, #4caf50 0%, #45a049 100%);
     border: none;
     color: white;
-    padding: 8px 16px;
-    border-radius: 6px;
+    padding: 4px 8px;
+    border-radius: 4px;
     font-weight: 600;
+    font-size: 0.75rem;
     transition: all 0.3s ease;
-    min-width: 120px;
+    min-width: 80px;
 }
 
-.ai-action-button:hover {
+.ai-action-button-compact:hover {
     background: linear-gradient(135deg, #45a049 0%, #3d8b40 100%);
     transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(76, 175, 80, 0.3);
+    box-shadow: 0 2px 6px rgba(76, 175, 80, 0.3);
 }
 
-.strategy-summary {
+.strategy-summary-compact {
     background: linear-gradient(135deg, #fff3e0 0%, #ffe0b2 100%);
     border: 1px solid #ffb74d;
-    border-radius: 8px;
-    padding: 12px 15px;
-    margin-bottom: 15px;
+    border-radius: 4px;
+    padding: 6px 8px;
+    margin-bottom: 8px;
     color: #e65100;
     font-weight: 500;
+    font-size: 0.8rem;
 }
 
 .manual-list-header {
@@ -1001,20 +1004,83 @@
     border-top: 1px solid #dee2e6;
 }
 
+/* Compact Table Styling */
+#manualGuestsTable {
+    font-size: 0.85rem;
+}
+
+#manualGuestsTable th {
+    padding: 6px 8px;
+    font-weight: 600;
+    background: #f8f9fa;
+    border-bottom: 2px solid #dee2e6;
+}
+
+#manualGuestsTable td {
+    padding: 6px 8px;
+    vertical-align: middle;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+#manualGuestsTable tr:hover {
+    background-color: #f8f9fa;
+}
+
+.guest-name-cell {
+    font-weight: 600;
+    color: #2c3e50;
+}
+
+.date-cell {
+    font-size: 0.8rem;
+    color: #666;
+}
+
+.amount-cell {
+    font-weight: 600;
+    color: #28a745;
+}
+
+.nights-cell {
+    text-align: center;
+    font-weight: 500;
+}
+
+.action-cell {
+    text-align: center;
+}
+
+.restore-btn-compact {
+    padding: 2px 8px;
+    font-size: 0.75rem;
+    border-radius: 4px;
+    min-width: 70px;
+}
+
 @media (max-width: 768px) {
-    .ai-recommendation-header {
+    .ai-insights-compact {
+        flex-direction: column;
+        gap: 4px;
+    }
+    
+    .ai-recommendation-item-compact {
         flex-direction: column;
         align-items: flex-start;
-        gap: 10px;
+        gap: 6px;
     }
     
-    .ai-insights {
-        flex-direction: column;
-        gap: 8px;
-    }
-    
-    .ai-action-button {
+    .ai-action-button-compact {
         width: 100%;
+        min-width: auto;
+    }
+    
+    #manualGuestsTable {
+        font-size: 0.75rem;
+    }
+    
+    #manualGuestsTable th,
+    #manualGuestsTable td {
+        padding: 4px 6px;
     }
 }
 </style>
@@ -1106,54 +1172,57 @@ function refreshCanceledGuests() {
         });
 }
 
-// Display canceled guests in the manual list
+// Display canceled guests in the compact table format
 function displayCanceledGuests(guests) {
-    const manualListDiv = document.getElementById('manualGuestsList');
+    const manualListTbody = document.getElementById('manualGuestsList');
     
     if (!guests || guests.length === 0) {
-        manualListDiv.innerHTML = '<div class="text-center p-4 text-muted">Không có khách đã hủy</div>';
+        manualListTbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-3">Không có khách đã hủy</td></tr>';
         return;
     }
     
     const guestsHtml = guests.map(guest => {
-        const checkinDate = new Date(guest.checkin_date).toLocaleDateString('vi-VN');
-        const checkoutDate = new Date(guest.checkout_date).toLocaleDateString('vi-VN');
+        const checkinDate = new Date(guest.checkin_date).toLocaleDateString('vi-VN', {
+            day: '2-digit',
+            month: '2-digit'
+        });
+        const checkoutDate = new Date(guest.checkout_date).toLocaleDateString('vi-VN', {
+            day: '2-digit',
+            month: '2-digit'
+        });
         const totalAmount = guest.total_amount || 0;
         const pricePerNight = guest.price_per_night || 0;
         
         return `
-            <div class="canceled-guest-item">
-                <div class="canceled-guest-header">
-                    <div class="guest-info">
-                        <div class="guest-name">
-                            <i class="fas fa-user text-orange"></i> ${guest.guest_name}
-                        </div>
-                        <div class="guest-dates">
-                            <i class="fas fa-calendar"></i> ${checkinDate} → ${checkoutDate}
-                        </div>
-                        <div class="guest-pricing">
-                            <div class="price-item">
-                                <div class="price-label">Tổng tiền</div>
-                                <div class="price-value text-success">${totalAmount.toLocaleString('vi-VN')}đ</div>
-                            </div>
-                            <div class="price-item">
-                                <div class="price-label">Giá/đêm</div>
-                                <div class="price-value text-info">${pricePerNight.toLocaleString('vi-VN')}đ</div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="action-buttons">
-                        <button class="btn btn-success btn-sm restore-btn" 
-                                onclick="restoreBooking('${guest.booking_id}', '${guest.guest_name}')">
-                            <i class="fas fa-undo"></i> Phục hồi
-                        </button>
-                    </div>
-                </div>
-            </div>
+            <tr>
+                <td class="guest-name-cell">
+                    <i class="fas fa-user me-1 text-warning"></i>
+                    ${guest.guest_name}
+                </td>
+                <td class="date-cell">
+                    ${checkinDate} → ${checkoutDate}
+                </td>
+                <td class="amount-cell">
+                    ${totalAmount.toLocaleString('vi-VN')}đ
+                </td>
+                <td class="amount-cell">
+                    ${pricePerNight.toLocaleString('vi-VN')}đ
+                </td>
+                <td class="nights-cell">
+                    ${guest.nights || 1}
+                </td>
+                <td class="action-cell">
+                    <button class="btn btn-success btn-sm restore-btn-compact" 
+                            onclick="restoreBooking('${guest.booking_id}', '${guest.guest_name}')"
+                            title="Phục hồi booking">
+                        <i class="fas fa-undo"></i>
+                    </button>
+                </td>
+            </tr>
         `;
     }).join('');
     
-    manualListDiv.innerHTML = guestsHtml;
+    manualListTbody.innerHTML = guestsHtml;
 }
 
 // Get AI suggestions for optimal calendar filling
@@ -1226,12 +1295,12 @@ function getAISuggestions() {
     });
 }
 
-// Display AI suggestions and insights
+// Display AI suggestions and insights in compact format
 function displayAISuggestions(aiSuggestions, calendarAnalysis) {
     const aiInsights = document.getElementById('aiInsights');
     const aiRecommendations = document.getElementById('aiRecommendations');
     
-    // Display insights
+    // Display compact insights
     if (aiSuggestions.insights && aiSuggestions.insights.length > 0) {
         const insightsHtml = aiSuggestions.insights.map(insight => 
             `<div class="ai-insight-item">${insight}</div>`
@@ -1240,16 +1309,16 @@ function displayAISuggestions(aiSuggestions, calendarAnalysis) {
         aiInsights.style.display = 'flex';
     }
     
-    // Display strategy summary and recommendations
+    // Display compact strategy summary and recommendations
     let recommendationsHtml = '';
     
     if (aiSuggestions.strategy_summary) {
         recommendationsHtml += `
-            <div class="strategy-summary">
-                <i class="fas fa-lightbulb me-2"></i>
-                <strong>Chiến lược AI:</strong> ${aiSuggestions.strategy_summary}
+            <div class="strategy-summary-compact">
+                <i class="fas fa-lightbulb me-1"></i>
+                <strong>AI:</strong> ${aiSuggestions.strategy_summary}
                 ${aiSuggestions.total_potential_revenue ? 
-                    `<br><small class="mt-1 d-block"><i class="fas fa-coins me-1"></i>Tiềm năng doanh thu: <strong>${aiSuggestions.total_potential_revenue}</strong></small>` 
+                    ` | <i class="fas fa-coins me-1"></i><strong>${aiSuggestions.total_potential_revenue}</strong>` 
                     : ''}
             </div>
         `;
@@ -1261,30 +1330,27 @@ function displayAISuggestions(aiSuggestions, calendarAnalysis) {
             const priorityBadgeClass = rec.priority === 'high' ? 'high' : rec.priority === 'medium' ? 'medium' : 'low';
             
             return `
-                <div class="ai-recommendation-item ${priorityClass}">
-                    <div class="ai-recommendation-header">
-                        <div class="ai-guest-info">
-                            <div class="ai-guest-name">
-                                <i class="fas fa-star text-warning me-1"></i>
-                                ${rec.guest_name}
-                                <span class="ai-priority-badge ${priorityBadgeClass}">${rec.priority.toUpperCase()}</span>
-                            </div>
-                            <div class="ai-reason">
-                                <i class="fas fa-brain me-1"></i>
-                                <strong>Lý do AI:</strong> ${rec.reason}
-                            </div>
-                            <div class="ai-revenue-impact">
-                                <i class="fas fa-chart-line me-1"></i>
-                                Tác động doanh thu: ${rec.revenue_impact}
-                            </div>
+                <div class="ai-recommendation-item-compact ${priorityClass}">
+                    <div class="ai-guest-info-compact">
+                        <div class="ai-guest-name-compact">
+                            <i class="fas fa-star text-warning me-1"></i>
+                            ${rec.guest_name}
+                            <span class="ai-priority-badge ${priorityBadgeClass}">${rec.priority.toUpperCase()}</span>
                         </div>
-                        <div class="action-buttons">
-                            <button class="ai-action-button" 
-                                    onclick="restoreBookingFromAI('${rec.booking_id}', '${rec.guest_name}')">
-                                <i class="fas fa-magic me-1"></i>
-                                ${rec.action || 'Phục hồi ngay'}
-                            </button>
+                        <div class="ai-reason-compact">
+                            <strong>Lý do:</strong> ${rec.reason}
                         </div>
+                        <div class="ai-revenue-impact-compact">
+                            <i class="fas fa-chart-line me-1"></i>
+                            ${rec.revenue_impact}
+                        </div>
+                    </div>
+                    <div class="action-buttons">
+                        <button class="ai-action-button-compact" 
+                                onclick="restoreBookingFromAI('${rec.booking_id}', '${rec.guest_name}')">
+                            <i class="fas fa-magic me-1"></i>
+                            Phục hồi
+                        </button>
                     </div>
                 </div>
             `;
@@ -1293,9 +1359,9 @@ function displayAISuggestions(aiSuggestions, calendarAnalysis) {
         recommendationsHtml += recommendationsCards;
     } else {
         recommendationsHtml += `
-            <div class="text-center p-4 text-muted">
-                <i class="fas fa-robot mb-2" style="font-size: 2rem;"></i>
-                <p>AI không tìm thấy gợi ý tối ưu cho tháng này</p>
+            <div class="text-center p-3 text-muted">
+                <i class="fas fa-robot mb-1"></i>
+                <small>AI không tìm thấy gợi ý tối ưu cho tháng này</small>
             </div>
         `;
     }
@@ -1320,11 +1386,11 @@ function restoreBookingFromAI(bookingId, guestName) {
     
     // Find the AI button and show loading state
     const aiButtons = document.querySelectorAll(`button[onclick*="${bookingId}"]`);
-    const aiBtn = Array.from(aiButtons).find(btn => btn.textContent.includes('Phục hồi ngay') || btn.textContent.includes('magic'));
+    const aiBtn = Array.from(aiButtons).find(btn => btn.textContent.includes('Phục hồi') || btn.textContent.includes('magic'));
     
     if (aiBtn) {
         aiBtn.disabled = true;
-        aiBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> AI đang xử lý...';
+        aiBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Đang xử lý...';
     }
     
     // Call the existing restore booking function
@@ -1364,7 +1430,7 @@ function restoreBookingFromAI(bookingId, guestName) {
         // Reset button state
         if (aiBtn) {
             aiBtn.disabled = false;
-            aiBtn.innerHTML = '<i class="fas fa-magic me-1"></i> Phục hồi ngay';
+            aiBtn.innerHTML = '<i class="fas fa-magic me-1"></i> Phục hồi';
         }
     });
 }
