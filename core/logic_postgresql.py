@@ -321,6 +321,14 @@ def add_new_booking(booking_data: Dict) -> bool:
             email = None
             print(f"🔍 [ADD_NEW_BOOKING] Empty email converted to None")
         
+        # Check for email conflicts with different guests
+        if email:
+            existing_email_guest = db.session.query(Guest).filter_by(email=email).first()
+            if existing_email_guest and existing_email_guest.full_name != booking_data.get('guest_name', ''):
+                # Email exists for different guest - set email to None to avoid conflict
+                print(f"⚠️ [ADD_NEW_BOOKING] Email conflict detected for {booking_data.get('guest_name', '')}, setting to None")
+                email = None
+        
         # Check if guest exists (only by name if no email)
         if email:
             guest = db.session.query(Guest).filter_by(
@@ -356,6 +364,14 @@ def add_new_booking(booking_data: Dict) -> bool:
             booking_id = f"PHOTO_{uuid.uuid4().hex[:8].upper()}"
             print(f"🔍 [ADD_NEW_BOOKING] Generated booking ID: {booking_id}")
         
+        # Check for booking ID conflicts
+        existing_booking = db.session.query(Booking).filter_by(booking_id=booking_id).first()
+        if existing_booking:
+            # Generate new unique booking_id
+            original_id = booking_id
+            booking_id = f"PHOTO_{uuid.uuid4().hex[:8].upper()}"
+            print(f"⚠️ [ADD_NEW_BOOKING] Booking ID conflict ({original_id}), generated new: {booking_id}")
+        
         # Create new booking
         booking = Booking(
             booking_id=booking_id,
@@ -379,15 +395,24 @@ def add_new_booking(booking_data: Dict) -> bool:
         
     except Exception as e:
         db.session.rollback()
+        error_str = str(e)
         
-        # Check if this is a sequence/duplicate key error and try to fix it
-        if "duplicate key value violates unique constraint" in str(e) and "guests_pkey" in str(e):
-            print(f"🔧 [ADD_NEW_BOOKING] Guest ID sequence issue detected, attempting fix...")
-            if _fix_guest_sequence():
-                print(f"✅ [ADD_NEW_BOOKING] Sequence fixed, retrying booking creation...")
-                return add_new_booking(booking_data)  # Retry once
+        # Enhanced error handling with specific constraint identification
+        if "duplicate key value violates unique constraint" in error_str:
+            if "guests_pkey" in error_str:
+                print(f"🔧 [ADD_NEW_BOOKING] Guest ID sequence issue detected, attempting fix...")
+                if _fix_guest_sequence():
+                    print(f"✅ [ADD_NEW_BOOKING] Sequence fixed, retrying booking creation...")
+                    return add_new_booking(booking_data)  # Retry once
+            elif "guests_email_key" in error_str:
+                print(f"❌ [ADD_NEW_BOOKING] Email unique constraint violation for: {booking_data.get('guest_name', 'Unknown')}")
+                print(f"   Email causing conflict: {booking_data.get('email', 'No email')}")
+            elif "bookings_pkey" in error_str:
+                print(f"❌ [ADD_NEW_BOOKING] Booking ID conflict for: {booking_data.get('booking_id', 'No ID')}")
+            else:
+                print(f"❌ [ADD_NEW_BOOKING] Unknown unique constraint violation: {error_str}")
         
-        print(f"❌ [ADD_NEW_BOOKING] Error adding booking: {e}")
+        print(f"❌ [ADD_NEW_BOOKING] Error adding booking for {booking_data.get('guest_name', 'Unknown')}: {e}")
         import traceback
         traceback.print_exc()
         return False
