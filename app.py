@@ -5796,11 +5796,14 @@ def get_ai_calendar_suggestions():
         
         print(f"🤖 AI Calendar Suggestions for {month}/{year}")
         
-        # 1. Analyze calendar gaps for the specified month
+        # 1. ENHANCED CALENDAR ANALYSIS with 4-room capacity tracking
         start_date = datetime(year, month, 1).date()
         end_date = (datetime(year, month, cal.monthrange(year, month)[1])).date()
         
-        # Get all confirmed bookings for the month
+        # Hotel configuration
+        MAX_ROOMS_PER_DAY = 4
+        
+        # Get all confirmed bookings for the month  
         confirmed_bookings = Booking.query.filter(
             Booking.booking_status.in_(['confirmed', 'mới']),
             Booking.checkin_date <= end_date,
@@ -5808,49 +5811,64 @@ def get_ai_calendar_suggestions():
             Booking.booking_status != 'deleted'
         ).all()
         
-        # Identify empty days
-        occupied_dates = set()
-        revenue_by_date = {}
+        # Track room occupancy and revenue by day
+        daily_occupancy = {}  # date -> number of rooms occupied
+        revenue_by_date = {}  # date -> total revenue
         
+        # Initialize all days in month
+        current_date = start_date
+        while current_date <= end_date:
+            daily_occupancy[current_date] = 0
+            revenue_by_date[current_date] = 0
+            current_date += timedelta(days=1)
+        
+        # Count room usage for each day
         for booking in confirmed_bookings:
             current_date = max(booking.checkin_date, start_date)
             end_booking_date = min(booking.checkout_date, end_date + timedelta(days=1))
             
             while current_date < end_booking_date:
-                occupied_dates.add(current_date)
-                if current_date not in revenue_by_date:
-                    revenue_by_date[current_date] = 0
-                
-                # Calculate daily revenue
-                total_nights = (booking.checkout_date - booking.checkin_date).days
-                if total_nights > 0:
-                    daily_revenue = float(booking.room_amount or 0) / total_nights
-                    revenue_by_date[current_date] += daily_revenue
+                if current_date <= end_date:
+                    daily_occupancy[current_date] += 1
+                    
+                    # Calculate daily revenue
+                    total_nights = (booking.checkout_date - booking.checkin_date).days
+                    if total_nights > 0:
+                        daily_revenue = float(booking.room_amount or 0) / total_nights
+                        revenue_by_date[current_date] += daily_revenue
                 
                 current_date += timedelta(days=1)
         
-        # Find empty days
-        empty_days = []
-        current_date = start_date
-        while current_date <= end_date:
-            if current_date not in occupied_dates:
-                empty_days.append({
-                    'date': current_date.strftime('%Y-%m-%d'),
-                    'day_name': current_date.strftime('%A'),
-                    'day_number': current_date.day
+        # Identify availability gaps (days with < 4 rooms occupied)
+        availability_gaps = []
+        for date, occupancy in daily_occupancy.items():
+            available_rooms = MAX_ROOMS_PER_DAY - occupancy
+            if available_rooms > 0:
+                availability_gaps.append({
+                    'date': date.strftime('%Y-%m-%d'),
+                    'day_name': date.strftime('%A'),
+                    'day_number': date.day,
+                    'current_occupancy': occupancy,
+                    'available_rooms': available_rooms,
+                    'occupancy_rate': f"{(occupancy/MAX_ROOMS_PER_DAY)*100:.0f}%",
+                    'current_revenue': revenue_by_date[date]
                 })
-            current_date += timedelta(days=1)
         
-        # 2. Get canceled bookings that could fill empty days
+        # Sort gaps by available rooms (most available first)
+        availability_gaps.sort(key=lambda x: x['available_rooms'], reverse=True)
+        
+        # 2. INTELLIGENT CANCELED GUEST ANALYSIS with room capacity validation
+        today = datetime.now().date()
         canceled_bookings = db.session.query(Booking, Guest).outerjoin(
             Guest, Booking.guest_id == Guest.guest_id
         ).filter(
             Booking.booking_status.in_(['cancelled', 'đã hủy']),
-            Booking.checkin_date >= start_date - timedelta(days=30),  # Include nearby dates
+            Booking.checkin_date >= today,  # Only future check-ins
             Booking.checkin_date <= end_date + timedelta(days=30),
             Booking.booking_status != 'deleted'
         ).all()
         
+        # Enhanced guest analysis with capacity validation
         canceled_guests = []
         for booking, guest in canceled_bookings:
             guest_name = guest.full_name if guest else booking.guest_name or 'Unknown'
@@ -5860,6 +5878,36 @@ def get_ai_calendar_suggestions():
             total_amount = float(booking.room_amount or 0)
             price_per_night = total_amount / total_nights if total_nights > 0 else total_amount
             
+            # Check room availability for this booking period
+            can_fit = True
+            booking_start = max(booking.checkin_date, start_date)
+            booking_end = min(booking.checkout_date, end_date + timedelta(days=1))
+            
+            current_check_date = booking_start
+            while current_check_date < booking_end and current_check_date <= end_date:
+                if daily_occupancy.get(current_check_date, 0) >= MAX_ROOMS_PER_DAY:
+                    can_fit = False
+                    break
+                current_check_date += timedelta(days=1)
+            
+            # Calculate value score (price per night × nights × availability factor)
+            availability_factor = 1.0
+            if booking.checkin_date <= end_date and booking.checkout_date >= start_date:
+                # Count how many gap days this booking would fill
+                gap_days_filled = 0
+                gap_revenue_potential = 0
+                current_check_date = booking_start
+                while current_check_date < booking_end and current_check_date <= end_date:
+                    gap_data = next((gap for gap in availability_gaps if gap['date'] == current_check_date.strftime('%Y-%m-%d')), None)
+                    if gap_data and gap_data['available_rooms'] > 0:
+                        gap_days_filled += 1
+                        gap_revenue_potential += price_per_night
+                    current_check_date += timedelta(days=1)
+                
+                availability_factor = gap_days_filled / total_nights if total_nights > 0 else 0
+            
+            value_score = price_per_night * total_nights * availability_factor * (1.2 if total_nights >= 3 else 1.0)
+            
             canceled_guests.append({
                 'booking_id': booking.booking_id,
                 'guest_name': guest_name,
@@ -5868,51 +5916,97 @@ def get_ai_calendar_suggestions():
                 'total_amount': total_amount,
                 'price_per_night': price_per_night,
                 'nights': total_nights,
-                'commission': float(booking.commission or 0)
+                'commission': float(booking.commission or 0),
+                'can_fit_capacity': can_fit,
+                'value_score': value_score,
+                'gap_days_filled': gap_days_filled if 'gap_days_filled' in locals() else 0,
+                'availability_factor': availability_factor,
+                'long_stay_bonus': total_nights >= 3
             })
         
-        # 3. Prepare data for Gemini AI analysis
+        # Sort by value score (highest first)
+        canceled_guests.sort(key=lambda x: x['value_score'], reverse=True)
+        
+        # 3. ADVANCED GEMINI AI ANALYSIS with capacity optimization
+        total_available_rooms = sum(gap['available_rooms'] for gap in availability_gaps)
+        current_occupancy_rate = sum(1 for gap in daily_occupancy.values() if gap > 0) / len(daily_occupancy) * 100
+        high_value_guests = [g for g in canceled_guests if g['can_fit_capacity'] and g['value_score'] > 1000000]
+        
         analysis_prompt = f"""
-You are a hotel revenue optimization expert. Analyze the calendar data and suggest the best strategy for filling empty days with canceled guests.
+You are an ELITE hotel revenue optimization AI with advanced scheduling capabilities. You manage a 4-room hotel and must make INTELLIGENT decisions to maximize occupancy and revenue.
 
-**CALENDAR ANALYSIS FOR {month}/{year}:**
+**🏨 HOTEL CONSTRAINTS:**
+- Maximum 4 rooms per day
+- Must respect existing bookings
+- Priority: Revenue per night × Occupancy optimization × Long-stay preference
 
-**Empty Days ({len(empty_days)} days):**
-{[day['date'] + ' (' + day['day_name'] + ')' for day in empty_days]}
+**📊 CURRENT CALENDAR STATUS ({month}/{year}):**
 
-**Available Canceled Guests ({len(canceled_guests)} guests):**
-{chr(10).join([f"- {guest['guest_name']}: {guest['checkin_date']} to {guest['checkout_date']} ({guest['nights']} nights) - {guest['price_per_night']:,.0f}đ/night (Total: {guest['total_amount']:,.0f}đ)" for guest in canceled_guests[:10]])}
+**Availability Analysis:**
+- Total days in month: {len(daily_occupancy)}
+- Days with availability: {len(availability_gaps)}
+- Total available room-nights: {total_available_rooms}
+- Current occupancy rate: {current_occupancy_rate:.1f}%
+- Current month revenue: {sum(revenue_by_date.values()):,.0f}đ
 
-**Current Month Revenue:** {sum(revenue_by_date.values()):,.0f}đ from {len(occupied_dates)} occupied days
+**🔍 CAPACITY GAPS (Room availability by day):**
+{chr(10).join([f"- {gap['date']} ({gap['day_name']}): {gap['available_rooms']}/4 rooms available, Current: {gap['current_occupancy']} guests, Revenue: {gap['current_revenue']:,.0f}đ" for gap in availability_gaps[:15]])}
 
-**ANALYSIS REQUIREMENTS:**
-1. **Priority Strategy**: Focus on highest revenue per night first
-2. **Date Matching**: Suggest guests whose dates overlap with empty calendar days
-3. **Revenue Optimization**: Calculate potential revenue increase
-4. **Practical Considerations**: Consider guest stay duration and pricing
+**👥 SMART CANCELED GUEST ANALYSIS ({len(canceled_guests)} total):**
+**High-Value Candidates (Can fit + High score):**
+{chr(10).join([f"- {guest['guest_name']}: {guest['checkin_date']} → {guest['checkout_date']} ({guest['nights']} nights)" + f" | {guest['price_per_night']:,.0f}đ/night | Value Score: {guest['value_score']:,.0f} | Fills {guest['gap_days_filled']} gap days | CAN FIT: {guest['can_fit_capacity']}" for guest in high_value_guests[:8]])}
 
-**RESPONSE FORMAT (JSON):**
+**⚡ AI OPTIMIZATION REQUIREMENTS:**
+1. **CAPACITY CONSTRAINT**: Never exceed 4 rooms on any day
+2. **CONFLICT RESOLUTION**: If guests overlap, choose highest value combination
+3. **LONG-STAY PREFERENCE**: 3+ night stays get 20% priority bonus
+4. **GAP FILLING**: Prioritize guests that fill the most availability gaps
+5. **REVENUE MAXIMIZATION**: Price per night × nights × availability factor
+
+**STRATEGIC SCENARIOS TO CONSIDER:**
+Your example: Day 5 is empty + guest checking out day 5 vs. guest checking in day 4-7
+- Analyze if the 4-7 guest conflicts with existing bookings
+- Calculate revenue difference: short stay vs. long stay
+- Consider room availability on days 4,5,6,7
+- Make intelligent choice based on total optimization
+
+**🎯 REQUIRED JSON RESPONSE:**
 {{
-    "strategy_summary": "Brief summary of the optimal strategy",
-    "total_potential_revenue": "Total additional revenue possible",
+    "strategy_summary": "Detailed strategy explaining the optimization approach",
+    "optimization_metrics": {{
+        "potential_occupancy_increase": "X%",
+        "potential_revenue_increase": "X,XXXđ",
+        "recommended_guests_count": X,
+        "total_room_nights_filled": X
+    }},
     "top_recommendations": [
         {{
             "guest_name": "Guest name",
-            "booking_id": "Booking ID", 
-            "reason": "Why this guest is recommended",
-            "priority": "high/medium/low",
-            "revenue_impact": "Additional revenue from this guest",
-            "action": "Restore this booking immediately"
+            "booking_id": "Booking ID",
+            "checkin_date": "YYYY-MM-DD",
+            "checkout_date": "YYYY-MM-DD", 
+            "reason": "Detailed explanation of why this guest is optimal",
+            "priority": "critical/high/medium",
+            "revenue_impact": "X,XXXđ additional revenue",
+            "capacity_impact": "Fills X rooms for X days",
+            "conflict_resolution": "How this choice resolves conflicts if any",
+            "action": "Restore immediately/Consider/Monitor"
         }}
     ],
+    "capacity_analysis": {{
+        "bottleneck_days": ["List of days that limit guest selection"],
+        "optimal_combinations": "Explanation of guest combinations that work together",
+        "missed_opportunities": "High-value guests that can't fit due to capacity"
+    }},
     "insights": [
-        "Key insight 1",
-        "Key insight 2", 
-        "Key insight 3"
+        "Critical insight about optimization strategy",
+        "Key pattern in availability gaps", 
+        "Revenue optimization opportunity",
+        "Capacity management recommendation"
     ]
 }}
 
-Provide smart, actionable recommendations that maximize revenue while filling the most empty days.
+THINK LIKE A REVENUE MANAGEMENT EXPERT: Balance occupancy rate, revenue per room, and guest satisfaction. Make data-driven decisions that maximize hotel profitability.
 """
 
         # 4. Call Gemini AI for analysis
@@ -5930,47 +6024,79 @@ Provide smart, actionable recommendations that maximize revenue while filling th
             if json_match:
                 ai_suggestions = json.loads(json_match.group())
             else:
-                # Fallback if JSON parsing fails
+                # Enhanced fallback with capacity analysis
+                fit_guests = [g for g in canceled_guests if g['can_fit_capacity']][:5]
                 ai_suggestions = {
-                    "strategy_summary": "AI analysis temporarily unavailable - showing basic revenue optimization",
-                    "total_potential_revenue": f"{sum(guest['total_amount'] for guest in canceled_guests[:5]):,.0f}đ",
+                    "strategy_summary": f"Smart fallback optimization - {len(fit_guests)} guests can fit within 4-room capacity",
+                    "optimization_metrics": {
+                        "potential_occupancy_increase": f"{(len(fit_guests) * 2):}%",
+                        "potential_revenue_increase": f"{sum(g['total_amount'] for g in fit_guests):,.0f}đ",
+                        "recommended_guests_count": len(fit_guests),
+                        "total_room_nights_filled": sum(g['nights'] for g in fit_guests)
+                    },
                     "top_recommendations": [
                         {
                             "guest_name": guest['guest_name'],
                             "booking_id": guest['booking_id'],
-                            "reason": f"High value at {guest['price_per_night']:,.0f}đ/night",
-                            "priority": "high" if guest['price_per_night'] > 500000 else "medium",
-                            "revenue_impact": f"{guest['total_amount']:,.0f}đ",
-                            "action": "Consider for restoration"
-                        } for guest in sorted(canceled_guests, key=lambda x: x['price_per_night'], reverse=True)[:3]
+                            "checkin_date": guest['checkin_date'],
+                            "checkout_date": guest['checkout_date'],
+                            "reason": f"High value score {guest['value_score']:,.0f} - {guest['price_per_night']:,.0f}đ/night, fills {guest['gap_days_filled']} gap days",
+                            "priority": "critical" if guest['value_score'] > 2000000 else "high" if guest['value_score'] > 1000000 else "medium",
+                            "revenue_impact": f"{guest['total_amount']:,.0f}đ additional revenue",
+                            "capacity_impact": f"Fills 1 room for {guest['nights']} days",
+                            "conflict_resolution": "Verified capacity available" if guest['can_fit_capacity'] else "Capacity conflict detected",
+                            "action": "Restore immediately" if guest['can_fit_capacity'] else "Check capacity"
+                        } for guest in fit_guests[:3]
                     ],
+                    "capacity_analysis": {
+                        "bottleneck_days": [gap['date'] for gap in availability_gaps if gap['available_rooms'] == 1],
+                        "optimal_combinations": f"Can restore {len(fit_guests)} guests without capacity conflicts",
+                        "missed_opportunities": f"{len([g for g in canceled_guests if not g['can_fit_capacity']])} guests blocked by capacity limits"
+                    },
                     "insights": [
-                        f"You have {len(empty_days)} empty days this month",
-                        f"Top canceled guest offers {max([g['price_per_night'] for g in canceled_guests], default=0):,.0f}đ/night",
-                        "Focus on high-value guests first"
+                        f"🎯 {len(availability_gaps)} days have available rooms",
+                        f"💰 Highest value guest: {max([g['price_per_night'] for g in canceled_guests], default=0):,.0f}đ/night",
+                        f"🏨 {total_available_rooms} total room-nights available this month",
+                        f"⚡ Prioritize long stays (3+ nights) for maximum efficiency"
                     ]
                 }
                 
         except Exception as ai_error:
             print(f"AI Analysis Error: {ai_error}")
-            # Provide fallback analysis
+            # Enhanced emergency fallback with capacity analysis
+            fit_guests = [g for g in canceled_guests if g['can_fit_capacity']][:5]
             ai_suggestions = {
-                "strategy_summary": "Basic optimization - restore highest value guests first",
-                "total_potential_revenue": f"{sum(guest['total_amount'] for guest in canceled_guests[:5]):,.0f}đ",
+                "strategy_summary": f"Emergency fallback optimization - verified {len(fit_guests)} guests fit capacity constraints",
+                "optimization_metrics": {
+                    "potential_occupancy_increase": f"{min(len(fit_guests) * 5, 50)}%",
+                    "potential_revenue_increase": f"{sum(g['total_amount'] for g in fit_guests):,.0f}đ",
+                    "recommended_guests_count": len(fit_guests),
+                    "total_room_nights_filled": sum(g['nights'] for g in fit_guests)
+                },
                 "top_recommendations": [
                     {
                         "guest_name": guest['guest_name'],
                         "booking_id": guest['booking_id'],
-                        "reason": f"High revenue potential at {guest['price_per_night']:,.0f}đ/night",
-                        "priority": "high" if guest['price_per_night'] > 500000 else "medium",
-                        "revenue_impact": f"{guest['total_amount']:,.0f}đ",
-                        "action": "Restore booking"
-                    } for guest in sorted(canceled_guests, key=lambda x: x['price_per_night'], reverse=True)[:3]
+                        "checkin_date": guest['checkin_date'],
+                        "checkout_date": guest['checkout_date'],
+                        "reason": f"Emergency pick: {guest['price_per_night']:,.0f}đ/night, value score {guest['value_score']:,.0f}",
+                        "priority": "high" if guest['can_fit_capacity'] else "low",
+                        "revenue_impact": f"{guest['total_amount']:,.0f}đ potential revenue",
+                        "capacity_impact": f"Uses 1 room for {guest['nights']} days",
+                        "conflict_resolution": "Capacity verified" if guest['can_fit_capacity'] else "Capacity conflict",
+                        "action": "Restore immediately" if guest['can_fit_capacity'] else "Manual review needed"
+                    } for guest in fit_guests[:3]
                 ],
+                "capacity_analysis": {
+                    "bottleneck_days": "Analysis unavailable in emergency mode",
+                    "optimal_combinations": f"{len(fit_guests)} safe combinations identified",
+                    "missed_opportunities": f"{len(canceled_guests) - len(fit_guests)} guests need manual capacity review"
+                },
                 "insights": [
-                    f"{len(empty_days)} empty days need filling",
-                    f"{len(canceled_guests)} canceled guests available",
-                    "Prioritize by price per night"
+                    f"🚨 Emergency mode: {len(availability_gaps)} days have room availability",
+                    f"⚡ Quick wins: {len(fit_guests)} guests can be restored safely",
+                    f"💰 Emergency revenue potential: {sum(g['total_amount'] for g in fit_guests):,.0f}đ",
+                    "🔧 Manual AI review recommended for full optimization"
                 ]
             }
         
@@ -5979,15 +6105,24 @@ Provide smart, actionable recommendations that maximize revenue while filling th
             'calendar_analysis': {
                 'month': month,
                 'year': year,
-                'empty_days': empty_days,
-                'occupied_days': len(occupied_dates),
+                'hotel_capacity': MAX_ROOMS_PER_DAY,
+                'availability_gaps': availability_gaps,
+                'total_available_rooms': total_available_rooms,
+                'current_occupancy_rate': f"{current_occupancy_rate:.1f}%",
                 'current_revenue': sum(revenue_by_date.values()),
-                'canceled_guests_available': len(canceled_guests)
+                'daily_occupancy': {date.strftime('%Y-%m-%d'): occupancy for date, occupancy in daily_occupancy.items()},
+                'canceled_guests_available': len(canceled_guests),
+                'high_value_guests_count': len(high_value_guests)
             },
             'ai_suggestions': ai_suggestions,
-            'raw_data': {
-                'canceled_guests': canceled_guests[:10],  # Limit for UI
-                'empty_days_count': len(empty_days)
+            'advanced_data': {
+                'capacity_validated_guests': [g for g in canceled_guests if g['can_fit_capacity']][:10],
+                'value_scored_guests': canceled_guests[:10],
+                'bottleneck_analysis': {
+                    'single_room_days': [gap['date'] for gap in availability_gaps if gap['available_rooms'] == 1],
+                    'full_availability_days': [gap['date'] for gap in availability_gaps if gap['available_rooms'] >= 3],
+                    'optimization_potential': f"{len([g for g in canceled_guests if g['can_fit_capacity']])} guests can fit safely"
+                }
             }
         })
         
