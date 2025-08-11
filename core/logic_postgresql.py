@@ -1176,8 +1176,8 @@ def extract_booking_info_from_image_content(image_data: bytes, google_api_key: s
                 "booking_id": "booking ID", 
                 "checkin_date": "YYYY-MM-DD",
                 "checkout_date": "YYYY-MM-DD",
-                "room_amount": number,
-                "commission": number,
+                "room_amount": number (no commas, just digits like 400000),
+                "commission": number (no commas, just digits like 50000),
                 "email": "email if available",
                 "phone": "phone if available"
             }
@@ -1193,8 +1193,8 @@ def extract_booking_info_from_image_content(image_data: bytes, google_api_key: s
                     "booking_id": "booking ID 1", 
                     "checkin_date": "YYYY-MM-DD",
                     "checkout_date": "YYYY-MM-DD",
-                    "room_amount": number,
-                    "commission": number,
+                    "room_amount": number (no commas, just digits like 400000),
+                    "commission": number (no commas, just digits like 50000),
                     "email": "email if available",
                     "phone": "phone if available"
                 },
@@ -1203,8 +1203,8 @@ def extract_booking_info_from_image_content(image_data: bytes, google_api_key: s
                     "booking_id": "booking ID 2",
                     "checkin_date": "YYYY-MM-DD", 
                     "checkout_date": "YYYY-MM-DD",
-                    "room_amount": number,
-                    "commission": number,
+                    "room_amount": number (no commas, just digits like 400000),
+                    "commission": number (no commas, just digits like 50000),
                     "email": "email if available",
                     "phone": "phone if available"
                 }

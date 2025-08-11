@@ -8570,16 +8570,22 @@ async function updateCollectorChart() {
         } else if (selectedDateType === 'month') {
             // Use month selection
             if (selectedMonth === 'current') {
-                // Use July 2025 (current month)
-                const startDate = '2025-07-01';
-                const endDate = '2025-07-31';
+                // Use current month dynamically
+                const now = new Date();
+                const year = now.getFullYear();
+                const month = String(now.getMonth() + 1).padStart(2, '0');
+                const lastDay = new Date(year, now.getMonth() + 1, 0).getDate();
+                
+                const startDate = `${year}-${month}-01`;
+                const endDate = `${year}-${month}-${String(lastDay).padStart(2, '0')}`;
                 
                 requestData = {
                     start_date: startDate,
                     end_date: endDate
                 };
                 
-                periodText = `tháng 7 năm 2025 (tháng hiện tại)`;
+                const monthName = now.toLocaleDateString('vi-VN', { year: 'numeric', month: 'long' });
+                periodText = `${monthName} (tháng hiện tại)`;
             } else if (selectedMonth === 'no-data' || selectedMonth === 'error') {
                 // Handle no data cases
                 throw new Error('Không có dữ liệu có sẵn');

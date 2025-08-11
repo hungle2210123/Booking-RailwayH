@@ -108,6 +108,45 @@ app.config['ENV'] = 'production'
 app.config['DEBUG'] = railway_env  # Enable debug on Railway to troubleshoot auto sync menu
 app.secret_key = os.getenv("FLASK_SECRET_KEY", "a_default_secret_key_for_development")
 
+# ==============================================================================
+# HELPER FUNCTIONS
+# ==============================================================================
+
+def safe_parse_vietnamese_number(value, default=0.0):
+    """Safely parse Vietnamese-formatted numbers like '400,000' or '400.000'"""
+    if not value:
+        return default
+    
+    # If it's already a number, return it
+    if isinstance(value, (int, float)):
+        return float(value)
+    
+    # Convert to string and clean it
+    str_value = str(value).strip()
+    if not str_value:
+        return default
+    
+    try:
+        # Remove common Vietnamese thousand separators
+        cleaned = str_value.replace(',', '').replace('.', '').replace(' ', '')
+        
+        # Handle VND suffix
+        cleaned = cleaned.replace('VND', '').replace('đ', '').replace('₫', '').strip()
+        
+        # If there are still non-numeric characters, try to extract numbers
+        import re
+        numbers_only = re.sub(r'[^\d]', '', cleaned)
+        
+        if numbers_only:
+            return float(numbers_only)
+        else:
+            print(f"⚠️ [NUMBER_PARSE] Could not parse number from '{value}', using default {default}")
+            return default
+            
+    except (ValueError, TypeError) as e:
+        print(f"⚠️ [NUMBER_PARSE] Error parsing '{value}': {e}, using default {default}")
+        return default
+
 # ========================================
 # SMART DATABASE CONFIGURATION
 # ========================================
@@ -2563,9 +2602,9 @@ def save_extracted_bookings():
                     'accommodation_name': accommodation_name,  # Include room type/property name
                     'checkin_date': checkin_date,
                     'checkout_date': checkout_date,
-                    'room_amount': float(booking_data.get('room_amount', 0)) if booking_data.get('room_amount') else 0.0,
-                    'commission': float(booking_data.get('commission', 0)) if booking_data.get('commission') else 0.0,
-                    'taxi_amount': float(booking_data.get('taxi_amount', 0)) if booking_data.get('taxi_amount') else 0.0,
+                    'room_amount': safe_parse_vietnamese_number(booking_data.get('room_amount'), 0.0),
+                    'commission': safe_parse_vietnamese_number(booking_data.get('commission'), 0.0),
+                    'taxi_amount': safe_parse_vietnamese_number(booking_data.get('taxi_amount'), 0.0),
                     'collector': '',
                     'notes': f"AI extracted on {datetime.now().strftime('%Y-%m-%d %H:%M')}"
                 }
@@ -8113,9 +8152,9 @@ def save_bulk_bookings():
                     'booking_id': booking_data.get('booking_id', ''),
                     'checkin_date': checkin_date,  # Use correct field name
                     'checkout_date': checkout_date,  # Use correct field name
-                    'room_amount': float(booking_data.get('room_amount', 0)),
-                    'commission': float(booking_data.get('commission', 0)),
-                    'taxi_amount': float(booking_data.get('taxi_amount', 0)),
+                    'room_amount': safe_parse_vietnamese_number(booking_data.get('room_amount'), 0.0),
+                    'commission': safe_parse_vietnamese_number(booking_data.get('commission'), 0.0),
+                    'taxi_amount': safe_parse_vietnamese_number(booking_data.get('taxi_amount'), 0.0),
                     'email': booking_data.get('email', ''),
                     'phone': booking_data.get('phone', ''),
                     'notes': f"Imported from admin crawl - {booking_data.get('source', 'unknown')}"
