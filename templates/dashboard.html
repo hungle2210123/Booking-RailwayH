@@ -8171,9 +8171,17 @@ document.addEventListener('DOMContentLoaded', function() {
         const monthSelect = document.getElementById('collectorMonthSelect');
         if (monthSelect && monthSelect.options.length === 1 && monthSelect.options[0].value === 'loading') {
             console.log('🔧 [BACKUP] Month selector still loading, forcing manual initialization...');
+            
+            // Dynamically generate current month option
+            const now = new Date();
+            const currentYear = now.getFullYear();
+            const currentMonth = now.getMonth() + 1;
+            const monthName = now.toLocaleDateString('vi-VN', { month: 'long' });
+            const currentMonthValue = `${currentYear}-${String(currentMonth).padStart(2, '0')}`;
+            
             monthSelect.innerHTML = `
-                <option value="current">Tháng hiện tại (tháng 7)</option>
-                <option value="2025-07">tháng 7 năm 2025 (hiện tại)</option>
+                <option value="current">Tháng hiện tại (${monthName})</option>
+                <option value="${currentMonthValue}">${monthName} năm ${currentYear} (hiện tại)</option>
                 <option value="2025-06">tháng 6 năm 2025 (41,000,000đ)</option>
                 <option value="2025-05">tháng 5 năm 2025 (15,000,000đ)</option>
             `;
@@ -8216,9 +8224,16 @@ window.fixMonthSelector = function() {
         return;
     }
     
+    // Dynamically generate current month option  
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth() + 1;
+    const monthName = now.toLocaleDateString('vi-VN', { month: 'long' });
+    const currentMonthValue = `${currentYear}-${String(currentMonth).padStart(2, '0')}`;
+    
     monthSelect.innerHTML = `
-        <option value="current">Tháng hiện tại (tháng 7)</option>
-        <option value="2025-07">tháng 7 năm 2025 (hiện tại)</option>
+        <option value="current">Tháng hiện tại (${monthName})</option>
+        <option value="${currentMonthValue}">${monthName} năm ${currentYear} (hiện tại)</option>
         <option value="2025-06">tháng 6 năm 2025 (41,000,000đ)</option>
         <option value="2025-05">tháng 5 năm 2025 (15,000,000đ)</option>
     `;
@@ -11805,10 +11820,17 @@ window.fixMonthSelector = function() {
         return false;
     }
     
-    // Clear and set new options
+    // Dynamically generate current month option
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth() + 1;
+    const monthName = now.toLocaleDateString('vi-VN', { month: 'long' });
+    const currentMonthValue = `${currentYear}-${String(currentMonth).padStart(2, '0')}`;
+    
+    // Clear and set new options with dynamic current month
     monthSelect.innerHTML = `
-        <option value="current">Tháng hiện tại (tháng 7)</option>
-        <option value="2025-07" selected>tháng 7 năm 2025 (hiện tại)</option>
+        <option value="current">Tháng hiện tại (${monthName})</option>
+        <option value="${currentMonthValue}" selected>${monthName} năm ${currentYear} (hiện tại)</option>
         <option value="2025-06">tháng 6 năm 2025 (41,000,000đ)</option>
         <option value="2025-05">tháng 5 năm 2025 (15,000,000đ)</option>
     `;
@@ -12060,9 +12082,15 @@ window.testCollectorAPI = async function(month) {
     
     let requestData = {};
     if (month === 'current') {
+        // Use current month dynamically
+        const now = new Date();
+        const year = now.getFullYear();
+        const month_num = String(now.getMonth() + 1).padStart(2, '0');
+        const lastDay = new Date(year, now.getMonth() + 1, 0).getDate();
+        
         requestData = {
-            start_date: '2025-07-01',
-            end_date: '2025-07-31'
+            start_date: `${year}-${month_num}-01`,
+            end_date: `${year}-${month_num}-${String(lastDay).padStart(2, '0')}`
         };
     } else {
         const [year, monthNum] = month.split('-');
@@ -12133,8 +12161,8 @@ window.checkJulyPayments = async function() {
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-                start_date: '2025-07-01',
-                end_date: '2025-07-31'
+                start_date: '2025-08-01',
+                end_date: '2025-08-31'
             })
         });
         
