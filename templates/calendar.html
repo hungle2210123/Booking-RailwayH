@@ -1509,6 +1509,11 @@ function displayCanceledGuests(guests) {
                             title="Phục hồi booking">
                         <i class="fas fa-undo"></i>
                     </button>
+                    <button class="btn btn-danger btn-sm delete-btn-compact ms-1" 
+                            onclick="deleteBooking('${guest.booking_id}', '${guest.guest_name}')"
+                            title="Xóa vĩnh viễn">
+                        <i class="fas fa-trash"></i>
+                    </button>
                 </td>
             </tr>
         `;
@@ -1872,6 +1877,83 @@ function restoreBooking(bookingId, guestName) {
         if (restoreBtn) {
             restoreBtn.disabled = false;
             restoreBtn.innerHTML = '<i class="fas fa-undo"></i> Phục hồi';
+        }
+    });
+}
+
+// Delete a canceled booking permanently
+function deleteBooking(bookingId, guestName) {
+    // Confirm deletion with warning
+    const confirmed = confirm(
+        `⚠️ XÓA VĨNH VIỄN booking cho ${guestName}?\n\n` +
+        `Mã booking: ${bookingId}\n` +
+        `CẢNH BÁO: Hành động này KHÔNG THỂ hoàn tác!\n` +
+        `Booking sẽ bị xóa vĩnh viễn khỏi hệ thống.\n\n` +
+        `Bạn có chắc chắn muốn xóa?`
+    );
+    
+    if (!confirmed) {
+        return;
+    }
+    
+    // Double confirmation for safety
+    const doubleConfirmed = confirm(
+        `🚨 XÁC NHẬN LẦN CUỐI!\n\n` +
+        `Bạn thực sự muốn XÓA VĨNH VIỄN booking của ${guestName}?\n` +
+        `Thao tác này KHÔNG THỂ phục hồi!`
+    );
+    
+    if (!doubleConfirmed) {
+        return;
+    }
+    
+    // Find the button and show loading state
+    const buttons = document.querySelectorAll(`button[onclick*="${bookingId}"]`);
+    const deleteBtn = Array.from(buttons).find(btn => btn.innerHTML.includes('fa-trash'));
+    
+    if (deleteBtn) {
+        deleteBtn.disabled = true;
+        deleteBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+    }
+    
+    // Call delete API
+    fetch(`/api/delete_booking/${bookingId}`, {
+        method: 'DELETE',
+        headers: {
+            'Content-Type': 'application/json'
+        }
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data.success) {
+            // Show success message
+            alert(`✅ Đã xóa vĩnh viễn booking của ${guestName}!\n\nBooking ${bookingId} đã bị xóa khỏi hệ thống.`);
+            
+            // Refresh the canceled guests list
+            refreshCanceledGuests();
+            
+            // If AI suggestions are visible, refresh them too
+            const aiRecommendations = document.getElementById('aiRecommendations');
+            if (aiRecommendations && aiRecommendations.style.display !== 'none') {
+                getAISuggestions();
+            }
+        } else {
+            throw new Error(data.error || 'Unknown error occurred');
+        }
+    })
+    .catch(error => {
+        console.error('Error deleting booking:', error);
+        alert(`❌ Lỗi xóa booking: ${error.message}`);
+        
+        // Reset button state
+        if (deleteBtn) {
+            deleteBtn.disabled = false;
+            deleteBtn.innerHTML = '<i class="fas fa-trash"></i>';
         }
     });
 }

@@ -2738,6 +2738,11 @@ def calendar_view(year=None, month=None):
     cal = calendar.monthrange(year, month)
     first_day, num_days = cal
     
+    # Convert Python's weekday (Monday=0) to our calendar's weekday (Sunday=0)
+    # Python: Mon=0, Tue=1, Wed=2, Thu=3, Fri=4, Sat=5, Sun=6
+    # Our calendar: Sun=0, Mon=1, Tue=2, Wed=3, Thu=4, Fri=5, Sat=6
+    first_day = (first_day + 1) % 7  # Convert to Sunday-based
+    
     # Create calendar weeks structure
     calendar_data = []
     week = []
@@ -5818,6 +5823,58 @@ def restore_booking(booking_id):
         
     except Exception as e:
         print(f"Error restoring booking {booking_id}: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/delete_booking/<booking_id>', methods=['DELETE'])
+def delete_booking(booking_id):
+    """Permanently delete a canceled booking from the system"""
+    try:
+        from core.models import Booking, db
+        from datetime import datetime
+        
+        # Find the booking
+        booking = Booking.query.filter_by(booking_id=booking_id).first()
+        if not booking:
+            return jsonify({'success': False, 'error': 'Booking not found'}), 404
+        
+        # Check if booking is actually canceled
+        if booking.booking_status not in ['cancelled', 'đã hủy']:
+            return jsonify({
+                'success': False, 
+                'error': f'Can only delete canceled bookings (current status: {booking.booking_status})'
+            }), 400
+        
+        # Store booking info for logging
+        guest_name = booking.guest_name
+        checkin_date = booking.checkin_date
+        checkout_date = booking.checkout_date
+        
+        # Set booking status to 'deleted' instead of physically deleting
+        # This maintains data integrity and allows for recovery if needed
+        booking.booking_status = 'deleted'
+        booking.updated_at = datetime.now()
+        
+        # Add deletion note
+        delete_note = f"[DELETED {datetime.now().strftime('%Y-%m-%d %H:%M')}] Permanently removed from system"
+        if booking.booking_notes:
+            booking.booking_notes += f"\n{delete_note}"
+        else:
+            booking.booking_notes = delete_note
+        
+        db.session.commit()
+        
+        print(f"🗑️ Permanently deleted booking {booking_id} for {guest_name} ({checkin_date} - {checkout_date})")
+        
+        return jsonify({
+            'success': True,
+            'message': 'Booking permanently deleted',
+            'booking_id': booking_id,
+            'guest_name': guest_name,
+            'deleted_at': datetime.now().isoformat()
+        })
+        
+    except Exception as e:
+        print(f"Error deleting booking {booking_id}: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/api/ai_calendar_suggestions', methods=['POST'])
