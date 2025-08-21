@@ -619,27 +619,6 @@
         <li class="breadcrumb-item active">Tổng quan về hiệu suất khách sạn</li>
     </ol>
 
-    <!-- Essential Controls Only -->
-    <div class="row mb-3">
-        <div class="col-12">
-            <div class="d-flex justify-content-end gap-2">
-                <!-- Keep only essential duplicate management -->
-                <a href="{{ url_for('duplicate_management_page') }}" 
-                   class="btn btn-sm duplicate-button {% if duplicate_guests and duplicate_guests|length > 0 %}with-count{% endif %}" 
-                   title="{% if duplicate_guests and duplicate_guests|length > 0 %}Tìm thấy {{ duplicate_guests|length }} khách trùng lặp - Click để xem{% else %}Quản lý khách trùng lặp{% endif %}"
-                   {% if duplicate_guests and duplicate_guests|length > 0 %}data-count="{{ duplicate_guests|length }}"{% endif %}>
-                    <i class="fas fa-users me-1"></i>
-                    Duplicates
-                </a>
-                <!-- Keep only all bookings link -->
-                <a href="{{ url_for('view_bookings', show_all='true') }}" 
-                   class="btn btn-sm btn-outline-info" 
-                   title="Xem tất cả booking">
-                    <i class="fas fa-list me-1"></i>All Bookings
-                </a>
-            </div>
-        </div>
-    </div>
 
 
     <!-- 🚨 CANCELLATION ALERTS - COMPACT -->
@@ -770,9 +749,6 @@
                 </button>
                 <button class="btn btn-warning btn-sm" onclick="highlightUpcomingCheckins()">
                     <i class="fas fa-exclamation-triangle me-1"></i>Highlight Urgent (2 days)
-                </button>
-                <button class="btn btn-secondary btn-sm" onclick="testCancellationAPI()">
-                    <i class="fas fa-bug me-1"></i>Test API
                 </button>
             </div>
         </div>
