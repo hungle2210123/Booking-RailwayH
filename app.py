@@ -7033,10 +7033,11 @@ def get_unchecked_in_guests():
         start_of_month = today.replace(day=1)
         
         # Calculate end of current month
+        from datetime import timedelta
         if today.month == 12:
-            end_of_month = date(today.year + 1, 1, 1) - date.fromordinal(1)
+            end_of_month = date(today.year + 1, 1, 1) - timedelta(days=1)
         else:
-            end_of_month = date(today.year, today.month + 1, 1) - date.fromordinal(1)
+            end_of_month = date(today.year, today.month + 1, 1) - timedelta(days=1)
             
         print(f"🏨 [UNCHECKED_IN] Getting unchecked-in guests for {start_of_month} to {end_of_month}")
         
