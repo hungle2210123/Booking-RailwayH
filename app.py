@@ -7021,6 +7021,96 @@ def get_collector_chart_data():
         traceback.print_exc()
         return jsonify({'success': False, 'message': f'Server error: {str(e)}'}), 500
 
+@app.route('/api/unchecked_in_guests', methods=['GET'])
+def get_unchecked_in_guests():
+    """Get unchecked-in guests for current month - money to be collected"""
+    try:
+        from datetime import datetime, date
+        from core.models import Booking, Guest, db
+        
+        # Get current month date range
+        today = date.today()
+        start_of_month = today.replace(day=1)
+        
+        # Calculate end of current month
+        if today.month == 12:
+            end_of_month = date(today.year + 1, 1, 1) - date.fromordinal(1)
+        else:
+            end_of_month = date(today.year, today.month + 1, 1) - date.fromordinal(1)
+            
+        print(f"🏨 [UNCHECKED_IN] Getting unchecked-in guests for {start_of_month} to {end_of_month}")
+        
+        # Query confirmed bookings where check-in date is in current month but haven't checked in yet
+        # (check-in date > today)
+        unchecked_bookings = db.session.query(Booking, Guest).outerjoin(
+            Guest, Booking.guest_id == Guest.guest_id
+        ).filter(
+            Booking.booking_status.in_(['confirmed', 'mới']),
+            Booking.checkin_date >= today,  # Haven't checked in yet (future dates)
+            Booking.checkin_date >= start_of_month,  # Check-in date in current month
+            Booking.checkin_date <= end_of_month,
+            Booking.booking_status != 'deleted',
+            Booking.booking_status != 'cancelled',
+            Booking.booking_status != 'đã hủy'
+        ).order_by(Booking.checkin_date.asc()).all()
+        
+        unchecked_list = []
+        total_amount = 0
+        total_commission = 0
+        
+        for booking, guest in unchecked_bookings:
+            guest_name = guest.full_name if guest else booking.guest_name or 'Unknown Guest'
+            
+            # Calculate amounts
+            room_amount = float(booking.room_amount or 0)
+            commission = float(booking.commission or 0)
+            total_amount += room_amount
+            total_commission += commission
+            
+            # Calculate nights
+            if booking.checkout_date and booking.checkin_date:
+                nights = (booking.checkout_date - booking.checkin_date).days
+                nights = max(1, nights)
+            else:
+                nights = 1
+            
+            unchecked_list.append({
+                'booking_id': booking.booking_id,
+                'guest_name': guest_name,
+                'checkin_date': booking.checkin_date.isoformat() if booking.checkin_date else None,
+                'checkout_date': booking.checkout_date.isoformat() if booking.checkout_date else None,
+                'room_amount': room_amount,
+                'commission': commission,
+                'nights': nights,
+                'collector': booking.collector or 'N/A',
+                'accommodation': booking.accommodation_name or 'N/A',
+                'days_until_checkin': (booking.checkin_date - today).days if booking.checkin_date else 0
+            })
+        
+        print(f"🏨 [UNCHECKED_IN] Found {len(unchecked_list)} unchecked-in guests")
+        print(f"💰 [UNCHECKED_IN] Total to collect: {total_amount:,.0f}đ")
+        print(f"💸 [UNCHECKED_IN] Total commission: {total_commission:,.0f}đ")
+        
+        return jsonify({
+            'success': True,
+            'unchecked_guests': unchecked_list,
+            'total_amount': total_amount,
+            'total_commission': total_commission,
+            'count': len(unchecked_list),
+            'period': f"{start_of_month.strftime('%B %Y')}",
+            'date_range': {
+                'start': start_of_month.isoformat(),
+                'end': end_of_month.isoformat(),
+                'today': today.isoformat()
+            }
+        })
+        
+    except Exception as e:
+        print(f"❌ [UNCHECKED_IN] Error: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 @app.route('/api/railway_status', methods=['GET'])
 def railway_status():
     """Debug endpoint for Railway deployment status"""

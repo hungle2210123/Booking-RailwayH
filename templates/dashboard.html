@@ -765,9 +765,8 @@
                 <span class="badge bg-warning text-dark ms-2" id="totalCancellationBadge">Loading...</span>
             </h6>
             <div class="btn-group" role="group">
-                <button class="btn btn-success btn-sm" disabled>
-                    <i class="fas fa-eye me-1"></i>Always Visible
-                    <i class="fas fa-check ms-1"></i>
+                <button class="btn btn-primary btn-sm" onclick="toggleCancellationCenter()" id="toggleCancellationBtn">
+                    <i class="fas fa-eye me-1"></i>Show Center
                 </button>
                 <button class="btn btn-warning btn-sm" onclick="highlightUpcomingCheckins()">
                     <i class="fas fa-exclamation-triangle me-1"></i>Highlight Urgent (2 days)
@@ -783,7 +782,7 @@
             Unified management for all cancellation-related customers. Use tabs to switch between pending and confirmed actions.
         </div>
         
-        <div id="cancellationManagementCenter" class="mt-3" style="display: block;">
+        <div id="cancellationManagementCenter" class="mt-3" style="display: none;">
             <!-- Month Filter for Cancellation Management -->
             <div class="row mb-3">
                 <div class="col-md-6">
@@ -1635,6 +1634,46 @@
                                     <li><strong>TB/khách:</strong> Trung bình chi tiêu mỗi khách</li>
                                     <li><strong>Hoa hồng TB:</strong> Trung bình hoa hồng mỗi khách</li>
                                 </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- New Section: Unchecked-in Guests Revenue -->
+            <div class="card shadow-sm border-0 mt-3">
+                <div class="card-header bg-warning text-dark">
+                    <h6 class="mb-0">
+                        <i class="fas fa-users-clock me-1"></i> 
+                        Khách Chưa Check-in - Cần Thu Tiền Tháng Này
+                        <span class="badge bg-danger text-white ms-2" id="uncheckedInBadge">Loading...</span>
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-warning py-2 mb-3" style="font-size: 0.85rem;">
+                        <i class="fas fa-info-circle me-2"></i>
+                        <strong>Danh sách khách đã đặt phòng nhưng chưa check-in</strong> - Đây là số tiền bạn sẽ cần thu trong tháng này khi họ check-in.
+                    </div>
+                    
+                    <div id="uncheckedInGuestsList" class="mt-2">
+                        <!-- Will be populated by JavaScript -->
+                        <div class="text-center py-3">
+                            <div class="spinner-border spinner-border-sm text-primary" role="status">
+                                <span class="visually-hidden">Đang tải...</span>
+                            </div>
+                            <small class="d-block mt-2 text-muted">Đang tải danh sách khách chưa check-in...</small>
+                        </div>
+                    </div>
+                    
+                    <div class="border-top pt-2 mt-3">
+                        <div class="row text-center">
+                            <div class="col-6">
+                                <div class="fw-bold text-primary fs-5" id="totalUncheckedAmount">0đ</div>
+                                <small class="text-muted">Tổng cần thu</small>
+                            </div>
+                            <div class="col-6">
+                                <div class="fw-bold text-info fs-5" id="totalUncheckedGuests">0</div>
+                                <small class="text-muted">Tổng khách</small>
                             </div>
                         </div>
                     </div>
@@ -5057,6 +5096,11 @@ document.addEventListener('DOMContentLoaded', async function() {
         } else {
             throw new Error('Server data not available');
         }
+        
+        // Load unchecked-in guests data
+        if (typeof loadUncheckedInGuests === 'function') {
+            loadUncheckedInGuests();
+        }
     } catch (error) {
         console.log('⚠️ Server sync failed, using local storage:', error.message);
         
@@ -5067,6 +5111,11 @@ document.addEventListener('DOMContentLoaded', async function() {
             if (defaultTimeElement) {
                 defaultTimeElement.textContent = defaultTime;
             }
+        }
+        
+        // Still load unchecked-in guests data even if arrival times fail
+        if (typeof loadUncheckedInGuests === 'function') {
+            loadUncheckedInGuests();
         }
         
         // Load guest-specific arrival times from localStorage
@@ -7235,6 +7284,126 @@ function retryLoadMonthlyGuests() {
 function exportMonthlyGuestData() {
     // Placeholder for Excel export functionality
     alert('Chức năng xuất Excel sẽ được triển khai trong phiên bản tiếp theo');
+}
+
+// ==================== UNCHECKED-IN GUESTS FUNCTIONALITY ====================
+function loadUncheckedInGuests() {
+    console.log('🏨 [UNCHECKED_IN] Loading unchecked-in guests...');
+    
+    const listContainer = document.getElementById('uncheckedInGuestsList');
+    const totalAmountElement = document.getElementById('totalUncheckedAmount');
+    const totalGuestsElement = document.getElementById('totalUncheckedGuests');
+    const badgeElement = document.getElementById('uncheckedInBadge');
+    
+    if (!listContainer || !totalAmountElement || !totalGuestsElement || !badgeElement) {
+        console.error('🏨 [UNCHECKED_IN] Required elements not found');
+        return;
+    }
+    
+    // Show loading state
+    listContainer.innerHTML = `
+        <div class="text-center py-3">
+            <div class="spinner-border spinner-border-sm text-primary" role="status">
+                <span class="visually-hidden">Đang tải...</span>
+            </div>
+            <small class="d-block mt-2 text-muted">Đang tải danh sách khách chưa check-in...</small>
+        </div>
+    `;
+    
+    fetch('/api/unchecked_in_guests')
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.success) {
+                displayUncheckedInGuests(data.unchecked_guests, data.total_amount, data.count);
+                
+                // Update summary
+                totalAmountElement.textContent = `${data.total_amount.toLocaleString('vi-VN')}đ`;
+                totalGuestsElement.textContent = data.count;
+                badgeElement.textContent = data.count;
+                
+                console.log(`🏨 [UNCHECKED_IN] Loaded ${data.count} guests, total: ${data.total_amount.toLocaleString('vi-VN')}đ`);
+            } else {
+                throw new Error(data.error || 'Unknown error');
+            }
+        })
+        .catch(error => {
+            console.error('🏨 [UNCHECKED_IN] Error loading guests:', error);
+            listContainer.innerHTML = `
+                <div class="alert alert-danger text-center">
+                    <i class="fas fa-exclamation-triangle"></i> 
+                    Lỗi tải dữ liệu: ${error.message}
+                    <br><small>Vui lòng thử lại sau</small>
+                </div>
+            `;
+            badgeElement.textContent = '!';
+        });
+}
+
+function displayUncheckedInGuests(guests, totalAmount, totalCount) {
+    const listContainer = document.getElementById('uncheckedInGuestsList');
+    
+    if (!guests || guests.length === 0) {
+        listContainer.innerHTML = `
+            <div class="text-center py-3">
+                <i class="fas fa-check-circle text-success mb-2" style="font-size: 2rem;"></i>
+                <p class="text-muted mb-0">Không có khách nào chưa check-in trong tháng này</p>
+                <small class="text-success">Tất cả khách đã check-in hoặc chưa có booking nào!</small>
+            </div>
+        `;
+        return;
+    }
+    
+    const guestsHtml = guests.map(guest => {
+        const checkinDate = new Date(guest.checkin_date).toLocaleDateString('vi-VN', {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric'
+        });
+        const checkoutDate = new Date(guest.checkout_date).toLocaleDateString('vi-VN', {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric'
+        });
+        
+        const daysUntil = guest.days_until_checkin;
+        const urgencyClass = daysUntil <= 1 ? 'border-danger bg-light' : daysUntil <= 3 ? 'border-warning' : 'border-light';
+        const urgencyBadge = daysUntil <= 1 ? 'bg-danger' : daysUntil <= 3 ? 'bg-warning text-dark' : 'bg-primary';
+        
+        return `
+            <div class="card mb-2 ${urgencyClass}">
+                <div class="card-body py-2 px-3">
+                    <div class="row align-items-center">
+                        <div class="col-sm-4">
+                            <div class="fw-bold text-dark">${guest.guest_name}</div>
+                            <small class="text-muted">${guest.booking_id}</small>
+                        </div>
+                        <div class="col-sm-3">
+                            <small class="text-muted">Check-in:</small>
+                            <div class="fw-bold text-primary">${checkinDate}</div>
+                            <span class="badge ${urgencyBadge}">
+                                ${daysUntil === 0 ? 'Hôm nay' : daysUntil === 1 ? 'Ngày mai' : `${daysUntil} ngày nữa`}
+                            </span>
+                        </div>
+                        <div class="col-sm-2 text-center">
+                            <small class="text-muted">Số đêm:</small>
+                            <div class="fw-bold">${guest.nights}</div>
+                        </div>
+                        <div class="col-sm-3 text-end">
+                            <div class="fw-bold text-success">${guest.room_amount.toLocaleString('vi-VN')}đ</div>
+                            <small class="text-muted">${guest.collector}</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }).join('');
+    
+    listContainer.innerHTML = guestsHtml;
 }
 
 // ==================== WEEKLY GUEST DETAILS FUNCTIONALITY ====================
@@ -10712,6 +10881,34 @@ window.testCancellationAPI = async function() {
     } catch (error) {
         console.error('🧪 [TEST] API test error:', error);
         alert('❌ API test failed. Check console for details.');
+    }
+};
+
+// Toggle Cancellation Center visibility
+window.toggleCancellationCenter = function() {
+    const centerDiv = document.getElementById('cancellationManagementCenter');
+    const toggleBtn = document.getElementById('toggleCancellationBtn');
+    
+    if (!centerDiv || !toggleBtn) {
+        console.error('Cancellation center elements not found');
+        return;
+    }
+    
+    if (centerDiv.style.display === 'none') {
+        centerDiv.style.display = 'block';
+        toggleBtn.innerHTML = '<i class="fas fa-eye-slash me-1"></i>Hide Center';
+        toggleBtn.classList.remove('btn-primary');
+        toggleBtn.classList.add('btn-secondary');
+        
+        // Load data when showing
+        if (typeof window.loadPendingCustomers === 'function') {
+            window.loadPendingCustomers();
+        }
+    } else {
+        centerDiv.style.display = 'none';
+        toggleBtn.innerHTML = '<i class="fas fa-eye me-1"></i>Show Center';
+        toggleBtn.classList.remove('btn-secondary');
+        toggleBtn.classList.add('btn-primary');
     }
 };
 
