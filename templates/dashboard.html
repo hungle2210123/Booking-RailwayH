@@ -7350,60 +7350,62 @@ function displayUncheckedInGuests(guests, totalAmount, totalCount) {
     if (!guests || guests.length === 0) {
         listContainer.innerHTML = `
             <div class="text-center py-3">
-                <i class="fas fa-check-circle text-success mb-2" style="font-size: 2rem;"></i>
-                <p class="text-muted mb-0">Không có khách nào chưa check-in trong tháng này</p>
-                <small class="text-success">Tất cả khách đã check-in hoặc chưa có booking nào!</small>
+                <i class="fas fa-check-circle text-success mb-2" style="font-size: 1.5rem;"></i>
+                <p class="text-muted mb-0 small">Không có khách nào chưa check-in trong tháng này</p>
             </div>
         `;
         return;
     }
     
-    const guestsHtml = guests.map(guest => {
-        const checkinDate = new Date(guest.checkin_date).toLocaleDateString('vi-VN', {
-            day: '2-digit',
-            month: '2-digit',
-            year: 'numeric'
-        });
-        const checkoutDate = new Date(guest.checkout_date).toLocaleDateString('vi-VN', {
-            day: '2-digit',
-            month: '2-digit',
-            year: 'numeric'
-        });
-        
-        const daysUntil = guest.days_until_checkin;
-        const urgencyClass = daysUntil <= 1 ? 'border-danger bg-light' : daysUntil <= 3 ? 'border-warning' : 'border-light';
-        const urgencyBadge = daysUntil <= 1 ? 'bg-danger' : daysUntil <= 3 ? 'bg-warning text-dark' : 'bg-primary';
-        
-        return `
-            <div class="card mb-2 ${urgencyClass}">
-                <div class="card-body py-2 px-3">
-                    <div class="row align-items-center">
-                        <div class="col-sm-4">
-                            <div class="fw-bold text-dark">${guest.guest_name}</div>
-                            <small class="text-muted">${guest.booking_id}</small>
-                        </div>
-                        <div class="col-sm-3">
-                            <small class="text-muted">Check-in:</small>
-                            <div class="fw-bold text-primary">${checkinDate}</div>
-                            <span class="badge ${urgencyBadge}">
-                                ${daysUntil === 0 ? 'Hôm nay' : daysUntil === 1 ? 'Ngày mai' : `${daysUntil} ngày nữa`}
-                            </span>
-                        </div>
-                        <div class="col-sm-2 text-center">
-                            <small class="text-muted">Số đêm:</small>
-                            <div class="fw-bold">${guest.nights}</div>
-                        </div>
-                        <div class="col-sm-3 text-end">
-                            <div class="fw-bold text-success">${guest.room_amount.toLocaleString('vi-VN')}đ</div>
-                            <small class="text-muted">${guest.collector}</small>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        `;
-    }).join('');
+    // Create compact table format
+    const tableHtml = `
+        <div class="table-responsive" style="max-height: 300px; overflow-y: auto;">
+            <table class="table table-sm table-hover mb-0">
+                <thead class="table-light sticky-top">
+                    <tr style="font-size: 0.8rem;">
+                        <th width="30%"><i class="fas fa-user me-1"></i>Khách</th>
+                        <th width="25%"><i class="fas fa-calendar me-1"></i>Check-in</th>
+                        <th width="15%" class="text-center"><i class="fas fa-bed me-1"></i>Đêm</th>
+                        <th width="30%" class="text-end"><i class="fas fa-coins me-1"></i>Số tiền</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${guests.map(guest => {
+                        const checkinDate = new Date(guest.checkin_date).toLocaleDateString('vi-VN', {
+                            day: '2-digit',
+                            month: '2-digit'
+                        });
+                        
+                        const daysUntil = guest.days_until_checkin;
+                        const urgencyBadge = daysUntil <= 1 ? 'bg-danger text-white' : daysUntil <= 3 ? 'bg-warning text-dark' : 'bg-primary text-white';
+                        const urgencyText = daysUntil === 0 ? 'Hôm nay' : daysUntil === 1 ? 'Ngày mai' : `${daysUntil} ngày`;
+                        
+                        return `
+                            <tr style="font-size: 0.85rem;">
+                                <td>
+                                    <div class="fw-bold text-dark" style="font-size: 0.8rem;">${guest.guest_name}</div>
+                                    <small class="text-muted" style="font-size: 0.7rem;">${guest.booking_id}</small>
+                                </td>
+                                <td>
+                                    <div class="fw-bold text-primary">${checkinDate}</div>
+                                    <span class="badge ${urgencyBadge}" style="font-size: 0.6rem;">${urgencyText}</span>
+                                </td>
+                                <td class="text-center">
+                                    <span class="fw-bold">${guest.nights}</span>
+                                </td>
+                                <td class="text-end">
+                                    <div class="fw-bold text-success">${guest.room_amount.toLocaleString('vi-VN')}đ</div>
+                                    <small class="text-muted" style="font-size: 0.7rem;">${guest.collector}</small>
+                                </td>
+                            </tr>
+                        `;
+                    }).join('')}
+                </tbody>
+            </table>
+        </div>
+    `;
     
-    listContainer.innerHTML = guestsHtml;
+    listContainer.innerHTML = tableHtml;
 }
 
 // ==================== WEEKLY GUEST DETAILS FUNCTIONALITY ====================
