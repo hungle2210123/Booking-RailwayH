@@ -29,6 +29,102 @@
         </div>
     </div>
 
+    <!-- Canceled Guests Management Panel -->
+    <div class="canceled-guests-panel mb-4">
+        <div class="card">
+            <div class="card-header" style="background: linear-gradient(135deg, #fd7e14 0%, #f8764b 100%);">
+                <div class="d-flex justify-content-between align-items-center">
+                    <h6 class="mb-0 text-white fw-bold">
+                        <i class="fas fa-user-times me-2"></i>
+                        Khách Đã Hủy - Chưa Check-in (Có Thể Phục Hồi)
+                        <span id="canceledGuestsCount" class="badge bg-light text-dark ms-2">0</span>
+                    </h6>
+                    <div class="btn-group" role="group">
+                        <button class="btn btn-sm btn-light" onclick="toggleCanceledPanel()" id="toggleCanceledBtn">
+                            <i class="fas fa-eye"></i> Hiện
+                        </button>
+                        <button class="btn btn-sm btn-warning" onclick="refreshCanceledGuests()">
+                            <i class="fas fa-sync"></i> Làm mới
+                        </button>
+                    </div>
+                </div>
+                <small class="text-white-50 d-block mt-1">
+                    Chỉ hiển thị khách đã hủy nhưng chưa check-in (ngày đến >= hôm nay) - Click "Phục hồi" để chuyển về OK
+                </small>
+            </div>
+            <div class="card-body p-0" id="canceledGuestsContent" style="display: none;">
+                <!-- AI Suggestions Section - Compact Horizontal Layout -->
+                <div id="aiSuggestionsSection" class="ai-suggestions-container" style="display: none;">
+                    <div class="ai-header p-2" style="background: linear-gradient(135deg, #e3f2fd 0%, #f3e5f5 100%); border-bottom: 1px solid #dee2e6;">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <h6 class="mb-0 text-primary fw-bold">
+                                <i class="fas fa-brain me-2"></i>🤖 AI GEMINI - SIÊU TỐI ƯU LỊCH (4 PHÒNG)
+                                <span id="aiLoadingSpinner" class="ms-2" style="display: none;">
+                                    <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
+                                </span>
+                            </h6>
+                            <button class="btn btn-sm btn-primary" onclick="getAISuggestions()" id="aiRefreshBtn">
+                                <i class="fas fa-brain"></i> Siêu Tối Ưu
+                            </button>
+                        </div>
+                        <div id="aiInsights" class="ai-insights-compact mb-2" style="display: none;">
+                            <!-- AI insights will be populated here -->
+                        </div>
+                    </div>
+                    
+                    <div id="aiRecommendations" class="ai-recommendations-compact p-2" style="display: none; max-height: 250px; overflow-y: auto;">
+                        <!-- AI recommendations will be populated here -->
+                    </div>
+                    
+                    <div id="aiError" class="alert alert-warning m-2 py-2" style="display: none;">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        AI analysis not available. Using manual list below.
+                    </div>
+                </div>
+                
+                <!-- Loading State -->
+                <div id="canceledGuestsLoading" class="text-center p-3">
+                    <div class="spinner-border spinner-border-sm text-primary" role="status">
+                        <span class="visually-hidden">Đang tải...</span>
+                    </div>
+                    <small class="mt-2 text-muted d-block">Đang tải danh sách khách đã hủy...</small>
+                </div>
+                
+                <!-- Manual Guest List - Compact Horizontal Layout -->
+                <div id="canceledGuestsList" style="display: none;">
+                    <div class="manual-list-header p-2 bg-light border-top">
+                        <h6 class="mb-0 text-secondary">
+                            <i class="fas fa-list me-2"></i>Danh Sách Khách Đã Hủy - Chưa Check-in
+                        </h6>
+                    </div>
+                    <div class="table-responsive" style="max-height: 300px; overflow-y: auto;">
+                        <table class="table table-sm table-hover mb-0" id="manualGuestsTable">
+                            <thead class="table-light sticky-top">
+                                <tr>
+                                    <th width="25%"><i class="fas fa-user"></i> Khách</th>
+                                    <th width="20%"><i class="fas fa-calendar"></i> Ngày</th>
+                                    <th width="15%"><i class="fas fa-coins"></i> Tổng</th>
+                                    <th width="15%"><i class="fas fa-chart-line"></i> /Đêm</th>
+                                    <th width="10%"><i class="fas fa-bed"></i> Đêm</th>
+                                    <th width="15%"><i class="fas fa-cog"></i> Thao tác</th>
+                                </tr>
+                            </thead>
+                            <tbody id="manualGuestsList">
+                                <!-- Manual list will be populated by JavaScript -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                
+                <!-- Empty State -->
+                <div id="canceledGuestsEmpty" style="display: none;" class="text-center p-3">
+                    <i class="fas fa-check-circle text-success mb-1" style="font-size: 1.5rem;"></i>
+                    <small class="text-muted">Không có khách đã hủy nào chưa check-in trong khoảng thời gian này</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Commission Overview Section -->
     {% set all_bookings = check_in + staying_over + check_out %}
     {% set commission_bookings = [] %}
@@ -716,9 +812,1095 @@
             font-size: 0.85rem;
         }
     }
+
+    /* ================================
+       CANCELED GUESTS PANEL STYLES
+       ================================ */
+
+    /* Canceled Guests Panel Styling */
+    .canceled-guests-panel .card-header {
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+
+    .canceled-guests-panel .card-header:hover {
+        background: linear-gradient(135deg, #e68900 0%, #cc7a00 100%) !important;
+    }
+
+    .canceled-guest-item {
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        margin-bottom: 10px;
+        padding: 15px;
+        background: white;
+        transition: all 0.3s ease;
+    }
+
+    .canceled-guest-item:hover {
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        transform: translateY(-2px);
+    }
+
+    .canceled-guest-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 10px;
+    }
+
+    .guest-info {
+        flex: 1;
+    }
+
+    .guest-name {
+        font-weight: bold;
+        font-size: 1.1em;
+        margin-bottom: 5px;
+    }
+
+    .guest-dates {
+        color: #666;
+        font-size: 0.9em;
+        margin-bottom: 5px;
+    }
+
+    .guest-pricing {
+        display: flex;
+        gap: 15px;
+        flex-wrap: wrap;
+    }
+
+    .price-item {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+    }
+
+    .price-label {
+        font-size: 0.8em;
+        color: #666;
+        margin-bottom: 2px;
+    }
+
+    .price-value {
+        font-weight: bold;
+        font-size: 0.9em;
+    }
+
+    .restore-btn {
+        min-width: 100px;
+    }
+
+    @media (max-width: 768px) {
+        .canceled-guest-header {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 10px;
+        }
+        
+        .guest-pricing {
+            width: 100%;
+            justify-content: space-between;
+        }
+        
+        .restore-btn {
+            width: 100%;
+        }
+    }
+
+    /* AI Suggestions Styling - Compact Version */
+    .ai-suggestions-container {
+        border-bottom: 2px solid #dee2e6;
+    }
+
+    .ai-header {
+        background: linear-gradient(135deg, #e3f2fd 0%, #f3e5f5 100%);
+        border-bottom: 1px solid #dee2e6;
+    }
+
+    .ai-insights-compact {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+    }
+
+    .ai-insight-item {
+        background: rgba(255, 255, 255, 0.9);
+        border-radius: 4px;
+        padding: 4px 8px;
+        border-left: 2px solid #2196f3;
+        font-size: 0.75rem;
+        white-space: nowrap;
+    }
+
+    .ai-recommendations-compact {
+        max-height: 250px;
+        overflow-y: auto;
+    }
+
+    .ai-recommendation-item-compact {
+        border: 1px solid #4caf50;
+        border-radius: 6px;
+        background: linear-gradient(135deg, #f8fffe 0%, #e8f5e8 100%);
+        margin-bottom: 8px;
+        padding: 8px 10px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        transition: all 0.2s ease;
+    }
+
+    .ai-recommendation-item-compact:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 3px 10px rgba(76, 175, 80, 0.2);
+    }
+
+    .ai-recommendation-item-compact.priority-high {
+        border-color: #ff5722;
+        background: linear-gradient(135deg, #fff8f5 0%, #ffe8e0 100%);
+    }
+
+    .ai-guest-info-compact {
+        flex: 1;
+        margin-right: 10px;
+    }
+
+    .ai-guest-name-compact {
+        font-weight: bold;
+        font-size: 0.9em;
+        margin-bottom: 2px;
+        color: #2e7d32;
+    }
+
+    .ai-priority-badge {
+        font-size: 0.65rem;
+        padding: 2px 6px;
+        border-radius: 8px;
+        font-weight: 600;
+        margin-left: 6px;
+    }
+
+    .ai-priority-badge.high {
+        background: #ff5722;
+        color: white;
+    }
+
+    .ai-priority-badge.medium {
+        background: #ff9800;
+        color: white;
+    }
+
+    .ai-priority-badge.low {
+        background: #607d8b;
+        color: white;
+    }
+
+    .ai-priority-badge.critical {
+        background: #dc3545;
+        color: white;
+    }
+
+    .ai-reason-compact {
+        font-size: 0.75rem;
+        color: #1565c0;
+        margin-bottom: 2px;
+    }
+
+    .ai-revenue-impact-compact {
+        font-weight: bold;
+        color: #4caf50;
+        font-size: 0.8em;
+    }
+
+    .ai-action-button-compact {
+        background: linear-gradient(135deg, #4caf50 0%, #45a049 100%);
+        border: none;
+        color: white;
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-weight: 600;
+        font-size: 0.75rem;
+        transition: all 0.3s ease;
+        min-width: 80px;
+    }
+
+    .ai-action-button-compact:hover {
+        background: linear-gradient(135deg, #45a049 0%, #3d8b40 100%);
+        transform: translateY(-1px);
+        box-shadow: 0 2px 6px rgba(76, 175, 80, 0.3);
+    }
+
+    .strategy-summary-compact {
+        background: linear-gradient(135deg, #fff3e0 0%, #ffe0b2 100%);
+        border: 1px solid #ffb74d;
+        border-radius: 4px;
+        padding: 6px 8px;
+        margin-bottom: 8px;
+        color: #e65100;
+        font-weight: 500;
+        font-size: 0.8rem;
+    }
+
+    .manual-list-header {
+        background: #f8f9fa;
+        border-top: 1px solid #dee2e6;
+    }
+
+    /* Compact Table Styling */
+    #manualGuestsTable {
+        font-size: 0.85rem;
+    }
+
+    #manualGuestsTable th {
+        padding: 6px 8px;
+        font-weight: 600;
+        background: #f8f9fa;
+        border-bottom: 2px solid #dee2e6;
+    }
+
+    #manualGuestsTable td {
+        padding: 6px 8px;
+        vertical-align: middle;
+        border-bottom: 1px solid #f0f0f0;
+    }
+
+    #manualGuestsTable tr:hover {
+        background-color: #f8f9fa;
+    }
+
+    .guest-name-cell {
+        font-weight: 600;
+        color: #2c3e50;
+    }
+
+    .date-cell {
+        font-size: 0.8rem;
+        color: #666;
+    }
+
+    .amount-cell {
+        font-weight: 600;
+        color: #28a745;
+    }
+
+    .nights-cell {
+        text-align: center;
+        font-weight: 500;
+    }
+
+    .action-cell {
+        text-align: center;
+    }
+
+    .restore-btn-compact {
+        padding: 2px 8px;
+        font-size: 0.75rem;
+        border-radius: 4px;
+        min-width: 70px;
+    }
+
+    /* Enhanced AI Recommendation Cards */
+    .ai-recommendation-enhanced {
+        background: #fff;
+        border: 1px solid #e9ecef;
+        border-radius: 8px;
+        margin-bottom: 12px;
+        overflow: hidden;
+        transition: all 0.3s ease;
+    }
+
+    .ai-recommendation-enhanced:hover {
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        transform: translateY(-2px);
+    }
+
+    .priority-critical {
+        border-left: 4px solid #dc3545;
+        background: linear-gradient(135deg, #fff5f5 0%, #ffffff 100%);
+    }
+
+    .priority-high {
+        border-left: 4px solid #fd7e14;
+        background: linear-gradient(135deg, #fff8f0 0%, #ffffff 100%);
+    }
+
+    .recommendation-header {
+        padding: 10px 12px;
+        background: #f8f9fa;
+        border-bottom: 1px solid #e9ecef;
+    }
+
+    .guest-info-primary {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 5px;
+    }
+
+    .dates-info {
+        font-size: 0.8rem;
+        color: #6c757d;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+    }
+
+    .recommendation-details {
+        padding: 12px;
+    }
+
+    .reason-section {
+        font-size: 0.85rem;
+        color: #495057;
+        margin-bottom: 10px;
+        line-height: 1.4;
+    }
+
+    .impact-metrics {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+    }
+
+    .impact-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 0.8rem;
+    }
+
+    .impact-label {
+        color: #6c757d;
+        min-width: 80px;
+    }
+
+    .impact-value {
+        color: #495057;
+        font-weight: 500;
+    }
+
+    .action-section {
+        padding: 8px 12px;
+        background: #f8f9fa;
+        border-top: 1px solid #e9ecef;
+    }
+
+    .ai-action-button-enhanced {
+        width: 100%;
+        padding: 8px 16px;
+        border: none;
+        border-radius: 6px;
+        font-size: 0.85rem;
+        font-weight: 500;
+        transition: all 0.3s ease;
+        cursor: pointer;
+    }
+
+    .ai-action-button-enhanced.btn-critical {
+        background: #dc3545;
+        color: white;
+    }
+
+    .ai-action-button-enhanced.btn-critical:hover {
+        background: #c82333;
+        transform: translateY(-1px);
+    }
+
+    .ai-action-button-enhanced.btn-high {
+        background: #fd7e14;
+        color: white;
+    }
+
+    .ai-action-button-enhanced.btn-high:hover {
+        background: #e96002;
+        transform: translateY(-1px);
+    }
+
+    /* Enhanced Strategy Summary */
+    .strategy-summary-enhanced {
+        background: linear-gradient(135deg, #e8f5e8 0%, #f0f8ff 100%);
+        border: 1px solid #28a745;
+        border-radius: 8px;
+        padding: 12px;
+        margin-bottom: 15px;
+    }
+
+    .ai-strategy-header {
+        color: #155724;
+        font-size: 0.95rem;
+        margin-bottom: 8px;
+        display: flex;
+        align-items: center;
+    }
+
+    .ai-strategy-content {
+        color: #155724;
+        font-size: 0.85rem;
+        line-height: 1.4;
+        margin-bottom: 10px;
+    }
+
+    .ai-metrics-compact {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        font-size: 0.75rem;
+    }
+
+    .metric-item {
+        background: rgba(40, 167, 69, 0.1);
+        border: 1px solid rgba(40, 167, 69, 0.3);
+        border-radius: 4px;
+        padding: 4px 8px;
+        color: #155724;
+        font-weight: 500;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+    }
+
+    /* Mobile Responsiveness for Enhanced AI */
+    @media (max-width: 768px) {
+        .ai-insights-compact {
+            flex-direction: column;
+            gap: 4px;
+        }
+        
+        .ai-recommendation-item-compact {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 6px;
+        }
+        
+        .ai-action-button-compact {
+            width: 100%;
+            min-width: auto;
+        }
+        
+        #manualGuestsTable {
+            font-size: 0.75rem;
+        }
+        
+        #manualGuestsTable th,
+        #manualGuestsTable td {
+            padding: 4px 6px;
+        }
+        
+        .ai-metrics-compact {
+            flex-direction: column;
+            gap: 4px;
+        }
+        
+        .metric-item {
+            justify-content: center;
+        }
+        
+        .impact-metrics {
+            gap: 4px;
+        }
+        
+        .impact-item {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 2px;
+        }
+        
+        .impact-label {
+            min-width: auto;
+            font-weight: 600;
+        }
+    }
 </style>
 
 <script>
+// Global variables for canceled guests management
+let canceledGuestsPanelVisible = false;
+let canceledGuestsData = [];
+
+// Toggle canceled guests panel visibility
+function toggleCanceledPanel() {
+    const content = document.getElementById('canceledGuestsContent');
+    const toggleBtn = document.getElementById('toggleCanceledBtn');
+    
+    if (!content || !toggleBtn) {
+        console.error('Canceled guests panel elements not found');
+        return;
+    }
+    
+    canceledGuestsPanelVisible = !canceledGuestsPanelVisible;
+    
+    if (canceledGuestsPanelVisible) {
+        content.style.display = 'block';
+        toggleBtn.innerHTML = '<i class="fas fa-eye-slash"></i> Ẩn';
+        
+        // Show AI suggestions section immediately
+        const aiSection = document.getElementById('aiSuggestionsSection');
+        if (aiSection) {
+            aiSection.style.display = 'block';
+        }
+        
+        refreshCanceledGuests(); // Load data when showing
+    } else {
+        content.style.display = 'none';
+        toggleBtn.innerHTML = '<i class="fas fa-eye"></i> Hiện';
+    }
+}
+
+// Refresh canceled guests data
+function refreshCanceledGuests() {
+    const loadingDiv = document.getElementById('canceledGuestsLoading');
+    const listDiv = document.getElementById('canceledGuestsList');
+    const emptyDiv = document.getElementById('canceledGuestsEmpty');
+    const countBadge = document.getElementById('canceledGuestsCount');
+    
+    // Show loading state
+    loadingDiv.style.display = 'block';
+    listDiv.style.display = 'none';
+    emptyDiv.style.display = 'none';
+    
+    // Get current month/year from URL or default to current
+    const urlParams = new URLSearchParams(window.location.search);
+    const currentYear = urlParams.get('year') || new Date().getFullYear();
+    const currentMonth = urlParams.get('month') || (new Date().getMonth() + 1);
+    
+    // Fetch canceled bookings for current month
+    fetch(`/api/canceled_bookings?year=${currentYear}&month=${currentMonth}`)
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            loadingDiv.style.display = 'none';
+            
+            if (data.success && data.canceled_bookings && data.canceled_bookings.length > 0) {
+                // Filter to only show guests who haven't checked in yet (future check-in dates)
+                const today = new Date();
+                today.setHours(0, 0, 0, 0); // Reset time to start of day for accurate comparison
+                
+                const futureGuestsOnly = data.canceled_bookings.filter(guest => {
+                    const checkinDate = new Date(guest.checkin_date);
+                    checkinDate.setHours(0, 0, 0, 0);
+                    return checkinDate >= today; // Only future or today check-ins
+                });
+                
+                if (futureGuestsOnly.length > 0) {
+                    canceledGuestsData = futureGuestsOnly;
+                    displayCanceledGuests(canceledGuestsData);
+                    countBadge.textContent = canceledGuestsData.length;
+                    listDiv.style.display = 'block';
+                } else {
+                    countBadge.textContent = '0';
+                    emptyDiv.style.display = 'block';
+                }
+            } else {
+                countBadge.textContent = '0';
+                emptyDiv.style.display = 'block';
+            }
+        })
+        .catch(error => {
+            console.error('Error fetching canceled guests:', error);
+            loadingDiv.style.display = 'none';
+            listDiv.innerHTML = `
+                <div class="alert alert-danger text-center">
+                    <i class="fas fa-exclamation-triangle"></i> 
+                    Lỗi tải dữ liệu: ${error.message}
+                    <br><small>Vui lòng thử lại sau</small>
+                </div>
+            `;
+            listDiv.style.display = 'block';
+            countBadge.textContent = '!';
+        });
+}
+
+// Display canceled guests in the compact table format
+function displayCanceledGuests(guests) {
+    const manualListTbody = document.getElementById('manualGuestsList');
+    
+    if (!guests || guests.length === 0) {
+        manualListTbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-3">Không có khách đã hủy</td></tr>';
+        return;
+    }
+    
+    const guestsHtml = guests.map(guest => {
+        const checkinDate = new Date(guest.checkin_date).toLocaleDateString('vi-VN', {
+            day: '2-digit',
+            month: '2-digit'
+        });
+        const checkoutDate = new Date(guest.checkout_date).toLocaleDateString('vi-VN', {
+            day: '2-digit',
+            month: '2-digit'
+        });
+        const totalAmount = guest.total_amount || 0;
+        const pricePerNight = guest.price_per_night || 0;
+        
+        return `
+            <tr>
+                <td class="guest-name-cell">
+                    <i class="fas fa-user me-1 text-warning"></i>
+                    ${guest.guest_name}
+                </td>
+                <td class="date-cell">
+                    ${checkinDate} → ${checkoutDate}
+                </td>
+                <td class="amount-cell">
+                    ${totalAmount.toLocaleString('vi-VN')}đ
+                </td>
+                <td class="amount-cell">
+                    ${pricePerNight.toLocaleString('vi-VN')}đ
+                </td>
+                <td class="nights-cell">
+                    ${guest.nights || 1}
+                </td>
+                <td class="action-cell">
+                    <button class="btn btn-success btn-sm restore-btn-compact" 
+                            onclick="restoreBooking('${guest.booking_id}', '${guest.guest_name}')"
+                            title="Phục hồi booking">
+                        <i class="fas fa-undo"></i>
+                    </button>
+                    <button class="btn btn-danger btn-sm delete-btn-compact ms-1" 
+                            onclick="deleteBooking('${guest.booking_id}', '${guest.guest_name}')"
+                            title="Xóa vĩnh viễn">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </td>
+            </tr>
+        `;
+    }).join('');
+    
+    manualListTbody.innerHTML = guestsHtml;
+}
+
+// Get AI suggestions for optimal calendar filling
+function getAISuggestions() {
+    const aiSection = document.getElementById('aiSuggestionsSection');
+    const aiLoadingSpinner = document.getElementById('aiLoadingSpinner');
+    const aiRefreshBtn = document.getElementById('aiRefreshBtn');
+    const aiInsights = document.getElementById('aiInsights');
+    const aiRecommendations = document.getElementById('aiRecommendations');
+    const aiError = document.getElementById('aiError');
+    
+    console.log('🤖 Getting AI suggestions for calendar optimization');
+    
+    // Show AI section and loading state
+    aiSection.style.display = 'block';
+    aiLoadingSpinner.style.display = 'inline-block';
+    aiRefreshBtn.disabled = true;
+    aiRefreshBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Đang siêu tối ưu...';
+    
+    // Hide previous results
+    aiInsights.style.display = 'none';
+    aiRecommendations.style.display = 'none';
+    aiError.style.display = 'none';
+    
+    // Get current month/year from URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const currentYear = urlParams.get('year') || new Date().getFullYear();
+    const currentMonth = urlParams.get('month') || (new Date().getMonth() + 1);
+    
+    // Call AI suggestions API
+    fetch('/api/ai_calendar_suggestions', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            year: parseInt(currentYear),
+            month: parseInt(currentMonth)
+        })
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        return response.json();
+    })
+    .then(data => {
+        aiLoadingSpinner.style.display = 'none';
+        aiRefreshBtn.disabled = false;
+        aiRefreshBtn.innerHTML = '<i class="fas fa-brain"></i> Siêu Tối Ưu';
+        
+        if (data.success && data.ai_suggestions) {
+            displayAISuggestions(data.ai_suggestions, data.calendar_analysis);
+        } else {
+            throw new Error(data.error || 'AI analysis failed');
+        }
+    })
+    .catch(error => {
+        console.error('Error getting AI suggestions:', error);
+        aiLoadingSpinner.style.display = 'none';
+        aiRefreshBtn.disabled = false;
+        aiRefreshBtn.innerHTML = '<i class="fas fa-brain"></i> Siêu Tối Ưu';
+        
+        aiError.style.display = 'block';
+        aiError.innerHTML = `
+            <i class="fas fa-exclamation-triangle"></i>
+            Lỗi AI analysis: ${error.message}
+            <br><small>Sử dụng danh sách thủ công bên dưới.</small>
+        `;
+    });
+}
+
+// Display ENHANCED AI suggestions with capacity optimization analysis
+function displayAISuggestions(aiSuggestions, calendarAnalysis) {
+    const aiInsights = document.getElementById('aiInsights');
+    const aiRecommendations = document.getElementById('aiRecommendations');
+    
+    // Enhanced insights display with capacity metrics
+    if (aiSuggestions.insights && aiSuggestions.insights.length > 0) {
+        const insightsHtml = aiSuggestions.insights.map(insight => 
+            `<div class="ai-insight-item">${insight}</div>`
+        ).join('');
+        aiInsights.innerHTML = insightsHtml;
+        aiInsights.style.display = 'flex';
+    }
+    
+    // Display enhanced strategy summary with optimization metrics
+    let recommendationsHtml = '';
+    
+    // Enhanced strategy summary with capacity information
+    if (aiSuggestions.strategy_summary) {
+        const metrics = aiSuggestions.optimization_metrics || {};
+        recommendationsHtml += `
+            <div class="strategy-summary-enhanced">
+                <div class="ai-strategy-header">
+                    <i class="fas fa-brain me-2"></i>
+                    <strong>🧠 AI OPTIMIZATION STRATEGY</strong>
+                </div>
+                <div class="ai-strategy-content">
+                    ${aiSuggestions.strategy_summary}
+                </div>
+                ${metrics.potential_revenue_increase ? `
+                    <div class="ai-metrics-compact">
+                        <span class="metric-item">
+                            <i class="fas fa-chart-line"></i> 
+                            +${metrics.potential_occupancy_increase || '0%'} tỷ lệ lấp đầy
+                        </span>
+                        <span class="metric-item">
+                            <i class="fas fa-coins"></i> 
+                            +${metrics.potential_revenue_increase || '0đ'} doanh thu
+                        </span>
+                        <span class="metric-item">
+                            <i class="fas fa-users"></i> 
+                            ${metrics.recommended_guests_count || 0} khách được đề xuất
+                        </span>
+                        <span class="metric-item">
+                            <i class="fas fa-bed"></i> 
+                            ${metrics.total_room_nights_filled || 0} đêm phòng lấp đầy
+                        </span>
+                    </div>
+                ` : ''}
+            </div>
+        `;
+    }
+    
+    // Enhanced recommendations with capacity and optimization details
+    if (aiSuggestions.top_recommendations && aiSuggestions.top_recommendations.length > 0) {
+        const recommendationsCards = aiSuggestions.top_recommendations.map(rec => {
+            const priorityClass = rec.priority === 'critical' ? 'priority-critical' : rec.priority === 'high' ? 'priority-high' : '';
+            const priorityBadgeClass = rec.priority === 'critical' ? 'critical' : rec.priority === 'high' ? 'high' : rec.priority === 'medium' ? 'medium' : 'low';
+            
+            return `
+                <div class="ai-recommendation-enhanced ${priorityClass}">
+                    <div class="recommendation-header">
+                        <div class="guest-info-primary">
+                            <i class="fas fa-user-crown text-warning me-1"></i>
+                            <strong>${rec.guest_name}</strong>
+                            <span class="ai-priority-badge ${priorityBadgeClass}">${rec.priority.toUpperCase()}</span>
+                        </div>
+                        <div class="dates-info">
+                            <i class="fas fa-calendar me-1"></i>
+                            ${rec.checkin_date || 'N/A'} → ${rec.checkout_date || 'N/A'}
+                        </div>
+                    </div>
+                    
+                    <div class="recommendation-details">
+                        <div class="reason-section">
+                            <i class="fas fa-lightbulb me-1"></i>
+                            <strong>Phân tích:</strong> ${rec.reason}
+                        </div>
+                        
+                        <div class="impact-metrics">
+                            <div class="impact-item">
+                                <i class="fas fa-chart-line me-1"></i>
+                                <span class="impact-label">Doanh thu:</span>
+                                <span class="impact-value">${rec.revenue_impact}</span>
+                            </div>
+                            ${rec.capacity_impact ? `
+                                <div class="impact-item">
+                                    <i class="fas fa-building me-1"></i>
+                                    <span class="impact-label">Sức chứa:</span>
+                                    <span class="impact-value">${rec.capacity_impact}</span>
+                                </div>
+                            ` : ''}
+                            ${rec.conflict_resolution ? `
+                                <div class="impact-item">
+                                    <i class="fas fa-shield-check me-1"></i>
+                                    <span class="impact-label">Xung đột:</span>
+                                    <span class="impact-value">${rec.conflict_resolution}</span>
+                                </div>
+                            ` : ''}
+                        </div>
+                    </div>
+                    
+                    <div class="action-section">
+                        <button class="ai-action-button-enhanced ${rec.priority === 'critical' ? 'btn-critical' : 'btn-high'}" 
+                                onclick="restoreBookingFromAI('${rec.booking_id}', '${rec.guest_name}')">
+                            <i class="fas fa-magic me-1"></i>
+                            ${rec.action || 'Phục hồi ngay'}
+                        </button>
+                    </div>
+                </div>
+            `;
+        }).join('');
+        
+        recommendationsHtml += recommendationsCards;
+    } else {
+        recommendationsHtml += `
+            <div class="text-center p-3 text-muted">
+                <i class="fas fa-robot mb-1"></i>
+                <small>AI không tìm thấy gợi ý tối ưu cho tháng này</small>
+            </div>
+        `;
+    }
+    
+    aiRecommendations.innerHTML = recommendationsHtml;
+    aiRecommendations.style.display = 'block';
+}
+
+// Restore booking from AI recommendation with special handling
+function restoreBookingFromAI(bookingId, guestName) {
+    // Confirm restoration with AI context
+    const confirmed = confirm(
+        `🤖 AI khuyến nghị phục hồi booking cho ${guestName}\n\n` +
+        `Mã booking: ${bookingId}\n` +
+        `Đây là gợi ý tối ưu từ Gemini AI để tối đa hóa doanh thu.\n\n` +
+        `Xác nhận phục hồi theo gợi ý AI?`
+    );
+    
+    if (!confirmed) {
+        return;
+    }
+    
+    // Find the AI button and show loading state
+    const aiButtons = document.querySelectorAll(`button[onclick*="${bookingId}"]`);
+    const aiBtn = Array.from(aiButtons).find(btn => btn.textContent.includes('Phục hồi') || btn.textContent.includes('magic'));
+    
+    if (aiBtn) {
+        aiBtn.disabled = true;
+        aiBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Đang xử lý...';
+    }
+    
+    // Call the existing restore booking function
+    fetch(`/api/restore_booking/${bookingId}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        }
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data.success) {
+            // Show AI success message
+            alert(`🤖✅ AI đã phục hồi booking thành công!\n\n${guestName} (${bookingId}) đã được chuyển về trạng thái OK theo gợi ý tối ưu của Gemini AI.`);
+            
+            // Refresh both AI suggestions and manual list
+            getAISuggestions();
+            refreshCanceledGuests();
+            
+            // Optionally reload the page to update calendar
+            setTimeout(() => {
+                window.location.reload();
+            }, 1500);
+        } else {
+            throw new Error(data.message || 'Unknown error occurred');
+        }
+    })
+    .catch(error => {
+        console.error('Error restoring booking from AI:', error);
+        alert(`❌ Lỗi AI restore: ${error.message}`);
+        
+        // Reset button state
+        if (aiBtn) {
+            aiBtn.disabled = false;
+            aiBtn.innerHTML = '<i class="fas fa-magic me-1"></i> Phục hồi';
+        }
+    });
+}
+
+// Restore a canceled booking
+function restoreBooking(bookingId, guestName) {
+    // Confirm restoration
+    const confirmed = confirm(
+        `🔄 Phục hồi booking cho ${guestName}?\n\n` +
+        `Mã booking: ${bookingId}\n` +
+        `Trạng thái sẽ chuyển từ "Đã hủy" về "Confirmed"\n\n` +
+        `Xác nhận phục hồi?`
+    );
+    
+    if (!confirmed) {
+        return;
+    }
+    
+    // Find the button and show loading state
+    const buttons = document.querySelectorAll(`button[onclick*="${bookingId}"]`);
+    const restoreBtn = Array.from(buttons).find(btn => btn.textContent.includes('Phục hồi'));
+    
+    if (restoreBtn) {
+        restoreBtn.disabled = true;
+        restoreBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Đang phục hồi...';
+    }
+    
+    // Call restore API
+    fetch(`/api/restore_booking/${bookingId}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        }
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data.success) {
+            // Show success message
+            alert(`✅ Đã phục hồi booking thành công cho ${guestName}!\n\nBooking ${bookingId} đã được chuyển về trạng thái OK.`);
+            
+            // Refresh the canceled guests list
+            refreshCanceledGuests();
+            
+            // Optionally reload the page to update calendar
+            setTimeout(() => {
+                window.location.reload();
+            }, 1000);
+        } else {
+            throw new Error(data.message || 'Unknown error occurred');
+        }
+    })
+    .catch(error => {
+        console.error('Error restoring booking:', error);
+        alert(`❌ Lỗi phục hồi booking: ${error.message}`);
+        
+        // Reset button state
+        if (restoreBtn) {
+            restoreBtn.disabled = false;
+            restoreBtn.innerHTML = '<i class="fas fa-undo"></i> Phục hồi';
+        }
+    });
+}
+
+// Delete a canceled booking permanently
+function deleteBooking(bookingId, guestName) {
+    // Confirm deletion with warning
+    const confirmed = confirm(
+        `⚠️ XÓA VĨNH VIỄN booking cho ${guestName}?\n\n` +
+        `Mã booking: ${bookingId}\n` +
+        `CẢNH BÁO: Hành động này KHÔNG THỂ hoàn tác!\n` +
+        `Booking sẽ bị xóa vĩnh viễn khỏi hệ thống.\n\n` +
+        `Bạn có chắc chắn muốn xóa?`
+    );
+    
+    if (!confirmed) {
+        return;
+    }
+    
+    // Double confirmation for safety
+    const doubleConfirmed = confirm(
+        `🚨 XÁC NHẬN LẦN CUỐI!\n\n` +
+        `Bạn thực sự muốn XÓA VĨNH VIỄN booking của ${guestName}?\n` +
+        `Thao tác này KHÔNG THỂ phục hồi!`
+    );
+    
+    if (!doubleConfirmed) {
+        return;
+    }
+    
+    // Find the button and show loading state
+    const buttons = document.querySelectorAll(`button[onclick*="${bookingId}"]`);
+    const deleteBtn = Array.from(buttons).find(btn => btn.innerHTML.includes('fa-trash'));
+    
+    if (deleteBtn) {
+        deleteBtn.disabled = true;
+        deleteBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+    }
+    
+    // Call delete API
+    fetch(`/api/delete_booking/${bookingId}`, {
+        method: 'DELETE',
+        headers: {
+            'Content-Type': 'application/json'
+        }
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data.success) {
+            // Show success message
+            alert(`✅ Đã xóa vĩnh viễn booking của ${guestName}!\n\nBooking ${bookingId} đã bị xóa khỏi hệ thống.`);
+            
+            // Refresh the canceled guests list
+            refreshCanceledGuests();
+            
+            // If AI suggestions are visible, refresh them too
+            const aiRecommendations = document.getElementById('aiRecommendations');
+            if (aiRecommendations && aiRecommendations.style.display !== 'none') {
+                getAISuggestions();
+            }
+        } else {
+            throw new Error(data.error || 'Unknown error occurred');
+        }
+    })
+    .catch(error => {
+        console.error('Error deleting booking:', error);
+        alert(`❌ Lỗi xóa booking: ${error.message}`);
+        
+        // Reset button state
+        if (deleteBtn) {
+            deleteBtn.disabled = false;
+            deleteBtn.innerHTML = '<i class="fas fa-trash"></i>';
+        }
+    });
+}
+
+// Initialize canceled guests panel on page load
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('Calendar details page loaded - Canceled guests management ready');
+    
+    // Optional: Auto-load canceled guests count on page load
+    const countBadge = document.getElementById('canceledGuestsCount');
+    if (countBadge) {
+        // Load count without showing the panel
+        const urlParams = new URLSearchParams(window.location.search);
+        const currentYear = urlParams.get('year') || new Date().getFullYear();
+        const currentMonth = urlParams.get('month') || (new Date().getMonth() + 1);
+        
+        fetch(`/api/canceled_bookings?year=${currentYear}&month=${currentMonth}&count_only=true`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success && data.count !== undefined) {
+                    countBadge.textContent = data.count;
+                }
+            })
+            .catch(error => {
+                console.log('Could not load canceled guests count:', error);
+            });
+    }
+});
+
+// Existing quick cancel function for calendar guest cards
 // Quick cancel function for calendar guest cards
 function quickCancelCalendarGuest(bookingId, guestName) {
     const confirmed = confirm(`🚨 Hủy đặt phòng cho ${guestName}?\n\nMã booking: ${bookingId}\n\nXác nhận hủy booking này?`);
