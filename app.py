@@ -10675,11 +10675,18 @@ def extract_meter_data_with_kimi(image_base64, request_id):
         # Prepare the prompt for Vietnamese electricity meter OCR
         system_prompt = """You are an expert Vietnamese electricity meter reader. Extract data from EMIC electricity meters with LCD displays.
 
-CRITICAL READING RULES:
-1. LCD shows numbers like "00360.8", "01363.5", "00982.2" 
-2. REMOVE leading zeros, IGNORE decimal: "01363.5" → reading: 1363
-3. NEVER miss significant digits: "01363.5" is 1363 (NOT 336!)
-4. Double-check each digit carefully
+CRITICAL DECIMAL HANDLING:
+- The LAST digit (after decimal point or separator) is ALWAYS the 1/10 unit
+- This decimal digit may appear in RED or BLACK color
+- It may be separated by: dot (.), comma (,), space, or physical gap
+- IGNORE this last digit completely - it represents fractional kWh
+
+VISUAL PATTERNS TO RECOGNIZE:
+- "00860.3" → reading: 860 (ignore .3 whether red or black)
+- "00860 3" → reading: 860 (ignore 3 with space separator)
+- "008603" with last digit smaller/offset → reading: 860 (ignore small 3)
+- "00860,3" → reading: 860 (ignore ,3 with comma)
+- If 6 digits total with no clear separator → last digit is decimal: "008603" → 860
 
 METER ID RULES:
 - Exactly 8 digits starting with 24
@@ -10689,16 +10696,17 @@ METER ID RULES:
 Return ONLY JSON:
 {
     "meter_id": "8_digit_meter_id",
-    "reading": number_without_zeros_and_decimal,
+    "reading": whole_number_only_no_decimals,
     "brand": "EMIC",
-    "model": "Kimi_K2_Free",
+    "model": "Mistral_Small_Free",
     "confidence": "high"
 }
 
-EXAMPLES:
-- "01363.5" on LCD → {"reading": 1363}
-- "00982.2" on LCD → {"reading": 982}
-- "00936.8" on LCD → {"reading": 936}"""
+MORE EXAMPLES:
+- LCD "01363.5" → reading: 1363 (not 13635)
+- LCD "009822" (last 2 smaller) → reading: 982 (not 9822)  
+- LCD "00936 8" → reading: 936 (not 9368)
+- LCD "024315" (6 digits, no separator) → reading: 2431 (not 24315)"""
 
         # Make API request to Kimi K2 Free
         import requests
@@ -10801,16 +10809,32 @@ Extract the meter data from this image:
 
 1. METER ID: 8 digits starting with 24 (e.g., 24222573)
 2. READING: Main number on LCD display
-   - CRITICAL: Ignore the 1/10 decimal unit (the digit after the decimal point)
-   - Remove leading zeros: "00860.3" → 860 (NOT 8603!)
-   - The decimal digit (.3, .5, .8) represents 1/10 units and should be IGNORED
-   - Only count the WHOLE kWh units before the decimal point
 
-READING RULES:
-- LCD shows "00860.3" → reading: 860 (ignore the .3)
-- LCD shows "01363.5" → reading: 1363 (ignore the .5)
-- LCD shows "00982.2" → reading: 982 (ignore the .2)
-- LCD shows "00936.8" → reading: 936 (ignore the .8)
+CRITICAL DECIMAL HANDLING:
+- The LAST digit (after decimal point or separator) is ALWAYS the 1/10 unit
+- This decimal digit may appear in RED or BLACK color
+- It may be separated by: dot (.), comma (,), space, or physical gap
+- IGNORE this last digit completely - it represents fractional kWh
+
+VISUAL PATTERNS TO RECOGNIZE:
+- "00860.3" → reading: 860 (ignore .3 whether red or black)
+- "00860 3" → reading: 860 (ignore 3 with space separator)
+- "008603" with last digit smaller/offset → reading: 860 (ignore small 3)
+- "00860,3" → reading: 860 (ignore ,3 with comma)
+- If 6 digits total with no clear separator → last digit is decimal: "008603" → 860
+
+DETECTION ALGORITHM:
+1. Find all digits in the display
+2. Identify the decimal separator (. , space) OR physical offset/size difference
+3. Take ONLY digits BEFORE the separator or last different digit
+4. Remove leading zeros
+5. Result is the whole kWh reading
+
+MORE EXAMPLES:
+- LCD "01363.5" → 1363 (not 13635)
+- LCD "009822" (last 2 smaller) → 982 (not 9822)  
+- LCD "00936 8" → 936 (not 9368)
+- LCD "024315" (6 digits, no separator) → 2431 (not 24315)
 
 Return ONLY JSON:
 {
@@ -10821,7 +10845,7 @@ Return ONLY JSON:
     "confidence": "high"
 }
 
-CRITICAL: Do NOT include decimal digits in the reading. The reading should be a whole number representing complete kWh units only."""
+FINAL CHECK: The reading must be a reasonable household value (typically 100-5000 kWh)."""
 
             response = model.generate_content([prompt, image])
             content = response.text
