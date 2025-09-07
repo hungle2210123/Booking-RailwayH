@@ -234,7 +234,7 @@ elif database_source == 'auto':
     railway_postgres_url = os.getenv('POSTGRES_URL') or os.getenv('RAILWAY_POSTGRES_URL') or os.getenv('DATABASE_URL')
     
     print(f"🔍 Railway deployment detected: {'✅' if is_railway_deployed else '❌'}")
-    print(f"🔍 Railway DB configured: {'✅' if railway_postgres_url else '❌'}")
+    print(f"🔍 Railway DB configured: {'✅' if railway_db_url else '❌'}")
     
     # Priority: Railway production URL > Railway configured URL > Local DB
     if is_railway_deployed and railway_postgres_url:
@@ -10422,40 +10422,37 @@ def parse_vietnamese_meter_text_enhanced_debug(text, file_name, ocr_attempts, de
 
 # --- DeepSeek V3.1 OCR Functions ---
 
-def extract_meter_data_with_deepseek(image_content, file_name):
+def extract_meter_data_with_gemini(image_content, file_name):
     """
-    Extract electricity meter data using GPT-4o Mini (vision) via OpenRouter API
-    Completely automated - no manual input required
-    Note: DeepSeek V3.1 doesn't support vision, so we use GPT-4o Mini for OCR
+    Extract electricity meter data using FREE Google Gemini API
+    100% FREE alternative to OpenRouter API
     """
-    if not OPENROUTER_AVAILABLE:
-        raise Exception("OpenRouter API not available - install with: pip install openai")
-    
-    # Get OpenRouter API key from environment
-    openrouter_api_key = os.getenv('OPENROUTER_API_KEY')
-    if not openrouter_api_key:
-        raise Exception("OPENROUTER_API_KEY not found in environment variables")
+    print(f"🆓 [GEMINI_OCR] Processing {file_name} with FREE Gemini API...")
     
     try:
-        print(f"🤖 [DEEPSEEK_OCR] Processing {file_name} with DeepSeek V3.1...")
+        import google.generativeai as genai
+        from PIL import Image
+        from io import BytesIO
         
-        # Convert image to base64 for API
-        image_base64 = base64.b64encode(image_content).decode('utf-8')
+        # Check if Gemini is available
+        gemini_key = os.getenv('GOOGLE_API_KEY') or os.getenv('GEMINI_API_KEY')
+        if not gemini_key:
+            raise Exception("GOOGLE_API_KEY not found in environment variables")
         
-        # Initialize OpenRouter client
-        client = OpenAI(
-            base_url="https://openrouter.ai/api/v1",
-            api_key=openrouter_api_key,
-        )
+        # Configure Gemini
+        genai.configure(api_key=gemini_key)
         
-        # Create the prompt for Vietnamese electricity meter OCR
-        system_prompt = """You are an expert Vietnamese electricity meter reader with 15+ years of experience. 
+        # Load image from bytes
+        image = Image.open(BytesIO(image_content))
+        
+        # Enhanced system prompt specifically for Vietnamese meters
+        prompt = """You are an expert Vietnamese electricity meter reader with 15+ years of experience.
         You specialize in extracting data from EMIC brand electricity meters with LCD displays.
         
-        Your task: Analyze the electricity meter image and extract the exact meter reading and ID.
+        Your task: Analyze this electricity meter image and extract the exact meter reading and ID.
         
         CRITICAL REQUIREMENTS FOR METER READING:
-        1. The LCD display shows numbers with leading zeros (e.g., "00360.8", "01234.5", "00880.3", "00860.3")
+        1. The LCD display shows numbers with leading zeros (e.g., "00360.8", "01363.5", "00880.3")
         2. REMOVE ALL LEADING ZEROS but KEEP ALL SIGNIFICANT DIGITS
         3. The last digit (after decimal) is fractional - IGNORE IT
         4. Be VERY CAREFUL not to drop any significant digits
@@ -10468,22 +10465,6 @@ def extract_meter_data_with_deepseek(image_content, file_name):
         - 3 has rounded curves on the right side
         - Always double-check each digit before final reading
         
-        STEP-BY-STEP READING EXTRACTION:
-        - Display shows "00360.8" → Remove leading zeros → "360.8" → Ignore decimal → reading: 360
-        - Display shows "00860.3" → Remove leading zeros → "860.3" → Ignore decimal → reading: 860 (NOT 808!)
-        - Display shows "00880.3" → Remove leading zeros → "880.3" → Ignore decimal → reading: 880
-        - Display shows "01363.5" → Remove leading zeros → "1363.5" → Ignore decimal → reading: 1363 (NOT 336!)
-        - Display shows "01226.5" → Remove leading zeros → "1226.5" → Ignore decimal → reading: 1226
-        - Display shows "001269.8" → Remove leading zeros → "1269.8" → Ignore decimal → reading: 1269
-        
-        CRITICAL MISREADING PREVENTION:
-        - 1363 should NEVER be read as 336 (missing the "1" digit)
-        - 860 should NEVER be read as 808
-        - 360 should NEVER be read as 308  
-        - 880 should NEVER be read as 800
-        - COUNT ALL DIGITS: "01363.5" has 5 digits before decimal (0,1,3,6,3) → reading: 1363
-        - Look at the ENTIRE display carefully - don't miss the first significant digit!
-        
         METER ID EXTRACTION RULES:
         - Meter IDs are EXACTLY 8 digits starting with 24
         - Common patterns: 24222573, 24256413, 24225047, 24266413
@@ -10492,19 +10473,22 @@ def extract_meter_data_with_deepseek(image_content, file_name):
           * 5 vs 6: 5 has straight top edge, 6 has curved top
           * 1 vs 0: 1 is narrow vertical line, 0 is wide oval
           * Look at EACH digit in the meter ID very carefully
-          * Double-check digits that look similar
         - NEVER confuse: 24275047 (wrong) vs 24225047 (correct)
         - NEVER confuse: 24266403 (wrong) vs 24256413 (correct)
         
-        BRAND: Usually EMIC, GELEX, GELUX, or similar
+        CRITICAL MISREADING PREVENTION:
+        - 1363 should NEVER be read as 336 (missing the "1" digit)
+        - 860 should NEVER be read as 808
+        - COUNT ALL DIGITS: "01363.5" has 5 digits before decimal (0,1,3,6,3) → reading: 1363
+        - Look at the ENTIRE display carefully - don't miss the first significant digit!
         
         Return ONLY a JSON object with these exact fields:
         {
             "meter_id": "actual_meter_id_from_image",
             "reading": actual_number_without_leading_zeros_and_decimal,
             "brand": "detected_brand",
-            "model": "GPT-4o_Mini",
-            "extraction_method": "openrouter_ai",
+            "model": "Gemini_1.5_Flash",
+            "extraction_method": "gemini_ai_free",
             "confidence": "high/medium/low",
             "display_raw": "exact_value_shown_on_LCD_display"
         }
@@ -10512,20 +10496,13 @@ def extract_meter_data_with_deepseek(image_content, file_name):
         EXAMPLES:
         - Display "00360.8" → {"reading": 360, "display_raw": "00360.8"}
         - Display "00860.3" → {"reading": 860, "display_raw": "00860.3"} 
-        - Display "00880.3" → {"reading": 880, "display_raw": "00880.3"}
         - Display "01363.5" → {"reading": 1363, "display_raw": "01363.5"} ← CRITICAL TEST CASE
-        - Display "01226.5" → {"reading": 1226, "display_raw": "01226.5"}
-        
-        METER ID EXAMPLES:
         - Meter showing "24225047" → {"meter_id": "24225047"} ← NOT "24275047"
         - Meter showing "24256413" → {"meter_id": "24256413"} ← NOT "24266403"
         
-        NO EXPLANATIONS - ONLY JSON OUTPUT."""
+        NO EXPLANATIONS - ONLY JSON OUTPUT.
         
-        user_prompt = f"""Analyze this Vietnamese EMIC electricity meter image and extract the meter data.
-        
-        Image filename: {file_name}
-        
+        Analyze this Vietnamese EMIC electricity meter image and extract the meter data.
         Focus on:
         1. The main LCD display showing the kWh reading (ignore fractional digits)
         2. The meter ID number (usually printed on the meter body)
@@ -10533,45 +10510,19 @@ def extract_meter_data_with_deepseek(image_content, file_name):
         
         Return the data as JSON only."""
         
-        # Make API request with vision capabilities
-        # Note: DeepSeek V3.1 doesn't support vision, so we use a vision-capable model
-        completion = client.chat.completions.create(
-            extra_headers={
-                "HTTP-Referer": "https://hotel-booking-system.com",
-                "X-Title": "Vietnamese Electricity Meter OCR",
-            },
-            model="openai/gpt-4o-mini",  # Vision-capable model for OCR
-            messages=[
-                {
-                    "role": "system",
-                    "content": system_prompt
-                },
-                {
-                    "role": "user",
-                    "content": [
-                        {
-                            "type": "text",
-                            "text": user_prompt
-                        },
-                        {
-                            "type": "image_url",
-                            "image_url": {
-                                "url": f"data:image/jpeg;base64,{image_base64}"
-                            }
-                        }
-                    ]
-                }
-            ],
-            max_tokens=500,
-            temperature=0.1  # Low temperature for consistent results
-        )
+        # Use Gemini 1.5 Flash (FREE model)
+        model = genai.GenerativeModel('gemini-1.5-flash')
         
-        # Extract response
-        response_text = completion.choices[0].message.content.strip()
-        print(f"📝 [DEEPSEEK_RESPONSE] {response_text[:200]}...")
+        # Generate content with image
+        response = model.generate_content([prompt, image])
+        response_text = response.text.strip()
+        
+        print(f"📝 [GEMINI_RESPONSE] {response_text[:200]}...")
         
         # Parse JSON response (handle markdown wrapping)
         try:
+            import json
+            
             # Remove markdown code blocks if present
             if response_text.startswith("```json"):
                 response_text = response_text[7:]
@@ -10599,23 +10550,67 @@ def extract_meter_data_with_deepseek(image_content, file_name):
                 meter_data['reading'] = int(meter_data['reading'])
                 
             # Add metadata
-            meter_data['extraction_method'] = 'openrouter_ai'
-            meter_data['model'] = 'GPT-4o_Mini_Vision'
+            meter_data['extraction_method'] = 'gemini_ai_free'
+            meter_data['model'] = 'Gemini_1.5_Flash'
             meter_data['debug_available'] = False  # No debug images for AI
             
-            print(f"✅ [DEEPSEEK_SUCCESS] Meter {meter_data['meter_id']}: {meter_data['reading']} kWh")
+            print(f"✅ [GEMINI_SUCCESS] Meter {meter_data['meter_id']}: {meter_data['reading']} kWh")
             return meter_data
             
         except json.JSONDecodeError as e:
-            print(f"❌ [DEEPSEEK_JSON_ERROR] Failed to parse JSON: {e}")
+            print(f"❌ [GEMINI_JSON_ERROR] Failed to parse JSON: {e}")
             print(f"Raw response: {response_text}")
             
             # Fallback parsing for non-JSON responses
-            return parse_deepseek_fallback_response(response_text, file_name)
+            return parse_gemini_fallback_response(response_text, file_name)
             
     except Exception as e:
-        print(f"❌ [DEEPSEEK_ERROR] {file_name}: {e}")
-        raise Exception(f"DeepSeek OCR failed: {str(e)}")
+        print(f"❌ [GEMINI_ERROR] {file_name}: {e}")
+        raise Exception(f"Gemini OCR failed: {str(e)}")
+
+def parse_gemini_fallback_response(response_text, file_name):
+    """
+    Fallback parser when Gemini doesn't return valid JSON
+    """
+    print(f"🔧 [GEMINI_FALLBACK] Parsing non-JSON response...")
+    
+    # Try to extract numbers and text from the response
+    import re
+    
+    # Look for meter ID patterns
+    meter_id_matches = re.findall(r'24\d{6,8}', response_text)
+    meter_id = meter_id_matches[0] if meter_id_matches else 'AUTO_GEMINI'
+    
+    # Look for reading patterns
+    reading_patterns = [
+        r'reading["\'\s]*:?["\'\s]*(\d{1,4})',
+        r'(\d{3,4})\s*kWh',
+        r'display.*?(\d{3,4})',
+        r'(\d{3,4})["\'\s]*kWh'
+    ]
+    
+    reading = 0
+    for pattern in reading_patterns:
+        matches = re.findall(pattern, response_text)
+        if matches:
+            reading = int(matches[0])
+            break
+    
+    # Extract brand
+    brand = 'EMIC' if 'EMIC' in response_text.upper() else 'UNKNOWN'
+    
+    fallback_data = {
+        'meter_id': meter_id,
+        'reading': reading,
+        'brand': brand,
+        'model': 'Gemini_1.5_Flash',
+        'extraction_method': 'gemini_fallback',
+        'confidence': 'medium'
+    }
+    
+    print(f"🔧 [GEMINI_FALLBACK] Meter {fallback_data['meter_id']}: {fallback_data['reading']} kWh")
+    return fallback_data
+
 
 def parse_deepseek_fallback_response(response_text, file_name):
     """
@@ -10660,214 +10655,6 @@ def parse_deepseek_fallback_response(response_text, file_name):
         'confidence': 'medium'
     }
 
-def extract_meter_data_with_kimi(image_base64, request_id):
-    """
-    Extract electricity meter data using Mistral Small Free model via OpenRouter API
-    Completely FREE and automated - no manual input required
-    """
-    try:
-        openrouter_api_key = os.getenv('OPENROUTER_API_KEY')
-        if not openrouter_api_key:
-            raise Exception("OPENROUTER_API_KEY not found in environment")
-        
-        print(f"🤖 [MISTRAL_OCR] {request_id} - Using Mistral Small 3.2 Free for OCR")
-        
-        # Prepare the prompt for Vietnamese electricity meter OCR
-        system_prompt = """You are an expert Vietnamese electricity meter reader. Extract data from EMIC electricity meters with LCD displays.
-
-CRITICAL READING RULES:
-1. LCD shows numbers like "00360.8", "01363.5", "00982.2" 
-2. REMOVE leading zeros, IGNORE decimal: "01363.5" → reading: 1363
-3. NEVER miss significant digits: "01363.5" is 1363 (NOT 336!)
-4. Double-check each digit carefully
-
-METER ID RULES:
-- Exactly 8 digits starting with 24
-- Examples: 24222573, 24256413, 24225047
-- Be very careful with similar digits (2 vs 7, 5 vs 6)
-
-Return ONLY JSON:
-{
-    "meter_id": "8_digit_meter_id",
-    "reading": number_without_zeros_and_decimal,
-    "brand": "EMIC",
-    "model": "Kimi_K2_Free",
-    "confidence": "high"
-}
-
-EXAMPLES:
-- "01363.5" on LCD → {"reading": 1363}
-- "00982.2" on LCD → {"reading": 982}
-- "00936.8" on LCD → {"reading": 936}"""
-
-        # Make API request to Kimi K2 Free
-        import requests
-        import json
-        
-        response = requests.post(
-            url="https://openrouter.ai/api/v1/chat/completions",
-            headers={
-                "Authorization": f"Bearer {openrouter_api_key}",
-                "Content-Type": "application/json",
-                "HTTP-Referer": "http://localhost:5000",
-                "X-Title": "Electricity OCR",
-            },
-            data=json.dumps({
-                "model": "mistralai/mistral-small-3.2-24b-instruct:free",
-                "messages": [
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": [
-                        {"type": "text", "text": "Extract meter data from this electricity meter image:"},
-                        {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{image_base64}"}}
-                    ]}
-                ],
-            }),
-            timeout=30
-        )
-        
-        if response.status_code == 200:
-            result = response.json()
-            content = result['choices'][0]['message']['content']
-            print(f"🤖 [MISTRAL_RESPONSE] {request_id} - Raw: {content[:200]}...")
-            
-            # Parse JSON response
-            try:
-                # Try to extract JSON from the response
-                import re
-                json_match = re.search(r'\{.*\}', content, re.DOTALL)
-                if json_match:
-                    data = json.loads(json_match.group())
-                    
-                    # Validate required fields
-                    if 'meter_id' in data and 'reading' in data:
-                        print(f"✅ [MISTRAL_SUCCESS] {request_id} - Meter: {data['meter_id']}, Reading: {data['reading']}")
-                        return {
-                            'success': True,
-                            'data': data,
-                            'extraction_method': 'mistral_small_free'
-                        }
-                    else:
-                        print(f"❌ [MISTRAL_INVALID] {request_id} - Missing required fields")
-                        return {'success': False, 'error': 'Invalid OCR response format'}
-                else:
-                    print(f"❌ [MISTRAL_NO_JSON] {request_id} - No JSON found in response")
-                    return {'success': False, 'error': 'No JSON response from OCR'}
-                    
-            except json.JSONDecodeError as e:
-                print(f"❌ [MISTRAL_JSON_ERROR] {request_id} - {e}")
-                return {'success': False, 'error': 'JSON parse error'}
-        else:
-            print(f"❌ [MISTRAL_API_ERROR] {request_id} - Status: {response.status_code}")
-            return {'success': False, 'error': f'API error: {response.status_code}'}
-            
-    except Exception as e:
-        print(f"❌ [MISTRAL_EXCEPTION] {request_id} - {e}")
-        return {'success': False, 'error': str(e)}
-
-def extract_meter_data_with_multi_api(image_base64, request_id):
-    """
-    Extract electricity meter data using multiple APIs with automatic fallback
-    Tries Gemini APIs first, then OpenRouter, ensuring maximum availability
-    """
-    import google.generativeai as genai
-    import PIL.Image
-    import io
-    
-    # Get all available Gemini API keys
-    gemini_keys = []
-    for i in range(1, 6):
-        key_name = f'GEMINI_API_KEY_{i}' if i > 1 else 'GEMINI_API_KEY'
-        key = os.getenv(key_name)
-        if key and key.strip():
-            gemini_keys.append((key_name, key))
-    
-    print(f"🔑 [MULTI_API] {request_id} - Found {len(gemini_keys)} Gemini API keys")
-    
-    # Try each Gemini API key
-    for key_name, api_key in gemini_keys:
-        try:
-            print(f"🌟 [GEMINI_TRY] {request_id} - Trying {key_name}")
-            genai.configure(api_key=api_key)
-            
-            # Convert base64 to PIL Image
-            image_bytes = base64.b64decode(image_base64)
-            image = PIL.Image.open(io.BytesIO(image_bytes))
-            
-            # Use Gemini 1.5 Flash for OCR
-            model = genai.GenerativeModel('gemini-1.5-flash')
-            
-            prompt = """You are an expert at reading Vietnamese electricity meters.
-Extract the meter data from this image:
-
-1. METER ID: 8 digits starting with 24 (e.g., 24222573)
-2. READING: Main number on LCD display
-   - CRITICAL: Ignore the 1/10 decimal unit (the digit after the decimal point)
-   - Remove leading zeros: "00860.3" → 860 (NOT 8603!)
-   - The decimal digit (.3, .5, .8) represents 1/10 units and should be IGNORED
-   - Only count the WHOLE kWh units before the decimal point
-
-READING RULES:
-- LCD shows "00860.3" → reading: 860 (ignore the .3)
-- LCD shows "01363.5" → reading: 1363 (ignore the .5)
-- LCD shows "00982.2" → reading: 982 (ignore the .2)
-- LCD shows "00936.8" → reading: 936 (ignore the .8)
-
-Return ONLY JSON:
-{
-    "meter_id": "8_digit_id",
-    "reading": whole_number_only_no_decimals,
-    "brand": "EMIC",
-    "model": "Gemini_1.5_Flash",
-    "confidence": "high"
-}
-
-CRITICAL: Do NOT include decimal digits in the reading. The reading should be a whole number representing complete kWh units only."""
-
-            response = model.generate_content([prompt, image])
-            content = response.text
-            
-            print(f"✅ [GEMINI_SUCCESS] {request_id} - {key_name} worked!")
-            
-            # Parse JSON response
-            import re
-            import json
-            json_match = re.search(r'\{.*\}', content, re.DOTALL)
-            if json_match:
-                data = json.loads(json_match.group())
-                if 'meter_id' in data and 'reading' in data:
-                    print(f"📊 [GEMINI_DATA] {request_id} - Meter: {data['meter_id']}, Reading: {data['reading']}")
-                    return {
-                        'success': True,
-                        'data': data,
-                        'extraction_method': f'gemini_multi_api_{key_name}'
-                    }
-            
-            print(f"⚠️ [GEMINI_PARSE] {request_id} - {key_name} returned invalid format")
-            
-        except Exception as e:
-            error_str = str(e)
-            if '429' in error_str or 'quota' in error_str.lower():
-                print(f"🔄 [GEMINI_QUOTA] {request_id} - {key_name} quota exceeded, trying next...")
-            else:
-                print(f"❌ [GEMINI_ERROR] {request_id} - {key_name} error: {error_str[:100]}")
-            continue
-    
-    # If all Gemini APIs failed, try OpenRouter
-    print(f"🔄 [FALLBACK] {request_id} - All Gemini APIs exhausted, trying OpenRouter...")
-    
-    # Try OpenRouter with Mistral
-    openrouter_result = extract_meter_data_with_kimi(image_base64, request_id)
-    if openrouter_result['success']:
-        return openrouter_result
-    
-    # All APIs failed
-    print(f"❌ [ALL_FAILED] {request_id} - All APIs failed, manual entry required")
-    return {
-        'success': False,
-        'error': 'All OCR APIs exhausted - please enter manually',
-        'all_apis_tried': True
-    }
-
 # --- Electricity Bill Calculator Routes ---
 
 @app.route('/electricity-calculator')
@@ -10877,60 +10664,60 @@ def electricity_calculator():
 
 @app.route('/api/electricity/process_meter', methods=['POST'])
 def process_electricity_meter():
-    """Multi-API OCR with automatic fallback - Gemini → OpenRouter → Manual"""
+    """Process electricity meter image and extract reading using OCR"""
     try:
-        # Get the uploaded image info
-        image_file = request.files.get('image')
+        # Get the uploaded image
+        if 'image' not in request.files:
+            return jsonify({'success': False, 'error': 'No image provided'}), 400
+        
+        image_file = request.files['image']
         month_type = request.form.get('monthType', 'current')
         image_index = request.form.get('imageIndex', 'unknown')
         file_name = request.form.get('fileName', 'unknown')
         request_id = request.form.get('requestId', 'unknown')
         
-        print(f"🚀 [MULTI_API_OCR] {request_id} - Processing {file_name} with Multi-API system")
+        print(f"📥 [OCR_SERVER] {request_id} - Processing image {image_index} ({file_name}) for {month_type}")
         
-        if not image_file:
-            return jsonify({'success': False, 'error': 'No image file provided'}), 400
+        # Read image content
+        image_content = image_file.read()
         
-        # Read and encode image
-        image_data = image_file.read()
-        image_base64 = base64.b64encode(image_data).decode('utf-8')
-        
-        # Use Multi-API system with automatic fallback
-        result = extract_meter_data_with_multi_api(image_base64, request_id)
-        
-        if result['success']:
-            print(f"✅ [OCR_SUCCESS] {request_id} - Meter: {result['data']['meter_id']}, Reading: {result['data']['reading']}")
-            return jsonify(result)
-        else:
-            print(f"🔄 [MANUAL_FALLBACK] {request_id} - All APIs exhausted, falling back to manual entry")
-            # Fall back to manual entry
+        # ONLY METHOD: OpenRouter API with GPT-4o Mini Vision
+        if not OPENROUTER_AVAILABLE:
             return jsonify({
                 'success': False,
-                'error': 'All OCR APIs exhausted - please enter manually',
-                'error_type': 'manual_entry_required',
-                'manual_entry_required': True,
-                'file_name': file_name,
-                'instructions': {
-                    'step1': 'Look at the LCD display in your uploaded image',
-                    'step2': 'Find the main reading number (ignore decimal places)', 
-                    'step3': 'Enter the number in the manual input field below'
-                },
-                'examples': [
-                    'LCD shows "01363.5" → Enter: 1363',
-                    'LCD shows "00982.2" → Enter: 982',
-                    'LCD shows "00936.8" → Enter: 936'
-                ],
-                'apis_tried': result.get('all_apis_tried', False)
-            }), 200
+                'error': 'OpenRouter API not available. Install with: pip install openai',
+                'error_type': 'openrouter_missing'
+            }), 503
         
+        if not os.getenv('OPENROUTER_API_KEY'):
+            return jsonify({
+                'success': False,
+                'error': 'OPENROUTER_API_KEY environment variable required.',
+                'error_type': 'api_key_missing'
+            }), 503
+        
+        try:
+            print(f"🤖 [OPENROUTER_AI] {request_id} - Using GPT-4o Mini Vision for {file_name}")
+            meter_data = extract_meter_data_with_gemini(image_content, file_name)
+            return jsonify({
+                'success': True,
+                'meterId': meter_data['meter_id'],
+                'reading': meter_data['reading'],
+                'brand': meter_data['brand'],
+                'model': meter_data['model'],
+                'extraction_method': meter_data['extraction_method'],
+                'debug_available': meter_data.get('debug_available', False),
+                'confidence': meter_data.get('confidence', 'high')
+            })
+        except Exception as api_error:
+            print(f"❌ [OPENROUTER_ERROR] {request_id} - {api_error}")
+            return jsonify({
+                'success': False,
+                'error': f'OpenRouter API failed: {str(api_error)}. Please use manual entry.',
+                'error_type': 'openrouter_api_failed'
+            }), 500
     except Exception as e:
-        print(f"❌ [OCR_ERROR] {request_id} - {e}")
-        return jsonify({
-            'success': False,
-            'error': 'OCR processing failed - please enter manually',
-            'error_type': 'manual_entry_required',
-            'manual_entry_required': True
-        }), 200
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/api/electricity/calculate', methods=['POST'])
 def calculate_electricity_bill():

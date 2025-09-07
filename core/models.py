@@ -414,6 +414,218 @@ class ArrivalTime(db.Model):
         }
 
 # =====================================================
+# ELECTRICITY MANAGEMENT TABLES
+# =====================================================
+
+class ElectricityMeter(db.Model):
+    """Store electricity meter information"""
+    __tablename__ = 'electricity_meters'
+    
+    # Primary identification
+    meter_uuid = Column(Integer, primary_key=True, autoincrement=True)
+    meter_id = Column(String(100), nullable=False, unique=True, index=True)  # Serial number like "242283412"
+    location = Column(String(255), nullable=False, index=True)  # Description/location
+    brand = Column(String(100))  # Meter brand like "EMIC"
+    model = Column(String(100))  # Meter model
+    
+    # Status and metadata
+    is_active = Column(Boolean, default=True, index=True)
+    notes = Column(Text)
+    
+    # Audit fields
+    created_at = Column(DateTime, default=func.current_timestamp())
+    updated_at = Column(DateTime, default=func.current_timestamp(), onupdate=func.current_timestamp())
+    
+    # Relationships
+    readings = relationship("ElectricityReading", back_populates="meter", cascade="all, delete-orphan")
+    
+    def __repr__(self):
+        return f"<ElectricityMeter {self.meter_id}: {self.location}>"
+    
+    def to_dict(self):
+        return {
+            'meter_uuid': self.meter_uuid,
+            'meter_id': self.meter_id,
+            'location': self.location,
+            'brand': self.brand,
+            'model': self.model,
+            'is_active': self.is_active,
+            'notes': self.notes,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None,
+            'total_readings': len(self.readings) if self.readings else 0
+        }
+
+
+class ElectricityReading(db.Model):
+    """Store historical electricity meter readings"""
+    __tablename__ = 'electricity_readings'
+    
+    # Primary identification
+    reading_id = Column(Integer, primary_key=True, autoincrement=True)
+    meter_uuid = Column(Integer, ForeignKey('electricity_meters.meter_uuid'), nullable=False, index=True)
+    
+    # Reading data
+    reading_date = Column(Date, nullable=False, index=True)
+    reading_time = Column(Time, default=func.current_time())
+    kwh_reading = Column(DECIMAL(12, 2), nullable=False)  # Current meter reading
+    electricity_price = Column(DECIMAL(10, 2), nullable=False)  # Price per kWh at time of reading
+    
+    # Calculated fields (will be computed when paired with previous reading)
+    consumption = Column(DECIMAL(12, 2))  # kWh consumed since last reading
+    amount = Column(DECIMAL(12, 2))  # Cost for consumption
+    previous_reading_id = Column(Integer, ForeignKey('electricity_readings.reading_id'))
+    
+    # Reading type and source
+    reading_type = Column(String(50), default='manual')  # manual, auto, calculated
+    reading_period = Column(String(50))  # monthly, daily, custom
+    notes = Column(Text)
+    
+    # Audit fields
+    created_at = Column(DateTime, default=func.current_timestamp())
+    updated_at = Column(DateTime, default=func.current_timestamp(), onupdate=func.current_timestamp())
+    
+    # Relationships
+    meter = relationship("ElectricityMeter", back_populates="readings")
+    images = relationship("ElectricityImage", back_populates="reading", cascade="all, delete-orphan")
+    previous_reading = relationship("ElectricityReading", remote_side='ElectricityReading.reading_id')
+    
+    # Constraints
+    __table_args__ = (
+        CheckConstraint('kwh_reading >= 0', name='positive_kwh_reading'),
+        CheckConstraint('electricity_price > 0', name='positive_electricity_price'),
+        Index('idx_meter_date', 'meter_uuid', 'reading_date'),
+    )
+    
+    def __repr__(self):
+        return f"<ElectricityReading {self.reading_id}: Meter {self.meter_uuid}, {self.kwh_reading} kWh on {self.reading_date}>"
+    
+    def to_dict(self):
+        return {
+            'reading_id': self.reading_id,
+            'meter_uuid': self.meter_uuid,
+            'meter_id': self.meter.meter_id if self.meter else None,
+            'meter_location': self.meter.location if self.meter else None,
+            'reading_date': self.reading_date.isoformat() if self.reading_date else None,
+            'reading_time': self.reading_time.isoformat() if self.reading_time else None,
+            'kwh_reading': float(self.kwh_reading) if self.kwh_reading else 0,
+            'electricity_price': float(self.electricity_price) if self.electricity_price else 0,
+            'consumption': float(self.consumption) if self.consumption else 0,
+            'amount': float(self.amount) if self.amount else 0,
+            'reading_type': self.reading_type,
+            'reading_period': self.reading_period,
+            'notes': self.notes,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None,
+            'images_count': len(self.images) if self.images else 0
+        }
+
+
+class ElectricityImage(db.Model):
+    """Store electricity meter images"""
+    __tablename__ = 'electricity_images'
+    
+    # Primary identification
+    image_id = Column(Integer, primary_key=True, autoincrement=True)
+    reading_id = Column(Integer, ForeignKey('electricity_readings.reading_id'), nullable=False, index=True)
+    
+    # Image data
+    image_filename = Column(String(255), nullable=False)
+    image_type = Column(String(50), default='meter_reading')  # meter_reading, meter_photo, etc.
+    image_data = Column(Text)  # Base64 encoded image data
+    file_size = Column(Integer)  # File size in bytes
+    image_format = Column(String(10))  # jpg, png, etc.
+    
+    # Image metadata
+    upload_source = Column(String(100), default='web_upload')
+    description = Column(Text)
+    
+    # Audit fields
+    created_at = Column(DateTime, default=func.current_timestamp())
+    
+    # Relationships
+    reading = relationship("ElectricityReading", back_populates="images")
+    
+    def __repr__(self):
+        return f"<ElectricityImage {self.image_id}: {self.image_filename}>"
+    
+    def to_dict(self):
+        return {
+            'image_id': self.image_id,
+            'reading_id': self.reading_id,
+            'image_filename': self.image_filename,
+            'image_type': self.image_type,
+            'file_size': self.file_size,
+            'image_format': self.image_format,
+            'upload_source': self.upload_source,
+            'description': self.description,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'has_image_data': bool(self.image_data)
+        }
+
+
+class ElectricityBill(db.Model):
+    """Store electricity bill calculations and summaries"""
+    __tablename__ = 'electricity_bills'
+    
+    # Primary identification
+    bill_id = Column(Integer, primary_key=True, autoincrement=True)
+    
+    # Bill period
+    bill_date = Column(Date, nullable=False, index=True)
+    bill_period_start = Column(Date, nullable=False)
+    bill_period_end = Column(Date, nullable=False)
+    
+    # Bill summary
+    total_meters = Column(Integer, default=0)
+    total_consumption = Column(DECIMAL(12, 2), default=0)
+    average_price = Column(DECIMAL(10, 2), default=0)
+    total_amount = Column(DECIMAL(15, 2), default=0)
+    
+    # Bill metadata
+    bill_status = Column(String(50), default='draft')  # draft, finalized, paid
+    payment_date = Column(Date)
+    payment_status = Column(String(50), default='unpaid')  # unpaid, partial, paid
+    payment_amount = Column(DECIMAL(15, 2), default=0)
+    
+    # Notes and references
+    notes = Column(Text)
+    reference_number = Column(String(100))
+    
+    # Audit fields
+    created_at = Column(DateTime, default=func.current_timestamp())
+    updated_at = Column(DateTime, default=func.current_timestamp(), onupdate=func.current_timestamp())
+    
+    # Constraints
+    __table_args__ = (
+        CheckConstraint('bill_period_start <= bill_period_end', name='valid_bill_period'),
+        CheckConstraint('total_amount >= 0', name='positive_total_amount'),
+    )
+    
+    def __repr__(self):
+        return f"<ElectricityBill {self.bill_id}: {self.bill_period_start} to {self.bill_period_end}>"
+    
+    def to_dict(self):
+        return {
+            'bill_id': self.bill_id,
+            'bill_date': self.bill_date.isoformat() if self.bill_date else None,
+            'bill_period_start': self.bill_period_start.isoformat() if self.bill_period_start else None,
+            'bill_period_end': self.bill_period_end.isoformat() if self.bill_period_end else None,
+            'total_meters': self.total_meters,
+            'total_consumption': float(self.total_consumption) if self.total_consumption else 0,
+            'average_price': float(self.average_price) if self.average_price else 0,
+            'total_amount': float(self.total_amount) if self.total_amount else 0,
+            'bill_status': self.bill_status,
+            'payment_date': self.payment_date.isoformat() if self.payment_date else None,
+            'payment_status': self.payment_status,
+            'payment_amount': float(self.payment_amount) if self.payment_amount else 0,
+            'notes': self.notes,
+            'reference_number': self.reference_number,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None
+        }
+
+# =====================================================
 # DATABASE UTILITY FUNCTIONS
 # =====================================================
 
@@ -443,6 +655,10 @@ def get_db_stats(app):
         stats['expenses'] = Expense.query.count()
         stats['message_templates'] = MessageTemplate.query.count()
         stats['arrival_times'] = ArrivalTime.query.count()
+        stats['electricity_meters'] = ElectricityMeter.query.count()
+        stats['electricity_readings'] = ElectricityReading.query.count()
+        stats['electricity_images'] = ElectricityImage.query.count()
+        stats['electricity_bills'] = ElectricityBill.query.count()
         return stats
 
 # =====================================================

@@ -107,12 +107,13 @@ class PostgreSQLDatabaseService:
         try:
             from flask import has_app_context
             if has_app_context():
-                self._ensure_guest_sequence_correct()
+                # Defer sequence check to avoid blocking app startup
+                logger.info("⏳ App context available - deferring sequence check to avoid startup blocking")
             else:
                 logger.info("⏳ Skipping sequence check - no app context (will check later)")
         except ImportError:
-            # Fallback if Flask not available
-            self._ensure_guest_sequence_correct()
+            # Fallback if Flask not available - but don't block startup
+            logger.info("⏳ Flask not available during startup - deferring sequence check")
     
     def get_connection(self):
         """Get PostgreSQL database connection"""

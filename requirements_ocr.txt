@@ -1,0 +1,22 @@
+# Python OCR Requirements for Electricity Meter Reading
+# Install with: pip install -r requirements_ocr.txt
+
+# Core OCR
+pytesseract==0.3.10
+Pillow==10.0.1
+
+# Computer Vision
+opencv-python==4.8.1.78
+numpy==1.24.3
+
+# Image processing enhancements
+scikit-image==0.21.0
+
+# Optional: Better OCR accuracy
+# easyocr==1.7.0  # Alternative OCR engine (larger download)
+
+# System Requirements (install separately):
+# - Tesseract OCR engine
+# Ubuntu/Debian: sudo apt-get install tesseract-ocr tesseract-ocr-vie
+# Windows: Download from https://github.com/UB-Mannheim/tesseract/wiki
+# macOS: brew install tesseract
