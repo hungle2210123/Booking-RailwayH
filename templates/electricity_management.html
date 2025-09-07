@@ -1,0 +1,1418 @@
+{% extends "base.html" %}
+
+{% block title %}Quản Lý Điện - Hotel Management{% endblock %}
+
+{% block extra_css %}
+<style>
+    .stats-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 15px;
+        padding: 20px;
+        margin-bottom: 20px;
+        text-align: center;
+        box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        transition: transform 0.3s ease;
+    }
+    
+    .stats-card:hover {
+        transform: translateY(-5px);
+    }
+    
+    .stats-value {
+        font-size: 2.5rem;
+        font-weight: 700;
+        margin-bottom: 0.5rem;
+    }
+    
+    .stats-label {
+        opacity: 0.9;
+        font-size: 1rem;
+    }
+    
+    .nav-tabs .nav-link {
+        border-radius: 10px 10px 0 0;
+        margin-right: 5px;
+        color: #64748b;
+        border: 2px solid transparent;
+    }
+    
+    .nav-tabs .nav-link.active {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-color: #667eea;
+    }
+    
+    .tab-content {
+        background: white;
+        border-radius: 0 15px 15px 15px;
+        padding: 25px;
+        box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+    }
+    
+    .table-responsive {
+        border-radius: 10px;
+        overflow: hidden;
+        box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+    }
+    
+    .table th {
+        background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+        color: #1e293b;
+        font-weight: 600;
+        border: none;
+        padding: 15px;
+    }
+    
+    .table td {
+        padding: 12px 15px;
+        vertical-align: middle;
+        border-bottom: 1px solid #f1f5f9;
+    }
+    
+    .table tbody tr:hover {
+        background-color: #f8fafc;
+    }
+    
+    .badge-status {
+        padding: 6px 12px;
+        border-radius: 20px;
+        font-size: 12px;
+        font-weight: 500;
+    }
+    
+    .badge-active {
+        background: #dcfce7;
+        color: #166534;
+    }
+    
+    .badge-inactive {
+        background: #fee2e2;
+        color: #991b1b;
+    }
+    
+    .search-bar {
+        background: #f8fafc;
+        border-radius: 10px;
+        padding: 20px;
+        margin-bottom: 20px;
+        border: 1px solid #e2e8f0;
+    }
+    
+    .btn-action {
+        padding: 5px 10px;
+        margin: 2px;
+        border: none;
+        border-radius: 5px;
+        font-size: 12px;
+        cursor: pointer;
+        transition: all 0.3s;
+    }
+    
+    .btn-edit {
+        background: #3b82f6;
+        color: white;
+    }
+    
+    .btn-edit:hover {
+        background: #2563eb;
+    }
+    
+    .btn-delete {
+        background: #ef4444;
+        color: white;
+    }
+    
+    .btn-delete:hover {
+        background: #dc2626;
+    }
+    
+    .btn-view {
+        background: #10b981;
+        color: white;
+    }
+    
+    .btn-view:hover {
+        background: #059669;
+    }
+    
+    .modal-content {
+        border-radius: 15px;
+        border: none;
+        box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+    }
+    
+    .modal-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 15px 15px 0 0;
+        border: none;
+    }
+    
+    .loading-spinner {
+        display: inline-block;
+        width: 20px;
+        height: 20px;
+        border: 3px solid rgba(59,130,246,0.3);
+        border-radius: 50%;
+        border-top-color: #3b82f6;
+        animation: spin 1s ease-in-out infinite;
+    }
+    
+    @keyframes spin {
+        to { transform: rotate(360deg); }
+    }
+    
+    .empty-state {
+        text-align: center;
+        padding: 40px;
+        color: #64748b;
+    }
+    
+    .empty-state i {
+        font-size: 3rem;
+        margin-bottom: 1rem;
+        opacity: 0.5;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Page Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="page-title"><i class="fas fa-chart-line me-3"></i>Quản Lý Điện</h1>
+            <p class="page-subtitle">Quản lý công tơ điện, chỉ số và hóa đơn</p>
+        </div>
+        <div>
+            <a href="/electricity-calculator" class="btn btn-primary">
+                <i class="fas fa-calculator me-2"></i>Tính Tiền Điện
+            </a>
+            <button class="btn btn-success ms-2" data-bs-toggle="modal" data-bs-target="#addMeterModal">
+                <i class="fas fa-plus me-2"></i>Thêm Công Tơ
+            </button>
+        </div>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="row mb-4" id="statsCards">
+        <div class="col-md-3">
+            <div class="stats-card">
+                <div class="stats-value" id="totalMeters">-</div>
+                <div class="stats-label">Tổng Công Tơ</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stats-card">
+                <div class="stats-value" id="totalReadings">-</div>
+                <div class="stats-label">Tổng Chỉ Số</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stats-card">
+                <div class="stats-value" id="monthConsumption">- kWh</div>
+                <div class="stats-label">Tiêu Thụ Tháng Này</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stats-card">
+                <div class="stats-value" id="monthAmount">- VND</div>
+                <div class="stats-label">Chi Phí Tháng Này</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Search Bar -->
+    <div class="search-bar">
+        <div class="row">
+            <div class="col-md-6">
+                <div class="input-group">
+                    <input type="text" class="form-control" id="searchInput" placeholder="Tìm kiếm theo mã công tơ, địa điểm...">
+                    <button class="btn btn-primary" onclick="performSearch()">
+                        <i class="fas fa-search"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <input type="date" class="form-control" id="startDateFilter" placeholder="Từ ngày">
+            </div>
+            <div class="col-md-3">
+                <input type="date" class="form-control" id="endDateFilter" placeholder="Đến ngày">
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content Tabs -->
+    <ul class="nav nav-tabs" id="managementTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="meters-tab" data-bs-toggle="tab" data-bs-target="#meters" type="button" role="tab">
+                <i class="fas fa-plug me-2"></i>Công Tơ Điện
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="readings-tab" data-bs-toggle="tab" data-bs-target="#readings" type="button" role="tab">
+                <i class="fas fa-list-ol me-2"></i>Chỉ Số & Hóa Đơn
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="bills-tab" data-bs-toggle="tab" data-bs-target="#bills" type="button" role="tab">
+                <i class="fas fa-file-invoice-dollar me-2"></i>Tổng Hợp
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="analytics-tab" data-bs-toggle="tab" data-bs-target="#analytics" type="button" role="tab">
+                <i class="fas fa-chart-bar me-2"></i>Phân Tích
+            </button>
+        </li>
+    </ul>
+
+    <div class="tab-content" id="managementTabContent">
+        <!-- Meters Tab -->
+        <div class="tab-pane fade show active" id="meters" role="tabpanel">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h4><i class="fas fa-plug me-2"></i>Danh Sách Công Tơ Điện</h4>
+                <button class="btn btn-primary btn-sm" onclick="refreshMeters()">
+                    <i class="fas fa-sync-alt me-1"></i>Làm Mới
+                </button>
+            </div>
+            
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Mã Công Tơ</th>
+                            <th>Địa Điểm</th>
+                            <th>Thương Hiệu</th>
+                            <th>Model</th>
+                            <th>Trạng Thái</th>
+                            <th>Số Chỉ Số</th>
+                            <th>Ngày Tạo</th>
+                            <th>Thao Tác</th>
+                        </tr>
+                    </thead>
+                    <tbody id="metersTableBody">
+                        <tr>
+                            <td colspan="8" class="text-center">
+                                <div class="loading-spinner"></div>
+                                <span class="ms-2">Đang tải dữ liệu...</span>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Readings Tab -->
+        <div class="tab-pane fade" id="readings" role="tabpanel">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h4><i class="fas fa-list-ol me-2"></i>Lịch Sử Chỉ Số</h4>
+                <div>
+                    <button class="btn btn-success btn-sm me-2" data-bs-toggle="modal" data-bs-target="#addReadingModal">
+                        <i class="fas fa-plus me-1"></i>Thêm Chỉ Số
+                    </button>
+                    <button class="btn btn-primary btn-sm" onclick="refreshReadings()">
+                        <i class="fas fa-sync-alt me-1"></i>Làm Mới
+                    </button>
+                </div>
+            </div>
+            
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Mã Công Tơ</th>
+                            <th>Địa Điểm</th>
+                            <th>Ngày Đọc</th>
+                            <th>Chỉ Số (kWh)</th>
+                            <th>Giá Điện (VND/kWh)</th>
+                            <th>Tiêu Thụ (kWh)</th>
+                            <th>Thành Tiền (VND)</th>
+                            <th>Ghi Chú</th>
+                            <th>Thao Tác</th>
+                        </tr>
+                    </thead>
+                    <tbody id="readingsTableBody">
+                        <tr>
+                            <td colspan="9" class="text-center">
+                                <div class="loading-spinner"></div>
+                                <span class="ms-2">Đang tải dữ liệu...</span>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Bills Tab -->
+        <div class="tab-pane fade" id="bills" role="tabpanel">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h4><i class="fas fa-file-invoice-dollar me-2"></i>Hóa Đơn Tổng Hợp</h4>
+                <div>
+                    <button class="btn btn-success btn-sm me-2" data-bs-toggle="modal" data-bs-target="#createBillModal">
+                        <i class="fas fa-plus me-1"></i>Tạo Hóa Đơn
+                    </button>
+                    <button class="btn btn-primary btn-sm" onclick="refreshBills()">
+                        <i class="fas fa-sync-alt me-1"></i>Làm Mới
+                    </button>
+                </div>
+            </div>
+            
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Mã Hóa Đơn</th>
+                            <th>Kỳ Hóa Đơn</th>
+                            <th>Tổng Công Tơ</th>
+                            <th>Tổng Tiêu Thụ (kWh)</th>
+                            <th>Tổng Tiền (VND)</th>
+                            <th>Trạng Thái</th>
+                            <th>Ngày Tạo</th>
+                            <th>Thao Tác</th>
+                        </tr>
+                    </thead>
+                    <tbody id="billsTableBody">
+                        <tr>
+                            <td colspan="8" class="text-center">
+                                <div class="loading-spinner"></div>
+                                <span class="ms-2">Đang tải dữ liệu...</span>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Analytics Tab -->
+        <div class="tab-pane fade" id="analytics" role="tabpanel">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h4><i class="fas fa-chart-bar me-2"></i>Phân Tích & So Sánh</h4>
+                <div>
+                    <select class="form-select" id="chartPeriodSelect" style="width: auto; display: inline-block;" onchange="updateChartPeriod()">
+                        <option value="12">12 tháng gần nhất</option>
+                        <option value="6">6 tháng gần nhất</option>
+                        <option value="24">2 năm gần nhất</option>
+                    </select>
+                    <button class="btn btn-primary btn-sm ms-2" onclick="refreshAnalytics()">
+                        <i class="fas fa-sync-alt me-1"></i>Làm Mới
+                    </button>
+                </div>
+            </div>
+
+            <!-- Summary Cards for Analytics -->
+            <div class="row mb-4">
+                <div class="col-md-3">
+                    <div class="card bg-gradient-primary text-white">
+                        <div class="card-body text-center">
+                            <i class="fas fa-calendar-alt fa-2x mb-2"></i>
+                            <h5>Tháng Cao Nhất</h5>
+                            <h4 id="highestMonthAmount">- VND</h4>
+                            <small id="highestMonthLabel">-</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card bg-gradient-success text-white">
+                        <div class="card-body text-center">
+                            <i class="fas fa-calendar-check fa-2x mb-2"></i>
+                            <h5>Tháng Thấp Nhất</h5>
+                            <h4 id="lowestMonthAmount">- VND</h4>
+                            <small id="lowestMonthLabel">-</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card bg-gradient-info text-white">
+                        <div class="card-body text-center">
+                            <i class="fas fa-chart-line fa-2x mb-2"></i>
+                            <h5>Trung Bình Tháng</h5>
+                            <h4 id="averageMonthAmount">- VND</h4>
+                            <small>Tiêu thụ điện hàng tháng</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card bg-gradient-warning text-white">
+                        <div class="card-body text-center">
+                            <i class="fas fa-trending-up fa-2x mb-2"></i>
+                            <h5>Xu Hướng</h5>
+                            <h4 id="trendIndicator">
+                                <i class="fas fa-minus"></i>
+                            </h4>
+                            <small id="trendLabel">-</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Monthly Comparison Chart -->
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0"><i class="fas fa-chart-line me-2"></i>So Sánh Chi Phí Điện Theo Tháng</h5>
+                        </div>
+                        <div class="card-body">
+                            <div style="height: 400px; position: relative;">
+                                <canvas id="monthlyComparisonChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Detailed Monthly Table -->
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0"><i class="fas fa-table me-2"></i>Chi Tiết Theo Tháng</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>Tháng/Năm</th>
+                                            <th>Tổng Tiêu Thụ (kWh)</th>
+                                            <th>Giá Điện TB (VND/kWh)</th>
+                                            <th>Tổng Chi Phí (VND)</th>
+                                            <th>So Với Tháng Trước</th>
+                                            <th>Số Công Tơ</th>
+                                            <th>Ghi Chú</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="monthlyAnalyticsTable">
+                                        <tr>
+                                            <td colspan="7" class="text-center">
+                                                <div class="loading-spinner"></div>
+                                                <span class="ms-2">Đang tải dữ liệu phân tích...</span>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Meter Comparison Chart -->
+            <div class="row mb-4">
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0"><i class="fas fa-chart-pie me-2"></i>Phân Bố Theo Công Tơ</h5>
+                        </div>
+                        <div class="card-body">
+                            <div style="height: 300px; position: relative;">
+                                <canvas id="meterDistributionChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0"><i class="fas fa-chart-bar me-2"></i>Top 5 Công Tơ Tiêu Thụ Nhiều</h5>
+                        </div>
+                        <div class="card-body">
+                            <div style="height: 300px; position: relative;">
+                                <canvas id="topMetersChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Export Options -->
+            <div class="row">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0"><i class="fas fa-download me-2"></i>Xuất Báo Cáo</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="d-flex gap-2 flex-wrap">
+                                <button class="btn btn-success" onclick="exportToExcel()">
+                                    <i class="fas fa-file-excel me-2"></i>Xuất Excel
+                                </button>
+                                <button class="btn btn-danger" onclick="exportToPDF()">
+                                    <i class="fas fa-file-pdf me-2"></i>Xuất PDF
+                                </button>
+                                <button class="btn btn-info" onclick="exportChart()">
+                                    <i class="fas fa-chart-line me-2"></i>Xuất Biểu Đồ
+                                </button>
+                                <button class="btn btn-warning" onclick="generateReport()">
+                                    <i class="fas fa-file-alt me-2"></i>Tạo Báo Cáo Tự Động
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add Meter Modal -->
+<div class="modal fade" id="addMeterModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-plus me-2"></i>Thêm Công Tơ Điện</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="addMeterForm">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Mã Công Tơ *</label>
+                            <input type="text" class="form-control" id="meterIdInput" required placeholder="Ví dụ: 242283412">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Địa Điểm *</label>
+                            <input type="text" class="form-control" id="locationInput" required placeholder="Ví dụ: Tầng 1, Phòng A">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Thương Hiệu</label>
+                            <input type="text" class="form-control" id="brandInput" placeholder="Ví dụ: EMIC">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Model</label>
+                            <input type="text" class="form-control" id="modelInput" placeholder="Ví dụ: CV140">
+                        </div>
+                        <div class="col-12 mb-3">
+                            <label class="form-label">Ghi Chú</label>
+                            <textarea class="form-control" id="notesInput" rows="3" placeholder="Ghi chú về công tơ điện này..."></textarea>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                <button type="button" class="btn btn-success" onclick="saveMeter()">
+                    <i class="fas fa-save me-2"></i>Lưu Công Tơ
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add Reading Modal -->
+<div class="modal fade" id="addReadingModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-plus me-2"></i>Thêm Chỉ Số Điện</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="addReadingForm">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Công Tơ *</label>
+                            <select class="form-select" id="meterSelectReading" required>
+                                <option value="">Chọn công tơ...</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Ngày Đọc *</label>
+                            <input type="date" class="form-control" id="readingDateInput" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Chỉ Số (kWh) *</label>
+                            <input type="number" class="form-control" id="kwhReadingInput" step="0.01" required placeholder="Ví dụ: 1226">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Giá Điện (VND/kWh) *</label>
+                            <input type="number" class="form-control" id="electricityPriceReading" value="3600" required>
+                        </div>
+                        <div class="col-12 mb-3">
+                            <label class="form-label">Ghi Chú</label>
+                            <textarea class="form-control" id="readingNotesInput" rows="2" placeholder="Ghi chú về chỉ số này..."></textarea>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                <button type="button" class="btn btn-success" onclick="saveReading()">
+                    <i class="fas fa-save me-2"></i>Lưu Chỉ Số
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Create Bill Modal -->
+<div class="modal fade" id="createBillModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-file-invoice-dollar me-2"></i>Tạo Hóa Đơn Tổng Hợp</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="createBillForm">
+                    <div class="mb-3">
+                        <label class="form-label">Từ Ngày *</label>
+                        <input type="date" class="form-control" id="billStartDate" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Đến Ngày *</label>
+                        <input type="date" class="form-control" id="billEndDate" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Ghi Chú</label>
+                        <textarea class="form-control" id="billNotesInput" rows="3" placeholder="Ghi chú về hóa đơn này..."></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                <button type="button" class="btn btn-success" onclick="createBill()">
+                    <i class="fas fa-file-plus me-2"></i>Tạo Hóa Đơn
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Global variables
+let metersData = [];
+let readingsData = [];
+let billsData = [];
+
+// Initialize page
+document.addEventListener('DOMContentLoaded', function() {
+    loadDashboardStats();
+    loadMeters();
+    loadReadings();
+    loadBills();
+    
+    // Set default date to today
+    document.getElementById('readingDateInput').valueAsDate = new Date();
+    
+    // Tab change event handlers
+    document.getElementById('meters-tab').addEventListener('click', () => loadMeters());
+    document.getElementById('readings-tab').addEventListener('click', () => loadReadings());
+    document.getElementById('bills-tab').addEventListener('click', () => loadBills());
+    document.getElementById('analytics-tab').addEventListener('click', () => loadAnalytics());
+});
+
+// Load dashboard statistics
+function loadDashboardStats() {
+    fetch('/api/electricity/dashboard_stats')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                const stats = data.data;
+                document.getElementById('totalMeters').textContent = stats.total_meters;
+                document.getElementById('totalReadings').textContent = stats.total_readings;
+                document.getElementById('monthConsumption').textContent = stats.current_month_consumption.toLocaleString('vi-VN') + ' kWh';
+                document.getElementById('monthAmount').textContent = stats.current_month_amount.toLocaleString('vi-VN') + ' VND';
+            }
+        })
+        .catch(error => console.error('Error loading stats:', error));
+}
+
+// Load meters data
+function loadMeters() {
+    fetch('/api/electricity/meters')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                metersData = data.data;
+                displayMeters(metersData);
+                populateMeterSelects();
+            } else {
+                showEmptyState('metersTableBody', 'Không có dữ liệu công tơ');
+            }
+        })
+        .catch(error => {
+            console.error('Error loading meters:', error);
+            showEmptyState('metersTableBody', 'Lỗi tải dữ liệu');
+        });
+}
+
+// Display meters in table
+function displayMeters(meters) {
+    const tbody = document.getElementById('metersTableBody');
+    
+    if (meters.length === 0) {
+        showEmptyState('metersTableBody', 'Không có công tơ nào');
+        return;
+    }
+    
+    tbody.innerHTML = meters.map(meter => `
+        <tr>
+            <td><strong>${meter.meter_id}</strong></td>
+            <td>${meter.location}</td>
+            <td>${meter.brand || '-'}</td>
+            <td>${meter.model || '-'}</td>
+            <td>
+                <span class="badge badge-status ${meter.is_active ? 'badge-active' : 'badge-inactive'}">
+                    ${meter.is_active ? 'Hoạt động' : 'Không hoạt động'}
+                </span>
+            </td>
+            <td>${meter.total_readings}</td>
+            <td>${formatDate(meter.created_at)}</td>
+            <td>
+                <button class="btn-action btn-view" onclick="viewMeter(${meter.meter_uuid})" title="Xem chi tiết">
+                    <i class="fas fa-eye"></i>
+                </button>
+                <button class="btn-action btn-edit" onclick="editMeter(${meter.meter_uuid})" title="Chỉnh sửa">
+                    <i class="fas fa-edit"></i>
+                </button>
+                <button class="btn-action btn-delete" onclick="deleteMeter(${meter.meter_uuid})" title="Xóa">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </td>
+        </tr>
+    `).join('');
+}
+
+// Load readings data
+function loadReadings() {
+    const startDate = document.getElementById('startDateFilter').value;
+    const endDate = document.getElementById('endDateFilter').value;
+    
+    let url = '/api/electricity/readings?limit=100';
+    if (startDate) url += `&start_date=${startDate}`;
+    if (endDate) url += `&end_date=${endDate}`;
+    
+    fetch(url)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                readingsData = data.data;
+                displayReadings(readingsData);
+            } else {
+                showEmptyState('readingsTableBody', 'Không có dữ liệu chỉ số');
+            }
+        })
+        .catch(error => {
+            console.error('Error loading readings:', error);
+            showEmptyState('readingsTableBody', 'Lỗi tải dữ liệu');
+        });
+}
+
+// Display readings in table
+function displayReadings(readings) {
+    const tbody = document.getElementById('readingsTableBody');
+    
+    if (readings.length === 0) {
+        showEmptyState('readingsTableBody', 'Không có chỉ số nào');
+        return;
+    }
+    
+    tbody.innerHTML = readings.map(reading => `
+        <tr>
+            <td><strong>${reading.meter_id || 'N/A'}</strong></td>
+            <td>${reading.meter_location || '-'}</td>
+            <td>${formatDate(reading.reading_date)}</td>
+            <td>${reading.kwh_reading.toLocaleString('vi-VN')}</td>
+            <td>${reading.electricity_price.toLocaleString('vi-VN')}</td>
+            <td>${reading.consumption ? reading.consumption.toLocaleString('vi-VN') : '-'}</td>
+            <td>${reading.amount ? reading.amount.toLocaleString('vi-VN') : '-'}</td>
+            <td>${reading.notes || '-'}</td>
+            <td>
+                <button class="btn-action btn-view" onclick="viewReading(${reading.reading_id})" title="Xem chi tiết">
+                    <i class="fas fa-eye"></i>
+                </button>
+                <button class="btn-action btn-edit" onclick="editReading(${reading.reading_id})" title="Chỉnh sửa">
+                    <i class="fas fa-edit"></i>
+                </button>
+                <button class="btn-action btn-delete" onclick="deleteReading(${reading.reading_id})" title="Xóa">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </td>
+        </tr>
+    `).join('');
+}
+
+// Load bills data
+function loadBills() {
+    fetch('/api/electricity/bills')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                billsData = data.data;
+                displayBills(billsData);
+            } else {
+                showEmptyState('billsTableBody', 'Không có dữ liệu hóa đơn');
+            }
+        })
+        .catch(error => {
+            console.error('Error loading bills:', error);
+            showEmptyState('billsTableBody', 'Lỗi tải dữ liệu');
+        });
+}
+
+// Display bills in table
+function displayBills(bills) {
+    const tbody = document.getElementById('billsTableBody');
+    
+    if (bills.length === 0) {
+        showEmptyState('billsTableBody', 'Không có hóa đơn nào');
+        return;
+    }
+    
+    tbody.innerHTML = bills.map(bill => `
+        <tr>
+            <td><strong>HD-${bill.bill_id}</strong></td>
+            <td>${formatDate(bill.bill_period_start)} - ${formatDate(bill.bill_period_end)}</td>
+            <td>${bill.total_meters}</td>
+            <td>${bill.total_consumption.toLocaleString('vi-VN')}</td>
+            <td>${bill.total_amount.toLocaleString('vi-VN')}</td>
+            <td>
+                <span class="badge badge-status badge-${bill.bill_status === 'paid' ? 'active' : 'inactive'}">
+                    ${bill.bill_status === 'paid' ? 'Đã thanh toán' : 'Chưa thanh toán'}
+                </span>
+            </td>
+            <td>${formatDate(bill.created_at)}</td>
+            <td>
+                <button class="btn-action btn-view" onclick="viewBill(${bill.bill_id})" title="Xem chi tiết">
+                    <i class="fas fa-eye"></i>
+                </button>
+                <button class="btn-action btn-edit" onclick="editBill(${bill.bill_id})" title="Chỉnh sửa">
+                    <i class="fas fa-edit"></i>
+                </button>
+            </td>
+        </tr>
+    `).join('');
+}
+
+// Populate meter selects
+function populateMeterSelects() {
+    const select = document.getElementById('meterSelectReading');
+    select.innerHTML = '<option value="">Chọn công tơ...</option>' +
+        metersData.filter(meter => meter.is_active).map(meter => 
+            `<option value="${meter.meter_id}">${meter.meter_id} - ${meter.location}</option>`
+        ).join('');
+}
+
+// Save new meter
+function saveMeter() {
+    const meterData = {
+        meter_id: document.getElementById('meterIdInput').value,
+        location: document.getElementById('locationInput').value,
+        brand: document.getElementById('brandInput').value,
+        model: document.getElementById('modelInput').value,
+        notes: document.getElementById('notesInput').value
+    };
+    
+    if (!meterData.meter_id || !meterData.location) {
+        alert('Vui lòng nhập đầy đủ thông tin bắt buộc');
+        return;
+    }
+    
+    fetch('/api/electricity/meters', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(meterData)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('Đã thêm công tơ thành công!');
+            bootstrap.Modal.getInstance(document.getElementById('addMeterModal')).hide();
+            document.getElementById('addMeterForm').reset();
+            loadMeters();
+            loadDashboardStats();
+        } else {
+            alert('Lỗi: ' + data.error);
+        }
+    })
+    .catch(error => {
+        console.error('Error saving meter:', error);
+        alert('Lỗi kết nối');
+    });
+}
+
+// Save new reading
+function saveReading() {
+    const readingData = {
+        meter_id: document.getElementById('meterSelectReading').value,
+        reading_date: document.getElementById('readingDateInput').value,
+        kwh_reading: parseFloat(document.getElementById('kwhReadingInput').value),
+        electricity_price: parseFloat(document.getElementById('electricityPriceReading').value),
+        notes: document.getElementById('readingNotesInput').value
+    };
+    
+    if (!readingData.meter_id || !readingData.reading_date || !readingData.kwh_reading || !readingData.electricity_price) {
+        alert('Vui lòng nhập đầy đủ thông tin bắt buộc');
+        return;
+    }
+    
+    fetch('/api/electricity/readings', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(readingData)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('Đã thêm chỉ số thành công!');
+            bootstrap.Modal.getInstance(document.getElementById('addReadingModal')).hide();
+            document.getElementById('addReadingForm').reset();
+            loadReadings();
+            loadDashboardStats();
+        } else {
+            alert('Lỗi: ' + data.error);
+        }
+    })
+    .catch(error => {
+        console.error('Error saving reading:', error);
+        alert('Lỗi kết nối');
+    });
+}
+
+// Create bill
+function createBill() {
+    const billData = {
+        start_date: document.getElementById('billStartDate').value,
+        end_date: document.getElementById('billEndDate').value,
+        notes: document.getElementById('billNotesInput').value
+    };
+    
+    if (!billData.start_date || !billData.end_date) {
+        alert('Vui lòng chọn kỳ hóa đơn');
+        return;
+    }
+    
+    fetch('/api/electricity/bills', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(billData)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('Đã tạo hóa đơn thành công!');
+            bootstrap.Modal.getInstance(document.getElementById('createBillModal')).hide();
+            document.getElementById('createBillForm').reset();
+            loadBills();
+        } else {
+            alert('Lỗi: ' + data.error);
+        }
+    })
+    .catch(error => {
+        console.error('Error creating bill:', error);
+        alert('Lỗi kết nối');
+    });
+}
+
+// Search functionality
+function performSearch() {
+    const query = document.getElementById('searchInput').value;
+    if (!query.trim()) {
+        loadMeters();
+        loadReadings();
+        return;
+    }
+    
+    fetch(`/api/electricity/search?q=${encodeURIComponent(query)}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                if (data.data.meters) {
+                    displayMeters(data.data.meters);
+                }
+                if (data.data.readings) {
+                    displayReadings(data.data.readings);
+                }
+            }
+        })
+        .catch(error => console.error('Search error:', error));
+}
+
+// Refresh functions
+function refreshMeters() { loadMeters(); }
+function refreshReadings() { loadReadings(); }
+function refreshBills() { loadBills(); }
+
+// Utility functions
+function formatDate(dateString) {
+    if (!dateString) return '-';
+    return new Date(dateString).toLocaleDateString('vi-VN');
+}
+
+function showEmptyState(tableBodyId, message) {
+    document.getElementById(tableBodyId).innerHTML = `
+        <tr>
+            <td colspan="20" class="empty-state">
+                <i class="fas fa-inbox"></i>
+                <div>${message}</div>
+            </td>
+        </tr>
+    `;
+}
+
+// Analytics & Chart Functions
+let monthlyChart = null;
+let meterDistributionChart = null;
+let topMetersChart = null;
+let analyticsData = null;
+
+function loadAnalytics() {
+    const period = document.getElementById('chartPeriodSelect').value;
+    
+    fetch(`/api/electricity/analytics?period=${period}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                analyticsData = data.data;
+                displayAnalyticsSummary(analyticsData.summary);
+                createMonthlyChart(analyticsData.monthly);
+                createMeterDistributionChart(analyticsData.meters);
+                createTopMetersChart(analyticsData.topMeters);
+                displayMonthlyTable(analyticsData.monthly);
+            } else {
+                console.error('Error loading analytics:', data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Error loading analytics:', error);
+        });
+}
+
+function displayAnalyticsSummary(summary) {
+    document.getElementById('highestMonthAmount').textContent = 
+        summary.highestMonth.amount.toLocaleString('vi-VN') + ' VND';
+    document.getElementById('highestMonthLabel').textContent = summary.highestMonth.month;
+    
+    document.getElementById('lowestMonthAmount').textContent = 
+        summary.lowestMonth.amount.toLocaleString('vi-VN') + ' VND';
+    document.getElementById('lowestMonthLabel').textContent = summary.lowestMonth.month;
+    
+    document.getElementById('averageMonthAmount').textContent = 
+        Math.round(summary.averageAmount).toLocaleString('vi-VN') + ' VND';
+    
+    // Display trend
+    const trendIcon = document.getElementById('trendIndicator');
+    const trendLabel = document.getElementById('trendLabel');
+    
+    if (summary.trend > 5) {
+        trendIcon.innerHTML = '<i class="fas fa-arrow-up text-danger"></i>';
+        trendLabel.textContent = `Tăng ${summary.trend.toFixed(1)}%`;
+        trendLabel.className = 'text-danger';
+    } else if (summary.trend < -5) {
+        trendIcon.innerHTML = '<i class="fas fa-arrow-down text-success"></i>';
+        trendLabel.textContent = `Giảm ${Math.abs(summary.trend).toFixed(1)}%`;
+        trendLabel.className = 'text-success';
+    } else {
+        trendIcon.innerHTML = '<i class="fas fa-minus text-warning"></i>';
+        trendLabel.textContent = 'Ổn định';
+        trendLabel.className = 'text-warning';
+    }
+}
+
+function createMonthlyChart(monthlyData) {
+    const ctx = document.getElementById('monthlyComparisonChart').getContext('2d');
+    
+    if (monthlyChart) {
+        monthlyChart.destroy();
+    }
+    
+    monthlyChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: monthlyData.map(item => item.month),
+            datasets: [{
+                label: 'Chi phí điện (VND)',
+                data: monthlyData.map(item => item.amount),
+                borderColor: 'rgba(59, 130, 246, 1)',
+                backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                borderWidth: 3,
+                fill: true,
+                tension: 0.4,
+                pointRadius: 6,
+                pointHoverRadius: 8,
+                pointBackgroundColor: 'white',
+                pointBorderWidth: 3
+            }, {
+                label: 'Tiêu thụ điện (kWh)',
+                data: monthlyData.map(item => item.consumption),
+                borderColor: 'rgba(16, 185, 129, 1)',
+                backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                borderWidth: 3,
+                fill: true,
+                tension: 0.4,
+                pointRadius: 6,
+                pointHoverRadius: 8,
+                pointBackgroundColor: 'white',
+                pointBorderWidth: 3,
+                yAxisID: 'y1'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: {
+                mode: 'index',
+                intersect: false,
+            },
+            plugins: {
+                legend: {
+                    display: true,
+                    position: 'top'
+                },
+                tooltip: {
+                    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                    titleColor: 'white',
+                    bodyColor: 'white',
+                    borderColor: 'rgba(59, 130, 246, 1)',
+                    borderWidth: 1,
+                    callbacks: {
+                        label: function(context) {
+                            if (context.datasetIndex === 0) {
+                                return `Chi phí: ${context.parsed.y.toLocaleString('vi-VN')} VND`;
+                            } else {
+                                return `Tiêu thụ: ${context.parsed.y.toLocaleString('vi-VN')} kWh`;
+                            }
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    grid: {
+                        display: false
+                    },
+                    ticks: {
+                        maxRotation: 45
+                    }
+                },
+                y: {
+                    type: 'linear',
+                    position: 'left',
+                    title: {
+                        display: true,
+                        text: 'Chi phí (VND)'
+                    },
+                    ticks: {
+                        callback: function(value) {
+                            return value.toLocaleString('vi-VN') + ' VND';
+                        }
+                    }
+                },
+                y1: {
+                    type: 'linear',
+                    position: 'right',
+                    title: {
+                        display: true,
+                        text: 'Tiêu thụ (kWh)'
+                    },
+                    ticks: {
+                        callback: function(value) {
+                            return value.toLocaleString('vi-VN') + ' kWh';
+                        }
+                    },
+                    grid: {
+                        drawOnChartArea: false
+                    }
+                }
+            }
+        }
+    });
+}
+
+function createMeterDistributionChart(meterData) {
+    const ctx = document.getElementById('meterDistributionChart').getContext('2d');
+    
+    if (meterDistributionChart) {
+        meterDistributionChart.destroy();
+    }
+    
+    const colors = [
+        'rgba(59, 130, 246, 0.8)',
+        'rgba(16, 185, 129, 0.8)',
+        'rgba(245, 158, 11, 0.8)',
+        'rgba(239, 68, 68, 0.8)',
+        'rgba(139, 92, 246, 0.8)',
+        'rgba(236, 72, 153, 0.8)'
+    ];
+    
+    meterDistributionChart = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: meterData.map(item => item.meter_id),
+            datasets: [{
+                data: meterData.map(item => item.percentage),
+                backgroundColor: colors.slice(0, meterData.length),
+                borderWidth: 2,
+                borderColor: 'white'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom'
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return `${context.label}: ${context.parsed}% (${meterData[context.dataIndex].amount.toLocaleString('vi-VN')} VND)`;
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
+
+function createTopMetersChart(topMetersData) {
+    const ctx = document.getElementById('topMetersChart').getContext('2d');
+    
+    if (topMetersChart) {
+        topMetersChart.destroy();
+    }
+    
+    topMetersChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: topMetersData.map(item => item.meter_id),
+            datasets: [{
+                label: 'Tiêu thụ (kWh)',
+                data: topMetersData.map(item => item.consumption),
+                backgroundColor: 'rgba(59, 130, 246, 0.8)',
+                borderColor: 'rgba(59, 130, 246, 1)',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return `${context.parsed.y.toLocaleString('vi-VN')} kWh (${topMetersData[context.dataIndex].amount.toLocaleString('vi-VN')} VND)`;
+                        }
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        callback: function(value) {
+                            return value.toLocaleString('vi-VN') + ' kWh';
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
+
+function displayMonthlyTable(monthlyData) {
+    const tbody = document.getElementById('monthlyAnalyticsTable');
+    
+    if (monthlyData.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" class="text-center">Không có dữ liệu phân tích</td></tr>';
+        return;
+    }
+    
+    tbody.innerHTML = monthlyData.map((item, index) => {
+        const previousMonth = index > 0 ? monthlyData[index - 1] : null;
+        let changePercent = 0;
+        let changeIcon = '';
+        let changeClass = '';
+        
+        if (previousMonth && previousMonth.amount > 0) {
+            changePercent = ((item.amount - previousMonth.amount) / previousMonth.amount) * 100;
+            if (changePercent > 0) {
+                changeIcon = '<i class="fas fa-arrow-up text-danger"></i>';
+                changeClass = 'text-danger';
+            } else if (changePercent < 0) {
+                changeIcon = '<i class="fas fa-arrow-down text-success"></i>';
+                changeClass = 'text-success';
+            } else {
+                changeIcon = '<i class="fas fa-minus text-warning"></i>';
+                changeClass = 'text-warning';
+            }
+        }
+        
+        return `
+            <tr>
+                <td><strong>${item.month}</strong></td>
+                <td>${item.consumption.toLocaleString('vi-VN')}</td>
+                <td>${item.averagePrice.toLocaleString('vi-VN')}</td>
+                <td>${item.amount.toLocaleString('vi-VN')}</td>
+                <td class="${changeClass}">
+                    ${changeIcon} ${Math.abs(changePercent).toFixed(1)}%
+                </td>
+                <td>${item.meterCount}</td>
+                <td>${item.notes || '-'}</td>
+            </tr>
+        `;
+    }).join('');
+}
+
+function updateChartPeriod() {
+    loadAnalytics();
+}
+
+function refreshAnalytics() {
+    loadAnalytics();
+}
+
+// Export functions (placeholders)
+function exportToExcel() {
+    if (!analyticsData) {
+        alert('Vui lòng tải dữ liệu trước khi xuất');
+        return;
+    }
+    // Implementation for Excel export
+    alert('Chức năng xuất Excel sẽ được phát triển');
+}
+
+function exportToPDF() {
+    alert('Chức năng xuất PDF sẽ được phát triển');
+}
+
+function exportChart() {
+    if (monthlyChart) {
+        const url = monthlyChart.toBase64Image();
+        const link = document.createElement('a');
+        link.download = 'electricity-chart.png';
+        link.href = url;
+        link.click();
+    }
+}
+
+function generateReport() {
+    alert('Chức năng tạo báo cáo tự động sẽ được phát triển');
+}
+
+// Placeholder action functions (to be implemented)
+function viewMeter(id) { alert('Chức năng xem chi tiết công tơ sẽ được phát triển'); }
+function editMeter(id) { alert('Chức năng chỉnh sửa công tơ sẽ được phát triển'); }
+function deleteMeter(id) { 
+    if (confirm('Bạn có chắc chắn muốn xóa công tơ này?')) {
+        // Implementation here
+        alert('Chức năng xóa công tơ sẽ được phát triển'); 
+    }
+}
+function viewReading(id) { alert('Chức năng xem chi tiết chỉ số sẽ được phát triển'); }
+function editReading(id) { alert('Chức năng chỉnh sửa chỉ số sẽ được phát triển'); }
+function deleteReading(id) { 
+    if (confirm('Bạn có chắc chắn muốn xóa chỉ số này?')) {
+        // Implementation here
+        alert('Chức năng xóa chỉ số sẽ được phát triển'); 
+    }
+}
+function viewBill(id) { alert('Chức năng xem chi tiết hóa đơn sẽ được phát triển'); }
+function editBill(id) { alert('Chức năng chỉnh sửa hóa đơn sẽ được phát triển'); }
+</script>
+{% endblock %}

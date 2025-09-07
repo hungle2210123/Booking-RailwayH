@@ -1,0 +1,1750 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tính Tiền Điện Đa Công Tơ</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: #f5f7fa;
+            color: #2d3748;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #3b82f6, #1e40af);
+            color: white;
+            padding: 40px 0;
+            margin-bottom: 30px;
+            text-align: center;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+
+        .header h1 {
+            font-size: 32px;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            opacity: 0.9;
+            font-size: 18px;
+        }
+
+        .card {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+            margin-bottom: 25px;
+        }
+
+        .upload-section {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin-bottom: 30px;
+        }
+
+        .upload-box {
+            border: 2px dashed #cbd5e0;
+            border-radius: 10px;
+            padding: 30px;
+            text-align: center;
+            transition: all 0.3s;
+            background: #f8fafc;
+        }
+
+        .upload-box:hover {
+            border-color: #3b82f6;
+            background: #eff6ff;
+        }
+
+        .upload-box h3 {
+            color: #1e293b;
+            margin-bottom: 15px;
+            font-size: 20px;
+        }
+
+        .file-input-wrapper {
+            position: relative;
+            overflow: hidden;
+            display: inline-block;
+        }
+
+        .file-input-wrapper input[type=file] {
+            position: absolute;
+            left: -9999px;
+        }
+
+        .file-input-label {
+            display: inline-block;
+            padding: 12px 30px;
+            background: #3b82f6;
+            color: white;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.3s;
+        }
+
+        .file-input-label:hover {
+            background: #2563eb;
+            transform: translateY(-1px);
+            box-shadow: 0 5px 15px rgba(59,130,246,0.3);
+        }
+
+        .uploaded-images {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .image-preview {
+            position: relative;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+        }
+
+        .image-preview img {
+            width: 100%;
+            height: 120px;
+            object-fit: cover;
+        }
+
+        .image-preview .remove-btn {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            background: rgba(239,68,68,0.9);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 25px;
+            height: 25px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s;
+        }
+
+        .image-preview .remove-btn:hover {
+            background: #dc2626;
+            transform: scale(1.1);
+        }
+
+        .meter-reading {
+            background: #f1f5f9;
+            padding: 10px 15px;
+            margin-top: 5px;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+
+        .meter-reading .value {
+            font-weight: 600;
+            color: #1e40af;
+        }
+
+        .results-section {
+            margin-top: 30px;
+        }
+
+        .results-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .meter-result {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            padding: 20px;
+            transition: all 0.3s;
+        }
+
+        .meter-result:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+        }
+
+        .meter-result h4 {
+            color: #1e293b;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .meter-result .icon {
+            width: 35px;
+            height: 35px;
+            background: #3b82f6;
+            color: white;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .meter-details {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .detail-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 0;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .detail-row:last-child {
+            border-bottom: none;
+        }
+
+        .detail-label {
+            color: #64748b;
+            font-size: 14px;
+        }
+
+        .detail-value {
+            font-weight: 600;
+            color: #1e293b;
+        }
+
+        .total-amount {
+            color: #dc2626;
+            font-size: 18px;
+        }
+
+        .summary-card {
+            background: linear-gradient(135deg, #3b82f6, #1e40af);
+            color: white;
+            padding: 30px;
+            border-radius: 15px;
+            margin-top: 30px;
+        }
+
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+        }
+
+        .summary-item {
+            text-align: center;
+        }
+
+        .summary-label {
+            font-size: 14px;
+            opacity: 0.9;
+            margin-bottom: 5px;
+        }
+
+        .summary-value {
+            font-size: 28px;
+            font-weight: 700;
+        }
+
+        .comparison-section {
+            margin-top: 30px;
+        }
+
+        .comparison-chart {
+            height: 400px;
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            margin-top: 20px;
+        }
+
+        .calculate-btn {
+            background: linear-gradient(135deg, #10b981, #059669);
+            color: white;
+            border: none;
+            padding: 15px 40px;
+            font-size: 18px;
+            font-weight: 600;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: block;
+            margin: 30px auto;
+            box-shadow: 0 5px 20px rgba(16,185,129,0.3);
+        }
+
+        .calculate-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(16,185,129,0.4);
+        }
+
+        .calculate-btn:disabled {
+            background: #94a3b8;
+            cursor: not-allowed;
+            box-shadow: none;
+        }
+
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255,255,255,0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 1s ease-in-out infinite;
+            margin-right: 10px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .error-message {
+            background: #fee2e2;
+            color: #dc2626;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 15px;
+            display: none;
+        }
+
+        .success-message {
+            background: #d1fae5;
+            color: #059669;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 15px;
+            display: none;
+        }
+
+        /* Image Zoom Modal Styles */
+        .image-modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            padding-top: 100px;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.9);
+        }
+
+        .image-modal-content {
+            margin: auto;
+            display: block;
+            width: 80%;
+            max-width: 700px;
+            max-height: 80%;
+            object-fit: contain;
+            border-radius: 10px;
+            animation: zoom 0.3s ease;
+        }
+
+        @keyframes zoom {
+            from {transform: scale(0.1)}
+            to {transform: scale(1)}
+        }
+
+        .image-modal-close {
+            position: absolute;
+            top: 15px;
+            right: 35px;
+            color: #f1f1f1;
+            font-size: 40px;
+            font-weight: bold;
+            transition: 0.3s;
+            cursor: pointer;
+        }
+
+        .image-modal-close:hover,
+        .image-modal-close:focus {
+            color: #bbb;
+            text-decoration: none;
+        }
+
+        .image-modal-title {
+            margin: auto;
+            display: block;
+            width: 80%;
+            max-width: 700px;
+            text-align: center;
+            color: #ccc;
+            padding: 10px 0;
+            height: 150px;
+        }
+
+        .image-preview img {
+            cursor: pointer;
+            transition: opacity 0.3s ease;
+        }
+
+        .image-preview img:hover {
+            opacity: 0.8;
+        }
+
+        @media (max-width: 768px) {
+            .upload-section {
+                grid-template-columns: 1fr;
+            }
+            
+            .results-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .header h1 {
+                font-size: 24px;
+            }
+
+            .image-modal-content {
+                width: 95%;
+                padding-top: 50px;
+            }
+
+            .image-modal-close {
+                top: 5px;
+                right: 15px;
+                font-size: 30px;
+            }
+        }
+
+        .back-button {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            background: white;
+            color: #3b82f6;
+            padding: 10px 20px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 500;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            transition: all 0.3s;
+            z-index: 100;
+        }
+
+        .back-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(0,0,0,0.15);
+        }
+    </style>
+</head>
+<body>
+    <a href="/" class="back-button">
+        <i class="fas fa-arrow-left"></i> Quay lại Dashboard
+    </a>
+
+    <div class="container">
+        <div class="header">
+            <h1><i class="fas fa-bolt"></i> Tính Tiền Điện Đa Công Tơ</h1>
+            <p>Tự động nhận diện và tính toán tiền điện cho nhiều công tơ</p>
+        </div>
+
+        <div class="card">
+            <!-- Electricity Price Input Section -->
+            <div class="price-section" style="margin-bottom: 30px; padding: 20px; background: #f8fafc; border-radius: 10px; border-left: 4px solid #3b82f6;">
+                <h3 style="margin-bottom: 15px; color: #1e293b;"><i class="fas fa-money-bill-wave"></i> Đơn Giá Điện</h3>
+                <div style="display: flex; align-items: center; gap: 15px;">
+                    <label for="electricityPrice" style="font-weight: 500; color: #64748b; white-space: nowrap;">Giá điện:</label>
+                    <input type="number" id="electricityPrice" class="form-control" value="3600" min="1" max="10000" step="1" 
+                           style="max-width: 200px; display: inline-block;" placeholder="VND/kWh">
+                    <span style="color: #64748b; font-weight: 500;">VND/kWh</span>
+                    <small style="color: #64748b; font-style: italic;">(Ví dụ: 3600 VND/kWh - giá điện sinh hoạt)</small>
+                </div>
+            </div>
+
+            <div class="upload-section">
+                <div class="upload-box">
+                    <h3><i class="fas fa-calendar-minus"></i> Chỉ Số Tháng Trước</h3>
+                    <p style="font-size: 14px; color: #64748b; margin-bottom: 15px;">
+                        <i class="fas fa-info-circle"></i> Hệ thống sẽ tự động bỏ qua chữ số 1/10 (chữ số đỏ) khi tính tiền
+                    </p>
+                    <div class="file-input-wrapper">
+                        <input type="file" id="lastMonthImages" multiple accept="image/*">
+                        <label for="lastMonthImages" class="file-input-label">
+                            <i class="fas fa-upload"></i> Chọn ảnh
+                        </label>
+                    </div>
+                    <div id="lastMonthPreview" class="uploaded-images"></div>
+                    <div class="error-message" id="lastMonthError"></div>
+                </div>
+
+                <div class="upload-box">
+                    <h3><i class="fas fa-calendar-check"></i> Chỉ Số Tháng Này</h3>
+                    <p style="font-size: 14px; color: #64748b; margin-bottom: 15px;">
+                        <i class="fas fa-info-circle"></i> Hệ thống sẽ tự động bỏ qua chữ số 1/10 (chữ số đỏ) khi tính tiền
+                    </p>
+                    <div class="file-input-wrapper">
+                        <input type="file" id="currentMonthImages" multiple accept="image/*">
+                        <label for="currentMonthImages" class="file-input-label">
+                            <i class="fas fa-upload"></i> Chọn ảnh
+                        </label>
+                    </div>
+                    <div id="currentMonthPreview" class="uploaded-images"></div>
+                    <div class="error-message" id="currentMonthError"></div>
+                </div>
+            </div>
+
+            <button class="calculate-btn" id="calculateBtn" onclick="calculateElectricity()">
+                <i class="fas fa-calculator"></i> Tính Tiền Điện
+            </button>
+        </div>
+
+        <div class="results-section" id="resultsSection" style="display: none;">
+            <div class="card">
+                <h2><i class="fas fa-chart-bar"></i> Kết Quả Chi Tiết</h2>
+                <div class="results-grid" id="resultsGrid">
+                </div>
+            </div>
+
+            <div class="summary-card">
+                <h2 style="text-align: center; margin-bottom: 30px;">
+                    <i class="fas fa-chart-pie"></i> Tổng Hợp
+                </h2>
+                <div class="summary-grid">
+                    <div class="summary-item">
+                        <div class="summary-label">Tổng Công Tơ</div>
+                        <div class="summary-value" id="totalMeters">0</div>
+                    </div>
+                    <div class="summary-item">
+                        <div class="summary-label">Tổng Điện Tiêu Thụ</div>
+                        <div class="summary-value" id="totalConsumption">0 kWh</div>
+                    </div>
+                    <div class="summary-item">
+                        <div class="summary-label">Tổng Tiền</div>
+                        <div class="summary-value" id="totalAmount">0 đ</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card comparison-section">
+                <h2><i class="fas fa-balance-scale"></i> So Sánh Giữa Các Công Tơ</h2>
+                <div class="comparison-chart">
+                    <canvas id="comparisonChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <div class="success-message" id="successMessage"></div>
+        
+        <!-- Save to Database Section (hidden initially) -->
+        <div class="card" id="saveSection" style="display: none;">
+            <h3><i class="fas fa-save"></i> Lưu Dữ Liệu Vào Cơ Sở Dữ Liệu</h3>
+            <p>Lưu kết quả tính toán và hình ảnh công tơ vào cơ sở dữ liệu để quản lý lâu dài.</p>
+            
+            <div style="display: flex; gap: 15px; align-items: center; margin-top: 20px;">
+                <button class="btn btn-success" id="saveDataBtn" onclick="saveToDatabase()">
+                    <i class="fas fa-database"></i> Lưu Vào Database
+                </button>
+                
+                <a href="/electricity-management" class="btn btn-info">
+                    <i class="fas fa-chart-line"></i> Quản Lý Dữ Liệu
+                </a>
+                
+                <span id="saveStatus" style="color: #059669; font-weight: 500;"></span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Image Zoom Modal -->
+    <div id="imageModal" class="image-modal">
+        <span class="image-modal-close">&times;</span>
+        <img class="image-modal-content" id="modalImage">
+        <div id="caption" class="image-modal-title"></div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        let lastMonthData = {};
+        let currentMonthData = {};
+        let comparisonChart = null;
+
+        // Handle file uploads
+        document.getElementById('lastMonthImages').addEventListener('change', function(e) {
+            handleFileUpload(e, 'lastMonth');
+        });
+
+        document.getElementById('currentMonthImages').addEventListener('change', function(e) {
+            handleFileUpload(e, 'currentMonth');
+        });
+
+        function handleFileUpload(event, monthType) {
+            const files = event.target.files;
+            const previewContainer = document.getElementById(monthType === 'lastMonth' ? 'lastMonthPreview' : 'currentMonthPreview');
+            
+            // Clear previous uploads and data
+            previewContainer.innerHTML = '';
+            if (monthType === 'lastMonth') {
+                lastMonthData = {};
+            } else {
+                currentMonthData = {};
+            }
+            
+            console.log(`🚀 [FAST_UPLOAD] Processing ${files.length} images simultaneously for ${monthType}...`);
+            
+            // Process all images in parallel (fast)
+            for (let i = 0; i < files.length; i++) {
+                const file = files[i];
+                const reader = new FileReader();
+                
+                reader.onload = function(e) {
+                    const imageContainer = document.createElement('div');
+                    imageContainer.className = 'image-preview';
+                    imageContainer.setAttribute('data-image-index', i);
+                    imageContainer.setAttribute('data-file-name', file.name);
+                    
+                    imageContainer.innerHTML = `
+                        <img src="${e.target.result}" alt="Meter ${i + 1}" onclick="openImageModal('${e.target.result}', 'Image ${i + 1}: ${file.name}')">
+                        <button class="remove-btn" onclick="removeImage('${monthType}', ${i})">
+                            <i class="fas fa-times"></i>
+                        </button>
+                        <div class="meter-reading">
+                            <small style="color: #64748b; font-size: 11px;">
+                                <i class="fas fa-image"></i> Ảnh ${i + 1}: ${file.name}
+                            </small><br>
+                            <i class="fas fa-spinner fa-spin"></i> Đang xử lý OCR...
+                            <br><br>
+                            <button onclick="addManualData('${monthType}', ${i}, '${file.name}')" style="background: #10b981; color: white; border: none; padding: 8px 16px; border-radius: 5px; font-size: 12px; cursor: pointer; margin-top: 10px;">
+                                <i class="fas fa-keyboard"></i> Nhập Thủ Công
+                            </button>
+                        </div>
+                    `;
+                    previewContainer.appendChild(imageContainer);
+                };
+                
+                reader.readAsDataURL(file);
+                
+                // Start OCR processing immediately (parallel)
+                uploadAndProcessImage(file, monthType, i)
+                    .then(() => {
+                        console.log(`✅ [FAST_PROCESSED] Image ${i + 1} (${file.name}) completed`);
+                    })
+                    .catch(error => {
+                        console.error(`❌ [FAST_ERROR] Image ${i + 1} (${file.name}) failed:`, error);
+                    });
+            }
+        }
+
+        function uploadAndProcessImage(file, monthType, index) {
+            return new Promise((resolve, reject) => {
+                const requestId = `${monthType}_${index}_${Date.now()}`;
+                const formData = new FormData();
+                formData.append('image', file);
+                formData.append('monthType', monthType);
+                formData.append('imageIndex', index);
+                formData.append('fileName', file.name);
+                formData.append('requestId', requestId);
+                
+                console.log(`📤 [OCR_REQUEST] ${requestId} - Sending image ${index + 1} (${file.name}) to OCR service...`);
+                
+                fetch('/api/electricity/process_meter', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => response.json())
+                .then(data => {
+                    console.log(`📥 [OCR_RESPONSE] ${requestId} - Image ${index + 1} response:`, data);
+                    
+                    if (data.success) {
+                        // Handle different response structures (Gemini vs Python OCR)
+                        let meterData;
+                        if (data.data) {
+                            // Gemini API response structure
+                            meterData = data.data;
+                        } else {
+                            // Python OCR response structure - data is directly in response
+                            meterData = {
+                                meterId: data.meterId,
+                                reading: data.reading,
+                                brand: data.brand,
+                                model: data.model
+                            };
+                        }
+                        
+                        const dataStore = monthType === 'lastMonth' ? lastMonthData : currentMonthData;
+                        
+                        // Add additional tracking data
+                        meterData.imageIndex = index;
+                        meterData.fileName = file.name;
+                        meterData.uploadTimestamp = new Date().toISOString();
+                        meterData.extractionMethod = data.extraction_method || 'unknown';
+                        
+                        console.log(`✅ [OCR_SUCCESS] Image ${index + 1}: Meter ${meterData.meterId}, Reading ${meterData.reading} kWh, Method: ${meterData.extractionMethod}`);
+                        
+                        // Check for duplicate meter IDs (potential mix-up)
+                        if (dataStore[meterData.meterId]) {
+                            const existingData = dataStore[meterData.meterId];
+                            console.warn(`⚠️ [DUPLICATE_DETECTED] Meter ID ${meterData.meterId} already exists!`);
+                            console.warn(`   Existing: Image ${existingData.imageIndex} (${existingData.fileName})`);
+                            console.warn(`   New: Image ${index} (${file.name})`);
+                            
+                            // Auto-generate new meter ID with suffix to avoid conflict
+                            const originalId = meterData.meterId;
+                            meterData.meterId = `${originalId}_IMG${index + 1}`;
+                            
+                            console.warn(`🔧 [AUTO_FIX] Changed meter ID: ${originalId} → ${meterData.meterId}`);
+                            alert(`⚠️ PHÁT HIỆN TRÙNG LẶP!\n\nMã công tơ "${originalId}" đã tồn tại.\nĐã tự động đổi thành: "${meterData.meterId}"\n\nVui lòng kiểm tra và sửa nếu cần bằng cách click vào mã công tơ.`);
+                        }
+                        
+                        dataStore[meterData.meterId] = meterData;
+                        
+                        // Update preview - find the correct image container for THIS specific image
+                        const previewContainer = document.getElementById(monthType === 'lastMonth' ? 'lastMonthPreview' : 'currentMonthPreview');
+                        const imageContainers = previewContainer.getElementsByClassName('image-preview');
+                        
+                        // Find the container by image index (more reliable)
+                        let targetContainer = null;
+                        for (let i = 0; i < imageContainers.length; i++) {
+                            if (imageContainers[i].getAttribute('data-image-index') == index) {
+                                targetContainer = imageContainers[i];
+                                break;
+                            }
+                        }
+                        
+                        if (targetContainer) {
+                            const readingDiv = targetContainer.querySelector('.meter-reading');
+                            
+                            // Store meter ID in the image container for tracking
+                            targetContainer.setAttribute('data-meter-id', meterData.meterId);
+                            targetContainer.setAttribute('data-month-type', monthType);
+                            
+                            // Check if OCR correction was applied
+                            let correctionBadge = '';
+                            if (meterData.correction_applied) {
+                                correctionBadge = `<br><small style="color: #059669; font-weight: bold;">
+                                    <i class="fas fa-check-circle"></i> Đã sửa chữ số 1/10
+                                </small>`;
+                            }
+                            
+                            // Check if debug info is available
+                            let debugBadge = '';
+                            if (data.debug_available || data.debug_info) {
+                                debugBadge = `<br><small style="color: #6366f1; font-weight: bold;">
+                                    <i class="fas fa-bug"></i> 
+                                    <span onclick="showOCRDebug('${file.name}')" style="cursor: pointer; text-decoration: underline;" title="Xem debug OCR">
+                                        Debug OCR có sẵn
+                                    </span>
+                                </small>`;
+                            }
+                            
+                            // Add extraction method info
+                            let methodBadge = '';
+                            if (data.extraction_method === 'python_ocr') {
+                                methodBadge = `<br><small style="color: #10b981; font-size: 10px;">
+                                    <i class="fas fa-python"></i> Python OCR
+                                </small>`;
+                            } else if (data.extraction_method === 'gemini_ai') {
+                                methodBadge = `<br><small style="color: #9333ea; font-size: 10px;">
+                                    <i class="fas fa-robot"></i> Gemini AI
+                                </small>`;
+                            }
+                            
+                            // Add visual indicator for image-data association
+                            const imageOrderBadge = `<small style="color: #64748b; font-size: 11px;">
+                                <i class="fas fa-image"></i> Ảnh ${index + 1}: ${file.name}
+                            </small><br>`;
+                            
+                            readingDiv.innerHTML = `
+                                ${imageOrderBadge}
+                                <strong>Công tơ:</strong> <span class="value" onclick="editMeterId('${meterData.meterId}', ${index}, '${monthType}')" style="cursor: pointer; text-decoration: underline; color: #3b82f6;" title="Nhấp để sửa">${meterData.meterId}</span>
+                                <button onclick="editMeterId('${meterData.meterId}', ${index}, '${monthType}')" style="background: none; border: none; color: #64748b; cursor: pointer; font-size: 12px; margin-left: 5px;" title="Sửa mã công tơ">
+                                    <i class="fas fa-edit"></i>
+                                </button><br>
+                                <strong>Chỉ số:</strong> <span class="value">${meterData.reading} kWh</span>
+                                ${correctionBadge}${methodBadge}${debugBadge}
+                            `;
+                            
+                            // Add a colored border to make association clearer
+                            const colors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'];
+                            targetContainer.style.border = `3px solid ${colors[index % colors.length]}`;
+                            targetContainer.style.borderRadius = '8px';
+                            
+                            console.log(`✅ [IMAGE_ASSOCIATION] ${requestId} - Image ${index + 1} (${file.name}) → Meter ${meterData.meterId}: ${meterData.reading} kWh`);
+                        } else {
+                            console.error(`❌ [ERROR] Could not find image container for index ${index}`);
+                        }
+                        
+                        resolve(data);
+                    } else {
+                        // Check if this is manual entry required (not an error!)
+                        if (data.error_type === 'manual_entry_required') {
+                            console.log(`📝 [MANUAL_ENTRY] Image ${index + 1}: Manual entry required for ${data.file_name}`);
+                            
+                            // Show manual entry interface (not error)
+                            const previewContainer = document.getElementById(monthType === 'lastMonth' ? 'lastMonthPreview' : 'currentMonthPreview');
+                            const imageContainers = previewContainer.getElementsByClassName('image-preview');
+                            
+                            let targetContainer = null;
+                            for (let i = 0; i < imageContainers.length; i++) {
+                                if (imageContainers[i].getAttribute('data-image-index') == index) {
+                                    targetContainer = imageContainers[i];
+                                    break;
+                                }
+                            }
+                            
+                            if (targetContainer) {
+                                const readingDiv = targetContainer.querySelector('.meter-reading');
+                                
+                                const imageOrderBadge = `<small style="color: #64748b; font-size: 11px;">
+                                    <i class="fas fa-image"></i> Ảnh ${index + 1}: ${file.name}
+                                </small><br>`;
+                                
+                                // Show manual entry interface with helpful examples
+                                readingDiv.innerHTML = `
+                                    ${imageOrderBadge}
+                                    <div style="color: #059669; margin: 10px 0; font-weight: bold;">
+                                        <i class="fas fa-hand-paper"></i> Nhập thủ công
+                                    </div>
+                                    <div style="font-size: 12px; color: #666; margin-bottom: 8px;">
+                                        Xem LCD và nhập số chính (bỏ số lẻ):
+                                    </div>
+                                    <div style="font-size: 11px; color: #059669; margin-bottom: 8px;">
+                                        VD: "01363.5" → nhập: 1363<br>
+                                        VD: "00982.2" → nhập: 982
+                                    </div>
+                                    <button onclick="addManualData('${monthType}', ${index}, '${file.name}')" style="background: #059669; color: white; border: none; padding: 8px 16px; border-radius: 6px; font-size: 13px; cursor: pointer; font-weight: bold;">
+                                        <i class="fas fa-keyboard"></i> NHẬP THỦ CÔNG
+                                    </button>
+                                `;
+                                
+                                // Add green border to indicate manual entry needed
+                                targetContainer.style.border = '3px solid #059669';
+                                targetContainer.style.borderRadius = '8px';
+                            }
+                            
+                            // Don't show this as an error - it's expected behavior
+                            resolve({success: false, manual_entry_required: true, data: data});
+                            return;
+                        }
+                        
+                        // Handle actual errors
+                        console.error(`❌ [OCR_ERROR] Image ${index + 1}:`, data.error);
+                        
+                        // Define errorInfo first (before any block scope)
+                        let errorInfo = 'Lỗi OCR';
+                        if (data.error.includes('quota')) {
+                            errorInfo = 'Hết quota API';
+                        } else if (data.error.includes('not installed')) {
+                            errorInfo = 'Chưa cài OCR';
+                        } else if (data.error.includes('Python OCR')) {
+                            errorInfo = 'Lỗi Python OCR';
+                        } else if (data.error_type === 'python_ocr_failed') {
+                            errorInfo = 'OCR thất bại';
+                        }
+                        
+                        // Show OCR failure in the image container and highlight manual entry
+                        const previewContainer = document.getElementById(monthType === 'lastMonth' ? 'lastMonthPreview' : 'currentMonthPreview');
+                        const imageContainers = previewContainer.getElementsByClassName('image-preview');
+                        
+                        let targetContainer = null;
+                        for (let i = 0; i < imageContainers.length; i++) {
+                            if (imageContainers[i].getAttribute('data-image-index') == index) {
+                                targetContainer = imageContainers[i];
+                                break;
+                            }
+                        }
+                        
+                        if (targetContainer) {
+                            const readingDiv = targetContainer.querySelector('.meter-reading');
+                            
+                            const imageOrderBadge = `<small style="color: #64748b; font-size: 11px;">
+                                <i class="fas fa-image"></i> Ảnh ${index + 1}: ${file.name}
+                            </small><br>`;
+                            
+                            readingDiv.innerHTML = `
+                                ${imageOrderBadge}
+                                <div style="color: #dc2626; margin: 10px 0;">
+                                    <i class="fas fa-exclamation-triangle"></i> ${errorInfo}
+                                </div>
+                                <button onclick="addManualData('${monthType}', ${index}, '${file.name}')" style="background: #10b981; color: white; border: none; padding: 10px 20px; border-radius: 8px; font-size: 14px; cursor: pointer; font-weight: bold;">
+                                    <i class="fas fa-code"></i> TẠO MÃ TỰ ĐỘNG
+                                </button>
+                            `;
+                            
+                            // Add red border to indicate error
+                            targetContainer.style.border = '3px solid #dc2626';
+                            targetContainer.style.borderRadius = '8px';
+                        }
+                        
+                        showError(monthType === 'lastMonth' ? 'lastMonthError' : 'currentMonthError', `Ảnh ${index + 1}: ${errorInfo}`);
+                        reject(new Error(data.error));
+                    }
+                })
+                .catch(error => {
+                    console.error(`❌ [NETWORK_ERROR] Image ${index + 1}:`, error);
+                    showError(monthType === 'lastMonth' ? 'lastMonthError' : 'currentMonthError', 'Lỗi xử lý ảnh: ' + error);
+                    reject(error);
+                });
+            });
+        }
+
+        function removeImage(monthType, index) {
+            // Implementation for removing specific image
+            const previewContainer = document.getElementById(monthType === 'lastMonth' ? 'lastMonthPreview' : 'currentMonthPreview');
+            const imageContainers = previewContainer.getElementsByClassName('image-preview');
+            if (imageContainers[index]) {
+                const meterId = imageContainers[index].getAttribute('data-meter-id');
+                
+                // Remove from data store
+                if (monthType === 'lastMonth' && lastMonthData[meterId]) {
+                    delete lastMonthData[meterId];
+                } else if (monthType === 'currentMonth' && currentMonthData[meterId]) {
+                    delete currentMonthData[meterId];
+                }
+                
+                imageContainers[index].remove();
+            }
+        }
+
+        function generateExtractionCode(monthType, imageIndex, fileName) {
+            // Generate automatic extraction code for the user
+            const imageContainer = document.getElementById(monthType === 'lastMonth' ? 'lastMonthPreview' : 'currentMonthPreview');
+            const imageElements = imageContainer.getElementsByClassName('image-preview');
+            
+            if (imageElements[imageIndex]) {
+                const imgElement = imageElements[imageIndex].querySelector('img');
+                if (imgElement && imgElement.src) {
+                    // Create modal for code generation
+                    showCodeGenerationModal(imgElement.src, monthType, imageIndex, fileName);
+                }
+            }
+        }
+
+        function showCodeGenerationModal(imageSrc, monthType, imageIndex, fileName) {
+            // Create modal HTML
+            const modalHTML = `
+                <div class="modal fade" id="codeGenerationModal" tabindex="-1">
+                    <div class="modal-dialog modal-xl">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title">
+                                    <i class="fas fa-code"></i> Mã Tự Động Trích Xuất - ` + fileName + `
+                                </h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                            </div>
+                            <div class="modal-body">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <h6><i class="fas fa-image"></i> Ảnh Công Tơ</h6>
+                                        <img src="` + imageSrc + `" class="img-fluid" style="max-height: 400px; border: 2px solid #e5e7eb; border-radius: 8px;">
+                                        <div class="mt-3">
+                                            <button class="btn btn-primary" onclick="generateAutomaticCode('` + monthType + `', ` + imageIndex + `, '` + fileName + `')">
+                                                <i class="fas fa-magic"></i> Tạo Mã Tự Động
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <h6><i class="fas fa-code"></i> Mã Trích Xuất</h6>
+                                        <div id="generatedCode" style="background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 4px; padding: 15px; min-height: 300px;">
+                                            <p class="text-muted">Nhấn "Tạo Mã Tự Động" để tạo mã trích xuất cho ảnh này</p>
+                                        </div>
+                                        <div class="mt-2">
+                                            <button class="btn btn-success" onclick="copyGeneratedCode()" disabled id="copyCodeBtn">
+                                                <i class="fas fa-copy"></i> Sao Chép Mã
+                                            </button>
+                                            <button class="btn btn-info" onclick="executeGeneratedCode()" disabled id="executeCodeBtn">
+                                                <i class="fas fa-play"></i> Chạy Mã
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            // Remove existing modal
+            const existingModal = document.getElementById('codeGenerationModal');
+            if (existingModal) {
+                existingModal.remove();
+            }
+
+            // Add modal to page
+            document.body.insertAdjacentHTML('beforeend', modalHTML);
+            
+            // Show modal
+            const modal = new bootstrap.Modal(document.getElementById('codeGenerationModal'));
+            modal.show();
+        }
+
+        let currentGeneratedCode = '';
+        
+        function generateAutomaticCode(monthType, imageIndex, fileName) {
+            // Generate Python-style code for manual extraction  
+            const monthName = monthType === 'lastMonth' ? 'Tháng Trước' : 'Tháng Hiện Tại';
+            
+            // Build the code as a proper string to avoid JavaScript syntax errors
+            let code = '';
+            code += '# 🤖 Mã Tự Động Trích Xuất - ' + fileName + '\n';
+            code += '# Tháng: ' + monthName + ' - Ảnh ' + (imageIndex + 1) + '\n\n';
+            code += 'def extract_meter_reading():\n';
+            code += '    """\n';
+            code += '    Tự động trích xuất thông tin từ ảnh công tơ điện\n';
+            code += '    Hãy kiểm tra ảnh và điền thông tin vào đây\n';
+            code += '    """\n';
+            code += '    \n';
+            code += '    # BƯỚC 1: Quan sát ảnh và xác định\n';
+            code += '    meter_info = {\n';
+            code += "        'meter_id': '',      # Mã số công tơ (ví dụ: 24222573)\n";
+            code += "        'reading': 0,        # Chỉ số điện (bỏ qua chữ số 1/10)\n";
+            code += "        'brand': '',         # Thương hiệu (EMIC, v.v.)\n";
+            code += "        'image_file': '" + fileName + "',\n";
+            code += "        'month_type': '" + monthType + "',\n";
+            code += "        'image_index': " + imageIndex + "\n";
+            code += '    }\n';
+            code += '    \n';
+            code += '    # BƯỚC 2: Tìm mã công tơ trong ảnh\n';
+            code += '    # Thường ở phía trên hoặc dưới màn hình LCD\n';
+            code += '    meter_info["meter_id"] = input("Nhập mã công tơ từ ảnh: ")\n';
+            code += '    \n';
+            code += '    # BƯỚC 3: Đọc chỉ số điện\n';
+            code += '    # Chỉ lấy 4-5 chữ số chính, bỏ qua chữ số đỏ 1/10\n';
+            code += '    raw_reading = input("Nhập chỉ số điện (bỏ chữ số 1/10): ")\n';
+            code += '    meter_info["reading"] = float(raw_reading)\n';
+            code += '    \n';
+            code += '    # BƯỚC 4: Xác định thương hiệu\n';
+            code += '    meter_info["brand"] = input("Thương hiệu công tơ (EMIC/khác): ") or "EMIC"\n';
+            code += '    \n';
+            code += '    return meter_info\n';
+            code += '\n';
+            code += '# CHẠY TRÍCH XUẤT\n';
+            code += 'result = extract_meter_reading()\n';
+            code += 'print("✅ Kết quả trích xuất:")\n';
+            code += 'print(f"  - Mã công tơ: {result[\'meter_id\']}")\n';
+            code += 'print(f"  - Chỉ số: {result[\'reading\']} kWh")\n';
+            code += 'print(f"  - Thương hiệu: {result[\'brand\']}")\n';
+            code += '\n';
+            code += '# JavaScript code để áp dụng kết quả\n';
+            code += 'js_code = """\n';
+            code += 'const meterData = {\n';
+            code += '    meterId: "REPLACE_WITH_METER_ID",\n';
+            code += '    reading: REPLACE_WITH_READING,\n';
+            code += '    brand: "REPLACE_WITH_BRAND",\n';
+            code += '    model: "Code Generated",\n';
+            code += '    imageIndex: ' + imageIndex + ',\n';
+            code += '    fileName: "' + fileName + '",\n';
+            code += '    isManualEntry: true,\n';
+            code += '    extractionMethod: "code_generated"\n';
+            code += '};\n';
+            code += '\n';
+            code += 'const monthType = "' + monthType + '";\n';
+            code += 'const dataStore = monthType === "lastMonth" ? lastMonthData : currentMonthData;\n';
+            code += 'dataStore[meterData.meterId] = meterData;\n';
+            code += 'console.log("✅ Đã áp dụng kết quả trích xuất:", meterData);\n';
+            code += '"""\n';
+            code += '\n';
+            code += 'print("📋 JavaScript Code để áp dụng:")\n';
+            code += 'print("// Thay thế REPLACE_WITH_* bằng giá trị thực tế")\n';
+            code += 'print(js_code)';
+
+            // Display generated code
+            document.getElementById('generatedCode').innerHTML = '<pre style="white-space: pre-wrap; font-family: \'Courier New\', monospace; font-size: 12px;">' + 
+                code.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;') + 
+                '</pre>';
+            
+            // Enable buttons
+            document.getElementById('copyCodeBtn').disabled = false;
+            document.getElementById('executeCodeBtn').disabled = false;
+            
+            // Store code for execution
+            currentGeneratedCode = code;
+            
+            console.log('✅ Generated extraction code for:', fileName);
+        }
+
+        function copyGeneratedCode() {
+            if (currentGeneratedCode) {
+                navigator.clipboard.writeText(currentGeneratedCode).then(() => {
+                    const btn = document.getElementById('copyCodeBtn');
+                    const originalText = btn.innerHTML;
+                    btn.innerHTML = '<i class="fas fa-check"></i> Đã Sao Chép!';
+                    btn.classList.add('btn-success');
+                    
+                    setTimeout(() => {
+                        btn.innerHTML = originalText;
+                        btn.classList.remove('btn-success');
+                    }, 2000);
+                });
+            }
+        }
+
+        function executeGeneratedCode() {
+            // Execute the generated code by prompting user for values
+            const meterId = prompt("🔍 Nhìn vào ảnh và nhập MÃ CÔNG TƠ:\n(Thường ở phía trên hoặc dưới màn hình LCD)");
+            if (!meterId || meterId.trim() === '') return;
+            
+            const reading = prompt("📊 Nhìn vào ảnh và nhập CHỈ SỐ ĐIỆN:\n(Chỉ lấy 4-5 chữ số chính, BỎ QUA chữ số đỏ 1/10)\n\nVí dụ: Nếu thấy 12345.6, nhập 12345");
+            if (!reading || reading.trim() === '' || isNaN(reading)) {
+                alert('Chỉ số không hợp lệ!');
+                return;
+            }
+            
+            const brand = prompt("🏷️ Nhìn vào ảnh và nhập THƯƠNG HIỆU:\n(EMIC, hoặc thương hiệu khác ghi trên công tơ)") || 'EMIC';
+            
+            // Apply the extracted data (same logic as before but with clearer prompts)
+            const meterData = {
+                meterId: meterId.trim(),
+                reading: parseFloat(reading),
+                brand: brand,
+                model: 'Code Generated',
+                extractionMethod: 'automated_code'
+            };
+            
+            console.log('🤖 Code execution result:', meterData);
+            
+            // Show success and close modal
+            alert(`✅ Trích xuất thành công!\n\nCông tơ: ${meterData.meterId}\nChỉ số: ${meterData.reading} kWh\nThương hiệu: ${meterData.brand}`);
+            
+            // Close modal
+            const modal = bootstrap.Modal.getInstance(document.getElementById('codeGenerationModal'));
+            modal.hide();
+        }
+
+        function addManualData(monthType, imageIndex, fileName) {
+            // Enhanced manual data entry with code generation option
+            const choice = confirm(`🤖 TỰ ĐỘNG TRÍCH XUẤT\n\nBạn có muốn tôi tạo mã tự động để trích xuất thông tin từ ảnh không?\n\n✅ OK: Tạo mã tự động\n❌ Cancel: Nhập thủ công truyền thống`);
+            
+            if (choice) {
+                // Show code generation modal
+                generateExtractionCode(monthType, imageIndex, fileName);
+                return;
+            }
+            
+            // Fall back to traditional manual entry
+            const meterId = prompt(`📝 NHẬP THÔNG TIN THỦ CÔNG\n\nẢnh ${imageIndex + 1}: ${fileName}\n\nNhập mã công tơ (ví dụ: 24222573):`);
+            if (!meterId || meterId.trim() === '') {
+                return;
+            }
+            
+            const reading = prompt(`Nhập chỉ số điện (kWh):\n\nLưu ý: Chỉ nhập số nguyên, bỏ qua chữ số 1/10\nVí dụ: Nếu thấy 98765, nhập 9876`);
+            if (!reading || reading.trim() === '' || isNaN(reading)) {
+                alert('Chỉ số không hợp lệ!');
+                return;
+            }
+            
+            const brand = prompt(`Nhập thương hiệu công tơ (tùy chọn):`) || 'Manual Entry';
+            
+            // Create manual meter data
+            const meterData = {
+                meterId: meterId.trim(),
+                reading: parseFloat(reading),
+                brand: brand,
+                model: 'Manual Entry',
+                imageIndex: imageIndex,
+                fileName: fileName,
+                uploadTimestamp: new Date().toISOString(),
+                isManualEntry: true
+            };
+            
+            const dataStore = monthType === 'lastMonth' ? lastMonthData : currentMonthData;
+            
+            // Check for duplicates
+            if (dataStore[meterData.meterId]) {
+                if (!confirm(`⚠️ Mã công tơ "${meterData.meterId}" đã tồn tại!\n\nBạn có muốn ghi đè không?`)) {
+                    return;
+                }
+            }
+            
+            dataStore[meterData.meterId] = meterData;
+            
+            // Update UI
+            const previewContainer = document.getElementById(monthType === 'lastMonth' ? 'lastMonthPreview' : 'currentMonthPreview');
+            const imageContainers = previewContainer.getElementsByClassName('image-preview');
+            
+            // Find the correct container
+            let targetContainer = null;
+            for (let i = 0; i < imageContainers.length; i++) {
+                if (imageContainers[i].getAttribute('data-image-index') == imageIndex) {
+                    targetContainer = imageContainers[i];
+                    break;
+                }
+            }
+            
+            if (targetContainer) {
+                const readingDiv = targetContainer.querySelector('.meter-reading');
+                
+                // Store meter ID in container
+                targetContainer.setAttribute('data-meter-id', meterData.meterId);
+                targetContainer.setAttribute('data-month-type', monthType);
+                
+                const imageOrderBadge = `<small style="color: #64748b; font-size: 11px;">
+                    <i class="fas fa-image"></i> Ảnh ${imageIndex + 1}: ${fileName}
+                </small><br>`;
+                
+                const manualBadge = `<br><small style="color: #10b981; font-weight: bold;">
+                    <i class="fas fa-keyboard"></i> Nhập thủ công
+                </small>`;
+                
+                readingDiv.innerHTML = `
+                    ${imageOrderBadge}
+                    <strong>Công tơ:</strong> <span class="value" onclick="editMeterId('${meterData.meterId}', ${imageIndex}, '${monthType}')" style="cursor: pointer; text-decoration: underline; color: #3b82f6;" title="Nhấp để sửa">${meterData.meterId}</span>
+                    <button onclick="editMeterId('${meterData.meterId}', ${imageIndex}, '${monthType}')" style="background: none; border: none; color: #64748b; cursor: pointer; font-size: 12px; margin-left: 5px;" title="Sửa mã công tơ">
+                        <i class="fas fa-edit"></i>
+                    </button><br>
+                    <strong>Chỉ số:</strong> <span class="value">${meterData.reading} kWh</span>
+                    ${manualBadge}
+                `;
+                
+                // Add colored border
+                const colors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'];
+                targetContainer.style.border = `3px solid ${colors[imageIndex % colors.length]}`;
+                targetContainer.style.borderRadius = '8px';
+                
+                console.log(`✅ [MANUAL_ENTRY] Image ${imageIndex + 1} (${fileName}) → Meter ${meterData.meterId}: ${meterData.reading} kWh`);
+                showSuccess(`✅ Đã nhập thủ công: Meter ${meterData.meterId} - ${meterData.reading} kWh`);
+            }
+        }
+
+        function editMeterId(currentMeterId, imageIndex, monthType) {
+            // Allow user to correct meter ID if OCR got it wrong
+            const newMeterId = prompt(`Sửa mã công tơ:\n\nMã hiện tại: ${currentMeterId}\nNhập mã đúng:`, currentMeterId);
+            
+            if (newMeterId && newMeterId.trim() !== '' && newMeterId !== currentMeterId) {
+                const dataStore = monthType === 'lastMonth' ? lastMonthData : currentMonthData;
+                
+                // Check if new meter ID already exists
+                if (dataStore[newMeterId]) {
+                    alert(`Lỗi: Mã công tơ "${newMeterId}" đã tồn tại!`);
+                    return;
+                }
+                
+                // Move data from old ID to new ID
+                if (dataStore[currentMeterId]) {
+                    dataStore[newMeterId] = { ...dataStore[currentMeterId] };
+                    dataStore[newMeterId].meterId = newMeterId;
+                    delete dataStore[currentMeterId];
+                    
+                    // Update UI
+                    const previewContainer = document.getElementById(monthType === 'lastMonth' ? 'lastMonthPreview' : 'currentMonthPreview');
+                    const imageContainers = previewContainer.getElementsByClassName('image-preview');
+                    if (imageContainers[imageIndex]) {
+                        const readingDiv = imageContainers[imageIndex].querySelector('.meter-reading');
+                        imageContainers[imageIndex].setAttribute('data-meter-id', newMeterId);
+                        
+                        // Refresh the display
+                        const meterData = dataStore[newMeterId];
+                        let correctionBadge = '';
+                        if (meterData.correction_applied) {
+                            correctionBadge = `<br><small style="color: #059669; font-weight: bold;">
+                                <i class="fas fa-check-circle"></i> Đã sửa chữ số 1/10
+                            </small>`;
+                        }
+                        
+                        const imageOrderBadge = `<small style="color: #64748b; font-size: 11px;">
+                            <i class="fas fa-image"></i> Ảnh ${imageIndex + 1}
+                        </small><br>`;
+                        
+                        readingDiv.innerHTML = `
+                            ${imageOrderBadge}
+                            <strong>Công tơ:</strong> <span class="value" onclick="editMeterId('${newMeterId}', ${imageIndex}, '${monthType}')" style="cursor: pointer; text-decoration: underline; color: #3b82f6;" title="Nhấp để sửa">${newMeterId}</span>
+                            <button onclick="editMeterId('${newMeterId}', ${imageIndex}, '${monthType}')" style="background: none; border: none; color: #64748b; cursor: pointer; font-size: 12px; margin-left: 5px;" title="Sửa mã công tơ">
+                                <i class="fas fa-edit"></i>
+                            </button><br>
+                            <strong>Chỉ số:</strong> <span class="value">${meterData.reading} kWh</span>
+                            ${correctionBadge}
+                        `;
+                        
+                        showSuccess(`✅ Đã cập nhật mã công tơ: ${currentMeterId} → ${newMeterId}`);
+                        console.log(`🔧 [MANUAL_CORRECTION] Updated meter ID: ${currentMeterId} → ${newMeterId}`);
+                    }
+                }
+            }
+        }
+
+        function validateImageDataAssociation() {
+            // Show association summary to help user verify
+            console.log('🔍 [VALIDATION] Checking image-data associations...');
+            
+            const lastMonthContainer = document.getElementById('lastMonthPreview');
+            const currentMonthContainer = document.getElementById('currentMonthPreview');
+            
+            const lastMonthImages = lastMonthContainer.getElementsByClassName('image-preview');
+            const currentMonthImages = currentMonthContainer.getElementsByClassName('image-preview');
+            
+            console.log(`📊 [VALIDATION] Last month: ${lastMonthImages.length} images, ${Object.keys(lastMonthData).length} data entries`);
+            console.log(`📊 [VALIDATION] Current month: ${currentMonthImages.length} images, ${Object.keys(currentMonthData).length} data entries`);
+            
+            // Log each image-data association
+            for (let i = 0; i < lastMonthImages.length; i++) {
+                const meterId = lastMonthImages[i].getAttribute('data-meter-id');
+                const data = lastMonthData[meterId];
+                const source = data?.isManualEntry ? '[MANUAL]' : '[OCR]';
+                console.log(`📷 [LAST_MONTH] Image ${i + 1} → Meter ${meterId}: ${data?.reading || 'NO_DATA'} kWh ${source}`);
+            }
+            
+            for (let i = 0; i < currentMonthImages.length; i++) {
+                const meterId = currentMonthImages[i].getAttribute('data-meter-id');
+                const data = currentMonthData[meterId];
+                const source = data?.isManualEntry ? '[MANUAL]' : '[OCR]';
+                console.log(`📷 [CURRENT_MONTH] Image ${i + 1} → Meter ${meterId}: ${data?.reading || 'NO_DATA'} kWh ${source}`);
+            }
+            
+            return true;
+        }
+
+        function showOCRDebug(fileName) {
+            // Show OCR debug information in a modal
+            const debugModal = `
+                <div class="modal fade" id="ocrDebugModal" tabindex="-1">
+                    <div class="modal-dialog modal-xl">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title">
+                                    <i class="fas fa-bug"></i> OCR Debug Information - ${fileName}
+                                </h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                            </div>
+                            <div class="modal-body">
+                                <div id="debugContent" style="text-align: center; padding: 40px;">
+                                    <div class="spinner-border text-primary" role="status">
+                                        <span class="visually-hidden">Loading...</span>
+                                    </div>
+                                    <p class="mt-3">Đang tải thông tin debug...</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            // Remove existing modal if exists
+            const existingModal = document.getElementById('ocrDebugModal');
+            if (existingModal) {
+                existingModal.remove();
+            }
+
+            // Add modal to page
+            document.body.insertAdjacentHTML('beforeend', debugModal);
+            
+            // Show modal
+            const modal = new bootstrap.Modal(document.getElementById('ocrDebugModal'));
+            modal.show();
+
+            // Fetch debug information
+            fetch(`/api/electricity/debug/${fileName}`)
+                .then(response => response.json())
+                .then(data => {
+                    const debugContent = document.getElementById('debugContent');
+                    
+                    if (data.success && data.debug_available) {
+                        let debugHtml = '<div class="row">';
+                        
+                        // Show debug images
+                        data.debug_images.forEach((image, index) => {
+                            debugHtml += `
+                                <div class="col-md-6 col-lg-4 mb-3">
+                                    <div class="card">
+                                        <div class="card-header">
+                                            <h6 class="mb-0">${image.step.replace(/_/g, ' ')}</h6>
+                                        </div>
+                                        <div class="card-body p-2">
+                                            <img src="${image.url}" class="img-fluid" style="max-height: 300px; width: 100%; object-fit: contain; border: 1px solid #dee2e6;">
+                                        </div>
+                                    </div>
+                                </div>
+                            `;
+                        });
+                        
+                        debugHtml += '</div>';
+                        
+                        // Add debug info summary
+                        debugHtml += `
+                            <div class="mt-4">
+                                <h6><i class="fas fa-info-circle"></i> Debug Summary</h6>
+                                <div class="alert alert-info">
+                                    <strong>File:</strong> ${data.filename}<br>
+                                    <strong>Base Name:</strong> ${data.base_name}<br>
+                                    <strong>Debug Images:</strong> ${data.debug_images.length} images<br>
+                                    <strong>Status:</strong> Debug information available
+                                </div>
+                            </div>
+                        `;
+                        
+                        debugContent.innerHTML = debugHtml;
+                    } else {
+                        debugContent.innerHTML = `
+                            <div class="alert alert-warning">
+                                <h5><i class="fas fa-exclamation-triangle"></i> No Debug Information</h5>
+                                <p>Debug information is not available for this image. This could be because:</p>
+                                <ul>
+                                    <li>The image was processed with Gemini API (not Python OCR)</li>
+                                    <li>Debug mode was not enabled during processing</li>
+                                    <li>The debug files have been cleaned up</li>
+                                </ul>
+                                <p><strong>To enable debug for future images:</strong> Ensure Python OCR is installed and working.</p>
+                            </div>
+                        `;
+                    }
+                })
+                .catch(error => {
+                    console.error('Debug fetch error:', error);
+                    const debugContent = document.getElementById('debugContent');
+                    debugContent.innerHTML = `
+                        <div class="alert alert-danger">
+                            <h5><i class="fas fa-exclamation-circle"></i> Error Loading Debug</h5>
+                            <p>Could not load debug information: ${error.message}</p>
+                        </div>
+                    `;
+                });
+        }
+
+        function calculateElectricity() {
+            // Validate associations first
+            validateImageDataAssociation();
+            
+            // Validate data
+            if (Object.keys(lastMonthData).length === 0 || Object.keys(currentMonthData).length === 0) {
+                showError('currentMonthError', 'Vui lòng tải lên ảnh công tơ cho cả hai tháng');
+                return;
+            }
+            
+            // Get electricity price
+            const electricityPrice = parseFloat(document.getElementById('electricityPrice').value);
+            if (!electricityPrice || electricityPrice <= 0) {
+                showError('currentMonthError', 'Vui lòng nhập giá điện hợp lệ');
+                return;
+            }
+            
+            // Show loading
+            const btn = document.getElementById('calculateBtn');
+            btn.disabled = true;
+            btn.innerHTML = '<span class="loading"></span>Đang tính toán...';
+            
+            // Send calculation request
+            fetch('/api/electricity/calculate', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    lastMonth: lastMonthData,
+                    currentMonth: currentMonthData,
+                    electricityPrice: electricityPrice
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    displayResults(data.results);
+                    showSuccess('Tính toán thành công!');
+                } else {
+                    showError('currentMonthError', data.error);
+                }
+            })
+            .catch(error => {
+                showError('currentMonthError', 'Lỗi tính toán: ' + error);
+            })
+            .finally(() => {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-calculator"></i> Tính Tiền Điện';
+            });
+        }
+
+        // Store calculation results for saving
+        let calculationResults = null;
+        
+        function displayResults(results) {
+            // Store results for potential saving
+            calculationResults = results;
+            
+            // Show results section and save section
+            document.getElementById('resultsSection').style.display = 'block';
+            document.getElementById('saveSection').style.display = 'block';
+            
+            // Display individual meter results
+            const resultsGrid = document.getElementById('resultsGrid');
+            resultsGrid.innerHTML = '';
+            
+            let totalConsumption = 0;
+            let totalAmount = 0;
+            
+            results.meters.forEach((meter, index) => {
+                totalConsumption += meter.consumption;
+                totalAmount += meter.amount;
+                
+                const meterCard = document.createElement('div');
+                meterCard.className = 'meter-result';
+                meterCard.innerHTML = `
+                    <h4>
+                        <div class="icon">
+                            <i class="fas fa-plug"></i>
+                        </div>
+                        Công tơ ${meter.meterId}
+                    </h4>
+                    <div class="meter-details">
+                        <div class="detail-row">
+                            <span class="detail-label">Chỉ số tháng trước:</span>
+                            <span class="detail-value">${meter.lastReading.toLocaleString('vi-VN')} kWh</span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-label">Chỉ số tháng này:</span>
+                            <span class="detail-value">${meter.currentReading.toLocaleString('vi-VN')} kWh</span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-label">Điện tiêu thụ:</span>
+                            <span class="detail-value">${meter.consumption.toLocaleString('vi-VN')} kWh</span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-label">Đơn giá:</span>
+                            <span class="detail-value">${parseFloat(document.getElementById('electricityPrice').value).toLocaleString('vi-VN')} đ/kWh</span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-label">Thành tiền:</span>
+                            <span class="detail-value total-amount">${meter.amount.toLocaleString('vi-VN')} đ</span>
+                        </div>
+                    </div>
+                `;
+                resultsGrid.appendChild(meterCard);
+            });
+            
+            // Update summary
+            document.getElementById('totalMeters').textContent = results.meters.length;
+            document.getElementById('totalConsumption').textContent = totalConsumption.toLocaleString('vi-VN') + ' kWh';
+            document.getElementById('totalAmount').textContent = totalAmount.toLocaleString('vi-VN') + ' đ';
+            
+            // Draw comparison chart
+            drawComparisonChart(results.meters);
+            
+            // Scroll to results
+            document.getElementById('resultsSection').scrollIntoView({ behavior: 'smooth' });
+        }
+
+        function drawComparisonChart(meters) {
+            const ctx = document.getElementById('comparisonChart').getContext('2d');
+            
+            // Destroy previous chart if exists
+            if (comparisonChart) {
+                comparisonChart.destroy();
+            }
+            
+            const labels = meters.map(m => `Công tơ ${m.meterId}`);
+            const consumptionData = meters.map(m => m.consumption);
+            const amountData = meters.map(m => m.amount);
+            
+            comparisonChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Điện tiêu thụ (kWh)',
+                        data: consumptionData,
+                        backgroundColor: 'rgba(59, 130, 246, 0.5)',
+                        borderColor: 'rgba(59, 130, 246, 1)',
+                        borderWidth: 2,
+                        yAxisID: 'y-axis-1'
+                    }, {
+                        label: 'Số tiền (VNĐ)',
+                        data: amountData,
+                        backgroundColor: 'rgba(16, 185, 129, 0.5)',
+                        borderColor: 'rgba(16, 185, 129, 1)',
+                        borderWidth: 2,
+                        yAxisID: 'y-axis-2'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'top'
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    let label = context.dataset.label || '';
+                                    if (label) {
+                                        label += ': ';
+                                    }
+                                    if (context.parsed.y !== null) {
+                                        if (context.datasetIndex === 0) {
+                                            label += context.parsed.y.toLocaleString('vi-VN') + ' kWh';
+                                        } else {
+                                            label += context.parsed.y.toLocaleString('vi-VN') + ' đ';
+                                        }
+                                    }
+                                    return label;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            grid: {
+                                display: false
+                            }
+                        },
+                        'y-axis-1': {
+                            type: 'linear',
+                            position: 'left',
+                            title: {
+                                display: true,
+                                text: 'Điện tiêu thụ (kWh)'
+                            },
+                            ticks: {
+                                callback: function(value) {
+                                    return value.toLocaleString('vi-VN');
+                                }
+                            }
+                        },
+                        'y-axis-2': {
+                            type: 'linear',
+                            position: 'right',
+                            title: {
+                                display: true,
+                                text: 'Số tiền (VNĐ)'
+                            },
+                            ticks: {
+                                callback: function(value) {
+                                    return value.toLocaleString('vi-VN');
+                                }
+                            },
+                            grid: {
+                                drawOnChartArea: false
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function showError(elementId, message) {
+            const errorElement = document.getElementById(elementId);
+            errorElement.textContent = message;
+            errorElement.style.display = 'block';
+            setTimeout(() => {
+                errorElement.style.display = 'none';
+            }, 5000);
+        }
+
+        function showSuccess(message) {
+            const successElement = document.getElementById('successMessage');
+            successElement.textContent = message;
+            successElement.style.display = 'block';
+            setTimeout(() => {
+                successElement.style.display = 'none';
+            }, 5000);
+        }
+
+        // Image Modal Functions
+        function openImageModal(imageSrc, caption) {
+            const modal = document.getElementById('imageModal');
+            const modalImg = document.getElementById('modalImage');
+            const captionText = document.getElementById('caption');
+            
+            modal.style.display = 'block';
+            modalImg.src = imageSrc;
+            captionText.innerHTML = caption;
+        }
+
+        // Close modal when clicking the close button or outside the image
+        document.addEventListener('DOMContentLoaded', function() {
+            const modal = document.getElementById('imageModal');
+            const closeBtn = document.getElementsByClassName('image-modal-close')[0];
+            
+            // Close when clicking the X button
+            closeBtn.onclick = function() {
+                modal.style.display = 'none';
+            }
+            
+            // Close when clicking outside the image
+            modal.onclick = function(event) {
+                if (event.target === modal) {
+                    modal.style.display = 'none';
+                }
+            }
+            
+            // Close with Escape key
+            document.addEventListener('keydown', function(event) {
+                if (event.key === 'Escape') {
+                    modal.style.display = 'none';
+                }
+            });
+        });
+
+        // Save to Database Function
+        function saveToDatabase() {
+            if (!calculationResults) {
+                showError('currentMonthError', 'Không có dữ liệu để lưu. Vui lòng tính toán trước.');
+                return;
+            }
+
+            const saveBtn = document.getElementById('saveDataBtn');
+            const saveStatus = document.getElementById('saveStatus');
+            
+            // Show loading state
+            saveBtn.disabled = true;
+            saveBtn.innerHTML = '<span class="loading"></span>Đang lưu...';
+            saveStatus.textContent = '';
+            
+            // Get electricity price
+            const electricityPrice = parseFloat(document.getElementById('electricityPrice').value);
+            
+            // Send save request
+            fetch('/api/electricity/save_calculation', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    results: calculationResults,
+                    electricityPrice: electricityPrice
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    saveStatus.textContent = `✅ ${data.message}`;
+                    saveBtn.innerHTML = '<i class="fas fa-check"></i> Đã Lưu';
+                    saveBtn.style.background = '#28a745';
+                    
+                    // Re-enable after 3 seconds
+                    setTimeout(() => {
+                        saveBtn.disabled = false;
+                        saveBtn.innerHTML = '<i class="fas fa-database"></i> Lưu Vào Database';
+                        saveBtn.style.background = '';
+                        saveStatus.textContent = '';
+                    }, 3000);
+                } else {
+                    saveStatus.textContent = `❌ Lỗi: ${data.error}`;
+                    saveStatus.style.color = '#dc2626';
+                }
+            })
+            .catch(error => {
+                saveStatus.textContent = `❌ Lỗi kết nối: ${error.message}`;
+                saveStatus.style.color = '#dc2626';
+            })
+            .finally(() => {
+                saveBtn.disabled = false;
+                if (saveBtn.innerHTML.includes('Đang lưu')) {
+                    saveBtn.innerHTML = '<i class="fas fa-database"></i> Lưu Vào Database';
+                }
+            });
+        }
+    </script>
+</body>
+</html>

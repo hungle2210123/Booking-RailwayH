@@ -1143,105 +1143,121 @@ get_expenses_from_sheet = get_expenses_from_database
 # IMAGE PROCESSING (Gemini AI)
 # ==============================================================================
 
-def extract_booking_info_from_image_content(image_data: bytes, google_api_key: str, room_type: str = '118 Hang Bac Hostel') -> Dict:
-    """Extract booking information from image using Gemini AI"""
-    if not genai or not google_api_key:
+def extract_booking_info_from_image_content_multi_api(image_data: bytes, room_type: str = '118 Hang Bac Hostel') -> Dict:
+    """Extract booking information from image using Multiple Gemini APIs with auto-switching"""
+    if not genai:
         return {'error': 'Gemini AI not available'}
     
-    try:
-        print(f"🔑 [GEMINI] Configuring API key (length: {len(google_api_key) if google_api_key else 0})")
-        genai.configure(api_key=google_api_key)
-        
-        print(f"🤖 [GEMINI] Creating model: gemini-2.5-flash-preview-05-20")
-        model = genai.GenerativeModel('gemini-2.5-flash-preview-05-20')
-        
-        # Convert image for Gemini
-        if not Image:
-            print(f"❌ PIL not available for image processing")
-            return {'error': 'PIL not available for image processing on railway'}
-        
-        print(f"🖼️ [GEMINI] Processing image data (size: {len(image_data)} bytes)")
-        image = Image.open(BytesIO(image_data))
-        print(f"🖼️ [GEMINI] Image opened successfully: {image.format} {image.size}")
-        
-        prompt = """
-        Extract ALL booking information from this image. If there are multiple bookings/guests, extract all of them.
-        Return as JSON in this exact format:
-        
-        For SINGLE booking:
-        {
-            "type": "single",
-            "booking": {
-                "guest_name": "full name",
-                "booking_id": "booking ID", 
-                "checkin_date": "YYYY-MM-DD",
-                "checkout_date": "YYYY-MM-DD",
-                "room_amount": number (no commas, just digits like 400000),
-                "commission": number (no commas, just digits like 50000),
-                "email": "email if available",
-                "phone": "phone if available"
-            }
-        }
-        
-        For MULTIPLE bookings:
-        {
-            "type": "multiple",
-            "count": number_of_bookings,
-            "bookings": [
-                {
-                    "guest_name": "full name 1",
-                    "booking_id": "booking ID 1", 
+    import os
+    
+    # Get all available Gemini API keys
+    gemini_keys = []
+    for i in range(1, 6):
+        key_name = f'GEMINI_API_KEY_{i}' if i > 1 else 'GEMINI_API_KEY'
+        key = os.getenv(key_name)
+        if key and key.strip():
+            gemini_keys.append((key_name, key))
+    
+    if not gemini_keys:
+        return {'error': 'No Gemini API keys found in environment'}
+    
+    print(f"🔑 [MULTI_BOOKING_AI] Found {len(gemini_keys)} Gemini API keys")
+    
+    # Try each Gemini API key
+    for key_name, api_key in gemini_keys:
+        try:
+            print(f"🔑 [BOOKING_AI] Trying {key_name} (length: {len(api_key)})")
+            genai.configure(api_key=api_key)
+            
+            print(f"🤖 [BOOKING_AI] Creating model: gemini-1.5-flash")
+            model = genai.GenerativeModel('gemini-1.5-flash')
+            
+            # Convert image for Gemini
+            if not Image:
+                print(f"❌ PIL not available for image processing")
+                return {'error': 'PIL not available for image processing on railway'}
+            
+            print(f"🖼️ [BOOKING_AI] Processing image data (size: {len(image_data)} bytes)")
+            image = Image.open(BytesIO(image_data))
+            print(f"🖼️ [BOOKING_AI] Image opened successfully: {image.format} {image.size}")
+            
+            prompt = """
+            Extract ALL booking information from this image. If there are multiple bookings/guests, extract all of them.
+            Return as JSON in this exact format:
+            
+            For SINGLE booking:
+            {
+                "type": "single",
+                "booking": {
+                    "guest_name": "full name",
+                    "booking_id": "booking ID", 
                     "checkin_date": "YYYY-MM-DD",
                     "checkout_date": "YYYY-MM-DD",
                     "room_amount": number (no commas, just digits like 400000),
                     "commission": number (no commas, just digits like 50000),
                     "email": "email if available",
                     "phone": "phone if available"
-                },
-                {
-                    "guest_name": "full name 2",
-                    "booking_id": "booking ID 2",
-                    "checkin_date": "YYYY-MM-DD", 
-                    "checkout_date": "YYYY-MM-DD",
-                    "room_amount": number (no commas, just digits like 400000),
-                    "commission": number (no commas, just digits like 50000),
-                    "email": "email if available",
-                    "phone": "phone if available"
                 }
-            ]
-        }
-        
-        Important: Look carefully for multiple guest names, booking IDs, or booking entries in the image. 
-        If you see multiple bookings, return type "multiple" with all bookings in the array.
-        If you see only one booking, return type "single" with the booking object.
-        """
-        
-        print(f"🤖 [GEMINI] Sending image to Gemini AI with room type: {room_type}")
-        response = model.generate_content([prompt, image])
-        
-        # Check if response generation was successful
-        if not response:
-            print(f"❌ Gemini API returned no response object")
-            return {'error': 'Gemini API failed to generate response'}
-        
-        print(f"🤖 [GEMINI] Response received, checking content...")
-        
-        # Parse JSON from response with better error handling
-        import json
-        try:
+            }
+            
+            For MULTIPLE bookings:
+            {
+                "type": "multiple",
+                "count": number_of_bookings,
+                "bookings": [
+                    {
+                        "guest_name": "full name 1",
+                        "booking_id": "booking ID 1", 
+                        "checkin_date": "YYYY-MM-DD",
+                        "checkout_date": "YYYY-MM-DD",
+                        "room_amount": number (no commas, just digits like 400000),
+                        "commission": number (no commas, just digits like 50000),
+                        "email": "email if available",
+                        "phone": "phone if available"
+                    },
+                    {
+                        "guest_name": "full name 2",
+                        "booking_id": "booking ID 2",
+                        "checkin_date": "YYYY-MM-DD", 
+                        "checkout_date": "YYYY-MM-DD",
+                        "room_amount": number (no commas, just digits like 400000),
+                        "commission": number (no commas, just digits like 50000),
+                        "email": "email if available",
+                        "phone": "phone if available"
+                    }
+                ]
+            }
+            
+            Important: Look carefully for multiple guest names, booking IDs, or booking entries in the image. 
+            If you see multiple bookings, return type "multiple" with all bookings in the array.
+            If you see only one booking, return type "single" with the booking object.
+            """
+            
+            print(f"🤖 [BOOKING_AI] Sending image to {key_name} with room type: {room_type}")
+            response = model.generate_content([prompt, image])
+            
+            # Check if response generation was successful
+            if not response:
+                print(f"⚠️ [BOOKING_AI] {key_name} returned no response object, trying next API")
+                continue
+            
+            print(f"✅ [BOOKING_AI] {key_name} response received, checking content...")
+            
+            # Parse JSON from response with better error handling
+            import json
             # Check if response.text exists and is not None
             if not hasattr(response, 'text') or response.text is None:
-                print(f"❌ Gemini response.text is None or missing")
-                return {'error': 'Gemini API returned empty response', 'response_object': str(response)}
+                print(f"⚠️ [BOOKING_AI] {key_name} response.text is None, trying next API")
+                continue
             
             # Clean the response text - sometimes Gemini adds extra text
             response_text = response.text.strip()
-            print(f"🤖 Gemini response text: {response_text[:200]}...")
+            print(f"🤖 [BOOKING_AI] {key_name} response: {response_text[:200]}...")
             
             # Check if response text is empty
             if not response_text:
-                print(f"❌ Gemini response text is empty")
-                return {'error': 'Gemini API returned empty text response'}
+                print(f"⚠️ [BOOKING_AI] {key_name} response text is empty, trying next API")
+                continue
             
             # Try to find JSON in the response
             json_start = response_text.find('{')
@@ -1249,23 +1265,37 @@ def extract_booking_info_from_image_content(image_data: bytes, google_api_key: s
             
             if json_start >= 0 and json_end > json_start:
                 json_text = response_text[json_start:json_end]
-                print(f"📝 Extracted JSON: {json_text}")
-                result = json.loads(json_text)
-                return result
+                print(f"📝 [BOOKING_AI] {key_name} extracted JSON: {json_text[:100]}...")
+                try:
+                    result = json.loads(json_text)
+                    print(f"✅ [BOOKING_AI] SUCCESS with {key_name}!")
+                    return result
+                except json.JSONDecodeError as json_error:
+                    print(f"⚠️ [BOOKING_AI] {key_name} JSON decode error: {json_error}, trying next API")
+                    continue
             else:
-                print(f"❌ No valid JSON found in response")
-                return {'error': 'No valid JSON found in AI response', 'raw_response': response_text}
+                print(f"⚠️ [BOOKING_AI] {key_name} no valid JSON found, trying next API")
+                continue
                 
-        except json.JSONDecodeError as json_error:
-            print(f"❌ JSON decode error: {json_error}")
-            return {
-                'error': f'Invalid JSON from AI: {str(json_error)}',
-                'raw_response': response.text[:500] if response.text else 'No response text'
-            }
-        
-    except Exception as e:
-        print(f"Error extracting booking info: {e}")
-        return {'error': str(e)}
+        except Exception as e:
+            error_str = str(e)
+            if '429' in error_str or 'quota' in error_str.lower():
+                print(f"🔄 [BOOKING_AI] {key_name} quota exceeded, trying next API...")
+            else:
+                print(f"❌ [BOOKING_AI] {key_name} error: {error_str[:100]}, trying next API...")
+            continue
+    
+    # If all APIs failed
+    print(f"❌ [BOOKING_AI] All {len(gemini_keys)} Gemini API keys exhausted")
+    return {'error': f'All {len(gemini_keys)} Gemini API keys exhausted - booking extraction failed'}
+
+def extract_booking_info_from_image_content(image_data: bytes, google_api_key: str, room_type: str = '118 Hang Bac Hostel') -> Dict:
+    """
+    Backward compatibility wrapper - now uses multi-API system
+    The google_api_key parameter is ignored as we use multiple keys from environment
+    """
+    print("🔄 [BOOKING_AI] Using multi-API system (backward compatibility)")
+    return extract_booking_info_from_image_content_multi_api(image_data, room_type)
 
 # ==============================================================================
 # MARKET INTELLIGENCE PLACEHOLDER
