@@ -3568,6 +3568,63 @@ def process_booking_text():
             'error': f'Text processing failed: {str(e)}'
         }), 500
 
+@app.route('/api/check_duplicates', methods=['POST'])
+def check_duplicates():
+    """Check for duplicate bookings against existing data"""
+    try:
+        data = request.get_json()
+        bookings = data.get('bookings', [])
+        
+        print(f"🔍 [CHECK_DUPLICATES] Checking {len(bookings)} bookings for duplicates")
+        
+        if not bookings:
+            return jsonify({
+                'success': True,
+                'has_duplicates': False,
+                'duplicates': [],
+                'total_checked': 0
+            })
+        
+        # Use existing duplicate checking function
+        duplicate_results = []
+        has_duplicates = False
+        
+        for booking in bookings:
+            guest_name = booking.get('guest_name', '')
+            checkin_date = booking.get('checkin_date', '')
+            
+            if not guest_name:
+                continue
+                
+            # Check for existing bookings with same guest name
+            duplicates = check_duplicate_guests(guest_name, checkin_date)
+            
+            if duplicates:
+                has_duplicates = True
+                duplicate_results.append({
+                    'guest_name': guest_name,
+                    'checkin_date': checkin_date,
+                    'existing_bookings': duplicates
+                })
+                print(f"⚠️ [CHECK_DUPLICATES] Found duplicates for {guest_name}: {len(duplicates)} existing")
+        
+        return jsonify({
+            'success': True,
+            'has_duplicates': has_duplicates,
+            'duplicates': duplicate_results,
+            'total_checked': len(bookings),
+            'total_duplicates': len(duplicate_results)
+        })
+        
+    except Exception as e:
+        print(f"❌ [CHECK_DUPLICATES] Error: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'has_duplicates': False,
+            'duplicates': []
+        }), 500
+
 @app.route('/api/process_booking_image_advanced', methods=['POST'])
 def process_booking_image_advanced():
     """Advanced image processing using production extractor"""
