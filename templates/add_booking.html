@@ -593,18 +593,16 @@ async function processManualImage(imageData) {
                     <h6><i class="fas fa-check-circle me-1"></i>Extraction Successful!</h6>
                     <p class="mb-2">Found ${result.total_bookings} booking(s) using ${result.extraction_method}</p>
                     <small>Revenue: ${result.total_revenue.toLocaleString()} VND | Commission: ${result.total_commission.toLocaleString()} VND</small>
+                    <div class="mt-3">
+                        <button type="button" class="btn btn-primary" onclick="showExtractedBookingsTable()">
+                            <i class="fas fa-table me-1"></i>📋 View & Save ${result.total_bookings} Booking(s)
+                        </button>
+                    </div>
                 </div>
             `;
             
-            // Fill the first booking into the manual form
-            if (result.bookings[0]) {
-                fillManualFormWithData(result.bookings[0]);
-            }
-            
-            // If multiple bookings, show option to save all
-            if (result.bookings.length > 1) {
-                showMultipleBookingsOption(result.bookings);
-            }
+            // Store the extracted bookings globally for the table function
+            window.manualExtractedBookings = result.bookings;
             
         } else {
             statusDiv.innerHTML = `
@@ -632,30 +630,46 @@ async function processManualImage(imageData) {
     }
 }
 
-// Show option to save multiple bookings
+// Show extracted bookings table from manual mode
+function showExtractedBookingsTable() {
+    if (!window.manualExtractedBookings || window.manualExtractedBookings.length === 0) {
+        alert('❌ No extracted bookings found. Please extract data from image first.');
+        return;
+    }
+    
+    console.log('📋 Showing extracted bookings table:', window.manualExtractedBookings);
+    
+    // Use the existing review table system
+    showReviewTable(window.manualExtractedBookings, null);
+    
+    // Hide manual mode and show AI results section
+    const manualSection = document.getElementById('manual-mode-section');
+    const aiSection = document.getElementById('ai-results-review');
+    
+    if (manualSection) {
+        manualSection.style.display = 'none';
+        console.log('🔄 Hidden manual mode section');
+    }
+    if (aiSection) {
+        aiSection.style.display = 'block';
+        console.log('🔄 Shown AI results section with table');
+    }
+    
+    // Scroll to the review table
+    setTimeout(() => {
+        if (aiSection) {
+            aiSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    }, 300);
+}
+
+// Legacy function for backward compatibility
 function showMultipleBookingsOption(bookings) {
-    const statusDiv = document.getElementById('manual-extraction-status');
-    if (!statusDiv) return;
-    
-    // Add a button to save all bookings
-    const saveAllBtn = document.createElement('button');
-    saveAllBtn.type = 'button';
-    saveAllBtn.className = 'btn btn-primary mt-2';
-    saveAllBtn.innerHTML = `<i class="fas fa-save me-1"></i>💾 Save All ${bookings.length} Bookings`;
-    
-    saveAllBtn.onclick = function() {
-        // Use the existing review table system
-        showReviewTable(bookings, null);
-        
-        // Hide manual mode and show AI results
-        const manualSection = document.getElementById('manual-mode-section');
-        const aiSection = document.getElementById('ai-results-review');
-        
-        if (manualSection) manualSection.style.display = 'none';
-        if (aiSection) aiSection.style.display = 'block';
-    };
-    
-    statusDiv.appendChild(saveAllBtn);
+    // This function is kept for compatibility but not used anymore
+    // showExtractedBookingsTable() is used instead
+    console.log('⚠️ Legacy showMultipleBookingsOption called, redirecting to showExtractedBookingsTable');
+    window.manualExtractedBookings = bookings;
+    showExtractedBookingsTable();
 }
 
 // Fill manual form with extracted data
