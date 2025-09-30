@@ -3678,50 +3678,107 @@ def extract_booking_fallback(image_data: str, debug: bool = False) -> dict:
                 try:
                     import pytesseract
                     text = pytesseract.image_to_string(enhanced, config=r'--oem 3 --psm 6 -l eng+vie')
-                    print(f"📝 [FALLBACK_EXTRACTOR] OCR text: {text[:200]}...")
+                    print(f"📝 [FALLBACK_EXTRACTOR] OCR text: {text[:500]}...")
                     
-                    # Simple extraction - look for booking patterns
+                    # Enhanced extraction for Vietnamese booking table format
                     lines = text.split('\n')
                     bookings = []
                     
-                    for line in lines:
-                        line = line.strip()
-                        if len(line) < 10:  # Skip short lines
+                    # Look for booking table patterns - handle single line or multiple lines
+                    full_text = ' '.join(lines).strip()
+                    
+                    # Extract guest name (first words before dates/amounts)
+                    guest_name = None
+                    words = full_text.split()
+                    
+                    # Look for Vietnamese names (typically 2-3 words at the beginning)
+                    name_candidates = []
+                    for i, word in enumerate(words):
+                        # Skip common table headers and status words
+                        if word.lower() in ['genius', 'ok', 'vnd', 'tháng', 'năm', 'phòng', 'ngủ']:
                             continue
+                        # If word contains only letters (Vietnamese name)
+                        if re.match(r'^[a-zA-ZÀ-ỹ]+$', word) and len(word) > 1:
+                            name_candidates.append(word)
+                        elif len(name_candidates) >= 2:  # Found at least first and last name
+                            break
+                    
+                    if len(name_candidates) >= 2:
+                        guest_name = ' '.join(name_candidates[:3])  # Max 3 words for Vietnamese names
+                        print(f"👤 [FALLBACK_EXTRACTOR] Detected guest name: {guest_name}")
+                    
+                    # Extract VND amounts using pattern matching
+                    vnd_amounts = []
+                    
+                    # Look for "VND 123,456" or "VND123456" patterns
+                    vnd_patterns = [
+                        r'VND\s*([0-9.,]+)',  # VND 304,218
+                        r'VND([0-9.,]+)',     # VND304218
+                        r'(\d{1,3}(?:[.,]\d{3})*)',  # 304,218 or 304.218
+                    ]
+                    
+                    for pattern in vnd_patterns:
+                        matches = re.findall(pattern, full_text)
+                        for match in matches:
+                            # Clean the amount (remove commas/dots that are thousands separators)
+                            clean_amount = match.replace(',', '').replace('.', '')
+                            if clean_amount.isdigit() and len(clean_amount) >= 4:  # At least 4 digits
+                                amount = int(clean_amount)
+                                if 10000 <= amount <= 10000000:  # Reasonable booking amount range
+                                    vnd_amounts.append(amount)
+                    
+                    print(f"💰 [FALLBACK_EXTRACTOR] Found VND amounts: {vnd_amounts}")
+                    
+                    # Extract booking ID (long number sequence)
+                    booking_ids = re.findall(r'\b(\d{8,12})\b', full_text)
+                    booking_id = booking_ids[0] if booking_ids else '0000000000'
+                    
+                    # Extract dates if possible
+                    date_patterns = [
+                        r'(\d{1,2})\s*tháng\s*(\d{1,2})\s*(\d{4})',  # Vietnamese date format
+                        r'(\d{1,2})/(\d{1,2})/(\d{4})',              # DD/MM/YYYY
+                        r'(\d{4})-(\d{1,2})-(\d{1,2})'               # YYYY-MM-DD
+                    ]
+                    
+                    dates = []
+                    for pattern in date_patterns:
+                        matches = re.findall(pattern, full_text)
+                        dates.extend(matches)
+                    
+                    # Parse dates
+                    checkin_date = '2025-09-30'  # Default
+                    checkout_date = '2025-10-01'  # Default
+                    
+                    if dates:
+                        try:
+                            if len(dates[0]) == 3:  # day, month, year
+                                day, month, year = dates[0]
+                                checkin_date = f"{year}-{month.zfill(2)}-{day.zfill(2)}"
+                            if len(dates) > 1 and len(dates[1]) == 3:
+                                day, month, year = dates[1]
+                                checkout_date = f"{year}-{month.zfill(2)}-{day.zfill(2)}"
+                        except:
+                            pass  # Use defaults
+                    
+                    # Create booking entry if we have minimum required data
+                    if guest_name and vnd_amounts:
+                        # Use the amounts found
+                        room_amount = vnd_amounts[0] if vnd_amounts else 500000
+                        commission = vnd_amounts[1] if len(vnd_amounts) > 1 else int(room_amount * 0.15)
                         
-                        # Look for guest names and booking patterns
-                        # This is a simple extraction - could be improved
-                        if any(char.isalpha() for char in line) and any(char.isdigit() for char in line):
-                            # Extract potential guest name (first sequence of words)
-                            words = line.split()
-                            name_words = []
-                            for word in words:
-                                if word.replace('.', '').replace(',', '').isalpha():
-                                    name_words.append(word)
-                                else:
-                                    break
-                            
-                            if len(name_words) >= 2:  # At least first and last name
-                                guest_name = ' '.join(name_words[:3])  # Max 3 words for name
-                                
-                                # Extract numbers (potential amounts)
-                                numbers = re.findall(r'\d+', line)
-                                
-                                if numbers and len(guest_name) > 3:
-                                    # Create a basic booking entry
-                                    booking = {
-                                        'guest_name': guest_name,
-                                        'checkin_date': '2025-09-30',  # Default date
-                                        'checkout_date': '2025-10-01',  # Default date
-                                        'room_amount': int(numbers[-1]) if numbers else 500000,  # Last number as amount
-                                        'commission': int(int(numbers[-1]) * 0.15) if numbers else 75000,  # 15% commission
-                                        'booking_id': numbers[0] if numbers else '0000000000',
-                                        'room_type': '118 Hang Bac Hostel',
-                                        'status': 'OK',
-                                        'currency': 'VND'
-                                    }
-                                    bookings.append(booking)
-                                    print(f"✅ [FALLBACK_EXTRACTOR] Extracted: {guest_name}")
+                        booking = {
+                            'guest_name': guest_name,
+                            'checkin_date': checkin_date,
+                            'checkout_date': checkout_date,
+                            'room_amount': room_amount,
+                            'commission': commission,
+                            'booking_id': booking_id,
+                            'room_type': '118 Hang Bac Hostel',
+                            'status': 'OK',
+                            'currency': 'VND'
+                        }
+                        bookings.append(booking)
+                        print(f"✅ [FALLBACK_EXTRACTOR] Extracted: {guest_name} - {room_amount:,} VND")
                     
                     if bookings:
                         print(f"✅ [FALLBACK_EXTRACTOR] Successfully extracted {len(bookings)} booking(s) via OCR")
