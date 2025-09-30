@@ -3545,6 +3545,14 @@ def parse_booking_text(text):
     import re
     from datetime import datetime
     
+    print(f"🔍 [PARSER] Input text length: {len(text)}")
+    print(f"🔍 [PARSER] First 200 chars: {text[:200]}")
+    
+    # Check if this looks like a table (has tabs or multiple columns)
+    if '\t' in text or detect_table_format(text):
+        print("📋 [PARSER] Detected table format")
+        return parse_table_format(text)
+    
     # Split text into potential booking blocks
     booking_blocks = []
     
@@ -3554,18 +3562,159 @@ def parse_booking_text(text):
             booking_blocks = [block.strip() for block in text.split(separator) if block.strip()]
             break
     
-    # If no separators found, treat as single booking
+    # If no separators found, treat as single booking or split by newlines
     if not booking_blocks:
-        booking_blocks = [text]
+        lines = [line.strip() for line in text.split('\n') if line.strip()]
+        if len(lines) > 6:  # Multiple bookings likely
+            booking_blocks = lines
+        else:
+            booking_blocks = [text]
+    
+    print(f"🔍 [PARSER] Found {len(booking_blocks)} booking blocks")
     
     bookings = []
     
-    for block in booking_blocks:
+    for i, block in enumerate(booking_blocks):
+        print(f"🔍 [PARSER] Processing block {i+1}: {block[:100]}...")
         booking = parse_single_booking_block(block)
         if booking:
             bookings.append(booking)
     
     return bookings
+
+def detect_table_format(text):
+    """Detect if text is in table format"""
+    lines = text.strip().split('\n')
+    if len(lines) < 2:
+        return False
+    
+    # Check if multiple lines have similar structure (multiple spaces/columns)
+    column_count = 0
+    for line in lines[:3]:  # Check first 3 lines
+        # Count potential columns (sequences of non-space chars separated by spaces)
+        parts = [part for part in line.split() if part]
+        if len(parts) >= 4:  # At least 4 columns suggests table
+            column_count += 1
+    
+    return column_count >= 2
+
+def parse_table_format(text):
+    """Parse table format text (tab-separated or space-separated)"""
+    import re
+    from datetime import datetime
+    
+    lines = [line.strip() for line in text.split('\n') if line.strip()]
+    bookings = []
+    
+    print(f"📋 [TABLE_PARSER] Processing {len(lines)} lines")
+    
+    # Skip header line if it exists
+    start_idx = 0
+    if lines and any(header in lines[0].lower() for header in ['guest', 'name', 'check', 'total', 'commission']):
+        start_idx = 1
+        print(f"📋 [TABLE_PARSER] Skipping header: {lines[0]}")
+    
+    for i, line in enumerate(lines[start_idx:], start_idx+1):
+        print(f"📋 [TABLE_PARSER] Line {i}: {line}")
+        
+        # Split by tabs first, then by multiple spaces
+        if '\t' in line:
+            parts = [part.strip() for part in line.split('\t') if part.strip()]
+        else:
+            # Split by multiple spaces (2+ spaces)
+            parts = [part.strip() for part in re.split(r'\s{2,}', line) if part.strip()]
+        
+        print(f"📋 [TABLE_PARSER] Split into {len(parts)} parts: {parts}")
+        
+        if len(parts) >= 4:  # Need at least name, date1, date2, amount
+            booking = parse_table_row(parts)
+            if booking:
+                bookings.append(booking)
+                print(f"✅ [TABLE_PARSER] Added booking: {booking['guest_name']}")
+        else:
+            print(f"⚠️ [TABLE_PARSER] Insufficient parts in line")
+    
+    return bookings
+
+def parse_table_row(parts):
+    """Parse a single table row into booking data"""
+    import re
+    from datetime import datetime
+    
+    booking = {
+        'guest_name': '',
+        'checkin_date': '',
+        'checkout_date': '',
+        'room_amount': 0,
+        'commission': 0,
+        'booking_platform': 'Manual',
+        'accommodation_name': '118 Hang Bac Hostel',
+        'room_type': 'Căn Hộ 1 Phòng Ngủ',
+        'guest_count': 2,
+        'booking_status': 'confirmed',
+        'extraction_method': 'table_parsing',
+        'booking_id': ''
+    }
+    
+    print(f"🔍 [ROW_PARSER] Parts: {parts}")
+    
+    # Try to identify each part
+    date_pattern = r'\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}'
+    amount_pattern = r'[0-9,\.]+'
+    
+    dates_found = []
+    amounts_found = []
+    name_parts = []
+    booking_ids = []
+    
+    for part in parts:
+        # Check if it's a date
+        if re.match(date_pattern, part):
+            dates_found.append(part)
+            print(f"📅 [ROW_PARSER] Found date: {part}")
+        # Check if it's a booking ID (10+ digits without commas/dots)
+        elif re.match(r'^\d{10,}$', part):
+            booking_ids.append(part)
+            print(f"🏷️ [ROW_PARSER] Found booking ID: {part}")
+        # Check if it's an amount (numbers with commas/dots, but not super long booking IDs)
+        elif re.match(r'^[0-9,\.]+$', part) and len(part) >= 3 and len(part) <= 9:
+            # Clean and convert amount
+            clean_amount = int(re.sub(r'[,\.]', '', part))
+            amounts_found.append(clean_amount)
+            print(f"💰 [ROW_PARSER] Found amount: {clean_amount}")
+        # Otherwise it's likely part of the name
+        else:
+            name_parts.append(part)
+            print(f"👤 [ROW_PARSER] Name part: {part}")
+    
+    # Assign values
+    if name_parts:
+        booking['guest_name'] = ' '.join(name_parts)
+    
+    if len(dates_found) >= 2:
+        booking['checkin_date'] = normalize_date(dates_found[0])
+        booking['checkout_date'] = normalize_date(dates_found[1])
+    
+    if len(amounts_found) >= 2:
+        # Assume larger amount is room amount, smaller is commission
+        amounts_found.sort(reverse=True)
+        booking['room_amount'] = amounts_found[0]
+        booking['commission'] = amounts_found[1]
+    elif len(amounts_found) == 1:
+        booking['room_amount'] = amounts_found[0]
+    
+    if booking_ids:
+        booking['booking_id'] = booking_ids[0]
+    else:
+        booking['booking_id'] = f"TXT{datetime.now().strftime('%m%d%H%M%S')}"
+    
+    # Validate essential fields
+    if not booking['guest_name']:
+        print(f"❌ [ROW_PARSER] No guest name found")
+        return None
+    
+    print(f"✅ [ROW_PARSER] Created booking: {booking['guest_name']} - {booking['room_amount']:,} VND")
+    return booking
 
 def parse_single_booking_block(text):
     """Parse a single booking from text block"""
@@ -3595,18 +3744,31 @@ def parse_single_booking_block(text):
         if not line:
             continue
             
-        # Guest name patterns
+        # Guest name patterns - improved to handle names at start of lines
         name_patterns = [
             r'(?:guest|tên khách|name|khách hàng)(?:\s*:)?\s*(.+?)(?:\s*$|\s*,|\s*\|)',
             r'^(.+?)(?:\s*-\s*|\s*:\s*|\s*\|\s*)(?:check|nhận|đến)',
-            r'^([A-Za-z\s\u00C0-\u017F]+?)(?:\s*-|\s*:|\s*\|)'
+            r'^([A-Za-z\s\u00C0-\u017F\u1EA0-\u1EF9]+?)(?:\s*-|\s*:|\s*\|)',  # Added Vietnamese diacritics
+            r'^([A-Za-z\s\u00C0-\u017F\u1EA0-\u1EF9]+?)$'  # Name alone on a line
         ]
+        
+        # If line is just a name (letters, spaces, diacritics) and no existing name
+        if not booking['guest_name'] and re.match(r'^[A-Za-z\s\u00C0-\u017F\u1EA0-\u1EF9]+$', line) and len(line) > 2:
+            # Check if it doesn't contain keywords that would indicate it's not a name
+            if not any(keyword in line.lower() for keyword in ['check', 'nhận', 'trả', 'total', 'commission', 'guest', 'booking', 'platform']):
+                booking['guest_name'] = line.strip()
+                print(f"👤 [PARSER] Found name at line start: {booking['guest_name']}")
+                continue
         
         for pattern in name_patterns:
             match = re.search(pattern, line, re.IGNORECASE)
             if match and not booking['guest_name']:
-                booking['guest_name'] = match.group(1).strip()
-                break
+                candidate_name = match.group(1).strip()
+                # Validate it looks like a name (not a keyword)
+                if not any(keyword in candidate_name.lower() for keyword in ['check', 'total', 'commission', 'platform']):
+                    booking['guest_name'] = candidate_name
+                    print(f"👤 [PARSER] Found name via pattern: {booking['guest_name']}")
+                    break
         
         # Date patterns
         date_patterns = [
