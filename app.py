@@ -10890,26 +10890,35 @@ FINAL CHECK: The reading must be a reasonable household value (typically 100-500
     
     # Try each OpenRouter API key with different models
     for key_name, api_key in openrouter_keys:
-        # Try DeepSeek V3.1 first if this is the new key
-        if 'KEY_2' in key_name:
-            model_name = 'deepseek/deepseek-chat'
-            model_display = 'DeepSeek_V3.1_Free'
-            print(f"🧠 [DEEPSEEK_TRY] {request_id} - Trying {key_name} with DeepSeek V3.1")
-        else:
-            model_name = 'mistralai/mistral-7b-instruct:free'
-            model_display = 'Mistral_7B_Free'
-            print(f"🌟 [MISTRAL_TRY] {request_id} - Trying {key_name} with Mistral 7B")
+        # Try multiple free models for each key
+        free_models = [
+            ('qwen/qwen3-coder:free', 'Qwen3_Coder_Free'),
+            ('deepseek/deepseek-chat', 'DeepSeek_V3.1_Free'),
+            ('mistralai/mistral-7b-instruct:free', 'Mistral_7B_Free'),
+            ('nousresearch/hermes-3-llama-3.1-405b:free', 'Hermes_405B_Free'),
+            ('meta-llama/llama-3.1-8b-instruct:free', 'Llama3_8B_Free')
+        ]
         
-        openrouter_result = extract_meter_data_with_openrouter(image_base64, request_id, api_key, model_name, model_display)
-        if openrouter_result['success']:
-            return openrouter_result
+        for model_name, model_display in free_models:
+            print(f"🤖 [OPENROUTER_TRY] {request_id} - Trying {key_name} with {model_display}")
+            openrouter_result = extract_meter_data_with_openrouter(image_base64, request_id, api_key, model_name, model_display)
+            if openrouter_result['success']:
+                return openrouter_result
+            # If this model failed, try the next model with same key
     
     # All APIs failed
     print(f"❌ [ALL_FAILED] {request_id} - All APIs failed, manual entry required")
+    print(f"🔍 [DEBUG] {request_id} - Tried {len(gemini_keys)} Gemini APIs + {len(openrouter_keys)} OpenRouter APIs")
+    
     return {
         'success': False,
         'error': 'All OCR APIs exhausted - please enter manually',
-        'all_apis_tried': True
+        'all_apis_tried': True,
+        'apis_attempted': {
+            'gemini_keys': len(gemini_keys),
+            'openrouter_keys': len(openrouter_keys),
+            'total_attempts': len(gemini_keys) + (len(openrouter_keys) * 5)  # 5 models per OpenRouter key
+        }
     }
 
 # --- Electricity Bill Calculator Routes ---
