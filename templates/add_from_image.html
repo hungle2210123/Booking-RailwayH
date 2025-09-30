@@ -216,31 +216,42 @@ Multiple bookings can be separated by blank lines or '---'"></textarea>
                     
                     // Xử lý trường hợp API trả về object với error message
                     if (extractedData && extractedData.error) {
-                        // Check if this is an API exhaustion error with fallback option
-                        if (extractedData.fallback_required && extractedData.fallback_type === 'manual_entry') {
-                            console.log('🔄 [FALLBACK] All APIs exhausted, showing manual entry option');
+                        const errorMsg = extractedData.error;
+                        
+                        // Check if this is an API exhaustion error (multiple patterns)
+                        const isApiExhausted = errorMsg.includes('APIs exhausted') || 
+                                             errorMsg.includes('API keys exhausted') || 
+                                             errorMsg.includes('booking extraction failed') ||
+                                             extractedData.fallback_required;
+                        
+                        if (isApiExhausted) {
+                            console.log('🔄 [FALLBACK] APIs exhausted detected, showing manual options');
                             
                             messageBox.innerHTML = `
                                 <div style="background-color: #fff3cd; border: 1px solid #ffeaa7; border-radius: 8px; padding: 20px; margin-top: 15px;">
                                     <h4 style="color: #856404; margin-top: 0;">🤖 AI Services Unavailable</h4>
-                                    <p style="color: #856404; margin-bottom: 15px;">${extractedData.message}</p>
+                                    <p style="color: #856404; margin-bottom: 15px;">All AI processing services are currently exhausted. Please use manual alternatives below.</p>
                                     
                                     <div style="background: white; padding: 15px; border-radius: 5px; border: 1px solid #e9ecef; margin-bottom: 15px;">
-                                        <h5 style="color: #495057; margin-top: 0;">📋 Manual Entry Instructions:</h5>
+                                        <h5 style="color: #495057; margin-top: 0;">📋 Manual Options Available:</h5>
                                         <ol style="color: #6c757d; margin-bottom: 0;">
-                                            <li>${extractedData.instructions.step1}</li>
-                                            <li>${extractedData.instructions.step2}</li>
-                                            <li>${extractedData.instructions.step3}</li>
+                                            <li>📝 <strong>Text Processing:</strong> Copy and paste booking information as text</li>
+                                            <li>✏️ <strong>Manual Entry:</strong> Fill out booking form manually</li>
+                                            <li>🔄 <strong>Try Again Later:</strong> Wait for APIs to refresh</li>
                                         </ol>
                                     </div>
                                     
                                     <div style="text-align: center; margin-top: 20px;">
-                                        <button onclick="showManualEntryForm('${extractedData.room_type || '118 Hang Bac Hostel'}')" 
-                                                style="background-color: #28a745; color: white; padding: 12px 24px; border: none; border-radius: 5px; font-size: 16px; cursor: pointer; margin-right: 10px;">
-                                            ✏️ Use Manual Entry
+                                        <button onclick="switchToManualText()" 
+                                                style="background-color: #28a745; color: white; padding: 12px 24px; border: none; border-radius: 5px; font-size: 16px; cursor: pointer; margin: 5px;">
+                                            📝 Use Text Processing
+                                        </button>
+                                        <button onclick="showManualEntryForm('118 Hang Bac Hostel')" 
+                                                style="background-color: #17a2b8; color: white; padding: 12px 24px; border: none; border-radius: 5px; font-size: 16px; cursor: pointer; margin: 5px;">
+                                            ✏️ Manual Entry Form
                                         </button>
                                         <button onclick="location.reload()" 
-                                                style="background-color: #6c757d; color: white; padding: 12px 24px; border: none; border-radius: 5px; font-size: 16px; cursor: pointer;">
+                                                style="background-color: #6c757d; color: white; padding: 12px 24px; border: none; border-radius: 5px; font-size: 16px; cursor: pointer; margin: 5px;">
                                             🔄 Try Again
                                         </button>
                                     </div>
@@ -871,6 +882,111 @@ Multiple bookings can be separated by blank lines or '---'"></textarea>
                 crawlBtn.innerHTML = '🕷️ Start Crawling';
             }
         });
+
+        // Switch to manual text processing tab
+        function switchToManualText() {
+            // Clear any error messages
+            document.getElementById('message-box').innerHTML = '';
+            document.getElementById('results-table').innerHTML = '';
+            document.getElementById('save-form').style.display = 'none';
+            
+            // Switch to manual text tab
+            const manualTextBtn = document.getElementById('method-manual-text');
+            if (manualTextBtn) {
+                manualTextBtn.click(); // Trigger the tab switch
+            } else {
+                // If button doesn't exist, show a simplified manual text interface
+                showManualTextInterface();
+            }
+        }
+        
+        // Show manual text interface directly
+        function showManualTextInterface() {
+            const resultsContainer = document.getElementById('results-container');
+            
+            resultsContainer.innerHTML = `
+                <div style="background-color: #f8fff8; border: 2px solid #28a745; border-radius: 8px; padding: 25px; margin-top: 20px;">
+                    <h4 style="color: #28a745; margin-top: 0; text-align: center;">📝 Manual Text Processing</h4>
+                    <p style="text-align: center; color: #495057; margin-bottom: 20px;">Copy and paste your booking table data below for automatic extraction</p>
+                    
+                    <div style="margin-bottom: 15px;">
+                        <label style="display: block; margin-bottom: 5px; font-weight: bold;">Paste Booking Text:</label>
+                        <textarea id="manual-booking-text" style="width: 100%; height: 200px; padding: 10px; border: 1px solid #ccc; border-radius: 4px; font-family: monospace; font-size: 14px;" 
+                                  placeholder="Paste your booking information here. Example:
+
+Piotr Konczakowski	30/09/2025	03/10/2025	995,950	201,001	6675995308
+Lara Schroeder	30/09/2025	05/10/2025	1,647,845	298,786	6848283925
+
+Or format like:
+Guest Name: John Doe  
+Check-in: 2025-10-01
+Check-out: 2025-10-03
+Total: 1,500,000 VND
+Commission: 250,000 VND"></textarea>
+                    </div>
+                    
+                    <div style="text-align: center; margin-bottom: 15px;">
+                        <button onclick="processManualText()" style="background: #28a745; color: white; border: none; padding: 12px 24px; border-radius: 5px; cursor: pointer; font-size: 16px; margin-right: 10px;">
+                            🔄 Process Text
+                        </button>
+                        <button onclick="clearManualText()" style="background: #6c757d; color: white; border: none; padding: 12px 24px; border-radius: 5px; cursor: pointer; font-size: 16px;">
+                            🗑️ Clear
+                        </button>
+                    </div>
+                    
+                    <div style="padding: 10px; background: #e7f3ff; border-radius: 4px; font-size: 14px;">
+                        <strong>Supported Formats:</strong><br>
+                        • Tab-separated table data (copy from booking tables)<br>
+                        • Vietnamese: "Tên khách: Nguyễn Văn A, Nhận phòng: 01/10/2025"<br>
+                        • English: "Guest: John Doe, Check-in: 2025-10-01"<br>
+                        • Any format with dates, names, amounts will be detected
+                    </div>
+                </div>
+            `;
+        }
+        
+        // Process manual text input
+        async function processManualText() {
+            const text = document.getElementById('manual-booking-text').value.trim();
+            const messageBox = document.getElementById('message-box');
+            
+            if (!text) {
+                messageBox.innerHTML = '<div class="error-message">❌ Please enter booking text to process.</div>';
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/process_booking_text', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ booking_text: text })
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`Server error: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                
+                if (data.success && data.bookings && data.bookings.length > 0) {
+                    displayProcessedBookings(data.bookings);
+                    messageBox.innerHTML = `<div class="success-message">✅ Successfully processed ${data.bookings.length} booking(s) from text!</div>`;
+                } else {
+                    throw new Error(data.error || 'No bookings found in text');
+                }
+                
+            } catch (error) {
+                messageBox.innerHTML = `<div class="error-message">❌ Text processing failed: ${error.message}</div>`;
+            }
+        }
+        
+        // Clear manual text input
+        function clearManualText() {
+            const textArea = document.getElementById('manual-booking-text');
+            if (textArea) {
+                textArea.value = '';
+            }
+        }
 
         // Manual entry form function
         function showManualEntryForm(roomType = '118 Hang Bac Hostel') {
