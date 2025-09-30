@@ -1143,6 +1143,132 @@ get_expenses_from_sheet = get_expenses_from_database
 # IMAGE PROCESSING (Gemini AI)
 # ==============================================================================
 
+def extract_booking_with_openrouter(image_data: bytes, openrouter_keys: list, room_type: str = '118 Hang Bac Hostel') -> Dict:
+    """Extract booking information using OpenRouter APIs with multiple models"""
+    import requests
+    import json
+    import base64
+    
+    # Convert image to base64
+    try:
+        image_base64 = base64.b64encode(image_data).decode('utf-8')
+    except Exception as e:
+        return {'error': f'Image encoding failed: {str(e)}'}
+    
+    # Booking extraction system prompt
+    system_prompt = f"""You are an expert at extracting booking information from screenshots of booking confirmation emails, hotel booking platforms, or reservation confirmments.
+
+Extract the following information from the image:
+
+1. Guest Name (Full name, including first and last names)
+2. Check-in Date (format: YYYY-MM-DD)
+3. Check-out Date (format: YYYY-MM-DD)
+4. Room Amount/Total Price (number only, no currency symbols)
+5. Accommodation Name (hotel/hostel name, default to "{room_type}" if not visible)
+6. Booking Platform (e.g., Booking.com, Airbnb, Agoda, etc.)
+7. Number of Guests (adults + children)
+8. Room Type (if specified)
+
+CRITICAL REQUIREMENTS:
+- Return ONLY valid JSON
+- Use exact field names as shown below
+- Convert all dates to YYYY-MM-DD format
+- Extract numbers only for amounts (remove currency symbols like $, €, đ, VNĐ)
+- If information is not clearly visible, use null
+- Guest name should be complete (first + last name)
+
+JSON Format:
+{{
+    "guest_name": "Full Name",
+    "checkin_date": "YYYY-MM-DD",
+    "checkout_date": "YYYY-MM-DD", 
+    "room_amount": number_only,
+    "accommodation_name": "{room_type}",
+    "booking_platform": "platform_name",
+    "guest_count": number,
+    "room_type": "room_description_if_available",
+    "extraction_confidence": "high/medium/low",
+    "model": "openrouter_model_name"
+}}
+
+Examples:
+- "John Smith" → "guest_name": "John Smith"
+- "Dec 25, 2024" → "checkin_date": "2024-12-25"
+- "$150.00" → "room_amount": 150
+- "2 adults" → "guest_count": 2"""
+
+    # Free models to try with OpenRouter
+    free_models = [
+        ('qwen/qwen3-coder:free', 'Qwen3_Coder_Free'),
+        ('mistralai/mistral-7b-instruct:free', 'Mistral_7B_Free'),
+        ('nousresearch/hermes-3-llama-3.1-405b:free', 'Hermes_405B_Free'),
+        ('meta-llama/llama-3.1-8b-instruct:free', 'Llama3_8B_Free')
+    ]
+    
+    # Try each OpenRouter API key with different models
+    for key_name, api_key in openrouter_keys:
+        for model_name, model_display in free_models:
+            print(f"🤖 [BOOKING_OPENROUTER] Trying {key_name} with {model_display}")
+            
+            try:
+                response = requests.post(
+                    url="https://openrouter.ai/api/v1/chat/completions",
+                    headers={
+                        "Authorization": f"Bearer {api_key}",
+                        "Content-Type": "application/json",
+                        "HTTP-Referer": "http://localhost:5000",
+                        "X-Title": "Booking Extraction",
+                    },
+                    data=json.dumps({
+                        "model": model_name,
+                        "messages": [
+                            {"role": "system", "content": system_prompt},
+                            {"role": "user", "content": [
+                                {"type": "text", "text": "Extract booking information from this image:"},
+                                {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{image_base64}"}}
+                            ]}
+                        ],
+                        "max_tokens": 500
+                    }),
+                    timeout=30
+                )
+                
+                if response.status_code == 200:
+                    result = response.json()
+                    content = result['choices'][0]['message']['content']
+                    print(f"✅ [BOOKING_OPENROUTER] {model_display} - Response received")
+                    
+                    # Parse JSON response
+                    import re
+                    json_match = re.search(r'\{.*\}', content, re.DOTALL)
+                    if json_match:
+                        try:
+                            data = json.loads(json_match.group())
+                            data['model'] = model_display
+                            data['extraction_method'] = f'openrouter_{model_display.lower()}'
+                            
+                            # Validate required fields
+                            if data.get('guest_name') and data.get('checkin_date'):
+                                print(f"🎯 [BOOKING_OPENROUTER] SUCCESS - Guest: {data.get('guest_name')}, Check-in: {data.get('checkin_date')}")
+                                return {'success': True, **data}
+                            else:
+                                print(f"⚠️ [BOOKING_OPENROUTER] {model_display} - Missing required fields")
+                        except json.JSONDecodeError:
+                            print(f"⚠️ [BOOKING_OPENROUTER] {model_display} - JSON parsing failed")
+                    else:
+                        print(f"⚠️ [BOOKING_OPENROUTER] {model_display} - No JSON found in response")
+                        
+                else:
+                    print(f"❌ [BOOKING_OPENROUTER] {model_display} - API error: {response.status_code}")
+                    if response.status_code == 401:
+                        print(f"   Invalid API key: {key_name}")
+                        break  # Don't try other models with invalid key
+                    
+            except Exception as e:
+                print(f"❌ [BOOKING_OPENROUTER] {model_display} - Exception: {str(e)[:100]}")
+    
+    return {'error': 'All OpenRouter models failed for booking extraction'}
+
 def extract_booking_info_from_image_content_multi_api(image_data: bytes, room_type: str = '118 Hang Bac Hostel') -> Dict:
     """Extract booking information from image using Multiple Gemini APIs with auto-switching"""
     if not genai:
@@ -1285,9 +1411,29 @@ def extract_booking_info_from_image_content_multi_api(image_data: bytes, room_ty
                 print(f"❌ [BOOKING_AI] {key_name} error: {error_str[:100]}, trying next API...")
             continue
     
-    # If all APIs failed
-    print(f"❌ [BOOKING_AI] All {len(gemini_keys)} Gemini API keys exhausted")
-    return {'error': f'All {len(gemini_keys)} Gemini API keys exhausted - booking extraction failed'}
+    # If all Gemini APIs failed, try OpenRouter as fallback
+    print(f"🔄 [BOOKING_AI] All {len(gemini_keys)} Gemini APIs exhausted, trying OpenRouter...")
+    
+    # Get all available OpenRouter API keys
+    openrouter_keys = []
+    for i in range(1, 6):
+        key_name = f'OPENROUTER_API_KEY_{i}' if i > 1 else 'OPENROUTER_API_KEY'
+        key = os.getenv(key_name)
+        if key and key.strip():
+            openrouter_keys.append((key_name, key))
+    
+    print(f"🔑 [BOOKING_OPENROUTER] Found {len(openrouter_keys)} OpenRouter API keys")
+    
+    if openrouter_keys:
+        # Try OpenRouter booking extraction
+        openrouter_result = extract_booking_with_openrouter(image_data, openrouter_keys, room_type)
+        if openrouter_result.get('success'):
+            return openrouter_result
+    
+    # All APIs failed
+    total_apis = len(gemini_keys) + len(openrouter_keys)
+    print(f"❌ [BOOKING_AI] All {total_apis} APIs exhausted ({len(gemini_keys)} Gemini + {len(openrouter_keys)} OpenRouter)")
+    return {'error': f'All {total_apis} APIs exhausted - booking extraction failed'}
 
 def extract_booking_info_from_image_content(image_data: bytes, google_api_key: str, room_type: str = '118 Hang Bac Hostel') -> Dict:
     """
