@@ -3385,12 +3385,35 @@ def process_pasted_image():
         
         print("🔍 [PHOTO_PROCESSING] Starting AI image analysis...")
         
-        # Extract booking info using Gemini with room type
+        # Extract booking info using multi-API system with room type
         booking_info = extract_booking_info_from_image_content(image_data, GOOGLE_API_KEY, room_type)
         
         # Check if extraction was successful
         if 'error' in booking_info:
-            return jsonify(booking_info), 400
+            # Check if this is an API exhaustion error
+            error_msg = booking_info.get('error', '')
+            if 'APIs exhausted' in error_msg or 'API keys exhausted' in error_msg:
+                print(f"🔄 [FALLBACK] All APIs exhausted, providing manual entry option")
+                
+                # Return special response for manual entry fallback
+                return jsonify({
+                    'success': False,
+                    'error': error_msg,
+                    'fallback_required': True,
+                    'fallback_type': 'manual_entry',
+                    'message': 'All AI services are currently unavailable. Please use manual entry.',
+                    'manual_entry_url': '/api/manual_booking_entry',
+                    'instructions': {
+                        'step1': 'Look at your uploaded image and identify booking details',
+                        'step2': 'Use the manual entry form to input: guest name, dates, amount',
+                        'step3': 'Submit the form to add the booking to your system'
+                    },
+                    'room_type': room_type,
+                    'environment': 'railway' if os.getenv('RAILWAY_PROJECT_ID') else 'local'
+                }), 200  # Return 200 so frontend can handle fallback gracefully
+            else:
+                # Other errors (invalid image, etc.)
+                return jsonify(booking_info), 400
         
         print(f"✅ Booking info extracted successfully: {booking_info}")
         print(f"🤖 [AI_RESPONSE] Raw data: {booking_info}")

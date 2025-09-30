@@ -172,9 +172,44 @@
                     
                     // Xử lý trường hợp API trả về object với error message
                     if (extractedData && extractedData.error) {
-                        messageBox.innerHTML = `<div class="error-message">❌ Lỗi xử lý ảnh: ${extractedData.error}</div>`;
-                        pasteArea.style.display = 'block';
-                        return;
+                        // Check if this is an API exhaustion error with fallback option
+                        if (extractedData.fallback_required && extractedData.fallback_type === 'manual_entry') {
+                            console.log('🔄 [FALLBACK] All APIs exhausted, showing manual entry option');
+                            
+                            messageBox.innerHTML = `
+                                <div style="background-color: #fff3cd; border: 1px solid #ffeaa7; border-radius: 8px; padding: 20px; margin-top: 15px;">
+                                    <h4 style="color: #856404; margin-top: 0;">🤖 AI Services Unavailable</h4>
+                                    <p style="color: #856404; margin-bottom: 15px;">${extractedData.message}</p>
+                                    
+                                    <div style="background: white; padding: 15px; border-radius: 5px; border: 1px solid #e9ecef; margin-bottom: 15px;">
+                                        <h5 style="color: #495057; margin-top: 0;">📋 Manual Entry Instructions:</h5>
+                                        <ol style="color: #6c757d; margin-bottom: 0;">
+                                            <li>${extractedData.instructions.step1}</li>
+                                            <li>${extractedData.instructions.step2}</li>
+                                            <li>${extractedData.instructions.step3}</li>
+                                        </ol>
+                                    </div>
+                                    
+                                    <div style="text-align: center; margin-top: 20px;">
+                                        <button onclick="showManualEntryForm('${extractedData.room_type || '118 Hang Bac Hostel'}')" 
+                                                style="background-color: #28a745; color: white; padding: 12px 24px; border: none; border-radius: 5px; font-size: 16px; cursor: pointer; margin-right: 10px;">
+                                            ✏️ Use Manual Entry
+                                        </button>
+                                        <button onclick="location.reload()" 
+                                                style="background-color: #6c757d; color: white; padding: 12px 24px; border: none; border-radius: 5px; font-size: 16px; cursor: pointer;">
+                                            🔄 Try Again
+                                        </button>
+                                    </div>
+                                </div>
+                            `;
+                            pasteArea.style.display = 'block';
+                            return;
+                        } else {
+                            // Regular error handling
+                            messageBox.innerHTML = `<div class="error-message">❌ Lỗi xử lý ảnh: ${extractedData.error}</div>`;
+                            pasteArea.style.display = 'block';
+                            return;
+                        }
                     }
 
                     // Kiểm tra và chuẩn hóa dữ liệu trả về
@@ -665,6 +700,168 @@
                 crawlBtn.innerHTML = '🕷️ Start Crawling';
             }
         });
+
+        // Manual entry form function
+        function showManualEntryForm(roomType = '118 Hang Bac Hostel') {
+            const messageBox = document.getElementById('results-container');
+            
+            messageBox.innerHTML = `
+                <div style="background-color: #f8f9fa; border: 1px solid #dee2e6; border-radius: 8px; padding: 25px; margin-top: 20px;">
+                    <h4 style="color: #495057; margin-top: 0; text-align: center;">✏️ Manual Booking Entry</h4>
+                    
+                    <form id="manualBookingForm" style="max-width: 600px; margin: 0 auto;">
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
+                            <div>
+                                <label style="display: block; margin-bottom: 5px; font-weight: bold; color: #495057;">Guest Name *</label>
+                                <input type="text" id="manualGuestName" name="guest_name" required 
+                                       style="width: 100%; padding: 8px 12px; border: 1px solid #ced4da; border-radius: 4px; font-size: 14px;"
+                                       placeholder="Full name (e.g., John Smith)">
+                            </div>
+                            <div>
+                                <label style="display: block; margin-bottom: 5px; font-weight: bold; color: #495057;">Number of Guests</label>
+                                <input type="number" id="manualGuestCount" name="guest_count" 
+                                       style="width: 100%; padding: 8px 12px; border: 1px solid #ced4da; border-radius: 4px; font-size: 14px;"
+                                       value="1" min="1" max="10">
+                            </div>
+                        </div>
+                        
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
+                            <div>
+                                <label style="display: block; margin-bottom: 5px; font-weight: bold; color: #495057;">Check-in Date *</label>
+                                <input type="date" id="manualCheckinDate" name="checkin_date" required
+                                       style="width: 100%; padding: 8px 12px; border: 1px solid #ced4da; border-radius: 4px; font-size: 14px;">
+                            </div>
+                            <div>
+                                <label style="display: block; margin-bottom: 5px; font-weight: bold; color: #495057;">Check-out Date *</label>
+                                <input type="date" id="manualCheckoutDate" name="checkout_date" required
+                                       style="width: 100%; padding: 8px 12px; border: 1px solid #ced4da; border-radius: 4px; font-size: 14px;">
+                            </div>
+                        </div>
+                        
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
+                            <div>
+                                <label style="display: block; margin-bottom: 5px; font-weight: bold; color: #495057;">Room Amount *</label>
+                                <input type="number" id="manualRoomAmount" name="room_amount" 
+                                       style="width: 100%; padding: 8px 12px; border: 1px solid #ced4da; border-radius: 4px; font-size: 14px;"
+                                       step="0.01" min="0" required placeholder="Total price (numbers only)">
+                            </div>
+                            <div>
+                                <label style="display: block; margin-bottom: 5px; font-weight: bold; color: #495057;">Booking Platform</label>
+                                <select id="manualBookingPlatform" name="booking_platform"
+                                        style="width: 100%; padding: 8px 12px; border: 1px solid #ced4da; border-radius: 4px; font-size: 14px;">
+                                    <option value="Manual Entry">Manual Entry</option>
+                                    <option value="Booking.com">Booking.com</option>
+                                    <option value="Airbnb">Airbnb</option>
+                                    <option value="Agoda">Agoda</option>
+                                    <option value="Expedia">Expedia</option>
+                                    <option value="Hotels.com">Hotels.com</option>
+                                    <option value="Phone/Direct">Phone/Direct</option>
+                                    <option value="Other">Other</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px;">
+                            <div>
+                                <label style="display: block; margin-bottom: 5px; font-weight: bold; color: #495057;">Accommodation</label>
+                                <input type="text" id="manualAccommodation" name="accommodation_name" 
+                                       style="width: 100%; padding: 8px 12px; border: 1px solid #ced4da; border-radius: 4px; font-size: 14px;"
+                                       value="${roomType}" placeholder="Hotel/hostel name">
+                            </div>
+                            <div>
+                                <label style="display: block; margin-bottom: 5px; font-weight: bold; color: #495057;">Room Type</label>
+                                <input type="text" id="manualRoomType" name="room_type" 
+                                       style="width: 100%; padding: 8px 12px; border: 1px solid #ced4da; border-radius: 4px; font-size: 14px;"
+                                       placeholder="e.g., Standard Room, Dorm Bed">
+                            </div>
+                        </div>
+                        
+                        <div style="text-align: center; margin-top: 25px;">
+                            <button type="submit" style="background-color: #28a745; color: white; padding: 12px 30px; border: none; border-radius: 5px; font-size: 16px; cursor: pointer; margin-right: 10px;">
+                                ✅ Add Booking
+                            </button>
+                            <button type="button" onclick="location.reload()" style="background-color: #6c757d; color: white; padding: 12px 30px; border: none; border-radius: 5px; font-size: 16px; cursor: pointer;">
+                                Cancel
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            `;
+            
+            // Set default dates
+            const today = new Date().toISOString().split('T')[0];
+            const tomorrow = new Date(Date.now() + 24*60*60*1000).toISOString().split('T')[0];
+            document.getElementById('manualCheckinDate').value = today;
+            document.getElementById('manualCheckoutDate').value = tomorrow;
+            
+            // Handle form submission
+            document.getElementById('manualBookingForm').addEventListener('submit', async function(e) {
+                e.preventDefault();
+                
+                const formData = new FormData(this);
+                const bookingData = Object.fromEntries(formData.entries());
+                
+                // Validate dates
+                const checkinDate = new Date(bookingData.checkin_date);
+                const checkoutDate = new Date(bookingData.checkout_date);
+                
+                if (checkoutDate <= checkinDate) {
+                    alert('Check-out date must be after check-in date');
+                    return;
+                }
+                
+                // Show loading
+                const submitBtn = this.querySelector('button[type="submit"]');
+                const originalText = submitBtn.textContent;
+                submitBtn.disabled = true;
+                submitBtn.textContent = '⏳ Adding...';
+                
+                try {
+                    // Submit manual booking
+                    const response = await fetch('/api/manual_booking_entry', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify(bookingData)
+                    });
+                    
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        messageBox.innerHTML = \`
+                            <div style="background-color: #d4edda; border: 1px solid #c3e6cb; border-radius: 8px; padding: 20px; margin-top: 20px; text-align: center;">
+                                <h4 style="color: #155724; margin-top: 0;">✅ Booking Added Successfully!</h4>
+                                <p style="color: #155724; margin-bottom: 15px;">Booking for \${data.guest_name} has been added to the system.</p>
+                                <div style="background: white; padding: 15px; border-radius: 5px; margin: 15px 0; border: 1px solid #c3e6cb;">
+                                    <p style="margin: 5px 0; color: #495057;"><strong>Guest:</strong> \${data.guest_name}</p>
+                                    <p style="margin: 5px 0; color: #495057;"><strong>Dates:</strong> \${data.checkin_date} → \${data.checkout_date}</p>
+                                    <p style="margin: 5px 0; color: #495057;"><strong>Amount:</strong> \${data.room_amount.toLocaleString()} VND</p>
+                                    <p style="margin: 5px 0; color: #495057;"><strong>ID:</strong> \${data.booking_id}</p>
+                                </div>
+                                <div>
+                                    <button onclick="location.href='/bookings'" style="background-color: #007bff; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; margin-right: 10px;">
+                                        📋 View All Bookings
+                                    </button>
+                                    <button onclick="location.reload()" style="background-color: #28a745; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer;">
+                                        ➕ Add Another
+                                    </button>
+                                </div>
+                            </div>
+                        \`;
+                    } else {
+                        throw new Error(data.error || 'Manual booking failed');
+                    }
+                    
+                } catch (error) {
+                    console.error('Manual booking error:', error);
+                    alert('❌ Failed to add booking: ' + error.message);
+                } finally {
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = originalText;
+                }
+            });
+        }
     </script>
 </body>
 </html>
