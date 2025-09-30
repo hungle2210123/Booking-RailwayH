@@ -769,6 +769,204 @@
                             <i class="fas fa-camera me-1"></i> Chụp ảnh
                         </button>
                     </div>
+<!-- Manual Booking Entry Section (Fallback when AI fails) -->
+<div id="manualBookingSection" class="manual-entry-section" style="display: none; margin-top: 20px; padding: 20px; border: 2px dashed #e74c3c; border-radius: 8px; background-color: #fdf2f2;">
+    <h4 style="color: #e74c3c; margin-bottom: 15px;">
+        🚨 Manual Booking Entry (AI APIs Exhausted)
+    </h4>
+    <p style="color: #666; margin-bottom: 20px;">
+        All AI services are currently unavailable. Please enter booking details manually:
+    </p>
+    
+    <form id="manualBookingForm" class="manual-booking-form">
+        <div class="form-row">
+            <div class="form-group">
+                <label for="manualGuestName">Guest Name *</label>
+                <input type="text" id="manualGuestName" name="guest_name" required 
+                       placeholder="Full name (e.g., John Smith)">
+            </div>
+            <div class="form-group">
+                <label for="manualGuestCount">Number of Guests</label>
+                <input type="number" id="manualGuestCount" name="guest_count" 
+                       value="1" min="1" max="10">
+            </div>
+        </div>
+        
+        <div class="form-row">
+            <div class="form-group">
+                <label for="manualCheckinDate">Check-in Date *</label>
+                <input type="date" id="manualCheckinDate" name="checkin_date" required>
+            </div>
+            <div class="form-group">
+                <label for="manualCheckoutDate">Check-out Date *</label>
+                <input type="date" id="manualCheckoutDate" name="checkout_date" required>
+            </div>
+        </div>
+        
+        <div class="form-row">
+            <div class="form-group">
+                <label for="manualRoomAmount">Room Amount *</label>
+                <input type="number" id="manualRoomAmount" name="room_amount" 
+                       step="0.01" min="0" required placeholder="Total price (numbers only)">
+            </div>
+            <div class="form-group">
+                <label for="manualBookingPlatform">Booking Platform</label>
+                <select id="manualBookingPlatform" name="booking_platform">
+                    <option value="Manual Entry">Manual Entry</option>
+                    <option value="Booking.com">Booking.com</option>
+                    <option value="Airbnb">Airbnb</option>
+                    <option value="Agoda">Agoda</option>
+                    <option value="Expedia">Expedia</option>
+                    <option value="Hotels.com">Hotels.com</option>
+                    <option value="Phone/Direct">Phone/Direct</option>
+                    <option value="Other">Other</option>
+                </select>
+            </div>
+        </div>
+        
+        <div class="form-row">
+            <div class="form-group">
+                <label for="manualAccommodation">Accommodation</label>
+                <input type="text" id="manualAccommodation" name="accommodation_name" 
+                       value="118 Hang Bac Hostel" placeholder="Hotel/hostel name">
+            </div>
+            <div class="form-group">
+                <label for="manualRoomType">Room Type</label>
+                <input type="text" id="manualRoomType" name="room_type" 
+                       placeholder="e.g., Standard Room, Dorm Bed">
+            </div>
+        </div>
+        
+        <div class="form-actions" style="margin-top: 20px;">
+            <button type="submit" class="btn btn-primary">
+                ✅ Add Booking Manually
+            </button>
+            <button type="button" class="btn btn-secondary" onclick="hideManualEntry()">
+                Cancel
+            </button>
+        </div>
+    </form>
+</div>
+
+<script>
+function showManualEntry() {
+    document.getElementById('manualBookingSection').style.display = 'block';
+    // Set default dates
+    const today = new Date().toISOString().split('T')[0];
+    const tomorrow = new Date(Date.now() + 24*60*60*1000).toISOString().split('T')[0];
+    document.getElementById('manualCheckinDate').value = today;
+    document.getElementById('manualCheckoutDate').value = tomorrow;
+}
+
+function hideManualEntry() {
+    document.getElementById('manualBookingSection').style.display = 'none';
+}
+
+// Handle manual booking form submission
+document.getElementById('manualBookingForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const formData = new FormData(this);
+    const bookingData = Object.fromEntries(formData.entries());
+    
+    // Validate dates
+    const checkinDate = new Date(bookingData.checkin_date);
+    const checkoutDate = new Date(bookingData.checkout_date);
+    
+    if (checkoutDate <= checkinDate) {
+        alert('Check-out date must be after check-in date');
+        return;
+    }
+    
+    // Submit manual booking
+    fetch('/api/manual_booking_entry', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(bookingData)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showToast('✅ Booking added successfully via manual entry!', 'success');
+            hideManualEntry();
+            this.reset();
+            
+            // Refresh booking list if available
+            if (typeof loadBookings === 'function') {
+                loadBookings();
+            }
+        } else {
+            showToast('❌ Manual booking failed: ' + data.error, 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Manual booking error:', error);
+        showToast('❌ Network error during manual booking', 'error');
+    });
+});
+</script>
+
+<style>
+.manual-entry-section .form-row {
+    display: flex;
+    gap: 15px;
+    margin-bottom: 15px;
+}
+
+.manual-entry-section .form-group {
+    flex: 1;
+}
+
+.manual-entry-section label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: bold;
+    color: #333;
+}
+
+.manual-entry-section input,
+.manual-entry-section select {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 14px;
+}
+
+.manual-entry-section input:focus,
+.manual-entry-section select:focus {
+    outline: none;
+    border-color: #007bff;
+    box-shadow: 0 0 0 2px rgba(0,123,255,0.25);
+}
+
+.manual-entry-section .form-actions {
+    display: flex;
+    gap: 10px;
+}
+
+.manual-entry-section .btn {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+}
+
+.manual-entry-section .btn-primary {
+    background-color: #007bff;
+    color: white;
+}
+
+.manual-entry-section .btn-secondary {
+    background-color: #6c757d;
+    color: white;
+}
+</style>
+
+
                     
                     <input type="file" class="d-none" id="multiImageUpload" accept="image/*">
                     <input type="file" class="d-none" id="multiCameraUpload" accept="image/*" capture="camera">

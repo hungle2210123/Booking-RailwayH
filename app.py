@@ -2126,6 +2126,142 @@ def delete_single_booking():
         print(f"❌ DELETE SINGLE ERROR: {str(e)}")
         return jsonify({'success': False, 'error': f'Lỗi server: {str(e)}'}), 500
 
+@app.route('/api/manual_booking_entry', methods=['POST'])
+def manual_booking_entry():
+    """Manual booking entry when all AI APIs fail"""
+    try:
+        data = request.get_json()
+        
+        # Validate required fields
+        required_fields = ['guest_name', 'checkin_date', 'checkout_date', 'room_amount']
+        for field in required_fields:
+            if not data.get(field):
+                return jsonify({
+                    'success': False,
+                    'error': f'Missing required field: {field}'
+                }), 400
+        
+        # Parse and validate dates
+        from datetime import datetime
+        try:
+            checkin_date = datetime.strptime(data['checkin_date'], '%Y-%m-%d').date()
+            checkout_date = datetime.strptime(data['checkout_date'], '%Y-%m-%d').date()
+            
+            if checkout_date <= checkin_date:
+                return jsonify({
+                    'success': False,
+                    'error': 'Check-out date must be after check-in date'
+                }), 400
+                
+        except ValueError as e:
+            return jsonify({
+                'success': False,
+                'error': f'Invalid date format. Use YYYY-MM-DD: {str(e)}'
+            }), 400
+        
+        # Validate room amount
+        try:
+            room_amount = float(data['room_amount'])
+            if room_amount <= 0:
+                raise ValueError("Amount must be positive")
+        except (ValueError, TypeError):
+            return jsonify({
+                'success': False,
+                'error': 'Room amount must be a positive number'
+            }), 400
+        
+        # Create booking object
+        from core.models import Booking, db
+        
+        new_booking = Booking(
+            guest_name=data['guest_name'].strip(),
+            checkin_date=checkin_date,
+            checkout_date=checkout_date,
+            room_amount=room_amount,
+            accommodation_name=data.get('accommodation_name', '118 Hang Bac Hostel'),
+            booking_platform=data.get('booking_platform', 'Manual Entry'),
+            guest_count=data.get('guest_count', 1),
+            room_type=data.get('room_type', 'Standard'),
+            booking_status='confirmed',
+            collector=data.get('collector', 'Manual'),
+            extraction_method='manual_entry',
+            notes=f"Manual entry - All AI APIs were exhausted. Entered by user on {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+        )
+        
+        db.session.add(new_booking)
+        db.session.commit()
+        
+        print(f"✅ [MANUAL_BOOKING] Added: {data['guest_name']} - {checkin_date} to {checkout_date}")
+        
+        return jsonify({
+            'success': True,
+            'message': 'Booking added successfully via manual entry',
+            'booking_id': new_booking.booking_id,
+            'guest_name': new_booking.guest_name,
+            'checkin_date': checkin_date.isoformat(),
+            'checkout_date': checkout_date.isoformat(),
+            'room_amount': room_amount,
+            'extraction_method': 'manual_entry'
+        })
+        
+    except Exception as e:
+        print(f"❌ [MANUAL_BOOKING] Error: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': f'Manual booking entry failed: {str(e)}'
+        }), 500
+
+@app.route('/api/booking_entry_options', methods=['GET'])
+def get_booking_entry_options():
+    """Get available booking entry methods and their status"""
+    try:
+        # Check API availability (simplified check)
+        gemini_keys = []
+        openrouter_keys = []
+        
+        for i in range(1, 6):
+            key_name = f'GEMINI_API_KEY_{i}' if i > 1 else 'GEMINI_API_KEY'
+            key = os.getenv(key_name)
+            if key and key.strip():
+                gemini_keys.append(key_name)
+        
+        for i in range(1, 6):
+            key_name = f'OPENROUTER_API_KEY_{i}' if i > 1 else 'OPENROUTER_API_KEY'
+            key = os.getenv(key_name)
+            if key and key.strip():
+                openrouter_keys.append(key_name)
+        
+        total_api_keys = len(gemini_keys) + len(openrouter_keys)
+        ai_available = total_api_keys > 0
+        
+        return jsonify({
+            'success': True,
+            'options': {
+                'ai_extraction': {
+                    'available': ai_available,
+                    'description': f'Upload booking screenshot for automatic extraction ({total_api_keys} APIs configured)',
+                    'status': f'{total_api_keys} APIs configured' if ai_available else 'No APIs configured',
+                    'api_details': {
+                        'gemini_keys': len(gemini_keys),
+                        'openrouter_keys': len(openrouter_keys)
+                    }
+                },
+                'manual_entry': {
+                    'available': True,
+                    'description': 'Manual form entry - always available as fallback',
+                    'status': 'Always available'
+                }
+            },
+            'recommendation': 'ai_extraction' if ai_available else 'manual_entry',
+            'fallback_message': 'Manual entry is available when AI extraction fails'
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
 @app.route('/api/expenses', methods=['GET', 'POST'])
 def expenses_api():
     """Expense management with PostgreSQL and Railway compatibility"""
