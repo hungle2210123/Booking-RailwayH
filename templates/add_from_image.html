@@ -36,12 +36,15 @@
         </div>
         <!-- Method Selection -->
         <div style="margin-bottom: 20px;">
-            <div style="display: flex; gap: 10px; justify-content: center;">
+            <div style="display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
                 <button id="method-image" class="method-btn active" style="padding: 10px 20px; border: 2px solid #007bff; border-radius: 5px; background: #007bff; color: white; cursor: pointer;">
                     📸 Upload Image
                 </button>
                 <button id="method-crawl" class="method-btn" style="padding: 10px 20px; border: 2px solid #007bff; border-radius: 5px; background: white; color: #007bff; cursor: pointer;">
                     🕷️ Crawl Admin Panel
+                </button>
+                <button id="method-manual-text" class="method-btn" style="padding: 10px 20px; border: 2px solid #28a745; border-radius: 5px; background: white; color: #28a745; cursor: pointer;">
+                    📝 Manual Text Processing
                 </button>
             </div>
         </div>
@@ -88,6 +91,47 @@
                 <div style="margin-top: 15px; padding: 10px; background: #e7f3ff; border-radius: 4px; font-size: 14px;">
                     <strong>Note:</strong> Make sure you have setup your browser profile first using the profile setup scripts.
                     If crawling fails, run <code>python fixed_profile_setup.py</code> to refresh your login profile.
+                </div>
+            </div>
+        </div>
+
+        <!-- Manual Text Processing Section -->
+        <div id="manual-text-section" style="display: none;">
+            <p>📝 Nhập văn bản thông tin đặt phòng để xử lý tự động.</p>
+            
+            <div style="border: 2px solid #28a745; border-radius: 8px; padding: 20px; background-color: #f8fff8;">
+                <div style="margin-bottom: 15px;">
+                    <label style="display: block; margin-bottom: 5px; font-weight: bold;">Paste Booking Text:</label>
+                    <textarea id="booking-text" style="width: 100%; height: 200px; padding: 10px; border: 1px solid #ccc; border-radius: 4px; font-family: monospace; font-size: 14px;" 
+                              placeholder="Paste your booking information here. Example:
+
+Guest Name: John Doe
+Check-in: 2025-10-01
+Check-out: 2025-10-03
+Total: 1,500,000 VND
+Commission: 250,000 VND
+Room: Căn Hộ 1 Phòng Ngủ
+Platform: Booking.com
+Guests: 2
+ID: 1234567890
+
+Multiple bookings can be separated by blank lines or '---'"></textarea>
+                </div>
+                
+                <div style="text-align: center; margin-bottom: 15px;">
+                    <button id="process-text-btn" style="background: #28a745; color: white; border: none; padding: 12px 24px; border-radius: 5px; cursor: pointer; font-size: 16px;">
+                        🔄 Process Text
+                    </button>
+                    <button onclick="clearTextArea()" style="background: #6c757d; color: white; border: none; padding: 12px 24px; border-radius: 5px; cursor: pointer; font-size: 16px; margin-left: 10px;">
+                        🗑️ Clear
+                    </button>
+                </div>
+                
+                <div style="margin-top: 15px; padding: 10px; background: #e7f3ff; border-radius: 4px; font-size: 14px;">
+                    <strong>Format Examples:</strong><br>
+                    • Vietnamese: "Tên khách: Nguyễn Văn A, Nhận phòng: 01/10/2025, Trả phòng: 03/10/2025"<br>
+                    • English: "Guest: John Doe, Check-in: 2025-10-01, Check-out: 2025-10-03"<br>
+                    • Any format with dates, names, amounts will be automatically detected
                 </div>
             </div>
         </div>
@@ -403,10 +447,137 @@
             await processImage(imageFile);
         });
 
+        // Method switching and text processing functions
+        function clearTextArea() {
+            document.getElementById('booking-text').value = '';
+        }
+
+        async function processBookingText() {
+            const text = document.getElementById('booking-text').value.trim();
+            const spinner = document.getElementById('spinner');
+            const messageBox = document.getElementById('message-box');
+            const saveForm = document.getElementById('save-form');
+            const resultsTable = document.getElementById('results-table');
+
+            if (!text) {
+                messageBox.innerHTML = '<div class="error-message">❌ Please enter booking text to process.</div>';
+                return;
+            }
+
+            // Clear previous results
+            messageBox.innerHTML = '';
+            resultsTable.innerHTML = '';
+            saveForm.style.display = 'none';
+            spinner.style.display = 'block';
+
+            try {
+                const response = await fetch('/api/process_booking_text', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ booking_text: text })
+                });
+
+                spinner.style.display = 'none';
+
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({}));
+                    throw new Error(errorData.error || `Server error: ${response.status}`);
+                }
+
+                const data = await response.json();
+                
+                if (data.success && data.bookings && data.bookings.length > 0) {
+                    displayProcessedBookings(data.bookings);
+                    messageBox.innerHTML = `<div class="success-message">✅ Successfully processed ${data.bookings.length} booking(s) from text!</div>`;
+                } else {
+                    throw new Error(data.error || 'No bookings found in text');
+                }
+
+            } catch (error) {
+                spinner.style.display = 'none';
+                messageBox.innerHTML = `<div class="error-message">❌ Text processing failed: ${error.message}</div>`;
+            }
+        }
+
+        function displayProcessedBookings(bookings) {
+            const resultsTable = document.getElementById('results-table');
+            const saveForm = document.getElementById('save-form');
+            
+            let tableHtml = '<table><thead><tr><th>Guest Name</th><th>Check-in</th><th>Check-out</th><th>Amount</th><th>Commission</th><th>Platform</th></tr></thead><tbody>';
+            
+            bookings.forEach((booking) => {
+                const commission = booking.commission || 0;
+                const amount = booking.room_amount || booking.total_payment || 0;
+                
+                tableHtml += `
+                    <tr style="background-color: #d4edda;">
+                        <td>👤 ${booking.guest_name || 'N/A'}</td>
+                        <td>📅 ${booking.checkin_date || booking.check_in_date || 'N/A'}</td>
+                        <td>📅 ${booking.checkout_date || booking.check_out_date || 'N/A'}</td>
+                        <td>💰 ${amount.toLocaleString('vi-VN')} VND</td>
+                        <td>💸 ${commission.toLocaleString('vi-VN')} VND</td>
+                        <td>🏪 ${booking.booking_platform || 'Manual'}</td>
+                    </tr>
+                `;
+            });
+            tableHtml += '</tbody></table>';
+            resultsTable.innerHTML = tableHtml;
+            
+            document.getElementById('extracted_json_input').value = JSON.stringify(bookings);
+            saveForm.style.display = 'block';
+        }
+
         // File input event handler
         document.addEventListener('DOMContentLoaded', function() {
             const fileSelectBtn = document.getElementById('file-select-btn');
             const fileInput = document.getElementById('file-input');
+            const processTextBtn = document.getElementById('process-text-btn');
+
+            // Method switching
+            const methodBtns = document.querySelectorAll('.method-btn');
+            const imageSection = document.getElementById('image-section');
+            const crawlSection = document.getElementById('crawl-section');
+            const manualTextSection = document.getElementById('manual-text-section');
+
+            methodBtns.forEach(btn => {
+                btn.addEventListener('click', function() {
+                    // Remove active class from all buttons
+                    methodBtns.forEach(b => {
+                        b.classList.remove('active');
+                        b.style.background = 'white';
+                        b.style.color = b.id === 'method-manual-text' ? '#28a745' : '#007bff';
+                    });
+                    
+                    // Add active class to clicked button
+                    this.classList.add('active');
+                    if (this.id === 'method-manual-text') {
+                        this.style.background = '#28a745';
+                        this.style.color = 'white';
+                    } else {
+                        this.style.background = '#007bff';
+                        this.style.color = 'white';
+                    }
+                    
+                    // Hide all sections
+                    imageSection.style.display = 'none';
+                    crawlSection.style.display = 'none';
+                    manualTextSection.style.display = 'none';
+                    
+                    // Show selected section
+                    if (this.id === 'method-image') {
+                        imageSection.style.display = 'block';
+                    } else if (this.id === 'method-crawl') {
+                        crawlSection.style.display = 'block';
+                    } else if (this.id === 'method-manual-text') {
+                        manualTextSection.style.display = 'block';
+                    }
+                });
+            });
+
+            // Text processing button
+            if (processTextBtn) {
+                processTextBtn.addEventListener('click', processBookingText);
+            }
 
             fileSelectBtn.addEventListener('click', function() {
                 fileInput.click();

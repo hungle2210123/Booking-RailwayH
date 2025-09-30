@@ -3501,6 +3501,224 @@ def process_pasted_image():
             }
         }), 500
 
+@app.route('/api/process_booking_text', methods=['POST'])
+def process_booking_text():
+    """Process booking information from text input using advanced parsing"""
+    try:
+        data = request.get_json()
+        if not data or not data.get('booking_text'):
+            return jsonify({
+                'success': False,
+                'error': 'No booking text provided'
+            }), 400
+
+        booking_text = data['booking_text'].strip()
+        print(f"📝 [TEXT_PROCESSING] Processing text: {booking_text[:200]}...")
+
+        # Parse bookings from text
+        bookings = parse_booking_text(booking_text)
+        
+        if not bookings:
+            return jsonify({
+                'success': False,
+                'error': 'No booking information found in text'
+            }), 400
+
+        print(f"✅ [TEXT_PROCESSING] Successfully parsed {len(bookings)} booking(s)")
+        
+        return jsonify({
+            'success': True,
+            'bookings': bookings,
+            'message': f'Successfully processed {len(bookings)} booking(s) from text',
+            'extraction_method': 'text_parsing'
+        })
+
+    except Exception as e:
+        print(f"❌ [TEXT_PROCESSING] Error: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': f'Text processing failed: {str(e)}'
+        }), 500
+
+def parse_booking_text(text):
+    """Advanced text parser for booking information with multiple format support"""
+    import re
+    from datetime import datetime
+    
+    # Split text into potential booking blocks
+    booking_blocks = []
+    
+    # Try different separators
+    for separator in ['\n\n', '---', '===', '__', 'Guest:', 'Tên khách:']:
+        if separator in text:
+            booking_blocks = [block.strip() for block in text.split(separator) if block.strip()]
+            break
+    
+    # If no separators found, treat as single booking
+    if not booking_blocks:
+        booking_blocks = [text]
+    
+    bookings = []
+    
+    for block in booking_blocks:
+        booking = parse_single_booking_block(block)
+        if booking:
+            bookings.append(booking)
+    
+    return bookings
+
+def parse_single_booking_block(text):
+    """Parse a single booking from text block"""
+    import re
+    from datetime import datetime
+    
+    # Initialize booking data
+    booking = {
+        'guest_name': '',
+        'checkin_date': '',
+        'checkout_date': '',
+        'room_amount': 0,
+        'commission': 0,
+        'booking_platform': 'Manual',
+        'accommodation_name': '118 Hang Bac Hostel',
+        'room_type': 'Căn Hộ 1 Phòng Ngủ',
+        'guest_count': 2,
+        'booking_status': 'confirmed',
+        'extraction_method': 'text_parsing'
+    }
+    
+    lines = text.split('\n')
+    
+    # Parse each line for different patterns
+    for line in lines:
+        line = line.strip()
+        if not line:
+            continue
+            
+        # Guest name patterns
+        name_patterns = [
+            r'(?:guest|tên khách|name|khách hàng)(?:\s*:)?\s*(.+?)(?:\s*$|\s*,|\s*\|)',
+            r'^(.+?)(?:\s*-\s*|\s*:\s*|\s*\|\s*)(?:check|nhận|đến)',
+            r'^([A-Za-z\s\u00C0-\u017F]+?)(?:\s*-|\s*:|\s*\|)'
+        ]
+        
+        for pattern in name_patterns:
+            match = re.search(pattern, line, re.IGNORECASE)
+            if match and not booking['guest_name']:
+                booking['guest_name'] = match.group(1).strip()
+                break
+        
+        # Date patterns
+        date_patterns = [
+            # Vietnamese format
+            r'(?:nhận phòng|đến|check.?in)(?:\s*:)?\s*(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4})',
+            r'(?:trả phòng|đi|check.?out)(?:\s*:)?\s*(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4})',
+            # English format
+            r'(?:check.?in|arrival)(?:\s*:)?\s*(\d{4}[\/\-]\d{1,2}[\/\-]\d{1,2})',
+            r'(?:check.?out|departure)(?:\s*:)?\s*(\d{4}[\/\-]\d{1,2}[\/\-]\d{1,2})',
+            # Date ranges
+            r'(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4})\s*(?:to|đến|→)\s*(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4})',
+            r'(\d{4}[\/\-]\d{1,2}[\/\-]\d{1,2})\s*(?:to|đến|→)\s*(\d{4}[\/\-]\d{1,2}[\/\-]\d{1,2})'
+        ]
+        
+        for pattern in date_patterns:
+            match = re.search(pattern, line, re.IGNORECASE)
+            if match:
+                if 'check.?in|arrival|nhận|đến' in pattern.lower():
+                    booking['checkin_date'] = normalize_date(match.group(1))
+                elif 'check.?out|departure|trả|đi' in pattern.lower():
+                    booking['checkout_date'] = normalize_date(match.group(1))
+                elif len(match.groups()) == 2:  # Date range
+                    booking['checkin_date'] = normalize_date(match.group(1))
+                    booking['checkout_date'] = normalize_date(match.group(2))
+                break
+        
+        # Amount patterns (Vietnamese and English)
+        amount_patterns = [
+            r'(?:total|tổng|thanh toán|amount)(?:\s*:)?\s*([0-9,\.]+)\s*(?:vnd|đ|dong)?',
+            r'(?:commission|hoa hồng|phí)(?:\s*:)?\s*([0-9,\.]+)\s*(?:vnd|đ|dong)?',
+            r'([0-9,\.]+)\s*(?:vnd|đ|dong)',
+        ]
+        
+        for pattern in amount_patterns:
+            matches = re.findall(pattern, line, re.IGNORECASE)
+            for match in matches:
+                amount = int(re.sub(r'[,\.]', '', match))
+                if 'commission|hoa hồng|phí' in pattern.lower():
+                    booking['commission'] = amount
+                elif not booking['room_amount'] or amount > booking['room_amount']:
+                    booking['room_amount'] = amount
+        
+        # Platform patterns
+        platform_patterns = [
+            r'(?:platform|nền tảng|booking|agoda|expedia|airbnb)(?:\s*:)?\s*(.+?)(?:\s*$|\s*,|\s*\|)',
+        ]
+        
+        for pattern in platform_patterns:
+            match = re.search(pattern, line, re.IGNORECASE)
+            if match:
+                booking['booking_platform'] = match.group(1).strip()
+                break
+        
+        # Guest count patterns
+        guest_patterns = [
+            r'(?:guests|khách|người)(?:\s*:)?\s*(\d+)',
+        ]
+        
+        for pattern in guest_patterns:
+            match = re.search(pattern, line, re.IGNORECASE)
+            if match:
+                booking['guest_count'] = int(match.group(1))
+                break
+        
+        # Room type patterns
+        room_patterns = [
+            r'(?:room|phòng|loại phòng)(?:\s*:)?\s*(.+?)(?:\s*$|\s*,|\s*\|)',
+        ]
+        
+        for pattern in room_patterns:
+            match = re.search(pattern, line, re.IGNORECASE)
+            if match:
+                booking['room_type'] = match.group(1).strip()
+                break
+    
+    # Validate essential fields
+    if not booking['guest_name']:
+        return None
+    
+    # Generate booking ID if not provided
+    if not booking.get('booking_id'):
+        booking['booking_id'] = f"TXT{datetime.now().strftime('%m%d%H%M%S')}"
+    
+    return booking
+
+def normalize_date(date_str):
+    """Normalize various date formats to YYYY-MM-DD"""
+    import re
+    from datetime import datetime
+    
+    # Remove any extra whitespace
+    date_str = date_str.strip()
+    
+    # Try different date formats
+    formats = [
+        '%Y-%m-%d', '%Y/%m/%d',
+        '%d-%m-%Y', '%d/%m/%Y',
+        '%m-%d-%Y', '%m/%d/%Y',
+        '%d-%m-%y', '%d/%m/%y',
+        '%m-%d-%y', '%m/%d/%y'
+    ]
+    
+    for fmt in formats:
+        try:
+            dt = datetime.strptime(date_str, fmt)
+            return dt.strftime('%Y-%m-%d')
+        except ValueError:
+            continue
+    
+    # If no format works, return as-is
+    return date_str
+
 @app.route('/api/railway_image_diagnostic', methods=['GET', 'POST'])
 def railway_image_diagnostic():
     """Railway-specific diagnostic endpoint for image upload debugging"""
