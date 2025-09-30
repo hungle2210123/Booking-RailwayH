@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Booking Table Processor</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .btn {
+            background-color: #007bff;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px 5px;
+        }
+        .btn:hover {
+            background-color: #0056b3;
+        }
+        .btn:disabled {
+            background-color: #6c757d;
+            cursor: not-allowed;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 5px;
+            font-family: monospace;
+        }
+        .success {
+            background-color: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+        .error {
+            background-color: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+        .loading {
+            background-color: #d1ecf1;
+            border: 1px solid #bee5eb;
+            color: #0c5460;
+        }
+        .image-preview {
+            max-width: 100%;
+            border: 2px solid #ddd;
+            border-radius: 5px;
+            margin: 20px 0;
+        }
+        .booking-summary {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+        .summary-card {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            border-left: 4px solid #007bff;
+        }
+        .summary-card h4 {
+            margin: 0 0 10px 0;
+            color: #007bff;
+        }
+        .summary-card p {
+            margin: 5px 0;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🏨 Booking Table Processor</h1>
+        <p>Process the booking table from example.png with manually extracted data</p>
+        
+        <h3>📋 Extracted Bookings Preview:</h3>
+        <div class="booking-summary">
+            <div class="summary-card">
+                <h4>Piotr Konczakowski</h4>
+                <p>📅 2025-09-30 → 2025-10-03</p>
+                <p>💰 995,950 VND</p>
+                <p>💸 Commission: 201,001 VND</p>
+            </div>
+            <div class="summary-card">
+                <h4>Lara Schroeder</h4>
+                <p>📅 2025-09-30 → 2025-10-05</p>
+                <p>💰 1,647,845 VND</p>
+                <p>💸 Commission: 298,786 VND</p>
+            </div>
+            <div class="summary-card">
+                <h4>murat percin</h4>
+                <p>📅 2025-10-01 → 2025-10-05</p>
+                <p>💰 2,178,540 VND</p>
+                <p>💸 Commission: 326,781 VND</p>
+            </div>
+            <div class="summary-card">
+                <h4>SUBODH KUMAR BARAL</h4>
+                <p>📅 2025-10-03 → 2025-10-04</p>
+                <p>💰 542,513 VND</p>
+                <p>💸 Commission: 81,377 VND</p>
+            </div>
+            <div class="summary-card">
+                <h4>Lang Van Thiên</h4>
+                <p>📅 2025-10-03 → 2025-10-06</p>
+                <p>💰 1,417,163 VND</p>
+                <p>💸 Commission: 212,574 VND</p>
+            </div>
+        </div>
+        
+        <div style="text-align: center; margin: 30px 0;">
+            <button class="btn" onclick="processBookingTable()" id="processBtn">
+                🚀 Process & Import to Database
+            </button>
+            <button class="btn" onclick="clearResults()" style="background-color: #6c757d;">
+                🗑️ Clear Results
+            </button>
+        </div>
+        
+        <div id="result"></div>
+    </div>
+
+    <script>
+        async function processBookingTable() {
+            const btn = document.getElementById('processBtn');
+            const resultDiv = document.getElementById('result');
+            
+            btn.disabled = true;
+            btn.textContent = '⏳ Processing...';
+            
+            resultDiv.innerHTML = '<div class="result loading">🔄 Processing booking table and importing to database...</div>';
+            
+            try {
+                const response = await fetch('/api/process_booking_table', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({})
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    resultDiv.innerHTML = `
+                        <div class="result success">
+                            <h4>✅ Success!</h4>
+                            <p><strong>Message:</strong> ${data.message}</p>
+                            <h5>📊 Results:</h5>
+                            <ul>
+                                <li>Total Bookings: ${data.results.total_bookings}</li>
+                                <li>Added: ${data.results.added}</li>
+                                <li>Skipped: ${data.results.skipped}</li>
+                                <li>Errors: ${data.results.errors}</li>
+                            </ul>
+                            <h5>💰 Summary:</h5>
+                            <ul>
+                                <li>Total Revenue: ${data.summary.total_revenue.toLocaleString()} VND</li>
+                                <li>Total Commission: ${data.summary.total_commission.toLocaleString()} VND</li>
+                                <li>Date Range: ${data.summary.date_range}</li>
+                            </ul>
+                            ${data.error_details ? `
+                                <h5>⚠️ Errors:</h5>
+                                <ul>
+                                    ${data.error_details.map(error => `<li>${error}</li>`).join('')}
+                                </ul>
+                            ` : ''}
+                        </div>
+                    `;
+                } else {
+                    resultDiv.innerHTML = `
+                        <div class="result error">
+                            <h4>❌ Error</h4>
+                            <p><strong>Error:</strong> ${data.error}</p>
+                        </div>
+                    `;
+                }
+                
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <div class="result error">
+                        <h4>❌ Network Error</h4>
+                        <p><strong>Error:</strong> ${error.message}</p>
+                        <p>Make sure the Flask application is running.</p>
+                    </div>
+                `;
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '🚀 Process & Import to Database';
+            }
+        }
+        
+        function clearResults() {
+            document.getElementById('result').innerHTML = '';
+        }
+    </script>
+</body>
+</html>

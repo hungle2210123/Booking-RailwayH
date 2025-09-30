@@ -1,0 +1,78 @@
+{
+  "success": true,
+  "total_bookings": 5,
+  "bookings": [
+    {
+      "guest_name": "Piotr Konczakowski",
+      "checkin_date": "2025-09-30",
+      "checkout_date": "2025-10-03",
+      "room_amount": 995950,
+      "commission": 201001,
+      "accommodation_name": "Căn Hộ 1 Phòng Ngủ",
+      "booking_platform": "Genius",
+      "guest_count": 2,
+      "booking_id": "6675995308",
+      "booking_status": "confirmed",
+      "extraction_method": "manual_table_processing"
+    },
+    {
+      "guest_name": "Lara Schroeder",
+      "checkin_date": "2025-09-30",
+      "checkout_date": "2025-10-05",
+      "room_amount": 1647845,
+      "commission": 298786,
+      "accommodation_name": "Căn Hộ 1 Phòng Ngủ",
+      "booking_platform": "Genius",
+      "guest_count": 2,
+      "booking_id": "6848283925",
+      "booking_status": "confirmed",
+      "extraction_method": "manual_table_processing"
+    },
+    {
+      "guest_name": "murat percin",
+      "checkin_date": "2025-10-01",
+      "checkout_date": "2025-10-05",
+      "room_amount": 2178540,
+      "commission": 326781,
+      "accommodation_name": "Căn Hộ 1 Phòng Ngủ",
+      "booking_platform": "Genius",
+      "guest_count": 2,
+      "booking_id": "6213677291",
+      "booking_status": "confirmed",
+      "extraction_method": "manual_table_processing",
+      "notes": "1 tin nhắn từ khách đang chờ - Quý vị trả lời"
+    },
+    {
+      "guest_name": "SUBODH KUMAR BARAL",
+      "checkin_date": "2025-10-03",
+      "checkout_date": "2025-10-04",
+      "room_amount": 542513,
+      "commission": 81377,
+      "accommodation_name": "Căn Hộ 1 Phòng Ngủ",
+      "booking_platform": "Genius",
+      "guest_count": 3,
+      "booking_id": "5822406722",
+      "booking_status": "confirmed",
+      "extraction_method": "manual_table_processing"
+    },
+    {
+      "guest_name": "Lang Van Thiên",
+      "checkin_date": "2025-10-03",
+      "checkout_date": "2025-10-06",
+      "room_amount": 1417163,
+      "commission": 212574,
+      "accommodation_name": "Căn Hộ 1 Phòng Ngủ",
+      "booking_platform": "Genius",
+      "guest_count": 2,
+      "booking_id": "6525759449",
+      "booking_status": "confirmed",
+      "extraction_method": "manual_table_processing"
+    }
+  ],
+  "summary": {
+    "total_revenue": 6782011,
+    "total_commission": 1120519,
+    "date_range": "2025-09-30 to 2025-10-06",
+    "processing_method": "manual_table_analysis"
+  }
+}

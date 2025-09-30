@@ -2211,6 +2211,162 @@ def manual_booking_entry():
             'error': f'Manual booking entry failed: {str(e)}'
         }), 500
 
+@app.route('/api/process_booking_table', methods=['POST'])
+def process_booking_table():
+    """Process the specific booking table format with manual extraction"""
+    try:
+        # Manual extraction data based on example.png analysis
+        bookings_data = [
+            {
+                "guest_name": "Piotr Konczakowski",
+                "checkin_date": "2025-09-30",
+                "checkout_date": "2025-10-03",
+                "room_amount": 995950,
+                "commission": 201001,
+                "accommodation_name": "Căn Hộ 1 Phòng Ngủ",
+                "booking_platform": "Genius",
+                "guest_count": 2,
+                "booking_id": "6675995308",
+                "booking_status": "confirmed",
+                "extraction_method": "manual_table_processing"
+            },
+            {
+                "guest_name": "Lara Schroeder", 
+                "checkin_date": "2025-09-30",
+                "checkout_date": "2025-10-05",
+                "room_amount": 1647845,
+                "commission": 298786,
+                "accommodation_name": "Căn Hộ 1 Phòng Ngủ",
+                "booking_platform": "Genius",
+                "guest_count": 2,
+                "booking_id": "6848283925",
+                "booking_status": "confirmed",
+                "extraction_method": "manual_table_processing"
+            },
+            {
+                "guest_name": "murat percin",
+                "checkin_date": "2025-10-01",
+                "checkout_date": "2025-10-05",
+                "room_amount": 2178540,
+                "commission": 326781,
+                "accommodation_name": "Căn Hộ 1 Phòng Ngủ",
+                "booking_platform": "Genius",
+                "guest_count": 2,
+                "booking_id": "6213677291",
+                "booking_status": "confirmed",
+                "extraction_method": "manual_table_processing",
+                "notes": "1 tin nhắn từ khách đang chờ - Quý vị trả lời"
+            },
+            {
+                "guest_name": "SUBODH KUMAR BARAL",
+                "checkin_date": "2025-10-03",
+                "checkout_date": "2025-10-04",
+                "room_amount": 542513,
+                "commission": 81377,
+                "accommodation_name": "Căn Hộ 1 Phòng Ngủ",
+                "booking_platform": "Genius",
+                "guest_count": 3,
+                "booking_id": "5822406722",
+                "booking_status": "confirmed",
+                "extraction_method": "manual_table_processing"
+            },
+            {
+                "guest_name": "Lang Van Thiên",
+                "checkin_date": "2025-10-03",
+                "checkout_date": "2025-10-06",
+                "room_amount": 1417163,
+                "commission": 212574,
+                "accommodation_name": "Căn Hộ 1 Phòng Ngủ",
+                "booking_platform": "Genius",
+                "guest_count": 2,
+                "booking_id": "6525759449",
+                "booking_status": "confirmed",
+                "extraction_method": "manual_table_processing"
+            }
+        ]
+        
+        # Add bookings to database
+        from core.models import Booking, db
+        from datetime import datetime
+        
+        added_count = 0
+        skipped_count = 0
+        errors = []
+        
+        for booking_data in bookings_data:
+            try:
+                # Check if booking already exists
+                existing = Booking.query.filter(
+                    (Booking.guest_name == booking_data["guest_name"]) &
+                    (Booking.checkin_date == datetime.strptime(booking_data["checkin_date"], "%Y-%m-%d").date()) &
+                    (Booking.checkout_date == datetime.strptime(booking_data["checkout_date"], "%Y-%m-%d").date())
+                ).first()
+                
+                if existing:
+                    print(f"⚠️ Booking already exists: {booking_data['guest_name']} - {booking_data['checkin_date']}")
+                    skipped_count += 1
+                    continue
+                
+                # Create new booking
+                new_booking = Booking(
+                    guest_name=booking_data["guest_name"],
+                    checkin_date=datetime.strptime(booking_data["checkin_date"], "%Y-%m-%d").date(),
+                    checkout_date=datetime.strptime(booking_data["checkout_date"], "%Y-%m-%d").date(),
+                    room_amount=booking_data["room_amount"],
+                    commission=booking_data.get("commission", 0),
+                    accommodation_name=booking_data["accommodation_name"],
+                    booking_platform=booking_data["booking_platform"],
+                    guest_count=booking_data["guest_count"],
+                    booking_status=booking_data["booking_status"],
+                    extraction_method=booking_data["extraction_method"],
+                    notes=booking_data.get("notes", "Imported from booking table image"),
+                    collector="Manual Import"
+                )
+                
+                db.session.add(new_booking)
+                added_count += 1
+                print(f"✅ Added: {booking_data['guest_name']} - {booking_data['checkin_date']} to {booking_data['checkout_date']}")
+                
+            except Exception as e:
+                error_msg = f"Error adding booking {booking_data['guest_name']}: {str(e)}"
+                print(f"❌ {error_msg}")
+                errors.append(error_msg)
+                skipped_count += 1
+        
+        # Commit all changes
+        if added_count > 0:
+            db.session.commit()
+            print(f"🎯 Database committed: {added_count} bookings added")
+        
+        # Calculate summary
+        total_revenue = sum(b["room_amount"] for b in bookings_data)
+        total_commission = sum(b["commission"] for b in bookings_data)
+        
+        return jsonify({
+            "success": True,
+            "message": f"Successfully processed {len(bookings_data)} bookings from table",
+            "results": {
+                "total_bookings": len(bookings_data),
+                "added": added_count,
+                "skipped": skipped_count,
+                "errors": len(errors)
+            },
+            "summary": {
+                "total_revenue": total_revenue,
+                "total_commission": total_commission,
+                "date_range": "2025-09-30 to 2025-10-06"
+            },
+            "bookings": bookings_data,
+            "error_details": errors if errors else None
+        })
+        
+    except Exception as e:
+        print(f"❌ Processing error: {str(e)}")
+        return jsonify({
+            "success": False,
+            "error": f"Processing error: {str(e)}"
+        }), 500
+
 @app.route('/api/booking_entry_options', methods=['GET'])
 def get_booking_entry_options():
     """Get available booking entry methods and their status"""
