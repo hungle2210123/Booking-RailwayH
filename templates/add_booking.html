@@ -2096,7 +2096,10 @@ function updateGeneratedUrl() {
     console.log(`🔗 Using your configured URL for ${apartment.name}:`, fullUrl);
 }
 
-document.getElementById('start-crawl-btn').addEventListener('click', async function() {
+// Legacy crawl button - only if exists (removed in redesign)
+const startCrawlBtn = document.getElementById('start-crawl-btn');
+if (startCrawlBtn) {
+    startCrawlBtn.addEventListener('click', async function() {
     if (!selectedApartment) {
         alert('❌ Vui lòng chọn căn hộ trước khi crawl');
         return;
@@ -2224,7 +2227,8 @@ document.getElementById('start-crawl-btn').addEventListener('click', async funct
             crawlBtn.innerHTML = '<i class="fas fa-spider me-2"></i>Bắt đầu Crawl';
         }
     }
-});
+    });
+}
 
 // Real-time duplicate detection for crawled bookings
 async function detectCrawledDuplicates(crawledBookings) {
