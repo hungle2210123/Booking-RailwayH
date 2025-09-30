@@ -325,6 +325,33 @@ h1, h2, h3, h4, h5, h6 {
     </div>
 </div>
 
+<!-- JSON Import Option -->
+<div class="card border-info mb-3" id="json-import-section">
+    <div class="card-header bg-info text-white">
+        <h6 class="mb-0"><i class="fas fa-code me-2"></i>🤖 Import JSON từ AI khác</h6>
+    </div>
+    <div class="card-body">
+        <p class="mb-2">Paste JSON data từ ChatGPT, Claude, hoặc AI khác:</p>
+        <div class="row g-2">
+            <div class="col-md-8">
+                <textarea class="form-control" id="json-input" rows="3" placeholder='{"bookings": [{"guest_name": "Pham Oanh", "room_amount": 304218, ...}]}'></textarea>
+            </div>
+            <div class="col-md-4">
+                <button type="button" class="btn btn-info w-100" onclick="importJSONBookings()">
+                    <i class="fas fa-upload me-1"></i>📥 Import JSON
+                </button>
+                <small class="text-muted d-block mt-1">
+                    <a href="#" onclick="showJSONTemplate()" class="text-decoration-none">📋 Xem mẫu JSON</a>
+                </small>
+            </div>
+        </div>
+        <div id="json-template" style="display: none;" class="mt-3">
+            <strong>Mẫu JSON:</strong>
+            <pre class="bg-light p-2 rounded"><code>{"bookings": [{"guest_name": "Tên khách", "checkin_date": "2025-09-30", "checkout_date": "2025-10-01", "room_amount": 304218, "commission": 91265, "booking_id": "5011020455", "status": "OK"}]}</code></pre>
+        </div>
+    </div>
+</div>
+
 <!-- Manual Form (Auto-filled by AI or manual entry) -->
 <div id="manual-form-container">
     <div class="card border-secondary">
@@ -638,6 +665,75 @@ async function processManualImage(imageData) {
         // Reset button
         extractBtn.disabled = false;
         extractBtn.innerHTML = '<i class="fas fa-magic me-1"></i>🔍 Extract Data from Image';
+    }
+}
+
+// Show JSON template
+function showJSONTemplate() {
+    const template = document.getElementById('json-template');
+    if (template.style.display === 'none') {
+        template.style.display = 'block';
+    } else {
+        template.style.display = 'none';
+    }
+}
+
+// Import JSON bookings from external AI
+function importJSONBookings() {
+    const jsonInput = document.getElementById('json-input');
+    const jsonText = jsonInput.value.trim();
+    
+    if (!jsonText) {
+        alert('❌ Vui lòng paste JSON data từ AI vào ô text area');
+        return;
+    }
+    
+    try {
+        console.log('📥 [JSON_IMPORT] Parsing JSON:', jsonText);
+        const data = JSON.parse(jsonText);
+        
+        if (!data.bookings || !Array.isArray(data.bookings)) {
+            throw new Error('JSON phải có format: {"bookings": [...]}');
+        }
+        
+        if (data.bookings.length === 0) {
+            throw new Error('Không tìm thấy booking nào trong JSON');
+        }
+        
+        console.log(`✅ [JSON_IMPORT] Parsed ${data.bookings.length} booking(s)`, data.bookings);
+        
+        // Validate and format bookings
+        const formattedBookings = data.bookings.map((booking, index) => {
+            return {
+                guest_name: booking.guest_name || `Guest ${index + 1}`,
+                checkin_date: booking.checkin_date || '2025-09-30',
+                checkout_date: booking.checkout_date || '2025-10-01',
+                room_amount: parseInt(booking.room_amount) || 0,
+                commission: parseInt(booking.commission) || 0,
+                booking_id: booking.booking_id || `JSON${Date.now()}${index}`,
+                room_type: booking.room_type || '118 Hang Bac Hostel',
+                status: booking.status || 'OK',
+                currency: booking.currency || 'VND'
+            };
+        });
+        
+        // Store and show in review table
+        window.manualExtractedBookings = formattedBookings;
+        console.log('📋 [JSON_IMPORT] Stored bookings for review table');
+        
+        // Clear JSON input
+        jsonInput.value = '';
+        
+        // Show success message
+        const successMsg = `✅ Import thành công ${formattedBookings.length} booking từ JSON!`;
+        alert(successMsg);
+        
+        // Automatically show review table
+        showExtractedBookingsTable();
+        
+    } catch (error) {
+        console.error('❌ [JSON_IMPORT] Error:', error);
+        alert(`❌ Lỗi import JSON: ${error.message}\n\nVui lòng kiểm tra format JSON và thử lại.`);
     }
 }
 
