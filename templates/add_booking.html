@@ -170,6 +170,46 @@ h1, h2, h3, h4, h5, h6 {
             <small class="text-muted">AI sẽ tự động phân tích và quyết định: điền form (1 khách) hoặc lưu nhiều khách</small>
             <input type="file" id="photo-input" accept="image/*" style="display: none;">
         </div>
+        
+        <!-- Emergency Manual Options (shown when AI fails) -->
+        <div id="ai-fallback-section" style="display: none;" class="border-2 border-dashed border-danger rounded p-4 mt-3" style="background-color: #fff5f5;">
+            <div class="text-center mb-3">
+                <i class="fas fa-exclamation-triangle fa-2x text-danger mb-2"></i>
+                <h6 class="text-danger mb-0"><strong>🚨 AI Services Unavailable</strong></h6>
+                <small class="text-muted">All image processing APIs are exhausted. Use manual alternatives below.</small>
+            </div>
+            
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <div class="card border-success">
+                        <div class="card-body text-center">
+                            <i class="fas fa-keyboard fa-2x text-success mb-2"></i>
+                            <h6 class="text-success">📝 Text Processing</h6>
+                            <p class="small text-muted mb-3">Copy booking table data for automatic extraction</p>
+                            <button onclick="openManualTextProcessing()" class="btn btn-success btn-sm w-100">
+                                📝 Use Text Processing
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card border-info">
+                        <div class="card-body text-center">
+                            <i class="fas fa-edit fa-2x text-info mb-2"></i>
+                            <h6 class="text-info">✏️ Manual Form</h6>
+                            <p class="small text-muted mb-3">Fill booking details manually</p>
+                            <button onclick="scrollToManualForm()" class="btn btn-info btn-sm w-100">
+                                ✏️ Manual Entry
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="text-center mt-3">
+                <small class="text-muted">💡 Recommendation: Use Text Processing for fastest results</small>
+            </div>
+        </div>
 
         <!-- OR DIVIDER -->
         <div class="text-center my-3">
@@ -976,7 +1016,22 @@ function processPhoto(imageData) {
         console.log('📋 AI Response:', data);
         
         if (data.error) {
-            alert('❌ Lỗi xử lý ảnh: ' + data.error);
+            console.log('🔍 [ERROR_DEBUG] Error message:', data.error);
+            
+            // Check if this is an API exhaustion error
+            const isApiExhausted = data.error.includes('APIs exhausted') || 
+                                 data.error.includes('API keys exhausted') || 
+                                 data.error.includes('booking extraction failed') ||
+                                 data.error.includes('All 5 APIs exhausted') ||
+                                 (data.error.includes('All') && data.error.includes('APIs') && data.error.includes('exhausted'));
+            
+            if (isApiExhausted) {
+                console.log('🔄 [FALLBACK] APIs exhausted detected, showing manual options');
+                showAIFallbackSection();
+                alert('🚨 AI Services Unavailable: ' + data.error + '\n\nManual options are now available below the upload area.');
+            } else {
+                alert('❌ Lỗi xử lý ảnh: ' + data.error);
+            }
             return;
         }
         
@@ -3476,6 +3531,51 @@ function handleSaveAllBookings() {
         }
     });
 }
+
+// === AI FALLBACK FUNCTIONS ===
+
+// Show AI fallback section when APIs are exhausted
+function showAIFallbackSection() {
+    const fallbackSection = document.getElementById('ai-fallback-section');
+    if (fallbackSection) {
+        fallbackSection.style.display = 'block';
+        // Smooth scroll to the fallback section
+        fallbackSection.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+}
+
+// Open manual text processing page
+function openManualTextProcessing() {
+    window.open('/bookings/add_from_image', '_blank');
+}
+
+// Scroll to manual form section
+function scrollToManualForm() {
+    const manualForm = document.querySelector('.card-header:has([data-bs-toggle="collapse"])');
+    if (manualForm) {
+        manualForm.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        // Expand the manual form if it's collapsed
+        const collapseButton = manualForm.querySelector('[data-bs-toggle="collapse"]');
+        if (collapseButton && collapseButton.getAttribute('aria-expanded') === 'false') {
+            collapseButton.click();
+        }
+    } else {
+        // Fallback: scroll to bottom of page where form likely is
+        window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+    }
+}
+
+// Initialize fallback section on page load (hidden by default)
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('📋 AI Fallback system initialized');
+    
+    // Hide fallback section initially
+    const fallbackSection = document.getElementById('ai-fallback-section');
+    if (fallbackSection) {
+        fallbackSection.style.display = 'none';
+    }
+});
+
 </script>
 
 <style>
