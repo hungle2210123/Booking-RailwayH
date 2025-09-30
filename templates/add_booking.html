@@ -632,6 +632,32 @@ async function processManualImage(imageData) {
     }
 }
 
+// Show option to save multiple bookings
+function showMultipleBookingsOption(bookings) {
+    const statusDiv = document.getElementById('manual-extraction-status');
+    if (!statusDiv) return;
+    
+    // Add a button to save all bookings
+    const saveAllBtn = document.createElement('button');
+    saveAllBtn.type = 'button';
+    saveAllBtn.className = 'btn btn-primary mt-2';
+    saveAllBtn.innerHTML = `<i class="fas fa-save me-1"></i>💾 Save All ${bookings.length} Bookings`;
+    
+    saveAllBtn.onclick = function() {
+        // Use the existing review table system
+        showReviewTable(bookings, null);
+        
+        // Hide manual mode and show AI results
+        const manualSection = document.getElementById('manual-mode-section');
+        const aiSection = document.getElementById('ai-results-review');
+        
+        if (manualSection) manualSection.style.display = 'none';
+        if (aiSection) aiSection.style.display = 'block';
+    };
+    
+    statusDiv.appendChild(saveAllBtn);
+}
+
 // Fill manual form with extracted data
 function fillManualFormWithData(booking) {
     const form = document.querySelector('#manual-form-container form');
