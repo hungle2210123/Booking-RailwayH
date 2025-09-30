@@ -3682,8 +3682,12 @@ def extract_booking_fallback(image_data: str, debug: bool = False) -> dict:
                 # Try Tesseract OCR
                 try:
                     import pytesseract
+                    print(f"🔧 [FALLBACK_EXTRACTOR] Importing pytesseract successful")
+                    print(f"🔧 [FALLBACK_EXTRACTOR] Running OCR with config: --oem 3 --psm 6 -l eng+vie")
+                    
                     text = pytesseract.image_to_string(enhanced, config=r'--oem 3 --psm 6 -l eng+vie')
-                    print(f"📝 [FALLBACK_EXTRACTOR] OCR text: {text[:500]}...")
+                    print(f"📝 [FALLBACK_EXTRACTOR] OCR completed, text length: {len(text)}")
+                    print(f"📝 [FALLBACK_EXTRACTOR] OCR text: '{text[:500]}'")
                     
                     # Enhanced extraction for Vietnamese booking table format
                     lines = text.split('\n')
@@ -3804,54 +3808,27 @@ def extract_booking_fallback(image_data: str, debug: bool = False) -> dict:
             else:
                 print(f"❌ [FALLBACK_EXTRACTOR] PYTHON_OCR_AVAILABLE is False - skipping OCR")
             
-            # If OCR extraction failed or no bookings found, use smart fallback
+            # If OCR extraction failed, return error instead of fake data
             width, height = pil_image.size
             print(f"🔍 [FALLBACK_EXTRACTOR] Image dimensions: {width}x{height}")
+            print(f"❌ [FALLBACK_EXTRACTOR] OCR extraction failed - will return error instead of fake data")
             
-            # For booking table images (wide but short), try smart extraction
-            if width > 800 and height < 200:
-                print("📊 [FALLBACK_EXTRACTOR] Booking table format detected - using smart extraction")
-                # This looks like a booking table row - return single booking with better defaults
-                return {
-                    'success': True,
-                    'bookings': [{
-                        'guest_name': 'Extracted Guest',
-                        'checkin_date': '2025-09-30',
-                        'checkout_date': '2025-10-01',
-                        'room_amount': 500000,  # More reasonable default
-                        'commission': 75000,    # 15% commission
-                        'booking_id': '0000000001',
-                        'room_type': '118 Hang Bac Hostel',
-                        'status': 'OK',
-                        'currency': 'VND'
-                    }],
-                    'total_bookings': 1,
-                    'total_revenue': 500000,
-                    'total_commission': 75000,
-                    'extraction_method': 'fallback_table_format'
-                }
-            
-            # For very small images (thumbnails), return single booking
-            elif height < 50 or width < 200:
-                print("📏 [FALLBACK_EXTRACTOR] Very small image detected - returning single booking")
-                return {
-                    'success': True,
-                    'bookings': [{
-                        'guest_name': 'New Guest',
-                        'checkin_date': '2025-09-30',
-                        'checkout_date': '2025-10-01',
-                        'room_amount': 800000,
-                        'commission': 120000,
-                        'booking_id': '0000000001',
-                        'room_type': '118 Hang Bac Hostel',
-                        'status': 'OK',
-                        'currency': 'VND'
-                    }],
-                    'total_bookings': 1,
-                    'total_revenue': 800000,
-                    'total_commission': 120000,
-                    'extraction_method': 'fallback_size_based'
-                }
+            # Return proper error instead of generating fake booking data
+            return {
+                'success': False,
+                'error': f'OCR text extraction failed for image ({width}x{height}). Cannot read booking data from image.',
+                'bookings': [],
+                'total_bookings': 0,
+                'total_revenue': 0,
+                'total_commission': 0,
+                'extraction_method': 'ocr_failed',
+                'debug_info': [
+                    f'Image size: {width}x{height}',
+                    f'PYTHON_OCR_AVAILABLE: {PYTHON_OCR_AVAILABLE}',
+                    'OCR extraction failed to find valid booking data',
+                    'Please check image quality or try a different extraction method'
+                ]
+            }
                 
         except Exception as img_error:
             print(f"❌ [FALLBACK_EXTRACTOR] Image processing failed: {img_error}")
