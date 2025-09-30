@@ -93,7 +93,7 @@ h1, h2, h3, h4, h5, h6 {
     background-color: rgba(0,0,0,.02);
 }
 </style>
-<h1 class="mb-4" style="color: #000;"><i class="fas fa-plus-circle me-2"></i>Thêm Đặt phòng <small style="color: #666; font-weight: 400;">Photo AI + Manual</small></h1>
+<h1 class="mb-4" style="color: #000;"><i class="fas fa-plus-circle me-2"></i>Thêm Đặt phòng <small style="color: #666; font-weight: 400;">AI hoặc Thủ công</small></h1>
 
 <!-- Duplicate Warning Modal -->
 {% if duplicate_warning %}
@@ -154,12 +154,28 @@ h1, h2, h3, h4, h5, h6 {
 </div>
 {% endif %}
 
-<!-- Smart Photo Upload Section -->
-<div class="card mb-4 border-primary">
-    <div class="card-header bg-primary text-white" style="text-shadow: 1px 1px 2px rgba(0,0,0,0.5);">
+<!-- Mode Selection -->
+<div class="card mb-4">
+    <div class="card-body">
+        <div class="text-center mb-4">
+            <h5 class="text-dark mb-3">Chọn phương thức thêm booking:</h5>
+            <div class="btn-group" role="group">
+                <button type="button" class="btn btn-primary btn-lg" id="ai-mode-btn" onclick="selectMode('ai')">
+                    <i class="fas fa-robot me-2"></i>🤖 AI Tự động
+                </button>
+                <button type="button" class="btn btn-outline-success btn-lg" id="manual-mode-btn" onclick="selectMode('manual')">
+                    <i class="fas fa-hand-paper me-2"></i>✋ Thủ công
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- AI Mode Section -->
+<div id="ai-mode-section" class="card mb-4 border-primary">
+    <div class="card-header bg-primary text-white">
         <h6 class="mb-0 text-white fw-bold">
-            <i class="fas fa-camera me-2"></i>
-            <span class="text-white">📸 AI Smart Upload - Tự động nhận diện 1 khách hoặc nhiều khách</span>
+            <i class="fas fa-camera me-2"></i>🤖 AI Smart Upload
         </h6>
     </div>
     <div class="card-body">
@@ -167,199 +183,36 @@ h1, h2, h3, h4, h5, h6 {
              style="cursor: pointer; background-color: #f8f9ff; transition: all 0.3s ease;">
             <i class="fas fa-cloud-upload-alt fa-2x text-primary mb-2"></i>
             <p class="mb-2"><strong>Dán ảnh (Ctrl+V) hoặc click để chọn file</strong></p>
-            <small class="text-muted">AI sẽ tự động phân tích và quyết định: điền form (1 khách) hoặc lưu nhiều khách</small>
+            <small class="text-muted">AI sẽ tự động phân tích và thêm booking</small>
             <input type="file" id="photo-input" accept="image/*" style="display: none;">
         </div>
-        
-        <!-- Always Available Manual Options -->
-        <div id="manual-options-always" class="border-2 border-dashed border-info rounded p-4 mt-3" style="background-color: #f0f8ff;">
-            <div class="text-center mb-3">
-                <i class="fas fa-tools fa-2x text-info mb-2"></i>
-                <h6 class="text-info mb-0"><strong>🛠️ Manual Alternatives (Always Available)</strong></h6>
-                <small class="text-muted">Use these when AI processing fails or for direct entry</small>
-            </div>
-            
-            <div class="row g-3">
-                <div class="col-md-6">
-                    <div class="card border-success">
-                        <div class="card-body text-center">
-                            <i class="fas fa-keyboard fa-2x text-success mb-2"></i>
-                            <h6 class="text-success">📝 Text Processing</h6>
-                            <p class="small text-muted mb-3">Copy booking table data for automatic extraction</p>
-                            <button onclick="openManualTextProcessing()" class="btn btn-success btn-sm w-100">
-                                📝 Use Text Processing
-                            </button>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-6">
-                    <div class="card border-info">
-                        <div class="card-body text-center">
-                            <i class="fas fa-edit fa-2x text-info mb-2"></i>
-                            <h6 class="text-info">✏️ Manual Form</h6>
-                            <p class="small text-muted mb-3">Fill booking details manually</p>
-                            <button onclick="scrollToManualForm()" class="btn btn-info btn-sm w-100">
-                                ✏️ Manual Entry
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="text-center mt-3">
-                <small class="text-muted">💡 These options work independently of AI services</small>
-            </div>
-        </div>
 
-        <!-- Emergency Manual Options (shown when AI fails) -->
-        <div id="ai-fallback-section" style="display: none;" class="border-2 border-dashed border-danger rounded p-4 mt-3" style="background-color: #fff5f5;">
-            <div class="text-center mb-3">
-                <i class="fas fa-exclamation-triangle fa-2x text-danger mb-2"></i>
-                <h6 class="text-danger mb-0"><strong>🚨 AI Services Unavailable</strong></h6>
-                <small class="text-muted">All image processing APIs are exhausted. Use manual alternatives below.</small>
-            </div>
-            
-            <div class="row g-3">
-                <div class="col-md-6">
-                    <div class="card border-success">
-                        <div class="card-body text-center">
-                            <i class="fas fa-keyboard fa-2x text-success mb-2"></i>
-                            <h6 class="text-success">📝 Text Processing</h6>
-                            <p class="small text-muted mb-3">Copy booking table data for automatic extraction</p>
-                            <button onclick="openManualTextProcessing()" class="btn btn-success btn-sm w-100">
-                                📝 Use Text Processing
-                            </button>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-6">
-                    <div class="card border-info">
-                        <div class="card-body text-center">
-                            <i class="fas fa-edit fa-2x text-info mb-2"></i>
-                            <h6 class="text-info">✏️ Manual Form</h6>
-                            <p class="small text-muted mb-3">Fill booking details manually</p>
-                            <button onclick="scrollToManualForm()" class="btn btn-info btn-sm w-100">
-                                ✏️ Manual Entry
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="text-center mt-3">
-                <small class="text-muted">💡 Recommendation: Use Text Processing for fastest results</small>
-            </div>
-        </div>
+    </div>
+</div>
 
-        <!-- OR DIVIDER -->
-        <div class="text-center my-3">
-            <span class="badge bg-secondary px-3 py-2">HOẶC</span>
-        </div>
-
-        <!-- PROFESSIONAL APARTMENT MANAGEMENT SECTION -->
-        <div class="border-2 border-dashed border-success rounded p-4" style="background-color: #f8fff8;">
-            <div class="text-center mb-4">
-                <i class="fas fa-building fa-2x text-success mb-2"></i>
-                <h5 class="text-success mb-0"><strong>🏢 Quản lý Căn hộ & Crawl Booking.com</strong></h5>
-                <small class="text-muted">Hệ thống crawl chuyên nghiệp cho 2 căn hộ của bạn</small>
-            </div>
-            
-            <!-- Environment Status Display -->
-            <div id="crawl-environment-status" class="mb-3" style="display: none;">
-                <div class="alert alert-warning">
-                    <div class="d-flex align-items-center">
-                        <i class="fas fa-exclamation-triangle me-2"></i>
-                        <div>
-                            <strong>Web Crawling Not Available</strong><br>
-                            <span id="crawl-environment-message">Checking environment...</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- Apartment Selection Cards -->
-            <div class="row mb-4">
-                <div class="col-md-6">
-                    <div class="card apartment-card" id="apartment-1" onclick="selectApartment(1)" style="cursor: pointer; border: 2px solid #e9ecef;">
-                        <div class="card-body text-center">
-                            <i class="fas fa-home fa-2x text-primary mb-2"></i>
-                            <h6 class="card-title text-primary">🏠 Căn hộ 1</h6>
-                            <small class="text-muted">Hotel ID: 14171449</small>
-                            <div class="mt-2">
-                                <span class="badge bg-light text-dark">Mặc định: 01/07 → 31/08</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-6">
-                    <div class="card apartment-card" id="apartment-2" onclick="selectApartment(2)" style="cursor: pointer; border: 2px solid #e9ecef;">
-                        <div class="card-body text-center">
-                            <i class="fas fa-building fa-2x text-warning mb-2"></i>
-                            <h6 class="card-title text-warning">🏢 Căn hộ 2</h6>
-                            <small class="text-muted">Hotel ID: 14174292</small>
-                            <div class="mt-2">
-                                <span class="badge bg-light text-dark">Mặc định: 27/06 → 31/08</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- Selected Apartment Info -->
-            <div id="selected-apartment-info" class="alert alert-info" style="display: none;">
-                <div class="row align-items-center">
-                    <div class="col-md-3">
-                        <strong id="selected-apartment-name">Chưa chọn căn hộ</strong>
-                        <br><small id="selected-apartment-id" class="text-muted">Hotel ID: ---</small>
-                    </div>
-                    <div class="col-md-6">
-                        <div class="row">
-                            <div class="col-6">
-                                <label class="form-label small">Từ ngày:</label>
-                                <input type="date" id="crawl-date-from" class="form-control form-control-sm">
-                            </div>
-                            <div class="col-6">
-                                <label class="form-label small">Đến ngày:</label>
-                                <input type="date" id="crawl-date-to" class="form-control form-control-sm">
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-md-3">
-                        <button id="start-crawl-btn" class="btn btn-success w-100" disabled>
-                            <i class="fas fa-spider me-2"></i>Bắt đầu Crawl
-                        </button>
-                    </div>
-                </div>
-                
-                <!-- Advanced Options -->
-                <div class="mt-3 pt-3 border-top">
-                    <div class="row align-items-center">
-                        <div class="col-md-6">
-                            <label class="form-label small">Browser Profile:</label>
-                            <select id="crawl-profile-select" class="form-select form-select-sm">
-                                <option value="booking_fixed_profile">booking_fixed_profile (Recommended)</option>
-                                <option value="booking_manual_profile">booking_manual_profile</option>
-                            </select>
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label small">Generated URL:</label>
-                            <input type="text" id="generated-url" class="form-control form-control-sm" readonly style="font-size: 11px;">
-                        </div>
-                    </div>
-                </div>
-            </div>
+<!-- Manual Mode Section -->
+<div id="manual-mode-section" class="card mb-4 border-success" style="display: none;">
+    <div class="card-header bg-success text-white">
+        <h6 class="mb-0 text-white fw-bold">
+            <i class="fas fa-hand-paper me-2"></i>✋ Thủ công - Paste ảnh trực tiếp
+        </h6>
+    </div>
+    <div class="card-body">
+        <div id="manual-photo-area" class="border-2 border-dashed border-success rounded p-4 text-center" 
+             style="cursor: pointer; background-color: #f8fff8; transition: all 0.3s ease;">
+            <i class="fas fa-images fa-2x text-success mb-2"></i>
+            <p class="mb-2"><strong>Dán ảnh (Ctrl+V) hoặc click để chọn file</strong></p>
+            <small class="text-muted">Không qua AI - bạn sẽ tự nhập thông tin booking</small>
+            <input type="file" id="manual-photo-input" accept="image/*" style="display: none;">
         </div>
         
-        <!-- Crawl Processing Status -->
-        <div id="crawl-processing" class="mt-3" style="display: none;">
-            <div class="alert alert-info">
-                <div class="d-flex align-items-center">
-                    <div class="spinner-border spinner-border-sm text-primary me-2"></div>
-                    <small class="text-primary"><strong>🕷️ Đang crawl admin panel và phân tích bằng AI...</strong></small>
-                </div>
-            </div>
+        <!-- Preview Image -->
+        <div id="manual-image-preview" style="display: none;" class="mt-3 text-center">
+            <img id="manual-preview-img" style="max-width: 100%; max-height: 400px; border: 2px solid #28a745; border-radius: 8px;">
         </div>
-        
+    </div>
+</div>
+
         <!-- Processing Status -->
         <div id="photo-processing" class="mt-3" style="display: none;">
             <div class="alert alert-info">
@@ -595,6 +448,97 @@ h1, h2, h3, h4, h5, h6 {
 <script>
 // Store extracted bookings for multiple booking scenario with session persistence
 let extractedBookings = [];
+
+// Mode selection functionality
+function selectMode(mode) {
+    const aiBtn = document.getElementById('ai-mode-btn');
+    const manualBtn = document.getElementById('manual-mode-btn');
+    const aiSection = document.getElementById('ai-mode-section');
+    const manualSection = document.getElementById('manual-mode-section');
+    
+    if (mode === 'ai') {
+        // Style buttons
+        aiBtn.className = 'btn btn-primary btn-lg';
+        manualBtn.className = 'btn btn-outline-success btn-lg';
+        
+        // Show/hide sections
+        aiSection.style.display = 'block';
+        manualSection.style.display = 'none';
+        
+        console.log('🤖 AI mode selected');
+    } else if (mode === 'manual') {
+        // Style buttons
+        aiBtn.className = 'btn btn-outline-primary btn-lg';
+        manualBtn.className = 'btn btn-success btn-lg';
+        
+        // Show/hide sections
+        aiSection.style.display = 'none';
+        manualSection.style.display = 'block';
+        
+        console.log('✋ Manual mode selected');
+        setupManualMode();
+    }
+}
+
+// Setup manual mode functionality
+function setupManualMode() {
+    const manualArea = document.getElementById('manual-photo-area');
+    const manualInput = document.getElementById('manual-photo-input');
+    const previewDiv = document.getElementById('manual-image-preview');
+    const previewImg = document.getElementById('manual-preview-img');
+    
+    // Click to select file
+    manualArea.onclick = () => manualInput.click();
+    
+    // File input change
+    manualInput.onchange = function(e) {
+        const file = e.target.files[0];
+        if (file) {
+            displayManualImage(file);
+        }
+    };
+    
+    // Paste functionality
+    document.addEventListener('paste', function(e) {
+        if (manualSection.style.display !== 'none') {
+            const items = e.clipboardData.items;
+            for (let item of items) {
+                if (item.type.indexOf('image') !== -1) {
+                    const file = item.getAsFile();
+                    displayManualImage(file);
+                    e.preventDefault();
+                    break;
+                }
+            }
+        }
+    });
+}
+
+// Display image in manual mode
+function displayManualImage(file) {
+    const previewDiv = document.getElementById('manual-image-preview');
+    const previewImg = document.getElementById('manual-preview-img');
+    
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        previewImg.src = e.target.result;
+        previewDiv.style.display = 'block';
+        
+        // Scroll to manual form
+        setTimeout(() => {
+            const manualForm = document.getElementById('manual-form-container');
+            if (manualForm) {
+                manualForm.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+        }, 500);
+    };
+    reader.readAsDataURL(file);
+}
+
+// Initialize with AI mode selected
+document.addEventListener('DOMContentLoaded', function() {
+    selectMode('ai');
+});
 
 // Apartment selection variables  
 let selectedApartment = null;
@@ -3591,12 +3535,7 @@ function showAIFallbackSection() {
     }
 }
 
-// Open manual text processing page
-function openManualTextProcessing() {
-    // Navigate to manual text processing page
-    const cacheBuster = Date.now();
-    window.location.href = `/bookings/add_from_image?v=${cacheBuster}`;
-}
+// Removed openManualTextProcessing - using new mode selection instead
 
 // Scroll to manual form section
 function scrollToManualForm() {
