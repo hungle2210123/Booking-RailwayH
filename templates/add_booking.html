@@ -475,7 +475,12 @@ function selectMode(mode) {
         aiSection.style.display = 'none';
         manualSection.style.display = 'block';
         
+        // Clear any previous extraction data when switching to manual mode
+        window.manualExtractedBookings = null;
+        window.extractedBookings = null; // Clear AI mode data too
+        
         console.log('✋ Manual mode selected');
+        console.log('🔄 [MANUAL_MODE] Cleared all previous extraction data');
         setupManualMode();
     }
 }
@@ -588,6 +593,9 @@ async function processManualImage(imageData) {
         const result = await response.json();
         
         if (result.success && result.bookings && result.bookings.length > 0) {
+            // Clear any old data first
+            window.manualExtractedBookings = null;
+            
             statusDiv.innerHTML = `
                 <div class="alert alert-success">
                     <h6><i class="fas fa-check-circle me-1"></i>Extraction Successful!</h6>
@@ -601,8 +609,11 @@ async function processManualImage(imageData) {
                 </div>
             `;
             
-            // Store the extracted bookings globally for the table function
+            // Store the NEW extracted bookings globally for the table function
             window.manualExtractedBookings = result.bookings;
+            
+            console.log(`🔄 [MANUAL_EXTRACTION] Updated manualExtractedBookings with ${result.bookings.length} new booking(s)`);
+            console.log('🔍 [MANUAL_EXTRACTION] New bookings data:', result.bookings.map(b => b.guest_name));
             
         } else {
             statusDiv.innerHTML = `
@@ -632,12 +643,17 @@ async function processManualImage(imageData) {
 
 // Show extracted bookings table from manual mode with duplicate checking
 async function showExtractedBookingsTable() {
+    console.log('🔍 [DEBUG] showExtractedBookingsTable called');
+    console.log('🔍 [DEBUG] window.manualExtractedBookings:', window.manualExtractedBookings);
+    console.log('🔍 [DEBUG] Number of bookings:', window.manualExtractedBookings ? window.manualExtractedBookings.length : 'undefined');
+    
     if (!window.manualExtractedBookings || window.manualExtractedBookings.length === 0) {
         alert('❌ No extracted bookings found. Please extract data from image first.');
         return;
     }
     
-    console.log('📋 Showing extracted bookings table with duplicate checking:', window.manualExtractedBookings);
+    console.log('📋 Showing extracted bookings table with duplicate checking');
+    console.log('📋 Guest names in current extraction:', window.manualExtractedBookings.map(b => b.guest_name));
     
     try {
         // Show loading indicator
@@ -1639,7 +1655,9 @@ function bulkSelectByConfidence() {
 // Auto-fill function removed - now using review table for all scenarios
 
 function showReviewTable(bookings, duplicateCheck) {
-    console.log('📊 Showing review table for:', bookings);
+    console.log('📊 [REVIEW_TABLE] Showing review table for bookings:', bookings.length);
+    console.log('📊 [REVIEW_TABLE] Guest names:', bookings.map(b => b.guest_name));
+    console.log('📊 [REVIEW_TABLE] Duplicate check data:', duplicateCheck);
     
     extractedBookings = bookings;
     
