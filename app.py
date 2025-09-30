@@ -10660,17 +10660,16 @@ def parse_deepseek_fallback_response(response_text, file_name):
         'confidence': 'medium'
     }
 
-def extract_meter_data_with_kimi(image_base64, request_id):
+def extract_meter_data_with_openrouter(image_base64, request_id, api_key, model_name, model_display):
     """
-    Extract electricity meter data using Mistral Small Free model via OpenRouter API
-    Completely FREE and automated - no manual input required
+    Extract electricity meter data using various free models via OpenRouter API
+    Supports: DeepSeek V3.1, Mistral 7B, and other free models
     """
     try:
-        openrouter_api_key = os.getenv('OPENROUTER_API_KEY')
-        if not openrouter_api_key:
-            raise Exception("OPENROUTER_API_KEY not found in environment")
+        if not api_key:
+            raise Exception("OpenRouter API key not provided")
         
-        print(f"🤖 [MISTRAL_OCR] {request_id} - Using Mistral Small 3.2 Free for OCR")
+        print(f"🤖 [OPENROUTER_OCR] {request_id} - Using {model_display} for OCR")
         
         # Prepare the prompt for Vietnamese electricity meter OCR
         system_prompt = """You are an expert Vietnamese electricity meter reader. Extract data from EMIC electricity meters with LCD displays.
@@ -10698,7 +10697,7 @@ Return ONLY JSON:
     "meter_id": "8_digit_meter_id",
     "reading": whole_number_only_no_decimals,
     "brand": "EMIC",
-    "model": "Mistral_Small_Free",
+    "model": model_display,
     "confidence": "high"
 }
 
@@ -10708,20 +10707,20 @@ MORE EXAMPLES:
 - LCD "00936 8" → reading: 936 (not 9368)
 - LCD "024315" (6 digits, no separator) → reading: 2431 (not 24315)"""
 
-        # Make API request to Kimi K2 Free
+        # Make API request to OpenRouter
         import requests
         import json
         
         response = requests.post(
             url="https://openrouter.ai/api/v1/chat/completions",
             headers={
-                "Authorization": f"Bearer {openrouter_api_key}",
+                "Authorization": f"Bearer {api_key}",
                 "Content-Type": "application/json",
                 "HTTP-Referer": "http://localhost:5000",
                 "X-Title": "Electricity OCR",
             },
             data=json.dumps({
-                "model": "mistralai/mistral-small-3.2-24b-instruct:free",
+                "model": model_name,
                 "messages": [
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": [
@@ -10748,28 +10747,28 @@ MORE EXAMPLES:
                     
                     # Validate required fields
                     if 'meter_id' in data and 'reading' in data:
-                        print(f"✅ [MISTRAL_SUCCESS] {request_id} - Meter: {data['meter_id']}, Reading: {data['reading']}")
+                        print(f"✅ [OPENROUTER_SUCCESS] {request_id} - {model_display} - Meter: {data['meter_id']}, Reading: {data['reading']}")
                         return {
                             'success': True,
                             'data': data,
-                            'extraction_method': 'mistral_small_free'
+                            'extraction_method': f'openrouter_{model_display.lower()}'
                         }
                     else:
-                        print(f"❌ [MISTRAL_INVALID] {request_id} - Missing required fields")
+                        print(f"❌ [OPENROUTER_INVALID] {request_id} - {model_display} - Missing required fields")
                         return {'success': False, 'error': 'Invalid OCR response format'}
                 else:
-                    print(f"❌ [MISTRAL_NO_JSON] {request_id} - No JSON found in response")
+                    print(f"❌ [OPENROUTER_NO_JSON] {request_id} - {model_display} - No JSON found in response")
                     return {'success': False, 'error': 'No JSON response from OCR'}
                     
             except json.JSONDecodeError as e:
-                print(f"❌ [MISTRAL_JSON_ERROR] {request_id} - {e}")
+                print(f"❌ [OPENROUTER_JSON_ERROR] {request_id} - {model_display} - {e}")
                 return {'success': False, 'error': 'JSON parse error'}
         else:
-            print(f"❌ [MISTRAL_API_ERROR] {request_id} - Status: {response.status_code}")
+            print(f"❌ [OPENROUTER_API_ERROR] {request_id} - {model_display} - Status: {response.status_code}")
             return {'success': False, 'error': f'API error: {response.status_code}'}
             
     except Exception as e:
-        print(f"❌ [MISTRAL_EXCEPTION] {request_id} - {e}")
+        print(f"❌ [OPENROUTER_EXCEPTION] {request_id} - {model_display} - {e}")
         return {'success': False, 'error': str(e)}
 
 def extract_meter_data_with_multi_api(image_base64, request_id):
@@ -10876,13 +10875,34 @@ FINAL CHECK: The reading must be a reasonable household value (typically 100-500
                 print(f"❌ [GEMINI_ERROR] {request_id} - {key_name} error: {error_str[:100]}")
             continue
     
-    # If all Gemini APIs failed, try OpenRouter
+    # If all Gemini APIs failed, try OpenRouter with multiple APIs
     print(f"🔄 [FALLBACK] {request_id} - All Gemini APIs exhausted, trying OpenRouter...")
     
-    # Try OpenRouter with Mistral
-    openrouter_result = extract_meter_data_with_kimi(image_base64, request_id)
-    if openrouter_result['success']:
-        return openrouter_result
+    # Get all available OpenRouter API keys
+    openrouter_keys = []
+    for i in range(1, 6):
+        key_name = f'OPENROUTER_API_KEY_{i}' if i > 1 else 'OPENROUTER_API_KEY'
+        key = os.getenv(key_name)
+        if key and key.strip():
+            openrouter_keys.append((key_name, key))
+    
+    print(f"🔑 [OPENROUTER_MULTI] {request_id} - Found {len(openrouter_keys)} OpenRouter API keys")
+    
+    # Try each OpenRouter API key with different models
+    for key_name, api_key in openrouter_keys:
+        # Try DeepSeek V3.1 first if this is the new key
+        if 'KEY_2' in key_name:
+            model_name = 'deepseek/deepseek-chat'
+            model_display = 'DeepSeek_V3.1_Free'
+            print(f"🧠 [DEEPSEEK_TRY] {request_id} - Trying {key_name} with DeepSeek V3.1")
+        else:
+            model_name = 'mistralai/mistral-7b-instruct:free'
+            model_display = 'Mistral_7B_Free'
+            print(f"🌟 [MISTRAL_TRY] {request_id} - Trying {key_name} with Mistral 7B")
+        
+        openrouter_result = extract_meter_data_with_openrouter(image_base64, request_id, api_key, model_name, model_display)
+        if openrouter_result['success']:
+            return openrouter_result
     
     # All APIs failed
     print(f"❌ [ALL_FAILED] {request_id} - All APIs failed, manual entry required")
