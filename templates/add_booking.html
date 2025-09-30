@@ -630,37 +630,112 @@ async function processManualImage(imageData) {
     }
 }
 
-// Show extracted bookings table from manual mode
-function showExtractedBookingsTable() {
+// Show extracted bookings table from manual mode with duplicate checking
+async function showExtractedBookingsTable() {
     if (!window.manualExtractedBookings || window.manualExtractedBookings.length === 0) {
         alert('❌ No extracted bookings found. Please extract data from image first.');
         return;
     }
     
-    console.log('📋 Showing extracted bookings table:', window.manualExtractedBookings);
+    console.log('📋 Showing extracted bookings table with duplicate checking:', window.manualExtractedBookings);
     
-    // Use the existing review table system
-    showReviewTable(window.manualExtractedBookings, null);
-    
-    // Hide manual mode and show AI results section
-    const manualSection = document.getElementById('manual-mode-section');
-    const aiSection = document.getElementById('ai-results-review');
-    
-    if (manualSection) {
-        manualSection.style.display = 'none';
-        console.log('🔄 Hidden manual mode section');
-    }
-    if (aiSection) {
-        aiSection.style.display = 'block';
-        console.log('🔄 Shown AI results section with table');
-    }
-    
-    // Scroll to the review table
-    setTimeout(() => {
-        if (aiSection) {
-            aiSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    try {
+        // Show loading indicator
+        const statusDiv = document.getElementById('manual-extraction-status');
+        if (statusDiv) {
+            const loadingDiv = document.createElement('div');
+            loadingDiv.id = 'duplicate-check-loading';
+            loadingDiv.className = 'alert alert-info mt-2';
+            loadingDiv.innerHTML = `
+                <div class="d-flex align-items-center">
+                    <div class="spinner-border spinner-border-sm me-2" role="status"></div>
+                    <span>🔍 Checking for duplicate bookings...</span>
+                </div>
+            `;
+            statusDiv.appendChild(loadingDiv);
         }
-    }, 300);
+        
+        // Check for duplicates using the existing API
+        const response = await fetch('/api/check_duplicates', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ bookings: window.manualExtractedBookings })
+        });
+        
+        const duplicateCheck = await response.json();
+        
+        // Remove loading indicator
+        const loadingDiv = document.getElementById('duplicate-check-loading');
+        if (loadingDiv) {
+            loadingDiv.remove();
+        }
+        
+        console.log('🔍 Duplicate check results:', duplicateCheck);
+        
+        // Show duplicate warning if found
+        if (duplicateCheck.success && duplicateCheck.has_duplicates) {
+            const duplicateCount = duplicateCheck.duplicates.length;
+            const duplicateNames = duplicateCheck.duplicates.map(dup => dup.guest_name).join(', ');
+            
+            // Add duplicate warning to status
+            if (statusDiv) {
+                const warningDiv = document.createElement('div');
+                warningDiv.className = 'alert alert-warning mt-2';
+                warningDiv.innerHTML = `
+                    <h6><i class="fas fa-exclamation-triangle me-1"></i>⚠️ Duplicate Bookings Found</h6>
+                    <p class="mb-1">Found ${duplicateCount} booking(s) that may already exist:</p>
+                    <p class="mb-1"><strong>${duplicateNames}</strong></p>
+                    <small class="text-muted">Duplicates will be highlighted in yellow in the review table below.</small>
+                `;
+                statusDiv.appendChild(warningDiv);
+            }
+            
+            console.log(`⚠️ [MANUAL_MODE] Found ${duplicateCount} duplicate bookings: ${duplicateNames}`);
+        }
+        
+        // Use the existing review table system with duplicate check results
+        showReviewTable(window.manualExtractedBookings, duplicateCheck);
+        
+        // Hide manual mode and show AI results section
+        const manualSection = document.getElementById('manual-mode-section');
+        const aiSection = document.getElementById('ai-results-review');
+        
+        if (manualSection) {
+            manualSection.style.display = 'none';
+            console.log('🔄 Hidden manual mode section');
+        }
+        if (aiSection) {
+            aiSection.style.display = 'block';
+            console.log('🔄 Shown AI results section with table');
+        }
+        
+        // Scroll to the review table
+        setTimeout(() => {
+            if (aiSection) {
+                aiSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+        }, 300);
+        
+    } catch (error) {
+        console.error('❌ Error checking duplicates in manual mode:', error);
+        
+        // Remove loading indicator if still present
+        const loadingDiv = document.getElementById('duplicate-check-loading');
+        if (loadingDiv) {
+            loadingDiv.remove();
+        }
+        
+        // Show table without duplicate checking as fallback
+        alert('⚠️ Could not check for duplicates, but will show table anyway.\nPlease manually check for existing bookings.');
+        showReviewTable(window.manualExtractedBookings, null);
+        
+        // Hide manual mode and show AI results section
+        const manualSection = document.getElementById('manual-mode-section');
+        const aiSection = document.getElementById('ai-results-review');
+        
+        if (manualSection) manualSection.style.display = 'none';
+        if (aiSection) aiSection.style.display = 'block';
+    }
 }
 
 // Legacy function for backward compatibility
