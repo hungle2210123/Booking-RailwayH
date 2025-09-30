@@ -1970,11 +1970,22 @@ document.addEventListener('DOMContentLoaded', function() {
         const currentYear = urlParams.get('year') || new Date().getFullYear();
         const currentMonth = urlParams.get('month') || (new Date().getMonth() + 1);
         
-        fetch(`/api/canceled_bookings?year=${currentYear}&month=${currentMonth}&count_only=true`)
+        fetch(`/api/canceled_bookings?year=${currentYear}&month=${currentMonth}`)
             .then(response => response.json())
             .then(data => {
-                if (data.success && data.count !== undefined) {
-                    countBadge.textContent = data.count;
+                if (data.success && data.canceled_bookings) {
+                    // Apply the same filtering logic as the display: only future check-ins
+                    const today = new Date();
+                    today.setHours(0, 0, 0, 0); // Reset time for accurate comparison
+                    
+                    const futureGuestsOnly = data.canceled_bookings.filter(guest => {
+                        const checkinDate = new Date(guest.checkin_date);
+                        checkinDate.setHours(0, 0, 0, 0);
+                        return checkinDate >= today; // Only future or today check-ins
+                    });
+                    
+                    countBadge.textContent = futureGuestsOnly.length;
+                    console.log(`🔢 [CANCELED_COUNT] Initial load: ${futureGuestsOnly.length} future canceled guests (filtered from ${data.canceled_bookings.length} total)`);
                 }
             })
             .catch(error => {
