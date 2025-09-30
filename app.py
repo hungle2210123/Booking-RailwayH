@@ -99,6 +99,15 @@ from core.crawl_service import CrawlIntegration
 # Import auto sync service
 from core.auto_sync_service import auto_sync_service
 
+# Import production booking extractor
+try:
+    from production_booking_extractor import extract_booking_from_image_flask
+    PRODUCTION_EXTRACTOR_AVAILABLE = True
+    print("✅ Production booking extractor loaded")
+except ImportError:
+    PRODUCTION_EXTRACTOR_AVAILABLE = False
+    print("⚠️ Production booking extractor not available")
+
 # Import optimized crawling and performance monitoring
 from core.performance_dashboard import performance_bp
 
@@ -3543,6 +3552,64 @@ def process_booking_text():
         return jsonify({
             'success': False,
             'error': f'Text processing failed: {str(e)}'
+        }), 500
+
+@app.route('/api/process_booking_image_advanced', methods=['POST'])
+def process_booking_image_advanced():
+    """Advanced image processing using production extractor"""
+    try:
+        data = request.get_json()
+        
+        if not data or 'image' not in data:
+            return jsonify({
+                'success': False,
+                'error': 'No image data provided'
+            }), 400
+        
+        image_data = data['image']
+        debug = data.get('debug', False)
+        
+        print(f"🔍 [ADVANCED_IMAGE] Processing image with production extractor...")
+        print(f"🔍 [ADVANCED_IMAGE] Debug mode: {debug}")
+        
+        if PRODUCTION_EXTRACTOR_AVAILABLE:
+            result = extract_booking_from_image_flask(image_data, debug=debug)
+            
+            if result['success']:
+                print(f"✅ [ADVANCED_IMAGE] Extracted {result['total_bookings']} bookings")
+                print(f"💰 [ADVANCED_IMAGE] Total revenue: {result['total_revenue']:,} VND")
+                
+                return jsonify({
+                    'success': True,
+                    'bookings': result['bookings'],
+                    'total_bookings': result['total_bookings'],
+                    'total_revenue': result['total_revenue'],
+                    'total_commission': result['total_commission'],
+                    'extraction_method': result['extraction_method'],
+                    'message': f'Successfully extracted {result["total_bookings"]} booking(s) using {result["extraction_method"]}',
+                    'debug_info': result.get('debug_info', []) if debug else []
+                })
+            else:
+                print(f"❌ [ADVANCED_IMAGE] Extraction failed: {result['error']}")
+                return jsonify({
+                    'success': False,
+                    'error': result['error'],
+                    'extraction_method': 'failed',
+                    'debug_info': result.get('debug_info', []) if debug else []
+                }), 500
+        else:
+            return jsonify({
+                'success': False,
+                'error': 'Production extractor not available',
+                'extraction_method': 'unavailable'
+            }), 500
+            
+    except Exception as e:
+        print(f"❌ [ADVANCED_IMAGE] Critical error: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': f'Advanced image processing failed: {str(e)}',
+            'extraction_method': 'error'
         }), 500
 
 def parse_booking_text(text):

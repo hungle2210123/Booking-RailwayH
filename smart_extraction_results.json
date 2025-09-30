@@ -1,0 +1,56 @@
+{
+  "bookings": [
+    {
+      "guest_name": "Piotr Konczakowski",
+      "checkin_date": "2025-09-30",
+      "checkout_date": "2025-10-03",
+      "room_amount": 995950,
+      "commission": 201001,
+      "booking_id": "6675995308"
+    },
+    {
+      "guest_name": "Lara Schroeder",
+      "checkin_date": "2025-09-30",
+      "checkout_date": "2025-10-05",
+      "room_amount": 1647845,
+      "commission": 298786,
+      "booking_id": "6848283925"
+    },
+    {
+      "guest_name": "murat percin",
+      "checkin_date": "2025-10-01",
+      "checkout_date": "2025-10-05",
+      "room_amount": 2178540,
+      "commission": 326781,
+      "booking_id": "6213677291"
+    },
+    {
+      "guest_name": "SUBODH KUMAR BARAL",
+      "checkin_date": "2025-10-03",
+      "checkout_date": "2025-10-04",
+      "room_amount": 542513,
+      "commission": 81377,
+      "booking_id": "5822406722"
+    },
+    {
+      "guest_name": "Lang Van Thiên",
+      "checkin_date": "2025-10-03",
+      "checkout_date": "2025-10-06",
+      "room_amount": 1417163,
+      "commission": 212574,
+      "booking_id": "6525759449"
+    }
+  ],
+  "validation": {
+    "valid": true,
+    "booking_count": 5,
+    "total_revenue": 6782011,
+    "expected_revenue": 6782011,
+    "revenue_match": true,
+    "total_commission": 1120519,
+    "expected_commission": 1120519,
+    "commission_match": true,
+    "errors": []
+  },
+  "method_used": "auto"
+}

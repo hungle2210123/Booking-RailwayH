@@ -525,6 +525,9 @@ function displayManualImage(file) {
         previewImg.src = e.target.result;
         previewDiv.style.display = 'block';
         
+        // Add processing button
+        showManualProcessingOptions(e.target.result);
+        
         // Scroll to manual form
         setTimeout(() => {
             const manualForm = document.getElementById('manual-form-container');
@@ -534,6 +537,137 @@ function displayManualImage(file) {
         }, 500);
     };
     reader.readAsDataURL(file);
+}
+
+// Show manual processing options after image is loaded
+function showManualProcessingOptions(imageData) {
+    const previewDiv = document.getElementById('manual-image-preview');
+    
+    // Add processing buttons if not already added
+    if (!document.getElementById('manual-processing-buttons')) {
+        const buttonContainer = document.createElement('div');
+        buttonContainer.id = 'manual-processing-buttons';
+        buttonContainer.className = 'mt-3 text-center';
+        buttonContainer.innerHTML = `
+            <div class="btn-group" role="group">
+                <button type="button" class="btn btn-success" onclick="processManualImage('${imageData}')">
+                    <i class="fas fa-magic me-1"></i>🔍 Extract Data from Image
+                </button>
+                <button type="button" class="btn btn-info" onclick="scrollToManualForm()">
+                    <i class="fas fa-edit me-1"></i>✏️ Manual Entry
+                </button>
+            </div>
+            <div id="manual-processing-status" class="mt-2"></div>
+        `;
+        previewDiv.appendChild(buttonContainer);
+    }
+}
+
+// Process image using advanced extractor
+async function processManualImage(imageData) {
+    const statusDiv = document.getElementById('manual-processing-status');
+    const extractBtn = document.querySelector('button[onclick*="processManualImage"]');
+    
+    try {
+        // Show loading state
+        extractBtn.disabled = true;
+        extractBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Processing...';
+        statusDiv.innerHTML = '<div class="alert alert-info"><i class="fas fa-cog fa-spin me-1"></i>Analyzing image with advanced extraction...</div>';
+        
+        const response = await fetch('/api/process_booking_image_advanced', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                image: imageData,
+                debug: true
+            })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success && result.bookings && result.bookings.length > 0) {
+            statusDiv.innerHTML = `
+                <div class="alert alert-success">
+                    <h6><i class="fas fa-check-circle me-1"></i>Extraction Successful!</h6>
+                    <p class="mb-2">Found ${result.total_bookings} booking(s) using ${result.extraction_method}</p>
+                    <small>Revenue: ${result.total_revenue.toLocaleString()} VND | Commission: ${result.total_commission.toLocaleString()} VND</small>
+                </div>
+            `;
+            
+            // Fill the first booking into the manual form
+            if (result.bookings[0]) {
+                fillManualFormWithData(result.bookings[0]);
+            }
+            
+            // If multiple bookings, show option to save all
+            if (result.bookings.length > 1) {
+                showMultipleBookingsOption(result.bookings);
+            }
+            
+        } else {
+            statusDiv.innerHTML = `
+                <div class="alert alert-warning">
+                    <h6><i class="fas fa-exclamation-triangle me-1"></i>No Data Extracted</h6>
+                    <p class="mb-0">${result.error || 'Could not extract booking data from image'}</p>
+                    <small class="text-muted">Please use manual entry below.</small>
+                </div>
+            `;
+        }
+        
+    } catch (error) {
+        console.error('Manual image processing error:', error);
+        statusDiv.innerHTML = `
+            <div class="alert alert-danger">
+                <h6><i class="fas fa-times-circle me-1"></i>Processing Failed</h6>
+                <p class="mb-0">Error: ${error.message}</p>
+                <small class="text-muted">Please use manual entry below.</small>
+            </div>
+        `;
+    } finally {
+        // Reset button
+        extractBtn.disabled = false;
+        extractBtn.innerHTML = '<i class="fas fa-magic me-1"></i>🔍 Extract Data from Image';
+    }
+}
+
+// Fill manual form with extracted data
+function fillManualFormWithData(booking) {
+    const form = document.querySelector('#manual-form-container form');
+    if (!form) return;
+    
+    // Fill form fields
+    const fieldMap = {
+        'Tên người đặt': booking.guest_name,
+        'Số đặt phòng': booking.booking_id,
+        'Ngày đến': booking.checkin_date,
+        'Ngày đi': booking.checkout_date,
+        'Tổng thanh toán': booking.room_amount,
+        'Hoa hồng': booking.commission
+    };
+    
+    for (const [fieldName, value] of Object.entries(fieldMap)) {
+        const field = form.querySelector(`[name="${fieldName}"]`);
+        if (field && value) {
+            field.value = value;
+            // Trigger change event for any listeners
+            field.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+    }
+    
+    // Scroll to form
+    form.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    
+    // Show success message
+    const alertDiv = document.createElement('div');
+    alertDiv.className = 'alert alert-success alert-dismissible fade show mt-3';
+    alertDiv.innerHTML = `
+        <i class="fas fa-check-circle me-1"></i>
+        <strong>Data Filled!</strong> Booking data has been automatically filled from the image.
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    form.insertBefore(alertDiv, form.firstChild);
 }
 
 // Initialize with AI mode selected
