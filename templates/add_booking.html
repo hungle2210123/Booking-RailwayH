@@ -500,7 +500,8 @@ function setupManualMode() {
     
     // Paste functionality
     document.addEventListener('paste', function(e) {
-        if (manualSection.style.display !== 'none') {
+        const manualSection = document.getElementById('manual-mode-section');
+        if (manualSection && manualSection.style.display !== 'none') {
             const items = e.clipboardData.items;
             for (let item of items) {
                 if (item.type.indexOf('image') !== -1) {
@@ -2041,30 +2042,43 @@ async function checkCrawlingCapabilities() {
     }
 }
 
-// Initialize apartment management
+// Initialize apartment management (legacy - check if elements exist)
 document.addEventListener('DOMContentLoaded', function() {
     // Check crawling capabilities on page load
     checkCrawlingCapabilities();
     
-    // Set default dates to current month
-    const today = new Date();
-    const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
-    const lastDay = new Date(today.getFullYear(), today.getMonth() + 2, 0); // Next month end
+    // Only set up crawling if elements exist (removed in redesign)
+    const crawlDateFrom = document.getElementById('crawl-date-from');
+    const crawlDateTo = document.getElementById('crawl-date-to');
     
-    document.getElementById('crawl-date-from').value = firstDay.toISOString().split('T')[0];
-    document.getElementById('crawl-date-to').value = lastDay.toISOString().split('T')[0];
-    
-    // Add event listeners
-    document.getElementById('crawl-date-from').addEventListener('change', updateGeneratedUrl);
-    document.getElementById('crawl-date-to').addEventListener('change', updateGeneratedUrl);
+    if (crawlDateFrom && crawlDateTo) {
+        // Set default dates to current month
+        const today = new Date();
+        const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
+        const lastDay = new Date(today.getFullYear(), today.getMonth() + 2, 0); // Next month end
+        
+        crawlDateFrom.value = firstDay.toISOString().split('T')[0];
+        crawlDateTo.value = lastDay.toISOString().split('T')[0];
+        
+        // Add event listeners
+        crawlDateFrom.addEventListener('change', updateGeneratedUrl);
+        crawlDateTo.addEventListener('change', updateGeneratedUrl);
+    }
 });
 
 function updateGeneratedUrl() {
     if (!selectedApartment) return;
     
     const apartment = APARTMENTS[selectedApartment];
-    const dateFrom = document.getElementById('crawl-date-from').value;
-    const dateTo = document.getElementById('crawl-date-to').value;
+    const crawlDateFrom = document.getElementById('crawl-date-from');
+    const crawlDateTo = document.getElementById('crawl-date-to');
+    const generatedUrl = document.getElementById('generated-url');
+    
+    // Only proceed if elements exist
+    if (!crawlDateFrom || !crawlDateTo || !generatedUrl) return;
+    
+    const dateFrom = crawlDateFrom.value;
+    const dateTo = crawlDateTo.value;
     
     // Use your complete crawl URL directly, but update dates if different
     let fullUrl = apartment.crawlUrl;
@@ -2077,7 +2091,7 @@ function updateGeneratedUrl() {
         fullUrl = url.toString();
     }
     
-    document.getElementById('generated-url').value = fullUrl;
+    generatedUrl.value = fullUrl;
     
     console.log(`🔗 Using your configured URL for ${apartment.name}:`, fullUrl);
 }
