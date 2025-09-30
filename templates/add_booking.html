@@ -3593,9 +3593,9 @@ function showAIFallbackSection() {
 
 // Open manual text processing page
 function openManualTextProcessing() {
-    // Add cache-busting parameter to ensure latest version loads
+    // Navigate to manual text processing page
     const cacheBuster = Date.now();
-    window.open(`/bookings/add_from_image?v=${cacheBuster}`, '_blank');
+    window.location.href = `/bookings/add_from_image?v=${cacheBuster}`;
 }
 
 // Scroll to manual form section

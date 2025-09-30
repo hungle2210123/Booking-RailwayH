@@ -1889,6 +1889,11 @@ def add_booking():
     
     return render_template('add_booking.html')
 
+@app.route('/bookings/add_from_image', methods=['GET'])
+def add_booking_from_image():
+    """Manual text processing page for booking extraction"""
+    return render_template('add_from_image.html')
+
 @app.route('/booking/<booking_id>/edit', methods=['GET', 'POST'])
 def edit_booking(booking_id):
     """Edit booking in PostgreSQL"""
