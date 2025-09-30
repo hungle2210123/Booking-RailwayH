@@ -1970,26 +1970,51 @@ document.addEventListener('DOMContentLoaded', function() {
         const currentYear = urlParams.get('year') || new Date().getFullYear();
         const currentMonth = urlParams.get('month') || (new Date().getMonth() + 1);
         
+        console.log(`🔍 [CANCELED_COUNT_DEBUG] Starting initial count load for ${currentYear}-${currentMonth}`);
+        console.log(`🔍 [CANCELED_COUNT_DEBUG] Found count badge element:`, countBadge);
+        console.log(`🔍 [CANCELED_COUNT_DEBUG] Current badge text:`, countBadge?.textContent);
+        
         fetch(`/api/canceled_bookings?year=${currentYear}&month=${currentMonth}`)
-            .then(response => response.json())
+            .then(response => {
+                console.log(`🔍 [CANCELED_COUNT_DEBUG] API response status:`, response.status);
+                return response.json();
+            })
             .then(data => {
+                console.log(`🔍 [CANCELED_COUNT_DEBUG] API response data:`, data);
+                
                 if (data.success && data.canceled_bookings) {
+                    console.log(`🔍 [CANCELED_COUNT_DEBUG] Total canceled bookings from API: ${data.canceled_bookings.length}`);
+                    
                     // Apply the same filtering logic as the display: only future check-ins
                     const today = new Date();
                     today.setHours(0, 0, 0, 0); // Reset time for accurate comparison
+                    console.log(`🔍 [CANCELED_COUNT_DEBUG] Today date for comparison:`, today.toISOString());
                     
-                    const futureGuestsOnly = data.canceled_bookings.filter(guest => {
+                    const futureGuestsOnly = data.canceled_bookings.filter((guest, index) => {
                         const checkinDate = new Date(guest.checkin_date);
                         checkinDate.setHours(0, 0, 0, 0);
-                        return checkinDate >= today; // Only future or today check-ins
+                        const isFuture = checkinDate >= today;
+                        
+                        if (index < 5) { // Log first 5 for debugging
+                            console.log(`🔍 [CANCELED_COUNT_DEBUG] Guest ${index + 1}: ${guest.guest_name}, checkin: ${guest.checkin_date}, isFuture: ${isFuture}`);
+                        }
+                        
+                        return isFuture; // Only future or today check-ins
                     });
                     
+                    console.log(`🔍 [CANCELED_COUNT_DEBUG] After filtering - Future guests only: ${futureGuestsOnly.length}`);
+                    console.log(`🔍 [CANCELED_COUNT_DEBUG] Setting badge text to:`, futureGuestsOnly.length);
+                    
                     countBadge.textContent = futureGuestsOnly.length;
+                    
                     console.log(`🔢 [CANCELED_COUNT] Initial load: ${futureGuestsOnly.length} future canceled guests (filtered from ${data.canceled_bookings.length} total)`);
+                    console.log(`🔍 [CANCELED_COUNT_DEBUG] Badge text after setting:`, countBadge.textContent);
+                } else {
+                    console.log(`🔍 [CANCELED_COUNT_DEBUG] API response not successful or no canceled_bookings array`);
                 }
             })
             .catch(error => {
-                console.log('Could not load canceled guests count:', error);
+                console.error('🔍 [CANCELED_COUNT_DEBUG] Error loading canceled guests count:', error);
             });
     }
 });
