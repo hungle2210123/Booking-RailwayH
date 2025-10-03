@@ -8468,33 +8468,42 @@ async function initializeCollectorMonthSelector() {
             updateCollectorChart();
         }, 100);
     } catch (error) {
-        console.error('🗓️ [COLLECTOR_MONTH] Error loading available months:', error);
-        
-        // Clear the table to remove any error messages
-        const statsBody = document.getElementById('collectorStatsBody');
-        if (statsBody) {
-            statsBody.innerHTML = `
-                <tr>
-                    <td colspan="4" class="text-center text-muted">
-                        <i class="fas fa-exclamation-triangle me-1"></i>Lỗi tải danh sách tháng
-                    </td>
-                </tr>
-            `;
+        console.error('🗓️ [COLLECTOR_MONTH] Error in initialization:', error);
+        console.error('🗓️ [COLLECTOR_MONTH] Error stack:', error.stack);
+
+        // Even on error, populate with all 12 months
+        monthSelect.innerHTML = '';
+        const currentYear = 2025;
+        const today = new Date();
+        const currentMonth = today.getMonth() + 1;
+
+        for (let month = 1; month <= 12; month++) {
+            const monthValue = `${currentYear}-${String(month).padStart(2, '0')}`;
+            const date = new Date(currentYear, month - 1, 1);
+            const monthName = date.toLocaleDateString('vi-VN', {
+                year: 'numeric',
+                month: 'long'
+            });
+
+            const option = document.createElement('option');
+            option.value = monthValue;
+            option.textContent = monthName;
+
+            if (month === currentMonth) {
+                option.textContent += ' - hiện tại';
+                option.selected = true;
+            }
+
+            monthSelect.appendChild(option);
         }
-        
-        // Fallback: show error option and force add known months
-        monthSelect.innerHTML = `
-            <option value="current">Tháng hiện tại (tháng 7)</option>
-            <option value="2025-07">tháng 7 năm 2025 (hiện tại)</option>
-            <option value="2025-06">tháng 6 năm 2025 (41,000,000đ)</option>
-            <option value="2025-05">tháng 5 năm 2025 (15,000,000đ)</option>
-            <option value="error" disabled>Lỗi tải danh sách tháng</option>
-        `;
-        console.log('🔧 [FALLBACK] Added May/June 2025 as fallback options');
-        
-        // Immediately try to load data for June
+
+        console.log('🔧 [FALLBACK] Added all 12 months as fallback');
+
+        // Try to load data
         setTimeout(() => {
-            updateCollectorChart();
+            if (typeof updateCollectorChart === 'function') {
+                updateCollectorChart();
+            }
         }, 500);
     }
 }
