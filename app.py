@@ -8373,96 +8373,91 @@ def railway_setup_guide():
 
 @app.route('/api/collector_available_months', methods=['GET'])
 def get_collector_available_months():
-    """Get list of months that have collector data available"""
+    """Get list of ALL months that have booking data (not just collector data)"""
     try:
-        print(f"🗓️ [AVAILABLE_MONTHS] Getting months with collector data...")
-        
+        print(f"🗓️ [AVAILABLE_MONTHS] Getting all months with bookings...")
+
         # Load booking data
         df = load_booking_data_for_calculations()
         if df.empty:
             return jsonify({'success': True, 'months': []})
-        
-        # Apply collector validation (same logic as chart API)
-        valid_collectors = ['LOC LE', 'THAO LE']
-        
+
         # Ensure Check-in Date is datetime
+        df = df.copy()
         df['Check-in Date'] = pd.to_datetime(df['Check-in Date'], errors='coerce')
-        
-        # Don't filter by checked-in date - show all months with data
-        print(f"🗓️ [AVAILABLE_MONTHS] Total records: {len(df)}")
-        
-        # Filter for valid collector bookings with amounts > 0
-        if 'Người thu tiền' in df.columns and 'Tổng thanh toán' in df.columns:
-            valid_collector_mask = df['Người thu tiền'].isin(valid_collectors)
-            amount_mask = pd.to_numeric(df['Tổng thanh toán'], errors='coerce') > 0
-            date_mask = df['Check-in Date'].notna()
-            
-            # Apply all filters - removed checked-in filter to show all months
-            all_filters = valid_collector_mask & amount_mask & date_mask
-            valid_df = df[all_filters].copy()
-            
-            print(f"🗓️ [AVAILABLE_MONTHS] After all filters: {len(valid_df)} records")
-            
-            if not valid_df.empty:
-                # Extract year-month combinations
-                valid_df['YearMonth'] = valid_df['Check-in Date'].dt.strftime('%Y-%m')
-                unique_months = valid_df['YearMonth'].unique()
-                
-                # Convert to list of month objects with additional info
-                available_months = []
-                for month_str in sorted(unique_months):
-                    year, month = month_str.split('-')
-                    
-                    # Get stats for this month
-                    month_mask = valid_df['YearMonth'] == month_str
-                    month_data = valid_df[month_mask]
-                    
-                    total_amount = month_data['Tổng thanh toán'].sum()
-                    total_bookings = len(month_data)
-                    collectors = month_data['Người thu tiền'].value_counts().to_dict()
-                    
-                    # Create month name in Vietnamese
-                    from datetime import datetime
-                    date_obj = datetime(int(year), int(month), 1)
-                    month_name = date_obj.strftime('%B %Y')  # Will be localized to Vietnamese in frontend
-                    
-                    available_months.append({
-                        'value': month_str,
-                        'year': int(year),
-                        'month': int(month),
-                        'month_name': month_name,
-                        'total_amount': total_amount,
-                        'total_bookings': total_bookings,
-                        'collectors': collectors
-                    })
-                
-                print(f"🗓️ [AVAILABLE_MONTHS] Found {len(available_months)} months with collector data")
-                for month_info in available_months:
-                    print(f"🗓️   - {month_info['value']}: {month_info['total_amount']:,.0f}đ ({month_info['total_bookings']} bookings)")
-                
-                # DEBUG: Check specifically for May and June 2025
-                may_2025 = df[(df['Check-in Date'].dt.year == 2025) & (df['Check-in Date'].dt.month == 5)]
-                june_2025 = df[(df['Check-in Date'].dt.year == 2025) & (df['Check-in Date'].dt.month == 6)]
-                print(f"🔍 [DEBUG_MAY_JUNE] May 2025 bookings: {len(may_2025)} total")
-                print(f"🔍 [DEBUG_MAY_JUNE] June 2025 bookings: {len(june_2025)} total")
-                
-                # Check if they have collector data
-                if not may_2025.empty:
-                    may_collectors = may_2025['Người thu tiền'].value_counts(dropna=False)
-                    print(f"🔍 [DEBUG_MAY] May collectors: {dict(may_collectors)}")
-                if not june_2025.empty:
-                    june_collectors = june_2025['Người thu tiền'].value_counts(dropna=False)
-                    print(f"🔍 [DEBUG_JUNE] June collectors: {dict(june_collectors)}")
-                
-                return jsonify({
-                    'success': True, 
-                    'months': available_months
-                })
+
+        # Filter for valid dates only
+        date_mask = df['Check-in Date'].notna()
+        valid_df = df[date_mask].copy()
+
+        print(f"🗓️ [AVAILABLE_MONTHS] Total bookings with valid dates: {len(valid_df)}")
+
+        if not valid_df.empty:
+            # Extract ALL year-month combinations (not just those with collectors)
+            valid_df['YearMonth'] = valid_df['Check-in Date'].dt.strftime('%Y-%m')
+            unique_months = valid_df['YearMonth'].unique()
+
+            # For collector stats, we still need to filter
+            valid_collectors = ['LOC LE', 'THAO LE']
+            if 'Người thu tiền' in valid_df.columns and 'Tổng thanh toán' in valid_df.columns:
+                valid_collector_mask = valid_df['Người thu tiền'].isin(valid_collectors)
+                amount_mask = pd.to_numeric(valid_df['Tổng thanh toán'], errors='coerce') > 0
+                collector_df = valid_df[valid_collector_mask & amount_mask].copy()
+                collector_df['YearMonth'] = collector_df['Check-in Date'].dt.strftime('%Y-%m')
             else:
-                print(f"🗓️ [AVAILABLE_MONTHS] No valid collector data found")
-                return jsonify({'success': True, 'months': []})
+                collector_df = pd.DataFrame()
+            
+            # Convert to list of month objects with additional info
+            available_months = []
+            for month_str in sorted(unique_months, reverse=True):  # Most recent first
+                year, month = month_str.split('-')
+
+                # Get ALL booking stats for this month
+                month_mask = valid_df['YearMonth'] == month_str
+                month_data = valid_df[month_mask]
+                total_bookings = len(month_data)
+
+                # Get COLLECTOR-specific stats (may be 0)
+                if not collector_df.empty and month_str in collector_df['YearMonth'].values:
+                    collector_month_data = collector_df[collector_df['YearMonth'] == month_str]
+                    total_amount = collector_month_data['Tổng thanh toán'].sum() if 'Tổng thanh toán' in collector_month_data.columns else 0
+                    collector_bookings = len(collector_month_data)
+                    collectors = collector_month_data['Người thu tiền'].value_counts().to_dict() if 'Người thu tiền' in collector_month_data.columns else {}
+                    has_collector_data = True
+                else:
+                    total_amount = 0
+                    collector_bookings = 0
+                    collectors = {}
+                    has_collector_data = False
+
+                # Create month name in Vietnamese
+                from datetime import datetime
+                date_obj = datetime(int(year), int(month), 1)
+                month_name = date_obj.strftime('%B %Y')  # Will be localized to Vietnamese in frontend
+
+                available_months.append({
+                    'value': month_str,
+                    'year': int(year),
+                    'month': int(month),
+                    'month_name': month_name,
+                    'total_amount': total_amount,
+                    'total_bookings': total_bookings,
+                    'collector_bookings': collector_bookings,
+                    'collectors': collectors,
+                    'has_collector_data': has_collector_data
+                })
+
+            print(f"🗓️ [AVAILABLE_MONTHS] Found {len(available_months)} months with bookings")
+            for month_info in available_months:
+                status = f"✅ {month_info['total_amount']:,.0f}đ ({month_info['collector_bookings']} collector bookings)" if month_info['has_collector_data'] else f"⚠️ No collector data ({month_info['total_bookings']} total bookings)"
+                print(f"🗓️   - {month_info['value']}: {status}")
+
+            return jsonify({
+                'success': True,
+                'months': available_months
+            })
         else:
-            print(f"🗓️ [AVAILABLE_MONTHS] Missing required columns")
+            print(f"🗓️ [AVAILABLE_MONTHS] No booking data with valid dates")
             return jsonify({'success': True, 'months': []})
         
     except Exception as e:
