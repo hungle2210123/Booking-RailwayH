@@ -16,6 +16,7 @@ Flask-SQLAlchemy>=3.0.0
 
 # --- DATA PROCESSING (Lightweight) ---
 python-dateutil>=2.8.0,<3.0.0
+pandas>=2.0.0,<3.0.0
 
 # --- EXCEL/CSV SUPPORT ---
 openpyxl>=3.1.0,<4.0.0
