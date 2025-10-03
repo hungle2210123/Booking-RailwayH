@@ -8871,6 +8871,9 @@ async function updateCollectorChart() {
         }
     } catch (error) {
         console.error('🗓️ [COLLECTOR_MONTH] Overall error:', error);
+        console.error('🗓️ [COLLECTOR_MONTH] Error stack:', error.stack);
+        console.error('🗓️ [COLLECTOR_MONTH] Error name:', error.name);
+        console.error('🗓️ [COLLECTOR_MONTH] Error message:', error.message);
         if (loadingDiv) loadingDiv.classList.add('d-none');
         if (chartDiv) {
             chartDiv.innerHTML = `
@@ -8878,7 +8881,7 @@ async function updateCollectorChart() {
                     <div class="text-center text-danger">
                         <i class="fas fa-exclamation-triangle fa-3x mb-3"></i>
                         <h6>Lỗi hệ thống</h6>
-                        <small>Không thể kết nối với máy chủ</small>
+                        <small>JavaScript Error: ${error.message}</small>
                     </div>
                 </div>
             `;
