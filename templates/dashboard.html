@@ -8392,110 +8392,81 @@ window.fixMonthSelector = function() {
 };
 
 async function initializeCollectorMonthSelector() {
-    
+
     const monthSelect = document.getElementById('collectorMonthSelect');
     if (!monthSelect) {
         console.error('🗓️ [COLLECTOR_MONTH] Month selector element not found!');
         return;
     }
-    
-    
+
     try {
-        
-        // Fetch available months with collector data
-        const response = await fetch('/api/collector_available_months');
-        
-        const result = await response.json();
-        
-        
-        if (result.success && result.months) {
-            // Clear existing options
-            monthSelect.innerHTML = '<option value="current">Hiện tại (theo bộ lọc)</option>';
-            
-            if (result.months.length === 0) {
-                // No months with data available
-                const option = document.createElement('option');
-                option.value = 'no-data';
-                option.textContent = 'Không có dữ liệu thu tiền';
-                option.disabled = true;
-                monthSelect.appendChild(option);
-                return;
-            }
-            
-            // Add "current month" option first (but default to June 2025 which has data)
-            const today = new Date();
-            const currentMonthValue = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
-            const currentMonthName = today.toLocaleDateString('vi-VN', { year: 'numeric', month: 'long' });
-            
-            const currentOption = document.createElement('option');
-            currentOption.value = 'current';
-            currentOption.textContent = `Tháng gần nhất có dữ liệu (tháng 6)`;
-            currentOption.selected = true; // Default to current month
-            monthSelect.appendChild(currentOption);
-            
-            // Add months with data (sorted by date, most recent first)
-            const sortedMonths = result.months.sort((a, b) => {
-                return new Date(b.year, b.month - 1) - new Date(a.year, a.month - 1);
-            });
-            
-            sortedMonths.forEach((monthInfo, index) => {
-                const monthValue = monthInfo.value;
+        // Clear existing options
+        monthSelect.innerHTML = '';
 
-                // Create Vietnamese month name
-                const date = new Date(monthInfo.year, monthInfo.month - 1, 1);
-                const monthName = date.toLocaleDateString('vi-VN', {
-                    year: 'numeric',
-                    month: 'long'
+        // Generate ALL 12 months for current year (2025)
+        const currentYear = 2025;
+        const today = new Date();
+        const currentMonth = today.getMonth() + 1; // 1-12
+
+        // Fetch data about which months have bookings (for display info only)
+        let monthsWithData = {};
+        try {
+            const response = await fetch('/api/collector_available_months');
+            const result = await response.json();
+            if (result.success && result.months) {
+                // Create lookup map
+                result.months.forEach(m => {
+                    monthsWithData[m.value] = m;
                 });
-
-                const option = document.createElement('option');
-                option.value = monthValue;
-
-                // Show amount if has collector data, otherwise show booking count
-                if (monthInfo.has_collector_data && monthInfo.total_amount > 0) {
-                    option.textContent = `${monthName} (${monthInfo.total_amount.toLocaleString()}đ)`;
-                } else {
-                    option.textContent = `${monthName} (${monthInfo.total_bookings} bookings)`;
-                }
-
-                // Mark current month if it matches
-                if (monthValue === currentMonthValue) {
-                    option.textContent += ' - hiện tại';
-                }
-
-                monthSelect.appendChild(option);
-                console.log(`✅ [MONTH_ADDED] Added ${monthValue}: ${monthName} - Has collector data: ${monthInfo.has_collector_data}`);
-            });
-            
-            
-            // DEBUG: Show final dropdown state
-            const allOptions = Array.from(monthSelect.options).map(opt => ({ value: opt.value, text: opt.textContent }));
-            console.log('🔍 [FINAL_DROPDOWN] All options:', allOptions);
-            
-            // DEBUG: Force add May/June 2025 if they exist in API but not in dropdown
-            const hasMay = Array.from(monthSelect.options).some(opt => opt.value === '2025-05');
-            const hasJune = Array.from(monthSelect.options).some(opt => opt.value === '2025-06');
-            
-            console.log('🔍 [DEBUG] Dropdown has May 2025:', hasMay);
-            console.log('🔍 [DEBUG] Dropdown has June 2025:', hasJune);
-            
-            // Force add missing months for debugging
-            if (!hasJune) {
-                const juneOption = document.createElement('option');
-                juneOption.value = '2025-06';
-                juneOption.textContent = 'tháng 6 năm 2025 (DEBUG)';
-                monthSelect.appendChild(juneOption);
-                console.log('🔧 [DEBUG] Force added June 2025');
             }
-            
-            // Immediately load data for the default selection (current)
-            setTimeout(() => {
-                updateCollectorChart();
-            }, 100);
-            
-        } else {
-            throw new Error(result.message || 'Failed to load available months');
+        } catch (error) {
+            console.warn('Could not fetch month data, showing all months anyway:', error);
         }
+
+        // Add ALL 12 months (January to December)
+        for (let month = 1; month <= 12; month++) {
+            const monthValue = `${currentYear}-${String(month).padStart(2, '0')}`;
+            const date = new Date(currentYear, month - 1, 1);
+            const monthName = date.toLocaleDateString('vi-VN', {
+                year: 'numeric',
+                month: 'long'
+            });
+
+            const option = document.createElement('option');
+            option.value = monthValue;
+
+            // Check if this month has data
+            const monthData = monthsWithData[monthValue];
+            if (monthData) {
+                if (monthData.has_collector_data && monthData.total_amount > 0) {
+                    option.textContent = `${monthName} (${monthData.total_amount.toLocaleString()}đ)`;
+                } else if (monthData.total_bookings > 0) {
+                    option.textContent = `${monthName} (${monthData.total_bookings} bookings)`;
+                } else {
+                    option.textContent = `${monthName}`;
+                }
+            } else {
+                // No data for this month
+                option.textContent = `${monthName}`;
+            }
+
+            // Mark current month
+            if (month === currentMonth) {
+                option.textContent += ' - hiện tại';
+                option.selected = true; // Select current month by default
+            }
+
+            monthSelect.appendChild(option);
+            console.log(`✅ [MONTH_ADDED] ${monthValue}: ${monthName}`);
+        }
+
+        // Show final dropdown state
+        console.log(`✅ [MONTH_SELECTOR] Added all 12 months for ${currentYear}`);
+
+        // Immediately load data for the default selection (current month)
+        setTimeout(() => {
+            updateCollectorChart();
+        }, 100);
     } catch (error) {
         console.error('🗓️ [COLLECTOR_MONTH] Error loading available months:', error);
         
