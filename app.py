@@ -8371,6 +8371,65 @@ def railway_setup_guide():
     
     return jsonify(setup_steps)
 
+@app.route('/api/debug_data_status', methods=['GET'])
+def debug_data_status():
+    """🚨 CRITICAL: Debug endpoint to check for data loss - shows ALL bookings including cancelled"""
+    try:
+        # Load ALL bookings (including cancelled)
+        df_all = load_booking_data(force_fresh=True)
+
+        if df_all.empty:
+            return jsonify({
+                'success': True,
+                'total_bookings': 0,
+                'message': '❌ NO BOOKINGS FOUND IN DATABASE!',
+                'database_empty': True
+            })
+
+        # Count by status
+        status_breakdown = {}
+        if 'Tình trạng' in df_all.columns:
+            status_counts = df_all['Tình trạng'].value_counts(dropna=False).to_dict()
+            status_breakdown = {str(k): int(v) for k, v in status_counts.items()}
+
+        # Count by month
+        month_breakdown = {}
+        if 'Check-in Date' in df_all.columns:
+            df_all['Check-in Date'] = pd.to_datetime(df_all['Check-in Date'], errors='coerce')
+            df_all['YearMonth'] = df_all['Check-in Date'].dt.strftime('%Y-%m')
+            month_counts = df_all['YearMonth'].value_counts(dropna=False).to_dict()
+            month_breakdown = {str(k): int(v) for k, v in month_counts.items()}
+
+        # Get recent bookings
+        recent_bookings = []
+        if 'Check-in Date' in df_all.columns:
+            df_sorted = df_all.sort_values('Check-in Date', ascending=False).head(20)
+            for idx, row in df_sorted.iterrows():
+                recent_bookings.append({
+                    'checkin_date': row['Check-in Date'].strftime('%Y-%m-%d') if pd.notna(row['Check-in Date']) else 'N/A',
+                    'guest_name': row.get('Tên người đặt', 'N/A'),
+                    'status': row.get('Tình trạng', 'N/A'),
+                    'amount': float(row.get('Tổng thanh toán', 0)) if pd.notna(row.get('Tổng thanh toán')) else 0,
+                    'collector': row.get('Người thu tiền', 'N/A')
+                })
+
+        return jsonify({
+            'success': True,
+            'total_bookings': len(df_all),
+            'status_breakdown': status_breakdown,
+            'months_with_data': month_breakdown,
+            'recent_bookings': recent_bookings,
+            'database_empty': False
+        })
+
+    except Exception as e:
+        import traceback
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'traceback': traceback.format_exc()
+        }), 500
+
 @app.route('/api/debug_all_months', methods=['GET'])
 def debug_all_months():
     """Debug endpoint to see ALL months with bookings"""
