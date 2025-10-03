@@ -8371,6 +8371,44 @@ def railway_setup_guide():
     
     return jsonify(setup_steps)
 
+@app.route('/api/debug_all_months', methods=['GET'])
+def debug_all_months():
+    """Debug endpoint to see ALL months with bookings"""
+    try:
+        df = load_booking_data_for_calculations()
+        if df.empty:
+            return jsonify({'success': True, 'message': 'No bookings found', 'months': []})
+
+        df = df.copy()
+        df['Check-in Date'] = pd.to_datetime(df['Check-in Date'], errors='coerce')
+        date_mask = df['Check-in Date'].notna()
+        valid_df = df[date_mask].copy()
+
+        if not valid_df.empty:
+            valid_df['YearMonth'] = valid_df['Check-in Date'].dt.strftime('%Y-%m')
+            unique_months = sorted(valid_df['YearMonth'].unique(), reverse=True)
+
+            month_details = []
+            for month_str in unique_months:
+                month_data = valid_df[valid_df['YearMonth'] == month_str]
+                collectors = month_data['Người thu tiền'].value_counts(dropna=False).to_dict() if 'Người thu tiền' in month_data.columns else {}
+
+                month_details.append({
+                    'month': month_str,
+                    'total_bookings': len(month_data),
+                    'collectors': collectors
+                })
+
+            return jsonify({
+                'success': True,
+                'total_months': len(unique_months),
+                'months': month_details
+            })
+        else:
+            return jsonify({'success': True, 'message': 'No valid dates', 'months': []})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 @app.route('/api/collector_available_months', methods=['GET'])
 def get_collector_available_months():
     """Get list of ALL months that have booking data (not just collector data)"""
