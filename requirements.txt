@@ -39,13 +39,15 @@ requests>=2.31.0
 # --- CHARTS/VISUALIZATION ---
 plotly>=5.15.0,<6.0.0
 
+# --- ASYNC HTTP (Required by Railway crawler) ---
+aiohttp>=3.9.0,<4.0.0
+
 # --- REMOVED HEAVY DEPENDENCIES (Not actively used) ---
 # These packages were removed to speed up Railway builds:
 # - selenium (4.15.0) - Web automation not used in production
 # - scipy (1.10.0) - Scientific computing not needed
 # - psutil (5.9.0) - System utilities not essential
 # - firecrawl-py - Web crawling not actively used
-# - aiohttp - Async HTTP not needed
 # - xlrd - Only openpyxl is sufficient for Excel
 # - PyPDF2 - PDF processing not used
 
@@ -55,3 +57,4 @@ plotly>=5.15.0,<6.0.0
 # - opencv-python (required for OCR fallback)
 # - pytesseract (required for OCR fallback)
 # - plotly (required by dashboard_routes.py for charts)
+# - aiohttp (required by optimized_railway_crawler.py)
