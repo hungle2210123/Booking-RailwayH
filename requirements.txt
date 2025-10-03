@@ -14,12 +14,17 @@ psycopg2-binary>=2.9.0
 SQLAlchemy>=2.0.0
 Flask-SQLAlchemy>=3.0.0
 
-# --- DATA PROCESSING (Lightweight) ---
+# --- DATA PROCESSING ---
 python-dateutil>=2.8.0,<3.0.0
 pandas>=2.0.0,<3.0.0
+numpy>=1.21.0,<2.0.0
 
 # --- EXCEL/CSV SUPPORT ---
 openpyxl>=3.1.0,<4.0.0
+
+# --- OCR FALLBACK (Optional but used in production) ---
+opencv-python>=4.8.0,<5.0.0
+pytesseract>=0.3.10,<1.0.0
 
 # --- AI INTEGRATION (GEMINI + OPENROUTER) ---
 google-generativeai>=0.3.0,<1.0.0
@@ -33,8 +38,6 @@ requests>=2.31.0
 
 # --- REMOVED HEAVY DEPENDENCIES (Not actively used) ---
 # These packages were removed to speed up Railway builds:
-# - pandas (2.0.0) - Large package, not critical for core functionality
-# - numpy (1.21.0) - Heavy dependency of pandas
 # - selenium (4.15.0) - Web automation not used in production
 # - scipy (1.10.0) - Scientific computing not needed
 # - plotly (5.15.0) - Heavy visualization library not critical
@@ -44,4 +47,8 @@ requests>=2.31.0
 # - xlrd - Only openpyxl is sufficient for Excel
 # - PyPDF2 - PDF processing not used
 
-# If you need any of these in the future, add them back one at a time
+# Re-added essential packages:
+# - pandas (required by app.py for DataFrame operations)
+# - numpy (required by pandas and opencv)
+# - opencv-python (required for OCR fallback)
+# - pytesseract (required for OCR fallback)
