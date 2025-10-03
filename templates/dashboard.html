@@ -8440,25 +8440,31 @@ async function initializeCollectorMonthSelector() {
             
             sortedMonths.forEach((monthInfo, index) => {
                 const monthValue = monthInfo.value;
-                
+
                 // Create Vietnamese month name
                 const date = new Date(monthInfo.year, monthInfo.month - 1, 1);
-                const monthName = date.toLocaleDateString('vi-VN', { 
-                    year: 'numeric', 
-                    month: 'long' 
+                const monthName = date.toLocaleDateString('vi-VN', {
+                    year: 'numeric',
+                    month: 'long'
                 });
-                
+
                 const option = document.createElement('option');
                 option.value = monthValue;
-                option.textContent = `${monthName} (${monthInfo.total_amount.toLocaleString()}đ)`;
-                
+
+                // Show amount if has collector data, otherwise show booking count
+                if (monthInfo.has_collector_data && monthInfo.total_amount > 0) {
+                    option.textContent = `${monthName} (${monthInfo.total_amount.toLocaleString()}đ)`;
+                } else {
+                    option.textContent = `${monthName} (${monthInfo.total_bookings} bookings)`;
+                }
+
                 // Mark current month if it matches
                 if (monthValue === currentMonthValue) {
                     option.textContent += ' - hiện tại';
                 }
-                
+
                 monthSelect.appendChild(option);
-                console.log(`✅ [MONTH_ADDED] Added ${monthValue}: ${monthName}`);
+                console.log(`✅ [MONTH_ADDED] Added ${monthValue}: ${monthName} - Has collector data: ${monthInfo.has_collector_data}`);
             });
             
             
