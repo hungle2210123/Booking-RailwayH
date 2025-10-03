@@ -82,7 +82,8 @@
       "Bash(PGPASSWORD=locloc123 psql -h localhost -U postgres -d hotel_booking -c \"SELECT COUNT(*) FROM bookings;\")",
       "Bash(dos2unix:*)",
       "Bash(git remote:*)",
-      "Bash(curl:*)"
+      "Bash(curl:*)",
+      "Bash(python3:*)"
     ],
     "deny": []
   },

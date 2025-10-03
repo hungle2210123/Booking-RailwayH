@@ -8034,6 +8034,7 @@ def get_collector_chart_data():
         today = date.today()
         
         # Ensure Check-in Date is datetime
+        df = df.copy()  # Create explicit copy to avoid SettingWithCopyWarning
         df['Check-in Date'] = pd.to_datetime(df['Check-in Date'], errors='coerce')
         checked_in_mask = df['Check-in Date'].dt.date <= today
         
@@ -8185,12 +8186,18 @@ def get_collector_chart_data():
             stats_data = []
             chart_data = {}
         
+        # Add helpful message if no valid data
+        has_data = bool(stats_data)
+        message = None if has_data else 'Không có dữ liệu thu tiền hợp lệ cho LOC LE hoặc THAO LE trong khoảng thời gian này'
+
         return jsonify({
             'success': True,
             'chart_data': chart_data,
             'stats_data': stats_data,
             'period': period_label,
-            'total_records': len(filtered_df)
+            'total_records': len(filtered_df),
+            'has_data': has_data,
+            'message': message
         })
         
     except Exception as e:
