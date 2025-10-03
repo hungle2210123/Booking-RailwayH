@@ -12153,9 +12153,15 @@ if (typeof window.updateCollectorChart !== 'function') {
                 dataStructure: result.chart_data && result.chart_data.data ? result.chart_data.data : null
             });
             
-            if (result.success && result.chart_data) {
+            // Check if we have valid chart data
+            const hasValidChartData = result.success &&
+                                     result.chart_data &&
+                                     ((result.chart_data.data && result.chart_data.data.length > 0) ||
+                                      (result.chart_data.labels && result.chart_data.values));
+
+            if (hasValidChartData) {
                 console.log('🗓️ [EMERGENCY_COLLECTOR] Attempting to render chart...');
-                
+
                 // More flexible chart rendering
                 if (result.chart_data.data && result.chart_data.data.length > 0) {
                     // Standard case: data array exists
@@ -12169,18 +12175,17 @@ if (typeof window.updateCollectorChart !== 'function') {
                         hole: 0.4
                     }];
                     await Plotly.newPlot(chartDiv, chartData, result.chart_data.layout || {}, {responsive: true});
-                } else {
-                    console.log('🗓️ [EMERGENCY_COLLECTOR] ⚠️ Chart data exists but no renderable data found');
-                    throw new Error('No renderable chart data');
                 }
             } else {
-                // Show no data message
+                // Show no data message (use API message if available)
+                const noDataMessage = result.message || 'Không có dữ liệu thu tiền cho khoảng thời gian này';
+                console.log('🗓️ [EMERGENCY_COLLECTOR] No chart data, showing message:', noDataMessage);
                 chartDiv.innerHTML = `
                     <div class="d-flex align-items-center justify-content-center h-100">
                         <div class="text-center text-muted">
                             <i class="fas fa-chart-pie fa-3x mb-3 opacity-50"></i>
                             <h6>Không có dữ liệu thu tiền</h6>
-                            <small>Không có dữ liệu thu tiền cho khoảng thời gian này</small>
+                            <small>${noDataMessage}</small>
                         </div>
                     </div>
                 `;
