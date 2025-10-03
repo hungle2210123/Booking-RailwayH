@@ -36,11 +36,13 @@ Pillow>=10.0.0,<11.0.0
 beautifulsoup4>=4.12.0,<5.0.0
 requests>=2.31.0
 
+# --- CHARTS/VISUALIZATION ---
+plotly>=5.15.0,<6.0.0
+
 # --- REMOVED HEAVY DEPENDENCIES (Not actively used) ---
 # These packages were removed to speed up Railway builds:
 # - selenium (4.15.0) - Web automation not used in production
 # - scipy (1.10.0) - Scientific computing not needed
-# - plotly (5.15.0) - Heavy visualization library not critical
 # - psutil (5.9.0) - System utilities not essential
 # - firecrawl-py - Web crawling not actively used
 # - aiohttp - Async HTTP not needed
@@ -52,3 +54,4 @@ requests>=2.31.0
 # - numpy (required by pandas and opencv)
 # - opencv-python (required for OCR fallback)
 # - pytesseract (required for OCR fallback)
+# - plotly (required by dashboard_routes.py for charts)
