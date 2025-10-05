@@ -9929,7 +9929,10 @@ def daily_customer_breakdown():
             ].copy()
             
             print(f"🎯 [DAILY_BREAKDOWN] Found {len(month_bookings)} bookings for {month}")
-            
+            print(f"🔍 [DAILY_BREAKDOWN] DataFrame columns: {list(df.columns)}")
+            if len(month_bookings) > 0:
+                print(f"🔍 [DAILY_BREAKDOWN] Sample booking columns: {list(month_bookings.iloc[0].index)}")
+
         except Exception as e:
             print(f"❌ [DAILY_BREAKDOWN] Date filtering error: {e}")
             return jsonify({'success': False, 'message': f'Lỗi xử lý ngày tháng: {str(e)}'}), 400
@@ -9951,15 +9954,22 @@ def daily_customer_breakdown():
         daily_data = {}
         unique_customers = set()
         
-        for _, booking in month_bookings.iterrows():
+        for idx, booking in month_bookings.iterrows():
             guest_name = booking.get('Tên người đặt', 'Unknown')
             checkin = booking['check_in_date']
             checkout = booking['check_out_date']
 
-            # Get price information
+            # Get price information - try multiple column names
             total_amount = booking.get('Tổng tiền phòng', 0) or booking.get('room_amount', 0) or 0
             if pd.isna(total_amount):
                 total_amount = 0
+
+            # Debug first booking
+            if idx == month_bookings.index[0]:
+                print(f"🔍 [PRICE_DEBUG] First booking: {guest_name}")
+                print(f"🔍 [PRICE_DEBUG]   Tổng tiền phòng: {booking.get('Tổng tiền phòng', 'NOT FOUND')}")
+                print(f"🔍 [PRICE_DEBUG]   room_amount: {booking.get('room_amount', 'NOT FOUND')}")
+                print(f"🔍 [PRICE_DEBUG]   Final total_amount: {total_amount}")
 
             # Calculate total nights for this booking
             total_nights = (checkout - checkin).days
