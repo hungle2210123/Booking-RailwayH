@@ -2015,6 +2015,8 @@ async function loadMonthlyCalendarForPage() {
         const data = await response.json();
 
         if (data.success && data.daily_data) {
+            console.log('✅ Calendar data loaded');
+            console.log('🔍 Sample customer:', JSON.stringify(data.daily_data[0]?.customers?.[0]));
             renderCompactCalendarForPage(data.daily_data, year, month, currentDate.getDate());
         } else {
             calendarDiv.innerHTML = '<div class="text-danger small text-center">Không thể tải lịch</div>';
@@ -2092,6 +2094,11 @@ function renderCompactCalendarForPage(dailyData, year, month, selectedDay) {
                 const checkin = customer.checkin_date || 'N/A';
                 const checkout = customer.checkout_date || 'N/A';
 
+                // Debug: Log customer data
+                if (idx === 0) {
+                    console.log('🔍 Customer data:', customer);
+                }
+
                 // Calculate amount for this guest (from booking data)
                 let totalAmount = 'N/A';
                 let pricePerNight = 'N/A';
@@ -2099,10 +2106,14 @@ function renderCompactCalendarForPage(dailyData, year, month, selectedDay) {
 
                 if (customer.total_amount && customer.total_amount > 0) {
                     totalAmount = parseFloat(customer.total_amount).toLocaleString('vi-VN') + 'đ';
+                } else {
+                    console.log('❌ No total_amount:', customer.total_amount);
                 }
 
                 if (customer.price_per_night && customer.price_per_night > 0) {
                     pricePerNight = parseFloat(customer.price_per_night).toLocaleString('vi-VN') + 'đ';
+                } else {
+                    console.log('❌ No price_per_night:', customer.price_per_night);
                 }
 
                 popoverContent += `
