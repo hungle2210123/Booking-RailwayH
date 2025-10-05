@@ -2093,9 +2093,16 @@ function renderCompactCalendarForPage(dailyData, year, month, selectedDay) {
                 const checkout = customer.checkout_date || 'N/A';
 
                 // Calculate amount for this guest (from booking data)
-                let amount = 'N/A';
-                if (customer.total_amount) {
-                    amount = parseFloat(customer.total_amount).toLocaleString('vi-VN') + 'đ';
+                let totalAmount = 'N/A';
+                let pricePerNight = 'N/A';
+                let nights = customer.total_nights || 0;
+
+                if (customer.total_amount && customer.total_amount > 0) {
+                    totalAmount = parseFloat(customer.total_amount).toLocaleString('vi-VN') + 'đ';
+                }
+
+                if (customer.price_per_night && customer.price_per_night > 0) {
+                    pricePerNight = parseFloat(customer.price_per_night).toLocaleString('vi-VN') + 'đ';
                 }
 
                 popoverContent += `
@@ -2106,7 +2113,10 @@ function renderCompactCalendarForPage(dailyData, year, month, selectedDay) {
                             <i class="fas fa-arrow-right mx-1"></i>
                             <span class="badge bg-danger">${checkout}</span>
                         </div>
-                        <div class="guest-amount text-success fw-bold">💰 ${amount}</div>
+                        <div class="guest-pricing">
+                            <div class="text-success fw-bold">💰 Tổng: ${totalAmount}</div>
+                            <div class="text-info small">📅 ${pricePerNight}/đêm (${nights} đêm)</div>
+                        </div>
                     </div>`;
             });
 
@@ -2278,6 +2288,17 @@ document.addEventListener('DOMContentLoaded', function() {
 .guest-details .badge {
     font-size: 0.7rem;
     padding: 2px 6px;
+}
+
+.guest-pricing {
+    margin-top: 6px;
+    padding-top: 4px;
+    border-top: 1px solid #e9ecef;
+}
+
+.guest-pricing > div {
+    font-size: 0.85rem;
+    margin-top: 2px;
 }
 
 .guest-amount {
