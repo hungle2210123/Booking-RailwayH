@@ -7934,7 +7934,7 @@ function displaySyncErrors(data) {
 
 <!-- Daily Customer Breakdown Modal -->
 <div class="modal fade" id="dailyCustomerBreakdownModal" tabindex="-1" aria-labelledby="dailyCustomerBreakdownModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-xl">
+    <div class="modal-dialog modal-xl" style="max-width: 95%;">
         <div class="modal-content">
             <div class="modal-header bg-info text-white">
                 <h5 class="modal-title" id="dailyCustomerBreakdownModalLabel">
@@ -7943,6 +7943,41 @@ function displaySyncErrors(data) {
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
+                <!-- 🎯 TWO COLUMN LAYOUT: Calendar + Details -->
+                <div class="row">
+                    <!-- LEFT: Compact Monthly Calendar -->
+                    <div class="col-lg-4">
+                        <div class="card border-primary sticky-top" style="top: 20px;">
+                            <div class="card-header bg-primary text-white">
+                                <h6 class="mb-0">
+                                    <i class="fas fa-calendar-alt me-2"></i>Tổng quan tháng
+                                </h6>
+                            </div>
+                            <div class="card-body p-2">
+                                <!-- Compact Calendar Grid -->
+                                <div id="compactMonthlyCalendar">
+                                    <div class="text-center">
+                                        <i class="fas fa-spinner fa-spin"></i> Đang tải lịch...
+                                    </div>
+                                </div>
+
+                                <!-- Legend -->
+                                <div class="mt-2 small">
+                                    <div class="d-flex align-items-center justify-content-between mb-1">
+                                        <span><span class="badge bg-success">●</span> Có khách</span>
+                                        <span><span class="badge bg-secondary">●</span> Trống</span>
+                                    </div>
+                                    <div class="d-flex align-items-center justify-content-between">
+                                        <span><span class="badge bg-warning">●</span> Đông (>5)</span>
+                                        <span><span class="badge bg-primary">●</span> Hôm nay</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- RIGHT: Details Table -->
+                    <div class="col-lg-8">
                 <div class="alert alert-warning">
                     <i class="fas fa-exclamation-triangle me-2"></i>
                     <strong>QUAN TRỌNG - Hiểu về số lượng khách:</strong>
@@ -8020,6 +8055,10 @@ function displaySyncErrors(data) {
                     </div>
                     <div class="mt-2 text-muted">Đang tải dữ liệu chi tiết...</div>
                 </div>
+                    </div>
+                    <!-- END RIGHT COLUMN -->
+                </div>
+                <!-- END ROW -->
             </div>
             <div class="modal-footer">
                 <div class="me-auto text-muted small">
@@ -8076,9 +8115,11 @@ function showDailyCustomerBreakdown(month) {
     .then(response => response.json())
     .then(data => {
         console.log('📊 [DAILY_BREAKDOWN] API Response:', data);
-        
+
         if (data.success) {
             populateDailyBreakdownTable(data.daily_data, data.summary);
+            // Render compact monthly calendar in the left panel
+            renderCompactMonthlyCalendar(data.daily_data, month);
         } else {
             showErrorInTable(data.message || 'Lỗi không xác định');
         }
@@ -8090,6 +8131,162 @@ function showDailyCustomerBreakdown(month) {
     .finally(() => {
         document.getElementById('loadingIndicator').style.display = 'none';
     });
+}
+
+/**
+ * Render compact monthly calendar in the modal
+ * @param {Array} dailyData - Array of daily customer data
+ * @param {string} month - Month string
+ */
+function renderCompactMonthlyCalendar(dailyData, month) {
+    const calendarDiv = document.getElementById('compactMonthlyCalendar');
+
+    if (!dailyData || dailyData.length === 0) {
+        calendarDiv.innerHTML = '<div class="text-muted small text-center">Không có dữ liệu</div>';
+        return;
+    }
+
+    // Parse month to get year and month number
+    const monthMatch = month.match(/(\d{4})-(\d{2})/);
+    let year, monthNum;
+
+    if (monthMatch) {
+        year = parseInt(monthMatch[1]);
+        monthNum = parseInt(monthMatch[2]);
+    } else {
+        // Fallback to current month
+        const now = new Date();
+        year = now.getFullYear();
+        monthNum = now.getMonth() + 1;
+    }
+
+    // Get first day of month and total days
+    const firstDay = new Date(year, monthNum - 1, 1);
+    const lastDay = new Date(year, monthNum, 0);
+    const totalDays = lastDay.getDate();
+    const startDayOfWeek = firstDay.getDay(); // 0 = Sunday
+
+    // Create customer count map
+    const customerMap = {};
+    dailyData.forEach(day => {
+        const date = new Date(day.date);
+        const dayNum = date.getDate();
+        customerMap[dayNum] = day.customers ? day.customers.length : 0;
+    });
+
+    // Today
+    const today = new Date();
+    const isCurrentMonth = today.getFullYear() === year && today.getMonth() + 1 === monthNum;
+    const todayDate = today.getDate();
+
+    // Build calendar HTML
+    let html = '<div class="compact-calendar">';
+
+    // Weekday headers
+    html += '<div class="calendar-header">';
+    ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'].forEach(day => {
+        html += `<div class="calendar-day-name">${day}</div>`;
+    });
+    html += '</div>';
+
+    // Calendar grid
+    html += '<div class="calendar-grid">';
+
+    // Empty cells for days before month starts
+    for (let i = 0; i < startDayOfWeek; i++) {
+        html += '<div class="calendar-day empty"></div>';
+    }
+
+    // Days of the month
+    for (let day = 1; day <= totalDays; day++) {
+        const customerCount = customerMap[day] || 0;
+        const isToday = isCurrentMonth && day === todayDate;
+
+        let dayClass = 'calendar-day';
+        if (isToday) dayClass += ' today';
+        if (customerCount === 0) dayClass += ' no-guests';
+        else if (customerCount > 5) dayClass += ' busy';
+        else dayClass += ' has-guests';
+
+        html += `<div class="${dayClass}" title="${customerCount} khách">
+                    <div class="day-number">${day}</div>
+                    ${customerCount > 0 ? `<div class="guest-count">${customerCount}</div>` : ''}
+                 </div>`;
+    }
+
+    html += '</div></div>';
+
+    // Add CSS styles
+    html += `<style>
+    .compact-calendar {
+        font-size: 0.75rem;
+    }
+    .calendar-header {
+        display: grid;
+        grid-template-columns: repeat(7, 1fr);
+        gap: 2px;
+        margin-bottom: 4px;
+    }
+    .calendar-day-name {
+        text-align: center;
+        font-weight: bold;
+        padding: 4px 2px;
+        background: #e9ecef;
+        font-size: 0.7rem;
+    }
+    .calendar-grid {
+        display: grid;
+        grid-template-columns: repeat(7, 1fr);
+        gap: 3px;
+    }
+    .calendar-day {
+        aspect-ratio: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: transform 0.2s;
+        position: relative;
+    }
+    .calendar-day:hover:not(.empty) {
+        transform: scale(1.1);
+        z-index: 10;
+    }
+    .calendar-day.empty {
+        background: transparent;
+    }
+    .calendar-day.no-guests {
+        background: #e9ecef;
+        color: #6c757d;
+    }
+    .calendar-day.has-guests {
+        background: #d1e7dd;
+        color: #0f5132;
+        border: 1px solid #0f5132;
+    }
+    .calendar-day.busy {
+        background: #fff3cd;
+        color: #664d03;
+        border: 2px solid #664d03;
+        font-weight: bold;
+    }
+    .calendar-day.today {
+        box-shadow: 0 0 0 2px #0d6efd;
+        border: 2px solid #0d6efd !important;
+    }
+    .day-number {
+        font-size: 0.85rem;
+        font-weight: 600;
+    }
+    .guest-count {
+        font-size: 0.65rem;
+        margin-top: -2px;
+    }
+    </style>`;
+
+    calendarDiv.innerHTML = html;
 }
 
 /**
