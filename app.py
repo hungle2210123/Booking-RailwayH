@@ -9959,16 +9959,15 @@ def daily_customer_breakdown():
             checkin = booking['check_in_date']
             checkout = booking['check_out_date']
 
-            # Get price information - try multiple column names
-            total_amount = booking.get('Tổng tiền phòng', 0) or booking.get('room_amount', 0) or 0
+            # Get price information - use correct column name "Tổng thanh toán"
+            total_amount = booking.get('Tổng thanh toán', 0) or 0
             if pd.isna(total_amount):
                 total_amount = 0
 
             # Debug first booking
             if idx == month_bookings.index[0]:
                 print(f"🔍 [PRICE_DEBUG] First booking: {guest_name}")
-                print(f"🔍 [PRICE_DEBUG]   Tổng tiền phòng: {booking.get('Tổng tiền phòng', 'NOT FOUND')}")
-                print(f"🔍 [PRICE_DEBUG]   room_amount: {booking.get('room_amount', 'NOT FOUND')}")
+                print(f"🔍 [PRICE_DEBUG]   Tổng thanh toán: {booking.get('Tổng thanh toán', 'NOT FOUND')}")
                 print(f"🔍 [PRICE_DEBUG]   Final total_amount: {total_amount}")
 
             # Calculate total nights for this booking
