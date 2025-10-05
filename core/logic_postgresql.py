@@ -9,12 +9,24 @@ import datetime
 import re
 import csv
 import os
+import time
 from typing import Dict, List, Optional, Tuple, Any
 import json
 import calendar
 from io import BytesIO
 from sqlalchemy import text
 from flask import current_app
+
+# ⚡ ULTRA PERFORMANCE: Global cache for booking data
+_booking_data_cache = None
+_cache_timestamp = 0
+
+def clear_booking_cache():
+    """Clear the global booking data cache - call after any data modification"""
+    global _booking_data_cache, _cache_timestamp
+    _booking_data_cache = None
+    _cache_timestamp = 0
+    print("🔄 Cache cleared - next request will reload fresh data")
 
 # Import only necessary libraries
 try:
@@ -98,7 +110,15 @@ def load_booking_data_for_calculations(force_fresh: bool = False) -> pd.DataFram
     return df
 
 def load_booking_data(force_fresh: bool = False) -> pd.DataFrame:
-    """Load all booking data from PostgreSQL"""
+    """Load all booking data from PostgreSQL with caching"""
+    # ⚡ ULTRA PERFORMANCE: Use global cache if not force_fresh
+    global _booking_data_cache, _cache_timestamp
+    cache_ttl = 30  # 30 seconds
+
+    if not force_fresh and _booking_data_cache is not None:
+        if time.time() - _cache_timestamp < cache_ttl:
+            return _booking_data_cache.copy()
+
     if force_fresh:
         print("🔄 FORCE FRESH: Loading data with fresh database connection")
     
@@ -139,7 +159,12 @@ def load_booking_data(force_fresh: bool = False) -> pd.DataFrame:
     try:
         df = execute_query(query, force_fresh=force_fresh, allow_fallback=True)
         if not df.empty:
-            return process_booking_dataframe(df)
+            result = process_booking_dataframe(df)
+            # ⚡ ULTRA PERFORMANCE: Store in cache
+            global _booking_data_cache, _cache_timestamp
+            _booking_data_cache = result.copy()
+            _cache_timestamp = time.time()
+            return result
         else:
             print("⚠️ Full query returned empty result, trying fallback...")
     except Exception as e:
@@ -180,11 +205,18 @@ def load_booking_data(force_fresh: bool = False) -> pd.DataFrame:
     
     print("🔄 Using fallback query without guests table...")
     df = execute_query(fallback_query, force_fresh=force_fresh)
-    
+
     if df.empty:
         return pd.DataFrame()
-    
-    return process_booking_dataframe(df)
+
+    result = process_booking_dataframe(df)
+
+    # ⚡ ULTRA PERFORMANCE: Store in cache
+    global _booking_data_cache, _cache_timestamp
+    _booking_data_cache = result.copy()
+    _cache_timestamp = time.time()
+
+    return result
 
 def process_booking_dataframe(df):
     """Process the booking dataframe with proper data types"""

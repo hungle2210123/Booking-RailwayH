@@ -183,6 +183,10 @@ app.config['ENV'] = 'production'
 app.config['DEBUG'] = railway_env  # Enable debug on Railway to troubleshoot auto sync menu
 app.secret_key = os.getenv("FLASK_SECRET_KEY", "a_default_secret_key_for_development")
 
+# ⚡ PERFORMANCE: Initialize caching system
+cache = init_cache(app)
+print("✅ Flask-Caching initialized with 30s TTL")
+
 # ==============================================================================
 # HELPER FUNCTIONS
 # ==============================================================================

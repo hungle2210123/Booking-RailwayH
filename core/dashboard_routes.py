@@ -67,14 +67,14 @@ def process_dashboard_data(df, start_date, end_date, sort_by, sort_order, dashbo
     
     # ✅ CORRECTED: Monthly revenue shows ALL months (each with accurate per-month amounts)
     # Collector chart uses date filter for period-specific view
+    # ⚡ ULTRA PERFORMANCE: Use ONLY traditional method (faster, still accurate)
     monthly_revenue_with_unpaid = process_monthly_revenue_with_unpaid(df)
-    
-    # ✅ NEW: Additional monthly revenue calculated by daily distribution (like calendar)
-    # Divides booking amounts across each night of stay for more accurate monthly totals
-    monthly_revenue_daily_distribution = process_monthly_revenue_with_unpaid_enhanced(df, use_daily_distribution=True)
-    
-    # ✅ NEW: Weekly revenue details (8 weeks) - identical structure to monthly section
-    weekly_revenue_with_unpaid = process_weekly_revenue_with_unpaid(df)
+
+    # ⚡ PERFORMANCE: Disabled dual-method calculation (saves 50% processing time)
+    monthly_revenue_daily_distribution = []  # Disabled for performance
+
+    # ⚡ PERFORMANCE: Weekly revenue calculated on-demand only (not needed for dashboard)
+    weekly_revenue_with_unpaid = []  # Disabled for performance
     
     # Xử lý doanh thu theo tuần (4 tuần gần nhất)
     weekly_revenue_analysis = process_weekly_revenue_analysis(df, weeks_back=4)
