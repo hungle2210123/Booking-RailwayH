@@ -3518,13 +3518,13 @@ def process_booking_text():
 
 @app.route('/api/check_duplicates', methods=['POST'])
 def check_duplicates():
-    """Check for duplicate bookings against existing data"""
+    """Check for duplicate bookings against existing data with accurate date overlap detection"""
     try:
         data = request.get_json()
         bookings = data.get('bookings', [])
-        
+
         print(f"🔍 [CHECK_DUPLICATES] Checking {len(bookings)} bookings for duplicates")
-        
+
         if not bookings:
             return jsonify({
                 'success': True,
@@ -3532,30 +3532,131 @@ def check_duplicates():
                 'duplicates': [],
                 'total_checked': 0
             })
-        
-        # Use existing duplicate checking function
+
+        # Load existing booking data
+        df = load_booking_data()
+
+        if df.empty:
+            print("⚠️ [CHECK_DUPLICATES] No existing bookings found")
+            return jsonify({
+                'success': True,
+                'has_duplicates': False,
+                'duplicates': [],
+                'total_checked': len(bookings)
+            })
+
+        # Prepare DataFrame for duplicate checking
+        df_work = df.copy()
+        df_work['Check-in Date'] = pd.to_datetime(df_work['Check-in Date'], errors='coerce')
+        df_work['Check-out Date'] = pd.to_datetime(df_work['Check-out Date'], errors='coerce')
+
+        # Exclude cancelled bookings from duplicate detection
+        if 'Tình trạng' in df_work.columns:
+            df_work = df_work[df_work['Tình trạng'] != 'Đã hủy']
+
         duplicate_results = []
         has_duplicates = False
-        
+
         for booking in bookings:
             guest_name = booking.get('guest_name', '')
             checkin_date = booking.get('checkin_date', '')
-            
-            if not guest_name:
+            checkout_date = booking.get('checkout_date', '')
+            booking_id = booking.get('booking_id', '')
+
+            if not guest_name or not checkin_date:
                 continue
-                
-            # Check for existing bookings with same guest name
-            duplicates = check_duplicate_guests(guest_name, checkin_date)
-            
-            if duplicates:
-                has_duplicates = True
-                duplicate_results.append({
-                    'guest_name': guest_name,
-                    'checkin_date': checkin_date,
-                    'existing_bookings': duplicates
-                })
-                print(f"⚠️ [CHECK_DUPLICATES] Found duplicates for {guest_name}: {len(duplicates)} existing")
-        
+
+            try:
+                # Parse dates
+                new_checkin = pd.to_datetime(checkin_date)
+                new_checkout = pd.to_datetime(checkout_date) if checkout_date else None
+
+                # Find potential duplicates with ACCURATE criteria:
+                # 1. Same guest name (exact match or very similar)
+                # 2. Check-in date overlap (within same date range)
+                # 3. Consider checkout dates to detect actual overlaps
+
+                # Filter by guest name (case-insensitive exact match or partial)
+                name_mask = df_work['Tên người đặt'].str.lower() == guest_name.lower()
+                potential_duplicates = df_work[name_mask].copy()
+
+                if potential_duplicates.empty:
+                    continue
+
+                # Check for actual date conflicts
+                actual_duplicates = []
+
+                for idx, existing in potential_duplicates.iterrows():
+                    existing_checkin = existing['Check-in Date']
+                    existing_checkout = existing['Check-out Date']
+                    existing_booking_id = existing.get('Số đặt phòng', 'N/A')
+
+                    # Skip if dates are invalid
+                    if pd.isna(existing_checkin):
+                        continue
+
+                    # ACCURATE DUPLICATE DETECTION:
+                    # A booking is a duplicate if:
+                    # 1. Same guest name AND
+                    # 2. Same booking ID (exact duplicate) OR
+                    # 3. Date ranges overlap (potential conflict)
+
+                    is_duplicate = False
+                    duplicate_reason = ""
+
+                    # Check 1: Same booking ID = exact duplicate
+                    if booking_id and existing_booking_id == booking_id:
+                        is_duplicate = True
+                        duplicate_reason = "Same booking ID"
+
+                    # Check 2: Date overlap detection
+                    elif new_checkout and not pd.isna(existing_checkout):
+                        # Both have checkout dates - check for actual overlap
+                        # Overlap if: new_checkin < existing_checkout AND new_checkout > existing_checkin
+                        if new_checkin < existing_checkout and new_checkout > existing_checkin:
+                            is_duplicate = True
+                            duplicate_reason = "Date range overlaps"
+
+                    elif not new_checkout and not pd.isna(existing_checkout):
+                        # Only existing has checkout - check if new checkin falls within existing stay
+                        if existing_checkin <= new_checkin <= existing_checkout:
+                            is_duplicate = True
+                            duplicate_reason = "Check-in during existing stay"
+
+                    else:
+                        # No checkout dates - use check-in proximity (within 3 days)
+                        date_diff = abs((new_checkin - existing_checkin).days)
+                        if date_diff <= 3:
+                            is_duplicate = True
+                            duplicate_reason = f"Check-in within {date_diff} days"
+
+                    if is_duplicate:
+                        actual_duplicates.append({
+                            'booking_id': existing_booking_id,
+                            'guest_name': existing.get('Tên người đặt', 'N/A'),
+                            'checkin_date': str(existing_checkin.date()) if not pd.isna(existing_checkin) else 'N/A',
+                            'checkout_date': str(existing_checkout.date()) if not pd.isna(existing_checkout) else 'N/A',
+                            'amount': existing.get('Tổng thanh toán', 0),
+                            'status': existing.get('Tình trạng', 'N/A'),
+                            'reason': duplicate_reason
+                        })
+
+                if actual_duplicates:
+                    has_duplicates = True
+                    duplicate_results.append({
+                        'guest_name': guest_name,
+                        'checkin_date': checkin_date,
+                        'checkout_date': checkout_date,
+                        'existing_bookings': actual_duplicates
+                    })
+                    print(f"⚠️ [CHECK_DUPLICATES] Found {len(actual_duplicates)} duplicates for {guest_name}")
+                    for dup in actual_duplicates:
+                        print(f"   - {dup['booking_id']}: {dup['checkin_date']} → {dup['checkout_date']} ({dup['reason']})")
+
+            except Exception as booking_error:
+                print(f"❌ [CHECK_DUPLICATES] Error checking {guest_name}: {booking_error}")
+                continue
+
         return jsonify({
             'success': True,
             'has_duplicates': has_duplicates,
@@ -3563,9 +3664,11 @@ def check_duplicates():
             'total_checked': len(bookings),
             'total_duplicates': len(duplicate_results)
         })
-        
+
     except Exception as e:
         print(f"❌ [CHECK_DUPLICATES] Error: {e}")
+        import traceback
+        traceback.print_exc()
         return jsonify({
             'success': False,
             'error': str(e),
