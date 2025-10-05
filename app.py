@@ -3260,7 +3260,8 @@ def calendar_details(date_str):
             staying_over=staying_over,
             day_revenue_info=day_revenue_info,
             current_date=date_obj,
-            pd=pd  # For template processing
+            pd=pd,  # For template processing
+            timedelta=timedelta  # For date navigation
         )
     
     except Exception as e:

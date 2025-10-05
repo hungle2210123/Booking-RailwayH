@@ -3,9 +3,62 @@
 {% block title %}Chi tiết Ngày {{ date }}{% endblock %}
 
 {% block content %}
-<div class="container mt-4">
+<div class="container-fluid mt-4">
+    <div class="row">
+        <!-- LEFT SIDEBAR: Compact Monthly Calendar (Sticky) -->
+        <div class="col-lg-3">
+            <div class="card border-primary sticky-top" style="top: 70px;">
+                <div class="card-header bg-primary text-white">
+                    <h6 class="mb-0">
+                        <i class="fas fa-calendar-alt me-2"></i>Tổng quan tháng {{ date.strftime('%m/%Y') }}
+                    </h6>
+                </div>
+                <div class="card-body p-2">
+                    <div id="compactMonthlyCalendarPage">
+                        <!-- Calendar will be rendered by JavaScript -->
+                        <div class="text-center py-3">
+                            <i class="fas fa-spinner fa-spin text-primary"></i>
+                            <p class="small text-muted mt-2">Đang tải lịch...</p>
+                        </div>
+                    </div>
+
+                    <!-- Legend -->
+                    <div class="mt-2 small border-top pt-2">
+                        <div class="d-flex align-items-center justify-content-between mb-1">
+                            <span><span class="badge bg-success">●</span> Có khách</span>
+                            <span><span class="badge bg-secondary">●</span> Trống</span>
+                        </div>
+                        <div class="d-flex align-items-center justify-content-between">
+                            <span><span class="badge bg-warning">●</span> Đông (>5)</span>
+                            <span><span class="badge bg-primary">●</span> Hôm nay</span>
+                        </div>
+                    </div>
+
+                    <!-- Quick Navigation -->
+                    <div class="mt-2 border-top pt-2">
+                        <div class="btn-group w-100" role="group">
+                            <a href="{{ url_for('calendar_details', date_str=(date - timedelta(days=1)).strftime('%Y-%m-%d')) }}"
+                               class="btn btn-sm btn-outline-primary">
+                                <i class="fas fa-chevron-left"></i> Hôm qua
+                            </a>
+                            <a href="{{ url_for('calendar_details', date_str=date.today().strftime('%Y-%m-%d')) }}"
+                               class="btn btn-sm btn-outline-secondary">
+                                Hôm nay
+                            </a>
+                            <a href="{{ url_for('calendar_details', date_str=(date + timedelta(days=1)).strftime('%Y-%m-%d')) }}"
+                               class="btn btn-sm btn-outline-primary">
+                                Ngày mai <i class="fas fa-chevron-right"></i>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- RIGHT CONTENT: Details -->
+        <div class="col-lg-9">
     <h1 class="mb-4">📅 Chi tiết Hoạt động Ngày {{ date }}</h1>
-    
+
     <!-- Ultra-Optimized Commission Legend -->
     <div class="commission-legend mb-4">
         <div class="legend-title">
@@ -1928,6 +1981,196 @@ function quickCancelCalendarGuest(bookingId, guestName) {
         });
     }
 }
+
+// ========================================
+// Render Compact Monthly Calendar on Page Load
+// ========================================
+async function loadMonthlyCalendarForPage() {
+    const calendarDiv = document.getElementById('compactMonthlyCalendarPage');
+
+    if (!calendarDiv) {
+        console.error('Calendar div not found');
+        return;
+    }
+
+    try {
+        // Get current date from page
+        const currentDate = new Date('{{ date_str }}');
+        const year = currentDate.getFullYear();
+        const month = currentDate.getMonth() + 1; // 1-12
+        const monthStr = `${year}-${String(month).padStart(2, '0')}`;
+
+        console.log('📅 Loading calendar for month:', monthStr);
+
+        // Fetch daily breakdown data for the month
+        const response = await fetch('/api/daily_customer_breakdown', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                month: monthStr,
+                method: 'daily_distribution'
+            })
+        });
+
+        const data = await response.json();
+
+        if (data.success && data.daily_data) {
+            renderCompactCalendarForPage(data.daily_data, year, month, currentDate.getDate());
+        } else {
+            calendarDiv.innerHTML = '<div class="text-danger small text-center">Không thể tải lịch</div>';
+        }
+    } catch (error) {
+        console.error('Error loading calendar:', error);
+        calendarDiv.innerHTML = '<div class="text-danger small text-center">Lỗi tải lịch</div>';
+    }
+}
+
+function renderCompactCalendarForPage(dailyData, year, month, selectedDay) {
+    const calendarDiv = document.getElementById('compactMonthlyCalendarPage');
+
+    // Get first day of month and total days
+    const firstDay = new Date(year, month - 1, 1);
+    const lastDay = new Date(year, month, 0);
+    const totalDays = lastDay.getDate();
+    const startDayOfWeek = firstDay.getDay(); // 0 = Sunday
+
+    // Create customer count map
+    const customerMap = {};
+    dailyData.forEach(day => {
+        const date = new Date(day.date);
+        const dayNum = date.getDate();
+        customerMap[dayNum] = day.customers ? day.customers.length : 0;
+    });
+
+    // Build calendar HTML (same as modal version)
+    let html = '<div class="compact-calendar">';
+
+    // Weekday headers
+    html += '<div class="calendar-header">';
+    ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'].forEach(day => {
+        html += `<div class="calendar-day-name">${day}</div>`;
+    });
+    html += '</div>';
+
+    // Calendar grid
+    html += '<div class="calendar-grid">';
+
+    // Empty cells for days before month starts
+    for (let i = 0; i < startDayOfWeek; i++) {
+        html += '<div class="calendar-day empty"></div>';
+    }
+
+    // Days of the month
+    for (let day = 1; day <= totalDays; day++) {
+        const customerCount = customerMap[day] || 0;
+        const isSelected = day === selectedDay;
+
+        let dayClass = 'calendar-day';
+        if (isSelected) dayClass += ' today';
+        if (customerCount === 0) dayClass += ' no-guests';
+        else if (customerCount > 5) dayClass += ' busy';
+        else dayClass += ' has-guests';
+
+        // Make clickable to navigate to that day
+        const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+
+        html += `<div class="${dayClass}"
+                      title="${customerCount} khách - Click để xem chi tiết"
+                      onclick="window.location.href='/calendar_details/${dateStr}'"
+                      style="cursor: pointer;">
+                    <div class="day-number">${day}</div>
+                    ${customerCount > 0 ? `<div class="guest-count">${customerCount}</div>` : ''}
+                 </div>`;
+    }
+
+    html += '</div></div>';
+
+    calendarDiv.innerHTML = html;
+}
+
+// Load calendar when page loads
+document.addEventListener('DOMContentLoaded', function() {
+    loadMonthlyCalendarForPage();
+});
 </script>
+
+<!-- Calendar Styles (reuse from dashboard modal) -->
+<style>
+.compact-calendar {
+    font-size: 0.75rem;
+}
+.calendar-header {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 2px;
+    margin-bottom: 4px;
+}
+.calendar-day-name {
+    text-align: center;
+    font-weight: bold;
+    padding: 4px 2px;
+    background: #e9ecef;
+    font-size: 0.7rem;
+}
+.calendar-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 3px;
+}
+.calendar-day {
+    aspect-ratio: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s;
+    position: relative;
+}
+.calendar-day:hover:not(.empty) {
+    transform: scale(1.1);
+    z-index: 10;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+}
+.calendar-day.empty {
+    background: transparent;
+}
+.calendar-day.no-guests {
+    background: #e9ecef;
+    color: #6c757d;
+}
+.calendar-day.has-guests {
+    background: #d1e7dd;
+    color: #0f5132;
+    border: 1px solid #0f5132;
+}
+.calendar-day.busy {
+    background: #fff3cd;
+    color: #664d03;
+    border: 2px solid #664d03;
+    font-weight: bold;
+}
+.calendar-day.today {
+    box-shadow: 0 0 0 3px #0d6efd;
+    border: 2px solid #0d6efd !important;
+    background: #cfe2ff !important;
+}
+.day-number {
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+.guest-count {
+    font-size: 0.65rem;
+    margin-top: -2px;
+}
+</style>
+
+        </div>
+        <!-- END RIGHT COLUMN -->
+    </div>
+    <!-- END ROW -->
+</div>
+<!-- END CONTAINER -->
 
 {% endblock %} 
