@@ -2165,13 +2165,32 @@ function renderCompactCalendarForPage(dailyData, year, month, selectedDay) {
 
     calendarDiv.innerHTML = html;
 
-    // Initialize Bootstrap popovers
+    // Initialize Bootstrap popovers with auto-close functionality
     setTimeout(() => {
         const popoverTriggerList = document.querySelectorAll('[data-bs-toggle="popover"]');
-        [...popoverTriggerList].map(el => new bootstrap.Popover(el, {
-            container: 'body',
-            customClass: 'calendar-day-popover'
-        }));
+        const popovers = [...popoverTriggerList].map(el => {
+            const popover = new bootstrap.Popover(el, {
+                container: 'body',
+                customClass: 'calendar-day-popover'
+            });
+
+            // Auto-close previous popover when clicking a new one
+            el.addEventListener('click', function(e) {
+                e.stopPropagation();
+
+                // Hide all other popovers
+                popoverTriggerList.forEach(otherEl => {
+                    if (otherEl !== el) {
+                        const otherPopover = bootstrap.Popover.getInstance(otherEl);
+                        if (otherPopover) {
+                            otherPopover.hide();
+                        }
+                    }
+                });
+            });
+
+            return popover;
+        });
     }, 100);
 }
 
