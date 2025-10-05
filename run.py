@@ -24,14 +24,19 @@ def main():
     print(f"🚀 Starting gunicorn on 0.0.0.0:{port}")
     
     # Start gunicorn with validated port
+    # ⚡ EMERGENCY: Increased timeout + added worker class for better performance
     cmd = [
         'gunicorn',
         'app:app',
         '--bind', f'0.0.0.0:{port}',
-        '--workers', '1',
-        '--timeout', '120',
+        '--workers', '2',  # Increased from 1 to 2 workers
+        '--worker-class', 'sync',  # Explicit sync worker
+        '--timeout', '300',  # Increased from 120 to 300 seconds
+        '--graceful-timeout', '300',
+        '--keep-alive', '5',
         '--access-logfile', '-',
-        '--error-logfile', '-'
+        '--error-logfile', '-',
+        '--log-level', 'info'
     ]
     
     print(f"📝 Command: {' '.join(cmd)}")
