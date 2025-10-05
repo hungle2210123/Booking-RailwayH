@@ -9955,34 +9955,46 @@ def daily_customer_breakdown():
             guest_name = booking.get('Tên người đặt', 'Unknown')
             checkin = booking['check_in_date']
             checkout = booking['check_out_date']
-            
+
+            # Get price information
+            total_amount = booking.get('Tổng tiền phòng', 0) or booking.get('room_amount', 0) or 0
+            if pd.isna(total_amount):
+                total_amount = 0
+
+            # Calculate total nights for this booking
+            total_nights = (checkout - checkin).days
+            price_per_night = float(total_amount) / total_nights if total_nights > 0 else 0
+
             unique_customers.add(guest_name)
-            
+
             # Calculate which days this booking covers within the month
             actual_start = max(checkin, start_of_month)
             actual_end = min(checkout, end_of_month + pd.Timedelta(days=1))
-            
+
             # Generate date range for this booking within the month
             current_date = actual_start
             while current_date < actual_end:
                 if current_date.month == month_num and current_date.year == year:
                     date_str = current_date.strftime('%Y-%m-%d')
-                    
+
                     if date_str not in daily_data:
                         daily_data[date_str] = {
                             'date': date_str,
                             'customers': [],
                             'total_nights': 0
                         }
-                    
+
                     # Add customer to this day
                     daily_data[date_str]['customers'].append({
                         'guest_name': guest_name,
                         'checkin_date': checkin.strftime('%Y-%m-%d'),
-                        'checkout_date': checkout.strftime('%Y-%m-%d')
+                        'checkout_date': checkout.strftime('%Y-%m-%d'),
+                        'total_amount': float(total_amount),
+                        'price_per_night': float(price_per_night),
+                        'total_nights': total_nights
                     })
                     daily_data[date_str]['total_nights'] += 1
-                
+
                 current_date += pd.Timedelta(days=1)
         
         # Convert to list and sort by date
