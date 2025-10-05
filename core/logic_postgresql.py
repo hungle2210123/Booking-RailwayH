@@ -160,8 +160,7 @@ def load_booking_data(force_fresh: bool = False) -> pd.DataFrame:
         df = execute_query(query, force_fresh=force_fresh, allow_fallback=True)
         if not df.empty:
             result = process_booking_dataframe(df)
-            # ⚡ ULTRA PERFORMANCE: Store in cache
-            global _booking_data_cache, _cache_timestamp
+            # ⚡ ULTRA PERFORMANCE: Store in cache (global already declared at function start)
             _booking_data_cache = result.copy()
             _cache_timestamp = time.time()
             return result
@@ -211,8 +210,7 @@ def load_booking_data(force_fresh: bool = False) -> pd.DataFrame:
 
     result = process_booking_dataframe(df)
 
-    # ⚡ ULTRA PERFORMANCE: Store in cache
-    global _booking_data_cache, _cache_timestamp
+    # ⚡ ULTRA PERFORMANCE: Store in cache (global already declared at function start)
     _booking_data_cache = result.copy()
     _cache_timestamp = time.time()
 
