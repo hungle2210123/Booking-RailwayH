@@ -1535,15 +1535,23 @@
         </div>
         <div class="col-xl-4">
             <div class="card shadow-sm border-0">
-                <div class="card-header bg-light">
-                    <h6 class="mb-0">
-                        <i class="fas fa-chart-pie me-1 text-primary"></i> 
-                        Phân bổ theo Người thu (Chi tiết)
-                    </h6>
-                    <small class="text-muted">✅ Validation: CHỈ LOC LE & THAO LE</small>
+                <div class="card-header bg-light" style="cursor: pointer;" onclick="toggleCollectorChartSection()">
+                    <div class="d-flex align-items-center justify-content-between">
+                        <div>
+                            <h6 class="mb-0">
+                                <i class="fas fa-chart-pie me-1 text-primary"></i>
+                                Phân bổ theo Người thu (Chi tiết)
+                            </h6>
+                            <small class="text-muted">✅ Validation: CHỈ LOC LE & THAO LE</small>
+                        </div>
+                        <button class="btn btn-sm btn-outline-primary" id="collectorChartToggleBtn">
+                            <i class="fas fa-chevron-down"></i> Xem biểu đồ
+                        </button>
+                    </div>
                 </div>
-                
-                <!-- 🎯 PROMINENT DATE PICKER SECTION -->
+
+                <!-- 🎯 PROMINENT DATE PICKER SECTION - Hidden by default -->
+                <div id="collectorChartSection" class="d-none">
                 <div class="card-body border-bottom" style="background-color: #f8f9fa;">
                     <div class="row">
                         <div class="col-md-12">
@@ -1682,6 +1690,8 @@
                         </div>
                     </div>
                 </div>
+                </div>
+                <!-- End of collectorChartSection -->
             </div>
         </div>
     </div>
@@ -2532,6 +2542,60 @@ function safeRenderChart(containerId, chartData, chartTitle) {
     }
 }
 
+// ⚡ PERFORMANCE: Collector Chart On-Demand Loading
+let collectorChartLoaded = false;
+
+window.toggleCollectorChartSection = function() {
+    const section = document.getElementById('collectorChartSection');
+    const toggleBtn = document.getElementById('collectorChartToggleBtn');
+
+    if (!section || !toggleBtn) {
+        console.error('⚠️ Collector chart section elements not found');
+        return;
+    }
+
+    // Toggle visibility
+    if (section.classList.contains('d-none')) {
+        // Show section
+        section.classList.remove('d-none');
+        toggleBtn.innerHTML = '<i class="fas fa-chevron-up"></i> Ẩn biểu đồ';
+        toggleBtn.classList.remove('btn-outline-primary');
+        toggleBtn.classList.add('btn-primary');
+
+        // Load chart data ONLY on first expand
+        if (!collectorChartLoaded) {
+            console.log('⚡ [PERFORMANCE] Loading collector chart for the first time...');
+
+            // Show loading indicator
+            const chartDiv = document.getElementById('collectorChart');
+            if (chartDiv) {
+                chartDiv.innerHTML = '<div class="text-center py-5"><i class="fas fa-spinner fa-spin fa-2x text-primary"></i><p class="mt-2">Đang tải biểu đồ...</p></div>';
+            }
+
+            // Load chart after a short delay to allow UI to update
+            setTimeout(() => {
+                if (typeof window.updateCollectorChart === 'function') {
+                    console.log('📊 Loading collector chart data...');
+                    window.updateCollectorChart();
+                    collectorChartLoaded = true;
+                    console.log('✅ Collector chart loaded successfully');
+                } else {
+                    console.error('❌ updateCollectorChart function not available');
+                    if (chartDiv) {
+                        chartDiv.innerHTML = '<div class="alert alert-warning">Chức năng biểu đồ chưa sẵn sàng. Vui lòng tải lại trang.</div>';
+                    }
+                }
+            }, 300);
+        }
+    } else {
+        // Hide section
+        section.classList.add('d-none');
+        toggleBtn.innerHTML = '<i class="fas fa-chevron-down"></i> Xem biểu đồ';
+        toggleBtn.classList.remove('btn-primary');
+        toggleBtn.classList.add('btn-outline-primary');
+    }
+};
+
 // Initialize charts when DOM is ready
 document.addEventListener('DOMContentLoaded', function() {
     console.log('🔧 Initializing defensive chart rendering...');
@@ -2539,21 +2603,9 @@ document.addEventListener('DOMContentLoaded', function() {
     // Initialize monthly revenue chart
     safeRenderChart('monthlyRevenueChart', monthlyRevenueChartData, 'Monthly Revenue Chart');
     
-    // Initialize collector chart (only if no month selector exists)
-    const collectorMonthSelect = document.getElementById('collectorMonthSelect');
-    if (!collectorMonthSelect) {
-        safeRenderChart('collectorChart', collectorChartData, 'Collector Revenue Chart');
-        console.log('✅ Successfully rendered Collector Revenue Chart');
-    } else {
-        console.log('📊 [INIT] Month selector detected - skipping initial collector chart render');
-        // Trigger the month-specific chart update after a short delay
-        setTimeout(() => {
-            if (typeof window.updateCollectorChart === 'function') {
-                console.log('📊 [INIT] Triggering initial month-specific collector chart update');
-                window.updateCollectorChart();
-            }
-        }, 1000);
-    }
+    // ⚡ PERFORMANCE OPTIMIZATION: DO NOT load collector chart on page load
+    // Chart will only load when user clicks to expand the section
+    console.log('⚡ [PERFORMANCE] Collector chart set to load on-demand only')
     
     // Initialize collector stats table (only if month selector doesn't exist)
     const monthSelect = document.getElementById('collectorMonthSelect');
