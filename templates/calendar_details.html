@@ -2034,15 +2034,18 @@ function renderCompactCalendarForPage(dailyData, year, month, selectedDay) {
     const totalDays = lastDay.getDate();
     const startDayOfWeek = firstDay.getDay(); // 0 = Sunday
 
-    // Create customer count map
-    const customerMap = {};
+    // Create customer data map (with full details)
+    const customerDataMap = {};
     dailyData.forEach(day => {
         const date = new Date(day.date);
         const dayNum = date.getDate();
-        customerMap[dayNum] = day.customers ? day.customers.length : 0;
+        customerDataMap[dayNum] = {
+            count: day.customers ? day.customers.length : 0,
+            customers: day.customers || []
+        };
     });
 
-    // Build calendar HTML (same as modal version)
+    // Build calendar HTML
     let html = '<div class="compact-calendar">';
 
     // Weekday headers
@@ -2062,7 +2065,8 @@ function renderCompactCalendarForPage(dailyData, year, month, selectedDay) {
 
     // Days of the month
     for (let day = 1; day <= totalDays; day++) {
-        const customerCount = customerMap[day] || 0;
+        const dayData = customerDataMap[day] || { count: 0, customers: [] };
+        const customerCount = dayData.count;
         const isSelected = day === selectedDay;
 
         let dayClass = 'calendar-day';
@@ -2071,11 +2075,57 @@ function renderCompactCalendarForPage(dailyData, year, month, selectedDay) {
         else if (customerCount > 5) dayClass += ' busy';
         else dayClass += ' has-guests';
 
-        // Make clickable to navigate to that day
         const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
 
-        html += `<div class="${dayClass}"
-                      title="${customerCount} khách - Click để xem chi tiết"
+        // Generate popover content with guest details
+        let popoverContent = '';
+        if (customerCount > 0) {
+            popoverContent = `<div class="day-popover-content">
+                <div class="popover-header-custom">
+                    <strong>📅 Ngày ${day}/${month}/${year}</strong>
+                    <div class="text-muted small">${customerCount} khách</div>
+                </div>
+                <div class="popover-guests">`;
+
+            dayData.customers.forEach((customer, idx) => {
+                const guestName = customer.guest_name || 'N/A';
+                const checkin = customer.checkin_date || 'N/A';
+                const checkout = customer.checkout_date || 'N/A';
+
+                // Calculate amount for this guest (from booking data)
+                let amount = 'N/A';
+                if (customer.total_amount) {
+                    amount = parseFloat(customer.total_amount).toLocaleString('vi-VN') + 'đ';
+                }
+
+                popoverContent += `
+                    <div class="guest-item ${idx % 2 === 0 ? 'bg-light' : ''}">
+                        <div class="guest-name"><i class="fas fa-user text-primary"></i> ${guestName}</div>
+                        <div class="guest-details">
+                            <span class="badge bg-success">${checkin}</span>
+                            <i class="fas fa-arrow-right mx-1"></i>
+                            <span class="badge bg-danger">${checkout}</span>
+                        </div>
+                        <div class="guest-amount text-success fw-bold">💰 ${amount}</div>
+                    </div>`;
+            });
+
+            popoverContent += `</div></div>`;
+        } else {
+            popoverContent = `<div class="day-popover-content text-center text-muted py-2">
+                <i class="fas fa-calendar-times"></i> Không có khách
+            </div>`;
+        }
+
+        // Encode popover content for data attribute (escape quotes)
+        const encodedContent = popoverContent.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+
+        html += `<div class="${dayClass} calendar-day-interactive"
+                      data-bs-toggle="popover"
+                      data-bs-trigger="hover focus"
+                      data-bs-placement="right"
+                      data-bs-html="true"
+                      data-bs-content="${encodedContent}"
                       onclick="window.location.href='/calendar_details/${dateStr}'"
                       style="cursor: pointer;">
                     <div class="day-number">${day}</div>
@@ -2086,6 +2136,15 @@ function renderCompactCalendarForPage(dailyData, year, month, selectedDay) {
     html += '</div></div>';
 
     calendarDiv.innerHTML = html;
+
+    // Initialize Bootstrap popovers
+    setTimeout(() => {
+        const popoverTriggerList = document.querySelectorAll('[data-bs-toggle="popover"]');
+        [...popoverTriggerList].map(el => new bootstrap.Popover(el, {
+            container: 'body',
+            customClass: 'calendar-day-popover'
+        }));
+    }, 100);
 }
 
 // Load calendar when page loads
@@ -2163,6 +2222,72 @@ document.addEventListener('DOMContentLoaded', function() {
 .guest-count {
     font-size: 0.65rem;
     margin-top: -2px;
+}
+
+/* Popover Styles */
+.calendar-day-popover {
+    max-width: 350px !important;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+.calendar-day-popover .popover-body {
+    padding: 0;
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.day-popover-content {
+    font-size: 0.875rem;
+}
+
+.popover-header-custom {
+    background: linear-gradient(135deg, #0d6efd 0%, #0a58ca 100%);
+    color: white;
+    padding: 8px 12px;
+    border-radius: 4px 4px 0 0;
+    margin-bottom: 8px;
+}
+
+.popover-guests {
+    max-height: 350px;
+    overflow-y: auto;
+}
+
+.guest-item {
+    padding: 8px 12px;
+    border-bottom: 1px solid #e9ecef;
+}
+
+.guest-item:last-child {
+    border-bottom: none;
+}
+
+.guest-name {
+    font-weight: 600;
+    margin-bottom: 4px;
+    color: #0d6efd;
+}
+
+.guest-details {
+    font-size: 0.75rem;
+    margin-bottom: 4px;
+    display: flex;
+    align-items: center;
+}
+
+.guest-details .badge {
+    font-size: 0.7rem;
+    padding: 2px 6px;
+}
+
+.guest-amount {
+    font-size: 0.85rem;
+    margin-top: 2px;
+}
+
+/* Hover effect for calendar days with popover */
+.calendar-day-interactive:hover {
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3) !important;
 }
 </style>
 
