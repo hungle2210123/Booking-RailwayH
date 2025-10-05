@@ -2082,10 +2082,11 @@ function renderCompactCalendarForPage(dailyData, year, month, selectedDay) {
         // Generate popover content with guest details
         let popoverContent = '';
         if (customerCount > 0) {
+            const hasScroll = customerCount > 3; // More than 3 guests = scrollable
             popoverContent = `<div class="day-popover-content">
                 <div class="popover-header-custom">
                     <strong>📅 Ngày ${day}/${month}/${year}</strong>
-                    <div class="text-muted small">${customerCount} khách</div>
+                    <div class="text-muted small">${customerCount} khách${hasScroll ? ' <i class="fas fa-arrow-down ms-1"></i>' : ''}</div>
                 </div>
                 <div class="popover-guests">`;
 
@@ -2131,7 +2132,13 @@ function renderCompactCalendarForPage(dailyData, year, month, selectedDay) {
                     </div>`;
             });
 
-            popoverContent += `</div></div>`;
+            popoverContent += `</div>
+                <div class="popover-footer-custom">
+                    <button class="btn btn-sm btn-primary w-100" onclick="window.location.href='/calendar_details/${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}'">
+                        <i class="fas fa-arrow-right"></i> Xem chi tiết
+                    </button>
+                </div>
+            </div>`;
         } else {
             popoverContent = `<div class="day-popover-content text-center text-muted py-2">
                 <i class="fas fa-calendar-times"></i> Không có khách
@@ -2143,11 +2150,11 @@ function renderCompactCalendarForPage(dailyData, year, month, selectedDay) {
 
         html += `<div class="${dayClass} calendar-day-interactive"
                       data-bs-toggle="popover"
-                      data-bs-trigger="hover focus"
+                      data-bs-trigger="click"
                       data-bs-placement="right"
                       data-bs-html="true"
                       data-bs-content="${encodedContent}"
-                      onclick="window.location.href='/calendar_details/${dateStr}'"
+                      data-date-url="/calendar_details/${dateStr}"
                       style="cursor: pointer;">
                     <div class="day-number">${day}</div>
                     ${customerCount > 0 ? `<div class="guest-count">${customerCount}</div>` : ''}
@@ -2247,14 +2254,14 @@ document.addEventListener('DOMContentLoaded', function() {
 
 /* Popover Styles */
 .calendar-day-popover {
-    max-width: 350px !important;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    max-width: 380px !important;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.25);
 }
 
 .calendar-day-popover .popover-body {
     padding: 0;
-    max-height: 400px;
-    overflow-y: auto;
+    max-height: 500px;
+    overflow: visible;
 }
 
 .day-popover-content {
@@ -2264,14 +2271,47 @@ document.addEventListener('DOMContentLoaded', function() {
 .popover-header-custom {
     background: linear-gradient(135deg, #0d6efd 0%, #0a58ca 100%);
     color: white;
-    padding: 8px 12px;
+    padding: 10px 14px;
     border-radius: 4px 4px 0 0;
-    margin-bottom: 8px;
+    position: sticky;
+    top: 0;
+    z-index: 10;
 }
 
 .popover-guests {
-    max-height: 350px;
+    max-height: 320px;
     overflow-y: auto;
+    overflow-x: hidden;
+    /* Custom scrollbar */
+    scrollbar-width: thin;
+    scrollbar-color: #0d6efd #e9ecef;
+}
+
+.popover-guests::-webkit-scrollbar {
+    width: 6px;
+}
+
+.popover-guests::-webkit-scrollbar-track {
+    background: #e9ecef;
+    border-radius: 3px;
+}
+
+.popover-guests::-webkit-scrollbar-thumb {
+    background: #0d6efd;
+    border-radius: 3px;
+}
+
+.popover-guests::-webkit-scrollbar-thumb:hover {
+    background: #0a58ca;
+}
+
+.popover-footer-custom {
+    padding: 10px;
+    background: #f8f9fa;
+    border-top: 1px solid #dee2e6;
+    position: sticky;
+    bottom: 0;
+    z-index: 10;
 }
 
 .guest-item {
