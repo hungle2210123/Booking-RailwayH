@@ -125,6 +125,9 @@ except Exception as e:
 # Import optimized crawling and performance monitoring
 from core.performance_dashboard import performance_bp
 
+# Import caching configuration
+from core.cache_config import init_cache, clear_booking_cache
+
 # Learning mode removed for simplicity
 
 # Import test dashboard blueprint (optional - for development/testing only)
@@ -1351,35 +1354,22 @@ def view_bookings():
     import time
     start_time = time.time()
     
-    # Debug all request parameters
-    print(f"🚨 [VIEW_BOOKINGS_DEBUG] Full request args: {dict(request.args)}")
-    
     try:
         # Check if we need to force fresh data (e.g., after payment collection)
         force_fresh = request.args.get('refresh', 'false').lower() == 'true'
         df, _ = load_data(force_fresh=force_fresh)
-        
+
         if df.empty:
-            print("⚠️ BOOKING MANAGEMENT: No data available")
-            return render_template('bookings.html', 
-                                 bookings=[], 
+            return render_template('bookings.html',
+                                 bookings=[],
                                  total_bookings=0,
                                  pagination={'total': 0, 'page': 1, 'total_pages': 0})
-        
-        data_load_time = time.time() - start_time
-        print(f"⏱️ PERFORMANCE: Data loaded in {data_load_time:.3f}s")
-        
+
         # Get URL parameters with professional pagination
         search_term = request.args.get('search_term', '').strip().lower()
         sort_by = request.args.get('sort_by', 'Check-in Date')
-        auto_filter = request.args.get('auto_filter', 'true').lower() == 'true'  # Always enabled by default
+        auto_filter = request.args.get('auto_filter', 'true').lower() == 'true'
         show_all = request.args.get('show_all', 'false').lower() == 'true'
-        
-        # Debug parameter parsing
-        print(f"🔍 FILTER PARAMETERS:")
-        print(f"   show_all parameter: '{request.args.get('show_all', 'not provided')}'")
-        print(f"   show_all parsed: {show_all}")
-        print(f"   Will apply filter: {not show_all}")
         
         # Default sort: always by check-in date, ascending for both views
         default_order = 'asc'  # Always ascending for check-in date sorting
@@ -1397,119 +1387,73 @@ def view_bookings():
         # Professional parameter validation
         if page < 1:
             page = 1
-        if per_page not in [25, 50, 100, 200]:  # Professional options
+        if per_page not in [25, 50, 100, 200]:
             per_page = 50
-            
-        print(f"📄 PAGINATION: Page {page}, {per_page} items per page")
-        
+
         # Filter data
         filtered_df = df.copy()
-        print(f"🚨 [VIEW_BOOKINGS_DEBUG] Initial data loaded: {len(filtered_df)} rows")
-        if not filtered_df.empty:
-            print(f"🚨 [VIEW_BOOKINGS_DEBUG] Columns: {list(filtered_df.columns)}")
-            if 'Check-in Date' in filtered_df.columns:
-                print(f"🚨 [VIEW_BOOKINGS_DEBUG] Sample check-in dates: {filtered_df['Check-in Date'].head(3).tolist()}")
-    
+
         # PROFESSIONAL SEARCH IMPLEMENTATION
         if search_term:
-            print(f"🔍 ADVANCED SEARCH: Processing search term '{search_term}'")
-            
             # Multi-field search with weighted relevance
             search_lower = search_term.lower()
-            
+
             # Create search masks for different fields
             name_mask = filtered_df['Tên người đặt'].str.lower().str.contains(search_lower, na=False)
             booking_id_mask = filtered_df['Số đặt phòng'].astype(str).str.lower().str.contains(search_lower, na=False)
-            
+
             # Additional search fields for comprehensive search
             phone_mask = filtered_df.get('phone', pd.Series([False] * len(filtered_df))).astype(str).str.lower().str.contains(search_lower, na=False)
             notes_mask = filtered_df.get('Ghi chú thanh toán', pd.Series([False] * len(filtered_df))).astype(str).str.lower().str.contains(search_lower, na=False)
-            
+
             # Combine all search criteria
             combined_mask = name_mask | booking_id_mask | phone_mask | notes_mask
-            
+
             # Apply search filter
             filtered_df = filtered_df.loc[combined_mask].copy()
-            
-            # Search analytics
-            search_results_count = len(filtered_df)
-            print(f"🔍 SEARCH RESULTS: Found {search_results_count} matches for '{search_term}'")
-            print(f"   📝 Name matches: {name_mask.sum()}")
-            print(f"   🎫 Booking ID matches: {booking_id_mask.sum()}")
-            print(f"   📞 Phone matches: {phone_mask.sum()}")
-            print(f"   📋 Notes matches: {notes_mask.sum()}")
-        
+
         # DATE FILTERING (MONTH/YEAR/DATE RANGE)
         filter_month = request.args.get('filter_month', '').strip()
         filter_year = request.args.get('filter_year', '').strip()
         start_date = request.args.get('start_date', '').strip()
         end_date = request.args.get('end_date', '').strip()
         
-        print(f"🚨 [DATE_FILTER_DEBUG] filter_month='{filter_month}', filter_year='{filter_year}', start_date='{start_date}', end_date='{end_date}'")
-        print(f"🚨 [DATE_FILTER_DEBUG] Will apply filtering: {bool(filter_month or filter_year or start_date or end_date)}")
-        
         # Apply month/year filtering
         if filter_month or filter_year or start_date or end_date:
-            original_count = len(filtered_df)
-            
             # Convert check-in date to datetime for filtering
             if 'Check-in Date' in filtered_df.columns:
                 filtered_df['Check-in Date'] = pd.to_datetime(filtered_df['Check-in Date'], errors='coerce')
-                
+
                 # Filter by month
                 if filter_month:
                     try:
                         month_num = int(filter_month)
-                        print(f"📅 [MONTH_FILTER] Before filtering: {len(filtered_df)} bookings")
-                        print(f"📅 [MONTH_FILTER] Looking for month: {month_num}")
-                        
-                        # Debug: Show sample dates and their months
-                        if not filtered_df.empty:
-                            sample_dates = filtered_df['Check-in Date'].dropna().head(5)
-                            print(f"📅 [MONTH_FILTER] Sample check-in dates: {sample_dates.tolist()}")
-                            print(f"📅 [MONTH_FILTER] Sample months: {sample_dates.dt.month.tolist()}")
-                            
-                            # Show all unique months in the data
-                            unique_months = filtered_df['Check-in Date'].dt.month.dropna().unique()
-                            print(f"📅 [MONTH_FILTER] Available months in data: {sorted(unique_months)}")
-                        
                         filtered_df = filtered_df.loc[filtered_df['Check-in Date'].dt.month == month_num].copy()
-                        print(f"📅 [MONTH_FILTER] After filtering to month {month_num}: {len(filtered_df)} bookings")
-                        
-                        if len(filtered_df) == 0:
-                            print(f"🚨 [MONTH_FILTER] No bookings found for month {month_num}! This could be normal if no data exists for this month.")
-                            
                     except (ValueError, TypeError):
-                        print(f"⚠️ [MONTH_FILTER] Invalid month parameter: {filter_month}")
-                
+                        pass
+
                 # Filter by year
                 if filter_year:
                     try:
                         year_num = int(filter_year)
                         filtered_df = filtered_df.loc[filtered_df['Check-in Date'].dt.year == year_num].copy()
-                        print(f"📅 [YEAR_FILTER] Filtered to year {year_num}: {len(filtered_df)} bookings")
                     except (ValueError, TypeError):
-                        print(f"⚠️ [YEAR_FILTER] Invalid year parameter: {filter_year}")
-                
+                        pass
+
                 # Filter by date range
                 if start_date:
                     try:
                         start_dt = pd.to_datetime(start_date)
                         filtered_df = filtered_df.loc[filtered_df['Check-in Date'] >= start_dt].copy()
-                        print(f"📅 [START_DATE] Filtered from {start_date}: {len(filtered_df)} bookings")
                     except (ValueError, TypeError):
-                        print(f"⚠️ [START_DATE] Invalid start date: {start_date}")
-                
+                        pass
+
                 if end_date:
                     try:
                         end_dt = pd.to_datetime(end_date)
                         filtered_df = filtered_df.loc[filtered_df['Check-in Date'] <= end_dt].copy()
-                        print(f"📅 [END_DATE] Filtered to {end_date}: {len(filtered_df)} bookings")
                     except (ValueError, TypeError):
-                        print(f"⚠️ [END_DATE] Invalid end date: {end_date}")
-                
-                filtered_count = len(filtered_df)
-                print(f"📅 [DATE_FILTER_SUMMARY] {original_count} → {filtered_count} bookings after date filtering")
+                        pass
         
         # Duplicate detection and marking (NO AUTO-HIDING)
         duplicate_report = {'total_groups': 0, 'total_duplicates': 0, 'filtered_count': 0}

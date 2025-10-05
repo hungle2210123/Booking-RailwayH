@@ -555,67 +555,13 @@ def process_monthly_revenue_with_unpaid_original(df, start_date=None, end_date=N
         print(f"🏨 [CHECKED_IN_FILTER] Total bookings: {len(df_period)}, Checked-in only: {len(df_checked_in)}")
         print(f"🏨 [CHECKED_IN_FILTER] Excluded future arrivals: {len(df_period) - len(df_checked_in)} guests")
         
-        # ✅ ENHANCED DEBUGGING: Analyze collector data before processing
-        print(f"🔍 [COLLECTOR_DEBUG] Analyzing collector distribution in checked-in guests:")
-        if 'Người thu tiền' in df_checked_in.columns:
-            collector_counts = df_checked_in['Người thu tiền'].value_counts(dropna=False)
-            collector_revenue = df_checked_in.groupby('Người thu tiền', dropna=False)['Tổng thanh toán'].sum()
-            
-            print(f"🔍 [COLLECTOR_DEBUG] All collectors found:")
-            total_all_collectors = 0
-            for collector, count in collector_counts.items():
-                revenue = collector_revenue.get(collector, 0)
-                total_all_collectors += revenue
-                # Show exact string representation for debugging
-                repr_collector = repr(collector)
-                is_valid = collector in ['LOC LE', 'THAO LE']
-                status = "✅" if is_valid else "❌"
-                print(f"🔍   {repr_collector}: {count} guests, {revenue:,.0f}đ {status}")
-            
-            print(f"🔍 [COLLECTOR_DEBUG] Total revenue from ALL collectors: {total_all_collectors:,.0f}đ")
-        
         # Tính doanh thu đã thu và chưa thu (ONLY for checked-in guests with EXACT validation)
         valid_collectors = ['LOC LE', 'THAO LE']
-        
+
         # Use strict string matching with validation
         collected_mask = df_checked_in['Người thu tiền'].isin(valid_collectors)
         collected_df = df_checked_in[collected_mask].copy()
         uncollected_df = df_checked_in[~collected_mask].copy()
-        
-        print(f"💰 [COLLECTION_BREAKDOWN] LOC LE + THAO LE collected: {len(collected_df)} guests")
-        print(f"💰 [COLLECTION_BREAKDOWN] Others/Uncollected: {len(uncollected_df)} guests")
-        print(f"💰 [COLLECTION_BREAKDOWN] Collected revenue: {collected_df['Tổng thanh toán'].sum():,.0f}đ")
-        print(f"💰 [COLLECTION_BREAKDOWN] Uncollected revenue: {uncollected_df['Tổng thanh toán'].sum():,.0f}đ")
-        
-        # ✅ CRITICAL DEBUG: Find the exact discrepancy
-        print(f"🔍 [DISCREPANCY_DEBUG] Analyzing who is counted as 'collected'...")
-        
-        if not collected_df.empty:
-            # Show all unique collectors in "collected" data
-            unique_collectors_in_collected = collected_df['Người thu tiền'].value_counts()
-            print(f"🔍 [DISCREPANCY_DEBUG] All collectors in 'collected' dataset:")
-            
-            total_in_collected = 0
-            for collector, count in unique_collectors_in_collected.items():
-                amount = collected_df[collected_df['Người thu tiền'] == collector]['Tổng thanh toán'].sum()
-                total_in_collected += amount
-                is_valid = collector in ['LOC LE', 'THAO LE']
-                status = "✅ VALID" if is_valid else "❌ INVALID - CAUSING DISCREPANCY"
-                print(f"🔍   '{collector}': {count} guests, {amount:,.0f}đ {status}")
-            
-            print(f"🔍 [DISCREPANCY_DEBUG] Total found in 'collected': {total_in_collected:,.0f}đ")
-            
-            # Calculate only valid collectors
-            loc_le_amount = collected_df[collected_df['Người thu tiền'] == 'LOC LE']['Tổng thanh toán'].sum()
-            thao_le_amount = collected_df[collected_df['Người thu tiền'] == 'THAO LE']['Tổng thanh toán'].sum()
-            valid_total = loc_le_amount + thao_le_amount
-            discrepancy = total_in_collected - valid_total
-            
-            print(f"💰 [MONTHLY_BREAKDOWN] LOC LE: {loc_le_amount:,.0f}đ")
-            print(f"💰 [MONTHLY_BREAKDOWN] THAO LE: {thao_le_amount:,.0f}đ")
-            print(f"💰 [VALID_TOTAL] Valid collectors only: {valid_total:,.0f}đ")
-            print(f"🚨 [DISCREPANCY] Extra amount from invalid collectors: {discrepancy:,.0f}đ")
-            print(f"💰 [SHOULD_MATCH] Collector chart should show: {valid_total:,.0f}đ")
         
         # Process collected revenue with commission
         if not collected_df.empty:
@@ -693,37 +639,12 @@ def process_monthly_revenue_with_unpaid_original(df, start_date=None, end_date=N
                     
                     # Add detailed statistics to the row
                     merged_data.at[idx, 'Tổng khách'] = total_guests
-                    merged_data.at[idx, 'Khách đã thu'] = collected_guests  
+                    merged_data.at[idx, 'Khách đã thu'] = collected_guests
                     merged_data.at[idx, 'Chi tiêu TB/khách'] = round(avg_spending, 0)
-                    merged_data.at[idx, 'Tổng hoa hồng'] = round(total_commission, 0)  # ✅ FIXED: Use total commission, not average
-                    
-                    print(f"📊 [DETAILED_STATS] {month}: {total_guests} guests, {collected_guests} collected, avg {avg_spending:,.0f}đ/guest")
-                    
-                    # ✅ MONEY VERIFICATION: Show exact amounts for this specific month
-                    month_collected_amount = month_guests[month_guests['Người thu tiền'].isin(['LOC LE', 'THAO LE'])]['Tổng thanh toán'].sum()
-                    month_uncollected_amount = month_guests[~month_guests['Người thu tiền'].isin(['LOC LE', 'THAO LE'])]['Tổng thanh toán'].sum()
-                    
-                    month_loc_le = month_guests[month_guests['Người thu tiền'] == 'LOC LE']['Tổng thanh toán'].sum()
-                    month_thao_le = month_guests[month_guests['Người thu tiền'] == 'THAO LE']['Tổng thanh toán'].sum()
-                    
-                    print(f"💰 [MONTH_VERIFICATION] {month}:")
-                    print(f"💰   LOC LE: {month_loc_le:,.0f}đ")
-                    print(f"💰   THAO LE: {month_thao_le:,.0f}đ")  
-                    print(f"💰   Collected: {month_collected_amount:,.0f}đ")
-                    print(f"💰   Uncollected: {month_uncollected_amount:,.0f}đ")
-                    print(f"💰   Total: {month_collected_amount + month_uncollected_amount:,.0f}đ")
+                    merged_data.at[idx, 'Tổng hoa hồng'] = round(total_commission, 0)
             
             merged_data = merged_data.sort_values('Tháng')
             monthly_revenue_with_unpaid = safe_to_dict_records(merged_data)
-            
-            # ✅ MONEY ACCURACY SUMMARY
-            print(f"📋 [MONTHLY_SUMMARY] Generated table with {len(monthly_revenue_with_unpaid)} months")
-            for row in monthly_revenue_with_unpaid:
-                month = row.get('Tháng')
-                collected = row.get('Đã thu', 0)
-                uncollected = row.get('Chưa thu', 0)
-                total = collected + uncollected
-                print(f"📋   {month}: Collected={collected:,.0f}đ, Uncollected={uncollected:,.0f}đ, Total={total:,.0f}đ")
     
     except Exception as e:
         print(f"Process monthly revenue error: {e}")

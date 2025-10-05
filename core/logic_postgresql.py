@@ -852,99 +852,66 @@ def check_duplicate_guests(df: pd.DataFrame, guest_name: str, checkin_date: str)
 
 def analyze_existing_duplicates(df: pd.DataFrame) -> Dict[str, List]:
     """Analyze existing duplicates in the dataset with performance optimizations"""
-    print("🤖 [DUPLICATE_ANALYSIS] Starting analysis...")
-    
     if df.empty:
-        print("🤖 [DUPLICATE_ANALYSIS] DataFrame is empty")
         return {'duplicate_groups': [], 'total_duplicates': 0, 'total_groups': 0}
-    
+
     try:
         # Check required columns
         required_columns = ['Tên người đặt', 'Check-in Date']
         missing_columns = [col for col in required_columns if col not in df.columns]
         if missing_columns:
-            print(f"🤖 [DUPLICATE_ANALYSIS] Missing columns: {missing_columns}")
-            print(f"🤖 [DUPLICATE_ANALYSIS] Available columns: {list(df.columns)}")
             return {'duplicate_groups': [], 'total_duplicates': 0, 'total_groups': 0}
-        
+
         # Ensure dates are properly formatted
         df_work = df.copy()
         try:
             df_work['Check-in Date'] = pd.to_datetime(df_work['Check-in Date'])
         except Exception as date_error:
-            print(f"🤖 [DUPLICATE_ANALYSIS] Date conversion error: {date_error}")
             return {'duplicate_groups': [], 'total_duplicates': 0, 'total_groups': 0}
-        
+
         # Filter out null values and cancelled bookings
         df_clean = df_work.dropna(subset=['Tên người đặt', 'Check-in Date'])
-        
+
         # Exclude cancelled bookings from duplicate detection
         if 'Tình trạng' in df_clean.columns:
-            initial_count = len(df_clean)
             df_clean = df_clean[df_clean['Tình trạng'] != 'Đã hủy']
-            cancelled_count = initial_count - len(df_clean)
-            if cancelled_count > 0:
-                print(f"🤖 [DUPLICATE_ANALYSIS] Excluded {cancelled_count} cancelled bookings from duplicate detection")
-        
+
         unique_guests = df_clean['Tên người đặt'].unique()
-        print(f"🤖 [DUPLICATE_ANALYSIS] Processing {len(unique_guests)} unique guests from {len(df_clean)} bookings")
-        
-        # DEBUG: Show first few guest names and their booking counts
-        guest_counts = df_clean['Tên người đặt'].value_counts()
-        multi_booking_guests = guest_counts[guest_counts > 1]
-        print(f"🤖 [DUPLICATE_ANALYSIS] Guests with multiple bookings: {len(multi_booking_guests)}")
-        if len(multi_booking_guests) > 0:
-            print(f"🤖 [DUPLICATE_ANALYSIS] Top guests with multiple bookings:")
-            for name, count in multi_booking_guests.head(5).items():
-                print(f"   - {name}: {count} bookings")
-        
         duplicate_groups = []
-        processed_count = 0
-        
+
         # Performance optimization: limit processing time
         import time
         start_time = time.time()
         max_processing_time = 30  # 30 seconds timeout
-        
+
         for name in unique_guests:
             # Check timeout
             if time.time() - start_time > max_processing_time:
-                print(f"🤖 [DUPLICATE_ANALYSIS] Timeout reached after {max_processing_time}s, stopping analysis")
                 break
-            
-            processed_count += 1
-            if processed_count % 50 == 0:  # Progress every 50 guests
-                print(f"🤖 [DUPLICATE_ANALYSIS] Progress: {processed_count}/{len(unique_guests)} guests")
             
             guest_bookings = df_clean[df_clean['Tên người đặt'] == name].sort_values('Check-in Date')
             
             if len(guest_bookings) > 1:
                 # Optimization: limit to reasonable number of bookings per guest
                 if len(guest_bookings) > 20:
-                    print(f"🤖 [DUPLICATE_ANALYSIS] Guest '{name}' has {len(guest_bookings)} bookings, limiting to most recent 20")
                     guest_bookings = guest_bookings.tail(20)
-                
+
                 # Check if any bookings are within 3 days of each other
                 for i in range(len(guest_bookings) - 1):
                     try:
                         current = guest_bookings.iloc[i]
                         next_booking = guest_bookings.iloc[i + 1]
-                        
+
                         # Safe date difference calculation
                         current_date = current['Check-in Date']
                         next_date = next_booking['Check-in Date']
-                        
+
                         if pd.isna(current_date) or pd.isna(next_date):
                             continue
-                        
+
                         date_diff = (next_date - current_date).days
-                        
+
                         if abs(date_diff) <= 3:
-                            # DEBUG: Log found duplicate
-                            print(f"🤖 [DUPLICATE_FOUND] Guest: {name}, Date diff: {date_diff} days")
-                            print(f"   Booking 1: {current.get('Số đặt phòng', 'N/A')} on {current_date.date()}")
-                            print(f"   Booking 2: {next_booking.get('Số đặt phòng', 'N/A')} on {next_date.date()}")
-                            
                             # Limit dictionary conversion to avoid memory issues
                             current_dict = {
                                 'Số đặt phòng': current.get('Số đặt phòng', 'N/A'),
@@ -958,34 +925,28 @@ def analyze_existing_duplicates(df: pd.DataFrame) -> Dict[str, List]:
                                 'check_in': str(next_date.date()) if not pd.isna(next_date) else 'N/A',
                                 'amount': next_booking.get('Tổng thanh toán', 0)
                             }
-                            
+
                             duplicate_groups.append({
                                 'guest_name': name,
                                 'bookings': [current_dict, next_dict],
                                 'date_difference_days': date_diff
                             })
-                            
+
                     except Exception as booking_error:
-                        print(f"🤖 [DUPLICATE_ANALYSIS] Error processing booking for {name}: {booking_error}")
                         continue
-        
+
         total_time = time.time() - start_time
-        print(f"🤖 [DUPLICATE_ANALYSIS] Analysis completed in {total_time:.2f}s")
-        print(f"🤖 [DUPLICATE_ANALYSIS] Found {len(duplicate_groups)} duplicate groups")
-        
+
         return {
             'duplicate_groups': duplicate_groups,
             'total_duplicates': len(duplicate_groups),
-            'total_groups': len(duplicate_groups),  # Add this for template compatibility
+            'total_groups': len(duplicate_groups),
             'processing_time': total_time,
-            'processed_guests': processed_count,
+            'processed_guests': len(unique_guests),
             'total_guests': len(unique_guests)
         }
-        
+
     except Exception as e:
-        print(f"🤖 [DUPLICATE_ANALYSIS] Error analyzing duplicates: {e}")
-        import traceback
-        traceback.print_exc()
         return {'duplicate_groups': [], 'total_duplicates': 0, 'total_groups': 0, 'error': str(e)}
 
 # ==============================================================================
