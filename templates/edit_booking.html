@@ -189,15 +189,37 @@
                     <div class="form-row">
                         <div class="form-group">
                             <label for="check_in_date"><i class="fas fa-calendar-check me-1"></i>Ngày đến</label>
-                            <input type="date" id="check_in_date" name="checkin_date" 
-                                   value="{{ booking['Check-in Date'].strftime('%Y-%m-%d') if booking['Check-in Date'] else '' }}" 
-                                   required>
+                            {% set checkin = booking.get('Check-in Date', '') %}
+                            {% if checkin %}
+                                {% if checkin is string %}
+                                    <input type="date" id="check_in_date" name="checkin_date"
+                                           value="{{ checkin.split(' ')[0] if ' ' in checkin else checkin[:10] if checkin|length >= 10 else checkin }}"
+                                           required>
+                                {% else %}
+                                    <input type="date" id="check_in_date" name="checkin_date"
+                                           value="{{ checkin.strftime('%Y-%m-%d') }}"
+                                           required>
+                                {% endif %}
+                            {% else %}
+                                <input type="date" id="check_in_date" name="checkin_date" required>
+                            {% endif %}
                         </div>
                         <div class="form-group">
                             <label for="check_out_date"><i class="fas fa-calendar-times me-1"></i>Ngày đi</label>
-                            <input type="date" id="check_out_date" name="checkout_date" 
-                                   value="{{ booking['Check-out Date'].strftime('%Y-%m-%d') if booking['Check-out Date'] else '' }}" 
-                                   required>
+                            {% set checkout = booking.get('Check-out Date', '') %}
+                            {% if checkout %}
+                                {% if checkout is string %}
+                                    <input type="date" id="check_out_date" name="checkout_date"
+                                           value="{{ checkout.split(' ')[0] if ' ' in checkout else checkout[:10] if checkout|length >= 10 else checkout }}"
+                                           required>
+                                {% else %}
+                                    <input type="date" id="check_out_date" name="checkout_date"
+                                           value="{{ checkout.strftime('%Y-%m-%d') }}"
+                                           required>
+                                {% endif %}
+                            {% else %}
+                                <input type="date" id="check_out_date" name="checkout_date" required>
+                            {% endif %}
                         </div>
                     </div>
 
