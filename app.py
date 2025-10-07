@@ -3551,9 +3551,7 @@ def check_duplicates():
         df_work['Check-in Date'] = pd.to_datetime(df_work['Check-in Date'], errors='coerce')
         df_work['Check-out Date'] = pd.to_datetime(df_work['Check-out Date'], errors='coerce')
 
-        # Exclude cancelled bookings from duplicate detection
-        if 'Tình trạng' in df_work.columns:
-            df_work = df_work[df_work['Tình trạng'] != 'Đã hủy']
+        # INCLUDE cancelled bookings in duplicate detection (will be color-coded differently in UI)
 
         duplicate_results = []
         has_duplicates = False

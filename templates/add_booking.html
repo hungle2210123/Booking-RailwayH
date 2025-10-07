@@ -1004,7 +1004,10 @@ async function showExtractedBookingsTable() {
                     <h6><i class="fas fa-exclamation-triangle me-1"></i>⚠️ Duplicate Bookings Found</h6>
                     <p class="mb-1">Found ${duplicateCount} booking(s) that may already exist:</p>
                     <p class="mb-1"><strong>${duplicateNames}</strong></p>
-                    <small class="text-muted">Duplicates will be highlighted in yellow in the review table below.</small>
+                    <small class="text-muted">
+                        Color codes: <span class="badge bg-danger">Red</span> = Cancelled booking,
+                        <span class="badge bg-warning text-dark">Yellow</span> = Active booking
+                    </small>
                 `;
                 statusDiv.appendChild(warningDiv);
             }
@@ -2064,29 +2067,62 @@ function generateReviewTableHtml(duplicateCheck) {
     const tableBodyHtml = extractedBookings.map((booking, index) => {
         // Check if this guest might be a duplicate
         const guestName = booking.guest_name || '';
-        const isDuplicate = duplicateCheck && duplicateCheck.has_duplicates && 
-                           duplicateCheck.duplicates.some(dup => {
-                               const dupName = dup.guest_name || '';
-                               const currentName = guestName || '';
-                               if (!dupName || !currentName) return false;
-                               return dupName.toLowerCase().includes(currentName.toLowerCase()) ||
-                                      currentName.toLowerCase().includes(dupName.toLowerCase());
-                           });
-        
+
+        // Find all duplicates for this guest with their status
+        let duplicateInfo = null;
+        let hasCancelledDuplicate = false;
+        let hasActiveDuplicate = false;
+
+        if (duplicateCheck && duplicateCheck.has_duplicates) {
+            const matchingDup = duplicateCheck.duplicates.find(dup => {
+                const dupName = dup.guest_name || '';
+                const currentName = guestName || '';
+                if (!dupName || !currentName) return false;
+                return dupName.toLowerCase().includes(currentName.toLowerCase()) ||
+                       currentName.toLowerCase().includes(dupName.toLowerCase());
+            });
+
+            if (matchingDup && matchingDup.existing_bookings) {
+                duplicateInfo = matchingDup;
+                // Check status of existing bookings
+                matchingDup.existing_bookings.forEach(existing => {
+                    const status = existing.status || '';
+                    if (status === 'Đã hủy') {
+                        hasCancelledDuplicate = true;
+                    } else {
+                        hasActiveDuplicate = true;
+                    }
+                });
+            }
+        }
+
+        const isDuplicate = !!duplicateInfo;
+
         // Check if booking already exists in database
         const existsInDb = booking.exists_in_db || false;
-        
+
         let statusIcon = '';
         let rowClass = '';
-        
+
         if (existsInDb) {
             // Existing booking - orange background with database icon
             statusIcon = '<i class="fas fa-database text-danger ms-1" title="📋 Booking đã tồn tại trong hệ thống"></i>';
             rowClass = 'table-warning border border-danger';
         } else if (isDuplicate) {
-            // Potential duplicate - yellow background with warning
-            statusIcon = '<i class="fas fa-exclamation-triangle text-warning ms-1" title="⚠️ Khách có thể đã tồn tại trong hệ thống"></i>';
-            rowClass = 'table-warning';
+            // Duplicate detected - color based on status
+            if (hasCancelledDuplicate && !hasActiveDuplicate) {
+                // Only cancelled duplicates - RED
+                statusIcon = '<i class="fas fa-ban text-danger ms-1" title="🔴 Trùng với booking đã hủy"></i>';
+                rowClass = 'table-danger';
+            } else if (hasActiveDuplicate) {
+                // Has active duplicates - YELLOW
+                statusIcon = '<i class="fas fa-exclamation-triangle text-warning ms-1" title="🟡 Trùng với booking đang hoạt động"></i>';
+                rowClass = 'table-warning';
+            } else {
+                // Fallback - YELLOW
+                statusIcon = '<i class="fas fa-exclamation-triangle text-warning ms-1" title="⚠️ Khách có thể đã tồn tại trong hệ thống"></i>';
+                rowClass = 'table-warning';
+            }
         }
         
         return `
@@ -2933,8 +2969,9 @@ async function displayCrawlResults(bookings, count) {
                     Phát hiện ${duplicateInfo.duplicate_count} booking có thể trùng lặp
                 </h6>
                 <p class="mb-2">
-                    Các booking được đánh dấu <span class="duplicate-badge">⚠️ yellow</span> 
-                    có thể đã tồn tại trong hệ thống. Vui lòng kiểm tra kỹ trước khi lưu.
+                    Mã màu: <span class="badge bg-danger">🔴 Red</span> = Trùng với booking đã hủy,
+                    <span class="badge bg-warning text-dark">🟡 Yellow</span> = Trùng với booking đang hoạt động.
+                    Vui lòng kiểm tra kỹ trước khi lưu.
                 </p>
                 <div class="row">
                     <div class="col-md-6">
@@ -3164,7 +3201,7 @@ function showDuplicateDetails() {
                                 <li><strong>Real-time:</strong> Kiểm tra với database hiện tại</li>
                             </ul>
                         </div>
-                        <p>Những booking được đánh dấu <span class="badge bg-warning">⚠️ yellow</span> có khả năng cao đã tồn tại trong hệ thống.</p>
+                        <p>Mã màu: <span class="badge bg-danger">🔴 Red</span> = Đã hủy, <span class="badge bg-warning text-dark">🟡 Yellow</span> = Đang hoạt động</p>
                         <p><strong>Khuyến nghị:</strong> Kiểm tra kỹ và sử dụng chức năng "Chỉ lưu booking mới" để tránh duplicate.</p>
                     </div>
                     <div class="modal-footer">
