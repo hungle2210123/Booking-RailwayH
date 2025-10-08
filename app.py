@@ -3268,6 +3268,57 @@ def calendar_details(date_str):
         flash(f'Error loading calendar details: {str(e)}', 'error')
         return redirect(url_for('calendar_view'))
 
+# Quick Edit API Endpoints for Calendar Details Page
+@app.route('/api/booking/<booking_id>', methods=['GET'])
+def get_booking_details(booking_id):
+    """Get booking details for quick edit modal"""
+    try:
+        df = load_booking_data()
+        booking_data = df[df['Số đặt phòng'] == booking_id]
+
+        if booking_data.empty:
+            return jsonify({'success': False, 'message': 'Booking not found'}), 404
+
+        booking = booking_data.iloc[0]
+
+        return jsonify({
+            'success': True,
+            'booking': {
+                'booking_id': booking.get('Số đặt phòng', ''),
+                'guest_name': booking.get('Tên người đặt', ''),
+                'checkin_date': booking['Check-in Date'].strftime('%Y-%m-%d') if pd.notnull(booking['Check-in Date']) else '',
+                'checkout_date': booking['Check-out Date'].strftime('%Y-%m-%d') if pd.notnull(booking['Check-out Date']) else '',
+                'room_amount': float(booking.get('Tổng thanh toán', 0)),
+                'commission': float(booking.get('Hoa hồng', 0))
+            }
+        })
+    except Exception as e:
+        print(f"❌ Error fetching booking {booking_id}: {e}")
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+@app.route('/api/booking/<booking_id>/quick-update', methods=['POST'])
+def quick_update_booking(booking_id):
+    """Quick update booking from calendar details page"""
+    try:
+        data = request.get_json()
+
+        update_data = {
+            'checkin_date': datetime.strptime(data['checkin_date'], '%Y-%m-%d').date(),
+            'checkout_date': datetime.strptime(data['checkout_date'], '%Y-%m-%d').date(),
+            'room_amount': float(data['room_amount']),
+            'commission': float(data.get('commission', 0))
+        }
+
+        if update_booking(booking_id, update_data):
+            return jsonify({'success': True, 'message': 'Booking updated successfully'})
+        else:
+            return jsonify({'success': False, 'message': 'Failed to update booking'}), 400
+    except Exception as e:
+        print(f"❌ Error updating booking {booking_id}: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'message': str(e)}), 500
+
 # Photo Processing Endpoint - Enhanced with Multiple Booking Support
 @app.route('/api/check_existing_bookings', methods=['POST'])
 def check_existing_bookings():

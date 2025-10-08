@@ -34,6 +34,18 @@
                         </div>
                     </div>
 
+                    <!-- Date Picker for Quick Navigation -->
+                    <div class="mt-2 border-top pt-2">
+                        <label for="quickDatePicker" class="form-label small mb-1">
+                            <i class="fas fa-calendar-day"></i> Chọn ngày nhanh:
+                        </label>
+                        <input type="date"
+                               id="quickDatePicker"
+                               class="form-control form-control-sm"
+                               value="{{ date.strftime('%Y-%m-%d') }}"
+                               onchange="navigateToDate(this.value)">
+                    </div>
+
                     <!-- Quick Navigation -->
                     <div class="mt-2 border-top pt-2">
                         <div class="btn-group w-100" role="group">
@@ -538,11 +550,18 @@
                                         </small>
                                     </td>
                                     <td>
-                                        <button class="btn btn-sm btn-outline-danger px-2 py-1" 
-                                                onclick="quickCancelCalendarGuest('{{ booking.booking_id }}', '{{ booking.guest_name }}')" 
-                                                title="Hủy booking">
-                                            <i class="fas fa-times"></i>
-                                        </button>
+                                        <div class="btn-group" role="group">
+                                            <button class="btn btn-sm btn-outline-primary px-2 py-1"
+                                                    onclick="openQuickEditModal('{{ booking.booking_id }}')"
+                                                    title="Chỉnh sửa nhanh">
+                                                <i class="fas fa-edit"></i>
+                                            </button>
+                                            <button class="btn btn-sm btn-outline-danger px-2 py-1"
+                                                    onclick="quickCancelCalendarGuest('{{ booking.booking_id }}', '{{ booking.guest_name }}')"
+                                                    title="Hủy booking">
+                                                <i class="fas fa-times"></i>
+                                            </button>
+                                        </div>
                                     </td>
                                 </tr>
                                 {% endfor %}
@@ -2390,6 +2409,159 @@ document.addEventListener('DOMContentLoaded', function() {
     box-shadow: 0 4px 12px rgba(0,0,0,0.3) !important;
 }
 </style>
+
+<!-- Quick Edit Modal -->
+<div class="modal fade" id="quickEditModal" tabindex="-1" aria-labelledby="quickEditModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title" id="quickEditModalLabel">
+                    <i class="fas fa-edit me-2"></i>Chỉnh Sửa Nhanh Booking
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="quickEditForm">
+                    <input type="hidden" id="edit_booking_id" name="booking_id">
+
+                    <div class="mb-3">
+                        <label for="edit_guest_name" class="form-label">
+                            <i class="fas fa-user me-1"></i>Tên khách
+                        </label>
+                        <input type="text" class="form-control" id="edit_guest_name" name="guest_name" readonly>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="edit_checkin_date" class="form-label">
+                                <i class="fas fa-calendar-check me-1 text-success"></i>Ngày Check-in
+                            </label>
+                            <input type="date" class="form-control" id="edit_checkin_date" name="checkin_date" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="edit_checkout_date" class="form-label">
+                                <i class="fas fa-calendar-times me-1 text-danger"></i>Ngày Check-out
+                            </label>
+                            <input type="date" class="form-control" id="edit_checkout_date" name="checkout_date" required>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="edit_room_amount" class="form-label">
+                            <i class="fas fa-coins me-1 text-warning"></i>Tổng tiền phòng (VND)
+                        </label>
+                        <input type="number" class="form-control" id="edit_room_amount" name="room_amount" step="1000" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="edit_commission" class="form-label">
+                            <i class="fas fa-percentage me-1 text-info"></i>Hoa hồng (VND)
+                        </label>
+                        <input type="number" class="form-control" id="edit_commission" name="commission" step="1000">
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="fas fa-times me-1"></i>Hủy
+                </button>
+                <button type="button" class="btn btn-primary" onclick="saveQuickEdit()">
+                    <i class="fas fa-save me-1"></i>Lưu thay đổi
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Quick Edit Modal Functions
+let quickEditModal = null;
+
+document.addEventListener('DOMContentLoaded', function() {
+    quickEditModal = new bootstrap.Modal(document.getElementById('quickEditModal'));
+});
+
+// Navigate to selected date
+function navigateToDate(dateStr) {
+    if (dateStr) {
+        window.location.href = `/calendar_details/${dateStr}`;
+    }
+}
+
+async function openQuickEditModal(bookingId) {
+    try {
+        // Fetch booking data
+        const response = await fetch(`/api/booking/${bookingId}`);
+        const data = await response.json();
+
+        if (data.success) {
+            const booking = data.booking;
+
+            // Populate form
+            document.getElementById('edit_booking_id').value = booking.booking_id;
+            document.getElementById('edit_guest_name').value = booking.guest_name;
+            document.getElementById('edit_checkin_date').value = booking.checkin_date;
+            document.getElementById('edit_checkout_date').value = booking.checkout_date;
+            document.getElementById('edit_room_amount').value = booking.room_amount || 0;
+            document.getElementById('edit_commission').value = booking.commission || 0;
+
+            // Show modal
+            quickEditModal.show();
+        } else {
+            alert('❌ Không thể tải thông tin booking: ' + data.message);
+        }
+    } catch (error) {
+        console.error('Error loading booking:', error);
+        alert('❌ Lỗi khi tải thông tin booking');
+    }
+}
+
+async function saveQuickEdit() {
+    const form = document.getElementById('quickEditForm');
+    const formData = new FormData(form);
+
+    const bookingId = formData.get('booking_id');
+    const updateData = {
+        checkin_date: formData.get('checkin_date'),
+        checkout_date: formData.get('checkout_date'),
+        room_amount: parseFloat(formData.get('room_amount')),
+        commission: parseFloat(formData.get('commission')) || 0
+    };
+
+    // Validate dates
+    const checkin = new Date(updateData.checkin_date);
+    const checkout = new Date(updateData.checkout_date);
+
+    if (checkout <= checkin) {
+        alert('⚠️ Ngày check-out phải sau ngày check-in!');
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/booking/${bookingId}/quick-update`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(updateData)
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            quickEditModal.hide();
+            alert('✅ Cập nhật thành công!');
+            // Reload page to show updated data
+            window.location.reload();
+        } else {
+            alert('❌ Lỗi: ' + data.message);
+        }
+    } catch (error) {
+        console.error('Error saving booking:', error);
+        alert('❌ Lỗi khi lưu thay đổi');
+    }
+}
+</script>
 
         </div>
         <!-- END RIGHT COLUMN -->
