@@ -1987,32 +1987,29 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 
-// Existing quick cancel function for calendar guest cards
 // Quick cancel function for calendar guest cards
-function quickCancelCalendarGuest(bookingId, guestName) {
+async function quickCancelCalendarGuest(bookingId, guestName) {
     const confirmed = confirm(`🚨 Hủy đặt phòng cho ${guestName}?\n\nMã booking: ${bookingId}\n\nXác nhận hủy booking này?`);
     if (confirmed) {
-        // Use fetch to call the existing cancel booking API
-        fetch(`/api/cancel_booking/${bookingId}`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            }
-        })
-        .then(response => response.json())
-        .then(data => {
+        try {
+            const response = await fetch(`/api/cancel_booking/${bookingId}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
+            const data = await response.json();
+
             if (data.success) {
-                alert(`✅ Đã hủy booking thành công cho ${guestName}`);
-                // Reload the page to reflect changes
+                // Reload immediately without alert to prevent double reload
                 window.location.reload();
             } else {
                 alert(`❌ Lỗi hủy booking: ${data.message || 'Unknown error'}`);
             }
-        })
-        .catch(error => {
+        } catch (error) {
             console.error('Error canceling booking:', error);
             alert(`❌ Lỗi kết nối: ${error.message}`);
-        });
+        }
     }
 }
 
