@@ -308,8 +308,13 @@
                                             </span>
                                         {% endif %}
                                     </div>
-                                    <button class="btn btn-sm btn-outline-danger px-2 py-1" 
-                                            onclick="quickCancelCalendarGuest('{{ booking.get('Số đặt phòng', '') }}', '{{ booking.get('Tên người đặt', 'N/A') }}')" 
+                                    <button class="btn btn-sm btn-outline-primary px-2 py-1"
+                                            onclick="openQuickEditModal('{{ booking.get('Số đặt phòng', '') }}')"
+                                            title="Chỉnh sửa nhanh">
+                                        <i class="fas fa-edit"></i>
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-danger px-2 py-1"
+                                            onclick="quickCancelCalendarGuest('{{ booking.get('Số đặt phòng', '') }}', '{{ booking.get('Tên người đặt', 'N/A') }}')"
                                             title="Hủy booking">
                                         <i class="fas fa-times"></i>
                                     </button>
@@ -363,8 +368,13 @@
                                             </span>
                                         {% endif %}
                                     </div>
-                                    <button class="btn btn-sm btn-outline-danger px-2 py-1" 
-                                            onclick="quickCancelCalendarGuest('{{ booking.get('Số đặt phòng', '') }}', '{{ booking.get('Tên người đặt', 'N/A') }}')" 
+                                    <button class="btn btn-sm btn-outline-primary px-2 py-1"
+                                            onclick="openQuickEditModal('{{ booking.get('Số đặt phòng', '') }}')"
+                                            title="Chỉnh sửa nhanh">
+                                        <i class="fas fa-edit"></i>
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-danger px-2 py-1"
+                                            onclick="quickCancelCalendarGuest('{{ booking.get('Số đặt phòng', '') }}', '{{ booking.get('Tên người đặt', 'N/A') }}')"
                                             title="Hủy booking">
                                         <i class="fas fa-times"></i>
                                     </button>
@@ -419,8 +429,13 @@
                                             </span>
                                         {% endif %}
                                     </div>
-                                    <button class="btn btn-sm btn-outline-danger px-2 py-1" 
-                                            onclick="quickCancelCalendarGuest('{{ booking.get('Số đặt phòng', '') }}', '{{ booking.get('Tên người đặt', 'N/A') }}')" 
+                                    <button class="btn btn-sm btn-outline-primary px-2 py-1"
+                                            onclick="openQuickEditModal('{{ booking.get('Số đặt phòng', '') }}')"
+                                            title="Chỉnh sửa nhanh">
+                                        <i class="fas fa-edit"></i>
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-danger px-2 py-1"
+                                            onclick="quickCancelCalendarGuest('{{ booking.get('Số đặt phòng', '') }}', '{{ booking.get('Tên người đặt', 'N/A') }}')"
                                             title="Hủy booking">
                                         <i class="fas fa-times"></i>
                                     </button>
