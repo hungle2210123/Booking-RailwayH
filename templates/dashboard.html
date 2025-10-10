@@ -9159,13 +9159,15 @@ This will record that you have cancelled this booking on the booking app.`);
                 }, 500);
             }
             
-            // Refresh canceled customer management table if it's visible
+            // ⚡ INSTANT UPDATE: Update calendar immediately
+            console.log('⚡ [INSTANT_UPDATE] Updating calendar after cancellation confirmation...');
+            updateCalendarAfterCancellation(bookingId, guestName);
+
+            // Refresh canceled customer management table if it's visible (instant, no delay)
             if (canceledCustomerTableVisible && typeof fetchAndDisplayCanceledCustomers === 'function') {
                 console.log('🔄 [CONFIRM_CANCELLATION] Refreshing canceled customer table');
-                setTimeout(() => {
-                    fetchAndDisplayCanceledCustomers();
-                    fetchCanceledCustomerCount();
-                }, 600);
+                fetchAndDisplayCanceledCustomers(); // Instant refresh
+                fetchCanceledCustomerCount();
             }
         } else {
             alert(`❌ Error: ${result.error}`);
@@ -10500,21 +10502,21 @@ async function confirmCancellation(bookingId, guestName) {
                 const currentCount = parseInt(badge.textContent) || 0;
                 badge.textContent = Math.max(0, currentCount - 1);
             }
-            
+
             // Refresh the confirmed actions table if visible
             refreshConfirmedActionsTable();
-            
-            // FORCE REFRESH the canceled customer table to ensure customer disappears
-            setTimeout(function() {
-                console.log('🔄 [FORCE_REFRESH] Refreshing canceled customer table...');
-                const canceledTable = document.getElementById('canceledCustomerTable');
-                if (canceledTable && canceledTable.style.display === 'block') {
-                    simpleCanceledToggle(); // Hide
-                    setTimeout(function() {
-                        simpleCanceledToggle(); // Show with refreshed data
-                    }, 1000);
-                }
-            }, 2500);
+
+            // ⚡ INSTANT REFRESH: Remove canceled customer immediately from all views
+            console.log('⚡ [INSTANT_UPDATE] Removing canceled customer from all calendar views...');
+
+            // Remove from calendar grid cells
+            updateCalendarAfterCancellation(bookingId, guestName);
+
+            // Refresh canceled customer table if visible (no delay needed)
+            const canceledTable = document.getElementById('canceledCustomerTable');
+            if (canceledTable && canceledTable.style.display === 'block') {
+                fetchAndDisplayCanceledCustomers(); // Instant refresh
+            }
             
         } else {
             console.error('❌ [CONFIRM] Error:', result.message);
@@ -10536,9 +10538,62 @@ async function confirmCancellation(bookingId, guestName) {
 }
 
 // Function to refresh confirmed actions table
+// ⚡ INSTANT UPDATE: Update calendar grid after cancellation without reload
+function updateCalendarAfterCancellation(bookingId, guestName) {
+    console.log('⚡ [CALENDAR_UPDATE] Updating calendar for:', guestName, bookingId);
+
+    // Find all calendar cells and update guest counts
+    const calendarCells = document.querySelectorAll('.calendar-day');
+    let updatedCells = 0;
+
+    calendarCells.forEach(cell => {
+        // Get booking IDs from the cell's onclick attribute
+        const onclickAttr = cell.getAttribute('onclick');
+        if (onclickAttr && onclickAttr.includes(bookingId)) {
+            console.log('⚡ [CALENDAR_UPDATE] Found matching cell, updating...');
+
+            // Extract current guest count
+            const guestCountSpan = cell.querySelector('.guest-count');
+            if (guestCountSpan) {
+                const currentCount = parseInt(guestCountSpan.textContent) || 0;
+                const newCount = Math.max(0, currentCount - 1);
+                guestCountSpan.textContent = newCount;
+
+                // Update visual styling based on new count
+                if (newCount === 0) {
+                    cell.classList.remove('has-guests');
+                    cell.classList.add('empty-day');
+                    cell.style.backgroundColor = '#f8f9fa';
+                } else {
+                    // Recalculate color intensity
+                    const maxGuests = 10;
+                    const intensity = Math.min(newCount / maxGuests, 1);
+                    const green = Math.floor(150 + (105 * (1 - intensity)));
+                    cell.style.backgroundColor = `rgb(144, ${green}, 144)`;
+                }
+
+                updatedCells++;
+            }
+        }
+    });
+
+    console.log(`⚡ [CALENDAR_UPDATE] Updated ${updatedCells} calendar cells`);
+
+    // Also remove from upcoming check-in notifications if present
+    const notificationRow = document.querySelector(`tr[data-booking-id="${bookingId}"]`);
+    if (notificationRow) {
+        notificationRow.style.transition = 'opacity 0.3s';
+        notificationRow.style.opacity = '0';
+        setTimeout(() => notificationRow.remove(), 300);
+        console.log('⚡ [NOTIFICATION_UPDATE] Removed from upcoming notifications');
+    }
+
+    return updatedCells > 0;
+}
+
 async function refreshConfirmedActionsTable() {
     console.log('🔄 [REFRESH] Refreshing confirmed actions table...');
-    
+
     const managementList = document.getElementById('confirmedCancellationsList');
     if (!managementList) {
         console.log('🔍 [REFRESH] Management table not found, trying to find it...');
