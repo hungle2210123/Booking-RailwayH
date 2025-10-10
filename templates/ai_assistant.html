@@ -3098,7 +3098,7 @@ document.getElementById('manualBookingForm').addEventListener('submit', function
     document.addEventListener('DOMContentLoaded', function() {
         const multiImageUpload = document.getElementById('multiImageUpload');
         const multiCameraUpload = document.getElementById('multiCameraUpload');
-        
+
         if (multiImageUpload) {
             multiImageUpload.addEventListener('change', function(e) {
                 const file = e.target.files[0];
@@ -3106,7 +3106,7 @@ document.getElementById('manualBookingForm').addEventListener('submit', function
                     const preview = document.getElementById('newImagePreview');
                     const previewImg = document.getElementById('newImagePreviewImg');
                     const uploadBtn = document.getElementById('uploadNewImageBtn');
-                    
+
                     const reader = new FileReader();
                     reader.onload = function(e) {
                         previewImg.src = e.target.result;
@@ -3117,7 +3117,7 @@ document.getElementById('manualBookingForm').addEventListener('submit', function
                 }
             });
         }
-        
+
         if (multiCameraUpload) {
             multiCameraUpload.addEventListener('change', function(e) {
                 const file = e.target.files[0];
@@ -3125,7 +3125,7 @@ document.getElementById('manualBookingForm').addEventListener('submit', function
                     const preview = document.getElementById('newImagePreview');
                     const previewImg = document.getElementById('newImagePreviewImg');
                     const uploadBtn = document.getElementById('uploadNewImageBtn');
-                    
+
                     const reader = new FileReader();
                     reader.onload = function(e) {
                         previewImg.src = e.target.result;
@@ -3133,6 +3133,17 @@ document.getElementById('manualBookingForm').addEventListener('submit', function
                         uploadBtn.disabled = false;
                     };
                     reader.readAsDataURL(file);
+                }
+            });
+        }
+
+        // Handle custom category dropdown for edit modal (prevent multiple bindings)
+        const editCategorySelect = document.getElementById('editTemplateCategory');
+        if (editCategorySelect) {
+            editCategorySelect.addEventListener('change', function() {
+                const customDiv = document.getElementById('editCustomCategoryDiv');
+                if (customDiv) {
+                    customDiv.style.display = this.value === 'OTHER' ? 'block' : 'none';
                 }
             });
         }
@@ -3165,6 +3176,13 @@ document.getElementById('manualBookingForm').addEventListener('submit', function
             return;
         }
 
+        // Reset custom category div first
+        const customDiv = document.getElementById('editCustomCategoryDiv');
+        if (customDiv) {
+            customDiv.style.display = 'none';
+        }
+        document.getElementById('editCustomCategory').value = '';
+
         // Fill form with template data
         document.getElementById('editTemplateId').value = template.id;
         document.getElementById('editTemplateCategory').value = template.category || '';
@@ -3175,19 +3193,15 @@ document.getElementById('manualBookingForm').addEventListener('submit', function
         if (template.category && !['WELCOME', 'ARRIVAL', 'CHECK IN', 'EARLY CHECK IN', 'DON PHONG', 'HET PHONG', 'FEED BACK', 'TAXI', 'PARK', 'LAUNDRY', 'NOT BOOKING'].includes(template.category)) {
             document.getElementById('editTemplateCategory').value = 'OTHER';
             document.getElementById('editCustomCategory').value = template.category;
-            document.getElementById('editCustomCategoryDiv').style.display = 'block';
+            if (customDiv) {
+                customDiv.style.display = 'block';
+            }
         }
 
         // Show modal
         const modal = new bootstrap.Modal(document.getElementById('editTemplateModal'));
         modal.show();
     }
-
-    // Handle custom category dropdown for edit modal
-    document.getElementById('editTemplateCategory').addEventListener('change', function() {
-        const customDiv = document.getElementById('editCustomCategoryDiv');
-        customDiv.style.display = this.value === 'OTHER' ? 'block' : 'none';
-    });
 
     async function saveTemplateEdit() {
         const templateId = document.getElementById('editTemplateId').value;
