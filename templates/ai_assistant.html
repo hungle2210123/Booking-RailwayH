@@ -3147,6 +3147,19 @@ document.getElementById('manualBookingForm').addEventListener('submit', function
                 }
             });
         }
+
+        // Reset edit modal when it's hidden
+        const editModalElement = document.getElementById('editTemplateModal');
+        if (editModalElement) {
+            editModalElement.addEventListener('hidden.bs.modal', function() {
+                // Reset form
+                document.getElementById('editTemplateForm').reset();
+                const customDiv = document.getElementById('editCustomCategoryDiv');
+                if (customDiv) {
+                    customDiv.style.display = 'none';
+                }
+            });
+        }
     });
     
     // Enhance the existing renderTemplates function to load images
@@ -3198,8 +3211,9 @@ document.getElementById('manualBookingForm').addEventListener('submit', function
             }
         }
 
-        // Show modal
-        const modal = new bootstrap.Modal(document.getElementById('editTemplateModal'));
+        // Show modal - use getOrCreateInstance to prevent duplicate modals
+        const modalElement = document.getElementById('editTemplateModal');
+        const modal = bootstrap.Modal.getOrCreateInstance(modalElement);
         modal.show();
     }
 
