@@ -11,526 +11,68 @@
         <div class="badge bg-primary">Lễ Tân Thông Minh 2.0</div>
     </div>
     
-    <!-- Tab Navigation -->
-    <ul class="nav nav-pills nav-fill mb-2" id="aiTabs" role="tablist">
-        <li class="nav-item" role="presentation">
-            <button class="nav-link active fw-bold" id="chat-tab" data-bs-toggle="pill" data-bs-target="#chat-panel" type="button" role="tab">
-                <i class="fas fa-comments me-2"></i>AI Chat Assistant
-                <small class="d-block text-muted mt-1">Phân tích đoạn chat & tạo phản hồi AI</small>
-            </button>
-        </li>
-        <li class="nav-item" role="presentation">
-            <button class="nav-link fw-bold" id="voice-tab" data-bs-toggle="pill" data-bs-target="#voice-panel" type="button" role="tab">
-                <i class="fas fa-microphone-alt me-2"></i>Voice Translator
-                <small class="d-block text-muted mt-1">Dịch giọng nói thông minh</small>
-            </button>
-        </li>
-        <li class="nav-item" role="presentation">
-            <button class="nav-link fw-bold" id="templates-tab" data-bs-toggle="pill" data-bs-target="#templates-panel" type="button" role="tab">
-                <i class="fas fa-clipboard-list me-2"></i>Mẫu Tin Nhắn
-                <small class="d-block text-muted mt-1">Quản lý templates messages</small>
-            </button>
-        </li>
-    </ul>
-
-    <!-- Tab Content -->
-    <div class="tab-content" id="aiTabsContent">
-        <!-- AI Chat Assistant Panel -->
-        <div class="tab-pane fade show active" id="chat-panel" role="tabpanel">
-            
-            <!-- 🧠 NEW: RAG Chat Interface - MASSIVE SIZE -->
-            <div class="card mb-1" style="border: 2px solid #667eea; min-height: 92vh; height: 92vh;">
-                <div class="card-header" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
-                    <h5 class="mb-0 text-white fw-bold">
-                        <i class="fas fa-brain me-2"></i>🧠 RAG Chat Assistant - Smart Hotel Q&A
-                    </h5>
-                    <small class="text-white-50">Ask questions about hotel policies, Hanoi attractions, or guest services</small>
-                </div>
-                <div class="card-body" style="min-height: 87vh; height: 87vh; display: flex; flex-direction: column; overflow-y: auto;">
-                    <div class="row">
-                        <div class="col-md-8">
-                            <div class="input-group mb-3">
-                                <input type="text" id="ragQueryInput" class="form-control" 
-                                       placeholder="Ask me anything: check-in time, nearby restaurants, taxi prices..."
-                                       onkeypress="if(event.key==='Enter') sendRAGQuery()">
-                                <input type="text" id="ragGuestName" class="form-control" 
-                                       placeholder="Guest name (optional)" style="max-width: 150px;">
-                                <button class="btn btn-primary" onclick="sendRAGQuery()">
-                                    <i class="fas fa-search"></i> Ask RAG
-                                </button>
-                            </div>
-                        </div>
-                        <div class="col-md-4">
-                            <div class="btn-group w-100" role="group">
-                                <button class="btn btn-outline-info btn-sm" onclick="ragQuickQuestion('check-in time')">
-                                    <i class="fas fa-clock"></i> Check-in
-                                </button>
-                                <button class="btn btn-outline-warning btn-sm" onclick="ragQuickQuestion('taxi airport')">
-                                    <i class="fas fa-taxi"></i> Taxi
-                                </button>
-                                <button class="btn btn-outline-success btn-sm" onclick="ragQuickQuestion('food recommendations')">
-                                    <i class="fas fa-utensils"></i> Food
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- 🚀 NEW: Gemini Enhancement Toggle -->
-                    <div class="row mb-3">
-                        <div class="col-12">
-                            <div class="d-flex justify-content-between align-items-center">
-                                <div class="form-check form-switch">
-                                    <input class="form-check-input" type="checkbox" id="geminiModeToggle" checked>
-                                    <label class="form-check-label fw-bold" for="geminiModeToggle">
-                                        🚀 Gemini AI Enhancement
-                                    </label>
-                                    <small class="d-block text-muted">Advanced reasoning, multi-turn conversation, better understanding</small>
-                                </div>
-                                <div class="text-end">
-                                    <span id="ragModeIndicator" class="badge bg-success">Gemini Mode</span>
-                                    <div class="small text-muted" id="ragModeDescription">Natural language AI</div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- RAG Response Area - MASSIVE SIZE -->
-                    <div id="ragResponseArea" class="mt-3" style="display: none; flex-grow: 1; height: 75vh;">
-                        <div class="card bg-light" style="min-height: 75vh; height: 100%;">
-                            <div class="card-body" style="min-height: 72vh; height: 100%; overflow-y: auto; display: flex; flex-direction: column;">
-                                <div class="d-flex justify-content-between align-items-start mb-2">
-                                    <h6 class="text-primary mb-0">
-                                        <i class="fas fa-robot"></i> RAG Response
-                                    </h6>
-                                    <div class="d-flex align-items-center">
-                                        <span id="ragConfidence" class="badge bg-success me-2">High Confidence</span>
-                                        <span id="ragTimestamp" class="text-muted small"></span>
-                                    </div>
-                                </div>
-                                <div id="ragAnswer" class="mb-3" style="min-height: 65vh; flex-grow: 1; overflow-y: auto; padding: 20px; font-size: 17px; line-height: 1.8; background-color: #f8f9fa; border: 1px solid #e9ecef; border-radius: 8px;"></div>
-                                
-                                <!-- Guest Context (if available) -->
-                                <div id="ragGuestContext" style="display: none;">
-                                    <div class="alert alert-info py-2">
-                                        <i class="fas fa-user"></i> <strong>Guest Context:</strong>
-                                        <span id="ragGuestInfo"></span>
-                                    </div>
-                                </div>
-                                
-                                <!-- Sources -->
-                                <div id="ragSources" class="mb-2">
-                                    <small class="text-muted">
-                                        <i class="fas fa-book"></i> <strong>Sources:</strong>
-                                        <span id="ragSourcesList"></span>
-                                    </small>
-                                </div>
-                                
-                                <!-- Suggestions -->
-                                <div id="ragSuggestions" class="mb-2">
-                                    <small class="text-muted">
-                                        <i class="fas fa-lightbulb"></i> <strong>Suggestions:</strong>
-                                        <div id="ragSuggestionsList"></div>
-                                    </small>
-                                </div>
-                                
-                                <div class="d-flex justify-content-end">
-                                    <button class="btn btn-sm btn-outline-secondary me-2" onclick="copyRAGResponse()">
-                                        <i class="fas fa-copy"></i> Copy
-                                    </button>
-                                    <button class="btn btn-sm btn-outline-primary" onclick="clearRAGResponse()">
-                                        <i class="fas fa-refresh"></i> Clear
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="row">
-                <!-- Phần tải ảnh -->
-                <div class="col-md-6">
-                    <div class="card">
-                        <div class="card-header">
-                            <h5 class="mb-0">
-                                <i class="fas fa-image"></i> Tải Ảnh Đoạn Chat
-                            </h5>
-                        </div>
-                        <div class="card-body">
-                            <div id="imagePasteArea" class="image-paste-area">
-                                <i class="fas fa-cloud-upload-alt fa-3x text-muted mb-3"></i>
-                                <h5>Dán ảnh, chọn file hoặc chụp ảnh</h5>
-                                <p class="text-muted mb-2">
-                                    Hỗ trợ: PNG, JPG, JPEG<br>
-                                    <kbd>Ctrl+V</kbd> để dán ảnh từ clipboard
-                                </p>
-                                <div class="d-block d-md-none mt-2">
-                                    <div class="row g-2">
-                                        <div class="col-6">
-                                            <button type="button" class="btn btn-outline-primary btn-sm w-100" onclick="selectImageFile()">
-                                                <i class="fas fa-folder-open"></i><br>
-                                                <small>Chọn ảnh</small>
-                                            </button>
-                                        </div>
-                                        <div class="col-6">
-                                            <button type="button" class="btn btn-outline-success btn-sm w-100" onclick="capturePhoto()">
-                                                <i class="fas fa-camera"></i><br>
-                                                <small>Camera sau</small>
-                                            </button>
-                                        </div>
-                                        <div class="col-6">
-                                            <button type="button" class="btn btn-outline-info btn-sm w-100" onclick="captureFrontPhoto()">
-                                                <i class="fas fa-camera-retro"></i><br>
-                                                <small>Camera trước</small>
-                                            </button>
-                                        </div>
-                                        <div class="col-6">
-                                            <button type="button" class="btn btn-outline-warning btn-sm w-100" onclick="triggerSafariPicker()">
-                                                <i class="fab fa-safari"></i><br>
-                                                <small>Safari Fix</small>
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="d-none d-md-block mt-2">
-                                    <button type="button" class="btn btn-outline-primary btn-sm me-2" onclick="selectImageFile()">
-                                        <i class="fas fa-folder-open"></i> Chọn từ thư viện
-                                    </button>
-                                    <button type="button" class="btn btn-outline-success btn-sm" onclick="capturePhoto()">
-                                        <i class="fas fa-camera"></i> Chụp ảnh
-                                    </button>
-                                </div>
-                            </div>
-                            
-                            <input type="file" id="imageFileInput" 
-                                   accept="image/*,image/png,image/jpeg,image/jpg,image/gif,image/webp" 
-                                   style="display: none;">
-                            <input type="file" id="cameraInput" 
-                                   accept="image/*,image/png,image/jpeg,image/jpg" 
-                                   capture="environment" 
-                                   style="display: none;">
-                            <input type="file" id="frontCameraInput" 
-                                   accept="image/*,image/png,image/jpeg,image/jpg" 
-                                   capture="user" 
-                                   style="display: none;">
-                            
-                            <div id="imagePreviewContainer" class="mt-3" style="display: none;">
-                                <img id="imagePreview" class="image-preview" alt="Xem trước ảnh">
-                                <div class="mt-2">
-                                    <button class="btn btn-danger btn-sm" onclick="removeImage()">
-                                        <i class="fas fa-trash"></i> Xóa ảnh
-                                    </button>
-                                    <button class="btn btn-primary btn-sm ms-2" onclick="analyzeImage()">
-                                        <i class="fas fa-magic"></i> Phân tích với AI
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- Phần cấu hình và kết quả AI -->
-                <div class="col-md-6">
-                    <!-- AI Configuration Panel -->
-                    <div class="card mb-3">
-                        <div class="card-header">
-                            <h6 class="mb-0">
-                                <i class="fas fa-cogs"></i> Tùy Chọn Phản Hồi AI
-                            </h6>
-                        </div>
-                        <div class="card-body py-2">
-                            <div class="row align-items-center">
-                                <div class="col-md-4">
-                                    <label for="templateCategory" class="form-label small mb-1">Mẫu tin nhắn:</label>
-                                    <select id="templateCategory" class="form-select form-select-sm" onchange="loadSpecificTemplates()">
-                                        <option value="">Tự động chọn</option>
-                                    </select>
-                                </div>
-                                <div class="col-md-4">
-                                    <label for="specificTemplate" class="form-label small mb-1">Mẫu cụ thể:</label>
-                                    <select id="specificTemplate" class="form-select form-select-sm" disabled onchange="previewSelectedTemplate()">
-                                        <option value="">Chọn category trước</option>
-                                    </select>
-                                </div>
-                                <div class="col-md-4">
-                                    <label class="form-label small mb-1">Phong cách trả lời:</label>
-                                    <div class="btn-group w-100" role="group">
-                                        <input type="radio" class="btn-check" name="responseMode" id="responseModeAuto" value="auto" checked>
-                                        <label class="btn btn-outline-secondary btn-sm" for="responseModeAuto">Auto</label>
-                                        
-                                        <input type="radio" class="btn-check" name="responseMode" id="responseModeYes" value="yes">
-                                        <label class="btn btn-outline-success btn-sm" for="responseModeYes">Yes</label>
-                                        
-                                        <input type="radio" class="btn-check" name="responseMode" id="responseModeNo" value="no">
-                                        <label class="btn btn-outline-danger btn-sm" for="responseModeNo">No</label>
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <!-- Custom Instructions Section -->
-                            <div class="row mt-3">
-                                <div class="col-12">
-                                    <div class="card border-info bg-light">
-                                        <div class="card-header py-2 custom-instructions-header">
-                                            <small class="fw-bold">
-                                                <i class="fas fa-magic me-1"></i>Hướng dẫn tùy chỉnh (Custom Instructions)
-                                            </small>
-                                            <button class="btn btn-sm btn-outline-light ms-2" onclick="toggleCustomInstructions()" id="customToggleBtn">
-                                                <i class="fas fa-chevron-down" id="customToggleIcon"></i>
-                                            </button>
-                                        </div>
-                                        <div class="card-body py-2" id="customInstructionsSection" style="display: none;">
-                                            <div class="mb-2">
-                                                <label class="form-label small mb-1">
-                                                    <strong>Hướng dẫn AI theo ý muốn của bạn:</strong>
-                                                    <span class="text-muted">(Text hoặc Voice)</span>
-                                                </label>
-                                                <div class="input-group">
-                                                    <textarea id="customInstructions" class="form-control" rows="3" 
-                                                        placeholder="VD: Trả lời ngắn gọn và thân thiện, sử dụng emoji, đề cập đến tên khách hàng..."></textarea>
-                                                    <button class="btn btn-outline-danger" type="button" onclick="startVoiceInstructions()" id="voiceInstructBtn">
-                                                        <i class="fas fa-microphone"></i>
-                                                    </button>
-                                                </div>
-                                                <div class="form-text">
-                                                    <i class="fas fa-info-circle"></i> AI sẽ ưu tiên hướng dẫn này khi tạo phản hồi. 
-                                                    Bạn có thể nhập bằng text hoặc dùng voice (nút mic).
-                                                </div>
-                                            </div>
-                                            <div class="d-flex gap-2">
-                                                <button class="btn btn-sm btn-outline-info" onclick="loadSampleInstructions()">
-                                                    <i class="fas fa-lightbulb"></i> Mẫu
-                                                </button>
-                                                <button class="btn btn-sm btn-outline-danger" onclick="clearCustomInstructions()">
-                                                    <i class="fas fa-trash"></i> Xóa
-                                                </button>
-                                                <button class="btn btn-sm btn-outline-success" onclick="saveCustomInstructions()">
-                                                    <i class="fas fa-save"></i> Lưu
-                                                </button>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <div id="templatePreview" class="mt-2" style="display: none;">
-                                <div class="alert alert-light border-start border-4 border-primary py-2 px-3 mb-0">
-                                    <small class="text-muted d-block mb-1">Preview mẫu đã chọn:</small>
-                                    <div id="templatePreviewContent" class="small"></div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- AI Response Area -->
-                    <div class="card">
-                        <div class="card-header d-flex justify-content-between align-items-center">
-                            <h5 class="mb-0">
-                                <i class="fas fa-comments"></i> Phản Hồi AI
-                            </h5>
-                            <div id="processingStatus" class="text-muted" style="display: none;">
-                                <i class="fas fa-spinner fa-spin"></i> Đang phân tích...
-                            </div>
-                        </div>
-                        <div class="card-body">
-                            <div id="responseArea" class="response-area">
-                                <div class="text-center text-muted">
-                                    <i class="fas fa-robot fa-2x mb-3 text-primary"></i>
-                                    <h6 class="text-primary">🧠 AI Chat Assistant - Context-Aware Intelligence</h6>
-                                    <p class="mb-3">Tải ảnh đoạn chat lên, AI sẽ đọc và hiểu <strong>toàn bộ bối cảnh</strong> để đưa ra phản hồi thông minh!</p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Voice Translator Panel -->
-        <div class="tab-pane fade" id="voice-panel" role="tabpanel">
-            <div class="card">
-                <div class="card-header bg-gradient" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
-                    <h5 class="mb-0 text-dark fw-bold" style="text-shadow: 1px 1px 2px rgba(255,255,255,0.6);">
-                        <i class="fas fa-microphone-alt me-2 text-dark"></i>Voice Translator - Smart Voice Translation
-                    </h5>
-                </div>
-                <div class="card-body">
-                    <!-- Language Selection -->
-                    <div class="row mb-4">
-                        <div class="col-md-5">
-                            <label class="form-label fw-bold">
-                                <i class="fas fa-flag"></i> Ngôn ngữ nguồn:
-                            </label>
-                            <select id="sourceLanguage" class="form-select language-select">
-                                <option value="vi">🇻🇳 Tiếng Việt</option>
-                                <option value="en">🇺🇸 English</option>
-                                <option value="zh">🇨🇳 中文</option>
-                                <option value="ja">🇯🇵 日本語</option>
-                                <option value="ko">🇰🇷 한국어</option>
-                                <option value="fr">🇫🇷 Français</option>
-                                <option value="de">🇩🇪 Deutsch</option>
-                                <option value="es">🇪🇸 Español</option>
-                            </select>
-                        </div>
-                        <div class="col-md-2 d-flex align-items-end justify-content-center">
-                            <button class="btn btn-outline-secondary" onclick="swapLanguages()">
-                                <i class="fas fa-exchange-alt"></i>
-                            </button>
-                        </div>
-                        <div class="col-md-5">
-                            <label class="form-label fw-bold">
-                                <i class="fas fa-language"></i> Ngôn ngữ đích:
-                            </label>
-                            <select id="targetLanguage" class="form-select language-select">
-                                <option value="en">🇺🇸 English</option>
-                                <option value="vi">🇻🇳 Tiếng Việt</option>
-                                <option value="zh">🇨🇳 中文</option>
-                                <option value="ja">🇯🇵 日本語</option>
-                                <option value="ko">🇰🇷 한국어</option>
-                                <option value="fr">🇫🇷 Français</option>
-                                <option value="de">🇩🇪 Deutsch</option>
-                                <option value="es">🇪🇸 Español</option>
-                            </select>
-                        </div>
-                    </div>
-
-                    <!-- Voice Recording and Text Input Section -->
-                    <div class="row mb-4">
-                        <div class="col-md-6">
-                            <!-- Voice Recording -->
-                            <div class="text-center p-4" style="border: 2px dashed #dee2e6; border-radius: 15px;">
-                                <h5 class="mb-3">
-                                    <span id="statusIndicator" class="status-indicator status-ready"></span>
-                                    <span id="statusText">Sẵn sàng ghi âm</span>
-                                </h5>
-                                <button id="recordButton" class="record-button mb-3" onclick="toggleRecording()">
-                                    <i class="fas fa-microphone"></i>
-                                </button>
-                                <div>
-                                    <small class="text-muted">Nhấn để bắt đầu/dừng ghi âm</small>
-                                </div>
-                                
-                                <div id="supportInfo" class="mt-2">
-                                    <small class="text-muted">
-                                        <i class="fas fa-info-circle"></i> 
-                                        <span id="supportText">Đang kiểm tra hỗ trợ microphone...</span>
-                                    </small>
-                                </div>
-                            </div>
-                            
-                            <!-- Speech Recognition Result -->
-                            <div class="mt-3">
-                                <label class="form-label fw-bold">
-                                    <i class="fas fa-comment-dots"></i> Văn bản nhận diện:
-                                </label>
-                                <textarea id="recognizedText" class="form-control text-area" 
-                                    placeholder="Văn bản từ giọng nói sẽ hiển thị ở đây..."
-                                    oninput="checkTranslateButton()" readonly></textarea>
-                            </div>
-                        </div>
-                        
-                        <div class="col-md-6">
-                            <!-- Manual Text Input -->
-                            <div class="mb-3">
-                                <label class="form-label fw-bold">
-                                    <i class="fas fa-keyboard"></i> Hoặc nhập văn bản thủ công:
-                                </label>
-                                <textarea id="manualText" class="form-control text-area" 
-                                    placeholder="Nhập văn bản cần dịch ở đây..."
-                                    oninput="syncTextAndCheck()"></textarea>
-                            </div>
-                            
-                            <!-- Translate Button -->
-                            <div class="text-center mb-3">
-                                <button id="translateButton" class="btn translate-btn" onclick="translateText()">
-                                    <i class="fas fa-language"></i> Dịch Ngay
-                                </button>
-                            </div>
-                            
-                            <!-- Translation Result -->
-                            <div class="result-area position-relative" id="translationResult" style="display: none;">
-                                <button class="copy-btn" onclick="copyTranslation()">
-                                    <i class="fas fa-copy"></i> Copy
-                                </button>
-                                <h6 class="text-primary mb-2">
-                                    <i class="fas fa-globe"></i> Kết quả dịch:
-                                </h6>
-                                <div id="translatedText" class="fw-bold" style="font-size: 1.1rem; line-height: 1.6;"></div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Templates Panel -->
-        <div class="tab-pane fade" id="templates-panel" role="tabpanel">
-            <div class="card">
-                <div class="card-header bg-gradient" style="background: linear-gradient(135deg, #17a2b8 0%, #138496 100%);">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <h5 class="mb-0 text-white fw-bold" style="text-shadow: 1px 1px 2px rgba(0,0,0,0.3);">
-                            <i class="fas fa-clipboard-list me-2 text-white"></i>Quản lý Mẫu Tin Nhắn
-                        </h5>
-                        <div>
-                            <button class="btn btn-warning btn-sm me-2 fw-bold" onclick="showAddTemplateModal()">
-                                <i class="fas fa-plus text-dark"></i> Thêm mẫu
-                            </button>
-                            <button class="btn btn-success btn-sm me-2 fw-bold" onclick="importFromSheets()">
-                                <i class="fas fa-download text-white"></i> Import
-                            </button>
-                            <button class="btn btn-danger btn-sm fw-bold" onclick="exportToSheets()">
-                                <i class="fas fa-upload text-white"></i> Export
-                            </button>
-                            <button class="btn btn-info btn-sm fw-bold" onclick="testSheetsConnection()" title="Fix Database Sequence">
-                                <i class="fas fa-wrench text-white"></i> Fix DB
-                            </button>
-                        </div>
-                    </div>
-                </div>
-                <div class="card-body">
-                    <div id="templatesContainer">
-                        <div class="text-center p-4">
-                            <div class="spinner-border" role="status">
-                                <span class="visually-hidden">Đang tải...</span>
-                            </div>
-                            <p class="mt-2">Đang tải danh sách mẫu tin nhắn...</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
+    <!-- Message Template Header -->
+    <div class="mb-3">
+        <div class="alert alert-info border-start border-4 border-info">
+            <h5 class="mb-0">
+                <i class="fas fa-clipboard-list me-2"></i>Quản lý Mẫu Tin Nhắn
+            </h5>
+            <small class="text-muted">Quản lý và chỉnh sửa các mẫu tin nhắn cho khách hàng</small>
         </div>
     </div>
 
-    <!-- Quick Actions -->
-    <div class="row mt-4">
-        <div class="col-12">
-            <div class="card">
-                <div class="card-body">
-                    <div class="row text-center">
-                        <div class="col-md-3">
-                            <button class="btn btn-info w-100 mb-2" onclick="viewTemplates()">
-                                <i class="fas fa-list me-2"></i>Xem mẫu tin nhắn
-                            </button>
-                        </div>
-                        <div class="col-md-3">
-                            <button class="btn btn-success w-100 mb-2" onclick="clearAll()">
-                                <i class="fas fa-refresh me-2"></i>Làm mới tất cả
-                            </button>
-                        </div>
-                        <div class="col-md-3">
-                            <button class="btn btn-warning w-100 mb-2" onclick="switchToVoice()">
-                                <i class="fas fa-microphone-alt me-2"></i>Chuyển sang Voice
-                            </button>
-                        </div>
-                        <div class="col-md-3">
-                            <button class="btn btn-secondary w-100 mb-2" onclick="switchToChat()">
-                                <i class="fas fa-comments me-2"></i>Chuyển sang Chat AI
-                            </button>
-                        </div>
-                    </div>
+    <!-- Main Content - Template Management -->
+    <div class="card">
+        <div class="card-header bg-gradient" style="background: linear-gradient(135deg, #17a2b8 0%, #138496 100%);">
+            <div class="d-flex justify-content-between align-items-center">
+                <h5 class="mb-0 text-white fw-bold" style="text-shadow: 1px 1px 2px rgba(0,0,0,0.3);">
+                    <i class="fas fa-clipboard-list me-2 text-white"></i>Quản lý Mẫu Tin Nhắn
+                </h5>
+                <div>
+                    <button class="btn btn-warning btn-sm me-2 fw-bold" onclick="showAddTemplateModal()">
+                        <i class="fas fa-plus text-dark"></i> Thêm mẫu
+                    </button>
+                    <button class="btn btn-success btn-sm me-2 fw-bold" onclick="importFromSheets()">
+                        <i class="fas fa-download text-white"></i> Import
+                    </button>
+                    <button class="btn btn-danger btn-sm fw-bold" onclick="exportToSheets()">
+                        <i class="fas fa-upload text-white"></i> Export
+                    </button>
+                    <button class="btn btn-info btn-sm fw-bold" onclick="testSheetsConnection()" title="Fix Database Sequence">
+                        <i class="fas fa-wrench text-white"></i> Fix DB
+                    </button>
                 </div>
             </div>
         </div>
+        <div class="card-body">
+            <!-- Search and Filter Section -->
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <div class="input-group">
+                        <span class="input-group-text"><i class="fas fa-search"></i></span>
+                        <input type="text" id="searchTemplates" class="form-control" placeholder="Tìm kiếm theo danh mục hoặc nội dung..." onkeyup="filterTemplates()">
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <select id="filterCategory" class="form-select" onchange="filterTemplates()">
+                        <option value="">Tất cả danh mục</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <button class="btn btn-outline-secondary w-100" onclick="refreshTemplates()">
+                        <i class="fas fa-sync-alt"></i> Tải lại
+                    </button>
+                </div>
+            </div>
+
+            <!-- Templates Container -->
+            <div id="templatesContainer">
+                <div class="text-center p-4">
+                    <div class="spinner-border" role="status">
+                        <span class="visually-hidden">Đang tải...</span>
+                    </div>
+                    <p class="mt-2">Đang tải danh sách mẫu tin nhắn...</p>
+            </div>
     </div>
 </div>
 
@@ -635,6 +177,67 @@
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
                 <button type="button" class="btn btn-primary" onclick="addNewTemplate()">
                     <i class="fas fa-save"></i> Thêm & Export
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Template Modal -->
+<div class="modal fade" id="editTemplateModal" tabindex="-1" aria-labelledby="editTemplateModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-warning text-dark">
+                <h5 class="modal-title" id="editTemplateModalLabel">
+                    <i class="fas fa-edit"></i> Chỉnh Sửa Mẫu Tin Nhắn
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="editTemplateForm">
+                    <input type="hidden" id="editTemplateId">
+
+                    <div class="mb-3">
+                        <label for="editTemplateCategory" class="form-label">Danh mục <span class="text-danger">*</span></label>
+                        <select class="form-select" id="editTemplateCategory" required>
+                            <option value="">-- Chọn danh mục --</option>
+                            <option value="WELCOME">WELCOME</option>
+                            <option value="ARRIVAL">ARRIVAL</option>
+                            <option value="CHECK IN">CHECK IN</option>
+                            <option value="EARLY CHECK IN">EARLY CHECK IN</option>
+                            <option value="DON PHONG">DON PHONG</option>
+                            <option value="HET PHONG">HET PHONG</option>
+                            <option value="FEED BACK">FEED BACK</option>
+                            <option value="TAXI">TAXI</option>
+                            <option value="PARK">PARK</option>
+                            <option value="LAUNDRY">LAUNDRY</option>
+                            <option value="NOT BOOKING">NOT BOOKING</option>
+                            <option value="OTHER">Khác (nhập thủ công)</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-3" id="editCustomCategoryDiv" style="display: none;">
+                        <label for="editCustomCategory" class="form-label">Danh mục tùy chỉnh <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="editCustomCategory" placeholder="Nhập tên danh mục mới">
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="editTemplateLabel" class="form-label">Nhãn <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="editTemplateLabel" placeholder="VD: DEFAULT, 1, 2, v.v." required>
+                        <div class="form-text">Sử dụng "DEFAULT" cho mẫu mặc định hoặc số thứ tự cho các biến thể</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="editTemplateMessage" class="form-label">Nội dung tin nhắn <span class="text-danger">*</span></label>
+                        <textarea class="form-control" id="editTemplateMessage" rows="8" placeholder="Nhập nội dung tin nhắn..." required></textarea>
+                        <div class="form-text">Có thể sử dụng xuống dòng bằng cách nhấn Enter</div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                <button type="button" class="btn btn-warning" onclick="saveTemplateEdit()">
+                    <i class="fas fa-save"></i> Lưu Thay Đổi
                 </button>
             </div>
         </div>
@@ -2856,6 +2459,9 @@ document.getElementById('manualBookingForm').addEventListener('submit', function
                                     <button class="btn btn-sm btn-primary" onclick="useTemplate('${templateId}')" title="Copy content to clipboard">
                                         <i class="fas fa-copy"></i> Copy
                                     </button>
+                                    <button class="btn btn-sm btn-outline-warning" onclick="editTemplate('${templateId}')" title="Edit this template">
+                                        <i class="fas fa-edit"></i> Edit
+                                    </button>
                                     <button class="btn btn-sm btn-outline-info" onclick="previewTemplate('${templateId}')" title="Preview full content">
                                         <i class="fas fa-eye"></i> Preview
                                     </button>
@@ -3537,7 +3143,7 @@ document.getElementById('manualBookingForm').addEventListener('submit', function
     renderTemplates = function() {
         // Call original function (no parameters - it uses window.templates directly)
         originalRenderTemplates();
-        
+
         // Load images for each template after rendering
         if (window.templates && window.templates.length > 0) {
             window.templates.forEach(template => {
@@ -3546,7 +3152,131 @@ document.getElementById('manualBookingForm').addEventListener('submit', function
                 }
             });
         }
+
+        // Populate filter dropdown
+        populateFilterDropdown();
     };
+
+    // ===== EDIT TEMPLATE FUNCTIONS =====
+    function editTemplate(templateId) {
+        const template = window.templates.find(t => t.id == templateId);
+        if (!template) {
+            showToast('Template not found', 'error');
+            return;
+        }
+
+        // Fill form with template data
+        document.getElementById('editTemplateId').value = template.id;
+        document.getElementById('editTemplateCategory').value = template.category || '';
+        document.getElementById('editTemplateLabel').value = template.label || '';
+        document.getElementById('editTemplateMessage').value = template.content || '';
+
+        // Handle custom category
+        if (template.category && !['WELCOME', 'ARRIVAL', 'CHECK IN', 'EARLY CHECK IN', 'DON PHONG', 'HET PHONG', 'FEED BACK', 'TAXI', 'PARK', 'LAUNDRY', 'NOT BOOKING'].includes(template.category)) {
+            document.getElementById('editTemplateCategory').value = 'OTHER';
+            document.getElementById('editCustomCategory').value = template.category;
+            document.getElementById('editCustomCategoryDiv').style.display = 'block';
+        }
+
+        // Show modal
+        const modal = new bootstrap.Modal(document.getElementById('editTemplateModal'));
+        modal.show();
+    }
+
+    // Handle custom category dropdown for edit modal
+    document.getElementById('editTemplateCategory').addEventListener('change', function() {
+        const customDiv = document.getElementById('editCustomCategoryDiv');
+        customDiv.style.display = this.value === 'OTHER' ? 'block' : 'none';
+    });
+
+    async function saveTemplateEdit() {
+        const templateId = document.getElementById('editTemplateId').value;
+        let category = document.getElementById('editTemplateCategory').value;
+        const label = document.getElementById('editTemplateLabel').value;
+        const content = document.getElementById('editTemplateMessage').value;
+
+        // Validation
+        if (!category || !label || !content) {
+            showToast('Vui lòng điền đầy đủ thông tin', 'error');
+            return;
+        }
+
+        // Handle custom category
+        if (category === 'OTHER') {
+            category = document.getElementById('editCustomCategory').value.trim();
+            if (!category) {
+                showToast('Vui lòng nhập tên danh mục tùy chỉnh', 'error');
+                return;
+            }
+        }
+
+        try {
+            const response = await fetch(`/api/templates/${templateId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ category, label, content })
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                showToast('✅ Template updated successfully!', 'success');
+                bootstrap.Modal.getInstance(document.getElementById('editTemplateModal')).hide();
+                await loadTemplates(); // Reload templates
+            } else {
+                showToast('❌ Failed to update template: ' + (data.error || 'Unknown error'), 'error');
+            }
+        } catch (error) {
+            console.error('Error updating template:', error);
+            showToast('❌ Network error updating template', 'error');
+        }
+    }
+
+    // ===== SEARCH AND FILTER FUNCTIONS =====
+    function populateFilterDropdown() {
+        const filterSelect = document.getElementById('filterCategory');
+        if (!filterSelect || !window.templates) return;
+
+        // Get unique categories
+        const categories = [...new Set(window.templates.map(t => t.category || 'General'))].sort();
+
+        // Clear and populate dropdown
+        filterSelect.innerHTML = '<option value="">Tất cả danh mục</option>';
+        categories.forEach(cat => {
+            filterSelect.innerHTML += `<option value="${cat}">${cat}</option>`;
+        });
+    }
+
+    function filterTemplates() {
+        const searchTerm = document.getElementById('searchTemplates').value.toLowerCase();
+        const categoryFilter = document.getElementById('filterCategory').value;
+
+        if (!window.templates) return;
+
+        // Filter templates
+        const filtered = window.templates.filter(template => {
+            const matchesSearch = !searchTerm ||
+                (template.label && template.label.toLowerCase().includes(searchTerm)) ||
+                (template.content && template.content.toLowerCase().includes(searchTerm)) ||
+                (template.category && template.category.toLowerCase().includes(searchTerm));
+
+            const matchesCategory = !categoryFilter || template.category === categoryFilter;
+
+            return matchesSearch && matchesCategory;
+        });
+
+        // Temporarily update window.templates for rendering
+        const originalTemplates = window.templates;
+        window.templates = filtered;
+        renderTemplates();
+        window.templates = originalTemplates; // Restore original
+    }
+
+    function refreshTemplates() {
+        document.getElementById('searchTemplates').value = '';
+        document.getElementById('filterCategory').value = '';
+        loadTemplates();
+    }
 
 </script>
 {% endblock %}
