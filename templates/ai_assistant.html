@@ -3197,14 +3197,40 @@ document.getElementById('manualBookingForm').addEventListener('submit', function
         // Get modal element
         const modalElement = document.getElementById('editTemplateModal');
 
-        // ⚡ CRITICAL FIX: Dispose any existing modal instance first
+        // ⚡ AGGRESSIVE CLEANUP: Remove all existing modal artifacts
+        console.log('🧹 [CLEANUP] Starting aggressive modal cleanup...');
+
+        // 1. Dispose Bootstrap modal instance
         const existingModal = bootstrap.Modal.getInstance(modalElement);
         if (existingModal) {
             existingModal.dispose();
             console.log('🔧 Disposed existing modal instance');
         }
 
-        // Reset custom category div first
+        // 2. Remove ALL modal-backdrop elements (Bootstrap creates duplicates)
+        const backdrops = document.querySelectorAll('.modal-backdrop');
+        if (backdrops.length > 0) {
+            console.log(`🗑️ Found ${backdrops.length} backdrop(s), removing...`);
+            backdrops.forEach((backdrop, index) => {
+                backdrop.remove();
+            });
+        }
+
+        // 3. Clean up body classes and styles
+        document.body.classList.remove('modal-open');
+        document.body.style.overflow = '';
+        document.body.style.paddingRight = '';
+
+        // 4. Reset modal element to pristine state
+        modalElement.classList.remove('show');
+        modalElement.style.display = 'none';
+        modalElement.setAttribute('aria-hidden', 'true');
+        modalElement.removeAttribute('aria-modal');
+        modalElement.removeAttribute('role');
+
+        console.log('✅ Cleanup complete');
+
+        // Reset custom category div
         const customDiv = document.getElementById('editCustomCategoryDiv');
         if (customDiv) {
             customDiv.style.display = 'none';
@@ -3231,14 +3257,15 @@ document.getElementById('manualBookingForm').addEventListener('submit', function
             }
         }
 
-        // ⚡ Create fresh modal instance and show
-        const modal = new bootstrap.Modal(modalElement, {
-            backdrop: 'static',  // Prevent closing on backdrop click
-            keyboard: true       // Allow ESC to close
-        });
-        modal.show();
-
-        console.log('✅ Modal opened for template:', templateId);
+        // ⚡ Small delay ensures complete cleanup before creating new modal
+        setTimeout(() => {
+            const modal = new bootstrap.Modal(modalElement, {
+                backdrop: 'static',
+                keyboard: true
+            });
+            modal.show();
+            console.log('✅ Modal opened successfully for template:', templateId);
+        }, 50); // 50ms delay for DOM cleanup
     }
 
     async function saveTemplateEdit() {
@@ -3273,7 +3300,22 @@ document.getElementById('manualBookingForm').addEventListener('submit', function
 
             if (data.success) {
                 showToast('✅ Template updated successfully!', 'success');
-                bootstrap.Modal.getInstance(document.getElementById('editTemplateModal')).hide();
+
+                // ⚡ Properly close and cleanup modal
+                const modalElement = document.getElementById('editTemplateModal');
+                const modalInstance = bootstrap.Modal.getInstance(modalElement);
+                if (modalInstance) {
+                    modalInstance.hide();
+                    // Cleanup after hide animation completes
+                    setTimeout(() => {
+                        modalInstance.dispose();
+                        // Remove any leftover backdrops
+                        document.querySelectorAll('.modal-backdrop').forEach(b => b.remove());
+                        document.body.classList.remove('modal-open');
+                        document.body.style.overflow = '';
+                    }, 300);
+                }
+
                 await loadTemplates(); // Reload templates
             } else {
                 showToast('❌ Failed to update template: ' + (data.error || 'Unknown error'), 'error');
