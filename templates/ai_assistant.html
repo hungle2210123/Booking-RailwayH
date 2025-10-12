@@ -3139,26 +3139,31 @@ document.getElementById('manualBookingForm').addEventListener('submit', function
 
         // Handle custom category dropdown for edit modal (prevent multiple bindings)
         const editCategorySelect = document.getElementById('editTemplateCategory');
-        if (editCategorySelect) {
-            editCategorySelect.addEventListener('change', function() {
+        if (editCategorySelect && !editCategorySelect.dataset.listenerAdded) {
+            const handleCategoryChange = function() {
                 const customDiv = document.getElementById('editCustomCategoryDiv');
                 if (customDiv) {
                     customDiv.style.display = this.value === 'OTHER' ? 'block' : 'none';
                 }
-            });
+            };
+            editCategorySelect.addEventListener('change', handleCategoryChange);
+            editCategorySelect.dataset.listenerAdded = 'true'; // Mark as added
         }
 
-        // Reset edit modal when it's hidden
+        // Reset edit modal when it's hidden (prevent multiple bindings)
         const editModalElement = document.getElementById('editTemplateModal');
-        if (editModalElement) {
-            editModalElement.addEventListener('hidden.bs.modal', function() {
+        if (editModalElement && !editModalElement.dataset.resetListenerAdded) {
+            const handleModalHidden = function() {
                 // Reset form
-                document.getElementById('editTemplateForm').reset();
+                const form = document.getElementById('editTemplateForm');
+                if (form) form.reset();
                 const customDiv = document.getElementById('editCustomCategoryDiv');
                 if (customDiv) {
                     customDiv.style.display = 'none';
                 }
-            });
+            };
+            editModalElement.addEventListener('hidden.bs.modal', handleModalHidden);
+            editModalElement.dataset.resetListenerAdded = 'true'; // Mark as added
         }
     });
     
@@ -3189,12 +3194,25 @@ document.getElementById('manualBookingForm').addEventListener('submit', function
             return;
         }
 
+        // Get modal element
+        const modalElement = document.getElementById('editTemplateModal');
+
+        // ⚡ CRITICAL FIX: Dispose any existing modal instance first
+        const existingModal = bootstrap.Modal.getInstance(modalElement);
+        if (existingModal) {
+            existingModal.dispose();
+            console.log('🔧 Disposed existing modal instance');
+        }
+
         // Reset custom category div first
         const customDiv = document.getElementById('editCustomCategoryDiv');
         if (customDiv) {
             customDiv.style.display = 'none';
         }
-        document.getElementById('editCustomCategory').value = '';
+        const customCategoryInput = document.getElementById('editCustomCategory');
+        if (customCategoryInput) {
+            customCategoryInput.value = '';
+        }
 
         // Fill form with template data
         document.getElementById('editTemplateId').value = template.id;
@@ -3205,16 +3223,22 @@ document.getElementById('manualBookingForm').addEventListener('submit', function
         // Handle custom category
         if (template.category && !['WELCOME', 'ARRIVAL', 'CHECK IN', 'EARLY CHECK IN', 'DON PHONG', 'HET PHONG', 'FEED BACK', 'TAXI', 'PARK', 'LAUNDRY', 'NOT BOOKING'].includes(template.category)) {
             document.getElementById('editTemplateCategory').value = 'OTHER';
-            document.getElementById('editCustomCategory').value = template.category;
+            if (customCategoryInput) {
+                customCategoryInput.value = template.category;
+            }
             if (customDiv) {
                 customDiv.style.display = 'block';
             }
         }
 
-        // Show modal - use getOrCreateInstance to prevent duplicate modals
-        const modalElement = document.getElementById('editTemplateModal');
-        const modal = bootstrap.Modal.getOrCreateInstance(modalElement);
+        // ⚡ Create fresh modal instance and show
+        const modal = new bootstrap.Modal(modalElement, {
+            backdrop: 'static',  // Prevent closing on backdrop click
+            keyboard: true       // Allow ESC to close
+        });
         modal.show();
+
+        console.log('✅ Modal opened for template:', templateId);
     }
 
     async function saveTemplateEdit() {
