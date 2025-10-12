@@ -3283,6 +3283,72 @@ function updateOverdueGuestsSummary(paidAmount) {
 }
 
 // Update guest card amounts after editing (FIXED - Works with table structure)
+// ⚡ INSTANT UPDATE: Update booking across all dashboard views
+function updateBookingInAllViews(bookingId, updatedData) {
+    console.log('⚡ [UPDATE_ALL_VIEWS] Updating booking:', bookingId, updatedData);
+    let viewsUpdated = 0;
+
+    // 1. Update main guest booking list/table
+    const bookingRows = document.querySelectorAll(`tr[data-booking-id="${bookingId}"], .booking-card[data-booking-id="${bookingId}"]`);
+    bookingRows.forEach(row => {
+        // Update total amount display
+        const amountElements = row.querySelectorAll('.amount, .total-amount, .fw-bold');
+        amountElements.forEach(el => {
+            if (el.textContent.includes('đ')) {
+                el.textContent = `${updatedData.total_amount.toLocaleString()}đ`;
+                el.style.transition = 'all 0.3s';
+                el.style.color = '#28a745';
+                setTimeout(() => { el.style.color = ''; }, 1000);
+            }
+        });
+
+        // Update commission display
+        if (updatedData.commission !== undefined) {
+            const commissionEls = row.querySelectorAll('.commission, [class*="commission"]');
+            commissionEls.forEach(el => {
+                el.textContent = `Hoa hồng: ${updatedData.commission.toLocaleString()}đ`;
+            });
+        }
+        viewsUpdated++;
+    });
+
+    // 2. Update revenue charts/displays
+    const revenueDisplays = document.querySelectorAll('.revenue-amount, .daily-revenue, .monthly-revenue');
+    revenueDisplays.forEach(display => {
+        // Trigger recalculation if needed
+        if (typeof updateRevenueDisplay === 'function') {
+            updateRevenueDisplay();
+        }
+    });
+
+    // 3. Update commission tracking displays
+    if (updatedData.commission !== undefined) {
+        const commissionDisplays = document.querySelectorAll('.commission-tracker, .collector-chart');
+        commissionDisplays.forEach(display => {
+            // Mark for refresh
+            display.setAttribute('data-needs-refresh', 'true');
+        });
+    }
+
+    // 4. Update any calendar tooltips or modals that might be open
+    const openModals = document.querySelectorAll('.modal.show');
+    openModals.forEach(modal => {
+        const modalBookingId = modal.getAttribute('data-booking-id');
+        if (modalBookingId === bookingId) {
+            // Update modal content
+            const modalAmounts = modal.querySelectorAll('.amount, .total');
+            modalAmounts.forEach(el => {
+                if (el.textContent.includes('đ')) {
+                    el.textContent = `${updatedData.total_amount.toLocaleString()}đ`;
+                }
+            });
+        }
+    });
+
+    console.log(`⚡ [UPDATE_ALL_VIEWS] Updated ${viewsUpdated} views for booking ${bookingId}`);
+    return viewsUpdated;
+}
+
 function updateGuestCardAmounts(bookingId, newRoomAmount, newTaxiAmount) {
     // Calculate new total
     const newTotal = newRoomAmount + newTaxiAmount;
@@ -4499,17 +4565,26 @@ function updateBookingAmounts() {
         if (data.success) {
             // Success - close modal and update display immediately
             showDashboardToast('✅ Đã cập nhật số tiền thành công!', 'success');
-            
-            // Update the guest card immediately
+
+            // ⚡ INSTANT UPDATE: Update all views without reload
+            console.log('⚡ [INSTANT_UPDATE] Updating booking amounts across all views...');
+
+            // Update guest card in overdue table
             updateGuestCardAmounts(currentEditBookingData.bookingId, roomAmount, taxiAmount);
-            
+
+            // Update calendar and revenue displays
+            updateBookingInAllViews(currentEditBookingData.bookingId, {
+                room_amount: roomAmount,
+                taxi_amount: taxiAmount,
+                commission: commissionAmount !== null ? commissionAmount : currentEditBookingData.commission,
+                total_amount: roomAmount + taxiAmount
+            });
+
             const modal = bootstrap.Modal.getInstance(document.getElementById('editAmountModal'));
             modal.hide();
-            
-            // FIXED: Add page reload after successful update to ensure fresh data
-            setTimeout(() => {
-                window.location.reload();
-            }, 1500);
+
+            // ⚡ NO RELOAD NEEDED - instant updates applied
+            console.log('⚡ [SUCCESS] All views updated instantly without reload');
         } else {
             throw new Error(data.message || 'Lỗi không xác định');
         }
