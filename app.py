@@ -5666,6 +5666,131 @@ def import_status():
             'message': f'Status check failed: {str(e)}'
         }), 500
 
+@app.route('/api/import_bookings_json', methods=['POST'])
+def import_bookings_json():
+    """
+    Import bookings directly from JSON data
+    Expects JSON format: {"bookings": [{"guest_name": "...", "checkin_date": "...", ...}]}
+    """
+    try:
+        from core.models import db, Booking
+        from datetime import datetime
+
+        # Get JSON data from request
+        data = request.get_json()
+
+        if not data or 'bookings' not in data:
+            return jsonify({
+                'success': False,
+                'error': 'Invalid JSON format. Expected {"bookings": [...]}'
+            }), 400
+
+        bookings_data = data['bookings']
+        print(f"📋 Received {len(bookings_data)} bookings to import")
+
+        results = {
+            'imported': 0,
+            'updated': 0,
+            'skipped': 0,
+            'errors': []
+        }
+
+        for booking_data in bookings_data:
+            try:
+                booking_id = booking_data.get('booking_id')
+                if not booking_id:
+                    results['errors'].append('Missing booking_id')
+                    continue
+
+                # Check if booking already exists
+                existing_booking = Booking.query.filter_by(booking_id=booking_id).first()
+
+                # Parse dates
+                checkin_date = None
+                checkout_date = None
+
+                if booking_data.get('checkin_date'):
+                    try:
+                        checkin_date = datetime.strptime(booking_data['checkin_date'], '%Y-%m-%d').date()
+                    except:
+                        results['errors'].append(f"Booking {booking_id}: Invalid checkin_date format")
+                        continue
+
+                if booking_data.get('checkout_date'):
+                    try:
+                        checkout_date = datetime.strptime(booking_data['checkout_date'], '%Y-%m-%d').date()
+                    except:
+                        results['errors'].append(f"Booking {booking_id}: Invalid checkout_date format")
+                        continue
+
+                if not checkin_date or not checkout_date:
+                    results['errors'].append(f"Booking {booking_id}: Missing dates")
+                    continue
+
+                if existing_booking:
+                    # Update existing booking
+                    existing_booking.guest_name = booking_data.get('guest_name', existing_booking.guest_name)
+                    existing_booking.checkin_date = checkin_date
+                    existing_booking.checkout_date = checkout_date
+                    existing_booking.room_type = booking_data.get('room_type', existing_booking.room_type)
+                    existing_booking.room_amount = float(booking_data.get('room_amount', 0))
+                    existing_booking.commission = float(booking_data.get('commission', 0))
+                    existing_booking.booking_status = booking_data.get('status', 'confirmed')
+                    existing_booking.currency = booking_data.get('currency', 'VND')
+                    existing_booking.updated_at = datetime.now()
+
+                    results['updated'] += 1
+                    print(f"✅ Updated booking {booking_id} for {booking_data.get('guest_name')}")
+                else:
+                    # Create new booking
+                    new_booking = Booking(
+                        booking_id=booking_id,
+                        guest_name=booking_data.get('guest_name', 'Unknown'),
+                        checkin_date=checkin_date,
+                        checkout_date=checkout_date,
+                        room_type=booking_data.get('room_type', 'Standard'),
+                        room_amount=float(booking_data.get('room_amount', 0)),
+                        commission=float(booking_data.get('commission', 0)),
+                        booking_status=booking_data.get('status', 'confirmed'),
+                        currency=booking_data.get('currency', 'VND'),
+                        created_at=datetime.now(),
+                        updated_at=datetime.now()
+                    )
+
+                    db.session.add(new_booking)
+                    results['imported'] += 1
+                    print(f"✅ Created booking {booking_id} for {booking_data.get('guest_name')}")
+
+            except Exception as e:
+                results['errors'].append(f"Booking {booking_data.get('booking_id', 'Unknown')}: {str(e)}")
+                print(f"❌ Error importing booking: {e}")
+
+        # Commit all changes
+        try:
+            db.session.commit()
+            print(f"💾 Committed {results['imported']} new + {results['updated']} updated bookings")
+        except Exception as e:
+            db.session.rollback()
+            return jsonify({
+                'success': False,
+                'error': f'Database commit failed: {str(e)}'
+            }), 500
+
+        return jsonify({
+            'success': True,
+            'message': f"Imported {results['imported']} new, updated {results['updated']} bookings",
+            'results': results
+        })
+
+    except Exception as e:
+        print(f"❌ JSON import error: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
 @app.route('/api/fix_constraint', methods=['POST'])
 def fix_constraint():
     """
