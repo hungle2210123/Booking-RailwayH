@@ -564,47 +564,231 @@ class ElectricityImage(db.Model):
         }
 
 
+# =====================================================
+# HOMESTAY SETUP TRACKER - Property & Purchase Management
+# =====================================================
+class HomestayProperty(db.Model):
+    """Track individual homestay properties"""
+    __tablename__ = 'homestay_properties'
+
+    # Primary identification
+    property_id = Column(Integer, primary_key=True, autoincrement=True)
+    property_name = Column(String(255), nullable=False, index=True)
+    property_address = Column(Text)
+    property_type = Column(String(100))  # Studio, 1BR, 2BR, etc.
+
+    # Budget tracking
+    total_budget = Column(DECIMAL(15, 2), default=0)
+    budget_currency = Column(String(10), default='VND')
+
+    # Status
+    setup_status = Column(String(50), default='planning')  # planning, in_progress, completed
+    start_date = Column(Date)
+    target_completion_date = Column(Date)
+    actual_completion_date = Column(Date)
+
+    # Notes
+    notes = Column(Text)
+
+    # Audit fields
+    created_at = Column(DateTime, default=func.current_timestamp())
+    updated_at = Column(DateTime, default=func.current_timestamp(), onupdate=func.current_timestamp())
+
+    # Relationships
+    purchases = relationship("PurchaseRecord", back_populates="property", cascade="all, delete-orphan")
+
+    def __repr__(self):
+        return f"<HomestayProperty {self.property_id}: {self.property_name}>"
+
+    def to_dict(self):
+        return {
+            'property_id': self.property_id,
+            'property_name': self.property_name,
+            'property_address': self.property_address,
+            'property_type': self.property_type,
+            'total_budget': float(self.total_budget) if self.total_budget else 0,
+            'budget_currency': self.budget_currency,
+            'setup_status': self.setup_status,
+            'start_date': self.start_date.isoformat() if self.start_date else None,
+            'target_completion_date': self.target_completion_date.isoformat() if self.target_completion_date else None,
+            'actual_completion_date': self.actual_completion_date.isoformat() if self.actual_completion_date else None,
+            'notes': self.notes,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None
+        }
+
+
+class SetupItemTemplate(db.Model):
+    """Master template of items needed for homestay setup"""
+    __tablename__ = 'setup_item_templates'
+
+    # Primary identification
+    template_id = Column(Integer, primary_key=True, autoincrement=True)
+    item_name = Column(String(255), nullable=False)
+    item_category = Column(String(100), nullable=False, index=True)  # Furniture, Appliances, Bedding, etc.
+    item_subcategory = Column(String(100))
+
+    # Default specifications
+    default_quantity = Column(Integer, default=1)
+    estimated_price = Column(DECIMAL(12, 2))
+    price_currency = Column(String(10), default='VND')
+
+    # Item details
+    description = Column(Text)
+    specifications = Column(Text)
+    priority = Column(String(20), default='medium')  # high, medium, low
+    is_required = Column(Boolean, default=True)
+
+    # Recommended sources
+    recommended_link = Column(Text)
+    recommended_brand = Column(String(255))
+
+    # Audit fields
+    created_at = Column(DateTime, default=func.current_timestamp())
+    updated_at = Column(DateTime, default=func.current_timestamp(), onupdate=func.current_timestamp())
+
+    def __repr__(self):
+        return f"<SetupItemTemplate {self.template_id}: {self.item_name}>"
+
+    def to_dict(self):
+        return {
+            'template_id': self.template_id,
+            'item_name': self.item_name,
+            'item_category': self.item_category,
+            'item_subcategory': self.item_subcategory,
+            'default_quantity': self.default_quantity,
+            'estimated_price': float(self.estimated_price) if self.estimated_price else 0,
+            'price_currency': self.price_currency,
+            'description': self.description,
+            'specifications': self.specifications,
+            'priority': self.priority,
+            'is_required': self.is_required,
+            'recommended_link': self.recommended_link,
+            'recommended_brand': self.recommended_brand,
+            'created_at': self.created_at.isoformat() if self.created_at else None
+        }
+
+
+class PurchaseRecord(db.Model):
+    """Track actual purchases for each homestay property"""
+    __tablename__ = 'purchase_records'
+
+    # Primary identification
+    purchase_id = Column(Integer, primary_key=True, autoincrement=True)
+    property_id = Column(Integer, ForeignKey('homestay_properties.property_id'), nullable=False, index=True)
+    template_id = Column(Integer, ForeignKey('setup_item_templates.template_id'), index=True)
+
+    # Purchase details
+    item_name = Column(String(255), nullable=False)
+    item_category = Column(String(100), nullable=False)
+    quantity = Column(Integer, default=1)
+
+    # Price information
+    unit_price = Column(DECIMAL(12, 2), nullable=False)
+    total_price = Column(DECIMAL(15, 2), nullable=False)
+    currency = Column(String(10), default='VND')
+
+    # Purchase links and sources
+    purchase_link = Column(Text)
+    vendor_name = Column(String(255))
+    brand_name = Column(String(255))
+
+    # Purchase status
+    purchase_status = Column(String(50), default='planned')  # planned, ordered, delivered, installed
+    purchase_date = Column(Date)
+    delivery_date = Column(Date)
+    installation_date = Column(Date)
+
+    # Additional information
+    notes = Column(Text)
+    invoice_number = Column(String(100))
+    warranty_info = Column(Text)
+
+    # Audit fields
+    created_at = Column(DateTime, default=func.current_timestamp())
+    updated_at = Column(DateTime, default=func.current_timestamp(), onupdate=func.current_timestamp())
+
+    # Relationships
+    property = relationship("HomestayProperty", back_populates="purchases")
+    template = relationship("SetupItemTemplate")
+
+    # Constraints
+    __table_args__ = (
+        CheckConstraint('quantity > 0', name='positive_quantity'),
+        CheckConstraint('unit_price >= 0', name='non_negative_unit_price'),
+        CheckConstraint('total_price >= 0', name='non_negative_total_price'),
+    )
+
+    def __repr__(self):
+        return f"<PurchaseRecord {self.purchase_id}: {self.item_name}>"
+
+    def to_dict(self):
+        return {
+            'purchase_id': self.purchase_id,
+            'property_id': self.property_id,
+            'template_id': self.template_id,
+            'item_name': self.item_name,
+            'item_category': self.item_category,
+            'quantity': self.quantity,
+            'unit_price': float(self.unit_price) if self.unit_price else 0,
+            'total_price': float(self.total_price) if self.total_price else 0,
+            'currency': self.currency,
+            'purchase_link': self.purchase_link,
+            'vendor_name': self.vendor_name,
+            'brand_name': self.brand_name,
+            'purchase_status': self.purchase_status,
+            'purchase_date': self.purchase_date.isoformat() if self.purchase_date else None,
+            'delivery_date': self.delivery_date.isoformat() if self.delivery_date else None,
+            'installation_date': self.installation_date.isoformat() if self.installation_date else None,
+            'notes': self.notes,
+            'invoice_number': self.invoice_number,
+            'warranty_info': self.warranty_info,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None
+        }
+
+
 class ElectricityBill(db.Model):
     """Store electricity bill calculations and summaries"""
     __tablename__ = 'electricity_bills'
-    
+
     # Primary identification
     bill_id = Column(Integer, primary_key=True, autoincrement=True)
-    
+
     # Bill period
     bill_date = Column(Date, nullable=False, index=True)
     bill_period_start = Column(Date, nullable=False)
     bill_period_end = Column(Date, nullable=False)
-    
+
     # Bill summary
     total_meters = Column(Integer, default=0)
     total_consumption = Column(DECIMAL(12, 2), default=0)
     average_price = Column(DECIMAL(10, 2), default=0)
     total_amount = Column(DECIMAL(15, 2), default=0)
-    
+
     # Bill metadata
     bill_status = Column(String(50), default='draft')  # draft, finalized, paid
     payment_date = Column(Date)
     payment_status = Column(String(50), default='unpaid')  # unpaid, partial, paid
     payment_amount = Column(DECIMAL(15, 2), default=0)
-    
+
     # Notes and references
     notes = Column(Text)
     reference_number = Column(String(100))
-    
+
     # Audit fields
     created_at = Column(DateTime, default=func.current_timestamp())
     updated_at = Column(DateTime, default=func.current_timestamp(), onupdate=func.current_timestamp())
-    
+
     # Constraints
     __table_args__ = (
         CheckConstraint('bill_period_start <= bill_period_end', name='valid_bill_period'),
         CheckConstraint('total_amount >= 0', name='positive_total_amount'),
     )
-    
+
     def __repr__(self):
         return f"<ElectricityBill {self.bill_id}: {self.bill_period_start} to {self.bill_period_end}>"
-    
+
     def to_dict(self):
         return {
             'bill_id': self.bill_id,

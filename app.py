@@ -4538,6 +4538,350 @@ def ai_assistant():
     """AI Assistant interface"""
     return render_template('ai_assistant.html')
 
+# =====================================================
+# HOMESTAY SETUP TRACKER ROUTES
+# =====================================================
+@app.route('/homestay_setup')
+def homestay_setup():
+    """Homestay Setup Tracker interface"""
+    return render_template('homestay_setup.html')
+
+@app.route('/api/homestay/properties', methods=['GET', 'POST'])
+def homestay_properties_api():
+    """Get all properties or create new property"""
+    if request.method == 'GET':
+        try:
+            from core.models import HomestayProperty
+            properties = HomestayProperty.query.order_by(HomestayProperty.created_at.desc()).all()
+            return jsonify({
+                'success': True,
+                'properties': [p.to_dict() for p in properties]
+            })
+        except Exception as e:
+            return jsonify({'success': False, 'error': str(e)}), 500
+
+    elif request.method == 'POST':
+        try:
+            from core.models import HomestayProperty, db
+            data = request.json
+
+            new_property = HomestayProperty(
+                property_name=data['property_name'],
+                property_address=data.get('property_address'),
+                property_type=data.get('property_type'),
+                total_budget=data.get('total_budget', 0),
+                budget_currency=data.get('budget_currency', 'VND'),
+                setup_status=data.get('setup_status', 'planning'),
+                start_date=datetime.strptime(data['start_date'], '%Y-%m-%d').date() if data.get('start_date') else None,
+                target_completion_date=datetime.strptime(data['target_completion_date'], '%Y-%m-%d').date() if data.get('target_completion_date') else None,
+                notes=data.get('notes')
+            )
+
+            db.session.add(new_property)
+            db.session.commit()
+
+            return jsonify({
+                'success': True,
+                'property': new_property.to_dict(),
+                'message': 'Property created successfully'
+            })
+        except Exception as e:
+            db.session.rollback()
+            return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/homestay/properties/<int:property_id>', methods=['GET', 'PUT', 'DELETE'])
+def homestay_property_detail(property_id):
+    """Get, update, or delete a specific property"""
+    from core.models import HomestayProperty, db
+
+    property_obj = HomestayProperty.query.get_or_404(property_id)
+
+    if request.method == 'GET':
+        return jsonify({
+            'success': True,
+            'property': property_obj.to_dict()
+        })
+
+    elif request.method == 'PUT':
+        try:
+            data = request.json
+
+            if 'property_name' in data:
+                property_obj.property_name = data['property_name']
+            if 'property_address' in data:
+                property_obj.property_address = data['property_address']
+            if 'property_type' in data:
+                property_obj.property_type = data['property_type']
+            if 'total_budget' in data:
+                property_obj.total_budget = data['total_budget']
+            if 'setup_status' in data:
+                property_obj.setup_status = data['setup_status']
+            if 'start_date' in data:
+                property_obj.start_date = datetime.strptime(data['start_date'], '%Y-%m-%d').date() if data['start_date'] else None
+            if 'target_completion_date' in data:
+                property_obj.target_completion_date = datetime.strptime(data['target_completion_date'], '%Y-%m-%d').date() if data['target_completion_date'] else None
+            if 'actual_completion_date' in data:
+                property_obj.actual_completion_date = datetime.strptime(data['actual_completion_date'], '%Y-%m-%d').date() if data['actual_completion_date'] else None
+            if 'notes' in data:
+                property_obj.notes = data['notes']
+
+            db.session.commit()
+
+            return jsonify({
+                'success': True,
+                'property': property_obj.to_dict(),
+                'message': 'Property updated successfully'
+            })
+        except Exception as e:
+            db.session.rollback()
+            return jsonify({'success': False, 'error': str(e)}), 500
+
+    elif request.method == 'DELETE':
+        try:
+            db.session.delete(property_obj)
+            db.session.commit()
+
+            return jsonify({
+                'success': True,
+                'message': 'Property deleted successfully'
+            })
+        except Exception as e:
+            db.session.rollback()
+            return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/homestay/purchases', methods=['GET', 'POST'])
+def homestay_purchases_api():
+    """Get all purchases or create new purchase"""
+    if request.method == 'GET':
+        try:
+            from core.models import PurchaseRecord
+            property_id = request.args.get('property_id', type=int)
+
+            query = PurchaseRecord.query
+            if property_id:
+                query = query.filter_by(property_id=property_id)
+
+            purchases = query.order_by(PurchaseRecord.created_at.desc()).all()
+
+            return jsonify({
+                'success': True,
+                'purchases': [p.to_dict() for p in purchases]
+            })
+        except Exception as e:
+            return jsonify({'success': False, 'error': str(e)}), 500
+
+    elif request.method == 'POST':
+        try:
+            from core.models import PurchaseRecord, db
+            data = request.json
+
+            quantity = int(data.get('quantity', 1))
+            unit_price = float(data['unit_price'])
+            total_price = quantity * unit_price
+
+            new_purchase = PurchaseRecord(
+                property_id=data['property_id'],
+                template_id=data.get('template_id'),
+                item_name=data['item_name'],
+                item_category=data['item_category'],
+                quantity=quantity,
+                unit_price=unit_price,
+                total_price=total_price,
+                currency=data.get('currency', 'VND'),
+                purchase_link=data.get('purchase_link'),
+                vendor_name=data.get('vendor_name'),
+                brand_name=data.get('brand_name'),
+                purchase_status=data.get('purchase_status', 'planned'),
+                purchase_date=datetime.strptime(data['purchase_date'], '%Y-%m-%d').date() if data.get('purchase_date') else None,
+                delivery_date=datetime.strptime(data['delivery_date'], '%Y-%m-%d').date() if data.get('delivery_date') else None,
+                notes=data.get('notes'),
+                invoice_number=data.get('invoice_number'),
+                warranty_info=data.get('warranty_info')
+            )
+
+            db.session.add(new_purchase)
+            db.session.commit()
+
+            return jsonify({
+                'success': True,
+                'purchase': new_purchase.to_dict(),
+                'message': 'Purchase recorded successfully'
+            })
+        except Exception as e:
+            db.session.rollback()
+            return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/homestay/purchases/<int:purchase_id>', methods=['GET', 'PUT', 'DELETE'])
+def homestay_purchase_detail(purchase_id):
+    """Get, update, or delete a specific purchase"""
+    from core.models import PurchaseRecord, db
+
+    purchase = PurchaseRecord.query.get_or_404(purchase_id)
+
+    if request.method == 'GET':
+        return jsonify({
+            'success': True,
+            'purchase': purchase.to_dict()
+        })
+
+    elif request.method == 'PUT':
+        try:
+            data = request.json
+
+            if 'item_name' in data:
+                purchase.item_name = data['item_name']
+            if 'item_category' in data:
+                purchase.item_category = data['item_category']
+            if 'quantity' in data or 'unit_price' in data:
+                purchase.quantity = int(data.get('quantity', purchase.quantity))
+                purchase.unit_price = float(data.get('unit_price', purchase.unit_price))
+                purchase.total_price = purchase.quantity * purchase.unit_price
+            if 'purchase_link' in data:
+                purchase.purchase_link = data['purchase_link']
+            if 'vendor_name' in data:
+                purchase.vendor_name = data['vendor_name']
+            if 'brand_name' in data:
+                purchase.brand_name = data['brand_name']
+            if 'purchase_status' in data:
+                purchase.purchase_status = data['purchase_status']
+            if 'purchase_date' in data:
+                purchase.purchase_date = datetime.strptime(data['purchase_date'], '%Y-%m-%d').date() if data['purchase_date'] else None
+            if 'delivery_date' in data:
+                purchase.delivery_date = datetime.strptime(data['delivery_date'], '%Y-%m-%d').date() if data['delivery_date'] else None
+            if 'installation_date' in data:
+                purchase.installation_date = datetime.strptime(data['installation_date'], '%Y-%m-%d').date() if data['installation_date'] else None
+            if 'notes' in data:
+                purchase.notes = data['notes']
+            if 'invoice_number' in data:
+                purchase.invoice_number = data['invoice_number']
+            if 'warranty_info' in data:
+                purchase.warranty_info = data['warranty_info']
+
+            db.session.commit()
+
+            return jsonify({
+                'success': True,
+                'purchase': purchase.to_dict(),
+                'message': 'Purchase updated successfully'
+            })
+        except Exception as e:
+            db.session.rollback()
+            return jsonify({'success': False, 'error': str(e)}), 500
+
+    elif request.method == 'DELETE':
+        try:
+            db.session.delete(purchase)
+            db.session.commit()
+
+            return jsonify({
+                'success': True,
+                'message': 'Purchase deleted successfully'
+            })
+        except Exception as e:
+            db.session.rollback()
+            return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/homestay/templates', methods=['GET', 'POST'])
+def homestay_templates_api():
+    """Get all item templates or create new template"""
+    if request.method == 'GET':
+        try:
+            from core.models import SetupItemTemplate
+            category = request.args.get('category')
+
+            query = SetupItemTemplate.query
+            if category:
+                query = query.filter_by(item_category=category)
+
+            templates = query.order_by(SetupItemTemplate.item_category, SetupItemTemplate.item_name).all()
+
+            return jsonify({
+                'success': True,
+                'templates': [t.to_dict() for t in templates]
+            })
+        except Exception as e:
+            return jsonify({'success': False, 'error': str(e)}), 500
+
+    elif request.method == 'POST':
+        try:
+            from core.models import SetupItemTemplate, db
+            data = request.json
+
+            new_template = SetupItemTemplate(
+                item_name=data['item_name'],
+                item_category=data['item_category'],
+                item_subcategory=data.get('item_subcategory'),
+                default_quantity=data.get('default_quantity', 1),
+                estimated_price=data.get('estimated_price'),
+                price_currency=data.get('price_currency', 'VND'),
+                description=data.get('description'),
+                specifications=data.get('specifications'),
+                priority=data.get('priority', 'medium'),
+                is_required=data.get('is_required', True),
+                recommended_link=data.get('recommended_link'),
+                recommended_brand=data.get('recommended_brand')
+            )
+
+            db.session.add(new_template)
+            db.session.commit()
+
+            return jsonify({
+                'success': True,
+                'template': new_template.to_dict(),
+                'message': 'Template created successfully'
+            })
+        except Exception as e:
+            db.session.rollback()
+            return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/homestay/analytics/<int:property_id>', methods=['GET'])
+def homestay_analytics(property_id):
+    """Get analytics for a specific property"""
+    try:
+        from core.models import HomestayProperty, PurchaseRecord
+        from sqlalchemy import func
+
+        property_obj = HomestayProperty.query.get_or_404(property_id)
+
+        # Calculate totals by category
+        category_totals = db.session.query(
+            PurchaseRecord.item_category,
+            func.sum(PurchaseRecord.total_price).label('total'),
+            func.count(PurchaseRecord.purchase_id).label('count')
+        ).filter_by(property_id=property_id).group_by(PurchaseRecord.item_category).all()
+
+        # Calculate totals by status
+        status_totals = db.session.query(
+            PurchaseRecord.purchase_status,
+            func.sum(PurchaseRecord.total_price).label('total'),
+            func.count(PurchaseRecord.purchase_id).label('count')
+        ).filter_by(property_id=property_id).group_by(PurchaseRecord.purchase_status).all()
+
+        # Grand total
+        grand_total = db.session.query(
+            func.sum(PurchaseRecord.total_price)
+        ).filter_by(property_id=property_id).scalar() or 0
+
+        return jsonify({
+            'success': True,
+            'property': property_obj.to_dict(),
+            'analytics': {
+                'by_category': [
+                    {'category': cat, 'total': float(total), 'count': count}
+                    for cat, total, count in category_totals
+                ],
+                'by_status': [
+                    {'status': status, 'total': float(total), 'count': count}
+                    for status, total, count in status_totals
+                ],
+                'grand_total': float(grand_total),
+                'budget_remaining': float(property_obj.total_budget) - float(grand_total),
+                'budget_used_percent': (float(grand_total) / float(property_obj.total_budget) * 100) if property_obj.total_budget > 0 else 0
+            }
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 @app.route('/test_js')
 def test_js():
     """Test JavaScript functions"""

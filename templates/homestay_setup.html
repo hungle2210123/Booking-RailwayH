@@ -1,0 +1,1056 @@
+{% extends "base.html" %}
+
+{% block title %}Homestay Setup Tracker{% endblock %}
+
+{% block extra_css %}
+<style>
+/* Modern Card Design */
+.property-card {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 15px;
+    padding: 20px;
+    color: white;
+    margin-bottom: 20px;
+    box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.property-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 15px 40px rgba(102, 126, 234, 0.4);
+}
+
+.property-card.active {
+    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+}
+
+.property-card h4 {
+    margin: 0;
+    font-weight: 600;
+}
+
+.property-card .badge {
+    font-size: 0.85rem;
+    padding: 5px 10px;
+}
+
+/* Budget Progress Bar */
+.budget-progress {
+    background: rgba(255, 255, 255, 0.3);
+    border-radius: 10px;
+    height: 8px;
+    margin-top: 10px;
+    overflow: hidden;
+}
+
+.budget-progress-bar {
+    background: white;
+    height: 100%;
+    border-radius: 10px;
+    transition: width 0.5s ease;
+}
+
+.budget-progress-bar.over-budget {
+    background: #ff4757;
+}
+
+/* Category Pills */
+.category-pill {
+    display: inline-block;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 8px 16px;
+    border-radius: 20px;
+    margin: 5px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-size: 0.9rem;
+}
+
+.category-pill:hover {
+    transform: scale(1.05);
+    box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
+}
+
+.category-pill.active {
+    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    box-shadow: 0 5px 15px rgba(240, 147, 251, 0.5);
+}
+
+.category-pill i {
+    margin-right: 5px;
+}
+
+/* Purchase Item Card */
+.purchase-item {
+    background: white;
+    border: 2px solid #e8e8e8;
+    border-radius: 10px;
+    padding: 15px;
+    margin-bottom: 15px;
+    transition: all 0.3s ease;
+    position: relative;
+}
+
+.purchase-item:hover {
+    border-color: #667eea;
+    box-shadow: 0 5px 20px rgba(102, 126, 234, 0.2);
+    transform: translateX(5px);
+}
+
+.purchase-item.status-planned {
+    border-left: 5px solid #feca57;
+}
+
+.purchase-item.status-ordered {
+    border-left: 5px solid #48dbfb;
+}
+
+.purchase-item.status-delivered {
+    border-left: 5px solid #1dd1a1;
+}
+
+.purchase-item.status-installed {
+    border-left: 5px solid #10ac84;
+}
+
+/* Status Badges */
+.status-badge {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    font-size: 0.75rem;
+    padding: 4px 10px;
+}
+
+/* Analytics Cards */
+.analytics-card {
+    background: white;
+    border-radius: 15px;
+    padding: 20px;
+    margin-bottom: 20px;
+    border: 2px solid #e8e8e8;
+    transition: all 0.3s ease;
+}
+
+.analytics-card:hover {
+    border-color: #667eea;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+}
+
+.analytics-card h3 {
+    font-size: 2rem;
+    margin: 0;
+    color: #667eea;
+}
+
+.analytics-card p {
+    margin: 5px 0 0;
+    color: #888;
+    font-size: 0.9rem;
+}
+
+/* Modal Enhancements */
+.modal-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-radius: 10px 10px 0 0;
+}
+
+.modal-content {
+    border-radius: 15px;
+    border: none;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+}
+
+/* Form Controls */
+.form-control:focus, .form-select:focus {
+    border-color: #667eea;
+    box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+}
+
+/* Action Buttons */
+.btn-gradient {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border: none;
+    color: white;
+    transition: all 0.3s ease;
+}
+
+.btn-gradient:hover {
+    background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+}
+
+/* Link Preview */
+.link-preview {
+    background: #f8f9fa;
+    padding: 10px;
+    border-radius: 8px;
+    margin-top: 10px;
+}
+
+.link-preview a {
+    color: #667eea;
+    text-decoration: none;
+    word-break: break-all;
+}
+
+.link-preview a:hover {
+    text-decoration: underline;
+}
+
+/* Empty State */
+.empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: #888;
+}
+
+.empty-state i {
+    font-size: 4rem;
+    margin-bottom: 20px;
+    color: #ddd;
+}
+
+/* Mobile Responsive */
+@media (max-width: 768px) {
+    .property-card {
+        padding: 15px;
+    }
+
+    .category-pill {
+        padding: 6px 12px;
+        font-size: 0.8rem;
+    }
+
+    .purchase-item {
+        padding: 10px;
+    }
+}
+
+/* Loading Animation */
+.loading-spinner {
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    border: 3px solid rgba(255, 255, 255, 0.3);
+    border-radius: 50%;
+    border-top-color: white;
+    animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row">
+        <!-- Left Sidebar: Properties List -->
+        <div class="col-lg-3 mb-4">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h4><i class="fas fa-building"></i> Homestay Properties</h4>
+                <button class="btn btn-gradient btn-sm" onclick="showAddPropertyModal()">
+                    <i class="fas fa-plus"></i> Add
+                </button>
+            </div>
+
+            <div id="propertiesList">
+                <div class="empty-state">
+                    <i class="fas fa-home"></i>
+                    <p>No properties yet</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Content: Purchase Tracker -->
+        <div class="col-lg-9">
+            <div id="noPropertySelected" class="empty-state" style="margin-top: 100px;">
+                <i class="fas fa-arrow-left"></i>
+                <h4>Select a property to view setup tracker</h4>
+                <p>Choose a property from the left sidebar or create a new one</p>
+            </div>
+
+            <div id="propertyContent" style="display: none;">
+                <!-- Property Header with Analytics -->
+                <div class="row mb-4">
+                    <div class="col-md-4">
+                        <div class="analytics-card">
+                            <h3 id="totalSpent">0đ</h3>
+                            <p><i class="fas fa-money-bill-wave"></i> Total Spent</p>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="analytics-card">
+                            <h3 id="budgetRemaining">0đ</h3>
+                            <p><i class="fas fa-piggy-bank"></i> Budget Remaining</p>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="analytics-card">
+                            <h3 id="itemsCount">0</h3>
+                            <p><i class="fas fa-shopping-cart"></i> Items Purchased</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Category Filter -->
+                <div class="mb-4">
+                    <h5><i class="fas fa-filter"></i> Categories</h5>
+                    <div id="categoryFilter">
+                        <span class="category-pill active" data-category="all" onclick="filterByCategory('all')">
+                            <i class="fas fa-th"></i> All
+                        </span>
+                        <span class="category-pill" data-category="Furniture" onclick="filterByCategory('Furniture')">
+                            <i class="fas fa-couch"></i> Furniture
+                        </span>
+                        <span class="category-pill" data-category="Appliances" onclick="filterByCategory('Appliances')">
+                            <i class="fas fa-blender"></i> Appliances
+                        </span>
+                        <span class="category-pill" data-category="Bedding" onclick="filterByCategory('Bedding')">
+                            <i class="fas fa-bed"></i> Bedding
+                        </span>
+                        <span class="category-pill" data-category="Kitchen" onclick="filterByCategory('Kitchen')">
+                            <i class="fas fa-utensils"></i> Kitchen
+                        </span>
+                        <span class="category-pill" data-category="Bathroom" onclick="filterByCategory('Bathroom')">
+                            <i class="fas fa-bath"></i> Bathroom
+                        </span>
+                        <span class="category-pill" data-category="Decor" onclick="filterByCategory('Decor')">
+                            <i class="fas fa-palette"></i> Decor
+                        </span>
+                        <span class="category-pill" data-category="Electronics" onclick="filterByCategory('Electronics')">
+                            <i class="fas fa-tv"></i> Electronics
+                        </span>
+                        <span class="category-pill" data-category="Other" onclick="filterByCategory('Other')">
+                            <i class="fas fa-ellipsis-h"></i> Other
+                        </span>
+                    </div>
+                </div>
+
+                <!-- Add Purchase Button -->
+                <div class="mb-3 d-flex justify-content-between align-items-center">
+                    <h5><i class="fas fa-shopping-bag"></i> Purchase List</h5>
+                    <button class="btn btn-gradient" onclick="showAddPurchaseModal()">
+                        <i class="fas fa-plus"></i> Add Purchase
+                    </button>
+                </div>
+
+                <!-- Purchases List -->
+                <div id="purchasesList">
+                    <div class="empty-state">
+                        <i class="fas fa-shopping-cart"></i>
+                        <p>No purchases recorded yet</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add Property Modal -->
+<div class="modal fade" id="addPropertyModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-home"></i> Add New Property</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="addPropertyForm">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Property Name *</label>
+                            <input type="text" class="form-control" name="property_name" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Property Type</label>
+                            <select class="form-select" name="property_type">
+                                <option value="Studio">Studio</option>
+                                <option value="1BR">1 Bedroom</option>
+                                <option value="2BR">2 Bedrooms</option>
+                                <option value="3BR">3 Bedrooms</option>
+                                <option value="Villa">Villa</option>
+                                <option value="Other">Other</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Address</label>
+                        <textarea class="form-control" name="property_address" rows="2"></textarea>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Total Budget (VND)</label>
+                            <input type="number" class="form-control" name="total_budget" value="0" min="0">
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Start Date</label>
+                            <input type="date" class="form-control" name="start_date">
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Target Completion</label>
+                            <input type="date" class="form-control" name="target_completion_date">
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Notes</label>
+                        <textarea class="form-control" name="notes" rows="3"></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-gradient" onclick="addProperty()">
+                    <i class="fas fa-save"></i> Create Property
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add Purchase Modal -->
+<div class="modal fade" id="addPurchaseModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-shopping-cart"></i> Add Purchase Record</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="addPurchaseForm">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Item Name *</label>
+                            <input type="text" class="form-control" name="item_name" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Category *</label>
+                            <select class="form-select" name="item_category" required>
+                                <option value="Furniture">Furniture</option>
+                                <option value="Appliances">Appliances</option>
+                                <option value="Bedding">Bedding</option>
+                                <option value="Kitchen">Kitchen</option>
+                                <option value="Bathroom">Bathroom</option>
+                                <option value="Decor">Decor</option>
+                                <option value="Electronics">Electronics</option>
+                                <option value="Other">Other</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Quantity *</label>
+                            <input type="number" class="form-control" name="quantity" value="1" min="1" required>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Unit Price (VND) *</label>
+                            <input type="number" class="form-control" name="unit_price" value="0" min="0" required>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Status</label>
+                            <select class="form-select" name="purchase_status">
+                                <option value="planned">Planned</option>
+                                <option value="ordered">Ordered</option>
+                                <option value="delivered">Delivered</option>
+                                <option value="installed">Installed</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Purchase Link (URL)</label>
+                        <input type="url" class="form-control" name="purchase_link" placeholder="https://shopee.vn/...">
+                        <small class="text-muted">Paste the product link from Shopee, Lazada, etc.</small>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Vendor/Store Name</label>
+                            <input type="text" class="form-control" name="vendor_name">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Brand</label>
+                            <input type="text" class="form-control" name="brand_name">
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Purchase Date</label>
+                            <input type="date" class="form-control" name="purchase_date">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Delivery Date</label>
+                            <input type="date" class="form-control" name="delivery_date">
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Invoice Number</label>
+                        <input type="text" class="form-control" name="invoice_number">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Notes</label>
+                        <textarea class="form-control" name="notes" rows="2"></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Warranty Information</label>
+                        <textarea class="form-control" name="warranty_info" rows="2"></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-gradient" onclick="addPurchase()">
+                    <i class="fas fa-save"></i> Save Purchase
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Purchase Modal -->
+<div class="modal fade" id="editPurchaseModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-edit"></i> Edit Purchase</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="editPurchaseForm">
+                    <input type="hidden" name="purchase_id">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Item Name *</label>
+                            <input type="text" class="form-control" name="item_name" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Category *</label>
+                            <select class="form-select" name="item_category" required>
+                                <option value="Furniture">Furniture</option>
+                                <option value="Appliances">Appliances</option>
+                                <option value="Bedding">Bedding</option>
+                                <option value="Kitchen">Kitchen</option>
+                                <option value="Bathroom">Bathroom</option>
+                                <option value="Decor">Decor</option>
+                                <option value="Electronics">Electronics</option>
+                                <option value="Other">Other</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Quantity *</label>
+                            <input type="number" class="form-control" name="quantity" value="1" min="1" required>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Unit Price (VND) *</label>
+                            <input type="number" class="form-control" name="unit_price" value="0" min="0" required>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Status</label>
+                            <select class="form-select" name="purchase_status">
+                                <option value="planned">Planned</option>
+                                <option value="ordered">Ordered</option>
+                                <option value="delivered">Delivered</option>
+                                <option value="installed">Installed</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Purchase Link (URL)</label>
+                        <input type="url" class="form-control" name="purchase_link">
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Vendor/Store Name</label>
+                            <input type="text" class="form-control" name="vendor_name">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Brand</label>
+                            <input type="text" class="form-control" name="brand_name">
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Purchase Date</label>
+                            <input type="date" class="form-control" name="purchase_date">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Delivery Date</label>
+                            <input type="date" class="form-control" name="delivery_date">
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Invoice Number</label>
+                        <input type="text" class="form-control" name="invoice_number">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Notes</label>
+                        <textarea class="form-control" name="notes" rows="2"></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Warranty Information</label>
+                        <textarea class="form-control" name="warranty_info" rows="2"></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-danger" onclick="deletePurchase()">
+                    <i class="fas fa-trash"></i> Delete
+                </button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-gradient" onclick="updatePurchase()">
+                    <i class="fas fa-save"></i> Update Purchase
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let currentPropertyId = null;
+let currentFilter = 'all';
+let allPurchases = [];
+
+// Load properties on page load
+document.addEventListener('DOMContentLoaded', function() {
+    loadProperties();
+});
+
+// ===== PROPERTY MANAGEMENT =====
+async function loadProperties() {
+    try {
+        const response = await fetch('/api/homestay/properties');
+        const data = await response.json();
+
+        if (data.success) {
+            displayProperties(data.properties);
+        }
+    } catch (error) {
+        console.error('Error loading properties:', error);
+    }
+}
+
+function displayProperties(properties) {
+    const container = document.getElementById('propertiesList');
+
+    if (properties.length === 0) {
+        container.innerHTML = `
+            <div class="empty-state">
+                <i class="fas fa-home"></i>
+                <p>No properties yet</p>
+            </div>
+        `;
+        return;
+    }
+
+    container.innerHTML = properties.map(property => {
+        const budgetPercent = property.total_budget > 0
+            ? Math.min(100, (property.total_spent / property.total_budget) * 100)
+            : 0;
+        const isActive = currentPropertyId === property.property_id;
+
+        return `
+            <div class="property-card ${isActive ? 'active' : ''}" onclick="selectProperty(${property.property_id})">
+                <div class="d-flex justify-content-between align-items-start mb-2">
+                    <h4>${property.property_name}</h4>
+                    <span class="badge bg-light text-dark">${property.property_type || 'N/A'}</span>
+                </div>
+                <p class="mb-2" style="font-size: 0.9rem; opacity: 0.9;">
+                    <i class="fas fa-map-marker-alt"></i> ${property.property_address || 'No address'}
+                </p>
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span style="font-size: 0.85rem;">Budget: ${formatCurrency(property.total_budget)}</span>
+                    <span class="badge bg-warning text-dark">${property.setup_status}</span>
+                </div>
+                <div class="budget-progress">
+                    <div class="budget-progress-bar ${budgetPercent > 100 ? 'over-budget' : ''}"
+                         style="width: ${budgetPercent}%"></div>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+async function selectProperty(propertyId) {
+    currentPropertyId = propertyId;
+    currentFilter = 'all';
+
+    // Update UI
+    document.getElementById('noPropertySelected').style.display = 'none';
+    document.getElementById('propertyContent').style.display = 'block';
+
+    // Reload properties to update active state
+    await loadProperties();
+
+    // Load purchases and analytics
+    await loadPurchases(propertyId);
+    await loadAnalytics(propertyId);
+}
+
+function showAddPropertyModal() {
+    const modal = new bootstrap.Modal(document.getElementById('addPropertyModal'));
+    document.getElementById('addPropertyForm').reset();
+    modal.show();
+}
+
+async function addProperty() {
+    const form = document.getElementById('addPropertyForm');
+    const formData = new FormData(form);
+
+    const data = {
+        property_name: formData.get('property_name'),
+        property_address: formData.get('property_address'),
+        property_type: formData.get('property_type'),
+        total_budget: parseFloat(formData.get('total_budget')) || 0,
+        start_date: formData.get('start_date'),
+        target_completion_date: formData.get('target_completion_date'),
+        notes: formData.get('notes')
+    };
+
+    try {
+        const response = await fetch('/api/homestay/properties', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(data)
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+            bootstrap.Modal.getInstance(document.getElementById('addPropertyModal')).hide();
+            await loadProperties();
+            showToast('Property created successfully!', 'success');
+        } else {
+            showToast('Error: ' + result.error, 'danger');
+        }
+    } catch (error) {
+        showToast('Error creating property', 'danger');
+    }
+}
+
+// ===== PURCHASE MANAGEMENT =====
+async function loadPurchases(propertyId) {
+    try {
+        const response = await fetch(`/api/homestay/purchases?property_id=${propertyId}`);
+        const data = await response.json();
+
+        if (data.success) {
+            allPurchases = data.purchases;
+            displayPurchases(allPurchases);
+        }
+    } catch (error) {
+        console.error('Error loading purchases:', error);
+    }
+}
+
+function displayPurchases(purchases) {
+    const container = document.getElementById('purchasesList');
+
+    // Apply filter
+    const filtered = currentFilter === 'all'
+        ? purchases
+        : purchases.filter(p => p.item_category === currentFilter);
+
+    if (filtered.length === 0) {
+        container.innerHTML = `
+            <div class="empty-state">
+                <i class="fas fa-shopping-cart"></i>
+                <p>No purchases recorded yet</p>
+            </div>
+        `;
+        return;
+    }
+
+    container.innerHTML = filtered.map(purchase => {
+        const statusClass = `status-${purchase.purchase_status}`;
+        const statusBadge = getStatusBadge(purchase.purchase_status);
+
+        return `
+            <div class="purchase-item ${statusClass}" onclick="editPurchase(${purchase.purchase_id})">
+                <span class="status-badge badge ${statusBadge.class}">${statusBadge.text}</span>
+
+                <div class="row">
+                    <div class="col-md-8">
+                        <h5 class="mb-2">
+                            <i class="fas ${getCategoryIcon(purchase.item_category)}"></i>
+                            ${purchase.item_name}
+                        </h5>
+                        <p class="mb-1 text-muted">
+                            <span class="badge bg-secondary">${purchase.item_category}</span>
+                            ${purchase.vendor_name ? `• ${purchase.vendor_name}` : ''}
+                            ${purchase.brand_name ? `• ${purchase.brand_name}` : ''}
+                        </p>
+                        ${purchase.purchase_link ? `
+                            <div class="link-preview">
+                                <i class="fas fa-link"></i>
+                                <a href="${purchase.purchase_link}" target="_blank" onclick="event.stopPropagation()">
+                                    View Product
+                                </a>
+                            </div>
+                        ` : ''}
+                    </div>
+                    <div class="col-md-4 text-end">
+                        <h4 class="text-primary mb-2">${formatCurrency(purchase.total_price)}</h4>
+                        <p class="mb-0 text-muted">
+                            ${purchase.quantity} × ${formatCurrency(purchase.unit_price)}
+                        </p>
+                        ${purchase.purchase_date ? `
+                            <p class="mb-0 text-muted" style="font-size: 0.85rem;">
+                                <i class="fas fa-calendar"></i> ${purchase.purchase_date}
+                            </p>
+                        ` : ''}
+                    </div>
+                </div>
+
+                ${purchase.notes ? `
+                    <div class="mt-2 pt-2 border-top">
+                        <small class="text-muted"><i class="fas fa-sticky-note"></i> ${purchase.notes}</small>
+                    </div>
+                ` : ''}
+            </div>
+        `;
+    }).join('');
+}
+
+function showAddPurchaseModal() {
+    if (!currentPropertyId) {
+        showToast('Please select a property first', 'warning');
+        return;
+    }
+
+    const modal = new bootstrap.Modal(document.getElementById('addPurchaseModal'));
+    document.getElementById('addPurchaseForm').reset();
+    modal.show();
+}
+
+async function addPurchase() {
+    const form = document.getElementById('addPurchaseForm');
+    const formData = new FormData(form);
+
+    const data = {
+        property_id: currentPropertyId,
+        item_name: formData.get('item_name'),
+        item_category: formData.get('item_category'),
+        quantity: parseInt(formData.get('quantity')),
+        unit_price: parseFloat(formData.get('unit_price')),
+        purchase_status: formData.get('purchase_status'),
+        purchase_link: formData.get('purchase_link'),
+        vendor_name: formData.get('vendor_name'),
+        brand_name: formData.get('brand_name'),
+        purchase_date: formData.get('purchase_date'),
+        delivery_date: formData.get('delivery_date'),
+        invoice_number: formData.get('invoice_number'),
+        notes: formData.get('notes'),
+        warranty_info: formData.get('warranty_info')
+    };
+
+    try {
+        const response = await fetch('/api/homestay/purchases', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(data)
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+            bootstrap.Modal.getInstance(document.getElementById('addPurchaseModal')).hide();
+            await loadPurchases(currentPropertyId);
+            await loadAnalytics(currentPropertyId);
+            showToast('Purchase saved successfully!', 'success');
+        } else {
+            showToast('Error: ' + result.error, 'danger');
+        }
+    } catch (error) {
+        showToast('Error saving purchase', 'danger');
+    }
+}
+
+async function editPurchase(purchaseId) {
+    try {
+        const response = await fetch(`/api/homestay/purchases/${purchaseId}`);
+        const data = await response.json();
+
+        if (data.success) {
+            const purchase = data.purchase;
+            const form = document.getElementById('editPurchaseForm');
+
+            // Populate form
+            form.querySelector('[name="purchase_id"]').value = purchase.purchase_id;
+            form.querySelector('[name="item_name"]').value = purchase.item_name;
+            form.querySelector('[name="item_category"]').value = purchase.item_category;
+            form.querySelector('[name="quantity"]').value = purchase.quantity;
+            form.querySelector('[name="unit_price"]').value = purchase.unit_price;
+            form.querySelector('[name="purchase_status"]').value = purchase.purchase_status;
+            form.querySelector('[name="purchase_link"]').value = purchase.purchase_link || '';
+            form.querySelector('[name="vendor_name"]').value = purchase.vendor_name || '';
+            form.querySelector('[name="brand_name"]').value = purchase.brand_name || '';
+            form.querySelector('[name="purchase_date"]').value = purchase.purchase_date || '';
+            form.querySelector('[name="delivery_date"]').value = purchase.delivery_date || '';
+            form.querySelector('[name="invoice_number"]').value = purchase.invoice_number || '';
+            form.querySelector('[name="notes"]').value = purchase.notes || '';
+            form.querySelector('[name="warranty_info"]').value = purchase.warranty_info || '';
+
+            const modal = new bootstrap.Modal(document.getElementById('editPurchaseModal'));
+            modal.show();
+        }
+    } catch (error) {
+        showToast('Error loading purchase details', 'danger');
+    }
+}
+
+async function updatePurchase() {
+    const form = document.getElementById('editPurchaseForm');
+    const formData = new FormData(form);
+    const purchaseId = formData.get('purchase_id');
+
+    const data = {
+        item_name: formData.get('item_name'),
+        item_category: formData.get('item_category'),
+        quantity: parseInt(formData.get('quantity')),
+        unit_price: parseFloat(formData.get('unit_price')),
+        purchase_status: formData.get('purchase_status'),
+        purchase_link: formData.get('purchase_link'),
+        vendor_name: formData.get('vendor_name'),
+        brand_name: formData.get('brand_name'),
+        purchase_date: formData.get('purchase_date'),
+        delivery_date: formData.get('delivery_date'),
+        invoice_number: formData.get('invoice_number'),
+        notes: formData.get('notes'),
+        warranty_info: formData.get('warranty_info')
+    };
+
+    try {
+        const response = await fetch(`/api/homestay/purchases/${purchaseId}`, {
+            method: 'PUT',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(data)
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+            bootstrap.Modal.getInstance(document.getElementById('editPurchaseModal')).hide();
+            await loadPurchases(currentPropertyId);
+            await loadAnalytics(currentPropertyId);
+            showToast('Purchase updated successfully!', 'success');
+        } else {
+            showToast('Error: ' + result.error, 'danger');
+        }
+    } catch (error) {
+        showToast('Error updating purchase', 'danger');
+    }
+}
+
+async function deletePurchase() {
+    if (!confirm('Are you sure you want to delete this purchase?')) {
+        return;
+    }
+
+    const form = document.getElementById('editPurchaseForm');
+    const purchaseId = form.querySelector('[name="purchase_id"]').value;
+
+    try {
+        const response = await fetch(`/api/homestay/purchases/${purchaseId}`, {
+            method: 'DELETE'
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+            bootstrap.Modal.getInstance(document.getElementById('editPurchaseModal')).hide();
+            await loadPurchases(currentPropertyId);
+            await loadAnalytics(currentPropertyId);
+            showToast('Purchase deleted successfully!', 'success');
+        } else {
+            showToast('Error: ' + result.error, 'danger');
+        }
+    } catch (error) {
+        showToast('Error deleting purchase', 'danger');
+    }
+}
+
+// ===== ANALYTICS =====
+async function loadAnalytics(propertyId) {
+    try {
+        const response = await fetch(`/api/homestay/analytics/${propertyId}`);
+        const data = await response.json();
+
+        if (data.success) {
+            const analytics = data.analytics;
+
+            document.getElementById('totalSpent').textContent = formatCurrency(analytics.grand_total);
+            document.getElementById('budgetRemaining').textContent = formatCurrency(analytics.budget_remaining);
+
+            const totalItems = analytics.by_status.reduce((sum, s) => sum + s.count, 0);
+            document.getElementById('itemsCount').textContent = totalItems;
+        }
+    } catch (error) {
+        console.error('Error loading analytics:', error);
+    }
+}
+
+// ===== FILTERS =====
+function filterByCategory(category) {
+    currentFilter = category;
+
+    // Update active pill
+    document.querySelectorAll('.category-pill').forEach(pill => {
+        pill.classList.remove('active');
+    });
+    document.querySelector(`[data-category="${category}"]`).classList.add('active');
+
+    // Re-display purchases
+    displayPurchases(allPurchases);
+}
+
+// ===== UTILITY FUNCTIONS =====
+function formatCurrency(amount) {
+    return new Intl.NumberFormat('vi-VN', {
+        style: 'currency',
+        currency: 'VND',
+        minimumFractionDigits: 0
+    }).format(amount);
+}
+
+function getCategoryIcon(category) {
+    const icons = {
+        'Furniture': 'fa-couch',
+        'Appliances': 'fa-blender',
+        'Bedding': 'fa-bed',
+        'Kitchen': 'fa-utensils',
+        'Bathroom': 'fa-bath',
+        'Decor': 'fa-palette',
+        'Electronics': 'fa-tv',
+        'Other': 'fa-box'
+    };
+    return icons[category] || 'fa-box';
+}
+
+function getStatusBadge(status) {
+    const badges = {
+        'planned': {text: 'Planned', class: 'bg-warning'},
+        'ordered': {text: 'Ordered', class: 'bg-info'},
+        'delivered': {text: 'Delivered', class: 'bg-success'},
+        'installed': {text: 'Installed', class: 'bg-primary'}
+    };
+    return badges[status] || {text: status, class: 'bg-secondary'};
+}
+
+function showToast(message, type = 'info') {
+    // Simple toast notification
+    const toast = document.createElement('div');
+    toast.className = `alert alert-${type} position-fixed top-0 end-0 m-3`;
+    toast.style.zIndex = '9999';
+    toast.textContent = message;
+    document.body.appendChild(toast);
+
+    setTimeout(() => toast.remove(), 3000);
+}
+</script>
+{% endblock %}
