@@ -3191,10 +3191,11 @@ def calendar_details(date_str):
     try:
         # Parse the date
         date_obj = datetime.strptime(date_str, "%Y-%m-%d").date()
-        
+
         # Load booking data excluding cancelled bookings for calendar calculations
-        df = load_booking_data_for_calculations()
-        
+        # ALWAYS use force_fresh=True to show latest updates immediately
+        df = load_booking_data_for_calculations(force_fresh=True)
+
         # Get detailed day information
         day_info = get_overall_calendar_day_info(df, date_str, TOTAL_HOTEL_CAPACITY)
         
@@ -3274,7 +3275,8 @@ def calendar_details(date_str):
 def get_booking_details(booking_id):
     """Get booking details for quick edit modal"""
     try:
-        df = load_booking_data()
+        # Force fresh data to get latest commission values
+        df = load_booking_data(force_fresh=True)
         booking_data = df[df['Số đặt phòng'] == booking_id]
 
         if booking_data.empty:
