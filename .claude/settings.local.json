@@ -83,7 +83,8 @@
       "Bash(dos2unix:*)",
       "Bash(git remote:*)",
       "Bash(curl:*)",
-      "Bash(python3:*)"
+      "Bash(python3:*)",
+      "Bash(PGPASSWORD=locloc123 psql -h localhost -U postgres -d hotel_booking -c \"\\d homestay_item_images\")"
     ],
     "deny": []
   },

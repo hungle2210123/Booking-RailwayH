@@ -711,6 +711,7 @@ class PurchaseRecord(db.Model):
     # Relationships
     property = relationship("HomestayProperty", back_populates="purchases")
     template = relationship("SetupItemTemplate")
+    images = relationship("HomestayItemImage", back_populates="purchase", cascade="all, delete-orphan")
 
     # Constraints
     __table_args__ = (
@@ -743,6 +744,103 @@ class PurchaseRecord(db.Model):
             'notes': self.notes,
             'invoice_number': self.invoice_number,
             'warranty_info': self.warranty_info,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None,
+            'images': [img.to_dict() for img in self.images] if self.images else []
+        }
+
+
+class HomestayItemImage(db.Model):
+    """Store product images with AI-generated metadata"""
+    __tablename__ = 'homestay_item_images'
+
+    # Primary identification
+    image_id = Column(Integer, primary_key=True, autoincrement=True)
+    property_id = Column(Integer, ForeignKey('homestay_properties.property_id'), index=True)
+    purchase_id = Column(Integer, ForeignKey('purchase_records.purchase_id'), index=True)
+
+    # Image storage
+    image_data = Column(db.LargeBinary)  # Store image as binary
+    image_filename = Column(String(255))
+    image_mimetype = Column(String(100))
+
+    # AI-generated metadata
+    ai_title = Column(String(500))  # AI-generated title
+    ai_category = Column(String(100))  # AI-detected category
+    ai_vendor = Column(String(255))  # AI-extracted vendor/store name
+    ai_price = Column(String(100))  # AI-extracted price text
+    ai_description = Column(Text)  # AI-generated description
+    ai_tags = Column(Text)  # Comma-separated tags for search
+
+    # Manual metadata (user can override AI)
+    manual_title = Column(String(500))
+    manual_vendor = Column(String(255))
+    manual_price = Column(DECIMAL(12, 2))
+    manual_notes = Column(Text)
+
+    # Status
+    is_processed = Column(Boolean, default=False)  # AI processing complete
+    is_converted = Column(Boolean, default=False)  # Converted to purchase record
+    processing_error = Column(Text)  # Store any AI errors
+
+    # Audit fields
+    created_at = Column(DateTime, default=func.current_timestamp())
+    updated_at = Column(DateTime, default=func.current_timestamp(), onupdate=func.current_timestamp())
+
+    # Relationships
+    property = relationship("HomestayProperty")
+    purchase = relationship("PurchaseRecord", back_populates="images")
+
+    def __repr__(self):
+        return f"<HomestayItemImage {self.image_id}: {self.ai_title or self.image_filename}>"
+
+    @hybrid_property
+    def display_title(self):
+        """Return manual title if set, otherwise AI title"""
+        return self.manual_title or self.ai_title or self.image_filename
+
+    @hybrid_property
+    def display_vendor(self):
+        """Return manual vendor if set, otherwise AI vendor"""
+        return self.manual_vendor or self.ai_vendor
+
+    @hybrid_property
+    def display_price(self):
+        """Return manual price if set, otherwise AI price"""
+        if self.manual_price:
+            return float(self.manual_price)
+        elif self.ai_price:
+            # Try to extract numeric value from AI price text
+            import re
+            match = re.search(r'[\d,]+', self.ai_price.replace('.', ''))
+            if match:
+                return float(match.group().replace(',', ''))
+        return 0
+
+    def to_dict(self):
+        return {
+            'image_id': self.image_id,
+            'property_id': self.property_id,
+            'purchase_id': self.purchase_id,
+            'image_filename': self.image_filename,
+            'image_mimetype': self.image_mimetype,
+            'has_image_data': bool(self.image_data),
+            'ai_title': self.ai_title,
+            'ai_category': self.ai_category,
+            'ai_vendor': self.ai_vendor,
+            'ai_price': self.ai_price,
+            'ai_description': self.ai_description,
+            'ai_tags': self.ai_tags.split(',') if self.ai_tags else [],
+            'manual_title': self.manual_title,
+            'manual_vendor': self.manual_vendor,
+            'manual_price': float(self.manual_price) if self.manual_price else None,
+            'manual_notes': self.manual_notes,
+            'display_title': self.display_title,
+            'display_vendor': self.display_vendor,
+            'display_price': self.display_price,
+            'is_processed': self.is_processed,
+            'is_converted': self.is_converted,
+            'processing_error': self.processing_error,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None
         }

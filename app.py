@@ -1,5 +1,5 @@
 import os
-from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, send_from_directory
+from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, send_from_directory, send_file
 from werkzeug.utils import secure_filename
 from dotenv import load_dotenv
 import json
@@ -10,6 +10,7 @@ from datetime import datetime, timedelta
 import calendar
 import base64
 import time
+import io
 # Optional Google Generative AI import
 try:
     import google.generativeai as genai
@@ -4881,6 +4882,278 @@ def homestay_analytics(property_id):
         })
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/homestay/images/upload', methods=['POST'])
+def upload_homestay_images():
+    """Upload product images with AI processing"""
+    try:
+        from core.models import HomestayItemImage, db
+        import base64
+        from PIL import Image
+        import io
+
+        property_id = request.form.get('property_id', type=int)
+        if not property_id:
+            return jsonify({'success': False, 'error': 'Property ID required'}), 400
+
+        uploaded_images = []
+        files = request.files.getlist('images')
+
+        for file in files:
+            if file and file.filename:
+                # Read image data
+                image_data = file.read()
+
+                # Create image record
+                image_record = HomestayItemImage(
+                    property_id=property_id,
+                    image_data=image_data,
+                    image_filename=file.filename,
+                    image_mimetype=file.mimetype,
+                    is_processed=False
+                )
+
+                db.session.add(image_record)
+                db.session.flush()  # Get image_id
+
+                # Process with AI in background (async)
+                try:
+                    ai_metadata = process_product_image_with_ai(image_data)
+                    if ai_metadata:
+                        image_record.ai_title = ai_metadata.get('title')
+                        image_record.ai_category = ai_metadata.get('category')
+                        image_record.ai_vendor = ai_metadata.get('vendor')
+                        image_record.ai_price = ai_metadata.get('price')
+                        image_record.ai_description = ai_metadata.get('description')
+                        image_record.ai_tags = ai_metadata.get('tags')
+                        image_record.is_processed = True
+                except Exception as ai_error:
+                    image_record.processing_error = str(ai_error)
+                    image_record.is_processed = False
+
+                uploaded_images.append(image_record.to_dict())
+
+        db.session.commit()
+
+        return jsonify({
+            'success': True,
+            'message': f'{len(uploaded_images)} images uploaded and processed',
+            'images': uploaded_images
+        })
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/homestay/images', methods=['GET'])
+def get_homestay_images():
+    """Get all uploaded product images"""
+    try:
+        from core.models import HomestayItemImage
+
+        property_id = request.args.get('property_id', type=int)
+        search = request.args.get('search', '').strip()
+        category = request.args.get('category', '').strip()
+
+        query = HomestayItemImage.query
+
+        if property_id:
+            query = query.filter_by(property_id=property_id)
+
+        if category and category != 'all':
+            query = query.filter_by(ai_category=category)
+
+        if search:
+            search_term = f'%{search}%'
+            query = query.filter(
+                db.or_(
+                    HomestayItemImage.ai_title.ilike(search_term),
+                    HomestayItemImage.ai_vendor.ilike(search_term),
+                    HomestayItemImage.ai_tags.ilike(search_term),
+                    HomestayItemImage.manual_title.ilike(search_term)
+                )
+            )
+
+        images = query.filter_by(is_converted=False).order_by(HomestayItemImage.created_at.desc()).all()
+
+        return jsonify({
+            'success': True,
+            'images': [img.to_dict() for img in images],
+            'total': len(images)
+        })
+
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/homestay/images/<int:image_id>', methods=['GET', 'PUT', 'DELETE'])
+def homestay_image_detail(image_id):
+    """Get, update, or delete image"""
+    from core.models import HomestayItemImage, db
+
+    image = HomestayItemImage.query.get_or_404(image_id)
+
+    if request.method == 'GET':
+        # Return actual image data
+        if request.args.get('download') == 'true':
+            return send_file(
+                io.BytesIO(image.image_data),
+                mimetype=image.image_mimetype,
+                as_attachment=False,
+                download_name=image.image_filename
+            )
+        return jsonify({
+            'success': True,
+            'image': image.to_dict()
+        })
+
+    elif request.method == 'PUT':
+        try:
+            data = request.json
+
+            if 'manual_title' in data:
+                image.manual_title = data['manual_title']
+            if 'manual_vendor' in data:
+                image.manual_vendor = data['manual_vendor']
+            if 'manual_price' in data:
+                image.manual_price = data['manual_price']
+            if 'manual_notes' in data:
+                image.manual_notes = data['manual_notes']
+
+            db.session.commit()
+
+            return jsonify({
+                'success': True,
+                'image': image.to_dict(),
+                'message': 'Image updated successfully'
+            })
+        except Exception as e:
+            db.session.rollback()
+            return jsonify({'success': False, 'error': str(e)}), 500
+
+    elif request.method == 'DELETE':
+        try:
+            db.session.delete(image)
+            db.session.commit()
+
+            return jsonify({
+                'success': True,
+                'message': 'Image deleted successfully'
+            })
+        except Exception as e:
+            db.session.rollback()
+            return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/homestay/images/<int:image_id>/convert', methods=['POST'])
+def convert_image_to_purchase(image_id):
+    """Convert image to purchase record"""
+    try:
+        from core.models import HomestayItemImage, PurchaseRecord, db
+
+        image = HomestayItemImage.query.get_or_404(image_id)
+
+        if image.is_converted:
+            return jsonify({'success': False, 'error': 'Image already converted'}), 400
+
+        # Create purchase record from image metadata
+        purchase = PurchaseRecord(
+            property_id=image.property_id,
+            item_name=image.display_title or 'Unnamed Item',
+            item_category=image.ai_category or 'Other',
+            quantity=1,
+            unit_price=image.display_price,
+            total_price=image.display_price,
+            vendor_name=image.display_vendor,
+            purchase_status='planned',
+            notes=image.ai_description or image.manual_notes
+        )
+
+        db.session.add(purchase)
+        db.session.flush()
+
+        # Link image to purchase
+        image.purchase_id = purchase.purchase_id
+        image.is_converted = True
+
+        db.session.commit()
+
+        return jsonify({
+            'success': True,
+            'message': 'Image converted to purchase successfully',
+            'purchase': purchase.to_dict()
+        })
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+def process_product_image_with_ai(image_data):
+    """Process product image with Gemini AI to extract metadata"""
+    try:
+        if not GOOGLE_API_KEY or not genai:
+            return None
+
+        import base64
+        from PIL import Image
+        import io
+
+        # Convert image to base64 for Gemini
+        img = Image.open(io.BytesIO(image_data))
+
+        # Resize if too large
+        max_size = 1024
+        if max(img.size) > max_size:
+            img.thumbnail((max_size, max_size), Image.Resampling.LANCZOS)
+
+        # Convert to bytes
+        img_byte_arr = io.BytesIO()
+        img.save(img_byte_arr, format=img.format or 'PNG')
+        img_byte_arr = img_byte_arr.getvalue()
+
+        # Configure Gemini
+        model = genai.GenerativeModel('gemini-1.5-flash')
+
+        prompt = """Analyze this product image and extract the following information in JSON format:
+{
+    "title": "Product name/title (in Vietnamese if detected, otherwise English)",
+    "category": "One of: Furniture, Appliances, Bedding, Kitchen, Bathroom, Decor, Electronics, Other",
+    "vendor": "Store/vendor name if visible (Shopee, Lazada, etc.)",
+    "price": "Price if visible (with currency)",
+    "description": "Brief product description (2-3 sentences in Vietnamese)",
+    "tags": "Comma-separated keywords for search (in Vietnamese)"
+}
+
+Important:
+- If this is a screenshot from e-commerce site (Shopee, Lazada, etc.), extract all visible information
+- Generate descriptive title even if not explicitly shown
+- Infer category from product appearance
+- Tags should include: product type, color, material, size keywords
+- Use Vietnamese language for title, description, and tags if possible
+- Return ONLY valid JSON, no other text"""
+
+        # Call Gemini AI
+        response = model.generate_content([prompt, img])
+
+        if not response or not response.text:
+            return None
+
+        # Parse JSON response
+        import json
+        import re
+
+        # Extract JSON from response
+        response_text = response.text.strip()
+
+        # Remove markdown code blocks if present
+        if response_text.startswith('```'):
+            response_text = re.sub(r'```json\n?|\n?```', '', response_text)
+
+        metadata = json.loads(response_text)
+
+        return metadata
+
+    except Exception as e:
+        print(f"❌ AI processing error: {str(e)}")
+        return None
 
 @app.route('/test_js')
 def test_js():
