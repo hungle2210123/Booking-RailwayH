@@ -512,31 +512,13 @@ def update_booking(booking_id: str, update_data: Dict) -> bool:
         if 'accommodation_name' in update_data:
             booking.accommodation_name = update_data['accommodation_name']
         
-        # CRITICAL: Flush and refresh to ensure changes are visible to other connections
-        db.session.flush()
-        db.session.refresh(booking)
+        # Commit changes - simple and fast
         db.session.commit()
-        
-        # Force clear any potential connection-level caching
-        db.session.close()
-        
-        # NUCLEAR OPTION: Dispose entire connection pool to force fresh connections
-        db.engine.dispose()
-        print(f"[UPDATE_BOOKING] 💥 NUCLEAR: Disposed entire connection pool for fresh data")
-        
-        # VERIFICATION: Re-query the booking to verify the update was saved
-        verification_booking = db.session.query(Booking).filter_by(booking_id=booking_id).first()
-        if verification_booking:
-            print(f"[UPDATE_BOOKING] ✅ VERIFICATION - Booking after commit:")
-            print(f"[UPDATE_BOOKING]   - taxi_amount: {verification_booking.taxi_amount}")
-            print(f"[UPDATE_BOOKING]   - commission: {verification_booking.commission}")
-            print(f"[UPDATE_BOOKING]   - collected_amount: {verification_booking.collected_amount}")
-            print(f"[UPDATE_BOOKING]   - booking_notes: {verification_booking.booking_notes}")
-        else:
-            print(f"[UPDATE_BOOKING] ❌ VERIFICATION FAILED - Could not re-query booking {booking_id}")
-        
+
         print(f"[UPDATE_BOOKING] ✅ Successfully updated booking: {booking_id}")
-        print(f"[UPDATE_BOOKING] 🔄 Database session flushed and closed to ensure visibility")
+        print(f"[UPDATE_BOOKING]   - commission: {booking.commission}")
+        print(f"[UPDATE_BOOKING]   - taxi_amount: {booking.taxi_amount}")
+        print(f"[UPDATE_BOOKING]   - collected_amount: {booking.collected_amount}")
         return True
         
     except Exception as e:
