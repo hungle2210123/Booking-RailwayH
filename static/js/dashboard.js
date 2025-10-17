@@ -309,9 +309,13 @@ function openEditCollectedModal(bookingId, guestName, totalAmount, currentCollec
     document.getElementById('collectedModalTotalAmount').textContent = totalAmount.toLocaleString('vi-VN') + 'đ';
     document.getElementById('collectedModalCurrentAmount').textContent = adjustedCollectedAmount.toLocaleString('vi-VN') + 'đ';
     
-    // Set adjusted amount as default in input (0 if no valid collector)
-    document.getElementById('newCollectedAmount').value = adjustedCollectedAmount;
+    // ⭐ FIX: Default to totalAmount if nothing collected yet, otherwise show current collected
+    const defaultInputValue = adjustedCollectedAmount > 0 ? adjustedCollectedAmount : totalAmount;
+    document.getElementById('newCollectedAmount').value = defaultInputValue;
     document.getElementById('collectedNote').value = '';
+
+    console.log(`💡 Input pre-filled with: ${defaultInputValue.toLocaleString('vi-VN')}đ (${adjustedCollectedAmount > 0 ? 'current collected' : 'total amount'})`);
+
     
     // Show modal
     const modal = new bootstrap.Modal(document.getElementById('editCollectedAmountModal'));
