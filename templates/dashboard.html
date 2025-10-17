@@ -1546,43 +1546,65 @@
                 <div class="card-body">
                     <!-- Cash Flow Summary Cards -->
                     <div class="row g-2 mb-3">
-                        <div class="col-6">
-                            <div class="card bg-success bg-opacity-10 border-success border-opacity-25">
+                        <!-- Total Revenue This Month -->
+                        <div class="col-md-3 col-6">
+                            <div class="card border-0 shadow-sm" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
                                 <div class="card-body p-2 text-center">
-                                    <div class="text-success fw-bold fs-5" id="proratedMonthlyRevenue">0đ</div>
-                                    <small class="text-muted d-block">💰 Thu tháng này</small>
-                                    <small class="text-muted" id="proratedNights">0 đêm</small>
+                                    <small class="text-white text-opacity-75 d-block mb-1" style="font-size: 0.7rem;">DOANH THU THÁNG NÀY</small>
+                                    <div class="text-white fw-bold fs-5" id="proratedMonthlyRevenue">0đ</div>
+                                    <small class="text-white text-opacity-75" id="proratedNights">0 đêm</small>
                                 </div>
                             </div>
                         </div>
-                        <div class="col-6">
-                            <div class="card bg-danger bg-opacity-10 border-danger border-opacity-25">
+
+                        <!-- Uncollected This Month -->
+                        <div class="col-md-3 col-6">
+                            <div class="card border-0 shadow-sm" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
                                 <div class="card-body p-2 text-center">
-                                    <div class="text-danger fw-bold fs-5" id="proratedUncollected">0đ</div>
-                                    <small class="text-muted d-block">⚠️ Chưa thu (tháng này)</small>
-                                    <small class="text-muted" id="collectionRate">0%</small>
+                                    <small class="text-white text-opacity-75 d-block mb-1" style="font-size: 0.7rem;">CHƯA THU THÁNG NÀY</small>
+                                    <div class="text-white fw-bold fs-5" id="proratedUncollected">0đ</div>
+                                    <small class="text-white text-opacity-75" id="collectionRate">0% đã thu</small>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Already Collected This Month -->
+                        <div class="col-md-3 col-6">
+                            <div class="card border-0 shadow-sm" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
+                                <div class="card-body p-2 text-center">
+                                    <small class="text-white text-opacity-75 d-block mb-1" style="font-size: 0.7rem;">ĐÃ THU THÁNG NÀY</small>
+                                    <div class="text-white fw-bold fs-5" id="proratedCollected">0đ</div>
+                                    <small class="text-white text-opacity-75" id="collectionRatePercent">0%</small>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Total All Bookings -->
+                        <div class="col-md-3 col-6">
+                            <div class="card border-0 shadow-sm" style="background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);">
+                                <div class="card-body p-2 text-center">
+                                    <small class="text-white text-opacity-75 d-block mb-1" style="font-size: 0.7rem;">TỔNG TOÀN BỘ BOOKING</small>
+                                    <div class="text-white fw-bold" style="font-size: 1.1rem;" id="proratedFullRevenue">0đ</div>
+                                    <small class="text-white text-opacity-75" id="proratedFullNights">0 đêm</small>
                                 </div>
                             </div>
                         </div>
                     </div>
 
-                    <!-- Secondary Summary Row -->
+                    <!-- Additional Info Row -->
                     <div class="row g-2 mb-3">
-                        <div class="col-6">
-                            <div class="card bg-info bg-opacity-10 border-info border-opacity-25">
-                                <div class="card-body p-2 text-center">
-                                    <div class="text-info fw-bold" style="font-size: 1.1rem;" id="proratedFullRevenue">0đ</div>
-                                    <small class="text-muted d-block">📊 Tổng booking</small>
-                                    <small class="text-muted" id="proratedFullNights">0 đêm</small>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-6">
-                            <div class="card bg-warning bg-opacity-10 border-warning border-opacity-25">
-                                <div class="card-body p-2 text-center">
-                                    <div class="text-warning fw-bold" style="font-size: 1.1rem;" id="proratedCollected">0đ</div>
-                                    <small class="text-muted d-block">✅ Đã thu (tháng này)</small>
-                                    <small class="text-muted" id="uncollectedFull">0đ chưa thu (toàn bộ)</small>
+                        <div class="col-12">
+                            <div class="alert alert-light border py-2 mb-0" style="font-size: 0.75rem;">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <i class="fas fa-info-circle text-primary me-1"></i>
+                                        <strong>Chưa thu toàn bộ:</strong>
+                                        <span class="text-danger fw-bold" id="uncollectedFull">0đ</span>
+                                    </div>
+                                    <div class="text-muted">
+                                        <i class="fas fa-clock me-1"></i>
+                                        <span id="currentPeriod">Tháng này</span>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -7688,7 +7710,9 @@ function loadProratedMonthlyRevenue() {
     const uncollectedEl = document.getElementById('proratedUncollected');
     const collectedEl = document.getElementById('proratedCollected');
     const collectionRateEl = document.getElementById('collectionRate');
+    const collectionRatePercentEl = document.getElementById('collectionRatePercent');
     const uncollectedFullEl = document.getElementById('uncollectedFull');
+    const currentPeriodEl = document.getElementById('currentPeriod');
 
     if (!listContainer || !badgeElement) {
         console.error('💰 [PRORATED] Required elements not found');
@@ -7721,7 +7745,9 @@ function loadProratedMonthlyRevenue() {
                 if (uncollectedEl) uncollectedEl.textContent = `${summary.uncollected_prorated.toLocaleString('vi-VN')}đ`;
                 if (collectedEl) collectedEl.textContent = `${summary.collected_prorated.toLocaleString('vi-VN')}đ`;
                 if (collectionRateEl) collectionRateEl.textContent = `${summary.collection_rate}% đã thu`;
-                if (uncollectedFullEl) uncollectedFullEl.textContent = `${summary.uncollected_full.toLocaleString('vi-VN')}đ chưa thu (toàn bộ)`;
+                if (collectionRatePercentEl) collectionRatePercentEl.textContent = `${summary.collection_rate}%`;
+                if (uncollectedFullEl) uncollectedFullEl.textContent = `${summary.uncollected_full.toLocaleString('vi-VN')}đ`;
+                if (currentPeriodEl) currentPeriodEl.textContent = period.month;
 
                 // Display detailed breakdown
                 displayProratedBreakdown(bookings, summary, period);
