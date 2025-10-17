@@ -9163,15 +9163,17 @@ def get_prorated_monthly_revenue():
 
         print(f"💰 [PRORATED] Calculating pro-rated revenue for {start_of_month} to {end_of_month}")
 
-        # Query all confirmed bookings that overlap with current month
-        # Booking overlaps if: checkin <= end_of_month AND checkout >= start_of_month
-        unchecked_bookings = db.session.query(Booking, Guest).outerjoin(
+        # Query ALL bookings that have nights in current month
+        # This includes:
+        # 1. Guests who already checked in this month
+        # 2. Guests who will check in this month (future)
+        # Booking overlaps if: checkin <= end_of_month AND checkout > start_of_month
+        all_month_bookings = db.session.query(Booking, Guest).outerjoin(
             Guest, Booking.guest_id == Guest.guest_id
         ).filter(
-            Booking.booking_status.in_(['confirmed', 'mới']),
-            Booking.checkin_date >= today,  # Future bookings only (not checked in yet)
-            Booking.checkin_date <= end_of_month,  # Check-in within month
-            Booking.checkout_date >= start_of_month,  # Checkout after month starts (overlap)
+            Booking.booking_status.in_(['confirmed', 'mới', 'checked_in', 'checked_out']),
+            Booking.checkin_date <= end_of_month,  # Started on or before month end
+            Booking.checkout_date > start_of_month,  # Ends after month starts (overlap)
             Booking.booking_status != 'deleted',
             Booking.booking_status != 'cancelled',
             Booking.booking_status != 'đã hủy'
@@ -9184,8 +9186,9 @@ def get_prorated_monthly_revenue():
         total_full_days = 0
         total_uncollected_prorated = 0
         total_uncollected_full = 0
+        total_collected_prorated = 0
 
-        for booking, guest in unchecked_bookings:
+        for booking, guest in all_month_bookings:
             if not booking.checkin_date or not booking.checkout_date:
                 continue
 
@@ -9215,19 +9218,28 @@ def get_prorated_monthly_revenue():
             # Calculate pro-rated revenue (only for days in this month)
             prorated_revenue = price_per_night * nights_in_month
 
-            # ⭐ UNCOLLECTED REVENUE CALCULATION (DAY-BASED)
+            # ⭐ COLLECTED vs UNCOLLECTED CALCULATION (DAY-BASED)
             # Calculate what percentage of the booking is in this month
-            # Then apply that percentage to the uncollected amount
+            # Then apply that percentage to collected/uncollected amounts
+
+            # Calculate percentage in month
+            if full_nights > 0:
+                percentage_in_month = nights_in_month / full_nights
+            else:
+                percentage_in_month = 0
+
+            # Pro-rated collected amount (for days in this month)
+            prorated_collected = collected_amount * percentage_in_month
 
             # Full uncollected amount
             full_uncollected = room_amount - collected_amount
 
             # Pro-rated uncollected (only for days in this month)
-            if full_nights > 0:
-                percentage_in_month = nights_in_month / full_nights
-                prorated_uncollected = full_uncollected * percentage_in_month
-            else:
-                prorated_uncollected = 0
+            prorated_uncollected = full_uncollected * percentage_in_month
+
+            # Determine booking status
+            has_checked_in = booking.checkin_date <= today
+            is_paid = collected_amount >= room_amount * 0.99  # 99% paid = considered paid
 
             # Track totals
             total_prorated_revenue += prorated_revenue
@@ -9236,6 +9248,7 @@ def get_prorated_monthly_revenue():
             total_full_days += full_nights
             total_uncollected_prorated += prorated_uncollected
             total_uncollected_full += full_uncollected
+            total_collected_prorated += prorated_collected
 
             # Determine if booking spans multiple months
             spans_months = booking.checkin_date.month != booking.checkout_date.month or \
@@ -9259,12 +9272,15 @@ def get_prorated_monthly_revenue():
                 # Pro-rated details (this month only)
                 'nights_in_month': nights_in_month,
                 'prorated_revenue': round(prorated_revenue, 2),
+                'prorated_collected': round(prorated_collected, 2),
                 'prorated_uncollected': round(prorated_uncollected, 2),
                 'price_per_night': round(price_per_night, 2),
-                'percentage_in_month': round(percentage_in_month * 100, 1) if full_nights > 0 else 0,
+                'percentage_in_month': round(percentage_in_month * 100, 1),
 
                 # Metadata
                 'spans_months': spans_months,
+                'has_checked_in': has_checked_in,
+                'is_paid': is_paid,
                 'days_until_checkin': (booking.checkin_date - today).days,
                 'overlap_period': {
                     'start': overlap_start.isoformat(),
@@ -9272,12 +9288,12 @@ def get_prorated_monthly_revenue():
                 }
             })
 
-        print(f"💰 [PRORATED] Found {len(prorated_list)} unchecked-in bookings")
+        print(f"💰 [PRORATED] Found {len(prorated_list)} bookings with nights in {start_of_month.strftime('%B %Y')}")
         print(f"💰 [PRORATED] Pro-rated revenue (this month): {total_prorated_revenue:,.0f}đ")
+        print(f"💰 [PRORATED] Collected (pro-rated): {total_collected_prorated:,.0f}đ")
+        print(f"💰 [PRORATED] Uncollected (pro-rated): {total_uncollected_prorated:,.0f}đ")
         print(f"💰 [PRORATED] Full booking revenue: {total_full_revenue:,.0f}đ")
         print(f"💰 [PRORATED] Days in month: {total_days_in_month}, Full days: {total_full_days}")
-        print(f"💰 [PRORATED] Uncollected (pro-rated): {total_uncollected_prorated:,.0f}đ")
-        print(f"💰 [PRORATED] Uncollected (full): {total_uncollected_full:,.0f}đ")
 
         return jsonify({
             'success': True,
@@ -9291,12 +9307,12 @@ def get_prorated_monthly_revenue():
                 'count': len(prorated_list),
                 'average_price_per_night': round(total_prorated_revenue / total_days_in_month, 2) if total_days_in_month > 0 else 0,
 
-                # ⭐ NEW: Uncollected revenue tracking (day-based)
+                # ⭐ CORRECTED: Collected vs Uncollected (day-based)
+                'collected_prorated': round(total_collected_prorated, 2),
                 'uncollected_prorated': round(total_uncollected_prorated, 2),
                 'uncollected_full': round(total_uncollected_full, 2),
                 'uncollected_difference': round(total_uncollected_full - total_uncollected_prorated, 2),
-                'collected_prorated': round(total_prorated_revenue - total_uncollected_prorated, 2),
-                'collection_rate': round((total_prorated_revenue - total_uncollected_prorated) / total_prorated_revenue * 100, 1) if total_prorated_revenue > 0 else 0
+                'collection_rate': round(total_collected_prorated / total_prorated_revenue * 100, 1) if total_prorated_revenue > 0 else 0
             },
             'period': {
                 'month': start_of_month.strftime('%B %Y'),
