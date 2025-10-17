@@ -1556,11 +1556,33 @@
                             </div>
                         </div>
                         <div class="col-6">
+                            <div class="card bg-danger bg-opacity-10 border-danger border-opacity-25">
+                                <div class="card-body p-2 text-center">
+                                    <div class="text-danger fw-bold fs-5" id="proratedUncollected">0đ</div>
+                                    <small class="text-muted d-block">⚠️ Chưa thu (tháng này)</small>
+                                    <small class="text-muted" id="collectionRate">0%</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Secondary Summary Row -->
+                    <div class="row g-2 mb-3">
+                        <div class="col-6">
                             <div class="card bg-info bg-opacity-10 border-info border-opacity-25">
                                 <div class="card-body p-2 text-center">
-                                    <div class="text-info fw-bold fs-5" id="proratedFullRevenue">0đ</div>
+                                    <div class="text-info fw-bold" style="font-size: 1.1rem;" id="proratedFullRevenue">0đ</div>
                                     <small class="text-muted d-block">📊 Tổng booking</small>
                                     <small class="text-muted" id="proratedFullNights">0 đêm</small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="card bg-warning bg-opacity-10 border-warning border-opacity-25">
+                                <div class="card-body p-2 text-center">
+                                    <div class="text-warning fw-bold" style="font-size: 1.1rem;" id="proratedCollected">0đ</div>
+                                    <small class="text-muted d-block">✅ Đã thu (tháng này)</small>
+                                    <small class="text-muted" id="uncollectedFull">0đ chưa thu (toàn bộ)</small>
                                 </div>
                             </div>
                         </div>
@@ -1571,9 +1593,10 @@
                         <div class="d-flex align-items-center">
                             <i class="fas fa-calculator me-2 text-success"></i>
                             <div>
-                                <strong>Tính toán chính xác:</strong>
+                                <strong>Tính toán theo ngày ở:</strong>
                                 <div class="text-muted small">
-                                    Nếu khách đặt 10 đêm nhưng chỉ 5 đêm trong tháng này → Chỉ tính 50% doanh thu
+                                    • Booking 10 đêm, 5 đêm tháng này → 50% doanh thu<br>
+                                    • Chưa thu 2M toàn bộ, 5/10 đêm tháng này → Chưa thu 1M (tháng này)
                                 </div>
                             </div>
                         </div>
@@ -7661,6 +7684,12 @@ function loadProratedMonthlyRevenue() {
     const avgPriceEl = document.getElementById('avgPricePerNight');
     const diffEl = document.getElementById('revenueDifference');
 
+    // ⭐ NEW: Uncollected revenue elements
+    const uncollectedEl = document.getElementById('proratedUncollected');
+    const collectedEl = document.getElementById('proratedCollected');
+    const collectionRateEl = document.getElementById('collectionRate');
+    const uncollectedFullEl = document.getElementById('uncollectedFull');
+
     if (!listContainer || !badgeElement) {
         console.error('💰 [PRORATED] Required elements not found');
         return;
@@ -7687,6 +7716,12 @@ function loadProratedMonthlyRevenue() {
                 avgPriceEl.textContent = `${summary.average_price_per_night.toLocaleString('vi-VN')}đ`;
                 diffEl.textContent = `${summary.revenue_difference.toLocaleString('vi-VN')}đ`;
                 badgeElement.textContent = summary.count;
+
+                // ⭐ NEW: Update uncollected revenue cards
+                if (uncollectedEl) uncollectedEl.textContent = `${summary.uncollected_prorated.toLocaleString('vi-VN')}đ`;
+                if (collectedEl) collectedEl.textContent = `${summary.collected_prorated.toLocaleString('vi-VN')}đ`;
+                if (collectionRateEl) collectionRateEl.textContent = `${summary.collection_rate}% đã thu`;
+                if (uncollectedFullEl) uncollectedFullEl.textContent = `${summary.uncollected_full.toLocaleString('vi-VN')}đ chưa thu (toàn bộ)`;
 
                 // Display detailed breakdown
                 displayProratedBreakdown(bookings, summary, period);
@@ -7724,14 +7759,16 @@ function displayProratedBreakdown(bookings, summary, period) {
     // Create detailed breakdown table
     const tableHtml = `
         <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
-            <table class="table table-sm table-hover mb-0" style="font-size: 0.8rem;">
+            <table class="table table-sm table-hover mb-0" style="font-size: 0.75rem;">
                 <thead class="table-success sticky-top">
                     <tr>
-                        <th width="25%"><i class="fas fa-user me-1"></i>Khách</th>
-                        <th width="20%"><i class="fas fa-calendar me-1"></i>Ngày</th>
-                        <th width="15%" class="text-center"><i class="fas fa-bed me-1"></i>Đêm</th>
-                        <th width="20%" class="text-end"><i class="fas fa-coins me-1"></i>Tháng này</th>
-                        <th width="20%" class="text-end"><i class="fas fa-chart-bar me-1"></i>Tổng</th>
+                        <th width="18%"><i class="fas fa-user me-1"></i>Khách</th>
+                        <th width="15%"><i class="fas fa-calendar me-1"></i>Ngày</th>
+                        <th width="10%" class="text-center"><i class="fas fa-bed me-1"></i>Đêm</th>
+                        <th width="15%" class="text-end"><i class="fas fa-coins me-1"></i>Thu T.này</th>
+                        <th width="15%" class="text-end"><i class="fas fa-exclamation-circle me-1"></i>Chưa thu</th>
+                        <th width="12%" class="text-end"><i class="fas fa-chart-bar me-1"></i>Tổng</th>
+                        <th width="15%" class="text-end"><i class="fas fa-percentage me-1"></i>%</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -7742,7 +7779,7 @@ function displayProratedBreakdown(bookings, summary, period) {
                         const checkoutStr = checkoutDate.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' });
 
                         // Calculate percentage of revenue in current month
-                        const revenuePercent = (booking.prorated_revenue / booking.full_revenue * 100).toFixed(0);
+                        const revenuePercent = booking.percentage_in_month || (booking.prorated_revenue / booking.full_revenue * 100).toFixed(1);
 
                         // Urgency badge
                         const daysUntil = booking.days_until_checkin;
@@ -7753,27 +7790,37 @@ function displayProratedBreakdown(bookings, summary, period) {
                         const rowClass = booking.spans_months ? 'table-warning' : '';
                         const spanIcon = booking.spans_months ? '<i class="fas fa-arrow-right text-warning me-1" title="Booking kéo dài nhiều tháng"></i>' : '';
 
+                        // Uncollected status
+                        const hasUncollected = booking.prorated_uncollected > 0;
+                        const uncollectedClass = hasUncollected ? 'text-danger fw-bold' : 'text-muted';
+
                         return `
                             <tr class="${rowClass}">
                                 <td>
-                                    <div class="fw-bold text-dark" style="font-size: 0.75rem;">${booking.guest_name}</div>
-                                    <small class="text-muted" style="font-size: 0.65rem;">${booking.accommodation}</small>
+                                    <div class="fw-bold text-dark" style="font-size: 0.7rem;">${booking.guest_name}</div>
+                                    <small class="text-muted" style="font-size: 0.6rem;">${booking.accommodation}</small>
                                 </td>
                                 <td>
-                                    <div class="fw-bold text-primary" style="font-size: 0.75rem;">${spanIcon}${checkinStr}</div>
-                                    <small class="text-muted" style="font-size: 0.65rem;">→ ${checkoutStr}</small>
-                                    <span class="badge ${urgencyBadge} text-white ms-1" style="font-size: 0.6rem;">${urgencyText}</span>
+                                    <div class="fw-bold text-primary" style="font-size: 0.7rem;">${spanIcon}${checkinStr}</div>
+                                    <small class="text-muted" style="font-size: 0.6rem;">→ ${checkoutStr}</small>
+                                    <span class="badge ${urgencyBadge} text-white ms-1" style="font-size: 0.55rem;">${urgencyText}</span>
                                 </td>
                                 <td class="text-center">
-                                    <div class="fw-bold text-success" style="font-size: 0.75rem;">${booking.nights_in_month}</div>
-                                    <small class="text-muted" style="font-size: 0.65rem;">/${booking.full_nights}</small>
+                                    <div class="fw-bold text-success" style="font-size: 0.7rem;">${booking.nights_in_month}</div>
+                                    <small class="text-muted" style="font-size: 0.6rem;">/${booking.full_nights}</small>
                                 </td>
                                 <td class="text-end">
-                                    <div class="fw-bold text-success" style="font-size: 0.75rem;">${booking.prorated_revenue.toLocaleString('vi-VN')}đ</div>
-                                    <small class="text-muted" style="font-size: 0.65rem;">${booking.price_per_night.toLocaleString('vi-VN')}đ/đêm</small>
+                                    <div class="fw-bold text-success" style="font-size: 0.7rem;">${booking.prorated_revenue.toLocaleString('vi-VN')}đ</div>
+                                    <small class="text-muted" style="font-size: 0.6rem;">${booking.price_per_night.toLocaleString('vi-VN')}đ/đêm</small>
                                 </td>
                                 <td class="text-end">
-                                    <div class="fw-bold text-info" style="font-size: 0.75rem;">${booking.full_revenue.toLocaleString('vi-VN')}đ</div>
+                                    <div class="${uncollectedClass}" style="font-size: 0.7rem;">${booking.prorated_uncollected.toLocaleString('vi-VN')}đ</div>
+                                    <small class="text-muted" style="font-size: 0.6rem;">/${booking.full_uncollected.toLocaleString('vi-VN')}đ</small>
+                                </td>
+                                <td class="text-end">
+                                    <div class="fw-bold text-info" style="font-size: 0.7rem;">${booking.full_revenue.toLocaleString('vi-VN')}đ</div>
+                                </td>
+                                <td class="text-end">
                                     <span class="badge bg-info text-white" style="font-size: 0.6rem;">${revenuePercent}%</span>
                                 </td>
                             </tr>
@@ -7785,7 +7832,11 @@ function displayProratedBreakdown(bookings, summary, period) {
                         <td colspan="2">TỔNG CỘNG</td>
                         <td class="text-center text-success">${summary.nights_in_month}/${summary.total_nights}</td>
                         <td class="text-end text-success">${summary.prorated_revenue.toLocaleString('vi-VN')}đ</td>
+                        <td class="text-end text-danger">${summary.uncollected_prorated.toLocaleString('vi-VN')}đ</td>
                         <td class="text-end text-info">${summary.full_revenue.toLocaleString('vi-VN')}đ</td>
+                        <td class="text-end">
+                            <span class="badge bg-success">${summary.collection_rate}%</span>
+                        </td>
                     </tr>
                 </tfoot>
             </table>
