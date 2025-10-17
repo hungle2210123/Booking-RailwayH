@@ -9246,9 +9246,19 @@ def get_prorated_monthly_revenue():
             total_full_revenue += room_amount
             total_days_in_month += nights_in_month
             total_full_days += full_nights
-            total_uncollected_prorated += prorated_uncollected
-            total_uncollected_full += full_uncollected
-            total_collected_prorated += prorated_collected
+
+            # ⭐ CORRECTED LOGIC: Separate based on check-in status, NOT collected_amount
+            # CHƯA THU (Uncollected) = Guests who HAVEN'T checked in yet
+            # ĐÃ THU (Collected) = Guests who HAVE checked in already
+            if has_checked_in:
+                # Guest already checked in → Count as COLLECTED (already stayed)
+                total_collected_prorated += prorated_revenue
+                print(f"  ✅ {guest_name}: Checked in → Collected: {prorated_revenue:,.0f}đ")
+            else:
+                # Guest hasn't checked in yet → Count as UNCOLLECTED (future)
+                total_uncollected_prorated += prorated_revenue
+                total_uncollected_full += room_amount
+                print(f"  ⏳ {guest_name}: Future check-in → Uncollected: {prorated_revenue:,.0f}đ")
 
             # Determine if booking spans multiple months
             spans_months = booking.checkin_date.month != booking.checkout_date.month or \
