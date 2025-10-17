@@ -9055,20 +9055,20 @@ def get_unchecked_in_guests():
     try:
         from datetime import datetime, date
         from core.models import Booking, Guest, db
-        
+
         # Get current month date range
         today = date.today()
         start_of_month = today.replace(day=1)
-        
+
         # Calculate end of current month
         from datetime import timedelta
         if today.month == 12:
             end_of_month = date(today.year + 1, 1, 1) - timedelta(days=1)
         else:
             end_of_month = date(today.year, today.month + 1, 1) - timedelta(days=1)
-            
+
         print(f"🏨 [UNCHECKED_IN] Getting unchecked-in guests for {start_of_month} to {end_of_month}")
-        
+
         # Query confirmed bookings where check-in date is in current month but haven't checked in yet
         # (check-in date > today)
         unchecked_bookings = db.session.query(Booking, Guest).outerjoin(
@@ -9082,27 +9082,27 @@ def get_unchecked_in_guests():
             Booking.booking_status != 'cancelled',
             Booking.booking_status != 'đã hủy'
         ).order_by(Booking.checkin_date.asc()).all()
-        
+
         unchecked_list = []
         total_amount = 0
         total_commission = 0
-        
+
         for booking, guest in unchecked_bookings:
             guest_name = guest.full_name if guest else booking.guest_name or 'Unknown Guest'
-            
+
             # Calculate amounts
             room_amount = float(booking.room_amount or 0)
             commission = float(booking.commission or 0)
             total_amount += room_amount
             total_commission += commission
-            
+
             # Calculate nights
             if booking.checkout_date and booking.checkin_date:
                 nights = (booking.checkout_date - booking.checkin_date).days
                 nights = max(1, nights)
             else:
                 nights = 1
-            
+
             unchecked_list.append({
                 'booking_id': booking.booking_id,
                 'guest_name': guest_name,
@@ -9115,11 +9115,11 @@ def get_unchecked_in_guests():
                 'accommodation': booking.accommodation_name or 'N/A',
                 'days_until_checkin': (booking.checkin_date - today).days if booking.checkin_date else 0
             })
-        
+
         print(f"🏨 [UNCHECKED_IN] Found {len(unchecked_list)} unchecked-in guests")
         print(f"💰 [UNCHECKED_IN] Total to collect: {total_amount:,.0f}đ")
         print(f"💸 [UNCHECKED_IN] Total commission: {total_commission:,.0f}đ")
-        
+
         return jsonify({
             'success': True,
             'unchecked_guests': unchecked_list,
@@ -9133,9 +9133,150 @@ def get_unchecked_in_guests():
                 'today': today.isoformat()
             }
         })
-        
+
     except Exception as e:
         print(f"❌ [UNCHECKED_IN] Error: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/prorated_monthly_revenue', methods=['GET'])
+def get_prorated_monthly_revenue():
+    """
+    PRO-RATED MONTHLY REVENUE CALCULATION
+    Calculate revenue ONLY for days that fall within the current month
+    For bookings that span across months, only count the days in current month
+    """
+    try:
+        from datetime import datetime, date, timedelta
+        from core.models import Booking, Guest, db
+
+        # Get current month date range
+        today = date.today()
+        start_of_month = today.replace(day=1)
+
+        # Calculate end of current month
+        if today.month == 12:
+            end_of_month = date(today.year + 1, 1, 1) - timedelta(days=1)
+        else:
+            end_of_month = date(today.year, today.month + 1, 1) - timedelta(days=1)
+
+        print(f"💰 [PRORATED] Calculating pro-rated revenue for {start_of_month} to {end_of_month}")
+
+        # Query all confirmed bookings that overlap with current month
+        # Booking overlaps if: checkin <= end_of_month AND checkout >= start_of_month
+        unchecked_bookings = db.session.query(Booking, Guest).outerjoin(
+            Guest, Booking.guest_id == Guest.guest_id
+        ).filter(
+            Booking.booking_status.in_(['confirmed', 'mới']),
+            Booking.checkin_date >= today,  # Future bookings only (not checked in yet)
+            Booking.checkin_date <= end_of_month,  # Check-in within month
+            Booking.checkout_date >= start_of_month,  # Checkout after month starts (overlap)
+            Booking.booking_status != 'deleted',
+            Booking.booking_status != 'cancelled',
+            Booking.booking_status != 'đã hủy'
+        ).order_by(Booking.checkin_date.asc()).all()
+
+        prorated_list = []
+        total_prorated_revenue = 0
+        total_full_revenue = 0
+        total_days_in_month = 0
+        total_full_days = 0
+
+        for booking, guest in unchecked_bookings:
+            if not booking.checkin_date or not booking.checkout_date:
+                continue
+
+            guest_name = guest.full_name if guest else booking.guest_name or 'Unknown Guest'
+
+            # Calculate FULL booking details
+            full_nights = (booking.checkout_date - booking.checkin_date).days
+            full_nights = max(1, full_nights)
+
+            room_amount = float(booking.room_amount or 0)
+            commission = float(booking.commission or 0)
+
+            # Calculate price per night
+            price_per_night = room_amount / full_nights if full_nights > 0 else 0
+
+            # Calculate overlap with current month
+            # Overlap start = max(checkin_date, start_of_month)
+            # Overlap end = min(checkout_date, end_of_month + 1 day)
+            overlap_start = max(booking.checkin_date, start_of_month)
+            overlap_end = min(booking.checkout_date, end_of_month + timedelta(days=1))
+
+            # Calculate nights in current month
+            nights_in_month = (overlap_end - overlap_start).days
+            nights_in_month = max(0, nights_in_month)
+
+            # Calculate pro-rated revenue (only for days in this month)
+            prorated_revenue = price_per_night * nights_in_month
+
+            # Track totals
+            total_prorated_revenue += prorated_revenue
+            total_full_revenue += room_amount
+            total_days_in_month += nights_in_month
+            total_full_days += full_nights
+
+            # Determine if booking spans multiple months
+            spans_months = booking.checkin_date.month != booking.checkout_date.month or \
+                          booking.checkin_date.year != booking.checkout_date.year
+
+            prorated_list.append({
+                'booking_id': booking.booking_id,
+                'guest_name': guest_name,
+                'checkin_date': booking.checkin_date.isoformat(),
+                'checkout_date': booking.checkout_date.isoformat(),
+                'accommodation': booking.accommodation_name or 'N/A',
+                'collector': booking.collector or 'N/A',
+
+                # Full booking details
+                'full_nights': full_nights,
+                'full_revenue': room_amount,
+                'commission': commission,
+
+                # Pro-rated details (this month only)
+                'nights_in_month': nights_in_month,
+                'prorated_revenue': round(prorated_revenue, 2),
+                'price_per_night': round(price_per_night, 2),
+
+                # Metadata
+                'spans_months': spans_months,
+                'days_until_checkin': (booking.checkin_date - today).days,
+                'overlap_period': {
+                    'start': overlap_start.isoformat(),
+                    'end': (overlap_end - timedelta(days=1)).isoformat()  # Checkout day exclusive
+                }
+            })
+
+        print(f"💰 [PRORATED] Found {len(prorated_list)} unchecked-in bookings")
+        print(f"💰 [PRORATED] Pro-rated revenue (this month): {total_prorated_revenue:,.0f}đ")
+        print(f"💰 [PRORATED] Full booking revenue: {total_full_revenue:,.0f}đ")
+        print(f"💰 [PRORATED] Days in month: {total_days_in_month}, Full days: {total_full_days}")
+
+        return jsonify({
+            'success': True,
+            'bookings': prorated_list,
+            'summary': {
+                'prorated_revenue': round(total_prorated_revenue, 2),
+                'full_revenue': round(total_full_revenue, 2),
+                'revenue_difference': round(total_full_revenue - total_prorated_revenue, 2),
+                'nights_in_month': total_days_in_month,
+                'total_nights': total_full_days,
+                'count': len(prorated_list),
+                'average_price_per_night': round(total_prorated_revenue / total_days_in_month, 2) if total_days_in_month > 0 else 0
+            },
+            'period': {
+                'month': start_of_month.strftime('%B %Y'),
+                'start_date': start_of_month.isoformat(),
+                'end_date': end_of_month.isoformat(),
+                'today': today.isoformat(),
+                'days_in_month': (end_of_month - start_of_month).days + 1
+            }
+        })
+
+    except Exception as e:
+        print(f"❌ [PRORATED] Error: {e}")
         import traceback
         traceback.print_exc()
         return jsonify({'success': False, 'error': str(e)}), 500

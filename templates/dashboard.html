@@ -1497,7 +1497,7 @@
             <div class="card shadow-sm border-0 mt-3">
                 <div class="card-header bg-warning text-dark">
                     <h6 class="mb-0">
-                        <i class="fas fa-users-clock me-1"></i> 
+                        <i class="fas fa-users-clock me-1"></i>
                         Khách Chưa Check-in - Cần Thu Tiền Tháng Này
                         <span class="badge bg-danger text-white ms-2" id="uncheckedInBadge">Loading...</span>
                     </h6>
@@ -1507,7 +1507,7 @@
                         <i class="fas fa-info-circle me-2"></i>
                         <strong>Danh sách khách đã đặt phòng nhưng chưa check-in</strong> - Đây là số tiền bạn sẽ cần thu trong tháng này khi họ check-in.
                     </div>
-                    
+
                     <div id="uncheckedInGuestsList" class="mt-2">
                         <!-- Will be populated by JavaScript -->
                         <div class="text-center py-3">
@@ -1517,7 +1517,7 @@
                             <small class="d-block mt-2 text-muted">Đang tải danh sách khách chưa check-in...</small>
                         </div>
                     </div>
-                    
+
                     <div class="border-top pt-2 mt-3">
                         <div class="row text-center">
                             <div class="col-6">
@@ -1527,6 +1527,78 @@
                             <div class="col-6">
                                 <div class="fw-bold text-info fs-5" id="totalUncheckedGuests">0</div>
                                 <small class="text-muted">Tổng khách</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ⭐ NEW: PRO-RATED MONTHLY REVENUE SECTION -->
+            <div class="card shadow-sm border-0 mt-3" style="border-left: 4px solid #28a745 !important;">
+                <div class="card-header text-white" style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%);">
+                    <h6 class="mb-0">
+                        <i class="fas fa-chart-line me-2"></i>
+                        Doanh Thu Theo Ngày Ở - Tháng Này
+                        <span class="badge bg-white text-success ms-2" id="proratedBadge">Loading...</span>
+                    </h6>
+                    <small class="text-white-50">Chỉ tính tiền cho số đêm khách ở trong tháng này</small>
+                </div>
+                <div class="card-body">
+                    <!-- Cash Flow Summary Cards -->
+                    <div class="row g-2 mb-3">
+                        <div class="col-6">
+                            <div class="card bg-success bg-opacity-10 border-success border-opacity-25">
+                                <div class="card-body p-2 text-center">
+                                    <div class="text-success fw-bold fs-5" id="proratedMonthlyRevenue">0đ</div>
+                                    <small class="text-muted d-block">💰 Thu tháng này</small>
+                                    <small class="text-muted" id="proratedNights">0 đêm</small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="card bg-info bg-opacity-10 border-info border-opacity-25">
+                                <div class="card-body p-2 text-center">
+                                    <div class="text-info fw-bold fs-5" id="proratedFullRevenue">0đ</div>
+                                    <small class="text-muted d-block">📊 Tổng booking</small>
+                                    <small class="text-muted" id="proratedFullNights">0 đêm</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Info Alert -->
+                    <div class="alert alert-success border-0 py-2 mb-3" style="font-size: 0.8rem; background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);">
+                        <div class="d-flex align-items-center">
+                            <i class="fas fa-calculator me-2 text-success"></i>
+                            <div>
+                                <strong>Tính toán chính xác:</strong>
+                                <div class="text-muted small">
+                                    Nếu khách đặt 10 đêm nhưng chỉ 5 đêm trong tháng này → Chỉ tính 50% doanh thu
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Detailed Breakdown Table -->
+                    <div id="proratedGuestsList" class="mt-2">
+                        <div class="text-center py-3">
+                            <div class="spinner-border spinner-border-sm text-success" role="status">
+                                <span class="visually-hidden">Đang tải...</span>
+                            </div>
+                            <small class="d-block mt-2 text-muted">Đang tính toán doanh thu theo ngày ở...</small>
+                        </div>
+                    </div>
+
+                    <!-- Average Price Info -->
+                    <div class="border-top pt-2 mt-3">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <small class="text-muted">Giá TB/đêm</small>
+                                <div class="fw-bold text-success" id="avgPricePerNight">0đ</div>
+                            </div>
+                            <div class="text-end">
+                                <small class="text-muted">Chênh lệch</small>
+                                <div class="fw-bold text-warning" id="revenueDifference">0đ</div>
                             </div>
                         </div>
                     </div>
@@ -5258,6 +5330,11 @@ document.addEventListener('DOMContentLoaded', async function() {
         if (typeof loadUncheckedInGuests === 'function') {
             loadUncheckedInGuests();
         }
+
+        // Load pro-rated monthly revenue data
+        if (typeof loadProratedMonthlyRevenue === 'function') {
+            loadProratedMonthlyRevenue();
+        }
     } catch (error) {
         console.log('⚠️ Server sync failed, using local storage:', error.message);
         
@@ -5273,6 +5350,11 @@ document.addEventListener('DOMContentLoaded', async function() {
         // Still load unchecked-in guests data even if arrival times fail
         if (typeof loadUncheckedInGuests === 'function') {
             loadUncheckedInGuests();
+        }
+
+        // Load pro-rated monthly revenue data
+        if (typeof loadProratedMonthlyRevenue === 'function') {
+            loadProratedMonthlyRevenue();
         }
         
         // Load guest-specific arrival times from localStorage
@@ -7562,6 +7644,161 @@ function displayUncheckedInGuests(guests, totalAmount, totalCount) {
         </div>
     `;
     
+    listContainer.innerHTML = tableHtml;
+}
+
+// ==================== PRO-RATED MONTHLY REVENUE FUNCTIONALITY ====================
+
+function loadProratedMonthlyRevenue() {
+    console.log('💰 [PRORATED] Loading pro-rated monthly revenue...');
+
+    const listContainer = document.getElementById('proratedGuestsList');
+    const badgeElement = document.getElementById('proratedBadge');
+    const monthlyRevenueEl = document.getElementById('proratedMonthlyRevenue');
+    const fullRevenueEl = document.getElementById('proratedFullRevenue');
+    const nightsEl = document.getElementById('proratedNights');
+    const fullNightsEl = document.getElementById('proratedFullNights');
+    const avgPriceEl = document.getElementById('avgPricePerNight');
+    const diffEl = document.getElementById('revenueDifference');
+
+    if (!listContainer || !badgeElement) {
+        console.error('💰 [PRORATED] Required elements not found');
+        return;
+    }
+
+    fetch('/api/prorated_monthly_revenue')
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.success) {
+                const { bookings, summary, period } = data;
+
+                console.log('💰 [PRORATED] Data loaded:', summary);
+
+                // Update summary cards
+                monthlyRevenueEl.textContent = `${summary.prorated_revenue.toLocaleString('vi-VN')}đ`;
+                fullRevenueEl.textContent = `${summary.full_revenue.toLocaleString('vi-VN')}đ`;
+                nightsEl.textContent = `${summary.nights_in_month} đêm`;
+                fullNightsEl.textContent = `${summary.total_nights} đêm`;
+                avgPriceEl.textContent = `${summary.average_price_per_night.toLocaleString('vi-VN')}đ`;
+                diffEl.textContent = `${summary.revenue_difference.toLocaleString('vi-VN')}đ`;
+                badgeElement.textContent = summary.count;
+
+                // Display detailed breakdown
+                displayProratedBreakdown(bookings, summary, period);
+
+            } else {
+                throw new Error(data.error || 'Unknown error');
+            }
+        })
+        .catch(error => {
+            console.error('💰 [PRORATED] Error loading data:', error);
+            listContainer.innerHTML = `
+                <div class="alert alert-danger text-center">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    Lỗi tải dữ liệu: ${error.message}
+                    <br><small>Vui lòng thử lại sau</small>
+                </div>
+            `;
+            badgeElement.textContent = '!';
+        });
+}
+
+function displayProratedBreakdown(bookings, summary, period) {
+    const listContainer = document.getElementById('proratedGuestsList');
+
+    if (!bookings || bookings.length === 0) {
+        listContainer.innerHTML = `
+            <div class="text-center py-3">
+                <i class="fas fa-check-circle text-success mb-2" style="font-size: 1.5rem;"></i>
+                <p class="text-muted mb-0 small">Không có khách nào chưa check-in trong tháng ${period.month}</p>
+            </div>
+        `;
+        return;
+    }
+
+    // Create detailed breakdown table
+    const tableHtml = `
+        <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
+            <table class="table table-sm table-hover mb-0" style="font-size: 0.8rem;">
+                <thead class="table-success sticky-top">
+                    <tr>
+                        <th width="25%"><i class="fas fa-user me-1"></i>Khách</th>
+                        <th width="20%"><i class="fas fa-calendar me-1"></i>Ngày</th>
+                        <th width="15%" class="text-center"><i class="fas fa-bed me-1"></i>Đêm</th>
+                        <th width="20%" class="text-end"><i class="fas fa-coins me-1"></i>Tháng này</th>
+                        <th width="20%" class="text-end"><i class="fas fa-chart-bar me-1"></i>Tổng</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${bookings.map(booking => {
+                        const checkinDate = new Date(booking.checkin_date);
+                        const checkoutDate = new Date(booking.checkout_date);
+                        const checkinStr = checkinDate.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' });
+                        const checkoutStr = checkoutDate.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' });
+
+                        // Calculate percentage of revenue in current month
+                        const revenuePercent = (booking.prorated_revenue / booking.full_revenue * 100).toFixed(0);
+
+                        // Urgency badge
+                        const daysUntil = booking.days_until_checkin;
+                        const urgencyBadge = daysUntil <= 1 ? 'bg-danger' : daysUntil <= 3 ? 'bg-warning' : 'bg-primary';
+                        const urgencyText = daysUntil === 0 ? 'Hôm nay' : daysUntil === 1 ? 'Mai' : `${daysUntil}d`;
+
+                        // Highlight if booking spans multiple months
+                        const rowClass = booking.spans_months ? 'table-warning' : '';
+                        const spanIcon = booking.spans_months ? '<i class="fas fa-arrow-right text-warning me-1" title="Booking kéo dài nhiều tháng"></i>' : '';
+
+                        return `
+                            <tr class="${rowClass}">
+                                <td>
+                                    <div class="fw-bold text-dark" style="font-size: 0.75rem;">${booking.guest_name}</div>
+                                    <small class="text-muted" style="font-size: 0.65rem;">${booking.accommodation}</small>
+                                </td>
+                                <td>
+                                    <div class="fw-bold text-primary" style="font-size: 0.75rem;">${spanIcon}${checkinStr}</div>
+                                    <small class="text-muted" style="font-size: 0.65rem;">→ ${checkoutStr}</small>
+                                    <span class="badge ${urgencyBadge} text-white ms-1" style="font-size: 0.6rem;">${urgencyText}</span>
+                                </td>
+                                <td class="text-center">
+                                    <div class="fw-bold text-success" style="font-size: 0.75rem;">${booking.nights_in_month}</div>
+                                    <small class="text-muted" style="font-size: 0.65rem;">/${booking.full_nights}</small>
+                                </td>
+                                <td class="text-end">
+                                    <div class="fw-bold text-success" style="font-size: 0.75rem;">${booking.prorated_revenue.toLocaleString('vi-VN')}đ</div>
+                                    <small class="text-muted" style="font-size: 0.65rem;">${booking.price_per_night.toLocaleString('vi-VN')}đ/đêm</small>
+                                </td>
+                                <td class="text-end">
+                                    <div class="fw-bold text-info" style="font-size: 0.75rem;">${booking.full_revenue.toLocaleString('vi-VN')}đ</div>
+                                    <span class="badge bg-info text-white" style="font-size: 0.6rem;">${revenuePercent}%</span>
+                                </td>
+                            </tr>
+                        `;
+                    }).join('')}
+                </tbody>
+                <tfoot class="table-light">
+                    <tr class="fw-bold">
+                        <td colspan="2">TỔNG CỘNG</td>
+                        <td class="text-center text-success">${summary.nights_in_month}/${summary.total_nights}</td>
+                        <td class="text-end text-success">${summary.prorated_revenue.toLocaleString('vi-VN')}đ</td>
+                        <td class="text-end text-info">${summary.full_revenue.toLocaleString('vi-VN')}đ</td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+
+        ${bookings.some(b => b.spans_months) ? `
+            <div class="alert alert-warning border-0 py-2 mt-2 mb-0" style="font-size: 0.7rem;">
+                <i class="fas fa-info-circle me-1"></i>
+                <strong>Lưu ý:</strong> Dòng vàng là booking kéo dài sang tháng sau - chỉ tính tiền đêm trong tháng này
+            </div>
+        ` : ''}
+    `;
+
     listContainer.innerHTML = tableHtml;
 }
 
