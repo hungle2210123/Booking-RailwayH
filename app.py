@@ -1284,11 +1284,9 @@ def dashboard():
         start_date = datetime.strptime(start_date_str, '%Y-%m-%d')
         end_date = datetime.strptime(end_date_str, '%Y-%m-%d')
 
-    # Check if fresh data is requested
-    force_fresh = request.args.get('refresh') == 'true'
-    
-    # Load data from PostgreSQL
-    df, _ = load_data(force_fresh=force_fresh)
+    # Always load fresh data to show immediate updates after edits
+    # This ensures uncollected guests section reflects latest collect money/commission changes
+    df, _ = load_data(force_fresh=True)
     sort_by = request.args.get('sort_by', 'Tháng')
     sort_order = request.args.get('sort_order', 'desc')
     
