@@ -1,5 +1,5 @@
 [phases.setup]
-nixPkgs = ['python39', 'tesseract']
+nixPkgs = ['python39']
 
 [phases.install]
 cmds = [

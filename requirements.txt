@@ -23,9 +23,10 @@ numpy>=1.21.0,<2.0.0
 # --- EXCEL/CSV SUPPORT ---
 openpyxl>=3.1.0,<4.0.0
 
-# --- OCR FALLBACK (Optional but used in production) ---
-opencv-python>=4.8.0,<5.0.0
-pytesseract>=0.3.10,<1.0.0
+# --- OCR FALLBACK (Optional - disabled for faster Railway builds) ---
+# opencv-python>=4.8.0,<5.0.0
+# pytesseract>=0.3.10,<1.0.0
+# Note: OCR is wrapped in try/except blocks in app.py, so it's safe to disable
 
 # --- AI INTEGRATION (GEMINI + OPENROUTER) ---
 google-generativeai>=0.3.0,<1.0.0
