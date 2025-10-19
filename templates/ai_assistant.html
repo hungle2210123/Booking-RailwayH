@@ -1436,16 +1436,16 @@ document.getElementById('manualBookingForm').addEventListener('submit', function
     // Template management functions
     window.showAddTemplateModal = function() {
         console.log('showAddTemplateModal called');
-        
+
         // Load existing categories into dropdown
         const categorySelect = document.getElementById('addTemplateCategory');
         if (categorySelect && window.templates) {
             // Get unique categories from existing templates
             const existingCategories = [...new Set(window.templates.map(t => t.category))].filter(Boolean);
-            
+
             // Clear existing options except default ones
             const defaultOptions = categorySelect.querySelectorAll('option[value=""], option[value="WELCOME"], option[value="ARRIVAL"], option[value="CHECK IN"], option[value="EARLY CHECK IN"], option[value="DON PHONG"], option[value="HET PHONG"], option[value="FEED BACK"], option[value="TAXI"], option[value="PARK"], option[value="LAUNDRY"], option[value="NOT BOOKING"], option[value="OTHER"]');
-            
+
             // Add existing categories as options
             existingCategories.forEach(category => {
                 if (!Array.from(categorySelect.options).some(opt => opt.value === category)) {
@@ -1456,9 +1456,10 @@ document.getElementById('manualBookingForm').addEventListener('submit', function
                 }
             });
         }
-        
-        // Show the modal
-        const modal = new bootstrap.Modal(document.getElementById('addTemplateModal'));
+
+        // ✅ FIX: Reuse existing modal instance instead of creating new one
+        const modalElement = document.getElementById('addTemplateModal');
+        const modal = bootstrap.Modal.getOrCreateInstance(modalElement);
         modal.show();
     };
     
@@ -1744,17 +1745,18 @@ document.getElementById('manualBookingForm').addEventListener('submit', function
     
     // Image handling functions for templates
     window.showImageModal = function(imageUrl, templateLabel) {
-        const modal = new bootstrap.Modal(document.getElementById('imageModal'));
+        const modalElement = document.getElementById('imageModal');
         const modalImage = document.getElementById('modalImage');
         const modalTitle = document.getElementById('imageModalLabel');
-        
+
         modalImage.src = imageUrl;
         modalTitle.innerHTML = `<i class="fas fa-image me-2"></i>${templateLabel} - Image`;
-        
+
         // Store current image data for modal functions
         window.currentModalImageUrl = imageUrl;
         window.currentModalImageName = templateLabel.replace(/[^a-zA-Z0-9]/g, '_') + '_image';
-        
+
+        const modal = bootstrap.Modal.getOrCreateInstance(modalElement);
         modal.show();
     };
     
@@ -1945,17 +1947,18 @@ document.getElementById('manualBookingForm').addEventListener('submit', function
     window.showAddImageModal = function(templateId, templateName) {
         currentTemplateId = templateId;
         currentTemplateName = templateName;
-        
+
         // Update modal title
         document.getElementById('templateNameDisplay').textContent = templateName;
-        
+
         // Clear any previous selections
         removeExistingImagePreview();
-        
+
         // Show the modal
-        const modal = new bootstrap.Modal(document.getElementById('addImageToTemplateModal'));
+        const modalElement = document.getElementById('addImageToTemplateModal');
+        const modal = bootstrap.Modal.getOrCreateInstance(modalElement);
         modal.show();
-        
+
         console.log(`Opening add image modal for template: ${templateId} - ${templateName}`);
     };
     
@@ -2577,15 +2580,20 @@ document.getElementById('manualBookingForm').addEventListener('submit', function
                 </div>
             `;
             
-            // Remove existing modal if any
+            // Remove existing modal if any (dispose first to prevent memory leaks)
             const existingModal = document.getElementById('templatePreviewModal');
             if (existingModal) {
+                const existingInstance = bootstrap.Modal.getInstance(existingModal);
+                if (existingInstance) {
+                    existingInstance.dispose();
+                }
                 existingModal.remove();
             }
-            
+
             // Add modal to page and show
             document.body.insertAdjacentHTML('beforeend', modalContent);
-            const modal = new bootstrap.Modal(document.getElementById('templatePreviewModal'));
+            const modalElement = document.getElementById('templatePreviewModal');
+            const modal = bootstrap.Modal.getOrCreateInstance(modalElement);
             modal.show();
         } else {
             alert('Template not found');
@@ -2816,12 +2824,13 @@ document.getElementById('manualBookingForm').addEventListener('submit', function
         
         // Set template name in modal
         document.getElementById('multiImageTemplateName').textContent = template.label;
-        
+
         // Load current images
         loadCurrentTemplateImages(templateId);
-        
+
         // Show modal
-        const modal = new bootstrap.Modal(document.getElementById('multiImageModal'));
+        const modalElement = document.getElementById('multiImageModal');
+        const modal = bootstrap.Modal.getOrCreateInstance(modalElement);
         modal.show();
     };
     
@@ -3197,39 +3206,6 @@ document.getElementById('manualBookingForm').addEventListener('submit', function
         // Get modal element
         const modalElement = document.getElementById('editTemplateModal');
 
-        // ⚡ AGGRESSIVE CLEANUP: Remove all existing modal artifacts
-        console.log('🧹 [CLEANUP] Starting aggressive modal cleanup...');
-
-        // 1. Dispose Bootstrap modal instance
-        const existingModal = bootstrap.Modal.getInstance(modalElement);
-        if (existingModal) {
-            existingModal.dispose();
-            console.log('🔧 Disposed existing modal instance');
-        }
-
-        // 2. Remove ALL modal-backdrop elements (Bootstrap creates duplicates)
-        const backdrops = document.querySelectorAll('.modal-backdrop');
-        if (backdrops.length > 0) {
-            console.log(`🗑️ Found ${backdrops.length} backdrop(s), removing...`);
-            backdrops.forEach((backdrop, index) => {
-                backdrop.remove();
-            });
-        }
-
-        // 3. Clean up body classes and styles
-        document.body.classList.remove('modal-open');
-        document.body.style.overflow = '';
-        document.body.style.paddingRight = '';
-
-        // 4. Reset modal element to pristine state
-        modalElement.classList.remove('show');
-        modalElement.style.display = 'none';
-        modalElement.setAttribute('aria-hidden', 'true');
-        modalElement.removeAttribute('aria-modal');
-        modalElement.removeAttribute('role');
-
-        console.log('✅ Cleanup complete');
-
         // Reset custom category div
         const customDiv = document.getElementById('editCustomCategoryDiv');
         if (customDiv) {
@@ -3257,15 +3233,13 @@ document.getElementById('manualBookingForm').addEventListener('submit', function
             }
         }
 
-        // ⚡ Small delay ensures complete cleanup before creating new modal
-        setTimeout(() => {
-            const modal = new bootstrap.Modal(modalElement, {
-                backdrop: 'static',
-                keyboard: true
-            });
-            modal.show();
-            console.log('✅ Modal opened successfully for template:', templateId);
-        }, 50); // 50ms delay for DOM cleanup
+        // ✅ FIX: Use getOrCreateInstance to reuse existing modal instead of aggressive cleanup
+        const modal = bootstrap.Modal.getOrCreateInstance(modalElement, {
+            backdrop: 'static',
+            keyboard: true
+        });
+        modal.show();
+        console.log('✅ Modal opened successfully for template:', templateId);
     }
 
     async function saveTemplateEdit() {

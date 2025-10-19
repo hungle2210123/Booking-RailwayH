@@ -84,7 +84,13 @@
       "Bash(git remote:*)",
       "Bash(curl:*)",
       "Bash(python3:*)",
-      "Bash(PGPASSWORD=locloc123 psql -h localhost -U postgres -d hotel_booking -c \"\\d homestay_item_images\")"
+      "Bash(PGPASSWORD=locloc123 psql -h localhost -U postgres -d hotel_booking -c \"\\d homestay_item_images\")",
+      "Bash(PGPASSWORD=locloc123 psql -h localhost -U postgres -d hotel_booking -c \"SELECT booking_id, guest_name, checkin_date, checkout_date, room_amount, collected_amount, collector FROM bookings WHERE checkin_date >= ''2025-10-01'' AND checkin_date <= ''2025-10-31'' ORDER BY checkin_date LIMIT 10;\")",
+      "Bash(PGPASSWORD=locloc123 psql -h localhost -U postgres -d hotel_booking -c \"SELECT COUNT(*) as total_bookings, SUM(CASE WHEN collected_amount > 0 THEN 1 ELSE 0 END) as with_collected, SUM(collected_amount) as total_collected, SUM(room_amount) as total_revenue FROM bookings WHERE checkin_date <= ''2025-10-31'' AND checkout_date > ''2025-10-01'' AND booking_status NOT IN (''deleted'', ''cancelled'', ''đã hủy'');\")",
+      "Bash(PGPASSWORD=locloc123 psql -h localhost -U postgres -d hotel_booking -c \"SELECT booking_id, guest_name, checkin_date, checkout_date, room_amount, collected_amount, collector FROM bookings WHERE booking_status NOT IN (''deleted'', ''cancelled'', ''đã hủy'') ORDER BY checkin_date DESC LIMIT 10;\")",
+      "Bash(PGPASSWORD=locloc123 psql -h localhost -U postgres -d hotel_booking -c \"SELECT booking_id, guest_name, room_amount, collected_amount, collector, booking_notes FROM bookings WHERE collector IN (''LOC LE'', ''THAO LE'') ORDER BY checkin_date DESC LIMIT 10;\")",
+      "Bash(PGPASSWORD=locloc123 psql -h localhost -U postgres -d hotel_booking -c \"SELECT COUNT(*) as total, SUM(CASE WHEN checkin_date > ''2025-10-17'' THEN 1 ELSE 0 END) as future_checkins, SUM(CASE WHEN checkin_date <= ''2025-10-17'' THEN 1 ELSE 0 END) as past_checkins, SUM(room_amount) as total_revenue FROM bookings WHERE checkin_date <= ''2025-10-31'' AND checkout_date > ''2025-10-01'' AND booking_status NOT IN (''deleted'', ''cancelled'', ''đã hủy'');\")",
+      "Bash(PGPASSWORD=locloc123 psql:*)"
     ],
     "deny": []
   },
