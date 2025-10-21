@@ -372,8 +372,9 @@ h1, h2, h3, h4, h5, h6 {
                     <label for="manual-amount" class="form-label">
                         <i class="fas fa-money-bill-wave me-1"></i>Số Tiền Phòng (VND) *
                     </label>
-                    <input type="number" class="form-control" id="manual-amount"
-                           placeholder="304218" required>
+                    <input type="text" class="form-control money-input" id="manual-amount"
+                           placeholder="304,218 hoặc 304218" required>
+                    <small class="text-muted">Có thể nhập với dấu phấy (107,730) hoặc không (107730)</small>
                 </div>
 
                 <!-- Commission -->
@@ -381,8 +382,9 @@ h1, h2, h3, h4, h5, h6 {
                     <label for="manual-commission" class="form-label">
                         <i class="fas fa-percent me-1"></i>Hoa Hồng (VND) *
                     </label>
-                    <input type="number" class="form-control" id="manual-commission"
-                           placeholder="91265" required>
+                    <input type="text" class="form-control money-input" id="manual-commission"
+                           placeholder="91,265 hoặc 91265" required>
+                    <small class="text-muted">Có thể nhập với dấu phấy hoặc không</small>
                 </div>
 
                 <!-- Room Type -->
@@ -783,6 +785,52 @@ async function processManualImage(imageData) {
     }
 }
 
+// ===== MONEY INPUT FORMATTING FUNCTIONS =====
+// Strip commas and convert to number
+function parseMoneyInput(value) {
+    if (!value) return 0;
+    // Remove all commas, dots, and spaces, then parse as integer
+    const cleaned = value.toString().replace(/[,.\s]/g, '');
+    return parseInt(cleaned) || 0;
+}
+
+// Format number with thousand separators
+function formatMoneyDisplay(value) {
+    if (!value) return '';
+    const num = parseMoneyInput(value);
+    return num.toLocaleString('en-US');
+}
+
+// Auto-format money inputs as user types
+function setupMoneyInputFormatting() {
+    document.querySelectorAll('.money-input').forEach(input => {
+        input.addEventListener('input', function(e) {
+            const cursorPosition = this.selectionStart;
+            const oldLength = this.value.length;
+
+            // Get numeric value
+            const numericValue = parseMoneyInput(this.value);
+
+            // Format with commas
+            const formatted = formatMoneyDisplay(numericValue);
+
+            // Update value
+            this.value = formatted;
+
+            // Restore cursor position (accounting for added commas)
+            const newLength = this.value.length;
+            const newPosition = cursorPosition + (newLength - oldLength);
+            this.setSelectionRange(newPosition, newPosition);
+        });
+
+        // Format on blur to ensure clean display
+        input.addEventListener('blur', function() {
+            const numericValue = parseMoneyInput(this.value);
+            this.value = formatMoneyDisplay(numericValue);
+        });
+    });
+}
+
 // Handle manual form submission
 function handleManualFormSubmit(event) {
     event.preventDefault();
@@ -794,8 +842,9 @@ function handleManualFormSubmit(event) {
     const bookingId = document.getElementById('manual-booking-id').value.trim() || `MANUAL${Date.now()}`;
     const checkinDate = document.getElementById('manual-checkin').value;
     const checkoutDate = document.getElementById('manual-checkout').value;
-    const roomAmount = parseInt(document.getElementById('manual-amount').value);
-    const commission = parseInt(document.getElementById('manual-commission').value);
+    // ✅ FIX: Strip commas before parsing
+    const roomAmount = parseMoneyInput(document.getElementById('manual-amount').value);
+    const commission = parseMoneyInput(document.getElementById('manual-commission').value);
     const roomType = document.getElementById('manual-room-type').value;
 
     // Validate required fields
@@ -1110,6 +1159,10 @@ function fillManualFormWithData(booking) {
 // Initialize with AI mode selected
 document.addEventListener('DOMContentLoaded', function() {
     selectMode('ai');
+
+    // ✅ Setup money input formatting (auto-format with commas)
+    setupMoneyInputFormatting();
+    console.log('💰 Money input formatting initialized');
 });
 
 // Apartment selection variables  
