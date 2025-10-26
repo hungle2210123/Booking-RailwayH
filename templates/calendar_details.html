@@ -286,8 +286,8 @@
         <!-- Cột Check-in -->
         <div class="col-lg-4 mb-4">
             <div class="card h-100">
-                <div class="card-header text-black" style="background-color: #d4edda;">
-                    <h5 class="mb-0">🛬 Khách Check-in ({{ check_in|length }})</h5>
+                <div class="card-header" style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); color: white;">
+                    <h5 class="mb-0" style="text-shadow: 1px 1px 2px rgba(0,0,0,0.3); font-weight: 700;">🛬 Khách Check-in ({{ check_in|length }})</h5>
                 </div>
                 <div class="card-body">
                     {% if check_in %}
@@ -346,8 +346,8 @@
         <!-- Cột Đang ở -->
         <div class="col-lg-4 mb-4">
             <div class="card h-100">
-                <div class="card-header text-black" style="background-color: #cce7f0;">
-                    <h5 class="mb-0">🏨 Khách Đang Ở ({{ staying_over|length }})</h5>
+                <div class="card-header" style="background: linear-gradient(135deg, #17a2b8 0%, #138496 100%); color: white;">
+                    <h5 class="mb-0" style="text-shadow: 1px 1px 2px rgba(0,0,0,0.3); font-weight: 700;">🏨 Khách Đang Ở ({{ staying_over|length }})</h5>
                 </div>
                 <div class="card-body">
                     {% if staying_over %}
@@ -407,8 +407,8 @@
         <!-- Cột Check-out -->
         <div class="col-lg-4 mb-4">
             <div class="card h-100">
-                <div class="card-header text-black" style="background-color: #ffeaa7;">
-                    <h5 class="mb-0">🛫 Khách Check-out ({{ check_out|length }})</h5>
+                <div class="card-header" style="background: linear-gradient(135deg, #ffc107 0%, #ff9800 100%);">
+                    <h5 class="mb-0" style="text-shadow: 1px 1px 2px rgba(255,255,255,0.5); font-weight: 700; color: #000;">🛫 Khách Check-out ({{ check_out|length }})</h5>
                 </div>
                 <div class="card-body">
                     {% if check_out %}
