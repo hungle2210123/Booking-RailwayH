@@ -4768,7 +4768,7 @@ function toggleTaxiAmount() {
 function toggleEditCommission() {
     const commissionInput = document.getElementById('editCommissionAmount');
     const noCommissionBtn = document.getElementById('editNoCommissionBtn');
-    
+
     if (commissionInput.disabled) {
         // Enable commission input
         commissionInput.disabled = false;
@@ -4783,6 +4783,36 @@ function toggleEditCommission() {
         noCommissionBtn.innerHTML = '<i class="fas fa-check"></i> Không có hoa hồng';
         noCommissionBtn.classList.remove('btn-outline-secondary');
         noCommissionBtn.classList.add('btn-danger');
+
+        // ⚡ INSTANT VISUAL UPDATE: Immediately update commission display in table
+        console.log('⚡ [INSTANT_COMMISSION_UPDATE] No commission selected, updating UI...');
+
+        // Find and update commission display in the current row
+        const overdueTable = document.querySelector('.table-responsive table tbody');
+        if (overdueTable && currentEditBookingData && currentEditBookingData.bookingId) {
+            const rows = overdueTable.querySelectorAll('tr');
+
+            rows.forEach(row => {
+                const bookingIdText = row.querySelector('.text-muted');
+                if (bookingIdText && bookingIdText.textContent.includes(currentEditBookingData.bookingId)) {
+                    const commissionIcon = row.querySelector('.text-muted .fas.fa-percentage');
+                    if (commissionIcon && commissionIcon.parentElement) {
+                        // Add visual feedback with animation
+                        commissionIcon.parentElement.style.transition = 'all 0.3s ease';
+                        commissionIcon.parentElement.style.opacity = '0.5';
+                        commissionIcon.parentElement.style.textDecoration = 'line-through';
+
+                        setTimeout(() => {
+                            commissionIcon.parentElement.innerHTML = '<i class="fas fa-check-circle me-1 text-success"></i>Không hoa hồng';
+                            commissionIcon.parentElement.style.opacity = '1';
+                            commissionIcon.parentElement.style.textDecoration = 'none';
+                        }, 200);
+                    }
+
+                    console.log(`✅ Commission display updated for ${currentEditBookingData.bookingId}`);
+                }
+            });
+        }
     }
     updateEditTotalPreview();
 }

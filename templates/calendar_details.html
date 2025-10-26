@@ -2155,7 +2155,7 @@ function renderCompactCalendarForPage(dailyData, year, month, selectedDay) {
                 </div>
                 <div class="popover-guests">`;
 
-            // Function to render guest item
+            // Function to render guest item with commission info
             const renderGuest = (customer, statusIcon, statusColor) => {
                 const guestName = customer.guest_name || 'N/A';
                 const checkin = customer.checkin_date || 'N/A';
@@ -2163,6 +2163,13 @@ function renderCompactCalendarForPage(dailyData, year, month, selectedDay) {
                 const totalAmount = customer.total_amount > 0 ? parseFloat(customer.total_amount).toLocaleString('vi-VN') + 'đ' : 'N/A';
                 const pricePerNight = customer.price_per_night > 0 ? parseFloat(customer.price_per_night).toLocaleString('vi-VN') + 'đ' : 'N/A';
                 const nights = customer.total_nights || 0;
+
+                // Commission info
+                const commission = customer.commission || 0;
+                const hasCommission = commission > 0;
+                const pricePerNightAfterCommission = hasCommission && nights > 0
+                    ? ((customer.total_amount - commission) / nights).toLocaleString('vi-VN') + 'đ'
+                    : null;
 
                 return `
                     <div class="guest-item border-start border-${statusColor} border-3 ps-2">
@@ -2178,15 +2185,27 @@ function renderCompactCalendarForPage(dailyData, year, month, selectedDay) {
                         <div class="guest-pricing small">
                             <div class="text-success fw-bold">💰 ${totalAmount}</div>
                             <div class="text-info">📅 ${pricePerNight}/đêm (${nights} đêm)</div>
+                            ${hasCommission ? `
+                                <div class="text-warning fw-bold" style="font-size: 0.8em;">
+                                    <i class="fas fa-percentage"></i> Hoa hồng: ${commission.toLocaleString('vi-VN')}đ
+                                </div>
+                                <div class="text-primary fw-bold" style="font-size: 0.8em;">
+                                    💵 Sau trừ HH: ${pricePerNightAfterCommission}/đêm
+                                </div>
+                            ` : `
+                                <div class="text-success" style="font-size: 0.8em;">
+                                    <i class="fas fa-check-circle"></i> Không hoa hồng
+                                </div>
+                            `}
                         </div>
                     </div>`;
             };
 
-            // Render Check-in section
+            // Render Check-in section with enhanced header
             if (checkInGuests.length > 0) {
                 popoverContent += `<div class="guest-section mb-2">
-                    <div class="section-header bg-success bg-opacity-10 px-2 py-1 rounded">
-                        <strong class="text-success">🛬 Check-in (${checkInGuests.length})</strong>
+                    <div class="section-header px-2 py-1 rounded" style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); color: white;">
+                        <strong style="text-shadow: 1px 1px 2px rgba(0,0,0,0.3);">🛬 Check-in (${checkInGuests.length})</strong>
                     </div>`;
                 checkInGuests.forEach(guest => {
                     popoverContent += renderGuest(guest, '🛬', 'success');
@@ -2194,11 +2213,11 @@ function renderCompactCalendarForPage(dailyData, year, month, selectedDay) {
                 popoverContent += `</div>`;
             }
 
-            // Render Currently Staying section
+            // Render Currently Staying section with enhanced header
             if (stayingGuests.length > 0) {
                 popoverContent += `<div class="guest-section mb-2">
-                    <div class="section-header bg-info bg-opacity-10 px-2 py-1 rounded">
-                        <strong class="text-info">🏨 Đang ở (${stayingGuests.length})</strong>
+                    <div class="section-header px-2 py-1 rounded" style="background: linear-gradient(135deg, #17a2b8 0%, #138496 100%); color: white;">
+                        <strong style="text-shadow: 1px 1px 2px rgba(0,0,0,0.3);">🏨 Đang ở (${stayingGuests.length})</strong>
                     </div>`;
                 stayingGuests.forEach(guest => {
                     popoverContent += renderGuest(guest, '🏨', 'info');
@@ -2206,11 +2225,11 @@ function renderCompactCalendarForPage(dailyData, year, month, selectedDay) {
                 popoverContent += `</div>`;
             }
 
-            // Render Check-out section
+            // Render Check-out section with enhanced header
             if (checkOutGuests.length > 0) {
                 popoverContent += `<div class="guest-section mb-2">
-                    <div class="section-header bg-warning bg-opacity-10 px-2 py-1 rounded">
-                        <strong class="text-warning">🛫 Check-out (${checkOutGuests.length})</strong>
+                    <div class="section-header px-2 py-1 rounded" style="background: linear-gradient(135deg, #ffc107 0%, #ff9800 100%); color: black;">
+                        <strong style="text-shadow: 1px 1px 2px rgba(255,255,255,0.5);">🛫 Check-out (${checkOutGuests.length})</strong>
                     </div>`;
                 checkOutGuests.forEach(guest => {
                     popoverContent += renderGuest(guest, '🛫', 'warning');
