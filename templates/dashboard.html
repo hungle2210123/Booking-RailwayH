@@ -2370,6 +2370,30 @@
                         <div class="fw-bold text-muted" id="editModalBookingId"></div>
                     </div>
                     <div class="mb-3">
+                        <label for="editAccommodation" class="form-label">
+                            <i class="fas fa-hotel me-1"></i>Chọn khách sạn/căn hộ:
+                        </label>
+                        <select class="form-select" id="editAccommodation">
+                            <option value="118 Hang Bac Hostel">🏨 118 Hàng Bạc (4 phòng)</option>
+                            <option value="18 Hang Be">🏘️ 18 Hàng Bè (2 phòng)</option>
+                        </select>
+                        <div class="form-text">Chọn khách sạn hoặc căn hộ cho booking này</div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="editRoomsOccupied" class="form-label">
+                            <i class="fas fa-bed me-1"></i>Số phòng đặt:
+                        </label>
+                        <select class="form-select" id="editRoomsOccupied">
+                            <option value="1">1 phòng</option>
+                            <option value="2">2 phòng</option>
+                            <option value="3">3 phòng</option>
+                            <option value="4">4 phòng</option>
+                            <option value="5">5 phòng</option>
+                            <option value="6">6 phòng (toàn bộ)</option>
+                        </select>
+                        <div class="form-text">Số phòng khách đặt (mặc định: 1 phòng)</div>
+                    </div>
+                    <div class="mb-3">
                         <label for="editRoomAmount" class="form-label">Tiền phòng (VND):</label>
                         <input type="number" class="form-control" id="editRoomAmount" 
                                placeholder="Nhập tiền phòng" min="0" step="1000">
@@ -4677,24 +4701,35 @@ function openEditAmountModal(bookingId, guestName, roomFee, taxiFee, commission)
     
     console.log('[EditAmount] Parsed fees:', {parsedRoomFee, parsedTaxiFee, parsedCommission});
     
-    // Store booking data for editing
-    currentEditBookingData = {
-        bookingId: bookingId,
-        guestName: guestName,
-        roomFee: parsedRoomFee,
-        taxiFee: parsedTaxiFee,
-        commission: parsedCommission
-    };
-    
-    // Reset form
-    document.getElementById('editAmountForm').reset();
-    
-    // Populate modal data
-    document.getElementById('editModalGuestName').textContent = guestName;
-    document.getElementById('editModalBookingId').textContent = bookingId;
-    document.getElementById('editRoomAmount').value = parsedRoomFee;
-    document.getElementById('editTaxiAmount').value = parsedTaxiFee;
-    document.getElementById('editCommissionAmount').value = parsedCommission;
+    // Fetch full booking data to get accommodation info
+    fetch(`/api/booking/${bookingId}`)
+        .then(response => response.json())
+        .then(bookingData => {
+            const accommodation = bookingData.accommodation_name || '118 Hang Bac Hostel';
+            const roomsOccupied = bookingData.rooms_occupied || 1;
+
+            // Store booking data for editing
+            currentEditBookingData = {
+                bookingId: bookingId,
+                guestName: guestName,
+                roomFee: parsedRoomFee,
+                taxiFee: parsedTaxiFee,
+                commission: parsedCommission,
+                accommodation: accommodation,
+                roomsOccupied: roomsOccupied
+            };
+
+            // Reset form
+            document.getElementById('editAmountForm').reset();
+
+            // Populate modal data
+            document.getElementById('editModalGuestName').textContent = guestName;
+            document.getElementById('editModalBookingId').textContent = bookingId;
+            document.getElementById('editRoomAmount').value = parsedRoomFee;
+            document.getElementById('editTaxiAmount').value = parsedTaxiFee;
+            document.getElementById('editCommissionAmount').value = parsedCommission;
+            document.getElementById('editAccommodation').value = accommodation;
+            document.getElementById('editRoomsOccupied').value = roomsOccupied;
     
     // Initialize commission field state
     const commissionInput = document.getElementById('editCommissionAmount');
@@ -4738,9 +4773,36 @@ function openEditAmountModal(bookingId, guestName, roomFee, taxiFee, commission)
         console.warn('⚠️ editCommissionAmount element not found for event listener');
     }
     
-    // Show modal
-    const modal = new bootstrap.Modal(document.getElementById('editAmountModal'));
-    modal.show();
+            // Show modal
+            const modal = new bootstrap.Modal(document.getElementById('editAmountModal'));
+            modal.show();
+        })
+        .catch(error => {
+            console.error('Error fetching booking data:', error);
+            // Fallback: use defaults if API fails
+            currentEditBookingData = {
+                bookingId: bookingId,
+                guestName: guestName,
+                roomFee: parsedRoomFee,
+                taxiFee: parsedTaxiFee,
+                commission: parsedCommission,
+                accommodation: '118 Hang Bac Hostel',
+                roomsOccupied: 1
+            };
+
+            // Populate with defaults
+            document.getElementById('editModalGuestName').textContent = guestName;
+            document.getElementById('editModalBookingId').textContent = bookingId;
+            document.getElementById('editRoomAmount').value = parsedRoomFee;
+            document.getElementById('editTaxiAmount').value = parsedTaxiFee;
+            document.getElementById('editCommissionAmount').value = parsedCommission;
+            document.getElementById('editAccommodation').value = '118 Hang Bac Hostel';
+            document.getElementById('editRoomsOccupied').value = 1;
+
+            // Show modal anyway
+            const modal = new bootstrap.Modal(document.getElementById('editAmountModal'));
+            modal.show();
+        });
 }
 
 function updateEditTotalPreview() {
@@ -4859,14 +4921,20 @@ function updateBookingAmounts() {
     confirmBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Đang cập nhật...';
     confirmBtn.disabled = true;
     
+    // Get accommodation and rooms data
+    const accommodation = document.getElementById('editAccommodation').value;
+    const roomsOccupied = parseInt(document.getElementById('editRoomsOccupied').value) || 1;
+
     // Prepare update data for the new API endpoint
     const updateData = {
         booking_id: currentEditBookingData.bookingId,
         room_amount: roomAmount,
         taxi_amount: taxiAmount,
-        edit_note: editNote
+        edit_note: editNote,
+        accommodation_name: accommodation,
+        rooms_occupied: roomsOccupied
     };
-    
+
     // Only include commission if it was modified
     if (commissionAmount !== null) {
         updateData.commission_amount = commissionAmount;

@@ -5633,21 +5633,31 @@ def update_guest_amounts():
         commission_amount = data.get('commission_amount')
         commission_type = data.get('commission_type', 'normal')
         edit_note = data.get('edit_note', '')
-        
+        accommodation_name = data.get('accommodation_name')
+        rooms_occupied = data.get('rooms_occupied')
+
         # Validate input
         if not booking_id:
             return jsonify({'success': False, 'message': 'Missing booking ID'}), 400
-            
+
         # Prepare update data
         update_data = {}
-        
+
         if room_amount is not None:
             update_data['room_amount'] = float(room_amount)
             print(f"[UPDATE_GUEST_AMOUNTS] Setting room_amount to {room_amount}")
-            
+
         if taxi_amount is not None:
             update_data['taxi_amount'] = float(taxi_amount)
             print(f"[UPDATE_GUEST_AMOUNTS] Setting taxi_amount to {taxi_amount}")
+
+        if accommodation_name is not None:
+            update_data['accommodation_name'] = accommodation_name
+            print(f"[UPDATE_GUEST_AMOUNTS] Setting accommodation_name to {accommodation_name}")
+
+        if rooms_occupied is not None:
+            update_data['rooms_occupied'] = int(rooms_occupied)
+            print(f"[UPDATE_GUEST_AMOUNTS] Setting rooms_occupied to {rooms_occupied}")
             
         # Handle commission updates
         if commission_amount is not None:
