@@ -641,7 +641,7 @@ def get_daily_activity(df: pd.DataFrame, target_date: datetime.date) -> Dict[str
         'staying': staying.to_dict('records') if not staying.empty else []
     }
 
-def get_overall_calendar_day_info(df: pd.DataFrame, target_date: str, total_capacity: int = 4) -> Dict[str, Any]:
+def get_overall_calendar_day_info(df: pd.DataFrame, target_date: str, total_capacity: int = 6) -> Dict[str, Any]:
     """Get comprehensive calendar day information matching original function"""
     try:
         target_date_obj = pd.to_datetime(target_date).date()

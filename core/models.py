@@ -66,8 +66,9 @@ class Booking(db.Model):
     booking_id = Column(String(50), primary_key=True)
     guest_id = Column(Integer, ForeignKey('guests.guest_id', ondelete='RESTRICT'), nullable=False, index=True)
     guest_name = Column(String(255), nullable=True, index=True)  # Denormalized guest name for quick access
-    accommodation_name = Column(String(255), nullable=True, default='118 Hang Bac Hostel', index=True)  # Property/room type
-    
+    accommodation_name = Column(String(255), nullable=True, default='118 Hang Bac Hostel', index=True)  # Property/hotel name
+    rooms_occupied = Column(Integer, default=1, nullable=False)  # Number of rooms booked (1-6)
+
     # Booking details
     checkin_date = Column(Date, nullable=False, index=True)
     checkout_date = Column(Date, nullable=False, index=True)

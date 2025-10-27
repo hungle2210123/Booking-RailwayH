@@ -7918,7 +7918,7 @@ def get_ai_calendar_suggestions():
         end_date = (datetime(year, month, cal.monthrange(year, month)[1])).date()
         
         # Hotel configuration
-        MAX_ROOMS_PER_DAY = 4
+        MAX_ROOMS_PER_DAY = 6
         
         # Get all confirmed bookings for the month  
         confirmed_bookings = Booking.query.filter(
@@ -7956,7 +7956,7 @@ def get_ai_calendar_suggestions():
                 
                 current_date += timedelta(days=1)
         
-        # Identify availability gaps (days with < 4 rooms occupied)
+        # Identify availability gaps (days with < 6 rooms occupied)
         availability_gaps = []
         for date, occupancy in daily_occupancy.items():
             available_rooms = MAX_ROOMS_PER_DAY - occupancy
@@ -8050,7 +8050,7 @@ def get_ai_calendar_suggestions():
         high_value_guests = [g for g in canceled_guests if g['can_fit_capacity'] and g['value_score'] > 1000000]
         
         analysis_prompt = f"""
-You are an ELITE hotel revenue optimization AI with advanced scheduling capabilities. You manage a 4-room hotel and must make INTELLIGENT decisions to maximize occupancy and revenue.
+You are an ELITE hotel revenue optimization AI with advanced scheduling capabilities. You manage a 6-room hotel (2 properties) and must make INTELLIGENT decisions to maximize occupancy and revenue.
 
 **🏨 HOTEL CONSTRAINTS:**
 - Maximum 4 rooms per day
