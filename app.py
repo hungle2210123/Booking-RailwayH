@@ -387,8 +387,13 @@ except Exception as e:
     app.config['SQLALCHEMY_DATABASE_URI'] = "sqlite:///fallback.db"
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-# Initialize PostgreSQL database service
-init_database_service(app)
+# Initialize PostgreSQL database service (non-blocking for Railway healthchecks)
+try:
+    init_database_service(app)
+    print("✅ Database service initialized successfully")
+except Exception as db_init_error:
+    print(f"⚠️ Database service initialization delayed: {db_init_error}")
+    print("   App will continue - database will connect on first request")
 
 @app.context_processor
 def inject_pandas():
@@ -503,6 +508,16 @@ def load_data(force_fresh: bool = False):
         return pd.DataFrame(), 0
 
 # --- MAIN ROUTES ---
+
+@app.route('/')
+def healthcheck():
+    """Railway healthcheck endpoint - returns 200 OK without database access"""
+    return jsonify({
+        'status': 'healthy',
+        'service': 'hotel-booking-system',
+        'version': '2.0',
+        'timestamp': datetime.now().isoformat()
+    }), 200
 
 @app.route('/quick_collect')
 def quick_collect():
