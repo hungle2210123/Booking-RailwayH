@@ -1,6 +1,12 @@
+[build]
+builder = "nixpacks"
+nixpacksConfigPath = "nixpacks.toml"
+
 [deploy]
 restartPolicyType = "on_failure"
 restartPolicyMaxRetries = 3
+healthcheckPath = "/"
+healthcheckTimeout = 300
 
 [variables]
 # Railway will automatically inject these
@@ -8,3 +14,4 @@ PORT = { default = "5000" }
 PYTHONPATH = "/app"
 FLASK_APP = "app.py"
 DATABASE_SOURCE = "auto"
+PYTHON_VERSION = "3.11"

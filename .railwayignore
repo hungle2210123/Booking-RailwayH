@@ -1,0 +1,122 @@
+# Railway Ignore - Exclude files from deployment to speed up builds
+# This reduces snapshot size from 7.7MB to much smaller
+
+# Version control
+.git/
+.gitignore
+.gitattributes
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual environments
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.hypothesis/
+
+# Development files
+*.md
+README*
+CHANGELOG*
+LICENSE*
+CONTRIBUTING*
+.editorconfig
+
+# Local database files (Railway uses PostgreSQL)
+*.db
+*.sqlite
+*.sqlite3
+hotel_booking.db
+
+# Migration scripts (already run)
+migration_*.py
+migrate_*.py
+update_*.py
+sync_*.py
+MIGRATION*.py
+FINAL_MIGRATION*.sh
+backup_*.sh
+CLEANUP_*.bat
+
+# Documentation
+docs/
+documentation/
+*.txt
+notes/
+
+# Test files
+test_*.py
+*_test.py
+tests/
+test/
+comprehensive_test.py
+
+# Backup files
+*.backup
+*.bak
+Dockerfile.backup
+Dockerfile.simple
+Dockerfile.disabled
+
+# Railway-specific (keep only active config)
+railway_*.py
+railway_*.sql
+.env.railway
+railway.json
+
+# Windows/System files
+*.bat
+Thumbs.db
+desktop.ini
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.log
+
+# Node modules (if any)
+node_modules/
+
+# Other unnecessary files
+*.csv
+*.xlsx
+screenshots/
+images/
+.claude/
