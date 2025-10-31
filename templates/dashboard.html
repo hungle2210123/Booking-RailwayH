@@ -10139,28 +10139,6 @@ async function editCancellationStatus(bookingId, newStatus) {
         console.error('💥 [EDIT_CANCELLATION] Exception:', error);
         alert('💥 Error updating cancellation status: ' + error.message);
     }
-},
-            body: JSON.stringify({
-                booking_id: bookingId,
-                action_status: newStatus
-            })
-        });
-        
-        const data = await response.json();
-        
-        if (data.success) {
-            alert(`Status updated: ${data.message}`);
-            // Refresh the list
-            viewConfirmedCancellations();
-            // Refresh the page to update alerts
-            setTimeout(() => window.location.reload(), 1000);
-        } else {
-            alert('Failed to update status: ' + data.error);
-        }
-    } catch (error) {
-        console.error('Error updating cancellation status:', error);
-        alert('Error updating cancellation status');
-    }
 }
 
 // Delete cancellation
