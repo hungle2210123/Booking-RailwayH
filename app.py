@@ -431,6 +431,30 @@ try:
 
     print(f"✅ Database configured: {database_url[:30]}...")
     print(f"✅ Connection timeout: 10s | Query timeout: 30s")
+
+    # CRITICAL: Test the database connection before proceeding
+    # If connection fails, fallback to SQLite immediately
+    if database_url.startswith('postgresql'):
+        print("🔍 Testing PostgreSQL connection...")
+        try:
+            from sqlalchemy import create_engine, text
+            test_engine = create_engine(
+                database_url,
+                connect_args={'connect_timeout': 5},
+                pool_pre_ping=True
+            )
+            with test_engine.connect() as conn:
+                conn.execute(text("SELECT 1"))
+            test_engine.dispose()
+            print("✅ PostgreSQL connection test PASSED")
+        except Exception as test_error:
+            print(f"❌ PostgreSQL connection test FAILED: {test_error}")
+            print("🔧 FALLBACK: Switching to SQLite for Railway deployment...")
+            database_url = "sqlite:///hotel_booking_railway.db"
+            app.config['SQLALCHEMY_DATABASE_URI'] = database_url
+            app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {}
+            print("✅ SQLite fallback configured successfully")
+
 except Exception as e:
     print(f"❌ Database configuration error: {e}")
     print("🔧 Using SQLite fallback...")
