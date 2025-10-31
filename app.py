@@ -340,12 +340,12 @@ if database_url:
     if original_url != database_url:
         print(f"🔧 Removed quotes: {database_url[:50]}...")
 
-    # CRITICAL: Use Railway internal networking URL directly
-    # Private Networking is ENABLED, so postgres.railway.internal will work
+    # Railway internal networking URL - will work if Private Networking is enabled
+    # If not enabled, Railway will show proper error messages
     if 'postgres.railway.internal' in database_url or 'railway.internal' in database_url:
-        print("✅ DETECTED INTERNAL NETWORKING URL - Private Networking enabled!")
-        print(f"   Using: {database_url}")
-        print("✅ Will connect via Railway's internal private network")
+        print("✅ Using Railway internal networking URL")
+        print(f"   Database URL: {database_url[:60]}...")
+        print("   Note: Requires Private Networking enabled in Railway")
 
     # Final validation
     if database_url:
@@ -425,28 +425,9 @@ try:
     print(f"✅ Database configured: {database_url[:30]}...")
     print(f"✅ Connection timeout: 10s | Query timeout: 30s")
 
-    # CRITICAL: Test the database connection before proceeding
-    # If connection fails, fallback to SQLite immediately
-    if database_url.startswith('postgresql'):
-        print("🔍 Testing PostgreSQL connection...")
-        try:
-            from sqlalchemy import create_engine, text
-            test_engine = create_engine(
-                database_url,
-                connect_args={'connect_timeout': 5},
-                pool_pre_ping=True
-            )
-            with test_engine.connect() as conn:
-                conn.execute(text("SELECT 1"))
-            test_engine.dispose()
-            print("✅ PostgreSQL connection test PASSED")
-        except Exception as test_error:
-            print(f"❌ PostgreSQL connection test FAILED: {test_error}")
-            print("🔧 FALLBACK: Switching to SQLite for Railway deployment...")
-            database_url = "sqlite:///hotel_booking_railway.db"
-            app.config['SQLALCHEMY_DATABASE_URI'] = database_url
-            app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {}
-            print("✅ SQLite fallback configured successfully")
+    # NOTE: Removed connection test - it was causing unnecessary SQLite fallback
+    # The app will naturally connect when needed, and show proper errors if it fails
+    # This matches the working configuration from commit 691bf70
 
 except Exception as e:
     print(f"❌ Database configuration error: {e}")
