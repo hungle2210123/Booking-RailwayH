@@ -10,50 +10,81 @@ from sqlalchemy import create_engine, text
 from datetime import datetime
 
 # Detect environment and use appropriate database
-is_railway = bool(os.getenv('RAILWAY_ENVIRONMENT_ID'))
-DATABASE_URL = os.getenv('DATABASE_URL') if is_railway else "postgresql://postgres:locloc123@localhost:5432/hotel_booking"
+# Railway detection: Check for DATABASE_URL containing railway.internal or Railway environment variables
+is_railway = bool(
+    os.getenv('RAILWAY_ENVIRONMENT') or
+    os.getenv('RAILWAY_ENVIRONMENT_ID') or
+    os.getenv('RAILWAY_SERVICE_ID') or
+    (os.getenv('DATABASE_URL') and 'railway' in os.getenv('DATABASE_URL', '').lower())
+)
+DATABASE_URL = os.getenv('DATABASE_URL', "postgresql://postgres:locloc123@localhost:5432/hotel_booking")
 
 print("=" * 80)
 print("🏢 APARTMENT MANAGEMENT SYSTEM - DATABASE MIGRATION")
 print("=" * 80)
 print(f"🌍 Environment: {'Railway' if is_railway else 'Local'}")
-print(f"📍 Database: {DATABASE_URL[:50]}...")
+print(f"📍 Railway Detection Methods:")
+print(f"   - RAILWAY_ENVIRONMENT: {bool(os.getenv('RAILWAY_ENVIRONMENT'))}")
+print(f"   - RAILWAY_ENVIRONMENT_ID: {bool(os.getenv('RAILWAY_ENVIRONMENT_ID'))}")
+print(f"   - RAILWAY_SERVICE_ID: {bool(os.getenv('RAILWAY_SERVICE_ID'))}")
+print(f"   - DATABASE_URL contains 'railway': {bool(os.getenv('DATABASE_URL') and 'railway' in os.getenv('DATABASE_URL', '').lower())}")
+print(f"📍 Database URL: {DATABASE_URL[:70]}...")
+print(f"📍 Database URL length: {len(DATABASE_URL)}")
 print("=" * 80)
 
-# Create engine
+# Create engine with better error handling
 try:
-    engine = create_engine(DATABASE_URL)
-    print("✅ Connected to database")
+    print("🔄 Creating database engine...")
+    engine = create_engine(DATABASE_URL, echo=False)
+    print("✅ Engine created")
+
+    # Test connection
+    print("🔄 Testing database connection...")
+    with engine.connect() as conn:
+        result = conn.execute(text("SELECT 1"))
+        print("✅ Database connection successful")
 except Exception as e:
     print(f"❌ Connection failed: {e}")
+    import traceback
+    traceback.print_exc()
     sys.exit(1)
 
 # Step 0: Create guests table if it doesn't exist
 print("\n📋 STEP 0: Creating guests table if needed...")
-create_guests_table_sql = """
-CREATE TABLE IF NOT EXISTS guests (
-    guest_id SERIAL PRIMARY KEY,
-    full_name VARCHAR(255) NOT NULL,
-    email VARCHAR(255) UNIQUE,
-    phone VARCHAR(50),
-    nationality VARCHAR(100),
-    passport_number VARCHAR(100),
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE INDEX IF NOT EXISTS idx_guests_name ON guests(full_name);
-CREATE INDEX IF NOT EXISTS idx_guests_email ON guests(email);
-CREATE INDEX IF NOT EXISTS idx_guests_phone ON guests(phone);
-"""
 
 try:
-    with engine.begin() as conn:
-        conn.execute(text(create_guests_table_sql))
-        print("✅ Guests table created/verified successfully")
+    from sqlalchemy import inspect
+    inspector = inspect(engine)
+    tables = inspector.get_table_names()
+
+    if 'guests' not in tables:
+        print("   Creating guests table from scratch...")
+        create_guests_table_sql = """
+        CREATE TABLE guests (
+            guest_id SERIAL PRIMARY KEY,
+            full_name VARCHAR(255) NOT NULL,
+            email VARCHAR(255) UNIQUE,
+            phone VARCHAR(50),
+            nationality VARCHAR(100),
+            passport_number VARCHAR(100),
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+
+        CREATE INDEX idx_guests_name ON guests(full_name);
+        CREATE INDEX idx_guests_email ON guests(email);
+        CREATE INDEX idx_guests_phone ON guests(phone);
+        """
+
+        with engine.begin() as conn:
+            conn.execute(text(create_guests_table_sql))
+        print("✅ Guests table created successfully")
+    else:
+        print("✅ Guests table already exists - skipping creation")
+
 except Exception as e:
-    print(f"⚠️  Guests table creation: {e}")
-    # Continue anyway - might already exist
+    print(f"⚠️  Guests table check/creation: {e}")
+    print("   Continuing anyway - guests features may be limited")
 
 # Step 1: Create apartments table
 print("\n📋 STEP 1: Creating apartments table...")
@@ -182,40 +213,53 @@ except Exception as e:
 # Step 4.5: Create guest records from bookings if needed
 print("\n📋 STEP 4.5: Creating guest records from bookings...")
 try:
-    with engine.begin() as conn:
-        # Check if bookings have guest_name but no guest_id
-        create_guests_sql = """
-        INSERT INTO guests (full_name, created_at)
-        SELECT DISTINCT
-            COALESCE(guest_name, 'Unknown Guest') as full_name,
-            CURRENT_TIMESTAMP
-        FROM bookings
-        WHERE guest_name IS NOT NULL
-        AND NOT EXISTS (
-            SELECT 1 FROM guests WHERE guests.full_name = bookings.guest_name
-        )
-        ON CONFLICT (full_name) DO NOTHING;
-        """
+    # Check if guests table exists and has correct schema
+    from sqlalchemy import inspect
+    inspector = inspect(engine)
+    tables = inspector.get_table_names()
 
-        # First create guests
-        result = conn.execute(text(create_guests_sql))
-        print(f"✅ Created {result.rowcount} guest records from bookings")
+    if 'guests' not in tables:
+        print("⚠️  Guests table doesn't exist - skipping guest record creation")
+    else:
+        # Check if full_name column exists
+        columns = [col['name'] for col in inspector.get_columns('guests')]
+        if 'full_name' not in columns:
+            print(f"⚠️  Guests table has wrong schema (columns: {columns}) - skipping")
+        else:
+            with engine.begin() as conn:
+                # Check if bookings have guest_name but no guest_id
+                create_guests_sql = """
+                INSERT INTO guests (full_name, created_at)
+                SELECT DISTINCT
+                    COALESCE(guest_name, 'Unknown Guest') as full_name,
+                    CURRENT_TIMESTAMP
+                FROM bookings
+                WHERE guest_name IS NOT NULL
+                AND NOT EXISTS (
+                    SELECT 1 FROM guests WHERE guests.full_name = bookings.guest_name
+                )
+                ON CONFLICT DO NOTHING;
+                """
 
-        # Then link bookings to guests
-        link_guests_sql = """
-        UPDATE bookings b
-        SET guest_id = (
-            SELECT guest_id
-            FROM guests g
-            WHERE g.full_name = b.guest_name
-            LIMIT 1
-        )
-        WHERE b.guest_id IS NULL
-        AND b.guest_name IS NOT NULL;
-        """
+                # First create guests
+                result = conn.execute(text(create_guests_sql))
+                print(f"✅ Created {result.rowcount} guest records from bookings")
 
-        result = conn.execute(text(link_guests_sql))
-        print(f"✅ Linked {result.rowcount} bookings to guest records")
+                # Then link bookings to guests
+                link_guests_sql = """
+                UPDATE bookings b
+                SET guest_id = (
+                    SELECT guest_id
+                    FROM guests g
+                    WHERE g.full_name = b.guest_name
+                    LIMIT 1
+                )
+                WHERE b.guest_id IS NULL
+                AND b.guest_name IS NOT NULL;
+                """
+
+                result = conn.execute(text(link_guests_sql))
+                print(f"✅ Linked {result.rowcount} bookings to guest records")
 
 except Exception as e:
     print(f"⚠️  Error creating guest records: {e}")
