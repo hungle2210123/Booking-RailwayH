@@ -509,7 +509,7 @@ def load_data(force_fresh: bool = False):
 
 # --- MAIN ROUTES ---
 
-@app.route('/')
+@app.route('/health')
 def healthcheck():
     """Railway healthcheck endpoint - returns 200 OK without database access"""
     return jsonify({
