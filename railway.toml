@@ -5,10 +5,9 @@ dockerfilePath = "Dockerfile"
 [deploy]
 restartPolicyType = "on_failure"
 restartPolicyMaxRetries = 3
-healthcheckPath = "/"
-healthcheckTimeout = 300  # Back to 300s - give container time to start
-healthcheckInitialDelay = 10  # Wait 10 seconds before first healthcheck
-# startCommand removed - let Dockerfile CMD handle it
+# TEMPORARILY DISABLE healthcheck to see container logs
+healthcheckPath = null
+healthcheckTimeout = null
 
 # Resource limits for Railway Hobby plan (prevents billing spikes)
 # Hobby: 8 vCPU, 8 GB RAM available
