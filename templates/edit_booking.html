@@ -177,11 +177,17 @@
                             <input type="text" id="guest_name" name="guest_name" value="{{ booking.get('Tên người đặt', '') }}" required>
                         </div>
                         <div class="form-group">
-                            <label for="room_type"><i class="fas fa-bed me-1"></i>Tên chỗ nghỉ</label>
+                            <label for="room_type"><i class="fas fa-bed me-1"></i>Phòng</label>
                             <select id="room_type" name="Tên chỗ nghỉ" class="form-control" required>
-                                <option value="118 Hang Bac Hostel" {% if booking.get('Tên chỗ nghỉ', '') == '118 Hang Bac Hostel' %}selected{% endif %}>118 Hang Bac Hostel (Mặc định)</option>
-                                <option value="Kitchen & Balcony" {% if booking.get('Tên chỗ nghỉ', '') == 'Kitchen & Balcony' %}selected{% endif %}>Kitchen & Balcony</option>
-                                <option value="Night market" {% if booking.get('Tên chỗ nghỉ', '') == 'Night market' %}selected{% endif %}>Night market</option>
+                                <optgroup label="🏨 118 Hang Bac Hostel">
+                                    <option value="118 hang bac" {% if booking.get('Tên chỗ nghỉ', '') == '118 hang bac' or booking.get('Tên chỗ nghỉ', '') == '118 Hang Bac Hostel' %}selected{% endif %}>118 hang bac</option>
+                                    <option value="kitchen" {% if booking.get('Tên chỗ nghỉ', '') == 'kitchen' or booking.get('Tên chỗ nghỉ', '') == 'Kitchen & Balcony' %}selected{% endif %}>kitchen</option>
+                                    <option value="night market" {% if booking.get('Tên chỗ nghỉ', '') == 'night market' or booking.get('Tên chỗ nghỉ', '') == 'Night market' %}selected{% endif %}>night market</option>
+                                </optgroup>
+                                <optgroup label="🏘️ 18 Hang Be">
+                                    <option value="hang be 101" {% if booking.get('Tên chỗ nghỉ', '') == 'hang be 101' %}selected{% endif %}>hang be 101</option>
+                                    <option value="hang be 102" {% if booking.get('Tên chỗ nghỉ', '') == 'hang be 102' %}selected{% endif %}>hang be 102</option>
+                                </optgroup>
                             </select>
                         </div>
                     </div>

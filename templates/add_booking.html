@@ -241,9 +241,15 @@ h1, h2, h3, h4, h5, h6 {
                     </div>
                     <div class="col-md-4">
                         <select class="form-select" id="aiRoomType" onchange="updateAIRoomType()">
-                            <option value="118 Hang Bac Hostel">118 Hang Bac Hostel (Mặc định)</option>
-                            <option value="Kitchen & Balcony">Kitchen & Balcony</option>
-                            <option value="Night market">Night market</option>
+                            <optgroup label="🏨 118 Hang Bac Hostel">
+                                <option value="118 hang bac">118 hang bac</option>
+                                <option value="kitchen">kitchen</option>
+                                <option value="night market">night market</option>
+                            </optgroup>
+                            <optgroup label="🏘️ 18 Hang Be">
+                                <option value="hang be 101">hang be 101</option>
+                                <option value="hang be 102">hang be 102</option>
+                            </optgroup>
                         </select>
                     </div>
                 </div>
@@ -390,12 +396,18 @@ h1, h2, h3, h4, h5, h6 {
                 <!-- Room Type -->
                 <div class="col-md-12">
                     <label for="manual-room-type" class="form-label">
-                        <i class="fas fa-building me-1"></i>Loại Phòng *
+                        <i class="fas fa-bed me-1"></i>Phòng *
                     </label>
                     <select class="form-select" id="manual-room-type" required>
-                        <option value="118 Hang Bac Hostel">118 Hang Bac Hostel</option>
-                        <option value="Kitchen & Balcony">Kitchen & Balcony</option>
-                        <option value="Night market">Night market</option>
+                        <optgroup label="🏨 118 Hang Bac Hostel">
+                            <option value="118 hang bac">118 hang bac</option>
+                            <option value="kitchen">kitchen</option>
+                            <option value="night market">night market</option>
+                        </optgroup>
+                        <optgroup label="🏘️ 18 Hang Be">
+                            <option value="hang be 101">hang be 101</option>
+                            <option value="hang be 102">hang be 102</option>
+                        </optgroup>
                     </select>
                 </div>
 
@@ -483,11 +495,17 @@ CHỈ trả về JSON, không cần text khác.
                         <div class="alert alert-info border-0">
                             <i class="fas fa-home me-2"></i><strong>Chọn loại phòng:</strong> Khi AI xử lý ảnh, tên chỗ nghỉ sẽ được tự động đặt theo lựa chọn của bạn.
                         </div>
-                        <label for="roomType" class="form-label"><i class="fas fa-building me-1"></i>Loại phòng *</label>
+                        <label for="roomType" class="form-label"><i class="fas fa-bed me-1"></i>Phòng *</label>
                         <select class="form-select" id="roomType" name="roomType" required onchange="updateAccommodationName()">
-                            <option value="118 Hang Bac Hostel">118 Hang Bac Hostel (Mặc định)</option>
-                            <option value="Kitchen & Balcony">Kitchen & Balcony</option>
-                            <option value="Night market">Night market</option>
+                            <optgroup label="🏨 118 Hang Bac Hostel">
+                                <option value="118 hang bac">118 hang bac</option>
+                                <option value="kitchen">kitchen</option>
+                                <option value="night market">night market</option>
+                            </optgroup>
+                            <optgroup label="🏘️ 18 Hang Be">
+                                <option value="hang be 101">hang be 101</option>
+                                <option value="hang be 102">hang be 102</option>
+                            </optgroup>
                         </select>
                     </div>
                     
