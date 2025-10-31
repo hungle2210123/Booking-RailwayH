@@ -525,7 +525,7 @@ def is_valid_date(date_value):
 
 # Environment configuration (PostgreSQL only)
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")  # Only for Gemini AI
-TOTAL_HOTEL_CAPACITY = 6  # Total: 5 rooms + 1 buffer (118 Hang Bac: 3 rooms, 18 Hang Be: 2 rooms)
+TOTAL_HOTEL_CAPACITY = 6  # Total: 6 rooms (118 Hang Bac: 4 rooms, 18 Hang Be: 2 rooms)
 
 # Initialize Google Gemini AI (for image processing only)
 if GOOGLE_API_KEY and genai:

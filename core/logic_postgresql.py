@@ -659,7 +659,7 @@ def get_overall_calendar_day_info(df: pd.DataFrame, target_date: str, total_capa
                 'commission_total': 0,
                 'revenue_minus_commission': 0,
                 'apt1_occupied': 0,
-                'apt1_available': 3,
+                'apt1_available': 4,
                 'apt2_occupied': 0,
                 'apt2_available': 2
             }
@@ -702,7 +702,7 @@ def get_overall_calendar_day_info(df: pd.DataFrame, target_date: str, total_capa
                 elif any(apt2_room.lower() in room_lower for apt2_room in apt2_rooms):
                     apt2_occupied += 1
 
-        apt1_available = max(0, 3 - apt1_occupied)  # 118 Hang Bac has 3 rooms
+        apt1_available = max(0, 4 - apt1_occupied)  # 118 Hang Bac has 4 rooms
         apt2_available = max(0, 2 - apt2_occupied)  # 18 Hang Be has 2 rooms
         
         # Calculate activity counts
@@ -778,7 +778,7 @@ def get_overall_calendar_day_info(df: pd.DataFrame, target_date: str, total_capa
             'status_color': 'empty',
             'error': str(e),
             'apt1_occupied': 0,
-            'apt1_available': 3,
+            'apt1_available': 4,
             'apt2_occupied': 0,
             'apt2_available': 2
         }
