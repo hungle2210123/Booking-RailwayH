@@ -569,6 +569,54 @@ def healthcheck():
         'timestamp': datetime.now().isoformat()
     }), 200
 
+@app.route('/debug/db-config')
+def debug_db_config():
+    """Debug endpoint to show database configuration (for troubleshooting only)"""
+    import os
+
+    # Get all database-related environment variables
+    db_vars = {}
+    for key in os.environ.keys():
+        if any(keyword in key.upper() for keyword in ['DATABASE', 'POSTGRES', 'DB_', 'RAILWAY']):
+            value = os.environ[key]
+            # Mask password for security
+            if 'URL' in key.upper() or 'PASSWORD' in key.upper():
+                if '@' in value:
+                    # Show everything except password
+                    parts = value.split('@')
+                    if '://' in parts[0]:
+                        protocol_user = parts[0].split('://')
+                        if ':' in protocol_user[1]:
+                            user = protocol_user[1].split(':')[0]
+                            masked = f"{protocol_user[0]}://{user}:***MASKED***@{parts[1]}"
+                        else:
+                            masked = value
+                    else:
+                        masked = value
+                else:
+                    masked = '***MASKED***'
+            else:
+                masked = value
+            db_vars[key] = masked
+
+    # Get current app configuration
+    current_db_uri = app.config.get('SQLALCHEMY_DATABASE_URI', 'NOT SET')
+    if current_db_uri and current_db_uri != 'NOT SET':
+        if '@' in current_db_uri:
+            parts = current_db_uri.split('@')
+            if '://' in parts[0]:
+                protocol_user = parts[0].split('://')
+                if ':' in protocol_user[1]:
+                    user = protocol_user[1].split(':')[0]
+                    current_db_uri = f"{protocol_user[0]}://{user}:***MASKED***@{parts[1]}"
+
+    return jsonify({
+        'environment_variables': db_vars,
+        'current_sqlalchemy_uri': current_db_uri,
+        'railway_detected': bool(os.getenv('RAILWAY_ENVIRONMENT_ID') or os.getenv('RAILWAY_PROJECT_ID')),
+        'database_source_setting': os.getenv('DATABASE_SOURCE', 'auto')
+    }), 200
+
 @app.route('/quick_collect')
 def quick_collect():
     """Quick payment collection page - bypasses broken frontend"""
