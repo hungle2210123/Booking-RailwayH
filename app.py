@@ -9525,6 +9525,145 @@ def get_prorated_monthly_revenue():
         traceback.print_exc()
         return jsonify({'success': False, 'error': str(e)}), 500
 
+@app.route('/api/apartments_config', methods=['GET'])
+def get_apartments_config():
+    """
+    🏗️ DATABASE-DRIVEN APARTMENT CONFIGURATION
+    Provides dynamic apartment/room data for frontend
+    NO CODE CHANGES NEEDED when adding new apartments/rooms!
+    """
+    try:
+        from core.models import Apartment, Room, db
+
+        # Get all active apartments with their rooms
+        apartments = db.session.query(Apartment).filter(
+            Apartment.is_active == True
+        ).order_by(Apartment.apartment_id).all()
+
+        apartments_data = []
+        total_capacity = 0
+
+        for apt in apartments:
+            # Get rooms for this apartment
+            rooms = db.session.query(Room).filter(
+                Room.apartment_id == apt.apartment_id,
+                Room.is_active == True
+            ).order_by(Room.display_order, Room.room_id).all()
+
+            room_count = len(rooms)
+            total_capacity += room_count
+
+            # Assign color scheme based on apartment ID
+            color_schemes = {
+                1: {'primary': '#1976D2', 'secondary': '#0D47A1', 'emoji': '🔵', 'name': 'Blue'},
+                2: {'primary': '#388E3C', 'secondary': '#1B5E20', 'emoji': '🟢', 'name': 'Green'},
+                3: {'primary': '#F57C00', 'secondary': '#E65100', 'emoji': '🟠', 'name': 'Orange'},
+                4: {'primary': '#7B1FA2', 'secondary': '#4A148C', 'emoji': '🟣', 'name': 'Purple'},
+                5: {'primary': '#C2185B', 'secondary': '#880E4F', 'emoji': '🔴', 'name': 'Red'},
+                6: {'primary': '#0097A7', 'secondary': '#006064', 'emoji': '🔷', 'name': 'Cyan'},
+                7: {'primary': '#AFB42B', 'secondary': '#827717', 'emoji': '🟡', 'name': 'Lime'},
+                8: {'primary': '#5D4037', 'secondary': '#3E2723', 'emoji': '🟤', 'name': 'Brown'},
+                9: {'primary': '#455A64', 'secondary': '#263238', 'emoji': '⚫', 'name': 'Grey'},
+                10: {'primary': '#D32F2F', 'secondary': '#B71C1C', 'emoji': '🔺', 'name': 'DeepRed'}
+            }
+
+            color_scheme = color_schemes.get(apt.apartment_id, color_schemes[1])
+
+            apartments_data.append({
+                'apartment_id': apt.apartment_id,
+                'apartment_name': apt.apartment_name,
+                'room_count': room_count,
+                'rooms': [{'room_id': r.room_id, 'room_name': r.room_name, 'room_type': r.room_type} for r in rooms],
+                'color': color_scheme
+            })
+
+        return jsonify({
+            'success': True,
+            'apartments': apartments_data,
+            'total_capacity': total_capacity,
+            'apartment_count': len(apartments_data)
+        })
+
+    except Exception as e:
+        print(f"❌ [APARTMENTS_CONFIG] Error: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/apartment_management')
+def apartment_management():
+    """Apartment and Room Management UI"""
+    return render_template('apartment_management.html')
+
+@app.route('/api/apartments', methods=['POST'])
+def add_apartment():
+    """Add new apartment"""
+    try:
+        from core.models import Apartment, db
+        data = request.get_json()
+
+        new_apartment = Apartment(
+            apartment_name=data['apartment_name'],
+            apartment_address=data.get('apartment_address', ''),
+            apartment_type=data.get('apartment_type', 'Hostel'),
+            is_active=True
+        )
+
+        db.session.add(new_apartment)
+        db.session.commit()
+
+        return jsonify({'success': True, 'apartment_id': new_apartment.apartment_id})
+
+    except Exception as e:
+        db.session.rollback()
+        print(f"❌ Error adding apartment: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/rooms', methods=['POST'])
+def add_room():
+    """Add new room to apartment"""
+    try:
+        from core.models import Room, db
+        data = request.get_json()
+
+        new_room = Room(
+            room_name=data['room_name'],
+            apartment_id=data['apartment_id'],
+            room_type=data.get('room_type', 'Standard Room'),
+            max_guests=data.get('max_guests', 2),
+            is_active=True
+        )
+
+        db.session.add(new_room)
+        db.session.commit()
+
+        return jsonify({'success': True, 'room_id': new_room.room_id})
+
+    except Exception as e:
+        db.session.rollback()
+        print(f"❌ Error adding room: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/rooms/<int:room_id>', methods=['DELETE'])
+def delete_room(room_id):
+    """Delete room (soft delete - set is_active=False)"""
+    try:
+        from core.models import Room, db
+
+        room = db.session.query(Room).filter(Room.room_id == room_id).first()
+        if not room:
+            return jsonify({'success': False, 'error': 'Room not found'}), 404
+
+        room.is_active = False
+        db.session.commit()
+
+        return jsonify({'success': True})
+
+    except Exception as e:
+        db.session.rollback()
+        print(f"❌ Error deleting room: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 @app.route('/api/railway_status', methods=['GET'])
 def railway_status():
     """Debug endpoint for Railway deployment status"""

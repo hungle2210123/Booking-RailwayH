@@ -684,26 +684,82 @@ def get_overall_calendar_day_info(df: pd.DataFrame, target_date: str, total_capa
         occupied_units = len(active_on_date)
         available_units = max(0, total_capacity - occupied_units)
 
-        # 🏢 APARTMENT-SEPARATED CAPACITY CALCULATION
-        # Apartment 1: 118 Hang Bac (3 rooms)
-        apt1_rooms = ['118 hang bac', '118 Hang Bac Hostel', 'kitchen', 'Kitchen & Balcony', 'night market', 'Night market']
-        # Apartment 2: 18 Hang Be (2 rooms)
-        apt2_rooms = ['hang be 101', 'hang be 102']
+        # 🏢 APARTMENT-SEPARATED CAPACITY CALCULATION (DATABASE-DRIVEN)
+        # Dynamically get apartment capacities and room mappings from database
+        from core.models import Apartment, Room, db
 
-        apt1_occupied = 0
-        apt2_occupied = 0
+        try:
+            # Get all active apartments with their room counts
+            apartments_query = db.session.query(
+                Apartment.apartment_id,
+                Apartment.apartment_name,
+                db.func.count(Room.room_id).label('room_count')
+            ).outerjoin(
+                Room, (Room.apartment_id == Apartment.apartment_id) & (Room.is_active == True)
+            ).filter(
+                Apartment.is_active == True
+            ).group_by(
+                Apartment.apartment_id,
+                Apartment.apartment_name
+            ).order_by(
+                Apartment.apartment_id
+            ).all()
 
-        for _, booking in active_on_date.iterrows():
-            room_name = booking.get('Tên chỗ nghỉ', '')
-            if room_name:
-                room_lower = str(room_name).lower()
-                if any(apt1_room.lower() in room_lower for apt1_room in apt1_rooms):
-                    apt1_occupied += 1
-                elif any(apt2_room.lower() in room_lower for apt2_room in apt2_rooms):
-                    apt2_occupied += 1
+            # Build room-to-apartment mapping
+            room_to_apartment = {}
+            apartment_capacities = {}
 
-        apt1_available = max(0, 4 - apt1_occupied)  # 118 Hang Bac has 4 rooms
-        apt2_available = max(0, 2 - apt2_occupied)  # 18 Hang Be has 2 rooms
+            for apt in apartments_query:
+                apartment_capacities[apt.apartment_id] = apt.room_count
+
+                # Get room names for this apartment
+                rooms = db.session.query(Room.room_name).filter(
+                    Room.apartment_id == apt.apartment_id,
+                    Room.is_active == True
+                ).all()
+
+                for room in rooms:
+                    room_to_apartment[room.room_name.lower()] = apt.apartment_id
+
+            # Count occupied rooms per apartment
+            apartment_occupied = {apt.apartment_id: 0 for apt in apartments_query}
+
+            for _, booking in active_on_date.iterrows():
+                room_name = booking.get('Tên chỗ nghỉ', '')
+                if room_name:
+                    room_lower = str(room_name).lower().strip()
+                    # Find matching apartment
+                    for db_room_name, apt_id in room_to_apartment.items():
+                        if db_room_name in room_lower or room_lower in db_room_name:
+                            apartment_occupied[apt_id] = apartment_occupied.get(apt_id, 0) + 1
+                            break
+
+            # Calculate availability for each apartment
+            # Support up to 10 apartments (future-proof)
+            apartment_data = {}
+            for apt in apartments_query:
+                apt_id = apt.apartment_id
+                capacity = apartment_capacities.get(apt_id, 0)
+                occupied = apartment_occupied.get(apt_id, 0)
+                apartment_data[f'apt{apt_id}_occupied'] = occupied
+                apartment_data[f'apt{apt_id}_available'] = max(0, capacity - occupied)
+                apartment_data[f'apt{apt_id}_capacity'] = capacity
+                apartment_data[f'apt{apt_id}_name'] = apt.apartment_name
+
+            # Legacy support for apt1 and apt2 (backward compatibility)
+            apt1_occupied = apartment_data.get('apt1_occupied', 0)
+            apt1_available = apartment_data.get('apt1_available', 0)
+            apt2_occupied = apartment_data.get('apt2_occupied', 0)
+            apt2_available = apartment_data.get('apt2_available', 0)
+
+        except Exception as e:
+            print(f"⚠️ Error calculating apartment capacity: {e}")
+            # Fallback to safe defaults
+            apt1_occupied = 0
+            apt1_available = 4
+            apt2_occupied = 0
+            apt2_available = 2
+            apartment_data = {}
         
         # Calculate activity counts
         activity = get_daily_activity(df_local, target_date_obj)
@@ -751,7 +807,7 @@ def get_overall_calendar_day_info(df: pd.DataFrame, target_date: str, total_capa
             status_text = f"{available_units}/{total_capacity} trống"
             status_color = "occupied"
         
-        return {
+        result = {
             'occupied_units': occupied_units,
             'available_units': available_units,
             'status_text': status_text,
@@ -768,6 +824,12 @@ def get_overall_calendar_day_info(df: pd.DataFrame, target_date: str, total_capa
             'apt2_occupied': apt2_occupied,
             'apt2_available': apt2_available
         }
+
+        # Add all dynamic apartment data
+        if 'apartment_data' in locals() and apartment_data:
+            result.update(apartment_data)
+
+        return result
         
     except Exception as e:
         print(f"Error getting calendar day info: {e}")
