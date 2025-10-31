@@ -619,31 +619,64 @@
         <li class="breadcrumb-item active">Tổng quan về hiệu suất khách sạn</li>
     </ol>
 
-    <!-- Hotel Filter Controls -->
-    <div class="card border-primary shadow-sm mb-4">
+    <!-- Professional Apartment Tabs Filter -->
+    <div class="card border-0 shadow-sm mb-4" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
         <div class="card-body p-3">
-            <div class="row align-items-center">
-                <div class="col-md-3">
-                    <label class="form-label mb-1 small fw-bold">
-                        <i class="fas fa-hotel me-1"></i>Lọc theo khách sạn:
-                    </label>
-                    <select class="form-select form-select-sm" id="hotelFilter" onchange="filterByHotel()">
-                        <option value="all">🏨 Tất cả (6 phòng)</option>
-                        <option value="118 Hang Bac Hostel">🏨 118 Hàng Bạc (4 phòng)</option>
-                        <option value="18 Hang Be">🏘️ 18 Hàng Bè (2 phòng)</option>
-                    </select>
-                </div>
-                <div class="col-md-9 text-end mt-2 mt-md-0">
-                    <span class="badge bg-success me-2" id="filterStatus">
-                        <i class="fas fa-check-circle"></i> Hiển thị: Tất cả khách sạn
-                    </span>
-                    <button class="btn btn-sm btn-outline-primary" onclick="resetHotelFilter()">
-                        <i class="fas fa-redo"></i> Reset
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5 class="text-white mb-0">
+                    <i class="fas fa-building"></i> Lọc Theo Chung Cư
+                </h5>
+                <a href="/apartments" class="btn btn-light btn-sm">
+                    <i class="fas fa-cog"></i> Quản Lý Chung Cư
+                </a>
+            </div>
+
+            <!-- Apartment Tabs -->
+            <ul class="nav nav-pills mb-3" id="apartmentTabs" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active" id="tab-all" data-apartment-id="all"
+                            onclick="filterByApartment('all')" type="button">
+                        <i class="fas fa-th-large"></i> Tất Cả
                     </button>
-                </div>
+                </li>
+                <!-- Dynamic apartment tabs will be loaded here -->
+            </ul>
+
+            <!-- Current Filter Status -->
+            <div class="d-flex align-items-center">
+                <span class="badge bg-white text-primary px-3 py-2" id="apartmentFilterStatus">
+                    <i class="fas fa-info-circle"></i> <span id="apartmentFilterText">Hiển thị: Tất cả chung cư</span>
+                </span>
+                <span class="badge bg-light text-dark ms-2 px-3 py-2" id="apartmentStatsText">
+                    0 đặt phòng
+                </span>
             </div>
         </div>
     </div>
+
+    <style>
+        #apartmentTabs .nav-link {
+            color: white;
+            border: 2px solid rgba(255,255,255,0.3);
+            margin-right: 10px;
+            margin-bottom: 10px;
+            transition: all 0.3s ease;
+            background: rgba(255,255,255,0.1);
+            border-radius: 8px;
+            font-weight: 600;
+        }
+        #apartmentTabs .nav-link:hover {
+            background: rgba(255,255,255,0.2);
+            border-color: rgba(255,255,255,0.6);
+            transform: translateY(-2px);
+        }
+        #apartmentTabs .nav-link.active {
+            background: white;
+            color: #667eea;
+            border-color: white;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+    </style>
 
 
 
@@ -12275,65 +12308,141 @@ setTimeout(() => {
 }, 3000);
 
 // ========================================
-// HOTEL FILTER FUNCTIONS (Multi-property support)
+// 🏢 APARTMENT FILTER SYSTEM (Professional Multi-Property)
 // ========================================
-let currentHotelFilter = 'all';
+let currentApartmentFilter = 'all';
+let apartmentsData = [];
+let bookingsData = [];
 
-function filterByHotel() {
-    const selectedHotel = document.getElementById('hotelFilter').value;
-    currentHotelFilter = selectedHotel;
+// Load apartments on page load
+async function loadApartments() {
+    try {
+        const response = await fetch('/api/apartments');
+        const data = await response.json();
 
-    console.log(`🏨 [HOTEL_FILTER] Filtering by: ${selectedHotel}`);
-
-    // Update status badge
-    const statusBadge = document.getElementById('filterStatus');
-    if (selectedHotel === 'all') {
-        statusBadge.innerHTML = '<i class="fas fa-check-circle"></i> Hiển thị: Tất cả khách sạn';
-        statusBadge.className = 'badge bg-success me-2';
-    } else if (selectedHotel === '118 Hang Bac Hostel') {
-        statusBadge.innerHTML = '<i class="fas fa-hotel"></i> 118 Hàng Bạc (4 phòng)';
-        statusBadge.className = 'badge bg-primary me-2';
-    } else {
-        statusBadge.innerHTML = '<i class="fas fa-building"></i> 18 Hàng Bè (2 phòng)';
-        statusBadge.className = 'badge bg-info me-2';
+        if (data.success) {
+            apartmentsData = data.apartments;
+            renderApartmentTabs();
+            console.log(`✅ [APARTMENT_FILTER] Loaded ${apartmentsData.length} apartments`);
+        } else {
+            console.error('❌ [APARTMENT_FILTER] Failed to load apartments:', data.error);
+        }
+    } catch (error) {
+        console.error('❌ [APARTMENT_FILTER] Error loading apartments:', error);
     }
-
-    // Apply filter to all booking displays
-    applyHotelFilter(selectedHotel);
-
-    // Show toast notification
-    const hotelName = selectedHotel === 'all' ? 'Tất cả' : (selectedHotel === '118 Hang Bac Hostel' ? '118 Hàng Bạc' : '18 Hàng Bè');
-    showDashboardToast(`🏨 Lọc theo: ${hotelName}`, 'info');
 }
 
-function applyHotelFilter(hotel) {
-    // Filter booking cards/rows based on accommodation_name
-    const allBookingElements = document.querySelectorAll('[data-accommodation], .booking-card, .guest-card');
+// Render apartment tabs dynamically
+function renderApartmentTabs() {
+    const tabsContainer = document.getElementById('apartmentTabs');
+    if (!tabsContainer) return;
+
+    // Keep the "All" tab, add apartment tabs
+    const apartmentTabsHTML = apartmentsData.map(apt => `
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="tab-${apt.apartment_id}" data-apartment-id="${apt.apartment_id}"
+                    onclick="filterByApartment(${apt.apartment_id})" type="button">
+                <i class="fas fa-building"></i> ${apt.apartment_name}
+                <span class="badge bg-light text-dark ms-1">${apt.total_rooms} phòng</span>
+            </button>
+        </li>
+    `).join('');
+
+    // Append to existing tabs (after "All" tab)
+    tabsContainer.innerHTML += apartmentTabsHTML;
+
+    console.log(`✅ [APARTMENT_FILTER] Rendered ${apartmentsData.length} apartment tabs`);
+}
+
+// Filter by apartment
+function filterByApartment(apartmentId) {
+    currentApartmentFilter = apartmentId;
+
+    console.log(`🏢 [APARTMENT_FILTER] Filtering by apartment: ${apartmentId}`);
+
+    // Update active tab
+    const allTabs = document.querySelectorAll('#apartmentTabs .nav-link');
+    allTabs.forEach(tab => {
+        const tabAptId = tab.getAttribute('data-apartment-id');
+        if (tabAptId == apartmentId || (tabAptId === 'all' && apartmentId === 'all')) {
+            tab.classList.add('active');
+        } else {
+            tab.classList.remove('active');
+        }
+    });
+
+    // Update status text
+    updateApartmentFilterStatus(apartmentId);
+
+    // Apply filter to booking displays
+    applyApartmentFilter(apartmentId);
+
+    // Show toast notification
+    const apartment = apartmentsData.find(a => a.apartment_id == apartmentId);
+    const filterName = apartmentId === 'all' ? 'Tất cả chung cư' : apartment?.apartment_name || 'Unknown';
+    showDashboardToast(`🏢 Lọc theo: ${filterName}`, 'info');
+}
+
+// Update filter status display
+function updateApartmentFilterStatus(apartmentId) {
+    const filterText = document.getElementById('apartmentFilterText');
+    const statsText = document.getElementById('apartmentStatsText');
+
+    if (apartmentId === 'all') {
+        filterText.textContent = 'Hiển thị: Tất cả chung cư';
+        const totalBookings = document.querySelectorAll('[data-apartment-id]').length;
+        statsText.textContent = `${totalBookings} đặt phòng`;
+    } else {
+        const apartment = apartmentsData.find(a => a.apartment_id == apartmentId);
+        if (apartment) {
+            filterText.textContent = `Hiển thị: ${apartment.apartment_name}`;
+            const visibleBookings = document.querySelectorAll(`[data-apartment-id="${apartmentId}"]`).length;
+            statsText.textContent = `${visibleBookings} đặt phòng | ${apartment.total_rooms} phòng`;
+        }
+    }
+}
+
+// Apply apartment filter to all booking elements
+function applyApartmentFilter(apartmentId) {
+    // Filter booking cards/rows based on apartment_id
+    const allBookingElements = document.querySelectorAll('[data-apartment-id], .booking-card, .guest-card');
+
+    let visibleCount = 0;
 
     allBookingElements.forEach(element => {
-        const accommodation = element.getAttribute('data-accommodation') ||
-                            element.querySelector('[data-accommodation]')?.getAttribute('data-accommodation');
+        const elementAptId = element.getAttribute('data-apartment-id');
 
-        if (hotel === 'all') {
+        if (apartmentId === 'all' || !elementAptId) {
             element.style.display = '';  // Show all
-        } else if (accommodation === hotel) {
+            visibleCount++;
+        } else if (elementAptId == apartmentId) {
             element.style.display = '';  // Show matching
+            visibleCount++;
         } else {
             element.style.display = 'none';  // Hide non-matching
         }
     });
 
-    // Note: For full filtering, we would need to reload data from backend
-    // This is a simple client-side filter for demonstration
-    console.log(`✅ [HOTEL_FILTER] Applied filter for: ${hotel}`);
+    console.log(`✅ [APARTMENT_FILTER] Applied filter for apartment ${apartmentId}: ${visibleCount} bookings visible`);
+}
+
+// Backward compatibility - redirect old hotel filter to new apartment filter
+function filterByHotel() {
+    console.log('⚠️  [DEPRECATED] filterByHotel() called - redirecting to filterByApartment()');
+    filterByApartment('all');
 }
 
 function resetHotelFilter() {
-    document.getElementById('hotelFilter').value = 'all';
-    filterByHotel();
+    filterByApartment('all');
 }
 
-console.log('🏨 [HOTEL_FILTER] Hotel filter functions loaded');
+// Initialize apartment filter on page load
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('🏢 [APARTMENT_FILTER] Initializing apartment filter system...');
+    loadApartments();
+});
+
+console.log('🏢 [APARTMENT_FILTER] Apartment filter system loaded');
 
 </script>
 {% endblock %}

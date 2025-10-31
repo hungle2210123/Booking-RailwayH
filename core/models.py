@@ -57,16 +57,73 @@ class Guest(db.Model):
         }
 
 # =====================================================
+# APARTMENTS TABLE - Property/Building Management
+# =====================================================
+class Apartment(db.Model):
+    __tablename__ = 'apartments'
+
+    # Primary identification
+    apartment_id = Column(Integer, primary_key=True, autoincrement=True)
+    apartment_name = Column(String(255), nullable=False, unique=True, index=True)
+    apartment_address = Column(Text)
+
+    # Capacity
+    total_rooms = Column(Integer, default=1, nullable=False)
+    max_guests_per_room = Column(Integer, default=2)
+
+    # Property details
+    apartment_type = Column(String(100))  # Studio, 1BR, 2BR, Hostel, etc.
+    floor_number = Column(Integer)
+    building_name = Column(String(255))
+
+    # Status
+    is_active = Column(Boolean, default=True, nullable=False, index=True)
+
+    # Contact and notes
+    owner_name = Column(String(255))
+    owner_phone = Column(String(50))
+    property_notes = Column(Text)
+
+    # Audit fields
+    created_at = Column(DateTime, default=func.current_timestamp())
+    updated_at = Column(DateTime, default=func.current_timestamp(), onupdate=func.current_timestamp())
+
+    # Relationships
+    bookings = relationship("Booking", back_populates="apartment", cascade="all, delete-orphan")
+
+    def __repr__(self):
+        return f"<Apartment {self.apartment_id}: {self.apartment_name}>"
+
+    def to_dict(self):
+        return {
+            'apartment_id': self.apartment_id,
+            'apartment_name': self.apartment_name,
+            'apartment_address': self.apartment_address,
+            'total_rooms': self.total_rooms,
+            'max_guests_per_room': self.max_guests_per_room,
+            'apartment_type': self.apartment_type,
+            'floor_number': self.floor_number,
+            'building_name': self.building_name,
+            'is_active': self.is_active,
+            'owner_name': self.owner_name,
+            'owner_phone': self.owner_phone,
+            'property_notes': self.property_notes,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None
+        }
+
+# =====================================================
 # BOOKINGS TABLE - Core booking information
 # =====================================================
 class Booking(db.Model):
     __tablename__ = 'bookings'
-    
+
     # Primary identification
     booking_id = Column(String(50), primary_key=True)
     guest_id = Column(Integer, ForeignKey('guests.guest_id', ondelete='RESTRICT'), nullable=False, index=True)
     guest_name = Column(String(255), nullable=True, index=True)  # Denormalized guest name for quick access
-    accommodation_name = Column(String(255), nullable=True, default='118 Hang Bac Hostel', index=True)  # Property/hotel name
+    apartment_id = Column(Integer, ForeignKey('apartments.apartment_id', ondelete='RESTRICT'), nullable=True, index=True)  # Link to apartment
+    accommodation_name = Column(String(255), nullable=True, default='118 Hang Bac Hostel', index=True)  # Legacy - keep for backward compatibility
     rooms_occupied = Column(Integer, default=1, nullable=False)  # Number of rooms booked (1-6)
 
     # Booking details
@@ -98,6 +155,7 @@ class Booking(db.Model):
     
     # Relationships
     guest = relationship("Guest", back_populates="bookings")
+    apartment = relationship("Apartment", back_populates="bookings")
     arrival_time = relationship("ArrivalTime", back_populates="booking", uselist=False, cascade="all, delete-orphan")
     
     # Constraints
@@ -132,6 +190,9 @@ class Booking(db.Model):
             'booking_id': self.booking_id,
             'guest_id': self.guest_id,
             'guest_name': self.guest.full_name if self.guest else None,
+            'apartment_id': self.apartment_id,
+            'apartment_name': self.apartment.apartment_name if self.apartment else self.accommodation_name,
+            'accommodation_name': self.accommodation_name,  # Legacy field
             'checkin_date': self.checkin_date.isoformat() if self.checkin_date else None,
             'checkout_date': self.checkout_date.isoformat() if self.checkout_date else None,
             'nights': self.nights,

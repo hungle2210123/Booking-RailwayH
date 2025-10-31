@@ -93,7 +93,22 @@
       "Bash(PGPASSWORD=locloc123 psql:*)",
       "Bash(claude doctor)",
       "Bash(cat:*)",
-      "Bash(export PGPASSWORD=locloc123)"
+      "Bash(export PGPASSWORD=locloc123)",
+      "WebFetch(domain:status.railway.app)",
+      "WebFetch(domain:status.railway.com)",
+      "WebFetch(domain:docs.railway.app)",
+      "WebFetch(domain:docs.railway.com)",
+      "WebFetch(domain:station.railway.com)",
+      "Bash(git rm:*)",
+      "WebFetch(domain:web-production-8f671.up.railway.app)",
+      "mcp__firecrawl-advanced__firecrawl_search",
+      "Bash(git log:*)",
+      "Bash(PGPASSWORD=VmyAveAhkGVOFlSiVBWgyIEAUbKAXEPi psql -h mainline.proxy.rlwy.net -p 36647 -U postgres -d railway -c \"SELECT COUNT(*) as total_bookings FROM bookings;\")",
+      "Bash(PGPASSWORD=VmyAveAhkGVOFlSiVBWgyIEAUbKAXEPi psql -h mainline.proxy.rlwy.net -p 36647 -U postgres -d railway -c \"\\dt\")",
+      "Read(//mnt/c/Users/T14/Desktop/hotel_flask_app/**)",
+      "Bash(sqlite3:*)",
+      "Bash(PGPASSWORD=VmyAveAhkGVOFlSiVBWgyIEAUbKAXEPi psql -h mainline.proxy.rlwy.net -p 36647 -U postgres -d railway -c \"SELECT COUNT(*) FROM bookings;\")",
+      "Read(//tmp/**)"
     ],
     "deny": []
   },

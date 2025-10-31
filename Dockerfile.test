@@ -1,0 +1,19 @@
+# ULTRA MINIMAL TEST DOCKERFILE - Bypasses all complex imports
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# Install ONLY Flask and gunicorn (nothing else)
+RUN pip install --no-cache-dir flask==2.3.3 gunicorn==21.2.0
+
+# Copy ONLY the test script
+COPY test_minimal.py .
+
+# Make it executable
+RUN chmod +x test_minimal.py
+
+# Set PORT
+ENV PORT=5000
+
+# Run the minimal test
+CMD ["python3", "test_minimal.py"]

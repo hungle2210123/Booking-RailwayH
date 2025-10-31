@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🏢 Quản Lý Chung Cư - Hotel Management</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        .main-container {
+            max-width: 1400px;
+            margin: 20px auto;
+            padding: 20px;
+        }
+        .header-card {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            margin-bottom: 30px;
+        }
+        .apartment-card {
+            background: white;
+            border-radius: 12px;
+            padding: 25px;
+            margin-bottom: 20px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            transition: all 0.3s ease;
+            border-left: 5px solid #667eea;
+        }
+        .apartment-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+        }
+        .apartment-card.inactive {
+            opacity: 0.6;
+            border-left-color: #dc3545;
+        }
+        .stat-badge {
+            display: inline-block;
+            padding: 8px 15px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            margin-right: 10px;
+            margin-bottom: 10px;
+        }
+        .stat-badge.primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        .stat-badge.success {
+            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+            color: white;
+        }
+        .stat-badge.info {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+        }
+        .btn-modern {
+            border-radius: 8px;
+            padding: 10px 20px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            border: none;
+        }
+        .btn-modern:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+        .modal-content {
+            border-radius: 15px;
+            border: none;
+        }
+        .modal-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 15px 15px 0 0;
+        }
+        .form-control, .form-select {
+            border-radius: 8px;
+            border: 2px solid #e0e0e0;
+            padding: 10px 15px;
+        }
+        .form-control:focus, .form-select:focus {
+            border-color: #667eea;
+            box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+        }
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #6c757d;
+        }
+        .empty-state i {
+            font-size: 4rem;
+            margin-bottom: 20px;
+            color: #dee2e6;
+        }
+    </style>
+</head>
+<body>
+    <div class="main-container">
+        <!-- Header -->
+        <div class="header-card">
+            <div class="row align-items-center">
+                <div class="col-md-6">
+                    <h1 class="mb-0">
+                        <i class="fas fa-building text-primary"></i>
+                        Quản Lý Chung Cư / Khách Sạn
+                    </h1>
+                    <p class="text-muted mb-0 mt-2">Quản lý thông tin các căn hộ và khách sạn của bạn</p>
+                </div>
+                <div class="col-md-6 text-end">
+                    <button class="btn btn-success btn-modern me-2" onclick="showAddApartmentModal()">
+                        <i class="fas fa-plus-circle"></i> Thêm Chung Cư Mới
+                    </button>
+                    <button class="btn btn-primary btn-modern" onclick="loadApartments()">
+                        <i class="fas fa-sync-alt"></i> Tải Lại
+                    </button>
+                    <a href="/" class="btn btn-secondary btn-modern">
+                        <i class="fas fa-home"></i> Dashboard
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Summary Stats -->
+        <div id="summaryStats" class="row mb-4">
+            <!-- Will be populated dynamically -->
+        </div>
+
+        <!-- Apartments List -->
+        <div id="apartmentsList">
+            <!-- Will be populated dynamically -->
+        </div>
+    </div>
+
+    <!-- Add/Edit Apartment Modal -->
+    <div class="modal fade" id="apartmentModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="apartmentModalTitle">
+                        <i class="fas fa-building"></i> Thêm Chung Cư Mới
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="apartmentForm">
+                        <input type="hidden" id="apartmentId">
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label fw-bold">
+                                    <i class="fas fa-tag"></i> Tên Chung Cư *
+                                </label>
+                                <input type="text" class="form-control" id="apartmentName" required
+                                       placeholder="VD: 118 Hang Bac Hostel">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label fw-bold">
+                                    <i class="fas fa-building"></i> Loại Hình
+                                </label>
+                                <select class="form-select" id="apartmentType">
+                                    <option value="">-- Chọn loại --</option>
+                                    <option value="Hostel">Hostel</option>
+                                    <option value="Hotel">Khách sạn</option>
+                                    <option value="Apartment">Căn hộ</option>
+                                    <option value="Studio">Studio</option>
+                                    <option value="1BR">1 phòng ngủ</option>
+                                    <option value="2BR">2 phòng ngủ</option>
+                                    <option value="Villa">Villa</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">
+                                <i class="fas fa-map-marker-alt"></i> Địa Chỉ
+                            </label>
+                            <textarea class="form-control" id="apartmentAddress" rows="2"
+                                      placeholder="VD: 118 Hàng Bạc, Hoàn Kiếm, Hà Nội"></textarea>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label fw-bold">
+                                    <i class="fas fa-bed"></i> Số Phòng *
+                                </label>
+                                <input type="number" class="form-control" id="totalRooms" min="1" value="1" required>
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label fw-bold">
+                                    <i class="fas fa-users"></i> Khách/Phòng
+                                </label>
+                                <input type="number" class="form-control" id="maxGuestsPerRoom" min="1" value="2">
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label fw-bold">
+                                    <i class="fas fa-layer-group"></i> Tầng
+                                </label>
+                                <input type="number" class="form-control" id="floorNumber" placeholder="VD: 3">
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">
+                                <i class="fas fa-building"></i> Tòa Nhà
+                            </label>
+                            <input type="text" class="form-control" id="buildingName"
+                                   placeholder="VD: Tòa nhà A, Khu phố cổ">
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label fw-bold">
+                                    <i class="fas fa-user"></i> Chủ Sở Hữu
+                                </label>
+                                <input type="text" class="form-control" id="ownerName" placeholder="Tên chủ nhà">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label fw-bold">
+                                    <i class="fas fa-phone"></i> SĐT Chủ Nhà
+                                </label>
+                                <input type="text" class="form-control" id="ownerPhone" placeholder="0123456789">
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">
+                                <i class="fas fa-sticky-note"></i> Ghi Chú
+                            </label>
+                            <textarea class="form-control" id="propertyNotes" rows="3"
+                                      placeholder="Ghi chú thêm về chung cư..."></textarea>
+                        </div>
+
+                        <div class="form-check form-switch mb-3">
+                            <input class="form-check-input" type="checkbox" id="isActive" checked>
+                            <label class="form-check-label fw-bold" for="isActive">
+                                <i class="fas fa-toggle-on"></i> Đang Hoạt Động
+                            </label>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                    <button type="button" class="btn btn-primary" onclick="saveApartment()">
+                        <i class="fas fa-save"></i> Lưu Thông Tin
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Stats Modal -->
+    <div class="modal fade" id="statsModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="fas fa-chart-bar"></i> Thống Kê Chi Tiết
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body" id="statsModalBody">
+                    <!-- Will be populated dynamically -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        let apartments = [];
+        let currentApartment = null;
+
+        // Load apartments on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            loadApartments();
+        });
+
+        async function loadApartments() {
+            try {
+                const response = await fetch('/api/apartments');
+                const data = await response.json();
+
+                if (data.success) {
+                    apartments = data.apartments;
+                    renderApartments();
+                    renderSummaryStats();
+                } else {
+                    alert('Lỗi: ' + data.error);
+                }
+            } catch (error) {
+                console.error('Error loading apartments:', error);
+                alert('Không thể tải danh sách chung cư!');
+            }
+        }
+
+        function renderSummaryStats() {
+            const totalApartments = apartments.length;
+            const totalRooms = apartments.reduce((sum, apt) => sum + (apt.total_rooms || 0), 0);
+            const activeApartments = apartments.filter(apt => apt.is_active).length;
+
+            const html = `
+                <div class="col-md-4">
+                    <div class="card border-0 shadow-sm">
+                        <div class="card-body text-center">
+                            <h3 class="text-primary mb-0">${totalApartments}</h3>
+                            <p class="text-muted mb-0">Tổng Chung Cư</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card border-0 shadow-sm">
+                        <div class="card-body text-center">
+                            <h3 class="text-success mb-0">${totalRooms}</h3>
+                            <p class="text-muted mb-0">Tổng Phòng</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card border-0 shadow-sm">
+                        <div class="card-body text-center">
+                            <h3 class="text-info mb-0">${activeApartments}</h3>
+                            <p class="text-muted mb-0">Đang Hoạt Động</p>
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.getElementById('summaryStats').innerHTML = html;
+        }
+
+        function renderApartments() {
+            const container = document.getElementById('apartmentsList');
+
+            if (apartments.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <i class="fas fa-building"></i>
+                        <h4>Chưa có chung cư nào</h4>
+                        <p>Nhấn "Thêm Chung Cư Mới" để bắt đầu</p>
+                    </div>
+                `;
+                return;
+            }
+
+            const html = apartments.map(apt => `
+                <div class="apartment-card ${apt.is_active ? '' : 'inactive'}">
+                    <div class="row align-items-center">
+                        <div class="col-md-8">
+                            <h4 class="mb-2">
+                                <i class="fas fa-building text-primary"></i>
+                                ${apt.apartment_name}
+                                ${apt.is_active ? '<span class="badge bg-success ms-2">Hoạt động</span>' : '<span class="badge bg-danger ms-2">Ngưng</span>'}
+                            </h4>
+                            ${apt.apartment_address ? `<p class="text-muted mb-2"><i class="fas fa-map-marker-alt"></i> ${apt.apartment_address}</p>` : ''}
+
+                            <div class="mt-3">
+                                <span class="stat-badge primary">
+                                    <i class="fas fa-bed"></i> ${apt.total_rooms} phòng
+                                </span>
+                                ${apt.apartment_type ? `<span class="stat-badge info"><i class="fas fa-tag"></i> ${apt.apartment_type}</span>` : ''}
+                                ${apt.floor_number ? `<span class="stat-badge success"><i class="fas fa-layer-group"></i> Tầng ${apt.floor_number}</span>` : ''}
+                            </div>
+
+                            ${apt.property_notes ? `<p class="text-muted mt-2 mb-0"><small><i class="fas fa-sticky-note"></i> ${apt.property_notes}</small></p>` : ''}
+                        </div>
+                        <div class="col-md-4 text-end">
+                            <button class="btn btn-info btn-modern mb-2" onclick="showStats(${apt.apartment_id})" title="Xem thống kê">
+                                <i class="fas fa-chart-bar"></i> Thống Kê
+                            </button>
+                            <button class="btn btn-primary btn-modern mb-2" onclick="editApartment(${apt.apartment_id})" title="Chỉnh sửa">
+                                <i class="fas fa-edit"></i> Sửa
+                            </button>
+                            <button class="btn btn-danger btn-modern mb-2" onclick="deleteApartment(${apt.apartment_id}, '${apt.apartment_name}')" title="Xóa">
+                                <i class="fas fa-trash"></i> Xóa
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+
+            container.innerHTML = html;
+        }
+
+        function showAddApartmentModal() {
+            currentApartment = null;
+            document.getElementById('apartmentModalTitle').innerHTML = '<i class="fas fa-plus-circle"></i> Thêm Chung Cư Mới';
+            document.getElementById('apartmentForm').reset();
+            document.getElementById('apartmentId').value = '';
+            document.getElementById('isActive').checked = true;
+            new bootstrap.Modal(document.getElementById('apartmentModal')).show();
+        }
+
+        function editApartment(apartmentId) {
+            const apartment = apartments.find(a => a.apartment_id === apartmentId);
+            if (!apartment) return;
+
+            currentApartment = apartment;
+            document.getElementById('apartmentModalTitle').innerHTML = '<i class="fas fa-edit"></i> Chỉnh Sửa Chung Cư';
+            document.getElementById('apartmentId').value = apartment.apartment_id;
+            document.getElementById('apartmentName').value = apartment.apartment_name || '';
+            document.getElementById('apartmentAddress').value = apartment.apartment_address || '';
+            document.getElementById('totalRooms').value = apartment.total_rooms || 1;
+            document.getElementById('maxGuestsPerRoom').value = apartment.max_guests_per_room || 2;
+            document.getElementById('apartmentType').value = apartment.apartment_type || '';
+            document.getElementById('floorNumber').value = apartment.floor_number || '';
+            document.getElementById('buildingName').value = apartment.building_name || '';
+            document.getElementById('ownerName').value = apartment.owner_name || '';
+            document.getElementById('ownerPhone').value = apartment.owner_phone || '';
+            document.getElementById('propertyNotes').value = apartment.property_notes || '';
+            document.getElementById('isActive').checked = apartment.is_active;
+
+            new bootstrap.Modal(document.getElementById('apartmentModal')).show();
+        }
+
+        async function saveApartment() {
+            const apartmentId = document.getElementById('apartmentId').value;
+            const data = {
+                apartment_name: document.getElementById('apartmentName').value,
+                apartment_address: document.getElementById('apartmentAddress').value,
+                total_rooms: parseInt(document.getElementById('totalRooms').value),
+                max_guests_per_room: parseInt(document.getElementById('maxGuestsPerRoom').value),
+                apartment_type: document.getElementById('apartmentType').value,
+                floor_number: document.getElementById('floorNumber').value ? parseInt(document.getElementById('floorNumber').value) : null,
+                building_name: document.getElementById('buildingName').value,
+                owner_name: document.getElementById('ownerName').value,
+                owner_phone: document.getElementById('ownerPhone').value,
+                property_notes: document.getElementById('propertyNotes').value,
+                is_active: document.getElementById('isActive').checked
+            };
+
+            try {
+                const url = apartmentId ? `/api/apartments/${apartmentId}` : '/api/apartments';
+                const method = apartmentId ? 'PUT' : 'POST';
+
+                const response = await fetch(url, {
+                    method: method,
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    alert(result.message);
+                    bootstrap.Modal.getInstance(document.getElementById('apartmentModal')).hide();
+                    loadApartments();
+                } else {
+                    alert('Lỗi: ' + result.error);
+                }
+            } catch (error) {
+                console.error('Error saving apartment:', error);
+                alert('Không thể lưu thông tin chung cư!');
+            }
+        }
+
+        async function deleteApartment(apartmentId, apartmentName) {
+            if (!confirm(`Bạn có chắc muốn xóa "${apartmentName}"?\n\nNếu có booking, chung cư sẽ bị vô hiệu hóa thay vì xóa.`)) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/apartments/${apartmentId}`, {
+                    method: 'DELETE'
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    alert(result.message);
+                    loadApartments();
+                } else {
+                    alert('Lỗi: ' + result.error);
+                }
+            } catch (error) {
+                console.error('Error deleting apartment:', error);
+                alert('Không thể xóa chung cư!');
+            }
+        }
+
+        async function showStats(apartmentId) {
+            try {
+                const response = await fetch(`/api/apartments/${apartmentId}/stats`);
+                const data = await response.json();
+
+                if (data.success) {
+                    const apt = data.apartment;
+                    const stats = data.stats;
+
+                    const html = `
+                        <h4 class="mb-4">${apt.apartment_name}</h4>
+
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <div class="card bg-light">
+                                    <div class="card-body text-center">
+                                        <h2 class="text-primary mb-0">${stats.total_bookings}</h2>
+                                        <p class="mb-0">Tổng Đặt Phòng</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="card bg-light">
+                                    <div class="card-body text-center">
+                                        <h2 class="text-success mb-0">${stats.active_bookings}</h2>
+                                        <p class="mb-0">Đang Ở</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <div class="card bg-light">
+                                    <div class="card-body text-center">
+                                        <h2 class="text-info mb-0">${stats.upcoming_bookings}</h2>
+                                        <p class="mb-0">Sắp Đến</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="card bg-light">
+                                    <div class="card-body text-center">
+                                        <h2 class="text-warning mb-0">${stats.occupancy_rate.toFixed(1)}%</h2>
+                                        <p class="mb-0">Tỷ Lệ Lấp Đầy</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <h5 class="mb-3"><i class="fas fa-money-bill-wave"></i> Doanh Thu</h5>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="card bg-success text-white">
+                                    <div class="card-body text-center">
+                                        <h3 class="mb-0">${stats.monthly_revenue.toLocaleString('vi-VN')}đ</h3>
+                                        <p class="mb-0">Tháng Này</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="card bg-primary text-white">
+                                    <div class="card-body text-center">
+                                        <h3 class="mb-0">${stats.total_revenue.toLocaleString('vi-VN')}đ</h3>
+                                        <p class="mb-0">Tổng Doanh Thu</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+
+                    document.getElementById('statsModalBody').innerHTML = html;
+                    new bootstrap.Modal(document.getElementById('statsModal')).show();
+                } else {
+                    alert('Lỗi: ' + data.error);
+                }
+            } catch (error) {
+                console.error('Error loading stats:', error);
+                alert('Không thể tải thống kê!');
+            }
+        }
+    </script>
+</body>
+</html>

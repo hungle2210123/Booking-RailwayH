@@ -1,0 +1,32 @@
+{
+    "current_sqlalchemy_uri": "postgresql+psycopg2://postgres:***MASKED***@postgres.railway.internal:5432/railway",
+    "database_source_setting": "auto",
+    "environment_variables": {
+        "DATABASE_SOURCE": "auto",
+        "DATABASE_URL": "postgresql://postgres:***MASKED***@postgres.railway.internal:5432/railway",
+        "RAILWAY_BETA_ENABLE_RUNTIME_V2": "1",
+        "RAILWAY_DEPLOYMENT_ID": "953f72ca-fe60-4132-9830-84dc92f80d84",
+        "RAILWAY_ENVIRONMENT": "production",
+        "RAILWAY_ENVIRONMENT_ID": "7a8696b9-897d-4aed-aee0-f37605b26f4f",
+        "RAILWAY_ENVIRONMENT_NAME": "production",
+        "RAILWAY_GIT_AUTHOR": "hungle2210123",
+        "RAILWAY_GIT_BRANCH": "main",
+        "RAILWAY_GIT_COMMIT_MESSAGE": "\ud83d\udd25 CRITICAL FIX: Remove connection test - restore working database config\n\n**PROBLEM IDENTIFIED:**\n- Commit 691bf70 (July 2025) was working perfectly with 112 bookings\n- Recent \"fixes\" added connection test that fails \u2192 forces SQLite fallback\n- This caused ALL user data to disappear (112 bookings lost from view)\n\n**ROOT CAUSE:**\n- Added PostgreSQL connection test in commit cbaa53a\n- Test fails due to Private Networking connectivity issues\n- App falls back to empty SQLite database\n- User's 112 bookings in PostgreSQL become inaccessible\n\n**THE FIX:**\n1. REMOVED connection test (lines 435-449)\n   - Working version 691bf70 didn't have this test\n   - Let SQLAlchemy handle connections naturally\n   - Proper errors will show if database actually fails\n\n2. SIMPLIFIED URL handling\n   - Removed complex URL conversion logic\n   - Use Railway's DATABASE_URL as-is\n   - Trust Railway's Private Networking\n\n**EXPECTED RESULT:**\n- App will connect to Railway PostgreSQL directly\n- User's 112 bookings will be visible again\n- No more SQLite fallback hiding the data\n\n**MATCHES:** Working configuration from commit 691bf70\n\n\ud83d\ude91 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude <noreply@anthropic.com>",
+        "RAILWAY_GIT_COMMIT_SHA": "db8ebef4f33e80b9babc0f4350bc3474879bf7ba",
+        "RAILWAY_GIT_REPO_NAME": "Booking-RailwayH",
+        "RAILWAY_GIT_REPO_OWNER": "hungle2210123",
+        "RAILWAY_PRIVATE_DOMAIN": "web.railway.internal",
+        "RAILWAY_PROJECT_ID": "737a7acf-57a7-494e-8d32-385fb4a641b4",
+        "RAILWAY_PROJECT_NAME": "focused-fascination",
+        "RAILWAY_PUBLIC_DOMAIN": "web-production-8f671.up.railway.app",
+        "RAILWAY_REPLICA_ID": "3c04c045-4e26-484e-a964-56c8a4cdff81",
+        "RAILWAY_REPLICA_REGION": "asia-southeast1-eqsg3a",
+        "RAILWAY_SERVICE_ID": "c2c6cf49-ba3c-4152-9802-6e675d3a3561",
+        "RAILWAY_SERVICE_NAME": "web",
+        "RAILWAY_SERVICE_WEB_URL": "***MASKED***",
+        "RAILWAY_SNAPSHOT_ID": "e5320e8b-4eff-447b-b03d-cefaeed7ee9c",
+        "RAILWAY_STATIC_URL": "***MASKED***",
+        "USE_POSTGRESQL": "true"
+    },
+    "railway_detected": true
+}
