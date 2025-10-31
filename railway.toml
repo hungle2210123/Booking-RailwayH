@@ -6,7 +6,15 @@ dockerfilePath = "Dockerfile"
 restartPolicyType = "on_failure"
 restartPolicyMaxRetries = 3
 healthcheckPath = "/"
-healthcheckTimeout = 300
+healthcheckTimeout = 100  # Reduced from 300s - Hobby plan is faster
+startCommand = "python3 run.py"
+
+# Resource limits for Railway Hobby plan (prevents billing spikes)
+# Hobby: 8 vCPU, 8 GB RAM available
+# Setting limits at 80% of max to leave headroom
+[deploy.resources]
+cpuLimit = 6.4  # 80% of 8 vCPU
+memoryLimit = 6400  # 80% of 8192 MB = 6400 MB
 
 [variables]
 # Railway will automatically inject these

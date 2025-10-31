@@ -112,19 +112,23 @@ def main():
     print(f"\n✅ ALL CHECKS PASSED - Starting gunicorn on 0.0.0.0:{port}")
     print("=" * 60)
 
-    # Step 5: Start gunicorn
+    # Step 5: Start gunicorn optimized for Railway Hobby (8 vCPU, 8GB RAM)
+    # Formula: workers = (2 x CPU cores) + 1 = (2 x 8) + 1 = 17 workers
+    # But we'll use 4 workers to leave headroom for database connections
     cmd = [
         'gunicorn',
         'app:app',
         '--bind', f'0.0.0.0:{port}',
-        '--workers', '2',
+        '--workers', '4',  # Increased from 2 to 4 for Hobby plan (8 vCPU)
         '--worker-class', 'sync',
-        '--timeout', '300',
-        '--graceful-timeout', '300',
+        '--timeout', '120',  # Reduced from 300 to 120 (Hobby has better performance)
+        '--graceful-timeout', '120',
         '--keep-alive', '5',
+        '--max-requests', '1000',  # Restart workers after 1000 requests to prevent memory leaks
+        '--max-requests-jitter', '100',  # Add randomness to prevent all workers restarting at once
         '--access-logfile', '-',
         '--error-logfile', '-',
-        '--log-level', 'debug',  # Changed to debug for more visibility
+        '--log-level', 'info',  # Changed from debug to info (less verbose)
         '--preload',  # Preload app to catch errors early
     ]
 
