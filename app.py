@@ -262,22 +262,44 @@ elif database_source == 'railway':
 elif database_source == 'auto':
     # Smart Auto-detect: Prefer Railway for data completeness, fallback to local
     is_railway_deployed = bool(os.getenv('RAILWAY_ENVIRONMENT_ID') or os.getenv('RAILWAY_PROJECT_ID') or os.getenv('RAILWAY_SERVICE_ID'))
-    railway_postgres_url = os.getenv('POSTGRES_URL') or os.getenv('RAILWAY_POSTGRES_URL') or os.getenv('DATABASE_URL')
-    
+
+    # CRITICAL FIX: Railway provides multiple DATABASE_URL variants
+    # Priority: PUBLIC_URL (for free/hobby without Private Networking) > internal URL
+    railway_public_url = os.getenv('DATABASE_PUBLIC_URL') or os.getenv('POSTGRES_PUBLIC_URL')
+    railway_private_url = os.getenv('DATABASE_PRIVATE_URL') or os.getenv('POSTGRES_PRIVATE_URL')
+    railway_generic_url = os.getenv('DATABASE_URL') or os.getenv('POSTGRES_URL')
+
     print(f"🔍 Railway deployment detected: {'✅' if is_railway_deployed else '❌'}")
-    print(f"🔍 Railway DB configured: {'✅' if railway_postgres_url else '❌'}")
-    
-    # Priority: Railway production URL > Railway configured URL > Local DB
-    if is_railway_deployed and railway_postgres_url:
-        database_url = railway_postgres_url
-        print(f"🚂 AUTO: Railway production - Using Railway PostgreSQL: {database_url[:50]}...")
+    print(f"🔍 Railway Public URL: {'✅' if railway_public_url else '❌'}")
+    print(f"🔍 Railway Private URL: {'✅' if railway_private_url else '❌'}")
+    print(f"🔍 Railway Generic URL: {'✅' if railway_generic_url else '❌'}")
+
+    # Priority: Railway public URL > configured Railway URL > generic URL > local DB
+    if is_railway_deployed:
+        # When deployed to Railway, prefer public URL (works without Private Networking)
+        if railway_public_url:
+            database_url = railway_public_url
+            print(f"🚂 AUTO: Railway production (PUBLIC) - Using public PostgreSQL: {database_url[:50]}...")
+        elif railway_generic_url and 'railway.internal' not in railway_generic_url:
+            # Use generic URL if it's NOT the internal networking URL
+            database_url = railway_generic_url
+            print(f"🚂 AUTO: Railway production - Using PostgreSQL: {database_url[:50]}...")
+        elif railway_private_url:
+            # Fallback to private URL (requires Private Networking enabled)
+            database_url = railway_private_url
+            print(f"⚠️ AUTO: Using PRIVATE URL (requires Private Networking): {database_url[:50]}...")
+        elif railway_generic_url:
+            # Last resort - use whatever DATABASE_URL is set
+            database_url = railway_generic_url
+            print(f"⚠️ AUTO: Using generic DATABASE_URL (may need Private Networking): {database_url[:50]}...")
+        else:
+            print(f"❌ AUTO: Railway deployed but no DATABASE_URL found!")
     elif railway_db_url:
+        # Development with explicit Railway URL
         database_url = railway_db_url
         print(f"🧪 AUTO: Development with Railway data - Using Railway DB: {database_url[:50]}...")
-    elif railway_postgres_url:
-        database_url = railway_postgres_url
-        print(f"🔧 AUTO: Using DATABASE_URL/POSTGRES_URL: {database_url[:50]}...")
     elif local_db_url:
+        # Local development
         database_url = local_db_url
         print(f"🏠 AUTO: Local development - Using local PostgreSQL: {database_url[:50]}...")
     else:
@@ -295,11 +317,11 @@ else:
 # Fix common Railway environment variable issues
 if database_url:
     print(f"🔍 Raw DATABASE_URL: {database_url}")
-    
+
     # Remove line breaks and normalize whitespace - CRITICAL FIX
     database_url = ' '.join(database_url.split())
     print(f"🔧 After line break removal: {database_url[:50]}...")
-    
+
     # Remove "DATABASE_URL=" or "DATABASE_URL = " or "DATABASE_URL =" prefix if it exists
     if database_url.startswith('DATABASE_URL'):
         print("🔧 Fixing DATABASE_URL prefix issue...")
@@ -311,13 +333,27 @@ if database_url:
         elif database_url.startswith('DATABASE_URL='):
             database_url = database_url.replace('DATABASE_URL=', '', 1)
         print(f"🔧 After prefix removal: {database_url[:50]}...")
-    
+
     # Remove any quotes that might be added
     original_url = database_url
     database_url = database_url.strip('\'"')
     if original_url != database_url:
         print(f"🔧 Removed quotes: {database_url[:50]}...")
-    
+
+    # CRITICAL FIX: Convert Railway internal networking URL to public URL
+    # Railway internal URLs (postgres.railway.internal) require Private Networking
+    # Free/Hobby plans should use public proxy URLs instead
+    if 'postgres.railway.internal' in database_url or 'railway.internal' in database_url:
+        print("⚠️ DETECTED INTERNAL NETWORKING URL - Converting to public proxy URL...")
+        print(f"   Original: {database_url}")
+
+        # Railway provides public proxy: mainline.proxy.rlwy.net (same port/credentials)
+        # Convert: postgres.railway.internal → mainline.proxy.rlwy.net
+        database_url = database_url.replace('postgres.railway.internal', 'mainline.proxy.rlwy.net')
+
+        print(f"🔧 Converted to PUBLIC URL: {database_url[:50]}...")
+        print("✅ This will work without Private Networking (Hobby/Free plan compatible)")
+
     # Final validation
     if database_url:
         print(f"🔧 Final cleaned URL: {database_url[:50]}...")
