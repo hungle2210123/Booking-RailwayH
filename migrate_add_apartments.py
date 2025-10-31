@@ -28,6 +28,33 @@ except Exception as e:
     print(f"❌ Connection failed: {e}")
     sys.exit(1)
 
+# Step 0: Create guests table if it doesn't exist
+print("\n📋 STEP 0: Creating guests table if needed...")
+create_guests_table_sql = """
+CREATE TABLE IF NOT EXISTS guests (
+    guest_id SERIAL PRIMARY KEY,
+    full_name VARCHAR(255) NOT NULL,
+    email VARCHAR(255) UNIQUE,
+    phone VARCHAR(50),
+    nationality VARCHAR(100),
+    passport_number VARCHAR(100),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_guests_name ON guests(full_name);
+CREATE INDEX IF NOT EXISTS idx_guests_email ON guests(email);
+CREATE INDEX IF NOT EXISTS idx_guests_phone ON guests(phone);
+"""
+
+try:
+    with engine.begin() as conn:
+        conn.execute(text(create_guests_table_sql))
+        print("✅ Guests table created/verified successfully")
+except Exception as e:
+    print(f"⚠️  Guests table creation: {e}")
+    # Continue anyway - might already exist
+
 # Step 1: Create apartments table
 print("\n📋 STEP 1: Creating apartments table...")
 create_apartments_table_sql = """
@@ -151,6 +178,48 @@ try:
 
 except Exception as e:
     print(f"⚠️  Error during booking migration: {e}")
+
+# Step 4.5: Create guest records from bookings if needed
+print("\n📋 STEP 4.5: Creating guest records from bookings...")
+try:
+    with engine.begin() as conn:
+        # Check if bookings have guest_name but no guest_id
+        create_guests_sql = """
+        INSERT INTO guests (full_name, created_at)
+        SELECT DISTINCT
+            COALESCE(guest_name, 'Unknown Guest') as full_name,
+            CURRENT_TIMESTAMP
+        FROM bookings
+        WHERE guest_name IS NOT NULL
+        AND NOT EXISTS (
+            SELECT 1 FROM guests WHERE guests.full_name = bookings.guest_name
+        )
+        ON CONFLICT (full_name) DO NOTHING;
+        """
+
+        # First create guests
+        result = conn.execute(text(create_guests_sql))
+        print(f"✅ Created {result.rowcount} guest records from bookings")
+
+        # Then link bookings to guests
+        link_guests_sql = """
+        UPDATE bookings b
+        SET guest_id = (
+            SELECT guest_id
+            FROM guests g
+            WHERE g.full_name = b.guest_name
+            LIMIT 1
+        )
+        WHERE b.guest_id IS NULL
+        AND b.guest_name IS NOT NULL;
+        """
+
+        result = conn.execute(text(link_guests_sql))
+        print(f"✅ Linked {result.rowcount} bookings to guest records")
+
+except Exception as e:
+    print(f"⚠️  Error creating guest records: {e}")
+    # Continue anyway - not critical
 
 # Step 5: Verify migration
 print("\n📋 STEP 5: Verifying migration...")
