@@ -177,16 +177,19 @@
                             <input type="text" id="guest_name" name="guest_name" value="{{ booking.get('Tên người đặt', '') }}" required>
                         </div>
                         <div class="form-group">
-                            <label for="room_type"><i class="fas fa-bed me-1"></i>Phòng</label>
-                            <select id="room_type" name="Tên chỗ nghỉ" class="form-control" required>
-                                <optgroup label="🏨 118 Hang Bac Hostel">
-                                    <option value="118 hang bac" {% if booking.get('Tên chỗ nghỉ', '') == '118 hang bac' or booking.get('Tên chỗ nghỉ', '') == '118 Hang Bac Hostel' %}selected{% endif %}>118 hang bac</option>
-                                    <option value="kitchen" {% if booking.get('Tên chỗ nghỉ', '') == 'kitchen' or booking.get('Tên chỗ nghỉ', '') == 'Kitchen & Balcony' %}selected{% endif %}>kitchen</option>
-                                    <option value="night market" {% if booking.get('Tên chỗ nghỉ', '') == 'night market' or booking.get('Tên chỗ nghỉ', '') == 'Night market' %}selected{% endif %}>night market</option>
+                            <label for="room_type"><i class="fas fa-building me-1"></i>Căn hộ & Phòng</label>
+                            <div class="alert alert-info border-0 p-2 mb-2" style="font-size: 0.85rem;">
+                                <i class="fas fa-info-circle me-1"></i><strong>Phân biệt màu:</strong> 🔵 Xanh dương = 118 Hang Bac | 🟢 Xanh lá = 18 Hang Be
+                            </div>
+                            <select id="room_type" name="Tên chỗ nghỉ" class="form-control" required style="border: 2px solid #17A2B8; font-weight: 600; font-size: 1rem;">
+                                <optgroup label="🔵 118 Hang Bac Hostel" style="background-color: #E3F2FD; color: #1976D2; font-weight: bold;">
+                                    <option value="118 hang bac" {% if booking.get('Tên chỗ nghỉ', '') == '118 hang bac' or booking.get('Tên chỗ nghỉ', '') == '118 Hang Bac Hostel' %}selected{% endif %} style="background-color: #BBDEFB; color: #0D47A1;">🔵 118 hang bac</option>
+                                    <option value="kitchen" {% if booking.get('Tên chỗ nghỉ', '') == 'kitchen' or booking.get('Tên chỗ nghỉ', '') == 'Kitchen & Balcony' %}selected{% endif %} style="background-color: #BBDEFB; color: #0D47A1;">🔵 kitchen</option>
+                                    <option value="night market" {% if booking.get('Tên chỗ nghỉ', '') == 'night market' or booking.get('Tên chỗ nghỉ', '') == 'Night market' %}selected{% endif %} style="background-color: #BBDEFB; color: #0D47A1;">🔵 night market</option>
                                 </optgroup>
-                                <optgroup label="🏘️ 18 Hang Be">
-                                    <option value="hang be 101" {% if booking.get('Tên chỗ nghỉ', '') == 'hang be 101' %}selected{% endif %}>hang be 101</option>
-                                    <option value="hang be 102" {% if booking.get('Tên chỗ nghỉ', '') == 'hang be 102' %}selected{% endif %}>hang be 102</option>
+                                <optgroup label="🟢 18 Hang Be" style="background-color: #E8F5E9; color: #388E3C; font-weight: bold;">
+                                    <option value="hang be 101" {% if booking.get('Tên chỗ nghỉ', '') == 'hang be 101' %}selected{% endif %} style="background-color: #C8E6C9; color: #1B5E20;">🟢 hang be 101</option>
+                                    <option value="hang be 102" {% if booking.get('Tên chỗ nghỉ', '') == 'hang be 102' %}selected{% endif %} style="background-color: #C8E6C9; color: #1B5E20;">🟢 hang be 102</option>
                                 </optgroup>
                             </select>
                         </div>

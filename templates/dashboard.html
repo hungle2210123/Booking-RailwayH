@@ -566,6 +566,44 @@
         display: none !important;
     }
 }
+
+/* 🎨 Color-Coded Room Badges for Apartment Distinction */
+.room-badge {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-weight: 600;
+    font-size: 0.85rem;
+    border: 2px solid;
+    white-space: nowrap;
+}
+
+/* 🔵 118 Hang Bac Hostel - Blue Theme */
+.room-badge.apt1 {
+    background: linear-gradient(135deg, #BBDEFB 0%, #90CAF9 100%);
+    color: #0D47A1;
+    border-color: #1976D2;
+}
+
+/* 🟢 18 Hang Be - Green Theme */
+.room-badge.apt2 {
+    background: linear-gradient(135deg, #C8E6C9 0%, #A5D6A7 100%);
+    color: #1B5E20;
+    border-color: #388E3C;
+}
+
+/* Hover effects */
+.room-badge.apt1:hover {
+    background: linear-gradient(135deg, #90CAF9 0%, #64B5F6 100%);
+    transform: scale(1.05);
+    transition: all 0.2s ease;
+}
+
+.room-badge.apt2:hover {
+    background: linear-gradient(135deg, #A5D6A7 0%, #81C784 100%);
+    transform: scale(1.05);
+    transition: all 0.2s ease;
+}
 </style>
 {% endblock %}
 
@@ -2558,6 +2596,52 @@
 // ==================== GLOBAL VARIABLES - MUST BE FIRST ====================
 var currentEditBookingData = {};
 var currentBookingData = {};
+
+// ==================== ROOM BADGE HELPER FUNCTION - PRIORITY LOAD ====================
+// 🎨 Convert room names to color-coded badges for visual apartment distinction
+window.getRoomBadgeHTML = function(roomName) {
+    if (!roomName) return '<span class="badge bg-secondary">Unknown</span>';
+
+    const roomLower = roomName.toLowerCase().trim();
+
+    // 🔵 118 Hang Bac Hostel - Blue badges
+    if (roomLower.includes('118 hang bac') || roomLower === '118 hang bac hostel') {
+        return '<span class="room-badge apt1">🔵 118 hang bac</span>';
+    } else if (roomLower === 'kitchen' || roomLower.includes('kitchen & balcony')) {
+        return '<span class="room-badge apt1">🔵 kitchen</span>';
+    } else if (roomLower.includes('night market')) {
+        return '<span class="room-badge apt1">🔵 night market</span>';
+    }
+    // 🟢 18 Hang Be - Green badges
+    else if (roomLower.includes('hang be 101')) {
+        return '<span class="room-badge apt2">🟢 hang be 101</span>';
+    } else if (roomLower.includes('hang be 102')) {
+        return '<span class="room-badge apt2">🟢 hang be 102</span>';
+    }
+    // Fallback
+    else {
+        return `<span class="badge bg-secondary">${roomName}</span>`;
+    }
+};
+
+// Helper function to get just the apartment color class
+window.getApartmentClass = function(roomName) {
+    if (!roomName) return 'apt-unknown';
+
+    const roomLower = roomName.toLowerCase().trim();
+
+    // 118 Hang Bac rooms
+    if (roomLower.includes('118 hang bac') || roomLower === 'kitchen' ||
+        roomLower.includes('kitchen & balcony') || roomLower.includes('night market')) {
+        return 'apt1';
+    }
+    // 18 Hang Be rooms
+    else if (roomLower.includes('hang be 101') || roomLower.includes('hang be 102')) {
+        return 'apt2';
+    }
+
+    return 'apt-unknown';
+};
 
 // ==================== COLLECTOR DATE PICKER FUNCTION - PRIORITY LOAD ====================
 // CRITICAL: Load this function FIRST so HTML buttons can call it immediately
