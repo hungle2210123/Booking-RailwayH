@@ -12376,39 +12376,153 @@ const ROOM_TO_APARTMENT = {
 };
 
 // Filter monthly revenue chart by apartment
-window.filterRevenueByApartment = function(apartmentFilter) {
+window.filterRevenueByApartment = async function(apartmentFilter) {
     console.log('🏢 Filtering revenue by apartment:', apartmentFilter);
 
-    // If "all", restore original data
-    if (apartmentFilter === 'all' && originalMonthlyRevenueData) {
-        Plotly.react('monthlyRevenueChart', originalMonthlyRevenueData.data, originalMonthlyRevenueData.layout);
-        console.log('✅ Restored all revenue data');
-        return;
+    const chartDiv = document.getElementById('monthlyRevenueChart');
+
+    // Store original data if not stored yet
+    if (!originalMonthlyRevenueData && chartDiv && chartDiv.data) {
+        originalMonthlyRevenueData = {
+            data: JSON.parse(JSON.stringify(chartDiv.data)),
+            layout: JSON.parse(JSON.stringify(chartDiv.layout))
+        };
     }
 
-    // Store original if not stored yet
-    if (!originalMonthlyRevenueData) {
-        const chartDiv = document.getElementById('monthlyRevenueChart');
-        if (chartDiv && chartDiv.data) {
-            originalMonthlyRevenueData = {
-                data: JSON.parse(JSON.stringify(chartDiv.data)),
-                layout: JSON.parse(JSON.stringify(chartDiv.layout))
-            };
+    try {
+        // Show loading state
+        Plotly.react(chartDiv, [{
+            x: [],
+            y: [],
+            type: 'bar',
+            text: ['Đang tải...'],
+            marker: {color: '#17A2B8'}
+        }], {
+            title: '⏳ Đang tải dữ liệu...',
+            height: 400
+        });
+
+        // Fetch filtered data from API
+        const response = await fetch(`/api/prorated_monthly_revenue?apartment=${apartmentFilter}`);
+        const data = await response.json();
+
+        if (!data.success) {
+            throw new Error(data.error || 'Unknown error');
         }
-    }
 
-    // Filter data by apartment (placeholder - needs backend support)
-    console.log('🔄 Apartment filtering needs backend API implementation');
-    console.log('📌 Next step: Update /api/prorated_monthly_revenue to accept apartment_id parameter');
+        console.log(`✅ Fetched ${apartmentFilter} revenue data:`, data);
+
+        // Prepare chart data
+        const chartData = [{
+            x: data.months,
+            y: data.revenues,
+            type: 'bar',
+            text: data.revenues.map(r => formatCurrency(r)),
+            textposition: 'outside',
+            marker: {
+                color: apartmentFilter === 'apt1' ? '#1976D2' :
+                       apartmentFilter === 'apt2' ? '#388E3C' :
+                       '#17A2B8',
+                line: {
+                    color: apartmentFilter === 'apt1' ? '#0D47A1' :
+                           apartmentFilter === 'apt2' ? '#1B5E20' :
+                           '#138496',
+                    width: 2
+                }
+            },
+            hovertemplate: '<b>%{x}</b><br>' +
+                          'Doanh thu: %{text}<br>' +
+                          '<extra></extra>'
+        }];
+
+        const chartLayout = {
+            title: apartmentFilter === 'apt1' ? '🔵 Doanh thu 118 Hang Bac (3 phòng)' :
+                   apartmentFilter === 'apt2' ? '🟢 Doanh thu 18 Hang Be (2 phòng)' :
+                   '📊 Doanh thu Tất cả (6 phòng)',
+            xaxis: {
+                title: 'Tháng',
+                tickangle: -45
+            },
+            yaxis: {
+                title: 'Doanh thu (VND)',
+                tickformat: ',.0f'
+            },
+            height: 400,
+            showlegend: false,
+            hovermode: 'closest'
+        };
+
+        // Update chart with filtered data
+        Plotly.react(chartDiv, chartData, chartLayout);
+        console.log('✅ Chart updated with filtered data');
+
+    } catch (error) {
+        console.error('❌ Error fetching apartment revenue:', error);
+
+        // Show error state
+        Plotly.react(chartDiv, [{
+            x: [],
+            y: [],
+            type: 'bar',
+            text: ['Lỗi tải dữ liệu'],
+            marker: {color: '#DC3545'}
+        }], {
+            title: '❌ Lỗi tải dữ liệu',
+            height: 400
+        });
+
+        alert('Lỗi tải dữ liệu doanh thu. Vui lòng thử lại.');
+    }
 };
 
 // Filter daily revenue by apartment
-window.filterDailyRevenueByApartment = function(apartmentFilter) {
+window.filterDailyRevenueByApartment = async function(apartmentFilter) {
     console.log('🏢 Filtering daily revenue by apartment:', apartmentFilter);
-    console.log('📌 This will filter the daily breakdown table by apartment');
 
-    // Placeholder for daily revenue filtering
-    console.log('🔄 Daily revenue filtering needs backend API implementation');
+    try {
+        // Fetch filtered data from API
+        const response = await fetch(`/api/prorated_monthly_revenue?apartment=${apartmentFilter}`);
+        const data = await response.json();
+
+        if (!data.success) {
+            throw new Error(data.error || 'Unknown error');
+        }
+
+        console.log(`✅ Fetched daily revenue data for ${apartmentFilter}`);
+
+        // Filter the daily revenue table
+        const tableBody = document.querySelector('#dailyRevenueTable tbody');
+        if (!tableBody) {
+            console.warn('⚠️ Daily revenue table not found');
+            return;
+        }
+
+        // Get all rows
+        const rows = tableBody.querySelectorAll('tr');
+
+        rows.forEach(row => {
+            const roomCell = row.querySelector('td:nth-child(2)'); // Room name column
+            if (!roomCell) return;
+
+            const roomName = roomCell.textContent.trim().toLowerCase();
+            const roomApartment = ROOM_TO_APARTMENT[roomName];
+
+            // Show/hide based on filter
+            if (apartmentFilter === 'all') {
+                row.style.display = '';
+            } else if (roomApartment === apartmentFilter) {
+                row.style.display = '';
+            } else {
+                row.style.display = 'none';
+            }
+        });
+
+        console.log('✅ Daily revenue table filtered');
+
+    } catch (error) {
+        console.error('❌ Error filtering daily revenue:', error);
+        alert('Lỗi lọc dữ liệu doanh thu theo ngày. Vui lòng thử lại.');
+    }
 };
 
 console.log('✅ Apartment revenue filtering functions loaded');

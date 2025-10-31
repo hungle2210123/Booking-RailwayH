@@ -9306,13 +9306,20 @@ def get_unchecked_in_guests():
 @app.route('/api/prorated_monthly_revenue', methods=['GET'])
 def get_prorated_monthly_revenue():
     """
-    PRO-RATED MONTHLY REVENUE CALCULATION
+    PRO-RATED MONTHLY REVENUE CALCULATION with APARTMENT FILTERING
     Calculate revenue ONLY for days that fall within the current month
     For bookings that span across months, only count the days in current month
+
+    Query Parameters:
+    - apartment: 'apt1' (118 Hang Bac), 'apt2' (18 Hang Be), or 'all' (default)
     """
     try:
         from datetime import datetime, date, timedelta
-        from core.models import Booking, Guest, db
+        from core.models import Booking, Guest, Room, Apartment, db
+
+        # Get apartment filter parameter
+        apartment_filter = request.args.get('apartment', 'all')
+        print(f"🏢 [APARTMENT_FILTER] Requested filter: {apartment_filter}")
 
         # Get current month date range
         today = date.today()
@@ -9326,21 +9333,35 @@ def get_prorated_monthly_revenue():
 
         print(f"💰 [PRORATED] Calculating pro-rated revenue for {start_of_month} to {end_of_month}")
 
-        # Query ALL bookings that have nights in current month
-        # This includes:
-        # 1. Guests who already checked in this month
-        # 2. Guests who will check in this month (future)
-        # Booking overlaps if: checkin <= end_of_month AND checkout > start_of_month
-        all_month_bookings = db.session.query(Booking, Guest).outerjoin(
+        # Base query with LEFT JOINs to rooms and apartments tables
+        query = db.session.query(Booking, Guest, Room, Apartment).outerjoin(
             Guest, Booking.guest_id == Guest.guest_id
+        ).outerjoin(
+            Room, Booking.room_id == Room.room_id
+        ).outerjoin(
+            Apartment, Room.apartment_id == Apartment.apartment_id
         ).filter(
             Booking.booking_status.in_(['confirmed', 'mới', 'checked_in', 'checked_out']),
-            Booking.checkin_date <= end_of_month,  # Started on or before month end
-            Booking.checkout_date > start_of_month,  # Ends after month starts (overlap)
+            Booking.checkin_date <= end_of_month,
+            Booking.checkout_date > start_of_month,
             Booking.booking_status != 'deleted',
             Booking.booking_status != 'cancelled',
             Booking.booking_status != 'đã hủy'
-        ).order_by(Booking.checkin_date.asc()).all()
+        )
+
+        # Apply apartment filter using apartment_id
+        if apartment_filter == 'apt1':
+            # Filter for apartment_id = 1 (118 Hang Bac)
+            query = query.filter(Apartment.apartment_id == 1)
+            print(f"🔵 [FILTER] Filtering for 118 Hang Bac (apartment_id=1)")
+        elif apartment_filter == 'apt2':
+            # Filter for apartment_id = 2 (18 Hang Be)
+            query = query.filter(Apartment.apartment_id == 2)
+            print(f"🟢 [FILTER] Filtering for 18 Hang Be (apartment_id=2)")
+        else:
+            print(f"📊 [FILTER] Showing all apartments")
+
+        all_month_bookings = query.order_by(Booking.checkin_date.asc()).all()
 
         prorated_list = []
         total_prorated_revenue = 0
@@ -9351,11 +9372,13 @@ def get_prorated_monthly_revenue():
         total_uncollected_full = 0
         total_collected_prorated = 0
 
-        for booking, guest in all_month_bookings:
+        for booking, guest, room, apartment in all_month_bookings:
             if not booking.checkin_date or not booking.checkout_date:
                 continue
 
             guest_name = guest.full_name if guest else booking.guest_name or 'Unknown Guest'
+            room_name = room.room_name if room else 'Unknown Room'
+            apartment_name = apartment.apartment_name if apartment else 'Unknown Apartment'
 
             # Calculate FULL booking details
             full_nights = (booking.checkout_date - booking.checkin_date).days
