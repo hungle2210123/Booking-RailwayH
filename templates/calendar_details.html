@@ -748,11 +748,25 @@
 
 <style>
     /* 🎯 ULTRA-COMPACT GRID LAYOUT - Show multiple guests side-by-side */
-    .card-body {
+    /* ONLY apply to 3-column guest activity sections (check-in, staying, check-out) */
+    .col-lg-4 > .card > .card-body {
         display: grid;
         grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
         gap: 15px;
         padding: 15px !important;
+    }
+
+    /* IMPORTANT: Disable grid for ALL other card-body elements */
+    .col-12 > .card > .card-body,
+    .col-md-6 .card-body,
+    .commission-overview .card-body,
+    .canceled-guests-panel .card-body,
+    .modal .card-body,
+    .revenue-summary,
+    .guest-summary,
+    .table-responsive {
+        display: block !important;
+        grid-template-columns: none !important;
     }
 
     .guest-card {
