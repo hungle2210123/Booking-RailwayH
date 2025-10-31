@@ -9,18 +9,20 @@ import sys
 from sqlalchemy import create_engine, text
 from datetime import datetime
 
-# Database connection - use local PostgreSQL
-LOCAL_DB = "postgresql://postgres:locloc123@localhost:5432/hotel_booking"
+# Detect environment and use appropriate database
+is_railway = bool(os.getenv('RAILWAY_ENVIRONMENT_ID'))
+DATABASE_URL = os.getenv('DATABASE_URL') if is_railway else "postgresql://postgres:locloc123@localhost:5432/hotel_booking"
 
 print("=" * 80)
 print("🏢 APARTMENT MANAGEMENT SYSTEM - DATABASE MIGRATION")
 print("=" * 80)
-print(f"📍 Database: {LOCAL_DB}")
+print(f"🌍 Environment: {'Railway' if is_railway else 'Local'}")
+print(f"📍 Database: {DATABASE_URL[:50]}...")
 print("=" * 80)
 
 # Create engine
 try:
-    engine = create_engine(LOCAL_DB)
+    engine = create_engine(DATABASE_URL)
     print("✅ Connected to database")
 except Exception as e:
     print(f"❌ Connection failed: {e}")
