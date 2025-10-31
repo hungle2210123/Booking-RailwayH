@@ -7,11 +7,15 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy ONLY minimal server for testing
-COPY minimal_server.py .
+# Copy application files
+COPY app.py .
+COPY run.py .
+COPY core/ ./core/
+COPY templates/ ./templates/
+COPY static/ ./static/
 
 # Set default PORT if not provided (Railway will override this)
 ENV PORT=5000
 
-# TEMPORARY: Use absolute minimal server to test Railway platform
-CMD ["python3", "-u", "minimal_server.py"]
+# Use run.py for production startup with diagnostics
+CMD ["python3", "-u", "run.py"]
