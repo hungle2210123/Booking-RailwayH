@@ -1381,6 +1381,30 @@
                     </div>
                 </div>
                 <div class="card-body">
+                    <!-- 🏢 Apartment Filter Tabs -->
+                    <div class="apartment-filter-tabs mb-3">
+                        <div class="btn-group w-100" role="group" aria-label="Apartment filter">
+                            <input type="radio" class="btn-check" name="apartmentFilter" id="aptAll" value="all" checked autocomplete="off" onchange="filterRevenueByApartment('all')">
+                            <label class="btn btn-outline-primary" for="aptAll">
+                                <i class="fas fa-building me-1"></i>📊 Tất cả (6 phòng)
+                            </label>
+
+                            <input type="radio" class="btn-check" name="apartmentFilter" id="apt1" value="apt1" autocomplete="off" onchange="filterRevenueByApartment('apt1')">
+                            <label class="btn btn-outline-primary" for="apt1" style="border-color: #1976D2;">
+                                <i class="fas fa-building me-1"></i>🔵 118 Hang Bac (3 phòng)
+                            </label>
+
+                            <input type="radio" class="btn-check" name="apartmentFilter" id="apt2" value="apt2" autocomplete="off" onchange="filterRevenueByApartment('apt2')">
+                            <label class="btn btn-outline-success" for="apt2" style="border-color: #388E3C;">
+                                <i class="fas fa-building me-1"></i>🟢 18 Hang Be (2 phòng)
+                            </label>
+                        </div>
+                        <div class="alert alert-info border-0 mt-2 py-2 px-3" style="font-size: 0.85rem;">
+                            <i class="fas fa-info-circle me-1"></i>
+                            <strong>Lọc theo căn hộ:</strong> Chọn căn hộ để xem doanh thu riêng biệt
+                        </div>
+                    </div>
+
                     <div id="monthlyRevenueChart" style="height: 400px;"></div>
                 </div>
             </div>
@@ -1584,6 +1608,26 @@
                     <small class="text-white-50">Chỉ tính tiền cho số đêm khách ở trong tháng này</small>
                 </div>
                 <div class="card-body">
+                    <!-- 🏢 Apartment Filter Tabs (Same as Monthly Revenue) -->
+                    <div class="apartment-filter-tabs-daily mb-3">
+                        <div class="btn-group w-100" role="group" aria-label="Apartment filter daily">
+                            <input type="radio" class="btn-check" name="apartmentFilterDaily" id="aptAllDaily" value="all" checked autocomplete="off" onchange="filterDailyRevenueByApartment('all')">
+                            <label class="btn btn-outline-primary btn-sm" for="aptAllDaily">
+                                <i class="fas fa-building me-1"></i>📊 Tất cả
+                            </label>
+
+                            <input type="radio" class="btn-check" name="apartmentFilterDaily" id="apt1Daily" value="apt1" autocomplete="off" onchange="filterDailyRevenueByApartment('apt1')">
+                            <label class="btn btn-outline-primary btn-sm" for="apt1Daily" style="border-color: #1976D2;">
+                                <i class="fas fa-building me-1"></i>🔵 118 Hang Bac
+                            </label>
+
+                            <input type="radio" class="btn-check" name="apartmentFilterDaily" id="apt2Daily" value="apt2" autocomplete="off" onchange="filterDailyRevenueByApartment('apt2')">
+                            <label class="btn btn-outline-success btn-sm" for="apt2Daily" style="border-color: #388E3C;">
+                                <i class="fas fa-building me-1"></i>🟢 18 Hang Be
+                            </label>
+                        </div>
+                    </div>
+
                     <!-- Cash Flow Summary Cards -->
                     <div class="row g-2 mb-3">
                         <!-- Total Revenue This Month -->
@@ -12312,6 +12356,62 @@ setTimeout(() => {
     console.log('   - toggleCollectorDatePicker:', typeof window.toggleCollectorDatePicker);
 }, 3000);
 
-// Apartment filter system removed - rooms are now managed in booking forms
+// ====================  APARTMENT REVENUE FILTERING SYSTEM ====================
+// 🏢 Filter revenue charts by apartment
+
+// Store original data for filtering
+let originalMonthlyRevenueData = null;
+let originalDailyRevenueData = null;
+
+// Room mapping to apartments
+const ROOM_TO_APARTMENT = {
+    '118 hang bac': 'apt1',
+    'kitchen': 'apt1',
+    'night market': 'apt1',
+    '118 Hang Bac Hostel': 'apt1',
+    'Kitchen & Balcony': 'apt1',
+    'Night market': 'apt1',
+    'hang be 101': 'apt2',
+    'hang be 102': 'apt2'
+};
+
+// Filter monthly revenue chart by apartment
+window.filterRevenueByApartment = function(apartmentFilter) {
+    console.log('🏢 Filtering revenue by apartment:', apartmentFilter);
+
+    // If "all", restore original data
+    if (apartmentFilter === 'all' && originalMonthlyRevenueData) {
+        Plotly.react('monthlyRevenueChart', originalMonthlyRevenueData.data, originalMonthlyRevenueData.layout);
+        console.log('✅ Restored all revenue data');
+        return;
+    }
+
+    // Store original if not stored yet
+    if (!originalMonthlyRevenueData) {
+        const chartDiv = document.getElementById('monthlyRevenueChart');
+        if (chartDiv && chartDiv.data) {
+            originalMonthlyRevenueData = {
+                data: JSON.parse(JSON.stringify(chartDiv.data)),
+                layout: JSON.parse(JSON.stringify(chartDiv.layout))
+            };
+        }
+    }
+
+    // Filter data by apartment (placeholder - needs backend support)
+    console.log('🔄 Apartment filtering needs backend API implementation');
+    console.log('📌 Next step: Update /api/prorated_monthly_revenue to accept apartment_id parameter');
+};
+
+// Filter daily revenue by apartment
+window.filterDailyRevenueByApartment = function(apartmentFilter) {
+    console.log('🏢 Filtering daily revenue by apartment:', apartmentFilter);
+    console.log('📌 This will filter the daily breakdown table by apartment');
+
+    // Placeholder for daily revenue filtering
+    console.log('🔄 Daily revenue filtering needs backend API implementation');
+};
+
+console.log('✅ Apartment revenue filtering functions loaded');
+
 {% endblock %}
 
