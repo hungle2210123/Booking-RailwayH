@@ -525,7 +525,7 @@ def is_valid_date(date_value):
 
 # Environment configuration (PostgreSQL only)
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")  # Only for Gemini AI
-TOTAL_HOTEL_CAPACITY = 4  # Hotel has exactly 4 rooms
+TOTAL_HOTEL_CAPACITY = 6  # Total: 5 rooms + 1 buffer (118 Hang Bac: 3 rooms, 18 Hang Be: 2 rooms)
 
 # Initialize Google Gemini AI (for image processing only)
 if GOOGLE_API_KEY and genai:
@@ -3459,7 +3459,8 @@ def quick_update_booking(booking_id):
             'checkin_date': datetime.strptime(data['checkin_date'], '%Y-%m-%d').date(),
             'checkout_date': datetime.strptime(data['checkout_date'], '%Y-%m-%d').date(),
             'room_amount': float(data['room_amount']),
-            'commission': float(data.get('commission', 0))
+            'commission': float(data.get('commission', 0)),
+            'accommodation_name': data.get('room_type')  # Add room type (accommodation_name field)
         }
 
         if update_booking(booking_id, update_data):
@@ -8075,7 +8076,7 @@ def get_ai_calendar_suggestions():
         
         print(f"🤖 AI Calendar Suggestions for {month}/{year}")
         
-        # 1. ENHANCED CALENDAR ANALYSIS with 4-room capacity tracking
+        # 1. ENHANCED CALENDAR ANALYSIS with 6-room capacity tracking (5 rooms + 1 buffer)
         start_date = datetime(year, month, 1).date()
         end_date = (datetime(year, month, cal.monthrange(year, month)[1])).date()
         
@@ -8215,7 +8216,7 @@ def get_ai_calendar_suggestions():
 You are an ELITE hotel revenue optimization AI with advanced scheduling capabilities. You manage a 6-room hotel (2 properties) and must make INTELLIGENT decisions to maximize occupancy and revenue.
 
 **🏨 HOTEL CONSTRAINTS:**
-- Maximum 4 rooms per day
+- Maximum 6 rooms per day (118 Hang Bac: 3 rooms, 18 Hang Be: 2 rooms, +1 buffer)
 - Must respect existing bookings
 - Priority: Revenue per night × Occupancy optimization × Long-stay preference
 
@@ -8229,14 +8230,14 @@ You are an ELITE hotel revenue optimization AI with advanced scheduling capabili
 - Current month revenue: {sum(revenue_by_date.values()):,.0f}đ
 
 **🔍 CAPACITY GAPS (Room availability by day):**
-{chr(10).join([f"- {gap['date']} ({gap['day_name']}): {gap['available_rooms']}/4 rooms available, Current: {gap['current_occupancy']} guests, Revenue: {gap['current_revenue']:,.0f}đ" for gap in availability_gaps[:15]])}
+{chr(10).join([f"- {gap['date']} ({gap['day_name']}): {gap['available_rooms']}/6 rooms available, Current: {gap['current_occupancy']} guests, Revenue: {gap['current_revenue']:,.0f}đ" for gap in availability_gaps[:15]])}
 
 **👥 SMART CANCELED GUEST ANALYSIS ({len(canceled_guests)} total):**
 **High-Value Candidates (Can fit + High score):**
 {chr(10).join([f"- {guest['guest_name']}: {guest['checkin_date']} → {guest['checkout_date']} ({guest['nights']} nights)" + f" | {guest['price_per_night']:,.0f}đ/night | Value Score: {guest['value_score']:,.0f} | Fills {guest['gap_days_filled']} gap days | CAN FIT: {guest['can_fit_capacity']}" for guest in high_value_guests[:8]])}
 
 **⚡ AI OPTIMIZATION REQUIREMENTS:**
-1. **CAPACITY CONSTRAINT**: Never exceed 4 rooms on any day
+1. **CAPACITY CONSTRAINT**: Never exceed 6 rooms on any day (5 actual rooms + 1 buffer)
 2. **CONFLICT RESOLUTION**: If guests overlap, choose highest value combination
 3. **LONG-STAY PREFERENCE**: 3+ night stays get 20% priority bonus
 4. **GAP FILLING**: Prioritize guests that fill the most availability gaps
@@ -8306,7 +8307,7 @@ THINK LIKE A REVENUE MANAGEMENT EXPERT: Balance occupancy rate, revenue per room
                 # Enhanced fallback with capacity analysis
                 fit_guests = [g for g in canceled_guests if g['can_fit_capacity']][:5]
                 ai_suggestions = {
-                    "strategy_summary": f"Smart fallback optimization - {len(fit_guests)} guests can fit within 4-room capacity",
+                    "strategy_summary": f"Smart fallback optimization - {len(fit_guests)} guests can fit within 6-room capacity",
                     "optimization_metrics": {
                         "potential_occupancy_increase": f"{(len(fit_guests) * 2):}%",
                         "potential_revenue_increase": f"{sum(g['total_amount'] for g in fit_guests):,.0f}đ",
