@@ -340,20 +340,12 @@ if database_url:
     if original_url != database_url:
         print(f"🔧 Removed quotes: {database_url[:50]}...")
 
-    # CRITICAL FIX: Convert Railway internal networking URL to public URL
-    # Railway internal URLs (postgres.railway.internal) require Private Networking
-    # Free/Hobby plans should use public proxy URLs instead
+    # CRITICAL: Use Railway internal networking URL directly
+    # Private Networking is ENABLED, so postgres.railway.internal will work
     if 'postgres.railway.internal' in database_url or 'railway.internal' in database_url:
-        print("⚠️ DETECTED INTERNAL NETWORKING URL - Converting to public proxy URL...")
-        print(f"   Original: {database_url}")
-
-        # Railway provides public proxy: mainline.proxy.rlwy.net:36647
-        # Convert: postgres.railway.internal:5432 → mainline.proxy.rlwy.net:36647
-        database_url = database_url.replace('postgres.railway.internal:5432', 'mainline.proxy.rlwy.net:36647')
-        database_url = database_url.replace('postgres.railway.internal', 'mainline.proxy.rlwy.net:36647')
-
-        print(f"🔧 Converted to PUBLIC URL: {database_url[:50]}...")
-        print("✅ This will work without Private Networking (Hobby/Free plan compatible)")
+        print("✅ DETECTED INTERNAL NETWORKING URL - Private Networking enabled!")
+        print(f"   Using: {database_url}")
+        print("✅ Will connect via Railway's internal private network")
 
     # Final validation
     if database_url:
