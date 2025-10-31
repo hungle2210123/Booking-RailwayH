@@ -8,6 +8,7 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy application files
+COPY emergency_start.py .
 COPY app.py .
 COPY run.py .
 COPY core/ ./core/
@@ -17,5 +18,5 @@ COPY static/ ./static/
 # Set default PORT if not provided
 ENV PORT=5000
 
-# Use run.py which handles PORT correctly without shell expansion
-CMD ["python3", "run.py"]
+# TEMPORARY: Use emergency startup to diagnose Railway environment
+CMD ["python3", "-u", "emergency_start.py"]

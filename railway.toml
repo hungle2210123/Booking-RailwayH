@@ -7,7 +7,7 @@ restartPolicyType = "on_failure"
 restartPolicyMaxRetries = 3
 healthcheckPath = "/"
 healthcheckTimeout = 100  # Reduced from 300s - Hobby plan is faster
-startCommand = "python3 run.py"
+# startCommand removed - let Dockerfile CMD handle it
 
 # Resource limits for Railway Hobby plan (prevents billing spikes)
 # Hobby: 8 vCPU, 8 GB RAM available
