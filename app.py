@@ -347,9 +347,10 @@ if database_url:
         print("⚠️ DETECTED INTERNAL NETWORKING URL - Converting to public proxy URL...")
         print(f"   Original: {database_url}")
 
-        # Railway provides public proxy: mainline.proxy.rlwy.net (same port/credentials)
-        # Convert: postgres.railway.internal → mainline.proxy.rlwy.net
-        database_url = database_url.replace('postgres.railway.internal', 'mainline.proxy.rlwy.net')
+        # Railway provides public proxy: mainline.proxy.rlwy.net:36647
+        # Convert: postgres.railway.internal:5432 → mainline.proxy.rlwy.net:36647
+        database_url = database_url.replace('postgres.railway.internal:5432', 'mainline.proxy.rlwy.net:36647')
+        database_url = database_url.replace('postgres.railway.internal', 'mainline.proxy.rlwy.net:36647')
 
         print(f"🔧 Converted to PUBLIC URL: {database_url[:50]}...")
         print("✅ This will work without Private Networking (Hobby/Free plan compatible)")
