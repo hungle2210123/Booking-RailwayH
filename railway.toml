@@ -5,9 +5,8 @@ dockerfilePath = "Dockerfile"
 [deploy]
 restartPolicyType = "on_failure"
 restartPolicyMaxRetries = 3
-# TEMPORARILY DISABLE healthcheck to see container logs
-healthcheckPath = null
-healthcheckTimeout = null
+healthcheckPath = "/"
+healthcheckTimeout = 300
 
 # Resource limits for Railway Hobby plan (prevents billing spikes)
 # Hobby: 8 vCPU, 8 GB RAM available
@@ -17,8 +16,8 @@ cpuLimit = 6.4  # 80% of 8 vCPU
 memoryLimit = 6400  # 80% of 8192 MB = 6400 MB
 
 [variables]
-# Railway will automatically inject these
-PORT = { default = "5000" }
+# Railway automatically injects PORT - DO NOT SET IT HERE
+# PORT is set dynamically by Railway platform
 PYTHONPATH = "/app"
 FLASK_APP = "app.py"
 DATABASE_SOURCE = "auto"

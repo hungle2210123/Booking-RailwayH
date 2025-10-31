@@ -15,8 +15,8 @@ COPY core/ ./core/
 COPY templates/ ./templates/
 COPY static/ ./static/
 
-# Set default PORT if not provided
+# Set default PORT if not provided (Railway will override this)
 ENV PORT=5000
 
-# TEMPORARY: Use emergency startup to diagnose Railway environment
-CMD ["python3", "-u", "emergency_start.py"]
+# Use run.py for production startup with diagnostics
+CMD ["python3", "-u", "run.py"]
