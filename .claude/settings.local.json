@@ -108,7 +108,8 @@
       "Read(//mnt/c/Users/T14/Desktop/hotel_flask_app/**)",
       "Bash(sqlite3:*)",
       "Bash(PGPASSWORD=VmyAveAhkGVOFlSiVBWgyIEAUbKAXEPi psql -h mainline.proxy.rlwy.net -p 36647 -U postgres -d railway -c \"SELECT COUNT(*) FROM bookings;\")",
-      "Read(//tmp/**)"
+      "Read(//tmp/**)",
+      "Read(///**)"
     ],
     "deny": []
   },

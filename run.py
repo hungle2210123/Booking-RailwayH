@@ -94,36 +94,60 @@ def run_migration():
         database_url = os.environ.get('DATABASE_URL')
         print("✅ Database URL detected")
 
-        # Check if apartments table exists
+        # Check if tables exist
         engine = create_engine(database_url)
         inspector = inspect(engine)
         tables = inspector.get_table_names()
 
-        if 'apartments' in tables and 'guests' in tables:
-            print("✅ Migration already completed (apartments + guests tables exist)")
-            engine.dispose()
-            return True
+        apartments_exists = 'apartments' in tables
+        rooms_exists = 'rooms' in tables
 
-        print("⚠️  Missing tables detected - running migration...")
-        print("📋 Running migrate_add_apartments.py...")
+        # Run apartment migration if needed
+        if not apartments_exists:
+            print("⚠️  Apartments table missing - running apartment migration...")
+            print("📋 Running migrate_add_apartments.py...")
 
-        # Run migration script
-        result = subprocess.run(
-            [sys.executable, 'migrate_add_apartments.py'],
-            capture_output=True,
-            text=True,
-            timeout=60
-        )
+            result = subprocess.run(
+                [sys.executable, 'migrate_add_apartments.py'],
+                capture_output=True,
+                text=True,
+                timeout=60
+            )
 
-        if result.returncode == 0:
-            print("✅ Migration completed successfully")
-            print(result.stdout)
-            return True
+            if result.returncode == 0:
+                print("✅ Apartment migration completed successfully")
+                print(result.stdout)
+            else:
+                print("⚠️  Apartment migration had issues but continuing...")
+                print(result.stdout)
+                print(result.stderr)
         else:
-            print("⚠️  Migration had issues but continuing...")
-            print(result.stdout)
-            print(result.stderr)
-            return True  # Don't fail startup even if migration has issues
+            print("✅ Apartments table exists")
+
+        # Run room migration if needed
+        if not rooms_exists:
+            print("\n⚠️  Rooms table missing - running room migration...")
+            print("📋 Running migrate_add_rooms.py...")
+
+            result = subprocess.run(
+                [sys.executable, 'migrate_add_rooms.py'],
+                capture_output=True,
+                text=True,
+                timeout=60
+            )
+
+            if result.returncode == 0:
+                print("✅ Room migration completed successfully")
+                print(result.stdout)
+            else:
+                print("⚠️  Room migration had issues but continuing...")
+                print(result.stdout)
+                print(result.stderr)
+        else:
+            print("✅ Rooms table exists")
+
+        engine.dispose()
+        return True
 
     except Exception as e:
         print(f"⚠️  Migration check failed: {e}")

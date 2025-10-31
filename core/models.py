@@ -89,7 +89,8 @@ class Apartment(db.Model):
     updated_at = Column(DateTime, default=func.current_timestamp(), onupdate=func.current_timestamp())
 
     # Relationships
-    bookings = relationship("Booking", back_populates="apartment", cascade="all, delete-orphan")
+    bookings = relationship("Booking", back_populates="apartment")
+    rooms = relationship("Room", back_populates="apartment", cascade="all, delete-orphan")
 
     def __repr__(self):
         return f"<Apartment {self.apartment_id}: {self.apartment_name}>"
@@ -113,6 +114,54 @@ class Apartment(db.Model):
         }
 
 # =====================================================
+# ROOMS TABLE - Individual Room Management
+# =====================================================
+class Room(db.Model):
+    __tablename__ = 'rooms'
+
+    # Primary identification
+    room_id = Column(Integer, primary_key=True, autoincrement=True)
+    room_name = Column(String(255), nullable=False, unique=True, index=True)
+    apartment_id = Column(Integer, ForeignKey('apartments.apartment_id', ondelete='CASCADE'), nullable=False, index=True)
+
+    # Room details
+    room_type = Column(String(100))  # Standard, Deluxe, Suite, Kitchen, etc.
+    max_guests = Column(Integer, default=2)
+    floor_number = Column(Integer)
+    room_features = Column(Text)  # JSON or comma-separated features
+
+    # Status
+    is_active = Column(Boolean, default=True, nullable=False, index=True)
+    display_order = Column(Integer, default=0)  # For sorting rooms in UI
+
+    # Audit fields
+    created_at = Column(DateTime, default=func.current_timestamp())
+    updated_at = Column(DateTime, default=func.current_timestamp(), onupdate=func.current_timestamp())
+
+    # Relationships
+    apartment = relationship("Apartment", back_populates="rooms")
+    bookings = relationship("Booking", back_populates="room")
+
+    def __repr__(self):
+        return f"<Room {self.room_id}: {self.room_name} (Apt: {self.apartment_id})>"
+
+    def to_dict(self):
+        return {
+            'room_id': self.room_id,
+            'room_name': self.room_name,
+            'apartment_id': self.apartment_id,
+            'apartment_name': self.apartment.apartment_name if self.apartment else None,
+            'room_type': self.room_type,
+            'max_guests': self.max_guests,
+            'floor_number': self.floor_number,
+            'room_features': self.room_features,
+            'is_active': self.is_active,
+            'display_order': self.display_order,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None
+        }
+
+# =====================================================
 # BOOKINGS TABLE - Core booking information
 # =====================================================
 class Booking(db.Model):
@@ -122,8 +171,11 @@ class Booking(db.Model):
     booking_id = Column(String(50), primary_key=True)
     guest_id = Column(Integer, ForeignKey('guests.guest_id', ondelete='RESTRICT'), nullable=False, index=True)
     guest_name = Column(String(255), nullable=True, index=True)  # Denormalized guest name for quick access
+
+    # Location hierarchy: Apartment → Room
     apartment_id = Column(Integer, ForeignKey('apartments.apartment_id', ondelete='RESTRICT'), nullable=True, index=True)  # Link to apartment
-    accommodation_name = Column(String(255), nullable=True, default='118 Hang Bac Hostel', index=True)  # Legacy - keep for backward compatibility
+    room_id = Column(Integer, ForeignKey('rooms.room_id', ondelete='SET NULL'), nullable=True, index=True)  # Link to specific room
+    accommodation_name = Column(String(255), nullable=True, default='118 hang bac', index=True)  # Legacy - keep for backward compatibility
     rooms_occupied = Column(Integer, default=1, nullable=False)  # Number of rooms booked (1-6)
 
     # Booking details
@@ -156,6 +208,7 @@ class Booking(db.Model):
     # Relationships
     guest = relationship("Guest", back_populates="bookings")
     apartment = relationship("Apartment", back_populates="bookings")
+    room = relationship("Room", back_populates="bookings")
     arrival_time = relationship("ArrivalTime", back_populates="booking", uselist=False, cascade="all, delete-orphan")
     
     # Constraints
@@ -191,7 +244,9 @@ class Booking(db.Model):
             'guest_id': self.guest_id,
             'guest_name': self.guest.full_name if self.guest else None,
             'apartment_id': self.apartment_id,
-            'apartment_name': self.apartment.apartment_name if self.apartment else self.accommodation_name,
+            'apartment_name': self.apartment.apartment_name if self.apartment else None,
+            'room_id': self.room_id,
+            'room_name': self.room.room_name if self.room else self.accommodation_name,
             'accommodation_name': self.accommodation_name,  # Legacy field
             'checkin_date': self.checkin_date.isoformat() if self.checkin_date else None,
             'checkout_date': self.checkout_date.isoformat() if self.checkout_date else None,

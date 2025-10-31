@@ -11,6 +11,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY app.py .
 COPY run.py .
 COPY migrate_add_apartments.py .
+COPY migrate_add_rooms.py .
 COPY core/ ./core/
 COPY templates/ ./templates/
 COPY static/ ./static/
