@@ -645,40 +645,65 @@ def get_overall_calendar_day_info(df: pd.DataFrame, target_date: str, total_capa
     """Get comprehensive calendar day information matching original function"""
     try:
         target_date_obj = pd.to_datetime(target_date).date()
-        
+
         if df is None or df.empty or total_capacity == 0:
             return {
-                'occupied_units': 0, 
+                'occupied_units': 0,
                 'available_units': total_capacity,
-                'status_text': "Trống", 
+                'status_text': "Trống",
                 'status_color': 'empty',
                 'arrivals_count': 0,
                 'departures_count': 0,
                 'staying_count': 0,
                 'daily_revenue': 0,
                 'commission_total': 0,
-                'revenue_minus_commission': 0
+                'revenue_minus_commission': 0,
+                'apt1_occupied': 0,
+                'apt1_available': 3,
+                'apt2_occupied': 0,
+                'apt2_available': 2
             }
 
         df_local = df.copy()
-        
+
         # Convert datetime columns to date objects for comparison
         if 'Check-in Date' in df_local.columns:
             df_local['Check-in Date'] = pd.to_datetime(df_local['Check-in Date']).dt.date
         if 'Check-out Date' in df_local.columns:
             df_local['Check-out Date'] = pd.to_datetime(df_local['Check-out Date']).dt.date
-        
+
         # Find active bookings on this date
         active_on_date = df_local[
             (df_local['Check-in Date'].notna()) &
             (df_local['Check-out Date'].notna()) &
-            (df_local['Check-in Date'] <= target_date_obj) & 
+            (df_local['Check-in Date'] <= target_date_obj) &
             (df_local['Check-out Date'] > target_date_obj) &
             (df_local['Tình trạng'] != 'Đã hủy')
         ]
-        
+
         occupied_units = len(active_on_date)
         available_units = max(0, total_capacity - occupied_units)
+
+        # 🏢 APARTMENT-SEPARATED CAPACITY CALCULATION
+        # Apartment 1: 118 Hang Bac (3 rooms)
+        apt1_rooms = ['118 hang bac', '118 Hang Bac Hostel', 'kitchen', 'Kitchen & Balcony', 'night market', 'Night market']
+        # Apartment 2: 18 Hang Be (2 rooms)
+        apt2_rooms = ['hang be 101', 'hang be 102']
+
+        apt1_occupied = 0
+        apt2_occupied = 0
+
+        for _, booking in active_on_date.iterrows():
+            room_name = booking.get('Tên chỗ nghỉ', '')
+            if room_name:
+                room_lower = str(room_name).lower()
+                if any(apt1_room.lower() in room_lower for apt1_room in apt1_rooms):
+                    apt1_occupied += 1
+                elif any(apt2_room.lower() in room_lower for apt2_room in apt2_rooms):
+                    apt2_occupied += 1
+
+        apt1_available = max(0, 3 - apt1_occupied)  # 118 Hang Bac has 3 rooms
+        apt2_available = max(0, 2 - apt2_occupied)  # 18 Hang Be has 2 rooms
         
         # Calculate activity counts
         activity = get_daily_activity(df_local, target_date_obj)
@@ -737,17 +762,25 @@ def get_overall_calendar_day_info(df: pd.DataFrame, target_date: str, total_capa
             'daily_revenue': daily_revenue,
             'commission_total': commission_total,
             'revenue_minus_commission': daily_revenue - commission_total,
-            'activity': activity
+            'activity': activity,
+            'apt1_occupied': apt1_occupied,
+            'apt1_available': apt1_available,
+            'apt2_occupied': apt2_occupied,
+            'apt2_available': apt2_available
         }
         
     except Exception as e:
         print(f"Error getting calendar day info: {e}")
         return {
-            'occupied_units': 0, 
+            'occupied_units': 0,
             'available_units': total_capacity,
-            'status_text': "Lỗi", 
+            'status_text': "Lỗi",
             'status_color': 'empty',
-            'error': str(e)
+            'error': str(e),
+            'apt1_occupied': 0,
+            'apt1_available': 3,
+            'apt2_occupied': 0,
+            'apt2_available': 2
         }
 
 def prepare_dashboard_data(df: pd.DataFrame, start_date: datetime, end_date: datetime, 

@@ -188,17 +188,25 @@
                                                         </span>
                                                     </div>
                                                     
-                                                    <!-- Hiển thị thông tin chi tiết -->
-                                                    <div class="booking-details">
-                                                        <small class="text-primary">
+                                                    <!-- Hiển thị thông tin chi tiết với phân tách căn hộ -->
+                                                    <div class="booking-details" style="display: flex; flex-direction: column; gap: 3px;">
+                                                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                                                            <small style="color: #1976D2; font-weight: 600;">
+                                                                <i class="fas fa-building"></i> 🔵 {{ info.apt1_occupied }}/3
+                                                            </small>
+                                                            <small style="color: #388E3C; font-weight: 600;">
+                                                                <i class="fas fa-building"></i> 🟢 {{ info.apt2_occupied }}/2
+                                                            </small>
+                                                        </div>
+                                                        <small class="text-primary" style="font-weight: 600;">
                                                             <i class="fas fa-bed"></i> {{ info.occupied_units }}/{{ info.occupied_units + info.available_units }}
                                                         </small>
                                                         {% if info.available_units > 0 %}
-                                                            <small class="text-success">
+                                                            <small class="text-success" style="font-size: 0.75rem;">
                                                                 <i class="fas fa-check"></i> {{ info.available_units }} trống
                                                             </small>
                                                         {% else %}
-                                                            <small class="text-danger">
+                                                            <small class="text-danger" style="font-size: 0.75rem;">
                                                                 <i class="fas fa-times"></i> Hết phòng
                                                             </small>
                                                         {% endif %}

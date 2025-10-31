@@ -1416,48 +1416,46 @@
 
                 console.log(`✅ Fetched ${apartmentFilter} revenue data:`, data);
 
-                // Prepare chart data
-                const chartData = [{
-                    x: data.months,
-                    y: data.revenues,
-                    type: 'bar',
-                    text: data.revenues.map(r => new Intl.NumberFormat('vi-VN').format(r) + 'đ'),
-                    textposition: 'outside',
-                    marker: {
-                        color: apartmentFilter === 'apt1' ? '#1976D2' :
-                               apartmentFilter === 'apt2' ? '#388E3C' :
-                               '#17A2B8',
-                        line: {
-                            color: apartmentFilter === 'apt1' ? '#0D47A1' :
-                                   apartmentFilter === 'apt2' ? '#1B5E20' :
-                                   '#138496',
-                            width: 2
-                        }
-                    },
-                    hovertemplate: '<b>%{x}</b><br>' +
-                                  'Doanh thu: %{text}<br>' +
-                                  '<extra></extra>'
-                }];
+                // Display filtered summary
+                const revenue = data.summary.prorated_revenue || 0;
+                const collected = data.summary.collected_prorated || 0;
+                const uncollected = data.summary.uncollected_prorated || 0;
+                const bookingCount = data.summary.count || 0;
 
-                const chartLayout = {
-                    title: apartmentFilter === 'apt1' ? '🔵 Doanh thu 118 Hang Bac (3 phòng)' :
-                           apartmentFilter === 'apt2' ? '🟢 Doanh thu 18 Hang Be (2 phòng)' :
-                           '📊 Doanh thu Tất cả (6 phòng)',
-                    xaxis: {
-                        title: 'Tháng',
-                        tickangle: -45
-                    },
-                    yaxis: {
-                        title: 'Doanh thu (VND)',
-                        tickformat: ',.0f'
-                    },
-                    height: 400,
-                    showlegend: false,
-                    hovermode: 'closest'
-                };
+                const title = apartmentFilter === 'apt1' ? '🔵 Doanh thu 118 Hang Bac (3 phòng)' :
+                              apartmentFilter === 'apt2' ? '🟢 Doanh thu 18 Hang Be (2 phòng)' :
+                              '📊 Doanh thu Tất cả (6 phòng)';
 
-                // Update chart with filtered data
-                Plotly.react(chartDiv, chartData, chartLayout);
+                const color = apartmentFilter === 'apt1' ? '#1976D2' :
+                              apartmentFilter === 'apt2' ? '#388E3C' :
+                              '#17A2B8';
+
+                // Create summary display
+                chartDiv.innerHTML = `
+                    <div style="padding: 30px; text-align: center;">
+                        <h4 style="color: ${color}; margin-bottom: 20px;">${title}</h4>
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; max-width: 800px; margin: 0 auto;">
+                            <div style="background: linear-gradient(135deg, ${color}20 0%, ${color}10 100%); padding: 20px; border-radius: 10px; border: 2px solid ${color};">
+                                <div style="font-size: 14px; color: #666; margin-bottom: 5px;">📊 Tổng doanh thu</div>
+                                <div style="font-size: 24px; font-weight: bold; color: ${color};">${new Intl.NumberFormat('vi-VN').format(revenue)}đ</div>
+                                <div style="font-size: 12px; color: #888; margin-top: 5px;">${bookingCount} booking</div>
+                            </div>
+                            <div style="background: linear-gradient(135deg, #28a74520 0%, #28a74510 100%); padding: 20px; border-radius: 10px; border: 2px solid #28a745;">
+                                <div style="font-size: 14px; color: #666; margin-bottom: 5px;">✅ Đã thu</div>
+                                <div style="font-size: 24px; font-weight: bold; color: #28a745;">${new Intl.NumberFormat('vi-VN').format(collected)}đ</div>
+                                <div style="font-size: 12px; color: #888; margin-top: 5px;">${revenue > 0 ? Math.round(collected/revenue*100) : 0}%</div>
+                            </div>
+                            <div style="background: linear-gradient(135deg, #dc354520 0%, #dc354510 100%); padding: 20px; border-radius: 10px; border: 2px solid #dc3545;">
+                                <div style="font-size: 14px; color: #666; margin-bottom: 5px;">⏳ Chưa thu</div>
+                                <div style="font-size: 24px; font-weight: bold; color: #dc3545;">${new Intl.NumberFormat('vi-VN').format(uncollected)}đ</div>
+                                <div style="font-size: 12px; color: #888; margin-top: 5px;">${revenue > 0 ? Math.round(uncollected/revenue*100) : 0}%</div>
+                            </div>
+                        </div>
+                        <div style="margin-top: 20px; padding: 15px; background: #f8f9fa; border-radius: 8px;">
+                            <i class="fas fa-info-circle"></i> Dữ liệu tháng ${data.period.month}
+                        </div>
+                    </div>
+                `;
                 console.log('✅ Chart updated with filtered data');
 
             } catch (error) {
