@@ -416,7 +416,21 @@ else:
 try:
     app.config['SQLALCHEMY_DATABASE_URI'] = database_url
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
+    # CRITICAL: Add connection timeout and pool settings for Railway
+    # These prevent the app from hanging on slow/failed database connections
+    app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
+        'pool_size': 10,              # Connection pool size
+        'pool_recycle': 3600,         # Recycle connections after 1 hour
+        'pool_pre_ping': True,        # Test connections before using them
+        'connect_args': {
+            'connect_timeout': 10,    # 10 second connection timeout
+            'options': '-c statement_timeout=30000'  # 30 second query timeout
+        }
+    }
+
     print(f"✅ Database configured: {database_url[:30]}...")
+    print(f"✅ Connection timeout: 10s | Query timeout: 30s")
 except Exception as e:
     print(f"❌ Database configuration error: {e}")
     print("🔧 Using SQLite fallback...")
@@ -1335,9 +1349,45 @@ def dashboard():
         start_date = datetime.strptime(start_date_str, '%Y-%m-%d')
         end_date = datetime.strptime(end_date_str, '%Y-%m-%d')
 
-    # Always load fresh data to show immediate updates after edits
-    # This ensures uncollected guests section reflects latest collect money/commission changes
-    df, _ = load_data(force_fresh=True)
+    # CRITICAL: Load data with timeout protection to prevent Railway from hanging
+    # Use cached data first, only force_fresh if explicitly requested
+    use_fresh = request.args.get('refresh', 'false').lower() == 'true'
+    try:
+        print(f"🔄 Loading data (fresh={use_fresh})...")
+        df, _ = load_data(force_fresh=use_fresh)
+        print(f"✅ Data loaded successfully: {len(df)} bookings")
+    except Exception as e:
+        print(f"❌ Error loading data: {e}")
+        # Return error page instead of hanging
+        error_html = f"""
+        <!DOCTYPE html>
+        <html>
+        <head><title>Database Error</title></head>
+        <body>
+            <h1>⚠️ Database Connection Error</h1>
+            <p>Unable to connect to the database. This might be temporary.</p>
+            <p><strong>Error:</strong> {str(e)}</p>
+            <p><a href="/">Try again</a> | <a href="/health">Check system health</a></p>
+        </body>
+        </html>
+        """
+        return error_html, 503
+
+    # If still empty, return helpful message
+    if df.empty:
+        print("⚠️ No booking data available")
+        empty_html = """
+        <!DOCTYPE html>
+        <html>
+        <head><title>No Data</title></head>
+        <body>
+            <h1>📊 No Booking Data</h1>
+            <p>The booking system is running, but no data is currently available.</p>
+            <p><a href="/?refresh=true">Reload with fresh data</a></p>
+        </body>
+        </html>
+        """
+        return empty_html, 200
     sort_by = request.args.get('sort_by', 'Tháng')
     sort_order = request.args.get('sort_order', 'desc')
     
