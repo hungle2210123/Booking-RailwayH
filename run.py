@@ -78,6 +78,60 @@ def check_environment():
 
     print("=" * 60)
 
+def run_migration():
+    """Run database migration if needed"""
+    print("\n🔄 DATABASE MIGRATION CHECK")
+    print("=" * 60)
+
+    try:
+        # Check if we're on Railway (has DATABASE_URL)
+        if not os.environ.get('DATABASE_URL'):
+            print("⏭️  Not on Railway - skipping migration")
+            return True
+
+        from sqlalchemy import create_engine, inspect, text
+
+        database_url = os.environ.get('DATABASE_URL')
+        print("✅ Database URL detected")
+
+        # Check if apartments table exists
+        engine = create_engine(database_url)
+        inspector = inspect(engine)
+        tables = inspector.get_table_names()
+
+        if 'apartments' in tables and 'guests' in tables:
+            print("✅ Migration already completed (apartments + guests tables exist)")
+            engine.dispose()
+            return True
+
+        print("⚠️  Missing tables detected - running migration...")
+        print("📋 Running migrate_add_apartments.py...")
+
+        # Run migration script
+        result = subprocess.run(
+            [sys.executable, 'migrate_add_apartments.py'],
+            capture_output=True,
+            text=True,
+            timeout=60
+        )
+
+        if result.returncode == 0:
+            print("✅ Migration completed successfully")
+            print(result.stdout)
+            return True
+        else:
+            print("⚠️  Migration had issues but continuing...")
+            print(result.stdout)
+            print(result.stderr)
+            return True  # Don't fail startup even if migration has issues
+
+    except Exception as e:
+        print(f"⚠️  Migration check failed: {e}")
+        print("Continuing anyway - app may have limited functionality")
+        return True  # Don't block startup
+
+    print("=" * 60)
+
 def main():
     print("\n" + "=" * 60)
     print("🚀 RAILWAY STARTUP DIAGNOSTICS")
@@ -85,6 +139,9 @@ def main():
 
     # Step 1: Check environment
     check_environment()
+
+    # Step 1.5: Run migration if needed
+    run_migration()
 
     # Step 2: Test imports
     if not test_imports():

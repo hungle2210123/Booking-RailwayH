@@ -10,6 +10,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy application files
 COPY app.py .
 COPY run.py .
+COPY migrate_add_apartments.py .
 COPY core/ ./core/
 COPY templates/ ./templates/
 COPY static/ ./static/
