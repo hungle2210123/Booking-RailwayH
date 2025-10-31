@@ -419,12 +419,12 @@
         </div>
 
         <!-- Cột Đang ở -->
-        <div class="col-lg-4 mb-4">
-            <div class="card h-100">
-                <div class="card-header" style="background: linear-gradient(135deg, #17a2b8 0%, #138496 100%); color: white;">
-                    <h5 class="mb-0" style="text-shadow: 1px 1px 2px rgba(0,0,0,0.3); font-weight: 700;">🏨 Khách Đang Ở ({{ staying_over|length }})</h5>
-                </div>
-                <div class="card-body">
+        <div class="col-12 mb-3">
+            <div class="section-header-compact" style="background: linear-gradient(135deg, #17a2b8 0%, #138496 100%);">
+                <span>🏨 Khách Đang Ở</span>
+                <span class="badge bg-light text-dark">{{ staying_over|length }} khách</span>
+            </div>
+            <div class="guest-grid">
                     {% if staying_over %}
                         {% for booking in staying_over %}
                             {% set commission = booking.get('Hoa hồng', 0) or 0 %}
@@ -506,12 +506,12 @@
         </div>
 
         <!-- Cột Check-out -->
-        <div class="col-lg-4 mb-4">
-            <div class="card h-100">
-                <div class="card-header" style="background: linear-gradient(135deg, #ffc107 0%, #ff9800 100%);">
-                    <h5 class="mb-0" style="text-shadow: 1px 1px 2px rgba(255,255,255,0.5); font-weight: 700; color: #000;">🛫 Khách Check-out ({{ check_out|length }})</h5>
-                </div>
-                <div class="card-body">
+        <div class="col-12 mb-3">
+            <div class="section-header-compact" style="background: linear-gradient(135deg, #ffc107 0%, #ff9800 100%);">
+                <span style="color: #000;">🛫 Khách Check-out</span>
+                <span class="badge bg-dark text-white">{{ check_out|length }} khách</span>
+            </div>
+            <div class="guest-grid">
                     {% if check_out %}
                         {% for booking in check_out %}
                             {% set commission = booking.get('Hoa hồng', 0) or 0 %}
