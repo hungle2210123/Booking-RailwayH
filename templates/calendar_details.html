@@ -293,9 +293,9 @@
         }
 
         .guest-grid .guest-card {
-            flex: 1 1 320px !important;
+            flex: 0 1 380px !important;
             max-width: 450px !important;
-            min-width: 300px !important;
+            min-width: 320px !important;
         }
 
         /* Responsive: Better spacing on larger screens */
@@ -808,10 +808,10 @@
         margin-bottom: 0 !important;
         background: #fafafa;
         transition: all 0.2s ease;
-        /* 🎯 CRITICAL: Enable flexbox layout for horizontal alignment */
-        flex: 1 1 320px !important;
+        /* 🎯 CRITICAL: Prevent single cards from stretching - flex-grow: 0 */
+        flex: 0 1 380px !important;
         max-width: 450px !important;
-        min-width: 300px !important;
+        min-width: 320px !important;
     }
 
     .guest-card:hover {
