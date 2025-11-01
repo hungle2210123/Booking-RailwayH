@@ -7957,20 +7957,24 @@ let currentMonthlyData = null;
 
 function showMonthlyGuestDetails(month, type, totalAmount) {
     console.log(`🔍 [MONTHLY_MODAL] Opening details for ${month} - ${type} - ${totalAmount}đ`);
-    
+
+    // 🎯 GET CURRENT APARTMENT FILTER
+    const currentFilter = document.querySelector('input[name="apartmentFilterMonthly"]:checked')?.value || 'all';
+    console.log(`🏢 [MONTHLY_MODAL] Current apartment filter: ${currentFilter}`);
+
     // Show modal and loading state
     const modal = new bootstrap.Modal(document.getElementById('monthlyGuestDetailsModal'));
     modal.show();
-    
+
     // Reset modal state
     document.getElementById('monthlyGuestLoading').style.display = 'block';
     document.getElementById('monthlyGuestContent').style.display = 'none';
     document.getElementById('monthlyGuestError').style.display = 'none';
-    
+
     // Store current data for export
     currentMonthlyData = { month, type, totalAmount };
-    
-    // Call API to get guest details
+
+    // Call API to get guest details with apartment filter
     fetch('/api/monthly_guest_details', {
         method: 'POST',
         headers: {
@@ -7978,7 +7982,8 @@ function showMonthlyGuestDetails(month, type, totalAmount) {
         },
         body: JSON.stringify({
             month: month,
-            type: type
+            type: type,
+            apartment: currentFilter  // 🎯 PASS APARTMENT FILTER
         })
     })
     .then(response => response.json())

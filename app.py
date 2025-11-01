@@ -8528,23 +8528,42 @@ def get_monthly_guest_details():
         data = request.get_json()
         month = data.get('month')  # Format: 'YYYY-MM'
         collection_type = data.get('type')  # 'collected' or 'uncollected'
-        
-        print(f"🔍 [MONTHLY_DETAILS] Requested: {month} - {collection_type}")
-        
+        apartment_filter = data.get('apartment', 'all')  # 🎯 GET APARTMENT FILTER
+
+        print(f"🔍 [MONTHLY_DETAILS] Requested: {month} - {collection_type} - {apartment_filter}")
+
         if not month or not collection_type:
             return jsonify({'success': False, 'message': 'Missing month or type parameter'}), 400
-        
+
         # Load data using EXACT same method as dashboard route
         df, _ = load_data(force_fresh=False)  # Same as dashboard route uses
         # Note: Cancelled bookings are now filtered out inside the revenue calculation functions
         if df.empty:
             return jsonify({'success': True, 'guests': [], 'total_amount': 0, 'count': 0})
-        
-        # Use EXACT same function as dashboard summary to ensure perfect consistency  
+
+        # 🎯 FILTER BY APARTMENT BEFORE PROCESSING
+        if apartment_filter in ['apt1', 'apt2']:
+            apartment_id = 1 if apartment_filter == 'apt1' else 2
+            from core.models import Room
+
+            room_ids = db.session.query(Room.room_id).filter(
+                Room.apartment_id == apartment_id,
+                Room.is_active == True
+            ).all()
+            room_ids = [r[0] for r in room_ids]
+
+            if 'room_id' in df.columns:
+                initial_count = len(df)
+                df = df[df['room_id'].isin(room_ids)]
+                print(f"🏢 [MONTHLY_DETAILS] Filtered {initial_count} → {len(df)} bookings for apartment {apartment_filter}")
+            else:
+                print(f"⚠️ [MONTHLY_DETAILS] room_id column not found, cannot filter by apartment")
+
+        # Use EXACT same function as dashboard summary to ensure perfect consistency
         from core.dashboard_routes import process_monthly_revenue_with_unpaid
-        
+
         print(f"🔧 [MONTHLY_DETAILS] Using dashboard's process_monthly_revenue_with_unpaid() function for consistency")
-        
+
         # Get the exact same monthly data as displayed on dashboard
         monthly_data = process_monthly_revenue_with_unpaid(df)
         
