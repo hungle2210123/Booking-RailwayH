@@ -282,36 +282,17 @@
     </div>
     {% endif %}
 
-    <!-- 🎯 NEW APPROACH: Bootstrap Row/Col System - Guaranteed to work -->
+    <!-- 🎯 THREE COLUMN LAYOUT: Cards stack vertically in each section -->
     <style>
-        /* Each guest card will be in a Bootstrap column */
+        /* Each section is a column, cards stack vertically inside */
         .guest-cards-row {
             display: flex !important;
-            flex-wrap: wrap !important;
-            margin-left: -8px !important;
-            margin-right: -8px !important;
+            flex-direction: column !important;
+            gap: 12px !important;
         }
 
         .guest-card-col {
-            padding-left: 8px !important;
-            padding-right: 8px !important;
-            margin-bottom: 16px !important;
-            flex: 0 0 auto !important;
-            width: 50% !important; /* 2 cards per row */
-        }
-
-        /* On large screens, show 3 cards per row */
-        @media (min-width: 1200px) {
-            .guest-card-col {
-                width: 33.333% !important; /* 3 cards per row */
-            }
-        }
-
-        /* On mobile, stack vertically */
-        @media (max-width: 768px) {
-            .guest-card-col {
-                width: 100% !important; /* 1 card per row */
-            }
+            width: 100% !important;
         }
 
         .guest-card-compact {
@@ -355,10 +336,10 @@
         }
     </style>
 
-    <!-- 🎯 SIMPLE CLEAN LAYOUT: Each section takes full width, cards horizontal -->
+    <!-- 🎯 THREE COLUMNS LAYOUT: Check-in, Staying, Checkout side by side -->
     <div class="row">
         <!-- Check-in Section -->
-        <div class="col-12 mb-4">
+        <div class="col-lg-4 mb-4">
             <div class="section-header-compact" style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%);">
                 <span>🛬 Khách Check-in</span>
                 <span class="badge bg-light text-dark">{{ check_in|length }} khách</span>
@@ -446,7 +427,7 @@
         </div>
 
         <!-- Staying Section -->
-        <div class="col-12 mb-4">
+        <div class="col-lg-4 mb-4">
             <div class="section-header-compact" style="background: linear-gradient(135deg, #17a2b8 0%, #138496 100%);">
                 <span>🏨 Khách Đang Ở</span>
                 <span class="badge bg-light text-dark">{{ staying_over|length }} khách</span>
@@ -535,7 +516,7 @@
         </div>
 
         <!-- Checkout Section -->
-        <div class="col-12 mb-4">
+        <div class="col-lg-4 mb-4">
             <div class="section-header-compact" style="background: linear-gradient(135deg, #ffc107 0%, #ff9800 100%);">
                 <span style="color: #000;">🛫 Khách Check-out</span>
                 <span class="badge bg-dark text-white">{{ check_out|length }} khách</span>
