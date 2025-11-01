@@ -9577,6 +9577,15 @@ def get_monthly_checked_in_revenue():
         # Process monthly revenue with the filtered data
         monthly_data = process_monthly_revenue_with_unpaid(df)
 
+        # Convert pandas Period objects to strings for JSON serialization
+        import pandas as pd
+        for row in monthly_data:
+            for key, value in row.items():
+                if isinstance(value, pd.Period):
+                    row[key] = str(value)
+                elif pd.isna(value):
+                    row[key] = None
+
         return jsonify({
             'success': True,
             'monthly_data': monthly_data,

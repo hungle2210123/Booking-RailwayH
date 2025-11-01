@@ -284,39 +284,43 @@
 
     <!-- Ultra-Compact Grid Layout for Better Space Utilization -->
     <style>
+        /* 🎯 UNIFIED GRID SYSTEM - Works perfectly for 1, 2, or many cards */
         .guest-grid {
-            display: grid !important;
-            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)) !important;
+            display: flex !important;
+            flex-wrap: wrap !important;
             gap: 15px !important;
             width: 100% !important;
         }
 
-        /* Force grid layout for all guest sections */
-        .col-12 .guest-grid {
-            display: grid !important;
-            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)) !important;
+        .guest-grid .guest-card {
+            flex: 1 1 320px !important;
+            max-width: 450px !important;
+            min-width: 300px !important;
         }
 
-        /* Responsive: Better handling for different screen sizes */
+        /* Responsive: Better spacing on larger screens */
         @media (min-width: 768px) {
             .guest-grid {
-                grid-template-columns: repeat(auto-fill, minmax(350px, 1fr)) !important;
+                gap: 18px !important;
+            }
+            .guest-grid .guest-card {
+                flex: 1 1 340px !important;
             }
         }
 
         @media (min-width: 1200px) {
             .guest-grid {
-                grid-template-columns: repeat(auto-fill, minmax(380px, 1fr)) !important;
                 gap: 20px !important;
+            }
+            .guest-grid .guest-card {
+                flex: 1 1 360px !important;
             }
         }
 
-        /* Prevent cards from stretching too wide on large screens */
-        @media (min-width: 1400px) {
-            .guest-grid {
-                grid-template-columns: repeat(3, 1fr) !important;
-                max-width: 1400px;
-            }
+        /* Ensure consistent alignment across all sections */
+        .col-12 .guest-grid {
+            display: flex !important;
+            flex-wrap: wrap !important;
         }
 
         .guest-card-compact {
