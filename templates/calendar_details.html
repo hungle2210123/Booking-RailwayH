@@ -284,6 +284,18 @@
 
     <!-- 🎯 THREE COLUMN LAYOUT: Cards stack vertically in each section -->
     <style>
+        /* Force row to not have negative margins - touch the container edges */
+        .three-section-row {
+            margin-left: 0 !important;
+            margin-right: 0 !important;
+        }
+
+        /* Each column should have minimal padding */
+        .three-section-row > [class*="col-"] {
+            padding-left: 6px !important;
+            padding-right: 6px !important;
+        }
+
         /* Each section is a column, cards stack vertically inside */
         .guest-cards-row {
             display: flex !important;
@@ -337,7 +349,7 @@
     </style>
 
     <!-- 🎯 THREE COLUMNS LAYOUT: Check-in, Staying, Checkout side by side -->
-    <div class="row">
+    <div class="row three-section-row">
         <!-- Check-in Section -->
         <div class="col-lg-4 mb-4">
             <div class="section-header-compact" style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%);">
