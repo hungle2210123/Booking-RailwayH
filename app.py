@@ -9614,31 +9614,6 @@ def add_apartment():
         print(f"❌ Error adding apartment: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
-@app.route('/api/rooms', methods=['POST'])
-def add_room():
-    """Add new room to apartment"""
-    try:
-        from core.models import Room, db
-        data = request.get_json()
-
-        new_room = Room(
-            room_name=data['room_name'],
-            apartment_id=data['apartment_id'],
-            room_type=data.get('room_type', 'Standard Room'),
-            max_guests=data.get('max_guests', 2),
-            is_active=True
-        )
-
-        db.session.add(new_room)
-        db.session.commit()
-
-        return jsonify({'success': True, 'room_id': new_room.room_id})
-
-    except Exception as e:
-        db.session.rollback()
-        print(f"❌ Error adding room: {e}")
-        return jsonify({'success': False, 'error': str(e)}), 500
-
 @app.route('/api/railway_status', methods=['GET'])
 def railway_status():
     """Debug endpoint for Railway deployment status"""

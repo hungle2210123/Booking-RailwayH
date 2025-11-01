@@ -285,9 +285,16 @@
     <!-- Ultra-Compact Grid Layout for Better Space Utilization -->
     <style>
         .guest-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-            gap: 12px;
+            display: grid !important;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)) !important;
+            gap: 12px !important;
+            width: 100% !important;
+        }
+
+        /* Force grid layout for all guest sections */
+        .col-12 .guest-grid {
+            display: grid !important;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)) !important;
         }
 
         .guest-card-compact {

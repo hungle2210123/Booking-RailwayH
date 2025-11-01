@@ -402,12 +402,42 @@ def add_new_booking(booking_data: Dict) -> bool:
             booking_id = f"PHOTO_{uuid.uuid4().hex[:8].upper()}"
             print(f"⚠️ [ADD_NEW_BOOKING] Booking ID conflict ({original_id}), generated new: {booking_id}")
         
+        # 🔧 MAP ROOM NAME TO ROOM_ID for apartment filtering
+        accommodation_name = booking_data.get('accommodation_name', '118 Hang Bac Hostel')
+        room_id = None
+
+        from .models import Room
+        room_name_lower = accommodation_name.lower().strip()
+        print(f"[ADD_NEW_BOOKING] 🏠 Mapping room name to room_id: {room_name_lower}")
+
+        # Try exact match first
+        room = db.session.query(Room).filter(
+            db.func.lower(Room.room_name) == room_name_lower,
+            Room.is_active == True
+        ).first()
+
+        # If no exact match, try partial match
+        if not room:
+            room = db.session.query(Room).filter(
+                db.func.lower(Room.room_name).contains(room_name_lower) |
+                db.func.lower(db.text(f"'{room_name_lower}'")).contains(db.func.lower(Room.room_name)),
+                Room.is_active == True
+            ).first()
+
+        if room:
+            room_id = room.room_id
+            print(f"[ADD_NEW_BOOKING] ✅ Mapped to room_id: {room.room_id} ({room.room_name}, apartment_id: {room.apartment_id})")
+        else:
+            print(f"[ADD_NEW_BOOKING] ⚠️ WARNING: Could not find room_id for '{accommodation_name}', defaulting to room 1")
+            room_id = 1  # Default to first room (118 hang bac)
+
         # Create new booking
         booking = Booking(
             booking_id=booking_id,
             guest_id=guest.guest_id,
             guest_name=booking_data.get('guest_name', ''),  # Denormalized for quick access
-            accommodation_name=booking_data.get('accommodation_name', '118 Hang Bac Hostel'),  # Room type/property
+            accommodation_name=accommodation_name,  # Room type/property
+            room_id=room_id,  # 🔧 SET ROOM_ID for apartment filtering
             checkin_date=booking_data.get('checkin_date'),
             checkout_date=booking_data.get('checkout_date'),
             room_amount=booking_data.get('room_amount', 0),
@@ -417,7 +447,7 @@ def add_new_booking(booking_data: Dict) -> bool:
             booking_status='confirmed',
             booking_notes=booking_data.get('notes', '')
         )
-        
+
         db.session.add(booking)
         db.session.commit()
         print(f"✅ [ADD_NEW_BOOKING] Successfully added booking: {booking_id}")
@@ -511,7 +541,32 @@ def update_booking(booking_id: str, update_data: Dict) -> bool:
             booking.booking_status = update_data['status']
         if 'accommodation_name' in update_data:
             booking.accommodation_name = update_data['accommodation_name']
-        
+
+            # 🔧 MAP ROOM NAME TO ROOM_ID for apartment filtering
+            room_name_lower = update_data['accommodation_name'].lower().strip()
+            print(f"[UPDATE_BOOKING] 🏠 Mapping room name to room_id: {room_name_lower}")
+
+            from .models import Room
+            # Try exact match first
+            room = db.session.query(Room).filter(
+                db.func.lower(Room.room_name) == room_name_lower,
+                Room.is_active == True
+            ).first()
+
+            # If no exact match, try partial match
+            if not room:
+                room = db.session.query(Room).filter(
+                    db.func.lower(Room.room_name).contains(room_name_lower) |
+                    db.func.lower(db.text(f"'{room_name_lower}'")).contains(db.func.lower(Room.room_name)),
+                    Room.is_active == True
+                ).first()
+
+            if room:
+                booking.room_id = room.room_id
+                print(f"[UPDATE_BOOKING] ✅ Mapped to room_id: {room.room_id} ({room.room_name}, apartment_id: {room.apartment_id})")
+            else:
+                print(f"[UPDATE_BOOKING] ⚠️ WARNING: Could not find room_id for '{update_data['accommodation_name']}'")
+
         # Commit changes - simple and fast
         db.session.commit()
 
