@@ -296,15 +296,25 @@
             padding-right: 6px !important;
         }
 
-        /* Each section is a column, cards stack vertically inside */
+        /* Cards display HORIZONTALLY within each section */
         .guest-cards-row {
             display: flex !important;
-            flex-direction: column !important;
-            gap: 12px !important;
+            flex-direction: row !important;
+            flex-wrap: wrap !important;
+            gap: 8px !important;
+            align-items: flex-start !important;
         }
 
         .guest-card-col {
-            width: 100% !important;
+            flex: 1 1 calc(50% - 8px) !important; /* 2 cards per row in each column */
+            min-width: 200px !important;
+        }
+
+        /* On smaller screens in each column, stack cards */
+        @media (max-width: 1400px) {
+            .guest-card-col {
+                flex: 1 1 100% !important; /* 1 card per row */
+            }
         }
 
         .guest-card-compact {
