@@ -9590,11 +9590,6 @@ def get_apartments_config():
         traceback.print_exc()
         return jsonify({'success': False, 'error': str(e)}), 500
 
-@app.route('/apartment_management')
-def apartment_management():
-    """Apartment and Room Management UI"""
-    return render_template('apartment_management.html')
-
 @app.route('/api/apartments', methods=['POST'])
 def add_apartment():
     """Add new apartment"""
@@ -9642,26 +9637,6 @@ def add_room():
     except Exception as e:
         db.session.rollback()
         print(f"❌ Error adding room: {e}")
-        return jsonify({'success': False, 'error': str(e)}), 500
-
-@app.route('/api/rooms/<int:room_id>', methods=['DELETE'])
-def delete_room(room_id):
-    """Delete room (soft delete - set is_active=False)"""
-    try:
-        from core.models import Room, db
-
-        room = db.session.query(Room).filter(Room.room_id == room_id).first()
-        if not room:
-            return jsonify({'success': False, 'error': 'Room not found'}), 404
-
-        room.is_active = False
-        db.session.commit()
-
-        return jsonify({'success': True})
-
-    except Exception as e:
-        db.session.rollback()
-        print(f"❌ Error deleting room: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/api/railway_status', methods=['GET'])
