@@ -1561,6 +1561,146 @@
             }
         };
 
+        // Filter monthly checked-in revenue by apartment - FETCH AND RE-RENDER TABLE
+        window.filterMonthlyCheckedInRevenue = async function(apartmentFilter) {
+            console.log('🏢 Filtering monthly checked-in revenue by apartment:', apartmentFilter);
+
+            try {
+                const tableBody = document.querySelector('.table-responsive table tbody');
+                if (!tableBody) {
+                    console.error('❌ Monthly revenue table not found');
+                    return;
+                }
+
+                // Show loading state
+                tableBody.innerHTML = `
+                    <tr>
+                        <td colspan="9" class="text-center py-4">
+                            <div class="spinner-border spinner-border-sm text-primary" role="status">
+                                <span class="visually-hidden">Đang tải...</span>
+                            </div>
+                            <small class="d-block mt-2 text-muted">Đang tải dữ liệu...</small>
+                        </td>
+                    </tr>
+                `;
+
+                // Fetch filtered data from API
+                const response = await fetch(`/api/monthly_checked_in_revenue?apartment=${apartmentFilter}`);
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+
+                const data = await response.json();
+                if (!data.success) {
+                    throw new Error(data.error || 'Unknown error');
+                }
+
+                const monthlyData = data.monthly_data;
+                console.log(`💰 [MONTHLY_CHECKED_IN] Filtered data for ${apartmentFilter}:`, monthlyData);
+
+                // Re-render the table with filtered data
+                if (!monthlyData || monthlyData.length === 0) {
+                    tableBody.innerHTML = `
+                        <tr>
+                            <td colspan="9" class="text-center py-4">
+                                <i class="fas fa-info-circle text-muted mb-2" style="font-size: 2rem;"></i>
+                                <p class="text-muted mb-0">Không có dữ liệu cho căn hộ này</p>
+                            </td>
+                        </tr>
+                    `;
+                    return;
+                }
+
+                // Build table HTML
+                let tableHTML = '';
+                monthlyData.forEach(row => {
+                    const collected = parseFloat(row['Đã thu'] || 0);
+                    const uncollected = parseFloat(row['Chưa thu'] || 0);
+                    const total = collected + uncollected;
+                    const percentage = total > 0 ? (collected / total * 100) : 0;
+                    const uncollectedCount = parseInt(row['Số khách chưa thu'] || 0);
+                    const totalGuests = parseInt(row['Tổng khách'] || 0);
+                    const collectedGuests = parseInt(row['Khách đã thu'] || 0);
+                    const avgSpending = parseFloat(row['Chi tiêu TB/khách'] || 0);
+                    const totalCommission = parseFloat(row['Tổng hoa hồng'] || 0);
+
+                    // Determine progress bar color
+                    let progressColor = 'bg-danger';
+                    if (percentage >= 90) progressColor = 'bg-success';
+                    else if (percentage >= 70) progressColor = 'bg-warning';
+
+                    tableHTML += `
+                        <tr class="border-bottom">
+                            <td>
+                                <div class="fw-bold text-primary">${row['Tháng'] || 'N/A'}</div>
+                            </td>
+                            <td class="text-end">
+                                <button class="btn btn-link fw-bold text-success p-0 border-0 bg-transparent"
+                                        onclick="showMonthlyGuestDetails('${row['Tháng']}', 'collected', ${collected})"
+                                        title="Click để xem chi tiết khách đã thu">
+                                    <i class="fas fa-eye me-1"></i>${collected.toLocaleString('vi-VN')}đ
+                                </button>
+                            </td>
+                            <td class="text-end">
+                                <button class="btn btn-link fw-bold text-danger p-0 border-0 bg-transparent"
+                                        onclick="showMonthlyGuestDetails('${row['Tháng']}', 'uncollected', ${uncollected})"
+                                        title="Click để xem chi tiết khách chưa thu">
+                                    <i class="fas fa-exclamation-triangle me-1"></i>${uncollected.toLocaleString('vi-VN')}đ
+                                </button>
+                            </td>
+                            <td class="text-center">
+                                ${uncollectedCount > 0 ?
+                                    `<span class="badge bg-warning text-dark">${uncollectedCount} khách</span>` :
+                                    `<span class="badge bg-success"><i class="fas fa-check"></i> Đã thu hết</span>`
+                                }
+                            </td>
+                            <td class="text-end">
+                                <div class="fw-bold text-dark">${total.toLocaleString('vi-VN')}đ</div>
+                            </td>
+                            <td class="text-center">
+                                <div class="progress" style="height: 20px;">
+                                    <div class="progress-bar ${progressColor}" role="progressbar"
+                                         style="width: ${percentage}%;" aria-valuenow="${percentage}"
+                                         aria-valuemin="0" aria-valuemax="100">
+                                        <small class="fw-bold">${percentage.toFixed(1)}%</small>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="text-center">
+                                <div class="fw-bold text-info">${totalGuests}</div>
+                                <small class="text-muted">${collectedGuests} đã thu</small>
+                            </td>
+                            <td class="text-end">
+                                <div class="fw-bold text-primary">${avgSpending.toLocaleString('vi-VN')}đ</div>
+                            </td>
+                            <td class="text-end">
+                                <div class="fw-bold text-warning">${totalCommission.toLocaleString('vi-VN')}đ</div>
+                            </td>
+                        </tr>
+                    `;
+                });
+
+                tableBody.innerHTML = tableHTML;
+                console.log('✅ Monthly checked-in revenue table filtered and re-rendered');
+
+            } catch (error) {
+                console.error('❌ Error filtering monthly checked-in revenue:', error);
+                const tableBody = document.querySelector('.table-responsive table tbody');
+                if (tableBody) {
+                    tableBody.innerHTML = `
+                        <tr>
+                            <td colspan="9" class="text-center py-4">
+                                <div class="alert alert-danger mb-0">
+                                    <i class="fas fa-exclamation-triangle"></i>
+                                    Lỗi tải dữ liệu: ${error.message}
+                                </div>
+                            </td>
+                        </tr>
+                    `;
+                }
+            }
+        };
+
         console.log('✅ [EARLY_LOAD] Apartment filtering functions loaded successfully');
     </script>
 
@@ -1615,11 +1755,31 @@
             <div class="card shadow-sm border-0">
                 <div class="card-header bg-light">
                     <h6 class="mb-0">
-                        <i class="fas fa-table me-1 text-primary"></i> 
+                        <i class="fas fa-table me-1 text-primary"></i>
                         Chi tiết Doanh thu theo tháng (CHỈ khách đã check-in)
                     </h6>
                 </div>
                 <div class="card-body">
+                    <!-- 🏢 Apartment Filter Buttons -->
+                    <div class="apartment-filter-tabs-monthly mb-3">
+                        <div class="btn-group w-100" role="group" aria-label="Apartment filter monthly revenue">
+                            <input type="radio" class="btn-check" name="apartmentFilterMonthly" id="aptAllMonthly" value="all" checked autocomplete="off" onchange="filterMonthlyCheckedInRevenue('all')">
+                            <label class="btn btn-outline-primary btn-sm" for="aptAllMonthly">
+                                <i class="fas fa-building me-1"></i>📊 Tất cả Căn hộ
+                            </label>
+
+                            <input type="radio" class="btn-check" name="apartmentFilterMonthly" id="apt1Monthly" value="apt1" autocomplete="off" onchange="filterMonthlyCheckedInRevenue('apt1')">
+                            <label class="btn btn-outline-primary btn-sm" for="apt1Monthly" style="border-color: #1976D2;">
+                                <i class="fas fa-building me-1"></i>🔵 118 Hang Bac (4 phòng)
+                            </label>
+
+                            <input type="radio" class="btn-check" name="apartmentFilterMonthly" id="apt2Monthly" value="apt2" autocomplete="off" onchange="filterMonthlyCheckedInRevenue('apt2')">
+                            <label class="btn btn-outline-success btn-sm" for="apt2Monthly" style="border-color: #388E3C;">
+                                <i class="fas fa-building me-1"></i>🟢 18 Hang Be (2 phòng)
+                            </label>
+                        </div>
+                    </div>
+
                     <div class="table-responsive">
                         <table class="table table-hover align-middle">
                             <thead class="table-dark">

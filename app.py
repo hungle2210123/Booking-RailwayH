@@ -9525,6 +9525,71 @@ def get_prorated_monthly_revenue():
         traceback.print_exc()
         return jsonify({'success': False, 'error': str(e)}), 500
 
+@app.route('/api/monthly_checked_in_revenue', methods=['GET'])
+def get_monthly_checked_in_revenue():
+    """
+    🏢 MONTHLY CHECKED-IN REVENUE WITH APARTMENT FILTERING
+    Returns monthly revenue data for checked-in guests only, filtered by apartment
+
+    Query Parameters:
+    - apartment: 'apt1' (118 Hang Bac), 'apt2' (18 Hang Be), or 'all' (default)
+    """
+    try:
+        from core.dashboard_routes import process_monthly_revenue_with_unpaid
+        from core.logic_postgresql import load_booking_data
+        from core.models import Room, Apartment, db
+
+        # Get apartment filter parameter
+        apartment_filter = request.args.get('apartment', 'all')
+        print(f"🏢 [MONTHLY_CHECKED_IN] Requested filter: {apartment_filter}")
+
+        # Load all booking data
+        df = load_booking_data()
+
+        if df.empty:
+            return jsonify({
+                'success': True,
+                'monthly_data': [],
+                'apartment_filter': apartment_filter
+            })
+
+        # Filter by apartment if specified
+        if apartment_filter in ['apt1', 'apt2']:
+            apartment_id = 1 if apartment_filter == 'apt1' else 2
+            print(f"🔍 [MONTHLY_CHECKED_IN] Filtering for apartment_id: {apartment_id}")
+
+            # Get room IDs for this apartment
+            room_ids = db.session.query(Room.room_id).filter(
+                Room.apartment_id == apartment_id,
+                Room.is_active == True
+            ).all()
+            room_ids = [r[0] for r in room_ids]
+
+            print(f"🔍 [MONTHLY_CHECKED_IN] Found {len(room_ids)} rooms for apartment {apartment_id}")
+
+            # Filter dataframe by room_id
+            if 'room_id' in df.columns:
+                df = df[df['room_id'].isin(room_ids)]
+                print(f"✅ [MONTHLY_CHECKED_IN] Filtered to {len(df)} bookings for {apartment_filter}")
+            else:
+                print(f"⚠️ [MONTHLY_CHECKED_IN] room_id column not found, cannot filter")
+
+        # Process monthly revenue with the filtered data
+        monthly_data = process_monthly_revenue_with_unpaid(df)
+
+        return jsonify({
+            'success': True,
+            'monthly_data': monthly_data,
+            'apartment_filter': apartment_filter,
+            'total_months': len(monthly_data)
+        })
+
+    except Exception as e:
+        print(f"❌ [MONTHLY_CHECKED_IN] Error: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 @app.route('/api/apartments_config', methods=['GET'])
 def get_apartments_config():
     """
