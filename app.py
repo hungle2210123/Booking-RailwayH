@@ -8544,7 +8544,7 @@ def get_monthly_guest_details():
         # 🎯 FILTER BY APARTMENT BEFORE PROCESSING
         if apartment_filter in ['apt1', 'apt2']:
             apartment_id = 1 if apartment_filter == 'apt1' else 2
-            from core.models import Room
+            from core.models import Room, db  # Import db along with Room
 
             room_ids = db.session.query(Room.room_id).filter(
                 Room.apartment_id == apartment_id,
