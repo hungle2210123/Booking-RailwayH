@@ -286,20 +286,37 @@
     <style>
         .guest-grid {
             display: grid !important;
-            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)) !important;
-            gap: 12px !important;
+            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)) !important;
+            gap: 15px !important;
             width: 100% !important;
         }
 
         /* Force grid layout for all guest sections */
         .col-12 .guest-grid {
             display: grid !important;
-            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)) !important;
+            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)) !important;
         }
 
-        /* Prevent single cards from stretching too wide */
-        .guest-grid .guest-card {
-            max-width: 400px !important;
+        /* Responsive: Better handling for different screen sizes */
+        @media (min-width: 768px) {
+            .guest-grid {
+                grid-template-columns: repeat(auto-fill, minmax(350px, 1fr)) !important;
+            }
+        }
+
+        @media (min-width: 1200px) {
+            .guest-grid {
+                grid-template-columns: repeat(auto-fill, minmax(380px, 1fr)) !important;
+                gap: 20px !important;
+            }
+        }
+
+        /* Prevent cards from stretching too wide on large screens */
+        @media (min-width: 1400px) {
+            .guest-grid {
+                grid-template-columns: repeat(3, 1fr) !important;
+                max-width: 1400px;
+            }
         }
 
         .guest-card-compact {

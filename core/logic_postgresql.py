@@ -124,9 +124,9 @@ def load_booking_data(force_fresh: bool = False) -> pd.DataFrame:
     
     # Smart query that works with or without guests table
     query = """
-    SELECT 
+    SELECT
         b.booking_id as "Số đặt phòng",
-        COALESCE(g.full_name, b.guest_name) as "Tên người đặt", 
+        COALESCE(g.full_name, b.guest_name) as "Tên người đặt",
         COALESCE(b.accommodation_name, '118 Hang Bac Hostel') as "Tên chỗ nghỉ",
         b.checkin_date as "Check-in Date",
         b.checkout_date as "Check-out Date",
@@ -135,7 +135,7 @@ def load_booking_data(force_fresh: bool = False) -> pd.DataFrame:
         b.commission as "Hoa hồng",
         b.taxi_amount as "Taxi",
         b.collector as "Người thu tiền",
-        CASE 
+        CASE
             WHEN b.booking_status IN ('cancelled', 'đã hủy', 'deleted') THEN 'Đã hủy'
             WHEN b.booking_status = 'pending' THEN 'Chờ xử lý'
             ELSE 'OK'
@@ -146,6 +146,7 @@ def load_booking_data(force_fresh: bool = False) -> pd.DataFrame:
         'Không' as "Thành viên Genius",
         CASE WHEN b.taxi_amount > 0 THEN true ELSE false END as "Có taxi",
         CASE WHEN b.taxi_amount > 0 THEN false ELSE true END as "Không có taxi",
+        b.room_id,
         b.created_at,
         b.updated_at
     FROM bookings b
