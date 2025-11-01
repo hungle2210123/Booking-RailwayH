@@ -282,58 +282,24 @@
     </div>
     {% endif %}
 
-    <!-- Ultra-Compact Grid Layout for Better Space Utilization -->
+    <!-- 🎯 SIMPLE HORIZONTAL GRID - Cards display side-by-side -->
     <style>
-        /* 🎯 VERTICAL LAYOUT - Cards stack vertically in columns */
-        .guest-grid-vertical {
-            display: flex !important;
-            flex-direction: column !important;
-            gap: 12px !important;
+        .guest-grid-horizontal {
+            display: grid !important;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr)) !important;
+            gap: 16px !important;
             width: 100% !important;
         }
 
-        .guest-grid-vertical .guest-card {
-            width: 100% !important;
-            flex: none !important;
-        }
-
-        /* 🎯 HORIZONTAL LAYOUT (fallback for horizontal display) */
-        .guest-grid {
-            display: flex !important;
-            flex-wrap: wrap !important;
-            gap: 15px !important;
+        .guest-grid-horizontal .guest-card {
             width: 100% !important;
         }
 
-        .guest-grid .guest-card {
-            flex: 0 1 380px !important;
-            max-width: 450px !important;
-            min-width: 320px !important;
-        }
-
-        /* Responsive: Better spacing on larger screens */
-        @media (min-width: 768px) {
-            .guest-grid {
-                gap: 18px !important;
+        /* Responsive: Stack on mobile */
+        @media (max-width: 768px) {
+            .guest-grid-horizontal {
+                grid-template-columns: 1fr !important;
             }
-            .guest-grid .guest-card {
-                flex: 1 1 340px !important;
-            }
-        }
-
-        @media (min-width: 1200px) {
-            .guest-grid {
-                gap: 20px !important;
-            }
-            .guest-grid .guest-card {
-                flex: 1 1 360px !important;
-            }
-        }
-
-        /* Ensure consistent alignment across all sections */
-        .col-12 .guest-grid {
-            display: flex !important;
-            flex-wrap: wrap !important;
         }
 
         .guest-card-compact {
@@ -377,14 +343,15 @@
         }
     </style>
 
+    <!-- 🎯 SIMPLE CLEAN LAYOUT: Each section takes full width, cards horizontal -->
     <div class="row">
-        <!-- Check-in Section - Compact Grid -->
-        <div class="col-xl-4 col-lg-12 mb-3">
+        <!-- Check-in Section -->
+        <div class="col-12 mb-4">
             <div class="section-header-compact" style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%);">
                 <span>🛬 Khách Check-in</span>
                 <span class="badge bg-light text-dark">{{ check_in|length }} khách</span>
             </div>
-            <div class="guest-grid guest-grid-vertical">
+            <div class="guest-grid-horizontal">
                     {% if check_in %}
                         {% for booking in check_in %}
                             {% set commission = booking.get('Hoa hồng', 0) or 0 %}
@@ -464,13 +431,13 @@
             </div>
         </div>
 
-        <!-- Cột Đang ở -->
-        <div class="col-xl-4 col-lg-12 mb-3">
+        <!-- Staying Section -->
+        <div class="col-12 mb-4">
             <div class="section-header-compact" style="background: linear-gradient(135deg, #17a2b8 0%, #138496 100%);">
                 <span>🏨 Khách Đang Ở</span>
                 <span class="badge bg-light text-dark">{{ staying_over|length }} khách</span>
             </div>
-            <div class="guest-grid guest-grid-vertical">
+            <div class="guest-grid-horizontal">
                     {% if staying_over %}
                         {% for booking in staying_over %}
                             {% set commission = booking.get('Hoa hồng', 0) or 0 %}
@@ -551,13 +518,13 @@
             </div>
         </div>
 
-        <!-- Cột Check-out -->
-        <div class="col-xl-4 col-lg-12 mb-3">
+        <!-- Checkout Section -->
+        <div class="col-12 mb-4">
             <div class="section-header-compact" style="background: linear-gradient(135deg, #ffc107 0%, #ff9800 100%);">
                 <span style="color: #000;">🛫 Khách Check-out</span>
                 <span class="badge bg-dark text-white">{{ check_out|length }} khách</span>
             </div>
-            <div class="guest-grid guest-grid-vertical">
+            <div class="guest-grid-horizontal">
                     {% if check_out %}
                         {% for booking in check_out %}
                             {% set commission = booking.get('Hoa hồng', 0) or 0 %}
@@ -821,10 +788,6 @@
         margin-bottom: 0 !important;
         background: #fafafa;
         transition: all 0.2s ease;
-        /* 🎯 CRITICAL: Prevent single cards from stretching - flex-grow: 0 */
-        flex: 0 1 380px !important;
-        max-width: 450px !important;
-        min-width: 320px !important;
     }
 
     .guest-card:hover {
