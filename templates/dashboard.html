@@ -1566,7 +1566,7 @@
             console.log('🏢 Filtering monthly checked-in revenue by apartment:', apartmentFilter);
 
             try {
-                const tableBody = document.querySelector('.table-responsive table tbody');
+                const tableBody = document.querySelector('#monthlyCheckedInRevenueTable tbody');
                 if (!tableBody) {
                     console.error('❌ Monthly revenue table not found');
                     return;
@@ -1685,7 +1685,7 @@
 
             } catch (error) {
                 console.error('❌ Error filtering monthly checked-in revenue:', error);
-                const tableBody = document.querySelector('.table-responsive table tbody');
+                const tableBody = document.querySelector('#monthlyCheckedInRevenueTable tbody');
                 if (tableBody) {
                     tableBody.innerHTML = `
                         <tr>
@@ -1781,7 +1781,7 @@
                     </div>
 
                     <div class="table-responsive">
-                        <table class="table table-hover align-middle">
+                        <table class="table table-hover align-middle" id="monthlyCheckedInRevenueTable">
                             <thead class="table-dark">
                                 <tr>
                                     <th class="border-0">
