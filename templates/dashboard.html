@@ -1477,43 +1477,87 @@
             }
         };
 
-        // Filter daily revenue by apartment
+        // Filter daily revenue by apartment - FETCH AND RE-RENDER
         window.filterDailyRevenueByApartment = async function(apartmentFilter) {
             console.log('🏢 Filtering daily revenue by apartment:', apartmentFilter);
 
             try {
-                // Filter the daily revenue table
-                const tableBody = document.querySelector('#dailyRevenueTable tbody');
-                if (!tableBody) {
-                    console.warn('⚠️ Daily revenue table not found');
+                // Get all necessary elements
+                const listContainer = document.getElementById('proratedGuestsList');
+                const monthlyRevenueEl = document.getElementById('proratedMonthlyRevenue');
+                const fullRevenueEl = document.getElementById('proratedFullRevenue');
+                const nightsEl = document.getElementById('proratedNights');
+                const fullNightsEl = document.getElementById('proratedFullNights');
+                const avgPriceEl = document.getElementById('avgPricePerNight');
+                const diffEl = document.getElementById('revenueDifference');
+                const badgeElement = document.getElementById('proratedBadge');
+                const uncollectedEl = document.getElementById('proratedUncollected');
+                const collectedEl = document.getElementById('proratedCollected');
+                const collectionRateEl = document.getElementById('collectionRate');
+                const collectionRatePercentEl = document.getElementById('collectionRatePercent');
+                const uncollectedFullEl = document.getElementById('uncollectedFull');
+                const currentPeriodEl = document.getElementById('currentPeriod');
+
+                if (!listContainer) {
+                    console.error('❌ proratedGuestsList container not found');
                     return;
                 }
 
-                // Get all rows
-                const rows = tableBody.querySelectorAll('tr');
+                // Show loading state
+                listContainer.innerHTML = `
+                    <div class="text-center py-3">
+                        <div class="spinner-border spinner-border-sm text-success" role="status">
+                            <span class="visually-hidden">Đang tải...</span>
+                        </div>
+                        <small class="d-block mt-2 text-muted">Đang tải dữ liệu...</small>
+                    </div>
+                `;
 
-                rows.forEach(row => {
-                    const roomCell = row.querySelector('td:nth-child(2)'); // Room name column
-                    if (!roomCell) return;
+                // Fetch filtered data from API
+                const response = await fetch(`/api/prorated_monthly_revenue?apartment=${apartmentFilter}`);
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
 
-                    const roomName = roomCell.textContent.trim().toLowerCase();
-                    const roomApartment = ROOM_TO_APARTMENT[roomName];
+                const data = await response.json();
+                if (!data.success) {
+                    throw new Error(data.error || 'Unknown error');
+                }
 
-                    // Show/hide based on filter
-                    if (apartmentFilter === 'all') {
-                        row.style.display = '';
-                    } else if (roomApartment === apartmentFilter) {
-                        row.style.display = '';
-                    } else {
-                        row.style.display = 'none';
-                    }
-                });
+                const { bookings, summary, period } = data;
+                console.log(`💰 [PRORATED] Filtered data for ${apartmentFilter}:`, summary);
 
-                console.log('✅ Daily revenue table filtered');
+                // Update summary cards with filtered data
+                if (monthlyRevenueEl) monthlyRevenueEl.textContent = `${summary.prorated_revenue.toLocaleString('vi-VN')}đ`;
+                if (fullRevenueEl) fullRevenueEl.textContent = `${summary.full_revenue.toLocaleString('vi-VN')}đ`;
+                if (nightsEl) nightsEl.textContent = `${summary.nights_in_month} đêm`;
+                if (fullNightsEl) fullNightsEl.textContent = `${summary.total_nights} đêm`;
+                if (avgPriceEl) avgPriceEl.textContent = `${summary.average_price_per_night.toLocaleString('vi-VN')}đ`;
+                if (diffEl) diffEl.textContent = `${summary.revenue_difference.toLocaleString('vi-VN')}đ`;
+                if (badgeElement) badgeElement.textContent = summary.count;
+                if (uncollectedEl) uncollectedEl.textContent = `${summary.uncollected_prorated.toLocaleString('vi-VN')}đ`;
+                if (collectedEl) collectedEl.textContent = `${summary.collected_prorated.toLocaleString('vi-VN')}đ`;
+                if (collectionRateEl) collectionRateEl.textContent = `${summary.collection_rate}% đã thu`;
+                if (collectionRatePercentEl) collectionRatePercentEl.textContent = `${summary.collection_rate}%`;
+                if (uncollectedFullEl) uncollectedFullEl.textContent = `${summary.uncollected_full.toLocaleString('vi-VN')}đ`;
+                if (currentPeriodEl) currentPeriodEl.textContent = period.month;
+
+                // Re-render the detailed breakdown table with filtered data
+                displayProratedBreakdown(bookings, summary, period);
+
+                console.log('✅ Daily revenue filtered and re-rendered');
 
             } catch (error) {
                 console.error('❌ Error filtering daily revenue:', error);
-                alert('Lỗi lọc dữ liệu doanh thu theo ngày. Vui lòng thử lại.');
+                const listContainer = document.getElementById('proratedGuestsList');
+                if (listContainer) {
+                    listContainer.innerHTML = `
+                        <div class="alert alert-danger text-center">
+                            <i class="fas fa-exclamation-triangle"></i>
+                            Lỗi tải dữ liệu: ${error.message}
+                        </div>
+                    `;
+                }
             }
         };
 
