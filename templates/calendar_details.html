@@ -364,23 +364,23 @@
                 <span class="badge bg-light text-dark">{{ check_in|length }} khách</span>
             </div>
             <div class="guest-cards-row">
-                    {% if check_in %}
-                        {% for booking in check_in %}
-                            {% set commission = booking.get('Hoa hồng', 0) or 0 %}
-                            {% set has_commission = commission > 0 %}
-                            {% set room_name = booking.get('Tên chỗ nghỉ', 'N/A') %}
-                            {% set room_lower = room_name.lower() %}
-                            {% if '118 hang bac' in room_lower or room_lower == '118 hang bac hostel' or room_lower == 'kitchen' or 'kitchen & balcony' in room_lower or 'night market' in room_lower %}
-                                {% set apt_class = 'apt1-guest' %}
-                                {% set apt_icon = '🔵' %}
-                            {% elif 'hang be 101' in room_lower or 'hang be 102' in room_lower %}
-                                {% set apt_class = 'apt2-guest' %}
-                                {% set apt_icon = '🟢' %}
-                            {% else %}
-                                {% set apt_class = '' %}
-                                {% set apt_icon = '' %}
-                            {% endif %}
-                            <div class="guest-card-col">
+                {% if check_in %}
+                    {% for booking in check_in %}
+                        {% set commission = booking.get('Hoa hồng', 0) or 0 %}
+                        {% set has_commission = commission > 0 %}
+                        {% set room_name = booking.get('Tén chỗ nghỉ', 'N/A') %}
+                        {% set room_lower = room_name.lower() %}
+                        {% if '118 hang bac' in room_lower or room_lower == '118 hang bac hostel' or room_lower == 'kitchen' or 'kitchen & balcony' in room_lower or 'night market' in room_lower %}
+                            {% set apt_class = 'apt1-guest' %}
+                            {% set apt_icon = '🔵' %}
+                        {% elif 'hang be 101' in room_lower or 'hang be 102' in room_lower %}
+                            {% set apt_class = 'apt2-guest' %}
+                            {% set apt_icon = '🟢' %}
+                        {% else %}
+                            {% set apt_class = '' %}
+                            {% set apt_icon = '' %}
+                        {% endif %}
+                        <div class="guest-card-col">
                             <div class="guest-card {{ 'has-commission' if has_commission else 'no-commission' }} {{ apt_class }}">
                                 <div class="guest-header d-flex justify-content-between align-items-start">
                                     <div class="flex-grow-1">
@@ -435,13 +435,13 @@
                                     {% endif %}
                                     <strong class="text-info">💰 Giá/đêm:</strong> <span class="text-info">{{ "{:,.0f}".format(per_night_rate) }}đ</span>
                                 </p>
-                            </div>
-                            </div>
-                        {% endfor %}
-                    {% else %}
-                        <p class="text-muted mb-0">Không có khách check-in hôm nay.</p>
-                    {% endif %}
-                </div>
+                        </div>
+                        </div>
+                    {% endfor %}
+                {% else %}
+                    <p class="text-muted mb-0">Không có khách check-in hôm nay.</p>
+                {% endif %}
+            </div>
             </div>
         </div>
 
@@ -452,23 +452,23 @@
                 <span class="badge bg-light text-dark">{{ staying_over|length }} khách</span>
             </div>
             <div class="guest-cards-row">
-                    {% if staying_over %}
-                        {% for booking in staying_over %}
-                            {% set commission = booking.get('Hoa hồng', 0) or 0 %}
-                            {% set has_commission = commission > 0 %}
-                            {% set room_name = booking.get('Tên chỗ nghỉ', 'N/A') %}
-                            {% set room_lower = room_name.lower() %}
-                            {% if '118 hang bac' in room_lower or room_lower == '118 hang bac hostel' or room_lower == 'kitchen' or 'kitchen & balcony' in room_lower or 'night market' in room_lower %}
-                                {% set apt_class = 'apt1-guest' %}
-                                {% set apt_icon = '🔵' %}
-                            {% elif 'hang be 101' in room_lower or 'hang be 102' in room_lower %}
-                                {% set apt_class = 'apt2-guest' %}
-                                {% set apt_icon = '🟢' %}
-                            {% else %}
-                                {% set apt_class = '' %}
-                                {% set apt_icon = '' %}
-                            {% endif %}
-                            <div class="guest-card-col">
+                {% if staying_over %}
+                    {% for booking in staying_over %}
+                        {% set commission = booking.get('Hoa hồng', 0) or 0 %}
+                        {% set has_commission = commission > 0 %}
+                        {% set room_name = booking.get('Tên chỗ nghỉ', 'N/A') %}
+                        {% set room_lower = room_name.lower() %}
+                        {% if '118 hang bac' in room_lower or room_lower == '118 hang bac hostel' or room_lower == 'kitchen' or 'kitchen & balcony' in room_lower or 'night market' in room_lower %}
+                            {% set apt_class = 'apt1-guest' %}
+                            {% set apt_icon = '🔵' %}
+                        {% elif 'hang be 101' in room_lower or 'hang be 102' in room_lower %}
+                            {% set apt_class = 'apt2-guest' %}
+                            {% set apt_icon = '🟢' %}
+                        {% else %}
+                            {% set apt_class = '' %}
+                            {% set apt_icon = '' %}
+                        {% endif %}
+                        <div class="guest-card-col">
                             <div class="guest-card {{ 'has-commission' if has_commission else 'no-commission' }} {{ apt_class }}">
                                 <div class="guest-header d-flex justify-content-between align-items-start">
                                     <div class="flex-grow-1">
@@ -524,13 +524,13 @@
                                     {% endif %}
                                     <strong class="text-info">💰 Giá/đêm:</strong> <span class="text-info">{{ "{:,.0f}".format(per_night_rate) }}đ</span>
                                 </p>
-                            </div>
-                            </div>
-                        {% endfor %}
-                    {% else %}
-                        <p class="text-muted mb-0">Không có khách đang ở lại.</p>
-                    {% endif %}
-                </div>
+                        </div>
+                        </div>
+                    {% endfor %}
+                {% else %}
+                    <p class="text-muted mb-0">Không có khách đang ở lại.</p>
+                {% endif %}
+            </div>
             </div>
         </div>
 
@@ -541,23 +541,23 @@
                 <span class="badge bg-dark text-white">{{ check_out|length }} khách</span>
             </div>
             <div class="guest-cards-row">
-                    {% if check_out %}
-                        {% for booking in check_out %}
-                            {% set commission = booking.get('Hoa hồng', 0) or 0 %}
-                            {% set has_commission = commission > 0 %}
-                            {% set room_name = booking.get('Tên chỗ nghỉ', 'N/A') %}
-                            {% set room_lower = room_name.lower() %}
-                            {% if '118 hang bac' in room_lower or room_lower == '118 hang bac hostel' or room_lower == 'kitchen' or 'kitchen & balcony' in room_lower or 'night market' in room_lower %}
-                                {% set apt_class = 'apt1-guest' %}
-                                {% set apt_icon = '🔵' %}
-                            {% elif 'hang be 101' in room_lower or 'hang be 102' in room_lower %}
-                                {% set apt_class = 'apt2-guest' %}
-                                {% set apt_icon = '🟢' %}
-                            {% else %}
-                                {% set apt_class = '' %}
-                                {% set apt_icon = '' %}
-                            {% endif %}
-                            <div class="guest-card-col">
+                {% if check_out %}
+                    {% for booking in check_out %}
+                        {% set commission = booking.get('Hoa hồng', 0) or 0 %}
+                        {% set has_commission = commission > 0 %}
+                        {% set room_name = booking.get('Tên chỗ nghỉ', 'N/A') %}
+                        {% set room_lower = room_name.lower() %}
+                        {% if '118 hang bac' in room_lower or room_lower == '118 hang bac hostel' or room_lower == 'kitchen' or 'kitchen & balcony' in room_lower or 'night market' in room_lower %}
+                            {% set apt_class = 'apt1-guest' %}
+                            {% set apt_icon = '🔵' %}
+                        {% elif 'hang be 101' in room_lower or 'hang be 102' in room_lower %}
+                            {% set apt_class = 'apt2-guest' %}
+                            {% set apt_icon = '🟢' %}
+                        {% else %}
+                            {% set apt_class = '' %}
+                            {% set apt_icon = '' %}
+                        {% endif %}
+                        <div class="guest-card-col">
                             <div class="guest-card {{ 'has-commission' if has_commission else 'no-commission' }} {{ apt_class }}">
                                 <div class="guest-header d-flex justify-content-between align-items-start">
                                     <div class="flex-grow-1">
@@ -611,12 +611,12 @@
                                     {% endif %}
                                     <strong class="text-info">💰 Giá/đêm:</strong> <span class="text-info">{{ "{:,.0f}".format(per_night_rate) }}đ</span>
                                 </p>
-                            </div>
-                            </div>
-                        {% endfor %}
-                    {% else %}
-                        <p class="text-muted mb-0">Không có khách check-out hôm nay.</p>
-                    {% endif %}
+                        </div>
+                        </div>
+                    {% endfor %}
+                {% else %}
+                    <p class="text-muted mb-0">Không có khách check-out hôm nay.</p>
+                {% endif %}
             </div>
         </div>
     </div>
