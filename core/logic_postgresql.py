@@ -777,13 +777,22 @@ def get_overall_calendar_day_info(df: pd.DataFrame, target_date: str, total_capa
                 for room in rooms:
                     room_to_apartment[room.room_name.lower()] = apt.apartment_id
 
-            # Count occupied rooms per apartment
+            # Count occupied rooms per apartment AND individual rooms
             apartment_occupied = {apt.apartment_id: 0 for apt in apartments_query}
+            room_101_occupied = 0  # 18 Hang Be - Room 101
+            room_102_occupied = 0  # 18 Hang Be - Room 102
 
             for _, booking in active_on_date.iterrows():
                 room_name = booking.get('Tên chỗ nghỉ', '')
                 if room_name:
                     room_lower = str(room_name).lower().strip()
+
+                    # Track individual rooms for 18 Hang Be
+                    if 'hang be 101' in room_lower or room_lower == 'hang be 101':
+                        room_101_occupied += 1
+                    elif 'hang be 102' in room_lower or room_lower == 'hang be 102':
+                        room_102_occupied += 1
+
                     # Find matching apartment
                     for db_room_name, apt_id in room_to_apartment.items():
                         if db_room_name in room_lower or room_lower in db_room_name:
@@ -801,6 +810,10 @@ def get_overall_calendar_day_info(df: pd.DataFrame, target_date: str, total_capa
                 apartment_data[f'apt{apt_id}_available'] = max(0, capacity - occupied)
                 apartment_data[f'apt{apt_id}_capacity'] = capacity
                 apartment_data[f'apt{apt_id}_name'] = apt.apartment_name
+
+            # Add individual room data for 18 Hang Be
+            apartment_data['room_101_occupied'] = room_101_occupied
+            apartment_data['room_102_occupied'] = room_102_occupied
 
             # Legacy support for apt1 and apt2 (backward compatibility)
             apt1_occupied = apartment_data.get('apt1_occupied', 0)

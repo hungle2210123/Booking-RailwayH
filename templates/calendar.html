@@ -45,6 +45,12 @@
                     <span class="legend-item">
                         <span style="display: inline-block; width: 8px; height: 8px; background-color: #fd7e14; border-radius: 50%; margin-right: 4px;"></span> Khách đã hủy
                     </span>
+                    <span class="legend-item">
+                        <span style="display: inline-block; background: linear-gradient(135deg, #A5D6A7 0%, #81C784 100%); padding: 2px 6px; border-radius: 3px; color: #1B5E20; font-size: 0.8rem; font-weight: 600; margin-right: 4px;">🟩 101</span> Hang Be 101
+                    </span>
+                    <span class="legend-item">
+                        <span style="display: inline-block; background: linear-gradient(135deg, #80CBC4 0%, #4DB6AC 100%); padding: 2px 6px; border-radius: 3px; color: #004D40; font-size: 0.8rem; font-weight: 600; margin-right: 4px;">🔷 102</span> Hang Be 102
+                    </span>
                 </div>
             </div>
 
@@ -188,14 +194,25 @@
                                                         </span>
                                                     </div>
                                                     
-                                                    <!-- Hiển thị thông tin chi tiết với phân tách căn hộ -->
+                                                    <!-- Hiển thị thông tin chi tiết với phân tách căn hộ và phòng -->
                                                     <div class="booking-details" style="display: flex; flex-direction: column; gap: 3px;">
-                                                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                                                        <!-- 118 Hang Bac (Blue) -->
+                                                        <div style="display: flex; justify-content: center; align-items: center;">
                                                             <small style="color: #1976D2; font-weight: 600;">
                                                                 <i class="fas fa-building"></i> 🔵 {{ info.apt1_occupied }}/4
                                                             </small>
-                                                            <small style="color: #388E3C; font-weight: 600;">
-                                                                <i class="fas fa-building"></i> 🟢 {{ info.apt2_occupied }}/2
+                                                        </div>
+                                                        <!-- 18 Hang Be - Two Rooms (Green Variants) -->
+                                                        <div style="display: flex; justify-content: space-between; align-items: center; gap: 6px;">
+                                                            <small style="color: #43A047; font-weight: 600; font-size: 0.7rem;">
+                                                                <span style="background: linear-gradient(135deg, #A5D6A7 0%, #81C784 100%); padding: 1px 4px; border-radius: 3px; color: #1B5E20;">
+                                                                    🟩 101: {{ info.get('room_101_occupied', 0) }}/1
+                                                                </span>
+                                                            </small>
+                                                            <small style="color: #00897B; font-weight: 600; font-size: 0.7rem;">
+                                                                <span style="background: linear-gradient(135deg, #80CBC4 0%, #4DB6AC 100%); padding: 1px 4px; border-radius: 3px; color: #004D40;">
+                                                                    🔷 102: {{ info.get('room_102_occupied', 0) }}/1
+                                                                </span>
                                                             </small>
                                                         </div>
                                                         <small class="text-primary" style="font-weight: 600;">
