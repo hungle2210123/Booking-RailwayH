@@ -371,7 +371,7 @@
                     {% for booking in check_in %}
                         {% set commission = booking.get('Hoa hồng', 0) or 0 %}
                         {% set has_commission = commission > 0 %}
-                        {% set room_name = booking.get('Tén chỗ nghỉ', 'N/A') %}
+                        {% set room_name = booking.get('Tên chỗ nghỉ', 'N/A') %}
                         {% set room_lower = room_name.lower() %}
                         {% if '118 hang bac' in room_lower or room_lower == '118 hang bac hostel' or room_lower == 'kitchen' or 'kitchen & balcony' in room_lower or 'night market' in room_lower %}
                             {% set apt_class = 'apt1-guest' %}
