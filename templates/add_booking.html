@@ -455,32 +455,61 @@ h1, h2, h3, h4, h5, h6 {
 
         <!-- Hidden prompt template -->
         <textarea id="extraction-prompt-template" style="display: none;">
-Hãy extract thông tin booking từ ảnh này và trả về JSON format:
+Extract booking data from this image and classify the room type automatically.
+
+🏠 ROOM CLASSIFICATION RULES (Very Important):
+
+Look at the "Tên chỗ nghỉ" (property name) column for EACH booking and classify:
+
+✅ If property name contains "Kitchen & Washing Machine" OR "1 BR" → room_name: "hang be 101"
+✅ If property name contains "2 BR" OR "Free Laundry - Kitchen" → room_name: "hang be 102"
+✅ If property name contains "Night market" OR "Kitchen & Balcony" OR any other text → room_name: "118 Hang Bac Hostel"
+
+📋 EXAMPLE OUTPUT (Study this format):
 
 {
   "bookings": [
     {
-      "guest_name": "Tên khách",
-      "checkin_date": "YYYY-MM-DD",
-      "checkout_date": "YYYY-MM-DD",
-      "room_type": "Loại phòng",
-      "room_amount": 304218,
-      "commission": 91265,
-      "booking_id": "Mã booking",
+      "guest_name": "DIALEKTI DEVELIOGLOU",
+      "checkin_date": "2025-11-28",
+      "checkout_date": "2025-11-30",
+      "room_name": "118 Hang Bac Hostel",
+      "property_name_raw": "Old Quarter Home- Kitchen & Balcony",
+      "room_amount": 996030,
+      "commission": 149404,
+      "booking_id": "6627699915",
+      "status": "OK",
+      "currency": "VND"
+    },
+    {
+      "guest_name": "Anshuman Choudhary",
+      "checkin_date": "2025-11-29",
+      "checkout_date": "2025-12-01",
+      "room_name": "hang be 101",
+      "property_name_raw": "The Heart of Old Quarter - Kitchen & Washing Machine",
+      "room_amount": 1171800,
+      "commission": 175770,
+      "booking_id": "5109089497",
       "status": "OK",
       "currency": "VND"
     }
   ]
 }
 
-Yêu cầu:
-1. Extract tên khách chính xác
-2. Chuyển đổi ngày sang format YYYY-MM-DD (nếu "30 tháng 9 2025" thì "2025-09-30")
-3. Loại bỏ dấu phẩy trong số tiền (304,218 thành 304218)
-4. Nếu có nhiều booking, bao gồm tất cả trong array
-5. Nếu không chắc chắn, dùng "Unknown" cho text hoặc 0 cho số
+📝 EXTRACTION REQUIREMENTS:
 
-CHỈ trả về JSON, không cần text khác.
+1. Extract guest_name exactly as shown
+2. Convert dates to YYYY-MM-DD format (if "30 tháng 9 2025" → "2025-09-30")
+3. Remove commas from numbers (304,218 → 304218)
+4. Extract property_name_raw from "Tên chỗ nghỉ" column (exact text)
+5. Classify room_name based on property_name_raw using rules above
+6. room_name MUST be exactly one of: "hang be 101", "hang be 102", "118 Hang Bac Hostel"
+7. Include ALL bookings visible in the image
+8. Set commission = 0 if not shown in image
+
+⚠️ CRITICAL: Each booking can have a DIFFERENT room_name! Check the property name for each row individually.
+
+Return ONLY valid JSON, no explanations.
         </textarea>
     </div>
 </div>
@@ -982,8 +1011,28 @@ function importJSONBookings() {
         
         // Validate and format bookings with AI room classification
         const formattedBookings = data.bookings.map((booking, index) => {
-            // Use AI-classified room_name (new format) or fallback to room_type (legacy)
-            const aiRoomName = booking.room_name || booking.room_type || booking['Tên chỗ nghỉ'] || '118 Hang Bac Hostel';
+            // Priority: room_name (new format) > room_type (legacy) > property-based classification
+            let aiRoomName = booking.room_name || booking.room_type || booking['Tên chỗ nghỉ'];
+
+            // If still no room_name, try to classify from property_name_raw
+            if (!aiRoomName && booking.property_name_raw) {
+                const propName = booking.property_name_raw.toLowerCase();
+                if (propName.includes('kitchen & washing machine') || propName.includes('1 br')) {
+                    aiRoomName = 'hang be 101';
+                } else if (propName.includes('2 br') || propName.includes('free laundry - kitchen')) {
+                    aiRoomName = 'hang be 102';
+                } else {
+                    aiRoomName = '118 Hang Bac Hostel';
+                }
+                console.log(`🔄 [JSON_CLASSIFY] Classified from property_name_raw: "${booking.property_name_raw}" → "${aiRoomName}"`);
+            }
+
+            // Final fallback
+            if (!aiRoomName) {
+                aiRoomName = '118 Hang Bac Hostel';
+            }
+
+            console.log(`🏠 [JSON_IMPORT] Booking ${index + 1}: ${booking.guest_name} → room_name: "${aiRoomName}"`);
 
             return {
                 guest_name: booking.guest_name || `Guest ${index + 1}`,
@@ -993,6 +1042,7 @@ function importJSONBookings() {
                 commission: parseInt(booking.commission) || 0,
                 booking_id: booking.booking_id || `JSON${Date.now()}${index}`,
                 room_type: aiRoomName,  // Use AI-classified room name
+                room_name: aiRoomName,  // Ensure both fields are set
                 'Tên chỗ nghỉ': aiRoomName,  // Vietnamese field name
                 status: booking.status || 'OK',
                 currency: booking.currency || 'VND',
