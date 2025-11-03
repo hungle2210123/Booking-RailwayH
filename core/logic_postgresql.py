@@ -1444,114 +1444,94 @@ def extract_booking_info_from_image_content_multi_api(image_data: bytes, room_ty
             image = Image.open(BytesIO(image_data))
             print(f"🖼️ [BOOKING_AI] Image opened successfully: {image.format} {image.size}")
             
-            prompt = """
-            🏨 PROFESSIONAL HOTEL BOOKING EXTRACTION SYSTEM 🏨
+            prompt = """You are a booking data extraction AI. Extract ALL bookings from this image and classify the room type for EACH booking.
 
-You are an expert booking data analyst for a hostel management system with 2 apartments and 6 rooms total.
+🏠 ROOM CLASSIFICATION RULES (Apply to EACH booking individually):
 
-📍 CRITICAL: AUTOMATIC ROOM CLASSIFICATION RULES (MUST FOLLOW EXACTLY):
+Step 1: Find the "Tên chỗ nghỉ" (property name) column for EACH booking row
+Step 2: Match the property name to ONE of these rooms:
 
-APARTMENT 2 - 18 Hang Be (2 rooms):
-1. "The Heart of Old Quarter - Kitchen & Washing Machine" → room_name: "hang be 101"
-2. "The Heart Of Old Quarter 2 BR - Free Laundry - Kitchen" → room_name: "hang be 102"
+Room 1: "hang be 101"
+  ✅ Property name contains: "Kitchen & Washing Machine" OR "1 BR" OR "Old Quarter - Kitchen" (single bedroom)
+  ❌ Does NOT contain: "2 BR"
 
-APARTMENT 1 - 118 Hang Bac (4 rooms - DEFAULT):
-3. "Home in Old Quarter - Night market" → room_name: "118 Hang Bac Hostel"
-4. "Old Quarter Home- Kitchen & Balcony" → room_name: "118 Hang Bac Hostel"
-5. ANY OTHER ROOM NAME → room_name: "118 Hang Bac Hostel" (DEFAULT)
+Room 2: "hang be 102"
+  ✅ Property name contains: "2 BR" OR "Free Laundry - Kitchen" OR "2 bedroom"
 
-🎯 EXTRACTION TASK:
-Extract ALL booking information from this image. If there are multiple bookings/guests visible, extract each one separately.
+Room 3: "118 Hang Bac Hostel" (DEFAULT)
+  ✅ Property name contains: "Night market" OR "Kitchen & Balcony" OR any other name
+  ✅ Use this as DEFAULT if property name doesn't match Room 1 or Room 2
 
-📋 OUTPUT FORMAT (JSON ONLY - NO EXPLANATIONS):
+⚠️ CRITICAL: Different bookings will have DIFFERENT property names → DIFFERENT room classifications!
 
-For SINGLE booking:
-{
-    "type": "single",
-    "booking": {
-        "guest_name": "Full Guest Name",
-        "booking_id": "Booking/Confirmation ID",
-        "checkin_date": "YYYY-MM-DD",
-        "checkout_date": "YYYY-MM-DD",
-        "room_amount": 1234567 (total payment as pure number, NO commas),
-        "commission": 123456 (commission/fee as pure number, NO commas, 0 if not shown),
-        "room_name": "AUTO-CLASSIFIED using rules above",
-        "property_name_raw": "exact property name from image",
-        "nights": number_of_nights,
-        "email": "guest email if visible",
-        "phone": "guest phone if visible",
-        "platform": "booking platform if visible (Genius/Booking.com/etc)"
-    }
-}
+📋 EXAMPLE OUTPUT (Study this carefully):
 
-For MULTIPLE bookings:
 {
     "type": "multiple",
-    "count": total_number_of_bookings,
+    "count": 3,
     "bookings": [
         {
-            "guest_name": "Guest Name 1",
-            "booking_id": "ID 1",
-            "checkin_date": "YYYY-MM-DD",
-            "checkout_date": "YYYY-MM-DD",
-            "room_amount": 1234567,
-            "commission": 123456,
-            "room_name": "AUTO-CLASSIFIED using rules above",
-            "property_name_raw": "exact property name from image",
-            "nights": nights,
-            "email": "email if visible",
-            "phone": "phone if visible",
-            "platform": "platform if visible"
+            "guest_name": "John Smith",
+            "booking_id": "1234567890",
+            "checkin_date": "2025-11-03",
+            "checkout_date": "2025-11-05",
+            "room_amount": 1097820,
+            "commission": 164673,
+            "room_name": "hang be 101",
+            "property_name_raw": "The Heart of Old Quarter - Kitchen & Washing Machine",
+            "nights": 2
         },
         {
-            "guest_name": "Guest Name 2",
-            "booking_id": "ID 2",
-            "checkin_date": "YYYY-MM-DD",
-            "checkout_date": "YYYY-MM-DD",
-            "room_amount": 2345678,
-            "commission": 234567,
-            "room_name": "AUTO-CLASSIFIED using rules above",
-            "property_name_raw": "exact property name from image",
-            "nights": nights,
-            "email": "email if visible",
-            "phone": "phone if visible",
-            "platform": "platform if visible"
+            "guest_name": "Jane Doe",
+            "booking_id": "0987654321",
+            "checkin_date": "2025-11-04",
+            "checkout_date": "2025-11-06",
+            "room_amount": 1409895,
+            "commission": 211484,
+            "room_name": "hang be 102",
+            "property_name_raw": "The Heart Of Old Quarter 2 BR - Free Laundry - Kitchen",
+            "nights": 2
+        },
+        {
+            "guest_name": "Bob Wilson",
+            "booking_id": "5555555555",
+            "checkin_date": "2025-11-05",
+            "checkout_date": "2025-11-07",
+            "room_amount": 950000,
+            "commission": 142500,
+            "room_name": "118 Hang Bac Hostel",
+            "property_name_raw": "Home in Old Quarter - Night market",
+            "nights": 2
         }
     ]
 }
 
-🔍 CRITICAL CLASSIFICATION LOGIC (CHECK EACH BOOKING INDIVIDUALLY):
-1. For EACH booking, look for "Tên chỗ nghỉ" or property name in the SAME ROW
-2. Each booking row may have DIFFERENT property names - classify individually!
-3. Classification rules (case-insensitive matching):
-   - Contains "Kitchen & Washing Machine" OR "1 BR" OR just "Kitchen" alone → "hang be 101"
-   - Contains "2 BR" OR "Free Laundry - Kitchen" OR "2 bedroom" → "hang be 102"
-   - Contains "Night market" OR "Kitchen & Balcony" → "118 Hang Bac Hostel"
-   - If NONE match OR property name is generic → DEFAULT: "118 Hang Bac Hostel"
+📝 EXTRACTION STEPS FOR EACH BOOKING:
+1. Extract: guest_name, booking_id, checkin_date (YYYY-MM-DD), checkout_date (YYYY-MM-DD)
+2. Extract: room_amount (pure number, no commas), commission (pure number, 0 if not shown)
+3. Extract: property_name_raw (EXACT text from "Tên chỗ nghỉ" column)
+4. Classify: Apply room classification rules to property_name_raw → set room_name
+5. Calculate: nights = days between checkout and checkin
 
-⚠️ CRITICAL: Each booking CAN have a different room_name! Don't use same value for all bookings!
+🎯 REQUIRED JSON FIELDS (for each booking):
+- guest_name (string)
+- booking_id (string)
+- checkin_date (YYYY-MM-DD format)
+- checkout_date (YYYY-MM-DD format)
+- room_amount (integer, no commas)
+- commission (integer, no commas, use 0 if not shown)
+- room_name (MUST be one of: "hang be 101", "hang be 102", "118 Hang Bac Hostel")
+- property_name_raw (exact property name from image)
+- nights (integer)
 
-💰 NUMBER EXTRACTION RULES:
-- "VND 1.097.820" → extract as: 1097820 (pure number)
-- "VND 164.673" → extract as: 164673 (commission)
-- "Tổng thanh toán" → room_amount (total payment)
-- "Hoa hồng" → commission (may be 0 if not shown)
+⚠️ VALIDATION CHECKLIST:
+✓ Each booking has different room_name based on its property_name_raw
+✓ room_name is EXACTLY one of: "hang be 101", "hang be 102", "118 Hang Bac Hostel"
+✓ Numbers have NO commas (1097820 not 1,097,820)
+✓ Dates use YYYY-MM-DD format
+✓ JSON is valid (no trailing commas, proper quotes)
 
-📅 DATE FORMAT: Always YYYY-MM-DD (e.g., 2025-11-05)
-
-⚠️ IMPORTANT VALIDATION:
-- Extract booking_id from "ID chỗ nghỉ" or confirmation number
-- Calculate nights from checkin to checkout dates
-- Include property_name_raw for verification
-- Set commission = 0 if not visible in image
-
-🎯 RESPONSE REQUIREMENTS:
-- ONLY return valid JSON (no markdown, no explanations)
-- Classify room_name automatically using rules above
-- Extract all visible bookings (check for multiple entries)
-- Use "type": "single" or "multiple" based on count
-- Numbers must be pure integers (no commas, no currency symbols)
-            """
+Return ONLY the JSON. No explanations, no markdown, no code blocks."""
             
             print(f"🤖 [BOOKING_AI] Sending image to {key_name} with room type: {room_type}")
             response = model.generate_content([prompt, image])
@@ -1589,6 +1569,22 @@ For MULTIPLE bookings:
                 try:
                     result = json.loads(json_text)
                     print(f"✅ [BOOKING_AI] SUCCESS with {key_name}!")
+
+                    # 🔍 DEBUG: Log room classification for each booking
+                    if 'booking' in result:
+                        bookings = [result['booking']]
+                    elif 'bookings' in result:
+                        bookings = result['bookings']
+                    else:
+                        bookings = []
+
+                    print(f"🏠 [ROOM_DEBUG] AI returned {len(bookings)} booking(s):")
+                    for i, booking in enumerate(bookings):
+                        guest_name = booking.get('guest_name', 'N/A')
+                        room_name = booking.get('room_name', 'NOT SET')
+                        property_raw = booking.get('property_name_raw', 'NOT EXTRACTED')
+                        print(f"  [{i+1}] {guest_name}: room_name='{room_name}' | property_name_raw='{property_raw}'")
+
                     return result
                 except json.JSONDecodeError as json_error:
                     print(f"⚠️ [BOOKING_AI] {key_name} JSON decode error: {json_error}, trying next API")
