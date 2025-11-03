@@ -979,8 +979,11 @@ function importJSONBookings() {
         
         console.log(`✅ [JSON_IMPORT] Parsed ${data.bookings.length} booking(s)`, data.bookings);
         
-        // Validate and format bookings
+        // Validate and format bookings with AI room classification
         const formattedBookings = data.bookings.map((booking, index) => {
+            // Use AI-classified room_name (new format) or fallback to room_type (legacy)
+            const aiRoomName = booking.room_name || booking.room_type || booking['Tên chỗ nghỉ'] || '118 Hang Bac Hostel';
+
             return {
                 guest_name: booking.guest_name || `Guest ${index + 1}`,
                 checkin_date: booking.checkin_date || '2025-09-30',
@@ -988,11 +991,25 @@ function importJSONBookings() {
                 room_amount: parseInt(booking.room_amount) || 0,
                 commission: parseInt(booking.commission) || 0,
                 booking_id: booking.booking_id || `JSON${Date.now()}${index}`,
-                room_type: booking.room_type || '118 Hang Bac Hostel',
+                room_type: aiRoomName,  // Use AI-classified room name
+                'Tên chỗ nghỉ': aiRoomName,  // Vietnamese field name
                 status: booking.status || 'OK',
-                currency: booking.currency || 'VND'
+                currency: booking.currency || 'VND',
+                property_name_raw: booking.property_name_raw || '',  // Keep raw name for reference
+                nights: booking.nights || 1,
+                platform: booking.platform || ''
             };
         });
+
+        // Auto-select room dropdown based on first booking's AI classification
+        if (formattedBookings.length > 0) {
+            const firstRoomName = formattedBookings[0].room_type;
+            const roomSelect = document.getElementById('aiRoomType');
+            if (roomSelect) {
+                roomSelect.value = firstRoomName;
+                console.log(`🏠 [AUTO_SELECT] Room dropdown set to: ${firstRoomName}`);
+            }
+        }
         
         // Store and show in review table
         window.manualExtractedBookings = formattedBookings;
