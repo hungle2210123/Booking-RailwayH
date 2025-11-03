@@ -422,8 +422,22 @@
                     </th>
                     <th style="padding: 4px 8px; width: 150px;">
                         <a href="{{ url_for('view_bookings', search_term=search_term, filter_month=filter_month, filter_year=filter_year, start_date=start_date, end_date=end_date, sort_by='Tên người đặt', order='asc' if current_sort_by == 'Tên người đặt' and current_order == 'desc' else 'desc') }}" class="text-dark text-decoration-none fw-medium">
-                            👤 Người đặt 
+                            👤 Người đặt
                             {% if current_sort_by == 'Tên người đặt' %}
+                                {% if current_order == 'asc' %}
+                                    <i class="fas fa-sort-up fa-xs text-primary"></i>
+                                {% else %}
+                                    <i class="fas fa-sort-down fa-xs text-primary"></i>
+                                {% endif %}
+                            {% else %}
+                                <i class="fas fa-sort fa-xs text-muted"></i>
+                            {% endif %}
+                        </a>
+                    </th>
+                    <th style="padding: 4px 8px; width: 120px;">
+                        <a href="{{ url_for('view_bookings', search_term=search_term, filter_month=filter_month, filter_year=filter_year, start_date=start_date, end_date=end_date, sort_by='Tên chỗ nghỉ', order='asc' if current_sort_by == 'Tên chỗ nghỉ' and current_order == 'desc' else 'desc') }}" class="text-dark text-decoration-none fw-medium">
+                            🏠 Phòng
+                            {% if current_sort_by == 'Tên chỗ nghỉ' %}
                                 {% if current_order == 'asc' %}
                                     <i class="fas fa-sort-up fa-xs text-primary"></i>
                                 {% else %}
@@ -554,10 +568,22 @@
                         <code class="small">{{ booking['Số đặt phòng'] }}</code>
                     </td>
                     <td style="padding: 2px 8px;">
-                        <span class="fw-medium {% if is_duplicate %}text-warning fw-bold{% else %}text-dark{% endif %}" 
+                        <span class="fw-medium {% if is_duplicate %}text-warning fw-bold{% else %}text-dark{% endif %}"
                               {% if is_duplicate %}title="Duplicate Booking - Click Duplicates button for details"{% endif %}>
                             {{ booking.get('Tên người đặt', 'N/A') }}
                         </span>
+                    </td>
+                    <td style="padding: 2px 8px;">
+                        {% set room_name = booking.get('Tên chỗ nghỉ', 'N/A') %}
+                        {% if room_name == 'hang be 101' %}
+                            <span class="badge" style="background: #A5D6A7; color: #1B5E20; font-size: 0.75rem;">🟢 hang be 101</span>
+                        {% elif room_name == 'hang be 102' %}
+                            <span class="badge" style="background: #80CBC4; color: #004D40; font-size: 0.75rem;">🔵 hang be 102</span>
+                        {% elif room_name == '118 Hang Bac Hostel' %}
+                            <span class="badge bg-primary" style="font-size: 0.75rem;">🏨 118 Hang Bac</span>
+                        {% else %}
+                            <span class="badge bg-secondary" style="font-size: 0.75rem;">{{ room_name }}</span>
+                        {% endif %}
                     </td>
                     <td style="padding: 4px 8px; min-width: 90px;">
                         <div class="text-center">

@@ -281,18 +281,19 @@ h1, h2, h3, h4, h5, h6 {
                         <table class="table table-bordered table-hover mb-0" id="review-table">
                             <thead class="table-primary">
                                 <tr>
-                                    <th width="4%">#</th>
-                                    <th width="6%" class="text-center">
+                                    <th width="3%">#</th>
+                                    <th width="5%" class="text-center">
                                         <input type="checkbox" id="select-all-duplicates" class="form-check-input" onchange="toggleSelectAll()" title="Chọn tất cả">
                                         <div class="small">Chọn</div>
                                     </th>
-                                    <th width="18%">Tên khách *</th>
-                                    <th width="14%">Booking ID</th>
-                                    <th width="11%">Check-in *</th>
-                                    <th width="11%">Check-out *</th>
-                                    <th width="14%">Tổng tiền *</th>
-                                    <th width="14%">Hoa hồng</th>
-                                    <th width="8%">Xóa</th>
+                                    <th width="16%">Tên khách *</th>
+                                    <th width="12%">Booking ID</th>
+                                    <th width="13%">🏠 Phòng *</th>
+                                    <th width="10%">Check-in *</th>
+                                    <th width="10%">Check-out *</th>
+                                    <th width="13%">Tổng tiền *</th>
+                                    <th width="12%">Hoa hồng</th>
+                                    <th width="6%">Xóa</th>
                                 </tr>
                             </thead>
                             <tbody id="review-table-body">
@@ -2216,54 +2217,65 @@ function generateReviewTableHtml(duplicateCheck) {
             }
         }
         
+        // Get room type with AI classification
+        const roomType = booking.room_name || booking.room_type || booking['Tên chỗ nghỉ'] || '118 Hang Bac Hostel';
+
         return `
         <tr data-index="${index}" class="${rowClass}">
             <td class="text-center fw-bold">${index + 1}</td>
             <td class="text-center">
-                <input type="checkbox" class="form-check-input duplicate-select" 
-                       data-index="${index}" 
+                <input type="checkbox" class="form-check-input duplicate-select"
+                       data-index="${index}"
                        onchange="updateSelection(${index})"
                        title="Chọn khách này">
             </td>
             <td>
                 <div class="d-flex align-items-center">
-                    <input type="text" class="form-control form-control-sm flex-grow-1" 
-                           value="${guestName}" 
+                    <input type="text" class="form-control form-control-sm flex-grow-1"
+                           value="${guestName}"
                            onchange="updateBookingData(${index}, 'guest_name', this.value)"
                            placeholder="Tên khách hàng" required>
                     ${statusIcon}
                 </div>
             </td>
             <td>
-                <input type="text" class="form-control form-control-sm" 
-                       value="${booking.booking_id || ''}" 
+                <input type="text" class="form-control form-control-sm"
+                       value="${booking.booking_id || ''}"
                        onchange="updateBookingData(${index}, 'booking_id', this.value)"
                        placeholder="Tự tạo">
             </td>
             <td>
-                <input type="date" class="form-control form-control-sm" 
-                       value="${booking.checkin_date || booking.check_in_date || ''}" 
+                <select class="form-select form-select-sm"
+                        onchange="updateBookingData(${index}, 'room_name', this.value)" required>
+                    <option value="hang be 101" ${roomType === 'hang be 101' ? 'selected' : ''}>🟢 hang be 101</option>
+                    <option value="hang be 102" ${roomType === 'hang be 102' ? 'selected' : ''}>🔵 hang be 102</option>
+                    <option value="118 Hang Bac Hostel" ${roomType === '118 Hang Bac Hostel' ? 'selected' : ''}>🏨 118 Hang Bac Hostel</option>
+                </select>
+            </td>
+            <td>
+                <input type="date" class="form-control form-control-sm"
+                       value="${booking.checkin_date || booking.check_in_date || ''}"
                        onchange="updateBookingData(${index}, 'checkin_date', this.value)" required>
             </td>
             <td>
-                <input type="date" class="form-control form-control-sm" 
-                       value="${booking.checkout_date || booking.check_out_date || ''}" 
+                <input type="date" class="form-control form-control-sm"
+                       value="${booking.checkout_date || booking.check_out_date || ''}"
                        onchange="updateBookingData(${index}, 'checkout_date', this.value)" required>
             </td>
             <td>
-                <input type="number" class="form-control form-control-sm" 
-                       value="${booking.room_amount || booking.total_payment || ''}" 
+                <input type="number" class="form-control form-control-sm"
+                       value="${booking.room_amount || booking.total_payment || ''}"
                        onchange="updateBookingData(${index}, 'room_amount', this.value)"
                        placeholder="0" min="0" required>
             </td>
             <td>
-                <input type="number" class="form-control form-control-sm" 
-                       value="${booking.commission || ''}" 
+                <input type="number" class="form-control form-control-sm"
+                       value="${booking.commission || ''}"
                        onchange="updateBookingData(${index}, 'commission', this.value)"
                        placeholder="0" min="0">
             </td>
             <td class="text-center">
-                <button type="button" class="btn btn-outline-danger btn-sm" 
+                <button type="button" class="btn btn-outline-danger btn-sm"
                         onclick="removeBookingRow(${index})" title="Xóa khách này">
                     <i class="fas fa-trash"></i>
                 </button>
