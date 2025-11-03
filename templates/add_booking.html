@@ -2217,8 +2217,32 @@ function generateReviewTableHtml(duplicateCheck) {
             }
         }
         
-        // Get room type with AI classification
-        const roomType = booking.room_name || booking.room_type || booking['Tên chỗ nghỉ'] || '118 Hang Bac Hostel';
+        // Get room type with AI classification - use property_name_raw to classify if room_name is missing
+        let roomType = booking.room_name || booking.room_type || booking['Tên chỗ nghỉ'];
+
+        // If no room_name, try to classify from property_name_raw
+        if (!roomType && booking.property_name_raw) {
+            const propName = booking.property_name_raw.toLowerCase();
+            console.log(`🔍 [ROOM_CLASSIFY] Row ${index}: property_name_raw = "${booking.property_name_raw}"`);
+
+            if (propName.includes('kitchen & washing machine') || propName.includes('1 br')) {
+                roomType = 'hang be 101';
+                console.log(`✅ [ROOM_CLASSIFY] Matched "hang be 101" based on property name`);
+            } else if (propName.includes('2 br') || propName.includes('free laundry - kitchen')) {
+                roomType = 'hang be 102';
+                console.log(`✅ [ROOM_CLASSIFY] Matched "hang be 102" based on property name`);
+            } else {
+                roomType = '118 Hang Bac Hostel';
+                console.log(`✅ [ROOM_CLASSIFY] Default to "118 Hang Bac Hostel"`);
+            }
+        }
+
+        // Final fallback
+        if (!roomType) {
+            roomType = '118 Hang Bac Hostel';
+        }
+
+        console.log(`🏠 [ROOM_DISPLAY] Row ${index}: ${guestName} → ${roomType}`);
 
         return `
         <tr data-index="${index}" class="${rowClass}">

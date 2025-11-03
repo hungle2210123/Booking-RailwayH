@@ -3621,9 +3621,28 @@ def process_pasted_image():
         # ✅ POST-PROCESS: Map AI-extracted field names to database schema and use AI-classified room_name
         for booking in bookings_list:
             if isinstance(booking, dict):
-                # Use AI-classified room_name instead of user selection (AI is smarter!)
+                # Get AI-classified room_name or fallback to user selection
                 ai_room_name = booking.get('room_name', room_type)
+
+                # 🔍 FALLBACK: If AI didn't classify correctly, try to classify from property_name_raw
+                if not ai_room_name or ai_room_name == room_type:
+                    property_name = booking.get('property_name_raw', '').lower()
+                    if property_name:
+                        if 'kitchen & washing machine' in property_name or '1 br' in property_name:
+                            ai_room_name = 'hang be 101'
+                            print(f"🔄 [FALLBACK_CLASSIFY] Classified as 'hang be 101' from property: {property_name}")
+                        elif '2 br' in property_name or 'free laundry - kitchen' in property_name:
+                            ai_room_name = 'hang be 102'
+                            print(f"🔄 [FALLBACK_CLASSIFY] Classified as 'hang be 102' from property: {property_name}")
+                        elif 'night market' in property_name or 'kitchen & balcony' in property_name:
+                            ai_room_name = '118 Hang Bac Hostel'
+                            print(f"🔄 [FALLBACK_CLASSIFY] Classified as '118 Hang Bac Hostel' from property: {property_name}")
+                        else:
+                            ai_room_name = '118 Hang Bac Hostel'  # Default
+                            print(f"🔄 [FALLBACK_CLASSIFY] Default to '118 Hang Bac Hostel' for property: {property_name}")
+
                 booking['Tên chỗ nghỉ'] = ai_room_name
+                booking['room_name'] = ai_room_name  # Ensure consistency
 
                 # Map AI field names to database field names
                 if 'guest_name' in booking and 'Tên người đặt' not in booking:

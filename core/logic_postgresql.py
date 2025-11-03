@@ -1520,13 +1520,16 @@ For MULTIPLE bookings:
     ]
 }
 
-🔍 CRITICAL CLASSIFICATION LOGIC:
-1. Read "Tên chỗ nghỉ" or property name from image
-2. Match against classification rules above (exact match OR contains keywords)
-3. If contains "Kitchen & Washing Machine" or "Kitchen" (single bedroom) → "hang be 101"
-4. If contains "2 BR" or "Free Laundry - Kitchen" (2 bedrooms) → "hang be 102"
-5. If contains "Night market" or "Kitchen & Balcony" → "118 Hang Bac Hostel"
-6. If NONE of above match → DEFAULT: "118 Hang Bac Hostel"
+🔍 CRITICAL CLASSIFICATION LOGIC (CHECK EACH BOOKING INDIVIDUALLY):
+1. For EACH booking, look for "Tên chỗ nghỉ" or property name in the SAME ROW
+2. Each booking row may have DIFFERENT property names - classify individually!
+3. Classification rules (case-insensitive matching):
+   - Contains "Kitchen & Washing Machine" OR "1 BR" OR just "Kitchen" alone → "hang be 101"
+   - Contains "2 BR" OR "Free Laundry - Kitchen" OR "2 bedroom" → "hang be 102"
+   - Contains "Night market" OR "Kitchen & Balcony" → "118 Hang Bac Hostel"
+   - If NONE match OR property name is generic → DEFAULT: "118 Hang Bac Hostel"
+
+⚠️ CRITICAL: Each booking CAN have a different room_name! Don't use same value for all bookings!
 
 💰 NUMBER EXTRACTION RULES:
 - "VND 1.097.820" → extract as: 1097820 (pure number)
