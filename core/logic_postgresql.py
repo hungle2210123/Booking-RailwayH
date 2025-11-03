@@ -1445,55 +1445,109 @@ def extract_booking_info_from_image_content_multi_api(image_data: bytes, room_ty
             print(f"🖼️ [BOOKING_AI] Image opened successfully: {image.format} {image.size}")
             
             prompt = """
-            Extract ALL booking information from this image. If there are multiple bookings/guests, extract all of them.
-            Return as JSON in this exact format:
-            
-            For SINGLE booking:
-            {
-                "type": "single",
-                "booking": {
-                    "guest_name": "full name",
-                    "booking_id": "booking ID", 
-                    "checkin_date": "YYYY-MM-DD",
-                    "checkout_date": "YYYY-MM-DD",
-                    "room_amount": number (no commas, just digits like 400000),
-                    "commission": number (no commas, just digits like 50000),
-                    "email": "email if available",
-                    "phone": "phone if available"
-                }
-            }
-            
-            For MULTIPLE bookings:
-            {
-                "type": "multiple",
-                "count": number_of_bookings,
-                "bookings": [
-                    {
-                        "guest_name": "full name 1",
-                        "booking_id": "booking ID 1", 
-                        "checkin_date": "YYYY-MM-DD",
-                        "checkout_date": "YYYY-MM-DD",
-                        "room_amount": number (no commas, just digits like 400000),
-                        "commission": number (no commas, just digits like 50000),
-                        "email": "email if available",
-                        "phone": "phone if available"
-                    },
-                    {
-                        "guest_name": "full name 2",
-                        "booking_id": "booking ID 2",
-                        "checkin_date": "YYYY-MM-DD", 
-                        "checkout_date": "YYYY-MM-DD",
-                        "room_amount": number (no commas, just digits like 400000),
-                        "commission": number (no commas, just digits like 50000),
-                        "email": "email if available",
-                        "phone": "phone if available"
-                    }
-                ]
-            }
-            
-            Important: Look carefully for multiple guest names, booking IDs, or booking entries in the image. 
-            If you see multiple bookings, return type "multiple" with all bookings in the array.
-            If you see only one booking, return type "single" with the booking object.
+            🏨 PROFESSIONAL HOTEL BOOKING EXTRACTION SYSTEM 🏨
+
+You are an expert booking data analyst for a hostel management system with 2 apartments and 6 rooms total.
+
+📍 CRITICAL: AUTOMATIC ROOM CLASSIFICATION RULES (MUST FOLLOW EXACTLY):
+
+APARTMENT 2 - 18 Hang Be (2 rooms):
+1. "The Heart of Old Quarter - Kitchen & Washing Machine" → room_name: "hang be 101"
+2. "The Heart Of Old Quarter 2 BR - Free Laundry - Kitchen" → room_name: "hang be 102"
+
+APARTMENT 1 - 118 Hang Bac (4 rooms - DEFAULT):
+3. "Home in Old Quarter - Night market" → room_name: "118 Hang Bac Hostel"
+4. "Old Quarter Home- Kitchen & Balcony" → room_name: "118 Hang Bac Hostel"
+5. ANY OTHER ROOM NAME → room_name: "118 Hang Bac Hostel" (DEFAULT)
+
+🎯 EXTRACTION TASK:
+Extract ALL booking information from this image. If there are multiple bookings/guests visible, extract each one separately.
+
+📋 OUTPUT FORMAT (JSON ONLY - NO EXPLANATIONS):
+
+For SINGLE booking:
+{
+    "type": "single",
+    "booking": {
+        "guest_name": "Full Guest Name",
+        "booking_id": "Booking/Confirmation ID",
+        "checkin_date": "YYYY-MM-DD",
+        "checkout_date": "YYYY-MM-DD",
+        "room_amount": 1234567 (total payment as pure number, NO commas),
+        "commission": 123456 (commission/fee as pure number, NO commas, 0 if not shown),
+        "room_name": "AUTO-CLASSIFIED using rules above",
+        "property_name_raw": "exact property name from image",
+        "nights": number_of_nights,
+        "email": "guest email if visible",
+        "phone": "guest phone if visible",
+        "platform": "booking platform if visible (Genius/Booking.com/etc)"
+    }
+}
+
+For MULTIPLE bookings:
+{
+    "type": "multiple",
+    "count": total_number_of_bookings,
+    "bookings": [
+        {
+            "guest_name": "Guest Name 1",
+            "booking_id": "ID 1",
+            "checkin_date": "YYYY-MM-DD",
+            "checkout_date": "YYYY-MM-DD",
+            "room_amount": 1234567,
+            "commission": 123456,
+            "room_name": "AUTO-CLASSIFIED using rules above",
+            "property_name_raw": "exact property name from image",
+            "nights": nights,
+            "email": "email if visible",
+            "phone": "phone if visible",
+            "platform": "platform if visible"
+        },
+        {
+            "guest_name": "Guest Name 2",
+            "booking_id": "ID 2",
+            "checkin_date": "YYYY-MM-DD",
+            "checkout_date": "YYYY-MM-DD",
+            "room_amount": 2345678,
+            "commission": 234567,
+            "room_name": "AUTO-CLASSIFIED using rules above",
+            "property_name_raw": "exact property name from image",
+            "nights": nights,
+            "email": "email if visible",
+            "phone": "phone if visible",
+            "platform": "platform if visible"
+        }
+    ]
+}
+
+🔍 CRITICAL CLASSIFICATION LOGIC:
+1. Read "Tên chỗ nghỉ" or property name from image
+2. Match against classification rules above (exact match OR contains keywords)
+3. If contains "Kitchen & Washing Machine" or "Kitchen" (single bedroom) → "hang be 101"
+4. If contains "2 BR" or "Free Laundry - Kitchen" (2 bedrooms) → "hang be 102"
+5. If contains "Night market" or "Kitchen & Balcony" → "118 Hang Bac Hostel"
+6. If NONE of above match → DEFAULT: "118 Hang Bac Hostel"
+
+💰 NUMBER EXTRACTION RULES:
+- "VND 1.097.820" → extract as: 1097820 (pure number)
+- "VND 164.673" → extract as: 164673 (commission)
+- "Tổng thanh toán" → room_amount (total payment)
+- "Hoa hồng" → commission (may be 0 if not shown)
+
+📅 DATE FORMAT: Always YYYY-MM-DD (e.g., 2025-11-05)
+
+⚠️ IMPORTANT VALIDATION:
+- Extract booking_id from "ID chỗ nghỉ" or confirmation number
+- Calculate nights from checkin to checkout dates
+- Include property_name_raw for verification
+- Set commission = 0 if not visible in image
+
+🎯 RESPONSE REQUIREMENTS:
+- ONLY return valid JSON (no markdown, no explanations)
+- Classify room_name automatically using rules above
+- Extract all visible bookings (check for multiple entries)
+- Use "type": "single" or "multiple" based on count
+- Numbers must be pure integers (no commas, no currency symbols)
             """
             
             print(f"🤖 [BOOKING_AI] Sending image to {key_name} with room type: {room_type}")

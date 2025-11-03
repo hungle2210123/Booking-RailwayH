@@ -3618,11 +3618,28 @@ def process_pasted_image():
             # Legacy format fallback (single booking without type)
             bookings_list = [booking_info]
         
-        # ✅ POST-PROCESS: Set room type for all bookings based on user selection
+        # ✅ POST-PROCESS: Map AI-extracted field names to database schema and use AI-classified room_name
         for booking in bookings_list:
             if isinstance(booking, dict):
-                booking['Tên chỗ nghỉ'] = room_type
-                print(f"🏠 [ROOM_TYPE] Set accommodation name to '{room_type}' for booking: {booking.get('Tên người đặt', 'N/A')}")
+                # Use AI-classified room_name instead of user selection (AI is smarter!)
+                ai_room_name = booking.get('room_name', room_type)
+                booking['Tên chỗ nghỉ'] = ai_room_name
+
+                # Map AI field names to database field names
+                if 'guest_name' in booking and 'Tên người đặt' not in booking:
+                    booking['Tên người đặt'] = booking['guest_name']
+                if 'booking_id' in booking and 'Số đặt phòng' not in booking:
+                    booking['Số đặt phòng'] = booking['booking_id']
+                if 'checkin_date' in booking and 'Check-in Date' not in booking:
+                    booking['Check-in Date'] = booking['checkin_date']
+                if 'checkout_date' in booking and 'Check-out Date' not in booking:
+                    booking['Check-out Date'] = booking['checkout_date']
+                if 'room_amount' in booking and 'Tổng thanh toán' not in booking:
+                    booking['Tổng thanh toán'] = booking['room_amount']
+                if 'commission' in booking and 'Hoa hồng' not in booking:
+                    booking['Hoa hồng'] = booking['commission']
+
+                print(f"🏠 [AI_ROOM_CLASSIFICATION] '{ai_room_name}' for guest: {booking.get('Tên người đặt', 'N/A')}")
         
         # Use AI duplicate detector for comprehensive analysis (if available)
         ai_analysis = {
