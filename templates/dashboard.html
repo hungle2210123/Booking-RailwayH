@@ -4056,18 +4056,36 @@ function updateGuestCardAmounts(bookingId, newRoomAmount, newTaxiAmount, newComm
                 // Update commission if provided
                 if (newCommission !== null) {
                     const commissionIcon = row.querySelector('.text-muted .fas.fa-percentage');
-                    if (commissionIcon && commissionIcon.parentElement) {
-                        if (newCommission > 0) {
+                    const noCommissionElement = row.querySelector('.text-muted .fas.fa-check-circle');
+
+                    if (newCommission > 0) {
+                        // Has commission - update or create commission display
+                        if (commissionIcon && commissionIcon.parentElement) {
                             commissionIcon.parentElement.innerHTML = `<i class="fas fa-percentage me-1"></i>${newCommission.toLocaleString()}đ`;
                         } else {
-                            commissionIcon.parentElement.remove();
+                            // Remove "no commission" text if exists
+                            if (noCommissionElement && noCommissionElement.parentElement) {
+                                noCommissionElement.parentElement.remove();
+                            }
+                            // Add commission if it didn't exist before
+                            const breakdownDiv = row.querySelector('.text-muted');
+                            if (breakdownDiv) {
+                                const commissionHtml = `<br><i class="fas fa-percentage me-1"></i>${newCommission.toLocaleString()}đ`;
+                                breakdownDiv.insertAdjacentHTML('beforeend', commissionHtml);
+                            }
                         }
-                    } else if (newCommission > 0) {
-                        // Add commission if it didn't exist before
-                        const breakdownDiv = row.querySelector('.text-muted');
-                        if (breakdownDiv) {
-                            const commissionHtml = `<br><i class="fas fa-percentage me-1"></i>${newCommission.toLocaleString()}đ`;
-                            breakdownDiv.insertAdjacentHTML('beforeend', commissionHtml);
+                    } else {
+                        // No commission - show "Không hoa hồng" text
+                        if (commissionIcon && commissionIcon.parentElement) {
+                            // Replace existing commission with "no commission" text
+                            commissionIcon.parentElement.innerHTML = '<i class="fas fa-check-circle me-1 text-success"></i>Không hoa hồng';
+                        } else if (!noCommissionElement) {
+                            // Add "no commission" text if it didn't exist
+                            const breakdownDiv = row.querySelector('.text-muted');
+                            if (breakdownDiv) {
+                                const noCommissionHtml = `<br><i class="fas fa-check-circle me-1 text-success"></i>Không hoa hồng`;
+                                breakdownDiv.insertAdjacentHTML('beforeend', noCommissionHtml);
+                            }
                         }
                     }
                 }
@@ -5462,8 +5480,13 @@ function updateBookingAmounts() {
             const modal = bootstrap.Modal.getInstance(document.getElementById('editAmountModal'));
             modal.hide();
 
-            // ⚡ NO RELOAD NEEDED - instant updates applied
-            console.log('⚡ [SUCCESS] All views updated instantly without reload');
+            // ⚡ INSTANT UPDATE applied, then reload after short delay to refresh all data
+            console.log('⚡ [SUCCESS] Instant updates applied, reloading dashboard to refresh charts and totals...');
+
+            // Reload page after 1 second to ensure all charts, totals, and data are refreshed
+            setTimeout(() => {
+                window.location.reload();
+            }, 1000);
         } else {
             throw new Error(data.message || 'Lỗi không xác định');
         }
