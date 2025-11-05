@@ -11115,18 +11115,22 @@ async function fetchCanceledCustomerCount() {
     try {
         const response = await fetch('/api/canceled_customers_management');
         const data = await response.json();
-        
+
         if (data.success) {
             const badge = document.getElementById('canceledCustomerBadge');
-            const activeCount = data.all_customers?.filter(c => c.action_status !== 'confirmed').length || 0;
-            badge.textContent = activeCount;
-            badge.className = activeCount > 0 ? 'badge bg-warning text-dark ms-2' : 'badge bg-success text-white ms-2';
+            if (badge) {
+                const activeCount = data.all_customers?.filter(c => c.action_status !== 'confirmed').length || 0;
+                badge.textContent = activeCount;
+                badge.className = activeCount > 0 ? 'badge bg-warning text-dark ms-2' : 'badge bg-success text-white ms-2';
+            }
         }
     } catch (error) {
         console.error('❌ [CANCELED_CUSTOMER] Error fetching count:', error);
         const badge = document.getElementById('canceledCustomerBadge');
-        badge.textContent = 'Error';
-        badge.className = 'badge bg-danger text-white ms-2';
+        if (badge) {
+            badge.textContent = 'Error';
+            badge.className = 'badge bg-danger text-white ms-2';
+        }
     }
 }
 
@@ -11449,27 +11453,10 @@ document.addEventListener('DOMContentLoaded', function() {
     // Initialize cancellation management center data immediately
     setTimeout(async () => {
         console.log('🔄 [INIT] Starting cancellation management initialization...');
-        
-        // Force load the data
-        try {
-            if (typeof window.loadPendingCustomers === 'function') {
-                console.log('🔄 [INIT] Loading pending customers...');
-                await window.loadPendingCustomers();
-                console.log('✅ [INIT] Pending customers loaded');
-            } else {
-                console.warn('⚠️ [INIT] loadPendingCustomers function not found');
-            }
-            
-            if (typeof window.loadConfirmedActions === 'function') {
-                console.log('🔄 [INIT] Loading confirmed actions...');
-                await window.loadConfirmedActions();
-                console.log('✅ [INIT] Confirmed actions loaded');
-            } else {
-                console.warn('⚠️ [INIT] loadConfirmedActions function not found');
-            }
-        } catch (error) {
-            console.error('❌ [INIT] Error loading cancellation data:', error);
-        }
+
+        // Note: loadPendingCustomers and loadConfirmedActions are deprecated
+        // Data is loaded on-demand when user clicks the management button
+        console.log('✅ [INIT] Cancellation data will be loaded on-demand');
     }, 3000);
     
     // Canceled customer button is now handled where the function is defined
