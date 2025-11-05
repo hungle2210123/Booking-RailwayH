@@ -109,7 +109,12 @@
       "Bash(sqlite3:*)",
       "Bash(PGPASSWORD=VmyAveAhkGVOFlSiVBWgyIEAUbKAXEPi psql -h mainline.proxy.rlwy.net -p 36647 -U postgres -d railway -c \"SELECT COUNT(*) FROM bookings;\")",
       "Read(//tmp/**)",
-      "Read(///**)"
+      "Read(///**)",
+      "Bash(PGPASSWORD=VmyAveAhkGVOFlSiVBWgyIEAUbKAXEPi psql -h mainline.proxy.rlwy.net -p 36647 -U postgres -d railway -c \"SELECT room_id, room_name, apartment_id FROM rooms WHERE apartment_id = 2 ORDER BY room_id;\")",
+      "Bash(PGPASSWORD=VmyAveAhkGVOFlSiVBWgyIEAUbKAXEPi psql -h mainline.proxy.rlwy.net -p 36647 -U postgres -d railway -c \"SELECT b.booking_id, b.guest_name, b.room_name, r.room_id, r.apartment_id FROM bookings b LEFT JOIN rooms r ON LOWER(b.room_name) = LOWER(r.room_name) WHERE r.apartment_id = 2 AND b.booking_status = ''OK'' AND b.checkin_date >= ''2025-10-01'' LIMIT 5;\")",
+      "Bash(PGPASSWORD=VmyAveAhkGVOFlSiVBWgyIEAUbKAXEPi psql -h mainline.proxy.rlwy.net -p 36647 -U postgres -d railway -c \"\\d bookings\")",
+      "Bash(export PGPASSWORD=VmyAveAhkGVOFlSiVBWgyIEAUbKAXEPi)",
+      "Read(//mnt/c/Users/T14/Desktop/**)"
     ],
     "deny": []
   },

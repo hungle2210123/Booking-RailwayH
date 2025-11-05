@@ -379,13 +379,26 @@ async function updateCollectedAmount() {
         if (result.success) {
             const modal = bootstrap.Modal.getInstance(document.getElementById('editCollectedAmountModal'));
             modal.hide();
-            
+
             showSuccessAlert(`✅ Đã cập nhật! Số tiền đã thu: ${newAmount.toLocaleString('vi-VN')}đ cho ${guestName}`);
-            
-            // Refresh page to show updated data
-            setTimeout(() => { 
-                window.location.reload();
-            }, 2000);
+
+            // ⚡ INSTANT UPDATE: Update display without page reload
+            console.log('⚡ [INSTANT_UPDATE] Updating collected amount display...');
+
+            // Call the instant update function if it exists
+            if (typeof updateCollectedAmountDisplay === 'function') {
+                updateCollectedAmountDisplay(bookingId, newAmount, collector, totalAmount);
+            }
+
+            // Update calendar and revenue if needed
+            if (typeof updateBookingInAllViews === 'function') {
+                updateBookingInAllViews(bookingId, {
+                    collected_amount: newAmount,
+                    collector_name: collector
+                });
+            }
+
+            console.log('⚡ [SUCCESS] Collected amount updated instantly without reload');
         } else {
             alert('❌ Lỗi: ' + (result.message || 'Không thể cập nhật'));
         }

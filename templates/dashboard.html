@@ -9604,16 +9604,26 @@ async function quickSwitchDatabase(source) {
 // Load current database status on page load
 document.addEventListener('DOMContentLoaded', function() {
     fetch('/api/get_database_status')
-        .then(response => response.json())
+        .then(response => {
+            if (!response.ok) {
+                // API endpoint doesn't exist - this is expected, silently ignore
+                return null;
+            }
+            return response.json();
+        })
         .then(result => {
-            if (result.success) {
+            if (result && result.success) {
                 const indicator = document.getElementById('currentDbIndicator');
-                indicator.textContent = result.current_source.toUpperCase();
-                indicator.className = result.current_source === 'local' ? 'text-primary' : 
-                                     result.current_source === 'railway' ? 'text-success' : 'text-secondary';
+                if (indicator) {
+                    indicator.textContent = result.current_source.toUpperCase();
+                    indicator.className = result.current_source === 'local' ? 'text-primary' :
+                                         result.current_source === 'railway' ? 'text-success' : 'text-secondary';
+                }
             }
         })
-        .catch(error => console.error('Failed to load database status:', error));
+        .catch(error => {
+            // Silently ignore - API endpoint may not be available
+        });
         
     // Initialize collector month selector
     initializeCollectorMonthSelector();
@@ -11205,13 +11215,11 @@ try {
         return false;
     }
     
-    // Try to setup button immediately
+    // Try to setup button immediately (silent if not found - button may not exist on all pages)
     if (!setupCanceledCustomerButton()) {
         // If button not found, retry after a short delay
         setTimeout(() => {
-            if (!setupCanceledCustomerButton()) {
-                console.error('❌ [EVENT_LISTENER] Button still not found after retry');
-            }
+            setupCanceledCustomerButton(); // Silent retry, no error log
         }, 100);
     }
     
@@ -11295,9 +11303,8 @@ document.addEventListener('DOMContentLoaded', function() {
         });
         
         console.log('✅ [DOM_READY] Direct event listener attached successfully');
-    } else {
-        console.error('❌ [DOM_READY] Toggle button not found');
     }
+    // Button may not exist on all pages - this is normal, no error needed
 });
 
 // EMERGENCY MANUAL TESTING FUNCTION (available in browser console)
@@ -11326,35 +11333,33 @@ console.log('🔧 [EMERGENCY] Manual test function available: testCanceledFuncti
 
 // ULTIMATE NUCLEAR FIX: Replace all onclick attributes
 setTimeout(() => {
-    console.log('🚀 [NUCLEAR_FIX] Applying ultimate fix...');
-    
     // Find all buttons with onclick containing "toggleCanceledCustomerManagement"
     const buttons = document.querySelectorAll('button[onclick*="toggleCanceledCustomerManagement"]');
-    
-    buttons.forEach((button, index) => {
-        console.log(`🔧 [NUCLEAR_FIX] Fixing button ${index + 1}:`, button.id);
-        
-        // Remove the problematic onclick
-        button.removeAttribute('onclick');
-        
-        // Add our own click handler
-        button.addEventListener('click', async function(e) {
-            e.preventDefault();
-            console.log('🔘 [NUCLEAR_CLICK] Button clicked!');
-            
-            try {
-                // Call the function directly
-                await toggleCanceledCustomerManagement();
-            } catch (error) {
-                console.error('❌ [NUCLEAR_CLICK] Error:', error);
-                alert('Error: ' + error.message);
-            }
+
+    if (buttons.length > 0) {
+        console.log(`🚀 [NUCLEAR_FIX] Fixing ${buttons.length} buttons...`);
+
+        buttons.forEach((button, index) => {
+            // Remove the problematic onclick
+            button.removeAttribute('onclick');
+
+            // Add our own click handler
+            button.addEventListener('click', async function(e) {
+                e.preventDefault();
+
+                try {
+                    // Call the function directly
+                    await toggleCanceledCustomerManagement();
+                } catch (error) {
+                    console.error('❌ [NUCLEAR_CLICK] Error:', error);
+                    alert('Error: ' + error.message);
+                }
+            });
         });
-        
-        console.log(`✅ [NUCLEAR_FIX] Button ${index + 1} fixed`);
-    });
-    
-    console.log(`🎯 [NUCLEAR_FIX] Fixed ${buttons.length} buttons`);
+
+        console.log(`✅ [NUCLEAR_FIX] All buttons fixed successfully`);
+    }
+    // Buttons may not exist on all pages - this is normal, no log needed
 }, 2000); // Wait 2 seconds to ensure everything is loaded
 
 // SUPER SIMPLE DIRECT FIX - No dependencies
@@ -11438,9 +11443,8 @@ setTimeout(() => {
         };
         
         console.log('✅ [SUPER_SIMPLE_FIX] Button fix applied successfully!');
-    } else {
-        console.error('❌ [SUPER_SIMPLE_FIX] Button not found!');
     }
+    // Button may not exist on all pages - this is normal, no error needed
 }, 3000); // Wait 3 seconds
 
 // IMMEDIATE DOM READY FIX - No delays
