@@ -901,30 +901,47 @@ def process_weekly_revenue_analysis(df, weeks_back=4):
 
 
 def detect_overcrowded_days(df):
-    """Phát hiện ngày có quá 4 khách check-in"""
+    """Phát hiện ngày có khách check-in vượt quá số phòng khả dụng"""
     overcrowded_days = []
-    
+
     try:
+        # Get total available rooms from database
+        from core.models import Apartment, Room, db
+
+        total_available_rooms = 0
+        try:
+            # Count total rooms across all active apartments
+            total_available_rooms = db.session.query(db.func.count(Room.room_id)).join(
+                Apartment, Room.apartment_id == Apartment.apartment_id
+            ).filter(
+                Apartment.is_active == True
+            ).scalar() or 0
+
+            print(f"📊 [OVERLOAD_CHECK] Total available rooms in system: {total_available_rooms}")
+        except Exception as e:
+            print(f"⚠️ [OVERLOAD_CHECK] Could not get room count from database, using default: {e}")
+            total_available_rooms = 6  # Default fallback
+
         if df.empty or 'Check-in Date' not in df.columns:
             return overcrowded_days
-            
+
         today = datetime.today()
         check_start = today - timedelta(days=30)
         check_end = today + timedelta(days=30)
-        
+
         df_check = df.copy()
         df_check['Check-in Date'] = pd.to_datetime(df_check['Check-in Date'], errors='coerce', dayfirst=True)
-        
+
         valid_checkins = df_check[
             (df_check['Check-in Date'].notna()) &
             (df_check['Check-in Date'] >= pd.Timestamp(check_start)) &
             (df_check['Check-in Date'] <= pd.Timestamp(check_end)) &
             (df_check['Tình trạng'] != 'Đã hủy')
         ].copy()
-        
+
         if valid_checkins.empty:
             return overcrowded_days
-            
+
         # Group by date and count guests + calculate daily totals
         daily_checkins = valid_checkins.groupby(valid_checkins['Check-in Date'].dt.date).agg({
             'Số đặt phòng': ['count', lambda x: list(x)],
@@ -932,9 +949,12 @@ def detect_overcrowded_days(df):
             'Tổng thanh toán': ['sum', lambda x: list(x)]
         })
         daily_checkins.columns = ['guest_count', 'booking_ids', 'guest_names', 'daily_total', 'individual_amounts']
-        
-        # Find overcrowded dates (>4 guests)
-        overcrowded_dates = daily_checkins[daily_checkins['guest_count'] > 4]
+
+        # Find overcrowded dates (guests > available rooms)
+        overcrowded_dates = daily_checkins[daily_checkins['guest_count'] > total_available_rooms]
+
+        if not overcrowded_dates.empty:
+            print(f"⚠️ [OVERLOAD_DETECTED] Found {len(overcrowded_dates)} overcrowded dates (threshold: {total_available_rooms} rooms)")
         
         for date, row in overcrowded_dates.iterrows():
             days_from_today = (date - today.date()).days
