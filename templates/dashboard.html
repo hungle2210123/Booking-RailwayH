@@ -1624,30 +1624,41 @@
                 return;
             }
 
-            // Build calendar table
+            // Build calendar table with revenue
             let html = `
                 <div class="table-responsive">
                     <table class="table table-sm table-hover table-bordered" style="font-size: 0.85rem;">
                         <thead class="table-light sticky-top">
                             <tr>
-                                <th class="text-center" style="width: 120px;">Ngày</th>`;
+                                <th class="text-center" style="width: 100px;">Ngày</th>`;
 
             // Add apartment columns based on filter
             if (apartmentFilter === 'all' || apartmentFilter === 'apt1') {
-                html += `<th class="text-center" style="width: 100px; background-color: #e3f2fd;">🔵 118 Hang Bac</th>`;
+                html += `<th class="text-center" style="min-width: 150px; background-color: #e3f2fd;">
+                    🔵 118 Hang Bac<br>
+                    <small class="text-muted">Doanh thu • Khách</small>
+                </th>`;
             }
             if (apartmentFilter === 'all' || apartmentFilter === 'apt2') {
-                html += `<th class="text-center" style="width: 100px; background-color: #e8f5e9;">🟢 18 Hang Be</th>`;
+                html += `<th class="text-center" style="min-width: 150px; background-color: #e8f5e9;">
+                    🟢 18 Hang Be<br>
+                    <small class="text-muted">Doanh thu • Khách</small>
+                </th>`;
             }
             if (apartmentFilter === 'all') {
-                html += `<th class="text-center fw-bold" style="width: 100px; background-color: #fff3e0;">📊 Tổng</th>`;
+                html += `<th class="text-center fw-bold" style="min-width: 150px; background-color: #fff3e0;">
+                    📊 Tổng Cộng<br>
+                    <small class="text-muted fw-normal">Doanh thu • Khách</small>
+                </th>`;
             }
 
             html += `</tr></thead><tbody>`;
 
             // Add rows for each date
+            let totalRevenueApt1 = 0, totalRevenueApt2 = 0, totalRevenueAll = 0;
+
             dates.forEach(dateStr => {
-                const counts = daily_occupancy[dateStr];
+                const data = daily_occupancy[dateStr];
                 const dateObj = new Date(dateStr);
                 const dayName = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'][dateObj.getDay()];
                 const formattedDate = `${dayName}, ${dateObj.getDate()}/${dateObj.getMonth() + 1}`;
@@ -1659,34 +1670,106 @@
                 html += `<tr class="${rowClass}">`;
                 html += `<td class="text-center fw-bold">${formattedDate}</td>`;
 
-                // Show counts based on filter
+                // Show revenue + counts based on filter
                 if (apartmentFilter === 'all' || apartmentFilter === 'apt1') {
-                    const count = counts.apt1 || 0;
-                    const badge = count > 0 ? `<span class="badge bg-primary">${count} khách</span>` : '<span class="text-muted">-</span>';
-                    html += `<td class="text-center">${badge}</td>`;
+                    const count = data.apt1 || 0;
+                    const revenue = data.revenue_apt1 || 0;
+                    totalRevenueApt1 += revenue;
+
+                    if (count > 0) {
+                        html += `<td class="text-center">
+                            <div class="fw-bold text-primary">${Math.round(revenue).toLocaleString('vi-VN')}đ</div>
+                            <small class="text-muted">${count} khách</small>
+                        </td>`;
+                    } else {
+                        html += `<td class="text-center text-muted">-</td>`;
+                    }
                 }
+
                 if (apartmentFilter === 'all' || apartmentFilter === 'apt2') {
-                    const count = counts.apt2 || 0;
-                    const badge = count > 0 ? `<span class="badge bg-success">${count} khách</span>` : '<span class="text-muted">-</span>';
-                    html += `<td class="text-center">${badge}</td>`;
+                    const count = data.apt2 || 0;
+                    const revenue = data.revenue_apt2 || 0;
+                    totalRevenueApt2 += revenue;
+
+                    if (count > 0) {
+                        html += `<td class="text-center">
+                            <div class="fw-bold text-success">${Math.round(revenue).toLocaleString('vi-VN')}đ</div>
+                            <small class="text-muted">${count} khách</small>
+                        </td>`;
+                    } else {
+                        html += `<td class="text-center text-muted">-</td>`;
+                    }
                 }
+
                 if (apartmentFilter === 'all') {
-                    const count = counts.all || 0;
-                    const badge = count > 0 ? `<span class="badge bg-warning text-dark">${count} khách</span>` : '<span class="text-muted">-</span>';
-                    html += `<td class="text-center">${badge}</td>`;
+                    const count = data.all || 0;
+                    const revenue = data.revenue_all || 0;
+                    totalRevenueAll += revenue;
+
+                    if (count > 0) {
+                        html += `<td class="text-center">
+                            <div class="fw-bold text-warning">${Math.round(revenue).toLocaleString('vi-VN')}đ</div>
+                            <small class="text-muted">${count} khách</small>
+                        </td>`;
+                    } else {
+                        html += `<td class="text-center text-muted">-</td>`;
+                    }
                 }
 
                 html += `</tr>`;
             });
 
-            html += `</tbody></table></div>`;
+            // Add summary footer row
+            html += `
+                <tfoot class="table-secondary fw-bold">
+                    <tr>
+                        <td class="text-center">
+                            <i class="fas fa-calculator me-1"></i>TỔNG CỘNG
+                        </td>`;
 
-            // Add summary
+            if (apartmentFilter === 'all' || apartmentFilter === 'apt1') {
+                html += `<td class="text-center text-primary">
+                    <div class="fw-bold">${Math.round(totalRevenueApt1).toLocaleString('vi-VN')}đ</div>
+                </td>`;
+            }
+
+            if (apartmentFilter === 'all' || apartmentFilter === 'apt2') {
+                html += `<td class="text-center text-success">
+                    <div class="fw-bold">${Math.round(totalRevenueApt2).toLocaleString('vi-VN')}đ</div>
+                </td>`;
+            }
+
+            if (apartmentFilter === 'all') {
+                html += `<td class="text-center text-warning">
+                    <div class="fw-bold">${Math.round(totalRevenueAll).toLocaleString('vi-VN')}đ</div>
+                </td>`;
+            }
+
+            html += `</tr></tfoot>`;
+
+            html += `</table></div>`;
+
+            // Add detailed summary
             const totalDays = dates.length;
             html += `
-                <div class="text-muted small mt-2 text-center">
-                    <i class="fas fa-calendar-check me-1"></i>
-                    Hiển thị ${totalDays} ngày trong tháng ${period.month}
+                <div class="alert alert-light border mt-3 mb-0">
+                    <div class="row text-center">
+                        <div class="col-md-4 col-6">
+                            <i class="fas fa-calendar-alt text-primary me-1"></i>
+                            <strong>${totalDays} ngày</strong>
+                            <small class="d-block text-muted">${period.month}</small>
+                        </div>
+                        <div class="col-md-4 col-6">
+                            <i class="fas fa-money-bill-wave text-success me-1"></i>
+                            <strong>${Math.round(totalRevenueAll).toLocaleString('vi-VN')}đ</strong>
+                            <small class="d-block text-muted">Tổng doanh thu theo ngày</small>
+                        </div>
+                        <div class="col-md-4 col-12 mt-2 mt-md-0">
+                            <i class="fas fa-chart-line text-info me-1"></i>
+                            <strong>${Math.round(totalRevenueAll / totalDays).toLocaleString('vi-VN')}đ</strong>
+                            <small class="d-block text-muted">Trung bình/ngày</small>
+                        </div>
+                    </div>
                 </div>
             `;
 
@@ -2094,16 +2177,16 @@
                         <div>
                             <h6 class="mb-0 fw-bold">
                                 <i class="fas fa-calendar-check me-2"></i>
-                                Thống Kê Theo Tháng Check-In
+                                Lịch Doanh Thu & Công Suất Theo Tháng Check-In
                             </h6>
-                            <small class="text-white-75 d-block mt-1">
+                            <small class="text-white opacity-75 d-block mt-1">
                                 <i class="fas fa-info-circle me-1"></i>
-                                Booking được tính vào tháng check-in (không phân bổ theo ngày)
+                                Tính tiền theo tháng check-in • Hiển thị doanh thu từng ngày
                             </small>
                         </div>
                         <!-- Month Selector - Improved Visibility -->
                         <div>
-                            <label class="text-white-75 small d-block mb-1">
+                            <label class="text-white opacity-75 small d-block mb-1">
                                 <i class="fas fa-calendar-alt me-1"></i>Chọn tháng
                             </label>
                             <select id="proratedMonthSelector"

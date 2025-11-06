@@ -9446,14 +9446,17 @@ def get_prorated_monthly_revenue():
 
         all_month_bookings = query.order_by(Booking.checkin_date.asc()).all()
 
-        # NEW: Track daily occupancy per apartment
-        daily_occupancy = {}  # {date: {'apt1': count, 'apt2': count, 'all': count}}
+        # NEW: Track daily occupancy AND revenue per apartment
+        daily_occupancy = {}  # {date: {'apt1': count, 'apt2': count, 'all': count, 'revenue_apt1': 0, 'revenue_apt2': 0, 'revenue_all': 0}}
         days_in_selected_month = (end_of_month - start_of_month).days + 1
 
         # Initialize daily occupancy for all days in month
         for day_offset in range(days_in_selected_month):
             current_date = start_of_month + timedelta(days=day_offset)
-            daily_occupancy[current_date] = {'apt1': 0, 'apt2': 0, 'all': 0}
+            daily_occupancy[current_date] = {
+                'apt1': 0, 'apt2': 0, 'all': 0,
+                'revenue_apt1': 0, 'revenue_apt2': 0, 'revenue_all': 0
+            }
 
         # Track revenue by check-in month (NO PRO-RATING)
         total_revenue = 0
@@ -9482,10 +9485,14 @@ def get_prorated_monthly_revenue():
             if uncollected > 0:
                 total_uncollected += uncollected
 
-            # Calculate daily occupancy for this booking
+            # Calculate daily occupancy AND revenue for this booking
             # Count each day the guest stays in the selected month
             apartment_id = apartment.apartment_id if apartment else None
             apt_key = 'apt1' if apartment_id == 1 else 'apt2' if apartment_id == 2 else None
+
+            # Calculate total nights for pro-rating daily revenue
+            total_nights = (booking.checkout_date - booking.checkin_date).days
+            revenue_per_night = room_amount / total_nights if total_nights > 0 else 0
 
             # Iterate through each day of the stay
             current_stay_date = booking.checkin_date
@@ -9493,9 +9500,15 @@ def get_prorated_monthly_revenue():
                 # Only count if this day is in the selected month
                 if start_of_month <= current_stay_date <= end_of_month:
                     if current_stay_date in daily_occupancy:
+                        # Count guests
                         daily_occupancy[current_stay_date]['all'] += 1
                         if apt_key:
                             daily_occupancy[current_stay_date][apt_key] += 1
+
+                        # Track revenue (pro-rated per night)
+                        daily_occupancy[current_stay_date]['revenue_all'] += revenue_per_night
+                        if apt_key:
+                            daily_occupancy[current_stay_date][f'revenue_{apt_key}'] += revenue_per_night
 
                 current_stay_date += timedelta(days=1)
 
