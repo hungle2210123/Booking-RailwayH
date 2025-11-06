@@ -1820,7 +1820,7 @@
             document.getElementById('modalDailyRevenue').textContent = `${Math.round(totalRevenue).toLocaleString('vi-VN')}đ`;
             document.getElementById('modalAvgPerGuest').textContent = `${Math.round(avgPerGuest).toLocaleString('vi-VN')}đ`;
 
-            // Build guest table
+            // Build guest table - SEPARATE CHECK-IN GUESTS FROM STAYING GUESTS
             const tbody = document.getElementById('modalGuestListBody');
             if (guests.length === 0) {
                 tbody.innerHTML = `
@@ -1831,36 +1831,102 @@
                     </tr>
                 `;
             } else {
-                let tableHTML = '';
-                guests.forEach((guest, index) => {
-                    const apartmentColor = guest.apartment_id === 1 ? 'text-primary' : 'text-success';
-                    const statusBadge = guest.collected_amount > 0
-                        ? '<span class="badge bg-success">Đã thu</span>'
-                        : '<span class="badge bg-warning text-dark">Chưa thu</span>';
+                // Separate guests into checking in today vs staying from before
+                const checkingInGuests = [];
+                const stayingGuests = [];
 
+                guests.forEach(guest => {
+                    if (guest.checkin_date === dateStr) {
+                        checkingInGuests.push(guest);
+                    } else {
+                        stayingGuests.push(guest);
+                    }
+                });
+
+                console.log(`📊 Check-in today: ${checkingInGuests.length}, Staying: ${stayingGuests.length}`);
+
+                let tableHTML = '';
+
+                // SECTION 1: Guests checking in today (paying customers)
+                if (checkingInGuests.length > 0) {
                     tableHTML += `
-                        <tr>
-                            <td>
-                                <div class="fw-bold">${guest.guest_name}</div>
-                                <small class="text-muted">ID: ${guest.booking_id}</small>
+                        <tr class="table-info">
+                            <td colspan="7" class="fw-bold">
+                                <i class="fas fa-door-open me-2"></i>Khách Check-in Hôm Nay (${checkingInGuests.length} khách)
                             </td>
-                            <td>
-                                <span class="${apartmentColor} fw-bold">${guest.room_name}</span>
-                                <br><small class="text-muted">${guest.apartment_name}</small>
-                            </td>
-                            <td><small>${guest.checkin_date}</small></td>
-                            <td><small>${guest.checkout_date}</small></td>
-                            <td class="text-end">
-                                <strong>${Math.round(guest.revenue_per_night).toLocaleString('vi-VN')}đ</strong>
-                                <br><small class="text-muted">${guest.total_nights} đêm</small>
-                            </td>
-                            <td class="text-end">
-                                <strong class="text-primary">${Math.round(guest.room_amount).toLocaleString('vi-VN')}đ</strong>
-                            </td>
-                            <td class="text-center">${statusBadge}</td>
                         </tr>
                     `;
-                });
+                    checkingInGuests.forEach((guest, index) => {
+                        const apartmentColor = guest.apartment_id === 1 ? 'text-primary' : 'text-success';
+                        const statusBadge = guest.collected_amount > 0
+                            ? '<span class="badge bg-success">Đã thu</span>'
+                            : '<span class="badge bg-warning text-dark">Chưa thu</span>';
+
+                        tableHTML += `
+                            <tr>
+                                <td>
+                                    <div class="fw-bold">${guest.guest_name}</div>
+                                    <small class="text-muted">ID: ${guest.booking_id}</small>
+                                </td>
+                                <td>
+                                    <span class="${apartmentColor} fw-bold">${guest.room_name}</span>
+                                    <br><small class="text-muted">${guest.apartment_name}</small>
+                                </td>
+                                <td><small>${guest.checkin_date}</small></td>
+                                <td><small>${guest.checkout_date}</small></td>
+                                <td class="text-end">
+                                    <strong>${Math.round(guest.revenue_per_night).toLocaleString('vi-VN')}đ</strong>
+                                    <br><small class="text-muted">${guest.total_nights} đêm</small>
+                                </td>
+                                <td class="text-end">
+                                    <strong class="text-primary">${Math.round(guest.room_amount).toLocaleString('vi-VN')}đ</strong>
+                                </td>
+                                <td class="text-center">${statusBadge}</td>
+                            </tr>
+                        `;
+                    });
+                }
+
+                // SECTION 2: Guests already staying from previous days
+                if (stayingGuests.length > 0) {
+                    tableHTML += `
+                        <tr class="table-success">
+                            <td colspan="7" class="fw-bold">
+                                <i class="fas fa-bed me-2"></i>Khách Đang Ở (${stayingGuests.length} khách)
+                            </td>
+                        </tr>
+                    `;
+                    stayingGuests.forEach((guest, index) => {
+                        const apartmentColor = guest.apartment_id === 1 ? 'text-primary' : 'text-success';
+                        const statusBadge = guest.collected_amount > 0
+                            ? '<span class="badge bg-success">Đã thu</span>'
+                            : '<span class="badge bg-warning text-dark">Chưa thu</span>';
+
+                        tableHTML += `
+                            <tr>
+                                <td>
+                                    <div class="fw-bold">${guest.guest_name}</div>
+                                    <small class="text-muted">ID: ${guest.booking_id}</small>
+                                </td>
+                                <td>
+                                    <span class="${apartmentColor} fw-bold">${guest.room_name}</span>
+                                    <br><small class="text-muted">${guest.apartment_name}</small>
+                                </td>
+                                <td><small>${guest.checkin_date}</small></td>
+                                <td><small>${guest.checkout_date}</small></td>
+                                <td class="text-end">
+                                    <strong>${Math.round(guest.revenue_per_night).toLocaleString('vi-VN')}đ</strong>
+                                    <br><small class="text-muted">${guest.total_nights} đêm</small>
+                                </td>
+                                <td class="text-end">
+                                    <strong class="text-primary">${Math.round(guest.room_amount).toLocaleString('vi-VN')}đ</strong>
+                                </td>
+                                <td class="text-center">${statusBadge}</td>
+                            </tr>
+                        `;
+                    });
+                }
+
                 tbody.innerHTML = tableHTML;
             }
 
