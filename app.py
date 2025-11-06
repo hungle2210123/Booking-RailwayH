@@ -9513,26 +9513,25 @@ def get_prorated_monthly_revenue():
                         if apt_key:
                             daily_occupancy[current_stay_date][f'revenue_{apt_key}'] += revenue_per_night
 
-                        # Add guest details (only on first night to avoid duplicates)
-                        if nights_in_month == 0:
-                            guest_name = guest.full_name if guest else booking.guest_name or 'N/A'
-                            room_name = room.room_name if room else booking.room_name or 'N/A'
-                            apartment_name = apartment.apartment_name if apartment else 'N/A'
-                            
-                            daily_occupancy[current_stay_date]['guests'].append({
-                                'booking_id': str(booking.booking_id),
-                                'guest_name': guest_name,
-                                'room_name': room_name,
-                                'apartment_name': apartment_name,
-                                'apartment_id': apartment_id,
-                                'checkin_date': booking.checkin_date.isoformat(),
-                                'checkout_date': booking.checkout_date.isoformat(),
-                                'room_amount': room_amount,
-                                'collected_amount': collected_amount,
-                                'revenue_per_night': revenue_per_night,
-                                'total_nights': total_nights,
-                                'booking_status': booking.booking_status
-                            })
+                        # Add guest details for EVERY night they stay (not just first night)
+                        guest_name = guest.full_name if guest else booking.guest_name or 'N/A'
+                        room_name = room.room_name if room else booking.room_name or 'N/A'
+                        apartment_name = apartment.apartment_name if apartment else 'N/A'
+                        
+                        daily_occupancy[current_stay_date]['guests'].append({
+                            'booking_id': str(booking.booking_id),
+                            'guest_name': guest_name,
+                            'room_name': room_name,
+                            'apartment_name': apartment_name,
+                            'apartment_id': apartment_id,
+                            'checkin_date': booking.checkin_date.isoformat(),
+                            'checkout_date': booking.checkout_date.isoformat(),
+                            'room_amount': room_amount,
+                            'collected_amount': collected_amount,
+                            'revenue_per_night': revenue_per_night,
+                            'total_nights': total_nights,
+                            'booking_status': booking.booking_status
+                        })
                         
                         nights_in_month += 1
 
