@@ -9424,7 +9424,7 @@ def get_prorated_monthly_revenue():
         ).outerjoin(
             Apartment, Room.apartment_id == Apartment.apartment_id
         ).filter(
-            Booking.booking_status.in_(['confirmed', 'mới', 'checked_in', 'checked_out']),
+            Booking.booking_status.in_(['confirmed', 'mới', 'checked_in', 'checked_out', 'OK', 'Mới']),
             Booking.checkin_date >= start_of_month,
             Booking.checkin_date <= end_of_month,
             Booking.booking_status != 'deleted',
@@ -9445,6 +9445,32 @@ def get_prorated_monthly_revenue():
             print(f"📊 [FILTER] Showing all apartments")
 
         all_month_bookings = query.order_by(Booking.checkin_date.asc()).all()
+
+        # ADDITIONAL QUERY: Get ALL bookings that overlap with the selected month (for daily occupancy)
+        # This includes guests who checked in before the month but are still staying
+        occupancy_query = db.session.query(Booking, Guest, Room, Apartment).outerjoin(
+            Guest, Booking.guest_id == Guest.guest_id
+        ).outerjoin(
+            Room, Booking.room_id == Room.room_id
+        ).outerjoin(
+            Apartment, Room.apartment_id == Apartment.apartment_id
+        ).filter(
+            Booking.booking_status.in_(['confirmed', 'mới', 'checked_in', 'checked_out', 'OK', 'Mới']),
+            Booking.checkin_date < end_of_month + timedelta(days=1),  # Check-in before end of month
+            Booking.checkout_date > start_of_month,  # Check-out after start of month
+            Booking.booking_status != 'deleted',
+            Booking.booking_status != 'cancelled',
+            Booking.booking_status != 'đã hủy'
+        )
+
+        # Apply same apartment filter for occupancy
+        if apartment_filter == 'apt1':
+            occupancy_query = occupancy_query.filter(Apartment.apartment_id == 1)
+        elif apartment_filter == 'apt2':
+            occupancy_query = occupancy_query.filter(Apartment.apartment_id == 2)
+
+        all_occupancy_bookings = occupancy_query.order_by(Booking.checkin_date.asc()).all()
+        print(f"📊 [OCCUPANCY] Found {len(all_occupancy_bookings)} bookings overlapping with month")
 
         # NEW: Track daily occupancy, revenue, AND guest details per apartment
         daily_occupancy = {}  # {date: {counts, revenue, guests: [{guest_name, room_name, amount, etc}]}}
@@ -9541,6 +9567,63 @@ def get_prorated_monthly_revenue():
         print(f"💰 [CHECK-IN MONTH] Total revenue: {total_revenue:,.0f}đ")
         print(f"💰 [CHECK-IN MONTH] Collected: {total_collected:,.0f}đ")
         print(f"💰 [CHECK-IN MONTH] Uncollected: {total_uncollected:,.0f}đ")
+
+        # SECOND LOOP: Populate daily occupancy with ALL guests (including those who checked in before month)
+        # Clear guests list first since we'll rebuild it with complete data
+        for day_date in daily_occupancy:
+            daily_occupancy[day_date]['guests'] = []
+            daily_occupancy[day_date]['all'] = 0
+            daily_occupancy[day_date]['apt1'] = 0
+            daily_occupancy[day_date]['apt2'] = 0
+
+        for booking, guest, room, apartment in all_occupancy_bookings:
+            if not booking.checkin_date or not booking.checkout_date:
+                continue
+
+            room_amount = float(booking.room_amount or 0)
+            collected_amount = float(booking.collected_amount or 0)
+            apartment_id = apartment.apartment_id if apartment else None
+            apt_key = 'apt1' if apartment_id == 1 else 'apt2' if apartment_id == 2 else None
+
+            # Calculate total nights for pro-rating daily revenue
+            total_nights = (booking.checkout_date - booking.checkin_date).days
+            revenue_per_night = room_amount / total_nights if total_nights > 0 else 0
+
+            # Iterate through each day of the stay
+            current_stay_date = booking.checkin_date
+
+            while current_stay_date < booking.checkout_date:
+                # Only count if this day is in the selected month
+                if start_of_month <= current_stay_date <= end_of_month:
+                    if current_stay_date in daily_occupancy:
+                        # Count guests
+                        daily_occupancy[current_stay_date]['all'] += 1
+                        if apt_key:
+                            daily_occupancy[current_stay_date][apt_key] += 1
+
+                        # Add guest details for EVERY night they stay
+                        guest_name = guest.full_name if guest else booking.guest_name or 'N/A'
+                        room_name = room.room_name if room else booking.room_name or 'N/A'
+                        apartment_name = apartment.apartment_name if apartment else 'N/A'
+
+                        daily_occupancy[current_stay_date]['guests'].append({
+                            'booking_id': str(booking.booking_id),
+                            'guest_name': guest_name,
+                            'room_name': room_name,
+                            'apartment_name': apartment_name,
+                            'apartment_id': apartment_id,
+                            'checkin_date': booking.checkin_date.isoformat(),
+                            'checkout_date': booking.checkout_date.isoformat(),
+                            'room_amount': room_amount,
+                            'collected_amount': collected_amount,
+                            'revenue_per_night': revenue_per_night,
+                            'total_nights': total_nights,
+                            'booking_status': booking.booking_status
+                        })
+
+                current_stay_date += timedelta(days=1)
+
+        print(f"📊 [OCCUPANCY] Daily occupancy populated with all staying guests")
         print(f"📊 [DAILY_OCCUPANCY] Tracked {len(daily_occupancy)} days")
 
         # Convert daily_occupancy dates to strings for JSON serialization
