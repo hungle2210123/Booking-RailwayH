@@ -9361,12 +9361,13 @@ def get_unchecked_in_guests():
 @app.route('/api/prorated_monthly_revenue', methods=['GET'])
 def get_prorated_monthly_revenue():
     """
-    PRO-RATED MONTHLY REVENUE CALCULATION with APARTMENT FILTERING
-    Calculate revenue ONLY for days that fall within the current month
-    For bookings that span across months, only count the days in current month
+    PRO-RATED MONTHLY REVENUE CALCULATION with APARTMENT FILTERING and MONTH SELECTION
+    Calculate revenue ONLY for days that fall within the specified month
+    For bookings that span across months, only count the days in the selected month
 
     Query Parameters:
     - apartment: 'apt1' (118 Hang Bac), 'apt2' (18 Hang Be), or 'all' (default)
+    - month: 'YYYY-MM' format (e.g., '2025-11'), defaults to current month
     """
     try:
         from datetime import datetime, date, timedelta
@@ -9376,15 +9377,40 @@ def get_prorated_monthly_revenue():
         apartment_filter = request.args.get('apartment', 'all')
         print(f"🏢 [APARTMENT_FILTER] Requested filter: {apartment_filter}")
 
-        # Get current month date range
-        today = date.today()
-        start_of_month = today.replace(day=1)
+        # Get month parameter (YYYY-MM format)
+        month_param = request.args.get('month', None)
 
-        # Calculate end of current month
-        if today.month == 12:
-            end_of_month = date(today.year + 1, 1, 1) - timedelta(days=1)
+        if month_param:
+            # Parse selected month
+            try:
+                year, month = map(int, month_param.split('-'))
+                start_of_month = date(year, month, 1)
+
+                # Calculate end of selected month
+                if month == 12:
+                    end_of_month = date(year + 1, 1, 1) - timedelta(days=1)
+                else:
+                    end_of_month = date(year, month + 1, 1) - timedelta(days=1)
+
+                print(f"📅 [PRORATED] Using selected month: {month_param}")
+            except ValueError as e:
+                print(f"⚠️ [PRORATED] Invalid month format: {month_param}, using current month")
+                today = date.today()
+                start_of_month = today.replace(day=1)
+                if today.month == 12:
+                    end_of_month = date(today.year + 1, 1, 1) - timedelta(days=1)
+                else:
+                    end_of_month = date(today.year, today.month + 1, 1) - timedelta(days=1)
         else:
-            end_of_month = date(today.year, today.month + 1, 1) - timedelta(days=1)
+            # Use current month if no month parameter
+            today = date.today()
+            start_of_month = today.replace(day=1)
+
+            # Calculate end of current month
+            if today.month == 12:
+                end_of_month = date(today.year + 1, 1, 1) - timedelta(days=1)
+            else:
+                end_of_month = date(today.year, today.month + 1, 1) - timedelta(days=1)
 
         print(f"💰 [PRORATED] Calculating pro-rated revenue for {start_of_month} to {end_of_month}")
 

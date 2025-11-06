@@ -1478,8 +1478,8 @@
         };
 
         // Filter daily revenue by apartment - FETCH AND RE-RENDER
-        window.filterDailyRevenueByApartment = async function(apartmentFilter) {
-            console.log('🏢 Filtering daily revenue by apartment:', apartmentFilter);
+        window.filterDailyRevenueByApartment = async function(apartmentFilter, selectedMonth = null) {
+            console.log('🏢 Filtering daily revenue by apartment:', apartmentFilter, 'month:', selectedMonth);
 
             try {
                 // Get all necessary elements
@@ -1503,6 +1503,12 @@
                     return;
                 }
 
+                // Get selected month from selector if not provided
+                if (!selectedMonth) {
+                    const selector = document.getElementById('proratedMonthSelector');
+                    selectedMonth = selector ? selector.value : null;
+                }
+
                 // Show loading state
                 listContainer.innerHTML = `
                     <div class="text-center py-3">
@@ -1513,8 +1519,14 @@
                     </div>
                 `;
 
+                // Build API URL with month parameter
+                let apiUrl = `/api/prorated_monthly_revenue?apartment=${apartmentFilter}`;
+                if (selectedMonth) {
+                    apiUrl += `&month=${selectedMonth}`;
+                }
+
                 // Fetch filtered data from API
-                const response = await fetch(`/api/prorated_monthly_revenue?apartment=${apartmentFilter}`);
+                const response = await fetch(apiUrl);
                 if (!response.ok) {
                     throw new Error(`HTTP ${response.status}: ${response.statusText}`);
                 }
@@ -1957,12 +1969,22 @@
             <!-- ⭐ NEW: PRO-RATED MONTHLY REVENUE SECTION -->
             <div class="card shadow-sm border-0 mt-3" style="border-left: 4px solid #28a745 !important;">
                 <div class="card-header text-white" style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%);">
-                    <h6 class="mb-0">
-                        <i class="fas fa-chart-line me-2"></i>
-                        Doanh Thu Theo Ngày Ở - Tháng Này
-                        <span class="badge bg-white text-success ms-2" id="proratedBadge">Loading...</span>
-                    </h6>
-                    <small class="text-white-50">Chỉ tính tiền cho số đêm khách ở trong tháng này</small>
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <h6 class="mb-0">
+                            <i class="fas fa-chart-line me-2"></i>
+                            Doanh Thu Theo Ngày Ở
+                            <span class="badge bg-white text-success ms-2" id="proratedBadge">Loading...</span>
+                        </h6>
+                        <!-- Month Selector -->
+                        <div class="btn-group btn-group-sm" role="group">
+                            <select id="proratedMonthSelector" class="form-select form-select-sm text-white"
+                                    style="background-color: rgba(255,255,255,0.2); border-color: rgba(255,255,255,0.3); max-width: 150px;"
+                                    onchange="updateProratedMonth()">
+                                <!-- Will be populated by JavaScript -->
+                            </select>
+                        </div>
+                    </div>
+                    <small class="text-white-50" id="proratedPeriodDescription">Chỉ tính tiền cho số đêm khách ở trong tháng được chọn</small>
                 </div>
                 <div class="card-body">
                     <!-- 🏢 Apartment Filter Tabs (Same as Monthly Revenue) -->
@@ -5999,9 +6021,12 @@ document.addEventListener('DOMContentLoaded', async function() {
             loadUncheckedInGuests();
         }
 
-        // Load pro-rated monthly revenue data
-        if (typeof loadProratedMonthlyRevenue === 'function') {
-            loadProratedMonthlyRevenue();
+        // Initialize pro-rated month selector and load data
+        if (typeof initializeProratedMonthSelector === 'function') {
+            initializeProratedMonthSelector();
+        }
+        if (typeof filterDailyRevenueByApartment === 'function') {
+            filterDailyRevenueByApartment('all');
         }
     } catch (error) {
         console.log('⚠️ Server sync failed, using local storage:', error.message);
@@ -6020,11 +6045,14 @@ document.addEventListener('DOMContentLoaded', async function() {
             loadUncheckedInGuests();
         }
 
-        // Load pro-rated monthly revenue data
-        if (typeof loadProratedMonthlyRevenue === 'function') {
-            loadProratedMonthlyRevenue();
+        // Initialize pro-rated month selector and load data
+        if (typeof initializeProratedMonthSelector === 'function') {
+            initializeProratedMonthSelector();
         }
-        
+        if (typeof filterDailyRevenueByApartment === 'function') {
+            filterDailyRevenueByApartment('all');
+        }
+
         // Load guest-specific arrival times from localStorage
         const guestTimes = JSON.parse(localStorage.getItem('guestArrivalTimes') || '{}');
         Object.entries(guestTimes).forEach(([bookingId, time]) => {
@@ -8322,8 +8350,55 @@ function displayUncheckedInGuests(guests, totalAmount, totalCount) {
 
 // ==================== PRO-RATED MONTHLY REVENUE FUNCTIONALITY ====================
 
-function loadProratedMonthlyRevenue() {
-    console.log('💰 [PRORATED] Loading pro-rated monthly revenue...');
+// Initialize month selector for pro-rated revenue
+function initializeProratedMonthSelector() {
+    const selector = document.getElementById('proratedMonthSelector');
+    if (!selector) return;
+
+    const currentDate = new Date();
+    const currentYear = currentDate.getFullYear();
+    const currentMonth = currentDate.getMonth() + 1;
+
+    // Populate with last 12 months
+    for (let i = 0; i < 12; i++) {
+        let targetDate = new Date(currentYear, currentMonth - 1 - i, 1);
+        let year = targetDate.getFullYear();
+        let month = targetDate.getMonth() + 1;
+        let monthStr = month.toString().padStart(2, '0');
+        let value = `${year}-${monthStr}`;
+
+        const monthNames = ['tháng 1', 'tháng 2', 'tháng 3', 'tháng 4', 'tháng 5', 'tháng 6',
+                           'tháng 7', 'tháng 8', 'tháng 9', 'tháng 10', 'tháng 11', 'tháng 12'];
+        let label = `${monthNames[month - 1]} năm ${year}`;
+
+        const option = document.createElement('option');
+        option.value = value;
+        option.textContent = label;
+        if (i === 0) option.selected = true; // Select current month by default
+
+        selector.appendChild(option);
+    }
+
+    console.log('📅 [PRORATED] Month selector initialized with 12 months');
+}
+
+// Update pro-rated revenue when month changes
+function updateProratedMonth() {
+    const selector = document.getElementById('proratedMonthSelector');
+    if (!selector) return;
+
+    const selectedMonth = selector.value;
+    console.log(`📅 [PRORATED] Month changed to: ${selectedMonth}`);
+
+    // Get current apartment filter
+    const apartmentFilter = document.querySelector('input[name="apartmentFilterDaily"]:checked')?.value || 'all';
+
+    // Reload data with selected month
+    filterDailyRevenueByApartment(apartmentFilter, selectedMonth);
+}
+
+function loadProratedMonthlyRevenue(selectedMonth = null) {
+    console.log('💰 [PRORATED] Loading pro-rated monthly revenue...', selectedMonth || 'current month');
 
     const listContainer = document.getElementById('proratedGuestsList');
     const badgeElement = document.getElementById('proratedBadge');
