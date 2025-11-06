@@ -9446,8 +9446,8 @@ def get_prorated_monthly_revenue():
 
         all_month_bookings = query.order_by(Booking.checkin_date.asc()).all()
 
-        # NEW: Track daily occupancy AND revenue per apartment
-        daily_occupancy = {}  # {date: {'apt1': count, 'apt2': count, 'all': count, 'revenue_apt1': 0, 'revenue_apt2': 0, 'revenue_all': 0}}
+        # NEW: Track daily occupancy, revenue, AND guest details per apartment
+        daily_occupancy = {}  # {date: {counts, revenue, guests: [{guest_name, room_name, amount, etc}]}}
         days_in_selected_month = (end_of_month - start_of_month).days + 1
 
         # Initialize daily occupancy for all days in month
@@ -9455,7 +9455,8 @@ def get_prorated_monthly_revenue():
             current_date = start_of_month + timedelta(days=day_offset)
             daily_occupancy[current_date] = {
                 'apt1': 0, 'apt2': 0, 'all': 0,
-                'revenue_apt1': 0, 'revenue_apt2': 0, 'revenue_all': 0
+                'revenue_apt1': 0, 'revenue_apt2': 0, 'revenue_all': 0,
+                'guests': []  # List of guest details for this day
             }
 
         # Track revenue by check-in month (NO PRO-RATING)
@@ -9496,6 +9497,8 @@ def get_prorated_monthly_revenue():
 
             # Iterate through each day of the stay
             current_stay_date = booking.checkin_date
+            nights_in_month = 0
+            
             while current_stay_date < booking.checkout_date:
                 # Only count if this day is in the selected month
                 if start_of_month <= current_stay_date <= end_of_month:
@@ -9509,6 +9512,29 @@ def get_prorated_monthly_revenue():
                         daily_occupancy[current_stay_date]['revenue_all'] += revenue_per_night
                         if apt_key:
                             daily_occupancy[current_stay_date][f'revenue_{apt_key}'] += revenue_per_night
+
+                        # Add guest details (only on first night to avoid duplicates)
+                        if nights_in_month == 0:
+                            guest_name = guest.guest_name if guest else 'N/A'
+                            room_name = room.room_name if room else booking.room_name or 'N/A'
+                            apartment_name = apartment.apartment_name if apartment else 'N/A'
+                            
+                            daily_occupancy[current_stay_date]['guests'].append({
+                                'booking_id': str(booking.booking_id),
+                                'guest_name': guest_name,
+                                'room_name': room_name,
+                                'apartment_name': apartment_name,
+                                'apartment_id': apartment_id,
+                                'checkin_date': booking.checkin_date.isoformat(),
+                                'checkout_date': booking.checkout_date.isoformat(),
+                                'room_amount': room_amount,
+                                'collected_amount': collected_amount,
+                                'revenue_per_night': revenue_per_night,
+                                'total_nights': total_nights,
+                                'booking_status': booking.booking_status
+                            })
+                        
+                        nights_in_month += 1
 
                 current_stay_date += timedelta(days=1)
 

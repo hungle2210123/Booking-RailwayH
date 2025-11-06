@@ -1603,6 +1603,9 @@
             }
         };
 
+        // Store daily occupancy data globally for modal access
+        window.currentDailyOccupancy = null;
+
         // Display daily occupancy calendar - NEW CLEAN VIEW
         function displayDailyOccupancy(daily_occupancy, period, apartmentFilter) {
             const listContainer = document.getElementById('proratedGuestsList');
@@ -1610,6 +1613,9 @@
                 console.error('❌ Missing container or data');
                 return;
             }
+
+            // Store for modal access
+            window.currentDailyOccupancy = daily_occupancy;
 
             // Sort dates
             const dates = Object.keys(daily_occupancy).sort();
@@ -1662,6 +1668,7 @@
                 const dateObj = new Date(dateStr);
                 const dayName = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'][dateObj.getDay()];
                 const formattedDate = `${dayName}, ${dateObj.getDate()}/${dateObj.getMonth() + 1}`;
+                const hasGuests = (data.guests && data.guests.length > 0);
 
                 // Highlight weekends
                 const isWeekend = dateObj.getDay() === 0 || dateObj.getDay() === 6;
@@ -1670,16 +1677,16 @@
                 html += `<tr class="${rowClass}">`;
                 html += `<td class="text-center fw-bold">${formattedDate}</td>`;
 
-                // Show revenue + counts based on filter
+                // Show revenue + counts based on filter (CLICKABLE)
                 if (apartmentFilter === 'all' || apartmentFilter === 'apt1') {
                     const count = data.apt1 || 0;
                     const revenue = data.revenue_apt1 || 0;
                     totalRevenueApt1 += revenue;
 
                     if (count > 0) {
-                        html += `<td class="text-center">
+                        html += `<td class="text-center clickable-cell" onclick='showDailyGuestDetails("${dateStr}", "${formattedDate}")' style="cursor: pointer;" title="Click để xem chi tiết khách">
                             <div class="fw-bold text-primary">${Math.round(revenue).toLocaleString('vi-VN')}đ</div>
-                            <small class="text-muted">${count} khách</small>
+                            <small class="text-muted"><i class="fas fa-users me-1"></i>${count} khách</small>
                         </td>`;
                     } else {
                         html += `<td class="text-center text-muted">-</td>`;
@@ -1692,9 +1699,9 @@
                     totalRevenueApt2 += revenue;
 
                     if (count > 0) {
-                        html += `<td class="text-center">
+                        html += `<td class="text-center clickable-cell" onclick='showDailyGuestDetails("${dateStr}", "${formattedDate}")' style="cursor: pointer;" title="Click để xem chi tiết khách">
                             <div class="fw-bold text-success">${Math.round(revenue).toLocaleString('vi-VN')}đ</div>
-                            <small class="text-muted">${count} khách</small>
+                            <small class="text-muted"><i class="fas fa-users me-1"></i>${count} khách</small>
                         </td>`;
                     } else {
                         html += `<td class="text-center text-muted">-</td>`;
@@ -1707,9 +1714,9 @@
                     totalRevenueAll += revenue;
 
                     if (count > 0) {
-                        html += `<td class="text-center">
+                        html += `<td class="text-center clickable-cell" onclick='showDailyGuestDetails("${dateStr}", "${formattedDate}")' style="cursor: pointer;" title="Click để xem chi tiết khách">
                             <div class="fw-bold text-warning">${Math.round(revenue).toLocaleString('vi-VN')}đ</div>
-                            <small class="text-muted">${count} khách</small>
+                            <small class="text-muted"><i class="fas fa-users me-1"></i>${count} khách</small>
                         </td>`;
                     } else {
                         html += `<td class="text-center text-muted">-</td>`;
@@ -1776,6 +1783,80 @@
             listContainer.innerHTML = html;
             console.log('✅ Daily occupancy calendar displayed');
         }
+
+        // Show daily guest details modal
+        window.showDailyGuestDetails = function(dateStr, formattedDate) {
+            console.log(`🔍 Opening guest details for ${dateStr}`);
+
+            if (!window.currentDailyOccupancy || !window.currentDailyOccupancy[dateStr]) {
+                console.error('❌ No data available for this date');
+                return;
+            }
+
+            const dayData = window.currentDailyOccupancy[dateStr];
+            const guests = dayData.guests || [];
+
+            // Update modal title
+            document.getElementById('modalDateTitle').textContent = `- ${formattedDate}`;
+
+            // Calculate totals
+            const totalGuests = guests.length;
+            const totalRevenue = guests.reduce((sum, g) => sum + (g.revenue_per_night || 0), 0);
+            const avgPerGuest = totalGuests > 0 ? totalRevenue / totalGuests : 0;
+
+            // Update summary cards
+            document.getElementById('modalTotalGuests').textContent = totalGuests;
+            document.getElementById('modalDailyRevenue').textContent = `${Math.round(totalRevenue).toLocaleString('vi-VN')}đ`;
+            document.getElementById('modalAvgPerGuest').textContent = `${Math.round(avgPerGuest).toLocaleString('vi-VN')}đ`;
+
+            // Build guest table
+            const tbody = document.getElementById('modalGuestListBody');
+            if (guests.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="7" class="text-center text-muted py-3">
+                            <i class="fas fa-info-circle me-2"></i>Không có khách trong ngày này
+                        </td>
+                    </tr>
+                `;
+            } else {
+                let tableHTML = '';
+                guests.forEach((guest, index) => {
+                    const apartmentColor = guest.apartment_id === 1 ? 'text-primary' : 'text-success';
+                    const statusBadge = guest.collected_amount > 0
+                        ? '<span class="badge bg-success">Đã thu</span>'
+                        : '<span class="badge bg-warning text-dark">Chưa thu</span>';
+
+                    tableHTML += `
+                        <tr>
+                            <td>
+                                <div class="fw-bold">${guest.guest_name}</div>
+                                <small class="text-muted">ID: ${guest.booking_id}</small>
+                            </td>
+                            <td>
+                                <span class="${apartmentColor} fw-bold">${guest.room_name}</span>
+                                <br><small class="text-muted">${guest.apartment_name}</small>
+                            </td>
+                            <td><small>${guest.checkin_date}</small></td>
+                            <td><small>${guest.checkout_date}</small></td>
+                            <td class="text-end">
+                                <strong>${Math.round(guest.revenue_per_night).toLocaleString('vi-VN')}đ</strong>
+                                <br><small class="text-muted">${guest.total_nights} đêm</small>
+                            </td>
+                            <td class="text-end">
+                                <strong class="text-primary">${Math.round(guest.room_amount).toLocaleString('vi-VN')}đ</strong>
+                            </td>
+                            <td class="text-center">${statusBadge}</td>
+                        </tr>
+                    `;
+                });
+                tbody.innerHTML = tableHTML;
+            }
+
+            // Show modal
+            const modal = new bootstrap.Modal(document.getElementById('dailyGuestDetailsModal'));
+            modal.show();
+        };
 
         // Filter monthly checked-in revenue by apartment - FETCH AND RE-RENDER TABLE
         window.filterMonthlyCheckedInRevenue = async function(apartmentFilter) {
@@ -2915,6 +2996,75 @@
         </div>
     </div>
     {% endif %}
+</div>
+
+<!-- Modal: Daily Guest Details -->
+<div class="modal fade" id="dailyGuestDetailsModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header bg-gradient text-white" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                <h5 class="modal-title">
+                    <i class="fas fa-users me-2"></i>
+                    Chi Tiết Khách <span id="modalDateTitle"></span>
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <!-- Summary Cards -->
+                <div class="row g-2 mb-3">
+                    <div class="col-md-4">
+                        <div class="card border-primary">
+                            <div class="card-body p-2 text-center">
+                                <small class="text-muted d-block">Tổng Khách</small>
+                                <h4 class="mb-0 text-primary" id="modalTotalGuests">0</h4>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card border-success">
+                            <div class="card-body p-2 text-center">
+                                <small class="text-muted d-block">Doanh Thu Ngày</small>
+                                <h4 class="mb-0 text-success" id="modalDailyRevenue">0đ</h4>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card border-info">
+                            <div class="card-body p-2 text-center">
+                                <small class="text-muted d-block">TB/Khách</small>
+                                <h4 class="mb-0 text-info" id="modalAvgPerGuest">0đ</h4>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Guest List Table -->
+                <div class="table-responsive">
+                    <table class="table table-hover table-sm">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Tên Khách</th>
+                                <th>Phòng</th>
+                                <th>Check-in</th>
+                                <th>Check-out</th>
+                                <th class="text-end">Tiền/Đêm</th>
+                                <th class="text-end">Tổng Tiền</th>
+                                <th class="text-center">Trạng thái</th>
+                            </tr>
+                        </thead>
+                        <tbody id="modalGuestListBody">
+                            <!-- Will be populated by JavaScript -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="fas fa-times me-1"></i>Đóng
+                </button>
+            </div>
+        </div>
+    </div>
 </div>
 
 <!-- Modal Thu Tiền -->
