@@ -9515,7 +9515,7 @@ def get_prorated_monthly_revenue():
 
                         # Add guest details (only on first night to avoid duplicates)
                         if nights_in_month == 0:
-                            guest_name = guest.guest_name if guest else 'N/A'
+                            guest_name = guest.full_name if guest else booking.guest_name or 'N/A'
                             room_name = room.room_name if room else booking.room_name or 'N/A'
                             apartment_name = apartment.apartment_name if apartment else 'N/A'
                             
