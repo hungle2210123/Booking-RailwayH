@@ -9413,9 +9413,10 @@ def get_prorated_monthly_revenue():
             else:
                 end_of_month = date(today.year, today.month + 1, 1) - timedelta(days=1)
 
-        print(f"💰 [PRORATED] Calculating pro-rated revenue for {start_of_month} to {end_of_month}")
+        print(f"💰 [MONTHLY_REVENUE] Calculating revenue by check-in month: {start_of_month} to {end_of_month}")
 
-        # Base query with LEFT JOINs to rooms and apartments tables
+        # NEW LOGIC: Filter by CHECK-IN DATE in selected month (not pro-rating)
+        # If guest checks in Oct 30 and out Nov 5, they belong to OCTOBER only
         query = db.session.query(Booking, Guest, Room, Apartment).outerjoin(
             Guest, Booking.guest_id == Guest.guest_id
         ).outerjoin(
@@ -9424,8 +9425,8 @@ def get_prorated_monthly_revenue():
             Apartment, Room.apartment_id == Apartment.apartment_id
         ).filter(
             Booking.booking_status.in_(['confirmed', 'mới', 'checked_in', 'checked_out']),
+            Booking.checkin_date >= start_of_month,
             Booking.checkin_date <= end_of_month,
-            Booking.checkout_date > start_of_month,
             Booking.booking_status != 'deleted',
             Booking.booking_status != 'cancelled',
             Booking.booking_status != 'đã hủy'
@@ -9445,153 +9446,80 @@ def get_prorated_monthly_revenue():
 
         all_month_bookings = query.order_by(Booking.checkin_date.asc()).all()
 
-        prorated_list = []
-        total_prorated_revenue = 0
-        total_full_revenue = 0
-        total_days_in_month = 0
-        total_full_days = 0
-        total_uncollected_prorated = 0
-        total_uncollected_full = 0
-        total_collected_prorated = 0
+        # NEW: Track daily occupancy per apartment
+        daily_occupancy = {}  # {date: {'apt1': count, 'apt2': count, 'all': count}}
+        days_in_selected_month = (end_of_month - start_of_month).days + 1
+
+        # Initialize daily occupancy for all days in month
+        for day_offset in range(days_in_selected_month):
+            current_date = start_of_month + timedelta(days=day_offset)
+            daily_occupancy[current_date] = {'apt1': 0, 'apt2': 0, 'all': 0}
+
+        # Track revenue by check-in month (NO PRO-RATING)
+        total_revenue = 0
+        total_collected = 0
+        total_uncollected = 0
+        booking_count = 0
 
         for booking, guest, room, apartment in all_month_bookings:
             if not booking.checkin_date or not booking.checkout_date:
                 continue
 
-            guest_name = guest.full_name if guest else booking.guest_name or 'Unknown Guest'
-            room_name = room.room_name if room else 'Unknown Room'
-            apartment_name = apartment.apartment_name if apartment else 'Unknown Apartment'
-
-            # Calculate FULL booking details
-            full_nights = (booking.checkout_date - booking.checkin_date).days
-            full_nights = max(1, full_nights)
-
+            # NEW LOGIC: Full booking amount (no pro-rating)
+            # Guest belongs to check-in month regardless of checkout date
             room_amount = float(booking.room_amount or 0)
-            commission = float(booking.commission or 0)
             collected_amount = float(booking.collected_amount or 0)
 
-            # Calculate price per night
-            price_per_night = room_amount / full_nights if full_nights > 0 else 0
+            # Track revenue totals
+            total_revenue += room_amount
+            booking_count += 1
 
-            # Calculate overlap with current month
-            # Overlap start = max(checkin_date, start_of_month)
-            # Overlap end = min(checkout_date, end_of_month + 1 day)
-            overlap_start = max(booking.checkin_date, start_of_month)
-            overlap_end = min(booking.checkout_date, end_of_month + timedelta(days=1))
+            # Track collected vs uncollected
+            if collected_amount > 0:
+                total_collected += collected_amount
 
-            # Calculate nights in current month
-            nights_in_month = (overlap_end - overlap_start).days
-            nights_in_month = max(0, nights_in_month)
+            uncollected = room_amount - collected_amount
+            if uncollected > 0:
+                total_uncollected += uncollected
 
-            # Calculate pro-rated revenue (only for days in this month)
-            prorated_revenue = price_per_night * nights_in_month
+            # Calculate daily occupancy for this booking
+            # Count each day the guest stays in the selected month
+            apartment_id = apartment.apartment_id if apartment else None
+            apt_key = 'apt1' if apartment_id == 1 else 'apt2' if apartment_id == 2 else None
 
-            # ⭐ COLLECTED vs UNCOLLECTED CALCULATION (DAY-BASED)
-            # Calculate what percentage of the booking is in this month
-            # Then apply that percentage to collected/uncollected amounts
+            # Iterate through each day of the stay
+            current_stay_date = booking.checkin_date
+            while current_stay_date < booking.checkout_date:
+                # Only count if this day is in the selected month
+                if start_of_month <= current_stay_date <= end_of_month:
+                    if current_stay_date in daily_occupancy:
+                        daily_occupancy[current_stay_date]['all'] += 1
+                        if apt_key:
+                            daily_occupancy[current_stay_date][apt_key] += 1
 
-            # Calculate percentage in month
-            if full_nights > 0:
-                percentage_in_month = nights_in_month / full_nights
-            else:
-                percentage_in_month = 0
+                current_stay_date += timedelta(days=1)
 
-            # Pro-rated collected amount (for days in this month)
-            prorated_collected = collected_amount * percentage_in_month
+        print(f"💰 [CHECK-IN MONTH] Found {booking_count} bookings with check-in in {start_of_month.strftime('%B %Y')}")
+        print(f"💰 [CHECK-IN MONTH] Total revenue: {total_revenue:,.0f}đ")
+        print(f"💰 [CHECK-IN MONTH] Collected: {total_collected:,.0f}đ")
+        print(f"💰 [CHECK-IN MONTH] Uncollected: {total_uncollected:,.0f}đ")
+        print(f"📊 [DAILY_OCCUPANCY] Tracked {len(daily_occupancy)} days")
 
-            # Full uncollected amount
-            full_uncollected = room_amount - collected_amount
-
-            # Pro-rated uncollected (only for days in this month)
-            prorated_uncollected = full_uncollected * percentage_in_month
-
-            # Determine booking status
-            has_checked_in = booking.checkin_date <= today
-            is_paid = collected_amount >= room_amount * 0.99  # 99% paid = considered paid
-
-            # Track totals
-            total_prorated_revenue += prorated_revenue
-            total_full_revenue += room_amount
-            total_days_in_month += nights_in_month
-            total_full_days += full_nights
-
-            # ⭐ CORRECTED LOGIC: Separate based on check-in status, NOT collected_amount
-            # CHƯA THU (Uncollected) = Guests who HAVEN'T checked in yet
-            # ĐÃ THU (Collected) = Guests who HAVE checked in already
-            if has_checked_in:
-                # Guest already checked in → Count as COLLECTED (already stayed)
-                total_collected_prorated += prorated_revenue
-                print(f"  ✅ {guest_name}: Checked in → Collected: {prorated_revenue:,.0f}đ")
-            else:
-                # Guest hasn't checked in yet → Count as UNCOLLECTED (future)
-                total_uncollected_prorated += prorated_revenue
-                total_uncollected_full += room_amount
-                print(f"  ⏳ {guest_name}: Future check-in → Uncollected: {prorated_revenue:,.0f}đ")
-
-            # Determine if booking spans multiple months
-            spans_months = booking.checkin_date.month != booking.checkout_date.month or \
-                          booking.checkin_date.year != booking.checkout_date.year
-
-            prorated_list.append({
-                'booking_id': booking.booking_id,
-                'guest_name': guest_name,
-                'checkin_date': booking.checkin_date.isoformat(),
-                'checkout_date': booking.checkout_date.isoformat(),
-                'accommodation': booking.accommodation_name or 'N/A',
-                'collector': booking.collector or 'N/A',
-
-                # Full booking details
-                'full_nights': full_nights,
-                'full_revenue': room_amount,
-                'commission': commission,
-                'collected_amount': collected_amount,
-                'full_uncollected': round(full_uncollected, 2),
-
-                # Pro-rated details (this month only)
-                'nights_in_month': nights_in_month,
-                'prorated_revenue': round(prorated_revenue, 2),
-                'prorated_collected': round(prorated_collected, 2),
-                'prorated_uncollected': round(prorated_uncollected, 2),
-                'price_per_night': round(price_per_night, 2),
-                'percentage_in_month': round(percentage_in_month * 100, 1),
-
-                # Metadata
-                'spans_months': spans_months,
-                'has_checked_in': has_checked_in,
-                'is_paid': is_paid,
-                'days_until_checkin': (booking.checkin_date - today).days,
-                'overlap_period': {
-                    'start': overlap_start.isoformat(),
-                    'end': (overlap_end - timedelta(days=1)).isoformat()  # Checkout day exclusive
-                }
-            })
-
-        print(f"💰 [PRORATED] Found {len(prorated_list)} bookings with nights in {start_of_month.strftime('%B %Y')}")
-        print(f"💰 [PRORATED] Pro-rated revenue (this month): {total_prorated_revenue:,.0f}đ")
-        print(f"💰 [PRORATED] Collected (pro-rated): {total_collected_prorated:,.0f}đ")
-        print(f"💰 [PRORATED] Uncollected (pro-rated): {total_uncollected_prorated:,.0f}đ")
-        print(f"💰 [PRORATED] Full booking revenue: {total_full_revenue:,.0f}đ")
-        print(f"💰 [PRORATED] Days in month: {total_days_in_month}, Full days: {total_full_days}")
+        # Convert daily_occupancy dates to strings for JSON serialization
+        daily_occupancy_json = {}
+        for date_obj, counts in daily_occupancy.items():
+            daily_occupancy_json[date_obj.isoformat()] = counts
 
         return jsonify({
             'success': True,
-            'bookings': prorated_list,
             'summary': {
-                'prorated_revenue': round(total_prorated_revenue, 2),
-                'full_revenue': round(total_full_revenue, 2),
-                'revenue_difference': round(total_full_revenue - total_prorated_revenue, 2),
-                'nights_in_month': total_days_in_month,
-                'total_nights': total_full_days,
-                'count': len(prorated_list),
-                'average_price_per_night': round(total_prorated_revenue / total_days_in_month, 2) if total_days_in_month > 0 else 0,
-
-                # ⭐ CORRECTED: Collected vs Uncollected (day-based)
-                'collected_prorated': round(total_collected_prorated, 2),
-                'uncollected_prorated': round(total_uncollected_prorated, 2),
-                'uncollected_full': round(total_uncollected_full, 2),
-                'uncollected_difference': round(total_uncollected_full - total_uncollected_prorated, 2),
-                'collection_rate': round(total_collected_prorated / total_prorated_revenue * 100, 1) if total_prorated_revenue > 0 else 0
+                'total_revenue': round(total_revenue, 2),
+                'collected': round(total_collected, 2),
+                'uncollected': round(total_uncollected, 2),
+                'booking_count': booking_count,
+                'collection_rate': round(total_collected / total_revenue * 100, 1) if total_revenue > 0 else 0
             },
+            'daily_occupancy': daily_occupancy_json,
             'period': {
                 'month': start_of_month.strftime('%B %Y'),
                 'start_date': start_of_month.isoformat(),

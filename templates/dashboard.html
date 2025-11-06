@@ -1536,26 +1536,26 @@
                     throw new Error(data.error || 'Unknown error');
                 }
 
-                const { bookings, summary, period } = data;
-                console.log(`💰 [PRORATED] Filtered data for ${apartmentFilter}:`, summary);
+                const { summary, daily_occupancy, period } = data;
+                console.log(`💰 [CHECK-IN MONTH] Filtered data for ${apartmentFilter}:`, summary);
+                console.log(`📊 [DAILY_OCCUPANCY] Days tracked:`, Object.keys(daily_occupancy || {}).length);
 
-                // Update summary cards with filtered data
-                if (monthlyRevenueEl) monthlyRevenueEl.textContent = `${summary.prorated_revenue.toLocaleString('vi-VN')}đ`;
-                if (fullRevenueEl) fullRevenueEl.textContent = `${summary.full_revenue.toLocaleString('vi-VN')}đ`;
-                if (nightsEl) nightsEl.textContent = `${summary.nights_in_month} đêm`;
-                if (fullNightsEl) fullNightsEl.textContent = `${summary.total_nights} đêm`;
-                if (avgPriceEl) avgPriceEl.textContent = `${summary.average_price_per_night.toLocaleString('vi-VN')}đ`;
-                if (diffEl) diffEl.textContent = `${summary.revenue_difference.toLocaleString('vi-VN')}đ`;
-                if (badgeElement) badgeElement.textContent = summary.count;
-                if (uncollectedEl) uncollectedEl.textContent = `${summary.uncollected_prorated.toLocaleString('vi-VN')}đ`;
-                if (collectedEl) collectedEl.textContent = `${summary.collected_prorated.toLocaleString('vi-VN')}đ`;
+                // Update summary cards with filtered data (NEW: simplified fields)
+                if (monthlyRevenueEl) monthlyRevenueEl.textContent = `${summary.total_revenue.toLocaleString('vi-VN')}đ`;
+                if (badgeElement) badgeElement.textContent = summary.booking_count;
+                if (uncollectedEl) uncollectedEl.textContent = `${summary.uncollected.toLocaleString('vi-VN')}đ`;
+                if (collectedEl) collectedEl.textContent = `${summary.collected.toLocaleString('vi-VN')}đ`;
                 if (collectionRateEl) collectionRateEl.textContent = `${summary.collection_rate}% đã thu`;
                 if (collectionRatePercentEl) collectionRatePercentEl.textContent = `${summary.collection_rate}%`;
-                if (uncollectedFullEl) uncollectedFullEl.textContent = `${summary.uncollected_full.toLocaleString('vi-VN')}đ`;
                 if (currentPeriodEl) currentPeriodEl.textContent = period.month;
 
-                // Re-render the detailed breakdown table with filtered data
-                displayProratedBreakdown(bookings, summary, period);
+                // Hide old fields that no longer exist
+                if (fullRevenueEl) fullRevenueEl.closest('.col-md-3').style.display = 'none';
+                if (nightsEl) nightsEl.closest('.card').style.display = 'none';
+                if (avgPriceEl) avgPriceEl.closest('.border-top').style.display = 'none';
+
+                // Display daily occupancy calendar
+                displayDailyOccupancy(daily_occupancy, period, apartmentFilter);
 
                 console.log('✅ Daily revenue filtered and re-rendered');
 
@@ -1572,6 +1572,97 @@
                 }
             }
         };
+
+        // Display daily occupancy calendar - NEW CLEAN VIEW
+        function displayDailyOccupancy(daily_occupancy, period, apartmentFilter) {
+            const listContainer = document.getElementById('proratedGuestsList');
+            if (!listContainer || !daily_occupancy) {
+                console.error('❌ Missing container or data');
+                return;
+            }
+
+            // Sort dates
+            const dates = Object.keys(daily_occupancy).sort();
+
+            if (dates.length === 0) {
+                listContainer.innerHTML = `
+                    <div class="alert alert-info text-center">
+                        <i class="fas fa-info-circle"></i>
+                        Không có dữ liệu cho tháng này
+                    </div>
+                `;
+                return;
+            }
+
+            // Build calendar table
+            let html = `
+                <div class="table-responsive">
+                    <table class="table table-sm table-hover table-bordered" style="font-size: 0.85rem;">
+                        <thead class="table-light sticky-top">
+                            <tr>
+                                <th class="text-center" style="width: 120px;">Ngày</th>`;
+
+            // Add apartment columns based on filter
+            if (apartmentFilter === 'all' || apartmentFilter === 'apt1') {
+                html += `<th class="text-center" style="width: 100px; background-color: #e3f2fd;">🔵 118 Hang Bac</th>`;
+            }
+            if (apartmentFilter === 'all' || apartmentFilter === 'apt2') {
+                html += `<th class="text-center" style="width: 100px; background-color: #e8f5e9;">🟢 18 Hang Be</th>`;
+            }
+            if (apartmentFilter === 'all') {
+                html += `<th class="text-center fw-bold" style="width: 100px; background-color: #fff3e0;">📊 Tổng</th>`;
+            }
+
+            html += `</tr></thead><tbody>`;
+
+            // Add rows for each date
+            dates.forEach(dateStr => {
+                const counts = daily_occupancy[dateStr];
+                const dateObj = new Date(dateStr);
+                const dayName = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'][dateObj.getDay()];
+                const formattedDate = `${dayName}, ${dateObj.getDate()}/${dateObj.getMonth() + 1}`;
+
+                // Highlight weekends
+                const isWeekend = dateObj.getDay() === 0 || dateObj.getDay() === 6;
+                const rowClass = isWeekend ? 'table-warning' : '';
+
+                html += `<tr class="${rowClass}">`;
+                html += `<td class="text-center fw-bold">${formattedDate}</td>`;
+
+                // Show counts based on filter
+                if (apartmentFilter === 'all' || apartmentFilter === 'apt1') {
+                    const count = counts.apt1 || 0;
+                    const badge = count > 0 ? `<span class="badge bg-primary">${count} khách</span>` : '<span class="text-muted">-</span>';
+                    html += `<td class="text-center">${badge}</td>`;
+                }
+                if (apartmentFilter === 'all' || apartmentFilter === 'apt2') {
+                    const count = counts.apt2 || 0;
+                    const badge = count > 0 ? `<span class="badge bg-success">${count} khách</span>` : '<span class="text-muted">-</span>';
+                    html += `<td class="text-center">${badge}</td>`;
+                }
+                if (apartmentFilter === 'all') {
+                    const count = counts.all || 0;
+                    const badge = count > 0 ? `<span class="badge bg-warning text-dark">${count} khách</span>` : '<span class="text-muted">-</span>';
+                    html += `<td class="text-center">${badge}</td>`;
+                }
+
+                html += `</tr>`;
+            });
+
+            html += `</tbody></table></div>`;
+
+            // Add summary
+            const totalDays = dates.length;
+            html += `
+                <div class="text-muted small mt-2 text-center">
+                    <i class="fas fa-calendar-check me-1"></i>
+                    Hiển thị ${totalDays} ngày trong tháng ${period.month}
+                </div>
+            `;
+
+            listContainer.innerHTML = html;
+            console.log('✅ Daily occupancy calendar displayed');
+        }
 
         // Filter monthly checked-in revenue by apartment - FETCH AND RE-RENDER TABLE
         window.filterMonthlyCheckedInRevenue = async function(apartmentFilter) {
@@ -1971,9 +2062,8 @@
                 <div class="card-header text-white" style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%);">
                     <div class="d-flex justify-content-between align-items-center mb-2">
                         <h6 class="mb-0">
-                            <i class="fas fa-chart-line me-2"></i>
-                            Doanh Thu Theo Ngày Ở
-                            <span class="badge bg-white text-success ms-2" id="proratedBadge">Loading...</span>
+                            <i class="fas fa-calendar-check me-2"></i>
+                            Thống Kê Theo Tháng Check-In
                         </h6>
                         <!-- Month Selector -->
                         <div class="btn-group btn-group-sm" role="group">
@@ -1984,7 +2074,7 @@
                             </select>
                         </div>
                     </div>
-                    <small class="text-white-50" id="proratedPeriodDescription">Chỉ tính tiền cho số đêm khách ở trong tháng được chọn</small>
+                    <small class="text-white-50" id="proratedPeriodDescription">Booking được tính vào tháng check-in (không phân bổ theo ngày)</small>
                 </div>
                 <div class="card-body">
                     <!-- 🏢 Apartment Filter Tabs (Same as Monthly Revenue) -->
@@ -2009,13 +2099,13 @@
 
                     <!-- Cash Flow Summary Cards -->
                     <div class="row g-2 mb-3">
-                        <!-- Total Revenue This Month -->
+                        <!-- Total Revenue This Month (by check-in) -->
                         <div class="col-md-3 col-6">
                             <div class="card border-0 shadow-sm" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
                                 <div class="card-body p-2 text-center">
-                                    <small class="text-white text-opacity-75 d-block mb-1" style="font-size: 0.7rem;">DOANH THU THÁNG NÀY</small>
+                                    <small class="text-white text-opacity-75 d-block mb-1" style="font-size: 0.7rem;">TỔNG DOANH THU</small>
                                     <div class="text-white fw-bold fs-5" id="proratedMonthlyRevenue">0đ</div>
-                                    <small class="text-white text-opacity-75" id="proratedNights">0 đêm</small>
+                                    <small class="text-white text-opacity-75">Theo tháng check-in</small>
                                 </div>
                             </div>
                         </div>
@@ -2024,7 +2114,7 @@
                         <div class="col-md-3 col-6">
                             <div class="card border-0 shadow-sm" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
                                 <div class="card-body p-2 text-center">
-                                    <small class="text-white text-opacity-75 d-block mb-1" style="font-size: 0.7rem;">CHƯA THU THÁNG NÀY</small>
+                                    <small class="text-white text-opacity-75 d-block mb-1" style="font-size: 0.7rem;">CHƯA THU</small>
                                     <div class="text-white fw-bold fs-5" id="proratedUncollected">0đ</div>
                                     <small class="text-white text-opacity-75" id="collectionRate">0% đã thu</small>
                                 </div>
@@ -2035,79 +2125,46 @@
                         <div class="col-md-3 col-6">
                             <div class="card border-0 shadow-sm" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
                                 <div class="card-body p-2 text-center">
-                                    <small class="text-white text-opacity-75 d-block mb-1" style="font-size: 0.7rem;">ĐÃ THU THÁNG NÀY</small>
+                                    <small class="text-white text-opacity-75 d-block mb-1" style="font-size: 0.7rem;">ĐÃ THU</small>
                                     <div class="text-white fw-bold fs-5" id="proratedCollected">0đ</div>
                                     <small class="text-white text-opacity-75" id="collectionRatePercent">0%</small>
                                 </div>
                             </div>
                         </div>
 
-                        <!-- Total All Bookings -->
+                        <!-- Booking Count -->
                         <div class="col-md-3 col-6">
                             <div class="card border-0 shadow-sm" style="background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);">
                                 <div class="card-body p-2 text-center">
-                                    <small class="text-white text-opacity-75 d-block mb-1" style="font-size: 0.7rem;">TỔNG TOÀN BỘ BOOKING</small>
-                                    <div class="text-white fw-bold" style="font-size: 1.1rem;" id="proratedFullRevenue">0đ</div>
-                                    <small class="text-white text-opacity-75" id="proratedFullNights">0 đêm</small>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Additional Info Row -->
-                    <div class="row g-2 mb-3">
-                        <div class="col-12">
-                            <div class="alert alert-light border py-2 mb-0" style="font-size: 0.75rem;">
-                                <div class="d-flex justify-content-between align-items-center">
-                                    <div>
-                                        <i class="fas fa-info-circle text-primary me-1"></i>
-                                        <strong>Chưa thu toàn bộ:</strong>
-                                        <span class="text-danger fw-bold" id="uncollectedFull">0đ</span>
-                                    </div>
-                                    <div class="text-muted">
-                                        <i class="fas fa-clock me-1"></i>
-                                        <span id="currentPeriod">Tháng này</span>
-                                    </div>
+                                    <small class="text-white text-opacity-75 d-block mb-1" style="font-size: 0.7rem;">SỐ BOOKING</small>
+                                    <div class="text-white fw-bold fs-5" id="proratedBadge">0</div>
+                                    <small class="text-white text-opacity-75">Check-in tháng này</small>
                                 </div>
                             </div>
                         </div>
                     </div>
 
                     <!-- Info Alert -->
-                    <div class="alert alert-success border-0 py-2 mb-3" style="font-size: 0.8rem; background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);">
+                    <div class="alert alert-info border-0 py-2 mb-3" style="font-size: 0.8rem; background: linear-gradient(135deg, #d1ecf1 0%, #bee5eb 100%);">
                         <div class="d-flex align-items-center">
-                            <i class="fas fa-calculator me-2 text-success"></i>
+                            <i class="fas fa-info-circle me-2 text-info"></i>
                             <div>
-                                <strong>Tính toán theo ngày ở:</strong>
+                                <strong>Tính toán theo tháng check-in:</strong>
                                 <div class="text-muted small">
-                                    • Booking 10 đêm, 5 đêm tháng này → 50% doanh thu<br>
-                                    • Chưa thu 2M toàn bộ, 5/10 đêm tháng này → Chưa thu 1M (tháng này)
+                                    • Khách check-in 30/10, check-out 5/11 → Tính vào THÁNG 10<br>
+                                    • Bảng dưới hiển thị số khách ở mỗi ngày trong tháng (không hiển thị chi tiết khách)
                                 </div>
                             </div>
                         </div>
                     </div>
 
-                    <!-- Detailed Breakdown Table -->
+                    <!-- Daily Occupancy Calendar -->
                     <div id="proratedGuestsList" class="mt-2">
                         <div class="text-center py-3">
-                            <div class="spinner-border spinner-border-sm text-success" role="status">
+                            <div class="spinner-border spinner-border-sm text-info" role="status">
                                 <span class="visually-hidden">Đang tải...</span>
                             </div>
-                            <small class="d-block mt-2 text-muted">Đang tính toán doanh thu theo ngày ở...</small>
-                        </div>
-                    </div>
-
-                    <!-- Average Price Info -->
-                    <div class="border-top pt-2 mt-3">
-                        <div class="d-flex justify-content-between align-items-center">
-                            <div>
-                                <small class="text-muted">Giá TB/đêm</small>
-                                <div class="fw-bold text-success" id="avgPricePerNight">0đ</div>
-                            </div>
-                            <div class="text-end">
-                                <small class="text-muted">Chênh lệch</small>
-                                <div class="fw-bold text-warning" id="revenueDifference">0đ</div>
-                            </div>
+                            <small class="d-block mt-2 text-muted">Đang tải lịch khách hàng...</small>
                         </div>
                     </div>
                 </div>
