@@ -9377,6 +9377,9 @@ def get_prorated_monthly_revenue():
         apartment_filter = request.args.get('apartment', 'all')
         print(f"🏢 [APARTMENT_FILTER] Requested filter: {apartment_filter}")
 
+        # Always set today for comparisons
+        today = date.today()
+
         # Get month parameter (YYYY-MM format)
         month_param = request.args.get('month', None)
 
@@ -9395,7 +9398,6 @@ def get_prorated_monthly_revenue():
                 print(f"📅 [PRORATED] Using selected month: {month_param}")
             except ValueError as e:
                 print(f"⚠️ [PRORATED] Invalid month format: {month_param}, using current month")
-                today = date.today()
                 start_of_month = today.replace(day=1)
                 if today.month == 12:
                     end_of_month = date(today.year + 1, 1, 1) - timedelta(days=1)
@@ -9403,7 +9405,6 @@ def get_prorated_monthly_revenue():
                     end_of_month = date(today.year, today.month + 1, 1) - timedelta(days=1)
         else:
             # Use current month if no month parameter
-            today = date.today()
             start_of_month = today.replace(day=1)
 
             # Calculate end of current month
