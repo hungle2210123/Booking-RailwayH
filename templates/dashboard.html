@@ -1794,7 +1794,18 @@
             }
 
             const dayData = window.currentDailyOccupancy[dateStr];
-            const guests = dayData.guests || [];
+            const allGuests = dayData.guests || [];
+
+            // Deduplicate guests by booking_id (same guest might appear multiple times)
+            const uniqueGuestsMap = new Map();
+            allGuests.forEach(guest => {
+                if (!uniqueGuestsMap.has(guest.booking_id)) {
+                    uniqueGuestsMap.set(guest.booking_id, guest);
+                }
+            });
+            const guests = Array.from(uniqueGuestsMap.values());
+
+            console.log(`📊 Total guest entries: ${allGuests.length}, Unique guests: ${guests.length}`);
 
             // Update modal title
             document.getElementById('modalDateTitle').textContent = `- ${formattedDate}`;
