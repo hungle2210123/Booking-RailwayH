@@ -4003,10 +4003,17 @@ function updateGuestCardAmounts(bookingId, newRoomAmount, newTaxiAmount, newComm
         const rows = overdueTable.querySelectorAll('tr');
 
         rows.forEach(row => {
-            // Find booking ID in the row (it's in the text-muted div at the end)
-            const bookingIdText = row.querySelector('.text-muted');
-            if (bookingIdText && bookingIdText.textContent.includes(bookingId)) {
+            // Find booking ID in the row - check ALL .text-muted elements
+            const textMutedElements = row.querySelectorAll('.text-muted');
+            let hasBookingId = false;
 
+            textMutedElements.forEach(el => {
+                if (el.textContent.includes(bookingId)) {
+                    hasBookingId = true;
+                }
+            });
+
+            if (hasBookingId) {
                 console.log(`✅ Found matching row for ${bookingId}, updating...`);
 
                 // Update the total amount display (fw-bold text-danger small OR fw-bold text-success small)
@@ -5488,13 +5495,13 @@ function updateBookingAmounts() {
             const modal = bootstrap.Modal.getInstance(document.getElementById('editAmountModal'));
             modal.hide();
 
-            // ⚡ INSTANT UPDATE applied, then reload after short delay to refresh all data
-            console.log('⚡ [SUCCESS] Instant updates applied, reloading dashboard to refresh charts and totals...');
+            // ⚡ INSTANT UPDATE: All views updated without reload
+            console.log('⚡ [SUCCESS] Instant updates applied successfully - NO reload needed!');
 
-            // Reload page after 1 second to ensure all charts, totals, and data are refreshed
+            // Update overdue total after UI updates
             setTimeout(() => {
-                window.location.reload();
-            }, 1000);
+                recalculateOverdueTotal();
+            }, 600);
         } else {
             throw new Error(data.message || 'Lỗi không xác định');
         }
