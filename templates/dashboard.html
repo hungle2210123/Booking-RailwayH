@@ -4147,9 +4147,17 @@ function updateCollectedAmountDisplay(bookingId, collectedAmount, collectorName,
     let foundRow = false;
 
     rows.forEach(row => {
-        // Find booking ID in the row
-        const bookingIdText = row.querySelector('.text-muted');
-        if (bookingIdText && bookingIdText.textContent.includes(bookingId)) {
+        // Find booking ID in the row - check ALL .text-muted elements
+        const textMutedElements = row.querySelectorAll('.text-muted');
+        let hasBookingId = false;
+
+        textMutedElements.forEach(el => {
+            if (el.textContent.includes(bookingId)) {
+                hasBookingId = true;
+            }
+        });
+
+        if (hasBookingId) {
             foundRow = true;
             console.log(`✅ Found row for ${bookingId}, updating collected amount...`);
 
