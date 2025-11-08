@@ -9575,6 +9575,9 @@ def get_prorated_monthly_revenue():
             daily_occupancy[day_date]['all'] = 0
             daily_occupancy[day_date]['apt1'] = 0
             daily_occupancy[day_date]['apt2'] = 0
+            daily_occupancy[day_date]['revenue_all'] = 0
+            daily_occupancy[day_date]['revenue_apt1'] = 0
+            daily_occupancy[day_date]['revenue_apt2'] = 0
 
         for booking, guest, room, apartment in all_occupancy_bookings:
             if not booking.checkin_date or not booking.checkout_date:
@@ -9600,6 +9603,11 @@ def get_prorated_monthly_revenue():
                         daily_occupancy[current_stay_date]['all'] += 1
                         if apt_key:
                             daily_occupancy[current_stay_date][apt_key] += 1
+
+                        # Track revenue (pro-rated per night)
+                        daily_occupancy[current_stay_date]['revenue_all'] += revenue_per_night
+                        if apt_key:
+                            daily_occupancy[current_stay_date][f'revenue_{apt_key}'] += revenue_per_night
 
                         # Add guest details for EVERY night they stay
                         guest_name = guest.full_name if guest else booking.guest_name or 'N/A'
