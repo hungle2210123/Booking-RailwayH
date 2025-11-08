@@ -2407,8 +2407,19 @@ function resetPhotoUpload() {
 function updateBookingData(index, field, value) {
     if (extractedBookings[index]) {
         extractedBookings[index][field] = value;
-        console.log(`📝 Updated booking ${index + 1} ${field}: ${value}`);
-        
+
+        // CRITICAL FIX: When room_name is updated, also update 'Tên chỗ nghỉ' for backend
+        if (field === 'room_name') {
+            extractedBookings[index]['Tên chỗ nghỉ'] = value;
+            extractedBookings[index]['room_type'] = value;  // Also update room_type for consistency
+            console.log(`🏠 [ROOM_UPDATE] Updated room for booking ${index + 1}: ${value}`);
+            console.log(`   - room_name: ${value}`);
+            console.log(`   - Tên chỗ nghỉ: ${value}`);
+            console.log(`   - room_type: ${value}`);
+        } else {
+            console.log(`📝 Updated booking ${index + 1} ${field}: ${value}`);
+        }
+
         // Save changes to session
         saveExtractedBookingsToSession();
     }
