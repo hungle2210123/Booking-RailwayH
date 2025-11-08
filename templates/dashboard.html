@@ -4413,12 +4413,66 @@ function updateBookingInAllViews(bookingId, updatedData) {
     let viewsUpdated = 0;
 
     // 1. Update main guest booking list/table
-    const bookingRows = document.querySelectorAll(`tr[data-booking-id="${bookingId}"], .booking-card[data-booking-id="${bookingId}"]`);
+    // ENHANCED: Find rows by data-booking-id OR by searching text content for booking ID
+    let bookingRows = document.querySelectorAll(`tr[data-booking-id="${bookingId}"], .booking-card[data-booking-id="${bookingId}"]`);
+
+    // Fallback: Search all table rows for booking ID in text content
+    if (bookingRows.length === 0) {
+        console.log('⚡ [FALLBACK] Searching for booking ID in table text content...');
+        const allRows = document.querySelectorAll('table tbody tr');
+        const foundRows = [];
+
+        allRows.forEach(row => {
+            // Check if row contains booking ID in any cell
+            const cells = row.querySelectorAll('td');
+            cells.forEach(cell => {
+                // Look for booking ID in text-muted elements (ID: 12345)
+                const textMuted = cell.querySelectorAll('.text-muted');
+                textMuted.forEach(el => {
+                    if (el.textContent.includes(bookingId) || el.textContent.includes(`ID: ${bookingId}`)) {
+                        foundRows.push(row);
+                    }
+                });
+
+                // Also check onclick attributes
+                if (cell.getAttribute('onclick') && cell.getAttribute('onclick').includes(bookingId)) {
+                    foundRows.push(row);
+                }
+            });
+        });
+
+        // Remove duplicates
+        bookingRows = [...new Set(foundRows)];
+        console.log(`⚡ [FALLBACK] Found ${bookingRows.length} rows containing booking ID ${bookingId}`);
+    }
+
     bookingRows.forEach(row => {
+        console.log(`⚡ [UPDATE] Updating row for booking ${bookingId}`);
+
+        // Update collected amount if provided
+        if (updatedData.collected_amount !== undefined) {
+            const cells = row.querySelectorAll('td');
+            cells.forEach(cell => {
+                // Look for collected amount display (badge or text)
+                const collectedBadges = cell.querySelectorAll('.badge, .fw-bold');
+                collectedBadges.forEach(badge => {
+                    if (badge.textContent.includes('Đã thu') || badge.textContent.includes('thu')) {
+                        badge.innerHTML = `<i class="fas fa-check-circle me-1"></i>${updatedData.collected_amount.toLocaleString()}đ`;
+                        badge.classList.add('bg-success', 'text-white');
+
+                        // Flash animation
+                        badge.style.transition = 'all 0.5s';
+                        badge.style.transform = 'scale(1.1)';
+                        setTimeout(() => { badge.style.transform = 'scale(1)'; }, 500);
+                    }
+                });
+            });
+        }
+
         // Update total amount display
         const amountElements = row.querySelectorAll('.amount, .total-amount, .fw-bold');
         amountElements.forEach(el => {
-            if (el.textContent.includes('đ')) {
+            if (el.textContent.includes('đ') && !el.textContent.includes('Đã thu')) {
                 el.textContent = `${updatedData.total_amount.toLocaleString()}đ`;
                 el.style.transition = 'all 0.3s';
                 el.style.color = '#28a745';
