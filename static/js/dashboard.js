@@ -394,8 +394,18 @@ async function updateCollectedAmount() {
             if (typeof updateBookingInAllViews === 'function') {
                 updateBookingInAllViews(bookingId, {
                     collected_amount: newAmount,
-                    collector_name: collector
+                    collector_name: collector,
+                    total_amount: totalAmount
                 });
+            }
+
+            // ⚡ CRITICAL: Reload overdue/unchecked-in guests table
+            console.log('⚡ [RELOAD] Reloading overdue guests table...');
+            if (typeof loadUncheckedInGuests === 'function') {
+                setTimeout(() => {
+                    loadUncheckedInGuests();
+                    console.log('✅ [RELOAD] Overdue table refreshed');
+                }, 500);
             }
 
             console.log('⚡ [SUCCESS] Collected amount updated instantly without reload');
