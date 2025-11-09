@@ -3058,6 +3058,11 @@ def save_extracted_bookings():
                 # Extract accommodation name from the booking data (set by frontend)
                 accommodation_name = booking_data.get('Tên chỗ nghỉ', '118 Hang Bac Hostel')
                 print(f"🏠 [SAVE_EXTRACTED] Room type selected: {accommodation_name}")
+                print(f"🔍 [DEBUG_ROOM] All room-related fields in booking_data:")
+                print(f"   - 'Tên chỗ nghỉ': {booking_data.get('Tên chỗ nghỉ', 'NOT SET')}")
+                print(f"   - 'room_name': {booking_data.get('room_name', 'NOT SET')}")
+                print(f"   - 'room_type': {booking_data.get('room_type', 'NOT SET')}")
+                print(f"   - 'accommodation_name': {booking_data.get('accommodation_name', 'NOT SET')}")
                 
                 # Convert to expected format for add_new_booking function
                 processed_booking = {
