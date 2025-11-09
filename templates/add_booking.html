@@ -4236,20 +4236,21 @@ const originalShowReviewTable = showReviewTable;
 showReviewTable = function(bookings, duplicateCheck) {
     // Call original function
     originalShowReviewTable(bookings, duplicateCheck);
-    
-    // Sync room type selectors when AI results are shown
-    setTimeout(() => {
-        syncRoomTypeSelectors();
-        
-        // Apply the current AI room type to all bookings
-        const aiRoomTypeSelect = document.getElementById('aiRoomType');
-        if (aiRoomTypeSelect && aiRoomTypeSelect.value) {
-            updateAIRoomType();
-        }
-        
-        // Set up save button handler for AI results
-        setupAISaveButtonHandler();
-    }, 100);
+
+    // DISABLED: Don't automatically sync - let per-booking room selections take precedence
+    // This was causing bug where all bookings were overwritten with manual form dropdown value
+    // setTimeout(() => {
+    //     syncRoomTypeSelectors();
+    //
+    //     // Apply the current AI room type to all bookings
+    //     const aiRoomTypeSelect = document.getElementById('aiRoomType');
+    //     if (aiRoomTypeSelect && aiRoomTypeSelect.value) {
+    //         updateAIRoomType();
+    //     }
+    //
+    //     // Set up save button handler for AI results
+    //     setupAISaveButtonHandler();
+    // }, 100);
 };
 
 // Set up save button handler for AI results
