@@ -2619,29 +2619,17 @@ document.addEventListener('DOMContentLoaded', function() {
             // Disable button and show loading
             confirmSaveButton.disabled = true;
             confirmSaveButton.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Đang lưu...';
-            
-            // Create form and submit
-            const form = document.createElement('form');
-            form.method = 'POST';
-            form.action = '/bookings/save_extracted';
-            
-            const input = document.createElement('input');
-            input.type = 'hidden';
-            input.name = 'extracted_json';
-            input.value = JSON.stringify(extractedBookings);
-            
-            // Add force add duplicates checkbox value (reuse already declared variable)
-            const forceAddInput = document.createElement('input');
-            forceAddInput.type = 'hidden';
-            forceAddInput.name = 'force_add_duplicates';
-            forceAddInput.value = forceAddCheckbox.checked ? 'true' : 'false';
-            
-            console.log('📤 [SAVE_DEBUG] JSON being sent to backend:', input.value);
-            console.log('💪 [SAVE_DEBUG] Force add duplicates:', forceAddInput.value);
+
+            // Prepare data to send
+            const dataToSend = JSON.stringify(extractedBookings);
+            const forceAdd = forceAddCheckbox.checked;
+
+            console.log('📤 [SAVE_DEBUG] JSON being sent to backend:', dataToSend);
+            console.log('💪 [SAVE_DEBUG] Force add duplicates:', forceAdd);
 
             // DEBUG: Parse and show room fields for each booking
             try {
-                const bookingsToSend = JSON.parse(input.value);
+                const bookingsToSend = JSON.parse(dataToSend);
                 console.log('🔍 [SAVE_DEBUG] Room fields in each booking:');
                 bookingsToSend.forEach((booking, idx) => {
                     console.log(`   Booking ${idx + 1} (${booking.guest_name}):`);
@@ -2652,11 +2640,65 @@ document.addEventListener('DOMContentLoaded', function() {
             } catch (e) {
                 console.error('Failed to parse JSON for debugging:', e);
             }
-            
-            form.appendChild(input);
-            form.appendChild(forceAddInput);
-            document.body.appendChild(form);
-            form.submit();
+
+            // Use fetch() instead of form.submit() to prevent page navigation
+            fetch('/bookings/save_extracted', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: `extracted_json=${encodeURIComponent(dataToSend)}&force_add_duplicates=${forceAdd ? 'true' : 'false'}`
+            })
+            .then(response => response.json())
+            .then(result => {
+                console.log('✅ [SAVE] Response:', result);
+
+                // Re-enable button
+                confirmSaveButton.disabled = false;
+                confirmSaveButton.innerHTML = '<i class="fas fa-save me-2"></i>Xác nhận lưu';
+
+                // Close modal
+                const modal = bootstrap.Modal.getInstance(document.getElementById('confirmSaveModal'));
+                if (modal) modal.hide();
+
+                if (result.success) {
+                    // Build success message
+                    let message = `✅ ${result.message}\n`;
+                    if (result.saved_count > 0) {
+                        message += `✨ ${result.saved_count} booking mới\n`;
+                    }
+                    if (result.replaced_count > 0) {
+                        message += `🔄 ${result.replaced_count} booking đã cập nhật\n`;
+                    }
+                    if (result.existing_count > 0) {
+                        message += `⚠️ ${result.existing_count} booking đã tồn tại\n`;
+                    }
+                    if (result.failed_count > 0) {
+                        message += `❌ ${result.failed_count} booking lỗi\n`;
+                    }
+
+                    alert(message);
+
+                    // Clear session storage after successful save
+                    if (result.saved_count > 0) {
+                        clearExtractedBookingsSession();
+                        extractedBookings = [];
+                    }
+
+                    // Redirect to dashboard
+                    if (result.saved_count > 0 || result.replaced_count > 0) {
+                        window.location.href = '/';
+                    }
+                } else {
+                    alert('❌ Lỗi khi lưu: ' + (result.error || result.message));
+                }
+            })
+            .catch(error => {
+                console.error('❌ [SAVE] Error:', error);
+                confirmSaveButton.disabled = false;
+                confirmSaveButton.innerHTML = '<i class="fas fa-save me-2"></i>Xác nhận lưu';
+                alert('❌ Lỗi kết nối: ' + error.message);
+            });
         };
     }
 });
