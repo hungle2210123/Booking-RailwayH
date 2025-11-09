@@ -2405,6 +2405,10 @@ function resetPhotoUpload() {
 }
 
 function updateBookingData(index, field, value) {
+    console.log(`🔧 [UPDATE_BOOKING_DATA] Called with index=${index}, field="${field}", value="${value}"`);
+    console.log(`🔧 [UPDATE_BOOKING_DATA] extractedBookings length: ${extractedBookings.length}`);
+    console.log(`🔧 [UPDATE_BOOKING_DATA] Booking at index ${index} exists:`, !!extractedBookings[index]);
+
     if (extractedBookings[index]) {
         extractedBookings[index][field] = value;
 
@@ -2413,15 +2417,18 @@ function updateBookingData(index, field, value) {
             extractedBookings[index]['Tên chỗ nghỉ'] = value;
             extractedBookings[index]['room_type'] = value;  // Also update room_type for consistency
             console.log(`🏠 [ROOM_UPDATE] Updated room for booking ${index + 1}: ${value}`);
-            console.log(`   - room_name: ${value}`);
-            console.log(`   - Tên chỗ nghỉ: ${value}`);
-            console.log(`   - room_type: ${value}`);
+            console.log(`   - room_name: ${extractedBookings[index]['room_name']}`);
+            console.log(`   - Tên chỗ nghỉ: ${extractedBookings[index]['Tên chỗ nghỉ']}`);
+            console.log(`   - room_type: ${extractedBookings[index]['room_type']}`);
+            console.log(`🔍 [ROOM_UPDATE] Full booking object after update:`, extractedBookings[index]);
         } else {
             console.log(`📝 Updated booking ${index + 1} ${field}: ${value}`);
         }
 
         // Save changes to session
         saveExtractedBookingsToSession();
+    } else {
+        console.error(`❌ [UPDATE_BOOKING_DATA] Booking at index ${index} not found!`);
     }
 }
 
@@ -2631,6 +2638,20 @@ document.addEventListener('DOMContentLoaded', function() {
             
             console.log('📤 [SAVE_DEBUG] JSON being sent to backend:', input.value);
             console.log('💪 [SAVE_DEBUG] Force add duplicates:', forceAddInput.value);
+
+            // DEBUG: Parse and show room fields for each booking
+            try {
+                const bookingsToSend = JSON.parse(input.value);
+                console.log('🔍 [SAVE_DEBUG] Room fields in each booking:');
+                bookingsToSend.forEach((booking, idx) => {
+                    console.log(`   Booking ${idx + 1} (${booking.guest_name}):`);
+                    console.log(`      - Tên chỗ nghỉ: ${booking['Tên chỗ nghỉ']}`);
+                    console.log(`      - room_name: ${booking.room_name}`);
+                    console.log(`      - room_type: ${booking.room_type}`);
+                });
+            } catch (e) {
+                console.error('Failed to parse JSON for debugging:', e);
+            }
             
             form.appendChild(input);
             form.appendChild(forceAddInput);
