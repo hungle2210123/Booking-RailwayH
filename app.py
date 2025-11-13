@@ -9293,7 +9293,7 @@ def get_unchecked_in_guests():
         print(f"🏨 [UNCHECKED_IN] Getting unchecked-in guests for {start_of_month} to {end_of_month}")
 
         # Query confirmed bookings where check-in date is in current month but haven't checked in yet
-        # (check-in date > today)
+        # (check-in date > today) AND money hasn't been collected yet
         unchecked_bookings = db.session.query(Booking, Guest).outerjoin(
             Guest, Booking.guest_id == Guest.guest_id
         ).filter(
@@ -9303,7 +9303,11 @@ def get_unchecked_in_guests():
             Booking.checkin_date <= end_of_month,
             Booking.booking_status != 'deleted',
             Booking.booking_status != 'cancelled',
-            Booking.booking_status != 'đã hủy'
+            Booking.booking_status != 'đã hủy',
+            db.or_(
+                Booking.collected_amount == None,
+                Booking.collected_amount == 0
+            )  # Money not collected yet
         ).order_by(Booking.checkin_date.asc()).all()
 
         unchecked_list = []
