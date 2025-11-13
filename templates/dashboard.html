@@ -4426,10 +4426,16 @@ function updateBookingInAllViews(bookingId, updatedData) {
             // Check if row contains booking ID in any cell
             const cells = row.querySelectorAll('td');
             cells.forEach(cell => {
-                // Look for booking ID in text-muted elements (ID: 12345)
+                // Look for booking ID in text-muted elements (with or without "ID: " prefix)
                 const textMuted = cell.querySelectorAll('.text-muted');
                 textMuted.forEach(el => {
-                    if (el.textContent.includes(bookingId) || el.textContent.includes(`ID: ${bookingId}`)) {
+                    const text = el.textContent.trim();
+                    // Match exact booking ID or "ID: bookingId" format
+                    if (text === bookingId ||
+                        text === `ID: ${bookingId}` ||
+                        text.includes(`ID: ${bookingId}`) ||
+                        // Also match if booking ID is alone on a line (from old format)
+                        new RegExp(`^${bookingId}$`, 'm').test(text)) {
                         foundRows.push(row);
                     }
                 });
