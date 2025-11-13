@@ -400,12 +400,13 @@ async function updateCollectedAmount() {
             }
 
             // ⚡ CRITICAL: Reload overdue/unchecked-in guests table
+            // Delay reload to show instant update animation first
             console.log('⚡ [RELOAD] Reloading overdue guests table...');
             if (typeof loadUncheckedInGuests === 'function') {
                 setTimeout(() => {
                     loadUncheckedInGuests();
                     console.log('✅ [RELOAD] Overdue table refreshed');
-                }, 500);
+                }, 1000); // Increased to 1000ms to show green flash animation
             }
 
             console.log('⚡ [SUCCESS] Collected amount updated instantly without reload');

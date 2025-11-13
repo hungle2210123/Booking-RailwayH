@@ -2292,6 +2292,12 @@ function generateReviewTableHtml(duplicateCheck) {
             roomType = '118 Hang Bac Hostel';
         }
 
+        // CRITICAL FIX: Save the classified room type back to the booking object
+        // so it's available when the user clicks save without touching the dropdown
+        booking['Tên chỗ nghỉ'] = roomType;
+        booking.room_name = roomType;
+        booking.room_type = roomType;
+
         console.log(`🏠 [ROOM_DISPLAY] Row ${index}: ${guestName} → ${roomType}`);
 
         return `
@@ -2356,19 +2362,22 @@ function generateReviewTableHtml(duplicateCheck) {
             </td>
         </tr>`;
     }).join('');
-    
+
+    // Save the updated bookings with classified rooms to session
+    saveExtractedBookingsToSession();
+
     // Update table content with null check
     const tableBodyEl = document.getElementById('review-table-body');
     if (tableBodyEl) {
         tableBodyEl.innerHTML = tableBodyHtml;
     }
-    
+
     // Show AI results with null check
     const resultsEl = document.getElementById('ai-results-review');
     if (resultsEl) {
         resultsEl.style.display = 'block';
     }
-    
+
     // Hide manual form during review with null check
     const manualFormEl = document.getElementById('manual-form-container');
     if (manualFormEl) {
