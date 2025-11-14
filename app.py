@@ -418,7 +418,8 @@ try:
         'pool_pre_ping': True,        # Test connections before using them
         'connect_args': {
             'connect_timeout': 10,    # 10 second connection timeout
-            'options': '-c statement_timeout=30000'  # 30 second query timeout
+            'options': '-c statement_timeout=30000',  # 30 second query timeout
+            'sslmode': 'prefer'       # CRITICAL: Railway requires SSL for public connections
         }
     }
 
