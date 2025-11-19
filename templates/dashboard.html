@@ -3296,13 +3296,22 @@
                     </div>
                     <div class="mb-3">
                         <label for="editAccommodation" class="form-label">
-                            <i class="fas fa-hotel me-1"></i>Chọn khách sạn/căn hộ:
+                            <i class="fas fa-hotel me-1"></i>Chọn phòng:
                         </label>
                         <select class="form-select" id="editAccommodation">
-                            <option value="118 Hang Bac Hostel">🏨 118 Hàng Bạc (4 phòng)</option>
-                            <option value="18 Hang Be">🏘️ 18 Hàng Bè (2 phòng)</option>
+                            <optgroup label="🔵 118 Hàng Bạc">
+                                <option value="118 hang bac">🔵 118 hang bac</option>
+                                <option value="kitchen">🔵 kitchen</option>
+                                <option value="night market">🔵 night market</option>
+                                <option value="118 Hang Bac Hostel">🔵 118 Hang Bac Hostel (General)</option>
+                            </optgroup>
+                            <optgroup label="🟢 18 Hàng Bè">
+                                <option value="hang be 101">🟢 hang be 101</option>
+                                <option value="hang be 102">🟢 hang be 102</option>
+                                <option value="18 Hang Be">🟢 18 Hang Be (General)</option>
+                            </optgroup>
                         </select>
-                        <div class="form-text">Chọn khách sạn hoặc căn hộ cho booking này</div>
+                        <div class="form-text">⚠️ Chọn đúng phòng để tránh thay đổi nhầm khi chỉnh sửa</div>
                     </div>
                     <div class="mb-3">
                         <label for="editRoomsOccupied" class="form-label">
@@ -5792,7 +5801,32 @@ function openEditAmountModal(bookingId, guestName, roomFee, taxiFee, commission)
             document.getElementById('editRoomAmount').value = parsedRoomFee;
             document.getElementById('editTaxiAmount').value = parsedTaxiFee;
             document.getElementById('editCommissionAmount').value = parsedCommission;
-            document.getElementById('editAccommodation').value = accommodation;
+
+            // CRITICAL FIX: Set accommodation dropdown to current guest's room
+            const accommodationSelect = document.getElementById('editAccommodation');
+            accommodationSelect.value = accommodation;
+
+            // Fallback: If exact match fails, try case-insensitive match
+            if (!accommodationSelect.value || accommodationSelect.value !== accommodation) {
+                console.log(`⚠️ Exact match failed for "${accommodation}", trying case-insensitive match`);
+                const options = accommodationSelect.options;
+                for (let i = 0; i < options.length; i++) {
+                    if (options[i].value.toLowerCase() === accommodation.toLowerCase()) {
+                        accommodationSelect.selectedIndex = i;
+                        console.log(`✅ Matched "${accommodation}" to "${options[i].value}"`);
+                        break;
+                    }
+                }
+            }
+
+            // Verify selection and warn if still no match
+            if (!accommodationSelect.value) {
+                console.error(`❌ Could not find room option for "${accommodation}" - defaulting to first option`);
+                console.log('Available options:', Array.from(accommodationSelect.options).map(o => o.value));
+            } else {
+                console.log(`✅ Room dropdown set to: ${accommodationSelect.value}`);
+            }
+
             document.getElementById('editRoomsOccupied').value = roomsOccupied;
     
     // Initialize commission field state
@@ -5844,13 +5878,24 @@ function openEditAmountModal(bookingId, guestName, roomFee, taxiFee, commission)
         .catch(error => {
             console.error('Error fetching booking data:', error);
             // Fallback: use defaults if API fails
+            // Try to extract accommodation from card data before using default
+            let fallbackAccommodation = '118 Hang Bac Hostel';
+            const accommodationBadge = card.querySelector('.badge');
+            if (accommodationBadge) {
+                const badgeText = accommodationBadge.textContent.trim();
+                if (badgeText) {
+                    fallbackAccommodation = badgeText;
+                    console.log(`📍 Extracted accommodation from badge: ${badgeText}`);
+                }
+            }
+
             currentEditBookingData = {
                 bookingId: bookingId,
                 guestName: guestName,
                 roomFee: parsedRoomFee,
                 taxiFee: parsedTaxiFee,
                 commission: parsedCommission,
-                accommodation: '118 Hang Bac Hostel',
+                accommodation: fallbackAccommodation,
                 roomsOccupied: 1
             };
 
@@ -5860,7 +5905,24 @@ function openEditAmountModal(bookingId, guestName, roomFee, taxiFee, commission)
             document.getElementById('editRoomAmount').value = parsedRoomFee;
             document.getElementById('editTaxiAmount').value = parsedTaxiFee;
             document.getElementById('editCommissionAmount').value = parsedCommission;
-            document.getElementById('editAccommodation').value = '118 Hang Bac Hostel';
+
+            // Set accommodation with same fallback logic as main flow
+            const accommodationSelect = document.getElementById('editAccommodation');
+            accommodationSelect.value = fallbackAccommodation;
+
+            // Fallback: If exact match fails, try case-insensitive match
+            if (!accommodationSelect.value || accommodationSelect.value !== fallbackAccommodation) {
+                console.log(`⚠️ Exact match failed for "${fallbackAccommodation}", trying case-insensitive match`);
+                const options = accommodationSelect.options;
+                for (let i = 0; i < options.length; i++) {
+                    if (options[i].value.toLowerCase() === fallbackAccommodation.toLowerCase()) {
+                        accommodationSelect.selectedIndex = i;
+                        console.log(`✅ Matched "${fallbackAccommodation}" to "${options[i].value}"`);
+                        break;
+                    }
+                }
+            }
+
             document.getElementById('editRoomsOccupied').value = 1;
 
             // Show modal anyway
