@@ -129,6 +129,9 @@ from core.performance_dashboard import performance_bp
 # Import caching configuration
 from core.cache_config import init_cache, clear_booking_cache
 
+# Import backup and export functionality
+from backup_routes import register_backup_routes
+
 # Learning mode removed for simplicity
 
 # Import test dashboard blueprint (optional - for development/testing only)
@@ -177,6 +180,10 @@ else:
 
 # Register performance monitoring blueprint
 app.register_blueprint(performance_bp)
+
+# Register backup and export routes
+register_backup_routes(app)
+print("✅ Backup and export routes registered")
 
 # Production configuration with temporary debug for auto sync
 railway_env = os.getenv('RAILWAY_PROJECT_ID') is not None

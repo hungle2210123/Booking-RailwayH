@@ -655,6 +655,21 @@
     <h1 class="mt-4">📊 Dashboard Tổng quan</h1>
     <ol class="breadcrumb mb-4">
         <li class="breadcrumb-item active">Tổng quan về hiệu suất khách sạn</li>
+
+        <!-- BACKUP & EXPORT BUTTONS -->
+        <li class="breadcrumb-item ms-auto">
+            <div class="btn-group" role="group">
+                <button type="button" class="btn btn-sm btn-success" onclick="exportExcel()" title="Export to Excel - Best for Google Sheets">
+                    <i class="fas fa-file-excel me-1"></i>Excel
+                </button>
+                <button type="button" class="btn btn-sm btn-info" onclick="exportCSV()" title="Export to CSV - Universal format">
+                    <i class="fas fa-file-csv me-1"></i>CSV
+                </button>
+                <button type="button" class="btn btn-sm btn-primary" onclick="exportJSON()" title="Export to JSON - Complete backup">
+                    <i class="fas fa-file-code me-1"></i>JSON
+                </button>
+            </div>
+        </li>
     </ol>
 
     <!-- Apartment filter removed - rooms are now selected in booking forms -->
@@ -13408,6 +13423,54 @@ setTimeout(() => {
 }, 3000);
 
 // Apartment filtering functions already loaded earlier in the page (before HTML elements)
+
+// ==================== DATA BACKUP & EXPORT FUNCTIONS ====================
+
+function exportExcel() {
+    console.log('📊 Exporting data to Excel...');
+    showDashboardToast('📊 Đang tạo file Excel...', 'info');
+
+    // Open export URL in new window to download file
+    window.open('/api/export/excel', '_blank');
+
+    setTimeout(() => {
+        showDashboardToast('✅ File Excel đã sẵn sàng! Mở trong Google Sheets để xem.', 'success');
+    }, 1000);
+}
+
+function exportCSV() {
+    console.log('📄 Exporting data to CSV...');
+    showDashboardToast('📄 Đang tạo file CSV...', 'info');
+
+    window.open('/api/export/csv', '_blank');
+
+    setTimeout(() => {
+        showDashboardToast('✅ File CSV đã sẵn sàng!', 'success');
+    }, 1000);
+}
+
+function exportJSON() {
+    console.log('💾 Exporting full database to JSON...');
+    showDashboardToast('💾 Đang tạo bản sao lưu đầy đủ...', 'info');
+
+    window.open('/api/export/json', '_blank');
+
+    setTimeout(() => {
+        showDashboardToast('✅ Bản sao lưu JSON đã sẵn sàng!', 'success');
+    }, 1000);
+}
+
+// Helper function to show toast notifications
+function showDashboardToast(message, type) {
+    // Check if toast function exists, otherwise use alert
+    if (typeof showToast === 'function') {
+        showToast(message, type);
+    } else {
+        alert(message);
+    }
+}
+
+console.log('✅ Backup & Export functions loaded');
 
 {% endblock %}
 
