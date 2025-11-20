@@ -9655,7 +9655,9 @@ def get_prorated_monthly_revenue():
                             'checkout_date': booking.checkout_date.isoformat(),
                             'room_amount': room_amount,
                             'collected_amount': collected_amount,
+                            'commission': commission,
                             'revenue_per_night': revenue_per_night,
+                            'commission_per_night': commission_per_night,
                             'total_nights': total_nights,
                             'booking_status': booking.booking_status
                         })
