@@ -9499,6 +9499,7 @@ def get_prorated_monthly_revenue():
             daily_occupancy[current_date] = {
                 'apt1': 0, 'apt2': 0, 'all': 0,
                 'revenue_apt1': 0, 'revenue_apt2': 0, 'revenue_all': 0,
+                'commission_apt1': 0, 'commission_apt2': 0, 'commission_all': 0,
                 'guests': []  # List of guest details for this day
             }
 
@@ -9516,6 +9517,7 @@ def get_prorated_monthly_revenue():
             # Guest belongs to check-in month regardless of checkout date
             room_amount = float(booking.room_amount or 0)
             collected_amount = float(booking.collected_amount or 0)
+            commission = float(booking.commission or 0)
 
             # Track revenue totals
             total_revenue += room_amount
@@ -9537,11 +9539,12 @@ def get_prorated_monthly_revenue():
             # Calculate total nights for pro-rating daily revenue
             total_nights = (booking.checkout_date - booking.checkin_date).days
             revenue_per_night = room_amount / total_nights if total_nights > 0 else 0
+            commission_per_night = commission / total_nights if total_nights > 0 else 0
 
             # Iterate through each day of the stay
             current_stay_date = booking.checkin_date
             nights_in_month = 0
-            
+
             while current_stay_date < booking.checkout_date:
                 # Only count if this day is in the selected month
                 if start_of_month <= current_stay_date <= end_of_month:
@@ -9551,16 +9554,18 @@ def get_prorated_monthly_revenue():
                         if apt_key:
                             daily_occupancy[current_stay_date][apt_key] += 1
 
-                        # Track revenue (pro-rated per night)
+                        # Track revenue and commission (pro-rated per night)
                         daily_occupancy[current_stay_date]['revenue_all'] += revenue_per_night
+                        daily_occupancy[current_stay_date]['commission_all'] += commission_per_night
                         if apt_key:
                             daily_occupancy[current_stay_date][f'revenue_{apt_key}'] += revenue_per_night
+                            daily_occupancy[current_stay_date][f'commission_{apt_key}'] += commission_per_night
 
                         # Add guest details for EVERY night they stay (not just first night)
                         guest_name = guest.full_name if guest else booking.guest_name or 'N/A'
                         room_name = room.room_name if room else booking.room_name or 'N/A'
                         apartment_name = apartment.apartment_name if apartment else 'N/A'
-                        
+
                         daily_occupancy[current_stay_date]['guests'].append({
                             'booking_id': str(booking.booking_id),
                             'guest_name': guest_name,
@@ -9571,11 +9576,13 @@ def get_prorated_monthly_revenue():
                             'checkout_date': booking.checkout_date.isoformat(),
                             'room_amount': room_amount,
                             'collected_amount': collected_amount,
+                            'commission': commission,
                             'revenue_per_night': revenue_per_night,
+                            'commission_per_night': commission_per_night,
                             'total_nights': total_nights,
                             'booking_status': booking.booking_status
                         })
-                        
+
                         nights_in_month += 1
 
                 current_stay_date += timedelta(days=1)
@@ -9595,6 +9602,9 @@ def get_prorated_monthly_revenue():
             daily_occupancy[day_date]['revenue_all'] = 0
             daily_occupancy[day_date]['revenue_apt1'] = 0
             daily_occupancy[day_date]['revenue_apt2'] = 0
+            daily_occupancy[day_date]['commission_all'] = 0
+            daily_occupancy[day_date]['commission_apt1'] = 0
+            daily_occupancy[day_date]['commission_apt2'] = 0
 
         for booking, guest, room, apartment in all_occupancy_bookings:
             if not booking.checkin_date or not booking.checkout_date:
@@ -9602,12 +9612,14 @@ def get_prorated_monthly_revenue():
 
             room_amount = float(booking.room_amount or 0)
             collected_amount = float(booking.collected_amount or 0)
+            commission = float(booking.commission or 0)
             apartment_id = apartment.apartment_id if apartment else None
             apt_key = 'apt1' if apartment_id == 1 else 'apt2' if apartment_id == 2 else None
 
             # Calculate total nights for pro-rating daily revenue
             total_nights = (booking.checkout_date - booking.checkin_date).days
             revenue_per_night = room_amount / total_nights if total_nights > 0 else 0
+            commission_per_night = commission / total_nights if total_nights > 0 else 0
 
             # Iterate through each day of the stay
             current_stay_date = booking.checkin_date
@@ -9621,10 +9633,12 @@ def get_prorated_monthly_revenue():
                         if apt_key:
                             daily_occupancy[current_stay_date][apt_key] += 1
 
-                        # Track revenue (pro-rated per night)
+                        # Track revenue and commission (pro-rated per night)
                         daily_occupancy[current_stay_date]['revenue_all'] += revenue_per_night
+                        daily_occupancy[current_stay_date]['commission_all'] += commission_per_night
                         if apt_key:
                             daily_occupancy[current_stay_date][f'revenue_{apt_key}'] += revenue_per_night
+                            daily_occupancy[current_stay_date][f'commission_{apt_key}'] += commission_per_night
 
                         # Add guest details for EVERY night they stay
                         guest_name = guest.full_name if guest else booking.guest_name or 'N/A'

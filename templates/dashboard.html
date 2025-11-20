@@ -1655,21 +1655,21 @@
 
             // Add apartment columns based on filter
             if (apartmentFilter === 'all' || apartmentFilter === 'apt1') {
-                html += `<th class="text-center" style="min-width: 150px; background-color: #e3f2fd;">
+                html += `<th class="text-center" style="min-width: 200px; background-color: #e3f2fd;">
                     🔵 118 Hang Bac<br>
-                    <small class="text-muted">Doanh thu • Khách</small>
+                    <small class="text-muted">Doanh thu • Hoa hồng • Khách</small>
                 </th>`;
             }
             if (apartmentFilter === 'all' || apartmentFilter === 'apt2') {
-                html += `<th class="text-center" style="min-width: 150px; background-color: #e8f5e9;">
+                html += `<th class="text-center" style="min-width: 200px; background-color: #e8f5e9;">
                     🟢 18 Hang Be<br>
-                    <small class="text-muted">Doanh thu • Khách</small>
+                    <small class="text-muted">Doanh thu • Hoa hồng • Khách</small>
                 </th>`;
             }
             if (apartmentFilter === 'all') {
-                html += `<th class="text-center fw-bold" style="min-width: 150px; background-color: #fff3e0;">
+                html += `<th class="text-center fw-bold" style="min-width: 200px; background-color: #fff3e0;">
                     📊 Tổng Cộng<br>
-                    <small class="text-muted fw-normal">Doanh thu • Khách</small>
+                    <small class="text-muted fw-normal">Doanh thu • Hoa hồng • Khách</small>
                 </th>`;
             }
 
@@ -1677,6 +1677,7 @@
 
             // Add rows for each date
             let totalRevenueApt1 = 0, totalRevenueApt2 = 0, totalRevenueAll = 0;
+            let totalCommissionApt1 = 0, totalCommissionApt2 = 0, totalCommissionAll = 0;
 
             dates.forEach(dateStr => {
                 const data = daily_occupancy[dateStr];
@@ -1692,15 +1693,20 @@
                 html += `<tr class="${rowClass}">`;
                 html += `<td class="text-center fw-bold">${formattedDate}</td>`;
 
-                // Show revenue + counts based on filter (CLICKABLE)
+                // Show revenue + commission + counts based on filter (CLICKABLE)
                 if (apartmentFilter === 'all' || apartmentFilter === 'apt1') {
                     const count = data.apt1 || 0;
                     const revenue = data.revenue_apt1 || 0;
+                    const commission = data.commission_apt1 || 0;
+                    const netRevenue = revenue - commission;
                     totalRevenueApt1 += revenue;
+                    totalCommissionApt1 += commission;
 
                     if (count > 0) {
                         html += `<td class="text-center clickable-cell" onclick='showDailyGuestDetails("${dateStr}", "${formattedDate}")' style="cursor: pointer;" title="Click để xem chi tiết khách">
                             <div class="fw-bold text-primary">${Math.round(revenue).toLocaleString('vi-VN')}đ</div>
+                            ${commission > 0 ? `<div class="text-danger" style="font-size: 0.75rem;">-${Math.round(commission).toLocaleString('vi-VN')}đ HH</div>` : ''}
+                            ${commission > 0 ? `<div class="text-success fw-bold" style="font-size: 0.8rem;">${Math.round(netRevenue).toLocaleString('vi-VN')}đ</div>` : ''}
                             <small class="text-muted"><i class="fas fa-users me-1"></i>${count} khách</small>
                         </td>`;
                     } else {
@@ -1711,11 +1717,16 @@
                 if (apartmentFilter === 'all' || apartmentFilter === 'apt2') {
                     const count = data.apt2 || 0;
                     const revenue = data.revenue_apt2 || 0;
+                    const commission = data.commission_apt2 || 0;
+                    const netRevenue = revenue - commission;
                     totalRevenueApt2 += revenue;
+                    totalCommissionApt2 += commission;
 
                     if (count > 0) {
                         html += `<td class="text-center clickable-cell" onclick='showDailyGuestDetails("${dateStr}", "${formattedDate}")' style="cursor: pointer;" title="Click để xem chi tiết khách">
                             <div class="fw-bold text-success">${Math.round(revenue).toLocaleString('vi-VN')}đ</div>
+                            ${commission > 0 ? `<div class="text-danger" style="font-size: 0.75rem;">-${Math.round(commission).toLocaleString('vi-VN')}đ HH</div>` : ''}
+                            ${commission > 0 ? `<div class="text-success fw-bold" style="font-size: 0.8rem;">${Math.round(netRevenue).toLocaleString('vi-VN')}đ</div>` : ''}
                             <small class="text-muted"><i class="fas fa-users me-1"></i>${count} khách</small>
                         </td>`;
                     } else {
@@ -1726,11 +1737,16 @@
                 if (apartmentFilter === 'all') {
                     const count = data.all || 0;
                     const revenue = data.revenue_all || 0;
+                    const commission = data.commission_all || 0;
+                    const netRevenue = revenue - commission;
                     totalRevenueAll += revenue;
+                    totalCommissionAll += commission;
 
                     if (count > 0) {
                         html += `<td class="text-center clickable-cell" onclick='showDailyGuestDetails("${dateStr}", "${formattedDate}")' style="cursor: pointer;" title="Click để xem chi tiết khách">
                             <div class="fw-bold text-warning">${Math.round(revenue).toLocaleString('vi-VN')}đ</div>
+                            ${commission > 0 ? `<div class="text-danger" style="font-size: 0.75rem;">-${Math.round(commission).toLocaleString('vi-VN')}đ HH</div>` : ''}
+                            ${commission > 0 ? `<div class="text-success fw-bold" style="font-size: 0.8rem;">${Math.round(netRevenue).toLocaleString('vi-VN')}đ</div>` : ''}
                             <small class="text-muted"><i class="fas fa-users me-1"></i>${count} khách</small>
                         </td>`;
                     } else {
@@ -1750,20 +1766,29 @@
                         </td>`;
 
             if (apartmentFilter === 'all' || apartmentFilter === 'apt1') {
+                const netApt1 = totalRevenueApt1 - totalCommissionApt1;
                 html += `<td class="text-center text-primary">
                     <div class="fw-bold">${Math.round(totalRevenueApt1).toLocaleString('vi-VN')}đ</div>
+                    ${totalCommissionApt1 > 0 ? `<div class="text-danger" style="font-size: 0.85rem;">-${Math.round(totalCommissionApt1).toLocaleString('vi-VN')}đ HH</div>` : ''}
+                    ${totalCommissionApt1 > 0 ? `<div class="text-success" style="font-size: 0.9rem;">=${Math.round(netApt1).toLocaleString('vi-VN')}đ</div>` : ''}
                 </td>`;
             }
 
             if (apartmentFilter === 'all' || apartmentFilter === 'apt2') {
+                const netApt2 = totalRevenueApt2 - totalCommissionApt2;
                 html += `<td class="text-center text-success">
                     <div class="fw-bold">${Math.round(totalRevenueApt2).toLocaleString('vi-VN')}đ</div>
+                    ${totalCommissionApt2 > 0 ? `<div class="text-danger" style="font-size: 0.85rem;">-${Math.round(totalCommissionApt2).toLocaleString('vi-VN')}đ HH</div>` : ''}
+                    ${totalCommissionApt2 > 0 ? `<div class="text-success" style="font-size: 0.9rem;">=${Math.round(netApt2).toLocaleString('vi-VN')}đ</div>` : ''}
                 </td>`;
             }
 
             if (apartmentFilter === 'all') {
+                const netAll = totalRevenueAll - totalCommissionAll;
                 html += `<td class="text-center text-warning">
                     <div class="fw-bold">${Math.round(totalRevenueAll).toLocaleString('vi-VN')}đ</div>
+                    ${totalCommissionAll > 0 ? `<div class="text-danger" style="font-size: 0.85rem;">-${Math.round(totalCommissionAll).toLocaleString('vi-VN')}đ HH</div>` : ''}
+                    ${totalCommissionAll > 0 ? `<div class="text-success" style="font-size: 0.9rem;">=${Math.round(netAll).toLocaleString('vi-VN')}đ</div>` : ''}
                 </td>`;
             }
 
