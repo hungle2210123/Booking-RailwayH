@@ -1,0 +1,52 @@
+name: Railway Deploy Check
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Check Python syntax
+        run: |
+          python -m py_compile app.py
+          python -m py_compile run.py
+          echo "✅ Python syntax check passed"
+
+      - name: Validate Dockerfile
+        run: |
+          if [ -f "Dockerfile" ]; then
+            echo "✅ Dockerfile exists"
+          else
+            echo "❌ Dockerfile missing"
+            exit 1
+          fi
+
+      - name: Check critical files
+        run: |
+          echo "Checking critical files..."
+          test -f app.py && echo "✅ app.py exists" || exit 1
+          test -f run.py && echo "✅ run.py exists" || exit 1
+          test -f backup_routes.py && echo "✅ backup_routes.py exists" || exit 1
+          test -f production_booking_extractor.py && echo "✅ production_booking_extractor.py exists" || exit 1
+          test -f requirements.txt && echo "✅ requirements.txt exists" || exit 1
+          echo "✅ All critical files present"
+
+      - name: All checks passed
+        run: |
+          echo "🎉 All validation checks passed!"
+          echo "✅ Ready for Railway deployment"
