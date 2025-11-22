@@ -4736,17 +4736,20 @@ function updateCollectedAmountDisplay(bookingId, collectedAmount, collectorName,
         collectedAmount, collectorName, totalAmount
     });
 
-    // Find the guest row in the overdue table
-    const overdueTable = document.querySelector('.table-responsive table tbody');
-    if (!overdueTable) {
-        console.warn('⚠️ Overdue table not found');
+    // 🔍 ENHANCED: Search in ALL tables (overdue, unchecked-in, main booking table)
+    const allTables = document.querySelectorAll('.table-responsive table tbody, #uncheckedInGuestsList .list-group, table tbody');
+    if (!allTables || allTables.length === 0) {
+        console.warn('⚠️ No tables found');
         return;
     }
 
-    const rows = overdueTable.querySelectorAll('tr');
     let foundRow = false;
 
-    rows.forEach(row => {
+    // Iterate through all tables to find the booking
+    allTables.forEach(tableBody => {
+        const rows = tableBody.querySelectorAll('tr, .list-group-item');
+
+        rows.forEach(row => {
         // Find booking ID in the row - check ALL .text-muted elements
         const textMutedElements = row.querySelectorAll('.text-muted');
         let hasBookingId = false;
@@ -4856,10 +4859,12 @@ function updateCollectedAmountDisplay(bookingId, collectedAmount, collectorName,
 
             console.log(`✅ Updated collected display: ${collectedAmount}đ collected, ${remaining}đ remaining`);
         }
-    });
+        }); // End row forEach
+    }); // End table forEach
 
     if (!foundRow) {
-        console.warn(`⚠️ Booking ${bookingId} not found in overdue table`);
+        console.warn(`⚠️ Booking ${bookingId} not found in ANY table - may have been moved/reloaded`);
+        console.log('💡 Table will reload in 1 second to show updated data');
     }
 
     // Update overdue total
