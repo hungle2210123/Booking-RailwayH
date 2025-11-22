@@ -4750,15 +4750,39 @@ function updateCollectedAmountDisplay(bookingId, collectedAmount, collectorName,
         const rows = tableBody.querySelectorAll('tr, .list-group-item');
 
         rows.forEach(row => {
-        // Find booking ID in the row - check ALL .text-muted elements
-        const textMutedElements = row.querySelectorAll('.text-muted');
+        // 🔍 ENHANCED: Search for booking ID in multiple ways
         let hasBookingId = false;
 
-        textMutedElements.forEach(el => {
-            if (el.textContent.includes(bookingId)) {
-                hasBookingId = true;
-            }
-        });
+        // Method 1: Check data-booking-id attribute (most reliable)
+        if (row.getAttribute('data-booking-id') === bookingId.toString()) {
+            hasBookingId = true;
+            console.log(`✅ Found booking via data-booking-id attribute: ${bookingId}`);
+        }
+
+        // Method 2: Check text content with "ID: " prefix
+        if (!hasBookingId) {
+            const textMutedElements = row.querySelectorAll('.text-muted, small');
+            textMutedElements.forEach(el => {
+                const text = el.textContent;
+                // Match "ID: 6793368934" or just "6793368934"
+                if (text.includes(`ID: ${bookingId}`) || text.includes(bookingId)) {
+                    hasBookingId = true;
+                    console.log(`✅ Found booking via text content: ${text.trim()}`);
+                }
+            });
+        }
+
+        // Method 3: Check button onclick attributes
+        if (!hasBookingId) {
+            const buttons = row.querySelectorAll('button[onclick]');
+            buttons.forEach(btn => {
+                const onclick = btn.getAttribute('onclick');
+                if (onclick && onclick.includes(bookingId)) {
+                    hasBookingId = true;
+                    console.log(`✅ Found booking via button onclick: ${bookingId}`);
+                }
+            });
+        }
 
         if (hasBookingId) {
             foundRow = true;
