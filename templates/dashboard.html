@@ -1123,25 +1123,51 @@
                             <td class="py-1 px-2">
                                 <div class="fw-bold text-dark small">{{ guest.get('Tên người đặt', 'N/A') }}</div>
                                 <div class="text-muted" style="font-size: 11px;">
-                                    {% if guest.get('Check-in Date') %}
-                                        {% set checkin_date = guest['Check-in Date'] %}
-                                        {% if checkin_date is string %}
-                                            {% if checkin_date and checkin_date != '' %}
-                                                {% if checkin_date|length >= 10 %}
-                                                    {{ checkin_date[8:10] + '/' + checkin_date[5:7] }}
+                                    <!-- Check-out Date (Primary) -->
+                                    <div>
+                                        <i class="fas fa-sign-out-alt me-1"></i>
+                                        {% if guest.get('Check-out Date') %}
+                                            {% set checkout_date = guest['Check-out Date'] %}
+                                            {% if checkout_date is string %}
+                                                {% if checkout_date and checkout_date != '' %}
+                                                    {% if checkout_date|length >= 10 %}
+                                                        <span class="fw-bold">{{ checkout_date[8:10] + '/' + checkout_date[5:7] }}</span>
+                                                    {% else %}
+                                                        <span class="fw-bold">{{ checkout_date }}</span>
+                                                    {% endif %}
                                                 {% else %}
-                                                    {{ checkin_date }}
+                                                    N/A
                                                 {% endif %}
                                             {% else %}
-                                                N/A
+                                                <span class="fw-bold">{{ checkout_date.strftime('%d/%m') if checkout_date else 'N/A' }}</span>
                                             {% endif %}
                                         {% else %}
-                                            {{ checkin_date.strftime('%d/%m') if checkin_date else 'N/A' }}
+                                            N/A
                                         {% endif %}
-                                    {% else %}
-                                        N/A
-                                    {% endif %}
-                                    <span class="badge bg-danger ms-1 px-1" style="font-size: 9px;">{{ guest.get('days_overdue', 0) }}d</span>
+                                        <span class="badge bg-danger ms-1 px-1" style="font-size: 9px;">{{ guest.get('days_overdue', 0) }}d</span>
+                                    </div>
+                                    <!-- Check-in Date (Secondary) -->
+                                    <div class="opacity-75">
+                                        <i class="fas fa-sign-in-alt me-1"></i>
+                                        {% if guest.get('Check-in Date') %}
+                                            {% set checkin_date = guest['Check-in Date'] %}
+                                            {% if checkin_date is string %}
+                                                {% if checkin_date and checkin_date != '' %}
+                                                    {% if checkin_date|length >= 10 %}
+                                                        {{ checkin_date[8:10] + '/' + checkin_date[5:7] }}
+                                                    {% else %}
+                                                        {{ checkin_date }}
+                                                    {% endif %}
+                                                {% else %}
+                                                    N/A
+                                                {% endif %}
+                                            {% else %}
+                                                {{ checkin_date.strftime('%d/%m') if checkin_date else 'N/A' }}
+                                            {% endif %}
+                                        {% else %}
+                                            N/A
+                                        {% endif %}
+                                    </div>
                                 </div>
                             </td>
                             <td class="py-1 px-2 text-end">

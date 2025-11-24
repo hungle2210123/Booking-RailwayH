@@ -114,7 +114,18 @@
       "Bash(PGPASSWORD=VmyAveAhkGVOFlSiVBWgyIEAUbKAXEPi psql -h mainline.proxy.rlwy.net -p 36647 -U postgres -d railway -c \"SELECT b.booking_id, b.guest_name, b.room_name, r.room_id, r.apartment_id FROM bookings b LEFT JOIN rooms r ON LOWER(b.room_name) = LOWER(r.room_name) WHERE r.apartment_id = 2 AND b.booking_status = ''OK'' AND b.checkin_date >= ''2025-10-01'' LIMIT 5;\")",
       "Bash(PGPASSWORD=VmyAveAhkGVOFlSiVBWgyIEAUbKAXEPi psql -h mainline.proxy.rlwy.net -p 36647 -U postgres -d railway -c \"\\d bookings\")",
       "Bash(export PGPASSWORD=VmyAveAhkGVOFlSiVBWgyIEAUbKAXEPi)",
-      "Read(//mnt/c/Users/T14/Desktop/**)"
+      "Read(//mnt/c/Users/T14/Desktop/**)",
+      "Bash(PGPASSWORD=VmyAveAhkGVOFlSiVBWgyIEAUbKAXEPi psql -h mainline.proxy.rlwy.net -p 36647 -U postgres -d railway -c \"SELECT booking_id, guest_name, room_name, checkin_date, checkout_date, room_amount, booking_status FROM bookings WHERE checkin_date <= ''2025-11-01'' AND checkout_date > ''2025-11-01'' AND booking_status = ''OK'' ORDER BY checkin_date;\")",
+      "Bash(PGPASSWORD=VmyAveAhkGVOFlSiVBWgyIEAUbKAXEPi psql -h mainline.proxy.rlwy.net -p 36647 -U postgres -d railway -c \"SELECT booking_id, guest_name, room_name, checkin_date, checkout_date, booking_status FROM bookings WHERE guest_name LIKE ''%Mỹ le Tran%'' OR guest_name LIKE ''%My le Tran%'' ORDER BY booking_id DESC LIMIT 5;\")",
+      "Bash(export DATABASE_PUBLIC_URL=\"postgresql://postgres:VmyAveAhkGVOFlSiVBWgyIEAUbKAXEPi@mainline.proxy.rlwy.net:36647/railway\")",
+      "Bash(git restore:*)",
+      "Bash(git mv:*)",
+      "Bash(xargs:*)",
+      "WebSearch",
+      "Bash(git fetch:*)",
+      "Bash(then echo \"✅ Local and GitHub are IDENTICAL - everything is pushed!\")",
+      "Bash(else echo \"❌ Local and GitHub differ\")",
+      "Bash(fi)"
     ],
     "deny": []
   },

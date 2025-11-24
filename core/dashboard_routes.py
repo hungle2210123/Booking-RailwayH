@@ -352,9 +352,18 @@ def process_overdue_guests(df):
             checkin_dates = overdue_df['Check-in Date'].dt.date
             days_overdue_list = [(today - date).days if date else 0 for date in checkin_dates]
             overdue_df['days_overdue'] = [max(0, days) for days in days_overdue_list]
-            
-            # Calculate total amount including taxi fees
-            overdue_df = overdue_df.sort_values('days_overdue', ascending=False)
+
+            # ✨ ENHANCED: Sort by checkout date (soonest first) for better priority
+            # Convert checkout date to datetime for proper sorting
+            if 'Check-out Date' in overdue_df.columns:
+                overdue_df['Check-out Date'] = pd.to_datetime(overdue_df['Check-out Date'], errors='coerce', dayfirst=True)
+                # Sort by checkout date (ascending = soonest checkout first)
+                overdue_df = overdue_df.sort_values('Check-out Date', ascending=True, na_position='last')
+                print(f"🔍 [OVERDUE] Sorted by checkout date (soonest first)")
+            else:
+                # Fallback to sorting by days_overdue if checkout date not available
+                overdue_df = overdue_df.sort_values('days_overdue', ascending=False)
+                print(f"🔍 [OVERDUE] Checkout date not found, sorted by days_overdue instead")
             
             # Calculate room fees
             room_total = 0
