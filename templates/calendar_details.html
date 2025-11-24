@@ -2897,18 +2897,29 @@ async function openQuickEditModal(bookingId) {
             // Set room type - match against all possible values
             const roomType = booking.accommodation_name || booking.room_name || '';
             const roomSelect = document.getElementById('edit_room_type');
-            const roomLower = roomType.toLowerCase();
+            const roomLower = roomType.toLowerCase().trim();
 
-            if (roomLower.includes('118 hang bac') || roomLower === '118 hang bac hostel') {
+            console.log(`🏠 [QUICK_EDIT] Room type from API: "${roomType}" (lowercase: "${roomLower}")`);
+
+            // Enhanced matching with comprehensive patterns
+            if (roomLower.includes('118 hang bac') || roomLower === '118 hang bac hostel' || roomLower === '118') {
                 roomSelect.value = '118 hang bac';
-            } else if (roomLower === 'kitchen' || roomLower.includes('kitchen & balcony')) {
+                console.log('✅ Matched: 118 hang bac');
+            } else if (roomLower.includes('kitchen') || roomLower.includes('balcony')) {
                 roomSelect.value = 'kitchen';
-            } else if (roomLower.includes('night market')) {
+                console.log('✅ Matched: kitchen');
+            } else if (roomLower.includes('night market') || roomLower.includes('nightmarket')) {
                 roomSelect.value = 'night market';
-            } else if (roomLower.includes('hang be 101')) {
+                console.log('✅ Matched: night market');
+            } else if (roomLower.includes('hang be 101') || roomLower.includes('hangbe 101') || roomLower === '101') {
                 roomSelect.value = 'hang be 101';
-            } else if (roomLower.includes('hang be 102')) {
+                console.log('✅ Matched: hang be 101');
+            } else if (roomLower.includes('hang be 102') || roomLower.includes('hangbe 102') || roomLower === '102') {
                 roomSelect.value = 'hang be 102';
+                console.log('✅ Matched: hang be 102');
+            } else {
+                console.warn(`⚠️ No match found for room type: "${roomType}", defaulting to 118 hang bac`);
+                roomSelect.value = '118 hang bac';  // Default fallback
             }
 
             // Show modal

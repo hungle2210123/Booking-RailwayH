@@ -3455,7 +3455,9 @@ def get_booking_details(booking_id):
                 'checkin_date': booking['Check-in Date'].strftime('%Y-%m-%d') if pd.notnull(booking['Check-in Date']) else '',
                 'checkout_date': booking['Check-out Date'].strftime('%Y-%m-%d') if pd.notnull(booking['Check-out Date']) else '',
                 'room_amount': float(booking.get('Tổng thanh toán', 0)),
-                'commission': float(booking.get('Hoa hồng', 0))
+                'commission': float(booking.get('Hoa hồng', 0)),
+                'accommodation_name': booking.get('Tên chỗ nghỉ', '118 Hang Bac Hostel'),  # Room type field
+                'room_name': booking.get('Tên chỗ nghỉ', '118 Hang Bac Hostel')  # Alias for compatibility
             }
         })
     except Exception as e:
