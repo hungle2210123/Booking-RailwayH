@@ -1851,6 +1851,27 @@
         }
 
         // Show daily guest details modal
+        // 🎨 Helper function: Get room type symbol based on apartment and room name
+        function getRoomSymbol(apartmentId, roomName) {
+            // 18 Hang Be (Green apartment - apartment_id = 2) uses SQUARES
+            if (apartmentId === 2) {
+                const roomLower = (roomName || '').toLowerCase();
+                if (roomLower.includes('101')) return '■'; // Large filled square for 101
+                if (roomLower.includes('102')) return '▪'; // Small filled square for 102
+                return '■'; // Default square for Hang Be
+            }
+
+            // 118 Hang Bac (Blue apartment - apartment_id = 1) uses CIRCLES
+            if (apartmentId === 1) {
+                const roomLower = (roomName || '').toLowerCase();
+                if (roomLower.includes('kitchen') || roomLower.includes('bếp')) return '◐'; // Half-circle for Kitchen
+                if (roomLower.includes('night market') || roomLower.includes('chợ đêm')) return '◕'; // Circle with dot for Night Market
+                return '●'; // Full circle for Standard rooms
+            }
+
+            return '●'; // Default circle
+        }
+
         window.showDailyGuestDetails = function(dateStr, formattedDate) {
             console.log(`🔍 Opening guest details for ${dateStr}`);
 
@@ -1928,14 +1949,17 @@
                             ? '<span class="badge bg-success">Đã thu</span>'
                             : '<span class="badge bg-warning text-dark">Chưa thu</span>';
 
+                        // 🎨 Get room symbol
+                        const roomSymbol = getRoomSymbol(guest.apartment_id, guest.room_name);
+
                         tableHTML += `
                             <tr>
                                 <td>
-                                    <div class="fw-bold">${guest.guest_name}</div>
+                                    <div class="fw-bold">${roomSymbol} ${guest.guest_name}</div>
                                     <small class="text-muted">ID: ${guest.booking_id}</small>
                                 </td>
                                 <td>
-                                    <span class="${apartmentColor} fw-bold">${guest.room_name}</span>
+                                    <span class="${apartmentColor} fw-bold">${roomSymbol} ${guest.room_name}</span>
                                     <br><small class="text-muted">${guest.apartment_name}</small>
                                 </td>
                                 <td><small>${guest.checkin_date}</small></td>
@@ -1968,14 +1992,17 @@
                             ? '<span class="badge bg-success">Đã thu</span>'
                             : '<span class="badge bg-warning text-dark">Chưa thu</span>';
 
+                        // 🎨 Get room symbol
+                        const roomSymbol = getRoomSymbol(guest.apartment_id, guest.room_name);
+
                         tableHTML += `
                             <tr>
                                 <td>
-                                    <div class="fw-bold">${guest.guest_name}</div>
+                                    <div class="fw-bold">${roomSymbol} ${guest.guest_name}</div>
                                     <small class="text-muted">ID: ${guest.booking_id}</small>
                                 </td>
                                 <td>
-                                    <span class="${apartmentColor} fw-bold">${guest.room_name}</span>
+                                    <span class="${apartmentColor} fw-bold">${roomSymbol} ${guest.room_name}</span>
                                     <br><small class="text-muted">${guest.apartment_name}</small>
                                 </td>
                                 <td><small>${guest.checkin_date}</small></td>
@@ -2548,16 +2575,32 @@
                         </div>
                     </div>
 
-                    <!-- Section Header -->
-                    <div class="d-flex justify-content-between align-items-center mb-3">
-                        <h6 class="mb-0">
-                            <i class="fas fa-calendar-alt me-2 text-primary"></i>
-                            Lịch Công Suất Hàng Ngày
-                        </h6>
-                        <span class="badge bg-light text-dark border">
-                            <i class="fas fa-info-circle me-1"></i>
-                            Hiển thị số khách mỗi ngày
-                        </span>
+                    <!-- Section Header with Room Symbol Legend -->
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <h6 class="mb-0">
+                                <i class="fas fa-calendar-alt me-2 text-primary"></i>
+                                Lịch Công Suất Hàng Ngày
+                            </h6>
+                            <span class="badge bg-light text-dark border">
+                                <i class="fas fa-info-circle me-1"></i>
+                                Click ngày để xem chi tiết
+                            </span>
+                        </div>
+
+                        <!-- 🎨 Room Symbol Legend -->
+                        <div class="alert alert-info border-0 mb-0 py-2" style="background: linear-gradient(to right, #d1ecf1, #bee5eb);">
+                            <div class="row small">
+                                <div class="col-md-6">
+                                    <strong class="text-primary">🔵 118 Hang Bac:</strong>
+                                    <span class="ms-2">● Standard • ◐ Kitchen • ◕ Night Market</span>
+                                </div>
+                                <div class="col-md-6">
+                                    <strong class="text-success">🟢 18 Hang Be:</strong>
+                                    <span class="ms-2">■ Room 101 • ▪ Room 102</span>
+                                </div>
+                            </div>
+                        </div>
                     </div>
 
                     <!-- Daily Occupancy Calendar -->
@@ -3176,6 +3219,35 @@
                             <div class="card-body p-2 text-center">
                                 <small class="text-muted d-block">TB/Khách</small>
                                 <h4 class="mb-0 text-info" id="modalAvgPerGuest">0đ</h4>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 🎨 Room Type Symbol Legend -->
+                <div class="alert alert-light border mb-3" style="background: linear-gradient(to right, #f8f9fa, #e9ecef);">
+                    <h6 class="mb-2">
+                        <i class="fas fa-info-circle me-2 text-primary"></i>
+                        <strong>Ký Hiệu Phòng</strong>
+                    </h6>
+                    <div class="row small">
+                        <div class="col-md-6">
+                            <div class="mb-1">
+                                <span class="text-primary fw-bold">🔵 118 Hang Bac (Circles):</span>
+                            </div>
+                            <div class="ms-3">
+                                <div>● Standard Room</div>
+                                <div>◐ Kitchen Room</div>
+                                <div>◕ Night Market Room</div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-1">
+                                <span class="text-success fw-bold">🟢 18 Hang Be (Squares):</span>
+                            </div>
+                            <div class="ms-3">
+                                <div>■ Room 101</div>
+                                <div>▪ Room 102</div>
                             </div>
                         </div>
                     </div>
