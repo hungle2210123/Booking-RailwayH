@@ -196,6 +196,23 @@ cache = init_cache(app)
 print("✅ Flask-Caching initialized with 30s TTL")
 
 # ==============================================================================
+# CACHE CONTROL FOR TEMPLATES
+# ==============================================================================
+
+@app.after_request
+def add_header(response):
+    """
+    Add cache control headers to prevent browser caching of HTML templates.
+    This ensures users always see the latest version after deployment.
+    Static files (CSS, JS, images) can still be cached via /static route.
+    """
+    if response.content_type and 'text/html' in response.content_type:
+        response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, post-check=0, pre-check=0, max-age=0'
+        response.headers['Pragma'] = 'no-cache'
+        response.headers['Expires'] = '-1'
+    return response
+
+# ==============================================================================
 # HELPER FUNCTIONS
 # ==============================================================================
 
