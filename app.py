@@ -3307,17 +3307,15 @@ def calendar_view(year=None, month=None):
                 'total_commission': day_info.get('commission_total', 0)
             })()
 
-        # Calculate high-value guests for this date
-        staying_bookings = df[
-            (pd.to_datetime(df['Check-in Date']).dt.date <= date_obj) &
-            (pd.to_datetime(df['Check-out Date']).dt.date > date_obj) &
+        # Calculate high-value guests for this date (ONLY ON CHECK-IN DATE)
+        checkin_bookings = df[
+            (pd.to_datetime(df['Check-in Date']).dt.date == date_obj) &
             (df['Tình trạng'] != 'Đã hủy')
         ]
 
         high_value_count_today = 0
-        price_adjust_count_today = 0
 
-        for _, booking in staying_bookings.iterrows():
+        for _, booking in checkin_bookings.iterrows():
             room_amount = booking.get('Tổng thanh toán', 0) or 0
             checkin = pd.to_datetime(booking.get('Check-in Date'))
             checkout = pd.to_datetime(booking.get('Check-out Date'))
@@ -3326,17 +3324,11 @@ def calendar_view(year=None, month=None):
 
             per_night_rate = room_amount / nights
 
-            # Check for high-value guest (>550k/night)
+            # Check for high-value guest (>550k/night) - ONLY counted on check-in date
             if per_night_rate > 550000:
                 high_value_count_today += 1
                 high_value_total_count += 1
                 high_value_total_revenue += per_night_rate
-
-#             # Check for price adjustment (Giá điều chỉnh field exists and is not empty)
-#             price_adjust = booking.get('Giá điều chỉnh', '')
-#             if price_adjust and str(price_adjust).strip() and str(price_adjust).strip().lower() != 'nan':
-#                 price_adjust_count_today += 1
-#                 price_adjustment_count += 1
 
         if high_value_count_today > 0:
             high_value_dates[date_obj] = high_value_count_today
