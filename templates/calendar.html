@@ -21,9 +21,9 @@
                 </a>
             </div>
 
-            <!-- Legend -->
+            <!-- Legend with Room Symbols -->
             <div class="d-flex justify-content-center mb-3">
-                <div class="legend d-flex gap-3 flex-wrap">
+                <div class="legend d-flex gap-3 flex-wrap justify-content-center">
                     <span class="legend-item">
                         <span class="legend-color bg-danger"></span> Hết phòng
                     </span>
@@ -34,22 +34,22 @@
                         <span class="legend-color bg-warning"></span> Trống
                     </span>
                     <span class="legend-item">
-                        <span class="legend-color bg-light border"></span> Không có dữ liệu
-                    </span>
-                    <span class="legend-item">
                         <span style="display: inline-block; width: 8px; height: 8px; background-color: #28a745; border-radius: 50%; margin-right: 4px;"></span> Check-in
                     </span>
                     <span class="legend-item">
                         <span style="display: inline-block; width: 8px; height: 8px; background-color: #dc3545; border-radius: 50%; margin-right: 4px;"></span> Check-out
                     </span>
-                    <span class="legend-item">
-                        <span style="display: inline-block; width: 8px; height: 8px; background-color: #fd7e14; border-radius: 50%; margin-right: 4px;"></span> Khách đã hủy
+                    <span class="legend-item" title="Khách ở 1 đêm">
+                        <span style="display: inline-block; background: #FFF3CD; padding: 2px 6px; border-radius: 3px; color: #856404; font-weight: 600; margin-right: 4px;">🌙1</span> Ở 1 đêm
                     </span>
                     <span class="legend-item">
-                        <span style="display: inline-block; background: #A5D6A7; padding: 2px 8px; border-radius: 3px; color: #1B5E20; font-size: 0.8rem; font-weight: 600; margin-right: 4px;">101</span> Hang Be 101
+                        <span style="display: inline-block; background: #A5D6A7; padding: 2px 8px; border-radius: 3px; color: #1B5E20; font-size: 0.8rem; font-weight: 600; margin-right: 4px;">■ 101</span> Hang Be 101
                     </span>
                     <span class="legend-item">
-                        <span style="display: inline-block; background: #80CBC4; padding: 2px 8px; border-radius: 3px; color: #004D40; font-size: 0.8rem; font-weight: 600; margin-right: 4px;">102</span> Hang Be 102
+                        <span style="display: inline-block; background: #80CBC4; padding: 2px 8px; border-radius: 3px; color: #004D40; font-size: 0.8rem; font-weight: 600; margin-right: 4px;">▪ 102</span> Hang Be 102
+                    </span>
+                    <span class="legend-item">
+                        <strong style="margin-right: 4px;">🔵 Hang Bac:</strong> ● Standard • ◐ Kitchen • ◕ Night Market
                     </span>
                 </div>
             </div>
@@ -234,19 +234,31 @@
                                                     </div>
                                                 {% endif %}
                                                 
-                                                <!-- Check-in/Check-out Indicators -->
-                                                {% if info and (info.arrivals_count > 0 or info.departures_count > 0) %}
-                                                <div class="checkin-checkout-indicators" style="margin-top: 4px; margin-bottom: 4px;">
+                                                <!-- Check-in/Check-out Indicators with Room Symbols -->
+                                                {% if info and (info.arrivals_count > 0 or info.departures_count > 0 or info.activity.one_night_count > 0) %}
+                                                <div class="checkin-checkout-indicators" style="margin-top: 4px; margin-bottom: 4px; display: flex; flex-wrap: wrap; gap: 4px; justify-content: center;">
                                                     {% if info.arrivals_count > 0 %}
-                                                        <span class="checkin-indicator" style="display: inline-block; margin-right: 4px;" title="{{ info.arrivals_count }} khách check-in">
-                                                            <span style="display: inline-block; width: 8px; height: 8px; background-color: #28a745; border-radius: 50%; margin-right: 2px;"></span>
+                                                        <span class="checkin-indicator" style="display: inline-flex; align-items: center; gap: 2px;" title="{{ info.arrivals_count }} khách check-in{% if info.activity.arrivals_symbols %} - {% for room, symbol in info.activity.arrivals_symbols.items() %}{{ symbol }} {{ room }}{% if not loop.last %}, {% endif %}{% endfor %}{% endif %}">
+                                                            <span style="display: inline-block; width: 8px; height: 8px; background-color: #28a745; border-radius: 50%;"></span>
+                                                            {% if info.activity.arrivals_symbols %}
+                                                                <small style="font-size: 0.65rem; color: #28a745; font-weight: bold;">
+                                                                    {% for room, symbol in info.activity.arrivals_symbols.items() %}
+                                                                        {{ symbol }}
+                                                                    {% endfor %}
+                                                                </small>
+                                                            {% endif %}
                                                             <small style="font-size: 0.6rem; color: #28a745; font-weight: bold;">{{ info.arrivals_count }}</small>
                                                         </span>
                                                     {% endif %}
                                                     {% if info.departures_count > 0 %}
-                                                        <span class="checkout-indicator" style="display: inline-block;" title="{{ info.departures_count }} khách check-out">
-                                                            <span style="display: inline-block; width: 8px; height: 8px; background-color: #dc3545; border-radius: 50%; margin-right: 2px;"></span>
+                                                        <span class="checkout-indicator" style="display: inline-flex; align-items: center; gap: 2px;" title="{{ info.departures_count }} khách check-out">
+                                                            <span style="display: inline-block; width: 8px; height: 8px; background-color: #dc3545; border-radius: 50%;"></span>
                                                             <small style="font-size: 0.6rem; color: #dc3545; font-weight: bold;">{{ info.departures_count }}</small>
+                                                        </span>
+                                                    {% endif %}
+                                                    {% if info.activity.one_night_count > 0 %}
+                                                        <span class="one-night-indicator" style="display: inline-flex; align-items: center; gap: 2px; background: #FFF3CD; padding: 1px 4px; border-radius: 3px;" title="{{ info.activity.one_night_count }} khách ở 1 đêm">
+                                                            <small style="font-size: 0.6rem; color: #856404; font-weight: bold;">🌙{{ info.activity.one_night_count }}</small>
                                                         </span>
                                                     {% endif %}
                                                 </div>

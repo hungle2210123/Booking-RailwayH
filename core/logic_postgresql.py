@@ -656,30 +656,61 @@ def delete_booking_by_id(booking_id: str) -> bool:
 # DATA ANALYSIS FUNCTIONS
 # ==============================================================================
 
+def get_room_symbol_by_name(room_name: str) -> str:
+    """Get room symbol based on room name (calendar view helper)"""
+    if not room_name:
+        return '●'
+
+    room_lower = room_name.lower()
+
+    # 18 Hang Be (Green apartment - apartment_id = 2) uses SQUARES
+    if 'hang be' in room_lower or 'hàng bè' in room_lower:
+        if '101' in room_lower:
+            return '■'  # Large filled square for 101
+        elif '102' in room_lower:
+            return '▪'  # Small filled square for 102
+        return '■'  # Default square for Hang Be
+
+    # 118 Hang Bac (Blue apartment - apartment_id = 1) uses CIRCLES
+    if 'hang bac' in room_lower or 'hàng bạc' in room_lower or 'hang bạc' in room_lower:
+        if 'kitchen' in room_lower or 'bếp' in room_lower:
+            return '◐'  # Half-circle for Kitchen
+        elif 'night market' in room_lower or 'chợ đêm' in room_lower:
+            return '◕'  # Circle with dot for Night Market
+        return '●'  # Full circle for Standard rooms
+
+    return '●'  # Default circle
+
 def get_daily_activity(df: pd.DataFrame, target_date: datetime.date) -> Dict[str, Any]:
-    """Get daily activity for a specific date"""
+    """Get daily activity for a specific date with room symbols and one-night stay flags"""
     if df.empty:
-        return {'arrivals': [], 'departures': [], 'staying': []}
-    
+        return {
+            'arrivals': [],
+            'departures': [],
+            'staying': [],
+            'arrivals_symbols': {},
+            'one_night_count': 0
+        }
+
     # Filter by date - ensure dates are properly converted
     arrivals = pd.DataFrame()
     departures = pd.DataFrame()
     staying = pd.DataFrame()
-    
+
     if 'Check-in Date' in df.columns:
         df_checkin = pd.to_datetime(df['Check-in Date'])
         arrivals = df[
-            (df_checkin.dt.date == target_date) & 
+            (df_checkin.dt.date == target_date) &
             (df['Tình trạng'] != 'Đã hủy')  # Exclude cancelled bookings
         ]
-    
+
     if 'Check-out Date' in df.columns:
         df_checkout = pd.to_datetime(df['Check-out Date'])
         departures = df[
-            (df_checkout.dt.date == target_date) & 
+            (df_checkout.dt.date == target_date) &
             (df['Tình trạng'] != 'Đã hủy')  # Exclude cancelled bookings
         ]
-    
+
     # Guests staying (checked in BEFORE date, checking out after date)
     # FIXED: Exclude guests checking in on the same day to prevent double counting
     if all(col in df.columns for col in ['Check-in Date', 'Check-out Date', 'Tình trạng']):
@@ -690,11 +721,30 @@ def get_daily_activity(df: pd.DataFrame, target_date: datetime.date) -> Dict[str
             (df_checkout.dt.date > target_date) &
             (df['Tình trạng'] != 'Đã hủy')  # Exclude cancelled bookings (more inclusive than just 'OK')
         ]
-    
+
+    # 🎨 Calculate room symbols for arrivals
+    arrivals_symbols = {}
+    one_night_count = 0
+
+    for _, booking in arrivals.iterrows():
+        room_name = booking.get('Tên chỗ nghỉ', '')
+        symbol = get_room_symbol_by_name(room_name)
+        arrivals_symbols[room_name] = symbol
+
+        # Count one-night stays
+        checkin = pd.to_datetime(booking.get('Check-in Date'))
+        checkout = pd.to_datetime(booking.get('Check-out Date'))
+        if checkin and checkout:
+            nights = (checkout - checkin).days
+            if nights == 1:
+                one_night_count += 1
+
     return {
         'arrivals': arrivals.to_dict('records') if not arrivals.empty else [],
         'departures': departures.to_dict('records') if not departures.empty else [],
-        'staying': staying.to_dict('records') if not staying.empty else []
+        'staying': staying.to_dict('records') if not staying.empty else [],
+        'arrivals_symbols': arrivals_symbols,
+        'one_night_count': one_night_count
     }
 
 def get_overall_calendar_day_info(df: pd.DataFrame, target_date: str, total_capacity: int = 6) -> Dict[str, Any]:
