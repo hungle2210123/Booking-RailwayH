@@ -3272,14 +3272,21 @@ def calendar_view(year=None, month=None):
     # Generate revenue by date using optimized daily revenue calculation
     from core.dashboard_routes import get_daily_revenue_by_stay
     daily_revenue_data = get_daily_revenue_by_stay(df)
-    
+
     print(f"🔍 [CALENDAR_DEBUG] Daily revenue data keys: {list(daily_revenue_data.keys())}")
-    
+
+    # Track high-value guests (>550,000đ/night) and price adjustments
+    high_value_dates = {}  # {date: count of high-value guests}
+    price_adjustment_dates = {}  # {date: count of price adjustments}
+    high_value_total_count = 0
+    high_value_total_revenue = 0
+    price_adjustment_count = 0
+
     revenue_by_date = {}
     for day in range(1, num_days + 1):
         date_str = f"{year}-{month:02d}-{day:02d}"
         date_obj = datetime.strptime(date_str, "%Y-%m-%d").date()
-        
+
         # Use optimized daily revenue data if available, fallback to calendar info
         if date_obj in daily_revenue_data:
             revenue_info = daily_revenue_data[date_obj]
@@ -3299,6 +3306,43 @@ def calendar_view(year=None, month=None):
                 'daily_total_minus_commission': day_info.get('revenue_minus_commission', 0),
                 'total_commission': day_info.get('commission_total', 0)
             })()
+
+        # Calculate high-value guests for this date
+        staying_bookings = df[
+            (pd.to_datetime(df['Check-in Date']).dt.date <= date_obj) &
+            (pd.to_datetime(df['Check-out Date']).dt.date > date_obj) &
+            (df['Tình trạng'] != 'Đã hủy')
+        ]
+
+        high_value_count_today = 0
+        price_adjust_count_today = 0
+
+        for _, booking in staying_bookings.iterrows():
+            room_amount = booking.get('Tổng tiền', 0) or 0
+            checkin = pd.to_datetime(booking.get('Check-in Date'))
+            checkout = pd.to_datetime(booking.get('Check-out Date'))
+            nights = (checkout - checkin).days if checkin and checkout else 1
+            nights = max(nights, 1)  # Avoid division by zero
+
+            per_night_rate = room_amount / nights
+
+            # Check for high-value guest (>550k/night)
+            if per_night_rate > 550000:
+                high_value_count_today += 1
+                high_value_total_count += 1
+                high_value_total_revenue += per_night_rate
+
+            # Check for price adjustment (Giá điều chỉnh field exists and is not empty)
+            price_adjust = booking.get('Giá điều chỉnh', '')
+            if price_adjust and str(price_adjust).strip() and str(price_adjust).strip().lower() != 'nan':
+                price_adjust_count_today += 1
+                price_adjustment_count += 1
+
+        if high_value_count_today > 0:
+            high_value_dates[date_obj] = high_value_count_today
+
+        if price_adjust_count_today > 0:
+            price_adjustment_dates[date_obj] = price_adjust_count_today
     
     # Calculate previous and next month for navigation
     current_month = datetime(year, month, 1)
@@ -3323,7 +3367,12 @@ def calendar_view(year=None, month=None):
         prev_month=prev_month,
         next_month=next_month,
         today=datetime.today().date(),  # Add today for template comparisons
-        revenue_by_date=revenue_by_date  # Add revenue data for template
+        revenue_by_date=revenue_by_date,  # Add revenue data for template
+        high_value_dates=high_value_dates,  # High-value guest indicators
+        price_adjustment_dates=price_adjustment_dates,  # Price adjustment indicators
+        high_value_total_count=high_value_total_count,  # Total high-value guests
+        high_value_total_revenue=high_value_total_revenue,  # Total high-value revenue
+        price_adjustment_count=price_adjustment_count  # Total price adjustments
     )
 
 @app.route('/debug_revenue')

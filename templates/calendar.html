@@ -49,11 +49,71 @@
                         <span style="font-size: 1.1rem; color: #2E7D32;">①</span> = Phòng 101
                     </span>
                     <span class="legend-item" style="font-weight: 600;">
-                        <span style="font-size: 1.1rem; color: #00695C;">②</span> = Phòng 102
+                        <span style="font-size: 1.1rem; color: #00695C;">②</span> = Phòng 102</span>
+                    <span class="legend-item" style="font-weight: 600;">
+                        <span style="font-size: 1.1rem; color: #ff6b6b;">💎</span> = VIP >550k/đêm
+                    </span>
+                    <span class="legend-item" style="font-weight: 600;">
+                        <span style="font-size: 1.1rem; color: #ff9800;">⚙️</span> = Giá điều chỉnh
                     </span>
                 </div>
             </div>
 
+            <!-- 💎 HIGH-VALUE GUESTS ALERT BANNER -->
+            {% if high_value_total_count > 0 or price_adjustment_count > 0 %}
+            <div class="alert alert-dismissible fade show mb-4" style="background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%); border: 2px solid #c92a2a; border-radius: 8px; box-shadow: 0 4px 12px rgba(201, 42, 42, 0.3);">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div class="flex-grow-1">
+                        <h5 class="mb-2 text-white fw-bold">
+                            <i class="fas fa-gem me-2" style="animation: pulse 2s ease-in-out infinite;"></i>
+                            🔥 VIP GUESTS & PRICE ADJUSTMENTS ALERT
+                        </h5>
+                        <div class="row g-3">
+                            {% if high_value_total_count > 0 %}
+                            <div class="col-md-6">
+                                <div class="alert alert-light mb-0 py-2" style="border-left: 4px solid #ffd700;">
+                                    <div class="d-flex align-items-center justify-content-between">
+                                        <div>
+                                            <strong class="text-danger" style="font-size: 1.1rem;">💎 {{ high_value_total_count }} High-Value Guests</strong>
+                                            <small class="d-block text-muted">Paying >550,000đ/night</small>
+                                        </div>
+                                        <div class="text-end">
+                                            <strong class="text-success" style="font-size: 1.2rem;">{{ "{:,.0f}".format(high_value_total_revenue) }}đ</strong>
+                                            <small class="d-block text-muted">Avg/night</small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endif %}
+                            {% if price_adjustment_count > 0 %}
+                            <div class="col-md-6">
+                                <div class="alert alert-warning mb-0 py-2" style="border-left: 4px solid #ff9800;">
+                                    <div class="d-flex align-items-center justify-content-between">
+                                        <div>
+                                            <strong style="font-size: 1.1rem;">⚙️ {{ price_adjustment_count }} Price Adjustments</strong>
+                                            <small class="d-block text-muted">Custom pricing applied</small>
+                                        </div>
+                                        <button class="btn btn-sm btn-outline-dark" onclick="togglePriceAdjustments()">
+                                            <i class="fas fa-list"></i> View List
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <button type="button" class="btn-close btn-close-white ms-3" data-bs-dismiss="alert"></button>
+                </div>
+            </div>
+
+            <style>
+                @keyframes pulse {
+                    0%, 100% { transform: scale(1); opacity: 1; }
+                    50% { transform: scale(1.2); opacity: 0.8; }
+                }
+            </style>
+            {% endif %}
+            
             <!-- Canceled Guests Management Panel -->
             <div class="canceled-guests-panel mb-4">
                 <div class="card">
@@ -288,11 +348,17 @@
                                                 </div>
                                                 {% endif %}
 
-                                                <!-- Revenue Total with Commission Breakdown -->
+                                                <!-- Revenue Total with Commission Breakdown + High-Value Indicator -->
                                                 {% set revenue_info = revenue_by_date.get(date) %}
                                                 {% if revenue_info and revenue_info.daily_total > 0 %}
-                                                <div class="revenue-total">
-                                                    <small class="text-success fw-bold">
+                                                <div class="revenue-total" {% if date in high_value_dates %}style="background: linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%); border: 2px solid #ffd700;"{% endif %}>
+                                                    {% if date in high_value_dates %}
+                                                    <div style="text-align: center; margin-bottom: 3px;">
+                                                        <span style="font-size: 1.2rem; color: #ff6b6b;" title="{{ high_value_dates[date] }} khách VIP (>550k/đêm)">💎</span>
+                                                        <small style="color: #856404; font-weight: 700; font-size: 0.65rem;">{{ high_value_dates[date] }} VIP</small>
+                                                    </div>
+                                                    {% endif %}
+                                                    <small class="text-success fw-bold" {% if date in high_value_dates %}style="color: #d97706 !important;"{% endif %}>
                                                         <i class="fas fa-coins"></i> {{ "{:,.0f}".format(revenue_info.daily_total) }}đ
                                                     </small>
                                                     {% if revenue_info.daily_total_minus_commission != revenue_info.daily_total %}
@@ -302,6 +368,13 @@
                                                     <small class="text-muted" style="font-size: 0.55rem;">
                                                         (Trừ hoa hồng: {{ "{:,.0f}".format(revenue_info.total_commission) }}đ)
                                                     </small>
+                                                    {% endif %}
+                                                    {% if date in price_adjustment_dates %}
+                                                    <div style="margin-top: 3px;">
+                                                        <span style="font-size: 0.65rem; background: #ff9800; color: white; padding: 1px 4px; border-radius: 3px;" title="{{ price_adjustment_dates[date] }} giá điều chỉnh">
+                                                            ⚙️ {{ price_adjustment_dates[date] }}
+                                                        </span>
+                                                    </div>
                                                     {% endif %}
                                                 </div>
                                                 {% endif %}
