@@ -3316,6 +3316,11 @@ def calendar_view(year=None, month=None):
         high_value_count_today = 0
 
         for _, booking in checkin_bookings.iterrows():
+            # Exclude room 102 (room_id = 5) from VIP indicator
+            room_id = booking.get('room_id')
+            if room_id == 5:
+                continue  # Skip hang be 102 guests
+            
             room_amount = booking.get('Tổng thanh toán', 0) or 0
             checkin = pd.to_datetime(booking.get('Check-in Date'))
             checkout = pd.to_datetime(booking.get('Check-out Date'))
@@ -3325,6 +3330,7 @@ def calendar_view(year=None, month=None):
             per_night_rate = room_amount / nights
 
             # Check for high-value guest (>550k/night) - ONLY counted on check-in date
+            # EXCLUDES hang be 102 (room_id = 5)
             if per_night_rate > 550000:
                 high_value_count_today += 1
                 high_value_total_count += 1
