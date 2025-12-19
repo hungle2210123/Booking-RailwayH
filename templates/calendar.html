@@ -237,45 +237,44 @@
                                                 {% if info and (info.arrivals_count > 0 or info.departures_count > 0 or info.activity.one_night_count > 0) %}
                                                 <div class="checkin-checkout-indicators" style="margin-top: 4px; margin-bottom: 4px; display: flex; flex-wrap: wrap; gap: 5px; justify-content: center;">
                                                     {% if info.arrivals_count > 0 %}
-                                                        <!-- Check-in with RIGHT arrow ➡️ -->
+                                                        <!-- Check-in badges without arrows -->
                                                         {% set symbols = info.activity.arrivals_symbols %}
+                                                        {% if symbols.hang_bac > 0 %}
                                                         <span class="checkin-indicator" style="display: inline-flex; align-items: center; gap: 3px; background: #D4EDDA; border: 1px solid #28a745; border-radius: 4px; padding: 2px 6px;" title="{{ symbols.hang_bac }} khách check-in - Hang Bac">
-                                                            
                                                             <span style="font-size: 0.75rem; color: #28a745; font-weight: 600;">●</span>
                                                             <span style="font-size: 0.75rem; color: #155724; font-weight: 700;">{{ symbols.hang_bac }}</span>
                                                         </span>
                                                         {% endif %}
+                                                        {% if symbols.hang_be_101 > 0 %}
                                                         <span class="checkin-indicator" style="display: inline-flex; align-items: center; gap: 3px; background: #D4EDDA; border: 1px solid #28a745; border-radius: 4px; padding: 2px 6px;" title="{{ symbols.hang_be_101 }} khách check-in - Phòng 101">
-                                                            
                                                             <span style="font-size: 0.75rem; color: #28a745; font-weight: 600;">①</span>
                                                             <span style="font-size: 0.75rem; color: #155724; font-weight: 700;">{{ symbols.hang_be_101 }}</span>
                                                         </span>
                                                         {% endif %}
                                                         {% if symbols.hang_be_102 > 0 %}
                                                         <span class="checkin-indicator" style="display: inline-flex; align-items: center; gap: 3px; background: #D4EDDA; border: 1px solid #28a745; border-radius: 4px; padding: 2px 6px;" title="{{ symbols.hang_be_102 }} khách check-in - Phòng 102">
-                                                            
                                                             <span style="font-size: 0.75rem; color: #28a745; font-weight: 600;">②</span>
+                                                            <span style="font-size: 0.75rem; color: #155724; font-weight: 700;">{{ symbols.hang_be_102 }}</span>
                                                         </span>
                                                         {% endif %}
                                                     {% endif %}
                                                     {% if info.departures_count > 0 %}
-                                                        <!-- Check-out with LEFT arrow ⬅️ -->
+                                                        <!-- Check-out badges without arrows -->
                                                         {% set dep_symbols = info.activity.departures_symbols %}
+                                                        {% if dep_symbols.hang_bac > 0 %}
                                                         <span class="checkout-indicator" style="display: inline-flex; align-items: center; gap: 3px; background: #F8D7DA; border: 1px solid #dc3545; border-radius: 4px; padding: 2px 6px;" title="{{ dep_symbols.hang_bac }} khách check-out - Hang Bac">
-                                                            
                                                             <span style="font-size: 0.75rem; color: #dc3545; font-weight: 600;">●</span>
                                                             <span style="font-size: 0.75rem; color: #721C24; font-weight: 700;">{{ dep_symbols.hang_bac }}</span>
                                                         </span>
                                                         {% endif %}
+                                                        {% if dep_symbols.hang_be_101 > 0 %}
                                                         <span class="checkout-indicator" style="display: inline-flex; align-items: center; gap: 3px; background: #F8D7DA; border: 1px solid #dc3545; border-radius: 4px; padding: 2px 6px;" title="{{ dep_symbols.hang_be_101 }} khách check-out - Phòng 101">
-                                                            
                                                             <span style="font-size: 0.75rem; color: #dc3545; font-weight: 600;">①</span>
                                                             <span style="font-size: 0.75rem; color: #721C24; font-weight: 700;">{{ dep_symbols.hang_be_101 }}</span>
                                                         </span>
                                                         {% endif %}
                                                         {% if dep_symbols.hang_be_102 > 0 %}
                                                         <span class="checkout-indicator" style="display: inline-flex; align-items: center; gap: 3px; background: #F8D7DA; border: 1px solid #dc3545; border-radius: 4px; padding: 2px 6px;" title="{{ dep_symbols.hang_be_102 }} khách check-out - Phòng 102">
-                                                            
                                                             <span style="font-size: 0.75rem; color: #dc3545; font-weight: 600;">②</span>
                                                             <span style="font-size: 0.75rem; color: #721C24; font-weight: 700;">{{ dep_symbols.hang_be_102 }}</span>
                                                         </span>
