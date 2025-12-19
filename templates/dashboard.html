@@ -1853,20 +1853,19 @@
         // Show daily guest details modal
         // 🎨 Helper function: Get room type symbol based on apartment and room name
         function getRoomSymbol(apartmentId, roomName) {
-            // 18 Hang Be (Green apartment - apartment_id = 2) uses SQUARES
+            // SIMPLIFIED 3-SYMBOL SYSTEM for easy viewing
+
+            // 18 Hang Be (Green apartment - apartment_id = 2) - Individual room numbers
             if (apartmentId === 2) {
                 const roomLower = (roomName || '').toLowerCase();
-                if (roomLower.includes('101')) return '■'; // Large filled square for 101
-                if (roomLower.includes('102')) return '▪'; // Small filled square for 102
-                return '■'; // Default square for Hang Be
+                if (roomLower.includes('101')) return '①'; // Circled 1 for Room 101
+                if (roomLower.includes('102')) return '②'; // Circled 2 for Room 102
+                return '①'; // Default to Room 101 if unclear
             }
 
-            // 118 Hang Bac (Blue apartment - apartment_id = 1) uses CIRCLES
+            // 118 Hang Bac (Blue apartment - apartment_id = 1) - ALL rooms use ONE symbol
             if (apartmentId === 1) {
-                const roomLower = (roomName || '').toLowerCase();
-                if (roomLower.includes('kitchen') || roomLower.includes('bếp')) return '◐'; // Half-circle for Kitchen
-                if (roomLower.includes('night market') || roomLower.includes('chợ đêm')) return '◕'; // Circle with dot for Night Market
-                return '●'; // Full circle for Standard rooms
+                return '●'; // Circle for ALL Hang Bac rooms (Standard, Kitchen, Night Market)
             }
 
             return '●'; // Default circle
@@ -2589,15 +2588,11 @@
                         </div>
 
                         <!-- 🎨 Room Symbol Legend -->
+                        <!-- 🎨 Room Symbol Legend - Simplified -->
                         <div class="alert alert-info border-0 mb-0 py-2" style="background: linear-gradient(to right, #d1ecf1, #bee5eb);">
                             <div class="row small">
-                                <div class="col-md-6">
-                                    <strong class="text-primary">🔵 118 Hang Bac:</strong>
-                                    <span class="ms-2">● Standard • ◐ Kitchen • ◕ Night Market</span>
-                                </div>
-                                <div class="col-md-6">
-                                    <strong class="text-success">🟢 18 Hang Be:</strong>
-                                    <span class="ms-2">■ Room 101 • ▪ Room 102</span>
+                                <div class="col-md-12 text-center">
+                                    <strong class="text-primary">●</strong> = 118 Hang Bac (Tất cả phòng) &nbsp;&nbsp;•&nbsp;&nbsp; <strong class="text-success">①</strong> = Phòng 101 &nbsp;&nbsp;•&nbsp;&nbsp; <strong class="text-success">②</strong> = Phòng 102
                                 </div>
                             </div>
                         </div>
@@ -3228,29 +3223,18 @@
                 <div class="alert alert-light border mb-3" style="background: linear-gradient(to right, #f8f9fa, #e9ecef);">
                     <h6 class="mb-2">
                         <i class="fas fa-info-circle me-2 text-primary"></i>
-                        <strong>Ký Hiệu Phòng</strong>
+                        <strong>Ký Hiệu Phòng - Đơn Giản Hóa</strong>
                     </h6>
                     <div class="row small">
-                        <div class="col-md-6">
-                            <div class="mb-1">
-                                <span class="text-primary fw-bold">🔵 118 Hang Bac (Circles):</span>
-                            </div>
-                            <div class="ms-3">
-                                <div>● Standard Room</div>
-                                <div>◐ Kitchen Room</div>
-                                <div>◕ Night Market Room</div>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="mb-1">
-                                <span class="text-success fw-bold">🟢 18 Hang Be (Squares):</span>
-                            </div>
-                            <div class="ms-3">
-                                <div>■ Room 101</div>
-                                <div>▪ Room 102</div>
+                        <div class="col-md-12 text-center">
+                            <div class="d-flex justify-content-center gap-4">
+                                <div><span style="font-size: 1.2rem; color: #1976D2;">●</span> = 118 Hang Bac (Tất cả phòng)</div>
+                                <div><span style="font-size: 1.2rem; color: #2E7D32;">①</span> = Phòng 101</div>
+                                <div><span style="font-size: 1.2rem; color: #00695C;">②</span> = Phòng 102</div>
                             </div>
                         </div>
                     </div>
+                </div>
                 </div>
 
                 <!-- Guest List Table -->

@@ -657,27 +657,23 @@ def delete_booking_by_id(booking_id: str) -> bool:
 # ==============================================================================
 
 def get_room_symbol_by_name(room_name: str) -> str:
-    """Get room symbol based on room name (calendar view helper)"""
+    """Get room symbol based on room name (calendar view helper) - SIMPLIFIED 3-SYMBOL SYSTEM"""
     if not room_name:
         return '●'
 
     room_lower = room_name.lower()
 
-    # 18 Hang Be (Green apartment - apartment_id = 2) uses SQUARES
+    # 18 Hang Be (Green apartment) - Individual room numbers
     if 'hang be' in room_lower or 'hàng bè' in room_lower:
         if '101' in room_lower:
-            return '■'  # Large filled square for 101
+            return '①'  # Circled 1 for Room 101
         elif '102' in room_lower:
-            return '▪'  # Small filled square for 102
-        return '■'  # Default square for Hang Be
+            return '②'  # Circled 2 for Room 102
+        return '①'  # Default to Room 101 if unclear
 
-    # 118 Hang Bac (Blue apartment - apartment_id = 1) uses CIRCLES
+    # 118 Hang Bac (Blue apartment) - ALL rooms use ONE symbol
     if 'hang bac' in room_lower or 'hàng bạc' in room_lower or 'hang bạc' in room_lower:
-        if 'kitchen' in room_lower or 'bếp' in room_lower:
-            return '◐'  # Half-circle for Kitchen
-        elif 'night market' in room_lower or 'chợ đêm' in room_lower:
-            return '◕'  # Circle with dot for Night Market
-        return '●'  # Full circle for Standard rooms
+        return '●'  # Circle for ALL Hang Bac rooms (Standard, Kitchen, Night Market)
 
     return '●'  # Default circle
 
