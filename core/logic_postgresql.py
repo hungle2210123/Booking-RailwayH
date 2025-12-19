@@ -718,70 +718,10 @@ def get_daily_activity(df: pd.DataFrame, target_date: datetime.date) -> Dict[str
             (df['Tình trạng'] != 'Đã hủy')  # Exclude cancelled bookings (more inclusive than just 'OK')
         ]
 
-    # 🎨 Calculate simplified symbols for arrivals (one symbol per apartment type)
-    hang_bac_count = 0  # Count for ● symbol
-    hang_be_101_count = 0  # Count for ① symbol
-    hang_be_102_count = 0  # Count for ② symbol
-    one_night_count = 0
-
-    for _, booking in arrivals.iterrows():
-        room_name = booking.get('Tên chỗ nghỉ', '')
-        room_lower = (room_name or '').lower()
-
-        # Count by apartment type
-        if 'hang be' in room_lower or 'hàng bè' in room_lower:
-            if '101' in room_lower:
-                hang_be_101_count += 1
-            elif '102' in room_lower:
-                hang_be_102_count += 1
-            else:
-                hang_be_101_count += 1  # Default to 101
-        else:
-            # Hang Bac or unknown - use ● symbol
-            hang_bac_count += 1
-
-        # Count one-night stays
-        checkin = pd.to_datetime(booking.get('Check-in Date'))
-        checkout = pd.to_datetime(booking.get('Check-out Date'))
-        if checkin and checkout:
-            nights = (checkout - checkin).days
-            if nights == 1:
-                one_night_count += 1
-
-    # Similar logic for departures
-    hang_bac_departures = 0
-    hang_be_101_departures = 0
-    hang_be_102_departures = 0
-
-    for _, booking in departures.iterrows():
-        room_name = booking.get('Tên chỗ nghỉ', '')
-        room_lower = (room_name or '').lower()
-
-        if 'hang be' in room_lower or 'hàng bè' in room_lower:
-            if '101' in room_lower:
-                hang_be_101_departures += 1
-            elif '102' in room_lower:
-                hang_be_102_departures += 1
-            else:
-                hang_be_101_departures += 1
-        else:
-            hang_bac_departures += 1
-
     return {
         'arrivals': arrivals.to_dict('records') if not arrivals.empty else [],
         'departures': departures.to_dict('records') if not departures.empty else [],
-        'staying': staying.to_dict('records') if not staying.empty else [],
-        'arrivals_symbols': {
-            'hang_bac': hang_bac_count,
-            'hang_be_101': hang_be_101_count,
-            'hang_be_102': hang_be_102_count
-        },
-        'departures_symbols': {
-            'hang_bac': hang_bac_departures,
-            'hang_be_101': hang_be_101_departures,
-            'hang_be_102': hang_be_102_departures
-        },
-        'one_night_count': one_night_count
+        'staying': staying.to_dict('records') if not staying.empty else []
     }
 
 def get_overall_calendar_day_info(df: pd.DataFrame, target_date: str, total_capacity: int = 6) -> Dict[str, Any]:
