@@ -9368,8 +9368,11 @@ def get_unchecked_in_guests():
 
         # Query confirmed bookings where check-in date is in current month but haven't checked in yet
         # (check-in date > today) AND money hasn't been collected yet
-        unchecked_bookings = db.session.query(Booking, Guest).outerjoin(
+        from core.models import Room
+        unchecked_bookings = db.session.query(Booking, Guest, Room).outerjoin(
             Guest, Booking.guest_id == Guest.guest_id
+        ).outerjoin(
+            Room, Booking.room_id == Room.room_id
         ).filter(
             Booking.booking_status.in_(['confirmed', 'mới']),
             Booking.checkin_date >= today,  # Today and future dates (includes today)
@@ -9388,8 +9391,9 @@ def get_unchecked_in_guests():
         total_amount = 0
         total_commission = 0
 
-        for booking, guest in unchecked_bookings:
+        for booking, guest, room in unchecked_bookings:
             guest_name = guest.full_name if guest else booking.guest_name or 'Unknown Guest'
+            room_name = room.room_name if room else (booking.accommodation_name or 'N/A')
 
             # Calculate amounts
             room_amount = float(booking.room_amount or 0)
@@ -9414,6 +9418,7 @@ def get_unchecked_in_guests():
                 'nights': nights,
                 'collector': booking.collector or 'N/A',
                 'accommodation': booking.accommodation_name or 'N/A',
+                'room_name': room_name,
                 'days_until_checkin': (booking.checkin_date - today).days if booking.checkin_date else 0
             })
 

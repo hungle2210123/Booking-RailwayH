@@ -9059,7 +9059,7 @@ function displayUncheckedInGuests(guests, totalAmount, totalCount) {
                             <tr style="font-size: 0.85rem;" data-booking-id="${guest.booking_id}">
                                 <td>
                                     <div class="fw-bold text-dark" style="font-size: 0.8rem;">${guest.guest_name}</div>
-                                    <small class="text-muted" style="font-size: 0.7rem;">ID: ${guest.booking_id}</small>
+                                    <small class="text-muted" style="font-size: 0.7rem;">${guest.room_name || guest.accommodation || "N/A"}</small>
                                 </td>
                                 <td>
                                     <div class="fw-bold text-primary">${checkinDate}</div>
