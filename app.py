@@ -9372,7 +9372,7 @@ def get_unchecked_in_guests():
             Guest, Booking.guest_id == Guest.guest_id
         ).filter(
             Booking.booking_status.in_(['confirmed', 'mới']),
-            Booking.checkin_date > today,  # Future dates only (excludes today)
+            Booking.checkin_date >= today,  # Today and future dates (includes today)
             Booking.checkin_date >= start_of_month,  # Check-in date in current month
             Booking.checkin_date <= end_of_month,
             Booking.booking_status != 'deleted',
