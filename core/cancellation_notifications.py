@@ -261,10 +261,13 @@ def get_all_canceled_customers_for_management() -> List[Dict[str, Any]]:
         b.created_at,
         ca.action_status,
         ca.confirmation_date,
-        ca.confirmed_by
+        ca.confirmed_by,
+        r.room_name,
+        COALESCE(b.accommodation_name, r.room_name, 'N/A') as accommodation_name
     FROM bookings b
     LEFT JOIN guests g ON b.guest_id = g.guest_id
     LEFT JOIN cancellation_actions ca ON b.booking_id = ca.booking_id
+    LEFT JOIN rooms r ON b.room_id = r.room_id
     WHERE b.booking_status != 'deleted'
     AND (
         LOWER(b.booking_status) LIKE '%cancel%' 
@@ -341,6 +344,8 @@ def get_all_canceled_customers_for_management() -> List[Dict[str, Any]]:
             'booking_status': customer['booking_status'],
             'collected_amount': float(customer['collected_amount']) if pd.notna(customer['collected_amount']) else 0,
             'booking_notes': customer['booking_notes'] if pd.notna(customer['booking_notes']) else None,
+            'room_name': customer['room_name'] if pd.notna(customer.get('room_name', None)) else 'N/A',
+            'accommodation_name': customer['accommodation_name'] if pd.notna(customer.get('accommodation_name', None)) else 'N/A',
             
             # Real cancellation action info from database
             'action_id': customer.get('action_id') if pd.notna(customer.get('action_id', None)) else None,

@@ -1798,7 +1798,7 @@ function displayCanceledGuests(guests) {
             <tr>
                 <td class="guest-name-cell">
                     <i class="fas fa-user me-1 text-warning"></i>
-                    ${guest.guest_name}
+                    ${guest.guest_name}<br><small class="text-muted">${guest.room_name || guest.accommodation_name || "N/A"}</small>
                 </td>
                 <td class="date-cell">
                     ${checkinDate} → ${checkoutDate}
