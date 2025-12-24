@@ -8007,36 +8007,41 @@ def delete_legacy_image(template_id):
 def get_canceled_bookings():
     """Get all canceled bookings for calendar management"""
     try:
-        from core.models import Booking, Guest, db
+        from core.models import Booking, Guest, Room, db
         from datetime import datetime, timedelta
-        
+
         # Get date range for filtering (current month ± 2 months for context)
         today = datetime.now().date()
         start_date = today.replace(day=1) - timedelta(days=60)  # 2 months ago
         end_date = today + timedelta(days=90)  # 3 months ahead
-        
-        # Query canceled bookings within date range
-        canceled_bookings = db.session.query(Booking, Guest).outerjoin(
+
+        # Query canceled bookings within date range - NOW WITH ROOM JOIN
+        canceled_bookings = db.session.query(Booking, Guest, Room).outerjoin(
             Guest, Booking.guest_id == Guest.guest_id
+        ).outerjoin(
+            Room, Booking.room_id == Room.room_id
         ).filter(
             Booking.booking_status.in_(['cancelled', 'đã hủy']),
             Booking.checkin_date >= start_date,
             Booking.checkin_date <= end_date,
             Booking.booking_status != 'deleted'
         ).order_by(Booking.checkin_date.asc()).all()
-        
+
         canceled_list = []
-        for booking, guest in canceled_bookings:
+        for booking, guest, room in canceled_bookings:
             guest_name = guest.full_name if guest else booking.guest_name or 'Unknown Guest'
-            
+            room_name = room.room_name if room else (booking.accommodation_name or 'N/A')
+
             # Calculate price per night
             nights = (booking.checkout_date - booking.checkin_date).days if booking.checkout_date and booking.checkin_date else 1
             nights = max(1, nights)  # Ensure at least 1 night
             price_per_night = float(booking.room_amount or 0) / nights
-            
+
             canceled_list.append({
                 'booking_id': booking.booking_id,
                 'guest_name': guest_name,
+                'room_name': room_name,
+                'accommodation_name': booking.accommodation_name or room_name,
                 'checkin_date': booking.checkin_date.isoformat() if booking.checkin_date else None,
                 'checkout_date': booking.checkout_date.isoformat() if booking.checkout_date else None,
                 'total_amount': float(booking.room_amount or 0),
