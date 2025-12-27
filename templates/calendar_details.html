@@ -2245,12 +2245,23 @@ document.addEventListener('DOMContentLoaded', function() {
         const urlParams = new URLSearchParams(window.location.search);
         const currentYear = urlParams.get('year') || new Date().getFullYear();
         const currentMonth = urlParams.get('month') || (new Date().getMonth() + 1);
-        
-        fetch(`/api/canceled_bookings?year=${currentYear}&month=${currentMonth}&count_only=true`)
+
+        fetch(`/api/canceled_bookings?year=${currentYear}&month=${currentMonth}`)
             .then(response => response.json())
             .then(data => {
-                if (data.success && data.count !== undefined) {
-                    countBadge.textContent = data.count;
+                if (data.success && data.canceled_bookings) {
+                    // Filter to only count guests who haven't checked in yet (future check-in dates)
+                    const today = new Date();
+                    today.setHours(0, 0, 0, 0);
+
+                    const futureGuestsOnly = data.canceled_bookings.filter(guest => {
+                        const checkinDate = new Date(guest.checkin_date);
+                        checkinDate.setHours(0, 0, 0, 0);
+                        return checkinDate >= today; // Only future or today check-ins
+                    });
+
+                    countBadge.textContent = futureGuestsOnly.length;
+                    console.log(`📊 [CANCELED_COUNT] Showing ${futureGuestsOnly.length} future canceled guests (filtered from ${data.canceled_bookings.length} total)`);
                 }
             })
             .catch(error => {
