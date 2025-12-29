@@ -1843,25 +1843,25 @@ function displayCanceledGuests(guests) {
 
                 guestsHtml += `
                     <tr style="background-color: ${roomColor}; font-size: 0.85rem; border-left: 4px solid ${borderColor};">
-                        <td style="padding: 4px 8px;">
-                            ${showDate ? `<span class="badge bg-dark me-1" style="font-size: 0.68rem; min-width: 75px;">${shortDate}</span>` : '<span style="display: inline-block; width: 80px;"></span>'}
-                            <span class="badge bg-${roomBadgeColor}" style="font-size: 0.65rem; min-width: 85px;">${room}</span>
+                        <td style="width: 35%; padding: 4px 8px; overflow: hidden; text-overflow: ellipsis;">
+                            ${showDate ? `<span class="badge bg-dark me-1" style="font-size: 0.68rem;">${shortDate}</span>` : ''}
+                            <span class="badge bg-${roomBadgeColor}" style="font-size: 0.65rem;">${room}</span>
                             <i class="fas fa-user ms-1 me-1" style="font-size: 0.7rem; color: #ff6b6b;"></i>
                             <strong style="font-size: 0.85rem;">${guest.guest_name}</strong>
                         </td>
-                        <td style="padding: 4px 8px; font-size: 0.75rem; white-space: nowrap;">
+                        <td style="width: 15%; padding: 4px 8px; font-size: 0.75rem; white-space: nowrap;">
                             ${checkinDate}→${checkoutDate}
                         </td>
-                        <td style="padding: 4px 8px; text-align: right; font-size: 0.8rem;">
+                        <td style="width: 15%; padding: 4px 8px; text-align: right; font-size: 0.8rem;">
                             <strong style="color: #2e7d32;">${totalAmount.toLocaleString('vi-VN')}đ</strong>
                         </td>
-                        <td style="padding: 4px 8px; text-align: right; font-size: 0.72rem; color: #666;">
+                        <td style="width: 12%; padding: 4px 8px; text-align: right; font-size: 0.72rem; color: #666;">
                             ${pricePerNight.toLocaleString('vi-VN')}đ
                         </td>
-                        <td style="padding: 4px 8px; text-align: center; font-size: 0.75rem;">
+                        <td style="width: 8%; padding: 4px 8px; text-align: center; font-size: 0.75rem;">
                             <span class="badge bg-light text-dark" style="font-size: 0.7rem;">${guest.nights}</span>
                         </td>
-                        <td style="padding: 2px 4px; text-align: center; white-space: nowrap;">
+                        <td style="width: 15%; padding: 2px 4px; text-align: center; white-space: nowrap;">
                             <button class="btn btn-success btn-sm" style="padding: 2px 5px; font-size: 0.7rem;"
                                     onclick="restoreBooking('${guest.booking_id}', '${guest.guest_name}')"
                                     title="Phục hồi">
