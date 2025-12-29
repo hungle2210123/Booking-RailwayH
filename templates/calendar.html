@@ -1573,61 +1573,155 @@ function refreshCanceledGuests() {
 }
 
 // Display canceled guests in the compact table format
+// Display canceled guests in organized accordion format (grouped by date and room)
 function displayCanceledGuests(guests) {
     const manualListTbody = document.getElementById('manualGuestsList');
-    
+
     if (!guests || guests.length === 0) {
         manualListTbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-3">Không có khách đã hủy</td></tr>';
         return;
     }
-    
-    const guestsHtml = guests.map(guest => {
-        const checkinDate = new Date(guest.checkin_date).toLocaleDateString('vi-VN', {
+
+    // Group guests by check-in date
+    const guestsByDate = {};
+    guests.forEach(guest => {
+        const date = guest.checkin_date;
+        if (!guestsByDate[date]) {
+            guestsByDate[date] = [];
+        }
+        guestsByDate[date].push(guest);
+    });
+
+    // Sort dates
+    const sortedDates = Object.keys(guestsByDate).sort();
+
+    let guestsHtml = '';
+
+    sortedDates.forEach((date, dateIndex) => {
+        const dateGuests = guestsByDate[date];
+        const dateObj = new Date(date);
+        const formattedDate = dateObj.toLocaleDateString('vi-VN', {
+            weekday: 'long',
             day: '2-digit',
-            month: '2-digit'
+            month: '2-digit',
+            year: 'numeric'
         });
-        const checkoutDate = new Date(guest.checkout_date).toLocaleDateString('vi-VN', {
-            day: '2-digit',
-            month: '2-digit'
+
+        // Group by room within this date
+        const guestsByRoom = {};
+        dateGuests.forEach(guest => {
+            const room = guest.room_name || guest.accommodation_name || 'N/A';
+            if (!guestsByRoom[room]) {
+                guestsByRoom[room] = [];
+            }
+            guestsByRoom[room].push(guest);
         });
-        const totalAmount = guest.total_amount || 0;
-        const pricePerNight = guest.price_per_night || 0;
-        
-        return `
-            <tr>
-                <td class="guest-name-cell">
-                    <i class="fas fa-user me-1 text-warning"></i>
-                    ${guest.guest_name}<br><small class="text-muted">${guest.room_name || guest.accommodation_name || "N/A"}</small>
-                </td>
-                <td class="date-cell">
-                    ${checkinDate} → ${checkoutDate}
-                </td>
-                <td class="amount-cell">
-                    ${totalAmount.toLocaleString('vi-VN')}đ
-                </td>
-                <td class="amount-cell">
-                    ${pricePerNight.toLocaleString('vi-VN')}đ
-                </td>
-                <td class="nights-cell">
-                    ${guest.nights || 1}
-                </td>
-                <td class="action-cell">
-                    <button class="btn btn-success btn-sm restore-btn-compact" 
-                            onclick="restoreBooking('${guest.booking_id}', '${guest.guest_name}')"
-                            title="Phục hồi booking">
-                        <i class="fas fa-undo"></i>
-                    </button>
-                    <button class="btn btn-danger btn-sm delete-btn-compact ms-1" 
-                            onclick="deleteBooking('${guest.booking_id}', '${guest.guest_name}')"
-                            title="Xóa vĩnh viễn">
-                        <i class="fas fa-trash"></i>
-                    </button>
+
+        // Calculate totals for this date
+        const dateTotalAmount = dateGuests.reduce((sum, g) => sum + (g.total_amount || 0), 0);
+
+        // Date header row
+        guestsHtml += `
+            <tr class="table-primary" style="cursor: pointer;" onclick="toggleDateGroup('date-${dateIndex}')">
+                <td colspan="6">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <strong>
+                            <i class="fas fa-calendar-day me-2"></i>
+                            ${formattedDate}
+                        </strong>
+                        <span class="badge bg-primary">${dateGuests.length} khách • ${dateTotalAmount.toLocaleString('vi-VN')}đ</span>
+                    </div>
                 </td>
             </tr>
         `;
-    }).join('');
-    
+
+        // Room groups within this date
+        Object.keys(guestsByRoom).sort().forEach((room, roomIndex) => {
+            const roomGuests = guestsByRoom[room];
+            const roomTotal = roomGuests.reduce((sum, g) => sum + (g.total_amount || 0), 0);
+
+            // Room subheader
+            guestsHtml += `
+                <tr class="table-light date-group-${dateIndex}" style="cursor: pointer;" onclick="toggleRoomGroup('date-${dateIndex}-room-${roomIndex}')">
+                    <td colspan="6" class="ps-4">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span>
+                                <i class="fas fa-home me-2 text-info"></i>
+                                <strong>${room}</strong>
+                            </span>
+                            <span class="badge bg-info text-dark">${roomGuests.length} khách • ${roomTotal.toLocaleString('vi-VN')}đ</span>
+                        </div>
+                    </td>
+                </tr>
+            `;
+
+            // Individual guests in this room
+            roomGuests.forEach(guest => {
+                const checkinDate = new Date(guest.checkin_date).toLocaleDateString('vi-VN', {
+                    day: '2-digit',
+                    month: '2-digit'
+                });
+                const checkoutDate = new Date(guest.checkout_date).toLocaleDateString('vi-VN', {
+                    day: '2-digit',
+                    month: '2-digit'
+                });
+                const totalAmount = guest.total_amount || 0;
+                const pricePerNight = guest.price_per_night || 0;
+
+                guestsHtml += `
+                    <tr class="date-group-${dateIndex} room-group-${dateIndex}-${roomIndex}">
+                        <td class="ps-5">
+                            <i class="fas fa-user me-1 text-warning"></i>
+                            ${guest.guest_name}
+                        </td>
+                        <td class="date-cell">
+                            ${checkinDate} → ${checkoutDate}
+                        </td>
+                        <td class="amount-cell">
+                            ${totalAmount.toLocaleString('vi-VN')}đ
+                        </td>
+                        <td class="amount-cell">
+                            ${pricePerNight.toLocaleString('vi-VN')}đ
+                        </td>
+                        <td class="nights-cell text-center">
+                            ${guest.nights || 1}
+                        </td>
+                        <td class="action-cell">
+                            <button class="btn btn-success btn-sm restore-btn-compact"
+                                    onclick="event.stopPropagation(); restoreBooking('${guest.booking_id}', '${guest.guest_name}')"
+                                    title="Phục hồi booking">
+                                <i class="fas fa-undo"></i>
+                            </button>
+                            <button class="btn btn-danger btn-sm delete-btn-compact ms-1"
+                                    onclick="event.stopPropagation(); deleteBooking('${guest.booking_id}', '${guest.guest_name}')"
+                                    title="Xóa vĩnh viễn">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            });
+        });
+    });
+
     manualListTbody.innerHTML = guestsHtml;
+}
+
+// Toggle date group visibility
+function toggleDateGroup(groupId) {
+    const rows = document.querySelectorAll(`.${groupId}`);
+    rows.forEach(row => {
+        row.style.display = row.style.display === 'none' ? '' : 'none';
+    });
+}
+
+// Toggle room group visibility
+function toggleRoomGroup(groupId) {
+    event.stopPropagation(); // Prevent date group toggle
+    const rows = document.querySelectorAll(`.${groupId}`);
+    rows.forEach(row => {
+        row.style.display = row.style.display === 'none' ? '' : 'none';
+    });
 }
 
 // Get AI suggestions for optimal calendar filling
