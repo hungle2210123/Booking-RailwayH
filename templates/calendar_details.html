@@ -1773,7 +1773,7 @@ function refreshCanceledGuests() {
         });
 }
 
-// Display canceled guests in organized accordion format (grouped by date and room)
+// Display canceled guests in compact vertical format with color-coded bands
 function displayCanceledGuests(guests) {
     const manualListTbody = document.getElementById('manualGuestsList');
 
@@ -1782,7 +1782,7 @@ function displayCanceledGuests(guests) {
         return;
     }
 
-    // Group guests by check-in date
+    // Group guests by check-in date then by room
     const guestsByDate = {};
     guests.forEach(guest => {
         const date = guest.checkin_date;
@@ -1800,11 +1800,10 @@ function displayCanceledGuests(guests) {
     sortedDates.forEach((date, dateIndex) => {
         const dateGuests = guestsByDate[date];
         const dateObj = new Date(date);
-        const formattedDate = dateObj.toLocaleDateString('vi-VN', {
-            weekday: 'long',
+        const shortDate = dateObj.toLocaleDateString('vi-VN', {
+            weekday: 'short',
             day: '2-digit',
-            month: '2-digit',
-            year: 'numeric'
+            month: '2-digit'
         });
 
         // Group by room within this date
@@ -1817,46 +1816,17 @@ function displayCanceledGuests(guests) {
             guestsByRoom[room].push(guest);
         });
 
-        // Calculate totals for this date
-        const dateTotalAmount = dateGuests.reduce((sum, g) => sum + (g.total_amount || 0), 0);
-
-        // Date header row
-        guestsHtml += `
-            <tr class="table-primary" style="cursor: pointer;" onclick="toggleDateGroup('date-${dateIndex}')">
-                <td colspan="6">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <strong>
-                            <i class="fas fa-calendar-day me-2"></i>
-                            ${formattedDate}
-                        </strong>
-                        <span class="badge bg-primary">${dateGuests.length} khách • ${dateTotalAmount.toLocaleString('vi-VN')}đ</span>
-                    </div>
-                </td>
-            </tr>
-        `;
-
-        // Room groups within this date
+        // Render each room group
         Object.keys(guestsByRoom).sort().forEach((room, roomIndex) => {
             const roomGuests = guestsByRoom[room];
-            const roomTotal = roomGuests.reduce((sum, g) => sum + (g.total_amount || 0), 0);
 
-            // Room subheader
-            guestsHtml += `
-                <tr class="table-light date-group-${dateIndex}" style="cursor: pointer;" onclick="toggleRoomGroup('date-${dateIndex}-room-${roomIndex}')">
-                    <td colspan="6" class="ps-4">
-                        <div class="d-flex justify-content-between align-items-center">
-                            <span>
-                                <i class="fas fa-home me-2 text-info"></i>
-                                <strong>${room}</strong>
-                            </span>
-                            <span class="badge bg-info text-dark">${roomGuests.length} khách • ${roomTotal.toLocaleString('vi-VN')}đ</span>
-                        </div>
-                    </td>
-                </tr>
-            `;
+            // Color coding by room
+            const roomColor = room.includes('118') ? '#e3f2fd' : room.includes('102') ? '#fff3e0' : '#f5f5f5';
+            const borderColor = room.includes('118') ? '#2196F3' : room.includes('102') ? '#FF9800' : '#9E9E9E';
+            const roomBadgeColor = room.includes('118') ? 'primary' : room.includes('102') ? 'warning' : 'secondary';
 
-            // Individual guests in this room
-            roomGuests.forEach(guest => {
+            // Individual guests
+            roomGuests.forEach((guest, guestIndex) => {
                 const checkinDate = new Date(guest.checkin_date).toLocaleDateString('vi-VN', {
                     day: '2-digit',
                     month: '2-digit'
@@ -1868,33 +1838,38 @@ function displayCanceledGuests(guests) {
                 const totalAmount = guest.total_amount || 0;
                 const pricePerNight = guest.price_per_night || 0;
 
+                // Show date badge only on first guest of each date
+                const showDate = roomIndex === 0 && guestIndex === 0;
+
                 guestsHtml += `
-                    <tr class="date-group-${dateIndex} room-group-${dateIndex}-${roomIndex}">
-                        <td class="ps-5">
-                            <i class="fas fa-user me-1 text-warning"></i>
-                            ${guest.guest_name}
+                    <tr style="background-color: ${roomColor}; font-size: 0.85rem; border-left: 4px solid ${borderColor};">
+                        <td style="padding: 4px 8px;">
+                            ${showDate ? `<span class="badge bg-dark me-1" style="font-size: 0.68rem; min-width: 75px;">${shortDate}</span>` : '<span style="display: inline-block; width: 80px;"></span>'}
+                            <span class="badge bg-${roomBadgeColor}" style="font-size: 0.65rem; min-width: 85px;">${room}</span>
+                            <i class="fas fa-user ms-1 me-1" style="font-size: 0.7rem; color: #ff6b6b;"></i>
+                            <strong style="font-size: 0.85rem;">${guest.guest_name}</strong>
                         </td>
-                        <td class="date-cell">
-                            ${checkinDate} → ${checkoutDate}
+                        <td style="padding: 4px 8px; font-size: 0.75rem; white-space: nowrap;">
+                            ${checkinDate}→${checkoutDate}
                         </td>
-                        <td class="amount-cell">
-                            ${totalAmount.toLocaleString('vi-VN')}đ
+                        <td style="padding: 4px 8px; text-align: right; font-size: 0.8rem;">
+                            <strong style="color: #2e7d32;">${totalAmount.toLocaleString('vi-VN')}đ</strong>
                         </td>
-                        <td class="amount-cell">
+                        <td style="padding: 4px 8px; text-align: right; font-size: 0.72rem; color: #666;">
                             ${pricePerNight.toLocaleString('vi-VN')}đ
                         </td>
-                        <td class="nights-cell text-center">
-                            ${guest.nights || 1}
+                        <td style="padding: 4px 8px; text-align: center; font-size: 0.75rem;">
+                            <span class="badge bg-light text-dark" style="font-size: 0.7rem;">${guest.nights}</span>
                         </td>
-                        <td class="action-cell">
-                            <button class="btn btn-success btn-sm restore-btn-compact"
-                                    onclick="event.stopPropagation(); restoreBooking('${guest.booking_id}', '${guest.guest_name}')"
-                                    title="Phục hồi booking">
+                        <td style="padding: 2px 4px; text-align: center; white-space: nowrap;">
+                            <button class="btn btn-success btn-sm" style="padding: 2px 5px; font-size: 0.7rem;"
+                                    onclick="restoreBooking('${guest.booking_id}', '${guest.guest_name}')"
+                                    title="Phục hồi">
                                 <i class="fas fa-undo"></i>
                             </button>
-                            <button class="btn btn-danger btn-sm delete-btn-compact ms-1"
-                                    onclick="event.stopPropagation(); deleteBooking('${guest.booking_id}', '${guest.guest_name}')"
-                                    title="Xóa vĩnh viễn">
+                            <button class="btn btn-danger btn-sm" style="padding: 2px 5px; font-size: 0.7rem;"
+                                    onclick="deleteBooking('${guest.booking_id}', '${guest.guest_name}')"
+                                    title="Xóa">
                                 <i class="fas fa-trash"></i>
                             </button>
                         </td>
@@ -1905,23 +1880,6 @@ function displayCanceledGuests(guests) {
     });
 
     manualListTbody.innerHTML = guestsHtml;
-}
-
-// Toggle date group visibility
-function toggleDateGroup(groupId) {
-    const rows = document.querySelectorAll(`.${groupId}`);
-    rows.forEach(row => {
-        row.style.display = row.style.display === 'none' ? '' : 'none';
-    });
-}
-
-// Toggle room group visibility
-function toggleRoomGroup(groupId) {
-    event.stopPropagation(); // Prevent date group toggle
-    const rows = document.querySelectorAll(`.${groupId}`);
-    rows.forEach(row => {
-        row.style.display = row.style.display === 'none' ? '' : 'none';
-    });
 }
 
 // Get AI suggestions for optimal calendar filling
