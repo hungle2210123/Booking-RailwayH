@@ -1734,7 +1734,7 @@ function refreshCanceledGuests() {
     fetch(`/api/canceled_bookings?year=${currentYear}&month=${currentMonth}`)
         .then(response => {
             if (!response.ok) {
-                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                throw new Error('HTTP ' + response.status + ': ' + response.statusText);
             }
             return response.json();
         })
@@ -1814,6 +1814,17 @@ function displayCanceledGuests(guests) {
             month: '2-digit'
         });
 
+        // Add date header row (separate line)
+        guestsHtml += `
+            <tr style="background: linear-gradient(135deg, #212529 0%, #495057 100%);">
+                <td colspan="6" style="padding: 6px 12px; text-align: left;">
+                    <span class="badge bg-light text-dark" style="font-size: 0.8rem; font-weight: bold;">
+                        <i class="fas fa-calendar-day me-1"></i>${shortDate}
+                    </span>
+                </td>
+            </tr>
+        `;
+
         // Group by room within this date
         const guestsByRoom = {};
         dateGuests.forEach(guest => {
@@ -1846,13 +1857,9 @@ function displayCanceledGuests(guests) {
                 const totalAmount = guest.total_amount || 0;
                 const pricePerNight = guest.price_per_night || 0;
 
-                // Show date badge only on first guest of each date
-                const showDate = roomIndex === 0 && guestIndex === 0;
-
                 guestsHtml += `
                     <tr style="background-color: ${roomColor}; font-size: 0.85rem; border-left: 4px solid ${borderColor};">
                         <td style="width: 35% !important; padding: 4px 8px; overflow: hidden;">
-                            ${showDate ? `<span class="badge bg-dark me-1" style="font-size: 0.68rem;">${shortDate}</span>` : ''}
                             <span class="badge bg-${roomBadgeColor}" style="font-size: 0.65rem;">${room}</span>
                             <i class="fas fa-user ms-1 me-1" style="font-size: 0.7rem; color: #ff6b6b;"></i>
                             <strong style="font-size: 0.85rem;">${guest.guest_name}</strong>
@@ -1930,7 +1937,7 @@ function getAISuggestions() {
     })
     .then(response => {
         if (!response.ok) {
-            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            throw new Error('HTTP ' + response.status + ': ' + response.statusText);
         }
         return response.json();
     })
@@ -2119,7 +2126,7 @@ function restoreBookingFromAI(bookingId, guestName) {
     })
     .then(response => {
         if (!response.ok) {
-            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            throw new Error('HTTP ' + response.status + ': ' + response.statusText);
         }
         return response.json();
     })
@@ -2184,7 +2191,7 @@ function restoreBooking(bookingId, guestName) {
     })
     .then(response => {
         if (!response.ok) {
-            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            throw new Error('HTTP ' + response.status + ': ' + response.statusText);
         }
         return response.json();
     })
@@ -2260,7 +2267,7 @@ function deleteBooking(bookingId, guestName) {
     })
     .then(response => {
         if (!response.ok) {
-            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            throw new Error('HTTP ' + response.status + ': ' + response.statusText);
         }
         return response.json();
     })
@@ -2293,40 +2300,70 @@ function deleteBooking(bookingId, guestName) {
     });
 }
 
+// Load canceled guests count (can be called on page load or after updates)
+function loadCanceledGuestsCount() {
+    const countBadge = document.getElementById('canceledGuestsCount');
+
+    if (!countBadge) {
+        console.warn('⚠️ [CANCELED_COUNT] Badge element not found in DOM');
+        return;
+    }
+
+    // Show loading state
+    countBadge.textContent = '...';
+    countBadge.style.opacity = '0.6';
+
+    // Load count without showing the panel
+    const urlParams = new URLSearchParams(window.location.search);
+    const currentYear = urlParams.get('year') || new Date().getFullYear();
+    const currentMonth = urlParams.get('month') || (new Date().getMonth() + 1);
+
+    console.log(`🔄 [CANCELED_COUNT] Loading count for ${currentYear}-${currentMonth}...`);
+
+    fetch(`/api/canceled_bookings?year=${currentYear}&month=${currentMonth}`)
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('HTTP ' + response.status + ': ' + response.statusText);
+            }
+            return response.json();
+        })
+        .then(data => {
+            console.log(`📦 [CANCELED_COUNT] API response:`, data);
+
+            if (data.success && data.canceled_bookings) {
+                // Filter to only count guests who haven't checked in yet (future check-in dates)
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+
+                const futureGuestsOnly = data.canceled_bookings.filter(guest => {
+                    const checkinDate = new Date(guest.checkin_date);
+                    checkinDate.setHours(0, 0, 0, 0);
+                    return checkinDate >= today; // Only future or today check-ins
+                });
+
+                countBadge.textContent = futureGuestsOnly.length;
+                countBadge.style.opacity = '1';
+                console.log(`✅ [CANCELED_COUNT] Showing ${futureGuestsOnly.length} future canceled guests (filtered from ${data.canceled_bookings.length} total)`);
+            } else {
+                countBadge.textContent = '0';
+                countBadge.style.opacity = '1';
+                console.warn('⚠️ [CANCELED_COUNT] No success flag or bookings in response');
+            }
+        })
+        .catch(error => {
+            console.error('❌ [CANCELED_COUNT] Error loading count:', error);
+            countBadge.textContent = '!';
+            countBadge.style.opacity = '1';
+            countBadge.title = `Error: ${error.message}`;
+        });
+}
+
 // Initialize canceled guests panel on page load
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('Calendar details page loaded - Canceled guests management ready');
-    
-    // Optional: Auto-load canceled guests count on page load
-    const countBadge = document.getElementById('canceledGuestsCount');
-    if (countBadge) {
-        // Load count without showing the panel
-        const urlParams = new URLSearchParams(window.location.search);
-        const currentYear = urlParams.get('year') || new Date().getFullYear();
-        const currentMonth = urlParams.get('month') || (new Date().getMonth() + 1);
+    console.log('✅ [INIT] Calendar details page loaded - Canceled guests management ready');
 
-        fetch(`/api/canceled_bookings?year=${currentYear}&month=${currentMonth}`)
-            .then(response => response.json())
-            .then(data => {
-                if (data.success && data.canceled_bookings) {
-                    // Filter to only count guests who haven't checked in yet (future check-in dates)
-                    const today = new Date();
-                    today.setHours(0, 0, 0, 0);
-
-                    const futureGuestsOnly = data.canceled_bookings.filter(guest => {
-                        const checkinDate = new Date(guest.checkin_date);
-                        checkinDate.setHours(0, 0, 0, 0);
-                        return checkinDate >= today; // Only future or today check-ins
-                    });
-
-                    countBadge.textContent = futureGuestsOnly.length;
-                    console.log(`📊 [CANCELED_COUNT] Showing ${futureGuestsOnly.length} future canceled guests (filtered from ${data.canceled_bookings.length} total)`);
-                }
-            })
-            .catch(error => {
-                console.log('Could not load canceled guests count:', error);
-            });
-    }
+    // Load canceled guests count immediately
+    loadCanceledGuestsCount();
 });
 
 // Quick cancel function for calendar guest cards
