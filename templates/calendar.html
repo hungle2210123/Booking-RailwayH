@@ -1625,6 +1625,13 @@ function displayCanceledGuests(guests) {
             </tr>
         `;
 
+        // Sort guests within this date by price per night (highest first)
+        dateGuests.sort((a, b) => {
+            const priceA = a.price_per_night || 0;
+            const priceB = b.price_per_night || 0;
+            return priceB - priceA; // Descending order
+        });
+
         // Group by room within this date
         const guestsByRoom = {};
         dateGuests.forEach(guest => {
