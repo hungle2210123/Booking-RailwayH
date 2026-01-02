@@ -6878,9 +6878,20 @@ document.addEventListener('DOMContentLoaded', async function() {
                             <i class="fas fa-info-circle me-2"></i>
                             <strong>Tải lên ảnh chứa chi phí:</strong> Screenshot chat, hóa đơn, ghi chú tay, v.v. AI sẽ tự động trích xuất thông tin.
                         </div>
+
+                        <!-- Quick Copy Prompt Button -->
+                        <div class="mb-3">
+                            <button type="button" class="btn btn-outline-primary btn-sm w-100" onclick="copyExpensePromptToClipboard()">
+                                <i class="fas fa-copy me-1"></i>📋 Copy Prompt AI (Dùng ChatGPT/Claude Ngoài)
+                            </button>
+                            <small class="text-muted d-block mt-1">
+                                <i class="fas fa-lightbulb me-1"></i>Copy prompt → Paste vào ChatGPT/Claude → Đính kèm ảnh → Nhận JSON → Paste vào tab JSON
+                            </small>
+                        </div>
+
                         <div class="mb-3">
                             <label for="expenseImageInput" class="form-label">
-                                <i class="fas fa-cloud-upload-alt me-1"></i>Chọn Hình Ảnh
+                                <i class="fas fa-cloud-upload-alt me-1"></i>Chọn Hình Ảnh (Phân Tích Tự Động)
                             </label>
                             <input type="file" class="form-control" id="expenseImageInput" accept="image/*" onchange="previewExpenseImage(this)">
                         </div>
@@ -6899,7 +6910,7 @@ document.addEventListener('DOMContentLoaded', async function() {
                             <div id="expensePreviewList" class="list-group mb-3"></div>
                         </div>
                         <button type="button" class="btn btn-primary w-100" onclick="analyzeExpenseImage()" id="analyzeExpenseBtn">
-                            <i class="fas fa-magic me-1"></i>Phân Tích Bằng AI
+                            <i class="fas fa-magic me-1"></i>Phân Tích Bằng AI (Tự Động)
                         </button>
                     </div>
 
@@ -7674,6 +7685,65 @@ async function saveBulkExpenses() {
         submitBtn.disabled = false;
         submitBtn.innerHTML = originalText;
     }
+}
+
+// Copy expense AI prompt to clipboard for external use
+function copyExpensePromptToClipboard() {
+    const today = new Date().toISOString().split('T')[0];
+
+    const promptText = `Extract ALL expense entries from this image and return as JSON array.
+
+**Input formats:** Chat messages ("Mua 3 cây giá 900,000.", "Đổ xăng 90,000"), receipts, notes, bank transactions.
+
+**Extraction Rules:**
+1. **Description:** Full Vietnamese text (e.g., "Mua 3 cây giá", "Đổ xăng")
+2. **Amount:** Numbers only, no commas (900000 not 900,000). Convert "170k" to 170000
+3. **Date:** YYYY-MM-DD format. Use ${today} if "Hôm nay"/"Today" or time only (15:02, 16:05)
+4. **Category:** "personal" (food, gas, personal items) or "work" (supplies, equipment) or null if uncertain
+
+**Output ONLY this JSON format:**
+[
+  {"description": "Mua 3 cây giá", "amount": 900000, "date": "${today}", "category": "work"},
+  {"description": "Mua 1 máy sấy", "amount": 170000, "date": "${today}", "category": "personal"},
+  {"description": "Đổ xăng", "amount": 90000, "date": "${today}", "category": "personal"}
+]
+
+**Important:**
+- Return ONLY the JSON array, no markdown, no extra text
+- Include ALL expenses in the image
+- Preserve Vietnamese characters exactly
+- Today's date: ${today}
+
+Extract now:`;
+
+    // Copy to clipboard
+    navigator.clipboard.writeText(promptText).then(() => {
+        alert('✅ Prompt đã copy vào clipboard!\n\n📝 Bước tiếp theo:\n1. Mở ChatGPT hoặc Claude (vision models)\n2. Paste prompt này\n3. Đính kèm ảnh chi phí của bạn\n4. Gửi và đợi AI trả về JSON\n5. Copy JSON response\n6. Quay lại đây, chuyển sang tab "JSON Bulk"\n7. Paste JSON và click "Kiểm Tra JSON"\n8. Click "Lưu Chi Phí" để thêm tất cả!');
+    }).catch(err => {
+        console.error('Failed to copy prompt:', err);
+        // Fallback - show prompt in textarea for manual copy
+        const modal = document.createElement('div');
+        modal.innerHTML = `
+            <div class="modal fade show" style="display: block; background: rgba(0,0,0,0.5);">
+                <div class="modal-dialog modal-lg">
+                    <div class="modal-content">
+                        <div class="modal-header bg-warning">
+                            <h5 class="modal-title">📋 Copy Prompt Thủ Công</h5>
+                            <button type="button" class="btn-close" onclick="this.closest('.modal').remove()"></button>
+                        </div>
+                        <div class="modal-body">
+                            <p>Không thể copy tự động. Vui lòng copy thủ công:</p>
+                            <textarea class="form-control font-monospace" rows="15" readonly>${promptText}</textarea>
+                        </div>
+                        <div class="modal-footer">
+                            <button class="btn btn-primary" onclick="this.closest('.modal').remove()">Đóng</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+    });
 }
 
 // Update expense modal title when tab changes
