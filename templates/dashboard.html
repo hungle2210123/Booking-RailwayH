@@ -6807,7 +6807,8 @@ document.addEventListener('DOMContentLoaded', async function() {
         <div class="modal-content">
             <div class="modal-header" style="background: linear-gradient(135deg, #fd79a8 0%, #e84393 100%);">
                 <h5 class="modal-title text-white" id="expenseModalLabel">
-                    <i class="fas fa-receipt me-2"></i>Thêm Chi Phí
+                    <i class="fas fa-receipt me-2" id="expenseModalIcon"></i>
+                    <span id="expenseModalTitle">Thêm Chi Phí - Nhập Thủ Công</span>
                 </h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
@@ -7674,6 +7675,30 @@ async function saveBulkExpenses() {
         submitBtn.innerHTML = originalText;
     }
 }
+
+// Update expense modal title when tab changes
+document.addEventListener('DOMContentLoaded', function() {
+    const tabButtons = document.querySelectorAll('#expenseInputTabs button[data-bs-toggle="tab"]');
+    const modalTitle = document.getElementById('expenseModalTitle');
+    const modalIcon = document.getElementById('expenseModalIcon');
+
+    tabButtons.forEach(button => {
+        button.addEventListener('shown.bs.tab', function(e) {
+            const tabId = e.target.id;
+
+            if (tabId === 'manual-tab') {
+                modalIcon.className = 'fas fa-keyboard me-2';
+                modalTitle.textContent = 'Thêm Chi Phí - Nhập Thủ Công';
+            } else if (tabId === 'image-tab') {
+                modalIcon.className = 'fas fa-image me-2';
+                modalTitle.textContent = 'Thêm Chi Phí - Từ Hình Ảnh (AI)';
+            } else if (tabId === 'json-tab') {
+                modalIcon.className = 'fas fa-code me-2';
+                modalTitle.textContent = 'Thêm Chi Phí - JSON Bulk';
+            }
+        });
+    });
+});
 
 // Load monthly expenses on page load (async, non-blocking) - moved after function definition
 setTimeout(() => {
