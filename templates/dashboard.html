@@ -6811,21 +6811,21 @@ document.addEventListener('DOMContentLoaded', async function() {
                 </h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <div class="modal-body">
+            <div class="modal-body" style="padding: 1.5rem;">
                 <!-- Navigation Tabs -->
-                <ul class="nav nav-tabs mb-3" id="expenseInputTabs" role="tablist">
-                    <li class="nav-item" role="presentation">
-                        <button class="nav-link active" id="manual-tab" data-bs-toggle="tab" data-bs-target="#manual-input" type="button" role="tab">
+                <ul class="nav nav-tabs mb-3" id="expenseInputTabs" role="tablist" style="border-bottom: 2px solid #dee2e6; display: flex !important;">
+                    <li class="nav-item" role="presentation" style="flex: 1;">
+                        <button class="nav-link active w-100" id="manual-tab" data-bs-toggle="tab" data-bs-target="#manual-input" type="button" role="tab" style="font-size: 0.9rem; padding: 0.75rem 1rem;">
                             <i class="fas fa-keyboard me-1"></i>Nhập Thủ Công
                         </button>
                     </li>
-                    <li class="nav-item" role="presentation">
-                        <button class="nav-link" id="image-tab" data-bs-toggle="tab" data-bs-target="#image-input" type="button" role="tab">
+                    <li class="nav-item" role="presentation" style="flex: 1;">
+                        <button class="nav-link w-100" id="image-tab" data-bs-toggle="tab" data-bs-target="#image-input" type="button" role="tab" style="font-size: 0.9rem; padding: 0.75rem 1rem;">
                             <i class="fas fa-image me-1"></i>Từ Hình Ảnh (AI)
                         </button>
                     </li>
-                    <li class="nav-item" role="presentation">
-                        <button class="nav-link" id="json-tab" data-bs-toggle="tab" data-bs-target="#json-input" type="button" role="tab">
+                    <li class="nav-item" role="presentation" style="flex: 1;">
+                        <button class="nav-link w-100" id="json-tab" data-bs-toggle="tab" data-bs-target="#json-input" type="button" role="tab" style="font-size: 0.9rem; padding: 0.75rem 1rem;">
                             <i class="fas fa-code me-1"></i>JSON Bulk
                         </button>
                     </li>
