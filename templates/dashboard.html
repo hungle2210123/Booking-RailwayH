@@ -7088,105 +7088,185 @@ document.addEventListener('DOMContentLoaded', async function() {
     </div>
 </div>
 
-<!-- 📊 Expense Overview Modal - All Expenses Table -->
+<!-- 📊 MODERN EXPENSE OVERVIEW MODAL - Professional Design -->
 <div class="modal fade" id="expenseOverviewModal" tabindex="-1" aria-labelledby="expenseOverviewModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-xl modal-dialog-scrollable">
-        <div class="modal-content">
-            <div class="modal-header" style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);">
-                <h5 class="modal-title text-white" id="expenseOverviewModalLabel">
-                    <i class="fas fa-table me-2"></i>📊 Tổng Quan Chi Phí - Tất Cả Giao Dịch
-                </h5>
+    <div class="modal-dialog modal-fullscreen">
+        <div class="modal-content" style="background: #f8f9fa;">
+            <!-- Modern Header -->
+            <div class="modal-header border-0 pb-0" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 1.5rem 2rem;">
+                <div>
+                    <h4 class="modal-title text-white mb-1" id="expenseOverviewModalLabel">
+                        <i class="fas fa-chart-line me-2"></i>Tổng Quan Chi Phí
+                    </h4>
+                    <p class="text-white-50 mb-0 small">Quản lý và phân loại toàn bộ giao dịch</p>
+                </div>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <div class="modal-body" style="max-height: 70vh; overflow-y: auto;">
-                <!-- Summary Cards -->
-                <div class="row mb-3" id="overviewSummary">
+
+            <div class="modal-body p-4">
+                <!-- Modern Summary Dashboard -->
+                <div class="row g-3 mb-4">
                     <div class="col-md-3">
-                        <div class="card bg-primary text-white">
-                            <div class="card-body">
-                                <h6 class="card-title"><i class="fas fa-hashtag me-1"></i>Tổng Giao Dịch</h6>
-                                <h3 id="totalExpenseCount">0</h3>
+                        <div class="card border-0 shadow-sm h-100" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                            <div class="card-body text-white">
+                                <div class="d-flex justify-content-between align-items-start mb-2">
+                                    <div class="rounded-circle bg-white bg-opacity-25 p-2">
+                                        <i class="fas fa-receipt" style="font-size: 1.5rem;"></i>
+                                    </div>
+                                    <span class="badge bg-white text-dark">Tổng</span>
+                                </div>
+                                <h2 class="mb-0 fw-bold" id="totalExpenseCount">0</h2>
+                                <p class="mb-0 small opacity-75">Giao dịch</p>
                             </div>
                         </div>
                     </div>
                     <div class="col-md-3">
-                        <div class="card bg-danger text-white">
-                            <div class="card-body">
-                                <h6 class="card-title"><i class="fas fa-money-bill-wave me-1"></i>Tổng Chi Phí</h6>
-                                <h3 id="totalExpenseAmount">0đ</h3>
+                        <div class="card border-0 shadow-sm h-100" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
+                            <div class="card-body text-white">
+                                <div class="d-flex justify-content-between align-items-start mb-2">
+                                    <div class="rounded-circle bg-white bg-opacity-25 p-2">
+                                        <i class="fas fa-money-bill-wave" style="font-size: 1.5rem;"></i>
+                                    </div>
+                                    <span class="badge bg-white text-dark">Chi phí</span>
+                                </div>
+                                <h5 class="mb-0 fw-bold" id="totalExpenseAmount" style="font-size: 1.3rem;">0đ</h5>
+                                <p class="mb-0 small opacity-75">Tổng tiền</p>
                             </div>
                         </div>
                     </div>
                     <div class="col-md-3">
-                        <div class="card bg-success text-white">
-                            <div class="card-body">
-                                <h6 class="card-title"><i class="fas fa-user me-1"></i>Cá Nhân</h6>
-                                <h3 id="personalExpenseAmount">0đ</h3>
+                        <div class="card border-0 shadow-sm h-100" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
+                            <div class="card-body text-white">
+                                <div class="d-flex justify-content-between align-items-start mb-2">
+                                    <div class="rounded-circle bg-white bg-opacity-25 p-2">
+                                        <i class="fas fa-user" style="font-size: 1.5rem;"></i>
+                                    </div>
+                                    <span class="badge bg-white text-dark">Cá nhân</span>
+                                </div>
+                                <h5 class="mb-0 fw-bold" id="personalExpenseAmount" style="font-size: 1.3rem;">0đ</h5>
+                                <p class="mb-0 small opacity-75">Chi tiêu cá nhân</p>
                             </div>
                         </div>
                     </div>
                     <div class="col-md-3">
-                        <div class="card bg-info text-white">
-                            <div class="card-body">
-                                <h6 class="card-title"><i class="fas fa-briefcase me-1"></i>Công Việc</h6>
-                                <h3 id="workExpenseAmount">0đ</h3>
+                        <div class="card border-0 shadow-sm h-100" style="background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);">
+                            <div class="card-body text-white">
+                                <div class="d-flex justify-content-between align-items-start mb-2">
+                                    <div class="rounded-circle bg-white bg-opacity-25 p-2">
+                                        <i class="fas fa-briefcase" style="font-size: 1.5rem;"></i>
+                                    </div>
+                                    <span class="badge bg-white text-dark">Công việc</span>
+                                </div>
+                                <h5 class="mb-0 fw-bold" id="workExpenseAmount" style="font-size: 1.3rem;">0đ</h5>
+                                <p class="mb-0 small opacity-75">Chi phí công việc</p>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <!-- Filter Controls -->
-                <div class="row mb-3">
-                    <div class="col-md-3">
-                        <label for="filterCategory" class="form-label">Lọc theo loại:</label>
-                        <select class="form-select" id="filterCategory" onchange="filterExpenseTable()">
-                            <option value="all">Tất cả</option>
-                            <option value="personal">Cá nhân</option>
-                            <option value="work">Công việc</option>
-                            <option value="general">Chung</option>
-                        </select>
-                    </div>
-                    <div class="col-md-3">
-                        <label for="filterMonth" class="form-label">Lọc theo tháng:</label>
-                        <input type="month" class="form-control" id="filterMonth" onchange="filterExpenseTable()">
-                    </div>
-                    <div class="col-md-6 d-flex align-items-end">
-                        <button class="btn btn-outline-secondary me-2" onclick="clearExpenseFilters()">
-                            <i class="fas fa-times me-1"></i>Xóa Bộ Lọc
-                        </button>
-                        <button class="btn btn-success" onclick="loadExpenseOverview()">
-                            <i class="fas fa-sync-alt me-1"></i>Tải Lại
-                        </button>
+                <!-- Modern Filter & Search Bar -->
+                <div class="card border-0 shadow-sm mb-3">
+                    <div class="card-body">
+                        <div class="row g-3">
+                            <div class="col-md-4">
+                                <div class="input-group">
+                                    <span class="input-group-text bg-white border-end-0">
+                                        <i class="fas fa-search text-muted"></i>
+                                    </span>
+                                    <input type="text" class="form-control border-start-0" id="searchExpense"
+                                           placeholder="Tìm kiếm mô tả..." onkeyup="filterExpenseTable()">
+                                </div>
+                            </div>
+                            <div class="col-md-2">
+                                <select class="form-select" id="filterCategory" onchange="filterExpenseTable()">
+                                    <option value="all">🏷️ Tất cả loại</option>
+                                    <option value="personal">👤 Cá nhân</option>
+                                    <option value="work">💼 Công việc</option>
+                                    <option value="general">📌 Chung</option>
+                                </select>
+                            </div>
+                            <div class="col-md-2">
+                                <input type="month" class="form-control" id="filterMonth" onchange="filterExpenseTable()">
+                            </div>
+                            <div class="col-md-4 text-end">
+                                <button class="btn btn-outline-secondary" onclick="clearExpenseFilters()">
+                                    <i class="fas fa-times me-1"></i>Xóa Lọc
+                                </button>
+                                <button class="btn btn-primary" onclick="loadExpenseOverview()">
+                                    <i class="fas fa-sync-alt me-1"></i>Tải Lại
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
-                <!-- Expenses Table -->
-                <div class="table-responsive">
-                    <table class="table table-striped table-hover" id="expenseOverviewTable">
-                        <thead class="table-dark sticky-top">
-                            <tr>
-                                <th style="width: 5%;">#</th>
-                                <th style="width: 12%;">Ngày</th>
-                                <th style="width: 35%;">Mô Tả</th>
-                                <th style="width: 15%;">Số Tiền</th>
-                                <th style="width: 13%;">Loại</th>
-                                <th style="width: 12%;">Ngày Tạo</th>
-                                <th style="width: 8%;">Thao Tác</th>
-                            </tr>
-                        </thead>
-                        <tbody id="expenseOverviewTableBody">
-                            <tr>
-                                <td colspan="7" class="text-center text-muted py-4">
-                                    <i class="fas fa-spinner fa-spin fa-2x mb-2"></i>
-                                    <p>Đang tải dữ liệu...</p>
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
+                <!-- Bulk Action Toolbar (Hidden by default) -->
+                <div id="bulkActionToolbar" class="card border-0 shadow-sm mb-3" style="display: none; background: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%);">
+                    <div class="card-body py-2">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <i class="fas fa-check-circle text-success me-2"></i>
+                                <strong>Đã chọn: <span id="selectedExpenseCount">0</span> giao dịch</strong>
+                            </div>
+                            <div class="btn-group" role="group">
+                                <button class="btn btn-sm btn-success" onclick="bulkCategorize('personal')">
+                                    <i class="fas fa-user me-1"></i>Đánh dấu Cá nhân
+                                </button>
+                                <button class="btn btn-sm btn-info" onclick="bulkCategorize('work')">
+                                    <i class="fas fa-briefcase me-1"></i>Đánh dấu Công việc
+                                </button>
+                                <button class="btn btn-sm btn-secondary" onclick="bulkCategorize('general')">
+                                    <i class="fas fa-tag me-1"></i>Đánh dấu Chung
+                                </button>
+                                <button class="btn btn-sm btn-outline-danger" onclick="bulkDeleteExpenses()">
+                                    <i class="fas fa-trash me-1"></i>Xóa
+                                </button>
+                                <button class="btn btn-sm btn-outline-secondary" onclick="clearBulkSelection()">
+                                    <i class="fas fa-times me-1"></i>Bỏ chọn
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Modern Table -->
+                <div class="card border-0 shadow-sm">
+                    <div class="table-responsive" style="max-height: calc(100vh - 500px);">
+                        <table class="table table-hover mb-0" id="expenseOverviewTable">
+                            <thead style="position: sticky; top: 0; background: #fff; z-index: 10; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+                                <tr>
+                                    <th style="width: 50px;">
+                                        <input type="checkbox" class="form-check-input" id="selectAllExpenses" onchange="toggleSelectAll()">
+                                    </th>
+                                    <th style="width: 80px;">#</th>
+                                    <th style="width: 120px;">📅 Ngày</th>
+                                    <th style="width: 35%;">📝 Mô Tả</th>
+                                    <th style="width: 150px;">💰 Số Tiền</th>
+                                    <th style="width: 180px;">🏷️ Phân Loại</th>
+                                    <th style="width: 120px;">🕐 Ngày Tạo</th>
+                                    <th style="width: 100px; text-align: center;">⚙️ Thao Tác</th>
+                                </tr>
+                            </thead>
+                            <tbody id="expenseOverviewTableBody">
+                                <tr>
+                                    <td colspan="8" class="text-center text-muted py-5">
+                                        <i class="fas fa-spinner fa-spin fa-3x mb-3 text-primary"></i>
+                                        <p class="mb-0">Đang tải dữ liệu...</p>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Đóng</button>
+
+            <div class="modal-footer border-0 bg-white">
+                <small class="text-muted me-auto">
+                    <i class="fas fa-info-circle me-1"></i>Chọn nhiều giao dịch để phân loại hàng loạt
+                </small>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="fas fa-times me-1"></i>Đóng
+                </button>
             </div>
         </div>
     </div>
@@ -7923,7 +8003,10 @@ let currentExpenses = [];
 let expenseCategories = {};
 let allExpensesData = []; // For overview table
 
-// 📊 EXPENSE OVERVIEW FUNCTIONS
+// 📊 MODERN EXPENSE OVERVIEW FUNCTIONS
+let selectedExpenseIds = new Set();
+let currentFilteredExpenses = [];
+
 async function loadExpenseOverview() {
     try {
         const response = await fetch('/api/expenses');
@@ -7935,6 +8018,8 @@ async function loadExpenseOverview() {
 
         if (result.success && result.data) {
             allExpensesData = result.data;
+            currentFilteredExpenses = allExpensesData;
+            selectedExpenseIds.clear();
             displayExpenseOverview(allExpensesData);
         } else {
             throw new Error(result.error || 'Cannot load expenses');
@@ -7942,7 +8027,7 @@ async function loadExpenseOverview() {
     } catch (error) {
         console.error('❌ Error loading expense overview:', error);
         document.getElementById('expenseOverviewTableBody').innerHTML =
-            '<tr><td colspan="7" class="text-center text-danger py-4"><i class="fas fa-exclamation-triangle me-2"></i>Lỗi: ' + error.message + '</td></tr>';
+            '<tr><td colspan="8" class="text-center text-danger py-5"><i class="fas fa-exclamation-triangle fa-2x mb-2"></i><p>Lỗi: ' + error.message + '</p></td></tr>';
     }
 }
 
@@ -7962,47 +8047,81 @@ function displayExpenseOverview(expenses) {
         }
     });
 
-    // Update summary cards
-    document.getElementById('totalExpenseCount').textContent = totalCount;
-    document.getElementById('totalExpenseAmount').textContent = totalAmount.toLocaleString('vi-VN') + 'đ';
-    document.getElementById('personalExpenseAmount').textContent = personalAmount.toLocaleString('vi-VN') + 'đ';
-    document.getElementById('workExpenseAmount').textContent = workAmount.toLocaleString('vi-VN') + 'đ';
+    // Update summary cards with animation
+    updateCounterAnimation('totalExpenseCount', totalCount);
+    updateCounterAnimation('totalExpenseAmount', totalAmount.toLocaleString('vi-VN') + 'đ');
+    updateCounterAnimation('personalExpenseAmount', personalAmount.toLocaleString('vi-VN') + 'đ');
+    updateCounterAnimation('workExpenseAmount', workAmount.toLocaleString('vi-VN') + 'đ');
 
     // Populate table
     const tbody = document.getElementById('expenseOverviewTableBody');
     if (expenses.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted py-4"><i class="fas fa-inbox me-2"></i>Không có dữ liệu</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted py-5"><i class="fas fa-inbox fa-3x mb-3 opacity-25"></i><p class="mb-0">Không có dữ liệu</p></td></tr>';
         return;
     }
 
     let html = '';
     expenses.forEach((exp, index) => {
-        const categoryBadge = exp.category === 'personal' ?
-            '<span class="badge bg-success">Cá nhân</span>' :
-            exp.category === 'work' ?
-            '<span class="badge bg-info">Công việc</span>' :
-            '<span class="badge bg-secondary">Chung</span>';
+        const isSelected = selectedExpenseIds.has(exp.expense_id);
+        const rowClass = isSelected ? 'table-active' : '';
+
+        // Modern category badge with inline edit
+        let categoryBadge = '';
+        let categoryClass = '';
+        let categoryIcon = '';
+
+        if (exp.category === 'personal') {
+            categoryClass = 'success';
+            categoryIcon = '👤';
+        } else if (exp.category === 'work') {
+            categoryClass = 'info';
+            categoryIcon = '💼';
+        } else {
+            categoryClass = 'secondary';
+            categoryIcon = '📌';
+        }
+
+        categoryBadge = '<div class="btn-group btn-group-sm" role="group">';
+        categoryBadge += '<button class="btn btn-outline-' + categoryClass + ' btn-sm ' + (exp.category === 'personal' ? 'active' : '') + '" onclick="quickCategorize(' + exp.expense_id + ', \'personal\')" title="Cá nhân">👤</button>';
+        categoryBadge += '<button class="btn btn-outline-info btn-sm ' + (exp.category === 'work' ? 'active' : '') + '" onclick="quickCategorize(' + exp.expense_id + ', \'work\')" title="Công việc">💼</button>';
+        categoryBadge += '<button class="btn btn-outline-secondary btn-sm ' + (exp.category === 'general' ? 'active' : '') + '" onclick="quickCategorize(' + exp.expense_id + ', \'general\')" title="Chung">📌</button>';
+        categoryBadge += '</div>';
 
         const expenseDate = exp.expense_date || exp.date || '-';
         const createdAt = exp.created_at ? new Date(exp.created_at).toLocaleDateString('vi-VN') : '-';
 
-        html += '<tr>';
-        html += '<td>' + (index + 1) + '</td>';
-        html += '<td>' + expenseDate + '</td>';
-        html += '<td>' + (exp.description || '') + '</td>';
-        html += '<td class="fw-bold text-danger">' + parseFloat(exp.amount).toLocaleString('vi-VN') + 'đ</td>';
+        html += '<tr class="' + rowClass + '">';
+        html += '<td><input type="checkbox" class="form-check-input expense-checkbox" data-expense-id="' + exp.expense_id + '" ' + (isSelected ? 'checked' : '') + ' onchange="toggleExpenseSelection(' + exp.expense_id + ')"></td>';
+        html += '<td class="text-muted">' + (index + 1) + '</td>';
+        html += '<td><span class="badge bg-light text-dark">' + expenseDate + '</span></td>';
+        html += '<td class="text-truncate" style="max-width: 300px;" title="' + (exp.description || '') + '">' + (exp.description || '') + '</td>';
+        html += '<td><strong class="text-danger">' + parseFloat(exp.amount).toLocaleString('vi-VN') + 'đ</strong></td>';
         html += '<td>' + categoryBadge + '</td>';
         html += '<td class="text-muted small">' + createdAt + '</td>';
-        html += '<td><button class="btn btn-sm btn-outline-danger" onclick="deleteExpenseFromOverview(' + exp.expense_id + ')"><i class="fas fa-trash"></i></button></td>';
+        html += '<td class="text-center"><button class="btn btn-sm btn-outline-danger" onclick="deleteExpenseFromOverview(' + exp.expense_id + ')" title="Xóa"><i class="fas fa-trash"></i></button></td>';
         html += '</tr>';
     });
 
     tbody.innerHTML = html;
+    updateBulkActionToolbar();
+}
+
+function updateCounterAnimation(elementId, value) {
+    const element = document.getElementById(elementId);
+    if (element) {
+        element.style.transition = 'transform 0.3s ease';
+        element.style.transform = 'scale(1.1)';
+        element.textContent = value;
+        setTimeout(() => {
+            element.style.transform = 'scale(1)';
+        }, 300);
+    }
 }
 
 function filterExpenseTable() {
     const categoryFilter = document.getElementById('filterCategory').value;
     const monthFilter = document.getElementById('filterMonth').value;
+    const searchTerm = document.getElementById('searchExpense').value.toLowerCase();
 
     let filtered = allExpensesData;
 
@@ -8019,17 +8138,207 @@ function filterExpenseTable() {
         });
     }
 
+    // Filter by search term
+    if (searchTerm) {
+        filtered = filtered.filter(exp => {
+            const desc = (exp.description || '').toLowerCase();
+            return desc.includes(searchTerm);
+        });
+    }
+
+    currentFilteredExpenses = filtered;
     displayExpenseOverview(filtered);
 }
 
 function clearExpenseFilters() {
     document.getElementById('filterCategory').value = 'all';
     document.getElementById('filterMonth').value = '';
+    document.getElementById('searchExpense').value = '';
+    currentFilteredExpenses = allExpensesData;
     displayExpenseOverview(allExpensesData);
 }
 
+// Bulk Selection Functions
+function toggleExpenseSelection(expenseId) {
+    if (selectedExpenseIds.has(expenseId)) {
+        selectedExpenseIds.delete(expenseId);
+    } else {
+        selectedExpenseIds.add(expenseId);
+    }
+    updateBulkActionToolbar();
+    updateSelectAllCheckbox();
+}
+
+function toggleSelectAll() {
+    const checkbox = document.getElementById('selectAllExpenses');
+    const checkboxes = document.querySelectorAll('.expense-checkbox');
+
+    if (checkbox.checked) {
+        checkboxes.forEach(cb => {
+            const expId = parseInt(cb.dataset.expenseId);
+            selectedExpenseIds.add(expId);
+            cb.checked = true;
+            cb.closest('tr').classList.add('table-active');
+        });
+    } else {
+        selectedExpenseIds.clear();
+        checkboxes.forEach(cb => {
+            cb.checked = false;
+            cb.closest('tr').classList.remove('table-active');
+        });
+    }
+    updateBulkActionToolbar();
+}
+
+function updateSelectAllCheckbox() {
+    const checkbox = document.getElementById('selectAllExpenses');
+    const checkboxes = document.querySelectorAll('.expense-checkbox');
+    const allChecked = checkboxes.length > 0 && Array.from(checkboxes).every(cb => cb.checked);
+    checkbox.checked = allChecked;
+}
+
+function updateBulkActionToolbar() {
+    const toolbar = document.getElementById('bulkActionToolbar');
+    const count = selectedExpenseIds.size;
+
+    if (count > 0) {
+        toolbar.style.display = 'block';
+        document.getElementById('selectedExpenseCount').textContent = count;
+    } else {
+        toolbar.style.display = 'none';
+    }
+}
+
+function clearBulkSelection() {
+    selectedExpenseIds.clear();
+    document.querySelectorAll('.expense-checkbox').forEach(cb => {
+        cb.checked = false;
+        cb.closest('tr').classList.remove('table-active');
+    });
+    document.getElementById('selectAllExpenses').checked = false;
+    updateBulkActionToolbar();
+}
+
+// Quick Categorize (Single)
+async function quickCategorize(expenseId, category) {
+    try {
+        const response = await fetch('/api/expenses/' + expenseId, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ category: category })
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+            // Update local data
+            const expense = allExpensesData.find(e => e.expense_id === expenseId);
+            if (expense) {
+                expense.category = category;
+            }
+            displayExpenseOverview(currentFilteredExpenses);
+        } else {
+            throw new Error(result.error || 'Cannot update category');
+        }
+    } catch (error) {
+        console.error('❌ Error categorizing expense:', error);
+        alert('❌ Lỗi phân loại: ' + error.message);
+    }
+}
+
+// Bulk Categorize
+async function bulkCategorize(category) {
+    if (selectedExpenseIds.size === 0) {
+        alert('⚠️ Vui lòng chọn ít nhất một giao dịch!');
+        return;
+    }
+
+    const confirmMsg = 'Xác nhận phân loại ' + selectedExpenseIds.size + ' giao dịch thành "' +
+                       (category === 'personal' ? 'Cá nhân' : category === 'work' ? 'Công việc' : 'Chung') + '"?';
+
+    if (!confirm(confirmMsg)) {
+        return;
+    }
+
+    let successCount = 0;
+    let errorCount = 0;
+
+    for (const expenseId of selectedExpenseIds) {
+        try {
+            const response = await fetch('/api/expenses/' + expenseId, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ category: category })
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                const expense = allExpensesData.find(e => e.expense_id === expenseId);
+                if (expense) {
+                    expense.category = category;
+                }
+                successCount++;
+            } else {
+                errorCount++;
+            }
+        } catch (error) {
+            console.error('Error categorizing expense ' + expenseId + ':', error);
+            errorCount++;
+        }
+    }
+
+    alert('✅ Đã phân loại thành công ' + successCount + ' giao dịch!' +
+          (errorCount > 0 ? '\n❌ Lỗi: ' + errorCount + ' giao dịch' : ''));
+
+    clearBulkSelection();
+    displayExpenseOverview(currentFilteredExpenses);
+}
+
+// Bulk Delete
+async function bulkDeleteExpenses() {
+    if (selectedExpenseIds.size === 0) {
+        alert('⚠️ Vui lòng chọn ít nhất một giao dịch!');
+        return;
+    }
+
+    const confirmMsg = '⚠️ XÓA ' + selectedExpenseIds.size + ' GIAO DỊCH?\n\nHành động này KHÔNG THỂ HOÀN TÁC!';
+
+    if (!confirm(confirmMsg)) {
+        return;
+    }
+
+    let successCount = 0;
+    let errorCount = 0;
+
+    for (const expenseId of selectedExpenseIds) {
+        try {
+            const response = await fetch('/api/expenses/' + expenseId, {
+                method: 'DELETE'
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                successCount++;
+            } else {
+                errorCount++;
+            }
+        } catch (error) {
+            console.error('Error deleting expense ' + expenseId + ':', error);
+            errorCount++;
+        }
+    }
+
+    alert('✅ Đã xóa thành công ' + successCount + ' giao dịch!' +
+          (errorCount > 0 ? '\n❌ Lỗi: ' + errorCount + ' giao dịch' : ''));
+
+    clearBulkSelection();
+    await loadExpenseOverview();
+}
+
 async function deleteExpenseFromOverview(expenseId) {
-    if (!confirm('Xác nhận xóa chi phí này?')) {
+    if (!confirm('⚠️ Xác nhận xóa chi phí này?')) {
         return;
     }
 
@@ -8041,8 +8350,7 @@ async function deleteExpenseFromOverview(expenseId) {
         const result = await response.json();
 
         if (result.success) {
-            alert('✅ Đã xóa chi phí thành công!');
-            await loadExpenseOverview(); // Reload
+            await loadExpenseOverview();
         } else {
             throw new Error(result.error || 'Cannot delete expense');
         }
