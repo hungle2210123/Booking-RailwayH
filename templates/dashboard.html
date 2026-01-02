@@ -1082,9 +1082,6 @@
                             <button class="btn btn-outline-light btn-sm px-2" data-bs-toggle="modal" data-bs-target="#expenseOverviewModal" title="📊 Xem Tất Cả" onclick="loadExpenseOverview()">
                                 <i class="fas fa-table"></i>
                             </button>
-                            <button class="btn btn-outline-light btn-sm px-2" data-bs-toggle="modal" data-bs-target="#expenseReviewModal" title="Xem chi tiết">
-                                <i class="fas fa-eye"></i>
-                            </button>
                             <button class="btn btn-outline-light btn-sm px-2" onclick="loadMonthlyExpenses()" title="Tải lại">
                                 <i class="fas fa-sync-alt"></i>
                             </button>
@@ -6961,128 +6958,6 @@ document.addEventListener('DOMContentLoaded', async function() {
                 <button type="button" class="btn btn-primary" onclick="saveExpenseFromActiveTab()" style="background: linear-gradient(135deg, #fd79a8 0%, #e84393 100%); border: none;">
                     <i class="fas fa-save me-1"></i>Lưu Chi Phí
                 </button>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Expense Review Modal -->
-<div class="modal fade" id="expenseReviewModal" tabindex="-1" aria-labelledby="expenseReviewModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg modal-dialog-centered">
-        <div class="modal-content">
-            <div class="modal-header" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
-                <h5 class="modal-title text-white" id="expenseReviewModalLabel">
-                    <i class="fas fa-chart-pie me-2"></i>Phân Loại Chi Phí: Cá Nhân & Công Việc
-                </h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                <!-- Month Selection & Controls -->
-                <div class="row mb-3">
-                    <div class="col-md-3">
-                        <label for="reviewMonth" class="form-label">Chọn tháng:</label>
-                        <input type="month" class="form-control" id="reviewMonth">
-                    </div>
-                    <div class="col-md-3 d-flex align-items-end">
-                        <button class="btn btn-primary w-100" onclick="loadExpenseReview()" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none;">
-                            <i class="fas fa-search me-1"></i>Tải dữ liệu
-                        </button>
-                    </div>
-                    <div class="col-md-3 d-flex align-items-end">
-                        <button class="btn btn-warning w-100" onclick="fixExpenseDescriptions()" id="fixDescBtn">
-                            <i class="fas fa-tools me-1"></i>Sửa Nội Dung
-                        </button>
-                    </div>
-                    <div class="col-md-3 d-flex align-items-end">
-                        <div class="btn-group w-100" role="group">
-                            <button class="btn btn-success btn-sm" onclick="categorizeSelected('personal')">
-                                <i class="fas fa-user me-1"></i>Cá Nhân
-                            </button>
-                            <button class="btn btn-info btn-sm" onclick="categorizeSelected('work')">
-                                <i class="fas fa-briefcase me-1"></i>Công Việc
-                            </button>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- Category Summary Cards -->
-                <div class="row mb-3" id="categorySummary" style="display: none;">
-                    <div class="col-md-6">
-                        <div class="card border-success">
-                            <div class="card-header text-black" style="background-color: #d4edda;">
-                                <i class="fas fa-user me-1"></i><strong>Chi Phí Cá Nhân</strong>
-                            </div>
-                            <div class="card-body">
-                                <div class="d-flex justify-content-between">
-                                    <span>Số giao dịch:</span>
-                                    <span id="personalCount" class="fw-bold">0</span>
-                                </div>
-                                <div class="d-flex justify-content-between">
-                                    <span>Tổng tiền:</span>
-                                    <span id="personalTotal" class="fw-bold" style="color: #000000;">0đ</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-md-6">
-                        <div class="card border-info">
-                            <div class="card-header text-black" style="background-color: #cce7f0;">
-                                <i class="fas fa-briefcase me-1"></i><strong>Chi Phí Công Việc</strong>
-                            </div>
-                            <div class="card-body">
-                                <div class="d-flex justify-content-between">
-                                    <span>Số giao dịch:</span>
-                                    <span id="workCount" class="fw-bold">0</span>
-                                </div>
-                                <div class="d-flex justify-content-between">
-                                    <span>Tổng tiền:</span>
-                                    <span id="workTotal" class="fw-bold" style="color: #000000;">0đ</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- Multi-Select Controls -->
-                <div class="d-flex justify-content-between align-items-center mb-3" id="multiSelectControls" style="display: none;">
-                    <div>
-                        <button class="btn btn-outline-primary btn-sm" onclick="selectAllExpenses()">
-                            <i class="fas fa-check-square me-1"></i>Chọn Tất Cả
-                        </button>
-                        <button class="btn btn-outline-secondary btn-sm" onclick="clearAllSelections()">
-                            <i class="fas fa-square me-1"></i>Bỏ Chọn
-                        </button>
-                    </div>
-                    <div>
-                        <span class="text-muted">Đã chọn: <span id="selectedCount" class="fw-bold">0</span> giao dịch</span>
-                    </div>
-                </div>
-                
-                <!-- Monthly Summary -->
-                <div id="expenseReviewSummary" class="alert alert-info" style="display: none;">
-                    <div class="row">
-                        <div class="col-4">
-                            <strong>Tổng giao dịch:</strong> <span id="reviewTotalCount">0</span>
-                        </div>
-                        <div class="col-4">
-                            <strong>Tổng chi phí:</strong> <span id="reviewTotalAmount" class="text-danger">0đ</span>
-                        </div>
-                        <div class="col-4">
-                            <strong>Chưa phân loại:</strong> <span id="uncategorizedAmount" class="text-warning">0đ</span>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- Expense List -->
-                <div id="expenseReviewList">
-                    <div class="text-center text-muted py-4">
-                        <i class="fas fa-calendar-alt fa-2x mb-2"></i>
-                        <p>Chọn tháng để xem chi tiết chi phí</p>
-                    </div>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Đóng</button>
             </div>
         </div>
     </div>
