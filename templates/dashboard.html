@@ -7042,8 +7042,8 @@ document.addEventListener('DOMContentLoaded', async function() {
                 <!-- Modern Filter & Search Bar -->
                 <div class="card border-0 shadow-sm mb-3">
                     <div class="card-body">
-                        <div class="row g-3">
-                            <div class="col-md-4">
+                        <div class="row g-3 mb-3">
+                            <div class="col-md-3">
                                 <div class="input-group">
                                     <span class="input-group-text bg-white border-end-0">
                                         <i class="fas fa-search text-muted"></i>
@@ -7061,15 +7061,72 @@ document.addEventListener('DOMContentLoaded', async function() {
                                 </select>
                             </div>
                             <div class="col-md-2">
-                                <input type="month" class="form-control" id="filterMonth" onchange="filterExpenseTable()">
+                                <input type="month" class="form-control" id="filterMonth" onchange="filterExpenseTable()" placeholder="Tháng">
                             </div>
-                            <div class="col-md-4 text-end">
+                            <div class="col-md-2">
+                                <input type="date" class="form-control" id="filterDate" onchange="filterExpenseTable()" placeholder="Ngày cụ thể">
+                            </div>
+                            <div class="col-md-3 text-end">
                                 <button class="btn btn-outline-secondary" onclick="clearExpenseFilters()">
                                     <i class="fas fa-times me-1"></i>Xóa Lọc
                                 </button>
                                 <button class="btn btn-primary" onclick="loadExpenseOverview()">
                                     <i class="fas fa-sync-alt me-1"></i>Tải Lại
                                 </button>
+                            </div>
+                        </div>
+
+                        <!-- Quick Date Filters -->
+                        <div class="d-flex gap-2 flex-wrap">
+                            <button class="btn btn-sm btn-outline-primary" onclick="filterByToday()">
+                                <i class="fas fa-calendar-day me-1"></i>Hôm Nay
+                            </button>
+                            <button class="btn btn-sm btn-outline-primary" onclick="filterByYesterday()">
+                                <i class="fas fa-calendar-minus me-1"></i>Hôm Qua
+                            </button>
+                            <button class="btn btn-sm btn-outline-primary" onclick="filterByThisWeek()">
+                                <i class="fas fa-calendar-week me-1"></i>Tuần Này
+                            </button>
+                            <button class="btn btn-sm btn-outline-primary" onclick="filterByThisMonth()">
+                                <i class="fas fa-calendar-alt me-1"></i>Tháng Này
+                            </button>
+                            <button class="btn btn-sm btn-outline-primary" onclick="filterByLastMonth()">
+                                <i class="fas fa-calendar me-1"></i>Tháng Trước
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Today's Statistics Card -->
+                <div id="todayStatsCard" class="card border-0 shadow-sm mb-3" style="display: none; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                    <div class="card-body text-white">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="mb-1"><i class="fas fa-chart-bar me-2"></i>Thống Kê Hôm Nay</h6>
+                                <p class="mb-0 small opacity-75" id="todayStatsDate">-</p>
+                            </div>
+                            <button class="btn btn-sm btn-light" onclick="clearExpenseFilters()">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                        <div class="row mt-3">
+                            <div class="col-4">
+                                <div class="text-center">
+                                    <h3 class="mb-0" id="todayCount">0</h3>
+                                    <small class="opacity-75">Giao dịch</small>
+                                </div>
+                            </div>
+                            <div class="col-4">
+                                <div class="text-center">
+                                    <h3 class="mb-0" id="todayTotal">0đ</h3>
+                                    <small class="opacity-75">Tổng chi</small>
+                                </div>
+                            </div>
+                            <div class="col-4">
+                                <div class="text-center">
+                                    <h3 class="mb-0" id="todayAverage">0đ</h3>
+                                    <small class="opacity-75">Trung bình</small>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -7996,6 +8053,7 @@ function updateCounterAnimation(elementId, value) {
 function filterExpenseTable() {
     const categoryFilter = document.getElementById('filterCategory').value;
     const monthFilter = document.getElementById('filterMonth').value;
+    const dateFilter = document.getElementById('filterDate').value;
     const searchTerm = document.getElementById('searchExpense').value.toLowerCase();
 
     let filtered = allExpensesData;
@@ -8005,12 +8063,24 @@ function filterExpenseTable() {
         filtered = filtered.filter(exp => exp.category === categoryFilter);
     }
 
-    // Filter by month
-    if (monthFilter) {
+    // Filter by specific date (takes priority over month)
+    if (dateFilter) {
+        filtered = filtered.filter(exp => {
+            const expDate = exp.expense_date || exp.date || '';
+            return expDate === dateFilter;
+        });
+
+        // Show today's stats if filtering by date
+        updateTodayStats(filtered, dateFilter);
+    } else if (monthFilter) {
+        // Filter by month
         filtered = filtered.filter(exp => {
             const expDate = exp.expense_date || exp.date || '';
             return expDate.startsWith(monthFilter);
         });
+        document.getElementById('todayStatsCard').style.display = 'none';
+    } else {
+        document.getElementById('todayStatsCard').style.display = 'none';
     }
 
     // Filter by search term
@@ -8028,9 +8098,86 @@ function filterExpenseTable() {
 function clearExpenseFilters() {
     document.getElementById('filterCategory').value = 'all';
     document.getElementById('filterMonth').value = '';
+    document.getElementById('filterDate').value = '';
     document.getElementById('searchExpense').value = '';
+    document.getElementById('todayStatsCard').style.display = 'none';
     currentFilteredExpenses = allExpensesData;
     displayExpenseOverview(allExpensesData);
+}
+
+// Quick Date Filter Functions
+function filterByToday() {
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById('filterDate').value = today;
+    document.getElementById('filterMonth').value = '';
+    filterExpenseTable();
+}
+
+function filterByYesterday() {
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    const dateStr = yesterday.toISOString().split('T')[0];
+    document.getElementById('filterDate').value = dateStr;
+    document.getElementById('filterMonth').value = '';
+    filterExpenseTable();
+}
+
+function filterByThisWeek() {
+    const today = new Date();
+    const firstDay = new Date(today);
+    firstDay.setDate(today.getDate() - today.getDay() + 1); // Monday
+
+    const filtered = allExpensesData.filter(exp => {
+        const expDate = new Date(exp.expense_date || exp.date);
+        return expDate >= firstDay && expDate <= today;
+    });
+
+    document.getElementById('filterDate').value = '';
+    document.getElementById('filterMonth').value = '';
+    currentFilteredExpenses = filtered;
+    displayExpenseOverview(filtered);
+    document.getElementById('todayStatsCard').style.display = 'none';
+}
+
+function filterByThisMonth() {
+    const today = new Date();
+    const monthStr = today.toISOString().slice(0, 7); // YYYY-MM
+    document.getElementById('filterMonth').value = monthStr;
+    document.getElementById('filterDate').value = '';
+    filterExpenseTable();
+}
+
+function filterByLastMonth() {
+    const lastMonth = new Date();
+    lastMonth.setMonth(lastMonth.getMonth() - 1);
+    const monthStr = lastMonth.toISOString().slice(0, 7);
+    document.getElementById('filterMonth').value = monthStr;
+    document.getElementById('filterDate').value = '';
+    filterExpenseTable();
+}
+
+// Update Today's Statistics Card
+function updateTodayStats(expenses, dateStr) {
+    const statsCard = document.getElementById('todayStatsCard');
+    const count = expenses.length;
+    const total = expenses.reduce((sum, exp) => sum + parseFloat(exp.amount || 0), 0);
+    const average = count > 0 ? total / count : 0;
+
+    // Format date display
+    const date = new Date(dateStr);
+    const dateDisplay = date.toLocaleDateString('vi-VN', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+    });
+
+    document.getElementById('todayStatsDate').textContent = dateDisplay;
+    document.getElementById('todayCount').textContent = count;
+    document.getElementById('todayTotal').textContent = total.toLocaleString('vi-VN') + 'đ';
+    document.getElementById('todayAverage').textContent = average.toLocaleString('vi-VN', {maximumFractionDigits: 0}) + 'đ';
+
+    statsCard.style.display = 'block';
 }
 
 // Bulk Selection Functions
