@@ -1079,6 +1079,9 @@
                             <button class="btn btn-light btn-sm px-2" data-bs-toggle="modal" data-bs-target="#expenseModal" title="Thêm chi phí" onclick="prepareExpenseModal()">
                                 <i class="fas fa-plus"></i>
                             </button>
+                            <button class="btn btn-outline-light btn-sm px-2" data-bs-toggle="modal" data-bs-target="#expenseOverviewModal" title="📊 Xem Tất Cả" onclick="loadExpenseOverview()">
+                                <i class="fas fa-table"></i>
+                            </button>
                             <button class="btn btn-outline-light btn-sm px-2" data-bs-toggle="modal" data-bs-target="#expenseReviewModal" title="Xem chi tiết">
                                 <i class="fas fa-eye"></i>
                             </button>
@@ -7085,6 +7088,110 @@ document.addEventListener('DOMContentLoaded', async function() {
     </div>
 </div>
 
+<!-- 📊 Expense Overview Modal - All Expenses Table -->
+<div class="modal fade" id="expenseOverviewModal" tabindex="-1" aria-labelledby="expenseOverviewModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header" style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);">
+                <h5 class="modal-title text-white" id="expenseOverviewModalLabel">
+                    <i class="fas fa-table me-2"></i>📊 Tổng Quan Chi Phí - Tất Cả Giao Dịch
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" style="max-height: 70vh; overflow-y: auto;">
+                <!-- Summary Cards -->
+                <div class="row mb-3" id="overviewSummary">
+                    <div class="col-md-3">
+                        <div class="card bg-primary text-white">
+                            <div class="card-body">
+                                <h6 class="card-title"><i class="fas fa-hashtag me-1"></i>Tổng Giao Dịch</h6>
+                                <h3 id="totalExpenseCount">0</h3>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card bg-danger text-white">
+                            <div class="card-body">
+                                <h6 class="card-title"><i class="fas fa-money-bill-wave me-1"></i>Tổng Chi Phí</h6>
+                                <h3 id="totalExpenseAmount">0đ</h3>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card bg-success text-white">
+                            <div class="card-body">
+                                <h6 class="card-title"><i class="fas fa-user me-1"></i>Cá Nhân</h6>
+                                <h3 id="personalExpenseAmount">0đ</h3>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card bg-info text-white">
+                            <div class="card-body">
+                                <h6 class="card-title"><i class="fas fa-briefcase me-1"></i>Công Việc</h6>
+                                <h3 id="workExpenseAmount">0đ</h3>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Filter Controls -->
+                <div class="row mb-3">
+                    <div class="col-md-3">
+                        <label for="filterCategory" class="form-label">Lọc theo loại:</label>
+                        <select class="form-select" id="filterCategory" onchange="filterExpenseTable()">
+                            <option value="all">Tất cả</option>
+                            <option value="personal">Cá nhân</option>
+                            <option value="work">Công việc</option>
+                            <option value="general">Chung</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label for="filterMonth" class="form-label">Lọc theo tháng:</label>
+                        <input type="month" class="form-control" id="filterMonth" onchange="filterExpenseTable()">
+                    </div>
+                    <div class="col-md-6 d-flex align-items-end">
+                        <button class="btn btn-outline-secondary me-2" onclick="clearExpenseFilters()">
+                            <i class="fas fa-times me-1"></i>Xóa Bộ Lọc
+                        </button>
+                        <button class="btn btn-success" onclick="loadExpenseOverview()">
+                            <i class="fas fa-sync-alt me-1"></i>Tải Lại
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Expenses Table -->
+                <div class="table-responsive">
+                    <table class="table table-striped table-hover" id="expenseOverviewTable">
+                        <thead class="table-dark sticky-top">
+                            <tr>
+                                <th style="width: 5%;">#</th>
+                                <th style="width: 12%;">Ngày</th>
+                                <th style="width: 35%;">Mô Tả</th>
+                                <th style="width: 15%;">Số Tiền</th>
+                                <th style="width: 13%;">Loại</th>
+                                <th style="width: 12%;">Ngày Tạo</th>
+                                <th style="width: 8%;">Thao Tác</th>
+                            </tr>
+                        </thead>
+                        <tbody id="expenseOverviewTableBody">
+                            <tr>
+                                <td colspan="7" class="text-center text-muted py-4">
+                                    <i class="fas fa-spinner fa-spin fa-2x mb-2"></i>
+                                    <p>Đang tải dữ liệu...</p>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Đóng</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
 // MODAL CLEANUP UTILITY - Fixes stuck backdrop issues
 function forceCloseModal(modalId) {
@@ -7814,6 +7921,136 @@ if (expenseReviewModal) {
 // Global variables for expense categorization
 let currentExpenses = [];
 let expenseCategories = {};
+let allExpensesData = []; // For overview table
+
+// 📊 EXPENSE OVERVIEW FUNCTIONS
+async function loadExpenseOverview() {
+    try {
+        const response = await fetch('/api/expenses');
+        if (!response.ok) {
+            throw new Error('HTTP ' + response.status + ': ' + response.statusText);
+        }
+
+        const result = await response.json();
+
+        if (result.success && result.data) {
+            allExpensesData = result.data;
+            displayExpenseOverview(allExpensesData);
+        } else {
+            throw new Error(result.error || 'Cannot load expenses');
+        }
+    } catch (error) {
+        console.error('❌ Error loading expense overview:', error);
+        document.getElementById('expenseOverviewTableBody').innerHTML =
+            '<tr><td colspan="7" class="text-center text-danger py-4"><i class="fas fa-exclamation-triangle me-2"></i>Lỗi: ' + error.message + '</td></tr>';
+    }
+}
+
+function displayExpenseOverview(expenses) {
+    // Calculate summary
+    let totalCount = expenses.length;
+    let totalAmount = 0;
+    let personalAmount = 0;
+    let workAmount = 0;
+
+    expenses.forEach(exp => {
+        totalAmount += parseFloat(exp.amount || 0);
+        if (exp.category === 'personal') {
+            personalAmount += parseFloat(exp.amount || 0);
+        } else if (exp.category === 'work') {
+            workAmount += parseFloat(exp.amount || 0);
+        }
+    });
+
+    // Update summary cards
+    document.getElementById('totalExpenseCount').textContent = totalCount;
+    document.getElementById('totalExpenseAmount').textContent = totalAmount.toLocaleString('vi-VN') + 'đ';
+    document.getElementById('personalExpenseAmount').textContent = personalAmount.toLocaleString('vi-VN') + 'đ';
+    document.getElementById('workExpenseAmount').textContent = workAmount.toLocaleString('vi-VN') + 'đ';
+
+    // Populate table
+    const tbody = document.getElementById('expenseOverviewTableBody');
+    if (expenses.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted py-4"><i class="fas fa-inbox me-2"></i>Không có dữ liệu</td></tr>';
+        return;
+    }
+
+    let html = '';
+    expenses.forEach((exp, index) => {
+        const categoryBadge = exp.category === 'personal' ?
+            '<span class="badge bg-success">Cá nhân</span>' :
+            exp.category === 'work' ?
+            '<span class="badge bg-info">Công việc</span>' :
+            '<span class="badge bg-secondary">Chung</span>';
+
+        const expenseDate = exp.expense_date || exp.date || '-';
+        const createdAt = exp.created_at ? new Date(exp.created_at).toLocaleDateString('vi-VN') : '-';
+
+        html += '<tr>';
+        html += '<td>' + (index + 1) + '</td>';
+        html += '<td>' + expenseDate + '</td>';
+        html += '<td>' + (exp.description || '') + '</td>';
+        html += '<td class="fw-bold text-danger">' + parseFloat(exp.amount).toLocaleString('vi-VN') + 'đ</td>';
+        html += '<td>' + categoryBadge + '</td>';
+        html += '<td class="text-muted small">' + createdAt + '</td>';
+        html += '<td><button class="btn btn-sm btn-outline-danger" onclick="deleteExpenseFromOverview(' + exp.expense_id + ')"><i class="fas fa-trash"></i></button></td>';
+        html += '</tr>';
+    });
+
+    tbody.innerHTML = html;
+}
+
+function filterExpenseTable() {
+    const categoryFilter = document.getElementById('filterCategory').value;
+    const monthFilter = document.getElementById('filterMonth').value;
+
+    let filtered = allExpensesData;
+
+    // Filter by category
+    if (categoryFilter !== 'all') {
+        filtered = filtered.filter(exp => exp.category === categoryFilter);
+    }
+
+    // Filter by month
+    if (monthFilter) {
+        filtered = filtered.filter(exp => {
+            const expDate = exp.expense_date || exp.date || '';
+            return expDate.startsWith(monthFilter);
+        });
+    }
+
+    displayExpenseOverview(filtered);
+}
+
+function clearExpenseFilters() {
+    document.getElementById('filterCategory').value = 'all';
+    document.getElementById('filterMonth').value = '';
+    displayExpenseOverview(allExpensesData);
+}
+
+async function deleteExpenseFromOverview(expenseId) {
+    if (!confirm('Xác nhận xóa chi phí này?')) {
+        return;
+    }
+
+    try {
+        const response = await fetch('/api/expenses/' + expenseId, {
+            method: 'DELETE'
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+            alert('✅ Đã xóa chi phí thành công!');
+            await loadExpenseOverview(); // Reload
+        } else {
+            throw new Error(result.error || 'Cannot delete expense');
+        }
+    } catch (error) {
+        console.error('❌ Error deleting expense:', error);
+        alert('❌ Lỗi xóa chi phí: ' + error.message);
+    }
+}
 
 // Load expense review function with categorization
 async function loadExpenseReview() {

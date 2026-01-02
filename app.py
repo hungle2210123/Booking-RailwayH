@@ -3138,7 +3138,7 @@ def bulk_add_expenses():
             new_expense = Expense(
                 description=exp_data['description'],
                 amount=float(exp_data['amount']),
-                date=datetime.strptime(exp_data['date'], '%Y-%m-%d').date()
+                expense_date=datetime.strptime(exp_data['date'], '%Y-%m-%d').date()
             )
 
             db.session.add(new_expense)
