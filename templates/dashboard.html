@@ -8615,16 +8615,29 @@ function renderExpenseCalendar() {
         html += '<div class="calendar-day-number">' + day + '</div>';
 
         if (hasExpenses) {
+            // Calculate category totals
+            const personalTotal = dayExpenses
+                .filter(e => e.category === 'personal')
+                .reduce((sum, exp) => sum + parseFloat(exp.amount || 0), 0);
+            const workTotal = dayExpenses
+                .filter(e => e.category === 'work')
+                .reduce((sum, exp) => sum + parseFloat(exp.amount || 0), 0);
+
             html += '<div class="calendar-day-total">💰 ' + dayTotal.toLocaleString('vi-VN') + 'đ</div>';
             html += '<div class="calendar-day-count">📊 ' + dayExpenses.length + ' giao dịch</div>';
 
-            // Show category badges
-            const personal = dayExpenses.filter(e => e.category === 'personal').length;
-            const work = dayExpenses.filter(e => e.category === 'work').length;
-
-            html += '<div class="calendar-day-categories">';
-            if (personal > 0) html += '<span class="badge bg-success calendar-category-badge">👤 ' + personal + '</span>';
-            if (work > 0) html += '<span class="badge bg-info calendar-category-badge">💼 ' + work + '</span>';
+            // Show category amounts
+            html += '<div class="calendar-day-categories mt-1">';
+            if (personalTotal > 0) {
+                html += '<div class="badge bg-success calendar-category-badge w-100 mb-1">';
+                html += '👤 Cá nhân: ' + personalTotal.toLocaleString('vi-VN') + 'đ';
+                html += '</div>';
+            }
+            if (workTotal > 0) {
+                html += '<div class="badge bg-info calendar-category-badge w-100">';
+                html += '💼 Công việc: ' + workTotal.toLocaleString('vi-VN') + 'đ';
+                html += '</div>';
+            }
             html += '</div>';
         }
 
