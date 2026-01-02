@@ -2979,6 +2979,205 @@ def create_categories_table():
             'message': f'Error creating table: {str(e)}'
         }), 500
 
+@app.route('/api/analyze_expense_image', methods=['POST'])
+def analyze_expense_image():
+    """Analyze expense image using Gemini AI to extract expense data"""
+    try:
+        from datetime import datetime
+        import json
+
+        if not GOOGLE_API_KEY or not genai:
+            return jsonify({'success': False, 'error': 'Gemini AI not configured'}), 500
+
+        # Check if image was uploaded
+        if 'image' not in request.files:
+            return jsonify({'success': False, 'error': 'No image file provided'}), 400
+
+        file = request.files['image']
+        if file.filename == '':
+            return jsonify({'success': False, 'error': 'No file selected'}), 400
+
+        print(f"📸 [EXPENSE_AI] Processing image: {file.filename}")
+
+        # Read image
+        from PIL import Image
+        import io
+
+        image_bytes = file.read()
+        image = Image.open(io.BytesIO(image_bytes))
+
+        # Prepare AI prompt
+        today = datetime.now().strftime('%Y-%m-%d')
+
+        prompt = f"""
+You are an AI assistant that extracts expense/revenue data from images (screenshots, receipts, chat messages, etc.).
+
+**Task:** Extract ALL expense entries from this image and return them as a JSON array.
+
+**Expected Input Formats:**
+- Chat messages: "Mua 3 cây giá 900,000." or "Đổ xăng 90,000"
+- Receipts with itemized lists
+- Handwritten notes
+- Bank transaction screenshots
+
+**Extraction Rules:**
+1. **Description:** Extract the full expense description in Vietnamese
+   - Example: "Mua 3 cây giá" → "Mua 3 cây giá"
+   - Example: "Đổ xăng" → "Đổ xăng"
+
+2. **Amount:** Extract numeric value only (remove commas, currency symbols)
+   - "900,000đ" → 900000
+   - "90.000" → 90000
+   - "170k" → 170000
+
+3. **Date:** Extract or infer date
+   - If timestamp visible: extract actual date
+   - If "Hôm nay" or "Today": use TODAY's date
+   - If relative time (15:02, 16:05): use TODAY
+   - Format: YYYY-MM-DD
+
+4. **Category:** Auto-categorize as "personal" or "work" or null
+   - Personal: food, gas, personal items → "personal"
+   - Work: office supplies, equipment → "work"
+   - Uncertain: leave as null
+
+**Output Format (JSON Array):**
+```json
+[
+  {{
+    "description": "Mua 3 cây giá",
+    "amount": 900000,
+    "date": "{today}",
+    "category": "work"
+  }},
+  {{
+    "description": "Mua 1 máy sấy",
+    "amount": 170000,
+    "date": "{today}",
+    "category": "personal"
+  }}
+]
+```
+
+**Important:**
+- Return ONLY the JSON array, no other text
+- Include ALL expenses found in the image
+- Use null for missing/uncertain values
+- Preserve Vietnamese characters exactly
+- Today's date is: {today}
+
+Extract all expenses now:
+"""
+
+        # Call Gemini AI
+        model = genai.GenerativeModel('gemini-1.5-flash')
+        response = model.generate_content([prompt, image])
+
+        print(f"🤖 [EXPENSE_AI] AI Response: {response.text[:200]}...")
+
+        # Parse JSON from response
+        response_text = response.text.strip()
+
+        # Remove markdown code blocks if present
+        if response_text.startswith('```'):
+            response_text = response_text.split('```')[1]
+            if response_text.startswith('json'):
+                response_text = response_text[4:]
+            response_text = response_text.strip()
+
+        # Parse JSON
+        expenses = json.loads(response_text)
+
+        if not isinstance(expenses, list):
+            raise ValueError('AI response is not a JSON array')
+
+        print(f"✅ [EXPENSE_AI] Extracted {len(expenses)} expenses")
+
+        return jsonify({
+            'success': True,
+            'expenses': expenses,
+            'count': len(expenses)
+        })
+
+    except json.JSONDecodeError as e:
+        print(f"❌ [EXPENSE_AI] JSON parsing error: {e}")
+        print(f"   Response was: {response_text if 'response_text' in locals() else 'N/A'}")
+        return jsonify({'success': False, 'error': 'AI response is not valid JSON. Please try again or use manual entry.'}), 400
+
+    except Exception as e:
+        print(f"❌ [EXPENSE_AI] Error analyzing image: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/expenses/bulk', methods=['POST'])
+def bulk_add_expenses():
+    """Add multiple expenses at once (from AI or JSON input)"""
+    try:
+        from core.models import db, Expense
+        from datetime import datetime
+
+        data = request.get_json()
+        if not data or 'expenses' not in data:
+            return jsonify({'success': False, 'error': 'No expenses provided'}), 400
+
+        expenses_data = data['expenses']
+        if not isinstance(expenses_data, list):
+            return jsonify({'success': False, 'error': 'Expenses must be an array'}), 400
+
+        print(f"💾 [BULK_EXPENSES] Adding {len(expenses_data)} expenses...")
+
+        added_count = 0
+        for exp_data in expenses_data:
+            # Validate required fields
+            if not exp_data.get('description') or not exp_data.get('amount') or not exp_data.get('date'):
+                print(f"⚠️ Skipping invalid expense: {exp_data}")
+                continue
+
+            # Create expense
+            new_expense = Expense(
+                description=exp_data['description'],
+                amount=float(exp_data['amount']),
+                date=datetime.strptime(exp_data['date'], '%Y-%m-%d').date()
+            )
+
+            db.session.add(new_expense)
+            db.session.flush()  # Get expense_id
+
+            # Add category if provided
+            if exp_data.get('category'):
+                from core.models import ExpenseCategory
+                category = ExpenseCategory(
+                    expense_id=new_expense.expense_id,
+                    category=exp_data['category']
+                )
+                db.session.add(category)
+
+            added_count += 1
+            print(f"  ✅ Added: {exp_data['description']} - {exp_data['amount']}đ")
+
+        db.session.commit()
+
+        print(f"✅ [BULK_EXPENSES] Successfully added {added_count} expenses")
+
+        return jsonify({
+            'success': True,
+            'count': added_count,
+            'message': f'Added {added_count} expenses successfully'
+        })
+
+    except Exception as e:
+        print(f"❌ [BULK_EXPENSES] Error: {e}")
+        import traceback
+        traceback.print_exc()
+
+        try:
+            db.session.rollback()
+        except:
+            pass
+
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 @app.route('/bookings/save_extracted', methods=['POST'])
 def save_extracted_bookings():
     """Save multiple extracted bookings from AI photo processing"""

@@ -6801,9 +6801,9 @@ document.addEventListener('DOMContentLoaded', async function() {
 
 </script>
 
-<!-- Expense Modal -->
+<!-- Enhanced Expense Modal with 3 Input Methods -->
 <div class="modal fade" id="expenseModal" tabindex="-1" aria-labelledby="expenseModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header" style="background: linear-gradient(135deg, #fd79a8 0%, #e84393 100%);">
                 <h5 class="modal-title text-white" id="expenseModalLabel">
@@ -6812,49 +6812,120 @@ document.addEventListener('DOMContentLoaded', async function() {
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
-                <form id="expenseForm">
-                    <div class="mb-3">
-                        <label for="expenseDescription" class="form-label">Nội dung chi phí</label>
-                        <input type="text" class="form-control" id="expenseDescription" placeholder="VD: Điện, nước, thực phẩm..." required>
+                <!-- Navigation Tabs -->
+                <ul class="nav nav-tabs mb-3" id="expenseInputTabs" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" id="manual-tab" data-bs-toggle="tab" data-bs-target="#manual-input" type="button" role="tab">
+                            <i class="fas fa-keyboard me-1"></i>Nhập Thủ Công
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="image-tab" data-bs-toggle="tab" data-bs-target="#image-input" type="button" role="tab">
+                            <i class="fas fa-image me-1"></i>Từ Hình Ảnh (AI)
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="json-tab" data-bs-toggle="tab" data-bs-target="#json-input" type="button" role="tab">
+                            <i class="fas fa-code me-1"></i>JSON Bulk
+                        </button>
+                    </li>
+                </ul>
+
+                <!-- Tab Content -->
+                <div class="tab-content" id="expenseInputContent">
+                    <!-- Tab 1: Manual Entry -->
+                    <div class="tab-pane fade show active" id="manual-input" role="tabpanel">
+                        <form id="expenseForm">
+                            <div class="mb-3">
+                                <label for="expenseDescription" class="form-label">Nội dung chi phí</label>
+                                <input type="text" class="form-control" id="expenseDescription" placeholder="VD: Điện, nước, thực phẩm..." required>
+                            </div>
+                            <div class="mb-3">
+                                <label for="expenseAmount" class="form-label">Số tiền</label>
+                                <div class="input-group">
+                                    <input type="number" class="form-control" id="expenseAmount" placeholder="100000" step="any" required>
+                                    <span class="input-group-text">đ</span>
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <label for="expenseDate" class="form-label">Ngày</label>
+                                <input type="date" class="form-control" id="expenseDate" required>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Phân loại (tùy chọn)</label>
+                                <div class="btn-group w-100" role="group">
+                                    <input type="radio" class="btn-check" name="expenseCategory" id="personalCategory" value="personal">
+                                    <label class="btn btn-outline-success" for="personalCategory">
+                                        <i class="fas fa-user me-1"></i>Cá Nhân
+                                    </label>
+                                    <input type="radio" class="btn-check" name="expenseCategory" id="workCategory" value="work">
+                                    <label class="btn btn-outline-info" for="workCategory">
+                                        <i class="fas fa-briefcase me-1"></i>Công Việc
+                                    </label>
+                                    <input type="radio" class="btn-check" name="expenseCategory" id="uncategorizedCategory" value="" checked>
+                                    <label class="btn btn-outline-secondary" for="uncategorizedCategory">
+                                        <i class="fas fa-question-circle me-1"></i>Chưa phân loại
+                                    </label>
+                                </div>
+                            </div>
+                        </form>
                     </div>
-                    <div class="mb-3">
-                        <label for="expenseAmount" class="form-label">Số tiền</label>
-                        <div class="input-group">
-                            <input type="number" class="form-control" id="expenseAmount" placeholder="100000" step="any" required>
-                            <span class="input-group-text">đ</span>
+
+                    <!-- Tab 2: Image Upload with AI -->
+                    <div class="tab-pane fade" id="image-input" role="tabpanel">
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle me-2"></i>
+                            <strong>Tải lên ảnh chứa chi phí:</strong> Screenshot chat, hóa đơn, ghi chú tay, v.v. AI sẽ tự động trích xuất thông tin.
                         </div>
-                    </div>
-                    <div class="mb-3">
-                        <label for="expenseDate" class="form-label">Ngày</label>
-                        <input type="date" class="form-control" id="expenseDate" required>
-                    </div>
-                    
-                    <!-- NEW: Category Selection -->
-                    <div class="mb-3">
-                        <label class="form-label">Phân loại (tùy chọn)</label>
-                        <div class="btn-group w-100" role="group">
-                            <input type="radio" class="btn-check" name="expenseCategory" id="personalCategory" value="personal">
-                            <label class="btn btn-outline-success" for="personalCategory">
-                                <i class="fas fa-user me-1"></i>Cá Nhân
+                        <div class="mb-3">
+                            <label for="expenseImageInput" class="form-label">
+                                <i class="fas fa-cloud-upload-alt me-1"></i>Chọn Hình Ảnh
                             </label>
-                            
-                            <input type="radio" class="btn-check" name="expenseCategory" id="workCategory" value="work">
-                            <label class="btn btn-outline-info" for="workCategory">
-                                <i class="fas fa-briefcase me-1"></i>Công Việc
-                            </label>
-                            
-                            <input type="radio" class="btn-check" name="expenseCategory" id="uncategorizedCategory" value="" checked>
-                            <label class="btn btn-outline-secondary" for="uncategorizedCategory">
-                                <i class="fas fa-question-circle me-1"></i>Chưa phân loại
-                            </label>
+                            <input type="file" class="form-control" id="expenseImageInput" accept="image/*" onchange="previewExpenseImage(this)">
                         </div>
-                        <small class="text-muted">Bạn có thể phân loại sau khi thêm</small>
+                        <div id="expenseImagePreview" class="mb-3" style="display:none;">
+                            <img id="expensePreviewImg" class="img-fluid rounded" style="max-height: 300px;">
+                        </div>
+                        <div id="expenseAIProcessing" style="display:none;" class="text-center p-3">
+                            <div class="spinner-border text-primary" role="status"></div>
+                            <p class="mt-2">🤖 AI đang phân tích hình ảnh...</p>
+                        </div>
+                        <div id="expenseAIResult" style="display:none;">
+                            <div class="alert alert-success">
+                                <i class="fas fa-check-circle me-2"></i>
+                                <strong>Tìm thấy <span id="expenseCount">0</span> chi phí!</strong>
+                            </div>
+                            <div id="expensePreviewList" class="list-group mb-3"></div>
+                        </div>
+                        <button type="button" class="btn btn-primary w-100" onclick="analyzeExpenseImage()" id="analyzeExpenseBtn">
+                            <i class="fas fa-magic me-1"></i>Phân Tích Bằng AI
+                        </button>
                     </div>
-                </form>
+
+                    <!-- Tab 3: JSON Bulk Entry -->
+                    <div class="tab-pane fade" id="json-input" role="tabpanel">
+                        <div class="alert alert-warning">
+                            <i class="fas fa-code me-2"></i>
+                            <strong>Định dạng JSON:</strong>
+                            <pre class="mb-0 mt-2" style="font-size: 0.8rem;">[
+  {"description": "Điện tháng 12", "amount": 500000, "date": "2025-12-29", "category": "work"},
+  {"description": "Ăn trưa", "amount": 50000, "date": "2025-12-29", "category": "personal"}
+]</pre>
+                        </div>
+                        <div class="mb-3">
+                            <label for="expenseJSONInput" class="form-label">Nhập JSON Array</label>
+                            <textarea class="form-control font-monospace" id="expenseJSONInput" rows="10" placeholder='[{"description": "...", "amount": 0, "date": "YYYY-MM-DD", "category": "personal"}]'></textarea>
+                        </div>
+                        <button type="button" class="btn btn-info w-100" onclick="validateExpenseJSON()">
+                            <i class="fas fa-check-double me-1"></i>Kiểm Tra JSON
+                        </button>
+                        <div id="jsonValidationResult" class="mt-3" style="display:none;"></div>
+                    </div>
+                </div>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
-                <button type="button" class="btn btn-primary" onclick="addExpense()" style="background: linear-gradient(135deg, #fd79a8 0%, #e84393 100%); border: none;">
+                <button type="button" class="btn btn-primary" onclick="saveExpenseFromActiveTab()" style="background: linear-gradient(135deg, #fd79a8 0%, #e84393 100%); border: none;">
                     <i class="fas fa-save me-1"></i>Lưu Chi Phí
                 </button>
             </div>
@@ -7374,6 +7445,233 @@ async function addExpense() {
                 submitBtn.className = 'btn btn-primary';
             }, 2000);
         }
+    }
+}
+
+// ========================================
+// NEW: Enhanced Expense Entry Functions
+// ========================================
+
+// Global variable to store extracted expenses from AI/JSON
+let extractedExpenses = [];
+
+// Preview expense image
+function previewExpenseImage(input) {
+    const preview = document.getElementById('expenseImagePreview');
+    const img = document.getElementById('expensePreviewImg');
+
+    if (input.files && input.files[0]) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            img.src = e.target.result;
+            preview.style.display = 'block';
+        };
+        reader.readAsDataURL(input.files[0]);
+    }
+}
+
+// Analyze expense image with AI
+async function analyzeExpenseImage() {
+    const fileInput = document.getElementById('expenseImageInput');
+    const processingDiv = document.getElementById('expenseAIProcessing');
+    const resultDiv = document.getElementById('expenseAIResult');
+    const analyzeBtn = document.getElementById('analyzeExpenseBtn');
+
+    if (!fileInput.files || !fileInput.files[0]) {
+        alert('Vui lòng chọn hình ảnh trước!');
+        return;
+    }
+
+    // Show processing state
+    analyzeBtn.disabled = true;
+    processingDiv.style.display = 'block';
+    resultDiv.style.display = 'none';
+
+    try {
+        const formData = new FormData();
+        formData.append('image', fileInput.files[0]);
+
+        const response = await fetch('/api/analyze_expense_image', {
+            method: 'POST',
+            body: formData
+        });
+
+        const result = await response.json();
+
+        if (result.success && result.expenses) {
+            extractedExpenses = result.expenses;
+            displayExtractedExpenses(result.expenses);
+            console.log('✅ AI extracted ' + result.expenses.length + ' expenses');
+        } else {
+            throw new Error(result.error || 'AI analysis failed');
+        }
+
+    } catch (error) {
+        console.error('❌ Error analyzing image:', error);
+        alert('Lỗi phân tích hình ảnh: ' + error.message);
+    } finally {
+        analyzeBtn.disabled = false;
+        processingDiv.style.display = 'none';
+    }
+}
+
+// Display extracted expenses from AI
+function displayExtractedExpenses(expenses) {
+    const resultDiv = document.getElementById('expenseAIResult');
+    const countSpan = document.getElementById('expenseCount');
+    const listDiv = document.getElementById('expensePreviewList');
+
+    countSpan.textContent = expenses.length;
+
+    let html = '';
+    expenses.forEach((exp, index) => {
+        const categoryBadge = exp.category === 'personal' ? 'bg-success' :
+                             exp.category === 'work' ? 'bg-info' : 'bg-secondary';
+        const categoryText = exp.category === 'personal' ? 'Cá Nhân' :
+                            exp.category === 'work' ? 'Công Việc' : 'Chưa phân loại';
+
+        html += `
+            <div class="list-group-item">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <strong>${exp.description}</strong>
+                        <br>
+                        <small class="text-muted">${exp.date}</small>
+                        <span class="badge ${categoryBadge} ms-2">${categoryText}</span>
+                    </div>
+                    <div class="text-end">
+                        <strong class="text-danger">${parseFloat(exp.amount).toLocaleString('vi-VN')}đ</strong>
+                    </div>
+                </div>
+            </div>
+        `;
+    });
+
+    listDiv.innerHTML = html;
+    resultDiv.style.display = 'block';
+}
+
+// Validate JSON bulk input
+function validateExpenseJSON() {
+    const jsonInput = document.getElementById('expenseJSONInput').value.trim();
+    const resultDiv = document.getElementById('jsonValidationResult');
+
+    if (!jsonInput) {
+        resultDiv.innerHTML = '<div class="alert alert-warning">Vui lòng nhập JSON!</div>';
+        resultDiv.style.display = 'block';
+        return;
+    }
+
+    try {
+        const parsed = JSON.parse(jsonInput);
+
+        if (!Array.isArray(parsed)) {
+            throw new Error('JSON phải là một array (danh sách)');
+        }
+
+        // Validate each expense
+        parsed.forEach((exp, index) => {
+            if (!exp.description || !exp.amount || !exp.date) {
+                throw new Error(`Chi phí #${index + 1}: thiếu trường bắt buộc (description, amount, date)`);
+            }
+        });
+
+        extractedExpenses = parsed;
+
+        resultDiv.innerHTML = `
+            <div class="alert alert-success">
+                <i class="fas fa-check-circle me-2"></i>
+                <strong>Hợp lệ!</strong> Tìm thấy ${parsed.length} chi phí. Nhấn "Lưu Chi Phí" để thêm vào hệ thống.
+            </div>
+        `;
+        resultDiv.style.display = 'block';
+
+        console.log('✅ JSON validated:', parsed);
+
+    } catch (error) {
+        resultDiv.innerHTML = `
+            <div class="alert alert-danger">
+                <i class="fas fa-times-circle me-2"></i>
+                <strong>Lỗi JSON:</strong> ${error.message}
+            </div>
+        `;
+        resultDiv.style.display = 'block';
+        console.error('❌ JSON validation error:', error);
+    }
+}
+
+// Save expense from active tab
+async function saveExpenseFromActiveTab() {
+    const activeTab = document.querySelector('#expenseInputTabs .nav-link.active').id;
+
+    if (activeTab === 'manual-tab') {
+        // Use existing addExpense function
+        await addExpense();
+    } else if (activeTab === 'image-tab' || activeTab === 'json-tab') {
+        // Bulk save extracted expenses
+        await saveBulkExpenses();
+    }
+}
+
+// Save multiple expenses (from AI or JSON)
+async function saveBulkExpenses() {
+    if (extractedExpenses.length === 0) {
+        alert('Không có chi phí nào để lưu! Vui lòng phân tích hình ảnh hoặc kiểm tra JSON trước.');
+        return;
+    }
+
+    const submitBtn = document.querySelector('#expenseModal .btn-primary');
+    const originalText = submitBtn.innerHTML;
+
+    try {
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = `<i class="fas fa-spinner fa-spin me-1"></i>Đang lưu ${extractedExpenses.length} chi phí...`;
+
+        const response = await fetch('/api/expenses/bulk', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                expenses: extractedExpenses
+            })
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+            showExpenseToast(`✅ Đã thêm ${result.count} chi phí thành công!`, 'success');
+
+            // Reset
+            extractedExpenses = [];
+            document.getElementById('expenseImageInput').value = '';
+            document.getElementById('expenseImagePreview').style.display = 'none';
+            document.getElementById('expenseAIResult').style.display = 'none';
+            document.getElementById('expenseJSONInput').value = '';
+            document.getElementById('jsonValidationResult').style.display = 'none';
+
+            // Close modal
+            forceCloseModal('expenseModal');
+
+            // Refresh expense data
+            setTimeout(async () => {
+                await loadMonthlyExpenses();
+                const expenseReviewModal = document.getElementById('expenseReviewModal');
+                if (expenseReviewModal && expenseReviewModal.classList.contains('show')) {
+                    await loadExpenseReview();
+                }
+            }, 500);
+
+        } else {
+            throw new Error(result.error || 'Cannot save expenses');
+        }
+
+    } catch (error) {
+        console.error('❌ Error saving bulk expenses:', error);
+        showExpenseToast('❌ Lỗi lưu chi phí: ' + error.message, 'error');
+    } finally {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = originalText;
     }
 }
 
