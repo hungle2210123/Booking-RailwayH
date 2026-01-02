@@ -6979,8 +6979,79 @@ document.addEventListener('DOMContentLoaded', async function() {
             </div>
 
             <div class="modal-body p-4">
-                <!-- Modern Summary Dashboard -->
-                <div class="row g-3 mb-4">
+                <!-- View Toggle Tabs -->
+                <ul class="nav nav-pills mb-4 justify-content-center" id="expenseViewTabs" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" id="calendar-view-tab" data-bs-toggle="pill" data-bs-target="#calendar-view" type="button" role="tab">
+                            <i class="fas fa-calendar-alt me-2"></i>Lịch Chi Phí
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="table-view-tab" data-bs-toggle="pill" data-bs-target="#table-view" type="button" role="tab">
+                            <i class="fas fa-table me-2"></i>Bảng Chi Tiết
+                        </button>
+                    </li>
+                </ul>
+
+                <!-- Tab Content -->
+                <div class="tab-content" id="expenseViewContent">
+                    <!-- Calendar View -->
+                    <div class="tab-pane fade show active" id="calendar-view" role="tabpanel">
+                        <!-- Month Navigation -->
+                        <div class="card border-0 shadow-sm mb-3">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <button class="btn btn-outline-primary" onclick="changeCalendarMonth(-1)">
+                                        <i class="fas fa-chevron-left"></i> Tháng Trước
+                                    </button>
+                                    <h5 class="mb-0" id="calendarMonthTitle">-</h5>
+                                    <button class="btn btn-outline-primary" onclick="changeCalendarMonth(1)">
+                                        Tháng Sau <i class="fas fa-chevron-right"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Month Summary Stats -->
+                        <div class="row g-3 mb-4">
+                            <div class="col-md-4">
+                                <div class="card border-0 shadow-sm h-100" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                                    <div class="card-body text-white text-center">
+                                        <h3 class="mb-0 fw-bold" id="calendarMonthCount">0</h3>
+                                        <p class="mb-0 small opacity-75">Giao dịch trong tháng</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="card border-0 shadow-sm h-100" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
+                                    <div class="card-body text-white text-center">
+                                        <h5 class="mb-0 fw-bold" id="calendarMonthTotal" style="font-size: 1.3rem;">0đ</h5>
+                                        <p class="mb-0 small opacity-75">Tổng chi trong tháng</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="card border-0 shadow-sm h-100" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
+                                    <div class="card-body text-white text-center">
+                                        <h5 class="mb-0 fw-bold" id="calendarMonthAvg" style="font-size: 1.3rem;">0đ</h5>
+                                        <p class="mb-0 small opacity-75">Chi bình quân/ngày</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Calendar Grid -->
+                        <div class="card border-0 shadow-sm">
+                            <div class="card-body p-2">
+                                <div id="expenseCalendar" class="expense-calendar"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Table View -->
+                    <div class="tab-pane fade" id="table-view" role="tabpanel">
+                        <!-- Modern Summary Dashboard -->
+                        <div class="row g-3 mb-4">
                     <div class="col-md-3">
                         <div class="card border-0 shadow-sm h-100" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
                             <div class="card-body text-white">
@@ -7190,6 +7261,8 @@ document.addEventListener('DOMContentLoaded', async function() {
                         </table>
                     </div>
                 </div>
+                    </div>
+                </div>
             </div>
 
             <div class="modal-footer border-0 bg-white">
@@ -7203,6 +7276,86 @@ document.addEventListener('DOMContentLoaded', async function() {
         </div>
     </div>
 </div>
+
+<!-- Calendar CSS -->
+<style>
+.expense-calendar {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 8px;
+}
+
+.calendar-day-header {
+    text-align: center;
+    font-weight: bold;
+    padding: 8px;
+    background: #f8f9fa;
+    border-radius: 4px;
+    font-size: 0.85rem;
+}
+
+.calendar-day {
+    min-height: 100px;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    padding: 8px;
+    background: white;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.calendar-day:hover {
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    transform: translateY(-2px);
+}
+
+.calendar-day.other-month {
+    background: #f8f9fa;
+    opacity: 0.5;
+}
+
+.calendar-day.today {
+    background: linear-gradient(135deg, #fff3cd 0%, #ffe69c 100%);
+    border: 2px solid #ffc107;
+}
+
+.calendar-day.has-expenses {
+    border-color: #667eea;
+    background: linear-gradient(135deg, #f8f9ff 0%, #fff 100%);
+}
+
+.calendar-day-number {
+    font-weight: bold;
+    font-size: 1.1rem;
+    margin-bottom: 4px;
+}
+
+.calendar-day-total {
+    font-size: 0.9rem;
+    font-weight: bold;
+    color: #f5576c;
+    margin-top: 4px;
+}
+
+.calendar-day-count {
+    font-size: 0.75rem;
+    color: #667eea;
+    margin-top: 2px;
+}
+
+.calendar-day-categories {
+    display: flex;
+    gap: 2px;
+    margin-top: 4px;
+    flex-wrap: wrap;
+}
+
+.calendar-category-badge {
+    font-size: 0.7rem;
+    padding: 1px 4px;
+    border-radius: 3px;
+}
+</style>
 
 <script>
 // MODAL CLEANUP UTILITY - Fixes stuck backdrop issues
@@ -7938,6 +8091,7 @@ let allExpensesData = []; // For overview table
 // 📊 MODERN EXPENSE OVERVIEW FUNCTIONS
 let selectedExpenseIds = new Set();
 let currentFilteredExpenses = [];
+let currentCalendarMonth = new Date();
 
 async function loadExpenseOverview() {
     try {
@@ -7953,6 +8107,7 @@ async function loadExpenseOverview() {
             currentFilteredExpenses = allExpensesData;
             selectedExpenseIds.clear();
             displayExpenseOverview(allExpensesData);
+            renderExpenseCalendar(); // Render calendar view
         } else {
             throw new Error(result.error || 'Cannot load expenses');
         }
@@ -8380,6 +8535,122 @@ async function deleteExpenseFromOverview(expenseId) {
         console.error('❌ Error deleting expense:', error);
         alert('❌ Lỗi xóa chi phí: ' + error.message);
     }
+}
+
+// 📅 EXPENSE CALENDAR FUNCTIONS
+function renderExpenseCalendar() {
+    const year = currentCalendarMonth.getFullYear();
+    const month = currentCalendarMonth.getMonth();
+
+    // Update month title
+    const monthNames = ['Tháng 1', 'Tháng 2', 'Tháng 3', 'Tháng 4', 'Tháng 5', 'Tháng 6',
+                       'Tháng 7', 'Tháng 8', 'Tháng 9', 'Tháng 10', 'Tháng 11', 'Tháng 12'];
+    document.getElementById('calendarMonthTitle').textContent = monthNames[month] + ' ' + year;
+
+    // Get first and last day of month
+    const firstDay = new Date(year, month, 1);
+    const lastDay = new Date(year, month + 1, 0);
+    const startingDayOfWeek = firstDay.getDay() || 7; // Monday = 1, Sunday = 7
+
+    // Get days from previous month
+    const prevMonthDays = startingDayOfWeek - 1;
+    const prevMonthLastDay = new Date(year, month, 0).getDate();
+
+    // Group expenses by date
+    const expensesByDate = {};
+    const monthStr = year + '-' + String(month + 1).padStart(2, '0');
+
+    allExpensesData.forEach(exp => {
+        const expDate = exp.expense_date || exp.date;
+        if (expDate && expDate.startsWith(monthStr)) {
+            if (!expensesByDate[expDate]) {
+                expensesByDate[expDate] = [];
+            }
+            expensesByDate[expDate].push(exp);
+        }
+    });
+
+    // Calculate month stats
+    const monthExpenses = Object.values(expensesByDate).flat();
+    const monthTotal = monthExpenses.reduce((sum, exp) => sum + parseFloat(exp.amount || 0), 0);
+    const monthCount = monthExpenses.length;
+    const daysInMonth = lastDay.getDate();
+    const avgPerDay = monthTotal / daysInMonth;
+
+    document.getElementById('calendarMonthCount').textContent = monthCount;
+    document.getElementById('calendarMonthTotal').textContent = monthTotal.toLocaleString('vi-VN') + 'đ';
+    document.getElementById('calendarMonthAvg').textContent = avgPerDay.toLocaleString('vi-VN', {maximumFractionDigits: 0}) + 'đ';
+
+    // Build calendar HTML
+    const calendar = document.getElementById('expenseCalendar');
+    let html = '';
+
+    // Day headers
+    const dayNames = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
+    dayNames.forEach(name => {
+        html += '<div class="calendar-day-header">' + name + '</div>';
+    });
+
+    // Previous month days
+    for (let i = prevMonthDays; i > 0; i--) {
+        const day = prevMonthLastDay - i + 1;
+        html += '<div class="calendar-day other-month"><div class="calendar-day-number text-muted">' + day + '</div></div>';
+    }
+
+    // Current month days
+    const today = new Date().toISOString().split('T')[0];
+    for (let day = 1; day <= lastDay.getDate(); day++) {
+        const dateStr = year + '-' + String(month + 1).padStart(2, '0') + '-' + String(day).padStart(2, '0');
+        const dayExpenses = expensesByDate[dateStr] || [];
+        const dayTotal = dayExpenses.reduce((sum, exp) => sum + parseFloat(exp.amount || 0), 0);
+
+        const isToday = dateStr === today;
+        const hasExpenses = dayExpenses.length > 0;
+
+        let dayClass = 'calendar-day';
+        if (isToday) dayClass += ' today';
+        if (hasExpenses) dayClass += ' has-expenses';
+
+        html += '<div class="' + dayClass + '" onclick="showDayExpenses(\'' + dateStr + '\')">';
+        html += '<div class="calendar-day-number">' + day + '</div>';
+
+        if (hasExpenses) {
+            html += '<div class="calendar-day-total">💰 ' + dayTotal.toLocaleString('vi-VN') + 'đ</div>';
+            html += '<div class="calendar-day-count">📊 ' + dayExpenses.length + ' giao dịch</div>';
+
+            // Show category badges
+            const personal = dayExpenses.filter(e => e.category === 'personal').length;
+            const work = dayExpenses.filter(e => e.category === 'work').length;
+
+            html += '<div class="calendar-day-categories">';
+            if (personal > 0) html += '<span class="badge bg-success calendar-category-badge">👤 ' + personal + '</span>';
+            if (work > 0) html += '<span class="badge bg-info calendar-category-badge">💼 ' + work + '</span>';
+            html += '</div>';
+        }
+
+        html += '</div>';
+    }
+
+    // Next month days to fill the grid
+    const totalCells = Math.ceil((prevMonthDays + lastDay.getDate()) / 7) * 7;
+    const nextMonthDays = totalCells - (prevMonthDays + lastDay.getDate());
+    for (let day = 1; day <= nextMonthDays; day++) {
+        html += '<div class="calendar-day other-month"><div class="calendar-day-number text-muted">' + day + '</div></div>';
+    }
+
+    calendar.innerHTML = html;
+}
+
+function changeCalendarMonth(delta) {
+    currentCalendarMonth.setMonth(currentCalendarMonth.getMonth() + delta);
+    renderExpenseCalendar();
+}
+
+function showDayExpenses(dateStr) {
+    // Switch to table view and filter by date
+    document.getElementById('table-view-tab').click();
+    document.getElementById('filterDate').value = dateStr;
+    filterExpenseTable();
 }
 
 // Load expense review function with categorization
