@@ -6980,61 +6980,104 @@ document.addEventListener('DOMContentLoaded', async function() {
 
             <div class="modal-body p-4">
                 <!-- View Toggle Tabs -->
-                <ul class="nav nav-pills mb-4 justify-content-center" id="expenseViewTabs" role="tablist">
+                <ul class="nav nav-pills mb-4 justify-content-center p-2" id="expenseViewTabs" role="tablist" style="background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%); border-radius: 16px; gap: 10px;">
                     <li class="nav-item" role="presentation">
-                        <button class="nav-link active" id="calendar-view-tab" data-bs-toggle="pill" data-bs-target="#calendar-view" type="button" role="tab">
+                        <button class="nav-link active" id="calendar-view-tab" data-bs-toggle="pill" data-bs-target="#calendar-view" type="button" role="tab" style="border-radius: 12px; padding: 12px 30px; font-weight: 600; transition: all 0.3s;">
                             <i class="fas fa-calendar-alt me-2"></i>Lịch Chi Phí
                         </button>
                     </li>
                     <li class="nav-item" role="presentation">
-                        <button class="nav-link" id="table-view-tab" data-bs-toggle="pill" data-bs-target="#table-view" type="button" role="tab">
+                        <button class="nav-link" id="table-view-tab" data-bs-toggle="pill" data-bs-target="#table-view" type="button" role="tab" style="border-radius: 12px; padding: 12px 30px; font-weight: 600; transition: all 0.3s;">
                             <i class="fas fa-table me-2"></i>Bảng Chi Tiết
                         </button>
                     </li>
                 </ul>
+                <style>
+                    #expenseViewTabs .nav-link {
+                        color: #667eea;
+                        background: white;
+                        border: 2px solid transparent;
+                    }
+                    #expenseViewTabs .nav-link:hover {
+                        background: #f8f9ff;
+                        border-color: #667eea;
+                        transform: translateY(-2px);
+                        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.2);
+                    }
+                    #expenseViewTabs .nav-link.active {
+                        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                        color: white;
+                        border-color: transparent;
+                        box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+                    }
+                </style>
 
                 <!-- Tab Content -->
                 <div class="tab-content" id="expenseViewContent">
                     <!-- Calendar View -->
                     <div class="tab-pane fade show active" id="calendar-view" role="tabpanel">
                         <!-- Month Navigation -->
-                        <div class="card border-0 shadow-sm mb-3">
-                            <div class="card-body">
+                        <div class="card border-0 shadow-lg mb-4" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 16px;">
+                            <div class="card-body py-3">
                                 <div class="d-flex justify-content-between align-items-center">
-                                    <button class="btn btn-outline-primary" onclick="changeCalendarMonth(-1)">
-                                        <i class="fas fa-chevron-left"></i> Tháng Trước
+                                    <button class="btn btn-light px-4 shadow-sm" onclick="changeCalendarMonth(-1)" style="border-radius: 10px; font-weight: 600;">
+                                        <i class="fas fa-chevron-left me-2"></i>Tháng Trước
                                     </button>
-                                    <h5 class="mb-0" id="calendarMonthTitle">-</h5>
-                                    <button class="btn btn-outline-primary" onclick="changeCalendarMonth(1)">
-                                        Tháng Sau <i class="fas fa-chevron-right"></i>
+                                    <h4 class="mb-0 text-white fw-bold" id="calendarMonthTitle" style="letter-spacing: 1px; text-shadow: 0 2px 4px rgba(0,0,0,0.2);">-</h4>
+                                    <button class="btn btn-light px-4 shadow-sm" onclick="changeCalendarMonth(1)" style="border-radius: 10px; font-weight: 600;">
+                                        Tháng Sau<i class="fas fa-chevron-right ms-2"></i>
                                     </button>
                                 </div>
                             </div>
                         </div>
 
                         <!-- Month Summary Stats -->
-                        <div class="row g-3 mb-4">
+                        <div class="row g-4 mb-4">
                             <div class="col-md-4">
-                                <div class="card border-0 shadow-sm h-100" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
-                                    <div class="card-body text-white text-center">
-                                        <h3 class="mb-0 fw-bold" id="calendarMonthCount">0</h3>
-                                        <p class="mb-0 small opacity-75">Giao dịch trong tháng</p>
+                                <div class="card border-0 shadow-lg h-100" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 16px; overflow: hidden;">
+                                    <div class="card-body text-white text-center position-relative py-4">
+                                        <div class="position-absolute top-0 end-0 opacity-25">
+                                            <i class="fas fa-receipt" style="font-size: 5rem; color: white;"></i>
+                                        </div>
+                                        <div class="position-relative">
+                                            <div class="mb-1">
+                                                <i class="fas fa-list-alt mb-2" style="font-size: 2rem; opacity: 0.9;"></i>
+                                            </div>
+                                            <h2 class="mb-2 fw-bold" id="calendarMonthCount" style="font-size: 2.5rem; text-shadow: 0 2px 4px rgba(0,0,0,0.2);">0</h2>
+                                            <p class="mb-0 fw-semibold opacity-90" style="letter-spacing: 0.5px;">Giao dịch trong tháng</p>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
                             <div class="col-md-4">
-                                <div class="card border-0 shadow-sm h-100" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
-                                    <div class="card-body text-white text-center">
-                                        <h5 class="mb-0 fw-bold" id="calendarMonthTotal" style="font-size: 1.3rem;">0đ</h5>
-                                        <p class="mb-0 small opacity-75">Tổng chi trong tháng</p>
+                                <div class="card border-0 shadow-lg h-100" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); border-radius: 16px; overflow: hidden;">
+                                    <div class="card-body text-white text-center position-relative py-4">
+                                        <div class="position-absolute top-0 end-0 opacity-25">
+                                            <i class="fas fa-wallet" style="font-size: 5rem; color: white;"></i>
+                                        </div>
+                                        <div class="position-relative">
+                                            <div class="mb-1">
+                                                <i class="fas fa-chart-line mb-2" style="font-size: 2rem; opacity: 0.9;"></i>
+                                            </div>
+                                            <h4 class="mb-2 fw-bold" id="calendarMonthTotal" style="font-size: 1.6rem; text-shadow: 0 2px 4px rgba(0,0,0,0.2);">0đ</h4>
+                                            <p class="mb-0 fw-semibold opacity-90" style="letter-spacing: 0.5px;">Tổng chi trong tháng</p>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
                             <div class="col-md-4">
-                                <div class="card border-0 shadow-sm h-100" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
-                                    <div class="card-body text-white text-center">
-                                        <h5 class="mb-0 fw-bold" id="calendarMonthAvg" style="font-size: 1.3rem;">0đ</h5>
-                                        <p class="mb-0 small opacity-75">Chi bình quân/ngày</p>
+                                <div class="card border-0 shadow-lg h-100" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); border-radius: 16px; overflow: hidden;">
+                                    <div class="card-body text-white text-center position-relative py-4">
+                                        <div class="position-absolute top-0 end-0 opacity-25">
+                                            <i class="fas fa-calendar-day" style="font-size: 5rem; color: white;"></i>
+                                        </div>
+                                        <div class="position-relative">
+                                            <div class="mb-1">
+                                                <i class="fas fa-chart-pie mb-2" style="font-size: 2rem; opacity: 0.9;"></i>
+                                            </div>
+                                            <h4 class="mb-2 fw-bold" id="calendarMonthAvg" style="font-size: 1.6rem; text-shadow: 0 2px 4px rgba(0,0,0,0.2);">0đ</h4>
+                                            <p class="mb-0 fw-semibold opacity-90" style="letter-spacing: 0.5px;">Chi bình quân/ngày</p>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -7282,78 +7325,179 @@ document.addEventListener('DOMContentLoaded', async function() {
 .expense-calendar {
     display: grid;
     grid-template-columns: repeat(7, 1fr);
-    gap: 8px;
+    gap: 12px;
+    padding: 20px;
+    background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+    border-radius: 16px;
 }
 
 .calendar-day-header {
     text-align: center;
-    font-weight: bold;
-    padding: 8px;
-    background: #f8f9fa;
-    border-radius: 4px;
-    font-size: 0.85rem;
+    font-weight: 700;
+    padding: 12px 8px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    letter-spacing: 0.5px;
+    box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
 }
 
 .calendar-day {
-    min-height: 100px;
-    border: 1px solid #dee2e6;
-    border-radius: 8px;
-    padding: 8px;
+    min-height: 140px;
+    border: 2px solid #e1e8ed;
+    border-radius: 12px;
+    padding: 10px;
     background: white;
     cursor: pointer;
-    transition: all 0.2s;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.calendar-day::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: transparent;
+    transition: all 0.3s;
 }
 
 .calendar-day:hover {
-    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+    transform: translateY(-4px) scale(1.02);
+    border-color: #667eea;
+}
+
+.calendar-day:hover::before {
+    background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
 }
 
 .calendar-day.other-month {
     background: #f8f9fa;
-    opacity: 0.5;
+    opacity: 0.4;
+    cursor: default;
+}
+
+.calendar-day.other-month:hover {
+    transform: none;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 }
 
 .calendar-day.today {
-    background: linear-gradient(135deg, #fff3cd 0%, #ffe69c 100%);
-    border: 2px solid #ffc107;
+    background: linear-gradient(135deg, #fff9e6 0%, #ffe69c 100%);
+    border: 3px solid #ffc107;
+    box-shadow: 0 4px 20px rgba(255, 193, 7, 0.4);
+}
+
+.calendar-day.today::before {
+    background: linear-gradient(90deg, #ffc107 0%, #ff9800 100%);
+    height: 4px;
 }
 
 .calendar-day.has-expenses {
     border-color: #667eea;
-    background: linear-gradient(135deg, #f8f9ff 0%, #fff 100%);
+    background: linear-gradient(135deg, #ffffff 0%, #f8f9ff 100%);
+}
+
+.calendar-day.has-expenses::before {
+    background: linear-gradient(90deg, #667eea 0%, #764ba2 50%, #f5576c 100%);
 }
 
 .calendar-day-number {
-    font-weight: bold;
-    font-size: 1.1rem;
-    margin-bottom: 4px;
+    font-weight: 700;
+    font-size: 1.3rem;
+    margin-bottom: 8px;
+    color: #2c3e50;
+    display: inline-block;
+    padding: 4px 8px;
+    border-radius: 6px;
+    background: rgba(102, 126, 234, 0.1);
+}
+
+.calendar-day.today .calendar-day-number {
+    background: rgba(255, 193, 7, 0.2);
+    color: #f57c00;
 }
 
 .calendar-day-total {
-    font-size: 0.9rem;
-    font-weight: bold;
+    font-size: 0.95rem;
+    font-weight: 700;
     color: #f5576c;
-    margin-top: 4px;
+    margin-top: 8px;
+    padding: 6px 8px;
+    background: linear-gradient(135deg, #fff0f3 0%, #ffe8ec 100%);
+    border-radius: 6px;
+    border-left: 3px solid #f5576c;
 }
 
 .calendar-day-count {
-    font-size: 0.75rem;
+    font-size: 0.8rem;
     color: #667eea;
-    margin-top: 2px;
+    margin-top: 6px;
+    padding: 4px 8px;
+    background: rgba(102, 126, 234, 0.1);
+    border-radius: 4px;
+    font-weight: 600;
 }
 
 .calendar-day-categories {
     display: flex;
-    gap: 2px;
-    margin-top: 4px;
-    flex-wrap: wrap;
+    flex-direction: column;
+    gap: 4px;
+    margin-top: 8px;
 }
 
 .calendar-category-badge {
-    font-size: 0.7rem;
-    padding: 1px 4px;
-    border-radius: 3px;
+    font-size: 0.75rem;
+    padding: 6px 10px;
+    border-radius: 6px;
+    font-weight: 600;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    transition: all 0.2s;
+    text-align: left;
+    letter-spacing: 0.3px;
+}
+
+.calendar-category-badge:hover {
+    transform: translateX(2px);
+    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.15);
+}
+
+.calendar-category-badge.bg-success {
+    background: linear-gradient(135deg, #20bf6b 0%, #26d67c 100%) !important;
+    border-left: 3px solid #0fb866;
+}
+
+.calendar-category-badge.bg-info {
+    background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%) !important;
+    border-left: 3px solid #0396ff;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .expense-calendar {
+        gap: 6px;
+        padding: 10px;
+    }
+
+    .calendar-day {
+        min-height: 120px;
+        padding: 6px;
+    }
+
+    .calendar-day-number {
+        font-size: 1.1rem;
+    }
+
+    .calendar-category-badge {
+        font-size: 0.7rem;
+        padding: 4px 6px;
+    }
 }
 </style>
 
