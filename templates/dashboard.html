@@ -7756,45 +7756,69 @@ async function loadMonthlyExpenses() {
         
         if (result.success && result.data && result.data.length > 0) {
             console.log(`💰 EXPENSES PROCESSING: ${result.data.length} expenses found`);
+
+            // Debug: Log first expense structure
+            if (result.data.length > 0) {
+                console.log('💰 FIRST EXPENSE SAMPLE:', result.data[0]);
+                console.log('💰 EXPENSE KEYS:', Object.keys(result.data[0]));
+            }
+
             // Filter expenses for current month (simplified)
             const currentMonth = now.getMonth() + 1;
             const currentYear = now.getFullYear();
-            
+            console.log(`💰 FILTERING FOR: Month ${currentMonth}, Year ${currentYear}`);
+
             const monthlyExpenses = result.data.filter(expense => {
-                if (!expense.date) return false;
-                
+                // Check both date and expense_date fields
+                const dateField = expense.expense_date || expense.date;
+                if (!dateField) {
+                    console.log('💰 SKIP: No date field', expense);
+                    return false;
+                }
+
                 try {
                     // Simple date parsing - expecting YYYY-MM-DD format from API
-                    const expenseDate = new Date(expense.date);
-                    if (isNaN(expenseDate.getTime())) return false;
-                    
-                    return expenseDate.getMonth() + 1 === currentMonth && 
-                           expenseDate.getFullYear() === currentYear;
+                    const expenseDate = new Date(dateField);
+                    if (isNaN(expenseDate.getTime())) {
+                        console.log('💰 SKIP: Invalid date', dateField);
+                        return false;
+                    }
+
+                    const expenseMonth = expenseDate.getMonth() + 1;
+                    const expenseYear = expenseDate.getFullYear();
+                    const isMatch = expenseMonth === currentMonth && expenseYear === currentYear;
+
+                    if (isMatch) {
+                        console.log(`💰 MATCH: ${dateField} - ${expense.description} - ${expense.amount}`);
+                    }
+
+                    return isMatch;
                 } catch (error) {
+                    console.log('💰 SKIP: Error parsing', dateField, error);
                     return false;
                 }
             });
-            
+
             console.log(`💰 EXPENSES FILTERED: ${monthlyExpenses.length} expenses for current month`);
-            
+
             const monthlyTotal = monthlyExpenses.reduce((sum, expense) => {
                 return sum + parseFloat(expense.amount || 0);
             }, 0);
-            
+
             if (monthlyTotalElement) {
                 if (monthlyTotal > 0) {
-                    monthlyTotalElement.innerHTML = `<strong class="text-white">${monthlyTotal.toLocaleString()}đ</strong> (${monthlyExpenses.length} giao dịch)`;
+                    monthlyTotalElement.innerHTML = `<strong class="text-white">${monthlyTotal.toLocaleString()}\u0111</strong> (${monthlyExpenses.length} giao d\u1ECBch)`;
                 } else {
-                    monthlyTotalElement.textContent = 'Chưa có chi phí tháng này';
+                    monthlyTotalElement.textContent = 'Ch\u01B0a c\u00F3 chi ph\u00ED th\u00E1ng n\u00E0y';
                 }
             }
         } else {
             console.log('💰 EXPENSES: No data or API error', result);
             if (monthlyTotalElement) {
                 if (result.success === false) {
-                    monthlyTotalElement.textContent = 'Lỗi tải dữ liệu chi phí';
+                    monthlyTotalElement.textContent = 'L\u1ED7i t\u1EA3i d\u1EEF li\u1EC7u chi ph\u00ED';
                 } else {
-                    monthlyTotalElement.textContent = 'Chưa có dữ liệu chi phí';
+                    monthlyTotalElement.textContent = 'Ch\u01B0a c\u00F3 d\u1EEF li\u1EC7u chi ph\u00ED';
                 }
             }
         }
@@ -7802,7 +7826,7 @@ async function loadMonthlyExpenses() {
         console.error('Error loading monthly expenses:', error);
         const monthlyTotalElement = document.getElementById('monthlyTotal');
         if (monthlyTotalElement) {
-            monthlyTotalElement.textContent = 'Lỗi tải dữ liệu';
+            monthlyTotalElement.textContent = 'L\u1ED7i t\u1EA3i d\u1EEF li\u1EC7u';
         }
     }
 }
