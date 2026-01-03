@@ -8604,19 +8604,73 @@ function filterByLastMonth() {
     filterExpenseTable();
 }
 
-// Edit Expense Date Function
+// Edit Expense Date Function - Using beautiful modal with date picker
 async function editExpenseDate(expenseId, currentDate) {
-    const newDate = prompt('Edit expense date (YYYY-MM-DD):', currentDate);
+    // Create a beautiful modal with date picker
+    const modalHtml = `
+        <div class="modal fade" id="editDateModal" tabindex="-1" style="z-index: 9999;">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content">
+                    <div class="modal-header bg-primary text-white">
+                        <h5 class="modal-title">
+                            <i class="fas fa-calendar-alt me-2"></i>Edit Expense Date
+                        </h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body text-center py-4">
+                        <p class="mb-3 text-muted">Select a new date for this expense:</p>
+                        <div class="d-flex justify-content-center">
+                            <input type="date"
+                                   id="newExpenseDate"
+                                   class="form-control form-control-lg text-center"
+                                   value="${currentDate}"
+                                   style="max-width: 300px; font-size: 1.1rem;">
+                        </div>
+                    </div>
+                    <div class="modal-footer justify-content-center">
+                        <button type="button" class="btn btn-secondary px-4" data-bs-dismiss="modal">
+                            <i class="fas fa-times me-1"></i>Cancel
+                        </button>
+                        <button type="button" class="btn btn-primary px-4" onclick="saveExpenseDate(${expenseId}, '${currentDate}')">
+                            <i class="fas fa-check me-1"></i>Save Date
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
 
-    if (!newDate || newDate === currentDate) {
-        return; // User cancelled or no change
+    // Remove existing modal if any
+    const existingModal = document.getElementById('editDateModal');
+    if (existingModal) {
+        existingModal.remove();
     }
 
-    // Validate date format
-    const datePattern = /^\d{4}-\d{2}-\d{2}$/;
-    if (!datePattern.test(newDate)) {
-        alert('Invalid date format! Please use YYYY-MM-DD format (e.g., 2026-01-03)');
-        return;
+    // Add modal to body
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+
+    // Show modal
+    const modal = new bootstrap.Modal(document.getElementById('editDateModal'));
+    modal.show();
+
+    // Focus on date input
+    setTimeout(() => {
+        document.getElementById('newExpenseDate').focus();
+    }, 300);
+
+    // Cleanup on close
+    document.getElementById('editDateModal').addEventListener('hidden.bs.modal', function() {
+        this.remove();
+    });
+}
+
+// Save the edited expense date
+async function saveExpenseDate(expenseId, oldDate) {
+    const newDate = document.getElementById('newExpenseDate').value;
+
+    if (!newDate || newDate === oldDate) {
+        bootstrap.Modal.getInstance(document.getElementById('editDateModal')).hide();
+        return; // No change
     }
 
     try {
@@ -8633,7 +8687,13 @@ async function editExpenseDate(expenseId, currentDate) {
         const result = await response.json();
 
         if (result.success) {
-            showDashboardToast(`✅ Updated expense date to ${newDate}`, 'success');
+            // Close modal
+            bootstrap.Modal.getInstance(document.getElementById('editDateModal')).hide();
+
+            // Show success message
+            const formattedDate = new Date(newDate).toLocaleDateString('vi-VN');
+            showDashboardToast(`✅ Updated expense date to ${formattedDate}`, 'success');
+
             // Reload expense data
             loadExpenseOverview();
             loadMonthlyExpenses().catch(console.error);
@@ -8645,6 +8705,7 @@ async function editExpenseDate(expenseId, currentDate) {
         alert('Failed to update expense date');
     }
 }
+window.saveExpenseDate = saveExpenseDate;
 
 // Update Today's Statistics Card
 function updateTodayStats(expenses, dateStr) {
