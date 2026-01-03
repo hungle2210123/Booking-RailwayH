@@ -7087,11 +7087,16 @@ document.addEventListener('DOMContentLoaded', async function() {
                         <div class="card border-0 shadow-lg mb-4" style="background: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%); border-radius: 16px;">
                             <div class="card-body p-4">
                                 <div class="d-flex justify-content-between align-items-center mb-3">
-                                    <h5 class="mb-0 fw-bold text-dark">
-                                        <i class="fas fa-piggy-bank me-2" style="color: #ff6b6b;"></i>Kế Hoạch Chi Tiêu Theo Tuần
-                                    </h5>
+                                    <div>
+                                        <h5 class="mb-1 fw-bold text-dark">
+                                            <i class="fas fa-piggy-bank me-2" style="color: #ff6b6b;"></i>Kế Hoạch Chi Tiêu Theo Tuần
+                                        </h5>
+                                        <p class="mb-0 small text-muted">
+                                            <i class="fas fa-info-circle me-1"></i>Chỉ tính chi phí <strong>Cá nhân</strong> (không bao gồm chi phí Công việc bắt buộc)
+                                        </p>
+                                    </div>
                                     <div class="d-flex align-items-center gap-2">
-                                        <span class="text-dark fw-semibold">Ngân sách tháng:</span>
+                                        <span class="text-dark fw-semibold">Ngân sách cá nhân:</span>
                                         <div class="input-group" style="width: 200px;">
                                             <input type="text" class="form-control fw-bold text-end" id="monthlyBudgetInput" value="10,000,000" style="border-radius: 8px 0 0 8px; border: 2px solid #ff6b6b;">
                                             <span class="input-group-text fw-bold" style="background: #ff6b6b; color: white; border-radius: 0 8px 8px 0; border: 2px solid #ff6b6b;">đ</span>
@@ -8935,7 +8940,7 @@ function getWeeksInMonth(year, month) {
     return weeks;
 }
 
-// Calculate actual spending per week
+// Calculate actual spending per week (PERSONAL EXPENSES ONLY)
 function calculateWeeklySpending(weeks, year, month) {
     const monthStr = year + '-' + String(month + 1).padStart(2, '0');
 
@@ -8946,7 +8951,8 @@ function calculateWeeklySpending(weeks, year, month) {
             const dateStr = year + '-' + String(month + 1).padStart(2, '0') + '-' + String(day).padStart(2, '0');
             const dayExpenses = allExpensesData.filter(exp => {
                 const expDate = exp.expense_date || exp.date;
-                return expDate === dateStr;
+                // ONLY COUNT PERSONAL EXPENSES (work expenses are mandatory and excluded)
+                return expDate === dateStr && exp.category === 'personal';
             });
 
             weekTotal += dayExpenses.reduce((sum, exp) => sum + parseFloat(exp.amount || 0), 0);
