@@ -7724,15 +7724,18 @@ if (expenseModal) {
 
 // Load monthly expenses function (SIMPLIFIED - No more timeouts/aborts)
 async function loadMonthlyExpenses() {
+    console.log('🚀 [MONTHLY_EXPENSES] Function called - starting...');
     try {
+        console.log('🚀 [MONTHLY_EXPENSES] Fetching from /api/expenses...');
         // Add timeout to prevent freezing
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
-        
+
         const response = await fetch('/api/expenses', {
             signal: controller.signal
         });
         clearTimeout(timeoutId);
+        console.log('🚀 [MONTHLY_EXPENSES] Fetch completed, status:', response.status);
         
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
@@ -8321,13 +8324,19 @@ document.addEventListener('DOMContentLoaded', function() {
 
 // Load monthly expenses on page load (async, non-blocking) - moved after function definition
 setTimeout(() => {
-    loadMonthlyExpenses().catch(error => {
-        console.error('Failed to load monthly expenses:', error);
-        const monthlyTotalElement = document.getElementById('monthlyTotal');
-        if (monthlyTotalElement) {
-            monthlyTotalElement.textContent = 'Lỗi tải chi phí';
-        }
-    });
+    console.log('🎬 [PAGE_LOAD] Auto-loading monthly expenses...');
+    if (typeof loadMonthlyExpenses === 'function') {
+        console.log('🎬 [PAGE_LOAD] loadMonthlyExpenses function found, calling...');
+        loadMonthlyExpenses().catch(error => {
+            console.error('❌ [PAGE_LOAD] Failed to load monthly expenses:', error);
+            const monthlyTotalElement = document.getElementById('monthlyTotal');
+            if (monthlyTotalElement) {
+                monthlyTotalElement.textContent = 'L\u1ED7i t\u1EA3i chi ph\u00ED';
+            }
+        });
+    } else {
+        console.error('❌ [PAGE_LOAD] loadMonthlyExpenses function NOT FOUND!');
+    }
 }, 100);
 
 // Initialize expense review modal
