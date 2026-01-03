@@ -3610,9 +3610,9 @@
 <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
 <script>
 // ==================== VERSION INDICATOR ====================
-console.log('%c🚀 DASHBOARD v2026.01.03-FIXED 🚀', 'background: #4CAF50; color: white; font-size: 16px; padding: 5px 10px; border-radius: 5px;');
-console.log('%c✅ Monthly Expenses Fix Applied', 'color: #4CAF50; font-weight: bold;');
-console.log('%c✅ Vietnamese Unicode Escapes Removed', 'color: #4CAF50; font-weight: bold;');
+console.log('%c🚀 DASHBOARD v2026.01.03-SYNTAX-FIXED 🚀', 'background: #4CAF50; color: white; font-size: 16px; padding: 5px 10px; border-radius: 5px;');
+console.log('%c✅ Escaped Backticks Fixed (Line 9259)', 'color: #4CAF50; font-weight: bold;');
+console.log('%c✅ All JavaScript Functions Now Loading', 'color: #4CAF50; font-weight: bold;');
 console.log('%c✅ SQLAlchemy 2.0 Compatible', 'color: #4CAF50; font-weight: bold;');
 
 // ==================== GLOBAL VARIABLES - MUST BE FIRST ====================
@@ -9256,7 +9256,7 @@ function renderWeeklyBudgetBreakdown() {
                             <div class="alert alert-danger p-2 mt-2 mb-0" style="font-size: 0.72rem; border-radius: 6px;">
                                 <i class="fas fa-exclamation-triangle me-1"></i>
                                 <strong>${week.overLimitDays.length} ngày vượt hạn mức:</strong><br>
-                                ${week.overLimitDays.map(d => \`Ngày \${d.day}: \${d.amount.toLocaleString('vi-VN')}đ (+\${d.excess.toLocaleString('vi-VN')}đ)\`).join('<br>')}
+                                ${week.overLimitDays.map(d => `Ngày ${d.day}: ${d.amount.toLocaleString('vi-VN')}đ (+${d.excess.toLocaleString('vi-VN')}đ)`).join('<br>')}
                             </div>
                         ` : ''}
 
