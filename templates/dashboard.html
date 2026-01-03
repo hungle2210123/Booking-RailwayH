@@ -8980,11 +8980,14 @@ function getWeeksInMonth(year, month) {
 }
 
 // Calculate actual spending per week (PERSONAL EXPENSES ONLY)
-function calculateWeeklySpending(weeks, year, month) {
+function calculateWeeklySpending(weeks, year, month, weeklyBudget) {
     const monthStr = year + '-' + String(month + 1).padStart(2, '0');
 
     return weeks.map(week => {
         let weekTotal = 0;
+        const dailySpending = [];
+        const numDays = week.endDay - week.startDay + 1;
+        const dailyLimit = weeklyBudget / numDays;
 
         for (let day = week.startDay; day <= week.endDay; day++) {
             const dateStr = year + '-' + String(month + 1).padStart(2, '0') + '-' + String(day).padStart(2, '0');
@@ -8994,12 +8997,24 @@ function calculateWeeklySpending(weeks, year, month) {
                 return expDate === dateStr && exp.category === 'personal';
             });
 
-            weekTotal += dayExpenses.reduce((sum, exp) => sum + parseFloat(exp.amount || 0), 0);
+            const dayTotal = dayExpenses.reduce((sum, exp) => sum + parseFloat(exp.amount || 0), 0);
+            weekTotal += dayTotal;
+
+            // Track days that exceed daily limit
+            if (dayTotal > dailyLimit) {
+                dailySpending.push({
+                    day: day,
+                    amount: dayTotal,
+                    excess: dayTotal - dailyLimit
+                });
+            }
         }
 
         return {
             ...week,
-            actualSpent: weekTotal
+            actualSpent: weekTotal,
+            dailyLimit: dailyLimit,
+            overLimitDays: dailySpending
         };
     });
 }
@@ -9080,7 +9095,9 @@ function renderWeeklyBudgetBreakdown() {
     const month = currentCalendarMonth.getMonth();
 
     const weeks = getWeeksInMonth(year, month);
-    const weeklySpending = calculateWeeklySpending(weeks, year, month);
+    const totalWeeks = weeks.length;
+    const weeklyBudget = monthlyBudget / totalWeeks;
+    const weeklySpending = calculateWeeklySpending(weeks, year, month, weeklyBudget);
     const redistributed = redistributeBudget(weeklySpending, monthlyBudget);
 
     // Calculate total monthly personal expenses
@@ -9166,6 +9183,11 @@ function renderWeeklyBudgetBreakdown() {
                         </div>
 
                         <div class="d-flex justify-content-between align-items-center mb-1">
+                            <span class="small">Hạn mức/ngày:</span>
+                            <span class="fw-bold small text-info">${week.dailyLimit.toLocaleString('vi-VN')}đ</span>
+                        </div>
+
+                        <div class="d-flex justify-content-between align-items-center mb-1">
                             <span class="small">Đã chi:</span>
                             <span class="fw-bold">${week.actualSpent.toLocaleString('vi-VN')}đ</span>
                         </div>
@@ -9174,6 +9196,14 @@ function renderWeeklyBudgetBreakdown() {
                             <span class="small">${week.difference >= 0 ? 'Còn lại:' : 'Vượt:'}</span>
                             <span class="fw-bold small" style="color: ${progressColor};">${statusText}</span>
                         </div>
+
+                        ${week.overLimitDays && week.overLimitDays.length > 0 ? `
+                            <div class="alert alert-danger p-2 mt-2 mb-0" style="font-size: 0.72rem; border-radius: 6px;">
+                                <i class="fas fa-exclamation-triangle me-1"></i>
+                                <strong>${week.overLimitDays.length} ngày vượt hạn mức:</strong><br>
+                                ${week.overLimitDays.map(d => \`Ngày \${d.day}: \${d.amount.toLocaleString('vi-VN')}đ (+\${d.excess.toLocaleString('vi-VN')}đ)\`).join('<br>')}
+                            </div>
+                        ` : ''}
 
                         ${week.isFuture && week.allocatedBudget !== week.baseAllocation ? `
                             <div class="alert alert-info p-2 mt-2 mb-0" style="font-size: 0.75rem; border-radius: 6px;">
