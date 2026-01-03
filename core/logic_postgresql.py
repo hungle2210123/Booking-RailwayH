@@ -58,21 +58,39 @@ def get_db_connection():
     return db.engine.connect()
 
 def execute_query(query: str, params: dict = None, force_fresh: bool = False, allow_fallback: bool = False) -> pd.DataFrame:
-    """Execute SQL query and return DataFrame"""
+    """Execute SQL query and return DataFrame - SQLAlchemy 2.0 compatible"""
     try:
         if force_fresh:
             print("🔄 EXECUTE_QUERY: Using fresh database connection")
             # Force a new connection by disposing the pool
             from .models import db
             db.engine.dispose()
-        
-        with get_db_connection() as conn:
-            result = pd.read_sql(text(query), conn, params=params or {})
+
+        from .models import db
+        # SQLAlchemy 2.0 style: use connection.execute() then convert to DataFrame
+        with db.engine.connect() as conn:
+            if params:
+                query_result = conn.execute(text(query), params)
+            else:
+                query_result = conn.execute(text(query))
+
+            # Fetch all rows and column names
+            rows = query_result.fetchall()
+            if query_result.returns_rows and rows:
+                # Get column names from the result
+                columns = list(query_result.keys())
+                # Convert to DataFrame
+                result = pd.DataFrame(rows, columns=columns)
+            else:
+                result = pd.DataFrame()
+
             if force_fresh:
                 print(f"🔄 EXECUTE_QUERY: Fresh query returned {len(result)} rows")
             return result
     except Exception as e:
         print(f"Database query error: {e}")
+        import traceback
+        traceback.print_exc()
         # If allow_fallback is True, re-raise the error so calling code can handle it
         if allow_fallback:
             raise e
@@ -1298,20 +1316,23 @@ def add_expense_to_database(expense_data: Dict) -> int:
 def get_expenses_from_database() -> pd.DataFrame:
     """Get all expenses from PostgreSQL with English field names for API compatibility"""
     query = """
-    SELECT 
+    SELECT
         expense_id,
         expense_date as "date",
         amount as "amount",
-        description as "description", 
-        category as "category",
-        collector as "collector",
-        created_at
+        description as "description",
+        category_id,
+        created_at,
+        updated_at
     FROM expenses
     ORDER BY expense_date DESC
     """
-    
+
     result = execute_query(query)
     print(f"💰 EXPENSES QUERY: Found {len(result)} expenses in database")
+    print(f"💰 EXPENSES COLUMNS: {list(result.columns) if not result.empty else 'NO DATA'}")
+    if not result.empty:
+        print(f"💰 FIRST EXPENSE: {result.iloc[0].to_dict()}")
     return result
 
 # ==============================================================================
