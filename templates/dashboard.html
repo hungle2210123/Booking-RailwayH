@@ -7352,14 +7352,17 @@ document.addEventListener('DOMContentLoaded', async function() {
                                 <strong>Đã chọn: <span id="selectedExpenseCount">0</span> giao dịch</strong>
                             </div>
                             <div class="btn-group" role="group">
+                                <button class="btn btn-sm btn-primary" onclick="bulkEditDates()" title="Change date for all selected expenses">
+                                    <i class="fas fa-calendar-alt me-1"></i>Đổi Ngày
+                                </button>
                                 <button class="btn btn-sm btn-success" onclick="bulkCategorize('personal')">
-                                    <i class="fas fa-user me-1"></i>Đánh dấu Cá nhân
+                                    <i class="fas fa-user me-1"></i>Cá nhân
                                 </button>
                                 <button class="btn btn-sm btn-info" onclick="bulkCategorize('work')">
-                                    <i class="fas fa-briefcase me-1"></i>Đánh dấu Công việc
+                                    <i class="fas fa-briefcase me-1"></i>Công việc
                                 </button>
                                 <button class="btn btn-sm btn-secondary" onclick="bulkCategorize('general')">
-                                    <i class="fas fa-tag me-1"></i>Đánh dấu Chung
+                                    <i class="fas fa-tag me-1"></i>Chung
                                 </button>
                                 <button class="btn btn-sm btn-outline-danger" onclick="bulkDeleteExpenses()">
                                     <i class="fas fa-trash me-1"></i>Xóa
@@ -8706,6 +8709,143 @@ async function saveExpenseDate(expenseId, oldDate) {
     }
 }
 window.saveExpenseDate = saveExpenseDate;
+
+// Bulk Edit Dates Function - Update multiple expenses at once
+async function bulkEditDates() {
+    if (selectedExpenseIds.size === 0) {
+        alert('Please select at least one expense to edit dates');
+        return;
+    }
+
+    const count = selectedExpenseIds.size;
+    const today = new Date().toISOString().split('T')[0];
+
+    // Create modal with date picker
+    const modalHtml = `
+        <div class="modal fade" id="bulkEditDateModal" tabindex="-1" style="z-index: 9999;">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content">
+                    <div class="modal-header bg-primary text-white">
+                        <h5 class="modal-title">
+                            <i class="fas fa-calendar-alt me-2"></i>Bulk Edit Dates
+                        </h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body text-center py-4">
+                        <div class="alert alert-info mb-3">
+                            <i class="fas fa-info-circle me-2"></i>
+                            You are about to change the date for <strong>${count} expenses</strong>
+                        </div>
+                        <p class="mb-3 text-muted">Select the new date for all selected expenses:</p>
+                        <div class="d-flex justify-content-center">
+                            <input type="date"
+                                   id="bulkNewDate"
+                                   class="form-control form-control-lg text-center"
+                                   value="${today}"
+                                   style="max-width: 300px; font-size: 1.1rem;">
+                        </div>
+                    </div>
+                    <div class="modal-footer justify-content-center">
+                        <button type="button" class="btn btn-secondary px-4" data-bs-dismiss="modal">
+                            <i class="fas fa-times me-1"></i>Cancel
+                        </button>
+                        <button type="button" class="btn btn-primary px-4" onclick="saveBulkDates()">
+                            <i class="fas fa-check me-1"></i>Update ${count} Expenses
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+
+    // Remove existing modal if any
+    const existingModal = document.getElementById('bulkEditDateModal');
+    if (existingModal) {
+        existingModal.remove();
+    }
+
+    // Add modal to body
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+
+    // Show modal
+    const modal = new bootstrap.Modal(document.getElementById('bulkEditDateModal'));
+    modal.show();
+
+    // Focus on date input
+    setTimeout(() => {
+        document.getElementById('bulkNewDate').focus();
+    }, 300);
+
+    // Cleanup on close
+    document.getElementById('bulkEditDateModal').addEventListener('hidden.bs.modal', function() {
+        this.remove();
+    });
+}
+
+// Save bulk date changes
+async function saveBulkDates() {
+    const newDate = document.getElementById('bulkNewDate').value;
+
+    if (!newDate) {
+        alert('Please select a date');
+        return;
+    }
+
+    const expenseIds = Array.from(selectedExpenseIds);
+    const count = expenseIds.length;
+
+    // Disable button and show loading
+    const saveBtn = event.target;
+    saveBtn.disabled = true;
+    saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Updating...';
+
+    let successCount = 0;
+    let failCount = 0;
+
+    // Update each expense
+    for (const expenseId of expenseIds) {
+        try {
+            const response = await fetch(`/api/expenses/${expenseId}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    date: newDate
+                })
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                successCount++;
+            } else {
+                failCount++;
+            }
+        } catch (error) {
+            console.error(`Error updating expense ${expenseId}:`, error);
+            failCount++;
+        }
+    }
+
+    // Close modal
+    bootstrap.Modal.getInstance(document.getElementById('bulkEditDateModal')).hide();
+
+    // Show result
+    const formattedDate = new Date(newDate).toLocaleDateString('vi-VN');
+    if (failCount === 0) {
+        showDashboardToast(`✅ Successfully updated ${successCount} expenses to ${formattedDate}`, 'success');
+    } else {
+        showDashboardToast(`⚠️ Updated ${successCount} expenses, ${failCount} failed`, 'warning');
+    }
+
+    // Clear selection and reload
+    clearBulkSelection();
+    loadExpenseOverview();
+    loadMonthlyExpenses().catch(console.error);
+}
+window.bulkEditDates = bulkEditDates;
+window.saveBulkDates = saveBulkDates;
 
 // Update Today's Statistics Card
 function updateTodayStats(expenses, dateStr) {
