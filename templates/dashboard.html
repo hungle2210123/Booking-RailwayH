@@ -8456,13 +8456,24 @@ function displayExpenseOverview(expenses) {
         categoryBadge += '<button class="btn btn-outline-secondary btn-sm ' + (exp.category === 'general' ? 'active' : '') + '" onclick="quickCategorize(' + exp.expense_id + ', \'general\')" title="Chung">📌</button>';
         categoryBadge += '</div>';
 
-        const expenseDate = exp.expense_date || exp.date || '-';
+        // Format expense date properly
+        let expenseDateFormatted = '-';
+        const rawDate = exp.expense_date || exp.date;
+        if (rawDate) {
+            try {
+                const dateObj = new Date(rawDate);
+                expenseDateFormatted = dateObj.toLocaleDateString('vi-VN');
+            } catch (e) {
+                expenseDateFormatted = rawDate;
+            }
+        }
+
         const createdAt = exp.created_at ? new Date(exp.created_at).toLocaleDateString('vi-VN') : '-';
 
         html += '<tr class="' + rowClass + '">';
         html += '<td><input type="checkbox" class="form-check-input expense-checkbox" data-expense-id="' + exp.expense_id + '" ' + (isSelected ? 'checked' : '') + ' onchange="toggleExpenseSelection(' + exp.expense_id + ')"></td>';
         html += '<td class="text-muted">' + (index + 1) + '</td>';
-        html += '<td><span class="badge bg-light text-dark">' + expenseDate + '</span></td>';
+        html += '<td><span class="badge bg-primary text-white" style="cursor: pointer;" onclick="editExpenseDate(' + exp.expense_id + ', \'' + (rawDate || '') + '\')" title="Click to edit date">' + expenseDateFormatted + '</span></td>';
         html += '<td class="text-truncate" style="max-width: 300px;" title="' + (exp.description || '') + '">' + (exp.description || '') + '</td>';
         html += '<td><strong class="text-danger">' + parseFloat(exp.amount).toLocaleString('vi-VN') + 'đ</strong></td>';
         html += '<td>' + categoryBadge + '</td>';
@@ -8591,6 +8602,48 @@ function filterByLastMonth() {
     document.getElementById('filterMonth').value = monthStr;
     document.getElementById('filterDate').value = '';
     filterExpenseTable();
+}
+
+// Edit Expense Date Function
+async function editExpenseDate(expenseId, currentDate) {
+    const newDate = prompt('Edit expense date (YYYY-MM-DD):', currentDate);
+
+    if (!newDate || newDate === currentDate) {
+        return; // User cancelled or no change
+    }
+
+    // Validate date format
+    const datePattern = /^\d{4}-\d{2}-\d{2}$/;
+    if (!datePattern.test(newDate)) {
+        alert('Invalid date format! Please use YYYY-MM-DD format (e.g., 2026-01-03)');
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/expenses/${expenseId}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                date: newDate
+            })
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+            showDashboardToast(`✅ Updated expense date to ${newDate}`, 'success');
+            // Reload expense data
+            loadExpenseOverview();
+            loadMonthlyExpenses().catch(console.error);
+        } else {
+            alert(`Error: ${result.message}`);
+        }
+    } catch (error) {
+        console.error('Error updating expense date:', error);
+        alert('Failed to update expense date');
+    }
 }
 
 // Update Today's Statistics Card
