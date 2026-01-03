@@ -4593,8 +4593,9 @@ function updateBookingInAllViews(bookingId, updatedData) {
                 // Look for collected amount display (badge or text)
                 const collectedBadges = cell.querySelectorAll('.badge, .fw-bold');
                 collectedBadges.forEach(badge => {
-                    if (badge.textContent.includes('\u0110\u00E3 thu') || badge.textContent.includes('thu')) {
-                        badge.innerHTML = `<i class="fas fa-check-circle me-1"></i>${updatedData.collected_amount.toLocaleString()}\u0111`;
+                    const collectedText = "Đã thu";
+                    if (badge.textContent.includes(collectedText) || badge.textContent.includes('thu')) {
+                        badge.innerHTML = `<i class="fas fa-check-circle me-1"></i>${updatedData.collected_amount.toLocaleString()}đ`;
                         badge.classList.add('bg-success', 'text-white');
 
                         // Flash animation
@@ -4608,9 +4609,11 @@ function updateBookingInAllViews(bookingId, updatedData) {
 
         // Update total amount display
         const amountElements = row.querySelectorAll('.amount, .total-amount, .fw-bold');
+        const dongSymbol = "đ";
+        const collectedText = "Đã thu";
         amountElements.forEach(el => {
-            if (el.textContent.includes('\u0111') && !el.textContent.includes('\u0110\u00E3 thu')) {
-                el.textContent = `${updatedData.total_amount.toLocaleString()}\u0111`;
+            if (el.textContent.includes(dongSymbol) && !el.textContent.includes(collectedText)) {
+                el.textContent = `${updatedData.total_amount.toLocaleString()}đ`;
                 el.style.transition = 'all 0.3s';
                 el.style.color = '#28a745';
                 setTimeout(() => { el.style.color = ''; }, 1000);
@@ -4647,14 +4650,15 @@ function updateBookingInAllViews(bookingId, updatedData) {
 
     // 4. Update any calendar tooltips or modals that might be open
     const openModals = document.querySelectorAll('.modal.show');
+    const dongSymbolModal = "đ";
     openModals.forEach(modal => {
         const modalBookingId = modal.getAttribute('data-booking-id');
         if (modalBookingId === bookingId) {
             // Update modal content
             const modalAmounts = modal.querySelectorAll('.amount, .total');
             modalAmounts.forEach(el => {
-                if (el.textContent.includes('\u0111')) {
-                    el.textContent = `${updatedData.total_amount.toLocaleString()}\u0111`;
+                if (el.textContent.includes(dongSymbolModal)) {
+                    el.textContent = `${updatedData.total_amount.toLocaleString()}đ`;
                 }
             });
         }
@@ -11200,8 +11204,9 @@ function showWeeklyGuestDetails(week, type, totalAmount) {
     modal.show();
     
     // Update modal title for weekly data
+    const statusText = type === 'collected' ? 'Collected' : 'Uncollected';
     document.getElementById('monthlyGuestDetailsModalLabel').innerHTML =
-        `<i class="fas fa-calendar-week me-2"></i>Chi ti\u1EBFt kh\u00E1ch ${type === 'collected' ? '\u0111\u00E3 thu' : 'ch\u01B0a thu'} - Tu\u1EA7n ${week}`;
+        `<i class="fas fa-calendar-week me-2"></i>Guest Details (${statusText}) - Week ${week}`;
     
     // Reset modal state
     document.getElementById('monthlyGuestLoading').style.display = 'block';
@@ -11247,14 +11252,14 @@ function displayWeeklyGuestDetails(data) {
     const guestCount = data.guests ? data.guests.length : 0;
     const totalAmount = data.total_amount || 0;
     const weekLabel = data.week || 'N/A';
-    const typeLabel = data.type === 'collected' ? '\u0111\u00E3 thu' : 'ch\u01B0a thu';
-    
+    const typeLabel = data.type === 'collected' ? 'Collected' : 'Uncollected';
+
     // Update summary text using correct modal elements
-    document.getElementById('modalMonth').innerHTML = `Tuần ${weekLabel}`;
-    document.getElementById('modalStatusLabel').innerHTML = `${guestCount} khách ${typeLabel}`;
+    document.getElementById('modalMonth').innerHTML = `Week ${weekLabel}`;
+    document.getElementById('modalStatusLabel').innerHTML = `${guestCount} guests (${typeLabel})`;
     document.getElementById('modalTotalAmount').innerHTML = totalAmount.toLocaleString();
     document.getElementById('modalGuestCount').innerHTML = guestCount;
-    document.getElementById('modalDateRange').innerHTML = `Tuần ${weekLabel}`;
+    document.getElementById('modalDateRange').innerHTML = `Week ${weekLabel}`;
     
     // Populate table with weekly guest data
     const tableBody = document.getElementById('monthlyGuestTableBody');
@@ -11407,10 +11412,9 @@ function displayCollectorGuestDetails(data) {
     document.getElementById('modalGuestCount').textContent = data.count;
     
     // Update date range indicator - use actual period from API response
-    if (data.period && data.period.includes('t\u1EEB') && data.period.includes('\u0111\u1EBFn')) {
+    if (data.period && (data.period.includes('from') || data.period.includes('to'))) {
         // Period format: "from 2025-05-01 to 2025-05-31"
-        const periodText = data.period.replace('t\u1EEB ', '').replace(' \u0111\u1EBFn ', ' to ');
-        document.getElementById('modalDateRange').textContent = periodText;
+        document.getElementById('modalDateRange').textContent = data.period;
     } else {
         // Fallback to dashboard filter if period format is different
         const startDate = document.querySelector('input[name="start_date"]')?.value || 'Not set';
