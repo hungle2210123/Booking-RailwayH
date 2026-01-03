@@ -7806,6 +7806,8 @@ async function loadMonthlyExpenses() {
         }
     }
 }
+// Make globally accessible
+window.loadMonthlyExpenses = loadMonthlyExpenses;
 
 // Prepare expense modal with default values
 function prepareExpenseModal() {
@@ -7836,6 +7838,8 @@ function prepareExpenseModal() {
         }
     }, 300);
 }
+// Make globally accessible
+window.prepareExpenseModal = prepareExpenseModal;
 
 // Add expense function (FIXED - No more UI freezing)
 async function addExpense() {
@@ -8350,6 +8354,8 @@ async function loadExpenseOverview() {
             '<tr><td colspan="8" class="text-center text-danger py-5"><i class="fas fa-exclamation-triangle fa-2x mb-2"></i><p>Lỗi: ' + error.message + '</p></td></tr>';
     }
 }
+// Make globally accessible
+window.loadExpenseOverview = loadExpenseOverview;
 
 function displayExpenseOverview(expenses) {
     // Calculate summary
@@ -8892,6 +8898,8 @@ function changeCalendarMonth(delta) {
     renderExpenseCalendar();
     renderWeeklyBudgetBreakdown(); // Update budget when month changes
 }
+// Make globally accessible
+window.changeCalendarMonth = changeCalendarMonth;
 
 function showDayExpenses(dateStr) {
     // Switch to table view and filter by date
@@ -8899,6 +8907,8 @@ function showDayExpenses(dateStr) {
     document.getElementById('filterDate').value = dateStr;
     filterExpenseTable();
 }
+// Make globally accessible
+window.showDayExpenses = showDayExpenses;
 
 // 💰 WEEKLY BUDGET TRACKING WITH SMART REDISTRIBUTION
 let monthlyBudget = 10000000; // Default 10M VND
@@ -8936,6 +8946,8 @@ function updateMonthlyBudget() {
         btn.classList.add('btn-dark');
     }, 2000);
 }
+// Make globally accessible
+window.updateMonthlyBudget = updateMonthlyBudget;
 
 // Format input as user types
 document.addEventListener('DOMContentLoaded', function() {
