@@ -7107,6 +7107,45 @@ document.addEventListener('DOMContentLoaded', async function() {
                                     </div>
                                 </div>
 
+                                <!-- Monthly Personal Expense Summary -->
+                                <div class="alert alert-dark border-0 shadow-sm mb-3" style="border-radius: 12px; border-left: 5px solid #20bf6b;">
+                                    <div class="row align-items-center">
+                                        <div class="col-md-4">
+                                            <div class="d-flex align-items-center">
+                                                <div class="me-3">
+                                                    <i class="fas fa-user-circle" style="font-size: 2.5rem; color: #20bf6b;"></i>
+                                                </div>
+                                                <div>
+                                                    <h6 class="mb-0 text-muted small">Tổng Chi Cá Nhân Tháng Này</h6>
+                                                    <h4 class="mb-0 fw-bold" id="monthlyPersonalTotal" style="color: #20bf6b;">0đ</h4>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <div class="d-flex align-items-center">
+                                                <div class="me-3">
+                                                    <i class="fas fa-chart-bar" style="font-size: 2.5rem; color: #667eea;"></i>
+                                                </div>
+                                                <div>
+                                                    <h6 class="mb-0 text-muted small">Ngân Sách Cá Nhân</h6>
+                                                    <h4 class="mb-0 fw-bold" id="monthlyBudgetDisplay" style="color: #667eea;">10,000,000đ</h4>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <div class="d-flex align-items-center">
+                                                <div class="me-3">
+                                                    <i class="fas fa-balance-scale" id="budgetBalanceIcon" style="font-size: 2.5rem; color: #20bf6b;"></i>
+                                                </div>
+                                                <div>
+                                                    <h6 class="mb-0 text-muted small" id="budgetBalanceLabel">Còn Lại</h6>
+                                                    <h4 class="mb-0 fw-bold" id="budgetBalance" style="color: #20bf6b;">0đ</h4>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
                                 <!-- Weekly Budget Cards -->
                                 <div id="weeklyBudgetBreakdown" class="row g-3"></div>
 
@@ -9043,6 +9082,33 @@ function renderWeeklyBudgetBreakdown() {
     const weeks = getWeeksInMonth(year, month);
     const weeklySpending = calculateWeeklySpending(weeks, year, month);
     const redistributed = redistributeBudget(weeklySpending, monthlyBudget);
+
+    // Calculate total monthly personal expenses
+    const monthlyPersonalTotal = weeklySpending.reduce((sum, week) => sum + week.actualSpent, 0);
+    const budgetRemaining = monthlyBudget - monthlyPersonalTotal;
+    const isOverBudget = budgetRemaining < 0;
+
+    // Update monthly summary display
+    document.getElementById('monthlyPersonalTotal').textContent = monthlyPersonalTotal.toLocaleString('vi-VN') + 'đ';
+    document.getElementById('monthlyBudgetDisplay').textContent = monthlyBudget.toLocaleString('vi-VN') + 'đ';
+    document.getElementById('budgetBalance').textContent = Math.abs(budgetRemaining).toLocaleString('vi-VN') + 'đ';
+
+    // Update balance styling based on status
+    const balanceIcon = document.getElementById('budgetBalanceIcon');
+    const balanceLabel = document.getElementById('budgetBalanceLabel');
+    const balanceAmount = document.getElementById('budgetBalance');
+
+    if (isOverBudget) {
+        balanceIcon.className = 'fas fa-exclamation-triangle';
+        balanceIcon.style.color = '#f5576c';
+        balanceLabel.textContent = 'Vượt Ngân Sách';
+        balanceAmount.style.color = '#f5576c';
+    } else {
+        balanceIcon.className = 'fas fa-balance-scale';
+        balanceIcon.style.color = '#20bf6b';
+        balanceLabel.textContent = 'Còn Lại';
+        balanceAmount.style.color = '#20bf6b';
+    }
 
     const container = document.getElementById('weeklyBudgetBreakdown');
     let html = '';
