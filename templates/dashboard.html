@@ -1079,7 +1079,7 @@
                             <button class="btn btn-light btn-sm px-2" data-bs-toggle="modal" data-bs-target="#expenseModal" title="Thêm chi phí" onclick="prepareExpenseModal()">
                                 <i class="fas fa-plus"></i>
                             </button>
-                            <button class="btn btn-outline-light btn-sm px-2" data-bs-toggle="modal" data-bs-target="#expenseOverviewModal" title="📊 Xem Tất Cả" onclick="loadExpenseOverview()">
+                            <button class="btn btn-outline-light btn-sm px-2" data-bs-toggle="modal" data-bs-target="#expenseOverviewModal" title="📊 Xem Tất Cả">
                                 <i class="fas fa-table"></i>
                             </button>
                             <button class="btn btn-outline-light btn-sm px-2" onclick="loadMonthlyExpenses()" title="Tải lại">
@@ -9219,6 +9219,17 @@ function renderWeeklyBudgetBreakdown() {
 
     container.innerHTML = html;
 }
+
+// Initialize expense overview modal to load data when opened
+document.addEventListener('DOMContentLoaded', function() {
+    const expenseModal = document.getElementById('expenseOverviewModal');
+    if (expenseModal) {
+        expenseModal.addEventListener('shown.bs.modal', function() {
+            console.log('📊 Expense Overview Modal opened - loading data...');
+            loadExpenseOverview();
+        });
+    }
+});
 
 // Load expense review function with categorization
 async function loadExpenseReview() {
