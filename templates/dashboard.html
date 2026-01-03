@@ -4757,7 +4757,7 @@ function updateGuestCardAmounts(bookingId, newRoomAmount, newTaxiAmount, newComm
                             }
                         }
                     } else {
-                        // No commission - show "Không hoa hồng" text
+                        // No commission - show "No commission" text
                         if (commissionIcon && commissionIcon.parentElement) {
                             // Replace existing commission with "no commission" text
                             commissionIcon.parentElement.innerHTML = '<i class="fas fa-check-circle me-1 text-success"></i>Không hoa hồng';
@@ -11408,7 +11408,7 @@ function displayCollectorGuestDetails(data) {
     
     // Update date range indicator - use actual period from API response
     if (data.period && data.period.includes('t\u1EEB') && data.period.includes('\u0111\u1EBFn')) {
-        // Period format: "từ 2025-05-01 đến 2025-05-31"
+        // Period format: "from 2025-05-01 to 2025-05-31"
         const periodText = data.period.replace('t\u1EEB ', '').replace(' \u0111\u1EBFn ', ' to ');
         document.getElementById('modalDateRange').textContent = periodText;
     } else {
