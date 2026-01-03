@@ -1314,16 +1314,19 @@ def add_expense_to_database(expense_data: Dict) -> int:
         return None
 
 def get_expenses_from_database() -> pd.DataFrame:
-    """Get all expenses from PostgreSQL with English field names for API compatibility"""
+    """Get all expenses from PostgreSQL with English field names for API compatibility
+
+    Railway DB Schema: expense_id, expense_date, amount, description, category (VARCHAR), collector (VARCHAR), created_at
+    """
     query = """
     SELECT
         expense_id,
         expense_date as "date",
-        amount as "amount",
-        description as "description",
-        category_id,
-        created_at,
-        updated_at
+        amount,
+        description,
+        category,
+        collector,
+        created_at
     FROM expenses
     ORDER BY expense_date DESC
     """
