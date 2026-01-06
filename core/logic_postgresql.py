@@ -1035,7 +1035,13 @@ def prepare_dashboard_data(df: pd.DataFrame, start_date: datetime, end_date: dat
     WHERE checkin_date BETWEEN :start_date AND :end_date
       AND booking_status != 'cancelled';
     """
-    selected_metrics = execute_query(query_selected, {"start_date": start_date_str, "end_date": end_date_str}).iloc[0]
+    selected_metrics_df = execute_query(query_selected, {"start_date": start_date_str, "end_date": end_date_str})
+
+    # Convert numeric columns to proper dtypes (Railway DB may return strings)
+    if not selected_metrics_df.empty:
+        selected_metrics_df['total_revenue'] = pd.to_numeric(selected_metrics_df['total_revenue'], errors='coerce').fillna(0)
+        selected_metrics_df['total_guests'] = pd.to_numeric(selected_metrics_df['total_guests'], errors='coerce').fillna(0)
+    selected_metrics = selected_metrics_df.iloc[0]
 
     # Optimized query for monthly revenue (all time) - Database compatible
     # Try PostgreSQL first, fallback to SQLite if needed
@@ -1052,6 +1058,8 @@ def prepare_dashboard_data(df: pd.DataFrame, start_date: datetime, end_date: dat
         monthly_revenue = execute_query(query_monthly)
         print(f"💰 [MONTHLY_REVENUE] PostgreSQL query returned {len(monthly_revenue)} rows")
         if not monthly_revenue.empty:
+            # Convert numeric columns to proper dtypes (Railway DB may return strings)
+            monthly_revenue['Tổng thanh toán'] = pd.to_numeric(monthly_revenue['Tổng thanh toán'], errors='coerce').fillna(0)
             print(f"💰 [MONTHLY_REVENUE] Sample data: {monthly_revenue.head(3).to_dict('records')}")
         else:
             print("💰 [MONTHLY_REVENUE] No data returned from PostgreSQL query")
@@ -1069,6 +1077,8 @@ def prepare_dashboard_data(df: pd.DataFrame, start_date: datetime, end_date: dat
         monthly_revenue = execute_query(query_monthly)
         print(f"💰 [MONTHLY_REVENUE] SQLite query returned {len(monthly_revenue)} rows")
         if not monthly_revenue.empty:
+            # Convert numeric columns to proper dtypes (Railway DB may return strings)
+            monthly_revenue['Tổng thanh toán'] = pd.to_numeric(monthly_revenue['Tổng thanh toán'], errors='coerce').fillna(0)
             print(f"💰 [MONTHLY_REVENUE] Sample data: {monthly_revenue.head(3).to_dict('records')}")
         else:
             print("💰 [MONTHLY_REVENUE] No data returned from SQLite query")
@@ -1089,6 +1099,11 @@ def prepare_dashboard_data(df: pd.DataFrame, start_date: datetime, end_date: dat
     collector_revenue = execute_query(query_collector, {"start_date": start_date_str, "end_date": end_date_str})
 
     if not collector_revenue.empty:
+        # Convert numeric columns to proper dtypes (Railway DB may return strings)
+        collector_revenue['Tổng thanh toán'] = pd.to_numeric(collector_revenue['Tổng thanh toán'], errors='coerce').fillna(0)
+        collector_revenue['Số đặt phòng'] = pd.to_numeric(collector_revenue['Số đặt phòng'], errors='coerce').fillna(0)
+        collector_revenue['Hoa hồng'] = pd.to_numeric(collector_revenue['Hoa hồng'], errors='coerce').fillna(0)
+
         total_collected = collector_revenue['Tổng thanh toán'].sum()
         collector_revenue['Tỷ lệ %'] = (collector_revenue['Tổng thanh toán'] / total_collected * 100).round(1) if total_collected > 0 else 0
 
@@ -1335,6 +1350,8 @@ def get_expenses_from_database() -> pd.DataFrame:
     print(f"💰 EXPENSES QUERY: Found {len(result)} expenses in database")
     print(f"💰 EXPENSES COLUMNS: {list(result.columns) if not result.empty else 'NO DATA'}")
     if not result.empty:
+        # Convert numeric columns to proper dtypes (Railway DB may return strings)
+        result['amount'] = pd.to_numeric(result['amount'], errors='coerce').fillna(0)
         print(f"💰 FIRST EXPENSE: {result.iloc[0].to_dict()}")
     return result
 

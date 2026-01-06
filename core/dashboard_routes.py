@@ -623,6 +623,10 @@ def process_monthly_revenue_with_unpaid_original(df, start_date=None, end_date=N
         
         if not merged_data.empty:
             # ✅ ADD DETAILED SPENDING STATISTICS for checked-in guests
+            # Ensure numeric columns are properly typed (Railway DB safety)
+            merged_data['Đã thu'] = pd.to_numeric(merged_data['Đã thu'], errors='coerce').fillna(0)
+            merged_data['Chưa thu'] = pd.to_numeric(merged_data['Chưa thu'], errors='coerce').fillna(0)
+
             merged_data['Tổng cộng'] = merged_data['Đã thu'] + merged_data['Chưa thu']
             merged_data['Tỷ lệ thu'] = (merged_data['Đã thu'] / merged_data['Tổng cộng'] * 100).round(1)
             merged_data['Tỷ lệ thu'] = merged_data['Tỷ lệ thu'].fillna(0)
@@ -779,19 +783,23 @@ def process_weekly_revenue_with_unpaid(df, start_date=None, end_date=None):
             merged_data = pd.DataFrame(columns=['Week_Label', 'Đã thu', 'Chưa thu', 'Hoa hồng', 'Số khách chưa thu', 'Week_Start'])
         
         if not merged_data.empty:
+            # Ensure numeric columns are properly typed (Railway DB safety)
+            merged_data['Đã thu'] = pd.to_numeric(merged_data['Đã thu'], errors='coerce').fillna(0)
+            merged_data['Chưa thu'] = pd.to_numeric(merged_data['Chưa thu'], errors='coerce').fillna(0)
+
             # Add calculations
             merged_data['Tổng cộng'] = merged_data['Đã thu'] + merged_data['Chưa thu']
             merged_data['Tỷ lệ thu'] = (merged_data['Đã thu'] / merged_data['Tổng cộng'] * 100).round(1)
-            
+
             # Add guest counts
             if not df_checked_in.empty:
                 guest_counts = df_checked_in.groupby('Week_Label').size().reset_index(name='Tổng khách')
                 collected_counts = collected_df.groupby('Week_Label').size().reset_index(name='Khách đã thu') if not collected_df.empty else pd.DataFrame(columns=['Week_Label', 'Khách đã thu'])
-                
+
                 merged_data = pd.merge(merged_data, guest_counts, on='Week_Label', how='left')
                 merged_data = pd.merge(merged_data, collected_counts, on='Week_Label', how='left')
                 merged_data['Khách đã thu'] = merged_data['Khách đã thu'].fillna(0)
-                
+
                 # Calculate average per guest
                 merged_data['TB/khách'] = (merged_data['Tổng cộng'] / merged_data['Tổng khách']).round(0)
             
