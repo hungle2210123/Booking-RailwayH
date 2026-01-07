@@ -1182,16 +1182,15 @@
                         {% for guest in overdue_unpaid_guests %}
                         <tr class="bg-white bg-opacity-90">
                             <td class="py-1 px-2">
-                                <div class="fw-bold text-dark small">{{ guest.get('Tên người đặt', 'N/A') }}</div>
+                                <div class="d-flex align-items-center gap-2 mb-1">
+                                    <div class="fw-bold text-dark small">{{ guest.get('Tên người đặt', 'N/A') }}</div>
+                                    <!-- Room Type Badge (Always Visible) -->
+                                    {% set room_type = guest.get('Loại phòng', '') or guest.get('room_type', '') or guest.get('Room Type', '') %}
+                                    <span class="badge bg-info text-white" style="font-size: 9px; font-weight: 600; padding: 3px 8px; white-space: nowrap;">
+                                        <i class="fas fa-door-open me-1"></i>{{ room_type if room_type and room_type != '' else 'Standard' }}
+                                    </span>
+                                </div>
                                 <div class="text-muted" style="font-size: 11px;">
-                                    <!-- Room Type -->
-                                    {% set room_type = guest.get('Loại phòng', '') or guest.get('room_type', '') %}
-                                    {% if room_type and room_type != '' %}
-                                    <div>
-                                        <i class="fas fa-bed me-1 text-primary"></i>
-                                        <span class="badge bg-primary bg-opacity-10 text-primary" style="font-size: 10px; font-weight: 500;">{{ room_type }}</span>
-                                    </div>
-                                    {% endif %}
                                     <!-- Check-out Date (Primary) -->
                                     <div>
                                         <i class="fas fa-sign-out-alt me-1"></i>
