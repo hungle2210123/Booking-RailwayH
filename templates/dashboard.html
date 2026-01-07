@@ -1185,10 +1185,25 @@
                                 <div class="d-flex align-items-center gap-2 mb-1">
                                     <div class="fw-bold text-dark small">{{ guest.get('Tên người đặt', 'N/A') }}</div>
                                     <!-- Accommodation/Apartment Name Badge (Always Visible) -->
-                                    {% set accommodation = guest.get('apartment_name', '') or guest.get('Chỗ ở', '') or guest.get('accommodation_name', '') or guest.get('Accommodation Name', '') %}
+                                    {% set room_name = guest.get('room_name', '') or guest.get('Tên chỗ nghỉ', '') %}
+                                    {% set accommodation = room_name or guest.get('apartment_name', '') or guest.get('Chỗ ở', '') or guest.get('accommodation_name', '') %}
+                                    {% if room_name == 'hang be 101' %}
+                                    <span class="badge text-white" style="background: #4CAF50; font-size: 9px; font-weight: 600; padding: 3px 8px; white-space: nowrap;">
+                                        <i class="fas fa-door-open me-1"></i>🟢 hang be 101
+                                    </span>
+                                    {% elif room_name == 'hang be 102' %}
+                                    <span class="badge text-white" style="background: #26A69A; font-size: 9px; font-weight: 600; padding: 3px 8px; white-space: nowrap;">
+                                        <i class="fas fa-door-open me-1"></i>🔵 hang be 102
+                                    </span>
+                                    {% elif room_name == '118 hang bac' or room_name == '118 Hang Bac Hostel' %}
+                                    <span class="badge bg-primary text-white" style="font-size: 9px; font-weight: 600; padding: 3px 8px; white-space: nowrap;">
+                                        <i class="fas fa-hotel me-1"></i>🏨 118 hang bac
+                                    </span>
+                                    {% else %}
                                     <span class="badge bg-info text-white" style="font-size: 9px; font-weight: 600; padding: 3px 8px; white-space: nowrap;">
                                         <i class="fas fa-hotel me-1"></i>{{ accommodation if accommodation and accommodation != '' else '118 Hang Bac' }}
                                     </span>
+                                    {% endif %}
                                 </div>
                                 <div class="text-muted" style="font-size: 11px;">
                                     <!-- Check-out Date (Primary) -->
