@@ -190,7 +190,14 @@ class Booking(db.Model):
     
     # Payment tracking
     collector = Column(String(255))
-    
+    commission_status = Column(
+        String(50),
+        default='pending',
+        nullable=False,
+        index=True,
+        comment='Commission decision status: pending (not decided), confirmed (kept), cancelled (set to 0)'
+    )
+
     # Booking status
     booking_status = Column(String(50), default='confirmed', index=True)
     
@@ -216,6 +223,7 @@ class Booking(db.Model):
         CheckConstraint('checkout_date > checkin_date', name='chk_checkout_after_checkin'),
         CheckConstraint('room_amount >= 0 AND taxi_amount >= 0 AND commission >= 0 AND collected_amount >= 0', name='chk_positive_amounts'),
         CheckConstraint("booking_status IN ('confirmed', 'cancelled', 'deleted', 'pending', 'mới', 'đã hủy', 'đã xóa', 'chờ xử lý')", name='chk_valid_status'),
+        CheckConstraint("commission_status IN ('pending', 'confirmed', 'cancelled')", name='chk_valid_commission_status'),
     )
     
     @hybrid_property
@@ -257,6 +265,7 @@ class Booking(db.Model):
             'collected_amount': float(self.collected_amount) if self.collected_amount else 0.0,
             'total_amount': float(self.total_amount),
             'collector': self.collector,
+            'commission_status': self.commission_status,
             'booking_status': self.booking_status,
             'has_taxi': self.has_taxi,
             'booking_notes': self.booking_notes,

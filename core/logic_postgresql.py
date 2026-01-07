@@ -153,6 +153,7 @@ def load_booking_data(force_fresh: bool = False) -> pd.DataFrame:
         b.commission as "Hoa hồng",
         b.taxi_amount as "Taxi",
         b.collector as "Người thu tiền",
+        COALESCE(b.commission_status, 'pending') as "Trạng thái hoa hồng",
         CASE
             WHEN b.booking_status IN ('cancelled', 'đã hủy', 'deleted') THEN 'Đã hủy'
             WHEN b.booking_status = 'pending' THEN 'Chờ xử lý'
@@ -202,7 +203,8 @@ def load_booking_data(force_fresh: bool = False) -> pd.DataFrame:
         b.commission as "Hoa hồng",
         b.taxi_amount as "Taxi",
         b.collector as "Người thu tiền",
-        CASE 
+        COALESCE(b.commission_status, 'pending') as "Trạng thái hoa hồng",
+        CASE
             WHEN b.booking_status IN ('cancelled', 'đã hủy', 'deleted') THEN 'Đã hủy'
             WHEN b.booking_status = 'pending' THEN 'Chờ xử lý'
             ELSE 'OK'

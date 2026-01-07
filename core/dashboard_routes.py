@@ -323,34 +323,43 @@ def process_overdue_guests(df):
         collected_values = ['LOC LE', 'THAO LE']
         collector_series = df_valid['Người thu tiền'].fillna('').astype(str)
         collected_amount_series = pd.to_numeric(df_valid['Số tiền đã thu'].fillna(0), errors='coerce').fillna(0)
+        commission_status_series = df_valid['Trạng thái hoa hồng'].fillna('pending').astype(str)
 
-        # LEGACY DATA COMPATIBILITY + TWO CONDITIONS:
-        # For old bookings: If collector is set (LOC LE/THAO LE), consider collected (backward compatibility)
-        # For new bookings: Both collector AND collected_amount > 0 required
-        # This preserves old data while enforcing new validation
+        # 🆕 TWO-CONDITION LOGIC: Guest disappears ONLY when BOTH conditions are met
+        # CONDITION 1: Payment collected (collector + collected_amount > 0)
         has_valid_collector = collector_series.isin(collected_values)
         has_payment = collected_amount_series > 0
+        payment_collected = has_valid_collector & has_payment
 
-        # Consider collected if:
-        # - Has valid collector (for legacy bookings where collected_amount wasn't tracked)
-        # OR
-        # - Has both collector AND payment (for new bookings with proper tracking)
-        is_collected = has_valid_collector  # Accept collector alone for backward compatibility
+        # CONDITION 2: Commission decision finalized ('confirmed' or 'cancelled')
+        commission_finalized = commission_status_series.isin(['confirmed', 'cancelled'])
 
-        not_collected = ~is_collected
+        # Guest is FULLY RESOLVED only when BOTH conditions are true
+        is_fully_resolved = payment_collected & commission_finalized
+
+        # Legacy compatibility: If commission_status is missing/empty for old data,
+        # treat as finalized if collector is set (backward compatibility)
+        is_legacy_data = commission_status_series == 'pending'
+        legacy_collected = has_valid_collector & is_legacy_data
+        is_fully_resolved = is_fully_resolved | legacy_collected
+
+        not_collected = ~is_fully_resolved
         not_cancelled = df_valid['Tình trạng'] != 'Đã hủy'
 
         overdue_mask = past_checkin & not_collected & not_cancelled
         overdue_df = df_valid[overdue_mask].copy()
         
-        print(f"🔍 [OVERDUE] Filtering results:")
+        print(f"🔍 [OVERDUE] Two-Condition Filtering Results:")
         print(f"  - Past check-in: {past_checkin.sum()} bookings")
-        print(f"  - Has valid collector: {has_valid_collector.sum()} bookings")
-        print(f"  - Has payment (>0): {has_payment.sum()} bookings")
-        print(f"  - Fully collected (both conditions): {is_collected.sum()} bookings")
-        print(f"  - Not collected: {not_collected.sum()} bookings")
+        print(f"  - CONDITION 1: Payment collected: {payment_collected.sum()} bookings")
+        print(f"    - Has valid collector: {has_valid_collector.sum()} bookings")
+        print(f"    - Has payment (>0): {has_payment.sum()} bookings")
+        print(f"  - CONDITION 2: Commission finalized: {commission_finalized.sum()} bookings")
+        print(f"  - BOTH conditions met: {is_fully_resolved.sum()} bookings")
+        print(f"  - Legacy data (pending status): {legacy_collected.sum()} bookings")
+        print(f"  - Not fully resolved: {not_collected.sum()} bookings")
         print(f"  - Not cancelled: {not_cancelled.sum()} bookings")
-        print(f"  - Final overdue (ALL filters): {len(overdue_df)} bookings")
+        print(f"  - ⭐ Final overdue guests: {len(overdue_df)} bookings")
         
         if not overdue_df.empty:
             # Debug: Show some guest names to verify duplicates are included

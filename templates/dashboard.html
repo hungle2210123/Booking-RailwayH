@@ -3497,8 +3497,38 @@
                     </div>
                     <div class="mb-3">
                         <label for="collectedNote" class="form-label">Ghi chú (tuỳ chọn):</label>
-                        <textarea class="form-control" id="collectedNote" rows="2" 
+                        <textarea class="form-control" id="collectedNote" rows="2"
                                   placeholder="Ghi chú về việc thu tiền..."></textarea>
+                    </div>
+                    <div class="mb-3 border-top pt-3">
+                        <label class="form-label fw-bold">
+                            <i class="fas fa-hand-holding-usd me-1"></i>Quyết định về hoa hồng:
+                        </label>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="commissionDecision" id="commissionPending" value="pending" checked>
+                            <label class="form-check-label" for="commissionPending">
+                                <i class="fas fa-clock text-warning me-1"></i>
+                                <strong>Chưa quyết định</strong> - Quyết định sau
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="commissionDecision" id="commissionConfirmed" value="confirmed">
+                            <label class="form-check-label" for="commissionConfirmed">
+                                <i class="fas fa-check-circle text-success me-1"></i>
+                                <strong>Giữ hoa hồng</strong> - Không hủy
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="commissionDecision" id="commissionCancelled" value="cancelled">
+                            <label class="form-check-label" for="commissionCancelled">
+                                <i class="fas fa-times-circle text-danger me-1"></i>
+                                <strong>Hủy hoa hồng</strong> - Đặt về 0đ
+                            </label>
+                        </div>
+                        <div class="form-text mt-2">
+                            <i class="fas fa-info-circle me-1"></i>
+                            <small>Khách chỉ biến mất khỏi danh sách khi cả hai điều kiện được đáp ứng: (1) đã thu tiền và (2) đã quyết định về hoa hồng</small>
+                        </div>
                     </div>
                 </form>
             </div>
@@ -4936,6 +4966,63 @@ function updateGuestCardAmounts(bookingId, newRoomAmount, newTaxiAmount, newComm
 
     // Show success feedback
     showDashboardToast(`📝 Đã cập nhật số tiền cho ${currentEditBookingData.guestName}`, 'success');
+}
+
+// 💰 Update collected amount with commission decision
+async function updateCollectedAmount() {
+    const bookingId = document.getElementById('collectedModalBookingId').textContent;
+    const collectorName = document.getElementById('collectedCollectorName').value;
+    const collectedAmount = parseFloat(document.getElementById('newCollectedAmount').value) || 0;
+    const collectedNote = document.getElementById('collectedNote').value;
+
+    // 🆕 Get commission decision from radio buttons
+    const commissionDecision = document.querySelector('input[name="commissionDecision"]:checked').value;
+
+    // Validation
+    if (!collectorName) {
+        alert('Vui lòng chọn người thu tiền');
+        return;
+    }
+
+    if (collectedAmount <= 0) {
+        alert('Vui lòng nhập số tiền đã thu (phải lớn hơn 0)');
+        return;
+    }
+
+    try {
+        const response = await fetch('/api/collect_payment', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                booking_id: bookingId,
+                collected_amount: collectedAmount,
+                collector_name: collectorName,
+                payment_note: collectedNote,
+                commission_status: commissionDecision  // 🆕 Send commission decision
+            })
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+            // Close modal
+            const modal = bootstrap.Modal.getInstance(document.getElementById('editCollectedAmountModal'));
+            modal.hide();
+
+            // Show success message
+            showDashboardToast(`✅ Đã cập nhật thu tiền cho ${bookingId}`, 'success');
+
+            // Reload page to show updated data
+            setTimeout(() => {
+                window.location.reload();
+            }, 1500);
+        } else {
+            alert(`❌ Lỗi: ${result.message}`);
+        }
+    } catch (error) {
+        console.error('Error updating collected amount:', error);
+        alert(`❌ Lỗi hệ thống: ${error.message}`);
+    }
 }
 
 // ⚡ INSTANT UPDATE: Update collected amount display after payment
@@ -13467,7 +13554,7 @@ async function requestCancellation(bookingId, guestName, currentCommission) {
     try {
         showDashboardToast('Đang xử lý yêu cầu hủy...', 'info');
 
-        // Step 1: Set commission to 0
+        // Step 1: Set commission to 0 and mark as cancelled
         const updateResponse = await fetch('/api/collect_payment', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -13477,6 +13564,7 @@ async function requestCancellation(bookingId, guestName, currentCommission) {
                 commission_type: 'none',
                 collected_amount: 0,
                 collector_name: 'SYSTEM',
+                commission_status: 'cancelled',  // 🆕 Mark commission decision as cancelled
                 payment_note: `Khách yêu cầu hủy - Hủy hoa hồng ${currentCommission.toLocaleString('vi-VN')}đ`
             })
         });

@@ -6001,6 +6001,7 @@ def collect_payment():
         taxi_amount = data.get('taxi_amount')  # ADDED: Taxi amount for database update
         commission_amount = data.get('commission_amount', 0)
         commission_type = data.get('commission_type', 'normal')  # 'normal' hoặc 'none'
+        commission_status = data.get('commission_status', 'pending')  # NEW: 'pending', 'confirmed', 'cancelled'
         
         print(f"[COLLECT_PAYMENT] 🎯 EXTRACTED VALUES:")
         print(f"[COLLECT_PAYMENT]   - booking_id: '{booking_id}'")
@@ -6011,6 +6012,7 @@ def collect_payment():
         print(f"[COLLECT_PAYMENT]   - taxi_amount: {taxi_amount} 🚕 NEW")
         print(f"[COLLECT_PAYMENT]   - commission_amount: {commission_amount}")
         print(f"[COLLECT_PAYMENT]   - commission_type: '{commission_type}'")
+        print(f"[COLLECT_PAYMENT]   - commission_status: '{commission_status}' 🆕 NEW")
         
         # Validate input
         if not booking_id:
@@ -6047,6 +6049,14 @@ def collect_payment():
         update_data['collected_amount'] = float(collected_amount)  # 💰 CRITICAL: Save actual collected amount
         print(f"[COLLECT_PAYMENT] 💰 Setting collected_amount to: {collected_amount}")
         print(f"[COLLECT_PAYMENT] ✅ Valid collector confirmed: {collector_name}")
+
+        # 🆕 UPDATE commission_status based on commission decision
+        valid_commission_statuses = ['pending', 'confirmed', 'cancelled']
+        if commission_status in valid_commission_statuses:
+            update_data['commission_status'] = commission_status
+            print(f"[COLLECT_PAYMENT] 🆕 Setting commission_status to: {commission_status}")
+        else:
+            print(f"[COLLECT_PAYMENT] ⚠️ Invalid commission_status '{commission_status}', keeping as 'pending'")
         
         # 🚕 ALWAYS UPDATE TAXI AMOUNT if provided (regardless of payment type)
         if taxi_amount is not None and taxi_amount >= 0:
@@ -6123,10 +6133,85 @@ def collect_payment():
         else:
             print(f"[COLLECT_PAYMENT] Failed to update booking {booking_id}")
             return jsonify({
-                'success': False, 
+                'success': False,
                 'message': f'Lỗi cập nhật booking {booking_id}. Vui lòng thử lại.'
             }), 500
-            
+
+    except Exception as e:
+        print(f"❌ [COLLECT_PAYMENT] Exception: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'message': f'Lỗi hệ thống: {str(e)}'}), 500
+
+@app.route('/api/confirm_no_cancellation', methods=['POST'])
+def confirm_no_cancellation():
+    """
+    🆕 NEW ENDPOINT: Confirm that commission will NOT be cancelled.
+
+    This endpoint allows marking a booking's commission_status as 'confirmed',
+    indicating that the commission will be kept (not cancelled).
+
+    Used when:
+    - User collects payment and confirms commission should stay
+    - User wants to finalize commission decision without immediate payment
+
+    Request JSON:
+    {
+        "booking_id": "BK12345",
+        "confirmed_by": "LOC LE" or "THAO LE"
+    }
+
+    Response:
+    {
+        "success": true,
+        "message": "✅ Đã xác nhận giữ hoa hồng"
+    }
+    """
+    try:
+        data = request.get_json()
+        print(f"🔍 [CONFIRM_NO_CANCELLATION] Request data: {data}")
+
+        if not data:
+            return jsonify({'success': False, 'message': 'Không có dữ liệu'}), 400
+
+        booking_id = data.get('booking_id')
+        confirmed_by = data.get('confirmed_by')
+
+        # Validate input
+        if not booking_id:
+            return jsonify({'success': False, 'message': 'Thiếu mã đặt phòng'}), 400
+
+        if not confirmed_by:
+            return jsonify({'success': False, 'message': 'Thiếu thông tin người xác nhận'}), 400
+
+        # Only allow valid collectors to confirm
+        valid_confirmers = ['LOC LE', 'THAO LE']
+        if confirmed_by not in valid_confirmers:
+            return jsonify({'success': False, 'message': f'Người xác nhận không hợp lệ. Chỉ chấp nhận: {", ".join(valid_confirmers)}'}), 400
+
+        # Update commission_status to 'confirmed'
+        update_data = {
+            'commission_status': 'confirmed'
+        }
+
+        print(f"[CONFIRM_NO_CANCELLATION] Setting commission_status='confirmed' for booking {booking_id}")
+
+        success = update_booking(booking_id, update_data)
+
+        if success:
+            print(f"[CONFIRM_NO_CANCELLATION] Successfully confirmed commission for booking {booking_id}")
+            return jsonify({
+                'success': True,
+                'message': '✅ Đã xác nhận giữ hoa hồng',
+                'refresh_bookings': True
+            })
+        else:
+            print(f"[CONFIRM_NO_CANCELLATION] Failed to update booking {booking_id}")
+            return jsonify({
+                'success': False,
+                'message': f'Lỗi cập nhật booking {booking_id}. Vui lòng thử lại.'
+            }), 500
+
     except Exception as e:
         print(f"[COLLECT_PAYMENT] Error: {e}")
         import traceback
