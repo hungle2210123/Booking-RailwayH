@@ -1184,6 +1184,14 @@
                             <td class="py-1 px-2">
                                 <div class="fw-bold text-dark small">{{ guest.get('Tên người đặt', 'N/A') }}</div>
                                 <div class="text-muted" style="font-size: 11px;">
+                                    <!-- Room Type -->
+                                    {% set room_type = guest.get('Loại phòng', '') or guest.get('room_type', '') %}
+                                    {% if room_type and room_type != '' %}
+                                    <div>
+                                        <i class="fas fa-bed me-1 text-primary"></i>
+                                        <span class="badge bg-primary bg-opacity-10 text-primary" style="font-size: 10px; font-weight: 500;">{{ room_type }}</span>
+                                    </div>
+                                    {% endif %}
                                     <!-- Check-out Date (Primary) -->
                                     <div>
                                         <i class="fas fa-sign-out-alt me-1"></i>

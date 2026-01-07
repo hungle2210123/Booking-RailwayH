@@ -6019,13 +6019,15 @@ def collect_payment():
         if not collector_name:
             return jsonify({'success': False, 'message': 'Thiếu tên người thu tiền'}), 400
         
-        # CRITICAL: Only allow valid collectors
-        valid_collectors = ['LOC LE', 'THAO LE']
+        # CRITICAL: Only allow valid collectors (except for system cancellations)
+        valid_collectors = ['LOC LE', 'THAO LE', 'SYSTEM']
         if collector_name not in valid_collectors:
             return jsonify({'success': False, 'message': f'Người thu tiền không hợp lệ. Chỉ chấp nhận: {", ".join(valid_collectors)}'}), 400
-            
-        if not collected_amount or collected_amount <= 0:
-            return jsonify({'success': False, 'message': 'Số tiền thu không hợp lệ'}), 400
+
+        # Allow 0 collected_amount for cancellation requests (when collector is SYSTEM)
+        if collector_name != 'SYSTEM':
+            if not collected_amount or collected_amount <= 0:
+                return jsonify({'success': False, 'message': 'Số tiền thu không hợp lệ'}), 400
         
         # Prepare update data for PostgreSQL
         update_data = {}
