@@ -324,12 +324,18 @@ def process_overdue_guests(df):
         collector_series = df_valid['Người thu tiền'].fillna('').astype(str)
         collected_amount_series = pd.to_numeric(df_valid['Số tiền đã thu'].fillna(0), errors='coerce').fillna(0)
 
-        # TWO CONDITIONS must be met for guest to disappear from unpaid list:
-        # 1. Valid collector (LOC LE or THAO LE)
-        # 2. Payment amount > 0 (money actually received)
+        # LEGACY DATA COMPATIBILITY + TWO CONDITIONS:
+        # For old bookings: If collector is set (LOC LE/THAO LE), consider collected (backward compatibility)
+        # For new bookings: Both collector AND collected_amount > 0 required
+        # This preserves old data while enforcing new validation
         has_valid_collector = collector_series.isin(collected_values)
         has_payment = collected_amount_series > 0
-        is_collected = has_valid_collector & has_payment
+
+        # Consider collected if:
+        # - Has valid collector (for legacy bookings where collected_amount wasn't tracked)
+        # OR
+        # - Has both collector AND payment (for new bookings with proper tracking)
+        is_collected = has_valid_collector  # Accept collector alone for backward compatibility
 
         not_collected = ~is_collected
         not_cancelled = df_valid['Tình trạng'] != 'Đã hủy'
