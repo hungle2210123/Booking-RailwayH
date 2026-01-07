@@ -5009,13 +5009,24 @@ async function updateCollectedAmount() {
             const modal = bootstrap.Modal.getInstance(document.getElementById('editCollectedAmountModal'));
             modal.hide();
 
-            // Show success message
-            showDashboardToast(`✅ Đã cập nhật thu tiền cho ${bookingId}`, 'success');
+            // Show enhanced success message with commission status
+            const statusText = {
+                'pending': '⏳ Chờ quyết định hoa hồng',
+                'confirmed': '✅ Đã xác nhận hoa hồng',
+                'cancelled': '❌ Đã hủy hoa hồng'
+            }[result.commission_status || 'pending'];
 
-            // Reload page to show updated data
-            setTimeout(() => {
-                window.location.reload();
-            }, 1500);
+            showDashboardToast(`✅ Đã thu tiền thành công\n${statusText}`, 'success');
+
+            // Refresh unchecked-in list without full reload
+            if (typeof loadUncheckedInGuests === 'function') {
+                setTimeout(() => loadUncheckedInGuests(), 500);
+            }
+
+            // Refresh overdue guests table if function exists
+            if (typeof loadOverdueGuests === 'function') {
+                setTimeout(() => loadOverdueGuests(), 500);
+            }
         } else {
             alert(`❌ Lỗi: ${result.message}`);
         }

@@ -6108,8 +6108,9 @@ def collect_payment():
             
             if payment_type == 'taxi':
                 return jsonify({
-                    'success': True, 
+                    'success': True,
                     'message': f'✅ Thu taxi thành công! {update_summary}',
+                    'commission_status': commission_status,  # 🆕 For instant UX feedback
                     'refresh_bookings': True,  # 🔄 Signal to refresh booking management
                     'updated_data': {
                         'collected_amount': collected_amount,
@@ -6120,14 +6121,16 @@ def collect_payment():
                 })
             else:
                 return jsonify({
-                    'success': True, 
+                    'success': True,
                     'message': f'✅ Thu tiền thành công! {update_summary}',
+                    'commission_status': commission_status,  # 🆕 For instant UX feedback
                     'refresh_bookings': True,  # 🔄 Signal to refresh booking management
                     'updated_data': {
                         'collected_amount': collected_amount,
                         'commission_amount': commission_amount,
                         'taxi_amount': taxi_amount,
-                        'booking_id': booking_id
+                        'booking_id': booking_id,
+                        'commission_status': commission_status
                     }
                 })
         else:
