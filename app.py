@@ -1071,6 +1071,53 @@ def api_delete_cancellation():
             'traceback': traceback.format_exc()
         }), 500
 
+@app.route('/api/delete_cancellation', methods=['POST'])
+def api_delete_cancellation_by_booking():
+    """Delete cancellation record by booking_id"""
+    try:
+        data = request.get_json()
+        booking_id = data.get('booking_id')
+
+        if not booking_id:
+            return jsonify({
+                'success': False,
+                'error': 'Missing booking_id'
+            }), 400
+
+        from core.models import db, CancellationAction
+
+        # Find all cancellation records for this booking
+        actions = CancellationAction.query.filter_by(booking_id=booking_id).all()
+
+        if not actions:
+            return jsonify({
+                'success': False,
+                'error': 'No cancellation records found'
+            }), 404
+
+        # Delete all records
+        for action in actions:
+            db.session.delete(action)
+
+        db.session.commit()
+
+        # Force cache refresh
+        db.engine.dispose()
+
+        return jsonify({
+            'success': True,
+            'message': f'Deleted {len(actions)} cancellation record(s)',
+            'deleted_count': len(actions)
+        })
+
+    except Exception as e:
+        db.session.rollback()
+        print(f"Error deleting cancellation: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
 @app.route('/api/confirm_cancellation', methods=['POST'])
 def api_confirm_cancellation():
     """Confirm cancellation action and save to database"""

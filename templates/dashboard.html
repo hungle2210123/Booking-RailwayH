@@ -108,6 +108,71 @@
     100% { background: #e74c3c; opacity: 1; }
 }
 
+/* Action Toggle Button Styles for Payment & Cancellation */
+.btn-outline-success[style*="dashed"],
+.btn-outline-danger[style*="dashed"] {
+    transition: all 0.3s ease;
+    font-weight: 500;
+}
+
+.btn-outline-success[style*="dashed"]:hover {
+    background-color: #28a745 !important;
+    color: white !important;
+    border-style: solid !important;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(40, 167, 69, 0.3);
+}
+
+.btn-outline-danger[style*="dashed"]:hover {
+    background-color: #dc3545 !important;
+    color: white !important;
+    border-style: solid !important;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(220, 53, 69, 0.3);
+}
+
+/* Action completed states with subtle animation */
+.btn-success, .btn-warning {
+    position: relative;
+    overflow: hidden;
+}
+
+.btn-success::after,
+.btn-warning::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: rgba(255, 255, 255, 0.2);
+    transition: left 0.3s ease;
+}
+
+.btn-success:hover::after,
+.btn-warning:hover::after {
+    left: 100%;
+}
+
+/* Mobile optimization for action buttons */
+@media (max-width: 768px) {
+    .booking-management-table td:last-child {
+        min-width: 160px !important;
+        max-width: 180px !important;
+    }
+
+    .booking-management-table .btn-group-vertical .btn,
+    .booking-management-table .d-flex .btn {
+        font-size: 10px !important;
+        padding: 6px 8px !important;
+    }
+
+    .booking-management-table .btn-group .btn {
+        font-size: 9px !important;
+        padding: 4px 6px !important;
+    }
+}
+
 /* Compact Cancellation Management Styles - SCOPED TO CANCELLATION TABLES ONLY */
 .compact-cancellation-table {
     font-size: 0.75rem;
@@ -1224,8 +1289,8 @@
                                     <br>{{ guest.get('Số đặt phòng', 'N/A') }}
                                 </div>
                             </td>
-                            <td class="py-1 px-1">
-                                <div class="btn-group-vertical btn-group-sm">
+                            <td class="py-1 px-1" style="min-width: 180px;">
+                                <div class="d-flex flex-column gap-1">
                                     {% set booking_id = guest.get('Số đặt phòng', '') %}
                                     {% set guest_name = guest.get('Tên người đặt', '') %}
                                     {% set commission = guest.get('Hoa hồng', 0) or 0 %}
@@ -1237,19 +1302,57 @@
                                     {% set has_collector = collector in ['LOC LE', 'THAO LE'] %}
                                     {% set collected_amount = has_collector and raw_collected or 0 %}
                                     {% set payment_note = guest.get('Ghi chú thanh toán', '') or '' %}
-                                    
-                                    <button class="btn btn-info btn-sm py-1 px-2" style="font-size: 11px;"
-                                            onclick="openCollectModal('{{ booking_id }}', '{{ guest_name }}', {{ total_amount }}, {{ commission }}, {{ room_fee }}, {{ taxi_fee }}, {{ collected_amount }}, '{{ collector }}', '{{ payment_note }}')">
-                                        <i class="fas fa-eye me-1"></i>Xem
-                                    </button>
-                                    <button class="btn btn-success btn-sm py-1 px-2" style="font-size: 11px;"
+                                    {% set is_cancelled_request = guest.get('cancellation_requested', False) %}
+
+                                    <!-- Payment Status: Toggle Button -->
+                                    {% if has_collector and collected_amount > 0 %}
+                                    <button class="btn btn-success btn-sm py-1 px-2 w-100 d-flex align-items-center justify-content-between"
+                                            style="font-size: 11px; cursor: pointer;"
                                             onclick="openEditCollectedModal('{{ booking_id }}', '{{ guest_name }}', {{ total_amount }}, {{ collected_amount }}, '{{ collector }}')"
-                                        <i class="fas fa-dollar-sign me-1"></i>Thu
+                                            title="Click to edit payment">
+                                        <span><i class="fas fa-check-circle me-1"></i>Đã thu</span>
+                                        <i class="fas fa-edit" style="font-size: 9px; opacity: 0.7;"></i>
                                     </button>
-                                    <button class="btn btn-outline-primary btn-sm py-1 px-2" style="font-size: 11px;"
-                                            onclick="openEditAmountModal('{{ booking_id }}', '{{ guest_name }}', {{ room_fee }}, {{ taxi_fee }}, {{ commission }})">
-                                        <i class="fas fa-edit"></i>
+                                    {% else %}
+                                    <button class="btn btn-outline-success btn-sm py-1 px-2 w-100"
+                                            style="font-size: 11px; border-width: 2px; border-style: dashed;"
+                                            onclick="openEditCollectedModal('{{ booking_id }}', '{{ guest_name }}', {{ total_amount }}, 0, '')"
+                                            title="Mark payment received">
+                                        <i class="fas fa-dollar-sign me-1"></i>Thu tiền
                                     </button>
+                                    {% endif %}
+
+                                    <!-- Cancellation Status: Toggle Button -->
+                                    {% if is_cancelled_request %}
+                                    <button class="btn btn-warning btn-sm py-1 px-2 w-100 d-flex align-items-center justify-content-between"
+                                            style="font-size: 11px; cursor: pointer;"
+                                            onclick="editCancellationRequest('{{ booking_id }}', '{{ guest_name }}')"
+                                            title="Click to edit cancellation request">
+                                        <span><i class="fas fa-ban me-1"></i>Đã hủy</span>
+                                        <i class="fas fa-edit" style="font-size: 9px; opacity: 0.7;"></i>
+                                    </button>
+                                    {% else %}
+                                    <button class="btn btn-outline-danger btn-sm py-1 px-2 w-100"
+                                            style="font-size: 11px; border-width: 2px; border-style: dashed;"
+                                            onclick="requestCancellation('{{ booking_id }}', '{{ guest_name }}', {{ commission }})"
+                                            title="Request cancellation (reduce commission)">
+                                        <i class="fas fa-times-circle me-1"></i>Yêu cầu hủy
+                                    </button>
+                                    {% endif %}
+
+                                    <!-- Quick Actions Row -->
+                                    <div class="btn-group btn-group-sm w-100" role="group">
+                                        <button class="btn btn-outline-info btn-sm py-1 px-1" style="font-size: 10px;"
+                                                onclick="openCollectModal('{{ booking_id }}', '{{ guest_name }}', {{ total_amount }}, {{ commission }}, {{ room_fee }}, {{ taxi_fee }}, {{ collected_amount }}, '{{ collector }}', '{{ payment_note }}')"
+                                                title="View details">
+                                            <i class="fas fa-eye"></i>
+                                        </button>
+                                        <button class="btn btn-outline-primary btn-sm py-1 px-1" style="font-size: 10px;"
+                                                onclick="openEditAmountModal('{{ booking_id }}', '{{ guest_name }}', {{ room_fee }}, {{ taxi_fee }}, {{ commission }})"
+                                                title="Edit amounts">
+                                            <i class="fas fa-edit"></i>
+                                        </button>
+                                    </div>
                                 </div>
                             </td>
                         </tr>
@@ -13327,6 +13430,122 @@ This will record that you have cancelled this booking on the booking app.`);
     } catch (error) {
         console.error('Cancellation confirmation error:', error);
         alert('❌ Error processing cancellation. Please try again.');
+    }
+}
+
+/**
+ * Request cancellation for a booking
+ * Sets commission to 0 and creates cancellation record
+ */
+async function requestCancellation(bookingId, guestName, currentCommission) {
+    const confirmed = confirm(
+        `Yêu cầu hủy đặt phòng cho: ${guestName}\n` +
+        `Mã booking: ${bookingId}\n` +
+        `Hoa hồng hiện tại: ${currentCommission.toLocaleString('vi-VN')}đ\n\n` +
+        `Hành động này sẽ:\n` +
+        `- Đặt hoa hồng về 0đ\n` +
+        `- Ghi nhận yêu cầu hủy từ khách\n` +
+        `- KHÔNG xóa booking (khách vẫn ở)\n\n` +
+        `Xác nhận thực hiện?`
+    );
+
+    if (!confirmed) return;
+
+    try {
+        showDashboardToast('Đang xử lý yêu cầu hủy...', 'info');
+
+        // Step 1: Set commission to 0
+        const updateResponse = await fetch('/api/collect_payment', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                booking_id: bookingId,
+                commission_amount: 0,
+                commission_type: 'none',
+                collected_amount: 0,
+                collector_name: 'SYSTEM',
+                payment_note: `Khách yêu cầu hủy - Hủy hoa hồng ${currentCommission.toLocaleString('vi-VN')}đ`
+            })
+        });
+
+        const updateResult = await updateResponse.json();
+        if (!updateResult.success) {
+            throw new Error('Failed to update commission');
+        }
+
+        // Step 2: Create cancellation record
+        const cancelResponse = await fetch('/api/confirm_cancellation', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                booking_id: bookingId,
+                guest_name: guestName,
+                cancellation_type: 'zero_commission',
+                confirmed_by: 'User'
+            })
+        });
+
+        const cancelResult = await cancelResponse.json();
+        if (!cancelResult.success) {
+            throw new Error('Failed to create cancellation record');
+        }
+
+        showDashboardToast(`✅ Đã hủy hoa hồng cho ${guestName}`, 'success');
+
+        // Refresh the page to show updated status
+        setTimeout(() => {
+            window.location.reload();
+        }, 1500);
+
+    } catch (error) {
+        console.error('Error requesting cancellation:', error);
+        showDashboardToast(`❌ Lỗi: ${error.message}`, 'error');
+    }
+}
+
+/**
+ * Edit existing cancellation request
+ * Allows reverting cancellation or changing details
+ */
+async function editCancellationRequest(bookingId, guestName) {
+    const action = confirm(
+        `Chỉnh sửa yêu cầu hủy cho: ${guestName}\n` +
+        `Mã booking: ${bookingId}\n\n` +
+        `Chọn:\n` +
+        `OK - Xóa yêu cầu hủy (khôi phục hoa hồng)\n` +
+        `Cancel - Giữ nguyên\n\n` +
+        `Bạn muốn làm gì?`
+    );
+
+    if (!action) return;
+
+    try {
+        showDashboardToast('Đang xử lý...', 'info');
+
+        // Delete the cancellation record
+        const response = await fetch('/api/delete_cancellation', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                booking_id: bookingId
+            })
+        });
+
+        const result = await response.json();
+        if (!result.success) {
+            throw new Error(result.error || 'Failed to delete cancellation');
+        }
+
+        showDashboardToast(`✅ Đã xóa yêu cầu hủy cho ${guestName}`, 'success');
+
+        // Refresh to show updated status
+        setTimeout(() => {
+            window.location.reload();
+        }, 1500);
+
+    } catch (error) {
+        console.error('Error editing cancellation:', error);
+        showDashboardToast(`❌ Lỗi: ${error.message}`, 'error');
     }
 }
 

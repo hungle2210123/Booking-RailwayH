@@ -460,7 +460,30 @@ def process_overdue_guests(df):
             overdue_df['calculated_taxi_fee'] = calculated_taxi_fees
             overdue_df['calculated_total_amount'] = calculated_total_amounts
             overdue_df['calculated_commission'] = calculated_commissions
-            
+
+            # Check for cancellation requests
+            try:
+                from core.models import CancellationAction
+                # Get all booking IDs that have cancellation records
+                if 'Số đặt phòng' in overdue_df.columns:
+                    booking_ids = overdue_df['Số đặt phòng'].tolist()
+                    cancelled_bookings = CancellationAction.query.filter(
+                        CancellationAction.booking_id.in_(booking_ids),
+                        CancellationAction.action_status != 'deleted'
+                    ).all()
+                    cancelled_booking_ids = {action.booking_id for action in cancelled_bookings}
+
+                    # Add cancellation_requested flag
+                    overdue_df['cancellation_requested'] = overdue_df['Số đặt phòng'].apply(
+                        lambda bid: bid in cancelled_booking_ids
+                    )
+                    print(f"🔍 [OVERDUE] Added cancellation flags: {len(cancelled_booking_ids)} bookings have cancellation requests")
+                else:
+                    overdue_df['cancellation_requested'] = False
+            except Exception as e:
+                print(f"⚠️ [OVERDUE] Could not check cancellation status: {e}")
+                overdue_df['cancellation_requested'] = False
+
             overdue_unpaid_guests = overdue_df.to_dict('records')
             
             # Debug output for taxi fees
