@@ -399,24 +399,15 @@ async function updateCollectedAmount() {
                 });
             }
 
-            // ⚡ CRITICAL: Reload both overdue and unchecked-in guests
-            // Since commission_status='pending', customer should stay visible
-            // We need to reload to show updated payment status
-            console.log('⚡ [RELOAD] Refreshing guest lists...');
+            // ⚡ INSTANT UPDATE: Show professional badges without page reload
+            console.log('⚡ [INSTANT_UPDATE] Showing professional badges...');
 
-            // Reload unchecked-in list
+            // Reload unchecked-in list smoothly
             if (typeof loadUncheckedInGuests === 'function') {
-                setTimeout(() => loadUncheckedInGuests(), 800);
+                setTimeout(() => loadUncheckedInGuests(), 300);
             }
 
-            // 🆕 Reload entire page to refresh overdue list with commission_status='pending'
-            // Customer will stay visible because commission decision not finalized
-            setTimeout(() => {
-                console.log('🔄 Reloading page to show updated payment status (customer stays visible - pending commission)');
-                window.location.reload();
-            }, 1500);
-
-            console.log('⚡ [SUCCESS] Payment recorded - commission decision pending');
+            console.log('⚡ [SUCCESS] Payment recorded - professional badges displayed instantly');
         } else {
             alert('❌ Lỗi: ' + (result.message || 'Không thể cập nhật'));
         }

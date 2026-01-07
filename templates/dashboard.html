@@ -5115,14 +5115,15 @@ async function updateCollectedAmount() {
 
             showDashboardToast(`✅ Đã thu tiền thành công\n${statusText}`, 'success');
 
-            // Refresh unchecked-in list without full reload
-            if (typeof loadUncheckedInGuests === 'function') {
-                setTimeout(() => loadUncheckedInGuests(), 500);
-            }
+            // ⚡ INSTANT UPDATE: Update the row display without reload
+            console.log('⚡ [INSTANT_UPDATE] Updating row display with professional badges...');
 
-            // Refresh overdue guests table if function exists
-            if (typeof loadOverdueGuests === 'function') {
-                setTimeout(() => loadOverdueGuests(), 500);
+            // Find the current booking row and update it instantly
+            updateCollectedAmountDisplay(bookingId, collectedAmount, collectorName, collectedAmount);
+
+            // Smooth refresh of unchecked-in list (no page reload)
+            if (typeof loadUncheckedInGuests === 'function') {
+                setTimeout(() => loadUncheckedInGuests(), 300);
             }
         } else {
             alert(`❌ Lỗi: ${result.message}`);
@@ -5250,10 +5251,22 @@ async function quickSubmitDecision(bookingId, commissionStatus, guestName) {
     // Submit decision
     await submitCommissionDecision(bookingId, commissionStatus, guestName, 0);
 
-    // Reload page to show updated status
-    setTimeout(() => {
-        window.location.reload();
-    }, 1000);
+    // ⚡ INSTANT REMOVAL: Remove the row smoothly (customer disappears with animation)
+    const row = document.querySelector(`tr[data-booking-id="${bookingId}"], .list-group-item[data-booking-id="${bookingId}"]`);
+    if (row) {
+        row.style.transition = 'all 0.5s ease';
+        row.style.opacity = '0';
+        row.style.transform = 'translateX(-30px)';
+
+        setTimeout(() => {
+            row.remove();
+
+            // Recalculate totals if function exists
+            if (typeof recalculateOverdueTotal === 'function') {
+                recalculateOverdueTotal();
+            }
+        }, 500);
+    }
 }
 
 // 📤 Submit commission decision to server
@@ -5285,14 +5298,7 @@ async function submitCommissionDecision(bookingId, commissionStatus, guestName, 
 
             showDashboardToast(`${statusEmoji} ${statusText} cho ${guestName}`, 'success');
 
-            // Refresh the guests list to update status
-            if (typeof loadUncheckedInGuests === 'function') {
-                setTimeout(() => loadUncheckedInGuests(), 500);
-            }
-
-            if (typeof loadOverdueGuests === 'function') {
-                setTimeout(() => loadOverdueGuests(), 500);
-            }
+            // ⚡ NO PAGE RELOAD: The quickSubmitDecision function will handle row removal with animation
         } else {
             showDashboardToast(`❌ Lỗi: ${result.message}`, 'error');
         }
