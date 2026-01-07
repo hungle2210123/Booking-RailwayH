@@ -322,15 +322,27 @@ def process_overdue_guests(df):
         past_checkin = df_valid['Check-in Date'].dt.date <= today
         collected_values = ['LOC LE', 'THAO LE']
         collector_series = df_valid['Người thu tiền'].fillna('').astype(str)
-        not_collected = ~collector_series.isin(collected_values)
+        collected_amount_series = pd.to_numeric(df_valid['Số tiền đã thu'].fillna(0), errors='coerce').fillna(0)
+
+        # TWO CONDITIONS must be met for guest to disappear from unpaid list:
+        # 1. Valid collector (LOC LE or THAO LE)
+        # 2. Payment amount > 0 (money actually received)
+        has_valid_collector = collector_series.isin(collected_values)
+        has_payment = collected_amount_series > 0
+        is_collected = has_valid_collector & has_payment
+
+        not_collected = ~is_collected
         not_cancelled = df_valid['Tình trạng'] != 'Đã hủy'
-        
+
         overdue_mask = past_checkin & not_collected & not_cancelled
         overdue_df = df_valid[overdue_mask].copy()
         
         print(f"🔍 [OVERDUE] Filtering results:")
         print(f"  - Past check-in: {past_checkin.sum()} bookings")
-        print(f"  - Not collected: {not_collected.sum()} bookings") 
+        print(f"  - Has valid collector: {has_valid_collector.sum()} bookings")
+        print(f"  - Has payment (>0): {has_payment.sum()} bookings")
+        print(f"  - Fully collected (both conditions): {is_collected.sum()} bookings")
+        print(f"  - Not collected: {not_collected.sum()} bookings")
         print(f"  - Not cancelled: {not_cancelled.sum()} bookings")
         print(f"  - Final overdue (ALL filters): {len(overdue_df)} bookings")
         
