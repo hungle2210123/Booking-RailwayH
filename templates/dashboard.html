@@ -47,6 +47,22 @@
     animation: badgePulse 2s infinite;
 }
 
+/* Professional Status Badge Pulse Animation */
+.pulse-badge {
+    animation: pulseBadge 2s ease-in-out infinite;
+}
+
+@keyframes pulseBadge {
+    0%, 100% {
+        opacity: 1;
+        transform: scale(1);
+    }
+    50% {
+        opacity: 0.7;
+        transform: scale(1.05);
+    }
+}
+
 @keyframes notificationSlide {
     from { transform: translateY(-100%); opacity: 0; }
     to { transform: translateY(0); opacity: 1; }
@@ -309,6 +325,35 @@
     0% { opacity: 1; }
     50% { opacity: 0.7; }
     100% { opacity: 1; }
+}
+
+/* Professional Payment Status Badges */
+.pulse-badge {
+    animation: pulseBadge 2s ease-in-out infinite;
+}
+
+@keyframes pulseBadge {
+    0%, 100% {
+        box-shadow: 0 0 0 0 rgba(255, 193, 7, 0.7);
+        transform: scale(1);
+    }
+    50% {
+        box-shadow: 0 0 0 4px rgba(255, 193, 7, 0);
+        transform: scale(1.05);
+    }
+}
+
+.payment-collected-status {
+    background: linear-gradient(135deg, rgba(40, 167, 69, 0.05) 0%, rgba(40, 167, 69, 0.02) 100%);
+    padding: 8px;
+    border-radius: 6px;
+    border-left: 3px solid #28a745;
+}
+
+.btn-outline-primary:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 5px rgba(13, 110, 253, 0.3);
+    transition: all 0.2s ease;
 }
 
 /* Mobile Dashboard Optimizations */
@@ -1321,38 +1366,72 @@
                                 {% set payment_note = guest.get('Ghi chú thanh toán', '') or '' %}
                                 {% set is_cancelled_request = guest.get('cancellation_requested', False) %}
 
-                                <!-- Status Badges Row -->
-                                <div class="d-flex gap-1 mb-2">
-                                    <!-- Payment Status Badge -->
-                                    {% if has_collector and collected_amount > 0 %}
-                                    <span class="badge bg-success payment-status-badge"
-                                          onclick="openEditCollectedModal('{{ booking_id }}', '{{ guest_name }}', {{ total_amount }}, {{ collected_amount }}, '{{ collector }}')"
-                                          style="cursor: pointer; flex: 1; padding: 6px 8px; font-size: 10px; font-weight: 500;">
-                                        <i class="fas fa-check-circle me-1"></i>Đã thu
-                                    </span>
-                                    {% else %}
-                                    <span class="badge bg-light text-dark border payment-status-badge-pending"
-                                          onclick="openEditCollectedModal('{{ booking_id }}', '{{ guest_name }}', {{ total_amount }}, 0, '')"
-                                          style="cursor: pointer; flex: 1; padding: 6px 8px; font-size: 10px; font-weight: 500;">
-                                        <i class="fas fa-dollar-sign me-1"></i>Chưa thu
-                                    </span>
-                                    {% endif %}
+                                {% set commission_status = guest.get('commission_status', 'pending') %}
 
-                                    <!-- Cancellation Status Badge -->
-                                    {% if is_cancelled_request %}
-                                    <span class="badge bg-warning text-dark cancel-status-badge"
-                                          onclick="editCancellationRequest('{{ booking_id }}', '{{ guest_name }}')"
-                                          style="cursor: pointer; flex: 1; padding: 6px 8px; font-size: 10px; font-weight: 500;">
-                                        <i class="fas fa-ban me-1"></i>Đã hủy
-                                    </span>
-                                    {% else %}
-                                    <span class="badge bg-light text-muted border cancel-status-badge-pending"
-                                          onclick="requestCancellation('{{ booking_id }}', '{{ guest_name }}', {{ commission }})"
-                                          style="cursor: pointer; flex: 1; padding: 6px 8px; font-size: 10px; font-weight: 400; opacity: 0.7;">
-                                        <i class="fas fa-times-circle me-1"></i>Hủy
-                                    </span>
-                                    {% endif %}
-                                </div>
+                                <!-- PROFESSIONAL STATUS DISPLAY -->
+                                {% if has_collector and collected_amount > 0 %}
+                                    <!-- PAYMENT COLLECTED - Show detailed status -->
+                                    <div class="payment-collected-status">
+                                        <!-- Payment Info Row -->
+                                        <div class="d-flex align-items-center gap-2 mb-2">
+                                            <span class="badge bg-success" style="font-size: 11px; padding: 5px 10px;">
+                                                <i class="fas fa-money-bill-wave me-1"></i>Đã thu: {{ "{:,.0f}".format(collected_amount) }}đ
+                                            </span>
+                                            <span class="badge bg-info" style="font-size: 10px; padding: 4px 8px;">
+                                                <i class="fas fa-user me-1"></i>{{ collector }}
+                                            </span>
+                                        </div>
+
+                                        <!-- Commission Status Row -->
+                                        {% if commission_status == 'pending' %}
+                                        <div class="d-flex align-items-center gap-2">
+                                            <span class="badge bg-warning text-dark pulse-badge" style="font-size: 11px; padding: 5px 10px;">
+                                                <i class="fas fa-hourglass-half me-1"></i>Hoa hồng: CHỜ QUYẾT ĐỊNH
+                                            </span>
+                                            <button class="btn btn-sm btn-outline-primary"
+                                                    onclick="quickCommissionDecision('{{ booking_id }}', '{{ guest_name }}', {{ commission }})"
+                                                    style="font-size: 10px; padding: 3px 8px; white-space: nowrap;">
+                                                <i class="fas fa-bolt me-1"></i>Quyết định
+                                            </button>
+                                        </div>
+                                        {% elif commission_status == 'confirmed' %}
+                                        <div class="d-flex align-items-center gap-2">
+                                            <span class="badge bg-success" style="font-size: 11px; padding: 5px 10px;">
+                                                <i class="fas fa-check-circle me-1"></i>Hoa hồng: ĐÃ XÁC NHẬN
+                                            </span>
+                                        </div>
+                                        {% elif commission_status == 'cancelled' %}
+                                        <div class="d-flex align-items-center gap-2">
+                                            <span class="badge bg-danger" style="font-size: 11px; padding: 5px 10px;">
+                                                <i class="fas fa-times-circle me-1"></i>Hoa hồng: ĐÃ HỦY
+                                            </span>
+                                        </div>
+                                        {% endif %}
+                                    </div>
+                                {% else %}
+                                    <!-- PAYMENT NOT COLLECTED - Simple buttons -->
+                                    <div class="d-flex gap-1 mb-2">
+                                        <span class="badge bg-light text-dark border"
+                                              onclick="openEditCollectedModal('{{ booking_id }}', '{{ guest_name }}', {{ total_amount }}, 0, '')"
+                                              style="cursor: pointer; flex: 1; padding: 6px 8px; font-size: 10px; font-weight: 500;">
+                                            <i class="fas fa-dollar-sign me-1"></i>Chưa thu
+                                        </span>
+
+                                        {% if is_cancelled_request %}
+                                        <span class="badge bg-warning text-dark"
+                                              onclick="editCancellationRequest('{{ booking_id }}', '{{ guest_name }}')"
+                                              style="cursor: pointer; flex: 1; padding: 6px 8px; font-size: 10px; font-weight: 500;">
+                                            <i class="fas fa-ban me-1"></i>Đã hủy
+                                        </span>
+                                        {% else %}
+                                        <span class="badge bg-light text-muted border"
+                                              onclick="requestCancellation('{{ booking_id }}', '{{ guest_name }}', {{ commission }})"
+                                              style="cursor: pointer; flex: 1; padding: 6px 8px; font-size: 10px; font-weight: 400; opacity: 0.7;">
+                                            <i class="fas fa-times-circle me-1"></i>Hủy
+                                        </span>
+                                        {% endif %}
+                                    </div>
+                                {% endif %}
 
                                 <!-- Action Buttons Row -->
                                 <div class="btn-group btn-group-sm w-100" role="group">
@@ -3500,34 +3579,52 @@
                         <textarea class="form-control" id="collectedNote" rows="2"
                                   placeholder="Ghi chú về việc thu tiền..."></textarea>
                     </div>
-                    <div class="mb-3 border-top pt-3">
-                        <label class="form-label fw-bold">
-                            <i class="fas fa-hand-holding-usd me-1"></i>Quyết định về hoa hồng:
+                    <div class="mb-3 border-top pt-3" style="background: linear-gradient(135deg, #fff8dc 0%, #fffef7 100%); padding: 15px; border-radius: 8px; border: 2px solid #ffc107;">
+                        <label class="form-label fw-bold" style="font-size: 1.1rem;">
+                            <i class="fas fa-hand-holding-usd me-2 text-warning"></i>Quyết định về hoa hồng:
                         </label>
-                        <div class="form-check">
-                            <input class="form-check-input" type="radio" name="commissionDecision" id="commissionPending" value="pending" checked>
-                            <label class="form-check-label" for="commissionPending">
-                                <i class="fas fa-clock text-warning me-1"></i>
-                                <strong>Chưa quyết định</strong> - Quyết định sau
-                            </label>
-                        </div>
-                        <div class="form-check">
-                            <input class="form-check-input" type="radio" name="commissionDecision" id="commissionConfirmed" value="confirmed">
-                            <label class="form-check-label" for="commissionConfirmed">
-                                <i class="fas fa-check-circle text-success me-1"></i>
-                                <strong>Giữ hoa hồng</strong> - Không hủy
-                            </label>
-                        </div>
-                        <div class="form-check">
-                            <input class="form-check-input" type="radio" name="commissionDecision" id="commissionCancelled" value="cancelled">
-                            <label class="form-check-label" for="commissionCancelled">
-                                <i class="fas fa-times-circle text-danger me-1"></i>
-                                <strong>Hủy hoa hồng</strong> - Đặt về 0đ
-                            </label>
-                        </div>
-                        <div class="form-text mt-2">
+                        <div class="alert alert-info py-2 mb-3">
                             <i class="fas fa-info-circle me-1"></i>
-                            <small>Khách chỉ biến mất khỏi danh sách khi cả hai điều kiện được đáp ứng: (1) đã thu tiền và (2) đã quyết định về hoa hồng</small>
+                            <small><strong>Quan trọng:</strong> Khách sẽ biến mất khỏi danh sách khi: (1) đã thu tiền và (2) đã quyết định về hoa hồng</small>
+                        </div>
+
+                        <div class="form-check mb-3 p-3 border rounded" style="background: #fff3cd;">
+                            <input class="form-check-input" type="radio" name="commissionDecision" id="commissionPending" value="pending" checked style="margin-top: 8px;">
+                            <label class="form-check-label" for="commissionPending" style="cursor: pointer; display: block;">
+                                <div class="d-flex align-items-center">
+                                    <i class="fas fa-clock text-warning me-2" style="font-size: 1.3rem;"></i>
+                                    <div>
+                                        <strong style="font-size: 1rem;">Chưa quyết định</strong><br>
+                                        <small class="text-muted">Quyết định sau, khách vẫn hiển thị với trạng thái "Chờ quyết định"</small>
+                                    </div>
+                                </div>
+                            </label>
+                        </div>
+
+                        <div class="form-check mb-3 p-3 border rounded" style="background: #d1ecf1;">
+                            <input class="form-check-input" type="radio" name="commissionDecision" id="commissionConfirmed" value="confirmed" style="margin-top: 8px;">
+                            <label class="form-check-label" for="commissionConfirmed" style="cursor: pointer; display: block;">
+                                <div class="d-flex align-items-center">
+                                    <i class="fas fa-check-circle text-success me-2" style="font-size: 1.3rem;"></i>
+                                    <div>
+                                        <strong style="font-size: 1rem;">Xác nhận hoa hồng</strong><br>
+                                        <small class="text-muted">Giữ hoa hồng, khách biến mất ngay lập tức</small>
+                                    </div>
+                                </div>
+                            </label>
+                        </div>
+
+                        <div class="form-check mb-0 p-3 border rounded" style="background: #f8d7da;">
+                            <input class="form-check-input" type="radio" name="commissionDecision" id="commissionCancelled" value="cancelled" style="margin-top: 8px;">
+                            <label class="form-check-label" for="commissionCancelled" style="cursor: pointer; display: block;">
+                                <div class="d-flex align-items-center">
+                                    <i class="fas fa-times-circle text-danger me-2" style="font-size: 1.3rem;"></i>
+                                    <div>
+                                        <strong style="font-size: 1rem;">Hủy hoa hồng</strong><br>
+                                        <small class="text-muted">Đặt hoa hồng về 0đ, khách biến mất ngay lập tức</small>
+                                    </div>
+                                </div>
+                            </label>
                         </div>
                     </div>
                 </form>
@@ -5036,6 +5133,175 @@ async function updateCollectedAmount() {
     }
 }
 
+// ⚡ QUICK COMMISSION DECISION - Inline action button
+async function quickCommissionDecision(bookingId, guestName, commissionAmount) {
+    // Use SweetAlert2 for professional modal
+    const { value: decision } = await Swal.fire({
+        title: `Quyết định hoa hồng`,
+        html: `
+            <div class="text-start">
+                <p class="mb-2"><strong>Khách:</strong> ${guestName}</p>
+                <p class="mb-3"><strong>Hoa hồng:</strong> ${commissionAmount.toLocaleString('vi-VN')}đ</p>
+                <hr>
+                <p class="text-muted small mb-2">Chọn quyết định:</p>
+            </div>
+        `,
+        icon: 'question',
+        showCancelButton: true,
+        showDenyButton: true,
+        confirmButtonText: '<i class="fas fa-check-circle me-1"></i> Xác nhận',
+        denyButtonText: '<i class="fas fa-times-circle me-1"></i> Hủy hoa hồng',
+        cancelButtonText: 'Đóng',
+        confirmButtonColor: '#28a745',
+        denyButtonColor: '#dc3545',
+        cancelButtonColor: '#6c757d',
+        customClass: {
+            confirmButton: 'btn btn-success',
+            denyButton: 'btn btn-danger',
+            cancelButton: 'btn btn-secondary'
+        },
+        buttonsStyling: false,
+        width: '450px'
+    });
+
+    if (decision === true) {
+        // User clicked "Xác nhận" (confirm)
+        await submitCommissionDecision(bookingId, 'confirmed', guestName, commissionAmount);
+    } else if (decision === false) {
+        // User clicked "Hủy hoa hồng" (deny)
+        await submitCommissionDecision(bookingId, 'cancelled', guestName, commissionAmount);
+    }
+    // If user clicked "Đóng" (cancel), do nothing
+}
+
+// ⚡ Quick commission decision with professional modal
+async function quickCommissionDecision(bookingId) {
+    console.log(`⚡ Quick commission decision for ${bookingId}`);
+
+    // Find booking data from the row
+    const row = document.querySelector(`tr[data-booking-id="${bookingId}"], .list-group-item[data-booking-id="${bookingId}"]`);
+    if (!row) {
+        showDashboardToast('❌ Không tìm thấy booking', 'error');
+        return;
+    }
+
+    const guestNameEl = row.querySelector('.fw-bold.text-dark.small');
+    const guestName = guestNameEl ? guestNameEl.textContent.trim() : 'Khách hàng';
+
+    // Show professional decision modal
+    const modalHtml = `
+        <div class="modal fade" id="quickCommissionModal" tabindex="-1">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content">
+                    <div class="modal-header bg-warning text-dark">
+                        <h5 class="modal-title">
+                            <i class="fas fa-bolt me-2"></i>Quyết định Hoa Hồng Nhanh
+                        </h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="alert alert-info mb-3">
+                            <strong><i class="fas fa-user me-2"></i>${guestName}</strong>
+                            <br><small class="text-muted">Booking ID: ${bookingId}</small>
+                        </div>
+
+                        <p class="mb-3">Bạn muốn giữ hay hủy hoa hồng cho booking này?</p>
+
+                        <div class="d-grid gap-2">
+                            <button class="btn btn-success btn-lg" onclick="quickSubmitDecision('${bookingId}', 'confirmed', '${guestName}')">
+                                <i class="fas fa-check-circle me-2"></i>✅ Giữ hoa hồng
+                                <br><small>Booking biến mất ngay lập tức</small>
+                            </button>
+
+                            <button class="btn btn-danger btn-lg" onclick="quickSubmitDecision('${bookingId}', 'cancelled', '${guestName}')">
+                                <i class="fas fa-times-circle me-2"></i>❌ Hủy hoa hồng (về 0đ)
+                                <br><small>Booking biến mất ngay lập tức</small>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                            <i class="fas fa-ban me-1"></i>Đóng (Quyết định sau)
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+
+    // Remove old modal if exists
+    const oldModal = document.getElementById('quickCommissionModal');
+    if (oldModal) oldModal.remove();
+
+    // Add new modal
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+
+    // Show modal
+    const modal = new bootstrap.Modal(document.getElementById('quickCommissionModal'));
+    modal.show();
+}
+
+// ⚡ Quick submit commission decision
+async function quickSubmitDecision(bookingId, commissionStatus, guestName) {
+    // Close modal first
+    const modal = bootstrap.Modal.getInstance(document.getElementById('quickCommissionModal'));
+    if (modal) modal.hide();
+
+    // Submit decision
+    await submitCommissionDecision(bookingId, commissionStatus, guestName, 0);
+
+    // Reload page to show updated status
+    setTimeout(() => {
+        window.location.reload();
+    }, 1000);
+}
+
+// 📤 Submit commission decision to server
+async function submitCommissionDecision(bookingId, commissionStatus, guestName, commissionAmount) {
+    try {
+        showDashboardToast('Đang xử lý quyết định...', 'info');
+
+        const response = await fetch('/api/update_commission_status', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                booking_id: bookingId,
+                commission_status: commissionStatus
+            })
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+            const statusEmoji = {
+                'confirmed': '✅',
+                'cancelled': '❌'
+            }[commissionStatus];
+
+            const statusText = {
+                'confirmed': 'Đã xác nhận hoa hồng',
+                'cancelled': 'Đã hủy hoa hồng'
+            }[commissionStatus];
+
+            showDashboardToast(`${statusEmoji} ${statusText} cho ${guestName}`, 'success');
+
+            // Refresh the guests list to update status
+            if (typeof loadUncheckedInGuests === 'function') {
+                setTimeout(() => loadUncheckedInGuests(), 500);
+            }
+
+            if (typeof loadOverdueGuests === 'function') {
+                setTimeout(() => loadOverdueGuests(), 500);
+            }
+        } else {
+            showDashboardToast(`❌ Lỗi: ${result.message}`, 'error');
+        }
+    } catch (error) {
+        console.error('Error updating commission status:', error);
+        showDashboardToast(`❌ Lỗi hệ thống: ${error.message}`, 'error');
+    }
+}
+
 // ⚡ INSTANT UPDATE: Update collected amount display after payment
 function updateCollectedAmountDisplay(bookingId, collectedAmount, collectorName, totalAmount) {
     console.log(`⚡ [INSTANT_UPDATE] Updating collected amount for ${bookingId}:`, {
@@ -5103,14 +5369,22 @@ function updateCollectedAmountDisplay(bookingId, collectedAmount, collectorName,
 
             // Create new HTML based on collection status
             if (collectedAmount > 0 && remaining === 0) {
-                // Fully paid - show green with checkmark
+                // Fully paid - show professional badges
                 amountCell.innerHTML = `
-                    <div class="fw-bold text-success small">
-                        <i class="fas fa-check-circle me-1"></i>${collectedAmount.toLocaleString()}đ
+                    <div class="d-flex flex-wrap gap-1 mb-2">
+                        <span class="badge bg-success">
+                            <i class="fas fa-check-circle me-1"></i>Đã thu: ${collectedAmount.toLocaleString()}đ
+                        </span>
+                        <span class="badge bg-info">
+                            <i class="fas fa-user me-1"></i>${collectorName}
+                        </span>
+                        <span class="badge bg-warning text-dark pulse-badge">
+                            <i class="fas fa-clock me-1"></i>Chờ quyết định HH
+                        </span>
                     </div>
-                    <div class="text-success small">
-                        <i class="fas fa-check me-1"></i>Đã thanh toán
-                    </div>
+                    <button class="btn btn-sm btn-warning mb-2" onclick="quickCommissionDecision('${bookingId}')">
+                        <i class="fas fa-bolt me-1"></i>⚡ Quyết định HH ngay
+                    </button>
                     ${amountCell.querySelector('.text-muted') ? amountCell.querySelector('.text-muted').outerHTML : ''}
                 `;
 
@@ -5133,16 +5407,29 @@ function updateCollectedAmountDisplay(bookingId, collectedAmount, collectorName,
                 }, 500);
 
             } else if (collectedAmount > 0 && remaining > 0) {
-                // Partially paid - show collected in green, remaining in red
+                // Partially paid - show professional badges with warning
                 const breakdownHtml = amountCell.querySelector('.text-muted') ? amountCell.querySelector('.text-muted').outerHTML : '';
 
                 amountCell.innerHTML = `
-                    <div class="fw-bold text-success small">
-                        <i class="fas fa-check-circle me-1"></i>${collectedAmount.toLocaleString()}đ
+                    <div class="d-flex flex-wrap gap-1 mb-2">
+                        <span class="badge bg-success">
+                            <i class="fas fa-check-circle me-1"></i>Đã thu: ${collectedAmount.toLocaleString()}đ
+                        </span>
+                        <span class="badge bg-danger">
+                            <i class="fas fa-exclamation-circle me-1"></i>Còn: ${remaining.toLocaleString()}đ
+                        </span>
                     </div>
-                    <div class="fw-bold text-danger small">
-                        <i class="fas fa-exclamation-circle me-1"></i>Còn: ${remaining.toLocaleString()}đ
+                    <div class="d-flex flex-wrap gap-1 mb-2">
+                        <span class="badge bg-info">
+                            <i class="fas fa-user me-1"></i>${collectorName}
+                        </span>
+                        <span class="badge bg-warning text-dark pulse-badge">
+                            <i class="fas fa-clock me-1"></i>Chờ quyết định HH
+                        </span>
                     </div>
+                    <button class="btn btn-sm btn-warning mb-2" onclick="quickCommissionDecision('${bookingId}')">
+                        <i class="fas fa-bolt me-1"></i>⚡ Quyết định HH ngay
+                    </button>
                     ${breakdownHtml}
                 `;
 

@@ -6146,6 +6146,66 @@ def collect_payment():
         traceback.print_exc()
         return jsonify({'success': False, 'message': f'Lỗi hệ thống: {str(e)}'}), 500
 
+@app.route('/api/update_commission_status', methods=['POST'])
+def update_commission_status():
+    """API endpoint to update commission status (pending/confirmed/cancelled)"""
+    try:
+        data = request.get_json()
+
+        if not data:
+            return jsonify({'success': False, 'message': 'Không có dữ liệu'}), 400
+
+        booking_id = data.get('booking_id')
+        commission_status = data.get('commission_status')
+
+        print(f"[UPDATE_COMMISSION] Received request:")
+        print(f"  - booking_id: {booking_id}")
+        print(f"  - commission_status: {commission_status}")
+
+        # Validate input
+        if not booking_id:
+            return jsonify({'success': False, 'message': 'Thiếu mã đặt phòng'}), 400
+
+        if commission_status not in ['pending', 'confirmed', 'cancelled']:
+            return jsonify({'success': False, 'message': 'Trạng thái hoa hồng không hợp lệ'}), 400
+
+        # Update database
+        from core.database_service_postgresql import DatabaseService
+        db_service = DatabaseService()
+
+        update_data = {
+            'commission_status': commission_status
+        }
+
+        success = db_service.update_booking(booking_id, update_data)
+
+        if success:
+            status_text = {
+                'pending': 'Chờ quyết định',
+                'confirmed': 'Đã xác nhận',
+                'cancelled': 'Đã hủy'
+            }[commission_status]
+
+            print(f"[UPDATE_COMMISSION] ✅ Successfully updated to: {status_text}")
+
+            return jsonify({
+                'success': True,
+                'message': f'Đã cập nhật trạng thái hoa hồng: {status_text}',
+                'commission_status': commission_status
+            })
+        else:
+            print(f"[UPDATE_COMMISSION] ❌ Failed to update booking {booking_id}")
+            return jsonify({
+                'success': False,
+                'message': 'Không thể cập nhật trạng thái hoa hồng'
+            }), 500
+
+    except Exception as e:
+        print(f"❌ [UPDATE_COMMISSION] Exception: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'message': f'Lỗi hệ thống: {str(e)}'}), 500
+
 @app.route('/api/confirm_no_cancellation', methods=['POST'])
 def confirm_no_cancellation():
     """
