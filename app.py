@@ -6335,10 +6335,11 @@ def update_collected_amount():
         # For now, we'll log it but allow it to proceed
         print(f"[UPDATE_COLLECTED] ⚠️ ADMIN ACTION: Updating collected_amount for {booking_id}")
         
-        # Prepare update data - collected_amount, collector, and notes
+        # Prepare update data - collected_amount, collector, commission_status, and notes
         update_data = {
             'collected_amount': float(collected_amount),
-            'collector': collector_name
+            'collector': collector_name,
+            'commission_status': 'pending'  # 🆕 Set to pending - user must decide later
         }
         
         # Add note if provided
