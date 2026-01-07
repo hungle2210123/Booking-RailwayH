@@ -108,68 +108,64 @@
     100% { background: #e74c3c; opacity: 1; }
 }
 
-/* Action Toggle Button Styles for Payment & Cancellation */
-.btn-outline-success[style*="dashed"],
-.btn-outline-danger[style*="dashed"] {
-    transition: all 0.3s ease;
-    font-weight: 500;
+/* Status Badge Styles for Payment & Cancellation */
+.payment-status-badge,
+.cancel-status-badge {
+    transition: all 0.2s ease;
+    border-radius: 6px !important;
+    user-select: none;
 }
 
-.btn-outline-success[style*="dashed"]:hover {
+.payment-status-badge:hover,
+.cancel-status-badge:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+}
+
+.payment-status-badge-pending,
+.cancel-status-badge-pending {
+    transition: all 0.2s ease;
+    border-radius: 6px !important;
+    border: 1px solid #dee2e6 !important;
+    user-select: none;
+}
+
+.payment-status-badge-pending:hover {
     background-color: #28a745 !important;
     color: white !important;
-    border-style: solid !important;
+    border-color: #28a745 !important;
     transform: translateY(-1px);
-    box-shadow: 0 2px 8px rgba(40, 167, 69, 0.3);
+    box-shadow: 0 2px 6px rgba(40, 167, 69, 0.3);
+    opacity: 1 !important;
 }
 
-.btn-outline-danger[style*="dashed"]:hover {
+.cancel-status-badge-pending:hover {
     background-color: #dc3545 !important;
     color: white !important;
-    border-style: solid !important;
+    border-color: #dc3545 !important;
     transform: translateY(-1px);
-    box-shadow: 0 2px 8px rgba(220, 53, 69, 0.3);
-}
-
-/* Action completed states with subtle animation */
-.btn-success, .btn-warning {
-    position: relative;
-    overflow: hidden;
-}
-
-.btn-success::after,
-.btn-warning::after {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: -100%;
-    width: 100%;
-    height: 100%;
-    background: rgba(255, 255, 255, 0.2);
-    transition: left 0.3s ease;
-}
-
-.btn-success:hover::after,
-.btn-warning:hover::after {
-    left: 100%;
+    box-shadow: 0 2px 6px rgba(220, 53, 69, 0.3);
+    opacity: 1 !important;
 }
 
 /* Mobile optimization for action buttons */
 @media (max-width: 768px) {
     .booking-management-table td:last-child {
-        min-width: 160px !important;
-        max-width: 180px !important;
+        min-width: 180px !important;
+        max-width: 200px !important;
     }
 
-    .booking-management-table .btn-group-vertical .btn,
-    .booking-management-table .d-flex .btn {
-        font-size: 10px !important;
-        padding: 6px 8px !important;
+    .payment-status-badge,
+    .cancel-status-badge,
+    .payment-status-badge-pending,
+    .cancel-status-badge-pending {
+        font-size: 9px !important;
+        padding: 5px 6px !important;
     }
 
     .booking-management-table .btn-group .btn {
         font-size: 9px !important;
-        padding: 4px 6px !important;
+        padding: 3px 6px !important;
     }
 }
 
@@ -1289,70 +1285,65 @@
                                     <br>{{ guest.get('Số đặt phòng', 'N/A') }}
                                 </div>
                             </td>
-                            <td class="py-1 px-1" style="min-width: 180px;">
-                                <div class="d-flex flex-column gap-1">
-                                    {% set booking_id = guest.get('Số đặt phòng', '') %}
-                                    {% set guest_name = guest.get('Tên người đặt', '') %}
-                                    {% set commission = guest.get('Hoa hồng', 0) or 0 %}
-                                    {% set room_fee = guest.get('calculated_room_fee') or guest.get('Tổng thanh toán', 0) or 0 %}
-                                    {% set taxi_fee = guest.get('calculated_taxi_fee', 0) or 0 %}
-                                    {% set total_amount = room_fee + taxi_fee %}
-                                    {% set raw_collected = guest.get('Số tiền đã thu', 0) or 0 %}
-                                    {% set collector = guest.get('Người thu tiền', '') or '' %}
-                                    {% set has_collector = collector in ['LOC LE', 'THAO LE'] %}
-                                    {% set collected_amount = has_collector and raw_collected or 0 %}
-                                    {% set payment_note = guest.get('Ghi chú thanh toán', '') or '' %}
-                                    {% set is_cancelled_request = guest.get('cancellation_requested', False) %}
+                            <td class="py-1 px-2" style="min-width: 200px;">
+                                {% set booking_id = guest.get('Số đặt phòng', '') %}
+                                {% set guest_name = guest.get('Tên người đặt', '') %}
+                                {% set commission = guest.get('Hoa hồng', 0) or 0 %}
+                                {% set room_fee = guest.get('calculated_room_fee') or guest.get('Tổng thanh toán', 0) or 0 %}
+                                {% set taxi_fee = guest.get('calculated_taxi_fee', 0) or 0 %}
+                                {% set total_amount = room_fee + taxi_fee %}
+                                {% set raw_collected = guest.get('Số tiền đã thu', 0) or 0 %}
+                                {% set collector = guest.get('Người thu tiền', '') or '' %}
+                                {% set has_collector = collector in ['LOC LE', 'THAO LE'] %}
+                                {% set collected_amount = has_collector and raw_collected or 0 %}
+                                {% set payment_note = guest.get('Ghi chú thanh toán', '') or '' %}
+                                {% set is_cancelled_request = guest.get('cancellation_requested', False) %}
 
-                                    <!-- Payment Status: Toggle Button -->
+                                <!-- Status Badges Row -->
+                                <div class="d-flex gap-1 mb-2">
+                                    <!-- Payment Status Badge -->
                                     {% if has_collector and collected_amount > 0 %}
-                                    <button class="btn btn-success btn-sm py-1 px-2 w-100 d-flex align-items-center justify-content-between"
-                                            style="font-size: 11px; cursor: pointer;"
-                                            onclick="openEditCollectedModal('{{ booking_id }}', '{{ guest_name }}', {{ total_amount }}, {{ collected_amount }}, '{{ collector }}')"
-                                            title="Click to edit payment">
-                                        <span><i class="fas fa-check-circle me-1"></i>Đã thu</span>
-                                        <i class="fas fa-edit" style="font-size: 9px; opacity: 0.7;"></i>
-                                    </button>
+                                    <span class="badge bg-success payment-status-badge"
+                                          onclick="openEditCollectedModal('{{ booking_id }}', '{{ guest_name }}', {{ total_amount }}, {{ collected_amount }}, '{{ collector }}')"
+                                          style="cursor: pointer; flex: 1; padding: 6px 8px; font-size: 10px; font-weight: 500;">
+                                        <i class="fas fa-check-circle me-1"></i>Đã thu
+                                    </span>
                                     {% else %}
-                                    <button class="btn btn-outline-success btn-sm py-1 px-2 w-100"
-                                            style="font-size: 11px; border-width: 2px; border-style: dashed;"
-                                            onclick="openEditCollectedModal('{{ booking_id }}', '{{ guest_name }}', {{ total_amount }}, 0, '')"
-                                            title="Mark payment received">
-                                        <i class="fas fa-dollar-sign me-1"></i>Thu tiền
-                                    </button>
+                                    <span class="badge bg-light text-dark border payment-status-badge-pending"
+                                          onclick="openEditCollectedModal('{{ booking_id }}', '{{ guest_name }}', {{ total_amount }}, 0, '')"
+                                          style="cursor: pointer; flex: 1; padding: 6px 8px; font-size: 10px; font-weight: 500;">
+                                        <i class="fas fa-dollar-sign me-1"></i>Chưa thu
+                                    </span>
                                     {% endif %}
 
-                                    <!-- Cancellation Status: Toggle Button -->
+                                    <!-- Cancellation Status Badge -->
                                     {% if is_cancelled_request %}
-                                    <button class="btn btn-warning btn-sm py-1 px-2 w-100 d-flex align-items-center justify-content-between"
-                                            style="font-size: 11px; cursor: pointer;"
-                                            onclick="editCancellationRequest('{{ booking_id }}', '{{ guest_name }}')"
-                                            title="Click to edit cancellation request">
-                                        <span><i class="fas fa-ban me-1"></i>Đã hủy</span>
-                                        <i class="fas fa-edit" style="font-size: 9px; opacity: 0.7;"></i>
-                                    </button>
+                                    <span class="badge bg-warning text-dark cancel-status-badge"
+                                          onclick="editCancellationRequest('{{ booking_id }}', '{{ guest_name }}')"
+                                          style="cursor: pointer; flex: 1; padding: 6px 8px; font-size: 10px; font-weight: 500;">
+                                        <i class="fas fa-ban me-1"></i>Đã hủy
+                                    </span>
                                     {% else %}
-                                    <button class="btn btn-outline-danger btn-sm py-1 px-2 w-100"
-                                            style="font-size: 11px; border-width: 2px; border-style: dashed;"
-                                            onclick="requestCancellation('{{ booking_id }}', '{{ guest_name }}', {{ commission }})"
-                                            title="Request cancellation (reduce commission)">
-                                        <i class="fas fa-times-circle me-1"></i>Yêu cầu hủy
-                                    </button>
+                                    <span class="badge bg-light text-muted border cancel-status-badge-pending"
+                                          onclick="requestCancellation('{{ booking_id }}', '{{ guest_name }}', {{ commission }})"
+                                          style="cursor: pointer; flex: 1; padding: 6px 8px; font-size: 10px; font-weight: 400; opacity: 0.7;">
+                                        <i class="fas fa-times-circle me-1"></i>Hủy
+                                    </span>
                                     {% endif %}
+                                </div>
 
-                                    <!-- Quick Actions Row -->
-                                    <div class="btn-group btn-group-sm w-100" role="group">
-                                        <button class="btn btn-outline-info btn-sm py-1 px-1" style="font-size: 10px;"
-                                                onclick="openCollectModal('{{ booking_id }}', '{{ guest_name }}', {{ total_amount }}, {{ commission }}, {{ room_fee }}, {{ taxi_fee }}, {{ collected_amount }}, '{{ collector }}', '{{ payment_note }}')"
-                                                title="View details">
-                                            <i class="fas fa-eye"></i>
-                                        </button>
-                                        <button class="btn btn-outline-primary btn-sm py-1 px-1" style="font-size: 10px;"
-                                                onclick="openEditAmountModal('{{ booking_id }}', '{{ guest_name }}', {{ room_fee }}, {{ taxi_fee }}, {{ commission }})"
-                                                title="Edit amounts">
-                                            <i class="fas fa-edit"></i>
-                                        </button>
-                                    </div>
+                                <!-- Action Buttons Row -->
+                                <div class="btn-group btn-group-sm w-100" role="group">
+                                    <button class="btn btn-outline-secondary btn-sm" style="font-size: 10px; padding: 4px 8px;"
+                                            onclick="openCollectModal('{{ booking_id }}', '{{ guest_name }}', {{ total_amount }}, {{ commission }}, {{ room_fee }}, {{ taxi_fee }}, {{ collected_amount }}, '{{ collector }}', '{{ payment_note }}')"
+                                            title="View details">
+                                        <i class="fas fa-eye"></i>
+                                    </button>
+                                    <button class="btn btn-outline-secondary btn-sm" style="font-size: 10px; padding: 4px 8px;"
+                                            onclick="openEditAmountModal('{{ booking_id }}', '{{ guest_name }}', {{ room_fee }}, {{ taxi_fee }}, {{ commission }})"
+                                            title="Edit amounts">
+                                        <i class="fas fa-edit"></i>
+                                    </button>
                                 </div>
                             </td>
                         </tr>
