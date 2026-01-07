@@ -5175,72 +5175,8 @@ async function quickCommissionDecision(bookingId, guestName, commissionAmount) {
     // If user clicked "Đóng" (cancel), do nothing
 }
 
-// ⚡ Quick commission decision with professional modal
-async function quickCommissionDecision(bookingId) {
-    console.log(`⚡ Quick commission decision for ${bookingId}`);
-
-    // Find booking data from the row
-    const row = document.querySelector(`tr[data-booking-id="${bookingId}"], .list-group-item[data-booking-id="${bookingId}"]`);
-    if (!row) {
-        showDashboardToast('❌ Không tìm thấy booking', 'error');
-        return;
-    }
-
-    const guestNameEl = row.querySelector('.fw-bold.text-dark.small');
-    const guestName = guestNameEl ? guestNameEl.textContent.trim() : 'Khách hàng';
-
-    // Show professional decision modal
-    const modalHtml = `
-        <div class="modal fade" id="quickCommissionModal" tabindex="-1">
-            <div class="modal-dialog modal-dialog-centered">
-                <div class="modal-content">
-                    <div class="modal-header bg-warning text-dark">
-                        <h5 class="modal-title">
-                            <i class="fas fa-bolt me-2"></i>Quyết định Hoa Hồng Nhanh
-                        </h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                    </div>
-                    <div class="modal-body">
-                        <div class="alert alert-info mb-3">
-                            <strong><i class="fas fa-user me-2"></i>${guestName}</strong>
-                            <br><small class="text-muted">Booking ID: ${bookingId}</small>
-                        </div>
-
-                        <p class="mb-3">Bạn muốn giữ hay hủy hoa hồng cho booking này?</p>
-
-                        <div class="d-grid gap-2">
-                            <button class="btn btn-success btn-lg" onclick="quickSubmitDecision('${bookingId}', 'confirmed', '${guestName}')">
-                                <i class="fas fa-check-circle me-2"></i>✅ Giữ hoa hồng
-                                <br><small>Booking biến mất ngay lập tức</small>
-                            </button>
-
-                            <button class="btn btn-danger btn-lg" onclick="quickSubmitDecision('${bookingId}', 'cancelled', '${guestName}')">
-                                <i class="fas fa-times-circle me-2"></i>❌ Hủy hoa hồng (về 0đ)
-                                <br><small>Booking biến mất ngay lập tức</small>
-                            </button>
-                        </div>
-                    </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-                            <i class="fas fa-ban me-1"></i>Đóng (Quyết định sau)
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
-    `;
-
-    // Remove old modal if exists
-    const oldModal = document.getElementById('quickCommissionModal');
-    if (oldModal) oldModal.remove();
-
-    // Add new modal
-    document.body.insertAdjacentHTML('beforeend', modalHtml);
-
-    // Show modal
-    const modal = new bootstrap.Modal(document.getElementById('quickCommissionModal'));
-    modal.show();
-}
+// ⚡ REMOVED DUPLICATE: This function was overriding the correct quickCommissionDecision function
+// The correct version uses SweetAlert2 and is defined above (line ~5138)
 
 // ⚡ Quick submit commission decision
 async function quickSubmitDecision(bookingId, commissionStatus, guestName) {
@@ -5375,7 +5311,27 @@ function updateCollectedAmountDisplay(bookingId, collectedAmount, collectorName,
 
             // Create new HTML based on collection status
             if (collectedAmount > 0 && remaining === 0) {
-                // Fully paid - show professional badges
+                // Extract guest name from row for commission button
+                const guestNameEl = row.querySelector('.fw-bold.text-dark.small');
+                const guestNameForButton = guestNameEl ? guestNameEl.textContent.trim() : 'Khách hàng';
+
+                // 🔍 Extract commission amount from existing button onclick attribute
+                let commissionAmount = 0;
+                const existingCommissionBtn = row.querySelector('button[onclick*="quickCommissionDecision"]');
+                if (existingCommissionBtn) {
+                    const onclickAttr = existingCommissionBtn.getAttribute('onclick');
+                    const match = onclickAttr.match(/quickCommissionDecision\([^,]+,\s*[^,]+,\s*(\d+)/);
+                    if (match) {
+                        commissionAmount = parseInt(match[1]);
+                        console.log(`✅ Extracted commission: ${commissionAmount}đ`);
+                    }
+                }
+
+                // Preserve existing breakdown and action buttons BEFORE replacing innerHTML
+                const existingBreakdown = amountCell.querySelector('.text-muted') ? amountCell.querySelector('.text-muted').outerHTML : '';
+                const existingActionButtons = amountCell.querySelector('.btn-group') ? amountCell.querySelector('.btn-group').outerHTML : '';
+
+                // Fully paid - show professional badges + PRESERVE action buttons
                 amountCell.innerHTML = `
                     <div class="d-flex flex-wrap gap-1 mb-2">
                         <span class="badge bg-success">
@@ -5388,10 +5344,16 @@ function updateCollectedAmountDisplay(bookingId, collectedAmount, collectorName,
                             <i class="fas fa-clock me-1"></i>Chờ quyết định HH
                         </span>
                     </div>
-                    <button class="btn btn-sm btn-warning mb-2" onclick="quickCommissionDecision('${bookingId}')">
-                        <i class="fas fa-bolt me-1"></i>⚡ Quyết định HH ngay
-                    </button>
-                    ${amountCell.querySelector('.text-muted') ? amountCell.querySelector('.text-muted').outerHTML : ''}
+                    <div class="d-flex gap-2 mb-2 align-items-center flex-wrap">
+                        <button class="btn btn-sm btn-warning" onclick="quickCommissionDecision('${bookingId}', '${guestNameForButton}', ${commissionAmount})" title="Quick commission decision">
+                            <i class="fas fa-bolt me-1"></i>Quyết định HH
+                        </button>
+                        <button class="btn btn-sm btn-success" onclick="openEditCollectedModal('${bookingId}', '${guestNameForButton}', ${totalAmount}, ${collectedAmount}, '${collectorName}')" title="Update collected amount">
+                            <i class="fas fa-dollar-sign me-1"></i>Thu Tiền
+                        </button>
+                    </div>
+                    ${existingBreakdown}
+                    ${existingActionButtons}
                 `;
 
                 // Add success animation
@@ -5413,9 +5375,27 @@ function updateCollectedAmountDisplay(bookingId, collectedAmount, collectorName,
                 }, 500);
 
             } else if (collectedAmount > 0 && remaining > 0) {
-                // Partially paid - show professional badges with warning
-                const breakdownHtml = amountCell.querySelector('.text-muted') ? amountCell.querySelector('.text-muted').outerHTML : '';
+                // Extract guest name from row for commission button
+                const guestNameEl = row.querySelector('.fw-bold.text-dark.small');
+                const guestNameForButton = guestNameEl ? guestNameEl.textContent.trim() : 'Khách hàng';
 
+                // 🔍 Extract commission amount from existing button onclick attribute
+                let commissionAmount = 0;
+                const existingCommissionBtn = row.querySelector('button[onclick*="quickCommissionDecision"]');
+                if (existingCommissionBtn) {
+                    const onclickAttr = existingCommissionBtn.getAttribute('onclick');
+                    const match = onclickAttr.match(/quickCommissionDecision\([^,]+,\s*[^,]+,\s*(\d+)/);
+                    if (match) {
+                        commissionAmount = parseInt(match[1]);
+                        console.log(`✅ Extracted commission: ${commissionAmount}đ`);
+                    }
+                }
+
+                // Preserve existing breakdown and action buttons BEFORE replacing innerHTML
+                const breakdownHtml = amountCell.querySelector('.text-muted') ? amountCell.querySelector('.text-muted').outerHTML : '';
+                const existingActionButtons = amountCell.querySelector('.btn-group') ? amountCell.querySelector('.btn-group').outerHTML : '';
+
+                // Partially paid - show professional badges with warning + PRESERVE action buttons
                 amountCell.innerHTML = `
                     <div class="d-flex flex-wrap gap-1 mb-2">
                         <span class="badge bg-success">
@@ -5433,10 +5413,16 @@ function updateCollectedAmountDisplay(bookingId, collectedAmount, collectorName,
                             <i class="fas fa-clock me-1"></i>Chờ quyết định HH
                         </span>
                     </div>
-                    <button class="btn btn-sm btn-warning mb-2" onclick="quickCommissionDecision('${bookingId}')">
-                        <i class="fas fa-bolt me-1"></i>⚡ Quyết định HH ngay
-                    </button>
+                    <div class="d-flex gap-2 mb-2 align-items-center flex-wrap">
+                        <button class="btn btn-sm btn-warning" onclick="quickCommissionDecision('${bookingId}', '${guestNameForButton}', ${commissionAmount})" title="Quick commission decision">
+                            <i class="fas fa-bolt me-1"></i>Quyết định HH
+                        </button>
+                        <button class="btn btn-sm btn-success" onclick="openEditCollectedModal('${bookingId}', '${guestNameForButton}', ${totalAmount}, ${collectedAmount}, '${collectorName}')" title="Update collected amount">
+                            <i class="fas fa-dollar-sign me-1"></i>Thu Tiền
+                        </button>
+                    </div>
                     ${breakdownHtml}
+                    ${existingActionButtons}
                 `;
 
                 // Add update animation
