@@ -337,11 +337,11 @@ def process_overdue_guests(df):
         # Guest is FULLY RESOLVED only when BOTH conditions are true
         is_fully_resolved = payment_collected & commission_finalized
 
-        # Legacy compatibility: If commission_status is missing/empty for old data,
-        # treat as finalized if collector is set (backward compatibility)
-        is_legacy_data = commission_status_series == 'pending'
-        legacy_collected = has_valid_collector & is_legacy_data
-        is_fully_resolved = is_fully_resolved | legacy_collected
+        # Legacy compatibility: Old bookings from before collected_amount field existed
+        # If booking has: (collector set) AND (commission finalized) BUT (no collected_amount)
+        # Then it's legacy data that was already paid before tracking collected_amount
+        is_legacy_data = has_valid_collector & commission_finalized & (collected_amount_series == 0)
+        is_fully_resolved = is_fully_resolved | is_legacy_data
 
         not_collected = ~is_fully_resolved
         not_cancelled = df_valid['Tình trạng'] != 'Đã hủy'
@@ -355,8 +355,9 @@ def process_overdue_guests(df):
         print(f"    - Has valid collector: {has_valid_collector.sum()} bookings")
         print(f"    - Has payment (>0): {has_payment.sum()} bookings")
         print(f"  - CONDITION 2: Commission finalized: {commission_finalized.sum()} bookings")
-        print(f"  - BOTH conditions met: {is_fully_resolved.sum()} bookings")
-        print(f"  - Legacy data (pending status): {legacy_collected.sum()} bookings")
+        print(f"  - BOTH conditions met: {(payment_collected & commission_finalized).sum()} bookings")
+        print(f"  - Legacy data (collector + finalized but no amount): {is_legacy_data.sum()} bookings")
+        print(f"  - Total fully resolved: {is_fully_resolved.sum()} bookings")
         print(f"  - Not fully resolved: {not_collected.sum()} bookings")
         print(f"  - Not cancelled: {not_cancelled.sum()} bookings")
         print(f"  - ⭐ Final overdue guests: {len(overdue_df)} bookings")
