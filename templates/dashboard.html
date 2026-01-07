@@ -1184,8 +1184,8 @@
                             <td class="py-1 px-2">
                                 <div class="d-flex align-items-center gap-2 mb-1">
                                     <div class="fw-bold text-dark small">{{ guest.get('Tên người đặt', 'N/A') }}</div>
-                                    <!-- Accommodation Name Badge (Always Visible) -->
-                                    {% set accommodation = guest.get('Chỗ ở', '') or guest.get('accommodation_name', '') or guest.get('Accommodation Name', '') or guest.get('room_name', '') %}
+                                    <!-- Accommodation/Apartment Name Badge (Always Visible) -->
+                                    {% set accommodation = guest.get('apartment_name', '') or guest.get('Chỗ ở', '') or guest.get('accommodation_name', '') or guest.get('Accommodation Name', '') %}
                                     <span class="badge bg-info text-white" style="font-size: 9px; font-weight: 600; padding: 3px 8px; white-space: nowrap;">
                                         <i class="fas fa-hotel me-1"></i>{{ accommodation if accommodation and accommodation != '' else '118 Hang Bac' }}
                                     </span>
