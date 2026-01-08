@@ -6174,6 +6174,11 @@ def update_commission_status():
             'commission_status': commission_status
         }
 
+        # ⚠️ CRITICAL: When cancelling commission, set commission amount to 0
+        if commission_status == 'cancelled':
+            update_data['commission'] = 0
+            print(f"[UPDATE_COMMISSION] ⚠️ Setting commission to 0 (cancelled)")
+
         success = update_booking(booking_id, update_data)
 
         if success:
