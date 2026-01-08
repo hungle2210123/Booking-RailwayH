@@ -5180,28 +5180,69 @@ async function quickCommissionDecision(bookingId, guestName, commissionAmount) {
 
 // ⚡ Quick submit commission decision
 async function quickSubmitDecision(bookingId, commissionStatus, guestName) {
-    // Close modal first
-    const modal = bootstrap.Modal.getInstance(document.getElementById('quickCommissionModal'));
-    if (modal) modal.hide();
-
-    // Submit decision
+    // Submit decision first (don't close modal yet - keep user informed)
     await submitCommissionDecision(bookingId, commissionStatus, guestName, 0);
 
-    // ⚡ INSTANT REMOVAL: Remove the row smoothly (customer disappears with animation)
-    const row = document.querySelector(`tr[data-booking-id="${bookingId}"], .list-group-item[data-booking-id="${bookingId}"]`);
-    if (row) {
-        row.style.transition = 'all 0.5s ease';
-        row.style.opacity = '0';
-        row.style.transform = 'translateX(-30px)';
+    // ⚡ ENHANCED SEARCH: Find the row using multiple methods (same as updateCollectedAmountDisplay)
+    let foundRow = null;
+    const allTables = document.querySelectorAll('.table-responsive table tbody, #uncheckedInGuestsList .list-group, table tbody');
+
+    allTables.forEach(tableBody => {
+        const rows = tableBody.querySelectorAll('tr, .list-group-item');
+        rows.forEach(row => {
+            // Method 1: data-booking-id attribute
+            if (row.getAttribute('data-booking-id') === bookingId.toString()) {
+                foundRow = row;
+                console.log(`✅ Found row via data-booking-id: ${bookingId}`);
+            }
+
+            // Method 2: Search in text content
+            if (!foundRow) {
+                const textElements = row.querySelectorAll('.text-muted, small');
+                textElements.forEach(el => {
+                    if (el.textContent.includes(bookingId)) {
+                        foundRow = row;
+                        console.log(`✅ Found row via text content: ${bookingId}`);
+                    }
+                });
+            }
+
+            // Method 3: Search in button onclick
+            if (!foundRow) {
+                const buttons = row.querySelectorAll('button[onclick]');
+                buttons.forEach(btn => {
+                    const onclick = btn.getAttribute('onclick');
+                    if (onclick && onclick.includes(bookingId)) {
+                        foundRow = row;
+                        console.log(`✅ Found row via button onclick: ${bookingId}`);
+                    }
+                });
+            }
+        });
+    });
+
+    // ⚡ INSTANT REMOVAL: Remove the row smoothly with animation
+    if (foundRow) {
+        console.log(`🗑️ Removing row for ${bookingId} after commission decision: ${commissionStatus}`);
+        foundRow.style.transition = 'all 0.5s ease';
+        foundRow.style.opacity = '0';
+        foundRow.style.transform = 'translateX(-30px)';
 
         setTimeout(() => {
-            row.remove();
+            foundRow.remove();
+            console.log(`✅ Row removed for ${bookingId}`);
 
-            // Recalculate totals if function exists
+            // Recalculate totals
             if (typeof recalculateOverdueTotal === 'function') {
                 recalculateOverdueTotal();
             }
         }, 500);
+    } else {
+        console.warn(`⚠️ Could not find row for ${bookingId} - will reload page instead`);
+        // Fallback: reload page after 1 second
+        setTimeout(() => {
+            window.location.reload();
+        }, 1000);
     }
 }
 
