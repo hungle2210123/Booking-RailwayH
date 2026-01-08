@@ -6169,15 +6169,12 @@ def update_commission_status():
         if commission_status not in ['pending', 'confirmed', 'cancelled']:
             return jsonify({'success': False, 'message': 'Trạng thái hoa hồng không hợp lệ'}), 400
 
-        # Update database
-        from core.database_service_postgresql import DatabaseService
-        db_service = DatabaseService()
-
+        # Update database using existing update_booking function
         update_data = {
             'commission_status': commission_status
         }
 
-        success = db_service.update_booking(booking_id, update_data)
+        success = update_booking(booking_id, update_data)
 
         if success:
             status_text = {
