@@ -5134,8 +5134,8 @@ async function updateCollectedAmount() {
     }
 }
 
-// ⚡ QUICK COMMISSION DECISION - Inline action button
-async function quickCommissionDecision(bookingId, guestName, commissionAmount) {
+// ⚡ QUICK COMMISSION DECISION - Inline action button (GLOBALLY AVAILABLE)
+window.quickCommissionDecision = async function(bookingId, guestName, commissionAmount) {
     // Use SweetAlert2 for professional modal
     const { value: decision } = await Swal.fire({
         title: `Quyết định hoa hồng`,
