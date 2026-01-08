@@ -5489,41 +5489,30 @@ function updateCollectedAmountDisplay(bookingId, collectedAmount, collectorName,
                 const existingBreakdown = amountCell.querySelector('.text-muted') ? amountCell.querySelector('.text-muted').outerHTML : '';
                 const existingActionButtons = amountCell.querySelector('.btn-group') ? amountCell.querySelector('.btn-group').outerHTML : '';
 
-                // Fully paid - show professional badges + PRESERVE action buttons
+                // Fully paid - compact inline display (matches screenshot)
                 amountCell.innerHTML = `
-                    <div class="payment-status-card">
-                        <!-- Primary Payment Info (Large & Prominent) -->
-                        <div class="payment-primary-info mb-2">
-                            <span class="badge bg-success text-white" style="font-size: 13px; padding: 6px 12px; font-weight: 600;">
-                                <i class="fas fa-check-circle me-1"></i>Đã thu: ${collectedAmount.toLocaleString()}đ
-                            </span>
-                        </div>
-
-                        <!-- Secondary Info (Smaller & Compact) -->
-                        <div class="payment-secondary-info mb-2 d-flex align-items-center gap-2 flex-wrap">
-                            <span class="badge bg-info text-white" style="font-size: 11px; padding: 4px 8px;">
-                                <i class="fas fa-user me-1"></i>${collectorName}
-                            </span>
-                            <span class="badge bg-warning text-dark pulse-badge" style="font-size: 11px; padding: 4px 8px;">
-                                <i class="fas fa-clock me-1"></i>Chờ quyết định HH
-                            </span>
-                        </div>
-
-                        <!-- Action Buttons (Clear & Separated) -->
-                        <div class="payment-action-buttons d-flex gap-2 mb-2">
-                            <button class="btn btn-warning btn-sm flex-fill"
-                                    onclick="quickCommissionDecision('${bookingId}', '${guestNameForButton}', ${commissionAmount})"
-                                    title="Quick commission decision"
-                                    style="font-size: 12px; padding: 6px 10px; white-space: nowrap;">
-                                <i class="fas fa-bolt me-1"></i>Quyết định HH
-                            </button>
-                            <button class="btn btn-success btn-sm flex-fill"
-                                    onclick="openEditCollectedModal('${bookingId}', '${guestNameForButton}', ${totalAmount}, ${collectedAmount}, '${collectorName}')"
-                                    title="Update collected amount"
-                                    style="font-size: 12px; padding: 6px 10px; white-space: nowrap;">
-                                <i class="fas fa-dollar-sign me-1"></i>Thu Tiền
-                            </button>
-                        </div>
+                    <div class="d-flex align-items-center gap-2 flex-wrap mb-1">
+                        <span class="badge bg-success text-white" style="font-size: 11px; padding: 5px 10px; font-weight: 500;">
+                            Đã thu: ${collectedAmount.toLocaleString()}đ
+                        </span>
+                        <span class="badge bg-info text-white" style="font-size: 11px; padding: 5px 10px;">
+                            💵 ${collectorName}
+                        </span>
+                        <span class="badge bg-warning text-dark pulse-badge" style="font-size: 11px; padding: 5px 10px;">
+                            ⏳ Chờ quyết định HH
+                        </span>
+                    </div>
+                    <div class="d-flex align-items-center gap-2 flex-wrap">
+                        <button class="btn btn-warning btn-sm"
+                                onclick="quickCommissionDecision('${bookingId}', '${guestNameForButton}', ${commissionAmount})"
+                                style="font-size: 11px; padding: 4px 10px;">
+                            ⚡ Quyết định HH
+                        </button>
+                        <button class="btn btn-success btn-sm"
+                                onclick="openEditCollectedModal('${bookingId}', '${guestNameForButton}', ${totalAmount}, ${collectedAmount}, '${collectorName}')"
+                                style="font-size: 11px; padding: 4px 10px;">
+                            💵 Thu Tiền
+                        </button>
                     </div>
                     ${existingBreakdown}
                     ${existingActionButtons}
@@ -5565,44 +5554,33 @@ function updateCollectedAmountDisplay(bookingId, collectedAmount, collectorName,
                 const breakdownHtml = amountCell.querySelector('.text-muted') ? amountCell.querySelector('.text-muted').outerHTML : '';
                 const existingActionButtons = amountCell.querySelector('.btn-group') ? amountCell.querySelector('.btn-group').outerHTML : '';
 
-                // Partially paid - show professional badges with warning + PRESERVE action buttons
+                // Partially paid - compact inline display (matches screenshot)
                 amountCell.innerHTML = `
-                    <div class="payment-status-card">
-                        <!-- Primary Payment Info (Dual Badge - Paid & Remaining) -->
-                        <div class="payment-primary-info mb-2 d-flex align-items-center gap-2 flex-wrap">
-                            <span class="badge bg-success text-white" style="font-size: 13px; padding: 6px 12px; font-weight: 600;">
-                                <i class="fas fa-check-circle me-1"></i>Đã thu: ${collectedAmount.toLocaleString()}đ
-                            </span>
-                            <span class="badge bg-danger text-white" style="font-size: 13px; padding: 6px 12px; font-weight: 600;">
-                                <i class="fas fa-exclamation-circle me-1"></i>Còn: ${remaining.toLocaleString()}đ
-                            </span>
-                        </div>
-
-                        <!-- Secondary Info (Smaller & Compact) -->
-                        <div class="payment-secondary-info mb-2 d-flex align-items-center gap-2 flex-wrap">
-                            <span class="badge bg-info text-white" style="font-size: 11px; padding: 4px 8px;">
-                                <i class="fas fa-user me-1"></i>${collectorName}
-                            </span>
-                            <span class="badge bg-warning text-dark pulse-badge" style="font-size: 11px; padding: 4px 8px;">
-                                <i class="fas fa-clock me-1"></i>Chờ quyết định HH
-                            </span>
-                        </div>
-
-                        <!-- Action Buttons (Clear & Separated) -->
-                        <div class="payment-action-buttons d-flex gap-2 mb-2">
-                            <button class="btn btn-warning btn-sm flex-fill"
-                                    onclick="quickCommissionDecision('${bookingId}', '${guestNameForButton}', ${commissionAmount})"
-                                    title="Quick commission decision"
-                                    style="font-size: 12px; padding: 6px 10px; white-space: nowrap;">
-                                <i class="fas fa-bolt me-1"></i>Quyết định HH
-                            </button>
-                            <button class="btn btn-success btn-sm flex-fill"
-                                    onclick="openEditCollectedModal('${bookingId}', '${guestNameForButton}', ${totalAmount}, ${collectedAmount}, '${collectorName}')"
-                                    title="Update collected amount"
-                                    style="font-size: 12px; padding: 6px 10px; white-space: nowrap;">
-                                <i class="fas fa-dollar-sign me-1"></i>Thu Tiền
-                            </button>
-                        </div>
+                    <div class="d-flex align-items-center gap-2 flex-wrap mb-1">
+                        <span class="badge bg-success text-white" style="font-size: 11px; padding: 5px 10px; font-weight: 500;">
+                            Đã thu: ${collectedAmount.toLocaleString()}đ
+                        </span>
+                        <span class="badge bg-danger text-white" style="font-size: 11px; padding: 5px 10px; font-weight: 500;">
+                            Còn: ${remaining.toLocaleString()}đ
+                        </span>
+                        <span class="badge bg-info text-white" style="font-size: 11px; padding: 5px 10px;">
+                            💵 ${collectorName}
+                        </span>
+                        <span class="badge bg-warning text-dark pulse-badge" style="font-size: 11px; padding: 5px 10px;">
+                            ⏳ Chờ quyết định HH
+                        </span>
+                    </div>
+                    <div class="d-flex align-items-center gap-2 flex-wrap">
+                        <button class="btn btn-warning btn-sm"
+                                onclick="quickCommissionDecision('${bookingId}', '${guestNameForButton}', ${commissionAmount})"
+                                style="font-size: 11px; padding: 4px 10px;">
+                            ⚡ Quyết định HH
+                        </button>
+                        <button class="btn btn-success btn-sm"
+                                onclick="openEditCollectedModal('${bookingId}', '${guestNameForButton}', ${totalAmount}, ${collectedAmount}, '${collectorName}')"
+                                style="font-size: 11px; padding: 4px 10px;">
+                            💵 Thu Tiền
+                        </button>
                     </div>
                     ${breakdownHtml}
                     ${existingActionButtons}
