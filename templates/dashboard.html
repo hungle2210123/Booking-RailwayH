@@ -5361,18 +5361,15 @@ function updateCollectedAmountDisplay(bookingId, collectedAmount, collectorName,
                 amountCell.style.backgroundColor = '#d4edda';
                 setTimeout(() => {
                     amountCell.style.backgroundColor = 'transparent';
-
-                    // Check if should remove from overdue list
-                    setTimeout(() => {
-                        row.style.transition = 'all 0.5s ease';
-                        row.style.opacity = '0';
-                        row.style.transform = 'translateX(-20px)';
-                        setTimeout(() => {
-                            row.remove();
-                            recalculateOverdueTotal();
-                        }, 500);
-                    }, 1000);
                 }, 500);
+
+                // ⚡ IMPORTANT: Customer should NOT disappear here!
+                // They only disappear when BOTH conditions are met:
+                // 1. Payment collected ✅ (we just did this)
+                // 2. Commission decision made (user clicks "Quyết định HH" button)
+                //
+                // The row will be removed by quickSubmitDecision() function
+                // when user clicks the commission decision button
 
             } else if (collectedAmount > 0 && remaining > 0) {
                 // Extract guest name from row for commission button
