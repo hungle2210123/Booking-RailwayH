@@ -5389,9 +5389,11 @@ async function submitCommissionDecision(bookingId, commissionStatus, guestName, 
                     }
                 }, 500);
             } else {
-                console.warn(`⚠️ [COMMISSION_DECISION] Could not find row for ${bookingId} - reloading page`);
-                // Fallback: reload page
-                setTimeout(() => window.location.reload(), 1000);
+                console.warn(`⚠️ [COMMISSION_DECISION] Could not find row for ${bookingId} - reloading page with fresh data`);
+                // Fallback: reload page with ?refresh=true to bypass 30-second cache
+                setTimeout(() => {
+                    window.location.href = window.location.pathname + '?refresh=true';
+                }, 1000);
             }
         } else {
             showDashboardToast(`❌ Lỗi: ${result.message}`, 'error');
