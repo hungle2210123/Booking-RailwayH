@@ -535,6 +535,14 @@ def update_booking(booking_id: str, update_data: Dict) -> bool:
             print(f"[UPDATE_BOOKING]   - NEW commission: {new_commission}")
             print(f"[UPDATE_BOOKING]   - Type: {type(new_commission)}")
             print(f"[UPDATE_BOOKING]   - After assignment: {booking.commission}")
+        if 'commission_status' in update_data:
+            old_status = booking.commission_status or 'pending'
+            new_status = update_data['commission_status']
+            booking.commission_status = new_status
+            print(f"[UPDATE_BOOKING] 📊 COMMISSION STATUS UPDATE:")
+            print(f"[UPDATE_BOOKING]   - OLD status: {old_status}")
+            print(f"[UPDATE_BOOKING]   - NEW status: {new_status}")
+            print(f"[UPDATE_BOOKING]   - After assignment: {booking.commission_status}")
         if 'collected_amount' in update_data:
             old_collected_amount = booking.collected_amount or 0
             new_collected_amount = update_data['collected_amount']
@@ -593,6 +601,7 @@ def update_booking(booking_id: str, update_data: Dict) -> bool:
 
         print(f"[UPDATE_BOOKING] ✅ Successfully updated booking: {booking_id}")
         print(f"[UPDATE_BOOKING]   - commission: {booking.commission}")
+        print(f"[UPDATE_BOOKING]   - commission_status: {booking.commission_status}")
         print(f"[UPDATE_BOOKING]   - taxi_amount: {booking.taxi_amount}")
         print(f"[UPDATE_BOOKING]   - collected_amount: {booking.collected_amount}")
         return True
