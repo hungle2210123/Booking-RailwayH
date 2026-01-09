@@ -3965,6 +3965,54 @@ window.getApartmentClass = function(roomName) {
     return 'apt-unknown';
 };
 
+// ==================== COMMISSION DECISION FUNCTION - PRIORITY LOAD ====================
+// CRITICAL: Load this function FIRST so HTML buttons can call it immediately
+window.quickCommissionDecision = async function(bookingId, guestName, commissionAmount) {
+    console.log('⚡ [COMMISSION_DECISION] Called for:', {bookingId, guestName, commissionAmount});
+
+    // Use SweetAlert2 for professional modal
+    const { value: decision } = await Swal.fire({
+        title: `Quyết định hoa hồng`,
+        html: `
+            <div class="text-start">
+                <p class="mb-2"><strong>Khách:</strong> ${guestName}</p>
+                <p class="mb-3"><strong>Hoa hồng:</strong> ${commissionAmount.toLocaleString('vi-VN')}đ</p>
+                <hr>
+                <p class="text-muted small mb-2">Chọn quyết định:</p>
+            </div>
+        `,
+        icon: 'question',
+        showCancelButton: true,
+        showDenyButton: true,
+        confirmButtonText: '<i class="fas fa-check-circle me-1"></i> Xác nhận',
+        denyButtonText: '<i class="fas fa-times-circle me-1"></i> Hủy hoa hồng',
+        cancelButtonText: 'Đóng',
+        confirmButtonColor: '#28a745',
+        denyButtonColor: '#dc3545',
+        cancelButtonColor: '#6c757d',
+        customClass: {
+            confirmButton: 'btn btn-success',
+            denyButton: 'btn btn-danger',
+            cancelButton: 'btn btn-secondary'
+        },
+        buttonsStyling: false,
+        width: '450px'
+    });
+
+    if (decision === true) {
+        // User clicked "Xác nhận" (confirm) → commission_status='confirmed'
+        console.log('✅ [COMMISSION_DECISION] User confirmed commission');
+        await submitCommissionDecision(bookingId, 'confirmed', guestName, commissionAmount);
+    } else if (decision === false) {
+        // User clicked "Hủy hoa hồng" (deny) → commission_status='cancelled' + commission=0
+        console.log('❌ [COMMISSION_DECISION] User cancelled commission');
+        await submitCommissionDecision(bookingId, 'cancelled', guestName, commissionAmount);
+    } else {
+        // User clicked "Đóng" (cancel) → do nothing
+        console.log('⏸️ [COMMISSION_DECISION] User closed without decision');
+    }
+}
+
 // ==================== COLLECTOR DATE PICKER FUNCTION - PRIORITY LOAD ====================
 // CRITICAL: Load this function FIRST so HTML buttons can call it immediately
 window.setCollectorDateType = function(dateType) {
@@ -5191,49 +5239,8 @@ async function updateCollectedAmount() {
     }
 }
 
-// ⚡ QUICK COMMISSION DECISION - Inline action button (GLOBALLY AVAILABLE)
-window.quickCommissionDecision = async function(bookingId, guestName, commissionAmount) {
-    // Use SweetAlert2 for professional modal
-    const { value: decision } = await Swal.fire({
-        title: `Quyết định hoa hồng`,
-        html: `
-            <div class="text-start">
-                <p class="mb-2"><strong>Khách:</strong> ${guestName}</p>
-                <p class="mb-3"><strong>Hoa hồng:</strong> ${commissionAmount.toLocaleString('vi-VN')}đ</p>
-                <hr>
-                <p class="text-muted small mb-2">Chọn quyết định:</p>
-            </div>
-        `,
-        icon: 'question',
-        showCancelButton: true,
-        showDenyButton: true,
-        confirmButtonText: '<i class="fas fa-check-circle me-1"></i> Xác nhận',
-        denyButtonText: '<i class="fas fa-times-circle me-1"></i> Hủy hoa hồng',
-        cancelButtonText: 'Đóng',
-        confirmButtonColor: '#28a745',
-        denyButtonColor: '#dc3545',
-        cancelButtonColor: '#6c757d',
-        customClass: {
-            confirmButton: 'btn btn-success',
-            denyButton: 'btn btn-danger',
-            cancelButton: 'btn btn-secondary'
-        },
-        buttonsStyling: false,
-        width: '450px'
-    });
-
-    if (decision === true) {
-        // User clicked "Xác nhận" (confirm)
-        await submitCommissionDecision(bookingId, 'confirmed', guestName, commissionAmount);
-    } else if (decision === false) {
-        // User clicked "Hủy hoa hồng" (deny)
-        await submitCommissionDecision(bookingId, 'cancelled', guestName, commissionAmount);
-    }
-    // If user clicked "Đóng" (cancel), do nothing
-}
-
-// ⚡ REMOVED DUPLICATE: This function was overriding the correct quickCommissionDecision function
-// The correct version uses SweetAlert2 and is defined above (line ~5138)
+// ⚡ QUICK COMMISSION DECISION - Moved to PRIORITY LOAD section (line ~3970)
+// This ensures the function is available immediately when buttons are rendered
 
 // ⚡ Quick submit commission decision
 async function quickSubmitDecision(bookingId, commissionStatus, guestName) {
@@ -5304,7 +5311,7 @@ async function quickSubmitDecision(bookingId, commissionStatus, guestName) {
 }
 
 // 📤 Submit commission decision to server
-async function submitCommissionDecision(bookingId, commissionStatus, guestName, commissionAmount) {
+window.submitCommissionDecision = async function(bookingId, commissionStatus, guestName, commissionAmount) {
     try {
         showDashboardToast('Đang xử lý quyết định...', 'info');
 
