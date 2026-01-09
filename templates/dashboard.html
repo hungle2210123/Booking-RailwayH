@@ -5224,7 +5224,8 @@ async function updateCollectedAmount() {
             console.log('⚡ [INSTANT_UPDATE] Updating row display with professional badges...');
 
             // Find the current booking row and update it instantly
-            updateCollectedAmountDisplay(bookingId, collectedAmount, collectorName, collectedAmount);
+            // Function will auto-extract totalAmount from existing button onclick
+            updateCollectedAmountDisplay(bookingId, collectedAmount, collectorName);
 
             // Smooth refresh of unchecked-in list (no page reload)
             if (typeof loadUncheckedInGuests === 'function') {
@@ -5412,7 +5413,7 @@ window.submitCommissionDecision = async function(bookingId, commissionStatus, gu
 }
 
 // ⚡ INSTANT UPDATE: Update collected amount display after payment
-function updateCollectedAmountDisplay(bookingId, collectedAmount, collectorName, totalAmount) {
+function updateCollectedAmountDisplay(bookingId, collectedAmount, collectorName, totalAmount = null) {
     console.log(`⚡ [INSTANT_UPDATE] Updating collected amount for ${bookingId}:`, {
         collectedAmount, collectorName, totalAmount
     });
@@ -5468,6 +5469,27 @@ function updateCollectedAmountDisplay(bookingId, collectedAmount, collectorName,
         if (hasBookingId) {
             foundRow = true;
             console.log(`✅ Found row for ${bookingId}, updating collected amount...`);
+
+            // 🔍 EXTRACT TOTAL AMOUNT from existing row if not provided
+            if (!totalAmount || totalAmount === null) {
+                // Look for existing "💵 Thu Tiền" button onclick attribute
+                const collectBtn = row.querySelector('button[onclick*="openEditCollectedModal"]');
+                if (collectBtn) {
+                    const onclickAttr = collectBtn.getAttribute('onclick');
+                    // Match: openEditCollectedModal('5165698', 'Grant Weston', 2928803, 0, '')
+                    const match = onclickAttr.match(/openEditCollectedModal\([^,]+,\s*[^,]+,\s*(\d+)/);
+                    if (match) {
+                        totalAmount = parseInt(match[1]);
+                        console.log(`✅ Extracted totalAmount from button: ${totalAmount}đ`);
+                    }
+                }
+            }
+
+            // Fallback: if still no total, use collectedAmount as total (fully paid scenario)
+            if (!totalAmount || totalAmount === null || totalAmount === 0) {
+                totalAmount = collectedAmount;
+                console.log(`⚠️ No totalAmount found, assuming fully paid: ${totalAmount}đ`);
+            }
 
             // Calculate remaining amount
             const remaining = Math.max(0, totalAmount - collectedAmount);
