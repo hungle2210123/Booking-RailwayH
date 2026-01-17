@@ -404,7 +404,7 @@
                                         <i class="fas fa-edit"></i>
                                     </button>
                                     <button class="btn btn-sm btn-outline-danger px-2 py-1"
-                                            onclick="quickCancelCalendarGuest('{{ booking.get('Số đặt phòng', '') }}', '{{ booking.get('Tên người đặt', 'N/A') }}')"
+                                            onclick="quickCancelCalendarGuest('{{ booking.get('Số đặt phòng', '') }}', '{{ booking.get('Tên người đặt', 'N/A')|replace("'", "\\'") }}')"
                                             title="Hủy booking">
                                         <i class="fas fa-times"></i>
                                     </button>
@@ -491,7 +491,7 @@
                                         <i class="fas fa-edit"></i>
                                     </button>
                                     <button class="btn btn-sm btn-outline-danger px-2 py-1"
-                                            onclick="quickCancelCalendarGuest('{{ booking.get('Số đặt phòng', '') }}', '{{ booking.get('Tên người đặt', 'N/A') }}')"
+                                            onclick="quickCancelCalendarGuest('{{ booking.get('Số đặt phòng', '') }}', '{{ booking.get('Tên người đặt', 'N/A')|replace("'", "\\'") }}')"
                                             title="Hủy booking">
                                         <i class="fas fa-times"></i>
                                     </button>
@@ -579,7 +579,7 @@
                                         <i class="fas fa-edit"></i>
                                     </button>
                                     <button class="btn btn-sm btn-outline-danger px-2 py-1"
-                                            onclick="quickCancelCalendarGuest('{{ booking.get('Số đặt phòng', '') }}', '{{ booking.get('Tên người đặt', 'N/A') }}')"
+                                            onclick="quickCancelCalendarGuest('{{ booking.get('Số đặt phòng', '') }}', '{{ booking.get('Tên người đặt', 'N/A')|replace("'", "\\'") }}')"
                                             title="Hủy booking">
                                         <i class="fas fa-times"></i>
                                     </button>
@@ -730,7 +730,7 @@
                                                 <i class="fas fa-edit"></i>
                                             </button>
                                             <button class="btn btn-sm btn-outline-danger px-2 py-1"
-                                                    onclick="quickCancelCalendarGuest('{{ booking.booking_id }}', '{{ booking.guest_name }}')"
+                                                    onclick="quickCancelCalendarGuest('{{ booking.booking_id }}', '{{ booking.guest_name|replace("'", "\\'") }}')"
                                                     title="Hủy booking">
                                                 <i class="fas fa-times"></i>
                                             </button>
@@ -1864,6 +1864,9 @@ function displayCanceledGuests(guests) {
                 const totalAmount = guest.total_amount || 0;
                 const pricePerNight = guest.price_per_night || 0;
 
+                // Escape single quotes in guest name for onclick handlers
+                const guestNameEscaped = guest.guest_name.replace(/'/g, "\\'");
+
                 guestsHtml += `
                     <tr style="background-color: ${roomColor}; font-size: 0.85rem; border-left: 4px solid ${borderColor};">
                         <td style="width: 35% !important; padding: 4px 8px; overflow: hidden;">
@@ -1885,12 +1888,12 @@ function displayCanceledGuests(guests) {
                         </td>
                         <td style="width: 15% !important; padding: 2px 4px; text-align: center; white-space: nowrap;">
                             <button class="btn btn-success btn-sm" style="padding: 2px 5px; font-size: 0.7rem;"
-                                    onclick="restoreBooking('${guest.booking_id}', '${guest.guest_name}')"
+                                    onclick="restoreBooking('${guest.booking_id}', '${guestNameEscaped}')"
                                     title="Phục hồi">
                                 <i class="fas fa-undo"></i>
                             </button>
                             <button class="btn btn-danger btn-sm" style="padding: 2px 5px; font-size: 0.7rem;"
-                                    onclick="deleteBooking('${guest.booking_id}', '${guest.guest_name}')"
+                                    onclick="deleteBooking('${guest.booking_id}', '${guestNameEscaped}')"
                                     title="Xóa">
                                 <i class="fas fa-trash"></i>
                             </button>
@@ -2032,7 +2035,10 @@ function displayAISuggestions(aiSuggestions, calendarAnalysis) {
         const recommendationsCards = aiSuggestions.top_recommendations.map(rec => {
             const priorityClass = rec.priority === 'critical' ? 'priority-critical' : rec.priority === 'high' ? 'priority-high' : '';
             const priorityBadgeClass = rec.priority === 'critical' ? 'critical' : rec.priority === 'high' ? 'high' : rec.priority === 'medium' ? 'medium' : 'low';
-            
+
+            // Escape single quotes in guest name for onclick handler
+            const guestNameEscaped = rec.guest_name.replace(/'/g, "\\'");
+
             return `
                 <div class="ai-recommendation-enhanced ${priorityClass}">
                     <div class="recommendation-header">
@@ -2046,13 +2052,13 @@ function displayAISuggestions(aiSuggestions, calendarAnalysis) {
                             ${rec.checkin_date || 'N/A'} → ${rec.checkout_date || 'N/A'}
                         </div>
                     </div>
-                    
+
                     <div class="recommendation-details">
                         <div class="reason-section">
                             <i class="fas fa-lightbulb me-1"></i>
                             <strong>Phân tích:</strong> ${rec.reason}
                         </div>
-                        
+
                         <div class="impact-metrics">
                             <div class="impact-item">
                                 <i class="fas fa-chart-line me-1"></i>
@@ -2075,10 +2081,10 @@ function displayAISuggestions(aiSuggestions, calendarAnalysis) {
                             ` : ''}
                         </div>
                     </div>
-                    
+
                     <div class="action-section">
-                        <button class="ai-action-button-enhanced ${rec.priority === 'critical' ? 'btn-critical' : 'btn-high'}" 
-                                onclick="restoreBookingFromAI('${rec.booking_id}', '${rec.guest_name}')">
+                        <button class="ai-action-button-enhanced ${rec.priority === 'critical' ? 'btn-critical' : 'btn-high'}"
+                                onclick="restoreBookingFromAI('${rec.booking_id}', '${guestNameEscaped}')">
                             <i class="fas fa-magic me-1"></i>
                             ${rec.action || 'Phục hồi ngay'}
                         </button>
