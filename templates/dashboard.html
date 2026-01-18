@@ -359,6 +359,17 @@
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
 }
 
+/* Cursor pointer for clickable elements */
+.cursor-pointer {
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.cursor-pointer:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
 .payment-primary-info .badge {
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     border: none;
@@ -1260,20 +1271,23 @@
     {% if overdue_unpaid_guests and overdue_unpaid_guests|length > 0 %}
     <div class="card border-0 shadow-sm mb-3" style="background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%);">
         <div class="card-body py-2 px-3">
-            <div class="d-flex justify-content-between align-items-center mb-2">
+            <div class="d-flex justify-content-between align-items-center mb-2 cursor-pointer"
+                 onclick="openUnpaidFullScreen()"
+                 title="Click để xem toàn màn hình">
                 <h6 class="mb-0 text-white fw-bold">
                     <i class="fas fa-exclamation-triangle me-1"></i>⚠️ CHƯA THU ({{ overdue_unpaid_guests|length }})
+                    <i class="fas fa-expand-alt ms-2" style="font-size: 12px; opacity: 0.8;"></i>
                 </h6>
                 <div class="text-white text-end">
                     <div class="fw-bold">{{ "{:,.0f}".format(overdue_total_amount if overdue_total_amount else 0) }}đ</div>
                     <small>Tổng chưa thu</small>
                 </div>
             </div>
-            
+
             {% if overdue_unpaid_guests|length > 5 %}
             <div class="text-center mb-2">
                 <small class="text-white opacity-75">
-                    <i class="fas fa-info-circle me-1"></i>Hiển thị tất cả {{ overdue_unpaid_guests|length }} khách chưa thu tiền
+                    <i class="fas fa-info-circle me-1"></i>Click tiêu đề để xem toàn màn hình {{ overdue_unpaid_guests|length }} khách
                 </small>
             </div>
             {% endif %}
@@ -1513,6 +1527,135 @@
         </div>
     </div>
     {% endif %}
+
+    <!-- 🔍 FULL-SCREEN MODAL FOR UNPAID CUSTOMERS -->
+    <div class="modal fade" id="unpaidFullScreenModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-fullscreen">
+            <div class="modal-content" style="background: linear-gradient(135deg, #fff5f5 0%, #ffe6e6 100%);">
+                <div class="modal-header border-0" style="background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%);">
+                    <div class="d-flex align-items-center gap-3 w-100">
+                        <h4 class="modal-title text-white fw-bold mb-0">
+                            <i class="fas fa-exclamation-triangle me-2"></i>⚠️ KHÁCH CHƯA THU TIỀN
+                        </h4>
+                        <div class="badge bg-white text-danger fs-6 px-3 py-2">
+                            <span id="fullscreenUnpaidCount">{{ overdue_unpaid_guests|length }}</span> khách
+                        </div>
+                        <div class="badge bg-white text-danger fs-6 px-3 py-2">
+                            <span id="fullscreenUnpaidTotal">{{ "{:,.0f}".format(overdue_total_amount if overdue_total_amount else 0) }}</span>đ
+                        </div>
+                    </div>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-4" style="overflow-y: auto; max-height: calc(100vh - 100px);">
+                    <!-- Grid Layout for Maximum Visibility -->
+                    <div class="row g-3" id="unpaidFullScreenGrid">
+                        {% for guest in overdue_unpaid_guests %}
+                        {% set booking_id = guest.get('Số đặt phòng', '') %}
+                        {% set guest_name = guest.get('Tên người đặt', 'N/A') %}
+                        {% set commission = guest.get('Hoa hồng', 0) or 0 %}
+                        {% set room_amount = guest.get('calculated_room_fee', 0) or guest.get('Tổng thanh toán', 0) or 0 %}
+                        {% set taxi_amount = guest.get('calculated_taxi_fee', 0) or 0 %}
+                        {% set total_amount = room_amount + taxi_amount %}
+                        {% set raw_collected = guest.get('Số tiền đã thu', 0) or 0 %}
+                        {% set collector = guest.get('Người thu tiền', '') or '' %}
+                        {% set has_valid_collector = collector in ['LOC LE', 'THAO LE'] %}
+                        {% set collected = has_valid_collector and raw_collected or 0 %}
+                        {% set remaining = total_amount - collected %}
+                        {% set commission_status = guest.get('commission_status', 'pending') %}
+                        {% set room_name = guest.get('room_name', '') or guest.get('Tên chỗ nghỉ', '') %}
+
+                        <div class="col-12 col-md-6 col-lg-4 col-xl-3">
+                            <div class="card h-100 shadow-sm border-0" style="border-left: 4px solid #ff6b6b !important;">
+                                <div class="card-body p-3">
+                                    <!-- Guest Name & Room -->
+                                    <div class="d-flex justify-content-between align-items-start mb-2">
+                                        <h6 class="fw-bold mb-0 text-dark">{{ guest_name }}</h6>
+                                        {% if room_name == 'hang be 101' %}
+                                        <span class="badge bg-success" style="font-size: 9px;">🟢 101</span>
+                                        {% elif room_name == 'hang be 102' %}
+                                        <span class="badge bg-info" style="font-size: 9px;">🔵 102</span>
+                                        {% elif room_name == '118 hang bac' or room_name == '118 Hang Bac Hostel' %}
+                                        <span class="badge bg-primary" style="font-size: 9px;">🏨 118</span>
+                                        {% endif %}
+                                    </div>
+
+                                    <!-- Dates -->
+                                    <div class="text-muted small mb-2">
+                                        <div>
+                                            <i class="fas fa-sign-in-alt me-1"></i>
+                                            {% if guest.get('Check-in Date') %}
+                                                {% set checkin_date = guest['Check-in Date'] %}
+                                                {% if checkin_date is string and checkin_date|length >= 10 %}
+                                                    {{ checkin_date[8:10] }}/{{ checkin_date[5:7] }}
+                                                {% else %}
+                                                    {{ checkin_date.strftime('%d/%m') if checkin_date else 'N/A' }}
+                                                {% endif %}
+                                            {% endif %}
+                                            →
+                                            <i class="fas fa-sign-out-alt me-1"></i>
+                                            {% if guest.get('Check-out Date') %}
+                                                {% set checkout_date = guest['Check-out Date'] %}
+                                                {% if checkout_date is string and checkout_date|length >= 10 %}
+                                                    {{ checkout_date[8:10] }}/{{ checkout_date[5:7] }}
+                                                {% else %}
+                                                    {{ checkout_date.strftime('%d/%m') if checkout_date else 'N/A' }}
+                                                {% endif %}
+                                            {% endif %}
+                                            <span class="badge bg-danger ms-1" style="font-size: 9px;">{{ guest.get('days_overdue', 0) }}d</span>
+                                        </div>
+                                    </div>
+
+                                    <!-- Amount -->
+                                    <div class="mb-3">
+                                        {% if has_valid_collector and collected > 0 %}
+                                            <div class="fw-bold text-success">
+                                                <i class="fas fa-check-circle me-1"></i>{{ "{:,.0f}".format(collected) }}đ
+                                            </div>
+                                            {% if remaining > 0 %}
+                                                <div class="fw-bold text-danger">
+                                                    <i class="fas fa-exclamation-circle me-1"></i>Còn: {{ "{:,.0f}".format(remaining) }}đ
+                                                </div>
+                                            {% endif %}
+                                        {% else %}
+                                            <div class="fw-bold text-danger h5 mb-0">
+                                                {{ "{:,.0f}".format(total_amount) }}đ
+                                            </div>
+                                        {% endif %}
+                                        <small class="text-muted">ID: {{ booking_id }}</small>
+                                    </div>
+
+                                    <!-- Status & Actions -->
+                                    {% if has_valid_collector and collected > 0 and commission_status == 'pending' %}
+                                        <div class="d-grid gap-2">
+                                            <span class="badge bg-warning text-dark">
+                                                <i class="fas fa-hourglass-half me-1"></i>Chờ quyết định HH
+                                            </span>
+                                            <button class="btn btn-sm btn-primary"
+                                                    onclick="quickCommissionDecision('{{ booking_id }}', '{{ guest_name|replace("'", "\\'") }}', {{ commission }})">
+                                                <i class="fas fa-bolt me-1"></i>Quyết định HH
+                                            </button>
+                                        </div>
+                                    {% else %}
+                                        <div class="d-grid gap-2">
+                                            <button class="btn btn-sm btn-danger"
+                                                    onclick="openEditCollectedModal('{{ booking_id }}', '{{ guest_name|replace("'", "\\'") }}', {{ total_amount }}, {{ collected }}, '{{ collector }}')">
+                                                <i class="fas fa-money-bill-wave me-1"></i>Thu tiền
+                                            </button>
+                                            <button class="btn btn-sm btn-outline-secondary"
+                                                    onclick="openCollectModal('{{ booking_id }}', '{{ guest_name|replace("'", "\\'") }}', {{ total_amount }}, {{ commission }}, {{ room_amount }}, {{ taxi_amount }}, {{ collected }}, '{{ collector }}', '')">
+                                                <i class="fas fa-eye me-1"></i>Chi tiết
+                                            </button>
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <!-- ⚠️ CẢNH BÁO NGÀY QUÁ TẢI (QUÁ 4 KHÁCH) -->
     {% if overcrowded_days and overcrowded_days|length > 0 %}
@@ -3967,6 +4110,14 @@ window.getApartmentClass = function(roomName) {
 
 // ==================== COMMISSION DECISION FUNCTION - PRIORITY LOAD ====================
 // CRITICAL: Load this function FIRST so HTML buttons can call it immediately
+// ==================== UNPAID FULL-SCREEN MODAL - PRIORITY LOAD ====================
+// Opens full-screen view of all unpaid customers
+window.openUnpaidFullScreen = function() {
+    console.log('🔍 [UNPAID_FULLSCREEN] Opening full-screen modal');
+    const modal = new bootstrap.Modal(document.getElementById('unpaidFullScreenModal'));
+    modal.show();
+}
+
 window.quickCommissionDecision = async function(bookingId, guestName, commissionAmount) {
     console.log('⚡ [COMMISSION_DECISION] Called for:', {bookingId, guestName, commissionAmount});
 
