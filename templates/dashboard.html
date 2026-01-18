@@ -1528,126 +1528,200 @@
     </div>
     {% endif %}
 
-    <!-- 🔍 FULL-SCREEN MODAL FOR UNPAID CUSTOMERS - BUSINESS VERTICAL VIEW -->
+    <!-- 🔍 FULL-SCREEN MODAL FOR UNPAID CUSTOMERS - ULTRA COMPACT CATEGORIZED LIST -->
     <div class="modal fade" id="unpaidFullScreenModal" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-fullscreen">
-            <div class="modal-content" style="background: white;">
-                <div class="modal-header bg-white border-bottom">
+            <div class="modal-content" style="background: #f5f5f5;">
+                <div class="modal-header bg-white border-bottom py-2">
                     <div class="d-flex align-items-center gap-2">
-                        <h6 class="mb-0 text-dark fw-bold">KHÁCH CHƯA THU</h6>
-                        <small class="text-muted">{{ overdue_unpaid_guests|length }} khách | {{ "{:,.0f}".format(overdue_total_amount if overdue_total_amount else 0) }}đ</small>
+                        <h6 class="mb-0 fw-bold">KHÁCH CHƯA THU</h6>
+                        <small class="text-muted">{{ overdue_unpaid_guests|length }} khách</small>
                     </div>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    <button type="button" class="btn-close btn-sm" data-bs-dismiss="modal"></button>
                 </div>
-                <div class="modal-body p-2" style="background: #fafafa;">
-                    <!-- Simple Search -->
-                    <div class="mb-2 px-2">
-                        <input type="text" class="form-control form-control-sm" placeholder="Tìm tên khách..." id="unpaidCompactSearch" onkeyup="searchUnpaidCompact()" style="max-width: 300px;">
-                    </div>
+                <div class="modal-body p-2">
+                    <input type="text" class="form-control form-control-sm mb-2" placeholder="Tìm tên..." id="unpaidListSearch" onkeyup="searchUnpaidList()" style="max-width: 250px;">
 
-                    <!-- Compact Vertical Cards Grid -->
-                    <div style="overflow-y: auto; max-height: calc(100vh - 140px);">
-                        <div class="row g-2" id="unpaidCompactGrid">
+                    <div style="overflow-y: auto; max-height: calc(100vh - 130px);">
+                        {% set not_collected = [] %}
+                        {% set pending_commission = [] %}
+                        {% set collected_done = [] %}
                         {% for guest in overdue_unpaid_guests %}
-                        {% set booking_id = guest.get('Số đặt phòng', '') %}
-                        {% set guest_name = guest.get('Tên người đặt', 'N/A') %}
-                        {% set commission = guest.get('Hoa hồng', 0) or 0 %}
-                        {% set room_amount = guest.get('calculated_room_fee', 0) or guest.get('Tổng thanh toán', 0) or 0 %}
-                        {% set taxi_amount = guest.get('calculated_taxi_fee', 0) or 0 %}
-                        {% set total_amount = room_amount + taxi_amount %}
-                        {% set raw_collected = guest.get('Số tiền đã thu', 0) or 0 %}
-                        {% set collector = guest.get('Người thu tiền', '') or '' %}
-                        {% set has_valid_collector = collector in ['LOC LE', 'THAO LE'] %}
-                        {% set collected = has_valid_collector and raw_collected or 0 %}
-                        {% set remaining = total_amount - collected %}
-                        {% set commission_status = guest.get('commission_status', 'pending') %}
-                        {% set room_name = guest.get('room_name', '') or guest.get('Tên chỗ nghỉ', '') %}
-                        {% set days_overdue = guest.get('days_overdue', 0) %}
-                            <div class="col-12 col-md-6 col-lg-4 col-xl-3 unpaid-compact-card"
-                                 data-guest-name="{{ guest_name|lower }}"
-                                 data-booking-id="{{ booking_id }}">
-                                <div class="card border-0 shadow-sm h-100" style="font-size: 12px; {% if days_overdue >= 7 %}border-left: 3px solid #dc3545 !important;{% elif days_overdue >= 3 %}border-left: 3px solid #ffc107 !important;{% endif %}">
-                                    <div class="card-body p-2">
-                                        <!-- Customer Name - PROMINENT -->
-                                        <div class="fw-bold text-dark mb-1" style="font-size: 14px;">{{ guest_name }}</div>
+                            {% set raw_collected = guest.get('Số tiền đã thu', 0) or 0 %}
+                            {% set collector = guest.get('Người thu tiền', '') or '' %}
+                            {% set has_valid_collector = collector in ['LOC LE', 'THAO LE'] %}
+                            {% set collected = has_valid_collector and raw_collected or 0 %}
+                            {% set commission_status = guest.get('commission_status', 'pending') %}
+                            {% if collected == 0 %}
+                                {% set _ = not_collected.append(guest) %}
+                            {% elif has_valid_collector and collected > 0 and commission_status == 'pending' %}
+                                {% set _ = pending_commission.append(guest) %}
+                            {% else %}
+                                {% set _ = collected_done.append(guest) %}
+                            {% endif %}
+                        {% endfor %}
 
-                                        <!-- Compact Info Stacked Vertically -->
-                                        <div class="d-flex justify-content-between align-items-center mb-1">
-                                            <small class="text-muted">Phòng:</small>
-                                            {% if room_name == 'hang be 101' %}
-                                            <span class="badge bg-success" style="font-size: 9px;">101</span>
-                                            {% elif room_name == 'hang be 102' %}
-                                            <span class="badge bg-info" style="font-size: 9px;">102</span>
-                                            {% elif room_name == '118 hang bac' or room_name == '118 Hang Bac Hostel' %}
-                                            <span class="badge bg-primary" style="font-size: 9px;">118</span>
-                                            {% else %}
-                                            <small class="text-dark">{{ room_name[:12] }}</small>
-                                            {% endif %}
-                                        </div>
-
-                                        <div class="d-flex justify-content-between align-items-center mb-1">
-                                            <small class="text-muted">Ngày:</small>
-                                            <small class="text-dark">
-                                                {% if guest.get('Check-in Date') %}
-                                                    {% set checkin_date = guest['Check-in Date'] %}
-                                                    {% if checkin_date is string and checkin_date|length >= 10 %}
-                                                        {{ checkin_date[8:10] }}/{{ checkin_date[5:7] }}
-                                                    {% else %}
-                                                        {{ checkin_date.strftime('%d/%m') if checkin_date else 'N/A' }}
-                                                    {% endif %}
-                                                {% endif %}
-                                                →
-                                                {% if guest.get('Check-out Date') %}
-                                                    {% set checkout_date = guest['Check-out Date'] %}
-                                                    {% if checkout_date is string and checkout_date|length >= 10 %}
-                                                        {{ checkout_date[8:10] }}/{{ checkout_date[5:7] }}
-                                                    {% else %}
-                                                        {{ checkout_date.strftime('%d/%m') if checkout_date else 'N/A' }}
-                                                    {% endif %}
-                                                {% endif %}
-                                            </small>
-                                        </div>
-
-                                        <div class="d-flex justify-content-between align-items-center mb-1">
-                                            <small class="text-muted">Quá hạn:</small>
-                                            <span class="badge {% if days_overdue >= 7 %}bg-danger{% elif days_overdue >= 3 %}bg-warning text-dark{% else %}bg-secondary{% endif %}" style="font-size: 9px;">{{ days_overdue }}d</span>
-                                        </div>
-
-                                        <div class="d-flex justify-content-between align-items-center mb-1">
-                                            <small class="text-muted">Tổng:</small>
-                                            <span class="fw-semibold text-dark">{{ "{:,.0f}".format(total_amount) }}đ</span>
-                                        </div>
-
-                                        <div class="d-flex justify-content-between align-items-center mb-2">
-                                            <small class="text-muted">Đã thu:</small>
-                                            <span class="{% if collected > 0 %}text-success fw-semibold{% else %}text-muted{% endif %}">{{ "{:,.0f}".format(collected) }}đ</span>
-                                        </div>
-
-                                        <div class="border-top pt-2">
-                                            <small class="text-muted d-block mb-1">ID: {{ booking_id }}</small>
-                                            {% if has_valid_collector and collected > 0 and commission_status == 'pending' %}
-                                            <button class="btn btn-primary btn-sm w-100 py-1" style="font-size: 11px;"
-                                                    onclick="quickCommissionDecision('{{ booking_id }}', '{{ guest_name|replace("'", "\\'") }}', {{ commission }})">
-                                                Quyết định HH
-                                            </button>
-                                            {% else %}
-                                            <div class="d-flex gap-1">
-                                                <button class="btn btn-dark btn-sm flex-fill py-1" style="font-size: 11px;"
-                                                        onclick="openEditCollectedModal('{{ booking_id }}', '{{ guest_name|replace("'", "\\'") }}', {{ total_amount }}, {{ collected }}, '{{ collector }}')">
-                                                    Thu tiền
-                                                </button>
-                                                <button class="btn btn-outline-secondary btn-sm py-1 px-2" style="font-size: 11px;"
-                                                        onclick="openCollectModal('{{ booking_id }}', '{{ guest_name|replace("'", "\\'") }}', {{ total_amount }}, {{ commission }}, {{ room_amount }}, {{ taxi_amount }}, {{ collected }}, '{{ collector }}', '')">
-                                                    <i class="fas fa-eye"></i>
-                                                </button>
-                                            </div>
-                                            {% endif %}
-                                        </div>
+                        <!-- CATEGORY 1: CHƯA THU -->
+                        {% if not_collected|length > 0 %}
+                        <div class="mb-3">
+                            <div class="bg-danger text-white px-2 py-1 mb-1" style="font-size: 11px; font-weight: 600;">
+                                🔴 CHƯA THU ({{ not_collected|length }})
+                            </div>
+                            {% for guest in not_collected %}
+                            {% set booking_id = guest.get('Số đặt phòng', '') %}
+                            {% set guest_name = guest.get('Tên người đặt', 'N/A') %}
+                            {% set commission = guest.get('Hoa hồng', 0) or 0 %}
+                            {% set room_amount = guest.get('calculated_room_fee', 0) or guest.get('Tổng thanh toán', 0) or 0 %}
+                            {% set taxi_amount = guest.get('calculated_taxi_fee', 0) or 0 %}
+                            {% set total_amount = room_amount + taxi_amount %}
+                            {% set room_name = guest.get('room_name', '') or guest.get('Tên chỗ nghỉ', '') %}
+                            {% set days_overdue = guest.get('days_overdue', 0) %}
+                            {% set checkin = guest.get('Check-in Date', '') %}
+                            {% set checkout = guest.get('Check-out Date', '') %}
+                            <div class="bg-white border-bottom unpaid-list-item p-2" data-guest-name="{{ guest_name|lower }}" data-booking-id="{{ booking_id }}" style="{% if days_overdue >= 7 %}background: #fff5f5 !important;{% elif days_overdue >= 3 %}background: #fffbf0 !important;{% endif %}">
+                                <div class="d-flex align-items-center gap-2">
+                                    <div style="flex: 0 0 200px;">
+                                        <div class="fw-bold" style="font-size: 13px;">{{ guest_name }}</div>
+                                        <small class="text-muted" style="font-size: 10px;">{{ booking_id }}</small>
+                                    </div>
+                                    <div style="flex: 0 0 60px;">
+                                        {% if room_name == 'hang be 101' %}<span class="badge bg-success" style="font-size: 9px;">101</span>
+                                        {% elif room_name == 'hang be 102' %}<span class="badge bg-info" style="font-size: 9px;">102</span>
+                                        {% elif room_name == '118 hang bac' or room_name == '118 Hang Bac Hostel' %}<span class="badge bg-primary" style="font-size: 9px;">118</span>
+                                        {% else %}<small style="font-size: 10px;">{{ room_name[:8] }}</small>{% endif %}
+                                    </div>
+                                    <div style="flex: 0 0 80px; font-size: 10px;">
+                                        {% if checkin is string and checkin|length >= 10 %}{{ checkin[8:10] }}/{{ checkin[5:7] }}
+                                        {% else %}{{ checkin.strftime('%d/%m') if checkin else '' }}{% endif %}
+                                        →
+                                        {% if checkout is string and checkout|length >= 10 %}{{ checkout[8:10] }}/{{ checkout[5:7] }}
+                                        {% else %}{{ checkout.strftime('%d/%m') if checkout else '' }}{% endif %}
+                                    </div>
+                                    <div style="flex: 0 0 50px;">
+                                        <span class="badge {% if days_overdue >= 7 %}bg-danger{% elif days_overdue >= 3 %}bg-warning text-dark{% else %}bg-secondary{% endif %}" style="font-size: 9px;">{{ days_overdue }}d</span>
+                                    </div>
+                                    <div style="flex: 0 0 100px; font-size: 12px; font-weight: 600; text-align: right;">
+                                        {{ "{:,.0f}".format(total_amount) }}đ
+                                    </div>
+                                    <div style="flex: 1;"></div>
+                                    <div style="flex: 0 0 140px;">
+                                        <button class="btn btn-dark btn-sm w-100" style="font-size: 10px; padding: 3px 6px;"
+                                                onclick="openEditCollectedModal('{{ booking_id }}', '{{ guest_name|replace("'", "\\'") }}', {{ total_amount }}, 0, '')">
+                                            Thu tiền
+                                        </button>
                                     </div>
                                 </div>
                             </div>
-                        {% endfor %}
+                            {% endfor %}
                         </div>
+                        {% endif %}
+
+                        <!-- CATEGORY 2: CHỜ QUYẾT ĐỊNH HH -->
+                        {% if pending_commission|length > 0 %}
+                        <div class="mb-3">
+                            <div class="bg-warning text-dark px-2 py-1 mb-1" style="font-size: 11px; font-weight: 600;">
+                                ⏳ CHỜ QUYẾT ĐỊNH HOA HỒNG ({{ pending_commission|length }})
+                            </div>
+                            {% for guest in pending_commission %}
+                            {% set booking_id = guest.get('Số đặt phòng', '') %}
+                            {% set guest_name = guest.get('Tên người đặt', 'N/A') %}
+                            {% set commission = guest.get('Hoa hồng', 0) or 0 %}
+                            {% set room_amount = guest.get('calculated_room_fee', 0) or guest.get('Tổng thanh toán', 0) or 0 %}
+                            {% set taxi_amount = guest.get('calculated_taxi_fee', 0) or 0 %}
+                            {% set total_amount = room_amount + taxi_amount %}
+                            {% set raw_collected = guest.get('Số tiền đã thu', 0) or 0 %}
+                            {% set collector = guest.get('Người thu tiền', '') or '' %}
+                            {% set has_valid_collector = collector in ['LOC LE', 'THAO LE'] %}
+                            {% set collected = has_valid_collector and raw_collected or 0 %}
+                            {% set room_name = guest.get('room_name', '') or guest.get('Tên chỗ nghỉ', '') %}
+                            {% set days_overdue = guest.get('days_overdue', 0) %}
+                            {% set checkin = guest.get('Check-in Date', '') %}
+                            {% set checkout = guest.get('Check-out Date', '') %}
+                            <div class="bg-white border-bottom unpaid-list-item p-2" data-guest-name="{{ guest_name|lower }}" data-booking-id="{{ booking_id }}">
+                                <div class="d-flex align-items-center gap-2">
+                                    <div style="flex: 0 0 200px;">
+                                        <div class="fw-bold" style="font-size: 13px;">{{ guest_name }}</div>
+                                        <small class="text-muted" style="font-size: 10px;">{{ booking_id }}</small>
+                                    </div>
+                                    <div style="flex: 0 0 60px;">
+                                        {% if room_name == 'hang be 101' %}<span class="badge bg-success" style="font-size: 9px;">101</span>
+                                        {% elif room_name == 'hang be 102' %}<span class="badge bg-info" style="font-size: 9px;">102</span>
+                                        {% elif room_name == '118 hang bac' or room_name == '118 Hang Bac Hostel' %}<span class="badge bg-primary" style="font-size: 9px;">118</span>
+                                        {% else %}<small style="font-size: 10px;">{{ room_name[:8] }}</small>{% endif %}
+                                    </div>
+                                    <div style="flex: 0 0 80px; font-size: 10px;">
+                                        {% if checkin is string and checkin|length >= 10 %}{{ checkin[8:10] }}/{{ checkin[5:7] }}
+                                        {% else %}{{ checkin.strftime('%d/%m') if checkin else '' }}{% endif %}
+                                        →
+                                        {% if checkout is string and checkout|length >= 10 %}{{ checkout[8:10] }}/{{ checkout[5:7] }}
+                                        {% else %}{{ checkout.strftime('%d/%m') if checkout else '' }}{% endif %}
+                                    </div>
+                                    <div style="flex: 0 0 50px;">
+                                        <span class="badge bg-secondary" style="font-size: 9px;">{{ days_overdue }}d</span>
+                                    </div>
+                                    <div style="flex: 0 0 100px; font-size: 11px; text-align: right;">
+                                        <span class="text-success fw-semibold">{{ "{:,.0f}".format(collected) }}đ</span>
+                                    </div>
+                                    <div style="flex: 1;"></div>
+                                    <div style="flex: 0 0 140px;">
+                                        <button class="btn btn-primary btn-sm w-100" style="font-size: 10px; padding: 3px 6px;"
+                                                onclick="quickCommissionDecision('{{ booking_id }}', '{{ guest_name|replace("'", "\\'") }}', {{ commission }})">
+                                            Quyết định HH
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+
+                        <!-- CATEGORY 3: ĐÃ THU -->
+                        {% if collected_done|length > 0 %}
+                        <div class="mb-3">
+                            <div class="bg-success text-white px-2 py-1 mb-1" style="font-size: 11px; font-weight: 600;">
+                                ✅ ĐÃ THU ({{ collected_done|length }})
+                            </div>
+                            {% for guest in collected_done %}
+                            {% set booking_id = guest.get('Số đặt phòng', '') %}
+                            {% set guest_name = guest.get('Tên người đặt', 'N/A') %}
+                            {% set raw_collected = guest.get('Số tiền đã thu', 0) or 0 %}
+                            {% set collector = guest.get('Người thu tiền', '') or '' %}
+                            {% set has_valid_collector = collector in ['LOC LE', 'THAO LE'] %}
+                            {% set collected = has_valid_collector and raw_collected or 0 %}
+                            {% set room_name = guest.get('room_name', '') or guest.get('Tên chỗ nghỉ', '') %}
+                            {% set checkin = guest.get('Check-in Date', '') %}
+                            {% set checkout = guest.get('Check-out Date', '') %}
+                            <div class="bg-white border-bottom unpaid-list-item p-2" data-guest-name="{{ guest_name|lower }}" data-booking-id="{{ booking_id }}" style="opacity: 0.7;">
+                                <div class="d-flex align-items-center gap-2">
+                                    <div style="flex: 0 0 200px;">
+                                        <div class="fw-bold" style="font-size: 13px;">{{ guest_name }}</div>
+                                        <small class="text-muted" style="font-size: 10px;">{{ booking_id }}</small>
+                                    </div>
+                                    <div style="flex: 0 0 60px;">
+                                        {% if room_name == 'hang be 101' %}<span class="badge bg-success" style="font-size: 9px;">101</span>
+                                        {% elif room_name == 'hang be 102' %}<span class="badge bg-info" style="font-size: 9px;">102</span>
+                                        {% elif room_name == '118 hang bac' or room_name == '118 Hang Bac Hostel' %}<span class="badge bg-primary" style="font-size: 9px;">118</span>
+                                        {% else %}<small style="font-size: 10px;">{{ room_name[:8] }}</small>{% endif %}
+                                    </div>
+                                    <div style="flex: 0 0 80px; font-size: 10px;">
+                                        {% if checkin is string and checkin|length >= 10 %}{{ checkin[8:10] }}/{{ checkin[5:7] }}
+                                        {% else %}{{ checkin.strftime('%d/%m') if checkin else '' }}{% endif %}
+                                        →
+                                        {% if checkout is string and checkout|length >= 10 %}{{ checkout[8:10] }}/{{ checkout[5:7] }}
+                                        {% else %}{{ checkout.strftime('%d/%m') if checkout else '' }}{% endif %}
+                                    </div>
+                                    <div style="flex: 0 0 100px; font-size: 11px; text-align: right;">
+                                        <span class="text-success fw-semibold">{{ "{:,.0f}".format(collected) }}đ</span>
+                                    </div>
+                                    <div style="flex: 1;"></div>
+                                    <div style="flex: 0 0 140px; text-align: center;">
+                                        <small class="text-success" style="font-size: 10px;">✓ Hoàn thành</small>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
                     </div>
                 </div>
             </div>
@@ -4107,27 +4181,27 @@ window.getApartmentClass = function(roomName) {
 
 // ==================== COMMISSION DECISION FUNCTION - PRIORITY LOAD ====================
 // CRITICAL: Load this function FIRST so HTML buttons can call it immediately
-// ==================== UNPAID COMPACT VIEW - PRIORITY LOAD ====================
-// Opens full-screen compact vertical card view of all unpaid customers
+// ==================== UNPAID LIST VIEW - PRIORITY LOAD ====================
+// Opens full-screen categorized list view of all unpaid customers
 window.openUnpaidFullScreen = function() {
-    console.log('🔍 [UNPAID_COMPACT] Opening full-screen modal');
+    console.log('🔍 [UNPAID_LIST] Opening full-screen modal');
     const modal = new bootstrap.Modal(document.getElementById('unpaidFullScreenModal'));
     modal.show();
 }
 
-// Search unpaid compact cards
-window.searchUnpaidCompact = function() {
-    const searchTerm = document.getElementById('unpaidCompactSearch').value.toLowerCase();
-    console.log('🔍 [SEARCH_COMPACT] Searching for:', searchTerm);
+// Search unpaid list items
+window.searchUnpaidList = function() {
+    const searchTerm = document.getElementById('unpaidListSearch').value.toLowerCase();
+    console.log('🔍 [SEARCH_LIST] Searching for:', searchTerm);
 
-    const cards = document.querySelectorAll('.unpaid-compact-card');
+    const items = document.querySelectorAll('.unpaid-list-item');
 
-    cards.forEach(card => {
-        const guestName = card.getAttribute('data-guest-name');
-        const bookingId = card.getAttribute('data-booking-id');
+    items.forEach(item => {
+        const guestName = item.getAttribute('data-guest-name');
+        const bookingId = item.getAttribute('data-booking-id');
         const matches = guestName.includes(searchTerm) || bookingId.includes(searchTerm);
 
-        card.style.display = (searchTerm && !matches) ? 'none' : '';
+        item.style.display = (searchTerm && !matches) ? 'none' : '';
     });
 }
 
