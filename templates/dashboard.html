@@ -1580,31 +1580,39 @@
                             {% set checkout = guest.get('Check-out Date', '') %}
                             <div class="bg-white border-bottom unpaid-list-item p-2" data-guest-name="{{ guest_name|lower }}" data-booking-id="{{ booking_id }}" style="{% if days_overdue >= 7 %}background: #fff5f5 !important;{% elif days_overdue >= 3 %}background: #fffbf0 !important;{% endif %}">
                                 <div class="d-flex align-items-center gap-2">
-                                    <div style="flex: 0 0 200px;">
+                                    <div style="flex: 0 0 180px;">
                                         <div class="fw-bold" style="font-size: 13px;">{{ guest_name }}</div>
                                         <small class="text-muted" style="font-size: 10px;">{{ booking_id }}</small>
                                     </div>
-                                    <div style="flex: 0 0 60px;">
+                                    <div style="flex: 0 0 50px;">
                                         {% if room_name == 'hang be 101' %}<span class="badge bg-success" style="font-size: 9px;">101</span>
                                         {% elif room_name == 'hang be 102' %}<span class="badge bg-info" style="font-size: 9px;">102</span>
                                         {% elif room_name == '118 hang bac' or room_name == '118 Hang Bac Hostel' %}<span class="badge bg-primary" style="font-size: 9px;">118</span>
-                                        {% else %}<small style="font-size: 10px;">{{ room_name[:8] }}</small>{% endif %}
+                                        {% else %}<small style="font-size: 10px;">{{ room_name[:6] }}</small>{% endif %}
                                     </div>
-                                    <div style="flex: 0 0 80px; font-size: 10px;">
+                                    <div style="flex: 0 0 75px; font-size: 10px;">
                                         {% if checkin is string and checkin|length >= 10 %}{{ checkin[8:10] }}/{{ checkin[5:7] }}
                                         {% else %}{{ checkin.strftime('%d/%m') if checkin else '' }}{% endif %}
                                         →
                                         {% if checkout is string and checkout|length >= 10 %}{{ checkout[8:10] }}/{{ checkout[5:7] }}
                                         {% else %}{{ checkout.strftime('%d/%m') if checkout else '' }}{% endif %}
                                     </div>
-                                    <div style="flex: 0 0 50px;">
+                                    <div style="flex: 0 0 45px;">
                                         <span class="badge {% if days_overdue >= 7 %}bg-danger{% elif days_overdue >= 3 %}bg-warning text-dark{% else %}bg-secondary{% endif %}" style="font-size: 9px;">{{ days_overdue }}d</span>
                                     </div>
-                                    <div style="flex: 0 0 100px; font-size: 12px; font-weight: 600; text-align: right;">
-                                        {{ "{:,.0f}".format(total_amount) }}đ
+                                    <div style="flex: 0 0 90px; text-align: right;">
+                                        <small class="text-muted" style="font-size: 9px;">Tổng</small>
+                                        <div style="font-size: 12px; font-weight: 600;">{{ "{:,.0f}".format(total_amount) }}đ</div>
                                     </div>
-                                    <div style="flex: 1;"></div>
-                                    <div style="flex: 0 0 140px;">
+                                    <div style="flex: 0 0 90px; text-align: right;">
+                                        <small class="text-muted" style="font-size: 9px;">Đã thu</small>
+                                        <div style="font-size: 11px; color: #999;">0đ</div>
+                                    </div>
+                                    <div style="flex: 0 0 90px; text-align: right;">
+                                        <small class="text-muted" style="font-size: 9px;">Còn lại</small>
+                                        <div style="font-size: 12px; font-weight: 600; color: #dc3545;">{{ "{:,.0f}".format(total_amount) }}đ</div>
+                                    </div>
+                                    <div style="flex: 0 0 120px;">
                                         <button class="btn btn-dark btn-sm w-100" style="font-size: 10px; padding: 3px 6px;"
                                                 onclick="openEditCollectedModal('{{ booking_id }}', '{{ guest_name|replace("'", "\\'") }}', {{ total_amount }}, 0, '')">
                                             Thu tiền
@@ -1639,31 +1647,39 @@
                             {% set checkout = guest.get('Check-out Date', '') %}
                             <div class="bg-white border-bottom unpaid-list-item p-2" data-guest-name="{{ guest_name|lower }}" data-booking-id="{{ booking_id }}">
                                 <div class="d-flex align-items-center gap-2">
-                                    <div style="flex: 0 0 200px;">
+                                    <div style="flex: 0 0 180px;">
                                         <div class="fw-bold" style="font-size: 13px;">{{ guest_name }}</div>
                                         <small class="text-muted" style="font-size: 10px;">{{ booking_id }}</small>
                                     </div>
-                                    <div style="flex: 0 0 60px;">
+                                    <div style="flex: 0 0 50px;">
                                         {% if room_name == 'hang be 101' %}<span class="badge bg-success" style="font-size: 9px;">101</span>
                                         {% elif room_name == 'hang be 102' %}<span class="badge bg-info" style="font-size: 9px;">102</span>
                                         {% elif room_name == '118 hang bac' or room_name == '118 Hang Bac Hostel' %}<span class="badge bg-primary" style="font-size: 9px;">118</span>
-                                        {% else %}<small style="font-size: 10px;">{{ room_name[:8] }}</small>{% endif %}
+                                        {% else %}<small style="font-size: 10px;">{{ room_name[:6] }}</small>{% endif %}
                                     </div>
-                                    <div style="flex: 0 0 80px; font-size: 10px;">
+                                    <div style="flex: 0 0 75px; font-size: 10px;">
                                         {% if checkin is string and checkin|length >= 10 %}{{ checkin[8:10] }}/{{ checkin[5:7] }}
                                         {% else %}{{ checkin.strftime('%d/%m') if checkin else '' }}{% endif %}
                                         →
                                         {% if checkout is string and checkout|length >= 10 %}{{ checkout[8:10] }}/{{ checkout[5:7] }}
                                         {% else %}{{ checkout.strftime('%d/%m') if checkout else '' }}{% endif %}
                                     </div>
-                                    <div style="flex: 0 0 50px;">
+                                    <div style="flex: 0 0 45px;">
                                         <span class="badge bg-secondary" style="font-size: 9px;">{{ days_overdue }}d</span>
                                     </div>
-                                    <div style="flex: 0 0 100px; font-size: 11px; text-align: right;">
-                                        <span class="text-success fw-semibold">{{ "{:,.0f}".format(collected) }}đ</span>
+                                    <div style="flex: 0 0 90px; text-align: right;">
+                                        <small class="text-muted" style="font-size: 9px;">Tổng</small>
+                                        <div style="font-size: 12px; font-weight: 600;">{{ "{:,.0f}".format(total_amount) }}đ</div>
                                     </div>
-                                    <div style="flex: 1;"></div>
-                                    <div style="flex: 0 0 140px;">
+                                    <div style="flex: 0 0 90px; text-align: right;">
+                                        <small class="text-muted" style="font-size: 9px;">Đã thu</small>
+                                        <div style="font-size: 11px; color: #28a745; font-weight: 600;">{{ "{:,.0f}".format(collected) }}đ</div>
+                                    </div>
+                                    <div style="flex: 0 0 90px; text-align: right;">
+                                        <small class="text-muted" style="font-size: 9px;">HH</small>
+                                        <div style="font-size: 11px; color: #ffc107; font-weight: 600;">{{ "{:,.0f}".format(commission) }}đ</div>
+                                    </div>
+                                    <div style="flex: 0 0 120px;">
                                         <button class="btn btn-primary btn-sm w-100" style="font-size: 10px; padding: 3px 6px;"
                                                 onclick="quickCommissionDecision('{{ booking_id }}', '{{ guest_name|replace("'", "\\'") }}', {{ commission }})">
                                             Quyết định HH
@@ -1693,29 +1709,37 @@
                             {% set checkout = guest.get('Check-out Date', '') %}
                             <div class="bg-white border-bottom unpaid-list-item p-2" data-guest-name="{{ guest_name|lower }}" data-booking-id="{{ booking_id }}" style="opacity: 0.7;">
                                 <div class="d-flex align-items-center gap-2">
-                                    <div style="flex: 0 0 200px;">
+                                    <div style="flex: 0 0 180px;">
                                         <div class="fw-bold" style="font-size: 13px;">{{ guest_name }}</div>
                                         <small class="text-muted" style="font-size: 10px;">{{ booking_id }}</small>
                                     </div>
-                                    <div style="flex: 0 0 60px;">
+                                    <div style="flex: 0 0 50px;">
                                         {% if room_name == 'hang be 101' %}<span class="badge bg-success" style="font-size: 9px;">101</span>
                                         {% elif room_name == 'hang be 102' %}<span class="badge bg-info" style="font-size: 9px;">102</span>
                                         {% elif room_name == '118 hang bac' or room_name == '118 Hang Bac Hostel' %}<span class="badge bg-primary" style="font-size: 9px;">118</span>
-                                        {% else %}<small style="font-size: 10px;">{{ room_name[:8] }}</small>{% endif %}
+                                        {% else %}<small style="font-size: 10px;">{{ room_name[:6] }}</small>{% endif %}
                                     </div>
-                                    <div style="flex: 0 0 80px; font-size: 10px;">
+                                    <div style="flex: 0 0 75px; font-size: 10px;">
                                         {% if checkin is string and checkin|length >= 10 %}{{ checkin[8:10] }}/{{ checkin[5:7] }}
                                         {% else %}{{ checkin.strftime('%d/%m') if checkin else '' }}{% endif %}
                                         →
                                         {% if checkout is string and checkout|length >= 10 %}{{ checkout[8:10] }}/{{ checkout[5:7] }}
                                         {% else %}{{ checkout.strftime('%d/%m') if checkout else '' }}{% endif %}
                                     </div>
-                                    <div style="flex: 0 0 100px; font-size: 11px; text-align: right;">
-                                        <span class="text-success fw-semibold">{{ "{:,.0f}".format(collected) }}đ</span>
+                                    <div style="flex: 0 0 45px;"></div>
+                                    <div style="flex: 0 0 90px; text-align: right;">
+                                        <small class="text-muted" style="font-size: 9px;">Đã thu</small>
+                                        <div style="font-size: 12px; color: #28a745; font-weight: 600;">{{ "{:,.0f}".format(collected) }}đ</div>
                                     </div>
-                                    <div style="flex: 1;"></div>
-                                    <div style="flex: 0 0 140px; text-align: center;">
+                                    <div style="flex: 0 0 90px; text-align: right;">
+                                        <small class="text-muted" style="font-size: 9px;">Người thu</small>
+                                        <div style="font-size: 10px; font-weight: 600;">{{ collector }}</div>
+                                    </div>
+                                    <div style="flex: 0 0 90px; text-align: center;">
                                         <small class="text-success" style="font-size: 10px;">✓ Hoàn thành</small>
+                                    </div>
+                                    <div style="flex: 0 0 120px; text-align: center;">
+                                        <small class="text-muted" style="font-size: 9px;">-</small>
                                     </div>
                                 </div>
                             </div>
