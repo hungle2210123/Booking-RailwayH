@@ -1649,37 +1649,44 @@
                                     {% set checkin = guest.get('Check-in Date', '') %}
                                     {% set checkout = guest.get('Check-out Date', '') %}
                                     <div class="bg-white border-bottom unpaid-list-item p-2 mb-1" data-guest-name="{{ guest_name|lower }}" data-booking-id="{{ booking_id }}">
-                                        <div class="d-flex align-items-center gap-1">
-                                            <div style="flex: 0 0 140px;">
-                                                <div class="fw-bold" style="font-size: 12px;">{{ guest_name }}</div>
-                                                <small class="text-muted" style="font-size: 9px;">{{ booking_id }}</small>
+                                        <div class="d-flex flex-column gap-1">
+                                            <div class="d-flex align-items-center gap-2">
+                                                <div style="flex: 0 0 160px;">
+                                                    <div class="fw-bold" style="font-size: 13px;">{{ guest_name }}</div>
+                                                    <small class="text-muted" style="font-size: 10px;">{{ booking_id }}</small>
+                                                </div>
+                                                <div style="flex: 0 0 75px; font-size: 11px;">
+                                                    {% if checkin is string and checkin|length >= 10 %}{{ checkin[8:10] }}/{{ checkin[5:7] }}
+                                                    {% else %}{{ checkin.strftime('%d/%m') if checkin else '' }}{% endif %}
+                                                    →
+                                                    {% if checkout is string and checkout|length >= 10 %}{{ checkout[8:10] }}/{{ checkout[5:7] }}
+                                                    {% else %}{{ checkout.strftime('%d/%m') if checkout else '' }}{% endif %}
+                                                </div>
+                                                <div style="flex: 0 0 100px;">
+                                                    <button class="btn btn-primary btn-sm w-100" style="font-size: 10px; padding: 3px 6px;"
+                                                            onclick="quickCommissionDecision('{{ booking_id }}', '{{ guest_name|replace("'", "\\'") }}', {{ commission }})">
+                                                        Quyết định HH
+                                                    </button>
+                                                </div>
                                             </div>
-                                            <div style="flex: 0 0 40px;">
-                                                {% if room_name == 'hang be 101' %}<span class="badge bg-success" style="font-size: 8px;">101</span>
-                                                {% elif room_name == 'hang be 102' %}<span class="badge bg-info" style="font-size: 8px;">102</span>
-                                                {% elif room_name == '118 hang bac' or room_name == '118 Hang Bac Hostel' %}<span class="badge bg-primary" style="font-size: 8px;">118</span>
-                                                {% else %}<small style="font-size: 9px;">{{ room_name[:5] }}</small>{% endif %}
-                                            </div>
-                                            <div style="flex: 0 0 65px; font-size: 9px;">
-                                                {% if checkin is string and checkin|length >= 10 %}{{ checkin[8:10] }}/{{ checkin[5:7] }}
-                                                {% else %}{{ checkin.strftime('%d/%m') if checkin else '' }}{% endif %}
-                                                →
-                                                {% if checkout is string and checkout|length >= 10 %}{{ checkout[8:10] }}/{{ checkout[5:7] }}
-                                                {% else %}{{ checkout.strftime('%d/%m') if checkout else '' }}{% endif %}
-                                            </div>
-                                            <div style="flex: 0 0 70px; text-align: right;">
-                                                <small class="text-muted" style="font-size: 8px;">Thu</small>
-                                                <div style="font-size: 10px; color: #28a745; font-weight: 600;">{{ "{:,.0f}".format(collected) }}đ</div>
-                                            </div>
-                                            <div style="flex: 0 0 70px; text-align: right;">
-                                                <small class="text-muted" style="font-size: 8px;">HH</small>
-                                                <div style="font-size: 10px; color: #ffc107; font-weight: 600;">{{ "{:,.0f}".format(commission) }}đ</div>
-                                            </div>
-                                            <div style="flex: 0 0 90px;">
-                                                <button class="btn btn-primary btn-sm w-100" style="font-size: 9px; padding: 2px 4px;"
-                                                        onclick="quickCommissionDecision('{{ booking_id }}', '{{ guest_name|replace("'", "\\'") }}', {{ commission }})">
-                                                    Quyết định
-                                                </button>
+                                            <div class="d-flex align-items-center gap-2">
+                                                <div style="flex: 0 0 160px;">
+                                                    <small class="text-muted" style="font-size: 10px;">Phòng:</small>
+                                                    <span class="fw-semibold" style="font-size: 11px;">
+                                                        {% if room_name == 'hang be 101' %}Hang Be 101
+                                                        {% elif room_name == 'hang be 102' %}Hang Be 102
+                                                        {% elif room_name == '118 hang bac' or room_name == '118 Hang Bac Hostel' %}118 Hang Bac
+                                                        {% else %}{{ room_name }}{% endif %}
+                                                    </span>
+                                                </div>
+                                                <div style="flex: 0 0 75px; text-align: right;">
+                                                    <small class="text-muted" style="font-size: 10px;">Đã thu</small>
+                                                    <div style="font-size: 11px; color: #28a745; font-weight: 600;">{{ "{:,.0f}".format(collected) }}đ</div>
+                                                </div>
+                                                <div style="flex: 0 0 100px; text-align: right;">
+                                                    <small class="text-muted" style="font-size: 10px;">Hoa hồng</small>
+                                                    <div style="font-size: 11px; color: #ffc107; font-weight: 600;">{{ "{:,.0f}".format(commission) }}đ</div>
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
@@ -1704,37 +1711,44 @@
                                     {% set checkin = guest.get('Check-in Date', '') %}
                                     {% set checkout = guest.get('Check-out Date', '') %}
                                     <div class="bg-white border-bottom unpaid-list-item p-2 mb-1" data-guest-name="{{ guest_name|lower }}" data-booking-id="{{ booking_id }}">
-                                        <div class="d-flex align-items-center gap-1">
-                                            <div style="flex: 0 0 140px;">
-                                                <div class="fw-bold" style="font-size: 12px;">{{ guest_name }}</div>
-                                                <small class="text-muted" style="font-size: 9px;">{{ booking_id }}</small>
+                                        <div class="d-flex flex-column gap-1">
+                                            <div class="d-flex align-items-center gap-2">
+                                                <div style="flex: 0 0 160px;">
+                                                    <div class="fw-bold" style="font-size: 13px;">{{ guest_name }}</div>
+                                                    <small class="text-muted" style="font-size: 10px;">{{ booking_id }}</small>
+                                                </div>
+                                                <div style="flex: 0 0 75px; font-size: 11px;">
+                                                    {% if checkin is string and checkin|length >= 10 %}{{ checkin[8:10] }}/{{ checkin[5:7] }}
+                                                    {% else %}{{ checkin.strftime('%d/%m') if checkin else '' }}{% endif %}
+                                                    →
+                                                    {% if checkout is string and checkout|length >= 10 %}{{ checkout[8:10] }}/{{ checkout[5:7] }}
+                                                    {% else %}{{ checkout.strftime('%d/%m') if checkout else '' }}{% endif %}
+                                                </div>
+                                                <div style="flex: 0 0 100px;">
+                                                    <button class="btn btn-primary btn-sm w-100" style="font-size: 10px; padding: 3px 6px;"
+                                                            onclick="quickCommissionDecision('{{ booking_id }}', '{{ guest_name|replace("'", "\\'") }}', {{ commission }})">
+                                                        Quyết định HH
+                                                    </button>
+                                                </div>
                                             </div>
-                                            <div style="flex: 0 0 40px;">
-                                                {% if room_name == 'hang be 101' %}<span class="badge bg-success" style="font-size: 8px;">101</span>
-                                                {% elif room_name == 'hang be 102' %}<span class="badge bg-info" style="font-size: 8px;">102</span>
-                                                {% elif room_name == '118 hang bac' or room_name == '118 Hang Bac Hostel' %}<span class="badge bg-primary" style="font-size: 8px;">118</span>
-                                                {% else %}<small style="font-size: 9px;">{{ room_name[:5] }}</small>{% endif %}
-                                            </div>
-                                            <div style="flex: 0 0 65px; font-size: 9px;">
-                                                {% if checkin is string and checkin|length >= 10 %}{{ checkin[8:10] }}/{{ checkin[5:7] }}
-                                                {% else %}{{ checkin.strftime('%d/%m') if checkin else '' }}{% endif %}
-                                                →
-                                                {% if checkout is string and checkout|length >= 10 %}{{ checkout[8:10] }}/{{ checkout[5:7] }}
-                                                {% else %}{{ checkout.strftime('%d/%m') if checkout else '' }}{% endif %}
-                                            </div>
-                                            <div style="flex: 0 0 70px; text-align: right;">
-                                                <small class="text-muted" style="font-size: 8px;">Thu</small>
-                                                <div style="font-size: 10px; color: #28a745; font-weight: 600;">{{ "{:,.0f}".format(collected) }}đ</div>
-                                            </div>
-                                            <div style="flex: 0 0 70px; text-align: right;">
-                                                <small class="text-muted" style="font-size: 8px;">HH</small>
-                                                <div style="font-size: 10px; color: #ffc107; font-weight: 600;">{{ "{:,.0f}".format(commission) }}đ</div>
-                                            </div>
-                                            <div style="flex: 0 0 90px;">
-                                                <button class="btn btn-primary btn-sm w-100" style="font-size: 9px; padding: 2px 4px;"
-                                                        onclick="quickCommissionDecision('{{ booking_id }}', '{{ guest_name|replace("'", "\\'") }}', {{ commission }})">
-                                                    Quyết định
-                                                </button>
+                                            <div class="d-flex align-items-center gap-2">
+                                                <div style="flex: 0 0 160px;">
+                                                    <small class="text-muted" style="font-size: 10px;">Phòng:</small>
+                                                    <span class="fw-semibold" style="font-size: 11px;">
+                                                        {% if room_name == 'hang be 101' %}Hang Be 101
+                                                        {% elif room_name == 'hang be 102' %}Hang Be 102
+                                                        {% elif room_name == '118 hang bac' or room_name == '118 Hang Bac Hostel' %}118 Hang Bac
+                                                        {% else %}{{ room_name }}{% endif %}
+                                                    </span>
+                                                </div>
+                                                <div style="flex: 0 0 75px; text-align: right;">
+                                                    <small class="text-muted" style="font-size: 10px;">Đã thu</small>
+                                                    <div style="font-size: 11px; color: #28a745; font-weight: 600;">{{ "{:,.0f}".format(collected) }}đ</div>
+                                                </div>
+                                                <div style="flex: 0 0 100px; text-align: right;">
+                                                    <small class="text-muted" style="font-size: 10px;">Hoa hồng</small>
+                                                    <div style="font-size: 11px; color: #ffc107; font-weight: 600;">{{ "{:,.0f}".format(commission) }}đ</div>
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
