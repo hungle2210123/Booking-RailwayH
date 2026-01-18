@@ -1546,9 +1546,85 @@
                     </div>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
-                <div class="modal-body p-4" style="overflow-y: auto; max-height: calc(100vh - 100px);">
-                    <!-- Grid Layout for Maximum Visibility -->
-                    <div class="row g-3" id="unpaidFullScreenGrid">
+                <div class="modal-body p-0">
+                    <!-- 📊 STATISTICS & FILTERS BAR -->
+                    <div class="p-4 border-bottom" style="background: white;">
+                        <!-- Statistics Summary -->
+                        <div class="row g-3 mb-3">
+                            <div class="col-md-3">
+                                <div class="text-center p-3 rounded" style="background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);">
+                                    <div class="text-white opacity-75 small">🔴 Chưa thu</div>
+                                    <div class="text-white fw-bold fs-4" id="statNotCollected">0</div>
+                                    <div class="text-white opacity-75 small" id="statNotCollectedAmount">0đ</div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="text-center p-3 rounded" style="background: linear-gradient(135deg, #28a745 0%, #218838 100%);">
+                                    <div class="text-white opacity-75 small">✅ Đã thu</div>
+                                    <div class="text-white fw-bold fs-4" id="statCollected">0</div>
+                                    <div class="text-white opacity-75 small" id="statCollectedAmount">0đ</div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="text-center p-3 rounded" style="background: linear-gradient(135deg, #ffc107 0%, #e0a800 100%);">
+                                    <div class="text-dark opacity-75 small">⏳ Chờ HH</div>
+                                    <div class="text-dark fw-bold fs-4" id="statPendingCommission">0</div>
+                                    <div class="text-dark opacity-75 small" id="statPendingAmount">0đ</div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="text-center p-3 rounded" style="background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%);">
+                                    <div class="text-white opacity-75 small">⚠️ Quá hạn >3d</div>
+                                    <div class="text-white fw-bold fs-4" id="statCritical">0</div>
+                                    <div class="text-white opacity-75 small" id="statCriticalAmount">0đ</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Filter Tabs & Search -->
+                        <div class="d-flex gap-3 align-items-center flex-wrap">
+                            <!-- Filter Tabs -->
+                            <div class="btn-group" role="group">
+                                <button type="button" class="btn btn-sm btn-outline-danger active" onclick="filterUnpaidCustomers('all')" id="filterAll">
+                                    <i class="fas fa-list me-1"></i>Tất cả
+                                </button>
+                                <button type="button" class="btn btn-sm btn-outline-danger" onclick="filterUnpaidCustomers('not-collected')" id="filterNotCollected">
+                                    <i class="fas fa-exclamation-circle me-1"></i>Chưa thu
+                                </button>
+                                <button type="button" class="btn btn-sm btn-outline-success" onclick="filterUnpaidCustomers('collected')" id="filterCollected">
+                                    <i class="fas fa-check-circle me-1"></i>Đã thu
+                                </button>
+                                <button type="button" class="btn btn-sm btn-outline-warning" onclick="filterUnpaidCustomers('pending-commission')" id="filterPendingCommission">
+                                    <i class="fas fa-hourglass-half me-1"></i>Chờ HH
+                                </button>
+                            </div>
+
+                            <!-- Sort Dropdown -->
+                            <select class="form-select form-select-sm" style="width: auto;" onchange="sortUnpaidCustomers(this.value)" id="sortSelect">
+                                <option value="overdue-desc">⏱️ Quá hạn (nhiều → ít)</option>
+                                <option value="overdue-asc">⏱️ Quá hạn (ít → nhiều)</option>
+                                <option value="amount-desc">💰 Số tiền (cao → thấp)</option>
+                                <option value="amount-asc">💰 Số tiền (thấp → cao)</option>
+                                <option value="name-asc">👤 Tên A → Z</option>
+                                <option value="name-desc">👤 Tên Z → A</option>
+                            </select>
+
+                            <!-- Search Bar -->
+                            <div class="input-group input-group-sm" style="max-width: 300px;">
+                                <span class="input-group-text"><i class="fas fa-search"></i></span>
+                                <input type="text" class="form-control" placeholder="Tìm khách..." id="unpaidSearchInput" onkeyup="searchUnpaidCustomers()">
+                            </div>
+
+                            <!-- Result Count -->
+                            <span class="text-muted small ms-auto">
+                                Hiển thị: <strong id="displayedCount">0</strong>/<strong id="totalCount">0</strong> khách
+                            </span>
+                        </div>
+                    </div>
+
+                    <!-- 📋 CUSTOMERS GRID -->
+                    <div class="p-4" style="overflow-y: auto; max-height: calc(100vh - 400px); background: linear-gradient(135deg, #fff5f5 0%, #ffe6e6 100%);">
+                        <div class="row g-3" id="unpaidFullScreenGrid">
                         {% for guest in overdue_unpaid_guests %}
                         {% set booking_id = guest.get('Số đặt phòng', '') %}
                         {% set guest_name = guest.get('Tên người đặt', 'N/A') %}
@@ -1564,9 +1640,30 @@
                         {% set commission_status = guest.get('commission_status', 'pending') %}
                         {% set room_name = guest.get('room_name', '') or guest.get('Tên chỗ nghỉ', '') %}
 
-                        <div class="col-12 col-md-6 col-lg-4 col-xl-3">
-                            <div class="card h-100 shadow-sm border-0" style="border-left: 4px solid #ff6b6b !important;">
+                        <div class="col-12 col-md-6 col-lg-4 col-xl-3 unpaid-customer-card"
+                             data-guest-name="{{ guest_name|lower }}"
+                             data-booking-id="{{ booking_id }}"
+                             data-status="{% if has_valid_collector and collected > 0 %}{% if commission_status == 'pending' %}pending-commission{% else %}collected{% endif %}{% else %}not-collected{% endif %}"
+                             data-overdue="{{ guest.get('days_overdue', 0) }}"
+                             data-amount="{{ total_amount }}"
+                             data-room="{{ room_name }}">
+                            <div class="card h-100 shadow-sm border-0" style="border-left: 4px solid {% if has_valid_collector and collected > 0 and commission_status == 'pending' %}#ffc107{% elif has_valid_collector and collected > 0 %}#28a745{% else %}#dc3545{% endif %} !important;">
                                 <div class="card-body p-3">
+                                    <!-- Priority Badge -->
+                                    {% if guest.get('days_overdue', 0) >= 7 %}
+                                    <div class="position-absolute top-0 end-0 m-2">
+                                        <span class="badge bg-danger pulse-badge">
+                                            <i class="fas fa-fire me-1"></i>KHẨN CẤP
+                                        </span>
+                                    </div>
+                                    {% elif guest.get('days_overdue', 0) >= 3 %}
+                                    <div class="position-absolute top-0 end-0 m-2">
+                                        <span class="badge bg-warning text-dark">
+                                            <i class="fas fa-exclamation-triangle me-1"></i>ƯU TIÊN
+                                        </span>
+                                    </div>
+                                    {% endif %}
+
                                     <!-- Guest Name & Room -->
                                     <div class="d-flex justify-content-between align-items-start mb-2">
                                         <h6 class="fw-bold mb-0 text-dark">{{ guest_name }}</h6>
@@ -1651,6 +1748,7 @@
                             </div>
                         </div>
                         {% endfor %}
+                        </div>
                     </div>
                 </div>
             </div>
@@ -4116,6 +4214,137 @@ window.openUnpaidFullScreen = function() {
     console.log('🔍 [UNPAID_FULLSCREEN] Opening full-screen modal');
     const modal = new bootstrap.Modal(document.getElementById('unpaidFullScreenModal'));
     modal.show();
+
+    // Calculate and display statistics
+    setTimeout(() => calculateUnpaidStats(), 100);
+}
+
+// Calculate statistics for unpaid customers
+function calculateUnpaidStats() {
+    const cards = document.querySelectorAll('.unpaid-customer-card');
+    let notCollected = 0, collected = 0, pendingCommission = 0, critical = 0;
+    let notCollectedAmount = 0, collectedAmount = 0, pendingAmount = 0, criticalAmount = 0;
+
+    cards.forEach(card => {
+        const status = card.getAttribute('data-status');
+        const overdue = parseInt(card.getAttribute('data-overdue') || 0);
+        const amount = parseFloat(card.getAttribute('data-amount') || 0);
+
+        if (status === 'not-collected') {
+            notCollected++;
+            notCollectedAmount += amount;
+        } else if (status === 'collected') {
+            collected++;
+            collectedAmount += amount;
+        } else if (status === 'pending-commission') {
+            pendingCommission++;
+            pendingAmount += amount;
+        }
+
+        if (overdue >= 3) {
+            critical++;
+            criticalAmount += amount;
+        }
+    });
+
+    document.getElementById('statNotCollected').textContent = notCollected;
+    document.getElementById('statNotCollectedAmount').textContent = notCollectedAmount.toLocaleString('vi-VN') + 'đ';
+    document.getElementById('statCollected').textContent = collected;
+    document.getElementById('statCollectedAmount').textContent = collectedAmount.toLocaleString('vi-VN') + 'đ';
+    document.getElementById('statPendingCommission').textContent = pendingCommission;
+    document.getElementById('statPendingAmount').textContent = pendingAmount.toLocaleString('vi-VN') + 'đ';
+    document.getElementById('statCritical').textContent = critical;
+    document.getElementById('statCriticalAmount').textContent = criticalAmount.toLocaleString('vi-VN') + 'đ';
+    document.getElementById('totalCount').textContent = cards.length;
+    document.getElementById('displayedCount').textContent = cards.length;
+}
+
+// Filter unpaid customers by status
+window.filterUnpaidCustomers = function(filter) {
+    console.log('🔍 [FILTER] Filtering by:', filter);
+
+    const cards = document.querySelectorAll('.unpaid-customer-card');
+    const buttons = document.querySelectorAll('#unpaidFullScreenModal .btn-group button');
+    let displayedCount = 0;
+
+    // Update active button
+    buttons.forEach(btn => btn.classList.remove('active'));
+    document.getElementById('filter' + filter.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join('')).classList.add('active');
+
+    cards.forEach(card => {
+        const status = card.getAttribute('data-status');
+        let show = false;
+
+        if (filter === 'all') {
+            show = true;
+        } else if (filter === 'not-collected' && status === 'not-collected') {
+            show = true;
+        } else if (filter === 'collected' && status === 'collected') {
+            show = true;
+        } else if (filter === 'pending-commission' && status === 'pending-commission') {
+            show = true;
+        }
+
+        card.style.display = show ? '' : 'none';
+        if (show) displayedCount++;
+    });
+
+    document.getElementById('displayedCount').textContent = displayedCount;
+}
+
+// Sort unpaid customers
+window.sortUnpaidCustomers = function(sortBy) {
+    console.log('🔍 [SORT] Sorting by:', sortBy);
+
+    const grid = document.getElementById('unpaidFullScreenGrid');
+    const cards = Array.from(document.querySelectorAll('.unpaid-customer-card'));
+
+    cards.sort((a, b) => {
+        switch(sortBy) {
+            case 'overdue-desc':
+                return parseInt(b.getAttribute('data-overdue')) - parseInt(a.getAttribute('data-overdue'));
+            case 'overdue-asc':
+                return parseInt(a.getAttribute('data-overdue')) - parseInt(b.getAttribute('data-overdue'));
+            case 'amount-desc':
+                return parseFloat(b.getAttribute('data-amount')) - parseFloat(a.getAttribute('data-amount'));
+            case 'amount-asc':
+                return parseFloat(a.getAttribute('data-amount')) - parseFloat(b.getAttribute('data-amount'));
+            case 'name-asc':
+                return a.getAttribute('data-guest-name').localeCompare(b.getAttribute('data-guest-name'));
+            case 'name-desc':
+                return b.getAttribute('data-guest-name').localeCompare(a.getAttribute('data-guest-name'));
+            default:
+                return 0;
+        }
+    });
+
+    // Re-append sorted cards
+    cards.forEach(card => grid.appendChild(card));
+}
+
+// Search unpaid customers
+window.searchUnpaidCustomers = function() {
+    const searchTerm = document.getElementById('unpaidSearchInput').value.toLowerCase();
+    console.log('🔍 [SEARCH] Searching for:', searchTerm);
+
+    const cards = document.querySelectorAll('.unpaid-customer-card');
+    let displayedCount = 0;
+
+    cards.forEach(card => {
+        const guestName = card.getAttribute('data-guest-name');
+        const bookingId = card.getAttribute('data-booking-id');
+        const matches = guestName.includes(searchTerm) || bookingId.includes(searchTerm);
+
+        // Only hide if doesn't match AND there's a search term
+        if (searchTerm && !matches) {
+            card.style.display = 'none';
+        } else if (card.style.display !== 'none' || !searchTerm) {
+            card.style.display = '';
+            displayedCount++;
+        }
+    });
+
+    document.getElementById('displayedCount').textContent = displayedCount;
 }
 
 window.quickCommissionDecision = async function(bookingId, guestName, commissionAmount) {
