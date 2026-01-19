@@ -5144,10 +5144,10 @@ function collectPayment() {
                 const modal = bootstrap.Modal.getInstance(document.getElementById('collectPaymentModal'));
                 modal.hide();
 
-                // ⚡ RELOAD PAGE: Refresh the entire dashboard to show updated data
-                console.log('⚡ [RELOAD] Reloading page to show updated payment status...');
+                // ⚡ RELOAD PAGE: Refresh with fresh data bypassing 30s cache
+                console.log('⚡ [RELOAD] Reloading page with fresh data to show updated payment status...');
                 setTimeout(() => {
-                    location.reload();
+                    window.location.href = window.location.pathname + '?refresh=true';
                 }, 500);
             } else {
                 throw new Error(data.message || 'Lỗi không xác định');
@@ -5697,10 +5697,10 @@ window.submitCommissionDecision = async function(bookingId, commissionStatus, gu
 
             showDashboardToast(`${statusEmoji} ${statusText} cho ${guestName}`, 'success');
 
-            // ⚡ RELOAD PAGE: Refresh the entire dashboard to show updated data
-            console.log('⚡ [RELOAD] Reloading page to show updated commission status...');
+            // ⚡ RELOAD PAGE: Refresh with fresh data bypassing 30s cache
+            console.log('⚡ [RELOAD] Reloading page with fresh data to show updated commission status...');
             setTimeout(() => {
-                location.reload();
+                window.location.href = window.location.pathname + '?refresh=true';
             }, 500);
         } else {
             showDashboardToast(`❌ Lỗi: ${result.message}`, 'error');

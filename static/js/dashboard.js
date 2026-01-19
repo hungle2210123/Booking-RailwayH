@@ -382,10 +382,10 @@ async function updateCollectedAmount() {
 
             showSuccessAlert(`✅ Đã cập nhật! Số tiền đã thu: ${newAmount.toLocaleString('vi-VN')}đ cho ${guestName}`);
 
-            // ⚡ RELOAD PAGE: Refresh the entire dashboard to show updated data
-            console.log('⚡ [RELOAD] Reloading page to show updated payment status...');
+            // ⚡ RELOAD PAGE: Refresh with fresh data bypassing 30s cache
+            console.log('⚡ [RELOAD] Reloading page with fresh data to show updated payment status...');
             setTimeout(() => {
-                location.reload();
+                window.location.href = window.location.pathname + '?refresh=true';
             }, 500);
         } else {
             alert('❌ Lỗi: ' + (result.message || 'Không thể cập nhật'));
