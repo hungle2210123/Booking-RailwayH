@@ -4335,6 +4335,50 @@ window.searchUnpaidList = function() {
     });
 }
 
+// ⚡ INSTANT UPDATE: Update item in full-screen modal after payment
+window.updateFullScreenModalItem = function(bookingId, collectedAmount, collectorName) {
+    console.log(`⚡ [MODAL_UPDATE] Updating item ${bookingId} with collected: ${collectedAmount}`);
+
+    // Find the item in the modal
+    const modalItems = document.querySelectorAll(`.unpaid-list-item[data-booking-id="${bookingId}"]`);
+
+    modalItems.forEach(item => {
+        // Move item from "CHƯA THU" to "CHỜ QUYẾT ĐỊNH HH" section with animation
+        item.style.transition = 'all 0.5s ease';
+        item.style.backgroundColor = '#d4edda'; // Green background
+
+        setTimeout(() => {
+            // Remove from current position
+            item.style.opacity = '0';
+            item.style.transform = 'translateX(-20px)';
+
+            setTimeout(() => {
+                item.remove();
+                console.log(`✅ [MODAL_UPDATE] Item ${bookingId} removed from CHƯA THU section`);
+            }, 500);
+        }, 1000);
+    });
+}
+
+// ⚡ INSTANT REMOVAL: Remove item from full-screen modal after commission decision
+window.removeFullScreenModalItem = function(bookingId, guestName) {
+    console.log(`⚡ [MODAL_REMOVE] Removing item ${bookingId} (${guestName})`);
+
+    // Find the item in the modal
+    const modalItems = document.querySelectorAll(`.unpaid-list-item[data-booking-id="${bookingId}"]`);
+
+    modalItems.forEach(item => {
+        item.style.transition = 'all 0.5s ease';
+        item.style.opacity = '0';
+        item.style.transform = 'translateX(-30px)';
+
+        setTimeout(() => {
+            item.remove();
+            console.log(`✅ [MODAL_REMOVE] Item ${bookingId} removed from modal`);
+        }, 500);
+    });
+}
+
 window.quickCommissionDecision = async function(bookingId, guestName, commissionAmount) {
     console.log('⚡ [COMMISSION_DECISION] Called for:', {bookingId, guestName, commissionAmount});
 
@@ -5144,11 +5188,30 @@ function collectPayment() {
                 const modal = bootstrap.Modal.getInstance(document.getElementById('collectPaymentModal'));
                 modal.hide();
 
-                // ⚡ RELOAD PAGE: Refresh with fresh data bypassing 30s cache
-                console.log('⚡ [RELOAD] Reloading page with fresh data to show updated payment status...');
-                setTimeout(() => {
-                    window.location.href = window.location.pathname + '?refresh=true';
-                }, 500);
+                // ⚡ INSTANT UPDATE: Update UI without page reload
+                console.log('⚡ [INSTANT_UPDATE] Updating UI without reload...');
+
+                // Update the main dashboard table
+                updateCollectedAmountDisplay(
+                    currentBookingData.bookingId,
+                    collectedAmount,
+                    collectorName,
+                    currentBookingData.totalAmount
+                );
+
+                // Update full-screen modal if open
+                const fullScreenModal = document.getElementById('unpaidFullScreenModal');
+                if (fullScreenModal && fullScreenModal.classList.contains('show')) {
+                    updateFullScreenModalItem(currentBookingData.bookingId, collectedAmount, collectorName);
+                }
+
+                // Update calendar and revenue
+                updateBookingInAllViews(currentBookingData.bookingId, {
+                    collected_amount: collectedAmount,
+                    collector_name: collectorName
+                });
+
+                console.log('⚡ [SUCCESS] UI updated instantly without reload');
             } else {
                 throw new Error(data.message || 'Lỗi không xác định');
             }
@@ -5697,11 +5760,24 @@ window.submitCommissionDecision = async function(bookingId, commissionStatus, gu
 
             showDashboardToast(`${statusEmoji} ${statusText} cho ${guestName}`, 'success');
 
-            // ⚡ RELOAD PAGE: Refresh with fresh data bypassing 30s cache
-            console.log('⚡ [RELOAD] Reloading page with fresh data to show updated commission status...');
-            setTimeout(() => {
-                window.location.href = window.location.pathname + '?refresh=true';
-            }, 500);
+            // ⚡ INSTANT REMOVAL: Remove from full-screen modal without reload
+            console.log('⚡ [INSTANT_REMOVAL] Removing item from modal...');
+
+            const fullScreenModal = document.getElementById('unpaidFullScreenModal');
+            if (fullScreenModal && fullScreenModal.classList.contains('show')) {
+                removeFullScreenModalItem(bookingId, guestName);
+            }
+
+            // Also update main dashboard if visible
+            const allRows = document.querySelectorAll(`tr[data-booking-id="${bookingId}"], div[data-booking-id="${bookingId}"]`);
+            allRows.forEach(row => {
+                row.style.transition = 'all 0.5s ease';
+                row.style.opacity = '0';
+                row.style.transform = 'translateX(-30px)';
+                setTimeout(() => row.remove(), 500);
+            });
+
+            console.log('⚡ [SUCCESS] Item removed instantly without reload');
         } else {
             showDashboardToast(`❌ Lỗi: ${result.message}`, 'error');
         }

@@ -382,11 +382,31 @@ async function updateCollectedAmount() {
 
             showSuccessAlert(`✅ Đã cập nhật! Số tiền đã thu: ${newAmount.toLocaleString('vi-VN')}đ cho ${guestName}`);
 
-            // ⚡ RELOAD PAGE: Refresh with fresh data bypassing 30s cache
-            console.log('⚡ [RELOAD] Reloading page with fresh data to show updated payment status...');
-            setTimeout(() => {
-                window.location.href = window.location.pathname + '?refresh=true';
-            }, 500);
+            // ⚡ INSTANT UPDATE: Update UI without page reload
+            console.log('⚡ [INSTANT_UPDATE] Updating UI without reload...');
+
+            // Update the main dashboard table
+            if (typeof updateCollectedAmountDisplay === 'function') {
+                updateCollectedAmountDisplay(bookingId, newAmount, collector, totalAmount);
+            }
+
+            // Update full-screen modal if open
+            const fullScreenModal = document.getElementById('unpaidFullScreenModal');
+            if (fullScreenModal && fullScreenModal.classList.contains('show')) {
+                if (typeof updateFullScreenModalItem === 'function') {
+                    updateFullScreenModalItem(bookingId, newAmount, collector);
+                }
+            }
+
+            // Update calendar and revenue
+            if (typeof updateBookingInAllViews === 'function') {
+                updateBookingInAllViews(bookingId, {
+                    collected_amount: newAmount,
+                    collector_name: collector
+                });
+            }
+
+            console.log('⚡ [SUCCESS] UI updated instantly without reload');
         } else {
             alert('❌ Lỗi: ' + (result.message || 'Không thể cập nhật'));
         }
