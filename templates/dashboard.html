@@ -4335,29 +4335,179 @@ window.searchUnpaidList = function() {
     });
 }
 
-// ⚡ INSTANT UPDATE: Update item in full-screen modal after payment
+// ⚡ INSTANT UPDATE: Move item from "CHƯA THU" to "CHỜ QUYẾT ĐỊNH HH"
 window.updateFullScreenModalItem = function(bookingId, collectedAmount, collectorName) {
-    console.log(`⚡ [MODAL_UPDATE] Updating item ${bookingId} with collected: ${collectedAmount}`);
+    console.log(`⚡ [MODAL_UPDATE] Moving item ${bookingId} to pending commission section`);
 
-    // Find the item in the modal
+    // Find the item in CHƯA THU section
     const modalItems = document.querySelectorAll(`.unpaid-list-item[data-booking-id="${bookingId}"]`);
 
     modalItems.forEach(item => {
-        // Move item from "CHƯA THU" to "CHỜ QUYẾT ĐỊNH HH" section with animation
+        // Extract data from the item before removing
+        const guestNameEl = item.querySelector('.fw-bold');
+        const guestName = guestNameEl ? guestNameEl.textContent.trim() : 'Unknown';
+
+        // Extract room name
+        const roomBadge = item.querySelector('.badge');
+        let roomName = 'N/A';
+        if (roomBadge) {
+            const badgeText = roomBadge.textContent.trim();
+            if (badgeText === '101') roomName = 'Hang Be 101';
+            else if (badgeText === '102') roomName = 'Hang Be 102';
+            else if (badgeText === '118') roomName = '118 Hang Bac';
+            else roomName = badgeText;
+        }
+
+        // Extract check-in/checkout dates
+        const dateText = item.textContent.match(/(\d{2}\/\d{2})\s*→\s*(\d{2}\/\d{2})/);
+        const checkin = dateText ? dateText[1] : '';
+        const checkout = dateText ? dateText[2] : '';
+
+        // Extract commission (look for "HH" label or commission amount in onclick)
+        let commission = 0;
+        const buttons = item.querySelectorAll('button');
+        buttons.forEach(btn => {
+            const onclick = btn.getAttribute('onclick');
+            if (onclick && onclick.includes('quickCommissionDecision')) {
+                const match = onclick.match(/quickCommissionDecision\([^,]+,\s*[^,]+,\s*(\d+)/);
+                if (match) commission = parseInt(match[1]);
+            }
+        });
+
+        // Animate removal from CHƯA THU
         item.style.transition = 'all 0.5s ease';
-        item.style.backgroundColor = '#d4edda'; // Green background
+        item.style.backgroundColor = '#d4edda';
+        item.style.opacity = '0.7';
 
         setTimeout(() => {
-            // Remove from current position
-            item.style.opacity = '0';
-            item.style.transform = 'translateX(-20px)';
+            item.remove();
+            console.log(`✅ [MODAL_UPDATE] Removed ${bookingId} from CHƯA THU`);
 
-            setTimeout(() => {
-                item.remove();
-                console.log(`✅ [MODAL_UPDATE] Item ${bookingId} removed from CHƯA THU section`);
-            }, 500);
-        }, 1000);
+            // Update CHƯA THU counter (decrease by 1)
+            const notCollectedHeader = document.querySelector('.bg-danger.text-white');
+            if (notCollectedHeader && notCollectedHeader.textContent.includes('CHƯA THU')) {
+                const counterMatch = notCollectedHeader.textContent.match(/\((\d+)\)/);
+                if (counterMatch) {
+                    const currentCount = parseInt(counterMatch[1]);
+                    notCollectedHeader.innerHTML = notCollectedHeader.innerHTML.replace(/\(\d+\)/, `(${currentCount - 1})`);
+                }
+            }
+
+            // Add to pending commission section
+            addToPendingCommissionSection(bookingId, guestName, roomName, checkin, checkout, collectedAmount, commission, collectorName);
+        }, 600);
     });
+}
+
+// Helper function to add item to pending commission section
+function addToPendingCommissionSection(bookingId, guestName, roomName, checkin, checkout, collected, commission, collector) {
+    console.log(`➕ [MODAL_ADD] Adding ${bookingId} to pending commission section`);
+
+    // Find or create the pending commission section
+    let pendingSection = document.querySelector('.bg-warning.text-dark');
+    let rowContainer, firstColumn;
+    let isNewSection = false;
+
+    if (!pendingSection || !pendingSection.textContent.includes('CHỜ QUYẾT ĐỊNH')) {
+        console.log('📝 Creating new pending commission section');
+        isNewSection = true;
+
+        // Find the "CHƯA THU" section to insert after it
+        const notCollectedSection = document.querySelector('.bg-danger.text-white');
+        if (!notCollectedSection) {
+            console.warn('⚠️ Cannot find CHƯA THU section to insert after');
+            return;
+        }
+
+        // Create the pending commission section structure
+        const sectionContainer = document.createElement('div');
+        sectionContainer.className = 'mb-3';
+        sectionContainer.innerHTML = `
+            <div class="bg-warning text-dark px-2 py-1 mb-1" style="font-size: 11px; font-weight: 600;">
+                ⏳ CHỜ QUYẾT ĐỊNH HOA HỒNG (1)
+            </div>
+            <div class="row g-2">
+                <div class="col-md-4"></div>
+                <div class="col-md-4"></div>
+                <div class="col-md-4"></div>
+            </div>
+        `;
+
+        // Insert after CHƯA THU section
+        notCollectedSection.parentElement.insertAdjacentElement('afterend', sectionContainer);
+
+        pendingSection = sectionContainer.querySelector('.bg-warning.text-dark');
+        rowContainer = sectionContainer.querySelector('.row');
+        firstColumn = rowContainer.querySelector('.col-md-4');
+    } else {
+        // Find the row container (row g-2)
+        rowContainer = pendingSection.nextElementSibling;
+        if (!rowContainer) {
+            console.warn('⚠️ Row container not found');
+            return;
+        }
+
+        // Get the first column (col-md-4)
+        firstColumn = rowContainer.querySelector('.col-md-4');
+        if (!firstColumn) {
+            console.warn('⚠️ Column not found');
+            return;
+        }
+    }
+
+    // Create new item HTML
+    const newItem = document.createElement('div');
+    newItem.className = 'bg-white border-bottom unpaid-list-item py-1 px-2';
+    newItem.setAttribute('data-guest-name', guestName.toLowerCase());
+    newItem.setAttribute('data-booking-id', bookingId);
+    newItem.style.opacity = '0';
+    newItem.style.transform = 'translateX(-20px)';
+
+    newItem.innerHTML = `
+        <div class="d-flex align-items-center gap-2">
+            <div style="flex: 0 0 170px;">
+                <div class="fw-bold" style="font-size: 13px;">${guestName}</div>
+                <small class="text-muted" style="font-size: 10px;">${roomName}</small>
+            </div>
+            <div style="flex: 0 0 65px; font-size: 10px; text-align: center;">
+                ${checkin} → ${checkout}
+            </div>
+            <div style="flex: 0 0 65px; text-align: right;">
+                <small class="text-muted" style="font-size: 9px;">Thu</small>
+                <div style="font-size: 11px; color: #28a745; font-weight: 600;">${collected.toLocaleString('vi-VN')}đ</div>
+            </div>
+            <div style="flex: 0 0 65px; text-align: right;">
+                <small class="text-muted" style="font-size: 9px;">HH</small>
+                <div style="font-size: 11px; color: #ffc107; font-weight: 600;">${commission.toLocaleString('vi-VN')}đ</div>
+            </div>
+            <div style="flex: 0 0 85px;">
+                <button class="btn btn-primary btn-sm w-100" style="font-size: 10px; padding: 2px 4px;"
+                        onclick="quickCommissionDecision('${bookingId}', '${guestName.replace(/'/g, "\\'")}', ${commission})">
+                    Quyết định
+                </button>
+            </div>
+        </div>
+    `;
+
+    // Add to the first column
+    firstColumn.insertBefore(newItem, firstColumn.firstChild);
+
+    // Animate the new item in
+    setTimeout(() => {
+        newItem.style.transition = 'all 0.5s ease';
+        newItem.style.opacity = '1';
+        newItem.style.transform = 'translateX(0)';
+        console.log(`✅ [MODAL_ADD] Added ${bookingId} to pending commission section`);
+    }, 100);
+
+    // Update the counter in the header (only if not a new section)
+    if (!isNewSection) {
+        const counterMatch = pendingSection.textContent.match(/\((\d+)\)/);
+        if (counterMatch) {
+            const currentCount = parseInt(counterMatch[1]);
+            pendingSection.innerHTML = pendingSection.innerHTML.replace(/\(\d+\)/, `(${currentCount + 1})`);
+        }
+    }
 }
 
 // ⚡ INSTANT REMOVAL: Remove item from full-screen modal after commission decision
@@ -4375,6 +4525,16 @@ window.removeFullScreenModalItem = function(bookingId, guestName) {
         setTimeout(() => {
             item.remove();
             console.log(`✅ [MODAL_REMOVE] Item ${bookingId} removed from modal`);
+
+            // Update pending commission counter (decrease by 1)
+            const pendingHeader = document.querySelector('.bg-warning.text-dark');
+            if (pendingHeader && pendingHeader.textContent.includes('CHỜ QUYẾT ĐỊNH')) {
+                const counterMatch = pendingHeader.textContent.match(/\((\d+)\)/);
+                if (counterMatch) {
+                    const currentCount = parseInt(counterMatch[1]);
+                    pendingHeader.innerHTML = pendingHeader.innerHTML.replace(/\(\d+\)/, `(${currentCount - 1})`);
+                }
+            }
         }, 500);
     });
 }
