@@ -382,32 +382,11 @@ async function updateCollectedAmount() {
 
             showSuccessAlert(`✅ Đã cập nhật! Số tiền đã thu: ${newAmount.toLocaleString('vi-VN')}đ cho ${guestName}`);
 
-            // ⚡ INSTANT UPDATE: Update display without page reload
-            console.log('⚡ [INSTANT_UPDATE] Updating collected amount display...');
-
-            // Call the instant update function if it exists
-            if (typeof updateCollectedAmountDisplay === 'function') {
-                updateCollectedAmountDisplay(bookingId, newAmount, collector, totalAmount);
-            }
-
-            // Update calendar and revenue if needed
-            if (typeof updateBookingInAllViews === 'function') {
-                updateBookingInAllViews(bookingId, {
-                    collected_amount: newAmount,
-                    collector_name: collector,
-                    total_amount: totalAmount
-                });
-            }
-
-            // ⚡ INSTANT UPDATE: Show professional badges without page reload
-            console.log('⚡ [INSTANT_UPDATE] Showing professional badges...');
-
-            // Reload unchecked-in list smoothly
-            if (typeof loadUncheckedInGuests === 'function') {
-                setTimeout(() => loadUncheckedInGuests(), 300);
-            }
-
-            console.log('⚡ [SUCCESS] Payment recorded - professional badges displayed instantly');
+            // ⚡ RELOAD PAGE: Refresh the entire dashboard to show updated data
+            console.log('⚡ [RELOAD] Reloading page to show updated payment status...');
+            setTimeout(() => {
+                location.reload();
+            }, 500);
         } else {
             alert('❌ Lỗi: ' + (result.message || 'Không thể cập nhật'));
         }
