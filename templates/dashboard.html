@@ -5144,22 +5144,11 @@ function collectPayment() {
                 const modal = bootstrap.Modal.getInstance(document.getElementById('collectPaymentModal'));
                 modal.hide();
 
-                // ⚡ INSTANT UPDATE: Update collected amount display without reload
-                console.log('⚡ [INSTANT_UPDATE] Updating collected amount display...');
-                updateCollectedAmountDisplay(
-                    currentBookingData.bookingId,
-                    collectedAmount,
-                    collectorName,
-                    currentBookingData.totalAmount
-                );
-
-                // Update calendar and revenue if needed
-                updateBookingInAllViews(currentBookingData.bookingId, {
-                    collected_amount: collectedAmount,
-                    collector_name: collectorName
-                });
-
-                console.log('⚡ [SUCCESS] Collected amount updated instantly without reload');
+                // ⚡ RELOAD PAGE: Refresh the entire dashboard to show updated data
+                console.log('⚡ [RELOAD] Reloading page to show updated payment status...');
+                setTimeout(() => {
+                    location.reload();
+                }, 500);
             } else {
                 throw new Error(data.message || 'Lỗi không xác định');
             }
@@ -5708,69 +5697,11 @@ window.submitCommissionDecision = async function(bookingId, commissionStatus, gu
 
             showDashboardToast(`${statusEmoji} ${statusText} cho ${guestName}`, 'success');
 
-            // ⚡ INSTANT REMOVAL: Find and remove the row with animation
-            console.log(`🗑️ [COMMISSION_DECISION] Looking for row to remove: ${bookingId}`);
-
-            let foundRow = null;
-            const allTables = document.querySelectorAll('.table-responsive table tbody, #uncheckedInGuestsList .list-group, table tbody');
-
-            allTables.forEach(tableBody => {
-                const rows = tableBody.querySelectorAll('tr, .list-group-item');
-                rows.forEach(row => {
-                    // Method 1: data-booking-id attribute
-                    if (row.getAttribute('data-booking-id') === bookingId.toString()) {
-                        foundRow = row;
-                        console.log(`✅ [COMMISSION_DECISION] Found row via data-booking-id: ${bookingId}`);
-                    }
-
-                    // Method 2: Search in text content
-                    if (!foundRow) {
-                        const textElements = row.querySelectorAll('.text-muted, small');
-                        textElements.forEach(el => {
-                            if (el.textContent.includes(bookingId)) {
-                                foundRow = row;
-                                console.log(`✅ [COMMISSION_DECISION] Found row via text content: ${bookingId}`);
-                            }
-                        });
-                    }
-
-                    // Method 3: Search in button onclick
-                    if (!foundRow) {
-                        const buttons = row.querySelectorAll('button[onclick]');
-                        buttons.forEach(btn => {
-                            const onclick = btn.getAttribute('onclick');
-                            if (onclick && onclick.includes(bookingId)) {
-                                foundRow = row;
-                                console.log(`✅ [COMMISSION_DECISION] Found row via button onclick: ${bookingId}`);
-                            }
-                        });
-                    }
-                });
-            });
-
-            // Remove the row with smooth animation
-            if (foundRow) {
-                console.log(`🗑️ [COMMISSION_DECISION] Removing row for ${bookingId} after ${commissionStatus} decision`);
-                foundRow.style.transition = 'all 0.5s ease';
-                foundRow.style.opacity = '0';
-                foundRow.style.transform = 'translateX(-30px)';
-
-                setTimeout(() => {
-                    foundRow.remove();
-                    console.log(`✅ [COMMISSION_DECISION] Row removed for ${bookingId}`);
-
-                    // Recalculate totals
-                    if (typeof recalculateOverdueTotal === 'function') {
-                        recalculateOverdueTotal();
-                    }
-                }, 500);
-            } else {
-                console.warn(`⚠️ [COMMISSION_DECISION] Could not find row for ${bookingId} - reloading page with fresh data`);
-                // Fallback: reload page with ?refresh=true to bypass 30-second cache
-                setTimeout(() => {
-                    window.location.href = window.location.pathname + '?refresh=true';
-                }, 1000);
-            }
+            // ⚡ RELOAD PAGE: Refresh the entire dashboard to show updated data
+            console.log('⚡ [RELOAD] Reloading page to show updated commission status...');
+            setTimeout(() => {
+                location.reload();
+            }, 500);
         } else {
             showDashboardToast(`❌ Lỗi: ${result.message}`, 'error');
         }
