@@ -1654,67 +1654,59 @@
                                     </div>
                                 </div>
 
-                                <!-- CLEAN SIMPLE TABLE-LIKE LAYOUT -->
-                                <div class="row g-2">
-                                    {% for guest in day_guests %}
-                                    {% set booking_id = guest.get('Số đặt phòng', '') %}
-                                    {% set guest_name = guest.get('Tên người đặt', 'N/A') %}
-                                    {% set commission = guest.get('Hoa hồng', 0) or 0 %}
-                                    {% set room_amount = guest.get('calculated_room_fee', 0) or guest.get('Tổng thanh toán', 0) or 0 %}
-                                    {% set taxi_amount = guest.get('calculated_taxi_fee', 0) or 0 %}
-                                    {% set total_amount = room_amount + taxi_amount %}
-                                    {% set raw_collected = guest.get('Số tiền đã thu', 0) or 0 %}
-                                    {% set collector = guest.get('Người thu tiền', '') or '' %}
-                                    {% set has_valid_collector = collector in ['LOC LE', 'THAO LE'] %}
-                                    {% set collected = has_valid_collector and raw_collected or 0 %}
-                                    {% set room_name = guest.get('room_name', '') or guest.get('Tên chỗ nghỉ', '') %}
-                                    {% set days_overdue = guest.get('days_overdue', 0) %}
-                                    {% set checkin = guest.get('Check-in Date', '') %}
-                                    {% set checkout = guest.get('Check-out Date', '') %}
-                                    {% set is_high_commission = commission >= 150000 %}
+                                <!-- SIMPLE LIST - No Cards, No Fancy Design -->
+                                {% for guest in day_guests %}
+                                {% set booking_id = guest.get('Số đặt phòng', '') %}
+                                {% set guest_name = guest.get('Tên người đặt', 'N/A') %}
+                                {% set commission = guest.get('Hoa hồng', 0) or 0 %}
+                                {% set room_amount = guest.get('calculated_room_fee', 0) or guest.get('Tổng thanh toán', 0) or 0 %}
+                                {% set taxi_amount = guest.get('calculated_taxi_fee', 0) or 0 %}
+                                {% set total_amount = room_amount + taxi_amount %}
+                                {% set raw_collected = guest.get('Số tiền đã thu', 0) or 0 %}
+                                {% set collector = guest.get('Người thu tiền', '') or '' %}
+                                {% set has_valid_collector = collector in ['LOC LE', 'THAO LE'] %}
+                                {% set collected = has_valid_collector and raw_collected or 0 %}
+                                {% set room_name = guest.get('room_name', '') or guest.get('Tên chỗ nghỉ', '') %}
+                                {% set checkin = guest.get('Check-in Date', '') %}
+                                {% set checkout = guest.get('Check-out Date', '') %}
+                                {% set is_high_commission = commission >= 150000 %}
 
-                                    <div class="col-md-4">
-                                        <!-- Simple Clean Card -->
-                                        <div class="bg-white unpaid-list-item py-2 px-2" data-guest-name="{{ guest_name|lower }}" data-booking-id="{{ booking_id }}"
-                                             style="border: 1px solid #ddd; border-radius: 4px;">
-
-                                            <!-- Row 1: Name + Room -->
-                                            <div class="d-flex justify-content-between align-items-center mb-2">
-                                                <span class="fw-bold" style="font-size: 13px; color: #333;">{{ guest_name }}</span>
-                                                <span style="font-size: 11px; color: #666;">
-                                                    {% if room_name == 'hang be 101' %}HB 101
-                                                    {% elif room_name == 'hang be 102' %}HB 102
-                                                    {% elif room_name == '118 hang bac' or room_name == '118 Hang Bac Hostel' %}118 HB
-                                                    {% else %}{{ room_name[:8] }}{% endif %}
-                                                </span>
-                                            </div>
-
-                                            <!-- Row 2: Dates -->
-                                            <div class="mb-2" style="font-size: 11px; color: #666;">
-                                                📅 {% if checkin is string and checkin|length >= 10 %}{{ checkin[8:10] }}/{{ checkin[5:7] }}{% else %}{{ checkin.strftime('%d/%m') if checkin else '' }}{% endif %} → {% if checkout is string and checkout|length >= 10 %}{{ checkout[8:10] }}/{{ checkout[5:7] }}{% else %}{{ checkout.strftime('%d/%m') if checkout else '' }}{% endif %}
-                                            </div>
-
-                                            <!-- Row 3: Money Info -->
-                                            <div class="d-flex justify-content-between mb-2" style="font-size: 12px;">
-                                                <div>
-                                                    <span style="color: #999;">Đã thu:</span>
-                                                    <span class="fw-bold" style="color: #333;">{{ "{:,.0f}".format(collected) }}đ</span>
-                                                </div>
-                                                <div>
-                                                    <span style="color: #999;">HH:</span>
-                                                    <span class="fw-bold" style="color: {% if is_high_commission %}#d32f2f{% else %}#333{% endif %};">{{ "{:,.0f}".format(commission) }}đ</span>
-                                                </div>
-                                            </div>
-
-                                            <!-- Row 4: Button -->
-                                            <button class="btn btn-outline-primary btn-sm w-100" style="font-size: 11px; padding: 4px;"
+                                <div class="unpaid-list-item py-1 px-2" data-guest-name="{{ guest_name|lower }}" data-booking-id="{{ booking_id }}"
+                                     style="border-bottom: 1px solid #eee; {% if is_high_commission %}background: #fff9f9;{% endif %}">
+                                    <div class="d-flex align-items-center" style="font-size: 12px;">
+                                        <!-- Name -->
+                                        <div style="flex: 0 0 180px;">
+                                            <strong>{{ guest_name }}</strong>
+                                        </div>
+                                        <!-- Room -->
+                                        <div style="flex: 0 0 80px; color: #666;">
+                                            {% if room_name == 'hang be 101' %}Hang Be 101
+                                            {% elif room_name == 'hang be 102' %}Hang Be 102
+                                            {% elif room_name == '118 hang bac' or room_name == '118 Hang Bac Hostel' %}118 Hang Bac
+                                            {% else %}{{ room_name }}{% endif %}
+                                        </div>
+                                        <!-- Dates -->
+                                        <div style="flex: 0 0 100px; color: #666;">
+                                            {% if checkin is string and checkin|length >= 10 %}{{ checkin[8:10] }}/{{ checkin[5:7] }}{% else %}{{ checkin.strftime('%d/%m') if checkin else '' }}{% endif %} → {% if checkout is string and checkout|length >= 10 %}{{ checkout[8:10] }}/{{ checkout[5:7] }}{% else %}{{ checkout.strftime('%d/%m') if checkout else '' }}{% endif %}
+                                        </div>
+                                        <!-- Collected -->
+                                        <div style="flex: 0 0 100px; text-align: right;">
+                                            {{ "{:,.0f}".format(collected) }}đ
+                                        </div>
+                                        <!-- Commission -->
+                                        <div style="flex: 0 0 100px; text-align: right; {% if is_high_commission %}color: #d32f2f; font-weight: 700;{% endif %}">
+                                            {{ "{:,.0f}".format(commission) }}đ
+                                        </div>
+                                        <!-- Button -->
+                                        <div style="flex: 1; text-align: right;">
+                                            <button class="btn btn-sm btn-outline-secondary" style="font-size: 11px; padding: 2px 10px;"
                                                     onclick="quickCommissionDecision('{{ booking_id }}', '{{ guest_name|replace("'", "\\'") }}', {{ commission }})">
                                                 Quyết định
                                             </button>
                                         </div>
                                     </div>
-                                    {% endfor %}
                                 </div>
+                                {% endfor %}
                             </div>
                             {% endfor %}
                         </div>
