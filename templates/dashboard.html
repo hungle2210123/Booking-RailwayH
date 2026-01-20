@@ -1675,30 +1675,30 @@
                                      style="border-bottom: 1px solid #eee; {% if is_high_commission %}background: #fff9f9;{% endif %}">
                                     <div class="d-flex align-items-center" style="font-size: 12px;">
                                         <!-- Name -->
-                                        <div style="flex: 0 0 180px;">
+                                        <div style="flex: 0 0 170px;">
                                             <strong>{{ guest_name }}</strong>
                                         </div>
                                         <!-- Room -->
-                                        <div style="flex: 0 0 80px; color: #666;">
+                                        <div style="flex: 0 0 100px; color: #666;">
                                             {% if room_name == 'hang be 101' %}Hang Be 101
                                             {% elif room_name == 'hang be 102' %}Hang Be 102
                                             {% elif room_name == '118 hang bac' or room_name == '118 Hang Bac Hostel' %}118 Hang Bac
                                             {% else %}{{ room_name }}{% endif %}
                                         </div>
                                         <!-- Dates -->
-                                        <div style="flex: 0 0 100px; color: #666;">
+                                        <div style="flex: 0 0 95px; color: #666;">
                                             {% if checkin is string and checkin|length >= 10 %}{{ checkin[8:10] }}/{{ checkin[5:7] }}{% else %}{{ checkin.strftime('%d/%m') if checkin else '' }}{% endif %} → {% if checkout is string and checkout|length >= 10 %}{{ checkout[8:10] }}/{{ checkout[5:7] }}{% else %}{{ checkout.strftime('%d/%m') if checkout else '' }}{% endif %}
                                         </div>
                                         <!-- Collected -->
-                                        <div style="flex: 0 0 100px; text-align: right;">
+                                        <div style="flex: 0 0 90px; text-align: right;">
                                             {{ "{:,.0f}".format(collected) }}đ
                                         </div>
                                         <!-- Commission -->
-                                        <div style="flex: 0 0 100px; text-align: right; {% if is_high_commission %}color: #d32f2f; font-weight: 700;{% endif %}">
+                                        <div style="flex: 0 0 90px; text-align: right; {% if is_high_commission %}color: #d32f2f; font-weight: 700;{% endif %}">
                                             {{ "{:,.0f}".format(commission) }}đ
                                         </div>
-                                        <!-- Button -->
-                                        <div style="flex: 1; text-align: right;">
+                                        <!-- Button - CLOSE TO DATA -->
+                                        <div style="flex: 0 0 95px; padding-left: 10px;">
                                             <button class="btn btn-sm btn-primary" style="font-size: 11px; padding: 3px 12px;"
                                                     onclick="quickCommissionDecision('{{ booking_id }}', '{{ guest_name|replace("'", "\\'") }}', {{ commission }})">
                                                 Quyết định
