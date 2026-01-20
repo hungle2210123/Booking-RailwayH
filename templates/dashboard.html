@@ -4393,9 +4393,10 @@ window.updateFullScreenModalItemWithData = function(bookingId, guestName, roomNa
             // Format dates for display (DD/MM from YYYY-MM-DD)
             const checkin = checkinDate ? checkinDate.substring(8, 10) + '/' + checkinDate.substring(5, 7) : '';
             const checkout = checkoutDate ? checkoutDate.substring(8, 10) + '/' + checkoutDate.substring(5, 7) : '';
+            const checkoutFull = checkoutDate ? checkoutDate.substring(8, 10) + '/' + checkoutDate.substring(5, 7) + '/' + checkoutDate.substring(0, 4) : '';
 
-            // Add to pending commission section with API data
-            addToPendingCommissionSection(bookingId, guestName, roomName, checkin, checkout, collectedAmount, commission, collectorName);
+            // Add to day-grouped pending commission section
+            addToDayGroupedCommissionSection(bookingId, guestName, roomName, checkin, checkout, checkoutFull, collectedAmount, commission, collectorName);
         }, 600);
     });
 }
@@ -4458,23 +4459,136 @@ window.updateFullScreenModalItem = function(bookingId, collectedAmount, collecto
                 }
             }
 
-            // Add to pending commission section
-            addToPendingCommissionSection(bookingId, guestName, roomName, checkin, checkout, collectedAmount, commission, collectorName);
+            // Convert DD/MM to full date for day grouping
+            const checkoutYear = new Date().getFullYear();
+            const checkoutFull = checkout ? `${checkout}/${checkoutYear}` : '';
+
+            // Add to day-grouped pending commission section
+            addToDayGroupedCommissionSection(bookingId, guestName, roomName, checkin, checkout, checkoutFull, collectedAmount, commission, collectorName);
         }, 600);
     });
 }
 
-// Helper function to add item to pending commission section
+// ⚡ NEW: Add item to day-grouped pending commission section
+function addToDayGroupedCommissionSection(bookingId, guestName, roomName, checkin, checkout, checkoutFull, collected, commission, collector) {
+    console.log(`➕ [DAY_GROUP_ADD] Adding ${bookingId} to checkout date: ${checkoutFull}`);
+
+    // Find the main pending commission section
+    let mainSection = document.querySelector('.bg-warning.text-dark');
+
+    if (!mainSection || !mainSection.textContent.includes('CHỜ QUYẾT ĐỊNH')) {
+        console.log('📝 Main commission section not found, using fallback');
+        addToPendingCommissionSection(bookingId, guestName, roomName, checkin, checkout, collected, commission, collector);
+        return;
+    }
+
+    // Look for day group with matching checkout date
+    const dayGroups = document.querySelectorAll('.bg-light');
+    let targetDayGroup = null;
+
+    for (let group of dayGroups) {
+        if (group.textContent.includes(checkoutFull)) {
+            targetDayGroup = group.nextElementSibling; // Get the row container after the header
+            console.log(`✅ [DAY_GROUP_ADD] Found existing day group for ${checkoutFull}`);
+            break;
+        }
+    }
+
+    // If no day group found, add to the first day group as fallback
+    if (!targetDayGroup) {
+        console.log(`⚠️ [DAY_GROUP_ADD] No matching day group for ${checkoutFull}, using first group`);
+        const firstDayGroup = document.querySelector('.bg-light');
+        if (firstDayGroup) {
+            targetDayGroup = firstDayGroup.nextElementSibling;
+        }
+    }
+
+    // Get the first column from the target day group
+    const firstColumn = targetDayGroup ? targetDayGroup.querySelector('.col-md-4') : null;
+
+    if (!firstColumn) {
+        console.warn('⚠️ [DAY_GROUP_ADD] Cannot find column, using fallback');
+        addToPendingCommissionSection(bookingId, guestName, roomName, checkin, checkout, collected, commission, collector);
+        return;
+    }
+
+    // Create new item
+    const newItem = document.createElement('div');
+    newItem.className = 'bg-white border-bottom unpaid-list-item py-1 px-2';
+    newItem.setAttribute('data-guest-name', guestName.toLowerCase());
+    newItem.setAttribute('data-booking-id', bookingId);
+    newItem.style.opacity = '0';
+    newItem.style.transform = 'translateX(-20px)';
+
+    newItem.innerHTML = `
+        <div class="d-flex align-items-center gap-2">
+            <div style="flex: 0 0 170px;">
+                <div class="fw-bold" style="font-size: 13px;">${guestName}</div>
+                <small class="text-muted" style="font-size: 10px;">${roomName}</small>
+            </div>
+            <div style="flex: 0 0 65px; font-size: 10px; text-align: center;">
+                ${checkin} → ${checkout}
+            </div>
+            <div style="flex: 0 0 65px; text-align: right;">
+                <small class="text-muted" style="font-size: 9px;">Thu</small>
+                <div style="font-size: 11px; color: #28a745; font-weight: 600;">${collected.toLocaleString('vi-VN')}đ</div>
+            </div>
+            <div style="flex: 0 0 65px; text-align: right;">
+                <small class="text-muted" style="font-size: 9px;">HH</small>
+                <div style="font-size: 11px; color: #ffc107; font-weight: 600;">${commission.toLocaleString('vi-VN')}đ</div>
+            </div>
+            <div style="flex: 0 0 85px;">
+                <button class="btn btn-primary btn-sm w-100" style="font-size: 10px; padding: 2px 4px;"
+                        onclick="quickCommissionDecision('${bookingId}', '${guestName.replace(/'/g, "\\'")}', ${commission})">
+                    Quyết định
+                </button>
+            </div>
+        </div>
+    `;
+
+    // Add to first column
+    firstColumn.insertBefore(newItem, firstColumn.firstChild);
+
+    // Animate in
+    setTimeout(() => {
+        newItem.style.transition = 'all 0.5s ease';
+        newItem.style.opacity = '1';
+        newItem.style.transform = 'translateX(0)';
+        console.log(`✅ [DAY_GROUP_ADD] Added ${bookingId} to day group`);
+    }, 100);
+
+    // Update main counter
+    const counterMatch = mainSection.textContent.match(/\((\d+)\)/);
+    if (counterMatch) {
+        const currentCount = parseInt(counterMatch[1]);
+        mainSection.innerHTML = mainSection.innerHTML.replace(/\(\d+\)/, `(${currentCount + 1})`);
+    }
+
+    // Update day group counter
+    const dayHeader = targetDayGroup.previousElementSibling;
+    if (dayHeader) {
+        const dayCounterMatch = dayHeader.textContent.match(/\((\d+) khách\)/);
+        if (dayCounterMatch) {
+            const dayCount = parseInt(dayCounterMatch[1]);
+            dayHeader.innerHTML = dayHeader.innerHTML.replace(/\(\d+ khách\)/, `(${dayCount + 1} khách)`);
+        }
+    }
+}
+
+// LEGACY: Helper function to add item to pending commission section (no day grouping)
 function addToPendingCommissionSection(bookingId, guestName, roomName, checkin, checkout, collected, commission, collector) {
-    console.log(`➕ [MODAL_ADD] Adding ${bookingId} to pending commission section`);
+    console.log(`➕ [LEGACY_ADD] Adding ${bookingId} to pending commission (no day grouping)`);
+
+    // Parse checkout date for grouping (DD/MM format → display format)
+    let checkoutForDisplay = checkout;
+    let checkoutYear = new Date().getFullYear(); // Default to current year
 
     // Find or create the pending commission section
     let pendingSection = document.querySelector('.bg-warning.text-dark');
-    let rowContainer, firstColumn;
     let isNewSection = false;
 
     if (!pendingSection || !pendingSection.textContent.includes('CHỜ QUYẾT ĐỊNH')) {
-        console.log('📝 Creating new pending commission section');
+        console.log('📝 Creating new pending commission section with day grouping');
         isNewSection = true;
 
         // Find the "CHƯA THU" section to insert after it
