@@ -1645,18 +1645,18 @@
                             {% set day_guests = ns.by_day[date_key] %}
                             {% set display_date = date_key[8:10] ~ '/' ~ date_key[5:7] ~ '/' ~ date_key[0:4] if date_key|length >= 10 else date_key %}
 
-                            <div class="mb-3">
-                                <!-- Day Header - Large and Clear -->
-                                <div class="px-3 py-2 mb-2" style="background: linear-gradient(135deg, #ffc107 0%, #ffb300 100%); border-radius: 6px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                            <div class="mb-4">
+                                <!-- Day Header - BOLD & PROMINENT -->
+                                <div class="px-4 py-3 mb-3" style="background: linear-gradient(135deg, #ffc107 0%, #ffb300 100%); border-radius: 8px; box-shadow: 0 3px 8px rgba(0,0,0,0.15);">
                                     <div class="d-flex align-items-center justify-content-between">
                                         <div>
-                                            <span style="font-size: 16px; font-weight: 700; color: #fff;">📅 Check-in: {{ display_date }}</span>
+                                            <span style="font-size: 22px; font-weight: 800; color: #fff; text-shadow: 0 1px 3px rgba(0,0,0,0.2);">📅 Check-in: {{ display_date }}</span>
                                         </div>
-                                        <span class="badge bg-white text-dark" style="font-size: 14px; padding: 6px 12px;">{{ day_guests|length }} khách</span>
+                                        <span class="badge bg-white text-dark" style="font-size: 16px; padding: 8px 16px; font-weight: 700;">{{ day_guests|length }} khách</span>
                                     </div>
                                 </div>
 
-                                <!-- Customer Cards - Full Width, Easy to Read -->
+                                <!-- Customer Cards - SPACIOUS 2-ROW LAYOUT -->
                                 {% for guest in day_guests %}
                                 {% set booking_id = guest.get('Số đặt phòng', '') %}
                                 {% set guest_name = guest.get('Tên người đặt', 'N/A') %}
@@ -1672,52 +1672,60 @@
                                 {% set days_overdue = guest.get('days_overdue', 0) %}
                                 {% set checkin = guest.get('Check-in Date', '') %}
                                 {% set checkout = guest.get('Check-out Date', '') %}
+                                {% set is_high_commission = commission >= 150000 %}
 
-                                <div class="bg-white border unpaid-list-item mb-2 p-3" data-guest-name="{{ guest_name|lower }}" data-booking-id="{{ booking_id }}" style="border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); {% if commission >= 150000 %}border-left: 4px solid #dc3545 !important;{% endif %}">
-                                    <div class="d-flex align-items-center gap-3">
-                                        <!-- Guest Name & Room -->
-                                        <div style="flex: 0 0 200px;">
-                                            <div class="fw-bold mb-1" style="font-size: 15px; color: #212529;">{{ guest_name }}</div>
+                                <!-- Card with generous padding and 2-row layout -->
+                                <div class="bg-white unpaid-list-item mb-3 p-4" data-guest-name="{{ guest_name|lower }}" data-booking-id="{{ booking_id }}"
+                                     style="border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); border: 2px solid {% if is_high_commission %}#dc3545{% else %}#e0e0e0{% endif %}; {% if is_high_commission %}background: linear-gradient(to right, #fff5f5 0%, #ffffff 100%);{% endif %}">
+
+                                    <!-- ROW 1: Guest Info + Commission Highlight -->
+                                    <div class="d-flex align-items-center justify-content-between mb-3 pb-3" style="border-bottom: 1px solid #f0f0f0;">
+                                        <!-- Left: Guest Name & Room -->
+                                        <div>
+                                            <div class="fw-bold mb-2" style="font-size: 20px; color: #212529; line-height: 1.2;">{{ guest_name }}</div>
                                             <div class="d-flex align-items-center gap-2">
-                                                {% if room_name == 'hang be 101' %}<span class="badge bg-success" style="font-size: 11px;">Hang Be 101</span>
-                                                {% elif room_name == 'hang be 102' %}<span class="badge bg-info" style="font-size: 11px;">Hang Be 102</span>
-                                                {% elif room_name == '118 hang bac' or room_name == '118 Hang Bac Hostel' %}<span class="badge bg-primary" style="font-size: 11px;">118 Hang Bac</span>
-                                                {% else %}<span class="badge bg-secondary" style="font-size: 11px;">{{ room_name }}</span>{% endif %}
-                                                <small class="text-muted" style="font-size: 11px;">ID: {{ booking_id }}</small>
+                                                {% if room_name == 'hang be 101' %}<span class="badge bg-success" style="font-size: 14px; padding: 5px 12px;">🏠 Hang Be 101</span>
+                                                {% elif room_name == 'hang be 102' %}<span class="badge bg-info" style="font-size: 14px; padding: 5px 12px;">🏠 Hang Be 102</span>
+                                                {% elif room_name == '118 hang bac' or room_name == '118 Hang Bac Hostel' %}<span class="badge bg-primary" style="font-size: 14px; padding: 5px 12px;">🏠 118 Hang Bac</span>
+                                                {% else %}<span class="badge bg-secondary" style="font-size: 14px; padding: 5px 12px;">🏠 {{ room_name }}</span>{% endif %}
+                                                <small class="text-muted" style="font-size: 13px;">ID: {{ booking_id }}</small>
                                             </div>
                                         </div>
 
-                                        <!-- Dates -->
-                                        <div style="flex: 0 0 100px;" class="text-center">
-                                            <div class="text-muted mb-1" style="font-size: 10px;">Stay Period</div>
-                                            <div style="font-size: 13px; font-weight: 600;">
+                                        <!-- Right: Commission HIGHLIGHTED -->
+                                        <div class="text-end">
+                                            <div class="text-muted mb-1" style="font-size: 13px; font-weight: 600;">⭐ HOA HỒNG</div>
+                                            <div class="px-4 py-2" style="background: {% if is_high_commission %}linear-gradient(135deg, #dc3545 0%, #c82333 100%){% else %}linear-gradient(135deg, #ffc107 0%, #ffb300 100%){% endif %}; border-radius: 8px; display: inline-block;">
+                                                <span style="font-size: 22px; font-weight: 800; color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,0.2);">{{ "{:,.0f}".format(commission) }}đ</span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- ROW 2: Details + Action -->
+                                    <div class="d-flex align-items-center justify-content-between">
+                                        <!-- Stay Dates -->
+                                        <div class="px-3 py-2" style="background: #f8f9fa; border-radius: 6px;">
+                                            <div class="text-muted mb-1" style="font-size: 11px; font-weight: 600;">📅 THỜI GIAN LƯU TRÚ</div>
+                                            <div style="font-size: 16px; font-weight: 700; color: #495057;">
                                                 {% if checkin is string and checkin|length >= 10 %}{{ checkin[8:10] }}/{{ checkin[5:7] }}
                                                 {% else %}{{ checkin.strftime('%d/%m') if checkin else '' }}{% endif %}
-                                                →
+                                                <span style="color: #6c757d;">→</span>
                                                 {% if checkout is string and checkout|length >= 10 %}{{ checkout[8:10] }}/{{ checkout[5:7] }}
                                                 {% else %}{{ checkout.strftime('%d/%m') if checkout else '' }}{% endif %}
                                             </div>
                                         </div>
 
-                                        <!-- Amount Collected -->
-                                        <div style="flex: 0 0 120px;" class="text-center">
-                                            <div class="text-muted mb-1" style="font-size: 10px;">💰 Đã Thu</div>
-                                            <div style="font-size: 14px; color: #28a745; font-weight: 700;">{{ "{:,.0f}".format(collected) }}đ</div>
-                                        </div>
-
-                                        <!-- Commission -->
-                                        <div style="flex: 0 0 120px;" class="text-center">
-                                            <div class="text-muted mb-1" style="font-size: 10px;">⭐ Hoa Hồng</div>
-                                            <div style="font-size: 14px; color: #ffc107; font-weight: 700;">{{ "{:,.0f}".format(commission) }}đ</div>
+                                        <!-- Collected Amount -->
+                                        <div class="px-3 py-2" style="background: #d4edda; border-radius: 6px;">
+                                            <div class="text-muted mb-1" style="font-size: 11px; font-weight: 600;">💰 ĐÃ THU</div>
+                                            <div style="font-size: 18px; font-weight: 800; color: #28a745;">{{ "{:,.0f}".format(collected) }}đ</div>
                                         </div>
 
                                         <!-- Action Button -->
-                                        <div style="flex: 1;" class="text-end">
-                                            <button class="btn btn-primary" style="font-size: 13px; padding: 8px 20px; border-radius: 6px;"
-                                                    onclick="quickCommissionDecision('{{ booking_id }}', '{{ guest_name|replace("'", "\\'") }}', {{ commission }})">
-                                                <i class="fas fa-check-circle me-1"></i>Quyết định
-                                            </button>
-                                        </div>
+                                        <button class="btn btn-primary btn-lg" style="font-size: 16px; padding: 12px 32px; border-radius: 8px; font-weight: 700; box-shadow: 0 2px 6px rgba(0,123,255,0.3);"
+                                                onclick="quickCommissionDecision('{{ booking_id }}', '{{ guest_name|replace("'", "\\'") }}', {{ commission }})">
+                                            <i class="fas fa-check-circle me-2"></i>Quyết định
+                                        </button>
                                     </div>
                                 </div>
                                 {% endfor %}
