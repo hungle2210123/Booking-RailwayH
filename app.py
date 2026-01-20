@@ -6420,12 +6420,31 @@ def update_collected_amount():
         
         if success:
             print(f"[UPDATE_COLLECTED] ✅ Successfully updated collected_amount for {booking_id}")
-            return jsonify({
+
+            # Fetch updated booking data to return to frontend
+            from core.models import db, Booking
+            booking = db.session.query(Booking).filter_by(booking_id=booking_id).first()
+
+            response_data = {
                 'success': True,
                 'message': f'Đã cập nhật số tiền đã thu: {collected_amount:,.0f}đ',
                 'booking_id': booking_id,
-                'collected_amount': collected_amount
-            })
+                'collected_amount': collected_amount,
+                'commission_status': 'pending'
+            }
+
+            # Add additional booking data for frontend UI update
+            if booking:
+                response_data.update({
+                    'commission': float(booking.commission) if booking.commission else 0,
+                    'room_name': booking.accommodation_name or '',
+                    'checkin_date': booking.checkin_date.strftime('%Y-%m-%d') if booking.checkin_date else '',
+                    'checkout_date': booking.checkout_date.strftime('%Y-%m-%d') if booking.checkout_date else '',
+                    'guest_name': booking.guest.full_name if booking.guest else ''
+                })
+
+            print(f"[UPDATE_COLLECTED] 📤 Returning enhanced data: {response_data}")
+            return jsonify(response_data)
         else:
             print(f"[UPDATE_COLLECTED] ❌ Failed to update {booking_id}")
             return jsonify({

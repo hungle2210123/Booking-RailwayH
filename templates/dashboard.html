@@ -4335,9 +4335,53 @@ window.searchUnpaidList = function() {
     });
 }
 
-// ⚡ INSTANT UPDATE: Move item from "CHƯA THU" to "CHỜ QUYẾT ĐỊNH HH"
+// ⚡ ENHANCED: Update with API data directly (most reliable method)
+window.updateFullScreenModalItemWithData = function(bookingId, guestName, roomName, checkinDate, checkoutDate, collectedAmount, commission, collectorName) {
+    console.log(`⚡ [MODAL_UPDATE_API] Moving ${bookingId} with API data:`, {
+        guestName, roomName, checkinDate, checkoutDate, collectedAmount, commission, collectorName
+    });
+
+    // Find and remove from CHƯA THU section
+    const modalItems = document.querySelectorAll(`.unpaid-list-item[data-booking-id="${bookingId}"]`);
+
+    if (modalItems.length === 0) {
+        console.warn(`⚠️ Item ${bookingId} not found in CHƯA THU section`);
+        return;
+    }
+
+    modalItems.forEach(item => {
+        // Animate removal
+        item.style.transition = 'all 0.5s ease';
+        item.style.backgroundColor = '#d4edda';
+        item.style.opacity = '0.7';
+
+        setTimeout(() => {
+            item.remove();
+            console.log(`✅ [MODAL_UPDATE_API] Removed ${bookingId} from CHƯA THU`);
+
+            // Update CHƯA THU counter
+            const notCollectedHeader = document.querySelector('.bg-danger.text-white');
+            if (notCollectedHeader && notCollectedHeader.textContent.includes('CHƯA THU')) {
+                const counterMatch = notCollectedHeader.textContent.match(/\((\d+)\)/);
+                if (counterMatch) {
+                    const currentCount = parseInt(counterMatch[1]);
+                    notCollectedHeader.innerHTML = notCollectedHeader.innerHTML.replace(/\(\d+\)/, `(${currentCount - 1})`);
+                }
+            }
+
+            // Format dates for display (DD/MM from YYYY-MM-DD)
+            const checkin = checkinDate ? checkinDate.substring(8, 10) + '/' + checkinDate.substring(5, 7) : '';
+            const checkout = checkoutDate ? checkoutDate.substring(8, 10) + '/' + checkoutDate.substring(5, 7) : '';
+
+            // Add to pending commission section with API data
+            addToPendingCommissionSection(bookingId, guestName, roomName, checkin, checkout, collectedAmount, commission, collectorName);
+        }, 600);
+    });
+}
+
+// ⚡ FALLBACK: Move item from "CHƯA THU" to "CHỜ QUYẾT ĐỊNH HH" (DOM extraction)
 window.updateFullScreenModalItem = function(bookingId, collectedAmount, collectorName) {
-    console.log(`⚡ [MODAL_UPDATE] Moving item ${bookingId} to pending commission section`);
+    console.log(`⚡ [MODAL_UPDATE_DOM] Moving item ${bookingId} (using DOM extraction fallback)`);
 
     // Find the item in CHƯA THU section
     const modalItems = document.querySelectorAll(`.unpaid-list-item[data-booking-id="${bookingId}"]`);

@@ -382,18 +382,31 @@ async function updateCollectedAmount() {
 
             showSuccessAlert(`✅ Đã cập nhật! Số tiền đã thu: ${newAmount.toLocaleString('vi-VN')}đ cho ${guestName}`);
 
-            // ⚡ INSTANT UPDATE: Update UI without page reload
-            console.log('⚡ [INSTANT_UPDATE] Updating UI without reload...');
+            // ⚡ INSTANT UPDATE: Update UI without page reload using enhanced API data
+            console.log('⚡ [INSTANT_UPDATE] Updating UI with API data:', result);
 
             // Update the main dashboard table
             if (typeof updateCollectedAmountDisplay === 'function') {
                 updateCollectedAmountDisplay(bookingId, newAmount, collector, totalAmount);
             }
 
-            // Update full-screen modal if open
+            // Update full-screen modal if open - use API data
             const fullScreenModal = document.getElementById('unpaidFullScreenModal');
             if (fullScreenModal && fullScreenModal.classList.contains('show')) {
-                if (typeof updateFullScreenModalItem === 'function') {
+                if (typeof updateFullScreenModalItemWithData === 'function') {
+                    // Use enhanced data from API response
+                    updateFullScreenModalItemWithData(
+                        bookingId,
+                        result.guest_name || guestName,
+                        result.room_name || '',
+                        result.checkin_date || '',
+                        result.checkout_date || '',
+                        newAmount,
+                        result.commission || 0,
+                        collector
+                    );
+                } else if (typeof updateFullScreenModalItem === 'function') {
+                    // Fallback to old function
                     updateFullScreenModalItem(bookingId, newAmount, collector);
                 }
             }
