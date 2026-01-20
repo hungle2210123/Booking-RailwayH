@@ -1624,12 +1624,12 @@
                         </div>
                         {% endif %}
 
-                        <!-- CATEGORY 2: CHỜ QUYẾT ĐỊNH HH - GROUPED BY DAY -->
+                        <!-- CATEGORY 2: CHỜ QUYẾT ĐỊNH HH - GROUPED BY CHECK-IN DATE -->
                         {% if pending_commission|length > 0 %}
                         {% set ns = namespace(by_day={}) %}
                         {% for guest in pending_commission %}
-                            {% set checkout = guest.get('Check-out Date', '') %}
-                            {% set date_key = checkout if checkout is string else (checkout.strftime('%Y-%m-%d') if checkout else 'Unknown') %}
+                            {% set checkin = guest.get('Check-in Date', '') %}
+                            {% set date_key = checkin if checkin is string else (checkin.strftime('%Y-%m-%d') if checkin else 'Unknown') %}
                             {% if date_key not in ns.by_day %}
                                 {% set _ = ns.by_day.update({date_key: []}) %}
                             {% endif %}
@@ -1647,7 +1647,7 @@
 
                             <div class="mb-2">
                                 <div class="bg-light px-2 py-1" style="font-size: 10px; font-weight: 600; border-left: 3px solid #ffc107;">
-                                    📅 Checkout: {{ display_date }} ({{ day_guests|length }} khách)
+                                    📅 Check-in: {{ display_date }} ({{ day_guests|length }} khách)
                                 </div>
                                 <div class="row g-2">
                                     <div class="col-md-4">
@@ -4393,10 +4393,10 @@ window.updateFullScreenModalItemWithData = function(bookingId, guestName, roomNa
             // Format dates for display (DD/MM from YYYY-MM-DD)
             const checkin = checkinDate ? checkinDate.substring(8, 10) + '/' + checkinDate.substring(5, 7) : '';
             const checkout = checkoutDate ? checkoutDate.substring(8, 10) + '/' + checkoutDate.substring(5, 7) : '';
-            const checkoutFull = checkoutDate ? checkoutDate.substring(8, 10) + '/' + checkoutDate.substring(5, 7) + '/' + checkoutDate.substring(0, 4) : '';
+            const checkinFull = checkinDate ? checkinDate.substring(8, 10) + '/' + checkinDate.substring(5, 7) + '/' + checkinDate.substring(0, 4) : '';
 
-            // Add to day-grouped pending commission section
-            addToDayGroupedCommissionSection(bookingId, guestName, roomName, checkin, checkout, checkoutFull, collectedAmount, commission, collectorName);
+            // Add to day-grouped pending commission section (grouped by check-in date)
+            addToDayGroupedCommissionSection(bookingId, guestName, roomName, checkin, checkout, checkinFull, collectedAmount, commission, collectorName);
         }, 600);
     });
 }
@@ -4459,19 +4459,19 @@ window.updateFullScreenModalItem = function(bookingId, collectedAmount, collecto
                 }
             }
 
-            // Convert DD/MM to full date for day grouping
-            const checkoutYear = new Date().getFullYear();
-            const checkoutFull = checkout ? `${checkout}/${checkoutYear}` : '';
+            // Convert DD/MM to full date for day grouping (using check-in date)
+            const checkinYear = new Date().getFullYear();
+            const checkinFull = checkin ? `${checkin}/${checkinYear}` : '';
 
-            // Add to day-grouped pending commission section
-            addToDayGroupedCommissionSection(bookingId, guestName, roomName, checkin, checkout, checkoutFull, collectedAmount, commission, collectorName);
+            // Add to day-grouped pending commission section (grouped by check-in date)
+            addToDayGroupedCommissionSection(bookingId, guestName, roomName, checkin, checkout, checkinFull, collectedAmount, commission, collectorName);
         }, 600);
     });
 }
 
-// ⚡ NEW: Add item to day-grouped pending commission section
-function addToDayGroupedCommissionSection(bookingId, guestName, roomName, checkin, checkout, checkoutFull, collected, commission, collector) {
-    console.log(`➕ [DAY_GROUP_ADD] Adding ${bookingId} to checkout date: ${checkoutFull}`);
+// ⚡ NEW: Add item to day-grouped pending commission section (grouped by check-in date)
+function addToDayGroupedCommissionSection(bookingId, guestName, roomName, checkin, checkout, checkinFull, collected, commission, collector) {
+    console.log(`➕ [DAY_GROUP_ADD] Adding ${bookingId} to check-in date: ${checkinFull}`);
 
     // Find the main pending commission section
     let mainSection = document.querySelector('.bg-warning.text-dark');
@@ -4482,21 +4482,21 @@ function addToDayGroupedCommissionSection(bookingId, guestName, roomName, checki
         return;
     }
 
-    // Look for day group with matching checkout date
+    // Look for day group with matching check-in date
     const dayGroups = document.querySelectorAll('.bg-light');
     let targetDayGroup = null;
 
     for (let group of dayGroups) {
-        if (group.textContent.includes(checkoutFull)) {
+        if (group.textContent.includes(checkinFull)) {
             targetDayGroup = group.nextElementSibling; // Get the row container after the header
-            console.log(`✅ [DAY_GROUP_ADD] Found existing day group for ${checkoutFull}`);
+            console.log(`✅ [DAY_GROUP_ADD] Found existing day group for ${checkinFull}`);
             break;
         }
     }
 
     // If no day group found, add to the first day group as fallback
     if (!targetDayGroup) {
-        console.log(`⚠️ [DAY_GROUP_ADD] No matching day group for ${checkoutFull}, using first group`);
+        console.log(`⚠️ [DAY_GROUP_ADD] No matching day group for ${checkinFull}, using first group`);
         const firstDayGroup = document.querySelector('.bg-light');
         if (firstDayGroup) {
             targetDayGroup = firstDayGroup.nextElementSibling;
