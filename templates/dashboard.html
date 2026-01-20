@@ -1624,16 +1624,35 @@
                         </div>
                         {% endif %}
 
-                        <!-- CATEGORY 2: CHỜ QUYẾT ĐỊNH HH - 2 COLUMN LAYOUT -->
+                        <!-- CATEGORY 2: CHỜ QUYẾT ĐỊNH HH - GROUPED BY DAY -->
                         {% if pending_commission|length > 0 %}
+                        {% set ns = namespace(by_day={}) %}
+                        {% for guest in pending_commission %}
+                            {% set checkout = guest.get('Check-out Date', '') %}
+                            {% set date_key = checkout if checkout is string else (checkout.strftime('%Y-%m-%d') if checkout else 'Unknown') %}
+                            {% if date_key not in ns.by_day %}
+                                {% set _ = ns.by_day.update({date_key: []}) %}
+                            {% endif %}
+                            {% set _ = ns.by_day[date_key].append(guest) %}
+                        {% endfor %}
+
                         <div class="mb-3">
                             <div class="bg-warning text-dark px-2 py-1 mb-1" style="font-size: 11px; font-weight: 600;">
                                 ⏳ CHỜ QUYẾT ĐỊNH HOA HỒNG ({{ pending_commission|length }})
                             </div>
-                            <div class="row g-2">
-                                <div class="col-md-4">
-                                    {% for guest in pending_commission %}
-                                    {% if loop.index0 % 3 == 0 %}
+
+                            {% for date_key in ns.by_day.keys()|sort %}
+                            {% set day_guests = ns.by_day[date_key] %}
+                            {% set display_date = date_key[8:10] ~ '/' ~ date_key[5:7] ~ '/' ~ date_key[0:4] if date_key|length >= 10 else date_key %}
+
+                            <div class="mb-2">
+                                <div class="bg-light px-2 py-1" style="font-size: 10px; font-weight: 600; border-left: 3px solid #ffc107;">
+                                    📅 Checkout: {{ display_date }} ({{ day_guests|length }} khách)
+                                </div>
+                                <div class="row g-2">
+                                    <div class="col-md-4">
+                                        {% for guest in day_guests %}
+                                        {% if loop.index0 % 3 == 0 %}
                                     {% set booking_id = guest.get('Số đặt phòng', '') %}
                                     {% set guest_name = guest.get('Tên người đặt', 'N/A') %}
                                     {% set commission = guest.get('Hoa hồng', 0) or 0 %}
@@ -1686,7 +1705,7 @@
                                     {% endfor %}
                                 </div>
                                 <div class="col-md-4">
-                                    {% for guest in pending_commission %}
+                                    {% for guest in day_guests %}
                                     {% if loop.index0 % 3 == 1 %}
                                     {% set booking_id = guest.get('Số đặt phòng', '') %}
                                     {% set guest_name = guest.get('Tên người đặt', 'N/A') %}
@@ -1740,7 +1759,7 @@
                                     {% endfor %}
                                 </div>
                                 <div class="col-md-4">
-                                    {% for guest in pending_commission %}
+                                    {% for guest in day_guests %}
                                     {% if loop.index0 % 3 == 2 %}
                                     {% set booking_id = guest.get('Số đặt phòng', '') %}
                                     {% set guest_name = guest.get('Tên người đặt', 'N/A') %}
@@ -1794,6 +1813,8 @@
                                     {% endfor %}
                                 </div>
                             </div>
+                            </div>
+                            {% endfor %}
                         </div>
                         {% endif %}
 
