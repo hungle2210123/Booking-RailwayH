@@ -1654,8 +1654,7 @@
                                     </div>
                                 </div>
 
-                                <!-- COMPACT BOXES - 3 Columns Horizontal -->
-                                <div class="row g-2">
+                                <!-- CLEAN HORIZONTAL ROWS - Like Screenshot -->
                                 {% for guest in day_guests %}
                                 {% set booking_id = guest.get('Số đặt phòng', '') %}
                                 {% set guest_name = guest.get('Tên người đặt', 'N/A') %}
@@ -1672,41 +1671,50 @@
                                 {% set checkout = guest.get('Check-out Date', '') %}
                                 {% set is_high_commission = commission >= 150000 %}
 
-                                <div class="col-md-4">
-                                    <div class="unpaid-list-item p-2" data-guest-name="{{ guest_name|lower }}" data-booking-id="{{ booking_id }}"
-                                         style="border: 1px solid #ddd; border-radius: 4px; {% if is_high_commission %}background: #fff9f9; border-color: #d32f2f;{% endif %}">
-                                        <!-- Name + Room -->
-                                        <div class="d-flex justify-content-between align-items-center mb-1">
-                                            <strong style="font-size: 13px;">{{ guest_name }}</strong>
-                                            <span style="font-size: 11px; color: #666;">
-                                                {% if room_name == 'hang be 101' %}HB 101
-                                                {% elif room_name == 'hang be 102' %}HB 102
-                                                {% elif room_name == '118 hang bac' or room_name == '118 Hang Bac Hostel' %}118 HB
-                                                {% else %}{{ room_name[:6] }}{% endif %}
-                                            </span>
+                                <div class="unpaid-list-item py-2 px-3" data-guest-name="{{ guest_name|lower }}" data-booking-id="{{ booking_id }}"
+                                     style="border-bottom: 1px solid #e0e0e0; {% if is_high_commission %}background: #fff9f9;{% endif %}">
+                                    <div class="d-flex align-items-center gap-3" style="font-size: 12px;">
+                                        <!-- Name + ID -->
+                                        <div style="flex: 0 0 200px;">
+                                            <div style="font-weight: 600; color: #333;">{{ guest_name }}</div>
+                                            <div style="font-size: 11px; color: #999;">{{ booking_id }}</div>
                                         </div>
+
+                                        <!-- Room Badge -->
+                                        <div style="flex: 0 0 60px;">
+                                            {% if room_name == 'hang be 101' %}<span class="badge" style="background: #0d6efd; font-size: 11px; padding: 4px 8px;">11B</span>
+                                            {% elif room_name == 'hang be 102' %}<span class="badge" style="background: #0dcaf0; font-size: 11px; padding: 4px 8px;">102</span>
+                                            {% elif room_name == '118 hang bac' or room_name == '118 Hang Bac Hostel' %}<span class="badge" style="background: #0dcaf0; font-size: 11px; padding: 4px 8px;">118</span>
+                                            {% else %}<span class="badge bg-secondary" style="font-size: 11px; padding: 4px 8px;">{{ room_name[:3] }}</span>{% endif %}
+                                        </div>
+
                                         <!-- Dates -->
-                                        <div class="mb-1" style="font-size: 11px; color: #666;">
-                                            📅 {% if checkin is string and checkin|length >= 10 %}{{ checkin[8:10] }}/{{ checkin[5:7] }}{% else %}{{ checkin.strftime('%d/%m') if checkin else '' }}{% endif %} → {% if checkout is string and checkout|length >= 10 %}{{ checkout[8:10] }}/{{ checkout[5:7] }}{% else %}{{ checkout.strftime('%d/%m') if checkout else '' }}{% endif %}
+                                        <div style="flex: 0 0 100px; color: #666;">
+                                            {% if checkin is string and checkin|length >= 10 %}{{ checkin[8:10] }}/{{ checkin[5:7] }}{% else %}{{ checkin.strftime('%d/%m') if checkin else '' }}{% endif %} → {% if checkout is string and checkout|length >= 10 %}{{ checkout[8:10] }}/{{ checkout[5:7] }}{% else %}{{ checkout.strftime('%d/%m') if checkout else '' }}{% endif %}
                                         </div>
-                                        <!-- Money Info -->
-                                        <div class="d-flex justify-content-between mb-2" style="font-size: 11px;">
-                                            <div>
-                                                <span style="color: #999;">Thu:</span> <strong>{{ "{:,.0f}".format(collected) }}</strong>
-                                            </div>
-                                            <div>
-                                                <span style="color: #999;">HH:</span> <strong style="{% if is_high_commission %}color: #d32f2f;{% endif %}">{{ "{:,.0f}".format(commission) }}</strong>
-                                            </div>
+
+                                        <!-- Đã thu -->
+                                        <div style="flex: 0 0 110px; text-align: right;">
+                                            <div style="font-size: 10px; color: #999;">Đã thu</div>
+                                            <div style="font-weight: 600; color: #333;">{{ "{:,.0f}".format(collected) }}đ</div>
                                         </div>
+
+                                        <!-- Hoa hồng -->
+                                        <div style="flex: 0 0 110px; text-align: right;">
+                                            <div style="font-size: 10px; color: #999;">Còn lại</div>
+                                            <div style="font-weight: 600; {% if is_high_commission %}color: #dc3545;{% else %}color: #333;{% endif %}">{{ "{:,.0f}".format(commission) }}đ</div>
+                                        </div>
+
                                         <!-- Button -->
-                                        <button class="btn btn-sm btn-primary w-100" style="font-size: 11px; padding: 4px;"
-                                                onclick="quickCommissionDecision('{{ booking_id }}', '{{ guest_name|replace("'", "\\'") }}', {{ commission }})">
-                                            Quyết định
-                                        </button>
+                                        <div style="flex: 0 0 100px;">
+                                            <button class="btn btn-dark btn-sm w-100" style="font-size: 11px; padding: 5px; border-radius: 4px;"
+                                                    onclick="quickCommissionDecision('{{ booking_id }}', '{{ guest_name|replace("'", "\\'") }}', {{ commission }})">
+                                                Quyết định
+                                            </button>
+                                        </div>
                                     </div>
                                 </div>
                                 {% endfor %}
-                                </div>
                             </div>
                             {% endfor %}
                         </div>
