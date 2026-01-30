@@ -3767,7 +3767,7 @@ def calendar_details(date_str):
 # Quick Edit API Endpoints for Calendar Details Page
 @app.route('/api/booking/<booking_id>', methods=['GET'])
 def get_booking_details(booking_id):
-    """Get booking details for quick edit modal"""
+    """Get booking details for comprehensive edit modal"""
     try:
         # Force fresh data to get latest commission values
         df = load_booking_data(force_fresh=True)
@@ -3778,6 +3778,10 @@ def get_booking_details(booking_id):
 
         booking = booking_data.iloc[0]
 
+        # Get room amount (calculated or original)
+        room_amount = booking.get('calculated_room_fee', booking.get('Tổng thanh toán', 0)) or 0
+        taxi_amount = booking.get('calculated_taxi_fee', 0) or 0
+
         return jsonify({
             'success': True,
             'booking': {
@@ -3785,14 +3789,19 @@ def get_booking_details(booking_id):
                 'guest_name': booking.get('Tên người đặt', ''),
                 'checkin_date': booking['Check-in Date'].strftime('%Y-%m-%d') if pd.notnull(booking['Check-in Date']) else '',
                 'checkout_date': booking['Check-out Date'].strftime('%Y-%m-%d') if pd.notnull(booking['Check-out Date']) else '',
-                'room_amount': float(booking.get('Tổng thanh toán', 0)),
-                'commission': float(booking.get('Hoa hồng', 0)),
-                'accommodation_name': booking.get('Tên chỗ nghỉ', '118 Hang Bac Hostel'),  # Room type field
-                'room_name': booking.get('Tên chỗ nghỉ', '118 Hang Bac Hostel')  # Alias for compatibility
+                'room_amount': float(room_amount),
+                'taxi_amount': float(taxi_amount),
+                'commission': float(booking.get('Hoa hồng', 0) or 0),
+                'accommodation_name': booking.get('room_name', '') or booking.get('Tên chỗ nghỉ', '118 hang bac'),
+                'room_name': booking.get('room_name', '') or booking.get('Tên chỗ nghỉ', '118 hang bac'),
+                'rooms_occupied': int(booking.get('rooms_occupied', 1) or 1),
+                'booking_notes': booking.get('Ghi chú', '') or ''
             }
         })
     except Exception as e:
         print(f"❌ Error fetching booking {booking_id}: {e}")
+        import traceback
+        traceback.print_exc()
         return jsonify({'success': False, 'message': str(e)}), 500
 
 @app.route('/api/booking/<booking_id>/quick-update', methods=['POST'])

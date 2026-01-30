@@ -4096,7 +4096,8 @@
                             <i class="fas fa-user me-1"></i>Tên khách hàng:
                         </label>
                         <input type="text" class="form-control" id="editBookingGuestName"
-                               placeholder="Nhập tên khách hàng" required>
+                               placeholder="Nhập tên khách hàng">
+                        <div class="form-text">Dữ liệu hiện tại sẽ được tự động điền</div>
                     </div>
 
                     <!-- Room Selection -->
@@ -4140,13 +4141,15 @@
                             <label for="editBookingCheckin" class="form-label">
                                 <i class="fas fa-calendar-check me-1"></i>Ngày check-in:
                             </label>
-                            <input type="date" class="form-control" id="editBookingCheckin" required>
+                            <input type="date" class="form-control" id="editBookingCheckin">
+                            <div class="form-text">Dữ liệu hiện tại sẽ được giữ nguyên</div>
                         </div>
                         <div class="col-md-6">
                             <label for="editBookingCheckout" class="form-label">
                                 <i class="fas fa-calendar-times me-1"></i>Ngày check-out:
                             </label>
-                            <input type="date" class="form-control" id="editBookingCheckout" required>
+                            <input type="date" class="form-control" id="editBookingCheckout">
+                            <div class="form-text">Dữ liệu hiện tại sẽ được giữ nguyên</div>
                         </div>
                     </div>
 
@@ -7723,75 +7726,131 @@ var currentEditBooking = {};
 function openEditBookingModal(bookingId, guestName, roomName, checkin, checkout, roomAmount, taxiAmount, commission) {
     console.log('Opening edit booking modal:', { bookingId, guestName, roomName, checkin, checkout, roomAmount, taxiAmount, commission });
 
-    // Store current booking data
-    currentEditBooking = {
-        bookingId: bookingId,
-        guestName: guestName,
-        roomName: roomName,
-        checkin: checkin,
-        checkout: checkout,
-        roomAmount: roomAmount || 0,
-        taxiAmount: taxiAmount || 0,
-        commission: commission || 0
-    };
-
-    // Populate modal fields
-    document.getElementById('editBookingIdDisplay').textContent = bookingId;
-    document.getElementById('editBookingGuestName').value = guestName;
-    document.getElementById('editBookingAccommodation').value = roomName || '118 hang bac';
-    document.getElementById('editBookingRoomsOccupied').value = '1';
-
-    // Parse and set dates
-    // Format: "DD/MM" or "YYYY-MM-DD"
-    let checkinDate = '';
-    let checkoutDate = '';
-
-    if (checkin) {
-        if (typeof checkin === 'string') {
-            if (checkin.includes('-') && checkin.length === 10) {
-                // Already in YYYY-MM-DD format
-                checkinDate = checkin;
-            } else if (checkin.includes('/') && checkin.length === 5) {
-                // Format: DD/MM - assume current year
-                const [day, month] = checkin.split('/');
-                const year = new Date().getFullYear();
-                checkinDate = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
-            }
-        }
-    }
-
-    if (checkout) {
-        if (typeof checkout === 'string') {
-            if (checkout.includes('-') && checkout.length === 10) {
-                // Already in YYYY-MM-DD format
-                checkoutDate = checkout;
-            } else if (checkout.includes('/') && checkout.length === 5) {
-                // Format: DD/MM - assume current year
-                const [day, month] = checkout.split('/');
-                const year = new Date().getFullYear();
-                checkoutDate = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
-            }
-        }
-    }
-
-    document.getElementById('editBookingCheckin').value = checkinDate;
-    document.getElementById('editBookingCheckout').value = checkoutDate;
-    document.getElementById('editBookingRoomAmount').value = roomAmount || 0;
-    document.getElementById('editBookingTaxiAmount').value = taxiAmount || 0;
-    document.getElementById('editBookingCommission').value = commission || 0;
-    document.getElementById('editBookingNotes').value = '';
-
-    // Update total preview
-    updateEditBookingTotalPreview();
-
-    // Add event listeners for real-time total update
-    ['editBookingRoomAmount', 'editBookingTaxiAmount'].forEach(id => {
-        document.getElementById(id).addEventListener('input', updateEditBookingTotalPreview);
-    });
-
-    // Open modal
+    // Show loading state
     const modal = new bootstrap.Modal(document.getElementById('editBookingModal'));
     modal.show();
+
+    // Fetch complete booking data from backend to ensure accuracy
+    fetch(`/api/booking/${bookingId}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success && data.booking) {
+                const booking = data.booking;
+
+                // Store current booking data
+                currentEditBooking = {
+                    bookingId: bookingId,
+                    guestName: booking.guest_name || guestName,
+                    roomName: booking.accommodation_name || booking.room_name || roomName,
+                    checkin: booking.checkin_date,
+                    checkout: booking.checkout_date,
+                    roomAmount: booking.room_amount || 0,
+                    taxiAmount: booking.taxi_amount || 0,
+                    commission: booking.commission || 0,
+                    roomsOccupied: booking.rooms_occupied || 1
+                };
+
+                // Populate modal fields with backend data
+                document.getElementById('editBookingIdDisplay').textContent = bookingId;
+                document.getElementById('editBookingGuestName').value = currentEditBooking.guestName;
+                document.getElementById('editBookingAccommodation').value = currentEditBooking.roomName;
+                document.getElementById('editBookingRoomsOccupied').value = currentEditBooking.roomsOccupied;
+
+                // Set dates (backend returns YYYY-MM-DD format)
+                document.getElementById('editBookingCheckin').value = currentEditBooking.checkin || '';
+                document.getElementById('editBookingCheckout').value = currentEditBooking.checkout || '';
+
+                // Set amounts
+                document.getElementById('editBookingRoomAmount').value = currentEditBooking.roomAmount;
+                document.getElementById('editBookingTaxiAmount').value = currentEditBooking.taxiAmount;
+                document.getElementById('editBookingCommission').value = currentEditBooking.commission;
+                document.getElementById('editBookingNotes').value = '';
+
+                // Update total preview
+                updateEditBookingTotalPreview();
+
+                console.log('✅ Booking data loaded successfully:', currentEditBooking);
+            } else {
+                throw new Error('Failed to load booking data');
+            }
+        })
+        .catch(error => {
+            console.error('Error loading booking data:', error);
+            // Fallback to parameters if API fails
+            currentEditBooking = {
+                bookingId: bookingId,
+                guestName: guestName,
+                roomName: roomName || '118 hang bac',
+                roomAmount: roomAmount || 0,
+                taxiAmount: taxiAmount || 0,
+                commission: commission || 0,
+                roomsOccupied: 1
+            };
+
+            // Populate with fallback data
+            document.getElementById('editBookingIdDisplay').textContent = bookingId;
+            document.getElementById('editBookingGuestName').value = guestName;
+            document.getElementById('editBookingAccommodation').value = roomName || '118 hang bac';
+            document.getElementById('editBookingRoomsOccupied').value = '1';
+
+            // Try to parse dates from parameters
+            document.getElementById('editBookingCheckin').value = parseDateToISO(checkin);
+            document.getElementById('editBookingCheckout').value = parseDateToISO(checkout);
+
+            document.getElementById('editBookingRoomAmount').value = roomAmount || 0;
+            document.getElementById('editBookingTaxiAmount').value = taxiAmount || 0;
+            document.getElementById('editBookingCommission').value = commission || 0;
+            document.getElementById('editBookingNotes').value = '';
+
+            updateEditBookingTotalPreview();
+
+            showDashboardToast('⚠️ Không thể tải dữ liệu đầy đủ, hiển thị dữ liệu cơ bản', 'warning');
+        });
+
+    // Add event listeners for real-time total update (only once)
+    const roomAmountInput = document.getElementById('editBookingRoomAmount');
+    const taxiAmountInput = document.getElementById('editBookingTaxiAmount');
+
+    // Remove old listeners to avoid duplicates
+    roomAmountInput.removeEventListener('input', updateEditBookingTotalPreview);
+    taxiAmountInput.removeEventListener('input', updateEditBookingTotalPreview);
+
+    // Add new listeners
+    roomAmountInput.addEventListener('input', updateEditBookingTotalPreview);
+    taxiAmountInput.addEventListener('input', updateEditBookingTotalPreview);
+}
+
+// Helper function to parse dates to ISO format
+function parseDateToISO(dateStr) {
+    if (!dateStr) return '';
+
+    // Already in YYYY-MM-DD format
+    if (typeof dateStr === 'string' && dateStr.includes('-') && dateStr.length === 10) {
+        return dateStr;
+    }
+
+    // Format: DD/MM or DD/MM/YY or DD/MM/YYYY
+    if (typeof dateStr === 'string' && dateStr.includes('/')) {
+        const parts = dateStr.split('/');
+        if (parts.length === 2) {
+            // DD/MM - assume current year
+            const day = parts[0].padStart(2, '0');
+            const month = parts[1].padStart(2, '0');
+            const year = new Date().getFullYear();
+            return `${year}-${month}-${day}`;
+        } else if (parts.length === 3) {
+            // DD/MM/YYYY or DD/MM/YY
+            const day = parts[0].padStart(2, '0');
+            const month = parts[1].padStart(2, '0');
+            let year = parts[2];
+            if (year.length === 2) {
+                year = '20' + year;
+            }
+            return `${year}-${month}-${day}`;
+        }
+    }
+
+    return '';
 }
 
 function updateEditBookingTotalPreview() {
@@ -7821,11 +7880,12 @@ function saveBookingEdit() {
     }
 
     if (!checkin || !checkout) {
-        alert('❌ Vui lòng chọn ngày check-in và check-out!');
+        console.error('Missing dates:', { checkin, checkout });
+        alert('❌ Vui lòng chọn ngày check-in và check-out!\n\nCác ngày hiện tại:\nCheck-in: ' + (checkin || 'Chưa có') + '\nCheck-out: ' + (checkout || 'Chưa có'));
         return;
     }
 
-    if (new Date(checkout) <= new Date(checkin)) {
+    if (checkin && checkout && new Date(checkout) <= new Date(checkin)) {
         alert('❌ Ngày check-out phải sau ngày check-in!');
         return;
     }
