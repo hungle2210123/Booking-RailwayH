@@ -3053,8 +3053,11 @@ def analyze_expense_image():
         image_bytes = file.read()
         image = Image.open(io.BytesIO(image_bytes))
 
-        # Prepare AI prompt
-        today = datetime.now().strftime('%Y-%m-%d')
+        # Prepare AI prompt with enhanced date parsing
+        now = datetime.now()
+        today = now.strftime('%Y-%m-%d')
+        current_year = now.year
+        current_month = now.month
 
         prompt = f"""
 You are an AI assistant that extracts expense/revenue data from images (screenshots, receipts, chat messages, etc.).
@@ -3077,11 +3080,28 @@ You are an AI assistant that extracts expense/revenue data from images (screensh
    - "90.000" → 90000
    - "170k" → 170000
 
-3. **Date:** Extract or infer date
-   - If timestamp visible: extract actual date
-   - If "Hôm nay" or "Today": use TODAY's date
-   - If relative time (15:02, 16:05): use TODAY
-   - Format: YYYY-MM-DD
+3. **Date:** Extract or infer date (CRITICAL RULES - READ CAREFULLY)
+   - **Format:** YYYY-MM-DD (e.g., {today})
+
+   - **DAY-ONLY inputs** (e.g., "20", "20th", "ngày 20", "mùng 20"):
+     * Use CURRENT month and year: {current_year}-{current_month:02d}-[day]
+     * Example: "20" → "{current_year}-{current_month:02d}-20"
+     * Example: "15th" → "{current_year}-{current_month:02d}-15"
+     * Example: "ngày 5" → "{current_year}-{current_month:02d}-05"
+     * ⚠️ DO NOT interpret "20" as month "02"! It's day 20!
+
+   - **Full date visible** (e.g., "20/01/2026", "2026-01-20"):
+     * Extract exact date in YYYY-MM-DD format
+     * "20/01/2026" → "2026-01-20"
+     * "01/20/2026" → "2026-01-20"
+
+   - **"Hôm nay", "Today", or time only** (e.g., "15:02", "16:05"):
+     * Use TODAY's date: {today}
+
+   - **Validation:**
+     * Day must be 01-31
+     * Month must be 01-12
+     * Use leading zeros (05, not 5)
 
 4. **Category:** Auto-categorize as "personal" or "work" or null
    - Personal: food, gas, personal items → "personal"
@@ -3112,6 +3132,7 @@ You are an AI assistant that extracts expense/revenue data from images (screensh
 - Use null for missing/uncertain values
 - Preserve Vietnamese characters exactly
 - Today's date is: {today}
+- Current month/year: {current_year}-{current_month:02d}
 
 Extract all expenses now:
 """
@@ -6360,6 +6381,107 @@ def update_guest_amounts():
             
     except Exception as e:
         print(f"[UPDATE_GUEST_AMOUNTS] Error: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            'success': False,
+            'message': f'Server error: {str(e)}'
+        }), 500
+
+@app.route('/api/update_booking_comprehensive', methods=['POST'])
+def update_booking_comprehensive():
+    """Comprehensive update for booking - all editable fields"""
+    try:
+        data = request.get_json()
+        print(f"[UPDATE_BOOKING_COMPREHENSIVE] Received data: {data}")
+
+        booking_id = data.get('booking_id')
+
+        # Validate input
+        if not booking_id:
+            return jsonify({'success': False, 'message': 'Missing booking ID'}), 400
+
+        # Prepare update data
+        update_data = {}
+
+        # Guest name
+        if 'guest_name' in data and data['guest_name']:
+            update_data['guest_name'] = data['guest_name'].strip()
+            print(f"[UPDATE_BOOKING_COMPREHENSIVE] Updating guest_name to: {update_data['guest_name']}")
+
+        # Accommodation
+        if 'accommodation_name' in data:
+            update_data['accommodation_name'] = data['accommodation_name']
+            print(f"[UPDATE_BOOKING_COMPREHENSIVE] Updating accommodation_name to: {update_data['accommodation_name']}")
+
+        # Rooms occupied
+        if 'rooms_occupied' in data:
+            update_data['rooms_occupied'] = int(data['rooms_occupied'])
+            print(f"[UPDATE_BOOKING_COMPREHENSIVE] Updating rooms_occupied to: {update_data['rooms_occupied']}")
+
+        # Check-in date
+        if 'checkin_date' in data and data['checkin_date']:
+            from datetime import datetime
+            try:
+                checkin_date = datetime.strptime(data['checkin_date'], '%Y-%m-%d').date()
+                update_data['checkin_date'] = checkin_date
+                print(f"[UPDATE_BOOKING_COMPREHENSIVE] Updating checkin_date to: {checkin_date}")
+            except ValueError as e:
+                return jsonify({'success': False, 'message': f'Invalid check-in date format: {str(e)}'}), 400
+
+        # Check-out date
+        if 'checkout_date' in data and data['checkout_date']:
+            from datetime import datetime
+            try:
+                checkout_date = datetime.strptime(data['checkout_date'], '%Y-%m-%d').date()
+                update_data['checkout_date'] = checkout_date
+                print(f"[UPDATE_BOOKING_COMPREHENSIVE] Updating checkout_date to: {checkout_date}")
+            except ValueError as e:
+                return jsonify({'success': False, 'message': f'Invalid check-out date format: {str(e)}'}), 400
+
+        # Financial data
+        if 'room_amount' in data:
+            update_data['room_amount'] = float(data['room_amount'])
+            print(f"[UPDATE_BOOKING_COMPREHENSIVE] Updating room_amount to: {update_data['room_amount']}")
+
+        if 'taxi_amount' in data:
+            update_data['taxi_amount'] = float(data['taxi_amount'])
+            print(f"[UPDATE_BOOKING_COMPREHENSIVE] Updating taxi_amount to: {update_data['taxi_amount']}")
+
+        if 'commission_amount' in data:
+            update_data['commission'] = float(data['commission_amount'])
+            print(f"[UPDATE_BOOKING_COMPREHENSIVE] Updating commission to: {update_data['commission']}")
+
+        # Notes
+        if 'edit_note' in data and data['edit_note']:
+            update_data['booking_notes'] = data['edit_note'].strip()
+            print(f"[UPDATE_BOOKING_COMPREHENSIVE] Updating notes to: {update_data['booking_notes']}")
+
+        # Validate dates if both provided
+        if 'checkin_date' in update_data and 'checkout_date' in update_data:
+            if update_data['checkout_date'] <= update_data['checkin_date']:
+                return jsonify({'success': False, 'message': 'Check-out date must be after check-in date'}), 400
+
+        print(f"[UPDATE_BOOKING_COMPREHENSIVE] Final update_data: {update_data}")
+
+        # Update the booking using core logic
+        success = update_booking(booking_id, update_data)
+
+        if success:
+            print(f"[UPDATE_BOOKING_COMPREHENSIVE] Successfully updated {booking_id}")
+            return jsonify({
+                'success': True,
+                'message': f'Successfully updated booking {booking_id}'
+            })
+        else:
+            print(f"[UPDATE_BOOKING_COMPREHENSIVE] Failed to update {booking_id}")
+            return jsonify({
+                'success': False,
+                'message': f'Failed to update booking {booking_id}'
+            }), 500
+
+    except Exception as e:
+        print(f"[UPDATE_BOOKING_COMPREHENSIVE] Error: {e}")
         import traceback
         traceback.print_exc()
         return jsonify({

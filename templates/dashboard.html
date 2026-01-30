@@ -1505,16 +1505,16 @@
                                 {% endif %}
 
                                 <!-- Action Buttons Row -->
-                                <div class="btn-group btn-group-sm w-100" role="group">
-                                    <button class="btn btn-outline-secondary btn-sm" style="font-size: 10px; padding: 4px 8px;"
-                                            onclick="openCollectModal('{{ booking_id }}', '{{ guest_name }}', {{ total_amount }}, {{ commission }}, {{ room_fee }}, {{ taxi_fee }}, {{ collected_amount }}, '{{ collector }}', '{{ payment_note }}')"
-                                            title="View details">
-                                        <i class="fas fa-eye"></i>
+                                <div class="d-flex gap-1 w-100">
+                                    <button class="btn btn-primary btn-sm flex-fill" style="font-size: 10px; padding: 6px 10px;"
+                                            onclick="openEditBookingModal('{{ booking_id }}', '{{ guest_name }}', '{{ guest.get('room_name', '') or guest.get('Tên chỗ nghỉ', '') }}', '{{ guest.get('Check-in Date', '') }}', '{{ guest.get('Check-out Date', '') }}', {{ room_fee }}, {{ taxi_fee }}, {{ commission }})"
+                                            title="Chỉnh sửa đặt phòng">
+                                        <i class="fas fa-edit me-1"></i>Sửa
                                     </button>
-                                    <button class="btn btn-outline-secondary btn-sm" style="font-size: 10px; padding: 4px 8px;"
-                                            onclick="openEditAmountModal('{{ booking_id }}', '{{ guest_name }}', {{ room_fee }}, {{ taxi_fee }}, {{ commission }})"
-                                            title="Edit amounts">
-                                        <i class="fas fa-edit"></i>
+                                    <button class="btn btn-dark btn-sm flex-fill" style="font-size: 10px; padding: 6px 10px;"
+                                            onclick="openEditCollectedModal('{{ booking_id }}', '{{ guest_name }}', {{ total_amount }}, {{ collected_amount }}, '{{ collector }}')"
+                                            title="Thu tiền">
+                                        <i class="fas fa-money-bill-wave me-1"></i>Thu tiền
                                     </button>
                                 </div>
                             </td>
@@ -1612,8 +1612,12 @@
                                         <small class="text-muted" style="font-size: 9px;">Còn lại</small>
                                         <div style="font-size: 12px; font-weight: 600; color: #dc3545;">{{ "{:,.0f}".format(total_amount) }}đ</div>
                                     </div>
-                                    <div style="flex: 0 0 120px;">
-                                        <button class="btn btn-dark btn-sm w-100" style="font-size: 10px; padding: 3px 6px;"
+                                    <div style="flex: 0 0 140px; display: flex; gap: 4px;">
+                                        <button class="btn btn-primary btn-sm" style="font-size: 10px; padding: 3px 6px; flex: 1;"
+                                                onclick="openEditBookingModal('{{ booking_id }}', '{{ guest_name|replace("'", "\\'") }}', '{{ room_name }}', '{{ checkin }}', '{{ checkout }}', {{ room_amount }}, {{ taxi_amount }}, {{ commission }})">
+                                            Sửa
+                                        </button>
+                                        <button class="btn btn-dark btn-sm" style="font-size: 10px; padding: 3px 6px; flex: 1;"
                                                 onclick="openEditCollectedModal('{{ booking_id }}', '{{ guest_name|replace("'", "\\'") }}', {{ total_amount }}, 0, '')">
                                             Thu tiền
                                         </button>
@@ -1705,9 +1709,14 @@
                                             <div style="font-weight: 600; {% if is_high_commission %}color: #dc3545;{% else %}color: #333;{% endif %}">{{ "{:,.0f}".format(commission) }}đ</div>
                                         </div>
 
-                                        <!-- Button -->
-                                        <div style="flex: 0 0 100px;">
-                                            <button class="btn btn-dark btn-sm w-100" style="font-size: 11px; padding: 5px; border-radius: 4px;"
+                                        <!-- Buttons -->
+                                        <div style="flex: 0 0 130px; display: flex; gap: 4px;">
+                                            <button class="btn btn-sm btn-outline-primary" style="font-size: 10px; padding: 4px 8px; flex: 0 0 40px;"
+                                                    onclick="openEditBookingModal('{{ booking_id }}', '{{ guest_name|replace("'", "\\'") }}', '{{ room_name }}', '{{ checkin }}', '{{ checkout }}', {{ guest.get('Tổng thanh toán', 0) or guest.get('calculated_room_fee', 0) or 0 }}, {{ guest.get('calculated_taxi_fee', 0) or 0 }}, {{ commission }})"
+                                                    title="Sửa">
+                                                <i class="fas fa-edit"></i>
+                                            </button>
+                                            <button class="btn btn-dark btn-sm" style="font-size: 11px; padding: 5px; border-radius: 4px; flex: 1;"
                                                     onclick="quickCommissionDecision('{{ booking_id }}', '{{ guest_name|replace("'", "\\'") }}', {{ commission }})">
                                                 Quyết định
                                             </button>
@@ -4057,6 +4066,127 @@
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
                 <button type="button" class="btn btn-warning" id="confirmEditBtn" onclick="updateBookingAmounts()">
                     <i class="fas fa-save me-1"></i>Cập nhật số tiền
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Booking Modal (Comprehensive) -->
+<div class="modal fade" id="editBookingModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content">
+            <div class="modal-header" style="background: #0d6efd; color: white;">
+                <h5 class="modal-title">
+                    <i class="fas fa-edit me-2"></i>Chỉnh Sửa Thông Tin Đặt Phòng
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="editBookingForm">
+                    <!-- Booking ID Display (Read-only) -->
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Mã đặt phòng:</label>
+                        <div class="text-muted" id="editBookingIdDisplay"></div>
+                    </div>
+
+                    <!-- Guest Name -->
+                    <div class="mb-3">
+                        <label for="editBookingGuestName" class="form-label">
+                            <i class="fas fa-user me-1"></i>Tên khách hàng:
+                        </label>
+                        <input type="text" class="form-control" id="editBookingGuestName"
+                               placeholder="Nhập tên khách hàng" required>
+                    </div>
+
+                    <!-- Room Selection -->
+                    <div class="row mb-3">
+                        <div class="col-md-8">
+                            <label for="editBookingAccommodation" class="form-label">
+                                <i class="fas fa-hotel me-1"></i>Chọn phòng:
+                            </label>
+                            <select class="form-select" id="editBookingAccommodation">
+                                <optgroup label="🔵 118 Hàng Bạc">
+                                    <option value="118 hang bac">🔵 118 hang bac</option>
+                                    <option value="kitchen">🔵 kitchen</option>
+                                    <option value="night market">🔵 night market</option>
+                                    <option value="118 Hang Bac Hostel">🔵 118 Hang Bac Hostel (General)</option>
+                                </optgroup>
+                                <optgroup label="🟢 18 Hàng Bè">
+                                    <option value="hang be 101">🟢 hang be 101</option>
+                                    <option value="hang be 102">🟢 hang be 102</option>
+                                    <option value="18 Hang Be">🟢 18 Hang Be (General)</option>
+                                </optgroup>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="editBookingRoomsOccupied" class="form-label">
+                                <i class="fas fa-bed me-1"></i>Số phòng:
+                            </label>
+                            <select class="form-select" id="editBookingRoomsOccupied">
+                                <option value="1">1 phòng</option>
+                                <option value="2">2 phòng</option>
+                                <option value="3">3 phòng</option>
+                                <option value="4">4 phòng</option>
+                                <option value="5">5 phòng</option>
+                                <option value="6">6 phòng</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Check-in/out Dates -->
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="editBookingCheckin" class="form-label">
+                                <i class="fas fa-calendar-check me-1"></i>Ngày check-in:
+                            </label>
+                            <input type="date" class="form-control" id="editBookingCheckin" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="editBookingCheckout" class="form-label">
+                                <i class="fas fa-calendar-times me-1"></i>Ngày check-out:
+                            </label>
+                            <input type="date" class="form-control" id="editBookingCheckout" required>
+                        </div>
+                    </div>
+
+                    <!-- Financial Information -->
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <label for="editBookingRoomAmount" class="form-label">Tiền phòng:</label>
+                            <input type="number" class="form-control" id="editBookingRoomAmount"
+                                   placeholder="0" min="0" step="1000">
+                        </div>
+                        <div class="col-md-4">
+                            <label for="editBookingTaxiAmount" class="form-label">Tiền taxi:</label>
+                            <input type="number" class="form-control" id="editBookingTaxiAmount"
+                                   placeholder="0" min="0" step="1000">
+                        </div>
+                        <div class="col-md-4">
+                            <label for="editBookingCommission" class="form-label">Hoa hồng:</label>
+                            <input type="number" class="form-control" id="editBookingCommission"
+                                   placeholder="0" min="0" step="1000">
+                        </div>
+                    </div>
+
+                    <!-- Total Preview -->
+                    <div class="alert alert-info mb-3">
+                        <strong>Tổng số tiền:</strong>
+                        <span id="editBookingTotalPreview" class="fw-bold">0đ</span>
+                    </div>
+
+                    <!-- Notes -->
+                    <div class="mb-3">
+                        <label for="editBookingNotes" class="form-label">Ghi chú:</label>
+                        <textarea class="form-control" id="editBookingNotes" rows="2"
+                                  placeholder="Thêm ghi chú..."></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                <button type="button" class="btn btn-primary" id="confirmEditBookingBtn" onclick="saveBookingEdit()">
+                    <i class="fas fa-save me-1"></i>Lưu Thay Đổi
                 </button>
             </div>
         </div>
@@ -7576,6 +7706,184 @@ function updateBookingAmounts() {
     })
     .catch(error => {
         console.error('Update amounts error:', error);
+        showDashboardToast(`❌ Lỗi cập nhật: ${error.message}`, 'error');
+    })
+    .finally(() => {
+        // Restore button
+        confirmBtn.innerHTML = originalText;
+        confirmBtn.disabled = false;
+    });
+}
+
+// ==================== COMPREHENSIVE BOOKING EDIT FUNCTIONS ====================
+
+// Global variable to store current booking being edited
+var currentEditBooking = {};
+
+function openEditBookingModal(bookingId, guestName, roomName, checkin, checkout, roomAmount, taxiAmount, commission) {
+    console.log('Opening edit booking modal:', { bookingId, guestName, roomName, checkin, checkout, roomAmount, taxiAmount, commission });
+
+    // Store current booking data
+    currentEditBooking = {
+        bookingId: bookingId,
+        guestName: guestName,
+        roomName: roomName,
+        checkin: checkin,
+        checkout: checkout,
+        roomAmount: roomAmount || 0,
+        taxiAmount: taxiAmount || 0,
+        commission: commission || 0
+    };
+
+    // Populate modal fields
+    document.getElementById('editBookingIdDisplay').textContent = bookingId;
+    document.getElementById('editBookingGuestName').value = guestName;
+    document.getElementById('editBookingAccommodation').value = roomName || '118 hang bac';
+    document.getElementById('editBookingRoomsOccupied').value = '1';
+
+    // Parse and set dates
+    // Format: "DD/MM" or "YYYY-MM-DD"
+    let checkinDate = '';
+    let checkoutDate = '';
+
+    if (checkin) {
+        if (typeof checkin === 'string') {
+            if (checkin.includes('-') && checkin.length === 10) {
+                // Already in YYYY-MM-DD format
+                checkinDate = checkin;
+            } else if (checkin.includes('/') && checkin.length === 5) {
+                // Format: DD/MM - assume current year
+                const [day, month] = checkin.split('/');
+                const year = new Date().getFullYear();
+                checkinDate = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+            }
+        }
+    }
+
+    if (checkout) {
+        if (typeof checkout === 'string') {
+            if (checkout.includes('-') && checkout.length === 10) {
+                // Already in YYYY-MM-DD format
+                checkoutDate = checkout;
+            } else if (checkout.includes('/') && checkout.length === 5) {
+                // Format: DD/MM - assume current year
+                const [day, month] = checkout.split('/');
+                const year = new Date().getFullYear();
+                checkoutDate = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+            }
+        }
+    }
+
+    document.getElementById('editBookingCheckin').value = checkinDate;
+    document.getElementById('editBookingCheckout').value = checkoutDate;
+    document.getElementById('editBookingRoomAmount').value = roomAmount || 0;
+    document.getElementById('editBookingTaxiAmount').value = taxiAmount || 0;
+    document.getElementById('editBookingCommission').value = commission || 0;
+    document.getElementById('editBookingNotes').value = '';
+
+    // Update total preview
+    updateEditBookingTotalPreview();
+
+    // Add event listeners for real-time total update
+    ['editBookingRoomAmount', 'editBookingTaxiAmount'].forEach(id => {
+        document.getElementById(id).addEventListener('input', updateEditBookingTotalPreview);
+    });
+
+    // Open modal
+    const modal = new bootstrap.Modal(document.getElementById('editBookingModal'));
+    modal.show();
+}
+
+function updateEditBookingTotalPreview() {
+    const roomAmount = parseFloat(document.getElementById('editBookingRoomAmount').value) || 0;
+    const taxiAmount = parseFloat(document.getElementById('editBookingTaxiAmount').value) || 0;
+    const total = roomAmount + taxiAmount;
+
+    document.getElementById('editBookingTotalPreview').textContent = new Intl.NumberFormat('vi-VN').format(total) + 'đ';
+}
+
+function saveBookingEdit() {
+    // Get form values
+    const guestName = document.getElementById('editBookingGuestName').value.trim();
+    const accommodation = document.getElementById('editBookingAccommodation').value;
+    const roomsOccupied = parseInt(document.getElementById('editBookingRoomsOccupied').value) || 1;
+    const checkin = document.getElementById('editBookingCheckin').value;
+    const checkout = document.getElementById('editBookingCheckout').value;
+    const roomAmount = parseFloat(document.getElementById('editBookingRoomAmount').value) || 0;
+    const taxiAmount = parseFloat(document.getElementById('editBookingTaxiAmount').value) || 0;
+    const commission = parseFloat(document.getElementById('editBookingCommission').value) || 0;
+    const notes = document.getElementById('editBookingNotes').value.trim();
+
+    // Validation
+    if (!guestName) {
+        alert('❌ Vui lòng nhập tên khách hàng!');
+        return;
+    }
+
+    if (!checkin || !checkout) {
+        alert('❌ Vui lòng chọn ngày check-in và check-out!');
+        return;
+    }
+
+    if (new Date(checkout) <= new Date(checkin)) {
+        alert('❌ Ngày check-out phải sau ngày check-in!');
+        return;
+    }
+
+    if (roomAmount < 0 || taxiAmount < 0 || commission < 0) {
+        alert('❌ Số tiền không thể âm!');
+        return;
+    }
+
+    // Disable button and show loading
+    const confirmBtn = document.getElementById('confirmEditBookingBtn');
+    const originalText = confirmBtn.innerHTML;
+    confirmBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Đang lưu...';
+    confirmBtn.disabled = true;
+
+    // Prepare update data
+    const updateData = {
+        booking_id: currentEditBooking.bookingId,
+        guest_name: guestName,
+        accommodation_name: accommodation,
+        rooms_occupied: roomsOccupied,
+        checkin_date: checkin,
+        checkout_date: checkout,
+        room_amount: roomAmount,
+        taxi_amount: taxiAmount,
+        commission_amount: commission,
+        edit_note: notes
+    };
+
+    console.log('Saving booking edit:', updateData);
+
+    // Call API to update booking
+    fetch('/api/update_booking_comprehensive', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(updateData)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showDashboardToast('✅ Đã cập nhật thông tin đặt phòng!', 'success');
+
+            // Close modal
+            const modal = bootstrap.Modal.getInstance(document.getElementById('editBookingModal'));
+            modal.hide();
+
+            // Reload page to show updated data
+            setTimeout(() => {
+                location.reload();
+            }, 800);
+        } else {
+            throw new Error(data.message || 'Lỗi không xác định');
+        }
+    })
+    .catch(error => {
+        console.error('Update booking error:', error);
         showDashboardToast(`❌ Lỗi cập nhật: ${error.message}`, 'error');
     })
     .finally(() => {
