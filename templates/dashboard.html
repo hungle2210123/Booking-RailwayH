@@ -7764,7 +7764,7 @@ function openEditBookingModal(bookingId, guestName, roomName, checkin, checkout,
                 document.getElementById('editBookingRoomAmount').value = currentEditBooking.roomAmount;
                 document.getElementById('editBookingTaxiAmount').value = currentEditBooking.taxiAmount;
                 document.getElementById('editBookingCommission').value = currentEditBooking.commission;
-                document.getElementById('editBookingNotes').value = '';
+                document.getElementById('editBookingNotes').value = booking.booking_notes || '';
 
                 // Update total preview
                 updateEditBookingTotalPreview();
@@ -7961,7 +7961,7 @@ function saveBookingEdit() {
 
 // ⚡ MASTER instant-update — hits every container that holds this booking
 function instantUpdateBookingEverywhere(bookingId, vals) {
-    const fmt = (n) => Number(n).toLocaleString() + 'đ';
+    const fmt = (n) => Number(Math.round(Number(n))).toLocaleString('en-US') + 'đ';
     const flash = (el) => {
         if (!el) return;
         el.style.transition = 'color 0.3s, background 0.3s';
@@ -8055,34 +8055,38 @@ function instantUpdateBookingEverywhere(bookingId, vals) {
             flash(totalEl);
         }
 
-        // ── breakdown: room fee ──
+        // ── breakdown: room fee — update text node after icon only ──
         const bedIcon = tr.querySelector('.text-muted .fas.fa-bed');
-        if (bedIcon && bedIcon.parentElement) {
-            bedIcon.parentElement.innerHTML = `<i class="fas fa-bed me-1"></i>${fmt(vals.roomAmount)}`;
+        if (bedIcon && bedIcon.nextSibling && bedIcon.nextSibling.nodeType === 3) {
+            bedIcon.nextSibling.textContent = fmt(vals.roomAmount);
+            flash(bedIcon.parentElement);
         }
 
-        // ── breakdown: taxi fee ──
+        // ── breakdown: taxi fee — same text-node approach ──
         const taxiIcon = tr.querySelector('.text-muted .fas.fa-taxi');
-        if (taxiIcon && taxiIcon.parentElement) {
-            if (vals.taxiAmount > 0) {
-                taxiIcon.parentElement.innerHTML = `<i class="fas fa-taxi me-1"></i>${fmt(vals.taxiAmount)}`;
-            } else {
-                taxiIcon.parentElement.remove();
-            }
+        if (taxiIcon && taxiIcon.nextSibling && taxiIcon.nextSibling.nodeType === 3) {
+            taxiIcon.nextSibling.textContent = vals.taxiAmount > 0 ? fmt(vals.taxiAmount) : '';
         }
 
         // ── guest name ──
         const nameCell = tr.querySelector('.fw-bold.text-dark.small');
         if (nameCell) nameCell.textContent = vals.guestName;
 
-        // ── dates: sign-in / sign-out ──
-        tr.querySelectorAll('.text-muted').forEach(el => {
-            if (el.innerHTML.includes('fa-sign-out-alt')) {
-                el.innerHTML = el.innerHTML.replace(/\d{2}\/\d{2}/, diCheckout);
-            } else if (el.innerHTML.includes('fa-sign-in-alt')) {
-                el.innerHTML = el.innerHTML.replace(/\d{2}\/\d{2}/, diCheckin);
+        // ── dates: checkout via sign-out icon ──
+        const signOutIcon = tr.querySelector('.fa-sign-out-alt');
+        if (signOutIcon) {
+            const boldSpan = signOutIcon.closest('div')?.querySelector('span.fw-bold');
+            if (boldSpan) { boldSpan.textContent = diCheckout; flash(boldSpan); }
+        }
+        // ── dates: checkin via sign-in icon ──
+        const signInIcon = tr.querySelector('.fa-sign-in-alt');
+        if (signInIcon) {
+            const signInDiv = signInIcon.closest('div');
+            if (signInDiv) {
+                signInDiv.innerHTML = signInDiv.innerHTML.replace(/\d{2}\/\d{2}/, diCheckin);
+                flash(signInDiv);
             }
-        });
+        }
 
         console.log('⚡ updated table row', bookingId);
     });
