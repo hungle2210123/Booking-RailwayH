@@ -7928,42 +7928,22 @@ function saveBookingEdit() {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            showDashboardToast('✅ Đã cập nhật thông tin đặt phòng!', 'success');
+            showDashboardToast('✅ Đã cập nhật thành công!', 'success');
 
-            // ⚡ INSTANT UPDATE: Update UI without reload
-            console.log('⚡ [INSTANT_UPDATE] Starting instant UI updates...');
-
-            // Update guest card amounts in the unpaid customers table
-            updateGuestCardAmounts(currentEditBooking.bookingId, roomAmount, taxiAmount, commission);
-
-            // Update guest name in all views
-            updateGuestNameInAllViews(currentEditBooking.bookingId, guestName);
-
-            // Update dates in all views
-            updateDatesInAllViews(currentEditBooking.bookingId, checkin, checkout);
-
-            // Update all booking views with new data
-            updateBookingInAllViews(currentEditBooking.bookingId, {
-                room_amount: roomAmount,
-                taxi_amount: taxiAmount,
+            // ⚡ Single call updates every row across all views
+            instantUpdateBookingEverywhere(currentEditBooking.bookingId, {
+                guestName: guestName,
+                total: roomAmount + taxiAmount,
+                roomAmount: roomAmount,
+                taxiAmount: taxiAmount,
                 commission: commission,
-                total_amount: roomAmount + taxiAmount,
-                guest_name: guestName,
-                accommodation_name: accommodation,
-                checkin_date: checkin,
-                checkout_date: checkout
+                checkin: checkin,
+                checkout: checkout
             });
-
-            // Update the total for overdue section
-            setTimeout(() => {
-                recalculateOverdueTotal();
-            }, 500);
 
             // Close modal
             const modal = bootstrap.Modal.getInstance(document.getElementById('editBookingModal'));
             modal.hide();
-
-            console.log('⚡ [SUCCESS] Instant updates completed - NO reload needed!');
         } else {
             throw new Error(data.message || 'Lỗi không xác định');
         }
@@ -7979,88 +7959,132 @@ function saveBookingEdit() {
     });
 }
 
-// Helper function to update guest name in all views
-function updateGuestNameInAllViews(bookingId, newGuestName) {
-    console.log(`⚡ [UPDATE_NAME] Updating guest name for ${bookingId} to: ${newGuestName}`);
-
-    // Find all elements that contain this booking ID
-    const allRows = document.querySelectorAll('tr, .booking-card, .unpaid-list-item');
-
-    allRows.forEach(element => {
-        // Check if this element is for our booking
-        const textContent = element.textContent;
-        if (textContent.includes(bookingId)) {
-            // Find guest name element (fw-bold, guest name display)
-            const guestNameElements = element.querySelectorAll('.fw-bold:not(.badge)');
-            guestNameElements.forEach(nameEl => {
-                // Check if this is the guest name (not amount)
-                if (!nameEl.textContent.includes('đ') && !nameEl.textContent.includes('thu')) {
-                    console.log(`✅ Updating guest name from "${nameEl.textContent}" to "${newGuestName}"`);
-                    nameEl.textContent = newGuestName;
-                    // Flash animation
-                    nameEl.style.transition = 'all 0.3s';
-                    nameEl.style.backgroundColor = '#d4edda';
-                    setTimeout(() => { nameEl.style.backgroundColor = ''; }, 1000);
-                }
-            });
-        }
-    });
-}
-
-// Helper function to update dates in all views
-function updateDatesInAllViews(bookingId, newCheckin, newCheckout) {
-    console.log(`⚡ [UPDATE_DATES] Updating dates for ${bookingId}:`, { newCheckin, newCheckout });
-
-    // Convert to display format (DD/MM)
-    const formatDate = (dateStr) => {
-        if (!dateStr) return '';
-        const parts = dateStr.split('-');
-        if (parts.length === 3) {
-            return `${parts[2]}/${parts[1]}`;
-        }
-        return dateStr;
+// ⚡ MASTER instant-update — hits every container that holds this booking
+function instantUpdateBookingEverywhere(bookingId, vals) {
+    const fmt = (n) => Number(n).toLocaleString() + 'đ';
+    const flash = (el) => {
+        if (!el) return;
+        el.style.transition = 'color 0.3s, background 0.3s';
+        el.style.background = '#d4edda';
+        el.style.color = '#155724';
+        setTimeout(() => { el.style.background = ''; el.style.color = ''; }, 900);
     };
 
-    const displayCheckin = formatDate(newCheckin);
-    const displayCheckout = formatDate(newCheckout);
+    // Render DD/MM from YYYY-MM-DD
+    const fmtDate = (s) => {
+        if (!s) return '';
+        const p = s.split('-');
+        return p.length === 3 ? `${p[2]}/${p[1]}` : s;
+    };
+    const diCheckin  = fmtDate(vals.checkin);
+    const diCheckout = fmtDate(vals.checkout);
 
-    // Find all elements that contain this booking ID
-    const allRows = document.querySelectorAll('tr, .booking-card, .unpaid-list-item');
+    // ─── 1. ALL .unpaid-list-item rows (full-screen modal) ───
+    document.querySelectorAll(`.unpaid-list-item[data-booking-id="${bookingId}"]`).forEach(row => {
+        // ── amounts: walk every child div, look at the first <small> or <div> label ──
+        const flexCols = row.querySelectorAll('[style*="text-align: right"]');
+        flexCols.forEach(col => {
+            // Label is the first child — could be <small> or <div>
+            const label = col.children[0];
+            const amountEl = col.children[1];   // the value element
+            if (!label || !amountEl) return;
 
-    allRows.forEach(element => {
-        // Check if this element is for our booking
-        const textContent = element.textContent;
-        if (textContent.includes(bookingId)) {
-            // Find date displays with arrow (DD/MM → DD/MM)
-            const dateElements = element.querySelectorAll('[style*="flex"]');
-            dateElements.forEach(dateEl => {
-                if (dateEl.textContent.includes('→')) {
-                    console.log(`✅ Updating dates to: ${displayCheckin} → ${displayCheckout}`);
-                    dateEl.innerHTML = dateEl.innerHTML.replace(/\d{2}\/\d{2}\s*→\s*\d{2}\/\d{2}/, `${displayCheckin} → ${displayCheckout}`);
-                    // Flash animation
-                    dateEl.style.transition = 'all 0.3s';
-                    dateEl.style.backgroundColor = '#d4edda';
-                    setTimeout(() => { dateEl.style.backgroundColor = ''; }, 1000);
-                }
-            });
+            const t = label.textContent.trim();
+            if (t === 'Tổng') {
+                amountEl.textContent = fmt(vals.total);
+                flash(amountEl);
+            } else if (t === 'Đã thu') {
+                // leave as-is (collected hasn't changed here)
+            } else if (t === 'Còn lại') {
+                amountEl.textContent = fmt(vals.total);
+                flash(amountEl);
+            }
+        });
 
-            // Also update individual check-in/check-out displays
-            const textMutedElements = element.querySelectorAll('.text-muted');
-            textMutedElements.forEach(el => {
-                if (el.innerHTML.includes('fa-sign-in-alt')) {
-                    const dateMatch = el.textContent.match(/\d{2}\/\d{2}/);
-                    if (dateMatch) {
-                        el.innerHTML = el.innerHTML.replace(/\d{2}\/\d{2}/, displayCheckin);
-                    }
-                } else if (el.innerHTML.includes('fa-sign-out-alt')) {
-                    const dateMatch = el.textContent.match(/\d{2}\/\d{2}/);
-                    if (dateMatch) {
-                        el.innerHTML = el.innerHTML.replace(/\d{2}\/\d{2}/, displayCheckout);
-                    }
-                }
-            });
+        // ── guest name ──
+        // CHƯA THU layout: first flex-child has .fw-bold as name
+        const nameEl = row.querySelector('.fw-bold');
+        if (nameEl && !nameEl.textContent.includes('đ')) {
+            nameEl.textContent = vals.guestName;
         }
+        // CHỜ QUYẾT ĐỊNH layout: name is in a div with font-weight:600
+        const nameEl2 = row.querySelector('[style*="font-weight: 600; color: #333"]');
+        if (nameEl2 && !nameEl2.textContent.includes('đ')) {
+            nameEl2.textContent = vals.guestName;
+        }
+
+        // ── dates (arrow row) ──
+        const allChildren = row.querySelectorAll('div');
+        allChildren.forEach(el => {
+            if (el.children.length === 0 && el.textContent.includes('→')) {
+                const newDates = `${diCheckin} → ${diCheckout}`;
+                el.textContent = newDates;
+                flash(el);
+            }
+        });
+
+        console.log('⚡ updated .unpaid-list-item', bookingId);
     });
+
+    // ─── 2. Main dashboard TABLE rows ───
+    // The main table row doesn't use data-booking-id on <tr>;
+    // it puts the booking_id inside a .text-muted inside a <td>.
+    const allTrs = document.querySelectorAll('.table-responsive table tbody tr');
+    allTrs.forEach(tr => {
+        // quick check: does any .text-muted child contain our booking ID?
+        let match = false;
+        tr.querySelectorAll('.text-muted').forEach(el => {
+            if (el.textContent.trim().includes(bookingId)) match = true;
+        });
+        if (!match) return;
+
+        // ── total amount (red bold) ──
+        const totalEl = tr.querySelector('.fw-bold.text-danger.small');
+        if (totalEl) {
+            const icon = totalEl.querySelector('i');
+            const iconHtml = icon ? icon.outerHTML : '<i class="fas fa-money-bill-wave me-1"></i>';
+            totalEl.innerHTML = `${iconHtml}${fmt(vals.total)}`;
+            flash(totalEl);
+        }
+
+        // ── breakdown: room fee ──
+        const bedIcon = tr.querySelector('.text-muted .fas.fa-bed');
+        if (bedIcon && bedIcon.parentElement) {
+            bedIcon.parentElement.innerHTML = `<i class="fas fa-bed me-1"></i>${fmt(vals.roomAmount)}`;
+        }
+
+        // ── breakdown: taxi fee ──
+        const taxiIcon = tr.querySelector('.text-muted .fas.fa-taxi');
+        if (taxiIcon && taxiIcon.parentElement) {
+            if (vals.taxiAmount > 0) {
+                taxiIcon.parentElement.innerHTML = `<i class="fas fa-taxi me-1"></i>${fmt(vals.taxiAmount)}`;
+            } else {
+                taxiIcon.parentElement.remove();
+            }
+        }
+
+        // ── guest name ──
+        const nameCell = tr.querySelector('.fw-bold.text-dark.small');
+        if (nameCell) nameCell.textContent = vals.guestName;
+
+        // ── dates: sign-in / sign-out ──
+        tr.querySelectorAll('.text-muted').forEach(el => {
+            if (el.innerHTML.includes('fa-sign-out-alt')) {
+                el.innerHTML = el.innerHTML.replace(/\d{2}\/\d{2}/, diCheckout);
+            } else if (el.innerHTML.includes('fa-sign-in-alt')) {
+                el.innerHTML = el.innerHTML.replace(/\d{2}\/\d{2}/, diCheckin);
+            }
+        });
+
+        console.log('⚡ updated table row', bookingId);
+    });
+
+    // ─── 3. Recalculate the red-card overdue total ───
+    setTimeout(() => {
+        if (typeof recalculateOverdueTotal === 'function') recalculateOverdueTotal();
+    }, 400);
+
+    console.log('⚡ [DONE] instantUpdateBookingEverywhere', bookingId, vals);
 }
 
 // ===== ARRIVAL & DEPARTURE NOTIFICATION FUNCTIONS =====
