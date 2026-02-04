@@ -7981,49 +7981,57 @@ function instantUpdateBookingEverywhere(bookingId, vals) {
 
     // ─── 1. ALL .unpaid-list-item rows (full-screen modal) ───
     document.querySelectorAll(`.unpaid-list-item[data-booking-id="${bookingId}"]`).forEach(row => {
-        // ── amounts: walk every child div, look at the first <small> or <div> label ──
+        // Detect section: CHƯA THU rows have a "Tổng" label; CHỜ QUYẾT ĐỊNH rows do NOT
         const flexCols = row.querySelectorAll('[style*="text-align: right"]');
+        let hasTong = false;
         flexCols.forEach(col => {
-            // Label is the first child — could be <small> or <div>
-            const label = col.children[0];
-            const amountEl = col.children[1];   // the value element
+            if (col.children[0] && col.children[0].textContent.trim() === 'Tổng') hasTong = true;
+        });
+
+        flexCols.forEach(col => {
+            const label    = col.children[0];
+            const amountEl = col.children[1];
             if (!label || !amountEl) return;
 
             const t = label.textContent.trim();
             if (t === 'Tổng') {
+                // Only in CHƯA THU section
                 amountEl.textContent = fmt(vals.total);
                 flash(amountEl);
             } else if (t === 'Đã thu') {
-                // leave as-is (collected hasn't changed here)
+                // leave as-is — collected amount not changed by this edit
             } else if (t === 'Còn lại') {
-                amountEl.textContent = fmt(vals.total);
+                if (hasTong) {
+                    // CHƯA THU section: Còn lại = total - collected (collected is 0 here)
+                    amountEl.textContent = fmt(vals.total);
+                } else {
+                    // CHỜ QUYẾT ĐỊNH section: Còn lại = commission
+                    amountEl.textContent = fmt(vals.commission);
+                }
                 flash(amountEl);
             }
         });
 
         // ── guest name ──
-        // CHƯA THU layout: first flex-child has .fw-bold as name
+        // CHƯA THU: .fw-bold (13px)   |   CHỜ QUYẾT ĐỊNH: font-weight:600;color:#333
         const nameEl = row.querySelector('.fw-bold');
         if (nameEl && !nameEl.textContent.includes('đ')) {
             nameEl.textContent = vals.guestName;
         }
-        // CHỜ QUYẾT ĐỊNH layout: name is in a div with font-weight:600
         const nameEl2 = row.querySelector('[style*="font-weight: 600; color: #333"]');
         if (nameEl2 && !nameEl2.textContent.includes('đ')) {
             nameEl2.textContent = vals.guestName;
         }
 
-        // ── dates (arrow row) ──
-        const allChildren = row.querySelectorAll('div');
-        allChildren.forEach(el => {
-            if (el.children.length === 0 && el.textContent.includes('→')) {
-                const newDates = `${diCheckin} → ${diCheckout}`;
-                el.textContent = newDates;
+        // ── dates — the one leaf div whose text contains → and a slash (date) ──
+        row.querySelectorAll('div').forEach(el => {
+            if (el.children.length === 0 && el.textContent.includes('→') && el.textContent.includes('/')) {
+                el.textContent = `${diCheckin} → ${diCheckout}`;
                 flash(el);
             }
         });
 
-        console.log('⚡ updated .unpaid-list-item', bookingId);
+        console.log('⚡ [UPDATED] .unpaid-list-item', bookingId, hasTong ? 'CHƯA THU' : 'CHỜ QUYẾT ĐỊNH');
     });
 
     // ─── 2. Main dashboard TABLE rows ───
