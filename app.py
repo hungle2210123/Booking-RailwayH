@@ -9125,8 +9125,8 @@ def get_apartments_list():
         # Calculate statistics
         total_apartments = len(apartments)
         active_apartments = len([apt for apt in apartments if apt.is_active])
-        total_rooms = sum(apt.total_rooms for apt in apartments)
-        max_capacity = sum(apt.max_guests_per_room * apt.total_rooms for apt in apartments)
+        total_rooms = sum((apt.total_rooms or 0) for apt in apartments)
+        max_capacity = sum((apt.max_guests_per_room or 0) * (apt.total_rooms or 0) for apt in apartments)
 
         return jsonify({
             'success': True,
@@ -9358,7 +9358,7 @@ def get_apartment_stats(apartment_id):
                 'active_bookings': active_bookings,
                 'monthly_revenue': monthly_revenue,
                 'total_rooms': apartment.total_rooms,
-                'max_capacity': apartment.max_guests_per_room * apartment.total_rooms
+                'max_capacity': (apartment.max_guests_per_room or 0) * (apartment.total_rooms or 0)
             }
         })
 
