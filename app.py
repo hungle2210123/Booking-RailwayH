@@ -434,16 +434,22 @@ try:
     app.config['SQLALCHEMY_DATABASE_URI'] = database_url
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-    # CRITICAL: Add connection timeout and pool settings for Railway
-    # These prevent the app from hanging on slow/failed database connections
+    # CRITICAL: Enhanced connection settings for Railway PostgreSQL stability
+    # Addresses SSL SYSCALL EOF errors with proper keepalive and SSL configuration
     app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
         'pool_size': 10,              # Connection pool size
-        'pool_recycle': 3600,         # Recycle connections after 1 hour
-        'pool_pre_ping': True,        # Test connections before using them
+        'pool_recycle': 3600,         # Recycle connections after 1 hour (prevents stale connections)
+        'pool_pre_ping': True,        # Test connections before using them (critical for detecting dead connections)
+        'pool_timeout': 30,           # Wait up to 30s for connection from pool
+        'max_overflow': 5,            # Allow 5 extra connections beyond pool_size during high load
         'connect_args': {
             'connect_timeout': 10,    # 10 second connection timeout
             'options': '-c statement_timeout=30000',  # 30 second query timeout
-            'sslmode': 'prefer'       # CRITICAL: Railway requires SSL for public connections
+            'sslmode': 'require',     # ENFORCE SSL for Railway (changed from 'prefer')
+            'keepalives': 1,          # Enable TCP keepalives
+            'keepalives_idle': 30,    # Start keepalive probes after 30s of idle
+            'keepalives_interval': 10, # Send keepalive probe every 10s
+            'keepalives_count': 5     # Drop connection after 5 failed probes
         }
     }
 
