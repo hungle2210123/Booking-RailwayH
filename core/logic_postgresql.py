@@ -820,6 +820,7 @@ def get_overall_calendar_day_info(df: pd.DataFrame, target_date: str, total_capa
     try:
         target_date_obj = pd.to_datetime(target_date).date()
 
+        _empty_activity = {'arrivals': [], 'departures': [], 'staying': [], 'arrivals_symbols': {}, 'one_night_count': 0}
         if df is None or df.empty or total_capacity == 0:
             return {
                 'occupied_units': 0,
@@ -832,6 +833,7 @@ def get_overall_calendar_day_info(df: pd.DataFrame, target_date: str, total_capa
                 'daily_revenue': 0,
                 'commission_total': 0,
                 'revenue_minus_commission': 0,
+                'activity': _empty_activity,
                 'apt1_occupied': 0,
                 'apt1_available': 4,
                 'apt2_occupied': 0,
@@ -1026,6 +1028,9 @@ def get_overall_calendar_day_info(df: pd.DataFrame, target_date: str, total_capa
             'status_text': "Lỗi",
             'status_color': 'empty',
             'error': str(e),
+            'arrivals_count': 0,
+            'departures_count': 0,
+            'activity': {'arrivals': [], 'departures': [], 'staying': [], 'arrivals_symbols': {}, 'one_night_count': 0},
             'apt1_occupied': 0,
             'apt1_available': 4,
             'apt2_occupied': 0,
