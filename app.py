@@ -3510,8 +3510,11 @@ def calendar_view(year=None, month=None):
 
     # Filter by apartment if specified
     if apartment_id:
-        df = df[df['apartment_id'] == apartment_id]
-        print(f"📍 Calendar filtered to apartment_id={apartment_id}: {len(df)} bookings")
+        if 'apartment_id' in df.columns:
+            df = df[df['apartment_id'] == apartment_id]
+            print(f"📍 Calendar filtered to apartment_id={apartment_id}: {len(df)} bookings")
+        else:
+            print(f"⚠️ apartment_id column missing from DataFrame, skipping filter")
     
     # Generate calendar data in weeks format expected by template
     cal = calendar.monthrange(year, month)

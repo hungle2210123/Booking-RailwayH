@@ -165,6 +165,7 @@ def load_booking_data(force_fresh: bool = False) -> pd.DataFrame:
         'Không' as "Thành viên Genius",
         CASE WHEN b.taxi_amount > 0 THEN true ELSE false END as "Có taxi",
         CASE WHEN b.taxi_amount > 0 THEN false ELSE true END as "Không có taxi",
+        b.apartment_id,
         b.room_id,
         b.created_at,
         b.updated_at
@@ -215,6 +216,7 @@ def load_booking_data(force_fresh: bool = False) -> pd.DataFrame:
         'Không' as "Thành viên Genius",
         CASE WHEN b.taxi_amount > 0 THEN true ELSE false END as "Có taxi",
         CASE WHEN b.taxi_amount > 0 THEN false ELSE true END as "Không có taxi",
+        b.apartment_id,
         b.created_at,
         b.updated_at
     FROM bookings b
