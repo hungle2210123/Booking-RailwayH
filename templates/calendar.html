@@ -21,6 +21,50 @@
                 </a>
             </div>
 
+            <!-- Apartment Filter -->
+            <div class="card mb-3">
+                <div class="card-body py-2">
+                    <div class="row align-items-center">
+                        <div class="col-md-8">
+                            <div class="d-flex align-items-center gap-2">
+                                <label class="mb-0 fw-bold">
+                                    <i class="fas fa-building"></i> Lọc theo căn hộ:
+                                </label>
+                                <select id="apartmentFilter" class="form-select form-select-sm" style="max-width: 300px;" onchange="filterByApartment()">
+                                    <option value="">📍 Tất Cả Căn Hộ ({{ apartments|length }} căn hộ)</option>
+                                    {% for apt in apartments %}
+                                    <option value="{{ apt.apartment_id }}"
+                                            {% if current_apartment_id == apt.apartment_id %}selected{% endif %}>
+                                        {{ apt.apartment_name }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                                {% if current_apartment_id %}
+                                <a href="{{ url_for('calendar_view', year=current_month.year, month=current_month.month) }}"
+                                   class="btn btn-sm btn-outline-secondary">
+                                    <i class="fas fa-times"></i> Xóa bộ lọc
+                                </a>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="col-md-4 text-end">
+                            {% if current_apartment %}
+                            <span class="badge bg-primary">
+                                <i class="fas fa-filter"></i> Đang xem: {{ current_apartment.apartment_name }}
+                            </span>
+                            {% else %}
+                            <span class="badge bg-secondary">
+                                <i class="fas fa-globe"></i> Hiển thị tất cả
+                            </span>
+                            {% endif %}
+                            <a href="/apartments" class="btn btn-sm btn-success ms-2">
+                                <i class="fas fa-cog"></i> Quản lý căn hộ
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <!-- Legend with RIGHT/LEFT Arrows and Simplified Symbols -->
             <div class="d-flex justify-content-center mb-3">
                 <div class="legend d-flex gap-3 flex-wrap justify-content-center align-items-center">
@@ -2205,5 +2249,21 @@ document.addEventListener('DOMContentLoaded', function() {
     // Load canceled guests count immediately
     loadCanceledGuestsCount();
 });
+
+// Filter calendar by apartment
+function filterByApartment() {
+    const select = document.getElementById('apartmentFilter');
+    const apartmentId = select.value;
+    const currentYear = {{ current_month.year }};
+    const currentMonth = {{ current_month.month }};
+
+    if (apartmentId) {
+        // Navigate to filtered calendar
+        window.location.href = `/calendar/${currentYear}/${currentMonth}?apartment_id=${apartmentId}`;
+    } else {
+        // Navigate to all apartments
+        window.location.href = `/calendar/${currentYear}/${currentMonth}`;
+    }
+}
 </script>
 {% endblock %} 

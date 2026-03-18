@@ -3490,14 +3490,22 @@ def save_extracted_bookings():
 @app.route('/calendar/')
 @app.route('/calendar/<int:year>/<int:month>')
 def calendar_view(year=None, month=None):
-    """Calendar view with PostgreSQL data"""
+    """Calendar view with PostgreSQL data - supports apartment filtering"""
     if year is None or month is None:
         today = datetime.today()
         year, month = today.year, today.month
-    
+
+    # Get apartment filter from query parameter
+    apartment_id = request.args.get('apartment_id', type=int)
+
     # Always force fresh data for calendar to fix revenue calculation issues
     force_fresh = True  # Force fresh data to ensure accurate revenue calculations
     df = load_booking_data_for_calculations(force_fresh=force_fresh)  # Exclude cancelled bookings
+
+    # Filter by apartment if specified
+    if apartment_id:
+        df = df[df['apartment_id'] == apartment_id]
+        print(f"📍 Calendar filtered to apartment_id={apartment_id}: {len(df)} bookings")
     
     # Generate calendar data in weeks format expected by template
     cal = calendar.monthrange(year, month)
@@ -3611,17 +3619,27 @@ def calendar_view(year=None, month=None):
     
     # Calculate previous and next month for navigation
     current_month = datetime(year, month, 1)
-    
+
     if month == 1:
         prev_month = datetime(year - 1, 12, 1)
     else:
         prev_month = datetime(year, month - 1, 1)
-    
+
     if month == 12:
         next_month = datetime(year + 1, 1, 1)
     else:
         next_month = datetime(year, month + 1, 1)
-    
+
+    # Load apartments for filter dropdown
+    from core.models import Apartment
+    apartments = Apartment.query.filter_by(is_active=True).order_by(Apartment.apartment_name).all()
+    apartments_data = [{'apartment_id': apt.apartment_id, 'apartment_name': apt.apartment_name} for apt in apartments]
+
+    # Get current apartment info if filtered
+    current_apartment = None
+    if apartment_id:
+        current_apartment = Apartment.query.get(apartment_id)
+
     return render_template(
         'calendar.html',
         year=year,
@@ -3634,10 +3652,11 @@ def calendar_view(year=None, month=None):
         today=datetime.today().date(),  # Add today for template comparisons
         revenue_by_date=revenue_by_date,  # Add revenue data for template
         high_value_dates=high_value_dates,  # High-value guest indicators
-#         price_adjustment_dates=price_adjustment_dates,  # Price adjustment indicators
         high_value_total_count=high_value_total_count,  # Total high-value guests
         high_value_total_revenue=high_value_total_revenue,  # Total high-value revenue
-#         price_adjustment_count=price_adjustment_count  # Total price adjustments
+        apartments=apartments_data,  # Apartments for filter dropdown
+        current_apartment_id=apartment_id,  # Currently selected apartment
+        current_apartment=current_apartment  # Current apartment object
     )
 
 @app.route('/debug_revenue')
@@ -9079,6 +9098,449 @@ THINK LIKE A REVENUE MANAGEMENT EXPERT: Balance occupancy rate, revenue per room
         print(f"Error in AI calendar suggestions: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
+# ============================================================
+# APARTMENT MANAGEMENT ROUTES - 100% Data-Driven System
+# ============================================================
+
+@app.route('/apartments')
+def apartments_management():
+    """Apartment management page - Add/Edit/Delete apartments without code changes"""
+    return render_template('apartments.html')
+
+@app.route('/api/apartments', methods=['GET'])
+def get_apartments_list():
+    """Get all apartments with statistics"""
+    try:
+        from core.models import Apartment, Room, db
+
+        apartments = Apartment.query.order_by(Apartment.apartment_id).all()
+        apartments_data = [apt.to_dict() for apt in apartments]
+
+        # Calculate statistics
+        total_apartments = len(apartments)
+        active_apartments = len([apt for apt in apartments if apt.is_active])
+        total_rooms = sum(apt.total_rooms for apt in apartments)
+        max_capacity = sum(apt.max_guests_per_room * apt.total_rooms for apt in apartments)
+
+        return jsonify({
+            'success': True,
+            'apartments': apartments_data,
+            'stats': {
+                'total_apartments': total_apartments,
+                'active_apartments': active_apartments,
+                'total_rooms': total_rooms,
+                'max_capacity': max_capacity
+            }
+        })
+    except Exception as e:
+        print(f"Error loading apartments: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/apartments/<int:apartment_id>', methods=['GET'])
+def get_apartment_details(apartment_id):
+    """Get single apartment details"""
+    try:
+        from core.models import Apartment, db
+
+        apartment = Apartment.query.get(apartment_id)
+        if not apartment:
+            return jsonify({'success': False, 'error': 'Apartment not found'}), 404
+
+        return jsonify({
+            'success': True,
+            'apartment': apartment.to_dict()
+        })
+    except Exception as e:
+        print(f"Error loading apartment {apartment_id}: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/apartments', methods=['POST'])
+def create_new_apartment():
+    """Create new apartment - NO CODE CHANGES NEEDED"""
+    try:
+        from core.models import Apartment, Room, db
+
+        data = request.get_json()
+
+        # Validate required fields
+        if not data.get('apartment_name'):
+            return jsonify({'success': False, 'error': 'Apartment name is required'}), 400
+
+        # Create apartment
+        new_apartment = Apartment(
+            apartment_name=data['apartment_name'],
+            apartment_address=data.get('apartment_address'),
+            total_rooms=data.get('total_rooms', 1),
+            max_guests_per_room=data.get('max_guests_per_room', 2),
+            apartment_type=data.get('apartment_type'),
+            is_active=True,
+            owner_name=data.get('owner_name'),
+            owner_phone=data.get('owner_phone'),
+            property_notes=data.get('property_notes')
+        )
+
+        db.session.add(new_apartment)
+        db.session.flush()  # Get the apartment_id
+
+        # Auto-create rooms if requested
+        if data.get('auto_create_rooms', True):
+            total_rooms = data.get('total_rooms', 1)
+            for i in range(total_rooms):
+                room = Room(
+                    room_name=f"{data['apartment_name']} - Room {i+1}",
+                    apartment_id=new_apartment.apartment_id,
+                    room_type=data.get('apartment_type', 'Standard'),
+                    max_guests=data.get('max_guests_per_room', 2),
+                    is_active=True,
+                    display_order=i+1
+                )
+                db.session.add(room)
+
+        db.session.commit()
+
+        print(f"✅ Created apartment: {new_apartment.apartment_name} (ID: {new_apartment.apartment_id})")
+
+        return jsonify({
+            'success': True,
+            'message': 'Apartment created successfully',
+            'apartment': new_apartment.to_dict()
+        })
+
+    except Exception as e:
+        db.session.rollback()
+        print(f"Error creating apartment: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/apartments/<int:apartment_id>', methods=['PUT'])
+def update_apartment_info(apartment_id):
+    """Update apartment details"""
+    try:
+        from core.models import Apartment, db
+
+        apartment = Apartment.query.get(apartment_id)
+        if not apartment:
+            return jsonify({'success': False, 'error': 'Apartment not found'}), 404
+
+        data = request.get_json()
+
+        # Update fields
+        if 'apartment_name' in data:
+            apartment.apartment_name = data['apartment_name']
+        if 'apartment_address' in data:
+            apartment.apartment_address = data['apartment_address']
+        if 'apartment_type' in data:
+            apartment.apartment_type = data['apartment_type']
+        if 'max_guests_per_room' in data:
+            apartment.max_guests_per_room = data['max_guests_per_room']
+        if 'owner_name' in data:
+            apartment.owner_name = data['owner_name']
+        if 'owner_phone' in data:
+            apartment.owner_phone = data['owner_phone']
+        if 'property_notes' in data:
+            apartment.property_notes = data['property_notes']
+
+        db.session.commit()
+
+        print(f"✅ Updated apartment: {apartment.apartment_name} (ID: {apartment_id})")
+
+        return jsonify({
+            'success': True,
+            'message': 'Apartment updated successfully',
+            'apartment': apartment.to_dict()
+        })
+
+    except Exception as e:
+        db.session.rollback()
+        print(f"Error updating apartment {apartment_id}: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/apartments/<int:apartment_id>/toggle', methods=['POST'])
+def toggle_apartment_status(apartment_id):
+    """Toggle apartment active status"""
+    try:
+        from core.models import Apartment, db
+
+        apartment = Apartment.query.get(apartment_id)
+        if not apartment:
+            return jsonify({'success': False, 'error': 'Apartment not found'}), 404
+
+        # Toggle active status
+        apartment.is_active = not apartment.is_active
+        db.session.commit()
+
+        status = 'activated' if apartment.is_active else 'deactivated'
+        print(f"✅ {status.capitalize()} apartment: {apartment.apartment_name} (ID: {apartment_id})")
+
+        return jsonify({
+            'success': True,
+            'message': f'Apartment {status} successfully',
+            'is_active': apartment.is_active
+        })
+
+    except Exception as e:
+        db.session.rollback()
+        print(f"Error toggling apartment {apartment_id}: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/apartments/<int:apartment_id>/rooms', methods=['GET'])
+def get_apartment_rooms(apartment_id):
+    """Get all rooms for an apartment"""
+    try:
+        from core.models import Room, db
+
+        rooms = Room.query.filter_by(apartment_id=apartment_id)\
+                          .order_by(Room.display_order)\
+                          .all()
+
+        rooms_data = [room.to_dict() for room in rooms]
+
+        return jsonify({
+            'success': True,
+            'rooms': rooms_data,
+            'count': len(rooms_data)
+        })
+
+    except Exception as e:
+        print(f"Error loading rooms for apartment {apartment_id}: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/apartments/<int:apartment_id>/stats', methods=['GET'])
+def get_apartment_stats(apartment_id):
+    """Get statistics for a specific apartment"""
+    try:
+        from core.models import Apartment, Booking, db
+        from sqlalchemy import func
+        from datetime import datetime, timedelta
+
+        apartment = Apartment.query.get(apartment_id)
+        if not apartment:
+            return jsonify({'success': False, 'error': 'Apartment not found'}), 404
+
+        # Get current month bookings for this apartment
+        today = datetime.now().date()
+        start_of_month = datetime(today.year, today.month, 1).date()
+        if today.month == 12:
+            end_of_month = datetime(today.year + 1, 1, 1).date()
+        else:
+            end_of_month = datetime(today.year, today.month + 1, 1).date()
+
+        # Count active bookings
+        active_bookings = Booking.query.filter(
+            Booking.apartment_id == apartment_id,
+            Booking.booking_status != 'deleted',
+            Booking.checkin_date <= end_of_month,
+            Booking.checkout_date >= start_of_month
+        ).count()
+
+        # Calculate revenue
+        revenue_result = db.session.query(
+            func.sum(Booking.room_amount)
+        ).filter(
+            Booking.apartment_id == apartment_id,
+            Booking.booking_status != 'deleted',
+            Booking.checkin_date >= start_of_month,
+            Booking.checkin_date < end_of_month
+        ).scalar()
+
+        monthly_revenue = float(revenue_result) if revenue_result else 0.0
+
+        return jsonify({
+            'success': True,
+            'stats': {
+                'apartment_id': apartment_id,
+                'apartment_name': apartment.apartment_name,
+                'active_bookings': active_bookings,
+                'monthly_revenue': monthly_revenue,
+                'total_rooms': apartment.total_rooms,
+                'max_capacity': apartment.max_guests_per_room * apartment.total_rooms
+            }
+        })
+
+    except Exception as e:
+        print(f"Error loading stats for apartment {apartment_id}: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+# ============================================================
+# ROOM MANAGEMENT ROUTES - Full CRUD for Web Interface
+# ============================================================
+
+@app.route('/api/rooms', methods=['POST'])
+def create_room():
+    """Create new room - Web manageable"""
+    try:
+        from core.models import Room, Apartment, db
+
+        data = request.get_json()
+
+        # Validate required fields
+        if not data.get('room_name'):
+            return jsonify({'success': False, 'error': 'Room name is required'}), 400
+        if not data.get('apartment_id'):
+            return jsonify({'success': False, 'error': 'Apartment ID is required'}), 400
+
+        # Verify apartment exists
+        apartment = Apartment.query.get(data['apartment_id'])
+        if not apartment:
+            return jsonify({'success': False, 'error': 'Apartment not found'}), 404
+
+        # Get next display order
+        max_order = db.session.query(db.func.max(Room.display_order))\
+                              .filter_by(apartment_id=data['apartment_id'])\
+                              .scalar() or 0
+
+        # Create room
+        new_room = Room(
+            room_name=data['room_name'],
+            apartment_id=data['apartment_id'],
+            room_type=data.get('room_type', 'Standard'),
+            max_guests=data.get('max_guests', 2),
+            is_active=data.get('is_active', True),
+            display_order=max_order + 1,
+            room_features=data.get('room_features', '')
+        )
+
+        db.session.add(new_room)
+
+        # Update apartment total_rooms count
+        current_rooms_count = Room.query.filter_by(apartment_id=data['apartment_id']).count()
+        apartment.total_rooms = current_rooms_count + 1
+
+        db.session.commit()
+
+        print(f"✅ Created room: {new_room.room_name} in apartment {apartment.apartment_name}")
+
+        return jsonify({
+            'success': True,
+            'message': 'Room created successfully',
+            'room': new_room.to_dict()
+        })
+
+    except Exception as e:
+        db.session.rollback()
+        print(f"Error creating room: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/rooms/<int:room_id>', methods=['PUT'])
+def update_room(room_id):
+    """Update room details - Web manageable"""
+    try:
+        from core.models import Room, db
+
+        room = Room.query.get(room_id)
+        if not room:
+            return jsonify({'success': False, 'error': 'Room not found'}), 404
+
+        data = request.get_json()
+
+        # Update fields
+        if 'room_name' in data:
+            room.room_name = data['room_name']
+        if 'room_type' in data:
+            room.room_type = data['room_type']
+        if 'max_guests' in data:
+            room.max_guests = data['max_guests']
+        if 'is_active' in data:
+            room.is_active = data['is_active']
+        if 'room_features' in data:
+            room.room_features = data['room_features']
+        if 'display_order' in data:
+            room.display_order = data['display_order']
+
+        db.session.commit()
+
+        print(f"✅ Updated room: {room.room_name} (ID: {room_id})")
+
+        return jsonify({
+            'success': True,
+            'message': 'Room updated successfully',
+            'room': room.to_dict()
+        })
+
+    except Exception as e:
+        db.session.rollback()
+        print(f"Error updating room {room_id}: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/rooms/<int:room_id>', methods=['DELETE'])
+def delete_room(room_id):
+    """Delete room - Web manageable"""
+    try:
+        from core.models import Room, Booking, Apartment, db
+
+        room = Room.query.get(room_id)
+        if not room:
+            return jsonify({'success': False, 'error': 'Room not found'}), 404
+
+        apartment_id = room.apartment_id
+        room_name = room.room_name
+
+        # Check if room has bookings
+        booking_count = Booking.query.filter_by(room_id=room_id).count()
+
+        if booking_count > 0:
+            # Soft delete - mark as inactive
+            room.is_active = False
+            db.session.commit()
+
+            print(f"⚠️ Deactivated room {room_name} ({booking_count} bookings exist)")
+
+            return jsonify({
+                'success': True,
+                'message': f'Room "{room_name}" deactivated ({booking_count} bookings exist)',
+                'soft_delete': True
+            })
+        else:
+            # Hard delete if no bookings
+            db.session.delete(room)
+
+            # Update apartment total_rooms count
+            apartment = Apartment.query.get(apartment_id)
+            if apartment:
+                remaining_rooms = Room.query.filter_by(apartment_id=apartment_id).count() - 1
+                apartment.total_rooms = max(0, remaining_rooms)
+
+            db.session.commit()
+
+            print(f"✅ Deleted room: {room_name}")
+
+            return jsonify({
+                'success': True,
+                'message': f'Room "{room_name}" deleted successfully',
+                'soft_delete': False
+            })
+
+    except Exception as e:
+        db.session.rollback()
+        print(f"Error deleting room {room_id}: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/rooms/<int:room_id>', methods=['GET'])
+def get_room_details(room_id):
+    """Get single room details"""
+    try:
+        from core.models import Room
+
+        room = Room.query.get(room_id)
+        if not room:
+            return jsonify({'success': False, 'error': 'Room not found'}), 404
+
+        return jsonify({
+            'success': True,
+            'room': room.to_dict()
+        })
+
+    except Exception as e:
+        print(f"Error loading room {room_id}: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+# ============================================================
+# END OF ROOM MANAGEMENT ROUTES
+# ============================================================
+
+# ============================================================
+# END OF APARTMENT MANAGEMENT ROUTES
+# ============================================================
+
 @app.route('/migrate')
 def migration_tool():
     """Serve the database migration tool page"""
@@ -11268,300 +11730,301 @@ def api_sync_perform():
         }), 500
 
 # =====================================================
-# 🏢 APARTMENT MANAGEMENT API ENDPOINTS
+# ===== OLD APARTMENT ENDPOINTS REMOVED (duplicates) - See lines 9102-9364 for new system =====
+# # 🏢 APARTMENT MANAGEMENT API ENDPOINTS
 # =====================================================
 
-@app.route('/api/apartments', methods=['GET'])
-def get_apartments():
-    """Get all apartments"""
-    try:
-        from core.models import Apartment
-        apartments = Apartment.query.filter_by(is_active=True).order_by(Apartment.apartment_name).all()
+# @app.route('/api/apartments', methods=['GET'])
+# def get_apartments():
+#     """Get all apartments"""
+#     try:
+#         from core.models import Apartment
+#         apartments = Apartment.query.filter_by(is_active=True).order_by(Apartment.apartment_name).all()
 
-        return jsonify({
-            'success': True,
-            'apartments': [apt.to_dict() for apt in apartments]
-        })
-    except Exception as e:
-        print(f"❌ [GET_APARTMENTS] Error: {str(e)}")
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
+#         return jsonify({
+#             'success': True,
+#             'apartments': [apt.to_dict() for apt in apartments]
+#         })
+#     except Exception as e:
+#         print(f"❌ [GET_APARTMENTS] Error: {str(e)}")
+#         return jsonify({
+#             'success': False,
+#             'error': str(e)
+#         }), 500
 
-@app.route('/api/apartments/<int:apartment_id>', methods=['GET'])
-def get_apartment(apartment_id):
-    """Get single apartment details"""
-    try:
-        from core.models import Apartment
-        apartment = Apartment.query.get(apartment_id)
+# @app.route('/api/apartments/<int:apartment_id>', methods=['GET'])
+# def get_apartment_by_id(apartment_id):
+#     """Get single apartment details - LEGACY ENDPOINT (duplicate removed)"""
+#     try:
+#         from core.models import Apartment
+#         apartment = Apartment.query.get(apartment_id)
 
-        if not apartment:
-            return jsonify({
-                'success': False,
-                'error': 'Apartment not found'
-            }), 404
+#         if not apartment:
+#             return jsonify({
+#                 'success': False,
+#                 'error': 'Apartment not found'
+#             }), 404
 
-        return jsonify({
-            'success': True,
-            'apartment': apartment.to_dict()
-        })
-    except Exception as e:
-        print(f"❌ [GET_APARTMENT] Error: {str(e)}")
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
+#         return jsonify({
+#             'success': True,
+#             'apartment': apartment.to_dict()
+#         })
+#     except Exception as e:
+#         print(f"❌ [GET_APARTMENT] Error: {str(e)}")
+#         return jsonify({
+#             'success': False,
+#             'error': str(e)
+#         }), 500
 
-@app.route('/api/apartments', methods=['POST'])
-def create_apartment():
-    """Create new apartment"""
-    try:
-        from core.models import Apartment, db
-        data = request.get_json()
+# @app.route('/api/apartments', methods=['POST'])
+# def create_apartment_legacy():
+#     """Create new apartment"""
+#     try:
+#         from core.models import Apartment, db
+#         data = request.get_json()
 
-        # Validate required fields
-        if not data.get('apartment_name'):
-            return jsonify({
-                'success': False,
-                'error': 'Apartment name is required'
-            }), 400
+#         # Validate required fields
+#         if not data.get('apartment_name'):
+#             return jsonify({
+#                 'success': False,
+#                 'error': 'Apartment name is required'
+#             }), 400
 
-        # Check if apartment already exists
-        existing = Apartment.query.filter_by(apartment_name=data['apartment_name']).first()
-        if existing:
-            return jsonify({
-                'success': False,
-                'error': 'Apartment with this name already exists'
-            }), 400
+#         # Check if apartment already exists
+#         existing = Apartment.query.filter_by(apartment_name=data['apartment_name']).first()
+#         if existing:
+#             return jsonify({
+#                 'success': False,
+#                 'error': 'Apartment with this name already exists'
+#             }), 400
 
-        # Create new apartment
-        apartment = Apartment(
-            apartment_name=data['apartment_name'],
-            apartment_address=data.get('apartment_address'),
-            total_rooms=data.get('total_rooms', 1),
-            max_guests_per_room=data.get('max_guests_per_room', 2),
-            apartment_type=data.get('apartment_type'),
-            floor_number=data.get('floor_number'),
-            building_name=data.get('building_name'),
-            owner_name=data.get('owner_name'),
-            owner_phone=data.get('owner_phone'),
-            property_notes=data.get('property_notes'),
-            is_active=data.get('is_active', True)
-        )
+#         # Create new apartment
+#         apartment = Apartment(
+#             apartment_name=data['apartment_name'],
+#             apartment_address=data.get('apartment_address'),
+#             total_rooms=data.get('total_rooms', 1),
+#             max_guests_per_room=data.get('max_guests_per_room', 2),
+#             apartment_type=data.get('apartment_type'),
+#             floor_number=data.get('floor_number'),
+#             building_name=data.get('building_name'),
+#             owner_name=data.get('owner_name'),
+#             owner_phone=data.get('owner_phone'),
+#             property_notes=data.get('property_notes'),
+#             is_active=data.get('is_active', True)
+#         )
 
-        db.session.add(apartment)
-        db.session.commit()
+#         db.session.add(apartment)
+#         db.session.commit()
 
-        print(f"✅ [CREATE_APARTMENT] Created apartment: {apartment.apartment_name}")
+#         print(f"✅ [CREATE_APARTMENT] Created apartment: {apartment.apartment_name}")
 
-        return jsonify({
-            'success': True,
-            'apartment': apartment.to_dict(),
-            'message': f'Apartment "{apartment.apartment_name}" created successfully'
-        }), 201
-    except Exception as e:
-        print(f"❌ [CREATE_APARTMENT] Error: {str(e)}")
-        db.session.rollback()
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
+#         return jsonify({
+#             'success': True,
+#             'apartment': apartment.to_dict(),
+#             'message': f'Apartment "{apartment.apartment_name}" created successfully'
+#         }), 201
+#     except Exception as e:
+#         print(f"❌ [CREATE_APARTMENT] Error: {str(e)}")
+#         db.session.rollback()
+#         return jsonify({
+#             'success': False,
+#             'error': str(e)
+#         }), 500
 
-@app.route('/api/apartments/<int:apartment_id>', methods=['PUT'])
-def update_apartment(apartment_id):
-    """Update apartment details"""
-    try:
-        from core.models import Apartment, db
-        apartment = Apartment.query.get(apartment_id)
+# @app.route('/api/apartments/<int:apartment_id>', methods=['PUT'])
+# def update_apartment(apartment_id):
+#     """Update apartment details"""
+#     try:
+#         from core.models import Apartment, db
+#         apartment = Apartment.query.get(apartment_id)
 
-        if not apartment:
-            return jsonify({
-                'success': False,
-                'error': 'Apartment not found'
-            }), 404
+#         if not apartment:
+#             return jsonify({
+#                 'success': False,
+#                 'error': 'Apartment not found'
+#             }), 404
 
-        data = request.get_json()
+#         data = request.get_json()
 
-        # Update fields
-        if 'apartment_name' in data:
-            # Check for duplicate name
-            existing = Apartment.query.filter(
-                Apartment.apartment_name == data['apartment_name'],
-                Apartment.apartment_id != apartment_id
-            ).first()
-            if existing:
-                return jsonify({
-                    'success': False,
-                    'error': 'Apartment with this name already exists'
-                }), 400
-            apartment.apartment_name = data['apartment_name']
+#         # Update fields
+#         if 'apartment_name' in data:
+#             # Check for duplicate name
+#             existing = Apartment.query.filter(
+#                 Apartment.apartment_name == data['apartment_name'],
+#                 Apartment.apartment_id != apartment_id
+#             ).first()
+#             if existing:
+#                 return jsonify({
+#                     'success': False,
+#                     'error': 'Apartment with this name already exists'
+#                 }), 400
+#             apartment.apartment_name = data['apartment_name']
 
-        if 'apartment_address' in data:
-            apartment.apartment_address = data['apartment_address']
-        if 'total_rooms' in data:
-            apartment.total_rooms = data['total_rooms']
-        if 'max_guests_per_room' in data:
-            apartment.max_guests_per_room = data['max_guests_per_room']
-        if 'apartment_type' in data:
-            apartment.apartment_type = data['apartment_type']
-        if 'floor_number' in data:
-            apartment.floor_number = data['floor_number']
-        if 'building_name' in data:
-            apartment.building_name = data['building_name']
-        if 'owner_name' in data:
-            apartment.owner_name = data['owner_name']
-        if 'owner_phone' in data:
-            apartment.owner_phone = data['owner_phone']
-        if 'property_notes' in data:
-            apartment.property_notes = data['property_notes']
-        if 'is_active' in data:
-            apartment.is_active = data['is_active']
+#         if 'apartment_address' in data:
+#             apartment.apartment_address = data['apartment_address']
+#         if 'total_rooms' in data:
+#             apartment.total_rooms = data['total_rooms']
+#         if 'max_guests_per_room' in data:
+#             apartment.max_guests_per_room = data['max_guests_per_room']
+#         if 'apartment_type' in data:
+#             apartment.apartment_type = data['apartment_type']
+#         if 'floor_number' in data:
+#             apartment.floor_number = data['floor_number']
+#         if 'building_name' in data:
+#             apartment.building_name = data['building_name']
+#         if 'owner_name' in data:
+#             apartment.owner_name = data['owner_name']
+#         if 'owner_phone' in data:
+#             apartment.owner_phone = data['owner_phone']
+#         if 'property_notes' in data:
+#             apartment.property_notes = data['property_notes']
+#         if 'is_active' in data:
+#             apartment.is_active = data['is_active']
 
-        db.session.commit()
+#         db.session.commit()
 
-        print(f"✅ [UPDATE_APARTMENT] Updated apartment: {apartment.apartment_name}")
+#         print(f"✅ [UPDATE_APARTMENT] Updated apartment: {apartment.apartment_name}")
 
-        return jsonify({
-            'success': True,
-            'apartment': apartment.to_dict(),
-            'message': f'Apartment "{apartment.apartment_name}" updated successfully'
-        })
-    except Exception as e:
-        print(f"❌ [UPDATE_APARTMENT] Error: {str(e)}")
-        db.session.rollback()
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
+#         return jsonify({
+#             'success': True,
+#             'apartment': apartment.to_dict(),
+#             'message': f'Apartment "{apartment.apartment_name}" updated successfully'
+#         })
+#     except Exception as e:
+#         print(f"❌ [UPDATE_APARTMENT] Error: {str(e)}")
+#         db.session.rollback()
+#         return jsonify({
+#             'success': False,
+#             'error': str(e)
+#         }), 500
 
-@app.route('/api/apartments/<int:apartment_id>', methods=['DELETE'])
-def delete_apartment(apartment_id):
-    """Soft delete apartment (set is_active = False)"""
-    try:
-        from core.models import Apartment, Booking, db
-        apartment = Apartment.query.get(apartment_id)
+# @app.route('/api/apartments/<int:apartment_id>', methods=['DELETE'])
+# def delete_apartment(apartment_id):
+#     """Soft delete apartment (set is_active = False)"""
+#     try:
+#         from core.models import Apartment, Booking, db
+#         apartment = Apartment.query.get(apartment_id)
 
-        if not apartment:
-            return jsonify({
-                'success': False,
-                'error': 'Apartment not found'
-            }), 404
+#         if not apartment:
+#             return jsonify({
+#                 'success': False,
+#                 'error': 'Apartment not found'
+#             }), 404
 
-        # Check if apartment has bookings
-        booking_count = Booking.query.filter_by(apartment_id=apartment_id).count()
+#         # Check if apartment has bookings
+#         booking_count = Booking.query.filter_by(apartment_id=apartment_id).count()
 
-        if booking_count > 0:
-            # Soft delete - just mark as inactive
-            apartment.is_active = False
-            db.session.commit()
+#         if booking_count > 0:
+#             # Soft delete - just mark as inactive
+#             apartment.is_active = False
+#             db.session.commit()
 
-            print(f"✅ [DELETE_APARTMENT] Deactivated apartment: {apartment.apartment_name} ({booking_count} bookings)")
+#             print(f"✅ [DELETE_APARTMENT] Deactivated apartment: {apartment.apartment_name} ({booking_count} bookings)")
 
-            return jsonify({
-                'success': True,
-                'message': f'Apartment "{apartment.apartment_name}" deactivated (has {booking_count} bookings)'
-            })
-        else:
-            # Hard delete if no bookings
-            db.session.delete(apartment)
-            db.session.commit()
+#             return jsonify({
+#                 'success': True,
+#                 'message': f'Apartment "{apartment.apartment_name}" deactivated (has {booking_count} bookings)'
+#             })
+#         else:
+#             # Hard delete if no bookings
+#             db.session.delete(apartment)
+#             db.session.commit()
 
-            print(f"✅ [DELETE_APARTMENT] Deleted apartment: {apartment.apartment_name}")
+#             print(f"✅ [DELETE_APARTMENT] Deleted apartment: {apartment.apartment_name}")
 
-            return jsonify({
-                'success': True,
-                'message': f'Apartment "{apartment.apartment_name}" deleted successfully'
-            })
-    except Exception as e:
-        print(f"❌ [DELETE_APARTMENT] Error: {str(e)}")
-        db.session.rollback()
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
+#             return jsonify({
+#                 'success': True,
+#                 'message': f'Apartment "{apartment.apartment_name}" deleted successfully'
+#             })
+#     except Exception as e:
+#         print(f"❌ [DELETE_APARTMENT] Error: {str(e)}")
+#         db.session.rollback()
+#         return jsonify({
+#             'success': False,
+#             'error': str(e)
+#         }), 500
 
-@app.route('/api/apartments/<int:apartment_id>/stats', methods=['GET'])
-def get_apartment_stats(apartment_id):
-    """Get apartment statistics"""
-    try:
-        from core.models import Apartment, Booking
-        from sqlalchemy import func
-        from datetime import datetime, date
+# @app.route('/api/apartments/<int:apartment_id>/stats', methods=['GET'])
+# def get_apartment_stats(apartment_id):
+#     """Get apartment statistics"""
+#     try:
+#         from core.models import Apartment, Booking
+#         from sqlalchemy import func
+#         from datetime import datetime, date
 
-        apartment = Apartment.query.get(apartment_id)
+#         apartment = Apartment.query.get(apartment_id)
 
-        if not apartment:
-            return jsonify({
-                'success': False,
-                'error': 'Apartment not found'
-            }), 404
+#         if not apartment:
+#             return jsonify({
+#                 'success': False,
+#                 'error': 'Apartment not found'
+#             }), 404
 
-        # Get booking statistics
-        total_bookings = Booking.query.filter_by(apartment_id=apartment_id).count()
+#         # Get booking statistics
+#         total_bookings = Booking.query.filter_by(apartment_id=apartment_id).count()
 
-        # Active bookings (currently checked in)
-        today = date.today()
-        active_bookings = Booking.query.filter(
-            Booking.apartment_id == apartment_id,
-            Booking.checkin_date <= today,
-            Booking.checkout_date > today,
-            Booking.booking_status.in_(['confirmed', 'mới'])
-        ).count()
+#         # Active bookings (currently checked in)
+#         today = date.today()
+#         active_bookings = Booking.query.filter(
+#             Booking.apartment_id == apartment_id,
+#             Booking.checkin_date <= today,
+#             Booking.checkout_date > today,
+#             Booking.booking_status.in_(['confirmed', 'mới'])
+#         ).count()
 
-        # Upcoming bookings
-        upcoming_bookings = Booking.query.filter(
-            Booking.apartment_id == apartment_id,
-            Booking.checkin_date > today,
-            Booking.booking_status.in_(['confirmed', 'mới'])
-        ).count()
+#         # Upcoming bookings
+#         upcoming_bookings = Booking.query.filter(
+#             Booking.apartment_id == apartment_id,
+#             Booking.checkin_date > today,
+#             Booking.booking_status.in_(['confirmed', 'mới'])
+#         ).count()
 
-        # Total revenue (all time)
-        revenue_result = db.session.query(
-            func.sum(Booking.room_amount).label('total_revenue')
-        ).filter(
-            Booking.apartment_id == apartment_id,
-            Booking.booking_status.in_(['confirmed', 'mới'])
-        ).first()
+#         # Total revenue (all time)
+#         revenue_result = db.session.query(
+#             func.sum(Booking.room_amount).label('total_revenue')
+#         ).filter(
+#             Booking.apartment_id == apartment_id,
+#             Booking.booking_status.in_(['confirmed', 'mới'])
+#         ).first()
 
-        total_revenue = float(revenue_result.total_revenue or 0)
+#         total_revenue = float(revenue_result.total_revenue or 0)
 
-        # Monthly revenue (current month)
-        current_month_start = date(today.year, today.month, 1)
-        monthly_revenue_result = db.session.query(
-            func.sum(Booking.room_amount).label('monthly_revenue')
-        ).filter(
-            Booking.apartment_id == apartment_id,
-            Booking.checkin_date >= current_month_start,
-            Booking.booking_status.in_(['confirmed', 'mới'])
-        ).first()
+#         # Monthly revenue (current month)
+#         current_month_start = date(today.year, today.month, 1)
+#         monthly_revenue_result = db.session.query(
+#             func.sum(Booking.room_amount).label('monthly_revenue')
+#         ).filter(
+#             Booking.apartment_id == apartment_id,
+#             Booking.checkin_date >= current_month_start,
+#             Booking.booking_status.in_(['confirmed', 'mới'])
+#         ).first()
 
-        monthly_revenue = float(monthly_revenue_result.monthly_revenue or 0)
+#         monthly_revenue = float(monthly_revenue_result.monthly_revenue or 0)
 
-        return jsonify({
-            'success': True,
-            'apartment': apartment.to_dict(),
-            'stats': {
-                'total_bookings': total_bookings,
-                'active_bookings': active_bookings,
-                'upcoming_bookings': upcoming_bookings,
-                'total_revenue': total_revenue,
-                'monthly_revenue': monthly_revenue,
-                'occupancy_rate': (active_bookings / apartment.total_rooms * 100) if apartment.total_rooms > 0 else 0
-            }
-        })
-    except Exception as e:
-        print(f"❌ [GET_APARTMENT_STATS] Error: {str(e)}")
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
+#         return jsonify({
+#             'success': True,
+#             'apartment': apartment.to_dict(),
+#             'stats': {
+#                 'total_bookings': total_bookings,
+#                 'active_bookings': active_bookings,
+#                 'upcoming_bookings': upcoming_bookings,
+#                 'total_revenue': total_revenue,
+#                 'monthly_revenue': monthly_revenue,
+#                 'occupancy_rate': (active_bookings / apartment.total_rooms * 100) if apartment.total_rooms > 0 else 0
+#             }
+#         })
+#     except Exception as e:
+#         print(f"❌ [GET_APARTMENT_STATS] Error: {str(e)}")
+#         return jsonify({
+#             'success': False,
+#             'error': str(e)
+#         }), 500
 
 # =====================================================
 # ROOM MANAGEMENT APIs
 # =====================================================
 
-@app.route('/api/rooms', methods=['GET'])
+# @app.route('/api/rooms', methods=['GET'])
 def get_rooms():
     """Get all active rooms, optionally filtered by apartment"""
     try:

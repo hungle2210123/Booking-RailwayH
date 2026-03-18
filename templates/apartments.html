@@ -1,0 +1,828 @@
+{% extends "base.html" %}
+
+{% block title %}Quản Lý Căn Hộ{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-3 mt-3">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="mb-0">
+            <i class="fas fa-building"></i> Quản Lý Căn Hộ
+        </h2>
+        <button class="btn btn-primary" onclick="showAddApartmentModal()">
+            <i class="fas fa-plus"></i> Thêm Căn Hộ Mới
+        </button>
+    </div>
+
+    <!-- Summary Stats -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card bg-primary text-white">
+                <div class="card-body">
+                    <h6 class="card-title">Tổng Căn Hộ</h6>
+                    <h3 id="totalApartments">0</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-success text-white">
+                <div class="card-body">
+                    <h6 class="card-title">Căn Hộ Hoạt Động</h6>
+                    <h3 id="activeApartments">0</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-info text-white">
+                <div class="card-body">
+                    <h6 class="card-title">Tổng Số Phòng</h6>
+                    <h3 id="totalRooms">0</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-warning text-dark">
+                <div class="card-body">
+                    <h6 class="card-title">Sức Chứa Tối Đa</h6>
+                    <h3 id="maxCapacity">0</h3>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Apartments List -->
+    <div id="apartmentsList" class="row">
+        <!-- Apartments will be loaded here dynamically -->
+    </div>
+</div>
+
+<!-- Add Apartment Modal -->
+<div class="modal fade" id="addApartmentModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-plus"></i> Thêm Căn Hộ Mới
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="addApartmentForm">
+                    <div class="mb-3">
+                        <label class="form-label">Tên Căn Hộ <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="aptName" required
+                               placeholder="Ví dụ: 42 Hang Gai">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Địa Chỉ</label>
+                        <textarea class="form-control" id="aptAddress" rows="2"
+                                  placeholder="Ví dụ: 42 Hàng Gai, Hoàn Kiếm, Hà Nội"></textarea>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Loại Căn Hộ</label>
+                            <select class="form-select" id="aptType">
+                                <option value="">Chọn loại...</option>
+                                <option value="Studio">Studio</option>
+                                <option value="1BR">1 Phòng Ngủ</option>
+                                <option value="2BR">2 Phòng Ngủ</option>
+                                <option value="3BR">3 Phòng Ngủ</option>
+                                <option value="Hostel">Hostel/Dorm</option>
+                                <option value="Mixed">Mixed (nhiều loại phòng)</option>
+                                <option value="Custom">Tùy chỉnh</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Tổng Số Phòng <span class="text-danger">*</span></label>
+                            <input type="number" class="form-control" id="aptTotalRooms"
+                                   min="1" value="1" required>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Khách Tối Đa/Phòng</label>
+                            <input type="number" class="form-control" id="aptMaxGuests"
+                                   min="1" value="2">
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Chủ Sở Hữu</label>
+                            <input type="text" class="form-control" id="aptOwner">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">SĐT Chủ</label>
+                            <input type="tel" class="form-control" id="aptOwnerPhone">
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Ghi Chú</label>
+                        <textarea class="form-control" id="aptNotes" rows="2"></textarea>
+                    </div>
+
+                    <!-- Room Configuration Section -->
+                    <div class="card bg-light mb-3">
+                        <div class="card-header">
+                            <strong>🛏️ Cấu Hình Phòng</strong>
+                        </div>
+                        <div class="card-body">
+                            <div class="form-check mb-2">
+                                <input class="form-check-input" type="checkbox" id="autoCreateRooms" checked>
+                                <label class="form-check-label" for="autoCreateRooms">
+                                    Tự động tạo phòng (tạo phòng sau khi tạo căn hộ)
+                                </label>
+                            </div>
+                            <div id="roomConfigPreview" class="alert alert-info mt-2">
+                                Sẽ tạo <strong><span id="roomCountPreview">1</span> phòng</strong> với tên mặc định
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                <button type="button" class="btn btn-primary" onclick="saveNewApartment()">
+                    <i class="fas fa-save"></i> Lưu Căn Hộ
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Apartment Modal -->
+<div class="modal fade" id="editApartmentModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-edit"></i> Chỉnh Sửa Căn Hộ
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="editApartmentForm">
+                    <input type="hidden" id="editAptId">
+                    <div class="mb-3">
+                        <label class="form-label">Tên Căn Hộ <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="editAptName" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Địa Chỉ</label>
+                        <textarea class="form-control" id="editAptAddress" rows="2"></textarea>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Loại Căn Hộ</label>
+                            <input type="text" class="form-control" id="editAptType">
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Tổng Số Phòng</label>
+                            <input type="number" class="form-control" id="editAptTotalRooms" readonly>
+                            <small class="text-muted">Chỉnh sửa phòng bên dưới</small>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Khách Tối Đa/Phòng</label>
+                            <input type="number" class="form-control" id="editAptMaxGuests">
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Chủ Sở Hữu</label>
+                            <input type="text" class="form-control" id="editAptOwner">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">SĐT Chủ</label>
+                            <input type="tel" class="form-control" id="editAptOwnerPhone">
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Ghi Chú</label>
+                        <textarea class="form-control" id="editAptNotes" rows="2"></textarea>
+                    </div>
+
+                    <!-- Rooms List -->
+                    <div class="card bg-light">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <strong>🛏️ Danh Sách Phòng</strong>
+                            <button type="button" class="btn btn-sm btn-success" onclick="showAddRoomForm()">
+                                <i class="fas fa-plus"></i> Thêm Phòng
+                            </button>
+                        </div>
+                        <div class="card-body">
+                            <div id="roomsList">
+                                <!-- Rooms will be loaded here -->
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Đóng</button>
+                <button type="button" class="btn btn-primary" onclick="saveApartmentEdit()">
+                    <i class="fas fa-save"></i> Lưu Thay Đổi
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add Room Modal -->
+<div class="modal fade" id="addRoomModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-plus"></i> Thêm Phòng Mới
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="addRoomForm">
+                    <input type="hidden" id="addRoomApartmentId">
+                    <div class="mb-3">
+                        <label class="form-label">Tên Phòng <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="newRoomName" required
+                               placeholder="Ví dụ: Phòng 101, 1BR-A">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Loại Phòng <span class="text-danger">*</span></label>
+                        <select class="form-select" id="newRoomType" required>
+                            <option value="">Chọn loại...</option>
+                            <option value="Studio">Studio</option>
+                            <option value="1-Bedroom">1 Phòng Ngủ (1BR)</option>
+                            <option value="2-Bedroom">2 Phòng Ngủ (2BR)</option>
+                            <option value="3-Bedroom">3 Phòng Ngủ (3BR)</option>
+                            <option value="Dorm">Dorm/Shared</option>
+                            <option value="Standard">Standard</option>
+                            <option value="Deluxe">Deluxe</option>
+                            <option value="Suite">Suite</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Sức Chứa Tối Đa <span class="text-danger">*</span></label>
+                        <input type="number" class="form-control" id="newRoomMaxGuests"
+                               min="1" max="10" value="2" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Đặc Điểm Phòng</label>
+                        <textarea class="form-control" id="newRoomFeatures" rows="2"
+                                  placeholder="Ví dụ: Bếp, phòng tắm riêng, ban công"></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                <button type="button" class="btn btn-primary" onclick="saveNewRoom()">
+                    <i class="fas fa-save"></i> Lưu Phòng
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Room Modal -->
+<div class="modal fade" id="editRoomModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-edit"></i> Chỉnh Sửa Phòng
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="editRoomForm">
+                    <input type="hidden" id="editRoomId">
+                    <div class="mb-3">
+                        <label class="form-label">Tên Phòng <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="editRoomName" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Loại Phòng <span class="text-danger">*</span></label>
+                        <select class="form-select" id="editRoomType" required>
+                            <option value="">Chọn loại...</option>
+                            <option value="Studio">Studio</option>
+                            <option value="1-Bedroom">1 Phòng Ngủ (1BR)</option>
+                            <option value="2-Bedroom">2 Phòng Ngủ (2BR)</option>
+                            <option value="3-Bedroom">3 Phòng Ngủ (3BR)</option>
+                            <option value="Dorm">Dorm/Shared</option>
+                            <option value="Standard">Standard</option>
+                            <option value="Deluxe">Deluxe</option>
+                            <option value="Suite">Suite</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Sức Chứa Tối Đa <span class="text-danger">*</span></label>
+                        <input type="number" class="form-control" id="editRoomMaxGuests"
+                               min="1" max="10" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Đặc Điểm Phòng</label>
+                        <textarea class="form-control" id="editRoomFeatures" rows="2"></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="editRoomActive">
+                            <label class="form-check-label" for="editRoomActive">
+                                Phòng đang hoạt động
+                            </label>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Đóng</button>
+                <button type="button" class="btn btn-primary" onclick="saveRoomEdit()">
+                    <i class="fas fa-save"></i> Lưu Thay Đổi
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.apartment-card {
+    transition: all 0.3s ease;
+    margin-bottom: 20px;
+}
+
+.apartment-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 16px rgba(0,0,0,0.15);
+}
+
+.apartment-card.inactive {
+    opacity: 0.6;
+}
+
+.room-badge {
+    display: inline-block;
+    padding: 5px 10px;
+    margin: 3px;
+    border-radius: 15px;
+    font-size: 0.85rem;
+    background: #e9ecef;
+}
+
+.stats-icon {
+    font-size: 1.5rem;
+    opacity: 0.8;
+}
+</style>
+
+<script>
+let currentEditingApartmentId = null;
+
+// Load apartments on page load
+document.addEventListener('DOMContentLoaded', function() {
+    loadApartments();
+
+    // Update room count preview
+    document.getElementById('aptTotalRooms').addEventListener('input', function() {
+        document.getElementById('roomCountPreview').textContent = this.value;
+    });
+});
+
+// Load all apartments
+function loadApartments() {
+    fetch('/api/apartments')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                displayApartments(data.apartments);
+                updateStats(data.stats);
+            } else {
+                console.error('Failed to load apartments:', data.error);
+                showError('Không thể tải danh sách căn hộ');
+            }
+        })
+        .catch(error => {
+            console.error('Error loading apartments:', error);
+            showError('Lỗi kết nối: ' + error.message);
+        });
+}
+
+// Display apartments in cards
+function displayApartments(apartments) {
+    const container = document.getElementById('apartmentsList');
+
+    if (!apartments || apartments.length === 0) {
+        container.innerHTML = `
+            <div class="col-12 text-center py-5">
+                <i class="fas fa-building" style="font-size: 4rem; opacity: 0.3;"></i>
+                <p class="text-muted mt-3">Chưa có căn hộ nào. Nhấn "Thêm Căn Hộ Mới" để bắt đầu.</p>
+            </div>
+        `;
+        return;
+    }
+
+    container.innerHTML = apartments.map(apt => `
+        <div class="col-md-6 col-lg-4">
+            <div class="card apartment-card ${apt.is_active ? '' : 'inactive'}">
+                <div class="card-header bg-primary text-white">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">
+                            <i class="fas fa-building"></i> ${apt.apartment_name}
+                        </h5>
+                        <span class="badge ${apt.is_active ? 'bg-success' : 'bg-secondary'}">
+                            ${apt.is_active ? 'Hoạt động' : 'Tạm dừng'}
+                        </span>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted mb-2">
+                        <i class="fas fa-map-marker-alt"></i>
+                        ${apt.apartment_address || 'Chưa có địa chỉ'}
+                    </p>
+
+                    <div class="row text-center mb-3">
+                        <div class="col-6">
+                            <div class="stats-icon"><i class="fas fa-door-open text-primary"></i></div>
+                            <div><strong>${apt.total_rooms}</strong></div>
+                            <small class="text-muted">Tổng phòng</small>
+                        </div>
+                        <div class="col-6">
+                            <div class="stats-icon"><i class="fas fa-users text-info"></i></div>
+                            <div><strong>${apt.max_guests_per_room * apt.total_rooms}</strong></div>
+                            <small class="text-muted">Sức chứa</small>
+                        </div>
+                    </div>
+
+                    ${apt.apartment_type ? `
+                        <p class="mb-2">
+                            <span class="badge bg-info">${apt.apartment_type}</span>
+                        </p>
+                    ` : ''}
+
+                    ${apt.property_notes ? `
+                        <p class="text-muted small mb-2">
+                            <i class="fas fa-info-circle"></i> ${apt.property_notes}
+                        </p>
+                    ` : ''}
+                </div>
+                <div class="card-footer">
+                    <div class="btn-group w-100">
+                        <button class="btn btn-sm btn-outline-primary"
+                                onclick="editApartment(${apt.apartment_id})">
+                            <i class="fas fa-edit"></i> Sửa
+                        </button>
+                        <button class="btn btn-sm btn-outline-${apt.is_active ? 'warning' : 'success'}"
+                                onclick="toggleApartment(${apt.apartment_id}, ${apt.is_active})">
+                            <i class="fas fa-${apt.is_active ? 'pause' : 'play'}"></i>
+                            ${apt.is_active ? 'Tạm dừng' : 'Kích hoạt'}
+                        </button>
+                        <a href="/calendar/?apartment_id=${apt.apartment_id}"
+                           class="btn btn-sm btn-outline-info">
+                            <i class="fas fa-calendar"></i> Xem lịch
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `).join('');
+}
+
+// Update summary stats
+function updateStats(stats) {
+    document.getElementById('totalApartments').textContent = stats.total_apartments;
+    document.getElementById('activeApartments').textContent = stats.active_apartments;
+    document.getElementById('totalRooms').textContent = stats.total_rooms;
+    document.getElementById('maxCapacity').textContent = stats.max_capacity + ' khách';
+}
+
+// Show add apartment modal
+function showAddApartmentModal() {
+    document.getElementById('addApartmentForm').reset();
+    const modal = new bootstrap.Modal(document.getElementById('addApartmentModal'));
+    modal.show();
+}
+
+// Save new apartment
+function saveNewApartment() {
+    const formData = {
+        apartment_name: document.getElementById('aptName').value.trim(),
+        apartment_address: document.getElementById('aptAddress').value.trim(),
+        apartment_type: document.getElementById('aptType').value,
+        total_rooms: parseInt(document.getElementById('aptTotalRooms').value),
+        max_guests_per_room: parseInt(document.getElementById('aptMaxGuests').value),
+        owner_name: document.getElementById('aptOwner').value.trim(),
+        owner_phone: document.getElementById('aptOwnerPhone').value.trim(),
+        property_notes: document.getElementById('aptNotes').value.trim(),
+        auto_create_rooms: document.getElementById('autoCreateRooms').checked
+    };
+
+    if (!formData.apartment_name) {
+        alert('Vui lòng nhập tên căn hộ!');
+        return;
+    }
+
+    fetch('/api/apartments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert(`✅ Đã thêm căn hộ "${formData.apartment_name}" thành công!`);
+            bootstrap.Modal.getInstance(document.getElementById('addApartmentModal')).hide();
+            loadApartments();
+        } else {
+            alert(`❌ Lỗi: ${data.error}`);
+        }
+    })
+    .catch(error => {
+        alert(`❌ Lỗi kết nối: ${error.message}`);
+    });
+}
+
+// Edit apartment
+function editApartment(apartmentId) {
+    currentEditingApartmentId = apartmentId;
+
+    fetch(`/api/apartments/${apartmentId}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                const apt = data.apartment;
+                document.getElementById('editAptId').value = apt.apartment_id;
+                document.getElementById('editAptName').value = apt.apartment_name;
+                document.getElementById('editAptAddress').value = apt.apartment_address || '';
+                document.getElementById('editAptType').value = apt.apartment_type || '';
+                document.getElementById('editAptTotalRooms').value = apt.total_rooms;
+                document.getElementById('editAptMaxGuests').value = apt.max_guests_per_room;
+                document.getElementById('editAptOwner').value = apt.owner_name || '';
+                document.getElementById('editAptOwnerPhone').value = apt.owner_phone || '';
+                document.getElementById('editAptNotes').value = apt.property_notes || '';
+
+                loadApartmentRooms(apartmentId);
+
+                const modal = new bootstrap.Modal(document.getElementById('editApartmentModal'));
+                modal.show();
+            }
+        })
+        .catch(error => {
+            alert(`❌ Lỗi: ${error.message}`);
+        });
+}
+
+// Load apartment rooms
+function loadApartmentRooms(apartmentId) {
+    fetch(`/api/apartments/${apartmentId}/rooms`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                displayRooms(data.rooms);
+            }
+        })
+        .catch(error => console.error('Error loading rooms:', error));
+}
+
+// Display rooms with full management
+function displayRooms(rooms) {
+    const container = document.getElementById('roomsList');
+
+    if (!rooms || rooms.length === 0) {
+        container.innerHTML = '<p class="text-muted">Chưa có phòng nào. Nhấn "Thêm Phòng" để bắt đầu.</p>';
+        return;
+    }
+
+    container.innerHTML = `
+        <div class="table-responsive">
+            <table class="table table-sm table-hover">
+                <thead>
+                    <tr>
+                        <th>Tên Phòng</th>
+                        <th>Loại</th>
+                        <th>Sức chứa</th>
+                        <th>Trạng thái</th>
+                        <th>Thao tác</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${rooms.map(room => `
+                        <tr>
+                            <td><strong>${room.room_name}</strong></td>
+                            <td><span class="badge bg-info">${room.room_type || 'Standard'}</span></td>
+                            <td>${room.max_guests} khách</td>
+                            <td>
+                                <span class="badge ${room.is_active ? 'bg-success' : 'bg-secondary'}">
+                                    ${room.is_active ? 'Hoạt động' : 'Tạm dừng'}
+                                </span>
+                            </td>
+                            <td>
+                                <button class="btn btn-xs btn-primary" onclick="editRoom(${room.room_id})">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <button class="btn btn-xs btn-danger" onclick="deleteRoom(${room.room_id}, '${room.room_name}')">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+        </div>
+    `;
+}
+
+// Save apartment edit
+function saveApartmentEdit() {
+    const apartmentId = document.getElementById('editAptId').value;
+    const formData = {
+        apartment_name: document.getElementById('editAptName').value.trim(),
+        apartment_address: document.getElementById('editAptAddress').value.trim(),
+        apartment_type: document.getElementById('editAptType').value.trim(),
+        max_guests_per_room: parseInt(document.getElementById('editAptMaxGuests').value),
+        owner_name: document.getElementById('editAptOwner').value.trim(),
+        owner_phone: document.getElementById('editAptOwnerPhone').value.trim(),
+        property_notes: document.getElementById('editAptNotes').value.trim()
+    };
+
+    fetch(`/api/apartments/${apartmentId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('✅ Đã cập nhật căn hộ thành công!');
+            bootstrap.Modal.getInstance(document.getElementById('editApartmentModal')).hide();
+            loadApartments();
+        } else {
+            alert(`❌ Lỗi: ${data.error}`);
+        }
+    })
+    .catch(error => {
+        alert(`❌ Lỗi kết nối: ${error.message}`);
+    });
+}
+
+// Toggle apartment active status
+function toggleApartment(apartmentId, currentStatus) {
+    const action = currentStatus ? 'tạm dừng' : 'kích hoạt';
+
+    if (!confirm(`Bạn có chắc muốn ${action} căn hộ này?`)) {
+        return;
+    }
+
+    fetch(`/api/apartments/${apartmentId}/toggle`, {
+        method: 'POST'
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert(`✅ Đã ${action} căn hộ thành công!`);
+            loadApartments();
+        } else {
+            alert(`❌ Lỗi: ${data.error}`);
+        }
+    })
+    .catch(error => {
+        alert(`❌ Lỗi kết nối: ${error.message}`);
+    });
+}
+
+// Show error message
+function showError(message) {
+    alert(`❌ ${message}`);
+}
+
+// ============================================================
+// ROOM MANAGEMENT FUNCTIONS - Web-based editing
+// ============================================================
+
+// Show add room form
+function showAddRoomForm() {
+    if (!currentEditingApartmentId) {
+        alert('Lỗi: Không xác định được căn hộ');
+        return;
+    }
+
+    document.getElementById('addRoomForm').reset();
+    document.getElementById('addRoomApartmentId').value = currentEditingApartmentId;
+
+    const modal = new bootstrap.Modal(document.getElementById('addRoomModal'));
+    modal.show();
+}
+
+// Save new room
+function saveNewRoom() {
+    const formData = {
+        apartment_id: parseInt(document.getElementById('addRoomApartmentId').value),
+        room_name: document.getElementById('newRoomName').value.trim(),
+        room_type: document.getElementById('newRoomType').value,
+        max_guests: parseInt(document.getElementById('newRoomMaxGuests').value),
+        room_features: document.getElementById('newRoomFeatures').value.trim()
+    };
+
+    if (!formData.room_name || !formData.room_type) {
+        alert('Vui lòng điền đầy đủ thông tin!');
+        return;
+    }
+
+    fetch('/api/rooms', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert(`✅ Đã thêm phòng "${formData.room_name}" thành công!`);
+            bootstrap.Modal.getInstance(document.getElementById('addRoomModal')).hide();
+            loadApartmentRooms(currentEditingApartmentId);
+            loadApartments(); // Refresh apartment stats
+        } else {
+            alert(`❌ Lỗi: ${data.error}`);
+        }
+    })
+    .catch(error => {
+        alert(`❌ Lỗi kết nối: ${error.message}`);
+    });
+}
+
+// Edit room
+function editRoom(roomId) {
+    fetch(`/api/rooms/${roomId}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                const room = data.room;
+                document.getElementById('editRoomId').value = room.room_id;
+                document.getElementById('editRoomName').value = room.room_name;
+                document.getElementById('editRoomType').value = room.room_type;
+                document.getElementById('editRoomMaxGuests').value = room.max_guests;
+                document.getElementById('editRoomFeatures').value = room.room_features || '';
+                document.getElementById('editRoomActive').checked = room.is_active;
+
+                const modal = new bootstrap.Modal(document.getElementById('editRoomModal'));
+                modal.show();
+            }
+        })
+        .catch(error => {
+            alert(`❌ Lỗi: ${error.message}`);
+        });
+}
+
+// Save room edit
+function saveRoomEdit() {
+    const roomId = document.getElementById('editRoomId').value;
+    const formData = {
+        room_name: document.getElementById('editRoomName').value.trim(),
+        room_type: document.getElementById('editRoomType').value,
+        max_guests: parseInt(document.getElementById('editRoomMaxGuests').value),
+        room_features: document.getElementById('editRoomFeatures').value.trim(),
+        is_active: document.getElementById('editRoomActive').checked
+    };
+
+    if (!formData.room_name || !formData.room_type) {
+        alert('Vui lòng điền đầy đủ thông tin!');
+        return;
+    }
+
+    fetch(`/api/rooms/${roomId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert(`✅ Đã cập nhật phòng thành công!`);
+            bootstrap.Modal.getInstance(document.getElementById('editRoomModal')).hide();
+            loadApartmentRooms(currentEditingApartmentId);
+        } else {
+            alert(`❌ Lỗi: ${data.error}`);
+        }
+    })
+    .catch(error => {
+        alert(`❌ Lỗi kết nối: ${error.message}`);
+    });
+}
+
+// Delete room
+function deleteRoom(roomId, roomName) {
+    if (!confirm(`Bạn có chắc muốn xóa phòng "${roomName}"?\n\nLưu ý: Nếu phòng có booking, sẽ chỉ tạm dừng thay vì xóa hoàn toàn.`)) {
+        return;
+    }
+
+    fetch(`/api/rooms/${roomId}`, {
+        method: 'DELETE'
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            const action = data.soft_delete ? 'Đã tạm dừng' : 'Đã xóa';
+            alert(`✅ ${action} phòng "${roomName}" thành công!`);
+            loadApartmentRooms(currentEditingApartmentId);
+            loadApartments(); // Refresh apartment stats
+        } else {
+            alert(`❌ Lỗi: ${data.error}`);
+        }
+    })
+    .catch(error => {
+        alert(`❌ Lỗi kết nối: ${error.message}`);
+    });
+}
+</script>
+{% endblock %}
