@@ -3,6 +3,7 @@
 {% block title %}Quản Lý Căn Hộ{% endblock %}
 
 {% block content %}
+<!-- Version: 2.0.1 - Fixed JavaScript event binding -->
 <div class="container-fluid px-3 mt-3">
     <!-- Header -->
     <div class="d-flex justify-content-between align-items-center mb-4">
@@ -410,19 +411,37 @@ h1, h2, h3, h4, h5, h6 {
 </style>
 
 <script>
+// Version: 2.0.1 - Fixed event binding
+console.log('✅ Apartments.js v2.0.1 loaded');
+
 let currentEditingApartmentId = null;
 
 // Load apartments on page load
 document.addEventListener('DOMContentLoaded', function() {
+    console.log('✅ DOM loaded, initializing apartment management');
+
     loadApartments();
 
     // Update room count preview
-    document.getElementById('aptTotalRooms').addEventListener('input', function() {
-        document.getElementById('roomCountPreview').textContent = this.value;
-    });
+    const aptTotalRooms = document.getElementById('aptTotalRooms');
+    if (aptTotalRooms) {
+        aptTotalRooms.addEventListener('input', function() {
+            document.getElementById('roomCountPreview').textContent = this.value;
+        });
+    }
 
     // Attach event listener to add apartment button
-    document.getElementById('addApartmentBtn').addEventListener('click', showAddApartmentModal);
+    const addBtn = document.getElementById('addApartmentBtn');
+    if (addBtn) {
+        addBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            console.log('✅ Add apartment button clicked');
+            showAddApartmentModal();
+        });
+        console.log('✅ Add apartment button event attached');
+    } else {
+        console.error('❌ Add apartment button not found!');
+    }
 });
 
 // Load all apartments
