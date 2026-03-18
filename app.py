@@ -1457,7 +1457,7 @@ def debug_routes():
 @app.route('/apartments')
 def apartment_management():
     """Apartment management page"""
-    return render_template('apartment_management.html')
+    return render_template('apartments.html')
 
 @app.route('/')
 def dashboard():
