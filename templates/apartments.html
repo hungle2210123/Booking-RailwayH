@@ -399,6 +399,14 @@ h1, h2, h3, h4, h5, h6 {
     font-size: 0.75rem;
 }
 
+/* Stacked modal fix: editRoomModal appears above editApartmentModal backdrop */
+#editRoomModal {
+    z-index: 1075 !important;
+}
+#addRoomModal {
+    z-index: 1075 !important;
+}
+
 /* Table in room management */
 .table {
     color: #212529;
@@ -441,6 +449,19 @@ document.addEventListener('DOMContentLoaded', function() {
         console.log('✅ Add apartment button event attached');
     } else {
         console.error('❌ Add apartment button not found!');
+    }
+
+    // When room edit modal closes, reopen the apartment edit modal automatically
+    const editRoomModalEl = document.getElementById('editRoomModal');
+    if (editRoomModalEl) {
+        editRoomModalEl.addEventListener('hidden.bs.modal', function() {
+            if (currentEditingApartmentId) {
+                // Small delay to let Bootstrap clean up backdrop before reopening
+                setTimeout(function() {
+                    editApartment(currentEditingApartmentId);
+                }, 200);
+            }
+        });
     }
 });
 
@@ -818,8 +839,20 @@ function editRoom(roomId) {
                 document.getElementById('editRoomFeatures').value = room.room_features || '';
                 document.getElementById('editRoomActive').checked = room.is_active;
 
-                const modal = new bootstrap.Modal(document.getElementById('editRoomModal'));
-                modal.show();
+                // Bootstrap 5 can't stack two modals properly.
+                // Solution: close apartment modal first, then open room edit modal.
+                const aptModalEl = document.getElementById('editApartmentModal');
+                const aptModal = bootstrap.Modal.getInstance(aptModalEl);
+                if (aptModal) {
+                    // Wait for apartment modal to fully close, then open room edit modal
+                    aptModalEl.addEventListener('hidden.bs.modal', function openRoomEditOnce() {
+                        aptModalEl.removeEventListener('hidden.bs.modal', openRoomEditOnce);
+                        new bootstrap.Modal(document.getElementById('editRoomModal')).show();
+                    }, { once: true });
+                    aptModal.hide();
+                } else {
+                    new bootstrap.Modal(document.getElementById('editRoomModal')).show();
+                }
             }
         })
         .catch(error => {
