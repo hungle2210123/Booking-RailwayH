@@ -728,7 +728,32 @@ def _booking_matches_apartment(acc_name, apt_name_lower, room_names_lower):
         return False
     if apt_name_lower in acc_l or acc_l in apt_name_lower:
         return True
-    return any(rn in acc_l or acc_l in rn for rn in room_names_lower)
+    # Only use room-name substring match when the room name is long enough to be unambiguous
+    return any((len(rn) >= 4 and rn in acc_l) or (len(acc_l) >= 4 and acc_l in rn)
+               for rn in room_names_lower)
+
+
+def _assign_booking_to_apt(acc_name: str, apt_id_col, apartments_list: list):
+    """Assign a booking to exactly ONE apartment.
+
+    Priority:
+      1. First apartment whose name/rooms match the accommodation name (Tên chỗ nghỉ)
+      2. apartment_id column value as fallback when name gives no match
+    Returns the matched apartment id (int) or None.
+    """
+    acc_l = str(acc_name or '').lower().strip()
+    if acc_l:
+        for apt in apartments_list:
+            room_names_lower = [r['name_lower'] for r in apt.get('rooms', [])]
+            if _booking_matches_apartment(acc_l, apt['name_lower'], room_names_lower):
+                return apt['id']
+    # Fallback: trust the stored apartment_id column
+    try:
+        if apt_id_col is not None and not (isinstance(apt_id_col, float) and apt_id_col != apt_id_col):
+            return int(apt_id_col)
+    except (TypeError, ValueError):
+        pass
+    return None
 
 
 def get_daily_activity(df: pd.DataFrame, target_date: datetime.date, apartments_list=None) -> Dict[str, Any]:
@@ -769,36 +794,38 @@ def get_daily_activity(df: pd.DataFrame, target_date: datetime.date, apartments_
             (df['Tình trạng'] != 'Đã hủy')
         ]
 
-    # ── Per-apartment counts (dynamic) ─────────────────────────────────────────
-    arrivals_by_apt = {}
-    departures_by_apt = {}
+    # ── Per-apartment counts — exclusive assignment (each booking → ONE apt) ────
+    arrivals_by_apt   = {apt['id']: 0 for apt in (apartments_list or [])}
+    departures_by_apt = {apt['id']: 0 for apt in (apartments_list or [])}
 
     if apartments_list:
-        for apt in apartments_list:
-            apt_id = apt['id']
-            apt_name_lower = apt['name_lower']
-            room_names_lower = [r['name_lower'] for r in apt.get('rooms', [])]
+        def _apt_id_col_val(df_slice, idx):
+            if 'apartment_id' in df_slice.columns:
+                v = df_slice.at[idx, 'apartment_id']
+                return None if pd.isna(v) else v
+            return None
 
-            def _match(acc, _anl=apt_name_lower, _rnl=room_names_lower):
-                return _booking_matches_apartment(acc, _anl, _rnl)
+        # arrivals: assign each booking to exactly one apartment
+        if not arrivals.empty:
+            acc_col = arrivals['Tên chỗ nghỉ'] if 'Tên chỗ nghỉ' in arrivals.columns \
+                      else pd.Series('', index=arrivals.index)
+            apt_id_col = arrivals['apartment_id'] if 'apartment_id' in arrivals.columns \
+                         else pd.Series(None, index=arrivals.index)
+            for acc, aid in zip(acc_col, apt_id_col):
+                assigned = _assign_booking_to_apt(acc, aid, apartments_list)
+                if assigned is not None and assigned in arrivals_by_apt:
+                    arrivals_by_apt[assigned] += 1
 
-            # arrivals
-            if not arrivals.empty:
-                id_mask = (arrivals['apartment_id'] == apt_id) if 'apartment_id' in arrivals.columns \
-                          else pd.Series(False, index=arrivals.index)
-                name_mask = arrivals['Tên chỗ nghỉ'].apply(_match)
-                arrivals_by_apt[apt_id] = int((id_mask | name_mask).sum())
-            else:
-                arrivals_by_apt[apt_id] = 0
-
-            # departures
-            if not departures.empty:
-                id_mask = (departures['apartment_id'] == apt_id) if 'apartment_id' in departures.columns \
-                          else pd.Series(False, index=departures.index)
-                name_mask = departures['Tên chỗ nghỉ'].apply(_match)
-                departures_by_apt[apt_id] = int((id_mask | name_mask).sum())
-            else:
-                departures_by_apt[apt_id] = 0
+        # departures: same exclusive logic
+        if not departures.empty:
+            acc_col = departures['Tên chỗ nghỉ'] if 'Tên chỗ nghỉ' in departures.columns \
+                      else pd.Series('', index=departures.index)
+            apt_id_col = departures['apartment_id'] if 'apartment_id' in departures.columns \
+                         else pd.Series(None, index=departures.index)
+            for acc, aid in zip(acc_col, apt_id_col):
+                assigned = _assign_booking_to_apt(acc, aid, apartments_list)
+                if assigned is not None and assigned in departures_by_apt:
+                    departures_by_apt[assigned] += 1
 
     # ── One-night stays ─────────────────────────────────────────────────────────
     one_night_count = 0
