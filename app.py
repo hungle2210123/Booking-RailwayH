@@ -3505,28 +3505,37 @@ def calendar_view(year=None, month=None):
     apartment_id = request.args.get('apartment_id', type=int)
 
     # Always force fresh data for calendar to fix revenue calculation issues
-    force_fresh = True  # Force fresh data to ensure accurate revenue calculations
-    df = load_booking_data_for_calculations(force_fresh=force_fresh)  # Exclude cancelled bookings
+    force_fresh = True
+    df = load_booking_data_for_calculations(force_fresh=force_fresh)
 
-    # Filter by apartment if specified — dual strategy:
-    # 1. apartment_id column (set by migration for newer bookings)
-    # 2. Tên chỗ nghỉ (accommodation_name) matching apartment/room names (covers old bookings)
-    display_capacity = TOTAL_HOTEL_CAPACITY  # Default: all rooms
+    # ── Pre-load ALL apartments + rooms ONCE (used for filtering AND per-day rendering) ──
+    from core.models import Apartment as AptModel, Room as RoomModel
+    all_apts = AptModel.query.filter_by(is_active=True).order_by(AptModel.apartment_id).all()
+    apartments_list = []
+    for apt in all_apts:
+        rooms = RoomModel.query.filter_by(apartment_id=apt.apartment_id, is_active=True).all()
+        apartments_list.append({
+            'id':         apt.apartment_id,
+            'name':       apt.apartment_name,
+            'name_lower': apt.apartment_name.lower(),
+            'capacity':   len(rooms),
+            'rooms':      [{'name': r.room_name, 'name_lower': r.room_name.lower()} for r in rooms],
+        })
+
+    # ── Filter by apartment (dual strategy: apartment_id col + name match) ──
+    display_capacity = TOTAL_HOTEL_CAPACITY   # default: all rooms
+    display_apartments_list = apartments_list  # what the per-day function sees
     if apartment_id:
-        from core.models import Apartment as AptModel, Room as RoomModel
-        apt_obj = AptModel.query.get(apartment_id)
-        if apt_obj:
-            apt_rooms = RoomModel.query.filter_by(apartment_id=apartment_id, is_active=True).all()
-            room_names_lower = [r.room_name.lower() for r in apt_rooms]
-            apt_name_lower = apt_obj.apartment_name.lower()
+        apt_entry = next((a for a in apartments_list if a['id'] == apartment_id), None)
+        if apt_entry:
+            apt_name_lower   = apt_entry['name_lower']
+            room_names_lower = [r['name_lower'] for r in apt_entry['rooms']]
 
-            # Mask 1: apartment_id column
             if 'apartment_id' in df.columns:
                 id_mask = df['apartment_id'] == apartment_id
             else:
                 id_mask = pd.Series(False, index=df.index)
 
-            # Mask 2: accommodation_name matches apartment name or any of its room names
             def _matches_apt(acc_name):
                 if pd.isna(acc_name):
                     return False
@@ -3538,34 +3547,33 @@ def calendar_view(year=None, month=None):
             name_mask = df['Tên chỗ nghỉ'].apply(_matches_apt)
             df = df[id_mask | name_mask]
 
-            # Use this apartment's actual room count as the capacity
-            display_capacity = len(apt_rooms) if apt_rooms else TOTAL_HOTEL_CAPACITY
-            print(f"📍 Calendar filtered to {apt_obj.apartment_name} (id={apartment_id}): {len(df)} bookings, capacity={display_capacity} rooms")
+            display_capacity = apt_entry['capacity'] if apt_entry['capacity'] > 0 else TOTAL_HOTEL_CAPACITY
+            display_apartments_list = [apt_entry]   # only show selected apartment in cells
+            print(f"📍 Calendar filtered to {apt_entry['name']} (id={apartment_id}): {len(df)} bookings, capacity={display_capacity}")
         else:
             print(f"⚠️ Apartment {apartment_id} not found, showing all data")
-    
+
     # Generate calendar data in weeks format expected by template
     cal = calendar.monthrange(year, month)
     first_day, num_days = cal
-    
-    # Convert Python's weekday (Monday=0) to our calendar's weekday (Sunday=0)
-    # Python: Mon=0, Tue=1, Wed=2, Thu=3, Fri=4, Sat=5, Sun=6
-    # Our calendar: Sun=0, Mon=1, Tue=2, Wed=3, Thu=4, Fri=5, Sat=6
-    first_day = (first_day + 1) % 7  # Convert to Sunday-based
-    
+
+    # Convert Python's weekday (Mon=0) to Sunday-based (Sun=0)
+    first_day = (first_day + 1) % 7
+
     # Create calendar weeks structure
     calendar_data = []
     week = []
-    
+
     # Add empty days for start of month
     for i in range(first_day):
         week.append((None, None, None))
-    
-    # Add actual days
+
+    # Add actual days — pass apartments_list so each call skips DB queries
     for day in range(1, num_days + 1):
         date_str = f"{year}-{month:02d}-{day:02d}"
         date_obj = datetime.strptime(date_str, "%Y-%m-%d").date()
-        day_info = get_overall_calendar_day_info(df, date_str, display_capacity)
+        day_info = get_overall_calendar_day_info(df, date_str, display_capacity,
+                                                  apartments_list=display_apartments_list)
 
         week.append((date_obj, date_str, day_info))
         
@@ -3610,7 +3618,8 @@ def calendar_view(year=None, month=None):
             })()
         else:
             # Fallback to calendar info for dates without revenue data
-            day_info = get_overall_calendar_day_info(df, date_str, display_capacity)
+            day_info = get_overall_calendar_day_info(df, date_str, display_capacity,
+                                                      apartments_list=display_apartments_list)
             fallback_revenue = day_info.get('daily_revenue', 0)
             print(f"⚠️ [CALENDAR_DEBUG] {date_str}: Using fallback data - {fallback_revenue:,.0f}đ")
             revenue_by_date[date_obj] = type('obj', (object,), {
@@ -3667,15 +3676,11 @@ def calendar_view(year=None, month=None):
     else:
         next_month = datetime(year, month + 1, 1)
 
-    # Load apartments for filter dropdown
-    from core.models import Apartment
-    apartments = Apartment.query.filter_by(is_active=True).order_by(Apartment.apartment_name).all()
-    apartments_data = [{'apartment_id': apt.apartment_id, 'apartment_name': apt.apartment_name} for apt in apartments]
+    # Build dropdown data from the already-loaded apartments_list
+    apartments_data = [{'apartment_id': a['id'], 'apartment_name': a['name']} for a in apartments_list]
 
     # Get current apartment info if filtered
-    current_apartment = None
-    if apartment_id:
-        current_apartment = Apartment.query.get(apartment_id)
+    current_apartment = next((a for a in apartments_list if a['id'] == apartment_id), None) if apartment_id else None
 
     return render_template(
         'calendar.html',
@@ -3686,13 +3691,14 @@ def calendar_view(year=None, month=None):
         current_month=current_month,
         prev_month=prev_month,
         next_month=next_month,
-        today=datetime.today().date(),  # Add today for template comparisons
-        revenue_by_date=revenue_by_date,  # Add revenue data for template
-        high_value_dates=high_value_dates,  # High-value guest indicators
-        high_value_total_count=high_value_total_count,  # Total high-value guests
-        high_value_total_revenue=high_value_total_revenue,  # Total high-value revenue
-        apartments=apartments_data,  # Apartments for filter dropdown
-        current_apartment_id=apartment_id,  # Currently selected apartment
+        today=datetime.today().date(),
+        revenue_by_date=revenue_by_date,
+        high_value_dates=high_value_dates,
+        high_value_total_count=high_value_total_count,
+        high_value_total_revenue=high_value_total_revenue,
+        apartments=apartments_data,          # For filter dropdown
+        apartments_list=apartments_list,     # Full list for legend (dynamic)
+        current_apartment_id=apartment_id,
         current_apartment=current_apartment  # Current apartment object
     )
 

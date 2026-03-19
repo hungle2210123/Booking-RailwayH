@@ -708,150 +708,150 @@ def get_room_symbol_by_name(room_name: str) -> str:
 
     return '●'  # Default circle
 
-def get_daily_activity(df: pd.DataFrame, target_date: datetime.date) -> Dict[str, Any]:
-    """Get daily activity for a specific date with room symbols and one-night stay flags"""
-    if df.empty:
-        return {
-            'arrivals': [],
-            'departures': [],
-            'staying': [],
-            'arrivals_symbols': {},
-            'one_night_count': 0
-        }
+def _booking_matches_apartment(acc_name, apt_name_lower, room_names_lower):
+    """Return True if accommodation name matches this apartment or any of its rooms."""
+    acc_l = str(acc_name or '').lower().strip()
+    if not acc_l:
+        return False
+    if apt_name_lower in acc_l or acc_l in apt_name_lower:
+        return True
+    return any(rn in acc_l or acc_l in rn for rn in room_names_lower)
 
-    # Filter by date - ensure dates are properly converted
+
+def get_daily_activity(df: pd.DataFrame, target_date: datetime.date, apartments_list=None) -> Dict[str, Any]:
+    """Get daily activity — fully dynamic apartment support.
+
+    apartments_list: pre-loaded list of dicts with keys:
+        id, name, name_lower, capacity, rooms=[{name, name_lower}]
+    When provided, arrivals_by_apt / departures_by_apt are populated per apartment ID.
+    """
+    _empty = {
+        'arrivals': [], 'departures': [], 'staying': [],
+        'arrivals_by_apt': {}, 'departures_by_apt': {},
+        'arrivals_symbols': {}, 'departures_symbols': {},
+        'one_night_count': 0,
+    }
+    if df.empty:
+        return _empty
+
+    # ── Date filters ────────────────────────────────────────────────────────────
     arrivals = pd.DataFrame()
     departures = pd.DataFrame()
     staying = pd.DataFrame()
 
     if 'Check-in Date' in df.columns:
         df_checkin = pd.to_datetime(df['Check-in Date'])
-        arrivals = df[
-            (df_checkin.dt.date == target_date) &
-            (df['Tình trạng'] != 'Đã hủy')  # Exclude cancelled bookings
-        ]
+        arrivals = df[(df_checkin.dt.date == target_date) & (df['Tình trạng'] != 'Đã hủy')]
 
     if 'Check-out Date' in df.columns:
         df_checkout = pd.to_datetime(df['Check-out Date'])
-        departures = df[
-            (df_checkout.dt.date == target_date) &
-            (df['Tình trạng'] != 'Đã hủy')  # Exclude cancelled bookings
-        ]
+        departures = df[(df_checkout.dt.date == target_date) & (df['Tình trạng'] != 'Đã hủy')]
 
-    # Guests staying (checked in BEFORE date, checking out after date)
-    # FIXED: Exclude guests checking in on the same day to prevent double counting
     if all(col in df.columns for col in ['Check-in Date', 'Check-out Date', 'Tình trạng']):
         df_checkin = pd.to_datetime(df['Check-in Date'])
         df_checkout = pd.to_datetime(df['Check-out Date'])
         staying = df[
-            (df_checkin.dt.date < target_date) &  # CHANGED: < instead of <= to exclude check-in day
+            (df_checkin.dt.date < target_date) &
             (df_checkout.dt.date > target_date) &
-            (df['Tình trạng'] != 'Đã hủy')  # Exclude cancelled bookings (more inclusive than just 'OK')
+            (df['Tình trạng'] != 'Đã hủy')
         ]
 
-    # 🎨 Calculate simplified symbols for arrivals (one symbol per apartment type)
-    hang_bac_count = 0  # Count for ● symbol
-    hang_be_101_count = 0  # Count for ① symbol
-    hang_be_102_count = 0  # Count for ② symbol
-    one_night_count = 0
+    # ── Per-apartment counts (dynamic) ─────────────────────────────────────────
+    arrivals_by_apt = {}
+    departures_by_apt = {}
 
-    for _, booking in arrivals.iterrows():
-        room_name = booking.get('Tên chỗ nghỉ', '')
-        room_lower = (room_name or '').lower()
+    if apartments_list:
+        for apt in apartments_list:
+            apt_id = apt['id']
+            apt_name_lower = apt['name_lower']
+            room_names_lower = [r['name_lower'] for r in apt.get('rooms', [])]
 
-        # Count by apartment type
-        if 'hang be' in room_lower or 'hàng bè' in room_lower:
-            if '101' in room_lower:
-                hang_be_101_count += 1
-            elif '102' in room_lower:
-                hang_be_102_count += 1
+            def _match(acc, _anl=apt_name_lower, _rnl=room_names_lower):
+                return _booking_matches_apartment(acc, _anl, _rnl)
+
+            # arrivals
+            if not arrivals.empty:
+                id_mask = (arrivals['apartment_id'] == apt_id) if 'apartment_id' in arrivals.columns \
+                          else pd.Series(False, index=arrivals.index)
+                name_mask = arrivals['Tên chỗ nghỉ'].apply(_match)
+                arrivals_by_apt[apt_id] = int((id_mask | name_mask).sum())
             else:
-                hang_be_101_count += 1  # Default to 101
-        else:
-            # Hang Bac or unknown - use ● symbol
-            hang_bac_count += 1
+                arrivals_by_apt[apt_id] = 0
 
-        # Count one-night stays
+            # departures
+            if not departures.empty:
+                id_mask = (departures['apartment_id'] == apt_id) if 'apartment_id' in departures.columns \
+                          else pd.Series(False, index=departures.index)
+                name_mask = departures['Tên chỗ nghỉ'].apply(_match)
+                departures_by_apt[apt_id] = int((id_mask | name_mask).sum())
+            else:
+                departures_by_apt[apt_id] = 0
+
+    # ── One-night stays ─────────────────────────────────────────────────────────
+    one_night_count = 0
+    for _, booking in arrivals.iterrows():
         checkin = pd.to_datetime(booking.get('Check-in Date'))
         checkout = pd.to_datetime(booking.get('Check-out Date'))
-        if checkin and checkout:
-            nights = (checkout - checkin).days
-            if nights == 1:
-                one_night_count += 1
-
-    # Similar logic for departures
-    hang_bac_departures = 0
-    hang_be_101_departures = 0
-    hang_be_102_departures = 0
-
-    for _, booking in departures.iterrows():
-        room_name = booking.get('Tên chỗ nghỉ', '')
-        room_lower = (room_name or '').lower()
-
-        if 'hang be' in room_lower or 'hàng bè' in room_lower:
-            if '101' in room_lower:
-                hang_be_101_departures += 1
-            elif '102' in room_lower:
-                hang_be_102_departures += 1
-            else:
-                hang_be_101_departures += 1
-        else:
-            hang_bac_departures += 1
+        if checkin and checkout and (checkout - checkin).days == 1:
+            one_night_count += 1
 
     return {
         'arrivals': arrivals.to_dict('records') if not arrivals.empty else [],
         'departures': departures.to_dict('records') if not departures.empty else [],
         'staying': staying.to_dict('records') if not staying.empty else [],
-        'arrivals_symbols': {
-            'hang_bac': hang_bac_count,
-            'hang_be_101': hang_be_101_count,
-            'hang_be_102': hang_be_102_count
-        },
-        'departures_symbols': {
-            'hang_bac': hang_bac_departures,
-            'hang_be_101': hang_be_101_departures,
-            'hang_be_102': hang_be_102_departures
-        },
-        'one_night_count': one_night_count
+        'arrivals_by_apt': arrivals_by_apt,
+        'departures_by_apt': departures_by_apt,
+        # Legacy keys kept for any existing callers
+        'arrivals_symbols': {},
+        'departures_symbols': {},
+        'one_night_count': one_night_count,
     }
 
-def get_overall_calendar_day_info(df: pd.DataFrame, target_date: str, total_capacity: int = 6) -> Dict[str, Any]:
-    """Get comprehensive calendar day information matching original function"""
+def get_overall_calendar_day_info(df: pd.DataFrame, target_date: str,
+                                   total_capacity: int = 6,
+                                   apartments_list=None) -> Dict[str, Any]:
+    """Get comprehensive calendar day info — fully dynamic apartment support.
+
+    apartments_list: pre-loaded list of dicts with keys:
+        id, name, name_lower, capacity, rooms=[{name, name_lower}]
+    When provided, avoids all per-call DB queries (big performance win).
+    Returns apartments_status list for dynamic template rendering.
+    """
+    _empty_activity = {
+        'arrivals': [], 'departures': [], 'staying': [],
+        'arrivals_by_apt': {}, 'departures_by_apt': {},
+        'arrivals_symbols': {}, 'departures_symbols': {},
+        'one_night_count': 0,
+    }
+
+    def _empty_result(cap=total_capacity):
+        return {
+            'occupied_units': 0, 'available_units': cap,
+            'status_text': "Trồng", 'status_color': 'empty',
+            'arrivals_count': 0, 'departures_count': 0, 'staying_count': 0,
+            'daily_revenue': 0, 'commission_total': 0, 'revenue_minus_commission': 0,
+            'activity': _empty_activity,
+            'apartments_status': [],
+            'apt1_occupied': 0, 'apt1_available': 4,
+            'apt2_occupied': 0, 'apt2_available': 2,
+        }
+
     try:
         target_date_obj = pd.to_datetime(target_date).date()
 
-        _empty_activity = {'arrivals': [], 'departures': [], 'staying': [], 'arrivals_symbols': {}, 'one_night_count': 0}
         if df is None or df.empty or total_capacity == 0:
-            return {
-                'occupied_units': 0,
-                'available_units': total_capacity,
-                'status_text': "Trống",
-                'status_color': 'empty',
-                'arrivals_count': 0,
-                'departures_count': 0,
-                'staying_count': 0,
-                'daily_revenue': 0,
-                'commission_total': 0,
-                'revenue_minus_commission': 0,
-                'activity': _empty_activity,
-                'apt1_occupied': 0,
-                'apt1_available': 4,
-                'apt2_occupied': 0,
-                'apt2_available': 2
-            }
+            return _empty_result()
 
         df_local = df.copy()
-
-        # Convert datetime columns to date objects for comparison
         if 'Check-in Date' in df_local.columns:
             df_local['Check-in Date'] = pd.to_datetime(df_local['Check-in Date']).dt.date
         if 'Check-out Date' in df_local.columns:
             df_local['Check-out Date'] = pd.to_datetime(df_local['Check-out Date']).dt.date
 
-        # Find active bookings on this date
+        # Active bookings on this date
         active_on_date = df_local[
-            (df_local['Check-in Date'].notna()) &
-            (df_local['Check-out Date'].notna()) &
+            df_local['Check-in Date'].notna() &
+            df_local['Check-out Date'].notna() &
             (df_local['Check-in Date'] <= target_date_obj) &
             (df_local['Check-out Date'] > target_date_obj) &
             (df_local['Tình trạng'] != 'Đã hủy')
@@ -860,143 +860,120 @@ def get_overall_calendar_day_info(df: pd.DataFrame, target_date: str, total_capa
         occupied_units = len(active_on_date)
         available_units = max(0, total_capacity - occupied_units)
 
-        # 🏢 APARTMENT-SEPARATED CAPACITY CALCULATION (DATABASE-DRIVEN)
-        # Dynamically get apartment capacities and room mappings from database
-        from core.models import Apartment, Room, db
+        # Per-apartment occupancy
+        apartments_status = []
+        apt1_occupied = 0
+        apt1_available = total_capacity
+        apt2_occupied = 0
+        apt2_available = 0
 
         try:
-            # Get all active apartments with their room counts
-            apartments_query = db.session.query(
-                Apartment.apartment_id,
-                Apartment.apartment_name,
-                db.func.count(Room.room_id).label('room_count')
-            ).outerjoin(
-                Room, (Room.apartment_id == Apartment.apartment_id) & (Room.is_active == True)
-            ).filter(
-                Apartment.is_active == True
-            ).group_by(
-                Apartment.apartment_id,
-                Apartment.apartment_name
-            ).order_by(
-                Apartment.apartment_id
-            ).all()
+            if apartments_list:
+                # Fast path — pre-loaded data, zero extra DB queries
+                for apt in apartments_list:
+                    apt_id = apt['id']
+                    apt_name_lower = apt['name_lower']
+                    room_names_lower = [r['name_lower'] for r in apt.get('rooms', [])]
+                    apt_capacity = apt['capacity']
 
-            # Build room-to-apartment mapping
-            room_to_apartment = {}
-            apartment_capacities = {}
+                    if not active_on_date.empty:
+                        def _match(acc, _anl=apt_name_lower, _rnl=room_names_lower):
+                            return _booking_matches_apartment(acc, _anl, _rnl)
 
-            for apt in apartments_query:
-                apartment_capacities[apt.apartment_id] = apt.room_count
+                        if 'apartment_id' in active_on_date.columns:
+                            id_mask = active_on_date['apartment_id'] == apt_id
+                        else:
+                            id_mask = pd.Series(False, index=active_on_date.index)
 
-                # Get room names for this apartment
-                rooms = db.session.query(Room.room_name).filter(
-                    Room.apartment_id == apt.apartment_id,
-                    Room.is_active == True
-                ).all()
+                        name_mask = active_on_date['Tên chỗ nghỉ'].apply(_match)
+                        apt_occ = int((id_mask | name_mask).sum())
+                    else:
+                        apt_occ = 0
 
-                for room in rooms:
-                    room_to_apartment[room.room_name.lower()] = apt.apartment_id
+                    apt_avail = max(0, apt_capacity - apt_occ)
+                    apartments_status.append({
+                        'id': apt_id,
+                        'name': apt['name'],
+                        'occupied': apt_occ,
+                        'capacity': apt_capacity,
+                        'available': apt_avail,
+                    })
+                    if apt_id == 1:
+                        apt1_occupied, apt1_available = apt_occ, apt_avail
+                    elif apt_id == 2:
+                        apt2_occupied, apt2_available = apt_occ, apt_avail
 
-            # Count occupied rooms per apartment AND individual rooms
-            apartment_occupied = {apt.apartment_id: 0 for apt in apartments_query}
-            room_101_occupied = 0  # 18 Hang Be - Room 101
-            room_102_occupied = 0  # 18 Hang Be - Room 102
+            else:
+                # Slow path — query DB (fallback when no pre-loaded list)
+                from core.models import Apartment, Room, db
+                apts_q = db.session.query(
+                    Apartment.apartment_id, Apartment.apartment_name
+                ).filter(Apartment.is_active == True).order_by(Apartment.apartment_id).all()
 
-            for _, booking in active_on_date.iterrows():
-                room_name = booking.get('Tên chỗ nghỉ', '')
-                if room_name:
-                    room_lower = str(room_name).lower().strip()
+                for apt_row in apts_q:
+                    apt_id = apt_row.apartment_id
+                    rooms_q = db.session.query(Room.room_name).filter(
+                        Room.apartment_id == apt_id, Room.is_active == True).all()
+                    room_names_lower = [r.room_name.lower() for r in rooms_q]
+                    apt_capacity = len(rooms_q)
+                    apt_name_lower = apt_row.apartment_name.lower()
 
-                    # Track individual rooms for 18 Hang Be
-                    if 'hang be 101' in room_lower or room_lower == 'hang be 101':
-                        room_101_occupied += 1
-                    elif 'hang be 102' in room_lower or room_lower == 'hang be 102':
-                        room_102_occupied += 1
+                    if not active_on_date.empty:
+                        def _match(acc, _anl=apt_name_lower, _rnl=room_names_lower):
+                            return _booking_matches_apartment(acc, _anl, _rnl)
 
-                    # Find matching apartment
-                    for db_room_name, apt_id in room_to_apartment.items():
-                        if db_room_name in room_lower or room_lower in db_room_name:
-                            apartment_occupied[apt_id] = apartment_occupied.get(apt_id, 0) + 1
-                            break
+                        if 'apartment_id' in active_on_date.columns:
+                            id_mask = active_on_date['apartment_id'] == apt_id
+                        else:
+                            id_mask = pd.Series(False, index=active_on_date.index)
 
-            # Calculate availability for each apartment
-            # Support up to 10 apartments (future-proof)
-            apartment_data = {}
-            for apt in apartments_query:
-                apt_id = apt.apartment_id
-                capacity = apartment_capacities.get(apt_id, 0)
-                occupied = apartment_occupied.get(apt_id, 0)
-                apartment_data[f'apt{apt_id}_occupied'] = occupied
-                apartment_data[f'apt{apt_id}_available'] = max(0, capacity - occupied)
-                apartment_data[f'apt{apt_id}_capacity'] = capacity
-                apartment_data[f'apt{apt_id}_name'] = apt.apartment_name
+                        name_mask = active_on_date['Tên chỗ nghỉ'].apply(_match)
+                        apt_occ = int((id_mask | name_mask).sum())
+                    else:
+                        apt_occ = 0
 
-            # Add individual room data for 18 Hang Be
-            apartment_data['room_101_occupied'] = room_101_occupied
-            apartment_data['room_102_occupied'] = room_102_occupied
-
-            # Legacy support for apt1 and apt2 (backward compatibility)
-            apt1_occupied = apartment_data.get('apt1_occupied', 0)
-            apt1_available = apartment_data.get('apt1_available', 0)
-            apt2_occupied = apartment_data.get('apt2_occupied', 0)
-            apt2_available = apartment_data.get('apt2_available', 0)
+                    apt_avail = max(0, apt_capacity - apt_occ)
+                    apartments_status.append({
+                        'id': apt_id,
+                        'name': apt_row.apartment_name,
+                        'occupied': apt_occ,
+                        'capacity': apt_capacity,
+                        'available': apt_avail,
+                    })
+                    if apt_id == 1:
+                        apt1_occupied, apt1_available = apt_occ, apt_avail
+                    elif apt_id == 2:
+                        apt2_occupied, apt2_available = apt_occ, apt_avail
 
         except Exception as e:
-            print(f"⚠️ Error calculating apartment capacity: {e}")
-            # Fallback to safe defaults
-            apt1_occupied = 0
-            apt1_available = 4
-            apt2_occupied = 0
-            apt2_available = 2
-            apartment_data = {}
-        
-        # Calculate activity counts
-        activity = get_daily_activity(df_local, target_date_obj)
+            print(f"⚠️ Error building apartments_status: {e}")
+
+        # Activity (pass apartments_list for per-apartment counts)
+        activity = get_daily_activity(df_local, target_date_obj, apartments_list=apartments_list)
         arrivals_count = len(activity['arrivals'])
         departures_count = len(activity['departures'])
         staying_count = len(activity['staying'])
-        
-        # Calculate revenue for the day - OPTIMIZED PER-NIGHT DISTRIBUTION
+
+        # Revenue — per-night distribution
         daily_revenue = 0
         commission_total = 0
-        
-        # Get all bookings active on this date (staying guests)
         for _, booking in active_on_date.iterrows():
             try:
-                checkin_date = booking['Check-in Date']
-                checkout_date = booking['Check-out Date']
-                total_amount = float(booking.get('Tổng thanh toán', 0))
-                commission_amount = float(booking.get('Hoa hồng', 0))
-                
-                # Calculate number of nights for this booking
-                nights = (checkout_date - checkin_date).days
-                if nights <= 0:
-                    nights = 1  # Minimum 1 night
-                
-                # Distribute revenue across all nights of stay
-                daily_rate_total = total_amount / nights
-                daily_commission = commission_amount / nights
-                
-                # Add to this day's revenue
-                daily_revenue += daily_rate_total
-                commission_total += daily_commission
-                
-            except (ValueError, TypeError) as e:
-                # Skip invalid booking data
+                nights = (booking['Check-out Date'] - booking['Check-in Date']).days or 1
+                daily_revenue += float(booking.get('Tổng thanh toán', 0) or 0) / nights
+                commission_total += float(booking.get('Hoa hồng', 0) or 0) / nights
+            except (ValueError, TypeError):
                 continue
-        
-        # Determine status text and color based on capacity
+
+        # Status
         if occupied_units == 0:
-            status_text = "Trống"
-            status_color = "empty"
+            status_text, status_color = "Trồng", "empty"
         elif available_units == 0:
-            status_text = "Hết phòng"
-            status_color = "full"
+            status_text, status_color = "Hết phòng", "full"
         else:
-            status_text = f"{available_units}/{total_capacity} trống"
-            status_color = "occupied"
-        
-        result = {
+            status_text, status_color = f"{available_units}/{total_capacity} trồng", "occupied"
+
+        return {
             'occupied_units': occupied_units,
             'available_units': available_units,
             'status_text': status_text,
@@ -1008,34 +985,25 @@ def get_overall_calendar_day_info(df: pd.DataFrame, target_date: str, total_capa
             'commission_total': commission_total,
             'revenue_minus_commission': daily_revenue - commission_total,
             'activity': activity,
-            'apt1_occupied': apt1_occupied,
-            'apt1_available': apt1_available,
-            'apt2_occupied': apt2_occupied,
-            'apt2_available': apt2_available
+            'apartments_status': apartments_status,
+            # Legacy keys
+            'apt1_occupied': apt1_occupied, 'apt1_available': apt1_available,
+            'apt2_occupied': apt2_occupied, 'apt2_available': apt2_available,
         }
 
-        # Add all dynamic apartment data
-        if 'apartment_data' in locals() and apartment_data:
-            result.update(apartment_data)
-
-        return result
-        
     except Exception as e:
         print(f"Error getting calendar day info: {e}")
         return {
-            'occupied_units': 0,
-            'available_units': total_capacity,
-            'status_text': "Lỗi",
-            'status_color': 'empty',
-            'error': str(e),
-            'arrivals_count': 0,
-            'departures_count': 0,
-            'activity': {'arrivals': [], 'departures': [], 'staying': [], 'arrivals_symbols': {}, 'one_night_count': 0},
-            'apt1_occupied': 0,
-            'apt1_available': 4,
-            'apt2_occupied': 0,
-            'apt2_available': 2
+            'occupied_units': 0, 'available_units': total_capacity,
+            'status_text': "Lỗi", 'status_color': 'empty', 'error': str(e),
+            'arrivals_count': 0, 'departures_count': 0, 'staying_count': 0,
+            'daily_revenue': 0, 'commission_total': 0, 'revenue_minus_commission': 0,
+            'activity': _empty_activity,
+            'apartments_status': [],
+            'apt1_occupied': 0, 'apt1_available': 4,
+            'apt2_occupied': 0, 'apt2_available': 2,
         }
+
 
 def prepare_dashboard_data(df: pd.DataFrame, start_date: datetime, end_date: datetime, 
                           sort_by: str, sort_order: str) -> Dict[str, Any]:
