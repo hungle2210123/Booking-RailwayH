@@ -3512,15 +3512,14 @@ def calendar_view(year=None, month=None):
     from core.models import Apartment as AptModel, Room as RoomModel
 
     def _make_apt_abbr(name: str) -> str:
-        """Short abbreviation: skip numeric tokens; initials of all-but-last + first 3 of last word."""
-        words = [w for w in name.split() if not w.isdigit()]
+        """Short abbreviation: skip numbers, use only first 2 significant words.
+        e.g. '118 Hang Bac Hostel' → 'HBac', '18 Hang Be' → 'HBe', '25 Hoi Vu' → 'HVu'"""
+        words = [w for w in name.split() if not w.isdigit()][:2]
         if not words:
             return name[:5]
         if len(words) == 1:
             return words[0][:4].capitalize()
-        prefix = ''.join(w[0].upper() for w in words[:-1])
-        suffix  = words[-1][:3].capitalize()
-        return prefix + suffix
+        return words[0][0].upper() + words[1][:3].capitalize()
 
     all_apts = AptModel.query.filter_by(is_active=True).order_by(AptModel.apartment_id).all()
     apartments_list = []

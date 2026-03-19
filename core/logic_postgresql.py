@@ -709,16 +709,14 @@ def get_room_symbol_by_name(room_name: str) -> str:
     return '●'  # Default circle
 
 def _make_apt_abbr(name: str) -> str:
-    """Short abbreviation: skip numeric tokens; initials of all-but-last + first 3 of last word.
-    Examples: '118 Hang Bac' → 'HBac', '18 Hang Be' → 'HBe', '25 Hoi Vu' → 'HVu'"""
-    words = [w for w in name.split() if not w.isdigit()]
+    """Short abbreviation: skip numbers, use only first 2 significant words.
+    e.g. '118 Hang Bac Hostel' → 'HBac', '18 Hang Be' → 'HBe', '25 Hoi Vu' → 'HVu'"""
+    words = [w for w in name.split() if not w.isdigit()][:2]
     if not words:
         return name[:5]
     if len(words) == 1:
         return words[0][:4].capitalize()
-    prefix = ''.join(w[0].upper() for w in words[:-1])
-    suffix  = words[-1][:3].capitalize()
-    return prefix + suffix
+    return words[0][0].upper() + words[1][:3].capitalize()
 
 
 def _booking_matches_apartment(acc_name, apt_name_lower, room_names_lower):
