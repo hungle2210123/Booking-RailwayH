@@ -729,7 +729,7 @@ function startInlineEdit(roomId) {
         </td>
         <td>
             <input type="number" class="form-control form-control-sm"
-                   id="ie-guests-${roomId}" value="${maxGuests}" min="1" max="20" style="width:65px">
+                   id="ie-guests-${roomId}" value="${maxGuests}" min="1" max="99" style="width:80px">
         </td>
         <td>
             <div class="form-check form-switch mb-0">
@@ -754,38 +754,67 @@ function startInlineEdit(roomId) {
     if (nameInput) { nameInput.focus(); nameInput.select(); }
 }
 
+// Toast notification (appears inside modal, position-fixed)
+function showRoomToast(message, type) {
+    const existing = document.getElementById('roomToast');
+    if (existing) existing.remove();
+    const colors = { success: '#198754', error: '#dc3545', info: '#0dcaf0' };
+    const toast = document.createElement('div');
+    toast.id = 'roomToast';
+    toast.style.cssText = `position:fixed;bottom:80px;right:20px;z-index:9999;
+        background:${colors[type]||colors.info};color:#fff;padding:10px 18px;
+        border-radius:8px;font-weight:600;font-size:0.9rem;
+        box-shadow:0 4px 12px rgba(0,0,0,0.25);transition:opacity 0.4s;`;
+    toast.textContent = message;
+    document.body.appendChild(toast);
+    setTimeout(() => { toast.style.opacity = '0'; setTimeout(() => toast.remove(), 400); }, 2500);
+}
+
 // Save inline edit
 function saveInlineEdit(roomId) {
-    const name     = (document.getElementById('ie-name-'   + roomId)?.value || '').trim();
-    const type     =  document.getElementById('ie-type-'   + roomId)?.value || 'Standard';
-    const guests   = parseInt(document.getElementById('ie-guests-' + roomId)?.value) || 2;
-    const isActive =  document.getElementById('ie-active-' + roomId)?.checked ?? true;
+    const nameEl   = document.getElementById('ie-name-'   + roomId);
+    const typeEl   = document.getElementById('ie-type-'   + roomId);
+    const guestsEl = document.getElementById('ie-guests-' + roomId);
+    const activeEl = document.getElementById('ie-active-' + roomId);
+
+    const name     = (nameEl?.value || '').trim();
+    const type     = typeEl?.value  || 'Standard';
+    const isActive = activeEl?.checked ?? true;
+
+    // Fix: use explicit NaN check, NOT || 2 (which breaks for 0)
+    const rawGuests = parseInt(guestsEl?.value);
+    const guests    = isNaN(rawGuests) || rawGuests < 1 ? 1 : rawGuests;
 
     if (!name) {
-        alert('⚠️ Vui lòng điền tên phòng!');
-        document.getElementById('ie-name-' + roomId)?.focus();
+        showRoomToast('⚠️ Vui lòng điền tên phòng!', 'error');
+        nameEl?.focus();
         return;
     }
 
-    const btn = document.querySelector(`#room-row-${roomId} .btn-success`);
+    console.log(`[saveInlineEdit] Saving room ${roomId}: name="${name}", type="${type}", guests=${guests}, active=${isActive}`);
+
+    const btn = document.querySelector('#room-row-' + roomId + ' .btn-success');
     if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>'; }
 
-    fetch(`/api/rooms/${roomId}`, {
+    fetch('/api/rooms/' + roomId, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ room_name: name, room_type: type, max_guests: guests, is_active: isActive })
     })
-    .then(r => r.json())
-    .then(data => {
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+        console.log('[saveInlineEdit] Response:', data);
         if (data.success) {
+            showRoomToast('✅ Đã lưu: ' + name + ' (' + guests + ' khách)', 'success');
             loadApartmentRooms(currentEditingApartmentId);
         } else {
-            alert('❌ Lỗi: ' + data.error);
+            showRoomToast('❌ Lỗi: ' + data.error, 'error');
             if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-check"></i>'; }
         }
     })
-    .catch(err => {
-        alert('❌ Lỗi kết nối: ' + err.message);
+    .catch(function(err) {
+        console.error('[saveInlineEdit] Network error:', err);
+        showRoomToast('❌ Lỗi kết nối: ' + err.message, 'error');
         if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-check"></i>'; }
     });
 }
@@ -793,11 +822,12 @@ function saveInlineEdit(roomId) {
 // Save apartment edit
 function saveApartmentEdit() {
     const apartmentId = document.getElementById('editAptId').value;
+    const rawMaxGuests = parseInt(document.getElementById('editAptMaxGuests').value);
     const formData = {
         apartment_name: document.getElementById('editAptName').value.trim(),
         apartment_address: document.getElementById('editAptAddress').value.trim(),
         apartment_type: document.getElementById('editAptType').value.trim(),
-        max_guests_per_room: parseInt(document.getElementById('editAptMaxGuests').value),
+        max_guests_per_room: isNaN(rawMaxGuests) ? 2 : rawMaxGuests,  // Fix: never send NaN
         owner_name: document.getElementById('editAptOwner').value.trim(),
         owner_phone: document.getElementById('editAptOwnerPhone').value.trim(),
         property_notes: document.getElementById('editAptNotes').value.trim()
