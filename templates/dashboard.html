@@ -7710,13 +7710,13 @@ function updateBookingAmounts() {
 var currentEditBooking = {};
 
 // ── Dynamic accommodation dropdown ──────────────────────────────────────────
-// Cache so we only call the API once per page load
-var _accommodationOptionsCache = null;
+// Always fetch fresh from DB — no caching so new apartments/rooms appear instantly
 
 /**
  * Fetch apartments+rooms from DB, build <optgroup>/<option> elements,
  * and set the currently-selected value.
  * Works for any select element by id.
+ * Always calls the API fresh so newly-added rooms appear without page reload.
  */
 function loadAccommodationOptions(selectId, currentValue) {
     const sel = document.getElementById(selectId);
@@ -7733,7 +7733,6 @@ function loadAccommodationOptions(selectId, currentValue) {
         sel.appendChild(blank);
 
         apartments.forEach((apt, idx) => {
-            const color = APT_COLORS[idx % APT_COLORS.length];
             const grp = document.createElement('optgroup');
             grp.label = apt.name;
 
@@ -7754,7 +7753,7 @@ function loadAccommodationOptions(selectId, currentValue) {
             sel.appendChild(grp);
         });
 
-        // Set the current value (exact match or case-insensitive fallback)
+        // Set the current value (exact match first, then case-insensitive fallback)
         if (currentValue) {
             const lower = currentValue.toLowerCase().trim();
             let matched = false;
@@ -7769,17 +7768,11 @@ function loadAccommodationOptions(selectId, currentValue) {
         }
     }
 
-    if (_accommodationOptionsCache) {
-        _build(_accommodationOptionsCache);
-        return;
-    }
-
     sel.innerHTML = '<option value="">⏳ Đang tải...</option>';
     fetch('/api/accommodation_options')
         .then(r => r.json())
         .then(data => {
             if (data.success && data.apartments) {
-                _accommodationOptionsCache = data.apartments;
                 _build(data.apartments);
             } else {
                 sel.innerHTML = '<option value="">⚠️ Lỗi tải phòng</option>';
@@ -7787,16 +7780,6 @@ function loadAccommodationOptions(selectId, currentValue) {
         })
         .catch(() => { sel.innerHTML = '<option value="">⚠️ Lỗi kết nối</option>'; });
 }
-
-// Pre-load on page ready so dropdowns feel instant when modals open
-document.addEventListener('DOMContentLoaded', function() {
-    fetch('/api/accommodation_options')
-        .then(r => r.json())
-        .then(data => {
-            if (data.success) _accommodationOptionsCache = data.apartments;
-        })
-        .catch(() => {});
-});
 
 function openEditBookingModal(bookingId, guestName, roomName, checkin, checkout, roomAmount, taxiAmount, commission) {
     console.log('Opening edit booking modal:', { bookingId, guestName, roomName, checkin, checkout, roomAmount, taxiAmount, commission });
