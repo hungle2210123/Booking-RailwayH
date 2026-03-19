@@ -3819,6 +3819,30 @@ def calendar_details(date_str):
             'bookings': detailed_bookings
         })()
         
+        # Build apartments_list for dynamic room badge colouring
+        from core.models import Apartment as _AptM, Room as _RoomM
+        def _make_abbr(name):
+            words = [w for w in name.split() if not w.isdigit()][:2]
+            if not words:
+                return name[:5]
+            return words[0][0].upper() + words[1][:3].capitalize() if len(words) >= 2 else words[0][:4].capitalize()
+
+        _APT_COLORS  = ['#1976D2','#2E7D32','#7B1FA2','#E64A19','#00838F','#F57F17']
+        _APT_EMOJIS  = ['🔵','🟢','🟣','🟠','🔵','🟡']
+        _all_apts = _AptM.query.order_by(_AptM.apartment_id).all()
+        apartments_list = []
+        for _i, _apt in enumerate(_all_apts):
+            _rooms = _RoomM.query.filter_by(apartment_id=_apt.apartment_id).all()
+            apartments_list.append({
+                'id':         _apt.apartment_id,
+                'name':       _apt.apartment_name,
+                'name_lower': _apt.apartment_name.lower(),
+                'abbr':       _make_abbr(_apt.apartment_name),
+                'color':      _APT_COLORS[_i % len(_APT_COLORS)],
+                'emoji':      _APT_EMOJIS[_i % len(_APT_EMOJIS)],
+                'rooms':      [{'name': r.room_name, 'name_lower': r.room_name.lower()} for r in _rooms],
+            })
+
         return render_template(
             'calendar_details.html',
             date=date_obj,
@@ -3830,8 +3854,9 @@ def calendar_details(date_str):
             staying_over=staying_over,
             day_revenue_info=day_revenue_info,
             current_date=date_obj,
-            pd=pd,  # For template processing
-            timedelta=timedelta  # For date navigation
+            pd=pd,
+            timedelta=timedelta,
+            apartments_list=apartments_list,
         )
     
     except Exception as e:

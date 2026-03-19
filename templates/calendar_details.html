@@ -2,6 +2,7 @@
 
 {% block title %}Chi tiết Ngày {{ date }}{% endblock %}
 
+
 {% block content %}
 <div class="container-fluid mt-4">
     <div class="row">
@@ -372,22 +373,26 @@
                         {% set commission = booking.get('Hoa hồng', 0) or 0 %}
                         {% set has_commission = commission > 0 %}
                         {% set room_name = booking.get('Tên chỗ nghỉ', 'N/A') %}
-                        {% set room_lower = room_name.lower() %}
-                        {% if '118 hang bac' in room_lower or room_lower == '118 hang bac hostel' or room_lower == 'kitchen' or 'kitchen & balcony' in room_lower or 'night market' in room_lower %}
-                            {% set apt_class = 'apt1-guest' %}
-                            {% set apt_icon = '🔵' %}
-                        {% elif 'hang be 101' in room_lower or 'hang be 102' in room_lower %}
-                            {% set apt_class = 'apt2-guest' %}
-                            {% set apt_icon = '🟢' %}
-                        {% else %}
-                            {% set apt_class = '' %}
-                            {% set apt_icon = '' %}
-                        {% endif %}
+                        {% set rl = room_name.lower().strip() %}
+                        {% set ns = namespace(emoji='', color='#6c757d', found=false) %}
+                        {% for apt in apartments_list %}
+                          {% if not ns.found %}
+                            {% if apt.name_lower in rl or rl in apt.name_lower %}
+                              {% set ns.found=true %}{% set ns.emoji=apt.emoji %}{% set ns.color=apt.color %}
+                            {% else %}
+                              {% for r in apt.rooms %}
+                                {% if not ns.found and r.name_lower == rl %}
+                                  {% set ns.found=true %}{% set ns.emoji=apt.emoji %}{% set ns.color=apt.color %}
+                                {% endif %}
+                              {% endfor %}
+                            {% endif %}
+                          {% endif %}
+                        {% endfor %}
                         <div class="guest-card-col">
-                            <div class="guest-card {{ 'has-commission' if has_commission else 'no-commission' }} {{ apt_class }}">
+                            <div class="guest-card {{ 'has-commission' if has_commission else 'no-commission' }}" style="{% if ns.found %}border-left:4px solid {{ ns.color }};{% endif %}">
                                 <div class="guest-header d-flex justify-content-between align-items-start">
                                     <div class="flex-grow-1">
-                                        <p class="guest-name {{ apt_class }}">{{ apt_icon }} {{ booking.get('Tên người đặt', 'N/A') }}</p>
+                                        <p class="guest-name" style="{% if ns.found %}color:{{ ns.color }};font-weight:700;{% endif %}">{{ ns.emoji }} {{ booking.get('Tên người đặt', 'N/A') }}</p>
                                         {% if has_commission %}
                                             <span class="commission-badge badge bg-warning text-dark">
                                                 <i class="fas fa-percentage"></i> {{ "{:,.0f}".format(commission) }}đ
@@ -410,19 +415,9 @@
                                     </button>
                                 </div>
                                 <p class="room-type">
-                                    {% if '118 hang bac' in room_lower or room_lower == '118 hang bac hostel' %}
-                                        <span class="room-badge apt1">🔵 118 hang bac</span>
-                                    {% elif room_lower == 'kitchen' or 'kitchen & balcony' in room_lower %}
-                                        <span class="room-badge apt1">🔵 kitchen</span>
-                                    {% elif 'night market' in room_lower %}
-                                        <span class="room-badge apt1">🔵 night market</span>
-                                    {% elif 'hang be 101' in room_lower %}
-                                        <span class="room-badge apt2">🟢 hang be 101</span>
-                                    {% elif 'hang be 102' in room_lower %}
-                                        <span class="room-badge apt2">🟢 hang be 102</span>
-                                    {% else %}
-                                        <span class="badge bg-secondary">{{ room_name }}</span>
-                                    {% endif %}
+                                    <span style="display:inline-block;background:{{ ns.color }}18;color:{{ ns.color }};border:1px solid {{ ns.color }}50;border-radius:4px;padding:2px 8px;font-size:0.75rem;font-weight:600;">
+                                        {{ ns.emoji }} {{ room_name }}
+                                    </span>
                                 </p>
                                 <p class="details">
                                     <strong>Mã ĐP:</strong> {{ booking.get('Số đặt phòng', 'N/A') }}<br>
@@ -459,22 +454,26 @@
                         {% set commission = booking.get('Hoa hồng', 0) or 0 %}
                         {% set has_commission = commission > 0 %}
                         {% set room_name = booking.get('Tên chỗ nghỉ', 'N/A') %}
-                        {% set room_lower = room_name.lower() %}
-                        {% if '118 hang bac' in room_lower or room_lower == '118 hang bac hostel' or room_lower == 'kitchen' or 'kitchen & balcony' in room_lower or 'night market' in room_lower %}
-                            {% set apt_class = 'apt1-guest' %}
-                            {% set apt_icon = '🔵' %}
-                        {% elif 'hang be 101' in room_lower or 'hang be 102' in room_lower %}
-                            {% set apt_class = 'apt2-guest' %}
-                            {% set apt_icon = '🟢' %}
-                        {% else %}
-                            {% set apt_class = '' %}
-                            {% set apt_icon = '' %}
-                        {% endif %}
+                        {% set rl = room_name.lower().strip() %}
+                        {% set ns = namespace(emoji='', color='#6c757d', found=false) %}
+                        {% for apt in apartments_list %}
+                          {% if not ns.found %}
+                            {% if apt.name_lower in rl or rl in apt.name_lower %}
+                              {% set ns.found=true %}{% set ns.emoji=apt.emoji %}{% set ns.color=apt.color %}
+                            {% else %}
+                              {% for r in apt.rooms %}
+                                {% if not ns.found and r.name_lower == rl %}
+                                  {% set ns.found=true %}{% set ns.emoji=apt.emoji %}{% set ns.color=apt.color %}
+                                {% endif %}
+                              {% endfor %}
+                            {% endif %}
+                          {% endif %}
+                        {% endfor %}
                         <div class="guest-card-col">
-                            <div class="guest-card {{ 'has-commission' if has_commission else 'no-commission' }} {{ apt_class }}">
+                            <div class="guest-card {{ 'has-commission' if has_commission else 'no-commission' }}" style="{% if ns.found %}border-left:4px solid {{ ns.color }};{% endif %}">
                                 <div class="guest-header d-flex justify-content-between align-items-start">
                                     <div class="flex-grow-1">
-                                        <p class="guest-name {{ apt_class }}">{{ apt_icon }} {{ booking.get('Tên người đặt', 'N/A') }}</p>
+                                        <p class="guest-name" style="{% if ns.found %}color:{{ ns.color }};font-weight:700;{% endif %}">{{ ns.emoji }} {{ booking.get('Tên người đặt', 'N/A') }}</p>
                                         {% if has_commission %}
                                             <span class="commission-badge badge bg-warning text-dark">
                                                 <i class="fas fa-percentage"></i> {{ "{:,.0f}".format(commission) }}đ
@@ -497,19 +496,9 @@
                                     </button>
                                 </div>
                                 <p class="room-type">
-                                    {% if '118 hang bac' in room_lower or room_lower == '118 hang bac hostel' %}
-                                        <span class="room-badge apt1">🔵 118 hang bac</span>
-                                    {% elif room_lower == 'kitchen' or 'kitchen & balcony' in room_lower %}
-                                        <span class="room-badge apt1">🔵 kitchen</span>
-                                    {% elif 'night market' in room_lower %}
-                                        <span class="room-badge apt1">🔵 night market</span>
-                                    {% elif 'hang be 101' in room_lower %}
-                                        <span class="room-badge apt2">🟢 hang be 101</span>
-                                    {% elif 'hang be 102' in room_lower %}
-                                        <span class="room-badge apt2">🟢 hang be 102</span>
-                                    {% else %}
-                                        <span class="badge bg-secondary">{{ room_name }}</span>
-                                    {% endif %}
+                                    <span style="display:inline-block;background:{{ ns.color }}18;color:{{ ns.color }};border:1px solid {{ ns.color }}50;border-radius:4px;padding:2px 8px;font-size:0.75rem;font-weight:600;">
+                                        {{ ns.emoji }} {{ room_name }}
+                                    </span>
                                 </p>
                                 <p class="details">
                                     <strong>Mã ĐP:</strong> {{ booking.get('Số đặt phòng', 'N/A') }}<br>
@@ -547,22 +536,26 @@
                         {% set commission = booking.get('Hoa hồng', 0) or 0 %}
                         {% set has_commission = commission > 0 %}
                         {% set room_name = booking.get('Tên chỗ nghỉ', 'N/A') %}
-                        {% set room_lower = room_name.lower() %}
-                        {% if '118 hang bac' in room_lower or room_lower == '118 hang bac hostel' or room_lower == 'kitchen' or 'kitchen & balcony' in room_lower or 'night market' in room_lower %}
-                            {% set apt_class = 'apt1-guest' %}
-                            {% set apt_icon = '🔵' %}
-                        {% elif 'hang be 101' in room_lower or 'hang be 102' in room_lower %}
-                            {% set apt_class = 'apt2-guest' %}
-                            {% set apt_icon = '🟢' %}
-                        {% else %}
-                            {% set apt_class = '' %}
-                            {% set apt_icon = '' %}
-                        {% endif %}
+                        {% set rl = room_name.lower().strip() %}
+                        {% set ns = namespace(emoji='', color='#6c757d', found=false) %}
+                        {% for apt in apartments_list %}
+                          {% if not ns.found %}
+                            {% if apt.name_lower in rl or rl in apt.name_lower %}
+                              {% set ns.found=true %}{% set ns.emoji=apt.emoji %}{% set ns.color=apt.color %}
+                            {% else %}
+                              {% for r in apt.rooms %}
+                                {% if not ns.found and r.name_lower == rl %}
+                                  {% set ns.found=true %}{% set ns.emoji=apt.emoji %}{% set ns.color=apt.color %}
+                                {% endif %}
+                              {% endfor %}
+                            {% endif %}
+                          {% endif %}
+                        {% endfor %}
                         <div class="guest-card-col">
-                            <div class="guest-card {{ 'has-commission' if has_commission else 'no-commission' }} {{ apt_class }}">
+                            <div class="guest-card {{ 'has-commission' if has_commission else 'no-commission' }}" style="{% if ns.found %}border-left:4px solid {{ ns.color }};{% endif %}">
                                 <div class="guest-header d-flex justify-content-between align-items-start">
                                     <div class="flex-grow-1">
-                                        <p class="guest-name {{ apt_class }}">{{ apt_icon }} {{ booking.get('Tên người đặt', 'N/A') }}</p>
+                                        <p class="guest-name" style="{% if ns.found %}color:{{ ns.color }};font-weight:700;{% endif %}">{{ ns.emoji }} {{ booking.get('Tên người đặt', 'N/A') }}</p>
                                         {% if has_commission %}
                                             <span class="commission-badge badge bg-warning text-dark">
                                                 <i class="fas fa-percentage"></i> {{ "{:,.0f}".format(commission) }}đ
@@ -585,19 +578,9 @@
                                     </button>
                                 </div>
                                 <p class="room-type">
-                                    {% if '118 hang bac' in room_lower or room_lower == '118 hang bac hostel' %}
-                                        <span class="room-badge apt1">🔵 118 hang bac</span>
-                                    {% elif room_lower == 'kitchen' or 'kitchen & balcony' in room_lower %}
-                                        <span class="room-badge apt1">🔵 kitchen</span>
-                                    {% elif 'night market' in room_lower %}
-                                        <span class="room-badge apt1">🔵 night market</span>
-                                    {% elif 'hang be 101' in room_lower %}
-                                        <span class="room-badge apt2">🟢 hang be 101</span>
-                                    {% elif 'hang be 102' in room_lower %}
-                                        <span class="room-badge apt2">🟢 hang be 102</span>
-                                    {% else %}
-                                        <span class="badge bg-secondary">{{ room_name }}</span>
-                                    {% endif %}
+                                    <span style="display:inline-block;background:{{ ns.color }}18;color:{{ ns.color }};border:1px solid {{ ns.color }}50;border-radius:4px;padding:2px 8px;font-size:0.75rem;font-weight:600;">
+                                        {{ ns.emoji }} {{ room_name }}
+                                    </span>
                                 </p>
                                 <p class="details">
                                     <strong>Mã ĐP:</strong> {{ booking.get('Số đặt phòng', 'N/A') }}<br>
@@ -3012,14 +2995,15 @@ async function loadQuickEditRoomOptions(currentAccName) {
             legendParts.push(`<span style="color:${color};font-weight:600;">${emoji} ${apt.name}</span>`);
 
             if (apt.rooms && apt.rooms.length > 0) {
-                // Optgroup for apartment with named rooms
+                // Optgroup for apartments with named rooms
                 const grp = document.createElement('optgroup');
                 grp.label = `${emoji} ${apt.name}`;
 
                 apt.rooms.forEach(room => {
                     const opt = document.createElement('option');
-                    opt.value = room.name.toLowerCase();
-                    opt.textContent = `${emoji} ${room.name}`;
+                    // Store "apt_name - room_name" so badge displays full context
+                    opt.value = apt.name.toLowerCase() + ' - ' + room.name.toLowerCase();
+                    opt.textContent = `${emoji} ${apt.name} - ${room.name}`;
                     opt.style.color = color;
                     grp.appendChild(opt);
                 });
@@ -3040,16 +3024,19 @@ async function loadQuickEditRoomOptions(currentAccName) {
             legendDiv.innerHTML = '<i class="fas fa-info-circle me-1"></i><strong>Phân biệt màu:</strong> ' + legendParts.join(' | ');
         }
 
-        // Try to pre-select the booking's current room
+        // Pre-select the booking's current room
         if (currentAccName) {
             const lc = currentAccName.toLowerCase().trim();
             const allOpts = Array.from(roomSelect.querySelectorAll('option'));
 
-            // 1. Exact match
+            // 1. Exact match (handles new "apt - room" format)
             let matched = allOpts.find(o => o.value === lc);
-            // 2. Option value is a substring of the booking name
+            // 2. Option value ends with "- room_name" and booking acc_name matches room_name
+            //    e.g. stored "102" matches option "25 hoi vu - 102"
+            if (!matched) matched = allOpts.find(o => o.value && o.value.endsWith(' - ' + lc));
+            // 3. Booking name contains option value
             if (!matched) matched = allOpts.find(o => o.value && lc.includes(o.value));
-            // 3. Booking name is a substring of the option value
+            // 4. Option value contains booking name
             if (!matched) matched = allOpts.find(o => o.value && o.value.includes(lc));
 
             if (matched) {
