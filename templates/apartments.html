@@ -419,8 +419,8 @@ h1, h2, h3, h4, h5, h6 {
 </style>
 
 <script>
-// Version: 2.0.1 - Fixed event binding
-console.log('✅ Apartments.js v2.0.1 loaded');
+// Version: 3.0.0 - Inline row editing (no nested modal)
+console.log('✅ Apartments.js v3.0.0 loaded');
 
 let currentEditingApartmentId = null;
 
@@ -451,18 +451,6 @@ document.addEventListener('DOMContentLoaded', function() {
         console.error('❌ Add apartment button not found!');
     }
 
-    // When room edit modal closes, reopen the apartment edit modal automatically
-    const editRoomModalEl = document.getElementById('editRoomModal');
-    if (editRoomModalEl) {
-        editRoomModalEl.addEventListener('hidden.bs.modal', function() {
-            if (currentEditingApartmentId) {
-                // Small delay to let Bootstrap clean up backdrop before reopening
-                setTimeout(function() {
-                    editApartment(currentEditingApartmentId);
-                }, 200);
-            }
-        });
-    }
 });
 
 // Load all apartments
@@ -660,7 +648,7 @@ function loadApartmentRooms(apartmentId) {
         .catch(error => console.error('Error loading rooms:', error));
 }
 
-// Display rooms with full management
+// Display rooms — inline editing (no nested modal needed)
 function displayRooms(rooms) {
     const container = document.getElementById('roomsList');
 
@@ -671,7 +659,7 @@ function displayRooms(rooms) {
 
     container.innerHTML = `
         <div class="table-responsive">
-            <table class="table table-sm table-hover">
+            <table class="table table-sm table-hover" id="roomsTable">
                 <thead>
                     <tr>
                         <th>Tên Phòng</th>
@@ -683,7 +671,11 @@ function displayRooms(rooms) {
                 </thead>
                 <tbody>
                     ${rooms.map(room => `
-                        <tr>
+                        <tr id="room-row-${room.room_id}" data-room-id="${room.room_id}"
+                            data-room-name="${room.room_name}"
+                            data-room-type="${room.room_type || 'Standard'}"
+                            data-max-guests="${room.max_guests}"
+                            data-is-active="${room.is_active}">
                             <td><strong>${room.room_name}</strong></td>
                             <td><span class="badge bg-info">${room.room_type || 'Standard'}</span></td>
                             <td>${room.max_guests} khách</td>
@@ -693,10 +685,10 @@ function displayRooms(rooms) {
                                 </span>
                             </td>
                             <td>
-                                <button class="btn btn-xs btn-primary" onclick="editRoom(${room.room_id})">
+                                <button class="btn btn-xs btn-primary" onclick="startInlineEdit(${room.room_id})">
                                     <i class="fas fa-edit"></i>
                                 </button>
-                                <button class="btn btn-xs btn-danger" onclick="deleteRoom(${room.room_id}, '${room.room_name}')">
+                                <button class="btn btn-xs btn-danger" onclick="deleteRoom(${room.room_id}, '${room.room_name.replace(/'/g, "\\'")}')">
                                     <i class="fas fa-trash"></i>
                                 </button>
                             </td>
@@ -706,6 +698,96 @@ function displayRooms(rooms) {
             </table>
         </div>
     `;
+}
+
+// Inline edit: transform row into editable fields (no modal needed)
+function startInlineEdit(roomId) {
+    const row = document.getElementById('room-row-' + roomId);
+    if (!row) return;
+
+    const roomName  = row.dataset.roomName;
+    const roomType  = row.dataset.roomType;
+    const maxGuests = row.dataset.maxGuests;
+    const isActive  = row.dataset.isActive === 'true';
+
+    row.innerHTML = `
+        <td>
+            <input type="text" class="form-control form-control-sm"
+                   id="ie-name-${roomId}" value="${roomName}" style="min-width:110px">
+        </td>
+        <td>
+            <select class="form-select form-select-sm" id="ie-type-${roomId}" style="min-width:110px">
+                <option value="Standard"  ${roomType==='Standard'  ?'selected':''}>Standard</option>
+                <option value="Studio"    ${roomType==='Studio'    ?'selected':''}>Studio</option>
+                <option value="1-Bedroom" ${roomType==='1-Bedroom' ?'selected':''}>1 Phòng Ngủ</option>
+                <option value="2-Bedroom" ${roomType==='2-Bedroom' ?'selected':''}>2 Phòng Ngủ</option>
+                <option value="3-Bedroom" ${roomType==='3-Bedroom' ?'selected':''}>3 Phòng Ngủ</option>
+                <option value="Deluxe"    ${roomType==='Deluxe'    ?'selected':''}>Deluxe</option>
+                <option value="Suite"     ${roomType==='Suite'     ?'selected':''}>Suite</option>
+                <option value="Dorm"      ${roomType==='Dorm'      ?'selected':''}>Dorm</option>
+            </select>
+        </td>
+        <td>
+            <input type="number" class="form-control form-control-sm"
+                   id="ie-guests-${roomId}" value="${maxGuests}" min="1" max="20" style="width:65px">
+        </td>
+        <td>
+            <div class="form-check form-switch mb-0">
+                <input class="form-check-input" type="checkbox" id="ie-active-${roomId}" ${isActive?'checked':''}>
+                <label class="form-check-label small" for="ie-active-${roomId}">
+                    ${isActive ? 'Hoạt động' : 'Tạm dừng'}
+                </label>
+            </div>
+        </td>
+        <td>
+            <button class="btn btn-xs btn-success me-1" onclick="saveInlineEdit(${roomId})" title="Lưu">
+                <i class="fas fa-check"></i>
+            </button>
+            <button class="btn btn-xs btn-secondary" onclick="loadApartmentRooms(currentEditingApartmentId)" title="Hủy">
+                <i class="fas fa-times"></i>
+            </button>
+        </td>
+    `;
+
+    // Focus & select name field immediately
+    const nameInput = document.getElementById('ie-name-' + roomId);
+    if (nameInput) { nameInput.focus(); nameInput.select(); }
+}
+
+// Save inline edit
+function saveInlineEdit(roomId) {
+    const name     = (document.getElementById('ie-name-'   + roomId)?.value || '').trim();
+    const type     =  document.getElementById('ie-type-'   + roomId)?.value || 'Standard';
+    const guests   = parseInt(document.getElementById('ie-guests-' + roomId)?.value) || 2;
+    const isActive =  document.getElementById('ie-active-' + roomId)?.checked ?? true;
+
+    if (!name) {
+        alert('⚠️ Vui lòng điền tên phòng!');
+        document.getElementById('ie-name-' + roomId)?.focus();
+        return;
+    }
+
+    const btn = document.querySelector(`#room-row-${roomId} .btn-success`);
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>'; }
+
+    fetch(`/api/rooms/${roomId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ room_name: name, room_type: type, max_guests: guests, is_active: isActive })
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            loadApartmentRooms(currentEditingApartmentId);
+        } else {
+            alert('❌ Lỗi: ' + data.error);
+            if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-check"></i>'; }
+        }
+    })
+    .catch(err => {
+        alert('❌ Lỗi kết nối: ' + err.message);
+        if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-check"></i>'; }
+    });
 }
 
 // Save apartment edit
@@ -816,77 +898,6 @@ function saveNewRoom() {
             bootstrap.Modal.getInstance(document.getElementById('addRoomModal')).hide();
             loadApartmentRooms(currentEditingApartmentId);
             loadApartments(); // Refresh apartment stats
-        } else {
-            alert(`❌ Lỗi: ${data.error}`);
-        }
-    })
-    .catch(error => {
-        alert(`❌ Lỗi kết nối: ${error.message}`);
-    });
-}
-
-// Edit room
-function editRoom(roomId) {
-    fetch(`/api/rooms/${roomId}`)
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                const room = data.room;
-                document.getElementById('editRoomId').value = room.room_id;
-                document.getElementById('editRoomName').value = room.room_name;
-                document.getElementById('editRoomType').value = room.room_type || 'Standard';
-                document.getElementById('editRoomMaxGuests').value = room.max_guests || 2;
-                document.getElementById('editRoomFeatures').value = room.room_features || '';
-                document.getElementById('editRoomActive').checked = room.is_active;
-
-                // Bootstrap 5 can't stack two modals properly.
-                // Solution: close apartment modal first, then open room edit modal.
-                const aptModalEl = document.getElementById('editApartmentModal');
-                const aptModal = bootstrap.Modal.getInstance(aptModalEl);
-                if (aptModal) {
-                    // Wait for apartment modal to fully close, then open room edit modal
-                    aptModalEl.addEventListener('hidden.bs.modal', function openRoomEditOnce() {
-                        aptModalEl.removeEventListener('hidden.bs.modal', openRoomEditOnce);
-                        new bootstrap.Modal(document.getElementById('editRoomModal')).show();
-                    }, { once: true });
-                    aptModal.hide();
-                } else {
-                    new bootstrap.Modal(document.getElementById('editRoomModal')).show();
-                }
-            }
-        })
-        .catch(error => {
-            alert(`❌ Lỗi: ${error.message}`);
-        });
-}
-
-// Save room edit
-function saveRoomEdit() {
-    const roomId = document.getElementById('editRoomId').value;
-    const formData = {
-        room_name: document.getElementById('editRoomName').value.trim(),
-        room_type: document.getElementById('editRoomType').value,
-        max_guests: parseInt(document.getElementById('editRoomMaxGuests').value),
-        room_features: document.getElementById('editRoomFeatures').value.trim(),
-        is_active: document.getElementById('editRoomActive').checked
-    };
-
-    if (!formData.room_name) {
-        alert('Vui lòng điền tên phòng!');
-        return;
-    }
-
-    fetch(`/api/rooms/${roomId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData)
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            alert(`✅ Đã cập nhật phòng thành công!`);
-            bootstrap.Modal.getInstance(document.getElementById('editRoomModal')).hide();
-            loadApartmentRooms(currentEditingApartmentId);
         } else {
             alert(`❌ Lỗi: ${data.error}`);
         }
