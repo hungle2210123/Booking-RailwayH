@@ -3508,13 +3508,41 @@ def calendar_view(year=None, month=None):
     force_fresh = True  # Force fresh data to ensure accurate revenue calculations
     df = load_booking_data_for_calculations(force_fresh=force_fresh)  # Exclude cancelled bookings
 
-    # Filter by apartment if specified
+    # Filter by apartment if specified — dual strategy:
+    # 1. apartment_id column (set by migration for newer bookings)
+    # 2. Tên chỗ nghỉ (accommodation_name) matching apartment/room names (covers old bookings)
+    display_capacity = TOTAL_HOTEL_CAPACITY  # Default: all rooms
     if apartment_id:
-        if 'apartment_id' in df.columns:
-            df = df[df['apartment_id'] == apartment_id]
-            print(f"📍 Calendar filtered to apartment_id={apartment_id}: {len(df)} bookings")
+        from core.models import Apartment as AptModel, Room as RoomModel
+        apt_obj = AptModel.query.get(apartment_id)
+        if apt_obj:
+            apt_rooms = RoomModel.query.filter_by(apartment_id=apartment_id, is_active=True).all()
+            room_names_lower = [r.room_name.lower() for r in apt_rooms]
+            apt_name_lower = apt_obj.apartment_name.lower()
+
+            # Mask 1: apartment_id column
+            if 'apartment_id' in df.columns:
+                id_mask = df['apartment_id'] == apartment_id
+            else:
+                id_mask = pd.Series(False, index=df.index)
+
+            # Mask 2: accommodation_name matches apartment name or any of its room names
+            def _matches_apt(acc_name):
+                if pd.isna(acc_name):
+                    return False
+                acc_l = str(acc_name).lower().strip()
+                if apt_name_lower in acc_l or acc_l in apt_name_lower:
+                    return True
+                return any(rn in acc_l or acc_l in rn for rn in room_names_lower)
+
+            name_mask = df['Tên chỗ nghỉ'].apply(_matches_apt)
+            df = df[id_mask | name_mask]
+
+            # Use this apartment's actual room count as the capacity
+            display_capacity = len(apt_rooms) if apt_rooms else TOTAL_HOTEL_CAPACITY
+            print(f"📍 Calendar filtered to {apt_obj.apartment_name} (id={apartment_id}): {len(df)} bookings, capacity={display_capacity} rooms")
         else:
-            print(f"⚠️ apartment_id column missing from DataFrame, skipping filter")
+            print(f"⚠️ Apartment {apartment_id} not found, showing all data")
     
     # Generate calendar data in weeks format expected by template
     cal = calendar.monthrange(year, month)
@@ -3537,8 +3565,8 @@ def calendar_view(year=None, month=None):
     for day in range(1, num_days + 1):
         date_str = f"{year}-{month:02d}-{day:02d}"
         date_obj = datetime.strptime(date_str, "%Y-%m-%d").date()
-        day_info = get_overall_calendar_day_info(df, date_str, TOTAL_HOTEL_CAPACITY)
-        
+        day_info = get_overall_calendar_day_info(df, date_str, display_capacity)
+
         week.append((date_obj, date_str, day_info))
         
         # Start new week on Sunday (weekday 6)
@@ -3582,7 +3610,7 @@ def calendar_view(year=None, month=None):
             })()
         else:
             # Fallback to calendar info for dates without revenue data
-            day_info = get_overall_calendar_day_info(df, date_str, TOTAL_HOTEL_CAPACITY)
+            day_info = get_overall_calendar_day_info(df, date_str, display_capacity)
             fallback_revenue = day_info.get('daily_revenue', 0)
             print(f"⚠️ [CALENDAR_DEBUG] {date_str}: Using fallback data - {fallback_revenue:,.0f}đ")
             revenue_by_date[date_obj] = type('obj', (object,), {
