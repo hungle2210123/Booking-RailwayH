@@ -10304,27 +10304,25 @@ def get_collector_chart_data():
         use_current_filter = data.get('use_current_filter', False)
         use_all_time = data.get('use_all_time', False)
         
-        print(f"🗓️ [COLLECTOR_CHART_API] Request: start={start_date}, end={end_date}, use_current={use_current_filter}, use_all_time={use_all_time}")
-        
         # Load booking data
         df = load_booking_data_for_calculations()
         if df.empty:
             return jsonify({
-                'success': True, 
-                'chart_data': {}, 
-                'stats_data': [], 
+                'success': True,
+                'chart_data': {},
+                'stats_data': [],
                 'message': 'No data available'
             })
-        
+
         # Apply date filtering
         from datetime import datetime, date
         today = date.today()
-        
+
         # Ensure Check-in Date is datetime
-        df = df.copy()  # Create explicit copy to avoid SettingWithCopyWarning
+        df = df.copy()
         df['Check-in Date'] = pd.to_datetime(df['Check-in Date'], errors='coerce')
         checked_in_mask = df['Check-in Date'].dt.date <= today
-        
+
         if start_date and end_date and not use_current_filter and not use_all_time:
             try:
                 start_dt = datetime.strptime(start_date, '%Y-%m-%d').date()
@@ -10332,59 +10330,25 @@ def get_collector_chart_data():
                 period_mask = (df['Check-in Date'].dt.date >= start_dt) & (df['Check-in Date'].dt.date <= end_dt)
                 filtered_df = df[checked_in_mask & period_mask].copy()
                 period_label = f"từ {start_date} đến {end_date}"
-                print(f"🗓️ [COLLECTOR_CHART_API] Using specific date range: {start_date} to {end_date}")
             except Exception as e:
-                print(f"🗓️ [COLLECTOR_CHART_API] Date parsing error: {e}")
                 filtered_df = df[checked_in_mask].copy()
                 period_label = "tất cả thời gian"
-        elif use_all_time:
-            # Use all time data - ignore any date filters
+        else:
+            # All-time (use_all_time=True, use_current_filter=True, or no date range)
             filtered_df = df[checked_in_mask].copy()
             period_label = "tất cả thời gian"
-            print(f"🗓️ [COLLECTOR_CHART_API] Using ALL TIME data (ignoring date filters)")
-        else:
-            # Use current dashboard filter or all time
-            filtered_df = df[checked_in_mask].copy()
-            period_label = "theo bộ lọc hiện tại"
-            print(f"🗓️ [COLLECTOR_CHART_API] Using current filter/all time")
         
-        print(f"🗓️ [COLLECTOR_CHART_API] Filtered data: {len(filtered_df)} records")
-        print(f"🗓️ [COLLECTOR_CHART_API] Date range used: {period_label}")
-        
-        # Debug: Show what collectors exist in filtered data
-        if 'Người thu tiền' in filtered_df.columns:
-            collector_counts = filtered_df['Người thu tiền'].value_counts(dropna=False)
-            print(f"🗓️ [COLLECTOR_CHART_API] All collectors in filtered data:")
-            for collector, count in collector_counts.items():
-                amount = filtered_df.loc[filtered_df['Người thu tiền'] == collector, 'Tổng thanh toán'].sum() if 'Tổng thanh toán' in filtered_df.columns else 0
-                print(f"🗓️   - '{collector}': {count} bookings, {amount:,.0f}đ")
-        
-        # Debug: Show some sample data
-        if not filtered_df.empty:
-            print(f"🗓️ [COLLECTOR_CHART_API] Sample of filtered data:")
-            sample_cols = ['Check-in Date', 'Người thu tiền', 'Tổng thanh toán'] if all(col in filtered_df.columns for col in ['Check-in Date', 'Người thu tiền', 'Tổng thanh toán']) else filtered_df.columns[:3]
-            print(filtered_df[sample_cols].head())
-        
-        # Apply collector validation (same as dashboard logic)
-        valid_collectors = ['LOC LE', 'THAO LE']
-        
+        # Apply collector validation - case-insensitive match for LOC LE / THAO LE
+        valid_collectors_lower = ['loc le', 'thao le']
+
         # Filter for valid collector bookings with amounts > 0
         if 'Người thu tiền' in filtered_df.columns and 'Tổng thanh toán' in filtered_df.columns:
-            valid_collector_mask = filtered_df['Người thu tiền'].isin(valid_collectors)
+            collector_normalized = filtered_df['Người thu tiền'].fillna('').str.strip().str.lower()
+            valid_collector_mask = collector_normalized.isin(valid_collectors_lower)
             amount_mask = pd.to_numeric(filtered_df['Tổng thanh toán'], errors='coerce') > 0
             valid_collector_df = filtered_df.loc[valid_collector_mask & amount_mask].copy()
-            
-            print(f"🗓️ [COLLECTOR_CHART_API] Valid collector records: {len(valid_collector_df)}")
-            
-            # Debug: Show valid collector breakdown
-            if not valid_collector_df.empty:
-                valid_collector_counts = valid_collector_df['Người thu tiền'].value_counts()
-                print(f"🗓️ [COLLECTOR_CHART_API] Valid collector breakdown:")
-                for collector, count in valid_collector_counts.items():
-                    amount = valid_collector_df[valid_collector_df['Người thu tiền'] == collector]['Tổng thanh toán'].sum()
-                    print(f"🗓️   - {collector}: {count} bookings, {amount:,.0f}đ")
-            else:
-                print(f"🗓️ [COLLECTOR_CHART_API] ❌ No valid collector records found after filtering")
+            # Normalize collector names to uppercase for consistent grouping
+            valid_collector_df['Người thu tiền'] = valid_collector_df['Người thu tiền'].str.strip().str.upper()
             
             if not valid_collector_df.empty:
                 # Group by collector and calculate stats
@@ -10419,8 +10383,6 @@ def get_collector_chart_data():
                     chart_values.append(amount)
                     chart_customdata.append([bookings, commission])
                     
-                    print(f"🗓️ [COLLECTOR_CHART_API] {collector}: {amount:,.0f}đ ({bookings} bookings)")
-                
                 # Create chart data in Plotly format
                 if chart_labels and chart_values:
                     chart_data = {
@@ -10465,11 +10427,9 @@ def get_collector_chart_data():
                 else:
                     chart_data = {}
             else:
-                print(f"🗓️ [COLLECTOR_CHART_API] No valid collections found")
                 stats_data = []
                 chart_data = {}
         else:
-            print(f"🗓️ [COLLECTOR_CHART_API] Missing required columns")
             stats_data = []
             chart_data = {}
         

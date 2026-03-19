@@ -813,8 +813,8 @@ function editRoom(roomId) {
                 const room = data.room;
                 document.getElementById('editRoomId').value = room.room_id;
                 document.getElementById('editRoomName').value = room.room_name;
-                document.getElementById('editRoomType').value = room.room_type;
-                document.getElementById('editRoomMaxGuests').value = room.max_guests;
+                document.getElementById('editRoomType').value = room.room_type || 'Standard';
+                document.getElementById('editRoomMaxGuests').value = room.max_guests || 2;
                 document.getElementById('editRoomFeatures').value = room.room_features || '';
                 document.getElementById('editRoomActive').checked = room.is_active;
 
@@ -838,8 +838,8 @@ function saveRoomEdit() {
         is_active: document.getElementById('editRoomActive').checked
     };
 
-    if (!formData.room_name || !formData.room_type) {
-        alert('Vui lòng điền đầy đủ thông tin!');
+    if (!formData.room_name) {
+        alert('Vui lòng điền tên phòng!');
         return;
     }
 

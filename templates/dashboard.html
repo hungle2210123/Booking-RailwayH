@@ -14815,13 +14815,13 @@ async function updateCollectorChart() {
     }
     
     // Determine which date type is selected from radio buttons
-    let selectedDateType = 'month'; // default
+    let selectedDateType = 'all'; // default to all-time so chart always has data
     if (document.getElementById('collectorDateCustom') && document.getElementById('collectorDateCustom').checked) {
         selectedDateType = 'custom';
-    } else if (document.getElementById('collectorDateAll') && document.getElementById('collectorDateAll').checked) {
-        selectedDateType = 'all';
     } else if (document.getElementById('collectorDateMonth') && document.getElementById('collectorDateMonth').checked) {
         selectedDateType = 'month';
+    } else if (document.getElementById('collectorDateAll') && document.getElementById('collectorDateAll').checked) {
+        selectedDateType = 'all';
     }
     
     const selectedMonth = monthSelect ? monthSelect.value : null;

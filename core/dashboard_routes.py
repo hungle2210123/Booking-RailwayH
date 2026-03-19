@@ -393,83 +393,27 @@ def process_overdue_guests(df):
                 overdue_df = overdue_df.sort_values('days_overdue', ascending=False)
                 print(f"🔍 [OVERDUE] Checkout date not found, sorted by days_overdue instead")
             
-            # Calculate room fees
+            # Calculate room fees total
             room_total = 0
             if 'Tổng thanh toán' in overdue_df.columns:
                 room_total = pd.to_numeric(overdue_df['Tổng thanh toán'], errors='coerce').fillna(0).sum()
-            
-            # Calculate taxi fees
-            taxi_total = 0
-            if 'Taxi' in overdue_df.columns:
-                # Extract numeric values from taxi column (handles formats like "50,000đ", "50000", etc.)
-                taxi_series = overdue_df['Taxi'].fillna('').astype(str)
-                for taxi_value in taxi_series:
-                    if taxi_value and taxi_value.strip():
-                        # Remove currency symbols and commas, extract numbers
-                        import re
-                        numeric_match = re.search(r'[\d,]+', taxi_value.replace('.', ''))
-                        if numeric_match:
-                            try:
-                                taxi_amount = float(numeric_match.group().replace(',', ''))
-                                taxi_total += taxi_amount
-                            except ValueError:
-                                pass
-            
-            # Total amount = room fees + taxi fees
-            overdue_total_amount = room_total + taxi_total
-            
-            # Add calculated totals to DataFrame BEFORE converting to records
+
+            overdue_total_amount = room_total
+
+            # Add calculated columns to DataFrame BEFORE converting to records
             calculated_room_fees = []
-            calculated_taxi_fees = []
             calculated_total_amounts = []
             calculated_commissions = []
-            
-            for idx, (_, guest_row) in enumerate(overdue_df.iterrows()):
-                # Fix: Better room fee calculation
+
+            for _, guest_row in overdue_df.iterrows():
+                # Room fee
                 guest_room_payment = guest_row.get('Tổng thanh toán', 0)
-                if guest_room_payment is not None and guest_room_payment != '':
-                    try:
-                        guest_room_fee = float(guest_room_payment)
-                    except (ValueError, TypeError):
-                        guest_room_fee = 0
-                else:
+                try:
+                    guest_room_fee = float(guest_room_payment) if guest_room_payment not in (None, '', 'nan') else 0
+                except (ValueError, TypeError):
                     guest_room_fee = 0
-                
-                guest_taxi_fee = 0
-                
-                # Fix: Better taxi fee extraction for this guest
-                taxi_value = guest_row.get('Taxi', '')
-                if taxi_value and str(taxi_value).strip() and str(taxi_value).strip() not in ['nan', 'None', 'N/A', '0', '']:
-                    import re
-                    # More robust regex to handle various formats (including decimals)
-                    taxi_str = str(taxi_value).replace(' ', '').replace('đ', '').replace('VND', '').replace('vnd', '')
-                    # Handle both comma and period as thousand separators
-                    if ',' in taxi_str and '.' in taxi_str:
-                        # Format like 1,234.56 - period is decimal separator
-                        taxi_str = taxi_str.replace(',', '')
-                    elif taxi_str.count(',') == 1 and len(taxi_str.split(',')[1]) <= 2:
-                        # Format like 1234,56 - comma is decimal separator
-                        taxi_str = taxi_str.replace(',', '.')
-                    else:
-                        # Format like 1,234 or 1,234,567 - comma is thousand separator
-                        taxi_str = taxi_str.replace(',', '')
-                    
-                    # Extract number with optional decimal
-                    numeric_match = re.search(r'(\d+(?:\.\d+)?)', taxi_str)
-                    if numeric_match:
-                        try:
-                            guest_taxi_fee = float(numeric_match.group())
-                            # Validate reasonable taxi fee range (10,000 to 500,000 VND)
-                            if guest_taxi_fee < 10000 or guest_taxi_fee > 500000:
-                                print(f"WARNING: Unusual taxi fee {guest_taxi_fee} for guest {guest_row.get('Tên người đặt', 'Unknown')}")
-                        except ValueError:
-                            guest_taxi_fee = 0
-                            print(f"ERROR: Could not parse taxi fee '{taxi_value}' for guest {guest_row.get('Tên người đặt', 'Unknown')}")
-                else:
-                    # Log when no taxi fee is found for debugging
-                    print(f"DEBUG: No taxi fee for guest {guest_row.get('Tên người đặt', 'Unknown')}: '{taxi_value}'")
-                
-                # Calculate commission
+
+                # Commission
                 guest_commission = 0
                 commission_value = guest_row.get('Hoa hồng', 0)
                 if commission_value is not None and commission_value != '':
@@ -477,15 +421,14 @@ def process_overdue_guests(df):
                         guest_commission = float(commission_value)
                     except (ValueError, TypeError):
                         guest_commission = 0
-                
+
                 calculated_room_fees.append(guest_room_fee)
-                calculated_taxi_fees.append(guest_taxi_fee)  
-                calculated_total_amounts.append(guest_room_fee + guest_taxi_fee)
+                calculated_total_amounts.append(guest_room_fee)
                 calculated_commissions.append(guest_commission)
-            
+
             # Add calculated columns to DataFrame
             overdue_df['calculated_room_fee'] = calculated_room_fees
-            overdue_df['calculated_taxi_fee'] = calculated_taxi_fees
+            overdue_df['calculated_taxi_fee'] = [0] * len(overdue_df)
             overdue_df['calculated_total_amount'] = calculated_total_amounts
             overdue_df['calculated_commission'] = calculated_commissions
 
@@ -513,15 +456,6 @@ def process_overdue_guests(df):
                 overdue_df['cancellation_requested'] = False
 
             overdue_unpaid_guests = overdue_df.to_dict('records')
-            
-            # Debug output for taxi fees
-            print(f"✅ Processed {len(overdue_unpaid_guests)} overdue guests with taxi fees:")
-            for guest in overdue_unpaid_guests[:3]:  # Show first 3 guests
-                guest_name = guest.get('Tên người đặt', 'Unknown')
-                room_fee = guest.get('calculated_room_fee', 0)
-                taxi_fee = guest.get('calculated_taxi_fee', 0)
-                total_fee = guest.get('calculated_total_amount', 0)
-                print(f"  - {guest_name}: Room={room_fee:,.0f}đ, Taxi={taxi_fee:,.0f}đ, Total={total_fee:,.0f}đ")
     
     except Exception as e:
         print(f"Process overdue guests error: {e}")
@@ -1460,27 +1394,6 @@ def get_daily_revenue_by_stay(df):
         print(f"   📊 Days with revenue: {total_days_with_revenue}")
         print(f"   🎯 Per-night distribution: ACTIVE (fixes arrival-only revenue bug)")
         
-        # Debug specific dates mentioned by user
-        july_1 = datetime(2025, 7, 1).date()
-        july_5 = datetime(2025, 7, 5).date()
-        july_7 = datetime(2025, 7, 7).date()
-        july_10 = datetime(2025, 7, 10).date()
-        july_15 = datetime(2025, 7, 15).date()
-        
-        for debug_date in [july_1, july_5, july_7, july_10, july_15]:
-            if debug_date in daily_revenue:
-                guest_count = daily_revenue[debug_date]['guest_count']
-                total_revenue = daily_revenue[debug_date]['daily_total']
-                print(f"🎯 [DATE_DEBUG] {debug_date}: {guest_count} guests, {total_revenue:,.0f}đ")
-                
-                # Show individual bookings for problem dates
-                if debug_date in [july_1, july_5, july_7]:
-                    bookings = daily_revenue[debug_date]['bookings']
-                    print(f"  📋 [BOOKING_LIST] {len(bookings)} bookings on {debug_date}:")
-                    for booking in bookings[:5]:  # Show first 5
-                        print(f"    - {booking['guest_name']}: {booking['daily_amount']:,.0f}đ")
-            else:
-                print(f"❌ [DATE_DEBUG] {debug_date}: NO DATA")
         
     except Exception as e:
         print(f"Error calculating daily revenue by stay: {e}")
@@ -1546,17 +1459,10 @@ def create_collector_chart(dashboard_data):
                 'percentage': percentage
             })
             total_amount += amount
-            print(f"📊 [COLLECTOR_CHART] {collector_name}: {amount:,.0f}đ ({bookings} bookings, {percentage}%)")
     
     if not valid_data:
         print(f"⚠️ [COLLECTOR_CHART] No valid collector amounts found")
         return {'data': [], 'layout': {'title': {'text': '💰 Không có dữ liệu hợp lệ'}}}
-    
-    # Debug: Log what we're sending to frontend
-    chart_total = sum(item['amount'] for item in valid_data)
-    print(f"📊 [COLLECTOR_CHART_FRONTEND] Sending to frontend: {chart_total:,.0f}đ")
-    for item in valid_data:
-        print(f"📊 [COLLECTOR_CHART_FRONTEND]   {item['name']}: {item['amount']:,.0f}đ")
     
     # Enhanced chart with detailed hover information
     return {
