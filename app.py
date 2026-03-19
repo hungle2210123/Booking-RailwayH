@@ -9362,18 +9362,31 @@ def get_apartment_rooms(apartment_id):
 
 @app.route('/api/accommodation_options', methods=['GET'])
 def get_accommodation_options():
-    """Return all active apartments + their active rooms for the booking edit dropdown.
-    Colour palette matches the calendar so UI is consistent.
+    """Return ALL apartments + rooms for the booking edit dropdown.
+
+    Strategy (two-pass):
+    1. ALL rows from the apartments table (no is_active filter — avoids missing
+       apartments whose flag may be wrong).
+    2. Scan distinct accommodation_name values in bookings and surface any that
+       aren't already covered by a formal apartment entry (e.g. legacy strings
+       like '25 hoi vu' that exist only in booking records).
+
+    Colour palette matches the calendar for visual consistency.
     """
     try:
-        from core.models import Apartment as AptModel, Room as RoomModel
+        from core.models import Apartment as AptModel, Room as RoomModel, Booking, db
+        from sqlalchemy import distinct as sa_distinct
+
         APT_COLORS = ['#1976D2', '#2E7D32', '#7B1FA2', '#E64A19', '#00838F', '#F57F17']
 
-        apts = AptModel.query.filter_by(is_active=True).order_by(AptModel.apartment_id).all()
+        # ── Pass 1: formal apartment table (ALL rows, no is_active filter) ──────
+        apts = AptModel.query.order_by(AptModel.apartment_id).all()
         result = []
+        covered_names_lower = set()          # track what we've already included
+
         for idx, apt in enumerate(apts):
             rooms = RoomModel.query.filter_by(
-                apartment_id=apt.apartment_id, is_active=True
+                apartment_id=apt.apartment_id
             ).order_by(RoomModel.display_order).all()
             result.append({
                 'id':    apt.apartment_id,
@@ -9381,6 +9394,41 @@ def get_accommodation_options():
                 'color': APT_COLORS[idx % len(APT_COLORS)],
                 'rooms': [{'name': r.room_name} for r in rooms],
             })
+            covered_names_lower.add(apt.apartment_name.lower().strip())
+            # Also mark individual room names so we don't duplicate them
+            for r in rooms:
+                covered_names_lower.add(r.room_name.lower().strip())
+
+        # ── Pass 2: legacy accommodation_name strings in bookings ────────────────
+        # Group raw strings by their "parent" name (normalise case) and collect
+        # unique room-level values seen within each parent group.
+        legacy_rows = (
+            db.session.query(sa_distinct(Booking.accommodation_name))
+            .filter(
+                Booking.accommodation_name.isnot(None),
+                Booking.accommodation_name != '',
+            )
+            .order_by(Booking.accommodation_name)
+            .all()
+        )
+
+        for (acc_name,) in legacy_rows:
+            if not acc_name:
+                continue
+            acc_lower = acc_name.lower().strip()
+            if acc_lower in covered_names_lower:
+                continue  # already represented by a formal apartment or room
+            # Surface as a standalone "apartment" with no sub-rooms
+            idx_legacy = len(result)
+            result.append({
+                'id':    None,
+                'name':  acc_name,
+                'color': APT_COLORS[idx_legacy % len(APT_COLORS)],
+                'rooms': [],
+            })
+            covered_names_lower.add(acc_lower)
+
+        print(f"📋 accommodation_options: {len(result)} entries returned")
         return jsonify({'success': True, 'apartments': result})
     except Exception as e:
         print(f"Error loading accommodation options: {e}")

@@ -7723,7 +7723,6 @@ function loadAccommodationOptions(selectId, currentValue) {
     if (!sel) return;
 
     function _build(apartments) {
-        const APT_COLORS = ['#1976D2','#2E7D32','#7B1FA2','#E64A19','#00838F','#F57F17'];
         sel.innerHTML = '';
 
         // Blank / unset option
@@ -7732,23 +7731,31 @@ function loadAccommodationOptions(selectId, currentValue) {
         blank.textContent = '-- Chọn phòng --';
         sel.appendChild(blank);
 
-        apartments.forEach((apt, idx) => {
+        apartments.forEach((apt) => {
             const grp = document.createElement('optgroup');
-            grp.label = apt.name;
+            // Label includes colour dot for formal apartments
+            grp.label = (apt.id ? '🏢 ' : '📌 ') + apt.name;
 
-            // Option for the whole apartment (General)
-            const genOpt = document.createElement('option');
-            genOpt.value = apt.name;
-            genOpt.textContent = '🏠 ' + apt.name + ' (Chung)';
-            grp.appendChild(genOpt);
+            if (apt.rooms && apt.rooms.length > 0) {
+                // Formal apartment: general option + per-room options
+                const genOpt = document.createElement('option');
+                genOpt.value = apt.name;
+                genOpt.textContent = '🏠 ' + apt.name + ' (Chung)';
+                grp.appendChild(genOpt);
 
-            // Individual room options
-            apt.rooms.forEach(room => {
+                apt.rooms.forEach(room => {
+                    const opt = document.createElement('option');
+                    opt.value = room.name;
+                    opt.textContent = '🚪 ' + room.name;
+                    grp.appendChild(opt);
+                });
+            } else {
+                // Legacy / no-room entry — single selectable option
                 const opt = document.createElement('option');
-                opt.value = room.name;
-                opt.textContent = '🚪 ' + room.name;
+                opt.value = apt.name;
+                opt.textContent = apt.name;
                 grp.appendChild(opt);
-            });
+            }
 
             sel.appendChild(grp);
         });
