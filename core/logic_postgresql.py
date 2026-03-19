@@ -708,6 +708,19 @@ def get_room_symbol_by_name(room_name: str) -> str:
 
     return '●'  # Default circle
 
+def _make_apt_abbr(name: str) -> str:
+    """Short abbreviation: skip numeric tokens; initials of all-but-last + first 3 of last word.
+    Examples: '118 Hang Bac' → 'HBac', '18 Hang Be' → 'HBe', '25 Hoi Vu' → 'HVu'"""
+    words = [w for w in name.split() if not w.isdigit()]
+    if not words:
+        return name[:5]
+    if len(words) == 1:
+        return words[0][:4].capitalize()
+    prefix = ''.join(w[0].upper() for w in words[:-1])
+    suffix  = words[-1][:3].capitalize()
+    return prefix + suffix
+
+
 def _booking_matches_apartment(acc_name, apt_name_lower, room_names_lower):
     """Return True if accommodation name matches this apartment or any of its rooms."""
     acc_l = str(acc_name or '').lower().strip()
@@ -892,8 +905,9 @@ def get_overall_calendar_day_info(df: pd.DataFrame, target_date: str,
 
                     apt_avail = max(0, apt_capacity - apt_occ)
                     apartments_status.append({
-                        'id': apt_id,
-                        'name': apt['name'],
+                        'id':       apt_id,
+                        'name':     apt['name'],
+                        'abbr':     apt.get('abbr') or _make_apt_abbr(apt['name']),
                         'occupied': apt_occ,
                         'capacity': apt_capacity,
                         'available': apt_avail,
@@ -934,8 +948,9 @@ def get_overall_calendar_day_info(df: pd.DataFrame, target_date: str,
 
                     apt_avail = max(0, apt_capacity - apt_occ)
                     apartments_status.append({
-                        'id': apt_id,
-                        'name': apt_row.apartment_name,
+                        'id':       apt_id,
+                        'name':     apt_row.apartment_name,
+                        'abbr':     _make_apt_abbr(apt_row.apartment_name),
                         'occupied': apt_occ,
                         'capacity': apt_capacity,
                         'available': apt_avail,

@@ -3510,6 +3510,18 @@ def calendar_view(year=None, month=None):
 
     # ── Pre-load ALL apartments + rooms ONCE (used for filtering AND per-day rendering) ──
     from core.models import Apartment as AptModel, Room as RoomModel
+
+    def _make_apt_abbr(name: str) -> str:
+        """Short abbreviation: skip numeric tokens; initials of all-but-last + first 3 of last word."""
+        words = [w for w in name.split() if not w.isdigit()]
+        if not words:
+            return name[:5]
+        if len(words) == 1:
+            return words[0][:4].capitalize()
+        prefix = ''.join(w[0].upper() for w in words[:-1])
+        suffix  = words[-1][:3].capitalize()
+        return prefix + suffix
+
     all_apts = AptModel.query.filter_by(is_active=True).order_by(AptModel.apartment_id).all()
     apartments_list = []
     for apt in all_apts:
@@ -3517,6 +3529,7 @@ def calendar_view(year=None, month=None):
         apartments_list.append({
             'id':         apt.apartment_id,
             'name':       apt.apartment_name,
+            'abbr':       _make_apt_abbr(apt.apartment_name),
             'name_lower': apt.apartment_name.lower(),
             'capacity':   len(rooms),
             'rooms':      [{'name': r.room_name, 'name_lower': r.room_name.lower()} for r in rooms],
