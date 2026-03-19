@@ -374,15 +374,15 @@
                         {% set has_commission = commission > 0 %}
                         {% set room_name = booking.get('Tên chỗ nghỉ', 'N/A') %}
                         {% set rl = room_name.lower().strip() %}
-                        {% set ns = namespace(emoji='', color='#6c757d', found=false) %}
+                        {% set ns = namespace(emoji='', color='#6c757d', found=false, apt_name='') %}
                         {% for apt in apartments_list %}
                           {% if not ns.found %}
                             {% if apt.name_lower in rl or rl in apt.name_lower %}
-                              {% set ns.found=true %}{% set ns.emoji=apt.emoji %}{% set ns.color=apt.color %}
+                              {% set ns.found=true %}{% set ns.emoji=apt.emoji %}{% set ns.color=apt.color %}{% set ns.apt_name=apt.name %}
                             {% else %}
                               {% for r in apt.rooms %}
                                 {% if not ns.found and r.name_lower == rl %}
-                                  {% set ns.found=true %}{% set ns.emoji=apt.emoji %}{% set ns.color=apt.color %}
+                                  {% set ns.found=true %}{% set ns.emoji=apt.emoji %}{% set ns.color=apt.color %}{% set ns.apt_name=apt.name %}
                                 {% endif %}
                               {% endfor %}
                             {% endif %}
@@ -416,7 +416,7 @@
                                 </div>
                                 <p class="room-type">
                                     <span style="display:inline-block;background:{{ ns.color }}18;color:{{ ns.color }};border:1px solid {{ ns.color }}50;border-radius:4px;padding:2px 8px;font-size:0.75rem;font-weight:600;">
-                                        {{ ns.emoji }} {{ room_name }}
+                                        {{ ns.emoji }} {{ room_name }}{% if ns.apt_name %} - {{ ns.apt_name }}{% endif %}
                                     </span>
                                 </p>
                                 <p class="details">
@@ -455,15 +455,15 @@
                         {% set has_commission = commission > 0 %}
                         {% set room_name = booking.get('Tên chỗ nghỉ', 'N/A') %}
                         {% set rl = room_name.lower().strip() %}
-                        {% set ns = namespace(emoji='', color='#6c757d', found=false) %}
+                        {% set ns = namespace(emoji='', color='#6c757d', found=false, apt_name='') %}
                         {% for apt in apartments_list %}
                           {% if not ns.found %}
                             {% if apt.name_lower in rl or rl in apt.name_lower %}
-                              {% set ns.found=true %}{% set ns.emoji=apt.emoji %}{% set ns.color=apt.color %}
+                              {% set ns.found=true %}{% set ns.emoji=apt.emoji %}{% set ns.color=apt.color %}{% set ns.apt_name=apt.name %}
                             {% else %}
                               {% for r in apt.rooms %}
                                 {% if not ns.found and r.name_lower == rl %}
-                                  {% set ns.found=true %}{% set ns.emoji=apt.emoji %}{% set ns.color=apt.color %}
+                                  {% set ns.found=true %}{% set ns.emoji=apt.emoji %}{% set ns.color=apt.color %}{% set ns.apt_name=apt.name %}
                                 {% endif %}
                               {% endfor %}
                             {% endif %}
@@ -497,7 +497,7 @@
                                 </div>
                                 <p class="room-type">
                                     <span style="display:inline-block;background:{{ ns.color }}18;color:{{ ns.color }};border:1px solid {{ ns.color }}50;border-radius:4px;padding:2px 8px;font-size:0.75rem;font-weight:600;">
-                                        {{ ns.emoji }} {{ room_name }}
+                                        {{ ns.emoji }} {{ room_name }}{% if ns.apt_name %} - {{ ns.apt_name }}{% endif %}
                                     </span>
                                 </p>
                                 <p class="details">
@@ -537,15 +537,15 @@
                         {% set has_commission = commission > 0 %}
                         {% set room_name = booking.get('Tên chỗ nghỉ', 'N/A') %}
                         {% set rl = room_name.lower().strip() %}
-                        {% set ns = namespace(emoji='', color='#6c757d', found=false) %}
+                        {% set ns = namespace(emoji='', color='#6c757d', found=false, apt_name='') %}
                         {% for apt in apartments_list %}
                           {% if not ns.found %}
                             {% if apt.name_lower in rl or rl in apt.name_lower %}
-                              {% set ns.found=true %}{% set ns.emoji=apt.emoji %}{% set ns.color=apt.color %}
+                              {% set ns.found=true %}{% set ns.emoji=apt.emoji %}{% set ns.color=apt.color %}{% set ns.apt_name=apt.name %}
                             {% else %}
                               {% for r in apt.rooms %}
                                 {% if not ns.found and r.name_lower == rl %}
-                                  {% set ns.found=true %}{% set ns.emoji=apt.emoji %}{% set ns.color=apt.color %}
+                                  {% set ns.found=true %}{% set ns.emoji=apt.emoji %}{% set ns.color=apt.color %}{% set ns.apt_name=apt.name %}
                                 {% endif %}
                               {% endfor %}
                             {% endif %}
@@ -579,7 +579,7 @@
                                 </div>
                                 <p class="room-type">
                                     <span style="display:inline-block;background:{{ ns.color }}18;color:{{ ns.color }};border:1px solid {{ ns.color }}50;border-radius:4px;padding:2px 8px;font-size:0.75rem;font-weight:600;">
-                                        {{ ns.emoji }} {{ room_name }}
+                                        {{ ns.emoji }} {{ room_name }}{% if ns.apt_name %} - {{ ns.apt_name }}{% endif %}
                                     </span>
                                 </p>
                                 <p class="details">
