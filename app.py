@@ -9359,6 +9359,34 @@ def get_apartment_rooms(apartment_id):
         print(f"Error loading rooms for apartment {apartment_id}: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
+
+@app.route('/api/accommodation_options', methods=['GET'])
+def get_accommodation_options():
+    """Return all active apartments + their active rooms for the booking edit dropdown.
+    Colour palette matches the calendar so UI is consistent.
+    """
+    try:
+        from core.models import Apartment as AptModel, Room as RoomModel
+        APT_COLORS = ['#1976D2', '#2E7D32', '#7B1FA2', '#E64A19', '#00838F', '#F57F17']
+
+        apts = AptModel.query.filter_by(is_active=True).order_by(AptModel.apartment_id).all()
+        result = []
+        for idx, apt in enumerate(apts):
+            rooms = RoomModel.query.filter_by(
+                apartment_id=apt.apartment_id, is_active=True
+            ).order_by(RoomModel.display_order).all()
+            result.append({
+                'id':    apt.apartment_id,
+                'name':  apt.apartment_name,
+                'color': APT_COLORS[idx % len(APT_COLORS)],
+                'rooms': [{'name': r.room_name} for r in rooms],
+            })
+        return jsonify({'success': True, 'apartments': result})
+    except Exception as e:
+        print(f"Error loading accommodation options: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
 @app.route('/api/apartments/<int:apartment_id>/stats', methods=['GET'])
 def get_apartment_stats(apartment_id):
     """Get statistics for a specific apartment"""

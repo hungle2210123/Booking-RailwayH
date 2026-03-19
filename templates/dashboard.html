@@ -3997,17 +3997,7 @@
                             <i class="fas fa-hotel me-1"></i>Chọn phòng:
                         </label>
                         <select class="form-select" id="editAccommodation">
-                            <optgroup label="🔵 118 Hàng Bạc">
-                                <option value="118 hang bac">🔵 118 hang bac</option>
-                                <option value="kitchen">🔵 kitchen</option>
-                                <option value="night market">🔵 night market</option>
-                                <option value="118 Hang Bac Hostel">🔵 118 Hang Bac Hostel (General)</option>
-                            </optgroup>
-                            <optgroup label="🟢 18 Hàng Bè">
-                                <option value="hang be 101">🟢 hang be 101</option>
-                                <option value="hang be 102">🟢 hang be 102</option>
-                                <option value="18 Hang Be">🟢 18 Hang Be (General)</option>
-                            </optgroup>
+                            <option value="">⏳ Đang tải danh sách phòng...</option>
                         </select>
                         <div class="form-text">⚠️ Chọn đúng phòng để tránh thay đổi nhầm khi chỉnh sửa</div>
                     </div>
@@ -4107,17 +4097,7 @@
                                 <i class="fas fa-hotel me-1"></i>Chọn phòng:
                             </label>
                             <select class="form-select" id="editBookingAccommodation">
-                                <optgroup label="🔵 118 Hàng Bạc">
-                                    <option value="118 hang bac">🔵 118 hang bac</option>
-                                    <option value="kitchen">🔵 kitchen</option>
-                                    <option value="night market">🔵 night market</option>
-                                    <option value="118 Hang Bac Hostel">🔵 118 Hang Bac Hostel (General)</option>
-                                </optgroup>
-                                <optgroup label="🟢 18 Hàng Bè">
-                                    <option value="hang be 101">🟢 hang be 101</option>
-                                    <option value="hang be 102">🟢 hang be 102</option>
-                                    <option value="18 Hang Be">🟢 18 Hang Be (General)</option>
-                                </optgroup>
+                                <option value="">⏳ Đang tải danh sách phòng...</option>
                             </select>
                         </div>
                         <div class="col-md-4">
@@ -7369,12 +7349,18 @@ function openEditAmountModal(bookingId, guestName, roomFee, taxiFee, commission)
     
     console.log('[EditAmount] Parsed fees:', {parsedRoomFee, parsedTaxiFee, parsedCommission});
     
+    // Load dynamic accommodation dropdown (uses cache after first call)
+    loadAccommodationOptions('editAccommodation', '');
+
     // Fetch full booking data to get accommodation info
     fetch(`/api/booking/${bookingId}`)
         .then(response => response.json())
         .then(bookingData => {
             const accommodation = bookingData.accommodation_name || '118 Hang Bac Hostel';
             const roomsOccupied = bookingData.rooms_occupied || 1;
+
+            // Set dropdown value after it's been populated
+            loadAccommodationOptions('editAccommodation', accommodation);
 
             // Store booking data for editing
             currentEditBookingData = {
@@ -7723,12 +7709,104 @@ function updateBookingAmounts() {
 // Global variable to store current booking being edited
 var currentEditBooking = {};
 
+// ── Dynamic accommodation dropdown ──────────────────────────────────────────
+// Cache so we only call the API once per page load
+var _accommodationOptionsCache = null;
+
+/**
+ * Fetch apartments+rooms from DB, build <optgroup>/<option> elements,
+ * and set the currently-selected value.
+ * Works for any select element by id.
+ */
+function loadAccommodationOptions(selectId, currentValue) {
+    const sel = document.getElementById(selectId);
+    if (!sel) return;
+
+    function _build(apartments) {
+        const APT_COLORS = ['#1976D2','#2E7D32','#7B1FA2','#E64A19','#00838F','#F57F17'];
+        sel.innerHTML = '';
+
+        // Blank / unset option
+        const blank = document.createElement('option');
+        blank.value = '';
+        blank.textContent = '-- Chọn phòng --';
+        sel.appendChild(blank);
+
+        apartments.forEach((apt, idx) => {
+            const color = APT_COLORS[idx % APT_COLORS.length];
+            const grp = document.createElement('optgroup');
+            grp.label = apt.name;
+
+            // Option for the whole apartment (General)
+            const genOpt = document.createElement('option');
+            genOpt.value = apt.name;
+            genOpt.textContent = '🏠 ' + apt.name + ' (Chung)';
+            grp.appendChild(genOpt);
+
+            // Individual room options
+            apt.rooms.forEach(room => {
+                const opt = document.createElement('option');
+                opt.value = room.name;
+                opt.textContent = '🚪 ' + room.name;
+                grp.appendChild(opt);
+            });
+
+            sel.appendChild(grp);
+        });
+
+        // Set the current value (exact match or case-insensitive fallback)
+        if (currentValue) {
+            const lower = currentValue.toLowerCase().trim();
+            let matched = false;
+            for (const opt of sel.options) {
+                if (opt.value === currentValue) { sel.value = currentValue; matched = true; break; }
+            }
+            if (!matched) {
+                for (const opt of sel.options) {
+                    if (opt.value.toLowerCase().trim() === lower) { sel.value = opt.value; break; }
+                }
+            }
+        }
+    }
+
+    if (_accommodationOptionsCache) {
+        _build(_accommodationOptionsCache);
+        return;
+    }
+
+    sel.innerHTML = '<option value="">⏳ Đang tải...</option>';
+    fetch('/api/accommodation_options')
+        .then(r => r.json())
+        .then(data => {
+            if (data.success && data.apartments) {
+                _accommodationOptionsCache = data.apartments;
+                _build(data.apartments);
+            } else {
+                sel.innerHTML = '<option value="">⚠️ Lỗi tải phòng</option>';
+            }
+        })
+        .catch(() => { sel.innerHTML = '<option value="">⚠️ Lỗi kết nối</option>'; });
+}
+
+// Pre-load on page ready so dropdowns feel instant when modals open
+document.addEventListener('DOMContentLoaded', function() {
+    fetch('/api/accommodation_options')
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) _accommodationOptionsCache = data.apartments;
+        })
+        .catch(() => {});
+});
+
 function openEditBookingModal(bookingId, guestName, roomName, checkin, checkout, roomAmount, taxiAmount, commission) {
     console.log('Opening edit booking modal:', { bookingId, guestName, roomName, checkin, checkout, roomAmount, taxiAmount, commission });
 
     // Show loading state
     const modal = new bootstrap.Modal(document.getElementById('editBookingModal'));
     modal.show();
+
+    // Load dynamic accommodation dropdown (uses cache after first call)
+    loadAccommodationOptions('editBookingAccommodation', roomName);
 
     // Fetch complete booking data from backend to ensure accuracy
     fetch(`/api/booking/${bookingId}`)
@@ -7753,7 +7831,8 @@ function openEditBookingModal(bookingId, guestName, roomName, checkin, checkout,
                 // Populate modal fields with backend data
                 document.getElementById('editBookingIdDisplay').textContent = bookingId;
                 document.getElementById('editBookingGuestName').value = currentEditBooking.guestName;
-                document.getElementById('editBookingAccommodation').value = currentEditBooking.roomName;
+                // Re-apply accommodation value now that options are built (dropdown may have loaded after initial call)
+                loadAccommodationOptions('editBookingAccommodation', currentEditBooking.roomName);
                 document.getElementById('editBookingRoomsOccupied').value = currentEditBooking.roomsOccupied;
 
                 // Set dates (backend returns YYYY-MM-DD format)
