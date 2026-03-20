@@ -559,11 +559,15 @@
                             {% set apt_class = '' %}
                             {% set apt_icon = '' %}
                         {% endif %}
+                        {%- set pay_str = booking.get('Người thu tiền', '')|string %}
+                        {%- set is_paid = 'LOC' in pay_str or 'THAO' in pay_str %}
                         <div class="guest-card-col">
-                            <div class="guest-card {{ 'has-commission' if has_commission else 'no-commission' }} {{ apt_class }}">
+                            <div class="guest-card {{ 'has-commission' if has_commission else 'no-commission' }} {{ apt_class }} {{ 'is-paid' if is_paid else 'not-paid' }}">
                                 <div class="guest-header d-flex justify-content-between align-items-start">
                                     <div class="flex-grow-1">
-                                        <p class="guest-name {{ apt_class }}">{{ apt_icon }} {{ booking.get('Tên người đặt', 'N/A') }}</p>
+                                        <p class="guest-name {{ apt_class }}">{{ apt_icon }} {{ booking.get('Tên người đặt', 'N/A') }}
+                                            <span class="pay-status-pill {{ 'paid' if is_paid else 'unpaid' }}">{{ '✓ Đã thu' if is_paid else '⏳ Chưa thu' }}</span>
+                                        </p>
                                         {% if has_commission %}
                                             <span class="commission-badge badge bg-warning text-dark">
                                                 <i class="fas fa-percentage"></i> {{ "{:,.0f}".format(commission) }}đ
@@ -661,11 +665,15 @@
                             {% set apt_class = '' %}
                             {% set apt_icon = '' %}
                         {% endif %}
+                        {%- set pay_str = booking.get('Người thu tiền', '')|string %}
+                        {%- set is_paid = 'LOC' in pay_str or 'THAO' in pay_str %}
                         <div class="guest-card-col">
-                            <div class="guest-card {{ 'has-commission' if has_commission else 'no-commission' }} {{ apt_class }}">
+                            <div class="guest-card {{ 'has-commission' if has_commission else 'no-commission' }} {{ apt_class }} {{ 'is-paid' if is_paid else 'not-paid' }}">
                                 <div class="guest-header d-flex justify-content-between align-items-start">
                                     <div class="flex-grow-1">
-                                        <p class="guest-name {{ apt_class }}">{{ apt_icon }} {{ booking.get('Tên người đặt', 'N/A') }}</p>
+                                        <p class="guest-name {{ apt_class }}">{{ apt_icon }} {{ booking.get('Tên người đặt', 'N/A') }}
+                                            <span class="pay-status-pill {{ 'paid' if is_paid else 'unpaid' }}">{{ '✓ Đã thu' if is_paid else '⏳ Chưa thu' }}</span>
+                                        </p>
                                         {% if has_commission %}
                                             <span class="commission-badge badge bg-warning text-dark">
                                                 <i class="fas fa-percentage"></i> {{ "{:,.0f}".format(commission) }}đ
@@ -764,11 +772,15 @@
                             {% set apt_class = '' %}
                             {% set apt_icon = '' %}
                         {% endif %}
+                        {%- set pay_str = booking.get('Người thu tiền', '')|string %}
+                        {%- set is_paid = 'LOC' in pay_str or 'THAO' in pay_str %}
                         <div class="guest-card-col">
-                            <div class="guest-card {{ 'has-commission' if has_commission else 'no-commission' }} {{ apt_class }}">
+                            <div class="guest-card {{ 'has-commission' if has_commission else 'no-commission' }} {{ apt_class }} {{ 'is-paid' if is_paid else 'not-paid' }}">
                                 <div class="guest-header d-flex justify-content-between align-items-start">
                                     <div class="flex-grow-1">
-                                        <p class="guest-name {{ apt_class }}">{{ apt_icon }} {{ booking.get('Tên người đặt', 'N/A') }}</p>
+                                        <p class="guest-name {{ apt_class }}">{{ apt_icon }} {{ booking.get('Tên người đặt', 'N/A') }}
+                                            <span class="pay-status-pill {{ 'paid' if is_paid else 'unpaid' }}">{{ '✓ Đã thu' if is_paid else '⏳ Chưa thu' }}</span>
+                                        </p>
                                         {% if has_commission %}
                                             <span class="commission-badge badge bg-warning text-dark">
                                                 <i class="fas fa-percentage"></i> {{ "{:,.0f}".format(commission) }}đ
@@ -1088,6 +1100,35 @@
         border-left: 4px solid #388E3C;
         padding-left: 12px;
     }
+
+    /* ===== Payment Status Visual Differentiation ===== */
+    .guest-card.is-paid {
+        background: #f0fff4 !important;
+        border-top: 3px solid #43a047 !important;
+    }
+    .guest-card.is-paid:hover {
+        background: #e8f5e9 !important;
+    }
+    .guest-card.not-paid {
+        background: #fff9f0 !important;
+        border-top: 3px solid #ff9800 !important;
+    }
+    .guest-card.not-paid:hover {
+        background: #fff3e0 !important;
+    }
+    /* Small status pill in header */
+    .pay-status-pill {
+        display: inline-block;
+        font-size: 0.62rem;
+        font-weight: 700;
+        border-radius: 10px;
+        padding: 1px 7px;
+        margin-left: 4px;
+        vertical-align: middle;
+        letter-spacing: 0.3px;
+    }
+    .pay-status-pill.paid   { background: #c8e6c9; color: #1b5e20; }
+    .pay-status-pill.unpaid { background: #ffe0b2; color: #e65100; }
 
     .room-type { font-style: italic; color: #555; margin-top: 8px; }
     .details { font-size: 0.9em; color: #666; margin-top: 5px; }
