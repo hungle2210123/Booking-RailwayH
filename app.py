@@ -3528,7 +3528,8 @@ def calendar_view(year=None, month=None):
         })
 
     # ── Filter by apartment (dual strategy: apartment_id col + name match) ──
-    display_capacity = TOTAL_HOTEL_CAPACITY   # default: all rooms
+    # Always derive capacity from the live DB room list, not the hardcoded constant
+    display_capacity = sum(a['capacity'] for a in apartments_list) or TOTAL_HOTEL_CAPACITY
     display_apartments_list = apartments_list  # what the per-day function sees
     if apartment_id:
         apt_entry = next((a for a in apartments_list if a['id'] == apartment_id), None)
@@ -3757,8 +3758,12 @@ def calendar_details(date_str):
         # ALWAYS use force_fresh=True to show latest updates immediately
         df = load_booking_data_for_calculations(force_fresh=True)
 
-        # Get detailed day information
-        day_info = get_overall_calendar_day_info(df, date_str, TOTAL_HOTEL_CAPACITY)
+        # Get detailed day information — use live room count from DB
+        from core.models import Apartment as _AptM, Room as _RoomM
+        _total_rooms = _RoomM.query.join(_AptM).filter(
+            _RoomM.is_active == True, _AptM.is_active == True
+        ).count() or TOTAL_HOTEL_CAPACITY
+        day_info = get_overall_calendar_day_info(df, date_str, _total_rooms)
         
         # Get activity data for the template
         activity = day_info.get('activity', {})
