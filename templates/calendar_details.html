@@ -357,6 +357,56 @@
             align-items: center;
         }
 
+        /* ===== Compact Card Details Grid ===== */
+        .card-details {
+            margin-top: 5px;
+            font-size: 0.75rem;
+        }
+        .detail-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            gap: 6px;
+            margin-bottom: 3px;
+        }
+        .detail-id {
+            color: #999;
+            font-size: 0.68rem;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            max-width: 140px;
+        }
+        .detail-checkout {
+            color: #555;
+            white-space: nowrap;
+            font-size: 0.72rem;
+        }
+        .detail-nights {
+            color: #666;
+            white-space: nowrap;
+        }
+        .detail-amount {
+            font-weight: 800;
+            color: #1a1a1a;
+            font-size: 0.85rem;
+            white-space: nowrap;
+        }
+        .detail-rate-row {
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 5px;
+            padding-top: 4px;
+            border-top: 1px dashed rgba(0,0,0,0.1);
+            margin-top: 3px;
+            font-size: 0.72rem;
+        }
+        .net-rate {
+            color: #7b1fa2;
+            font-weight: 600;
+        }
+
         /* ===== Payment Collection UI ===== */
         .pay-area {
             margin-top: 8px;
@@ -384,6 +434,59 @@
             transform: translateY(-1px);
             box-shadow: 0 3px 8px rgba(244,67,54,0.35);
         }
+        /* Confirm step */
+        .pay-confirm-row {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .pay-amount-label {
+            flex: 1;
+            font-size: 0.74rem;
+            color: #333;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .pay-ok-btn {
+            background: #43a047;
+            color: #fff;
+            border: none;
+            border-radius: 14px;
+            padding: 4px 9px;
+            font-size: 0.72rem;
+            font-weight: 700;
+            cursor: pointer;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+        .pay-ok-btn:hover { background: #2e7d32; }
+        .pay-edit-btn {
+            background: #f5f5f5;
+            color: #666;
+            border: 1px solid #ddd;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            font-size: 0.72rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+        .pay-edit-btn:hover { border-color: #999; color: #333; }
+        /* Amount edit input */
+        .pay-amount-input {
+            flex: 1;
+            border: 2px solid #1976d2;
+            border-radius: 8px;
+            padding: 3px 6px;
+            font-size: 0.75rem;
+            min-width: 0;
+            outline: none;
+        }
+        /* Collector row */
         .pay-collector-row {
             display: flex;
             gap: 5px;
@@ -392,7 +495,7 @@
         .pay-collector-btn {
             flex: 1;
             border: none;
-            border-radius: 16px;
+            border-radius: 14px;
             padding: 5px 6px;
             font-size: 0.72rem;
             font-weight: 700;
@@ -404,19 +507,21 @@
         .pay-collector-btn.thao-le { background: #7b1fa2; color: #fff; }
         .pay-collector-btn.thao-le:hover { background: #4a148c; }
         .pay-cancel-btn {
-            background: #9e9e9e;
-            color: #fff;
+            background: #e0e0e0;
+            color: #555;
             border: none;
             border-radius: 50%;
-            width: 26px;
-            height: 26px;
-            font-size: 0.8rem;
+            width: 24px;
+            height: 24px;
+            font-size: 0.75rem;
             cursor: pointer;
             display: flex;
             align-items: center;
             justify-content: center;
             flex-shrink: 0;
+            line-height: 1;
         }
+        .pay-cancel-btn:hover { background: #bdbdbd; }
         .pay-done-badge {
             display: block;
             background: linear-gradient(135deg, #43a047, #2e7d32);
@@ -495,31 +600,33 @@
                                         <span class="badge bg-secondary">{{ room_name }}</span>
                                     {% endif %}
                                 </p>
-                                <p class="details">
-                                    <strong>Mã ĐP:</strong> {{ booking.get('Số đặt phòng', 'N/A') }}<br>
-                                    <strong>Trả phòng:</strong> {{ booking['Check-out Date'].strftime('%d/%m/%Y') if booking['Check-out Date'] and pd.notna(booking['Check-out Date']) else 'N/A' }}<br>
-                                    {% set total_nights = (booking['Check-out Date'] - booking['Check-in Date']).days if booking['Check-in Date'] and booking['Check-out Date'] and pd.notna(booking['Check-in Date']) and pd.notna(booking['Check-out Date']) else 1 %}
-                                    {% set total_payment = booking.get('Tổng thanh toán', 0) %}
-                                    {% set per_night_rate = (total_payment / total_nights) if total_nights > 0 else total_payment %}
-                                    <strong>Ở:</strong> {{ total_nights }} đêm<br>
-                                    <strong>Người thu:</strong> {{ booking.get('Người thu tiền', 'N/A') }}<br>
-                                    <strong>Thanh toán:</strong> {{ "{:,.0f}".format(total_payment) }}đ<br>
-                                    {% if has_commission %}
-                                        <strong class="text-primary">💰 Sau trừ hoa hồng:</strong> <span class="text-primary">{{ "{:,.0f}".format((total_payment - commission) / total_nights) }}đ/đêm</span><br>
-                                    {% endif %}
-                                    <strong class="text-info">💰 Giá/đêm:</strong> <span class="text-info">{{ "{:,.0f}".format(per_night_rate) }}đ</span>
-                                </p>
+                                {% set total_nights = (booking['Check-out Date'] - booking['Check-in Date']).days if booking['Check-in Date'] and booking['Check-out Date'] and pd.notna(booking['Check-in Date']) and pd.notna(booking['Check-out Date']) else 1 %}
+                                {% set total_payment = booking.get('Tổng thanh toán', 0) %}
+                                {% set per_night_rate = (total_payment / total_nights) if total_nights > 0 else total_payment %}
+                                <div class="card-details">
+                                    <div class="detail-row">
+                                        <span class="detail-id">🔑 {{ booking.get('Số đặt phòng', 'N/A') }}</span>
+                                        <span class="detail-checkout">📅 Trả {{ booking['Check-out Date'].strftime('%d/%m') if booking['Check-out Date'] and pd.notna(booking['Check-out Date']) else 'N/A' }}</span>
+                                    </div>
+                                    <div class="detail-row">
+                                        <span class="detail-nights">🌙 {{ total_nights }} đêm</span>
+                                        <span class="detail-amount">{{ "{:,.0f}".format(total_payment) }}đ</span>
+                                    </div>
+                                    <div class="detail-rate-row">
+                                        <span class="text-info">💰 {{ "{:,.0f}".format(per_night_rate) }}đ/đêm</span>
+                                        {% if has_commission %}<span class="net-rate">→ {{ "{:,.0f}".format((total_payment - commission) / total_nights) }}đ net</span>{% endif %}
+                                    </div>
+                                </div>
                                 {%- set collector_str = booking.get('Người thu tiền', '')|string %}
-                                <div class="pay-area" id="pay-{{ booking.get('Số đặt phòng', '') }}">
+                                <div class="pay-area"
+                                     id="pay-{{ booking.get('Số đặt phòng', '') }}"
+                                     data-booking-id="{{ booking.get('Số đặt phòng', '') }}"
+                                     data-amount="{{ total_payment|int }}"
+                                     data-commission="{{ commission|int }}">
                                     {% if 'LOC' in collector_str or 'THAO' in collector_str %}
                                         <span class="pay-done-badge">✅ {{ booking.get('Người thu tiền', '') }} • {{ "{:,.0f}".format(total_payment) }}đ</span>
                                     {% else %}
                                         <button class="btn-pay-now" onclick="showPayCollect(this)">💰 Thu Tiền</button>
-                                        <div class="pay-collector-row" style="display:none">
-                                            <button class="pay-collector-btn loc-le"   onclick="doCollect(this,'{{ booking.get('Số đặt phòng', '') }}',{{ total_payment|int }},{{ commission|int }},'LOC LE')">LOC LE</button>
-                                            <button class="pay-collector-btn thao-le"  onclick="doCollect(this,'{{ booking.get('Số đặt phòng', '') }}',{{ total_payment|int }},{{ commission|int }},'THAO LE')">THAO LE</button>
-                                            <button class="pay-cancel-btn" onclick="cancelPayCollect(this)">✕</button>
-                                        </div>
                                     {% endif %}
                                 </div>
                         </div>
@@ -595,32 +702,34 @@
                                         <span class="badge bg-secondary">{{ room_name }}</span>
                                     {% endif %}
                                 </p>
-                                <p class="details">
-                                    <strong>Mã ĐP:</strong> {{ booking.get('Số đặt phòng', 'N/A') }}<br>
-                                    <strong>Ở từ:</strong> {{ booking['Check-in Date'].strftime('%d/%m') if booking['Check-in Date'] and pd.notna(booking['Check-in Date']) else 'N/A' }} - <strong>Trả:</strong> {{ booking['Check-out Date'].strftime('%d/%m') if booking['Check-out Date'] and pd.notna(booking['Check-out Date']) else 'N/A' }}<br>
-                                    {% set total_nights = (booking['Check-out Date'] - booking['Check-in Date']).days if booking['Check-in Date'] and booking['Check-out Date'] and pd.notna(booking['Check-in Date']) and pd.notna(booking['Check-out Date']) else 1 %}
-                                    {% set total_payment = booking.get('Tổng thanh toán', 0) %}
-                                    {% set per_night_rate = (total_payment / total_nights) if total_nights > 0 else total_payment %}
-                                    <strong>Ở:</strong> {{ total_nights }} đêm<br>
-                                    <strong>Đã ở:</strong> {{ (current_date - booking['Check-in Date']).days if booking['Check-in Date'] and pd.notna(booking['Check-in Date']) else 'N/A' }} đêm<br>
-                                    <strong>Người thu:</strong> {{ booking.get('Người thu tiền', 'N/A') }}<br>
-                                    <strong>Thanh toán:</strong> {{ "{:,.0f}".format(total_payment) }}đ<br>
-                                    {% if has_commission %}
-                                        <strong class="text-primary">💰 Sau trừ hoa hồng:</strong> <span class="text-primary">{{ "{:,.0f}".format((total_payment - commission) / total_nights) }}đ/đêm</span><br>
-                                    {% endif %}
-                                    <strong class="text-info">💰 Giá/đêm:</strong> <span class="text-info">{{ "{:,.0f}".format(per_night_rate) }}đ</span>
-                                </p>
+                                {% set total_nights = (booking['Check-out Date'] - booking['Check-in Date']).days if booking['Check-in Date'] and booking['Check-out Date'] and pd.notna(booking['Check-in Date']) and pd.notna(booking['Check-out Date']) else 1 %}
+                                {% set total_payment = booking.get('Tổng thanh toán', 0) %}
+                                {% set per_night_rate = (total_payment / total_nights) if total_nights > 0 else total_payment %}
+                                {% set stayed = (current_date - booking['Check-in Date']).days if booking['Check-in Date'] and pd.notna(booking['Check-in Date']) else 0 %}
+                                <div class="card-details">
+                                    <div class="detail-row">
+                                        <span class="detail-id">🔑 {{ booking.get('Số đặt phòng', 'N/A') }}</span>
+                                        <span class="detail-checkout">{{ booking['Check-in Date'].strftime('%d/%m') if booking['Check-in Date'] and pd.notna(booking['Check-in Date']) else '?' }} → {{ booking['Check-out Date'].strftime('%d/%m') if booking['Check-out Date'] and pd.notna(booking['Check-out Date']) else '?' }}</span>
+                                    </div>
+                                    <div class="detail-row">
+                                        <span class="detail-nights">🌙 {{ total_nights }} đêm · đã ở {{ stayed }}</span>
+                                        <span class="detail-amount">{{ "{:,.0f}".format(total_payment) }}đ</span>
+                                    </div>
+                                    <div class="detail-rate-row">
+                                        <span class="text-info">💰 {{ "{:,.0f}".format(per_night_rate) }}đ/đêm</span>
+                                        {% if has_commission %}<span class="net-rate">→ {{ "{:,.0f}".format((total_payment - commission) / total_nights) }}đ net</span>{% endif %}
+                                    </div>
+                                </div>
                                 {%- set collector_str = booking.get('Người thu tiền', '')|string %}
-                                <div class="pay-area" id="pay-{{ booking.get('Số đặt phòng', '') }}">
+                                <div class="pay-area"
+                                     id="pay-{{ booking.get('Số đặt phòng', '') }}"
+                                     data-booking-id="{{ booking.get('Số đặt phòng', '') }}"
+                                     data-amount="{{ total_payment|int }}"
+                                     data-commission="{{ commission|int }}">
                                     {% if 'LOC' in collector_str or 'THAO' in collector_str %}
                                         <span class="pay-done-badge">✅ {{ booking.get('Người thu tiền', '') }} • {{ "{:,.0f}".format(total_payment) }}đ</span>
                                     {% else %}
                                         <button class="btn-pay-now" onclick="showPayCollect(this)">💰 Thu Tiền</button>
-                                        <div class="pay-collector-row" style="display:none">
-                                            <button class="pay-collector-btn loc-le"   onclick="doCollect(this,'{{ booking.get('Số đặt phòng', '') }}',{{ total_payment|int }},{{ commission|int }},'LOC LE')">LOC LE</button>
-                                            <button class="pay-collector-btn thao-le"  onclick="doCollect(this,'{{ booking.get('Số đặt phòng', '') }}',{{ total_payment|int }},{{ commission|int }},'THAO LE')">THAO LE</button>
-                                            <button class="pay-cancel-btn" onclick="cancelPayCollect(this)">✕</button>
-                                        </div>
                                     {% endif %}
                                 </div>
                         </div>
@@ -696,30 +805,32 @@
                                         <span class="badge bg-secondary">{{ room_name }}</span>
                                     {% endif %}
                                 </p>
-                                <p class="details">
-                                    <strong>Mã ĐP:</strong> {{ booking.get('Số đặt phòng', 'N/A') }}<br>
-                                    {% set total_nights = (booking['Check-out Date'] - booking['Check-in Date']).days if booking['Check-in Date'] and booking['Check-out Date'] and pd.notna(booking['Check-in Date']) and pd.notna(booking['Check-out Date']) else 1 %}
-                                    {% set total_payment = booking.get('Tổng thanh toán', 0) %}
-                                    {% set per_night_rate = (total_payment / total_nights) if total_nights > 0 else total_payment %}
-                                    <strong>Thời gian ở:</strong> {{ total_nights }} đêm<br>
-                                    <strong>Người thu:</strong> {{ booking.get('Người thu tiền', 'N/A') }}<br>
-                                    <strong>Thanh toán:</strong> {{ "{:,.0f}".format(total_payment) }}đ<br>
-                                    {% if has_commission %}
-                                        <strong class="text-primary">💰 Sau trừ hoa hồng:</strong> <span class="text-primary">{{ "{:,.0f}".format((total_payment - commission) / total_nights) }}đ/đêm</span><br>
-                                    {% endif %}
-                                    <strong class="text-info">💰 Giá/đêm:</strong> <span class="text-info">{{ "{:,.0f}".format(per_night_rate) }}đ</span>
-                                </p>
+                                {% set total_nights = (booking['Check-out Date'] - booking['Check-in Date']).days if booking['Check-in Date'] and booking['Check-out Date'] and pd.notna(booking['Check-in Date']) and pd.notna(booking['Check-out Date']) else 1 %}
+                                {% set total_payment = booking.get('Tổng thanh toán', 0) %}
+                                {% set per_night_rate = (total_payment / total_nights) if total_nights > 0 else total_payment %}
+                                <div class="card-details">
+                                    <div class="detail-row">
+                                        <span class="detail-id">🔑 {{ booking.get('Số đặt phòng', 'N/A') }}</span>
+                                        <span class="detail-nights">🌙 {{ total_nights }} đêm</span>
+                                    </div>
+                                    <div class="detail-row">
+                                        <span class="detail-amount" style="margin-left:auto">{{ "{:,.0f}".format(total_payment) }}đ</span>
+                                    </div>
+                                    <div class="detail-rate-row">
+                                        <span class="text-info">💰 {{ "{:,.0f}".format(per_night_rate) }}đ/đêm</span>
+                                        {% if has_commission %}<span class="net-rate">→ {{ "{:,.0f}".format((total_payment - commission) / total_nights) }}đ net</span>{% endif %}
+                                    </div>
+                                </div>
                                 {%- set collector_str = booking.get('Người thu tiền', '')|string %}
-                                <div class="pay-area" id="pay-{{ booking.get('Số đặt phòng', '') }}">
+                                <div class="pay-area"
+                                     id="pay-{{ booking.get('Số đặt phòng', '') }}"
+                                     data-booking-id="{{ booking.get('Số đặt phòng', '') }}"
+                                     data-amount="{{ total_payment|int }}"
+                                     data-commission="{{ commission|int }}">
                                     {% if 'LOC' in collector_str or 'THAO' in collector_str %}
                                         <span class="pay-done-badge">✅ {{ booking.get('Người thu tiền', '') }} • {{ "{:,.0f}".format(total_payment) }}đ</span>
                                     {% else %}
                                         <button class="btn-pay-now" onclick="showPayCollect(this)">💰 Thu Tiền</button>
-                                        <div class="pay-collector-row" style="display:none">
-                                            <button class="pay-collector-btn loc-le"   onclick="doCollect(this,'{{ booking.get('Số đặt phòng', '') }}',{{ total_payment|int }},{{ commission|int }},'LOC LE')">LOC LE</button>
-                                            <button class="pay-collector-btn thao-le"  onclick="doCollect(this,'{{ booking.get('Số đặt phòng', '') }}',{{ total_payment|int }},{{ commission|int }},'THAO LE')">THAO LE</button>
-                                            <button class="pay-cancel-btn" onclick="cancelPayCollect(this)">✕</button>
-                                        </div>
                                     {% endif %}
                                 </div>
                         </div>
@@ -3210,46 +3321,93 @@ async function saveQuickEdit() {
     }
 }
 
-// ===== Payment Collection =====
+// ===== Payment Collection (v2: confirm → edit → collect) =====
+
+// Step 1: "Thu Tiền" clicked → show amount confirmation
 function showPayCollect(btn) {
     const area = btn.closest('.pay-area');
-    btn.style.display = 'none';
-    area.querySelector('.pay-collector-row').style.display = 'flex';
+    const amount = parseInt(area.dataset.amount) || 0;
+    const fmt = new Intl.NumberFormat('vi-VN').format(amount);
+    area.innerHTML = `
+        <div class="pay-confirm-row">
+            <span class="pay-amount-label">Thu <strong>${fmt}đ</strong>?</span>
+            <button class="pay-ok-btn"   onclick="showCollectors(this)">✓ Đúng</button>
+            <button class="pay-edit-btn" onclick="showAmountEdit(this)" title="Sửa số tiền">✏️</button>
+            <button class="pay-cancel-btn" onclick="resetPay(this)">✕</button>
+        </div>`;
 }
 
-function cancelPayCollect(btn) {
+// Step 2a: "✏️" clicked → editable amount input
+function showAmountEdit(btn) {
     const area = btn.closest('.pay-area');
-    area.querySelector('.pay-collector-row').style.display = 'none';
-    area.querySelector('.btn-pay-now').style.display = '';
+    const amount = parseInt(area.dataset.amount) || 0;
+    area.innerHTML = `
+        <div class="pay-confirm-row">
+            <input type="number" class="pay-amount-input" value="${amount}" min="0" step="1000" placeholder="Số tiền...">
+            <button class="pay-ok-btn" onclick="confirmAmount(this)">✓</button>
+            <button class="pay-cancel-btn" onclick="resetPay(this)">✕</button>
+        </div>`;
+    const inp = area.querySelector('.pay-amount-input');
+    inp.focus();
+    inp.select();
+    inp.addEventListener('keydown', e => { if (e.key === 'Enter') confirmAmount(inp.nextElementSibling); });
 }
 
+// Step 2b: confirm edited amount → proceed to collector
+function confirmAmount(btn) {
+    const area = btn.closest('.pay-area');
+    const val = parseInt(area.querySelector('.pay-amount-input').value);
+    if (isNaN(val) || val < 0) {
+        area.querySelector('.pay-amount-input').style.borderColor = '#e53935';
+        return;
+    }
+    area.dataset.amount = val;
+    showCollectors(btn);
+}
+
+// Step 3: show collector selection
+function showCollectors(btn) {
+    const area = btn.closest('.pay-area');
+    const id  = area.dataset.bookingId;
+    const amt = parseInt(area.dataset.amount) || 0;
+    const com = parseInt(area.dataset.commission) || 0;
+    area.innerHTML = `
+        <div class="pay-collector-row">
+            <button class="pay-collector-btn loc-le"  onclick="doCollect(this,'${id}',${amt},${com},'LOC LE')">LOC LE</button>
+            <button class="pay-collector-btn thao-le" onclick="doCollect(this,'${id}',${amt},${com},'THAO LE')">THAO LE</button>
+            <button class="pay-cancel-btn" onclick="resetPay(this)">✕</button>
+        </div>`;
+}
+
+// Reset to initial "Thu Tiền" button
+function resetPay(btn) {
+    const area = btn.closest('.pay-area');
+    area.innerHTML = `<button class="btn-pay-now" onclick="showPayCollect(this)">💰 Thu Tiền</button>`;
+}
+
+// Final: call API and update badge
 async function doCollect(btn, bookingId, amount, commission, collectorName) {
     const area = btn.closest('.pay-area');
-    const allBtns = area.querySelectorAll('button');
-    allBtns.forEach(b => { b.disabled = true; });
+    area.querySelectorAll('button').forEach(b => b.disabled = true);
     btn.textContent = '⏳';
     try {
         const resp = await fetch('/api/collect_payment', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                booking_id: bookingId,
-                collected_amount: amount,
-                collector_name: collectorName
-            })
+            body: JSON.stringify({ booking_id: bookingId, collected_amount: amount, collector_name: collectorName })
         });
         const data = await resp.json();
         if (data.success) {
             const fmt = new Intl.NumberFormat('vi-VN').format(amount);
             area.innerHTML = `<span class="pay-done-badge">✅ ${collectorName} • ${fmt}đ</span>`;
-            showCalToast('✅ Thu tiền thành công - ' + collectorName, 'success');
+            showCalToast('✅ Thu tiền thành công — ' + collectorName, 'success');
         } else {
-            allBtns.forEach(b => { b.disabled = false; });
+            area.querySelectorAll('button').forEach(b => b.disabled = false);
             btn.textContent = collectorName;
             showCalToast('❌ ' + (data.message || 'Lỗi thu tiền'), 'error');
         }
     } catch (e) {
-        allBtns.forEach(b => { b.disabled = false; });
+        area.querySelectorAll('button').forEach(b => b.disabled = false);
         btn.textContent = collectorName;
         showCalToast('❌ Lỗi kết nối', 'error');
     }
