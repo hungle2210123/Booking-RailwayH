@@ -565,9 +565,7 @@
                             <div class="guest-card {{ 'has-commission' if has_commission else 'no-commission' }} {{ apt_class }} {{ 'is-paid' if is_paid else 'not-paid' }}">
                                 <div class="guest-header d-flex justify-content-between align-items-start">
                                     <div class="flex-grow-1">
-                                        <p class="guest-name {{ apt_class }}">{{ apt_icon }} {{ booking.get('Tên người đặt', 'N/A') }}
-                                            <span class="pay-status-pill {{ 'paid' if is_paid else 'unpaid' }}">{{ '✓ Đã thu' if is_paid else '⏳ Chưa thu' }}</span>
-                                        </p>
+                                        <p class="guest-name {{ apt_class }}">{{ apt_icon }} {{ booking.get('Tên người đặt', 'N/A') }}</p>
                                         {% if has_commission %}
                                             <span class="commission-badge badge bg-warning text-dark">
                                                 <i class="fas fa-percentage"></i> {{ "{:,.0f}".format(commission) }}đ
@@ -671,9 +669,7 @@
                             <div class="guest-card {{ 'has-commission' if has_commission else 'no-commission' }} {{ apt_class }} {{ 'is-paid' if is_paid else 'not-paid' }}">
                                 <div class="guest-header d-flex justify-content-between align-items-start">
                                     <div class="flex-grow-1">
-                                        <p class="guest-name {{ apt_class }}">{{ apt_icon }} {{ booking.get('Tên người đặt', 'N/A') }}
-                                            <span class="pay-status-pill {{ 'paid' if is_paid else 'unpaid' }}">{{ '✓ Đã thu' if is_paid else '⏳ Chưa thu' }}</span>
-                                        </p>
+                                        <p class="guest-name {{ apt_class }}">{{ apt_icon }} {{ booking.get('Tên người đặt', 'N/A') }}</p>
                                         {% if has_commission %}
                                             <span class="commission-badge badge bg-warning text-dark">
                                                 <i class="fas fa-percentage"></i> {{ "{:,.0f}".format(commission) }}đ
@@ -778,9 +774,7 @@
                             <div class="guest-card {{ 'has-commission' if has_commission else 'no-commission' }} {{ apt_class }} {{ 'is-paid' if is_paid else 'not-paid' }}">
                                 <div class="guest-header d-flex justify-content-between align-items-start">
                                     <div class="flex-grow-1">
-                                        <p class="guest-name {{ apt_class }}">{{ apt_icon }} {{ booking.get('Tên người đặt', 'N/A') }}
-                                            <span class="pay-status-pill {{ 'paid' if is_paid else 'unpaid' }}">{{ '✓ Đã thu' if is_paid else '⏳ Chưa thu' }}</span>
-                                        </p>
+                                        <p class="guest-name {{ apt_class }}">{{ apt_icon }} {{ booking.get('Tên người đặt', 'N/A') }}</p>
                                         {% if has_commission %}
                                             <span class="commission-badge badge bg-warning text-dark">
                                                 <i class="fas fa-percentage"></i> {{ "{:,.0f}".format(commission) }}đ
@@ -1102,33 +1096,29 @@
     }
 
     /* ===== Payment Status Visual Differentiation ===== */
+
+    /* PAID → muted grey, recedes — clearly "done", no longer demands attention */
     .guest-card.is-paid {
-        background: #f0fff4 !important;
-        border-top: 3px solid #43a047 !important;
+        background: #f3f3f3 !important;
+        border: 2px solid #d0d0d0 !important;
+        border-top: 3px solid #81c784 !important;
     }
     .guest-card.is-paid:hover {
-        background: #e8f5e9 !important;
+        background: #ececec !important;
+        box-shadow: 0 3px 10px rgba(0,0,0,0.10);
     }
+
+    /* UNPAID → warm amber glow, prominent border + shadow — demands attention */
     .guest-card.not-paid {
-        background: #fff9f0 !important;
-        border-top: 3px solid #ff9800 !important;
+        background: #fff8e1 !important;
+        border: 2px solid #ffb300 !important;
+        border-top: 4px solid #e65100 !important;
+        box-shadow: 0 2px 10px rgba(230, 81, 0, 0.18) !important;
     }
     .guest-card.not-paid:hover {
-        background: #fff3e0 !important;
+        background: #fff3cd !important;
+        box-shadow: 0 5px 18px rgba(230, 81, 0, 0.30) !important;
     }
-    /* Small status pill in header */
-    .pay-status-pill {
-        display: inline-block;
-        font-size: 0.62rem;
-        font-weight: 700;
-        border-radius: 10px;
-        padding: 1px 7px;
-        margin-left: 4px;
-        vertical-align: middle;
-        letter-spacing: 0.3px;
-    }
-    .pay-status-pill.paid   { background: #c8e6c9; color: #1b5e20; }
-    .pay-status-pill.unpaid { background: #ffe0b2; color: #e65100; }
 
     .room-type { font-style: italic; color: #555; margin-top: 8px; }
     .details { font-size: 0.9em; color: #666; margin-top: 5px; }
