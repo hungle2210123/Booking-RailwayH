@@ -148,7 +148,7 @@
                 </div>
                 
                 <!-- Loading State -->
-                <div id="canceledGuestsLoading" class="text-center p-3">
+                <div id="canceledGuestsLoading" class="text-center p-3" style="display:none">
                     <div class="spinner-border spinner-border-sm text-primary" role="status">
                         <span class="visually-hidden">Đang tải...</span>
                     </div>
@@ -820,7 +820,8 @@
                                         <span class="detail-nights">🌙 {{ total_nights }} đêm</span>
                                     </div>
                                     <div class="detail-row">
-                                        <span class="detail-amount" style="margin-left:auto">{{ "{:,.0f}".format(total_payment) }}đ</span>
+                                        <span class="detail-checkout">📅 CI: {{ booking['Check-in Date'].strftime('%d/%m') if booking['Check-in Date'] and pd.notna(booking['Check-in Date']) else 'N/A' }}</span>
+                                        <span class="detail-amount">{{ "{:,.0f}".format(total_payment) }}đ</span>
                                     </div>
                                     <div class="detail-rate-row">
                                         <span class="text-info">💰 {{ "{:,.0f}".format(per_night_rate) }}đ/đêm</span>
