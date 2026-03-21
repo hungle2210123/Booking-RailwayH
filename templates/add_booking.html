@@ -413,6 +413,16 @@ h1, h2, h3, h4, h5, h6 {
                             <option value="hang be 102" style="background-color: #C8E6C9; color: #1B5E20;">🟢 hang be 102</option>
                         </optgroup>
                     </select>
+                    <!-- Live room-conflict warning -->
+                    <div id="manual-room-conflict-warning" class="alert alert-danger border-2 mt-2 py-2 px-3" style="display:none">
+                        <div class="d-flex align-items-start gap-2">
+                            <i class="fas fa-exclamation-triangle mt-1 flex-shrink-0"></i>
+                            <div>
+                                <strong>🚨 Phòng đã có khách đặt trong khoảng thời gian này!</strong>
+                                <div id="manual-room-conflict-details" class="mt-1" style="font-size:0.82rem; line-height:1.6"></div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- Submit Button -->
@@ -938,6 +948,47 @@ function handleManualFormSubmit(event) {
     document.getElementById('quick-manual-form').reset();
 }
 
+// Live room conflict checker (debounced)
+let _roomConflictTimer = null;
+function checkManualRoomConflictLive() {
+    clearTimeout(_roomConflictTimer);
+    _roomConflictTimer = setTimeout(async () => {
+        const roomType = document.getElementById('manual-room-type').value;
+        const checkin  = document.getElementById('manual-checkin').value;
+        const checkout = document.getElementById('manual-checkout').value;
+        const warning  = document.getElementById('manual-room-conflict-warning');
+        const details  = document.getElementById('manual-room-conflict-details');
+        if (!warning) return;
+
+        if (!roomType || !checkin || !checkout || checkin >= checkout) {
+            warning.style.display = 'none';
+            return;
+        }
+
+        try {
+            const resp = await fetch('/api/check_room_conflict', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ bookings: [{ room_type: roomType, checkin_date: checkin, checkout_date: checkout }] })
+            });
+            const data = await resp.json();
+            if (data.success && data.has_conflict) {
+                const conflictList = data.results
+                    .filter(r => r.has_conflict)
+                    .flatMap(r => r.conflicts.map(c =>
+                        `<li><strong>${c.guest_name}</strong> (ID: ${c.booking_id}) — ${c.checkin_date} → ${c.checkout_date}</li>`
+                    )).join('');
+                details.innerHTML = `<ul class="mb-0 ps-3">${conflictList}</ul>`;
+                warning.style.display = '';
+            } else {
+                warning.style.display = 'none';
+            }
+        } catch (e) {
+            warning.style.display = 'none';
+        }
+    }, 600);
+}
+
 // Toggle JSON import area
 function toggleJSONImport() {
     const jsonArea = document.getElementById('json-import-area');
@@ -1128,7 +1179,44 @@ async function showExtractedBookingsTable() {
         }
         
         console.log('🔍 Duplicate check results:', duplicateCheck);
-        
+
+        // Also check room conflicts
+        try {
+            const conflictPayload = window.manualExtractedBookings.map(b => ({
+                room_type: b.room_type || b['Tên chỗ nghỉ'] || '',
+                checkin_date: b.checkin_date,
+                checkout_date: b.checkout_date,
+                booking_id: b.booking_id
+            }));
+            const conflictResp = await fetch('/api/check_room_conflict', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ bookings: conflictPayload })
+            });
+            const conflictData = await conflictResp.json();
+            window.roomConflicts = conflictData;
+            console.log('🏠 Room conflict check results:', conflictData);
+
+            if (conflictData.success && conflictData.has_conflict && statusDiv) {
+                const conflictedRooms = conflictData.results.filter(r => r.has_conflict);
+                const conflictRows = conflictedRooms.map(r =>
+                    r.conflicts.map(c => `<li><strong>${r.room_name}</strong>: ${c.guest_name} (${c.checkin_date} → ${c.checkout_date})</li>`).join('')
+                ).join('');
+                const conflictWarnDiv = document.createElement('div');
+                conflictWarnDiv.className = 'alert alert-danger mt-2 border-2';
+                conflictWarnDiv.innerHTML = `
+                    <h6><i class="fas fa-exclamation-triangle me-1"></i>🚨 Xung đột phòng!</h6>
+                    <p class="mb-1">Phòng đã có khách đặt trong khoảng thời gian này:</p>
+                    <ul class="mb-1 ps-3">${conflictRows}</ul>
+                    <small class="text-muted">Bạn vẫn có thể lưu nhưng cần xác nhận thêm.</small>
+                `;
+                statusDiv.appendChild(conflictWarnDiv);
+            }
+        } catch (e) {
+            console.warn('⚠️ Room conflict check failed:', e);
+            window.roomConflicts = null;
+        }
+
         // Show duplicate warning if found
         if (duplicateCheck.success && duplicateCheck.has_duplicates) {
             const duplicateCount = duplicateCheck.duplicates.length;
@@ -2573,6 +2661,12 @@ document.addEventListener('DOMContentLoaded', function() {
     if (addRowButton) {
         addRowButton.onclick = addManualRow;
     }
+
+    // Live room conflict detection on manual form
+    ['manual-room-type', 'manual-checkin', 'manual-checkout'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.addEventListener('change', checkManualRoomConflictLive);
+    });
     
     // Confirm save button
     const confirmSaveButton = document.getElementById('confirm-save-all');
@@ -2590,10 +2684,25 @@ document.addEventListener('DOMContentLoaded', function() {
                 return;
             }
             
+            // Check room conflicts first
+            if (window.roomConflicts && window.roomConflicts.has_conflict) {
+                const conflicted = window.roomConflicts.results.filter(r => r.has_conflict);
+                const conflictSummary = conflicted.map(r =>
+                    r.conflicts.map(c => `• Phòng ${r.room_name}: ${c.guest_name} (${c.checkin_date} → ${c.checkout_date})`).join('\n')
+                ).join('\n');
+                const proceed = confirm(
+                    `🚨 CẢNH BÁO: Xung đột đặt phòng!\n\n` +
+                    `Các phòng sau đã có khách trong khoảng thời gian này:\n${conflictSummary}\n\n` +
+                    `Bạn có chắc chắn muốn tiếp tục lưu không?\n` +
+                    `(Bấm OK để lưu dù có xung đột, Hủy để quay lại kiểm tra)`
+                );
+                if (!proceed) return;
+            }
+
             // Check if force add duplicates is enabled
             const forceAddCheckbox = document.getElementById('force-add-duplicates');
             const forceAddEnabled = forceAddCheckbox.checked;
-            
+
             // Show confirmation
             let confirmMessage = `Xác nhận lưu ${extractedBookings.length} booking:\\n\\n` +
                 extractedBookings.map((b, i) => `${i + 1}. ${b.guest_name} - ${(b.room_amount || 0).toLocaleString()}đ`).join('\\n');
