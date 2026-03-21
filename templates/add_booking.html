@@ -966,6 +966,9 @@ function checkManualRoomConflictLive() {
         }
 
         try {
+            const allConflictLines = [];
+
+            // 1. Check against DB (saved bookings)
             const resp = await fetch('/api/check_room_conflict', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -973,12 +976,29 @@ function checkManualRoomConflictLive() {
             });
             const data = await resp.json();
             if (data.success && data.has_conflict) {
-                const conflictList = data.results
-                    .filter(r => r.has_conflict)
-                    .flatMap(r => r.conflicts.map(c =>
-                        `<li><strong>${c.guest_name}</strong> (ID: ${c.booking_id}) — ${c.checkin_date} → ${c.checkout_date}</li>`
-                    )).join('');
-                details.innerHTML = `<ul class="mb-0 ps-3">${conflictList}</ul>`;
+                data.results.filter(r => r.has_conflict).forEach(r =>
+                    r.conflicts.forEach(c =>
+                        allConflictLines.push(`<li><strong>${c.guest_name}</strong> (ID: ${c.booking_id}) — ${c.checkin_date} → ${c.checkout_date} <span class="badge bg-secondary ms-1">đã lưu</span></li>`)
+                    )
+                );
+            }
+
+            // 2. Also check against pending (unsaved) bookings in review table
+            const pending = window.manualExtractedBookings || [];
+            const newCI = new Date(checkin), newCO = new Date(checkout);
+            pending.forEach(b => {
+                const bRoom = (b.room_type || b['Tên chỗ nghỉ'] || '').toLowerCase();
+                if (!bRoom.includes(roomType.toLowerCase()) && !roomType.toLowerCase().includes(bRoom)) return;
+                const bCI = new Date(b.checkin_date), bCO = new Date(b.checkout_date);
+                if (bCI < newCO && bCO > newCI) {
+                    const ciStr = bCI.toLocaleDateString('vi-VN');
+                    const coStr = bCO.toLocaleDateString('vi-VN');
+                    allConflictLines.push(`<li><strong>${b.guest_name}</strong> — ${ciStr} → ${coStr} <span class="badge bg-warning text-dark ms-1">chưa lưu</span></li>`);
+                }
+            });
+
+            if (allConflictLines.length > 0) {
+                details.innerHTML = `<ul class="mb-0 ps-3">${allConflictLines.join('')}</ul>`;
                 warning.style.display = '';
             } else {
                 warning.style.display = 'none';
@@ -2793,6 +2813,9 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
                     if (result.failed_count > 0) {
                         message += `❌ ${result.failed_count} booking lỗi\n`;
+                        if (result.failed_details && result.failed_details.length > 0) {
+                            message += result.failed_details.map(d => `   • ${d}`).join('\n') + '\n';
+                        }
                     }
 
                     alert(message);
