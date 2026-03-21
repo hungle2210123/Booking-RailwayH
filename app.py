@@ -3381,7 +3381,7 @@ def save_extracted_bookings():
                 guest_name_clean = processed_booking['guest_name'].strip()
                 if guest_name_clean.isdigit():
                     print(f"⚠️ [SAVE_EXTRACTED] Guest name is numeric ID '{guest_name_clean}', skipping this booking")
-                    raise ValueError(f"Guest name appears to be an ID number: {guest_name_clean}")
+                    raise ValueError(f"Tên khách '{guest_name_clean}' chỉ là số — vui lòng nhập tên thật")
                 
                 if len(guest_name_clean) < 2:
                     print(f"⚠️ [SAVE_EXTRACTED] Guest name too short '{guest_name_clean}', skipping this booking")
@@ -3477,6 +3477,7 @@ def save_extracted_bookings():
             'replaced_count': replaced_count,
             'existing_count': len(existing_bookings),
             'failed_count': len(failed_bookings),
+            'failed_details': failed_bookings,
             'message': f'Đã xử lý {total_processed} booking thành công'
         })
         
@@ -4209,6 +4210,88 @@ def process_booking_text():
             'success': False,
             'error': f'Text processing failed: {str(e)}'
         }), 500
+
+@app.route('/api/check_room_conflict', methods=['POST'])
+def check_room_conflict():
+    """Check if proposed bookings overlap with existing reservations in the same room."""
+    try:
+        data = request.get_json()
+        bookings_to_check = data.get('bookings', [])
+
+        from core.models import Booking as BookingModel, Room as RoomModel
+        from sqlalchemy import func as sqlfunc
+
+        per_booking_results = []
+        any_conflict = False
+
+        for bk in bookings_to_check:
+            checkin_str  = (bk.get('checkin_date')  or '')[:10]
+            checkout_str = (bk.get('checkout_date') or '')[:10]
+            room_name    = (bk.get('room_type') or bk.get('room_name') or
+                           bk.get('Tên chỗ nghỉ') or '').strip()
+            exclude_id   = bk.get('booking_id', '')
+
+            if not checkin_str or not checkout_str or not room_name:
+                per_booking_results.append({'has_conflict': False, 'conflicts': [], 'room_name': room_name})
+                continue
+
+            try:
+                from datetime import date as _date, datetime as _dt
+                checkin_date  = _dt.strptime(checkin_str,  '%Y-%m-%d').date()
+                checkout_date = _dt.strptime(checkout_str, '%Y-%m-%d').date()
+            except ValueError:
+                per_booking_results.append({'has_conflict': False, 'conflicts': [], 'room_name': room_name})
+                continue
+
+            if checkin_date >= checkout_date:
+                per_booking_results.append({'has_conflict': False, 'conflicts': [], 'room_name': room_name})
+                continue
+
+            # Try to resolve room_id from name for accurate matching
+            room_name_lower = room_name.lower().strip()
+            room_obj = RoomModel.query.filter(
+                sqlfunc.lower(RoomModel.room_name) == room_name_lower,
+                RoomModel.is_active == True
+            ).first()
+
+            q = BookingModel.query.filter(
+                ~BookingModel.booking_status.in_(['cancelled', 'deleted', 'đã hủy', 'đã xóa']),
+                BookingModel.checkin_date  < checkout_date,
+                BookingModel.checkout_date > checkin_date,
+            )
+            if exclude_id:
+                q = q.filter(BookingModel.booking_id != exclude_id)
+
+            if room_obj:
+                q = q.filter(BookingModel.room_id == room_obj.room_id)
+            else:
+                # Fallback: case-insensitive name search
+                q = q.filter(sqlfunc.lower(BookingModel.accommodation_name).contains(room_name_lower))
+
+            conflicts = q.all()
+            conflict_list = [{
+                'booking_id':        c.booking_id,
+                'guest_name':        c.guest_name or 'N/A',
+                'checkin_date':      c.checkin_date.strftime('%d/%m/%Y')  if c.checkin_date  else 'N/A',
+                'checkout_date':     c.checkout_date.strftime('%d/%m/%Y') if c.checkout_date else 'N/A',
+                'accommodation_name': c.accommodation_name or '',
+            } for c in conflicts]
+
+            if conflict_list:
+                any_conflict = True
+
+            per_booking_results.append({
+                'has_conflict': bool(conflict_list),
+                'conflicts':    conflict_list,
+                'room_name':    room_name,
+            })
+
+        return jsonify({'success': True, 'has_conflict': any_conflict, 'results': per_booking_results})
+
+    except Exception as e:
+        print(f"❌ [CHECK_ROOM_CONFLICT] Error: {e}")
+        return jsonify({'success': False, 'has_conflict': False, 'results': [], 'error': str(e)})
+
 
 @app.route('/api/check_duplicates', methods=['POST'])
 def check_duplicates():
