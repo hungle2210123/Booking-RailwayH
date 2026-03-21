@@ -4488,10 +4488,10 @@ function handleSaveAllBookings() {
     }
     
     // Prepare data for saving
+    const aiRoomType = document.getElementById('aiRoomType');
     const bookingsToSave = extractedBookings.map(booking => {
-        // Ensure accommodation name is from AI room type selector
-        const aiRoomType = document.getElementById('aiRoomType');
-        if (aiRoomType && aiRoomType.value) {
+        // Only use the global dropdown as fallback when the booking has no room set
+        if (!booking['Tên chỗ nghỉ'] && !booking.room_type && aiRoomType && aiRoomType.value) {
             booking['Tên chỗ nghỉ'] = aiRoomType.value;
         }
         return booking;
