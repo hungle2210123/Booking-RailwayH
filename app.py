@@ -3347,7 +3347,10 @@ def save_extracted_bookings():
                         continue
                 
                 # Extract accommodation name from the booking data (set by frontend)
-                accommodation_name = booking_data.get('Tên chỗ nghỉ', '118 Hang Bac Hostel')
+                accommodation_name = (booking_data.get('Tên chỗ nghỉ') or
+                                     booking_data.get('room_type') or
+                                     booking_data.get('room_name') or
+                                     '118 Hang Bac Hostel')
                 print(f"🏠 [SAVE_EXTRACTED] Room type selected: {accommodation_name}")
                 print(f"🔍 [DEBUG_ROOM] All room-related fields in booking_data:")
                 print(f"   - 'Tên chỗ nghỉ': {booking_data.get('Tên chỗ nghỉ', 'NOT SET')}")
@@ -4263,7 +4266,12 @@ def check_room_conflict():
                 q = q.filter(BookingModel.booking_id != exclude_id)
 
             if room_obj:
-                q = q.filter(BookingModel.room_id == room_obj.room_id)
+                # Match by room_id OR by name — catches old bookings saved without room_id
+                from sqlalchemy import or_ as _or_
+                q = q.filter(_or_(
+                    BookingModel.room_id == room_obj.room_id,
+                    sqlfunc.lower(BookingModel.accommodation_name).contains(room_name_lower)
+                ))
             else:
                 # Fallback: case-insensitive name search
                 q = q.filter(sqlfunc.lower(BookingModel.accommodation_name).contains(room_name_lower))
