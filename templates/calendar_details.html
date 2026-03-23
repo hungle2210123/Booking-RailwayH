@@ -522,8 +522,13 @@
             line-height: 1;
         }
         .pay-cancel-btn:hover { background: #bdbdbd; }
+        .pay-done-row {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
         .pay-done-badge {
-            display: block;
+            flex: 1;
             background: linear-gradient(135deg, #43a047, #2e7d32);
             color: #fff;
             border-radius: 16px;
@@ -532,6 +537,24 @@
             font-weight: 700;
             text-align: center;
         }
+        .pay-undo-btn {
+            background: none;
+            border: 1px solid #bbb;
+            border-radius: 50%;
+            width: 22px;
+            height: 22px;
+            cursor: pointer;
+            font-size: 0.7rem;
+            line-height: 1;
+            color: #555;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0;
+            transition: background 0.15s, color 0.15s;
+        }
+        .pay-undo-btn:hover { background: #fce4ec; color: #c62828; border-color: #c62828; }
     </style>
 
     <!-- 🎯 THREE COLUMNS LAYOUT: Check-in, Staying, Checkout side by side -->
@@ -626,7 +649,7 @@
                                      data-amount="{{ total_payment|int }}"
                                      data-commission="{{ commission|int }}">
                                     {% if 'LOC' in collector_str or 'THAO' in collector_str %}
-                                        <span class="pay-done-badge">✅ {{ booking.get('Người thu tiền', '') }} • {{ "{:,.0f}".format(total_payment) }}đ</span>
+                                        <div class="pay-done-row"><span class="pay-done-badge">✅ {{ booking.get('Người thu tiền', '') }} • {{ "{:,.0f}".format(total_payment) }}đ</span><button class="pay-undo-btn" onclick="showCollectors(this)" title="Đổi người thu">✏️</button></div>
                                     {% else %}
                                         <button class="btn-pay-now" onclick="showPayCollect(this)">💰 Thu Tiền</button>
                                     {% endif %}
@@ -731,7 +754,7 @@
                                      data-amount="{{ total_payment|int }}"
                                      data-commission="{{ commission|int }}">
                                     {% if 'LOC' in collector_str or 'THAO' in collector_str %}
-                                        <span class="pay-done-badge">✅ {{ booking.get('Người thu tiền', '') }} • {{ "{:,.0f}".format(total_payment) }}đ</span>
+                                        <div class="pay-done-row"><span class="pay-done-badge">✅ {{ booking.get('Người thu tiền', '') }} • {{ "{:,.0f}".format(total_payment) }}đ</span><button class="pay-undo-btn" onclick="showCollectors(this)" title="Đổi người thu">✏️</button></div>
                                     {% else %}
                                         <button class="btn-pay-now" onclick="showPayCollect(this)">💰 Thu Tiền</button>
                                     {% endif %}
@@ -835,7 +858,7 @@
                                      data-amount="{{ total_payment|int }}"
                                      data-commission="{{ commission|int }}">
                                     {% if 'LOC' in collector_str or 'THAO' in collector_str %}
-                                        <span class="pay-done-badge">✅ {{ booking.get('Người thu tiền', '') }} • {{ "{:,.0f}".format(total_payment) }}đ</span>
+                                        <div class="pay-done-row"><span class="pay-done-badge">✅ {{ booking.get('Người thu tiền', '') }} • {{ "{:,.0f}".format(total_payment) }}đ</span><button class="pay-undo-btn" onclick="showCollectors(this)" title="Đổi người thu">✏️</button></div>
                                     {% else %}
                                         <button class="btn-pay-now" onclick="showPayCollect(this)">💰 Thu Tiền</button>
                                     {% endif %}
@@ -3206,19 +3229,11 @@ document.addEventListener('DOMContentLoaded', function() {
                         <label for="edit_room_type" class="form-label">
                             <i class="fas fa-building me-1"></i>Căn hộ & Phòng
                         </label>
-                        <div class="alert alert-info border-0 p-2 mb-2" style="font-size: 0.85rem;">
-                            <i class="fas fa-info-circle me-1"></i><strong>Phân biệt màu:</strong> 🔵 Xanh dương = 118 Hang Bac | 🟢 Xanh lá = 18 Hang Be
+                        <div id="edit-room-hint" class="alert alert-info border-0 p-2 mb-2" style="font-size: 0.85rem;">
+                            <i class="fas fa-info-circle me-1"></i>Đang tải danh sách phòng...
                         </div>
                         <select class="form-control" id="edit_room_type" name="room_type" required style="border: 2px solid #17A2B8; font-weight: 600;">
-                            <optgroup label="🔵 118 Hang Bac Hostel" style="background-color: #E3F2FD; color: #1976D2; font-weight: bold;">
-                                <option value="118 hang bac" style="background-color: #BBDEFB; color: #0D47A1;">🔵 118 hang bac</option>
-                                <option value="kitchen" style="background-color: #BBDEFB; color: #0D47A1;">🔵 kitchen</option>
-                                <option value="night market" style="background-color: #BBDEFB; color: #0D47A1;">🔵 night market</option>
-                            </optgroup>
-                            <optgroup label="🟢 18 Hang Be" style="background-color: #E8F5E9; color: #388E3C; font-weight: bold;">
-                                <option value="hang be 101" style="background-color: #C8E6C9; color: #1B5E20;">🟢 hang be 101</option>
-                                <option value="hang be 102" style="background-color: #C8E6C9; color: #1B5E20;">🟢 hang be 102</option>
-                            </optgroup>
+                            <option value="">-- Đang tải... --</option>
                         </select>
                     </div>
                 </form>
@@ -3238,9 +3253,62 @@ document.addEventListener('DOMContentLoaded', function() {
 <script>
 // Quick Edit Modal Functions
 let quickEditModal = null;
+let _editRoomDropdownLoaded = false;
+
+async function loadEditRoomDropdown() {
+    if (_editRoomDropdownLoaded) return;
+    const select = document.getElementById('edit_room_type');
+    const hint   = document.getElementById('edit-room-hint');
+    if (!select) return;
+    try {
+        const resp = await fetch('/api/accommodation_options');
+        const data = await resp.json();
+        if (!data.success || !data.apartments) throw new Error('No data');
+
+        select.innerHTML = '';
+        const aptColors = ['#1976D2','#2E7D32','#7B1FA2','#E64A19','#00838F','#F57F17'];
+        const bgColors  = ['#E3F2FD','#E8F5E9','#F3E5F5','#FBE9E7','#E0F7FA','#FFFDE7'];
+        const optColors = ['#BBDEFB','#C8E6C9','#E1BEE7','#FFCCBC','#B2EBF2','#FFF9C4'];
+        let hintParts = [];
+
+        data.apartments.forEach((apt, idx) => {
+            const ci  = idx % aptColors.length;
+            const grp = document.createElement('optgroup');
+            grp.label = apt.name;
+            grp.style.cssText = `background-color:${bgColors[ci]};color:${aptColors[ci]};font-weight:bold`;
+            const rooms = (apt.rooms && apt.rooms.length > 0) ? apt.rooms : [{name: apt.name}];
+            rooms.forEach(room => {
+                const opt = document.createElement('option');
+                opt.value = room.name;
+                opt.textContent = room.name;
+                opt.style.cssText = `background-color:${optColors[ci]};color:${aptColors[ci]}`;
+                grp.appendChild(opt);
+            });
+            select.appendChild(grp);
+            hintParts.push(apt.name);
+        });
+
+        if (hint) hint.innerHTML = `<i class="fas fa-info-circle me-1"></i>Phân biệt màu: <strong>${hintParts.join(' | ')}</strong>`;
+        _editRoomDropdownLoaded = true;
+    } catch (e) {
+        select.innerHTML = `
+            <optgroup label="118 Hang Bac Hostel">
+                <option value="118 hang bac">118 hang bac</option>
+                <option value="kitchen">kitchen</option>
+                <option value="night market">night market</option>
+            </optgroup>
+            <optgroup label="18 Hang Be">
+                <option value="hang be 101">hang be 101</option>
+                <option value="hang be 102">hang be 102</option>
+            </optgroup>`;
+        if (hint) hint.innerHTML = `<i class="fas fa-exclamation-triangle me-1"></i>Dùng danh sách mặc định`;
+        _editRoomDropdownLoaded = true;
+    }
+}
 
 document.addEventListener('DOMContentLoaded', function() {
     quickEditModal = new bootstrap.Modal(document.getElementById('quickEditModal'));
+    loadEditRoomDropdown(); // pre-load so modal opens instantly
 });
 
 // Navigate to selected date
@@ -3252,6 +3320,9 @@ function navigateToDate(dateStr) {
 
 async function openQuickEditModal(bookingId) {
     try {
+        // Ensure room dropdown is loaded before opening
+        await loadEditRoomDropdown();
+
         // Fetch booking data
         const response = await fetch(`/api/booking/${bookingId}`);
         const data = await response.json();
@@ -3267,32 +3338,19 @@ async function openQuickEditModal(bookingId) {
             document.getElementById('edit_room_amount').value = booking.room_amount || 0;
             document.getElementById('edit_commission').value = booking.commission || 0;
 
-            // Set room type - match against all possible values
+            // Set room type — try direct match first, then fuzzy match
             const roomType = booking.accommodation_name || booking.room_name || '';
             const roomSelect = document.getElementById('edit_room_type');
-            const roomLower = roomType.toLowerCase().trim();
+            const roomLower  = roomType.toLowerCase().trim();
 
-            console.log(`🏠 [QUICK_EDIT] Room type from API: "${roomType}" (lowercase: "${roomLower}")`);
-
-            // Enhanced matching with comprehensive patterns
-            if (roomLower.includes('118 hang bac') || roomLower === '118 hang bac hostel' || roomLower === '118') {
-                roomSelect.value = '118 hang bac';
-                console.log('✅ Matched: 118 hang bac');
-            } else if (roomLower.includes('kitchen') || roomLower.includes('balcony')) {
-                roomSelect.value = 'kitchen';
-                console.log('✅ Matched: kitchen');
-            } else if (roomLower.includes('night market') || roomLower.includes('nightmarket')) {
-                roomSelect.value = 'night market';
-                console.log('✅ Matched: night market');
-            } else if (roomLower.includes('hang be 101') || roomLower.includes('hangbe 101') || roomLower === '101') {
-                roomSelect.value = 'hang be 101';
-                console.log('✅ Matched: hang be 101');
-            } else if (roomLower.includes('hang be 102') || roomLower.includes('hangbe 102') || roomLower === '102') {
-                roomSelect.value = 'hang be 102';
-                console.log('✅ Matched: hang be 102');
-            } else {
-                console.warn(`⚠️ No match found for room type: "${roomType}", defaulting to 118 hang bac`);
-                roomSelect.value = '118 hang bac';  // Default fallback
+            roomSelect.value = roomType; // 1. exact match
+            if (!roomSelect.value) {
+                const opts = [...roomSelect.options].filter(o => o.value);
+                const match = opts.find(o => o.value.toLowerCase() === roomLower)    // 2. case-insensitive
+                           || opts.find(o => roomLower.includes(o.value.toLowerCase())) // 3. room in stored name
+                           || opts.find(o => o.value.toLowerCase().includes(roomLower)); // 4. stored name in room
+                if (match) roomSelect.value = match.value;
+                // If still nothing, leave blank so user must pick consciously
             }
 
             // Show modal
@@ -3431,7 +3489,7 @@ async function doCollect(btn, bookingId, amount, commission, collectorName) {
         const data = await resp.json();
         if (data.success) {
             const fmt = new Intl.NumberFormat('vi-VN').format(amount);
-            area.innerHTML = `<span class="pay-done-badge">✅ ${collectorName} • ${fmt}đ</span>`;
+            area.innerHTML = `<div class="pay-done-row"><span class="pay-done-badge">✅ ${collectorName} • ${fmt}đ</span><button class="pay-undo-btn" onclick="showCollectors(this)" title="Đổi người thu">✏️</button></div>`;
             showCalToast('✅ Thu tiền thành công — ' + collectorName, 'success');
         } else {
             area.querySelectorAll('button').forEach(b => b.disabled = false);
