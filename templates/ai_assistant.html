@@ -1448,8 +1448,11 @@ document.getElementById('manualBookingForm').addEventListener('submit', function
             // Clear existing options except default ones
             const defaultOptions = categorySelect.querySelectorAll('option[value=""], option[value="WELCOME"], option[value="ARRIVAL"], option[value="CHECK IN"], option[value="EARLY CHECK IN"], option[value="DON PHONG"], option[value="HET PHONG"], option[value="FEED BACK"], option[value="TAXI"], option[value="PARK"], option[value="LAUNDRY"], option[value="NOT BOOKING"], option[value="OTHER"]');
 
-            // Add existing categories as options
+            // Only add standard uppercase categories — skip legacy custom ones (they use OTHER)
+            const STANDARD_CATS = new Set(['WELCOME','ARRIVAL','CHECK IN','EARLY CHECK IN','DON PHONG','HET PHONG','FEED BACK','TAXI','PARK','LAUNDRY','NOT BOOKING']);
             existingCategories.forEach(category => {
+                if (STANDARD_CATS.has(category.toUpperCase())) return; // already in HTML
+                if (!STANDARD_CATS.has(category)) return;              // skip non-standard
                 if (!Array.from(categorySelect.options).some(opt => opt.value === category)) {
                     const option = document.createElement('option');
                     option.value = category;
@@ -2381,7 +2384,17 @@ document.getElementById('manualBookingForm').addEventListener('submit', function
                 const templateId = template.id || 'unknown';
                 const templateLabel = template.label || 'Unnamed Template';
                 const templateContent = template.content || '';
-                
+
+                // Strip redundant category prefix from display name
+                let displayLabel = templateLabel;
+                const tryPrefixes = [category + ' - ', category + ' '];
+                for (const pfx of tryPrefixes) {
+                    if (displayLabel.toLowerCase().startsWith(pfx.toLowerCase())) {
+                        displayLabel = displayLabel.substring(pfx.length).trim() || displayLabel;
+                        break;
+                    }
+                }
+
                 // Extract version info (DEFAULT, 1, 2, etc.)
                 let versionInfo = 'DEFAULT';
                 if (templateLabel.includes('DEFAULT')) {
@@ -2392,20 +2405,20 @@ document.getElementById('manualBookingForm').addEventListener('submit', function
                         versionInfo = `Version ${match[1]}`;
                     }
                 }
-                
+
                 // Create optimized template item with collapsible details
                 html += `
                     <div class="template-item-optimized border rounded bg-white mb-2">
                         <!-- Template Title Header (Always Visible) -->
-                        <div class="template-title-header p-2 d-flex justify-content-between align-items-center" 
-                             style="cursor: pointer; border-bottom: 1px solid #f0f0f0;" 
+                        <div class="template-title-header p-2 d-flex justify-content-between align-items-center"
+                             style="cursor: pointer; border-bottom: 1px solid #f0f0f0;"
                              onclick="toggleTemplateDetails('${templateId}')">
                             <div class="d-flex align-items-center">
                                 <i class="fas fa-chevron-right me-2 text-muted transition-icon" id="chevron-${templateId}"></i>
                                 <div class="template-name-container d-flex align-items-center">
-                                    <span class="fw-medium text-dark template-name-display" id="name-display-${templateId}">${templateLabel}</span>
-                                    <input type="text" class="form-control form-control-sm template-name-edit d-none" 
-                                           id="name-edit-${templateId}" value="${templateLabel}" 
+                                    <span class="fw-medium text-dark template-name-display" id="name-display-${templateId}">${displayLabel}</span>
+                                    <input type="text" class="form-control form-control-sm template-name-edit d-none"
+                                           id="name-edit-${templateId}" value="${templateLabel}"
                                            style="width: 200px;" onblur="cancelEditTemplateName('${templateId}')" 
                                            onkeypress="handleTemplateNameKeypress(event, '${templateId}')">
                                     <button class="btn btn-sm btn-outline-secondary ms-2 template-edit-btn" 
