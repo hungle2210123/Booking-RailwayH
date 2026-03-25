@@ -468,6 +468,8 @@ function reorderAndCount() {
     const container = document.getElementById('mob-cards-container');
     const cards = Array.from(container.querySelectorAll('.mob-card'));
 
+    // Reset any filter-hidden cards so all are visible after reorder
+    cards.forEach(c => c.style.display = '');
     const groups = { confirmed: [], none: [], cancelling: [] };
     cards.forEach(c => groups[c.dataset.group || 'none'].push(c));
 
