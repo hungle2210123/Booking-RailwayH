@@ -622,6 +622,31 @@
             transition: background 0.15s, color 0.15s;
         }
         .pay-undo-btn:hover { background: #fce4ec; color: #c62828; border-color: #c62828; }
+
+        /* ===== Status Group Dividers ===== */
+        .status-group-divider {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            margin: 8px 0 4px;
+            padding: 0 2px;
+            font-size: 0.72rem;
+            font-weight: 800;
+            letter-spacing: 0.4px;
+            text-transform: uppercase;
+        }
+        .status-group-divider::before,
+        .status-group-divider::after {
+            content: '';
+            flex: 1;
+            height: 1.5px;
+            background: currentColor;
+            opacity: 0.25;
+        }
+        .sgd-cancelling { color: #c62828; }
+        .sgd-none       { color: #5d4037; }
+        .sgd-confirmed  { color: #2e7d32; }
     </style>
 
     <!-- 🎯 THREE COLUMNS LAYOUT: Check-in, Staying, Checkout side by side -->
@@ -632,7 +657,7 @@
                 <span>🛬 Khách Check-in</span>
                 <span class="badge bg-light text-dark">{{ check_in|length }} khách</span>
             </div>
-            <div class="guest-cards-row">
+            <div class="guest-cards-row" id="checkin-cards" data-date="{{ date_str }}">
                 {% if check_in %}
                     {% for booking in check_in %}
                         {% set commission = booking.get('Hoa hồng', 0) or 0 %}
@@ -752,7 +777,7 @@
                 <span>🏨 Khách Đang Ở</span>
                 <span class="badge bg-light text-dark">{{ staying_over|length }} khách</span>
             </div>
-            <div class="guest-cards-row">
+            <div class="guest-cards-row" id="staying-cards" data-date="{{ date_str }}">
                 {% if staying_over %}
                     {% for booking in staying_over %}
                         {% set commission = booking.get('Hoa hồng', 0) or 0 %}
@@ -873,7 +898,7 @@
                 <span style="color: #000;">🛫 Khách Check-out</span>
                 <span class="badge bg-dark text-white">{{ check_out|length }} khách</span>
             </div>
-            <div class="guest-cards-row">
+            <div class="guest-cards-row" id="checkout-cards" data-date="{{ date_str }}">
                 {% if check_out %}
                     {% for booking in check_out %}
                         {% set commission = booking.get('Hoa hồng', 0) or 0 %}
@@ -3673,6 +3698,8 @@ function toggleGuestStatus(btn, newStatus) {
     const key  = _statusKey(date, bid);
     const cur  = localStorage.getItem(key);
 
+    const sectionId = card.closest('.guest-cards-row')?.id || null;
+
     if (cur === newStatus) {
         // Toggle off
         localStorage.removeItem(key);
@@ -3688,6 +3715,9 @@ function toggleGuestStatus(btn, newStatus) {
             openCancelNotify(name);
         }
     }
+
+    // Re-group cards in this section so card moves to correct group instantly
+    if (sectionId) groupSection(sectionId);
 }
 
 function openCancelNotify(guestName) {
@@ -3729,7 +3759,50 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 });
 
-// Restore all statuses on page load
+// Group cards inside a section by their status (cancelling → none → confirmed)
+function groupSection(containerId) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+    const date = container.dataset.date || '';
+
+    // Remove old dividers
+    container.querySelectorAll('.status-group-divider').forEach(d => d.remove());
+
+    const cols = Array.from(container.querySelectorAll(':scope > .guest-card-col'));
+    if (cols.length === 0) return;
+
+    // Bucket cards by status
+    const groups = { cancelling: [], none: [], confirmed: [] };
+    cols.forEach(col => {
+        const bar    = col.querySelector('.quick-status-bar');
+        const bid    = bar ? bar.dataset.bid : '';
+        const status = bid ? (localStorage.getItem(_statusKey(date, bid)) || 'none') : 'none';
+        groups[status].push(col);
+    });
+
+    // Only show dividers when at least two distinct groups have cards
+    const nonEmpty = ['cancelling', 'none', 'confirmed'].filter(g => groups[g].length > 0);
+    const showDividers = nonEmpty.length > 1;
+
+    // Re-append in order: cancelling → not contacted → confirmed
+    const cfg = {
+        cancelling: { label: '⚠️ Báo hủy',         cls: 'sgd-cancelling' },
+        none:       { label: '📞 Chưa liên hệ',     cls: 'sgd-none'       },
+        confirmed:  { label: '✅ Xác nhận sẽ đến',  cls: 'sgd-confirmed'  },
+    };
+    ['cancelling', 'none', 'confirmed'].forEach(key => {
+        if (groups[key].length === 0) return;
+        if (showDividers) {
+            const div = document.createElement('div');
+            div.className = `status-group-divider ${cfg[key].cls}`;
+            div.innerHTML = `<span>${cfg[key].label} (${groups[key].length})</span>`;
+            container.appendChild(div);
+        }
+        groups[key].forEach(col => container.appendChild(col));
+    });
+}
+
+// Restore all statuses then regroup all sections
 document.addEventListener('DOMContentLoaded', () => {
     document.querySelectorAll('.quick-status-bar').forEach(bar => {
         const bid    = bar.dataset.bid;
@@ -3740,6 +3813,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (card) _applyStatus(card, bar, status);
         }
     });
+    ['checkin-cards','staying-cards','checkout-cards'].forEach(groupSection);
 });
 </script>
 
