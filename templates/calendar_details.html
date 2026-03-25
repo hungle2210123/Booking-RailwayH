@@ -482,6 +482,17 @@
         .guest-card.status-cancelling .commission-badge {
             filter: blur(1px);
         }
+        /* When section has ≥1 confirmed card: dim uncontacted cards slightly */
+        .has-confirmed .guest-card:not(.status-confirmed):not(.status-cancelling) {
+            opacity: 0.55;
+            filter: grayscale(25%) blur(0.6px);
+            transform: scale(0.99);
+        }
+        .has-confirmed .guest-card:not(.status-confirmed):not(.status-cancelling) .card-header-top,
+        .has-confirmed .guest-card:not(.status-confirmed):not(.status-cancelling) .room-type,
+        .has-confirmed .guest-card:not(.status-confirmed):not(.status-cancelling) .card-details {
+            filter: blur(0.5px);
+        }
         .status-banner {
             text-align: center;
             font-size: 0.76rem;
@@ -3803,6 +3814,9 @@ function groupSection(containerId) {
     // Only show dividers when at least two distinct groups have cards
     const nonEmpty = ['cancelling', 'none', 'confirmed'].filter(g => groups[g].length > 0);
     const showDividers = nonEmpty.length > 1;
+
+    // Dim uncontacted cards when confirmed guests exist
+    container.classList.toggle('has-confirmed', groups.confirmed.length > 0);
 
     // Re-append in order: cancelling → not contacted → confirmed
     const cfg = {
