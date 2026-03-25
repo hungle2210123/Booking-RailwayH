@@ -1,0 +1,595 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>Check-in {{ formatted_date }}</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+               background: #f0f2f5; color: #1a1a1a; padding-bottom: 80px; }
+
+        /* ── Fixed header ── */
+        .mob-header {
+            position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+            background: linear-gradient(135deg, #1b5e20 0%, #2e7d32 100%);
+            color: #fff; padding: 12px 16px 10px;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.25);
+        }
+        .mob-header-top { display: flex; align-items: center; justify-content: space-between; }
+        .mob-back { color: #fff; text-decoration: none; font-size: 0.9rem;
+                    background: rgba(255,255,255,0.18); border-radius: 20px;
+                    padding: 6px 14px; font-weight: 600; }
+        .mob-title { font-size: 1.05rem; font-weight: 800; text-align: center; }
+        .mob-date  { font-size: 0.78rem; opacity: 0.85; text-align: center; }
+        .mob-total { background: rgba(255,255,255,0.25); border-radius: 20px;
+                     padding: 6px 12px; font-size: 0.85rem; font-weight: 700; white-space: nowrap; }
+
+        /* ── Sticky stats bar ── */
+        .mob-stats {
+            position: fixed; top: 64px; left: 0; right: 0; z-index: 99;
+            display: flex; background: #fff; border-bottom: 2px solid #e0e0e0;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+        .mob-stat { flex: 1; text-align: center; padding: 8px 4px; cursor: pointer;
+                    border-bottom: 3px solid transparent; transition: all 0.2s; }
+        .mob-stat:active { background: #f5f5f5; }
+        .mob-stat.active { border-bottom-color: currentColor; }
+        .mob-stat-num { font-size: 1.3rem; font-weight: 900; line-height: 1; }
+        .mob-stat-lbl { font-size: 0.65rem; font-weight: 600; margin-top: 2px; }
+        .mob-stat.s-confirmed { color: #2e7d32; }
+        .mob-stat.s-none      { color: #1565c0; }
+        .mob-stat.s-cancel    { color: #c62828; }
+
+        /* ── Content area ── */
+        .mob-content { padding-top: 120px; }
+
+        /* ── Section header ── */
+        .mob-section {
+            display: flex; align-items: center; gap: 8px;
+            padding: 10px 16px 6px; font-size: 0.82rem;
+            font-weight: 800; letter-spacing: 0.4px; text-transform: uppercase;
+        }
+        .mob-section-confirmed { color: #1b5e20; }
+        .mob-section-none      { color: #0d47a1; }
+        .mob-section-cancel    { color: #b71c1c; }
+        .mob-section-badge {
+            background: currentColor; color: #fff; border-radius: 20px;
+            padding: 1px 8px; font-size: 0.72rem; opacity: 0.95;
+        }
+
+        /* ── Guest card ── */
+        .mob-card {
+            margin: 0 12px 14px; border-radius: 16px;
+            background: #fff8e1; border: 2px solid #ffb300;
+            border-top: 5px solid #e65100;
+            box-shadow: 0 2px 10px rgba(230,81,0,0.12);
+            overflow: hidden; transition: opacity 0.3s, filter 0.3s;
+        }
+        .mob-card.paid   { background: #f3f3f3; border-color: #d0d0d0; border-top-color: #81c784; }
+        .mob-card.status-confirmed {
+            background: #f0faf0 !important; border-color: #2e7d32 !important;
+            border-top-color: #1b5e20 !important;
+            box-shadow: 0 2px 16px rgba(46,125,50,0.22) !important;
+        }
+        .mob-card.status-cancelling {
+            opacity: 0.5; filter: grayscale(55%); border-top-color: #c62828 !important;
+        }
+
+        /* card body */
+        .mob-card-body { padding: 14px 14px 10px; }
+
+        /* Guest name row */
+        .mob-name-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+        .mob-name { font-size: 1.1rem; font-weight: 800; color: #1a1a1a; line-height: 1.2; flex: 1; }
+        .mob-card.status-confirmed .mob-name { color: #1b5e20; }
+        .mob-edit-btn {
+            background: none; border: 1.5px solid #bbb; border-radius: 8px;
+            padding: 4px 8px; font-size: 0.85rem; color: #555; flex-shrink: 0;
+            min-width: 36px; min-height: 36px; display: flex; align-items: center; justify-content: center;
+        }
+        .mob-edit-btn:active { background: #f0f0f0; }
+
+        /* badges */
+        .mob-badges { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; align-items: center; }
+        .mob-commission-badge {
+            font-size: 0.72rem; font-weight: 700; padding: 3px 10px; border-radius: 20px;
+        }
+        .mob-commission-badge.has-comm { background: #fff3cd; color: #856404; border: 1.5px solid #ffc107; }
+        .mob-commission-badge.no-comm  { background: #d1e7dd; color: #0f5132; border: 1.5px solid #a3cfbb; }
+        .mob-room-badge {
+            font-size: 0.8rem; font-weight: 700; padding: 4px 12px; border-radius: 20px;
+            color: #fff; display: inline-flex; align-items: center; gap: 4px;
+        }
+
+        /* status banner */
+        .mob-status-banner {
+            margin: 8px 0 4px; padding: 5px 12px; border-radius: 8px;
+            font-size: 0.78rem; font-weight: 800; text-align: center;
+        }
+        .mob-status-banner.confirmed { background: #c8e6c9; color: #1b5e20; }
+        .mob-status-banner.cancelling { background: #ffcdd2; color: #b71c1c; }
+
+        /* divider */
+        .mob-divider { border: none; border-top: 1px dashed #e0e0e0; margin: 10px 0; }
+
+        /* Key info row */
+        .mob-info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 10px; margin-top: 2px; }
+        .mob-info-item { display: flex; flex-direction: column; }
+        .mob-info-label { font-size: 0.66rem; color: #888; font-weight: 600; text-transform: uppercase; }
+        .mob-info-value { font-size: 0.95rem; font-weight: 700; color: #1a1a1a; margin-top: 1px; }
+        .mob-amount { font-size: 1.25rem; font-weight: 900; color: #1a1a1a; }
+        .mob-rate   { font-size: 0.88rem; font-weight: 700; color: #005f8a; margin-top: 6px; }
+
+        /* ── Status action buttons ── */
+        .mob-status-btns { display: flex; gap: 8px; margin-top: 12px; }
+        .mob-btn-confirm, .mob-btn-cancel {
+            flex: 1; padding: 13px 8px; border-radius: 12px; font-size: 0.82rem;
+            font-weight: 800; border: 2px solid; cursor: pointer;
+            display: flex; align-items: center; justify-content: center; gap: 5px;
+            min-height: 50px; transition: all 0.15s;
+        }
+        .mob-btn-confirm {
+            background: #f0faf0; color: #2e7d32; border-color: #66bb6a;
+        }
+        .mob-btn-confirm:active, .mob-btn-confirm.active {
+            background: #2e7d32; color: #fff; border-color: #1b5e20;
+        }
+        .mob-btn-cancel {
+            background: #fff8f8; color: #c62828; border-color: #ef9a9a;
+        }
+        .mob-btn-cancel:active, .mob-btn-cancel.active {
+            background: #c62828; color: #fff; border-color: #b71c1c;
+        }
+
+        /* ── Pay button ── */
+        .mob-pay-area { margin-top: 8px; }
+        .mob-btn-pay {
+            width: 100%; padding: 14px; background: linear-gradient(135deg, #ff6f00, #e65100);
+            color: #fff; border: none; border-radius: 12px; font-size: 1rem;
+            font-weight: 800; cursor: pointer; display: flex; align-items: center;
+            justify-content: center; gap: 8px; min-height: 52px; letter-spacing: 0.3px;
+            box-shadow: 0 3px 10px rgba(230,81,0,0.30);
+        }
+        .mob-btn-pay:active { transform: scale(0.98); }
+        .mob-pay-done {
+            width: 100%; padding: 13px; background: #e8f5e9;
+            color: #1b5e20; border: 2px solid #66bb6a; border-radius: 12px;
+            font-size: 0.9rem; font-weight: 800; text-align: center; min-height: 52px;
+            display: flex; align-items: center; justify-content: center; gap: 8px;
+        }
+        /* Pay confirm sheet (bottom overlay inside card) */
+        .mob-pay-sheet { display: none; margin-top: 8px; background: #fff3e0;
+                         border: 2px solid #ff9800; border-radius: 12px; padding: 12px; }
+        .mob-pay-sheet-title { font-size: 0.8rem; color: #555; margin-bottom: 8px; font-weight: 700; }
+        .mob-pay-amount-row { display: flex; align-items: center; gap: 8px; }
+        .mob-pay-amount-val { font-size: 1.2rem; font-weight: 900; color: #1a1a1a; flex: 1; }
+        .mob-pay-input { font-size: 1rem; font-weight: 700; padding: 8px 10px;
+                         border: 2px solid #ff9800; border-radius: 8px; width: 100%; display: none; }
+        .mob-pay-btns { display: flex; gap: 8px; margin-top: 10px; }
+        .mob-pay-ok  { flex: 1; padding: 12px; background: #2e7d32; color: #fff;
+                       border: none; border-radius: 10px; font-size: 0.9rem;
+                       font-weight: 800; cursor: pointer; min-height: 48px; }
+        .mob-pay-edit { flex: 0 0 48px; padding: 12px; background: #1565c0; color: #fff;
+                        border: none; border-radius: 10px; font-size: 0.9rem; cursor: pointer; min-height: 48px; }
+        .mob-pay-x   { flex: 0 0 48px; padding: 12px; background: #757575; color: #fff;
+                       border: none; border-radius: 10px; font-size: 1rem; cursor: pointer; min-height: 48px; }
+        .mob-collector-btns { display: none; gap: 8px; margin-top: 8px; }
+        .mob-collector-btn {
+            flex: 1; padding: 13px 8px; border: 2px solid; border-radius: 10px;
+            font-size: 0.9rem; font-weight: 800; cursor: pointer; min-height: 50px;
+            background: #fff;
+        }
+        .mob-collector-btn.loc  { color: #1565c0; border-color: #1565c0; }
+        .mob-collector-btn.thao { color: #6a1b9a; border-color: #6a1b9a; }
+        .mob-collector-btn:active { filter: brightness(0.9); }
+
+        /* ── Toast ── */
+        #mob-toast {
+            position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+            background: #323232; color: #fff; padding: 12px 22px; border-radius: 24px;
+            font-size: 0.9rem; font-weight: 700; z-index: 9999; opacity: 0;
+            transition: opacity 0.25s; pointer-events: none; white-space: nowrap;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+        }
+        #mob-toast.show { opacity: 1; }
+
+        /* ── Empty state ── */
+        .mob-empty { text-align: center; padding: 40px 20px; color: #aaa; }
+        .mob-empty i { font-size: 3rem; margin-bottom: 12px; }
+        .mob-empty p { font-size: 1rem; font-weight: 600; }
+    </style>
+</head>
+<body>
+
+<!-- Fixed header -->
+<header class="mob-header">
+    <div class="mob-header-top">
+        <a href="/calendar_details/{{ date_str }}" class="mob-back">← Lịch</a>
+        <div>
+            <div class="mob-title">📋 Check-in Hôm Nay</div>
+            <div class="mob-date">{{ formatted_date }}</div>
+        </div>
+        <div class="mob-total">{{ check_in|length }} khách</div>
+    </div>
+</header>
+
+<!-- Sticky stats bar -->
+<div class="mob-stats">
+    <div class="mob-stat s-confirmed" id="stat-confirmed" onclick="filterSection('confirmed')">
+        <div class="mob-stat-num" id="cnt-confirmed">0</div>
+        <div class="mob-stat-lbl">✅ Xác nhận</div>
+    </div>
+    <div class="mob-stat s-none" id="stat-none" onclick="filterSection('none')">
+        <div class="mob-stat-num" id="cnt-none">{{ check_in|length }}</div>
+        <div class="mob-stat-lbl">📞 Chưa liên hệ</div>
+    </div>
+    <div class="mob-stat s-cancel" id="stat-cancel" onclick="filterSection('cancel')">
+        <div class="mob-stat-num" id="cnt-cancel">0</div>
+        <div class="mob-stat-lbl">⚠️ Báo hủy</div>
+    </div>
+</div>
+
+<!-- Cards list -->
+<div class="mob-content" id="mob-cards-container">
+
+{% if check_in %}
+{% for booking in check_in %}
+{%- set commission = booking.get('Hoa hồng', 0) or 0 %}
+{%- set has_commission = commission > 0 %}
+{%- set total_nights = (booking['Check-out Date'] - booking['Check-in Date']).days if booking['Check-in Date'] and booking['Check-out Date'] and pd.notna(booking['Check-in Date']) and pd.notna(booking['Check-out Date']) else 1 %}
+{%- set total_payment = booking.get('Tổng thanh toán', 0) %}
+{%- set per_night_rate = (total_payment / total_nights) if total_nights > 0 else total_payment %}
+{%- set collector_str = booking.get('Người thu tiền', '')|string %}
+{%- set is_paid = 'LOC' in collector_str or 'THAO' in collector_str %}
+{%- set bid = booking.get('Số đặt phòng', '') %}
+{%- set room_name = booking.get('Tên chỗ nghỉ', '') %}
+{%- set room_lower = room_name.lower() %}
+{%- set checkout_str = booking['Check-out Date'].strftime('%d/%m') if booking['Check-out Date'] and pd.notna(booking['Check-out Date']) else 'N/A' %}
+{%- set guest_name = booking.get('Tên người đặt', 'Khách') %}
+
+{# Find room color from apartments_list #}
+{%- set ns = namespace(room_color='#555', room_emoji='🏨') %}
+{%- for apt in apartments_list %}
+    {%- if apt.name_lower in room_lower or room_lower in apt.name_lower %}
+        {%- set ns.room_color = apt.color %}
+        {%- set ns.room_emoji = apt.emoji %}
+    {%- else %}
+        {%- for rm in apt.rooms %}
+            {%- if rm.name_lower in room_lower or room_lower == rm.name_lower %}
+                {%- set ns.room_color = apt.color %}
+                {%- set ns.room_emoji = apt.emoji %}
+            {%- endif %}
+        {%- endfor %}
+    {%- endif %}
+{%- endfor %}
+
+<div class="mob-card {{ 'paid' if is_paid else '' }}"
+     data-bid="{{ bid }}"
+     data-amount="{{ total_payment|int }}"
+     data-commission="{{ commission|int }}"
+     data-name="{{ guest_name|replace('"','') }}"
+     data-group="none">
+
+    <div class="mob-card-body">
+        <!-- Name + edit -->
+        <div class="mob-name-row">
+            <div class="mob-name">{{ ns.room_emoji }} {{ guest_name }}</div>
+            <button class="mob-edit-btn"
+                    onclick="window.location.href='/calendar_details/{{ date_str }}'">
+                <i class="fas fa-edit"></i>
+            </button>
+        </div>
+
+        <!-- Badges -->
+        <div class="mob-badges">
+            {% if has_commission %}
+                <span class="mob-commission-badge has-comm">
+                    <i class="fas fa-percentage"></i> {{ "{:,.0f}".format(commission) }}đ
+                </span>
+            {% else %}
+                <span class="mob-commission-badge no-comm">
+                    <i class="fas fa-check"></i> Không hoa hồng
+                </span>
+            {% endif %}
+            <span class="mob-room-badge" style="background:{{ ns.room_color }}">
+                {{ ns.room_emoji }} {{ room_name if room_name else 'N/A' }}
+            </span>
+        </div>
+
+        <!-- Status banner (shown when status is set) -->
+        <div class="mob-status-banner" id="banner-{{ bid }}" style="display:none"></div>
+
+        <hr class="mob-divider">
+
+        <!-- Key info -->
+        <div class="mob-info-grid">
+            <div class="mob-info-item">
+                <span class="mob-info-label">Trả phòng</span>
+                <span class="mob-info-value">📅 {{ checkout_str }}</span>
+            </div>
+            <div class="mob-info-item">
+                <span class="mob-info-label">Số đêm</span>
+                <span class="mob-info-value">🌙 {{ total_nights }} đêm</span>
+            </div>
+            <div class="mob-info-item" style="grid-column:1/-1; margin-top:4px;">
+                <span class="mob-info-label">Tổng tiền</span>
+                <span class="mob-amount">{{ "{:,.0f}".format(total_payment) }}đ</span>
+            </div>
+        </div>
+        <div class="mob-rate">💰 {{ "{:,.0f}".format(per_night_rate) }}đ/đêm{% if has_commission %} → {{ "{:,.0f}".format((total_payment - commission) / total_nights) }}đ net{% endif %}</div>
+
+        <hr class="mob-divider">
+
+        <!-- Status buttons -->
+        <div class="mob-status-btns">
+            <button class="mob-btn-confirm" id="confirm-btn-{{ bid }}"
+                    onclick="mobToggleStatus('{{ bid }}', 'confirmed')">
+                ✅ Xác nhận đến
+            </button>
+            <button class="mob-btn-cancel" id="cancel-btn-{{ bid }}"
+                    onclick="mobToggleStatus('{{ bid }}', 'cancelling')">
+                🚫 Báo hủy
+            </button>
+        </div>
+
+        <!-- Pay area -->
+        <div class="mob-pay-area" id="mob-pay-{{ bid }}"
+             data-booking-id="{{ bid }}"
+             data-amount="{{ total_payment|int }}"
+             data-commission="{{ commission|int }}">
+            {% if is_paid %}
+                <div class="mob-pay-done">
+                    ✅ {{ collector_str }} • {{ "{:,.0f}".format(total_payment) }}đ
+                </div>
+            {% else %}
+                <button class="mob-btn-pay" onclick="mobShowPayConfirm(this)">
+                    💰 Thu Tiền
+                </button>
+                <!-- Pay confirm sheet -->
+                <div class="mob-pay-sheet" id="pay-sheet-{{ bid }}">
+                    <div class="mob-pay-sheet-title">Xác nhận thu tiền:</div>
+                    <div class="mob-pay-amount-row">
+                        <span class="mob-pay-amount-val" id="pay-display-{{ bid }}">
+                            {{ "{:,.0f}".format(total_payment) }}đ
+                        </span>
+                        <button onclick="mobShowEditAmount('{{ bid }}')" style="
+                            background:#1565c0;color:#fff;border:none;border-radius:8px;
+                            padding:8px 12px;font-weight:700;font-size:0.85rem;cursor:pointer;">
+                            ✏️ Sửa
+                        </button>
+                    </div>
+                    <input class="mob-pay-input" id="pay-input-{{ bid }}"
+                           type="number" placeholder="Nhập số tiền..."
+                           onkeydown="if(event.key==='Enter') mobConfirmAmount('{{ bid }}')">
+                    <div class="mob-pay-btns">
+                        <button class="mob-pay-ok" onclick="mobShowCollectors('{{ bid }}')">✓ Đúng rồi</button>
+                        <button class="mob-pay-x"  onclick="mobHidePay('{{ bid }}')">✕</button>
+                    </div>
+                    <div class="mob-collector-btns" id="collectors-{{ bid }}" style="display:none;">
+                        <button class="mob-collector-btn loc"
+                                onclick="mobDoCollect('{{ bid }}', 'LOC LE')">
+                            👤 LOC LE
+                        </button>
+                        <button class="mob-collector-btn thao"
+                                onclick="mobDoCollect('{{ bid }}', 'THAO LE')">
+                            👤 THAO LE
+                        </button>
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+
+    </div><!-- end mob-card-body -->
+</div><!-- end mob-card -->
+{% endfor %}
+{% else %}
+<div class="mob-empty">
+    <i class="fas fa-bed"></i>
+    <p>Không có khách check-in hôm nay</p>
+</div>
+{% endif %}
+
+</div><!-- end mob-cards-container -->
+
+<!-- Toast -->
+<div id="mob-toast"></div>
+
+<script>
+const DATE_STR = '{{ date_str }}';
+function _key(bid)  { return `cal_status__${DATE_STR}__${bid}`; }
+
+/* ── Status logic (same localStorage keys as desktop) ─────────────────── */
+function mobToggleStatus(bid, newStatus) {
+    const cur = localStorage.getItem(_key(bid));
+    const card = document.querySelector(`.mob-card[data-bid="${bid}"]`);
+    const confirmBtn = document.getElementById(`confirm-btn-${bid}`);
+    const cancelBtn  = document.getElementById(`cancel-btn-${bid}`);
+    const banner     = document.getElementById(`banner-${bid}`);
+
+    if (cur === newStatus) {
+        // Toggle off
+        localStorage.removeItem(_key(bid));
+        card.classList.remove('status-confirmed','status-cancelling');
+        card.dataset.group = 'none';
+        confirmBtn.classList.remove('active');
+        cancelBtn.classList.remove('active');
+        banner.style.display = 'none';
+        mobToast('Đã bỏ đánh dấu', '#555');
+    } else {
+        localStorage.setItem(_key(bid), newStatus);
+        card.classList.remove('status-confirmed','status-cancelling');
+        confirmBtn.classList.remove('active');
+        cancelBtn.classList.remove('active');
+
+        if (newStatus === 'confirmed') {
+            card.classList.add('status-confirmed');
+            card.dataset.group = 'confirmed';
+            confirmBtn.classList.add('active');
+            banner.className = 'mob-status-banner confirmed';
+            banner.textContent = '✅ Khách xác nhận sẽ đến hôm nay';
+            banner.style.display = 'block';
+            mobToast('✅ Đã xác nhận khách sẽ đến', '#2e7d32');
+        } else {
+            card.classList.add('status-cancelling');
+            card.dataset.group = 'cancelling';
+            cancelBtn.classList.add('active');
+            banner.className = 'mob-status-banner cancelling';
+            banner.textContent = '⚠️ Khách báo hủy hôm nay';
+            banner.style.display = 'block';
+            mobToast('⚠️ Đã đánh dấu báo hủy', '#c62828');
+        }
+    }
+    reorderAndCount();
+}
+
+/* ── Re-order cards + update counters ─────────────────────────────────── */
+function reorderAndCount() {
+    const container = document.getElementById('mob-cards-container');
+    const cards = Array.from(container.querySelectorAll('.mob-card'));
+
+    const groups = { confirmed: [], none: [], cancelling: [] };
+    cards.forEach(c => groups[c.dataset.group || 'none'].push(c));
+
+    // Remove old section headers
+    container.querySelectorAll('.mob-section').forEach(s => s.remove());
+
+    // Re-insert in order: confirmed → none → cancelling
+    ['confirmed','none','cancelling'].forEach(g => {
+        if (groups[g].length === 0) return;
+        const hdr = document.createElement('div');
+        const cfgs = {
+            confirmed:  { cls:'mob-section-confirmed', icon:'✅', label:'XÁC NHẬN SẼ ĐẾN' },
+            none:       { cls:'mob-section-none',      icon:'📞', label:'CHƯA LIÊN HỆ' },
+            cancelling: { cls:'mob-section-cancel',    icon:'⚠️', label:'BÁO HỦY' },
+        };
+        const cfg = cfgs[g];
+        hdr.className = `mob-section ${cfg.cls}`;
+        hdr.innerHTML = `${cfg.icon} ${cfg.label} <span class="mob-section-badge">${groups[g].length}</span>`;
+        container.appendChild(hdr);
+        groups[g].forEach(c => container.appendChild(c));
+    });
+
+    // Update stat counters
+    document.getElementById('cnt-confirmed').textContent = groups.confirmed.length;
+    document.getElementById('cnt-none').textContent      = groups.none.length;
+    document.getElementById('cnt-cancel').textContent    = groups.cancelling.length;
+}
+
+/* ── Filter (tap stat bar) ─────────────────────────────────────────────── */
+function filterSection(type) {
+    const all = document.querySelectorAll('.mob-card');
+    all.forEach(c => {
+        const g = c.dataset.group || 'none';
+        c.style.display = (type === 'all' || g === type ||
+            (type === 'confirmed' && g === 'confirmed') ||
+            (type === 'none' && g === 'none') ||
+            (type === 'cancel' && g === 'cancelling')) ? '' : 'none';
+    });
+    // Deselect with another tap
+    const stat = document.getElementById(`stat-${type}`);
+    if (stat.classList.contains('active')) {
+        stat.classList.remove('active');
+        all.forEach(c => c.style.display = '');
+    } else {
+        document.querySelectorAll('.mob-stat').forEach(s => s.classList.remove('active'));
+        stat.classList.add('active');
+    }
+}
+
+/* ── Payment flow ──────────────────────────────────────────────────────── */
+function mobShowPayConfirm(btn) {
+    const payArea = btn.closest('.mob-pay-area');
+    const bid = payArea.dataset.bookingId;
+    btn.style.display = 'none';
+    document.getElementById(`pay-sheet-${bid}`).style.display = 'block';
+    document.getElementById(`collectors-${bid}`).style.display = 'none';
+}
+function mobShowEditAmount(bid) {
+    document.getElementById(`pay-display-${bid}`).style.display = 'none';
+    const inp = document.getElementById(`pay-input-${bid}`);
+    inp.style.display = 'block';
+    inp.focus();
+}
+function mobConfirmAmount(bid) {
+    const inp = document.getElementById(`pay-input-${bid}`);
+    const val = parseFloat(inp.value.replace(/[^0-9.]/g, ''));
+    if (isNaN(val) || val <= 0) { mobToast('Số tiền không hợp lệ', '#c62828'); return; }
+    const payArea = document.querySelector(`.mob-pay-area[data-booking-id="${bid}"]`);
+    payArea.dataset.amount = Math.round(val);
+    document.getElementById(`pay-display-${bid}`).textContent = val.toLocaleString('vi-VN') + 'đ';
+    document.getElementById(`pay-display-${bid}`).style.display = '';
+    inp.style.display = 'none';
+    mobShowCollectors(bid);
+}
+function mobShowCollectors(bid) {
+    const colDiv = document.getElementById(`collectors-${bid}`);
+    if (colDiv) colDiv.style.display = 'flex';
+}
+function mobHidePay(bid) {
+    const sheet = document.getElementById(`pay-sheet-${bid}`);
+    sheet.style.display = 'none';
+    const btn = sheet.closest('.mob-pay-area').querySelector('.mob-btn-pay');
+    if (btn) btn.style.display = '';
+}
+async function mobDoCollect(bid, collector) {
+    const payArea = document.querySelector(`.mob-pay-area[data-booking-id="${bid}"]`);
+    const amount     = parseInt(payArea.dataset.amount);
+    const commission = parseInt(payArea.dataset.commission) || 0;
+    try {
+        const res = await fetch('/api/collect_payment', {
+            method: 'POST',
+            headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ booking_id: bid, amount, commission, collector_name: collector })
+        });
+        const data = await res.json();
+        if (data.success) {
+            payArea.innerHTML = `<div class="mob-pay-done">✅ ${collector} • ${amount.toLocaleString('vi-VN')}đ</div>`;
+            mobToast(`✅ Đã thu ${amount.toLocaleString('vi-VN')}đ — ${collector}`, '#2e7d32');
+        } else {
+            mobToast('Lỗi: ' + (data.error || 'Unknown'), '#c62828');
+        }
+    } catch(e) { mobToast('Lỗi kết nối', '#c62828'); }
+}
+
+/* ── Toast ─────────────────────────────────────────────────────────────── */
+let _toastTimer;
+function mobToast(msg, bg) {
+    const t = document.getElementById('mob-toast');
+    t.textContent = msg;
+    t.style.background = bg || '#323232';
+    t.classList.add('show');
+    clearTimeout(_toastTimer);
+    _toastTimer = setTimeout(() => t.classList.remove('show'), 2400);
+}
+
+/* ── Init: restore statuses from localStorage ─────────────────────────── */
+document.addEventListener('DOMContentLoaded', () => {
+    document.querySelectorAll('.mob-card').forEach(card => {
+        const bid    = card.dataset.bid;
+        const status = localStorage.getItem(_key(bid));
+        if (!status) return;
+        const confirmBtn = document.getElementById(`confirm-btn-${bid}`);
+        const cancelBtn  = document.getElementById(`cancel-btn-${bid}`);
+        const banner     = document.getElementById(`banner-${bid}`);
+        if (status === 'confirmed') {
+            card.classList.add('status-confirmed');
+            card.dataset.group = 'confirmed';
+            if (confirmBtn) confirmBtn.classList.add('active');
+            if (banner) { banner.className='mob-status-banner confirmed'; banner.textContent='✅ Khách xác nhận sẽ đến hôm nay'; banner.style.display='block'; }
+        } else if (status === 'cancelling') {
+            card.classList.add('status-cancelling');
+            card.dataset.group = 'cancelling';
+            if (cancelBtn) cancelBtn.classList.add('active');
+            if (banner) { banner.className='mob-status-banner cancelling'; banner.textContent='⚠️ Khách báo hủy hôm nay'; banner.style.display='block'; }
+        }
+    });
+    reorderAndCount();
+});
+</script>
+</body>
+</html>
