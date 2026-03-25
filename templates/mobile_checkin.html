@@ -821,16 +821,28 @@ document.addEventListener('DOMContentLoaded', () => {
     window.addEventListener('resize', checkRotate);
     window.addEventListener('orientationchange', () => setTimeout(checkRotate, 200));
 
+    // ── STEP 0: Upload any localStorage statuses to DB unconditionally ──────
+    // Runs on EVERY page load (idempotent UPDATE = same value is a no-op).
+    // Critical: when this page is open in desktop landscape mode, the user
+    // may have localStorage statuses from before DB sync was deployed.
+    // Without this step those statuses never reach DB, so the phone sees nothing.
+    document.querySelectorAll('.mob-card').forEach(card => {
+        const ls = localStorage.getItem(_key(card.dataset.bid));
+        if (ls === 'confirmed' || ls === 'cancelling') {
+            _saveStatusToDB(card.dataset.bid, ls);
+        }
+    });
+
+    // ── STEP 1: Apply status (DB server-render wins, then localStorage) ──────
     document.querySelectorAll('.mob-card').forEach(card => {
         const bid      = card.dataset.bid;
         const dbStatus = card.dataset.dbStatus || '';  // from PostgreSQL (server-rendered)
         const lsStatus = localStorage.getItem(_key(bid)) || '';
 
-        // DB status is ground truth (shared across devices);
-        // fall back to localStorage for offline / first-time use
+        // DB status is ground truth; fall back to localStorage for offline use
         const status = dbStatus || lsStatus || null;
 
-        // Keep localStorage in sync with DB
+        // Keep localStorage in sync
         if (status) localStorage.setItem(_key(bid), status);
         else localStorage.removeItem(_key(bid));
 
