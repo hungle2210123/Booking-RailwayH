@@ -712,7 +712,8 @@
                                 <!-- Quick Status Buttons -->
                                 <div class="quick-status-bar"
                                      data-bid="{{ booking.get('Số đặt phòng', '') }}"
-                                     data-date="{{ date_str }}">
+                                     data-date="{{ date_str }}"
+                                     data-name="{{ booking.get('Tên người đặt', 'Khách')|replace('"','') }}">
                                     <button class="btn-qstatus confirm-btn"
                                             onclick="toggleGuestStatus(this,'confirmed')"
                                             title="Khách xác nhận sẽ đến hôm nay">
@@ -832,7 +833,8 @@
                                 <!-- Quick Status Buttons -->
                                 <div class="quick-status-bar"
                                      data-bid="{{ booking.get('Số đặt phòng', '') }}"
-                                     data-date="{{ date_str }}">
+                                     data-date="{{ date_str }}"
+                                     data-name="{{ booking.get('Tên người đặt', 'Khách')|replace('"','') }}">
                                     <button class="btn-qstatus confirm-btn"
                                             onclick="toggleGuestStatus(this,'confirmed')"
                                             title="Khách xác nhận sẽ đến hôm nay">
@@ -951,7 +953,8 @@
                                 <!-- Quick Status Buttons -->
                                 <div class="quick-status-bar"
                                      data-bid="{{ booking.get('Số đặt phòng', '') }}"
-                                     data-date="{{ date_str }}">
+                                     data-date="{{ date_str }}"
+                                     data-name="{{ booking.get('Tên người đặt', 'Khách')|replace('"','') }}">
                                     <button class="btn-qstatus confirm-btn"
                                             onclick="toggleGuestStatus(this,'confirmed')"
                                             title="Khách xác nhận sẽ đến hôm nay">
@@ -3666,6 +3669,7 @@ function toggleGuestStatus(btn, newStatus) {
     const card = btn.closest('.guest-card');
     const bid  = bar.dataset.bid;
     const date = bar.dataset.date;
+    const name = bar.dataset.name || 'Khách';
     const key  = _statusKey(date, bid);
     const cur  = localStorage.getItem(key);
 
@@ -3677,12 +3681,53 @@ function toggleGuestStatus(btn, newStatus) {
     } else {
         localStorage.setItem(key, newStatus);
         _applyStatus(card, bar, newStatus);
-        const msg = newStatus === 'confirmed'
-            ? '✅ Đánh dấu khách sẽ đến'
-            : '⚠️ Đánh dấu khách báo hủy';
-        showCalToast(msg, newStatus === 'confirmed' ? 'success' : 'error');
+        if (newStatus === 'confirmed') {
+            showCalToast('✅ Đánh dấu khách sẽ đến', 'success');
+        } else if (newStatus === 'cancelling') {
+            showCalToast('⚠️ Đánh dấu khách báo hủy', 'error');
+            openCancelNotify(name);
+        }
     }
 }
+
+function openCancelNotify(guestName) {
+    const msg =
+`Dạ ${guestName}, bên em đã nhận được thông báo hủy phòng của mình ạ.
+
+Rất tiếc khi không được đón tiếp mình lần này. Nếu có dịp quay lại Hà Nội, bên em luôn sẵn sàng phục vụ ạ! 🙏
+
+Chúc mình có một ngày vui vẻ!`;
+    document.getElementById('cancelNotifyMsg').value = msg;
+    document.getElementById('cancelCopyFeedback').style.display = 'none';
+    const modal = document.getElementById('cancelNotifyModal');
+    modal.style.display = 'flex';
+}
+
+function closeCancelNotify() {
+    document.getElementById('cancelNotifyModal').style.display = 'none';
+}
+
+async function copyCancelMsg() {
+    const txt = document.getElementById('cancelNotifyMsg').value;
+    try {
+        await navigator.clipboard.writeText(txt);
+    } catch(e) {
+        // fallback for older browsers
+        const ta = document.getElementById('cancelNotifyMsg');
+        ta.select();
+        document.execCommand('copy');
+    }
+    const fb = document.getElementById('cancelCopyFeedback');
+    fb.style.display = 'block';
+    setTimeout(() => { fb.style.display = 'none'; }, 3000);
+}
+
+// Close modal when clicking backdrop
+document.addEventListener('DOMContentLoaded', () => {
+    document.getElementById('cancelNotifyModal').addEventListener('click', function(e) {
+        if (e.target === this) closeCancelNotify();
+    });
+});
 
 // Restore all statuses on page load
 document.addEventListener('DOMContentLoaded', () => {
@@ -3705,4 +3750,43 @@ document.addEventListener('DOMContentLoaded', () => {
 </div>
 <!-- END CONTAINER -->
 
-{% endblock %} 
+<!-- Cancel Notify Modal -->
+<div id="cancelNotifyModal" style="
+    display:none; position:fixed; inset:0; z-index:9000;
+    background:rgba(0,0,0,0.45); align-items:center; justify-content:center;">
+  <div style="
+      background:#fff; border-radius:14px; padding:20px 22px; max-width:420px;
+      width:92%; box-shadow:0 8px 32px rgba(0,0,0,0.28); position:relative;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+      <div style="font-weight:800;font-size:1rem;color:#c62828;">⚠️ Tin nhắn thông báo hủy</div>
+      <button onclick="closeCancelNotify()" style="
+          background:none;border:none;font-size:1.3rem;cursor:pointer;color:#888;line-height:1;">×</button>
+    </div>
+    <div style="font-size:0.78rem;color:#555;margin-bottom:8px;">
+      Chép tin nhắn này gửi cho khách qua Zalo / WhatsApp:
+    </div>
+    <textarea id="cancelNotifyMsg" rows="6" style="
+        width:100%;border:1.5px solid #ef9a9a;border-radius:8px;
+        padding:10px;font-size:0.85rem;resize:vertical;
+        background:#fff8f8;line-height:1.6;"></textarea>
+    <div style="display:flex;gap:8px;margin-top:12px;">
+      <button onclick="copyCancelMsg()" style="
+          flex:2;padding:9px;background:#c62828;color:#fff;
+          border:none;border-radius:8px;font-weight:700;font-size:0.85rem;cursor:pointer;">
+          📋 Sao chép tin nhắn
+      </button>
+      <button onclick="closeCancelNotify()" style="
+          flex:1;padding:9px;background:#eee;color:#444;
+          border:none;border-radius:8px;font-weight:600;font-size:0.85rem;cursor:pointer;">
+          Đóng
+      </button>
+    </div>
+    <div id="cancelCopyFeedback" style="
+        display:none;text-align:center;margin-top:8px;
+        font-size:0.8rem;font-weight:700;color:#2e7d32;">
+        ✅ Đã sao chép! Dán vào Zalo / WhatsApp để gửi.
+    </div>
+  </div>
+</div>
+
+{% endblock %}
