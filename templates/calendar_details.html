@@ -3899,7 +3899,8 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     ['checkin-cards','staying-cards','checkout-cards'].forEach(groupSection);
 
-    // 2. Then fetch DB statuses and reconcile (handles cross-device changes)
+    // 2. Sync with PostgreSQL so all devices stay in sync
+    //    Rule: DB wins if it has a value; localStorage wins if DB is empty (upload it).
     const bars = Array.from(document.querySelectorAll('.quick-status-bar'));
     const bids = bars.map(b => b.dataset.bid).filter(Boolean);
     if (bids.length) {
@@ -3907,24 +3908,44 @@ document.addEventListener('DOMContentLoaded', () => {
         fetch(`/api/get_checkin_statuses?${params}`)
             .then(r => r.json())
             .then(data => {
-                if (!data.success) return;
+                if (!data.success) {
+                    // DB unavailable — at least upload any localStorage statuses
+                    // so they persist once DB becomes available
+                    bars.forEach(bar => {
+                        const bid  = bar.dataset.bid;
+                        const date = bar.dataset.date;
+                        const ls   = localStorage.getItem(_statusKey(date, bid));
+                        if (ls) _saveStatusToDB(bid, ls);
+                    });
+                    return;
+                }
+                let changed = false;
                 bars.forEach(bar => {
                     const bid    = bar.dataset.bid;
                     const date   = bar.dataset.date;
                     const key    = _statusKey(date, bid);
                     const dbStat = data.statuses[bid] || null;
                     const lsStat = localStorage.getItem(key) || null;
-                    if (dbStat === lsStat) return; // already in sync
-                    // DB wins — update localStorage and re-render card
-                    if (dbStat) localStorage.setItem(key, dbStat);
-                    else localStorage.removeItem(key);
-                    const card = bar.closest('.guest-card');
-                    if (card) _applyStatus(card, bar, dbStat);
+
+                    if (dbStat && dbStat !== lsStat) {
+                        // ✅ DB has a status → DB wins, update localStorage + card
+                        localStorage.setItem(key, dbStat);
+                        const card = bar.closest('.guest-card');
+                        if (card) _applyStatus(card, bar, dbStat);
+                        changed = true;
+                    } else if (!dbStat && lsStat) {
+                        // ✅ DB empty but localStorage has a status → UPLOAD to DB
+                        //    This handles statuses set before the DB sync feature was deployed.
+                        _saveStatusToDB(bid, lsStat);
+                        // Card already shows correct state from step 1 — no re-render needed
+                    }
+                    // If both empty or both equal → nothing to do
                 });
-                // Re-group after DB sync
-                ['checkin-cards','staying-cards','checkout-cards'].forEach(groupSection);
+                if (changed) {
+                    ['checkin-cards','staying-cards','checkout-cards'].forEach(groupSection);
+                }
             })
-            .catch(() => {}); // silent fail — localStorage still works
+            .catch(() => {}); // silent fail — localStorage still works offline
     }
 
     // Sort staying cards by remaining nights ascending (soonest checkout first)
