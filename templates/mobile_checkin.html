@@ -49,17 +49,29 @@
         .mob-content { padding-top: 120px; }
 
         /* ── Section header ── */
+        /* ── Section banners ── */
         .mob-section {
-            display: flex; align-items: center; gap: 8px;
-            padding: 10px 16px 6px; font-size: 0.82rem;
-            font-weight: 800; letter-spacing: 0.4px; text-transform: uppercase;
+            display: flex; align-items: center; gap: 10px;
+            margin: 8px 12px 6px; padding: 11px 16px;
+            border-radius: 12px; font-size: 0.88rem;
+            font-weight: 900; letter-spacing: 0.5px; text-transform: uppercase;
         }
-        .mob-section-confirmed { color: #1b5e20; }
-        .mob-section-none      { color: #0d47a1; }
-        .mob-section-cancel    { color: #b71c1c; }
+        .mob-section-confirmed {
+            background: #1b5e20; color: #fff;
+            box-shadow: 0 3px 10px rgba(27,94,32,0.35);
+        }
+        .mob-section-none {
+            background: #0d47a1; color: #fff;
+            box-shadow: 0 3px 10px rgba(13,71,161,0.30);
+        }
+        .mob-section-cancel {
+            background: #b71c1c; color: #fff;
+            box-shadow: 0 3px 10px rgba(183,28,28,0.35);
+        }
         .mob-section-badge {
-            background: currentColor; color: #fff; border-radius: 20px;
-            padding: 1px 8px; font-size: 0.72rem; opacity: 0.95;
+            background: rgba(255,255,255,0.28); color: #fff;
+            border-radius: 20px; padding: 2px 10px;
+            font-size: 0.82rem; font-weight: 900; margin-left: auto;
         }
 
         /* ── Guest card ── */
@@ -74,10 +86,14 @@
         .mob-card.status-confirmed {
             background: #f0faf0 !important; border-color: #2e7d32 !important;
             border-top-color: #1b5e20 !important;
-            box-shadow: 0 2px 16px rgba(46,125,50,0.22) !important;
+            box-shadow: 0 3px 18px rgba(46,125,50,0.28) !important;
         }
+        /* Cancelled: very heavily faded so it's immediately obvious */
         .mob-card.status-cancelling {
-            opacity: 0.5; filter: grayscale(55%); border-top-color: #c62828 !important;
+            opacity: 0.38; filter: grayscale(70%);
+            border-top: 5px solid #c62828 !important;
+            border-color: #ef9a9a !important;
+            box-shadow: none !important;
         }
 
         /* card body */
@@ -465,11 +481,11 @@ function reorderAndCount() {
         const cfgs = {
             confirmed:  { cls:'mob-section-confirmed', icon:'✅', label:'XÁC NHẬN SẼ ĐẾN' },
             none:       { cls:'mob-section-none',      icon:'📞', label:'CHƯA LIÊN HỆ' },
-            cancelling: { cls:'mob-section-cancel',    icon:'⚠️', label:'BÁO HỦY' },
+            cancelling: { cls:'mob-section-cancel',    icon:'🚫', label:'BÁO HỦY' },
         };
         const cfg = cfgs[g];
         hdr.className = `mob-section ${cfg.cls}`;
-        hdr.innerHTML = `${cfg.icon} ${cfg.label} <span class="mob-section-badge">${groups[g].length}</span>`;
+        hdr.innerHTML = `<span style="font-size:1.1rem">${cfg.icon}</span> ${cfg.label} <span class="mob-section-badge">${groups[g].length} khách</span>`;
         container.appendChild(hdr);
         groups[g].forEach(c => container.appendChild(c));
     });
