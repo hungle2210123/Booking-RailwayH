@@ -7657,12 +7657,32 @@ def add_guest_name_column():
             'message': f'Failed to add guest_name column: {str(e)}'
         }), 500
 
+def _ensure_checkin_status_column():
+    """Create checkin_status column if it doesn't exist yet.
+    Safe to call every request (ALTER TABLE ... IF NOT EXISTS is idempotent).
+    Called at the top of every checkin-status endpoint so the column is
+    guaranteed before any DML or SELECT that references it."""
+    try:
+        from core.models import db as _cs_db
+        _cs_db.session.execute(
+            text("ALTER TABLE bookings ADD COLUMN IF NOT EXISTS checkin_status VARCHAR(20)")
+        )
+        _cs_db.session.commit()
+    except Exception:
+        try:
+            from core.models import db as _cs_db
+            _cs_db.session.rollback()
+        except Exception:
+            pass
+
+
 @app.route('/api/set_checkin_status', methods=['POST'])
 def set_checkin_status():
     """Save daily check-in arrival status for a booking to PostgreSQL.
     Called from both mobile and desktop whenever staff marks a guest
     confirmed / cancelling / not-contacted. Shared across all devices."""
     try:
+        _ensure_checkin_status_column()  # always runs first — guarantees column exists
         data = request.get_json()
         booking_id = data.get('booking_id', '').strip()
         status = data.get('status')  # 'confirmed' | 'cancelling' | None/''
@@ -7673,7 +7693,6 @@ def set_checkin_status():
             status = None
         if status not in (None, 'confirmed', 'cancelling'):
             return jsonify({'success': False, 'error': f'Invalid status: {status}'}), 400
-        # Update via raw SQL — avoids model import issues and is fast
         from core.models import db
         db.session.execute(
             text("UPDATE bookings SET checkin_status = :s WHERE booking_id = :bid"),
@@ -7695,6 +7714,7 @@ def get_checkin_statuses():
     """Return {booking_id: status} for a list of booking IDs.
     Used by desktop calendar_details to sync statuses from DB on page load."""
     try:
+        _ensure_checkin_status_column()  # always runs first — guarantees column exists
         bids = request.args.getlist('bids[]')
         if not bids:
             return jsonify({'success': True, 'statuses': {}})
