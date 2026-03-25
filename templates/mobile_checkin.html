@@ -218,6 +218,46 @@
         .mob-empty { text-align: center; padding: 40px 20px; color: #aaa; }
         .mob-empty i { font-size: 3rem; margin-bottom: 12px; }
         .mob-empty p { font-size: 1rem; font-weight: 600; }
+
+        /* ══════════════════════════════════════
+           LANDSCAPE MODE — 2-column card grid
+           ══════════════════════════════════════ */
+        @media (orientation: landscape) {
+            /* Compact fixed header */
+            .mob-header { padding: 6px 14px 5px; }
+            .mob-title  { font-size: 0.9rem; }
+            .mob-date   { font-size: 0.7rem; }
+            .mob-back   { padding: 4px 10px; font-size: 0.8rem; }
+            .mob-total  { padding: 4px 10px; font-size: 0.78rem; }
+            /* Compact stats bar */
+            .mob-stats  { top: 48px; }
+            .mob-stat   { padding: 5px 4px; }
+            .mob-stat-num { font-size: 1.1rem; }
+            .mob-stat-lbl { font-size: 0.6rem; }
+            /* Push content down less */
+            .mob-content { padding-top: 90px; }
+            /* 2-column card grid */
+            #mob-cards-container {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                column-gap: 0;
+                padding: 0 4px;
+            }
+            /* Section banners span both columns */
+            .mob-section { grid-column: 1 / -1; margin: 6px 8px 4px; }
+            .mob-empty   { grid-column: 1 / -1; }
+            /* Slightly tighter cards in landscape */
+            .mob-card         { margin: 0 8px 10px; }
+            .mob-card-body    { padding: 10px 12px 8px; }
+            .mob-name         { font-size: 1rem; }
+            .mob-amount       { font-size: 1.1rem; }
+            .mob-btn-confirm,
+            .mob-btn-cancel   { padding: 10px 6px; font-size: 0.78rem; min-height: 44px; }
+            .mob-btn-pay      { padding: 11px; font-size: 0.92rem; min-height: 46px; }
+            /* Info grid tighter */
+            .mob-info-value   { font-size: 0.88rem; }
+            .mob-rate         { font-size: 0.8rem; }
+        }
     </style>
 </head>
 <body>
@@ -344,11 +384,11 @@
         <!-- Status buttons -->
         <div class="mob-status-btns">
             <button class="mob-btn-confirm" id="confirm-btn-{{ bid }}"
-                    onclick="mobToggleStatus('{{ bid }}', 'confirmed')">
+                    onclick="mobToggleStatus(this,'confirmed')">
                 ✅ Xác nhận đến
             </button>
             <button class="mob-btn-cancel" id="cancel-btn-{{ bid }}"
-                    onclick="mobToggleStatus('{{ bid }}', 'cancelling')">
+                    onclick="mobToggleStatus(this,'cancelling')">
                 🚫 Báo hủy
             </button>
         </div>
@@ -420,12 +460,15 @@ const DATE_STR = '{{ date_str }}';
 function _key(bid)  { return `cal_status__${DATE_STR}__${bid}`; }
 
 /* ── Status logic (same localStorage keys as desktop) ─────────────────── */
-function mobToggleStatus(bid, newStatus) {
-    const cur = localStorage.getItem(_key(bid));
-    const card = document.querySelector(`.mob-card[data-bid="${bid}"]`);
-    const confirmBtn = document.getElementById(`confirm-btn-${bid}`);
-    const cancelBtn  = document.getElementById(`cancel-btn-${bid}`);
-    const banner     = document.getElementById(`banner-${bid}`);
+// btn = the button element (passed as `this` from onclick)
+function mobToggleStatus(btn, newStatus) {
+    // Traverse DOM — avoids querySelector failures on IDs with special chars
+    const card       = btn.closest('.mob-card');
+    const bid        = card.dataset.bid;
+    const cur        = localStorage.getItem(_key(bid));
+    const confirmBtn = card.querySelector('.mob-btn-confirm');
+    const cancelBtn  = card.querySelector('.mob-btn-cancel');
+    const banner     = card.querySelector('.mob-status-banner');
 
     if (cur === newStatus) {
         // Toggle off
