@@ -142,12 +142,21 @@
         .mob-rate   { font-size: 0.88rem; font-weight: 700; color: #005f8a; margin-top: 6px; }
 
         /* ── Status action buttons ── */
-        .mob-status-btns { display: flex; gap: 8px; margin-top: 12px; }
-        .mob-btn-confirm, .mob-btn-cancel {
-            flex: 1; padding: 13px 8px; border-radius: 12px; font-size: 0.82rem;
+        /* Row 1: ✅ Confirm  +  🚫 Cancel  (side by side, large)
+           Row 2: 📞 Chưa liên hệ  (full-width reset, secondary) */
+        .mob-status-btns {
+            display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px;
+        }
+        /* shared base */
+        .mob-btn-confirm, .mob-btn-cancel, .mob-btn-pending {
+            padding: 12px 8px; border-radius: 12px; font-size: 0.84rem;
             font-weight: 800; border: 2px solid; cursor: pointer;
             display: flex; align-items: center; justify-content: center; gap: 5px;
-            min-height: 50px; transition: all 0.15s;
+            transition: all 0.15s;
+        }
+        /* Row 1 – confirm & cancel share the line equally */
+        .mob-btn-confirm, .mob-btn-cancel {
+            flex: 1; min-height: 50px;
         }
         .mob-btn-confirm {
             background: #f0faf0; color: #2e7d32; border-color: #66bb6a;
@@ -161,15 +170,15 @@
         .mob-btn-cancel:active, .mob-btn-cancel.active {
             background: #c62828; color: #fff; border-color: #b71c1c;
         }
+        /* Row 2 – pending is a slimmer full-width reset button */
         .mob-btn-pending {
-            flex: 1; padding: 13px 8px; border-radius: 12px; font-size: 0.82rem;
-            font-weight: 800; border: 2px solid; cursor: pointer;
-            display: flex; align-items: center; justify-content: center; gap: 5px;
-            min-height: 50px; transition: all 0.15s;
-            background: #e3f2fd; color: #1565c0; border-color: #42a5f5;
+            flex: 0 0 100%; min-height: 42px; font-size: 0.8rem;
+            background: #e8f4ff; color: #1565c0; border-color: #90caf9;
+            border-style: dashed;
         }
         .mob-btn-pending:active, .mob-btn-pending.active {
             background: #1565c0; color: #fff; border-color: #0d47a1;
+            border-style: solid;
         }
 
         /* ── Pay button ── */
@@ -229,44 +238,117 @@
         .mob-empty i { font-size: 3rem; margin-bottom: 12px; }
         .mob-empty p { font-size: 1rem; font-weight: 600; }
 
-        /* ══════════════════════════════════════
-           LANDSCAPE MODE — 2-column card grid
-           ══════════════════════════════════════ */
+        /* ══════════════════════════════════════════════════════
+           LANDSCAPE MODE — compact horizontal row per guest
+           (~55px per row → 7-8 guests visible simultaneously)
+           ══════════════════════════════════════════════════════ */
         @media (orientation: landscape) {
-            /* Compact fixed header */
-            .mob-header { padding: 6px 14px 5px; }
-            .mob-title  { font-size: 0.9rem; }
-            .mob-date   { font-size: 0.7rem; }
-            .mob-back   { padding: 4px 10px; font-size: 0.8rem; }
-            .mob-total  { padding: 4px 10px; font-size: 0.78rem; }
-            /* Compact stats bar */
-            .mob-stats  { top: 48px; }
-            .mob-stat   { padding: 5px 4px; }
-            .mob-stat-num { font-size: 1.1rem; }
-            .mob-stat-lbl { font-size: 0.6rem; }
-            /* Push content down less */
-            .mob-content { padding-top: 90px; }
-            /* 2-column card grid */
-            #mob-cards-container {
-                display: grid;
-                grid-template-columns: 1fr 1fr;
-                column-gap: 0;
-                padding: 0 4px;
+            /* ── Minimal chrome ── */
+            .mob-header { padding: 4px 12px 3px; }
+            .mob-title  { font-size: 0.85rem; }
+            .mob-date   { font-size: 0.65rem; }
+            .mob-back   { padding: 3px 9px; font-size: 0.75rem; }
+            .mob-total  { padding: 3px 9px; font-size: 0.73rem; }
+
+            /* ── Thin stats bar ── */
+            .mob-stats    { top: 40px; padding: 3px 0; }
+            .mob-stat     { padding: 3px 6px; }
+            .mob-stat-num { font-size: 0.95rem; }
+            .mob-stat-lbl { font-size: 0.56rem; }
+
+            /* ── Content starts just below thin chrome ── */
+            .mob-content  { padding-top: 74px; padding-left: 6px; padding-right: 6px; }
+
+            /* ── Single-column list (no grid) ── */
+            #mob-cards-container { display: block; padding: 0; }
+            .mob-section  { margin: 3px 0 2px; font-size: 0.72rem; padding: 4px 10px; border-radius: 7px; }
+            .mob-section-badge { font-size: 0.66rem; }
+            .mob-empty    { text-align: center; }
+
+            /* ── Card → flat horizontal strip ── */
+            .mob-card      { margin: 0 0 3px; border-radius: 9px; border-top-width: 3px !important; }
+            .mob-card-body {
+                padding: 5px 10px;
+                display: flex;
+                align-items: center;
+                gap: 7px;
+                min-height: 0;
             }
-            /* Section banners span both columns */
-            .mob-section { grid-column: 1 / -1; margin: 6px 8px 4px; }
-            .mob-empty   { grid-column: 1 / -1; }
-            /* Slightly tighter cards in landscape */
-            .mob-card         { margin: 0 8px 10px; }
-            .mob-card-body    { padding: 10px 12px 8px; }
-            .mob-name         { font-size: 1rem; }
-            .mob-amount       { font-size: 1.1rem; }
+
+            /* ── Column 1: Guest name (truncated) ── */
+            .mob-name-row {
+                flex: 0 1 145px;
+                min-width: 0;
+                display: block;
+                margin: 0;
+            }
+            .mob-name {
+                font-size: 0.78rem;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                max-width: 143px;
+                line-height: 1.25;
+            }
+            .mob-edit-btn { display: none; }
+
+            /* ── Column 2: Room badge only ── */
+            .mob-badges { flex: 0 0 auto; flex-wrap: nowrap; margin: 0; gap: 0; }
+            .mob-commission-badge { display: none; }
+            .mob-room-badge { font-size: 0.63rem; padding: 2px 7px; border-radius: 10px; }
+
+            /* ── Hide banner, dividers, nights/date grid ── */
+            .mob-status-banner { display: none !important; }
+            .mob-divider       { display: none; }
+            /* Show ONLY total amount from info-grid */
+            .mob-info-grid {
+                flex: 1;
+                display: flex;
+                align-items: center;
+                margin: 0;
+                gap: 0;
+                min-width: 0;
+            }
+            .mob-info-grid > .mob-info-item:nth-child(1),
+            .mob-info-grid > .mob-info-item:nth-child(2) { display: none; }
+            .mob-info-grid > .mob-info-item:nth-child(3)  { margin: 0 !important; }
+            .mob-info-grid .mob-info-label { display: none; }
+            .mob-amount { font-size: 0.9rem; font-weight: 900; white-space: nowrap; }
+
+            /* ── Hide per-night rate (total is shown above) ── */
+            .mob-rate { display: none; }
+
+            /* ── Column 4: 3 compact status buttons ── */
+            .mob-status-btns { flex: 0 0 auto; margin: 0; gap: 3px; }
             .mob-btn-confirm,
-            .mob-btn-cancel   { padding: 10px 6px; font-size: 0.78rem; min-height: 44px; }
-            .mob-btn-pay      { padding: 11px; font-size: 0.92rem; min-height: 46px; }
-            /* Info grid tighter */
-            .mob-info-value   { font-size: 0.88rem; }
-            .mob-rate         { font-size: 0.8rem; }
+            .mob-btn-pending,
+            .mob-btn-cancel {
+                flex: 0 0 48px;
+                padding: 4px 2px;
+                min-height: 34px;
+                font-size: 0.62rem;
+                border-radius: 7px;
+                gap: 1px;
+                white-space: nowrap;
+            }
+
+            /* ── Column 5: compact pay button ── */
+            .mob-pay-area { flex: 0 0 auto; margin: 0; }
+            .mob-btn-pay {
+                width: auto; min-width: 52px;
+                padding: 4px 7px;
+                font-size: 0.68rem; min-height: 34px;
+                border-radius: 7px; letter-spacing: 0;
+                box-shadow: none;
+            }
+            .mob-pay-done {
+                min-height: 34px; min-width: 52px;
+                padding: 4px 7px; font-size: 0.64rem;
+                border-radius: 7px;
+            }
+            /* Pay sheet flow too complex in landscape — do it in portrait */
+            .mob-pay-sheet          { display: none !important; }
+            .mob-collector-btns     { display: none !important; }
         }
     </style>
 </head>
