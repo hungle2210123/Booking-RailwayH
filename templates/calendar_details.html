@@ -414,6 +414,36 @@
         }
 
         /* ===== Quick Status System ===== */
+        /* ===== Checkout Urgency Badges (Staying section) ===== */
+        .checkout-urgency {
+            display: inline-block;
+            font-size: 0.75rem;
+            font-weight: 800;
+            padding: 2px 8px;
+            border-radius: 20px;
+            margin: 3px 0 4px;
+            letter-spacing: 0.2px;
+        }
+        .urgency-tomorrow  { background: #ffebee; color: #b71c1c; border: 1.5px solid #ef9a9a; }
+        .urgency-2days     { background: #fff3e0; color: #e65100; border: 1.5px solid #ffcc80; }
+        .urgency-soon      { background: #e8f5e9; color: #1b5e20; border: 1.5px solid #a5d6a7; }
+        /* Card border urgency glow */
+        .guest-card.urgency-tomorrow {
+            border-top: 5px solid #c62828 !important;
+            box-shadow: 0 2px 12px rgba(198,40,40,0.20) !important;
+        }
+        .guest-card.urgency-2days {
+            border-top: 4px solid #f57c00 !important;
+            box-shadow: 0 2px 10px rgba(245,124,0,0.15) !important;
+        }
+        .detail-remaining {
+            font-weight: 800;
+            font-size: 0.86rem;
+            white-space: nowrap;
+        }
+        .detail-remaining.urgent   { color: #c62828; }
+        .detail-remaining.warn     { color: #e65100; }
+        .detail-remaining.ok       { color: #2e7d32; }
         .quick-status-bar {
             display: flex;
             gap: 5px;
@@ -827,8 +857,12 @@
                         {% endif %}
                         {%- set pay_str = booking.get('Người thu tiền', '')|string %}
                         {%- set is_paid = 'LOC' in pay_str or 'THAO' in pay_str %}
-                        <div class="guest-card-col">
-                            <div class="guest-card {{ 'has-commission' if has_commission else 'no-commission' }} {{ apt_class }} {{ 'is-paid' if is_paid else 'not-paid' }}">
+                        {%- set total_nights_pre = (booking['Check-out Date'] - booking['Check-in Date']).days if booking['Check-in Date'] and booking['Check-out Date'] and pd.notna(booking['Check-in Date']) and pd.notna(booking['Check-out Date']) else 1 %}
+                        {%- set stayed_pre = (current_date - booking['Check-in Date']).days if booking['Check-in Date'] and pd.notna(booking['Check-in Date']) else 0 %}
+                        {%- set remaining = total_nights_pre - stayed_pre %}
+                        {%- set urgency_class = 'urgency-tomorrow' if remaining == 1 else ('urgency-2days' if remaining == 2 else '') %}
+                        <div class="guest-card-col" data-remaining="{{ remaining }}">
+                            <div class="guest-card {{ 'has-commission' if has_commission else 'no-commission' }} {{ apt_class }} {{ 'is-paid' if is_paid else 'not-paid' }} {{ urgency_class }}">
                                 <div class="guest-header d-flex justify-content-between align-items-start">
                                     <div class="flex-grow-1">
                                         <p class="guest-name {{ apt_class }}">{{ apt_icon }} {{ booking.get('Tên người đặt', 'N/A') }}</p>
@@ -867,19 +901,36 @@
                                     {% else %}
                                         <span class="badge bg-secondary">{{ room_name }}</span>
                                     {% endif %}
+                                    {% if remaining == 1 %}
+                                        <span class="checkout-urgency urgency-tomorrow ms-1">🚨 Trả phòng ngày mai!</span>
+                                    {% elif remaining == 2 %}
+                                        <span class="checkout-urgency urgency-2days ms-1">⚠️ Còn 2 đêm</span>
+                                    {% elif remaining <= 4 %}
+                                        <span class="checkout-urgency urgency-soon ms-1">📅 Còn {{ remaining }} đêm</span>
+                                    {% endif %}
                                 </p>
-                                {% set total_nights = (booking['Check-out Date'] - booking['Check-in Date']).days if booking['Check-in Date'] and booking['Check-out Date'] and pd.notna(booking['Check-in Date']) and pd.notna(booking['Check-out Date']) else 1 %}
+                                {% set total_nights = total_nights_pre %}
                                 {% set total_payment = booking.get('Tổng thanh toán', 0) %}
                                 {% set per_night_rate = (total_payment / total_nights) if total_nights > 0 else total_payment %}
-                                {% set stayed = (current_date - booking['Check-in Date']).days if booking['Check-in Date'] and pd.notna(booking['Check-in Date']) else 0 %}
+                                {% set stayed = stayed_pre %}
                                 <div class="card-details">
                                     <div class="detail-row">
                                         <span class="detail-id">🔑 {{ booking.get('Số đặt phòng', 'N/A') }}</span>
                                         <span class="detail-checkout">{{ booking['Check-in Date'].strftime('%d/%m') if booking['Check-in Date'] and pd.notna(booking['Check-in Date']) else '?' }} → {{ booking['Check-out Date'].strftime('%d/%m') if booking['Check-out Date'] and pd.notna(booking['Check-out Date']) else '?' }}</span>
                                     </div>
                                     <div class="detail-row">
-                                        <span class="detail-nights">🌙 {{ total_nights }} đêm · đã ở {{ stayed }}</span>
+                                        <span class="detail-nights">🌙 {{ total_nights }} đêm · ở {{ stayed }}</span>
                                         <span class="detail-amount">{{ "{:,.0f}".format(total_payment) }}đ</span>
+                                    </div>
+                                    <div class="detail-row">
+                                        {% if remaining == 1 %}
+                                            <span class="detail-remaining urgent">🚨 Còn 1 đêm</span>
+                                        {% elif remaining == 2 %}
+                                            <span class="detail-remaining warn">⚠️ Còn 2 đêm</span>
+                                        {% else %}
+                                            <span class="detail-remaining ok">✅ Còn {{ remaining }} đêm</span>
+                                        {% endif %}
+                                        <span class="detail-checkout">Trả {{ booking['Check-out Date'].strftime('%d/%m') if booking['Check-out Date'] and pd.notna(booking['Check-out Date']) else 'N/A' }}</span>
                                     </div>
                                     <div class="detail-rate-row">
                                         <span>💰 {{ "{:,.0f}".format(per_night_rate) }}đ/đêm</span>
@@ -3816,6 +3867,14 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
     ['checkin-cards','staying-cards','checkout-cards'].forEach(groupSection);
+
+    // Sort staying cards by remaining nights ascending (soonest checkout first)
+    const stayingContainer = document.getElementById('staying-cards');
+    if (stayingContainer) {
+        const cols = Array.from(stayingContainer.querySelectorAll(':scope > .guest-card-col'));
+        cols.sort((a, b) => parseInt(a.dataset.remaining ?? 99) - parseInt(b.dataset.remaining ?? 99));
+        cols.forEach(col => stayingContainer.appendChild(col));
+    }
 });
 </script>
 
