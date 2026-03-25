@@ -161,6 +161,16 @@
         .mob-btn-cancel:active, .mob-btn-cancel.active {
             background: #c62828; color: #fff; border-color: #b71c1c;
         }
+        .mob-btn-pending {
+            flex: 1; padding: 13px 8px; border-radius: 12px; font-size: 0.82rem;
+            font-weight: 800; border: 2px solid; cursor: pointer;
+            display: flex; align-items: center; justify-content: center; gap: 5px;
+            min-height: 50px; transition: all 0.15s;
+            background: #e3f2fd; color: #1565c0; border-color: #42a5f5;
+        }
+        .mob-btn-pending:active, .mob-btn-pending.active {
+            background: #1565c0; color: #fff; border-color: #0d47a1;
+        }
 
         /* ── Pay button ── */
         .mob-pay-area { margin-top: 8px; }
@@ -387,6 +397,10 @@
                     onclick="mobToggleStatus(this,'confirmed')">
                 ✅ Xác nhận đến
             </button>
+            <button class="mob-btn-pending" id="pending-btn-{{ bid }}"
+                    onclick="mobToggleStatus(this,'none')">
+                📞 Chưa liên hệ
+            </button>
             <button class="mob-btn-cancel" id="cancel-btn-{{ bid }}"
                     onclick="mobToggleStatus(this,'cancelling')">
                 🚫 Báo hủy
@@ -463,45 +477,49 @@ function _key(bid)  { return `cal_status__${DATE_STR}__${bid}`; }
 // btn = the button element (passed as `this` from onclick)
 function mobToggleStatus(btn, newStatus) {
     // Traverse DOM — avoids querySelector failures on IDs with special chars
-    const card       = btn.closest('.mob-card');
-    const bid        = card.dataset.bid;
-    const cur        = localStorage.getItem(_key(bid));
-    const confirmBtn = card.querySelector('.mob-btn-confirm');
-    const cancelBtn  = card.querySelector('.mob-btn-cancel');
-    const banner     = card.querySelector('.mob-status-banner');
+    const card        = btn.closest('.mob-card');
+    const bid         = card.dataset.bid;
+    const cur         = localStorage.getItem(_key(bid));
+    const confirmBtn  = card.querySelector('.mob-btn-confirm');
+    const pendingBtn  = card.querySelector('.mob-btn-pending');
+    const cancelBtn   = card.querySelector('.mob-btn-cancel');
+    const banner      = card.querySelector('.mob-status-banner');
 
-    if (cur === newStatus) {
-        // Toggle off
+    function clearAll() {
+        card.classList.remove('status-confirmed', 'status-cancelling');
+        confirmBtn.classList.remove('active');
+        if (pendingBtn) pendingBtn.classList.remove('active');
+        cancelBtn.classList.remove('active');
+    }
+
+    // 'none' means "reset to not-contacted" OR toggle off same button
+    if (newStatus === 'none' || cur === newStatus) {
         localStorage.removeItem(_key(bid));
-        card.classList.remove('status-confirmed','status-cancelling');
+        clearAll();
+        if (pendingBtn) pendingBtn.classList.add('active');
         card.dataset.group = 'none';
-        confirmBtn.classList.remove('active');
-        cancelBtn.classList.remove('active');
         banner.style.display = 'none';
-        mobToast('Đã bỏ đánh dấu', '#555');
-    } else {
-        localStorage.setItem(_key(bid), newStatus);
-        card.classList.remove('status-confirmed','status-cancelling');
-        confirmBtn.classList.remove('active');
-        cancelBtn.classList.remove('active');
-
-        if (newStatus === 'confirmed') {
-            card.classList.add('status-confirmed');
-            card.dataset.group = 'confirmed';
-            confirmBtn.classList.add('active');
-            banner.className = 'mob-status-banner confirmed';
-            banner.textContent = '✅ Khách xác nhận sẽ đến hôm nay';
-            banner.style.display = 'block';
-            mobToast('✅ Đã xác nhận khách sẽ đến', '#2e7d32');
-        } else {
-            card.classList.add('status-cancelling');
-            card.dataset.group = 'cancelling';
-            cancelBtn.classList.add('active');
-            banner.className = 'mob-status-banner cancelling';
-            banner.textContent = '⚠️ Khách báo hủy hôm nay';
-            banner.style.display = 'block';
-            mobToast('⚠️ Đã đánh dấu báo hủy', '#c62828');
-        }
+        mobToast('📞 Chưa liên hệ', '#1565c0');
+    } else if (newStatus === 'confirmed') {
+        localStorage.setItem(_key(bid), 'confirmed');
+        clearAll();
+        card.classList.add('status-confirmed');
+        card.dataset.group = 'confirmed';
+        confirmBtn.classList.add('active');
+        banner.className = 'mob-status-banner confirmed';
+        banner.textContent = '✅ Khách xác nhận sẽ đến hôm nay';
+        banner.style.display = 'block';
+        mobToast('✅ Đã xác nhận khách sẽ đến', '#2e7d32');
+    } else if (newStatus === 'cancelling') {
+        localStorage.setItem(_key(bid), 'cancelling');
+        clearAll();
+        card.classList.add('status-cancelling');
+        card.dataset.group = 'cancelling';
+        cancelBtn.classList.add('active');
+        banner.className = 'mob-status-banner cancelling';
+        banner.textContent = '⚠️ Khách báo hủy hôm nay';
+        banner.style.display = 'block';
+        mobToast('⚠️ Đã đánh dấu báo hủy', '#c62828');
     }
     reorderAndCount();
 }
@@ -631,12 +649,18 @@ function mobToast(msg, bg) {
 /* ── Init: restore statuses from localStorage ─────────────────────────── */
 document.addEventListener('DOMContentLoaded', () => {
     document.querySelectorAll('.mob-card').forEach(card => {
-        const bid    = card.dataset.bid;
-        const status = localStorage.getItem(_key(bid));
-        if (!status) return;
-        const confirmBtn = document.getElementById(`confirm-btn-${bid}`);
-        const cancelBtn  = document.getElementById(`cancel-btn-${bid}`);
-        const banner     = document.getElementById(`banner-${bid}`);
+        const bid        = card.dataset.bid;
+        const status     = localStorage.getItem(_key(bid));
+        const confirmBtn = card.querySelector('.mob-btn-confirm');
+        const pendingBtn = card.querySelector('.mob-btn-pending');
+        const cancelBtn  = card.querySelector('.mob-btn-cancel');
+        const banner     = card.querySelector('.mob-status-banner');
+
+        if (!status) {
+            // Default state: highlight the "not contacted" button
+            if (pendingBtn) pendingBtn.classList.add('active');
+            return;
+        }
         if (status === 'confirmed') {
             card.classList.add('status-confirmed');
             card.dataset.group = 'confirmed';
