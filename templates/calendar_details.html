@@ -886,22 +886,6 @@
                                         {% if has_commission %}<span class="net-rate">→ {{ "{:,.0f}".format((total_payment - commission) / total_nights) }}đ net</span>{% endif %}
                                     </div>
                                 </div>
-                                <!-- Quick Status Buttons -->
-                                <div class="quick-status-bar"
-                                     data-bid="{{ booking.get('Số đặt phòng', '') }}"
-                                     data-date="{{ date_str }}"
-                                     data-name="{{ booking.get('Tên người đặt', 'Khách')|replace('"','') }}">
-                                    <button class="btn-qstatus confirm-btn"
-                                            onclick="toggleGuestStatus(this,'confirmed')"
-                                            title="Khách xác nhận sẽ đến hôm nay">
-                                        ✅ Xác nhận đến
-                                    </button>
-                                    <button class="btn-qstatus cancel-btn"
-                                            onclick="toggleGuestStatus(this,'cancelling')"
-                                            title="Khách báo hủy hôm nay">
-                                        🚫 Báo hủy
-                                    </button>
-                                </div>
                                 {%- set collector_str = booking.get('Người thu tiền', '')|string %}
                                 <div class="pay-area"
                                      id="pay-{{ booking.get('Số đặt phòng', '') }}"
@@ -1005,22 +989,6 @@
                                         <span>💰 {{ "{:,.0f}".format(per_night_rate) }}đ/đêm</span>
                                         {% if has_commission %}<span class="net-rate">→ {{ "{:,.0f}".format((total_payment - commission) / total_nights) }}đ net</span>{% endif %}
                                     </div>
-                                </div>
-                                <!-- Quick Status Buttons -->
-                                <div class="quick-status-bar"
-                                     data-bid="{{ booking.get('Số đặt phòng', '') }}"
-                                     data-date="{{ date_str }}"
-                                     data-name="{{ booking.get('Tên người đặt', 'Khách')|replace('"','') }}">
-                                    <button class="btn-qstatus confirm-btn"
-                                            onclick="toggleGuestStatus(this,'confirmed')"
-                                            title="Khách xác nhận sẽ đến hôm nay">
-                                        ✅ Xác nhận đến
-                                    </button>
-                                    <button class="btn-qstatus cancel-btn"
-                                            onclick="toggleGuestStatus(this,'cancelling')"
-                                            title="Khách báo hủy hôm nay">
-                                        🚫 Báo hủy
-                                    </button>
                                 </div>
                                 {%- set collector_str = booking.get('Người thu tiền', '')|string %}
                                 <div class="pay-area"
