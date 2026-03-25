@@ -3889,36 +3889,35 @@ function groupSection(containerId) {
 // Restore all statuses then regroup all sections
 // DB statuses take precedence (shared across all devices/browsers)
 document.addEventListener('DOMContentLoaded', () => {
-    // 1. First apply localStorage statuses immediately (instant UI, no flash)
-    document.querySelectorAll('.quick-status-bar').forEach(bar => {
-        const bid    = bar.dataset.bid;
-        const date   = bar.dataset.date;
-        const status = localStorage.getItem(_statusKey(date, bid)) || null;
+    const bars = Array.from(document.querySelectorAll('.quick-status-bar'));
+
+    // ── STEP 0: Unconditionally push all localStorage statuses to DB ──────
+    // Runs on EVERY page load, idempotent (same value = same UPDATE).
+    // This is the primary mechanism for uploading statuses set before the
+    // DB sync feature existed, and keeps DB current on every reload.
+    bars.forEach(bar => {
+        const ls = localStorage.getItem(_statusKey(bar.dataset.date, bar.dataset.bid));
+        if (ls === 'confirmed' || ls === 'cancelling') {
+            _saveStatusToDB(bar.dataset.bid, ls);
+        }
+    });
+
+    // ── STEP 1: Apply localStorage immediately (zero-latency UI) ──────────
+    bars.forEach(bar => {
+        const status = localStorage.getItem(_statusKey(bar.dataset.date, bar.dataset.bid)) || null;
         const card   = bar.closest('.guest-card');
         if (card) _applyStatus(card, bar, status);
     });
     ['checkin-cards','staying-cards','checkout-cards'].forEach(groupSection);
 
-    // 2. Sync with PostgreSQL so all devices stay in sync
-    //    Rule: DB wins if it has a value; localStorage wins if DB is empty (upload it).
-    const bars = Array.from(document.querySelectorAll('.quick-status-bar'));
+    // ── STEP 2: Fetch DB statuses (DB wins over localStorage) ─────────────
     const bids = bars.map(b => b.dataset.bid).filter(Boolean);
     if (bids.length) {
         const params = bids.map(b => `bids[]=${encodeURIComponent(b)}`).join('&');
         fetch(`/api/get_checkin_statuses?${params}`)
             .then(r => r.json())
             .then(data => {
-                if (!data.success) {
-                    // DB unavailable — at least upload any localStorage statuses
-                    // so they persist once DB becomes available
-                    bars.forEach(bar => {
-                        const bid  = bar.dataset.bid;
-                        const date = bar.dataset.date;
-                        const ls   = localStorage.getItem(_statusKey(date, bid));
-                        if (ls) _saveStatusToDB(bid, ls);
-                    });
-                    return;
-                }
+                if (!data.success) return; // Step 0 already uploaded, nothing more to do
                 let changed = false;
                 bars.forEach(bar => {
                     const bid    = bar.dataset.bid;
@@ -3926,20 +3925,12 @@ document.addEventListener('DOMContentLoaded', () => {
                     const key    = _statusKey(date, bid);
                     const dbStat = data.statuses[bid] || null;
                     const lsStat = localStorage.getItem(key) || null;
-
-                    if (dbStat && dbStat !== lsStat) {
-                        // ✅ DB has a status → DB wins, update localStorage + card
-                        localStorage.setItem(key, dbStat);
-                        const card = bar.closest('.guest-card');
-                        if (card) _applyStatus(card, bar, dbStat);
-                        changed = true;
-                    } else if (!dbStat && lsStat) {
-                        // ✅ DB empty but localStorage has a status → UPLOAD to DB
-                        //    This handles statuses set before the DB sync feature was deployed.
-                        _saveStatusToDB(bid, lsStat);
-                        // Card already shows correct state from step 1 — no re-render needed
-                    }
-                    // If both empty or both equal → nothing to do
+                    if (!dbStat || dbStat === lsStat) return; // no change needed
+                    // DB has a different/newer value → update localStorage + card
+                    localStorage.setItem(key, dbStat);
+                    const card = bar.closest('.guest-card');
+                    if (card) _applyStatus(card, bar, dbStat);
+                    changed = true;
                 });
                 if (changed) {
                     ['checkin-cards','staying-cards','checkout-cards'].forEach(groupSection);
