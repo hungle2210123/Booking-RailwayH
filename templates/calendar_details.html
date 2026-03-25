@@ -482,6 +482,16 @@
             color: #fff;
             box-shadow: 0 2px 6px rgba(198,40,40,0.4);
         }
+        .btn-qstatus.pending-btn {
+            border-color: #1565c0;
+            color: #1565c0;
+        }
+        .btn-qstatus.pending-btn:hover  { background: #e3f2fd; }
+        .btn-qstatus.pending-btn.active {
+            background: #1565c0;
+            color: #fff;
+            box-shadow: 0 2px 6px rgba(21,101,192,0.4);
+        }
         /* Card overlays when status active */
         .guest-card.status-confirmed {
             border: 3px solid #2e7d32 !important;
@@ -804,6 +814,11 @@
                                             onclick="toggleGuestStatus(this,'confirmed')"
                                             title="Khách xác nhận sẽ đến hôm nay">
                                         ✅ Xác nhận đến
+                                    </button>
+                                    <button class="btn-qstatus pending-btn"
+                                            onclick="toggleGuestStatus(this,'none')"
+                                            title="Chưa liên hệ với khách">
+                                        📞 Chưa liên hệ
                                     </button>
                                     <button class="btn-qstatus cancel-btn"
                                             onclick="toggleGuestStatus(this,'cancelling')"
@@ -3715,7 +3730,12 @@ function _applyStatus(card, bar, status) {
     const oldBanner = card.querySelector('.status-banner');
     if (oldBanner) oldBanner.remove();
 
-    if (!status) return;
+    if (!status) {
+        // Default: highlight the "not contacted" pending button
+        const pendingBtn = bar.querySelector('.pending-btn');
+        if (pendingBtn) pendingBtn.classList.add('active');
+        return;
+    }
 
     const bannerAnchor = card.querySelector('.room-type') || card.querySelector('.card-details');
     if (status === 'confirmed') {
@@ -3750,11 +3770,11 @@ function toggleGuestStatus(btn, newStatus) {
 
     const sectionId = card.closest('.guest-cards-row')?.id || null;
 
-    if (cur === newStatus) {
-        // Toggle off
+    if (newStatus === 'none' || cur === newStatus) {
+        // 'none' = explicit "not contacted" reset; or toggle off same button
         localStorage.removeItem(key);
         _applyStatus(card, bar, null);
-        showCalToast('Đã bỏ đánh dấu', 'info');
+        showCalToast('📞 Chưa liên hệ', 'info');
     } else {
         localStorage.setItem(key, newStatus);
         _applyStatus(card, bar, newStatus);
@@ -3860,11 +3880,9 @@ document.addEventListener('DOMContentLoaded', () => {
     document.querySelectorAll('.quick-status-bar').forEach(bar => {
         const bid    = bar.dataset.bid;
         const date   = bar.dataset.date;
-        const status = localStorage.getItem(_statusKey(date, bid));
-        if (status) {
-            const card = bar.closest('.guest-card');
-            if (card) _applyStatus(card, bar, status);
-        }
+        const status = localStorage.getItem(_statusKey(date, bid)) || null;
+        const card   = bar.closest('.guest-card');
+        if (card) _applyStatus(card, bar, status);
     });
     ['checkin-cards','staying-cards','checkout-cards'].forEach(groupSection);
 
