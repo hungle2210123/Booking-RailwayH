@@ -570,6 +570,8 @@ def update_booking(booking_id: str, update_data: Dict) -> bool:
             booking.booking_notes = update_data['booking_notes']
         if 'status' in update_data:
             booking.booking_status = update_data['status']
+        if 'checkin_status' in update_data:
+            booking.checkin_status = update_data['checkin_status'] or None  # '' → NULL
         if 'accommodation_name' in update_data:
             booking.accommodation_name = update_data['accommodation_name']
 

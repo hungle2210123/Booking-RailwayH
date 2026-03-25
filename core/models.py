@@ -204,7 +204,12 @@ class Booking(db.Model):
     # Arrival confirmation for commission notifications
     arrival_confirmed = Column(Boolean, default=False, nullable=False)
     arrival_confirmed_at = Column(DateTime, nullable=True)
-    
+
+    # Same-day check-in status (set by staff on the day of arrival)
+    # NULL = not contacted yet, 'confirmed' = guest confirmed arrival, 'cancelling' = guest cancelled
+    checkin_status = Column(String(20), nullable=True, index=True,
+        comment='Same-day arrival status: NULL=not contacted, confirmed, cancelling')
+
     # Notes and comments
     booking_notes = Column(Text)
     

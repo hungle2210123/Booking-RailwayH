@@ -3894,6 +3894,35 @@ def mobile_checkin_view(date_str=None):
                 'emoji': _APT_EMOJIS[_i % len(_APT_EMOJIS)],
                 'rooms': [{'name': r.room_name, 'name_lower': r.room_name.lower()} for r in _rooms],
             })
+        # Auto-migrate: ensure checkin_status column exists (safe to run every request)
+        try:
+            from core.models import db as _db2
+            _db2.session.execute(text(
+                "ALTER TABLE bookings ADD COLUMN IF NOT EXISTS checkin_status VARCHAR(20)"
+            ))
+            _db2.session.commit()
+        except Exception:
+            try:
+                from core.models import db as _db2
+                _db2.session.rollback()
+            except Exception:
+                pass
+
+        # Load DB-side checkin_status for all arrivals today (cross-device sync)
+        checkin_status_map = {}
+        try:
+            from core.models import db as _db3
+            _bids = [b.get('Số đặt phòng', '') for b in check_in if b.get('Số đặt phòng')]
+            if _bids:
+                _rows = _db3.session.execute(
+                    text("""SELECT booking_id, checkin_status FROM bookings
+                            WHERE booking_id = ANY(:bids) AND checkin_status IS NOT NULL"""),
+                    {'bids': _bids}
+                ).fetchall()
+                checkin_status_map = {r[0]: r[1] for r in _rows}
+        except Exception:
+            pass
+
         return render_template(
             'mobile_checkin.html',
             date=date_obj, date_str=date_str,
@@ -3901,6 +3930,7 @@ def mobile_checkin_view(date_str=None):
             check_in=check_in, current_date=date_obj,
             pd=pd, timedelta=timedelta,
             apartments_list=apartments_list,
+            checkin_status_map=checkin_status_map,
         )
     except Exception as e:
         return f'<h3>Error: {e}</h3>', 500
@@ -7626,6 +7656,59 @@ def add_guest_name_column():
             'success': False,
             'message': f'Failed to add guest_name column: {str(e)}'
         }), 500
+
+@app.route('/api/set_checkin_status', methods=['POST'])
+def set_checkin_status():
+    """Save daily check-in arrival status for a booking to PostgreSQL.
+    Called from both mobile and desktop whenever staff marks a guest
+    confirmed / cancelling / not-contacted. Shared across all devices."""
+    try:
+        data = request.get_json()
+        booking_id = data.get('booking_id', '').strip()
+        status = data.get('status')  # 'confirmed' | 'cancelling' | None/''
+        if not booking_id:
+            return jsonify({'success': False, 'error': 'Missing booking_id'}), 400
+        # Normalise: empty string → NULL (= "not contacted")
+        if status == '':
+            status = None
+        if status not in (None, 'confirmed', 'cancelling'):
+            return jsonify({'success': False, 'error': f'Invalid status: {status}'}), 400
+        # Update via raw SQL — avoids model import issues and is fast
+        from core.models import db
+        db.session.execute(
+            text("UPDATE bookings SET checkin_status = :s WHERE booking_id = :bid"),
+            {'s': status, 'bid': booking_id}
+        )
+        db.session.commit()
+        return jsonify({'success': True, 'booking_id': booking_id, 'status': status})
+    except Exception as e:
+        try:
+            from core.models import db
+            db.session.rollback()
+        except Exception:
+            pass
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/get_checkin_statuses')
+def get_checkin_statuses():
+    """Return {booking_id: status} for a list of booking IDs.
+    Used by desktop calendar_details to sync statuses from DB on page load."""
+    try:
+        bids = request.args.getlist('bids[]')
+        if not bids:
+            return jsonify({'success': True, 'statuses': {}})
+        from core.models import db
+        rows = db.session.execute(
+            text("""SELECT booking_id, checkin_status FROM bookings
+                    WHERE booking_id = ANY(:bids) AND checkin_status IS NOT NULL"""),
+            {'bids': bids}
+        ).fetchall()
+        statuses = {r[0]: r[1] for r in rows}
+        return jsonify({'success': True, 'statuses': statuses})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e), 'statuses': {}})
+
 
 @app.route('/api/clear_imported_data', methods=['POST'])
 def clear_imported_data():
