@@ -257,7 +257,9 @@
             .mob-stat-lbl { font-size: 0.56rem; }
 
             /* ── Content starts just below thin chrome ── */
-            .mob-content  { padding-top: 74px; padding-left: 6px; padding-right: 6px; }
+            /* padding-top is set dynamically by JS (updateContentPadding) so it
+               always clears the actual heights of the fixed header + stats bar */
+            .mob-content  { padding-top: 90px; padding-left: 6px; padding-right: 6px; }
 
             /* ── Single-column list (no grid) ── */
             #mob-cards-container { display: block; padding: 0; }
@@ -597,6 +599,22 @@ function _saveStatusToDB(bid, status) {
     }).catch(() => {}); // silent fail — localStorage is the local cache
 }
 
+/* ── Dynamically set content padding so it always clears fixed bars ─────
+   Runs on load + resize/orientation-change to handle every screen size   */
+function updateContentPadding() {
+    const header  = document.querySelector('.mob-header');
+    const stats   = document.querySelector('.mob-stats');
+    const content = document.querySelector('.mob-content');
+    if (!header || !stats || !content) return;
+    // getBoundingClientRect().bottom gives the actual pixel bottom of each
+    // fixed element relative to viewport — no guessing needed
+    const bottomEdge = Math.ceil(Math.max(
+        header.getBoundingClientRect().bottom,
+        stats.getBoundingClientRect().bottom
+    ));
+    content.style.paddingTop = (bottomEdge + 6) + 'px'; // 6px breathing room
+}
+
 /* ── Fetch latest statuses from DB and re-render all cards ──────────────
    Called by the 🔄 sync button so the phone can pull desktop changes     */
 function syncFromDB() {
@@ -624,6 +642,7 @@ function syncFromDB() {
                 updated++;
             });
             reorderAndCount();
+            window.scrollTo({ top: 0, behavior: 'smooth' });
             mobToast(updated > 0 ? `🔄 Đồng bộ: ${updated} khách cập nhật` : '✅ Dữ liệu đã cập nhật', '#2e7d32');
         })
         .catch(() => { if (icon) icon.style.animation=''; mobToast('❌ Lỗi kết nối', '#c62828'); });
@@ -811,6 +830,13 @@ document.addEventListener('DOMContentLoaded', () => {
     if (screen.orientation && screen.orientation.lock) {
         screen.orientation.lock('landscape-primary').catch(() => {});
     }
+
+    // Measure actual fixed-bar heights and set content padding accordingly
+    // (avoids confirmed section hiding behind header/stats bar)
+    updateContentPadding();
+    window.addEventListener('resize', updateContentPadding);
+    window.addEventListener('orientationchange', () => setTimeout(updateContentPadding, 250));
+
     // Show/hide portrait rotation hint
     function checkRotate() {
         const hint = document.getElementById('rotate-hint');
@@ -849,6 +875,8 @@ document.addEventListener('DOMContentLoaded', () => {
         _applyMobStatus(card, status || null);
     });
     reorderAndCount();
+    // Always scroll to top so the confirmed section (first group) is visible
+    window.scrollTo({ top: 0, behavior: 'instant' });
 });
 </script>
 </body>
