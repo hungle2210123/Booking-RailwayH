@@ -350,9 +350,34 @@
             .mob-pay-sheet          { display: none !important; }
             .mob-collector-btns     { display: none !important; }
         }
+
+        /* ── Portrait rotation hint (when user forgets to rotate) ── */
+        #rotate-hint {
+            display: none;
+            position: fixed; inset: 0; z-index: 99999;
+            background: #1b5e20;
+            flex-direction: column; align-items: center; justify-content: center;
+            color: #fff; text-align: center; padding: 24px;
+        }
+        #rotate-hint .rh-icon { font-size: 3rem; animation: rotateAnim 1.5s infinite; }
+        @keyframes rotateAnim {
+            0%   { transform: rotate(0deg);   }
+            40%  { transform: rotate(-90deg); }
+            100% { transform: rotate(-90deg); }
+        }
+        #rotate-hint p { font-size: 1.1rem; font-weight: 700; margin: 16px 0 8px; }
+        #rotate-hint small { font-size: 0.85rem; opacity: 0.8; }
+        @media (orientation: landscape) { #rotate-hint { display: none !important; } }
     </style>
 </head>
 <body>
+
+<!-- Rotate hint overlay (portrait mode) -->
+<div id="rotate-hint">
+    <div class="rh-icon">📱</div>
+    <p>Xoay ngang màn hình</p>
+    <small>Trang Check-in hoạt động tốt nhất ở chế độ ngang</small>
+</div>
 
 <!-- Fixed header -->
 <header class="mob-header">
@@ -421,6 +446,7 @@
      data-amount="{{ total_payment|int }}"
      data-commission="{{ commission|int }}"
      data-name="{{ guest_name|replace('"','') }}"
+     data-db-status="{{ checkin_status_map.get(bid, '') }}"
      data-group="none">
 
     <div class="mob-card-body">
@@ -555,54 +581,61 @@
 const DATE_STR = '{{ date_str }}';
 function _key(bid)  { return `cal_status__${DATE_STR}__${bid}`; }
 
-/* ── Status logic (same localStorage keys as desktop) ─────────────────── */
-// btn = the button element (passed as `this` from onclick)
-function mobToggleStatus(btn, newStatus) {
-    // Traverse DOM — avoids querySelector failures on IDs with special chars
-    const card        = btn.closest('.mob-card');
-    const bid         = card.dataset.bid;
-    const cur         = localStorage.getItem(_key(bid));
-    const confirmBtn  = card.querySelector('.mob-btn-confirm');
-    const pendingBtn  = card.querySelector('.mob-btn-pending');
-    const cancelBtn   = card.querySelector('.mob-btn-cancel');
-    const banner      = card.querySelector('.mob-status-banner');
+/* ── Persist status to PostgreSQL (fire-and-forget) ─────────────────────
+   Called after every status change so all devices stay in sync.          */
+function _saveStatusToDB(bid, status) {
+    fetch('/api/set_checkin_status', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({booking_id: bid, status: status || ''})
+    }).catch(() => {}); // silent fail — localStorage is the local cache
+}
 
-    function clearAll() {
-        card.classList.remove('status-confirmed', 'status-cancelling');
-        confirmBtn.classList.remove('active');
-        if (pendingBtn) pendingBtn.classList.remove('active');
-        cancelBtn.classList.remove('active');
-    }
-
-    // 'none' means "reset to not-contacted" OR toggle off same button
-    if (newStatus === 'none' || cur === newStatus) {
-        localStorage.removeItem(_key(bid));
-        clearAll();
+/* ── Apply a status visually to a card ──────────────────────────────────*/
+function _applyMobStatus(card, status) {
+    const confirmBtn = card.querySelector('.mob-btn-confirm');
+    const pendingBtn = card.querySelector('.mob-btn-pending');
+    const cancelBtn  = card.querySelector('.mob-btn-cancel');
+    const banner     = card.querySelector('.mob-status-banner');
+    card.classList.remove('status-confirmed', 'status-cancelling');
+    if (confirmBtn) confirmBtn.classList.remove('active');
+    if (pendingBtn) pendingBtn.classList.remove('active');
+    if (cancelBtn)  cancelBtn.classList.remove('active');
+    if (!status) {
         if (pendingBtn) pendingBtn.classList.add('active');
         card.dataset.group = 'none';
-        banner.style.display = 'none';
-        mobToast('📞 Chưa liên hệ', '#1565c0');
-    } else if (newStatus === 'confirmed') {
-        localStorage.setItem(_key(bid), 'confirmed');
-        clearAll();
+        if (banner) banner.style.display = 'none';
+    } else if (status === 'confirmed') {
         card.classList.add('status-confirmed');
         card.dataset.group = 'confirmed';
-        confirmBtn.classList.add('active');
-        banner.className = 'mob-status-banner confirmed';
-        banner.textContent = '✅ Khách xác nhận sẽ đến hôm nay';
-        banner.style.display = 'block';
-        mobToast('✅ Đã xác nhận khách sẽ đến', '#2e7d32');
-    } else if (newStatus === 'cancelling') {
-        localStorage.setItem(_key(bid), 'cancelling');
-        clearAll();
+        if (confirmBtn) confirmBtn.classList.add('active');
+        if (banner) { banner.className='mob-status-banner confirmed'; banner.textContent='✅ Khách xác nhận sẽ đến hôm nay'; banner.style.display='block'; }
+    } else if (status === 'cancelling') {
         card.classList.add('status-cancelling');
         card.dataset.group = 'cancelling';
-        cancelBtn.classList.add('active');
-        banner.className = 'mob-status-banner cancelling';
-        banner.textContent = '⚠️ Khách báo hủy hôm nay';
-        banner.style.display = 'block';
-        mobToast('⚠️ Đã đánh dấu báo hủy', '#c62828');
+        if (cancelBtn) cancelBtn.classList.add('active');
+        if (banner) { banner.className='mob-status-banner cancelling'; banner.textContent='⚠️ Khách báo hủy hôm nay'; banner.style.display='block'; }
     }
+}
+
+/* ── Status toggle (button onclick) ────────────────────────────────────*/
+function mobToggleStatus(btn, newStatus) {
+    const card = btn.closest('.mob-card');
+    const bid  = card.dataset.bid;
+    const cur  = localStorage.getItem(_key(bid));
+
+    // 'none' = explicit reset; tapping active button = toggle off
+    const resolvedStatus = (newStatus === 'none' || cur === newStatus) ? null : newStatus;
+
+    localStorage[resolvedStatus ? 'setItem' : 'removeItem'](_key(bid), resolvedStatus || '');
+    _applyMobStatus(card, resolvedStatus);
+    _saveStatusToDB(bid, resolvedStatus); // 🔑 cross-device sync
+
+    const msgs = { confirmed: ['✅ Đã xác nhận khách sẽ đến', '#2e7d32'],
+                   cancelling: ['⚠️ Đã đánh dấu báo hủy', '#c62828'],
+                   null:       ['📞 Chưa liên hệ', '#1565c0'] };
+    const [msg, col] = msgs[resolvedStatus] || msgs[null];
+    mobToast(msg, col);
     reorderAndCount();
 }
 
@@ -728,32 +761,38 @@ function mobToast(msg, bg) {
     _toastTimer = setTimeout(() => t.classList.remove('show'), 2400);
 }
 
-/* ── Init: restore statuses from localStorage ─────────────────────────── */
+/* ── Init: DB status (server-rendered) takes priority over localStorage ──
+   data-db-status is baked into the HTML from PostgreSQL at render time,
+   so it reflects whatever was last saved from ANY device.               */
 document.addEventListener('DOMContentLoaded', () => {
-    document.querySelectorAll('.mob-card').forEach(card => {
-        const bid        = card.dataset.bid;
-        const status     = localStorage.getItem(_key(bid));
-        const confirmBtn = card.querySelector('.mob-btn-confirm');
-        const pendingBtn = card.querySelector('.mob-btn-pending');
-        const cancelBtn  = card.querySelector('.mob-btn-cancel');
-        const banner     = card.querySelector('.mob-status-banner');
+    // Try to lock landscape orientation (works on Android Chrome)
+    if (screen.orientation && screen.orientation.lock) {
+        screen.orientation.lock('landscape-primary').catch(() => {});
+    }
+    // Show/hide portrait rotation hint
+    function checkRotate() {
+        const hint = document.getElementById('rotate-hint');
+        if (!hint) return;
+        hint.style.display = (window.innerWidth < window.innerHeight) ? 'flex' : 'none';
+    }
+    checkRotate();
+    window.addEventListener('resize', checkRotate);
+    window.addEventListener('orientationchange', () => setTimeout(checkRotate, 200));
 
-        if (!status) {
-            // Default state: highlight the "not contacted" button
-            if (pendingBtn) pendingBtn.classList.add('active');
-            return;
-        }
-        if (status === 'confirmed') {
-            card.classList.add('status-confirmed');
-            card.dataset.group = 'confirmed';
-            if (confirmBtn) confirmBtn.classList.add('active');
-            if (banner) { banner.className='mob-status-banner confirmed'; banner.textContent='✅ Khách xác nhận sẽ đến hôm nay'; banner.style.display='block'; }
-        } else if (status === 'cancelling') {
-            card.classList.add('status-cancelling');
-            card.dataset.group = 'cancelling';
-            if (cancelBtn) cancelBtn.classList.add('active');
-            if (banner) { banner.className='mob-status-banner cancelling'; banner.textContent='⚠️ Khách báo hủy hôm nay'; banner.style.display='block'; }
-        }
+    document.querySelectorAll('.mob-card').forEach(card => {
+        const bid      = card.dataset.bid;
+        const dbStatus = card.dataset.dbStatus || '';  // from PostgreSQL (server-rendered)
+        const lsStatus = localStorage.getItem(_key(bid)) || '';
+
+        // DB status is ground truth (shared across devices);
+        // fall back to localStorage for offline / first-time use
+        const status = dbStatus || lsStatus || null;
+
+        // Keep localStorage in sync with DB
+        if (status) localStorage.setItem(_key(bid), status);
+        else localStorage.removeItem(_key(bid));
+
+        _applyMobStatus(card, status || null);
     });
     reorderAndCount();
 });

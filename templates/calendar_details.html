@@ -3720,8 +3720,17 @@ function showCalToast(message, type) {
     setTimeout(() => { t.style.opacity = '0'; setTimeout(() => t.remove(), 400); }, 2800);
 }
 
-/* ===== Quick Guest Status System (localStorage) ===== */
+/* ===== Quick Guest Status System (localStorage + PostgreSQL sync) ===== */
 function _statusKey(date, bid) { return `cal_status__${date}__${bid}`; }
+
+/* Save status to DB so mobile and desktop stay in sync */
+function _saveStatusToDB(bid, status) {
+    fetch('/api/set_checkin_status', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({booking_id: bid, status: status || ''})
+    }).catch(() => {});
+}
 
 function _applyStatus(card, bar, status) {
     // Clear previous visual state
@@ -3774,10 +3783,12 @@ function toggleGuestStatus(btn, newStatus) {
         // 'none' = explicit "not contacted" reset; or toggle off same button
         localStorage.removeItem(key);
         _applyStatus(card, bar, null);
+        _saveStatusToDB(bid, null);          // 🔑 cross-device sync
         showCalToast('📞 Chưa liên hệ', 'info');
     } else {
         localStorage.setItem(key, newStatus);
         _applyStatus(card, bar, newStatus);
+        _saveStatusToDB(bid, newStatus);     // 🔑 cross-device sync
         if (newStatus === 'confirmed') {
             showCalToast('✅ Đánh dấu khách sẽ đến', 'success');
         } else if (newStatus === 'cancelling') {
@@ -3876,7 +3887,9 @@ function groupSection(containerId) {
 }
 
 // Restore all statuses then regroup all sections
+// DB statuses take precedence (shared across all devices/browsers)
 document.addEventListener('DOMContentLoaded', () => {
+    // 1. First apply localStorage statuses immediately (instant UI, no flash)
     document.querySelectorAll('.quick-status-bar').forEach(bar => {
         const bid    = bar.dataset.bid;
         const date   = bar.dataset.date;
@@ -3885,6 +3898,34 @@ document.addEventListener('DOMContentLoaded', () => {
         if (card) _applyStatus(card, bar, status);
     });
     ['checkin-cards','staying-cards','checkout-cards'].forEach(groupSection);
+
+    // 2. Then fetch DB statuses and reconcile (handles cross-device changes)
+    const bars = Array.from(document.querySelectorAll('.quick-status-bar'));
+    const bids = bars.map(b => b.dataset.bid).filter(Boolean);
+    if (bids.length) {
+        const params = bids.map(b => `bids[]=${encodeURIComponent(b)}`).join('&');
+        fetch(`/api/get_checkin_statuses?${params}`)
+            .then(r => r.json())
+            .then(data => {
+                if (!data.success) return;
+                bars.forEach(bar => {
+                    const bid    = bar.dataset.bid;
+                    const date   = bar.dataset.date;
+                    const key    = _statusKey(date, bid);
+                    const dbStat = data.statuses[bid] || null;
+                    const lsStat = localStorage.getItem(key) || null;
+                    if (dbStat === lsStat) return; // already in sync
+                    // DB wins — update localStorage and re-render card
+                    if (dbStat) localStorage.setItem(key, dbStat);
+                    else localStorage.removeItem(key);
+                    const card = bar.closest('.guest-card');
+                    if (card) _applyStatus(card, bar, dbStat);
+                });
+                // Re-group after DB sync
+                ['checkin-cards','staying-cards','checkout-cards'].forEach(groupSection);
+            })
+            .catch(() => {}); // silent fail — localStorage still works
+    }
 
     // Sort staying cards by remaining nights ascending (soonest checkout first)
     const stayingContainer = document.getElementById('staying-cards');
