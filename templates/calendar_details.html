@@ -384,15 +384,15 @@
             font-weight: 600;
         }
         .detail-nights {
-            color: #333;
+            color: #222;
             white-space: nowrap;
-            font-weight: 700;
-            font-size: 0.86rem;
+            font-weight: 800;
+            font-size: 0.92rem;
         }
         .detail-amount {
             font-weight: 900;
             color: #1a1a1a;
-            font-size: 1.0rem;
+            font-size: 1.05rem;
             white-space: nowrap;
             letter-spacing: -0.3px;
         }
@@ -404,9 +404,9 @@
             padding-top: 5px;
             border-top: 1px dashed rgba(0,0,0,0.15);
             margin-top: 4px;
-            font-size: 0.8rem;
-            font-weight: 600;
-            color: #0077aa;
+            font-size: 0.88rem;
+            font-weight: 800;
+            color: #005f8a;
         }
         .net-rate {
             color: #7b1fa2;
@@ -644,7 +644,7 @@
                                         <span class="detail-amount">{{ "{:,.0f}".format(total_payment) }}đ</span>
                                     </div>
                                     <div class="detail-rate-row">
-                                        <span class="text-info">💰 {{ "{:,.0f}".format(per_night_rate) }}đ/đêm</span>
+                                        <span>💰 {{ "{:,.0f}".format(per_night_rate) }}đ/đêm</span>
                                         {% if has_commission %}<span class="net-rate">→ {{ "{:,.0f}".format((total_payment - commission) / total_nights) }}đ net</span>{% endif %}
                                     </div>
                                 </div>
@@ -749,7 +749,7 @@
                                         <span class="detail-amount">{{ "{:,.0f}".format(total_payment) }}đ</span>
                                     </div>
                                     <div class="detail-rate-row">
-                                        <span class="text-info">💰 {{ "{:,.0f}".format(per_night_rate) }}đ/đêm</span>
+                                        <span>💰 {{ "{:,.0f}".format(per_night_rate) }}đ/đêm</span>
                                         {% if has_commission %}<span class="net-rate">→ {{ "{:,.0f}".format((total_payment - commission) / total_nights) }}đ net</span>{% endif %}
                                     </div>
                                 </div>
@@ -853,7 +853,7 @@
                                         <span class="detail-amount">{{ "{:,.0f}".format(total_payment) }}đ</span>
                                     </div>
                                     <div class="detail-rate-row">
-                                        <span class="text-info">💰 {{ "{:,.0f}".format(per_night_rate) }}đ/đêm</span>
+                                        <span>💰 {{ "{:,.0f}".format(per_night_rate) }}đ/đêm</span>
                                         {% if has_commission %}<span class="net-rate">→ {{ "{:,.0f}".format((total_payment - commission) / total_nights) }}đ net</span>{% endif %}
                                     </div>
                                 </div>
