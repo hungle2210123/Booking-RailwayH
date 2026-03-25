@@ -3865,6 +3865,46 @@ def calendar_details(date_str):
         flash(f'Error loading calendar details: {str(e)}', 'error')
         return redirect(url_for('calendar_view'))
 
+# ─── Mobile Check-in Manager ───────────────────────────────────────────────
+@app.route('/mobile_checkin')
+@app.route('/mobile_checkin/<date_str>')
+def mobile_checkin_view(date_str=None):
+    """Mobile-optimised check-in management page — check-in guests only."""
+    try:
+        if not date_str:
+            date_str = datetime.now().strftime('%Y-%m-%d')
+        date_obj = datetime.strptime(date_str, "%Y-%m-%d").date()
+        df = load_booking_data_for_calculations(force_fresh=True)
+        from core.models import Apartment as _AptM, Room as _RoomM
+        _total_rooms = _RoomM.query.join(_AptM).filter(
+            _RoomM.is_active == True, _AptM.is_active == True
+        ).count() or TOTAL_HOTEL_CAPACITY
+        day_info = get_overall_calendar_day_info(df, date_str, _total_rooms)
+        check_in  = day_info.get('activity', {}).get('arrivals', [])
+        _APT_COLORS = ['#1976D2','#2E7D32','#7B1FA2','#E64A19','#00838F','#F57F17']
+        _APT_EMOJIS = ['🔵','🟢','🟣','🟠','🔵','🟡']
+        _all_apts   = _AptM.query.order_by(_AptM.apartment_id).all()
+        apartments_list = []
+        for _i, _apt in enumerate(_all_apts):
+            _rooms = _RoomM.query.filter_by(apartment_id=_apt.apartment_id).all()
+            apartments_list.append({
+                'id': _apt.apartment_id, 'name': _apt.apartment_name,
+                'name_lower': _apt.apartment_name.lower(),
+                'color': _APT_COLORS[_i % len(_APT_COLORS)],
+                'emoji': _APT_EMOJIS[_i % len(_APT_EMOJIS)],
+                'rooms': [{'name': r.room_name, 'name_lower': r.room_name.lower()} for r in _rooms],
+            })
+        return render_template(
+            'mobile_checkin.html',
+            date=date_obj, date_str=date_str,
+            formatted_date=date_obj.strftime("%d/%m/%Y"),
+            check_in=check_in, current_date=date_obj,
+            pd=pd, timedelta=timedelta,
+            apartments_list=apartments_list,
+        )
+    except Exception as e:
+        return f'<h3>Error: {e}</h3>', 500
+
 # Quick Edit API Endpoints for Calendar Details Page
 @app.route('/api/booking/<booking_id>', methods=['GET'])
 def get_booking_details(booking_id):
