@@ -413,6 +413,67 @@
             font-weight: 600;
         }
 
+        /* ===== Quick Status System ===== */
+        .quick-status-bar {
+            display: flex;
+            gap: 5px;
+            margin: 6px 0 4px;
+        }
+        .btn-qstatus {
+            flex: 1;
+            padding: 5px 4px;
+            font-size: 0.72rem;
+            font-weight: 700;
+            border-radius: 7px;
+            border: 2px solid;
+            cursor: pointer;
+            transition: all 0.18s;
+            background: transparent;
+            white-space: nowrap;
+            letter-spacing: 0.1px;
+        }
+        .btn-qstatus.confirm-btn {
+            border-color: #2e7d32;
+            color: #2e7d32;
+        }
+        .btn-qstatus.confirm-btn:hover  { background: #e8f5e9; }
+        .btn-qstatus.confirm-btn.active {
+            background: #2e7d32;
+            color: #fff;
+            box-shadow: 0 2px 6px rgba(46,125,50,0.4);
+        }
+        .btn-qstatus.cancel-btn {
+            border-color: #c62828;
+            color: #c62828;
+        }
+        .btn-qstatus.cancel-btn:hover  { background: #ffebee; }
+        .btn-qstatus.cancel-btn.active {
+            background: #c62828;
+            color: #fff;
+            box-shadow: 0 2px 6px rgba(198,40,40,0.4);
+        }
+        /* Card overlays when status active */
+        .guest-card.status-confirmed {
+            border-top: 5px solid #2e7d32 !important;
+            box-shadow: 0 0 0 2px rgba(46,125,50,0.25) !important;
+        }
+        .guest-card.status-cancelling {
+            border-top: 5px solid #c62828 !important;
+            box-shadow: 0 0 0 2px rgba(198,40,40,0.25) !important;
+            opacity: 0.88;
+        }
+        .status-banner {
+            text-align: center;
+            font-size: 0.76rem;
+            font-weight: 800;
+            padding: 3px 8px;
+            border-radius: 5px;
+            margin: 3px 0 5px;
+            letter-spacing: 0.3px;
+        }
+        .status-banner.confirmed  { background: #c8e6c9; color: #1b5e20; }
+        .status-banner.cancelling { background: #ffcdd2; color: #7f0000; }
+
         /* ===== Payment Collection UI ===== */
         .pay-area {
             margin-top: 8px;
@@ -648,6 +709,21 @@
                                         {% if has_commission %}<span class="net-rate">→ {{ "{:,.0f}".format((total_payment - commission) / total_nights) }}đ net</span>{% endif %}
                                     </div>
                                 </div>
+                                <!-- Quick Status Buttons -->
+                                <div class="quick-status-bar"
+                                     data-bid="{{ booking.get('Số đặt phòng', '') }}"
+                                     data-date="{{ date_str }}">
+                                    <button class="btn-qstatus confirm-btn"
+                                            onclick="toggleGuestStatus(this,'confirmed')"
+                                            title="Khách xác nhận sẽ đến hôm nay">
+                                        ✅ Xác nhận đến
+                                    </button>
+                                    <button class="btn-qstatus cancel-btn"
+                                            onclick="toggleGuestStatus(this,'cancelling')"
+                                            title="Khách báo hủy hôm nay">
+                                        🚫 Báo hủy
+                                    </button>
+                                </div>
                                 {%- set collector_str = booking.get('Người thu tiền', '')|string %}
                                 <div class="pay-area"
                                      id="pay-{{ booking.get('Số đặt phòng', '') }}"
@@ -753,6 +829,21 @@
                                         {% if has_commission %}<span class="net-rate">→ {{ "{:,.0f}".format((total_payment - commission) / total_nights) }}đ net</span>{% endif %}
                                     </div>
                                 </div>
+                                <!-- Quick Status Buttons -->
+                                <div class="quick-status-bar"
+                                     data-bid="{{ booking.get('Số đặt phòng', '') }}"
+                                     data-date="{{ date_str }}">
+                                    <button class="btn-qstatus confirm-btn"
+                                            onclick="toggleGuestStatus(this,'confirmed')"
+                                            title="Khách xác nhận sẽ đến hôm nay">
+                                        ✅ Xác nhận đến
+                                    </button>
+                                    <button class="btn-qstatus cancel-btn"
+                                            onclick="toggleGuestStatus(this,'cancelling')"
+                                            title="Khách báo hủy hôm nay">
+                                        🚫 Báo hủy
+                                    </button>
+                                </div>
                                 {%- set collector_str = booking.get('Người thu tiền', '')|string %}
                                 <div class="pay-area"
                                      id="pay-{{ booking.get('Số đặt phòng', '') }}"
@@ -856,6 +947,21 @@
                                         <span>💰 {{ "{:,.0f}".format(per_night_rate) }}đ/đêm</span>
                                         {% if has_commission %}<span class="net-rate">→ {{ "{:,.0f}".format((total_payment - commission) / total_nights) }}đ net</span>{% endif %}
                                     </div>
+                                </div>
+                                <!-- Quick Status Buttons -->
+                                <div class="quick-status-bar"
+                                     data-bid="{{ booking.get('Số đặt phòng', '') }}"
+                                     data-date="{{ date_str }}">
+                                    <button class="btn-qstatus confirm-btn"
+                                            onclick="toggleGuestStatus(this,'confirmed')"
+                                            title="Khách xác nhận sẽ đến hôm nay">
+                                        ✅ Xác nhận đến
+                                    </button>
+                                    <button class="btn-qstatus cancel-btn"
+                                            onclick="toggleGuestStatus(this,'cancelling')"
+                                            title="Khách báo hủy hôm nay">
+                                        🚫 Báo hủy
+                                    </button>
                                 </div>
                                 {%- set collector_str = booking.get('Người thu tiền', '')|string %}
                                 <div class="pay-area"
@@ -3520,6 +3626,76 @@ function showCalToast(message, type) {
     document.body.appendChild(t);
     setTimeout(() => { t.style.opacity = '0'; setTimeout(() => t.remove(), 400); }, 2800);
 }
+
+/* ===== Quick Guest Status System (localStorage) ===== */
+function _statusKey(date, bid) { return `cal_status__${date}__${bid}`; }
+
+function _applyStatus(card, bar, status) {
+    // Clear previous visual state
+    card.classList.remove('status-confirmed', 'status-cancelling');
+    bar.querySelectorAll('.btn-qstatus').forEach(b => b.classList.remove('active'));
+    const oldBanner = card.querySelector('.status-banner');
+    if (oldBanner) oldBanner.remove();
+
+    if (!status) return;
+
+    const bannerAnchor = card.querySelector('.room-type') || card.querySelector('.card-details');
+    if (status === 'confirmed') {
+        card.classList.add('status-confirmed');
+        bar.querySelector('.confirm-btn').classList.add('active');
+        if (bannerAnchor) {
+            const b = document.createElement('div');
+            b.className = 'status-banner confirmed';
+            b.textContent = '✅ Khách xác nhận sẽ đến hôm nay';
+            bannerAnchor.insertAdjacentElement('afterend', b);
+        }
+    } else if (status === 'cancelling') {
+        card.classList.add('status-cancelling');
+        bar.querySelector('.cancel-btn').classList.add('active');
+        if (bannerAnchor) {
+            const b = document.createElement('div');
+            b.className = 'status-banner cancelling';
+            b.textContent = '⚠️ Khách báo hủy hôm nay';
+            bannerAnchor.insertAdjacentElement('afterend', b);
+        }
+    }
+}
+
+function toggleGuestStatus(btn, newStatus) {
+    const bar  = btn.closest('.quick-status-bar');
+    const card = btn.closest('.guest-card');
+    const bid  = bar.dataset.bid;
+    const date = bar.dataset.date;
+    const key  = _statusKey(date, bid);
+    const cur  = localStorage.getItem(key);
+
+    if (cur === newStatus) {
+        // Toggle off
+        localStorage.removeItem(key);
+        _applyStatus(card, bar, null);
+        showCalToast('Đã bỏ đánh dấu', 'info');
+    } else {
+        localStorage.setItem(key, newStatus);
+        _applyStatus(card, bar, newStatus);
+        const msg = newStatus === 'confirmed'
+            ? '✅ Đánh dấu khách sẽ đến'
+            : '⚠️ Đánh dấu khách báo hủy';
+        showCalToast(msg, newStatus === 'confirmed' ? 'success' : 'error');
+    }
+}
+
+// Restore all statuses on page load
+document.addEventListener('DOMContentLoaded', () => {
+    document.querySelectorAll('.quick-status-bar').forEach(bar => {
+        const bid    = bar.dataset.bid;
+        const date   = bar.dataset.date;
+        const status = localStorage.getItem(_statusKey(date, bid));
+        if (status) {
+            const card = bar.closest('.guest-card');
+            if (card) _applyStatus(card, bar, status);
+        }
+    });
+});
 </script>
 
         </div>
