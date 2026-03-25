@@ -454,13 +454,33 @@
         }
         /* Card overlays when status active */
         .guest-card.status-confirmed {
-            border-top: 5px solid #2e7d32 !important;
-            box-shadow: 0 0 0 2px rgba(46,125,50,0.25) !important;
+            border: 3px solid #2e7d32 !important;
+            border-top: 6px solid #1b5e20 !important;
+            box-shadow: 0 0 0 3px rgba(46,125,50,0.35), 0 4px 18px rgba(46,125,50,0.22) !important;
+            background: #f0faf0 !important;
+            transform: scale(1.01);
+            z-index: 2;
+            position: relative;
         }
+        .guest-card.status-confirmed .card-header-top {
+            font-weight: 900;
+            color: #1b5e20 !important;
+        }
+        /* Cancelling: blur & fade so confirmed cards stand out */
         .guest-card.status-cancelling {
             border-top: 5px solid #c62828 !important;
-            box-shadow: 0 0 0 2px rgba(198,40,40,0.25) !important;
-            opacity: 0.88;
+            border: 2px solid #ef9a9a !important;
+            box-shadow: none !important;
+            opacity: 0.45;
+            filter: grayscale(60%);
+            transform: scale(0.98);
+        }
+        /* Only blur the content inside (name, details) — keep status buttons readable */
+        .guest-card.status-cancelling .card-header-top,
+        .guest-card.status-cancelling .room-type,
+        .guest-card.status-cancelling .card-details,
+        .guest-card.status-cancelling .commission-badge {
+            filter: blur(1px);
         }
         .status-banner {
             text-align: center;
