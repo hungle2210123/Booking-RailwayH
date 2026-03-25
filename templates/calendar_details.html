@@ -3818,13 +3818,13 @@ function groupSection(containerId) {
     // Dim uncontacted cards when confirmed guests exist
     container.classList.toggle('has-confirmed', groups.confirmed.length > 0);
 
-    // Re-append in order: cancelling → not contacted → confirmed
+    // Re-append in order: confirmed → not contacted → cancelling
     const cfg = {
-        cancelling: { label: '⚠️ Báo hủy',         cls: 'sgd-cancelling' },
-        none:       { label: '📞 Chưa liên hệ',     cls: 'sgd-none'       },
         confirmed:  { label: '✅ Xác nhận sẽ đến',  cls: 'sgd-confirmed'  },
+        none:       { label: '📞 Chưa liên hệ',     cls: 'sgd-none'       },
+        cancelling: { label: '⚠️ Báo hủy',         cls: 'sgd-cancelling' },
     };
-    ['cancelling', 'none', 'confirmed'].forEach(key => {
+    ['confirmed', 'none', 'cancelling'].forEach(key => {
         if (groups[key].length === 0) return;
         if (showDividers) {
             const div = document.createElement('div');
