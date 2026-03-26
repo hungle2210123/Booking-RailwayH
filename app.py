@@ -3771,10 +3771,39 @@ def calendar_details(date_str):
         
         # Get activity data for the template
         activity = day_info.get('activity', {})
-        check_in = activity.get('arrivals', [])
-        check_out = activity.get('departures', [])
+        check_in    = activity.get('arrivals', [])
+        check_out   = activity.get('departures', [])
         staying_over = activity.get('staying', [])
-        
+
+        # ── Re-include cancelled-today check-in bookings so they stay visible ──
+        # Also filter staying_over to exclude checkin_status='cancelling' bookings
+        # (guests who cancelled their arrival should not appear as "staying")
+        try:
+            from core.models import db as _cddb
+            _ci_bids_in = [b.get('Số đặt phòng','') for b in check_in if b.get('Số đặt phòng')]
+            _ci_rows = _cddb.session.execute(
+                text("""SELECT booking_id, checkin_status FROM bookings
+                        WHERE checkin_status IS NOT NULL
+                          AND (booking_id = ANY(:bids)
+                               OR (DATE(checkin_date)=:d AND checkin_status='cancelling'))"""),
+                {'bids': _ci_bids_in or ['__none__'], 'd': date_obj}
+            ).fetchall()
+            _cancelling_all = {r[0] for r in _ci_rows if r[1] == 'cancelling'}
+            _missing_ci = _cancelling_all - set(_ci_bids_in)
+            if _missing_ci:
+                _df_full2 = load_booking_data(force_fresh=True)
+                _extra2 = _df_full2[
+                    (_df_full2['Số đặt phòng'].isin(_missing_ci)) &
+                    (_df_full2['Check-in Date'].apply(
+                        lambda x: pd.Timestamp(x).date() == date_obj if pd.notna(x) else False))
+                ]
+                check_in = check_in + _extra2.to_dict('records')
+            # Remove cancelling guests from staying_over (they never actually checked in)
+            staying_over = [g for g in staying_over
+                            if g.get('Số đặt phòng','') not in _cancelling_all]
+        except Exception:
+            pass
+
         # Calculate revenue info with detailed booking breakdown
         all_guests = check_in + check_out + staying_over
         detailed_bookings = []
@@ -3908,18 +3937,40 @@ def mobile_checkin_view(date_str=None):
             except Exception:
                 pass
 
-        # Load DB-side checkin_status for all arrivals today (cross-device sync)
+        # ── Cross-device checkin_status map ─────────────────────────────────
+        # Also re-include any bookings with checkin_status='cancelling' whose
+        # check-in date is today but were absent from load_booking_data_for_calculations.
+        # (They stay visible all day so staff can review/undo; disappear naturally
+        #  from tomorrow's check-in because their checkin_date != tomorrow.)
         checkin_status_map = {}
         try:
             from core.models import db as _db3
-            _bids = [b.get('Số đặt phòng', '') for b in check_in if b.get('Số đặt phòng')]
-            if _bids:
-                _rows = _db3.session.execute(
-                    text("""SELECT booking_id, checkin_status FROM bookings
-                            WHERE booking_id = ANY(:bids) AND checkin_status IS NOT NULL"""),
-                    {'bids': _bids}
-                ).fetchall()
-                checkin_status_map = {r[0]: r[1] for r in _rows}
+            # All bids already in check_in
+            _bids_in = [b.get('Số đặt phòng', '') for b in check_in if b.get('Số đặt phòng')]
+            # Fetch: (a) checkin_status for known bids, (b) any cancelling bids for today
+            _all_rows = _db3.session.execute(
+                text("""SELECT booking_id, checkin_status FROM bookings
+                        WHERE checkin_status IS NOT NULL
+                          AND (booking_id = ANY(:bids)
+                               OR (DATE(checkin_date) = :d AND checkin_status = 'cancelling'))"""),
+                {'bids': _bids_in or ['__none__'], 'd': date_obj}
+            ).fetchall()
+            checkin_status_map = {r[0]: r[1] for r in _all_rows}
+
+            # Re-add cancelling bookings that load_booking_data_for_calculations may
+            # have excluded (they remain visible today for review)
+            _cancelling_bids = {r[0] for r in _all_rows if r[1] == 'cancelling'}
+            _missing = _cancelling_bids - set(_bids_in)
+            if _missing:
+                _df_full = load_booking_data(force_fresh=True)   # includes all statuses
+                _today_ts = pd.Timestamp(date_obj)
+                _extra = _df_full[
+                    (_df_full['Số đặt phòng'].isin(_missing)) &
+                    (_df_full['Check-in Date'].apply(
+                        lambda x: pd.Timestamp(x).date() == date_obj
+                        if pd.notna(x) else False))
+                ]
+                check_in = check_in + _extra.to_dict('records')
         except Exception:
             pass
 
@@ -7694,22 +7745,17 @@ def set_checkin_status():
         if status not in (None, 'confirmed', 'cancelling'):
             return jsonify({'success': False, 'error': f'Invalid status: {status}'}), 400
         from core.models import db
-        # When marking as cancelling → also set booking_status='cancelled' so the
-        # booking is excluded from tomorrow's calendar and revenue calculations.
-        # When un-marking (confirmed / not-contacted) → restore booking_status='confirmed'.
-        if status == 'cancelling':
-            booking_status = 'cancelled'
-        else:
-            booking_status = 'confirmed'   # restore if staff un-does the cancellation
+        # Only update checkin_status — NOT booking_status.
+        # This keeps the booking visible in today's check-in view even after a
+        # page refresh (so staff can review/undo throughout the day).
+        # The booking is excluded from the "staying" section for all FUTURE days
+        # by filtering on checkin_status='cancelling' in calendar/mobile views.
         db.session.execute(
-            text("""UPDATE bookings
-                    SET checkin_status = :s, booking_status = :bs
-                    WHERE booking_id = :bid"""),
-            {'s': status, 'bs': booking_status, 'bid': booking_id}
+            text("UPDATE bookings SET checkin_status = :s WHERE booking_id = :bid"),
+            {'s': status, 'bid': booking_id}
         )
         db.session.commit()
-        return jsonify({'success': True, 'booking_id': booking_id,
-                        'status': status, 'booking_status': booking_status})
+        return jsonify({'success': True, 'booking_id': booking_id, 'status': status})
     except Exception as e:
         try:
             from core.models import db
