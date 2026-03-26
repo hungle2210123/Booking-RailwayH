@@ -7,6 +7,21 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <title>Check-in {{ formatted_date }}</title>
+    <!-- Auto-redirect to today if this URL was bookmarked with a past/future date.
+         Runs before any rendering so the user never sees stale data. -->
+    <script>
+    (function(){
+        var pageDate = '{{ date_str }}';
+        var today = new Date();
+        var yyyy = today.getFullYear();
+        var mm   = String(today.getMonth()+1).padStart(2,'0');
+        var dd   = String(today.getDate()).padStart(2,'0');
+        var todayStr = yyyy + '-' + mm + '-' + dd;
+        if (pageDate !== todayStr) {
+            window.location.replace('/mobile_checkin/' + todayStr);
+        }
+    })();
+    </script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
