@@ -7694,12 +7694,22 @@ def set_checkin_status():
         if status not in (None, 'confirmed', 'cancelling'):
             return jsonify({'success': False, 'error': f'Invalid status: {status}'}), 400
         from core.models import db
+        # When marking as cancelling → also set booking_status='cancelled' so the
+        # booking is excluded from tomorrow's calendar and revenue calculations.
+        # When un-marking (confirmed / not-contacted) → restore booking_status='confirmed'.
+        if status == 'cancelling':
+            booking_status = 'cancelled'
+        else:
+            booking_status = 'confirmed'   # restore if staff un-does the cancellation
         db.session.execute(
-            text("UPDATE bookings SET checkin_status = :s WHERE booking_id = :bid"),
-            {'s': status, 'bid': booking_id}
+            text("""UPDATE bookings
+                    SET checkin_status = :s, booking_status = :bs
+                    WHERE booking_id = :bid"""),
+            {'s': status, 'bs': booking_status, 'bid': booking_id}
         )
         db.session.commit()
-        return jsonify({'success': True, 'booking_id': booking_id, 'status': status})
+        return jsonify({'success': True, 'booking_id': booking_id,
+                        'status': status, 'booking_status': booking_status})
     except Exception as e:
         try:
             from core.models import db
