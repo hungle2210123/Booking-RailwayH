@@ -3783,17 +3783,25 @@ function toggleGuestStatus(btn, newStatus) {
         // 'none' = explicit "not contacted" reset; or toggle off same button
         localStorage.removeItem(key);
         _applyStatus(card, bar, null);
-        _saveStatusToDB(bid, null);          // 🔑 cross-device sync
+        _saveStatusToDB(bid, null);          // 🔑 cross-device sync + restores booking_status
         showCalToast('📞 Chưa liên hệ', 'info');
+    } else if (newStatus === 'cancelling') {
+        // Báo hủy also sets booking_status='cancelled' in DB → booking hidden tomorrow
+        const guestName = name || 'Khách';
+        if (!confirm(`⚠️ Xác nhận hủy đặt phòng của "${guestName}"?\n\n✔ Khách sẽ được đánh dấu BÁO HỦY hôm nay\n✔ Đặt phòng sẽ bị hủy và KHÔNG hiện ngày mai\n\nBấm OK để xác nhận, Hủy để quay lại.`)) {
+            return;
+        }
+        localStorage.setItem(key, 'cancelling');
+        _applyStatus(card, bar, 'cancelling');
+        _saveStatusToDB(bid, 'cancelling');  // 🔑 also sets booking_status='cancelled'
+        showCalToast('🚫 Đã hủy đặt phòng — sẽ ẩn khỏi lịch ngày mai', 'error');
+        openCancelNotify(name);
     } else {
         localStorage.setItem(key, newStatus);
         _applyStatus(card, bar, newStatus);
         _saveStatusToDB(bid, newStatus);     // 🔑 cross-device sync
         if (newStatus === 'confirmed') {
             showCalToast('✅ Đánh dấu khách sẽ đến', 'success');
-        } else if (newStatus === 'cancelling') {
-            showCalToast('⚠️ Đánh dấu khách báo hủy', 'error');
-            openCancelNotify(name);
         }
     }
 
