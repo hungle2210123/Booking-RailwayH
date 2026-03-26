@@ -444,14 +444,19 @@
         .detail-remaining.urgent   { color: #c62828; }
         .detail-remaining.warn     { color: #e65100; }
         .detail-remaining.ok       { color: #2e7d32; }
+        /* ── Quick-status button bar ──
+           Layout: [✅ Xác nhận đến] [🚫 Báo hủy]   ← row 1 (primary actions)
+                   [📞 Chưa liên hệ — full width]    ← row 2 (reset / secondary)
+           Works on any card width, including the 2-col mobile portrait grid. */
         .quick-status-bar {
-            display: flex;
-            gap: 5px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            grid-template-rows: auto auto;
+            gap: 4px;
             margin: 6px 0 4px;
         }
         .btn-qstatus {
-            flex: 1;
-            padding: 5px 4px;
+            padding: 6px 4px;
             font-size: 0.72rem;
             font-weight: 700;
             border-radius: 7px;
@@ -461,7 +466,14 @@
             background: transparent;
             white-space: nowrap;
             letter-spacing: 0.1px;
+            text-align: center;
         }
+        /* confirm — top-left */
+        .btn-qstatus.confirm-btn { grid-column: 1; grid-row: 1; }
+        /* cancel — top-right */
+        .btn-qstatus.cancel-btn  { grid-column: 2; grid-row: 1; }
+        /* pending (reset) — full-width second row */
+        .btn-qstatus.pending-btn { grid-column: 1 / -1; grid-row: 2; }
         .btn-qstatus.confirm-btn {
             border-color: #2e7d32;
             color: #2e7d32;
@@ -810,20 +822,22 @@
                                      data-bid="{{ booking.get('Số đặt phòng', '') }}"
                                      data-date="{{ date_str }}"
                                      data-name="{{ booking.get('Tên người đặt', 'Khách')|replace('"','') }}">
+                                    <!-- Row 1: primary actions -->
                                     <button class="btn-qstatus confirm-btn"
                                             onclick="toggleGuestStatus(this,'confirmed')"
                                             title="Khách xác nhận sẽ đến hôm nay">
                                         ✅ Xác nhận đến
                                     </button>
-                                    <button class="btn-qstatus pending-btn"
-                                            onclick="toggleGuestStatus(this,'none')"
-                                            title="Chưa liên hệ với khách">
-                                        📞 Chưa liên hệ
-                                    </button>
                                     <button class="btn-qstatus cancel-btn"
                                             onclick="toggleGuestStatus(this,'cancelling')"
                                             title="Khách báo hủy hôm nay">
                                         🚫 Báo hủy
+                                    </button>
+                                    <!-- Row 2: reset / not-yet-contacted -->
+                                    <button class="btn-qstatus pending-btn"
+                                            onclick="toggleGuestStatus(this,'none')"
+                                            title="Chưa liên hệ với khách">
+                                        📞 Chưa liên hệ
                                     </button>
                                 </div>
                                 {%- set collector_str = booking.get('Người thu tiền', '')|string %}
