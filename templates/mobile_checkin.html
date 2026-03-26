@@ -696,20 +696,32 @@ function _applyMobStatus(card, status) {
 
 /* ── Status toggle (button onclick) ────────────────────────────────────*/
 function mobToggleStatus(btn, newStatus) {
-    const card = btn.closest('.mob-card');
-    const bid  = card.dataset.bid;
-    const cur  = localStorage.getItem(_key(bid));
+    const card     = btn.closest('.mob-card');
+    const bid      = card.dataset.bid;
+    const guestName = card.dataset.name || 'Khách';
+    const cur      = localStorage.getItem(_key(bid));
 
     // 'none' = explicit reset; tapping active button = toggle off
     const resolvedStatus = (newStatus === 'none' || cur === newStatus) ? null : newStatus;
 
+    // ── Confirmation dialog for Báo hủy ──────────────────────────────────
+    // Cancelling also sets booking_status='cancelled' in DB so the booking
+    // disappears from tomorrow's calendar. Warn the user before proceeding.
+    if (resolvedStatus === 'cancelling') {
+        if (!confirm(`⚠️ Xác nhận hủy đặt phòng của "${guestName}"?\n\n✔ Khách sẽ được đánh dấu BÁO HỦY hôm nay\n✔ Đặt phòng sẽ bị hủy và KHÔNG hiện ngày mai\n\nBấm OK để xác nhận, Hủy để quay lại.`)) {
+            return; // user cancelled the confirmation
+        }
+    }
+
     localStorage[resolvedStatus ? 'setItem' : 'removeItem'](_key(bid), resolvedStatus || '');
     _applyMobStatus(card, resolvedStatus);
-    _saveStatusToDB(bid, resolvedStatus); // 🔑 cross-device sync
+    _saveStatusToDB(bid, resolvedStatus); // 🔑 cross-device sync + sets booking_status
 
-    const msgs = { confirmed: ['✅ Đã xác nhận khách sẽ đến', '#2e7d32'],
-                   cancelling: ['⚠️ Đã đánh dấu báo hủy', '#c62828'],
-                   null:       ['📞 Chưa liên hệ', '#1565c0'] };
+    const msgs = {
+        confirmed:  ['✅ Đã xác nhận khách sẽ đến', '#2e7d32'],
+        cancelling: ['🚫 Đã hủy đặt phòng — sẽ ẩn khỏi lịch ngày mai', '#c62828'],
+        null:       ['📞 Chưa liên hệ', '#1565c0']
+    };
     const [msg, col] = msgs[resolvedStatus] || msgs[null];
     mobToast(msg, col);
     reorderAndCount();
