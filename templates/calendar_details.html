@@ -101,8 +101,9 @@
                 <div class="d-flex justify-content-between align-items-center">
                     <h6 class="mb-0 text-white fw-bold">
                         <i class="fas fa-user-times me-2"></i>
-                        Khách Đã Hủy - Chưa Check-in (Có Thể Phục Hồi)
+                        Khách Đã Hủy - Cửa Sổ Phục Hồi 20 Ngày
                         <span id="canceledGuestsCount" class="badge bg-light text-dark ms-2">0</span>
+                        <span id="canceledUrgencyBadges" class="ms-2"></span>
                     </h6>
                     <div class="btn-group" role="group">
                         <button class="btn btn-sm btn-light" onclick="toggleCanceledPanel()" id="toggleCanceledBtn">
@@ -114,7 +115,7 @@
                     </div>
                 </div>
                 <small class="text-white-50 d-block mt-1">
-                    Chỉ hiển thị khách đã hủy nhưng chưa check-in (ngày đến >= hôm nay) - Click "Phục hồi" để chuyển về OK
+                    🕐 Chỉ hiển thị trong <strong>20 ngày</strong> kể từ ngày hủy · 🟢 1–7 ngày · 🟡 8–14 ngày · 🔴 15–20 ngày · Sau 20 ngày tự ẩn
                 </small>
             </div>
             <div class="card-body p-0" id="canceledGuestsContent" style="display: none;">
@@ -2237,16 +2238,41 @@ function refreshCanceledGuests() {
             loadingDiv.style.display = 'none';
             
             if (data.success && data.canceled_bookings && data.canceled_bookings.length > 0) {
-                // Filter to only show guests who haven't checked in yet (future check-in dates)
                 const today = new Date();
-                today.setHours(0, 0, 0, 0); // Reset time to start of day for accurate comparison
-                
+                today.setHours(0, 0, 0, 0);
+                const twentyDaysAgo = new Date(today);
+                twentyDaysAgo.setDate(twentyDaysAgo.getDate() - 20);
+
                 const futureGuestsOnly = data.canceled_bookings.filter(guest => {
+                    // Must have future (or today) check-in
                     const checkinDate = new Date(guest.checkin_date);
                     checkinDate.setHours(0, 0, 0, 0);
-                    return checkinDate >= today; // Only future or today check-ins
+                    if (checkinDate < today) return false;
+                    // 20-day recovery window: hide if cancellation is older than 20 days
+                    if (guest.canceled_date) {
+                        const canceledDate = new Date(guest.canceled_date);
+                        if (canceledDate < twentyDaysAgo) return false;
+                    }
+                    return true;
                 });
-                
+
+                // Update urgency summary badges in the panel header
+                const urgBadgesEl = document.getElementById('canceledUrgencyBadges');
+                if (urgBadgesEl) {
+                    let fresh = 0, aging = 0, expiring = 0;
+                    futureGuestsOnly.forEach(guest => {
+                        if (!guest.canceled_date) return;
+                        const d = Math.floor((today - new Date(guest.canceled_date)) / 86400000);
+                        if (d <= 7) fresh++;
+                        else if (d <= 14) aging++;
+                        else expiring++;
+                    });
+                    urgBadgesEl.innerHTML =
+                        (fresh    ? `<span class="badge" style="background:#4caf50;font-size:0.7rem;">🟢 ${fresh}</span> ` : '') +
+                        (aging    ? `<span class="badge" style="background:#ff9800;font-size:0.7rem;">🟡 ${aging}</span> ` : '') +
+                        (expiring ? `<span class="badge" style="background:#f44336;font-size:0.7rem;">🔴 ${expiring}</span>` : '');
+                }
+
                 if (futureGuestsOnly.length > 0) {
                     canceledGuestsData = futureGuestsOnly;
                     displayCanceledGuests(canceledGuestsData);
@@ -2260,6 +2286,20 @@ function refreshCanceledGuests() {
                 countBadge.textContent = '0';
                 emptyDiv.style.display = 'block';
             }
+
+            // ── Background cleanup: silently delete cancellations older than 30 days ──
+            fetch('/api/cleanup_old_cancellations', {method: 'POST'})
+                .then(r => r.json())
+                .then(d => {
+                    if (d.success && d.deleted > 0) {
+                        const t = document.createElement('div');
+                        t.style.cssText = 'position:fixed;bottom:16px;left:50%;transform:translateX(-50%);background:#424242;color:#fff;padding:8px 16px;border-radius:20px;font-size:0.8rem;z-index:9999;';
+                        t.textContent = `🗑 Đã xóa ${d.deleted} booking đã hủy (>30 ngày)`;
+                        document.body.appendChild(t);
+                        setTimeout(() => t.remove(), 4000);
+                    }
+                })
+                .catch(() => {}); // silent — non-critical
         })
         .catch(error => {
             console.error('Error fetching canceled guests:', error);
@@ -2362,12 +2402,31 @@ function displayCanceledGuests(guests) {
                 // Escape single quotes in guest name for onclick handlers
                 const guestNameEscaped = guest.guest_name.replace(/'/g, "\\'");
 
+                // ── Urgency: days since cancellation ──────────────────────────
+                const todayNow = new Date(); todayNow.setHours(0,0,0,0);
+                let daysSince = null, daysLeft = null;
+                if (guest.canceled_date) {
+                    daysSince = Math.floor((todayNow - new Date(guest.canceled_date)) / 86400000);
+                    daysLeft  = 20 - daysSince;
+                }
+                let urgColor, urgLabel, urgRowBorder;
+                if (daysLeft === null) {
+                    urgColor = '#9e9e9e'; urgLabel = '?';           urgRowBorder = borderColor;
+                } else if (daysSince <= 7) {
+                    urgColor = '#4caf50'; urgLabel = `🟢 còn ${daysLeft}n`; urgRowBorder = borderColor;
+                } else if (daysSince <= 14) {
+                    urgColor = '#ff9800'; urgLabel = `🟡 còn ${daysLeft}n`; urgRowBorder = '#ff9800';
+                } else {
+                    urgColor = '#f44336'; urgLabel = `🔴 còn ${daysLeft}n`; urgRowBorder = '#f44336';
+                }
+                const urgBadgeHtml = `<span class="badge ms-1" style="background:${urgColor};font-size:0.6rem;vertical-align:middle;">${urgLabel}</span>`;
+
                 guestsHtml += `
-                    <tr style="background-color: ${roomColor}; font-size: 0.85rem; border-left: 4px solid ${borderColor};">
+                    <tr style="background-color: ${roomColor}; font-size: 0.85rem; border-left: 4px solid ${urgRowBorder};">
                         <td style="width: 35% !important; padding: 4px 8px; overflow: hidden;">
                             <span class="badge bg-${roomBadgeColor}" style="font-size: 0.65rem;">${room}</span>
                             <i class="fas fa-user ms-1 me-1" style="font-size: 0.7rem; color: #ff6b6b;"></i>
-                            <strong style="font-size: 0.85rem;">${guest.guest_name}</strong>
+                            <strong style="font-size: 0.85rem;">${guest.guest_name}</strong>${urgBadgeHtml}
                         </td>
                         <td style="width: 15% !important; padding: 4px 8px; font-size: 0.75rem; white-space: nowrap;">
                             ${checkinDate}→${checkoutDate}
