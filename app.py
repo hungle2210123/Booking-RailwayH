@@ -3776,24 +3776,34 @@ def calendar_details(date_str):
         staying_over = activity.get('staying', [])
 
         # ── Cancelling-status handling ────────────────────────────────────────
-        # TODAY only: re-include bookings marked 'cancelling' so staff can review/undo them.
-        # PAST dates: hide them — once the check-in day has passed, they're gone from calendar.
-        # staying_over always excludes 'cancelling' bookings (they never actually arrived).
+        # Query checkin_status for ALL guests visible on this date (check_in + staying_over).
+        # This is critical: a guest who checked in yesterday and is now staying_over today
+        # would be missed if we only query check_in bids — their checkin_date ≠ today so
+        # the date-based OR clause can't catch them either.
+        #
+        # Separation of concerns:
+        #   _all_visible_bids → DB query to find any cancelling status across all guests
+        #   _ci_bids_only     → used for the re-inject logic (arrivals only, not staying)
         _today_date = datetime.now().date()
         try:
             from core.models import db as _cddb
-            _ci_bids_in = [b.get('Số đặt phòng','') for b in check_in if b.get('Số đặt phòng')]
+            _ci_bids_only    = [b.get('Số đặt phòng','') for b in check_in        if b.get('Số đặt phòng')]
+            _stay_bids_only  = [b.get('Số đặt phòng','') for b in staying_over    if b.get('Số đặt phòng')]
+            _all_visible_bids = list(set(_ci_bids_only + _stay_bids_only))
+
             _ci_rows = _cddb.session.execute(
                 text("""SELECT booking_id, checkin_status FROM bookings
                         WHERE checkin_status IS NOT NULL
                           AND (booking_id = ANY(:bids)
                                OR (DATE(checkin_date)=:d AND checkin_status='cancelling'))"""),
-                {'bids': _ci_bids_in or ['__none__'], 'd': date_obj}
+                {'bids': _all_visible_bids or ['__none__'], 'd': date_obj}
             ).fetchall()
             _cancelling_all = {r[0] for r in _ci_rows if r[1] == 'cancelling'}
-            # Only re-inject missing cancelling bookings when viewing TODAY
+
+            # TODAY only: re-inject cancelling arrivals so staff can review/undo them.
+            # PAST dates: hide them from check_in entirely.
             if date_obj == _today_date:
-                _missing_ci = _cancelling_all - set(_ci_bids_in)
+                _missing_ci = _cancelling_all - set(_ci_bids_only)  # only arrivals, not stayers
                 if _missing_ci:
                     _df_full2 = load_booking_data(force_fresh=True)
                     _extra2 = _df_full2[
@@ -3803,9 +3813,11 @@ def calendar_details(date_str):
                     ]
                     check_in = check_in + _extra2.to_dict('records')
             else:
-                # Past date: strip cancelling bookings from check_in entirely
                 check_in = [b for b in check_in if b.get('Số đặt phòng','') not in _cancelling_all]
-            # Remove cancelling guests from staying_over (they never actually checked in)
+
+            # Always remove cancelling guests from staying_over — they reported cancellation
+            # on their arrival day and never actually stayed, regardless of whether that was
+            # today or any previous day.
             staying_over = [g for g in staying_over
                             if g.get('Số đặt phòng','') not in _cancelling_all]
         except Exception:
