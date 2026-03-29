@@ -3775,9 +3775,11 @@ def calendar_details(date_str):
         check_out   = activity.get('departures', [])
         staying_over = activity.get('staying', [])
 
-        # ── Re-include cancelled-today check-in bookings so they stay visible ──
-        # Also filter staying_over to exclude checkin_status='cancelling' bookings
-        # (guests who cancelled their arrival should not appear as "staying")
+        # ── Cancelling-status handling ────────────────────────────────────────
+        # TODAY only: re-include bookings marked 'cancelling' so staff can review/undo them.
+        # PAST dates: hide them — once the check-in day has passed, they're gone from calendar.
+        # staying_over always excludes 'cancelling' bookings (they never actually arrived).
+        _today_date = datetime.now().date()
         try:
             from core.models import db as _cddb
             _ci_bids_in = [b.get('Số đặt phòng','') for b in check_in if b.get('Số đặt phòng')]
@@ -3789,15 +3791,20 @@ def calendar_details(date_str):
                 {'bids': _ci_bids_in or ['__none__'], 'd': date_obj}
             ).fetchall()
             _cancelling_all = {r[0] for r in _ci_rows if r[1] == 'cancelling'}
-            _missing_ci = _cancelling_all - set(_ci_bids_in)
-            if _missing_ci:
-                _df_full2 = load_booking_data(force_fresh=True)
-                _extra2 = _df_full2[
-                    (_df_full2['Số đặt phòng'].isin(_missing_ci)) &
-                    (_df_full2['Check-in Date'].apply(
-                        lambda x: pd.Timestamp(x).date() == date_obj if pd.notna(x) else False))
-                ]
-                check_in = check_in + _extra2.to_dict('records')
+            # Only re-inject missing cancelling bookings when viewing TODAY
+            if date_obj == _today_date:
+                _missing_ci = _cancelling_all - set(_ci_bids_in)
+                if _missing_ci:
+                    _df_full2 = load_booking_data(force_fresh=True)
+                    _extra2 = _df_full2[
+                        (_df_full2['Số đặt phòng'].isin(_missing_ci)) &
+                        (_df_full2['Check-in Date'].apply(
+                            lambda x: pd.Timestamp(x).date() == date_obj if pd.notna(x) else False))
+                    ]
+                    check_in = check_in + _extra2.to_dict('records')
+            else:
+                # Past date: strip cancelling bookings from check_in entirely
+                check_in = [b for b in check_in if b.get('Số đặt phòng','') not in _cancelling_all]
             # Remove cancelling guests from staying_over (they never actually checked in)
             staying_over = [g for g in staying_over
                             if g.get('Số đặt phòng','') not in _cancelling_all]
@@ -9017,6 +9024,33 @@ def get_canceled_bookings():
         
     except Exception as e:
         print(f"Error fetching canceled bookings: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/cleanup_old_cancellations', methods=['POST'])
+def cleanup_old_cancellations():
+    """Permanently delete cancelled bookings whose updated_at is older than 30 days."""
+    try:
+        from core.models import db as _cdb
+        from datetime import datetime, timedelta
+        cutoff = datetime.now() - timedelta(days=30)
+        result = _cdb.session.execute(
+            text("""DELETE FROM bookings
+                    WHERE booking_status IN ('cancelled', 'đã hủy', 'canceled')
+                      AND updated_at < :cutoff"""),
+            {'cutoff': cutoff}
+        )
+        _cdb.session.commit()
+        deleted = result.rowcount
+        if deleted:
+            print(f"🗑 cleanup_old_cancellations: deleted {deleted} stale cancelled bookings")
+        return jsonify({'success': True, 'deleted': deleted})
+    except Exception as e:
+        print(f"Error in cleanup_old_cancellations: {e}")
+        try:
+            from core.models import db as _cdb2
+            _cdb2.session.rollback()
+        except Exception:
+            pass
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/api/restore_booking/<booking_id>', methods=['POST'])
