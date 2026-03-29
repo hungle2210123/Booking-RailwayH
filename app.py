@@ -3775,22 +3775,20 @@ def calendar_details(date_str):
         check_out   = activity.get('departures', [])
         staying_over = activity.get('staying', [])
 
-        # ── Cancelling-status handling ────────────────────────────────────────
-        # Query checkin_status for ALL guests visible on this date (check_in + staying_over).
-        # This is critical: a guest who checked in yesterday and is now staying_over today
-        # would be missed if we only query check_in bids — their checkin_date ≠ today so
-        # the date-based OR clause can't catch them either.
-        #
-        # Separation of concerns:
-        #   _all_visible_bids → DB query to find any cancelling status across all guests
-        #   _ci_bids_only     → used for the re-inject logic (arrivals only, not staying)
-        _today_date = datetime.now().date()
+        # ── Cancelling / no-show filter ──────────────────────────────────────
+        # Railway server runs UTC; Vietnam is UTC+7.  Use VN local date so that
+        # "has check-in day passed?" comparisons are correct even at midnight.
+        _today_date = (datetime.utcnow() + timedelta(hours=7)).date()
+
+        # Collect bids OUTSIDE the DB try-block so they're always defined.
+        _ci_bids_only   = [b.get('Số đặt phòng','') for b in check_in     if b.get('Số đặt phòng')]
+        _stay_bids_only = [b.get('Số đặt phòng','') for b in staying_over if b.get('Số đặt phòng')]
+        _all_visible_bids = list(set(_ci_bids_only + _stay_bids_only))
+
+        # Default: empty map (if DB query fails filter still runs; no-show logic kicks in)
+        _all_status_map = {}
         try:
             from core.models import db as _cddb
-            _ci_bids_only    = [b.get('Số đặt phòng','') for b in check_in        if b.get('Số đặt phòng')]
-            _stay_bids_only  = [b.get('Số đặt phòng','') for b in staying_over    if b.get('Số đặt phòng')]
-            _all_visible_bids = list(set(_ci_bids_only + _stay_bids_only))
-
             _ci_rows = _cddb.session.execute(
                 text("""SELECT booking_id, checkin_status FROM bookings
                         WHERE checkin_status IS NOT NULL
@@ -3798,16 +3796,18 @@ def calendar_details(date_str):
                                OR (DATE(checkin_date)=:d AND checkin_status='cancelling'))"""),
                 {'bids': _all_visible_bids or ['__none__'], 'd': date_obj}
             ).fetchall()
-            # bid → status map for every guest we have a record for
-            # guests with checkin_status=NULL in DB will NOT appear here (→ get(bid) = None)
             _all_status_map = {r[0]: r[1] for r in _ci_rows}
-            _cancelling_all = {bid for bid, st in _all_status_map.items() if st == 'cancelling'}
+        except Exception as _qe:
+            print(f"[calendar_details:{date_obj}] checkin_status query failed: {_qe}")
 
-            # TODAY only: re-inject cancelling arrivals so staff can review/undo them.
-            # PAST dates: hide them from check_in entirely.
-            if date_obj == _today_date:
-                _missing_ci = _cancelling_all - set(_ci_bids_only)  # only arrivals, not stayers
-                if _missing_ci:
+        _cancelling_all = {bid for bid, st in _all_status_map.items() if st == 'cancelling'}
+
+        # TODAY: re-inject cancelling arrivals so staff can review/undo them.
+        # PAST : strip cancelling bookings from check_in entirely.
+        if date_obj == _today_date:
+            _missing_ci = _cancelling_all - set(_ci_bids_only)
+            if _missing_ci:
+                try:
                     _df_full2 = load_booking_data(force_fresh=True)
                     _extra2 = _df_full2[
                         (_df_full2['Số đặt phòng'].isin(_missing_ci)) &
@@ -3815,34 +3815,34 @@ def calendar_details(date_str):
                             lambda x: pd.Timestamp(x).date() == date_obj if pd.notna(x) else False))
                     ]
                     check_in = check_in + _extra2.to_dict('records')
-            else:
-                check_in = [b for b in check_in if b.get('Số đặt phòng','') not in _cancelling_all]
-
-            # Filter staying_over with three-tier rule:
-            #   confirmed   → keep (they explicitly confirmed arrival)
-            #   cancelling  → remove (they announced cancellation)
-            #   null/none   → remove if check-in date has already passed (no-show);
-            #                 keep only if arriving today (might still come)
-            def _guest_stays_over(g):
-                bid = g.get('Số đặt phòng', '')
-                st  = _all_status_map.get(bid)   # None when checkin_status IS NULL in DB
-                if st == 'confirmed':
-                    return True
-                if st == 'cancelling':
-                    return False
-                # st is None → not-contacted guest
-                # Treat as no-show only once their check-in day has passed
-                try:
-                    ci = g.get('Check-in Date')
-                    if pd.notna(ci) and pd.Timestamp(ci).date() < _today_date:
-                        return False
                 except Exception:
                     pass
-                return True  # today's arrival or undetermined date → keep for now
+        else:
+            check_in = [b for b in check_in if b.get('Số đặt phòng','') not in _cancelling_all]
 
-            staying_over = [g for g in staying_over if _guest_stays_over(g)]
-        except Exception:
-            pass
+        # Filter staying_over — runs unconditionally (not inside a try/except).
+        #   confirmed   → keep
+        #   cancelling  → remove
+        #   null/none   → remove once their check-in day has passed (no-show)
+        #                 keep only if check-in is today (might still arrive)
+        def _guest_stays_over(g):
+            bid = g.get('Số đặt phòng', '')
+            st  = _all_status_map.get(bid)      # None when checkin_status IS NULL in DB
+            if st == 'confirmed':  return True
+            if st == 'cancelling': return False
+            # not-contacted: remove if their check-in day is already behind us
+            try:
+                ci = g.get('Check-in Date')
+                if pd.notna(ci) and pd.Timestamp(ci).date() < _today_date:
+                    return False
+            except Exception:
+                pass
+            return True
+
+        _removed = [g.get('Tên người đặt','?') for g in staying_over if not _guest_stays_over(g)]
+        staying_over = [g for g in staying_over if _guest_stays_over(g)]
+        if _removed:
+            print(f"[calendar_details:{date_obj}] Removed no-show/cancelled from staying: {_removed}")
 
         # Calculate revenue info with detailed booking breakdown
         all_guests = check_in + check_out + staying_over
