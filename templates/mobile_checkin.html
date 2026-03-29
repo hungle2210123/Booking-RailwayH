@@ -332,8 +332,17 @@
             .mob-info-grid .mob-info-label { display: none; }
             .mob-amount { font-size: 0.9rem; font-weight: 900; white-space: nowrap; }
 
-            /* ── Hide per-night rate (total is shown above) ── */
-            .mob-rate { display: none; }
+            /* ── Show rate compactly in landscape strip ── */
+            .mob-rate {
+                font-size: 0.58rem;
+                font-weight: 700;
+                color: #005f8a;
+                white-space: nowrap;
+                flex-shrink: 0;
+                margin: 0 3px;
+                align-self: center;
+                margin-top: 0;
+            }
 
             /* ── Column 4: 3 compact status buttons ── */
             .mob-status-btns { flex: 0 0 auto; margin: 0; gap: 3px; }
