@@ -3798,7 +3798,10 @@ def calendar_details(date_str):
                                OR (DATE(checkin_date)=:d AND checkin_status='cancelling'))"""),
                 {'bids': _all_visible_bids or ['__none__'], 'd': date_obj}
             ).fetchall()
-            _cancelling_all = {r[0] for r in _ci_rows if r[1] == 'cancelling'}
+            # bid → status map for every guest we have a record for
+            # guests with checkin_status=NULL in DB will NOT appear here (→ get(bid) = None)
+            _all_status_map = {r[0]: r[1] for r in _ci_rows}
+            _cancelling_all = {bid for bid, st in _all_status_map.items() if st == 'cancelling'}
 
             # TODAY only: re-inject cancelling arrivals so staff can review/undo them.
             # PAST dates: hide them from check_in entirely.
@@ -3815,11 +3818,29 @@ def calendar_details(date_str):
             else:
                 check_in = [b for b in check_in if b.get('Số đặt phòng','') not in _cancelling_all]
 
-            # Always remove cancelling guests from staying_over — they reported cancellation
-            # on their arrival day and never actually stayed, regardless of whether that was
-            # today or any previous day.
-            staying_over = [g for g in staying_over
-                            if g.get('Số đặt phòng','') not in _cancelling_all]
+            # Filter staying_over with three-tier rule:
+            #   confirmed   → keep (they explicitly confirmed arrival)
+            #   cancelling  → remove (they announced cancellation)
+            #   null/none   → remove if check-in date has already passed (no-show);
+            #                 keep only if arriving today (might still come)
+            def _guest_stays_over(g):
+                bid = g.get('Số đặt phòng', '')
+                st  = _all_status_map.get(bid)   # None when checkin_status IS NULL in DB
+                if st == 'confirmed':
+                    return True
+                if st == 'cancelling':
+                    return False
+                # st is None → not-contacted guest
+                # Treat as no-show only once their check-in day has passed
+                try:
+                    ci = g.get('Check-in Date')
+                    if pd.notna(ci) and pd.Timestamp(ci).date() < _today_date:
+                        return False
+                except Exception:
+                    pass
+                return True  # today's arrival or undetermined date → keep for now
+
+            staying_over = [g for g in staying_over if _guest_stays_over(g)]
         except Exception:
             pass
 
