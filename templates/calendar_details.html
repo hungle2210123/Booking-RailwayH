@@ -2286,6 +2286,20 @@ function refreshCanceledGuests() {
                 countBadge.textContent = '0';
                 emptyDiv.style.display = 'block';
             }
+
+            // ── Background cleanup: silently delete cancellations older than 30 days ──
+            fetch('/api/cleanup_old_cancellations', {method: 'POST'})
+                .then(r => r.json())
+                .then(d => {
+                    if (d.success && d.deleted > 0) {
+                        const t = document.createElement('div');
+                        t.style.cssText = 'position:fixed;bottom:16px;left:50%;transform:translateX(-50%);background:#424242;color:#fff;padding:8px 16px;border-radius:20px;font-size:0.8rem;z-index:9999;';
+                        t.textContent = `🗑 Đã xóa ${d.deleted} booking đã hủy (>30 ngày)`;
+                        document.body.appendChild(t);
+                        setTimeout(() => t.remove(), 4000);
+                    }
+                })
+                .catch(() => {}); // silent — non-critical
         })
         .catch(error => {
             console.error('Error fetching canceled guests:', error);
