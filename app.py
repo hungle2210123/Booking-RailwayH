@@ -1453,6 +1453,11 @@ def apartment_management():
     return render_template('apartments.html')
 
 @app.route('/')
+def index():
+    """Redirect root to revenue calendar."""
+    return redirect(url_for('calendar_view'))
+
+@app.route('/dashboard')
 def dashboard():
     """PostgreSQL-powered dashboard route with cancellation notifications"""
     start_date_str = request.args.get('start_date')
