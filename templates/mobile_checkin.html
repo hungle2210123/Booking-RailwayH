@@ -317,14 +317,21 @@
             /* ── Hide banner, dividers, nights/date grid ── */
             .mob-status-banner { display: none !important; }
             .mob-divider       { display: none; }
-            /* Show ONLY total amount from info-grid */
-            .mob-info-grid {
+
+            /* ── Price column: amount on top, rate below, stacked ── */
+            .mob-price-col {
                 flex: 1;
+                display: flex;
+                flex-direction: column;
+                align-items: flex-end;
+                justify-content: center;
+                min-width: 0;
+            }
+            .mob-info-grid {
                 display: flex;
                 align-items: center;
                 margin: 0;
                 gap: 0;
-                min-width: 0;
             }
             .mob-info-grid > .mob-info-item:nth-child(1),
             .mob-info-grid > .mob-info-item:nth-child(2) { display: none; }
@@ -332,16 +339,14 @@
             .mob-info-grid .mob-info-label { display: none; }
             .mob-amount { font-size: 0.9rem; font-weight: 900; white-space: nowrap; }
 
-            /* ── Show rate compactly in landscape strip ── */
+            /* ── Rate: sits below amount, smaller ── */
             .mob-rate {
                 font-size: 0.58rem;
                 font-weight: 700;
                 color: #005f8a;
                 white-space: nowrap;
-                flex-shrink: 0;
-                margin: 0 3px;
-                align-self: center;
-                margin-top: 0;
+                margin: 0;
+                line-height: 1.2;
             }
 
             /* ── Column 4: 3 compact status buttons ── */
@@ -512,22 +517,24 @@
 
         <hr class="mob-divider">
 
-        <!-- Key info -->
-        <div class="mob-info-grid">
-            <div class="mob-info-item">
-                <span class="mob-info-label">Trả phòng</span>
-                <span class="mob-info-value">📅 {{ checkout_str }}</span>
+        <!-- Key info — wrapped so amount + rate stack as one column in landscape -->
+        <div class="mob-price-col">
+            <div class="mob-info-grid">
+                <div class="mob-info-item">
+                    <span class="mob-info-label">Trả phòng</span>
+                    <span class="mob-info-value">📅 {{ checkout_str }}</span>
+                </div>
+                <div class="mob-info-item">
+                    <span class="mob-info-label">Số đêm</span>
+                    <span class="mob-info-value">🌙 {{ total_nights }} đêm</span>
+                </div>
+                <div class="mob-info-item" style="grid-column:1/-1; margin-top:4px;">
+                    <span class="mob-info-label">Tổng tiền</span>
+                    <span class="mob-amount">{{ "{:,.0f}".format(total_payment) }}đ</span>
+                </div>
             </div>
-            <div class="mob-info-item">
-                <span class="mob-info-label">Số đêm</span>
-                <span class="mob-info-value">🌙 {{ total_nights }} đêm</span>
-            </div>
-            <div class="mob-info-item" style="grid-column:1/-1; margin-top:4px;">
-                <span class="mob-info-label">Tổng tiền</span>
-                <span class="mob-amount">{{ "{:,.0f}".format(total_payment) }}đ</span>
-            </div>
+            <div class="mob-rate">💰 {{ "{:,.0f}".format(per_night_rate) }}đ/đêm{% if has_commission %} → {{ "{:,.0f}".format((total_payment - commission) / total_nights) }}đ net{% endif %}</div>
         </div>
-        <div class="mob-rate">💰 {{ "{:,.0f}".format(per_night_rate) }}đ/đêm{% if has_commission %} → {{ "{:,.0f}".format((total_payment - commission) / total_nights) }}đ net{% endif %}</div>
 
         <hr class="mob-divider">
 
