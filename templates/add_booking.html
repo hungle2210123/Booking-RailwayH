@@ -2446,36 +2446,15 @@ function generateReviewTableHtml(duplicateCheck) {
         booking.room_type = roomType;
         booking.accommodation_name_raw = rawAccomDisplay;
 
-        // Build dropdown options from DB_ROOMS (loaded dynamically from /api/accommodation_options)
-        const roomTypeLower = roomType.toLowerCase();
-        const isKnown = DB_ROOMS.some(r => r.name.toLowerCase() === roomTypeLower);
-
-        // Build grouped options from DB (known rooms)
-        const byApt = {};
+        // Build datalist suggestions from DB_ROOMS for free-text input
+        // User sees AI's verbatim extraction pre-filled; can type anything freely;
+        // DB room names appear as autocomplete suggestions.
+        let datalistOptions = '';
         DB_ROOMS.forEach(r => {
-            if (!byApt[r.aptName]) byApt[r.aptName] = [];
-            byApt[r.aptName].push(r);
-        });
-        let roomOptions = '';
-        Object.entries(byApt).forEach(([aptName, rooms]) => {
-            roomOptions += `<optgroup label="${aptName}">`;
-            rooms.forEach(r => {
-                const sel = r.name.toLowerCase() === roomTypeLower ? 'selected' : '';
-                roomOptions += `<option value="${r.name}" ${sel}>${r.name}</option>`;
-            });
-            roomOptions += `</optgroup>`;
+            datalistOptions += `<option value="${r.name}">`;
         });
 
-        // Verbatim architecture: the AI extracts the exact platform name — always valid.
-        // If it doesn't match a known DB room, show it as a clean selected option (no warning).
-        const extraOption = !isKnown && roomType
-            ? `<option value="${roomType}" selected>${roomType}</option>`
-            : '';
-
-        // No rawHint needed — room name IS the raw platform name (verbatim)
-        const rawHint = '';
-
-        console.log(`🏠 [ROOM_DISPLAY] Row ${index}: ${guestName} → "${roomType}" (known:${isKnown})`);
+        console.log(`🏠 [ROOM_DISPLAY] Row ${index}: ${guestName} → "${roomType}"`);
 
         return `
         <tr data-index="${index}" class="${rowClass}">
@@ -2502,11 +2481,16 @@ function generateReviewTableHtml(duplicateCheck) {
                        placeholder="Tự tạo">
             </td>
             <td>
-                <select class="form-select form-select-sm"
-                        onchange="updateBookingData(${index}, 'room_name', this.value)" required>
-                    ${extraOption}${roomOptions}
-                </select>
-                ${rawHint}
+                <input type="text"
+                       class="form-control form-control-sm"
+                       list="room-suggestions-${index}"
+                       value="${roomType}"
+                       oninput="updateBookingData(${index}, 'room_name', this.value)"
+                       placeholder="Tên phòng / chỗ nghỉ..."
+                       required>
+                <datalist id="room-suggestions-${index}">
+                    ${datalistOptions}
+                </datalist>
             </td>
             <td>
                 <input type="date" class="form-control form-control-sm"
