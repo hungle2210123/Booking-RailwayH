@@ -241,21 +241,7 @@ h1, h2, h3, h4, h5, h6 {
                     </div>
                     <div class="col-md-4">
                         <select class="form-select" id="aiRoomType" onchange="updateAIRoomType()" style="border: 2px solid white; font-weight: 600;">
-                            <optgroup label="🔵 118 Hang Bac Hostel" style="background-color: #E3F2FD; color: #1976D2; font-weight: bold;">
-                                <option value="118 hang bac" style="background-color: #BBDEFB; color: #0D47A1;">🔵 118 hang bac</option>
-                                <option value="kitchen" style="background-color: #BBDEFB; color: #0D47A1;">🔵 kitchen</option>
-                                <option value="night market" style="background-color: #BBDEFB; color: #0D47A1;">🔵 night market</option>
-                            </optgroup>
-                            <optgroup label="🟢 18 Hang Be" style="background-color: #E8F5E9; color: #388E3C; font-weight: bold;">
-                                <option value="hang be 101" style="background-color: #C8E6C9; color: #1B5E20;">🟢 hang be 101</option>
-                                <option value="hang be 102" style="background-color: #C8E6C9; color: #1B5E20;">🟢 hang be 102</option>
-                            </optgroup>
-                            <optgroup label="🟣 25 Hoi Vu" style="background-color: #F3E5F5; color: #7B1FA2; font-weight: bold;">
-                                <option value="101 - 2 pn" style="background-color: #E1BEE7; color: #4A148C;">🟣 101 - 2 PN (Studio Gia Đình)</option>
-                                <option value="102" style="background-color: #E1BEE7; color: #4A148C;">🟣 102</option>
-                                <option value="103" style="background-color: #E1BEE7; color: #4A148C;">🟣 103</option>
-                                <option value="104" style="background-color: #E1BEE7; color: #4A148C;">🟣 104</option>
-                            </optgroup>
+                            <option value="">⏳ Đang tải danh sách phòng...</option>
                         </select>
                     </div>
                 </div>
@@ -532,21 +518,7 @@ Return ONLY valid JSON. No explanation text before or after.
                         </div>
                         <label for="roomType" class="form-label"><i class="fas fa-bed me-1"></i>Phòng *</label>
                         <select class="form-select" id="roomType" name="roomType" required onchange="updateAccommodationName()">
-                            <optgroup label="🔵 118 Hang Bac Hostel">
-                                <option value="118 hang bac">118 hang bac</option>
-                                <option value="kitchen">kitchen</option>
-                                <option value="night market">night market</option>
-                            </optgroup>
-                            <optgroup label="🟢 18 Hang Be">
-                                <option value="hang be 101">hang be 101</option>
-                                <option value="hang be 102">hang be 102</option>
-                            </optgroup>
-                            <optgroup label="🟣 25 Hoi Vu">
-                                <option value="101 - 2 pn">101 - 2 PN (Studio Gia Đình)</option>
-                                <option value="102">102</option>
-                                <option value="103">103</option>
-                                <option value="104">104</option>
-                            </optgroup>
+                            <option value="">⏳ Đang tải danh sách phòng...</option>
                         </select>
                     </div>
                     
@@ -653,59 +625,92 @@ Return ONLY valid JSON. No explanation text before or after.
 let extractedBookings = [];
 
 // ─────────────────────────────────────────────────────────────
-// smartMatchRoom(rawText)
-// Maps any accommodation name string the AI extracts to the
-// exact internal room_name stored in the database.
-// Rules (in priority order):
-//   1. Exact case-insensitive match to a known room name → use as-is
-//   2. Keyword patterns for 18 Hang Be rooms
-//   3. Keyword patterns for 118 Hang Bac rooms
-//   4. 25 Hoi Vu / Studio patterns
-//   5. Unknown → return rawText so the user can pick from dropdown
+// Room list loaded dynamically from DB via /api/accommodation_options
+// Structure: [{ name, aptName, color }, ...]
 // ─────────────────────────────────────────────────────────────
-function smartMatchRoom(raw) {
-    if (!raw) return '118 hang bac';
-    const s = raw.toLowerCase().trim();
+let DB_ROOMS = [];          // flat list of { name, aptName, color }
+let DB_APTS  = [];          // raw API response for grouped dropdowns
 
-    // ── Exact known internal names (allow direct pass-through) ──
-    const knownRooms = [
-        '118 hang bac', 'kitchen', 'night market',
-        'hang be 101', 'hang be 102',
-        '101 - 2 pn', '102', '103', '104'
-    ];
-    for (const r of knownRooms) {
-        if (s === r) return r;
+async function loadRoomsFromDB() {
+    try {
+        const res = await fetch('/api/accommodation_options');
+        const data = await res.json();
+        // API returns { options: [...] } or directly an array
+        DB_APTS = (data.options || (Array.isArray(data) ? data : []));
+        DB_ROOMS = [];
+        DB_APTS.forEach(apt => {
+            if (apt.rooms && apt.rooms.length > 0) {
+                apt.rooms.forEach(r => {
+                    DB_ROOMS.push({ name: r.name, aptName: apt.name, color: apt.color });
+                });
+            } else {
+                // apartment with no sub-rooms (legacy) — treat apt itself as a room entry
+                DB_ROOMS.push({ name: apt.name, aptName: apt.name, color: apt.color });
+            }
+        });
+        console.log(`✅ [ROOMS_FROM_DB] Loaded ${DB_ROOMS.length} rooms from DB`, DB_ROOMS);
+    } catch (e) {
+        console.warn('[ROOMS_FROM_DB] Failed to load rooms from DB, using fallback', e);
+        DB_ROOMS = [
+            { name: '118 hang bac', aptName: '118 Hang Bac Hostel', color: '#1976D2' },
+            { name: 'kitchen',      aptName: '118 Hang Bac Hostel', color: '#1976D2' },
+            { name: 'night market', aptName: '118 Hang Bac Hostel', color: '#1976D2' },
+            { name: 'hang be 101',  aptName: '18 Hang Be',          color: '#2E7D32' },
+            { name: 'hang be 102',  aptName: '18 Hang Be',          color: '#2E7D32' },
+            { name: '101 - 2 pn',   aptName: '25 Hoi Vu',           color: '#7B1FA2' },
+            { name: '102',          aptName: '25 Hoi Vu',           color: '#7B1FA2' },
+            { name: '103',          aptName: '25 Hoi Vu',           color: '#7B1FA2' },
+            { name: '104',          aptName: '25 Hoi Vu',           color: '#7B1FA2' },
+        ];
     }
-
-    // ── 18 Hang Be ──
-    if (s.includes('kitchen & washing machine') || s.includes('1 br') ||
-        s.includes('hang be 101') || s.includes('heart of old quarter'))
-        return 'hang be 101';
-
-    if (s.includes('2 br') || s.includes('free laundry') ||
-        s.includes('hang be 102'))
-        return 'hang be 102';
-
-    // ── 25 Hoi Vu ──
-    if (s.includes('studio gia đình') || s.includes('studio gia dinh') ||
-        s.includes('gia đình') || s.includes('gia dinh') ||
-        s.includes('studio') || s.includes('25 hoi vu') || s.includes('hội vũ') ||
-        s.includes('101 - 2 pn') || s.includes('101 2pn'))
-        return '101 - 2 pn';
-
-    if (s === '102' || s.includes('hoi vu 102')) return '102';
-    if (s === '103' || s.includes('hoi vu 103')) return '103';
-    if (s === '104' || s.includes('hoi vu 104')) return '104';
-
-    // ── 118 Hang Bac ──
-    if (s.includes('night market')) return 'night market';
-    if (s.includes('kitchen & balcony') || s.includes('kitchen')) return 'kitchen';
-    if (s.includes('118') || s.includes('hang bac') || s.includes('old quarter')) return '118 hang bac';
-
-    // ── Unknown: return raw so UI flags it for manual selection ──
-    console.warn(`[smartMatchRoom] No match for "${raw}" — returning raw`);
-    return raw;
+    buildAllDropdowns();
 }
+
+// Build grouped <optgroup> HTML from DB_ROOMS
+function _buildRoomOptionsHTML(selectedValue) {
+    const byApt = {};
+    DB_ROOMS.forEach(r => {
+        if (!byApt[r.aptName]) byApt[r.aptName] = [];
+        byApt[r.aptName].push(r);
+    });
+    let html = '';
+    Object.entries(byApt).forEach(([aptName, rooms]) => {
+        html += `<optgroup label="${aptName}">`;
+        rooms.forEach(r => {
+            const sel = selectedValue && r.name.toLowerCase() === selectedValue.toLowerCase() ? 'selected' : '';
+            html += `<option value="${r.name}" ${sel}>${r.name}</option>`;
+        });
+        html += `</optgroup>`;
+    });
+    return html;
+}
+
+// Populate all static dropdowns on the page from DB_ROOMS
+function buildAllDropdowns() {
+    ['aiRoomType', 'roomType'].forEach(id => {
+        const sel = document.getElementById(id);
+        if (sel) sel.innerHTML = _buildRoomOptionsHTML(sel.value || '');
+    });
+}
+
+// ─────────────────────────────────────────────────────────────
+// resolveAccommodation(rawText)
+// Returns the raw text exactly as-is.
+// The backend (add_new_booking) will fuzzy-match it against the
+// rooms table to assign room_id — no translation needed here.
+// If the raw text exactly matches a known DB room name, great.
+// If not, it's stored verbatim and backend handles it.
+// ─────────────────────────────────────────────────────────────
+function resolveAccommodation(raw) {
+    if (!raw || !raw.trim()) return '118 hang bac';
+    return raw.trim();   // pass through verbatim — no translation
+}
+
+// Keep smartMatchRoom as alias for any legacy call sites
+function smartMatchRoom(raw) { return resolveAccommodation(raw); }
+
+// Load rooms when page opens
+loadRoomsFromDB();
 
 // Mode selection functionality
 function selectMode(mode) {
@@ -1134,21 +1139,21 @@ function importJSONBookings() {
         
         console.log(`✅ [JSON_IMPORT] Parsed ${data.bookings.length} booking(s)`, data.bookings);
 
-        // Validate and format bookings — preserve exact accommodation name from AI
+        // Validate and format bookings — use exact accommodation name from AI, verbatim
         const formattedBookings = data.bookings.map((booking, index) => {
-            // New field: accommodation_name_raw — exact text from "Tên chỗ nghỉ" column
-            // Legacy fallback: room_name / room_type / property_name_raw
-            const rawAccom = booking.accommodation_name_raw
+            // accommodation_name_raw is the exact text from the booking platform.
+            // We store it as-is; the backend matches it to room_id via DB lookup.
+            const rawAccom = (booking.accommodation_name_raw
                           || booking.property_name_raw
                           || booking.room_name
                           || booking.room_type
                           || booking['Tên chỗ nghỉ']
-                          || '';
+                          || '').trim();
 
-            // Smart-match raw name to a known internal room name
-            const matchedRoom = smartMatchRoom(rawAccom);
+            // resolveAccommodation() is a pure pass-through — no translation
+            const accomName = resolveAccommodation(rawAccom);
 
-            console.log(`🏠 [JSON_IMPORT] #${index+1} ${booking.guest_name}: "${rawAccom}" → "${matchedRoom}"`);
+            console.log(`🏠 [JSON_IMPORT] #${index+1} ${booking.guest_name}: accommodation = "${accomName}"`);
 
             return {
                 guest_name: booking.guest_name || `Guest ${index + 1}`,
@@ -1157,10 +1162,10 @@ function importJSONBookings() {
                 room_amount: parseInt(booking.room_amount) || 0,
                 commission: parseInt(booking.commission) || 0,
                 booking_id: booking.booking_id || `JSON${Date.now()}${index}`,
-                room_name: matchedRoom,
-                room_type: matchedRoom,
-                'Tên chỗ nghỉ': matchedRoom,
-                accommodation_name_raw: rawAccom,   // preserved for display & manual correction
+                room_name: accomName,           // exact raw name — backend resolves room_id
+                room_type: accomName,
+                'Tên chỗ nghỉ': accomName,
+                accommodation_name_raw: rawAccom,
                 status: booking.status || 'OK',
                 currency: booking.currency || 'VND',
                 nights: booking.nights || 1,
@@ -2424,46 +2429,49 @@ function generateReviewTableHtml(duplicateCheck) {
         }
         
         // Room resolution: prefer already-matched room_name from import step,
-        // fall back to smartMatchRoom on any raw accommodation text.
-        let roomType = booking.room_name || booking.room_type || booking['Tên chỗ nghỉ'];
-        const rawAccomDisplay = booking.accommodation_name_raw || booking.property_name_raw || '';
-        if (!roomType && rawAccomDisplay) {
-            roomType = smartMatchRoom(rawAccomDisplay);
-        }
-        if (!roomType) roomType = '118 hang bac';
+        // Use exact accommodation name from AI — no translation.
+        // rawAccomDisplay is what the booking platform showed; we store it verbatim.
+        const rawAccomDisplay = (booking.accommodation_name_raw || booking.property_name_raw || '').trim();
+        let roomType = (booking.room_name || booking.room_type || booking['Tên chỗ nghỉ'] || rawAccomDisplay || '118 hang bac').trim();
 
         // Persist back so save logic always has it
         booking['Tên chỗ nghỉ'] = roomType;
         booking.room_name = roomType;
         booking.room_type = roomType;
+        booking.accommodation_name_raw = rawAccomDisplay;
 
-        // All known internal room names (for option selected state)
-        const allRooms = [
-            { v: '118 hang bac',  label: '🔵 118 hang bac' },
-            { v: 'kitchen',       label: '🔵 kitchen' },
-            { v: 'night market',  label: '🔵 night market' },
-            { v: 'hang be 101',   label: '🟢 hang be 101' },
-            { v: 'hang be 102',   label: '🟢 hang be 102' },
-            { v: '101 - 2 pn',    label: '🟣 101 - 2 PN (Studio Gia Đình)' },
-            { v: '102',           label: '🟣 102' },
-            { v: '103',           label: '🟣 103' },
-            { v: '104',           label: '🟣 104' },
-        ];
-        const knownValues = allRooms.map(r => r.v);
-        const isUnknown = !knownValues.includes(roomType.toLowerCase ? roomType.toLowerCase() : roomType);
-        const roomOptions = allRooms.map(r =>
-            `<option value="${r.v}" ${roomType === r.v ? 'selected' : ''}>${r.label}</option>`
-        ).join('');
-        // If AI returned something unrecognised, add it as an extra option so user can see it
-        const extraOption = isUnknown && roomType
-            ? `<option value="${roomType}" selected>⚠️ ${roomType} (kiểm tra lại)</option>` : '';
+        // Build dropdown options from DB_ROOMS (loaded dynamically from /api/accommodation_options)
+        // Find if roomType matches any known DB room name (case-insensitive)
+        const roomTypeLower = roomType.toLowerCase();
+        const isKnown = DB_ROOMS.some(r => r.name.toLowerCase() === roomTypeLower);
 
-        // Show raw accommodation name as a small hint below the dropdown
-        const rawHint = rawAccomDisplay
-            ? `<small class="text-muted d-block mt-1" style="font-size:0.7rem;" title="Tên gốc từ AI">📋 ${rawAccomDisplay}</small>`
+        // Build grouped options from DB
+        const byApt = {};
+        DB_ROOMS.forEach(r => {
+            if (!byApt[r.aptName]) byApt[r.aptName] = [];
+            byApt[r.aptName].push(r);
+        });
+        let roomOptions = '';
+        Object.entries(byApt).forEach(([aptName, rooms]) => {
+            roomOptions += `<optgroup label="${aptName}">`;
+            rooms.forEach(r => {
+                const sel = r.name.toLowerCase() === roomTypeLower ? 'selected' : '';
+                roomOptions += `<option value="${r.name}" ${sel}>${r.name}</option>`;
+            });
+            roomOptions += `</optgroup>`;
+        });
+
+        // If raw name is not in DB yet, show it as a highlighted option so user can confirm or change
+        const extraOption = !isKnown && roomType
+            ? `<option value="${roomType}" selected style="color:#b45309;font-weight:700;">⚠️ ${roomType}</option>`
             : '';
 
-        console.log(`🏠 [ROOM_DISPLAY] Row ${index}: ${guestName} → "${roomType}" (raw: "${rawAccomDisplay}")`);
+        // Show the raw platform text as a hint so user can verify
+        const rawHint = rawAccomDisplay && rawAccomDisplay !== roomType
+            ? `<small class="text-muted d-block mt-1" style="font-size:0.7rem;">📋 "${rawAccomDisplay}"</small>`
+            : '';
+
+        console.log(`🏠 [ROOM_DISPLAY] Row ${index}: ${guestName} → "${roomType}" (known:${isKnown}, raw:"${rawAccomDisplay}")`);
 
         return `
         <tr data-index="${index}" class="${rowClass}">
