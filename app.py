@@ -3785,10 +3785,13 @@ def calendar_details(date_str):
         # "has check-in day passed?" comparisons are correct even at midnight.
         _today_date = (datetime.utcnow() + timedelta(hours=7)).date()
 
-        # Collect bids OUTSIDE the DB try-block so they're always defined.
+        # Collect bids for ALL three sections — check_out guests are included so that
+        # guests who reported cancellation on their check-in day and never actually
+        # arrived are also filtered out of the check-out list.
         _ci_bids_only   = [b.get('Số đặt phòng','') for b in check_in     if b.get('Số đặt phòng')]
         _stay_bids_only = [b.get('Số đặt phòng','') for b in staying_over if b.get('Số đặt phòng')]
-        _all_visible_bids = list(set(_ci_bids_only + _stay_bids_only))
+        _co_bids_only   = [b.get('Số đặt phòng','') for b in check_out    if b.get('Số đặt phòng')]
+        _all_visible_bids = list(set(_ci_bids_only + _stay_bids_only + _co_bids_only))
 
         # Default: empty map (if DB query fails filter still runs; no-show logic kicks in)
         _all_status_map = {}
@@ -3848,6 +3851,28 @@ def calendar_details(date_str):
         staying_over = [g for g in staying_over if _guest_stays_over(g)]
         if _removed:
             print(f"[calendar_details:{date_obj}] Removed no-show/cancelled from staying: {_removed}")
+
+        # Filter check_out: guests marked 'cancelling' never actually arrived, so they
+        # cannot check out either.  Same rule applies to uncontacted guests whose
+        # check-in date has already passed (no-show) — they won't be physically checking out.
+        def _guest_checks_out(g):
+            bid = g.get('Số đặt phòng', '')
+            st  = _all_status_map.get(bid)
+            if st == 'cancelling': return False
+            if st == 'confirmed':  return True
+            # not-contacted: if their check-in day has passed they're a no-show — skip
+            try:
+                ci = g.get('Check-in Date')
+                if pd.notna(ci) and pd.Timestamp(ci).date() < _today_date:
+                    return False
+            except Exception:
+                pass
+            return True
+
+        _co_removed = [g.get('Tên người đặt','?') for g in check_out if not _guest_checks_out(g)]
+        check_out = [g for g in check_out if _guest_checks_out(g)]
+        if _co_removed:
+            print(f"[calendar_details:{date_obj}] Removed no-show/cancelled from checkout: {_co_removed}")
 
         # Calculate revenue info with detailed booking breakdown
         all_guests = check_in + check_out + staying_over
