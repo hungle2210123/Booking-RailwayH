@@ -2447,11 +2447,10 @@ function generateReviewTableHtml(duplicateCheck) {
         booking.accommodation_name_raw = rawAccomDisplay;
 
         // Build dropdown options from DB_ROOMS (loaded dynamically from /api/accommodation_options)
-        // Find if roomType matches any known DB room name (case-insensitive)
         const roomTypeLower = roomType.toLowerCase();
         const isKnown = DB_ROOMS.some(r => r.name.toLowerCase() === roomTypeLower);
 
-        // Build grouped options from DB
+        // Build grouped options from DB (known rooms)
         const byApt = {};
         DB_ROOMS.forEach(r => {
             if (!byApt[r.aptName]) byApt[r.aptName] = [];
@@ -2467,17 +2466,16 @@ function generateReviewTableHtml(duplicateCheck) {
             roomOptions += `</optgroup>`;
         });
 
-        // If raw name is not in DB yet, show it as a highlighted option so user can confirm or change
+        // Verbatim architecture: the AI extracts the exact platform name — always valid.
+        // If it doesn't match a known DB room, show it as a clean selected option (no warning).
         const extraOption = !isKnown && roomType
-            ? `<option value="${roomType}" selected style="color:#b45309;font-weight:700;">⚠️ ${roomType}</option>`
+            ? `<option value="${roomType}" selected>${roomType}</option>`
             : '';
 
-        // Show the raw platform text as a hint so user can verify
-        const rawHint = rawAccomDisplay && rawAccomDisplay !== roomType
-            ? `<small class="text-muted d-block mt-1" style="font-size:0.7rem;">📋 "${rawAccomDisplay}"</small>`
-            : '';
+        // No rawHint needed — room name IS the raw platform name (verbatim)
+        const rawHint = '';
 
-        console.log(`🏠 [ROOM_DISPLAY] Row ${index}: ${guestName} → "${roomType}" (known:${isKnown}, raw:"${rawAccomDisplay}")`);
+        console.log(`🏠 [ROOM_DISPLAY] Row ${index}: ${guestName} → "${roomType}" (known:${isKnown})`);
 
         return `
         <tr data-index="${index}" class="${rowClass}">
@@ -2504,7 +2502,7 @@ function generateReviewTableHtml(duplicateCheck) {
                        placeholder="Tự tạo">
             </td>
             <td>
-                <select class="form-select form-select-sm ${!isKnown ? 'border-warning' : ''}"
+                <select class="form-select form-select-sm"
                         onchange="updateBookingData(${index}, 'room_name', this.value)" required>
                     ${extraOption}${roomOptions}
                 </select>
