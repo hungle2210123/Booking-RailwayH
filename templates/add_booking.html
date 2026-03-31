@@ -1116,7 +1116,7 @@ function focusJSONInput() {
 }
 
 // Import JSON bookings from external AI
-function importJSONBookings() {
+async function importJSONBookings() {
     const jsonInput = document.getElementById('json-input');
     const jsonText = jsonInput.value.trim();
     
@@ -1189,14 +1189,20 @@ function importJSONBookings() {
         // Store and show in review table
         window.manualExtractedBookings = formattedBookings;
         console.log('📋 [JSON_IMPORT] Stored bookings for review table');
-        
+
+        // ── Ensure rooms are loaded before rendering dropdowns ──
+        if (DB_ROOMS.length === 0) {
+            console.log('⏳ [JSON_IMPORT] Rooms not loaded yet, fetching now...');
+            await loadRoomsFromDB();
+        }
+
         // Clear JSON input
         jsonInput.value = '';
-        
+
         // Show success message
         const successMsg = `✅ Import thành công ${formattedBookings.length} booking từ JSON!`;
         alert(successMsg);
-        
+
         // Automatically show review table
         showExtractedBookingsTable();
         
