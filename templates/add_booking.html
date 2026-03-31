@@ -636,7 +636,7 @@ async function loadRoomsFromDB() {
         const res = await fetch('/api/accommodation_options');
         const data = await res.json();
         // API returns { options: [...] } or directly an array
-        DB_APTS = (data.options || (Array.isArray(data) ? data : []));
+        DB_APTS = (data.apartments || data.options || (Array.isArray(data) ? data : []));
         DB_ROOMS = [];
         DB_APTS.forEach(apt => {
             if (apt.rooms && apt.rooms.length > 0) {
@@ -2504,7 +2504,7 @@ function generateReviewTableHtml(duplicateCheck) {
                        placeholder="Tự tạo">
             </td>
             <td>
-                <select class="form-select form-select-sm ${isUnknown ? 'border-warning' : ''}"
+                <select class="form-select form-select-sm ${!isKnown ? 'border-warning' : ''}"
                         onchange="updateBookingData(${index}, 'room_name', this.value)" required>
                     ${extraOption}${roomOptions}
                 </select>
