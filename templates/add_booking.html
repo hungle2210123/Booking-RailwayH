@@ -250,6 +250,12 @@ h1, h2, h3, h4, h5, h6 {
                                 <option value="hang be 101" style="background-color: #C8E6C9; color: #1B5E20;">🟢 hang be 101</option>
                                 <option value="hang be 102" style="background-color: #C8E6C9; color: #1B5E20;">🟢 hang be 102</option>
                             </optgroup>
+                            <optgroup label="🟣 25 Hoi Vu" style="background-color: #F3E5F5; color: #7B1FA2; font-weight: bold;">
+                                <option value="101 - 2 pn" style="background-color: #E1BEE7; color: #4A148C;">🟣 101 - 2 PN (Studio Gia Đình)</option>
+                                <option value="102" style="background-color: #E1BEE7; color: #4A148C;">🟣 102</option>
+                                <option value="103" style="background-color: #E1BEE7; color: #4A148C;">🟣 103</option>
+                                <option value="104" style="background-color: #E1BEE7; color: #4A148C;">🟣 104</option>
+                            </optgroup>
                         </select>
                     </div>
                 </div>
@@ -457,17 +463,9 @@ h1, h2, h3, h4, h5, h6 {
 
         <!-- Hidden prompt template -->
         <textarea id="extraction-prompt-template" style="display: none;">
-Extract booking data from this image and classify the room type automatically.
+Extract all booking data from this image exactly as shown. Do NOT translate, classify, or rename anything — copy text precisely.
 
-🏠 ROOM CLASSIFICATION RULES (Very Important):
-
-Look at the "Tên chỗ nghỉ" (property name) column for EACH booking and classify:
-
-✅ If property name contains "Kitchen & Washing Machine" OR "1 BR" → room_name: "hang be 101"
-✅ If property name contains "2 BR" OR "Free Laundry - Kitchen" → room_name: "hang be 102"
-✅ If property name contains "Night market" OR "Kitchen & Balcony" OR any other text → room_name: "118 Hang Bac Hostel"
-
-📋 EXAMPLE OUTPUT (Study this format):
+📋 EXAMPLE OUTPUT (follow this format exactly):
 
 {
   "bookings": [
@@ -475,8 +473,7 @@ Look at the "Tên chỗ nghỉ" (property name) column for EACH booking and clas
       "guest_name": "DIALEKTI DEVELIOGLOU",
       "checkin_date": "2025-11-28",
       "checkout_date": "2025-11-30",
-      "room_name": "118 Hang Bac Hostel",
-      "property_name_raw": "Old Quarter Home- Kitchen & Balcony",
+      "accommodation_name_raw": "Old Quarter Home - Kitchen & Balcony",
       "room_amount": 996030,
       "commission": 149404,
       "booking_id": "6627699915",
@@ -484,34 +481,37 @@ Look at the "Tên chỗ nghỉ" (property name) column for EACH booking and clas
       "currency": "VND"
     },
     {
-      "guest_name": "Anshuman Choudhary",
-      "checkin_date": "2025-11-29",
-      "checkout_date": "2025-12-01",
-      "room_name": "hang be 101",
-      "property_name_raw": "The Heart of Old Quarter - Kitchen & Washing Machine",
-      "room_amount": 1171800,
-      "commission": 175770,
-      "booking_id": "5109089497",
+      "guest_name": "Bao Wei",
+      "checkin_date": "2026-03-31",
+      "checkout_date": "2026-04-01",
+      "accommodation_name_raw": "Studio Gia Đình",
+      "room_amount": 492800,
+      "commission": 0,
+      "booking_id": "5527911041",
       "status": "OK",
       "currency": "VND"
     }
   ]
 }
 
-📝 EXTRACTION REQUIREMENTS:
+📝 EXTRACTION RULES:
 
-1. Extract guest_name exactly as shown
-2. Convert dates to YYYY-MM-DD format (if "30 tháng 9 2025" → "2025-09-30")
-3. Remove commas from numbers (304,218 → 304218)
-4. Extract property_name_raw from "Tên chỗ nghỉ" column (exact text)
-5. Classify room_name based on property_name_raw using rules above
-6. room_name MUST be exactly one of: "hang be 101", "hang be 102", "118 Hang Bac Hostel"
-7. Include ALL bookings visible in the image
-8. Set commission = 0 if not shown in image
+1. guest_name — copy exactly as shown (including accents, ALL CAPS, etc.)
+2. checkin_date / checkout_date — convert to YYYY-MM-DD
+   • "31 tháng 3 2026" → "2026-03-31"
+   • "31 Mar 2026" → "2026-03-31"
+3. room_amount — total payment as integer, no commas (VND 492,800 → 492800)
+4. commission — extract if shown, else 0
+5. booking_id — the booking/reservation number (digits only usually)
+6. accommodation_name_raw — copy the "Tên chỗ nghỉ" / property name cell EXACTLY as displayed
+   ⚠️ DO NOT translate, shorten, or reclassify this field. Copy it verbatim.
+   Examples of correct values: "Studio Gia Đình", "Old Quarter Home - Kitchen & Balcony",
+   "The Heart of Old Quarter - Kitchen & Washing Machine", "Night Market View Room"
+7. status — "OK" unless image shows cancelled/hủy
+8. currency — "VND" unless image shows otherwise
+9. Include ALL bookings visible — do not skip any row
 
-⚠️ CRITICAL: Each booking can have a DIFFERENT room_name! Check the property name for each row individually.
-
-Return ONLY valid JSON, no explanations.
+Return ONLY valid JSON. No explanation text before or after.
         </textarea>
     </div>
 </div>
@@ -532,14 +532,20 @@ Return ONLY valid JSON, no explanations.
                         </div>
                         <label for="roomType" class="form-label"><i class="fas fa-bed me-1"></i>Phòng *</label>
                         <select class="form-select" id="roomType" name="roomType" required onchange="updateAccommodationName()">
-                            <optgroup label="🏨 118 Hang Bac Hostel">
+                            <optgroup label="🔵 118 Hang Bac Hostel">
                                 <option value="118 hang bac">118 hang bac</option>
                                 <option value="kitchen">kitchen</option>
                                 <option value="night market">night market</option>
                             </optgroup>
-                            <optgroup label="🏘️ 18 Hang Be">
+                            <optgroup label="🟢 18 Hang Be">
                                 <option value="hang be 101">hang be 101</option>
                                 <option value="hang be 102">hang be 102</option>
+                            </optgroup>
+                            <optgroup label="🟣 25 Hoi Vu">
+                                <option value="101 - 2 pn">101 - 2 PN (Studio Gia Đình)</option>
+                                <option value="102">102</option>
+                                <option value="103">103</option>
+                                <option value="104">104</option>
                             </optgroup>
                         </select>
                     </div>
@@ -645,6 +651,61 @@ Return ONLY valid JSON, no explanations.
 <script>
 // Store extracted bookings for multiple booking scenario with session persistence
 let extractedBookings = [];
+
+// ─────────────────────────────────────────────────────────────
+// smartMatchRoom(rawText)
+// Maps any accommodation name string the AI extracts to the
+// exact internal room_name stored in the database.
+// Rules (in priority order):
+//   1. Exact case-insensitive match to a known room name → use as-is
+//   2. Keyword patterns for 18 Hang Be rooms
+//   3. Keyword patterns for 118 Hang Bac rooms
+//   4. 25 Hoi Vu / Studio patterns
+//   5. Unknown → return rawText so the user can pick from dropdown
+// ─────────────────────────────────────────────────────────────
+function smartMatchRoom(raw) {
+    if (!raw) return '118 hang bac';
+    const s = raw.toLowerCase().trim();
+
+    // ── Exact known internal names (allow direct pass-through) ──
+    const knownRooms = [
+        '118 hang bac', 'kitchen', 'night market',
+        'hang be 101', 'hang be 102',
+        '101 - 2 pn', '102', '103', '104'
+    ];
+    for (const r of knownRooms) {
+        if (s === r) return r;
+    }
+
+    // ── 18 Hang Be ──
+    if (s.includes('kitchen & washing machine') || s.includes('1 br') ||
+        s.includes('hang be 101') || s.includes('heart of old quarter'))
+        return 'hang be 101';
+
+    if (s.includes('2 br') || s.includes('free laundry') ||
+        s.includes('hang be 102'))
+        return 'hang be 102';
+
+    // ── 25 Hoi Vu ──
+    if (s.includes('studio gia đình') || s.includes('studio gia dinh') ||
+        s.includes('gia đình') || s.includes('gia dinh') ||
+        s.includes('studio') || s.includes('25 hoi vu') || s.includes('hội vũ') ||
+        s.includes('101 - 2 pn') || s.includes('101 2pn'))
+        return '101 - 2 pn';
+
+    if (s === '102' || s.includes('hoi vu 102')) return '102';
+    if (s === '103' || s.includes('hoi vu 103')) return '103';
+    if (s === '104' || s.includes('hoi vu 104')) return '104';
+
+    // ── 118 Hang Bac ──
+    if (s.includes('night market')) return 'night market';
+    if (s.includes('kitchen & balcony') || s.includes('kitchen')) return 'kitchen';
+    if (s.includes('118') || s.includes('hang bac') || s.includes('old quarter')) return '118 hang bac';
+
+    // ── Unknown: return raw so UI flags it for manual selection ──
+    console.warn(`[smartMatchRoom] No match for "${raw}" — returning raw`);
+    return raw;
+}
 
 // Mode selection functionality
 function selectMode(mode) {
@@ -1072,57 +1133,51 @@ function importJSONBookings() {
         }
         
         console.log(`✅ [JSON_IMPORT] Parsed ${data.bookings.length} booking(s)`, data.bookings);
-        
-        // Validate and format bookings with AI room classification
+
+        // Validate and format bookings — preserve exact accommodation name from AI
         const formattedBookings = data.bookings.map((booking, index) => {
-            // Priority: room_name (new format) > room_type (legacy) > property-based classification
-            let aiRoomName = booking.room_name || booking.room_type || booking['Tên chỗ nghỉ'];
+            // New field: accommodation_name_raw — exact text from "Tên chỗ nghỉ" column
+            // Legacy fallback: room_name / room_type / property_name_raw
+            const rawAccom = booking.accommodation_name_raw
+                          || booking.property_name_raw
+                          || booking.room_name
+                          || booking.room_type
+                          || booking['Tên chỗ nghỉ']
+                          || '';
 
-            // If still no room_name, try to classify from property_name_raw
-            if (!aiRoomName && booking.property_name_raw) {
-                const propName = booking.property_name_raw.toLowerCase();
-                if (propName.includes('kitchen & washing machine') || propName.includes('1 br')) {
-                    aiRoomName = 'hang be 101';
-                } else if (propName.includes('2 br') || propName.includes('free laundry - kitchen')) {
-                    aiRoomName = 'hang be 102';
-                } else {
-                    aiRoomName = '118 Hang Bac Hostel';
-                }
-                console.log(`🔄 [JSON_CLASSIFY] Classified from property_name_raw: "${booking.property_name_raw}" → "${aiRoomName}"`);
-            }
+            // Smart-match raw name to a known internal room name
+            const matchedRoom = smartMatchRoom(rawAccom);
 
-            // Final fallback
-            if (!aiRoomName) {
-                aiRoomName = '118 Hang Bac Hostel';
-            }
-
-            console.log(`🏠 [JSON_IMPORT] Booking ${index + 1}: ${booking.guest_name} → room_name: "${aiRoomName}"`);
+            console.log(`🏠 [JSON_IMPORT] #${index+1} ${booking.guest_name}: "${rawAccom}" → "${matchedRoom}"`);
 
             return {
                 guest_name: booking.guest_name || `Guest ${index + 1}`,
-                checkin_date: booking.checkin_date || '2025-09-30',
-                checkout_date: booking.checkout_date || '2025-10-01',
+                checkin_date: booking.checkin_date || booking.check_in_date || '',
+                checkout_date: booking.checkout_date || booking.check_out_date || '',
                 room_amount: parseInt(booking.room_amount) || 0,
                 commission: parseInt(booking.commission) || 0,
                 booking_id: booking.booking_id || `JSON${Date.now()}${index}`,
-                room_type: aiRoomName,  // Use AI-classified room name
-                room_name: aiRoomName,  // Ensure both fields are set
-                'Tên chỗ nghỉ': aiRoomName,  // Vietnamese field name
+                room_name: matchedRoom,
+                room_type: matchedRoom,
+                'Tên chỗ nghỉ': matchedRoom,
+                accommodation_name_raw: rawAccom,   // preserved for display & manual correction
                 status: booking.status || 'OK',
                 currency: booking.currency || 'VND',
-                property_name_raw: booking.property_name_raw || '',  // Keep raw name for reference
                 nights: booking.nights || 1,
                 platform: booking.platform || ''
             };
         });
 
-        // Auto-select room dropdown based on first booking's AI classification
+        // Auto-select top-bar room dropdown to first booking's room
         if (formattedBookings.length > 0) {
-            const firstRoomName = formattedBookings[0].room_type;
+            const firstRoom = formattedBookings[0].room_name;
             const roomSelect = document.getElementById('aiRoomType');
             if (roomSelect) {
-                roomSelect.value = firstRoomName;
-                console.log(`🏠 [AUTO_SELECT] Room dropdown set to: ${firstRoomName}`);
+                // Try exact match first, then partial
+                if ([...roomSelect.options].some(o => o.value === firstRoom)) {
+                    roomSelect.value = firstRoom;
+                }
+                console.log(`🏠 [AUTO_SELECT] Room dropdown → "${firstRoom}"`);
             }
         }
         
@@ -2368,38 +2423,47 @@ function generateReviewTableHtml(duplicateCheck) {
             }
         }
         
-        // Get room type with AI classification - use property_name_raw to classify if room_name is missing
+        // Room resolution: prefer already-matched room_name from import step,
+        // fall back to smartMatchRoom on any raw accommodation text.
         let roomType = booking.room_name || booking.room_type || booking['Tên chỗ nghỉ'];
-
-        // If no room_name, try to classify from property_name_raw
-        if (!roomType && booking.property_name_raw) {
-            const propName = booking.property_name_raw.toLowerCase();
-            console.log(`🔍 [ROOM_CLASSIFY] Row ${index}: property_name_raw = "${booking.property_name_raw}"`);
-
-            if (propName.includes('kitchen & washing machine') || propName.includes('1 br')) {
-                roomType = 'hang be 101';
-                console.log(`✅ [ROOM_CLASSIFY] Matched "hang be 101" based on property name`);
-            } else if (propName.includes('2 br') || propName.includes('free laundry - kitchen')) {
-                roomType = 'hang be 102';
-                console.log(`✅ [ROOM_CLASSIFY] Matched "hang be 102" based on property name`);
-            } else {
-                roomType = '118 Hang Bac Hostel';
-                console.log(`✅ [ROOM_CLASSIFY] Default to "118 Hang Bac Hostel"`);
-            }
+        const rawAccomDisplay = booking.accommodation_name_raw || booking.property_name_raw || '';
+        if (!roomType && rawAccomDisplay) {
+            roomType = smartMatchRoom(rawAccomDisplay);
         }
+        if (!roomType) roomType = '118 hang bac';
 
-        // Final fallback
-        if (!roomType) {
-            roomType = '118 Hang Bac Hostel';
-        }
-
-        // CRITICAL FIX: Save the classified room type back to the booking object
-        // so it's available when the user clicks save without touching the dropdown
+        // Persist back so save logic always has it
         booking['Tên chỗ nghỉ'] = roomType;
         booking.room_name = roomType;
         booking.room_type = roomType;
 
-        console.log(`🏠 [ROOM_DISPLAY] Row ${index}: ${guestName} → ${roomType}`);
+        // All known internal room names (for option selected state)
+        const allRooms = [
+            { v: '118 hang bac',  label: '🔵 118 hang bac' },
+            { v: 'kitchen',       label: '🔵 kitchen' },
+            { v: 'night market',  label: '🔵 night market' },
+            { v: 'hang be 101',   label: '🟢 hang be 101' },
+            { v: 'hang be 102',   label: '🟢 hang be 102' },
+            { v: '101 - 2 pn',    label: '🟣 101 - 2 PN (Studio Gia Đình)' },
+            { v: '102',           label: '🟣 102' },
+            { v: '103',           label: '🟣 103' },
+            { v: '104',           label: '🟣 104' },
+        ];
+        const knownValues = allRooms.map(r => r.v);
+        const isUnknown = !knownValues.includes(roomType.toLowerCase ? roomType.toLowerCase() : roomType);
+        const roomOptions = allRooms.map(r =>
+            `<option value="${r.v}" ${roomType === r.v ? 'selected' : ''}>${r.label}</option>`
+        ).join('');
+        // If AI returned something unrecognised, add it as an extra option so user can see it
+        const extraOption = isUnknown && roomType
+            ? `<option value="${roomType}" selected>⚠️ ${roomType} (kiểm tra lại)</option>` : '';
+
+        // Show raw accommodation name as a small hint below the dropdown
+        const rawHint = rawAccomDisplay
+            ? `<small class="text-muted d-block mt-1" style="font-size:0.7rem;" title="Tên gốc từ AI">📋 ${rawAccomDisplay}</small>`
+            : '';
+
+        console.log(`🏠 [ROOM_DISPLAY] Row ${index}: ${guestName} → "${roomType}" (raw: "${rawAccomDisplay}")`);
 
         return `
         <tr data-index="${index}" class="${rowClass}">
@@ -2426,12 +2490,11 @@ function generateReviewTableHtml(duplicateCheck) {
                        placeholder="Tự tạo">
             </td>
             <td>
-                <select class="form-select form-select-sm"
+                <select class="form-select form-select-sm ${isUnknown ? 'border-warning' : ''}"
                         onchange="updateBookingData(${index}, 'room_name', this.value)" required>
-                    <option value="hang be 101" ${roomType === 'hang be 101' ? 'selected' : ''}>🟢 hang be 101</option>
-                    <option value="hang be 102" ${roomType === 'hang be 102' ? 'selected' : ''}>🔵 hang be 102</option>
-                    <option value="118 Hang Bac Hostel" ${roomType === '118 Hang Bac Hostel' ? 'selected' : ''}>🏨 118 Hang Bac Hostel</option>
+                    ${extraOption}${roomOptions}
                 </select>
+                ${rawHint}
             </td>
             <td>
                 <input type="date" class="form-control form-control-sm"
