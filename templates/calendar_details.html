@@ -534,49 +534,65 @@
             font-weight: 700;
             font-size: 0.75rem;
         }
-        .late-input-row {
-            display: flex;
-            gap: 4px;
-            align-items: center;
-            flex-wrap: wrap;
-            margin-top: 2px;
-        }
-        .late-time-input {
-            width: 88px;
-            padding: 3px 6px;
-            font-size: 0.75rem;
+        /* Late arrival quick-tap picker */
+        .late-picker {
+            margin-top: 3px;
+            background: #fff8f5;
             border: 1.5px solid #e65100;
-            border-radius: 5px;
-            outline: none;
+            border-radius: 8px;
+            padding: 6px 7px 5px;
         }
-        .late-notes-input {
-            flex: 1;
-            min-width: 60px;
-            padding: 3px 6px;
-            font-size: 0.72rem;
-            border: 1.5px solid #ccc;
-            border-radius: 5px;
-            outline: none;
+        .late-picker-label {
+            font-size: 0.68rem;
+            color: #bf360c;
+            font-weight: 700;
+            margin-bottom: 4px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
         }
-        .late-save-btn {
-            padding: 3px 8px;
+        .late-hour-grid {
+            display: grid;
+            grid-template-columns: repeat(6, 1fr);
+            gap: 3px;
+            margin-bottom: 4px;
+        }
+        .late-hour-btn {
+            padding: 4px 2px;
             font-size: 0.72rem;
             font-weight: 700;
+            border: 1.5px solid #e65100;
+            border-radius: 5px;
+            background: #fff;
+            color: #e65100;
+            cursor: pointer;
+            text-align: center;
+            transition: background 0.12s, color 0.12s;
+        }
+        .late-hour-btn:hover, .late-hour-btn.selected {
             background: #e65100;
             color: #fff;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
         }
-        .late-cancel-btn {
+        .late-notes-input {
+            width: 100%;
             padding: 3px 7px;
             font-size: 0.72rem;
-            background: #eee;
-            color: #666;
             border: 1px solid #ccc;
             border-radius: 5px;
-            cursor: pointer;
+            outline: none;
+            box-sizing: border-box;
+            margin-top: 2px;
         }
+        .late-cancel-btn {
+            background: none;
+            border: none;
+            cursor: pointer;
+            color: #999;
+            font-size: 0.85rem;
+            line-height: 1;
+            padding: 0 2px;
+        }
+        .late-cancel-btn:hover { color: #c62828; }
         /* Card overlays when status active */
         .guest-card.status-confirmed {
             border: 3px solid #2e7d32 !important;
@@ -4103,40 +4119,47 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // ── Late Arrival Functions ──────────────────────────────────────────────────
 
+// Hours shown in the quick-tap picker (14 → 01 next day)
+const LATE_HOURS = ['14','15','16','17','18','19','20','21','22','23','00','01'];
+
 function showLateArrival(bid) {
     const display = document.getElementById('late-' + bid);
     if (!display) return;
 
-    // Toggle: if inline form is already showing, close it
-    if (display.querySelector('.late-input-row')) {
+    // Toggle off if picker already open
+    if (display.querySelector('.late-picker')) {
         display.innerHTML = '';
         return;
     }
 
-    // Build inline input form
+    // Build hour buttons
+    const hourBtns = LATE_HOURS.map(h =>
+        `<button class="late-hour-btn" onclick="pickLateHour('${bid}','${h}:00',this)">${h}h</button>`
+    ).join('');
+
     display.innerHTML = `
-        <div class="late-input-row">
-            <input type="time" class="late-time-input" id="late-time-${bid}" placeholder="HH:MM">
-            <input type="text" class="late-notes-input" id="late-notes-${bid}" placeholder="Ghi chú...">
-            <button class="late-save-btn" onclick="saveLateArrival('${bid}')">💾 Lưu</button>
-            <button class="late-cancel-btn" onclick="document.getElementById('late-${bid}').innerHTML=''">✖</button>
+        <div class="late-picker">
+            <div class="late-picker-label">
+                <span>🕐 Chọn giờ đến</span>
+                <button class="late-cancel-btn" onclick="document.getElementById('late-${bid}').innerHTML=''">✕</button>
+            </div>
+            <div class="late-hour-grid">${hourBtns}</div>
+            <input class="late-notes-input" id="late-notes-${bid}" placeholder="Ghi chú (tuỳ chọn)...">
         </div>
     `;
-    document.getElementById('late-time-' + bid)?.focus();
 }
 
-async function saveLateArrival(bid) {
-    const timeInput  = document.getElementById('late-time-'  + bid);
-    const notesInput = document.getElementById('late-notes-' + bid);
-    const timeVal    = timeInput?.value  || '';
-    const notesVal   = notesInput?.value || '';
+async function pickLateHour(bid, timeVal, btn) {
+    // Highlight selected button
+    btn.closest('.late-hour-grid').querySelectorAll('.late-hour-btn')
+       .forEach(b => b.classList.remove('selected'));
+    btn.classList.add('selected');
 
-    if (!timeVal) {
-        showCalToast('⚠️ Vui lòng nhập giờ đến', 'warning');
-        timeInput?.focus();
-        return;
-    }
+    const notesVal = document.getElementById('late-notes-' + bid)?.value || '';
+    await saveLateArrival(bid, timeVal, notesVal);
+}
 
+async function saveLateArrival(bid, timeVal, notesVal) {
     try {
         const resp = await fetch('/api/arrival_times', {
             method: 'POST',
@@ -4148,7 +4171,7 @@ async function saveLateArrival(bid) {
             showLateArrivalBadge(bid, timeVal, notesVal);
             const btn = document.getElementById('late-btn-' + bid);
             if (btn) btn.classList.add('active');
-            showCalToast('🕐 Đã lưu giờ đến muộn', 'success');
+            showCalToast('🕐 Đã lưu: đến lúc ' + timeVal, 'success');
         } else {
             showCalToast('❌ Lỗi: ' + (data.error || 'Không lưu được'), 'error');
         }
