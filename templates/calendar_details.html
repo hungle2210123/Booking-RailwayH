@@ -593,6 +593,46 @@
             padding: 0 2px;
         }
         .late-cancel-btn:hover { color: #c62828; }
+
+        /* ── Late-arrival card treatment ─────────────────────────────────────
+           Card gets a muted orange-grey look so latecomers are visually
+           de-prioritised. The guest name is blurred — hover/tap to reveal. */
+        .guest-card.is-late-arrival {
+            border-top: 5px solid #e65100 !important;
+            border: 2px solid #ffcc80 !important;
+            background: #fffaf6 !important;
+            opacity: 0.72;
+            filter: grayscale(30%);
+        }
+        /* Blur only the name — everything else stays readable */
+        .guest-card.is-late-arrival .guest-name {
+            filter: blur(5px);
+            transition: filter 0.25s;
+            cursor: pointer;
+            user-select: none;
+        }
+        .guest-card.is-late-arrival .guest-name:hover,
+        .guest-card.is-late-arrival .guest-name:focus,
+        .guest-card.is-late-arrival.name-revealed .guest-name {
+            filter: blur(0);
+        }
+        /* Small "late" ribbon top-right corner */
+        .guest-card.is-late-arrival::after {
+            content: '🕐 MUỘN';
+            position: absolute;
+            top: 6px;
+            right: 6px;
+            font-size: 0.6rem;
+            font-weight: 900;
+            background: #e65100;
+            color: #fff;
+            border-radius: 4px;
+            padding: 1px 5px;
+            letter-spacing: 0.5px;
+            pointer-events: none;
+        }
+        .guest-card { position: relative; } /* needed for ::after */
+
         /* Card overlays when status active */
         .guest-card.status-confirmed {
             border: 3px solid #2e7d32 !important;
@@ -4191,6 +4231,21 @@ function showLateArrivalBadge(bid, timeStr, notes) {
                     style="background:none;border:none;cursor:pointer;color:#e65100;padding:0;font-size:0.8rem;">✏️</button>
         </div>
     `;
+
+    // Mark the card as a late arrival → blurs name + dims card
+    const bar  = document.querySelector(`.quick-status-bar[data-bid="${bid}"]`);
+    const card = bar ? bar.closest('.guest-card') : null;
+    if (card) {
+        card.classList.add('is-late-arrival');
+        // Tap the blurred name to toggle reveal
+        const nameEl = card.querySelector('.guest-name');
+        if (nameEl && !nameEl.dataset.lateRevealBound) {
+            nameEl.dataset.lateRevealBound = '1';
+            nameEl.addEventListener('click', () =>
+                card.classList.toggle('name-revealed')
+            );
+        }
+    }
 }
 
 async function loadArrivalTimes() {
