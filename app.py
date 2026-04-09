@@ -10641,6 +10641,7 @@ def get_prorated_monthly_revenue():
     """
     try:
         from datetime import datetime, date, timedelta
+        from sqlalchemy import or_
         from core.models import Booking, Guest, Room, Apartment, db
 
         # Get apartment filter parameter ('all' or a numeric apartment_id string)
@@ -10716,7 +10717,9 @@ def get_prorated_monthly_revenue():
             Booking.checkin_date <= end_of_month,
             Booking.booking_status != 'deleted',
             Booking.booking_status != 'cancelled',
-            Booking.booking_status != 'đã hủy'
+            Booking.booking_status != 'đã hủy',
+            # Exclude guests flagged as cancelling — they didn't actually stay
+            or_(Booking.checkin_status.is_(None), Booking.checkin_status != 'cancelling')
         )
 
         # Apply apartment filter — 'all' shows everything; any integer string filters by apartment_id
@@ -10747,7 +10750,9 @@ def get_prorated_monthly_revenue():
             Booking.checkout_date > start_of_month,  # Check-out after start of month
             Booking.booking_status != 'deleted',
             Booking.booking_status != 'cancelled',
-            Booking.booking_status != 'đã hủy'
+            Booking.booking_status != 'đã hủy',
+            # Exclude guests flagged as cancelling — they didn't actually stay
+            or_(Booking.checkin_status.is_(None), Booking.checkin_status != 'cancelling')
         )
 
         # Apply same apartment filter for occupancy
