@@ -1236,27 +1236,51 @@
     </div>
 
     <!-- Revenue Summary Section -->
-    {% if day_revenue_info and day_revenue_info.daily_total > 0 %}
+    {% if day_revenue_info and (day_revenue_info.daily_total > 0 or day_revenue_info.pending_revenue > 0) %}
     <div class="row mt-4">
         <div class="col-12">
             <div class="card">
                 <div class="card-header text-black" style="background-color: #d4edda;">
-                    <h5 class="mb-0">💰 Tổng Kết Doanh Thu Ngày {{ date }}</h5>
+                    <h5 class="mb-0">💰 Tổng Kết Doanh Thu Ngày {{ date }}
+                        {% if day_revenue_info.is_today %}
+                            <small class="ms-2 fw-normal" style="font-size:0.75rem;color:#555;">
+                                — chỉ tính khách <strong>đã xác nhận đến</strong>
+                            </small>
+                        {% endif %}
+                    </h5>
                 </div>
                 <div class="card-body">
+                    {# ── Pending / unconfirmed warning banner (today only) ── #}
+                    {% if day_revenue_info.is_today and day_revenue_info.unconfirmed_count > 0 %}
+                    <div class="alert alert-warning py-2 mb-3 d-flex align-items-center gap-2" style="font-size:0.85rem;">
+                        <span style="font-size:1.1rem;">⏳</span>
+                        <div>
+                            <strong>{{ day_revenue_info.unconfirmed_count }} khách chưa xác nhận</strong>
+                            chưa được tính vào doanh thu
+                            {% if day_revenue_info.pending_revenue > 0 %}
+                            — tiềm năng thêm
+                            <strong>{{ "{:,.0f}".format(day_revenue_info.pending_revenue) }}đ</strong>
+                            nếu họ đến.
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endif %}
+
                     <div class="row">
                         <div class="col-md-6">
                             <div class="revenue-summary">
-                                <h6 class="text-success"><i class="fas fa-coins"></i> Tổng Doanh Thu</h6>
+                                <h6 class="text-success">
+                                    <i class="fas fa-coins"></i>
+                                    {% if day_revenue_info.is_today %}Doanh Thu Đã Xác Nhận{% else %}Tổng Doanh Thu{% endif %}
+                                </h6>
                                 <p class="h4 text-success">{{ "{:,.0f}".format(day_revenue_info.daily_total) }}đ</p>
-                                
+
                                 {% if day_revenue_info.daily_total_minus_commission != day_revenue_info.daily_total %}
                                 <hr>
-                                <h6 class="text-primary"><i class="fas fa-minus-circle"></i> Doanh Thu Sau Trừ Hoa Hồng</h6>
+                                <h6 class="text-primary"><i class="fas fa-minus-circle"></i> Sau Trừ Hoa Hồng</h6>
                                 <p class="h4 text-primary">{{ "{:,.0f}".format(day_revenue_info.daily_total_minus_commission) }}đ</p>
-                                
                                 <small class="text-muted">
-                                    <i class="fas fa-percentage"></i> Tổng hoa hồng: {{ "{:,.0f}".format(day_revenue_info.total_commission) }}đ
+                                    <i class="fas fa-percentage"></i> Hoa hồng: {{ "{:,.0f}".format(day_revenue_info.total_commission) }}đ
                                 </small>
                                 {% endif %}
                             </div>
@@ -1264,10 +1288,19 @@
                         <div class="col-md-6">
                             <div class="guest-summary">
                                 <h6 class="text-info"><i class="fas fa-users"></i> Thống Kê Khách</h6>
-                                <p class="h5 text-info">{{ day_revenue_info.guest_count }} khách</p>
+                                <p class="h5 text-info">
+                                    {{ day_revenue_info.guest_count }} khách
+                                    {% if day_revenue_info.is_today and day_revenue_info.unconfirmed_count > 0 %}
+                                    <span class="badge bg-warning text-dark ms-1" style="font-size:0.7rem;">
+                                        + {{ day_revenue_info.unconfirmed_count }} chờ
+                                    </span>
+                                    {% endif %}
+                                </p>
+                                {% if day_revenue_info.guest_count > 0 %}
                                 <small class="text-muted">
-                                    Doanh thu trung bình mỗi khách: {{ "{:,.0f}".format(day_revenue_info.daily_total / day_revenue_info.guest_count) }}đ
+                                    TB: {{ "{:,.0f}".format(day_revenue_info.daily_total / day_revenue_info.guest_count) }}đ/khách
                                 </small>
+                                {% endif %}
                             </div>
                         </div>
                     </div>

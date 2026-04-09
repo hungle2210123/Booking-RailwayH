@@ -2109,6 +2109,8 @@
                 // Store apartments metadata globally — used by filter buttons + table renderer
                 const aptsMeta = data.apartments || [];
                 window.APARTMENTS_META = aptsMeta;
+                // Store today's date from server (Vietnam timezone) for confirmed-only revenue logic
+                window.SERVER_TODAY = period.today || null;
                 console.log(`💰 [CHECK-IN MONTH] Filtered data for ${apartmentFilter}:`, summary);
                 console.log(`🏢 [APARTMENTS] ${aptsMeta.length} apartments:`, aptsMeta.map(a => a.name));
 
@@ -2303,22 +2305,32 @@
                 });
 
                 if (showTotal) {
-                    const al  = day.all || {};
-                    const cnt = al.count      || 0;
-                    const rev = al.revenue    || 0;
-                    const com = al.commission || 0;
-                    const net = rev - com;
-                    totalAll.revenue    += rev;
+                    const al           = day.all || {};
+                    const cnt          = al.count             || 0;
+                    const rev          = al.revenue           || 0;
+                    const com          = al.commission        || 0;
+                    const confRev      = al.confirmed_revenue != null ? al.confirmed_revenue : rev;
+                    const confCnt      = al.confirmed_count   != null ? al.confirmed_count   : cnt;
+                    const isTodayCell  = (window.SERVER_TODAY && dateStr === window.SERVER_TODAY);
+                    // For today: show confirmed revenue; for other days: show total
+                    const displayRev   = isTodayCell ? confRev : rev;
+                    const displayCnt   = isTodayCell ? confCnt : cnt;
+                    const net          = displayRev - com;
+                    totalAll.revenue    += rev;      // monthly totals still use full revenue
                     totalAll.commission += com;
+                    const pendingBadge = (isTodayCell && cnt > confCnt)
+                        ? `<div style="font-size:.68rem;color:#b45309;">⏳ ${cnt - confCnt} chờ</div>`
+                        : '';
 
                     if (cnt > 0) {
                         html += `<td class="text-center clickable-cell"
                             onclick='showDailyGuestDetails("${dateStr}","${fmt}")'
-                            style="cursor:pointer;" title="Click để xem chi tiết khách">
-                            <div class="fw-bold text-warning">${Math.round(rev).toLocaleString('vi-VN')}đ</div>
+                            style="cursor:pointer;${isTodayCell?'background:#fffde7;':''}" title="Click để xem chi tiết khách">
+                            <div class="fw-bold text-warning">${Math.round(displayRev).toLocaleString('vi-VN')}đ</div>
                             ${com>0?`<div class="text-danger" style="font-size:.75rem;">-${Math.round(com).toLocaleString('vi-VN')}đ HH</div>`:''}
                             ${com>0?`<div class="text-success fw-bold" style="font-size:.8rem;">${Math.round(net).toLocaleString('vi-VN')}đ</div>`:''}
-                            <small class="text-muted"><i class="fas fa-users me-1"></i>${cnt} khách</small>
+                            <small class="text-muted"><i class="fas fa-users me-1"></i>${displayCnt} khách</small>
+                            ${pendingBadge}
                         </td>`;
                     } else {
                         html += `<td class="text-center text-muted">-</td>`;
@@ -2413,17 +2425,40 @@
             // Update modal title
             document.getElementById('modalDateTitle').textContent = `- ${formattedDate}`;
 
-            // Calculate totals
+            // Is this date "today" on the server (Vietnam time)?
+            const isToday = (window.SERVER_TODAY && dateStr === window.SERVER_TODAY);
+
+            // Separate check-in guests from staying guests
+            const checkingInGuests = guests.filter(g => g.checkin_date === dateStr);
+            const stayingGuests    = guests.filter(g => g.checkin_date !== dateStr);
+
+            // For today: only confirmed check-ins count toward revenue
+            // For past/future: all guests count
+            const confirmedCheckins   = isToday
+                ? checkingInGuests.filter(g => g.checkin_status === 'confirmed')
+                : checkingInGuests;
+            const unconfirmedCheckins = isToday
+                ? checkingInGuests.filter(g => g.checkin_status !== 'confirmed')
+                : [];
+
+            const revenueGuests   = confirmedCheckins.concat(stayingGuests);
+            const confirmedRevenue = revenueGuests.reduce((s, g) => s + (g.revenue_per_night || 0), 0);
+            const pendingRevenue   = unconfirmedCheckins.reduce((s, g) => s + (g.revenue_per_night || 0), 0);
+
             const totalGuests = guests.length;
-            const totalRevenue = guests.reduce((sum, g) => sum + (g.revenue_per_night || 0), 0);
-            const avgPerGuest = totalGuests > 0 ? totalRevenue / totalGuests : 0;
+            const avgPerGuest = revenueGuests.length > 0 ? confirmedRevenue / revenueGuests.length : 0;
 
             // Update summary cards
-            document.getElementById('modalTotalGuests').textContent = totalGuests;
-            document.getElementById('modalDailyRevenue').textContent = `${Math.round(totalRevenue).toLocaleString('vi-VN')}đ`;
+            document.getElementById('modalTotalGuests').textContent = totalGuests
+                + (unconfirmedCheckins.length > 0 ? ` (${confirmedCheckins.length + stayingGuests.length} tính)` : '');
+            document.getElementById('modalDailyRevenue').textContent =
+                `${Math.round(confirmedRevenue).toLocaleString('vi-VN')}đ`
+                + (isToday && unconfirmedCheckins.length > 0
+                    ? ` <small style="color:#f59e0b;font-size:0.7rem;">+${Math.round(pendingRevenue).toLocaleString('vi-VN')}đ chờ</small>`
+                    : '');
             document.getElementById('modalAvgPerGuest').textContent = `${Math.round(avgPerGuest).toLocaleString('vi-VN')}đ`;
 
-            // Build guest table - SEPARATE CHECK-IN GUESTS FROM STAYING GUESTS
+            // Build guest table
             const tbody = document.getElementById('modalGuestListBody');
             if (guests.length === 0) {
                 tbody.innerHTML = `
@@ -2434,105 +2469,62 @@
                     </tr>
                 `;
             } else {
-                // Separate guests into checking in today vs staying from before
-                const checkingInGuests = [];
-                const stayingGuests = [];
-
-                guests.forEach(guest => {
-                    if (guest.checkin_date === dateStr) {
-                        checkingInGuests.push(guest);
-                    } else {
-                        stayingGuests.push(guest);
-                    }
-                });
-
-                console.log(`📊 Check-in today: ${checkingInGuests.length}, Staying: ${stayingGuests.length}`);
+                const buildRow = (guest) => {
+                    const apartmentColor = guest.apartment_id === 1 ? 'text-primary' : 'text-success';
+                    const statusBadge = guest.collected_amount > 0
+                        ? '<span class="badge bg-success">Đã thu</span>'
+                        : '<span class="badge bg-warning text-dark">Chưa thu</span>';
+                    const roomSymbol = getRoomSymbol(guest.apartment_id, guest.room_name);
+                    return `
+                        <tr>
+                            <td>
+                                <div class="fw-bold">${roomSymbol} ${guest.guest_name}</div>
+                                <small class="text-muted">ID: ${guest.booking_id}</small>
+                            </td>
+                            <td>
+                                <span class="${apartmentColor} fw-bold">${roomSymbol} ${guest.room_name}</span>
+                                <br><small class="text-muted">${guest.apartment_name}</small>
+                            </td>
+                            <td><small>${guest.checkin_date}</small></td>
+                            <td><small>${guest.checkout_date}</small></td>
+                            <td class="text-end">
+                                <strong>${Math.round(guest.revenue_per_night).toLocaleString('vi-VN')}đ</strong>
+                                <br><small class="text-muted">${guest.total_nights} đêm</small>
+                            </td>
+                            <td class="text-end">
+                                <strong class="text-primary">${Math.round(guest.room_amount).toLocaleString('vi-VN')}đ</strong>
+                            </td>
+                            <td class="text-center">${statusBadge}</td>
+                        </tr>`;
+                };
 
                 let tableHTML = '';
 
-                // SECTION 1: Guests checking in today (paying customers)
-                if (checkingInGuests.length > 0) {
-                    tableHTML += `
-                        <tr class="table-info">
-                            <td colspan="7" class="fw-bold">
-                                <i class="fas fa-door-open me-2"></i>Khách Check-in Hôm Nay (${checkingInGuests.length} khách)
-                            </td>
-                        </tr>
-                    `;
-                    checkingInGuests.forEach((guest, index) => {
-                        const apartmentColor = guest.apartment_id === 1 ? 'text-primary' : 'text-success';
-                        const statusBadge = guest.collected_amount > 0
-                            ? '<span class="badge bg-success">Đã thu</span>'
-                            : '<span class="badge bg-warning text-dark">Chưa thu</span>';
-
-                        // 🎨 Get room symbol
-                        const roomSymbol = getRoomSymbol(guest.apartment_id, guest.room_name);
-
-                        tableHTML += `
-                            <tr>
-                                <td>
-                                    <div class="fw-bold">${roomSymbol} ${guest.guest_name}</div>
-                                    <small class="text-muted">ID: ${guest.booking_id}</small>
-                                </td>
-                                <td>
-                                    <span class="${apartmentColor} fw-bold">${roomSymbol} ${guest.room_name}</span>
-                                    <br><small class="text-muted">${guest.apartment_name}</small>
-                                </td>
-                                <td><small>${guest.checkin_date}</small></td>
-                                <td><small>${guest.checkout_date}</small></td>
-                                <td class="text-end">
-                                    <strong>${Math.round(guest.revenue_per_night).toLocaleString('vi-VN')}đ</strong>
-                                    <br><small class="text-muted">${guest.total_nights} đêm</small>
-                                </td>
-                                <td class="text-end">
-                                    <strong class="text-primary">${Math.round(guest.room_amount).toLocaleString('vi-VN')}đ</strong>
-                                </td>
-                                <td class="text-center">${statusBadge}</td>
-                            </tr>
-                        `;
-                    });
+                // ── Section 1: Confirmed check-ins (count in revenue) ──
+                if (confirmedCheckins.length > 0) {
+                    tableHTML += `<tr class="table-info"><td colspan="7" class="fw-bold">
+                        <i class="fas fa-check-circle text-success me-1"></i>
+                        Khách Check-in Xác Nhận (${confirmedCheckins.length} khách) — tính vào doanh thu
+                    </td></tr>`;
+                    confirmedCheckins.forEach(g => { tableHTML += buildRow(g); });
                 }
 
-                // SECTION 2: Guests already staying from previous days
+                // ── Section 2: Staying guests (count in revenue) ──
                 if (stayingGuests.length > 0) {
-                    tableHTML += `
-                        <tr class="table-success">
-                            <td colspan="7" class="fw-bold">
-                                <i class="fas fa-bed me-2"></i>Khách Đang Ở (${stayingGuests.length} khách)
-                            </td>
-                        </tr>
-                    `;
-                    stayingGuests.forEach((guest, index) => {
-                        const apartmentColor = guest.apartment_id === 1 ? 'text-primary' : 'text-success';
-                        const statusBadge = guest.collected_amount > 0
-                            ? '<span class="badge bg-success">Đã thu</span>'
-                            : '<span class="badge bg-warning text-dark">Chưa thu</span>';
+                    tableHTML += `<tr class="table-success"><td colspan="7" class="fw-bold">
+                        <i class="fas fa-bed me-1"></i>Khách Đang Ở (${stayingGuests.length} khách) — tính vào doanh thu
+                    </td></tr>`;
+                    stayingGuests.forEach(g => { tableHTML += buildRow(g); });
+                }
 
-                        // 🎨 Get room symbol
-                        const roomSymbol = getRoomSymbol(guest.apartment_id, guest.room_name);
-
-                        tableHTML += `
-                            <tr>
-                                <td>
-                                    <div class="fw-bold">${roomSymbol} ${guest.guest_name}</div>
-                                    <small class="text-muted">ID: ${guest.booking_id}</small>
-                                </td>
-                                <td>
-                                    <span class="${apartmentColor} fw-bold">${roomSymbol} ${guest.room_name}</span>
-                                    <br><small class="text-muted">${guest.apartment_name}</small>
-                                </td>
-                                <td><small>${guest.checkin_date}</small></td>
-                                <td><small>${guest.checkout_date}</small></td>
-                                <td class="text-end">
-                                    <strong>${Math.round(guest.revenue_per_night).toLocaleString('vi-VN')}đ</strong>
-                                    <br><small class="text-muted">${guest.total_nights} đêm</small>
-                                </td>
-                                <td class="text-end">
-                                    <strong class="text-primary">${Math.round(guest.room_amount).toLocaleString('vi-VN')}đ</strong>
-                                </td>
-                                <td class="text-center">${statusBadge}</td>
-                            </tr>
-                        `;
+                // ── Section 3 (today only): Unconfirmed check-ins — NOT counted ──
+                if (unconfirmedCheckins.length > 0) {
+                    tableHTML += `<tr style="background:#fff8e1;"><td colspan="7" class="fw-bold" style="color:#b45309;">
+                        <i class="fas fa-clock me-1"></i>⏳ Chưa Xác Nhận (${unconfirmedCheckins.length} khách)
+                        — <em style="font-weight:400;">chưa tính vào doanh thu</em>
+                    </td></tr>`;
+                    unconfirmedCheckins.forEach(g => {
+                        tableHTML += buildRow(g).replace('<tr>', '<tr style="opacity:0.6;background:#fffbeb;">');
                     });
                 }
 

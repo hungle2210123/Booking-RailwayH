@@ -3874,50 +3874,93 @@ def calendar_details(date_str):
         if _co_removed:
             print(f"[calendar_details:{date_obj}] Removed no-show/cancelled from checkout: {_co_removed}")
 
-        # Calculate revenue info with detailed booking breakdown
-        all_guests = check_in + check_out + staying_over
+        # ── Revenue calculation — confirmed-only logic ───────────────────────
+        # Rule:
+        #   TODAY  → check-in guests MUST be 'confirmed' to count (NULL = uncertain)
+        #   PAST   → all remaining check-in guests count (cancelling already stripped above)
+        #   FUTURE → all check-in guests count (expected revenue)
+        #   staying_over / check_out → always count (they already passed arrival filter above)
+
+        is_today_view   = (date_obj == _today_date)
+        is_past_view    = (date_obj <  _today_date)
+        # is_future_view  = (date_obj >  _today_date)
+
+        if is_today_view:
+            # Only confirmed arrivals count toward revenue
+            _revenue_checkins = [
+                g for g in check_in
+                if _all_status_map.get(g.get('Số đặt phòng', '')) == 'confirmed'
+            ]
+            _pending_checkins = [
+                g for g in check_in
+                if _all_status_map.get(g.get('Số đặt phòng', '')) != 'confirmed'
+            ]
+        else:
+            # Past / future: count all check-ins still in the list
+            # (cancelling guests were already removed for past dates above)
+            _revenue_checkins = check_in
+            _pending_checkins = []
+
+        revenue_guests  = _revenue_checkins + check_out + staying_over
+
+        def _daily_rev_for(guest_list):
+            """Return (total, commission, net) for a list of guest dicts."""
+            rev = comm = 0.0
+            for g in guest_list:
+                try:
+                    raw_total   = float(g.get('Tổng thanh toán', 0) or 0)
+                    collected   = float(g.get('Số tiền đã thu',  0) or 0)
+                    effective   = collected if collected > 0 else raw_total
+                    commission  = float(g.get('Hoa hồng',        0) or 0)
+                    ci = g['Check-in Date']
+                    co = g['Check-out Date']
+                    if pd.notna(ci) and pd.notna(co):
+                        nights = max((co - ci).days, 1)
+                        rev  += effective  / nights
+                        comm += commission / nights
+                except (ValueError, TypeError, AttributeError, KeyError):
+                    continue
+            return rev, comm, rev - comm
+
+        confirmed_rev, confirmed_comm, confirmed_net = _daily_rev_for(revenue_guests)
+        pending_rev,   _,              _             = _daily_rev_for(_pending_checkins)
+
+        # Build detailed breakdown (only revenue guests shown in breakdown table)
         detailed_bookings = []
-        
-        for guest in all_guests:
+        for guest in revenue_guests:
             try:
-                # Get booking financial data
-                total_amount = float(guest.get('Tổng thanh toán', 0))
-                commission_amount = float(guest.get('Hoa hồng', 0))
-                
-                # Calculate nights stayed
-                checkin_date = guest['Check-in Date']
-                checkout_date = guest['Check-out Date']
-                
-                if pd.notna(checkin_date) and pd.notna(checkout_date):
-                    nights = (checkout_date - checkin_date).days
-                    if nights <= 0:
-                        nights = 1
-                    
-                    # Calculate daily revenue for this guest
-                    daily_amount = total_amount / nights
-                    daily_commission = commission_amount / nights
-                    daily_amount_minus_commission = daily_amount - daily_commission
-                    
-                    # Add to detailed bookings
+                raw_total  = float(guest.get('Tổng thanh toán', 0) or 0)
+                collected  = float(guest.get('Số tiền đã thu',  0) or 0)
+                effective  = collected if collected > 0 else raw_total
+                commission_amount = float(guest.get('Hoa hồng', 0) or 0)
+                ci = guest['Check-in Date']
+                co = guest['Check-out Date']
+                if pd.notna(ci) and pd.notna(co):
+                    nights = max((co - ci).days, 1)
+                    daily_amount = effective / nights
+                    daily_comm   = commission_amount / nights
                     detailed_bookings.append(type('obj', (object,), {
-                        'booking_id': guest.get('Số đặt phòng', 'N/A'),
-                        'guest_name': guest.get('Tên người đặt', 'N/A'),
+                        'booking_id':  guest.get('Số đặt phòng', 'N/A'),
+                        'guest_name':  guest.get('Tên người đặt', 'N/A'),
                         'daily_amount': daily_amount,
-                        'daily_amount_minus_commission': daily_amount_minus_commission,
+                        'daily_amount_minus_commission': daily_amount - daily_comm,
                         'commission_amount': commission_amount,
-                        'total_amount': total_amount,
-                        'nights': nights
+                        'total_amount': effective,
+                        'nights': nights,
                     })())
-                    
-            except (ValueError, TypeError, AttributeError):
+            except (ValueError, TypeError, AttributeError, KeyError):
                 continue
-        
+
         day_revenue_info = type('obj', (object,), {
-            'daily_total': day_info.get('daily_revenue', 0),
-            'daily_total_minus_commission': day_info.get('revenue_minus_commission', 0),
-            'total_commission': day_info.get('commission_total', 0),
-            'guest_count': len(check_in) + len(check_out) + len(staying_over),
-            'bookings': detailed_bookings
+            'daily_total':                  confirmed_rev,
+            'daily_total_minus_commission': confirmed_net,
+            'total_commission':             confirmed_comm,
+            'guest_count':    len(revenue_guests),
+            # Extra fields for template to show pending context
+            'unconfirmed_count': len(_pending_checkins),
+            'pending_revenue':   pending_rev,
+            'is_today':          is_today_view,
+            'bookings': detailed_bookings,
         })()
         
         # Build apartments_list for dynamic room badge colouring
@@ -10871,7 +10914,7 @@ def get_prorated_monthly_revenue():
         # Reset all counts — second loop is the authoritative source for occupancy display
         for day_date in daily_occupancy:
             daily_occupancy[day_date]['guests'] = []
-            daily_occupancy[day_date]['all'] = {'count': 0, 'revenue': 0, 'commission': 0}
+            daily_occupancy[day_date]['all'] = {'count': 0, 'revenue': 0, 'commission': 0, 'confirmed_revenue': 0, 'confirmed_count': 0}
             for apt_id in apt_ids:
                 daily_occupancy[day_date]['apts'][apt_id] = {'count': 0, 'revenue': 0, 'commission': 0}
 
@@ -10883,6 +10926,7 @@ def get_prorated_monthly_revenue():
             collected_amount = float(booking.collected_amount or 0)
             commission = float(booking.commission or 0)
             effective_revenue = collected_amount if collected_amount > 0 else room_amount
+            checkin_status = booking.checkin_status  # 'confirmed', 'cancelling', or None
             apartment_id = apartment.apartment_id if apartment else None
             apt_key = str(apartment_id) if apartment_id else None
 
@@ -10902,6 +10946,19 @@ def get_prorated_monthly_revenue():
                         daily_occupancy[current_stay_date]['all']['count']      += 1
                         daily_occupancy[current_stay_date]['all']['revenue']    += revenue_per_night
                         daily_occupancy[current_stay_date]['all']['commission'] += commission_per_night
+
+                        # Track confirmed-only revenue:
+                        # TODAY → count only 'confirmed'; PAST → count all (no historical confirmed flags);
+                        # FUTURE → count all (expected revenue)
+                        is_checkin_day_today = (booking.checkin_date == today)
+                        guest_counts_as_confirmed = (
+                            checkin_status == 'confirmed'           # explicitly confirmed
+                            or (not is_checkin_day_today)           # past/future: assume revenue realised
+                        )
+                        if guest_counts_as_confirmed:
+                            daily_occupancy[current_stay_date]['all']['confirmed_revenue'] += revenue_per_night
+                            daily_occupancy[current_stay_date]['all']['confirmed_count']   += 1
+
                         # Per-apartment totals
                         if apt_key and apt_key in daily_occupancy[current_stay_date]['apts']:
                             daily_occupancy[current_stay_date]['apts'][apt_key]['count']      += 1
@@ -10927,7 +10984,8 @@ def get_prorated_monthly_revenue():
                             'revenue_per_night': revenue_per_night,
                             'commission_per_night': commission_per_night,
                             'total_nights': total_nights,
-                            'booking_status': booking.booking_status
+                            'booking_status': booking.booking_status,
+                            'checkin_status': checkin_status,
                         })
 
                 current_stay_date += timedelta(days=1)
