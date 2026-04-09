@@ -3838,6 +3838,9 @@ def calendar_details(date_str):
             st  = _all_status_map.get(bid)      # None when checkin_status IS NULL in DB
             if st == 'confirmed':  return True
             if st == 'cancelling': return False
+            # Past dates: guest actually stayed — skip the no-show filter entirely
+            if date_obj < _today_date:
+                return True
             # not-contacted: remove if their check-in day is already behind us
             try:
                 ci = g.get('Check-in Date')
@@ -3860,6 +3863,9 @@ def calendar_details(date_str):
             st  = _all_status_map.get(bid)
             if st == 'cancelling': return False
             if st == 'confirmed':  return True
+            # Past dates: guest actually checked out — skip the no-show filter entirely
+            if date_obj < _today_date:
+                return True
             # not-contacted: if their check-in day has passed they're a no-show — skip
             try:
                 ci = g.get('Check-in Date')
