@@ -10793,9 +10793,11 @@ def get_prorated_monthly_revenue():
             room_amount = float(booking.room_amount or 0)
             collected_amount = float(booking.collected_amount or 0)
             commission = float(booking.commission or 0)
+            # Use actual collected amount when available (reflects real payment agreed)
+            effective_revenue = collected_amount if collected_amount > 0 else room_amount
 
             # Track revenue totals
-            total_revenue += room_amount
+            total_revenue += effective_revenue
             booking_count += 1
 
             # Track collected vs uncollected
@@ -10813,7 +10815,7 @@ def get_prorated_monthly_revenue():
 
             # Calculate total nights for pro-rating daily revenue
             total_nights = (booking.checkout_date - booking.checkin_date).days
-            revenue_per_night = room_amount / total_nights if total_nights > 0 else 0
+            revenue_per_night = effective_revenue / total_nights if total_nights > 0 else 0
             commission_per_night = commission / total_nights if total_nights > 0 else 0
 
             # Iterate through each day of the stay
@@ -10880,12 +10882,13 @@ def get_prorated_monthly_revenue():
             room_amount = float(booking.room_amount or 0)
             collected_amount = float(booking.collected_amount or 0)
             commission = float(booking.commission or 0)
+            effective_revenue = collected_amount if collected_amount > 0 else room_amount
             apartment_id = apartment.apartment_id if apartment else None
             apt_key = str(apartment_id) if apartment_id else None
 
             # Calculate total nights for pro-rating daily revenue
             total_nights = (booking.checkout_date - booking.checkin_date).days
-            revenue_per_night = room_amount / total_nights if total_nights > 0 else 0
+            revenue_per_night = effective_revenue / total_nights if total_nights > 0 else 0
             commission_per_night = commission / total_nights if total_nights > 0 else 0
 
             # Iterate through each day of the stay

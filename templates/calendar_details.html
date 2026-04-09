@@ -505,6 +505,78 @@
             color: #fff;
             box-shadow: 0 2px 6px rgba(21,101,192,0.4);
         }
+        /* Late arrival button — full-width row 3 (check-in cards only) */
+        .btn-qstatus.late-btn {
+            grid-column: 1 / -1;
+            grid-row: 3;
+            border-color: #e65100;
+            color: #e65100;
+        }
+        .btn-qstatus.late-btn:hover { background: #fff3e0; }
+        .btn-qstatus.late-btn.active {
+            background: #e65100;
+            color: #fff;
+            border-color: #e65100;
+            box-shadow: 0 2px 6px rgba(230,81,0,0.35);
+        }
+        /* Late arrival inline badge & form */
+        .late-arrival-display { margin: 2px 0 4px; font-size: 0.76rem; }
+        .late-arrival-badge {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 6px;
+            background: #fff3e0;
+            border: 1.5px solid #e65100;
+            border-radius: 7px;
+            padding: 5px 10px;
+            color: #bf360c;
+            font-weight: 700;
+            font-size: 0.75rem;
+        }
+        .late-input-row {
+            display: flex;
+            gap: 4px;
+            align-items: center;
+            flex-wrap: wrap;
+            margin-top: 2px;
+        }
+        .late-time-input {
+            width: 88px;
+            padding: 3px 6px;
+            font-size: 0.75rem;
+            border: 1.5px solid #e65100;
+            border-radius: 5px;
+            outline: none;
+        }
+        .late-notes-input {
+            flex: 1;
+            min-width: 60px;
+            padding: 3px 6px;
+            font-size: 0.72rem;
+            border: 1.5px solid #ccc;
+            border-radius: 5px;
+            outline: none;
+        }
+        .late-save-btn {
+            padding: 3px 8px;
+            font-size: 0.72rem;
+            font-weight: 700;
+            background: #e65100;
+            color: #fff;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .late-cancel-btn {
+            padding: 3px 7px;
+            font-size: 0.72rem;
+            background: #eee;
+            color: #666;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            cursor: pointer;
+        }
         /* Card overlays when status active */
         .guest-card.status-confirmed {
             border: 3px solid #2e7d32 !important;
@@ -840,15 +912,25 @@
                                             title="Chưa liên hệ với khách">
                                         📞 Chưa liên hệ
                                     </button>
+                                    <!-- Row 3: late arrival note -->
+                                    <button class="btn-qstatus late-btn"
+                                            id="late-btn-{{ booking.get('Số đặt phòng', '') }}"
+                                            onclick="showLateArrival('{{ booking.get('Số đặt phòng', '') }}')"
+                                            title="Ghi chú khách đến muộn">
+                                        🕐 Đến muộn
+                                    </button>
                                 </div>
+                                <div class="late-arrival-display" id="late-{{ booking.get('Số đặt phòng', '') }}"></div>
                                 {%- set collector_str = booking.get('Người thu tiền', '')|string %}
+                                {%- set collected_val = (booking.get('Số tiền đã thu', 0) or 0)|float %}
+                                {%- set display_amount = collected_val if collected_val > 0 else total_payment %}
                                 <div class="pay-area"
                                      id="pay-{{ booking.get('Số đặt phòng', '') }}"
                                      data-booking-id="{{ booking.get('Số đặt phòng', '') }}"
                                      data-amount="{{ total_payment|int }}"
                                      data-commission="{{ commission|int }}">
                                     {% if 'LOC' in collector_str or 'THAO' in collector_str %}
-                                        <div class="pay-done-row"><span class="pay-done-badge">✅ {{ booking.get('Người thu tiền', '') }} • {{ "{:,.0f}".format(total_payment) }}đ</span><button class="pay-undo-btn" onclick="showCollectors(this)" title="Đổi người thu">✏️</button></div>
+                                        <div class="pay-done-row"><span class="pay-done-badge">✅ {{ booking.get('Người thu tiền', '') }} • {{ "{:,.0f}".format(display_amount) }}đ</span><button class="pay-undo-btn" onclick="showCollectors(this)" title="Đổi người thu">✏️</button></div>
                                     {% else %}
                                         <button class="btn-pay-now" onclick="showPayCollect(this)">💰 Thu Tiền</button>
                                     {% endif %}
@@ -968,13 +1050,15 @@
                                     </div>
                                 </div>
                                 {%- set collector_str = booking.get('Người thu tiền', '')|string %}
+                                {%- set collected_val = (booking.get('Số tiền đã thu', 0) or 0)|float %}
+                                {%- set display_amount = collected_val if collected_val > 0 else total_payment %}
                                 <div class="pay-area"
                                      id="pay-{{ booking.get('Số đặt phòng', '') }}"
                                      data-booking-id="{{ booking.get('Số đặt phòng', '') }}"
                                      data-amount="{{ total_payment|int }}"
                                      data-commission="{{ commission|int }}">
                                     {% if 'LOC' in collector_str or 'THAO' in collector_str %}
-                                        <div class="pay-done-row"><span class="pay-done-badge">✅ {{ booking.get('Người thu tiền', '') }} • {{ "{:,.0f}".format(total_payment) }}đ</span><button class="pay-undo-btn" onclick="showCollectors(this)" title="Đổi người thu">✏️</button></div>
+                                        <div class="pay-done-row"><span class="pay-done-badge">✅ {{ booking.get('Người thu tiền', '') }} • {{ "{:,.0f}".format(display_amount) }}đ</span><button class="pay-undo-btn" onclick="showCollectors(this)" title="Đổi người thu">✏️</button></div>
                                     {% else %}
                                         <button class="btn-pay-now" onclick="showPayCollect(this)">💰 Thu Tiền</button>
                                     {% endif %}
@@ -1072,13 +1156,15 @@
                                     </div>
                                 </div>
                                 {%- set collector_str = booking.get('Người thu tiền', '')|string %}
+                                {%- set collected_val = (booking.get('Số tiền đã thu', 0) or 0)|float %}
+                                {%- set display_amount = collected_val if collected_val > 0 else total_payment %}
                                 <div class="pay-area"
                                      id="pay-{{ booking.get('Số đặt phòng', '') }}"
                                      data-booking-id="{{ booking.get('Số đặt phòng', '') }}"
                                      data-amount="{{ total_payment|int }}"
                                      data-commission="{{ commission|int }}">
                                     {% if 'LOC' in collector_str or 'THAO' in collector_str %}
-                                        <div class="pay-done-row"><span class="pay-done-badge">✅ {{ booking.get('Người thu tiền', '') }} • {{ "{:,.0f}".format(total_payment) }}đ</span><button class="pay-undo-btn" onclick="showCollectors(this)" title="Đổi người thu">✏️</button></div>
+                                        <div class="pay-done-row"><span class="pay-done-badge">✅ {{ booking.get('Người thu tiền', '') }} • {{ "{:,.0f}".format(display_amount) }}đ</span><button class="pay-undo-btn" onclick="showCollectors(this)" title="Đổi người thu">✏️</button></div>
                                     {% else %}
                                         <button class="btn-pay-now" onclick="showPayCollect(this)">💰 Thu Tiền</button>
                                     {% endif %}
@@ -4010,7 +4096,102 @@ document.addEventListener('DOMContentLoaded', () => {
         cols.sort((a, b) => parseInt(a.dataset.remaining ?? 99) - parseInt(b.dataset.remaining ?? 99));
         cols.forEach(col => stayingContainer.appendChild(col));
     }
+
+    // Load saved late arrival times for check-in cards
+    loadArrivalTimes();
 });
+
+// ── Late Arrival Functions ──────────────────────────────────────────────────
+
+function showLateArrival(bid) {
+    const display = document.getElementById('late-' + bid);
+    if (!display) return;
+
+    // Toggle: if inline form is already showing, close it
+    if (display.querySelector('.late-input-row')) {
+        display.innerHTML = '';
+        return;
+    }
+
+    // Build inline input form
+    display.innerHTML = `
+        <div class="late-input-row">
+            <input type="time" class="late-time-input" id="late-time-${bid}" placeholder="HH:MM">
+            <input type="text" class="late-notes-input" id="late-notes-${bid}" placeholder="Ghi chú...">
+            <button class="late-save-btn" onclick="saveLateArrival('${bid}')">💾 Lưu</button>
+            <button class="late-cancel-btn" onclick="document.getElementById('late-${bid}').innerHTML=''">✖</button>
+        </div>
+    `;
+    document.getElementById('late-time-' + bid)?.focus();
+}
+
+async function saveLateArrival(bid) {
+    const timeInput  = document.getElementById('late-time-'  + bid);
+    const notesInput = document.getElementById('late-notes-' + bid);
+    const timeVal    = timeInput?.value  || '';
+    const notesVal   = notesInput?.value || '';
+
+    if (!timeVal) {
+        showCalToast('⚠️ Vui lòng nhập giờ đến', 'warning');
+        timeInput?.focus();
+        return;
+    }
+
+    try {
+        const resp = await fetch('/api/arrival_times', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ booking_id: bid, estimated_arrival: timeVal, notes: notesVal })
+        });
+        const data = await resp.json();
+        if (data.success) {
+            showLateArrivalBadge(bid, timeVal, notesVal);
+            const btn = document.getElementById('late-btn-' + bid);
+            if (btn) btn.classList.add('active');
+            showCalToast('🕐 Đã lưu giờ đến muộn', 'success');
+        } else {
+            showCalToast('❌ Lỗi: ' + (data.error || 'Không lưu được'), 'error');
+        }
+    } catch (e) {
+        showCalToast('❌ Lỗi kết nối', 'error');
+    }
+}
+
+function showLateArrivalBadge(bid, timeStr, notes) {
+    const display = document.getElementById('late-' + bid);
+    if (!display) return;
+    const notesPart = notes ? ` — ${notes}` : '';
+    display.innerHTML = `
+        <div class="late-arrival-badge">
+            <span>🕐 Đến lúc ${timeStr}${notesPart}</span>
+            <button onclick="showLateArrival('${bid}')" title="Chỉnh sửa giờ đến"
+                    style="background:none;border:none;cursor:pointer;color:#e65100;padding:0;font-size:0.8rem;">✏️</button>
+        </div>
+    `;
+}
+
+async function loadArrivalTimes() {
+    // Only load if there are check-in cards with late buttons
+    const lateBtns = document.querySelectorAll('[id^="late-btn-"]');
+    if (!lateBtns.length) return;
+
+    try {
+        const resp = await fetch('/api/arrival_times');
+        const arrivalList = await resp.json();
+        if (!Array.isArray(arrivalList)) return;
+
+        arrivalList.forEach(at => {
+            if (!at.estimated_arrival) return;
+            const display = document.getElementById('late-' + at.booking_id);
+            if (!display) return; // only update cards on this page
+            showLateArrivalBadge(at.booking_id, at.estimated_arrival, at.notes || '');
+            const btn = document.getElementById('late-btn-' + at.booking_id);
+            if (btn) btn.classList.add('active');
+        });
+    } catch (e) {
+        // silent fail — page works fine without arrival times
+    }
+}
 </script>
 
         </div>
