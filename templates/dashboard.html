@@ -2106,16 +2106,21 @@
                 }
 
                 const { summary, daily_occupancy, period } = data;
+                // Store apartments metadata globally — used by filter buttons + table renderer
+                const aptsMeta = data.apartments || [];
+                window.APARTMENTS_META = aptsMeta;
                 console.log(`💰 [CHECK-IN MONTH] Filtered data for ${apartmentFilter}:`, summary);
-                console.log(`📊 [DAILY_OCCUPANCY] Days tracked:`, Object.keys(daily_occupancy || {}).length);
+                console.log(`🏢 [APARTMENTS] ${aptsMeta.length} apartments:`, aptsMeta.map(a => a.name));
 
-                // Calculate additional metrics
+                // Calculate additional metrics — data.all is now {count, revenue, commission}
                 const totalNights = Object.values(daily_occupancy || {}).reduce((sum, day) => {
-                    return sum + (day.all || 0);
+                    return sum + ((day.all && day.all.count) || 0);
                 }, 0);
 
                 const daysInMonth = period.days_in_month || 30;
-                const totalRooms = apartmentFilter === 'apt1' ? 4 : apartmentFilter === 'apt2' ? 2 : 6;
+                const totalRooms = apartmentFilter === 'all'
+                    ? aptsMeta.reduce((s, a) => s + (a.total_rooms || 1), 0)
+                    : (aptsMeta.find(a => String(a.id) === String(apartmentFilter))?.total_rooms || 1);
                 const maxPossibleNights = daysInMonth * totalRooms;
                 const occupancyRate = maxPossibleNights > 0 ? Math.round((totalNights / maxPossibleNights) * 100) : 0;
 
@@ -2153,8 +2158,9 @@
                 const avgPricePerNightEl = document.getElementById('avgPricePerNight');
                 if (avgPricePerNightEl) avgPricePerNightEl.textContent = `${avgPerNight.toLocaleString('vi-VN')}đ`;
 
-                // Display daily occupancy calendar
-                displayDailyOccupancy(daily_occupancy, period, apartmentFilter);
+                // Display daily occupancy calendar + regenerate filter buttons
+                renderApartmentFilterButtons(aptsMeta, apartmentFilter);
+                displayDailyOccupancy(daily_occupancy, period, apartmentFilter, aptsMeta);
 
                 console.log('✅ Daily revenue filtered and re-rendered');
 
@@ -2175,18 +2181,49 @@
         // Store daily occupancy data globally for modal access
         window.currentDailyOccupancy = null;
 
-        // Display daily occupancy calendar - NEW CLEAN VIEW
-        function displayDailyOccupancy(daily_occupancy, period, apartmentFilter) {
+        // ── Render per-apartment filter buttons dynamically from DB apartments ──────
+        function renderApartmentFilterButtons(apartments, currentFilter) {
+            const container = document.getElementById('dailyAptFilterContainer');
+            if (!container || !apartments) return;
+
+            // Remove previously injected buttons (keep the static "Tất cả" button)
+            container.querySelectorAll('.apt-dyn-btn').forEach(el => el.remove());
+
+            apartments.forEach((apt) => {
+                const val = String(apt.id);
+                const color = apt.color || '#666';
+
+                const input = document.createElement('input');
+                input.type = 'radio';
+                input.className = 'btn-check apt-dyn-btn';
+                input.name = 'apartmentFilterDaily';
+                input.id = `aptDaily_${apt.id}`;
+                input.value = val;
+                input.autocomplete = 'off';
+                if (String(currentFilter) === val) input.checked = true;
+                input.addEventListener('change', () => filterDailyRevenueByApartment(val));
+
+                const label = document.createElement('label');
+                label.className = 'btn btn-outline-secondary btn-sm apt-dyn-btn';
+                label.htmlFor = `aptDaily_${apt.id}`;
+                label.style.cssText = `border-color:${color}; color:${color};`;
+                label.innerHTML = `<i class="fas fa-building me-1"></i>${apt.name}`;
+
+                container.appendChild(input);
+                container.appendChild(label);
+            });
+        }
+
+        // ── Daily occupancy table — fully dynamic, driven by apartments from API ──
+        function displayDailyOccupancy(daily_occupancy, period, apartmentFilter, apartments) {
             const listContainer = document.getElementById('proratedGuestsList');
             if (!listContainer || !daily_occupancy) {
                 console.error('❌ Missing container or data');
                 return;
             }
 
-            // Store for modal access
             window.currentDailyOccupancy = daily_occupancy;
 
-            // Sort dates
             const dates = Object.keys(daily_occupancy).sort();
 
             if (dates.length === 0) {
@@ -2194,164 +2231,130 @@
                     <div class="alert alert-info text-center">
                         <i class="fas fa-info-circle"></i>
                         Không có dữ liệu cho tháng này
-                    </div>
-                `;
+                    </div>`;
                 return;
             }
 
-            // Build calendar table with revenue
+            // Which apartment columns to show
+            const visibleApts = apartmentFilter === 'all'
+                ? apartments
+                : apartments.filter(a => String(a.id) === String(apartmentFilter));
+            const showTotal = (apartmentFilter === 'all');
+
+            // ── Table header ────────────────────────────────────────────────────
             let html = `
                 <div class="table-responsive">
-                    <table class="table table-sm table-hover table-bordered" style="font-size: 0.85rem;">
-                        <thead class="table-light sticky-top">
-                            <tr>
-                                <th class="text-center" style="width: 100px;">Ngày</th>`;
+                <table class="table table-sm table-hover table-bordered" style="font-size:0.85rem;">
+                <thead class="table-light sticky-top"><tr>
+                    <th class="text-center" style="width:100px;">Ngày</th>`;
 
-            // Add apartment columns based on filter
-            if (apartmentFilter === 'all' || apartmentFilter === 'apt1') {
-                html += `<th class="text-center" style="min-width: 200px; background-color: #e3f2fd;">
-                    🔵 118 Hang Bac<br>
+            visibleApts.forEach(apt => {
+                html += `<th class="text-center" style="min-width:200px;background-color:${apt.bg_color||'#f8f9fa'};">
+                    <span style="color:${apt.color||'#333'}">■</span> ${apt.name}<br>
                     <small class="text-muted">Doanh thu • Hoa hồng • Khách</small>
                 </th>`;
-            }
-            if (apartmentFilter === 'all' || apartmentFilter === 'apt2') {
-                html += `<th class="text-center" style="min-width: 200px; background-color: #e8f5e9;">
-                    🟢 18 Hang Be<br>
-                    <small class="text-muted">Doanh thu • Hoa hồng • Khách</small>
-                </th>`;
-            }
-            if (apartmentFilter === 'all') {
-                html += `<th class="text-center fw-bold" style="min-width: 200px; background-color: #fff3e0;">
+            });
+            if (showTotal) {
+                html += `<th class="text-center fw-bold" style="min-width:200px;background-color:#fff3e0;">
                     📊 Tổng Cộng<br>
                     <small class="text-muted fw-normal">Doanh thu • Hoa hồng • Khách</small>
                 </th>`;
             }
-
             html += `</tr></thead><tbody>`;
 
-            // Add rows for each date
-            let totalRevenueApt1 = 0, totalRevenueApt2 = 0, totalRevenueAll = 0;
-            let totalCommissionApt1 = 0, totalCommissionApt2 = 0, totalCommissionAll = 0;
+            // Running totals per apt + overall
+            const aptTotals = {};
+            visibleApts.forEach(a => { aptTotals[String(a.id)] = {revenue:0, commission:0}; });
+            let totalAll = {revenue:0, commission:0};
 
+            // ── Rows ────────────────────────────────────────────────────────────
             dates.forEach(dateStr => {
-                const data = daily_occupancy[dateStr];
-                const dateObj = new Date(dateStr);
-                const dayName = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'][dateObj.getDay()];
-                const formattedDate = `${dayName}, ${dateObj.getDate()}/${dateObj.getMonth() + 1}`;
-                const hasGuests = (data.guests && data.guests.length > 0);
+                const day  = daily_occupancy[dateStr];
+                const dObj = new Date(dateStr);
+                const dayName = ['CN','T2','T3','T4','T5','T6','T7'][dObj.getDay()];
+                const fmt  = `${dayName}, ${dObj.getDate()}/${dObj.getMonth()+1}`;
+                const isWE = dObj.getDay() === 0 || dObj.getDay() === 6;
 
-                // Highlight weekends
-                const isWeekend = dateObj.getDay() === 0 || dateObj.getDay() === 6;
-                const rowClass = isWeekend ? 'table-warning' : '';
+                html += `<tr class="${isWE ? 'table-warning' : ''}">`;
+                html += `<td class="text-center fw-bold">${fmt}</td>`;
 
-                html += `<tr class="${rowClass}">`;
-                html += `<td class="text-center fw-bold">${formattedDate}</td>`;
+                visibleApts.forEach(apt => {
+                    const ad  = (day.apts || {})[String(apt.id)] || {};
+                    const cnt = ad.count      || 0;
+                    const rev = ad.revenue    || 0;
+                    const com = ad.commission || 0;
+                    const net = rev - com;
+                    aptTotals[String(apt.id)].revenue    += rev;
+                    aptTotals[String(apt.id)].commission += com;
 
-                // Show revenue + commission + counts based on filter (CLICKABLE)
-                if (apartmentFilter === 'all' || apartmentFilter === 'apt1') {
-                    const count = data.apt1 || 0;
-                    const revenue = data.revenue_apt1 || 0;
-                    const commission = data.commission_apt1 || 0;
-                    const netRevenue = revenue - commission;
-                    totalRevenueApt1 += revenue;
-                    totalCommissionApt1 += commission;
+                    if (cnt > 0) {
+                        html += `<td class="text-center clickable-cell"
+                            onclick='showDailyGuestDetails("${dateStr}","${fmt}")'
+                            style="cursor:pointer;border-left:3px solid ${apt.color||'#ccc'};"
+                            title="Click để xem chi tiết khách">
+                            <div class="fw-bold" style="color:${apt.color||'#333'}">${Math.round(rev).toLocaleString('vi-VN')}đ</div>
+                            ${com>0?`<div class="text-danger" style="font-size:.75rem;">-${Math.round(com).toLocaleString('vi-VN')}đ HH</div>`:''}
+                            ${com>0?`<div class="text-success fw-bold" style="font-size:.8rem;">${Math.round(net).toLocaleString('vi-VN')}đ</div>`:''}
+                            <small class="text-muted"><i class="fas fa-users me-1"></i>${cnt} khách</small>
+                        </td>`;
+                    } else {
+                        html += `<td class="text-center text-muted">-</td>`;
+                    }
+                });
 
-                    if (count > 0) {
-                        html += `<td class="text-center clickable-cell" onclick='showDailyGuestDetails("${dateStr}", "${formattedDate}")' style="cursor: pointer;" title="Click để xem chi tiết khách">
-                            <div class="fw-bold text-primary">${Math.round(revenue).toLocaleString('vi-VN')}đ</div>
-                            ${commission > 0 ? `<div class="text-danger" style="font-size: 0.75rem;">-${Math.round(commission).toLocaleString('vi-VN')}đ HH</div>` : ''}
-                            ${commission > 0 ? `<div class="text-success fw-bold" style="font-size: 0.8rem;">${Math.round(netRevenue).toLocaleString('vi-VN')}đ</div>` : ''}
-                            <small class="text-muted"><i class="fas fa-users me-1"></i>${count} khách</small>
+                if (showTotal) {
+                    const al  = day.all || {};
+                    const cnt = al.count      || 0;
+                    const rev = al.revenue    || 0;
+                    const com = al.commission || 0;
+                    const net = rev - com;
+                    totalAll.revenue    += rev;
+                    totalAll.commission += com;
+
+                    if (cnt > 0) {
+                        html += `<td class="text-center clickable-cell"
+                            onclick='showDailyGuestDetails("${dateStr}","${fmt}")'
+                            style="cursor:pointer;" title="Click để xem chi tiết khách">
+                            <div class="fw-bold text-warning">${Math.round(rev).toLocaleString('vi-VN')}đ</div>
+                            ${com>0?`<div class="text-danger" style="font-size:.75rem;">-${Math.round(com).toLocaleString('vi-VN')}đ HH</div>`:''}
+                            ${com>0?`<div class="text-success fw-bold" style="font-size:.8rem;">${Math.round(net).toLocaleString('vi-VN')}đ</div>`:''}
+                            <small class="text-muted"><i class="fas fa-users me-1"></i>${cnt} khách</small>
                         </td>`;
                     } else {
                         html += `<td class="text-center text-muted">-</td>`;
                     }
                 }
-
-                if (apartmentFilter === 'all' || apartmentFilter === 'apt2') {
-                    const count = data.apt2 || 0;
-                    const revenue = data.revenue_apt2 || 0;
-                    const commission = data.commission_apt2 || 0;
-                    const netRevenue = revenue - commission;
-                    totalRevenueApt2 += revenue;
-                    totalCommissionApt2 += commission;
-
-                    if (count > 0) {
-                        html += `<td class="text-center clickable-cell" onclick='showDailyGuestDetails("${dateStr}", "${formattedDate}")' style="cursor: pointer;" title="Click để xem chi tiết khách">
-                            <div class="fw-bold text-success">${Math.round(revenue).toLocaleString('vi-VN')}đ</div>
-                            ${commission > 0 ? `<div class="text-danger" style="font-size: 0.75rem;">-${Math.round(commission).toLocaleString('vi-VN')}đ HH</div>` : ''}
-                            ${commission > 0 ? `<div class="text-success fw-bold" style="font-size: 0.8rem;">${Math.round(netRevenue).toLocaleString('vi-VN')}đ</div>` : ''}
-                            <small class="text-muted"><i class="fas fa-users me-1"></i>${count} khách</small>
-                        </td>`;
-                    } else {
-                        html += `<td class="text-center text-muted">-</td>`;
-                    }
-                }
-
-                if (apartmentFilter === 'all') {
-                    const count = data.all || 0;
-                    const revenue = data.revenue_all || 0;
-                    const commission = data.commission_all || 0;
-                    const netRevenue = revenue - commission;
-                    totalRevenueAll += revenue;
-                    totalCommissionAll += commission;
-
-                    if (count > 0) {
-                        html += `<td class="text-center clickable-cell" onclick='showDailyGuestDetails("${dateStr}", "${formattedDate}")' style="cursor: pointer;" title="Click để xem chi tiết khách">
-                            <div class="fw-bold text-warning">${Math.round(revenue).toLocaleString('vi-VN')}đ</div>
-                            ${commission > 0 ? `<div class="text-danger" style="font-size: 0.75rem;">-${Math.round(commission).toLocaleString('vi-VN')}đ HH</div>` : ''}
-                            ${commission > 0 ? `<div class="text-success fw-bold" style="font-size: 0.8rem;">${Math.round(netRevenue).toLocaleString('vi-VN')}đ</div>` : ''}
-                            <small class="text-muted"><i class="fas fa-users me-1"></i>${count} khách</small>
-                        </td>`;
-                    } else {
-                        html += `<td class="text-center text-muted">-</td>`;
-                    }
-                }
-
                 html += `</tr>`;
             });
 
-            // Add summary footer row
-            html += `
-                <tfoot class="table-secondary fw-bold">
-                    <tr>
-                        <td class="text-center">
-                            <i class="fas fa-calculator me-1"></i>TỔNG CỘNG
-                        </td>`;
+            // ── Footer ──────────────────────────────────────────────────────────
+            html += `<tfoot class="table-secondary fw-bold"><tr>
+                <td class="text-center"><i class="fas fa-calculator me-1"></i>TỔNG CỘNG</td>`;
 
-            if (apartmentFilter === 'all' || apartmentFilter === 'apt1') {
-                const netApt1 = totalRevenueApt1 - totalCommissionApt1;
-                html += `<td class="text-center text-primary">
-                    <div class="fw-bold">${Math.round(totalRevenueApt1).toLocaleString('vi-VN')}đ</div>
-                    ${totalCommissionApt1 > 0 ? `<div class="text-danger" style="font-size: 0.85rem;">-${Math.round(totalCommissionApt1).toLocaleString('vi-VN')}đ HH</div>` : ''}
-                    ${totalCommissionApt1 > 0 ? `<div class="text-success" style="font-size: 0.9rem;">=${Math.round(netApt1).toLocaleString('vi-VN')}đ</div>` : ''}
+            visibleApts.forEach(apt => {
+                const tot = aptTotals[String(apt.id)];
+                const net = tot.revenue - tot.commission;
+                html += `<td class="text-center" style="color:${apt.color||'#333'}">
+                    <div class="fw-bold">${Math.round(tot.revenue).toLocaleString('vi-VN')}đ</div>
+                    ${tot.commission>0?`<div class="text-danger" style="font-size:.85rem;">-${Math.round(tot.commission).toLocaleString('vi-VN')}đ HH</div>`:''}
+                    ${tot.commission>0?`<div class="text-success" style="font-size:.9rem;">=${Math.round(net).toLocaleString('vi-VN')}đ</div>`:''}
                 </td>`;
-            }
-
-            if (apartmentFilter === 'all' || apartmentFilter === 'apt2') {
-                const netApt2 = totalRevenueApt2 - totalCommissionApt2;
-                html += `<td class="text-center text-success">
-                    <div class="fw-bold">${Math.round(totalRevenueApt2).toLocaleString('vi-VN')}đ</div>
-                    ${totalCommissionApt2 > 0 ? `<div class="text-danger" style="font-size: 0.85rem;">-${Math.round(totalCommissionApt2).toLocaleString('vi-VN')}đ HH</div>` : ''}
-                    ${totalCommissionApt2 > 0 ? `<div class="text-success" style="font-size: 0.9rem;">=${Math.round(netApt2).toLocaleString('vi-VN')}đ</div>` : ''}
-                </td>`;
-            }
-
-            if (apartmentFilter === 'all') {
-                const netAll = totalRevenueAll - totalCommissionAll;
+            });
+            if (showTotal) {
+                const net = totalAll.revenue - totalAll.commission;
                 html += `<td class="text-center text-warning">
-                    <div class="fw-bold">${Math.round(totalRevenueAll).toLocaleString('vi-VN')}đ</div>
-                    ${totalCommissionAll > 0 ? `<div class="text-danger" style="font-size: 0.85rem;">-${Math.round(totalCommissionAll).toLocaleString('vi-VN')}đ HH</div>` : ''}
-                    ${totalCommissionAll > 0 ? `<div class="text-success" style="font-size: 0.9rem;">=${Math.round(netAll).toLocaleString('vi-VN')}đ</div>` : ''}
+                    <div class="fw-bold">${Math.round(totalAll.revenue).toLocaleString('vi-VN')}đ</div>
+                    ${totalAll.commission>0?`<div class="text-danger" style="font-size:.85rem;">-${Math.round(totalAll.commission).toLocaleString('vi-VN')}đ HH</div>`:''}
+                    ${totalAll.commission>0?`<div class="text-success" style="font-size:.9rem;">=${Math.round(net).toLocaleString('vi-VN')}đ</div>`:''}
                 </td>`;
             }
+            html += `</tr></tfoot></table></div>`;
 
-            html += `</tr></tfoot>`;
-
-            html += `</table></div>`;
-
-            // Add detailed summary
+            // ── Summary bar ─────────────────────────────────────────────────────
             const totalDays = dates.length;
+            const summaryRev = showTotal
+                ? totalAll.revenue
+                : visibleApts.reduce((s,a) => s + (aptTotals[String(a.id)]?.revenue||0), 0);
             html += `
                 <div class="alert alert-light border mt-3 mb-0">
                     <div class="row text-center">
@@ -2362,41 +2365,27 @@
                         </div>
                         <div class="col-md-4 col-6">
                             <i class="fas fa-money-bill-wave text-success me-1"></i>
-                            <strong>${Math.round(totalRevenueAll).toLocaleString('vi-VN')}đ</strong>
+                            <strong>${Math.round(summaryRev).toLocaleString('vi-VN')}đ</strong>
                             <small class="d-block text-muted">Tổng doanh thu theo ngày</small>
                         </div>
                         <div class="col-md-4 col-12 mt-2 mt-md-0">
                             <i class="fas fa-chart-line text-info me-1"></i>
-                            <strong>${Math.round(totalRevenueAll / totalDays).toLocaleString('vi-VN')}đ</strong>
+                            <strong>${totalDays>0?Math.round(summaryRev/totalDays).toLocaleString('vi-VN'):0}đ</strong>
                             <small class="d-block text-muted">Trung bình/ngày</small>
                         </div>
                     </div>
-                </div>
-            `;
+                </div>`;
 
             listContainer.innerHTML = html;
-            console.log('✅ Daily occupancy calendar displayed');
+            console.log(`✅ Daily occupancy: ${visibleApts.length} apt columns × ${totalDays} days`);
         }
 
-        // Show daily guest details modal
-        // 🎨 Helper function: Get room type symbol based on apartment and room name
+        // 🎨 Room symbol — index into apartments list, dynamic
         function getRoomSymbol(apartmentId, roomName) {
-            // SIMPLIFIED 3-SYMBOL SYSTEM for easy viewing
-
-            // 18 Hang Be (Green apartment - apartment_id = 2) - Individual room numbers
-            if (apartmentId === 2) {
-                const roomLower = (roomName || '').toLowerCase();
-                if (roomLower.includes('101')) return '①'; // Circled 1 for Room 101
-                if (roomLower.includes('102')) return '②'; // Circled 2 for Room 102
-                return '①'; // Default to Room 101 if unclear
-            }
-
-            // 118 Hang Bac (Blue apartment - apartment_id = 1) - ALL rooms use ONE symbol
-            if (apartmentId === 1) {
-                return '●'; // Circle for ALL Hang Bac rooms (Standard, Kitchen, Night Market)
-            }
-
-            return '●'; // Default circle
+            const symbols = ['●', '■', '▲', '◆', '★', '♦'];
+            const apts = window.APARTMENTS_META || [];
+            const idx  = apts.findIndex(a => a.id === apartmentId);
+            return symbols[idx >= 0 ? idx % symbols.length : 0];
         }
 
         window.showDailyGuestDetails = function(dateStr, formattedDate) {
@@ -2977,23 +2966,14 @@
                     </div>
                 </div>
                 <div class="card-body">
-                    <!-- 🏢 Apartment Filter Tabs (Same as Monthly Revenue) -->
+                    <!-- 🏢 Apartment Filter Tabs — populated dynamically from DB -->
                     <div class="apartment-filter-tabs-daily mb-3">
-                        <div class="btn-group w-100" role="group" aria-label="Apartment filter daily">
+                        <div id="dailyAptFilterContainer" class="btn-group w-100" role="group" aria-label="Apartment filter daily">
                             <input type="radio" class="btn-check" name="apartmentFilterDaily" id="aptAllDaily" value="all" checked autocomplete="off" onchange="filterDailyRevenueByApartment('all')">
                             <label class="btn btn-outline-primary btn-sm" for="aptAllDaily">
                                 <i class="fas fa-building me-1"></i>📊 Tất cả
                             </label>
-
-                            <input type="radio" class="btn-check" name="apartmentFilterDaily" id="apt1Daily" value="apt1" autocomplete="off" onchange="filterDailyRevenueByApartment('apt1')">
-                            <label class="btn btn-outline-primary btn-sm" for="apt1Daily" style="border-color: #1976D2;">
-                                <i class="fas fa-building me-1"></i>🔵 118 Hang Bac
-                            </label>
-
-                            <input type="radio" class="btn-check" name="apartmentFilterDaily" id="apt2Daily" value="apt2" autocomplete="off" onchange="filterDailyRevenueByApartment('apt2')">
-                            <label class="btn btn-outline-success btn-sm" for="apt2Daily" style="border-color: #388E3C;">
-                                <i class="fas fa-building me-1"></i>🟢 18 Hang Be
-                            </label>
+                            <!-- Per-apartment buttons injected by renderApartmentFilterButtons() -->
                         </div>
                     </div>
 

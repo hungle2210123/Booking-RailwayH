@@ -10643,9 +10643,26 @@ def get_prorated_monthly_revenue():
         from datetime import datetime, date, timedelta
         from core.models import Booking, Guest, Room, Apartment, db
 
-        # Get apartment filter parameter
+        # Get apartment filter parameter ('all' or a numeric apartment_id string)
         apartment_filter = request.args.get('apartment', 'all')
         print(f"🏢 [APARTMENT_FILTER] Requested filter: {apartment_filter}")
+
+        # ── Load ALL active apartments from DB (dynamic — no hardcoding) ──────────
+        APT_COLORS_HEX = ['#1976D2', '#2E7D32', '#7B1FA2', '#E64A19', '#00838F', '#F57F17']
+        APT_BG_COLORS  = ['#e3f2fd', '#e8f5e9', '#f3e5f5', '#fbe9e7', '#e0f5f7', '#fffde7']
+        all_apartments = Apartment.query.filter_by(is_active=True).order_by(Apartment.apartment_id).all()
+        apt_ids = [str(a.apartment_id) for a in all_apartments]
+        apartments_meta = [
+            {
+                'id':         apt.apartment_id,
+                'name':       apt.apartment_name,
+                'color':      APT_COLORS_HEX[i % len(APT_COLORS_HEX)],
+                'bg_color':   APT_BG_COLORS[i % len(APT_BG_COLORS)],
+                'total_rooms': apt.total_rooms or 1,
+            }
+            for i, apt in enumerate(all_apartments)
+        ]
+        print(f"🏢 [APARTMENTS] Loaded {len(all_apartments)}: {[a.apartment_name for a in all_apartments]}")
 
         # Always set today for comparisons
         today = date.today()
@@ -10702,17 +10719,17 @@ def get_prorated_monthly_revenue():
             Booking.booking_status != 'đã hủy'
         )
 
-        # Apply apartment filter using apartment_id
-        if apartment_filter == 'apt1':
-            # Filter for apartment_id = 1 (118 Hang Bac)
-            query = query.filter(Apartment.apartment_id == 1)
-            print(f"🔵 [FILTER] Filtering for 118 Hang Bac (apartment_id=1)")
-        elif apartment_filter == 'apt2':
-            # Filter for apartment_id = 2 (18 Hang Be)
-            query = query.filter(Apartment.apartment_id == 2)
-            print(f"🟢 [FILTER] Filtering for 18 Hang Be (apartment_id=2)")
+        # Apply apartment filter — 'all' shows everything; any integer string filters by apartment_id
+        if apartment_filter != 'all':
+            try:
+                apt_id_filter = int(apartment_filter)
+                query = query.filter(Apartment.apartment_id == apt_id_filter)
+                apt_label = next((a.apartment_name for a in all_apartments if a.apartment_id == apt_id_filter), apartment_filter)
+                print(f"🏢 [FILTER] Filtering for apartment_id={apt_id_filter} ({apt_label})")
+            except (ValueError, TypeError):
+                print(f"📊 [FILTER] Invalid filter '{apartment_filter}', showing all apartments")
         else:
-            print(f"📊 [FILTER] Showing all apartments")
+            print(f"📊 [FILTER] Showing all {len(all_apartments)} apartments")
 
         all_month_bookings = query.order_by(Booking.checkin_date.asc()).all()
 
@@ -10734,10 +10751,11 @@ def get_prorated_monthly_revenue():
         )
 
         # Apply same apartment filter for occupancy
-        if apartment_filter == 'apt1':
-            occupancy_query = occupancy_query.filter(Apartment.apartment_id == 1)
-        elif apartment_filter == 'apt2':
-            occupancy_query = occupancy_query.filter(Apartment.apartment_id == 2)
+        if apartment_filter != 'all':
+            try:
+                occupancy_query = occupancy_query.filter(Apartment.apartment_id == int(apartment_filter))
+            except (ValueError, TypeError):
+                pass
 
         all_occupancy_bookings = occupancy_query.order_by(Booking.checkin_date.asc()).all()
         print(f"📊 [OCCUPANCY] Found {len(all_occupancy_bookings)} bookings overlapping with month")
@@ -10746,14 +10764,13 @@ def get_prorated_monthly_revenue():
         daily_occupancy = {}  # {date: {counts, revenue, guests: [{guest_name, room_name, amount, etc}]}}
         days_in_selected_month = (end_of_month - start_of_month).days + 1
 
-        # Initialize daily occupancy for all days in month
+        # Initialize daily occupancy — dynamic keys from DB apartments, no hardcoding
         for day_offset in range(days_in_selected_month):
             current_date = start_of_month + timedelta(days=day_offset)
             daily_occupancy[current_date] = {
-                'apt1': 0, 'apt2': 0, 'all': 0,
-                'revenue_apt1': 0, 'revenue_apt2': 0, 'revenue_all': 0,
-                'commission_apt1': 0, 'commission_apt2': 0, 'commission_all': 0,
-                'guests': []  # List of guest details for this day
+                'apts':  {apt_id: {'count': 0, 'revenue': 0, 'commission': 0} for apt_id in apt_ids},
+                'all':   {'count': 0, 'revenue': 0, 'commission': 0},
+                'guests': []
             }
 
         # Track revenue by check-in month (NO PRO-RATING)
@@ -10787,7 +10804,7 @@ def get_prorated_monthly_revenue():
             # Calculate daily occupancy AND revenue for this booking
             # Count each day the guest stays in the selected month
             apartment_id = apartment.apartment_id if apartment else None
-            apt_key = 'apt1' if apartment_id == 1 else 'apt2' if apartment_id == 2 else None
+            apt_key = str(apartment_id) if apartment_id else None
 
             # Calculate total nights for pro-rating daily revenue
             total_nights = (booking.checkout_date - booking.checkin_date).days
@@ -10802,17 +10819,15 @@ def get_prorated_monthly_revenue():
                 # Only count if this day is in the selected month
                 if start_of_month <= current_stay_date <= end_of_month:
                     if current_stay_date in daily_occupancy:
-                        # Count guests
-                        daily_occupancy[current_stay_date]['all'] += 1
-                        if apt_key:
-                            daily_occupancy[current_stay_date][apt_key] += 1
-
-                        # Track revenue and commission (pro-rated per night)
-                        daily_occupancy[current_stay_date]['revenue_all'] += revenue_per_night
-                        daily_occupancy[current_stay_date]['commission_all'] += commission_per_night
-                        if apt_key:
-                            daily_occupancy[current_stay_date][f'revenue_{apt_key}'] += revenue_per_night
-                            daily_occupancy[current_stay_date][f'commission_{apt_key}'] += commission_per_night
+                        # All-apartments totals
+                        daily_occupancy[current_stay_date]['all']['count']      += 1
+                        daily_occupancy[current_stay_date]['all']['revenue']    += revenue_per_night
+                        daily_occupancy[current_stay_date]['all']['commission'] += commission_per_night
+                        # Per-apartment totals
+                        if apt_key and apt_key in daily_occupancy[current_stay_date]['apts']:
+                            daily_occupancy[current_stay_date]['apts'][apt_key]['count']      += 1
+                            daily_occupancy[current_stay_date]['apts'][apt_key]['revenue']    += revenue_per_night
+                            daily_occupancy[current_stay_date]['apts'][apt_key]['commission'] += commission_per_night
 
                         # Add guest details for EVERY night they stay (not just first night)
                         guest_name = guest.full_name if guest else booking.guest_name or 'N/A'
@@ -10846,18 +10861,12 @@ def get_prorated_monthly_revenue():
         print(f"💰 [CHECK-IN MONTH] Uncollected: {total_uncollected:,.0f}đ")
 
         # SECOND LOOP: Populate daily occupancy with ALL guests (including those who checked in before month)
-        # Clear guests list first since we'll rebuild it with complete data
+        # Reset all counts — second loop is the authoritative source for occupancy display
         for day_date in daily_occupancy:
             daily_occupancy[day_date]['guests'] = []
-            daily_occupancy[day_date]['all'] = 0
-            daily_occupancy[day_date]['apt1'] = 0
-            daily_occupancy[day_date]['apt2'] = 0
-            daily_occupancy[day_date]['revenue_all'] = 0
-            daily_occupancy[day_date]['revenue_apt1'] = 0
-            daily_occupancy[day_date]['revenue_apt2'] = 0
-            daily_occupancy[day_date]['commission_all'] = 0
-            daily_occupancy[day_date]['commission_apt1'] = 0
-            daily_occupancy[day_date]['commission_apt2'] = 0
+            daily_occupancy[day_date]['all'] = {'count': 0, 'revenue': 0, 'commission': 0}
+            for apt_id in apt_ids:
+                daily_occupancy[day_date]['apts'][apt_id] = {'count': 0, 'revenue': 0, 'commission': 0}
 
         for booking, guest, room, apartment in all_occupancy_bookings:
             if not booking.checkin_date or not booking.checkout_date:
@@ -10867,7 +10876,7 @@ def get_prorated_monthly_revenue():
             collected_amount = float(booking.collected_amount or 0)
             commission = float(booking.commission or 0)
             apartment_id = apartment.apartment_id if apartment else None
-            apt_key = 'apt1' if apartment_id == 1 else 'apt2' if apartment_id == 2 else None
+            apt_key = str(apartment_id) if apartment_id else None
 
             # Calculate total nights for pro-rating daily revenue
             total_nights = (booking.checkout_date - booking.checkin_date).days
@@ -10881,17 +10890,15 @@ def get_prorated_monthly_revenue():
                 # Only count if this day is in the selected month
                 if start_of_month <= current_stay_date <= end_of_month:
                     if current_stay_date in daily_occupancy:
-                        # Count guests
-                        daily_occupancy[current_stay_date]['all'] += 1
-                        if apt_key:
-                            daily_occupancy[current_stay_date][apt_key] += 1
-
-                        # Track revenue and commission (pro-rated per night)
-                        daily_occupancy[current_stay_date]['revenue_all'] += revenue_per_night
-                        daily_occupancy[current_stay_date]['commission_all'] += commission_per_night
-                        if apt_key:
-                            daily_occupancy[current_stay_date][f'revenue_{apt_key}'] += revenue_per_night
-                            daily_occupancy[current_stay_date][f'commission_{apt_key}'] += commission_per_night
+                        # All-apartments totals
+                        daily_occupancy[current_stay_date]['all']['count']      += 1
+                        daily_occupancy[current_stay_date]['all']['revenue']    += revenue_per_night
+                        daily_occupancy[current_stay_date]['all']['commission'] += commission_per_night
+                        # Per-apartment totals
+                        if apt_key and apt_key in daily_occupancy[current_stay_date]['apts']:
+                            daily_occupancy[current_stay_date]['apts'][apt_key]['count']      += 1
+                            daily_occupancy[current_stay_date]['apts'][apt_key]['revenue']    += revenue_per_night
+                            daily_occupancy[current_stay_date]['apts'][apt_key]['commission'] += commission_per_night
 
                         # Add guest details for EVERY night they stay
                         guest_name = guest.full_name if guest else booking.guest_name or 'N/A'
@@ -10927,6 +10934,7 @@ def get_prorated_monthly_revenue():
 
         return jsonify({
             'success': True,
+            'apartments': apartments_meta,   # dynamic — frontend uses this for columns
             'summary': {
                 'total_revenue': round(total_revenue, 2),
                 'collected': round(total_collected, 2),
