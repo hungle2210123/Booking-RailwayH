@@ -848,7 +848,6 @@ window.clearAllModalBackdrops = function() {
     });
     
     console.log('✅ [MODAL_FIX] All modal backdrops cleared');
-    alert('✅ Modal backdrops cleared! Page should be interactive again.');
 };
 
 // Comprehensive system status check

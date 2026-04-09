@@ -2448,13 +2448,13 @@
             const totalGuests = guests.length;
             const avgPerGuest = revenueGuests.length > 0 ? confirmedRevenue / revenueGuests.length : 0;
 
-            // Update summary cards
+            // Update summary cards  (.innerHTML needed for <small> tag to render)
             document.getElementById('modalTotalGuests').textContent = totalGuests
                 + (unconfirmedCheckins.length > 0 ? ` (${confirmedCheckins.length + stayingGuests.length} tính)` : '');
-            document.getElementById('modalDailyRevenue').textContent =
+            document.getElementById('modalDailyRevenue').innerHTML =
                 `${Math.round(confirmedRevenue).toLocaleString('vi-VN')}đ`
                 + (isToday && unconfirmedCheckins.length > 0
-                    ? ` <small style="color:#f59e0b;font-size:0.7rem;">+${Math.round(pendingRevenue).toLocaleString('vi-VN')}đ chờ</small>`
+                    ? ` <small style="color:#f59e0b;font-size:0.75rem;font-weight:normal;">+${Math.round(pendingRevenue).toLocaleString('vi-VN')}đ chờ</small>`
                     : '');
             document.getElementById('modalAvgPerGuest').textContent = `${Math.round(avgPerGuest).toLocaleString('vi-VN')}đ`;
 
