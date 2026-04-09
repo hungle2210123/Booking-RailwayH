@@ -3942,27 +3942,10 @@ function groupSection(containerId) {
         groups[status].push(col);
     });
 
-    // Only show dividers when at least two distinct groups have cards
-    const nonEmpty = ['cancelling', 'none', 'confirmed'].filter(g => groups[g].length > 0);
-    const showDividers = nonEmpty.length > 1;
-
-    // Dim uncontacted cards when confirmed guests exist
+    // Re-append in sorted order: confirmed → not contacted → cancelling
+    // No divider labels — flat list per user preference
     container.classList.toggle('has-confirmed', groups.confirmed.length > 0);
-
-    // Re-append in order: confirmed → not contacted → cancelling
-    const cfg = {
-        confirmed:  { label: '✅ Xác nhận sẽ đến',  cls: 'sgd-confirmed'  },
-        none:       { label: '📞 Chưa liên hệ',     cls: 'sgd-none'       },
-        cancelling: { label: '⚠️ Báo hủy',         cls: 'sgd-cancelling' },
-    };
     ['confirmed', 'none', 'cancelling'].forEach(key => {
-        if (groups[key].length === 0) return;
-        if (showDividers) {
-            const div = document.createElement('div');
-            div.className = `status-group-divider ${cfg[key].cls}`;
-            div.innerHTML = `<span>${cfg[key].label} (${groups[key].length})</span>`;
-            container.appendChild(div);
-        }
         groups[key].forEach(col => container.appendChild(col));
     });
 }
