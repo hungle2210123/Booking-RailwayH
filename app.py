@@ -3924,6 +3924,8 @@ def calendar_details(date_str):
 
         confirmed_rev, confirmed_comm, confirmed_net = _daily_rev_for(revenue_guests)
         pending_rev,   _,              _             = _daily_rev_for(_pending_checkins)
+        # Staying + checkout revenue (fixed regardless of check-in confirmation status)
+        stay_co_rev, stay_co_comm, stay_co_net = _daily_rev_for(check_out + staying_over)
 
         # Build detailed breakdown (only revenue guests shown in breakdown table)
         detailed_bookings = []
@@ -3961,6 +3963,10 @@ def calendar_details(date_str):
             'pending_revenue':   pending_rev,
             'is_today':          is_today_view,
             'bookings': detailed_bookings,
+            # Staying + checkout revenue (fixed; used by client-side recalculation)
+            'stay_co_rev':   stay_co_rev,
+            'stay_co_comm':  stay_co_comm,
+            'stay_co_count': len(check_out + staying_over),
         })()
         
         # Build apartments_list for dynamic room badge colouring

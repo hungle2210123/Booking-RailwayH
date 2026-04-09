@@ -932,6 +932,10 @@
                                 {% set total_nights = (booking['Check-out Date'] - booking['Check-in Date']).days if booking['Check-in Date'] and booking['Check-out Date'] and pd.notna(booking['Check-in Date']) and pd.notna(booking['Check-out Date']) else 1 %}
                                 {% set total_payment = booking.get('Tổng thanh toán', 0) %}
                                 {% set per_night_rate = (total_payment / total_nights) if total_nights > 0 else total_payment %}
+                                {%- set _ci_collected = (booking.get('Số tiền đã thu', 0) or 0)|float %}
+                                {%- set _ci_effective = _ci_collected if _ci_collected > 0 else total_payment %}
+                                {%- set _ci_daily_rev  = (_ci_effective  / total_nights)|round|int if total_nights > 0 else _ci_effective|round|int %}
+                                {%- set _ci_daily_comm = (commission / total_nights)|round|int if total_nights > 0 else commission|round|int %}
                                 <div class="card-details">
                                     <div class="detail-row">
                                         <span class="detail-id">🔑 {{ booking.get('Số đặt phòng', 'N/A') }}</span>
@@ -950,7 +954,9 @@
                                 <div class="quick-status-bar"
                                      data-bid="{{ booking.get('Số đặt phòng', '') }}"
                                      data-date="{{ date_str }}"
-                                     data-name="{{ booking.get('Tên người đặt', 'Khách')|replace('"','') }}">
+                                     data-name="{{ booking.get('Tên người đặt', 'Khách')|replace('"','') }}"
+                                     data-rev="{{ _ci_daily_rev }}"
+                                     data-comm="{{ _ci_daily_comm }}">
                                     <!-- Row 1: primary actions -->
                                     <button class="btn-qstatus confirm-btn"
                                             onclick="toggleGuestStatus(this,'confirmed')"
@@ -1236,8 +1242,8 @@
     </div>
 
     <!-- Revenue Summary Section -->
-    {% if day_revenue_info and (day_revenue_info.daily_total > 0 or day_revenue_info.pending_revenue > 0) %}
-    <div class="row mt-4">
+    {% if day_revenue_info %}
+    <div class="row mt-4" id="revenue-section">
         <div class="col-12">
             <div class="card">
                 <div class="card-header text-black" style="background-color: #d4edda;">
@@ -1250,21 +1256,17 @@
                     </h5>
                 </div>
                 <div class="card-body">
-                    {# ── Pending / unconfirmed warning banner (today only) ── #}
-                    {% if day_revenue_info.is_today and day_revenue_info.unconfirmed_count > 0 %}
-                    <div class="alert alert-warning py-2 mb-3 d-flex align-items-center gap-2" style="font-size:0.85rem;">
+                    {# ── Pending / unconfirmed warning banner (today only, updated by JS) ── #}
+                    <div id="rev-pending-banner"
+                         class="alert alert-warning py-2 mb-3 d-flex align-items-center gap-2"
+                         style="font-size:0.85rem;display:none!important;">
                         <span style="font-size:1.1rem;">⏳</span>
                         <div>
-                            <strong>{{ day_revenue_info.unconfirmed_count }} khách chưa xác nhận</strong>
+                            <strong><span id="rev-pending-count">0</span> khách chưa xác nhận</strong>
                             chưa được tính vào doanh thu
-                            {% if day_revenue_info.pending_revenue > 0 %}
-                            — tiềm năng thêm
-                            <strong>{{ "{:,.0f}".format(day_revenue_info.pending_revenue) }}đ</strong>
-                            nếu họ đến.
-                            {% endif %}
+                            — tiềm năng thêm <strong><span id="rev-pending-amount">0</span>đ</strong> nếu họ đến.
                         </div>
                     </div>
-                    {% endif %}
 
                     <div class="row">
                         <div class="col-md-6">
@@ -1273,14 +1275,14 @@
                                     <i class="fas fa-coins"></i>
                                     {% if day_revenue_info.is_today %}Doanh Thu Đã Xác Nhận{% else %}Tổng Doanh Thu{% endif %}
                                 </h6>
-                                <p class="h4 text-success">{{ "{:,.0f}".format(day_revenue_info.daily_total) }}đ</p>
+                                <p class="h4 text-success" id="rev-confirmed-amount">{{ "{:,.0f}".format(day_revenue_info.daily_total) }}đ</p>
 
                                 {% if day_revenue_info.daily_total_minus_commission != day_revenue_info.daily_total %}
                                 <hr>
                                 <h6 class="text-primary"><i class="fas fa-minus-circle"></i> Sau Trừ Hoa Hồng</h6>
-                                <p class="h4 text-primary">{{ "{:,.0f}".format(day_revenue_info.daily_total_minus_commission) }}đ</p>
+                                <p class="h4 text-primary" id="rev-confirmed-net">{{ "{:,.0f}".format(day_revenue_info.daily_total_minus_commission) }}đ</p>
                                 <small class="text-muted">
-                                    <i class="fas fa-percentage"></i> Hoa hồng: {{ "{:,.0f}".format(day_revenue_info.total_commission) }}đ
+                                    <i class="fas fa-percentage"></i> Hoa hồng: <span id="rev-total-comm">{{ "{:,.0f}".format(day_revenue_info.total_commission) }}</span>đ
                                 </small>
                                 {% endif %}
                             </div>
@@ -1289,18 +1291,12 @@
                             <div class="guest-summary">
                                 <h6 class="text-info"><i class="fas fa-users"></i> Thống Kê Khách</h6>
                                 <p class="h5 text-info">
-                                    {{ day_revenue_info.guest_count }} khách
-                                    {% if day_revenue_info.is_today and day_revenue_info.unconfirmed_count > 0 %}
-                                    <span class="badge bg-warning text-dark ms-1" style="font-size:0.7rem;">
-                                        + {{ day_revenue_info.unconfirmed_count }} chờ
-                                    </span>
-                                    {% endif %}
+                                    <span id="rev-guest-count">{{ day_revenue_info.guest_count }}</span> khách
+                                    <span id="rev-pending-badge" class="badge bg-warning text-dark ms-1" style="font-size:0.7rem;display:none;"></span>
                                 </p>
-                                {% if day_revenue_info.guest_count > 0 %}
-                                <small class="text-muted">
-                                    TB: {{ "{:,.0f}".format(day_revenue_info.daily_total / day_revenue_info.guest_count) }}đ/khách
+                                <small class="text-muted" id="rev-avg-line">
+                                    TB: <span id="rev-avg-amount">{{ "{:,.0f}".format(day_revenue_info.daily_total / day_revenue_info.guest_count) if day_revenue_info.guest_count > 0 else 0 }}</span>đ/khách
                                 </small>
-                                {% endif %}
                             </div>
                         </div>
                     </div>
@@ -1388,26 +1384,10 @@
                             <tfoot class="table-light">
                                 <tr class="fw-bold">
                                     <td colspan="2">TỔNG CỘNG</td>
-                                    <td>
-                                        <span class="badge bg-success text-white">
-                                            {{ "{:,.0f}".format(day_revenue_info.daily_total) }}đ
-                                        </span>
-                                    </td>
-                                    <td>
-                                        <span class="badge bg-primary text-white">
-                                            {{ "{:,.0f}".format(day_revenue_info.daily_total_minus_commission) }}đ
-                                        </span>
-                                    </td>
-                                    <td>
-                                        <span class="badge bg-warning text-dark">
-                                            {{ "{:,.0f}".format(day_revenue_info.total_commission) }}đ
-                                        </span>
-                                    </td>
-                                    <td>
-                                        <small class="text-muted">
-                                            Tiết kiệm: {{ "{:,.0f}".format(day_revenue_info.total_commission) }}đ
-                                        </small>
-                                    </td>
+                                    <td><span class="badge bg-success text-white" id="rev-tfoot-total">{{ "{:,.0f}".format(day_revenue_info.daily_total) }}đ</span></td>
+                                    <td><span class="badge bg-primary text-white" id="rev-tfoot-net">{{ "{:,.0f}".format(day_revenue_info.daily_total_minus_commission) }}đ</span></td>
+                                    <td><span class="badge bg-warning text-dark" id="rev-tfoot-comm">{{ "{:,.0f}".format(day_revenue_info.total_commission) }}đ</span></td>
+                                    <td><small class="text-muted" id="rev-tfoot-saving">Tiết kiệm: {{ "{:,.0f}".format(day_revenue_info.total_commission) }}đ</small></td>
                                     <td></td>
                                 </tr>
                             </tfoot>
@@ -4055,6 +4035,8 @@ function toggleGuestStatus(btn, newStatus) {
 
     // Re-group cards in this section so card moves to correct group instantly
     if (sectionId) groupSection(sectionId);
+    // Revenue section updates instantly to reflect new status
+    recalculateRevenue();
 }
 
 function openCancelNotify(guestName) {
@@ -4148,6 +4130,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (card) _applyStatus(card, bar, status);
     });
     ['checkin-cards','staying-cards','checkout-cards'].forEach(groupSection);
+    recalculateRevenue();  // initial render with localStorage statuses
 
     // ── STEP 2: Fetch DB statuses (DB wins over localStorage) ─────────────
     const bids = bars.map(b => b.dataset.bid).filter(Boolean);
@@ -4174,6 +4157,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (changed) {
                     ['checkin-cards','staying-cards','checkout-cards'].forEach(groupSection);
                 }
+                recalculateRevenue();  // recalc after DB statuses applied
             })
             .catch(() => {}); // silent fail — localStorage still works offline
     }
@@ -4189,6 +4173,94 @@ document.addEventListener('DOMContentLoaded', () => {
     // Load saved late arrival times for check-in cards
     loadArrivalTimes();
 });
+
+// ── Revenue recalculation constants (from server) ──────────────────────────
+// Staying + checkout guests always count — their revenue is fixed server-side.
+// Check-in guests count only when confirmed (today) or always (past/future).
+const REV_IS_TODAY    = {{ 'true' if day_revenue_info and day_revenue_info.is_today else 'false' }};
+const REV_STAY_CO_REV   = {{ (day_revenue_info.stay_co_rev   | round | int) if day_revenue_info else 0 }};
+const REV_STAY_CO_COMM  = {{ (day_revenue_info.stay_co_comm  | round | int) if day_revenue_info else 0 }};
+const REV_STAY_CO_COUNT = {{ day_revenue_info.stay_co_count if day_revenue_info else 0 }};
+
+function recalculateRevenue() {
+    if (!REV_IS_TODAY) return;  // only dynamic for today; past/future dates are static
+
+    const bars = document.querySelectorAll('#checkin-cards .quick-status-bar[data-bid]');
+    if (!bars.length) return;
+
+    const date = bars[0].dataset.date;
+    let confRev = REV_STAY_CO_REV, confComm = REV_STAY_CO_COMM, confCount = REV_STAY_CO_COUNT;
+    let pendRev = 0, pendCount = 0;
+
+    bars.forEach(bar => {
+        const bid    = bar.dataset.bid;
+        const rev    = parseFloat(bar.dataset.rev  || 0);
+        const comm   = parseFloat(bar.dataset.comm || 0);
+        const status = localStorage.getItem(_statusKey(date, bid)) || 'none';
+
+        if (status === 'confirmed') {
+            confRev  += rev;
+            confComm += comm;
+            confCount++;
+        } else if (status !== 'cancelling') {
+            pendRev += rev;
+            pendCount++;
+        }
+    });
+
+    const confNet = confRev - confComm;
+    const fmt = n => Math.round(n).toLocaleString('vi-VN');
+
+    // Update headline amounts
+    const amtEl = document.getElementById('rev-confirmed-amount');
+    if (amtEl) amtEl.textContent = fmt(confRev) + 'đ';
+
+    const netEl = document.getElementById('rev-confirmed-net');
+    if (netEl) netEl.textContent = fmt(confNet) + 'đ';
+
+    const commEl = document.getElementById('rev-total-comm');
+    if (commEl) commEl.textContent = fmt(confComm);
+
+    // Update guest count + avg
+    const cntEl  = document.getElementById('rev-guest-count');
+    const avgEl  = document.getElementById('rev-avg-amount');
+    if (cntEl) cntEl.textContent = confCount;
+    if (avgEl) avgEl.textContent = confCount > 0 ? fmt(confRev / confCount) : '0';
+
+    // Pending badge
+    const badge = document.getElementById('rev-pending-badge');
+    if (badge) {
+        if (pendCount > 0) {
+            badge.textContent = '+ ' + pendCount + ' chờ';
+            badge.style.display = '';
+        } else {
+            badge.style.display = 'none';
+        }
+    }
+
+    // Pending banner
+    const banner = document.getElementById('rev-pending-banner');
+    if (banner) {
+        if (pendCount > 0) {
+            document.getElementById('rev-pending-count').textContent  = pendCount;
+            document.getElementById('rev-pending-amount').textContent = fmt(pendRev);
+            banner.style.removeProperty('display');
+            banner.style.display = 'flex';
+        } else {
+            banner.style.display = 'none';
+        }
+    }
+
+    // Update tfoot
+    const tfTotal = document.getElementById('rev-tfoot-total');
+    const tfNet   = document.getElementById('rev-tfoot-net');
+    const tfComm  = document.getElementById('rev-tfoot-comm');
+    const tfSave  = document.getElementById('rev-tfoot-saving');
+    if (tfTotal) tfTotal.textContent = fmt(confRev)  + 'đ';
+    if (tfNet)   tfNet.textContent   = fmt(confNet)  + 'đ';
+    if (tfComm)  tfComm.textContent  = fmt(confComm) + 'đ';
+    if (tfSave)  tfSave.textContent  = 'Tiết kiệm: ' + fmt(confComm) + 'đ';
+}
 
 // ── Late Arrival Functions ──────────────────────────────────────────────────
 
