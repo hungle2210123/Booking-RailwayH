@@ -283,6 +283,117 @@
     </div>
     {% endif %}
 
+    <!-- 💰 UNPAID GUESTS WARNING SECTION -->
+    {%- set _today_str = date.strftime('%Y-%m-%d') -%}
+    {%- set unpaid_staying = [] -%}
+    {%- for booking in staying_over -%}
+        {%- set collected = (booking.get('Số tiền đã thu', 0) or 0)|float -%}
+        {%- if collected == 0 -%}
+            {%- set _ = unpaid_staying.append(booking) -%}
+        {%- endif -%}
+    {%- endfor -%}
+    {%- set unpaid_checkin = [] -%}
+    {%- for booking in check_in -%}
+        {%- set collected = (booking.get('Số tiền đã thu', 0) or 0)|float -%}
+        {%- if collected == 0 -%}
+            {%- set _ = unpaid_checkin.append(booking) -%}
+        {%- endif -%}
+    {%- endfor -%}
+
+    {% if unpaid_staying|length > 0 or unpaid_checkin|length > 0 %}
+    <div class="card border-0 shadow-sm mb-4" style="background:linear-gradient(135deg,#fef2f2 0%,#fff5f5 100%);border-left:4px solid #dc2626!important;">
+        <div class="card-body py-3 px-4">
+            <div class="d-flex align-items-center justify-content-between mb-3">
+                <h6 class="mb-0 fw-bold" style="color:#991b1b;font-size:1rem;">
+                    <span style="font-size:1.1rem;">💰</span>
+                    Chưa Thu Tiền –
+                    <span style="color:#dc2626;">{{ unpaid_staying|length + unpaid_checkin|length }} khách</span>
+                </h6>
+                {% set total_unpaid_amount = namespace(val=0) %}
+                {% for b in unpaid_staying + unpaid_checkin %}
+                    {% set amt = (b.get('Tổng thanh toán', 0) or 0)|float %}
+                    {% set total_unpaid_amount.val = total_unpaid_amount.val + amt %}
+                {% endfor %}
+                <span class="badge" style="background:#dc2626;color:#fff;font-size:.85rem;padding:6px 12px;border-radius:8px;">
+                    {{ "{:,.0f}".format(total_unpaid_amount.val) }}đ chưa thu
+                </span>
+            </div>
+
+            {% if unpaid_staying|length > 0 %}
+            <div class="mb-3">
+                <div class="mb-2" style="font-size:.82rem;font-weight:700;color:#b91c1c;">
+                    <i class="fas fa-bed me-1"></i> Đang lưu trú ({{ unpaid_staying|length }} khách) – chưa thanh toán:
+                </div>
+                <div class="d-flex flex-wrap gap-2">
+                    {% for b in unpaid_staying %}
+                    {% set ci = b.get('Check-in Date', '') %}
+                    {% set co = b.get('Check-out Date', '') %}
+                    {% set amt = (b.get('Tổng thanh toán', 0) or 0)|float %}
+                    {% set room = b.get('Tên chỗ nghỉ', '') or b.get('room_name', '') %}
+                    {% set nights_stayed = 0 %}
+                    <div style="background:#fff;border:1.5px solid #fca5a5;border-radius:8px;padding:8px 12px;min-width:180px;max-width:220px;">
+                        <div style="font-weight:700;font-size:.88rem;color:#1e293b;margin-bottom:3px;">
+                            {{ b.get('Tên người đặt', 'N/A') }}
+                        </div>
+                        {% if room %}
+                        <div style="font-size:.75rem;color:#64748b;margin-bottom:3px;">
+                            <i class="fas fa-door-open me-1"></i>{{ room }}
+                        </div>
+                        {% endif %}
+                        {% if ci %}
+                        <div style="font-size:.75rem;color:#64748b;margin-bottom:4px;">
+                            <i class="fas fa-calendar me-1"></i>
+                            {% if ci is string and ci|length >= 10 %}{{ ci[8:10] }}/{{ ci[5:7] }}{% else %}{{ ci }}{% endif %}
+                            →
+                            {% if co is string and co|length >= 10 %}{{ co[8:10] }}/{{ co[5:7] }}{% else %}{{ co }}{% endif %}
+                        </div>
+                        {% endif %}
+                        <div style="font-weight:800;font-size:.92rem;color:#dc2626;">
+                            {{ "{:,.0f}".format(amt) }}đ
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            {% if unpaid_checkin|length > 0 %}
+            <div>
+                <div class="mb-2" style="font-size:.82rem;font-weight:700;color:#b45309;">
+                    <i class="fas fa-sign-in-alt me-1"></i> Check-in hôm nay ({{ unpaid_checkin|length }} khách) – chưa thanh toán:
+                </div>
+                <div class="d-flex flex-wrap gap-2">
+                    {% for b in unpaid_checkin %}
+                    {% set co = b.get('Check-out Date', '') %}
+                    {% set amt = (b.get('Tổng thanh toán', 0) or 0)|float %}
+                    {% set room = b.get('Tên chỗ nghỉ', '') or b.get('room_name', '') %}
+                    <div style="background:#fffbeb;border:1.5px solid #fcd34d;border-radius:8px;padding:8px 12px;min-width:180px;max-width:220px;">
+                        <div style="font-weight:700;font-size:.88rem;color:#1e293b;margin-bottom:3px;">
+                            {{ b.get('Tên người đặt', 'N/A') }}
+                        </div>
+                        {% if room %}
+                        <div style="font-size:.75rem;color:#64748b;margin-bottom:3px;">
+                            <i class="fas fa-door-open me-1"></i>{{ room }}
+                        </div>
+                        {% endif %}
+                        {% if co %}
+                        <div style="font-size:.75rem;color:#64748b;margin-bottom:4px;">
+                            <i class="fas fa-calendar me-1"></i>→
+                            {% if co is string and co|length >= 10 %}{{ co[8:10] }}/{{ co[5:7] }}{% else %}{{ co }}{% endif %}
+                        </div>
+                        {% endif %}
+                        <div style="font-weight:800;font-size:.92rem;color:#d97706;">
+                            {{ "{:,.0f}".format(amt) }}đ
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+
     <!-- 🎯 THREE COLUMN LAYOUT: Cards stack vertically in each section -->
     <style>
         /* Force row to not have negative margins - touch the container edges */
