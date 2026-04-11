@@ -2176,157 +2176,127 @@
             });
         }
 
-        // ── Daily occupancy table — single combined column, click for guest detail ──
+        // ── Daily capacity: HORIZONTAL matrix — properties as rows, dates as columns ──
         function displayDailyOccupancy(daily_occupancy, period, apartmentFilter, apartments) {
             const listContainer = document.getElementById('proratedGuestsList');
-            if (!listContainer || !daily_occupancy) {
-                console.error('❌ Missing container or data');
-                return;
-            }
+            if (!listContainer || !daily_occupancy) { console.error('❌ Missing container or data'); return; }
 
             window.currentDailyOccupancy = daily_occupancy;
-
             const dates = Object.keys(daily_occupancy).sort();
-
             if (dates.length === 0) {
-                listContainer.innerHTML = `
-                    <div class="alert alert-info text-center">
-                        <i class="fas fa-info-circle"></i>
-                        Không có dữ liệu cho tháng này
-                    </div>`;
+                listContainer.innerHTML = `<div class="alert alert-info text-center"><i class="fas fa-info-circle"></i> Không có dữ liệu</div>`;
                 return;
             }
 
-            // Resolve the focused apartment (null = all combined)
-            const focusedApt = (apartmentFilter === 'all')
-                ? null
+            const focusedApt = (apartmentFilter === 'all') ? null
                 : apartments.find(a => String(a.id) === String(apartmentFilter)) || null;
+            const visibleApts = focusedApt ? [focusedApt] : apartments;
 
-            // ── Table header (2 columns only) ───────────────────────────────────
-            const colTitle = focusedApt
-                ? `<span style="color:${focusedApt.color||'#333'}">■</span> ${focusedApt.name}`
-                : `📊 Tất Cả Phòng`;
-            let html = `
-                <div class="table-responsive">
-                <table class="table table-sm table-hover table-bordered" style="font-size:0.85rem;">
-                <thead class="table-light sticky-top"><tr>
-                    <th class="text-center" style="width:110px;">Ngày</th>
-                    <th class="text-center" style="min-width:260px;">
-                        ${colTitle}<br>
-                        <small class="text-muted fw-normal">Doanh thu • Hoa hồng • Khách &nbsp;·&nbsp; <em>click để xem chi tiết</em></small>
-                    </th>
-                </tr></thead><tbody>`;
-
-            let totalRev = 0, totalCom = 0;
-
-            // ── Rows ────────────────────────────────────────────────────────────
+            // ── Column headers: sticky label col + one col per date ──────────────
+            const LABEL_W = '110px';
+            const COL_W   = '100px';
+            let headerCells = `<th style="position:sticky;left:0;background:#f0f4f8;z-index:4;min-width:${LABEL_W};border-right:2px solid #cbd5e0;font-size:.75rem;text-align:center;vertical-align:middle;">Phòng</th>`;
             dates.forEach(dateStr => {
-                const day      = daily_occupancy[dateStr];
-                const dObj     = new Date(dateStr);
-                const dayName  = ['CN','T2','T3','T4','T5','T6','T7'][dObj.getDay()];
-                const fmt      = `${dayName}, ${dObj.getDate()}/${dObj.getMonth()+1}`;
-                const isWE     = dObj.getDay() === 0 || dObj.getDay() === 6;
-                const isTodayCell = (window.SERVER_TODAY && dateStr === window.SERVER_TODAY);
-
-                // Pick the right data slice
-                let cnt, rev, com, confRev, confCnt;
-                if (focusedApt) {
-                    const ad = (day.apts || {})[String(focusedApt.id)] || {};
-                    cnt = ad.count || 0; rev = ad.revenue || 0; com = ad.commission || 0;
-                    confRev = rev; confCnt = cnt;
-                } else {
-                    const al = day.all || {};
-                    cnt     = al.count             || 0;
-                    rev     = al.revenue           || 0;
-                    com     = al.commission        || 0;
-                    confRev = al.confirmed_revenue != null ? al.confirmed_revenue : rev;
-                    confCnt = al.confirmed_count   != null ? al.confirmed_count   : cnt;
-                }
-
-                // For past AND today: show only confirmed-guest revenue (NULL = no-show)
-                const isPastOrToday = isTodayCell || (window.SERVER_TODAY && dateStr < window.SERVER_TODAY);
-                const displayRev = (isPastOrToday && !focusedApt) ? confRev : rev;
-                const displayCnt = (isPastOrToday && !focusedApt) ? confCnt : cnt;
-                const net        = displayRev - com;
-                totalRev += (isPastOrToday && !focusedApt) ? confRev : rev;
-                totalCom += com;
-
-                html += `<tr class="${isWE ? 'table-warning' : ''}">`;
-                html += `<td class="text-center fw-bold" style="vertical-align:middle;">${fmt}</td>`;
-
-                if (cnt > 0) {
-                    // Mini per-property dot badges (only in combined view)
-                    let aptDots = '';
-                    if (!focusedApt && apartments.length > 1) {
-                        aptDots = '<div class="mt-1" style="line-height:1.6;">';
-                        apartments.forEach(a => {
-                            const ad = (day.apts || {})[String(a.id)] || {};
-                            if ((ad.count || 0) > 0) {
-                                aptDots += `<span style="background:${a.color||'#999'}18;border:1px solid ${a.color||'#999'};
-                                    color:${a.color||'#555'};border-radius:4px;padding:0 5px;font-size:.68rem;margin:1px;display:inline-block;">
-                                    ${a.name.split(' ').slice(-2).join(' ')}&nbsp;${ad.count}k</span>`;
-                            }
-                        });
-                        aptDots += '</div>';
-                    }
-
-                    const pendingBadge = (isTodayCell && !focusedApt && cnt > confCnt)
-                        ? `<div style="font-size:.68rem;color:#b45309;">⏳ ${cnt - confCnt} chờ</div>`
-                        : '';
-
-                    html += `<td class="text-center clickable-cell"
-                        onclick='showDailyGuestDetails("${dateStr}","${fmt}")'
-                        style="cursor:pointer;${isTodayCell ? 'background:#fffde7;' : ''}"
-                        title="Click để xem chi tiết ${displayCnt} khách">
-                        <div class="fw-bold text-warning" style="font-size:.95rem;">${Math.round(displayRev).toLocaleString('vi-VN')}đ</div>
-                        ${com > 0 ? `<div class="text-danger" style="font-size:.75rem;">-${Math.round(com).toLocaleString('vi-VN')}đ HH</div>` : ''}
-                        ${com > 0 ? `<div class="text-success fw-bold" style="font-size:.8rem;">${Math.round(net).toLocaleString('vi-VN')}đ</div>` : ''}
-                        <small class="text-muted"><i class="fas fa-users me-1"></i>${displayCnt} khách</small>
-                        ${pendingBadge}
-                        ${aptDots}
-                    </td>`;
-                } else {
-                    html += `<td class="text-center text-muted" style="vertical-align:middle;">-</td>`;
-                }
-                html += `</tr>`;
+                const dObj   = new Date(dateStr);
+                const dayName = ['CN','T2','T3','T4','T5','T6','T7'][dObj.getDay()];
+                const isWE   = dObj.getDay() === 0 || dObj.getDay() === 6;
+                const isToday = window.SERVER_TODAY && dateStr === window.SERVER_TODAY;
+                headerCells += `<th class="text-center" style="min-width:${COL_W};font-size:.72rem;font-weight:${isToday?700:500};
+                    ${isWE ? 'background:#fef9c3;' : 'background:#f8fafc;'}
+                    ${isToday ? 'border-bottom:3px solid #f59e0b;color:#92400e;' : ''}">
+                    ${dayName}<br><span style="font-size:.78rem;">${dObj.getDate()}/${dObj.getMonth()+1}</span>
+                </th>`;
             });
 
-            // ── Footer ──────────────────────────────────────────────────────────
-            const totalNet = totalRev - totalCom;
-            html += `<tfoot class="table-secondary fw-bold"><tr>
-                <td class="text-center"><i class="fas fa-calculator me-1"></i>TỔNG CỘNG</td>
-                <td class="text-center text-warning">
-                    <div class="fw-bold">${Math.round(totalRev).toLocaleString('vi-VN')}đ</div>
-                    ${totalCom > 0 ? `<div class="text-danger" style="font-size:.85rem;">-${Math.round(totalCom).toLocaleString('vi-VN')}đ HH</div>` : ''}
-                    ${totalCom > 0 ? `<div class="text-success" style="font-size:.9rem;">=${Math.round(totalNet).toLocaleString('vi-VN')}đ</div>` : ''}
+            // ── Per-apartment rows ───────────────────────────────────────────────
+            const aptMonthly = {};
+            visibleApts.forEach(a => { aptMonthly[String(a.id)] = {rev:0, com:0}; });
+
+            let aptRowsHTML = '';
+            visibleApts.forEach(apt => {
+                const color = apt.color || '#666';
+                let cells = `<td style="position:sticky;left:0;z-index:2;background:#fff;border-right:3px solid ${color};
+                    min-width:${LABEL_W};padding:5px 8px;vertical-align:middle;white-space:nowrap;">
+                    <span style="color:${color};font-size:.8rem;">■</span>&nbsp;<strong style="font-size:.78rem;">${apt.name}</strong>
+                </td>`;
+                dates.forEach(dateStr => {
+                    const ad = ((daily_occupancy[dateStr]?.apts) || {})[String(apt.id)] || {};
+                    const cnt = ad.count||0, rev = ad.revenue||0, com = ad.commission||0;
+                    aptMonthly[String(apt.id)].rev += rev;
+                    aptMonthly[String(apt.id)].com += com;
+                    const dObj  = new Date(dateStr);
+                    const isWE  = dObj.getDay() === 0 || dObj.getDay() === 6;
+                    const isTod = window.SERVER_TODAY && dateStr === window.SERVER_TODAY;
+                    if (cnt > 0) {
+                        cells += `<td class="text-center" onclick='showDailyGuestDetails("${dateStr}","${dObj.getDate()}/${dObj.getMonth()+1}")'
+                            style="cursor:pointer;vertical-align:middle;${isWE?'background:#fef9c3;':''}${isTod?'background:#fff7ed;':''}">
+                            <div style="color:${color};font-weight:600;font-size:.78rem;">${Math.round(rev/1000)}k</div>
+                            ${com>0?`<div style="color:#dc2626;font-size:.65rem;">-${Math.round(com/1000)}k</div>`:''}
+                            <small style="color:#94a3b8;font-size:.65rem;"><i class="fas fa-users"></i>${cnt}</small>
+                        </td>`;
+                    } else {
+                        cells += `<td class="text-center text-muted" style="font-size:.7rem;${isWE?'background:#fef9c3;':''}">-</td>`;
+                    }
+                });
+                aptRowsHTML += `<tr>${cells}</tr>`;
+            });
+
+            // ── TỔNG CỘNG row ────────────────────────────────────────────────────
+            let totalCells = `<td style="position:sticky;left:0;z-index:2;background:#fff8e1;border-right:3px solid #f59e0b;
+                min-width:${LABEL_W};padding:5px 8px;vertical-align:middle;font-weight:700;font-size:.8rem;white-space:nowrap;">
+                📊 Tổng cộng
+            </td>`;
+            let grandRev = 0, grandCom = 0;
+            dates.forEach(dateStr => {
+                const al   = (daily_occupancy[dateStr]?.all) || {};
+                const cnt  = al.count||0, rev = al.revenue||0, com = al.commission||0;
+                const cRev = al.confirmed_revenue != null ? al.confirmed_revenue : rev;
+                const cCnt = al.confirmed_count   != null ? al.confirmed_count   : cnt;
+                const isPOT   = window.SERVER_TODAY && dateStr <= window.SERVER_TODAY;
+                const isToday = window.SERVER_TODAY && dateStr === window.SERVER_TODAY;
+                const dRev = isPOT ? cRev : rev;
+                const dCnt = isPOT ? cCnt : cnt;
+                grandRev += dRev; grandCom += com;
+                const dObj = new Date(dateStr);
+                const isWE = dObj.getDay() === 0 || dObj.getDay() === 6;
+                const pending = (isToday && cnt > cCnt) ? `<div style="font-size:.6rem;color:#b45309;">⏳${cnt-cCnt}</div>` : '';
+                if (cnt > 0) {
+                    totalCells += `<td class="text-center fw-bold" onclick='showDailyGuestDetails("${dateStr}","${dObj.getDate()}/${dObj.getMonth()+1}")'
+                        style="cursor:pointer;vertical-align:middle;${isWE?'background:#fef3c7;':'background:#fffbeb;'}${isToday?'border:2px solid #f59e0b;':''}">
+                        <div style="color:#c2410c;font-size:.82rem;">${Math.round(dRev/1000)}k</div>
+                        ${com>0?`<div style="color:#dc2626;font-size:.65rem;">-${Math.round(com/1000)}k</div>`:''}
+                        <small style="color:#94a3b8;font-size:.65rem;"><i class="fas fa-users"></i>${dCnt}</small>
+                        ${pending}
+                    </td>`;
+                } else {
+                    totalCells += `<td class="text-center text-muted" style="${isWE?'background:#fef9c3;':''}">-</td>`;
+                }
+            });
+
+            // ── Monthly total footer row ─────────────────────────────────────────
+            const grandNet = grandRev - grandCom;
+            const footHTML = `<tr style="background:#ecfdf5;">
+                <td colspan="${dates.length + 1}" style="padding:6px 12px;font-size:.82rem;">
+                    <i class="fas fa-calculator me-2 text-success"></i>
+                    <strong>Tháng ${period.month}:</strong>&nbsp;
+                    <span style="color:#c2410c;font-weight:700;">${Math.round(grandRev).toLocaleString('vi-VN')}đ</span>
+                    ${grandCom>0?`&nbsp;-&nbsp;<span style="color:#dc2626;">${Math.round(grandCom).toLocaleString('vi-VN')}đ HH</span>&nbsp;=&nbsp;<span style="color:#16a34a;font-weight:700;">${Math.round(grandNet).toLocaleString('vi-VN')}đ net</span>`:''}
+                    &nbsp;·&nbsp;<span style="color:#64748b;">${dates.length} ngày</span>
+                    &nbsp;·&nbsp;<span style="color:#64748b;">TB ${Math.round(grandRev/Math.max(dates.length,1)).toLocaleString('vi-VN')}đ/ngày</span>
                 </td>
-            </tr></tfoot></table></div>`;
+            </tr>`;
 
-            // ── Summary bar ─────────────────────────────────────────────────────
-            const totalDays = dates.length;
-            html += `
-                <div class="alert alert-light border mt-3 mb-0">
-                    <div class="row text-center">
-                        <div class="col-md-4 col-6">
-                            <i class="fas fa-calendar-alt text-primary me-1"></i>
-                            <strong>${totalDays} ngày</strong>
-                            <small class="d-block text-muted">${period.month}</small>
-                        </div>
-                        <div class="col-md-4 col-6">
-                            <i class="fas fa-money-bill-wave text-success me-1"></i>
-                            <strong>${Math.round(totalRev).toLocaleString('vi-VN')}đ</strong>
-                            <small class="d-block text-muted">Tổng doanh thu</small>
-                        </div>
-                        <div class="col-md-4 col-12 mt-2 mt-md-0">
-                            <i class="fas fa-chart-line text-info me-1"></i>
-                            <strong>${totalDays > 0 ? Math.round(totalRev / totalDays).toLocaleString('vi-VN') : 0}đ</strong>
-                            <small class="d-block text-muted">Trung bình/ngày</small>
-                        </div>
-                    </div>
-                </div>`;
-
-            listContainer.innerHTML = html;
-            console.log(`✅ Daily occupancy: combined 1-column view × ${totalDays} days`);
+            listContainer.innerHTML = `
+                <div style="overflow-x:auto;max-height:75vh;overflow-y:auto;border:1px solid #e2e8f0;border-radius:8px;">
+                <table class="table table-sm table-bordered mb-0" style="min-width:${120 + dates.length * 104}px;font-size:.8rem;border-collapse:separate;border-spacing:0;">
+                    <thead style="position:sticky;top:0;z-index:5;"><tr>${headerCells}</tr></thead>
+                    <tbody>
+                        ${aptRowsHTML}
+                        <tr style="background:#fffbeb;">${totalCells}</tr>
+                    </tbody>
+                    <tfoot>${footHTML}</tfoot>
+                </table></div>`;
+            console.log(`✅ Horizontal capacity matrix: ${visibleApts.length} rows × ${dates.length} cols`);
         }
 
         // 🎨 Room symbol — index into apartments list, dynamic
