@@ -2176,7 +2176,7 @@
             });
         }
 
-        // ── Daily capacity: HORIZONTAL matrix — properties as rows, dates as columns ──
+        // ── Daily capacity: HORIZONTAL — single total row, dates as columns ──────
         function displayDailyOccupancy(daily_occupancy, period, apartmentFilter, apartments) {
             const listContainer = document.getElementById('proratedGuestsList');
             if (!listContainer || !daily_occupancy) { console.error('❌ Missing container or data'); return; }
@@ -2188,115 +2188,114 @@
                 return;
             }
 
+            // Focused apt for filter (affects apt breakdown dots in each cell)
             const focusedApt = (apartmentFilter === 'all') ? null
                 : apartments.find(a => String(a.id) === String(apartmentFilter)) || null;
-            const visibleApts = focusedApt ? [focusedApt] : apartments;
 
-            // ── Column headers: sticky label col + one col per date ──────────────
-            const LABEL_W = '110px';
-            const COL_W   = '100px';
-            let headerCells = `<th style="position:sticky;left:0;background:#f0f4f8;z-index:4;min-width:${LABEL_W};border-right:2px solid #cbd5e0;font-size:.75rem;text-align:center;vertical-align:middle;">Phòng</th>`;
+            // ── Date column headers ──────────────────────────────────────────────
+            const LABEL_W = '90px';
+            let headerCells = `<th style="position:sticky;left:0;z-index:4;background:#1e293b;color:#fff;min-width:${LABEL_W};text-align:center;font-size:.72rem;padding:6px 4px;border-right:2px solid #334155;">Ngày</th>`;
             dates.forEach(dateStr => {
-                const dObj   = new Date(dateStr);
+                const dObj    = new Date(dateStr);
                 const dayName = ['CN','T2','T3','T4','T5','T6','T7'][dObj.getDay()];
-                const isWE   = dObj.getDay() === 0 || dObj.getDay() === 6;
+                const isWE    = dObj.getDay() === 0 || dObj.getDay() === 6;
                 const isToday = window.SERVER_TODAY && dateStr === window.SERVER_TODAY;
-                headerCells += `<th class="text-center" style="min-width:${COL_W};font-size:.72rem;font-weight:${isToday?700:500};
-                    ${isWE ? 'background:#fef9c3;' : 'background:#f8fafc;'}
-                    ${isToday ? 'border-bottom:3px solid #f59e0b;color:#92400e;' : ''}">
-                    ${dayName}<br><span style="font-size:.78rem;">${dObj.getDate()}/${dObj.getMonth()+1}</span>
+                headerCells  += `<th style="min-width:110px;text-align:center;font-size:.7rem;padding:4px 2px;
+                    background:${isToday?'#92400e':isWE?'#78350f':'#1e293b'};
+                    color:${isToday?'#fde68a':isWE?'#fef3c7':'#cbd5e1'};
+                    ${isToday?'border-bottom:3px solid #fbbf24;font-weight:800;':''}">
+                    ${dayName}<br><span style="font-size:.75rem;font-weight:600;">${dObj.getDate()}/${dObj.getMonth()+1}</span>
                 </th>`;
             });
 
-            // ── Per-apartment rows ───────────────────────────────────────────────
-            const aptMonthly = {};
-            visibleApts.forEach(a => { aptMonthly[String(a.id)] = {rev:0, com:0}; });
-
-            let aptRowsHTML = '';
-            visibleApts.forEach(apt => {
-                const color = apt.color || '#666';
-                let cells = `<td style="position:sticky;left:0;z-index:2;background:#fff;border-right:3px solid ${color};
-                    min-width:${LABEL_W};padding:5px 8px;vertical-align:middle;white-space:nowrap;">
-                    <span style="color:${color};font-size:.8rem;">■</span>&nbsp;<strong style="font-size:.78rem;">${apt.name}</strong>
-                </td>`;
-                dates.forEach(dateStr => {
-                    const ad = ((daily_occupancy[dateStr]?.apts) || {})[String(apt.id)] || {};
-                    const cnt = ad.count||0, rev = ad.revenue||0, com = ad.commission||0;
-                    aptMonthly[String(apt.id)].rev += rev;
-                    aptMonthly[String(apt.id)].com += com;
-                    const dObj  = new Date(dateStr);
-                    const isWE  = dObj.getDay() === 0 || dObj.getDay() === 6;
-                    const isTod = window.SERVER_TODAY && dateStr === window.SERVER_TODAY;
-                    if (cnt > 0) {
-                        cells += `<td class="text-center" onclick='showDailyGuestDetails("${dateStr}","${dObj.getDate()}/${dObj.getMonth()+1}")'
-                            style="cursor:pointer;vertical-align:middle;${isWE?'background:#fef9c3;':''}${isTod?'background:#fff7ed;':''}">
-                            <div style="color:${color};font-weight:600;font-size:.78rem;">${Math.round(rev/1000)}k</div>
-                            ${com>0?`<div style="color:#dc2626;font-size:.65rem;">-${Math.round(com/1000)}k</div>`:''}
-                            <small style="color:#94a3b8;font-size:.65rem;"><i class="fas fa-users"></i>${cnt}</small>
-                        </td>`;
-                    } else {
-                        cells += `<td class="text-center text-muted" style="font-size:.7rem;${isWE?'background:#fef9c3;':''}">-</td>`;
-                    }
-                });
-                aptRowsHTML += `<tr>${cells}</tr>`;
-            });
-
-            // ── TỔNG CỘNG row ────────────────────────────────────────────────────
-            let totalCells = `<td style="position:sticky;left:0;z-index:2;background:#fff8e1;border-right:3px solid #f59e0b;
-                min-width:${LABEL_W};padding:5px 8px;vertical-align:middle;font-weight:700;font-size:.8rem;white-space:nowrap;">
-                📊 Tổng cộng
+            // ── Single data row ──────────────────────────────────────────────────
+            let grandRev = 0, grandCom = 0, grandCnt = 0;
+            let dataCells = `<td style="position:sticky;left:0;z-index:2;background:#0f172a;color:#f8fafc;min-width:${LABEL_W};
+                padding:6px 8px;font-weight:700;font-size:.78rem;text-align:center;border-right:2px solid #334155;white-space:nowrap;">
+                📊 Tổng
             </td>`;
-            let grandRev = 0, grandCom = 0;
+
             dates.forEach(dateStr => {
-                const al   = (daily_occupancy[dateStr]?.all) || {};
-                const cnt  = al.count||0, rev = al.revenue||0, com = al.commission||0;
-                const cRev = al.confirmed_revenue != null ? al.confirmed_revenue : rev;
-                const cCnt = al.confirmed_count   != null ? al.confirmed_count   : cnt;
-                const isPOT   = window.SERVER_TODAY && dateStr <= window.SERVER_TODAY;
-                const isToday = window.SERVER_TODAY && dateStr === window.SERVER_TODAY;
-                const dRev = isPOT ? cRev : rev;
-                const dCnt = isPOT ? cCnt : cnt;
-                grandRev += dRev; grandCom += com;
+                const day  = daily_occupancy[dateStr];
                 const dObj = new Date(dateStr);
                 const isWE = dObj.getDay() === 0 || dObj.getDay() === 6;
-                const pending = (isToday && cnt > cCnt) ? `<div style="font-size:.6rem;color:#b45309;">⏳${cnt-cCnt}</div>` : '';
-                if (cnt > 0) {
-                    totalCells += `<td class="text-center fw-bold" onclick='showDailyGuestDetails("${dateStr}","${dObj.getDate()}/${dObj.getMonth()+1}")'
-                        style="cursor:pointer;vertical-align:middle;${isWE?'background:#fef3c7;':'background:#fffbeb;'}${isToday?'border:2px solid #f59e0b;':''}">
-                        <div style="color:#c2410c;font-size:.82rem;">${Math.round(dRev/1000)}k</div>
-                        ${com>0?`<div style="color:#dc2626;font-size:.65rem;">-${Math.round(com/1000)}k</div>`:''}
-                        <small style="color:#94a3b8;font-size:.65rem;"><i class="fas fa-users"></i>${dCnt}</small>
-                        ${pending}
-                    </td>`;
+                const isToday   = window.SERVER_TODAY && dateStr === window.SERVER_TODAY;
+                const isPOT     = window.SERVER_TODAY && dateStr <= window.SERVER_TODAY;
+                const fmt = `${dObj.getDate()}/${dObj.getMonth()+1}`;
+
+                // Pick data slice: focused apt or combined total
+                let cnt, rev, com, confRev, confCnt;
+                if (focusedApt) {
+                    const ad = ((day?.apts) || {})[String(focusedApt.id)] || {};
+                    cnt = ad.count||0; rev = ad.revenue||0; com = ad.commission||0;
+                    confRev = rev; confCnt = cnt;
                 } else {
-                    totalCells += `<td class="text-center text-muted" style="${isWE?'background:#fef9c3;':''}">-</td>`;
+                    const al = day?.all || {};
+                    cnt = al.count||0; rev = al.revenue||0; com = al.commission||0;
+                    confRev = al.confirmed_revenue != null ? al.confirmed_revenue : rev;
+                    confCnt = al.confirmed_count   != null ? al.confirmed_count   : cnt;
                 }
+
+                const dRev = (isPOT && !focusedApt) ? confRev : rev;
+                const dCnt = (isPOT && !focusedApt) ? confCnt : cnt;
+                const net  = dRev - com;
+                grandRev += dRev; grandCom += com; grandCnt += dCnt;
+
+                if (cnt === 0) {
+                    dataCells += `<td style="text-align:center;color:#94a3b8;font-size:.7rem;${isWE?'background:#fef9c3;':''}">-</td>`;
+                    return;
+                }
+
+                // Property breakdown mini-badges (only in combined/all view)
+                let propBadges = '';
+                if (!focusedApt && apartments.length > 1) {
+                    apartments.forEach(a => {
+                        const ad = ((day?.apts) || {})[String(a.id)] || {};
+                        if ((ad.count||0) > 0) {
+                            const abbr = a.name.replace(/^\d+\s*/,'').split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,3);
+                            propBadges += `<span style="background:${a.color||'#666'}22;border:1px solid ${a.color||'#666'};
+                                color:${a.color||'#555'};border-radius:3px;padding:0 3px;font-size:.6rem;margin:0 1px;display:inline-block;">
+                                ${abbr}${ad.count}</span>`;
+                        }
+                    });
+                    if (propBadges) propBadges = `<div style="margin-top:2px;">${propBadges}</div>`;
+                }
+
+                const pendingBadge = (isToday && !focusedApt && cnt > confCnt)
+                    ? `<div style="font-size:.6rem;color:#b45309;margin-top:1px;">⏳${cnt-confCnt} chờ</div>` : '';
+
+                const bgColor = isToday ? '#fffbeb' : isWE ? '#fefce8' : '#ffffff';
+                const border  = isToday ? 'border:2px solid #f59e0b;' : '';
+
+                dataCells += `<td onclick='showDailyGuestDetails("${dateStr}","${fmt}")'
+                    style="cursor:pointer;text-align:center;vertical-align:middle;background:${bgColor};${border}padding:4px 3px;">
+                    <div style="color:#c2410c;font-weight:700;font-size:.85rem;line-height:1.1;">${Math.round(dRev/1000)}k</div>
+                    ${com>0?`<div style="color:#dc2626;font-size:.65rem;line-height:1;">-${Math.round(com/1000)}k HH</div>`:''}
+                    ${com>0?`<div style="color:#15803d;font-weight:600;font-size:.7rem;line-height:1;">${Math.round(net/1000)}k</div>`:''}
+                    <div style="color:#64748b;font-size:.65rem;margin-top:1px;"><i class="fas fa-users" style="font-size:.55rem;"></i> ${dCnt}</div>
+                    ${pendingBadge}
+                    ${propBadges}
+                </td>`;
             });
 
-            // ── Monthly total footer row ─────────────────────────────────────────
+            // ── Monthly summary footer ───────────────────────────────────────────
             const grandNet = grandRev - grandCom;
-            const footHTML = `<tr style="background:#ecfdf5;">
-                <td colspan="${dates.length + 1}" style="padding:6px 12px;font-size:.82rem;">
-                    <i class="fas fa-calculator me-2 text-success"></i>
-                    <strong>Tháng ${period.month}:</strong>&nbsp;
-                    <span style="color:#c2410c;font-weight:700;">${Math.round(grandRev).toLocaleString('vi-VN')}đ</span>
-                    ${grandCom>0?`&nbsp;-&nbsp;<span style="color:#dc2626;">${Math.round(grandCom).toLocaleString('vi-VN')}đ HH</span>&nbsp;=&nbsp;<span style="color:#16a34a;font-weight:700;">${Math.round(grandNet).toLocaleString('vi-VN')}đ net</span>`:''}
-                    &nbsp;·&nbsp;<span style="color:#64748b;">${dates.length} ngày</span>
-                    &nbsp;·&nbsp;<span style="color:#64748b;">TB ${Math.round(grandRev/Math.max(dates.length,1)).toLocaleString('vi-VN')}đ/ngày</span>
-                </td>
-            </tr>`;
+            const footCell = `<td colspan="${dates.length + 1}" style="background:#f0fdf4;padding:7px 14px;font-size:.82rem;border-top:2px solid #16a34a;">
+                <i class="fas fa-calculator me-2 text-success"></i>
+                <strong style="font-size:.85rem;">Tháng ${period.month}:</strong>&nbsp;
+                <span style="color:#c2410c;font-weight:700;">${Math.round(grandRev).toLocaleString('vi-VN')}đ</span>
+                ${grandCom>0?`&nbsp;<span style="color:#6b7280;">–</span>&nbsp;<span style="color:#dc2626;">${Math.round(grandCom).toLocaleString('vi-VN')}đ HH</span>&nbsp;<span style="color:#6b7280;">=</span>&nbsp;<span style="color:#15803d;font-weight:700;">${Math.round(grandNet).toLocaleString('vi-VN')}đ</span>`:''}
+                &nbsp;&nbsp;<span style="color:#64748b;font-size:.78rem;">${dates.length} ngày &nbsp;·&nbsp; TB ${Math.round(grandRev/Math.max(dates.length,1)).toLocaleString('vi-VN')}đ/ngày &nbsp;·&nbsp; ${grandCnt} khách/tháng</span>
+            </td>`;
 
             listContainer.innerHTML = `
-                <div style="overflow-x:auto;max-height:75vh;overflow-y:auto;border:1px solid #e2e8f0;border-radius:8px;">
-                <table class="table table-sm table-bordered mb-0" style="min-width:${120 + dates.length * 104}px;font-size:.8rem;border-collapse:separate;border-spacing:0;">
-                    <thead style="position:sticky;top:0;z-index:5;"><tr>${headerCells}</tr></thead>
-                    <tbody>
-                        ${aptRowsHTML}
-                        <tr style="background:#fffbeb;">${totalCells}</tr>
-                    </tbody>
-                    <tfoot>${footHTML}</tfoot>
+                <div style="overflow-x:auto;border:1px solid #e2e8f0;border-radius:8px;box-shadow:0 1px 4px rgba(0,0,0,.06);">
+                <table class="table table-sm table-bordered mb-0" style="min-width:${100 + dates.length * 112}px;font-size:.8rem;border-collapse:collapse;">
+                    <thead><tr style="height:42px;">${headerCells}</tr></thead>
+                    <tbody><tr style="height:60px;">${dataCells}</tr></tbody>
+                    <tfoot><tr>${footCell}</tr></tfoot>
                 </table></div>`;
-            console.log(`✅ Horizontal capacity matrix: ${visibleApts.length} rows × ${dates.length} cols`);
+            console.log(`✅ Capacity: 1 total row × ${dates.length} date cols`);
         }
 
         // 🎨 Room symbol — index into apartments list, dynamic
@@ -2841,45 +2840,7 @@
                 </div>
             </div>
             
-            <!-- New Section: Unchecked-in Guests Revenue -->
-            <div class="card shadow-sm border-0 mt-3">
-                <div class="card-header bg-warning text-dark">
-                    <h6 class="mb-0">
-                        <i class="fas fa-users-clock me-1"></i>
-                        Khách Chưa Check-in - Cần Thu Tiền Tháng Này
-                        <span class="badge bg-danger text-white ms-2" id="uncheckedInBadge">Loading...</span>
-                    </h6>
-                </div>
-                <div class="card-body">
-                    <div class="alert alert-warning py-2 mb-3" style="font-size: 0.85rem;">
-                        <i class="fas fa-info-circle me-2"></i>
-                        <strong>Danh sách khách đã đặt phòng nhưng chưa check-in</strong> - Đây là số tiền bạn sẽ cần thu trong tháng này khi họ check-in.
-                    </div>
-
-                    <div id="uncheckedInGuestsList" class="mt-2">
-                        <!-- Will be populated by JavaScript -->
-                        <div class="text-center py-3">
-                            <div class="spinner-border spinner-border-sm text-primary" role="status">
-                                <span class="visually-hidden">Đang tải...</span>
-                            </div>
-                            <small class="d-block mt-2 text-muted">Đang tải danh sách khách chưa check-in...</small>
-                        </div>
-                    </div>
-
-                    <div class="border-top pt-2 mt-3">
-                        <div class="row text-center">
-                            <div class="col-6">
-                                <div class="fw-bold text-primary fs-5" id="totalUncheckedAmount">0đ</div>
-                                <small class="text-muted">Tổng cần thu</small>
-                            </div>
-                            <div class="col-6">
-                                <div class="fw-bold text-info fs-5" id="totalUncheckedGuests">0</div>
-                                <small class="text-muted">Tổng khách</small>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
+            <!-- Unchecked-in section removed per user request -->
 
             <!-- ⭐ COMPREHENSIVE CHECK-IN MONTH STATISTICS -->
             <div class="card shadow-sm border-0 mt-3">
