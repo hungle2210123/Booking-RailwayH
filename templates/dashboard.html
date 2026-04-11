@@ -2188,42 +2188,44 @@
                 return;
             }
 
-            // Focused apt for filter (affects apt breakdown dots in each cell)
             const focusedApt = (apartmentFilter === 'all') ? null
                 : apartments.find(a => String(a.id) === String(apartmentFilter)) || null;
 
-            // ── Date column headers ──────────────────────────────────────────────
-            const LABEL_W = '90px';
-            let headerCells = `<th style="position:sticky;left:0;z-index:4;background:#1e293b;color:#fff;min-width:${LABEL_W};text-align:center;font-size:.72rem;padding:6px 4px;border-right:2px solid #334155;">Ngày</th>`;
+            const COL_W  = '130px';
+            const LABEL_W = '100px';
+
+            // ── Column headers ───────────────────────────────────────────────────
+            let headerCells = `<th style="position:sticky;left:0;z-index:4;background:#1e293b;color:#fff;min-width:${LABEL_W};
+                text-align:center;font-size:.75rem;padding:8px 4px;border-right:2px solid #334155;vertical-align:middle;">Ngày</th>`;
             dates.forEach(dateStr => {
                 const dObj    = new Date(dateStr);
                 const dayName = ['CN','T2','T3','T4','T5','T6','T7'][dObj.getDay()];
                 const isWE    = dObj.getDay() === 0 || dObj.getDay() === 6;
                 const isToday = window.SERVER_TODAY && dateStr === window.SERVER_TODAY;
-                headerCells  += `<th style="min-width:110px;text-align:center;font-size:.7rem;padding:4px 2px;
+                headerCells  += `<th style="min-width:${COL_W};text-align:center;font-size:.75rem;padding:6px 3px;
                     background:${isToday?'#92400e':isWE?'#78350f':'#1e293b'};
                     color:${isToday?'#fde68a':isWE?'#fef3c7':'#cbd5e1'};
                     ${isToday?'border-bottom:3px solid #fbbf24;font-weight:800;':''}">
-                    ${dayName}<br><span style="font-size:.75rem;font-weight:600;">${dObj.getDate()}/${dObj.getMonth()+1}</span>
+                    ${dayName}<br><span style="font-size:.82rem;font-weight:700;">${dObj.getDate()}/${dObj.getMonth()+1}</span>
                 </th>`;
             });
 
             // ── Single data row ──────────────────────────────────────────────────
-            let grandRev = 0, grandCom = 0, grandCnt = 0;
+            let grandRev = 0, grandCom = 0, grandCnt = 0, grandUnpaid = 0;
             let dataCells = `<td style="position:sticky;left:0;z-index:2;background:#0f172a;color:#f8fafc;min-width:${LABEL_W};
-                padding:6px 8px;font-weight:700;font-size:.78rem;text-align:center;border-right:2px solid #334155;white-space:nowrap;">
+                padding:8px 10px;font-weight:700;font-size:.82rem;text-align:center;border-right:2px solid #334155;vertical-align:middle;white-space:nowrap;">
                 📊 Tổng
             </td>`;
 
             dates.forEach(dateStr => {
-                const day  = daily_occupancy[dateStr];
-                const dObj = new Date(dateStr);
-                const isWE = dObj.getDay() === 0 || dObj.getDay() === 6;
-                const isToday   = window.SERVER_TODAY && dateStr === window.SERVER_TODAY;
-                const isPOT     = window.SERVER_TODAY && dateStr <= window.SERVER_TODAY;
-                const fmt = `${dObj.getDate()}/${dObj.getMonth()+1}`;
+                const day    = daily_occupancy[dateStr];
+                const dObj   = new Date(dateStr);
+                const isWE   = dObj.getDay() === 0 || dObj.getDay() === 6;
+                const isToday = window.SERVER_TODAY && dateStr === window.SERVER_TODAY;
+                const isPOT   = window.SERVER_TODAY && dateStr <= window.SERVER_TODAY;
+                const fmt     = `${dObj.getDate()}/${dObj.getMonth()+1}`;
 
-                // Pick data slice: focused apt or combined total
+                // Pick data slice
                 let cnt, rev, com, confRev, confCnt;
                 if (focusedApt) {
                     const ad = ((day?.apts) || {})[String(focusedApt.id)] || {};
@@ -2239,40 +2241,58 @@
                 const dRev = (isPOT && !focusedApt) ? confRev : rev;
                 const dCnt = (isPOT && !focusedApt) ? confCnt : cnt;
                 const net  = dRev - com;
-                grandRev += dRev; grandCom += com; grandCnt += dCnt;
+
+                // ── Unpaid count: confirmed guests staying (not checking in) without payment ──
+                const unpaidCnt = isPOT ? (day?.guests || []).filter(g =>
+                    g.checkin_status === 'confirmed'
+                    && g.checkin_date < dateStr
+                    && (g.collected_amount === 0 || g.collected_amount === null)
+                ).length : 0;
+
+                grandRev += dRev; grandCom += com; grandCnt += dCnt; grandUnpaid += unpaidCnt;
 
                 if (cnt === 0) {
-                    dataCells += `<td style="text-align:center;color:#94a3b8;font-size:.7rem;${isWE?'background:#fef9c3;':''}">-</td>`;
+                    dataCells += `<td style="text-align:center;color:#94a3b8;font-size:.75rem;
+                        vertical-align:middle;${isWE?'background:#fef9c3;':''}">&ndash;</td>`;
                     return;
                 }
 
-                // Property breakdown mini-badges (only in combined/all view)
+                // Property breakdown mini-badges
                 let propBadges = '';
                 if (!focusedApt && apartments.length > 1) {
                     apartments.forEach(a => {
                         const ad = ((day?.apts) || {})[String(a.id)] || {};
                         if ((ad.count||0) > 0) {
-                            const abbr = a.name.replace(/^\d+\s*/,'').split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,3);
+                            const abbr = a.name.replace(/^\d+\s*/,'').split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,4);
                             propBadges += `<span style="background:${a.color||'#666'}22;border:1px solid ${a.color||'#666'};
-                                color:${a.color||'#555'};border-radius:3px;padding:0 3px;font-size:.6rem;margin:0 1px;display:inline-block;">
+                                color:${a.color||'#444'};border-radius:3px;padding:1px 4px;font-size:.65rem;margin:1px;display:inline-block;font-weight:600;">
                                 ${abbr}${ad.count}</span>`;
                         }
                     });
-                    if (propBadges) propBadges = `<div style="margin-top:2px;">${propBadges}</div>`;
+                    if (propBadges) propBadges = `<div style="margin-top:3px;line-height:1.6;">${propBadges}</div>`;
                 }
 
-                const pendingBadge = (isToday && !focusedApt && cnt > confCnt)
-                    ? `<div style="font-size:.6rem;color:#b45309;margin-top:1px;">⏳${cnt-confCnt} chờ</div>` : '';
+                const pendingBadge = (!focusedApt && cnt > confCnt && isPOT)
+                    ? `<div style="font-size:.65rem;color:#b45309;margin-top:2px;">⏳ ${cnt-confCnt} chưa xác nhận</div>` : '';
+
+                const unpaidBadge = unpaidCnt > 0
+                    ? `<div style="background:#dc2626;color:#fff;border-radius:8px;padding:2px 7px;
+                        font-size:.68rem;font-weight:700;display:inline-block;margin-top:3px;letter-spacing:.02em;">
+                        💰 ${unpaidCnt} chưa thu</div>` : '';
 
                 const bgColor = isToday ? '#fffbeb' : isWE ? '#fefce8' : '#ffffff';
-                const border  = isToday ? 'border:2px solid #f59e0b;' : '';
+                const border  = isToday ? 'border-left:2px solid #f59e0b;border-right:2px solid #f59e0b;' : 'border-right:1px solid #e2e8f0;';
 
                 dataCells += `<td onclick='showDailyGuestDetails("${dateStr}","${fmt}")'
-                    style="cursor:pointer;text-align:center;vertical-align:middle;background:${bgColor};${border}padding:4px 3px;">
-                    <div style="color:#c2410c;font-weight:700;font-size:.85rem;line-height:1.1;">${Math.round(dRev/1000)}k</div>
-                    ${com>0?`<div style="color:#dc2626;font-size:.65rem;line-height:1;">-${Math.round(com/1000)}k HH</div>`:''}
-                    ${com>0?`<div style="color:#15803d;font-weight:600;font-size:.7rem;line-height:1;">${Math.round(net/1000)}k</div>`:''}
-                    <div style="color:#64748b;font-size:.65rem;margin-top:1px;"><i class="fas fa-users" style="font-size:.55rem;"></i> ${dCnt}</div>
+                    style="cursor:pointer;text-align:center;vertical-align:middle;background:${bgColor};${border}
+                    padding:6px 4px;border-bottom:1px solid #e2e8f0;">
+                    <div style="color:#c2410c;font-weight:800;font-size:.95rem;line-height:1.2;">${Math.round(dRev/1000)}k</div>
+                    ${com>0?`<div style="color:#dc2626;font-size:.72rem;line-height:1.2;">− ${Math.round(com/1000)}k HH</div>`:''}
+                    ${com>0?`<div style="color:#15803d;font-weight:700;font-size:.78rem;line-height:1.2;border-top:1px dashed #d1fae5;margin:2px 6px 0;">${Math.round(net/1000)}k</div>`:''}
+                    <div style="color:#475569;font-size:.72rem;margin-top:3px;font-weight:600;">
+                        <i class="fas fa-users" style="font-size:.6rem;"></i> ${dCnt} khách
+                    </div>
+                    ${unpaidBadge}
                     ${pendingBadge}
                     ${propBadges}
                 </td>`;
@@ -2280,19 +2300,23 @@
 
             // ── Monthly summary footer ───────────────────────────────────────────
             const grandNet = grandRev - grandCom;
-            const footCell = `<td colspan="${dates.length + 1}" style="background:#f0fdf4;padding:7px 14px;font-size:.82rem;border-top:2px solid #16a34a;">
+            const unpaidSummary = grandUnpaid > 0
+                ? `&nbsp;&nbsp;<span style="background:#dc2626;color:#fff;border-radius:6px;padding:2px 8px;font-size:.75rem;font-weight:700;">💰 ${grandUnpaid} lượt chưa thu</span>` : '';
+            const footCell = `<td colspan="${dates.length + 1}" style="background:#f0fdf4;padding:9px 16px;font-size:.85rem;border-top:2px solid #16a34a;">
                 <i class="fas fa-calculator me-2 text-success"></i>
-                <strong style="font-size:.85rem;">Tháng ${period.month}:</strong>&nbsp;
-                <span style="color:#c2410c;font-weight:700;">${Math.round(grandRev).toLocaleString('vi-VN')}đ</span>
-                ${grandCom>0?`&nbsp;<span style="color:#6b7280;">–</span>&nbsp;<span style="color:#dc2626;">${Math.round(grandCom).toLocaleString('vi-VN')}đ HH</span>&nbsp;<span style="color:#6b7280;">=</span>&nbsp;<span style="color:#15803d;font-weight:700;">${Math.round(grandNet).toLocaleString('vi-VN')}đ</span>`:''}
-                &nbsp;&nbsp;<span style="color:#64748b;font-size:.78rem;">${dates.length} ngày &nbsp;·&nbsp; TB ${Math.round(grandRev/Math.max(dates.length,1)).toLocaleString('vi-VN')}đ/ngày &nbsp;·&nbsp; ${grandCnt} khách/tháng</span>
+                <strong style="font-size:.88rem;">Tháng ${period.month}:</strong>&nbsp;
+                <span style="color:#c2410c;font-weight:700;font-size:.9rem;">${Math.round(grandRev).toLocaleString('vi-VN')}đ</span>
+                ${grandCom>0?`&nbsp;<span style="color:#6b7280;">–</span>&nbsp;<span style="color:#dc2626;">${Math.round(grandCom).toLocaleString('vi-VN')}đ HH</span>
+                &nbsp;<span style="color:#6b7280;">=</span>&nbsp;<span style="color:#15803d;font-weight:700;">${Math.round(grandNet).toLocaleString('vi-VN')}đ</span>`:''}
+                &nbsp;&nbsp;<span style="color:#64748b;font-size:.8rem;">${dates.length} ngày &nbsp;·&nbsp; TB ${Math.round(grandRev/Math.max(dates.length,1)).toLocaleString('vi-VN')}đ/ngày &nbsp;·&nbsp; ${grandCnt} khách/tháng</span>
+                ${unpaidSummary}
             </td>`;
 
             listContainer.innerHTML = `
-                <div style="overflow-x:auto;border:1px solid #e2e8f0;border-radius:8px;box-shadow:0 1px 4px rgba(0,0,0,.06);">
-                <table class="table table-sm table-bordered mb-0" style="min-width:${100 + dates.length * 112}px;font-size:.8rem;border-collapse:collapse;">
-                    <thead><tr style="height:42px;">${headerCells}</tr></thead>
-                    <tbody><tr style="height:60px;">${dataCells}</tr></tbody>
+                <div style="overflow-x:auto;border:1px solid #e2e8f0;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,.08);">
+                <table class="table table-sm table-bordered mb-0" style="min-width:${110 + dates.length * 132}px;font-size:.82rem;border-collapse:collapse;">
+                    <thead><tr style="height:50px;">${headerCells}</tr></thead>
+                    <tbody><tr style="height:90px;">${dataCells}</tr></tbody>
                     <tfoot><tr>${footCell}</tr></tfoot>
                 </table></div>`;
             console.log(`✅ Capacity: 1 total row × ${dates.length} date cols`);

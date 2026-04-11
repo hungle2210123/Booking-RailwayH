@@ -257,7 +257,7 @@
                                             <div style="color:#cbd5e1;font-size:.62rem;">-</div>
                                         {% endif %}
                                         <div style="color:#1e40af;font-size:.62rem;line-height:1.2;font-weight:600;">👥{{ cnt }}</div>
-                                        {% if unpaid > 0 %}<div style="background:#dc2626;color:#fff;border-radius:5px;padding:0 3px;font-size:.54rem;line-height:1.4;margin-top:1px;display:inline-block;">💰{{ unpaid }}</div>{% endif %}
+                                        {% if unpaid > 0 %}<div style="background:#dc2626;color:#fff;border-radius:6px;padding:1px 4px;font-size:.6rem;font-weight:700;line-height:1.5;margin-top:2px;display:inline-block;box-shadow:0 1px 3px rgba(220,38,38,.35);">💰{{ unpaid }}</div>{% endif %}
                                     </td>
                                     {% endif %}{% endfor %}{% endfor %}
                                 </tr>
@@ -388,8 +388,8 @@
                                                 </div>
                                                 {% endif %}
                                                 {% if unpaid_by_date and date_str in unpaid_by_date %}
-                                                <div style="margin-top:3px;text-align:center;">
-                                                    <span style="background:#dc2626;color:white;border-radius:9px;padding:1px 7px;font-size:0.6rem;font-weight:700;display:inline-block;letter-spacing:0.02em;">
+                                                <div style="margin-top:4px;text-align:center;">
+                                                    <span style="background:#dc2626;color:white;border-radius:10px;padding:3px 9px;font-size:0.72rem;font-weight:800;display:inline-block;letter-spacing:0.03em;box-shadow:0 1px 4px rgba(220,38,38,.4);">
                                                         💰 {{ unpaid_by_date[date_str] }} chưa thu
                                                     </span>
                                                 </div>
