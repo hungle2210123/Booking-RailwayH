@@ -205,6 +205,68 @@
                 </small>
             </div>
 
+            <!-- ── Compact Monthly Occupancy Strip ── -->
+            <div class="card mb-2 shadow-sm border-0" style="background:#fff;">
+                <div class="card-body p-2">
+                    <div class="d-flex align-items-center gap-2 mb-1">
+                        <small class="fw-bold text-secondary" style="font-size:.7rem;">📊 Tổng Quan Tháng {{ month }}/{{ year }}</small>
+                        <small class="text-muted" style="font-size:.62rem;">← Kéo ngang · Click ô để xem chi tiết</small>
+                    </div>
+                    <div style="overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:thin;">
+                        <table style="border-collapse:collapse;white-space:nowrap;table-layout:fixed;">
+                            <thead>
+                                <tr>
+                                    <th style="position:sticky;left:0;z-index:3;background:#1e293b;color:#f8fafc;font-size:.65rem;padding:4px 8px;min-width:48px;max-width:48px;text-align:center;border-right:2px solid #334155;vertical-align:middle;">Ngày</th>
+                                    {% for week in calendar_data %}{% for date, date_str, info in week %}{% if date %}
+                                    {%- set dow = date.weekday() -%}
+                                    {%- set isWE = (dow == 5 or dow == 6) -%}
+                                    {%- set isToday = (date == today) -%}
+                                    <th onclick="window.location='{{ url_for('calendar_details', date_str=date_str) }}'"
+                                        title="{{ date_str }}"
+                                        style="cursor:pointer;min-width:50px;max-width:50px;text-align:center;font-size:.6rem;padding:3px 1px;
+                                               background:{% if isToday %}#92400e{% elif isWE %}#78350f{% else %}#1e293b{% endif %};
+                                               color:{% if isToday %}#fde68a{% elif isWE %}#fef3c7{% else %}#94a3b8{% endif %};
+                                               {% if isToday %}border-left:2px solid #fbbf24;border-right:2px solid #fbbf24;font-weight:800;{% endif %}">
+                                        {{ ['T2','T3','T4','T5','T6','T7','CN'][dow] }}<br>
+                                        <span style="font-size:.68rem;font-weight:600;">{{ date.day }}/{{ date.month }}</span>
+                                    </th>
+                                    {% endif %}{% endfor %}{% endfor %}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td style="position:sticky;left:0;z-index:2;background:#0f172a;color:#e2e8f0;font-size:.63rem;padding:4px 5px;text-align:center;border-right:2px solid #334155;font-weight:700;vertical-align:middle;min-width:48px;max-width:48px;">📊<br>Tổng</td>
+                                    {% for week in calendar_data %}{% for date, date_str, info in week %}{% if date %}
+                                    {%- set rev_info = revenue_by_date.get(date) -%}
+                                    {%- set rev = (rev_info.daily_total if rev_info else 0)|float -%}
+                                    {%- set com = (rev_info.total_commission if rev_info else 0)|float -%}
+                                    {%- set cnt = (info.occupied_units if info else 0) -%}
+                                    {%- set unpaid = unpaid_by_date.get(date_str, 0) -%}
+                                    {%- set dow = date.weekday() -%}
+                                    {%- set isWE = (dow == 5 or dow == 6) -%}
+                                    {%- set isToday = (date == today) -%}
+                                    <td onclick="window.location='{{ url_for('calendar_details', date_str=date_str) }}'"
+                                        style="cursor:pointer;text-align:center;vertical-align:middle;padding:3px 2px;min-width:50px;max-width:50px;
+                                               background:{% if isToday %}#fff7ed{% elif isWE %}#fefce8{% else %}#ffffff{% endif %};
+                                               {% if isToday %}border-left:2px solid #fbbf24;border-right:2px solid #fbbf24;{% else %}border-right:1px solid #f1f5f9;{% endif %}
+                                               border-bottom:1px solid #e2e8f0;">
+                                        {% if rev > 0 %}
+                                            <div style="color:#15803d;font-size:.68rem;font-weight:700;line-height:1.3;">{{ (rev/1000)|round|int }}k</div>
+                                            {% if com > 0 %}<div style="color:#dc2626;font-size:.58rem;line-height:1.2;">-{{ (com/1000)|round|int }}k</div>{% endif %}
+                                        {% else %}
+                                            <div style="color:#cbd5e1;font-size:.62rem;">-</div>
+                                        {% endif %}
+                                        <div style="color:#1e40af;font-size:.62rem;line-height:1.2;font-weight:600;">👥{{ cnt }}</div>
+                                        {% if unpaid > 0 %}<div style="background:#dc2626;color:#fff;border-radius:5px;padding:0 3px;font-size:.54rem;line-height:1.4;margin-top:1px;display:inline-block;">💰{{ unpaid }}</div>{% endif %}
+                                    </td>
+                                    {% endif %}{% endfor %}{% endfor %}
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
             <!-- Calendar Grid -->
             <div class="calendar-container">
                 <div class="calendar-grid">
