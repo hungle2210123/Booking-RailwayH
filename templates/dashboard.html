@@ -2176,6 +2176,18 @@
             });
         }
 
+        // ── Vietnamese number formatter: 5855000 → "5tr855", 325000 → "325k" ──
+        function fmtVN(val) {
+            const v = Math.round(val);
+            if (v === 0) return '0';
+            if (v >= 1000000) {
+                const tr  = Math.floor(v / 1000000);
+                const rem = Math.round((v % 1000000) / 1000);
+                return rem > 0 ? `${tr}tr${rem}` : `${tr}tr`;
+            }
+            return `${Math.round(v / 1000)}k`;
+        }
+
         // ── Daily capacity: HORIZONTAL — single total row, dates as columns ──────
         function displayDailyOccupancy(daily_occupancy, period, apartmentFilter, apartments) {
             const listContainer = document.getElementById('proratedGuestsList');
@@ -2286,9 +2298,9 @@
                 dataCells += `<td onclick='showDailyGuestDetails("${dateStr}","${fmt}")'
                     style="cursor:pointer;text-align:center;vertical-align:middle;background:${bgColor};${border}
                     padding:6px 4px;border-bottom:1px solid #e2e8f0;">
-                    <div style="color:#c2410c;font-weight:800;font-size:.95rem;line-height:1.2;">${Math.round(dRev/1000)}k</div>
-                    ${com>0?`<div style="color:#dc2626;font-size:.72rem;line-height:1.2;">− ${Math.round(com/1000)}k HH</div>`:''}
-                    ${com>0?`<div style="color:#15803d;font-weight:700;font-size:.78rem;line-height:1.2;border-top:1px dashed #d1fae5;margin:2px 6px 0;">${Math.round(net/1000)}k</div>`:''}
+                    <div style="color:#c2410c;font-weight:800;font-size:.95rem;line-height:1.2;">${fmtVN(dRev)}</div>
+                    ${com>0?`<div style="color:#dc2626;font-size:.72rem;line-height:1.2;">− ${fmtVN(com)} HH</div>`:''}
+                    ${com>0?`<div style="color:#15803d;font-weight:700;font-size:.78rem;line-height:1.2;border-top:1px dashed #d1fae5;margin:2px 6px 0;">${fmtVN(net)}</div>`:''}
                     <div style="color:#475569;font-size:.72rem;margin-top:3px;font-weight:600;">
                         <i class="fas fa-users" style="font-size:.6rem;"></i> ${dCnt} khách
                     </div>
@@ -2305,10 +2317,10 @@
             const footCell = `<td colspan="${dates.length + 1}" style="background:#f0fdf4;padding:9px 16px;font-size:.85rem;border-top:2px solid #16a34a;">
                 <i class="fas fa-calculator me-2 text-success"></i>
                 <strong style="font-size:.88rem;">Tháng ${period.month}:</strong>&nbsp;
-                <span style="color:#c2410c;font-weight:700;font-size:.9rem;">${Math.round(grandRev).toLocaleString('vi-VN')}đ</span>
-                ${grandCom>0?`&nbsp;<span style="color:#6b7280;">–</span>&nbsp;<span style="color:#dc2626;">${Math.round(grandCom).toLocaleString('vi-VN')}đ HH</span>
-                &nbsp;<span style="color:#6b7280;">=</span>&nbsp;<span style="color:#15803d;font-weight:700;">${Math.round(grandNet).toLocaleString('vi-VN')}đ</span>`:''}
-                &nbsp;&nbsp;<span style="color:#64748b;font-size:.8rem;">${dates.length} ngày &nbsp;·&nbsp; TB ${Math.round(grandRev/Math.max(dates.length,1)).toLocaleString('vi-VN')}đ/ngày &nbsp;·&nbsp; ${grandCnt} khách/tháng</span>
+                <span style="color:#c2410c;font-weight:700;font-size:.9rem;">${fmtVN(grandRev)}</span>
+                ${grandCom>0?`&nbsp;<span style="color:#6b7280;">–</span>&nbsp;<span style="color:#dc2626;">${fmtVN(grandCom)} HH</span>
+                &nbsp;<span style="color:#6b7280;">=</span>&nbsp;<span style="color:#15803d;font-weight:700;">${fmtVN(grandNet)}</span>`:''}
+                &nbsp;&nbsp;<span style="color:#64748b;font-size:.8rem;">${dates.length} ngày &nbsp;·&nbsp; TB ${fmtVN(Math.round(grandRev/Math.max(dates.length,1)))}/ngày &nbsp;·&nbsp; ${grandCnt} khách/tháng</span>
                 ${unpaidSummary}
             </td>`;
 
