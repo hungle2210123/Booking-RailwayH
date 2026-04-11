@@ -2216,7 +2216,7 @@
             });
         }
 
-        // ── Daily occupancy table — fully dynamic, driven by apartments from API ──
+        // ── Daily occupancy table — single combined column, click for guest detail ──
         function displayDailyOccupancy(daily_occupancy, period, apartmentFilter, apartments) {
             const listContainer = document.getElementById('proratedGuestsList');
             if (!listContainer || !daily_occupancy) {
@@ -2237,136 +2237,111 @@
                 return;
             }
 
-            // Which apartment columns to show
-            const visibleApts = apartmentFilter === 'all'
-                ? apartments
-                : apartments.filter(a => String(a.id) === String(apartmentFilter));
-            const showTotal = (apartmentFilter === 'all');
+            // Resolve the focused apartment (null = all combined)
+            const focusedApt = (apartmentFilter === 'all')
+                ? null
+                : apartments.find(a => String(a.id) === String(apartmentFilter)) || null;
 
-            // ── Table header ────────────────────────────────────────────────────
+            // ── Table header (2 columns only) ───────────────────────────────────
+            const colTitle = focusedApt
+                ? `<span style="color:${focusedApt.color||'#333'}">■</span> ${focusedApt.name}`
+                : `📊 Tất Cả Phòng`;
             let html = `
                 <div class="table-responsive">
                 <table class="table table-sm table-hover table-bordered" style="font-size:0.85rem;">
                 <thead class="table-light sticky-top"><tr>
-                    <th class="text-center" style="width:100px;">Ngày</th>`;
+                    <th class="text-center" style="width:110px;">Ngày</th>
+                    <th class="text-center" style="min-width:260px;">
+                        ${colTitle}<br>
+                        <small class="text-muted fw-normal">Doanh thu • Hoa hồng • Khách &nbsp;·&nbsp; <em>click để xem chi tiết</em></small>
+                    </th>
+                </tr></thead><tbody>`;
 
-            visibleApts.forEach(apt => {
-                html += `<th class="text-center" style="min-width:200px;background-color:${apt.bg_color||'#f8f9fa'};">
-                    <span style="color:${apt.color||'#333'}">■</span> ${apt.name}<br>
-                    <small class="text-muted">Doanh thu • Hoa hồng • Khách</small>
-                </th>`;
-            });
-            if (showTotal) {
-                html += `<th class="text-center fw-bold" style="min-width:200px;background-color:#fff3e0;">
-                    📊 Tổng Cộng<br>
-                    <small class="text-muted fw-normal">Doanh thu • Hoa hồng • Khách</small>
-                </th>`;
-            }
-            html += `</tr></thead><tbody>`;
-
-            // Running totals per apt + overall
-            const aptTotals = {};
-            visibleApts.forEach(a => { aptTotals[String(a.id)] = {revenue:0, commission:0}; });
-            let totalAll = {revenue:0, commission:0};
+            let totalRev = 0, totalCom = 0;
 
             // ── Rows ────────────────────────────────────────────────────────────
             dates.forEach(dateStr => {
-                const day  = daily_occupancy[dateStr];
-                const dObj = new Date(dateStr);
-                const dayName = ['CN','T2','T3','T4','T5','T6','T7'][dObj.getDay()];
-                const fmt  = `${dayName}, ${dObj.getDate()}/${dObj.getMonth()+1}`;
-                const isWE = dObj.getDay() === 0 || dObj.getDay() === 6;
+                const day      = daily_occupancy[dateStr];
+                const dObj     = new Date(dateStr);
+                const dayName  = ['CN','T2','T3','T4','T5','T6','T7'][dObj.getDay()];
+                const fmt      = `${dayName}, ${dObj.getDate()}/${dObj.getMonth()+1}`;
+                const isWE     = dObj.getDay() === 0 || dObj.getDay() === 6;
+                const isTodayCell = (window.SERVER_TODAY && dateStr === window.SERVER_TODAY);
+
+                // Pick the right data slice
+                let cnt, rev, com, confRev, confCnt;
+                if (focusedApt) {
+                    const ad = (day.apts || {})[String(focusedApt.id)] || {};
+                    cnt = ad.count || 0; rev = ad.revenue || 0; com = ad.commission || 0;
+                    confRev = rev; confCnt = cnt;
+                } else {
+                    const al = day.all || {};
+                    cnt     = al.count             || 0;
+                    rev     = al.revenue           || 0;
+                    com     = al.commission        || 0;
+                    confRev = al.confirmed_revenue != null ? al.confirmed_revenue : rev;
+                    confCnt = al.confirmed_count   != null ? al.confirmed_count   : cnt;
+                }
+
+                const displayRev = (isTodayCell && !focusedApt) ? confRev : rev;
+                const displayCnt = (isTodayCell && !focusedApt) ? confCnt : cnt;
+                const net        = displayRev - com;
+                totalRev += rev;
+                totalCom += com;
 
                 html += `<tr class="${isWE ? 'table-warning' : ''}">`;
-                html += `<td class="text-center fw-bold">${fmt}</td>`;
+                html += `<td class="text-center fw-bold" style="vertical-align:middle;">${fmt}</td>`;
 
-                visibleApts.forEach(apt => {
-                    const ad  = (day.apts || {})[String(apt.id)] || {};
-                    const cnt = ad.count      || 0;
-                    const rev = ad.revenue    || 0;
-                    const com = ad.commission || 0;
-                    const net = rev - com;
-                    aptTotals[String(apt.id)].revenue    += rev;
-                    aptTotals[String(apt.id)].commission += com;
-
-                    if (cnt > 0) {
-                        html += `<td class="text-center clickable-cell"
-                            onclick='showDailyGuestDetails("${dateStr}","${fmt}")'
-                            style="cursor:pointer;border-left:3px solid ${apt.color||'#ccc'};"
-                            title="Click để xem chi tiết khách">
-                            <div class="fw-bold" style="color:${apt.color||'#333'}">${Math.round(rev).toLocaleString('vi-VN')}đ</div>
-                            ${com>0?`<div class="text-danger" style="font-size:.75rem;">-${Math.round(com).toLocaleString('vi-VN')}đ HH</div>`:''}
-                            ${com>0?`<div class="text-success fw-bold" style="font-size:.8rem;">${Math.round(net).toLocaleString('vi-VN')}đ</div>`:''}
-                            <small class="text-muted"><i class="fas fa-users me-1"></i>${cnt} khách</small>
-                        </td>`;
-                    } else {
-                        html += `<td class="text-center text-muted">-</td>`;
+                if (cnt > 0) {
+                    // Mini per-property dot badges (only in combined view)
+                    let aptDots = '';
+                    if (!focusedApt && apartments.length > 1) {
+                        aptDots = '<div class="mt-1" style="line-height:1.6;">';
+                        apartments.forEach(a => {
+                            const ad = (day.apts || {})[String(a.id)] || {};
+                            if ((ad.count || 0) > 0) {
+                                aptDots += `<span style="background:${a.color||'#999'}18;border:1px solid ${a.color||'#999'};
+                                    color:${a.color||'#555'};border-radius:4px;padding:0 5px;font-size:.68rem;margin:1px;display:inline-block;">
+                                    ${a.name.split(' ').slice(-2).join(' ')}&nbsp;${ad.count}k</span>`;
+                            }
+                        });
+                        aptDots += '</div>';
                     }
-                });
 
-                if (showTotal) {
-                    const al           = day.all || {};
-                    const cnt          = al.count             || 0;
-                    const rev          = al.revenue           || 0;
-                    const com          = al.commission        || 0;
-                    const confRev      = al.confirmed_revenue != null ? al.confirmed_revenue : rev;
-                    const confCnt      = al.confirmed_count   != null ? al.confirmed_count   : cnt;
-                    const isTodayCell  = (window.SERVER_TODAY && dateStr === window.SERVER_TODAY);
-                    // For today: show confirmed revenue; for other days: show total
-                    const displayRev   = isTodayCell ? confRev : rev;
-                    const displayCnt   = isTodayCell ? confCnt : cnt;
-                    const net          = displayRev - com;
-                    totalAll.revenue    += rev;      // monthly totals still use full revenue
-                    totalAll.commission += com;
-                    const pendingBadge = (isTodayCell && cnt > confCnt)
+                    const pendingBadge = (isTodayCell && !focusedApt && cnt > confCnt)
                         ? `<div style="font-size:.68rem;color:#b45309;">⏳ ${cnt - confCnt} chờ</div>`
                         : '';
 
-                    if (cnt > 0) {
-                        html += `<td class="text-center clickable-cell"
-                            onclick='showDailyGuestDetails("${dateStr}","${fmt}")'
-                            style="cursor:pointer;${isTodayCell?'background:#fffde7;':''}" title="Click để xem chi tiết khách">
-                            <div class="fw-bold text-warning">${Math.round(displayRev).toLocaleString('vi-VN')}đ</div>
-                            ${com>0?`<div class="text-danger" style="font-size:.75rem;">-${Math.round(com).toLocaleString('vi-VN')}đ HH</div>`:''}
-                            ${com>0?`<div class="text-success fw-bold" style="font-size:.8rem;">${Math.round(net).toLocaleString('vi-VN')}đ</div>`:''}
-                            <small class="text-muted"><i class="fas fa-users me-1"></i>${displayCnt} khách</small>
-                            ${pendingBadge}
-                        </td>`;
-                    } else {
-                        html += `<td class="text-center text-muted">-</td>`;
-                    }
+                    html += `<td class="text-center clickable-cell"
+                        onclick='showDailyGuestDetails("${dateStr}","${fmt}")'
+                        style="cursor:pointer;${isTodayCell ? 'background:#fffde7;' : ''}"
+                        title="Click để xem chi tiết ${displayCnt} khách">
+                        <div class="fw-bold text-warning" style="font-size:.95rem;">${Math.round(displayRev).toLocaleString('vi-VN')}đ</div>
+                        ${com > 0 ? `<div class="text-danger" style="font-size:.75rem;">-${Math.round(com).toLocaleString('vi-VN')}đ HH</div>` : ''}
+                        ${com > 0 ? `<div class="text-success fw-bold" style="font-size:.8rem;">${Math.round(net).toLocaleString('vi-VN')}đ</div>` : ''}
+                        <small class="text-muted"><i class="fas fa-users me-1"></i>${displayCnt} khách</small>
+                        ${pendingBadge}
+                        ${aptDots}
+                    </td>`;
+                } else {
+                    html += `<td class="text-center text-muted" style="vertical-align:middle;">-</td>`;
                 }
                 html += `</tr>`;
             });
 
             // ── Footer ──────────────────────────────────────────────────────────
+            const totalNet = totalRev - totalCom;
             html += `<tfoot class="table-secondary fw-bold"><tr>
-                <td class="text-center"><i class="fas fa-calculator me-1"></i>TỔNG CỘNG</td>`;
-
-            visibleApts.forEach(apt => {
-                const tot = aptTotals[String(apt.id)];
-                const net = tot.revenue - tot.commission;
-                html += `<td class="text-center" style="color:${apt.color||'#333'}">
-                    <div class="fw-bold">${Math.round(tot.revenue).toLocaleString('vi-VN')}đ</div>
-                    ${tot.commission>0?`<div class="text-danger" style="font-size:.85rem;">-${Math.round(tot.commission).toLocaleString('vi-VN')}đ HH</div>`:''}
-                    ${tot.commission>0?`<div class="text-success" style="font-size:.9rem;">=${Math.round(net).toLocaleString('vi-VN')}đ</div>`:''}
-                </td>`;
-            });
-            if (showTotal) {
-                const net = totalAll.revenue - totalAll.commission;
-                html += `<td class="text-center text-warning">
-                    <div class="fw-bold">${Math.round(totalAll.revenue).toLocaleString('vi-VN')}đ</div>
-                    ${totalAll.commission>0?`<div class="text-danger" style="font-size:.85rem;">-${Math.round(totalAll.commission).toLocaleString('vi-VN')}đ HH</div>`:''}
-                    ${totalAll.commission>0?`<div class="text-success" style="font-size:.9rem;">=${Math.round(net).toLocaleString('vi-VN')}đ</div>`:''}
-                </td>`;
-            }
-            html += `</tr></tfoot></table></div>`;
+                <td class="text-center"><i class="fas fa-calculator me-1"></i>TỔNG CỘNG</td>
+                <td class="text-center text-warning">
+                    <div class="fw-bold">${Math.round(totalRev).toLocaleString('vi-VN')}đ</div>
+                    ${totalCom > 0 ? `<div class="text-danger" style="font-size:.85rem;">-${Math.round(totalCom).toLocaleString('vi-VN')}đ HH</div>` : ''}
+                    ${totalCom > 0 ? `<div class="text-success" style="font-size:.9rem;">=${Math.round(totalNet).toLocaleString('vi-VN')}đ</div>` : ''}
+                </td>
+            </tr></tfoot></table></div>`;
 
             // ── Summary bar ─────────────────────────────────────────────────────
             const totalDays = dates.length;
-            const summaryRev = showTotal
-                ? totalAll.revenue
-                : visibleApts.reduce((s,a) => s + (aptTotals[String(a.id)]?.revenue||0), 0);
             html += `
                 <div class="alert alert-light border mt-3 mb-0">
                     <div class="row text-center">
@@ -2377,19 +2352,19 @@
                         </div>
                         <div class="col-md-4 col-6">
                             <i class="fas fa-money-bill-wave text-success me-1"></i>
-                            <strong>${Math.round(summaryRev).toLocaleString('vi-VN')}đ</strong>
-                            <small class="d-block text-muted">Tổng doanh thu theo ngày</small>
+                            <strong>${Math.round(totalRev).toLocaleString('vi-VN')}đ</strong>
+                            <small class="d-block text-muted">Tổng doanh thu</small>
                         </div>
                         <div class="col-md-4 col-12 mt-2 mt-md-0">
                             <i class="fas fa-chart-line text-info me-1"></i>
-                            <strong>${totalDays>0?Math.round(summaryRev/totalDays).toLocaleString('vi-VN'):0}đ</strong>
+                            <strong>${totalDays > 0 ? Math.round(totalRev / totalDays).toLocaleString('vi-VN') : 0}đ</strong>
                             <small class="d-block text-muted">Trung bình/ngày</small>
                         </div>
                     </div>
                 </div>`;
 
             listContainer.innerHTML = html;
-            console.log(`✅ Daily occupancy: ${visibleApts.length} apt columns × ${totalDays} days`);
+            console.log(`✅ Daily occupancy: combined 1-column view × ${totalDays} days`);
         }
 
         // 🎨 Room symbol — index into apartments list, dynamic
@@ -2424,6 +2399,29 @@
 
             // Update modal title
             document.getElementById('modalDateTitle').textContent = `- ${formattedDate}`;
+
+            // ── Per-property breakdown banner ────────────────────────────────
+            const apts = window.APARTMENTS_META || [];
+            const aptBreakdownEl = document.getElementById('modalAptBreakdown');
+            if (aptBreakdownEl && apts.length > 1) {
+                const aptStats = apts.map(a => {
+                    const ad = (dayData.apts || {})[String(a.id)] || {};
+                    return { name: a.name, color: a.color||'#999', cnt: ad.count||0, rev: ad.revenue||0 };
+                }).filter(s => s.cnt > 0);
+                if (aptStats.length > 0) {
+                    aptBreakdownEl.innerHTML = aptStats.map(s =>
+                        `<span class="badge me-1 mb-1" style="background:${s.color}18;border:1px solid ${s.color};
+                            color:${s.color};font-size:.8rem;padding:5px 9px;">
+                            ■ ${s.name} &nbsp;·&nbsp; ${s.cnt} khách &nbsp;·&nbsp; ${Math.round(s.rev).toLocaleString('vi-VN')}đ
+                        </span>`
+                    ).join('');
+                    aptBreakdownEl.style.display = '';
+                } else {
+                    aptBreakdownEl.style.display = 'none';
+                }
+            } else if (aptBreakdownEl) {
+                aptBreakdownEl.style.display = 'none';
+            }
 
             // Is this date "today" on the server (Vietnam time)?
             const isToday = (window.SERVER_TODAY && dateStr === window.SERVER_TODAY);
@@ -3718,6 +3716,9 @@
                         </div>
                     </div>
                 </div>
+
+                <!-- 🏢 Per-property breakdown (populated by JS) -->
+                <div id="modalAptBreakdown" class="mb-3" style="display:none;"></div>
 
                 <!-- 🎨 Room Type Symbol Legend -->
                 <div class="alert alert-light border mb-3" style="background: linear-gradient(to right, #f8f9fa, #e9ecef);">
