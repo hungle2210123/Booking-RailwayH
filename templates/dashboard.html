@@ -784,47 +784,7 @@
 {% block content %}
 <div class="container-fluid px-4">
 
-    <!-- ⚠️ PIN NOTIFICATION CHO NGÀY QUÁ TẢI (FIXED TOP) -->
-    {% if overcrowded_days and overcrowded_days|length > 0 %}
-    {% set urgent_days = overcrowded_days | selectattr('alert_level', 'equalto', 'urgent') | list %}
-    {% set today_overcrowded = overcrowded_days | selectattr('is_today', 'equalto', true) | list %}
-    
-    <div class="alert alert-warning border-0 shadow-lg mb-0 fixed-top" 
-         style="top: 0; z-index: 1050; border-radius: 0 0 10px 10px; background: linear-gradient(135deg, #ff9500 0%, #ff6b35 100%);">
-        <div class="d-flex align-items-center justify-content-between">
-            <div class="d-flex align-items-center">
-                <div class="me-3">
-                    <i class="fas fa-exclamation-triangle fa-2x text-white"></i>
-                </div>
-                <div class="text-white">
-                    <div class="fw-bold fs-6 mb-1">
-                        ⚠️ CẢNH BÁO QUÁ TẢI: {{ overcrowded_days|length }} ngày có >4 khách
-                    </div>
-                    <div class="small">
-                        {% if today_overcrowded %}
-                            <span class="badge bg-danger me-2">HÔM NAY: {{ today_overcrowded[0].guest_count }} khách</span>
-                        {% endif %}
-                        {% if urgent_days %}
-                            <span class="badge bg-warning text-dark me-2">Khẩn cấp: {{ urgent_days|length }} ngày</span>
-                        {% endif %}
-                        <span class="text-white-75">Tối đa: 4 phòng có sẵn</span>
-                    </div>
-                </div>
-            </div>
-            <div class="d-flex align-items-center">
-                <button class="btn btn-light btn-sm me-2" onclick="scrollToOvercrowdedSection()">
-                    <i class="fas fa-eye me-1"></i>Xem chi tiết
-                </button>
-                <button class="btn btn-outline-light btn-sm" onclick="dismissPinNotification()">
-                    <i class="fas fa-times"></i>
-                </button>
-            </div>
-        </div>
-    </div>
-    
-    <!-- Spacer để content không bị che bởi fixed notification -->
-    <div style="height: 80px;"></div>
-    {% endif %}
+    <!-- Overload notification removed per user request -->
 
     <h1 class="mt-4">📊 Dashboard Tổng quan</h1>
     <ol class="breadcrumb mb-4">
@@ -1790,8 +1750,8 @@
         </div>
     </div>
 
-    <!-- ⚠️ CẢNH BÁO NGÀY QUÁ TẢI (QUÁ 4 KHÁCH) -->
-    {% if overcrowded_days and overcrowded_days|length > 0 %}
+    <!-- Overload section removed per user request -->
+    {% if false and overcrowded_days and overcrowded_days|length > 0 %}
     <div class="alert border-0 shadow-lg mb-4" id="overcrowdedSection" style="background: linear-gradient(135deg, #ff9500 0%, #ff6b35 100%);">
         <div class="d-flex align-items-center justify-content-between">
             <div>
@@ -2283,10 +2243,12 @@
                     confCnt = al.confirmed_count   != null ? al.confirmed_count   : cnt;
                 }
 
-                const displayRev = (isTodayCell && !focusedApt) ? confRev : rev;
-                const displayCnt = (isTodayCell && !focusedApt) ? confCnt : cnt;
+                // For past AND today: show only confirmed-guest revenue (NULL = no-show)
+                const isPastOrToday = isTodayCell || (window.SERVER_TODAY && dateStr < window.SERVER_TODAY);
+                const displayRev = (isPastOrToday && !focusedApt) ? confRev : rev;
+                const displayCnt = (isPastOrToday && !focusedApt) ? confCnt : cnt;
                 const net        = displayRev - com;
-                totalRev += rev;
+                totalRev += (isPastOrToday && !focusedApt) ? confRev : rev;
                 totalCom += com;
 
                 html += `<tr class="${isWE ? 'table-warning' : ''}">`;
@@ -2423,32 +2385,42 @@
                 aptBreakdownEl.style.display = 'none';
             }
 
-            // Is this date "today" on the server (Vietnam time)?
-            const isToday = (window.SERVER_TODAY && dateStr === window.SERVER_TODAY);
+            // Is this date "today" or in the past on the server (Vietnam time)?
+            const isToday       = (window.SERVER_TODAY && dateStr === window.SERVER_TODAY);
+            const isPastOrToday = window.SERVER_TODAY ? (dateStr <= window.SERVER_TODAY) : isToday;
 
-            // Separate check-in guests from staying guests
+            // Separate check-in guests (arriving this day) from staying guests (arrived earlier)
             const checkingInGuests = guests.filter(g => g.checkin_date === dateStr);
             const stayingGuests    = guests.filter(g => g.checkin_date !== dateStr);
 
-            // For today: only confirmed check-ins count toward revenue
-            // For past/future: all guests count
-            const confirmedCheckins   = isToday
+            // Past & today: NULL status = user never confirmed = guest never arrived
+            // Future: count all (confirmation hasn't happened yet)
+            const confirmedCheckins   = isPastOrToday
                 ? checkingInGuests.filter(g => g.checkin_status === 'confirmed')
                 : checkingInGuests;
-            const unconfirmedCheckins = isToday
+            const unconfirmedCheckins = isPastOrToday
                 ? checkingInGuests.filter(g => g.checkin_status !== 'confirmed')
                 : [];
 
-            const revenueGuests   = confirmedCheckins.concat(stayingGuests);
+            // Staying guests with NULL status & past check-in = also no-show
+            const confirmedStaying  = isPastOrToday
+                ? stayingGuests.filter(g => g.checkin_status === 'confirmed')
+                : stayingGuests;
+            const noShowStaying     = isPastOrToday
+                ? stayingGuests.filter(g => g.checkin_status !== 'confirmed')
+                : [];
+
+            const revenueGuests    = confirmedCheckins.concat(confirmedStaying);
             const confirmedRevenue = revenueGuests.reduce((s, g) => s + (g.revenue_per_night || 0), 0);
             const pendingRevenue   = unconfirmedCheckins.reduce((s, g) => s + (g.revenue_per_night || 0), 0);
 
             const totalGuests = guests.length;
-            const avgPerGuest = revenueGuests.length > 0 ? confirmedRevenue / revenueGuests.length : 0;
+            const countedGuests = revenueGuests.length;
+            const avgPerGuest = countedGuests > 0 ? confirmedRevenue / countedGuests : 0;
 
             // Update summary cards  (.innerHTML needed for <small> tag to render)
             document.getElementById('modalTotalGuests').textContent = totalGuests
-                + (unconfirmedCheckins.length > 0 ? ` (${confirmedCheckins.length + stayingGuests.length} tính)` : '');
+                + (countedGuests < totalGuests ? ` (${countedGuests} tính)` : '');
             document.getElementById('modalDailyRevenue').innerHTML =
                 `${Math.round(confirmedRevenue).toLocaleString('vi-VN')}đ`
                 + (isToday && unconfirmedCheckins.length > 0
@@ -2507,22 +2479,34 @@
                     confirmedCheckins.forEach(g => { tableHTML += buildRow(g); });
                 }
 
-                // ── Section 2: Staying guests (count in revenue) ──
-                if (stayingGuests.length > 0) {
+                // ── Section 2: Confirmed staying guests (count in revenue) ──
+                if (confirmedStaying.length > 0) {
                     tableHTML += `<tr class="table-success"><td colspan="7" class="fw-bold">
-                        <i class="fas fa-bed me-1"></i>Khách Đang Ở (${stayingGuests.length} khách) — tính vào doanh thu
+                        <i class="fas fa-bed me-1"></i>Khách Đang Ở (${confirmedStaying.length} khách) — tính vào doanh thu
                     </td></tr>`;
-                    stayingGuests.forEach(g => { tableHTML += buildRow(g); });
+                    confirmedStaying.forEach(g => { tableHTML += buildRow(g); });
                 }
 
-                // ── Section 3 (today only): Unconfirmed check-ins — NOT counted ──
+                // ── Section 3: Unconfirmed check-ins — NOT counted ──
                 if (unconfirmedCheckins.length > 0) {
+                    const label = isToday ? '⏳ Chưa Xác Nhận' : '❌ Không Đến';
                     tableHTML += `<tr style="background:#fff8e1;"><td colspan="7" class="fw-bold" style="color:#b45309;">
-                        <i class="fas fa-clock me-1"></i>⏳ Chưa Xác Nhận (${unconfirmedCheckins.length} khách)
-                        — <em style="font-weight:400;">chưa tính vào doanh thu</em>
+                        <i class="fas fa-clock me-1"></i>${label} (${unconfirmedCheckins.length} khách)
+                        — <em style="font-weight:400;">không tính vào doanh thu</em>
                     </td></tr>`;
                     unconfirmedCheckins.forEach(g => {
-                        tableHTML += buildRow(g).replace('<tr>', '<tr style="opacity:0.6;background:#fffbeb;">');
+                        tableHTML += buildRow(g).replace('<tr>', '<tr style="opacity:0.5;background:#fffbeb;">');
+                    });
+                }
+
+                // ── Section 4: No-show staying guests (past/today, NULL status) ──
+                if (noShowStaying.length > 0) {
+                    tableHTML += `<tr style="background:#fef2f2;"><td colspan="7" class="fw-bold" style="color:#dc2626;">
+                        <i class="fas fa-user-slash me-1"></i>❌ Không Đến (${noShowStaying.length} khách đang ở)
+                        — <em style="font-weight:400;">chưa xác nhận, không tính doanh thu</em>
+                    </td></tr>`;
+                    noShowStaying.forEach(g => {
+                        tableHTML += buildRow(g).replace('<tr>', '<tr style="opacity:0.5;background:#fef2f2;">');
                     });
                 }
 

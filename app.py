@@ -3838,10 +3838,8 @@ def calendar_details(date_str):
             st  = _all_status_map.get(bid)      # None when checkin_status IS NULL in DB
             if st == 'confirmed':  return True
             if st == 'cancelling': return False
-            # Past dates: guest actually stayed — skip the no-show filter entirely
-            if date_obj < _today_date:
-                return True
-            # not-contacted: remove if their check-in day is already behind us
+            # NULL = unconfirmed: exclude if their original check-in day has already passed
+            # (applies to past AND today views — user never clicked confirm = never arrived)
             try:
                 ci = g.get('Check-in Date')
                 if pd.notna(ci) and pd.Timestamp(ci).date() < _today_date:
@@ -3863,10 +3861,8 @@ def calendar_details(date_str):
             st  = _all_status_map.get(bid)
             if st == 'cancelling': return False
             if st == 'confirmed':  return True
-            # Past dates: guest actually checked out — skip the no-show filter entirely
-            if date_obj < _today_date:
-                return True
-            # not-contacted: if their check-in day has passed they're a no-show — skip
+            # NULL = unconfirmed: exclude if their original check-in day has already passed
+            # (same rule as staying_over — user never clicked confirm = never arrived)
             try:
                 ci = g.get('Check-in Date')
                 if pd.notna(ci) and pd.Timestamp(ci).date() < _today_date:
@@ -3882,17 +3878,17 @@ def calendar_details(date_str):
 
         # ── Revenue calculation — confirmed-only logic ───────────────────────
         # Rule:
-        #   TODAY  → check-in guests MUST be 'confirmed' to count (NULL = uncertain)
-        #   PAST   → all remaining check-in guests count (cancelling already stripped above)
-        #   FUTURE → all check-in guests count (expected revenue)
-        #   staying_over / check_out → always count (they already passed arrival filter above)
+        #   TODAY  → check-in guests MUST be 'confirmed' to count (NULL = didn't confirm = no-show)
+        #   PAST   → same: NULL = user never confirmed = guest never arrived → don't count
+        #   FUTURE → count all non-cancelling (expected revenue; confirmation hasn't happened yet)
+        #   staying_over / check_out → already filtered above (NULL whose ci<today excluded)
 
-        is_today_view   = (date_obj == _today_date)
-        is_past_view    = (date_obj <  _today_date)
-        # is_future_view  = (date_obj >  _today_date)
+        is_today_view        = (date_obj == _today_date)
+        is_past_view         = (date_obj <  _today_date)
+        is_past_or_today     = (date_obj <= _today_date)
 
-        if is_today_view:
-            # Only confirmed arrivals count toward revenue
+        if is_past_or_today:
+            # Past AND today: only confirmed arrivals count
             _revenue_checkins = [
                 g for g in check_in
                 if _all_status_map.get(g.get('Số đặt phòng', '')) == 'confirmed'
@@ -3902,8 +3898,7 @@ def calendar_details(date_str):
                 if _all_status_map.get(g.get('Số đặt phòng', '')) != 'confirmed'
             ]
         else:
-            # Past / future: count all check-ins still in the list
-            # (cancelling guests were already removed for past dates above)
+            # Future: count all (expected revenue)
             _revenue_checkins = check_in
             _pending_checkins = []
 
@@ -10960,12 +10955,11 @@ def get_prorated_monthly_revenue():
                         daily_occupancy[current_stay_date]['all']['commission'] += commission_per_night
 
                         # Track confirmed-only revenue:
-                        # TODAY → count only 'confirmed'; PAST → count all (no historical confirmed flags);
-                        # FUTURE → count all (expected revenue)
-                        is_checkin_day_today = (booking.checkin_date == today)
+                        # PAST/TODAY → NULL means user never confirmed = no-show, don't count
+                        # FUTURE     → count all (confirmation hasn't happened yet = expected revenue)
                         guest_counts_as_confirmed = (
                             checkin_status == 'confirmed'           # explicitly confirmed
-                            or (not is_checkin_day_today)           # past/future: assume revenue realised
+                            or booking.checkin_date > today         # future booking: expected
                         )
                         if guest_counts_as_confirmed:
                             daily_occupancy[current_stay_date]['all']['confirmed_revenue'] += revenue_per_night
