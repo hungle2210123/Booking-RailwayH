@@ -6,8 +6,8 @@
 <div class="container-fluid mt-4">
     <div class="row">
         <!-- LEFT SIDEBAR: Compact Monthly Calendar (Sticky) -->
-        <div class="col-lg-3">
-            <div class="card border-primary sticky-top" style="top: 70px;">
+        <div class="col-lg-4 col-xl-3">
+            <div class="card border-primary sticky-top" style="top: 70px; min-width: 0; overflow: hidden;">
                 <div class="card-header bg-primary text-white">
                     <h6 class="mb-0">
                         <i class="fas fa-calendar-alt me-2"></i>Tổng quan tháng {{ date.strftime('%m/%Y') }}
@@ -68,7 +68,7 @@
         </div>
 
         <!-- RIGHT CONTENT: Details -->
-        <div class="col-lg-9">
+        <div class="col-lg-8 col-xl-9">
     <h1 class="mb-4">📅 Chi tiết Hoạt động Ngày {{ date }}</h1>
 
     <!-- Ultra-Optimized Commission Legend -->
@@ -3324,7 +3324,8 @@ function renderCompactCalendarForPage(dailyData, year, month, selectedDay) {
         const isSelected = day === selectedDay;
 
         let dayClass = 'calendar-day';
-        if (isToday) dayClass += ' today';
+        if (isToday)  dayClass += ' today';
+        if (isSelected && !isToday) dayClass += ' selected';
         if (customerCount === 0) dayClass += ' no-guests';
         else if (customerCount > 5) dayClass += ' busy';
         else dayClass += ' has-guests';
@@ -3520,72 +3521,87 @@ document.addEventListener('DOMContentLoaded', function() {
 <!-- Calendar Styles (reuse from dashboard modal) -->
 <style>
 .compact-calendar {
-    font-size: 0.75rem;
+    font-size: 0.78rem;
+    width: 100%;
+    box-sizing: border-box;
 }
 .calendar-header {
     display: grid;
     grid-template-columns: repeat(7, 1fr);
-    gap: 2px;
-    margin-bottom: 4px;
+    gap: 3px;
+    margin-bottom: 5px;
 }
 .calendar-day-name {
     text-align: center;
-    font-weight: bold;
-    padding: 4px 2px;
-    background: #e9ecef;
-    font-size: 0.7rem;
+    font-weight: 700;
+    padding: 5px 2px;
+    background: #dee2e6;
+    color: #495057;
+    font-size: 0.72rem;
+    border-radius: 3px;
 }
 .calendar-grid {
     display: grid;
     grid-template-columns: repeat(7, 1fr);
-    gap: 3px;
+    gap: 4px;
 }
 .calendar-day {
-    aspect-ratio: 1;
+    aspect-ratio: 1 / 1.1;
+    min-height: 44px;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    border-radius: 4px;
+    border-radius: 6px;
     cursor: pointer;
-    transition: transform 0.2s, box-shadow 0.2s;
+    transition: transform 0.15s, box-shadow 0.15s;
     position: relative;
+    overflow: hidden;
 }
 .calendar-day:hover:not(.empty) {
-    transform: scale(1.1);
+    transform: scale(1.08);
     z-index: 10;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    box-shadow: 0 3px 10px rgba(0,0,0,0.22);
 }
 .calendar-day.empty {
     background: transparent;
+    cursor: default;
 }
 .calendar-day.no-guests {
     background: #e9ecef;
-    color: #6c757d;
+    color: #868e96;
 }
 .calendar-day.has-guests {
     background: #d1e7dd;
     color: #0f5132;
-    border: 1px solid #0f5132;
+    border: 1.5px solid #52b788;
 }
 .calendar-day.busy {
     background: #fff3cd;
     color: #664d03;
-    border: 2px solid #664d03;
-    font-weight: bold;
+    border: 2px solid #e9a800;
+    font-weight: 700;
 }
 .calendar-day.today {
     box-shadow: 0 0 0 3px #0d6efd;
     border: 2px solid #0d6efd !important;
     background: #cfe2ff !important;
+    color: #084298 !important;
+}
+.calendar-day.selected {
+    box-shadow: 0 0 0 2px #6c757d;
+    border: 2px solid #495057 !important;
 }
 .day-number {
-    font-size: 0.85rem;
-    font-weight: 600;
+    font-size: 0.9rem;
+    font-weight: 700;
+    line-height: 1.1;
 }
 .guest-count {
-    font-size: 0.65rem;
-    margin-top: -2px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    margin-top: 1px;
+    line-height: 1;
 }
 
 /* Popover Styles */
