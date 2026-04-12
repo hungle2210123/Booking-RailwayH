@@ -2203,21 +2203,16 @@
             const focusedApt = (apartmentFilter === 'all') ? null
                 : apartments.find(a => String(a.id) === String(apartmentFilter)) || null;
 
-            // ── Build calendar-card grid ─────────────────────────────────────────
-            let grandRev = 0, grandCom = 0, grandCnt = 0, grandUnpaid = 0;
-            let cards = '';
-
-            dates.forEach(dateStr => {
+            // ── Helper: build one day card HTML ─────────────────────────────────
+            function buildDayCard(dateStr) {
                 const day     = daily_occupancy[dateStr];
-                const dObj    = new Date(dateStr);
-                const dow     = dObj.getDay(); // 0=Sun
-                const dayName = ['CN','T2','T3','T4','T5','T6','T7'][dow];
+                const dObj    = new Date(dateStr + 'T00:00:00');
+                const dow     = dObj.getDay();
                 const isWE    = dow === 0 || dow === 6;
                 const isToday = window.SERVER_TODAY && dateStr === window.SERVER_TODAY;
                 const isPOT   = window.SERVER_TODAY && dateStr <= window.SERVER_TODAY;
                 const fmt     = `${dObj.getDate()}/${dObj.getMonth()+1}`;
 
-                // Data slice
                 let cnt, rev, com, confRev, confCnt;
                 if (focusedApt) {
                     const ad = ((day?.apts)||{})[String(focusedApt.id)]||{};
@@ -2233,7 +2228,6 @@
                 const dCnt = (isPOT&&!focusedApt) ? confCnt : cnt;
                 const net  = dRev - com;
 
-                // Unpaid staying guests
                 const unpaidCnt = isPOT ? (day?.guests||[]).filter(g =>
                     g.checkin_status==='confirmed' && g.checkin_date<dateStr
                     && (g.collected_amount===0||g.collected_amount===null)
@@ -2241,94 +2235,103 @@
 
                 grandRev+=dRev; grandCom+=com; grandCnt+=dCnt; grandUnpaid+=unpaidCnt;
 
-                // Card border/bg based on state
-                let cardBg, cardBorder, headerBg, headerColor;
-                if (isToday) {
-                    cardBg='#fffbeb'; cardBorder='2px solid #f59e0b';
-                    headerBg='#92400e'; headerColor='#fde68a';
-                } else if (isWE) {
-                    cardBg='#fefce8'; cardBorder='1px solid #d97706';
-                    headerBg='#78350f'; headerColor='#fef3c7';
-                } else if (cnt===0) {
-                    cardBg='#f8fafc'; cardBorder='1px solid #e2e8f0';
-                    headerBg='#1e293b'; headerColor='#94a3b8';
-                } else {
-                    cardBg='#ffffff'; cardBorder='1px solid #cbd5e1';
-                    headerBg='#1e293b'; headerColor='#cbd5e1';
-                }
+                let cardBg, cardBorder, numColor;
+                if (isToday)       { cardBg='#fffbeb'; cardBorder='2px solid #f59e0b'; numColor='#92400e'; }
+                else if (isWE)     { cardBg='#fef9c3'; cardBorder='1px solid #d97706'; numColor='#78350f'; }
+                else if (cnt===0)  { cardBg='#f1f5f9'; cardBorder='1px solid #e2e8f0'; numColor='#94a3b8'; }
+                else               { cardBg='#ffffff'; cardBorder='1px solid #cbd5e1'; numColor='#1e293b'; }
 
-                // Property badges
                 let propBadges = '';
                 if (!focusedApt && apartments.length>1) {
                     apartments.forEach(a => {
                         const ad=((day?.apts)||{})[String(a.id)]||{};
                         if ((ad.count||0)>0) {
                             const abbr=a.name.replace(/^\d+\s*/,'').split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,4);
-                            propBadges+=`<span style="background:${a.color||'#666'}22;border:1px solid ${a.color||'#666'};
-                                color:${a.color||'#444'};border-radius:3px;padding:0 3px;font-size:.6rem;margin:1px;display:inline-block;font-weight:700;">${abbr}${ad.count}</span>`;
+                            propBadges+=`<span style="background:${a.color||'#666'}22;border:1px solid ${a.color||'#666'};color:${a.color||'#444'};border-radius:3px;padding:0 3px;font-size:.58rem;margin:1px;display:inline-block;font-weight:700;">${abbr}${ad.count}</span>`;
                         }
                     });
                 }
-
                 const pendingBadge = (!focusedApt&&cnt>confCnt&&isPOT)
-                    ? `<div style="color:#b45309;font-size:.58rem;margin-top:2px;">⏳${cnt-confCnt} chờ</div>` : '';
+                    ? `<div style="color:#b45309;font-size:.58rem;">⏳${cnt-confCnt}</div>` : '';
                 const unpaidBadge = unpaidCnt>0
-                    ? `<div style="background:#dc2626;color:#fff;border-radius:6px;padding:1px 5px;font-size:.6rem;font-weight:800;margin-top:2px;display:inline-block;">💰${unpaidCnt}</div>` : '';
+                    ? `<div style="background:#dc2626;color:#fff;border-radius:5px;padding:1px 4px;font-size:.6rem;font-weight:800;margin-top:2px;display:inline-block;">💰${unpaidCnt}</div>` : '';
 
-                cards += `
-                <div onclick='showDailyGuestDetails("${dateStr}","${fmt}")'
-                     title="${dateStr}"
+                return `<div onclick='showDailyGuestDetails("${dateStr}","${fmt}")'
                      style="cursor:pointer;border:${cardBorder};border-radius:8px;background:${cardBg};
-                            display:flex;flex-direction:column;min-width:0;overflow:hidden;
-                            box-shadow:0 1px 3px rgba(0,0,0,.07);transition:box-shadow .15s,transform .15s;"
-                     onmouseover="this.style.boxShadow='0 4px 12px rgba(0,0,0,.15)';this.style.transform='translateY(-1px)'"
-                     onmouseout="this.style.boxShadow='0 1px 3px rgba(0,0,0,.07)';this.style.transform='none'">
-                    <!-- Date header -->
-                    <div style="background:${headerBg};color:${headerColor};text-align:center;padding:3px 2px;
-                                font-size:.68rem;font-weight:700;border-radius:6px 6px 0 0;line-height:1.3;
-                                ${isToday?'border-bottom:2px solid #fbbf24;':isWE?'border-bottom:1px solid #a16207;':''}">
-                        ${dayName}&nbsp;<span style="font-size:.75rem;">${dObj.getDate()}/${dObj.getMonth()+1}</span>
+                            display:flex;flex-direction:column;overflow:hidden;min-height:110px;
+                            box-shadow:0 1px 3px rgba(0,0,0,.06);transition:box-shadow .15s,transform .15s;"
+                     onmouseover="this.style.boxShadow='0 4px 14px rgba(0,0,0,.14)';this.style.transform='translateY(-2px)'"
+                     onmouseout="this.style.boxShadow='0 1px 3px rgba(0,0,0,.06)';this.style.transform='none'">
+                    <div style="text-align:right;padding:4px 7px 2px;font-size:.95rem;font-weight:800;
+                                color:${numColor};line-height:1;${isToday?'border-bottom:2px solid #f59e0b;':isWE?'border-bottom:1px solid #d97706;':'border-bottom:1px solid #f1f5f9;'}">
+                        ${dObj.getDate()}
                     </div>
-                    <!-- Body -->
-                    <div style="padding:5px 4px;text-align:center;flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;">
+                    <div style="padding:4px 5px;text-align:center;flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;gap:1px;font-size:.7rem;">
                         ${cnt===0
-                            ? `<span style="color:#cbd5e1;font-size:.8rem;">–</span>`
-                            : `<div style="color:#c2410c;font-weight:800;font-size:.88rem;line-height:1.2;">${fmtVN(dRev)}</div>
-                               ${com>0?`<div style="color:#dc2626;font-size:.65rem;line-height:1.2;">−${fmtVN(com)} HH</div>`:''}
-                               ${com>0?`<div style="color:#15803d;font-weight:700;font-size:.7rem;line-height:1.2;">${fmtVN(net)}</div>`:''}
-                               <div style="color:#475569;font-size:.65rem;font-weight:600;margin-top:1px;">👥${dCnt}</div>
-                               ${unpaidBadge}
-                               ${pendingBadge}
-                               ${propBadges?`<div style="margin-top:2px;">${propBadges}</div>`:''}`
+                            ? `<span style="color:#cbd5e1;margin-top:18px;">–</span>`
+                            : `<div style="color:#c2410c;font-weight:800;font-size:.82rem;line-height:1.2;">${fmtVN(dRev)}</div>
+                               ${com>0?`<div style="color:#dc2626;font-size:.62rem;line-height:1.2;">−${fmtVN(com)} HH</div>`:''}
+                               ${com>0?`<div style="color:#15803d;font-weight:700;font-size:.65rem;line-height:1.2;">${fmtVN(net)}</div>`:''}
+                               <div style="color:#475569;font-size:.63rem;font-weight:600;margin-top:2px;">👥${dCnt}</div>
+                               ${unpaidBadge}${pendingBadge}
+                               ${propBadges?`<div style="margin-top:2px;line-height:1.7;">${propBadges}</div>`:''}`
                         }
                     </div>
                 </div>`;
-            });
+            }
+
+            // ── Build 7-column calendar grid with week rows ──────────────────────
+            let grandRev = 0, grandCom = 0, grandCnt = 0, grandUnpaid = 0;
+
+            // Day-of-week header (CN=Sunday first, matching Vietnamese calendar)
+            const DOW_NAMES = ['CN','T2','T3','T4','T5','T6','T7'];
+            let headerRow = DOW_NAMES.map((n,i) => {
+                const isWknd = i===0||i===6;
+                return `<div style="text-align:center;font-weight:700;font-size:.78rem;padding:6px 2px;
+                    background:${isWknd?'#78350f':'#1e293b'};color:${isWknd?'#fef3c7':'#94a3b8'};
+                    border-radius:4px;">${n}</div>`;
+            }).join('');
+
+            // Figure out how many blank cells before the 1st date
+            const firstDate = new Date(dates[0] + 'T00:00:00');
+            const firstDow  = firstDate.getDay(); // 0=Sun … 6=Sat — matches our column order
+
+            let gridCells = '';
+            // Empty leading cells
+            for (let e = 0; e < firstDow; e++) {
+                gridCells += `<div style="border-radius:8px;background:#f8fafc;min-height:110px;border:1px dashed #e2e8f0;"></div>`;
+            }
+            // Actual day cards
+            dates.forEach(ds => { gridCells += buildDayCard(ds); });
 
             // ── Footer summary bar ───────────────────────────────────────────────
             const grandNet = grandRev - grandCom;
             const unpaidSummary = grandUnpaid>0
                 ? `<span style="background:#dc2626;color:#fff;border-radius:6px;padding:2px 8px;font-size:.75rem;font-weight:700;margin-left:8px;">💰 ${grandUnpaid} lượt chưa thu</span>` : '';
-            const footer = `<div style="background:#f0fdf4;border-top:2px solid #16a34a;padding:8px 14px;font-size:.82rem;border-radius:0 0 8px 8px;">
+            const footer = `<div style="background:#f0fdf4;border-top:2px solid #16a34a;padding:8px 14px;font-size:.82rem;">
                 <i class="fas fa-calculator me-2 text-success"></i>
                 <strong>Tháng ${period.month}:</strong>&nbsp;
                 <span style="color:#c2410c;font-weight:700;">${fmtVN(grandRev)}</span>
-                ${grandCom>0?`&nbsp;–&nbsp;<span style="color:#dc2626;">${fmtVN(grandCom)} HH</span>
-                &nbsp;=&nbsp;<span style="color:#15803d;font-weight:700;">${fmtVN(grandNet)}</span>`:''}
+                ${grandCom>0?`&nbsp;–&nbsp;<span style="color:#dc2626;">${fmtVN(grandCom)} HH</span>&nbsp;=&nbsp;<span style="color:#15803d;font-weight:700;">${fmtVN(grandNet)}</span>`:''}
                 &nbsp;&nbsp;<span style="color:#64748b;font-size:.78rem;">${dates.length} ngày · TB ${fmtVN(Math.round(grandRev/Math.max(dates.length,1)))}/ngày · ${grandCnt} khách/tháng</span>
                 ${unpaidSummary}
             </div>`;
 
             listContainer.innerHTML = `
                 <div style="border:1px solid #e2e8f0;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,.08);background:#f8fafc;overflow:hidden;">
-                    <div style="overflow-x:auto;padding:10px 10px 6px;-webkit-overflow-scrolling:touch;">
-                        <div style="display:grid;grid-template-columns:repeat(${dates.length},minmax(88px,1fr));gap:6px;min-width:${dates.length*94}px;">
-                            ${cards}
+                    <div style="padding:10px 10px 8px;">
+                        <!-- Weekday header row -->
+                        <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:5px;margin-bottom:6px;">
+                            ${headerRow}
+                        </div>
+                        <!-- Day cards grid -->
+                        <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:5px;">
+                            ${gridCells}
                         </div>
                     </div>
                     ${footer}
                 </div>`;
-            console.log(`✅ Capacity: ${dates.length} calendar cards`);
+            console.log(`✅ Capacity: calendar grid ${dates.length} days, ${firstDow} leading blanks`);
         }
 
         // 🎨 Room symbol — index into apartments list, dynamic
