@@ -990,6 +990,14 @@ def get_overall_calendar_day_info(df: pd.DataFrame, target_date: str,
         except Exception as e:
             print(f"⚠️ Error building apartments_status: {e}")
 
+        # FIX: Recalculate available_units from room-level data.
+        # occupied_units = len(active_on_date) counts ALL guest bookings (can exceed room count
+        # in a hostel).  Using max(0, room_capacity - booking_count) clips to 0 even when rooms
+        # are still physically available, causing false "Hết phòng".
+        # Instead, derive availability from the per-apartment matched counts.
+        if apartments_status:
+            available_units = sum(a['available'] for a in apartments_status)
+
         # Activity (pass apartments_list for per-apartment counts)
         activity = get_daily_activity(df_local, target_date_obj, apartments_list=apartments_list)
         arrivals_count = len(activity['arrivals'])
@@ -1009,11 +1017,11 @@ def get_overall_calendar_day_info(df: pd.DataFrame, target_date: str,
 
         # Status
         if occupied_units == 0:
-            status_text, status_color = "Trồng", "empty"
+            status_text, status_color = "Trống", "empty"
         elif available_units == 0:
             status_text, status_color = "Hết phòng", "full"
         else:
-            status_text, status_color = f"{available_units}/{total_capacity} trồng", "occupied"
+            status_text, status_color = f"{available_units}/{total_capacity} trống", "occupied"
 
         return {
             'occupied_units': occupied_units,

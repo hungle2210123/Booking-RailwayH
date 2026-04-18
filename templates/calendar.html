@@ -328,11 +328,11 @@
                                                         </div>
                                                         {% endfor %}
                                                         <small class="text-primary" style="font-weight:600;font-size:0.72rem;">
-                                                            <i class="fas fa-bed"></i> {{ info.occupied_units }}/{{ info.occupied_units + info.available_units }}
+                                                            <i class="fas fa-users"></i> {{ info.occupied_units }} khách
                                                         </small>
                                                         {% if info.available_units > 0 %}
                                                         <small class="text-success" style="font-size:0.72rem;">
-                                                            <i class="fas fa-check"></i> {{ info.available_units }} trống
+                                                            <i class="fas fa-check"></i> {{ info.available_units }} phòng trống
                                                         </small>
                                                         {% else %}
                                                         <small class="text-danger" style="font-size:0.72rem;">
