@@ -2225,7 +2225,7 @@
                     confCnt=al.confirmed_count!=null?al.confirmed_count:cnt;
                 }
                 const dRev = (isPOT&&!focusedApt) ? confRev : rev;
-                const dCnt = (isPOT&&!focusedApt) ? confCnt : cnt;
+                const dCnt = cnt; // Always use full guest count (matches booking calendar)
                 const net  = dRev - com;
 
                 const unpaidCnt = isPOT ? (day?.guests||[]).filter(g =>
