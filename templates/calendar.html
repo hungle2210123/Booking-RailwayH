@@ -86,57 +86,19 @@
                     <span class="legend-item" style="background: #FFF3CD; border: 1px solid #FFC107; padding: 3px 8px; border-radius: 4px;">
                         <strong style="color: #856404; font-size: 0.9rem;">🌙1</strong> = Ở 1 đêm
                     </span>
+                    {% set legend_colors = ['#1976D2','#2E7D32','#7B1FA2','#E64A19','#00838F','#F57F17'] %}
+                    {% for apt in apartments_list %}
+                    {% set lcol = legend_colors[loop.index0 % 6] %}
                     <span class="legend-item" style="font-weight: 600;">
-                        <span style="font-size: 1.1rem; color: #1976D2;">●</span> = 118 Hang Bac
+                        <span style="font-size: 1.1rem; color: {{ lcol }};">●</span> = {{ apt.name }}
                     </span>
-                    <span class="legend-item" style="font-weight: 600;">
-                        <span style="font-size: 1.1rem; color: #2E7D32;">①</span> = Phòng 101
-                    </span>
-                    <span class="legend-item" style="font-weight: 600;">
-                        <span style="font-size: 1.1rem; color: #00695C;">②</span> = Phòng 102</span>
+                    {% endfor %}
                     <span class="legend-item" style="font-weight: 600;">
                         <span style="font-size: 1.1rem; color: #ff6b6b;">💎</span> = VIP >550k/đêm
                     </span>
                 </div>
             </div>
 
-            <!-- 💎 HIGH-VALUE GUESTS ALERT BANNER -->
-            {% if high_value_total_count > 0 %}
-            <div class="alert alert-dismissible fade show mb-4" style="background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%); border: 2px solid #c92a2a; border-radius: 8px; box-shadow: 0 4px 12px rgba(201, 42, 42, 0.3);">
-                <div class="d-flex justify-content-between align-items-center">
-                    <div class="flex-grow-1">
-                        <h5 class="mb-2 text-white fw-bold">
-                            <i class="fas fa-gem me-2" style="animation: pulse 2s ease-in-out infinite;"></i>
-                            🔥 VIP GUESTS ALERT
-                        </h5>
-                        <div class="row g-3">
-                            <div class="col-12">
-                                <div class="alert alert-light mb-0 py-2" style="border-left: 4px solid #ffd700;">
-                                    <div class="d-flex align-items-center justify-content-between">
-                                        <div>
-                                            <strong class="text-danger" style="font-size: 1.1rem;">💎 {{ high_value_total_count }} High-Value Guests</strong>
-                                            <small class="d-block text-muted">Paying >550,000đ/night</small>
-                                        </div>
-                                        <div class="text-end">
-                                            <strong class="text-success" style="font-size: 1.2rem;">{{ "{:,.0f}".format(high_value_total_revenue) }}đ</strong>
-                                            <small class="d-block text-muted">Avg/night</small>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <button type="button" class="btn-close btn-close-white ms-3" data-bs-dismiss="alert"></button>
-                </div>
-            </div>
-
-            <style>
-                @keyframes pulse {
-                    0%, 100% { transform: scale(1); opacity: 1; }
-                    50% { transform: scale(1.2); opacity: 0.8; }
-                }
-            </style>
-            {% endif %}
             
             
             <!-- Canceled Guests Management Panel -->
@@ -322,48 +284,28 @@
                                                 {% if info and (info.arrivals_count > 0 or info.departures_count > 0 or info.activity.one_night_count > 0) %}
                                                 <div class="checkin-checkout-indicators" style="margin-top: 4px; margin-bottom: 4px; display: flex; flex-wrap: wrap; gap: 5px; justify-content: center;">
                                                     {% if info.arrivals_count > 0 %}
-                                                        <!-- Check-in badges without arrows -->
-                                                        {% set symbols = info.activity.arrivals_symbols %}
-                                                        {% if symbols.hang_bac > 0 %}
-                                                        <span class="checkin-indicator" style="display: inline-flex; align-items: center; gap: 3px; background: #D4EDDA; border: 1px solid #28a745; border-radius: 4px; padding: 2px 6px;" title="{{ symbols.hang_bac }} khách check-in - Hang Bac">
-                                                            <span style="font-size: 0.75rem; color: #28a745; font-weight: 600;">●</span>
-                                                            <span style="font-size: 0.75rem; color: #155724; font-weight: 700;">{{ symbols.hang_bac }}</span>
+                                                        <!-- Check-in badges - dynamic per apartment -->
+                                                        {% for apt in info.apartments_status %}
+                                                        {% set arr_count = info.activity.arrivals_by_apt.get(apt.id, 0) %}
+                                                        {% if arr_count > 0 %}
+                                                        <span class="checkin-indicator" style="display: inline-flex; align-items: center; gap: 3px; background: #D4EDDA; border: 1px solid #28a745; border-radius: 4px; padding: 2px 6px;" title="{{ arr_count }} khách check-in - {{ apt.name }}">
+                                                            <span style="font-size: 0.65rem; color: #155724; font-weight: 600; max-width: 50px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis;">{{ apt.name | truncate(7, true, '…') }}</span>
+                                                            <span style="font-size: 0.75rem; color: #155724; font-weight: 700;">+{{ arr_count }}</span>
                                                         </span>
                                                         {% endif %}
-                                                        {% if symbols.hang_be_101 > 0 %}
-                                                        <span class="checkin-indicator" style="display: inline-flex; align-items: center; gap: 3px; background: #D4EDDA; border: 1px solid #28a745; border-radius: 4px; padding: 2px 6px;" title="{{ symbols.hang_be_101 }} khách check-in - Phòng 101">
-                                                            <span style="font-size: 0.75rem; color: #28a745; font-weight: 600;">①</span>
-                                                            <span style="font-size: 0.75rem; color: #155724; font-weight: 700;">{{ symbols.hang_be_101 }}</span>
-                                                        </span>
-                                                        {% endif %}
-                                                        {% if symbols.hang_be_102 > 0 %}
-                                                        <span class="checkin-indicator" style="display: inline-flex; align-items: center; gap: 3px; background: #D4EDDA; border: 1px solid #28a745; border-radius: 4px; padding: 2px 6px;" title="{{ symbols.hang_be_102 }} khách check-in - Phòng 102">
-                                                            <span style="font-size: 0.75rem; color: #28a745; font-weight: 600;">②</span>
-                                                            <span style="font-size: 0.75rem; color: #155724; font-weight: 700;">{{ symbols.hang_be_102 }}</span>
-                                                        </span>
-                                                        {% endif %}
+                                                        {% endfor %}
                                                     {% endif %}
                                                     {% if info.departures_count > 0 %}
-                                                        <!-- Check-out badges without arrows -->
-                                                        {% set dep_symbols = info.activity.departures_symbols %}
-                                                        {% if dep_symbols.hang_bac > 0 %}
-                                                        <span class="checkout-indicator" style="display: inline-flex; align-items: center; gap: 3px; background: #F8D7DA; border: 1px solid #dc3545; border-radius: 4px; padding: 2px 6px;" title="{{ dep_symbols.hang_bac }} khách check-out - Hang Bac">
-                                                            <span style="font-size: 0.75rem; color: #dc3545; font-weight: 600;">●</span>
-                                                            <span style="font-size: 0.75rem; color: #721C24; font-weight: 700;">{{ dep_symbols.hang_bac }}</span>
+                                                        <!-- Check-out badges - dynamic per apartment -->
+                                                        {% for apt in info.apartments_status %}
+                                                        {% set dep_count = info.activity.departures_by_apt.get(apt.id, 0) %}
+                                                        {% if dep_count > 0 %}
+                                                        <span class="checkout-indicator" style="display: inline-flex; align-items: center; gap: 3px; background: #F8D7DA; border: 1px solid #dc3545; border-radius: 4px; padding: 2px 6px;" title="{{ dep_count }} khách check-out - {{ apt.name }}">
+                                                            <span style="font-size: 0.65rem; color: #721C24; font-weight: 600; max-width: 50px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis;">{{ apt.name | truncate(7, true, '…') }}</span>
+                                                            <span style="font-size: 0.75rem; color: #721C24; font-weight: 700;">-{{ dep_count }}</span>
                                                         </span>
                                                         {% endif %}
-                                                        {% if dep_symbols.hang_be_101 > 0 %}
-                                                        <span class="checkout-indicator" style="display: inline-flex; align-items: center; gap: 3px; background: #F8D7DA; border: 1px solid #dc3545; border-radius: 4px; padding: 2px 6px;" title="{{ dep_symbols.hang_be_101 }} khách check-out - Phòng 101">
-                                                            <span style="font-size: 0.75rem; color: #dc3545; font-weight: 600;">①</span>
-                                                            <span style="font-size: 0.75rem; color: #721C24; font-weight: 700;">{{ dep_symbols.hang_be_101 }}</span>
-                                                        </span>
-                                                        {% endif %}
-                                                        {% if dep_symbols.hang_be_102 > 0 %}
-                                                        <span class="checkout-indicator" style="display: inline-flex; align-items: center; gap: 3px; background: #F8D7DA; border: 1px solid #dc3545; border-radius: 4px; padding: 2px 6px;" title="{{ dep_symbols.hang_be_102 }} khách check-out - Phòng 102">
-                                                            <span style="font-size: 0.75rem; color: #dc3545; font-weight: 600;">②</span>
-                                                            <span style="font-size: 0.75rem; color: #721C24; font-weight: 700;">{{ dep_symbols.hang_be_102 }}</span>
-                                                        </span>
-                                                        {% endif %}
+                                                        {% endfor %}
                                                     {% endif %}
                                                     {% if info.activity.one_night_count > 0 %}
                                                         <span class="one-night-indicator" style="display: inline-flex; align-items: center; gap: 2px; background: #FFF3CD; border: 1px solid #FFC107; padding: 2px 6px; border-radius: 4px;" title="{{ info.activity.one_night_count }} khách ở 1 đêm">
@@ -396,6 +338,13 @@
                                                     {% endif %}
                                                 </div>
                                                 {% endif %}
+{% if unpaid_by_date and date_str in unpaid_by_date %}
+<div style="margin-top:3px;text-align:center;">
+    <span style="background:#dc3545;color:white;border-radius:10px;padding:1px 6px;font-size:0.62rem;font-weight:700;display:inline-block;">
+        💰 {{ unpaid_by_date[date_str] }} chưa thu
+    </span>
+</div>
+{% endif %}
                                             </div>
                                         </a>
                                     {% endif %}

@@ -3622,7 +3622,32 @@ def calendar_view(year=None, month=None):
 
 #         if price_adjust_count_today > 0:
 #             price_adjustment_dates[date_obj] = price_adjust_count_today
-    
+
+    # Compute per-day count of guests staying >1 day without payment
+    unpaid_by_date = {}
+    today_date = datetime.today().date()
+    cancel_col = 'Tình trạng'
+    active_df = df[df[cancel_col] != 'Đã hủy'] if cancel_col in df.columns else df
+
+    for day in range(1, num_days + 1):
+        date_str_u = f"{year}-{month:02d}-{day:02d}"
+        date_obj_u = datetime.strptime(date_str_u, "%Y-%m-%d").date()
+        if date_obj_u > today_date:
+            continue
+        count_u = 0
+        for _, row in active_df.iterrows():
+            try:
+                ci = pd.Timestamp(row['Check-in Date']).date()
+                co = pd.Timestamp(row['Check-out Date']).date()
+                collected = float(row.get('Số tiền đã thu', 0) or 0)
+                # Staying on this date AND checked in at least 1 day before AND not paid
+                if ci < date_obj_u <= co and collected == 0:
+                    count_u += 1
+            except Exception:
+                continue
+        if count_u > 0:
+            unpaid_by_date[date_str_u] = count_u
+
     # Calculate previous and next month for navigation
     current_month = datetime(year, month, 1)
 
@@ -3662,7 +3687,8 @@ def calendar_view(year=None, month=None):
         high_value_total_revenue=high_value_total_revenue,  # Total high-value revenue
         apartments=apartments_data,  # Apartments for filter dropdown
         current_apartment_id=apartment_id,  # Currently selected apartment
-        current_apartment=current_apartment  # Current apartment object
+        current_apartment=current_apartment,  # Current apartment object
+        unpaid_by_date=unpaid_by_date  # Per-day count of guests staying unpaid >1 day
     )
 
 @app.route('/debug_revenue')
