@@ -3854,26 +3854,18 @@ def calendar_details(date_str):
             check_in = [b for b in check_in if b.get('Số đặt phòng','') not in _cancelling_all]
 
         # Filter staying_over — runs unconditionally (not inside a try/except).
-        #   confirmed   → keep (only if still in hotel: checkout > today)
+        #   confirmed   → keep
         #   cancelling  → remove
         #   null/none   → remove once their check-in day has passed (no-show)
         #                 keep only if check-in is today (might still arrive)
-        # IMPORTANT: Also remove guests whose checkout date <= TODAY (already left the hotel).
-        # "Khách Đang Ở" means CURRENTLY in the hotel, not "was here on the viewed date."
-        # When viewing a past date, guests who have since checked out should not appear.
+        # NOTE: Do NOT filter by checkout_date <= today. When viewing a historical date
+        # (e.g. Apr 16 viewed on Apr 19), guests who checked out Apr 17/18/19 WERE
+        # legitimately staying on Apr 16 and must appear in the historical record.
         def _guest_stays_over(g):
             bid = g.get('Số đặt phòng', '')
             st  = _all_status_map.get(bid)      # None when checkin_status IS NULL in DB
-            if st == 'cancelling': return False
-            # Remove guests whose checkout has already happened today or earlier
-            # (they've left the hotel — no point showing them as "still staying")
-            try:
-                co = g.get('Check-out Date')
-                if pd.notna(co) and pd.Timestamp(co).date() <= _today_date:
-                    return False
-            except Exception:
-                pass
             if st == 'confirmed':  return True
+            if st == 'cancelling': return False
             # NULL = unconfirmed: exclude if their original check-in day has already passed
             # (applies to past AND today views — user never clicked confirm = never arrived)
             try:
@@ -3887,7 +3879,7 @@ def calendar_details(date_str):
         _removed = [g.get('Tên người đặt','?') for g in staying_over if not _guest_stays_over(g)]
         staying_over = [g for g in staying_over if _guest_stays_over(g)]
         if _removed:
-            print(f"[calendar_details:{date_obj}] Removed already-checked-out/no-show from staying: {_removed}")
+            print(f"[calendar_details:{date_obj}] Removed no-show/cancelled from staying: {_removed}")
 
         # Filter check_out: guests marked 'cancelling' never actually arrived, so they
         # cannot check out either.  Same rule applies to uncontacted guests whose
