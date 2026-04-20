@@ -722,15 +722,36 @@ def _make_apt_abbr(name: str) -> str:
 
 
 def _booking_matches_apartment(acc_name, apt_name_lower, room_names_lower):
-    """Return True if accommodation name matches this apartment or any of its rooms."""
+    """Return True if accommodation name matches this apartment or any of its rooms.
+
+    Matching order (most → least specific):
+    1. Full name substring match  (e.g. "118 hang bac hostel" ↔ booking "118 hang bac")
+    2. Room name substring match  (e.g. room "kitchen" in booking "kitchen & balcony")
+    3. Two-word key-phrase match  (e.g. "hang bac" from "118 Hang Bac Hostel" found
+       inside "Ban Cong Hang Bac"; "hoi vu" from "25 Hoi Vu" found inside "Sofa Hoi Vu")
+       — catches the majority of accommodation aliases that omit the street number.
+    """
     acc_l = str(acc_name or '').lower().strip()
     if not acc_l:
         return False
+    # 1. Full-name substring match
     if apt_name_lower in acc_l or acc_l in apt_name_lower:
         return True
-    # Only use room-name substring match when the room name is long enough to be unambiguous
-    return any((len(rn) >= 4 and rn in acc_l) or (len(acc_l) >= 4 and acc_l in rn)
-               for rn in room_names_lower)
+    # 2. Room-name substring match (require ≥4 chars to avoid short false positives)
+    if any((len(rn) >= 4 and rn in acc_l) or (len(acc_l) >= 4 and acc_l in rn)
+           for rn in room_names_lower):
+        return True
+    # 3. Two-word key-phrase: slide a 2-word window over the apartment name words,
+    #    skip pure-number tokens, check if the phrase appears in the booking acc name.
+    apt_words = apt_name_lower.split()
+    for i in range(len(apt_words) - 1):
+        w1, w2 = apt_words[i], apt_words[i + 1]
+        if w1.isdigit():          # skip leading street-number (e.g. "118", "25")
+            continue
+        phrase = f"{w1} {w2}"    # e.g. "hang bac", "hang be", "hoi vu"
+        if len(phrase) >= 5 and phrase in acc_l:
+            return True
+    return False
 
 
 def _assign_booking_to_apt(acc_name: str, apt_id_col, apartments_list: list):
@@ -990,13 +1011,25 @@ def get_overall_calendar_day_info(df: pd.DataFrame, target_date: str,
         except Exception as e:
             print(f"⚠️ Error building apartments_status: {e}")
 
-        # FIX: Recalculate available_units from room-level data.
-        # occupied_units = len(active_on_date) counts ALL guest bookings (can exceed room count
-        # in a hostel).  Using max(0, room_capacity - booking_count) clips to 0 even when rooms
-        # are still physically available, causing false "Hết phòng".
-        # Instead, derive availability from the per-apartment matched counts.
+        # FIX: Use the MINIMUM of booking-based and apt-based availability estimates.
+        #
+        # Problem: many bookings lack apartment_id / have accommodation_name that doesn't
+        # match apartment name patterns, so apt-based matching severely UNDER-counts
+        # occupancy (e.g. 17 guests but only 2 matched → apt_based = 7 free, WRONG).
+        #
+        # booking_based = max(0, total_capacity - total_bookings)
+        #   → accurate when bookings ≥ capacity (clips to 0 = "Hết phòng")
+        #   → over-estimates when bookings < capacity (ignores per-apt full rooms)
+        #
+        # apt_based = sum(apt.available)
+        #   → accurate when all bookings are properly matched
+        #   → over-estimates when many bookings are unmatched
+        #
+        # min() is always the safest (most conservative) estimate.
         if apartments_status:
-            available_units = sum(a['available'] for a in apartments_status)
+            apt_based_available  = sum(a['available'] for a in apartments_status)
+            booking_based_available = max(0, total_capacity - occupied_units)
+            available_units = min(apt_based_available, booking_based_available)
 
         # Activity (pass apartments_list for per-apartment counts)
         activity = get_daily_activity(df_local, target_date_obj, apartments_list=apartments_list)
