@@ -1014,21 +1014,23 @@
                                             </span>
                                         {% endif %}
                                     </div>
-                                    <button class="btn btn-sm btn-outline-primary px-2 py-1"
-                                            onclick="openQuickEditModal('{{ booking.get('Số đặt phòng', '') }}')"
-                                            title="Chỉnh sửa nhanh">
-                                        <i class="fas fa-edit"></i>
-                                    </button>
-                                    <button class="btn btn-sm btn-outline-secondary px-2 py-1"
-                                            onclick="openHistoryModal('{{ booking.get('Số đặt phòng', '') }}', '{{ booking.get('Tên người đặt', 'N/A')|replace("'", "\\'") }}')"
-                                            title="Lịch sử chỉnh sửa">
-                                        <i class="fas fa-history"></i>
-                                    </button>
-                                    <button class="btn btn-sm btn-outline-danger px-2 py-1"
-                                            onclick="quickCancelCalendarGuest('{{ booking.get('Số đặt phòng', '') }}', '{{ booking.get('Tên người đặt', 'N/A')|replace("'", "\\'") }}')"
-                                            title="Hủy booking">
-                                        <i class="fas fa-times"></i>
-                                    </button>
+                                    <div class="btn-group btn-group-sm flex-shrink-0" role="group">
+                                        <button class="btn btn-outline-primary px-1 py-1"
+                                                onclick="openQuickEditModal('{{ booking.get('Số đặt phòng', '') }}')"
+                                                title="Chỉnh sửa nhanh">
+                                            <i class="fas fa-edit"></i>
+                                        </button>
+                                        <button class="btn btn-outline-secondary px-1 py-1"
+                                                onclick="openHistoryModal('{{ booking.get('Số đặt phòng', '') }}', '{{ booking.get('Tên người đặt', 'N/A')|replace("'", "\\'") }}')"
+                                                title="Lịch sử chỉnh sửa">
+                                            <i class="fas fa-history"></i>
+                                        </button>
+                                        <button class="btn btn-outline-danger px-1 py-1"
+                                                onclick="quickCancelCalendarGuest('{{ booking.get('Số đặt phòng', '') }}', '{{ booking.get('Tên người đặt', 'N/A')|replace("'", "\\'") }}')"
+                                                title="Hủy booking">
+                                            <i class="fas fa-times"></i>
+                                        </button>
+                                    </div>
                                 </div>
                                 <p class="room-type">
                                     {% if '118 hang bac' in room_lower or room_lower == '118 hang bac hostel' %}
@@ -1166,21 +1168,23 @@
                                             </span>
                                         {% endif %}
                                     </div>
-                                    <button class="btn btn-sm btn-outline-primary px-2 py-1"
-                                            onclick="openQuickEditModal('{{ booking.get('Số đặt phòng', '') }}')"
-                                            title="Chỉnh sửa nhanh">
-                                        <i class="fas fa-edit"></i>
-                                    </button>
-                                    <button class="btn btn-sm btn-outline-secondary px-2 py-1"
-                                            onclick="openHistoryModal('{{ booking.get('Số đặt phòng', '') }}', '{{ booking.get('Tên người đặt', 'N/A')|replace("'", "\\'") }}')"
-                                            title="Lịch sử chỉnh sửa">
-                                        <i class="fas fa-history"></i>
-                                    </button>
-                                    <button class="btn btn-sm btn-outline-danger px-2 py-1"
-                                            onclick="quickCancelCalendarGuest('{{ booking.get('Số đặt phòng', '') }}', '{{ booking.get('Tên người đặt', 'N/A')|replace("'", "\\'") }}')"
-                                            title="Hủy booking">
-                                        <i class="fas fa-times"></i>
-                                    </button>
+                                    <div class="btn-group btn-group-sm flex-shrink-0" role="group">
+                                        <button class="btn btn-outline-primary px-1 py-1"
+                                                onclick="openQuickEditModal('{{ booking.get('Số đặt phòng', '') }}')"
+                                                title="Chỉnh sửa nhanh">
+                                            <i class="fas fa-edit"></i>
+                                        </button>
+                                        <button class="btn btn-outline-secondary px-1 py-1"
+                                                onclick="openHistoryModal('{{ booking.get('Số đặt phòng', '') }}', '{{ booking.get('Tên người đặt', 'N/A')|replace("'", "\\'") }}')"
+                                                title="Lịch sử chỉnh sửa">
+                                            <i class="fas fa-history"></i>
+                                        </button>
+                                        <button class="btn btn-outline-danger px-1 py-1"
+                                                onclick="quickCancelCalendarGuest('{{ booking.get('Số đặt phòng', '') }}', '{{ booking.get('Tên người đặt', 'N/A')|replace("'", "\\'") }}')"
+                                                title="Hủy booking">
+                                            <i class="fas fa-times"></i>
+                                        </button>
+                                    </div>
                                 </div>
                                 <p class="room-type">
                                     {% if '118 hang bac' in room_lower or room_lower == '118 hang bac hostel' %}
@@ -1295,21 +1299,23 @@
                                             </span>
                                         {% endif %}
                                     </div>
-                                    <button class="btn btn-sm btn-outline-primary px-2 py-1"
-                                            onclick="openQuickEditModal('{{ booking.get('Số đặt phòng', '') }}')"
-                                            title="Chỉnh sửa nhanh">
-                                        <i class="fas fa-edit"></i>
-                                    </button>
-                                    <button class="btn btn-sm btn-outline-secondary px-2 py-1"
-                                            onclick="openHistoryModal('{{ booking.get('Số đặt phòng', '') }}', '{{ booking.get('Tên người đặt', 'N/A')|replace("'", "\\'") }}')"
-                                            title="Lịch sử chỉnh sửa">
-                                        <i class="fas fa-history"></i>
-                                    </button>
-                                    <button class="btn btn-sm btn-outline-danger px-2 py-1"
-                                            onclick="quickCancelCalendarGuest('{{ booking.get('Số đặt phòng', '') }}', '{{ booking.get('Tên người đặt', 'N/A')|replace("'", "\\'") }}')"
-                                            title="Hủy booking">
-                                        <i class="fas fa-times"></i>
-                                    </button>
+                                    <div class="btn-group btn-group-sm flex-shrink-0" role="group">
+                                        <button class="btn btn-outline-primary px-1 py-1"
+                                                onclick="openQuickEditModal('{{ booking.get('Số đặt phòng', '') }}')"
+                                                title="Chỉnh sửa nhanh">
+                                            <i class="fas fa-edit"></i>
+                                        </button>
+                                        <button class="btn btn-outline-secondary px-1 py-1"
+                                                onclick="openHistoryModal('{{ booking.get('Số đặt phòng', '') }}', '{{ booking.get('Tên người đặt', 'N/A')|replace("'", "\\'") }}')"
+                                                title="Lịch sử chỉnh sửa">
+                                            <i class="fas fa-history"></i>
+                                        </button>
+                                        <button class="btn btn-outline-danger px-1 py-1"
+                                                onclick="quickCancelCalendarGuest('{{ booking.get('Số đặt phòng', '') }}', '{{ booking.get('Tên người đặt', 'N/A')|replace("'", "\\'") }}')"
+                                                title="Hủy booking">
+                                            <i class="fas fa-times"></i>
+                                        </button>
+                                    </div>
                                 </div>
                                 <p class="room-type">
                                     {% if '118 hang bac' in room_lower or room_lower == '118 hang bac hostel' %}
