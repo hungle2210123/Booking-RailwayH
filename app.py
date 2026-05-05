@@ -6907,6 +6907,36 @@ def record_booking_history(booking_id, update_data, changed_by='system'):
         print(f"[HISTORY] Failed to record history for {booking_id}: {e}")
 
 
+@app.route('/api/history/all', methods=['GET'])
+def get_all_history():
+    """Get all booking history across all bookings, newest first."""
+    try:
+        from core.models import db, BookingHistory, Booking
+        limit = min(int(request.args.get('limit', 200)), 500)
+
+        entries = (db.session.query(BookingHistory)
+                   .order_by(BookingHistory.created_at.desc())
+                   .limit(limit)
+                   .all())
+
+        # Build a quick lookup for guest names
+        booking_ids = list({e.booking_id for e in entries})
+        bookings = db.session.query(Booking.booking_id, Booking.guest_name).filter(
+            Booking.booking_id.in_(booking_ids)
+        ).all()
+        name_map = {b.booking_id: b.guest_name for b in bookings}
+
+        result = []
+        for e in entries:
+            d = e.to_dict()
+            d['guest_name'] = name_map.get(e.booking_id, '')
+            result.append(d)
+
+        return jsonify({'success': True, 'history': result})
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
 @app.route('/api/booking/<booking_id>/history', methods=['GET'])
 def get_booking_history(booking_id):
     """Get edit history for a booking."""
