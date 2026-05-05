@@ -1039,6 +1039,42 @@ class ElectricityBill(db.Model):
         }
 
 # =====================================================
+# BOOKING_HISTORY TABLE - Track all booking edits
+# =====================================================
+class BookingHistory(db.Model):
+    __tablename__ = 'booking_history'
+
+    history_id = Column(Integer, primary_key=True, autoincrement=True)
+    booking_id = Column(String(50), nullable=False, index=True)
+
+    # Change details
+    field_name = Column(String(100), nullable=False)
+    old_value = Column(Text)
+    new_value = Column(Text)
+    change_description = Column(Text)
+
+    # Who made the change
+    changed_by = Column(String(100), default='system')
+
+    # Audit
+    created_at = Column(DateTime, default=func.current_timestamp())
+
+    def to_dict(self):
+        return {
+            'history_id': self.history_id,
+            'booking_id': self.booking_id,
+            'field_name': self.field_name,
+            'old_value': self.old_value,
+            'new_value': self.new_value,
+            'change_description': self.change_description,
+            'changed_by': self.changed_by,
+            'created_at': self.created_at.isoformat() if self.created_at else None
+        }
+
+    def __repr__(self):
+        return f"<BookingHistory {self.history_id}: {self.booking_id} [{self.field_name}]>"
+
+# =====================================================
 # DATABASE UTILITY FUNCTIONS
 # =====================================================
 

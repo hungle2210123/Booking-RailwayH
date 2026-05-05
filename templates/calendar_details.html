@@ -1019,6 +1019,11 @@
                                             title="Chỉnh sửa nhanh">
                                         <i class="fas fa-edit"></i>
                                     </button>
+                                    <button class="btn btn-sm btn-outline-secondary px-2 py-1"
+                                            onclick="openHistoryModal('{{ booking.get('Số đặt phòng', '') }}', '{{ booking.get('Tên người đặt', 'N/A')|replace("'", "\\'") }}')"
+                                            title="Lịch sử chỉnh sửa">
+                                        <i class="fas fa-history"></i>
+                                    </button>
                                     <button class="btn btn-sm btn-outline-danger px-2 py-1"
                                             onclick="quickCancelCalendarGuest('{{ booking.get('Số đặt phòng', '') }}', '{{ booking.get('Tên người đặt', 'N/A')|replace("'", "\\'") }}')"
                                             title="Hủy booking">
@@ -1166,6 +1171,11 @@
                                             title="Chỉnh sửa nhanh">
                                         <i class="fas fa-edit"></i>
                                     </button>
+                                    <button class="btn btn-sm btn-outline-secondary px-2 py-1"
+                                            onclick="openHistoryModal('{{ booking.get('Số đặt phòng', '') }}', '{{ booking.get('Tên người đặt', 'N/A')|replace("'", "\\'") }}')"
+                                            title="Lịch sử chỉnh sửa">
+                                        <i class="fas fa-history"></i>
+                                    </button>
                                     <button class="btn btn-sm btn-outline-danger px-2 py-1"
                                             onclick="quickCancelCalendarGuest('{{ booking.get('Số đặt phòng', '') }}', '{{ booking.get('Tên người đặt', 'N/A')|replace("'", "\\'") }}')"
                                             title="Hủy booking">
@@ -1289,6 +1299,11 @@
                                             onclick="openQuickEditModal('{{ booking.get('Số đặt phòng', '') }}')"
                                             title="Chỉnh sửa nhanh">
                                         <i class="fas fa-edit"></i>
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-secondary px-2 py-1"
+                                            onclick="openHistoryModal('{{ booking.get('Số đặt phòng', '') }}', '{{ booking.get('Tên người đặt', 'N/A')|replace("'", "\\'") }}')"
+                                            title="Lịch sử chỉnh sửa">
+                                        <i class="fas fa-history"></i>
                                     </button>
                                     <button class="btn btn-sm btn-outline-danger px-2 py-1"
                                             onclick="quickCancelCalendarGuest('{{ booking.get('Số đặt phòng', '') }}', '{{ booking.get('Tên người đặt', 'N/A')|replace("'", "\\'") }}')"
@@ -1481,6 +1496,11 @@
                                                     onclick="openQuickEditModal('{{ booking.booking_id }}')"
                                                     title="Chỉnh sửa nhanh">
                                                 <i class="fas fa-edit"></i>
+                                            </button>
+                                            <button class="btn btn-sm btn-outline-secondary px-2 py-1"
+                                                    onclick="openHistoryModal('{{ booking.booking_id }}', '{{ booking.guest_name|replace("'", "\\'") }}')"
+                                                    title="Lịch sử chỉnh sửa">
+                                                <i class="fas fa-history"></i>
                                             </button>
                                             <button class="btn btn-sm btn-outline-danger px-2 py-1"
                                                     onclick="quickCancelCalendarGuest('{{ booking.booking_id }}', '{{ booking.guest_name|replace("'", "\\'") }}')"
@@ -4523,6 +4543,248 @@ async function loadArrivalTimes() {
     border:2px solid rgba(255,255,255,0.3);">
     📱 Mobile Check-in
 </a>
+
+<!-- ===== BOOKING HISTORY MODAL ===== -->
+<div id="historyModal" style="
+    display:none; position:fixed; inset:0; z-index:9100;
+    background:rgba(0,0,0,0.55); align-items:center; justify-content:center;">
+  <div style="
+      background:#fff; border-radius:14px; padding:0; max-width:560px;
+      width:94%; box-shadow:0 8px 40px rgba(0,0,0,0.32); position:relative;
+      max-height:90vh; display:flex; flex-direction:column;">
+
+    <!-- Header -->
+    <div style="background:linear-gradient(135deg,#1565c0,#0d47a1);border-radius:14px 14px 0 0;
+                padding:14px 18px;display:flex;justify-content:space-between;align-items:center;flex-shrink:0;">
+      <div>
+        <div style="font-weight:800;font-size:1rem;color:#fff;">
+          🕐 Lịch Sử Chỉnh Sửa
+        </div>
+        <div id="historyGuestName" style="font-size:0.8rem;color:rgba(255,255,255,0.75);margin-top:2px;"></div>
+      </div>
+      <button onclick="closeHistoryModal()" style="
+          background:rgba(255,255,255,0.15);border:none;color:#fff;
+          border-radius:50%;width:30px;height:30px;font-size:1.1rem;
+          cursor:pointer;display:flex;align-items:center;justify-content:center;">×</button>
+    </div>
+
+    <!-- Body: timeline -->
+    <div id="historyBody" style="overflow-y:auto;flex:1;padding:14px 18px;">
+      <div id="historyLoading" style="text-align:center;padding:30px;color:#888;">
+        <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
+        <div style="margin-top:8px;font-size:0.85rem;">Đang tải lịch sử...</div>
+      </div>
+      <div id="historyEmpty" style="display:none;text-align:center;padding:30px;color:#aaa;">
+        <i class="fas fa-inbox" style="font-size:2rem;"></i>
+        <div style="margin-top:8px;font-size:0.85rem;">Chưa có lịch sử chỉnh sửa nào</div>
+      </div>
+      <div id="historyList"></div>
+    </div>
+
+    <!-- Footer -->
+    <div style="border-top:1px solid #eee;padding:10px 18px;flex-shrink:0;
+                display:flex;justify-content:flex-end;">
+      <button onclick="closeHistoryModal()" style="
+          padding:7px 18px;background:#f5f5f5;border:1px solid #ddd;
+          border-radius:8px;font-size:0.85rem;cursor:pointer;font-weight:600;">
+        Đóng
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Password dialog for history delete -->
+<div id="historyPasswordModal" style="
+    display:none; position:fixed; inset:0; z-index:9200;
+    background:rgba(0,0,0,0.6); align-items:center; justify-content:center;">
+  <div style="background:#fff;border-radius:12px;padding:22px 24px;max-width:360px;
+              width:90%;box-shadow:0 8px 30px rgba(0,0,0,0.28);">
+    <div style="font-weight:800;font-size:0.95rem;color:#c62828;margin-bottom:10px;">
+      🔒 Nhập mật khẩu để xóa
+    </div>
+    <div style="font-size:0.8rem;color:#555;margin-bottom:12px;">
+      Bản ghi lịch sử không thể chỉnh sửa sau khi lưu. Chỉ có thể xóa bằng mật khẩu.
+    </div>
+    <input type="password" id="historyDeletePassword"
+           placeholder="Nhập mật khẩu..."
+           style="width:100%;border:2px solid #e0e0e0;border-radius:8px;
+                  padding:8px 12px;font-size:0.9rem;outline:none;box-sizing:border-box;"
+           onkeydown="if(event.key==='Enter') confirmDeleteHistory()">
+    <div id="historyPasswordError" style="display:none;color:#c62828;font-size:0.78rem;margin-top:6px;">
+      ❌ Mật khẩu không đúng. Vui lòng thử lại.
+    </div>
+    <div style="display:flex;gap:8px;margin-top:14px;">
+      <button onclick="confirmDeleteHistory()" style="
+          flex:2;padding:9px;background:#c62828;color:#fff;
+          border:none;border-radius:8px;font-weight:700;font-size:0.85rem;cursor:pointer;">
+        Xóa bản ghi
+      </button>
+      <button onclick="closePasswordModal()" style="
+          flex:1;padding:9px;background:#eee;color:#444;
+          border:none;border-radius:8px;font-weight:600;font-size:0.85rem;cursor:pointer;">
+        Hủy
+      </button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ===== HISTORY MODAL =====
+let _historyCurrentBookingId = null;
+let _historyPendingDeleteId = null;
+
+async function openHistoryModal(bookingId, guestName) {
+    _historyCurrentBookingId = bookingId;
+    document.getElementById('historyGuestName').textContent = guestName + ' · ' + bookingId;
+    document.getElementById('historyLoading').style.display = 'block';
+    document.getElementById('historyEmpty').style.display = 'none';
+    document.getElementById('historyList').innerHTML = '';
+
+    const modal = document.getElementById('historyModal');
+    modal.style.display = 'flex';
+
+    try {
+        const resp = await fetch('/api/booking/' + encodeURIComponent(bookingId) + '/history');
+        const data = await resp.json();
+        document.getElementById('historyLoading').style.display = 'none';
+
+        if (!data.success || !data.history || data.history.length === 0) {
+            document.getElementById('historyEmpty').style.display = 'block';
+            return;
+        }
+
+        const fieldIcons = {
+            'Tiền phòng': '💰', 'Tiền taxi': '🚖', 'Hoa hồng': '%',
+            'Số tiền đã thu': '✅', 'Người thu tiền': '👤',
+            'Ngày check-in': '📅', 'Ngày check-out': '📅',
+            'Tên khách': '👤', 'Phòng': '🏠', 'Ghi chú': '📝',
+            'Trạng thái hoa hồng': '🔖', 'Trạng thái booking': '🔖',
+        };
+
+        let html = '<div style="position:relative;">';
+        data.history.forEach(function(entry) {
+            const dt = entry.created_at ? new Date(entry.created_at) : null;
+            const timeStr = dt ? dt.toLocaleString('vi-VN', {
+                day:'2-digit', month:'2-digit', year:'numeric',
+                hour:'2-digit', minute:'2-digit', second:'2-digit'
+            }) : '';
+            const icon = fieldIcons[entry.field_name] || '✏️';
+            const byLabel = {
+                'edit_form': 'Sửa form', 'edit_amounts': 'Sửa số tiền',
+                'collect_payment': 'Thu tiền', 'commission_update': 'Cập nhật hoa hồng',
+                'system': 'Hệ thống'
+            }[entry.changed_by] || entry.changed_by;
+
+            html += `
+            <div data-hid="${entry.history_id}" style="
+                display:flex;gap:10px;margin-bottom:14px;align-items:flex-start;">
+              <!-- timeline dot -->
+              <div style="flex-shrink:0;width:34px;height:34px;border-radius:50%;
+                          background:#e3f2fd;border:2px solid #1565c0;
+                          display:flex;align-items:center;justify-content:center;
+                          font-size:0.9rem;">${icon}</div>
+              <!-- content -->
+              <div style="flex:1;background:#f8f9fa;border-radius:10px;
+                          border:1px solid #e9ecef;padding:9px 12px;">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+                  <span style="font-weight:700;font-size:0.85rem;color:#1565c0;">${entry.field_name}</span>
+                  <div style="display:flex;align-items:center;gap:6px;">
+                    <span style="font-size:0.7rem;color:#aaa;">${timeStr}</span>
+                    <button onclick="askDeleteHistory(${entry.history_id})"
+                            title="Xóa bản ghi này"
+                            style="background:none;border:none;cursor:pointer;
+                                   color:#ccc;font-size:0.8rem;padding:0 2px;
+                                   transition:color 0.15s;"
+                            onmouseover="this.style.color='#c62828'"
+                            onmouseout="this.style.color='#ccc'">
+                        <i class="fas fa-trash-alt"></i>
+                    </button>
+                  </div>
+                </div>
+                <div style="font-size:0.8rem;color:#555;line-height:1.5;">
+                  <span style="background:#ffebee;border-radius:4px;padding:1px 6px;
+                               color:#c62828;margin-right:4px;">
+                    Cũ: ${entry.old_value || '(trống)'}
+                  </span>
+                  →
+                  <span style="background:#e8f5e9;border-radius:4px;padding:1px 6px;
+                               color:#2e7d32;margin-left:4px;">
+                    Mới: ${entry.new_value || '(trống)'}
+                  </span>
+                </div>
+                <div style="font-size:0.7rem;color:#aaa;margin-top:4px;">
+                  Thao tác: ${byLabel}
+                </div>
+              </div>
+            </div>`;
+        });
+        html += '</div>';
+        document.getElementById('historyList').innerHTML = html;
+    } catch(e) {
+        document.getElementById('historyLoading').style.display = 'none';
+        document.getElementById('historyList').innerHTML =
+            '<div style="color:#c62828;text-align:center;padding:20px;">Lỗi tải lịch sử</div>';
+    }
+}
+
+function closeHistoryModal() {
+    document.getElementById('historyModal').style.display = 'none';
+    _historyCurrentBookingId = null;
+}
+
+function askDeleteHistory(historyId) {
+    _historyPendingDeleteId = historyId;
+    document.getElementById('historyDeletePassword').value = '';
+    document.getElementById('historyPasswordError').style.display = 'none';
+    document.getElementById('historyPasswordModal').style.display = 'flex';
+    setTimeout(function(){ document.getElementById('historyDeletePassword').focus(); }, 100);
+}
+
+function closePasswordModal() {
+    document.getElementById('historyPasswordModal').style.display = 'none';
+    _historyPendingDeleteId = null;
+}
+
+async function confirmDeleteHistory() {
+    const pwd = document.getElementById('historyDeletePassword').value;
+    document.getElementById('historyPasswordError').style.display = 'none';
+
+    try {
+        const resp = await fetch('/api/booking_history/' + _historyPendingDeleteId, {
+            method: 'DELETE',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({password: pwd})
+        });
+        const data = await resp.json();
+
+        if (data.success) {
+            closePasswordModal();
+            // Remove row from DOM
+            const row = document.querySelector('[data-hid="' + _historyPendingDeleteId + '"]');
+            if (row) row.remove();
+            // Check if empty
+            if (!document.querySelector('#historyList [data-hid]')) {
+                document.getElementById('historyEmpty').style.display = 'block';
+            }
+        } else {
+            document.getElementById('historyPasswordError').style.display = 'block';
+            document.getElementById('historyPasswordError').textContent =
+                data.message || '❌ Mật khẩu không đúng. Vui lòng thử lại.';
+        }
+    } catch(e) {
+        document.getElementById('historyPasswordError').style.display = 'block';
+        document.getElementById('historyPasswordError').textContent = '❌ Lỗi kết nối. Thử lại sau.';
+    }
+}
+
+// Close modals when clicking backdrop
+document.getElementById('historyModal').addEventListener('click', function(e){
+    if (e.target === this) closeHistoryModal();
+});
+document.getElementById('historyPasswordModal').addEventListener('click', function(e){
+    if (e.target === this) closePasswordModal();
+});
+</script>
 
 <!-- Cancel Notify Modal -->
 <div id="cancelNotifyModal" style="

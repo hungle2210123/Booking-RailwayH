@@ -6666,6 +6666,7 @@ def update_commission_status():
             update_data['commission'] = 0
             print(f"[UPDATE_COMMISSION] ⚠️ Setting commission to 0 (cancelled)")
 
+        record_booking_history(booking_id, update_data, changed_by='commission_update')
         success = update_booking(booking_id, update_data)
 
         if success:
@@ -6828,8 +6829,9 @@ def update_guest_amounts():
             print(f"[UPDATE_GUEST_AMOUNTS] Setting notes to: {edit_note}")
         
         print(f"[UPDATE_GUEST_AMOUNTS] Final update_data: {update_data}")
-        
+
         # Update the booking using core logic
+        record_booking_history(booking_id, update_data, changed_by='edit_amounts')
         success = update_booking(booking_id, update_data)
         
         if success:
@@ -6853,6 +6855,91 @@ def update_guest_amounts():
             'success': False,
             'message': f'Server error: {str(e)}'
         }), 500
+
+def record_booking_history(booking_id, update_data, changed_by='system'):
+    """Record changes to a booking into booking_history table."""
+    try:
+        from core.models import db, Booking, BookingHistory
+
+        booking = db.session.query(Booking).filter_by(booking_id=booking_id).first()
+        if not booking:
+            return
+
+        field_labels = {
+            'guest_name': 'Tên khách',
+            'accommodation_name': 'Phòng',
+            'rooms_occupied': 'Số phòng',
+            'checkin_date': 'Ngày check-in',
+            'checkout_date': 'Ngày check-out',
+            'room_amount': 'Tiền phòng',
+            'taxi_amount': 'Tiền taxi',
+            'commission': 'Hoa hồng',
+            'collected_amount': 'Số tiền đã thu',
+            'collector': 'Người thu tiền',
+            'commission_status': 'Trạng thái hoa hồng',
+            'booking_status': 'Trạng thái booking',
+            'booking_notes': 'Ghi chú',
+        }
+
+        for field, new_val in update_data.items():
+            old_val = getattr(booking, field, None)
+            old_str = str(old_val) if old_val is not None else ''
+            new_str = str(new_val) if new_val is not None else ''
+
+            if old_str == new_str:
+                continue
+
+            label = field_labels.get(field, field)
+            description = f"{label}: [{old_str}] → [{new_str}]"
+
+            entry = BookingHistory(
+                booking_id=booking_id,
+                field_name=label,
+                old_value=old_str,
+                new_value=new_str,
+                change_description=description,
+                changed_by=changed_by,
+            )
+            db.session.add(entry)
+
+        db.session.commit()
+    except Exception as e:
+        print(f"[HISTORY] Failed to record history for {booking_id}: {e}")
+
+
+@app.route('/api/booking/<booking_id>/history', methods=['GET'])
+def get_booking_history(booking_id):
+    """Get edit history for a booking."""
+    try:
+        from core.models import db, BookingHistory
+        entries = (db.session.query(BookingHistory)
+                   .filter_by(booking_id=booking_id)
+                   .order_by(BookingHistory.created_at.desc())
+                   .all())
+        return jsonify({'success': True, 'history': [e.to_dict() for e in entries]})
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
+@app.route('/api/booking_history/<int:history_id>', methods=['DELETE'])
+def delete_booking_history(history_id):
+    """Delete a history entry — requires password 001022."""
+    try:
+        from core.models import db, BookingHistory
+        data = request.get_json() or {}
+        if data.get('password') != '001022':
+            return jsonify({'success': False, 'message': 'Mật khẩu không đúng'}), 403
+
+        entry = db.session.query(BookingHistory).filter_by(history_id=history_id).first()
+        if not entry:
+            return jsonify({'success': False, 'message': 'Không tìm thấy bản ghi'}), 404
+
+        db.session.delete(entry)
+        db.session.commit()
+        return jsonify({'success': True, 'message': 'Đã xóa bản ghi lịch sử'})
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
+
 
 @app.route('/api/update_booking_comprehensive', methods=['POST'])
 def update_booking_comprehensive():
@@ -6931,6 +7018,7 @@ def update_booking_comprehensive():
         print(f"[UPDATE_BOOKING_COMPREHENSIVE] Final update_data: {update_data}")
 
         # Update the booking using core logic
+        record_booking_history(booking_id, update_data, changed_by='edit_form')
         success = update_booking(booking_id, update_data)
 
         if success:
@@ -7002,8 +7090,9 @@ def update_collected_amount():
             update_data['booking_notes'] = f"Thu tiền: {collected_amount:,.0f}đ bởi {collector_name}"
         
         print(f"[UPDATE_COLLECTED] 📊 Update data: {update_data}")
-        
+
         # Update the booking using core logic
+        record_booking_history(booking_id, update_data, changed_by='collect_payment')
         success = update_booking(booking_id, update_data)
         
         if success:
