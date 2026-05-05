@@ -2146,6 +2146,7 @@ def edit_booking(booking_id):
                 'accommodation_name': room_type  # Save room type to database
             }
             
+            record_booking_history(booking_id, update_data, changed_by='edit_form')
             if update_booking(booking_id, update_data):
                 # Cache removed - data will be fresh automatically
                 flash('Booking updated successfully!', 'success')
@@ -4188,6 +4189,7 @@ def quick_update_booking(booking_id):
             'accommodation_name': data.get('room_type')  # Add room type (accommodation_name field)
         }
 
+        record_booking_history(booking_id, update_data, changed_by='quick_edit')
         if update_booking(booking_id, update_data):
             return jsonify({'success': True, 'message': 'Booking updated successfully'})
         else:
@@ -6568,8 +6570,9 @@ def collect_payment():
             print(f"[COLLECT_PAYMENT] ✅ Room payment - collected: {collected_amount}, taxi_amount: {taxi_amount}, collector: {collector_name}")
         
         print(f"[COLLECT_PAYMENT] 📊 Final update_data: {update_data}")
-        
+
         # Update booking using the update_booking function
+        record_booking_history(booking_id, update_data, changed_by='collect_payment')
         success = update_booking(booking_id, update_data)
         
         if success:
@@ -6749,6 +6752,7 @@ def confirm_no_cancellation():
 
         print(f"[CONFIRM_NO_CANCELLATION] Setting commission_status='confirmed' for booking {booking_id}")
 
+        record_booking_history(booking_id, update_data, changed_by='commission_update')
         success = update_booking(booking_id, update_data)
 
         if success:
@@ -6857,9 +6861,17 @@ def update_guest_amounts():
         }), 500
 
 def record_booking_history(booking_id, update_data, changed_by='system'):
-    """Record changes to a booking into booking_history table."""
+    """Record field-level changes to a booking into booking_history table."""
     try:
         from core.models import db, Booking, BookingHistory
+        from decimal import Decimal
+        import sqlalchemy
+
+        # Auto-create table if not exists (safety for Railway first deploy)
+        try:
+            BookingHistory.__table__.create(db.engine, checkfirst=True)
+        except Exception:
+            pass
 
         booking = db.session.query(Booking).filter_by(booking_id=booking_id).first()
         if not booking:
@@ -6879,32 +6891,61 @@ def record_booking_history(booking_id, update_data, changed_by='system'):
             'commission_status': 'Trạng thái hoa hồng',
             'booking_status': 'Trạng thái booking',
             'booking_notes': 'Ghi chú',
+            'notes': 'Ghi chú',        # alias used in edit_booking form
+            'room_type': 'Phòng',      # alias used in quick_update
+            'status': 'Trạng thái booking',  # alias used in edit_booking form
+        }
+        # Fields that don't exist on Booking model → map to correct attribute
+        field_alias = {
+            'notes': 'booking_notes',
+            'room_type': 'accommodation_name',
+            'status': 'booking_status',
         }
 
+        def normalize(val):
+            """Convert to float-rounded string for numeric comparison."""
+            if val is None:
+                return ''
+            if isinstance(val, Decimal):
+                return str(round(float(val), 2))
+            if isinstance(val, float):
+                return str(round(val, 2))
+            return str(val).strip()
+
+        added = 0
         for field, new_val in update_data.items():
-            old_val = getattr(booking, field, None)
-            old_str = str(old_val) if old_val is not None else ''
-            new_str = str(new_val) if new_val is not None else ''
+            db_field = field_alias.get(field, field)
+            old_val = getattr(booking, db_field, None)
+
+            old_str = normalize(old_val)
+            new_str = normalize(new_val)
 
             if old_str == new_str:
                 continue
 
             label = field_labels.get(field, field)
-            description = f"{label}: [{old_str}] → [{new_str}]"
-
             entry = BookingHistory(
                 booking_id=booking_id,
                 field_name=label,
                 old_value=old_str,
                 new_value=new_str,
-                change_description=description,
+                change_description=f"{label}: [{old_str}] → [{new_str}]",
                 changed_by=changed_by,
             )
             db.session.add(entry)
+            added += 1
 
-        db.session.commit()
+        if added:
+            db.session.commit()
+            print(f"[HISTORY] Recorded {added} change(s) for {booking_id} by {changed_by}")
     except Exception as e:
         print(f"[HISTORY] Failed to record history for {booking_id}: {e}")
+        import traceback
+        traceback.print_exc()
+        try:
+            db.session.rollback()
+        except Exception:
+            pass
 
 
 @app.route('/api/history/all', methods=['GET'])
