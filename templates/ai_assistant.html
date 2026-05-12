@@ -100,18 +100,8 @@
                         <label for="addTemplateCategory" class="form-label">Danh mục <span class="text-danger">*</span></label>
                         <select class="form-select" id="addTemplateCategory" required>
                             <option value="">-- Chọn danh mục --</option>
-                            <option value="WELCOME">WELCOME</option>
-                            <option value="ARRIVAL">ARRIVAL</option>
-                            <option value="CHECK IN">CHECK IN</option>
-                            <option value="EARLY CHECK IN">EARLY CHECK IN</option>
-                            <option value="DON PHONG">DON PHONG</option>
-                            <option value="HET PHONG">HET PHONG</option>
-                            <option value="FEED BACK">FEED BACK</option>
-                            <option value="TAXI">TAXI</option>
-                            <option value="PARK">PARK</option>
-                            <option value="LAUNDRY">LAUNDRY</option>
-                            <option value="NOT BOOKING">NOT BOOKING</option>
-                            <option value="OTHER">Khác (nhập thủ công)</option>
+                            <!-- Populated dynamically from existing templates -->
+                            <option value="OTHER">➕ Tạo danh mục mới...</option>
                         </select>
                     </div>
                     
@@ -203,18 +193,8 @@
                         <label for="editTemplateCategory" class="form-label">Danh mục <span class="text-danger">*</span></label>
                         <select class="form-select" id="editTemplateCategory" required>
                             <option value="">-- Chọn danh mục --</option>
-                            <option value="WELCOME">WELCOME</option>
-                            <option value="ARRIVAL">ARRIVAL</option>
-                            <option value="CHECK IN">CHECK IN</option>
-                            <option value="EARLY CHECK IN">EARLY CHECK IN</option>
-                            <option value="DON PHONG">DON PHONG</option>
-                            <option value="HET PHONG">HET PHONG</option>
-                            <option value="FEED BACK">FEED BACK</option>
-                            <option value="TAXI">TAXI</option>
-                            <option value="PARK">PARK</option>
-                            <option value="LAUNDRY">LAUNDRY</option>
-                            <option value="NOT BOOKING">NOT BOOKING</option>
-                            <option value="OTHER">Khác (nhập thủ công)</option>
+                            <!-- Populated dynamically from existing templates -->
+                            <option value="OTHER">➕ Tạo danh mục mới...</option>
                         </select>
                     </div>
 
@@ -1480,35 +1460,64 @@ document.getElementById('manualBookingForm').addEventListener('submit', function
     };
     
     // Template management functions
+    /**
+     * Populate a category <select> with all actual categories from window.templates.
+     * Keeps "-- Chọn danh mục --" first and "➕ Tạo danh mục mới..." last.
+     * @param {string} selectId  - element id of the <select>
+     * @param {string} [selected] - pre-select this value (if it exists in list)
+     */
+    function populateCategoryDropdown(selectId, selected) {
+        const sel = document.getElementById(selectId);
+        if (!sel) return;
+
+        // Gather real categories from loaded templates
+        const cats = window.templates
+            ? [...new Set(window.templates.map(t => t.category).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'vi'))
+            : [];
+
+        // Rebuild: placeholder + real cats + "new" option
+        sel.innerHTML = '<option value="">-- Chọn danh mục --</option>';
+        cats.forEach(cat => {
+            const opt = document.createElement('option');
+            opt.value = cat;
+            opt.textContent = cat;
+            sel.appendChild(opt);
+        });
+        const newOpt = document.createElement('option');
+        newOpt.value = 'OTHER';
+        newOpt.textContent = '➕ Tạo danh mục mới...';
+        sel.appendChild(newOpt);
+
+        // Pre-select
+        if (selected) {
+            if (cats.includes(selected)) {
+                sel.value = selected;
+            } else if (selected && selected !== 'OTHER') {
+                // Category exists but maybe not loaded yet — add it temporarily
+                const tmpOpt = document.createElement('option');
+                tmpOpt.value = selected;
+                tmpOpt.textContent = selected;
+                sel.insertBefore(tmpOpt, newOpt);
+                sel.value = selected;
+            }
+        }
+    }
+
     window.showAddTemplateModal = function() {
         console.log('showAddTemplateModal called');
 
-        // Load existing categories into dropdown
-        const categorySelect = document.getElementById('addTemplateCategory');
-        if (categorySelect && window.templates) {
-            // Get unique categories from existing templates
-            const existingCategories = [...new Set(window.templates.map(t => t.category))].filter(Boolean);
+        // Populate dropdown with real categories
+        populateCategoryDropdown('addTemplateCategory');
 
-            // Clear existing options except default ones
-            const defaultOptions = categorySelect.querySelectorAll('option[value=""], option[value="WELCOME"], option[value="ARRIVAL"], option[value="CHECK IN"], option[value="EARLY CHECK IN"], option[value="DON PHONG"], option[value="HET PHONG"], option[value="FEED BACK"], option[value="TAXI"], option[value="PARK"], option[value="LAUNDRY"], option[value="NOT BOOKING"], option[value="OTHER"]');
+        // Reset form fields
+        document.getElementById('addTemplateForm').reset();
+        const customDiv = document.getElementById('customCategoryDiv');
+        if (customDiv) customDiv.style.display = 'none';
+        const customInput = document.getElementById('customCategory');
+        if (customInput) customInput.value = '';
 
-            // Only add standard uppercase categories — skip legacy custom ones (they use OTHER)
-            const STANDARD_CATS = new Set(['WELCOME','ARRIVAL','CHECK IN','EARLY CHECK IN','DON PHONG','HET PHONG','FEED BACK','TAXI','PARK','LAUNDRY','NOT BOOKING']);
-            existingCategories.forEach(category => {
-                if (STANDARD_CATS.has(category.toUpperCase())) return; // already in HTML
-                if (!STANDARD_CATS.has(category)) return;              // skip non-standard
-                if (!Array.from(categorySelect.options).some(opt => opt.value === category)) {
-                    const option = document.createElement('option');
-                    option.value = category;
-                    option.textContent = category;
-                    categorySelect.insertBefore(option, categorySelect.querySelector('option[value="OTHER"]'));
-                }
-            });
-        }
-
-        // ✅ FIX: Reuse existing modal instance instead of creating new one
-        const modalElement = document.getElementById('addTemplateModal');
-        const modal = bootstrap.Modal.getOrCreateInstance(modalElement);
+        // Show modal
+        const modal = bootstrap.Modal.getOrCreateInstance(document.getElementById('addTemplateModal'));
         modal.show();
     };
     
@@ -3375,43 +3384,27 @@ document.getElementById('manualBookingForm').addEventListener('submit', function
             return;
         }
 
-        // Get modal element
-        const modalElement = document.getElementById('editTemplateModal');
+        // Populate dropdown with real categories and pre-select this template's category
+        populateCategoryDropdown('editTemplateCategory', template.category);
 
-        // Reset custom category div
+        // Reset custom category fields
         const customDiv = document.getElementById('editCustomCategoryDiv');
-        if (customDiv) {
-            customDiv.style.display = 'none';
-        }
         const customCategoryInput = document.getElementById('editCustomCategory');
-        if (customCategoryInput) {
-            customCategoryInput.value = '';
-        }
+        if (customDiv) customDiv.style.display = 'none';
+        if (customCategoryInput) customCategoryInput.value = '';
 
-        // Fill form with template data
+        // Fill remaining form fields
         document.getElementById('editTemplateId').value = template.id;
-        document.getElementById('editTemplateCategory').value = template.category || '';
         document.getElementById('editTemplateLabel').value = template.label || '';
         document.getElementById('editTemplateMessage').value = template.content || '';
 
-        // Handle custom category
-        if (template.category && !['WELCOME', 'ARRIVAL', 'CHECK IN', 'EARLY CHECK IN', 'DON PHONG', 'HET PHONG', 'FEED BACK', 'TAXI', 'PARK', 'LAUNDRY', 'NOT BOOKING'].includes(template.category)) {
-            document.getElementById('editTemplateCategory').value = 'OTHER';
-            if (customCategoryInput) {
-                customCategoryInput.value = template.category;
-            }
-            if (customDiv) {
-                customDiv.style.display = 'block';
-            }
-        }
-
-        // ✅ FIX: Use getOrCreateInstance to reuse existing modal instead of aggressive cleanup
-        const modal = bootstrap.Modal.getOrCreateInstance(modalElement, {
-            backdrop: 'static',
-            keyboard: true
-        });
+        // Show modal
+        const modal = bootstrap.Modal.getOrCreateInstance(
+            document.getElementById('editTemplateModal'),
+            { backdrop: 'static', keyboard: true }
+        );
         modal.show();
-        console.log('✅ Modal opened successfully for template:', templateId);
+        console.log('✅ Edit modal opened for template:', templateId, '| category:', template.category);
     }
 
     async function saveTemplateEdit() {
