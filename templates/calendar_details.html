@@ -978,7 +978,7 @@
         <div class="col-lg-4 mb-4">
             <div class="section-header-compact" style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%);">
                 <span>🛬 Khách Check-in</span>
-                <span class="badge bg-light text-dark">{{ check_in|length }} khách</span>
+                <span class="badge bg-light text-dark" id="checkin-count-badge" title="Số khách đã xác nhận đến / tổng số">0 / {{ check_in|length }} xác nhận</span>
             </div>
             <div class="guest-cards-row" id="checkin-cards" data-date="{{ date_str }}">
                 {% if check_in %}
@@ -4168,6 +4168,8 @@ function toggleGuestStatus(btn, newStatus) {
 
     // Re-group cards in this section so card moves to correct group instantly
     if (sectionId) groupSection(sectionId);
+    // Update confirmed count badge
+    updateCheckinBadge();
     // Revenue section updates instantly to reflect new status
     recalculateRevenue();
 }
@@ -4240,6 +4242,25 @@ function groupSection(containerId) {
     });
 }
 
+// Update the "X / Y xác nhận" badge in the check-in section header
+function updateCheckinBadge() {
+    const badge = document.getElementById('checkin-count-badge');
+    if (!badge) return;
+    const container = document.getElementById('checkin-cards');
+    if (!container) return;
+    const total     = container.querySelectorAll('.guest-card').length;
+    const confirmed = container.querySelectorAll('.guest-card.status-confirmed').length;
+    badge.textContent = `${confirmed} / ${total} xác nhận`;
+    // Highlight badge when all/some confirmed
+    if (confirmed === 0) {
+        badge.className = 'badge bg-light text-dark';
+    } else if (confirmed === total) {
+        badge.className = 'badge bg-success text-white';
+    } else {
+        badge.className = 'badge bg-warning text-dark';
+    }
+}
+
 // Restore all statuses then regroup all sections
 // DB statuses take precedence (shared across all devices/browsers)
 document.addEventListener('DOMContentLoaded', () => {
@@ -4263,6 +4284,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (card) _applyStatus(card, bar, status);
     });
     ['checkin-cards','staying-cards','checkout-cards'].forEach(groupSection);
+    updateCheckinBadge();  // update confirmed count badge
     recalculateRevenue();  // initial render with localStorage statuses
 
     // ── STEP 2: Fetch DB statuses (DB wins over localStorage) ─────────────
@@ -4290,6 +4312,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (changed) {
                     ['checkin-cards','staying-cards','checkout-cards'].forEach(groupSection);
                 }
+                updateCheckinBadge();  // update confirmed count after DB sync
                 recalculateRevenue();  // recalc after DB statuses applied
             })
             .catch(() => {}); // silent fail — localStorage still works offline
