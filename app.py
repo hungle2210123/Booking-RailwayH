@@ -3862,16 +3862,21 @@ def calendar_details(date_str):
         # NOTE: Do NOT filter by checkout_date <= today. When viewing a historical date
         # (e.g. Apr 16 viewed on Apr 19), guests who checked out Apr 17/18/19 WERE
         # legitimately staying on Apr 16 and must appear in the historical record.
+        # Grace period: unconfirmed guests stay visible for 3 days after their check-in date
+        # before being treated as no-shows.  (Previously: 1 day.)
+        # Day 0 = check-in day, Day 1–2 = grace, Day 3+ = hidden.
+        _no_show_cutoff = _today_date - timedelta(days=2)
+
         def _guest_stays_over(g):
             bid = g.get('Số đặt phòng', '')
             st  = _all_status_map.get(bid)      # None when checkin_status IS NULL in DB
             if st == 'confirmed':  return True
             if st == 'cancelling': return False
-            # NULL = unconfirmed: exclude if their original check-in day has already passed
-            # (applies to past AND today views — user never clicked confirm = never arrived)
+            # NULL = unconfirmed: keep visible for 3 days after check-in date,
+            # then treat as no-show and hide from staying/checkout sections.
             try:
                 ci = g.get('Check-in Date')
-                if pd.notna(ci) and pd.Timestamp(ci).date() < _today_date:
+                if pd.notna(ci) and pd.Timestamp(ci).date() < _no_show_cutoff:
                     return False
             except Exception:
                 pass
@@ -3883,18 +3888,16 @@ def calendar_details(date_str):
             print(f"[calendar_details:{date_obj}] Removed no-show/cancelled from staying: {_removed}")
 
         # Filter check_out: guests marked 'cancelling' never actually arrived, so they
-        # cannot check out either.  Same rule applies to uncontacted guests whose
-        # check-in date has already passed (no-show) — they won't be physically checking out.
+        # cannot check out either.  Unconfirmed guests follow the same 3-day grace rule.
         def _guest_checks_out(g):
             bid = g.get('Số đặt phòng', '')
             st  = _all_status_map.get(bid)
             if st == 'cancelling': return False
             if st == 'confirmed':  return True
-            # NULL = unconfirmed: exclude if their original check-in day has already passed
-            # (same rule as staying_over — user never clicked confirm = never arrived)
+            # NULL = unconfirmed: same 3-day grace period as staying_over
             try:
                 ci = g.get('Check-in Date')
-                if pd.notna(ci) and pd.Timestamp(ci).date() < _today_date:
+                if pd.notna(ci) and pd.Timestamp(ci).date() < _no_show_cutoff:
                     return False
             except Exception:
                 pass
