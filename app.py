@@ -4177,16 +4177,11 @@ def mobile_payment_view():
                 ci_date = pd.Timestamp(ci).date() if pd.notna(ci) else _today
                 cs = str(row.get('checkin_status', '') or '')
 
-                # ONLY show guests who have physically arrived:
-                #   - Already checked in (ci_date < today): always show (they're there)
-                #   - Check-in is today AND host confirmed arrival (cs == 'confirmed')
-                #   - NEVER show future guests or today's unconfirmed check-ins
-                if cs == 'cancelling':
+                # ONLY show guests the host has explicitly confirmed as arrived.
+                # checkin_status = 'confirmed' is set via the mobile check-in page.
+                # NULL / 'cancelling' / any other value → skip, guest not confirmed.
+                if cs != 'confirmed':
                     continue
-                if ci_date > _today:
-                    continue  # hasn't arrived yet
-                if ci_date == _today and cs != 'confirmed':
-                    continue  # today but not yet confirmed by host
 
                 nights  = max((co_date - ci_date).days, 1)
                 amount     = float(row.get('Tổng thanh toán', 0) or 0)
