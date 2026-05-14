@@ -6,6 +6,7 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <title>💰 Thu Tiền</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
         body {
@@ -40,6 +41,30 @@
         .stat-n { font-size:1.3rem; font-weight:900; line-height:1; }
         .stat-l { font-size:0.56rem; font-weight:700; text-transform:uppercase; color:#666; margin-top:2px; }
         .c-red{color:#dc3545} .c-blue{color:#0d6efd} .c-green{color:#198754}
+
+        /* ══ CHART SECTION ══ */
+        .chart-section {
+            background: #fff; margin: 8px 8px 0;
+            border-radius: 12px; overflow: hidden;
+            border: 1px solid #e9ecef;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+        }
+        .chart-head {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: #fff; padding: 10px 14px;
+            display: flex; align-items: center; gap: 8px;
+        }
+        .chart-head-title { font-size: 0.82rem; font-weight: 800; flex: 1; }
+        .chart-head-sub   { font-size: 0.65rem; opacity: 0.85; }
+        .chart-summary {
+            display: grid; grid-template-columns: 1fr 1fr 1fr;
+            border-bottom: 1px solid #e9ecef;
+        }
+        .cs-cell { text-align: center; padding: 8px 4px; border-right: 1px solid #e9ecef; }
+        .cs-cell:last-child { border-right: none; }
+        .cs-val { font-size: 1rem; font-weight: 900; color: #764ba2; line-height: 1; }
+        .cs-lbl { font-size: 0.55rem; font-weight: 700; text-transform: uppercase; color: #888; margin-top: 2px; }
+        .chart-wrap { padding: 10px 10px 6px; position: relative; height: 160px; }
 
         /* ══ DATE COLUMNS SCROLL ══ */
         .dates-scroll {
@@ -282,6 +307,37 @@
     <div class="stat-cell"><div class="stat-n c-red" id="statUnpaid">{{ guest_count }}</div><div class="stat-l">Chưa thu</div></div>
     <div class="stat-cell"><div class="stat-n c-blue">{{ "{:,.0f}".format(total_unpaid // 1000) }}k</div><div class="stat-l">Tổng cần thu</div></div>
     <div class="stat-cell"><div class="stat-n c-green" id="statDone">0</div><div class="stat-l">Đã thu hôm nay</div></div>
+</div>
+
+<!-- ══ WEEKLY CHART ══ -->
+<div class="chart-section">
+    <div class="chart-head">
+        <i class="fas fa-chart-bar"></i>
+        <div>
+            <div class="chart-head-title">📊 Tổng thu 7 ngày qua</div>
+            <div class="chart-head-sub" id="chartDateRange">Đang tải...</div>
+        </div>
+        <button onclick="loadChart()" style="background:rgba(255,255,255,0.2);border:none;color:#fff;border-radius:8px;padding:4px 10px;font-size:0.65rem;font-weight:700;cursor:pointer;">
+            <i class="fas fa-sync-alt"></i>
+        </button>
+    </div>
+    <div class="chart-summary">
+        <div class="cs-cell">
+            <div class="cs-val" id="csTotalWeek">—</div>
+            <div class="cs-lbl">Tổng tuần</div>
+        </div>
+        <div class="cs-cell">
+            <div class="cs-val" id="csToday">—</div>
+            <div class="cs-lbl">Hôm nay</div>
+        </div>
+        <div class="cs-cell">
+            <div class="cs-val" id="csCount">—</div>
+            <div class="cs-lbl">Giao dịch</div>
+        </div>
+    </div>
+    <div class="chart-wrap">
+        <canvas id="weekChart"></canvas>
+    </div>
 </div>
 
 <!-- ══ DATE COLUMNS ══ -->
@@ -563,7 +619,112 @@ async function loadHistory(){
     s.addEventListener('touchend',e=>{const dy=e.changedTouches[0].clientY-sy;s.style.transform='';if(dy>110)closeSheet();d=false;});
 })();
 
-document.addEventListener('DOMContentLoaded',()=>{ tickTs(); renderDates(); loadHistory(); setInterval(loadHistory,30000); });
+// ── Weekly chart ──
+let _chart = null;
+
+async function loadChart() {
+    try {
+        const res  = await fetch('/api/payment_weekly_chart');
+        const data = await res.json();
+        if (!data.success) return;
+
+        const days = data.days;
+
+        // Summary cards
+        const todayData = days.find(d => d.is_today);
+        const fmt = v => v >= 1000000
+            ? (v/1000000).toFixed(1).replace(/\.0$/,'') + 'M'
+            : (v/1000).toFixed(0) + 'k';
+
+        document.getElementById('csTotalWeek').textContent = fmt(data.grand_total);
+        document.getElementById('csToday').textContent     = fmt(todayData ? todayData.total : 0);
+        document.getElementById('csCount').textContent     = data.grand_count;
+        document.getElementById('chartDateRange').textContent =
+            days[0].label + ' – ' + days[6].label;
+
+        // Colors: today = purple, has money = blue, zero = light grey
+        const bgColors = days.map(d =>
+            d.is_today  ? 'rgba(118,75,162,0.85)' :
+            d.total > 0 ? 'rgba(13,110,253,0.75)'  :
+                          'rgba(200,200,200,0.5)'
+        );
+        const borderColors = days.map(d =>
+            d.is_today  ? '#764ba2' :
+            d.total > 0 ? '#0d6efd' : '#ddd'
+        );
+
+        const labels = days.map(d => d.label + '\n' + d.day_name);
+        const values = days.map(d => d.total);
+
+        const ctx = document.getElementById('weekChart').getContext('2d');
+        if (_chart) _chart.destroy();
+
+        _chart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: days.map(d => [d.label, d.day_name]),
+                datasets: [{
+                    data:            values,
+                    backgroundColor: bgColors,
+                    borderColor:     borderColors,
+                    borderWidth:     2,
+                    borderRadius:    6,
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: ctx => {
+                                const v = ctx.raw;
+                                if (!v) return '  Chưa có';
+                                return '  ' + v.toLocaleString('vi-VN') + 'đ';
+                            },
+                            title: ctx => {
+                                const d = days[ctx[0].dataIndex];
+                                return d.label + ' (' + d.day_name + ')' + (d.is_today ? ' · Hôm nay' : '');
+                            }
+                        },
+                        backgroundColor: 'rgba(30,30,60,0.92)',
+                        titleFont:  { size: 11, weight: 'bold' },
+                        bodyFont:   { size: 12, weight: 'bold' },
+                        padding: 10, cornerRadius: 8,
+                    }
+                },
+                scales: {
+                    x: {
+                        grid: { display: false },
+                        ticks: {
+                            font: { size: 10, weight: '700' },
+                            color: ctx => days[ctx.index] && days[ctx.index].is_today ? '#764ba2' : '#555',
+                        }
+                    },
+                    y: {
+                        grid: { color: 'rgba(0,0,0,0.05)' },
+                        ticks: {
+                            font: { size: 9 },
+                            callback: v => v >= 1000000
+                                ? (v/1000000).toFixed(1)+'M'
+                                : v >= 1000 ? (v/1000).toFixed(0)+'k' : v,
+                        },
+                        beginAtZero: true,
+                    }
+                }
+            }
+        });
+    } catch(e) {
+        console.warn('Chart load failed:', e);
+    }
+}
+
+document.addEventListener('DOMContentLoaded',()=>{
+    tickTs(); renderDates(); loadHistory(); loadChart();
+    setInterval(loadHistory, 30000);
+    setInterval(loadChart,   60000);
+});
 </script>
 </body>
 </html>

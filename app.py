@@ -4303,6 +4303,64 @@ def payment_history_today():
         return jsonify({'success': False, 'message': str(e)}), 500
 
 
+@app.route('/api/payment_weekly_chart', methods=['GET'])
+def payment_weekly_chart():
+    """Return daily payment totals for the past 7 days (VN time), starting from today backwards."""
+    try:
+        from core.models import db as _wcdb, BookingHistory as _WBH, Booking as _WB
+        _vn_now = datetime.utcnow() + timedelta(hours=7)
+        _today  = _vn_now.date()
+
+        # Build 7-day window: today and 6 days back
+        days = [_today - timedelta(days=i) for i in range(6, -1, -1)]  # oldest → newest
+        day_strs = {d.strftime('%Y-%m-%d'): d for d in days}
+
+        # Fetch all payment entries in range (UTC: subtract 7h from oldest day start)
+        _oldest_utc = datetime.combine(days[0], __import__('datetime').time.min) - timedelta(hours=7)
+        entries = (
+            _wcdb.session.query(_WBH)
+            .filter(
+                _WBH.changed_by.in_(['collect_payment', 'mobile_payment']),
+                _WBH.field_name == 'Số tiền đã thu',
+                _WBH.created_at >= _oldest_utc
+            )
+            .all()
+        )
+
+        # Bucket by VN date
+        totals = {d.strftime('%Y-%m-%d'): 0.0 for d in days}
+        counts = {d.strftime('%Y-%m-%d'): 0   for d in days}
+        for e in entries:
+            if e.created_at:
+                vn_date = (e.created_at + timedelta(hours=7)).strftime('%Y-%m-%d')
+                if vn_date in totals:
+                    try:
+                        totals[vn_date] += float(e.new_value or 0)
+                        counts[vn_date] += 1
+                    except Exception:
+                        pass
+
+        result = []
+        for d in days:
+            iso = d.strftime('%Y-%m-%d')
+            result.append({
+                'date':     iso,
+                'label':    d.strftime('%d/%m'),
+                'day_name': ['CN','T2','T3','T4','T5','T6','T7'][d.weekday() % 7 if d.weekday() < 6 else 6],
+                'total':    totals[iso],
+                'count':    counts[iso],
+                'is_today': iso == _today.strftime('%Y-%m-%d'),
+            })
+
+        grand_total = sum(r['total'] for r in result)
+        grand_count = sum(r['count'] for r in result)
+        return jsonify({'success': True, 'days': result,
+                        'grand_total': grand_total, 'grand_count': grand_count})
+    except Exception as e:
+        import traceback; traceback.print_exc()
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
 # Quick Edit API Endpoints for Calendar Details Page
 @app.route('/api/booking/<booking_id>', methods=['GET'])
 def get_booking_details(booking_id):
