@@ -3,7 +3,6 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <title>💰 Thu Tiền</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -14,14 +13,15 @@
             background: #f1f3f4;
             color: #2c3e50;
             padding-bottom: 80px;
+            overflow-x: hidden;
         }
 
-        /* ══ HEADER — same gradient as calendar ══ */
+        /* ══ PAGE HEADER ══ */
         .page-header {
-            position: sticky; top: 0; z-index: 100;
+            position: sticky; top: 0; z-index: 200;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: #fff; padding: 10px 14px 8px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.18);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.20);
         }
         .header-row { display: flex; align-items: center; justify-content: space-between; }
         .header-back {
@@ -29,145 +29,240 @@
             background: rgba(255,255,255,0.2); border-radius: 20px; padding: 5px 12px;
         }
         .header-title { font-size: 1rem; font-weight: 800; text-align: center; }
-        .header-sub   { font-size: 0.68rem; opacity: 0.85; text-align: center; margin-top: 1px; }
+        .header-sub   { font-size: 0.66rem; opacity: 0.85; text-align: center; margin-top: 1px; }
         .header-badge {
             background: rgba(255,255,255,0.22); border-radius: 20px;
             padding: 4px 10px; font-size: 0.76rem; font-weight: 800; white-space: nowrap;
         }
 
-        /* ══ STATS BAR — same 3-col style ══ */
+        /* ══ STATS BAR ══ */
         .stats-bar {
             display: grid; grid-template-columns: repeat(3, 1fr);
             background: #fff; border-bottom: 2px solid #e9ecef;
-            box-shadow: 0 1px 4px rgba(0,0,0,0.07);
         }
-        .stat-cell { text-align: center; padding: 8px 4px; border-right: 1px solid #e9ecef; }
+        .stat-cell { text-align: center; padding: 7px 4px; border-right: 1px solid #e9ecef; }
         .stat-cell:last-child { border-right: none; }
-        .stat-n { font-size: 1.35rem; font-weight: 900; line-height: 1; }
-        .stat-l { font-size: 0.57rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: #666; margin-top: 2px; }
+        .stat-n { font-size: 1.3rem; font-weight: 900; line-height: 1; }
+        .stat-l { font-size: 0.56rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px; color: #666; margin-top: 2px; }
         .c-red   { color: #dc3545; }
         .c-blue  { color: #0d6efd; }
         .c-green { color: #198754; }
 
-        /* ══ SECTION STRIP — same as .calendar-header ══ */
-        .sec-strip {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: #fff; padding: 7px 14px;
-            font-size: 0.72rem; font-weight: 800; letter-spacing: 0.8px;
-            text-transform: uppercase;
-            display: flex; align-items: center; gap: 8px;
-            margin-top: 8px;
+        /* ══ WEEK NAVIGATOR (sticky below header) ══ */
+        .week-nav {
+            position: sticky; top: 57px; z-index: 190;
+            background: #fff;
+            border-bottom: 2px solid #dee2e6;
+            display: flex; align-items: center; gap: 0;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.08);
         }
-        .sec-strip.s-red    { background: linear-gradient(135deg, #dc3545, #c0392b); }
-        .sec-strip.s-orange { background: linear-gradient(135deg, #fd7e14, #e65100); }
-        .sec-strip.s-blue   { background: linear-gradient(135deg, #0d6efd, #0a58ca); }
-        .s-pill {
+        .wn-btn {
+            flex: 0 0 40px; height: 44px;
+            background: none; border: none; cursor: pointer;
+            font-size: 1.3rem; color: #764ba2; font-weight: 900;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .wn-btn:active { background: #f3e5f5; }
+        .wn-range {
+            flex: 1; text-align: center;
+            font-size: 0.76rem; font-weight: 800; color: #333;
+        }
+        .wn-today {
+            flex: 0 0 64px; height: 44px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            border: none; border-radius: 0;
+            color: #fff; font-size: 0.7rem; font-weight: 800;
+            cursor: pointer;
+        }
+        .wn-today:active { opacity: 0.8; }
+
+        /* ══ WEEK GRID SCROLL WRAPPER ══ */
+        .week-scroll {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            padding-bottom: 4px;
+            background: #f1f3f4;
+            /* hide scrollbar but keep scrollable */
+            scrollbar-width: thin;
+            scrollbar-color: #c8b6e2 #f1f3f4;
+        }
+        .week-scroll::-webkit-scrollbar { height: 4px; }
+        .week-scroll::-webkit-scrollbar-track { background: #f1f3f4; }
+        .week-scroll::-webkit-scrollbar-thumb { background: #c8b6e2; border-radius: 2px; }
+
+        /* ══ 7-COLUMN GRID ══ */
+        .week-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 120px);
+            gap: 0;
+            min-width: calc(7 * 120px);
+            padding: 8px 6px 6px;
+            align-items: start;
+        }
+
+        /* ══ DAY COLUMN ══ */
+        .day-col {
+            display: flex; flex-direction: column;
+            gap: 5px;
+            padding: 0 4px;
+        }
+
+        /* Day header — mirrors .calendar-day date-number area */
+        .day-header {
+            text-align: center;
+            padding: 6px 4px 8px;
+            border-radius: 8px 8px 0 0;
+            background: #fff;
+            border: 1px solid #e9ecef;
+            border-bottom: 3px solid #e9ecef;
+            margin-bottom: 0;
+            cursor: default;
+        }
+        .day-col.today .day-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-color: #764ba2;
+            color: #fff;
+        }
+        .day-num {
+            font-size: 1.6rem; font-weight: 900; line-height: 1; display: block;
+            color: #2c3e50;
+        }
+        .day-col.today .day-num { color: #fff; }
+        .day-name {
+            font-size: 0.62rem; font-weight: 700; text-transform: uppercase;
+            letter-spacing: 0.6px; color: #888; display: block; margin-top: 1px;
+        }
+        .day-col.today .day-name { color: rgba(255,255,255,0.85); }
+        .day-count-badge {
+            display: inline-block; background: #dc3545; color: #fff;
+            border-radius: 10px; padding: 1px 6px;
+            font-size: 0.6rem; font-weight: 800; margin-top: 3px;
+        }
+        .day-col.today .day-count-badge { background: rgba(255,255,255,0.3); }
+        .day-empty {
+            background: #fff; border: 1px dashed #dee2e6;
+            border-radius: 6px; height: 36px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 0.6rem; color: #ccc;
+        }
+
+        /* ══ MINI GUEST CARD ══ */
+        .mini-card {
+            background: #fff;
+            border: 1px solid #e9ecef;
+            border-radius: 8px;
+            overflow: hidden;
+            cursor: pointer;
+            transition: box-shadow 0.15s, transform 0.15s;
+            position: relative;
+        }
+        .mini-card:active {
+            transform: scale(0.97);
+            box-shadow: 0 2px 12px rgba(0,0,0,0.15);
+        }
+
+        /* Top color bar = room color (like calendar apt left border) */
+        .mini-top-bar {
+            height: 4px; width: 100%;
+        }
+
+        /* Card body */
+        .mini-body { padding: 6px 7px 5px; }
+
+        /* Status badge (small) */
+        .mini-badge {
+            display: inline-block; border-radius: 8px;
+            padding: 2px 6px; font-size: 0.56rem; font-weight: 800;
+            margin-bottom: 4px;
+        }
+        .mb-red    { background: #dc3545; color: #fff; }
+        .mb-orange { background: #fd7e14; color: #fff; }
+        .mb-blue   { background: #0d6efd; color: #fff; }
+        .mb-purple { background: #764ba2; color: #fff; }
+        .mb-green  { background: #198754; color: #fff; }
+
+        /* Guest name */
+        .mini-name {
+            font-size: 0.76rem; font-weight: 800; color: #1a1a2e;
+            overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+            line-height: 1.2; margin-bottom: 2px;
+        }
+        /* Room */
+        .mini-room {
+            font-size: 0.62rem; color: #666; font-weight: 600;
+            overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+            margin-bottom: 3px;
+        }
+
+        /* Revenue total area — green, like .revenue-total */
+        .mini-rev {
+            background: rgba(40,167,69,0.10);
+            border-top: 1px solid rgba(40,167,69,0.20);
+            padding: 4px 7px;
+            display: flex; align-items: center; justify-content: space-between;
+        }
+        .mini-rev-lbl { font-size: 0.54rem; color: #28a745; font-weight: 700; }
+        .mini-rev-amt { font-size: 0.78rem; font-weight: 900; color: #28a745; }
+        .mini-rev-amt.warn { color: #dc3545; }
+
+        /* Nights dot row */
+        .mini-nights {
+            font-size: 0.58rem; color: #999; font-weight: 600; margin-bottom: 3px;
+        }
+
+        /* ══ OUTSIDE-WEEK SECTION ══ */
+        .outside-sec {
+            margin: 10px 8px 4px;
+            background: #fff;
+            border: 1px solid #e9ecef;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        .outside-head {
+            background: linear-gradient(135deg, #546e7a, #37474f);
+            color: #fff; padding: 8px 14px;
+            font-size: 0.72rem; font-weight: 800;
+            display: flex; align-items: center; gap: 8px;
+        }
+        .outside-head .s-pill {
             background: rgba(255,255,255,0.28); border-radius: 20px;
             padding: 1px 8px; font-size: 0.66rem; font-weight: 800; margin-left: auto;
         }
+        .outside-list { padding: 6px 8px; display: flex; flex-direction: column; gap: 6px; }
 
-        /* ══ CALENDAR-DAY CARD — full width, vertical stack ══ */
-        .cal-card {
-            /* exact copy of .calendar-day */
-            border: 1px solid #e9ecef;
-            background: white;
-            position: relative;
-            transition: all 0.2s ease;
-            cursor: pointer;
-
-            /* full-width, no rounding (matches calendar grid) */
-            border-left: none; border-right: none;
-            border-top: none;
-            border-bottom: 1px solid #e9ecef;
+        /* Outside-week card = full-width mini-card variant */
+        .mini-card-wide {
+            background: #fff; border: 1px solid #e9ecef; border-radius: 8px;
+            overflow: hidden; cursor: pointer;
+            display: flex; align-items: stretch;
+            transition: box-shadow 0.15s;
         }
-        .cal-card:first-child { border-top: 1px solid #e9ecef; }
-        .cal-card:active {
-            background: #f8f9fa;
-            box-shadow: inset 0 2px 8px rgba(0,0,0,0.1);
+        .mini-card-wide:active { box-shadow: 0 2px 12px rgba(0,0,0,0.15); }
+        .mcw-bar { width: 4px; flex: none; }
+        .mcw-body {
+            flex: 1; padding: 7px 10px;
+            display: flex; align-items: center; gap: 8px; min-width: 0;
         }
-
-        /* Urgency left stripe (4px) */
-        .cal-card.u-red    { border-left: 4px solid #dc3545 !important; }
-        .cal-card.u-orange { border-left: 4px solid #fd7e14 !important; }
-        .cal-card.u-blue   { border-left: 4px solid #0d6efd !important; }
-        .cal-card.u-purple { border-left: 4px solid #764ba2 !important; }
-
-        /* day-link equivalent: inner padding */
-        .card-inner {
-            padding: 9px 12px 0;
-            display: flex; flex-direction: column;
-        }
-
-        /* ── Row 1: Status badge (left) + Amount (right, like .date-number) ── */
-        .card-top {
-            display: flex; align-items: center; justify-content: space-between;
-            margin-bottom: 6px;
-        }
-        /* .status-badge — exact copy */
-        .status-badge {
-            padding: 4px 10px; border-radius: 12px;
-            font-size: 0.72rem; font-weight: 700; text-align: center;
-        }
-        .sb-red    { background: #dc3545; color: #fff; }
-        .sb-orange { background: #fd7e14; color: #fff; }
-        .sb-blue   { background: #0d6efd; color: #fff; }
-        .sb-purple { background: #764ba2; color: #fff; }
-
-        /* .date-number equivalent = amount */
-        .card-amount {
-            font-size: 1.15rem; font-weight: 700; color: #2c3e50; text-align: right;
-        }
-        .card-amount.warn { color: #c0392b; }
-
-        /* ── Row 2+3: Apartment-row style (3px colored left border) ── */
-        .apt-row {
-            display: flex; align-items: center; gap: 5px;
-            padding-left: 5px; margin-bottom: 4px;
-        }
-        .apt-name {
-            font-size: 0.78rem; font-weight: 700;
-            flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-        }
-        .apt-meta {
-            font-size: 0.7rem; color: #555; font-weight: 600; white-space: nowrap;
-            display: flex; align-items: center; gap: 6px;
-        }
-
-        /* ── Revenue Total — exact copy of .revenue-total ── */
-        .revenue-total {
-            text-align: center;
-            margin-top: 6px;
-            padding: 5px 8px;
-            background: rgba(40,167,69,0.10);
-            border-radius: 4px;
-            border: 1px solid rgba(40,167,69,0.20);
-            line-height: 1.4;
-            margin-bottom: 9px;
-            display: flex; align-items: center; justify-content: space-between;
-        }
-        .rev-label {
-            font-size: 0.68rem; color: #28a745; font-weight: 700;
-            display: flex; align-items: center; gap: 4px;
-        }
-        .rev-amount {
-            font-size: 0.95rem; font-weight: 900; color: #28a745;
-        }
-        .rev-amount.warn { color: #c0392b; }
-        .rev-comm {
-            font-size: 0.6rem; color: #6c757d; font-weight: 600; text-align: right;
-        }
+        .mcw-info { flex: 1; min-width: 0; }
+        .mcw-name { font-size: 0.82rem; font-weight: 800; color: #1a1a2e;
+                    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .mcw-meta { font-size: 0.63rem; color: #666; margin-top: 2px;
+                    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .mcw-amt  { font-size: 0.85rem; font-weight: 900; color: #28a745; white-space: nowrap; }
+        .mcw-date { font-size: 0.62rem; color: #764ba2; font-weight: 800; white-space: nowrap; text-align: center; }
 
         /* ══ EMPTY STATE ══ */
         .empty-wrap {
             background: #fff; text-align: center; padding: 50px 20px;
-            border: 1px solid #e9ecef; margin-top: 8px;
+            margin: 12px 8px; border-radius: 12px;
+            border: 1px solid #e9ecef;
         }
-        .empty-wrap .ico { font-size: 3.5rem; margin-bottom: 10px; }
-        .empty-wrap h3   { font-size: 1.05rem; font-weight: 800; color: #2e7d32; }
-        .empty-wrap p    { font-size: 0.8rem; color: #888; margin-top: 4px; }
+        .empty-wrap .ico { font-size: 3rem; margin-bottom: 10px; }
+        .empty-wrap h3   { font-size: 1rem; font-weight: 800; color: #2e7d32; }
+        .empty-wrap p    { font-size: 0.78rem; color: #888; margin-top: 4px; }
 
-        /* ══ HISTORY TABLE ══ */
-        .hist-wrap { background: #fff; border-top: 3px solid #764ba2; margin-top: 10px; }
+        /* ══ HISTORY ══ */
+        .hist-wrap { background: #fff; margin: 10px 8px 8px; border-radius: 10px; overflow: hidden; border: 1px solid #e9ecef; }
         .hist-head {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: #fff; padding: 8px 14px;
@@ -270,60 +365,7 @@
 </head>
 <body>
 
-{# ── room → color (matches calendar apt colors) ── #}
-{% macro rc(room) %}{% set rl = room.lower() %}{% if '118' in rl or 'hang bac' in rl %}#1976D2{% elif 'hang be 101' in rl %}#2E7D32{% elif 'hang be 102' in rl %}#7B1FA2{% elif 'kitchen' in rl %}#E64A19{% elif 'night market' in rl or 'hoi vu' in rl or 'hội vũ' in rl or '25 hoi' in rl %}#00838F{% else %}#F57F17{% endif %}{% endmacro %}
-
-{# ── single card macro ── #}
-{% macro render_card(g, urgency_class, badge_class, badge_text) %}
-{% set color = rc(g.room)|trim %}
-<div class="cal-card {{ urgency_class }}" id="card-{{ g.id }}"
-     onclick="openSheet('{{ g.id }}','{{ g.name|replace("'","\\'")|replace('"','&quot;') }}','{{ g.room|replace("'","\\'")|replace('"','&quot;') }}','{{ g.checkin_display }}','{{ g.checkout_display }}',{{ g.nights }},{{ g.amount|int }},{{ g.commission|int }})">
-    <div class="card-inner">
-
-        {# Row 1: Status badge left · Amount right (= .date-number) #}
-        <div class="card-top">
-            <span class="status-badge {{ badge_class }}">{{ badge_text }}</span>
-            <span class="card-amount {% if g.commission > 0 %}warn{% endif %}">
-                {{ "{:,.0f}".format(g.amount) }}đ
-            </span>
-        </div>
-
-        {# Row 2: Guest name — apartment-row style with room color #}
-        <div class="apt-row" style="border-left: 3px solid {{ color }};">
-            <span class="apt-name" style="color:{{ color }}; font-size:0.9rem;">
-                {{ g.name }}
-            </span>
-            <span class="apt-meta">
-                <i class="fas fa-users" style="font-size:0.62rem;"></i> {{ g.nights }} đêm
-            </span>
-        </div>
-
-        {# Row 3: Room + dates — second apartment row #}
-        <div class="apt-row" style="border-left: 3px solid {{ color }}; opacity:0.75;">
-            <span class="apt-name" style="font-weight:600; color:#555;">🏠 {{ g.room }}</span>
-            <span class="apt-meta">📅 {{ g.checkin_display }} → {{ g.checkout_display }}</span>
-        </div>
-
-        {# Revenue total — exact .revenue-total style #}
-        <div class="revenue-total">
-            <div class="rev-label">
-                <i class="fas fa-hand-holding-usd"></i> Cần thu
-            </div>
-            <div style="text-align:right;">
-                <div class="rev-amount {% if g.commission > 0 %}warn{% endif %}">
-                    {{ "{:,.0f}".format(g.amount) }}đ
-                </div>
-                {% if g.commission > 0 %}
-                <div class="rev-comm">Hoa hồng: -{{ "{:,.0f}".format(g.commission) }}đ · Thực thu: {{ "{:,.0f}".format(g.amount - g.commission) }}đ</div>
-                {% endif %}
-            </div>
-        </div>
-
-    </div>
-</div>
-{% endmacro %}
-
-<!-- ══ HEADER ══ -->
+<!-- ══ PAGE HEADER ══ -->
 <div class="page-header">
     <div class="header-row">
         <a class="header-back" href="/calendar"><i class="fas fa-arrow-left"></i> Lịch</a>
@@ -351,44 +393,28 @@
     </div>
 </div>
 
-<!-- ══ CARDS ══ -->
-{% if unpaid_guests %}
+<!-- ══ WEEK NAVIGATOR ══ -->
+<div class="week-nav">
+    <button class="wn-btn" onclick="changeWeek(-1)">‹</button>
+    <span class="wn-range" id="wnRange">—</span>
+    <button class="wn-btn" onclick="changeWeek(+1)">›</button>
+    <button class="wn-today" onclick="goToday()">Hôm nay</button>
+</div>
 
-    {# Trả phòng hôm nay #}
-    {% set g0 = [] %}{% for g in unpaid_guests %}{% if g.label=='checkout_today' %}{% if g0.append(g) %}{% endif %}{% endif %}{% endfor %}
-    {% if g0 %}
-    <div class="sec-strip s-red"><i class="fas fa-sign-out-alt"></i> 🚨 Trả phòng hôm nay<span class="s-pill">{{ g0|length }}</span></div>
-    {% for g in g0 %}{{ render_card(g, 'u-red', 'sb-red', '🚨 Trả hôm nay') }}{% endfor %}
-    {% endif %}
+<!-- ══ WEEK GRID ══ -->
+<div class="week-scroll" id="weekScrollArea">
+    <div class="week-grid" id="weekGrid"><!-- rendered by JS --></div>
+</div>
 
-    {# Đang ở #}
-    {% set g1 = [] %}{% for g in unpaid_guests %}{% if g.label=='staying' %}{% if g1.append(g) %}{% endif %}{% endif %}{% endfor %}
-    {% if g1 %}
-    <div class="sec-strip"><i class="fas fa-bed"></i> 🏠 Đang ở — chưa thu<span class="s-pill">{{ g1|length }}</span></div>
-    {% for g in g1 %}{{ render_card(g, 'u-purple', 'sb-purple', 'Đang ở') }}{% endfor %}
-    {% endif %}
+<!-- ══ OUTSIDE-WEEK GUESTS ══ -->
+<div id="outsideArea"></div>
 
-    {# Check-in hôm nay #}
-    {% set g2 = [] %}{% for g in unpaid_guests %}{% if g.label=='checkin_today' %}{% if g2.append(g) %}{% endif %}{% endif %}{% endfor %}
-    {% if g2 %}
-    <div class="sec-strip s-blue"><i class="fas fa-sign-in-alt"></i> ✅ Check-in hôm nay<span class="s-pill">{{ g2|length }}</span></div>
-    {% for g in g2 %}{{ render_card(g, 'u-blue', 'sb-blue', '📥 Check-in') }}{% endfor %}
-    {% endif %}
-
-    {# Trả phòng ngày mai #}
-    {% set g3 = [] %}{% for g in unpaid_guests %}{% if g.label=='checkout_tomorrow' %}{% if g3.append(g) %}{% endif %}{% endif %}{% endfor %}
-    {% if g3 %}
-    <div class="sec-strip s-orange"><i class="fas fa-clock"></i> ⚠️ Trả phòng ngày mai<span class="s-pill">{{ g3|length }}</span></div>
-    {% for g in g3 %}{{ render_card(g, 'u-orange', 'sb-orange', '⚠️ Ngày mai') }}{% endfor %}
-    {% endif %}
-
-{% else %}
-    <div class="empty-wrap">
-        <div class="ico">🎉</div>
-        <h3>Không có khách nào cần thu tiền</h3>
-        <p>Chỉ hiển thị khách đã xác nhận đến hoặc đang ở.</p>
-    </div>
-{% endif %}
+<!-- ══ EMPTY STATE ══ -->
+<div id="emptyState" style="display:none" class="empty-wrap">
+    <div class="ico">🎉</div>
+    <h3>Không có khách nào cần thu tiền</h3>
+    <p>Chỉ hiển thị khách đã xác nhận đến hoặc đang ở.</p>
+</div>
 
 <!-- ══ HISTORY ══ -->
 <div class="hist-wrap">
@@ -401,7 +427,7 @@
     </div>
 </div>
 
-<!-- ══ OVERLAY + SHEET ══ -->
+<!-- ══ OVERLAY + BOTTOM SHEET ══ -->
 <div class="overlay" id="overlay" onclick="closeSheet()"></div>
 <div class="sheet" id="sheet">
     <div class="sh-handle"></div>
@@ -431,128 +457,352 @@
 <div class="toast" id="toast"></div>
 
 <script>
-let _bid='', _coll='', _done=0;
+// ── All guests from backend ──
+const ALL_GUESTS = {{ unpaid_guests | tojson }};
 
-function openSheet(id,name,room,ci,co,nights,amount,commission){
-    _bid=id; _coll='';
-    name=name.replace(/&quot;/g,'"'); room=room.replace(/&quot;/g,'"');
-    document.getElementById('shName').textContent=name;
-    document.getElementById('shMeta').textContent=room+'  ·  '+ci+' → '+co+'  ·  '+nights+' đêm';
-    const net=commission>0?amount-commission:amount;
-    document.getElementById('shAmt').textContent=
-        amount.toLocaleString('vi-VN')+'đ'+
-        (commission>0?'  →  Thực thu: '+net.toLocaleString('vi-VN')+'đ':'');
-    document.getElementById('inpAmt').value=amount;
-    document.getElementById('inpNote').value='';
+// ── Room → color map (matches calendar apt colors) ──
+function roomColor(room) {
+    const r = (room || '').toLowerCase();
+    if (r.includes('118') || r.includes('hang bac') || r.includes('hàng bạc') || r.includes('ban cong hang bac')) return '#1976D2';
+    if (r.includes('hang be 101') || r.includes('hàng bè 101') || r.includes('101')) return '#2E7D32';
+    if (r.includes('hang be 102') || r.includes('hàng bè 102') || r.includes('102')) return '#7B1FA2';
+    if (r.includes('kitchen') || r.includes('bếp') || r.includes('ban cong') || r.includes('balcon')) return '#E64A19';
+    if (r.includes('night market') || r.includes('hoi vu') || r.includes('hội vũ') || r.includes('sofa')) return '#00838F';
+    if (r.includes('two-bedroom') || r.includes('2 bed') || r.includes('double')) return '#558B2F';
+    return '#F57F17';
+}
+
+// ── VN day names ──
+const VN_DAYS = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
+
+// ── Week state ──
+let weekOffset = 0; // 0 = current week, -1 = previous, +1 = next
+
+// ── Get Monday of the week containing `date` ──
+function getMonday(date) {
+    const d = new Date(date);
+    const dow = d.getDay(); // 0=Sun
+    const diff = dow === 0 ? -6 : 1 - dow;
+    d.setDate(d.getDate() + diff);
+    d.setHours(0,0,0,0);
+    return d;
+}
+
+// ── Format date as YYYY-MM-DD ──
+function toISO(d) {
+    return d.getFullYear() + '-' +
+           String(d.getMonth()+1).padStart(2,'0') + '-' +
+           String(d.getDate()).padStart(2,'0');
+}
+
+// ── Badge classes by label ──
+function badgeClass(label) {
+    if (label === 'checkout_today')    return ['mb-red',    '🚨 Trả hôm nay'];
+    if (label === 'checkout_tomorrow') return ['mb-orange',  '⚠️ Ngày mai'];
+    if (label === 'checkin_today')     return ['mb-blue',    '📥 Check-in'];
+    return ['mb-purple', '🏠 Đang ở'];
+}
+
+// ── Build mini card HTML ──
+function miniCardHTML(g, wide) {
+    const color = roomColor(g.room);
+    const [bc, bt] = badgeClass(g.label);
+    const amt = Math.round(g.amount);
+    const comm = Math.round(g.commission || 0);
+    const warnClass = comm > 0 ? ' warn' : '';
+    const onclick = `openSheet('${g.id}','${(g.name||'').replace(/'/g,"\\'")}','${(g.room||'').replace(/'/g,"\\'")}','${g.checkin_display}','${g.checkout_display}',${g.nights},${amt},${comm})`;
+
+    if (wide) {
+        // Full-width card for outside-week section
+        return `<div class="mini-card-wide" id="card-${g.id}" onclick="${onclick}">
+            <div class="mcw-bar" style="background:${color}"></div>
+            <div class="mcw-body">
+                <div class="mcw-info">
+                    <div class="mcw-name">${g.name||'—'}</div>
+                    <div class="mcw-meta">🏠 ${g.room} · ${g.checkin_display}→${g.checkout_display} · ${g.nights}đêm</div>
+                </div>
+                <div style="text-align:right">
+                    <div class="mcw-date">📅 ${g.checkout_display}</div>
+                    <div class="mcw-amt${warnClass}">${amt.toLocaleString('vi-VN')}đ</div>
+                </div>
+            </div>
+        </div>`;
+    }
+
+    // Compact card for week grid
+    return `<div class="mini-card" id="card-${g.id}" onclick="${onclick}">
+        <div class="mini-top-bar" style="background:${color}"></div>
+        <div class="mini-body">
+            <span class="mini-badge ${bc}">${bt}</span>
+            <div class="mini-name">${g.name||'—'}</div>
+            <div class="mini-room">${g.room||''}</div>
+            <div class="mini-nights">${g.checkin_display}→${g.checkout_display} · ${g.nights}đêm</div>
+        </div>
+        <div class="mini-rev">
+            <span class="mini-rev-lbl">💰 Cần thu</span>
+            <span class="mini-rev-amt${warnClass}">${(amt/1000).toFixed(0)}k</span>
+        </div>
+    </div>`;
+}
+
+// ── Main render function ──
+function renderWeek() {
+    const today = new Date(); today.setHours(0,0,0,0);
+    const todayISO = toISO(today);
+
+    const baseMonday = getMonday(today);
+    baseMonday.setDate(baseMonday.getDate() + weekOffset * 7);
+
+    const days = [];
+    for (let i = 0; i < 7; i++) {
+        const d = new Date(baseMonday);
+        d.setDate(baseMonday.getDate() + i);
+        days.push(d);
+    }
+
+    // Date range for this week
+    const wStart = toISO(days[0]);
+    const wEnd   = toISO(days[6]);
+
+    // Update week range label
+    const fmt = d => `${d.getDate()}/${d.getMonth()+1}`;
+    document.getElementById('wnRange').textContent =
+        `${fmt(days[0])} – ${fmt(days[6])}/${days[6].getFullYear()}`;
+
+    // Split guests: in-week vs outside-week
+    const inWeek  = {};  // dateISO → [guest, ...]
+    const outside = [];
+    days.forEach(d => { inWeek[toISO(d)] = []; });
+
+    for (const g of ALL_GUESTS) {
+        const key = g.checkout; // YYYY-MM-DD
+        if (inWeek.hasOwnProperty(key)) {
+            inWeek[key].push(g);
+        } else {
+            outside.push(g);
+        }
+    }
+
+    // ── Render 7 day columns ──
+    const grid = document.getElementById('weekGrid');
+    grid.innerHTML = days.map(d => {
+        const iso  = toISO(d);
+        const isToday = iso === todayISO;
+        const guests = inWeek[iso] || [];
+        const dayName = VN_DAYS[d.getDay()];
+
+        let countBadge = guests.length > 0
+            ? `<span class="day-count-badge">${guests.length}</span>`
+            : '';
+
+        let cardsHTML = guests.length > 0
+            ? guests.map(g => miniCardHTML(g, false)).join('')
+            : `<div class="day-empty">—</div>`;
+
+        return `<div class="day-col${isToday ? ' today' : ''}">
+            <div class="day-header">
+                <span class="day-num">${d.getDate()}</span>
+                <span class="day-name">${dayName}</span>
+                ${countBadge}
+            </div>
+            ${cardsHTML}
+        </div>`;
+    }).join('');
+
+    // ── Render outside-week guests ──
+    const outsideArea = document.getElementById('outsideArea');
+    if (outside.length > 0) {
+        outsideArea.innerHTML = `
+            <div class="outside-sec">
+                <div class="outside-head">
+                    <i class="fas fa-calendar-alt"></i> Khách ngoài tuần này
+                    <span class="s-pill">${outside.length}</span>
+                </div>
+                <div class="outside-list">
+                    ${outside.map(g => miniCardHTML(g, true)).join('')}
+                </div>
+            </div>`;
+    } else {
+        outsideArea.innerHTML = '';
+    }
+
+    // Show/hide empty state
+    const total = ALL_GUESTS.length;
+    document.getElementById('emptyState').style.display = total === 0 ? 'block' : 'none';
+
+    // Scroll today's column into center view
+    if (weekOffset === 0) {
+        setTimeout(() => {
+            const todayIdx = days.findIndex(d => toISO(d) === todayISO);
+            if (todayIdx >= 0) {
+                const scroll = document.getElementById('weekScrollArea');
+                const colW = 120;
+                const targetX = todayIdx * colW - (scroll.clientWidth / 2) + colW / 2;
+                scroll.scrollTo({ left: Math.max(0, targetX), behavior: 'smooth' });
+            }
+        }, 50);
+    }
+}
+
+function changeWeek(dir) {
+    weekOffset += dir;
+    renderWeek();
+}
+function goToday() {
+    weekOffset = 0;
+    renderWeek();
+}
+
+// ── Remove card by id (called after successful payment) ──
+function removeCard(bid) {
+    // Remove from ALL_GUESTS array
+    const idx = ALL_GUESTS.findIndex(g => String(g.id) === String(bid));
+    if (idx >= 0) ALL_GUESTS.splice(idx, 1);
+
+    // Animate card out
+    const card = document.getElementById('card-' + bid);
+    if (card) {
+        card.style.transition = 'opacity .25s, transform .25s';
+        card.style.opacity = '0';
+        card.style.transform = 'scale(0.85)';
+        setTimeout(() => { card.remove(); }, 280);
+    }
+
+    // Re-render week (with updated ALL_GUESTS)
+    setTimeout(() => { renderWeek(); }, 320);
+
+    // Update counters
+    const n = ALL_GUESTS.length;
+    document.getElementById('statUnpaid').textContent = n;
+    document.getElementById('hdrBadge').textContent = n + ' khách';
+}
+
+// ── Bottom sheet ──
+let _bid = '', _coll = '', _done = 0;
+
+function openSheet(id, name, room, ci, co, nights, amount, commission) {
+    _bid = id; _coll = '';
+    name = name.replace(/&quot;/g, '"'); room = room.replace(/&quot;/g, '"');
+    document.getElementById('shName').textContent = name;
+    document.getElementById('shMeta').textContent = room + '  ·  ' + ci + ' → ' + co + '  ·  ' + nights + ' đêm';
+    const net = commission > 0 ? amount - commission : amount;
+    document.getElementById('shAmt').textContent =
+        amount.toLocaleString('vi-VN') + 'đ' +
+        (commission > 0 ? '  →  Thực thu: ' + net.toLocaleString('vi-VN') + 'đ' : '');
+    document.getElementById('inpAmt').value = amount;
+    document.getElementById('inpNote').value = '';
     document.getElementById('bLoc').classList.remove('sel');
     document.getElementById('bThao').classList.remove('sel');
-    document.getElementById('btnOk').disabled=true;
+    document.getElementById('btnOk').disabled = true;
     tickTs();
     document.getElementById('overlay').classList.add('open');
     document.getElementById('sheet').classList.add('open');
-    setTimeout(()=>document.getElementById('inpAmt').focus(),250);
+    setTimeout(() => document.getElementById('inpAmt').focus(), 250);
 }
-function closeSheet(){
+function closeSheet() {
     document.getElementById('overlay').classList.remove('open');
     document.getElementById('sheet').classList.remove('open');
-    _bid=''; _coll='';
+    _bid = ''; _coll = '';
 }
-function pick(c){
-    _coll=c;
-    document.getElementById('bLoc').classList.toggle('sel', c==='LOC LE');
-    document.getElementById('bThao').classList.toggle('sel', c==='THAO LE');
-    document.getElementById('btnOk').disabled=false;
+function pick(c) {
+    _coll = c;
+    document.getElementById('bLoc').classList.toggle('sel',  c === 'LOC LE');
+    document.getElementById('bThao').classList.toggle('sel', c === 'THAO LE');
+    document.getElementById('btnOk').disabled = false;
 }
-function tickTs(){
-    const n=new Date(), p=v=>String(v).padStart(2,'0');
-    document.getElementById('tsLive').textContent=
+function tickTs() {
+    const n = new Date(), p = v => String(v).padStart(2, '0');
+    document.getElementById('tsLive').textContent =
         `${p(n.getHours())}:${p(n.getMinutes())} · ${p(n.getDate())}/${p(n.getMonth()+1)}/${n.getFullYear()}`;
 }
-setInterval(tickTs,15000);
+setInterval(tickTs, 15000);
 
-async function doConfirm(){
-    if(!_coll){showToast('Chọn người thu!',1);return;}
-    const amt=parseFloat(document.getElementById('inpAmt').value);
-    if(!amt||amt<=0){showToast('Nhập số tiền!',1);return;}
-    const note=document.getElementById('inpNote').value.trim();
-    const btn=document.getElementById('btnOk');
-    btn.disabled=true; btn.innerHTML='<i class="fas fa-spinner fa-spin"></i> Đang lưu...';
-    try{
-        const res=await fetch('/api/collect_payment',{
-            method:'POST', headers:{'Content-Type':'application/json'},
-            body:JSON.stringify({booking_id:_bid,collected_amount:amt,collector_name:_coll,
-                payment_note:note||('Thu tiền · '+new Date().toLocaleString('vi-VN')),
-                payment_type:'room',commission_amount:0,commission_type:'normal',commission_status:'pending'})
+async function doConfirm() {
+    if (!_coll) { showToast('Chọn người thu!', 1); return; }
+    const amt = parseFloat(document.getElementById('inpAmt').value);
+    if (!amt || amt <= 0) { showToast('Nhập số tiền!', 1); return; }
+    const note = document.getElementById('inpNote').value.trim();
+    const btn = document.getElementById('btnOk');
+    btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Đang lưu...';
+    try {
+        const res = await fetch('/api/collect_payment', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                booking_id: _bid, collected_amount: amt, collector_name: _coll,
+                payment_note: note || ('Thu tiền · ' + new Date().toLocaleString('vi-VN')),
+                payment_type: 'room', commission_amount: 0,
+                commission_type: 'normal', commission_status: 'pending'
+            })
         });
-        const data=await res.json();
-        if(data.success){
+        const data = await res.json();
+        if (data.success) {
+            const bid = _bid;
             closeSheet(); _done++;
-            document.getElementById('statDone').textContent=_done;
-            const card=document.getElementById('card-'+_bid);
-            if(card){
-                card.style.transition='opacity .28s, transform .28s';
-                card.style.opacity='0'; card.style.transform='translateX(40px)';
-                setTimeout(()=>{
-                    card.style.transition+= ', max-height .32s .22s, padding .32s .22s';
-                    card.style.maxHeight='0'; card.style.overflow='hidden'; card.style.padding='0';
-                },260);
-                setTimeout(()=>{card.remove(); updateCount(); loadHistory();},680);
-            }
-            showToast('✅ '+_coll+' thu '+amt.toLocaleString('vi-VN')+'đ');
+            document.getElementById('statDone').textContent = _done;
+            removeCard(bid);
+            showToast('✅ ' + _coll + ' thu ' + amt.toLocaleString('vi-VN') + 'đ');
+            loadHistory();
         } else {
-            showToast(data.message||'Lỗi!',1);
-            btn.disabled=false; btn.innerHTML='<i class="fas fa-check-circle"></i> XÁC NHẬN THU TIỀN';
+            showToast(data.message || 'Lỗi!', 1);
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-check-circle"></i> XÁC NHẬN THU TIỀN';
         }
-    }catch(e){
-        showToast('Lỗi kết nối!',1);
-        btn.disabled=false; btn.innerHTML='<i class="fas fa-check-circle"></i> XÁC NHẬN THU TIỀN';
+    } catch (e) {
+        showToast('Lỗi kết nối!', 1);
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-check-circle"></i> XÁC NHẬN THU TIỀN';
     }
 }
-function updateCount(){
-    const n=document.querySelectorAll('[id^="card-"]').length;
-    document.getElementById('statUnpaid').textContent=n;
-    document.getElementById('hdrBadge').textContent=n+' khách';
+
+function showToast(msg, err = 0) {
+    const t = document.getElementById('toast');
+    t.textContent = msg; t.className = 'toast' + (err ? ' err' : '');
+    setTimeout(() => t.classList.add('show'), 10);
+    setTimeout(() => t.classList.remove('show'), 3200);
 }
-function showToast(msg,err=0){
-    const t=document.getElementById('toast');
-    t.textContent=msg; t.className='toast'+(err?' err':'');
-    setTimeout(()=>t.classList.add('show'),10);
-    setTimeout(()=>t.classList.remove('show'),3200);
-}
-async function loadHistory(){
-    const area=document.getElementById('histArea');
-    try{
-        const res=await fetch('/api/payment_history_today');
-        const data=await res.json();
-        if(!data.success||!data.history||!data.history.length){
-            area.innerHTML='<p class="hist-empty">Chưa có giao dịch thu tiền hôm nay.</p>'; return;
+
+async function loadHistory() {
+    const area = document.getElementById('histArea');
+    try {
+        const res = await fetch('/api/payment_history_today');
+        const data = await res.json();
+        if (!data.success || !data.history || !data.history.length) {
+            area.innerHTML = '<p class="hist-empty">Chưa có giao dịch thu tiền hôm nay.</p>'; return;
         }
-        const payments={};
-        for(const h of data.history){
-            const bid=h.booking_id;
-            if(!payments[bid]) payments[bid]={time:'',who:'',amt:'',guest:h.guest_name||bid};
-            if(h.field_name==='Người thu tiền'){payments[bid].who=h.new_value||''; payments[bid].time=h.vn_time||'';}
-            if(h.field_name==='Số tiền đã thu'){payments[bid].amt=Number(h.new_value||0).toLocaleString('vi-VN')+'đ';}
+        const payments = {};
+        for (const h of data.history) {
+            const bid = h.booking_id;
+            if (!payments[bid]) payments[bid] = { time: '', who: '', amt: '', guest: h.guest_name || bid };
+            if (h.field_name === 'Người thu tiền')  { payments[bid].who = h.new_value || ''; payments[bid].time = h.vn_time || ''; }
+            if (h.field_name === 'Số tiền đã thu')  { payments[bid].amt = Number(h.new_value || 0).toLocaleString('vi-VN') + 'đ'; }
         }
-        const rows=Object.values(payments).filter(p=>p.who).map(p=>
+        const rows = Object.values(payments).filter(p => p.who).map(p =>
             `<tr><td class="ht-time">${p.time}</td><td class="ht-who">${p.who}</td>
              <td class="ht-guest">${p.guest}</td><td class="ht-amt">${p.amt}</td></tr>`
         ).join('');
-        if(!rows){area.innerHTML='<p class="hist-empty">Chưa có giao dịch thu tiền hôm nay.</p>'; return;}
-        area.innerHTML=`<table class="hist-tbl"><thead><tr>
+        if (!rows) { area.innerHTML = '<p class="hist-empty">Chưa có giao dịch thu tiền hôm nay.</p>'; return; }
+        area.innerHTML = `<table class="hist-tbl"><thead><tr>
             <th>Giờ</th><th>Người thu</th><th>Khách</th><th style="text-align:right">Số tiền</th>
             </tr></thead><tbody>${rows}</tbody></table>`;
-    }catch(e){
-        area.innerHTML='<p class="hist-empty">Không tải được lịch sử.</p>';
+    } catch (e) {
+        area.innerHTML = '<p class="hist-empty">Không tải được lịch sử.</p>';
     }
 }
-(function(){
-    const s=document.getElementById('sheet'); let sy=0,d=false;
-    s.addEventListener('touchstart',e=>{sy=e.touches[0].clientY;d=true;},{passive:true});
-    s.addEventListener('touchmove',e=>{if(!d)return;const dy=e.touches[0].clientY-sy;if(dy>0)s.style.transform=`translateY(${dy}px)`;},{passive:true});
-    s.addEventListener('touchend',e=>{const dy=e.changedTouches[0].clientY-sy;s.style.transform='';if(dy>110)closeSheet();d=false;});
+
+// ── Swipe-to-dismiss sheet ──
+(function () {
+    const s = document.getElementById('sheet'); let sy = 0, d = false;
+    s.addEventListener('touchstart', e => { sy = e.touches[0].clientY; d = true; }, { passive: true });
+    s.addEventListener('touchmove',  e => { if (!d) return; const dy = e.touches[0].clientY - sy; if (dy > 0) s.style.transform = `translateY(${dy}px)`; }, { passive: true });
+    s.addEventListener('touchend',   e => { const dy = e.changedTouches[0].clientY - sy; s.style.transform = ''; if (dy > 110) closeSheet(); d = false; });
 })();
-document.addEventListener('DOMContentLoaded',()=>{tickTs();loadHistory();setInterval(loadHistory,30000);});
+
+document.addEventListener('DOMContentLoaded', () => {
+    tickTs();
+    renderWeek();
+    loadHistory();
+    setInterval(loadHistory, 30000);
+});
 </script>
 </body>
 </html>
