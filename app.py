@@ -4203,6 +4203,63 @@ def quick_update_booking(booking_id):
         traceback.print_exc()
         return jsonify({'success': False, 'message': str(e)}), 500
 
+
+@app.route('/api/booking/<booking_id>/extend', methods=['POST'])
+def extend_booking(booking_id):
+    """Extend a guest's stay: push checkout date forward and add extra amount."""
+    try:
+        data = request.get_json()
+        extra_nights   = int(data.get('extra_nights', 0))
+        price_per_night = float(data.get('price_per_night', 0))
+
+        if extra_nights <= 0:
+            return jsonify({'success': False, 'message': 'Số đêm gia hạn phải lớn hơn 0'}), 400
+
+        # Read current booking from DB
+        from core.models import db as _edb, Booking as _EBooking
+        booking_row = _EBooking.query.filter_by(booking_id=booking_id).first()
+        if not booking_row:
+            # Fallback: read from dataframe
+            df_all = load_booking_data(force_fresh=True)
+            row = df_all[df_all['Số đặt phòng'] == booking_id]
+            if row.empty:
+                return jsonify({'success': False, 'message': 'Không tìm thấy booking'}), 404
+            r = row.iloc[0]
+            current_checkout = pd.Timestamp(r['Check-out Date']).date()
+            current_amount   = float(r.get('Tổng thanh toán', 0) or 0)
+        else:
+            current_checkout = booking_row.checkout_date.date() if hasattr(booking_row.checkout_date, 'date') else booking_row.checkout_date
+            current_amount   = float(booking_row.room_amount or 0)
+
+        new_checkout = current_checkout + timedelta(days=extra_nights)
+        extra_amount = extra_nights * price_per_night
+        new_amount   = current_amount + extra_amount
+
+        update_data = {
+            'checkout_date': new_checkout,
+            'room_amount':   new_amount,
+        }
+
+        record_booking_history(booking_id, update_data, changed_by='extend_stay')
+        if update_booking(booking_id, update_data):
+            print(f"✅ [EXTEND] {booking_id}: checkout {current_checkout} → {new_checkout}, amount {current_amount:,.0f} + {extra_amount:,.0f} = {new_amount:,.0f}")
+            return jsonify({
+                'success': True,
+                'new_checkout': new_checkout.strftime('%Y-%m-%d'),
+                'new_checkout_display': new_checkout.strftime('%d/%m/%Y'),
+                'extra_amount': extra_amount,
+                'new_amount': new_amount,
+                'extra_nights': extra_nights,
+            })
+        else:
+            return jsonify({'success': False, 'message': 'Cập nhật thất bại'}), 400
+
+    except Exception as e:
+        print(f"❌ [EXTEND] Error {booking_id}: {e}")
+        import traceback; traceback.print_exc()
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
 # Photo Processing Endpoint - Enhanced with Multiple Booking Support
 @app.route('/api/check_existing_bookings', methods=['POST'])
 def check_existing_bookings():

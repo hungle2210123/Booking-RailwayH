@@ -1176,6 +1176,15 @@
                                         </button>
                                     </div>
                                 </div>
+                                <!-- Extend Stay button — separate row for visibility -->
+                                <div class="mt-1 mb-1">
+                                    <button class="btn btn-sm w-100 fw-semibold text-white"
+                                            style="background:linear-gradient(135deg,#6f42c1,#4b2c9e);font-size:0.75rem;padding:3px 0;"
+                                            onclick="openExtendModal('{{ booking.get('Số đặt phòng', '') }}','{{ booking.get('Tên người đặt', 'N/A')|replace("'","\\'") }}','{{ booking['Check-out Date'].strftime('%Y-%m-%d') if booking['Check-out Date'] and pd.notna(booking['Check-out Date']) else '' }}',{{ per_night_rate|int }},{{ total_payment|int }})"
+                                            title="Gia hạn thêm đêm">
+                                        <i class="fas fa-calendar-plus me-1"></i>Gia hạn phòng
+                                    </button>
+                                </div>
                                 <p class="room-type">
                                     {% if '118 hang bac' in room_lower or room_lower == '118 hang bac hostel' %}
                                         <span class="room-badge apt1">🔵 118 hang bac</span>
@@ -1302,6 +1311,18 @@
                                         </button>
                                     </div>
                                 </div>
+                                {% set total_nights = (booking['Check-out Date'] - booking['Check-in Date']).days if booking['Check-in Date'] and booking['Check-out Date'] and pd.notna(booking['Check-in Date']) and pd.notna(booking['Check-out Date']) else 1 %}
+                                {% set total_payment = booking.get('Tổng thanh toán', 0) %}
+                                {% set per_night_rate = (total_payment / total_nights) if total_nights > 0 else total_payment %}
+                                <!-- Extend Stay button -->
+                                <div class="mt-1 mb-1">
+                                    <button class="btn btn-sm w-100 fw-semibold text-white"
+                                            style="background:linear-gradient(135deg,#6f42c1,#4b2c9e);font-size:0.75rem;padding:3px 0;"
+                                            onclick="openExtendModal('{{ booking.get('Số đặt phòng', '') }}','{{ booking.get('Tên người đặt', 'N/A')|replace("'","\\'") }}','{{ booking['Check-out Date'].strftime('%Y-%m-%d') if booking['Check-out Date'] and pd.notna(booking['Check-out Date']) else '' }}',{{ per_night_rate|int }},{{ total_payment|int }})"
+                                            title="Gia hạn thêm đêm">
+                                        <i class="fas fa-calendar-plus me-1"></i>Gia hạn phòng
+                                    </button>
+                                </div>
                                 <p class="room-type">
                                     {% if '118 hang bac' in room_lower or room_lower == '118 hang bac hostel' %}
                                         <span class="room-badge apt1">🔵 118 hang bac</span>
@@ -1317,9 +1338,6 @@
                                         <span class="badge bg-secondary">{{ room_name }}</span>
                                     {% endif %}
                                 </p>
-                                {% set total_nights = (booking['Check-out Date'] - booking['Check-in Date']).days if booking['Check-in Date'] and booking['Check-out Date'] and pd.notna(booking['Check-in Date']) and pd.notna(booking['Check-out Date']) else 1 %}
-                                {% set total_payment = booking.get('Tổng thanh toán', 0) %}
-                                {% set per_night_rate = (total_payment / total_nights) if total_nights > 0 else total_payment %}
                                 <div class="card-details">
                                     <div class="detail-row">
                                         <span class="detail-id">🔑 {{ booking.get('Số đặt phòng', 'N/A') }}</span>
@@ -3741,6 +3759,80 @@ document.addEventListener('DOMContentLoaded', function() {
 }
 </style>
 
+<!-- Extend Stay Modal -->
+<div class="modal fade" id="extendStayModal" tabindex="-1" aria-labelledby="extendStayModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-sm">
+        <div class="modal-content">
+            <div class="modal-header text-white" style="background: linear-gradient(135deg,#6f42c1,#4b2c9e);">
+                <h5 class="modal-title" id="extendStayModalLabel">
+                    <i class="fas fa-calendar-plus me-2"></i>Gia Hạn Phòng
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <!-- Guest info summary -->
+                <div class="alert alert-light border p-2 mb-3 small">
+                    <div class="fw-bold mb-1" id="extendGuestName">—</div>
+                    <div class="text-muted">Trả phòng hiện tại: <span id="extendCurrentCheckout" class="fw-semibold text-danger">—</span></div>
+                </div>
+
+                <!-- Extra nights -->
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">🌙 Số đêm gia hạn</label>
+                    <div class="input-group">
+                        <button class="btn btn-outline-secondary" type="button" onclick="adjustNights(-1)">−</button>
+                        <input type="number" class="form-control text-center fw-bold" id="extendNights"
+                               value="1" min="1" max="365" oninput="recalcExtend()">
+                        <button class="btn btn-outline-secondary" type="button" onclick="adjustNights(1)">+</button>
+                    </div>
+                    <!-- Quick-pick buttons -->
+                    <div class="d-flex gap-1 mt-2 flex-wrap">
+                        <button class="btn btn-outline-secondary btn-sm" onclick="setNights(1)">1</button>
+                        <button class="btn btn-outline-secondary btn-sm" onclick="setNights(2)">2</button>
+                        <button class="btn btn-outline-secondary btn-sm" onclick="setNights(3)">3</button>
+                        <button class="btn btn-outline-secondary btn-sm" onclick="setNights(5)">5</button>
+                        <button class="btn btn-outline-secondary btn-sm" onclick="setNights(7)">7</button>
+                        <button class="btn btn-outline-secondary btn-sm" onclick="setNights(10)">10</button>
+                        <button class="btn btn-outline-secondary btn-sm" onclick="setNights(14)">14</button>
+                    </div>
+                </div>
+
+                <!-- Price per night -->
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">💰 Giá mỗi đêm gia hạn (đ)</label>
+                    <input type="number" class="form-control" id="extendPricePerNight"
+                           placeholder="Nhập giá/đêm" min="0" oninput="recalcExtend()">
+                    <div class="form-text text-muted" id="extendPriceHint"></div>
+                </div>
+
+                <!-- Result summary -->
+                <div class="card border-0 bg-light p-3 small">
+                    <div class="d-flex justify-content-between mb-1">
+                        <span class="text-muted">Trả phòng mới:</span>
+                        <span class="fw-bold text-success" id="extendNewCheckout">—</span>
+                    </div>
+                    <div class="d-flex justify-content-between mb-1">
+                        <span class="text-muted">Thêm tiền:</span>
+                        <span class="fw-bold text-primary" id="extendAddAmount">—</span>
+                    </div>
+                    <div class="d-flex justify-content-between pt-1 border-top">
+                        <span class="text-muted">Tổng mới:</span>
+                        <span class="fw-bold text-danger" id="extendNewTotal">—</span>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                <button type="button" class="btn fw-bold text-white" id="extendConfirmBtn"
+                        style="background:linear-gradient(135deg,#6f42c1,#4b2c9e);"
+                        onclick="confirmExtendStay()">
+                    <i class="fas fa-calendar-plus me-1"></i>Xác nhận gia hạn
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Quick Edit Modal -->
 <div class="modal fade" id="quickEditModal" tabindex="-1" aria-labelledby="quickEditModalLabel" aria-hidden="true">
     <div class="modal-dialog">
@@ -4853,6 +4945,128 @@ document.getElementById('historyModal').addEventListener('click', function(e){
 document.getElementById('historyPasswordModal').addEventListener('click', function(e){
     if (e.target === this) closePasswordModal();
 });
+
+// ===== EXTEND STAY =====
+let _extendBookingId   = '';
+let _extendCurrentDate = '';   // YYYY-MM-DD
+let _extendCurrentTotal = 0;
+let _extendModal = null;
+
+function openExtendModal(bookingId, guestName, checkoutDate, pricePerNight, currentTotal) {
+    _extendBookingId    = bookingId;
+    _extendCurrentDate  = checkoutDate;    // e.g. "2025-05-15"
+    _extendCurrentTotal = currentTotal;
+
+    document.getElementById('extendGuestName').textContent = guestName;
+    document.getElementById('extendCurrentCheckout').textContent = formatDateVN(checkoutDate);
+    document.getElementById('extendNights').value = 1;
+    document.getElementById('extendPricePerNight').value = pricePerNight || '';
+    document.getElementById('extendPriceHint').textContent =
+        pricePerNight ? `Giá hiện tại: ${Number(pricePerNight).toLocaleString('vi-VN')}đ/đêm` : '';
+
+    recalcExtend();
+
+    if (!_extendModal) {
+        _extendModal = new bootstrap.Modal(document.getElementById('extendStayModal'));
+    }
+    _extendModal.show();
+}
+
+function adjustNights(delta) {
+    const input = document.getElementById('extendNights');
+    const val = parseInt(input.value) || 0;
+    input.value = Math.max(1, val + delta);
+    recalcExtend();
+}
+function setNights(n) {
+    document.getElementById('extendNights').value = n;
+    recalcExtend();
+}
+
+function recalcExtend() {
+    const nights   = parseInt(document.getElementById('extendNights').value) || 0;
+    const price    = parseFloat(document.getElementById('extendPricePerNight').value) || 0;
+    const addAmt   = nights * price;
+    const newTotal = _extendCurrentTotal + addAmt;
+
+    // New checkout = current checkout + extra_nights days
+    let newCheckoutStr = '—';
+    if (_extendCurrentDate && nights > 0) {
+        const d = new Date(_extendCurrentDate);
+        d.setDate(d.getDate() + nights);
+        newCheckoutStr = formatDateVN(d.toISOString().slice(0, 10));
+    }
+
+    document.getElementById('extendNewCheckout').textContent = newCheckoutStr;
+    document.getElementById('extendAddAmount').textContent =
+        price > 0 ? `+${addAmt.toLocaleString('vi-VN')}đ` : '(chưa nhập giá)';
+    document.getElementById('extendNewTotal').textContent =
+        price > 0 ? `${newTotal.toLocaleString('vi-VN')}đ` : '—';
+
+    // Disable confirm if incomplete
+    document.getElementById('extendConfirmBtn').disabled = (nights <= 0 || price <= 0);
+}
+
+function formatDateVN(dateStr) {
+    if (!dateStr) return '—';
+    const [y, m, d] = dateStr.split('-');
+    return `${d}/${m}/${y}`;
+}
+
+async function confirmExtendStay() {
+    const nights   = parseInt(document.getElementById('extendNights').value)       || 0;
+    const price    = parseFloat(document.getElementById('extendPricePerNight').value) || 0;
+    if (nights <= 0 || price <= 0) return;
+
+    const btn = document.getElementById('extendConfirmBtn');
+    btn.disabled  = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Đang lưu...';
+
+    try {
+        const resp = await fetch(`/api/booking/${_extendBookingId}/extend`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ extra_nights: nights, price_per_night: price })
+        });
+        const data = await resp.json();
+        if (data.success) {
+            _extendModal.hide();
+            // Show quick toast then reload page
+            showQuickToast(
+                `✅ Đã gia hạn ${nights} đêm → Trả phòng mới: ${data.new_checkout_display}`,
+                'success'
+            );
+            setTimeout(() => location.reload(), 1200);
+        } else {
+            showQuickToast('❌ ' + (data.message || 'Lỗi không xác định'), 'error');
+            btn.disabled  = false;
+            btn.innerHTML = '<i class="fas fa-calendar-plus me-1"></i>Xác nhận gia hạn';
+        }
+    } catch(e) {
+        showQuickToast('❌ Lỗi kết nối mạng', 'error');
+        btn.disabled  = false;
+        btn.innerHTML = '<i class="fas fa-calendar-plus me-1"></i>Xác nhận gia hạn';
+    }
+}
+
+function showQuickToast(msg, type) {
+    let t = document.getElementById('_quickToast');
+    if (!t) {
+        t = document.createElement('div');
+        t.id = '_quickToast';
+        t.style.cssText = `position:fixed;bottom:90px;left:50%;transform:translateX(-50%);
+            padding:10px 22px;border-radius:20px;z-index:99999;font-size:0.9rem;
+            font-weight:600;box-shadow:0 4px 14px rgba(0,0,0,0.25);pointer-events:none;
+            transition:opacity 0.3s;`;
+        document.body.appendChild(t);
+    }
+    t.textContent = msg;
+    t.style.background = type === 'success' ? '#198754' : '#dc3545';
+    t.style.color = '#fff';
+    t.style.opacity = '1';
+    clearTimeout(t._tmr);
+    t._tmr = setTimeout(() => { t.style.opacity = '0'; }, 3000);
+}
 </script>
 
 <!-- Cancel Notify Modal -->
