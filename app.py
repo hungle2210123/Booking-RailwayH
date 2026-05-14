@@ -4138,6 +4138,150 @@ def mobile_checkin_view(date_str=None):
     except Exception as e:
         return f'<h3>Error: {e}</h3>', 500
 
+
+# ─────────────────────────────────────────────────────────────
+# MOBILE PAYMENT COLLECTION PAGE
+# ─────────────────────────────────────────────────────────────
+@app.route('/mobile_payment')
+def mobile_payment_view():
+    """Mobile-optimised payment collection page — unpaid guests only."""
+    try:
+        from datetime import timezone as _tz
+        _vn_now  = datetime.utcnow() + timedelta(hours=7)
+        _today   = _vn_now.date()
+
+        df = load_booking_data(force_fresh=True)
+
+        unpaid = []
+        for _, row in df.iterrows():
+            try:
+                # Skip if already collected by LOC or THAO
+                collector = str(row.get('Người thu tiền', '') or '')
+                if 'LOC' in collector or 'THAO' in collector:
+                    continue
+
+                # Skip if booking is old (checkout before yesterday)
+                co = row.get('Check-out Date')
+                if not pd.notna(co):
+                    continue
+                co_date = pd.Timestamp(co).date()
+                if co_date < _today - timedelta(days=1):
+                    continue
+
+                # Skip cancelled / deleted
+                status = str(row.get('Trạng thái', '') or '').lower()
+                if any(k in status for k in ['hủy', 'cancel', 'delet', 'xóa']):
+                    continue
+                cs = str(row.get('checkin_status', '') or '')
+                if cs == 'cancelling':
+                    continue
+
+                ci = row.get('Check-in Date')
+                ci_date = pd.Timestamp(ci).date() if pd.notna(ci) else _today
+                nights  = max((co_date - ci_date).days, 1)
+
+                amount     = float(row.get('Tổng thanh toán', 0) or 0)
+                commission = float(row.get('Hoa hồng', 0) or 0)
+
+                # Relative label
+                if co_date == _today:
+                    label = 'checkout_today'
+                elif co_date == _today + timedelta(days=1):
+                    label = 'checkout_tomorrow'
+                elif ci_date == _today:
+                    label = 'checkin_today'
+                elif ci_date > _today:
+                    label = 'upcoming'
+                else:
+                    label = 'staying'
+
+                unpaid.append({
+                    'id':               row.get('Số đặt phòng', ''),
+                    'name':             row.get('Tên người đặt', 'N/A'),
+                    'room':             row.get('Tên chỗ nghỉ', 'N/A'),
+                    'checkin':          ci_date.strftime('%Y-%m-%d'),
+                    'checkin_display':  ci_date.strftime('%d/%m'),
+                    'checkout':         co_date.strftime('%Y-%m-%d'),
+                    'checkout_display': co_date.strftime('%d/%m'),
+                    'nights':           nights,
+                    'amount':           amount,
+                    'commission':       commission,
+                    'label':            label,
+                    'notes':            str(row.get('Ghi chú', '') or ''),
+                })
+            except Exception:
+                continue
+
+        # Sort: checkout today first, then staying, then upcoming — by checkin within each
+        _order = {'checkout_today': 0, 'staying': 1, 'checkin_today': 2,
+                  'checkout_tomorrow': 3, 'upcoming': 4}
+        unpaid.sort(key=lambda x: (_order.get(x['label'], 9), x['checkin']))
+
+        total_unpaid = sum(g['amount'] for g in unpaid)
+
+        return render_template(
+            'mobile_payment.html',
+            unpaid_guests=unpaid,
+            total_unpaid=total_unpaid,
+            today_display=_vn_now.strftime('%d/%m/%Y'),
+            today_time=_vn_now.strftime('%H:%M'),
+            guest_count=len(unpaid),
+        )
+    except Exception as e:
+        import traceback; traceback.print_exc()
+        return f'<h3>Error: {e}</h3>', 500
+
+
+@app.route('/api/payment_history_today', methods=['GET'])
+def payment_history_today():
+    """Return today's payment collection records from BookingHistory."""
+    try:
+        from core.models import db as _phdb, BookingHistory as _PBH, Booking as _PB
+        _vn_now = datetime.utcnow() + timedelta(hours=7)
+        _today_str = _vn_now.strftime('%Y-%m-%d')
+
+        entries = (
+            _phdb.session.query(_PBH)
+            .filter(_PBH.changed_by.in_(['collect_payment', 'mobile_payment']))
+            .order_by(_PBH.created_at.desc())
+            .limit(200)
+            .all()
+        )
+
+        # Filter to entries created today (VN time)
+        from datetime import timezone
+        today_entries = []
+        bids = set()
+        for e in entries:
+            if e.created_at:
+                vn_ts = e.created_at + timedelta(hours=7)
+                if vn_ts.strftime('%Y-%m-%d') == _today_str:
+                    today_entries.append(e)
+                    bids.add(e.booking_id)
+
+        # Lookup guest names
+        name_map = {}
+        if bids:
+            rows = _phdb.session.query(_PB.booking_id, _PB.guest_name).filter(
+                _PB.booking_id.in_(list(bids))
+            ).all()
+            name_map = {r.booking_id: r.guest_name for r in rows}
+
+        result = []
+        for e in today_entries:
+            d = e.to_dict()
+            d['guest_name'] = name_map.get(e.booking_id, '')
+            if e.created_at:
+                vn_ts = e.created_at + timedelta(hours=7)
+                d['vn_time'] = vn_ts.strftime('%H:%M')
+                d['vn_date'] = vn_ts.strftime('%d/%m/%Y')
+            result.append(d)
+
+        return jsonify({'success': True, 'history': result})
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
 # Quick Edit API Endpoints for Calendar Details Page
 @app.route('/api/booking/<booking_id>', methods=['GET'])
 def get_booking_details(booking_id):
@@ -4243,6 +4387,28 @@ def extend_booking(booking_id):
         record_booking_history(booking_id, update_data, changed_by='extend_stay')
         if update_booking(booking_id, update_data):
             print(f"✅ [EXTEND] {booking_id}: checkout {current_checkout} → {new_checkout}, amount {current_amount:,.0f} + {extra_amount:,.0f} = {new_amount:,.0f}")
+            # Add a human-readable summary entry to the activity log
+            try:
+                from core.models import db as _hdb2, BookingHistory as _BH2
+                _vn_now = datetime.utcnow() + timedelta(hours=7)
+                _summary = _BH2(
+                    booking_id=booking_id,
+                    field_name='Gia hạn phòng',
+                    old_value=current_checkout.strftime('%d/%m/%Y'),
+                    new_value=new_checkout.strftime('%d/%m/%Y'),
+                    change_description=(
+                        f"🏨 Gia hạn {extra_nights} đêm: "
+                        f"{current_checkout.strftime('%d/%m/%Y')} → {new_checkout.strftime('%d/%m/%Y')} | "
+                        f"Phí gia hạn: +{extra_amount:,.0f}đ | "
+                        f"Tổng mới: {new_amount:,.0f}đ | "
+                        f"Ghi nhận: {_vn_now.strftime('%H:%M %d/%m/%Y')}"
+                    ),
+                    changed_by='extend_stay',
+                )
+                _hdb2.session.add(_summary)
+                _hdb2.session.commit()
+            except Exception as _he:
+                print(f"[EXTEND] History summary failed (non-critical): {_he}")
             return jsonify({
                 'success': True,
                 'new_checkout': new_checkout.strftime('%Y-%m-%d'),

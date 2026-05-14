@@ -420,6 +420,13 @@
                         </a>
                     </li>
                     <li class="nav-item">
+                        <a class="nav-link {% if request.endpoint == 'mobile_payment_view' %}active{% endif %}"
+                           href="/mobile_payment"
+                           style="background:rgba(230,81,0,0.25); border:1px solid rgba(255,255,255,0.3); font-weight:700;">
+                            💰 Thu Tiền
+                        </a>
+                    </li>
+                    <li class="nav-item">
                         <a class="nav-link {% if request.endpoint == 'apartments_management' %}active{% endif %}" href="{{ url_for('apartments_management') }}">
                             <i class="fas fa-building me-1"></i>Quản Lý Căn Hộ
                         </a>
