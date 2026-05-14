@@ -4361,6 +4361,209 @@ def payment_weekly_chart():
         return jsonify({'success': False, 'message': str(e)}), 500
 
 
+@app.route('/api/payment_analytics', methods=['GET'])
+def payment_analytics():
+    """
+    Unified analytics endpoint.
+    ?period=week|month|year  &offset=0 (0=current, -1=prev, +1=next)
+    Returns: bars[], summary{total,count,loc,thao}, period_label
+    """
+    try:
+        from core.models import db as _adb, BookingHistory as _ABH, Booking as _AB
+        _vn_now = datetime.utcnow() + timedelta(hours=7)
+        _today  = _vn_now.date()
+        period  = request.args.get('period', 'week')
+        offset  = int(request.args.get('offset', 0))
+
+        VN_DAYS   = ['CN','T2','T3','T4','T5','T6','T7']
+        VN_MONTHS = ['','Th1','Th2','Th3','Th4','Th5','Th6','Th7','Th8','Th9','Th10','Th11','Th12']
+
+        if period == 'week':
+            end   = _today + timedelta(days=offset * 7)
+            start = end - timedelta(days=6)
+            days  = [start + timedelta(days=i) for i in range(7)]
+            iso_start = start.strftime('%Y-%m-%d')
+            iso_end   = end.strftime('%Y-%m-%d')
+            period_label = f"{start.strftime('%d/%m')} – {end.strftime('%d/%m/%Y')}"
+            def bar_key(vn_dt): return vn_dt.strftime('%Y-%m-%d')
+            bars_meta = [{
+                'key':      d.strftime('%Y-%m-%d'),
+                'label':    d.strftime('%d/%m'),
+                'sublabel': VN_DAYS[d.weekday()+1 if d.weekday()<6 else 0],
+                'is_today': d == _today,
+                'date_iso': d.strftime('%Y-%m-%d'),
+            } for d in days]
+
+        elif period == 'month':
+            # offset in months from current
+            y, m = _today.year, _today.month
+            m += offset
+            while m > 12: m -= 12; y += 1
+            while m < 1:  m += 12; y -= 1
+            import calendar
+            _, n_days = calendar.monthrange(y, m)
+            days = [date(y, m, d) for d in range(1, n_days+1)]
+            start, end = days[0], days[-1]
+            period_label = f"Tháng {m}/{y}"
+            def bar_key(vn_dt): return vn_dt.strftime('%Y-%m-%d')
+            bars_meta = [{
+                'key':      d.strftime('%Y-%m-%d'),
+                'label':    str(d.day),
+                'sublabel': VN_DAYS[d.weekday()+1 if d.weekday()<6 else 0],
+                'is_today': d == _today,
+                'date_iso': d.strftime('%Y-%m-%d'),
+            } for d in days]
+
+        else:  # year
+            y = _today.year + offset
+            months = [date(y, m, 1) for m in range(1, 13)]
+            start  = months[0]
+            end    = date(y, 12, 31)
+            period_label = f"Năm {y}"
+            def bar_key(vn_dt): return f"{y}-{vn_dt.month:02d}"
+            bars_meta = [{
+                'key':      f"{y}-{m.month:02d}",
+                'label':    VN_MONTHS[m.month],
+                'sublabel': str(m.year),
+                'is_today': (m.year == _today.year and m.month == _today.month),
+                'date_iso': m.strftime('%Y-%m-%d'),
+            } for m in months]
+
+        # Fetch all payment entries in window
+        from datetime import date as _date_cls
+        _start_utc = datetime.combine(start, __import__('datetime').time.min) - timedelta(hours=7)
+        _end_utc   = datetime.combine(end,   __import__('datetime').time.max) - timedelta(hours=7)
+
+        entries = (
+            _adb.session.query(_ABH)
+            .filter(
+                _ABH.changed_by.in_(['collect_payment', 'mobile_payment']),
+                _ABH.created_at >= _start_utc,
+                _ABH.created_at <= _end_utc,
+            )
+            .order_by(_ABH.created_at.asc())
+            .all()
+        )
+
+        # Build totals + collector split per bar
+        totals  = {b['key']: 0.0 for b in bars_meta}
+        counts  = {b['key']: 0   for b in bars_meta}
+        loc_map = {b['key']: 0.0 for b in bars_meta}
+        thao_map= {b['key']: 0.0 for b in bars_meta}
+        total_loc = total_thao = 0.0
+        grand_total = grand_count = 0
+
+        # We need to pair "Người thu tiền" + "Số tiền đã thu" per booking per event
+        # Group by booking_id+date for pairing
+        pair = {}  # (booking_id, date_key) -> {collector, amount}
+        for e in entries:
+            if not e.created_at: continue
+            vn_dt  = e.created_at + timedelta(hours=7)
+            dk     = bar_key(vn_dt)
+            if dk not in totals: continue
+            pair_k = (e.booking_id, vn_dt.strftime('%Y-%m-%d %H'))  # hourly bucket
+            if pair_k not in pair: pair[pair_k] = {'collector':'','amount':0.0,'dk':dk}
+            if e.field_name == 'Người thu tiền':  pair[pair_k]['collector'] = e.new_value or ''
+            if e.field_name == 'Số tiền đã thu':
+                try: pair[pair_k]['amount'] = float(e.new_value or 0)
+                except: pass
+
+        for pk, pv in pair.items():
+            dk  = pv['dk']
+            amt = pv['amount']
+            col = pv['collector']
+            if amt <= 0: continue
+            totals[dk] += amt; counts[dk] += 1
+            grand_total += amt; grand_count += 1
+            if 'LOC'  in col: loc_map[dk]  += amt; total_loc  += amt
+            if 'THAO' in col: thao_map[dk] += amt; total_thao += amt
+
+        bars = []
+        for b in bars_meta:
+            k = b['key']
+            bars.append({**b,
+                'total': totals[k], 'count': counts[k],
+                'loc':   loc_map[k], 'thao': thao_map[k],
+            })
+
+        return jsonify({
+            'success':      True,
+            'period_label': period_label,
+            'bars':         bars,
+            'grand_total':  grand_total,
+            'grand_count':  grand_count,
+            'total_loc':    total_loc,
+            'total_thao':   total_thao,
+        })
+    except Exception as e:
+        import traceback; traceback.print_exc()
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
+@app.route('/api/payment_day_detail', methods=['GET'])
+def payment_day_detail():
+    """
+    Returns individual transactions for a date range (for detail drill-down).
+    ?from=YYYY-MM-DD&to=YYYY-MM-DD  (to defaults to from)
+    """
+    try:
+        from core.models import db as _ddb, BookingHistory as _DBH, Booking as _DB
+        from_str = request.args.get('from', '')
+        to_str   = request.args.get('to', from_str)
+        if not from_str:
+            return jsonify({'success': False, 'message': 'Missing from'}), 400
+
+        from_date = datetime.strptime(from_str, '%Y-%m-%d').date()
+        to_date   = datetime.strptime(to_str,   '%Y-%m-%d').date()
+
+        _start_utc = datetime.combine(from_date, __import__('datetime').time.min) - timedelta(hours=7)
+        _end_utc   = datetime.combine(to_date,   __import__('datetime').time.max) - timedelta(hours=7)
+
+        entries = (
+            _ddb.session.query(_DBH)
+            .filter(
+                _DBH.changed_by.in_(['collect_payment', 'mobile_payment']),
+                _DBH.created_at >= _start_utc,
+                _DBH.created_at <= _end_utc,
+            )
+            .order_by(_DBH.created_at.desc())
+            .all()
+        )
+
+        # Pair collector + amount per booking per hour
+        pair = {}
+        bids = set()
+        for e in entries:
+            if not e.created_at: continue
+            bids.add(e.booking_id)
+            vn_ts  = e.created_at + timedelta(hours=7)
+            pk     = (e.booking_id, vn_ts.strftime('%Y-%m-%d %H'))
+            if pk not in pair: pair[pk] = {'collector':'','amount':0.0,'time':vn_ts.strftime('%H:%M'),'date':vn_ts.strftime('%d/%m/%Y'),'booking_id':e.booking_id}
+            if e.field_name == 'Người thu tiền': pair[pk]['collector'] = e.new_value or ''
+            if e.field_name == 'Số tiền đã thu':
+                try: pair[pk]['amount'] = float(e.new_value or 0)
+                except: pass
+
+        # Lookup guest names
+        name_map = {}
+        if bids:
+            rows = _ddb.session.query(_DB.booking_id, _DB.guest_name).filter(_DB.booking_id.in_(list(bids))).all()
+            name_map = {r.booking_id: r.guest_name for r in rows}
+
+        txns = sorted(
+            [{'booking_id':v['booking_id'],'collector':v['collector'],'amount':v['amount'],
+              'time':v['time'],'date':v['date'],'guest_name':name_map.get(v['booking_id'],'—')}
+             for v in pair.values() if v['amount'] > 0],
+            key=lambda x: x['date']+x['time'], reverse=True
+        )
+
+        return jsonify({'success': True, 'transactions': txns,
+                        'total': sum(t['amount'] for t in txns), 'count': len(txns)})
+    except Exception as e:
+        import traceback; traceback.print_exc()
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
 # Quick Edit API Endpoints for Calendar Details Page
 @app.route('/api/booking/<booking_id>', methods=['GET'])
 def get_booking_details(booking_id):

@@ -42,29 +42,111 @@
         .stat-l { font-size:0.56rem; font-weight:700; text-transform:uppercase; color:#666; margin-top:2px; }
         .c-red{color:#dc3545} .c-blue{color:#0d6efd} .c-green{color:#198754}
 
-        /* ══ CHART SECTION ══ */
-        .chart-section {
+        /* ══ ANALYTICS SECTION ══ */
+        .analytics-section {
             background: #fff; margin: 8px 8px 0;
-            border-radius: 12px; overflow: hidden;
+            border-radius: 14px; overflow: hidden;
             border: 1px solid #e9ecef;
-            box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.07);
         }
-        .chart-head {
+        /* Header */
+        .an-head {
             background: linear-gradient(135deg, #667eea, #764ba2);
-            color: #fff; padding: 10px 14px;
+            color: #fff; padding: 11px 14px;
             display: flex; align-items: center; gap: 8px;
         }
-        .chart-head-title { font-size: 0.82rem; font-weight: 800; flex: 1; }
-        .chart-head-sub   { font-size: 0.65rem; opacity: 0.85; }
-        .chart-summary {
-            display: grid; grid-template-columns: 1fr 1fr 1fr;
+        .an-head-info { flex: 1; }
+        .an-head-title { font-size: 0.88rem; font-weight: 800; }
+        .an-head-sub   { font-size: 0.62rem; opacity: 0.85; margin-top: 1px; }
+        .an-refresh {
+            background: rgba(255,255,255,0.2); border: none; color: #fff;
+            border-radius: 8px; padding: 5px 10px; font-size: 0.68rem;
+            font-weight: 700; cursor: pointer;
+        }
+        /* Period tabs */
+        .an-tabs {
+            display: flex; border-bottom: 2px solid #e9ecef;
+            background: #f8f9fa;
+        }
+        .an-tab {
+            flex: 1; padding: 8px 4px; text-align: center;
+            font-size: 0.72rem; font-weight: 700; color: #888;
+            background: none; border: none; cursor: pointer;
+            border-bottom: 3px solid transparent; margin-bottom: -2px;
+            transition: all .15s;
+        }
+        .an-tab.active { color: #764ba2; border-bottom-color: #764ba2; background: #fff; }
+        /* Navigation row */
+        .an-nav {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 7px 14px; border-bottom: 1px solid #f1f3f4;
+            background: #fafafa;
+        }
+        .an-nav-btn {
+            background: none; border: 1px solid #dee2e6; border-radius: 8px;
+            color: #764ba2; font-size: 1rem; font-weight: 900;
+            width: 32px; height: 32px; cursor: pointer; display: flex;
+            align-items: center; justify-content: center;
+        }
+        .an-nav-btn:active { background: #f3e5f5; }
+        .an-period-label { font-size: 0.78rem; font-weight: 800; color: #333; }
+        /* Summary cards */
+        .an-summary {
+            display: grid; grid-template-columns: repeat(4,1fr);
             border-bottom: 1px solid #e9ecef;
         }
-        .cs-cell { text-align: center; padding: 8px 4px; border-right: 1px solid #e9ecef; }
-        .cs-cell:last-child { border-right: none; }
-        .cs-val { font-size: 1rem; font-weight: 900; color: #764ba2; line-height: 1; }
-        .cs-lbl { font-size: 0.55rem; font-weight: 700; text-transform: uppercase; color: #888; margin-top: 2px; }
-        .chart-wrap { padding: 10px 10px 6px; position: relative; height: 160px; }
+        .an-sc {
+            text-align: center; padding: 8px 3px;
+            border-right: 1px solid #e9ecef;
+        }
+        .an-sc:last-child { border-right: none; }
+        .an-sc-val { font-size: 0.88rem; font-weight: 900; line-height: 1; }
+        .an-sc-lbl { font-size: 0.5rem; font-weight: 700; text-transform: uppercase; color: #888; margin-top: 2px; }
+        .v-total { color: #764ba2; }
+        .v-loc   { color: #1976D2; }
+        .v-thao  { color: #2E7D32; }
+        .v-cnt   { color: #e65100; }
+        /* Chart */
+        .an-chart-wrap { padding: 10px 8px 4px; position: relative; height: 180px; }
+        /* Detail sheet */
+        .detail-sheet {
+            position: fixed; bottom: 0; left: 0; right: 0; z-index: 400;
+            background: #fff; border-radius: 20px 20px 0 0;
+            transform: translateY(100%);
+            transition: transform .3s cubic-bezier(0.32,0.72,0,1);
+            max-height: 75vh; overflow-y: auto;
+            padding-bottom: max(env(safe-area-inset-bottom,12px),12px);
+            box-shadow: 0 -4px 24px rgba(0,0,0,0.18);
+        }
+        .detail-sheet.open { transform: translateY(0); }
+        .detail-overlay {
+            display: none; position: fixed; inset: 0; z-index: 399;
+            background: rgba(0,0,0,0.4);
+        }
+        .detail-overlay.open { display: block; }
+        .ds-handle { width: 36px; height: 4px; background: #dee2e6; border-radius: 2px; margin: 10px auto 0; }
+        .ds-head {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: #fff; padding: 12px 16px; margin-top: 6px;
+        }
+        .ds-title  { font-size: 0.9rem; font-weight: 900; }
+        .ds-sub    { font-size: 0.72rem; opacity: 0.88; margin-top: 2px; }
+        .ds-body   { padding: 0; }
+        .ds-tbl { width: 100%; border-collapse: collapse; font-size: 0.76rem; }
+        .ds-tbl thead th {
+            background: #f8f9fa; color: #555; font-size: 0.6rem; font-weight: 700;
+            text-transform: uppercase; padding: 6px 10px;
+            border-bottom: 1px solid #dee2e6; text-align: left; position: sticky; top: 0;
+        }
+        .ds-tbl tbody td { padding: 9px 10px; border-bottom: 1px solid #f1f3f4; vertical-align: middle; }
+        .ds-tbl tbody tr:last-child td { border-bottom: none; }
+        .dt-time  { font-weight: 800; color: #764ba2; white-space: nowrap; font-size:0.7rem; }
+        .dt-who   { font-weight: 800; white-space: nowrap; }
+        .dt-loc   { color: #1976D2; }
+        .dt-thao  { color: #2E7D32; }
+        .dt-guest { color: #333; }
+        .dt-amt   { font-weight: 900; color: #0d6efd; text-align: right; white-space: nowrap; }
+        .ds-empty { text-align: center; color: #aaa; padding: 30px; font-size: 0.78rem; }
 
         /* ══ DATE COLUMNS SCROLL ══ */
         .dates-scroll {
@@ -309,34 +391,58 @@
     <div class="stat-cell"><div class="stat-n c-green" id="statDone">0</div><div class="stat-l">Đã thu hôm nay</div></div>
 </div>
 
-<!-- ══ WEEKLY CHART ══ -->
-<div class="chart-section">
-    <div class="chart-head">
-        <i class="fas fa-chart-bar"></i>
-        <div>
-            <div class="chart-head-title">📊 Tổng thu 7 ngày qua</div>
-            <div class="chart-head-sub" id="chartDateRange">Đang tải...</div>
+<!-- ══ ANALYTICS ══ -->
+<div class="analytics-section">
+    <div class="an-head">
+        <i class="fas fa-chart-line" style="font-size:1.1rem"></i>
+        <div class="an-head-info">
+            <div class="an-head-title">📊 Thống kê thu tiền</div>
+            <div class="an-head-sub" id="anPeriodLabel">Đang tải...</div>
         </div>
-        <button onclick="loadChart()" style="background:rgba(255,255,255,0.2);border:none;color:#fff;border-radius:8px;padding:4px 10px;font-size:0.65rem;font-weight:700;cursor:pointer;">
-            <i class="fas fa-sync-alt"></i>
-        </button>
+        <button class="an-refresh" onclick="loadAnalytics()"><i class="fas fa-sync-alt"></i> Làm mới</button>
     </div>
-    <div class="chart-summary">
-        <div class="cs-cell">
-            <div class="cs-val" id="csTotalWeek">—</div>
-            <div class="cs-lbl">Tổng tuần</div>
-        </div>
-        <div class="cs-cell">
-            <div class="cs-val" id="csToday">—</div>
-            <div class="cs-lbl">Hôm nay</div>
-        </div>
-        <div class="cs-cell">
-            <div class="cs-val" id="csCount">—</div>
-            <div class="cs-lbl">Giao dịch</div>
-        </div>
+
+    <!-- Tabs: Tuần / Tháng / Năm -->
+    <div class="an-tabs">
+        <button class="an-tab active" id="tabWeek"  onclick="switchTab('week')">📅 7 Ngày</button>
+        <button class="an-tab"        id="tabMonth" onclick="switchTab('month')">🗓️ Tháng</button>
+        <button class="an-tab"        id="tabYear"  onclick="switchTab('year')">📆 Năm</button>
     </div>
-    <div class="chart-wrap">
-        <canvas id="weekChart"></canvas>
+
+    <!-- Prev / Period label / Next -->
+    <div class="an-nav">
+        <button class="an-nav-btn" onclick="changeOffset(-1)">‹</button>
+        <span class="an-period-label" id="anNavLabel">—</span>
+        <button class="an-nav-btn" onclick="changeOffset(+1)">›</button>
+    </div>
+
+    <!-- Summary 4-cell -->
+    <div class="an-summary">
+        <div class="an-sc"><div class="an-sc-val v-total" id="anTotal">—</div><div class="an-sc-lbl">Tổng thu</div></div>
+        <div class="an-sc"><div class="an-sc-val v-loc"   id="anLoc">—</div>  <div class="an-sc-lbl">LOC LE</div></div>
+        <div class="an-sc"><div class="an-sc-val v-thao"  id="anThao">—</div> <div class="an-sc-lbl">THAO LE</div></div>
+        <div class="an-sc"><div class="an-sc-val v-cnt"   id="anCnt">—</div>  <div class="an-sc-lbl">Giao dịch</div></div>
+    </div>
+
+    <!-- Chart canvas -->
+    <div class="an-chart-wrap">
+        <canvas id="anChart"></canvas>
+    </div>
+    <div style="text-align:center;font-size:0.6rem;color:#aaa;padding:0 0 6px">
+        ☝️ Bấm vào cột để xem chi tiết giao dịch
+    </div>
+</div>
+
+<!-- ══ DETAIL OVERLAY + SHEET ══ -->
+<div class="detail-overlay" id="detailOverlay" onclick="closeDetail()"></div>
+<div class="detail-sheet" id="detailSheet">
+    <div class="ds-handle"></div>
+    <div class="ds-head">
+        <div class="ds-title" id="dsTitle">Chi tiết giao dịch</div>
+        <div class="ds-sub"   id="dsSub">—</div>
+    </div>
+    <div class="ds-body" id="dsBody">
+        <p class="ds-empty"><i class="fas fa-spinner fa-spin"></i> Đang tải...</p>
     </div>
 </div>
 
@@ -619,111 +725,212 @@ async function loadHistory(){
     s.addEventListener('touchend',e=>{const dy=e.changedTouches[0].clientY-sy;s.style.transform='';if(dy>110)closeSheet();d=false;});
 })();
 
-// ── Weekly chart ──
-let _chart = null;
+// ══ ANALYTICS ENGINE ══
+let _anChart  = null;
+let _anPeriod = 'week';
+let _anOffset = 0;
+let _anBars   = [];
 
-async function loadChart() {
+const fmtMoney = v => {
+    if (!v) return '0';
+    if (v >= 1000000) return (v/1000000).toFixed(1).replace(/\.0$/,'') + 'M';
+    return (v/1000).toFixed(0) + 'k';
+};
+
+function switchTab(period) {
+    _anPeriod = period; _anOffset = 0;
+    ['week','month','year'].forEach(p => {
+        document.getElementById('tab'+p.charAt(0).toUpperCase()+p.slice(1))
+            .classList.toggle('active', p === period);
+    });
+    loadAnalytics();
+}
+
+function changeOffset(d) { _anOffset += d; loadAnalytics(); }
+
+async function loadAnalytics() {
     try {
-        const res  = await fetch('/api/payment_weekly_chart');
+        const res  = await fetch(`/api/payment_analytics?period=${_anPeriod}&offset=${_anOffset}`);
         const data = await res.json();
         if (!data.success) return;
 
-        const days = data.days;
+        _anBars = data.bars;
+        document.getElementById('anPeriodLabel').textContent = data.period_label;
+        document.getElementById('anNavLabel').textContent    = data.period_label;
+        document.getElementById('anTotal').textContent = fmtMoney(data.grand_total);
+        document.getElementById('anLoc').textContent   = fmtMoney(data.total_loc);
+        document.getElementById('anThao').textContent  = fmtMoney(data.total_thao);
+        document.getElementById('anCnt').textContent   = data.grand_count;
 
-        // Summary cards
-        const todayData = days.find(d => d.is_today);
-        const fmt = v => v >= 1000000
-            ? (v/1000000).toFixed(1).replace(/\.0$/,'') + 'M'
-            : (v/1000).toFixed(0) + 'k';
-
-        document.getElementById('csTotalWeek').textContent = fmt(data.grand_total);
-        document.getElementById('csToday').textContent     = fmt(todayData ? todayData.total : 0);
-        document.getElementById('csCount').textContent     = data.grand_count;
-        document.getElementById('chartDateRange').textContent =
-            days[0].label + ' – ' + days[6].label;
-
-        // Colors: today = purple, has money = blue, zero = light grey
-        const bgColors = days.map(d =>
-            d.is_today  ? 'rgba(118,75,162,0.85)' :
-            d.total > 0 ? 'rgba(13,110,253,0.75)'  :
-                          'rgba(200,200,200,0.5)'
+        // Colors
+        const bg = data.bars.map(b =>
+            b.is_today  ? 'rgba(118,75,162,0.9)'  :
+            b.total > 0 ? 'rgba(25,118,210,0.8)'  :
+                          'rgba(200,200,200,0.45)'
         );
-        const borderColors = days.map(d =>
-            d.is_today  ? '#764ba2' :
-            d.total > 0 ? '#0d6efd' : '#ddd'
+        const border = data.bars.map(b =>
+            b.is_today  ? '#764ba2' :
+            b.total > 0 ? '#1976D2' : '#ddd'
         );
 
-        const labels = days.map(d => d.label + '\n' + d.day_name);
-        const values = days.map(d => d.total);
+        const ctx = document.getElementById('anChart').getContext('2d');
+        if (_anChart) _anChart.destroy();
 
-        const ctx = document.getElementById('weekChart').getContext('2d');
-        if (_chart) _chart.destroy();
-
-        _chart = new Chart(ctx, {
+        _anChart = new Chart(ctx, {
             type: 'bar',
             data: {
-                labels: days.map(d => [d.label, d.day_name]),
+                labels: data.bars.map(b => [b.label, b.sublabel]),
                 datasets: [{
-                    data:            values,
-                    backgroundColor: bgColors,
-                    borderColor:     borderColors,
+                    data:            data.bars.map(b => b.total),
+                    backgroundColor: bg,
+                    borderColor:     border,
                     borderWidth:     2,
-                    borderRadius:    6,
+                    borderRadius:    5,
+                    // LOC stack
+                }, {
+                    data:            data.bars.map(b => b.loc),
+                    backgroundColor: 'rgba(25,118,210,0)',
+                    borderWidth:     0,
                 }]
             },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
+                onClick: (evt, elements) => {
+                    if (elements.length > 0) {
+                        const idx = elements[0].index;
+                        openDetail(data.bars[idx]);
+                    }
+                },
                 plugins: {
                     legend: { display: false },
                     tooltip: {
                         callbacks: {
-                            label: ctx => {
-                                const v = ctx.raw;
-                                if (!v) return '  Chưa có';
-                                return '  ' + v.toLocaleString('vi-VN') + 'đ';
+                            label: c => {
+                                if (c.datasetIndex !== 0) return null;
+                                const b = data.bars[c.dataIndex];
+                                const lines = [];
+                                if (b.total) lines.push('  💰 Tổng: ' + b.total.toLocaleString('vi-VN') + 'đ');
+                                if (b.loc)   lines.push('  👤 LOC: '  + b.loc.toLocaleString('vi-VN')   + 'đ');
+                                if (b.thao)  lines.push('  👤 THAO: ' + b.thao.toLocaleString('vi-VN')  + 'đ');
+                                if (b.count) lines.push('  📋 '       + b.count + ' giao dịch');
+                                if (!b.total) lines.push('  Chưa có giao dịch');
+                                return lines;
                             },
-                            title: ctx => {
-                                const d = days[ctx[0].dataIndex];
-                                return d.label + ' (' + d.day_name + ')' + (d.is_today ? ' · Hôm nay' : '');
+                            title: c => {
+                                const b = data.bars[c[0].dataIndex];
+                                return b.label + (b.sublabel ? ' · ' + b.sublabel : '') + (b.is_today ? ' (Hôm nay)' : '');
                             }
                         },
-                        backgroundColor: 'rgba(30,30,60,0.92)',
-                        titleFont:  { size: 11, weight: 'bold' },
-                        bodyFont:   { size: 12, weight: 'bold' },
-                        padding: 10, cornerRadius: 8,
+                        backgroundColor: 'rgba(20,20,50,0.93)',
+                        titleFont: { size: 11, weight: 'bold' },
+                        bodyFont:  { size: 11 },
+                        padding: 10, cornerRadius: 8, displayColors: false,
                     }
                 },
                 scales: {
                     x: {
                         grid: { display: false },
                         ticks: {
-                            font: { size: 10, weight: '700' },
-                            color: ctx => days[ctx.index] && days[ctx.index].is_today ? '#764ba2' : '#555',
+                            font: { size: _anPeriod === 'month' ? 8 : 10, weight: '700' },
+                            color: '#555', maxRotation: 0,
                         }
                     },
                     y: {
-                        grid: { color: 'rgba(0,0,0,0.05)' },
+                        grid: { color: 'rgba(0,0,0,0.04)' },
                         ticks: {
                             font: { size: 9 },
                             callback: v => v >= 1000000
                                 ? (v/1000000).toFixed(1)+'M'
-                                : v >= 1000 ? (v/1000).toFixed(0)+'k' : v,
+                                : v >= 1000 ? (v/1000).toFixed(0)+'k' : (v||''),
                         },
                         beginAtZero: true,
                     }
                 }
             }
         });
+    } catch(e) { console.warn('Analytics load failed:', e); }
+}
+
+// ── Detail sheet ──
+async function openDetail(bar) {
+    const overlay = document.getElementById('detailOverlay');
+    const sheet   = document.getElementById('detailSheet');
+    const title   = document.getElementById('dsTitle');
+    const sub     = document.getElementById('dsSub');
+    const body    = document.getElementById('dsBody');
+
+    title.textContent = '📋 Chi tiết: ' + bar.label + (bar.sublabel ? ' · ' + bar.sublabel : '');
+    sub.textContent   = bar.is_today ? 'Hôm nay' : bar.date_iso || '';
+    body.innerHTML    = '<p class="ds-empty"><i class="fas fa-spinner fa-spin"></i> Đang tải...</p>';
+
+    overlay.classList.add('open');
+    sheet.classList.add('open');
+
+    try {
+        // For year tab, fetch whole month range; for month/week, fetch single day or range
+        let fromDate = bar.date_iso;
+        let toDate   = bar.date_iso;
+        if (_anPeriod === 'year') {
+            // bar.date_iso is first of month → fetch whole month
+            const d = new Date(bar.date_iso + 'T00:00:00');
+            const y = d.getFullYear(), m = d.getMonth();
+            const last = new Date(y, m+1, 0);
+            toDate = last.getFullYear()+'-'+String(last.getMonth()+1).padStart(2,'0')+'-'+String(last.getDate()).padStart(2,'0');
+        }
+
+        const res  = await fetch(`/api/payment_day_detail?from=${fromDate}&to=${toDate}`);
+        const data = await res.json();
+
+        if (!data.success || !data.transactions.length) {
+            body.innerHTML = '<p class="ds-empty">Không có giao dịch nào trong ngày này.</p>';
+            return;
+        }
+
+        const total = data.total.toLocaleString('vi-VN');
+        const rows  = data.transactions.map(t => {
+            const whoClass = t.collector.includes('LOC') ? 'dt-loc' : 'dt-thao';
+            return `<tr>
+                <td><div class="dt-time">${t.time}</div><div style="font-size:0.58rem;color:#aaa">${t.date}</div></td>
+                <td class="dt-who ${whoClass}">${t.collector||'—'}</td>
+                <td class="dt-guest">${t.guest_name||'—'}</td>
+                <td class="dt-amt">${Number(t.amount).toLocaleString('vi-VN')}đ</td>
+            </tr>`;
+        }).join('');
+
+        body.innerHTML = `
+            <div style="padding:8px 12px;background:#f8f9fa;border-bottom:1px solid #e9ecef;display:flex;justify-content:space-between;align-items:center">
+                <span style="font-size:0.7rem;color:#666;font-weight:700">${data.count} giao dịch</span>
+                <span style="font-size:0.9rem;font-weight:900;color:#764ba2">Tổng: ${total}đ</span>
+            </div>
+            <table class="ds-tbl">
+                <thead><tr>
+                    <th>Giờ</th><th>Người thu</th><th>Khách</th><th style="text-align:right">Số tiền</th>
+                </tr></thead>
+                <tbody>${rows}</tbody>
+            </table>`;
     } catch(e) {
-        console.warn('Chart load failed:', e);
+        body.innerHTML = '<p class="ds-empty">Lỗi tải dữ liệu.</p>';
     }
 }
 
+function closeDetail() {
+    document.getElementById('detailOverlay').classList.remove('open');
+    document.getElementById('detailSheet').classList.remove('open');
+}
+
+// Swipe detail sheet
+(function(){
+    const s = document.getElementById('detailSheet'); let sy=0,d=false;
+    s.addEventListener('touchstart',e=>{sy=e.touches[0].clientY;d=true;},{passive:true});
+    s.addEventListener('touchmove', e=>{if(!d)return;const dy=e.touches[0].clientY-sy;if(dy>0)s.style.transform=`translateY(${dy}px)`;},{passive:true});
+    s.addEventListener('touchend',  e=>{const dy=e.changedTouches[0].clientY-sy;s.style.transform='';if(dy>80)closeDetail();d=false;});
+})();
+
 document.addEventListener('DOMContentLoaded',()=>{
-    tickTs(); renderDates(); loadHistory(); loadChart();
-    setInterval(loadHistory, 30000);
-    setInterval(loadChart,   60000);
+    tickTs(); renderDates(); loadHistory(); loadAnalytics();
+    setInterval(loadHistory,   30000);
+    setInterval(loadAnalytics, 60000);
 });
 </script>
 </body>
