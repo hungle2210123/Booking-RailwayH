@@ -41,122 +41,137 @@
         .stat-l { font-size:0.56rem; font-weight:700; text-transform:uppercase; color:#666; margin-top:2px; }
         .c-red{color:#dc3545} .c-blue{color:#0d6efd} .c-green{color:#198754}
 
-        /* ══ WEEK NAV ══ */
-        .week-nav {
-            position: sticky; top: 56px; z-index: 190;
-            display: flex; align-items: center;
-            background: #fff; border-bottom: 2px solid #dee2e6;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.07);
-        }
-        .wn-btn {
-            flex: 0 0 42px; height: 42px; background: none; border: none;
-            font-size: 1.4rem; color: #764ba2; font-weight: 900; cursor: pointer;
-            display: flex; align-items: center; justify-content: center;
-        }
-        .wn-btn:active { background: #f3e5f5; }
-        .wn-range { flex:1; text-align:center; font-size:0.78rem; font-weight:800; color:#333; }
-        .wn-today {
-            flex: 0 0 68px; height: 42px; border: none; cursor: pointer;
-            background: linear-gradient(135deg,#667eea,#764ba2);
-            color:#fff; font-size:0.72rem; font-weight:800;
-        }
-
-        /* ══ WEEK GRID ══ */
-        .week-scroll {
-            overflow-x: auto; -webkit-overflow-scrolling: touch;
+        /* ══ DATE COLUMNS SCROLL ══ */
+        .dates-scroll {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
             background: #f1f3f4;
-            scrollbar-width: thin; scrollbar-color: #c8b6e2 #f1f3f4;
+            padding: 10px 8px 12px;
+            display: flex;
+            gap: 8px;
+            align-items: flex-start;
+            scrollbar-width: thin;
+            scrollbar-color: #c8b6e2 #f1f3f4;
         }
-        .week-scroll::-webkit-scrollbar { height: 3px; }
-        .week-scroll::-webkit-scrollbar-thumb { background: #c8b6e2; border-radius: 2px; }
+        .dates-scroll::-webkit-scrollbar { height: 4px; }
+        .dates-scroll::-webkit-scrollbar-thumb { background:#c8b6e2; border-radius:2px; }
 
-        .week-grid {
-            display: grid;
-            grid-template-columns: repeat(7, 96px);
-            gap: 5px;
-            padding: 7px 6px;
-            min-width: calc(7 * 101px);
-            align-items: start;
+        /* ══ ONE DATE COLUMN ══ */
+        .date-col {
+            flex: 0 0 130px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
         }
 
-        /* ══ DAY COLUMN ══ */
-        .day-col { display: flex; flex-direction: column; gap: 5px; }
-
-        /* Day header */
-        .day-hdr {
-            background: #fff; border: 1px solid #e9ecef;
-            border-radius: 8px; text-align: center;
-            padding: 6px 4px 5px; cursor: default;
+        /* Date header */
+        .date-hdr {
+            background: #fff;
+            border: 1px solid #e9ecef;
+            border-radius: 10px;
+            text-align: center;
+            padding: 8px 6px 7px;
         }
-        .day-col.is-today .day-hdr {
-            background: linear-gradient(135deg,#667eea,#764ba2);
-            border-color: #764ba2; color:#fff;
+        .date-col.is-today .date-hdr {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            border-color: #764ba2;
         }
-        .day-num  { font-size:1.5rem; font-weight:900; line-height:1; display:block; color:#2c3e50; }
-        .day-col.is-today .day-num  { color:#fff; }
-        .day-name { font-size:0.6rem; font-weight:700; text-transform:uppercase; color:#888; display:block; margin-top:2px; }
-        .day-col.is-today .day-name { color:rgba(255,255,255,0.85); }
-        .day-cnt  {
-            display:inline-block; background:#dc3545; color:#fff;
-            border-radius:8px; padding:1px 6px;
-            font-size:0.58rem; font-weight:800; margin-top:3px;
+        .date-col.is-past .date-hdr {
+            background: #fff3cd;
+            border-color: #ffc107;
         }
-        .day-col.is-today .day-cnt { background:rgba(255,255,255,0.35); }
-
-        /* Empty column placeholder */
-        .day-empty {
-            background:#fff; border:1px dashed #dee2e6; border-radius:7px;
-            height:28px; display:flex; align-items:center; justify-content:center;
-            font-size:0.55rem; color:#ccc;
+        .d-num {
+            font-size: 2rem; font-weight: 900; line-height: 1;
+            color: #2c3e50; display: block;
         }
+        .date-col.is-today .d-num { color: #fff; }
+        .date-col.is-past  .d-num { color: #e65100; }
+        .d-month {
+            font-size: 0.65rem; font-weight: 700; color: #888;
+            display: block; margin-top: 2px;
+        }
+        .date-col.is-today .d-month { color: rgba(255,255,255,0.85); }
+        .date-col.is-past  .d-month { color: #e65100; }
+        .d-cnt {
+            display: inline-block; border-radius: 8px;
+            padding: 1px 7px; font-size: 0.6rem; font-weight: 800;
+            margin-top: 3px; background: #dc3545; color: #fff;
+        }
+        .date-col.is-today .d-cnt { background: rgba(255,255,255,0.35); }
+        .date-col.is-past  .d-cnt { background: #e65100; }
 
         /* ══ GUEST CARD ══ */
         .g-card {
-            background: #fff; border: 1px solid #e9ecef;
-            border-radius: 8px; overflow: hidden; cursor: pointer;
+            background: #fff;
+            border: 1px solid #e9ecef;
+            border-radius: 10px;
+            overflow: hidden;
+            cursor: pointer;
             transition: transform .12s, box-shadow .12s;
         }
-        .g-card:active { transform: scale(0.95); box-shadow: 0 3px 14px rgba(0,0,0,0.18); }
+        .g-card:active { transform: scale(0.96); box-shadow: 0 4px 16px rgba(0,0,0,0.18); }
 
-        .g-stripe { height: 4px; width: 100%; }
+        /* urgency left bar */
+        .g-bar { width: 100%; height: 4px; }
+        .bar-red    { background: #dc3545; }
+        .bar-orange { background: #fd7e14; }
+        .bar-blue   { background: #0d6efd; }
+        .bar-purple { background: #764ba2; }
 
-        .g-body { padding: 6px 7px 0; }
+        .g-body { padding: 8px 9px 0; }
 
+        /* badge */
         .g-badge {
-            display:inline-block; border-radius:6px;
-            padding:2px 5px; font-size:0.55rem; font-weight:800; margin-bottom:4px;
+            display: inline-block; border-radius: 6px;
+            padding: 2px 7px; font-size: 0.58rem; font-weight: 800;
+            margin-bottom: 5px;
         }
-        .bg-red {background:#dc3545;color:#fff}
-        .bg-ora {background:#fd7e14;color:#fff}
-        .bg-blue{background:#0d6efd;color:#fff}
-        .bg-pur {background:#764ba2;color:#fff}
+        .sb-red    { background:#dc3545; color:#fff; }
+        .sb-orange { background:#fd7e14; color:#fff; }
+        .sb-blue   { background:#0d6efd; color:#fff; }
+        .sb-purple { background:#764ba2; color:#fff; }
 
+        /* name */
         .g-name {
-            font-size:0.76rem; font-weight:900; color:#1a1a2e;
-            word-break:break-word; line-height:1.3;
-            border-left:3px solid #ccc; padding-left:4px; margin-bottom:2px;
+            font-size: 0.82rem; font-weight: 900; color: #1a1a2e;
+            line-height: 1.3; word-break: break-word;
+            border-left: 3px solid #ddd; padding-left: 5px;
+            margin-bottom: 3px;
         }
+
+        /* room */
         .g-room {
-            font-size:0.62rem; color:#777; font-weight:600;
-            word-break:break-word; line-height:1.3;
-            padding-left:4px; margin-bottom:5px;
+            font-size: 0.66rem; color: #555; font-weight: 700;
+            line-height: 1.3; word-break: break-word;
+            padding-left: 5px; margin-bottom: 3px;
         }
 
+        /* dates */
+        .g-dates {
+            font-size: 0.62rem; color: #888; font-weight: 600;
+            padding-left: 5px; margin-bottom: 7px;
+            display: flex; align-items: center; gap: 3px;
+        }
+
+        /* revenue bar */
         .g-rev {
-            background:rgba(40,167,69,0.10); border-top:1px solid rgba(40,167,69,0.18);
-            padding:4px 7px; text-align:right;
+            background: rgba(40,167,69,0.10);
+            border-top: 1px solid rgba(40,167,69,0.20);
+            padding: 5px 9px;
+            display: flex; align-items: center; justify-content: space-between;
         }
-        .g-rev-amt { font-size:0.8rem; font-weight:900; color:#28a745; }
-        .g-rev-amt.warn { color:#dc3545; }
+        .g-rev-lbl { font-size: 0.6rem; color: #28a745; font-weight: 700; }
+        .g-rev-amt { font-size: 0.88rem; font-weight: 900; color: #28a745; }
+        .g-rev-amt.warn { color: #dc3545; }
 
-        /* ══ EMPTY / ALL PAID ══ */
-        .all-paid {
+        /* ══ EMPTY ══ */
+        .empty-wrap {
             text-align:center; padding:50px 20px; margin:12px 8px;
             background:#fff; border-radius:12px; border:1px solid #e9ecef;
         }
-        .all-paid .ico { font-size:3rem; margin-bottom:8px; }
-        .all-paid h3   { font-size:1rem; font-weight:800; color:#2e7d32; }
-        .all-paid p    { font-size:0.78rem; color:#888; margin-top:4px; }
+        .empty-wrap .ico { font-size:3rem; margin-bottom:8px; }
+        .empty-wrap h3   { font-size:1rem; font-weight:800; color:#2e7d32; }
+        .empty-wrap p    { font-size:0.78rem; color:#888; margin-top:4px; }
 
         /* ══ HISTORY ══ */
         .hist-wrap { background:#fff; margin:10px 8px 8px; border-radius:10px; overflow:hidden; border:1px solid #e9ecef; }
@@ -210,7 +225,7 @@
             cursor:pointer; text-align:center; transition:all .12s;
         }
         .coll-btn .ico { font-size:1.3rem; display:block; margin-bottom:3px; }
-        .coll-btn.sel  { border-color:#764ba2; background:#f3e5f5; color:#4a148c; }
+        .coll-btn.sel { border-color:#764ba2; background:#f3e5f5; color:#4a148c; }
         .amt-input {
             width:100%; padding:11px 14px; border-radius:10px; border:2px solid #dee2e6;
             font-size:1.05rem; font-weight:700; color:#0d6efd;
@@ -269,25 +284,16 @@
     <div class="stat-cell"><div class="stat-n c-green" id="statDone">0</div><div class="stat-l">Đã thu hôm nay</div></div>
 </div>
 
-<!-- ══ WEEK NAVIGATION ══ -->
-<div class="week-nav">
-    <button class="wn-btn" onclick="changeWeek(-1)">‹</button>
-    <span class="wn-range" id="wnRange">—</span>
-    <button class="wn-btn" onclick="changeWeek(+1)">›</button>
-    <button class="wn-today" onclick="goToday()">Hôm nay</button>
-</div>
-
-<!-- ══ WEEK GRID ══ -->
-<div class="week-scroll" id="weekScroll">
-    <div class="week-grid" id="weekGrid"></div>
-</div>
-
-<!-- ══ EMPTY ══ -->
-<div id="emptyMsg" style="display:none" class="all-paid">
+<!-- ══ DATE COLUMNS ══ -->
+{% if unpaid_guests %}
+<div class="dates-scroll" id="datesScroll"><!-- rendered by JS --></div>
+{% else %}
+<div class="empty-wrap">
     <div class="ico">🎉</div>
     <h3>Không có khách nào cần thu tiền</h3>
     <p>Chỉ hiển thị khách đã xác nhận đến hoặc đang ở.</p>
 </div>
+{% endif %}
 
 <!-- ══ HISTORY ══ -->
 <div class="hist-wrap">
@@ -298,7 +304,7 @@
     <div id="histArea"><p class="hist-empty"><i class="fas fa-spinner fa-spin"></i> Đang tải...</p></div>
 </div>
 
-<!-- ══ OVERLAY + SHEET ══ -->
+<!-- ══ SHEET ══ -->
 <div class="overlay" id="overlay" onclick="closeSheet()"></div>
 <div class="sheet" id="sheet">
     <div class="sh-handle"></div>
@@ -327,131 +333,117 @@
 <div class="toast" id="toast"></div>
 
 <script>
-// ── Guest data from server ──
 let GUESTS = {{ unpaid_guests | tojson }};
 
-// ── Room colour map (matches calendar) ──
 function roomColor(room) {
-    const r = (room || '').toLowerCase();
-    if (r.includes('118') || r.includes('hang bac') || r.includes('hàng bạc') || r.includes('ban cong hang bac')) return '#1976D2';
+    const r = (room||'').toLowerCase();
+    if (r.includes('118')||r.includes('hang bac')||r.includes('hàng bạc')||r.includes('ban cong hang bac')) return '#1976D2';
     if (r.includes('101')) return '#2E7D32';
     if (r.includes('102')) return '#7B1FA2';
-    if (r.includes('kitchen') || r.includes('bếp') || r.includes('ban cong') || r.includes('balcon')) return '#E64A19';
-    if (r.includes('night market') || r.includes('hoi vu') || r.includes('hội vũ') || r.includes('sofa')) return '#00838F';
-    if (r.includes('two-bedroom') || r.includes('2 bed')) return '#558B2F';
+    if (r.includes('kitchen')||r.includes('bếp')||r.includes('ban cong')||r.includes('balcon')) return '#E64A19';
+    if (r.includes('night market')||r.includes('hoi vu')||r.includes('hội vũ')||r.includes('sofa')) return '#00838F';
+    if (r.includes('two-bedroom')||r.includes('2 bed')) return '#558B2F';
     return '#F57F17';
 }
 
-// ── Badge by label ──
-function badge(label) {
-    if (label === 'checkout_today')    return ['bg-red', '🚨 Trả hôm nay'];
-    if (label === 'checkout_tomorrow') return ['bg-ora', '⚠️ Ngày mai'];
-    if (label === 'checkin_today')     return ['bg-blue', '📥 Check-in'];
-    return ['bg-pur', '🏠 Đang ở'];
+function badgeInfo(label) {
+    if (label==='checkout_today')    return ['bar-red',    'sb-red',    '🚨 Trả hôm nay'];
+    if (label==='checkout_tomorrow') return ['bar-orange', 'sb-orange', '⚠️ Ngày mai'];
+    if (label==='checkin_today')     return ['bar-blue',   'sb-blue',   '📥 Check-in'];
+    return ['bar-purple','sb-purple','🏠 Đang ở'];
 }
 
-// ── Week state ──
-let weekOffset = 0;
+// Sort order by label
+const LABEL_ORDER = {checkout_today:0, staying:1, checkin_today:2, checkout_tomorrow:3};
 
-function toISO(d) {
-    return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
-}
-function getMonday(d) {
-    const r = new Date(d); r.setHours(0,0,0,0);
-    const dow = r.getDay();
-    r.setDate(r.getDate() + (dow === 0 ? -6 : 1 - dow));
-    return r;
-}
-const VN = ['CN','T2','T3','T4','T5','T6','T7'];
+function renderDates() {
+    const container = document.getElementById('datesScroll');
+    if (!container) return;
 
-// ── Build one guest card HTML ──
-function cardHTML(g) {
-    const color = roomColor(g.room);
-    const [bc, bt] = badge(g.label);
-    const amt = Math.round(g.amount);
-    const warn = g.commission > 0 ? ' warn' : '';
-    const safeN = (g.name  || '').replace(/'/g,"\\'").replace(/"/g,'&quot;');
-    const safeR = (g.room  || '').replace(/'/g,"\\'").replace(/"/g,'&quot;');
-    return `<div class="g-card" id="card-${g.id}"
-        onclick="openSheet('${g.id}','${safeN}','${safeR}','${g.checkin_display}','${g.checkout_display}',${g.nights},${amt},${Math.round(g.commission||0)})">
-        <div class="g-stripe" style="background:${color}"></div>
-        <div class="g-body">
-            <span class="g-badge ${bc}">${bt}</span>
-            <div class="g-name" style="border-color:${color};color:${color}">${g.name||'—'}</div>
-            <div class="g-room">${g.room||''}</div>
-        </div>
-        <div class="g-rev">
-            <span class="g-rev-amt${warn}">${(amt/1000).toFixed(0)}k</span>
-        </div>
-    </div>`;
-}
-
-// ── Render the week ──
-function renderWeek() {
     const today = new Date(); today.setHours(0,0,0,0);
     const todayISO = toISO(today);
 
-    const mon = getMonday(today);
-    mon.setDate(mon.getDate() + weekOffset * 7);
-
-    const days = Array.from({length:7}, (_,i) => { const d = new Date(mon); d.setDate(mon.getDate()+i); return d; });
-
-    // Week range label
-    const f = d => `${d.getDate()}/${d.getMonth()+1}`;
-    document.getElementById('wnRange').textContent = `${f(days[0])} – ${f(days[6])}/${days[6].getFullYear()}`;
-
-    // Group guests by checkout date ISO
-    const byDay = {};
-    days.forEach(d => { byDay[toISO(d)] = []; });
-    const outside = [];
+    // Group by checkout date, sorted by date then by label priority
+    const dateMap = {};
     GUESTS.forEach(g => {
-        if (byDay.hasOwnProperty(g.checkout)) byDay[g.checkout].push(g);
-        else outside.push(g);
+        if (!dateMap[g.checkout]) dateMap[g.checkout] = [];
+        dateMap[g.checkout].push(g);
     });
 
-    // Render columns
-    document.getElementById('weekGrid').innerHTML = days.map(d => {
-        const iso = toISO(d);
+    // Sort dates ascending
+    const sortedDates = Object.keys(dateMap).sort();
+
+    if (sortedDates.length === 0) {
+        container.innerHTML = '';
+        return;
+    }
+
+    container.innerHTML = sortedDates.map(iso => {
+        const guests = dateMap[iso].sort((a,b) => (LABEL_ORDER[a.label]||9)-(LABEL_ORDER[b.label]||9));
+        const d = new Date(iso + 'T00:00:00');
         const isToday = iso === todayISO;
-        const list = byDay[iso] || [];
-        const dayName = VN[d.getDay()];
-        const cntHTML = list.length ? `<span class="day-cnt">${list.length}</span>` : '';
-        const cardsHTML = list.length
-            ? list.map(g => cardHTML(g)).join('')
-            : `<div class="day-empty">—</div>`;
-        return `<div class="day-col${isToday?' is-today':''}">
-            <div class="day-hdr">
-                <span class="day-num">${d.getDate()}</span>
-                <span class="day-name">${dayName}</span>
-                ${cntHTML}
+        const isPast  = iso < todayISO;
+        const colClass = isToday ? 'is-today' : isPast ? 'is-past' : '';
+
+        const dayNames = ['CN','T2','T3','T4','T5','T6','T7'];
+        const monthStr = `tháng ${d.getMonth()+1}`;
+        const dayName  = dayNames[d.getDay()];
+
+        const hdrLabel = isPast
+            ? `<span class="d-cnt">⚠️ Quá hạn</span>`
+            : `<span class="d-cnt">${guests.length} khách</span>`;
+
+        const cardsHTML = guests.map(g => {
+            const color = roomColor(g.room);
+            const [barCls, sbCls, badgeTxt] = badgeInfo(g.label);
+            const amt = Math.round(g.amount);
+            const warn = g.commission > 0 ? ' warn' : '';
+            const safeN = (g.name||'').replace(/'/g,"\\'").replace(/"/g,'&quot;');
+            const safeR = (g.room||'').replace(/'/g,"\\'").replace(/"/g,'&quot;');
+            return `<div class="g-card" id="card-${g.id}"
+                onclick="openSheet('${g.id}','${safeN}','${safeR}','${g.checkin_display}','${g.checkout_display}',${g.nights},${amt},${Math.round(g.commission||0)})">
+                <div class="g-bar ${barCls}"></div>
+                <div class="g-body">
+                    <span class="g-badge ${sbCls}">${badgeTxt}</span>
+                    <div class="g-name" style="border-color:${color};color:${color}">${g.name||'—'}</div>
+                    <div class="g-room">🏠 ${g.room||''}</div>
+                    <div class="g-dates"><i class="fas fa-calendar-alt" style="font-size:0.55rem"></i> ${g.checkin_display} → ${g.checkout_display} · ${g.nights}đêm</div>
+                </div>
+                <div class="g-rev">
+                    <span class="g-rev-lbl">💰 Cần thu</span>
+                    <span class="g-rev-amt${warn}">${amt.toLocaleString('vi-VN')}đ</span>
+                </div>
+            </div>`;
+        }).join('');
+
+        return `<div class="date-col ${colClass}">
+            <div class="date-hdr">
+                <span class="d-num">${d.getDate()}</span>
+                <span class="d-month">${dayName} · ${monthStr}</span>
+                ${hdrLabel}
             </div>
             ${cardsHTML}
         </div>`;
     }).join('');
 
-    // Show/hide empty msg
-    document.getElementById('emptyMsg').style.display = GUESTS.length === 0 ? 'block' : 'none';
-
-    // Scroll today into view (center)
-    if (weekOffset === 0) {
-        setTimeout(() => {
-            const scroll = document.getElementById('weekScroll');
-            const idx = days.findIndex(d => toISO(d) === todayISO);
-            if (idx >= 0) {
-                const colW = 101;
-                scroll.scrollTo({ left: Math.max(0, idx * colW - scroll.clientWidth/2 + colW/2), behavior: 'smooth' });
-            }
-        }, 60);
-    }
+    // Scroll today into view
+    setTimeout(() => {
+        const todayCol = container.querySelector('.date-col.is-today');
+        if (todayCol) {
+            const scrollLeft = todayCol.offsetLeft - container.offsetLeft - 10;
+            container.scrollTo({ left: Math.max(0, scrollLeft), behavior: 'smooth' });
+        }
+    }, 60);
 }
 
-function changeWeek(d) { weekOffset += d; renderWeek(); }
-function goToday()     { weekOffset  = 0; renderWeek(); }
+function toISO(d) {
+    return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
 
 // ── Bottom sheet ──
 let _bid='', _coll='', _done=0;
 
-function openSheet(id,name,room,ci,co,nights,amount,commission) {
+function openSheet(id,name,room,ci,co,nights,amount,commission){
     _bid=id; _coll='';
     name=name.replace(/&quot;/g,'"'); room=room.replace(/&quot;/g,'"');
     document.getElementById('shName').textContent=name;
@@ -507,26 +499,23 @@ async function doConfirm(){
             const bid=_bid;
             closeSheet(); _done++;
             document.getElementById('statDone').textContent=_done;
-            // Remove from data array
+            // Remove from data
             const idx=GUESTS.findIndex(g=>String(g.id)===String(bid));
             if(idx>=0) GUESTS.splice(idx,1);
-            // Animate card out then re-render
-            const card=document.getElementById('card-'+bid);
-            if(card){
-                card.style.transition='opacity .2s,transform .2s';
-                card.style.opacity='0'; card.style.transform='scale(0.8)';
-                setTimeout(()=>renderWeek(),250);
-            } else { renderWeek(); }
             // Update counters
             document.getElementById('statUnpaid').textContent=GUESTS.length;
             document.getElementById('hdrBadge').textContent=GUESTS.length+' khách';
+            // Animate then re-render
+            const card=document.getElementById('card-'+bid);
+            if(card){ card.style.transition='opacity .2s,transform .2s'; card.style.opacity='0'; card.style.transform='scale(0.85)'; }
+            setTimeout(()=>renderDates(),250);
             showToast('✅ '+_coll+' thu '+amt.toLocaleString('vi-VN')+'đ');
             loadHistory();
         } else {
             showToast(data.message||'Lỗi!',1);
             btn.disabled=false; btn.innerHTML='<i class="fas fa-check-circle"></i> XÁC NHẬN THU TIỀN';
         }
-    } catch(e){
+    }catch(e){
         showToast('Lỗi kết nối!',1);
         btn.disabled=false; btn.innerHTML='<i class="fas fa-check-circle"></i> XÁC NHẬN THU TIỀN';
     }
@@ -538,6 +527,7 @@ function showToast(msg,err=0){
     setTimeout(()=>t.classList.add('show'),10);
     setTimeout(()=>t.classList.remove('show'),3200);
 }
+
 async function loadHistory(){
     const area=document.getElementById('histArea');
     try{
@@ -565,7 +555,7 @@ async function loadHistory(){
         area.innerHTML='<p class="hist-empty">Không tải được lịch sử.</p>';
     }
 }
-// Swipe to dismiss sheet
+
 (function(){
     const s=document.getElementById('sheet');let sy=0,d=false;
     s.addEventListener('touchstart',e=>{sy=e.touches[0].clientY;d=true;},{passive:true});
@@ -573,10 +563,7 @@ async function loadHistory(){
     s.addEventListener('touchend',e=>{const dy=e.changedTouches[0].clientY-sy;s.style.transform='';if(dy>110)closeSheet();d=false;});
 })();
 
-document.addEventListener('DOMContentLoaded',()=>{
-    tickTs(); renderWeek(); loadHistory();
-    setInterval(loadHistory,30000);
-});
+document.addEventListener('DOMContentLoaded',()=>{ tickTs(); renderDates(); loadHistory(); setInterval(loadHistory,30000); });
 </script>
 </body>
 </html>
