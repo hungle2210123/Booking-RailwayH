@@ -4146,11 +4146,23 @@ def mobile_checkin_view(date_str=None):
 def mobile_payment_view():
     """Mobile-optimised payment collection page — unpaid guests only."""
     try:
-        from datetime import timezone as _tz
         _vn_now  = datetime.utcnow() + timedelta(hours=7)
         _today   = _vn_now.date()
 
         df = load_booking_data(force_fresh=True)
+
+        # ── Fetch checkin_status from DB directly (not in load_booking_data SQL) ──
+        _cs_map = {}
+        try:
+            from core.models import db as _csdb
+            _cs_rows = _csdb.session.execute(
+                text("SELECT booking_id, checkin_status FROM bookings WHERE checkin_status IS NOT NULL")
+            ).fetchall()
+            _cs_map = {r[0]: r[1] for r in _cs_rows}
+        except Exception as _cse:
+            print(f"[MOBILE_PAYMENT] checkin_status fetch failed (non-critical): {_cse}")
+
+        _no_show_cutoff = _today - timedelta(days=2)
 
         unpaid = []
         for _, row in df.iterrows():
@@ -4169,23 +4181,24 @@ def mobile_payment_view():
                     continue
 
                 # Skip cancelled / deleted
-                status = str(row.get('Trạng thái', '') or '').lower()
-                if any(k in status for k in ['hủy', 'cancel', 'delet', 'xóa']):
+                booking_status = str(row.get('Tình trạng', '') or '').lower()
+                if any(k in booking_status for k in ['hủy', 'cancel', 'delet', 'xóa']):
                     continue
 
                 ci = row.get('Check-in Date')
                 ci_date = pd.Timestamp(ci).date() if pd.notna(ci) else _today
-                cs = str(row.get('checkin_status', '') or '')
+
+                # Get checkin_status from DB map (not from dataframe — it's missing there)
+                bid = str(row.get('Số đặt phòng', '') or '')
+                cs  = str(_cs_map.get(bid, '') or '')
 
                 # Mirror calendar_details _guest_stays_over logic exactly:
                 #   confirmed   → always show
                 #   cancelling  → always skip
-                #   NULL        → show only within 3-day grace period
-                #                 (same cutoff used by calendar "Khách Đang Ở")
+                #   NULL/''     → show only within 3-day grace period
                 if cs == 'cancelling':
                     continue
                 if cs != 'confirmed':
-                    _no_show_cutoff = _today - timedelta(days=2)
                     if ci_date < _no_show_cutoff:
                         continue   # no-show: checked in >2 days ago, never confirmed
 
