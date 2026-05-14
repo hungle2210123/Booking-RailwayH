@@ -1176,6 +1176,10 @@
                                         </button>
                                     </div>
                                 </div>
+                                {% set total_nights = total_nights_pre %}
+                                {% set total_payment = booking.get('Tổng thanh toán', 0) %}
+                                {% set per_night_rate = (total_payment / total_nights) if total_nights > 0 else total_payment %}
+                                {% set stayed = stayed_pre %}
                                 <!-- Extend Stay button — separate row for visibility -->
                                 <div class="mt-1 mb-1">
                                     <button class="btn btn-sm w-100 fw-semibold text-white"
@@ -1207,10 +1211,6 @@
                                         <span class="checkout-urgency urgency-soon ms-1">📅 Còn {{ remaining }} đêm</span>
                                     {% endif %}
                                 </p>
-                                {% set total_nights = total_nights_pre %}
-                                {% set total_payment = booking.get('Tổng thanh toán', 0) %}
-                                {% set per_night_rate = (total_payment / total_nights) if total_nights > 0 else total_payment %}
-                                {% set stayed = stayed_pre %}
                                 <div class="card-details">
                                     <div class="detail-row">
                                         <span class="detail-id">🔑 {{ booking.get('Số đặt phòng', 'N/A') }}</span>
