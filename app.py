@@ -4172,26 +4172,33 @@ def mobile_payment_view():
                 status = str(row.get('Trạng thái', '') or '').lower()
                 if any(k in status for k in ['hủy', 'cancel', 'delet', 'xóa']):
                     continue
-                cs = str(row.get('checkin_status', '') or '')
-                if cs == 'cancelling':
-                    continue
 
                 ci = row.get('Check-in Date')
                 ci_date = pd.Timestamp(ci).date() if pd.notna(ci) else _today
-                nights  = max((co_date - ci_date).days, 1)
+                cs = str(row.get('checkin_status', '') or '')
 
+                # ONLY show guests who have physically arrived:
+                #   - Already checked in (ci_date < today): always show (they're there)
+                #   - Check-in is today AND host confirmed arrival (cs == 'confirmed')
+                #   - NEVER show future guests or today's unconfirmed check-ins
+                if cs == 'cancelling':
+                    continue
+                if ci_date > _today:
+                    continue  # hasn't arrived yet
+                if ci_date == _today and cs != 'confirmed':
+                    continue  # today but not yet confirmed by host
+
+                nights  = max((co_date - ci_date).days, 1)
                 amount     = float(row.get('Tổng thanh toán', 0) or 0)
                 commission = float(row.get('Hoa hồng', 0) or 0)
 
-                # Relative label
+                # Label for grouping
                 if co_date == _today:
                     label = 'checkout_today'
                 elif co_date == _today + timedelta(days=1):
                     label = 'checkout_tomorrow'
                 elif ci_date == _today:
                     label = 'checkin_today'
-                elif ci_date > _today:
-                    label = 'upcoming'
                 else:
                     label = 'staying'
 

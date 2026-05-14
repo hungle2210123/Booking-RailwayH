@@ -9,215 +9,211 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
-
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-            background: #f1f3f4;
-            color: #2c3e50;
+            background: #f1f3f4; color: #2c3e50;
             padding-bottom: 80px;
         }
 
-        /* ── TOP HEADER (matches calendar gradient) ── */
-        .page-header {
+        /* ════ HEADER — exact same gradient as calendar ════ */
+        .cal-header {
             position: sticky; top: 0; z-index: 100;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: #fff;
-            padding: 12px 16px 10px;
+            padding: 10px 14px 8px;
             box-shadow: 0 2px 8px rgba(0,0,0,0.18);
+            color: #fff;
         }
-        .header-row { display: flex; align-items: center; justify-content: space-between; }
-        .header-back {
+        .cal-header-row { display: flex; align-items: center; justify-content: space-between; }
+        .cal-back {
             color: #fff; text-decoration: none; font-size: 0.8rem; font-weight: 700;
-            background: rgba(255,255,255,0.18); border-radius: 20px; padding: 5px 12px;
+            background: rgba(255,255,255,0.2); border-radius: 20px; padding: 5px 12px;
         }
-        .header-title { font-size: 1.05rem; font-weight: 800; text-align: center; }
-        .header-sub   { font-size: 0.7rem; opacity: 0.82; text-align: center; margin-top: 1px; }
-        .header-count {
+        .cal-title { font-size: 1rem; font-weight: 800; }
+        .cal-sub   { font-size: 0.68rem; opacity: 0.85; margin-top: 1px; }
+        .cal-badge {
             background: rgba(255,255,255,0.22); border-radius: 20px;
-            padding: 5px 10px; font-size: 0.78rem; font-weight: 800;
-            white-space: nowrap;
+            padding: 4px 10px; font-size: 0.76rem; font-weight: 800; white-space: nowrap;
         }
 
-        /* ── STATS ROW (like calendar legend bar) ── */
+        /* ════ STATS — same style as calendar legend bar ════ */
         .stats-bar {
             display: grid; grid-template-columns: repeat(3, 1fr);
             background: #fff; border-bottom: 2px solid #e9ecef;
             box-shadow: 0 1px 4px rgba(0,0,0,0.07);
         }
-        .stat-cell {
-            text-align: center; padding: 8px 4px;
-            border-right: 1px solid #e9ecef;
-        }
-        .stat-cell:last-child { border-right: none; }
-        .stat-num  { font-size: 1.4rem; font-weight: 900; line-height: 1; }
-        .stat-lbl  { font-size: 0.58rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px; color: #666; margin-top: 2px; }
-        .num-red   { color: #dc3545; }
-        .num-blue  { color: #0d6efd; }
-        .num-green { color: #198754; }
+        .stat-item { text-align: center; padding: 8px 4px; border-right: 1px solid #e9ecef; }
+        .stat-item:last-child { border-right: none; }
+        .stat-n { font-size: 1.35rem; font-weight: 900; line-height: 1; }
+        .stat-l { font-size: 0.57rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: #666; margin-top: 2px; }
+        .c-red   { color: #dc3545; }
+        .c-blue  { color: #0d6efd; }
+        .c-green { color: #198754; }
 
-        /* ── SECTION LABEL (like day-header strip) ── */
-        .section-strip {
+        /* ════ SECTION HEADER — exact same as calendar .calendar-header ════ */
+        .section-head {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: #fff;
-            font-size: 0.72rem; font-weight: 800;
-            letter-spacing: 0.8px; text-transform: uppercase;
-            padding: 6px 12px;
-            display: flex; align-items: center; gap: 8px;
-            margin-top: 10px;
+            color: #fff; padding: 7px 12px;
+            font-size: 0.72rem; font-weight: 800; letter-spacing: 0.8px;
+            text-transform: uppercase;
+            display: flex; align-items: center; gap: 6px;
+            margin-top: 8px;
         }
-        .section-strip.red    { background: linear-gradient(135deg, #dc3545, #c0392b); }
-        .section-strip.orange { background: linear-gradient(135deg, #fd7e14, #e65100); }
-        .section-strip.blue   { background: linear-gradient(135deg, #0d6efd, #0a58ca); }
-        .section-strip.gray   { background: linear-gradient(135deg, #6c757d, #495057); }
-        .section-count {
-            background: rgba(255,255,255,0.25); border-radius: 20px;
-            padding: 1px 8px; font-size: 0.68rem; font-weight: 800;
+        .section-head.s-red    { background: linear-gradient(135deg, #dc3545 0%, #c0392b 100%); }
+        .section-head.s-orange { background: linear-gradient(135deg, #fd7e14 0%, #e65100 100%); }
+        .section-head.s-blue   { background: linear-gradient(135deg, #0d6efd 0%, #0a58ca 100%); }
+        .section-head.s-gray   { background: linear-gradient(135deg, #6c757d 0%, #495057 100%); }
+        .s-pill {
+            background: rgba(255,255,255,0.28); border-radius: 20px;
+            padding: 1px 8px; font-size: 0.66rem; font-weight: 800;
             margin-left: auto;
         }
 
-        /* ── GUEST GRID (2-column, calendar-cell style) ── */
-        .guest-grid {
+        /* ════ GRID — matches calendar-body grid ════ */
+        .pay-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 1px;
-            background: #dee2e6; /* gap color = border */
+            border-left: 1px solid #dee2e6;
+            border-top: 1px solid #dee2e6;
         }
 
-        /* ── INDIVIDUAL CELL (mirrors .calendar-day) ── */
-        .guest-cell {
+        /* ════ EACH CELL — mirrors .calendar-day exactly ════ */
+        .pay-cell {
             background: #fff;
-            position: relative;
+            border-right: 1px solid #dee2e6;
+            border-bottom: 1px solid #dee2e6;
+            min-height: 130px;
             cursor: pointer;
-            transition: transform 0.12s, box-shadow 0.12s;
-            overflow: hidden;
-            padding: 10px 10px 8px;
-            min-height: 110px;
+            transition: background 0.15s, transform 0.1s, box-shadow 0.1s;
+            position: relative;
             display: flex; flex-direction: column;
+            padding: 8px 8px 0;
+            overflow: hidden;
         }
-        .guest-cell::before {
-            content: '';
-            position: absolute; top: 0; left: 0; right: 0;
-            height: 4px;
-            background: #9c27b0; /* default = staying */
-        }
-        .guest-cell.urgent::before  { background: #dc3545; }
-        .guest-cell.warning::before { background: #fd7e14; }
-        .guest-cell.info::before    { background: #0d6efd; }
-        .guest-cell.muted::before   { background: #adb5bd; }
-
-        .guest-cell:active {
+        .pay-cell:active {
+            background: #f8f9fa;
             transform: scale(0.97);
-            box-shadow: inset 0 2px 8px rgba(0,0,0,0.12);
+            box-shadow: inset 0 2px 8px rgba(0,0,0,0.1);
+            z-index: 2;
         }
+        /* top-colored stripe, same as calendar today border */
+        .pay-cell.c-urgent  { border-top: 3px solid #dc3545; }
+        .pay-cell.c-warn    { border-top: 3px solid #fd7e14; }
+        .pay-cell.c-info    { border-top: 3px solid #0d6efd; }
+        .pay-cell.c-stay    { border-top: 3px solid #764ba2; }
 
-        /* Paid: overlay tick */
-        .guest-cell.paid { opacity: 0.38; pointer-events: none; }
-        .guest-cell.paid::after {
-            content: '✓';
-            position: absolute; inset: 0;
-            display: flex; align-items: center; justify-content: center;
-            font-size: 2.5rem; font-weight: 900; color: #198754;
-            opacity: 0.25;
+        /* ── date-number area (top-right, like calendar) ── */
+        .cell-amount {
+            font-size: 0.95rem; font-weight: 900;
+            text-align: right;
+            color: #198754;
+            line-height: 1;
+            margin-bottom: 3px;
         }
+        .cell-amount.has-comm { color: #dc3545; }
 
-        /* Cell layout */
-        .cell-top {
-            display: flex; justify-content: space-between; align-items: flex-start;
-            margin-bottom: 5px;
+        /* ── status-badge center (like calendar status-badge) ── */
+        .cell-status {
+            text-align: center;
+            margin: 3px 0 4px;
         }
-        .cell-urgency {
-            font-size: 0.6rem; font-weight: 800; text-transform: uppercase;
-            padding: 1px 6px; border-radius: 8px;
-            letter-spacing: 0.3px;
+        .status-pill {
+            display: inline-block;
+            padding: 3px 10px; border-radius: 12px;
+            font-size: 0.68rem; font-weight: 700;
+            min-width: 70px; text-align: center;
         }
-        .urg-red    { background: #ffe0e0; color: #b71c1c; }
-        .urg-orange { background: #fff0e0; color: #bf360c; }
-        .urg-blue   { background: #e0ecff; color: #0d47a1; }
-        .urg-purple { background: #f3e5f5; color: #4a148c; }
-        .urg-gray   { background: #f5f5f5; color: #555; }
+        .sp-red    { background: #dc3545; color: #fff; }
+        .sp-orange { background: #fd7e14; color: #fff; }
+        .sp-blue   { background: #0d6efd; color: #fff; }
+        .sp-purple { background: #764ba2; color: #fff; }
 
-        .cell-nights {
-            font-size: 0.62rem; color: #888; font-weight: 600;
-            white-space: nowrap;
-        }
-
+        /* ── guest name (big, like day-number but left-aligned) ── */
         .cell-name {
             font-size: 0.88rem; font-weight: 800; color: #1a1a1a;
-            line-height: 1.2; margin-bottom: 4px;
-            /* clip at 2 lines */
+            line-height: 1.2; margin-bottom: 5px;
             display: -webkit-box; -webkit-line-clamp: 2;
             -webkit-box-orient: vertical; overflow: hidden;
         }
 
-        .cell-room {
-            display: inline-block;
-            font-size: 0.62rem; font-weight: 700; color: #6a1b9a;
-            background: #f3e5f5; border-radius: 8px;
-            padding: 1px 6px; margin-bottom: 6px;
-            max-width: 100%; white-space: nowrap;
-            overflow: hidden; text-overflow: ellipsis;
+        /* ── apartment row with colored left border ── */
+        .apt-row {
+            display: flex; align-items: center; gap: 4px;
+            padding-left: 4px;
+            margin-bottom: 3px;
+        }
+        .apt-name {
+            font-size: 0.64rem; font-weight: 700;
+            flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+        }
+        .apt-dates {
+            font-size: 0.6rem; color: #666; font-weight: 600; white-space: nowrap;
+        }
+        .apt-nights {
+            font-size: 0.6rem; font-weight: 800; white-space: nowrap;
         }
 
-        .cell-dates {
-            font-size: 0.62rem; color: #666; margin-bottom: 4px;
-        }
-
-        .cell-amount {
+        /* ── revenue section at bottom (matches calendar revenue-total) ── */
+        .cell-revenue {
             margin-top: auto;
-            font-size: 1.05rem; font-weight: 900; color: #1565c0;
-            text-align: right; line-height: 1;
+            background: #f8fff9;
+            border-top: 1px solid #d1e7dd;
+            padding: 5px 8px 6px;
+            display: flex; align-items: center; justify-content: space-between;
         }
-        .cell-amount.has-commission { color: #c62828; }
-        .cell-commission {
-            font-size: 0.58rem; color: #c62828; text-align: right;
-            font-weight: 600; margin-top: 1px;
+        .rev-label {
+            font-size: 0.6rem; color: #198754; font-weight: 700;
+            display: flex; align-items: center; gap: 3px;
+        }
+        .rev-amount {
+            font-size: 0.82rem; font-weight: 900; color: #198754;
+        }
+        .rev-amount.has-comm { color: #dc3545; }
+        .rev-comm {
+            font-size: 0.57rem; color: #dc3545; font-weight: 600; text-align: right;
         }
 
-        /* ── HISTORY TABLE (clean, minimal) ── */
-        .history-wrap {
-            background: #fff; margin: 10px 0 0;
-            border-top: 3px solid #764ba2;
+        /* ════ EMPTY STATE ════ */
+        .empty-wrap {
+            background: #fff; text-align: center; padding: 50px 20px;
+            border-top: 1px solid #dee2e6;
         }
-        .history-header {
+        .empty-wrap .icon { font-size: 3.5rem; margin-bottom: 10px; }
+        .empty-wrap h3 { font-size: 1.05rem; font-weight: 800; color: #2e7d32; }
+        .empty-wrap p  { font-size: 0.8rem; color: #888; margin-top: 4px; }
+
+        /* ════ HISTORY TABLE — same calendar-like style ════ */
+        .history-block {
+            background: #fff;
+            border-top: 3px solid #764ba2;
+            margin-top: 10px;
+        }
+        .hist-head {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: #fff; padding: 8px 12px;
-            font-size: 0.78rem; font-weight: 800;
+            font-size: 0.76rem; font-weight: 800;
             display: flex; align-items: center; gap: 8px;
         }
-        .history-header button {
-            margin-left: auto; background: rgba(255,255,255,0.2);
+        .hist-head button {
+            margin-left: auto; background: rgba(255,255,255,0.22);
             border: none; color: #fff; border-radius: 12px;
-            padding: 2px 10px; font-size: 0.7rem; font-weight: 700; cursor: pointer;
+            padding: 2px 10px; font-size: 0.68rem; font-weight: 700; cursor: pointer;
         }
-        .hist-table { width: 100%; border-collapse: collapse; font-size: 0.78rem; }
-        .hist-table thead th {
-            background: #f8f9fa; color: #666; font-size: 0.65rem;
-            font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;
+        .hist-tbl { width: 100%; border-collapse: collapse; font-size: 0.76rem; }
+        .hist-tbl thead th {
+            background: #f8f9fa; color: #555; font-size: 0.62rem; font-weight: 700;
+            text-transform: uppercase; letter-spacing: 0.4px;
             padding: 6px 10px; border-bottom: 1px solid #dee2e6; text-align: left;
         }
-        .hist-table tbody tr { border-bottom: 1px solid #f1f3f4; }
-        .hist-table tbody tr:last-child { border-bottom: none; }
-        .hist-table td { padding: 8px 10px; vertical-align: middle; }
-        .hist-time { font-weight: 800; color: #764ba2; white-space: nowrap; }
-        .hist-who  { font-weight: 800; color: #198754; white-space: nowrap; }
-        .hist-amt  { font-weight: 800; color: #1565c0; text-align: right; white-space: nowrap; }
-        .hist-name { color: #333; }
-        .hist-empty { text-align: center; color: #aaa; padding: 20px; font-size: 0.8rem; }
+        .hist-tbl tbody td { padding: 8px 10px; border-bottom: 1px solid #f1f3f4; vertical-align: middle; }
+        .hist-tbl tbody tr:last-child td { border-bottom: none; }
+        .ht-time  { font-weight: 800; color: #764ba2; white-space: nowrap; }
+        .ht-who   { font-weight: 800; color: #198754; white-space: nowrap; }
+        .ht-guest { color: #333; }
+        .ht-amt   { font-weight: 800; color: #0d6efd; text-align: right; white-space: nowrap; }
+        .hist-empty { text-align: center; color: #aaa; padding: 20px; font-size: 0.78rem; }
 
-        /* ── EMPTY STATE ── */
-        .empty-wrap {
-            text-align: center; padding: 50px 20px;
-            background: #fff; margin: 10px 0;
-        }
-        .empty-wrap .big-icon { font-size: 3.5rem; margin-bottom: 12px; }
-        .empty-wrap h3 { font-size: 1.1rem; font-weight: 800; color: #2e7d32; }
-        .empty-wrap p  { font-size: 0.82rem; color: #888; margin-top: 6px; }
-
-        /* ── BOTTOM SHEET ── */
-        .overlay {
-            display: none; position: fixed; inset: 0; z-index: 300;
-            background: rgba(0,0,0,0.5);
-        }
+        /* ════ BOTTOM SHEET ════ */
+        .overlay { display: none; position: fixed; inset: 0; z-index: 300; background: rgba(0,0,0,0.48); }
         .overlay.open { display: block; }
 
         .sheet {
@@ -229,51 +225,46 @@
             padding-bottom: max(env(safe-area-inset-bottom,12px), 12px);
         }
         .sheet.open { transform: translateY(0); }
+        .sh-handle { width: 36px; height: 4px; background: #dee2e6; border-radius: 2px; margin: 10px auto 0; }
 
-        .sheet-handle { width: 36px; height: 4px; background: #ddd; border-radius: 2px; margin: 12px auto 0; }
-
-        /* Sheet header — mimics calendar-header strip */
-        .sheet-head {
+        /* Sheet header = calendar gradient */
+        .sh-head {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: #fff; padding: 14px 18px 12px;
-            margin-top: 8px;
+            color: #fff; padding: 14px 18px;
+            margin-top: 6px;
         }
-        .sheet-head-name { font-size: 1rem; font-weight: 900; }
-        .sheet-head-meta { font-size: 0.78rem; opacity: 0.88; margin-top: 2px; }
-        .sheet-head-amount { font-size: 1.5rem; font-weight: 900; margin-top: 6px; }
+        .sh-name   { font-size: 1rem; font-weight: 900; }
+        .sh-meta   { font-size: 0.78rem; opacity: 0.88; margin-top: 3px; }
+        .sh-amount { font-size: 1.5rem; font-weight: 900; margin-top: 6px; }
 
-        .sheet-body { padding: 16px 18px; }
-        .sh-label {
-            font-size: 0.68rem; font-weight: 800; text-transform: uppercase;
-            letter-spacing: 0.8px; color: #888;
-            margin: 14px 0 6px;
+        .sh-body { padding: 14px 18px; }
+        .sh-lbl {
+            font-size: 0.66rem; font-weight: 800; text-transform: uppercase;
+            letter-spacing: 0.8px; color: #888; margin: 14px 0 6px;
         }
-        .sh-label:first-child { margin-top: 0; }
+        .sh-lbl:first-child { margin-top: 0; }
 
-        /* 2-col collector buttons */
+        /* Collector grid — like calendar grid 2 cols */
         .coll-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
         .coll-btn {
-            padding: 14px 8px; border-radius: 12px;
+            padding: 14px 8px; border-radius: 10px;
             border: 2px solid #dee2e6; background: #f8f9fa;
-            font-size: 0.88rem; font-weight: 800; color: #333;
-            cursor: pointer; text-align: center; transition: all 0.15s;
+            font-size: 0.9rem; font-weight: 800; color: #333;
+            cursor: pointer; text-align: center; transition: all 0.12s;
         }
-        .coll-btn .coll-icon { font-size: 1.4rem; display: block; margin-bottom: 3px; }
-        .coll-btn.sel {
-            border-color: #764ba2; background: #f3e5f5; color: #4a148c;
-        }
+        .coll-btn .ico { font-size: 1.3rem; display: block; margin-bottom: 3px; }
+        .coll-btn.sel  { border-color: #764ba2; background: #f3e5f5; color: #4a148c; }
 
-        /* Amount input */
         .amt-input {
-            width: 100%; padding: 12px 14px; border-radius: 10px;
-            border: 2px solid #dee2e6; font-size: 1.1rem; font-weight: 700;
-            color: #1565c0; background: #f8f9fa; outline: none; text-align: right;
+            width: 100%; padding: 11px 14px; border-radius: 10px;
+            border: 2px solid #dee2e6; font-size: 1.05rem; font-weight: 700;
+            color: #0d6efd; background: #f8f9fa; outline: none; text-align: right;
         }
         .amt-input:focus { border-color: #764ba2; background: #fff; }
 
         .note-input {
             width: 100%; padding: 9px 12px; border-radius: 10px;
-            border: 2px solid #dee2e6; font-size: 0.85rem;
+            border: 2px solid #dee2e6; font-size: 0.84rem;
             color: #333; background: #f8f9fa; outline: none; resize: none;
         }
         .note-input:focus { border-color: #764ba2; background: #fff; }
@@ -281,186 +272,211 @@
         .ts-row {
             display: flex; align-items: center; gap: 8px;
             background: #f3e5f5; border-radius: 10px;
-            padding: 8px 12px; font-size: 0.76rem; color: #6a1b9a; font-weight: 700;
+            padding: 8px 12px; font-size: 0.75rem; color: #6a1b9a; font-weight: 700;
         }
 
-        .btn-confirm {
+        .btn-ok {
             width: 100%; padding: 15px; border-radius: 12px; border: none;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: #fff; font-size: 1rem; font-weight: 900;
+            color: #fff; font-size: 0.98rem; font-weight: 900;
             cursor: pointer; margin-top: 14px;
             display: flex; align-items: center; justify-content: center; gap: 8px;
             box-shadow: 0 4px 14px rgba(102,126,234,0.4);
         }
-        .btn-confirm:disabled { opacity: 0.45; }
+        .btn-ok:disabled { opacity: 0.45; }
 
-        /* ── TOAST ── */
+        /* ════ TOAST ════ */
         .toast {
             position: fixed; bottom: 20px; left: 50%;
             transform: translateX(-50%) translateY(100px);
             background: #198754; color: #fff; border-radius: 24px;
-            padding: 11px 22px; font-weight: 700; font-size: 0.88rem;
+            padding: 10px 22px; font-weight: 700; font-size: 0.86rem;
             z-index: 400; transition: transform 0.3s cubic-bezier(0.22,1,0.36,1);
-            white-space: nowrap; box-shadow: 0 4px 20px rgba(0,0,0,0.22);
-            pointer-events: none;
+            white-space: nowrap; box-shadow: 0 4px 18px rgba(0,0,0,0.2); pointer-events: none;
         }
-        .toast.show  { transform: translateX(-50%) translateY(0); }
-        .toast.err   { background: #dc3545; }
+        .toast.show { transform: translateX(-50%) translateY(0); }
+        .toast.err  { background: #dc3545; }
     </style>
 </head>
 <body>
 
-<!-- ═══ HEADER ═══ -->
-<div class="page-header">
-    <div class="header-row">
-        <a class="header-back" href="/calendar"><i class="fas fa-arrow-left"></i> Lịch</a>
-        <div>
-            <div class="header-title">💰 Thu Tiền Khách</div>
-            <div class="header-sub">{{ today_display }}</div>
+{# ── Room → color mapping (matches calendar) ── #}
+{% macro room_color(room) %}
+    {% set rl = room.lower() %}
+    {% if '118' in rl or 'hang bac' in rl %}#1976D2
+    {% elif 'hang be 101' in rl or 'hb 101' in rl %}#2E7D32
+    {% elif 'hang be 102' in rl or 'hb 102' in rl %}#7B1FA2
+    {% elif 'kitchen' in rl %}#E64A19
+    {% elif 'night market' in rl or 'hoi vu' in rl or 'hội vũ' in rl %}#00838F
+    {% else %}#F57F17{% endif %}
+{% endmacro %}
+
+<!-- ═════ HEADER ═════ -->
+<div class="cal-header">
+    <div class="cal-header-row">
+        <a class="cal-back" href="/calendar"><i class="fas fa-arrow-left"></i> Lịch</a>
+        <div style="text-align:center;">
+            <div class="cal-title">💰 Thu Tiền Khách</div>
+            <div class="cal-sub">{{ today_display }}</div>
         </div>
-        <div class="header-count" id="headerCount">{{ guest_count }} chưa thu</div>
+        <div class="cal-badge" id="hdrCount">{{ guest_count }} khách</div>
     </div>
 </div>
 
-<!-- ═══ STATS BAR ═══ -->
+<!-- ═════ STATS BAR ═════ -->
 <div class="stats-bar">
-    <div class="stat-cell">
-        <div class="stat-num num-red" id="statUnpaid">{{ guest_count }}</div>
-        <div class="stat-lbl">Chưa thu</div>
+    <div class="stat-item">
+        <div class="stat-n c-red" id="statUnpaid">{{ guest_count }}</div>
+        <div class="stat-l">Chưa thu</div>
     </div>
-    <div class="stat-cell">
-        <div class="stat-num num-blue">{{ "{:,.0f}".format(total_unpaid // 1000) }}k</div>
-        <div class="stat-lbl">Tổng cần thu</div>
+    <div class="stat-item">
+        <div class="stat-n c-blue">{{ "{:,.0f}".format(total_unpaid // 1000) }}k</div>
+        <div class="stat-l">Tổng cần thu</div>
     </div>
-    <div class="stat-cell">
-        <div class="stat-num num-green" id="statDone">0</div>
-        <div class="stat-lbl">Đã thu hôm nay</div>
+    <div class="stat-item">
+        <div class="stat-n c-green" id="statDone">0</div>
+        <div class="stat-l">Đã thu hôm nay</div>
     </div>
 </div>
 
-<!-- ═══ GUEST GRID ═══ -->
+<!-- ═════ GUEST GRID ═════ -->
 {% if unpaid_guests %}
 
-    {# ─ Trả phòng hôm nay ─ #}
-    {% set g0 = [] %}{% for g in unpaid_guests %}{% if g.label == 'checkout_today' %}{% if g0.append(g) %}{% endif %}{% endif %}{% endfor %}
+    {# ─ GROUP: Trả phòng hôm nay ─ #}
+    {% set g0 = [] %}
+    {% for g in unpaid_guests %}{% if g.label == 'checkout_today' %}{% if g0.append(g) %}{% endif %}{% endif %}{% endfor %}
     {% if g0 %}
-    <div class="section-strip red">
-        <i class="fas fa-exclamation-circle"></i> 🚨 Trả phòng hôm nay
-        <span class="section-count">{{ g0|length }}</span>
+    <div class="section-head s-red">
+        <i class="fas fa-sign-out-alt"></i> 🚨 Trả phòng hôm nay
+        <span class="s-pill">{{ g0|length }}</span>
     </div>
-    <div class="guest-grid">
+    <div class="pay-grid">
     {% for g in g0 %}
-    <div class="guest-cell urgent" id="card-{{ g.id }}"
+    {% set rc = room_color(g.room)|trim %}
+    <div class="pay-cell c-urgent" id="card-{{ g.id }}"
          onclick="openSheet('{{ g.id }}','{{ g.name|replace("'","\\'")|replace('"','&quot;') }}','{{ g.room|replace("'","\\'")|replace('"','&quot;') }}','{{ g.checkin_display }}','{{ g.checkout_display }}',{{ g.nights }},{{ g.amount|int }},{{ g.commission|int }})">
-        <div class="cell-top">
-            <span class="cell-urgency urg-red">🚨 Trả hôm nay</span>
-            <span class="cell-nights">{{ g.nights }}đêm</span>
-        </div>
+        <div class="cell-amount {% if g.commission > 0 %}has-comm{% endif %}">{{ "{:,.0f}".format(g.amount) }}đ</div>
+        <div class="cell-status"><span class="status-pill sp-red">🚨 Trả hôm nay</span></div>
         <div class="cell-name">{{ g.name }}</div>
-        <div class="cell-room">🏠 {{ g.room }}</div>
-        <div class="cell-dates">{{ g.checkin_display }} → {{ g.checkout_display }}</div>
-        <div class="cell-amount {% if g.commission > 0 %}has-commission{% endif %}">{{ "{:,.0f}".format(g.amount) }}đ</div>
-        {% if g.commission > 0 %}<div class="cell-commission">HH: -{{ "{:,.0f}".format(g.commission) }}đ</div>{% endif %}
+        <div class="apt-row" style="border-left:3px solid {{ rc }};">
+            <span class="apt-name" style="color:{{ rc }};">{{ g.room }}</span>
+        </div>
+        <div class="apt-row" style="border-left:3px solid #e9ecef; margin-top:1px;">
+            <span class="apt-dates">{{ g.checkin_display }} → {{ g.checkout_display }}</span>
+            <span class="apt-nights" style="color:#555;">🌙{{ g.nights }}</span>
+        </div>
+        <div class="cell-revenue">
+            <div class="rev-label"><i class="fas fa-hand-holding-usd"></i> Cần thu</div>
+            <div>
+                <div class="rev-amount {% if g.commission > 0 %}has-comm{% endif %}">{{ "{:,.0f}".format(g.amount) }}đ</div>
+                {% if g.commission > 0 %}<div class="rev-comm">HH: -{{ "{:,.0f}".format(g.commission) }}đ</div>{% endif %}
+            </div>
+        </div>
     </div>
     {% endfor %}
     </div>
     {% endif %}
 
-    {# ─ Đang ở ─ #}
-    {% set g1 = [] %}{% for g in unpaid_guests %}{% if g.label == 'staying' %}{% if g1.append(g) %}{% endif %}{% endif %}{% endfor %}
+    {# ─ GROUP: Đang ở ─ #}
+    {% set g1 = [] %}
+    {% for g in unpaid_guests %}{% if g.label == 'staying' %}{% if g1.append(g) %}{% endif %}{% endif %}{% endfor %}
     {% if g1 %}
-    <div class="section-strip">
+    <div class="section-head">
         <i class="fas fa-bed"></i> 🏠 Đang ở — chưa thu
-        <span class="section-count">{{ g1|length }}</span>
+        <span class="s-pill">{{ g1|length }}</span>
     </div>
-    <div class="guest-grid">
+    <div class="pay-grid">
     {% for g in g1 %}
-    <div class="guest-cell" id="card-{{ g.id }}"
+    {% set rc = room_color(g.room)|trim %}
+    <div class="pay-cell c-stay" id="card-{{ g.id }}"
          onclick="openSheet('{{ g.id }}','{{ g.name|replace("'","\\'")|replace('"','&quot;') }}','{{ g.room|replace("'","\\'")|replace('"','&quot;') }}','{{ g.checkin_display }}','{{ g.checkout_display }}',{{ g.nights }},{{ g.amount|int }},{{ g.commission|int }})">
-        <div class="cell-top">
-            <span class="cell-urgency urg-purple">Đang ở</span>
-            <span class="cell-nights">{{ g.nights }}đêm</span>
-        </div>
+        <div class="cell-amount {% if g.commission > 0 %}has-comm{% endif %}">{{ "{:,.0f}".format(g.amount) }}đ</div>
+        <div class="cell-status"><span class="status-pill sp-purple">Đang ở</span></div>
         <div class="cell-name">{{ g.name }}</div>
-        <div class="cell-room">🏠 {{ g.room }}</div>
-        <div class="cell-dates">{{ g.checkin_display }} → {{ g.checkout_display }}</div>
-        <div class="cell-amount {% if g.commission > 0 %}has-commission{% endif %}">{{ "{:,.0f}".format(g.amount) }}đ</div>
-        {% if g.commission > 0 %}<div class="cell-commission">HH: -{{ "{:,.0f}".format(g.commission) }}đ</div>{% endif %}
+        <div class="apt-row" style="border-left:3px solid {{ rc }};">
+            <span class="apt-name" style="color:{{ rc }};">{{ g.room }}</span>
+        </div>
+        <div class="apt-row" style="border-left:3px solid #e9ecef; margin-top:1px;">
+            <span class="apt-dates">{{ g.checkin_display }} → {{ g.checkout_display }}</span>
+            <span class="apt-nights" style="color:#555;">🌙{{ g.nights }}</span>
+        </div>
+        <div class="cell-revenue">
+            <div class="rev-label"><i class="fas fa-hand-holding-usd"></i> Cần thu</div>
+            <div>
+                <div class="rev-amount {% if g.commission > 0 %}has-comm{% endif %}">{{ "{:,.0f}".format(g.amount) }}đ</div>
+                {% if g.commission > 0 %}<div class="rev-comm">HH: -{{ "{:,.0f}".format(g.commission) }}đ</div>{% endif %}
+            </div>
+        </div>
     </div>
     {% endfor %}
     </div>
     {% endif %}
 
-    {# ─ Check-in hôm nay ─ #}
-    {% set g2 = [] %}{% for g in unpaid_guests %}{% if g.label == 'checkin_today' %}{% if g2.append(g) %}{% endif %}{% endif %}{% endfor %}
+    {# ─ GROUP: Check-in + xác nhận hôm nay ─ #}
+    {% set g2 = [] %}
+    {% for g in unpaid_guests %}{% if g.label == 'checkin_today' %}{% if g2.append(g) %}{% endif %}{% endif %}{% endfor %}
     {% if g2 %}
-    <div class="section-strip blue">
-        <i class="fas fa-sign-in-alt"></i> 📥 Check-in hôm nay
-        <span class="section-count">{{ g2|length }}</span>
+    <div class="section-head s-blue">
+        <i class="fas fa-sign-in-alt"></i> ✅ Check-in hôm nay (đã xác nhận)
+        <span class="s-pill">{{ g2|length }}</span>
     </div>
-    <div class="guest-grid">
+    <div class="pay-grid">
     {% for g in g2 %}
-    <div class="guest-cell info" id="card-{{ g.id }}"
+    {% set rc = room_color(g.room)|trim %}
+    <div class="pay-cell c-info" id="card-{{ g.id }}"
          onclick="openSheet('{{ g.id }}','{{ g.name|replace("'","\\'")|replace('"','&quot;') }}','{{ g.room|replace("'","\\'")|replace('"','&quot;') }}','{{ g.checkin_display }}','{{ g.checkout_display }}',{{ g.nights }},{{ g.amount|int }},{{ g.commission|int }})">
-        <div class="cell-top">
-            <span class="cell-urgency urg-blue">📥 Hôm nay</span>
-            <span class="cell-nights">{{ g.nights }}đêm</span>
-        </div>
+        <div class="cell-amount {% if g.commission > 0 %}has-comm{% endif %}">{{ "{:,.0f}".format(g.amount) }}đ</div>
+        <div class="cell-status"><span class="status-pill sp-blue">📥 Check-in</span></div>
         <div class="cell-name">{{ g.name }}</div>
-        <div class="cell-room">🏠 {{ g.room }}</div>
-        <div class="cell-dates">{{ g.checkin_display }} → {{ g.checkout_display }}</div>
-        <div class="cell-amount {% if g.commission > 0 %}has-commission{% endif %}">{{ "{:,.0f}".format(g.amount) }}đ</div>
-        {% if g.commission > 0 %}<div class="cell-commission">HH: -{{ "{:,.0f}".format(g.commission) }}đ</div>{% endif %}
+        <div class="apt-row" style="border-left:3px solid {{ rc }};">
+            <span class="apt-name" style="color:{{ rc }};">{{ g.room }}</span>
+        </div>
+        <div class="apt-row" style="border-left:3px solid #e9ecef; margin-top:1px;">
+            <span class="apt-dates">{{ g.checkin_display }} → {{ g.checkout_display }}</span>
+            <span class="apt-nights" style="color:#555;">🌙{{ g.nights }}</span>
+        </div>
+        <div class="cell-revenue">
+            <div class="rev-label"><i class="fas fa-hand-holding-usd"></i> Cần thu</div>
+            <div>
+                <div class="rev-amount {% if g.commission > 0 %}has-comm{% endif %}">{{ "{:,.0f}".format(g.amount) }}đ</div>
+                {% if g.commission > 0 %}<div class="rev-comm">HH: -{{ "{:,.0f}".format(g.commission) }}đ</div>{% endif %}
+            </div>
+        </div>
     </div>
     {% endfor %}
     </div>
     {% endif %}
 
-    {# ─ Trả phòng ngày mai ─ #}
-    {% set g3 = [] %}{% for g in unpaid_guests %}{% if g.label == 'checkout_tomorrow' %}{% if g3.append(g) %}{% endif %}{% endif %}{% endfor %}
+    {# ─ GROUP: Trả phòng ngày mai ─ #}
+    {% set g3 = [] %}
+    {% for g in unpaid_guests %}{% if g.label == 'checkout_tomorrow' %}{% if g3.append(g) %}{% endif %}{% endif %}{% endfor %}
     {% if g3 %}
-    <div class="section-strip orange">
+    <div class="section-head s-orange">
         <i class="fas fa-clock"></i> ⚠️ Trả phòng ngày mai
-        <span class="section-count">{{ g3|length }}</span>
+        <span class="s-pill">{{ g3|length }}</span>
     </div>
-    <div class="guest-grid">
+    <div class="pay-grid">
     {% for g in g3 %}
-    <div class="guest-cell warning" id="card-{{ g.id }}"
+    {% set rc = room_color(g.room)|trim %}
+    <div class="pay-cell c-warn" id="card-{{ g.id }}"
          onclick="openSheet('{{ g.id }}','{{ g.name|replace("'","\\'")|replace('"','&quot;') }}','{{ g.room|replace("'","\\'")|replace('"','&quot;') }}','{{ g.checkin_display }}','{{ g.checkout_display }}',{{ g.nights }},{{ g.amount|int }},{{ g.commission|int }})">
-        <div class="cell-top">
-            <span class="cell-urgency urg-orange">⚠️ Ngày mai</span>
-            <span class="cell-nights">{{ g.nights }}đêm</span>
-        </div>
+        <div class="cell-amount {% if g.commission > 0 %}has-comm{% endif %}">{{ "{:,.0f}".format(g.amount) }}đ</div>
+        <div class="cell-status"><span class="status-pill sp-orange">⚠️ Ngày mai</span></div>
         <div class="cell-name">{{ g.name }}</div>
-        <div class="cell-room">🏠 {{ g.room }}</div>
-        <div class="cell-dates">{{ g.checkin_display }} → {{ g.checkout_display }}</div>
-        <div class="cell-amount {% if g.commission > 0 %}has-commission{% endif %}">{{ "{:,.0f}".format(g.amount) }}đ</div>
-        {% if g.commission > 0 %}<div class="cell-commission">HH: -{{ "{:,.0f}".format(g.commission) }}đ</div>{% endif %}
-    </div>
-    {% endfor %}
-    </div>
-    {% endif %}
-
-    {# ─ Sắp đến ─ #}
-    {% set g4 = [] %}{% for g in unpaid_guests %}{% if g.label == 'upcoming' %}{% if g4.append(g) %}{% endif %}{% endif %}{% endfor %}
-    {% if g4 %}
-    <div class="section-strip gray">
-        <i class="fas fa-calendar-alt"></i> 📅 Sắp đến
-        <span class="section-count">{{ g4|length }}</span>
-    </div>
-    <div class="guest-grid" style="opacity:0.7;">
-    {% for g in g4 %}
-    <div class="guest-cell muted" id="card-{{ g.id }}"
-         onclick="openSheet('{{ g.id }}','{{ g.name|replace("'","\\'")|replace('"','&quot;') }}','{{ g.room|replace("'","\\'")|replace('"','&quot;') }}','{{ g.checkin_display }}','{{ g.checkout_display }}',{{ g.nights }},{{ g.amount|int }},{{ g.commission|int }})">
-        <div class="cell-top">
-            <span class="cell-urgency urg-gray">Chưa đến</span>
-            <span class="cell-nights">{{ g.nights }}đêm</span>
+        <div class="apt-row" style="border-left:3px solid {{ rc }};">
+            <span class="apt-name" style="color:{{ rc }};">{{ g.room }}</span>
         </div>
-        <div class="cell-name">{{ g.name }}</div>
-        <div class="cell-room">🏠 {{ g.room }}</div>
-        <div class="cell-dates">{{ g.checkin_display }} → {{ g.checkout_display }}</div>
-        <div class="cell-amount {% if g.commission > 0 %}has-commission{% endif %}">{{ "{:,.0f}".format(g.amount) }}đ</div>
-        {% if g.commission > 0 %}<div class="cell-commission">HH: -{{ "{:,.0f}".format(g.commission) }}đ</div>{% endif %}
+        <div class="apt-row" style="border-left:3px solid #e9ecef; margin-top:1px;">
+            <span class="apt-dates">{{ g.checkin_display }} → {{ g.checkout_display }}</span>
+            <span class="apt-nights" style="color:#555;">🌙{{ g.nights }}</span>
+        </div>
+        <div class="cell-revenue">
+            <div class="rev-label"><i class="fas fa-hand-holding-usd"></i> Cần thu</div>
+            <div>
+                <div class="rev-amount {% if g.commission > 0 %}has-comm{% endif %}">{{ "{:,.0f}".format(g.amount) }}đ</div>
+                {% if g.commission > 0 %}<div class="rev-comm">HH: -{{ "{:,.0f}".format(g.commission) }}đ</div>{% endif %}
+            </div>
+        </div>
     </div>
     {% endfor %}
     </div>
@@ -468,126 +484,123 @@
 
 {% else %}
     <div class="empty-wrap">
-        <div class="big-icon">🎉</div>
-        <h3>Đã thu tiền tất cả!</h3>
-        <p>Không còn khách nào chưa thu tiền.</p>
+        <div class="icon">🎉</div>
+        <h3>Không có khách nào cần thu tiền</h3>
+        <p>Chỉ hiển thị khách đã xác nhận đến hoặc đang ở.</p>
     </div>
 {% endif %}
 
-<!-- ═══ PAYMENT HISTORY TABLE ═══ -->
-<div class="history-wrap">
-    <div class="history-header">
+<!-- ═════ HISTORY ═════ -->
+<div class="history-block">
+    <div class="hist-head">
         <i class="fas fa-history"></i> Lịch sử thu tiền hôm nay
-        <button onclick="loadHistory()"><i class="fas fa-sync-alt"></i> Làm mới</button>
+        <button onclick="loadHistory()"><i class="fas fa-sync-alt"></i> Mới nhất</button>
     </div>
-    <div id="historyArea">
+    <div id="histArea">
         <p class="hist-empty"><i class="fas fa-spinner fa-spin"></i> Đang tải...</p>
     </div>
 </div>
 
-<!-- ═══ OVERLAY ═══ -->
+<!-- ═════ OVERLAY ═════ -->
 <div class="overlay" id="overlay" onclick="closeSheet()"></div>
 
-<!-- ═══ BOTTOM SHEET ═══ -->
+<!-- ═════ BOTTOM SHEET ═════ -->
 <div class="sheet" id="sheet">
-    <div class="sheet-handle"></div>
-    <div class="sheet-head">
-        <div class="sheet-head-name" id="sheetName">—</div>
-        <div class="sheet-head-meta" id="sheetMeta">—</div>
-        <div class="sheet-head-amount" id="sheetAmt">—</div>
+    <div class="sh-handle"></div>
+    <div class="sh-head">
+        <div class="sh-name"   id="shName">—</div>
+        <div class="sh-meta"   id="shMeta">—</div>
+        <div class="sh-amount" id="shAmt">—</div>
     </div>
-    <div class="sheet-body">
+    <div class="sh-body">
 
-        <div class="sh-label">Người thu tiền</div>
+        <div class="sh-lbl">Người thu tiền</div>
         <div class="coll-grid">
-            <button class="coll-btn" id="bLoc"  onclick="pickCollector('LOC LE')">
-                <span class="coll-icon">👤</span>LOC LE
+            <button class="coll-btn" id="bLoc"  onclick="pick('LOC LE')">
+                <span class="ico">👤</span>LOC LE
             </button>
-            <button class="coll-btn" id="bThao" onclick="pickCollector('THAO LE')">
-                <span class="coll-icon">👤</span>THAO LE
+            <button class="coll-btn" id="bThao" onclick="pick('THAO LE')">
+                <span class="ico">👤</span>THAO LE
             </button>
         </div>
 
-        <div class="sh-label">Số tiền thu (đ)</div>
-        <input class="amt-input" id="inpAmount" type="number" inputmode="numeric" min="0" placeholder="0">
+        <div class="sh-lbl">Số tiền thu (đ)</div>
+        <input class="amt-input" id="inpAmt" type="number" inputmode="numeric" min="0" placeholder="0">
 
-        <div class="sh-label">Ghi chú (tuỳ chọn)</div>
+        <div class="sh-lbl">Ghi chú</div>
         <textarea class="note-input" id="inpNote" rows="2"
-                  placeholder="VD: Tiền mặt, CK Vietcombank..."></textarea>
+                  placeholder="Tiền mặt / CK Vietcombank..."></textarea>
 
-        <div class="sh-label">Thời gian ghi nhận</div>
+        <div class="sh-lbl">Thời gian ghi nhận</div>
         <div class="ts-row">
             <i class="fas fa-clock"></i>
-            <span id="liveTs">--:-- · --/--/----</span>
+            <span id="tsLive">--:-- · --/--/----</span>
         </div>
 
-        <button class="btn-confirm" id="btnOK" onclick="doConfirm()" disabled>
+        <button class="btn-ok" id="btnOk" onclick="doConfirm()" disabled>
             <i class="fas fa-check-circle"></i> XÁC NHẬN THU TIỀN
         </button>
     </div>
 </div>
 
-<!-- ═══ TOAST ═══ -->
+<!-- ═════ TOAST ═════ -->
 <div class="toast" id="toast"></div>
 
 <script>
-let _bid = '', _collector = '', _done = 0;
+let _bid = '', _coll = '', _done = 0;
 
-/* open sheet */
 function openSheet(id, name, room, ci, co, nights, amount, commission) {
-    _bid = id; _collector = '';
+    _bid = id; _coll = '';
     name = name.replace(/&quot;/g, '"');
     room = room.replace(/&quot;/g, '"');
 
-    document.getElementById('sheetName').textContent = name;
-    document.getElementById('sheetMeta').textContent =
+    document.getElementById('shName').textContent = name;
+    document.getElementById('shMeta').textContent =
         room + '  ·  ' + ci + ' → ' + co + '  ·  ' + nights + ' đêm';
     const net = commission > 0 ? amount - commission : amount;
-    document.getElementById('sheetAmt').textContent =
+    document.getElementById('shAmt').textContent =
         amount.toLocaleString('vi-VN') + 'đ' +
         (commission > 0 ? '  →  Thực thu: ' + net.toLocaleString('vi-VN') + 'đ' : '');
 
-    document.getElementById('inpAmount').value = amount;
-    document.getElementById('inpNote').value   = '';
+    document.getElementById('inpAmt').value = amount;
+    document.getElementById('inpNote').value = '';
     document.getElementById('bLoc').classList.remove('sel');
     document.getElementById('bThao').classList.remove('sel');
-    document.getElementById('btnOK').disabled = true;
+    document.getElementById('btnOk').disabled = true;
 
     tickTs();
     document.getElementById('overlay').classList.add('open');
     document.getElementById('sheet').classList.add('open');
-    setTimeout(() => document.getElementById('inpAmount').focus(), 250);
+    setTimeout(() => document.getElementById('inpAmt').focus(), 250);
 }
 
 function closeSheet() {
     document.getElementById('overlay').classList.remove('open');
     document.getElementById('sheet').classList.remove('open');
-    _bid = ''; _collector = '';
+    _bid = ''; _coll = '';
 }
 
-function pickCollector(c) {
-    _collector = c;
+function pick(c) {
+    _coll = c;
     document.getElementById('bLoc').classList.toggle('sel',  c === 'LOC LE');
     document.getElementById('bThao').classList.toggle('sel', c === 'THAO LE');
-    document.getElementById('btnOK').disabled = false;
+    document.getElementById('btnOk').disabled = false;
 }
 
-/* live clock */
 function tickTs() {
     const n = new Date(), p = v => String(v).padStart(2,'0');
-    document.getElementById('liveTs').textContent =
+    document.getElementById('tsLive').textContent =
         `${p(n.getHours())}:${p(n.getMinutes())} · ${p(n.getDate())}/${p(n.getMonth()+1)}/${n.getFullYear()}`;
 }
 setInterval(tickTs, 15000);
 
-/* confirm */
 async function doConfirm() {
-    if (!_collector) { showToast('Chọn người thu!', 1); return; }
-    const amount = parseFloat(document.getElementById('inpAmount').value);
-    if (!amount || amount <= 0) { showToast('Nhập số tiền hợp lệ!', 1); return; }
+    if (!_coll)  { showToast('Chọn người thu!', 1); return; }
+    const amt = parseFloat(document.getElementById('inpAmt').value);
+    if (!amt || amt <= 0) { showToast('Nhập số tiền!', 1); return; }
     const note = document.getElementById('inpNote').value.trim();
 
-    const btn = document.getElementById('btnOK');
+    const btn = document.getElementById('btnOk');
     btn.disabled = true;
     btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Đang lưu...';
 
@@ -597,8 +610,8 @@ async function doConfirm() {
             headers: {'Content-Type': 'application/json'},
             body:    JSON.stringify({
                 booking_id:        _bid,
-                collected_amount:  amount,
-                collector_name:    _collector,
+                collected_amount:  amt,
+                collector_name:    _coll,
                 payment_note:      note || ('Thu tiền · ' + new Date().toLocaleString('vi-VN')),
                 payment_type:      'room',
                 commission_amount: 0,
@@ -613,23 +626,21 @@ async function doConfirm() {
             _done++;
             document.getElementById('statDone').textContent = _done;
 
-            /* animate cell out */
             const card = document.getElementById('card-' + _bid);
             if (card) {
-                card.style.transition = 'opacity .3s, transform .3s';
-                card.style.opacity = '0';
-                card.style.transform = 'scale(0.88)';
+                card.style.transition = 'opacity .28s, transform .28s';
+                card.style.opacity    = '0';
+                card.style.transform  = 'scale(0.85)';
                 setTimeout(() => {
-                    /* collapse height */
-                    card.style.transition += ', max-height .35s .25s, padding .35s .25s';
+                    card.style.transition += ', max-height .32s .22s, padding .32s .22s, min-height .32s .22s';
                     card.style.maxHeight  = '0';
-                    card.style.padding    = '0';
-                    card.style.overflow   = 'hidden';
                     card.style.minHeight  = '0';
-                }, 280);
-                setTimeout(() => { card.remove(); refreshCount(); loadHistory(); }, 700);
+                    card.style.overflow   = 'hidden';
+                    card.style.padding    = '0';
+                }, 260);
+                setTimeout(() => { card.remove(); updateCount(); loadHistory(); }, 680);
             }
-            showToast('✅ ' + _collector + ' thu ' + amount.toLocaleString('vi-VN') + 'đ');
+            showToast('✅ ' + _coll + ' thu ' + amt.toLocaleString('vi-VN') + 'đ');
         } else {
             showToast(data.message || 'Lỗi!', 1);
             btn.disabled = false;
@@ -642,10 +653,10 @@ async function doConfirm() {
     }
 }
 
-function refreshCount() {
+function updateCount() {
     const n = document.querySelectorAll('[id^="card-"]').length;
     document.getElementById('statUnpaid').textContent = n;
-    document.getElementById('headerCount').textContent = n + ' chưa thu';
+    document.getElementById('hdrCount').textContent = n + ' khách';
 }
 
 function showToast(msg, err = 0) {
@@ -656,42 +667,37 @@ function showToast(msg, err = 0) {
     setTimeout(() => t.classList.remove('show'), 3200);
 }
 
-/* history */
 async function loadHistory() {
-    const area = document.getElementById('historyArea');
+    const area = document.getElementById('histArea');
     try {
         const res  = await fetch('/api/payment_history_today');
         const data = await res.json();
-        if (!data.success || !data.history || data.history.length === 0) {
+        if (!data.success || !data.history || !data.history.length) {
             area.innerHTML = '<p class="hist-empty">Chưa có giao dịch thu tiền hôm nay.</p>';
             return;
         }
-        let rows = '';
-        const seen = new Set();
+
+        // Build deduplicated rows — one row = one payment action
+        const payments = {}; // booking_id → {time, collector, amount, guest}
         for (const h of data.history) {
-            const k = String(h.history_id);
-            if (seen.has(k)) continue; seen.add(k);
-            /* show collector changes + collected_amount changes */
-            const fn = h.field_name || '';
-            if (!fn.includes('thu') && !fn.includes('Thu')) continue;
-            const amtStr = h.new_value
-                ? Number(h.new_value.replace(/[^0-9.]/g,'')).toLocaleString('vi-VN') + 'đ'
-                : '';
-            const who = fn.includes('Người') ? (h.new_value || '') : '';
-            const amt = fn.includes('tiền đã') ? amtStr : '';
-            if (!who && !amt) continue;   // skip unrelated fields
-            rows += `<tr>
-                <td class="hist-time">${h.vn_time || ''}</td>
-                <td class="hist-who">${who || '—'}</td>
-                <td class="hist-name">${h.guest_name || h.booking_id || ''}</td>
-                <td class="hist-amt">${amt || amtStr}</td>
-            </tr>`;
+            const bid = h.booking_id;
+            if (!payments[bid]) payments[bid] = { time:'', who:'', amt:'', guest: h.guest_name||bid };
+            if (h.field_name === 'Người thu tiền')   { payments[bid].who  = h.new_value||''; payments[bid].time = h.vn_time||''; }
+            if (h.field_name === 'Số tiền đã thu')   { payments[bid].amt  = Number(h.new_value||0).toLocaleString('vi-VN') + 'đ'; }
         }
-        if (!rows) {
-            area.innerHTML = '<p class="hist-empty">Chưa có giao dịch thu tiền hôm nay.</p>';
-            return;
-        }
-        area.innerHTML = `<table class="hist-table">
+
+        const rows = Object.values(payments).filter(p => p.who).map(p =>
+            `<tr>
+                <td class="ht-time">${p.time}</td>
+                <td class="ht-who">${p.who}</td>
+                <td class="ht-guest">${p.guest}</td>
+                <td class="ht-amt">${p.amt}</td>
+            </tr>`
+        ).join('');
+
+        if (!rows) { area.innerHTML = '<p class="hist-empty">Chưa có giao dịch thu tiền hôm nay.</p>'; return; }
+
+        area.innerHTML = `<table class="hist-tbl">
             <thead><tr>
                 <th>Giờ</th><th>Người thu</th><th>Khách</th><th style="text-align:right">Số tiền</th>
             </tr></thead>
@@ -702,22 +708,13 @@ async function loadHistory() {
     }
 }
 
-/* swipe to dismiss */
+/* swipe to close */
 (function(){
     const s = document.getElementById('sheet');
-    let sy = 0, dr = false;
-    s.addEventListener('touchstart', e => { sy = e.touches[0].clientY; dr = true; }, {passive:true});
-    s.addEventListener('touchmove',  e => {
-        if (!dr) return;
-        const dy = e.touches[0].clientY - sy;
-        if (dy > 0) s.style.transform = `translateY(${dy}px)`;
-    }, {passive:true});
-    s.addEventListener('touchend', e => {
-        const dy = e.changedTouches[0].clientY - sy;
-        s.style.transform = '';
-        if (dy > 110) closeSheet();
-        dr = false;
-    });
+    let sy = 0, d = false;
+    s.addEventListener('touchstart', e => { sy = e.touches[0].clientY; d = true; }, {passive:true});
+    s.addEventListener('touchmove',  e => { if (!d) return; const dy = e.touches[0].clientY-sy; if(dy>0) s.style.transform=`translateY(${dy}px)`; }, {passive:true});
+    s.addEventListener('touchend',   e => { const dy=e.changedTouches[0].clientY-sy; s.style.transform=''; if(dy>110) closeSheet(); d=false; });
 })();
 
 document.addEventListener('DOMContentLoaded', () => { tickTs(); loadHistory(); setInterval(loadHistory, 30000); });
