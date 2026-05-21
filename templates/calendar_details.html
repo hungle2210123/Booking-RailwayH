@@ -1049,7 +1049,9 @@
         {% for apt in apartments_list %}
         <button class="apt-sel-btn {% if cur == apt.id|string %}active{% endif %}"
                 id="asbtn-{{ booking_id }}-{{ apt.id }}"
-                style="{% if cur == apt.id|string %}background:{{ apt.color }};{% else %}border-color:{{ apt.color }};color:{{ apt.color }};{% endif %}"
+                data-color="{{ apt.color }}"
+                data-label="{{ apt.emoji }} {{ apt.name }}"
+                style="{% if cur == apt.id|string %}background:{{ apt.color }};color:#fff;border-color:transparent;{% else %}border-color:{{ apt.color }};color:{{ apt.color }};{% endif %}"
                 onclick="setApt('{{ booking_id }}','{{ apt.id }}','{{ apt.color }}')">
             {{ apt.emoji }} {{ apt.name }}
         </button>
@@ -3722,30 +3724,35 @@ async function setApt(bookingId, aptId, color) {
         // Update all buttons in this selector
         const sel = document.getElementById('asel-' + bookingId);
         if (sel) {
-            sel.querySelectorAll('.apt-sel-btn').forEach(btn => {
+            // Reset ALL apt buttons to their original outline style
+            sel.querySelectorAll('.apt-sel-btn:not(.clear-btn)').forEach(btn => {
+                const c = btn.dataset.color || '#999';
                 btn.classList.remove('active');
-                btn.style.background = '';
-                // restore original color style from data attribute
+                btn.style.background   = '';
+                btn.style.borderColor  = c;
+                btn.style.color        = c;
+                // Restore label text in case it was wiped
+                if (btn.dataset.label) btn.textContent = btn.dataset.label;
             });
+
             if (aptId) {
-                // Re-render selector inline via JS
+                // Mark selected button as active (filled)
                 sel.querySelectorAll('.apt-sel-btn:not(.clear-btn)').forEach(btn => {
                     const bId = btn.id.replace('asbtn-' + bookingId + '-', '');
-                    if (bId == aptId) {
+                    if (String(bId) === String(aptId)) {
                         btn.classList.add('active');
-                        btn.style.background = color;
+                        btn.style.background  = color;
                         btn.style.borderColor = 'transparent';
-                        btn.style.color = '#fff';
-                    } else {
-                        btn.style.background = '';
+                        btn.style.color       = '#fff';
+                        if (btn.dataset.label) btn.textContent = btn.dataset.label;
                     }
                 });
-                // Show clear button if not present
+                // Show clear button if not already present
                 if (!sel.querySelector('.clear-btn')) {
                     const clr = document.createElement('button');
-                    clr.className = 'apt-sel-btn clear-btn';
+                    clr.className   = 'apt-sel-btn clear-btn';
                     clr.textContent = '✕ Xóa';
-                    clr.onclick = () => setApt(bookingId, '', '');
+                    clr.onclick     = () => setApt(bookingId, '', '');
                     sel.appendChild(clr);
                 }
             } else {
