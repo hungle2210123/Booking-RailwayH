@@ -970,7 +970,100 @@
         .sgd-cancelling { color: #c62828; }
         .sgd-none       { color: #5d4037; }
         .sgd-confirmed  { color: #2e7d32; }
+
+        /* ══ APARTMENT NOTIFICATION BAR ══ */
+        .apt-notify-bar {
+            display: flex; flex-wrap: wrap; gap: 8px;
+            padding: 10px 14px; margin-bottom: 14px;
+            background: #fff; border-radius: 12px;
+            border: 1px solid #e9ecef;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+            align-items: stretch;
+        }
+        .apt-notify-bar .anb-title {
+            width: 100%; font-size: 0.72rem; font-weight: 800;
+            color: #555; text-transform: uppercase; letter-spacing: 0.5px;
+            margin-bottom: 2px; display: flex; align-items: center; gap: 6px;
+        }
+        .apt-card {
+            flex: 1; min-width: 140px;
+            border-radius: 10px; padding: 9px 12px;
+            border: 2px solid transparent;
+            background: #f8f9fa;
+            transition: all .15s;
+        }
+        .apt-card-name {
+            font-size: 0.75rem; font-weight: 900; color: #222;
+            display: flex; align-items: center; gap: 5px; margin-bottom: 5px;
+        }
+        .apt-card-dot {
+            width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0;
+        }
+        .apt-stats {
+            display: flex; gap: 6px; flex-wrap: wrap;
+        }
+        .apt-stat {
+            display: flex; flex-direction: column; align-items: center;
+            background: #fff; border-radius: 7px; padding: 4px 8px;
+            min-width: 46px; border: 1px solid #e9ecef;
+        }
+        .apt-stat-n { font-size: 1.1rem; font-weight: 900; line-height: 1; }
+        .apt-stat-l { font-size: 0.52rem; font-weight: 700; text-transform: uppercase; color: #888; margin-top: 1px; }
+        .apt-stat-n.s-stay { color: #1976D2; }
+        .apt-stat-n.s-in   { color: #2E7D32; }
+        .apt-stat-n.s-out  { color: #E64A19; }
+        .apt-unset {
+            display: flex; align-items: center; gap: 6px;
+            padding: 6px 12px; background: #fff8e1; border-radius: 10px;
+            border: 1px dashed #ffc107; font-size: 0.72rem; font-weight: 700; color: #e65100;
+        }
+
+        /* ══ APARTMENT SELECTOR on guest card ══ */
+        .apt-selector {
+            display: flex; flex-wrap: wrap; gap: 4px;
+            margin-top: 6px; padding-top: 6px;
+            border-top: 1px dashed #dee2e6;
+        }
+        .apt-selector-label {
+            width: 100%; font-size: 0.58rem; font-weight: 700;
+            color: #888; text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 2px;
+        }
+        .apt-sel-btn {
+            padding: 3px 8px; border-radius: 20px; border: 1.5px solid #dee2e6;
+            font-size: 0.62rem; font-weight: 700; cursor: pointer;
+            background: #f8f9fa; color: #555;
+            transition: all .12s; white-space: nowrap;
+        }
+        .apt-sel-btn:hover   { opacity: 0.85; transform: scale(1.04); }
+        .apt-sel-btn.active  { color: #fff !important; border-color: transparent !important; }
+        .apt-sel-btn.clear-btn {
+            border-style: dashed; color: #aaa; font-size: 0.58rem;
+        }
     </style>
+
+    {# ── Apartment selector macro ── #}
+    {% macro apt_selector(booking_id) %}
+    {% set cur = apt_map.get(booking_id, '') %}
+    <div class="apt-selector" id="asel-{{ booking_id }}">
+        <div class="apt-selector-label">🏠 Căn hộ thực tế:</div>
+        {% for apt in apartments_list %}
+        <button class="apt-sel-btn {% if cur == apt.id|string %}active{% endif %}"
+                id="asbtn-{{ booking_id }}-{{ apt.id }}"
+                style="{% if cur == apt.id|string %}background:{{ apt.color }};{% else %}border-color:{{ apt.color }};color:{{ apt.color }};{% endif %}"
+                onclick="setApt('{{ booking_id }}','{{ apt.id }}','{{ apt.color }}')">
+            {{ apt.emoji }} {{ apt.name }}
+        </button>
+        {% endfor %}
+        {% if cur %}
+        <button class="apt-sel-btn clear-btn" onclick="setApt('{{ booking_id }}','','')">✕ Xóa</button>
+        {% endif %}
+    </div>
+    {% endmacro %}
+
+    <!-- ══ APARTMENT NOTIFICATION BAR ══ -->
+    <div class="apt-notify-bar" id="aptNotifyBar">
+        <div class="anb-title"><i class="fas fa-building"></i> Tình trạng căn hộ hôm nay — đang tải...</div>
+    </div>
 
     <!-- 🎯 THREE COLUMNS LAYOUT: Check-in, Staying, Checkout side by side -->
     <div class="row three-section-row">
@@ -1110,6 +1203,7 @@
                                         <button class="btn-pay-now" onclick="showPayCollect(this)">💰 Thu Tiền</button>
                                     {% endif %}
                                 </div>
+                                {{ apt_selector(booking.get('Số đặt phòng', '')) }}
                         </div>
                         </div>
                     {% endfor %}
@@ -1249,6 +1343,7 @@
                                         <button class="btn-pay-now" onclick="showPayCollect(this)">💰 Thu Tiền</button>
                                     {% endif %}
                                 </div>
+                                {{ apt_selector(booking.get('Số đặt phòng', '')) }}
                         </div>
                         </div>
                     {% endfor %}
@@ -1366,6 +1461,7 @@
                                         <button class="btn-pay-now" onclick="showPayCollect(this)">💰 Thu Tiền</button>
                                     {% endif %}
                                 </div>
+                                {{ apt_selector(booking.get('Số đặt phòng', '')) }}
                         </div>
                         </div>
                     {% endfor %}
@@ -3539,6 +3635,135 @@ function renderCompactCalendarForPage(dailyData, year, month, selectedDay) {
 // Load calendar when page loads
 document.addEventListener('DOMContentLoaded', function() {
     loadMonthlyCalendarForPage();
+});
+
+// ══════════════════════════════════════════════════
+// APARTMENT NOTIFICATION BAR + SELECTOR
+// ══════════════════════════════════════════════════
+
+const APT_COLORS = {{ apartments_list | map(attribute='color') | list | tojson }};
+
+// Load and render the apartment notification bar
+async function loadAptNotifyBar() {
+    const bar = document.getElementById('aptNotifyBar');
+    if (!bar) return;
+    try {
+        const res  = await fetch('/api/apartment_daily_summary?date={{ date_str }}');
+        const data = await res.json();
+        if (!data.success) { bar.innerHTML = ''; return; }
+
+        const apts = data.apartments;
+        const total_stay  = apts.reduce((s,a)=>s+a.n_staying,  0);
+        const total_in    = apts.reduce((s,a)=>s+a.n_checkin,  0);
+        const total_out   = apts.reduce((s,a)=>s+a.n_checkout, 0);
+
+        let html = `
+            <div class="anb-title">
+                <i class="fas fa-building"></i>
+                Tình trạng căn hộ — <strong>{{ formatted_date }}</strong>
+                &nbsp;·&nbsp;
+                <span style="color:#1976D2">🏠 ${total_stay} đang ở</span>
+                &nbsp;·&nbsp;
+                <span style="color:#2E7D32">🛬 ${total_in} check-in</span>
+                &nbsp;·&nbsp;
+                <span style="color:#E64A19">🛫 ${total_out} check-out</span>
+            </div>`;
+
+        apts.forEach(a => {
+            const hasGuests = a.n_staying || a.n_checkin || a.n_checkout;
+            html += `
+            <div class="apt-card" style="border-color:${a.color}20;background:${a.color}08">
+                <div class="apt-card-name">
+                    <div class="apt-card-dot" style="background:${a.color}"></div>
+                    <span style="color:${a.color}">${a.name}</span>
+                </div>
+                <div class="apt-stats">
+                    <div class="apt-stat">
+                        <span class="apt-stat-n s-stay">${a.n_staying}</span>
+                        <span class="apt-stat-l">Đang ở</span>
+                    </div>
+                    <div class="apt-stat">
+                        <span class="apt-stat-n s-in">${a.n_checkin}</span>
+                        <span class="apt-stat-l">Check-in</span>
+                    </div>
+                    <div class="apt-stat">
+                        <span class="apt-stat-n s-out">${a.n_checkout}</span>
+                        <span class="apt-stat-l">Check-out</span>
+                    </div>
+                </div>
+                ${a.n_staying && a.staying.length ? `<div style="margin-top:5px;font-size:0.6rem;color:#666">${a.staying.join(', ')}</div>` : ''}
+            </div>`;
+        });
+
+        if (data.n_unset > 0) {
+            html += `<div class="apt-unset">
+                <i class="fas fa-question-circle"></i>
+                <span><strong>${data.n_unset} khách</strong> chưa phân loại căn hộ — bấm nút bên dưới mỗi card</span>
+            </div>`;
+        }
+
+        bar.innerHTML = html;
+    } catch(e) {
+        bar.innerHTML = '<div class="anb-title text-muted"><i class="fas fa-exclamation-circle"></i> Không tải được thông tin căn hộ.</div>';
+    }
+}
+
+// Set actual apartment for a booking
+async function setApt(bookingId, aptId, color) {
+    if (!bookingId) return;
+    try {
+        const res  = await fetch('/api/set_actual_apartment', {
+            method: 'POST', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({booking_id: bookingId, actual_apartment: aptId})
+        });
+        const data = await res.json();
+        if (!data.success) { alert('Lỗi: ' + data.message); return; }
+
+        // Update all buttons in this selector
+        const sel = document.getElementById('asel-' + bookingId);
+        if (sel) {
+            sel.querySelectorAll('.apt-sel-btn').forEach(btn => {
+                btn.classList.remove('active');
+                btn.style.background = '';
+                // restore original color style from data attribute
+            });
+            if (aptId) {
+                // Re-render selector inline via JS
+                sel.querySelectorAll('.apt-sel-btn:not(.clear-btn)').forEach(btn => {
+                    const bId = btn.id.replace('asbtn-' + bookingId + '-', '');
+                    if (bId == aptId) {
+                        btn.classList.add('active');
+                        btn.style.background = color;
+                        btn.style.borderColor = 'transparent';
+                        btn.style.color = '#fff';
+                    } else {
+                        btn.style.background = '';
+                    }
+                });
+                // Show clear button if not present
+                if (!sel.querySelector('.clear-btn')) {
+                    const clr = document.createElement('button');
+                    clr.className = 'apt-sel-btn clear-btn';
+                    clr.textContent = '✕ Xóa';
+                    clr.onclick = () => setApt(bookingId, '', '');
+                    sel.appendChild(clr);
+                }
+            } else {
+                // Cleared: remove clear button
+                const clr = sel.querySelector('.clear-btn');
+                if (clr) clr.remove();
+            }
+        }
+
+        // Refresh notification bar
+        loadAptNotifyBar();
+    } catch(e) {
+        alert('Lỗi kết nối');
+    }
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    loadAptNotifyBar();
 });
 </script>
 

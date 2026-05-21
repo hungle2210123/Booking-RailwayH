@@ -4026,6 +4026,32 @@ def calendar_details(date_str):
                 'rooms':      [{'name': r.room_name, 'name_lower': r.room_name.lower()} for r in _rooms],
             })
 
+        # ── Load actual_apartment assignments from DB ──
+        _apt_map = {}
+        try:
+            from core.models import db as _aptmdb
+            # Auto-migrate: add actual_apartment column if not exists
+            try:
+                _aptmdb.session.execute(text(
+                    "ALTER TABLE bookings ADD COLUMN IF NOT EXISTS actual_apartment VARCHAR(100) DEFAULT NULL"
+                ))
+                _aptmdb.session.commit()
+            except Exception:
+                _aptmdb.session.rollback()
+
+            _all_day_bids = list(set(
+                [b.get('Số đặt phòng','') for b in check_in + staying_over + check_out
+                 if b.get('Số đặt phòng')]
+            ))
+            if _all_day_bids:
+                _apt_rows = _aptmdb.session.execute(
+                    text("SELECT booking_id, actual_apartment FROM bookings WHERE booking_id = ANY(:bids) AND actual_apartment IS NOT NULL"),
+                    {'bids': _all_day_bids}
+                ).fetchall()
+                _apt_map = {r[0]: r[1] for r in _apt_rows}
+        except Exception as _ae:
+            print(f"[calendar_details] actual_apartment load failed: {_ae}")
+
         return render_template(
             'calendar_details.html',
             date=date_obj,
@@ -4040,11 +4066,157 @@ def calendar_details(date_str):
             pd=pd,
             timedelta=timedelta,
             apartments_list=apartments_list,
+            apt_map=_apt_map,
         )
     
     except Exception as e:
         flash(f'Error loading calendar details: {str(e)}', 'error')
         return redirect(url_for('calendar_view'))
+
+@app.route('/api/set_actual_apartment', methods=['POST'])
+def set_actual_apartment():
+    """Save which actual apartment a guest is assigned to."""
+    try:
+        from core.models import db as _sadb
+        data       = request.get_json()
+        booking_id = data.get('booking_id', '').strip()
+        apt_value  = data.get('actual_apartment', '').strip()   # '' = clear
+        if not booking_id:
+            return jsonify({'success': False, 'message': 'Missing booking_id'}), 400
+
+        if apt_value:
+            _sadb.session.execute(
+                text("UPDATE bookings SET actual_apartment = :apt WHERE booking_id = :bid"),
+                {'apt': apt_value, 'bid': booking_id}
+            )
+        else:
+            _sadb.session.execute(
+                text("UPDATE bookings SET actual_apartment = NULL WHERE booking_id = :bid"),
+                {'bid': booking_id}
+            )
+        _sadb.session.commit()
+
+        # Record to activity history
+        try:
+            from core.models import BookingHistory as _SABH
+            _vn = datetime.utcnow() + timedelta(hours=7)
+            _h = _SABH(booking_id=booking_id, field_name='Căn hộ thực tế',
+                       old_value=None, new_value=apt_value or '(xóa)',
+                       change_description=f"Phân loại căn hộ: {apt_value or 'Xóa'} lúc {_vn.strftime('%H:%M %d/%m/%Y')}",
+                       changed_by='set_apartment')
+            _sadb.session.add(_h); _sadb.session.commit()
+        except Exception:
+            pass
+
+        return jsonify({'success': True, 'booking_id': booking_id, 'actual_apartment': apt_value})
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
+@app.route('/api/apartment_daily_summary', methods=['GET'])
+def apartment_daily_summary():
+    """
+    Returns per-apartment occupancy for a given date.
+    ?date=YYYY-MM-DD
+    Uses actual_apartment (manually set) + fallback to room name matching.
+    """
+    try:
+        from core.models import db as _adsdb, Apartment as _AdsApt
+        date_str = request.args.get('date', '')
+        if not date_str:
+            _vn = datetime.utcnow() + timedelta(hours=7)
+            date_str = _vn.strftime('%Y-%m-%d')
+        query_date = datetime.strptime(date_str, '%Y-%m-%d').date()
+
+        # Load bookings for the day from live DB
+        rows = _adsdb.session.execute(text("""
+            SELECT booking_id, guest_name, accommodation_name,
+                   checkin_date, checkout_date, actual_apartment, booking_status
+            FROM bookings
+            WHERE checkin_date  <= :d
+              AND checkout_date  > :d
+              AND (booking_status IS NULL OR booking_status NOT IN ('cancelled','deleted'))
+        """), {'d': query_date}).fetchall()
+
+        # Also get checkin_today and checkout_today
+        ci_rows = _adsdb.session.execute(text("""
+            SELECT booking_id, guest_name, accommodation_name, actual_apartment
+            FROM bookings
+            WHERE checkin_date = :d
+              AND (booking_status IS NULL OR booking_status NOT IN ('cancelled','deleted'))
+        """), {'d': query_date}).fetchall()
+
+        co_rows = _adsdb.session.execute(text("""
+            SELECT booking_id, guest_name, accommodation_name, actual_apartment
+            FROM bookings
+            WHERE checkout_date = :d
+              AND (booking_status IS NULL OR booking_status NOT IN ('cancelled','deleted'))
+        """), {'d': query_date}).fetchall()
+
+        # Load apartments from DB
+        _APT_COLORS = ['#1976D2','#2E7D32','#7B1FA2','#E64A19','#00838F','#F57F17']
+        _APT_EMOJIS = ['🔵','🟢','🟣','🟠','🔵','🟡']
+        all_apts = _AdsApt.query.filter_by(is_active=True).order_by(_AdsApt.apartment_id).all()
+        apt_defs = []
+        for i, a in enumerate(all_apts):
+            apt_defs.append({
+                'id':    str(a.apartment_id),
+                'name':  a.apartment_name,
+                'color': _APT_COLORS[i % len(_APT_COLORS)],
+                'emoji': _APT_EMOJIS[i % len(_APT_EMOJIS)],
+            })
+
+        def resolve_apt(actual, room_name):
+            """Return apt id string from actual_apartment or best-guess from room name."""
+            if actual:
+                return actual  # already set by user
+            rl = (room_name or '').lower()
+            for a in apt_defs:
+                nl = a['name'].lower()
+                # Simple substring match
+                if any(tok in rl for tok in nl.split() if len(tok) > 2):
+                    return a['id']
+            return '__unset__'
+
+        # Count staying / checkin / checkout per apt
+        staying_map  = {a['id']: [] for a in apt_defs}; staying_map['__unset__'] = []
+        checkin_map  = {a['id']: [] for a in apt_defs}; checkin_map['__unset__'] = []
+        checkout_map = {a['id']: [] for a in apt_defs}; checkout_map['__unset__'] = []
+
+        for r in rows:
+            ak = resolve_apt(r[5], r[2])
+            staying_map.setdefault(ak, []).append(r[1] or r[0])
+
+        for r in ci_rows:
+            ak = resolve_apt(r[3], r[2])
+            checkin_map.setdefault(ak, []).append(r[1] or r[0])
+
+        for r in co_rows:
+            ak = resolve_apt(r[3], r[2])
+            checkout_map.setdefault(ak, []).append(r[1] or r[0])
+
+        result = []
+        for a in apt_defs:
+            aid = a['id']
+            result.append({
+                **a,
+                'staying':  staying_map.get(aid, []),
+                'checkin':  checkin_map.get(aid, []),
+                'checkout': checkout_map.get(aid, []),
+                'n_staying':  len(staying_map.get(aid, [])),
+                'n_checkin':  len(checkin_map.get(aid, [])),
+                'n_checkout': len(checkout_map.get(aid, [])),
+            })
+        unset = staying_map.get('__unset__', [])
+        return jsonify({
+            'success': True, 'date': date_str,
+            'apartments': result,
+            'unset': unset, 'n_unset': len(unset),
+        })
+    except Exception as e:
+        import traceback; traceback.print_exc()
+        return jsonify({'success': False, 'message': str(e)}), 500
+
 
 # ─── Mobile Check-in Manager ───────────────────────────────────────────────
 @app.route('/mobile_checkin')
