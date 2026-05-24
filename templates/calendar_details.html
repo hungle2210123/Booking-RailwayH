@@ -1026,91 +1026,94 @@
             border: 1px dashed #ffc107; font-size: 0.72rem; font-weight: 700; color: #e65100;
         }
 
-        /* ══ APARTMENT SELECTOR on guest card ══ */
+        /* ══ APARTMENT SELECTOR — compact single-line ══ */
         .apt-selector {
-            display: flex; flex-wrap: wrap; gap: 4px;
-            margin-top: 6px; padding-top: 6px;
-            border-top: 1px dashed #dee2e6;
+            display: flex; align-items: center; gap: 5px; flex-wrap: wrap;
+            margin-top: 5px; padding-top: 5px;
+            border-top: 1px solid #f0f0f0;
         }
-        .apt-selector-label {
-            width: 100%; font-size: 0.58rem; font-weight: 700;
-            color: #888; text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 2px;
+        /* House icon prefix */
+        .apt-icon-prefix {
+            font-size: 0.68rem; color: #bbb; flex-shrink: 0;
         }
-        /* ── Prominent badge shown when an apt IS assigned ── */
-        .apt-assigned-badge {
-            display: flex; align-items: center; gap: 6px;
-            width: 100%; padding: 6px 10px; border-radius: 8px;
-            font-size: 0.78rem; font-weight: 900; color: #fff;
-            margin-bottom: 5px; letter-spacing: 0.2px;
-            box-shadow: 0 2px 6px rgba(0,0,0,0.18);
+        /* ── When assigned: show name as coloured text pill ── */
+        .apt-assigned-chip {
+            display: inline-flex; align-items: center; gap: 4px;
+            padding: 2px 8px; border-radius: 20px;
+            font-size: 0.65rem; font-weight: 800;
+            color: #fff; flex-shrink: 0;
+            /* colour set inline */
         }
-        .apt-assigned-badge .aab-icon { font-size: 1rem; }
-        .apt-assigned-badge .aab-name { flex: 1; }
-        .apt-assigned-badge .aab-check {
-            font-size: 0.72rem; opacity: 0.9;
-            background: rgba(255,255,255,0.25); border-radius: 10px; padding: 1px 6px;
+        .apt-assigned-chip .aac-check {
+            font-size: 0.55rem; opacity: 0.85;
         }
-        /* Small toggle row for changing */
-        .apt-change-row {
-            width: 100%; display: flex; flex-wrap: wrap; gap: 4px; align-items: center;
+        /* small "change" link */
+        .apt-change-link {
+            font-size: 0.56rem; color: #bbb; cursor: pointer;
+            text-decoration: underline; text-underline-offset: 2px;
+            flex-shrink: 0;
         }
-        .apt-change-label {
-            font-size: 0.55rem; color: #aaa; font-weight: 600;
-            text-transform: uppercase; margin-right: 2px;
+        .apt-change-link:hover { color: #888; }
+        /* ── Hidden picker (shown on click of change link) ── */
+        .apt-picker {
+            display: none; width: 100%; gap: 4px; flex-wrap: wrap;
+            margin-top: 3px; align-items: center;
         }
+        .apt-picker.open { display: flex; }
+        /* Each apartment choice button — tiny */
         .apt-sel-btn {
-            padding: 2px 7px; border-radius: 20px; border: 1.5px solid #dee2e6;
+            padding: 2px 7px; border-radius: 20px;
+            border: 1.5px solid #dee2e6;
             font-size: 0.58rem; font-weight: 700; cursor: pointer;
             background: #f8f9fa; color: #555;
             transition: all .12s; white-space: nowrap;
         }
-        .apt-sel-btn:hover   { opacity: 0.85; transform: scale(1.03); }
-        .apt-sel-btn.active  { color: #fff !important; border-color: transparent !important; }
+        .apt-sel-btn:hover  { opacity: 0.85; }
+        .apt-sel-btn.active { color: #fff !important; border-color: transparent !important; }
         .apt-sel-btn.clear-btn {
-            border-style: dashed; color: #bbb; font-size: 0.55rem; padding: 2px 6px;
+            border-style: dashed; color: #ccc; font-size: 0.55rem; padding: 2px 6px;
         }
     </style>
 
-    {# ── Apartment selector macro ── #}
+    {# ── Apartment selector macro — compact single-line ── #}
     {% macro apt_selector(booking_id) %}
     {% set cur = apt_map.get(booking_id, '') %}
-    {% set cur_apt = namespace(name='', color='', emoji='') %}
+    {% set cur_apt = namespace(name='', color='', abbr='') %}
     {% for apt in apartments_list %}{% if cur == apt.id|string %}
         {% set cur_apt.name  = apt.name  %}
         {% set cur_apt.color = apt.color %}
-        {% set cur_apt.emoji = apt.emoji %}
+        {% set cur_apt.abbr  = apt.abbr  %}
     {% endif %}{% endfor %}
     <div class="apt-selector" id="asel-{{ booking_id }}">
-        <div class="apt-selector-label">🏠 Căn hộ thực tế:</div>
+        <span class="apt-icon-prefix">🏠</span>
 
-        {# ── Prominent badge when already assigned ── #}
+        {# ── Assigned chip (visible when assigned) ── #}
         {% if cur %}
-        <div class="apt-assigned-badge" id="acur-{{ booking_id }}"
-             style="background: {{ cur_apt.color }};">
-            <span class="aab-icon">{{ cur_apt.emoji }}</span>
-            <span class="aab-name">{{ cur_apt.name }}</span>
-            <span class="aab-check">✓ Đã chọn</span>
-        </div>
+        <span class="apt-assigned-chip" id="acur-{{ booking_id }}"
+              style="background:{{ cur_apt.color }}">
+            {{ cur_apt.name }}<span class="aac-check">✓</span>
+        </span>
+        <span class="apt-change-link" onclick="toggleAptPicker('{{ booking_id }}')">đổi</span>
         {% else %}
-        <div class="apt-assigned-badge" id="acur-{{ booking_id }}"
-             style="display:none;background:#999;"></div>
+        <span class="apt-assigned-chip" id="acur-{{ booking_id }}"
+              style="display:none;background:#999;"></span>
         {% endif %}
 
-        {# ── Small buttons to pick / change ── #}
-        <div class="apt-change-row" id="arow-{{ booking_id }}">
-            {% if cur %}<span class="apt-change-label">Đổi:</span>{% endif %}
+        {# ── Picker row (hidden by default, shown on "đổi" click or when unassigned) ── #}
+        <div class="apt-picker {% if not cur %}open{% endif %}" id="arow-{{ booking_id }}">
             {% for apt in apartments_list %}
             <button class="apt-sel-btn {% if cur == apt.id|string %}active{% endif %}"
                     id="asbtn-{{ booking_id }}-{{ apt.id }}"
                     data-color="{{ apt.color }}"
-                    data-label="{{ apt.emoji }} {{ apt.name }}"
+                    data-label="{{ apt.name }}"
                     style="{% if cur == apt.id|string %}background:{{ apt.color }};color:#fff;border-color:transparent;{% else %}border-color:{{ apt.color }};color:{{ apt.color }};{% endif %}"
                     onclick="setApt('{{ booking_id }}','{{ apt.id }}','{{ apt.color }}')">
-                {{ apt.emoji }} {{ apt.name }}
+                {{ apt.abbr }}
             </button>
             {% endfor %}
             {% if cur %}
-            <button class="apt-sel-btn clear-btn" onclick="setApt('{{ booking_id }}','','')">✕ Xóa</button>
+            <button class="apt-sel-btn clear-btn"
+                    onclick="setApt('{{ booking_id }}','','')">✕</button>
             {% endif %}
         </div>
     </div>
@@ -3775,71 +3778,68 @@ async function setApt(bookingId, aptId, color) {
         const data = await res.json();
         if (!data.success) { alert('Lỗi: ' + data.message); return; }
 
-        // Update selector UI
-        const sel  = document.getElementById('asel-' + bookingId);
-        const badge = document.getElementById('acur-' + bookingId);
-        const row   = document.getElementById('arow-' + bookingId);
-        if (sel) {
-            // Reset ALL apt buttons to original outline style
-            sel.querySelectorAll('.apt-sel-btn:not(.clear-btn)').forEach(btn => {
-                const c = btn.dataset.color || '#999';
-                btn.classList.remove('active');
-                btn.style.background  = '';
-                btn.style.borderColor = c;
-                btn.style.color       = c;
-                if (btn.dataset.label) btn.textContent = btn.dataset.label;
-            });
+        // Update selector UI — compact single-line style
+        const sel   = document.getElementById('asel-'  + bookingId);
+        const chip  = document.getElementById('acur-'  + bookingId);
+        const picker = document.getElementById('arow-' + bookingId);
+        if (!sel) { loadAptNotifyBar(); return; }
 
-            if (aptId) {
-                // ── Mark selected button active ──
-                sel.querySelectorAll('.apt-sel-btn:not(.clear-btn)').forEach(btn => {
-                    const bId = btn.id.replace('asbtn-' + bookingId + '-', '');
-                    if (String(bId) === String(aptId)) {
-                        btn.classList.add('active');
-                        btn.style.background  = color;
-                        btn.style.borderColor = 'transparent';
-                        btn.style.color       = '#fff';
-                        if (btn.dataset.label) btn.textContent = btn.dataset.label;
-                    }
-                });
+        // Reset ALL choice buttons to outline
+        sel.querySelectorAll('.apt-sel-btn:not(.clear-btn)').forEach(btn => {
+            const c = btn.dataset.color || '#999';
+            btn.classList.remove('active');
+            btn.style.background  = '';
+            btn.style.borderColor = c;
+            btn.style.color       = c;
+        });
 
-                // ── Show / update prominent badge ──
-                if (badge) {
-                    const selBtn = document.getElementById('asbtn-' + bookingId + '-' + aptId);
-                    const label  = selBtn ? (selBtn.dataset.label || selBtn.textContent.trim()) : aptId;
-                    badge.style.background = color;
-                    badge.style.display    = 'flex';
-                    badge.innerHTML = `<span class="aab-icon">${label.split(' ')[0]}</span>
-                                       <span class="aab-name">${label.split(' ').slice(1).join(' ')}</span>
-                                       <span class="aab-check">✓ Đã chọn</span>`;
-                }
-
-                // ── Ensure "Đổi:" label + clear button in change row ──
-                if (row) {
-                    if (!row.querySelector('.apt-change-label')) {
-                        const lbl = document.createElement('span');
-                        lbl.className   = 'apt-change-label';
-                        lbl.textContent = 'Đổi:';
-                        row.insertBefore(lbl, row.firstChild);
-                    }
-                    if (!row.querySelector('.clear-btn')) {
-                        const clr = document.createElement('button');
-                        clr.className   = 'apt-sel-btn clear-btn';
-                        clr.textContent = '✕ Xóa';
-                        clr.onclick     = () => setApt(bookingId, '', '');
-                        row.appendChild(clr);
-                    }
-                }
-            } else {
-                // ── Cleared: hide badge, remove Đổi label + clear button ──
-                if (badge) { badge.style.display = 'none'; badge.innerHTML = ''; }
-                if (row) {
-                    const lbl = row.querySelector('.apt-change-label');
-                    if (lbl) lbl.remove();
-                    const clr = row.querySelector('.clear-btn');
-                    if (clr) clr.remove();
-                }
+        if (aptId) {
+            // Mark chosen button active
+            const chosenBtn = document.getElementById('asbtn-' + bookingId + '-' + aptId);
+            if (chosenBtn) {
+                chosenBtn.classList.add('active');
+                chosenBtn.style.background  = color;
+                chosenBtn.style.borderColor = 'transparent';
+                chosenBtn.style.color       = '#fff';
             }
+            const aptName = chosenBtn ? (chosenBtn.dataset.label || chosenBtn.textContent.trim()) : aptId;
+
+            // Update chip
+            if (chip) {
+                chip.style.background = color;
+                chip.style.display    = 'inline-flex';
+                chip.innerHTML = `${aptName}<span class="aac-check">✓</span>`;
+            }
+
+            // Ensure "đổi" link exists right after chip
+            if (sel && !sel.querySelector('.apt-change-link')) {
+                const lnk = document.createElement('span');
+                lnk.className = 'apt-change-link';
+                lnk.textContent = 'đổi';
+                lnk.onclick = () => toggleAptPicker(bookingId);
+                chip.insertAdjacentElement('afterend', lnk);
+            }
+
+            // Ensure clear button in picker
+            if (picker && !picker.querySelector('.clear-btn')) {
+                const clr = document.createElement('button');
+                clr.className = 'apt-sel-btn clear-btn';
+                clr.textContent = '✕';
+                clr.onclick = () => setApt(bookingId, '', '');
+                picker.appendChild(clr);
+            }
+
+            // Close picker after selection
+            if (picker) picker.classList.remove('open');
+
+        } else {
+            // Cleared: hide chip + "đổi" link, open picker
+            if (chip) { chip.style.display = 'none'; chip.innerHTML = ''; }
+            const lnk = sel.querySelector('.apt-change-link');
+            if (lnk) lnk.remove();
+            const clr = picker && picker.querySelector('.clear-btn');
+            if (clr) clr.remove();
+            if (picker) picker.classList.add('open');
         }
 
         // Refresh notification bar
@@ -3847,6 +3847,12 @@ async function setApt(bookingId, aptId, color) {
     } catch(e) {
         alert('Lỗi kết nối');
     }
+}
+
+// Toggle the picker row (shown when clicking "đổi")
+function toggleAptPicker(bookingId) {
+    const picker = document.getElementById('arow-' + bookingId);
+    if (picker) picker.classList.toggle('open');
 }
 
 document.addEventListener('DOMContentLoaded', function() {
