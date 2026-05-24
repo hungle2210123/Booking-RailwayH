@@ -578,15 +578,9 @@
         .urgency-tomorrow  { background: #ffebee; color: #b71c1c; border: 1.5px solid #ef9a9a; }
         .urgency-2days     { background: #fff3e0; color: #e65100; border: 1.5px solid #ffcc80; }
         .urgency-soon      { background: #e8f5e9; color: #1b5e20; border: 1.5px solid #a5d6a7; }
-        /* Card border urgency glow */
-        .guest-card.urgency-tomorrow {
-            border-top: 5px solid #c62828 !important;
-            box-shadow: 0 2px 12px rgba(198,40,40,0.20) !important;
-        }
-        .guest-card.urgency-2days {
-            border-top: 4px solid #f57c00 !important;
-            box-shadow: 0 2px 10px rgba(245,124,0,0.15) !important;
-        }
+        /* Card urgency — let payment status take visual priority, urgency is subtle */
+        .guest-card.urgency-tomorrow { /* handled by checkout-countdown badge */ }
+        .guest-card.urgency-2days    { /* handled by checkout-countdown badge */ }
         .detail-remaining {
             font-weight: 800;
             font-size: 0.86rem;
@@ -625,49 +619,34 @@
         .btn-qstatus.cancel-btn  { grid-column: 2; grid-row: 1; }
         /* pending (reset) — full-width second row */
         .btn-qstatus.pending-btn { grid-column: 1 / -1; grid-row: 2; }
-        .btn-qstatus.confirm-btn {
-            border-color: #2e7d32;
-            color: #2e7d32;
-        }
-        .btn-qstatus.confirm-btn:hover  { background: #e8f5e9; }
+        /* Action buttons: gray base, color only when active */
+        .btn-qstatus.confirm-btn { border-color: #9CA3AF; color: #6B7280; }
+        .btn-qstatus.confirm-btn:hover  { background: #F9FAFB; border-color: #6B7280; color: #374151; }
         .btn-qstatus.confirm-btn.active {
-            background: #2e7d32;
-            color: #fff;
-            box-shadow: 0 2px 6px rgba(46,125,50,0.4);
+            background: #2e7d32; color: #fff; border-color: #2e7d32;
+            box-shadow: 0 2px 6px rgba(46,125,50,0.3);
         }
-        .btn-qstatus.cancel-btn {
-            border-color: #c62828;
-            color: #c62828;
-        }
-        .btn-qstatus.cancel-btn:hover  { background: #ffebee; }
+        .btn-qstatus.cancel-btn { border-color: #9CA3AF; color: #6B7280; }
+        .btn-qstatus.cancel-btn:hover  { background: #F9FAFB; border-color: #6B7280; color: #374151; }
         .btn-qstatus.cancel-btn.active {
-            background: #c62828;
-            color: #fff;
-            box-shadow: 0 2px 6px rgba(198,40,40,0.4);
+            background: #c62828; color: #fff; border-color: #c62828;
+            box-shadow: 0 2px 6px rgba(198,40,40,0.3);
         }
-        .btn-qstatus.pending-btn {
-            border-color: #1565c0;
-            color: #1565c0;
-        }
-        .btn-qstatus.pending-btn:hover  { background: #e3f2fd; }
+        .btn-qstatus.pending-btn { border-color: #9CA3AF; color: #6B7280; }
+        .btn-qstatus.pending-btn:hover  { background: #F9FAFB; border-color: #6B7280; color: #374151; }
         .btn-qstatus.pending-btn.active {
-            background: #1565c0;
-            color: #fff;
-            box-shadow: 0 2px 6px rgba(21,101,192,0.4);
+            background: #1565c0; color: #fff; border-color: #1565c0;
+            box-shadow: 0 2px 6px rgba(21,101,192,0.3);
         }
         /* Late arrival button — full-width row 3 (check-in cards only) */
         .btn-qstatus.late-btn {
-            grid-column: 1 / -1;
-            grid-row: 3;
-            border-color: #e65100;
-            color: #e65100;
+            grid-column: 1 / -1; grid-row: 3;
+            border-color: #9CA3AF; color: #6B7280;
         }
-        .btn-qstatus.late-btn:hover { background: #fff3e0; }
+        .btn-qstatus.late-btn:hover { background: #F9FAFB; border-color: #6B7280; color: #374151; }
         .btn-qstatus.late-btn.active {
-            background: #e65100;
-            color: #fff;
-            border-color: #e65100;
-            box-shadow: 0 2px 6px rgba(230,81,0,0.35);
+            background: #e65100; color: #fff; border-color: #e65100;
+            box-shadow: 0 2px 6px rgba(230,81,0,0.30);
         }
         /* Late arrival inline badge & form */
         .late-arrival-display { margin: 2px 0 4px; font-size: 0.76rem; }
@@ -848,7 +827,7 @@
             justify-content: center;
             gap: 5px;
             width: 100%;
-            background: linear-gradient(135deg, #ff9800, #f44336);
+            background: #EF4444;
             color: #fff;
             border: none;
             border-radius: 20px;
@@ -859,9 +838,9 @@
             transition: all 0.2s;
         }
         .btn-pay-now:hover {
-            background: linear-gradient(135deg, #e65100, #c62828);
+            background: #DC2626;
             transform: translateY(-1px);
-            box-shadow: 0 3px 8px rgba(244,67,54,0.35);
+            box-shadow: 0 3px 8px rgba(239,68,68,0.30);
         }
         /* Confirm step */
         .pay-confirm-row {
@@ -1117,6 +1096,9 @@
         .apt-sel-btn.clear-btn {
             border-style: dashed; color: #ccc; font-size: 0.55rem; padding: 2px 6px;
         }
+        /* Utility */
+        .min-width-0 { min-width: 0; }
+        .gap-1 { gap: 0.25rem !important; }
     </style>
 
     {# ── Apartment selector macro — compact single-line ── #}
@@ -1195,28 +1177,30 @@
                         {% endif %}
                         {%- set pay_str = booking.get('Người thu tiền', '')|string %}
                         {%- set is_paid = 'LOC' in pay_str or 'THAO' in pay_str %}
+                        {%- set ci_remaining = (booking['Check-out Date'] - current_date).days if booking['Check-out Date'] and pd.notna(booking['Check-out Date']) else 0 %}
                         <div class="guest-card-col">
                             <div class="guest-card {{ 'has-commission' if has_commission else 'no-commission' }} {{ apt_class }} {{ 'is-paid' if is_paid else 'not-paid' }}">
                                 <div class="guest-header d-flex justify-content-between align-items-start">
-                                    <div class="flex-grow-1">
-                                        <p class="guest-name {{ apt_class }}">{{ apt_icon }} {{ booking.get('Tên người đặt', 'N/A') }}</p>
+                                    <div class="flex-grow-1 min-width-0">
+                                        <div class="d-flex align-items-center gap-1 flex-wrap">
+                                            <p class="guest-name mb-0">{{ booking.get('Tên người đặt', 'N/A') }}</p>
+                                            {% if is_paid %}
+                                                <span class="pay-status-pill pill-paid">✓ Đã thu</span>
+                                            {% else %}
+                                                <span class="pay-status-pill pill-unpaid">⚡ Chưa thu</span>
+                                            {% endif %}
+                                        </div>
                                         {% if has_commission %}
-                                            <span class="commission-badge badge bg-warning text-dark">
-                                                <i class="fas fa-percentage"></i> {{ "{:,.0f}".format(commission) }}đ
-                                            </span>
-                                        {% else %}
-                                            <span class="commission-badge badge bg-success">
-                                                <i class="fas fa-check"></i> Không hoa hồng
-                                            </span>
+                                            <span class="commission-badge badge bg-warning text-dark">{{ "{:,.0f}".format(commission) }}đ HH</span>
                                         {% endif %}
                                     </div>
                                     <div class="btn-group btn-group-sm flex-shrink-0" role="group">
-                                        <button class="btn btn-outline-primary px-1 py-1"
+                                        <button class="btn btn-outline-secondary px-1 py-1"
                                                 onclick="openQuickEditModal('{{ booking.get('Số đặt phòng', '') }}')"
                                                 title="Chỉnh sửa nhanh">
                                             <i class="fas fa-edit"></i>
                                         </button>
-                                        <button class="btn btn-outline-danger px-1 py-1"
+                                        <button class="btn btn-outline-secondary px-1 py-1"
                                                 onclick="quickCancelCalendarGuest('{{ booking.get('Số đặt phòng', '') }}', '{{ booking.get('Tên người đặt', 'N/A')|replace("'", "\\'") }}')"
                                                 title="Hủy booking">
                                             <i class="fas fa-times"></i>
@@ -1225,17 +1209,26 @@
                                 </div>
                                 <p class="room-type">
                                     {% if '118 hang bac' in room_lower or room_lower == '118 hang bac hostel' %}
-                                        <span class="room-badge apt1">🔵 118 hang bac</span>
+                                        <span class="room-badge apt1">118 hang bac</span>
                                     {% elif room_lower == 'kitchen' or 'kitchen & balcony' in room_lower %}
-                                        <span class="room-badge apt1">🔵 kitchen</span>
+                                        <span class="room-badge apt1">kitchen</span>
                                     {% elif 'night market' in room_lower %}
-                                        <span class="room-badge apt1">🔵 night market</span>
+                                        <span class="room-badge apt1">night market</span>
                                     {% elif 'hang be 101' in room_lower %}
-                                        <span class="room-badge apt2">🟢 hang be 101</span>
+                                        <span class="room-badge apt2">hang be 101</span>
                                     {% elif 'hang be 102' in room_lower %}
-                                        <span class="room-badge apt2">🟢 hang be 102</span>
+                                        <span class="room-badge apt2">hang be 102</span>
                                     {% else %}
                                         <span class="badge bg-secondary">{{ room_name }}</span>
+                                    {% endif %}
+                                    {% if ci_remaining == 0 %}
+                                        <span class="checkout-countdown cnt-today">Trả hôm nay</span>
+                                    {% elif ci_remaining == 1 %}
+                                        <span class="checkout-countdown cnt-tomorrow">Trả ngày mai</span>
+                                    {% elif ci_remaining <= 4 %}
+                                        <span class="checkout-countdown cnt-soon">Còn {{ ci_remaining }}đ</span>
+                                    {% else %}
+                                        <span class="checkout-countdown cnt-normal">Còn {{ ci_remaining }}đ</span>
                                     {% endif %}
                                 </p>
                                 {% set total_nights = (booking['Check-out Date'] - booking['Check-in Date']).days if booking['Check-in Date'] and booking['Check-out Date'] and pd.notna(booking['Check-in Date']) and pd.notna(booking['Check-out Date']) else 1 %}
@@ -1248,15 +1241,11 @@
                                 <div class="card-details">
                                     <div class="detail-row">
                                         <span class="detail-id">🔑 {{ booking.get('Số đặt phòng', 'N/A') }}</span>
-                                        <span class="detail-checkout">📅 Trả {{ booking['Check-out Date'].strftime('%d/%m') if booking['Check-out Date'] and pd.notna(booking['Check-out Date']) else 'N/A' }}</span>
+                                        <span class="detail-checkout">{{ booking['Check-in Date'].strftime('%d/%m') if booking['Check-in Date'] and pd.notna(booking['Check-in Date']) else '?' }} → {{ booking['Check-out Date'].strftime('%d/%m') if booking['Check-out Date'] and pd.notna(booking['Check-out Date']) else '?' }}</span>
                                     </div>
                                     <div class="detail-row">
-                                        <span class="detail-nights">🌙 {{ total_nights }} đêm</span>
+                                        <span class="detail-nights">{{ total_nights }} đêm</span>
                                         <span class="detail-amount">{{ "{:,.0f}".format(total_payment) }}đ</span>
-                                    </div>
-                                    <div class="detail-rate-row">
-                                        <span>💰 {{ "{:,.0f}".format(per_night_rate) }}đ/đêm</span>
-                                        {% if has_commission %}<span class="net-rate">→ {{ "{:,.0f}".format((total_payment - commission) / total_nights) }}đ net</span>{% endif %}
                                     </div>
                                 </div>
                                 <!-- Quick Status Buttons -->
@@ -1346,27 +1335,28 @@
                         {%- set remaining = total_nights_pre - stayed_pre %}
                         {%- set urgency_class = 'urgency-tomorrow' if remaining == 1 else ('urgency-2days' if remaining == 2 else '') %}
                         <div class="guest-card-col" data-remaining="{{ remaining }}">
-                            <div class="guest-card {{ 'has-commission' if has_commission else 'no-commission' }} {{ apt_class }} {{ 'is-paid' if is_paid else 'not-paid' }} {{ urgency_class }}">
+                            <div class="guest-card {{ 'has-commission' if has_commission else 'no-commission' }} {{ apt_class }} {{ 'is-paid' if is_paid else 'not-paid' }}">
                                 <div class="guest-header d-flex justify-content-between align-items-start">
-                                    <div class="flex-grow-1">
-                                        <p class="guest-name {{ apt_class }}">{{ apt_icon }} {{ booking.get('Tên người đặt', 'N/A') }}</p>
+                                    <div class="flex-grow-1 min-width-0">
+                                        <div class="d-flex align-items-center gap-1 flex-wrap">
+                                            <p class="guest-name mb-0">{{ booking.get('Tên người đặt', 'N/A') }}</p>
+                                            {% if is_paid %}
+                                                <span class="pay-status-pill pill-paid">✓ Đã thu</span>
+                                            {% else %}
+                                                <span class="pay-status-pill pill-unpaid">⚡ Chưa thu</span>
+                                            {% endif %}
+                                        </div>
                                         {% if has_commission %}
-                                            <span class="commission-badge badge bg-warning text-dark">
-                                                <i class="fas fa-percentage"></i> {{ "{:,.0f}".format(commission) }}đ
-                                            </span>
-                                        {% else %}
-                                            <span class="commission-badge badge bg-success">
-                                                <i class="fas fa-check"></i> Không hoa hồng
-                                            </span>
+                                            <span class="commission-badge badge bg-warning text-dark">{{ "{:,.0f}".format(commission) }}đ HH</span>
                                         {% endif %}
                                     </div>
                                     <div class="btn-group btn-group-sm flex-shrink-0" role="group">
-                                        <button class="btn btn-outline-primary px-1 py-1"
+                                        <button class="btn btn-outline-secondary px-1 py-1"
                                                 onclick="openQuickEditModal('{{ booking.get('Số đặt phòng', '') }}')"
                                                 title="Chỉnh sửa nhanh">
                                             <i class="fas fa-edit"></i>
                                         </button>
-                                        <button class="btn btn-outline-danger px-1 py-1"
+                                        <button class="btn btn-outline-secondary px-1 py-1"
                                                 onclick="quickCancelCalendarGuest('{{ booking.get('Số đặt phòng', '') }}', '{{ booking.get('Tên người đặt', 'N/A')|replace("'", "\\'") }}')"
                                                 title="Hủy booking">
                                             <i class="fas fa-times"></i>
@@ -1377,35 +1367,28 @@
                                 {% set total_payment = booking.get('Tổng thanh toán', 0) %}
                                 {% set per_night_rate = (total_payment / total_nights) if total_nights > 0 else total_payment %}
                                 {% set stayed = stayed_pre %}
-                                <!-- Extend Stay button — separate row for visibility -->
-                                <div class="mt-1 mb-1">
-                                    <button class="btn btn-sm w-100 fw-semibold text-white"
-                                            style="background:linear-gradient(135deg,#6f42c1,#4b2c9e);font-size:0.75rem;padding:3px 0;"
-                                            onclick="openExtendModal('{{ booking.get('Số đặt phòng', '') }}','{{ booking.get('Tên người đặt', 'N/A')|replace("'","\\'") }}','{{ booking['Check-out Date'].strftime('%Y-%m-%d') if booking['Check-out Date'] and pd.notna(booking['Check-out Date']) else '' }}',{{ per_night_rate|int }},{{ total_payment|int }})"
-                                            title="Gia hạn thêm đêm">
-                                        <i class="fas fa-calendar-plus me-1"></i>Gia hạn phòng
-                                    </button>
-                                </div>
                                 <p class="room-type">
                                     {% if '118 hang bac' in room_lower or room_lower == '118 hang bac hostel' %}
-                                        <span class="room-badge apt1">🔵 118 hang bac</span>
+                                        <span class="room-badge apt1">118 hang bac</span>
                                     {% elif room_lower == 'kitchen' or 'kitchen & balcony' in room_lower %}
-                                        <span class="room-badge apt1">🔵 kitchen</span>
+                                        <span class="room-badge apt1">kitchen</span>
                                     {% elif 'night market' in room_lower %}
-                                        <span class="room-badge apt1">🔵 night market</span>
+                                        <span class="room-badge apt1">night market</span>
                                     {% elif 'hang be 101' in room_lower %}
-                                        <span class="room-badge apt2">🟢 hang be 101</span>
+                                        <span class="room-badge apt2">hang be 101</span>
                                     {% elif 'hang be 102' in room_lower %}
-                                        <span class="room-badge apt2">🟢 hang be 102</span>
+                                        <span class="room-badge apt2">hang be 102</span>
                                     {% else %}
                                         <span class="badge bg-secondary">{{ room_name }}</span>
                                     {% endif %}
                                     {% if remaining == 1 %}
-                                        <span class="checkout-urgency urgency-tomorrow ms-1">🚨 Trả phòng ngày mai!</span>
+                                        <span class="checkout-countdown cnt-tomorrow">Trả ngày mai</span>
                                     {% elif remaining == 2 %}
-                                        <span class="checkout-urgency urgency-2days ms-1">⚠️ Còn 2 đêm</span>
+                                        <span class="checkout-countdown cnt-soon">Còn 2đ</span>
                                     {% elif remaining <= 4 %}
-                                        <span class="checkout-urgency urgency-soon ms-1">📅 Còn {{ remaining }} đêm</span>
+                                        <span class="checkout-countdown cnt-soon">Còn {{ remaining }}đ</span>
+                                    {% else %}
+                                        <span class="checkout-countdown cnt-normal">Còn {{ remaining }}đ</span>
                                     {% endif %}
                                 </p>
                                 <div class="card-details">
@@ -1414,23 +1397,18 @@
                                         <span class="detail-checkout">{{ booking['Check-in Date'].strftime('%d/%m') if booking['Check-in Date'] and pd.notna(booking['Check-in Date']) else '?' }} → {{ booking['Check-out Date'].strftime('%d/%m') if booking['Check-out Date'] and pd.notna(booking['Check-out Date']) else '?' }}</span>
                                     </div>
                                     <div class="detail-row">
-                                        <span class="detail-nights">🌙 {{ total_nights }} đêm · ở {{ stayed }}</span>
+                                        <span class="detail-nights">{{ total_nights }} đêm · ở {{ stayed }}</span>
                                         <span class="detail-amount">{{ "{:,.0f}".format(total_payment) }}đ</span>
                                     </div>
-                                    <div class="detail-row">
-                                        {% if remaining == 1 %}
-                                            <span class="detail-remaining urgent">🚨 Còn 1 đêm</span>
-                                        {% elif remaining == 2 %}
-                                            <span class="detail-remaining warn">⚠️ Còn 2 đêm</span>
-                                        {% else %}
-                                            <span class="detail-remaining ok">✅ Còn {{ remaining }} đêm</span>
-                                        {% endif %}
-                                        <span class="detail-checkout">Trả {{ booking['Check-out Date'].strftime('%d/%m') if booking['Check-out Date'] and pd.notna(booking['Check-out Date']) else 'N/A' }}</span>
-                                    </div>
-                                    <div class="detail-rate-row">
-                                        <span>💰 {{ "{:,.0f}".format(per_night_rate) }}đ/đêm</span>
-                                        {% if has_commission %}<span class="net-rate">→ {{ "{:,.0f}".format((total_payment - commission) / total_nights) }}đ net</span>{% endif %}
-                                    </div>
+                                </div>
+                                <!-- Extend Stay button -->
+                                <div class="mb-1">
+                                    <button class="btn btn-sm w-100 fw-semibold"
+                                            style="background:#F5F3FF;color:#5B21B6;border:1px solid #C4B5FD;font-size:0.73rem;padding:3px 0;"
+                                            onclick="openExtendModal('{{ booking.get('Số đặt phòng', '') }}','{{ booking.get('Tên người đặt', 'N/A')|replace("'","\\'") }}','{{ booking['Check-out Date'].strftime('%Y-%m-%d') if booking['Check-out Date'] and pd.notna(booking['Check-out Date']) else '' }}',{{ per_night_rate|int }},{{ total_payment|int }})"
+                                            title="Gia hạn thêm đêm">
+                                        <i class="fas fa-calendar-plus me-1"></i>Gia hạn phòng
+                                    </button>
                                 </div>
                                 {%- set collector_str = booking.get('Người thu tiền', '')|string %}
                                 {%- set collected_val = (booking.get('Số tiền đã thu', 0) or 0)|float %}
@@ -1484,25 +1462,26 @@
                         <div class="guest-card-col">
                             <div class="guest-card {{ 'has-commission' if has_commission else 'no-commission' }} {{ apt_class }} {{ 'is-paid' if is_paid else 'not-paid' }}">
                                 <div class="guest-header d-flex justify-content-between align-items-start">
-                                    <div class="flex-grow-1">
-                                        <p class="guest-name {{ apt_class }}">{{ apt_icon }} {{ booking.get('Tên người đặt', 'N/A') }}</p>
+                                    <div class="flex-grow-1 min-width-0">
+                                        <div class="d-flex align-items-center gap-1 flex-wrap">
+                                            <p class="guest-name mb-0">{{ booking.get('Tên người đặt', 'N/A') }}</p>
+                                            {% if is_paid %}
+                                                <span class="pay-status-pill pill-paid">✓ Đã thu</span>
+                                            {% else %}
+                                                <span class="pay-status-pill pill-unpaid">⚡ Chưa thu</span>
+                                            {% endif %}
+                                        </div>
                                         {% if has_commission %}
-                                            <span class="commission-badge badge bg-warning text-dark">
-                                                <i class="fas fa-percentage"></i> {{ "{:,.0f}".format(commission) }}đ
-                                            </span>
-                                        {% else %}
-                                            <span class="commission-badge badge bg-success">
-                                                <i class="fas fa-check"></i> Không hoa hồng
-                                            </span>
+                                            <span class="commission-badge badge bg-warning text-dark">{{ "{:,.0f}".format(commission) }}đ HH</span>
                                         {% endif %}
                                     </div>
                                     <div class="btn-group btn-group-sm flex-shrink-0" role="group">
-                                        <button class="btn btn-outline-primary px-1 py-1"
+                                        <button class="btn btn-outline-secondary px-1 py-1"
                                                 onclick="openQuickEditModal('{{ booking.get('Số đặt phòng', '') }}')"
                                                 title="Chỉnh sửa nhanh">
                                             <i class="fas fa-edit"></i>
                                         </button>
-                                        <button class="btn btn-outline-danger px-1 py-1"
+                                        <button class="btn btn-outline-secondary px-1 py-1"
                                                 onclick="quickCancelCalendarGuest('{{ booking.get('Số đặt phòng', '') }}', '{{ booking.get('Tên người đặt', 'N/A')|replace("'", "\\'") }}')"
                                                 title="Hủy booking">
                                             <i class="fas fa-times"></i>
@@ -1512,43 +1491,40 @@
                                 {% set total_nights = (booking['Check-out Date'] - booking['Check-in Date']).days if booking['Check-in Date'] and booking['Check-out Date'] and pd.notna(booking['Check-in Date']) and pd.notna(booking['Check-out Date']) else 1 %}
                                 {% set total_payment = booking.get('Tổng thanh toán', 0) %}
                                 {% set per_night_rate = (total_payment / total_nights) if total_nights > 0 else total_payment %}
-                                <!-- Extend Stay button -->
-                                <div class="mt-1 mb-1">
-                                    <button class="btn btn-sm w-100 fw-semibold text-white"
-                                            style="background:linear-gradient(135deg,#6f42c1,#4b2c9e);font-size:0.75rem;padding:3px 0;"
-                                            onclick="openExtendModal('{{ booking.get('Số đặt phòng', '') }}','{{ booking.get('Tên người đặt', 'N/A')|replace("'","\\'") }}','{{ booking['Check-out Date'].strftime('%Y-%m-%d') if booking['Check-out Date'] and pd.notna(booking['Check-out Date']) else '' }}',{{ per_night_rate|int }},{{ total_payment|int }})"
-                                            title="Gia hạn thêm đêm">
-                                        <i class="fas fa-calendar-plus me-1"></i>Gia hạn phòng
-                                    </button>
-                                </div>
                                 <p class="room-type">
                                     {% if '118 hang bac' in room_lower or room_lower == '118 hang bac hostel' %}
-                                        <span class="room-badge apt1">🔵 118 hang bac</span>
+                                        <span class="room-badge apt1">118 hang bac</span>
                                     {% elif room_lower == 'kitchen' or 'kitchen & balcony' in room_lower %}
-                                        <span class="room-badge apt1">🔵 kitchen</span>
+                                        <span class="room-badge apt1">kitchen</span>
                                     {% elif 'night market' in room_lower %}
-                                        <span class="room-badge apt1">🔵 night market</span>
+                                        <span class="room-badge apt1">night market</span>
                                     {% elif 'hang be 101' in room_lower %}
-                                        <span class="room-badge apt2">🟢 hang be 101</span>
+                                        <span class="room-badge apt2">hang be 101</span>
                                     {% elif 'hang be 102' in room_lower %}
-                                        <span class="room-badge apt2">🟢 hang be 102</span>
+                                        <span class="room-badge apt2">hang be 102</span>
                                     {% else %}
                                         <span class="badge bg-secondary">{{ room_name }}</span>
                                     {% endif %}
+                                    <span class="checkout-countdown cnt-today">Trả hôm nay</span>
                                 </p>
                                 <div class="card-details">
                                     <div class="detail-row">
                                         <span class="detail-id">🔑 {{ booking.get('Số đặt phòng', 'N/A') }}</span>
-                                        <span class="detail-nights">🌙 {{ total_nights }} đêm</span>
+                                        <span class="detail-checkout">{{ booking['Check-in Date'].strftime('%d/%m') if booking['Check-in Date'] and pd.notna(booking['Check-in Date']) else '?' }} → {{ booking['Check-out Date'].strftime('%d/%m') if booking['Check-out Date'] and pd.notna(booking['Check-out Date']) else '?' }}</span>
                                     </div>
                                     <div class="detail-row">
-                                        <span class="detail-checkout">📅 CI: {{ booking['Check-in Date'].strftime('%d/%m') if booking['Check-in Date'] and pd.notna(booking['Check-in Date']) else 'N/A' }}</span>
+                                        <span class="detail-nights">{{ total_nights }} đêm</span>
                                         <span class="detail-amount">{{ "{:,.0f}".format(total_payment) }}đ</span>
                                     </div>
-                                    <div class="detail-rate-row">
-                                        <span>💰 {{ "{:,.0f}".format(per_night_rate) }}đ/đêm</span>
-                                        {% if has_commission %}<span class="net-rate">→ {{ "{:,.0f}".format((total_payment - commission) / total_nights) }}đ net</span>{% endif %}
-                                    </div>
+                                </div>
+                                <!-- Extend Stay button -->
+                                <div class="mb-1">
+                                    <button class="btn btn-sm w-100 fw-semibold"
+                                            style="background:#F5F3FF;color:#5B21B6;border:1px solid #C4B5FD;font-size:0.73rem;padding:3px 0;"
+                                            onclick="openExtendModal('{{ booking.get('Số đặt phòng', '') }}','{{ booking.get('Tên người đặt', 'N/A')|replace("'","\\'") }}','{{ booking['Check-out Date'].strftime('%Y-%m-%d') if booking['Check-out Date'] and pd.notna(booking['Check-out Date']) else '' }}',{{ per_night_rate|int }},{{ total_payment|int }})"
+                                            title="Gia hạn thêm đêm">
+                                        <i class="fas fa-calendar-plus me-1"></i>Gia hạn phòng
+                                    </button>
                                 </div>
                                 {%- set collector_str = booking.get('Người thu tiền', '')|string %}
                                 {%- set collected_val = (booking.get('Số tiền đã thu', 0) or 0)|float %}
@@ -1817,79 +1793,126 @@
         text-shadow: 0px 1px 2px rgba(27, 94, 32, 0.2);
     }
 
-    /* Guest card border colors */
+    /* ===== SIMPLIFIED CARD DESIGN — 3 priorities ===== */
+
+    /* 1. CARD BACKGROUND: light tint by apartment type */
+    .guest-card {
+        background: #FAFAFA;
+        border: 1px solid #e5e7eb;
+        border-left: 4px solid #D1D5DB;
+    }
     .guest-card.apt1-guest {
-        border-left: 4px solid #1976D2;
+        background: #EFF6FF !important;
+        border-left: 4px solid #93C5FD !important;
         padding-left: 12px;
     }
-
     .guest-card.apt2-guest {
-        border-left: 4px solid #388E3C;
+        background: #F0FDF4 !important;
+        border-left: 4px solid #86EFAC !important;
         padding-left: 12px;
     }
 
-    /* ===== Payment Status Visual Differentiation ===== */
-
-    /* PAID → muted grey, recedes — clearly "done", no longer demands attention */
-    .guest-card.is-paid {
-        background: #f3f3f3 !important;
-        border: 2px solid #d0d0d0 !important;
-        border-top: 3px solid #81c784 !important;
-    }
-    .guest-card.is-paid:hover {
-        background: #ececec !important;
-        box-shadow: 0 3px 10px rgba(0,0,0,0.10);
-    }
-
-    /* UNPAID → warm amber glow, prominent border + shadow — demands attention */
+    /* 2. PAYMENT STATUS: red top strip + stronger left for not-paid */
     .guest-card.not-paid {
-        background: #fff8e1 !important;
-        border: 2px solid #ffb300 !important;
-        border-top: 4px solid #e65100 !important;
-        box-shadow: 0 2px 10px rgba(230, 81, 0, 0.18) !important;
+        border-top: 3px solid #EF4444 !important;
+        box-shadow: 0 2px 8px rgba(239,68,68,0.10) !important;
     }
     .guest-card.not-paid:hover {
-        background: #fff3cd !important;
-        box-shadow: 0 5px 18px rgba(230, 81, 0, 0.30) !important;
+        box-shadow: 0 4px 14px rgba(239,68,68,0.20) !important;
+    }
+    .guest-card.is-paid {
+        border-top: 2px solid #22C55E !important;
+        opacity: 0.88;
+    }
+    .guest-card.is-paid:hover { opacity: 1; }
+
+    /* Payment status pill */
+    .pay-status-pill {
+        display: inline-block;
+        padding: 1px 7px;
+        border-radius: 20px;
+        font-size: 0.65rem;
+        font-weight: 700;
+        letter-spacing: 0.3px;
+        vertical-align: middle;
+    }
+    .pay-status-pill.pill-paid {
+        background: #DCFCE7;
+        color: #166534;
+        border: 1px solid #86EFAC;
+    }
+    .pay-status-pill.pill-unpaid {
+        background: #FEF2F2;
+        color: #DC2626;
+        border: 1px solid #FCA5A5;
     }
 
-    .room-type { font-style: italic; color: #555; margin-top: 8px; }
+    /* 3. ROOM TYPE + CHECKOUT COUNTDOWN */
+    .room-type { margin-top: 5px; margin-bottom: 4px; }
     .details { font-size: 0.9em; color: #666; margin-top: 5px; }
 
-    /* 🎨 Room Badges (same as dashboard) */
+    /* Room Badges — simplified flat */
     .room-badge {
         display: inline-block;
-        padding: 4px 12px;
-        border-radius: 20px;
+        padding: 2px 8px;
+        border-radius: 12px;
         font-weight: 600;
-        font-size: 0.85rem;
-        border: 2px solid;
+        font-size: 0.78rem;
+        border: 1px solid;
         white-space: nowrap;
     }
-
     .room-badge.apt1 {
-        background: linear-gradient(135deg, #BBDEFB 0%, #90CAF9 100%);
-        color: #0D47A1;
-        border-color: #1976D2;
+        background: #DBEAFE;
+        color: #1D4ED8;
+        border-color: #93C5FD;
     }
-
     .room-badge.apt2 {
-        background: linear-gradient(135deg, #C8E6C9 0%, #A5D6A7 100%);
-        color: #1B5E20;
-        border-color: #388E3C;
+        background: #DCFCE7;
+        color: #166534;
+        border-color: #86EFAC;
     }
+    .room-badge.apt1:hover { background: #BFDBFE; }
+    .room-badge.apt2:hover { background: #BBF7D0; }
 
-    .room-badge.apt1:hover {
-        background: linear-gradient(135deg, #90CAF9 0%, #64B5F6 100%);
-        transform: scale(1.05);
-        transition: all 0.2s ease;
+    /* Checkout countdown badge */
+    .checkout-countdown {
+        display: inline-block;
+        padding: 2px 7px;
+        border-radius: 10px;
+        font-size: 0.70rem;
+        font-weight: 700;
+        margin-left: 4px;
+        white-space: nowrap;
+        vertical-align: middle;
     }
+    .checkout-countdown.cnt-today    { background: #FEF3C7; color: #92400E; border: 1px solid #FCD34D; }
+    .checkout-countdown.cnt-tomorrow { background: #FEE2E2; color: #991B1B; border: 1px solid #FCA5A5; }
+    .checkout-countdown.cnt-soon     { background: #F5F3FF; color: #5B21B6; border: 1px solid #C4B5FD; }
+    .checkout-countdown.cnt-normal   { background: #F1F5F9; color: #475569; border: 1px solid #CBD5E1; }
 
-    .room-badge.apt2:hover {
-        background: linear-gradient(135deg, #A5D6A7 0%, #81C784 100%);
-        transform: scale(1.05);
-        transition: all 0.2s ease;
+    /* COMMISSION BADGE: muted small text, hidden if no commission */
+    .commission-badge {
+        font-size: 0.63rem !important;
+        background: #F3F4F6 !important;
+        color: #9CA3AF !important;
+        border: 1px solid #E5E7EB !important;
+        padding: 1px 6px !important;
+        font-weight: 500 !important;
     }
+    .commission-badge.bg-warning,
+    .commission-badge.badge.bg-warning,
+    .commission-badge.bg-success,
+    .commission-badge.badge.bg-success {
+        background: #F3F4F6 !important;
+        color: #9CA3AF !important;
+    }
+    /* Hide "Không hoa hồng" — default state needs no badge */
+    .no-commission .commission-badge { display: none !important; }
+
+    /* GUEST NAME: clean black */
+    .guest-name { color: #111827 !important; font-weight: 600; font-size: 0.9rem; }
+    .guest-name.apt1-guest,
+    .guest-name.apt2-guest { color: #111827 !important; }
     
     .revenue-summary, .guest-summary {
         text-align: center;
