@@ -148,171 +148,102 @@
         .dt-amt   { font-weight: 900; color: #0d6efd; text-align: right; white-space: nowrap; }
         .ds-empty { text-align: center; color: #aaa; padding: 30px; font-size: 0.78rem; }
 
-        /* ══ DATE COLUMNS SCROLL ══ */
-        .dates-scroll {
-            overflow-x: auto;
-            -webkit-overflow-scrolling: touch;
-            background: #f1f3f4;
-            scrollbar-width: thin;
-            scrollbar-color: #c8b6e2 #f1f3f4;
-        }
-        /* inner flex row containing date columns */
-        .dates-scroll-inner {
-            display: flex;
-            gap: 10px;
-            padding: 10px 8px 12px;
-            align-items: flex-start;
-            min-width: max-content;
-        }
-        .dates-scroll::-webkit-scrollbar { height: 4px; }
-        .dates-scroll::-webkit-scrollbar-thumb { background:#c8b6e2; border-radius:2px; }
+        /* ══ GUEST LIST (section-based, vertical) ══ */
+        .guest-list { padding: 8px 8px 16px; }
 
-        /* ══ ONE DATE COLUMN ══ */
-        .date-col {
-            flex: 0 0 130px;
-            display: flex;
-            flex-direction: column;
-            gap: 6px;
+        /* Section header */
+        .sec-hdr {
+            display: flex; align-items: center; gap: 8px;
+            padding: 6px 4px 5px; margin-bottom: 6px; margin-top: 12px;
+        }
+        .sec-hdr:first-child { margin-top: 4px; }
+        .sec-hdr-line {
+            flex: 1; height: 1px; background: #e9ecef;
+        }
+        .sec-hdr-label {
+            font-size: 0.66rem; font-weight: 800; text-transform: uppercase;
+            letter-spacing: 0.6px; white-space: nowrap; padding: 3px 10px;
+            border-radius: 20px; color: #fff;
+        }
+        .sec-hdr-cnt {
+            font-size: 0.6rem; font-weight: 700; color: #aaa;
+        }
+        /* Section colours */
+        .sec-overdue  .sec-hdr-label { background: #dc3545; }
+        .sec-today    .sec-hdr-label { background: #fd7e14; }
+        .sec-staying  .sec-hdr-label { background: #6c757d; }
+        .sec-tomorrow .sec-hdr-label { background: #0d6efd; }
+
+        /* 2-column card grid */
+        .sec-cards {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
         }
 
-        /* Date header */
-        .date-hdr {
-            background: #fff;
-            border: 1px solid #e9ecef;
-            border-radius: 10px;
-            text-align: center;
-            padding: 8px 6px 7px;
-        }
-        .date-col.is-today .date-hdr {
-            background: linear-gradient(135deg, #667eea, #764ba2);
-            border-color: #764ba2;
-        }
-        .date-col.is-past .date-hdr {
-            background: #fff3cd;
-            border-color: #ffc107;
-        }
-        .d-num {
-            font-size: 2rem; font-weight: 900; line-height: 1;
-            color: #2c3e50; display: block;
-        }
-        .date-col.is-today .d-num { color: #fff; }
-        .date-col.is-past  .d-num { color: #e65100; }
-        .d-month {
-            font-size: 0.65rem; font-weight: 700; color: #888;
-            display: block; margin-top: 2px;
-        }
-        .date-col.is-today .d-month { color: rgba(255,255,255,0.85); }
-        .date-col.is-past  .d-month { color: #e65100; }
-        /* overdue date header: deep red, animated */
-        .date-col.is-overdue {
-            background: linear-gradient(180deg,#dc3545,#c0392b) !important;
-        }
-        .date-col.is-overdue .d-day,
-        .date-col.is-overdue .d-month { color: #fff !important; }
-        .date-col.is-overdue .d-overdue-lbl {
-            font-size:0.54rem; font-weight:800; color:#fff;
-            background:rgba(0,0,0,0.25); border-radius:6px;
-            padding:1px 5px; margin-top:2px; display:block;
-            letter-spacing:0.3px;
-        }
-        .d-cnt {
-            display: inline-block; border-radius: 8px;
-            padding: 1px 7px; font-size: 0.6rem; font-weight: 800;
-            margin-top: 3px; background: #dc3545; color: #fff;
-        }
-        .date-col.is-today   .d-cnt { background: rgba(255,255,255,0.35); }
-        .date-col.is-past    .d-cnt { background: #e65100; }
-        .date-col.is-overdue .d-cnt { background: rgba(0,0,0,0.25); }
-
-        /* ══ GUEST CARD ══ */
+        /* ══ GUEST CARD — minimal ══ */
         .g-card {
             background: #fff;
             border: 1px solid #e9ecef;
+            border-left: 4px solid #dee2e6;   /* overridden per status */
             border-radius: 10px;
-            overflow: hidden;
+            padding: 10px 10px 8px;
             cursor: pointer;
-            transition: transform .12s, box-shadow .12s;
+            transition: transform .1s, box-shadow .1s;
+            display: flex; flex-direction: column; gap: 4px;
         }
-        .g-card:active { transform: scale(0.96); box-shadow: 0 4px 16px rgba(0,0,0,0.18); }
+        .g-card:active { transform: scale(0.97); box-shadow: 0 3px 12px rgba(0,0,0,0.14); }
 
-        /* urgency left bar */
-        .g-bar { width: 100%; height: 4px; }
-        .bar-red    { background: #dc3545; }
-        .bar-overdue{ background: repeating-linear-gradient(90deg,#dc3545 0,#dc3545 6px,#ff6b6b 6px,#ff6b6b 12px); }
-        .bar-orange { background: #fd7e14; }
-        .bar-blue   { background: #0d6efd; }
-        .bar-purple { background: #764ba2; }
+        /* Status border colours — ONLY visual difference between states */
+        .g-card.s-overdue  { border-left-color: #dc3545; }
+        .g-card.s-today    { border-left-color: #fd7e14; }
+        .g-card.s-staying  { border-left-color: #adb5bd; }
+        .g-card.s-checkin  { border-left-color: #0d6efd; }
+        .g-card.s-tomorrow { border-left-color: #0d6efd; }
 
-        /* overdue card — guest already left, unpaid */
-        .g-card.is-overdue {
-            border: 2px solid #dc3545;
-            box-shadow: 0 0 0 3px rgba(220,53,69,0.12);
-            animation: overdue-pulse 2s ease-in-out infinite;
+        /* Row 1: name + amount */
+        .gc-top {
+            display: flex; justify-content: space-between;
+            align-items: flex-start; gap: 4px;
         }
-        @keyframes overdue-pulse {
-            0%,100% { box-shadow: 0 0 0 3px rgba(220,53,69,0.12); }
-            50%      { box-shadow: 0 0 0 6px rgba(220,53,69,0.22); }
-        }
-
-        /* overdue section banner */
-        .overdue-banner {
-            margin: 10px 8px 4px;
-            background: linear-gradient(135deg,#dc3545,#c0392b);
-            color:#fff; border-radius:10px; padding:8px 14px;
-            display:flex; align-items:center; gap:8px;
-            font-size:0.78rem; font-weight:900;
-            box-shadow: 0 3px 10px rgba(220,53,69,0.35);
-        }
-        .overdue-banner .ob-ico { font-size:1.1rem; }
-        .overdue-banner .ob-sub { font-size:0.63rem; font-weight:600; opacity:0.9; margin-top:1px; }
-
-        .g-body { padding: 8px 9px 0; }
-
-        /* badge */
-        .g-badge {
-            display: inline-block; border-radius: 6px;
-            padding: 2px 7px; font-size: 0.58rem; font-weight: 800;
-            margin-bottom: 5px;
-        }
-        .sb-red    { background:#dc3545; color:#fff; }
-        .sb-overdue{ background:#dc3545; color:#fff; animation: badge-blink 1.5s step-end infinite; }
-        @keyframes badge-blink { 0%,100%{opacity:1} 50%{opacity:0.55} }
-        .sb-orange { background:#fd7e14; color:#fff; }
-        .sb-blue   { background:#0d6efd; color:#fff; }
-        .sb-purple { background:#764ba2; color:#fff; }
-
-        /* name */
-        .g-name {
+        .gc-name {
             font-size: 0.82rem; font-weight: 900; color: #1a1a2e;
+            line-height: 1.3; word-break: break-word; flex: 1;
+        }
+        .gc-amt {
+            font-size: 0.82rem; font-weight: 900; color: #1a1a2e;
+            white-space: nowrap; text-align: right;
+        }
+        .gc-amt.has-commission { color: #dc3545; }   /* only red if commission */
+
+        /* Row 2: room */
+        .gc-room {
+            font-size: 0.66rem; color: #666; font-weight: 600;
             line-height: 1.3; word-break: break-word;
-            border-left: 3px solid #ddd; padding-left: 5px;
-            margin-bottom: 3px;
         }
 
-        /* room */
-        .g-room {
-            font-size: 0.66rem; color: #555; font-weight: 700;
-            line-height: 1.3; word-break: break-word;
-            padding-left: 5px; margin-bottom: 3px;
-        }
-
-        /* dates */
-        .g-dates {
-            font-size: 0.62rem; color: #888; font-weight: 600;
-            padding-left: 5px; margin-bottom: 7px;
+        /* Row 3: checkout date */
+        .gc-date {
+            font-size: 0.63rem; color: #999; font-weight: 600;
             display: flex; align-items: center; gap: 3px;
         }
-
-        /* revenue bar */
-        .g-rev {
-            background: rgba(40,167,69,0.10);
-            border-top: 1px solid rgba(40,167,69,0.20);
-            padding: 5px 9px;
-            display: flex; align-items: center; justify-content: space-between;
+        .gc-date-badge {
+            display: inline-block; font-size: 0.56rem; font-weight: 800;
+            padding: 1px 5px; border-radius: 4px; margin-left: 2px;
         }
-        .g-rev-lbl { font-size: 0.6rem; color: #28a745; font-weight: 700; }
-        .g-rev-amt { font-size: 0.88rem; font-weight: 900; color: #28a745; }
-        .g-rev-amt.warn { color: #dc3545; }
+        .s-overdue  .gc-date-badge { background:#fde8ea; color:#dc3545; }
+        .s-today    .gc-date-badge { background:#fff3e0; color:#e65100; }
+        .s-checkin  .gc-date-badge { background:#e8eaf6; color:#3949ab; }
+        .s-tomorrow .gc-date-badge { background:#e3f2fd; color:#1565c0; }
+
+        /* overdue card: subtle pulse on border only */
+        .g-card.s-overdue {
+            animation: od-pulse 2.5s ease-in-out infinite;
+        }
+        @keyframes od-pulse {
+            0%,100% { box-shadow: none; }
+            50%      { box-shadow: 0 0 0 3px rgba(220,53,69,0.18); }
+        }
 
         /* ══ EMPTY ══ */
         .empty-wrap {
@@ -489,9 +420,9 @@
     </div>
 </div>
 
-<!-- ══ DATE COLUMNS ══ -->
+<!-- ══ GUEST LIST ══ -->
 {% if unpaid_guests %}
-<div class="dates-scroll" id="datesScroll"><!-- rendered by JS --></div>
+<div class="guest-list" id="datesScroll"><!-- rendered by JS --></div>
 {% else %}
 <div class="empty-wrap">
     <div class="ico">🎉</div>
@@ -540,129 +471,86 @@
 <script>
 let GUESTS = {{ unpaid_guests | tojson }};
 
-function roomColor(room) {
-    const r = (room||'').toLowerCase();
-    if (r.includes('118')||r.includes('hang bac')||r.includes('hàng bạc')||r.includes('ban cong hang bac')) return '#1976D2';
-    if (r.includes('101')) return '#2E7D32';
-    if (r.includes('102')) return '#7B1FA2';
-    if (r.includes('kitchen')||r.includes('bếp')||r.includes('ban cong')||r.includes('balcon')) return '#E64A19';
-    if (r.includes('night market')||r.includes('hoi vu')||r.includes('hội vũ')||r.includes('sofa')) return '#00838F';
-    if (r.includes('two-bedroom')||r.includes('2 bed')) return '#558B2F';
-    return '#F57F17';
+// Section definitions — order, CSS class, label, icon
+const SECTIONS = [
+    { key: 'overdue',          cls: 'sec-overdue',  label: 'Đã đi – chưa thu', icon: '🚨' },
+    { key: 'checkout_today',   cls: 'sec-today',    label: 'Trả phòng hôm nay', icon: '📤' },
+    { key: 'staying',          cls: 'sec-staying',  label: 'Đang lưu trú',      icon: '🏠' },
+    { key: 'checkin_today',    cls: 'sec-staying',  label: 'Check-in hôm nay',  icon: '📥' },
+    { key: 'checkout_tomorrow',cls: 'sec-tomorrow', label: 'Trả phòng ngày mai',icon: '📅' },
+];
+
+// Card status CSS class per label
+function cardCls(label) {
+    return { overdue:'s-overdue', checkout_today:'s-today', staying:'s-staying',
+             checkin_today:'s-checkin', checkout_tomorrow:'s-tomorrow' }[label] || 's-staying';
 }
 
-function badgeInfo(label) {
-    if (label==='overdue')           return ['bar-overdue','sb-overdue','🚨 ĐÃ ĐI – CHƯA THU'];
-    if (label==='checkout_today')    return ['bar-red',    'sb-red',    '🚨 Trả hôm nay'];
-    if (label==='checkout_tomorrow') return ['bar-orange', 'sb-orange', '⚠️ Ngày mai'];
-    if (label==='checkin_today')     return ['bar-blue',   'sb-blue',   '📥 Check-in'];
-    return ['bar-purple','sb-purple','🏠 Đang ở'];
+// Date badge text per label
+function dateBadge(label, checkout_display) {
+    if (label==='overdue')           return `<span class="gc-date-badge">⚠️ ${checkout_display}</span>`;
+    if (label==='checkout_today')    return `<span class="gc-date-badge">Hôm nay</span>`;
+    if (label==='checkin_today')     return `<span class="gc-date-badge">Check-in</span>`;
+    if (label==='checkout_tomorrow') return `<span class="gc-date-badge">Ngày mai</span>`;
+    return '';
 }
-
-// Sort order by label (overdue = most urgent = first)
-const LABEL_ORDER = {overdue:0, checkout_today:1, staying:2, checkin_today:3, checkout_tomorrow:4};
 
 function renderDates() {
     const container = document.getElementById('datesScroll');
     if (!container) return;
 
-    const today = new Date(); today.setHours(0,0,0,0);
-    const todayISO = toISO(today);
+    if (GUESTS.length === 0) { container.innerHTML = ''; return; }
 
-    // Group by checkout date, sorted by date then by label priority
-    const dateMap = {};
+    // Group guests by label
+    const byLabel = {};
     GUESTS.forEach(g => {
-        if (!dateMap[g.checkout]) dateMap[g.checkout] = [];
-        dateMap[g.checkout].push(g);
+        if (!byLabel[g.label]) byLabel[g.label] = [];
+        byLabel[g.label].push(g);
     });
 
-    // Sort dates ascending
-    const sortedDates = Object.keys(dateMap).sort();
+    let html = '';
 
-    if (sortedDates.length === 0) {
-        container.innerHTML = '';
-        return;
-    }
+    SECTIONS.forEach(sec => {
+        const guests = byLabel[sec.key];
+        if (!guests || guests.length === 0) return;
 
-    // Check if any overdue guests exist — prepend alarming banner
-    const overdueGuests = GUESTS.filter(g => g.label === 'overdue');
-    let bannerHTML = '';
-    if (overdueGuests.length > 0) {
-        const totalOD = overdueGuests.reduce((s,g)=>s+Math.round(g.amount),0);
-        bannerHTML = `<div class="overdue-banner">
-            <span class="ob-ico">🚨</span>
-            <div>
-                <div>${overdueGuests.length} khách ĐÃ ĐI mà chưa thu tiền!</div>
-                <div class="ob-sub">Tổng ${totalOD.toLocaleString('vi-VN')}đ — Liên hệ ngay</div>
-            </div>
-        </div>`;
-    }
+        // Section header
+        html += `<div class="sec-hdr ${sec.cls}">
+            <div class="sec-hdr-line"></div>
+            <span class="sec-hdr-label">${sec.icon} ${sec.label}</span>
+            <span class="sec-hdr-cnt">${guests.length} khách</span>
+            <div class="sec-hdr-line"></div>
+        </div>
+        <div class="sec-cards">`;
 
-    const columnsHTML = sortedDates.map(iso => {
-        const guests = dateMap[iso].sort((a,b) => (LABEL_ORDER[a.label]||9)-(LABEL_ORDER[b.label]||9));
-        const d = new Date(iso + 'T00:00:00');
-        const isToday    = iso === todayISO;
-        const isOverdue  = iso < todayISO;   // any past date = overdue column
-        const colClass   = isToday ? 'is-today' : isOverdue ? 'is-overdue' : '';
+        guests.forEach(g => {
+            const amt      = Math.round(g.amount);
+            const amtFmt   = amt.toLocaleString('vi-VN') + 'đ';
+            const hasCom   = g.commission > 0;
+            const amtCls   = hasCom ? ' has-commission' : '';
+            const sCls     = cardCls(g.label);
+            const badge    = dateBadge(g.label, g.checkout_display);
+            const safeN    = (g.name||'').replace(/'/g,"\\'").replace(/"/g,'&quot;');
+            const safeR    = (g.room||'').replace(/'/g,"\\'").replace(/"/g,'&quot;');
 
-        const dayNames = ['CN','T2','T3','T4','T5','T6','T7'];
-        const monthStr = `tháng ${d.getMonth()+1}`;
-        const dayName  = dayNames[d.getDay()];
-
-        const daysAgo  = isOverdue ? Math.round((today - d) / 86400000) : 0;
-        const overdueSubLabel = isOverdue
-            ? `<span class="d-overdue-lbl">⚠️ ${daysAgo} ngày trước</span>` : '';
-
-        const hdrLabel = isOverdue
-            ? `<span class="d-cnt">🚨 ${guests.length} khách</span>`
-            : `<span class="d-cnt">${guests.length} khách</span>`;
-
-        const cardsHTML = guests.map(g => {
-            const color = roomColor(g.room);
-            const [barCls, sbCls, badgeTxt] = badgeInfo(g.label);
-            const amt = Math.round(g.amount);
-            const warn = g.commission > 0 ? ' warn' : '';
-            const overdueCardCls = g.label === 'overdue' ? ' is-overdue' : '';
-            const safeN = (g.name||'').replace(/'/g,"\\'").replace(/"/g,'&quot;');
-            const safeR = (g.room||'').replace(/'/g,"\\'").replace(/"/g,'&quot;');
-            return `<div class="g-card${overdueCardCls}" id="card-${g.id}"
+            html += `<div class="g-card ${sCls}" id="card-${g.id}"
                 onclick="openSheet('${g.id}','${safeN}','${safeR}','${g.checkin_display}','${g.checkout_display}',${g.nights},${amt},${Math.round(g.commission||0)})">
-                <div class="g-bar ${barCls}"></div>
-                <div class="g-body">
-                    <span class="g-badge ${sbCls}">${badgeTxt}</span>
-                    <div class="g-name" style="border-color:${color};color:${color}">${g.name||'—'}</div>
-                    <div class="g-room">🏠 ${g.room||''}</div>
-                    <div class="g-dates"><i class="fas fa-calendar-alt" style="font-size:0.55rem"></i> ${g.checkin_display} → ${g.checkout_display} · ${g.nights}đêm</div>
+                <div class="gc-top">
+                    <span class="gc-name">${g.name||'—'}</span>
+                    <span class="gc-amt${amtCls}">${amtFmt}</span>
                 </div>
-                <div class="g-rev">
-                    <span class="g-rev-lbl">💰 Cần thu</span>
-                    <span class="g-rev-amt${warn}">${amt.toLocaleString('vi-VN')}đ</span>
+                <div class="gc-room">🏠 ${g.room||''}</div>
+                <div class="gc-date">
+                    📅 Trả ${g.checkout_display} · ${g.nights}đêm
+                    ${badge}
                 </div>
             </div>`;
-        }).join('');
+        });
 
-        return `<div class="date-col ${colClass}">
-            <div class="date-hdr">
-                <span class="d-num">${d.getDate()}</span>
-                <span class="d-month">${dayName} · ${monthStr}</span>
-                ${overdueSubLabel}
-                ${hdrLabel}
-            </div>
-            ${cardsHTML}
-        </div>`;
-    }).join('');
+        html += `</div>`;
+    });
 
-    container.innerHTML = bannerHTML + `<div class="dates-scroll-inner" style="display:flex;gap:10px;padding:10px 8px">${columnsHTML}</div>`;
-
-    // Scroll to first overdue column (or today if no overdue)
-    setTimeout(() => {
-        const firstCol = container.querySelector('.date-col.is-overdue') ||
-                         container.querySelector('.date-col.is-today');
-        if (firstCol) {
-            const scrollLeft = firstCol.offsetLeft - container.offsetLeft - 10;
-            container.scrollTo({ left: Math.max(0, scrollLeft), behavior: 'smooth' });
-        }
-    }, 60);
+    container.innerHTML = html;
 }
 
 
