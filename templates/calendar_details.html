@@ -827,20 +827,20 @@
             justify-content: center;
             gap: 5px;
             width: 100%;
-            background: #EF4444;
-            color: #fff;
-            border: none;
+            background: transparent;
+            color: #DC2626;
+            border: 1.5px solid #FCA5A5;
             border-radius: 20px;
-            padding: 5px 12px;
-            font-size: 0.78rem;
+            padding: 4px 12px;
+            font-size: 0.76rem;
             font-weight: 600;
             cursor: pointer;
-            transition: all 0.2s;
+            transition: all 0.18s;
         }
         .btn-pay-now:hover {
-            background: #DC2626;
-            transform: translateY(-1px);
-            box-shadow: 0 3px 8px rgba(239,68,68,0.30);
+            background: #FEF2F2;
+            border-color: #EF4444;
+            color: #B91C1C;
         }
         /* Confirm step */
         .pay-confirm-row {
@@ -937,12 +937,13 @@
         }
         .pay-done-badge {
             flex: 1;
-            background: linear-gradient(135deg, #43a047, #2e7d32);
-            color: #fff;
+            background: transparent;
+            color: #166534;
+            border: 1.5px solid #86EFAC;
             border-radius: 16px;
-            padding: 4px 10px;
+            padding: 3px 10px;
             font-size: 0.72rem;
-            font-weight: 700;
+            font-weight: 600;
             text-align: center;
         }
         .pay-undo-btn {
