@@ -4418,12 +4418,12 @@ def mobile_payment_view():
                 if 'LOC' in collector or 'THAO' in collector:
                     continue
 
-                # Skip if booking is old (checkout before yesterday)
+                # Skip if booking is too old (checkout > 7 days ago)
                 co = row.get('Check-out Date')
                 if not pd.notna(co):
                     continue
                 co_date = pd.Timestamp(co).date()
-                if co_date < _today - timedelta(days=1):
+                if co_date < _today - timedelta(days=7):
                     continue
 
                 # Skip cancelled / deleted
@@ -4434,31 +4434,36 @@ def mobile_payment_view():
                 ci = row.get('Check-in Date')
                 ci_date = pd.Timestamp(ci).date() if pd.notna(ci) else _today
 
-                # Get checkin_status from DB map (not from dataframe — it's missing there)
+                # Get checkin_status from DB map
                 bid = str(row.get('Số đặt phòng', '') or '')
                 cs  = str(_cs_map.get(bid, '') or '')
 
-                # Mirror calendar_details _guest_stays_over logic exactly:
+                # No-show filter:
                 #   confirmed   → always show
                 #   cancelling  → always skip
-                #   NULL/''     → show only within 3-day grace period
+                #   NULL/''     → apply grace period ONLY for future/current guests
+                #                 If guest already checked out (co_date < today), they
+                #                 were real — skip no-show check regardless of status
                 if cs == 'cancelling':
                     continue
-                if cs != 'confirmed':
+                already_left = (co_date < _today)
+                if cs != 'confirmed' and not already_left:
                     if ci_date < _no_show_cutoff:
-                        continue   # no-show: checked in >2 days ago, never confirmed
+                        continue   # no-show: still here but never confirmed
 
                 nights  = max((co_date - ci_date).days, 1)
                 amount     = float(row.get('Tổng thanh toán', 0) or 0)
                 commission = float(row.get('Hoa hồng', 0) or 0)
 
                 # Label for grouping
-                if co_date == _today:
+                if already_left:
+                    label = 'overdue'          # ← already gone, most urgent
+                elif co_date == _today:
                     label = 'checkout_today'
-                elif co_date == _today + timedelta(days=1):
-                    label = 'checkout_tomorrow'
                 elif ci_date == _today:
                     label = 'checkin_today'
+                elif co_date == _today + timedelta(days=1):
+                    label = 'checkout_tomorrow'
                 else:
                     label = 'staying'
 
@@ -4479,10 +4484,10 @@ def mobile_payment_view():
             except Exception:
                 continue
 
-        # Sort: checkout today first, then staying, then upcoming — by checkin within each
-        _order = {'checkout_today': 0, 'staying': 1, 'checkin_today': 2,
-                  'checkout_tomorrow': 3, 'upcoming': 4}
-        unpaid.sort(key=lambda x: (_order.get(x['label'], 9), x['checkin']))
+        # Sort: overdue (already left) first → checkout today → staying → checkin today → tomorrow
+        _order = {'overdue': 0, 'checkout_today': 1, 'staying': 2,
+                  'checkin_today': 3, 'checkout_tomorrow': 4, 'upcoming': 5}
+        unpaid.sort(key=lambda x: (_order.get(x['label'], 9), x['checkout']))
 
         total_unpaid = sum(g['amount'] for g in unpaid)
 

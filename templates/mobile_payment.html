@@ -153,12 +153,16 @@
             overflow-x: auto;
             -webkit-overflow-scrolling: touch;
             background: #f1f3f4;
-            padding: 10px 8px 12px;
-            display: flex;
-            gap: 8px;
-            align-items: flex-start;
             scrollbar-width: thin;
             scrollbar-color: #c8b6e2 #f1f3f4;
+        }
+        /* inner flex row containing date columns */
+        .dates-scroll-inner {
+            display: flex;
+            gap: 10px;
+            padding: 10px 8px 12px;
+            align-items: flex-start;
+            min-width: max-content;
         }
         .dates-scroll::-webkit-scrollbar { height: 4px; }
         .dates-scroll::-webkit-scrollbar-thumb { background:#c8b6e2; border-radius:2px; }
@@ -199,13 +203,26 @@
         }
         .date-col.is-today .d-month { color: rgba(255,255,255,0.85); }
         .date-col.is-past  .d-month { color: #e65100; }
+        /* overdue date header: deep red, animated */
+        .date-col.is-overdue {
+            background: linear-gradient(180deg,#dc3545,#c0392b) !important;
+        }
+        .date-col.is-overdue .d-day,
+        .date-col.is-overdue .d-month { color: #fff !important; }
+        .date-col.is-overdue .d-overdue-lbl {
+            font-size:0.54rem; font-weight:800; color:#fff;
+            background:rgba(0,0,0,0.25); border-radius:6px;
+            padding:1px 5px; margin-top:2px; display:block;
+            letter-spacing:0.3px;
+        }
         .d-cnt {
             display: inline-block; border-radius: 8px;
             padding: 1px 7px; font-size: 0.6rem; font-weight: 800;
             margin-top: 3px; background: #dc3545; color: #fff;
         }
-        .date-col.is-today .d-cnt { background: rgba(255,255,255,0.35); }
-        .date-col.is-past  .d-cnt { background: #e65100; }
+        .date-col.is-today   .d-cnt { background: rgba(255,255,255,0.35); }
+        .date-col.is-past    .d-cnt { background: #e65100; }
+        .date-col.is-overdue .d-cnt { background: rgba(0,0,0,0.25); }
 
         /* ══ GUEST CARD ══ */
         .g-card {
@@ -221,9 +238,33 @@
         /* urgency left bar */
         .g-bar { width: 100%; height: 4px; }
         .bar-red    { background: #dc3545; }
+        .bar-overdue{ background: repeating-linear-gradient(90deg,#dc3545 0,#dc3545 6px,#ff6b6b 6px,#ff6b6b 12px); }
         .bar-orange { background: #fd7e14; }
         .bar-blue   { background: #0d6efd; }
         .bar-purple { background: #764ba2; }
+
+        /* overdue card — guest already left, unpaid */
+        .g-card.is-overdue {
+            border: 2px solid #dc3545;
+            box-shadow: 0 0 0 3px rgba(220,53,69,0.12);
+            animation: overdue-pulse 2s ease-in-out infinite;
+        }
+        @keyframes overdue-pulse {
+            0%,100% { box-shadow: 0 0 0 3px rgba(220,53,69,0.12); }
+            50%      { box-shadow: 0 0 0 6px rgba(220,53,69,0.22); }
+        }
+
+        /* overdue section banner */
+        .overdue-banner {
+            margin: 10px 8px 4px;
+            background: linear-gradient(135deg,#dc3545,#c0392b);
+            color:#fff; border-radius:10px; padding:8px 14px;
+            display:flex; align-items:center; gap:8px;
+            font-size:0.78rem; font-weight:900;
+            box-shadow: 0 3px 10px rgba(220,53,69,0.35);
+        }
+        .overdue-banner .ob-ico { font-size:1.1rem; }
+        .overdue-banner .ob-sub { font-size:0.63rem; font-weight:600; opacity:0.9; margin-top:1px; }
 
         .g-body { padding: 8px 9px 0; }
 
@@ -234,6 +275,8 @@
             margin-bottom: 5px;
         }
         .sb-red    { background:#dc3545; color:#fff; }
+        .sb-overdue{ background:#dc3545; color:#fff; animation: badge-blink 1.5s step-end infinite; }
+        @keyframes badge-blink { 0%,100%{opacity:1} 50%{opacity:0.55} }
         .sb-orange { background:#fd7e14; color:#fff; }
         .sb-blue   { background:#0d6efd; color:#fff; }
         .sb-purple { background:#764ba2; color:#fff; }
@@ -509,14 +552,15 @@ function roomColor(room) {
 }
 
 function badgeInfo(label) {
+    if (label==='overdue')           return ['bar-overdue','sb-overdue','🚨 ĐÃ ĐI – CHƯA THU'];
     if (label==='checkout_today')    return ['bar-red',    'sb-red',    '🚨 Trả hôm nay'];
     if (label==='checkout_tomorrow') return ['bar-orange', 'sb-orange', '⚠️ Ngày mai'];
     if (label==='checkin_today')     return ['bar-blue',   'sb-blue',   '📥 Check-in'];
     return ['bar-purple','sb-purple','🏠 Đang ở'];
 }
 
-// Sort order by label
-const LABEL_ORDER = {checkout_today:0, staying:1, checkin_today:2, checkout_tomorrow:3};
+// Sort order by label (overdue = most urgent = first)
+const LABEL_ORDER = {overdue:0, checkout_today:1, staying:2, checkin_today:3, checkout_tomorrow:4};
 
 function renderDates() {
     const container = document.getElementById('datesScroll');
@@ -540,19 +584,37 @@ function renderDates() {
         return;
     }
 
-    container.innerHTML = sortedDates.map(iso => {
+    // Check if any overdue guests exist — prepend alarming banner
+    const overdueGuests = GUESTS.filter(g => g.label === 'overdue');
+    let bannerHTML = '';
+    if (overdueGuests.length > 0) {
+        const totalOD = overdueGuests.reduce((s,g)=>s+Math.round(g.amount),0);
+        bannerHTML = `<div class="overdue-banner">
+            <span class="ob-ico">🚨</span>
+            <div>
+                <div>${overdueGuests.length} khách ĐÃ ĐI mà chưa thu tiền!</div>
+                <div class="ob-sub">Tổng ${totalOD.toLocaleString('vi-VN')}đ — Liên hệ ngay</div>
+            </div>
+        </div>`;
+    }
+
+    const columnsHTML = sortedDates.map(iso => {
         const guests = dateMap[iso].sort((a,b) => (LABEL_ORDER[a.label]||9)-(LABEL_ORDER[b.label]||9));
         const d = new Date(iso + 'T00:00:00');
-        const isToday = iso === todayISO;
-        const isPast  = iso < todayISO;
-        const colClass = isToday ? 'is-today' : isPast ? 'is-past' : '';
+        const isToday    = iso === todayISO;
+        const isOverdue  = iso < todayISO;   // any past date = overdue column
+        const colClass   = isToday ? 'is-today' : isOverdue ? 'is-overdue' : '';
 
         const dayNames = ['CN','T2','T3','T4','T5','T6','T7'];
         const monthStr = `tháng ${d.getMonth()+1}`;
         const dayName  = dayNames[d.getDay()];
 
-        const hdrLabel = isPast
-            ? `<span class="d-cnt">⚠️ Quá hạn</span>`
+        const daysAgo  = isOverdue ? Math.round((today - d) / 86400000) : 0;
+        const overdueSubLabel = isOverdue
+            ? `<span class="d-overdue-lbl">⚠️ ${daysAgo} ngày trước</span>` : '';
+
+        const hdrLabel = isOverdue
+            ? `<span class="d-cnt">🚨 ${guests.length} khách</span>`
             : `<span class="d-cnt">${guests.length} khách</span>`;
 
         const cardsHTML = guests.map(g => {
@@ -560,9 +622,10 @@ function renderDates() {
             const [barCls, sbCls, badgeTxt] = badgeInfo(g.label);
             const amt = Math.round(g.amount);
             const warn = g.commission > 0 ? ' warn' : '';
+            const overdueCardCls = g.label === 'overdue' ? ' is-overdue' : '';
             const safeN = (g.name||'').replace(/'/g,"\\'").replace(/"/g,'&quot;');
             const safeR = (g.room||'').replace(/'/g,"\\'").replace(/"/g,'&quot;');
-            return `<div class="g-card" id="card-${g.id}"
+            return `<div class="g-card${overdueCardCls}" id="card-${g.id}"
                 onclick="openSheet('${g.id}','${safeN}','${safeR}','${g.checkin_display}','${g.checkout_display}',${g.nights},${amt},${Math.round(g.commission||0)})">
                 <div class="g-bar ${barCls}"></div>
                 <div class="g-body">
@@ -582,21 +645,26 @@ function renderDates() {
             <div class="date-hdr">
                 <span class="d-num">${d.getDate()}</span>
                 <span class="d-month">${dayName} · ${monthStr}</span>
+                ${overdueSubLabel}
                 ${hdrLabel}
             </div>
             ${cardsHTML}
         </div>`;
     }).join('');
 
-    // Scroll today into view
+    container.innerHTML = bannerHTML + `<div class="dates-scroll-inner" style="display:flex;gap:10px;padding:10px 8px">${columnsHTML}</div>`;
+
+    // Scroll to first overdue column (or today if no overdue)
     setTimeout(() => {
-        const todayCol = container.querySelector('.date-col.is-today');
-        if (todayCol) {
-            const scrollLeft = todayCol.offsetLeft - container.offsetLeft - 10;
+        const firstCol = container.querySelector('.date-col.is-overdue') ||
+                         container.querySelector('.date-col.is-today');
+        if (firstCol) {
+            const scrollLeft = firstCol.offsetLeft - container.offsetLeft - 10;
             container.scrollTo({ left: Math.max(0, scrollLeft), behavior: 'smooth' });
         }
     }, 60);
 }
+
 
 function toISO(d) {
     return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
