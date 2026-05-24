@@ -1178,7 +1178,7 @@
                         {%- set pay_str = booking.get('Người thu tiền', '')|string %}
                         {%- set is_paid = 'LOC' in pay_str or 'THAO' in pay_str %}
                         {%- set ci_remaining = (booking['Check-out Date'] - current_date).days if booking['Check-out Date'] and pd.notna(booking['Check-out Date']) else 0 %}
-                        {%- set _ns = namespace(card_apt_class=apt_class) %}
+                        {%- set _ns = namespace(card_apt_class=apt_class, card_apt_wm='') %}
                         {%- set _bid_apt = booking.get('Số đặt phòng', '')|string %}
                         {%- if apt_map.get(_bid_apt) and apartments_list %}
                             {%- for _ai in apartments_list %}
@@ -1186,11 +1186,18 @@
                                     {%- if loop.index0 == 0 %}{%- set _ns.card_apt_class = 'apt1-guest' %}
                                     {%- elif loop.index0 == 1 %}{%- set _ns.card_apt_class = 'apt2-guest' %}
                                     {%- endif %}
+                                    {%- set _wm_parts = _ai.name.split(' ') %}
+                                    {%- if _wm_parts and _wm_parts[0] and _wm_parts[0][0] in '0123456789' %}
+                                        {%- set _ns.card_apt_wm = _wm_parts[0] %}
+                                    {%- else %}
+                                        {%- set _ns.card_apt_wm = _ai.abbr %}
+                                    {%- endif %}
                                 {%- endif %}
                             {%- endfor %}
                         {%- endif %}
                         <div class="guest-card-col">
                             <div class="guest-card {{ 'has-commission' if has_commission else 'no-commission' }} {{ _ns.card_apt_class }} {{ 'is-paid' if is_paid else 'not-paid' }}">
+                                {% if _ns.card_apt_wm %}<div class="apt-watermark" aria-hidden="true">{{ _ns.card_apt_wm }}</div>{% endif %}
                                 <div class="guest-header d-flex justify-content-between align-items-start">
                                     <div class="flex-grow-1 min-width-0">
                                         <div class="d-flex align-items-center gap-1 flex-wrap">
@@ -1345,7 +1352,7 @@
                         {%- set stayed_pre = (current_date - booking['Check-in Date']).days if booking['Check-in Date'] and pd.notna(booking['Check-in Date']) else 0 %}
                         {%- set remaining = total_nights_pre - stayed_pre %}
                         {%- set urgency_class = 'urgency-tomorrow' if remaining == 1 else ('urgency-2days' if remaining == 2 else '') %}
-                        {%- set _ns = namespace(card_apt_class=apt_class) %}
+                        {%- set _ns = namespace(card_apt_class=apt_class, card_apt_wm='') %}
                         {%- set _bid_apt = booking.get('Số đặt phòng', '')|string %}
                         {%- if apt_map.get(_bid_apt) and apartments_list %}
                             {%- for _ai in apartments_list %}
@@ -1353,11 +1360,18 @@
                                     {%- if loop.index0 == 0 %}{%- set _ns.card_apt_class = 'apt1-guest' %}
                                     {%- elif loop.index0 == 1 %}{%- set _ns.card_apt_class = 'apt2-guest' %}
                                     {%- endif %}
+                                    {%- set _wm_parts = _ai.name.split(' ') %}
+                                    {%- if _wm_parts and _wm_parts[0] and _wm_parts[0][0] in '0123456789' %}
+                                        {%- set _ns.card_apt_wm = _wm_parts[0] %}
+                                    {%- else %}
+                                        {%- set _ns.card_apt_wm = _ai.abbr %}
+                                    {%- endif %}
                                 {%- endif %}
                             {%- endfor %}
                         {%- endif %}
                         <div class="guest-card-col" data-remaining="{{ remaining }}">
                             <div class="guest-card {{ 'has-commission' if has_commission else 'no-commission' }} {{ _ns.card_apt_class }} {{ 'is-paid' if is_paid else 'not-paid' }}">
+                                {% if _ns.card_apt_wm %}<div class="apt-watermark" aria-hidden="true">{{ _ns.card_apt_wm }}</div>{% endif %}
                                 <div class="guest-header d-flex justify-content-between align-items-start">
                                     <div class="flex-grow-1 min-width-0">
                                         <div class="d-flex align-items-center gap-1 flex-wrap">
@@ -1481,7 +1495,7 @@
                         {% endif %}
                         {%- set pay_str = booking.get('Người thu tiền', '')|string %}
                         {%- set is_paid = 'LOC' in pay_str or 'THAO' in pay_str %}
-                        {%- set _ns = namespace(card_apt_class=apt_class) %}
+                        {%- set _ns = namespace(card_apt_class=apt_class, card_apt_wm='') %}
                         {%- set _bid_apt = booking.get('Số đặt phòng', '')|string %}
                         {%- if apt_map.get(_bid_apt) and apartments_list %}
                             {%- for _ai in apartments_list %}
@@ -1489,11 +1503,18 @@
                                     {%- if loop.index0 == 0 %}{%- set _ns.card_apt_class = 'apt1-guest' %}
                                     {%- elif loop.index0 == 1 %}{%- set _ns.card_apt_class = 'apt2-guest' %}
                                     {%- endif %}
+                                    {%- set _wm_parts = _ai.name.split(' ') %}
+                                    {%- if _wm_parts and _wm_parts[0] and _wm_parts[0][0] in '0123456789' %}
+                                        {%- set _ns.card_apt_wm = _wm_parts[0] %}
+                                    {%- else %}
+                                        {%- set _ns.card_apt_wm = _ai.abbr %}
+                                    {%- endif %}
                                 {%- endif %}
                             {%- endfor %}
                         {%- endif %}
                         <div class="guest-card-col">
                             <div class="guest-card {{ 'has-commission' if has_commission else 'no-commission' }} {{ _ns.card_apt_class }} {{ 'is-paid' if is_paid else 'not-paid' }}">
+                                {% if _ns.card_apt_wm %}<div class="apt-watermark" aria-hidden="true">{{ _ns.card_apt_wm }}</div>{% endif %}
                                 <div class="guest-header d-flex justify-content-between align-items-start">
                                     <div class="flex-grow-1 min-width-0">
                                         <div class="d-flex align-items-center gap-1 flex-wrap">
@@ -1833,18 +1854,39 @@
         background: #FAFAFA;
         border: 1px solid #e5e7eb;
         border-left: 4px solid #D1D5DB;
+        overflow: hidden;   /* clip watermark overflow */
     }
     .guest-card.apt1-guest {
-        background: #DBEAFE !important;   /* Tailwind blue-100 — soft but clearly blue */
+        background: #DBEAFE !important;
         border-left: 4px solid #93C5FD !important;
         border-color: #BFDBFE !important;
         padding-left: 12px;
     }
     .guest-card.apt2-guest {
-        background: #DCFCE7 !important;   /* Tailwind green-100 — soft but clearly green */
+        background: #DCFCE7 !important;
         border-left: 4px solid #86EFAC !important;
         border-color: #BBF7D0 !important;
         padding-left: 12px;
+    }
+
+    /* === Apartment watermark number === */
+    .apt-watermark {
+        position: absolute;
+        bottom: -12px;
+        right: 6px;
+        font-size: 5.8rem;
+        font-weight: 900;
+        color: rgba(0, 0, 0, 0.08);
+        line-height: 1;
+        pointer-events: none;
+        user-select: none;
+        letter-spacing: -3px;
+        z-index: 0;
+    }
+    /* Lift ALL direct card children above the watermark */
+    .guest-card > *:not(.apt-watermark) {
+        position: relative;
+        z-index: 1;
     }
 
     /* 2. PAYMENT STATUS: red top strip + subtle shadow for not-paid */
