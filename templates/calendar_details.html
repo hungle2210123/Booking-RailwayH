@@ -1178,8 +1178,19 @@
                         {%- set pay_str = booking.get('Người thu tiền', '')|string %}
                         {%- set is_paid = 'LOC' in pay_str or 'THAO' in pay_str %}
                         {%- set ci_remaining = (booking['Check-out Date'] - current_date).days if booking['Check-out Date'] and pd.notna(booking['Check-out Date']) else 0 %}
+                        {%- set _ns = namespace(card_apt_class=apt_class) %}
+                        {%- set _bid_apt = booking.get('Số đặt phòng', '')|string %}
+                        {%- if apt_map.get(_bid_apt) and apartments_list %}
+                            {%- for _ai in apartments_list %}
+                                {%- if _ai.id|string == apt_map.get(_bid_apt)|string %}
+                                    {%- if loop.index0 == 0 %}{%- set _ns.card_apt_class = 'apt1-guest' %}
+                                    {%- elif loop.index0 == 1 %}{%- set _ns.card_apt_class = 'apt2-guest' %}
+                                    {%- endif %}
+                                {%- endif %}
+                            {%- endfor %}
+                        {%- endif %}
                         <div class="guest-card-col">
-                            <div class="guest-card {{ 'has-commission' if has_commission else 'no-commission' }} {{ apt_class }} {{ 'is-paid' if is_paid else 'not-paid' }}">
+                            <div class="guest-card {{ 'has-commission' if has_commission else 'no-commission' }} {{ _ns.card_apt_class }} {{ 'is-paid' if is_paid else 'not-paid' }}">
                                 <div class="guest-header d-flex justify-content-between align-items-start">
                                     <div class="flex-grow-1 min-width-0">
                                         <div class="d-flex align-items-center gap-1 flex-wrap">
@@ -1334,8 +1345,19 @@
                         {%- set stayed_pre = (current_date - booking['Check-in Date']).days if booking['Check-in Date'] and pd.notna(booking['Check-in Date']) else 0 %}
                         {%- set remaining = total_nights_pre - stayed_pre %}
                         {%- set urgency_class = 'urgency-tomorrow' if remaining == 1 else ('urgency-2days' if remaining == 2 else '') %}
+                        {%- set _ns = namespace(card_apt_class=apt_class) %}
+                        {%- set _bid_apt = booking.get('Số đặt phòng', '')|string %}
+                        {%- if apt_map.get(_bid_apt) and apartments_list %}
+                            {%- for _ai in apartments_list %}
+                                {%- if _ai.id|string == apt_map.get(_bid_apt)|string %}
+                                    {%- if loop.index0 == 0 %}{%- set _ns.card_apt_class = 'apt1-guest' %}
+                                    {%- elif loop.index0 == 1 %}{%- set _ns.card_apt_class = 'apt2-guest' %}
+                                    {%- endif %}
+                                {%- endif %}
+                            {%- endfor %}
+                        {%- endif %}
                         <div class="guest-card-col" data-remaining="{{ remaining }}">
-                            <div class="guest-card {{ 'has-commission' if has_commission else 'no-commission' }} {{ apt_class }} {{ 'is-paid' if is_paid else 'not-paid' }}">
+                            <div class="guest-card {{ 'has-commission' if has_commission else 'no-commission' }} {{ _ns.card_apt_class }} {{ 'is-paid' if is_paid else 'not-paid' }}">
                                 <div class="guest-header d-flex justify-content-between align-items-start">
                                     <div class="flex-grow-1 min-width-0">
                                         <div class="d-flex align-items-center gap-1 flex-wrap">
@@ -1459,8 +1481,19 @@
                         {% endif %}
                         {%- set pay_str = booking.get('Người thu tiền', '')|string %}
                         {%- set is_paid = 'LOC' in pay_str or 'THAO' in pay_str %}
+                        {%- set _ns = namespace(card_apt_class=apt_class) %}
+                        {%- set _bid_apt = booking.get('Số đặt phòng', '')|string %}
+                        {%- if apt_map.get(_bid_apt) and apartments_list %}
+                            {%- for _ai in apartments_list %}
+                                {%- if _ai.id|string == apt_map.get(_bid_apt)|string %}
+                                    {%- if loop.index0 == 0 %}{%- set _ns.card_apt_class = 'apt1-guest' %}
+                                    {%- elif loop.index0 == 1 %}{%- set _ns.card_apt_class = 'apt2-guest' %}
+                                    {%- endif %}
+                                {%- endif %}
+                            {%- endfor %}
+                        {%- endif %}
                         <div class="guest-card-col">
-                            <div class="guest-card {{ 'has-commission' if has_commission else 'no-commission' }} {{ apt_class }} {{ 'is-paid' if is_paid else 'not-paid' }}">
+                            <div class="guest-card {{ 'has-commission' if has_commission else 'no-commission' }} {{ _ns.card_apt_class }} {{ 'is-paid' if is_paid else 'not-paid' }}">
                                 <div class="guest-header d-flex justify-content-between align-items-start">
                                     <div class="flex-grow-1 min-width-0">
                                         <div class="d-flex align-items-center gap-1 flex-wrap">
@@ -1795,36 +1828,39 @@
 
     /* ===== SIMPLIFIED CARD DESIGN — 3 priorities ===== */
 
-    /* 1. CARD BACKGROUND: light tint by apartment type */
+    /* 1. CARD BACKGROUND: tint by assigned apartment (apt1=blue, apt2=green) */
     .guest-card {
         background: #FAFAFA;
         border: 1px solid #e5e7eb;
         border-left: 4px solid #D1D5DB;
     }
     .guest-card.apt1-guest {
-        background: #EFF6FF !important;
+        background: #DBEAFE !important;   /* Tailwind blue-100 — soft but clearly blue */
         border-left: 4px solid #93C5FD !important;
+        border-color: #BFDBFE !important;
         padding-left: 12px;
     }
     .guest-card.apt2-guest {
-        background: #F0FDF4 !important;
+        background: #DCFCE7 !important;   /* Tailwind green-100 — soft but clearly green */
         border-left: 4px solid #86EFAC !important;
+        border-color: #BBF7D0 !important;
         padding-left: 12px;
     }
 
-    /* 2. PAYMENT STATUS: red top strip + stronger left for not-paid */
+    /* 2. PAYMENT STATUS: red top strip + subtle shadow for not-paid */
     .guest-card.not-paid {
         border-top: 3px solid #EF4444 !important;
-        box-shadow: 0 2px 8px rgba(239,68,68,0.10) !important;
+        box-shadow: 0 2px 8px rgba(239,68,68,0.12) !important;
     }
     .guest-card.not-paid:hover {
-        box-shadow: 0 4px 14px rgba(239,68,68,0.20) !important;
+        box-shadow: 0 4px 14px rgba(239,68,68,0.22) !important;
     }
+    /* is-paid: soften the card so "done" cards recede visually */
     .guest-card.is-paid {
         border-top: 2px solid #22C55E !important;
-        opacity: 0.88;
+        filter: saturate(0.65) brightness(1.04);
     }
-    .guest-card.is-paid:hover { opacity: 1; }
+    .guest-card.is-paid:hover { filter: saturate(0.85) brightness(1.0); }
 
     /* Payment status pill */
     .pay-status-pill {
@@ -1862,17 +1898,17 @@
         white-space: nowrap;
     }
     .room-badge.apt1 {
-        background: #DBEAFE;
-        color: #1D4ED8;
-        border-color: #93C5FD;
+        background: #BFDBFE;     /* slightly deeper so it contrasts on blue card bg */
+        color: #1E40AF;
+        border-color: #60A5FA;
     }
     .room-badge.apt2 {
-        background: #DCFCE7;
-        color: #166534;
-        border-color: #86EFAC;
+        background: #BBF7D0;     /* slightly deeper so it contrasts on green card bg */
+        color: #14532D;
+        border-color: #4ADE80;
     }
-    .room-badge.apt1:hover { background: #BFDBFE; }
-    .room-badge.apt2:hover { background: #BBF7D0; }
+    .room-badge.apt1:hover { background: #93C5FD; }
+    .room-badge.apt2:hover { background: #86EFAC; }
 
     /* Checkout countdown badge */
     .checkout-countdown {
