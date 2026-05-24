@@ -4052,6 +4052,84 @@ def calendar_details(date_str):
         except Exception as _ae:
             print(f"[calendar_details] actual_apartment load failed: {_ae}")
 
+        # ── Overdue unpaid: checked out in last 7 days, not yet collected ──
+        overdue_unpaid = []
+        try:
+            _vn_today = (datetime.utcnow() + timedelta(hours=7)).date()
+            _cutoff   = _vn_today - timedelta(days=7)
+            _od_df    = load_booking_data(force_fresh=False)
+
+            # Fetch checkin_status for no-show filtering
+            _od_cs_map = {}
+            try:
+                from core.models import db as _oddb
+                _od_cs_rows = _oddb.session.execute(
+                    text("SELECT booking_id, checkin_status FROM bookings WHERE checkin_status IS NOT NULL")
+                ).fetchall()
+                _od_cs_map = {r[0]: r[1] for r in _od_cs_rows}
+            except Exception:
+                pass
+
+            _no_show_cut = _vn_today - timedelta(days=2)
+
+            for _, _row in _od_df.iterrows():
+                try:
+                    _co = _row.get('Check-out Date')
+                    if not pd.notna(_co):
+                        continue
+                    _co_date = pd.Timestamp(_co).date()
+                    # Only past checkouts within the 7-day window
+                    if not (_cutoff <= _co_date < _vn_today):
+                        continue
+
+                    # Skip if already paid
+                    _collector = str(_row.get('Người thu tiền', '') or '')
+                    if 'LOC' in _collector or 'THAO' in _collector:
+                        continue
+
+                    # Skip if collected amount set
+                    if float(_row.get('Số tiền đã thu', 0) or 0) > 0:
+                        continue
+
+                    # Skip cancelled/deleted
+                    _bstatus = str(_row.get('Tình trạng', '') or '').lower()
+                    if any(k in _bstatus for k in ['hủy', 'cancel', 'delet', 'xóa']):
+                        continue
+
+                    # Skip cancelling status
+                    _bid = str(_row.get('Số đặt phòng', '') or '')
+                    _cs  = str(_od_cs_map.get(_bid, '') or '')
+                    if _cs == 'cancelling':
+                        continue
+
+                    # already left — skip no-show filter (they were real)
+
+                    _ci = _row.get('Check-in Date')
+                    _ci_date = pd.Timestamp(_ci).date() if pd.notna(_ci) else _vn_today
+                    _nights  = max((_co_date - _ci_date).days, 1)
+                    _amount  = float(_row.get('Tổng thanh toán', 0) or 0)
+                    _days_ago = (_vn_today - _co_date).days
+
+                    overdue_unpaid.append({
+                        'Tên người đặt': _row.get('Tên người đặt', 'N/A'),
+                        'Tên chỗ nghỉ':  _row.get('Tên chỗ nghỉ', ''),
+                        'Check-in Date': _ci,
+                        'Check-out Date': _co,
+                        'co_display': _co_date.strftime('%d/%m'),
+                        'ci_display': _ci_date.strftime('%d/%m'),
+                        'Tổng thanh toán': _amount,
+                        'nights': _nights,
+                        'days_ago': _days_ago,
+                        'Số đặt phòng': _bid,
+                    })
+                except Exception:
+                    continue
+
+            # Sort: most recent checkout first (days_ago ascending)
+            overdue_unpaid.sort(key=lambda x: x['days_ago'])
+        except Exception as _oe:
+            print(f"[calendar_details] overdue_unpaid load failed: {_oe}")
+
         return render_template(
             'calendar_details.html',
             date=date_obj,
@@ -4067,6 +4145,7 @@ def calendar_details(date_str):
             timedelta=timedelta,
             apartments_list=apartments_list,
             apt_map=_apt_map,
+            overdue_unpaid=overdue_unpaid,
         )
     
     except Exception as e:
