@@ -5044,6 +5044,29 @@ async function saveLateArrival(bid, timeVal, notesVal) {
     }
 }
 
+async function clearLateArrival(bid) {
+    if (!confirm('Xóa ghi chú đến muộn?')) return;
+    try {
+        const resp = await fetch(`/api/arrival_times/${bid}`, { method: 'DELETE' });
+        const data = await resp.json();
+        if (data.success) {
+            const display = document.getElementById('late-' + bid);
+            if (display) display.innerHTML = '';
+            const btn = document.getElementById('late-btn-' + bid);
+            if (btn) btn.classList.remove('active');
+            // Remove late-arrival card styling
+            const bar  = document.querySelector(`.quick-status-bar[data-bid="${bid}"]`);
+            const card = bar ? bar.closest('.guest-card') : null;
+            if (card) card.classList.remove('is-late-arrival', 'name-revealed');
+            showCalToast('🗑️ Đã xóa ghi chú đến muộn', 'success');
+        } else {
+            showCalToast('❌ Lỗi: ' + (data.error || 'Không xóa được'), 'error');
+        }
+    } catch (e) {
+        showCalToast('❌ Lỗi kết nối', 'error');
+    }
+}
+
 function showLateArrivalBadge(bid, timeStr, notes) {
     const display = document.getElementById('late-' + bid);
     if (!display) return;
@@ -5053,6 +5076,8 @@ function showLateArrivalBadge(bid, timeStr, notes) {
             <span>🕐 Đến lúc ${timeStr}${notesPart}</span>
             <button onclick="showLateArrival('${bid}')" title="Chỉnh sửa giờ đến"
                     style="background:none;border:none;cursor:pointer;color:#e65100;padding:0;font-size:0.8rem;">✏️</button>
+            <button onclick="clearLateArrival('${bid}')" title="Xóa ghi chú đến muộn"
+                    style="background:none;border:none;cursor:pointer;color:#9CA3AF;padding:0;font-size:0.8rem;margin-left:2px;">🗑️</button>
         </div>
     `;
 

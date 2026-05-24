@@ -7193,6 +7193,22 @@ def arrival_times():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+@app.route('/api/arrival_times/<booking_id>', methods=['DELETE'])
+def delete_arrival_time(booking_id):
+    """Clear late-arrival record for a booking."""
+    try:
+        from core.models import db as _atdb, ArrivalTime as _AT
+        _AT.query.filter_by(booking_id=booking_id).delete()
+        _atdb.session.commit()
+        return jsonify({'success': True})
+    except Exception as e:
+        try:
+            from core.models import db as _atdb2
+            _atdb2.session.rollback()
+        except Exception:
+            pass
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 @app.route('/api/analyze_duplicates', methods=['GET'])
 def analyze_duplicates_api():
     """API endpoint for AI duplicate analysis with timeout and better error handling"""
