@@ -112,19 +112,45 @@ def execute_insert_update_delete(query: str, params: dict = None) -> bool:
 # ==============================================================================
 
 def load_booking_data_for_calculations(force_fresh: bool = False) -> pd.DataFrame:
-    """Load booking data EXCLUDING cancelled bookings - for calculations and analytics"""
+    """Load booking data EXCLUDING cancelled/cancelling/no-show bookings - for occupancy calculations."""
+    import datetime as _dt
     df = load_booking_data(force_fresh=force_fresh)
     if df.empty:
         return df
-    
-    # Filter out cancelled bookings for all calculations and features
+
+    initial_count = len(df)
+
+    # 1. Exclude hard-cancelled bookings
     if 'Tình trạng' in df.columns:
-        initial_count = len(df)
         df = df[df['Tình trạng'] != 'Đã hủy']
-        filtered_count = initial_count - len(df)
-        if filtered_count > 0:
-            print(f"🔍 [CALCULATIONS] Excluded {filtered_count} cancelled bookings from calculations")
-    
+
+    # 2. Exclude guests marked as 'cancelling' (called to cancel, not yet removed)
+    if 'checkin_status' in df.columns:
+        df = df[df['checkin_status'] != 'cancelling']
+
+    # 3. Exclude no-shows: check-in date was > 2 days ago and NOT confirmed
+    #    (only apply to future/present dates — past bookings should stay for revenue history)
+    try:
+        _today = (_dt.datetime.utcnow() + _dt.timedelta(hours=7)).date()
+        _noshow_cutoff = _today - _dt.timedelta(days=2)
+        if 'Check-in Date' in df.columns and 'checkin_status' in df.columns:
+            ci_col = pd.to_datetime(df['Check-in Date'], errors='coerce').dt.date
+            is_old_unconfirmed = (
+                ci_col.notna() &
+                (ci_col < _noshow_cutoff) &
+                (df['checkin_status'].fillna('') != 'confirmed')
+            )
+            # Only exclude if checkout is also in the past (truly a no-show, not a long-stay)
+            co_col = pd.to_datetime(df['Check-out Date'], errors='coerce').dt.date
+            is_past_checkout = co_col.notna() & (co_col <= _today)
+            df = df[~(is_old_unconfirmed & is_past_checkout)]
+    except Exception:
+        pass  # safety: never crash the data pipeline
+
+    filtered_count = initial_count - len(df)
+    if filtered_count > 0:
+        print(f"🔍 [CALCULATIONS] Excluded {filtered_count} cancelled/cancelling/no-show bookings")
+
     return df
 
 def load_booking_data(force_fresh: bool = False) -> pd.DataFrame:
@@ -168,7 +194,8 @@ def load_booking_data(force_fresh: bool = False) -> pd.DataFrame:
         b.apartment_id,
         b.room_id,
         b.created_at,
-        b.updated_at
+        b.updated_at,
+        b.checkin_status as "checkin_status"
     FROM bookings b
     LEFT JOIN guests g ON b.guest_id = g.guest_id
     -- Exclude deleted bookings from all queries
@@ -909,13 +936,16 @@ def get_overall_calendar_day_info(df: pd.DataFrame, target_date: str,
         if 'Check-out Date' in df_local.columns:
             df_local['Check-out Date'] = pd.to_datetime(df_local['Check-out Date']).dt.date
 
-        # Active bookings on this date
+        # Active bookings on this date — exclude cancelled AND cancelling guests
+        _cancel_mask = (df_local['Tình trạng'] == 'Đã hủy')
+        if 'checkin_status' in df_local.columns:
+            _cancel_mask = _cancel_mask | (df_local['checkin_status'] == 'cancelling')
         active_on_date = df_local[
             df_local['Check-in Date'].notna() &
             df_local['Check-out Date'].notna() &
             (df_local['Check-in Date'] <= target_date_obj) &
             (df_local['Check-out Date'] > target_date_obj) &
-            (df_local['Tình trạng'] != 'Đã hủy')
+            ~_cancel_mask
         ]
 
         occupied_units = len(active_on_date)
