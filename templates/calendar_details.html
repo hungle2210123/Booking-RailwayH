@@ -334,9 +334,10 @@
                     {% set ci = b.get('Check-in Date', '') %}
                     {% set co = b.get('Check-out Date', '') %}
                     {% set amt = (b.get('Tổng thanh toán', 0) or 0)|float %}
+                    {% set comm = (b.get('Hoa hồng', 0) or 0)|int %}
+                    {% set bid = b.get('Số đặt phòng', '') %}
                     {% set room = b.get('Tên chỗ nghỉ', '') or b.get('room_name', '') %}
-                    {% set nights_stayed = 0 %}
-                    <div style="background:#fff;border:1.5px solid #fca5a5;border-radius:8px;padding:8px 12px;min-width:180px;max-width:220px;">
+                    <div data-summary-card="1" style="background:#fff;border:1.5px solid #fca5a5;border-radius:8px;padding:8px 12px;min-width:180px;max-width:220px;">
                         <div style="font-weight:700;font-size:.88rem;color:#1e293b;margin-bottom:3px;">
                             {{ b.get('Tên người đặt', 'N/A') }}
                         </div>
@@ -353,8 +354,14 @@
                             {% if co is string and co|length >= 10 %}{{ co[8:10] }}/{{ co[5:7] }}{% else %}{{ co }}{% endif %}
                         </div>
                         {% endif %}
-                        <div style="font-weight:800;font-size:.92rem;color:#dc2626;">
+                        <div style="font-weight:800;font-size:.92rem;color:#dc2626;margin-bottom:6px;">
                             {{ "{:,.0f}".format(amt) }}đ
+                        </div>
+                        <div class="pay-area" id="pay-{{ bid }}"
+                             data-booking-id="{{ bid }}"
+                             data-amount="{{ amt|int }}"
+                             data-commission="{{ comm }}">
+                            <button class="btn-pay-now" onclick="showPayCollect(this)">💰 Thu Tiền</button>
                         </div>
                     </div>
                     {% endfor %}
@@ -370,9 +377,12 @@
                 <div class="d-flex flex-wrap gap-2">
                     {% for b in unpaid_checkin %}
                     {% set co = b.get('Check-out Date', '') %}
+                    {% set ci = b.get('Check-in Date', '') %}
                     {% set amt = (b.get('Tổng thanh toán', 0) or 0)|float %}
+                    {% set comm = (b.get('Hoa hồng', 0) or 0)|int %}
+                    {% set bid = b.get('Số đặt phòng', '') %}
                     {% set room = b.get('Tên chỗ nghỉ', '') or b.get('room_name', '') %}
-                    <div style="background:#fffbeb;border:1.5px solid #fcd34d;border-radius:8px;padding:8px 12px;min-width:180px;max-width:220px;">
+                    <div data-summary-card="1" style="background:#fffbeb;border:1.5px solid #fcd34d;border-radius:8px;padding:8px 12px;min-width:180px;max-width:220px;">
                         <div style="font-weight:700;font-size:.88rem;color:#1e293b;margin-bottom:3px;">
                             {{ b.get('Tên người đặt', 'N/A') }}
                         </div>
@@ -381,14 +391,20 @@
                             <i class="fas fa-door-open me-1"></i>{{ room }}
                         </div>
                         {% endif %}
-                        {% if co %}
+                        {% if ci %}
                         <div style="font-size:.75rem;color:#64748b;margin-bottom:4px;">
                             <i class="fas fa-calendar me-1"></i>→
                             {% if co is string and co|length >= 10 %}{{ co[8:10] }}/{{ co[5:7] }}{% else %}{{ co }}{% endif %}
                         </div>
                         {% endif %}
-                        <div style="font-weight:800;font-size:.92rem;color:#d97706;">
+                        <div style="font-weight:800;font-size:.92rem;color:#d97706;margin-bottom:6px;">
                             {{ "{:,.0f}".format(amt) }}đ
+                        </div>
+                        <div class="pay-area" id="pay-{{ bid }}"
+                             data-booking-id="{{ bid }}"
+                             data-amount="{{ amt|int }}"
+                             data-commission="{{ comm }}">
+                            <button class="btn-pay-now" onclick="showPayCollect(this)">💰 Thu Tiền</button>
                         </div>
                     </div>
                     {% endfor %}
@@ -405,7 +421,9 @@
                 </div>
                 <div class="d-flex flex-wrap gap-2">
                     {% for b in overdue_unpaid %}
-                    <div style="background:#fff0f0;border:2px solid #dc2626;border-radius:8px;padding:8px 12px;min-width:180px;max-width:220px;position:relative;">
+                    {% set amt = (b['Tổng thanh toán'] or 0)|float %}
+                    {% set bid = b['Số đặt phòng'] %}
+                    <div data-summary-card="1" style="background:#fff0f0;border:2px solid #dc2626;border-radius:8px;padding:8px 12px;min-width:180px;max-width:220px;position:relative;">
                         <div style="position:absolute;top:4px;right:6px;font-size:.6rem;font-weight:800;color:#dc2626;background:#fde8ea;border-radius:4px;padding:1px 5px;">
                             {{ b.days_ago }} ngày trước
                         </div>
@@ -420,8 +438,14 @@
                         <div style="font-size:.75rem;color:#64748b;margin-bottom:4px;">
                             <i class="fas fa-calendar me-1"></i>{{ b.ci_display }} → {{ b.co_display }} · {{ b.nights }}đêm
                         </div>
-                        <div style="font-weight:800;font-size:.92rem;color:#dc2626;">
-                            {{ "{:,.0f}".format(b['Tổng thanh toán']) }}đ
+                        <div style="font-weight:800;font-size:.92rem;color:#dc2626;margin-bottom:6px;">
+                            {{ "{:,.0f}".format(amt) }}đ
+                        </div>
+                        <div class="pay-area" id="pay-{{ bid }}"
+                             data-booking-id="{{ bid }}"
+                             data-amount="{{ amt|int }}"
+                             data-commission="0">
+                            <button class="btn-pay-now" onclick="showPayCollect(this)">💰 Thu Tiền</button>
                         </div>
                     </div>
                     {% endfor %}
@@ -4620,6 +4644,16 @@ async function doCollect(btn, bookingId, amount, commission, collectorName) {
             const fmt = new Intl.NumberFormat('vi-VN').format(amount);
             area.innerHTML = `<div class="pay-done-row"><span class="pay-done-badge">✅ ${collectorName} • ${fmt}đ</span><button class="pay-undo-btn" onclick="showCollectors(this)" title="Đổi người thu">✏️</button></div>`;
             showCalToast('✅ Thu tiền thành công — ' + collectorName, 'success');
+            // Fade out summary panel cards after payment
+            const summaryCard = area.closest('[data-summary-card]');
+            if (summaryCard) {
+                setTimeout(() => {
+                    summaryCard.style.transition = 'opacity 0.5s, transform 0.5s';
+                    summaryCard.style.opacity = '0';
+                    summaryCard.style.transform = 'scale(0.92)';
+                    setTimeout(() => summaryCard.remove(), 500);
+                }, 900);
+            }
         } else {
             area.querySelectorAll('button').forEach(b => b.disabled = false);
             btn.textContent = collectorName;
