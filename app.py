@@ -3948,7 +3948,7 @@ def calendar_details(date_str):
                     ci = g['Check-in Date']
                     co = g['Check-out Date']
                     if pd.notna(ci) and pd.notna(co):
-                        nights = max((co - ci).days, 1)
+                        nights = max((pd.Timestamp(co) - pd.Timestamp(ci)).days, 1)
                         rev  += effective  / nights
                         comm += commission / nights
                 except (ValueError, TypeError, AttributeError, KeyError):
@@ -3971,7 +3971,7 @@ def calendar_details(date_str):
                 ci = guest['Check-in Date']
                 co = guest['Check-out Date']
                 if pd.notna(ci) and pd.notna(co):
-                    nights = max((co - ci).days, 1)
+                    nights = max((pd.Timestamp(co) - pd.Timestamp(ci)).days, 1)
                     daily_amount = effective / nights
                     daily_comm   = commission_amount / nights
                     detailed_bookings.append(type('obj', (object,), {
