@@ -3908,6 +3908,23 @@ def calendar_details(date_str):
         if _co_removed:
             print(f"[calendar_details:{date_obj}] Removed no-show/cancelled from checkout: {_co_removed}")
 
+        # ── Normalize all date fields to datetime.date so template arithmetic works ──
+        # Bookings can come from different sources (df_local with .date() OR _extra2 with
+        # pd.Timestamp). Normalize here once so every downstream operation is safe.
+        _DATE_FIELDS = ['Check-in Date', 'Check-out Date']
+        def _normalize_dates(guest_list):
+            for g in guest_list:
+                for _f in _DATE_FIELDS:
+                    v = g.get(_f)
+                    if v is not None:
+                        try:
+                            g[_f] = pd.Timestamp(v).date() if pd.notna(v) else None
+                        except Exception:
+                            pass
+        _normalize_dates(check_in)
+        _normalize_dates(check_out)
+        _normalize_dates(staying_over)
+
         # ── Revenue calculation — confirmed-only logic ───────────────────────
         # Rule:
         #   TODAY  → check-in guests MUST be 'confirmed' to count (NULL = didn't confirm = no-show)
