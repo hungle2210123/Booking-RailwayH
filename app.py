@@ -3565,7 +3565,6 @@ def api_vacancy_preview():
     """Return vacancy data for email preview widget"""
     try:
         from datetime import date, timedelta
-        import psycopg2, os as _os
         vn_days = ["Chủ Nhật","Thứ Hai","Thứ Ba","Thứ Tư","Thứ Năm","Thứ Sáu","Thứ Bảy"]
         DOT_COLORS = ["#3949ab","#2e7d32","#6a1b9a","#e65100","#00838f","#c62828"]
         ROOM_APT  = {4:2,5:2,1244:506,1245:506,1246:506,1247:506,1793:1,2:1,3:1}
@@ -3583,39 +3582,40 @@ def api_vacancy_preview():
                 if k in n: return 506
             return 1
 
-        db_url = _os.getenv('RAILWAY_DATABASE_URL') or _os.getenv('LOCAL_DATABASE_URL')
-        conn = psycopg2.connect(db_url)
-        cur  = conn.cursor()
+        # Dùng SQLAlchemy DB của app — hoạt động trên cả local lẫn Railway
+        from core.models import db as _db, Apartment as _Apt, Room as _Room
+        from sqlalchemy import text as _text
+        from collections import OrderedDict, Counter
 
-        # Load apartments dynamically
-        cur.execute("""
+        # Load apartments + rooms động
+        apt_rows = _db.session.execute(_text("""
             SELECT a.apartment_id, a.apartment_name, r.room_id, r.room_name
             FROM apartments a JOIN rooms r ON r.apartment_id=a.apartment_id AND r.is_active=true
             WHERE a.is_active=true ORDER BY a.apartment_id, r.room_id
-        """)
-        from collections import OrderedDict
+        """)).fetchall()
+
         apt_map = OrderedDict()
-        for apt_id, apt_name, room_id, room_name in cur.fetchall():
+        for apt_id, apt_name, room_id, room_name in apt_rows:
             if apt_id not in apt_map:
                 idx = len(apt_map)
                 apt_map[apt_id] = {'id':apt_id,'name':apt_name,'dot':DOT_COLORS[idx%len(DOT_COLORS)],'rooms':[]}
             apt_map[apt_id]['rooms'].append({'id':room_id,'name':room_name})
 
         today = date.today()
-        days_ahead = int(_os.getenv('DAYS_AHEAD', 4))
+        days_ahead = int(os.getenv('DAYS_AHEAD', 4))
         days = []
         for i in range(days_ahead):
             d = today + timedelta(days=i)
             d_str = d.strftime('%Y-%m-%d')
-            cur.execute("""
+            rows = _db.session.execute(_text("""
                 SELECT room_id, accommodation_name, actual_apartment FROM bookings
-                WHERE checkin_date<=%s AND checkout_date>%s
+                WHERE checkin_date <= :d AND checkout_date > :d
                   AND COALESCE(booking_status,'') NOT IN ('cancelled','deleted')
                   AND COALESCE(checkin_status,'') != 'cancelling'
-            """, (d_str, d_str))
-            from collections import Counter
+            """), {'d': d_str}).fetchall()
+
             apt_count = Counter()
-            for row in cur.fetchall():
+            for row in rows:
                 apt_id = _classify(row[2], row[0], row[1])
                 if apt_id in apt_map: apt_count[apt_id] += 1
 
@@ -3636,7 +3636,6 @@ def api_vacancy_preview():
                 'total_free'  : total_free,
                 'apts'        : apts_out,
             })
-        cur.close(); conn.close()
         return jsonify({'success':True,'days':days})
     except Exception as e:
         return jsonify({'success':False,'error':str(e),'days':[]})
