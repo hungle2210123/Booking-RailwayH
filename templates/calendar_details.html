@@ -26,27 +26,20 @@
                     </div>
 
                     <!-- ② Điều hướng nhanh -->
-                    <div class="border-top pt-2 mb-2" style="display:block;">
-                        <div style="display:flex;gap:4px;width:100%;">
+                    <div class="border-top pt-2 mb-2">
+                        <div style="display:flex;gap:4px;">
                             <a href="{{ url_for('calendar_details', date_str=(date - timedelta(days=1)).strftime('%Y-%m-%d')) }}"
                                class="btn btn-sm btn-outline-secondary flex-fill">
-                                <i class="fas fa-chevron-left"></i>
+                                <i class="fas fa-chevron-left"></i> Hôm qua
                             </a>
                             <a href="{{ url_for('calendar_details', date_str=date.today().strftime('%Y-%m-%d')) }}"
-                               class="btn btn-sm btn-outline-primary flex-fill">
+                               class="btn btn-sm btn-primary flex-fill">
                                 Hôm nay
                             </a>
                             <a href="{{ url_for('calendar_details', date_str=(date + timedelta(days=1)).strftime('%Y-%m-%d')) }}"
                                class="btn btn-sm btn-outline-secondary flex-fill">
-                                <i class="fas fa-chevron-right"></i>
+                                Ngày mai <i class="fas fa-chevron-right"></i>
                             </a>
-                        </div>
-                        <div style="display:block;margin-top:6px;">
-                            <input type="date"
-                                   id="quickDatePicker"
-                                   class="form-control form-control-sm"
-                                   value="{{ date.strftime('%Y-%m-%d') }}"
-                                   onchange="navigateToDate(this.value)">
                         </div>
                     </div>
 
@@ -87,15 +80,15 @@
   display:flex; justify-content:space-between; align-items:center;
   padding:7px 10px 5px; background:#f9f9f9; border-bottom:1px solid #f0f0f0;
 }
-.vbcd-lbl  { font-size:12px; font-weight:700; color:#222; }
-.vbcd-cnt  { font-size:12px; font-weight:800; padding:1px 7px;
+.vbcd-lbl  { font-size:13px; font-weight:700; color:#222; }
+.vbcd-cnt  { font-size:13px; font-weight:800; padding:2px 9px;
              border-radius:5px; }
-.vbcd-apts { display:flex; padding:8px 6px 9px; gap:0; }
+.vbcd-apts { display:flex; padding:10px 6px 11px; gap:0; }
 .vbcd-apt  { flex:1; text-align:center; border-right:1px solid #efefef; padding:0 4px; }
 .vbcd-apt:last-child { border-right:none; }
-.vbcd-an   { font-size:10px; color:#888; font-weight:600; line-height:1.4; }
-.vbcd-num  { font-size:22px; font-weight:900; line-height:1.1; }
-.vbcd-sub  { font-size:9px; color:#bbb; }
+.vbcd-an   { font-size:11px; color:#888; font-weight:600; line-height:1.4; }
+.vbcd-num  { font-size:28px; font-weight:900; line-height:1.1; }
+.vbcd-sub  { font-size:10px; color:#bbb; }
 
 .bar-grn { background:#86efac; }
 .bar-ylw { background:#fde68a; }
