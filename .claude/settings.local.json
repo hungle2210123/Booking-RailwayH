@@ -17,7 +17,8 @@
       "mcp__code-intelligence__folder-tree-structure",
       "Bash(export DATABASE_URL=\"postgresql://postgres:VmyAveAhkGVOFlSiVBWgyIEAUbKAXEPi@mainline.proxy.rlwy.net:36647/railway\")",
       "Bash(curl:*)",
-      "Bash(timeout 30 python3 -c \"\nimport sys\nsys.path.insert(0, ''''.'''')\nprint(''''Testing app import...'''')\ntry:\n    from app import app\n    print(''''✅ App imported successfully'''')\n    print(f''''App name: {app.name}'''')\n    print(f''''Total routes: {len(app.url_map._rules)}'''')\nexcept Exception as e:\n    print(f''''❌ Import failed: {e}'''')\n    import traceback\n    traceback.print_exc()\n    sys.exit(1)\n\")"
+      "Bash(git pull *)",
+      "Bash(git stash *)"
     ],
     "deny": [],
     "ask": []

@@ -253,6 +253,120 @@ python run.py  # Test the Railway runner script locally
 - **Revenue Calculation:** Per-night distribution
 - **Commission Tracking:** Real-time analytics
 
+## 🆕 **Latest Updates (May–June 2026)**
+
+### **🐛 Calendar Details Date-Type Bug Fix**
+**Status:** ✅ FIXED (commit 37916fa)
+
+**Problem:** Clicking any date in `/calendar/` showed:
+> `Error loading calendar details: unsupported operand type(s) for -: 'Timestamp' and 'datetime.date'`
+
+**Root Cause (2 places):**
+1. `_daily_rev_for()` in `calendar_details` — `(co - ci).days` crashed when one date was `pd.Timestamp` and the other `datetime.date` (mixed sources: `_extra2` vs `df_local`)
+2. Template `calendar_details.html` lines 1205, 1277, 1376, 1377, 1570 — same subtraction in Jinja
+
+**Fix:** Added normalization step in `app.py:calendar_details()` that converts ALL date fields in `check_in`, `check_out`, `staying_over` dicts to `datetime.date` BEFORE any calculation or template rendering:
+```python
+def _normalize_dates(guest_list):
+    for g in guest_list:
+        for _f in ['Check-in Date', 'Check-out Date']:
+            v = g.get(_f)
+            if v is not None:
+                try: g[_f] = pd.Timestamp(v).date() if pd.notna(v) else None
+                except Exception: pass
+_normalize_dates(check_in); _normalize_dates(check_out); _normalize_dates(staying_over)
+```
+Also wrapped revenue calc with `pd.Timestamp(co) - pd.Timestamp(ci)` as safety net.
+
+---
+
+### **💰 Per-Night Price Display in Calendar Details**
+**Status:** ✅ PRODUCTION READY
+
+**Added to all 3 sections** (Check-in, Đang Ở, Check-out) in `calendar_details.html`:
+```html
+{% if total_nights > 1 %}
+<div class="detail-row" style="opacity:0.75;">
+    <span style="font-size:0.75rem;">💰 Giá/đêm</span>
+    <span style="color:#1976d2;">{{ "{:,.0f}".format(per_night_rate|int) }}đ/đêm</span>
+</div>
+{% endif %}
+```
+
+---
+
+### **📧 Email Notification System (Phòng Trống)**
+**Status:** ✅ PRODUCTION READY  
+**File:** `send_test_email.py` (root directory)
+
+**Architecture — 2 loại email:**
+
+| Email | Khi nào | Nội dung |
+|-------|---------|---------|
+| Báo cáo ngày | 07:00 hàng ngày | 4 ngày tới — tất cả căn hộ |
+| Cảnh báo sớm | 08:00 + 20:00 | Khi ngày nào có >3 phòng trống |
+
+**Logic tính phòng trống — thứ tự ưu tiên:**
+```
+1. actual_apartment (INTEGER apt_id — user gán tay trên calendar details)
+   → Số đen nền mỗi card: 118 / 18 / 25
+2. room_id rõ ràng → rooms table lookup
+   → rid 4,5 = 18HB | rid 1244-1247 = 25HV | rid 1793,2,3 = 118HB
+3. accommodation_name matching (fallback)
+   → keywords: "hang be", "hàng bè" → apt2 | "hoi vu", "hội vũ" → apt506
+```
+
+**Apartments load ĐỘNG từ DB** (không hardcode):
+```python
+cur.execute("SELECT a.apartment_id, a.apartment_name, r.room_id, r.room_name
+             FROM apartments a JOIN rooms r ON r.apartment_id=a.apartment_id
+             WHERE a.is_active=true ORDER BY a.apartment_id, r.room_id")
+```
+
+**Cấu hình (trong `.env`):**
+```
+SMTP_EMAIL=ngotri.2210@gmail.com
+SMTP_APP_PASSWORD=<16-char App Password>
+NOTIFY_EMAILS=ngotri.2210@gmail.com,other@gmail.com
+REPORT_HOUR=7
+ALERT_THRESHOLD=3
+```
+
+**Chạy thủ công:**
+```bash
+python -X utf8 send_test_email.py
+```
+
+**Quan trọng — `actual_apartment` column:**
+- Được thêm auto vào bảng bookings: `ALTER TABLE bookings ADD COLUMN IF NOT EXISTS actual_apartment VARCHAR(100)`
+- User gán qua `/api/set_actual_apartment` từ calendar details page
+- Lưu dạng INTEGER (apartment_id): `1` = 118HB, `2` = 18HB, `506` = 25HV
+- Đây là nguồn chính xác nhất cho room assignment
+
+---
+
+### **🗄️ Database — Room/Apartment Structure**
+```
+apartments:
+  apt_id=1   → 118 Hang Bac Hostel  (4 rooms: ids 1,2,3,1793)
+  apt_id=2   → 18 Hang Be           (2 rooms: ids 4,5)
+  apt_id=506 → 25 Hoi Vu            (4 rooms: ids 1244-1247)
+
+rooms:
+  1=118 hang bac | 2=kitchen | 3=night market | 1793=ban cong  → apt1
+  4=hang be 101  | 5=hang be 102                               → apt2
+  1244=101-2PN   | 1245=102  | 1246=103 | 1247=104             → apt506
+
+⚠️ QUAN TRỌNG: room_id=1 là DEFAULT PLACEHOLDER cho nhiều booking
+   Không dùng room_id=1 để xác định apartment — dùng actual_apartment trước!
+```
+
+**accommodation_name inconsistency:** 30+ kiểu viết khác nhau trong DB
+(ví dụ: "118 Hang Bac Hostel", "Ban Cong Hang Bac", "ban công", "Sofa Hàng Bạc"...)
+→ Không dùng LIKE query trực tiếp — dùng hàm `_classify_apt()` trong send_test_email.py
+
+---
+
 ## 🆕 **Latest Updates (July 2025)**
 
 ### **🎯 Custom Date Picker for Collector Analytics**
