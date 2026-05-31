@@ -63,9 +63,96 @@
                             </a>
                         </div>
                     </div>
+
+                    <!-- ── Vacancy Board compact ── -->
+                    <div class="mt-2 border-top pt-2">
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <span class="small fw-semibold text-muted" style="font-size:10px;letter-spacing:.4px;">PHÒNG TRỐNG</span>
+                            <span id="vb-cd-time" style="font-size:9px;color:#ccc;"></span>
+                        </div>
+                        <div id="vb-cd-rows">
+                            <div class="text-center py-2" style="font-size:10px;color:#ccc;">Đang tải...</div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
+
+<style>
+/* Compact vacancy board in sidebar */
+.vbcd-row { display:block;text-decoration:none;color:inherit;border-radius:6px;
+            margin-bottom:4px;overflow:hidden;border:1px solid #f0f0f0;transition:border-color .12s; }
+.vbcd-row:hover { border-color:#cbd5e0;color:inherit; }
+.vbcd-row.vbcd-today { border-color:#3949ab; }
+.vbcd-bar  { height:2px;width:100%; }
+.vbcd-hd   { display:flex;justify-content:space-between;align-items:center;
+             padding:4px 7px;background:#fafafa; }
+.vbcd-lbl  { font-size:10px;font-weight:700;color:#333; }
+.vbcd-cnt  { font-size:10px;font-weight:700; }
+.vbcd-apts { display:flex;padding:4px 7px 5px;gap:0; }
+.vbcd-apt  { flex:1;text-align:center;border-right:1px solid #f5f5f5;padding:0 2px; }
+.vbcd-apt:last-child { border-right:none; }
+.vbcd-an   { font-size:8px;color:#aaa;line-height:1.3;white-space:nowrap;overflow:hidden; }
+.vbcd-num  { font-size:15px;font-weight:900;line-height:1; }
+.vbcd-sub  { font-size:7.5px;color:#ccc; }
+.bar-grn{ background:#d1fae5; } .bar-ylw{ background:#fef3c7; }
+.bar-red{ background:#fee2e2; } .bar-gry{ background:#f3f4f6; }
+.cnt-grn{ color:#059669; } .cnt-ylw{ color:#b45309; } .cnt-red{ color:#dc2626; }
+.num-grn{ color:#374151; } .num-ylw{ color:#b45309; } .num-gry{ color:#d1d5db; }
+</style>
+
+<script>
+(function(){
+  const THRESHOLD = 3;
+  const VN = ["CN","T2","T3","T4","T5","T6","T7"];
+  async function loadVbCd(){
+    try{
+      const d = await (await fetch('/api/vacancy_preview')).json();
+      if(!d.days?.length) return;
+      const now = new Date();
+      document.getElementById('vb-cd-time').textContent =
+        now.getHours()+':'+String(now.getMinutes()).padStart(2,'0');
+      const today = new Date().toISOString().slice(0,10);
+      let html = '';
+      d.days.forEach(day => {
+        const free   = day.total_free;
+        const isFull = free === 0;
+        const isLow  = !isFull && free <= THRESHOLD;
+        const isToday= day.date === today;
+        const barCls = isFull?'bar-red':isLow?'bar-ylw':free>5?'bar-grn':'bar-gry';
+        const cntCls = isFull?'cnt-red':isLow?'cnt-ylw':'cnt-grn';
+        const cntTxt = isFull?'Hết':free+'✓';
+        const todayCls = isToday?'vbcd-today':'';
+        const apts = day.apts.map(apt=>{
+          const numCls = apt.free===0?'num-gry':apt.free<=1?'num-ylw':'num-grn';
+          const abbr   = apt.name.replace('118 Hang Bac Hostel','118HB')
+                                 .replace('18 Hang Be','18HB')
+                                 .replace('25 Hoi Vu','25HV')
+                                 .replace(/ Hostel/,'').split(' ').slice(-1)[0];
+          return `<div class="vbcd-apt">
+            <div class="vbcd-an">${abbr}</div>
+            <div class="vbcd-num ${numCls}">${apt.free}</div>
+            <div class="vbcd-sub">/${apt.total}</div>
+          </div>`;
+        }).join('');
+        html += `<a class="vbcd-row ${todayCls}" href="/calendar_details/${day.date}">
+          <div class="vbcd-bar ${barCls}"></div>
+          <div class="vbcd-hd">
+            <span class="vbcd-lbl">${day.label}</span>
+            <span class="vbcd-cnt ${cntCls}">${cntTxt}</span>
+          </div>
+          <div class="vbcd-apts">${apts}</div>
+        </a>`;
+      });
+      document.getElementById('vb-cd-rows').innerHTML = html;
+    }catch(e){ document.getElementById('vb-cd-rows').innerHTML=''; }
+  }
+  document.addEventListener('DOMContentLoaded',()=>{
+    loadVbCd();
+    setInterval(loadVbCd, 5*60*1000);
+  });
+})();
+</script>
 
         <!-- RIGHT CONTENT: Details -->
         <div class="col-lg-8 col-xl-9">
