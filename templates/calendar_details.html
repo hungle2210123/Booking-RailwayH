@@ -7,68 +7,14 @@
     <div class="row">
         <!-- LEFT SIDEBAR: Compact Monthly Calendar (Sticky) -->
         <div class="col-lg-4 col-xl-3">
-            <div class="card border-primary sticky-top" style="top: 70px; min-width: 0; overflow: hidden;">
-                <div class="card-header bg-primary text-white">
-                    <h6 class="mb-0">
-                        <i class="fas fa-calendar-alt me-2"></i>Tổng quan tháng {{ date.strftime('%m/%Y') }}
-                    </h6>
-                </div>
+            <div class="card sticky-top" style="top: 70px; min-width: 0; overflow: hidden; border:1.5px solid #e2e8f0;">
                 <div class="card-body p-2">
-                    <div id="compactMonthlyCalendarPage">
-                        <!-- Calendar will be rendered by JavaScript -->
-                        <div class="text-center py-3">
-                            <i class="fas fa-spinner fa-spin text-primary"></i>
-                            <p class="small text-muted mt-2">Đang tải lịch...</p>
-                        </div>
-                    </div>
 
-                    <!-- Legend -->
-                    <div class="mt-2 small border-top pt-2">
-                        <div class="d-flex align-items-center justify-content-between mb-1">
-                            <span><span class="badge bg-success">●</span> Có khách</span>
-                            <span><span class="badge bg-secondary">●</span> Trống</span>
-                        </div>
-                        <div class="d-flex align-items-center justify-content-between">
-                            <span><span class="badge bg-warning">●</span> Đông (>5)</span>
-                            <span><span class="badge bg-primary">●</span> Hôm nay</span>
-                        </div>
-                    </div>
-
-                    <!-- Date Picker for Quick Navigation -->
-                    <div class="mt-2 border-top pt-2">
-                        <label for="quickDatePicker" class="form-label small mb-1">
-                            <i class="fas fa-calendar-day"></i> Chọn ngày nhanh:
-                        </label>
-                        <input type="date"
-                               id="quickDatePicker"
-                               class="form-control form-control-sm"
-                               value="{{ date.strftime('%Y-%m-%d') }}"
-                               onchange="navigateToDate(this.value)">
-                    </div>
-
-                    <!-- Quick Navigation -->
-                    <div class="mt-2 border-top pt-2">
-                        <div class="btn-group w-100" role="group">
-                            <a href="{{ url_for('calendar_details', date_str=(date - timedelta(days=1)).strftime('%Y-%m-%d')) }}"
-                               class="btn btn-sm btn-outline-primary">
-                                <i class="fas fa-chevron-left"></i> Hôm qua
-                            </a>
-                            <a href="{{ url_for('calendar_details', date_str=date.today().strftime('%Y-%m-%d')) }}"
-                               class="btn btn-sm btn-outline-secondary">
-                                Hôm nay
-                            </a>
-                            <a href="{{ url_for('calendar_details', date_str=(date + timedelta(days=1)).strftime('%Y-%m-%d')) }}"
-                               class="btn btn-sm btn-outline-primary">
-                                Ngày mai <i class="fas fa-chevron-right"></i>
-                            </a>
-                        </div>
-                    </div>
-
-                    <!-- ── Vacancy Board ── -->
-                    <div class="mt-3 border-top pt-3">
+                    <!-- ① PHÒNG TRỐNG — ưu tiên đầu tiên -->
+                    <div class="mb-2">
                         <div class="d-flex justify-content-between align-items-center mb-2">
-                            <span style="font-size:11px;font-weight:700;color:#555;letter-spacing:.5px;">
-                                <i class="fas fa-door-open me-1 text-primary"></i>PHÒNG TRỐNG
+                            <span style="font-size:12px;font-weight:700;color:#1e2a5e;letter-spacing:.4px;">
+                                <i class="fas fa-door-open me-1"></i>PHÒNG TRỐNG
                             </span>
                             <span id="vb-cd-time" style="font-size:10px;color:#bbb;"></span>
                         </div>
@@ -78,6 +24,52 @@
                             </div>
                         </div>
                     </div>
+
+                    <!-- ② Điều hướng nhanh -->
+                    <div class="border-top pt-2 mb-2">
+                        <div class="btn-group w-100" role="group">
+                            <a href="{{ url_for('calendar_details', date_str=(date - timedelta(days=1)).strftime('%Y-%m-%d')) }}"
+                               class="btn btn-sm btn-outline-secondary">
+                                <i class="fas fa-chevron-left"></i> Hôm qua
+                            </a>
+                            <a href="{{ url_for('calendar_details', date_str=date.today().strftime('%Y-%m-%d')) }}"
+                               class="btn btn-sm btn-outline-primary">
+                                Hôm nay
+                            </a>
+                            <a href="{{ url_for('calendar_details', date_str=(date + timedelta(days=1)).strftime('%Y-%m-%d')) }}"
+                               class="btn btn-sm btn-outline-secondary">
+                                Ngày mai <i class="fas fa-chevron-right"></i>
+                            </a>
+                        </div>
+                        <div class="mt-2">
+                            <input type="date"
+                                   id="quickDatePicker"
+                                   class="form-control form-control-sm"
+                                   value="{{ date.strftime('%Y-%m-%d') }}"
+                                   onchange="navigateToDate(this.value)">
+                        </div>
+                    </div>
+
+                    <!-- ③ Lịch mini tháng — xuống dưới -->
+                    <div class="border-top pt-2">
+                        <div class="text-muted mb-1" style="font-size:11px;font-weight:600;">
+                            <i class="fas fa-calendar-alt me-1"></i>Tổng quan tháng {{ date.strftime('%m/%Y') }}
+                        </div>
+                        <div id="compactMonthlyCalendarPage">
+                            <div class="text-center py-2">
+                                <i class="fas fa-spinner fa-spin text-primary" style="font-size:12px;"></i>
+                            </div>
+                        </div>
+                        <div class="mt-1 small">
+                            <div class="d-flex align-items-center justify-content-between mb-1" style="font-size:10px;">
+                                <span><span class="badge bg-success" style="font-size:7px;">●</span> Có khách</span>
+                                <span><span class="badge bg-secondary" style="font-size:7px;">●</span> Trống</span>
+                                <span><span class="badge bg-warning" style="font-size:7px;">●</span> Đông</span>
+                                <span><span class="badge bg-primary" style="font-size:7px;">●</span> Hôm nay</span>
+                            </div>
+                        </div>
+                    </div>
+
                 </div>
             </div>
         </div>
