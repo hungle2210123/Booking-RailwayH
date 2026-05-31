@@ -130,21 +130,21 @@
       </div>
     </div>
 
-    <!-- ═══ RIGHT: Preview ═══ -->
+    <!-- ═══ RIGHT: Live Vacancy Board ═══ -->
     <div class="col-lg-7">
       <div class="card border-0 shadow-sm">
-        <div class="card-header text-white d-flex justify-content-between align-items-center" style="background:#4a5568;">
-          <span><i class="fas fa-eye me-2"></i>Xem Trước Email Hôm Nay</span>
-          <button class="btn btn-sm btn-outline-light" onclick="loadPreview()" style="padding:2px 10px;font-size:.75rem;">
-            <i class="fas fa-sync me-1"></i>Làm mới
-          </button>
+        <div class="card-header text-white d-flex justify-content-between align-items-center" style="background:#1e2a5e;">
+          <span><i class="fas fa-door-open me-2"></i>Lịch Phòng Trống — <span id="board-days-label">4 ngày tới</span></span>
+          <div class="d-flex align-items-center gap-2">
+            <span class="badge bg-light text-dark" id="last-updated" style="font-size:.7rem;"></span>
+            <button class="btn btn-sm btn-outline-light" onclick="loadVacancyBoard()" style="padding:2px 10px;font-size:.75rem;">
+              <i class="fas fa-sync"></i>
+            </button>
+          </div>
         </div>
-        <div class="card-body p-3">
-          <div id="preview-container">
-            <div class="text-center text-muted py-5">
-              <i class="fas fa-spinner fa-spin fa-2x mb-3 d-block"></i>
-              Đang tải dữ liệu phòng trống...
-            </div>
+        <div class="card-body p-0" id="vacancy-board">
+          <div class="text-center text-muted py-5">
+            <i class="fas fa-spinner fa-spin fa-2x mb-3 d-block"></i>Đang tải...
           </div>
         </div>
       </div>
@@ -154,25 +154,50 @@
 </div>
 
 <style>
-.apt-row { display:flex; gap:20px; padding:8px 12px; background:#fafafa; }
-.apt-item { text-align:center; min-width:90px; }
-.apt-dot  { width:8px;height:8px;border-radius:50%;display:inline-block;margin-bottom:3px; }
-.apt-num  { font-size:22px;font-weight:900;line-height:1.1; }
-.apt-name { font-size:10px;color:#666;margin-top:2px; }
-.apt-lbl  { font-size:10px;color:#aaa; }
-.day-card { border:1.5px solid #e0e0e0;border-radius:9px;margin-bottom:8px;overflow:hidden;
-            cursor:pointer;transition:box-shadow .15s,border-color .15s;text-decoration:none;color:inherit;display:block; }
-.day-card:hover { box-shadow:0 3px 12px rgba(0,0,0,.1);border-color:#b0bec5; }
-.day-hd   { padding:9px 14px;display:flex;justify-content:space-between;align-items:center;background:#f8f8f8; }
-.day-hd.hot { background:#e8f5e9;border-left:4px solid #2e7d32; }
-.day-hd.full{ background:#fce4ec;border-left:4px solid #c62828; }
-.day-hd.normal { border-left:4px solid #3949ab; }
-.hot-badge { background:#2e7d32;color:#fff;border-radius:10px;padding:2px 8px;font-size:10px;font-weight:700; }
-.full-badge{ background:#c62828;color:#fff;border-radius:10px;padding:2px 8px;font-size:10px;font-weight:700; }
+/* ── Vacancy Board ─────────────────────────────────────────────────────── */
+.vb-day { border-bottom:1px solid #f0f0f0; }
+.vb-day:last-child { border-bottom:none; }
+.vb-day-hd {
+  display:flex; justify-content:space-between; align-items:center;
+  padding:10px 16px; cursor:pointer; text-decoration:none; color:inherit;
+  transition:background .15s;
+}
+.vb-day-hd:hover { background:#f8f9fa; color:inherit; }
+.vb-day-hd.status-hot  { background:#f1f8e9; border-left:4px solid #558b2f; }
+.vb-day-hd.status-warn { background:#fff8e1; border-left:4px solid #f9a825; }
+.vb-day-hd.status-full { background:#fce4ec; border-left:4px solid #c62828; }
+.vb-day-hd.status-ok   { border-left:4px solid #e0e0e0; }
+
+.vb-label { font-size:13px; font-weight:700; color:#222; }
+.vb-date  { font-size:10px; color:#999; margin-top:1px; }
+.vb-count { font-size:13px; font-weight:700; }
+.cnt-hot  { color:#2e7d32; }
+.cnt-warn { color:#f57f17; }
+.cnt-full { color:#c62828; }
+.cnt-ok   { color:#2e7d32; }
+
+.vb-apts  { display:flex; gap:0; padding:8px 12px 10px; background:#fafafa; }
+.vb-apt   { flex:1; text-align:center; padding:4px 8px; border-right:1px solid #eee; }
+.vb-apt:last-child { border-right:none; }
+.vb-apt-dot  { width:8px; height:8px; border-radius:50%; display:inline-block; margin-bottom:2px; }
+.vb-apt-name { font-size:10px; color:#555; font-weight:600; line-height:1.2; }
+.vb-apt-num  { font-size:20px; font-weight:900; line-height:1.1; margin-top:2px; }
+.vb-apt-sub  { font-size:9px; color:#aaa; }
+.num-free    { color:#2e7d32; }
+.num-some    { color:#f57f17; }
+.num-zero    { color:#ccc; }
+.badge-hot  { background:#558b2f;color:#fff;border-radius:8px;padding:2px 7px;font-size:9.5px;font-weight:700;margin-left:6px; }
+.badge-warn { background:#f9a825;color:#fff;border-radius:8px;padding:2px 7px;font-size:9.5px;font-weight:700;margin-left:6px; }
+.badge-full { background:#c62828;color:#fff;border-radius:8px;padding:2px 7px;font-size:9.5px;font-weight:700;margin-left:6px; }
+.vb-full-msg { background:#fce4ec;padding:5px 16px;font-size:10px;color:#880e4f;text-align:center; }
+
+/* Summary bar */
+.vb-summary { display:flex; gap:8px; padding:12px 16px; background:#f8f9fa; border-bottom:1px solid #e9ecef; flex-wrap:wrap; }
+.vb-sum-item { display:flex;align-items:center;gap:6px;background:#fff;border-radius:6px;padding:5px 10px;font-size:11px;border:1px solid #e0e0e0; }
 </style>
 
 <script>
-// ── Tag management ─────────────────────────────────────────────────────────
+// ── Tag management ────────────────────────────────────────────────────────
 function addTag(e) {
   if (e.key !== 'Enter' && e.key !== ',') return;
   e.preventDefault();
@@ -187,135 +212,150 @@ function addTag(e) {
 }
 function removeTag(el) { el.parentNode.remove(); }
 function getEmails() {
-  return [...document.querySelectorAll('#email-tags-box .badge')].map(b => b.textContent.trim().replace('×','').trim()).filter(Boolean);
+  return [...document.querySelectorAll('#email-tags-box .badge')]
+    .map(b => b.textContent.trim().replace('×','').trim()).filter(Boolean);
 }
 
-// ── Config ─────────────────────────────────────────────────────────────────
+// ── Config save/send ──────────────────────────────────────────────────────
 function getConfig() {
-  const hourVal = document.getElementById('report-hour').value;
+  const h = document.getElementById('report-hour').value;
   return {
-    notify_emails       : getEmails(),
-    report_hour         : parseInt(hourVal.split(':')[0]),
-    days_ahead          : parseInt(document.getElementById('days-ahead').value),
-    alert_threshold     : parseInt(document.getElementById('alert-threshold').value),
-    alert_repeat_hours  : parseInt(document.getElementById('alert-repeat-hours').value),
-    auto_send           : document.getElementById('auto-send').checked,
-    alert_enable        : document.getElementById('alert-enable').checked,
-    fullroom_alert      : document.getElementById('fullroom-alert').checked,
+    notify_emails      : getEmails(),
+    report_hour        : parseInt(h.split(':')[0]),
+    days_ahead         : parseInt(document.getElementById('days-ahead').value),
+    alert_threshold    : parseInt(document.getElementById('alert-threshold').value),
+    alert_repeat_hours : parseInt(document.getElementById('alert-repeat-hours').value),
+    auto_send          : document.getElementById('auto-send').checked,
+    alert_enable       : document.getElementById('alert-enable').checked,
+    fullroom_alert     : document.getElementById('fullroom-alert').checked,
   };
 }
-
 function showAlert(msg, type='success') {
   const el = document.getElementById('alert-box');
-  el.className = `alert alert-${type}`;
-  el.textContent = msg;
+  el.className = `alert alert-${type}`; el.textContent = msg;
   el.classList.remove('d-none');
   setTimeout(() => el.classList.add('d-none'), 4000);
 }
-
 async function saveConfig() {
-  const cfg = getConfig();
   try {
     const r = await fetch('/api/email_notification_config', {
-      method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(cfg)
+      method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(getConfig())
     });
     const d = await r.json();
-    if (d.success) showAlert('✅ Đã lưu cấu hình thành công!');
-    else showAlert('❌ ' + (d.error || 'Lỗi lưu cấu hình'), 'danger');
-  } catch(e) { showAlert('❌ Lỗi kết nối server', 'danger'); }
+    if (d.success) { showAlert('✅ Đã lưu cấu hình!'); loadVacancyBoard(); }
+    else showAlert('❌ ' + (d.error||'Lỗi lưu'), 'danger');
+  } catch(e) { showAlert('❌ Lỗi kết nối', 'danger'); }
 }
-
 async function sendTestEmail() {
   const btn = document.getElementById('test-btn');
   btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Đang gửi...';
   try {
-    const r = await fetch('/api/send_vacancy_email', { method:'POST',
-      headers:{'Content-Type':'application/json'}, body: JSON.stringify(getConfig()) });
+    const r = await fetch('/api/send_vacancy_email', {
+      method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(getConfig())
+    });
     const d = await r.json();
-    if (d.success) showAlert(`✅ Đã gửi ${d.sent} email thành công!`);
-    else showAlert('❌ ' + (d.error || 'Lỗi gửi email'), 'danger');
+    if (d.success) showAlert(`✅ Đã gửi ${d.sent} email!`);
+    else showAlert('❌ ' + (d.error||'Lỗi gửi'), 'danger');
   } catch(e) { showAlert('❌ Lỗi kết nối', 'danger'); }
   btn.disabled = false; btn.innerHTML = '<i class="fas fa-paper-plane me-1"></i>Gửi thử ngay';
   loadHistory();
 }
 
-// ── History ─────────────────────────────────────────────────────────────────
+// ── History ───────────────────────────────────────────────────────────────
 async function loadHistory() {
   try {
-    const r = await fetch('/api/email_notification_history');
-    const d = await r.json();
-    const container = document.getElementById('history-list');
-    if (!d.history || !d.history.length) {
-      container.innerHTML = '<div class="text-center text-muted py-3 small">Chưa có lịch sử gửi</div>';
-      return;
+    const d = await (await fetch('/api/email_notification_history')).json();
+    const el = document.getElementById('history-list');
+    if (!d.history?.length) {
+      el.innerHTML = '<div class="text-center text-muted py-3 small">Chưa có lịch sử gửi</div>'; return;
     }
-    container.innerHTML = d.history.map(h => `
+    el.innerHTML = d.history.map(h => `
       <div class="d-flex justify-content-between align-items-center px-3 py-2 border-bottom">
         <div>
-          <div class="small fw-semibold ${h.type === 'alert' ? 'text-warning' : ''}">${h.type === 'alert' ? '⚡' : '📅'} ${h.sent_at}</div>
-          <div class="text-muted" style="font-size:.75rem;">${h.subject}</div>
+          <div class="small fw-semibold ${h.type==='alert'?'text-warning':''}">${h.type==='alert'?'⚡':'📅'} ${h.sent_at}</div>
+          <div class="text-muted" style="font-size:.73rem;">${h.subject||''}</div>
         </div>
-        <span class="badge ${h.success ? 'bg-success' : 'bg-danger'}">${h.success ? '✓ OK' : '✗ Lỗi'}</span>
+        <span class="badge ${h.success?'bg-success':'bg-danger'}">${h.success?'✓ OK':'✗ Lỗi'}</span>
       </div>`).join('');
-  } catch(e) {
-    document.getElementById('history-list').innerHTML =
-      '<div class="text-center text-muted py-3 small">Không tải được lịch sử</div>';
-  }
+  } catch { document.getElementById('history-list').innerHTML = '<div class="text-muted text-center py-3 small">Không tải được</div>'; }
 }
 
-// ── Preview ─────────────────────────────────────────────────────────────────
-async function loadPreview() {
-  document.getElementById('preview-container').innerHTML =
-    '<div class="text-center text-muted py-5"><i class="fas fa-spinner fa-spin fa-2x mb-3 d-block"></i>Đang tải...</div>';
+// ── Vacancy Board ─────────────────────────────────────────────────────────
+async function loadVacancyBoard() {
+  const board = document.getElementById('vacancy-board');
+  board.innerHTML = '<div class="text-center text-muted py-5"><i class="fas fa-spinner fa-spin fa-2x mb-3 d-block"></i>Đang tải...</div>';
+
   try {
-    const r = await fetch('/api/vacancy_preview');
-    const d = await r.json();
-    if (!d.days) { document.getElementById('preview-container').innerHTML = '<div class="text-muted text-center py-4">Không tải được dữ liệu</div>'; return; }
+    const d = await (await fetch('/api/vacancy_preview')).json();
+    if (!d.days?.length) { board.innerHTML = '<div class="text-muted text-center py-4">Không tải được dữ liệu</div>'; return; }
 
     const THRESHOLD = parseInt(document.getElementById('alert-threshold').value) || 3;
-    let html = '<div style="font-size:.75rem;color:#bbb;margin-bottom:10px;">💡 Nhấn vào từng ngày để mở lịch chi tiết</div>';
+    const now = new Date();
+    document.getElementById('last-updated').textContent = `Cập nhật ${now.getHours()}:${String(now.getMinutes()).padStart(2,'0')}`;
+    document.getElementById('board-days-label').textContent = `${d.days.length} ngày tới`;
 
+    // Summary bar
+    const totalFree = d.days.reduce((s,day) => s + day.total_free, 0);
+    const hotDays   = d.days.filter(day => day.total_free > THRESHOLD).length;
+    const fullDays  = d.days.filter(day => day.total_free === 0).length;
+    let html = `
+      <div class="vb-summary">
+        <div class="vb-sum-item"><span style="color:#1e2a5e;font-weight:700;">${d.days.length}</span> ngày xem trước</div>
+        <div class="vb-sum-item"><span style="color:#2e7d32;font-weight:700;">${totalFree}</span> lượt phòng trống</div>
+        ${hotDays ? `<div class="vb-sum-item"><span style="color:#558b2f;font-weight:700;">${hotDays}</span> ngày nhiều trống</div>` : ''}
+        ${fullDays ? `<div class="vb-sum-item"><span style="color:#c62828;font-weight:700;">${fullDays}</span> ngày hết phòng</div>` : ''}
+      </div>`;
+
+    // Day rows
     d.days.forEach(day => {
       const isHot  = day.total_free > THRESHOLD;
       const isFull = day.total_free === 0;
-      const hdCls  = isFull ? 'full' : isHot ? 'hot' : 'normal';
-      const cntColor = isFull ? '#c62828' : isHot ? '#1b5e20' : (day.total_free > 0 ? '#2e7d32' : '#bbb');
-      const badge = isFull
-        ? '<span class="full-badge ms-2">⚠️ HẾT PHÒNG</span>'
-        : isHot ? '<span class="hot-badge ms-2">🔥 NHIỀU PHÒNG TRỐNG</span>' : '';
+      const isWarn = !isFull && !isHot && day.total_free <= THRESHOLD;
 
-      const apts = day.apts.map((apt, i) => `
-        ${i > 0 ? '<div style="width:1px;background:#eee;margin:0 4px;"></div>' : ''}
-        <div class="apt-item">
-          <span class="apt-dot" style="background:${apt.dot};"></span>
-          <div class="apt-name">${apt.name}</div>
-          <div class="apt-num" style="color:${apt.free===0?'#bbb':isHot?'#1b5e20':'#2e7d32'};">${apt.free}</div>
-          <div class="apt-lbl">/ ${apt.total} trống</div>
-        </div>`).join('');
+      const hdCls  = isFull ? 'status-full' : isHot ? 'status-hot' : isWarn ? 'status-warn' : 'status-ok';
+      const cntCls = isFull ? 'cnt-full' : isHot ? 'cnt-hot' : 'cnt-warn';
+      const badge  = isFull
+        ? '<span class="badge-full">HẾT PHÒNG</span>'
+        : isHot ? '<span class="badge-hot">🔥 NHIỀU TRỐNG</span>' : '';
+
+      const apts = day.apts.map(apt => {
+        const numCls = apt.free === 0 ? 'num-zero' : apt.free > THRESHOLD/2 ? 'num-free' : 'num-some';
+        return `
+          <div class="vb-apt">
+            <div><span class="vb-apt-dot" style="background:${apt.dot};"></span></div>
+            <div class="vb-apt-name">${apt.name}</div>
+            <div class="vb-apt-num ${numCls}">${apt.free}</div>
+            <div class="vb-apt-sub">/ ${apt.total} phòng</div>
+          </div>`;
+      }).join('');
 
       html += `
-        <a class="day-card" href="/calendar_details/${day.date}" target="_blank">
-          <div class="day-hd ${hdCls}">
+        <div class="vb-day">
+          <a class="vb-day-hd ${hdCls}" href="/calendar_details/${day.date}" target="_blank">
             <div>
-              <span style="font-size:13px;font-weight:700;color:#222;">${day.label} — ${day.weekday}</span>${badge}
-              <div style="font-size:10px;color:#999;margin-top:2px;">${day.date_display} · 🔗 nhấn xem chi tiết</div>
+              <div class="vb-label">${day.label} — ${day.weekday}${badge}</div>
+              <div class="vb-date">${day.date_display} &nbsp;·&nbsp; 🔗 nhấn để xem chi tiết ngày này</div>
             </div>
-            <div style="font-size:13px;font-weight:700;color:${cntColor};">
-              ${isFull ? 'Hết phòng' : day.total_free + ' phòng trống'}
+            <div class="vb-count ${cntCls}">
+              ${isFull ? 'Hết phòng' : day.total_free + ' trống'}
             </div>
-          </div>
-          <div class="apt-row">${apts}</div>
-          ${isFull ? '<div style="background:#fce4ec;padding:5px 12px;font-size:10px;color:#880e4f;text-align:center;">⚠️ Hết toàn bộ phòng — cân nhắc đóng nhận đặt phòng ngày này</div>' : ''}
-        </a>`;
+          </a>
+          <div class="vb-apts">${apts}</div>
+          ${isFull ? '<div class="vb-full-msg">⚠️ Hết toàn bộ phòng — cân nhắc đóng nhận đặt phòng ngày này</div>' : ''}
+        </div>`;
     });
 
-    document.getElementById('preview-container').innerHTML = html;
+    board.innerHTML = html;
   } catch(e) {
-    document.getElementById('preview-container').innerHTML = '<div class="text-danger text-center py-4">Lỗi tải preview: ' + e.message + '</div>';
+    board.innerHTML = `<div class="text-danger text-center py-4">Lỗi: ${e.message}</div>`;
   }
 }
 
-// Auto load on page ready
-document.addEventListener('DOMContentLoaded', () => { loadPreview(); loadHistory(); });
+// Auto-load + auto-refresh mỗi 5 phút
+document.addEventListener('DOMContentLoaded', () => {
+  loadVacancyBoard();
+  loadHistory();
+  setInterval(loadVacancyBoard, 5 * 60 * 1000);
+});
 </script>
 {% endblock %}
