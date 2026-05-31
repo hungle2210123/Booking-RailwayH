@@ -3496,6 +3496,186 @@ def save_extracted_bookings():
         traceback.print_exc()
         return jsonify({'success': False, 'error': f'Lỗi hệ thống khi lưu booking: {str(e)}'})
 
+@app.route('/email_notifications')
+def email_notification_settings():
+    """Email notification settings page"""
+    import os
+    notify_emails_raw = os.getenv('NOTIFY_EMAILS', 'ngotri.2210@gmail.com')
+    config = {
+        'notify_emails'     : [e.strip() for e in notify_emails_raw.split(',') if e.strip()],
+        'report_hour'       : int(os.getenv('REPORT_HOUR', 7)),
+        'days_ahead'        : int(os.getenv('DAYS_AHEAD', 4)),
+        'alert_threshold'   : int(os.getenv('ALERT_THRESHOLD', 3)),
+        'alert_repeat_hours': int(os.getenv('ALERT_REPEAT_HOURS', 12)),
+        'auto_send'         : os.getenv('AUTO_SEND_EMAIL', 'true').lower() == 'true',
+        'alert_enable'      : os.getenv('ALERT_ENABLE', 'true').lower() == 'true',
+        'fullroom_alert'    : os.getenv('FULLROOM_ALERT', 'true').lower() == 'true',
+    }
+    return render_template('email_notification_settings.html', config=config)
+
+
+@app.route('/api/email_notification_config', methods=['POST'])
+def api_save_email_config():
+    """Save email notification config (updates .env file)"""
+    try:
+        data = request.get_json()
+        env_path = os.path.join(os.path.dirname(__file__), '.env')
+        updates = {
+            'NOTIFY_EMAILS'       : ','.join(data.get('notify_emails', [])),
+            'REPORT_HOUR'         : str(data.get('report_hour', 7)),
+            'DAYS_AHEAD'          : str(data.get('days_ahead', 4)),
+            'ALERT_THRESHOLD'     : str(data.get('alert_threshold', 3)),
+            'ALERT_REPEAT_HOURS'  : str(data.get('alert_repeat_hours', 12)),
+            'AUTO_SEND_EMAIL'     : 'true' if data.get('auto_send') else 'false',
+            'ALERT_ENABLE'        : 'true' if data.get('alert_enable') else 'false',
+            'FULLROOM_ALERT'      : 'true' if data.get('fullroom_alert') else 'false',
+        }
+        # Read existing .env
+        try:
+            with open(env_path, 'r', encoding='utf-8') as f:
+                lines = f.readlines()
+        except FileNotFoundError:
+            lines = []
+
+        # Update or append each key
+        written = set()
+        new_lines = []
+        for line in lines:
+            key = line.split('=')[0].strip()
+            if key in updates:
+                new_lines.append(f"{key}={updates[key]}\n")
+                written.add(key)
+            else:
+                new_lines.append(line)
+        for key, val in updates.items():
+            if key not in written:
+                new_lines.append(f"{key}={val}\n")
+        with open(env_path, 'w', encoding='utf-8') as f:
+            f.writelines(new_lines)
+        # Reload env
+        for key, val in updates.items():
+            os.environ[key] = val
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+
+@app.route('/api/vacancy_preview')
+def api_vacancy_preview():
+    """Return vacancy data for email preview widget"""
+    try:
+        from datetime import date, timedelta
+        import psycopg2, os as _os
+        vn_days = ["Chủ Nhật","Thứ Hai","Thứ Ba","Thứ Tư","Thứ Năm","Thứ Sáu","Thứ Bảy"]
+        DOT_COLORS = ["#3949ab","#2e7d32","#6a1b9a","#e65100","#00838f","#c62828"]
+        ROOM_APT  = {4:2,5:2,1244:506,1245:506,1246:506,1247:506,1793:1,2:1,3:1}
+        BE_KW = ['hang be','hàng bè','hàng be','hang bè','be 101','be 102','2 pn hàng','2 pn hang']
+        HV_KW = ['hoi vu','hội vũ','hội vu','hoi vũ','phong 2 giuong','phòng 2 giường',
+                 'giuong hoi','101 - 2 pn','25 hv','studio hoi']
+
+        def _classify(actual_apt, room_id, acc):
+            if actual_apt and str(actual_apt).isdigit(): return int(actual_apt)
+            if room_id and room_id in ROOM_APT: return ROOM_APT[room_id]
+            n = (acc or '').lower()
+            for k in BE_KW:
+                if k in n: return 2
+            for k in HV_KW:
+                if k in n: return 506
+            return 1
+
+        db_url = _os.getenv('RAILWAY_DATABASE_URL') or _os.getenv('LOCAL_DATABASE_URL')
+        conn = psycopg2.connect(db_url)
+        cur  = conn.cursor()
+
+        # Load apartments dynamically
+        cur.execute("""
+            SELECT a.apartment_id, a.apartment_name, r.room_id, r.room_name
+            FROM apartments a JOIN rooms r ON r.apartment_id=a.apartment_id AND r.is_active=true
+            WHERE a.is_active=true ORDER BY a.apartment_id, r.room_id
+        """)
+        from collections import OrderedDict
+        apt_map = OrderedDict()
+        for apt_id, apt_name, room_id, room_name in cur.fetchall():
+            if apt_id not in apt_map:
+                idx = len(apt_map)
+                apt_map[apt_id] = {'id':apt_id,'name':apt_name,'dot':DOT_COLORS[idx%len(DOT_COLORS)],'rooms':[]}
+            apt_map[apt_id]['rooms'].append({'id':room_id,'name':room_name})
+
+        today = date.today()
+        days_ahead = int(_os.getenv('DAYS_AHEAD', 4))
+        days = []
+        for i in range(days_ahead):
+            d = today + timedelta(days=i)
+            d_str = d.strftime('%Y-%m-%d')
+            cur.execute("""
+                SELECT room_id, accommodation_name, actual_apartment FROM bookings
+                WHERE checkin_date<=%s AND checkout_date>%s
+                  AND COALESCE(booking_status,'') NOT IN ('cancelled','deleted')
+                  AND COALESCE(checkin_status,'') != 'cancelling'
+            """, (d_str, d_str))
+            from collections import Counter
+            apt_count = Counter()
+            for row in cur.fetchall():
+                apt_id = _classify(row[2], row[0], row[1])
+                if apt_id in apt_map: apt_count[apt_id] += 1
+
+            apts_out = []
+            total_free = 0
+            for apt in apt_map.values():
+                cap  = len(apt['rooms'])
+                occ  = min(apt_count.get(apt['id'], 0), cap)
+                free = cap - occ
+                total_free += free
+                apts_out.append({'name':apt['name'],'dot':apt['dot'],'free':free,'total':cap})
+
+            days.append({
+                'date'        : d_str,
+                'date_display': d.strftime('%d tháng %m, %Y'),
+                'label'       : ["Hôm nay","Ngày mai","+2 ngày","+3 ngày","+4 ngày","+5 ngày","+6 ngày"][i],
+                'weekday'     : vn_days[(d.weekday()+1)%7],
+                'total_free'  : total_free,
+                'apts'        : apts_out,
+            })
+        cur.close(); conn.close()
+        return jsonify({'success':True,'days':days})
+    except Exception as e:
+        return jsonify({'success':False,'error':str(e),'days':[]})
+
+
+@app.route('/api/send_vacancy_email', methods=['POST'])
+def api_send_vacancy_email():
+    """Trigger vacancy email send from settings page"""
+    try:
+        import subprocess, sys
+        result = subprocess.run(
+            [sys.executable, '-X', 'utf8', 'send_test_email.py'],
+            capture_output=True, text=True, timeout=60,
+            cwd=os.path.dirname(__file__)
+        )
+        success = result.returncode == 0
+        sent = result.stdout.count('Đã gửi thành công')
+        return jsonify({'success': success, 'sent': sent,
+                        'output': result.stdout[-500:] if result.stdout else '',
+                        'error' : result.stderr[-300:] if not success else ''})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e), 'sent': 0})
+
+
+@app.route('/api/email_notification_history')
+def api_email_notification_history():
+    """Return recent email send history (from a simple log file)"""
+    try:
+        import json, os as _os
+        log_path = _os.path.join(_os.path.dirname(__file__), 'email_log.json')
+        if not _os.path.exists(log_path):
+            return jsonify({'history': []})
+        with open(log_path, 'r', encoding='utf-8') as f:
+            history = json.load(f)
+        return jsonify({'history': list(reversed(history[-20:]))})
+    except Exception as e:
+        return jsonify({'history': [], 'error': str(e)})
+
+
 @app.route('/calendar/')
 @app.route('/calendar/<int:year>/<int:month>')
 def calendar_view(year=None, month=None):

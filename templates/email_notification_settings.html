@@ -1,0 +1,321 @@
+{% extends "base.html" %}
+{% block title %}Thông Báo Email — Hotel Pro{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4" style="max-width:1100px;">
+
+  <div class="d-flex align-items-center mb-4 gap-3">
+    <h4 class="mb-0"><i class="fas fa-bell text-warning me-2"></i>Cài Đặt Thông Báo Email</h4>
+    <span class="badge bg-success" id="status-badge">● Đang hoạt động</span>
+  </div>
+
+  <!-- Alert -->
+  <div id="alert-box" class="alert d-none mb-3" role="alert"></div>
+
+  <div class="row g-4">
+
+    <!-- ═══ LEFT: Config ═══ -->
+    <div class="col-lg-5">
+
+      <!-- Email Config Card -->
+      <div class="card border-0 shadow-sm mb-4">
+        <div class="card-header text-white" style="background:#3949ab;">
+          <i class="fas fa-envelope me-2"></i>Cấu Hình Email
+        </div>
+        <div class="card-body">
+
+          <label class="form-label fw-semibold small text-uppercase text-muted">Email nhận thông báo</label>
+          <div id="email-tags-box" class="border rounded p-2 mb-1"
+               style="min-height:44px;cursor:text;display:flex;flex-wrap:wrap;gap:5px;align-items:center;"
+               onclick="document.getElementById('tag-input').focus()">
+            {% for email in config.notify_emails %}
+            <span class="badge rounded-pill d-flex align-items-center gap-1"
+                  style="background:#e8eaf6;color:#283593;font-weight:500;font-size:.82rem;padding:4px 10px;">
+              {{ email }}
+              <span onclick="removeTag(this)" style="cursor:pointer;color:#9fa8da;font-size:1rem;line-height:1;">×</span>
+            </span>
+            {% endfor %}
+            <input id="tag-input" type="email" class="border-0 outline-0 flex-grow-1"
+                   style="outline:none;min-width:150px;font-size:.88rem;"
+                   placeholder="Thêm email, nhấn Enter…"
+                   onkeydown="addTag(event)">
+          </div>
+          <small class="text-muted">Nhấn Enter hoặc dấu phẩy để thêm nhiều email</small>
+
+          <div class="row mt-3 g-2">
+            <div class="col-6">
+              <label class="form-label fw-semibold small text-uppercase text-muted">Giờ gửi báo cáo</label>
+              <input type="time" class="form-control" id="report-hour" value="{{ '%02d:00'|format(config.report_hour|int) }}">
+            </div>
+            <div class="col-6">
+              <label class="form-label fw-semibold small text-uppercase text-muted">Số ngày xem trước</label>
+              <select class="form-select" id="days-ahead">
+                {% for n in [2,3,4,7] %}
+                <option value="{{ n }}" {% if config.days_ahead == n %}selected{% endif %}>{{ n }} ngày tới</option>
+                {% endfor %}
+              </select>
+            </div>
+          </div>
+
+          <!-- Alert section -->
+          <div class="mt-3 p-3 rounded" style="background:#fff8e1;border:1.5px solid #ffe082;">
+            <div class="fw-bold mb-2" style="color:#f57f17;font-size:.9rem;">⚡ Cảnh Báo Sớm — Phòng Nhiều Trống</div>
+            <div class="row g-2 align-items-center mb-2">
+              <div class="col-7 small text-muted">Gửi cảnh báo khi ngày nào có hơn</div>
+              <div class="col-5">
+                <div class="input-group input-group-sm">
+                  <input type="number" class="form-control" id="alert-threshold" value="{{ config.alert_threshold }}" min="1" max="10">
+                  <span class="input-group-text">phòng trống</span>
+                </div>
+              </div>
+            </div>
+            <div class="row g-2 align-items-center">
+              <div class="col-7 small text-muted">Nhắc lại sau</div>
+              <div class="col-5">
+                <div class="input-group input-group-sm">
+                  <input type="number" class="form-control" id="alert-repeat-hours" value="{{ config.alert_repeat_hours }}" min="1" max="24">
+                  <span class="input-group-text">giờ</span>
+                </div>
+              </div>
+            </div>
+            <small class="text-muted mt-1 d-block">
+              Ví dụ: trống 5 phòng → nhắc lúc 08:00 và lại lúc 20:00
+            </small>
+          </div>
+
+          <!-- Toggles -->
+          <div class="mt-3">
+            {% set toggles = [
+              ('auto-send',    config.auto_send,    'Tự động gửi báo cáo hàng ngày'),
+              ('alert-enable', config.alert_enable, 'Bật cảnh báo sớm phòng trống nhiều'),
+              ('fullroom-alert',config.fullroom_alert,'Cảnh báo khi hết toàn bộ phòng'),
+            ] %}
+            {% for tid, val, label in toggles %}
+            <div class="d-flex justify-content-between align-items-center py-2 border-bottom">
+              <span class="small">{{ label }}</span>
+              <div class="form-check form-switch mb-0">
+                <input class="form-check-input" type="checkbox" id="{{ tid }}" {% if val %}checked{% endif %}
+                       style="cursor:pointer;width:2.5rem;height:1.25rem;">
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+
+          <div class="d-flex gap-2 mt-3">
+            <button class="btn btn-primary btn-sm" onclick="saveConfig()">
+              <i class="fas fa-save me-1"></i>Lưu cấu hình
+            </button>
+            <button class="btn btn-outline-success btn-sm" onclick="sendTestEmail()" id="test-btn">
+              <i class="fas fa-paper-plane me-1"></i>Gửi thử ngay
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- History Card -->
+      <div class="card border-0 shadow-sm">
+        <div class="card-header text-white" style="background:#455a64;">
+          <i class="fas fa-history me-2"></i>Lịch Sử Gửi
+          <button class="btn btn-sm btn-outline-light float-end" onclick="loadHistory()" style="padding:1px 8px;font-size:.75rem;">
+            <i class="fas fa-sync"></i>
+          </button>
+        </div>
+        <div class="card-body p-0">
+          <div id="history-list" style="max-height:300px;overflow-y:auto;">
+            <div class="text-center text-muted py-4 small">
+              <i class="fas fa-spinner fa-spin me-1"></i>Đang tải...
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ RIGHT: Preview ═══ -->
+    <div class="col-lg-7">
+      <div class="card border-0 shadow-sm">
+        <div class="card-header text-white d-flex justify-content-between align-items-center" style="background:#4a5568;">
+          <span><i class="fas fa-eye me-2"></i>Xem Trước Email Hôm Nay</span>
+          <button class="btn btn-sm btn-outline-light" onclick="loadPreview()" style="padding:2px 10px;font-size:.75rem;">
+            <i class="fas fa-sync me-1"></i>Làm mới
+          </button>
+        </div>
+        <div class="card-body p-3">
+          <div id="preview-container">
+            <div class="text-center text-muted py-5">
+              <i class="fas fa-spinner fa-spin fa-2x mb-3 d-block"></i>
+              Đang tải dữ liệu phòng trống...
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<style>
+.apt-row { display:flex; gap:20px; padding:8px 12px; background:#fafafa; }
+.apt-item { text-align:center; min-width:90px; }
+.apt-dot  { width:8px;height:8px;border-radius:50%;display:inline-block;margin-bottom:3px; }
+.apt-num  { font-size:22px;font-weight:900;line-height:1.1; }
+.apt-name { font-size:10px;color:#666;margin-top:2px; }
+.apt-lbl  { font-size:10px;color:#aaa; }
+.day-card { border:1.5px solid #e0e0e0;border-radius:9px;margin-bottom:8px;overflow:hidden;
+            cursor:pointer;transition:box-shadow .15s,border-color .15s;text-decoration:none;color:inherit;display:block; }
+.day-card:hover { box-shadow:0 3px 12px rgba(0,0,0,.1);border-color:#b0bec5; }
+.day-hd   { padding:9px 14px;display:flex;justify-content:space-between;align-items:center;background:#f8f8f8; }
+.day-hd.hot { background:#e8f5e9;border-left:4px solid #2e7d32; }
+.day-hd.full{ background:#fce4ec;border-left:4px solid #c62828; }
+.day-hd.normal { border-left:4px solid #3949ab; }
+.hot-badge { background:#2e7d32;color:#fff;border-radius:10px;padding:2px 8px;font-size:10px;font-weight:700; }
+.full-badge{ background:#c62828;color:#fff;border-radius:10px;padding:2px 8px;font-size:10px;font-weight:700; }
+</style>
+
+<script>
+// ── Tag management ─────────────────────────────────────────────────────────
+function addTag(e) {
+  if (e.key !== 'Enter' && e.key !== ',') return;
+  e.preventDefault();
+  const val = e.target.value.trim().replace(/,$/, '');
+  if (!val || !val.includes('@')) return;
+  const span = document.createElement('span');
+  span.className = 'badge rounded-pill d-flex align-items-center gap-1';
+  span.style = 'background:#e8eaf6;color:#283593;font-weight:500;font-size:.82rem;padding:4px 10px;';
+  span.innerHTML = `${val} <span onclick="removeTag(this)" style="cursor:pointer;color:#9fa8da;font-size:1rem;line-height:1;">×</span>`;
+  document.getElementById('email-tags-box').insertBefore(span, e.target);
+  e.target.value = '';
+}
+function removeTag(el) { el.parentNode.remove(); }
+function getEmails() {
+  return [...document.querySelectorAll('#email-tags-box .badge')].map(b => b.textContent.trim().replace('×','').trim()).filter(Boolean);
+}
+
+// ── Config ─────────────────────────────────────────────────────────────────
+function getConfig() {
+  const hourVal = document.getElementById('report-hour').value;
+  return {
+    notify_emails       : getEmails(),
+    report_hour         : parseInt(hourVal.split(':')[0]),
+    days_ahead          : parseInt(document.getElementById('days-ahead').value),
+    alert_threshold     : parseInt(document.getElementById('alert-threshold').value),
+    alert_repeat_hours  : parseInt(document.getElementById('alert-repeat-hours').value),
+    auto_send           : document.getElementById('auto-send').checked,
+    alert_enable        : document.getElementById('alert-enable').checked,
+    fullroom_alert      : document.getElementById('fullroom-alert').checked,
+  };
+}
+
+function showAlert(msg, type='success') {
+  const el = document.getElementById('alert-box');
+  el.className = `alert alert-${type}`;
+  el.textContent = msg;
+  el.classList.remove('d-none');
+  setTimeout(() => el.classList.add('d-none'), 4000);
+}
+
+async function saveConfig() {
+  const cfg = getConfig();
+  try {
+    const r = await fetch('/api/email_notification_config', {
+      method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(cfg)
+    });
+    const d = await r.json();
+    if (d.success) showAlert('✅ Đã lưu cấu hình thành công!');
+    else showAlert('❌ ' + (d.error || 'Lỗi lưu cấu hình'), 'danger');
+  } catch(e) { showAlert('❌ Lỗi kết nối server', 'danger'); }
+}
+
+async function sendTestEmail() {
+  const btn = document.getElementById('test-btn');
+  btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Đang gửi...';
+  try {
+    const r = await fetch('/api/send_vacancy_email', { method:'POST',
+      headers:{'Content-Type':'application/json'}, body: JSON.stringify(getConfig()) });
+    const d = await r.json();
+    if (d.success) showAlert(`✅ Đã gửi ${d.sent} email thành công!`);
+    else showAlert('❌ ' + (d.error || 'Lỗi gửi email'), 'danger');
+  } catch(e) { showAlert('❌ Lỗi kết nối', 'danger'); }
+  btn.disabled = false; btn.innerHTML = '<i class="fas fa-paper-plane me-1"></i>Gửi thử ngay';
+  loadHistory();
+}
+
+// ── History ─────────────────────────────────────────────────────────────────
+async function loadHistory() {
+  try {
+    const r = await fetch('/api/email_notification_history');
+    const d = await r.json();
+    const container = document.getElementById('history-list');
+    if (!d.history || !d.history.length) {
+      container.innerHTML = '<div class="text-center text-muted py-3 small">Chưa có lịch sử gửi</div>';
+      return;
+    }
+    container.innerHTML = d.history.map(h => `
+      <div class="d-flex justify-content-between align-items-center px-3 py-2 border-bottom">
+        <div>
+          <div class="small fw-semibold ${h.type === 'alert' ? 'text-warning' : ''}">${h.type === 'alert' ? '⚡' : '📅'} ${h.sent_at}</div>
+          <div class="text-muted" style="font-size:.75rem;">${h.subject}</div>
+        </div>
+        <span class="badge ${h.success ? 'bg-success' : 'bg-danger'}">${h.success ? '✓ OK' : '✗ Lỗi'}</span>
+      </div>`).join('');
+  } catch(e) {
+    document.getElementById('history-list').innerHTML =
+      '<div class="text-center text-muted py-3 small">Không tải được lịch sử</div>';
+  }
+}
+
+// ── Preview ─────────────────────────────────────────────────────────────────
+async function loadPreview() {
+  document.getElementById('preview-container').innerHTML =
+    '<div class="text-center text-muted py-5"><i class="fas fa-spinner fa-spin fa-2x mb-3 d-block"></i>Đang tải...</div>';
+  try {
+    const r = await fetch('/api/vacancy_preview');
+    const d = await r.json();
+    if (!d.days) { document.getElementById('preview-container').innerHTML = '<div class="text-muted text-center py-4">Không tải được dữ liệu</div>'; return; }
+
+    const THRESHOLD = parseInt(document.getElementById('alert-threshold').value) || 3;
+    let html = '<div style="font-size:.75rem;color:#bbb;margin-bottom:10px;">💡 Nhấn vào từng ngày để mở lịch chi tiết</div>';
+
+    d.days.forEach(day => {
+      const isHot  = day.total_free > THRESHOLD;
+      const isFull = day.total_free === 0;
+      const hdCls  = isFull ? 'full' : isHot ? 'hot' : 'normal';
+      const cntColor = isFull ? '#c62828' : isHot ? '#1b5e20' : (day.total_free > 0 ? '#2e7d32' : '#bbb');
+      const badge = isFull
+        ? '<span class="full-badge ms-2">⚠️ HẾT PHÒNG</span>'
+        : isHot ? '<span class="hot-badge ms-2">🔥 NHIỀU PHÒNG TRỐNG</span>' : '';
+
+      const apts = day.apts.map((apt, i) => `
+        ${i > 0 ? '<div style="width:1px;background:#eee;margin:0 4px;"></div>' : ''}
+        <div class="apt-item">
+          <span class="apt-dot" style="background:${apt.dot};"></span>
+          <div class="apt-name">${apt.name}</div>
+          <div class="apt-num" style="color:${apt.free===0?'#bbb':isHot?'#1b5e20':'#2e7d32'};">${apt.free}</div>
+          <div class="apt-lbl">/ ${apt.total} trống</div>
+        </div>`).join('');
+
+      html += `
+        <a class="day-card" href="/calendar_details/${day.date}" target="_blank">
+          <div class="day-hd ${hdCls}">
+            <div>
+              <span style="font-size:13px;font-weight:700;color:#222;">${day.label} — ${day.weekday}</span>${badge}
+              <div style="font-size:10px;color:#999;margin-top:2px;">${day.date_display} · 🔗 nhấn xem chi tiết</div>
+            </div>
+            <div style="font-size:13px;font-weight:700;color:${cntColor};">
+              ${isFull ? 'Hết phòng' : day.total_free + ' phòng trống'}
+            </div>
+          </div>
+          <div class="apt-row">${apts}</div>
+          ${isFull ? '<div style="background:#fce4ec;padding:5px 12px;font-size:10px;color:#880e4f;text-align:center;">⚠️ Hết toàn bộ phòng — cân nhắc đóng nhận đặt phòng ngày này</div>' : ''}
+        </a>`;
+    });
+
+    document.getElementById('preview-container').innerHTML = html;
+  } catch(e) {
+    document.getElementById('preview-container').innerHTML = '<div class="text-danger text-center py-4">Lỗi tải preview: ' + e.message + '</div>';
+  }
+}
+
+// Auto load on page ready
+document.addEventListener('DOMContentLoaded', () => { loadPreview(); loadHistory(); });
+</script>
+{% endblock %}

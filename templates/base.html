@@ -407,10 +407,25 @@
                             <i class="fas fa-plus me-1"></i>Thêm Đặt phòng
                         </a>
                     </li>
-                    <li class="nav-item">
-                        <a class="nav-link {% if request.endpoint == 'calendar_view' %}active{% endif %}" href="{{ url_for('calendar_view') }}">
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle {% if request.endpoint in ['calendar_view','email_notification_settings'] %}active{% endif %}"
+                           href="#" id="calendarDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                             <i class="fas fa-calendar-alt me-1"></i>Lịch Doanh Thu
                         </a>
+                        <ul class="dropdown-menu" aria-labelledby="calendarDropdown">
+                            <li>
+                                <a class="dropdown-item {% if request.endpoint == 'calendar_view' %}active{% endif %}"
+                                   href="{{ url_for('calendar_view') }}">
+                                    <i class="fas fa-calendar-alt me-2 text-primary"></i>Lịch Đặt Phòng
+                                </a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item {% if request.endpoint == 'email_notification_settings' %}active{% endif %}"
+                                   href="{{ url_for('email_notification_settings') }}">
+                                    <i class="fas fa-bell me-2 text-warning"></i>Thông Báo Email
+                                </a>
+                            </li>
+                        </ul>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link {% if request.endpoint == 'mobile_checkin_view' %}active{% endif %}"
