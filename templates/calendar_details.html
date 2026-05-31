@@ -26,22 +26,22 @@
                     </div>
 
                     <!-- ② Điều hướng nhanh -->
-                    <div class="border-top pt-2 mb-2">
-                        <div class="btn-group w-100" role="group">
+                    <div class="border-top pt-2 mb-2" style="display:block;">
+                        <div style="display:flex;gap:4px;width:100%;">
                             <a href="{{ url_for('calendar_details', date_str=(date - timedelta(days=1)).strftime('%Y-%m-%d')) }}"
-                               class="btn btn-sm btn-outline-secondary">
-                                <i class="fas fa-chevron-left"></i> Hôm qua
+                               class="btn btn-sm btn-outline-secondary flex-fill">
+                                <i class="fas fa-chevron-left"></i>
                             </a>
                             <a href="{{ url_for('calendar_details', date_str=date.today().strftime('%Y-%m-%d')) }}"
-                               class="btn btn-sm btn-outline-primary">
+                               class="btn btn-sm btn-outline-primary flex-fill">
                                 Hôm nay
                             </a>
                             <a href="{{ url_for('calendar_details', date_str=(date + timedelta(days=1)).strftime('%Y-%m-%d')) }}"
-                               class="btn btn-sm btn-outline-secondary">
-                                Ngày mai <i class="fas fa-chevron-right"></i>
+                               class="btn btn-sm btn-outline-secondary flex-fill">
+                                <i class="fas fa-chevron-right"></i>
                             </a>
                         </div>
-                        <div class="mt-2">
+                        <div style="display:block;margin-top:6px;">
                             <input type="date"
                                    id="quickDatePicker"
                                    class="form-control form-control-sm"
