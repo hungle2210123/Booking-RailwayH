@@ -102,56 +102,73 @@
 </style>
 
 <script>
-(function(){
-  const THRESHOLD = 3;
-  const VN = ["CN","T2","T3","T4","T5","T6","T7"];
-  async function loadVbCd(){
-    try{
-      const d = await (await fetch('/api/vacancy_preview')).json();
-      if(!d.days?.length) return;
-      const now = new Date();
-      document.getElementById('vb-cd-time').textContent =
-        now.getHours()+':'+String(now.getMinutes()).padStart(2,'0');
-      const today = new Date().toISOString().slice(0,10);
-      let html = '';
-      d.days.forEach(day => {
-        const free   = day.total_free;
-        const isFull = free === 0;
-        const isLow  = !isFull && free <= THRESHOLD;
-        const isToday= day.date === today;
-        const barCls = isFull?'bar-red':isLow?'bar-ylw':free>5?'bar-grn':'bar-gry';
-        const cntCls = isFull?'cnt-red':isLow?'cnt-ylw':'cnt-grn';
-        const cntTxt = isFull?'Hết':free+'✓';
-        const todayCls = isToday?'vbcd-today':'';
-        const apts = day.apts.map(apt=>{
-          const numCls = apt.free===0?'num-gry':apt.free<=1?'num-ylw':'num-grn';
-          const abbr   = apt.name.replace('118 Hang Bac Hostel','118HB')
-                                 .replace('18 Hang Be','18HB')
-                                 .replace('25 Hoi Vu','25HV')
-                                 .replace(/ Hostel/,'').split(' ').slice(-1)[0];
-          return `<div class="vbcd-apt">
-            <div class="vbcd-an">${abbr}</div>
-            <div class="vbcd-num ${numCls}">${apt.free}</div>
-            <div class="vbcd-sub">/${apt.total}</div>
-          </div>`;
-        }).join('');
-        html += `<a class="vbcd-row ${todayCls}" href="/calendar_details/${day.date}">
-          <div class="vbcd-bar ${barCls}"></div>
-          <div class="vbcd-hd">
-            <span class="vbcd-lbl">${day.label}</span>
-            <span class="vbcd-cnt ${cntCls}">${cntTxt}</span>
-          </div>
-          <div class="vbcd-apts">${apts}</div>
-        </a>`;
-      });
-      document.getElementById('vb-cd-rows').innerHTML = html;
-    }catch(e){ document.getElementById('vb-cd-rows').innerHTML=''; }
-  }
-  document.addEventListener('DOMContentLoaded',()=>{
-    loadVbCd();
-    setInterval(loadVbCd, 5*60*1000);
-  });
-})();
+function loadVbCd() {
+  var el = document.getElementById('vb-cd-rows');
+  if (!el) return;
+  fetch('/api/vacancy_preview')
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      if (!d || !d.days || !d.days.length) {
+        el.innerHTML = '<div style="font-size:10px;color:#bbb;padding:6px;">Không có dữ liệu</div>';
+        return;
+      }
+      var now = new Date();
+      var timeEl = document.getElementById('vb-cd-time');
+      if (timeEl) timeEl.textContent = now.getHours()+':'+('0'+now.getMinutes()).slice(-2);
+      var today = now.toISOString().slice(0,10);
+      var THRESHOLD = 3;
+      var html = '';
+      for (var i = 0; i < d.days.length; i++) {
+        var day = d.days[i];
+        var free = day.total_free || 0;
+        var isFull  = free === 0;
+        var isLow   = !isFull && free <= THRESHOLD;
+        var isToday = day.date === today;
+        var barCls  = isFull ? 'bar-red' : isLow ? 'bar-ylw' : free > 5 ? 'bar-grn' : 'bar-gry';
+        var cntCls  = isFull ? 'cnt-red' : isLow ? 'cnt-ylw' : 'cnt-grn';
+        var cntTxt  = isFull ? 'Hết' : free + ' trống';
+        var border  = isToday ? 'border:1.5px solid #3949ab;' : '';
+
+        var aptHtml = '';
+        var apts = day.apts || [];
+        for (var j = 0; j < apts.length; j++) {
+          var apt  = apts[j];
+          var name = apt.name || '';
+          var abbr = name.indexOf('118') >= 0 ? '118HB'
+                   : name.indexOf('18')  >= 0 ? '18HB'
+                   : name.indexOf('25')  >= 0 ? '25HV'
+                   : name.split(' ')[0];
+          var nCls = apt.free === 0 ? 'num-gry' : apt.free <= 1 ? 'num-ylw' : 'num-grn';
+          aptHtml += '<div class="vbcd-apt">'
+            + '<div class="vbcd-an">' + abbr + '</div>'
+            + '<div class="vbcd-num ' + nCls + '">' + apt.free + '</div>'
+            + '<div class="vbcd-sub">/' + apt.total + '</div>'
+            + '</div>';
+        }
+        html += '<a class="vbcd-row" style="' + border + '" href="/calendar_details/' + day.date + '">'
+          + '<div class="vbcd-bar ' + barCls + '"></div>'
+          + '<div class="vbcd-hd">'
+          + '<span class="vbcd-lbl">' + day.label + '</span>'
+          + '<span class="vbcd-cnt ' + cntCls + '">' + cntTxt + '</span>'
+          + '</div>'
+          + '<div class="vbcd-apts">' + aptHtml + '</div>'
+          + '</a>';
+      }
+      el.innerHTML = html;
+    })
+    .catch(function(e){
+      var el2 = document.getElementById('vb-cd-rows');
+      if (el2) el2.innerHTML = '<div style="font-size:10px;color:#f87171;padding:6px;">Lỗi tải dữ liệu</div>';
+    });
+}
+
+// Gọi ngay khi DOM sẵn sàng
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', loadVbCd);
+} else {
+  loadVbCd();
+}
+setInterval(loadVbCd, 5 * 60 * 1000);
 </script>
 
         <!-- RIGHT CONTENT: Details -->
