@@ -64,14 +64,18 @@
                         </div>
                     </div>
 
-                    <!-- ── Vacancy Board compact ── -->
-                    <div class="mt-2 border-top pt-2">
-                        <div class="d-flex justify-content-between align-items-center mb-1">
-                            <span class="small fw-semibold text-muted" style="font-size:10px;letter-spacing:.4px;">PHÒNG TRỐNG</span>
-                            <span id="vb-cd-time" style="font-size:9px;color:#ccc;"></span>
+                    <!-- ── Vacancy Board ── -->
+                    <div class="mt-3 border-top pt-3">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span style="font-size:11px;font-weight:700;color:#555;letter-spacing:.5px;">
+                                <i class="fas fa-door-open me-1 text-primary"></i>PHÒNG TRỐNG
+                            </span>
+                            <span id="vb-cd-time" style="font-size:10px;color:#bbb;"></span>
                         </div>
                         <div id="vb-cd-rows">
-                            <div class="text-center py-2" style="font-size:10px;color:#ccc;">Đang tải...</div>
+                            <div class="text-center py-3" style="font-size:11px;color:#ccc;">
+                                <i class="fas fa-spinner fa-spin me-1"></i>Đang tải...
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -79,26 +83,40 @@
         </div>
 
 <style>
-/* Compact vacancy board in sidebar */
-.vbcd-row { display:block;text-decoration:none;color:inherit;border-radius:6px;
-            margin-bottom:4px;overflow:hidden;border:1px solid #f0f0f0;transition:border-color .12s; }
-.vbcd-row:hover { border-color:#cbd5e0;color:inherit; }
-.vbcd-row.vbcd-today { border-color:#3949ab; }
-.vbcd-bar  { height:2px;width:100%; }
-.vbcd-hd   { display:flex;justify-content:space-between;align-items:center;
-             padding:4px 7px;background:#fafafa; }
-.vbcd-lbl  { font-size:10px;font-weight:700;color:#333; }
-.vbcd-cnt  { font-size:10px;font-weight:700; }
-.vbcd-apts { display:flex;padding:4px 7px 5px;gap:0; }
-.vbcd-apt  { flex:1;text-align:center;border-right:1px solid #f5f5f5;padding:0 2px; }
+/* Vacancy board sidebar */
+.vbcd-row {
+  display:block; text-decoration:none; color:inherit;
+  border-radius:8px; margin-bottom:6px; overflow:hidden;
+  border:1.5px solid #e8e8e8; transition:box-shadow .15s,border-color .15s;
+}
+.vbcd-row:hover { box-shadow:0 2px 8px rgba(0,0,0,.1); border-color:#bbb; color:inherit; }
+.vbcd-bar  { height:4px; width:100%; }
+.vbcd-hd   {
+  display:flex; justify-content:space-between; align-items:center;
+  padding:7px 10px 5px; background:#f9f9f9; border-bottom:1px solid #f0f0f0;
+}
+.vbcd-lbl  { font-size:12px; font-weight:700; color:#222; }
+.vbcd-cnt  { font-size:12px; font-weight:800; padding:1px 7px;
+             border-radius:5px; }
+.vbcd-apts { display:flex; padding:8px 6px 9px; gap:0; }
+.vbcd-apt  { flex:1; text-align:center; border-right:1px solid #efefef; padding:0 4px; }
 .vbcd-apt:last-child { border-right:none; }
-.vbcd-an   { font-size:8px;color:#aaa;line-height:1.3;white-space:nowrap;overflow:hidden; }
-.vbcd-num  { font-size:15px;font-weight:900;line-height:1; }
-.vbcd-sub  { font-size:7.5px;color:#ccc; }
-.bar-grn{ background:#d1fae5; } .bar-ylw{ background:#fef3c7; }
-.bar-red{ background:#fee2e2; } .bar-gry{ background:#f3f4f6; }
-.cnt-grn{ color:#059669; } .cnt-ylw{ color:#b45309; } .cnt-red{ color:#dc2626; }
-.num-grn{ color:#374151; } .num-ylw{ color:#b45309; } .num-gry{ color:#d1d5db; }
+.vbcd-an   { font-size:10px; color:#888; font-weight:600; line-height:1.4; }
+.vbcd-num  { font-size:22px; font-weight:900; line-height:1.1; }
+.vbcd-sub  { font-size:9px; color:#bbb; }
+
+.bar-grn { background:#86efac; }
+.bar-ylw { background:#fde68a; }
+.bar-red { background:#fca5a5; }
+.bar-gry { background:#e5e7eb; }
+
+.cnt-grn { background:#f0fdf4; color:#16a34a; }
+.cnt-ylw { background:#fffbeb; color:#b45309; }
+.cnt-red { background:#fef2f2; color:#dc2626; }
+
+.num-grn { color:#1a1a1a; }
+.num-ylw { color:#b45309; }
+.num-gry { color:#d1d5db; }
 </style>
 
 <script>
