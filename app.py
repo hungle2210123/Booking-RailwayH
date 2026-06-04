@@ -7663,8 +7663,9 @@ def collect_payment():
                 return jsonify({
                     'success': True,
                     'message': f'✅ Thu tiền thành công! {update_summary}',
-                    'commission_status': commission_status,  # 🆕 For instant UX feedback
-                    'refresh_bookings': True,  # 🔄 Signal to refresh booking management
+                    'commission_status': commission_status,
+                    'new_collected': collected_amount,  # For partial payment display
+                    'refresh_bookings': True,
                     'updated_data': {
                         'collected_amount': collected_amount,
                         'commission_amount': commission_amount,

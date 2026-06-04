@@ -1439,15 +1439,40 @@ setInterval(loadVbCd, 5 * 60 * 1000);
                                 <div class="late-arrival-display" id="late-{{ booking.get('Số đặt phòng', '') }}"></div>
                                 {%- set collector_str = booking.get('Người thu tiền', '')|string %}
                                 {%- set collected_val = (booking.get('Số tiền đã thu', 0) or 0)|float %}
-                                {%- set display_amount = collected_val if collected_val > 0 else total_payment %}
+                                {%- set remaining_val = (total_payment - collected_val)|round|int %}
+                                {%- set is_paid      = ('LOC' in collector_str or 'THAO' in collector_str) %}
+                                {%- set is_partial   = is_paid and remaining_val > 100 %}
+                                {%- set is_full_paid = is_paid and remaining_val <= 100 %}
                                 <div class="pay-area"
                                      id="pay-{{ booking.get('Số đặt phòng', '') }}"
                                      data-booking-id="{{ booking.get('Số đặt phòng', '') }}"
                                      data-amount="{{ total_payment|int }}"
+                                     data-remaining="{{ remaining_val }}"
                                      data-commission="{{ commission|int }}">
-                                    {% if 'LOC' in collector_str or 'THAO' in collector_str %}
-                                        <div class="pay-done-row"><span class="pay-done-badge">✅ {{ booking.get('Người thu tiền', '') }} • {{ "{:,.0f}".format(display_amount) }}đ</span><button class="pay-undo-btn" onclick="showCollectors(this)" title="Đổi người thu">✏️</button></div>
+                                    {% if is_full_paid %}
+                                        {# Đã thu đủ #}
+                                        <div class="pay-done-row">
+                                            <span class="pay-done-badge">✅ {{ collector_str }} • {{ "{:,.0f}".format(collected_val) }}đ</span>
+                                            <button class="pay-undo-btn" onclick="showCollectors(this)" title="Đổi người thu">✏️</button>
+                                        </div>
+                                    {% elif is_partial %}
+                                        {# Đã thu 1 phần — còn lại chưa thu (sau gia hạn) #}
+                                        <div class="pay-done-row" style="margin-bottom:4px;">
+                                            <span class="pay-done-badge" style="background:#e8f5e9;color:#1b5e20;border:1px solid #a5d6a7;">
+                                                ✅ Đã thu: {{ "{:,.0f}".format(collected_val) }}đ
+                                            </span>
+                                            <button class="pay-undo-btn" onclick="showCollectors(this)" title="Đổi người thu">✏️</button>
+                                        </div>
+                                        <div style="display:flex;align-items:center;gap:5px;">
+                                            <span style="font-size:11px;font-weight:700;color:#c62828;flex:1;">
+                                                🔴 Còn: {{ "{:,.0f}".format(remaining_val) }}đ
+                                            </span>
+                                            <button class="btn-pay-now"
+                                                    style="padding:3px 8px;font-size:11px;background:#c62828;"
+                                                    onclick="collectRemaining(this)">💰 Thu nốt</button>
+                                        </div>
                                     {% else %}
+                                        {# Chưa thu gì #}
                                         <button class="btn-pay-now" onclick="showPayCollect(this)">💰 Thu Tiền</button>
                                     {% endif %}
                                 </div>
@@ -1592,15 +1617,40 @@ setInterval(loadVbCd, 5 * 60 * 1000);
                                 </div>
                                 {%- set collector_str = booking.get('Người thu tiền', '')|string %}
                                 {%- set collected_val = (booking.get('Số tiền đã thu', 0) or 0)|float %}
-                                {%- set display_amount = collected_val if collected_val > 0 else total_payment %}
+                                {%- set remaining_val = (total_payment - collected_val)|round|int %}
+                                {%- set is_paid      = ('LOC' in collector_str or 'THAO' in collector_str) %}
+                                {%- set is_partial   = is_paid and remaining_val > 100 %}
+                                {%- set is_full_paid = is_paid and remaining_val <= 100 %}
                                 <div class="pay-area"
                                      id="pay-{{ booking.get('Số đặt phòng', '') }}"
                                      data-booking-id="{{ booking.get('Số đặt phòng', '') }}"
                                      data-amount="{{ total_payment|int }}"
+                                     data-remaining="{{ remaining_val }}"
                                      data-commission="{{ commission|int }}">
-                                    {% if 'LOC' in collector_str or 'THAO' in collector_str %}
-                                        <div class="pay-done-row"><span class="pay-done-badge">✅ {{ booking.get('Người thu tiền', '') }} • {{ "{:,.0f}".format(display_amount) }}đ</span><button class="pay-undo-btn" onclick="showCollectors(this)" title="Đổi người thu">✏️</button></div>
+                                    {% if is_full_paid %}
+                                        {# Đã thu đủ #}
+                                        <div class="pay-done-row">
+                                            <span class="pay-done-badge">✅ {{ collector_str }} • {{ "{:,.0f}".format(collected_val) }}đ</span>
+                                            <button class="pay-undo-btn" onclick="showCollectors(this)" title="Đổi người thu">✏️</button>
+                                        </div>
+                                    {% elif is_partial %}
+                                        {# Đã thu 1 phần — còn lại chưa thu (sau gia hạn) #}
+                                        <div class="pay-done-row" style="margin-bottom:4px;">
+                                            <span class="pay-done-badge" style="background:#e8f5e9;color:#1b5e20;border:1px solid #a5d6a7;">
+                                                ✅ Đã thu: {{ "{:,.0f}".format(collected_val) }}đ
+                                            </span>
+                                            <button class="pay-undo-btn" onclick="showCollectors(this)" title="Đổi người thu">✏️</button>
+                                        </div>
+                                        <div style="display:flex;align-items:center;gap:5px;">
+                                            <span style="font-size:11px;font-weight:700;color:#c62828;flex:1;">
+                                                🔴 Còn: {{ "{:,.0f}".format(remaining_val) }}đ
+                                            </span>
+                                            <button class="btn-pay-now"
+                                                    style="padding:3px 8px;font-size:11px;background:#c62828;"
+                                                    onclick="collectRemaining(this)">💰 Thu nốt</button>
+                                        </div>
                                     {% else %}
+                                        {# Chưa thu gì #}
                                         <button class="btn-pay-now" onclick="showPayCollect(this)">💰 Thu Tiền</button>
                                     {% endif %}
                                 </div>
@@ -1732,15 +1782,40 @@ setInterval(loadVbCd, 5 * 60 * 1000);
                                 </div>
                                 {%- set collector_str = booking.get('Người thu tiền', '')|string %}
                                 {%- set collected_val = (booking.get('Số tiền đã thu', 0) or 0)|float %}
-                                {%- set display_amount = collected_val if collected_val > 0 else total_payment %}
+                                {%- set remaining_val = (total_payment - collected_val)|round|int %}
+                                {%- set is_paid      = ('LOC' in collector_str or 'THAO' in collector_str) %}
+                                {%- set is_partial   = is_paid and remaining_val > 100 %}
+                                {%- set is_full_paid = is_paid and remaining_val <= 100 %}
                                 <div class="pay-area"
                                      id="pay-{{ booking.get('Số đặt phòng', '') }}"
                                      data-booking-id="{{ booking.get('Số đặt phòng', '') }}"
                                      data-amount="{{ total_payment|int }}"
+                                     data-remaining="{{ remaining_val }}"
                                      data-commission="{{ commission|int }}">
-                                    {% if 'LOC' in collector_str or 'THAO' in collector_str %}
-                                        <div class="pay-done-row"><span class="pay-done-badge">✅ {{ booking.get('Người thu tiền', '') }} • {{ "{:,.0f}".format(display_amount) }}đ</span><button class="pay-undo-btn" onclick="showCollectors(this)" title="Đổi người thu">✏️</button></div>
+                                    {% if is_full_paid %}
+                                        {# Đã thu đủ #}
+                                        <div class="pay-done-row">
+                                            <span class="pay-done-badge">✅ {{ collector_str }} • {{ "{:,.0f}".format(collected_val) }}đ</span>
+                                            <button class="pay-undo-btn" onclick="showCollectors(this)" title="Đổi người thu">✏️</button>
+                                        </div>
+                                    {% elif is_partial %}
+                                        {# Đã thu 1 phần — còn lại chưa thu (sau gia hạn) #}
+                                        <div class="pay-done-row" style="margin-bottom:4px;">
+                                            <span class="pay-done-badge" style="background:#e8f5e9;color:#1b5e20;border:1px solid #a5d6a7;">
+                                                ✅ Đã thu: {{ "{:,.0f}".format(collected_val) }}đ
+                                            </span>
+                                            <button class="pay-undo-btn" onclick="showCollectors(this)" title="Đổi người thu">✏️</button>
+                                        </div>
+                                        <div style="display:flex;align-items:center;gap:5px;">
+                                            <span style="font-size:11px;font-weight:700;color:#c62828;flex:1;">
+                                                🔴 Còn: {{ "{:,.0f}".format(remaining_val) }}đ
+                                            </span>
+                                            <button class="btn-pay-now"
+                                                    style="padding:3px 8px;font-size:11px;background:#c62828;"
+                                                    onclick="collectRemaining(this)">💰 Thu nốt</button>
+                                        </div>
                                     {% else %}
+                                        {# Chưa thu gì #}
                                         <button class="btn-pay-now" onclick="showPayCollect(this)">💰 Thu Tiền</button>
                                     {% endif %}
                                 </div>
@@ -4747,9 +4822,20 @@ function showCollectors(btn) {
         </div>`;
 }
 
+// Collect remaining amount after partial payment (after extension)
+function collectRemaining(btn) {
+    const area = btn.closest('.pay-area');
+    const remaining = parseInt(area.dataset.remaining) || 0;
+    // Temporarily set data-amount to remaining so showPayCollect uses it
+    area.dataset.amount = remaining;
+    showPayCollect(btn);
+}
+
 // Reset to initial "Thu Tiền" button
 function resetPay(btn) {
     const area = btn.closest('.pay-area');
+    // Restore original amount in case collectRemaining changed it
+    const original = parseInt(area.dataset.amount) || 0;
     area.innerHTML = `<button class="btn-pay-now" onclick="showPayCollect(this)">💰 Thu Tiền</button>`;
 }
 
@@ -4767,7 +4853,28 @@ async function doCollect(btn, bookingId, amount, commission, collectorName) {
         const data = await resp.json();
         if (data.success) {
             const fmt = new Intl.NumberFormat('vi-VN').format(amount);
-            area.innerHTML = `<div class="pay-done-row"><span class="pay-done-badge">✅ ${collectorName} • ${fmt}đ</span><button class="pay-undo-btn" onclick="showCollectors(this)" title="Đổi người thu">✏️</button></div>`;
+            const totalAmt  = parseInt(area.dataset.amount) || amount;
+            const newCollected = data.new_collected || amount;
+            const newRemaining = totalAmt - newCollected;
+            let newHtml = '';
+            if (newRemaining > 100) {
+                // Still partial after this collection
+                const fmtColl = new Intl.NumberFormat('vi-VN').format(newCollected);
+                const fmtRem  = new Intl.NumberFormat('vi-VN').format(newRemaining);
+                newHtml = `
+                  <div class="pay-done-row" style="margin-bottom:4px;">
+                    <span class="pay-done-badge" style="background:#e8f5e9;color:#1b5e20;border:1px solid #a5d6a7;">✅ Đã thu: ${fmtColl}đ</span>
+                    <button class="pay-undo-btn" onclick="showCollectors(this)">✏️</button>
+                  </div>
+                  <div style="display:flex;align-items:center;gap:5px;">
+                    <span style="font-size:11px;font-weight:700;color:#c62828;flex:1;">🔴 Còn: ${fmtRem}đ</span>
+                    <button class="btn-pay-now" style="padding:3px 8px;font-size:11px;background:#c62828;" onclick="collectRemaining(this)">💰 Thu nốt</button>
+                  </div>`;
+            } else {
+                newHtml = `<div class="pay-done-row"><span class="pay-done-badge">✅ ${collectorName} • ${fmt}đ</span><button class="pay-undo-btn" onclick="showCollectors(this)" title="Đổi người thu">✏️</button></div>`;
+            }
+            area.dataset.remaining = Math.max(0, newRemaining);
+            area.innerHTML = newHtml;
             showCalToast('✅ Thu tiền thành công — ' + collectorName, 'success');
             // Fade out summary panel cards after payment
             const summaryCard = area.closest('[data-summary-card]');
