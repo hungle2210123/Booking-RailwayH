@@ -7585,8 +7585,13 @@ def collect_payment():
         
         # ALWAYS update collector AND collected_amount for both taxi and room payments
         update_data['collector'] = collector_name
-        update_data['collected_amount'] = float(collected_amount)  # 💰 CRITICAL: Save actual collected amount
-        print(f"[COLLECT_PAYMENT] 💰 Setting collected_amount to: {collected_amount}")
+
+        # 💰 CUMULATIVE: Add new payment to existing collected_amount (don't overwrite)
+        existing_booking = Booking.query.get(booking_id)
+        existing_collected = float(existing_booking.collected_amount or 0) if existing_booking else 0
+        total_collected = existing_collected + float(collected_amount)
+        update_data['collected_amount'] = total_collected
+        print(f"[COLLECT_PAYMENT] 💰 Cumulative collected: {existing_collected} + {collected_amount} = {total_collected}")
         print(f"[COLLECT_PAYMENT] ✅ Valid collector confirmed: {collector_name}")
 
         # 🆕 UPDATE commission_status based on commission decision
@@ -7664,10 +7669,10 @@ def collect_payment():
                     'success': True,
                     'message': f'✅ Thu tiền thành công! {update_summary}',
                     'commission_status': commission_status,
-                    'new_collected': collected_amount,  # For partial payment display
+                    'new_collected': total_collected,  # Cumulative total collected
                     'refresh_bookings': True,
                     'updated_data': {
-                        'collected_amount': collected_amount,
+                        'collected_amount': total_collected,
                         'commission_amount': commission_amount,
                         'taxi_amount': taxi_amount,
                         'booking_id': booking_id,

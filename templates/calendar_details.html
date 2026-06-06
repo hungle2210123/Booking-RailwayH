@@ -1447,6 +1447,8 @@ setInterval(loadVbCd, 5 * 60 * 1000);
                                      id="pay-{{ booking.get('Số đặt phòng', '') }}"
                                      data-booking-id="{{ booking.get('Số đặt phòng', '') }}"
                                      data-amount="{{ total_payment|int }}"
+                                     data-total="{{ total_payment|int }}"
+                                     data-collected="{{ collected_val|int }}"
                                      data-remaining="{{ remaining_val }}"
                                      data-commission="{{ commission|int }}">
                                     {% if is_full_paid %}
@@ -1625,6 +1627,8 @@ setInterval(loadVbCd, 5 * 60 * 1000);
                                      id="pay-{{ booking.get('Số đặt phòng', '') }}"
                                      data-booking-id="{{ booking.get('Số đặt phòng', '') }}"
                                      data-amount="{{ total_payment|int }}"
+                                     data-total="{{ total_payment|int }}"
+                                     data-collected="{{ collected_val|int }}"
                                      data-remaining="{{ remaining_val }}"
                                      data-commission="{{ commission|int }}">
                                     {% if is_full_paid %}
@@ -1790,6 +1794,8 @@ setInterval(loadVbCd, 5 * 60 * 1000);
                                      id="pay-{{ booking.get('Số đặt phòng', '') }}"
                                      data-booking-id="{{ booking.get('Số đặt phòng', '') }}"
                                      data-amount="{{ total_payment|int }}"
+                                     data-total="{{ total_payment|int }}"
+                                     data-collected="{{ collected_val|int }}"
                                      data-remaining="{{ remaining_val }}"
                                      data-commission="{{ commission|int }}">
                                     {% if is_full_paid %}
@@ -4853,9 +4859,15 @@ async function doCollect(btn, bookingId, amount, commission, collectorName) {
         const data = await resp.json();
         if (data.success) {
             const fmt = new Intl.NumberFormat('vi-VN').format(amount);
-            const totalAmt  = parseInt(area.dataset.amount) || amount;
+            // Use data-total (full booking amount) — never overwritten by collectRemaining()
+            const totalBookingAmt = parseInt(area.dataset.total) || parseInt(area.dataset.amount) || amount;
+            // API returns CUMULATIVE collected (existing + new payment)
             const newCollected = data.new_collected || amount;
-            const newRemaining = totalAmt - newCollected;
+            const newRemaining = totalBookingAmt - newCollected;
+            // Update data attributes so subsequent Thu nốt clicks are correct
+            area.dataset.collected = newCollected;
+            area.dataset.remaining = Math.max(0, newRemaining);
+            area.dataset.amount = totalBookingAmt; // restore in case collectRemaining() changed it
             let newHtml = '';
             if (newRemaining > 100) {
                 // Still partial after this collection
@@ -4871,9 +4883,9 @@ async function doCollect(btn, bookingId, amount, commission, collectorName) {
                     <button class="btn-pay-now" style="padding:3px 8px;font-size:11px;background:#c62828;" onclick="collectRemaining(this)">💰 Thu nốt</button>
                   </div>`;
             } else {
-                newHtml = `<div class="pay-done-row"><span class="pay-done-badge">✅ ${collectorName} • ${fmt}đ</span><button class="pay-undo-btn" onclick="showCollectors(this)" title="Đổi người thu">✏️</button></div>`;
+                const fmtTotal = new Intl.NumberFormat('vi-VN').format(newCollected);
+                newHtml = `<div class="pay-done-row"><span class="pay-done-badge">✅ ${collectorName} • ${fmtTotal}đ</span><button class="pay-undo-btn" onclick="showCollectors(this)" title="Đổi người thu">✏️</button></div>`;
             }
-            area.dataset.remaining = Math.max(0, newRemaining);
             area.innerHTML = newHtml;
             showCalToast('✅ Thu tiền thành công — ' + collectorName, 'success');
             // Fade out summary panel cards after payment
