@@ -4255,14 +4255,16 @@ def calendar_details(date_str):
             _cutoff   = _vn_today - timedelta(days=7)
             _od_df    = load_booking_data(force_fresh=False)
 
-            # Fetch checkin_status for no-show filtering
+            # Fetch checkin_status AND arrival_confirmed for no-show filtering
             _od_cs_map = {}
+            _od_ac_map = {}  # arrival_confirmed map: booking_id -> bool
             try:
                 from core.models import db as _oddb
-                _od_cs_rows = _oddb.session.execute(
-                    text("SELECT booking_id, checkin_status FROM bookings WHERE checkin_status IS NOT NULL")
+                _od_rows = _oddb.session.execute(
+                    text("SELECT booking_id, checkin_status, arrival_confirmed FROM bookings")
                 ).fetchall()
-                _od_cs_map = {r[0]: r[1] for r in _od_cs_rows}
+                _od_cs_map = {r[0]: r[1] for r in _od_rows if r[1]}
+                _od_ac_map = {r[0]: bool(r[2]) for r in _od_rows}
             except Exception:
                 pass
 
@@ -4292,13 +4294,16 @@ def calendar_details(date_str):
                     if any(k in _bstatus for k in ['hủy', 'cancel', 'delet', 'xóa']):
                         continue
 
-                    # Skip cancelling status
+                    # Skip cancelling / no_show status
                     _bid = str(_row.get('Số đặt phòng', '') or '')
                     _cs  = str(_od_cs_map.get(_bid, '') or '')
-                    if _cs == 'cancelling':
+                    if _cs in ('cancelling', 'no_show'):
                         continue
 
-                    # already left — skip no-show filter (they were real)
+                    # 🚫 Skip no-shows: arrival was never confirmed = guest never actually arrived
+                    _arrived = _od_ac_map.get(_bid, False)
+                    if not _arrived:
+                        continue  # No arrival confirmation → no-show, not a real unpaid checkout
 
                     _ci = _row.get('Check-in Date')
                     _ci_date = pd.Timestamp(_ci).date() if pd.notna(_ci) else _vn_today
@@ -7520,6 +7525,27 @@ def test_gemini_api():
             'success': False,
             'message': f'Gemini API error: {str(e)}'
         }), 500
+
+@app.route('/api/mark_no_show', methods=['POST'])
+def mark_no_show():
+    """Mark a booking as no-show — sets checkin_status='no_show' so it stops appearing in overdue panel"""
+    try:
+        data = request.get_json() or {}
+        booking_id = data.get('booking_id')
+        if not booking_id:
+            return jsonify({'success': False, 'message': 'Thiếu booking_id'}), 400
+        booking = Booking.query.get(booking_id)
+        if not booking:
+            return jsonify({'success': False, 'message': 'Không tìm thấy booking'}), 404
+        booking.checkin_status = 'no_show'
+        booking.arrival_confirmed = False
+        db.session.commit()
+        print(f"[MARK_NO_SHOW] Booking {booking_id} marked as no_show")
+        return jsonify({'success': True, 'message': 'Đã đánh dấu không đến'})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': str(e)}), 500
+
 
 @app.route('/api/collect_payment', methods=['POST'])
 def collect_payment():

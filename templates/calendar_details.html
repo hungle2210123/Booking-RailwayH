@@ -551,8 +551,17 @@ setInterval(loadVbCd, 5 * 60 * 1000);
                         <div class="pay-area" id="pay-{{ bid }}"
                              data-booking-id="{{ bid }}"
                              data-amount="{{ amt|int }}"
+                             data-total="{{ amt|int }}"
+                             data-collected="0"
+                             data-remaining="{{ amt|int }}"
                              data-commission="0">
                             <button class="btn-pay-now" onclick="showPayCollect(this)">💰 Thu Tiền</button>
+                        </div>
+                        <div style="margin-top:4px;">
+                            <button onclick="markNoShow(this,'{{ bid }}')"
+                                style="width:100%;padding:3px 6px;font-size:.72rem;background:none;border:1px solid #94a3b8;border-radius:5px;color:#64748b;cursor:pointer;">
+                                🚫 Không đến (bỏ qua)
+                            </button>
                         </div>
                     </div>
                     {% endfor %}
@@ -4829,6 +4838,39 @@ function showCollectors(btn) {
 }
 
 // Collect remaining amount after partial payment (after extension)
+function markNoShow(btn, bookingId) {
+    if (!confirm('Xác nhận khách này không đến?\nCard sẽ bị ẩn khỏi danh sách chưa thu.')) return;
+    btn.disabled = true;
+    btn.textContent = '⏳';
+    fetch('/api/mark_no_show', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ booking_id: bookingId })
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            const card = btn.closest('[data-summary-card]');
+            if (card) {
+                card.style.transition = 'opacity 0.4s, transform 0.4s';
+                card.style.opacity = '0';
+                card.style.transform = 'scale(0.9)';
+                setTimeout(() => card.remove(), 400);
+            }
+            showCalToast('🚫 Đã đánh dấu không đến', 'info');
+        } else {
+            btn.disabled = false;
+            btn.textContent = '🚫 Không đến (bỏ qua)';
+            showCalToast('❌ ' + (data.message || 'Lỗi'), 'error');
+        }
+    })
+    .catch(() => {
+        btn.disabled = false;
+        btn.textContent = '🚫 Không đến (bỏ qua)';
+        showCalToast('❌ Lỗi kết nối', 'error');
+    });
+}
+
 function collectRemaining(btn) {
     const area = btn.closest('.pay-area');
     const remaining = parseInt(area.dataset.remaining) || 0;
