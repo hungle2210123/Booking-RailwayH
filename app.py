@@ -7530,20 +7530,24 @@ def test_gemini_api():
 def mark_no_show():
     """Mark a booking as no-show — sets checkin_status='no_show' so it stops appearing in overdue panel"""
     try:
+        from core.models import Booking as _BM, db as _db
         data = request.get_json() or {}
         booking_id = data.get('booking_id')
         if not booking_id:
             return jsonify({'success': False, 'message': 'Thiếu booking_id'}), 400
-        booking = Booking.query.get(booking_id)
+        booking = _BM.query.get(booking_id)
         if not booking:
             return jsonify({'success': False, 'message': 'Không tìm thấy booking'}), 404
         booking.checkin_status = 'no_show'
         booking.arrival_confirmed = False
-        db.session.commit()
+        _db.session.commit()
         print(f"[MARK_NO_SHOW] Booking {booking_id} marked as no_show")
         return jsonify({'success': True, 'message': 'Đã đánh dấu không đến'})
     except Exception as e:
-        db.session.rollback()
+        try:
+            from core.models import db as _db2; _db2.session.rollback()
+        except Exception:
+            pass
         return jsonify({'success': False, 'message': str(e)}), 500
 
 
@@ -7613,7 +7617,8 @@ def collect_payment():
         update_data['collector'] = collector_name
 
         # 💰 CUMULATIVE: Add new payment to existing collected_amount (don't overwrite)
-        existing_booking = Booking.query.get(booking_id)
+        from core.models import Booking as _BookingModel
+        existing_booking = _BookingModel.query.get(booking_id)
         existing_collected = float(existing_booking.collected_amount or 0) if existing_booking else 0
         total_collected = existing_collected + float(collected_amount)
         update_data['collected_amount'] = total_collected
