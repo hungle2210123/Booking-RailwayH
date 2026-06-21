@@ -7575,10 +7575,17 @@ def hidden_guests_for_date():
                    checkin_date, checkout_date, room_amount,
                    checkin_status, arrival_confirmed, booking_status
             FROM bookings
-            WHERE DATE(checkin_date) <= :d AND DATE(checkout_date) > :d
-              AND (booking_status IS NULL OR booking_status NOT IN ('cancelled','deleted','huy','xoa'))
-              AND (arrival_confirmed IS FALSE OR arrival_confirmed IS NULL
-                   OR checkin_status IN ('no_show','cancelling'))
+            WHERE (booking_status IS NULL OR booking_status NOT IN ('cancelled','deleted','huy','xoa'))
+              AND (
+                -- Case 1: check-in is on the viewed date but never confirmed (truly missed)
+                (DATE(checkin_date) = :d
+                 AND (checkin_status IS NULL OR checkin_status = '')
+                 AND (arrival_confirmed IS NULL OR arrival_confirmed IS FALSE))
+                OR
+                -- Case 2: explicitly marked no_show or cancelling (touches the date range)
+                (DATE(checkin_date) <= :d AND DATE(checkout_date) > :d
+                 AND checkin_status IN ('no_show', 'cancelling'))
+              )
         """), {'d': target}).fetchall()
 
         guests = []
