@@ -41,6 +41,16 @@
                                 Ngày mai <i class="fas fa-chevron-right"></i>
                             </a>
                         </div>
+                        <!-- 👻 Khách bị ẩn button — luôn hiển thị -->
+                        <button onclick="openHiddenModal()" id="btn-hidden-guests"
+                            style="width:100%;margin-top:6px;padding:5px;font-size:.75rem;
+                                   background:#f5f3ff;border:1.5px solid #7c3aed;border-radius:6px;
+                                   color:#6d28d9;cursor:pointer;font-weight:600;display:flex;
+                                   align-items:center;justify-content:center;gap:5px;">
+                            👻 Khách bị ẩn
+                            <span id="hidden-count-badge" style="display:none;background:#7c3aed;color:#fff;
+                                border-radius:10px;padding:0 7px;font-size:.68rem;">0</span>
+                        </button>
                     </div>
 
                     <!-- ③ Lịch mini tháng — xuống dưới -->
@@ -4882,6 +4892,83 @@ function toggleHiddenPanel() {
     if (panel) panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
 }
 
+// ── 👻 Hidden guests modal (queries DB directly for the viewed date) ──
+const _HIDDEN_DATE = '{{ date.strftime("%Y-%m-%d") }}';
+
+function openHiddenModal() {
+    const modal = document.getElementById('hidden-guests-modal');
+    modal.style.display = 'flex';
+    loadHiddenGuests();
+}
+
+function closeHiddenModal() {
+    document.getElementById('hidden-guests-modal').style.display = 'none';
+}
+
+function loadHiddenGuests() {
+    const body = document.getElementById('hidden-modal-body');
+    body.innerHTML = '<div style="text-align:center;padding:30px;color:#888;"><i class="fas fa-spinner fa-spin"></i> Đang tải...</div>';
+    fetch('/api/hidden_guests_for_date?date=' + _HIDDEN_DATE)
+    .then(r => r.json())
+    .then(data => {
+        const guests = data.guests || [];
+        const badge = document.getElementById('hidden-count-badge');
+        if (guests.length > 0) {
+            badge.textContent = guests.length;
+            badge.style.display = 'inline';
+        } else {
+            badge.style.display = 'none';
+        }
+        if (guests.length === 0) {
+            body.innerHTML = '<div style="text-align:center;padding:30px;color:#888;">✅ Không có khách bị ẩn nào cho ngày này</div>';
+            return;
+        }
+        body.innerHTML = guests.map(g => `
+            <div data-hid="${g.bid}" style="background:#fff;border:1.5px solid #c4b5fd;border-radius:10px;padding:12px 16px;margin-bottom:10px;display:flex;align-items:center;gap:12px;">
+                <div style="flex:1;">
+                    <div style="font-weight:700;font-size:.95rem;color:#1e293b;">${g.name}</div>
+                    <div style="font-size:.75rem;color:#64748b;margin-top:2px;">
+                        🏠 ${g.room || '—'} &nbsp;|&nbsp; 📅 ${g.ci} → ${g.co}
+                        <span style="margin-left:6px;background:#ede9fe;color:#6d28d9;border-radius:4px;padding:0 6px;font-size:.7rem;">${g.status_label}</span>
+                    </div>
+                    <div style="font-size:.82rem;font-weight:700;color:#374151;margin-top:4px;">${Number(g.amount).toLocaleString('vi-VN')}đ</div>
+                </div>
+                <button onclick="restoreGuestModal(this,'${g.bid}')"
+                    style="padding:7px 14px;font-size:.8rem;background:#7c3aed;color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:700;white-space:nowrap;">
+                    ✅ Khôi phục
+                </button>
+            </div>
+        `).join('');
+    })
+    .catch(() => {
+        body.innerHTML = '<div style="text-align:center;padding:30px;color:#e53935;">❌ Lỗi kết nối</div>';
+    });
+}
+
+function restoreGuestModal(btn, bookingId) {
+    btn.disabled = true;
+    btn.textContent = '⏳';
+    fetch('/api/restore_arrival', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ booking_id: bookingId })
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            const card = document.querySelector('[data-hid="' + bookingId + '"]');
+            if (card) { card.style.opacity='0'; card.style.transition='opacity .3s'; setTimeout(()=>card.remove(),300); }
+            showCalToast('✅ Đã khôi phục — tải lại trang...', 'success');
+            setTimeout(() => location.reload(), 1200);
+        } else {
+            btn.disabled = false;
+            btn.textContent = '✅ Khôi phục';
+            showCalToast('❌ ' + (data.message || 'Lỗi'), 'error');
+        }
+    })
+    .catch(() => { btn.disabled=false; btn.textContent='✅ Khôi phục'; showCalToast('❌ Lỗi','error'); });
+}
+
 function restoreGuest(btn, bookingId) {
     btn.disabled = true;
     btn.textContent = '⏳';
@@ -6005,6 +6092,26 @@ function showQuickToast(msg, type) {
         ✅ Đã sao chép! Dán vào Zalo / WhatsApp để gửi.
     </div>
   </div>
+</div>
+
+<!-- 👻 HIDDEN GUESTS MODAL -->
+<div id="hidden-guests-modal" style="display:none;position:fixed;inset:0;z-index:9999;
+     background:rgba(0,0,0,.5);align-items:center;justify-content:center;">
+    <div style="background:#fff;border-radius:14px;width:min(560px,95vw);max-height:80vh;
+                display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.3);">
+        <div style="padding:16px 20px;border-bottom:1px solid #e2e8f0;display:flex;align-items:center;gap:10px;">
+            <span style="font-size:1.3rem;">👻</span>
+            <div style="flex:1;">
+                <div style="font-weight:700;font-size:1rem;color:#5b21b6;">Khách bị ẩn – {{ date.strftime('%d/%m/%Y') }}</div>
+                <div style="font-size:.75rem;color:#64748b;margin-top:1px;">Khách chưa xác nhận đến hoặc đã đánh dấu không đến</div>
+            </div>
+            <button onclick="closeHiddenModal()" style="background:none;border:none;font-size:1.3rem;color:#64748b;cursor:pointer;padding:0 4px;">✕</button>
+        </div>
+        <div id="hidden-modal-body" style="padding:16px 20px;overflow-y:auto;flex:1;"></div>
+        <div style="padding:12px 20px;border-top:1px solid #e2e8f0;text-align:right;">
+            <button onclick="closeHiddenModal()" style="padding:6px 18px;background:#f1f5f9;border:1px solid #e2e8f0;border-radius:7px;cursor:pointer;font-size:.85rem;">Đóng</button>
+        </div>
+    </div>
 </div>
 
 {% endblock %}

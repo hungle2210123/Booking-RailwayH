@@ -7557,6 +7557,54 @@ def test_gemini_api():
             'message': f'Gemini API error: {str(e)}'
         }), 500
 
+@app.route('/api/hidden_guests_for_date', methods=['GET'])
+def hidden_guests_for_date():
+    """Query DB directly for bookings touching the given date that are hidden (no arrival confirmation)."""
+    try:
+        from core.models import db as _db
+        date_str = request.args.get('date', '')
+        if not date_str:
+            return jsonify({'guests': []})
+        try:
+            target = datetime.strptime(date_str, '%Y-%m-%d').date()
+        except ValueError:
+            return jsonify({'guests': [], 'error': 'Invalid date'}), 400
+
+        rows = _db.session.execute(text("""
+            SELECT booking_id, guest_name, accommodation_name,
+                   checkin_date, checkout_date, room_amount,
+                   checkin_status, arrival_confirmed, booking_status
+            FROM bookings
+            WHERE DATE(checkin_date) <= :d AND DATE(checkout_date) > :d
+              AND (booking_status IS NULL OR booking_status NOT IN ('cancelled','deleted','huy','xoa'))
+              AND (arrival_confirmed IS FALSE OR arrival_confirmed IS NULL
+                   OR checkin_status IN ('no_show','cancelling'))
+        """), {'d': target}).fetchall()
+
+        guests = []
+        for r in rows:
+            st = r[6] or ''
+            ac = r[7]
+            label = 'Không đến' if st == 'no_show' else ('Huỷ' if st == 'cancelling' else 'Chưa xác nhận')
+            try:
+                ci = r[3].strftime('%d/%m') if r[3] else ''
+                co = r[4].strftime('%d/%m') if r[4] else ''
+            except Exception:
+                ci = co = ''
+            guests.append({
+                'bid':         str(r[0]),
+                'name':        r[1] or 'N/A',
+                'room':        r[2] or '',
+                'ci':          ci,
+                'co':          co,
+                'amount':      float(r[5] or 0),
+                'status_label': label,
+            })
+        return jsonify({'guests': guests})
+    except Exception as e:
+        return jsonify({'guests': [], 'error': str(e)}), 500
+
+
 @app.route('/api/restore_arrival', methods=['POST'])
 def restore_arrival():
     """Restore a hidden guest: set checkin_status='confirmed' + arrival_confirmed=True"""
