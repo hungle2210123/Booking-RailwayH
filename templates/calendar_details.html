@@ -573,6 +573,45 @@ setInterval(loadVbCd, 5 * 60 * 1000);
     </div>
     {% endif %}
 
+    <!-- 👻 HIDDEN GUESTS RESTORE PANEL -->
+    {%- set hidden_guests = hidden_guests if hidden_guests is defined else [] -%}
+    {% if hidden_guests|length > 0 %}
+    <div class="card border-0 shadow-sm mb-4" style="background:#f8f9ff;border-left:4px solid #7c3aed!important;">
+        <div class="card-body py-2 px-4">
+            <div class="d-flex align-items-center gap-2" style="cursor:pointer;" onclick="toggleHiddenPanel()">
+                <span style="font-size:1rem;">👻</span>
+                <span style="font-weight:700;color:#5b21b6;font-size:.9rem;">
+                    Khách bị ẩn – chưa xác nhận đến
+                    <span style="background:#7c3aed;color:#fff;border-radius:10px;padding:1px 8px;font-size:.75rem;margin-left:4px;">{{ hidden_guests|length }}</span>
+                </span>
+                <span style="margin-left:auto;font-size:.75rem;color:#7c3aed;">▼ Bấm để xem / khôi phục</span>
+            </div>
+            <div id="hidden-guests-panel" style="display:none;margin-top:10px;">
+                <div style="font-size:.78rem;color:#6d28d9;margin-bottom:8px;padding:6px 10px;background:#ede9fe;border-radius:6px;">
+                    ⚠️ Những khách này bị ẩn vì chưa được bấm <b>"Xác nhận đến"</b>. Nếu khách có thật, bấm <b>Khôi phục</b> để hiển thị lại.
+                </div>
+                <div class="d-flex flex-wrap gap-2">
+                {% for hg in hidden_guests %}
+                <div style="background:#fff;border:1px solid #c4b5fd;border-radius:8px;padding:8px 12px;min-width:190px;max-width:230px;">
+                    <div style="font-weight:700;font-size:.85rem;color:#1e293b;margin-bottom:2px;">{{ hg.name }}</div>
+                    {% if hg.room %}<div style="font-size:.72rem;color:#64748b;margin-bottom:2px;"><i class="fas fa-door-open me-1"></i>{{ hg.room }}</div>{% endif %}
+                    <div style="font-size:.72rem;color:#64748b;margin-bottom:4px;">
+                        <i class="fas fa-calendar me-1"></i>{{ hg.ci }} → {{ hg.co }}
+                        <span style="margin-left:6px;background:#ede9fe;color:#6d28d9;border-radius:4px;padding:0 5px;font-size:.68rem;">{{ hg.section }}</span>
+                    </div>
+                    <div style="font-size:.88rem;font-weight:700;color:#374151;margin-bottom:6px;">{{ "{:,.0f}".format(hg.amount) }}đ</div>
+                    <button onclick="restoreGuest(this,'{{ hg.bid }}')"
+                        style="width:100%;padding:4px;font-size:.75rem;background:#7c3aed;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600;">
+                        ✅ Khôi phục
+                    </button>
+                </div>
+                {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
     <!-- 🎯 THREE COLUMN LAYOUT: Cards stack vertically in each section -->
     <style>
         /* Force row to not have negative margins - touch the container edges */
@@ -4838,6 +4877,50 @@ function showCollectors(btn) {
 }
 
 // Collect remaining amount after partial payment (after extension)
+function toggleHiddenPanel() {
+    const panel = document.getElementById('hidden-guests-panel');
+    if (panel) panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+}
+
+function restoreGuest(btn, bookingId) {
+    btn.disabled = true;
+    btn.textContent = '⏳';
+    fetch('/api/restore_arrival', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ booking_id: bookingId })
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            const card = btn.closest('div[style*="border:1px solid #c4b5fd"]');
+            if (card) {
+                card.style.transition = 'opacity 0.4s';
+                card.style.opacity = '0';
+                setTimeout(() => {
+                    card.remove();
+                    // If no more hidden guests, reload to show restored guest in main sections
+                    const panel = document.getElementById('hidden-guests-panel');
+                    if (panel && panel.querySelectorAll('button').length === 0) {
+                        location.reload();
+                    }
+                }, 400);
+            }
+            showCalToast('✅ Đã khôi phục — trang sẽ tải lại', 'success');
+            setTimeout(() => location.reload(), 1200);
+        } else {
+            btn.disabled = false;
+            btn.textContent = '✅ Khôi phục';
+            showCalToast('❌ ' + (data.message || 'Lỗi'), 'error');
+        }
+    })
+    .catch(() => {
+        btn.disabled = false;
+        btn.textContent = '✅ Khôi phục';
+        showCalToast('❌ Lỗi kết nối', 'error');
+    });
+}
+
 function markNoShow(btn, bookingId) {
     if (!confirm('Xác nhận khách này không đến?\nCard sẽ bị ẩn khỏi danh sách chưa thu.')) return;
     btn.disabled = true;

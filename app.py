@@ -4061,7 +4061,10 @@ def calendar_details(date_str):
                 pass
             return True
 
-        _removed = [g.get('Tên người đặt','?') for g in staying_over if not _guest_stays_over(g)]
+        # Collect full data of hidden (unconfirmed/no-show) guests for the restore panel
+        _hidden_guests = []
+        _hidden_stay  = [g for g in staying_over if not _guest_stays_over(g)]
+        _removed = [g.get('Tên người đặt','?') for g in _hidden_stay]
         staying_over = [g for g in staying_over if _guest_stays_over(g)]
         if _removed:
             print(f"[calendar_details:{date_obj}] Removed no-show/cancelled from staying: {_removed}")
@@ -4082,10 +4085,37 @@ def calendar_details(date_str):
                 pass
             return True
 
-        _co_removed = [g.get('Tên người đặt','?') for g in check_out if not _guest_checks_out(g)]
+        _hidden_co   = [g for g in check_out if not _guest_checks_out(g)]
+        _co_removed = [g.get('Tên người đặt','?') for g in _hidden_co]
         check_out = [g for g in check_out if _guest_checks_out(g)]
         if _co_removed:
             print(f"[calendar_details:{date_obj}] Removed no-show/cancelled from checkout: {_co_removed}")
+
+        # Build hidden_guests list (unconfirmed only — skip 'cancelling' which are true cancels)
+        _seen_hidden = set()
+        for _hg in (_hidden_stay + _hidden_co):
+            _hbid = str(_hg.get('Số đặt phòng', '') or '')
+            if not _hbid or _hbid in _seen_hidden:
+                continue
+            _hst = _all_status_map.get(_hbid, '')
+            if _hst == 'cancelling':  # true cancellation — don't show in restore panel
+                continue
+            _seen_hidden.add(_hbid)
+            try:
+                _hci = pd.Timestamp(_hg.get('Check-in Date')).date() if pd.notna(_hg.get('Check-in Date')) else None
+                _hco = pd.Timestamp(_hg.get('Check-out Date')).date() if pd.notna(_hg.get('Check-out Date')) else None
+            except Exception:
+                _hci = _hco = None
+            _hidden_guests.append({
+                'bid':   _hbid,
+                'name':  _hg.get('Tên người đặt', 'N/A'),
+                'room':  _hg.get('Tên chỗ nghỉ', ''),
+                'ci':    _hci.strftime('%d/%m') if _hci else '',
+                'co':    _hco.strftime('%d/%m') if _hco else '',
+                'amount': float(_hg.get('Tổng thanh toán', 0) or 0),
+                'section': 'Đang ở' if _hg in _hidden_stay else 'Check-out',
+            })
+        print(f"[calendar_details:{date_obj}] hidden_guests (restorable): {[g['name'] for g in _hidden_guests]}")
 
         # ── Normalize all date fields to datetime.date so template arithmetic works ──
         # Bookings can come from different sources (df_local with .date() OR _extra2 with
@@ -4347,6 +4377,7 @@ def calendar_details(date_str):
             apartments_list=apartments_list,
             apt_map=_apt_map,
             overdue_unpaid=overdue_unpaid,
+            hidden_guests=_hidden_guests,
         )
     
     except Exception as e:
@@ -7525,6 +7556,32 @@ def test_gemini_api():
             'success': False,
             'message': f'Gemini API error: {str(e)}'
         }), 500
+
+@app.route('/api/restore_arrival', methods=['POST'])
+def restore_arrival():
+    """Restore a hidden guest: set checkin_status='confirmed' + arrival_confirmed=True"""
+    try:
+        from core.models import Booking as _BM, db as _db
+        data = request.get_json() or {}
+        booking_id = data.get('booking_id')
+        if not booking_id:
+            return jsonify({'success': False, 'message': 'Thiếu booking_id'}), 400
+        booking = _BM.query.get(booking_id)
+        if not booking:
+            return jsonify({'success': False, 'message': 'Không tìm thấy booking'}), 404
+        booking.checkin_status = 'confirmed'
+        booking.arrival_confirmed = True
+        booking.arrival_confirmed_at = datetime.now()
+        _db.session.commit()
+        print(f"[RESTORE_ARRIVAL] Booking {booking_id} restored to confirmed")
+        return jsonify({'success': True, 'message': 'Đã khôi phục xác nhận đến'})
+    except Exception as e:
+        try:
+            from core.models import db as _db2; _db2.session.rollback()
+        except Exception:
+            pass
+        return jsonify({'success': False, 'message': str(e)}), 500
+
 
 @app.route('/api/mark_no_show', methods=['POST'])
 def mark_no_show():
