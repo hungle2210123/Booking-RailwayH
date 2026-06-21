@@ -7570,6 +7570,7 @@ def hidden_guests_for_date():
         except ValueError:
             return jsonify({'guests': [], 'error': 'Invalid date'}), 400
 
+        vn_today = (datetime.utcnow() + timedelta(hours=7)).date()
         rows = _db.session.execute(text("""
             SELECT booking_id, guest_name, accommodation_name,
                    checkin_date, checkout_date, room_amount,
@@ -7577,8 +7578,8 @@ def hidden_guests_for_date():
             FROM bookings
             WHERE (booking_status IS NULL OR booking_status NOT IN ('cancelled','deleted','huy','xoa'))
               AND (
-                -- Case 1: check-in is on the viewed date but never confirmed (truly missed)
-                (DATE(checkin_date) = :d
+                -- Case 1: check-in BEFORE today, unconfirmed → truly missed (hidden by no-show filter)
+                (DATE(checkin_date) = :d AND :d < :today
                  AND (checkin_status IS NULL OR checkin_status = '')
                  AND (arrival_confirmed IS NULL OR arrival_confirmed IS FALSE))
                 OR
@@ -7586,7 +7587,7 @@ def hidden_guests_for_date():
                 (DATE(checkin_date) <= :d AND DATE(checkout_date) > :d
                  AND checkin_status IN ('no_show', 'cancelling'))
               )
-        """), {'d': target}).fetchall()
+        """), {'d': target, 'today': vn_today}).fetchall()
 
         guests = []
         for r in rows:
