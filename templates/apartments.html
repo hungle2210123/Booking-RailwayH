@@ -58,6 +58,37 @@
 </div>
 
 <!-- Add Apartment Modal -->
+<!-- Delete Apartment Modal -->
+<div class="modal fade" id="deleteApartmentModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title"><i class="fas fa-trash"></i> Xoá căn hộ</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p class="mb-2">Xoá vĩnh viễn căn <b id="delAptName"></b>. Không thể hoàn tác.</p>
+                <ul class="small mb-3" id="delAptInfo"></ul>
+                <div id="delAptMoveBox" class="mb-3" style="display:none;">
+                    <label class="form-label fw-bold small" for="delAptMoveTo">Chuyển các booking của căn này sang:</label>
+                    <select class="form-select form-select-sm" id="delAptMoveTo"></select>
+                </div>
+                <div class="alert alert-secondary small py-2 mb-2">
+                    Nếu chỉ muốn ngừng dùng tạm thời, hãy bấm <b>Tạm dừng</b> thay vì xoá.
+                </div>
+                <label class="form-label small" for="delAptConfirmName">Gõ lại tên căn hộ để xác nhận:</label>
+                <input type="text" class="form-control form-control-sm" id="delAptConfirmName" autocomplete="off">
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Huỷ</button>
+                <button type="button" class="btn btn-danger" id="delAptBtn" onclick="confirmDeleteApartment()">
+                    <i class="fas fa-trash"></i> Xoá căn hộ
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <div class="modal fade" id="addApartmentModal" tabindex="-1">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
@@ -545,6 +576,10 @@ function displayApartments(apartments) {
                            class="btn btn-sm btn-outline-info">
                             <i class="fas fa-calendar"></i> Xem lịch
                         </a>
+                        <button class="btn btn-sm btn-outline-danger"
+                                onclick="startDeleteApartment(${apt.apartment_id})" title="Xoá căn hộ này">
+                            <i class="fas fa-trash"></i> Xoá
+                        </button>
                     </div>
                 </div>
             </div>
@@ -881,6 +916,87 @@ function toggleApartment(apartmentId, currentStatus) {
 // Show error message
 function showError(message) {
     alert(`❌ ${message}`);
+}
+
+// ============================================================
+// DELETE APARTMENT (e.g. one added by mistake)
+// ============================================================
+let deletingApartmentId = null;
+
+function escHtml(s) {
+    return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+function startDeleteApartment(apartmentId) {
+    fetch(`/api/apartments/${apartmentId}/delete_check`)
+        .then(r => r.json())
+        .then(data => {
+            if (!data.success) { alert(`❌ Lỗi: ${data.error}`); return; }
+            deletingApartmentId = apartmentId;
+            const r = data.refs;
+            document.getElementById('delAptName').textContent = data.apartment;
+
+            let info = `<li>${r.rooms} phòng của căn này sẽ bị xoá theo.</li>`;
+            if (r.placed) info += `<li><b>${r.placed} booking</b> đang được xếp vào căn này`
+                                + (r.placed_upcoming ? ` (<b class="text-danger">${r.placed_upcoming} booking chưa trả phòng</b>)` : '') + `.</li>`;
+            if (r.linked) info += `<li>${r.linked} booking có gắn mã căn hộ này.</li>`;
+            if (r.by_room) info += `<li>${r.by_room} booking gắn với phòng của căn này sẽ được bỏ gắn phòng.</li>`;
+            if (!r.placed && !r.linked && !r.by_room) info += `<li>Không có booking nào dùng căn này — xoá an toàn.</li>`;
+            document.getElementById('delAptInfo').innerHTML = info;
+
+            const moveBox = document.getElementById('delAptMoveBox');
+            const sel = document.getElementById('delAptMoveTo');
+            if (data.needs_move) {
+                sel.innerHTML = '<option value="">— Chọn căn để chuyển booking sang —</option>'
+                    + data.other_apartments.map(a =>
+                        `<option value="${a.id}">${escHtml(a.name)}${a.is_active ? '' : ' (tạm dừng)'}</option>`).join('')
+                    + '<option value="__none__">Không chuyển — bỏ trống căn của các booking này</option>';
+                moveBox.style.display = '';
+            } else {
+                sel.innerHTML = '';
+                moveBox.style.display = 'none';
+            }
+            document.getElementById('delAptConfirmName').value = '';
+            document.getElementById('delAptConfirmName').placeholder = data.apartment;
+            new bootstrap.Modal(document.getElementById('deleteApartmentModal')).show();
+        })
+        .catch(err => alert(`❌ Lỗi kết nối: ${err.message}`));
+}
+
+function confirmDeleteApartment() {
+    const norm = s => s.trim().replace(/\s+/g, ' ').toLowerCase();
+    const name = document.getElementById('delAptName').textContent;
+    const typed = document.getElementById('delAptConfirmName').value;
+    if (norm(typed) !== norm(name)) {
+        alert('Gõ đúng tên căn hộ để xác nhận xoá.');
+        return;
+    }
+    const body = {};
+    const moveBox = document.getElementById('delAptMoveBox');
+    if (moveBox.style.display !== 'none') {
+        const v = document.getElementById('delAptMoveTo').value;
+        if (!v) { alert('Chọn căn để chuyển các booking sang (hoặc chọn "Không chuyển").'); return; }
+        body.move_bookings_to = v === '__none__' ? null : parseInt(v);
+    }
+    const btn = document.getElementById('delAptBtn');
+    btn.disabled = true;
+    fetch(`/api/apartments/${deletingApartmentId}`, {
+        method: 'DELETE',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(body)
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            bootstrap.Modal.getInstance(document.getElementById('deleteApartmentModal')).hide();
+            alert(`✅ ${data.message}` + (data.moved ? `\nĐã chuyển ${data.moved} booking.` : ''));
+            loadApartments();
+        } else {
+            alert(`❌ Lỗi: ${data.error}`);
+        }
+    })
+    .catch(err => alert(`❌ Lỗi kết nối: ${err.message}`))
+    .finally(() => { btn.disabled = false; });
 }
 
 // ============================================================

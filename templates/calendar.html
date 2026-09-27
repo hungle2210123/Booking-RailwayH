@@ -142,6 +142,9 @@
             .chip-ok   { background:#f0fdf4;color:#16a34a;border:1px solid #bbf7d0; }
             .chip-warn { background:#fffbeb;color:#b45309;border:1px solid #fde68a; }
             .chip-full { background:#fef2f2;color:#dc2626;border:1px solid #fecaca; }
+            .chip-pend { background:#fff7ed;color:#c2410c;border:1px dashed #fb923c; }
+            .vb-apt-cell.over { background:#fef2f2;border-radius:4px; }
+            .vb-over { font-size:8px;font-weight:900;color:#fff;background:#dc2626;border-radius:3px;padding:0 3px; }
             </style>
 
             <script>
@@ -160,19 +163,25 @@
                   let html = '<div style="display:flex;width:100%;">';
                   d.days.forEach(day => {
                     const free = day.total_free;
-                    const isFull  = free === 0;
-                    const isAlert = !isFull && free <= THRESHOLD;
-                    const isHot   = free > THRESHOLD;
+                    const pend = day.pending_count || 0;
+                    // Rooms left once guests still waiting to be confirmed/placed get a room
+                    const sellable = typeof day.sellable === 'number' ? day.sellable : free;
+                    const isFull  = sellable <= 0 || (day.over_count || 0) > 0;
+                    const isAlert = !isFull && sellable <= THRESHOLD;
+                    const isHot   = sellable > THRESHOLD;
                     const barCls  = isFull ? 'bar-full' : isAlert ? 'bar-alert' : isHot ? 'bar-hot' : 'bar-free';
-                    const chipCls = isFull ? 'chip-full' : isAlert ? 'chip-warn' : 'chip-ok';
-                    const chipTxt = isFull ? 'HẾT' : free + ' trống';
+                    const chipCls = free === 0 ? 'chip-full' : free <= THRESHOLD ? 'chip-warn' : 'chip-ok';
+                    const chipTxt = free === 0 ? 'HẾT' : free + ' trống';
+                    const pendTip = (day.pending || []).map(p => `${p.name} (${p.reason_label})`).join(', ');
+                    const pendChip = pend ? `<span class="vb-total-chip chip-pend" title="Chưa tính vào căn nào: ${pendTip.replace(/"/g, '&quot;')}">⏳ ${pend} chờ</span>` : '';
 
                     const apts = day.apts.map((apt, i) => {
                       const nCls = apt.free === 0 ? 'n-zero' : apt.free <= 1 ? 'n-alert' : 'n-free';
-                      return `<div class="vb-apt-cell">
-                        <div class="vb-apt-name">${apt.name.replace(' Hostel','').replace(' Hang Bac','').replace(' Hang Be','').replace(' Hoi Vu','')}</div>
+                      return `<div class="vb-apt-cell${apt.over > 0 ? ' over' : ''}" title="${apt.name}: ${(apt.guests || []).join(', ') || 'chưa xếp khách'}">
+                        <div class="vb-apt-name">${apt.abbr || apt.name}</div>
                         <div class="vb-apt-n ${nCls}">${apt.free}</div>
                         <div class="vb-apt-sub">/${apt.total}</div>
+                        ${apt.over > 0 ? `<div class="vb-over">VƯỢT +${apt.over}</div>` : ''}
                       </div>`;
                     }).join('');
 
@@ -180,7 +189,7 @@
                       <div class="vb-bar ${barCls}"></div>
                       <div class="vb-col-hd">
                         <div class="vb-col-lbl">${day.label}
-                          <span class="vb-total-chip ${chipCls}">${chipTxt}</span>
+                          <span class="vb-total-chip ${chipCls}">${chipTxt}</span>${pendChip}
                         </div>
                         <div class="vb-col-dt">${day.weekday} · ${day.date_display}</div>
                       </div>
@@ -493,6 +502,14 @@
                                                         (Trừ hoa hồng: {{ "{:,.0f}".format(revenue_info.total_commission) }}đ)
                                                     </small>
                                                     {% endif %}
+                                                </div>
+                                                {% endif %}
+                                                {% if two_br_checkouts and date_str in two_br_checkouts %}
+                                                <div style="margin-top:4px;text-align:center;">
+                                                    <span title="Trả phòng căn 2 phòng ngủ: {{ two_br_checkouts[date_str]|join(', ') }}"
+                                                          style="background:#7c3aed;color:#fff;border-radius:10px;padding:2px 8px;font-size:0.7rem;font-weight:800;display:inline-block;">
+                                                        🛏️ {{ two_br_checkouts[date_str]|length }} trả 2PN
+                                                    </span>
                                                 </div>
                                                 {% endif %}
                                                 {% if unpaid_by_date and date_str in unpaid_by_date %}

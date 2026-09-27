@@ -253,6 +253,30 @@ python run.py  # Test the Railway runner script locally
 - **Revenue Calculation:** Per-night distribution
 - **Commission Tracking:** Real-time analytics
 
+## 🆕 **Latest Updates (September 2026)**
+
+### **🏠 Vacancy = placement-based (`core/occupancy.py`)**
+Vacancy board (`/api/vacancy_preview`) + "Tình trạng căn hộ" bar (`/api/apartment_daily_summary`) only count a
+booking against an apartment once it is placed there (`bookings.actual_apartment`). From its arrival day on it must
+also be `checkin_status='confirmed'`. Everything else is returned as `pending` ("⏳ chờ") — never guessed from
+listing name / room_id (listing names are sold across apartments; TN bookings carry Hội Vũ room_ids).
+`over` = placed guests beyond the apartment's active room count → "VƯỢT" warning.
+`/api/apartment_placement_check` warns before placing a guest into a full apartment.
+⚠️ `send_test_email.py` still uses the old guess-based `_classify_apt` (not migrated yet).
+
+### **🛏️ 2-bedroom bookings (`core/two_bedroom.py`)**
+`bookings.two_bedroom` BOOLEAN: NULL = auto-detect from listing ("2 PN", "2 phòng ngủ", "Two-Bedroom"; "2 Giường" is
+NOT 2PN), TRUE/FALSE = manual (`/api/set_two_bedroom`). Shown as 🛏️ 2PN toggle on cards, a check-out watch panel in
+calendar_details (next 3 days) and "🛏️ N trả 2PN" badges in the month calendar.
+
+### **🗑️ Delete apartment**
+`DELETE /api/apartments/<id>` (body `move_bookings_to`: id or null) + `/api/apartments/<id>/delete_check`.
+`bookings.apartment_id` FK is RESTRICT → bookings are moved first; rooms cascade.
+
+### **📋 Message template categories**
+Renamed to numbered guest-journey categories "1 · Chào đón…" → "11 · Cảm ơn…" (sorted numerically in the UI).
+Old categories backed up in `BACKUP_BEFORE_CLEANUP/message_template_categories_2026-09-27.json`.
+
 ## 🆕 **Latest Updates (May–June 2026)**
 
 ### **🐛 Calendar Details Date-Type Bug Fix**

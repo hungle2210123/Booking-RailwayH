@@ -111,6 +111,18 @@
 .num-grn { color:#1a1a1a; }
 .num-ylw { color:#b45309; }
 .num-gry { color:#d1d5db; }
+
+/* Guests not yet confirmed / not yet placed in an apartment */
+.vbcd-pend { font-size:11px; font-weight:700; padding:2px 7px; border-radius:5px;
+             background:#fff7ed; color:#c2410c; border:1px dashed #fb923c; margin-left:4px; }
+/* Apartment with more placed guests than rooms */
+.vbcd-apt.over { background:#fef2f2; border-radius:6px; }
+.vbcd-over { font-size:10px; font-weight:900; color:#fff; background:#dc2626;
+             border-radius:4px; padding:0 4px; display:inline-block; margin-top:2px;
+             animation: vbcd-pulse 1.4s ease-in-out infinite; }
+.vbcd-warn { font-size:11px; font-weight:700; color:#b91c1c; background:#fef2f2;
+             padding:4px 10px; border-top:1px solid #fecaca; }
+@keyframes vbcd-pulse { 50% { opacity:.55; } }
 </style>
 
 <script>
@@ -127,45 +139,64 @@ function loadVbCd() {
       var now = new Date();
       var timeEl = document.getElementById('vb-cd-time');
       if (timeEl) timeEl.textContent = now.getHours()+':'+('0'+now.getMinutes()).slice(-2);
-      var today = now.toISOString().slice(0,10);
       var THRESHOLD = 3;
+      var esc = function(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){
+        return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); };
       var html = '';
       for (var i = 0; i < d.days.length; i++) {
         var day = d.days[i];
         var free = day.total_free || 0;
-        var isFull  = free === 0;
-        var isLow   = !isFull && free <= THRESHOLD;
-        var isToday = day.date === today;
-        var barCls  = isFull ? 'bar-red' : isLow ? 'bar-ylw' : free > 5 ? 'bar-grn' : 'bar-gry';
-        var cntCls  = isFull ? 'cnt-red' : isLow ? 'cnt-ylw' : 'cnt-grn';
-        var cntTxt  = isFull ? 'Hết' : free + ' trống';
+        var pend = day.pending_count || 0;
+        var over = day.over_count || 0;
+        // Rooms still sellable once the pending guests are placed (negative = short of rooms)
+        var sellable = (typeof day.sellable === 'number') ? day.sellable : free;
+        var isFull  = sellable <= 0;
+        var isLow   = !isFull && sellable <= THRESHOLD;
+        var isToday = i === 0;
+        var barCls  = (over > 0 || sellable < 0) ? 'bar-red' : isFull ? 'bar-red' : isLow ? 'bar-ylw' : sellable > 5 ? 'bar-grn' : 'bar-gry';
+        var cntCls  = free === 0 ? 'cnt-red' : free <= THRESHOLD ? 'cnt-ylw' : 'cnt-grn';
+        var cntTxt  = free === 0 ? 'Hết' : free + ' trống';
         var border  = isToday ? 'border:1.5px solid #3949ab;' : '';
+
+        var pendNames = (day.pending || []).map(function(p){ return '• ' + p.name + ' (' + p.reason_label + ')'; }).join('\n');
+        var pendHtml = pend > 0
+          ? '<span class="vbcd-pend" title="' + esc('Chưa tính vào căn nào:\n' + pendNames) + '">⏳ ' + pend + ' chờ</span>'
+          : '';
 
         var aptHtml = '';
         var apts = day.apts || [];
         for (var j = 0; j < apts.length; j++) {
           var apt  = apts[j];
-          var name = apt.name || '';
-          var abbr = name.indexOf('118') >= 0 ? '118HB'
-                   : name.indexOf('18')  >= 0 ? '18HB'
-                   : name.indexOf('25')  >= 0 ? '25HV'
-                   : name.split(' ')[0];
           var nCls = apt.free === 0 ? 'num-gry' : apt.free <= 1 ? 'num-ylw' : 'num-grn';
-          aptHtml += '<div class="vbcd-apt">'
-            + '<div class="vbcd-an">' + abbr + '</div>'
+          var guestsTip = (apt.guests && apt.guests.length) ? apt.guests.join(', ') : 'Chưa xếp khách';
+          aptHtml += '<div class="vbcd-apt' + (apt.over > 0 ? ' over' : '') + '" title="' + esc(apt.name + ': ' + guestsTip) + '">'
+            + '<div class="vbcd-an">' + esc(apt.abbr || apt.name) + '</div>'
             + '<div class="vbcd-num ' + nCls + '">' + apt.free + '</div>'
             + '<div class="vbcd-sub">/' + apt.total + '</div>'
+            + (apt.over > 0 ? '<div class="vbcd-over">VƯỢT +' + apt.over + '</div>' : '')
             + '</div>';
         }
+
+        var warn = '';
+        if (over > 0) {
+          warn = '⚠️ Có căn đang xếp quá số phòng — kiểm tra lại';
+        } else if (sellable < 0) {
+          warn = '⚠️ Thiếu ' + (-sellable) + ' phòng cho khách đang chờ xếp';
+        }
+
         html += '<a class="vbcd-row" style="' + border + '" href="/calendar_details/' + day.date + '">'
           + '<div class="vbcd-bar ' + barCls + '"></div>'
           + '<div class="vbcd-hd">'
           + '<span class="vbcd-lbl">' + day.label + '</span>'
-          + '<span class="vbcd-cnt ' + cntCls + '">' + cntTxt + '</span>'
+          + '<span><span class="vbcd-cnt ' + cntCls + '">' + cntTxt + '</span>' + pendHtml + '</span>'
           + '</div>'
           + '<div class="vbcd-apts">' + aptHtml + '</div>'
+          + (warn ? '<div class="vbcd-warn">' + warn + '</div>' : '')
           + '</a>';
       }
+      html += '<div style="font-size:10px;color:#94a3b8;line-height:1.35;padding:0 2px;">'
+        + 'Chỉ tính khách đã <b>xác nhận đến</b> và <b>chọn căn</b>. ⏳ = khách chưa xếp, rê chuột để xem tên.'
+        + '</div>';
       el.innerHTML = html;
     })
     .catch(function(e){
@@ -1233,6 +1264,67 @@ setInterval(loadVbCd, 5 * 60 * 1000);
         .apt-stat-n.s-stay { color: #1565C0; }
         .apt-stat-n.s-in   { color: #2E7D32; }
         .apt-stat-n.s-out  { color: #E64A19; }
+        /* ══ 2-BEDROOM (2PN) ══ */
+        .two-br-toggle {
+            padding: 1px 7px; border-radius: 20px; font-size: 0.58rem; font-weight: 800;
+            border: 1.5px dashed #c4b5fd; background: #fff; color: #a78bfa; cursor: pointer;
+            flex-shrink: 0; opacity: .75;
+        }
+        .two-br-toggle.on { background: #7c3aed; border: 1.5px solid #7c3aed; color: #fff; opacity: 1; }
+        .guest-card.two-br-card { border-left: 4px solid #7c3aed !important; }
+        .guest-card.two-br-alert { box-shadow: 0 0 0 2px #7c3aed, 0 4px 14px rgba(124,58,237,.25) !important; }
+        .two-br-alert-banner {
+            margin: 4px 0; padding: 3px 8px; border-radius: 6px; font-size: 0.66rem; font-weight: 800;
+            background: #ede9fe; color: #5b21b6; border: 1px solid #c4b5fd;
+        }
+        .two-br-panel {
+            margin: 0 0 14px; border: 1.5px solid #c4b5fd; border-radius: 12px; background: #faf5ff;
+            overflow: hidden;
+        }
+        .two-br-head {
+            display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap;
+            padding: 8px 14px; background: #7c3aed; color: #fff; font-weight: 800; font-size: 0.85rem;
+        }
+        .two-br-head small { font-weight: 600; opacity: .85; }
+        .two-br-list { display: flex; flex-direction: column; gap: 6px; padding: 10px 12px; }
+        .two-br-item {
+            display: flex; gap: 10px; align-items: center; background: #fff; border-radius: 9px;
+            border: 1px solid #e9d5ff; padding: 7px 10px;
+        }
+        .two-br-item.today    { border: 2px solid #dc2626; background: #fff5f5; }
+        .two-br-item.tomorrow { border: 2px solid #f59e0b; background: #fffbeb; }
+        .two-br-when {
+            min-width: 92px; text-align: center; font-size: 0.68rem; font-weight: 900; color: #5b21b6;
+            display: flex; flex-direction: column; line-height: 1.2;
+        }
+        .two-br-item.today .two-br-when    { color: #dc2626; }
+        .two-br-item.tomorrow .two-br-when { color: #b45309; }
+        .two-br-when span { font-size: 0.95rem; }
+        .two-br-main { min-width: 0; flex: 1; }
+        .two-br-name { font-weight: 800; font-size: 0.85rem; color: #1e293b; }
+        .two-br-meta { display: flex; flex-wrap: wrap; gap: 5px; align-items: center; font-size: 0.66rem; color: #64748b; }
+        .two-br-apt { color: #fff; border-radius: 10px; padding: 1px 7px; font-weight: 800; }
+        .two-br-apt.unset { background: #fff7ed; color: #c2410c; border: 1px dashed #fb923c; }
+        .two-br-unpaid { color: #dc2626; font-weight: 800; }
+        .two-br-unconf { color: #c2410c; font-weight: 700; }
+        .two-br-tip { font-size: 0.68rem; color: #6d28d9; padding: 0 14px 10px; }
+        .two-br-empty { font-size: 0.75rem; color: #94a3b8; padding: 10px 14px; }
+
+        /* Capacity state per apartment: ĐỦ (full) / VƯỢT (over capacity) */
+        .apt-cap-pill {
+            margin-left: auto; font-size: 0.62rem; font-weight: 800; white-space: nowrap;
+            padding: 2px 7px; border-radius: 10px; background: #f1f5f9; color: #475569;
+        }
+        .apt-cap-pill.full { background: #dcfce7; color: #15803d; }
+        .apt-cap-pill.over { background: #dc2626; color: #fff; animation: vbcd-pulse 1.4s ease-in-out infinite; }
+        .apt-card.cap-full { border-color: #86efac !important; background: #f0fdf4 !important; }
+        .apt-card.cap-over { border-color: #dc2626 !important; background: #fef2f2 !important;
+                             box-shadow: 0 0 0 3px rgba(220,38,38,.15); }
+        .apt-over-alert {
+            width: 100%; display: flex; align-items: center; gap: 8px;
+            padding: 8px 12px; border-radius: 10px; background: #dc2626; color: #fff;
+            font-size: 0.78rem; font-weight: 700;
+        }
         .apt-unset {
             display: flex; align-items: center; gap: 6px;
             padding: 6px 12px; background: #fff8e1; border-radius: 10px;
@@ -1315,6 +1407,15 @@ setInterval(loadVbCd, 5 * 60 * 1000);
               style="display:none;background:#999;"></span>
         {% endif %}
 
+        {# ── 2-bedroom flag (auto from listing name, click to change) ── #}
+        {% set tb = two_br_map.get(booking_id|string) if two_br_map else None %}
+        <button type="button" class="two-br-toggle {% if tb and tb.on %}on{% endif %}"
+                id="tbr-{{ booking_id }}" data-on="{{ 1 if tb and tb.on else 0 }}"
+                onclick="toggleTwoBedroom('{{ booking_id }}')"
+                title="{% if tb and tb.manual is not none %}Đã đánh dấu thủ công{% else %}Tự nhận diện theo tên phòng{% endif %} — bấm để đổi">
+            🛏️ 2PN
+        </button>
+
         {# ── Picker row (hidden by default, shown on "đổi" click or when unassigned) ── #}
         <div class="apt-picker {% if not cur %}open{% endif %}" id="arow-{{ booking_id }}">
             {% for apt in apartments_list %}
@@ -1338,6 +1439,41 @@ setInterval(loadVbCd, 5 * 60 * 1000);
     <!-- ══ APARTMENT NOTIFICATION BAR ══ -->
     <div class="apt-notify-bar" id="aptNotifyBar">
         <div class="anb-title"><i class="fas fa-building"></i> Tình trạng căn hộ hôm nay — đang tải...</div>
+    </div>
+
+    <!-- ══ 2-BEDROOM CHECK-OUT WATCH ══ -->
+    <div class="two-br-panel" id="twoBrPanel">
+        <div class="two-br-head">
+            <span>🛏️ Căn 2 phòng ngủ sắp trả phòng</span>
+            <small>{{ formatted_date }} → +3 ngày · {{ two_br_upcoming|length }} khách</small>
+        </div>
+        {% if two_br_upcoming %}
+        <div class="two-br-list">
+            {% for g in two_br_upcoming %}
+            {% set urg = 'today' if g.days_left == 0 else ('tomorrow' if g.days_left == 1 else 'soon') %}
+            <div class="two-br-item {{ urg }}">
+                <div class="two-br-when">
+                    {% if g.days_left == 0 %}TRẢ HÔM NAY{% elif g.days_left == 1 %}Trả ngày mai{% else %}Còn {{ g.days_left }} ngày{% endif %}
+                    <span>{{ g.checkout.strftime('%d/%m') }}</span>
+                </div>
+                <div class="two-br-main">
+                    <div class="two-br-name">{{ g.name }}</div>
+                    <div class="two-br-meta">
+                        {% if g.apartment %}<span class="two-br-apt" style="background:{{ g.apt_color }}">{{ g.apartment }}</span>
+                        {% else %}<span class="two-br-apt unset">Chưa chọn căn</span>{% endif %}
+                        <span>{{ g.listing }}</span>
+                        <span>· {{ g.nights }} đêm</span>
+                        {% if not g.paid %}<span class="two-br-unpaid">⚡ Chưa thu</span>{% endif %}
+                        {% if not g.confirmed %}<span class="two-br-unconf">Chưa xác nhận đến</span>{% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        <div class="two-br-tip">Trước giờ trả phòng: kiểm tra 2 phòng ngủ + phòng khách, đồ dùng bếp, chìa khoá/remote, thu tiền còn thiếu.</div>
+        {% else %}
+        <div class="two-br-empty">Không có khách căn 2 phòng ngủ trả phòng trong 3 ngày tới.</div>
+        {% endif %}
     </div>
 
     <!-- 🎯 THREE COLUMNS LAYOUT: Check-in, Staying, Checkout side by side -->
@@ -4153,9 +4289,11 @@ async function loadAptNotifyBar() {
         if (!data.success) { bar.innerHTML = ''; return; }
 
         const apts = data.apartments;
+        window._aptSummary = data;   // used by setApt() for the "apartment full" warning
         const total_stay  = apts.reduce((s,a)=>s+a.n_staying,  0);
         const total_in    = apts.reduce((s,a)=>s+a.n_checkin,  0);
         const total_out   = apts.reduce((s,a)=>s+a.n_checkout, 0);
+        const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
         let html = `
             <div class="anb-title">
@@ -4167,15 +4305,30 @@ async function loadAptNotifyBar() {
                 <span style="color:#2E7D32">🛬 ${total_in} check-in</span>
                 &nbsp;·&nbsp;
                 <span style="color:#E64A19">🛫 ${total_out} check-out</span>
+                ${data.pending && data.pending.length ? `&nbsp;·&nbsp;<span style="color:#c2410c">⏳ ${data.pending.length} chờ xếp</span>` : ''}
             </div>`;
+
+        if (data.over_count > 0) {
+            const overApts = apts.filter(a => a.over > 0)
+                .map(a => `<b>${esc(a.name)}</b> (${a.occupied}/${a.capacity} phòng)`).join(', ');
+            html += `<div class="apt-over-alert">
+                <i class="fas fa-exclamation-triangle"></i>
+                <span>VƯỢT SỐ PHÒNG: ${overApts} — chuyển bớt khách sang căn khác!</span>
+            </div>`;
+        }
 
         apts.forEach(a => {
             const hasGuests = a.n_staying || a.n_checkin || a.n_checkout;
+            const capState = a.over > 0 ? 'over' : (a.capacity > 0 && a.free === 0 ? 'full' : 'ok');
+            const capLabel = a.over > 0 ? `⚠️ VƯỢT +${a.over}`
+                           : capState === 'full' ? '✔ ĐỦ PHÒNG'
+                           : `Còn ${a.free}`;
             html += `
-            <div class="apt-card" style="border-color:${a.color}20;background:${a.color}08">
+            <div class="apt-card cap-${capState}" style="border-color:${capState === 'ok' ? a.color + '20' : ''};background:${capState === 'ok' ? a.color + '08' : ''}">
                 <div class="apt-card-name">
                     <div class="apt-card-dot" style="background:${a.color}"></div>
-                    <span style="color:${a.color}">${a.name}</span>
+                    <span style="color:${a.color}">${esc(a.name)}</span>
+                    <span class="apt-cap-pill ${capState}" title="${a.occupied} khách đã xếp / ${a.capacity} phòng">${a.occupied}/${a.capacity} · ${capLabel}</span>
                 </div>
                 <div class="apt-stats">
                     <div class="apt-stat s-stay-cell">
@@ -4191,14 +4344,20 @@ async function loadAptNotifyBar() {
                         <span class="apt-stat-l">Check-out</span>
                     </div>
                 </div>
-                ${a.n_staying && a.staying.length ? `<div style="margin-top:5px;font-size:0.6rem;color:#666">${a.staying.join(', ')}</div>` : ''}
+                ${(a.staying.length || a.checkin.length) ? `<div style="margin-top:5px;font-size:0.6rem;color:#666">${esc([...a.staying, ...a.checkin].join(', '))}</div>` : ''}
             </div>`;
         });
 
-        if (data.n_unset > 0) {
+        if (data.pending && data.pending.length) {
+            const unconfirmed = data.pending.filter(p => p.reason === 'unconfirmed').map(p => esc(p.name));
+            const unassigned  = data.pending.filter(p => p.reason === 'unassigned').map(p => esc(p.name));
             html += `<div class="apt-unset">
-                <i class="fas fa-question-circle"></i>
-                <span><strong>${data.n_unset} khách</strong> chưa phân loại căn hộ — bấm nút bên dưới mỗi card</span>
+                <i class="fas fa-hourglass-half"></i>
+                <span>
+                    <strong>${data.pending.length} khách chưa tính vào căn nào</strong> (không trừ phòng trống):
+                    ${unconfirmed.length ? `<br>• Chưa bấm <b>Xác nhận đến</b>: ${unconfirmed.join(', ')}` : ''}
+                    ${unassigned.length ? `<br>• Chưa <b>chọn căn</b>: ${unassigned.join(', ')}` : ''}
+                </span>
             </div>`;
         }
 
@@ -4209,8 +4368,34 @@ async function loadAptNotifyBar() {
 }
 
 // Set actual apartment for a booking
+// Warn before placing a guest in an apartment that is already full on any night of the stay
+async function confirmPlacementCapacity(bookingId, aptId, aptLabel) {
+    try {
+        const res  = await fetch(`/api/apartment_placement_check?booking_id=${encodeURIComponent(bookingId)}&apartment_id=${encodeURIComponent(aptId)}`);
+        const data = await res.json();
+        if (!data.success) return true;   // check unavailable — don't block the placement
+        if (data.inactive) {
+            return confirm(`⚠️ Căn "${aptLabel}" đang TẠM DỪNG.\n\nVẫn xếp khách vào căn này?`);
+        }
+        if (!data.conflicts || !data.conflicts.length) return true;
+        const lines = data.conflicts.slice(0, 6).map(c => {
+            const [y, m, d] = c.night.split('-');
+            return `• Đêm ${d}/${m}: đã có ${c.placed}/${data.capacity} phòng (${c.guests.join(', ')})`;
+        });
+        if (data.conflicts.length > 6) lines.push(`• … và ${data.conflicts.length - 6} đêm khác`);
+        return confirm(`⚠️ CĂN "${aptLabel}" ĐÃ ĐỦ PHÒNG!\n\n${lines.join('\n')}\n\nXếp thêm khách này sẽ VƯỢT số phòng. Vẫn xếp?`);
+    } catch (e) {
+        return true;
+    }
+}
+
 async function setApt(bookingId, aptId, color) {
     if (!bookingId) return;
+    if (aptId) {
+        const btn = document.getElementById('asbtn-' + bookingId + '-' + aptId);
+        const label = btn ? (btn.dataset.label || btn.textContent.trim()) : aptId;
+        if (!(await confirmPlacementCapacity(bookingId, aptId, label))) return;
+    }
     try {
         const res  = await fetch('/api/set_actual_apartment', {
             method: 'POST', headers: {'Content-Type':'application/json'},
@@ -4283,8 +4468,9 @@ async function setApt(bookingId, aptId, color) {
             if (picker) picker.classList.add('open');
         }
 
-        // Refresh notification bar
+        // Refresh notification bar + vacancy board
         loadAptNotifyBar();
+        if (typeof loadVbCd === 'function') loadVbCd();
     } catch(e) {
         alert('Lỗi kết nối');
     }
@@ -4295,6 +4481,63 @@ function toggleAptPicker(bookingId) {
     const picker = document.getElementById('arow-' + bookingId);
     if (picker) picker.classList.toggle('open');
 }
+
+// ── 2-bedroom (2PN) cards: purple edge; extra alert when checking out today/tomorrow ──
+function markTwoBedroomCards() {
+    document.querySelectorAll('.two-br-toggle').forEach(btn => {
+        const card = btn.closest('.guest-card');
+        if (!card) return;
+        const on = btn.dataset.on === '1';
+        card.classList.toggle('two-br-card', on);
+
+        const col = card.closest('.guest-card-col');
+        const section = card.closest('.guest-cards-row')?.id;
+        const remaining = col && col.dataset.remaining !== undefined ? parseInt(col.dataset.remaining) : null;
+        const leavingSoon = section === 'checkout-cards' || (section === 'staying-cards' && remaining !== null && remaining <= 1);
+        card.classList.toggle('two-br-alert', on && leavingSoon);
+
+        let banner = card.querySelector('.two-br-alert-banner');
+        if (on && leavingSoon) {
+            if (!banner) {
+                banner = document.createElement('div');
+                banner.className = 'two-br-alert-banner';
+                const anchor = card.querySelector('.room-type') || card.querySelector('.card-details');
+                if (anchor) anchor.insertAdjacentElement('afterend', banner);
+            }
+            banner.textContent = section === 'checkout-cards'
+                ? '🛏️ Căn 2 phòng ngủ — trả phòng hôm nay, kiểm tra kỹ trước khi khách đi'
+                : '🛏️ Căn 2 phòng ngủ — trả phòng ngày mai, chuẩn bị kiểm tra';
+        } else if (banner) {
+            banner.remove();
+        }
+    });
+}
+
+async function toggleTwoBedroom(bookingId) {
+    const btn = document.getElementById('tbr-' + bookingId);
+    if (!btn) return;
+    const next = btn.dataset.on !== '1';
+    btn.disabled = true;
+    try {
+        const res = await fetch('/api/set_two_bedroom', {
+            method: 'POST', headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({booking_id: bookingId, value: next})
+        });
+        const data = await res.json();
+        if (!data.success) { showCalToast('❌ ' + (data.message || 'Lỗi'), 'error'); return; }
+        btn.dataset.on = data.on ? '1' : '0';
+        btn.classList.toggle('on', !!data.on);
+        btn.title = 'Đã đánh dấu thủ công — bấm để đổi';
+        markTwoBedroomCards();
+        showCalToast(data.on ? '🛏️ Đã đánh dấu căn 2 phòng ngủ' : 'Đã bỏ đánh dấu 2 phòng ngủ', 'info');
+    } catch (e) {
+        showCalToast('❌ Lỗi kết nối', 'error');
+    } finally {
+        btn.disabled = false;
+    }
+}
+
+document.addEventListener('DOMContentLoaded', markTwoBedroomCards);
 
 document.addEventListener('DOMContentLoaded', function() {
     loadAptNotifyBar();
@@ -5139,11 +5382,19 @@ function _statusKey(date, bid) { return `cal_status__${date}__${bid}`; }
 
 /* Save status to DB so mobile and desktop stay in sync */
 function _saveStatusToDB(bid, status) {
-    fetch('/api/set_checkin_status', {
+    return fetch('/api/set_checkin_status', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({booking_id: bid, status: status || ''})
     }).catch(() => {});
+}
+
+// Confirming / un-confirming a guest changes who occupies a room → refresh both boards
+function _refreshOccupancyBoards(savePromise) {
+    Promise.resolve(savePromise).then(() => {
+        if (typeof loadAptNotifyBar === 'function') loadAptNotifyBar();
+        if (typeof loadVbCd === 'function') loadVbCd();
+    });
 }
 
 function _applyStatus(card, bar, status) {
@@ -5197,7 +5448,7 @@ function toggleGuestStatus(btn, newStatus) {
         // 'none' = explicit "not contacted" reset; or toggle off same button
         localStorage.removeItem(key);
         _applyStatus(card, bar, null);
-        _saveStatusToDB(bid, null);          // 🔑 cross-device sync + restores booking_status
+        _refreshOccupancyBoards(_saveStatusToDB(bid, null));   // 🔑 cross-device sync + restores booking_status
         showCalToast('📞 Chưa liên hệ', 'info');
     } else if (newStatus === 'cancelling') {
         // Báo hủy also sets booking_status='cancelled' in DB → booking hidden tomorrow
@@ -5207,13 +5458,13 @@ function toggleGuestStatus(btn, newStatus) {
         }
         localStorage.setItem(key, 'cancelling');
         _applyStatus(card, bar, 'cancelling');
-        _saveStatusToDB(bid, 'cancelling');  // 🔑 also sets booking_status='cancelled'
+        _refreshOccupancyBoards(_saveStatusToDB(bid, 'cancelling'));  // 🔑 also sets booking_status='cancelled'
         showCalToast('🚫 Đã hủy đặt phòng — sẽ ẩn khỏi lịch ngày mai', 'error');
         openCancelNotify(name);
     } else {
         localStorage.setItem(key, newStatus);
         _applyStatus(card, bar, newStatus);
-        _saveStatusToDB(bid, newStatus);     // 🔑 cross-device sync
+        _refreshOccupancyBoards(_saveStatusToDB(bid, newStatus));     // 🔑 cross-device sync
         if (newStatus === 'confirmed') {
             showCalToast('✅ Đánh dấu khách sẽ đến', 'success');
         }

@@ -3562,79 +3562,44 @@ def api_save_email_config():
 
 @app.route('/api/vacancy_preview')
 def api_vacancy_preview():
-    """Return vacancy data for email preview widget"""
+    """Vacancy per apartment for the next few days (sidebar board + email preview widget).
+
+    Only guests placed in an apartment (actual_apartment) count against it; guests whose
+    arrival day has come but who aren't confirmed yet, or who aren't placed yet, are
+    returned as `pending` — see core/occupancy.py for the rules.
+    """
     try:
-        from datetime import date, timedelta
-        vn_days = ["Chủ Nhật","Thứ Hai","Thứ Ba","Thứ Tư","Thứ Năm","Thứ Sáu","Thứ Bảy"]
-        DOT_COLORS = ["#3949ab","#2e7d32","#6a1b9a","#e65100","#00838f","#c62828"]
-        ROOM_APT  = {4:2,5:2,1244:506,1245:506,1246:506,1247:506,1793:1,2:1,3:1}
-        BE_KW = ['hang be','hàng bè','hàng be','hang bè','be 101','be 102','2 pn hàng','2 pn hang']
-        HV_KW = ['hoi vu','hội vũ','hội vu','hoi vũ','phong 2 giuong','phòng 2 giường',
-                 'giuong hoi','101 - 2 pn','25 hv','studio hoi']
-
-        def _classify(actual_apt, room_id, acc):
-            if actual_apt and str(actual_apt).isdigit(): return int(actual_apt)
-            if room_id and room_id in ROOM_APT: return ROOM_APT[room_id]
-            n = (acc or '').lower()
-            for k in BE_KW:
-                if k in n: return 2
-            for k in HV_KW:
-                if k in n: return 506
-            return 1
-
-        # Dùng SQLAlchemy DB của app — hoạt động trên cả local lẫn Railway
-        from core.models import db as _db, Apartment as _Apt, Room as _Room
+        from datetime import timedelta
+        from core.models import db as _db
         from sqlalchemy import text as _text
-        from collections import OrderedDict, Counter
+        from core.occupancy import load_apartments, load_bookings, occupancy_for_night, vn_today
 
-        # Load apartments + rooms động
-        apt_rows = _db.session.execute(_text("""
-            SELECT a.apartment_id, a.apartment_name, r.room_id, r.room_name
-            FROM apartments a JOIN rooms r ON r.apartment_id=a.apartment_id AND r.is_active=true
-            WHERE a.is_active=true ORDER BY a.apartment_id, r.room_id
-        """)).fetchall()
+        vn_days = ["Chủ Nhật","Thứ Hai","Thứ Ba","Thứ Tư","Thứ Năm","Thứ Sáu","Thứ Bảy"]
+        labels = ["Hôm nay","Ngày mai","+2 ngày","+3 ngày","+4 ngày","+5 ngày","+6 ngày"]
+        DOT_COLORS = ["#3949ab","#2e7d32","#6a1b9a","#e65100","#00838f","#c62828"]
 
-        apt_map = OrderedDict()
-        for apt_id, apt_name, room_id, room_name in apt_rows:
-            if apt_id not in apt_map:
-                idx = len(apt_map)
-                apt_map[apt_id] = {'id':apt_id,'name':apt_name,'dot':DOT_COLORS[idx%len(DOT_COLORS)],'rooms':[]}
-            apt_map[apt_id]['rooms'].append({'id':room_id,'name':room_name})
+        apartments = load_apartments(_db.session, _text)
+        today = vn_today()
+        days_ahead = min(int(os.getenv('DAYS_AHEAD', 4)), len(labels))
+        bookings = load_bookings(_db.session, _text, today, today + timedelta(days=days_ahead))
 
-        today = date.today()
-        days_ahead = int(os.getenv('DAYS_AHEAD', 4))
         days = []
         for i in range(days_ahead):
             d = today + timedelta(days=i)
-            d_str = d.strftime('%Y-%m-%d')
-            rows = _db.session.execute(_text("""
-                SELECT room_id, accommodation_name, actual_apartment FROM bookings
-                WHERE checkin_date <= :d AND checkout_date > :d
-                  AND COALESCE(booking_status,'') NOT IN ('cancelled','deleted')
-                  AND COALESCE(checkin_status,'') != 'cancelling'
-            """), {'d': d_str}).fetchall()
-
-            apt_count = Counter()
-            for row in rows:
-                apt_id = _classify(row[2], row[0], row[1])
-                if apt_id in apt_map: apt_count[apt_id] += 1
-
-            apts_out = []
-            total_free = 0
-            for apt in apt_map.values():
-                cap  = len(apt['rooms'])
-                occ  = min(apt_count.get(apt['id'], 0), cap)
-                free = cap - occ
-                total_free += free
-                apts_out.append({'name':apt['name'],'dot':apt['dot'],'free':free,'total':cap})
-
+            occ = occupancy_for_night(bookings, apartments, d, today)
+            for idx, apt in enumerate(occ['apts']):
+                apt['dot'] = DOT_COLORS[idx % len(DOT_COLORS)]
             days.append({
-                'date'        : d_str,
-                'date_display': d.strftime('%d tháng %m, %Y'),
-                'label'       : ["Hôm nay","Ngày mai","+2 ngày","+3 ngày","+4 ngày","+5 ngày","+6 ngày"][i],
-                'weekday'     : vn_days[(d.weekday()+1)%7],
-                'total_free'  : total_free,
-                'apts'        : apts_out,
+                'date'         : d.strftime('%Y-%m-%d'),
+                'date_display' : d.strftime('%d tháng %m, %Y'),
+                'label'        : labels[i],
+                'weekday'      : vn_days[(d.weekday()+1)%7],
+                'total_free'   : occ['total_free'],
+                'apts'         : occ['apts'],
+                'pending'      : occ['pending'],
+                'pending_count': occ['pending_count'],
+                'sellable'     : occ['sellable'],
+                'over_count'   : occ['over_count'],
             })
         return jsonify({'success':True,'days':days})
     except Exception as e:
@@ -3882,6 +3847,26 @@ def calendar_view(year=None, month=None):
         if _cnt > 0:
             unpaid_by_date[_ds] = _cnt
 
+    # ── 2-bedroom check-outs per day (so the month view shows when 2PN units turn over) ──
+    two_br_checkouts = {}
+    try:
+        from core.models import db as _tbdb
+        from core.two_bedroom import is_two_bedroom, load_manual_flags
+        _month_start = datetime(year, month, 1).date()
+        _month_end = datetime(year + (month == 12), month % 12 + 1, 1).date()
+        _co_dates = pd.to_datetime(_active_df['Check-out Date'], errors='coerce').dt.date
+        _month_df = _active_df[(_co_dates >= _month_start) & (_co_dates < _month_end)]
+        if 'checkin_status' in _month_df.columns:
+            _month_df = _month_df[~_month_df['checkin_status'].isin(['cancelling', 'no_show'])]
+        _manual = load_manual_flags(_tbdb.session, text, _month_df['Số đặt phòng'].astype(str).tolist())
+        for _, _row in _month_df.iterrows():
+            _bid = str(_row.get('Số đặt phòng', '') or '')
+            if is_two_bedroom(_row.get('Tên chỗ nghỉ', ''), _manual.get(_bid)):
+                _ds = pd.Timestamp(_row['Check-out Date']).strftime('%Y-%m-%d')
+                two_br_checkouts.setdefault(_ds, []).append(str(_row.get('Tên người đặt', '') or _bid))
+    except Exception as _tbe:
+        print(f"[calendar_view] two-bedroom checkouts failed: {_tbe}")
+
     # Calculate previous and next month for navigation
     current_month = datetime(year, month, 1)
 
@@ -3920,6 +3905,7 @@ def calendar_view(year=None, month=None):
         current_apartment_id=apartment_id,
         current_apartment=current_apartment,  # Current apartment object
         unpaid_by_date=unpaid_by_date,        # {date_str: count} unpaid guests staying >1 day
+        two_br_checkouts=two_br_checkouts,    # {date_str: [guest names]} 2-bedroom check-outs
     )
 
 @app.route('/debug_revenue')
@@ -4361,6 +4347,58 @@ def calendar_details(date_str):
         except Exception as _oe:
             print(f"[calendar_details] overdue_unpaid load failed: {_oe}")
 
+        # ── 2-bedroom (2 PN) bookings: flag per card + upcoming check-outs to watch ──
+        two_br_map = {}
+        two_br_upcoming = []
+        try:
+            from core.models import db as _tbdb
+            from core.two_bedroom import is_two_bedroom, load_manual_flags, ensure_column as _tb_ensure
+            _tb_ensure(_tbdb.session, text)
+
+            _page_guests = check_in + staying_over + check_out
+            _manual = load_manual_flags(_tbdb.session, text, [g.get('Số đặt phòng', '') for g in _page_guests])
+            for g in _page_guests:
+                _bid = str(g.get('Số đặt phòng', '') or '')
+                if _bid:
+                    two_br_map[_bid] = {
+                        'on': is_two_bedroom(g.get('Tên chỗ nghỉ', ''), _manual.get(_bid)),
+                        'manual': _manual.get(_bid),
+                    }
+
+            # Check-outs from the viewed date through the next 3 days
+            _apt_names = {str(a['id']): a for a in apartments_list}
+            _rows = _tbdb.session.execute(text("""
+                SELECT booking_id, guest_name, checkin_date, checkout_date, accommodation_name,
+                       actual_apartment, checkin_status, two_bedroom, collector
+                FROM bookings
+                WHERE checkout_date BETWEEN :d AND :d3
+                  AND COALESCE(booking_status, '') NOT IN ('cancelled', 'deleted')
+                  AND COALESCE(checkin_status, '') NOT IN ('cancelling', 'no_show')
+                ORDER BY checkout_date, guest_name
+            """), {'d': date_obj, 'd3': date_obj + timedelta(days=3)}).fetchall()
+            for (_bid, _name, _ci, _co, _listing, _apt, _cst, _flag, _collector) in _rows:
+                if not is_two_bedroom(_listing, _flag):
+                    continue
+                # Unconfirmed well past their arrival day = no-show, nothing to check out
+                if _cst != 'confirmed' and _ci < _today_date - timedelta(days=2):
+                    continue
+                _apt_info = _apt_names.get(str(_apt or ''))
+                two_br_upcoming.append({
+                    'booking_id': _bid,
+                    'name': _name or _bid,
+                    'listing': _listing or '',
+                    'checkin': _ci,
+                    'checkout': _co,
+                    'days_left': (_co - date_obj).days,
+                    'nights': max((_co - _ci).days, 1),
+                    'apartment': _apt_info['name'] if _apt_info else '',
+                    'apt_color': _apt_info['color'] if _apt_info else '#94a3b8',
+                    'confirmed': _cst == 'confirmed',
+                    'paid': any(k in str(_collector or '') for k in ('LOC', 'THAO')),
+                })
+        except Exception as _tbe:
+            print(f"[calendar_details] two-bedroom load failed: {_tbe}")
+
         return render_template(
             'calendar_details.html',
             date=date_obj,
@@ -4378,6 +4416,8 @@ def calendar_details(date_str):
             apt_map=_apt_map,
             overdue_unpaid=overdue_unpaid,
             hidden_guests=_hidden_guests,
+            two_br_map=two_br_map,
+            two_br_upcoming=two_br_upcoming,
         )
     
     except Exception as e:
@@ -4420,6 +4460,71 @@ def set_actual_apartment():
             pass
 
         return jsonify({'success': True, 'booking_id': booking_id, 'actual_apartment': apt_value})
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
+@app.route('/api/set_two_bedroom', methods=['POST'])
+def set_two_bedroom():
+    """Mark a booking as 2-bedroom (true), not 2-bedroom (false) or back to auto-detect (null)."""
+    try:
+        from core.models import db as _tbdb
+        from core.two_bedroom import ensure_column, is_two_bedroom
+        data = request.get_json() or {}
+        booking_id = str(data.get('booking_id', '')).strip()
+        value = data.get('value')
+        if not booking_id:
+            return jsonify({'success': False, 'message': 'Missing booking_id'}), 400
+        if value not in (True, False, None):
+            return jsonify({'success': False, 'message': 'value must be true, false or null'}), 400
+
+        ensure_column(_tbdb.session, text)
+        row = _tbdb.session.execute(
+            text("UPDATE bookings SET two_bedroom = :v WHERE booking_id = :bid RETURNING accommodation_name"),
+            {'v': value, 'bid': booking_id}
+        ).fetchone()
+        _tbdb.session.commit()
+        if not row:
+            return jsonify({'success': False, 'message': 'Không tìm thấy booking'}), 404
+        return jsonify({'success': True, 'booking_id': booking_id, 'manual': value,
+                        'on': is_two_bedroom(row[0], value)})
+    except Exception as e:
+        try:
+            from core.models import db as _tbdb2; _tbdb2.session.rollback()
+        except Exception:
+            pass
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
+@app.route('/api/apartment_placement_check', methods=['GET'])
+def apartment_placement_check():
+    """Before placing a guest: would the apartment exceed its room count on any night?
+    ?booking_id=...&apartment_id=...  →  {conflicts: [{night, placed, guests}], capacity}"""
+    try:
+        from core.models import db as _pcdb
+        from core.occupancy import load_apartments, load_bookings, placement_conflicts
+        booking_id = (request.args.get('booking_id') or '').strip()
+        apartment_id = request.args.get('apartment_id', type=int)
+        if not booking_id or apartment_id is None:
+            return jsonify({'success': False, 'message': 'Thiếu booking_id hoặc apartment_id'}), 400
+
+        row = _pcdb.session.execute(
+            text("SELECT checkin_date, checkout_date FROM bookings WHERE booking_id = :bid"),
+            {'bid': booking_id}
+        ).fetchone()
+        if not row:
+            return jsonify({'success': False, 'message': 'Không tìm thấy booking'}), 404
+
+        apartments = load_apartments(_pcdb.session, text)
+        apartment = apartments.get(apartment_id)
+        if not apartment:
+            return jsonify({'success': True, 'conflicts': [], 'capacity': None,
+                            'inactive': True, 'message': 'Căn hộ đang tạm dừng'})
+
+        bookings = load_bookings(_pcdb.session, text, row[0], row[1])
+        conflicts = placement_conflicts(bookings, apartment, booking_id, row[0], row[1])
+        return jsonify({'success': True, 'conflicts': conflicts,
+                        'capacity': apartment['capacity'], 'apartment_name': apartment['name']})
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)}), 500
 
@@ -4528,75 +4633,97 @@ def apartment_daily_summary():
                 print(f"[apt_summary:{date_obj}] apt_map load failed: {_me}")
 
         # ── Step 4: Build apartment definitions (same order/colors as view) ───
+        # Colors follow the full apartment list so they match the card selector buttons;
+        # inactive apartments are only shown when someone is placed in them.
+        from core.occupancy import night_status, parse_apartment_id, PENDING_REASON_LABELS, apartment_abbr
         _APT_COLORS = ['#1976D2', '#2E7D32', '#7B1FA2', '#E64A19', '#00838F', '#F57F17']
         _APT_EMOJIS = ['🔵', '🟢', '🟣', '🟠', '🔵', '🟡']
         all_apts = _AdsApt.query.order_by(_AdsApt.apartment_id).all()
         apt_defs = []
         for _i, _a in enumerate(all_apts):
+            _cap = _RoomM.query.filter_by(apartment_id=_a.apartment_id, is_active=True).count()
             apt_defs.append({
-                'id':    str(_a.apartment_id),
-                'name':  _a.apartment_name,
-                'color': _APT_COLORS[_i % len(_APT_COLORS)],
-                'emoji': _APT_EMOJIS[_i % len(_APT_EMOJIS)],
+                'id':        str(_a.apartment_id),
+                'name':      _a.apartment_name,
+                'abbr':      apartment_abbr(_a.apartment_name),
+                'color':     _APT_COLORS[_i % len(_APT_COLORS)],
+                'emoji':     _APT_EMOJIS[_i % len(_APT_EMOJIS)],
+                'capacity':  _cap,
+                'is_active': bool(_a.is_active),
             })
+        _known_ids = {int(a['id']) for a in apt_defs}
 
-        def resolve_apt(booking_id, guest):
-            """Resolve apartment: manual assignment first, then room name match."""
-            actual = _apt_map.get(booking_id)
-            if actual:
-                return str(actual)
-            # Try to match room/accommodation name against apartment names
-            room_name = (
-                guest.get('Tên phòng', '') or
-                guest.get('accommodation_name', '') or
-                guest.get('Phòng', '') or ''
-            ).lower()
-            for a in apt_defs:
-                nl = a['name'].lower()
-                if any(tok in room_name for tok in nl.split() if len(tok) > 2):
-                    return a['id']
-            return '__unset__'
-
-        # ── Step 5: Count per apartment (EXACT match with calendar card columns) ──
-        staying_map  = {a['id']: [] for a in apt_defs}; staying_map['__unset__']  = []
-        checkin_map  = {a['id']: [] for a in apt_defs}; checkin_map['__unset__']  = []
-        checkout_map = {a['id']: [] for a in apt_defs}; checkout_map['__unset__'] = []
-
-        for g in staying_over:
+        def _as_booking(g):
             bid = g.get('Số đặt phòng', '')
-            ak  = resolve_apt(bid, g)
-            staying_map.setdefault(ak, []).append(g.get('Tên người đặt', '') or bid)
+            return {
+                'booking_id':       bid,
+                'checkin_date':     g.get('Check-in Date'),
+                'checkout_date':    g.get('Check-out Date'),
+                'checkin_status':   _all_status_map.get(bid),
+                'actual_apartment': _apt_map.get(bid),
+            }
 
-        for g in check_in:
-            bid = g.get('Số đặt phòng', '')
-            ak  = resolve_apt(bid, g)
-            checkin_map.setdefault(ak, []).append(g.get('Tên người đặt', '') or bid)
+        # ── Step 5: Count per apartment — same rules as the vacancy board ─────
+        # Staying + check-in guests occupy a room tonight only once they're placed in an
+        # apartment (and, from their arrival day on, confirmed). The rest are "pending".
+        staying_map  = {a['id']: [] for a in apt_defs}
+        checkin_map  = {a['id']: [] for a in apt_defs}
+        checkout_map = {a['id']: [] for a in apt_defs}
+        pending = []
 
+        for section, guests, target in (('staying', staying_over, staying_map),
+                                         ('checkin', check_in, checkin_map)):
+            for g in guests:
+                bid  = g.get('Số đặt phòng', '')
+                name = g.get('Tên người đặt', '') or bid
+                kind, value = night_status(_as_booking(g), date_obj, _today_date, _known_ids)
+                if kind == 'apt':
+                    target[str(value)].append(name)
+                elif kind == 'pending':
+                    pending.append({'name': name, 'booking_id': bid, 'section': section,
+                                    'reason': value, 'reason_label': PENDING_REASON_LABELS[value]})
+
+        # Check-outs don't occupy tonight; show them under their placed apartment if any
+        unset_checkout = []
         for g in check_out:
-            bid = g.get('Số đặt phòng', '')
-            ak  = resolve_apt(bid, g)
-            checkout_map.setdefault(ak, []).append(g.get('Tên người đặt', '') or bid)
+            bid  = g.get('Số đặt phòng', '')
+            name = g.get('Tên người đặt', '') or bid
+            apt_id = parse_apartment_id(_apt_map.get(bid))
+            if apt_id in _known_ids:
+                checkout_map[str(apt_id)].append(name)
+            else:
+                unset_checkout.append(name)
 
         result = []
         for a in apt_defs:
             aid = a['id']
+            n_stay, n_in = len(staying_map[aid]), len(checkin_map[aid])
+            occupied = n_stay + n_in
+            if not a['is_active'] and not (occupied or checkout_map[aid]):
+                continue
             result.append({
                 **a,
-                'staying':    staying_map.get(aid, []),
-                'checkin':    checkin_map.get(aid, []),
-                'checkout':   checkout_map.get(aid, []),
-                'n_staying':  len(staying_map.get(aid, [])),
-                'n_checkin':  len(checkin_map.get(aid, [])),
-                'n_checkout': len(checkout_map.get(aid, [])),
+                'staying':    staying_map[aid],
+                'checkin':    checkin_map[aid],
+                'checkout':   checkout_map[aid],
+                'n_staying':  n_stay,
+                'n_checkin':  n_in,
+                'n_checkout': len(checkout_map[aid]),
+                'occupied':   occupied,
+                'free':       max(a['capacity'] - occupied, 0),
+                'over':       max(occupied - a['capacity'], 0),
             })
 
-        unset = staying_map.get('__unset__', [])
+        unset = [p['name'] for p in pending]
         return jsonify({
-            'success':   True,
-            'date':      date_str,
-            'apartments': result,
-            'unset':     unset,
-            'n_unset':   len(unset),
+            'success':        True,
+            'date':           date_str,
+            'apartments':     result,
+            'pending':        pending,
+            'unset':          unset,
+            'n_unset':        len(unset),
+            'unset_checkout': unset_checkout,
+            'over_count':     sum(a['over'] for a in result),
         })
     except Exception as e:
         import traceback; traceback.print_exc()
@@ -10849,6 +10976,96 @@ def toggle_apartment_status(apartment_id):
         db.session.rollback()
         print(f"Error toggling apartment {apartment_id}: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
+
+def _apartment_references(apartment_id):
+    """How many bookings point at this apartment (placement, apartment_id, or one of its rooms)."""
+    from core.models import db
+    today = (datetime.utcnow() + timedelta(hours=7)).date()
+    row = db.session.execute(text("""
+        SELECT
+          COUNT(*) FILTER (WHERE b.actual_apartment = :sid)                            AS placed,
+          COUNT(*) FILTER (WHERE b.actual_apartment = :sid AND b.checkout_date > :today) AS placed_upcoming,
+          COUNT(*) FILTER (WHERE b.apartment_id = :aid)                                AS linked,
+          COUNT(*) FILTER (WHERE b.room_id IN (SELECT room_id FROM rooms WHERE apartment_id = :aid)) AS by_room
+        FROM bookings b
+    """), {'sid': str(apartment_id), 'aid': apartment_id, 'today': today}).fetchone()
+    rooms = db.session.execute(text("SELECT COUNT(*) FROM rooms WHERE apartment_id = :aid"),
+                               {'aid': apartment_id}).scalar()
+    return {'placed': row[0], 'placed_upcoming': row[1], 'linked': row[2],
+            'by_room': row[3], 'rooms': rooms}
+
+
+@app.route('/api/apartments/<int:apartment_id>/delete_check', methods=['GET'])
+def apartment_delete_check(apartment_id):
+    """What deleting this apartment would affect — shown to the user before confirming."""
+    try:
+        from core.models import Apartment
+        apartment = Apartment.query.get(apartment_id)
+        if not apartment:
+            return jsonify({'success': False, 'error': 'Không tìm thấy căn hộ'}), 404
+        refs = _apartment_references(apartment_id)
+        others = [{'id': a.apartment_id, 'name': a.apartment_name, 'is_active': a.is_active}
+                  for a in Apartment.query.filter(Apartment.apartment_id != apartment_id)
+                                          .order_by(Apartment.apartment_id).all()]
+        return jsonify({'success': True, 'apartment': apartment.apartment_name,
+                        'refs': refs, 'needs_move': bool(refs['placed'] or refs['linked']),
+                        'other_apartments': others})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/apartments/<int:apartment_id>', methods=['DELETE'])
+def delete_apartment_permanently(apartment_id):
+    """Delete an apartment (e.g. one added by mistake).
+
+    Bookings placed in it must go somewhere first: body {"move_bookings_to": <apartment_id>}
+    moves them to another apartment, {"move_bookings_to": null} clears the placement.
+    Its rooms are deleted with it (bookings.room_id pointing at them becomes NULL).
+    """
+    from core.models import Apartment, db
+    try:
+        apartment = Apartment.query.get(apartment_id)
+        if not apartment:
+            return jsonify({'success': False, 'error': 'Không tìm thấy căn hộ'}), 404
+
+        data = request.get_json(silent=True) or {}
+        refs = _apartment_references(apartment_id)
+        needs_move = bool(refs['placed'] or refs['linked'])
+        if needs_move and 'move_bookings_to' not in data:
+            return jsonify({'success': False, 'needs_move': True, 'refs': refs,
+                            'error': 'Căn hộ còn booking — chọn căn để chuyển booking sang trước khi xoá'}), 409
+
+        target = data.get('move_bookings_to')
+        if target is not None:
+            try:
+                target = int(target)
+            except (TypeError, ValueError):
+                return jsonify({'success': False, 'error': 'Căn chuyển tới không hợp lệ'}), 400
+            if target == apartment_id or not Apartment.query.get(target):
+                return jsonify({'success': False, 'error': 'Căn chuyển tới không hợp lệ'}), 400
+
+        name = apartment.apartment_name
+        if needs_move:
+            db.session.execute(
+                text("UPDATE bookings SET actual_apartment = :t WHERE actual_apartment = :sid"),
+                {'t': str(target) if target is not None else None, 'sid': str(apartment_id)})
+            db.session.execute(
+                text("UPDATE bookings SET apartment_id = :t WHERE apartment_id = :aid"),
+                {'t': target, 'aid': apartment_id})
+        # rooms go with the apartment (FK ON DELETE CASCADE; bookings.room_id → SET NULL)
+        db.session.execute(text("DELETE FROM rooms WHERE apartment_id = :aid"), {'aid': apartment_id})
+        db.session.execute(text("DELETE FROM apartments WHERE apartment_id = :aid"), {'aid': apartment_id})
+        db.session.commit()
+        print(f"🗑️ Deleted apartment {name} (ID: {apartment_id}); bookings moved to {target}; refs={refs}")
+        return jsonify({'success': True, 'message': f'Đã xoá căn hộ "{name}"',
+                        'moved': refs['placed'] + refs['linked'] if needs_move else 0,
+                        'moved_to': target, 'rooms_deleted': refs['rooms'],
+                        'room_links_cleared': refs['by_room']})
+    except Exception as e:
+        db.session.rollback()
+        print(f"Error deleting apartment {apartment_id}: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 
 @app.route('/api/apartments/<int:apartment_id>/rooms', methods=['GET'])
 def get_apartment_rooms(apartment_id):
