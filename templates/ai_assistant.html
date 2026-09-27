@@ -23,12 +23,12 @@
 
     <!-- Main Content - Template Management -->
     <div class="card">
-        <div class="card-header bg-gradient" style="background: linear-gradient(135deg, #17a2b8 0%, #138496 100%);">
-            <div class="d-flex justify-content-between align-items-center">
+        <div class="card-header" style="background: linear-gradient(135deg, #17a2b8 0%, #138496 100%);">
+            <div class="d-flex flex-wrap gap-2 justify-content-between align-items-center">
                 <h5 class="mb-0 text-white fw-bold" style="text-shadow: 1px 1px 2px rgba(0,0,0,0.3);">
                     <i class="fas fa-clipboard-list me-2 text-white"></i>Quản lý Mẫu Tin Nhắn
                 </h5>
-                <div>
+                <div class="d-flex flex-wrap gap-1">
                     <button class="btn btn-warning btn-sm me-2 fw-bold" onclick="showAddTemplateModal()">
                         <i class="fas fa-plus text-dark"></i> Thêm mẫu
                     </button>
@@ -44,25 +44,33 @@
                 </div>
             </div>
         </div>
-        <div class="card-body">
-            <!-- Search and Filter Section -->
-            <div class="row mb-3">
-                <div class="col-md-6">
-                    <div class="input-group">
-                        <span class="input-group-text"><i class="fas fa-search"></i></span>
-                        <input type="text" id="searchTemplates" class="form-control" placeholder="Tìm kiếm theo danh mục hoặc nội dung..." onkeyup="filterTemplates()">
+        <div class="card-body template-card-body">
+            <!-- Search + category chips (sticky so they stay visible while scrolling) -->
+            <div class="template-toolbar">
+                <div class="d-flex gap-2 align-items-center">
+                    <div class="input-group flex-grow-1" style="min-width:0;">
+                        <span class="input-group-text d-none d-sm-flex"><i class="fas fa-search"></i></span>
+                        <input type="text" id="searchTemplates" class="form-control" autocomplete="off"
+                               placeholder="Tìm tên hoặc nội dung (không dấu cũng được)"
+                               oninput="scheduleFilterTemplates()" onkeydown="handleTemplateSearchKey(event)">
+                        <button class="btn btn-outline-secondary" type="button" title="Xoá tìm kiếm (Esc)" onclick="clearTemplateSearch()">
+                            <i class="fas fa-times"></i>
+                        </button>
                     </div>
-                </div>
-                <div class="col-md-3">
-                    <select id="filterCategory" class="form-select" onchange="filterTemplates()">
-                        <option value="">Tất cả danh mục</option>
-                    </select>
-                </div>
-                <div class="col-md-3">
-                    <button class="btn btn-outline-secondary w-100" onclick="refreshTemplates()">
-                        <i class="fas fa-sync-alt"></i> Tải lại
+                    <button class="btn btn-outline-secondary text-nowrap" onclick="refreshTemplates()" title="Tải lại">
+                        <i class="fas fa-sync-alt"></i><span class="d-none d-md-inline"> Tải lại</span>
+                    </button>
+                    <button id="moveModeBtn" class="btn btn-outline-dark text-nowrap" onclick="toggleMoveMode()" title="Bật để kéo-thả mẫu sang danh mục khác">
+                        <i class="fas fa-lock"></i><span class="d-none d-md-inline"> Di chuyển</span>
                     </button>
                 </div>
+                <div id="categoryChips" class="category-chips mt-2"></div>
+                <div id="templateResultCount" class="small text-muted mt-1"></div>
+            </div>
+            <div id="moveModeBanner" class="alert alert-warning py-2 small d-none">
+                <i class="fas fa-arrows-alt me-1"></i>
+                <b>Đang ở chế độ di chuyển:</b> nắm biểu tượng <b>⠿</b> để kéo mẫu sang danh mục khác. Mỗi lần chuyển sẽ hỏi xác nhận.
+                Bấm <b>🔒 Khoá</b> khi xong.
             </div>
 
             <!-- Templates Container -->
@@ -1232,23 +1240,113 @@ document.getElementById('manualBookingForm').addEventListener('submit', function
     .category-header {
         transition: all 0.2s ease;
     }
-    
-    .category-header:hover {
-        background: linear-gradient(135deg, #0d6efd 0%, #0b5ed7 100%) !important;
+
+    /* ===== Search toolbar + category chips ===== */
+    .template-toolbar {
+        position: sticky;
+        top: 0;
+        z-index: 20;
+        background: #fff;
+        padding: 0.5rem 0 0.5rem;
+        margin-bottom: 0.75rem;
+        border-bottom: 1px solid #e9ecef;
+    }
+    .category-chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+    }
+    .category-chip {
+        border: 1px solid #ced4da;
+        background: #fff;
+        color: #343a40;
+        border-radius: 999px;
+        padding: 4px 12px;
+        font-size: 0.85rem;
+        white-space: nowrap;
+        cursor: pointer;
+        transition: background 0.15s ease, border-color 0.15s ease;
+    }
+    .category-chip:hover { border-color: #0d6efd; }
+    .category-chip .chip-count {
+        display: inline-block;
+        min-width: 20px;
+        margin-left: 4px;
+        padding: 0 6px;
+        border-radius: 999px;
+        background: #e9ecef;
+        font-size: 0.75rem;
+        text-align: center;
+    }
+    .category-chip.active {
+        background: #0d6efd;
+        border-color: #0d6efd;
+        color: #fff;
+        font-weight: 600;
+    }
+    .category-chip.active .chip-count { background: rgba(255,255,255,0.25); }
+    .category-chip.empty { opacity: 0.4; }
+    @media (max-width: 767px) {
+        /* One swipeable row of chips on phones instead of many wrapped lines */
+        .category-chips { flex-wrap: nowrap; overflow-x: auto; -webkit-overflow-scrolling: touch; padding-bottom: 4px; }
+        .template-card-body { padding: 0.75rem !important; }
+        .template-toolbar .btn { padding-left: 0.6rem; padding-right: 0.6rem; }
     }
 
+    /* Thin group label instead of big blue accordion bar */
+    .category-section .category-label {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 4px 4px;
+        font-size: 0.8rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+        color: #6c757d;
+    }
+    .templates-list .category-section { border: none; border-radius: 0; overflow: visible; }
+    .templates-list .category-body { background: transparent; padding: 0 !important; border: none !important; }
+
+    /* Compact template row */
+    .template-row { cursor: pointer; }
+    .template-row .template-snippet {
+        font-size: 0.8rem;
+        color: #6c757d;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .template-row mark, .template-details mark { padding: 0 1px; background: #fff3a3; border-radius: 2px; }
+    .template-row .quick-copy { flex-shrink: 0; }
+    .template-row .template-edit-btn { padding: 0 6px; font-size: 0.75rem; border: none; opacity: 0.5; }
+    .template-row .template-edit-btn:hover { opacity: 1; }
+
     /* ===== Drag-and-Drop Styles ===== */
+    /* Handles are hidden unless "Di chuyển" mode is on, to prevent accidental drags */
     .drag-handle {
+        display: none;
+    }
+    .templates-list.move-mode .drag-handle {
+        display: inline-block;
         cursor: grab;
-        color: #adb5bd;
-        font-size: 1.1rem;
-        padding: 0 4px;
+        color: #0d6efd;
+        background: #e7f1ff;
+        border: 1px dashed #0d6efd;
+        border-radius: 4px;
+        margin-right: 6px;
+        font-size: 1.2rem;
+        padding: 2px 8px;
+        touch-action: none;
         user-select: none;
         flex-shrink: 0;
         line-height: 1;
     }
-    .drag-handle:hover {
-        color: #495057;
+    .templates-list.move-mode .drag-handle:hover {
+        background: #cfe2ff;
+    }
+    .templates-list.move-mode .category-body {
+        min-height: 48px;
     }
     .drag-handle:active {
         cursor: grabbing;
@@ -1472,7 +1570,7 @@ document.getElementById('manualBookingForm').addEventListener('submit', function
 
         // Gather real categories from loaded templates
         const cats = window.templates
-            ? [...new Set(window.templates.map(t => t.category).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'vi'))
+            ? [...new Set(window.templates.map(t => t.category).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'vi', { numeric: true }))
             : [];
 
         // Rebuild: placeholder + real cats + "new" option
@@ -2354,8 +2452,9 @@ document.getElementById('manualBookingForm').addEventListener('submit', function
                     console.log('   - id:', sample.id || 'MISSING');
                     console.log('   - all fields:', Object.keys(sample));
                 }
-                
-                renderTemplates();
+
+                // Keep the current search/filter applied after reloading (e.g. after editing a template)
+                filterTemplates();
                 console.log('✅ Templates loaded successfully:', window.templates.length);
             } else {
                 console.error('❌ Failed to load templates:', data.message || data.error || 'Unknown error');
@@ -2375,14 +2474,75 @@ document.getElementById('manualBookingForm').addEventListener('submit', function
         }
     }
     
+    // ===== SEARCH HELPERS (Vietnamese, accent-insensitive) =====
+    function escapeHtml(s) {
+        return String(s ?? '').replace(/[&<>"']/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c]));
+    }
+
+    // "Hội Vũ" -> "hoi vu", "Đổi" -> "doi"
+    function foldVi(s) {
+        return String(s ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '')
+            .replace(/đ/g, 'd').replace(/Đ/g, 'D').toLowerCase();
+    }
+
+    // Folded copy of text plus, for each folded char, the index of the original char it came from
+    function foldWithMap(text) {
+        const chars = [...String(text ?? '')];
+        let folded = '';
+        const map = [];
+        chars.forEach((c, i) => {
+            for (const f of foldVi(c)) { folded += f; map.push(i); }
+        });
+        return { chars, folded, map };
+    }
+
+    // Escape text and wrap every search-term match in <mark>
+    function highlightVi(text, terms) {
+        if (!terms || !terms.length) return escapeHtml(text);
+        const { chars, folded, map } = foldWithMap(text);
+        const hit = new Array(chars.length).fill(false);
+        terms.forEach(term => {
+            let pos = folded.indexOf(term);
+            while (pos !== -1) {
+                for (let k = pos; k < pos + term.length; k++) hit[map[k]] = true;
+                pos = folded.indexOf(term, pos + term.length);
+            }
+        });
+        let out = '', open = false;
+        chars.forEach((c, i) => {
+            if (hit[i] && !open) { out += '<mark>'; open = true; }
+            if (!hit[i] && open) { out += '</mark>'; open = false; }
+            out += escapeHtml(c);
+        });
+        return open ? out + '</mark>' : out;
+    }
+
+    // One-line preview: around the first content match when searching, otherwise the start
+    function makeSnippetVi(content, terms) {
+        const text = String(content ?? '').replace(/\s+/g, ' ').trim();
+        if (!text) return '<i>(trống)</i>';
+        let start = 0;
+        if (terms && terms.length) {
+            const { folded, map } = foldWithMap(text);
+            const firstHits = terms.map(t => folded.indexOf(t)).filter(p => p !== -1);
+            if (firstHits.length) start = Math.max(0, map[Math.min(...firstHits)] - 30);
+        }
+        const chars = [...text];
+        const piece = chars.slice(start, start + 160).join('');
+        return (start > 0 ? '… ' : '') + highlightVi(piece, terms);
+    }
+
     function renderTemplates() {
         const container = document.getElementById('templatesContainer');
         if (!container) return;
         
         if (!window.templates || window.templates.length === 0) {
-            container.innerHTML = '<div class="text-center p-4"><h6>No templates available</h6></div>';
+            container.innerHTML = window._isFilteringTemplates
+                ? '<div class="text-center text-muted p-4"><i class="fas fa-search fa-2x mb-2 d-block"></i>Không tìm thấy mẫu nào phù hợp.<br><button class="btn btn-link btn-sm" onclick="clearTemplateSearch(true)">Xoá bộ lọc</button></div>'
+                : '<div class="text-center p-4"><h6>Chưa có mẫu tin nhắn nào</h6></div>';
             return;
         }
+        const terms = window._templateSearchTerms || [];
         
         // Group templates by main category
         const groupedTemplates = {};
@@ -2395,42 +2555,34 @@ document.getElementById('manualBookingForm').addEventListener('submit', function
             groupedTemplates[category].push(template);
         });
         
-        // Sort templates within each category (DEFAULT first, then numbered)
+        // Sort templates within each category: DEFAULT first, then A→Z (natural, so "2" < "10")
+        const viCompare = (a, b) => (a || '').localeCompare(b || '', 'vi', { numeric: true, sensitivity: 'base' });
         Object.keys(groupedTemplates).forEach(category => {
             groupedTemplates[category].sort((a, b) => {
-                const aLabel = a.label || '';
-                const bLabel = b.label || '';
-                
-                // DEFAULT templates first
-                if (aLabel.includes('DEFAULT') && !bLabel.includes('DEFAULT')) return -1;
-                if (!aLabel.includes('DEFAULT') && bLabel.includes('DEFAULT')) return 1;
-                
-                // Then sort by number (extract number from end of string)
-                const aNum = parseInt(aLabel.match(/(\d+)$/)?.[1] || '0');
-                const bNum = parseInt(bLabel.match(/(\d+)$/)?.[1] || '0');
-                
-                return aNum - bNum;
+                const aDef = (a.label || '').toUpperCase().includes('DEFAULT');
+                const bDef = (b.label || '').toUpperCase().includes('DEFAULT');
+                if (aDef !== bDef) return aDef ? -1 : 1;
+                return viCompare(a.label, b.label) || (Number(a.id) - Number(b.id));
             });
         });
-        
-        let html = '<div class="templates-list">';
-        
-        // Render each category as a collapsible section
-        Object.keys(groupedTemplates).sort().forEach((category, categoryIndex) => {
+
+        const allCategories = [...new Set((window._allTemplates || window.templates).map(t => t.category || 'General'))].sort(viCompare);
+
+        let html = `<div class="templates-list${window.templateMoveMode ? ' move-mode' : ''}">`;
+
+        // Render each category as a flat group with a thin label (category chips above do the filtering)
+        Object.keys(groupedTemplates).sort(viCompare).forEach((category, categoryIndex) => {
             const templates = groupedTemplates[category];
             const categoryId = `category-${categoryIndex}`;
-            
+
             html += `
-                <div class="category-section mb-3" data-category-name="${category}">
-                    <div class="category-header bg-primary text-white p-2 rounded-top" data-bs-toggle="collapse" data-bs-target="#${categoryId}" style="cursor: pointer;">
-                        <h6 class="mb-0">
-                            <i class="fas fa-folder me-2"></i>${category}
-                            <span class="badge bg-light text-dark ms-2 category-count" id="count-${categoryId}">${templates.length}</span>
-                            <i class="fas fa-chevron-down float-end mt-1"></i>
-                        </h6>
+                <div class="category-section mb-2" data-category-name="${escapeHtml(category)}">
+                    <div class="category-label">
+                        <i class="fas fa-folder"></i>${escapeHtml(category)}
+                        <span class="badge bg-secondary category-count" id="count-${categoryId}">${templates.length}</span>
                     </div>
-                    <div class="collapse" id="${categoryId}">
-                        <div class="category-body border border-top-0 rounded-bottom p-2" data-category="${category}" data-collapse-id="${categoryId}">
+                    <div class="collapse show" id="${categoryId}">
+                        <div class="category-body" data-category="${escapeHtml(category)}" data-collapse-id="${categoryId}">
             `;
             
             templates.forEach(template => {
@@ -2443,14 +2595,14 @@ document.getElementById('manualBookingForm').addEventListener('submit', function
                 const tryPrefixes = [category + ' - ', category + ' '];
                 for (const pfx of tryPrefixes) {
                     if (displayLabel.toLowerCase().startsWith(pfx.toLowerCase())) {
-                        displayLabel = displayLabel.substring(pfx.length).trim() || displayLabel;
+                        displayLabel = displayLabel.substring(pfx.length).replace(/^[\s\-–:]+/, '').trim() || displayLabel;
                         break;
                     }
                 }
 
-                // Extract version info (DEFAULT, 1, 2, etc.)
-                let versionInfo = 'DEFAULT';
-                if (templateLabel.includes('DEFAULT')) {
+                // Badge only when the label really says DEFAULT or ends with a version number
+                let versionInfo = '';
+                if (templateLabel.toUpperCase().includes('DEFAULT')) {
                     versionInfo = 'DEFAULT';
                 } else {
                     const match = templateLabel.match(/(\d+)$/);
@@ -2458,21 +2610,24 @@ document.getElementById('manualBookingForm').addEventListener('submit', function
                         versionInfo = `Version ${match[1]}`;
                     }
                 }
+                const categoryOptions = allCategories.map(c =>
+                    `<option value="${c.replace(/"/g, '&quot;')}"${c === category ? ' selected' : ''}>${c}</option>`
+                ).join('');
 
                 // Create optimized template item with collapsible details
                 html += `
-                    <div class="template-item-optimized border rounded bg-white mb-2" data-template-id="${templateId}" data-category="${category}">
-                        <!-- Template Title Header (Always Visible) -->
-                        <div class="template-title-header p-2 d-flex justify-content-between align-items-center"
-                             style="border-bottom: 1px solid #f0f0f0;">
-                            <div class="d-flex align-items-center" style="flex:1; min-width:0; cursor:pointer;" onclick="toggleTemplateDetails('${templateId}')">
-                                <span class="drag-handle me-1" title="Kéo để chuyển danh mục" onclick="event.stopPropagation()">⠿</span>
-                                <i class="fas fa-chevron-right me-2 text-muted transition-icon" id="chevron-${templateId}"></i>
+                    <div class="template-item-optimized border rounded bg-white mb-1" data-template-id="${templateId}" data-category="${escapeHtml(category)}">
+                        <!-- Template row (always visible): name + 1-line preview + quick Copy -->
+                        <div class="template-title-header template-row px-2 py-1 d-flex align-items-center gap-2"
+                             onclick="toggleTemplateDetails('${templateId}')">
+                            <span class="drag-handle" title="Kéo để chuyển danh mục" onclick="event.stopPropagation()">⠿</span>
+                            <i class="fas fa-chevron-right text-muted transition-icon" id="chevron-${templateId}"></i>
+                            <div style="flex:1; min-width:0;">
                                 <div class="template-name-container d-flex align-items-center">
-                                    <span class="fw-medium text-dark template-name-display" id="name-display-${templateId}">${displayLabel}</span>
+                                    <span class="fw-semibold text-dark template-name-display" id="name-display-${templateId}">${highlightVi(displayLabel, terms)}</span>
                                     <input type="text" class="form-control form-control-sm template-name-edit d-none"
                                            id="name-edit-${templateId}" value="${templateLabel}"
-                                           style="width: 200px;" onblur="cancelEditTemplateName('${templateId}')" 
+                                           style="width: 200px;" onclick="event.stopPropagation()" onblur="cancelEditTemplateName('${templateId}')"
                                            onkeypress="handleTemplateNameKeypress(event, '${templateId}')">
                                     <button class="btn btn-sm btn-outline-secondary ms-2 template-edit-btn" 
                                             onclick="event.stopPropagation(); editTemplateName('${templateId}')" 
@@ -2491,21 +2646,22 @@ document.getElementById('manualBookingForm').addEventListener('submit', function
                                             <i class="fas fa-times"></i>
                                         </button>
                                     </div>
+                                    ${versionInfo ? `<span class="badge ${versionInfo === 'DEFAULT' ? 'bg-success' : 'bg-info'} ms-2 small">${versionInfo}</span>` : ''}
                                 </div>
-                                <span class="badge ${versionInfo === 'DEFAULT' ? 'bg-success' : 'bg-info'} ms-2 small">${versionInfo}</span>
+                                <div class="template-snippet">${makeSnippetVi(templateContent, terms)}</div>
                             </div>
-                            <small class="text-muted">ID: ${templateId}</small>
+                            <button class="btn btn-sm btn-primary quick-copy" onclick="event.stopPropagation(); useTemplate('${templateId}')" title="Copy nội dung">
+                                <i class="fas fa-copy"></i><span class="d-none d-sm-inline"> Copy</span>
+                            </button>
                         </div>
-                        
+
                         <!-- Template Details (Collapsible) -->
                         <div class="template-details collapse" id="details-${templateId}">
                             <div class="p-3 bg-light">
-                                <!-- Content Preview -->
+                                <!-- Full content -->
                                 <div class="mb-3">
-                                    <small class="text-muted fw-bold d-block mb-1">Preview:</small>
-                                    <p class="text-muted small mb-0" style="font-size: 0.85rem; line-height: 1.4;">
-                                        ${templateContent.substring(0, 150)}${templateContent.length > 150 ? '...' : ''}
-                                    </p>
+                                    <small class="text-muted fw-bold d-block mb-1">Nội dung <span class="fw-normal">(ID: ${templateId})</span>:</small>
+                                    <div class="small text-dark bg-white border rounded p-2" style="white-space: pre-wrap; max-height: 220px; overflow-y: auto; line-height: 1.45;">${highlightVi(templateContent, terms)}</div>
                                 </div>
                                 
                                 <!-- Template Images Gallery Section -->
@@ -2539,6 +2695,13 @@ document.getElementById('manualBookingForm').addEventListener('submit', function
                                     <button class="btn btn-sm btn-outline-danger" onclick="deleteTemplate('${templateId}')" data-template-name="${templateLabel.replace(/'/g, '&#39;').replace(/"/g, '&quot;')}" title="Delete this template">
                                         <i class="fas fa-trash"></i> Delete
                                     </button>
+                                    <div class="input-group input-group-sm ms-auto" style="width:auto;">
+                                        <span class="input-group-text"><i class="fas fa-folder-open me-1"></i>Chuyển sang</span>
+                                        <select class="form-select form-select-sm" style="max-width:200px;"
+                                                onchange="changeTemplateCategory('${templateId}', this)">
+                                            ${categoryOptions}
+                                        </select>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -2574,33 +2737,66 @@ document.getElementById('manualBookingForm').addEventListener('submit', function
             }
             body._sortable = Sortable.create(body, {
                 group: 'templates',          // share between all category-body lists
+                disabled: !window.templateMoveMode, // locked unless "Di chuyển" mode is on
+                sort: false,                 // order inside a category is not saved, so don't allow reordering
                 animation: 180,
                 handle: '.drag-handle',
+                delay: 200,                  // must hold briefly before dragging (prevents drags while scrolling)
+                delayOnTouchOnly: true,
+                fallbackTolerance: 5,
                 ghostClass: 'sortable-ghost',
                 dragClass: 'sortable-drag',
-                onStart: function() {
-                    // Expand all category sections while dragging
-                    document.querySelectorAll('.category-body').forEach(b => {
-                        const collapseId = b.dataset.collapseId;
-                        const el = document.getElementById(collapseId);
-                        if (el && !el.classList.contains('show')) {
-                            el.classList.add('show');
-                        }
-                    });
-                },
                 onAdd: function(evt) {
                     const item = evt.item;
                     const templateId = item.dataset.templateId;
                     const newCategory = body.dataset.category;
                     const oldCategory = item.dataset.category;
-                    if (newCategory && oldCategory && newCategory !== oldCategory) {
-                        moveTemplateToCategory(templateId, newCategory, oldCategory, item, body);
+                    if (!newCategory || !oldCategory || newCategory === oldCategory) return;
+
+                    const t = (window.templates || []).find(x => String(x.id) === String(templateId));
+                    const name = t ? t.label : `ID ${templateId}`;
+                    if (!confirm(`Chuyển mẫu "${name}"\ntừ "${oldCategory}" sang "${newCategory}"?`)) {
+                        // Put it back where it came from
+                        evt.from.insertBefore(item, evt.from.children[evt.oldIndex] || null);
+                        return;
                     }
+                    moveTemplateToCategory(templateId, newCategory, oldCategory, item, body);
                 }
             });
         });
-        console.log('✅ Drag-and-drop initialized on', document.querySelectorAll('.category-body').length, 'categories');
     }
+
+    window.toggleMoveMode = function() {
+        window.templateMoveMode = !window.templateMoveMode;
+        const on = window.templateMoveMode;
+        const btn = document.getElementById('moveModeBtn');
+        if (btn) {
+            btn.className = `btn ${on ? 'btn-warning' : 'btn-outline-dark'} text-nowrap`;
+            btn.innerHTML = on ? '🔒<span class="d-none d-md-inline"> Khoá</span>'
+                               : '<i class="fas fa-lock"></i><span class="d-none d-md-inline"> Di chuyển</span>';
+        }
+        document.getElementById('moveModeBanner')?.classList.toggle('d-none', !on);
+        // Moving needs every category on screen as a drop target, so show all groups
+        if (on) {
+            window._activeTemplateCategory = '';
+            saveActiveTemplateCategory();
+        }
+        filterTemplates();
+    };
+
+    // Non-drag way to move a template: the "Chuyển sang" dropdown in its details
+    window.changeTemplateCategory = function(templateId, selectEl) {
+        const t = (window.templates || []).find(x => String(x.id) === String(templateId));
+        const oldCategory = t ? (t.category || 'General') : '';
+        const newCategory = selectEl.value;
+        if (!t || newCategory === oldCategory) return;
+        if (!confirm(`Chuyển mẫu "${t.label}"\ntừ "${oldCategory}" sang "${newCategory}"?`)) {
+            selectEl.value = oldCategory;
+            return;
+        }
+        const itemEl = selectEl.closest('.template-item-optimized');
+        moveTemplateToCategory(templateId, newCategory, oldCategory, itemEl, null);
+    };
 
     async function moveTemplateToCategory(templateId, newCategory, oldCategory, itemEl, targetBody) {
         itemEl.classList.add('moving');
@@ -2620,8 +2816,9 @@ document.getElementById('manualBookingForm').addEventListener('submit', function
             const data = await resp.json();
 
             if (data.success) {
-                updateCategoryCounts();
                 showDragToast(`✅ Đã chuyển sang danh mục "${newCategory}"`);
+                // Re-render so the item lands in sorted position with correct counts/dropdowns
+                renderTemplates();
             } else {
                 // Revert optimistic update
                 if (t) t.category = originalCategory;
@@ -2893,11 +3090,16 @@ document.getElementById('manualBookingForm').addEventListener('submit', function
         if (detailsElement.classList.contains('show')) {
             // Currently expanded, collapse it
             bsCollapse.hide();
-            chevronElement.className = 'fas fa-chevron-right me-2 text-muted transition-icon';
+            chevronElement.className = 'fas fa-chevron-right text-muted transition-icon';
         } else {
             // Currently collapsed, expand it
             bsCollapse.show();
-            chevronElement.className = 'fas fa-chevron-down me-2 text-muted transition-icon';
+            chevronElement.className = 'fas fa-chevron-down text-muted transition-icon';
+            // Images are loaded on demand, only for templates the user actually opens
+            if (!detailsElement.dataset.imagesLoaded) {
+                detailsElement.dataset.imagesLoaded = '1';
+                loadTemplateImages(templateId);
+            }
         }
     };
     
@@ -3357,23 +3559,15 @@ document.getElementById('manualBookingForm').addEventListener('submit', function
         }
     });
     
-    // Enhance the existing renderTemplates function to load images
+    // Every re-render (after delete, rename, move...) goes through filterTemplates so the
+    // current search + category chip stay applied. Images load lazily in toggleTemplateDetails.
     const originalRenderTemplates = renderTemplates;
     renderTemplates = function() {
-        // Call original function (no parameters - it uses window.templates directly)
-        originalRenderTemplates();
-
-        // Load images for each template after rendering
-        if (window.templates && window.templates.length > 0) {
-            window.templates.forEach(template => {
-                if (template.id) {  // Only load if template has valid ID
-                    setTimeout(() => loadTemplateImages(template.id), 100);
-                }
-            });
+        if (!window._renderingFilteredTemplates) {
+            filterTemplates();
+            return;
         }
-
-        // Populate filter dropdown
-        populateFilterDropdown();
+        originalRenderTemplates();
     };
 
     // ===== EDIT TEMPLATE FUNCTIONS =====
@@ -3465,49 +3659,182 @@ document.getElementById('manualBookingForm').addEventListener('submit', function
         }
     }
 
-    // ===== SEARCH AND FILTER FUNCTIONS =====
-    function populateFilterDropdown() {
-        const filterSelect = document.getElementById('filterCategory');
-        if (!filterSelect || !window.templates) return;
+    // ===== SEARCH, CATEGORY CHIPS, RECENTLY USED =====
+    const RECENT_KEY = 'recentTemplateIds';
+    const RECENT_CHIP = '__recent__';
 
-        // Get unique categories
-        const categories = [...new Set(window.templates.map(t => t.category || 'General'))].sort();
+    function getRecentTemplateIds() {
+        try { return JSON.parse(localStorage.getItem(RECENT_KEY) || '[]'); } catch (e) { return []; }
+    }
 
-        // Clear and populate dropdown
-        filterSelect.innerHTML = '<option value="">Tất cả danh mục</option>';
-        categories.forEach(cat => {
-            filterSelect.innerHTML += `<option value="${cat}">${cat}</option>`;
-        });
+    function rememberRecentTemplate(templateId) {
+        try {
+            const ids = getRecentTemplateIds().filter(id => String(id) !== String(templateId));
+            ids.unshift(templateId);
+            localStorage.setItem(RECENT_KEY, JSON.stringify(ids.slice(0, 12)));
+        } catch (e) { /* storage unavailable — recent list is just a convenience */ }
+    }
+
+    // Record every copy so the "Gần đây" chip lists the templates actually used
+    const originalUseTemplate = window.useTemplate;
+    window.useTemplate = function(templateId) {
+        rememberRecentTemplate(templateId);
+        const result = originalUseTemplate.apply(this, arguments);
+        if (window._activeTemplateCategory !== RECENT_CHIP) renderCategoryChips();
+        return result;
+    };
+
+    try { window._activeTemplateCategory = localStorage.getItem('activeTemplateCategory') || ''; } catch (e) { window._activeTemplateCategory = ''; }
+    function saveActiveTemplateCategory() {
+        try { localStorage.setItem('activeTemplateCategory', window._activeTemplateCategory || ''); } catch (e) {}
+    }
+
+    window.setTemplateCategory = function(category) {
+        window._activeTemplateCategory = category || '';
+        saveActiveTemplateCategory();
+        filterTemplates();
+        document.getElementById('templatesContainer')?.scrollIntoView({ block: 'nearest' });
+    };
+
+    function templateMatchesSearch(t, terms) {
+        if (!terms.length) return true;
+        const hay = foldVi(`${t.label || ''} ${t.category || ''} ${t.content || ''}`).replace(/\s+/g, ' ');
+        return terms.every(w => hay.includes(w));
+    }
+
+    // Chips show how many search matches each category has
+    function renderCategoryChips(searched) {
+        const box = document.getElementById('categoryChips');
+        const all = window.templates || [];
+        if (!box) return;
+        if (!searched) searched = all.filter(t => templateMatchesSearch(t, window._templateSearchTerms || []));
+
+        const counts = {};
+        searched.forEach(t => { const c = t.category || 'General'; counts[c] = (counts[c] || 0) + 1; });
+        // numeric: "2 · ..." before "10 · ..."
+        const categories = [...new Set(all.map(t => t.category || 'General'))]
+            .sort((a, b) => a.localeCompare(b, 'vi', { numeric: true, sensitivity: 'base' }));
+        const recentIds = getRecentTemplateIds();
+        const recentCount = searched.filter(t => recentIds.some(id => String(id) === String(t.id))).length;
+        const active = window._activeTemplateCategory || '';
+
+        const chip = (value, label, count) =>
+            `<button type="button" class="category-chip${active === value ? ' active' : ''}${count === 0 ? ' empty' : ''}"
+                     data-cat="${escapeHtml(value)}" onclick="setTemplateCategory(this.dataset.cat)">
+                ${label}<span class="chip-count">${count}</span>
+             </button>`;
+
+        let html = chip('', 'Tất cả', searched.length);
+        if (recentIds.length) html += chip(RECENT_CHIP, '⭐ Gần đây', recentCount);
+        categories.forEach(c => { html += chip(c, escapeHtml(c), counts[c] || 0); });
+        box.innerHTML = html;
+
+        // On phones the chips scroll sideways — keep the selected one in view
+        const activeChip = box.querySelector('.category-chip.active');
+        if (activeChip && box.scrollWidth > box.clientWidth) {
+            box.scrollLeft = activeChip.offsetLeft - box.offsetLeft - 16;
+        }
     }
 
     function filterTemplates() {
-        const searchTerm = document.getElementById('searchTemplates').value.toLowerCase();
-        const categoryFilter = document.getElementById('filterCategory').value;
+        const all = window.templates;
+        if (!all) return;
 
-        if (!window.templates) return;
+        const rawSearch = document.getElementById('searchTemplates')?.value || '';
+        let terms = foldVi(rawSearch.trim()).split(/\s+/).filter(Boolean);
+        // Prefer the exact phrase ("hang be") when it exists; only fall back to
+        // "all words anywhere" so "be" doesn't match every "belongings"
+        if (terms.length > 1) {
+            const phrase = [terms.join(' ')];
+            if (all.some(t => templateMatchesSearch(t, phrase))) terms = phrase;
+        }
+        window._templateSearchTerms = terms;
 
-        // Filter templates
-        const filtered = window.templates.filter(template => {
-            const matchesSearch = !searchTerm ||
-                (template.label && template.label.toLowerCase().includes(searchTerm)) ||
-                (template.content && template.content.toLowerCase().includes(searchTerm)) ||
-                (template.category && template.category.toLowerCase().includes(searchTerm));
+        // Forget a remembered category that no longer exists
+        let active = window._activeTemplateCategory || '';
+        if (active && active !== RECENT_CHIP && !all.some(t => (t.category || 'General') === active)) {
+            active = window._activeTemplateCategory = '';
+        }
 
-            const matchesCategory = !categoryFilter || template.category === categoryFilter;
+        const searched = all.filter(t => templateMatchesSearch(t, terms));
+        let shown;
+        if (active === RECENT_CHIP) {
+            const ids = getRecentTemplateIds().map(String);
+            shown = searched.filter(t => ids.includes(String(t.id)));
+        } else if (active) {
+            shown = searched.filter(t => (t.category || 'General') === active);
+        } else {
+            shown = searched;
+        }
 
-            return matchesSearch && matchesCategory;
-        });
+        window._isFilteringTemplates = terms.length > 0 || !!active;
+        renderCategoryChips(searched);
 
-        // Temporarily update window.templates for rendering
-        const originalTemplates = window.templates;
-        window.templates = filtered;
-        renderTemplates();
-        window.templates = originalTemplates; // Restore original
+        const countEl = document.getElementById('templateResultCount');
+        if (countEl) {
+            countEl.textContent = window._isFilteringTemplates
+                ? `Hiển thị ${shown.length} / ${all.length} mẫu`
+                : `${all.length} mẫu — bấm vào tên để xem đầy đủ, nút Copy để sao chép nhanh`;
+        }
+
+        // Render only the filtered list, then restore the full list
+        window._allTemplates = all;
+        window.templates = shown;
+        window._renderingFilteredTemplates = true;
+        try {
+            originalRenderTemplates();
+        } finally {
+            window.templates = all;
+            window._allTemplates = null;
+            window._renderingFilteredTemplates = false;
+        }
     }
+
+    let filterTimer = null;
+    window.scheduleFilterTemplates = function() {
+        clearTimeout(filterTimer);
+        filterTimer = setTimeout(filterTemplates, 120);
+    };
+
+    window.clearTemplateSearch = function(alsoCategory) {
+        const input = document.getElementById('searchTemplates');
+        if (input) input.value = '';
+        if (alsoCategory) {
+            window._activeTemplateCategory = '';
+            saveActiveTemplateCategory();
+        }
+        filterTemplates();
+        input?.focus();
+    };
+
+    window.handleTemplateSearchKey = function(e) {
+        if (e.key === 'Escape') {
+            e.preventDefault();
+            clearTemplateSearch();
+        } else if (e.key === 'Enter') {
+            // Enter opens the first result
+            e.preventDefault();
+            clearTimeout(filterTimer);
+            filterTemplates();
+            const first = document.querySelector('#templatesContainer .template-item-optimized');
+            if (first) {
+                toggleTemplateDetails(first.dataset.templateId);
+                first.scrollIntoView({ block: 'center', behavior: 'smooth' });
+            }
+        }
+    };
+
+    // Press "/" anywhere (outside a text field) to jump to the search box
+    document.addEventListener('keydown', function(e) {
+        if (e.key !== '/' || e.ctrlKey || e.metaKey || e.altKey) return;
+        const tag = (e.target.tagName || '').toLowerCase();
+        if (tag === 'input' || tag === 'textarea' || tag === 'select' || e.target.isContentEditable) return;
+        const input = document.getElementById('searchTemplates');
+        if (input) { e.preventDefault(); input.focus(); input.select(); }
+    });
 
     function refreshTemplates() {
         document.getElementById('searchTemplates').value = '';
-        document.getElementById('filterCategory').value = '';
         loadTemplates();
     }
 
