@@ -9851,6 +9851,11 @@ def get_templates():
             })
         
         print(f"📋 Templates API: Processed {len(templates_data)} templates")
+
+        # ⭐ Starred templates (raw column — not on the ORM model)
+        favorite_ids = _load_favorite_template_ids()
+        for t in templates_data:
+            t['is_favorite'] = t['id'] in favorite_ids
         
         # Debug: Show sample template structure
         if templates_data:
@@ -9876,6 +9881,50 @@ def get_templates():
     except Exception as e:
         print(f"Error getting templates: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
+
+def _ensure_template_favorite_column():
+    from core.models import db
+    try:
+        db.session.execute(text(
+            "ALTER TABLE message_templates ADD COLUMN IF NOT EXISTS is_favorite BOOLEAN NOT NULL DEFAULT FALSE"))
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+
+
+def _load_favorite_template_ids():
+    from core.models import db
+    try:
+        _ensure_template_favorite_column()
+        rows = db.session.execute(text(
+            "SELECT template_id FROM message_templates WHERE is_favorite = TRUE")).fetchall()
+        return {r[0] for r in rows}
+    except Exception as e:
+        db.session.rollback()
+        print(f"⚠️ Could not load favorite templates: {e}")
+        return set()
+
+
+@app.route('/api/templates/<int:template_id>/favorite', methods=['POST'])
+def set_template_favorite(template_id):
+    """Star / unstar a template: body {"favorite": true|false}. Shared across devices."""
+    from core.models import db
+    try:
+        data = request.get_json(silent=True) or {}
+        favorite = bool(data.get('favorite'))
+        _ensure_template_favorite_column()
+        row = db.session.execute(
+            text("UPDATE message_templates SET is_favorite = :f WHERE template_id = :id RETURNING template_id"),
+            {'f': favorite, 'id': template_id}
+        ).fetchone()
+        db.session.commit()
+        if not row:
+            return jsonify({'success': False, 'error': 'Template not found'}), 404
+        return jsonify({'success': True, 'id': template_id, 'is_favorite': favorite})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 
 @app.route('/api/templates/add', methods=['POST'])
 def add_template():

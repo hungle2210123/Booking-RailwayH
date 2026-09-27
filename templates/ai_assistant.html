@@ -1319,6 +1319,12 @@ document.getElementById('manualBookingForm').addEventListener('submit', function
     }
     .template-row mark, .template-details mark { padding: 0 1px; background: #fff3a3; border-radius: 2px; }
     .template-row .quick-copy { flex-shrink: 0; }
+    .fav-btn {
+        border: none; background: transparent; padding: 0 2px; flex-shrink: 0;
+        font-size: 1.15rem; line-height: 1; color: #adb5bd; cursor: pointer;
+    }
+    .fav-btn:hover { color: #f59e0b; }
+    .fav-btn.on { color: #f59e0b; }
     .template-row .template-edit-btn { padding: 0 6px; font-size: 0.75rem; border: none; opacity: 0.5; }
     .template-row .template-edit-btn:hover { opacity: 1; }
 
@@ -2536,6 +2542,10 @@ document.getElementById('manualBookingForm').addEventListener('submit', function
         const container = document.getElementById('templatesContainer');
         if (!container) return;
         
+        if (window._templateListClosed) {
+            container.innerHTML = '<div class="text-center text-muted p-4"><i class="fas fa-hand-pointer fa-2x mb-2 d-block"></i>Bấm vào một mục ở trên để xem mẫu, hoặc gõ vào ô tìm kiếm.</div>';
+            return;
+        }
         if (!window.templates || window.templates.length === 0) {
             container.innerHTML = window._isFilteringTemplates
                 ? '<div class="text-center text-muted p-4"><i class="fas fa-search fa-2x mb-2 d-block"></i>Không tìm thấy mẫu nào phù hợp.<br><button class="btn btn-link btn-sm" onclick="clearTemplateSearch(true)">Xoá bộ lọc</button></div>'
@@ -2621,6 +2631,9 @@ document.getElementById('manualBookingForm').addEventListener('submit', function
                         <div class="template-title-header template-row px-2 py-1 d-flex align-items-center gap-2"
                              onclick="toggleTemplateDetails('${templateId}')">
                             <span class="drag-handle" title="Kéo để chuyển danh mục" onclick="event.stopPropagation()">⠿</span>
+                            <button type="button" class="fav-btn${template.is_favorite ? ' on' : ''}"
+                                    onclick="event.stopPropagation(); toggleTemplateFavorite('${templateId}', this)"
+                                    title="${template.is_favorite ? 'Bỏ đánh dấu' : 'Đánh dấu — gom vào mục ⭐ Đã đánh dấu'}">${template.is_favorite ? '★' : '☆'}</button>
                             <i class="fas fa-chevron-right text-muted transition-icon" id="chevron-${templateId}"></i>
                             <div style="flex:1; min-width:0;">
                                 <div class="template-name-container d-flex align-items-center">
@@ -2777,10 +2790,7 @@ document.getElementById('manualBookingForm').addEventListener('submit', function
         }
         document.getElementById('moveModeBanner')?.classList.toggle('d-none', !on);
         // Moving needs every category on screen as a drop target, so show all groups
-        if (on) {
-            window._activeTemplateCategory = '';
-            saveActiveTemplateCategory();
-        }
+        if (on) window._activeTemplateCategory = ALL_CHIP;
         filterTemplates();
     };
 
@@ -3662,6 +3672,10 @@ document.getElementById('manualBookingForm').addEventListener('submit', function
     // ===== SEARCH, CATEGORY CHIPS, RECENTLY USED =====
     const RECENT_KEY = 'recentTemplateIds';
     const RECENT_CHIP = '__recent__';
+    const FAV_CHIP = '__fav__';
+    const ALL_CHIP = '__all__';
+    // Nothing is listed until a chip is clicked or something is searched (avoids long scrolling)
+    window._activeTemplateCategory = '';
 
     function getRecentTemplateIds() {
         try { return JSON.parse(localStorage.getItem(RECENT_KEY) || '[]'); } catch (e) { return []; }
@@ -3684,16 +3698,34 @@ document.getElementById('manualBookingForm').addEventListener('submit', function
         return result;
     };
 
-    try { window._activeTemplateCategory = localStorage.getItem('activeTemplateCategory') || ''; } catch (e) { window._activeTemplateCategory = ''; }
-    function saveActiveTemplateCategory() {
-        try { localStorage.setItem('activeTemplateCategory', window._activeTemplateCategory || ''); } catch (e) {}
-    }
-
+    // Clicking the open chip again closes it
     window.setTemplateCategory = function(category) {
-        window._activeTemplateCategory = category || '';
-        saveActiveTemplateCategory();
+        category = category || '';
+        window._activeTemplateCategory = window._activeTemplateCategory === category ? '' : category;
         filterTemplates();
-        document.getElementById('templatesContainer')?.scrollIntoView({ block: 'nearest' });
+    };
+
+    // ⭐ Star / unstar — starred templates are gathered under the "Đã đánh dấu" chip
+    window.toggleTemplateFavorite = async function(templateId, btn) {
+        const t = (window.templates || []).find(x => String(x.id) === String(templateId));
+        if (!t) return;
+        const next = !t.is_favorite;
+        if (btn) btn.disabled = true;
+        try {
+            const resp = await fetch(`/api/templates/${templateId}/favorite`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ favorite: next })
+            });
+            const data = await resp.json();
+            if (!data.success) throw new Error(data.error || 'Lỗi');
+            t.is_favorite = data.is_favorite;
+            showDragToast(next ? '⭐ Đã đánh dấu — xem trong mục "Đã đánh dấu"' : 'Đã bỏ đánh dấu');
+            renderTemplates();
+        } catch (e) {
+            showDragToast('❌ Không lưu được đánh dấu: ' + e.message, true);
+            if (btn) btn.disabled = false;
+        }
     };
 
     function templateMatchesSearch(t, terms) {
@@ -3716,6 +3748,8 @@ document.getElementById('manualBookingForm').addEventListener('submit', function
             .sort((a, b) => a.localeCompare(b, 'vi', { numeric: true, sensitivity: 'base' }));
         const recentIds = getRecentTemplateIds();
         const recentCount = searched.filter(t => recentIds.some(id => String(id) === String(t.id))).length;
+        const favCount = searched.filter(t => t.is_favorite).length;
+        const hasFav = all.some(t => t.is_favorite);
         const active = window._activeTemplateCategory || '';
 
         const chip = (value, label, count) =>
@@ -3724,9 +3758,11 @@ document.getElementById('manualBookingForm').addEventListener('submit', function
                 ${label}<span class="chip-count">${count}</span>
              </button>`;
 
-        let html = chip('', 'Tất cả', searched.length);
-        if (recentIds.length) html += chip(RECENT_CHIP, '⭐ Gần đây', recentCount);
+        let html = '';
+        if (hasFav) html += chip(FAV_CHIP, '⭐ Đã đánh dấu', favCount);
+        if (recentIds.length) html += chip(RECENT_CHIP, '🕘 Gần đây', recentCount);
         categories.forEach(c => { html += chip(c, escapeHtml(c), counts[c] || 0); });
+        html += chip(ALL_CHIP, 'Tất cả', searched.length);
         box.innerHTML = html;
 
         // On phones the chips scroll sideways — keep the selected one in view
@@ -3752,7 +3788,9 @@ document.getElementById('manualBookingForm').addEventListener('submit', function
 
         // Forget a remembered category that no longer exists
         let active = window._activeTemplateCategory || '';
-        if (active && active !== RECENT_CHIP && !all.some(t => (t.category || 'General') === active)) {
+        const special = [RECENT_CHIP, FAV_CHIP, ALL_CHIP];
+        if ((active && !special.includes(active) && !all.some(t => (t.category || 'General') === active))
+            || (active === FAV_CHIP && !all.some(t => t.is_favorite))) {
             active = window._activeTemplateCategory = '';
         }
 
@@ -3761,20 +3799,25 @@ document.getElementById('manualBookingForm').addEventListener('submit', function
         if (active === RECENT_CHIP) {
             const ids = getRecentTemplateIds().map(String);
             shown = searched.filter(t => ids.includes(String(t.id)));
-        } else if (active) {
+        } else if (active === FAV_CHIP) {
+            shown = searched.filter(t => t.is_favorite);
+        } else if (active && active !== ALL_CHIP) {
             shown = searched.filter(t => (t.category || 'General') === active);
+        } else if (active === ALL_CHIP || terms.length) {
+            shown = searched;             // "Tất cả", or a search across every category
         } else {
-            shown = searched;
+            shown = [];                   // nothing chosen yet → list stays closed
         }
 
+        window._templateListClosed = !active && !terms.length;
         window._isFilteringTemplates = terms.length > 0 || !!active;
         renderCategoryChips(searched);
 
         const countEl = document.getElementById('templateResultCount');
         if (countEl) {
-            countEl.textContent = window._isFilteringTemplates
-                ? `Hiển thị ${shown.length} / ${all.length} mẫu`
-                : `${all.length} mẫu — bấm vào tên để xem đầy đủ, nút Copy để sao chép nhanh`;
+            countEl.textContent = window._templateListClosed
+                ? `${all.length} mẫu — bấm vào một mục ở trên hoặc gõ để tìm`
+                : `Hiển thị ${shown.length} / ${all.length} mẫu · bấm lại vào mục đang mở để thu gọn`;
         }
 
         // Render only the filtered list, then restore the full list
@@ -3799,10 +3842,7 @@ document.getElementById('manualBookingForm').addEventListener('submit', function
     window.clearTemplateSearch = function(alsoCategory) {
         const input = document.getElementById('searchTemplates');
         if (input) input.value = '';
-        if (alsoCategory) {
-            window._activeTemplateCategory = '';
-            saveActiveTemplateCategory();
-        }
+        if (alsoCategory) window._activeTemplateCategory = '';
         filterTemplates();
         input?.focus();
     };

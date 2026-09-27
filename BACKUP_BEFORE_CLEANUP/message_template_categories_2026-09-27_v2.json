@@ -1,0 +1,292 @@
+[
+ {
+  "template_id": 1,
+  "category": "11 · Cảm ơn & Đánh giá",
+  "template_name": "Cảm ơn đơn giản"
+ },
+ {
+  "template_id": 7,
+  "category": "3 · Hướng dẫn Check-in",
+  "template_name": "Check-in Instructions DEFAULT"
+ },
+ {
+  "template_id": 8,
+  "category": "11 · Cảm ơn & Đánh giá",
+  "template_name": "Feedback Message DEFAULT"
+ },
+ {
+  "template_id": 9,
+  "category": "4 · Tiện ích khi ở",
+  "template_name": "PARK - DEFAULT"
+ },
+ {
+  "template_id": 10,
+  "category": "4 · Tiện ích khi ở",
+  "template_name": "LAUNDRY - DEFAULT"
+ },
+ {
+  "template_id": 11,
+  "category": "5 · Taxi & Đưa đón",
+  "template_name": "Airport Pickup - Pillar 14"
+ },
+ {
+  "template_id": 12,
+  "category": "5 · Taxi & Đưa đón",
+  "template_name": "Driver Booking Confirmation"
+ },
+ {
+  "template_id": 13,
+  "category": "5 · Taxi & Đưa đón",
+  "template_name": "Taxi Service Offer"
+ },
+ {
+  "template_id": 18,
+  "category": "11 · Cảm ơn & Đánh giá",
+  "template_name": "Apology with Discounts"
+ },
+ {
+  "template_id": 48,
+  "category": "1 · Chào đón & Hỏi giờ đến",
+  "template_name": "WELCOME - 118 Hàng Bạc"
+ },
+ {
+  "template_id": 52,
+  "category": "3 · Hướng dẫn Check-in",
+  "template_name": "Check-in Instructions - Lên Phòng 2 - 118 Hang Bac"
+ },
+ {
+  "template_id": 56,
+  "category": "4 · Tiện ích khi ở",
+  "template_name": "Leave early - 3"
+ },
+ {
+  "template_id": 58,
+  "category": "10 · Hủy phòng – Hết phòng/Sự cố",
+  "template_name": "Room Unavailable - HỦY PHÒNG PHÚT CHÓT"
+ },
+ {
+  "template_id": 63,
+  "category": "1 · Chào đón & Hỏi giờ đến",
+  "template_name": "WELCOME - HỎI GIỜ ĐẾN"
+ },
+ {
+  "template_id": 67,
+  "category": "6 · Thanh toán",
+  "template_name": "payment - Thu tiền trực tiếp và bỏ thùng"
+ },
+ {
+  "template_id": 71,
+  "category": "6 · Thanh toán",
+  "template_name": "THU TIỀN - 118 Hang Bac"
+ },
+ {
+  "template_id": 87,
+  "category": "3 · Hướng dẫn Check-in",
+  "template_name": "CHECK IN - ĐI KÈM SAU KHI VỪA CHECK IN"
+ },
+ {
+  "template_id": 90,
+  "category": "2 · Đến sớm & Gửi hành lý",
+  "template_name": "Check-in Instructions - Để hành ly 118 Hang Bac"
+ },
+ {
+  "template_id": 92,
+  "category": "7 · Xin hủy & Giảm giá",
+  "template_name": "FEED BACK - CẢM ƠN - TẠM BIỆT - XÁC NHẬN EMAIL"
+ },
+ {
+  "template_id": 98,
+  "category": "2 · Đến sớm & Gửi hành lý",
+  "template_name": "EARLY CHECK IN - Chuẩn"
+ },
+ {
+  "template_id": 100,
+  "category": "2 · Đến sớm & Gửi hành lý",
+  "template_name": "EARLY CHECK IN - PRO"
+ },
+ {
+  "template_id": 106,
+  "category": "1 · Chào đón & Hỏi giờ đến",
+  "template_name": "WELCOME - Whatsapp"
+ },
+ {
+  "template_id": 110,
+  "category": "3 · Hướng dẫn Check-in",
+  "template_name": "Check-in Instructions - Check In - 18 Hang Be"
+ },
+ {
+  "template_id": 114,
+  "category": "2 · Đến sớm & Gửi hành lý",
+  "template_name": "Check-in Instructions - Để hành lý - 18 Hang Be"
+ },
+ {
+  "template_id": 116,
+  "category": "3 · Hướng dẫn Check-in",
+  "template_name": "Check-in Instructions - Check in TRỄ"
+ },
+ {
+  "template_id": 118,
+  "category": "1 · Chào đón & Hỏi giờ đến",
+  "template_name": "WELCOME - Hang Be"
+ },
+ {
+  "template_id": 120,
+  "category": "6 · Thanh toán",
+  "template_name": "payment - 18 Hang Be"
+ },
+ {
+  "template_id": 126,
+  "category": "2 · Đến sớm & Gửi hành lý",
+  "template_name": "EARLY CHECK IN - CHECK IN SỚM NẾU CÓ PHÒNG"
+ },
+ {
+  "template_id": 130,
+  "category": "6 · Thanh toán",
+  "template_name": "payment - NHẮC THANH TOÁN"
+ },
+ {
+  "template_id": 136,
+  "category": "6 · Thanh toán",
+  "template_name": "payment - Xác nhận ĐÃ THU TIỀN"
+ },
+ {
+  "template_id": 138,
+  "category": "3 · Hướng dẫn Check-in",
+  "template_name": "Check-in Instructions - PASSPORT"
+ },
+ {
+  "template_id": 140,
+  "category": "3 · Hướng dẫn Check-in",
+  "template_name": "CHECK IN - NHẮC ĐỂ CHÌA"
+ },
+ {
+  "template_id": 142,
+  "category": "6 · Thanh toán",
+  "template_name": "payment - CỌC"
+ },
+ {
+  "template_id": 146,
+  "category": "2 · Đến sớm & Gửi hành lý",
+  "template_name": "EARLY CHECK IN - ĐỂ HÀNH LÝ CHO HÀNG BÈ"
+ },
+ {
+  "template_id": 152,
+  "category": "3 · Hướng dẫn Check-in",
+  "template_name": "Check-in Instructions - CHECK IN - 25 Hoi Vu"
+ },
+ {
+  "template_id": 156,
+  "category": "2 · Đến sớm & Gửi hành lý",
+  "template_name": "EARLY CHECK IN - ĐẾN SỚM TRƯỚC 9H`"
+ },
+ {
+  "template_id": 158,
+  "category": "6 · Thanh toán",
+  "template_name": "Payment - 25 hoi vu"
+ },
+ {
+  "template_id": 160,
+  "category": "1 · Chào đón & Hỏi giờ đến",
+  "template_name": "WELCOME - 25 Hoi Vu"
+ },
+ {
+  "template_id": 162,
+  "category": "3 · Hướng dẫn Check-in",
+  "template_name": "WELCOME - PASSPORT"
+ },
+ {
+  "template_id": 170,
+  "category": "7 · Xin hủy & Giảm giá",
+  "template_name": "payment - HỦY _ GIẢI THÍCH"
+ },
+ {
+  "template_id": 172,
+  "category": "7 · Xin hủy & Giảm giá",
+  "template_name": "Room Unavailable - HỦY - ĐỔI PHÒNG , ĐỔI GIÁ"
+ },
+ {
+  "template_id": 174,
+  "category": "2 · Đến sớm & Gửi hành lý",
+  "template_name": "Check-in Instructions  - Để hành lý 25 HV"
+ },
+ {
+  "template_id": 176,
+  "category": "8 · Đổi phòng – Sự cố điện/nước",
+  "template_name": "Room Unavailable - HV to TN"
+ },
+ {
+  "template_id": 178,
+  "category": "3 · Hướng dẫn Check-in",
+  "template_name": "Check-in Instructions - 19 TN"
+ },
+ {
+  "template_id": 180,
+  "category": "1 · Chào đón & Hỏi giờ đến",
+  "template_name": "WELCOME - 19 TN"
+ },
+ {
+  "template_id": 182,
+  "category": "8 · Đổi phòng – Sự cố điện/nước",
+  "template_name": "Room Unavailable - Hang bac TO TN"
+ },
+ {
+  "template_id": 184,
+  "category": "3 · Hướng dẫn Check-in",
+  "template_name": "Check-in Instructions - 19 TN Việt Nam"
+ },
+ {
+  "template_id": 186,
+  "category": "3 · Hướng dẫn Check-in",
+  "template_name": "Check-in Instructions - 25 HV - Tiếng Việt"
+ },
+ {
+  "template_id": 188,
+  "category": "8 · Đổi phòng – Sự cố điện/nước",
+  "template_name": "Room Unavailable - Hv to TN"
+ },
+ {
+  "template_id": 190,
+  "category": "8 · Đổi phòng – Sự cố điện/nước",
+  "template_name": "Room Unavailable - TN , HN to HBac"
+ },
+ {
+  "template_id": 192,
+  "category": "8 · Đổi phòng – Sự cố điện/nước",
+  "template_name": "CHANGE - HV to TN - electrical"
+ },
+ {
+  "template_id": 194,
+  "category": "8 · Đổi phòng – Sự cố điện/nước",
+  "template_name": "CHANGE - Hang bac To TN,HV- electrical"
+ },
+ {
+  "template_id": 196,
+  "category": "10 · Hủy phòng – Hết phòng/Sự cố",
+  "template_name": "CHANGE - HUỷ - Ko Đổi - Electrical"
+ },
+ {
+  "template_id": 198,
+  "category": "10 · Hủy phòng – Hết phòng/Sự cố",
+  "template_name": "CHANGE - Huỷ - Ko Đổi - Sapa"
+ },
+ {
+  "template_id": 200,
+  "category": "9 · Đổi phòng – Khách cũ chưa trả",
+  "template_name": "CHANGE - To HB - Sapa"
+ },
+ {
+  "template_id": 202,
+  "category": "9 · Đổi phòng – Khách cũ chưa trả",
+  "template_name": "CHANGE - Hv - TN - Sapa"
+ },
+ {
+  "template_id": 204,
+  "category": "9 · Đổi phòng – Khách cũ chưa trả",
+  "template_name": "CHANGE - Hv - TN - Sapa ở lun"
+ },
+ {
+  "template_id": 206,
+  "category": "9 · Đổi phòng – Khách cũ chưa trả",
+  "template_name": "CHANGE - TN - 104 TN - Sapa"
+ }
+]
