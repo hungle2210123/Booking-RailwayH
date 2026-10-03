@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <title>Hotel Pro — cài đặt</title>
+  <style>
+    body { font-family: system-ui, sans-serif; width: 340px; margin: 14px; color: #0f172a; }
+    h1 { font-size: 16px; margin: 0 0 10px; }
+    label { display: block; font-size: 12px; font-weight: 700; margin: 10px 0 4px; }
+    input { width: 100%; box-sizing: border-box; padding: 8px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 13px; }
+    .row { display: flex; gap: 8px; margin-top: 12px; }
+    button { flex: 1; padding: 9px; border-radius: 8px; border: 0; font-weight: 800; cursor: pointer; }
+    #save { background: #0f172a; color: #fff; }
+    #test { background: #e2e8f0; }
+    #msg { margin-top: 10px; font-size: 12px; min-height: 16px; }
+    small { color: #64748b; }
+  </style>
+</head>
+<body>
+  <h1>📥 Gửi về Hotel Pro</h1>
+  <label for="server">Địa chỉ web Hotel Pro</label>
+  <input id="server" placeholder="https://web-production-8f671.up.railway.app">
+  <label for="token">Mã bảo mật <small>(chỉ cần nếu đã đặt EXTENSION_TOKEN trên máy chủ)</small></label>
+  <input id="token" type="password" autocomplete="off">
+  <div class="row">
+    <button id="test" type="button">Kiểm tra kết nối</button>
+    <button id="save" type="button">Lưu</button>
+  </div>
+  <div id="msg"></div>
+  <p><small>Mở một đặt phòng trên admin.booking.com → bấm nút <b>📥 Gửi về Hotel Pro</b> ở góc phải dưới.</small></p>
+  <script src="options.js"></script>
+</body>
+</html>

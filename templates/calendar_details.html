@@ -1271,6 +1271,11 @@ setInterval(loadVbCd, 5 * 60 * 1000);
             flex-shrink: 0; opacity: .75;
         }
         .two-br-toggle.on { background: #7c3aed; border: 1.5px solid #7c3aed; color: #fff; opacity: 1; }
+        .guest-phone, .guest-wa {
+            font-size: 0.6rem; font-weight: 800; padding: 1px 7px; border-radius: 20px; text-decoration: none; flex-shrink: 0;
+        }
+        .guest-phone { background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; }
+        .guest-wa { background: #dcfce7; color: #15803d; border: 1px solid #86efac; }
         .guest-card.two-br-card { border-left: 4px solid #7c3aed !important; }
         .guest-card.two-br-alert { box-shadow: 0 0 0 2px #7c3aed, 0 4px 14px rgba(124,58,237,.25) !important; }
         .two-br-alert-banner {
@@ -1451,6 +1456,13 @@ setInterval(loadVbCd, 5 * 60 * 1000);
                 title="{% if tb and tb.manual is not none %}Đã đánh dấu thủ công{% else %}Tự nhận diện theo tên phòng{% endif %} — bấm để đổi">
             🛏️ 2PN
         </button>
+
+        {# ── Guest phone (from the Chrome extension) ── #}
+        {% set ph = phone_map.get(booking_id|string) if phone_map else None %}
+        {% if ph %}
+        <a class="guest-phone" href="tel:{{ ph.tel }}" title="Gọi {{ ph.display }}">📞 {{ ph.display }}</a>
+        <a class="guest-wa" href="https://wa.me/{{ ph.wa }}" target="_blank" rel="noopener" title="Nhắn WhatsApp">WhatsApp</a>
+        {% endif %}
 
         {# ── Picker row (hidden by default, shown on "đổi" click or when unassigned) ── #}
         <div class="apt-picker {% if not cur %}open{% endif %}" id="arow-{{ booking_id }}">
