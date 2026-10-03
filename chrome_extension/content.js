@@ -51,6 +51,9 @@
       .ls { font-size: 11px; color: #64748b; }
       .lc { font-size: 11px; color: #b45309; font-weight: 700; }
       .lp { font-size: 12px; font-weight: 800; white-space: nowrap; }
+      .tag { align-self: flex-start; width: fit-content; }
+      .tag.mr { display: inline-block; font-size: 10px; font-weight: 800; background: #f59e0b; color: #fff; border-radius: 6px; padding: 0 6px; margin-left: 4px; }
+      .tag.nl { display: inline-block; font-size: 10px; font-weight: 800; background: #2563eb; color: #fff; border-radius: 6px; padding: 0 6px; margin-left: 4px; }
       .tag.cx { display: inline-block; font-size: 10px; font-weight: 800; background: #dc2626; color: #fff; border-radius: 6px; padding: 0 6px; margin-left: 4px; }
       .paid { margin-top: 8px; font-size: 12px; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 6px 8px; color: #166534; }
     </style>
@@ -309,6 +312,8 @@
         <span class="lm">
           <b>${esc(it.guest_name || it.existing_name || '?')}</b>
           ${it.status === 'cancelled' ? '<span class="tag cx">Đã hủy</span>' : ''}
+          ${it.rooms > 1 ? `<span class="tag mr">⚠️ ${it.rooms} phòng</span>` : ''}
+          ${it.new_listing && it.status !== 'cancelled' ? '<span class="tag nl">🆕 loại phòng mới</span>' : ''}
           <span class="ls">${ddmm(it.checkin_date)} → ${ddmm(it.checkout_date)} · ${esc(it.listing || '')} · #${esc(it.booking_id)}</span>
           ${it.changes && it.changes.length ? `<span class="lc">${esc(it.changes.join(' · '))}</span>` : ''}
         </span>

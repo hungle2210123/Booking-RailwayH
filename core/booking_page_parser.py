@@ -319,6 +319,18 @@ def is_reservation_list(headers, rows=None):
     return 'booking_id' in inferred and 'checkin' in inferred
 
 
+def split_rooms(cell_text):
+    """'101 - 103 TN' → ('101 - 103 TN', 1); two lines or '2 x Phòng Đôi' → several rooms.
+    Returns (listing text with rooms joined by ' + ', number of rooms)."""
+    lines = [re.sub(r'\s+', ' ', l).strip() for l in str(cell_text or '').split('\n')]
+    lines = [l for l in lines if l]
+    total = 0
+    for l in lines:
+        m = re.match(r'^(\d{1,2})\s*[x×]\s+', l, re.I)
+        total += int(m.group(1)) if m else 1
+    return ' + '.join(lines), total
+
+
 def parse_reservation_list(headers, rows):
     """rows: [[{'text': cell innerText, 'link': first link text}, ...], ...]"""
     idx = _column_index(headers or [])
@@ -353,7 +365,7 @@ def parse_reservation_list(headers, rows):
         co = parse_date(cell(row, 'checkout').get('text'))
         price = parse_money(cell(row, 'price').get('text'))
         comm = parse_money(cell(row, 'commission').get('text'))
-        room = re.sub(r'\s+', ' ', cell(row, 'room').get('text') or '').strip()
+        room, rooms = split_rooms(cell(row, 'room').get('text'))
         item = {
             'booking_id': m.group(0), 'guest_name': name or None,
             'checkin_date': ci.isoformat() if ci else None,
@@ -361,7 +373,7 @@ def parse_reservation_list(headers, rows):
             # cancelled rows show price 0 on Booking — never use that as the price
             'room_amount': price if (price and status == 'ok') else None,
             'commission': comm if (comm is not None and status == 'ok') else None,
-            'listing': room or None, 'status': status,
+            'listing': room or None, 'rooms': rooms, 'status': status,
         }
         item['missing'] = [k for k in ('guest_name', 'checkin_date', 'checkout_date') if not item[k]]
         out.append(item)

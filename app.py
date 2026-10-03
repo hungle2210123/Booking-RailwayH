@@ -1542,6 +1542,7 @@ def _ext_fields(d):
         'email': str(d.get('email') or '').strip(),
         'nationality': str(d.get('nationality') or '').strip()[:60],
         'cancelled': bool(d.get('cancelled')) or d.get('status') == 'cancelled',
+        'rooms': max(1, int(d.get('rooms') or 1)) if str(d.get('rooms') or '1').isdigit() else 1,
     }
 
 
@@ -1594,7 +1595,9 @@ def _ext_save_one(d):
             'checkin_date': f['checkin_date'], 'checkout_date': f['checkout_date'],
             'room_amount': f['room_amount'], 'commission': f['commission'] or 0.0,
             'taxi_amount': 0.0, 'collector': '',
-            'notes': f"Từ extranet Booking lúc {(datetime.utcnow() + timedelta(hours=7)).strftime('%H:%M %d/%m/%Y')}",
+            'notes': f"Từ extranet Booking lúc {(datetime.utcnow() + timedelta(hours=7)).strftime('%H:%M %d/%m/%Y')}"
+                     + (f" · ⚠️ Booking {f['rooms']} phòng: {f['listing']} — nhớ xếp đủ {f['rooms']} phòng"
+                        if f['rooms'] > 1 else ''),
         })
         if not ok:
             return {'success': False, 'booking_id': bid, 'error': 'Không lưu được booking mới'}, 500
@@ -1644,6 +1647,12 @@ def _ext_save_one(d):
             'message': ('Đã cập nhật: ' + '; '.join(changes)) if changes else 'Không có gì thay đổi'}, 200
 
 
+def _ext_known_listings():
+    from core.models import db as _xdb
+    return {re.sub(r'\s+', ' ', r[0]).strip().lower() for r in _xdb.session.execute(text(
+        "SELECT DISTINCT accommodation_name FROM bookings WHERE accommodation_name IS NOT NULL")).fetchall()}
+
+
 def _ext_listings():
     from core.models import db as _xdb
     return [r[0] for r in _xdb.session.execute(text("""
@@ -1666,6 +1675,7 @@ def ext_booking_parse():
 
         if page.get('mode') == 'list' and is_reservation_list(page.get('headers'), page.get('rows')):
             items = []
+            known = _ext_known_listings()
             for row in parse_reservation_list(page.get('headers'), page.get('rows')):
                 existing = _ext_existing(row['booking_id'])
                 if existing:
@@ -1675,7 +1685,8 @@ def ext_booking_parse():
                     changes = []
                     action = 'skip_cancelled' if row['status'] == 'cancelled' else 'new'
                 items.append({**row, 'action': action, 'changes': changes,
-                              'existing_name': existing['guest_name'] if existing else None})
+                              'existing_name': existing['guest_name'] if existing else None,
+                              'new_listing': bool(row['listing']) and row['listing'].lower() not in known})
             return jsonify({'success': True, 'mode': 'list', 'items': items, 'listings': _ext_listings()})
 
         if page.get('mode') == 'list':
