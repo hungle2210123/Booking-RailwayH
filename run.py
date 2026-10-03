@@ -172,6 +172,7 @@ def main():
         '--error-logfile', '-',
         '--log-level', 'info',  # Changed from debug to info (less verbose)
         '--preload',  # Preload app to catch errors early
+        '--config', 'gunicorn.conf.py',  # post_fork: each worker gets its own DB connections
     ]
 
     print(f"📝 Command: {' '.join(cmd)}\n")

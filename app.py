@@ -1422,21 +1422,22 @@ def expenses_page():
 @app.route('/api/dashboard/overview')
 def api_dashboard_overview():
     """?month=YYYY-MM (default: current month, Vietnam time)."""
-    try:
-        import re
-        from core.models import db as _dsdb
-        from core.revenue import load_bookings as _rev_load, load_rooms as _rev_rooms, build_overview, vn_today as _rev_today
-        month = (request.args.get('month') or '').strip()
-        if not re.match(r'^\d{4}-\d{2}$', month):
-            month = _rev_today().strftime('%Y-%m')
+    import re
+    from sqlalchemy.exc import OperationalError, DBAPIError
+    from core.models import db as _dsdb
+    from core.revenue import load_bookings as _rev_load, load_rooms as _rev_rooms, build_overview, vn_today as _rev_today
 
+    month = (request.args.get('month') or '').strip()
+    if not re.match(r'^\d{4}-\d{2}$', month):
+        month = _rev_today().strftime('%Y-%m')
+
+    def _compute():
         colors = ['#1976D2', '#2E7D32', '#7B1FA2', '#E64A19', '#00838F', '#F57F17']
         apt_rows = _dsdb.session.execute(text(
             "SELECT apartment_id, apartment_name, is_active FROM apartments ORDER BY apartment_id"
         )).fetchall()
         apartments = [{'id': r[0], 'name': r[1], 'color': colors[i % len(colors)]}
                       for i, r in enumerate(apt_rows)]
-
         expenses = {}
         try:
             for m, total, work in _dsdb.session.execute(text("""
@@ -1445,16 +1446,29 @@ def api_dashboard_overview():
                 FROM expenses GROUP BY 1
             """)).fetchall():
                 expenses[m] = {'total': float(total or 0), 'work': float(work or 0)}
-        except Exception as _ee:
+        except Exception as _ee:   # expenses are optional on the dashboard
             _dsdb.session.rollback()
             print(f"[dashboard] expenses unavailable: {_ee}")
-
-        data = build_overview(_rev_load(_dsdb.session, text), _rev_rooms(_dsdb.session, text),
+        return build_overview(_rev_load(_dsdb.session, text), _rev_rooms(_dsdb.session, text),
                               month, apartments, expenses)
+
+    try:
+        try:
+            data = _compute()
+        except (OperationalError, DBAPIError) as e:
+            # A broken pooled connection (e.g. Railway dropped it / SSL error): throw the
+            # pool away and try once more on a fresh connection.
+            print(f"[dashboard] DB connection error, retrying on a fresh connection: {e}")
+            _dsdb.session.rollback()
+            _dsdb.session.close()
+            _dsdb.engine.dispose()
+            data = _compute()
         return jsonify({'success': True, **data})
     except Exception as e:
+        _dsdb.session.rollback()
         import traceback; traceback.print_exc()
         return jsonify({'success': False, 'error': str(e)}), 500
+
 
 @app.route('/bookings')
 def view_bookings():

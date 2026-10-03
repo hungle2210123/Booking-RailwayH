@@ -170,7 +170,7 @@
     const C = { paid: '#16a34a', due: '#dc2626', exp: '#2563eb', comm: '#9333ea', net: '#0f766e', occ: '#ea580c', loc: '#0ea5e9', thao: '#f97316' };
 
     // ── Load ──────────────────────────────────────────────────────
-    async function loadOverview(month) {
+    async function loadOverview(month, isRetry) {
         try {
             const res = await fetch('/api/dashboard/overview' + (month ? `?month=${encodeURIComponent(month)}` : ''));
             const data = await res.json();
@@ -184,6 +184,8 @@
             const now = new Date();
             document.getElementById('updatedAt').textContent = `cập nhật ${now.getHours()}:${String(now.getMinutes()).padStart(2, '0')}`;
         } catch (e) {
+            // A dropped database connection usually works on the next try
+            if (!isRetry) { setTimeout(() => loadOverview(month, true), 1500); return; }
             document.getElementById('dashBody').innerHTML = `<div class="dash-card text-danger">❌ Không tải được dữ liệu: ${esc(e.message)}
                 <button class="btn btn-sm btn-outline-danger ms-2" onclick="loadOverview()">Thử lại</button></div>`;
         }
