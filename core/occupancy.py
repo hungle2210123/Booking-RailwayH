@@ -71,6 +71,32 @@ def _as_date(value):
         return None
 
 
+def guest_shown_on(view_date, checkin_date, checkin_status, today=None):
+    """Should a staying / check-out guest appear when looking at `view_date`?
+
+    - confirmed                                   -> yes
+    - cancelling / no_show                        -> no
+    - unconfirmed, more than the grace period past check-in -> no (no-show)
+    - unconfirmed whose arrival day has come, viewed on a FUTURE date -> no:
+      they haven't shown up yet, so tomorrow's list must not assume they did
+      (they come back as soon as staff press "Xác nhận đến")
+    - otherwise (today's view within the grace period, or not arrived yet) -> yes
+    """
+    today = today or vn_today()
+    if checkin_status == 'confirmed':
+        return True
+    if checkin_status in IGNORED_CHECKIN_STATUSES:
+        return False
+    ci = _as_date(checkin_date)
+    if ci is None:
+        return True
+    if ci < today - timedelta(days=NO_SHOW_GRACE_DAYS):
+        return False
+    if _as_date(view_date) > today and ci <= today:
+        return False
+    return True
+
+
 def night_status(booking, night, today=None, active_apartment_ids=None):
     """Classify one booking for one night.
 

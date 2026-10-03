@@ -4030,22 +4030,14 @@ def calendar_details(date_str):
         # Grace period: unconfirmed guests stay visible for 3 days after their check-in date
         # before being treated as no-shows.  (Previously: 1 day.)
         # Day 0 = check-in day, Day 1–2 = grace, Day 3+ = hidden.
-        _no_show_cutoff = _today_date - timedelta(days=2)
+        # Viewing a FUTURE date: guests whose arrival day has already come but who are
+        # still unconfirmed are hidden too (they reappear once "Xác nhận đến" is pressed).
+        # Rules live in core.occupancy.guest_shown_on.
+        from core.occupancy import guest_shown_on
 
         def _guest_stays_over(g):
             bid = g.get('Số đặt phòng', '')
-            st  = _all_status_map.get(bid)      # None when checkin_status IS NULL in DB
-            if st == 'confirmed':  return True
-            if st == 'cancelling': return False
-            # NULL = unconfirmed: keep visible for 3 days after check-in date,
-            # then treat as no-show and hide from staying/checkout sections.
-            try:
-                ci = g.get('Check-in Date')
-                if pd.notna(ci) and pd.Timestamp(ci).date() < _no_show_cutoff:
-                    return False
-            except Exception:
-                pass
-            return True
+            return guest_shown_on(date_obj, g.get('Check-in Date'), _all_status_map.get(bid), _today_date)
 
         # Collect full data of hidden (unconfirmed/no-show) guests for the restore panel
         _hidden_guests = []
@@ -4059,17 +4051,7 @@ def calendar_details(date_str):
         # cannot check out either.  Unconfirmed guests follow the same 3-day grace rule.
         def _guest_checks_out(g):
             bid = g.get('Số đặt phòng', '')
-            st  = _all_status_map.get(bid)
-            if st == 'cancelling': return False
-            if st == 'confirmed':  return True
-            # NULL = unconfirmed: same 3-day grace period as staying_over
-            try:
-                ci = g.get('Check-in Date')
-                if pd.notna(ci) and pd.Timestamp(ci).date() < _no_show_cutoff:
-                    return False
-            except Exception:
-                pass
-            return True
+            return guest_shown_on(date_obj, g.get('Check-in Date'), _all_status_map.get(bid), _today_date)
 
         _hidden_co   = [g for g in check_out if not _guest_checks_out(g)]
         _co_removed = [g.get('Tên người đặt','?') for g in _hidden_co]
@@ -4584,33 +4566,13 @@ def apartment_daily_summary():
         if date_obj != _today_date:
             check_in = [b for b in check_in if b.get('Số đặt phòng', '') not in _cancelling_all]
 
-        _no_show_cutoff = _today_date - timedelta(days=2)
+        from core.occupancy import guest_shown_on
 
         def _stays_over(g):
             bid = g.get('Số đặt phòng', '')
-            st  = _all_status_map.get(bid)
-            if st == 'confirmed':  return True
-            if st == 'cancelling': return False
-            try:
-                ci = g.get('Check-in Date')
-                if pd.notna(ci) and pd.Timestamp(ci).date() < _no_show_cutoff:
-                    return False
-            except Exception:
-                pass
-            return True
+            return guest_shown_on(date_obj, g.get('Check-in Date'), _all_status_map.get(bid), _today_date)
 
-        def _checks_out(g):
-            bid = g.get('Số đặt phòng', '')
-            st  = _all_status_map.get(bid)
-            if st == 'cancelling': return False
-            if st == 'confirmed':  return True
-            try:
-                ci = g.get('Check-in Date')
-                if pd.notna(ci) and pd.Timestamp(ci).date() < _no_show_cutoff:
-                    return False
-            except Exception:
-                pass
-            return True
+        _checks_out = _stays_over
 
         staying_over = [g for g in staying_over if _stays_over(g)]
         check_out    = [g for g in check_out    if _checks_out(g)]
@@ -7713,8 +7675,16 @@ def hidden_guests_for_date():
                 -- Case 2: explicitly marked no_show or cancelling (touches the date range)
                 (DATE(checkin_date) <= :d AND DATE(checkout_date) > :d
                  AND checkin_status IN ('no_show', 'cancelling'))
+                OR
+                -- Case 3: viewing a future date — arrival day already came but not confirmed yet,
+                -- so they're left out of that day's staying / check-out lists
+                (:d > :today
+                 AND DATE(checkin_date) <= :today AND DATE(checkin_date) >= :grace_start
+                 AND DATE(checkout_date) >= :d
+                 AND (checkin_status IS NULL OR checkin_status = '')
+                 AND (arrival_confirmed IS NULL OR arrival_confirmed IS FALSE))
               )
-        """), {'d': target, 'today': vn_today}).fetchall()
+        """), {'d': target, 'today': vn_today, 'grace_start': vn_today - timedelta(days=2)}).fetchall()
 
         guests = []
         for r in rows:
