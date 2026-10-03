@@ -60,7 +60,16 @@
   const $ = sel => root.querySelector(sel);
   const panel = $('#panel');
   const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-  const api = (path, body) => chrome.runtime.sendMessage({ type: 'api', path, body });
+  const RELOAD_MSG = 'Tiện ích vừa được cập nhật — bấm F5 tải lại trang Booking rồi bấm lại nút.';
+  const api = async (path, body) => {
+    // After the extension is reloaded, scripts left in already-open tabs lose their connection
+    if (!chrome.runtime?.id) return { success: false, error: RELOAD_MSG };
+    try {
+      return await chrome.runtime.sendMessage({ type: 'api', path, body });
+    } catch (e) {
+      return { success: false, error: /context invalidated/i.test(e.message) ? RELOAD_MSG : e.message };
+    }
+  };
   const fmt = n => n ? new Intl.NumberFormat('vi-VN').format(Math.round(n)) : '';
 
   // ── Reservation LIST page ("Đặt phòng" table) ───────────────────
