@@ -215,7 +215,7 @@
       heading,
       text: (document.body.innerText || '').slice(0, 60000),
       pairs: pairs.filter(p => p[0] && p[1]).slice(0, 400),
-      tel: [...document.querySelectorAll('a[href^="tel:"]')].map(a => safeDecode(a.getAttribute('href').slice(4))),
+      tel: (gp => gp ? [gp] : [])(guestPhone()),
       mailto: [...document.querySelectorAll('a[href^="mailto:"]')].map(a => safeDecode(a.getAttribute('href').slice(7).split('?')[0])),
     };
   }
@@ -333,8 +333,9 @@
     const toSave = items.filter(it => it.action === 'new' || it.action === 'changed').length;
     const noPhone = items.filter(it => it.status === 'ok' && !it.has_phone && it.detail_url);
     const noPhoneHtml = noPhone.length ? `<div class="lg"><div class="lt">📞 Chưa có số điện thoại <span>(${noPhone.length})</span></div>
-      <p class="hint">Bấm tên để mở đặt phòng (tab mới) → bấm <b>Hiển thị số điện thoại</b> của Booking → số <b>tự lưu</b> về web.
-        Booking mới: bấm <b>Lưu</b> ở dưới trước.</p>
+      <p class="hint"><b>🤖 Tự lấy tất cả</b>: tiện ích tự mở từng khách trong tab này, tự bấm <b>Hiển thị số điện thoại</b>, lưu số rồi
+        quay lại đây. Hoặc bấm từng tên để tự làm. Booking mới: bấm <b>Lưu</b> ở dưới trước.</p>
+      <button class="save" id="b_auto" type="button" style="width:100%;margin-bottom:6px">🤖 Tự lấy SĐT tất cả (${noPhone.length} khách)</button>
       ${noPhone.map(it => `<a class="ph" href="${esc(it.detail_url)}" target="_blank" rel="noopener">${esc(it.guest_name || it.existing_name || it.booking_id)}
         <span>${ddmm(it.checkin_date)} · #${esc(it.booking_id)}</span></a>`).join('')}</div>` : '';
     panel.innerHTML = `
@@ -350,6 +351,7 @@
       <div class="msg" id="msg"></div>`;
     panel.classList.add('open');
     $('#b_close').onclick = () => panel.classList.remove('open');
+    if ($('#b_auto')) $('#b_auto').onclick = () => startPhoneRun(noPhone);
     const btn = $('#b_save');
     const recount = () => {
       const n = root.querySelectorAll('.li input:checked:not(:disabled)').length;
@@ -393,6 +395,7 @@
 
   // ── Phone appears on a reservation page → save it automatically ──
   // Only reads the page: the owner clicks Booking's own "Hiển thị số điện thoại" button.
+  const REVEAL_WORDS = ['hien thi so dien thoai', 'xem so dien thoai', 'show phone', 'display phone', 'reveal phone'];
   let toastTimer;
   function toast(html, kind) {
     let t = $('#toast');
@@ -402,25 +405,46 @@
     clearTimeout(toastTimer);
     toastTimer = setTimeout(() => t.remove(), 7000);
   }
-  const PHONE_LINE = /^\+\d[\d\s().\-]{6,22}\d$/;
-  const visiblePhone = () => {
-    const tel = document.querySelector('a[href^="tel:"]');
-    if (tel) return tel.getAttribute('href');
-    return (document.body.innerText || '').split('\n').map(l => l.trim()).find(l => PHONE_LINE.test(l)) || null;
-  };
+  // The page holds other numbers too (the property's own phone in a tel: link…), so the guest's
+  // number is only taken from the guest block: next to the guest's e-mail or the reveal button.
+  const PHONE_TXT = /^(\+|0)\d[\d\s().\-]{6,20}\d$/;
+  const digitsOf = t => String(t || '').replace(/\D/g, '');
+  const digitsOk = t => { const n = digitsOf(t).length; return n >= 8 && n <= 15; };
+  const EMAILS_RE = /[^\s@]+@[^\s@]+\.[a-z]{2,}/gi;
+  let revealSpot = null;
+  function phoneNear(el) {
+    for (let a = el, lvl = 0; a && lvl < 5; a = a.parentElement, lvl++) {
+      if (((a.innerText || '').match(EMAILS_RE) || []).length > 1) break;   // left the guest block
+      const tel = [...a.querySelectorAll('a[href^="tel:"]')].map(x => safeDecode(x.getAttribute('href').slice(4))).find(digitsOk);
+      if (tel) return tel.trim();
+      const leaf = [...a.querySelectorAll('a, span, div, p')]
+        .find(x => x.children.length === 0 && PHONE_TXT.test(rawText(x)) && digitsOk(rawText(x)));
+      if (leaf) return rawText(leaf);
+    }
+    return null;
+  }
+  function guestPhone() {
+    const mail = [...document.querySelectorAll('a, span, div, p')]
+      .find(el => el.children.length === 0 && /@guest\.booking\.com/i.test(rawText(el)));
+    const near = mail && phoneNear(mail);
+    if (near) return near;
+    return revealSpot && document.contains(revealSpot) ? phoneNear(revealSpot) : null;
+  }
+  const isRevealEl = el => !!el && rawText(el).length < 60 && REVEAL_WORDS.some(w => fold(rawText(el)).includes(w));
   const phoneDone = new Set();
   let phoneBusy = false;
   async function checkPhone() {
-    if (phoneBusy || busy || !chrome.runtime?.id) return;
-    const ph = visiblePhone();
+    if (phoneBusy || busy || runActive() || !chrome.runtime?.id) return;
+    const ph = guestPhone();
     if (!ph) return;
     const key = location.href.split('#')[0] + '|' + ph;
     if (phoneDone.has(key)) return;
     phoneBusy = true;
     try {
       phoneDone.add(key);
-      const r = await api('/api/ext/booking/phone', capture());
+      const r = await api('/api/ext/booking/phone', { ...capture(), phone: ph });
       if (!r?.success) { phoneDone.delete(key); return; }
+      if (r.status === 'duplicate') toast(`⚠️ Số <b>${esc(r.phone)}</b> đang là của khách <b>${esc(r.other_name)}</b> — không lưu, kiểm tra lại`, 'warn');
       if (r.status === 'saved') toast(`📞 Đã lưu SĐT <b>${esc(r.phone)}</b> cho <b>${esc(r.guest_name)}</b>`, 'ok');
       else if (r.status === 'same') toast(`📞 SĐT của <b>${esc(r.guest_name)}</b> đã có trên web`);
       else if (r.status === 'not_on_web') toast(`📞 Thấy SĐT nhưng booking #${esc(r.booking_id)} chưa có trên web — bấm <b>📥 Gửi về Hotel Pro</b> để thêm`, 'warn');
@@ -429,10 +453,121 @@
   // After a click (e.g. "Hiển thị số điện thoại") the number shows up a moment later
   document.addEventListener('click', e => {
     if (host.contains(e.target)) return;
+    const el = e.target.closest ? e.target.closest('button, a, [role="button"], span') : null;
+    if (!isRevealEl(el)) return;
+    revealSpot = el.parentElement?.parentElement || el.parentElement;
     [600, 1500, 3000, 6000].forEach(ms => setTimeout(checkPhone, ms));
   }, true);
   // Already visible when the page opens
   [2500, 6000].forEach(ms => setTimeout(checkPhone, ms));
+
+  // ── 🤖 Tự lấy SĐT: open each reservation in THIS tab, click "Hiển thị số điện thoại", save, next ──
+  // State lives in this tab's sessionStorage so it survives the page loads.
+  const RUN_KEY = 'hotelProPhoneRun';
+  const loadRun = () => { try { return JSON.parse(sessionStorage.getItem(RUN_KEY) || 'null'); } catch (e) { return null; } };
+  const saveRun = r => { try { r ? sessionStorage.setItem(RUN_KEY, JSON.stringify(r)) : sessionStorage.removeItem(RUN_KEY); } catch (e) { /* storage blocked */ } };
+  function runActive() { const r = loadRun(); return !!(r && r.active); }
+  const sleep = ms => new Promise(res => setTimeout(res, ms));
+  const resIdOf = u => {
+    try { const q = new URL(u, location.href).searchParams; return q.get('res_id') || q.get('reservation_id') || q.get('bn') || ''; }
+    catch (e) { return ''; }
+  };
+  const findReveal = () => [...document.querySelectorAll('button, a, [role="button"], span')]
+    .find(el => el.children.length <= 3 && rawText(el).length < 60 && REVEAL_WORDS.some(w => fold(rawText(el)).includes(w)));
+
+  function startPhoneRun(list) {
+    if (!list.length) return;
+    saveRun({ active: true, back: location.href, i: 0, results: [],
+              queue: list.map(it => ({ url: it.detail_url, id: it.booking_id, name: it.guest_name || it.existing_name || it.booking_id })) });
+    location.href = list[0].url || list[0].detail_url;
+  }
+  function stopRun(msg) {
+    const r = loadRun();
+    if (!r) return;
+    r.active = false; r.stopped = msg; saveRun(r);
+    location.href = r.back;
+  }
+  function runBar(r, text) {
+    let b = $('#runbar');
+    if (!b) { b = document.createElement('div'); b.id = 'runbar'; b.className = 'toast'; root.appendChild(b); }
+    b.innerHTML = `🤖 <b>Đang lấy SĐT ${Math.min(r.i + 1, r.queue.length)}/${r.queue.length}</b> — ${esc(text)}
+      <div class="row" style="margin-top:6px"><button class="close" id="b_stop" type="button">⏹ Dừng</button></div>`;
+    $('#b_stop').onclick = () => stopRun('Bạn đã bấm dừng.');
+  }
+
+  async function stepRun() {
+    let r = loadRun();
+    if (!r || !r.active) return;
+    const job = r.queue[r.i];
+    if (!job) { r.active = false; saveRun(r); location.href = r.back; return; }
+    // Not on the expected reservation (login / verification page, redirect…) → stop right here
+    const want = resIdOf(job.url);
+    if (want && resIdOf(location.href) !== want) {
+      r.active = false;
+      r.stopped = `Trang này không phải đặt phòng #${job.id} — có thể Booking yêu cầu đăng nhập hoặc xác minh. Đã dừng.`;
+      saveRun(r); showRunSummary(); return;
+    }
+    runBar(r, job.name);
+    let phone = null, clicked = false;
+    const t0 = Date.now();
+    while (Date.now() - t0 < 15000) {
+      phone = guestPhone();
+      if (phone) break;
+      const btn = !clicked && findReveal();
+      if (btn) {
+        revealSpot = btn.parentElement?.parentElement || btn.parentElement;
+        (btn.closest('button, a, [role="button"]') || btn).click(); clicked = true;
+      }
+      await sleep(300);
+    }
+    let res;
+    const prev = loadRun();
+    if (!phone) res = { status: clicked ? 'no_phone' : 'no_button' };
+    else if (prev && prev.results.some(x => x.phone && digitsOf(x.phone) === digitsOf(phone))) {
+      res = { status: 'duplicate', phone };                // same number as an earlier guest → wrong read
+    } else {
+      res = await api('/api/ext/booking/phone', { ...capture(), phone });
+      if (!res?.success) res = { status: 'error', error: res?.error || 'Lỗi không rõ' };
+    }
+    r = loadRun();
+    if (!r || !r.active) return;                      // stopped meanwhile
+    r.results.push({ id: job.id, name: job.name, status: res.status, phone: res.phone || null, error: res.error || null });
+    r.i += 1;
+    const last2 = r.results.slice(-2);
+    if (last2.length === 2 && last2.every(x => x.status === 'no_button' || x.status === 'error')) {
+      r.active = false; r.stopped = 'Hai khách liền nhau không đọc được — đã dừng để kiểm tra.';
+    }
+    if (res.status === 'duplicate') {
+      r.active = false; r.stopped = 'Gặp số điện thoại trùng với khách khác — nghi đọc sai, đã dừng (số trùng KHÔNG được lưu).';
+    }
+    if (r.i >= r.queue.length) r.active = false;
+    saveRun(r);
+    if (!r.active) { location.href = r.back; return; }
+    runBar(r, 'sang khách tiếp theo…');
+    await sleep(800 + Math.random() * 1200);
+    if (runActive()) location.href = r.queue[r.i].url;
+  }
+
+  const RUN_LABEL = {
+    saved: '✅ đã lưu', same: '✔ đã có trên web', not_on_web: '⚠️ booking chưa có trên web — bấm Lưu trước',
+    no_phone: '⚠️ bấm rồi nhưng không thấy số', duplicate: '⚠️ số trùng với khách khác — không lưu', no_button: '⚠️ không thấy nút Hiển thị số điện thoại', error: '❌ lỗi',
+  };
+  function showRunSummary() {
+    const r = loadRun();
+    if (!r || r.active) return;
+    saveRun(null);
+    $('#runbar')?.remove();
+    const ok = r.results.filter(x => x.status === 'saved' || x.status === 'same').length;
+    panel.innerHTML = `<h3>🤖 Lấy SĐT xong: ${ok}/${r.queue.length} khách</h3>
+      ${r.stopped ? `<p class="msg err">${esc(r.stopped)}</p>` : ''}
+      ${r.results.map(x => `<div class="li"><span class="lm"><b>${esc(x.name)}</b>
+        <span class="ls">#${esc(x.id)} · ${RUN_LABEL[x.status] || esc(x.status)}${x.error ? ' — ' + esc(x.error) : ''}</span></span>
+        <span class="lp">${esc(x.phone || '')}</span></div>`).join('')}
+      <div class="row"><button class="close" id="b_close" type="button">Đóng</button></div>`;
+    panel.classList.add('open');
+    $('#b_close').onclick = () => panel.classList.remove('open');
+  }
+  setTimeout(() => { if (runActive()) stepRun(); else showRunSummary(); }, 600);
 
   let busy = false;
   $('#fab').addEventListener('click', async () => {

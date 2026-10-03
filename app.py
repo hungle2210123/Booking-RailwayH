@@ -1753,9 +1753,12 @@ def ext_booking_phone():
     if err:
         return err
     try:
-        from core.booking_page_parser import parse_reservation_page
-        p = parse_reservation_page(request.get_json(silent=True) or {})
-        bid, phone = p.get('booking_id'), p.get('phone')
+        from core.booking_page_parser import parse_reservation_page, clean_phone, _fold
+        from core.models import db as _xdb
+        body = request.get_json(silent=True) or {}
+        p = parse_reservation_page(body)
+        # The extension sends the number it found in the guest block; never guess from the page
+        bid, phone = p.get('booking_id'), clean_phone(body.get('phone'))
         if not bid or not phone:
             return jsonify({'success': True, 'status': 'no_phone'})
         existing = _ext_existing(bid)
@@ -1765,6 +1768,14 @@ def ext_booking_phone():
         name = existing['guest_name'] or p.get('guest_name') or bid
         if re.sub(r'\D', '', existing['phone']) == re.sub(r'\D', '', phone):
             return jsonify({'success': True, 'status': 'same', 'booking_id': bid, 'phone': phone, 'guest_name': name})
+        # Same number already on a DIFFERENT person → almost certainly a wrong read; do not save
+        other = _xdb.session.execute(text(r"""
+            SELECT full_name FROM guests
+            WHERE regexp_replace(COALESCE(phone, ''), '\D', '', 'g') = :d AND guest_id IS DISTINCT FROM :gid
+            LIMIT 1"""), {'d': re.sub(r'\D', '', phone), 'gid': existing['guest_id']}).fetchone()
+        if other and _fold(other[0] or '') != _fold(name):
+            return jsonify({'success': True, 'status': 'duplicate', 'booking_id': bid, 'phone': phone,
+                            'guest_name': name, 'other_name': other[0]})
         result, code = _ext_save_one({'booking_id': bid, 'phone': phone})
         if not result.get('success'):
             return jsonify(result), code
