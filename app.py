@@ -1425,7 +1425,7 @@ def api_dashboard_overview():
     try:
         import re
         from core.models import db as _dsdb
-        from core.revenue import load_bookings as _rev_load, build_overview, vn_today as _rev_today
+        from core.revenue import load_bookings as _rev_load, load_rooms as _rev_rooms, build_overview, vn_today as _rev_today
         month = (request.args.get('month') or '').strip()
         if not re.match(r'^\d{4}-\d{2}$', month):
             month = _rev_today().strftime('%Y-%m')
@@ -1449,7 +1449,8 @@ def api_dashboard_overview():
             _dsdb.session.rollback()
             print(f"[dashboard] expenses unavailable: {_ee}")
 
-        data = build_overview(_rev_load(_dsdb.session, text), month, apartments, expenses)
+        data = build_overview(_rev_load(_dsdb.session, text), _rev_rooms(_dsdb.session, text),
+                              month, apartments, expenses)
         return jsonify({'success': True, **data})
     except Exception as e:
         import traceback; traceback.print_exc()

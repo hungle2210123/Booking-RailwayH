@@ -273,14 +273,16 @@ calendar_details (next 3 days) and "🛏️ N trả 2PN" badges in the month cal
 `DELETE /api/apartments/<id>` (body `move_bookings_to`: id or null) + `/api/apartments/<id>/delete_check`.
 `bookings.apartment_id` FK is RESTRICT → bookings are moved first; rooms cascade.
 
-### **📊 Dashboard rebuilt (`core/revenue.py` + `/api/dashboard/overview`)**
-`/dashboard` is a thin page; every number comes from `build_overview()` with ONE rule set: revenue by check-in
-month, excludes cancelled/deleted/`cancelling`/`no_show`; paid → actual collected amount; statuses paid / short /
-due / arriving / upcoming / review ("cần kiểm tra" = > 2 days past arrival, unconfirmed, unpaid → not counted).
-Old 17.6k-line dashboard removed; expense tools moved unchanged to `/expenses` (`templates/expenses.html`).
+### **📊 Dashboard (`core/revenue.py` + `/api/dashboard/overview`)**
+`/dashboard` is a thin page; every number comes from `build_overview()` with ONE rule set: revenue is recognised
+PER NIGHT (booking value ÷ nights), so the daily calendar sums to the month total. Excludes cancelled/deleted/
+`cancelling`/`no_show`; paid → actual collected amount; statuses paid / due / expected / review (review = > 2 days
+past arrival, unconfirmed, unpaid → not counted). Stats: occupancy, ADR, RevPAR (capacity = active rooms that existed
+that day; shown "—" when nights sold exceed rooms on record). No debt lists on the dashboard (calendar handles them).
+Expense tools live at `/expenses` (`templates/expenses.html`).
 Removed unauthenticated debug routes incl. `/api/clear_imported_data` (wiped all bookings).
 ⚠️ `/api/collect_payment` overwrites `commission` with `commission_amount` (default 0) — the calendar's Thu Tiền
-doesn't send it, so collecting there zeroes commission (history in `booking_history`). Dashboard sends the current value.
+doesn't send it, so collecting there zeroes commission (history in `booking_history`).
 
 ### **📋 Message template categories**
 Renamed to numbered guest-journey categories "1 · Chào đón…" → "11 · Cảm ơn…" (sorted numerically in the UI).
