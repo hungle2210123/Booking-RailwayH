@@ -172,8 +172,13 @@ def main():
         '--error-logfile', '-',
         '--log-level', 'info',  # Changed from debug to info (less verbose)
         '--preload',  # Preload app to catch errors early
-        '--config', 'gunicorn.conf.py',  # post_fork: each worker gets its own DB connections
     ]
+    # post_fork hook: each worker gets its own DB connections (only if the file was deployed —
+    # a missing --config file makes gunicorn refuse to start)
+    if os.path.exists('gunicorn.conf.py'):
+        cmd += ['--config', 'gunicorn.conf.py']
+    else:
+        print('⚠️ gunicorn.conf.py not found — starting without the post_fork DB reset')
 
     print(f"📝 Command: {' '.join(cmd)}\n")
     os.execvp('gunicorn', cmd)
