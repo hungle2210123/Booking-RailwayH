@@ -2,25 +2,23 @@
 Revenue rules for the dashboard — ONE definition used everywhere on it.
 
 Revenue is recognised PER NIGHT STAYED: a booking's value is split evenly over its
-nights, so a day's revenue = the nights sold that day, and a month's revenue = the sum
-of its days (the daily calendar always adds up to the month total).
+nights, so the daily calendar always adds up to the month total.
 
-Excluded entirely (not revenue):
-  - booking_status 'cancelled' / 'deleted'
-  - checkin_status 'cancelling' (guest cancelled) / 'no_show'
+Only nights that really happened count as revenue:
+  - nights up to and including today, of guests who are CONFIRMED arrived or have PAID
+    → "Doanh thu" (split into "Đã thu" / "Chưa thu")
+  - nights after today (of upcoming or in-house guests) → "Dự kiến", shown separately and
+    NOT added to revenue
+  - guests whose arrival day has come but who are not confirmed and have not paid
+    → "Chờ xác nhận đến": listed, but not counted (no revenue, no room)
+    (more than 2 days past arrival like that = probably a no-show, dropped entirely)
 
-Every other booking gets one status (applied to each of its nights):
-  paid      – money collected (collector LOC LE / THAO LE or collected_amount > 0);
-              value = what was actually collected
-  due       – guest confirmed arrived, nothing collected yet          → "Chưa thu"
-  expected  – check-in in the future, or arrival day reached (≤ 2 days ago) but not
-              confirmed yet                                           → "Dự kiến"
-  review    – arrival day passed > 2 days ago, never confirmed, never paid
-              → probably a no-show; NOT counted (handled on the calendar page)
+Excluded entirely: booking_status 'cancelled' / 'deleted', checkin_status 'cancelling' /
+'no_show'. Paid bookings count at the amount actually collected. Commission counts unless
+commission_status = 'cancelled' (commission waived).
 
-Commission counts unless commission_status = 'cancelled' (commission waived).
-Room capacity per day = active rooms that existed that day (rooms from the initial
-database setup count from the start).
+Room capacity per day = active rooms that existed that day (rooms from the initial database
+setup count from the start); occupancy is "—" where more nights were sold than rooms on record.
 """
 import calendar as _cal
 from collections import OrderedDict, defaultdict
@@ -29,7 +27,7 @@ from datetime import datetime, timedelta
 VALID_COLLECTORS = ('LOC LE', 'THAO LE')
 GRACE_DAYS = 2          # same grace period as the calendar's no-show rule
 
-STATUS_LABELS = {'paid': 'Đã thu', 'due': 'Chưa thu', 'expected': 'Dự kiến', 'review': 'Cần kiểm tra'}
+STATUS_LABELS = {'paid': 'Đã thu', 'due': 'Chưa thu', 'expected': 'Dự kiến', 'pending': 'Chờ xác nhận đến'}
 WEEKDAYS = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN']
 
 
@@ -73,7 +71,12 @@ def load_rooms(session, text):
 
 
 def classify(b, today):
-    """Enriched dict for a booking, or None if it is excluded."""
+    """Enriched dict for a booking, or None if it doesn't count at all.
+
+    state: 'active'   – arrived (confirmed) or paid
+           'upcoming' – check-in after today
+           'pending'  – arrival day reached ≤ 2 days ago, not confirmed, not paid
+    """
     if (b.get('booking_status') or '').strip().lower() in ('cancelled', 'deleted'):
         return None
     if b.get('checkin_status') in ('cancelling', 'no_show'):
@@ -85,24 +88,19 @@ def classify(b, today):
     room = _f(b.get('room_amount'))
     collected = _f(b.get('collected_amount'))
     collector = (b.get('collector') or '').strip().upper()
-    valid_collector = collector in VALID_COLLECTORS
-    paid = valid_collector or collected > 0
+    paid = collector in VALID_COLLECTORS or collected > 0
     confirmed = b.get('checkin_status') == 'confirmed' or bool(b.get('arrival_confirmed'))
 
-    if paid:
-        value = collected if collected > 0 else room
-        status = 'paid'
+    if ci > today:
+        state = 'upcoming'
+    elif paid or confirmed:
+        state = 'active'
+    elif ci >= today - timedelta(days=GRACE_DAYS):
+        state = 'pending'
     else:
-        value = room
-        if ci > today:
-            status = 'expected'
-        elif confirmed:
-            status = 'due'
-        elif ci >= today - timedelta(days=GRACE_DAYS):
-            status = 'expected'
-        else:
-            status = 'review'
+        return None   # > 2 days past arrival, never confirmed, never paid → no-show
 
+    value = (collected if collected > 0 else room) if paid else room
     commission = 0.0 if (b.get('commission_status') or '').lower() == 'cancelled' else _f(b.get('commission'))
     return {
         'booking_id': b['booking_id'],
@@ -113,9 +111,20 @@ def classify(b, today):
         'value': value,
         'per_night': value / nights,
         'commission_per_night': commission / nights,
+        'paid': paid,
         'collector': collector if paid else '',
-        'status': status,
+        'state': state,
     }
+
+
+def night_kind(x, d, today):
+    """How one night of booking x on date d counts: 'paid' / 'due' (real revenue),
+    'expected' (future, not revenue) or 'pending' (unconfirmed, not counted)."""
+    if x['state'] == 'pending':
+        return 'pending'
+    if d > today:
+        return 'expected'
+    return 'paid' if x['paid'] else 'due'
 
 
 def _nights_of(x):
@@ -136,26 +145,38 @@ def month_shift(month, delta):
 
 
 def _zero():
-    return {'revenue': 0.0, 'collected': 0.0, 'due': 0.0, 'expected': 0.0,
-            'commission': 0.0, 'room_nights': 0, 'capacity': 0, 'arrivals': 0, 'departures': 0}
+    return {'revenue': 0.0, 'collected': 0.0, 'due': 0.0, 'expected': 0.0, 'pending': 0.0,
+            'commission': 0.0, 'room_nights': 0, 'expected_nights': 0, 'pending_nights': 0,
+            'capacity': 0, 'capacity_all': 0, 'arrivals': 0, 'departures': 0}
 
 
-def _add_night(t, x):
-    t['revenue'] += x['per_night']
-    t['commission'] += x['commission_per_night']
-    t['room_nights'] += 1
-    key = {'paid': 'collected', 'due': 'due', 'expected': 'expected'}[x['status']]
-    t[key] += x['per_night']
+def _add_night(t, x, kind):
+    if kind == 'pending':
+        t['pending'] += x['per_night']
+        t['pending_nights'] += 1
+    elif kind == 'expected':
+        t['expected'] += x['per_night']
+        t['expected_nights'] += 1
+    else:
+        t['revenue'] += x['per_night']
+        t['commission'] += x['commission_per_night']
+        t['room_nights'] += 1
+        t['collected' if kind == 'paid' else 'due'] += x['per_night']
 
 
 def _ratios(t):
+    """capacity = room-nights available on days up to today (actual);
+    capacity_all = the whole period (for 'booked incl. upcoming')."""
     t['net'] = t['revenue'] - t['commission']
     t['adr'] = round(t['revenue'] / t['room_nights']) if t['room_nights'] else 0      # giá TB / đêm phòng
     # More nights sold than rooms on record = the room list didn't cover that period
     # (older units were never entered) → occupancy/RevPAR unknown rather than >100%.
-    t['capacity_known'] = bool(t['capacity']) and t['room_nights'] <= t['capacity']
-    t['occupancy'] = round(t['room_nights'] / t['capacity'] * 100, 1) if t['capacity_known'] else None
-    t['revpar'] = round(t['revenue'] / t['capacity']) if t['capacity_known'] else None
+    known = bool(t['capacity']) and t['room_nights'] <= t['capacity']
+    t['occupancy'] = round(t['room_nights'] / t['capacity'] * 100, 1) if known else None
+    t['revpar'] = round(t['revenue'] / t['capacity']) if known else None
+    booked = t['room_nights'] + t['expected_nights']
+    t['booked_occupancy'] = (round(booked / t['capacity_all'] * 100, 1)
+                             if t['capacity_all'] and booked <= t['capacity_all'] else None)
     t['collect_rate'] = round(t['collected'] / t['revenue'] * 100, 1) if t['revenue'] else 0.0
     return t
 
@@ -170,34 +191,37 @@ def build_overview(bookings, rooms, month, apartments, expenses_by_month=None, t
     expenses_by_month = expenses_by_month or {}
     apt_names = {str(a['id']): a['name'] for a in apartments}
     items = [x for x in (classify(b, today) for b in bookings) if x]
-    counted = [x for x in items if x['status'] != 'review']
 
     def capacity_on(d, apartment_id=None):
         return sum(1 for r in rooms
                    if (r['since'] is None or r['since'] <= d)
                    and (apartment_id is None or str(r['apartment_id']) == apartment_id))
 
-    # ── Per-night aggregation ─────────────────────────────────────────
-    by_day = defaultdict(_zero)
-    by_month = defaultdict(_zero)
-    collectors_month = defaultdict(lambda: defaultdict(float))
-    for x in counted:
-        for d in _nights_of(x):
-            _add_night(by_day[d], x)
-            _add_night(by_month[_month_key(d)], x)
-            if x['status'] == 'paid':
-                collectors_month[_month_key(d)][x['collector'] or 'Khác'] += x['per_night']
-        by_day[x['checkin']]['arrivals'] += 1
-        by_day[x['checkout']]['departures'] += 1
-
     def month_days(m):
         y, mm = map(int, m.split('-'))
         first = datetime(y, mm, 1).date()
         return [first + timedelta(days=i) for i in range(_cal.monthrange(y, mm)[1])]
 
+    # ── Per-night aggregation ─────────────────────────────────────────
+    by_day = defaultdict(_zero)
+    by_month = defaultdict(_zero)
+    collectors_month = defaultdict(lambda: defaultdict(float))
+    for x in items:
+        for d in _nights_of(x):
+            kind = night_kind(x, d, today)
+            _add_night(by_day[d], x, kind)
+            _add_night(by_month[_month_key(d)], x, kind)
+            if kind == 'paid':
+                collectors_month[_month_key(d)][x['collector'] or 'Khác'] += x['per_night']
+        if x['state'] != 'pending':
+            by_day[x['checkin']]['arrivals'] += 1
+            by_day[x['checkout']]['departures'] += 1
+
     def month_totals(m):
         t = dict(by_month[m]) if m in by_month else _zero()
-        t['capacity'] = sum(capacity_on(d) for d in month_days(m))
+        days = month_days(m)
+        t['capacity'] = sum(capacity_on(d) for d in days if d <= today)
+        t['capacity_all'] = sum(capacity_on(d) for d in days)
         return _ratios(t)
 
     # ── 12-month series ending at the selected month ─────────────────
@@ -215,46 +239,62 @@ def build_overview(bookings, rooms, month, apartments, expenses_by_month=None, t
     k = month_totals(month)
     prev = month_totals(month_shift(month, -1))
     k['prev_revenue'] = prev['revenue']
-    k['prev_occupancy'] = prev['occupancy']
     k['change_pct'] = round((k['revenue'] - prev['revenue']) / prev['revenue'] * 100, 1) if prev['revenue'] else None
     exp = expenses_by_month.get(month)
     k['expenses'] = exp['total'] if exp else None
     k['expenses_work'] = exp['work'] if exp else None
     k['profit'] = k['net'] - exp['work'] if exp else None
-    review_month = [x for x in items if x['status'] == 'review' and _month_key(x['checkin']) == month]
-    k['review_count'] = len(review_month)
-    k['review_value'] = sum(x['value'] for x in review_month)
+    pending_bookings = [x for x in items if x['state'] == 'pending'
+                        and any(_month_key(d) == month for d in _nights_of(x))]
+    k['pending_count'] = len(pending_bookings)
+    k['pending_value'] = sum(x['value'] for x in pending_bookings)
 
     # ── Daily calendar for the month ─────────────────────────────────
     days_list = month_days(month)
-    night_rows = defaultdict(list)       # date -> bookings staying that night
-    for x in counted:
+    night_rows = defaultdict(list)       # date -> [(booking, kind)]
+    for x in items:
         for d in _nights_of(x):
             if _month_key(d) == month:
-                night_rows[d].append(x)
+                night_rows[d].append((x, night_kind(x, d, today)))
+
+    def guest_row(x, kind, d):
+        return {
+            'booking_id': x['booking_id'], 'name': x['name'],
+            'apartment': apt_names.get(x['apartment_id'], ''), 'listing': x['listing'],
+            'per_night': x['per_night'], 'status': kind, 'status_label': STATUS_LABELS[kind],
+            'checkin': x['checkin'].isoformat(), 'checkout': x['checkout'].isoformat(), 'nights': x['nights'],
+            'is_arrival': x['checkin'] == d, 'is_last_night': x['checkout'] == d + timedelta(days=1),
+        }
+
     days = []
     for d in days_list:
         t = dict(by_day[d]) if d in by_day else _zero()
         t['capacity'] = capacity_on(d)
+        t['capacity_all'] = t['capacity']
         _ratios(t)
+        future = d > today
+        rows_d = night_rows.get(d, [])
+        sort_key = lambda g: (g['apartment'] or 'zz', g['name'])
         days.append({
             'date': d.isoformat(), 'weekday': WEEKDAYS[d.weekday()], 'is_weekend': d.weekday() >= 5,
-            'revenue': t['revenue'], 'collected': t['collected'], 'due': t['due'], 'expected': t['expected'],
-            'room_nights': t['room_nights'], 'capacity': t['capacity'], 'occupancy': t['occupancy'],
-            'adr': t['adr'], 'arrivals': t['arrivals'], 'departures': t['departures'],
-            'guests': sorted(({
-                'booking_id': x['booking_id'], 'name': x['name'],
-                'apartment': apt_names.get(x['apartment_id'], ''), 'listing': x['listing'],
-                'per_night': x['per_night'], 'status': x['status'], 'status_label': STATUS_LABELS[x['status']],
-                'checkin': x['checkin'].isoformat(), 'checkout': x['checkout'].isoformat(), 'nights': x['nights'],
-                'is_arrival': x['checkin'] == d, 'is_last_night': x['checkout'] == d + timedelta(days=1),
-            } for x in night_rows.get(d, [])), key=lambda g: (g['apartment'] or 'zz', g['name'])),
+            'is_future': future,
+            # past/today: real revenue; future: what is booked (forecast)
+            'revenue': t['revenue'], 'expected': t['expected'],
+            'collected': t['collected'], 'due': t['due'],
+            'rooms': t['expected_nights'] if future else t['room_nights'],
+            'capacity': t['capacity'],
+            'occupancy': t['occupancy'] if not future else
+                         (round(t['expected_nights'] / t['capacity'] * 100, 1) if t['capacity'] else None),
+            'adr': t['adr'] if not future else (round(t['expected'] / t['expected_nights']) if t['expected_nights'] else 0),
+            'arrivals': t['arrivals'], 'departures': t['departures'],
+            'pending_count': t['pending_nights'], 'pending_value': t['pending'],
+            'guests': sorted((guest_row(x, kind, d) for x, kind in rows_d if kind != 'pending'), key=sort_key),
+            'pending': sorted((guest_row(x, kind, d) for x, kind in rows_d if kind == 'pending'), key=sort_key),
         })
 
-    # Day statistics — for a month still in progress only the days up to today count,
-    # otherwise future (still empty) days would drag averages down and look "empty"
-    elapsed = [x for x in days if x['date'] <= today.isoformat()] or days
-    best = max(days, key=lambda x: x['revenue']) if days else None
+    # Day statistics — only days that have happened (a month in progress counts up to today)
+    elapsed = [x for x in days if not x['is_future']]
+    best = max(elapsed, key=lambda x: x['revenue']) if elapsed else None
     weekday_rev = [x['revenue'] for x in elapsed if not x['is_weekend']]
     weekend_rev = [x['revenue'] for x in elapsed if x['is_weekend']]
     stats = {
@@ -262,8 +302,8 @@ def build_overview(bookings, rooms, month, apartments, expenses_by_month=None, t
         'avg_day': round(sum(x['revenue'] for x in elapsed) / len(elapsed)) if elapsed else 0,
         'avg_weekday': round(sum(weekday_rev) / len(weekday_rev)) if weekday_rev else 0,
         'avg_weekend': round(sum(weekend_rev) / len(weekend_rev)) if weekend_rev else 0,
-        'empty_days': sum(1 for x in elapsed if x['capacity'] and x['room_nights'] == 0),
-        'full_days': sum(1 for x in elapsed if x['capacity'] and x['room_nights'] >= x['capacity']),
+        'empty_days': sum(1 for x in elapsed if x['capacity'] and x['rooms'] == 0),
+        'full_days': sum(1 for x in elapsed if x['capacity'] and x['rooms'] >= x['capacity']),
         'days_counted': len(elapsed),
         'days_in_month': len(days),
     }
@@ -274,24 +314,30 @@ def build_overview(bookings, rooms, month, apartments, expenses_by_month=None, t
                   for n, a in sorted(collectors_month.get(month, {}).items(), key=lambda kv: -kv[1])]
 
     apt = OrderedDict((str(a['id']), {'id': str(a['id']), 'name': a['name'], 'color': a.get('color', '#64748b'),
-                                      'revenue': 0.0, 'collected': 0.0, 'room_nights': 0, 'capacity': 0})
+                                      'revenue': 0.0, 'collected': 0.0, 'expected': 0.0,
+                                      'room_nights': 0, 'capacity': 0})
                       for a in apartments)
     apt['__none__'] = {'id': '', 'name': 'Chưa xếp căn', 'color': '#94a3b8',
-                       'revenue': 0.0, 'collected': 0.0, 'room_nights': 0, 'capacity': 0}
-    for d, staying in night_rows.items():
-        for x in staying:
+                       'revenue': 0.0, 'collected': 0.0, 'expected': 0.0, 'room_nights': 0, 'capacity': 0}
+    for d, rows_d in night_rows.items():
+        for x, kind in rows_d:
+            if kind == 'pending':
+                continue
             a = apt.get(x['apartment_id']) or apt['__none__']
+            if kind == 'expected':
+                a['expected'] += x['per_night']
+                continue
             a['revenue'] += x['per_night']
             a['room_nights'] += 1
-            if x['status'] == 'paid':
+            if kind == 'paid':
                 a['collected'] += x['per_night']
     for key, a in apt.items():
         if key != '__none__':
-            a['capacity'] = sum(capacity_on(d, key) for d in days_list)
+            a['capacity'] = sum(capacity_on(d, key) for d in days_list if d <= today)
         known = a['capacity'] and a['room_nights'] <= a['capacity']
         a['occupancy'] = round(a['room_nights'] / a['capacity'] * 100, 1) if known else None
         a['adr'] = round(a['revenue'] / a['room_nights']) if a['room_nights'] else 0
-    apartments_out = [a for a in apt.values() if a['room_nights'] or a['capacity']]
+    apartments_out = [a for a in apt.values() if a['room_nights'] or a['capacity'] or a['expected']]
 
     months_available = sorted({_month_key(d) for d in by_day.keys()}, reverse=True)
     return {

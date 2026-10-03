@@ -54,6 +54,11 @@
 .cal-day .dn .ev { font-weight: 700; color: var(--d-muted); font-size: 0.68rem; }
 .cal-day .rv { font-size: 1rem; font-weight: 900; line-height: 1.1; color: var(--d-ink); }
 .cal-day .rv.zero { color: #cbd5e1; font-weight: 700; }
+.cal-day .rv.exp { color: var(--d-exp); }
+.cal-day .pend { color: #b45309; font-weight: 800; }
+.pend-head { margin: 12px 0 6px; font-size: 0.82rem; font-weight: 800; color: #92400e; }
+.g-row.pending { background: #fafafa; border-style: dashed; opacity: .75; }
+.g-row.pending .amt { color: var(--d-muted); text-decoration: line-through; }
 .cal-day .oc { font-size: 0.68rem; color: var(--d-muted); font-weight: 700; margin-top: auto; }
 .cal-day .ocbar { height: 4px; border-radius: 2px; background: #e2e8f0; overflow: hidden; }
 .cal-day .ocbar span { display: block; height: 100%; background: var(--d-occ); }
@@ -122,7 +127,7 @@
     <div class="dash-head">
         <div>
             <h1>📊 Tổng quan doanh thu</h1>
-            <div class="sub">Doanh thu tính theo đêm ở · đã bỏ khách hủy / không đến · <span id="updatedAt"></span></div>
+            <div class="sub">Doanh thu = các đêm khách đã ở thật (đã xác nhận đến hoặc đã thu) · <span id="updatedAt"></span></div>
         </div>
         <div class="d-flex gap-2 flex-wrap">
             <div class="month-nav">
@@ -220,7 +225,10 @@
         const total = Math.max(k.revenue, 1);
         const w = v => (v / total * 100).toFixed(2);
         const occNote = k.occupancy === null ? 'chưa đủ dữ liệu số phòng'
-            : `${k.room_nights}/${k.capacity} đêm phòng${isCurrent ? ' · cả tháng, gồm phòng đã đặt trước' : ''}`;
+            : `${k.room_nights}/${k.capacity} đêm phòng${isCurrent ? ' đến hôm nay' : ''}`
+              + (isCurrent && k.booked_occupancy !== null ? ` · cả tháng đã đặt ${k.booked_occupancy}%` : '');
+        const pendingNote = k.pending_count
+            ? `<br><span style="color:#92400e">⏳ ${k.pending_count} khách chờ xác nhận đến (${short(k.pending_value)}) — chưa tính</span>` : '';
 
         document.getElementById('dashBody').innerHTML = `
             <div class="kpis">
@@ -229,9 +237,9 @@
                 <div class="kpi" style="--c:${C.paid}"><div class="lbl">Đã thu</div><div class="val" style="color:${C.paid}">${fmt(k.collected)}</div>
                     <div class="meta">${k.collect_rate}% doanh thu</div></div>
                 <div class="kpi" style="--c:${C.due}"><div class="lbl">Chưa thu</div><div class="val" style="color:${C.due}">${fmt(k.due)}</div>
-                    <div class="meta">khách đã đến, chưa ghi nhận thu</div></div>
-                <div class="kpi" style="--c:${C.exp}"><div class="lbl">Dự kiến</div><div class="val" style="color:${C.exp}">${fmt(k.expected)}</div>
-                    <div class="meta">khách chưa đến / chờ xác nhận</div></div>
+                    <div class="meta">khách đã xác nhận đến, chưa ghi nhận thu</div></div>
+                <div class="kpi" style="--c:${C.exp}"><div class="lbl">Dự kiến (chưa tính)</div><div class="val" style="color:${C.exp}">${fmt(k.expected)}</div>
+                    <div class="meta">${k.expected_nights} đêm đã đặt sau hôm nay${pendingNote}</div></div>
                 <div class="kpi" style="--c:${C.comm}"><div class="lbl">Hoa hồng</div><div class="val" style="color:${C.comm}">${fmt(k.commission)}</div>
                     <div class="meta">${k.revenue ? (k.commission / k.revenue * 100).toFixed(1) : 0}% doanh thu</div></div>
                 <div class="kpi" style="--c:${C.net}"><div class="lbl">Thực nhận</div><div class="val" style="color:${C.net}">${fmt(k.net)}</div>
@@ -242,7 +250,7 @@
                 <div class="kpi" style="--c:${C.occ}"><div class="lbl">Công suất phòng</div><div class="val">${pct(k.occupancy)}</div>
                     <div class="meta">${occNote}</div></div>
                 <div class="kpi" style="--c:#0891b2"><div class="lbl">Giá TB / đêm</div><div class="val">${short(k.adr)}</div>
-                    <div class="meta">${k.room_nights} đêm phòng đã bán</div></div>
+                    <div class="meta">${k.room_nights} đêm phòng thực tế</div></div>
                 <div class="kpi" style="--c:#4f46e5"><div class="lbl">Doanh thu / phòng</div><div class="val">${k.revpar === null ? '—' : short(k.revpar)}</div>
                     <div class="meta">mỗi phòng mỗi ngày (RevPAR)</div></div>
                 <div class="kpi" style="--c:#16a34a"><div class="lbl">TB mỗi ngày${s.days_counted < s.days_in_month ? ' (đến nay)' : ''}</div><div class="val">${short(s.avg_day)}</div>
@@ -254,16 +262,15 @@
             </div>
 
             <div class="dash-card">
-                <div class="mixbar" title="Đã thu / Chưa thu / Dự kiến">
+                <div class="mixbar" title="Doanh thu thực tế: Đã thu / Chưa thu">
                     <span style="width:${w(k.collected)}%;background:${C.paid}"></span>
                     <span style="width:${w(k.due)}%;background:${C.due}"></span>
-                    <span style="width:${w(k.expected)}%;background:${C.exp}"></span>
                 </div>
                 <div class="legend">
-                    <span><i style="background:${C.paid}"></i>Đã thu ${short(k.collected)}</span>
+                    <span><i style="background:${C.paid}"></i>Đã thu ${short(k.collected)} (${k.collect_rate}%)</span>
                     <span><i style="background:${C.due}"></i>Chưa thu ${short(k.due)}</span>
-                    <span><i style="background:${C.exp}"></i>Dự kiến ${short(k.expected)}</span>
-                    ${k.review_count ? `<span style="color:#92400e">Không tính ${k.review_count} booking chưa xác nhận đến (${short(k.review_value)}) — xem ở Lịch</span>` : ''}
+                    <span style="color:var(--d-muted)">Không cộng vào doanh thu:
+                        <b style="color:${C.exp}">dự kiến ${short(k.expected)}</b>${k.pending_count ? ` · <b style="color:#92400e">⏳ ${k.pending_count} khách chờ xác nhận ${short(k.pending_value)}</b>` : ''}</span>
                 </div>
             </div>
 
@@ -300,8 +307,11 @@
                 <summary>ℹ️ Cách tính các con số</summary>
                 <ul>
                     <li><b>Doanh thu theo đêm ở</b>: giá booking chia đều cho số đêm (booking 3 đêm 3 triệu → mỗi ngày 1 triệu). Tổng các ngày = doanh thu tháng.</li>
-                    <li>Booking đã thu tính theo <b>số tiền thực thu</b>. Không tính khách hủy / báo hủy / không đến, và booking đã qua ngày đến > 2 ngày mà chưa xác nhận đến, chưa thu.</li>
-                    <li><b>Chưa thu</b>: khách đã xác nhận đến nhưng chưa ghi nhận thu tiền. <b>Dự kiến</b>: khách chưa tới ngày hoặc đang chờ xác nhận đến.</li>
+                    <li><b>Doanh thu chỉ gồm đêm đã diễn ra</b> (đến hết hôm nay) của khách <b>đã xác nhận đến hoặc đã thu tiền</b>. Booking đã thu tính theo số tiền thực thu.</li>
+                    <li><b>Chờ xác nhận đến</b>: khách đã tới ngày check-in nhưng chưa bấm "Xác nhận đến" và chưa thu → không cộng tiền, không tính phòng (bấm xác nhận ở trang Lịch là được tính).</li>
+                    <li><b>Dự kiến</b>: các đêm sau hôm nay đã có người đặt — chỉ để tham khảo, không cộng vào doanh thu.</li>
+                    <li>Không tính: khách hủy / báo hủy / không đến, và khách quá 2 ngày sau ngày đến vẫn chưa xác nhận, chưa thu.</li>
+                    <li><b>Chưa thu</b>: khách đã xác nhận đến nhưng chưa ghi nhận thu tiền.</li>
                     <li><b>Thực nhận</b> = Doanh thu − Hoa hồng (trừ booking đã miễn hoa hồng). <b>Lãi ước tính</b> = Thực nhận − chi phí "Công việc".</li>
                     <li><b>Công suất</b> = đêm phòng đã bán ÷ (số phòng × số ngày). Hiện "—" khi số đêm bán vượt số phòng đang khai báo (giai đoạn chưa nhập đủ phòng).</li>
                     <li><b>Giá TB/đêm</b> = doanh thu ÷ đêm phòng bán. <b>Doanh thu/phòng (RevPAR)</b> = doanh thu ÷ (số phòng × số ngày).</li>
@@ -333,27 +343,37 @@
 
     function renderCalendar() {
         const d = STATE.data, days = d.days;
-        const maxRev = Math.max(...days.map(x => x.revenue), 1);
-        const minRev = Math.min(...days.filter(x => x.revenue > 0).map(x => x.revenue), maxRev);
+        // Past/today = real revenue; future = what is booked (forecast, blue)
+        const val = x => x.is_future ? x.expected : x.revenue;
+        const real = days.filter(x => !x.is_future && x.revenue > 0).map(x => x.revenue);
+        const maxRev = Math.max(...real, 1);
+        const minRev = Math.min(...real, maxRev);
+        const fut = days.filter(x => x.is_future && x.expected > 0).map(x => x.expected);
+        const maxExp = Math.max(...fut, 1), minExp = Math.min(...fut, maxExp);
         const offset = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'].indexOf(days[0].weekday);
         let html = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN']
             .map(w => `<div class="cal-wd ${w === 'T7' || w === 'CN' ? 'we' : ''}">${w}</div>`).join('');
         for (let i = 0; i < offset; i++) html += `<div class="cal-day blank"></div>`;
         days.forEach(x => {
             const isOcc = STATE.calMode === 'occupancy';
-            const occ = x.capacity ? x.room_nights / x.capacity : 0;
-            const bg = isOcc ? heat(Math.min(occ, 1), 0, 1, '234,88,12') : heat(x.revenue, minRev, maxRev, '22,163,74');
+            const occ = x.capacity ? x.rooms / x.capacity : 0;
+            const bg = isOcc ? heat(Math.min(occ, 1), 0, 1, '234,88,12')
+                     : x.is_future ? heat(x.expected, minExp, maxExp, '37,99,235')
+                     : heat(x.revenue, minRev, maxRev, '22,163,74');
             const main = isOcc
                 ? (x.capacity ? `${Math.round(occ * 100)}%` : '—')
-                : (x.revenue ? short(x.revenue) : '0');
+                : (val(x) ? short(val(x)) : '0');
             const cls = ['cal-day', x.date === d.today ? 'today' : '', x.date === STATE.selDay ? 'sel' : '',
-                         x.date > d.today ? 'future' : '', x.capacity && x.room_nights >= x.capacity ? 'full' : ''].join(' ');
+                         x.is_future ? 'future' : '', x.capacity && x.rooms >= x.capacity ? 'full' : ''].join(' ');
             const ev = [x.arrivals ? `↓${x.arrivals}` : '', x.departures ? `↑${x.departures}` : ''].filter(Boolean).join(' ');
+            const tip = x.is_future
+                ? `${ddmm(x.date)} (dự kiến): ${fmt(x.expected)} · ${x.rooms}/${x.capacity} phòng đã đặt`
+                : `${ddmm(x.date)}: ${fmt(x.revenue)} · ${x.rooms}/${x.capacity} phòng`;
             html += `<button type="button" class="${cls}" style="background-color:${bg}" onclick="selectDay('${x.date}')"
-                        title="${ddmm(x.date)}: ${fmt(x.revenue)} · ${x.room_nights}/${x.capacity} phòng">
+                        title="${tip}${x.pending_count ? ` · ${x.pending_count} khách chờ xác nhận (chưa tính)` : ''}">
                 <div class="dn"><span>${parseInt(x.date.slice(8))}</span><span class="ev">${ev}</span></div>
-                <div class="rv ${x.revenue || isOcc ? '' : 'zero'}">${main}</div>
-                <div class="oc">${x.room_nights}/${x.capacity}</div>
+                <div class="rv ${val(x) || isOcc ? '' : 'zero'} ${x.is_future && !isOcc ? 'exp' : ''}">${main}</div>
+                <div class="oc">${x.rooms}/${x.capacity}${x.pending_count && !x.is_future ? ` <span class="pend">⏳${x.pending_count}</span>` : ''}</div>
                 <div class="ocbar"><span style="width:${Math.min(occ, 1) * 100}%"></span></div>
             </button>`;
         });
@@ -362,7 +382,8 @@
             ? `<span>Màu = công suất:</span><span class="sw" style="background:rgba(234,88,12,.12)"></span>thấp<span class="sw" style="background:rgba(234,88,12,.6)"></span>kín
                <span class="ms-2">· ô số nhỏ: phòng có khách / tổng phòng · ↓ khách vào ↑ khách trả</span>`
             : `<span>Màu = doanh thu:</span><span class="sw" style="background:rgba(22,163,74,.08)"></span>thấp nhất ${short(minRev)}<span class="sw" style="background:rgba(22,163,74,.66)"></span>cao nhất ${short(maxRev)}
-               <span class="ms-2">· ô số nhỏ: phòng có khách / tổng phòng · ↓ khách vào ↑ khách trả · ngày gạch chéo là dự kiến</span>`;
+               <span class="sw ms-2" style="background:rgba(37,99,235,.35)"></span>ngày tới = dự kiến (chưa tính)
+               <span class="ms-2">· số nhỏ: phòng có khách / tổng phòng · ⏳ khách chờ xác nhận (chưa tính) · ↓ vào ↑ trả</span>`;
     }
 
     window.selectDay = function (date) {
@@ -380,8 +401,8 @@
         if (!x) { box.innerHTML = '<div class="text-muted small">Bấm vào một ngày để xem khách và doanh thu của ngày đó.</div>'; return; }
         const head = `<div class="day-head">
             <span class="t">${WD_FULL[x.weekday]}, ${ddmm(x.date)}</span>
-            <span class="m"><b>${fmt(x.revenue)}</b></span>
-            <span class="m">🛏 ${x.room_nights}/${x.capacity} phòng${x.occupancy !== null ? ` (${x.occupancy}%)` : ''}</span>
+            <span class="m">${x.is_future ? `Dự kiến <b style="color:${C.exp}">${fmt(x.expected)}</b>` : `<b>${fmt(x.revenue)}</b>`}</span>
+            <span class="m">🛏 ${x.rooms}/${x.capacity} phòng${x.is_future ? ' đã đặt' : ''}${x.occupancy !== null ? ` (${x.occupancy}%)` : ''}</span>
             <span class="m">Giá TB ${short(x.adr)}/đêm</span>
             <span class="m">↓ ${x.arrivals} vào · ↑ ${x.departures} trả</span>
             <a href="/calendar_details/${x.date}">Mở lịch ngày này →</a>
@@ -393,8 +414,17 @@
                 <div class="sub">${ddmm(g.checkin)} → ${ddmm(g.checkout)} · ${g.nights} đêm · <span class="pill ${g.status}">${esc(g.status_label)}</span></div>
             </div>
             <div class="amt">${fmt(g.per_night)}<div class="sub" style="font-weight:600">/đêm</div></div>
-        </div>`).join('') : '<div class="empty">Không có khách ở đêm này</div>';
-        box.innerHTML = head + rows;
+        </div>`).join('') : '<div class="empty">Không có khách đã xác nhận ở đêm này</div>';
+        const pending = x.pending.length ? `<div class="pend-head">⏳ Chờ xác nhận đến — chưa tính vào doanh thu
+                (${x.pending.length} khách · ${short(x.pending_value)})</div>`
+            + x.pending.map(g => `<div class="g-row pending">
+                <div class="main">
+                    <div class="nm">${esc(g.name)}<span class="tag apt" style="opacity:.7">${esc(g.apartment || g.listing || 'Chưa xếp căn')}</span></div>
+                    <div class="sub">${ddmm(g.checkin)} → ${ddmm(g.checkout)} · ${g.nights} đêm</div>
+                </div>
+                <div class="amt">${fmt(g.per_night)}<div class="sub" style="font-weight:600">/đêm</div></div>
+            </div>`).join('') : '';
+        box.innerHTML = head + rows + pending;
     }
 
     // ── 12-month chart ────────────────────────────────────────────
@@ -445,7 +475,7 @@
     function renderApartments() {
         const box = document.getElementById('aptBrk');
         const apts = STATE.data.apartments;
-        if (!apts.some(a => a.room_nights)) { box.innerHTML = '<div class="empty">Chưa có khách trong tháng này</div>'; return; }
+        if (!apts.some(a => a.room_nights || a.expected)) { box.innerHTML = '<div class="empty">Chưa có khách trong tháng này</div>'; return; }
         const max = Math.max(...apts.map(a => a.revenue), 1);
         box.innerHTML = apts.map(a => `<div class="brk-row">
             <div class="top"><b style="color:${a.color}">${esc(a.name)}</b><b>${fmt(a.revenue)}</b></div>
@@ -453,7 +483,7 @@
                 <span style="width:${a.collected / max * 100}%;background:${a.color}"></span>
                 <span style="width:${(a.revenue - a.collected) / max * 100}%;background:${a.color}55"></span>
             </div>
-            <div class="sub">Công suất ${pct(a.occupancy)} · ${a.room_nights}${a.capacity ? '/' + a.capacity : ''} đêm phòng · TB ${short(a.adr)}/đêm · đã thu ${short(a.collected)}</div>
+            <div class="sub">Công suất ${pct(a.occupancy)} · ${a.room_nights}${a.capacity ? '/' + a.capacity : ''} đêm phòng · TB ${short(a.adr)}/đêm · đã thu ${short(a.collected)}${a.expected ? ` · <span style="color:${C.exp}">dự kiến thêm ${short(a.expected)}</span>` : ''}</div>
         </div>`).join('');
     }
 
