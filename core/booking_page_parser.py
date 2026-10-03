@@ -32,7 +32,7 @@ LABELS = {
                    'nguoi dat', 'ten khach hang', 'khach'],
     'checkin': ['check-in', 'check in', 'checkin', 'arrival', 'nhan phong', 'ngay nhan phong', 'ngay den'],
     'checkout': ['check-out', 'check out', 'checkout', 'departure', 'tra phong', 'ngay tra phong', 'ngay di'],
-    'total': ['total price', 'total amount', 'total', 'price', 'tong tien phong', 'tong gia', 'tong tien', 'tong cong',
+    'total': ['total price', 'total amount', 'total', 'price', 'tong gia', 'tong tien', 'tong cong',
               'tong thanh toan', 'gia'],
     'commission': ['commission', 'hoa hong'],
     'phone': ['phone number', 'phone', 'telephone', 'mobile', 'so dien thoai', 'dien thoai', 'sdt'],
@@ -189,9 +189,6 @@ def parse_reservation_page(page):
     phone = next((clean_phone(t) for t in page.get('tel') or [] if clean_phone(t)), None)
     if not phone:
         phone = clean_phone(_value(page, lines, 'phone'))
-    if not phone:
-        own_line = next((l for l in lines if re.fullmatch(r'\+\d[\d\s().\-]{6,22}\d', l)), None)
-        phone = clean_phone(own_line)
     out['phone'] = phone
 
     email = next((e for e in page.get('mailto') or [] if EMAIL_RE.fullmatch(e or '')), None)
@@ -369,8 +366,6 @@ def parse_reservation_list(headers, rows):
         price = parse_money(cell(row, 'price').get('text'))
         comm = parse_money(cell(row, 'commission').get('text'))
         room, rooms = split_rooms(cell(row, 'room').get('text'))
-        href = g.get('href') or bid_text.get('href') or ''
-        detail_url = href if href.startswith('https://admin.booking.com/') else None
         item = {
             'booking_id': m.group(0), 'guest_name': name or None,
             'checkin_date': ci.isoformat() if ci else None,
@@ -378,7 +373,7 @@ def parse_reservation_list(headers, rows):
             # cancelled rows show price 0 on Booking — never use that as the price
             'room_amount': price if (price and status == 'ok') else None,
             'commission': comm if (comm is not None and status == 'ok') else None,
-            'listing': room or None, 'rooms': rooms, 'status': status, 'detail_url': detail_url,
+            'listing': room or None, 'rooms': rooms, 'status': status,
         }
         item['missing'] = [k for k in ('guest_name', 'checkin_date', 'checkout_date') if not item[k]]
         out.append(item)
