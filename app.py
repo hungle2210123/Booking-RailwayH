@@ -873,57 +873,6 @@ def api_debug_confirmed_cancellations():
             'timestamp': datetime.now().isoformat()
         }), 500
 
-@app.route('/api/debug_database')
-def api_debug_database():
-    """Debug endpoint to check database tables and data"""
-    try:
-        from core.models import db, CancellationAction
-        
-        # Check if table exists
-        from sqlalchemy import inspect
-        inspector = inspect(db.engine)
-        table_exists = inspector.has_table('cancellation_actions')
-        
-        if not table_exists:
-            return jsonify({
-                'success': False,
-                'error': 'cancellation_actions table does not exist',
-                'suggestion': 'Run create_local_table.sql in your PostgreSQL database'
-            }), 404
-        
-        # Get all cancellation actions
-        all_actions = CancellationAction.query.all()
-        actions_data = []
-        
-        for action in all_actions:
-            actions_data.append({
-                'action_id': action.action_id,
-                'booking_id': action.booking_id,
-                'guest_name': action.guest_name,
-                'cancellation_type': action.cancellation_type,
-                'action_status': action.action_status,
-                'confirmed_by': action.confirmed_by,
-                'confirmation_date': action.confirmation_date.isoformat() if action.confirmation_date else None,
-                'created_at': action.created_at.isoformat() if action.created_at else None
-            })
-        
-        return jsonify({
-            'success': True,
-            'table_exists': table_exists,
-            'total_records': len(actions_data),
-            'all_cancellation_actions': actions_data,
-            'timestamp': datetime.now().isoformat()
-        })
-        
-    except Exception as e:
-        print(f"❌ [API_DEBUG_DATABASE] Error: {e}")
-        import traceback
-        return jsonify({
-            'success': False,
-            'error': str(e),
-            'traceback': traceback.format_exc()
-        }), 500
-
 @app.route('/api/edit_cancellation', methods=['POST'])
 def api_edit_cancellation():
     """Edit existing cancellation action (change status, notes, etc.)"""
@@ -1459,125 +1408,52 @@ def index():
 
 @app.route('/dashboard')
 def dashboard():
-    """PostgreSQL-powered dashboard route with cancellation notifications"""
-    start_date_str = request.args.get('start_date')
-    end_date_str = request.args.get('end_date')
+    """Revenue & collection overview. All numbers come from /api/dashboard/overview
+    (rules in core/revenue.py) so every figure on the page uses the same definition."""
+    return render_template('dashboard.html')
 
-    # Set default date range to current month for better user experience
-    if not start_date_str or not end_date_str:
-        today_full = datetime.today()
-        # Start from beginning of current month
-        start_date = today_full.replace(day=1)
-        # End at end of current month
-        _, last_day = calendar.monthrange(today_full.year, today_full.month)
-        end_date = today_full.replace(day=last_day)
-        print(f"📅 DASHBOARD DEFAULT: Current month {start_date.strftime('%Y-%m-%d')} to {end_date.strftime('%Y-%m-%d')}")
-    else:
-        start_date = datetime.strptime(start_date_str, '%Y-%m-%d')
-        end_date = datetime.strptime(end_date_str, '%Y-%m-%d')
 
-    # CRITICAL: Load data with timeout protection to prevent Railway from hanging
-    # Use cached data first, only force_fresh if explicitly requested
-    use_fresh = request.args.get('refresh', 'false').lower() == 'true'
+@app.route('/expenses')
+def expenses_page():
+    """Expense entry / overview (moved out of the old dashboard)."""
+    return render_template('expenses.html')
+
+
+@app.route('/api/dashboard/overview')
+def api_dashboard_overview():
+    """?month=YYYY-MM (default: current month, Vietnam time)."""
     try:
-        print(f"🔄 Loading data (fresh={use_fresh})...")
-        df, _ = load_data(force_fresh=use_fresh)
-        print(f"✅ Data loaded successfully: {len(df)} bookings")
+        import re
+        from core.models import db as _dsdb
+        from core.revenue import load_bookings as _rev_load, build_overview, vn_today as _rev_today
+        month = (request.args.get('month') or '').strip()
+        if not re.match(r'^\d{4}-\d{2}$', month):
+            month = _rev_today().strftime('%Y-%m')
+
+        colors = ['#1976D2', '#2E7D32', '#7B1FA2', '#E64A19', '#00838F', '#F57F17']
+        apt_rows = _dsdb.session.execute(text(
+            "SELECT apartment_id, apartment_name, is_active FROM apartments ORDER BY apartment_id"
+        )).fetchall()
+        apartments = [{'id': r[0], 'name': r[1], 'color': colors[i % len(colors)]}
+                      for i, r in enumerate(apt_rows)]
+
+        expenses = {}
+        try:
+            for m, total, work in _dsdb.session.execute(text("""
+                SELECT to_char(expense_date, 'YYYY-MM'), SUM(amount),
+                       SUM(amount) FILTER (WHERE category = 'work')
+                FROM expenses GROUP BY 1
+            """)).fetchall():
+                expenses[m] = {'total': float(total or 0), 'work': float(work or 0)}
+        except Exception as _ee:
+            _dsdb.session.rollback()
+            print(f"[dashboard] expenses unavailable: {_ee}")
+
+        data = build_overview(_rev_load(_dsdb.session, text), month, apartments, expenses)
+        return jsonify({'success': True, **data})
     except Exception as e:
-        print(f"❌ Error loading data: {e}")
-        # Return error page instead of hanging
-        error_html = f"""
-        <!DOCTYPE html>
-        <html>
-        <head><title>Database Error</title></head>
-        <body>
-            <h1>⚠️ Database Connection Error</h1>
-            <p>Unable to connect to the database. This might be temporary.</p>
-            <p><strong>Error:</strong> {str(e)}</p>
-            <p><a href="/">Try again</a> | <a href="/health">Check system health</a></p>
-        </body>
-        </html>
-        """
-        return error_html, 503
-
-    # If still empty, return helpful message
-    if df.empty:
-        print("⚠️ No booking data available")
-        empty_html = """
-        <!DOCTYPE html>
-        <html>
-        <head><title>No Data</title></head>
-        <body>
-            <h1>📊 No Booking Data</h1>
-            <p>The booking system is running, but no data is currently available.</p>
-            <p><a href="/?refresh=true">Reload with fresh data</a></p>
-        </body>
-        </html>
-        """
-        return empty_html, 200
-    sort_by = request.args.get('sort_by', 'Tháng')
-    sort_order = request.args.get('sort_order', 'desc')
-    
-    print(f"📅 [DASHBOARD_MAIN] Date filter: {start_date.strftime('%Y-%m-%d')} to {end_date.strftime('%Y-%m-%d')}")
-    print(f"📅 [DASHBOARD_MAIN] Total bookings loaded: {len(df)}")
-    
-    # Get cancellation notifications
-    try:
-        from core.cancellation_notifications import get_cancellation_notifications, get_urgent_cancellation_alerts
-        cancellation_notifications = get_cancellation_notifications()
-        urgent_alerts = get_urgent_cancellation_alerts()
-        print(f"🚨 [CANCELLATION_ALERTS] Total alerts: {cancellation_notifications['summary']['total_alerts']}")
-    except Exception as e:
-        print(f"⚠️ [CANCELLATION_ALERTS] Error loading notifications: {e}")
-        cancellation_notifications = {'summary': {'total_alerts': 0}}
-        urgent_alerts = []
-    
-    dashboard_data = prepare_dashboard_data(df, start_date, end_date, sort_by, sort_order)
-
-    # Process all dashboard data
-    processed_data = process_dashboard_data(df, start_date, end_date, sort_by, sort_order, dashboard_data)
-
-    # Add duplicate detection for dashboard integration
-    duplicate_guests = {}
-    try:
-        if not df.empty:
-            # Group by guest name and count duplicates
-            guest_counts = df.groupby('Tên người đặt').size()
-            # Only include guests with more than 1 booking
-            duplicate_guests = {name: count for name, count in guest_counts.items() if count > 1}
-            print(f"🔍 [DASHBOARD] Found {len(duplicate_guests)} guests with duplicates")
-    except Exception as e:
-        print(f"⚠️ [DASHBOARD] Error detecting duplicates: {e}")
-        duplicate_guests = {}
-
-    # Ensure chart data is always available with proper fallbacks
-    if 'monthly_revenue_chart_json' not in processed_data or not processed_data['monthly_revenue_chart_json']:
-        processed_data['monthly_revenue_chart_json'] = {'data': [], 'layout': {'title': {'text': 'No monthly revenue data available'}}}
-        print("⚠️ [DASHBOARD] Added fallback for monthly_revenue_chart_json")
-    
-    if 'collector_chart_json' not in processed_data or not processed_data['collector_chart_json']:
-        processed_data['collector_chart_json'] = {'data': [], 'layout': {'title': {'text': 'No collector data available'}}}
-        print("⚠️ [DASHBOARD] Added fallback for collector_chart_json")
-    
-    print(f"📊 [DASHBOARD] Chart data status:")
-    print(f"   - Monthly chart: {'available' if processed_data.get('monthly_revenue_chart_json', {}).get('data') else 'empty'}")
-    print(f"   - Collector chart: {'available' if processed_data.get('collector_chart_json', {}).get('data') else 'empty'}")
-    
-    # Render template with processed data and cancellation notifications
-    return render_template(
-        'dashboard.html',
-        total_revenue=dashboard_data.get('total_revenue_selected', 0),
-        total_guests=dashboard_data.get('total_guests_selected', 0),
-        start_date=start_date.strftime('%Y-%m-%d'),
-        end_date=end_date.strftime('%Y-%m-%d'),
-        current_sort_by=sort_by,
-        current_sort_order=sort_order,
-        collector_revenue_list=safe_to_dict_records(dashboard_data.get('collector_revenue_selected', pd.DataFrame())),
-        duplicate_guests=duplicate_guests,  # Add duplicate detection data
-        cancellation_notifications=cancellation_notifications,  # Cancellation alerts
-        urgent_alerts=urgent_alerts,  # High-priority alerts
-        **processed_data
-    )
+        import traceback; traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/bookings')
 def view_bookings():
@@ -9149,170 +9025,6 @@ def import_bookings_json():
             'error': str(e)
         }), 500
 
-@app.route('/api/fix_constraint', methods=['POST'])
-def fix_constraint():
-    """
-    Fix database constraint to allow Vietnamese booking statuses
-    """
-    try:
-        from core.models import db
-        
-        print("🔧 FIXING DATABASE CONSTRAINT...")
-        
-        # Drop existing constraint
-        db.session.execute(text("ALTER TABLE bookings DROP CONSTRAINT IF EXISTS chk_valid_status;"))
-        
-        # Add new constraint with ALL possible status values from CSV including 'OK' and 'Mới'
-        db.session.execute(text("""
-            ALTER TABLE bookings ADD CONSTRAINT chk_valid_status 
-            CHECK (booking_status IN ('confirmed', 'cancelled', 'deleted', 'pending', 'mới', 'đã hủy', 'đã xóa', 'chờ xử lý', 'ok', 'OK', 'Mới', 'complete', 'active', 'finished', 'done', 'paid', 'unpaid', 'checked_in', 'checked_out'));
-        """))
-        
-        db.session.commit()
-        
-        print("✅ Database constraint updated successfully!")
-        
-        return jsonify({
-            'success': True,
-            'message': 'Database constraint updated successfully! Vietnamese booking statuses are now allowed.'
-        })
-        
-    except Exception as e:
-        db.session.rollback()
-        print(f"❌ Error updating constraint: {e}")
-        return jsonify({
-            'success': False,
-            'message': f'Failed to update constraint: {str(e)}'
-        }), 500
-
-@app.route('/api/diagnostic', methods=['GET'])
-def diagnostic():
-    """
-    Diagnostic endpoint to check imported booking data
-    """
-    try:
-        from core.models import Booking, Guest
-        from datetime import datetime, timedelta
-        
-        # Get all bookings with details
-        bookings = Booking.query.join(Guest).all()
-        
-        # Analyze the data
-        total_bookings = len(bookings)
-        today = datetime.now().date()
-        current_month_start = today.replace(day=1)
-        
-        # Calculate date ranges
-        if bookings:
-            all_dates = [b.checkin_date for b in bookings if b.checkin_date]
-            min_date = min(all_dates) if all_dates else None
-            max_date = max(all_dates) if all_dates else None
-            
-            # Count bookings by month
-            monthly_counts = {}
-            current_month_count = 0
-            
-            for booking in bookings:
-                if booking.checkin_date:
-                    month_key = booking.checkin_date.strftime('%Y-%m')
-                    monthly_counts[month_key] = monthly_counts.get(month_key, 0) + 1
-                    
-                    # Count current month bookings
-                    if booking.checkin_date >= current_month_start:
-                        current_month_count += 1
-            
-            # Get some sample booking details
-            sample_bookings = []
-            for booking in bookings[-10:]:  # Last 10 bookings
-                sample_bookings.append({
-                    'booking_id': booking.booking_id,
-                    'guest_name': booking.guest.full_name,
-                    'checkin_date': booking.checkin_date.isoformat() if booking.checkin_date else None,
-                    'checkout_date': booking.checkout_date.isoformat() if booking.checkout_date else None,
-                    'room_amount': float(booking.room_amount),
-                    'status': booking.booking_status,
-                    'created_at': booking.created_at.isoformat() if booking.created_at else None
-                })
-        
-        else:
-            min_date = max_date = None
-            monthly_counts = {}
-            current_month_count = 0
-            sample_bookings = []
-        
-        diagnostic_data = {
-            'total_bookings': total_bookings,
-            'date_range': {
-                'min_date': min_date.isoformat() if min_date else None,
-                'max_date': max_date.isoformat() if max_date else None,
-                'current_month_start': current_month_start.isoformat(),
-                'current_month_bookings': current_month_count
-            },
-            'monthly_distribution': monthly_counts,
-            'sample_recent_bookings': sample_bookings,
-            'dashboard_default_range': {
-                'start': current_month_start.isoformat(),
-                'end': today.isoformat()
-            }
-        }
-        
-        return jsonify({
-            'success': True,
-            'diagnostic': diagnostic_data
-        })
-        
-    except Exception as e:
-        return jsonify({
-            'success': False,
-            'message': f'Diagnostic failed: {str(e)}'
-        }), 500
-
-@app.route('/api/add_guest_name_column', methods=['POST'])
-def add_guest_name_column():
-    """
-    Add guest_name column to bookings table and populate it
-    """
-    try:
-        from core.models import db
-        
-        print("🔧 ADDING GUEST_NAME COLUMN...")
-        
-        # Add the column
-        db.session.execute(text("ALTER TABLE bookings ADD COLUMN IF NOT EXISTS guest_name VARCHAR(255)"))
-        
-        # Populate with existing data
-        db.session.execute(text("""
-            UPDATE bookings 
-            SET guest_name = guests.full_name 
-            FROM guests 
-            WHERE bookings.guest_id = guests.guest_id 
-            AND bookings.guest_name IS NULL
-        """))
-        
-        # Add index
-        db.session.execute(text("CREATE INDEX IF NOT EXISTS idx_bookings_guest_name ON bookings(guest_name)"))
-        
-        db.session.commit()
-        
-        # Check result
-        result = db.session.execute(text("SELECT COUNT(*) FROM bookings WHERE guest_name IS NOT NULL")).fetchone()
-        updated_count = result[0] if result else 0
-        
-        print(f"✅ Guest name column added and populated for {updated_count} bookings!")
-        
-        return jsonify({
-            'success': True,
-            'message': f'Guest name column added successfully! Updated {updated_count} bookings.'
-        })
-        
-    except Exception as e:
-        db.session.rollback()
-        print(f"❌ Error adding guest_name column: {e}")
-        return jsonify({
-            'success': False,
-            'message': f'Failed to add guest_name column: {str(e)}'
-        }), 500
-
 def _ensure_checkin_status_column():
     """Create checkin_status column if it doesn't exist yet.
     Safe to call every request (ALTER TABLE ... IF NOT EXISTS is idempotent).
@@ -9390,275 +9102,6 @@ def get_checkin_statuses():
     except Exception as e:
         return jsonify({'success': False, 'error': str(e), 'statuses': {}})
 
-
-@app.route('/api/clear_imported_data', methods=['POST'])
-def clear_imported_data():
-    """
-    Clear all imported data to prepare for re-import with correct dates
-    """
-    try:
-        from core.models import db, Booking, Guest, MessageTemplate, Expense
-        
-        print("🧹 CLEARING IMPORTED DATA...")
-        
-        # Keep only the original 4 bookings (they have specific IDs)
-        original_booking_ids = ['FLASK_TEST_001', 'FLASK_TEST_002', 'FLASK_TEST_003', 'FLASK_TEST_004']
-        
-        # Delete imported bookings (not the original test ones)
-        deleted_bookings = Booking.query.filter(~Booking.booking_id.in_(original_booking_ids)).delete(synchronize_session=False)
-        
-        # Delete imported guests (keep only original test guests)
-        original_guest_names = ['Flask Test User', 'Test Guest 1', 'Test Guest 2', 'Test Guest 3']
-        deleted_guests = Guest.query.filter(~Guest.full_name.in_(original_guest_names)).delete(synchronize_session=False)
-        
-        # Delete imported templates and expenses
-        deleted_templates = MessageTemplate.query.delete()
-        deleted_expenses = Expense.query.delete()
-        
-        db.session.commit()
-        
-        print(f"✅ Cleared: {deleted_bookings} bookings, {deleted_guests} guests, {deleted_templates} templates, {deleted_expenses} expenses")
-        
-        return jsonify({
-            'success': True,
-            'message': f'Cleared imported data: {deleted_bookings} bookings, {deleted_guests} guests, {deleted_templates} templates, {deleted_expenses} expenses. Ready for re-import!'
-        })
-        
-    except Exception as e:
-        db.session.rollback()
-        print(f"❌ Error clearing data: {e}")
-        return jsonify({
-            'success': False,
-            'message': f'Failed to clear data: {str(e)}'
-        }), 500
-
-@app.route('/api/detailed_diagnostic', methods=['GET'])
-def detailed_diagnostic():
-    """
-    Detailed diagnostic comparing Excel file vs imported database data
-    """
-    try:
-        # Import the comprehensive import module
-        from core.comprehensive_import import (
-            parse_excel_file, 
-            import_customers_from_sheet1,
-            import_message_templates_from_sheet2,
-            import_expenses_from_sheet5
-        )
-        from core.models import Booking, Guest, MessageTemplate, Expense
-        
-        print("🔍 DETAILED DIAGNOSTIC STARTING...")
-        
-        # Step 1: Parse Excel file again
-        excel_file_path = os.path.join(os.path.dirname(__file__), "csvtest.xlsx")
-        
-        if not os.path.exists(excel_file_path):
-            return jsonify({
-                'success': False,
-                'message': f'Excel file not found: {excel_file_path}. Please upload csvtest.xlsx to the server.'
-            }), 400
-        
-        print("📊 Parsing Excel file...")
-        sheets_data = parse_excel_file(excel_file_path)
-        
-        # Step 2: Extract data from Excel
-        print("👥 Extracting customers and bookings...")
-        customers_data = import_customers_from_sheet1(sheets_data.get('Sheet1', []))
-        
-        print("💬 Extracting message templates...")
-        templates_data = import_message_templates_from_sheet2(sheets_data.get('Sheet2', []))
-        
-        print("💰 Extracting expenses...")
-        expenses_data = import_expenses_from_sheet5(sheets_data.get('Sheet5', []))
-        
-        # Step 3: Check what's in database
-        db_customers = Guest.query.all()
-        db_bookings = Booking.query.all()
-        db_templates = MessageTemplate.query.all()
-        db_expenses = Expense.query.all()
-        
-        # Step 4: Compare Excel vs Database
-        excel_customers = customers_data.get('customers', [])
-        excel_bookings = customers_data.get('bookings', [])
-        
-        # Create comparison data
-        excel_customer_names = [c['full_name'] for c in excel_customers]
-        db_customer_names = [c.full_name for c in db_customers]
-        
-        excel_booking_ids = [b['booking_id'] for b in excel_bookings]
-        db_booking_ids = [b.booking_id for b in db_bookings]
-        
-        # Find missing data
-        missing_customers = [name for name in excel_customer_names if name not in db_customer_names]
-        missing_bookings = [bid for bid in excel_booking_ids if bid not in db_booking_ids]
-        
-        # Sample data from Excel for inspection
-        sample_excel_customers = excel_customers[:5]
-        sample_excel_bookings = excel_bookings[:5]
-        
-        # Check date parsing in Excel data
-        date_issues = []
-        for booking in excel_bookings[:10]:
-            if not booking.get('checkin_date') or not booking.get('checkout_date'):
-                date_issues.append({
-                    'booking_id': booking.get('booking_id'),
-                    'guest_name': booking.get('guest_name'),
-                    'checkin_raw': booking.get('checkin_date'),
-                    'checkout_raw': booking.get('checkout_date'),
-                    'issue': 'Missing dates'
-                })
-        
-        diagnostic_result = {
-            'excel_file_analysis': {
-                'sheets_found': list(sheets_data.keys()),
-                'sheet1_rows': len(sheets_data.get('Sheet1', [])),
-                'customers_extracted': len(excel_customers),
-                'bookings_extracted': len(excel_bookings),
-                'templates_extracted': len(templates_data),
-                'expenses_extracted': len(expenses_data)
-            },
-            'database_current_state': {
-                'customers_in_db': len(db_customers),
-                'bookings_in_db': len(db_bookings),
-                'templates_in_db': len(db_templates),
-                'expenses_in_db': len(db_expenses)
-            },
-            'comparison': {
-                'missing_customers_count': len(missing_customers),
-                'missing_customers_sample': missing_customers[:10],
-                'missing_bookings_count': len(missing_bookings),
-                'missing_bookings_sample': missing_bookings[:10]
-            },
-            'data_quality_issues': {
-                'date_parsing_issues': date_issues,
-                'total_date_issues': len(date_issues)
-            },
-            'sample_excel_data': {
-                'customers': sample_excel_customers,
-                'bookings': sample_excel_bookings
-            },
-            'recommendations': []
-        }
-        
-        # Add recommendations based on findings
-        if len(missing_customers) > 0:
-            diagnostic_result['recommendations'].append(f"❌ Missing {len(missing_customers)} customers - check import logic")
-        
-        if len(missing_bookings) > 0:
-            diagnostic_result['recommendations'].append(f"❌ Missing {len(missing_bookings)} bookings - check validation rules")
-        
-        if len(date_issues) > 0:
-            diagnostic_result['recommendations'].append(f"⚠️ {len(date_issues)} bookings have date issues - check date parsing")
-        
-        if len(excel_customers) != len(db_customer_names):
-            diagnostic_result['recommendations'].append("🔍 Customer count mismatch - some customers may not have been imported")
-        
-        return jsonify({
-            'success': True,
-            'diagnostic': diagnostic_result
-        })
-        
-    except Exception as e:
-        print(f"❌ Detailed diagnostic error: {e}")
-        import traceback
-        traceback.print_exc()
-        return jsonify({
-            'success': False,
-            'message': f'Detailed diagnostic failed: {str(e)}'
-        }), 500
-
-@app.route('/api/import_debug', methods=['POST'])
-def import_debug():
-    """
-    Debug version of import that shows exactly which bookings are rejected and why
-    """
-    try:
-        from core.comprehensive_import import (
-            parse_excel_file, 
-            import_customers_from_sheet1
-        )
-        from core.models import Booking, Guest
-        
-        print("🔍 DEBUG IMPORT STARTING...")
-        
-        # Parse Excel file
-        excel_file_path = os.path.join(os.path.dirname(__file__), "csvtest.xlsx")
-        sheets_data = parse_excel_file(excel_file_path)
-        
-        if not sheets_data:
-            return jsonify({'success': False, 'message': 'Excel file not found or could not be parsed'}), 400
-        
-        customers_data = import_customers_from_sheet1(sheets_data.get('Sheet1', []))
-        
-        # Handle case where customers_data might be a list instead of dict
-        if isinstance(customers_data, list):
-            excel_bookings = customers_data
-        else:
-            excel_bookings = customers_data.get('bookings', [])
-        
-        # Debug each booking
-        debug_results = {
-            'total_excel_bookings': len(excel_bookings),
-            'validation_results': [],
-            'rejected_bookings': [],
-            'accepted_bookings': [],
-            'rejection_reasons': {}
-        }
-        
-        for i, booking in enumerate(excel_bookings):
-            booking_debug = {
-                'index': i + 1,
-                'booking_id': booking.get('booking_id'),
-                'guest_name': booking.get('guest_name'),
-                'checkin_date': str(booking.get('checkin_date')),
-                'checkout_date': str(booking.get('checkout_date')),
-                'status': booking.get('booking_status'),
-                'issues': []
-            }
-            
-            # Check each validation rule
-            if not booking.get('booking_id'):
-                booking_debug['issues'].append('Missing booking_id')
-            
-            if not booking.get('guest_name'):
-                booking_debug['issues'].append('Missing guest_name')
-                
-            if not booking.get('checkin_date') or not booking.get('checkout_date'):
-                booking_debug['issues'].append('Missing checkin/checkout dates')
-                
-            # Check if already exists
-            existing = Booking.query.filter_by(booking_id=booking.get('booking_id')).first()
-            if existing:
-                booking_debug['issues'].append('Already exists in database')
-            
-            # Categorize
-            if booking_debug['issues']:
-                debug_results['rejected_bookings'].append(booking_debug)
-                for issue in booking_debug['issues']:
-                    debug_results['rejection_reasons'][issue] = debug_results['rejection_reasons'].get(issue, 0) + 1
-            else:
-                debug_results['accepted_bookings'].append(booking_debug)
-        
-        debug_results['summary'] = {
-            'total': len(excel_bookings),
-            'accepted': len(debug_results['accepted_bookings']),
-            'rejected': len(debug_results['rejected_bookings']),
-            'acceptance_rate': len(debug_results['accepted_bookings']) / len(excel_bookings) * 100 if excel_bookings else 0
-        }
-        
-        return jsonify({
-            'success': True,
-            'debug': debug_results
-        })
-        
-    except Exception as e:
-        print(f"❌ Import debug error: {e}")
-        import traceback
-        traceback.print_exc()
-        return jsonify({
-            'success': False,
-            'message': f'Import debug failed: {str(e)}'
-        }), 500
 
 @app.route('/test_import')
 def test_import():
@@ -13346,32 +12789,6 @@ def api_test_sync_connections():
         return jsonify({
             'success': False,
             'message': f'Connection test failed: {str(e)}'
-        }), 500
-
-@app.route('/api/sync/import_from_local', methods=['POST'])
-def api_import_from_local():
-    """Import data from local database to Railway"""
-    try:
-        from core.sync_service import DataSyncService
-        
-        print("🔄 Starting data sync from local to Railway...")
-        
-        sync_service = DataSyncService()
-        sync_result = sync_service.sync_from_local_to_railway()
-        
-        if sync_result['success']:
-            print("✅ Data sync completed successfully")
-            return jsonify(sync_result)
-        else:
-            print(f"⚠️ Data sync completed with errors: {sync_result['errors']}")
-            return jsonify(sync_result), 422
-            
-    except Exception as e:
-        print(f"❌ Data sync failed: {str(e)}")
-        return jsonify({
-            'success': False,
-            'message': f'Data sync failed: {str(e)}',
-            'errors': [str(e)]
         }), 500
 
 @app.route('/api/sync/status')
