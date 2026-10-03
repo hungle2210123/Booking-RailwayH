@@ -238,28 +238,92 @@ LIST_COLUMNS = {
 }
 
 
+# Fields claim columns in this order, so short names ('phong', 'gia') can only take what is left
+_CLAIM_ORDER = ['booking_id', 'booked_on', 'checkin', 'checkout', 'commission', 'status',
+                'guest_name', 'price', 'room']
+
+
 def _column_index(headers):
-    """header texts → {field: column index}; exact (accent-folded) matches first."""
-    folded = [_fold(h).replace('\n', ' ') for h in headers]
-    folded = [re.sub(r'\s+', ' ', h).strip() for h in folded]
+    """header texts → {field: column index}.
+    Headers may carry extra hidden text (sort buttons, arrows), so matching goes
+    exact → starts with → contains, each field taking a column nobody claimed yet."""
+    folded = [re.sub(r'\s+', ' ', _fold(h)).strip() for h in headers or []]
     idx = {}
-    for field, names in LIST_COLUMNS.items():
-        for name in names:
-            hit = next((i for i, h in enumerate(folded) if h == name and i not in idx.values()), None)
-            if hit is not None:
-                idx[field] = hit
-                break
+    for how in ('exact', 'start', 'contains'):
+        for field in _CLAIM_ORDER:
+            if field in idx:
+                continue
+            for name in LIST_COLUMNS[field]:
+                for i, h in enumerate(folded):
+                    if i in idx.values() or not h:
+                        continue
+                    ok = (h == name if how == 'exact' else
+                          h.startswith(name + ' ') or h.startswith(name + ':') if how == 'start' else
+                          re.search(r'(^|\s)' + re.escape(name) + r'(\s|$)', h) is not None)
+                    if ok:
+                        idx[field] = i
+                        break
+                if field in idx:
+                    break
     return idx
 
 
-def is_reservation_list(headers):
+def _infer_columns(rows):
+    """No usable headers: recognise columns from their content.
+    10-digit numbers → booking number; dates (in page order) → check-in, check-out, booked on;
+    'VND …' → price then commission; OK/Đã hủy → status; first text column → guest; next → room."""
+    if not rows:
+        return {}
+    ncol = max(len(r) for r in rows)
+
+    def col(i):
+        return [((r[i] or {}).get('text') if isinstance(r[i], dict) else str(r[i])) or ''
+                for r in rows if i < len(r)]
+
+    kinds = []
+    for i in range(ncol):
+        vals = [v for v in col(i) if v.strip()]
+        n = max(len(vals), 1)
+        if sum(bool(re.fullmatch(r'\s*\d{8,12}\s*', v)) for v in vals) / n > .6:
+            kinds.append('id')
+        elif sum(parse_date(v) is not None for v in vals) / n > .6:
+            kinds.append('date')
+        elif sum(bool(re.search(r'vnd|₫|d', _fold(v))) for v in vals) / n > .6:
+            kinds.append('money')
+        elif sum(_fold(v).split(' ')[0] in ('ok', 'da', 'huy', 'cancelled', 'canceled', 'no-show') for v in vals) / n > .6:
+            kinds.append('status')
+        else:
+            kinds.append('text')
+    idx = {}
+    dates = [i for i, k in enumerate(kinds) if k == 'date']
+    money = [i for i, k in enumerate(kinds) if k == 'money']
+    texts = [i for i, k in enumerate(kinds) if k == 'text']
+    if 'id' in kinds:
+        idx['booking_id'] = kinds.index('id')
+    for f, i in zip(('checkin', 'checkout', 'booked_on'), dates):
+        idx[f] = i
+    for f, i in zip(('price', 'commission'), money):
+        idx[f] = i
+    if 'status' in kinds:
+        idx['status'] = kinds.index('status')
+    for f, i in zip(('guest_name', 'room'), texts):
+        idx[f] = i
+    return idx
+
+
+def is_reservation_list(headers, rows=None):
     idx = _column_index(headers or [])
-    return 'booking_id' in idx and 'checkin' in idx
+    if 'booking_id' in idx and 'checkin' in idx:
+        return True
+    inferred = _infer_columns(rows or [])
+    return 'booking_id' in inferred and 'checkin' in inferred
 
 
 def parse_reservation_list(headers, rows):
     """rows: [[{'text': cell innerText, 'link': first link text}, ...], ...]"""
     idx = _column_index(headers or [])
+    if not ('booking_id' in idx and 'checkin' in idx and 'checkout' in idx):
+        idx = {**_infer_columns(rows), **{k: v for k, v in idx.items() if k in ('guest_name', 'room')}}
     out = []
 
     def cell(row, field):

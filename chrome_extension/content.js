@@ -67,21 +67,101 @@
   const fold = t => String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '')
     .replace(/đ/g, 'd').replace(/Đ/g, 'D').toLowerCase().replace(/\s+/g, ' ').trim();
   const LIST_KEYS = ['ma so dat phong', 'ma dat phong', 'booking number', 'reservation number'];
+  const BID_RE = /^\s*\d{8,12}\s*$/;
+  const cellText = el => (el?.innerText || el?.textContent || '').trim();
+  const isHeaderText = t => { const f = fold(t); return f.length < 60 && LIST_KEYS.some(k => f.includes(k)); };
+  const cellObj = c => ({ text: cellText(c), link: cellText(c.querySelector('a, [role="link"]')) });
 
-  function captureList() {
-    const tables = [...document.querySelectorAll('table, [role="table"], [role="grid"]')];
-    for (const t of tables) {
-      const headerCells = [...t.querySelectorAll('thead th, [role="columnheader"]')];
-      const headers = headerCells.map(h => (h.innerText || h.textContent || '').replace(/\s+/g, ' ').trim());
-      if (!headers.some(h => LIST_KEYS.includes(fold(h)))) continue;
-      const rowEls = [...t.querySelectorAll('tbody tr, [role="row"]')].filter(r => !r.querySelector('th, [role="columnheader"]'));
-      const rows = rowEls.map(r => [...r.querySelectorAll('td, [role="cell"], [role="gridcell"]')].map(c => ({
-        text: (c.innerText || c.textContent || '').trim(),
-        link: ((c.querySelector('a') || {}).innerText || '').trim(),
-      }))).filter(cells => cells.length >= 3);
-      if (rows.length) return { mode: 'list', url: location.href, headers, rows };
+  // The page itself plus any same-origin frames (the table may live inside an iframe)
+  function allDocs() {
+    const out = [document];
+    for (let i = 0; i < out.length; i++) {
+      out[i].querySelectorAll('iframe, frame').forEach(f => {
+        try { if (f.contentDocument && !out.includes(f.contentDocument)) out.push(f.contentDocument); } catch (e) { /* other origin */ }
+      });
+    }
+    return out;
+  }
+
+  // A row's "cells": its direct children, skipping single-child wrapper layers
+  function cellsOf(row) {
+    let el = row;
+    while (el.children.length === 1) el = el.children[0];
+    return [...el.children];
+  }
+
+  // Strategy 1 — a real <table>. Rows may use <th> for the first column, so use row.cells.
+  function fromTable(doc) {
+    for (const t of doc.querySelectorAll('table')) {
+      const trs = [...t.rows];
+      // A list header has many columns; a 2-column "label | value" table is a detail page
+      const hi = trs.findIndex(r => r.cells.length >= 5 && [...r.cells].some(c => isHeaderText(cellText(c))));
+      if (hi < 0) continue;
+      const headers = [...trs[hi].cells].map(c => cellText(c).replace(/\s+/g, ' '));
+      const rows = trs.slice(hi + 1)
+        .filter(r => [...r.cells].some(c => /\d{8,12}/.test(cellText(c))))
+        .map(r => [...r.cells].map(cellObj));
+      if (rows.length) return { headers, rows, how: 'table' };
     }
     return null;
+  }
+
+  // Strategy 2 — any layout (div grids, ARIA): start from the booking-number cells.
+  function fromBookingNumbers(doc) {
+    const leaves = [...doc.querySelectorAll('a, [role="link"], span, div, td, th')]
+      .filter(el => el.children.length === 0 && BID_RE.test(cellText(el)));
+    // A list shows several booking numbers; a single one is a reservation detail page
+    if (new Set(leaves.map(cellText)).size < 2) return null;
+    // Row = the ancestor just below the container shared with the next booking number
+    const rowOf = leaf => {
+      if (leaves.length === 1) return leaf.closest('tr, [role="row"], li') || leaf.parentElement?.parentElement;
+      const other = leaves.find(l => l !== leaf);
+      let el = leaf;
+      while (el.parentElement && !el.parentElement.contains(other)) el = el.parentElement;
+      return el;
+    };
+    const rowEls = [...new Set(leaves.map(rowOf))].filter(Boolean);
+    const rows = rowEls.map(r => cellsOf(r).map(cellObj)).filter(c => c.length >= 4);
+    if (rows.length < 2) return null;
+    // Header row: the element holding the "Mã số đặt phòng" title, at the same level as the rows
+    let headers = [];
+    const hLeaf = [...doc.querySelectorAll('th, [role="columnheader"], div, span, button')]
+      .find(el => el.children.length <= 2 && isHeaderText(cellText(el)));
+    if (hLeaf) {
+      let el = hLeaf;
+      while (el.parentElement && cellsOf(el.parentElement).length < rows[0].length - 1) el = el.parentElement;
+      const hr = el.parentElement;
+      if (hr) headers = cellsOf(hr).map(c => cellText(c).replace(/\s+/g, ' '));
+    }
+    return { headers, rows, how: 'numbers' };
+  }
+
+  function captureList() {
+    for (const doc of allDocs()) {
+      const found = fromTable(doc) || fromBookingNumbers(doc);
+      if (found) return { mode: 'list', url: location.href, ...found };
+    }
+    return null;
+  }
+
+  // What the page looks like, WITHOUT guest data — for fixing the reader if it still fails
+  function diagnostics() {
+    const docs = allDocs();
+    const frames = document.querySelectorAll('iframe, frame').length;
+    const d = docs[docs.length - 1];
+    const leaves = docs.flatMap(doc => [...doc.querySelectorAll('a, span, div, td, th')]
+      .filter(el => el.children.length === 0 && BID_RE.test(cellText(el))));
+    const path = el => { const p = []; for (let e = el; e && p.length < 8; e = e.parentElement) p.push(e.tagName.toLowerCase() + (e.getAttribute('role') ? `[role=${e.getAttribute('role')}]` : '') + (e.className && typeof e.className === 'string' ? '.' + e.className.trim().split(/\s+/).slice(0, 2).join('.') : '')); return p.join(' < '); };
+    const hdr = docs.flatMap(doc => [...doc.querySelectorAll('*')]).find(el => el.children.length <= 2 && isHeaderText(cellText(el)));
+    return {
+      page: location.pathname, frames, sameOriginDocs: docs.length,
+      tables: docs.reduce((n, doc) => n + doc.querySelectorAll('table').length, 0),
+      roleRows: docs.reduce((n, doc) => n + doc.querySelectorAll('[role="row"]').length, 0),
+      bookingNumberCells: leaves.length,
+      bookingNumberPath: leaves[0] ? path(leaves[0]) : null,
+      headerFound: !!hdr, headerPath: hdr ? path(hdr) : null,
+      shadowHosts: [...d.querySelectorAll('*')].filter(e => e.shadowRoot).length,
+    };
   }
 
   // ── Read what is on screen ─────────────────────────────────────
@@ -263,6 +343,21 @@
     const listPage = captureList();
     const r = await api('/api/ext/booking/parse', listPage || capture());
     fab.textContent = '📥 Gửi về Hotel Pro';
+    if (!r?.success && listPage) {
+      // Not a list after all → try it as a single reservation page
+      const single = await api('/api/ext/booking/parse', capture());
+      if (single?.success && single.mode === 'single' && single.parsed.booking_id) { show(single); return; }
+      const diag = JSON.stringify({ ...diagnostics(), how: listPage.how, headers: listPage.headers,
+                                    cellsPerRow: listPage.rows.slice(0, 5).map(x => x.length) }, null, 1);
+      panel.innerHTML = `<p class="msg err">❌ ${esc(r?.error || 'Lỗi không rõ')}</p>
+        <pre style="font-size:10px;max-height:160px;overflow:auto;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:6px;white-space:pre-wrap">${esc(diag)}</pre>
+        <div class="row"><button class="close" id="b_close" type="button">Đóng</button>
+          <button class="save" id="b_copy" type="button">📋 Sao chép chẩn đoán</button></div>`;
+      panel.classList.add('open');
+      $('#b_close').onclick = () => panel.classList.remove('open');
+      $('#b_copy').onclick = () => navigator.clipboard.writeText(diag).then(() => { $('#b_copy').textContent = '✅ Đã sao chép'; });
+      return;
+    }
     if (!r?.success) {
       panel.innerHTML = `<p class="msg err">❌ ${esc(r?.error || 'Lỗi không rõ')}</p>
         <p class="hint">Kiểm tra địa chỉ web trong biểu tượng tiện ích (góc trên trình duyệt).</p>
@@ -273,11 +368,20 @@
     }
     if (r.mode === 'list') { showList(r); return; }
     if (!r.parsed.booking_id) {
+      const diag = JSON.stringify(diagnostics(), null, 1);
       panel.innerHTML = `<p class="msg err">Không thấy đặt phòng trên trang này.</p>
-        <p class="hint">Mở trang <b>Đặt phòng</b> (danh sách) hoặc mở một đặt phòng cụ thể rồi bấm lại.</p>
-        <div class="row"><button class="close" id="b_close" type="button">Đóng</button></div>`;
+        <p class="hint">Mở trang <b>Đặt phòng</b> (danh sách) hoặc một đặt phòng cụ thể rồi bấm lại.
+          Nếu đang ở đúng trang mà vẫn lỗi: bấm <b>Sao chép chẩn đoán</b> và gửi cho người hỗ trợ
+          (chỉ có cấu trúc trang, không có tên hay thông tin khách).</p>
+        <pre style="font-size:10px;max-height:160px;overflow:auto;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:6px;white-space:pre-wrap">${esc(diag)}</pre>
+        <div class="row"><button class="close" id="b_close" type="button">Đóng</button>
+          <button class="save" id="b_copy" type="button">📋 Sao chép chẩn đoán</button></div>`;
       panel.classList.add('open');
       $('#b_close').onclick = () => panel.classList.remove('open');
+      $('#b_copy').onclick = async () => {
+        try { await navigator.clipboard.writeText(diag); $('#b_copy').textContent = '✅ Đã sao chép'; }
+        catch (e) { $('#b_copy').textContent = 'Không sao chép được — chụp màn hình giúp'; }
+      };
       return;
     }
     show(r);

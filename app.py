@@ -1664,7 +1664,7 @@ def ext_booking_parse():
         from core.booking_page_parser import parse_reservation_page, parse_reservation_list, is_reservation_list
         page = request.get_json(silent=True) or {}
 
-        if page.get('mode') == 'list' and is_reservation_list(page.get('headers')):
+        if page.get('mode') == 'list' and is_reservation_list(page.get('headers'), page.get('rows')):
             items = []
             for row in parse_reservation_list(page.get('headers'), page.get('rows')):
                 existing = _ext_existing(row['booking_id'])
@@ -1678,9 +1678,10 @@ def ext_booking_parse():
                               'existing_name': existing['guest_name'] if existing else None})
             return jsonify({'success': True, 'mode': 'list', 'items': items, 'listings': _ext_listings()})
 
+        if page.get('mode') == 'list':
+            return jsonify({'success': False, 'error': 'Không nhận ra các cột của bảng đặt phòng',
+                            'diag': {'headers': page.get('headers'), 'cols': [len(r) for r in (page.get('rows') or [])[:5]]}}), 400
         parsed = parse_reservation_page(page)
-        if not parsed.get('booking_id') and page.get('mode') == 'list':
-            return jsonify({'success': False, 'error': 'Không nhận ra bảng đặt phòng trên trang này'}), 400
         existing = _ext_existing(parsed['booking_id']) if parsed.get('booking_id') else None
         return jsonify({'success': True, 'mode': 'single', 'parsed': parsed, 'existing': existing,
                         'listings': _ext_listings()})
