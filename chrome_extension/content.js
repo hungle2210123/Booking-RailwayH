@@ -65,7 +65,11 @@
     // After the extension is reloaded, scripts left in already-open tabs lose their connection
     if (!chrome.runtime?.id) return { success: false, error: RELOAD_MSG };
     try {
-      return await chrome.runtime.sendMessage({ type: 'api', path, body });
+      return await Promise.race([
+        chrome.runtime.sendMessage({ type: 'api', path, body }),
+        new Promise((_, rej) => setTimeout(() => rej(new Error(
+          'Web Hotel Pro không trả lời sau 40 giây — kiểm tra mạng hoặc địa chỉ web trong cài đặt tiện ích.')), 40000)),
+      ]);
     } catch (e) {
       return { success: false, error: /context invalidated/i.test(e.message) ? RELOAD_MSG : e.message };
     }
@@ -78,6 +82,7 @@
   const LIST_KEYS = ['ma so dat phong', 'ma dat phong', 'booking number', 'reservation number'];
   const BID_RE = /^\s*\d{8,12}\s*$/;
   const cellText = el => (el?.innerText || el?.textContent || '').trim();
+  const rawText = el => (el?.textContent || '').trim();
   const isHeaderText = t => { const f = fold(t); return f.length < 60 && LIST_KEYS.some(k => f.includes(k)); };
   const cellObj = c => ({ text: cellText(c), link: cellText(c.querySelector('a, [role="link"]')) });
 
@@ -118,13 +123,13 @@
   // Strategy 2 — any layout (div grids, ARIA): start from the booking-number cells.
   function fromBookingNumbers(doc) {
     const leaves = [...doc.querySelectorAll('a, [role="link"], span, div, td, th')]
-      .filter(el => el.children.length === 0 && BID_RE.test(cellText(el)));
+      .filter(el => el.children.length === 0 && BID_RE.test(rawText(el)));
     // A list shows several booking numbers; a single one is a reservation detail page
-    if (new Set(leaves.map(cellText)).size < 2) return null;
-    // Row = the ancestor just below the container shared with the next booking number
+    if (new Set(leaves.map(rawText)).size < 2) return null;
+    // Row = the ancestor just below the container shared with a booking number of ANOTHER row
+    // (the same number can appear twice in one row, e.g. a link and a hidden copy)
     const rowOf = leaf => {
-      if (leaves.length === 1) return leaf.closest('tr, [role="row"], li') || leaf.parentElement?.parentElement;
-      const other = leaves.find(l => l !== leaf);
+      const other = leaves.find(l => rawText(l) !== rawText(leaf));
       let el = leaf;
       while (el.parentElement && !el.parentElement.contains(other)) el = el.parentElement;
       return el;
@@ -135,7 +140,7 @@
     // Header row: the element holding the "Mã số đặt phòng" title, at the same level as the rows
     let headers = [];
     const hLeaf = [...doc.querySelectorAll('th, [role="columnheader"], div, span, button')]
-      .find(el => el.children.length <= 2 && isHeaderText(cellText(el)));
+      .find(el => el.children.length <= 2 && rawText(el).length < 80 && isHeaderText(rawText(el)));
     if (hLeaf) {
       let el = hLeaf;
       while (el.parentElement && cellsOf(el.parentElement).length < rows[0].length - 1) el = el.parentElement;
@@ -159,9 +164,10 @@
     const frames = document.querySelectorAll('iframe, frame').length;
     const d = docs[docs.length - 1];
     const leaves = docs.flatMap(doc => [...doc.querySelectorAll('a, span, div, td, th')]
-      .filter(el => el.children.length === 0 && BID_RE.test(cellText(el))));
+      .filter(el => el.children.length === 0 && BID_RE.test(rawText(el))));
     const path = el => { const p = []; for (let e = el; e && p.length < 8; e = e.parentElement) p.push(e.tagName.toLowerCase() + (e.getAttribute('role') ? `[role=${e.getAttribute('role')}]` : '') + (e.className && typeof e.className === 'string' ? '.' + e.className.trim().split(/\s+/).slice(0, 2).join('.') : '')); return p.join(' < '); };
-    const hdr = docs.flatMap(doc => [...doc.querySelectorAll('*')]).find(el => el.children.length <= 2 && isHeaderText(cellText(el)));
+    const hdr = docs.flatMap(doc => [...doc.querySelectorAll('th, [role="columnheader"], div, span, button')])
+      .find(el => el.children.length <= 2 && rawText(el).length < 80 && isHeaderText(rawText(el)));
     return {
       page: location.pathname, frames, sameOriginDocs: docs.length,
       tables: docs.reduce((n, doc) => n + doc.querySelectorAll('table').length, 0),
@@ -172,8 +178,12 @@
       shadowHosts: [...d.querySelectorAll('*')].filter(e => e.shadowRoot).length,
     };
   }
+  const safeDiagnostics = extra => {
+    try { return { ...diagnostics(), ...extra }; } catch (e) { return { diagnosticsError: e.message, ...extra }; }
+  };
 
   // ── Read what is on screen ─────────────────────────────────────
+  const safeDecode = v => { try { return decodeURIComponent(v); } catch (e) { return v; } };
   function capture() {
     const textOf = el => (el?.innerText || el?.textContent || '').replace(/\s+/g, ' ').trim();
     const pairs = [];
@@ -197,8 +207,8 @@
       heading,
       text: (document.body.innerText || '').slice(0, 60000),
       pairs: pairs.filter(p => p[0] && p[1]).slice(0, 400),
-      tel: [...document.querySelectorAll('a[href^="tel:"]')].map(a => decodeURIComponent(a.getAttribute('href').slice(4))),
-      mailto: [...document.querySelectorAll('a[href^="mailto:"]')].map(a => decodeURIComponent(a.getAttribute('href').slice(7).split('?')[0])),
+      tel: [...document.querySelectorAll('a[href^="tel:"]')].map(a => safeDecode(a.getAttribute('href').slice(4))),
+      mailto: [...document.querySelectorAll('a[href^="mailto:"]')].map(a => safeDecode(a.getAttribute('href').slice(7).split('?')[0])),
     };
   }
 
@@ -346,53 +356,74 @@
     };
   }
 
+  // One panel for every kind of failure: message, what to do, and page structure (no guest data)
+  function showProblem(message, hint, diag) {
+    const text = diag ? JSON.stringify(diag, null, 1) : '';
+    panel.innerHTML = `<p class="msg err">❌ ${esc(message)}</p>
+      ${hint ? `<p class="hint">${hint}</p>` : ''}
+      ${text ? `<pre style="font-size:10px;max-height:160px;overflow:auto;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:6px;white-space:pre-wrap">${esc(text)}</pre>` : ''}
+      <div class="row"><button class="close" id="b_close" type="button">Đóng</button>
+        ${text ? '<button class="save" id="b_copy" type="button">📋 Sao chép chẩn đoán</button>' : ''}</div>`;
+    panel.classList.add('open');
+    $('#b_close').onclick = () => panel.classList.remove('open');
+    if (text) $('#b_copy').onclick = async () => {
+      try { await navigator.clipboard.writeText(text); $('#b_copy').textContent = '✅ Đã sao chép'; }
+      catch (e) { $('#b_copy').textContent = 'Không sao chép được — chụp màn hình giúp'; }
+    };
+  }
+  const DIAG_HINT = 'Bấm <b>Sao chép chẩn đoán</b> và gửi cho người hỗ trợ (chỉ có cấu trúc trang, không có tên hay thông tin khách).';
+  const paint = () => new Promise(r => requestAnimationFrame(() => setTimeout(r, 0)));  // let the button text show
+
+  let busy = false;
   $('#fab').addEventListener('click', async () => {
+    if (busy) return;
+    busy = true;
     const fab = $('#fab');
-    fab.textContent = '⏳ Đang đọc...';
-    const listPage = captureList();
-    const r = await api('/api/ext/booking/parse', listPage || capture());
-    fab.textContent = '📥 Gửi về Hotel Pro';
-    if (!r?.success && listPage) {
-      // Not a list after all → try it as a single reservation page
-      const single = await api('/api/ext/booking/parse', capture());
-      if (single?.success && single.mode === 'single' && single.parsed.booking_id) { show(single); return; }
-      const diag = JSON.stringify({ ...diagnostics(), how: listPage.how, headers: listPage.headers,
-                                    cellsPerRow: listPage.rows.slice(0, 5).map(x => x.length) }, null, 1);
-      panel.innerHTML = `<p class="msg err">❌ ${esc(r?.error || 'Lỗi không rõ')}</p>
-        <pre style="font-size:10px;max-height:160px;overflow:auto;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:6px;white-space:pre-wrap">${esc(diag)}</pre>
-        <div class="row"><button class="close" id="b_close" type="button">Đóng</button>
-          <button class="save" id="b_copy" type="button">📋 Sao chép chẩn đoán</button></div>`;
-      panel.classList.add('open');
-      $('#b_close').onclick = () => panel.classList.remove('open');
-      $('#b_copy').onclick = () => navigator.clipboard.writeText(diag).then(() => { $('#b_copy').textContent = '✅ Đã sao chép'; });
-      return;
+    const t = { start: performance.now() };
+    const ms = since => Math.round(performance.now() - since);
+    let stage = 'đọc trang';
+    let listPage = null;
+    try {
+      fab.textContent = '⏳ Đang đọc trang...';
+      await paint();
+      try { listPage = captureList(); } catch (e) { t.listError = e.message; }
+      t.readMs = ms(t.start);
+
+      stage = 'gửi về web';
+      fab.textContent = listPage ? `⏳ Đang gửi ${listPage.rows.length} dòng...` : '⏳ Đang gửi về web...';
+      await paint();
+      const t1 = performance.now();
+      let r = await api('/api/ext/booking/parse', listPage || capture());
+      t.serverMs = ms(t1);
+
+      if (!r?.success && listPage) {
+        // Not a list after all → try it as a single reservation page
+        const single = await api('/api/ext/booking/parse', capture());
+        if (single?.success && single.mode === 'single' && single.parsed.booking_id) { show(single); return; }
+        showProblem(r?.error || 'Lỗi không rõ', DIAG_HINT, safeDiagnostics({
+          how: listPage.how, headers: listPage.headers,
+          cellsPerRow: listPage.rows.slice(0, 5).map(x => x.length), timing: t }));
+        return;
+      }
+      if (!r?.success) {
+        showProblem(r?.error || 'Lỗi không rõ',
+          'Kiểm tra địa chỉ web trong biểu tượng tiện ích (góc trên trình duyệt).');
+        return;
+      }
+      if (r.mode === 'list') { showList(r); return; }
+      if (!r.parsed.booking_id) {
+        showProblem('Không thấy đặt phòng trên trang này.',
+          'Mở trang <b>Đặt phòng</b> (danh sách) hoặc một đặt phòng cụ thể rồi bấm lại. Nếu đang ở đúng trang mà vẫn lỗi: ' + DIAG_HINT,
+          safeDiagnostics({ timing: t }));
+        return;
+      }
+      show(r);
+    } catch (e) {
+      showProblem(`Lỗi khi ${stage}: ${e.message}`, DIAG_HINT,
+        safeDiagnostics({ stage, error: String(e && e.stack || e).slice(0, 400), timing: t }));
+    } finally {
+      busy = false;
+      fab.textContent = '📥 Gửi về Hotel Pro';
     }
-    if (!r?.success) {
-      panel.innerHTML = `<p class="msg err">❌ ${esc(r?.error || 'Lỗi không rõ')}</p>
-        <p class="hint">Kiểm tra địa chỉ web trong biểu tượng tiện ích (góc trên trình duyệt).</p>
-        <div class="row"><button class="close" id="b_close" type="button">Đóng</button></div>`;
-      panel.classList.add('open');
-      $('#b_close').onclick = () => panel.classList.remove('open');
-      return;
-    }
-    if (r.mode === 'list') { showList(r); return; }
-    if (!r.parsed.booking_id) {
-      const diag = JSON.stringify(diagnostics(), null, 1);
-      panel.innerHTML = `<p class="msg err">Không thấy đặt phòng trên trang này.</p>
-        <p class="hint">Mở trang <b>Đặt phòng</b> (danh sách) hoặc một đặt phòng cụ thể rồi bấm lại.
-          Nếu đang ở đúng trang mà vẫn lỗi: bấm <b>Sao chép chẩn đoán</b> và gửi cho người hỗ trợ
-          (chỉ có cấu trúc trang, không có tên hay thông tin khách).</p>
-        <pre style="font-size:10px;max-height:160px;overflow:auto;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:6px;white-space:pre-wrap">${esc(diag)}</pre>
-        <div class="row"><button class="close" id="b_close" type="button">Đóng</button>
-          <button class="save" id="b_copy" type="button">📋 Sao chép chẩn đoán</button></div>`;
-      panel.classList.add('open');
-      $('#b_close').onclick = () => panel.classList.remove('open');
-      $('#b_copy').onclick = async () => {
-        try { await navigator.clipboard.writeText(diag); $('#b_copy').textContent = '✅ Đã sao chép'; }
-        catch (e) { $('#b_copy').textContent = 'Không sao chép được — chụp màn hình giúp'; }
-      };
-      return;
-    }
-    show(r);
   });
 })();

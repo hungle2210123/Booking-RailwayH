@@ -14,6 +14,7 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
     try {
       const { server, token } = await settings();
       const res = await fetch(server + msg.path, {
+        signal: AbortSignal.timeout(35000),
         method: msg.body ? 'POST' : 'GET',
         headers: { 'Content-Type': 'application/json', 'X-Hotel-Token': token },
         body: msg.body ? JSON.stringify(msg.body) : undefined,
