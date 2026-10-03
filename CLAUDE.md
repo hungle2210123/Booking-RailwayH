@@ -281,8 +281,7 @@ past arrival, unconfirmed, unpaid → not counted). Stats: occupancy, ADR, RevPA
 that day; shown "—" when nights sold exceed rooms on record). No debt lists on the dashboard (calendar handles them).
 Expense tools live at `/expenses` (`templates/expenses.html`).
 Removed unauthenticated debug routes incl. `/api/clear_imported_data` (wiped all bookings).
-⚠️ `/api/collect_payment` overwrites `commission` with `commission_amount` (default 0) — the calendar's Thu Tiền
-doesn't send it, so collecting there zeroes commission (history in `booking_history`).
+Commission is intentionally NOT shown on the dashboard (owner decision: most direct-pay guests cancel on Booking).
 
 ### **📋 Message template categories**
 Renamed to numbered guest-journey categories "1 · Chào đón…" → "11 · Cảm ơn…" (sorted numerically in the UI).

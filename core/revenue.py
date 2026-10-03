@@ -14,8 +14,9 @@ Only nights that really happened count as revenue:
     (more than 2 days past arrival like that = probably a no-show, dropped entirely)
 
 Excluded entirely: booking_status 'cancelled' / 'deleted', checkin_status 'cancelling' /
-'no_show'. Paid bookings count at the amount actually collected. Commission counts unless
-commission_status = 'cancelled' (commission waived).
+'no_show'. Paid bookings count at the amount actually collected. Commission is deliberately
+left out (most direct-pay guests cancel on Booking, so it can't be tracked reliably);
+estimated profit = revenue − "work" expenses.
 
 Room capacity per day = active rooms that existed that day (rooms from the initial database
 setup count from the start); occupancy is "—" where more nights were sold than rooms on record.
@@ -101,7 +102,6 @@ def classify(b, today):
         return None   # > 2 days past arrival, never confirmed, never paid → no-show
 
     value = (collected if collected > 0 else room) if paid else room
-    commission = 0.0 if (b.get('commission_status') or '').lower() == 'cancelled' else _f(b.get('commission'))
     return {
         'booking_id': b['booking_id'],
         'name': b.get('guest_name') or b['booking_id'],
@@ -110,7 +110,6 @@ def classify(b, today):
         'apartment_id': str(b.get('actual_apartment') or '').strip(),
         'value': value,
         'per_night': value / nights,
-        'commission_per_night': commission / nights,
         'paid': paid,
         'collector': collector if paid else '',
         'state': state,
@@ -146,7 +145,7 @@ def month_shift(month, delta):
 
 def _zero():
     return {'revenue': 0.0, 'collected': 0.0, 'due': 0.0, 'expected': 0.0, 'pending': 0.0,
-            'commission': 0.0, 'room_nights': 0, 'expected_nights': 0, 'pending_nights': 0,
+            'room_nights': 0, 'expected_nights': 0, 'pending_nights': 0,
             'capacity': 0, 'capacity_all': 0, 'arrivals': 0, 'departures': 0}
 
 
@@ -159,7 +158,6 @@ def _add_night(t, x, kind):
         t['expected_nights'] += 1
     else:
         t['revenue'] += x['per_night']
-        t['commission'] += x['commission_per_night']
         t['room_nights'] += 1
         t['collected' if kind == 'paid' else 'due'] += x['per_night']
 
@@ -167,7 +165,6 @@ def _add_night(t, x, kind):
 def _ratios(t):
     """capacity = room-nights available on days up to today (actual);
     capacity_all = the whole period (for 'booked incl. upcoming')."""
-    t['net'] = t['revenue'] - t['commission']
     t['adr'] = round(t['revenue'] / t['room_nights']) if t['room_nights'] else 0      # giá TB / đêm phòng
     # More nights sold than rooms on record = the room list didn't cover that period
     # (older units were never entered) → occupancy/RevPAR unknown rather than >100%.
@@ -231,7 +228,7 @@ def build_overview(bookings, rooms, month, apartments, expenses_by_month=None, t
         t = month_totals(m)
         c = collectors_month.get(m, {})
         series.append({'month': m, 'revenue': t['revenue'], 'collected': t['collected'], 'due': t['due'],
-                       'expected': t['expected'], 'net': t['net'], 'occupancy': t['occupancy'],
+                       'expected': t['expected'], 'occupancy': t['occupancy'],
                        'adr': t['adr'], 'room_nights': t['room_nights'],
                        'loc': c.get('LOC LE', 0.0), 'thao': c.get('THAO LE', 0.0)})
 
@@ -243,7 +240,7 @@ def build_overview(bookings, rooms, month, apartments, expenses_by_month=None, t
     exp = expenses_by_month.get(month)
     k['expenses'] = exp['total'] if exp else None
     k['expenses_work'] = exp['work'] if exp else None
-    k['profit'] = k['net'] - exp['work'] if exp else None
+    k['profit'] = k['revenue'] - exp['work'] if exp else None
     pending_bookings = [x for x in items if x['state'] == 'pending'
                         and any(_month_key(d) == month for d in _nights_of(x))]
     k['pending_count'] = len(pending_bookings)

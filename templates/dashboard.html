@@ -219,9 +219,6 @@
         const change = isCurrent ? `tháng đang diễn ra · tháng trước ${short(k.prev_revenue)}`
             : k.change_pct === null ? '' :
             `<span class="${k.change_pct >= 0 ? 'up' : 'down'}">${k.change_pct >= 0 ? '▲' : '▼'} ${Math.abs(k.change_pct)}%</span> so với tháng trước`;
-        const expenseMeta = k.expenses === null
-            ? `<a href="/expenses">Chưa nhập chi phí</a>`
-            : `Chi phí CV ${short(k.expenses_work)} · <b>Lãi ~${short(k.profit)}</b>`;
         const total = Math.max(k.revenue, 1);
         const w = v => (v / total * 100).toFixed(2);
         const occNote = k.occupancy === null ? 'chưa đủ dữ liệu số phòng'
@@ -240,10 +237,13 @@
                     <div class="meta">khách đã xác nhận đến, chưa ghi nhận thu</div></div>
                 <div class="kpi" style="--c:${C.exp}"><div class="lbl">Dự kiến (chưa tính)</div><div class="val" style="color:${C.exp}">${fmt(k.expected)}</div>
                     <div class="meta">${k.expected_nights} đêm đã đặt sau hôm nay${pendingNote}</div></div>
-                <div class="kpi" style="--c:${C.comm}"><div class="lbl">Hoa hồng</div><div class="val" style="color:${C.comm}">${fmt(k.commission)}</div>
-                    <div class="meta">${k.revenue ? (k.commission / k.revenue * 100).toFixed(1) : 0}% doanh thu</div></div>
-                <div class="kpi" style="--c:${C.net}"><div class="lbl">Thực nhận</div><div class="val" style="color:${C.net}">${fmt(k.net)}</div>
-                    <div class="meta">${expenseMeta}</div></div>
+                <div class="kpi" style="--c:${C.comm}"><div class="lbl">Chi phí tháng</div>
+                    <div class="val" style="color:${C.comm}">${k.expenses === null ? '—' : fmt(k.expenses)}</div>
+                    <div class="meta">${k.expenses === null ? '<a href="/expenses">Chưa nhập chi phí</a>'
+                        : `Công việc ${short(k.expenses_work)} · <a href="/expenses">xem</a>`}</div></div>
+                <div class="kpi" style="--c:${C.net}"><div class="lbl">Lãi ước tính</div>
+                    <div class="val" style="color:${C.net}">${k.profit === null ? '—' : fmt(k.profit)}</div>
+                    <div class="meta">doanh thu − chi phí công việc</div></div>
             </div>
 
             <div class="kpis stats">
@@ -287,7 +287,7 @@
             </div>
 
             <div class="dash-card">
-                <h2>📈 12 tháng gần nhất <small>cột: doanh thu · đường: thực nhận & công suất · bấm cột để xem tháng</small></h2>
+                <h2>📈 12 tháng gần nhất <small>cột: doanh thu · đường: công suất · bấm cột để xem tháng</small></h2>
                 <div class="chart-box"><canvas id="revChart"></canvas></div>
             </div>
 
@@ -312,7 +312,7 @@
                     <li><b>Dự kiến</b>: các đêm sau hôm nay đã có người đặt — chỉ để tham khảo, không cộng vào doanh thu.</li>
                     <li>Không tính: khách hủy / báo hủy / không đến, và khách quá 2 ngày sau ngày đến vẫn chưa xác nhận, chưa thu.</li>
                     <li><b>Chưa thu</b>: khách đã xác nhận đến nhưng chưa ghi nhận thu tiền.</li>
-                    <li><b>Thực nhận</b> = Doanh thu − Hoa hồng (trừ booking đã miễn hoa hồng). <b>Lãi ước tính</b> = Thực nhận − chi phí "Công việc".</li>
+                    <li><b>Lãi ước tính</b> = Doanh thu − chi phí loại "Công việc" (nhập ở trang Chi phí). Hoa hồng chưa được trừ.</li>
                     <li><b>Công suất</b> = đêm phòng đã bán ÷ (số phòng × số ngày). Hiện "—" khi số đêm bán vượt số phòng đang khai báo (giai đoạn chưa nhập đủ phòng).</li>
                     <li><b>Giá TB/đêm</b> = doanh thu ÷ đêm phòng bán. <b>Doanh thu/phòng (RevPAR)</b> = doanh thu ÷ (số phòng × số ngày).</li>
                     <li>Theo căn hộ dựa trên căn đã chọn cho khách ở trang Lịch.</li>
@@ -441,7 +441,6 @@
                     { type: 'bar', label: 'Đã thu', data: d.series.map(s => s.collected), backgroundColor: shade('#15803d', '#86efac'), stack: 'r', yAxisID: 'y' },
                     { type: 'bar', label: 'Chưa thu', data: d.series.map(s => s.due), backgroundColor: shade('#dc2626', '#fca5a5'), stack: 'r', yAxisID: 'y' },
                     { type: 'bar', label: 'Dự kiến', data: d.series.map(s => s.expected), backgroundColor: shade('#2563eb', '#93c5fd'), stack: 'r', yAxisID: 'y' },
-                    { type: 'line', label: 'Thực nhận', data: d.series.map(s => s.net), borderColor: C.net, backgroundColor: C.net, borderWidth: 2, pointRadius: 3, tension: .25, yAxisID: 'y' },
                     { type: 'line', label: 'Công suất %', data: d.series.map(s => s.occupancy), borderColor: C.occ, backgroundColor: C.occ, borderWidth: 2, borderDash: [5, 4], pointRadius: 3, tension: .25, yAxisID: 'y2', spanGaps: false },
                 ],
             },
