@@ -1514,24 +1514,176 @@ def ext_ping():
     return jsonify({'success': True, 'app': 'Hotel Pro'})
 
 
+def _ext_fields(d):
+    """Normalise fields coming from the extension."""
+    def as_date(v):
+        try:
+            return datetime.strptime(str(v)[:10], '%Y-%m-%d').date() if v else None
+        except ValueError:
+            return None
+
+    def as_num(v):
+        s_ = str(v).strip() if v is not None else ''
+        if not re.search(r'\d', s_):
+            return None
+        if re.fullmatch(r'\d+(\.\d+)?', s_):          # 992120 or 992120.0
+            return float(s_)
+        return float(re.sub(r'\D', '', s_))           # 1.115.520 / 1,115,520 → digits
+
+    return {
+        'booking_id': str(d.get('booking_id') or '').strip(),
+        'guest_name': str(d.get('guest_name') or '').strip(),
+        'checkin_date': as_date(d.get('checkin_date')),
+        'checkout_date': as_date(d.get('checkout_date')),
+        'room_amount': as_num(d.get('room_amount')),
+        'commission': as_num(d.get('commission')),
+        'listing': re.sub(r'\s+', ' ', str(d.get('listing') or '')).strip(),
+        'phone': re.sub(r'[^\d+]', '', str(d.get('phone') or '')),
+        'email': str(d.get('email') or '').strip(),
+        'nationality': str(d.get('nationality') or '').strip()[:60],
+        'cancelled': bool(d.get('cancelled')) or d.get('status') == 'cancelled',
+    }
+
+
+def _ext_diff(existing, f):
+    """Booking-fact changes (column → value) + readable list. Never touches what the app manages."""
+    updates, changes = {}, []
+    if f['guest_name'] and not existing['guest_name']:
+        updates['guest_name'] = f['guest_name']; changes.append(f"tên: {f['guest_name']}")
+    if f['checkin_date'] and f['checkin_date'].isoformat() != existing['checkin_date']:
+        updates['checkin_date'] = f['checkin_date']; changes.append(f"nhận phòng {existing['checkin_date']} → {f['checkin_date']}")
+    if f['checkout_date'] and f['checkout_date'].isoformat() != existing['checkout_date']:
+        updates['checkout_date'] = f['checkout_date']; changes.append(f"trả phòng {existing['checkout_date']} → {f['checkout_date']}")
+    if f['room_amount'] and abs(f['room_amount'] - existing['room_amount']) >= 1:
+        updates['room_amount'] = f['room_amount']; changes.append(f"giá {existing['room_amount']:,.0f} → {f['room_amount']:,.0f}")
+    # Commission is left alone on existing bookings (owner decision — tracked later);
+    # it is only stored when a new booking is created.
+    if f['listing'] and f['listing'] != existing['listing']:
+        updates['accommodation_name'] = f['listing']; changes.append(f"phòng: {existing['listing'] or '—'} → {f['listing']}")
+    if f['cancelled'] and existing['booking_status'] != 'cancelled':
+        updates['booking_status'] = 'cancelled'; changes.append('ĐÃ HỦY trên Booking')
+    return updates, changes
+
+
+def _ext_save_one(d):
+    """Create or update one booking. Returns (result dict, http status)."""
+    from core.models import db as _xdb
+    f = _ext_fields(d)
+    bid = f['booking_id']
+    if not re.match(r'^[A-Za-z0-9_\-]{4,40}$', bid):
+        return {'success': False, 'error': 'Thiếu hoặc sai mã đặt phòng'}, 400
+    if f['checkin_date'] and f['checkout_date'] and f['checkout_date'] <= f['checkin_date']:
+        return {'success': False, 'booking_id': bid, 'error': 'Ngày trả phòng phải sau ngày nhận phòng'}, 400
+
+    existing = _ext_existing(bid)
+
+    # ── New booking ──
+    if not existing:
+        if f['cancelled']:
+            return {'success': True, 'action': 'skipped', 'booking_id': bid,
+                    'message': 'Booking đã hủy và chưa có trên web — không thêm'}, 200
+        missing = [lbl for lbl, k in (('tên khách', 'guest_name'), ('ngày nhận', 'checkin_date'),
+                                      ('ngày trả', 'checkout_date'), ('giá', 'room_amount'),
+                                      ('loại phòng', 'listing')) if not f[k]]
+        if missing:
+            return {'success': False, 'booking_id': bid, 'error': 'Thiếu: ' + ', '.join(missing)}, 400
+        from core.logic_postgresql import add_new_booking
+        ok = add_new_booking({
+            'guest_name': f['guest_name'], 'booking_id': bid, 'email': f['email'], 'phone': f['phone'],
+            'nationality': f['nationality'], 'passport_number': '', 'accommodation_name': f['listing'],
+            'checkin_date': f['checkin_date'], 'checkout_date': f['checkout_date'],
+            'room_amount': f['room_amount'], 'commission': f['commission'] or 0.0,
+            'taxi_amount': 0.0, 'collector': '',
+            'notes': f"Từ extranet Booking lúc {(datetime.utcnow() + timedelta(hours=7)).strftime('%H:%M %d/%m/%Y')}",
+        })
+        if not ok:
+            return {'success': False, 'booking_id': bid, 'error': 'Không lưu được booking mới'}, 500
+        return {'success': True, 'action': 'created', 'booking_id': bid,
+                'checkin_date': f['checkin_date'].isoformat(),
+                'message': f"Đã thêm booking mới: {f['guest_name']}"}, 200
+
+    # ── Existing booking: only what changed ──
+    updates, changes = _ext_diff(existing, f)
+    if updates:
+        record_booking_history(bid, dict(updates), changed_by='chrome_extension')
+        sets = ', '.join(f'{k} = :{k}' for k in updates)
+        _xdb.session.execute(text(f"UPDATE bookings SET {sets}, updated_at = NOW() WHERE booking_id = :bid"),
+                             {**updates, 'bid': bid})
+
+    # Contact details live on the guest row
+    contact = {k: f[k] for k in ('phone', 'email', 'nationality') if f[k] and f[k] != (existing.get(k) or '')}
+    if contact.get('email'):
+        taken = _xdb.session.execute(text(
+            "SELECT 1 FROM guests WHERE email = :e AND guest_id IS DISTINCT FROM :gid"),
+            {'e': contact['email'], 'gid': existing['guest_id']}).fetchone()
+        if taken:
+            contact.pop('email')
+    if contact and existing['guest_id']:
+        sets = ', '.join(f'{k} = :{k}' for k in contact)
+        _xdb.session.execute(text(f"UPDATE guests SET {sets}, updated_at = NOW() WHERE guest_id = :gid"),
+                             {**contact, 'gid': existing['guest_id']})
+    elif contact:
+        gid = _xdb.session.execute(text("""
+            INSERT INTO guests (full_name, phone, email, nationality, created_at, updated_at)
+            VALUES (:n, :phone, :email, :nationality, NOW(), NOW()) RETURNING guest_id
+        """), {'n': existing['guest_name'] or f['guest_name'] or bid, 'phone': contact.get('phone'),
+               'email': contact.get('email'), 'nationality': contact.get('nationality')}).scalar()
+        _xdb.session.execute(text("UPDATE bookings SET guest_id = :g WHERE booking_id = :bid"),
+                             {'g': gid, 'bid': bid})
+    if 'phone' in contact:
+        changes.append(f"SĐT: {contact['phone']}")
+    if 'email' in contact:
+        changes.append('email')
+    if 'nationality' in contact:
+        changes.append(f"quốc gia: {contact['nationality']}")
+
+    _xdb.session.commit()
+    ci = f['checkin_date'].isoformat() if f['checkin_date'] else existing['checkin_date']
+    return {'success': True, 'action': 'updated' if changes else 'unchanged', 'booking_id': bid,
+            'changes': changes, 'checkin_date': ci,
+            'message': ('Đã cập nhật: ' + '; '.join(changes)) if changes else 'Không có gì thay đổi'}, 200
+
+
+def _ext_listings():
+    from core.models import db as _xdb
+    return [r[0] for r in _xdb.session.execute(text("""
+        SELECT accommodation_name FROM bookings
+        WHERE accommodation_name IS NOT NULL AND checkin_date > CURRENT_DATE - 180
+        GROUP BY 1 ORDER BY COUNT(*) DESC LIMIT 40
+    """)).fetchall()]
+
+
 @app.route('/api/ext/booking/parse', methods=['POST'])
 def ext_booking_parse():
-    """Turn a captured reservation page into fields + what is already in the system."""
+    """Turn a captured page into fields + what is already in the system.
+    Reservation LIST page → many rows; reservation DETAIL page → one booking."""
     err = _ext_auth_error()
     if err:
         return err
     try:
-        from core.booking_page_parser import parse_reservation_page
-        from core.models import db as _xdb
+        from core.booking_page_parser import parse_reservation_page, parse_reservation_list, is_reservation_list
         page = request.get_json(silent=True) or {}
+
+        if page.get('mode') == 'list' and is_reservation_list(page.get('headers')):
+            items = []
+            for row in parse_reservation_list(page.get('headers'), page.get('rows')):
+                existing = _ext_existing(row['booking_id'])
+                if existing:
+                    _, changes = _ext_diff(existing, _ext_fields(row))
+                    action = 'changed' if changes else 'same'
+                else:
+                    changes = []
+                    action = 'skip_cancelled' if row['status'] == 'cancelled' else 'new'
+                items.append({**row, 'action': action, 'changes': changes,
+                              'existing_name': existing['guest_name'] if existing else None})
+            return jsonify({'success': True, 'mode': 'list', 'items': items, 'listings': _ext_listings()})
+
         parsed = parse_reservation_page(page)
+        if not parsed.get('booking_id') and page.get('mode') == 'list':
+            return jsonify({'success': False, 'error': 'Không nhận ra bảng đặt phòng trên trang này'}), 400
         existing = _ext_existing(parsed['booking_id']) if parsed.get('booking_id') else None
-        listings = [r[0] for r in _xdb.session.execute(text("""
-            SELECT accommodation_name FROM bookings
-            WHERE accommodation_name IS NOT NULL AND checkin_date > CURRENT_DATE - 180
-            GROUP BY 1 ORDER BY COUNT(*) DESC LIMIT 40
-        """)).fetchall()]
-        return jsonify({'success': True, 'parsed': parsed, 'existing': existing, 'listings': listings})
+        return jsonify({'success': True, 'mode': 'single', 'parsed': parsed, 'existing': existing,
+                        'listings': _ext_listings()})
     except Exception as e:
         import traceback; traceback.print_exc()
         return jsonify({'success': False, 'error': str(e)}), 500
@@ -1539,7 +1691,7 @@ def ext_booking_parse():
 
 @app.route('/api/ext/booking/save', methods=['POST'])
 def ext_booking_save():
-    """Create or update one booking from the extension (after the user checked the fields).
+    """Save one booking checked by the user in the extension panel.
 
     Only booking facts from Booking.com are written (name if empty, dates, price, commission,
     listing, phone/email/country, cancellation). Things managed in this app — collected money,
@@ -1548,122 +1700,36 @@ def ext_booking_save():
     err = _ext_auth_error()
     if err:
         return err
-    import re
     from core.models import db as _xdb
     try:
-        d = request.get_json(silent=True) or {}
-        bid = str(d.get('booking_id') or '').strip()
-        if not re.match(r'^[A-Za-z0-9_\-]{4,40}$', bid):
-            return jsonify({'success': False, 'error': 'Thiếu hoặc sai mã đặt phòng'}), 400
-
-        def as_date(v):
-            try:
-                return datetime.strptime(str(v)[:10], '%Y-%m-%d').date() if v else None
-            except ValueError:
-                return None
-
-        def as_num(v):
-            try:
-                return float(str(v).replace(',', '').replace(' ', '')) if v not in (None, '') else None
-            except ValueError:
-                return None
-
-        name = str(d.get('guest_name') or '').strip()
-        ci, co = as_date(d.get('checkin_date')), as_date(d.get('checkout_date'))
-        amount, commission = as_num(d.get('room_amount')), as_num(d.get('commission'))
-        listing = str(d.get('listing') or '').strip()
-        phone = re.sub(r'[^\d+]', '', str(d.get('phone') or ''))
-        email = str(d.get('email') or '').strip()
-        country = str(d.get('nationality') or '').strip()[:60]
-        cancelled = bool(d.get('cancelled'))
-        if ci and co and co <= ci:
-            return jsonify({'success': False, 'error': 'Ngày trả phòng phải sau ngày nhận phòng'}), 400
-
-        existing = _ext_existing(bid)
-
-        # ── New booking ──
-        if not existing:
-            if cancelled:
-                return jsonify({'success': True, 'action': 'skipped',
-                                'message': 'Booking đã hủy và chưa có trong hệ thống — không thêm'})
-            missing = [lbl for lbl, v in (('tên khách', name), ('ngày nhận', ci), ('ngày trả', co),
-                                          ('giá', amount), ('loại phòng', listing)) if not v]
-            if missing:
-                return jsonify({'success': False, 'error': 'Thiếu: ' + ', '.join(missing)}), 400
-            from core.logic_postgresql import add_new_booking
-            ok = add_new_booking({
-                'guest_name': name, 'booking_id': bid, 'email': email, 'phone': phone,
-                'nationality': country, 'passport_number': '', 'accommodation_name': listing,
-                'checkin_date': ci, 'checkout_date': co, 'room_amount': amount,
-                'commission': commission or 0.0, 'taxi_amount': 0.0, 'collector': '',
-                'notes': f"Từ extranet Booking lúc {(datetime.utcnow() + timedelta(hours=7)).strftime('%H:%M %d/%m/%Y')}",
-            })
-            if not ok:
-                return jsonify({'success': False, 'error': 'Không lưu được booking mới'}), 500
-            return jsonify({'success': True, 'action': 'created', 'booking_id': bid,
-                            'checkin_date': ci.isoformat(), 'message': f'Đã thêm booking mới: {name}'})
-
-        # ── Existing booking: update only what changed ──
-        updates, changes = {}, []
-        if name and not existing['guest_name']:
-            updates['guest_name'] = name; changes.append(f'tên: {name}')
-        if ci and ci.isoformat() != existing['checkin_date']:
-            updates['checkin_date'] = ci; changes.append(f"nhận phòng {existing['checkin_date']} → {ci}")
-        if co and co.isoformat() != existing['checkout_date']:
-            updates['checkout_date'] = co; changes.append(f"trả phòng {existing['checkout_date']} → {co}")
-        if amount and abs(amount - existing['room_amount']) >= 1:
-            updates['room_amount'] = amount; changes.append(f"giá {existing['room_amount']:,.0f} → {amount:,.0f}")
-        if commission is not None and abs(commission - existing['commission']) >= 1:
-            updates['commission'] = commission; changes.append(f"hoa hồng {existing['commission']:,.0f} → {commission:,.0f}")
-        if listing and listing != existing['listing']:
-            updates['accommodation_name'] = listing; changes.append(f'loại phòng: {listing}')
-        if cancelled and existing['booking_status'] != 'cancelled':
-            updates['booking_status'] = 'cancelled'; changes.append('đã hủy trên Booking')
-
-        if updates:
-            record_booking_history(bid, dict(updates), changed_by='chrome_extension')
-            sets = ', '.join(f'{k} = :{k}' for k in updates)
-            _xdb.session.execute(text(f"UPDATE bookings SET {sets}, updated_at = NOW() WHERE booking_id = :bid"),
-                                 {**updates, 'bid': bid})
-
-        # Contact details live on the guest row
-        contact = {k: v for k, v in (('phone', phone), ('email', email), ('nationality', country)) if v}
-        contact_changes = {k: v for k, v in contact.items() if v != (existing.get(k) or '')}
-        if contact_changes:
-            if contact_changes.get('email'):
-                taken = _xdb.session.execute(text(
-                    "SELECT 1 FROM guests WHERE email = :e AND guest_id IS DISTINCT FROM :gid"),
-                    {'e': contact_changes['email'], 'gid': existing['guest_id']}).fetchone()
-                if taken:
-                    contact_changes.pop('email')
-            if contact_changes and existing['guest_id']:
-                sets = ', '.join(f'{k} = :{k}' for k in contact_changes)
-                _xdb.session.execute(text(f"UPDATE guests SET {sets}, updated_at = NOW() WHERE guest_id = :gid"),
-                                     {**contact_changes, 'gid': existing['guest_id']})
-            elif contact_changes:
-                gid = _xdb.session.execute(text("""
-                    INSERT INTO guests (full_name, phone, email, nationality, created_at, updated_at)
-                    VALUES (:n, :phone, :email, :nationality, NOW(), NOW()) RETURNING guest_id
-                """), {'n': existing['guest_name'] or name, 'phone': contact_changes.get('phone'),
-                       'email': contact_changes.get('email'), 'nationality': contact_changes.get('nationality')}).scalar()
-                _xdb.session.execute(text("UPDATE bookings SET guest_id = :g WHERE booking_id = :bid"),
-                                     {'g': gid, 'bid': bid})
-            if 'phone' in contact_changes:
-                changes.append(f"SĐT: {contact_changes['phone']}")
-            if 'email' in contact_changes:
-                changes.append('email')
-            if 'nationality' in contact_changes:
-                changes.append(f"quốc gia: {contact_changes['nationality']}")
-
-        _xdb.session.commit()
-        return jsonify({'success': True, 'action': 'updated' if changes else 'unchanged',
-                        'booking_id': bid, 'changes': changes,
-                        'checkin_date': (ci.isoformat() if ci else existing['checkin_date']),
-                        'message': ('Đã cập nhật: ' + '; '.join(changes)) if changes else 'Không có gì thay đổi'})
+        result, status = _ext_save_one(request.get_json(silent=True) or {})
+        return jsonify(result), status
     except Exception as e:
         _xdb.session.rollback()
         import traceback; traceback.print_exc()
         return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/ext/booking/save_many', methods=['POST'])
+def ext_booking_save_many():
+    """Save the rows ticked on the reservation list page — each one independently."""
+    err = _ext_auth_error()
+    if err:
+        return err
+    from core.models import db as _xdb
+    items = (request.get_json(silent=True) or {}).get('items') or []
+    results = []
+    for d in items[:200]:
+        try:
+            result, _ = _ext_save_one(d)
+        except Exception as e:
+            _xdb.session.rollback()
+            result = {'success': False, 'booking_id': d.get('booking_id'), 'error': str(e)}
+        results.append(result)
+    summary = {k: sum(1 for r in results if r.get('action') == k)
+               for k in ('created', 'updated', 'unchanged', 'skipped')}
+    summary['failed'] = sum(1 for r in results if not r.get('success'))
+    return jsonify({'success': True, 'results': results, 'summary': summary})
 
 
 @app.route('/bookings')

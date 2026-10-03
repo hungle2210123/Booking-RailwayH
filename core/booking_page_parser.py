@@ -222,3 +222,83 @@ def parse_reservation_page(page):
     for k in ('checkin_date', 'checkout_date'):
         out[k] = out[k].isoformat() if out[k] else None
     return out
+
+
+# ── Reservations LIST page ("Đặt phòng" table) ────────────────────────────────
+LIST_COLUMNS = {
+    'booking_id': ['ma so dat phong', 'ma dat phong', 'so dat phong', 'booking number', 'reservation number'],
+    'guest_name': ['ten khach', 'guest name', 'guest', 'booker'],
+    'checkin': ['nhan phong', 'check-in', 'check in', 'arrival'],
+    'checkout': ['ngay di', 'tra phong', 'check-out', 'check out', 'departure'],
+    'room': ['phong', 'room', 'unit', 'loai phong'],
+    'booked_on': ['duoc dat vao', 'booked on', 'ngay dat'],
+    'status': ['tinh trang', 'status', 'trang thai'],
+    'price': ['gia', 'price', 'tong gia'],
+    'commission': ['hoa hong', 'commission'],
+}
+
+
+def _column_index(headers):
+    """header texts → {field: column index}; exact (accent-folded) matches first."""
+    folded = [_fold(h).replace('\n', ' ') for h in headers]
+    folded = [re.sub(r'\s+', ' ', h).strip() for h in folded]
+    idx = {}
+    for field, names in LIST_COLUMNS.items():
+        for name in names:
+            hit = next((i for i, h in enumerate(folded) if h == name and i not in idx.values()), None)
+            if hit is not None:
+                idx[field] = hit
+                break
+    return idx
+
+
+def is_reservation_list(headers):
+    idx = _column_index(headers or [])
+    return 'booking_id' in idx and 'checkin' in idx
+
+
+def parse_reservation_list(headers, rows):
+    """rows: [[{'text': cell innerText, 'link': first link text}, ...], ...]"""
+    idx = _column_index(headers or [])
+    out = []
+
+    def cell(row, field):
+        i = idx.get(field)
+        if i is None or i >= len(row):
+            return {'text': '', 'link': ''}
+        c = row[i] or {}
+        return c if isinstance(c, dict) else {'text': str(c), 'link': ''}
+
+    for row in rows or []:
+        bid_text = cell(row, 'booking_id')
+        m = re.search(r'\d{8,12}', (bid_text.get('link') or '') + ' ' + (bid_text.get('text') or ''))
+        if not m:
+            continue
+        g = cell(row, 'guest_name')
+        # Name = link text (or first line), without badges like "Genius"
+        name = (g.get('link') or (g.get('text') or '').split('\n')[0]).strip()
+        name = re.sub(r'\s*\bGenius\b\s*', ' ', name).strip()
+        status_txt = _fold(cell(row, 'status').get('text'))
+        if any(w in status_txt for w in CANCEL_WORDS) or status_txt.startswith('huy'):
+            status = 'cancelled'
+        elif any(w in status_txt for w in NOSHOW_WORDS):
+            status = 'no_show'
+        else:
+            status = 'ok'
+        ci = parse_date(cell(row, 'checkin').get('text'))
+        co = parse_date(cell(row, 'checkout').get('text'))
+        price = parse_money(cell(row, 'price').get('text'))
+        comm = parse_money(cell(row, 'commission').get('text'))
+        room = re.sub(r'\s+', ' ', cell(row, 'room').get('text') or '').strip()
+        item = {
+            'booking_id': m.group(0), 'guest_name': name or None,
+            'checkin_date': ci.isoformat() if ci else None,
+            'checkout_date': co.isoformat() if co else None,
+            # cancelled rows show price 0 on Booking — never use that as the price
+            'room_amount': price if (price and status == 'ok') else None,
+            'commission': comm if (comm is not None and status == 'ok') else None,
+            'listing': room or None, 'status': status,
+        }
+        item['missing'] = [k for k in ('guest_name', 'checkin_date', 'checkout_date') if not item[k]]
+        out.append(item)
+    return out

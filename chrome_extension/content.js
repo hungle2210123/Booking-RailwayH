@@ -41,6 +41,17 @@
       .msg { margin-top: 10px; font-size: 13px; font-weight: 700; }
       .msg.ok { color: #15803d; } .msg.err { color: #b91c1c; }
       .msg a { color: #1d4ed8; }
+      .lg { margin-bottom: 10px; }
+      .lt { font-size: 12px; font-weight: 800; color: #334155; margin: 8px 0 4px; }
+      .lt span { color: #94a3b8; }
+      .li { display: flex; gap: 8px; align-items: flex-start; padding: 7px 8px; border: 1px solid #e2e8f0; border-radius: 10px; margin-bottom: 5px; cursor: pointer; }
+      .li input { width: auto; margin-top: 3px; }
+      .li.cx { background: #fef2f2; border-color: #fecaca; }
+      .lm { flex: 1; min-width: 0; display: flex; flex-direction: column; font-size: 13px; }
+      .ls { font-size: 11px; color: #64748b; }
+      .lc { font-size: 11px; color: #b45309; font-weight: 700; }
+      .lp { font-size: 12px; font-weight: 800; white-space: nowrap; }
+      .tag.cx { display: inline-block; font-size: 10px; font-weight: 800; background: #dc2626; color: #fff; border-radius: 6px; padding: 0 6px; margin-left: 4px; }
       .paid { margin-top: 8px; font-size: 12px; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 6px 8px; color: #166534; }
     </style>
     <div class="panel" id="panel"></div>
@@ -51,6 +62,27 @@
   const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const api = (path, body) => chrome.runtime.sendMessage({ type: 'api', path, body });
   const fmt = n => n ? new Intl.NumberFormat('vi-VN').format(Math.round(n)) : '';
+
+  // ── Reservation LIST page ("Đặt phòng" table) ───────────────────
+  const fold = t => String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/đ/g, 'd').replace(/Đ/g, 'D').toLowerCase().replace(/\s+/g, ' ').trim();
+  const LIST_KEYS = ['ma so dat phong', 'ma dat phong', 'booking number', 'reservation number'];
+
+  function captureList() {
+    const tables = [...document.querySelectorAll('table, [role="table"], [role="grid"]')];
+    for (const t of tables) {
+      const headerCells = [...t.querySelectorAll('thead th, [role="columnheader"]')];
+      const headers = headerCells.map(h => (h.innerText || h.textContent || '').replace(/\s+/g, ' ').trim());
+      if (!headers.some(h => LIST_KEYS.includes(fold(h)))) continue;
+      const rowEls = [...t.querySelectorAll('tbody tr, [role="row"]')].filter(r => !r.querySelector('th, [role="columnheader"]'));
+      const rows = rowEls.map(r => [...r.querySelectorAll('td, [role="cell"], [role="gridcell"]')].map(c => ({
+        text: (c.innerText || c.textContent || '').trim(),
+        link: ((c.querySelector('a') || {}).innerText || '').trim(),
+      }))).filter(cells => cells.length >= 3);
+      if (rows.length) return { mode: 'list', url: location.href, headers, rows };
+    }
+    return null;
+  }
 
   // ── Read what is on screen ─────────────────────────────────────
   function capture() {
@@ -161,14 +193,88 @@
     }
   }
 
+  // ── List panel ─────────────────────────────────────────────────
+  const GROUPS = [
+    ['new', '🆕 Booking mới', true],
+    ['changed', '✏️ Có thay đổi', true],
+    ['same', '✔ Không đổi', false],
+    ['skip_cancelled', '— Đã hủy, chưa có trên web (bỏ qua)', false],
+  ];
+  const ddmm = iso => iso ? iso.split('-').reverse().slice(0, 2).join('/') : '?';
+
+  function showList(result) {
+    const items = result.items || [];
+    const rowHtml = (it, i, checked) => `
+      <label class="li ${it.status === 'cancelled' ? 'cx' : ''}">
+        <input type="checkbox" data-i="${i}" ${checked ? 'checked' : ''} ${it.action === 'same' || it.action === 'skip_cancelled' ? 'disabled' : ''}>
+        <span class="lm">
+          <b>${esc(it.guest_name || it.existing_name || '?')}</b>
+          ${it.status === 'cancelled' ? '<span class="tag cx">Đã hủy</span>' : ''}
+          <span class="ls">${ddmm(it.checkin_date)} → ${ddmm(it.checkout_date)} · ${esc(it.listing || '')} · #${esc(it.booking_id)}</span>
+          ${it.changes && it.changes.length ? `<span class="lc">${esc(it.changes.join(' · '))}</span>` : ''}
+        </span>
+        <span class="lp">${it.room_amount ? fmt(it.room_amount) : ''}</span>
+      </label>`;
+    const groups = GROUPS.map(([key, title, on]) => {
+      const list = items.map((it, i) => [it, i]).filter(([it]) => it.action === key);
+      if (!list.length) return '';
+      return `<div class="lg"><div class="lt">${title} <span>(${list.length})</span></div>
+        ${list.map(([it, i]) => rowHtml(it, i, on)).join('')}</div>`;
+    }).join('');
+    const toSave = items.filter(it => it.action === 'new' || it.action === 'changed').length;
+    panel.innerHTML = `
+      <h3>📋 ${items.length} booking trong bảng</h3>
+      <p class="hint">Tích các booking muốn lưu. Booking <b>Đã hủy</b> trên Booking sẽ được đánh dấu hủy trên web.
+        Số điện thoại không có ở trang này — mở từng đặt phòng để lấy.</p>
+      ${groups || '<p class="hint">Không đọc được dòng nào.</p>'}
+      <div class="row">
+        <button class="close" id="b_close" type="button">Đóng</button>
+        <button class="save" id="b_save" type="button" ${toSave ? '' : 'disabled'}>💾 Lưu ${toSave} booking</button>
+      </div>
+      <div class="msg" id="msg"></div>`;
+    panel.classList.add('open');
+    $('#b_close').onclick = () => panel.classList.remove('open');
+    const btn = $('#b_save');
+    const recount = () => {
+      const n = root.querySelectorAll('.li input:checked:not(:disabled)').length;
+      btn.textContent = `💾 Lưu ${n} booking`; btn.disabled = !n;
+    };
+    root.querySelectorAll('.li input').forEach(c => c.addEventListener('change', recount));
+    btn.onclick = async () => {
+      const chosen = [...root.querySelectorAll('.li input:checked:not(:disabled)')].map(c => {
+        const it = items[+c.dataset.i];
+        return { ...it, cancelled: it.status === 'cancelled' };
+      });
+      const msg = $('#msg');
+      btn.disabled = true; msg.className = 'msg'; msg.textContent = `Đang lưu ${chosen.length} booking...`;
+      const r = await api('/api/ext/booking/save_many', { items: chosen });
+      btn.disabled = false;
+      if (!r?.success) { msg.className = 'msg err'; msg.textContent = '❌ ' + (r?.error || 'Lỗi không rõ'); return; }
+      const s = r.summary, errs = r.results.filter(x => !x.success);
+      msg.className = errs.length ? 'msg err' : 'msg ok';
+      msg.innerHTML = `✅ Thêm ${s.created} · Cập nhật ${s.updated} · Không đổi ${s.unchanged}`
+        + (errs.length ? `<br>❌ Lỗi ${errs.length}: ${errs.map(e => esc((e.booking_id || '') + ' — ' + e.error)).join('<br>')}` : '');
+    };
+  }
+
   $('#fab').addEventListener('click', async () => {
     const fab = $('#fab');
     fab.textContent = '⏳ Đang đọc...';
-    const r = await api('/api/ext/booking/parse', capture());
+    const listPage = captureList();
+    const r = await api('/api/ext/booking/parse', listPage || capture());
     fab.textContent = '📥 Gửi về Hotel Pro';
     if (!r?.success) {
       panel.innerHTML = `<p class="msg err">❌ ${esc(r?.error || 'Lỗi không rõ')}</p>
         <p class="hint">Kiểm tra địa chỉ web trong biểu tượng tiện ích (góc trên trình duyệt).</p>
+        <div class="row"><button class="close" id="b_close" type="button">Đóng</button></div>`;
+      panel.classList.add('open');
+      $('#b_close').onclick = () => panel.classList.remove('open');
+      return;
+    }
+    if (r.mode === 'list') { showList(r); return; }
+    if (!r.parsed.booking_id) {
+      panel.innerHTML = `<p class="msg err">Không thấy đặt phòng trên trang này.</p>
+        <p class="hint">Mở trang <b>Đặt phòng</b> (danh sách) hoặc mở một đặt phòng cụ thể rồi bấm lại.</p>
         <div class="row"><button class="close" id="b_close" type="button">Đóng</button></div>`;
       panel.classList.add('open');
       $('#b_close').onclick = () => panel.classList.remove('open');
