@@ -1310,6 +1310,42 @@ setInterval(loadVbCd, 5 * 60 * 1000);
         .two-br-tip { font-size: 0.68rem; color: #6d28d9; padding: 0 14px 10px; }
         .two-br-empty { font-size: 0.75rem; color: #94a3b8; padding: 10px 14px; }
 
+        /* Free-rooms first: big number + one square per room */
+        .anb-free {
+            margin-left: auto; text-transform: none; letter-spacing: 0;
+            font-size: 0.95rem; font-weight: 900; color: #15803d;
+            background: #dcfce7; border: 1.5px solid #86efac; border-radius: 999px; padding: 3px 12px;
+        }
+        .anb-free small { font-weight: 700; color: #4d7c0f; }
+        .anb-free.none { color: #64748b; background: #f1f5f9; border-color: #cbd5e1; }
+        .apt-notify-bar .anb-sub { width: 100%; font-size: 0.72rem; color: #64748b; font-weight: 600; margin: -2px 0 2px; }
+        .apt-free { display: flex; align-items: center; gap: 8px; margin: 2px 0 6px; }
+        .apt-free-n { font-size: 2.3rem; font-weight: 900; line-height: 1; color: #15803d; }
+        .apt-free-n.none { font-size: 1.6rem; color: #94a3b8; }
+        .apt-free-n.over { font-size: 1.5rem; color: #dc2626; }
+        .apt-free-l { font-size: 0.72rem; font-weight: 800; color: #334155; line-height: 1.2; }
+        .apt-free-l small { font-weight: 600; color: #94a3b8; }
+        .apt-slots { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 6px; }
+        .apt-slot { width: 22px; height: 22px; border-radius: 5px; }
+        .apt-slot.free  { background: #fff; border: 2px dashed #22c55e; }
+        .apt-slot.taken { opacity: .85; }
+        .apt-slot.over  { background: #dc2626; animation: vbcd-pulse 1.4s ease-in-out infinite; }
+        .apt-mini { display: flex; flex-wrap: wrap; gap: 8px; font-size: 0.68rem; font-weight: 700; color: #475569; }
+        .apt-guests { margin-top: 4px; font-size: 0.62rem; color: #6b7280; }
+        .apt-card.cap-ok { border-color: #bbf7d0 !important; background: #f7fef9 !important; }
+        @media (max-width: 767px) {
+            /* Phones: 2 apartments per row, total free rooms on its own line */
+            .apt-notify-bar { padding: 10px; gap: 8px; }
+            .apt-notify-bar .anb-title { flex-wrap: wrap; font-size: 0.72rem; }
+            .anb-free { margin-left: 0; width: 100%; text-align: center; white-space: nowrap; font-size: 1.05rem; padding: 5px 12px; }
+            .apt-card { flex: 1 1 calc(50% - 8px); min-width: 0; padding: 9px 10px; }
+            .apt-card-name { font-size: 0.78rem; margin-bottom: 4px; }
+            .apt-free-n { font-size: 2rem; }
+            .apt-free-n.none { font-size: 1.35rem; }
+            .apt-slot { width: 17px; height: 17px; }
+            .apt-guests { display: none; }   /* names are on the guest cards below */
+        }
+
         /* Capacity state per apartment: ĐỦ (full) / VƯỢT (over capacity) */
         .apt-cap-pill {
             margin-left: auto; font-size: 0.62rem; font-weight: 800; white-space: nowrap;
@@ -4295,17 +4331,22 @@ async function loadAptNotifyBar() {
         const total_out   = apts.reduce((s,a)=>s+a.n_checkout, 0);
         const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
+        const total_free = apts.filter(a => a.is_active !== false).reduce((s,a)=>s+a.free, 0);
+        const total_cap  = apts.filter(a => a.is_active !== false).reduce((s,a)=>s+a.capacity, 0);
+        const pendingN   = (data.pending || []).length;
+
         let html = `
             <div class="anb-title">
                 <i class="fas fa-building"></i>
                 Tình trạng căn hộ — <strong>{{ formatted_date }}</strong>
-                &nbsp;·&nbsp;
-                <span style="color:#1976D2">🏠 ${total_stay} đang ở</span>
-                &nbsp;·&nbsp;
-                <span style="color:#2E7D32">🛬 ${total_in} check-in</span>
-                &nbsp;·&nbsp;
-                <span style="color:#E64A19">🛫 ${total_out} check-out</span>
-                ${data.pending && data.pending.length ? `&nbsp;·&nbsp;<span style="color:#c2410c">⏳ ${data.pending.length} chờ xếp</span>` : ''}
+                <span class="anb-free ${total_free === 0 ? 'none' : ''}">
+                    ${total_free === 0 ? 'HẾT PHÒNG TRỐNG' : `Còn ${total_free} phòng trống`}
+                    <small>/ ${total_cap}</small>
+                </span>
+            </div>
+            <div class="anb-sub">
+                🏠 ${total_stay} đang ở &nbsp;·&nbsp; 🛬 ${total_in} check-in &nbsp;·&nbsp; 🛫 ${total_out} check-out
+                ${pendingN ? `&nbsp;·&nbsp;<span style="color:#c2410c;font-weight:800">⏳ ${pendingN} chờ xếp (chưa trừ phòng)</span>` : ''}
             </div>`;
 
         if (data.over_count > 0) {
@@ -4318,33 +4359,37 @@ async function loadAptNotifyBar() {
         }
 
         apts.forEach(a => {
-            const hasGuests = a.n_staying || a.n_checkin || a.n_checkout;
             const capState = a.over > 0 ? 'over' : (a.capacity > 0 && a.free === 0 ? 'full' : 'ok');
-            const capLabel = a.over > 0 ? `⚠️ VƯỢT +${a.over}`
-                           : capState === 'full' ? '✔ ĐỦ PHÒNG'
-                           : `Còn ${a.free}`;
+            // One square per room: filled = guest placed, empty = free, red = more guests than rooms
+            let slots = '';
+            for (let i = 0; i < a.capacity; i++) {
+                slots += i < a.occupied
+                    ? `<span class="apt-slot taken" style="background:${a.color}"></span>`
+                    : `<span class="apt-slot free"></span>`;
+            }
+            for (let i = 0; i < a.over; i++) slots += `<span class="apt-slot over"></span>`;
+
+            const hero = a.over > 0
+                ? `<span class="apt-free-n over">VƯỢT +${a.over}</span><span class="apt-free-l">${a.occupied} khách / ${a.capacity} phòng</span>`
+                : a.free === 0
+                ? `<span class="apt-free-n none">HẾT</span><span class="apt-free-l">${a.capacity}/${a.capacity} phòng có khách</span>`
+                : `<span class="apt-free-n">${a.free}</span><span class="apt-free-l">phòng trống<br><small>trên ${a.capacity} phòng</small></span>`;
+
+            const guests = [...a.staying, ...a.checkin];
             html += `
-            <div class="apt-card cap-${capState}" style="border-color:${capState === 'ok' ? a.color + '20' : ''};background:${capState === 'ok' ? a.color + '08' : ''}">
+            <div class="apt-card cap-${capState}">
                 <div class="apt-card-name">
                     <div class="apt-card-dot" style="background:${a.color}"></div>
                     <span style="color:${a.color}">${esc(a.name)}</span>
-                    <span class="apt-cap-pill ${capState}" title="${a.occupied} khách đã xếp / ${a.capacity} phòng">${a.occupied}/${a.capacity} · ${capLabel}</span>
                 </div>
-                <div class="apt-stats">
-                    <div class="apt-stat s-stay-cell">
-                        <span class="apt-stat-n s-stay">${a.n_staying}</span>
-                        <span class="apt-stat-l">Đang ở</span>
-                    </div>
-                    <div class="apt-stat">
-                        <span class="apt-stat-n s-in">${a.n_checkin}</span>
-                        <span class="apt-stat-l">Check-in</span>
-                    </div>
-                    <div class="apt-stat">
-                        <span class="apt-stat-n s-out">${a.n_checkout}</span>
-                        <span class="apt-stat-l">Check-out</span>
-                    </div>
+                <div class="apt-free">${hero}</div>
+                <div class="apt-slots" title="${a.occupied} phòng có khách · ${a.free} phòng trống">${slots}</div>
+                <div class="apt-mini">
+                    <span>🏠 ${a.n_staying} đang ở</span>
+                    ${a.n_checkin ? `<span>🛬 ${a.n_checkin} vào</span>` : ''}
+                    ${a.n_checkout ? `<span>🛫 ${a.n_checkout} trả</span>` : ''}
                 </div>
-                ${(a.staying.length || a.checkin.length) ? `<div style="margin-top:5px;font-size:0.6rem;color:#666">${esc([...a.staying, ...a.checkin].join(', '))}</div>` : ''}
+                ${guests.length ? `<div class="apt-guests">${esc(guests.join(', '))}</div>` : ''}
             </div>`;
         });
 
