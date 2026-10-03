@@ -1686,6 +1686,7 @@ def ext_booking_parse():
                     action = 'skip_cancelled' if row['status'] == 'cancelled' else 'new'
                 items.append({**row, 'action': action, 'changes': changes,
                               'existing_name': existing['guest_name'] if existing else None,
+                              'has_phone': bool(existing and existing['phone']),
                               'new_listing': bool(row['listing']) and row['listing'].lower() not in known})
             return jsonify({'success': True, 'mode': 'list', 'items': items, 'listings': _ext_listings()})
 
@@ -1742,6 +1743,37 @@ def ext_booking_save_many():
                for k in ('created', 'updated', 'unchanged', 'skipped')}
     summary['failed'] = sum(1 for r in results if not r.get('success'))
     return jsonify({'success': True, 'results': results, 'summary': summary})
+
+
+@app.route('/api/ext/booking/phone', methods=['POST'])
+def ext_booking_phone():
+    """A reservation page now shows the guest's phone (the owner clicked "Hiển thị số điện thoại"
+    on Booking) → store it on the booking that is already on the web. Nothing else is changed."""
+    err = _ext_auth_error()
+    if err:
+        return err
+    try:
+        from core.booking_page_parser import parse_reservation_page
+        p = parse_reservation_page(request.get_json(silent=True) or {})
+        bid, phone = p.get('booking_id'), p.get('phone')
+        if not bid or not phone:
+            return jsonify({'success': True, 'status': 'no_phone'})
+        existing = _ext_existing(bid)
+        if not existing:
+            return jsonify({'success': True, 'status': 'not_on_web', 'booking_id': bid, 'phone': phone,
+                            'guest_name': p.get('guest_name')})
+        name = existing['guest_name'] or p.get('guest_name') or bid
+        if re.sub(r'\D', '', existing['phone']) == re.sub(r'\D', '', phone):
+            return jsonify({'success': True, 'status': 'same', 'booking_id': bid, 'phone': phone, 'guest_name': name})
+        result, code = _ext_save_one({'booking_id': bid, 'phone': phone})
+        if not result.get('success'):
+            return jsonify(result), code
+        return jsonify({'success': True, 'status': 'saved', 'booking_id': bid, 'phone': phone,
+                        'guest_name': name, 'replaced': existing['phone'] or None})
+    except Exception as e:
+        from core.models import db as _xdb
+        _xdb.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 
 @app.route('/bookings')

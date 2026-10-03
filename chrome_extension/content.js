@@ -55,6 +55,10 @@
       .tag.mr { display: inline-block; font-size: 10px; font-weight: 800; background: #f59e0b; color: #fff; border-radius: 6px; padding: 0 6px; margin-left: 4px; }
       .tag.nl { display: inline-block; font-size: 10px; font-weight: 800; background: #2563eb; color: #fff; border-radius: 6px; padding: 0 6px; margin-left: 4px; }
       .tag.cx { display: inline-block; font-size: 10px; font-weight: 800; background: #dc2626; color: #fff; border-radius: 6px; padding: 0 6px; margin-left: 4px; }
+      .ph { display: flex; justify-content: space-between; gap: 8px; padding: 6px 8px; border: 1px solid #bfdbfe; background: #eff6ff; border-radius: 10px; margin-bottom: 4px; font-size: 13px; font-weight: 700; color: #1d4ed8; text-decoration: none; }
+      .ph span { font-size: 11px; font-weight: 600; color: #64748b; }
+      .toast { position: absolute; right: 0; bottom: 56px; width: 300px; max-width: calc(100vw - 36px); background: #0f172a; color: #fff; font-size: 13px; line-height: 1.4; border-radius: 12px; padding: 10px 12px; box-shadow: 0 8px 24px rgba(0,0,0,.25); }
+      .toast.ok { background: #166534; } .toast.warn { background: #b45309; }
       .paid { margin-top: 8px; font-size: 12px; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 6px 8px; color: #166534; }
     </style>
     <div class="panel" id="panel"></div>
@@ -87,7 +91,8 @@
   const cellText = el => (el?.innerText || el?.textContent || '').trim();
   const rawText = el => (el?.textContent || '').trim();
   const isHeaderText = t => { const f = fold(t); return f.length < 60 && LIST_KEYS.some(k => f.includes(k)); };
-  const cellObj = c => ({ text: cellText(c), link: cellText(c.querySelector('a, [role="link"]')) });
+  const cellObj = c => ({ text: cellText(c), link: cellText(c.querySelector('a, [role="link"]')),
+                          href: (c.querySelector('a[href]') || {}).href || '' });
 
   // The page itself plus any same-origin frames (the table may live inside an iframe)
   function allDocs() {
@@ -326,11 +331,18 @@
         ${list.map(([it, i]) => rowHtml(it, i, on)).join('')}</div>`;
     }).join('');
     const toSave = items.filter(it => it.action === 'new' || it.action === 'changed').length;
+    const noPhone = items.filter(it => it.status === 'ok' && !it.has_phone && it.detail_url);
+    const noPhoneHtml = noPhone.length ? `<div class="lg"><div class="lt">📞 Chưa có số điện thoại <span>(${noPhone.length})</span></div>
+      <p class="hint">Bấm tên để mở đặt phòng (tab mới) → bấm <b>Hiển thị số điện thoại</b> của Booking → số <b>tự lưu</b> về web.
+        Booking mới: bấm <b>Lưu</b> ở dưới trước.</p>
+      ${noPhone.map(it => `<a class="ph" href="${esc(it.detail_url)}" target="_blank" rel="noopener">${esc(it.guest_name || it.existing_name || it.booking_id)}
+        <span>${ddmm(it.checkin_date)} · #${esc(it.booking_id)}</span></a>`).join('')}</div>` : '';
     panel.innerHTML = `
       <h3>📋 ${items.length} booking trong bảng</h3>
       <p class="hint">Tích các booking muốn lưu. Booking <b>Đã hủy</b> trên Booking sẽ được đánh dấu hủy trên web.
         Số điện thoại không có ở trang này — mở từng đặt phòng để lấy.</p>
       ${groups || '<p class="hint">Không đọc được dòng nào.</p>'}
+      ${noPhoneHtml}
       <div class="row">
         <button class="close" id="b_close" type="button">Đóng</button>
         <button class="save" id="b_save" type="button" ${toSave ? '' : 'disabled'}>💾 Lưu ${toSave} booking</button>
@@ -378,6 +390,49 @@
   }
   const DIAG_HINT = 'Bấm <b>Sao chép chẩn đoán</b> và gửi cho người hỗ trợ (chỉ có cấu trúc trang, không có tên hay thông tin khách).';
   const paint = () => new Promise(r => requestAnimationFrame(() => setTimeout(r, 0)));  // let the button text show
+
+  // ── Phone appears on a reservation page → save it automatically ──
+  // Only reads the page: the owner clicks Booking's own "Hiển thị số điện thoại" button.
+  let toastTimer;
+  function toast(html, kind) {
+    let t = $('#toast');
+    if (!t) { t = document.createElement('div'); t.id = 'toast'; root.appendChild(t); }
+    t.className = 'toast ' + (kind || '');
+    t.innerHTML = html;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => t.remove(), 7000);
+  }
+  const PHONE_LINE = /^\+\d[\d\s().\-]{6,22}\d$/;
+  const visiblePhone = () => {
+    const tel = document.querySelector('a[href^="tel:"]');
+    if (tel) return tel.getAttribute('href');
+    return (document.body.innerText || '').split('\n').map(l => l.trim()).find(l => PHONE_LINE.test(l)) || null;
+  };
+  const phoneDone = new Set();
+  let phoneBusy = false;
+  async function checkPhone() {
+    if (phoneBusy || busy || !chrome.runtime?.id) return;
+    const ph = visiblePhone();
+    if (!ph) return;
+    const key = location.href.split('#')[0] + '|' + ph;
+    if (phoneDone.has(key)) return;
+    phoneBusy = true;
+    try {
+      phoneDone.add(key);
+      const r = await api('/api/ext/booking/phone', capture());
+      if (!r?.success) { phoneDone.delete(key); return; }
+      if (r.status === 'saved') toast(`📞 Đã lưu SĐT <b>${esc(r.phone)}</b> cho <b>${esc(r.guest_name)}</b>`, 'ok');
+      else if (r.status === 'same') toast(`📞 SĐT của <b>${esc(r.guest_name)}</b> đã có trên web`);
+      else if (r.status === 'not_on_web') toast(`📞 Thấy SĐT nhưng booking #${esc(r.booking_id)} chưa có trên web — bấm <b>📥 Gửi về Hotel Pro</b> để thêm`, 'warn');
+    } finally { phoneBusy = false; }
+  }
+  // After a click (e.g. "Hiển thị số điện thoại") the number shows up a moment later
+  document.addEventListener('click', e => {
+    if (host.contains(e.target)) return;
+    [600, 1500, 3000, 6000].forEach(ms => setTimeout(checkPhone, ms));
+  }, true);
+  // Already visible when the page opens
+  [2500, 6000].forEach(ms => setTimeout(checkPhone, ms));
 
   let busy = false;
   $('#fab').addEventListener('click', async () => {
