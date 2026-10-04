@@ -1807,6 +1807,46 @@ def _msg_phone_links(phone):
     return {'wa': wa, 'sms': '+' + wa, 'zalo': zalo}
 
 
+# Messages sent from the WhatsApp / SMS / Zalo buttons live in message_templates under this
+# category, so they are edited once and shared by every device (also visible on the Mẫu Câu page).
+# Tokens: {ten} guest name · {nhan} check-in dd/mm · {tra} check-out dd/mm · {phong} " (room)".
+AUTO_MSG_CATEGORY = '0 · Nhắn tự động'
+AUTO_MSG_DEFAULT_NAME = 'Hỏi giờ đến + xác nhận'
+AUTO_MSG_DEFAULT = (
+    "Xin chào {ten}! 👋\n"
+    "Cozy Homestay Hanoi xác nhận đặt phòng của bạn: nhận phòng {nhan}, trả phòng {tra}{phong}.\n"
+    "Cho chúng tôi xin giờ bạn dự kiến tới để chuẩn bị phòng chu đáo nhé. Cảm ơn bạn!\n\n"
+    "Hello {ten}! This is Cozy Homestay Hanoi. We confirm your stay: check-in {nhan}, check-out {tra}{phong}.\n"
+    "Could you let us know your expected arrival time so we can prepare your room? Thank you!"
+)
+
+
+def _auto_msg_templates():
+    """Auto-message templates, oldest first (the first one is the default). Seeds one the first time."""
+    from core.models import db as _xdb
+    sql = text("SELECT template_id, template_name, template_content FROM message_templates "
+               "WHERE category = :c ORDER BY template_id")
+    rows = _xdb.session.execute(sql, {'c': AUTO_MSG_CATEGORY}).fetchall()
+    if not rows:
+        try:
+            # The id sequence is known to fall behind the table — move it past the max first
+            _xdb.session.execute(text(
+                "SELECT setval('message_templates_template_id_seq', "
+                "GREATEST((SELECT COALESCE(MAX(template_id), 0) FROM message_templates), 1))"))
+            _xdb.session.execute(text("""
+                INSERT INTO message_templates (template_name, category, template_content, created_at, updated_at)
+                SELECT :n, :c, :t, NOW(), NOW()
+                WHERE NOT EXISTS (SELECT 1 FROM message_templates WHERE template_name = :n)
+            """), {'n': AUTO_MSG_DEFAULT_NAME, 'c': AUTO_MSG_CATEGORY, 't': AUTO_MSG_DEFAULT})
+            _xdb.session.commit()
+        except Exception as e:
+            _xdb.session.rollback()
+            print(f"[auto_msg] seeding the default message failed: {e}")
+        rows = _xdb.session.execute(sql, {'c': AUTO_MSG_CATEGORY}).fetchall()
+    return ([{'id': r[0], 'name': r[1], 'content': r[2]} for r in rows]
+            or [{'id': None, 'name': AUTO_MSG_DEFAULT_NAME, 'content': AUTO_MSG_DEFAULT}])
+
+
 @app.route('/messages')
 def messages_page():
     """Mobile-first page: upcoming guests with a phone, each with WhatsApp / SMS / Zalo
@@ -1844,7 +1884,8 @@ def messages_page():
         else:
             no_phone.append(item)
     return render_template('messages.html', guests=guests, no_phone=no_phone,
-                           days=days, today_str=today.strftime('%d/%m/%Y'), total=len(rows))
+                           days=days, today_str=today.strftime('%d/%m/%Y'), total=len(rows),
+                           templates=_auto_msg_templates(), auto_category=AUTO_MSG_CATEGORY)
 
 
 @app.route('/bookings')
@@ -4601,20 +4642,38 @@ def calendar_details(date_str):
         phone_map = {}
         try:
             from core.models import db as _phdb
-            _ph_bids = [str(g.get('Số đặt phòng', '') or '') for g in check_in + staying_over + check_out]
-            _ph_bids = [b for b in _ph_bids if b]
-            if _ph_bids:
+
+            def _dm(v):
+                try:
+                    return pd.Timestamp(v).strftime('%d/%m') if v is not None and pd.notna(v) else ''
+                except Exception:
+                    return ''
+            # Name / dates / room per booking — fills the pre-written message on the WhatsApp/Zalo chips
+            _ph_info = {}
+            for _g in check_in + staying_over + check_out:
+                _b = str(_g.get('Số đặt phòng', '') or '')
+                if _b and _b not in _ph_info:
+                    _ph_info[_b] = {'ten': str(_g.get('Tên người đặt', '') or '').strip(),
+                                    'nhan': _dm(_g.get('Check-in Date')), 'tra': _dm(_g.get('Check-out Date')),
+                                    'phong': str(_g.get('Tên chỗ nghỉ', '') or '').strip()}
+            if _ph_info:
                 for _bid, _phone in _phdb.session.execute(text("""
                     SELECT b.booking_id, g.phone FROM bookings b JOIN guests g ON g.guest_id = b.guest_id
                     WHERE b.booking_id = ANY(:bids) AND COALESCE(g.phone, '') <> ''
-                """), {'bids': _ph_bids}).fetchall():
-                    _digits = re.sub(r'\D', '', _phone)
-                    if len(_digits) >= 8:
-                        # wa.me needs the international number without '+'; local VN 0xx → 84xx
-                        _wa = ('84' + _digits[1:]) if _digits.startswith('0') else _digits
-                        phone_map[_bid] = {'display': _phone, 'tel': ('+' if _phone.strip().startswith('+') else '') + _digits, 'wa': _wa}
+                """), {'bids': list(_ph_info)}).fetchall():
+                    _links = _msg_phone_links(_phone)
+                    if _links:
+                        _digits = re.sub(r'\D', '', _phone)
+                        phone_map[_bid] = {'display': _phone, 'wa': _links['wa'], 'zalo': _links['zalo'],
+                                           'tel': ('+' if _phone.strip().startswith('+') else '') + _digits,
+                                           **_ph_info.get(_bid, {})}
         except Exception as _phe:
             print(f"[calendar_details] phone load failed: {_phe}")
+        try:
+            auto_msg = _auto_msg_templates()[0]['content']
+        except Exception as _ame:
+            print(f"[calendar_details] auto message load failed: {_ame}")
+            auto_msg = AUTO_MSG_DEFAULT
 
         # ── 2-bedroom (2 PN) bookings: flag per card + upcoming check-outs to watch ──
         two_br_map = {}
@@ -4688,8 +4747,9 @@ def calendar_details(date_str):
             two_br_map=two_br_map,
             two_br_upcoming=two_br_upcoming,
             phone_map=phone_map,
+            auto_msg=auto_msg,
         )
-    
+
     except Exception as e:
         flash(f'Error loading calendar details: {str(e)}', 'error')
         return redirect(url_for('calendar_view'))

@@ -18,6 +18,19 @@
   .tmpl summary::-webkit-details-marker { display:none; }
   .tmpl textarea { width:100%; min-height:120px; margin-top:8px; border:1px solid var(--line); border-radius:10px;
                    padding:8px; font-size:.9rem; font-family:inherit; line-height:1.45; resize:vertical; box-sizing:border-box; }
+  .tchips { display:flex; flex-wrap:wrap; gap:6px; margin-top:10px; }
+  .tchips button { font-size:.78rem; font-weight:700; border:1px solid var(--line); background:#eef2f7; color:#334155;
+                   border-radius:999px; padding:5px 11px; cursor:pointer; font-family:inherit; }
+  .tchips button.on { background:#16a34a; border-color:#16a34a; color:#fff; }
+  .tchips button.add { background:#fff; border-style:dashed; color:#2563eb; }
+  .tname { width:100%; margin-top:8px; border:1px solid var(--line); border-radius:10px; padding:7px 9px;
+           font-size:.88rem; font-family:inherit; box-sizing:border-box; }
+  .trow { display:flex; align-items:center; gap:10px; margin-top:8px; }
+  .tsave { border:none; background:#2563eb; color:#fff; font-weight:800; font-size:.86rem; border-radius:10px;
+           padding:8px 14px; cursor:pointer; font-family:inherit; }
+  .tsave:disabled { opacity:.5; }
+  .tstate { font-size:.78rem; color:var(--muted); }
+  .tstate.err { color:#dc2626; } .tstate.ok { color:#16a34a; } .tstate.dirty { color:#b45309; }
   .toks { font-size:.72rem; color:var(--muted); margin-top:6px; }
   .toks code { background:#eef2f7; border-radius:5px; padding:1px 5px; }
 
@@ -68,10 +81,17 @@
 
   <div class="tip">📱 Mở trang này <b>trên điện thoại</b> để nhắn bằng app thật. Mỗi khách bấm 1 nút → app mở sẵn tin → bấm Gửi.</div>
 
-  <details class="tmpl">
-    <summary>✏️ Sửa tin nhắn mẫu</summary>
+  <details class="tmpl" id="edit">
+    <summary>✏️ Tin nhắn tự động: <span id="tcur"></span></summary>
+    <div class="tchips" id="tchips"></div>
+    <input id="tname" class="tname" placeholder="Tên mẫu (vd: Hỏi giờ đến)">
     <textarea id="tmpl" spellcheck="false"></textarea>
-    <div class="toks">Tự thay: <code>{ten}</code> tên khách · <code>{nhan}</code> ngày nhận · <code>{tra}</code> ngày trả · <code>{phong}</code> phòng. Tin được lưu trên máy này.</div>
+    <div class="trow">
+      <button type="button" id="tsave" class="tsave">💾 Lưu cho mọi máy</button>
+      <span id="tstate" class="tstate"></span>
+    </div>
+    <div class="toks">Tự thay: <code>{ten}</code> tên khách · <code>{nhan}</code> ngày nhận · <code>{tra}</code> ngày trả · <code>{phong}</code> (phòng).
+      Lưu lên web nên sửa ở điện thoại hay máy tính đều dùng chung, nút WhatsApp trên trang lịch cũng dùng mẫu đầu tiên.</div>
   </details>
 
   {% if guests %}
@@ -116,20 +136,71 @@
 {% block scripts %}
 <script>
 (function () {
-  const DEFAULT_TMPL =
-`Xin chào {ten}! 👋
-Cozy Homestay Hanoi xác nhận đặt phòng của bạn: nhận phòng {nhan}, trả phòng {tra}{phong}.
-Cho chúng tôi xin giờ bạn dự kiến tới để chuẩn bị phòng chu đáo nhé. Cảm ơn bạn!
-
-Hello {ten}! This is Cozy Homestay Hanoi. We confirm your stay: check-in {nhan}, check-out {tra}{phong}.
-Could you let us know your expected arrival time so we can prepare your room? Thank you!`;
-
-  const KEY = 'hotelpro.msg.tmpl';
+  // Templates are stored on the server (message_templates, category below) → shared by every device
+  const TEMPLATES = {{ templates|tojson }};
+  const CATEGORY = {{ auto_category|tojson }};
+  const PICK_KEY = 'hotelpro.msg.tid';          // which template this device uses (just a preference)
   const box = document.getElementById('tmpl');
-  try { box.value = localStorage.getItem(KEY) || DEFAULT_TMPL; } catch (e) { box.value = DEFAULT_TMPL; }
+  const nameBox = document.getElementById('tname');
+  const state = document.getElementById('tstate');
+  const saveBtn = document.getElementById('tsave');
+  let cur = null, dirty = false;
 
+  function setState(text, cls) { state.textContent = text; state.className = 'tstate ' + (cls || ''); }
+  function pick(t) {
+    if (dirty && cur && !confirm('Mẫu đang sửa chưa lưu. Bỏ thay đổi?')) return;
+    cur = t; dirty = false;
+    box.value = t.content; nameBox.value = t.name;
+    document.getElementById('tcur').textContent = t.name;
+    try { if (t.id) localStorage.setItem(PICK_KEY, String(t.id)); } catch (e) {}
+    setState(t.id ? '' : 'Mẫu mới — bấm Lưu', t.id ? '' : 'dirty');
+    chips(); render();
+  }
+  function chips() {
+    const el = document.getElementById('tchips');
+    el.innerHTML = '';
+    TEMPLATES.forEach(t => {
+      const b = document.createElement('button');
+      b.type = 'button'; b.textContent = t.name; if (t === cur) b.className = 'on';
+      b.onclick = () => pick(t);
+      el.appendChild(b);
+    });
+    const add = document.createElement('button');
+    add.type = 'button'; add.className = 'add'; add.textContent = '+ Mẫu mới';
+    add.onclick = () => {
+      if (dirty && !confirm('Mẫu đang sửa chưa lưu. Bỏ thay đổi?')) return;
+      const t = { id: null, name: 'Mẫu ' + (TEMPLATES.length + 1), content: cur ? cur.content : '' };
+      TEMPLATES.push(t); dirty = false; pick(t); nameBox.focus(); nameBox.select();
+    };
+    el.appendChild(add);
+  }
+  function markDirty() { dirty = true; setState('Chưa lưu', 'dirty'); }
+
+  saveBtn.onclick = async () => {
+    const content = box.value.trim(), name = nameBox.value.trim();
+    if (!content || !name) { setState('Cần tên mẫu và nội dung', 'err'); return; }
+    saveBtn.disabled = true; setState('Đang lưu...');
+    try {
+      const res = cur.id
+        ? await fetch('/api/templates/' + cur.id, { method: 'PUT', headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ Label: name, Message: content }) })
+        : await fetch('/api/templates/add', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ name, content, category: CATEGORY }) });
+      const r = await res.json();
+      if (!r.success) throw new Error(r.error || 'Lỗi không rõ');
+      cur.id = r.template.id; cur.name = name; cur.content = content; dirty = false;
+      try { localStorage.setItem(PICK_KEY, String(cur.id)); } catch (e) {}
+      document.getElementById('tcur').textContent = name;
+      chips(); setState('✅ Đã lưu — mọi máy dùng chung', 'ok');
+    } catch (e) {
+      setState('❌ ' + e.message, 'err');
+    } finally { saveBtn.disabled = false; }
+  };
+
+  // Booking names often end with the country code ("Lucas de Kok nl") — not part of the greeting
+  const cleanName = n => String(n || '').replace(/\s+[a-z]{2}$/, '').trim();
   const fill = (t, g) => t
-    .replace(/\{ten\}/g, g.ten || 'bạn')
+    .replace(/\{ten\}/g, cleanName(g.ten) || 'bạn')
     .replace(/\{nhan\}/g, g.nhan || '')
     .replace(/\{tra\}/g, g.tra || '')
     .replace(/\{phong\}/g, g.phong ? ' (' + g.phong + ')' : '');
@@ -161,8 +232,8 @@ Could you let us know your expected arrival time so we can prepare your room? Th
     }
   }
 
-  box.addEventListener('input', render);
-  box.addEventListener('change', () => { try { localStorage.setItem(KEY, box.value); } catch (e) {} });
+  box.addEventListener('input', () => { markDirty(); render(); });
+  nameBox.addEventListener('input', markDirty);
 
   // "đã nhắn" ghi nhớ trên máy này
   document.querySelectorAll('.card').forEach(card => {
@@ -175,7 +246,10 @@ Could you let us know your expected arrival time so we can prepare your room? Th
     });
   });
 
-  render();
+  let saved = null;
+  try { saved = localStorage.getItem(PICK_KEY); } catch (e) {}
+  pick(TEMPLATES.find(t => String(t.id) === saved) || TEMPLATES[0]);
+  if (location.hash === '#edit') document.getElementById('edit').open = true;
 })();
 </script>
 {% endblock %}

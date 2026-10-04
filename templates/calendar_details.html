@@ -1461,7 +1461,13 @@ setInterval(loadVbCd, 5 * 60 * 1000);
         {% set ph = phone_map.get(booking_id|string) if phone_map else None %}
         {% if ph %}
         <a class="guest-phone" href="tel:{{ ph.tel }}" title="Gọi {{ ph.display }}">📞 {{ ph.display }}</a>
-        <a class="guest-wa" href="https://wa.me/{{ ph.wa }}" target="_blank" rel="noopener" title="Nhắn WhatsApp">WhatsApp</a>
+        {# The pre-written message (auto_msg) is filled in by the script at the end of the page #}
+        <a class="guest-wa msg-link" data-ch="wa" data-num="{{ ph.wa }}"
+           data-ten="{{ ph.ten }}" data-nhan="{{ ph.nhan }}" data-tra="{{ ph.tra }}" data-phong="{{ ph.phong }}"
+           href="https://wa.me/{{ ph.wa }}" target="_blank" rel="noopener" title="Nhắn WhatsApp (tin soạn sẵn)">WhatsApp</a>
+        <a class="guest-zalo msg-link" data-ch="zalo" data-num="{{ ph.zalo }}"
+           data-ten="{{ ph.ten }}" data-nhan="{{ ph.nhan }}" data-tra="{{ ph.tra }}" data-phong="{{ ph.phong }}"
+           href="https://zalo.me/{{ ph.zalo }}" target="_blank" rel="noopener" title="Mở Zalo — tin đã chép sẵn, chỉ cần dán">Zalo</a>
         {% endif %}
 
         {# ── Picker row (hidden by default, shown on "đổi" click or when unassigned) ── #}
@@ -1522,6 +1528,70 @@ setInterval(loadVbCd, 5 * 60 * 1000);
         {% else %}
         <div class="two-br-empty">Không có khách căn 2 phòng ngủ trả phòng trong 3 ngày tới.</div>
         {% endif %}
+    </div>
+
+    <!-- ══ PHONE TOOLBAR: jump between sections + compact / full cards ══ -->
+    <style>
+        .cd-toolbar { position: sticky; top: 0; z-index: 60; display: flex; align-items: center; gap: 6px;
+            flex-wrap: wrap; background: rgba(248,250,252,.96); backdrop-filter: blur(6px);
+            border: 1px solid #e2e8f0; border-radius: 12px; padding: 6px 8px; margin: 6px 0 10px; }
+        .cd-jump { display: flex; gap: 5px; flex: 1; min-width: 0; }
+        .cd-jump a { flex: 1; min-width: 0; text-align: center; text-decoration: none; font-size: .76rem; font-weight: 700;
+            color: #fff; border-radius: 9px; padding: 6px 2px; white-space: nowrap; overflow: hidden; }
+        .cd-jump a b { font-size: .9rem; }
+        .cd-jump .j-in  { background: #20a35a; } .cd-jump .j-stay { background: #138496; } .cd-jump .j-out { background: #f08c00; }
+        .cd-tools { display: flex; gap: 5px; }
+        .cd-tools button, .cd-tools a { border: 1px solid #cbd5e1; background: #fff; color: #334155; font-size: .76rem;
+            font-weight: 700; border-radius: 9px; padding: 6px 9px; text-decoration: none; cursor: pointer; white-space: nowrap; }
+        .cd-tools button.on { background: #0f172a; color: #fff; border-color: #0f172a; }
+
+        /* ── Compact cards: name, room, one summary line, apartment + phone row. Tap to open. ── */
+        body.cd-compact .guest-card { padding: 9px 11px !important; cursor: pointer; margin-bottom: 0 !important; }
+        body.cd-compact .guest-cards-row { gap: 6px !important; }
+        body.cd-compact .guest-card:not(.cd-open) > *:not(.guest-header):not(.room-type):not(.apt-selector):not(.cd-sum):not(.two-br-alert-banner):not(.late-arrival-display),
+        body.cd-compact .guest-card:not(.cd-open) > .late-arrival-display:empty,
+        body.cd-compact .guest-card:not(.cd-open) .guest-header .btn-group,
+        body.cd-compact .guest-card:not(.cd-open) .commission-badge,
+        body.cd-compact .guest-card:not(.cd-open) .apt-picker,
+        body.cd-compact .guest-card:not(.cd-open) .apt-change-link,
+        body.cd-compact .guest-card:not(.cd-open) .two-br-toggle:not(.on) { display: none !important; }
+        body.cd-compact .guest-card .guest-name { font-size: 1rem !important; }
+        body.cd-compact .guest-card .room-type { margin: 3px 0 2px !important; }
+        body.cd-compact .apt-selector { margin-top: 4px !important; gap: 5px !important; }
+        .cd-sum { display: none; align-items: center; gap: 6px; font-size: .78rem; color: #475569; margin: 2px 0;
+            white-space: nowrap; }
+        body.cd-compact .guest-card:not(.cd-open) > .cd-sum { display: flex; }
+        .cd-sum .cd-dates { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+        .cd-sum b { color: #0f172a; margin-left: auto; }
+        .cd-sum .cd-more { font-size: .8rem; color: #94a3b8; font-weight: 800; }
+        /* Unplaced guest: say it instead of a lone 🏠 */
+        body.cd-compact .guest-card:not(.cd-open) .apt-selector:has(.apt-picker.open) .apt-icon-prefix::after {
+            content: ' chưa xếp căn'; font-size: .72rem; font-weight: 700; color: #b45309; }
+        .cd-st::before { content: ''; }
+        .guest-card.status-confirmed .cd-st::before { content: '✅'; }
+        .guest-card.status-cancelling .cd-st::before { content: '🚫'; }
+        #checkin-cards .guest-card:not(.status-confirmed):not(.status-cancelling) .cd-st::before { content: '⏳'; }
+        .cd-close { display: none; }
+        body.cd-compact .guest-card.cd-open > .cd-close { display: block; text-align: center; font-size: .75rem;
+            font-weight: 700; color: #64748b; padding: 6px 0 0; }
+        .guest-zalo { font-size: 0.6rem; font-weight: 800; padding: 1px 7px; border-radius: 20px; text-decoration: none;
+            flex-shrink: 0; background: #e0edff; color: #0050c8; border: 1px solid #a8c8ff; }
+        body.cd-compact .guest-phone, body.cd-compact .guest-wa, body.cd-compact .guest-zalo { font-size: .72rem !important; padding: 3px 9px !important; }
+        @media (max-width: 768px) {
+            .cd-fab-label { display: none; }
+            .cd-fab { padding: 11px 13px !important; font-size: 1.05rem !important; }
+        }
+    </style>
+    <div class="cd-toolbar">
+        <div class="cd-jump">
+            <a href="#" class="j-in" data-target="checkin-cards">🛬 Đến <b>{{ check_in|length }}</b></a>
+            <a href="#" class="j-stay" data-target="staying-cards">🏨 Ở <b>{{ staying_over|length }}</b></a>
+            <a href="#" class="j-out" data-target="checkout-cards">🛫 Trả <b>{{ check_out|length }}</b></a>
+        </div>
+        <div class="cd-tools">
+            <button type="button" id="cdModeBtn" title="Chuyển thẻ gọn / đầy đủ"></button>
+            <a href="/messages#edit" title="Sửa tin nhắn tự động">💬</a>
+        </div>
     </div>
 
     <!-- 🎯 THREE COLUMNS LAYOUT: Check-in, Staying, Checkout side by side -->
@@ -5927,7 +5997,7 @@ async function loadArrivalTimes() {
 <!-- END CONTAINER -->
 
 <!-- Mobile check-in floating button -->
-<a href="/mobile_checkin/{{ date_str }}" title="Mở trang quản lý check-in cho mobile"
+<a href="/mobile_checkin/{{ date_str }}" title="Mở trang quản lý check-in cho mobile" class="cd-fab"
    style="
     position:fixed; bottom:24px; right:20px; z-index:8000;
     background:linear-gradient(135deg,#2e7d32,#1b5e20);
@@ -5936,11 +6006,11 @@ async function loadArrivalTimes() {
     font-size:0.85rem; font-weight:800; text-decoration:none;
     display:flex; align-items:center; gap:7px;
     border:2px solid rgba(255,255,255,0.3);">
-    📱 Mobile Check-in
+    📱<span class="cd-fab-label"> Mobile Check-in</span>
 </a>
 
 <!-- ===== FLOATING HISTORY BUTTON ===== -->
-<button onclick="openGlobalHistory()" title="Lịch sử chỉnh sửa" style="
+<button onclick="openGlobalHistory()" title="Lịch sử chỉnh sửa" class="cd-fab" style="
     position:fixed; bottom:80px; left:20px; z-index:8000;
     background:linear-gradient(135deg,#1565c0,#0d47a1);
     color:#fff; border:none; border-radius:50px; padding:11px 18px;
@@ -5948,7 +6018,7 @@ async function loadArrivalTimes() {
     font-size:0.85rem; font-weight:800; cursor:pointer;
     display:flex; align-items:center; gap:7px;
     border:2px solid rgba(255,255,255,0.25);">
-    🕐 Lịch Sử
+    🕐<span class="cd-fab-label"> Lịch Sử</span>
 </button>
 
 <!-- ===== GLOBAL HISTORY MODAL ===== -->
@@ -6421,5 +6491,81 @@ function showQuickToast(msg, type) {
         </div>
     </div>
 </div>
+
+<script>
+(function () {
+    // ── Pre-written message on the WhatsApp / Zalo chips (edited on /messages, shared by every device) ──
+    const AUTO_MSG = {{ auto_msg|tojson }};
+    // Booking names often end with the country code ("Lucas de Kok nl") — not part of the greeting
+    const cleanName = n => String(n || '').replace(/\s+[a-z]{2}$/, '').trim();
+    const fill = d => AUTO_MSG
+        .replace(/\{ten\}/g, cleanName(d.ten) || 'bạn').replace(/\{nhan\}/g, d.nhan || '')
+        .replace(/\{tra\}/g, d.tra || '').replace(/\{phong\}/g, d.phong ? ' (' + d.phong + ')' : '');
+    function copyText(text) {
+        const ok = () => { if (typeof showCalToast === 'function') showCalToast('📋 Đã chép tin — dán vào Zalo rồi gửi', 'info'); };
+        const fallback = () => {
+            const ta = document.createElement('textarea'); ta.value = text; document.body.appendChild(ta);
+            ta.select(); try { document.execCommand('copy'); } catch (e) {} ta.remove(); ok();
+        };
+        try { navigator.clipboard.writeText(text).then(ok, fallback); } catch (e) { fallback(); }
+    }
+    document.querySelectorAll('.msg-link').forEach(a => {
+        const msg = fill(a.dataset);
+        if (a.dataset.ch === 'wa') a.href = 'https://wa.me/' + a.dataset.num + '?text=' + encodeURIComponent(msg);
+        else a.addEventListener('click', () => copyText(msg));   // Zalo cannot pre-fill: copy, then it opens
+    });
+
+    // ── Compact cards: one summary line per guest, tap to open the full card ──
+    const span = (cls, text) => { const s = document.createElement('span'); if (cls) s.className = cls; s.textContent = text; return s; };
+    document.querySelectorAll('.guest-card').forEach(card => {
+        const dates = card.querySelector('.detail-checkout');
+        const nights = card.querySelector('.detail-nights');
+        const amount = card.querySelector('.detail-amount');
+        const sum = document.createElement('div');
+        sum.className = 'cd-sum';
+        sum.appendChild(span('cd-st', ''));
+        sum.appendChild(span('cd-dates', (dates ? dates.textContent.trim() : '') + (nights ? ' · ' + nights.textContent.trim() : '')));
+        if (amount) { const b = document.createElement('b'); b.textContent = amount.textContent.trim(); sum.appendChild(b); }
+        sum.appendChild(span('cd-more', '▾'));
+        const anchor = card.querySelector(':scope > .room-type') || card.querySelector(':scope > .guest-header');
+        if (anchor) anchor.after(sum); else card.prepend(sum);
+        const close = document.createElement('div');
+        close.className = 'cd-close'; close.textContent = '▴ Thu gọn';
+        card.appendChild(close);
+    });
+    const INTERACTIVE = 'a, button, input, select, textarea, label, .apt-selector, .pay-area, .quick-status-bar, [onclick]';
+    document.addEventListener('click', e => {
+        if (!document.body.classList.contains('cd-compact')) return;
+        const card = e.target.closest('.guest-card');
+        if (!card) return;
+        if (e.target.closest('.cd-close')) { card.classList.remove('cd-open'); return; }
+        if (card.classList.contains('cd-open') || e.target.closest(INTERACTIVE)) return;
+        card.classList.add('cd-open');
+    });
+
+    const MODE_KEY = 'hotelpro.cd.mode';
+    const modeBtn = document.getElementById('cdModeBtn');
+    function setMode(m) {
+        document.body.classList.toggle('cd-compact', m === 'compact');
+        modeBtn.textContent = m === 'compact' ? '📄 Đủ' : '📋 Gọn';    // what a tap switches to
+    }
+    modeBtn.addEventListener('click', () => {
+        const m = document.body.classList.contains('cd-compact') ? 'full' : 'compact';
+        setMode(m);
+        try { localStorage.setItem(MODE_KEY, m); } catch (e) {}
+    });
+    let saved = null;
+    try { saved = localStorage.getItem(MODE_KEY); } catch (e) {}
+    setMode(saved || (window.innerWidth < 768 ? 'compact' : 'full'));   // phones start compact
+
+    // ── Jump to a section (the toolbar stays on top) ──
+    document.querySelectorAll('.cd-jump a').forEach(a => a.addEventListener('click', e => {
+        e.preventDefault();
+        const box = document.getElementById(a.dataset.target);
+        const el = (box && box.previousElementSibling) || box;
+        if (el) window.scrollTo({ top: el.getBoundingClientRect().top + window.scrollY - 64, behavior: 'smooth' });
+    }));
+})();
+</script>
 
 {% endblock %}
