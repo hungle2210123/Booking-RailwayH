@@ -146,6 +146,26 @@ def _from_lines(lines, field):
     return None
 
 
+_VND_LINE = re.compile(r'^(vnd|₫|đ)?\s?[\d.,]{4,}\s?(vnd|₫|đ)?$', re.I)
+_ALL_LABELS = [v for vs in LABELS.values() for v in vs]
+
+
+def _room_block(lines):
+    """The detail page has no "room type" label: the room box shows its title, then the price, then the dates
+    ("Suite Có Sân Hiên (104 TN)" / "VND 664.000" / "CN, 4 tháng 10 2026"). Several rooms → joined with ' + '."""
+    found = []
+    for i in range(len(lines) - 2):
+        t, price, nxt = lines[i], lines[i + 1], lines[i + 2]
+        f = _fold(t)
+        if not _VND_LINE.match(price.replace(' ', ' ')) or not parse_date(nxt):
+            continue
+        if any(f == v or f.startswith(v + ':') for v in _ALL_LABELS) or f.startswith(('tong', 'total', 'khoan', 'hoa hong')):
+            continue
+        if looks_like_room(t) and t not in found:
+            found.append(t)
+    return ' + '.join(found) or None
+
+
 def _value(page, lines, field):
     return _from_pairs(page.get('pairs'), field) or _from_lines(lines, field)
 
@@ -202,7 +222,7 @@ def parse_reservation_page(page):
     g = re.search(r'\d+', _value(page, lines, 'guests') or '')
     out['guests'] = int(g.group(0)) if g else None
     room = _value(page, lines, 'room')
-    out['listing'] = room if looks_like_room(room) else None
+    out['listing'] = room if looks_like_room(room) else _room_block(lines)
 
     head = _fold(' '.join(lines[:40]))
     if any(w in head for w in NOSHOW_WORDS):
