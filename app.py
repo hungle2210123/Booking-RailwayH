@@ -2091,11 +2091,234 @@ def booking_card_data(booking_id):
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
+# ── Guest journey messages (core/journey.py) ─────────────────────────────────────────
+
+def _journey():
+    from core.models import db as _xdb
+    from core import journey as J
+    J.ensure(_xdb.session)
+    return _xdb, J
+
+
+def _jsonable_steps(J):
+    return [{k: (list(v) if isinstance(v, tuple) else v) for k, v in s.items()} for s in J.STEPS]
+
+
+@app.route('/journey')
+def journey_settings():
+    """Which Mẫu Câu template + pictures each journey step sends, per apartment."""
+    return render_template('journey_settings.html')
+
+
+@app.route('/api/journey/config')
+def journey_config():
+    try:
+        _xdb, J = _journey()
+        tpls = J.templates_brief(_xdb.session)
+        imgs = J.images_of(_xdb.session, [t['id'] for t in tpls if t['images']])
+        lost = _xdb.session.execute(text("SELECT COUNT(*) FROM template_images WHERE image_data IS NULL")).scalar()
+        jmap = J.load_map(_xdb.session)
+        return jsonify({'success': True, 'steps': _jsonable_steps(J), 'apartments': J.apartments(_xdb.session),
+                        'map': {s: {str(a): t for a, t in m.items()} for s, m in jmap.items()},
+                        'templates': tpls, 'images': {str(k): v for k, v in imgs.items()}, 'lost_images': lost})
+    except Exception as e:
+        from core.models import db as _xdb
+        _xdb.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/journey/map', methods=['POST'])
+def journey_map_set():
+    _xdb, J = _journey()
+    body = request.get_json(silent=True) or {}
+    step = body.get('step')
+    try:
+        apt = int(body.get('apartment_id') or 0)
+        tid = int(body['template_id']) if body.get('template_id') else None
+    except (TypeError, ValueError):
+        return jsonify({'success': False, 'error': 'Dữ liệu không hợp lệ'}), 400
+    if step not in J.STEP_KEYS:
+        return jsonify({'success': False, 'error': 'Bước không hợp lệ'}), 400
+    if tid:
+        _xdb.session.execute(text("""
+            INSERT INTO journey_map (step, apartment_id, template_id) VALUES (:s, :a, :t)
+            ON CONFLICT (step, apartment_id) DO UPDATE SET template_id = EXCLUDED.template_id"""),
+            {'s': step, 'a': apt, 't': tid})
+    else:
+        _xdb.session.execute(text("DELETE FROM journey_map WHERE step = :s AND apartment_id = :a"), {'s': step, 'a': apt})
+    _xdb.session.commit()
+    return jsonify({'success': True})
+
+
+@app.route('/api/journey/images/<int:template_id>', methods=['POST'])
+def journey_images_add(template_id):
+    """Pictures for a template, uploaded from the phone (already resized there); kept in the database."""
+    _xdb, J = _journey()
+    items = (request.get_json(silent=True) or {}).get('images') or []
+    if not _xdb.session.execute(text("SELECT 1 FROM message_templates WHERE template_id = :t"), {'t': template_id}).fetchone():
+        return jsonify({'success': False, 'error': 'Không có mẫu này'}), 404
+    try:
+        _xdb.session.execute(text(
+            "SELECT setval(pg_get_serial_sequence('template_images', 'image_id'), "
+            "GREATEST((SELECT COALESCE(MAX(image_id), 0) FROM template_images), 1))"))
+        order = _xdb.session.execute(text(
+            "SELECT COALESCE(MAX(image_order), 0) FROM template_images WHERE template_id = :t"), {'t': template_id}).scalar()
+        added = []
+        import uuid
+        for d in items[:12]:
+            mime, raw = _decode_data_url(d, max_bytes=4 * 1024 * 1024)
+            if not raw:
+                continue
+            order += 1
+            fname = f"db_{template_id}_{uuid.uuid4().hex[:10]}.{'png' if mime == 'image/png' else 'jpg'}"
+            iid = _xdb.session.execute(text("""
+                INSERT INTO template_images (template_id, image_path, image_filename, image_order, image_data, image_mime,
+                                             created_at, updated_at)
+                VALUES (:t, 'db', :f, :o, :d, :m, NOW(), NOW()) RETURNING image_id"""),
+                {'t': template_id, 'f': fname, 'o': order, 'd': raw, 'm': mime}).scalar()
+            added.append({'id': iid, 'url': f'/api/journey/image/{iid}'})
+        _xdb.session.commit()
+        return jsonify({'success': True, 'added': added})
+    except Exception as e:
+        _xdb.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/journey/images/<int:image_id>', methods=['DELETE'])
+def journey_image_delete(image_id):
+    _xdb, J = _journey()
+    _xdb.session.execute(text("DELETE FROM template_images WHERE image_id = :i"), {'i': image_id})
+    _xdb.session.commit()
+    return jsonify({'success': True})
+
+
+@app.route('/api/journey/image/<int:image_id>')
+def journey_image(image_id):
+    _xdb, J = _journey()
+    row = _xdb.session.execute(text("SELECT image_data, image_mime FROM template_images WHERE image_id = :i"),
+                               {'i': image_id}).fetchone()
+    if not row or row[0] is None:
+        return jsonify({'success': False, 'error': 'Không có ảnh'}), 404
+    resp = app.response_class(bytes(row[0]), mimetype=row[1] or 'image/jpeg')
+    resp.headers['Cache-Control'] = 'public, max-age=31536000, immutable'   # an id never changes content
+    return resp
+
+
+def _journey_booking(_xdb, booking_id):
+    from core import journey as J
+    J.ensure(_xdb.session)
+    _ensure_partner_column()
+    row = _xdb.session.execute(text("""
+        SELECT b.booking_id, COALESCE(g.full_name, b.guest_name), b.checkin_date, b.checkout_date,
+               b.accommodation_name, g.phone, b.actual_apartment, b.via_partner
+        FROM bookings b LEFT JOIN guests g ON g.guest_id = b.guest_id WHERE b.booking_id = :b"""),
+        {'b': booking_id}).fetchone()
+    if not row:
+        return None
+    apts = {a['id']: a for a in J.apartments(_xdb.session)}
+    apt_id = J.apt_id_of(row[6])
+    apt = apts.get(apt_id)
+    guest = {'ten': row[1] or '', 'nhan': row[2].strftime('%d/%m') if row[2] else '',
+             'tra': row[3].strftime('%d/%m') if row[3] else '', 'phong': _room_label(row[4]),
+             'can': apt['name'] if apt else ''}
+    partner = bool(row[7])
+    return {'id': row[0], 'name': row[1] or row[0], 'checkin': row[2], 'checkout': row[3], 'guest': guest,
+            'phone': '' if partner else (row[5] or ''), 'links': None if partner else _msg_phone_links(row[5]),
+            'partner': partner, 'apt_id': apt_id if apt else None, 'apt': apt, 'apartments': list(apts.values())}
+
+
+def _journey_texts(_xdb, tids):
+    rows = _xdb.session.execute(text(
+        "SELECT template_id, template_name, template_content FROM message_templates WHERE template_id = ANY(:t)"),
+        {'t': [t for t in set(tids) if t]}).fetchall() if any(tids) else []
+    return {r[0]: {'id': r[0], 'name': r[1], 'content': r[2] or ''} for r in rows}
+
+
+@app.route('/api/journey/guest/<booking_id>')
+def journey_guest(booking_id):
+    """Everything the 'send' sheet needs for one guest: each step's message (for the guest's apartment),
+    pictures, whether it was sent, and which step is due next."""
+    try:
+        _xdb, J = _journey()
+        b = _journey_booking(_xdb, booking_id)
+        if not b:
+            return jsonify({'success': False, 'error': 'Không tìm thấy đặt phòng'}), 404
+        jmap = J.load_map(_xdb.session)
+        sent = J.sent_status(_xdb.session, [booking_id]).get(booking_id, {})
+        tids = {s['key']: J.template_for(jmap, s['key'], b['apt_id']) for s in J.STEPS}
+        texts = _journey_texts(_xdb, list(tids.values()))
+        imgs = J.images_of(_xdb.session, list(tids.values()))
+        _ensure_shot_table()
+        has_shot = bool(_xdb.session.execute(text("SELECT 1 FROM booking_screenshots WHERE booking_id = :b"),
+                                             {'b': booking_id}).fetchone())
+        today = (datetime.utcnow() + timedelta(hours=7)).date()
+        steps = []
+        for s in J.STEPS:
+            # Steps that differ per apartment (route, luggage, payment box) wait until the guest is placed —
+            # the default text could describe the wrong building.
+            unplaced = s['per_apt'] and b['apt_id'] is None
+            t = None if unplaced else texts.get(tids[s['key']])
+            pics = [] if unplaced else list(imgs.get(tids[s['key']], []))
+            if s.get('booking_image') and has_shot:
+                pics.insert(0, {'id': 'booking', 'url': f'/api/booking_screenshot/{booking_id}?v=guest', 'booking': True})
+            steps.append({'key': s['key'], 'emoji': s['emoji'], 'label': s['label'],
+                          'template': {'id': t['id'], 'name': t['name']} if t else None,
+                          'text': J.fill(t['content'], b['guest']) if t else '',
+                          'images': pics, 'sent_at': sent.get(s['key']),
+                          'needs_apt': bool(unplaced)})
+        return jsonify({'success': True, 'steps': steps,
+                        'recommended': J.recommended_step(sent, b['checkin'], b['checkout'], today),
+                        'booking': {'id': b['id'], 'name': J.clean_name(b['name']), 'nhan': b['guest']['nhan'],
+                                    'tra': b['guest']['tra'], 'phong': b['guest']['phong'], 'phone': b['phone'],
+                                    'links': b['links'], 'partner': b['partner'],
+                                    'apt': b['apt'], 'apartments': b['apartments']}})
+    except Exception as e:
+        from core.models import db as _xdb
+        _xdb.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/journey/templates')
+def journey_templates():
+    _xdb, J = _journey()
+    return jsonify({'success': True, 'templates': J.templates_brief(_xdb.session)})
+
+
+@app.route('/api/journey/compose')
+def journey_compose():
+    """Any Mẫu Câu template, filled in for this guest ('➕ Tin khác')."""
+    _xdb, J = _journey()
+    try:
+        tid = int(request.args.get('template_id') or 0)
+    except ValueError:
+        tid = 0
+    b = _journey_booking(_xdb, request.args.get('booking_id') or '')
+    t = _journey_texts(_xdb, [tid]).get(tid)
+    if not b or not t:
+        return jsonify({'success': False, 'error': 'Không tìm thấy'}), 404
+    return jsonify({'success': True, 'template': {'id': t['id'], 'name': t['name']},
+                    'text': J.fill(t['content'], b['guest']), 'images': J.images_of(_xdb.session, [tid]).get(tid, [])})
+
+
+@app.route('/api/journey/sent', methods=['POST'])
+def journey_sent():
+    _xdb, J = _journey()
+    body = request.get_json(silent=True) or {}
+    bid, step = str(body.get('booking_id') or '').strip(), body.get('step')
+    if not bid or step not in J.STEP_KEYS:
+        return jsonify({'success': False, 'error': 'Dữ liệu không hợp lệ'}), 400
+    J.log_sent(_xdb.session, bid, step, bool(body.get('sent', True)))
+    return jsonify({'success': True})
+
+
 @app.route('/messages')
 def messages_page():
-    """Mobile-first page: upcoming guests with a phone, each with WhatsApp / SMS / Zalo
-    buttons and a pre-filled message, so the owner can greet them from their phone."""
+    """Phone page for messaging guests: arriving (or staying) guests, each with the journey strip
+    (👋 🕐 🛂 🧳 🔑 💳 ⭐) — what was sent, what is due next — and a send sheet (static/js/journey.js)."""
     from core.models import db as _xdb
+    from core import journey as J
+    J.ensure(_xdb.session)
+    view = 'staying' if request.args.get('view') == 'staying' else 'arriving'
     try:
         days = max(1, min(int(request.args.get('days', 3)), 14))
     except (TypeError, ValueError):
@@ -2103,36 +2326,41 @@ def messages_page():
     today = (datetime.utcnow() + timedelta(hours=7)).date()
     end = today + timedelta(days=days - 1)
     _ensure_partner_column()
-    rows = _xdb.session.execute(text("""
+    where = ("b.checkin_date < :today AND b.checkout_date >= :today" if view == 'staying'
+             else "b.checkin_date >= :today AND b.checkin_date <= :end")
+    rows = _xdb.session.execute(text(f"""
         SELECT b.booking_id, COALESCE(g.full_name, b.guest_name) AS name,
-               b.checkin_date, b.checkout_date, b.accommodation_name, g.phone, b.via_partner
+               b.checkin_date, b.checkout_date, b.accommodation_name, g.phone, b.via_partner, b.actual_apartment
         FROM bookings b LEFT JOIN guests g ON g.guest_id = b.guest_id
-        WHERE b.checkin_date >= :a AND b.checkin_date <= :b
+        WHERE {where}
           AND COALESCE(b.booking_status, '') NOT IN ('cancelled', 'deleted')
           AND COALESCE(b.checkin_status, '') NOT IN ('cancelling', 'no_show')
         ORDER BY b.checkin_date, name
-    """), {'a': today, 'b': end}).fetchall()
+    """), {'today': today, 'end': end}).fetchall()
 
+    sent = J.sent_status(_xdb.session, [r[0] for r in rows])
+    apts = {a['id']: a for a in J.apartments(_xdb.session)}
     guests, no_phone, partner = [], [], []
     for r in rows:
         ci, co = r[2], r[3]
+        apt = apts.get(J.apt_id_of(r[7]))
+        done = sent.get(r[0], {})
         item = {
-            'booking_id': r[0], 'name': (r[1] or r[0]).strip(),
+            'booking_id': r[0], 'name': J.clean_name((r[1] or r[0]).strip()),
             'nhan': ci.strftime('%d/%m') if ci else '', 'tra': co.strftime('%d/%m') if co else '',
-            'ngay_full': ci.strftime('%d/%m/%Y') if ci else '', 'ci_iso': ci.isoformat() if ci else '',
             'phong': _room_label(r[4]), 'phone': r[5] or '',
+            'apt': apt['name'] if apt else '',
+            'sent': done, 'next': J.recommended_step(done, ci, co, today),
         }
-        links = _msg_phone_links(r[5])
         if r[6]:                       # partner booking: any number on file is the partner's
             partner.append(item)
-        elif links:
-            item.update(links)
+        elif _msg_phone_links(r[5]):
             guests.append(item)
         else:
             no_phone.append(item)
     return render_template('messages.html', guests=guests, no_phone=no_phone, partner=partner,
-                           days=days, today_str=today.strftime('%d/%m/%Y'), total=len(rows),
-                           templates=_auto_msg_templates(), auto_category=AUTO_MSG_CATEGORY)
+                           view=view, days=days, today_str=today.strftime('%d/%m/%Y'), total=len(rows),
+                           steps=J.STEPS)
 
 
 @app.route('/bookings')
@@ -10506,10 +10734,19 @@ def serve_template_image(filename):
                 print(f"📋 Serving image from: {full_path}")
                 return send_from_directory(template_images_dir, filename)
         
-        # If not found in any directory, log the issue
-        print(f"❌ Image not found in any directory: {filename}")
-        print(f"📋 Checked directories: {possible_dirs}")
-        
+        # Pictures added from "⚙️ Tin & ảnh" are stored in the database (Railway's disk is wiped on deploy)
+        from core.models import db as _xdb
+        from core import journey as _J
+        _J.ensure(_xdb.session)
+        row = _xdb.session.execute(text(
+            "SELECT image_data, image_mime FROM template_images WHERE image_filename = :f AND image_data IS NOT NULL"),
+            {'f': filename}).fetchone()
+        if row:
+            resp = app.response_class(bytes(row[0]), mimetype=row[1] or 'image/jpeg')
+            resp.headers['Cache-Control'] = 'public, max-age=31536000, immutable'
+            return resp
+
+        print(f"❌ Image not found: {filename}")
         return jsonify({'error': 'Image not found'}), 404
         
     except Exception as e:

@@ -1,0 +1,317 @@
+// Guest journey "send" sheet: one guest, one step (👋 🕐 🛂 🧳 🔑 💳 ⭐) at a time — the message for the
+// guest's apartment (editable), its pictures, and the ways to send it. Used by /messages and calendar_details.
+//   Journey.open(bookingId, stepKey)      stepKey '__more' = pick any Mẫu Câu template
+// wa.me links carry text only, so a step with pictures is sent through the phone's share sheet
+// (pictures + text together); the text is also copied, in case the app drops it.
+(function () {
+  const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  let st = null;            // { bid, data, step, text, files, more: {template, text, images} }
+
+  function css() {
+    if (document.getElementById('jr-css')) return;
+    const s = document.createElement('style');
+    s.id = 'jr-css';
+    s.textContent = `
+      .jr-ov{position:fixed;inset:0;z-index:99990;background:rgba(15,23,42,.55);display:flex;align-items:flex-end;justify-content:center;}
+      .jr{background:#fff;width:100%;max-width:560px;max-height:93vh;overflow:auto;border-radius:18px 18px 0 0;
+          box-shadow:0 -10px 40px rgba(0,0,0,.3);padding:0 14px 16px;font-family:inherit;}
+      @media(min-width:700px){.jr-ov{align-items:center}.jr{border-radius:18px}}
+      .jr-h{position:sticky;top:0;background:#fff;padding:12px 0 8px;z-index:2;border-bottom:1px solid #f1f5f9;}
+      .jr-top{display:flex;align-items:center;gap:8px;}
+      .jr-name{flex:1;min-width:0;font-weight:800;font-size:1.02rem;color:#0f172a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+      .jr-x{border:none;background:#f1f5f9;width:34px;height:34px;border-radius:50%;font-weight:800;cursor:pointer;flex-shrink:0;}
+      .jr-meta{font-size:.78rem;color:#64748b;margin-top:2px;}
+      .jr-apt{display:inline-block;font-size:.7rem;font-weight:800;border-radius:999px;padding:1px 8px;background:#e0f2fe;color:#075985;margin-left:4px;}
+      .jr-pick{margin-top:6px;padding:7px 8px;background:#fffbeb;border:1px solid #fde68a;border-radius:10px;font-size:.78rem;color:#92400e;}
+      .jr-pick button{margin:4px 4px 0 0;border:1.5px solid #f59e0b;background:#fff;color:#92400e;font-weight:800;border-radius:9px;padding:5px 9px;cursor:pointer;font-family:inherit;font-size:.78rem;}
+      .jr-steps{display:flex;gap:6px;overflow-x:auto;padding:8px 0 2px;scrollbar-width:none;}
+      .jr-steps::-webkit-scrollbar{display:none}
+      .jr-steps button{flex-shrink:0;border:1.5px solid #e2e8f0;background:#f8fafc;border-radius:999px;padding:5px 10px;
+          font-size:.76rem;font-weight:700;color:#334155;cursor:pointer;font-family:inherit;white-space:nowrap;}
+      .jr-steps button.on{background:#0f172a;color:#fff;border-color:#0f172a;}
+      .jr-steps button.sent{border-color:#86efac;background:#dcfce7;color:#166534;}
+      .jr-steps button.sent.on{background:#166534;color:#fff;border-color:#166534;}
+      .jr-steps button.next{border-color:#2563eb;}
+      .jr-tpl{font-size:.74rem;color:#64748b;margin:10px 0 4px;}
+      .jr-tpl b{color:#334155;}
+      .jr-ta{width:100%;min-height:150px;border:1.5px solid #e2e8f0;border-radius:12px;padding:9px;font-size:.9rem;line-height:1.45;
+          font-family:inherit;resize:vertical;box-sizing:border-box;}
+      .jr-imgs{display:flex;gap:7px;overflow-x:auto;margin-top:8px;}
+      .jr-imgs img{height:96px;border-radius:9px;border:1px solid #e2e8f0;cursor:zoom-in;flex-shrink:0;background:#f8fafc;}
+      .jr-noimg{font-size:.74rem;color:#94a3b8;margin-top:6px;}
+      .jr-btns{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:11px;}
+      .jr-btns a,.jr-btns button{display:flex;align-items:center;justify-content:center;gap:5px;border:none;border-radius:12px;
+          padding:12px 6px;font-weight:800;font-size:.9rem;cursor:pointer;text-decoration:none;font-family:inherit;color:#fff;text-align:center;}
+      .jr-btns .wide{grid-column:1/-1;font-size:1rem;}
+      .jr-share{background:#16a34a;} .jr-wa{background:#25d366;} .jr-zalo{background:#0068ff;} .jr-sms{background:#2563eb;}
+      .jr-copy{background:#475569;} .jr-imgonly{background:#7c3aed;}
+      .jr-btns .off{opacity:.45;pointer-events:none;}
+      .jr-sent{display:flex;align-items:center;gap:8px;margin-top:12px;font-size:.85rem;font-weight:700;color:#334155;}
+      .jr-sent input{width:20px;height:20px;}
+      .jr-note{font-size:.76rem;color:#64748b;margin-top:8px;line-height:1.45;}
+      .jr-warn{font-size:.82rem;color:#92400e;background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:9px 10px;margin-top:10px;}
+      .jr-search{width:100%;border:1.5px solid #e2e8f0;border-radius:10px;padding:8px 10px;font-size:.9rem;margin-top:10px;box-sizing:border-box;font-family:inherit;}
+      .jr-cat{font-size:.74rem;font-weight:800;color:#64748b;margin:10px 0 4px;}
+      .jr-t{display:block;width:100%;text-align:left;border:1px solid #e2e8f0;background:#fff;border-radius:10px;padding:8px 10px;margin-bottom:5px;
+          font-size:.84rem;font-weight:600;color:#0f172a;cursor:pointer;font-family:inherit;}
+      .jr-t small{color:#7c3aed;font-weight:800;}
+      .jr-zoom{position:fixed;inset:0;z-index:99995;background:rgba(0,0,0,.88);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:14px;gap:10px;}
+      .jr-zoom img{max-width:100%;max-height:78vh;border-radius:8px;}
+      .jr-zoom div{display:flex;gap:8px;}
+      .jr-zoom button,.jr-zoom a{border:none;border-radius:10px;padding:10px 14px;font-weight:800;cursor:pointer;font-family:inherit;text-decoration:none;color:#0f172a;background:#fff;font-size:.88rem;}
+      .jr-toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);background:#0f172a;color:#fff;font-size:.85rem;padding:9px 16px;
+          border-radius:999px;z-index:99999;opacity:0;transition:opacity .2s;pointer-events:none;}
+      .jr-toast.show{opacity:1;}`;
+    document.head.appendChild(s);
+  }
+
+  function toast(msg) {
+    let t = document.querySelector('.jr-toast');
+    if (!t) { t = document.createElement('div'); t.className = 'jr-toast'; document.body.appendChild(t); }
+    t.textContent = msg; t.classList.add('show');
+    clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove('show'), 2400);
+  }
+  function copyText(text) {
+    const fallback = () => {
+      const ta = document.createElement('textarea'); ta.value = text; document.body.appendChild(ta);
+      ta.select(); try { document.execCommand('copy'); } catch (e) {} ta.remove();
+    };
+    try { return navigator.clipboard.writeText(text).catch(fallback); } catch (e) { fallback(); return Promise.resolve(); }
+  }
+
+  // ── open / load ──────────────────────────────────────────────────────────────
+  async function open(bid, step) {
+    css();
+    close();
+    const ov = document.createElement('div');
+    ov.className = 'jr-ov';
+    ov.innerHTML = '<div class="jr"><div style="padding:30px;text-align:center;font-weight:700;color:#334155">⏳ Đang tải…</div></div>';
+    ov.addEventListener('click', e => { if (e.target === ov) close(); });
+    document.body.appendChild(ov);
+    try {
+      const data = await fetch('/api/journey/guest/' + encodeURIComponent(bid)).then(r => r.json());
+      if (!data.success) throw new Error(data.error || 'Lỗi tải dữ liệu');
+      st = { bid, data, step: step || data.recommended || data.steps[0].key, ov };
+      render();
+    } catch (e) {
+      ov.querySelector('.jr').innerHTML = `<div style="padding:24px;text-align:center;color:#b91c1c;font-weight:700">❌ ${esc(e.message)}</div>`;
+    }
+  }
+  function close() {
+    document.querySelectorAll('.jr-ov').forEach(o => o.remove());
+    st = null;
+  }
+  const curStep = () => st.data.steps.find(s => s.key === st.step);
+
+  // ── render ───────────────────────────────────────────────────────────────────
+  function render() {
+    const b = st.data.booking;
+    const box = st.ov.querySelector('.jr');
+    const steps = st.data.steps.map(s => `<button type="button" data-k="${s.key}"
+        class="${s.key === st.step ? 'on' : ''} ${s.sent_at ? 'sent' : ''} ${s.key === st.data.recommended ? 'next' : ''}">
+        ${s.emoji} ${esc(s.label)}${s.sent_at ? ' ✓' : ''}</button>`).join('')
+      + `<button type="button" data-k="__more" class="${st.step === '__more' ? 'on' : ''}">➕ Tin khác</button>`;
+    const pick = b.apt ? '' : `<div class="jr-pick">⚠️ Khách chưa xếp căn — chọn căn để gửi đúng địa chỉ & hướng dẫn:<br>
+        ${b.apartments.map(a => `<button type="button" data-apt="${a.id}">${esc(a.name)}</button>`).join('')}</div>`;
+    box.innerHTML = `
+      <div class="jr-h">
+        <div class="jr-top"><div class="jr-name">${esc(b.name)}${b.apt ? `<span class="jr-apt">${esc(b.apt.name)}</span>` : ''}</div>
+          <button type="button" class="jr-x" aria-label="Đóng">✕</button></div>
+        <div class="jr-meta">${esc(b.nhan)} → ${esc(b.tra)}${b.phong ? ' · ' + esc(b.phong) : ''}
+          ${b.partner ? ' · 🤝 qua đối tác' : (b.phone ? ' · 📞 ' + esc(b.phone) : ' · chưa có số')}</div>
+        ${pick}
+        <div class="jr-steps">${steps}</div>
+      </div>
+      <div class="jr-body"></div>`;
+    box.querySelector('.jr-x').onclick = close;
+    box.querySelectorAll('.jr-steps button').forEach(btn => btn.onclick = () => { st.step = btn.dataset.k; st.more = null; render(); });
+    box.querySelectorAll('.jr-pick button').forEach(btn => btn.onclick = () => setApartment(btn.dataset.apt));
+    const on = box.querySelector('.jr-steps .on');
+    if (on) on.scrollIntoView({ inline: 'center', block: 'nearest' });
+    if (st.step === '__more') renderMore(box.querySelector('.jr-body'));
+    else renderStep(box.querySelector('.jr-body'), curStep());
+  }
+
+  function renderStep(body, s) {
+    if (s.needs_apt) {
+      body.innerHTML = `<div class="jr-warn">Bước <b>${s.emoji} ${esc(s.label)}</b> khác nhau theo căn — chọn căn của khách ở trên trước.</div>`;
+      return;
+    }
+    if (!s.template) {
+      body.innerHTML = `<div class="jr-warn">Chưa chọn mẫu tin cho bước này${st.data.booking.apt ? ' ở căn ' + esc(st.data.booking.apt.name) : ''}.
+        Vào <a href="/journey">⚙️ Tin &amp; ảnh</a> để chọn.</div>`;
+      return;
+    }
+    editor(body, s.template, s.text, s.images, s);
+  }
+
+  // The editable message + pictures + send buttons (a step, or a template picked in "Tin khác")
+  function editor(body, template, text, images, step) {
+    const b = st.data.booking, L = b.links;
+    st.text = text; st.files = null;
+    body.innerHTML = `
+      <div class="jr-tpl">Mẫu: <b>${esc(template.name)}</b> · sửa được trước khi gửi (vd. số phòng)</div>
+      <textarea class="jr-ta">${esc(text)}</textarea>
+      ${images.length ? `<div class="jr-imgs">${images.map(im => `<img src="${esc(im.url)}" alt="" data-url="${esc(im.url)}">`).join('')}</div>`
+                      : '<div class="jr-noimg">Bước này chưa có ảnh — thêm ở ⚙️ Tin &amp; ảnh.</div>'}
+      <div class="jr-btns"></div>
+      ${step ? `<label class="jr-sent"><input type="checkbox" ${step.sent_at ? 'checked' : ''}> Đã gửi bước này</label>` : ''}
+      <div class="jr-note"></div>`;
+    const ta = body.querySelector('.jr-ta');
+    ta.addEventListener('input', () => { st.text = ta.value; refreshLinks(); });
+    body.querySelectorAll('.jr-imgs img').forEach(img => img.onclick = () => zoom(img.dataset.url));
+    const btns = body.querySelector('.jr-btns');
+    const note = body.querySelector('.jr-note');
+    const shareOk = !!(navigator.canShare);
+    const sent = () => step && markSent(step, true);
+
+    if (images.length && shareOk) {
+      btns.insertAdjacentHTML('beforeend', `<button type="button" class="jr-share wide off">⏳ Đang tải ${images.length} ảnh…</button>`);
+    }
+    if (L) {
+      btns.insertAdjacentHTML('beforeend', `
+        <a class="jr-wa ${images.length ? '' : 'wide'}" target="_blank" rel="noopener">🟢 WhatsApp${images.length ? ' (chữ)' : ''}</a>
+        <a class="jr-zalo" target="_blank" rel="noopener">🔵 Zalo</a>
+        <a class="jr-sms">💬 SMS</a>`);
+    }
+    btns.insertAdjacentHTML('beforeend', `<button type="button" class="jr-copy">📋 Chép tin</button>`);
+    if (images.length && shareOk) btns.insertAdjacentHTML('beforeend', `<button type="button" class="jr-imgonly off">🖼 Chỉ gửi ảnh</button>`);
+
+    function refreshLinks() {
+      if (!L) return;
+      const enc = encodeURIComponent(st.text);
+      btns.querySelector('.jr-wa').href = `https://wa.me/${L.wa}?text=${enc}`;
+      btns.querySelector('.jr-zalo').href = `https://zalo.me/${L.zalo}`;
+      btns.querySelector('.jr-sms').href = `sms:${L.sms}?&body=${enc}`;
+    }
+    refreshLinks();
+    if (L) {
+      btns.querySelector('.jr-wa').addEventListener('click', sent);
+      btns.querySelector('.jr-sms').addEventListener('click', sent);
+      btns.querySelector('.jr-zalo').addEventListener('click', () => { copyText(st.text); toast('Đã chép tin — dán vào Zalo'); sent(); });
+    }
+    btns.querySelector('.jr-copy').onclick = () => { copyText(st.text); toast('Đã chép tin nhắn'); };
+
+    note.innerHTML = b.partner
+      ? '🤝 Khách đặt qua đối tác: chép tin rồi dán vào khung chat Booking (trên máy tính có nút 💬 Điền tin).'
+      : (images.length && shareOk
+          ? '<b>Gửi tin + ảnh</b> → chọn WhatsApp (hoặc Zalo) → chọn khách → Gửi. Lần đầu nhắn khách mới: bấm <b>WhatsApp (chữ)</b> trước để mở đúng chat, rồi gửi ảnh.'
+          : (L ? 'Bấm <b>WhatsApp</b> → mở đúng chat của khách với tin soạn sẵn → Gửi.' : 'Khách chưa có số: chép tin để gửi qua kênh khác.'));
+
+    // Pictures are fetched now so the share sheet can open straight from the tap
+    if (images.length && shareOk) {
+      Promise.all(images.map((im, i) => fetch(im.url).then(r => r.ok ? r.blob() : null).then(bl => bl &&
+        new File([bl], `${(template.name || 'guide').replace(/[^\w-]+/g, '_').slice(0, 30)}-${i + 1}.${bl.type === 'image/png' ? 'png' : 'jpg'}`, { type: bl.type || 'image/jpeg' }))))
+        .then(files => {
+          if (!st) return;
+          st.files = files.filter(Boolean);
+          const share = btns.querySelector('.jr-share'), only = btns.querySelector('.jr-imgonly');
+          if (!st.files.length || !navigator.canShare({ files: st.files })) {
+            share.textContent = 'Máy này không gửi ảnh trực tiếp được'; return;
+          }
+          share.classList.remove('off'); only.classList.remove('off');
+          share.textContent = `📤 Gửi tin + ${st.files.length} ảnh`;
+          share.onclick = () => {
+            copyText(st.text);                        // in case the app keeps only the pictures
+            navigator.share({ files: st.files, text: st.text }).then(sent).catch(e => {
+              if (e.name !== 'AbortError') note.textContent = '❌ ' + e.message;
+            });
+          };
+          only.onclick = () => navigator.share({ files: st.files }).then(sent).catch(() => {});
+        });
+    }
+    const cb = body.querySelector('.jr-sent input');
+    if (cb) cb.onchange = () => markSent(step, cb.checked);
+  }
+
+  // ── "➕ Tin khác": any template from Mẫu Câu ───────────────────────────────────
+  async function renderMore(body) {
+    if (st.more) { editor(body, st.more.template, st.more.text, st.more.images, null); return; }
+    body.innerHTML = '<div style="padding:16px;color:#64748b">⏳ Đang tải mẫu…</div>';
+    const r = await fetch('/api/journey/templates').then(x => x.json()).catch(() => null);
+    if (!r || !r.success) { body.innerHTML = '<div class="jr-warn">Không tải được danh sách mẫu.</div>'; return; }
+    const draw = q => {
+      const f = s => (s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/g, 'd');
+      const list = r.templates.filter(t => !q || f(t.name + ' ' + t.category).includes(f(q)));
+      const groups = {};
+      list.forEach(t => (groups[t.category || 'Khác'] = groups[t.category || 'Khác'] || []).push(t));
+      return Object.keys(groups).sort((a, b) => a.localeCompare(b, 'vi', { numeric: true })).map(c =>
+        `<div class="jr-cat">${esc(c)}</div>` + groups[c].map(t =>
+          `<button type="button" class="jr-t" data-id="${t.id}">${esc(t.name)}${t.images ? ` <small>🖼${t.images}</small>` : ''}</button>`).join('')).join('')
+        || '<div class="jr-noimg">Không có mẫu nào khớp.</div>';
+    };
+    body.innerHTML = `<input class="jr-search" placeholder="🔎 Tìm mẫu: check in trễ, taxi, giặt, chìa khoá…"><div class="jr-list">${draw('')}</div>`;
+    const list = body.querySelector('.jr-list');
+    const bind = () => list.querySelectorAll('.jr-t').forEach(btn => btn.onclick = async () => {
+      const c = await fetch(`/api/journey/compose?booking_id=${encodeURIComponent(st.bid)}&template_id=${btn.dataset.id}`).then(x => x.json());
+      if (!c.success) { toast(c.error || 'Lỗi'); return; }
+      st.more = c;
+      editor(body, c.template, c.text, c.images, null);
+    });
+    body.querySelector('.jr-search').addEventListener('input', e => { list.innerHTML = draw(e.target.value); bind(); });
+    bind();
+  }
+
+  // ── actions ──────────────────────────────────────────────────────────────────
+  async function markSent(step, sent) {
+    if (!st || !step) return;
+    const bid = st.bid;
+    step.sent_at = sent ? new Date().toISOString() : null;
+    fetch('/api/journey/sent', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ booking_id: bid, step: step.key, sent }) }).catch(() => {});
+    // refresh the strip on the page (✓ and which step is next)
+    const fresh = await fetch('/api/journey/guest/' + encodeURIComponent(bid)).then(r => r.json()).catch(() => null);
+    if (!fresh || !fresh.success) return;
+    document.querySelectorAll(`.jchip[data-bid="${CSS.escape(bid)}"]`).forEach(chip => {
+      const s = fresh.steps.find(x => x.key === chip.dataset.step);
+      chip.classList.toggle('sent', !!(s && s.sent_at));
+      chip.classList.toggle('next', chip.dataset.step === fresh.recommended);
+    });
+    if (st && st.bid === bid) {
+      st.data.recommended = fresh.recommended;
+      fresh.steps.forEach(s => { const o = st.data.steps.find(x => x.key === s.key); if (o) o.sent_at = s.sent_at; });
+      st.ov.querySelectorAll('.jr-steps button').forEach(btn => {
+        const s = st.data.steps.find(x => x.key === btn.dataset.k);
+        if (!s) return;
+        btn.classList.toggle('sent', !!s.sent_at);
+        btn.classList.toggle('next', s.key === fresh.recommended);
+        btn.innerHTML = `${s.emoji} ${esc(s.label)}${s.sent_at ? ' ✓' : ''}`;
+      });
+    }
+  }
+
+  async function setApartment(aptId) {
+    const r = await fetch('/api/set_actual_apartment', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ booking_id: st.bid, actual_apartment: String(aptId) }) }).then(x => x.json()).catch(() => null);
+    if (!r || r.success === false) { toast('Không lưu được căn'); return; }
+    toast('Đã xếp căn');
+    const step = st.step;
+    await open(st.bid, step);
+    document.querySelectorAll(`.card[data-bid="${CSS.escape(st ? st.bid : '')}"] .apt`).forEach(el => {
+      if (st && st.data.booking.apt) { el.textContent = st.data.booking.apt.name; el.classList.remove('none'); }
+    });
+  }
+
+  function zoom(url) {
+    const z = document.createElement('div');
+    z.className = 'jr-zoom';
+    z.innerHTML = `<img src="${esc(url)}" alt=""><div><a href="${esc(url)}" download>⬇️ Tải ảnh</a>
+      <button type="button" class="c">📋 Sao chép ảnh</button><button type="button" class="x">Đóng</button></div>`;
+    z.addEventListener('click', e => { if (e.target === z) z.remove(); });
+    z.querySelector('.x').onclick = () => z.remove();
+    const png = fetch(url).then(r => r.blob()).then(bl => bl.type === 'image/png' ? bl : new Promise((res, rej) => {
+      const u = URL.createObjectURL(bl), im = new Image();
+      im.onload = () => { const c = document.createElement('canvas'); c.width = im.naturalWidth; c.height = im.naturalHeight;
+        c.getContext('2d').drawImage(im, 0, 0); URL.revokeObjectURL(u); c.toBlob(b => b ? res(b) : rej(), 'image/png'); };
+      im.onerror = rej; im.src = u;
+    }));
+    png.catch(() => {});
+    z.querySelector('.c').onclick = async e => {
+      try { await navigator.clipboard.write([new ClipboardItem({ 'image/png': png })]); e.target.textContent = '✅ Đã chép'; }
+      catch (err) { e.target.textContent = 'Không chép được'; }
+    };
+    document.body.appendChild(z);
+  }
+
+  window.Journey = { open, close };
+})();

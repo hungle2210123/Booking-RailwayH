@@ -255,6 +255,17 @@ python run.py  # Test the Railway runner script locally
 
 ## 🆕 **Latest Updates (October 2026)**
 
+### **🧭 Guest journey messaging (`core/journey.py`, `static/js/journey.js`, `/journey`)**
+/messages (tabs 🛬 Sắp đến / 🏨 Đang ở) shows per guest a strip of steps 👋 welcome · 🕐 confirm · 🛂 passport ·
+🧳 luggage (optional) · 🔑 checkin · 💳 payment · ⭐ thanks (+ ➕ any Mẫu Câu template). Each step sends a message_templates
+row chosen per apartment in `journey_map(step, apartment_id 0=default, template_id)` (seeded from DEFAULT_MAP by template
+name), filled with {ten}{nhan}{tra}{phong}{can}, plus the template's pictures. Per-apartment steps require the guest to be
+placed (sheet offers the apartment picker → /api/set_actual_apartment). 'confirm' also attaches the Booking screenshot.
+Sent steps: `journey_log`; next step = `recommended_step()` by dates. Pictures are stored IN THE DB
+(`template_images.image_data/image_mime`, upload from `/journey`, served `/api/journey/image/<id>`; the old
+`/api/templates/image/<file>` falls back to the DB) — files on Railway's disk are wiped at every deploy (2 old images lost).
+Send = wa.me text (targets the number) or share sheet with pictures + text (text also copied). Calendar card chip 🧭 Nhắn.
+
 ### **💬 "Nhắn khách" page (`/messages`, `templates/messages.html`)**
 Mobile-first page: upcoming arrivals (checkin_date in [today, today+days]) that have a phone, each with
 WhatsApp / SMS / Zalo / Copy buttons + a pre-filled bilingual greeting (tokens `{ten}{nhan}{tra}{phong}`).

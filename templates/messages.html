@@ -3,324 +3,118 @@
 
 {% block head_extra %}
 <style>
-  :root { --ink:#0f172a; --muted:#64748b; --line:#e2e8f0; --bg:#f8fafc; }
-  .wrap { max-width: 680px; margin: 0 auto; padding: 12px 14px 60px; }
-  .head { display:flex; flex-wrap:wrap; align-items:center; gap:8px 12px; margin-bottom:10px; }
-  .head h2 { margin:0; font-size:1.25rem; font-weight:800; color:var(--ink); }
-  .sub { font-size:.82rem; color:var(--muted); }
-  .days { display:flex; gap:6px; margin-left:auto; }
-  .days a { font-size:.8rem; font-weight:700; text-decoration:none; color:#334155; background:#eef2f7;
-            border:1px solid var(--line); border-radius:999px; padding:4px 12px; }
+  :root { --ink:#0f172a; --muted:#64748b; --line:#e2e8f0; }
+  .wrap { max-width: 680px; margin: 0 auto; padding: 12px 14px 70px; }
+  .head { display:flex; align-items:center; gap:10px; margin-bottom:10px; }
+  .head h2 { margin:0; font-size:1.25rem; font-weight:800; color:var(--ink); flex:1; }
+  .gear { font-size:.8rem; font-weight:700; text-decoration:none; color:#334155; background:#eef2f7;
+          border:1px solid var(--line); border-radius:10px; padding:6px 10px; white-space:nowrap; }
+  .tabs { display:flex; gap:6px; margin-bottom:8px; }
+  .tabs a { flex:1; text-align:center; text-decoration:none; font-weight:800; font-size:.9rem; color:#334155;
+            background:#fff; border:1.5px solid var(--line); border-radius:12px; padding:9px 6px; }
+  .tabs a.on { background:#0f172a; color:#fff; border-color:#0f172a; }
+  .bar { display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:10px; }
+  .sub { font-size:.8rem; color:var(--muted); flex:1; }
+  .days { display:flex; gap:5px; }
+  .days a { font-size:.76rem; font-weight:700; text-decoration:none; color:#334155; background:#eef2f7;
+            border:1px solid var(--line); border-radius:999px; padding:3px 10px; }
   .days a.on { background:#2563eb; color:#fff; border-color:#2563eb; }
+  .legend { font-size:.74rem; color:var(--muted); background:#f8fafc; border:1px solid var(--line); border-radius:10px;
+            padding:6px 10px; margin-bottom:12px; }
 
-  .tmpl { background:#fff; border:1px solid var(--line); border-radius:14px; padding:10px 12px; margin-bottom:12px; }
-  .tmpl summary { cursor:pointer; font-weight:700; font-size:.9rem; color:#334155; list-style:none; }
-  .tmpl summary::-webkit-details-marker { display:none; }
-  .tmpl textarea { width:100%; min-height:120px; margin-top:8px; border:1px solid var(--line); border-radius:10px;
-                   padding:8px; font-size:.9rem; font-family:inherit; line-height:1.45; resize:vertical; box-sizing:border-box; }
-  .tcur { display:block; font-size:.74rem; font-weight:600; color:var(--muted); margin-top:2px; }
-  .chan { display:flex; flex-direction:column; gap:6px; margin-top:10px; padding:8px 10px; background:#f8fafc;
-          border:1px solid var(--line); border-radius:10px; }
-  .chan label { display:flex; align-items:center; justify-content:space-between; gap:8px; font-size:.8rem; font-weight:700; color:#334155; }
-  .chan select { flex:1; max-width:62%; font-size:.8rem; padding:4px 6px; border:1px solid var(--line); border-radius:8px; font-family:inherit; }
-  .tlabel { font-size:.76rem; font-weight:700; color:var(--muted); margin-top:10px; }
-  .tchips { display:flex; flex-wrap:wrap; gap:6px; margin-top:6px; }
-  .tchips button { font-size:.78rem; font-weight:700; border:1px solid var(--line); background:#eef2f7; color:#334155;
-                   border-radius:999px; padding:5px 11px; cursor:pointer; font-family:inherit; }
-  .tchips button.on { background:#16a34a; border-color:#16a34a; color:#fff; }
-  .tchips button.add { background:#fff; border-style:dashed; color:#2563eb; }
-  .tname { width:100%; margin-top:8px; border:1px solid var(--line); border-radius:10px; padding:7px 9px;
-           font-size:.88rem; font-family:inherit; box-sizing:border-box; }
-  .trow { display:flex; align-items:center; gap:10px; margin-top:8px; }
-  .tsave { border:none; background:#2563eb; color:#fff; font-weight:800; font-size:.86rem; border-radius:10px;
-           padding:8px 14px; cursor:pointer; font-family:inherit; }
-  .tsave:disabled { opacity:.5; }
-  .tstate { font-size:.78rem; color:var(--muted); }
-  .tstate.err { color:#dc2626; } .tstate.ok { color:#16a34a; } .tstate.dirty { color:#b45309; }
-  .toks { font-size:.72rem; color:var(--muted); margin-top:6px; }
-  .toks code { background:#eef2f7; border-radius:5px; padding:1px 5px; }
+  .group-t { font-size:.85rem; font-weight:800; margin:16px 2px 6px; }
+  .group-t.partner { color:#7c3aed; } .group-t.nophone { color:#b45309; }
+  .card { background:#fff; border:1px solid var(--line); border-radius:14px; padding:11px 12px; margin-bottom:10px; }
+  .card.partner { border-color:#ddd6fe; } .card.nophone { border-style:dashed; }
+  .ctop { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+  .ctop b { font-size:1.02rem; color:var(--ink); }
+  .apt { font-size:.7rem; font-weight:800; border-radius:999px; padding:2px 8px; background:#e0f2fe; color:#075985; }
+  .apt.none { background:#fef3c7; color:#92400e; }
+  .cmeta { font-size:.78rem; color:var(--muted); margin-top:2px; }
+  .cphone { font-size:.8rem; color:#334155; font-weight:600; margin-top:2px; }
+  .cphone.partner { color:#6d28d9; } .cphone.none { color:#b45309; }
 
-  .card { background:#fff; border:1px solid var(--line); border-radius:14px; padding:12px; margin-bottom:10px; }
-  .card.done { opacity:.5; }
-  .crow { display:flex; align-items:flex-start; gap:10px; }
-  .cname { flex:1; min-width:0; }
-  .cname b { font-size:1.02rem; color:var(--ink); }
-  .cmeta { font-size:.8rem; color:var(--muted); margin-top:2px; }
-  .cphone { font-size:.82rem; color:#334155; font-weight:600; }
-  .chk { display:flex; align-items:center; gap:5px; font-size:.75rem; color:var(--muted); white-space:nowrap; }
-  .chk input { width:18px; height:18px; }
+  .jstrip { display:grid; grid-template-columns:repeat(4, 1fr); gap:6px; margin-top:10px; }
+  .jchip { display:flex; flex-direction:column; align-items:center; gap:1px; border:1.5px solid var(--line); background:#f8fafc;
+           border-radius:11px; padding:6px 2px; cursor:pointer; font-family:inherit; color:#334155; min-width:0; position:relative; }
+  .jchip .e { font-size:1.15rem; line-height:1.2; }
+  .jchip .l { font-size:.64rem; font-weight:700; line-height:1.15; text-align:center; }
+  .jchip.sent { background:#dcfce7; border-color:#86efac; color:#166534; }
+  .jchip.sent::after { content:'✓'; position:absolute; top:2px; right:5px; font-size:.7rem; font-weight:900; color:#16a34a; }
+  .jchip.next { border-color:#2563eb; background:#eff6ff; color:#1d4ed8; box-shadow:0 0 0 2px #bfdbfe;
+                animation:jpulse 1.4s ease-in-out infinite; }
+  @keyframes jpulse { 50% { box-shadow:0 0 0 5px #dbeafe; } }
+  .jchip.more { background:#fff; border-style:dashed; }
 
-  .btns { display:grid; grid-template-columns:repeat(5,1fr); gap:6px; margin-top:11px; }
-  .btns a, .btns button { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px;
-      text-decoration:none; border:none; border-radius:11px; padding:9px 2px; font-size:.68rem; font-weight:700;
-      color:#fff; cursor:pointer; font-family:inherit; line-height:1.1; min-width:0; }
-  .b-wa { background:#25d366; } .b-sms { background:#2563eb; } .b-zalo { background:#0068ff; } .b-copy { background:#475569; }
-  .b-img { background:#7c3aed; }
-  .step-hint { display:none; font-size:.76rem; color:#5b21b6; background:#f5f3ff; border:1px solid #ddd6fe;
-               border-radius:10px; padding:7px 10px; margin-top:8px; }
-  .card.step2 .step-hint { display:block; }
-  .card.step2 .b-img { animation: imgpulse 1.2s ease-in-out infinite; box-shadow:0 0 0 3px #c4b5fd; }
-  @keyframes imgpulse { 50% { transform: scale(1.06); } }
-  .n .nimg { float:right; border:none; background:#ede9fe; color:#6d28d9; font-weight:800; font-size:.72rem;
-             border-radius:8px; padding:2px 8px; cursor:pointer; font-family:inherit; }
-  .btns .ico { font-size:1.1rem; }
-
-  .empty { text-align:center; color:var(--muted); padding:30px 10px; }
-  .nophone { margin-top:18px; }
-  .nophone .t { font-size:.85rem; font-weight:800; color:#b45309; margin-bottom:6px; }
-  .nophone .n { font-size:.8rem; color:var(--muted); background:#fff; border:1px dashed #fcd9a6; border-radius:10px;
-                padding:7px 10px; margin-bottom:5px; }
-  .nophone.partner .t { color:#7c3aed; }
-  .nophone.partner .n { border-color:#ddd6fe; }
-  .pnote { font-size:.76rem; color:#5b21b6; background:#f5f3ff; border:1px solid #ddd6fe; border-radius:10px;
-           padding:7px 10px; margin-bottom:6px; }
-  .tip { font-size:.78rem; color:var(--muted); background:#eff6ff; border:1px solid #bfdbfe; border-radius:10px;
-         padding:8px 10px; margin-bottom:12px; }
-  #copytoast { position:fixed; left:50%; bottom:24px; transform:translateX(-50%); background:#0f172a; color:#fff;
-      font-size:.85rem; padding:9px 16px; border-radius:999px; opacity:0; transition:opacity .2s; pointer-events:none; z-index:50; }
-  #copytoast.show { opacity:1; }
-  @media (max-width:360px){ .btns{ grid-template-columns:repeat(3,1fr);} }
+  .empty { text-align:center; color:var(--muted); padding:30px 10px; background:#fff; border:1px dashed var(--line); border-radius:14px; }
 </style>
 {% endblock %}
 
+
+
 {% block content %}
+{% macro card(g, kind) %}
+<div class="card {{ kind }}" data-bid="{{ g.booking_id }}">
+  <div class="ctop">
+    <b>{{ g.name }}</b>
+    <span class="apt {{ '' if g.apt else 'none' }}">{{ g.apt or 'chưa xếp căn' }}</span>
+  </div>
+  <div class="cmeta">{{ g.nhan }} → {{ g.tra }}{% if g.phong %} · {{ g.phong }}{% endif %}</div>
+  {% if kind == 'phone' %}<div class="cphone">📞 {{ g.phone }}</div>
+  {% elif kind == 'partner' %}<div class="cphone partner">🤝 Đặt qua đối tác — nhắn trong khung chat Booking</div>
+  {% else %}<div class="cphone none">⏳ Chưa có số — mở đặt phòng trên máy tính, bấm hiện số</div>{% endif %}
+  <div class="jstrip">
+    {% for s in steps %}
+    <button type="button" class="jchip {{ 'sent' if s.key in g.sent }} {{ 'next' if g.next == s.key }}"
+            data-bid="{{ g.booking_id }}" data-step="{{ s.key }}"
+            onclick="Journey.open('{{ g.booking_id }}', '{{ s.key }}')">
+      <span class="e">{{ s.emoji }}</span><span class="l">{{ s.label }}</span>
+    </button>
+    {% endfor %}
+    <button type="button" class="jchip more" onclick="Journey.open('{{ g.booking_id }}', '__more')">
+      <span class="e">➕</span><span class="l">Tin khác</span>
+    </button>
+  </div>
+</div>
+{% endmacro %}
 <div class="wrap">
   <div class="head">
-    <div>
-      <h2>💬 Nhắn khách sắp đến</h2>
-      <div class="sub">Từ hôm nay {{ today_str }} · {{ guests|length }} khách có số · {{ total }} khách tổng</div>
-    </div>
+    <h2>💬 Nhắn khách</h2>
+    <a class="gear" href="/journey">⚙️ Tin &amp; ảnh</a>
+  </div>
+  <div class="tabs">
+    <a href="?view=arriving&days={{ days }}" class="{{ 'on' if view == 'arriving' }}">🛬 Sắp đến</a>
+    <a href="?view=staying" class="{{ 'on' if view == 'staying' }}">🏨 Đang ở</a>
+  </div>
+  <div class="bar">
+    <div class="sub">{% if view == 'arriving' %}Nhận phòng từ hôm nay {{ today_str }}{% else %}Đang ở hôm nay {{ today_str }}{% endif %} · {{ total }} khách</div>
+    {% if view == 'arriving' %}
     <div class="days">
-      <a href="?days=1" class="{{ 'on' if days == 1 }}">Hôm nay</a>
-      <a href="?days=3" class="{{ 'on' if days == 3 }}">3 ngày</a>
-      <a href="?days=7" class="{{ 'on' if days == 7 }}">7 ngày</a>
+      <a href="?view=arriving&days=1" class="{{ 'on' if days == 1 }}">Hôm nay</a>
+      <a href="?view=arriving&days=3" class="{{ 'on' if days == 3 }}">3 ngày</a>
+      <a href="?view=arriving&days=7" class="{{ 'on' if days == 7 }}">7 ngày</a>
     </div>
+    {% endif %}
   </div>
+  <div class="legend">Chạm một bước để xem tin + ảnh rồi gửi · <b style="color:#16a34a">✓</b> đã gửi · <b style="color:#1d4ed8">ô xanh nhấp nháy</b> = nên gửi tiếp</div>
 
-  <div class="tip">📱 Mở trang này <b>trên điện thoại</b>. Mỗi khách: ① chạm <b>WhatsApp</b> (hoặc Zalo/SMS) → tin soạn sẵn → Gửi.
-    ② quay lại, chạm <b>📷 Ảnh</b> (đang nhấp nháy) → xem ảnh → Gửi ảnh hoặc Sao chép ảnh.</div>
-
-  <details class="tmpl" id="edit">
-    <summary>✏️ Tin nhắn tự động <span class="tcur" id="tcur"></span></summary>
-    <div class="chan">
-      <label>🟢 WhatsApp · SMS · Chép tin <select id="selWa"></select></label>
-      <label>🔵 Zalo <select id="selZalo"></select></label>
-    </div>
-    <div class="tlabel">Sửa mẫu:</div>
-    <div class="tchips" id="tchips"></div>
-    <input id="tname" class="tname" placeholder="Tên mẫu (vd: Hỏi giờ đến)">
-    <textarea id="tmpl" spellcheck="false"></textarea>
-    <div class="trow">
-      <button type="button" id="tsave" class="tsave">💾 Lưu cho mọi máy</button>
-      <span id="tstate" class="tstate"></span>
-    </div>
-    <div class="toks">Tự thay: <code>{ten}</code> tên khách · <code>{nhan}</code> ngày nhận · <code>{tra}</code> ngày trả · <code>{phong}</code> (phòng).
-      Lưu lên web nên sửa ở điện thoại hay máy tính đều dùng chung. Trên trang lịch: WhatsApp dùng mẫu có chữ <b>(EN)</b>, Zalo dùng mẫu có chữ <b>(VI)</b> trong tên.</div>
-  </details>
-
-  {% if guests %}
-  <div id="list">
-    {% for g in guests %}
-    <div class="card" data-bid="{{ g.booking_id }}"
-         data-ten="{{ g.name }}" data-nhan="{{ g.nhan }}" data-tra="{{ g.tra }}" data-phong="{{ g.phong }}"
-         data-wa="{{ g.wa }}" data-sms="{{ g.sms }}" data-zalo="{{ g.zalo }}">
-      <div class="crow">
-        <div class="cname">
-          <b>{{ g.name }}</b>
-          <div class="cmeta">{{ g.nhan }} → {{ g.tra }}{% if g.phong %} · {{ g.phong }}{% endif %}</div>
-          <div class="cphone">📞 {{ g.phone }}</div>
-        </div>
-        <label class="chk"><input type="checkbox" class="done"> đã nhắn</label>
-      </div>
-      <div class="btns">
-        <a class="b-wa" target="_blank" rel="noopener"><span class="ico">🟢</span>WhatsApp</a>
-        <a class="b-sms"><span class="ico">💬</span>SMS</a>
-        <a class="b-zalo" target="_blank" rel="noopener"><span class="ico">🔵</span>Zalo</a>
-        <button type="button" class="b-copy"><span class="ico">📋</span>Chép tin</button>
-        <button type="button" class="b-img" onclick="HotelCard.quickShare('{{ g.booking_id }}')"><span class="ico">📷</span>Ảnh</button>
-      </div>
-      <div class="step-hint">② Gửi tin xong thì quay lại đây, chạm <b>📷 Ảnh</b> → xem ảnh → <b>Gửi ảnh</b> (chọn khách vừa nhắn, ở đầu danh sách) hoặc <b>Sao chép ảnh</b> rồi dán vào chat.</div>
-    </div>
-    {% endfor %}
-  </div>
-  {% else %}
-  <div class="empty">Chưa có khách nào có số điện thoại trong khoảng này.<br>Lấy số trên máy tính (bấm "Hiển thị số điện thoại" trong Booking) rồi mở lại trang này.</div>
+  {% for g in guests %}{{ card(g, 'phone') }}{% endfor %}
+  {% if not guests and not partner and not no_phone %}
+  <div class="empty">Không có khách nào trong khoảng này.</div>
   {% endif %}
 
   {% if partner %}
-  <div class="nophone partner">
-    <div class="t">🤝 {{ partner|length }} khách đặt qua đối tác Booking — không có số thật</div>
-    <div class="pnote">Số trên Booking là của công ty đối tác. Mở đặt phòng trên máy tính → bấm <b>💬 Điền tin</b> của tiện ích → tin xin số Zalo/WhatsApp được điền sẵn vào khung chat Booking → bấm Gửi.</div>
-    {% for g in partner %}
-    <div class="n"><button type="button" class="nimg" onclick="HotelCard.quickShare('{{ g.booking_id }}')">📷 Ảnh</button>{{ g.name }} · {{ g.nhan }} → {{ g.tra }}{% if g.phong %} · {{ g.phong }}{% endif %}</div>
-    {% endfor %}
-  </div>
+  <div class="group-t partner">🤝 {{ partner|length }} khách qua đối tác Booking (không có số thật)</div>
+  {% for g in partner %}{{ card(g, 'partner') }}{% endfor %}
   {% endif %}
 
   {% if no_phone %}
-  <div class="nophone">
-    <div class="t">⏳ {{ no_phone|length }} khách chưa có số — lấy số trên PC</div>
-    {% for g in no_phone %}
-    <div class="n">{{ g.name }} · {{ g.nhan }} → {{ g.tra }}{% if g.phong %} · {{ g.phong }}{% endif %}</div>
-    {% endfor %}
-  </div>
+  <div class="group-t nophone">⏳ {{ no_phone|length }} khách chưa có số</div>
+  {% for g in no_phone %}{{ card(g, 'nophone') }}{% endfor %}
   {% endif %}
 </div>
-<div id="copytoast"></div>
 {% endblock %}
 
 {% block scripts %}
-<script src="{{ url_for('static', filename='js/booking_card.js') }}"></script>
-<script>
-(function () {
-  // Templates are stored on the server (message_templates, category below) → shared by every device
-  const TEMPLATES = {{ templates|tojson }};
-  const CATEGORY = {{ auto_category|tojson }};
-  const PICK_KEY = 'hotelpro.msg.tid';          // which template this device uses (just a preference)
-  const box = document.getElementById('tmpl');
-  const nameBox = document.getElementById('tname');
-  const state = document.getElementById('tstate');
-  const saveBtn = document.getElementById('tsave');
-  let cur = null, dirty = false;
-
-  // Which template each channel sends (per device). Default: name with "(EN)" → WhatsApp/SMS, "(VI)" → Zalo.
-  const CHAN_KEY = 'hotelpro.msg.chan';
-  const tplById = id => TEMPLATES.find(t => t.id != null && String(t.id) === String(id));
-  const isPartnerTpl = t => /đối tác/i.test(t.name || '');
-  const byTag = tag => TEMPLATES.find(t => (t.name || '').toLowerCase().includes(tag));
-  const firstNormal = () => TEMPLATES.find(t => !isPartnerTpl(t)) || TEMPLATES[0];
-  let chan = {};
-  try { chan = JSON.parse(localStorage.getItem(CHAN_KEY) || '{}') || {}; } catch (e) { chan = {}; }
-  if (!tplById(chan.wa)) chan.wa = (byTag('(en)') || firstNormal()).id;
-  if (!tplById(chan.zalo)) chan.zalo = (byTag('(vi)') || firstNormal()).id;
-  function chanUI() {
-    [['selWa', 'wa'], ['selZalo', 'zalo']].forEach(([id, key]) => {
-      const sel = document.getElementById(id);
-      sel.innerHTML = TEMPLATES.filter(t => t.id != null)
-        .map(t => `<option value="${t.id}">${t.name.replace(/</g, '&lt;')}</option>`).join('');
-      sel.value = String(chan[key]);
-      sel.onchange = () => {
-        chan[key] = sel.value;
-        try { localStorage.setItem(CHAN_KEY, JSON.stringify(chan)); } catch (e) {}
-        chanUI(); render();
-      };
-    });
-    const n = id => (tplById(id) || {}).name || '?';
-    document.getElementById('tcur').textContent = `WhatsApp: ${n(chan.wa)} · Zalo: ${n(chan.zalo)}`;
-  }
-  // Text of a template, using the edit box when it is the one being edited (live preview)
-  const contentOf = id => (cur && cur.id != null && String(cur.id) === String(id)) ? box.value : ((tplById(id) || {}).content || '');
-
-  function setState(text, cls) { state.textContent = text; state.className = 'tstate ' + (cls || ''); }
-  function pick(t) {
-    if (dirty && cur && !confirm('Mẫu đang sửa chưa lưu. Bỏ thay đổi?')) return;
-    cur = t; dirty = false;
-    box.value = t.content; nameBox.value = t.name;
-    try { if (t.id) localStorage.setItem(PICK_KEY, String(t.id)); } catch (e) {}
-    setState(t.id ? '' : 'Mẫu mới — bấm Lưu', t.id ? '' : 'dirty');
-    chips(); render();
-  }
-  function chips() {
-    const el = document.getElementById('tchips');
-    el.innerHTML = '';
-    TEMPLATES.forEach(t => {
-      const b = document.createElement('button');
-      b.type = 'button'; b.textContent = t.name; if (t === cur) b.className = 'on';
-      b.onclick = () => pick(t);
-      el.appendChild(b);
-    });
-    const add = document.createElement('button');
-    add.type = 'button'; add.className = 'add'; add.textContent = '+ Mẫu mới';
-    add.onclick = () => {
-      if (dirty && !confirm('Mẫu đang sửa chưa lưu. Bỏ thay đổi?')) return;
-      const t = { id: null, name: 'Mẫu ' + (TEMPLATES.length + 1), content: cur ? cur.content : '' };
-      TEMPLATES.push(t); dirty = false; pick(t); nameBox.focus(); nameBox.select();
-    };
-    el.appendChild(add);
-  }
-  function markDirty() { dirty = true; setState('Chưa lưu', 'dirty'); }
-
-  saveBtn.onclick = async () => {
-    const content = box.value.trim(), name = nameBox.value.trim();
-    if (!content || !name) { setState('Cần tên mẫu và nội dung', 'err'); return; }
-    saveBtn.disabled = true; setState('Đang lưu...');
-    try {
-      const res = cur.id
-        ? await fetch('/api/templates/' + cur.id, { method: 'PUT', headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({ Label: name, Message: content }) })
-        : await fetch('/api/templates/add', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({ name, content, category: CATEGORY }) });
-      const r = await res.json();
-      if (!r.success) throw new Error(r.error || 'Lỗi không rõ');
-      cur.id = r.template.id; cur.name = name; cur.content = content; dirty = false;
-      try { localStorage.setItem(PICK_KEY, String(cur.id)); } catch (e) {}
-      chips(); chanUI(); setState('✅ Đã lưu — mọi máy dùng chung', 'ok');
-    } catch (e) {
-      setState('❌ ' + e.message, 'err');
-    } finally { saveBtn.disabled = false; }
-  };
-
-  // Booking names often end with the country code ("Lucas de Kok nl") — not part of the greeting
-  const cleanName = n => String(n || '').replace(/\s+[a-z]{2}$/, '').trim();
-  const fill = (t, g) => t
-    .replace(/\{ten\}/g, cleanName(g.ten) || 'bạn')
-    .replace(/\{nhan\}/g, g.nhan || '')
-    .replace(/\{tra\}/g, g.tra || '')
-    .replace(/\{phong\}/g, g.phong ? ' (' + g.phong + ')' : '');
-
-  function render() {
-    const tWa = contentOf(chan.wa), tZalo = contentOf(chan.zalo);
-    document.querySelectorAll('.card').forEach(card => {
-      const g = card.dataset;
-      const msg = fill(tWa, g), msgZalo = fill(tZalo, g);
-      const enc = encodeURIComponent(msg);
-      card.querySelector('.b-wa').href = 'https://wa.me/' + g.wa + '?text=' + enc;
-      card.querySelector('.b-sms').href = 'sms:' + g.sms + '?&body=' + enc;  // ?&body= works on both iOS & Android
-      const zalo = card.querySelector('.b-zalo');
-      zalo.href = 'https://zalo.me/' + g.zalo;
-      zalo.onclick = () => copy(msgZalo, 'Đã chép tin — dán vào Zalo rồi gửi');
-      card.querySelector('.b-copy').onclick = () => copy(msg, 'Đã chép tin nhắn');
-    });
-  }
-
-  const toast = document.getElementById('copytoast');
-  let tTimer;
-  function copy(text, note) {
-    const done = () => { toast.textContent = note; toast.classList.add('show');
-      clearTimeout(tTimer); tTimer = setTimeout(() => toast.classList.remove('show'), 2200); };
-    try { navigator.clipboard.writeText(text).then(done, fallback); } catch (e) { fallback(); }
-    function fallback() {
-      const ta = document.createElement('textarea'); ta.value = text; document.body.appendChild(ta);
-      ta.select(); try { document.execCommand('copy'); } catch (e) {} ta.remove(); done();
-    }
-  }
-
-  box.addEventListener('input', () => { markDirty(); render(); });
-  nameBox.addEventListener('input', markDirty);
-
-  // Step 1 (text) → step 2 (picture): after the text, the 📷 button of that guest lights up
-  document.querySelectorAll('.card').forEach(card => {
-    card.querySelectorAll('.b-wa, .b-sms, .b-zalo, .b-copy').forEach(b => {
-      b.addEventListener('click', () => card.classList.add('step2'));
-    });
-  });
-
-  // "đã nhắn" ghi nhớ trên máy này
-  document.querySelectorAll('.card').forEach(card => {
-    const k = 'hotelpro.msgdone.' + card.dataset.bid;
-    const chk = card.querySelector('.done');
-    try { if (localStorage.getItem(k) === '1') { chk.checked = true; card.classList.add('done'); } } catch (e) {}
-    chk.addEventListener('change', () => {
-      card.classList.toggle('done', chk.checked);
-      try { chk.checked ? localStorage.setItem(k, '1') : localStorage.removeItem(k); } catch (e) {}
-    });
-  });
-
-  let saved = null;
-  try { saved = localStorage.getItem(PICK_KEY); } catch (e) {}
-  chanUI();
-  pick(TEMPLATES.find(t => String(t.id) === saved) || tplById(chan.wa) || TEMPLATES[0]);
-  if (location.hash === '#edit') document.getElementById('edit').open = true;
-})();
-</script>
+<script src="{{ url_for('static', filename='js/journey.js') }}"></script>
 {% endblock %}

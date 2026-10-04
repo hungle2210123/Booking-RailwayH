@@ -1,0 +1,155 @@
+{% extends "base.html" %}
+{% block title %}Tin & ảnh hành trình — Hotel Pro{% endblock %}
+
+{% block head_extra %}
+<style>
+  :root { --ink:#0f172a; --muted:#64748b; --line:#e2e8f0; }
+  .wrap { max-width: 720px; margin: 0 auto; padding: 12px 14px 70px; }
+  .head { display:flex; align-items:center; gap:10px; margin-bottom:8px; }
+  .head h2 { margin:0; font-size:1.2rem; font-weight:800; color:var(--ink); flex:1; }
+  .back { font-size:.8rem; font-weight:700; text-decoration:none; color:#334155; background:#eef2f7; border:1px solid var(--line);
+          border-radius:10px; padding:6px 10px; white-space:nowrap; }
+  .intro { font-size:.8rem; color:#334155; background:#eff6ff; border:1px solid #bfdbfe; border-radius:12px; padding:9px 11px; margin-bottom:10px; line-height:1.5; }
+  .lost { font-size:.8rem; color:#92400e; background:#fffbeb; border:1px solid #fde68a; border-radius:12px; padding:8px 11px; margin-bottom:10px; }
+  .step { background:#fff; border:1px solid var(--line); border-radius:14px; padding:10px 12px; margin-bottom:12px; }
+  .step h3 { margin:0 0 2px; font-size:1rem; font-weight:800; color:var(--ink); }
+  .step .hint { font-size:.74rem; color:var(--muted); margin-bottom:6px; }
+  .row { border-top:1px solid #f1f5f9; padding:9px 0 4px; }
+  .row:first-of-type { border-top:none; }
+  .rlab { font-size:.8rem; font-weight:800; color:#334155; margin-bottom:4px; }
+  .rlab small { font-weight:600; color:var(--muted); }
+  select { width:100%; border:1.5px solid var(--line); border-radius:10px; padding:8px; font-size:.88rem; font-family:inherit; background:#fff; }
+  .imgs { display:flex; gap:7px; overflow-x:auto; margin-top:7px; align-items:center; }
+  .im { position:relative; flex-shrink:0; }
+  .im img { height:78px; border-radius:8px; border:1px solid var(--line); display:block; }
+  .im button { position:absolute; top:-6px; right:-6px; width:22px; height:22px; border-radius:50%; border:none; background:#dc2626;
+               color:#fff; font-weight:900; font-size:.7rem; cursor:pointer; line-height:1; }
+  .add { flex-shrink:0; height:78px; min-width:78px; border:1.5px dashed #93c5fd; border-radius:8px; background:#eff6ff; color:#1d4ed8;
+         font-weight:800; font-size:.78rem; display:flex; align-items:center; justify-content:center; cursor:pointer; padding:0 8px; text-align:center; }
+  .add input { display:none; }
+  .none { font-size:.74rem; color:#94a3b8; }
+  .state { font-size:.74rem; margin-top:4px; min-height:1em; }
+  .state.ok { color:#16a34a; } .state.err { color:#dc2626; }
+  .edit { font-size:.74rem; font-weight:700; color:#2563eb; text-decoration:none; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="wrap">
+  <div class="head">
+    <h2>⚙️ Tin &amp; ảnh hành trình</h2>
+    <a class="back" href="/messages">← Nhắn khách</a>
+  </div>
+  <div class="intro">
+    Mỗi bước gửi một <b>mẫu tin trong Mẫu Câu</b> + <b>ảnh của mẫu đó</b>. Bước nào khác nhau theo căn (địa chỉ, đường vào,
+    gửi hành lý, thanh toán) thì chọn mẫu riêng cho từng căn; căn không chọn sẽ dùng <b>Mặc định</b>.
+    Ảnh lưu trong cơ sở dữ liệu — cập nhật web không bị mất. Sửa chữ của mẫu ở <a class="edit" href="{{ url_for('ai_assistant') }}">Mẫu Câu</a>.
+  </div>
+  <div id="lost"></div>
+  <div id="steps"><div class="none">⏳ Đang tải…</div></div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  let cfg = null;
+
+  async function load() {
+    cfg = await fetch('/api/journey/config').then(r => r.json());
+    if (!cfg.success) { document.getElementById('steps').innerHTML = '<div class="lost">❌ ' + esc(cfg.error) + '</div>'; return; }
+    document.getElementById('lost').innerHTML = cfg.lost_images
+      ? `<div class="lost">⚠️ ${cfg.lost_images} ảnh cũ trong Mẫu Câu đã mất khi web cập nhật (ảnh cũ lưu dạng file). Tải lại ảnh ở các bước dưới đây.</div>` : '';
+    render();
+  }
+
+  function options(selected) {
+    const groups = {};
+    cfg.templates.forEach(t => (groups[t.category || 'Khác'] = groups[t.category || 'Khác'] || []).push(t));
+    return '<option value="">— không dùng —</option>' +
+      Object.keys(groups).sort((a, b) => a.localeCompare(b, 'vi', { numeric: true })).map(c =>
+        `<optgroup label="${esc(c)}">` + groups[c].map(t =>
+          `<option value="${t.id}" ${String(t.id) === String(selected) ? 'selected' : ''}>${esc(t.name)}${t.images ? ' 🖼' + t.images : ''}</option>`
+        ).join('') + '</optgroup>').join('');
+  }
+
+  function rowHtml(step, aptId, label, sub) {
+    const tid = (cfg.map[step.key] || {})[String(aptId)] || '';
+    const imgs = tid ? (cfg.images[String(tid)] || []) : [];
+    return `<div class="row" data-step="${step.key}" data-apt="${aptId}">
+      <div class="rlab">${esc(label)} ${sub ? `<small>${esc(sub)}</small>` : ''}</div>
+      <select>${options(tid)}</select>
+      ${tid ? `<div class="imgs">
+          ${imgs.map(im => `<div class="im"><img src="${im.url}" alt=""><button type="button" data-del="${im.id}" title="Xoá ảnh">✕</button></div>`).join('')}
+          <label class="add">＋ Ảnh<input type="file" accept="image/*" multiple></label>
+        </div>` : '<div class="none" style="margin-top:6px">Chọn mẫu trước, rồi thêm ảnh.</div>'}
+      <div class="state"></div>
+    </div>`;
+  }
+
+  function render() {
+    document.getElementById('steps').innerHTML = cfg.steps.map(s => `
+      <div class="step">
+        <h3>${s.emoji} ${esc(s.label)}</h3>
+        <div class="hint">${s.per_apt ? 'Khác nhau theo căn — chọn mẫu + ảnh cho từng căn.' : 'Dùng chung cho mọi căn.'}
+          ${s.booking_image ? ' Tự kèm thêm ảnh chụp đặt phòng từ Booking.' : ''}</div>
+        ${rowHtml(s, 0, s.per_apt ? 'Mặc định' : 'Mẫu dùng', s.per_apt ? '(căn chưa chọn riêng)' : '')}
+        ${s.per_apt ? cfg.apartments.map(a => rowHtml(s, a.id, a.name, '')).join('') : ''}
+      </div>`).join('');
+    document.querySelectorAll('.row').forEach(bind);
+  }
+
+  function bind(row) {
+    const state = row.querySelector('.state');
+    const say = (t, cls) => { state.textContent = t; state.className = 'state ' + (cls || ''); };
+    row.querySelector('select').onchange = async e => {
+      say('Đang lưu…');
+      const r = await fetch('/api/journey/map', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ step: row.dataset.step, apartment_id: +row.dataset.apt, template_id: e.target.value || null }) }).then(x => x.json());
+      if (!r.success) { say('❌ ' + r.error, 'err'); return; }
+      await load();
+    };
+    const file = row.querySelector('input[type=file]');
+    if (file) file.onchange = async () => {
+      const tid = row.querySelector('select').value;
+      const files = [...file.files];
+      if (!files.length) return;
+      say(`⏳ Đang tải ${files.length} ảnh…`);
+      try {
+        const images = await Promise.all(files.map(shrink));
+        const r = await fetch('/api/journey/images/' + tid, { method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ images }) }).then(x => x.json());
+        if (!r.success) throw new Error(r.error);
+        await load();
+      } catch (err) { say('❌ ' + err.message, 'err'); }
+    };
+    row.querySelectorAll('[data-del]').forEach(btn => btn.onclick = async () => {
+      if (!confirm('Xoá ảnh này khỏi mẫu?')) return;
+      await fetch('/api/journey/images/' + btn.dataset.del, { method: 'DELETE' });
+      await load();
+    });
+  }
+
+  // Phone photos are big: keep at most 1600 px on the long side, JPEG
+  function shrink(f) {
+    return new Promise((res, rej) => {
+      const u = URL.createObjectURL(f), img = new Image();
+      img.onload = () => {
+        const k = Math.min(1, 1600 / Math.max(img.naturalWidth, img.naturalHeight));
+        const c = document.createElement('canvas');
+        c.width = Math.round(img.naturalWidth * k); c.height = Math.round(img.naturalHeight * k);
+        const x = c.getContext('2d'); x.fillStyle = '#fff'; x.fillRect(0, 0, c.width, c.height);
+        x.drawImage(img, 0, 0, c.width, c.height);
+        URL.revokeObjectURL(u);
+        res(c.toDataURL('image/jpeg', 0.86));
+      };
+      img.onerror = () => { URL.revokeObjectURL(u); rej(new Error('Không đọc được ảnh ' + f.name)); };
+      img.src = u;
+    });
+  }
+
+  load();
+})();
+</script>
+{% endblock %}

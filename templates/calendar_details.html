@@ -1282,6 +1282,7 @@ setInterval(loadVbCd, 5 * 60 * 1000);
 
         {# ── Booking-confirmation image (drawn on the phone, sent via the share sheet) ── #}
         <button type="button" class="guest-img" data-bid="{{ booking_id }}" onclick="HotelCard.quickShare('{{ booking_id }}')" title="Ảnh xác nhận đặt phòng để gửi khách">📷 Ảnh</button>
+        <button type="button" class="guest-journey" onclick="Journey.open('{{ booking_id }}')" title="Gửi tin hướng dẫn theo hành trình (chào, passport, nhận phòng, thanh toán…)">🧭 Nhắn</button>
 
         {# ── Guest phone (from the Chrome extension) ── #}
         {% set ph = phone_map.get(booking_id|string) if phone_map else None %}
@@ -1405,6 +1406,9 @@ setInterval(loadVbCd, 5 * 60 * 1000);
         .guest-img { font-size: .6rem; font-weight: 800; padding: 1px 7px; border-radius: 20px; flex-shrink: 0; cursor: pointer;
             background: #f3e8ff; color: #6b21a8; border: 1px solid #d8b4fe; font-family: inherit; line-height: 1.5; }
         body.cd-compact .guest-img { font-size: .72rem; padding: 3px 9px; }
+        .guest-journey { font-size: .6rem; font-weight: 800; padding: 1px 7px; border-radius: 20px; flex-shrink: 0; cursor: pointer;
+            background: #ecfdf5; color: #047857; border: 1px solid #6ee7b7; font-family: inherit; line-height: 1.5; }
+        body.cd-compact .guest-journey { font-size: .72rem; padding: 3px 9px; }
         .guest-img.go { background: #7c3aed; color: #fff; border-color: #7c3aed; animation: imgpulse 1.2s ease-in-out infinite; }
         @keyframes imgpulse { 50% { transform: scale(1.08); } }
         .guest-partner { font-size: .62rem; font-weight: 800; padding: 1px 7px; border-radius: 20px; flex-shrink: 0;
@@ -6329,6 +6333,7 @@ function showQuickToast(msg, type) {
 </div>
 
 <script src="{{ url_for('static', filename='js/booking_card.js') }}"></script>
+<script src="{{ url_for('static', filename='js/journey.js') }}"></script>
 <script>
 (function () {
     // ── Pre-written message on the WhatsApp / Zalo chips (edited on /messages, shared by every device) ──
