@@ -433,15 +433,23 @@ def parse_pulse_text(text):
     m = m or re.search(r'(?<![\d+])([1-9]\d{9})(?!\d)', ' '.join(lines))   # booking numbers never start with 0 (phones do)
     out['booking_id'] = m.group(1) if m else None
 
-    # Guest name: the header "< Tin nhắn EMERAUD Clement" (the back link), else the line under "Tên khách"
-    for l, f in zip(lines, folded):
-        h = re.search(r'tin nhan\s+(.+)$', f)
-        if h and l[-len(h.group(1)):].strip():
-            name = l[-len(h.group(1)):].strip()
-            name = re.sub(r'(\s+[a-z]{1,2})+$', '', name)           # icon read as "li" at the end
-            name = re.sub(r'[^\w\s.\'-]+', '', name).strip()
-            if 2 <= len(name) <= 60:
-                out['guest_name'] = name
+    # Guest name: the header line just above the property name ("Cozy Studio Hanoi Old Quarter"), which may still
+    # carry the back link ("< Tin nhắn EMERAUD Clement"); else the line under "Tên khách".
+    # Never the bottom tab bar ("Trang chủ  Các đặt phòng  Phòng trống  Tin nhắn  Khác").
+    def _name(raw):
+        n = re.sub(r'^\W*', '', raw)
+        n = re.sub(r'^(?:t\s*i\s*n\s*n\s*h\S*)\s*', '', n, flags=re.I)  # "Tin nhắn" / "Tinnhắn" back link
+        n = re.sub(r'(\s+[a-z]{1,2})+$', '', n.strip())           # trailing icon / country code ("li", "nl")
+        n = re.sub(r'[^\w\s.\'-]+', '', n).strip()
+        bad = _fold(n)
+        if not (2 <= len(n) <= 60) or bad in ('khac', 'tin nhan') or re.search(r'\d{3,}|trang chu|phong trong|dat phong', bad):
+            return None
+        return n
+    prop = next((i for i, f in enumerate(folded[:12]) if re.search(r'cozy|hanoi|homestay|old quarter|hostel', f)), None)
+    if prop:
+        for j in range(prop - 1, max(-1, prop - 3), -1):
+            out['guest_name'] = _name(lines[j])
+            if out['guest_name']:
                 break
     if not out['guest_name']:
         for i, f in enumerate(folded[:-1]):

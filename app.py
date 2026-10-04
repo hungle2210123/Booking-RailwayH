@@ -1762,7 +1762,22 @@ def booking_from_photo_parse():
     """/messages "📷 Thêm từ ảnh": text OCR'd on the phone from Booking app screenshots → fields to check."""
     from core.booking_page_parser import parse_pulse_text
     p = parse_pulse_text((request.get_json(silent=True) or {}).get('text', ''))
+    if not p.get('booking_id') and p.get('checkin_date') and p.get('checkout_date'):
+        # no booking number on the screenshot: the same stay (dates + price) already on the web is that booking
+        from core.models import db as _xdb
+        rows = _xdb.session.execute(text("""
+            SELECT booking_id FROM bookings
+            WHERE checkin_date = :ci AND checkout_date = :co
+              AND COALESCE(booking_status, '') NOT IN ('deleted')
+              AND (:amt IS NULL OR ABS(COALESCE(room_amount, 0) - :amt) < 1000)"""),
+            {'ci': p['checkin_date'], 'co': p['checkout_date'], 'amt': p.get('room_amount')}).fetchall()
+        if len(rows) == 1:
+            p['booking_id'] = rows[0][0]
+            p['matched'] = True
+            p['missing'] = [k for k in p['missing'] if k != 'booking_id']
     existing = _ext_existing(p['booking_id']) if p.get('booking_id') else None
+    if existing and not p.get('guest_name'):
+        p['guest_name'] = existing['guest_name']
     return jsonify({'success': True, 'parsed': p,
                     'existing': {'guest_name': existing['guest_name']} if existing else None})
 

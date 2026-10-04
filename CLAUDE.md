@@ -298,10 +298,11 @@ PC, message from the phone. WhatsApp bulk-blast from a personal account is inten
 For bookings made while the owner is away from the PC: screenshots of the Booking (Pulse) app are OCR'd ON THE PHONE
 with tesseract.js (CDN, 'vie+eng', dark screenshots inverted first — no API key; the server has no Gemini key and the
 old Gemini image routes don't work), text → `POST /api/booking_from_photo/parse` (`parse_pulse_text()` in
-core/booking_page_parser.py: name from the "< Tin nhắn NAME" header, first two "d tháng m yyyy" dates, room under
+core/booking_page_parser.py: name = header line above the property name ("Cozy Studio Hanoi…"), never the bottom tab bar "Tin nhắn Khác"; first two "d tháng m yyyy" dates, room under
 "N phòng", "Tổng giá tiền đặt phòng", booking number after "Mã số đặt phòng" or a lone 10-digit number not starting
 with 0) → editable form (missing fields red) → `POST /api/booking_from_photo/save` = `_ext_save_one` (same rules as
-the extension). The booking number is usually in a second screenshot.
+the extension). The booking number is usually in a second screenshot; when missing, a booking already on the web with the
+same dates + price (±1,000đ, exactly one) is taken (`matched`).
 
 ### **🤝 Partner bookings (`bookings.via_partner`)**
 Reservations with the "Đối tác Booking.com" box were made through a partner company: the phone on the page is the
