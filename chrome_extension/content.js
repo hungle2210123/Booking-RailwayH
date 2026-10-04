@@ -56,6 +56,8 @@
       .tag.nl { display: inline-block; font-size: 10px; font-weight: 800; background: #2563eb; color: #fff; border-radius: 6px; padding: 0 6px; margin-left: 4px; }
       .tag.cx { display: inline-block; font-size: 10px; font-weight: 800; background: #dc2626; color: #fff; border-radius: 6px; padding: 0 6px; margin-left: 4px; }
       .paid { margin-top: 8px; font-size: 12px; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 6px 8px; color: #166534; }
+      .toast { position: absolute; right: 0; bottom: 56px; width: 300px; max-width: calc(100vw - 36px); background: #0f172a; color: #fff; font-size: 13px; line-height: 1.4; border-radius: 12px; padding: 10px 12px; box-shadow: 0 8px 24px rgba(0,0,0,.25); }
+      .toast.ok { background: #166534; } .toast.warn { background: #b45309; }
     </style>
     <div class="panel" id="panel"></div>
     <button class="fab" id="fab" type="button">📥 Gửi về Hotel Pro</button>`;
@@ -431,4 +433,75 @@
       fab.textContent = '📥 Gửi về Hotel Pro';
     }
   });
+
+  // ── Số điện thoại hiện ra trên trang đặt phòng → tự lưu về web ──────
+  // Chỉ ĐỌC trang: chính bạn bấm nút "Hiển thị số điện thoại" của Booking, tiện ích đọc số đó rồi lưu.
+  // Không tự bấm, không tự mở trang, không moi số đang ẩn.
+  const PHONE_FIND = /(?:\+|00|0)\d[\d\s().\-]{6,18}\d/g;
+  const digitsOf = s => String(s || '').replace(/\D/g, '');
+  const digitsOk = s => { const n = digitsOf(s).length; return n >= 8 && n <= 15; };
+  const EMAILS_RE = /[^\s@]+@[^\s@]+\.[a-z]{2,}/gi;
+  const REVEAL_WORDS = ['hien thi so dien thoai', 'xem so dien thoai', 'show phone', 'display phone', 'reveal phone'];
+  const isRevealEl = el => !!el && rawText(el).length < 60 && REVEAL_WORDS.some(w => fold(rawText(el)).includes(w));
+  let revealSpot = null;
+  function phonesIn(el) {
+    const out = [];
+    el.querySelectorAll('a[href^="tel:"]').forEach(a => { const v = safeDecode(a.getAttribute('href').slice(4)).trim(); if (digitsOk(v)) out.push(v); });
+    ((el.innerText || '').match(PHONE_FIND) || []).forEach(m => { if (digitsOk(m)) out.push(m.trim()); });
+    return out;
+  }
+  // Số của khách chỉ lấy trong khung thông tin khách (cạnh email @guest.booking.com hoặc nút hiện số),
+  // để không nhầm sang số khác trên trang (vd số của chỗ nghỉ).
+  function phoneNear(el) {
+    for (let a = el, lvl = 0; a && lvl < 6; a = a.parentElement, lvl++) {
+      if (((a.innerText || '').match(EMAILS_RE) || []).length > 1 && lvl > 0) break;
+      const hits = phonesIn(a).filter(p => digitsOf(p) !== digitsOf(rawText(el)));
+      if (hits.length) return hits[0];
+    }
+    return null;
+  }
+  function guestPhone() {
+    const mail = [...document.querySelectorAll('a, span, div, p')].find(el => el.children.length === 0 && /@guest\.booking\.com/i.test(rawText(el)));
+    const near = mail && phoneNear(mail);
+    if (near) return near;
+    if (revealSpot && document.contains(revealSpot)) { const hits = phonesIn(revealSpot); if (hits.length) return hits[0]; }
+    return null;
+  }
+  let toastTimer;
+  function toast(html, kind) {
+    let el = $('#toast');
+    if (!el) { el = document.createElement('div'); el.id = 'toast'; root.appendChild(el); }
+    el.className = 'toast ' + (kind || '');
+    el.innerHTML = html;
+    clearTimeout(toastTimer); toastTimer = setTimeout(() => el.remove(), 7000);
+  }
+  const phoneDone = new Set();
+  let phoneBusy = false;
+  async function checkPhone() {
+    if (phoneBusy || busy || !chrome.runtime?.id) return;
+    const ph = guestPhone();
+    if (!ph) return;
+    const key = location.href.split('#')[0] + '|' + digitsOf(ph);
+    if (phoneDone.has(key)) return;
+    phoneBusy = true;
+    try {
+      phoneDone.add(key);
+      const r = await api('/api/ext/booking/phone', { ...capture(), phone: ph });
+      if (!r?.success) { phoneDone.delete(key); return; }
+      if (r.status === 'saved') toast(`📞 Đã lưu SĐT <b>${esc(r.phone)}</b> cho <b>${esc(r.guest_name)}</b>`, 'ok');
+      else if (r.status === 'same') toast(`📞 SĐT của <b>${esc(r.guest_name)}</b> đã có trên web`);
+      else if (r.status === 'duplicate') toast(`⚠️ Số <b>${esc(r.phone)}</b> đang là của khách <b>${esc(r.other_name)}</b> — chưa lưu, kiểm tra lại`, 'warn');
+      else if (r.status === 'not_on_web') toast(`📞 Thấy SĐT nhưng booking #${esc(r.booking_id)} chưa có trên web — bấm 📥 để thêm trước`, 'warn');
+    } finally { phoneBusy = false; }
+  }
+  // Chỉ phản ứng khi bạn bấm đúng nút "Hiển thị số điện thoại"; số hiện ra sau đó một chút.
+  document.addEventListener('click', e => {
+    if (host.contains(e.target)) return;
+    const el = e.target.closest ? e.target.closest('button, a, [role="button"], span') : null;
+    if (!isRevealEl(el)) return;
+    revealSpot = el.parentElement?.parentElement || el.parentElement;
+    [600, 1500, 3000, 6000].forEach(ms => setTimeout(checkPhone, ms));
+  }, true);
+  // Nếu số đã hiện sẵn khi mở trang.
+  [2500, 6000].forEach(ms => setTimeout(checkPhone, ms));
 })();

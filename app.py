@@ -1744,6 +1744,109 @@ def ext_booking_save_many():
     return jsonify({'success': True, 'results': results, 'summary': summary})
 
 
+@app.route('/api/ext/booking/phone', methods=['POST'])
+def ext_booking_phone():
+    """A reservation page now shows the guest phone (the owner clicked Booking's own
+    "Hiển thị số điện thoại"). Store it on the booking already on the web — nothing else.
+    The extension sends the number it read in the guest block; the server never guesses it."""
+    err = _ext_auth_error()
+    if err:
+        return err
+    try:
+        from core.booking_page_parser import parse_reservation_page, clean_phone, _fold
+        from core.models import db as _xdb
+        body = request.get_json(silent=True) or {}
+        p = parse_reservation_page(body)
+        bid = p.get('booking_id')
+        phone = clean_phone(body.get('phone'))
+        if not bid or not phone:
+            return jsonify({'success': True, 'status': 'no_phone'})
+        existing = _ext_existing(bid)
+        if not existing:
+            return jsonify({'success': True, 'status': 'not_on_web', 'booking_id': bid,
+                            'phone': phone, 'guest_name': p.get('guest_name')})
+        name = existing['guest_name'] or p.get('guest_name') or bid
+        if re.sub(r'\D', '', existing['phone']) == re.sub(r'\D', '', phone):
+            return jsonify({'success': True, 'status': 'same', 'booking_id': bid, 'phone': phone, 'guest_name': name})
+        # Same number already on a DIFFERENT person → almost certainly a wrong read; do not save
+        other = _xdb.session.execute(text(r"""
+            SELECT full_name FROM guests
+            WHERE regexp_replace(COALESCE(phone, ''), '\D', '', 'g') = :d AND guest_id IS DISTINCT FROM :gid
+            LIMIT 1"""), {'d': re.sub(r'\D', '', phone), 'gid': existing['guest_id']}).fetchone()
+        if other and _fold(other[0] or '') != _fold(name):
+            return jsonify({'success': True, 'status': 'duplicate', 'booking_id': bid, 'phone': phone,
+                            'guest_name': name, 'other_name': other[0]})
+        result, code = _ext_save_one({'booking_id': bid, 'phone': phone})
+        if not result.get('success'):
+            return jsonify(result), code
+        return jsonify({'success': True, 'status': 'saved', 'booking_id': bid, 'phone': phone, 'guest_name': name})
+    except Exception as e:
+        from core.models import db as _xdb
+        _xdb.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+def _msg_phone_links(phone):
+    """Build click-to-message targets from a stored phone. wa = international digits (no + / no
+    leading 0), sms = +international, zalo = VN local 0-form when Vietnamese else international."""
+    raw = str(phone or '').strip()
+    d = re.sub(r'\D', '', raw)
+    if not d:
+        return None
+    if raw.startswith('+'):
+        wa = d
+    elif d.startswith('00'):
+        wa = d[2:]
+    elif d.startswith('0') and 9 <= len(d) <= 11:
+        wa = '84' + d[1:]
+    else:
+        wa = d
+    if len(wa) < 8:
+        return None
+    zalo = ('0' + wa[2:]) if wa.startswith('84') else wa
+    return {'wa': wa, 'sms': '+' + wa, 'zalo': zalo}
+
+
+@app.route('/messages')
+def messages_page():
+    """Mobile-first page: upcoming guests with a phone, each with WhatsApp / SMS / Zalo
+    buttons and a pre-filled message, so the owner can greet them from their phone."""
+    from core.models import db as _xdb
+    try:
+        days = max(1, min(int(request.args.get('days', 3)), 14))
+    except (TypeError, ValueError):
+        days = 3
+    today = (datetime.utcnow() + timedelta(hours=7)).date()
+    end = today + timedelta(days=days - 1)
+    rows = _xdb.session.execute(text("""
+        SELECT b.booking_id, COALESCE(g.full_name, b.guest_name) AS name,
+               b.checkin_date, b.checkout_date, b.accommodation_name, g.phone
+        FROM bookings b LEFT JOIN guests g ON g.guest_id = b.guest_id
+        WHERE b.checkin_date >= :a AND b.checkin_date <= :b
+          AND COALESCE(b.booking_status, '') NOT IN ('cancelled', 'deleted')
+          AND COALESCE(b.checkin_status, '') NOT IN ('cancelling', 'no_show')
+        ORDER BY b.checkin_date, name
+    """), {'a': today, 'b': end}).fetchall()
+
+    guests, no_phone = [], []
+    for r in rows:
+        ci, co = r[2], r[3]
+        item = {
+            'booking_id': r[0], 'name': (r[1] or r[0]).strip(),
+            'nhan': ci.strftime('%d/%m') if ci else '', 'tra': co.strftime('%d/%m') if co else '',
+            'ngay_full': ci.strftime('%d/%m/%Y') if ci else '', 'ci_iso': ci.isoformat() if ci else '',
+            'phong': r[4] or '', 'phone': r[5] or '',
+        }
+        links = _msg_phone_links(r[5])
+        if links:
+            item.update(links)
+            guests.append(item)
+        else:
+            no_phone.append(item)
+    return render_template('messages.html', guests=guests, no_phone=no_phone,
+                           days=days, today_str=today.strftime('%d/%m/%Y'), total=len(rows))
+
+
 @app.route('/bookings')
 def view_bookings():
     """Professional booking management with optimized search and filtering"""

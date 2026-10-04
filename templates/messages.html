@@ -1,0 +1,181 @@
+{% extends "base.html" %}
+{% block title %}Nhắn khách — Hotel Pro{% endblock %}
+
+{% block head_extra %}
+<style>
+  :root { --ink:#0f172a; --muted:#64748b; --line:#e2e8f0; --bg:#f8fafc; }
+  .wrap { max-width: 680px; margin: 0 auto; padding: 12px 14px 60px; }
+  .head { display:flex; flex-wrap:wrap; align-items:center; gap:8px 12px; margin-bottom:10px; }
+  .head h2 { margin:0; font-size:1.25rem; font-weight:800; color:var(--ink); }
+  .sub { font-size:.82rem; color:var(--muted); }
+  .days { display:flex; gap:6px; margin-left:auto; }
+  .days a { font-size:.8rem; font-weight:700; text-decoration:none; color:#334155; background:#eef2f7;
+            border:1px solid var(--line); border-radius:999px; padding:4px 12px; }
+  .days a.on { background:#2563eb; color:#fff; border-color:#2563eb; }
+
+  .tmpl { background:#fff; border:1px solid var(--line); border-radius:14px; padding:10px 12px; margin-bottom:12px; }
+  .tmpl summary { cursor:pointer; font-weight:700; font-size:.9rem; color:#334155; list-style:none; }
+  .tmpl summary::-webkit-details-marker { display:none; }
+  .tmpl textarea { width:100%; min-height:120px; margin-top:8px; border:1px solid var(--line); border-radius:10px;
+                   padding:8px; font-size:.9rem; font-family:inherit; line-height:1.45; resize:vertical; box-sizing:border-box; }
+  .toks { font-size:.72rem; color:var(--muted); margin-top:6px; }
+  .toks code { background:#eef2f7; border-radius:5px; padding:1px 5px; }
+
+  .card { background:#fff; border:1px solid var(--line); border-radius:14px; padding:12px; margin-bottom:10px; }
+  .card.done { opacity:.5; }
+  .crow { display:flex; align-items:flex-start; gap:10px; }
+  .cname { flex:1; min-width:0; }
+  .cname b { font-size:1.02rem; color:var(--ink); }
+  .cmeta { font-size:.8rem; color:var(--muted); margin-top:2px; }
+  .cphone { font-size:.82rem; color:#334155; font-weight:600; }
+  .chk { display:flex; align-items:center; gap:5px; font-size:.75rem; color:var(--muted); white-space:nowrap; }
+  .chk input { width:18px; height:18px; }
+
+  .btns { display:grid; grid-template-columns:repeat(4,1fr); gap:7px; margin-top:11px; }
+  .btns a, .btns button { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px;
+      text-decoration:none; border:none; border-radius:11px; padding:9px 4px; font-size:.74rem; font-weight:700;
+      color:#fff; cursor:pointer; font-family:inherit; line-height:1.1; }
+  .b-wa { background:#25d366; } .b-sms { background:#2563eb; } .b-zalo { background:#0068ff; } .b-copy { background:#475569; }
+  .btns .ico { font-size:1.1rem; }
+
+  .empty { text-align:center; color:var(--muted); padding:30px 10px; }
+  .nophone { margin-top:18px; }
+  .nophone .t { font-size:.85rem; font-weight:800; color:#b45309; margin-bottom:6px; }
+  .nophone .n { font-size:.8rem; color:var(--muted); background:#fff; border:1px dashed #fcd9a6; border-radius:10px;
+                padding:7px 10px; margin-bottom:5px; }
+  .tip { font-size:.78rem; color:var(--muted); background:#eff6ff; border:1px solid #bfdbfe; border-radius:10px;
+         padding:8px 10px; margin-bottom:12px; }
+  #copytoast { position:fixed; left:50%; bottom:24px; transform:translateX(-50%); background:#0f172a; color:#fff;
+      font-size:.85rem; padding:9px 16px; border-radius:999px; opacity:0; transition:opacity .2s; pointer-events:none; z-index:50; }
+  #copytoast.show { opacity:1; }
+  @media (max-width:360px){ .btns{ grid-template-columns:repeat(2,1fr);} }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="wrap">
+  <div class="head">
+    <div>
+      <h2>💬 Nhắn khách sắp đến</h2>
+      <div class="sub">Từ hôm nay {{ today_str }} · {{ guests|length }} khách có số · {{ total }} khách tổng</div>
+    </div>
+    <div class="days">
+      <a href="?days=1" class="{{ 'on' if days == 1 }}">Hôm nay</a>
+      <a href="?days=3" class="{{ 'on' if days == 3 }}">3 ngày</a>
+      <a href="?days=7" class="{{ 'on' if days == 7 }}">7 ngày</a>
+    </div>
+  </div>
+
+  <div class="tip">📱 Mở trang này <b>trên điện thoại</b> để nhắn bằng app thật. Mỗi khách bấm 1 nút → app mở sẵn tin → bấm Gửi.</div>
+
+  <details class="tmpl">
+    <summary>✏️ Sửa tin nhắn mẫu</summary>
+    <textarea id="tmpl" spellcheck="false"></textarea>
+    <div class="toks">Tự thay: <code>{ten}</code> tên khách · <code>{nhan}</code> ngày nhận · <code>{tra}</code> ngày trả · <code>{phong}</code> phòng. Tin được lưu trên máy này.</div>
+  </details>
+
+  {% if guests %}
+  <div id="list">
+    {% for g in guests %}
+    <div class="card" data-bid="{{ g.booking_id }}"
+         data-ten="{{ g.name }}" data-nhan="{{ g.nhan }}" data-tra="{{ g.tra }}" data-phong="{{ g.phong }}"
+         data-wa="{{ g.wa }}" data-sms="{{ g.sms }}" data-zalo="{{ g.zalo }}">
+      <div class="crow">
+        <div class="cname">
+          <b>{{ g.name }}</b>
+          <div class="cmeta">{{ g.nhan }} → {{ g.tra }}{% if g.phong %} · {{ g.phong }}{% endif %}</div>
+          <div class="cphone">📞 {{ g.phone }}</div>
+        </div>
+        <label class="chk"><input type="checkbox" class="done"> đã nhắn</label>
+      </div>
+      <div class="btns">
+        <a class="b-wa" target="_blank" rel="noopener"><span class="ico">🟢</span>WhatsApp</a>
+        <a class="b-sms"><span class="ico">💬</span>SMS</a>
+        <a class="b-zalo" target="_blank" rel="noopener"><span class="ico">🔵</span>Zalo</a>
+        <button type="button" class="b-copy"><span class="ico">📋</span>Chép tin</button>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="empty">Chưa có khách nào có số điện thoại trong khoảng này.<br>Lấy số trên máy tính (bấm "Hiển thị số điện thoại" trong Booking) rồi mở lại trang này.</div>
+  {% endif %}
+
+  {% if no_phone %}
+  <div class="nophone">
+    <div class="t">⏳ {{ no_phone|length }} khách chưa có số — lấy số trên PC</div>
+    {% for g in no_phone %}
+    <div class="n">{{ g.name }} · {{ g.nhan }} → {{ g.tra }}{% if g.phong %} · {{ g.phong }}{% endif %}</div>
+    {% endfor %}
+  </div>
+  {% endif %}
+</div>
+<div id="copytoast"></div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  const DEFAULT_TMPL =
+`Xin chào {ten}! 👋
+Cozy Homestay Hanoi xác nhận đặt phòng của bạn: nhận phòng {nhan}, trả phòng {tra}{phong}.
+Cho chúng tôi xin giờ bạn dự kiến tới để chuẩn bị phòng chu đáo nhé. Cảm ơn bạn!
+
+Hello {ten}! This is Cozy Homestay Hanoi. We confirm your stay: check-in {nhan}, check-out {tra}{phong}.
+Could you let us know your expected arrival time so we can prepare your room? Thank you!`;
+
+  const KEY = 'hotelpro.msg.tmpl';
+  const box = document.getElementById('tmpl');
+  try { box.value = localStorage.getItem(KEY) || DEFAULT_TMPL; } catch (e) { box.value = DEFAULT_TMPL; }
+
+  const fill = (t, g) => t
+    .replace(/\{ten\}/g, g.ten || 'bạn')
+    .replace(/\{nhan\}/g, g.nhan || '')
+    .replace(/\{tra\}/g, g.tra || '')
+    .replace(/\{phong\}/g, g.phong ? ' (' + g.phong + ')' : '');
+
+  function render() {
+    const tmpl = box.value;
+    document.querySelectorAll('.card').forEach(card => {
+      const g = card.dataset;
+      const msg = fill(tmpl, g);
+      const enc = encodeURIComponent(msg);
+      card.querySelector('.b-wa').href = 'https://wa.me/' + g.wa + '?text=' + enc;
+      card.querySelector('.b-sms').href = 'sms:' + g.sms + '?&body=' + enc;  // ?&body= works on both iOS & Android
+      const zalo = card.querySelector('.b-zalo');
+      zalo.href = 'https://zalo.me/' + g.zalo;
+      zalo.onclick = () => copy(msg, 'Đã chép tin — dán vào Zalo rồi gửi');
+      card.querySelector('.b-copy').onclick = () => copy(msg, 'Đã chép tin nhắn');
+    });
+  }
+
+  const toast = document.getElementById('copytoast');
+  let tTimer;
+  function copy(text, note) {
+    const done = () => { toast.textContent = note; toast.classList.add('show');
+      clearTimeout(tTimer); tTimer = setTimeout(() => toast.classList.remove('show'), 2200); };
+    try { navigator.clipboard.writeText(text).then(done, fallback); } catch (e) { fallback(); }
+    function fallback() {
+      const ta = document.createElement('textarea'); ta.value = text; document.body.appendChild(ta);
+      ta.select(); try { document.execCommand('copy'); } catch (e) {} ta.remove(); done();
+    }
+  }
+
+  box.addEventListener('input', render);
+  box.addEventListener('change', () => { try { localStorage.setItem(KEY, box.value); } catch (e) {} });
+
+  // "đã nhắn" ghi nhớ trên máy này
+  document.querySelectorAll('.card').forEach(card => {
+    const k = 'hotelpro.msgdone.' + card.dataset.bid;
+    const chk = card.querySelector('.done');
+    try { if (localStorage.getItem(k) === '1') { chk.checked = true; card.classList.add('done'); } } catch (e) {}
+    chk.addEventListener('change', () => {
+      card.classList.toggle('done', chk.checked);
+      try { chk.checked ? localStorage.setItem(k, '1') : localStorage.removeItem(k); } catch (e) {}
+    });
+  });
+
+  render();
+})();
+</script>
+{% endblock %}
