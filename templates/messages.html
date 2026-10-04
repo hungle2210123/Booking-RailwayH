@@ -18,7 +18,13 @@
   .tmpl summary::-webkit-details-marker { display:none; }
   .tmpl textarea { width:100%; min-height:120px; margin-top:8px; border:1px solid var(--line); border-radius:10px;
                    padding:8px; font-size:.9rem; font-family:inherit; line-height:1.45; resize:vertical; box-sizing:border-box; }
-  .tchips { display:flex; flex-wrap:wrap; gap:6px; margin-top:10px; }
+  .tcur { display:block; font-size:.74rem; font-weight:600; color:var(--muted); margin-top:2px; }
+  .chan { display:flex; flex-direction:column; gap:6px; margin-top:10px; padding:8px 10px; background:#f8fafc;
+          border:1px solid var(--line); border-radius:10px; }
+  .chan label { display:flex; align-items:center; justify-content:space-between; gap:8px; font-size:.8rem; font-weight:700; color:#334155; }
+  .chan select { flex:1; max-width:62%; font-size:.8rem; padding:4px 6px; border:1px solid var(--line); border-radius:8px; font-family:inherit; }
+  .tlabel { font-size:.76rem; font-weight:700; color:var(--muted); margin-top:10px; }
+  .tchips { display:flex; flex-wrap:wrap; gap:6px; margin-top:6px; }
   .tchips button { font-size:.78rem; font-weight:700; border:1px solid var(--line); background:#eef2f7; color:#334155;
                    border-radius:999px; padding:5px 11px; cursor:pointer; font-family:inherit; }
   .tchips button.on { background:#16a34a; border-color:#16a34a; color:#fff; }
@@ -86,7 +92,12 @@
   <div class="tip">📱 Mở trang này <b>trên điện thoại</b> để nhắn bằng app thật. Mỗi khách bấm 1 nút → app mở sẵn tin → bấm Gửi.</div>
 
   <details class="tmpl" id="edit">
-    <summary>✏️ Tin nhắn tự động: <span id="tcur"></span></summary>
+    <summary>✏️ Tin nhắn tự động <span class="tcur" id="tcur"></span></summary>
+    <div class="chan">
+      <label>🟢 WhatsApp · SMS · Chép tin <select id="selWa"></select></label>
+      <label>🔵 Zalo <select id="selZalo"></select></label>
+    </div>
+    <div class="tlabel">Sửa mẫu:</div>
     <div class="tchips" id="tchips"></div>
     <input id="tname" class="tname" placeholder="Tên mẫu (vd: Hỏi giờ đến)">
     <textarea id="tmpl" spellcheck="false"></textarea>
@@ -95,7 +106,7 @@
       <span id="tstate" class="tstate"></span>
     </div>
     <div class="toks">Tự thay: <code>{ten}</code> tên khách · <code>{nhan}</code> ngày nhận · <code>{tra}</code> ngày trả · <code>{phong}</code> (phòng).
-      Lưu lên web nên sửa ở điện thoại hay máy tính đều dùng chung, nút WhatsApp trên trang lịch cũng dùng mẫu đầu tiên.</div>
+      Lưu lên web nên sửa ở điện thoại hay máy tính đều dùng chung. Trên trang lịch: WhatsApp dùng mẫu có chữ <b>(EN)</b>, Zalo dùng mẫu có chữ <b>(VI)</b> trong tên.</div>
   </details>
 
   {% if guests %}
@@ -160,12 +171,39 @@
   const saveBtn = document.getElementById('tsave');
   let cur = null, dirty = false;
 
+  // Which template each channel sends (per device). Default: name with "(EN)" → WhatsApp/SMS, "(VI)" → Zalo.
+  const CHAN_KEY = 'hotelpro.msg.chan';
+  const tplById = id => TEMPLATES.find(t => t.id != null && String(t.id) === String(id));
+  const isPartnerTpl = t => /đối tác/i.test(t.name || '');
+  const byTag = tag => TEMPLATES.find(t => (t.name || '').toLowerCase().includes(tag));
+  const firstNormal = () => TEMPLATES.find(t => !isPartnerTpl(t)) || TEMPLATES[0];
+  let chan = {};
+  try { chan = JSON.parse(localStorage.getItem(CHAN_KEY) || '{}') || {}; } catch (e) { chan = {}; }
+  if (!tplById(chan.wa)) chan.wa = (byTag('(en)') || firstNormal()).id;
+  if (!tplById(chan.zalo)) chan.zalo = (byTag('(vi)') || firstNormal()).id;
+  function chanUI() {
+    [['selWa', 'wa'], ['selZalo', 'zalo']].forEach(([id, key]) => {
+      const sel = document.getElementById(id);
+      sel.innerHTML = TEMPLATES.filter(t => t.id != null)
+        .map(t => `<option value="${t.id}">${t.name.replace(/</g, '&lt;')}</option>`).join('');
+      sel.value = String(chan[key]);
+      sel.onchange = () => {
+        chan[key] = sel.value;
+        try { localStorage.setItem(CHAN_KEY, JSON.stringify(chan)); } catch (e) {}
+        chanUI(); render();
+      };
+    });
+    const n = id => (tplById(id) || {}).name || '?';
+    document.getElementById('tcur').textContent = `WhatsApp: ${n(chan.wa)} · Zalo: ${n(chan.zalo)}`;
+  }
+  // Text of a template, using the edit box when it is the one being edited (live preview)
+  const contentOf = id => (cur && cur.id != null && String(cur.id) === String(id)) ? box.value : ((tplById(id) || {}).content || '');
+
   function setState(text, cls) { state.textContent = text; state.className = 'tstate ' + (cls || ''); }
   function pick(t) {
     if (dirty && cur && !confirm('Mẫu đang sửa chưa lưu. Bỏ thay đổi?')) return;
     cur = t; dirty = false;
     box.value = t.content; nameBox.value = t.name;
-    document.getElementById('tcur').textContent = t.name;
     try { if (t.id) localStorage.setItem(PICK_KEY, String(t.id)); } catch (e) {}
     setState(t.id ? '' : 'Mẫu mới — bấm Lưu', t.id ? '' : 'dirty');
     chips(); render();
@@ -204,8 +242,7 @@
       if (!r.success) throw new Error(r.error || 'Lỗi không rõ');
       cur.id = r.template.id; cur.name = name; cur.content = content; dirty = false;
       try { localStorage.setItem(PICK_KEY, String(cur.id)); } catch (e) {}
-      document.getElementById('tcur').textContent = name;
-      chips(); setState('✅ Đã lưu — mọi máy dùng chung', 'ok');
+      chips(); chanUI(); setState('✅ Đã lưu — mọi máy dùng chung', 'ok');
     } catch (e) {
       setState('❌ ' + e.message, 'err');
     } finally { saveBtn.disabled = false; }
@@ -220,16 +257,16 @@
     .replace(/\{phong\}/g, g.phong ? ' (' + g.phong + ')' : '');
 
   function render() {
-    const tmpl = box.value;
+    const tWa = contentOf(chan.wa), tZalo = contentOf(chan.zalo);
     document.querySelectorAll('.card').forEach(card => {
       const g = card.dataset;
-      const msg = fill(tmpl, g);
+      const msg = fill(tWa, g), msgZalo = fill(tZalo, g);
       const enc = encodeURIComponent(msg);
       card.querySelector('.b-wa').href = 'https://wa.me/' + g.wa + '?text=' + enc;
       card.querySelector('.b-sms').href = 'sms:' + g.sms + '?&body=' + enc;  // ?&body= works on both iOS & Android
       const zalo = card.querySelector('.b-zalo');
       zalo.href = 'https://zalo.me/' + g.zalo;
-      zalo.onclick = () => copy(msg, 'Đã chép tin — dán vào Zalo rồi gửi');
+      zalo.onclick = () => copy(msgZalo, 'Đã chép tin — dán vào Zalo rồi gửi');
       card.querySelector('.b-copy').onclick = () => copy(msg, 'Đã chép tin nhắn');
     });
   }
@@ -262,7 +299,8 @@
 
   let saved = null;
   try { saved = localStorage.getItem(PICK_KEY); } catch (e) {}
-  pick(TEMPLATES.find(t => String(t.id) === saved) || TEMPLATES[0]);
+  chanUI();
+  pick(TEMPLATES.find(t => String(t.id) === saved) || tplById(chan.wa) || TEMPLATES[0]);
   if (location.hash === '#edit') document.getElementById('edit').open = true;
 })();
 </script>

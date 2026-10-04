@@ -6500,10 +6500,10 @@ function showQuickToast(msg, type) {
 <script>
 (function () {
     // ── Pre-written message on the WhatsApp / Zalo chips (edited on /messages, shared by every device) ──
-    const AUTO_MSG = {{ auto_msg|tojson }};
+    const AUTO_MSG = {{ auto_msg|tojson }};   // {wa: English template, zalo: Vietnamese template}
     // Booking names often end with the country code ("Lucas de Kok nl") — not part of the greeting
     const cleanName = n => String(n || '').replace(/\s+[a-z]{2}$/, '').trim();
-    const fill = d => AUTO_MSG
+    const fill = d => (AUTO_MSG[d.ch] || AUTO_MSG.wa)
         .replace(/\{ten\}/g, cleanName(d.ten) || 'bạn').replace(/\{nhan\}/g, d.nhan || '')
         .replace(/\{tra\}/g, d.tra || '').replace(/\{phong\}/g, d.phong ? ' (' + d.phong + ')' : '');
     function copyText(text) {

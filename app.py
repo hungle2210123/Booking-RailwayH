@@ -1832,13 +1832,19 @@ def _msg_phone_links(phone):
 # category, so they are edited once and shared by every device (also visible on the Mẫu Câu page).
 # Tokens: {ten} guest name · {nhan} check-in dd/mm · {tra} check-out dd/mm · {phong} " (room)".
 AUTO_MSG_CATEGORY = '0 · Nhắn tự động'
-AUTO_MSG_DEFAULT_NAME = 'Hỏi giờ đến + xác nhận'
+# Language tag in the template name picks the channel: "(EN)" → WhatsApp / SMS (mostly foreign guests),
+# "(VI)" → Zalo (Vietnamese guests).
+AUTO_MSG_DEFAULT_NAME = 'Hỏi giờ đến (EN)'
 AUTO_MSG_DEFAULT = (
+    "Hello {ten}! 👋\n"
+    "This is Cozy Homestay Hanoi. We confirm your stay: check-in {nhan}, check-out {tra}{phong}.\n"
+    "Could you let us know your expected arrival time so we can prepare your room? Thank you!"
+)
+AUTO_MSG_VI_NAME = 'Hỏi giờ đến (VI)'
+AUTO_MSG_VI = (
     "Xin chào {ten}! 👋\n"
     "Cozy Homestay Hanoi xác nhận đặt phòng của bạn: nhận phòng {nhan}, trả phòng {tra}{phong}.\n"
-    "Cho chúng tôi xin giờ bạn dự kiến tới để chuẩn bị phòng chu đáo nhé. Cảm ơn bạn!\n\n"
-    "Hello {ten}! This is Cozy Homestay Hanoi. We confirm your stay: check-in {nhan}, check-out {tra}{phong}.\n"
-    "Could you let us know your expected arrival time so we can prepare your room? Thank you!"
+    "Bạn cho mình xin giờ dự kiến tới để chuẩn bị phòng chu đáo nhé. Cảm ơn bạn!"
 )
 # For guests booked through a Booking.com partner company (their real number is not shown):
 # sent in the Booking chat to ask for a WhatsApp / Zalo number.
@@ -1853,7 +1859,16 @@ AUTO_MSG_PARTNER = (
     "Could you please share your WhatsApp (or Zalo) number so we can send you the check-in instructions "
     "(address, how to get in, Wi-Fi)? Please also let us know your expected arrival time. Thank you!"
 )
-AUTO_MSG_DEFAULTS = [(AUTO_MSG_DEFAULT_NAME, AUTO_MSG_DEFAULT), (AUTO_MSG_PARTNER_NAME, AUTO_MSG_PARTNER)]
+AUTO_MSG_DEFAULTS = [(AUTO_MSG_DEFAULT_NAME, AUTO_MSG_DEFAULT), (AUTO_MSG_VI_NAME, AUTO_MSG_VI),
+                     (AUTO_MSG_PARTNER_NAME, AUTO_MSG_PARTNER)]
+
+
+def _auto_msg_for(templates, lang):
+    """The template for a channel: name tagged "(EN)" / "(VI)", else the first non-partner one."""
+    tag = f'({lang})'.lower()
+    return (next((t for t in templates if tag in (t['name'] or '').lower()), None)
+            or next((t for t in templates if t['name'] != AUTO_MSG_PARTNER_NAME), None)
+            or templates[0])
 
 
 def _phone_tail(phone):
@@ -1941,7 +1956,7 @@ def ext_auto_messages():
         templates = _auto_msg_templates()
         default = next((t for t in templates if t['name'] == AUTO_MSG_PARTNER_NAME), None) if partner else None
         return jsonify({'success': True, 'templates': templates, 'guest': guest, 'partner': partner,
-                        'default_id': (default or templates[0])['id']})
+                        'default_id': (default or _auto_msg_for(templates, 'EN'))['id']})
     except Exception as e:
         from core.models import db as _xdb
         _xdb.session.rollback()
@@ -4779,10 +4794,11 @@ def calendar_details(date_str):
         except Exception as _phe:
             print(f"[calendar_details] phone load failed: {_phe}")
         try:
-            auto_msg = _auto_msg_templates()[0]['content']
+            _amt = _auto_msg_templates()
+            auto_msg = {'wa': _auto_msg_for(_amt, 'EN')['content'], 'zalo': _auto_msg_for(_amt, 'VI')['content']}
         except Exception as _ame:
             print(f"[calendar_details] auto message load failed: {_ame}")
-            auto_msg = AUTO_MSG_DEFAULT
+            auto_msg = {'wa': AUTO_MSG_DEFAULT, 'zalo': AUTO_MSG_VI}
 
         # ── 2-bedroom (2 PN) bookings: flag per card + upcoming check-outs to watch ──
         two_br_map = {}
