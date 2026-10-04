@@ -19,6 +19,32 @@
   .reload.spin { animation:rl .8s linear infinite; }
   @keyframes rl { to { transform:rotate(360deg); } }
   .upd { font-size:.7rem; color:var(--muted); margin:-4px 0 6px; text-align:right; }
+  .addphoto { display:block; width:100%; border:1.5px dashed #2563eb; background:#eff6ff; color:#1d4ed8; font-weight:800;
+              font-size:.88rem; border-radius:12px; padding:10px; margin:0 0 10px; cursor:pointer; font-family:inherit; }
+  .ap-ov { position:fixed; inset:0; z-index:99990; background:rgba(15,23,42,.55); display:flex; align-items:flex-end; justify-content:center; }
+  .ap { background:#fff; width:100%; max-width:560px; max-height:92vh; overflow:auto; border-radius:18px 18px 0 0; padding:14px 14px 22px; box-sizing:border-box; }
+  .ap h3 { margin:0; font-size:1.05rem; font-weight:800; }
+  .ap .top { display:flex; align-items:center; justify-content:space-between; gap:8px; }
+  .ap .x { border:none; background:#f1f5f9; width:34px; height:34px; border-radius:50%; font-weight:800; cursor:pointer; }
+  .ap .hint { font-size:.78rem; color:var(--muted); margin:6px 0 10px; line-height:1.45; }
+  .ap .pick { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+  .ap .pick button, .ap .pick label { border:1.5px solid #cbd5e1; background:#f8fafc; border-radius:12px; padding:12px 6px; font-weight:800;
+              font-size:.85rem; text-align:center; cursor:pointer; font-family:inherit; color:#0f172a; }
+  .ap .thumbs { display:flex; gap:6px; flex-wrap:wrap; margin:10px 0 4px; }
+  .ap .thumbs img { height:90px; border-radius:8px; border:1px solid var(--line); }
+  .ap .status { font-size:.82rem; font-weight:700; color:#1d4ed8; margin:8px 0; }
+  .ap .status.err { color:#b91c1c; }
+  .ap .f { margin-top:8px; }
+  .ap .f label { display:block; font-size:.72rem; font-weight:800; color:#475569; margin-bottom:3px; }
+  .ap .f input { width:100%; box-sizing:border-box; border:1.5px solid #e2e8f0; border-radius:10px; padding:9px; font-size:.95rem; font-family:inherit; }
+  .ap .f input.miss { border-color:#ef4444; background:#fef2f2; }
+  .ap .two { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+  .ap .note { font-size:.78rem; border-radius:10px; padding:8px 10px; margin-top:10px; line-height:1.45; }
+  .ap .note.warn { background:#fffbeb; color:#92400e; border:1px solid #fde68a; }
+  .ap .note.info { background:#eff6ff; color:#1e40af; border:1px solid #bfdbfe; }
+  .ap .save { width:100%; margin-top:12px; border:none; background:#16a34a; color:#fff; font-weight:800; font-size:1rem; border-radius:12px;
+              padding:13px; cursor:pointer; font-family:inherit; }
+  .ap .save:disabled { opacity:.5; }
   .gear { font-size:.8rem; font-weight:700; text-decoration:none; color:#334155; background:#eef2f7;
           border:1px solid var(--line); border-radius:10px; padding:6px 10px; white-space:nowrap; }
   .tabs { display:flex; gap:6px; margin-bottom:8px; }
@@ -139,6 +165,7 @@
     <a class="gear" href="/journey">⚙️ Nút, tin &amp; ảnh</a>
   </div>
   <div class="upd" id="upd">Tự cập nhật · lúc {{ now_str }}</div>
+  <button type="button" class="addphoto" id="addphoto">📷 Thêm đặt phòng từ ảnh app Booking</button>
   <div class="tabs">
     <a href="?view=arriving&days={{ days }}" class="{{ 'on' if view == 'arriving' }}">🛬 Sắp đến</a>
     <a href="?view=staying" class="{{ 'on' if view == 'staying' }}">🏨 Đang ở</a>
@@ -180,6 +207,155 @@
 {% endblock %}
 
 {% block scripts %}
+<script>
+// 📷 Booking made while away from the computer: screenshots of the Booking app → read on the phone (OCR, no
+// API key) → fields to check → saved like the Chrome extension does. Nothing is saved without the owner's tap.
+(function () {
+  let ov = null, texts = [], edited = new Set(), worker = null;
+  const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const FIELDS = [['booking_id', 'Mã đặt phòng', 'text', 'numeric'], ['guest_name', 'Tên khách', 'text'],
+                  ['checkin_date', 'Nhận phòng', 'date'], ['checkout_date', 'Trả phòng', 'date'],
+                  ['listing', 'Loại phòng', 'text'], ['room_amount', 'Tổng tiền (đ)', 'text', 'numeric'],
+                  ['phone', 'Số điện thoại (nếu có)', 'tel']];
+  const fmt = n => n ? Math.round(n).toLocaleString('vi-VN') : '';
+
+  function open() {
+    texts = []; edited = new Set();
+    ov = document.createElement('div');
+    ov.className = 'ap-ov';
+    ov.innerHTML = `<div class="ap">
+      <div class="top"><h3>📷 Thêm đặt phòng từ ảnh</h3><button type="button" class="x" aria-label="Đóng">✕</button></div>
+      <div class="hint">Chụp màn hình đặt phòng trong app Booking (tên, ngày, phòng, giá — và <b>Mã số đặt phòng</b>, có thể 2 ảnh),
+        rồi chọn ảnh hoặc dán vào đây. Ảnh được đọc ngay trên máy, không gửi đi đâu.</div>
+      <div class="pick">
+        <label>🖼 Chọn ảnh<input type="file" accept="image/*" multiple hidden></label>
+        <button type="button" class="paste">📋 Dán ảnh</button>
+      </div>
+      <div class="thumbs"></div>
+      <div class="status"></div>
+      <div class="form"></div>
+    </div>`;
+    document.body.appendChild(ov);
+    ov.addEventListener('click', e => { if (e.target === ov) close(); });
+    ov.querySelector('.x').onclick = close;
+    ov.querySelector('input[type=file]').onchange = e => { addImages([...e.target.files]); e.target.value = ''; };
+    ov.querySelector('.paste').onclick = pasteFromClipboard;
+  }
+  function close() { if (ov) ov.remove(); ov = null; }
+  function status(t, err) {
+    const el = ov && ov.querySelector('.status');
+    if (el) { el.textContent = t; el.className = 'status' + (err ? ' err' : ''); }
+  }
+
+  async function pasteFromClipboard() {
+    try {
+      const items = await navigator.clipboard.read();
+      const files = [];
+      for (const it of items) for (const t of it.types) if (t.startsWith('image/')) files.push(await it.getType(t));
+      if (!files.length) { status('Không có ảnh trong bộ nhớ tạm — chụp màn hình, bấm Sao chép rồi dán lại.', true); return; }
+      addImages(files);
+    } catch (e) { status('Máy không cho dán trực tiếp — dùng "Chọn ảnh".', true); }
+  }
+  document.addEventListener('paste', e => {                       // Ctrl+V on a computer
+    if (!ov) return;
+    const files = [...((e.clipboardData && e.clipboardData.files) || [])].filter(f => f.type.startsWith('image/'));
+    if (files.length) { e.preventDefault(); addImages(files); }
+  });
+
+  function loadTesseract() {
+    if (window.Tesseract) return Promise.resolve();
+    return new Promise((res, rej) => {
+      const sc = document.createElement('script');
+      sc.src = 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js';
+      sc.onload = res; sc.onerror = () => rej(new Error('không tải được bộ đọc chữ (kiểm tra mạng)'));
+      document.head.appendChild(sc);
+    });
+  }
+  // dark-mode screenshots read best inverted to black text on white
+  async function prepare(blob) {
+    const url = URL.createObjectURL(blob), img = new Image();
+    img.src = url; await img.decode();
+    const c = document.createElement('canvas'); c.width = img.naturalWidth; c.height = img.naturalHeight;
+    const x = c.getContext('2d'); x.drawImage(img, 0, 0);
+    const d = x.getImageData(0, 0, c.width, c.height); let sum = 0, n = 0;
+    for (let i = 0; i < d.data.length; i += 16) { sum += d.data[i] + d.data[i + 1] + d.data[i + 2]; n++; }
+    if (sum / n / 3 < 110) {
+      for (let i = 0; i < d.data.length; i += 4) {
+        const g = 255 - (d.data[i] * .3 + d.data[i + 1] * .59 + d.data[i + 2] * .11);
+        d.data[i] = d.data[i + 1] = d.data[i + 2] = g;
+      }
+      x.putImageData(d, 0, 0);
+    }
+    return { canvas: c, url };
+  }
+  async function addImages(files) {
+    if (!files.length || !ov) return;
+    try {
+      status(window.Tesseract ? 'Đang đọc ảnh…' : 'Đang tải bộ đọc chữ (lần đầu ~10 giây)…');
+      await loadTesseract();
+      if (!worker) worker = await Tesseract.createWorker('vie+eng');
+      for (const f of files) {
+        const { canvas, url } = await prepare(f);
+        if (!ov) return;
+        ov.querySelector('.thumbs').insertAdjacentHTML('beforeend', `<img src="${url}" alt="">`);
+        status(`Đang đọc ảnh ${texts.length + 1}…`);
+        const r = await worker.recognize(canvas);
+        texts.push(r.data.text);
+      }
+      const p = await fetch('/api/booking_from_photo/parse', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: texts.join('\n') }) }).then(x => x.json());
+      if (!ov) return;
+      status('');
+      showForm(p.parsed, p.existing);
+    } catch (e) { status('❌ Không đọc được ảnh: ' + (e.message || e), true); }
+  }
+
+  function showForm(p, existing) {
+    const box = ov.querySelector('.form');
+    const cur = {};
+    box.querySelectorAll('input[data-k]').forEach(i => { cur[i.dataset.k] = i.value; });
+    const val = k => edited.has(k) ? cur[k] : (k === 'room_amount' ? fmt(p[k]) : (p[k] || ''));
+    const inp = f => `<div class="f"><label>${f[1]}</label>
+      <input data-k="${f[0]}" type="${f[2]}" ${f[3] ? `inputmode="${f[3]}"` : ''} value="${esc(val(f[0]))}"
+             class="${val(f[0]) || f[0] === 'phone' ? '' : 'miss'}"></div>`;
+    box.innerHTML = inp(FIELDS[0]) + inp(FIELDS[1]) + `<div class="two">${inp(FIELDS[2])}${inp(FIELDS[3])}</div>`
+      + inp(FIELDS[4]) + `<div class="two">${inp(FIELDS[5])}${inp(FIELDS[6])}</div>`
+      + (!val('booking_id') ? `<div class="note warn">Chưa thấy <b>Mã số đặt phòng</b>: trong app Booking kéo xuống phần mã,
+          chụp thêm 1 ảnh rồi bấm <b>Chọn ảnh</b> / <b>Dán ảnh</b> lần nữa — hoặc gõ mã vào ô trên.</div>` : '')
+      + (existing ? `<div class="note info">Booking này <b>đã có trên web</b> (${esc(existing.guest_name)}) — Lưu sẽ cập nhật
+          ngày / giá / phòng; tiền đã thu và căn đã xếp giữ nguyên.</div>` : '')
+      + `<button type="button" class="save">💾 ${existing ? 'Cập nhật' : 'Lưu vào web'}</button>`;
+    box.querySelectorAll('input[data-k]').forEach(i => i.addEventListener('input', () => {
+      edited.add(i.dataset.k);
+      i.classList.toggle('miss', !i.value && i.dataset.k !== 'phone');
+    }));
+    box.querySelector('.save').onclick = save;
+  }
+
+  async function save() {
+    const v = k => ((ov.querySelector(`input[data-k="${k}"]`) || {}).value || '').trim();
+    const body = {};
+    FIELDS.forEach(f => { body[f[0]] = v(f[0]); });
+    body.room_amount = body.room_amount.replace(/\D/g, '');
+    const missing = FIELDS.filter(f => f[0] !== 'phone' && !body[f[0]]).map(f => f[1]);
+    if (missing.length) { status('Còn thiếu: ' + missing.join(', '), true); return; }
+    const btn = ov.querySelector('.save'), label = btn.textContent;
+    btn.disabled = true; btn.textContent = 'Đang lưu…';
+    const r = await fetch('/api/booking_from_photo/save', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body) }).then(x => x.json()).catch(() => null);
+    if (!r || !r.success) {
+      btn.disabled = false; btn.textContent = label;
+      status('❌ ' + ((r && (r.error || r.message)) || 'Không lưu được'), true); return;
+    }
+    close();
+    const t = document.createElement('div'); t.className = 'live-toast';
+    t.textContent = r.action === 'created' ? `✅ Đã thêm ${body.guest_name}` : `✅ Đã cập nhật ${body.guest_name}`;
+    document.body.appendChild(t); setTimeout(() => t.remove(), 5000);
+    if (window.MsgLive) window.MsgLive.refresh();
+  }
+  document.getElementById('addphoto').onclick = open;
+})();
+</script>
 <script src="{{ asset('js/journey.js') }}"></script>
 <script>
 // Keep the list up to date by itself: every 30 s while the page is open, and at once when you come back to it

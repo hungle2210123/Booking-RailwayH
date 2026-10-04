@@ -412,3 +412,75 @@ def parse_reservation_list(headers, rows):
         item['missing'] = [k for k in ('guest_name', 'checkin_date', 'checkout_date') if not item[k]]
         out.append(item)
     return out
+
+
+# ── Booking.com Pulse (phone app) screenshot, read by OCR on the phone ────────────────────────────────
+# Used by /messages "📷 Thêm từ ảnh" for bookings made while the owner is away from the computer.
+# The text is OCR output (one or more screenshots joined), so every field is a best guess the owner checks.
+_PULSE_DATE = re.compile(r'(\d{1,2})\s*th[aá]ng\s*(\d{1,2}),?\s*(\d{4})', re.I)
+
+
+def parse_pulse_text(text):
+    lines = [re.sub(r'\s+', ' ', l).strip() for l in str(text or '').splitlines()]
+    lines = [l for l in lines if l]
+    folded = [_fold(l) for l in lines]
+    out = {'booking_id': None, 'guest_name': None, 'checkin_date': None, 'checkout_date': None,
+           'listing': None, 'room_amount': None, 'guests': None, 'phone': None}
+
+    # Booking number: after its label, else a lone 10-digit number
+    m = re.search(r'(?:ma so dat phong|so dat phong|ma dat phong|booking number|reservation number)\D{0,25}(\d{9,11})',
+                  ' '.join(folded))
+    m = m or re.search(r'(?<![\d+])([1-9]\d{9})(?!\d)', ' '.join(lines))   # booking numbers never start with 0 (phones do)
+    out['booking_id'] = m.group(1) if m else None
+
+    # Guest name: the header "< Tin nhắn EMERAUD Clement" (the back link), else the line under "Tên khách"
+    for l, f in zip(lines, folded):
+        h = re.search(r'tin nhan\s+(.+)$', f)
+        if h and l[-len(h.group(1)):].strip():
+            name = l[-len(h.group(1)):].strip()
+            name = re.sub(r'(\s+[a-z]{1,2})+$', '', name)           # icon read as "li" at the end
+            name = re.sub(r'[^\w\s.\'-]+', '', name).strip()
+            if 2 <= len(name) <= 60:
+                out['guest_name'] = name
+                break
+    if not out['guest_name']:
+        for i, f in enumerate(folded[:-1]):
+            if f.startswith(('ten khach', 'guest name')):
+                out['guest_name'] = lines[i + 1][:60]
+                break
+
+    # Dates: the first two after "Nhận phòng" (check-in, check-out)
+    start = next((i for i, f in enumerate(folded) if 'nhan phong' in f or 'check-in' in f), 0)
+    found = []
+    for l in lines[start:]:
+        for d, mth, y in _PULSE_DATE.findall(l):
+            iso = parse_date(f'{d} tháng {mth} {y}')
+            if iso:
+                found.append(iso)
+    if len(found) >= 2:
+        out['checkin_date'], out['checkout_date'] = found[0].isoformat(), found[1].isoformat()
+
+    # Room: the line under "1 phòng" / "2 phòng"
+    for i, f in enumerate(folded[:-1]):
+        if re.fullmatch(r'\d+\s*phong', f) and looks_like_room(lines[i + 1]):
+            out['listing'] = lines[i + 1]
+            break
+
+    # Total price
+    for l, f in zip(lines, folded):
+        if f.startswith(('tong gia tien dat phong', 'tong gia', 'tong tien', 'total price')):
+            v = parse_money(l)
+            if v:
+                out['room_amount'] = v
+                break
+
+    g = re.search(r'(\d+)\s*nguoi lon', ' '.join(folded))
+    out['guests'] = int(g.group(1)) if g else None
+    for l in lines:
+        p = clean_phone(l) if re.search(r'\+\d[\d\s]{7,}', l) else None
+        if p:
+            out['phone'] = p
+            break
+    out['missing'] = [k for k in ('booking_id', 'guest_name', 'checkin_date', 'checkout_date', 'listing', 'room_amount')
+                      if not out[k]]
+    return out

@@ -294,6 +294,15 @@ cards show a JS-built `.cd-sum` line, tap opens `.cd-open`. Guests without a pho
 phone → wa (intl digits), sms (+intl), zalo (VN 0-form). Nav: "💬 Nhắn Khách". Workflow = capture + reveal phones on
 PC, message from the phone. WhatsApp bulk-blast from a personal account is intentionally NOT built (ban risk).
 
+### **📷 Booking from a phone screenshot (/messages "Thêm đặt phòng từ ảnh app Booking")**
+For bookings made while the owner is away from the PC: screenshots of the Booking (Pulse) app are OCR'd ON THE PHONE
+with tesseract.js (CDN, 'vie+eng', dark screenshots inverted first — no API key; the server has no Gemini key and the
+old Gemini image routes don't work), text → `POST /api/booking_from_photo/parse` (`parse_pulse_text()` in
+core/booking_page_parser.py: name from the "< Tin nhắn NAME" header, first two "d tháng m yyyy" dates, room under
+"N phòng", "Tổng giá tiền đặt phòng", booking number after "Mã số đặt phòng" or a lone 10-digit number not starting
+with 0) → editable form (missing fields red) → `POST /api/booking_from_photo/save` = `_ext_save_one` (same rules as
+the extension). The booking number is usually in a second screenshot.
+
 ### **🤝 Partner bookings (`bookings.via_partner`)**
 Reservations with the "Đối tác Booking.com" box were made through a partner company: the phone on the page is the
 partner's (`+<guest country> 203 5640 799` — same last 9 digits for every guest). Extension detects the box and posts

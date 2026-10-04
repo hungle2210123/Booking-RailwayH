@@ -1757,6 +1757,33 @@ def ext_booking_save_many():
     return jsonify({'success': True, 'results': results, 'summary': summary})
 
 
+@app.route('/api/booking_from_photo/parse', methods=['POST'])
+def booking_from_photo_parse():
+    """/messages "📷 Thêm từ ảnh": text OCR'd on the phone from Booking app screenshots → fields to check."""
+    from core.booking_page_parser import parse_pulse_text
+    p = parse_pulse_text((request.get_json(silent=True) or {}).get('text', ''))
+    existing = _ext_existing(p['booking_id']) if p.get('booking_id') else None
+    return jsonify({'success': True, 'parsed': p,
+                    'existing': {'guest_name': existing['guest_name']} if existing else None})
+
+
+@app.route('/api/booking_from_photo/save', methods=['POST'])
+def booking_from_photo_save():
+    """Save the checked fields — same rules as the Chrome extension (only Booking facts; collected money,
+    placed apartment and arrival confirmation are never touched)."""
+    from core.models import db as _xdb
+    d = request.get_json(silent=True) or {}
+    fields = {k: d.get(k) for k in ('booking_id', 'guest_name', 'checkin_date', 'checkout_date', 'listing',
+                                    'room_amount', 'phone')}
+    fields['cancelled'] = False
+    try:
+        result, code = _ext_save_one(fields)
+        return jsonify(result), code
+    except Exception as e:
+        _xdb.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
 @app.route('/api/ext/booking/phone', methods=['POST'])
 def ext_booking_phone():
     """A reservation page now shows the guest phone (the owner clicked Booking's own
