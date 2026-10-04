@@ -212,13 +212,25 @@ def log_sent(session, booking_id, step, sent=True):
 
 # ── the owner's buttons on each guest card ─────────────────────────────────────
 # hidden: journey steps not shown (the owner rarely sends "Cảm ơn")
-# favorites: Mẫu Câu templates pinned as extra buttons ("Check in trễ", "Nhắc để chìa", …)
+# favorites: pinned buttons — either one Mẫu Câu template {id} ("Check in trễ") or a whole template
+#            group {cat} ("CHANGE", "7 · Xin hủy & Giảm giá") that opens that group's list
 DEFAULT_PREFS = {'hidden': ['thanks'], 'favorites': []}
 FAV_RE = re.compile(r'^fav:(\d+)$')
 
 
 def is_step_key(key):
+    """Keys that can be marked as sent: journey steps and pinned templates (not groups)."""
     return key in STEP_KEYS or bool(FAV_RE.match(str(key or '')))
+
+
+def _clean_fav(f):
+    emoji = str(f.get('emoji') or '').strip()[:4]
+    label = str(f.get('label') or '').strip()[:30]
+    if f.get('cat'):
+        return {'cat': str(f['cat'])[:120], 'label': label, 'emoji': emoji or '📂'}
+    if str(f.get('id', '')).isdigit():
+        return {'id': int(f['id']), 'label': label, 'emoji': emoji or '📌'}
+    return None
 
 
 def get_prefs(session):
@@ -228,19 +240,13 @@ def get_prefs(session):
     except ValueError:
         p = {}
     hidden = [k for k in p.get('hidden', DEFAULT_PREFS['hidden']) if k in STEP_KEYS]
-    favs = []
-    for f in p.get('favorites', []):
-        try:
-            favs.append({'id': int(f['id']), 'label': str(f.get('label') or '')[:30], 'emoji': str(f.get('emoji') or '📌')[:4]})
-        except (KeyError, TypeError, ValueError):
-            continue
-    return {'hidden': hidden, 'favorites': favs[:12]}
+    favs = [c for c in (_clean_fav(f) for f in p.get('favorites', []) if isinstance(f, dict)) if c]
+    return {'hidden': hidden, 'favorites': favs[:16]}
 
 
 def set_prefs(session, prefs):
-    clean = {'hidden': [k for k in prefs.get('hidden', []) if k in STEP_KEYS],
-             'favorites': [{'id': int(f['id']), 'label': str(f.get('label') or '')[:30], 'emoji': str(f.get('emoji') or '📌')[:4]}
-                           for f in prefs.get('favorites', []) if str(f.get('id', '')).isdigit()][:12]}
+    favs = [c for c in (_clean_fav(f) for f in prefs.get('favorites', []) if isinstance(f, dict)) if c]
+    clean = {'hidden': [k for k in prefs.get('hidden', []) if k in STEP_KEYS], 'favorites': favs[:16]}
     session.execute(text("""
         INSERT INTO journey_prefs (key, value) VALUES ('buttons', :v)
         ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value"""), {'v': json.dumps(clean, ensure_ascii=False)})
@@ -249,11 +255,20 @@ def set_prefs(session, prefs):
 
 
 def favorites_named(session, prefs):
-    """Pinned templates with a label to show (their own label, else the template name); missing ones dropped."""
-    ids = [f['id'] for f in prefs['favorites']]
-    if not ids:
-        return []
+    """Pinned buttons ready to show: label (own, else the template / group name), key, kind.
+    Templates or groups that no longer exist are dropped."""
+    ids = [f['id'] for f in prefs['favorites'] if 'id' in f]
     names = {r[0]: r[1] for r in session.execute(text(
-        "SELECT template_id, template_name FROM message_templates WHERE template_id = ANY(:i)"), {'i': ids}).fetchall()}
-    return [{'key': f"fav:{f['id']}", 'id': f['id'], 'emoji': f['emoji'], 'label': f['label'] or names[f['id']],
-             'name': names[f['id']]} for f in prefs['favorites'] if f['id'] in names]
+        "SELECT template_id, template_name FROM message_templates WHERE template_id = ANY(:i)"), {'i': ids}).fetchall()} if ids else {}
+    cats = {r[0]: r[1] for r in session.execute(text(
+        "SELECT COALESCE(category, ''), COUNT(*) FROM message_templates GROUP BY 1")).fetchall()}
+    out = []
+    for f in prefs['favorites']:
+        if 'id' in f and f['id'] in names:
+            out.append({'key': f"fav:{f['id']}", 'id': f['id'], 'emoji': f['emoji'],
+                        'label': f['label'] or names[f['id']], 'name': names[f['id']]})
+        elif 'cat' in f and f['cat'] in cats:
+            short = re.sub(r'^\d+\s*·\s*', '', f['cat'])         # "7 · Xin hủy & Giảm giá" → "Xin hủy & Giảm giá"
+            out.append({'key': f"cat:{f['cat']}", 'cat': f['cat'], 'emoji': f['emoji'],
+                        'label': f['label'] or short, 'name': f"Nhóm: {f['cat']} ({cats[f['cat']]} mẫu)"})
+    return out

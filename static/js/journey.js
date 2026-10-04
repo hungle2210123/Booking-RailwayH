@@ -1,6 +1,7 @@
 // Guest journey "send" sheet: one guest, one step (👋 🕐 🛂 🧳 🔑 💳 ⭐) at a time — the message for the
 // guest's apartment (editable), its pictures, and the ways to send it. Used by /messages and calendar_details.
-//   Journey.open(bookingId, stepKey)      stepKey '__more' = pick any Mẫu Câu template
+//   Journey.open(bookingId, stepKey, {pickApt})   stepKey '__more' = pick any Mẫu Câu template,
+//                                                 'cat:<group>' = a pinned template group, pickApt = open the apartment list
 // wa.me links carry text only, so a step with pictures is sent through the phone's share sheet
 // (pictures + text together); the text is also copied, in case the app drops it.
 (function () {
@@ -18,7 +19,8 @@
       @media(min-width:700px){.jr-ov{align-items:center}.jr{border-radius:18px}}
       .jr-h{position:sticky;top:0;background:#fff;padding:12px 0 8px;z-index:2;border-bottom:1px solid #f1f5f9;}
       .jr-top{display:flex;align-items:center;gap:8px;}
-      .jr-name{flex:1;min-width:0;font-weight:800;font-size:1.02rem;color:#0f172a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+      .jr-name{flex:1;min-width:0;font-weight:800;font-size:1.02rem;color:#0f172a;overflow-wrap:anywhere;}
+      .jr-name .jr-apt{display:table;margin:4px 0 0;}
       .jr-x{border:none;background:#f1f5f9;width:34px;height:34px;border-radius:50%;font-weight:800;cursor:pointer;flex-shrink:0;}
       .jr-meta{font-size:.78rem;color:#64748b;margin-top:2px;}
       .jr-apt{display:inline-block;font-size:.72rem;font-weight:800;border-radius:999px;padding:2px 9px;background:#e0f2fe;color:#075985;
@@ -62,6 +64,14 @@
       .jr-t{display:block;width:100%;text-align:left;border:1px solid #e2e8f0;background:#fff;border-radius:10px;padding:8px 10px;margin-bottom:5px;
           font-size:.84rem;font-weight:600;color:#0f172a;cursor:pointer;font-family:inherit;}
       .jr-t small{color:#7c3aed;font-weight:800;}
+      .jr-row{display:flex;gap:5px;align-items:stretch;}
+      .jr-row .jr-t{flex:1;min-width:0;}
+      .jr-pin{flex-shrink:0;border:1px solid #e2e8f0;background:#fff;border-radius:10px;width:40px;margin-bottom:5px;cursor:pointer;font-size:.95rem;filter:grayscale(1);opacity:.5;}
+      .jr-pin.on{filter:none;opacity:1;background:#fff7ed;border-color:#fdba74;}
+      .jr-cath{display:flex;align-items:center;justify-content:space-between;gap:8px;}
+      .jr-catpin{border:1px solid #e2e8f0;background:#fff;border-radius:999px;padding:3px 9px;font-size:.7rem;font-weight:800;color:#64748b;cursor:pointer;font-family:inherit;margin-top:6px;}
+      .jr-catpin.on{background:#ffedd5;border-color:#fdba74;color:#9a3412;}
+      .jr-hint{font-size:.74rem;color:#9a3412;background:#fff7ed;border-radius:9px;padding:6px 9px;margin-top:8px;}
       .jr-zoom{position:fixed;inset:0;z-index:99995;background:rgba(0,0,0,.88);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:14px;gap:10px;}
       .jr-zoom img{max-width:100%;max-height:78vh;border-radius:8px;}
       .jr-zoom div{display:flex;gap:8px;}
@@ -102,7 +112,7 @@
     if (chip) fetchGuest(chip.dataset.bid);
   }, { passive: true });
 
-  async function open(bid, step) {
+  async function open(bid, step, opts) {
     css();
     close();
     const ov = document.createElement('div');
@@ -113,7 +123,7 @@
     try {
       const data = await fetchGuest(bid);
       if (!data.success) { cache.delete(bid); throw new Error(data.error || 'Lỗi tải dữ liệu'); }
-      st = { bid, data, step: step || data.recommended || data.steps[0].key, ov };
+      st = { bid, data, step: step || data.recommended || data.steps[0].key, ov, pickApt: !!(opts && opts.pickApt) };
       render();
     } catch (e) {
       ov.querySelector('.jr').innerHTML = `<div style="padding:24px;text-align:center;color:#b91c1c;font-weight:700">❌ ${esc(e.message)}</div>`;
@@ -121,7 +131,9 @@
   }
   function close() {
     document.querySelectorAll('.jr-ov').forEach(o => o.remove());
+    const reload = st && st.pinsChanged && document.querySelector('.jstrip');
     st = null;
+    if (reload) location.reload();
   }
   const curStep = () => st.data.steps.find(s => s.key === st.step);
 
@@ -129,37 +141,44 @@
   function render() {
     const b = st.data.booking;
     const box = st.ov.querySelector('.jr');
-    const hidden = st.data.hidden || [];
-    const tabs = st.data.steps.filter(s => !hidden.includes(s.key) || s.key === st.step).concat(st.data.favorites || []);
-    const steps = tabs.map(s => `<button type="button" data-k="${s.key}"
-        class="${s.key === st.step ? 'on' : ''} ${s.sent_at ? 'sent' : ''} ${s.key === st.data.recommended ? 'next' : ''}">
-        ${s.emoji} ${esc(s.label)}${s.sent_at ? ' ✓' : ''}</button>`).join('')
-      + `<button type="button" data-k="__more" class="${st.step === '__more' ? 'on' : ''}">➕ Tin khác</button>`;
     const showPick = !b.apt || st.pickApt;
     const pick = !showPick ? '' : `<div class="jr-pick">${b.apt ? 'Đổi căn cho khách:' : '⚠️ Khách chưa xếp căn — chọn căn để gửi đúng địa chỉ & hướng dẫn:'}<br>
         ${b.apartments.map(a => `<button type="button" data-apt="${a.id}" class="${b.apt && b.apt.id === a.id ? 'cur' : ''}">${esc(a.name)}</button>`).join('')}
         ${b.apt ? '<button type="button" data-apt="" class="clear">✕ Bỏ xếp căn</button>' : ''}</div>`;
     box.innerHTML = `
       <div class="jr-h">
-        <div class="jr-top"><div class="jr-name">${esc(b.name)}${b.apt ? `<button type="button" class="jr-apt" title="Đổi căn">🏠 ${esc(b.apt.name)} · đổi</button>` : ''}</div>
+        <div class="jr-top"><div class="jr-name">${esc(b.name)}${b.apt ? `<button type="button" class="jr-apt" title="Đổi căn">🏠 ${esc(b.apt.name)} · ✏️ đổi căn</button>` : ''}</div>
           <button type="button" class="jr-x" aria-label="Đóng">✕</button></div>
         <div class="jr-meta">${esc(b.nhan)} → ${esc(b.tra)}${b.phong ? ' · ' + esc(b.phong) : ''}
           ${b.partner ? ' · 🤝 qua đối tác' : (b.phone ? ' · 📞 ' + esc(b.phone) : ' · chưa có số')}</div>
         ${pick}
-        <div class="jr-steps">${steps}</div>
+        <div class="jr-steps"></div>
       </div>
       <div class="jr-body"></div>`;
     box.querySelector('.jr-x').onclick = close;
-    box.querySelectorAll('.jr-steps button').forEach(btn => btn.onclick = () => { st.step = btn.dataset.k; st.more = null; render(); });
+    drawTabs();
     box.querySelectorAll('.jr-pick button').forEach(btn => btn.onclick = () => setApartment(btn.dataset.apt));
     const aptBtn = box.querySelector('.jr-apt');
     if (aptBtn) aptBtn.onclick = () => { st.pickApt = !st.pickApt; render(); };
-    const on = box.querySelector('.jr-steps .on');
-    if (on) on.scrollIntoView({ inline: 'center', block: 'nearest' });
     const body = box.querySelector('.jr-body');
     if (st.step === '__more') renderMore(body);
+    else if (st.step.startsWith('cat:')) renderMore(body, st.step.slice(4));
     else if (st.step.startsWith('fav:')) renderFav(body, (st.data.favorites || []).find(f => f.key === st.step));
     else renderStep(body, curStep());
+  }
+
+  // step tabs = steps the owner shows + pinned templates / groups + ➕
+  function drawTabs() {
+    const wrap = st.ov.querySelector('.jr-steps');
+    const hidden = st.data.hidden || [];
+    const tabs = st.data.steps.filter(s => !hidden.includes(s.key) || s.key === st.step).concat(st.data.favorites || []);
+    wrap.innerHTML = tabs.map(s => `<button type="button" data-k="${esc(s.key)}"
+        class="${s.key === st.step ? 'on' : ''} ${s.sent_at ? 'sent' : ''} ${s.key === st.data.recommended ? 'next' : ''}">
+        ${s.emoji} ${esc(s.label)}${s.sent_at ? ' ✓' : ''}</button>`).join('')
+      + `<button type="button" data-k="__more" class="${st.step === '__more' ? 'on' : ''}">➕ Tin khác</button>`;
+    wrap.querySelectorAll('button').forEach(btn => btn.onclick = () => { st.step = btn.dataset.k; st.more = null; render(); });
+    const on = wrap.querySelector('.on');
+    if (on) on.scrollIntoView({ inline: 'center', block: 'nearest' });
   }
 
   function renderStep(body, s) {
@@ -310,31 +329,82 @@
   }
 
   // ── "➕ Tin khác": any template from Mẫu Câu ───────────────────────────────────
-  async function renderMore(body) {
+  async function renderMore(body, cat) {
     if (st.more) { editor(body, st.more.template, st.more.text, st.more.images, null); return; }
     body.innerHTML = '<div style="padding:16px;color:#64748b">⏳ Đang tải mẫu…</div>';
-    const r = await fetch('/api/journey/templates').then(x => x.json()).catch(() => null);
-    if (!r || !r.success) { body.innerHTML = '<div class="jr-warn">Không tải được danh sách mẫu.</div>'; return; }
+    if (!tplList) {
+      const r = await fetch('/api/journey/templates').then(x => x.json()).catch(() => null);
+      if (!r || !r.success) { body.innerHTML = '<div class="jr-warn">Không tải được danh sách mẫu.</div>'; return; }
+      tplList = r.templates;
+    }
+    if (!st) return;
+    const favs = () => (st.data.favorites || []);
+    const pinnedT = id => favs().some(f => f.id === id);
+    const pinnedC = c => favs().some(f => f.cat === c);
+    const all = cat ? tplList.filter(t => (t.category || '') === cat) : tplList;
     const draw = q => {
       const f = s => (s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/g, 'd');
-      const list = r.templates.filter(t => !q || f(t.name + ' ' + t.category).includes(f(q)));
+      const list = all.filter(t => !q || f(t.name + ' ' + t.category).includes(f(q)));
       const groups = {};
-      list.forEach(t => (groups[t.category || 'Khác'] = groups[t.category || 'Khác'] || []).push(t));
+      list.forEach(t => (groups[t.category || ''] = groups[t.category || ''] || []).push(t));
       return Object.keys(groups).sort((a, b) => a.localeCompare(b, 'vi', { numeric: true })).map(c =>
-        `<div class="jr-cat">${esc(c)}</div>` + groups[c].map(t =>
-          `<button type="button" class="jr-t" data-id="${t.id}">${esc(t.name)}${t.images ? ` <small>🖼${t.images}</small>` : ''}</button>`).join('')).join('')
+        (cat ? '' : `<div class="jr-cath"><div class="jr-cat">${esc(c || 'Khác')}</div>${c ? `<button type="button" class="jr-catpin ${pinnedC(c) ? 'on' : ''}"
+            data-cat="${esc(c)}">📌 ${pinnedC(c) ? 'Đã ghim nhóm' : 'Ghim nhóm'}</button>` : ''}</div>`)
+        + groups[c].map(t => `<div class="jr-row"><button type="button" class="jr-t" data-id="${t.id}">${esc(t.name)}${t.images ? ` <small>🖼${t.images}</small>` : ''}</button>
+            <button type="button" class="jr-pin ${pinnedT(t.id) ? 'on' : ''}" data-pin="${t.id}" title="Ghim mẫu này thành nút trên thẻ khách">📌</button></div>`).join('')).join('')
         || '<div class="jr-noimg">Không có mẫu nào khớp.</div>';
     };
-    body.innerHTML = `<input class="jr-search" placeholder="🔎 Tìm mẫu: check in trễ, taxi, giặt, chìa khoá…"><div class="jr-list">${draw('')}</div>`;
+    body.innerHTML = (cat ? `<div class="jr-cath"><div class="jr-cat">${esc(cat)}</div>
+          <button type="button" class="jr-catpin on" data-cat="${esc(cat)}">📌 Đã ghim nhóm</button></div>` : '')
+      + `<input class="jr-search" placeholder="🔎 Tìm mẫu: check in trễ, taxi, giặt, chìa khoá…"><div class="jr-list">${draw('')}</div>`
+      + (cat ? '' : '<div class="jr-hint">📌 = ghim thành nút trên thẻ khách (một mẫu, hoặc cả nhóm như CHANGE / Xin hủy). Bấm lại để bỏ ghim.</div>');
     const list = body.querySelector('.jr-list');
-    const bind = () => list.querySelectorAll('.jr-t').forEach(btn => btn.onclick = async () => {
-      const c = await fetch(`/api/journey/compose?booking_id=${encodeURIComponent(st.bid)}&template_id=${btn.dataset.id}`).then(x => x.json());
-      if (!c.success) { toast(c.error || 'Lỗi'); return; }
-      st.more = c;
-      editor(body, c.template, c.text, c.images, null);
-    });
-    body.querySelector('.jr-search').addEventListener('input', e => { list.innerHTML = draw(e.target.value); bind(); });
+    const bind = () => {
+      body.querySelectorAll('.jr-t').forEach(btn => btn.onclick = async () => {
+        const c = await fetch(`/api/journey/compose?booking_id=${encodeURIComponent(st.bid)}&template_id=${btn.dataset.id}`).then(x => x.json());
+        if (!c.success) { toast(c.error || 'Lỗi'); return; }
+        st.more = c;
+        editor(body, c.template, c.text, c.images, null);
+      });
+      body.querySelectorAll('.jr-pin').forEach(btn => btn.onclick = () => togglePin({ id: +btn.dataset.pin }, () => list.innerHTML = draw(q()) , bind));
+      body.querySelectorAll('.jr-catpin').forEach(btn => btn.onclick = () => togglePin({ cat: btn.dataset.cat }, () => {
+        if (cat) { st.step = '__more'; render(); } else list.innerHTML = draw(q());
+      }, bind));
+    };
+    const q = () => body.querySelector('.jr-search').value;
+    body.querySelector('.jr-search').addEventListener('input', () => { list.innerHTML = draw(q()); bind(); });
     bind();
+  }
+  let tplList = null;
+
+  // a short button for a pinned group: "CHANGE" → 🔁 Change, "7 · Xin hủy & Giảm giá" → ❌ Xin hủy
+  function catButton(cat) {
+    if (/change/i.test(cat)) return { cat, emoji: '🔁', label: 'Change' };
+    if (/sự cố/i.test(cat)) return { cat, emoji: '🛠️', label: 'Sự cố phòng' };
+    if (/hủy/i.test(cat)) return { cat, emoji: '❌', label: 'Xin hủy' };
+    return { cat, emoji: '📂', label: '' };
+  }
+
+  // 📌 pin / unpin a template ({id}) or a whole group ({cat}) as a button on every guest card
+  async function togglePin(item, redraw, rebind) {
+    const prefs = await fetch('/api/journey/prefs').then(x => x.json()).catch(() => null);
+    if (!prefs || !prefs.success || !st) { toast('Không lưu được'); return; }
+    const same = f => (item.id && f.id === item.id) || (item.cat && f.cat === item.cat);
+    const had = prefs.prefs.favorites.some(same);
+    const favorites = had ? prefs.prefs.favorites.filter(f => !same(f))
+      : prefs.prefs.favorites.concat([item.cat ? catButton(item.cat) : { id: item.id }]);
+    const r = await fetch('/api/journey/prefs', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ hidden: prefs.prefs.hidden, favorites }) }).then(x => x.json()).catch(() => null);
+    if (!r || !r.success || !st) { toast('Không lưu được'); return; }
+    const old = {};
+    (st.data.favorites || []).forEach(f => old[f.key] = f.sent_at);
+    st.data.favorites = r.favorites.map(f => Object.assign(f, { sent_at: old[f.key] || null }));
+    st.pinsChanged = true;
+    cache.delete(st.bid);
+    toast(had ? 'Đã bỏ ghim' : '📌 Đã ghim — nút hiện trên thẻ khách');
+    drawTabs();
+    redraw();
+    rebind();
   }
 
   // ── actions ──────────────────────────────────────────────────────────────────

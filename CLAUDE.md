@@ -265,6 +265,9 @@ Sent steps: `journey_log`; next step = `recommended_step()` by dates. Pictures a
 (`template_images.image_data/image_mime`, upload from `/journey`, served `/api/journey/image/<id>`; the old
 `/api/templates/image/<file>` falls back to the DB) — files on Railway's disk are wiped at every deploy (2 old images lost).
 Send = wa.me text (targets the number) or share sheet with pictures + text (text also copied). Calendar card chip 🧭 Nhắn.
+Card buttons = `journey_prefs['buttons']`: hidden steps + pinned favorites, each either a template `{id}` (key `fav:<id>`,
+tracked as sent) or a whole group `{cat}` (key `cat:<category>`, opens that group's list — e.g. ❌ Xin hủy, 🔁 Change).
+Pin/unpin with 📌 inside ➕ Tin khác or at /journey. Tapping the apartment chip on a /messages card opens the apartment picker.
 
 ### **💬 "Nhắn khách" page (`/messages`, `templates/messages.html`)**
 Mobile-first page: upcoming arrivals (checkin_date in [today, today+days]) that have a phone, each with

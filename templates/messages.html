@@ -34,7 +34,9 @@
                 color:#94a3b8; border-style:dashed; cursor:default; line-height:1.3; }
   .ctop { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
   .ctop b { font-size:1.02rem; color:var(--ink); }
-  .apt { font-size:.7rem; font-weight:800; border-radius:999px; padding:2px 8px; background:#e0f2fe; color:#075985; }
+  .apt { font-size:.7rem; font-weight:800; border-radius:999px; padding:2px 8px; background:#e0f2fe; color:#075985;
+         border:none; font-family:inherit; cursor:pointer; }
+  .apt::after { content:' ✏️'; font-size:.62rem; }
   .apt.none { background:#fef3c7; color:#92400e; }
   .cmeta { font-size:.78rem; color:var(--muted); margin-top:2px; }
   .cphone { font-size:.8rem; color:#334155; font-weight:600; margin-top:2px; }
@@ -67,7 +69,8 @@
     <div class="cinfo">
       <div class="ctop">
         <b>{{ g.name }}</b>
-        <span class="apt {{ '' if g.apt else 'none' }}">{{ g.apt or 'chưa xếp căn' }}</span>
+        <button type="button" class="apt {{ '' if g.apt else 'none' }}" title="Chọn / đổi căn"
+                onclick="Journey.open('{{ g.booking_id }}', null, {pickApt: true})">{{ g.apt or 'chưa xếp căn' }}</button>
       </div>
       <div class="cmeta">{{ g.nhan }} → {{ g.tra }}{% if g.phong %} · {{ g.phong }}{% endif %}</div>
       {% if kind == 'phone' %}<div class="cphone">📞 {{ g.phone }}</div>
@@ -85,9 +88,9 @@
   </div>
   <div class="jstrip">
     {% for s in buttons %}
-    <button type="button" class="jchip {{ 'sent' if s.key in g.sent }} {{ 'next' if g.next == s.key }} {{ 'fav' if s.id }}"
+    <button type="button" class="jchip {{ 'sent' if s.key in g.sent }} {{ 'next' if g.next == s.key }} {{ 'fav' if s.id or s.cat }}"
             data-bid="{{ g.booking_id }}" data-step="{{ s.key }}"
-            onclick="Journey.open('{{ g.booking_id }}', '{{ s.key }}')">
+            onclick="Journey.open(this.dataset.bid, this.dataset.step)">
       <span class="e">{{ s.emoji }}</span><span class="l">{{ s.label }}</span>
     </button>
     {% endfor %}

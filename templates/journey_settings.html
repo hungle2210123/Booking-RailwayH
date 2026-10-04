@@ -87,17 +87,21 @@
     const box = document.getElementById('btns');
     box.innerHTML = `<div class="btnbox">
       <h3>📌 Nút trên thẻ khách</h3>
-      <div class="hint">Bật các bước bạn hay nhắn; ghim thêm mẫu hay dùng thành nút riêng (vd. Check in trễ, Nhắc để chìa, Taxi).</div>
+      <div class="hint">Bật các bước bạn hay nhắn; ghim thêm mẫu hay dùng — hoặc cả một nhóm như CHANGE, Xin hủy — thành nút riêng.
+        (Cũng ghim được ngay trong ➕ Tin khác bằng nút 📌.)</div>
       <div class="toggles">${cfg.steps.map(s => `<label><input type="checkbox" data-step="${s.key}" ${prefs.hidden.includes(s.key) ? '' : 'checked'}>
         ${s.emoji} ${esc(s.label)}</label>`).join('')}</div>
-      <div class="rlab" style="margin-top:8px">Mẫu đã ghim</div>
+      <div class="rlab" style="margin-top:8px">Nút đã ghim</div>
       ${favs.length ? '' : '<div class="none">Chưa ghim mẫu nào.</div>'}
-      ${favs.map(f => `<div class="fav" data-id="${f.id}">
+      ${favs.map(f => `<div class="fav" ${f.cat ? `data-cat="${esc(f.cat)}"` : `data-id="${f.id}"`}>
           <input class="em" value="${esc(f.emoji)}" maxlength="4" aria-label="Biểu tượng">
           <div style="flex:1;min-width:0"><input class="lb" value="${esc(f.label)}" maxlength="30" placeholder="Tên nút ngắn" style="width:100%">
             <small>${esc(f.name)}</small></div>
           <button type="button" class="rm" title="Bỏ ghim">✕</button></div>`).join('')}
-      <div class="addfav"><select>${options('').replace('— không dùng —', '— chọn mẫu để ghim —')}</select>
+      <div class="addfav"><select><option value="">— chọn mẫu / nhóm để ghim —</option>
+          <optgroup label="📂 Cả nhóm (mở danh sách mẫu của nhóm)">${[...new Set(cfg.templates.map(t => t.category).filter(Boolean))]
+            .sort((a, b) => a.localeCompare(b, 'vi', { numeric: true })).map(c => `<option value="cat:${esc(c)}">📂 ${esc(c)}</option>`).join('')}</optgroup>
+          ${options('').replace('<option value="">— không dùng —</option>', '')}</select>
         <button type="button">＋ Ghim</button></div>
       <div class="state"></div>
     </div>`;
@@ -113,17 +117,20 @@
     };
     const current = () => ({
       hidden: [...box.querySelectorAll('.toggles input')].filter(i => !i.checked).map(i => i.dataset.step),
-      favorites: [...box.querySelectorAll('.fav')].map(el => ({ id: +el.dataset.id,
-        emoji: el.querySelector('.em').value.trim() || '📌', label: el.querySelector('.lb').value.trim() })),
+      favorites: [...box.querySelectorAll('.fav')].map(el => Object.assign(el.dataset.cat ? { cat: el.dataset.cat } : { id: +el.dataset.id },
+        { emoji: el.querySelector('.em').value.trim(), label: el.querySelector('.lb').value.trim() })),
     });
     box.querySelectorAll('.toggles input').forEach(i => i.onchange = () => save(current()));
     box.querySelectorAll('.fav input').forEach(i => i.onchange = () => save(current()));
     box.querySelectorAll('.fav .rm').forEach(b => b.onclick = () => { b.closest('.fav').remove(); save(current()); });
     box.querySelector('.addfav button').onclick = () => {
-      const id = +box.querySelector('.addfav select').value;
-      if (!id) return;
+      const v = box.querySelector('.addfav select').value;
+      if (!v) return;
       const next = current();
-      if (!next.favorites.some(f => f.id === id)) next.favorites.push({ id, emoji: '📌', label: '' });
+      if (v.startsWith('cat:')) {
+        const cat = v.slice(4);
+        if (!next.favorites.some(f => f.cat === cat)) next.favorites.push({ cat, emoji: '📂', label: '' });
+      } else if (!next.favorites.some(f => f.id === +v)) next.favorites.push({ id: +v, emoji: '📌', label: '' });
       save(next);
     };
   }
