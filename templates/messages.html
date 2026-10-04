@@ -87,9 +87,11 @@
            border-radius:11px; padding:6px 2px; cursor:pointer; font-family:inherit; color:#334155; min-width:0; position:relative; }
   .jchip .e { font-size:1.15rem; line-height:1.2; }
   .jchip .l { font-size:.64rem; font-weight:700; line-height:1.15; text-align:center; }
-  .jchip.sent { background:#dcfce7; border-color:#86efac; color:#166534; }
-  .jchip.sent::after { content:'✓'; position:absolute; top:2px; right:5px; font-size:.7rem; font-weight:900; color:#16a34a; }
   .jchip.more { background:#fff; border-style:dashed; }
+  .jchip.cancel { background:#fff; border-color:#fecaca; color:#b91c1c; }
+  .live-toast button { margin-left:10px; border:none; background:#fff; color:#0f172a; font-weight:800; border-radius:999px;
+                       padding:3px 10px; cursor:pointer; font-family:inherit; }
+  .card.gone { opacity:.35; pointer-events:none; transition:opacity .2s; }
   .card.todo { border-left:4px solid #ef4444; }
   .card.done { border-left:4px solid #22c55e; }
   .cstate { display:block; margin:3px 0 1px; border:none; border-radius:8px; padding:3px 8px; font-size:.72rem; font-weight:800;
@@ -107,7 +109,6 @@
   .live-toast { position:fixed; left:50%; bottom:20px; transform:translateX(-50%); background:#16a34a; color:#fff; font-weight:800;
                 font-size:.88rem; padding:10px 18px; border-radius:999px; z-index:9999; box-shadow:0 6px 18px rgba(0,0,0,.2); cursor:pointer; }
   .jchip.fav { background:#fff7ed; border-color:#fed7aa; color:#9a3412; }
-  .jchip.fav.sent { background:#dcfce7; border-color:#86efac; color:#166534; }
 
   .empty { text-align:center; color:var(--muted); padding:30px 10px; background:#fff; border:1px dashed var(--line); border-radius:14px; }
 </style>
@@ -148,7 +149,7 @@
   </div>
   <div class="jstrip">
     {% for s in buttons %}
-    <button type="button" class="jchip {{ 'sent' if s.key in g.sent }} {{ 'fav' if s.id or s.cat }}"
+    <button type="button" class="jchip {{ 'fav' if s.id or s.cat }}"
             data-bid="{{ g.booking_id }}" data-step="{{ s.key }}"
             onclick="Journey.open(this.dataset.bid, this.dataset.step)">
       <span class="e">{{ s.emoji }}</span><span class="l">{{ s.label }}</span>
@@ -156,6 +157,9 @@
     {% endfor %}
     <button type="button" class="jchip more" onclick="Journey.open('{{ g.booking_id }}', '__more')">
       <span class="e">➕</span><span class="l">Tin khác</span>
+    </button>
+    <button type="button" class="jchip cancel" data-bid="{{ g.booking_id }}" data-name="{{ g.name }}" data-cs="{{ g.cs }}">
+      <span class="e">🚫</span><span class="l">Hủy khách</span>
     </button>
   </div>
 </div>
@@ -188,7 +192,7 @@
     <button type="button" data-f="todo">🔴 Chưa nhắn <b></b></button>
     <button type="button" data-f="done">✅ Đã nhắn <b></b></button>
   </div>
-  <div class="legend">Chạm một bước để xem tin + ảnh rồi gửi · <b style="color:#16a34a">✓</b> đã gửi</div>
+  <div class="legend">Chạm một bước để xem tin + ảnh rồi gửi</div>
 
   {% for g in guests %}{{ card(g, 'phone') }}{% endfor %}
   {% if not guests and not partner and not no_phone %}
@@ -365,6 +369,7 @@
 // (new bookings from the extension, phones, Booking pictures). Never while a send sheet / picture is open.
 (function () {
   let busy = false, again = false, last = Date.now();
+  const restored = new Set();                     // cards brought back by "Hoàn tác" are not "new" guests
   async function refresh(now) {
     if (busy) { again = again || now; return; }
     if (document.hidden || document.querySelector('.jr-ov, .jr-zoom')) return;
@@ -379,7 +384,8 @@
       const before = new Set([...cur.querySelectorAll('.card')].map(c => c.dataset.bid));
       cur.innerHTML = fresh.innerHTML;
       applyFilter();
-      const added = [...cur.querySelectorAll('.card')].filter(c => !before.has(c.dataset.bid));
+      const added = [...cur.querySelectorAll('.card')].filter(c => !before.has(c.dataset.bid) && !restored.has(c.dataset.bid));
+      restored.clear();
       added.forEach(c => c.classList.add('fresh'));
       if (added.length) {
         const t = document.createElement('div');
@@ -429,6 +435,28 @@
     await fetch('/api/journey/sent', { method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ booking_id: st.dataset.bid, step: 'contacted', sent: todo }) }).catch(() => {});
     refresh(true);
+  });
+  // 🚫 Hủy khách = the calendar's "Báo hủy" (checkin_status 'cancelling'): leaves this list, the calendar,
+  // the vacancy board and revenue at once. Hoàn tác puts the previous status back.
+  document.addEventListener('click', async e => {
+    const btn = e.target.closest && e.target.closest('.jchip.cancel');
+    if (!btn) return;
+    const bid = btn.dataset.bid, name = btn.dataset.name, prev = btn.dataset.cs || '';
+    if (!confirm(`Hủy đặt phòng của "${name}"?\n\nKhách sẽ được đánh dấu BÁO HỦY (lịch, phòng trống và doanh thu cập nhật ngay).`)) return;
+    const card = btn.closest('.card');
+    card.classList.add('gone');
+    const setStatus = s => fetch('/api/set_checkin_status', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ booking_id: bid, status: s }) }).then(r => r.json()).catch(() => null);
+    const r = await setStatus('cancelling');
+    if (!r || !r.success) { card.classList.remove('gone'); alert('Không hủy được — thử lại'); return; }
+    card.remove();
+    applyFilter();
+    const t = document.createElement('div');
+    t.className = 'live-toast';
+    t.innerHTML = `🚫 Đã hủy ${name.replace(/[<>&]/g, '')}<button type="button">Hoàn tác</button>`;
+    t.querySelector('button').onclick = async () => { t.remove(); restored.add(bid); await setStatus(prev); refresh(true); };
+    document.body.appendChild(t);
+    setTimeout(() => t.remove(), 8000);
   });
   window.MsgLive = { refresh: () => refresh(true) };
   applyFilter();

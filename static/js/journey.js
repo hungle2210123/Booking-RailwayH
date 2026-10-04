@@ -38,8 +38,6 @@
       .jr-steps button{flex-shrink:0;border:1.5px solid #e2e8f0;background:#f8fafc;border-radius:999px;padding:5px 10px;
           font-size:.76rem;font-weight:700;color:#334155;cursor:pointer;font-family:inherit;white-space:nowrap;}
       .jr-steps button.on{background:#0f172a;color:#fff;border-color:#0f172a;}
-      .jr-steps button.sent{border-color:#86efac;background:#dcfce7;color:#166534;}
-      .jr-steps button.sent.on{background:#166534;color:#fff;border-color:#166534;}
       .jr-tpl{font-size:.74rem;color:#64748b;margin:10px 0 4px;}
       .jr-tpl b{color:#334155;}
       .jr-ta{width:100%;min-height:150px;border:1.5px solid #e2e8f0;border-radius:12px;padding:9px;font-size:.9rem;line-height:1.45;
@@ -54,8 +52,6 @@
       .jr-share{background:#16a34a;} .jr-wa{background:#25d366;} .jr-zalo{background:#0068ff;} .jr-sms{background:#2563eb;}
       .jr-copy{background:#475569;} .jr-imgonly{background:#7c3aed;}
       .jr-btns .off{opacity:.45;pointer-events:none;}
-      .jr-sent{display:flex;align-items:center;gap:8px;margin-top:12px;font-size:.85rem;font-weight:700;color:#334155;}
-      .jr-sent input{width:20px;height:20px;}
       .jr-note{font-size:.76rem;color:#64748b;margin-top:8px;line-height:1.45;}
       .jr-warn{font-size:.82rem;color:#92400e;background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:9px 10px;margin-top:10px;}
       .jr-search{width:100%;border:1.5px solid #e2e8f0;border-radius:10px;padding:8px 10px;font-size:.9rem;margin-top:10px;box-sizing:border-box;font-family:inherit;}
@@ -176,8 +172,7 @@
     const hidden = st.data.hidden || [];
     const tabs = st.data.steps.filter(s => !hidden.includes(s.key) || s.key === st.step).concat(st.data.favorites || []);
     wrap.innerHTML = tabs.map(s => `<button type="button" data-k="${esc(s.key)}"
-        class="${s.key === st.step ? 'on' : ''} ${s.sent_at ? 'sent' : ''}">
-        ${s.emoji} ${esc(s.label)}${s.sent_at ? ' ✓' : ''}</button>`).join('')
+        class="${s.key === st.step ? 'on' : ''}">${s.emoji} ${esc(s.label)}</button>`).join('')
       + `<button type="button" data-k="__more" class="${st.step === '__more' ? 'on' : ''}">➕ Tin khác</button>`;
     wrap.querySelectorAll('button').forEach(btn => btn.onclick = () => { st.step = btn.dataset.k; st.more = null; render(); });
     const on = wrap.querySelector('.on');
@@ -210,7 +205,6 @@
                <a class="jr-zalo" target="_blank" rel="noopener" href="https://zalo.me/${L.zalo}">🔵 Mở chat Zalo</a>` : ''}
         <button type="button" class="jr-copy ${L ? 'wide' : ''}">📋 Sao chép ảnh</button>
       </div>
-      <label class="jr-sent"><input type="checkbox" ${step.sent_at ? 'checked' : ''}> Đã gửi bước này</label>
       <div class="jr-note">${shareOk
         ? 'Bấm <b>📤 Gửi ảnh</b> → chọn WhatsApp (hoặc Zalo) → chọn khách → Gửi. Khách mới chưa có trong danh bạ: bấm <b>Mở chat WhatsApp</b> trước.'
         : 'Trên máy tính: bấm <b>Mở chat WhatsApp</b>, rồi <b>Sao chép ảnh</b> và dán (Ctrl+V) vào chat.'}</div>`;
@@ -241,8 +235,6 @@
         e.target.textContent = '✅ Đã chép ảnh'; markSent(step, true);
       } catch (err) { e.target.textContent = 'Không chép được — giữ ảnh để lưu'; }
     };
-    const cb = body.querySelector('.jr-sent input');
-    cb.onchange = () => markSent(step, cb.checked);
   }
   function toPng(bl) {
     return bl.type === 'image/png' ? Promise.resolve(bl) : new Promise((res, rej) => {
@@ -264,7 +256,6 @@
       ${images.length ? `<div class="jr-imgs">${images.map(im => `<img alt="" data-url="${esc(im.url)}">`).join('')}</div>`
                       : '<div class="jr-noimg">Bước này chưa có ảnh — thêm ở ⚙️ Tin &amp; ảnh.</div>'}
       <div class="jr-btns"></div>
-      ${step ? `<label class="jr-sent"><input type="checkbox" ${step.sent_at ? 'checked' : ''}> Đã gửi bước này</label>` : ''}
       <div class="jr-note"></div>`;
     const ta = body.querySelector('.jr-ta');
     ta.addEventListener('input', () => { st.text = ta.value; refreshLinks(); });
@@ -335,8 +326,6 @@
           only.onclick = () => navigator.share({ files: st.files }).then(sent).catch(() => {});
         });
     }
-    const cb = body.querySelector('.jr-sent input');
-    if (cb) cb.onchange = () => markSent(step, cb.checked);
   }
 
   // A pinned template ("Check in trễ", "Nhắc để chìa"…): filled in for this guest, tracked like a step
@@ -467,34 +456,15 @@
   }
 
   // ── actions ──────────────────────────────────────────────────────────────────
+  // Sending from the sheet is recorded quietly — it only feeds the card's 🔴 Chưa nhắn / ✅ Đã nhắn line
   async function markSent(step, sent) {
     if (!st || !step) return;
     const bid = st.bid;
     step.sent_at = sent ? new Date().toISOString() : null;
     cache.delete(bid);
-    document.querySelectorAll(`.jchip[data-bid="${CSS.escape(bid)}"][data-step="${step.key}"]`)
-      .forEach(chip => chip.classList.toggle('sent', sent));
-    // save, then refresh which step is next (the ✓ above is already shown)
     await fetch('/api/journey/sent', { method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ booking_id: bid, step: step.key, sent }) }).catch(() => {});
     cache.delete(bid);
-    const fresh = await fetchGuest(bid).catch(() => null);
-    if (!fresh || !fresh.success) return;
-    document.querySelectorAll(`.jchip[data-bid="${CSS.escape(bid)}"]`).forEach(chip => {
-      const s = fresh.steps.find(x => x.key === chip.dataset.step) || (fresh.favorites || []).find(x => x.key === chip.dataset.step);
-      chip.classList.toggle('sent', !!(s && s.sent_at));
-    });
-    if (st && st.bid === bid) {
-      st.data.recommended = fresh.recommended;
-      fresh.steps.forEach(s => { const o = st.data.steps.find(x => x.key === s.key); if (o) o.sent_at = s.sent_at; });
-      (fresh.favorites || []).forEach(f => { const o = (st.data.favorites || []).find(x => x.key === f.key); if (o) o.sent_at = f.sent_at; });
-      st.ov.querySelectorAll('.jr-steps button').forEach(btn => {
-        const s = st.data.steps.find(x => x.key === btn.dataset.k) || (st.data.favorites || []).find(x => x.key === btn.dataset.k);
-        if (!s) return;
-        btn.classList.toggle('sent', !!s.sent_at);
-        btn.innerHTML = `${s.emoji} ${esc(s.label)}${s.sent_at ? ' ✓' : ''}`;
-      });
-    }
   }
 
   async function setApartment(aptId) {

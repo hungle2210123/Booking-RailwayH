@@ -2421,7 +2421,8 @@ def messages_page():
              else "b.checkin_date >= :today AND b.checkin_date <= :end")
     rows = _xdb.session.execute(text(f"""
         SELECT b.booking_id, COALESCE(g.full_name, b.guest_name) AS name,
-               b.checkin_date, b.checkout_date, b.accommodation_name, g.phone, b.via_partner, b.actual_apartment
+               b.checkin_date, b.checkout_date, b.accommodation_name, g.phone, b.via_partner, b.actual_apartment,
+               b.checkin_status
         FROM bookings b LEFT JOIN guests g ON g.guest_id = b.guest_id
         WHERE {where}
           AND COALESCE(b.booking_status, '') NOT IN ('cancelled', 'deleted')
@@ -2452,6 +2453,7 @@ def messages_page():
             'shot': int(shots[r[0]].timestamp()) if r[0] in shots else None,
             'last': J.last_contact(done, buttons),          # None = not messaged yet
             'manual': J.MANUAL_KEY in done,
+            'cs': r[8] or '',                                # arrival status, put back by "Hoàn tác"
         }
         if r[6]:                       # partner booking: any number on file is the partner's
             partner.append(item)
