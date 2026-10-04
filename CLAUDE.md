@@ -265,6 +265,8 @@ Sent steps: `journey_log`; next step = `recommended_step()` by dates. Pictures a
 (`template_images.image_data/image_mime`, upload from `/journey`, served `/api/journey/image/<id>`; the old
 `/api/templates/image/<file>` falls back to the DB) — files on Railway's disk are wiped at every deploy (2 old images lost).
 Send = wa.me text (targets the number) or share sheet with pictures + text (text also copied). Calendar card chip 🧭 Nhắn.
+🔑 checkin has `images_only`: when the apartment's check-in template has pictures, the sheet shows only the guide
+picture(s) (📤 Gửi ảnh / Mở chat WhatsApp·Zalo / Sao chép ảnh) — no text; without a picture (18 Hang Be for now) the text is used.
 Card buttons = `journey_prefs['buttons']`: hidden steps + pinned favorites, each either a template `{id}` (key `fav:<id>`,
 tracked as sent) or a whole group `{cat}` (key `cat:<category>`, opens that group's list — e.g. ❌ Xin hủy, 🔁 Change).
 Pin/unpin with 📌 inside ➕ Tin khác or at /journey. Tapping the apartment chip on a /messages card opens the apartment picker.

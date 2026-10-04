@@ -23,7 +23,9 @@ STEPS = [
     {'key': 'confirm',  'emoji': '🕐', 'label': 'Xác nhận & giờ đến', 'per_apt': False, 'from': ('ci', -60), 'booking_image': True},
     {'key': 'passport', 'emoji': '🛂', 'label': 'Passport',           'per_apt': False, 'from': ('ci', -60)},
     {'key': 'luggage',  'emoji': '🧳', 'label': 'Gửi hành lý',        'per_apt': True,  'from': ('ci', -60), 'optional': True},
-    {'key': 'checkin',  'emoji': '🔑', 'label': 'Nhận phòng',         'per_apt': True,  'from': ('ci', -1)},
+    # images_only: the check-in guide picture says it all (owner, Oct 2026) — the text is used only while an
+    # apartment has no picture yet
+    {'key': 'checkin',  'emoji': '🔑', 'label': 'Nhận phòng',         'per_apt': True,  'from': ('ci', -1), 'images_only': True},
     {'key': 'payment',  'emoji': '💳', 'label': 'Thanh toán',         'per_apt': True,  'from': ('ci', 0)},
     {'key': 'thanks',   'emoji': '⭐', 'label': 'Cảm ơn',             'per_apt': False, 'from': ('co', 0)},
 ]

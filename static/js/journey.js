@@ -63,6 +63,8 @@
       .jr-t{display:block;width:100%;text-align:left;border:1px solid #e2e8f0;background:#fff;border-radius:10px;padding:8px 10px;margin-bottom:5px;
           font-size:.84rem;font-weight:600;color:#0f172a;cursor:pointer;font-family:inherit;}
       .jr-t small{color:#7c3aed;font-weight:800;}
+      .jr-big{display:flex;flex-direction:column;gap:8px;margin-top:8px;}
+      .jr-big img{width:100%;border-radius:12px;border:1px solid #e2e8f0;cursor:zoom-in;min-height:120px;background:#f1f5f9;}
       .jr-row{display:flex;gap:5px;align-items:stretch;}
       .jr-row .jr-t{flex:1;min-width:0;}
       .jr-pin{flex-shrink:0;border:1px solid #e2e8f0;background:#fff;border-radius:10px;width:40px;margin-bottom:5px;cursor:pointer;font-size:.95rem;filter:grayscale(1);opacity:.5;}
@@ -192,7 +194,63 @@
         Vào <a href="/journey">⚙️ Tin &amp; ảnh</a> để chọn.</div>`;
       return;
     }
-    editor(body, s.template, s.text, s.images, s);
+    if (s.images_only) imagesOnly(body, s); else editor(body, s.template, s.text, s.images, s);
+  }
+
+  // Check-in: only the guide picture(s) — no text (the picture has every detail)
+  function imagesOnly(body, step) {
+    const b = st.data.booking, L = b.links, images = step.images;
+    const shareOk = !!navigator.canShare;
+    body.innerHTML = `
+      <div class="jr-tpl">Chỉ gửi ảnh hướng dẫn${b.apt ? ' · ' + esc(b.apt.name) : ''} — ảnh đã có đủ chi tiết</div>
+      <div class="jr-big">${images.map(im => `<img alt="" data-url="${esc(im.url)}">`).join('')}</div>
+      <div class="jr-btns">
+        ${shareOk ? `<button type="button" class="jr-share wide off">⏳ Đang tải ${images.length} ảnh…</button>` : ''}
+        ${L ? `<a class="jr-wa" target="_blank" rel="noopener" href="https://wa.me/${L.wa}">🟢 Mở chat WhatsApp</a>
+               <a class="jr-zalo" target="_blank" rel="noopener" href="https://zalo.me/${L.zalo}">🔵 Mở chat Zalo</a>` : ''}
+        <button type="button" class="jr-copy ${L ? 'wide' : ''}">📋 Sao chép ảnh</button>
+      </div>
+      <label class="jr-sent"><input type="checkbox" ${step.sent_at ? 'checked' : ''}> Đã gửi bước này</label>
+      <div class="jr-note">${shareOk
+        ? 'Bấm <b>📤 Gửi ảnh</b> → chọn WhatsApp (hoặc Zalo) → chọn khách → Gửi. Khách mới chưa có trong danh bạ: bấm <b>Mở chat WhatsApp</b> trước.'
+        : 'Trên máy tính: bấm <b>Mở chat WhatsApp</b>, rồi <b>Sao chép ảnh</b> và dán (Ctrl+V) vào chat.'}</div>`;
+    const btns = body.querySelector('.jr-btns'), note = body.querySelector('.jr-note');
+    const imgs = body.querySelectorAll('.jr-big img');
+    imgs.forEach(img => img.onclick = () => zoom(img.dataset.url));
+    const blobs = Promise.all(images.map((im, i) => fetch(im.url).then(r => r.ok ? r.blob() : null).then(bl => {
+      if (bl && imgs[i]) imgs[i].src = URL.createObjectURL(bl);
+      return bl;
+    }).catch(() => null)));
+    blobs.then(list => {
+      if (!st || !shareOk) return;
+      const files = list.map((bl, i) => bl && new File([bl], `checkin-guide-${i + 1}.${bl.type === 'image/png' ? 'png' : 'jpg'}`,
+        { type: bl.type || 'image/jpeg' })).filter(Boolean);
+      const share = btns.querySelector('.jr-share');
+      if (!files.length || !navigator.canShare({ files })) { share.textContent = 'Máy này không gửi ảnh trực tiếp được'; return; }
+      share.classList.remove('off');
+      share.textContent = `📤 Gửi ${files.length > 1 ? files.length + ' ảnh' : 'ảnh'} hướng dẫn`;
+      share.onclick = () => navigator.share({ files }).then(() => markSent(step, true)).catch(e => {
+        if (e.name !== 'AbortError') note.textContent = '❌ ' + e.message;
+      });
+    });
+    // copy the (first) picture as PNG — paste straight into WhatsApp Web / Zalo PC
+    btns.querySelector('.jr-copy').onclick = async e => {
+      try {
+        const png = blobs.then(list => toPng(list.find(Boolean)));
+        await navigator.clipboard.write([new ClipboardItem({ 'image/png': png })]);
+        e.target.textContent = '✅ Đã chép ảnh'; markSent(step, true);
+      } catch (err) { e.target.textContent = 'Không chép được — giữ ảnh để lưu'; }
+    };
+    const cb = body.querySelector('.jr-sent input');
+    cb.onchange = () => markSent(step, cb.checked);
+  }
+  function toPng(bl) {
+    return bl.type === 'image/png' ? Promise.resolve(bl) : new Promise((res, rej) => {
+      const u = URL.createObjectURL(bl), im = new Image();
+      im.onload = () => { const c = document.createElement('canvas'); c.width = im.naturalWidth; c.height = im.naturalHeight;
+        c.getContext('2d').drawImage(im, 0, 0); URL.revokeObjectURL(u); c.toBlob(b => b ? res(b) : rej(), 'image/png'); };
+      im.onerror = rej; im.src = u;
+    });
   }
 
   // The editable message + pictures + send buttons (a step, or a template picked in "Tin khác")

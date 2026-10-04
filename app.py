@@ -2309,6 +2309,7 @@ def journey_guest(booking_id):
                           'template': {'id': t['id'], 'name': t['name']} if t else None,
                           'text': J.fill(t['content'], b['guest']) if t else '',
                           'images': pics, 'sent_at': sent.get(s['key']),
+                          'images_only': bool(s.get('images_only') and pics),
                           'needs_apt': bool(unplaced)})
         prefs = J.get_prefs(_xdb.session)
         favs = J.favorites_named(_xdb.session, prefs)
