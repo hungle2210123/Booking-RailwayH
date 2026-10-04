@@ -257,8 +257,12 @@ python run.py  # Test the Railway runner script locally
 
 ### **💬 "Nhắn khách" page (`/messages`, `templates/messages.html`)**
 Mobile-first page: upcoming arrivals (checkin_date in [today, today+days]) that have a phone, each with
-WhatsApp / SMS / Zalo / Copy buttons + a pre-filled editable bilingual greeting (tokens `{ten}{nhan}{tra}{phong}`,
-saved in localStorage). Guests without a phone listed separately. Links built in JS; `_msg_phone_links()` normalises
+WhatsApp / SMS / Zalo / Copy buttons + a pre-filled bilingual greeting (tokens `{ten}{nhan}{tra}{phong}`).
+The greeting lives in `message_templates` with category `AUTO_MSG_CATEGORY = '0 · Nhắn tự động'` (default seeded
+by `_auto_msg_templates()`; first template = default, also used by the WhatsApp/Zalo chips in calendar_details),
+edited/saved from /messages via the existing `/api/templates` endpoints → shared by every device.
+calendar_details has a compact phone mode (`body.cd-compact`, default < 768px, toggle in the sticky `.cd-toolbar`):
+cards show a JS-built `.cd-sum` line, tap opens `.cd-open`. Guests without a phone listed separately. Links built in JS; `_msg_phone_links()` normalises
 phone → wa (intl digits), sms (+intl), zalo (VN 0-form). Nav: "💬 Nhắn Khách". Workflow = capture + reveal phones on
 PC, message from the phone. WhatsApp bulk-blast from a personal account is intentionally NOT built (ban risk).
 
