@@ -40,7 +40,6 @@
       .jr-steps button.on{background:#0f172a;color:#fff;border-color:#0f172a;}
       .jr-steps button.sent{border-color:#86efac;background:#dcfce7;color:#166534;}
       .jr-steps button.sent.on{background:#166534;color:#fff;border-color:#166534;}
-      .jr-steps button.next{border-color:#2563eb;}
       .jr-tpl{font-size:.74rem;color:#64748b;margin:10px 0 4px;}
       .jr-tpl b{color:#334155;}
       .jr-ta{width:100%;min-height:150px;border:1.5px solid #e2e8f0;border-radius:12px;padding:9px;font-size:.9rem;line-height:1.45;
@@ -175,7 +174,7 @@
     const hidden = st.data.hidden || [];
     const tabs = st.data.steps.filter(s => !hidden.includes(s.key) || s.key === st.step).concat(st.data.favorites || []);
     wrap.innerHTML = tabs.map(s => `<button type="button" data-k="${esc(s.key)}"
-        class="${s.key === st.step ? 'on' : ''} ${s.sent_at ? 'sent' : ''} ${s.key === st.data.recommended ? 'next' : ''}">
+        class="${s.key === st.step ? 'on' : ''} ${s.sent_at ? 'sent' : ''}">
         ${s.emoji} ${esc(s.label)}${s.sent_at ? ' ✓' : ''}</button>`).join('')
       + `<button type="button" data-k="__more" class="${st.step === '__more' ? 'on' : ''}">➕ Tin khác</button>`;
     wrap.querySelectorAll('button').forEach(btn => btn.onclick = () => { st.step = btn.dataset.k; st.more = null; render(); });
@@ -426,7 +425,6 @@
     document.querySelectorAll(`.jchip[data-bid="${CSS.escape(bid)}"]`).forEach(chip => {
       const s = fresh.steps.find(x => x.key === chip.dataset.step) || (fresh.favorites || []).find(x => x.key === chip.dataset.step);
       chip.classList.toggle('sent', !!(s && s.sent_at));
-      chip.classList.toggle('next', chip.dataset.step === fresh.recommended);
     });
     if (st && st.bid === bid) {
       st.data.recommended = fresh.recommended;
@@ -436,7 +434,6 @@
         const s = st.data.steps.find(x => x.key === btn.dataset.k) || (st.data.favorites || []).find(x => x.key === btn.dataset.k);
         if (!s) return;
         btn.classList.toggle('sent', !!s.sent_at);
-        btn.classList.toggle('next', s.key === fresh.recommended);
         btn.innerHTML = `${s.emoji} ${esc(s.label)}${s.sent_at ? ' ✓' : ''}`;
       });
     }

@@ -61,9 +61,6 @@
   .jchip .l { font-size:.64rem; font-weight:700; line-height:1.15; text-align:center; }
   .jchip.sent { background:#dcfce7; border-color:#86efac; color:#166534; }
   .jchip.sent::after { content:'✓'; position:absolute; top:2px; right:5px; font-size:.7rem; font-weight:900; color:#16a34a; }
-  .jchip.next { border:2px solid #2563eb; background:#dbeafe; color:#1d4ed8; }
-  .jchip.next::before { content:'TIẾP'; position:absolute; top:-7px; left:50%; transform:translateX(-50%); background:#2563eb;
-                        color:#fff; font-size:.52rem; font-weight:900; border-radius:6px; padding:0 5px; letter-spacing:.3px; }
   .jchip.more { background:#fff; border-style:dashed; }
   .card.todo { border-left:4px solid #ef4444; }
   .card.done { border-left:4px solid #22c55e; }
@@ -123,7 +120,7 @@
   </div>
   <div class="jstrip">
     {% for s in buttons %}
-    <button type="button" class="jchip {{ 'sent' if s.key in g.sent }} {{ 'next' if g.next == s.key }} {{ 'fav' if s.id or s.cat }}"
+    <button type="button" class="jchip {{ 'sent' if s.key in g.sent }} {{ 'fav' if s.id or s.cat }}"
             data-bid="{{ g.booking_id }}" data-step="{{ s.key }}"
             onclick="Journey.open(this.dataset.bid, this.dataset.step)">
       <span class="e">{{ s.emoji }}</span><span class="l">{{ s.label }}</span>
@@ -162,7 +159,7 @@
     <button type="button" data-f="todo">🔴 Chưa nhắn <b></b></button>
     <button type="button" data-f="done">✅ Đã nhắn <b></b></button>
   </div>
-  <div class="legend">Chạm một bước để xem tin + ảnh rồi gửi · <b style="color:#16a34a">✓</b> đã gửi · <b style="color:#1d4ed8">TIẾP</b> = nên gửi tiếp</div>
+  <div class="legend">Chạm một bước để xem tin + ảnh rồi gửi · <b style="color:#16a34a">✓</b> đã gửi</div>
 
   {% for g in guests %}{{ card(g, 'phone') }}{% endfor %}
   {% if not guests and not partner and not no_phone %}
