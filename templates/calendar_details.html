@@ -219,29 +219,6 @@ setInterval(loadVbCd, 5 * 60 * 1000);
         <div class="col-lg-8 col-xl-9">
     <h1 class="mb-4">📅 Chi tiết Hoạt động Ngày {{ date }}</h1>
 
-    <!-- Ultra-Optimized Commission Legend -->
-    <div class="commission-legend mb-4">
-        <div class="legend-title">
-            <h6><i class="fas fa-info-circle"></i> Hướng Dẫn Đọc Hoa Hồng</h6>
-        </div>
-        <div class="legend-items">
-            <div class="legend-item commission">
-                <div class="legend-color commission-color"></div>
-                <span><strong>Vàng/Cam:</strong> Khách có hoa hồng - cần trừ chi phí</span>
-            </div>
-            <div class="legend-item no-commission">
-                <div class="legend-color no-commission-color"></div>
-                <span><strong>Xanh:</strong> Khách không hoa hồng - lợi nhuận thuần</span>
-            </div>
-            <div class="legend-item calculation">
-                <div class="legend-icon">
-                    <i class="fas fa-calculator text-primary"></i>
-                </div>
-                <span><strong>Công thức:</strong> Doanh thu thực = Tổng doanh thu - Hoa hồng</span>
-            </div>
-        </div>
-    </div>
-
     <!-- Canceled Guests Management Panel -->
     <div class="canceled-guests-panel mb-4">
         <div class="card">
@@ -339,98 +316,6 @@ setInterval(loadVbCd, 5 * 60 * 1000);
         </div>
     </div>
 
-    <!-- Commission Overview Section -->
-    {% set all_bookings = check_in + staying_over + check_out %}
-    {% set commission_bookings = [] %}
-    {% set no_commission_bookings = [] %}
-    {% for booking in all_bookings %}
-        {% set commission = booking.get('Hoa hồng', 0) or 0 %}
-        {% if commission > 0 %}
-            {% set _ = commission_bookings.append(booking) %}
-        {% else %}
-            {% set _ = no_commission_bookings.append(booking) %}
-        {% endif %}
-    {% endfor %}
-    
-    {% if all_bookings %}
-    <div class="commission-overview mb-4">
-        <div class="row">
-            <div class="col-lg-3 col-6 mb-3">
-                <div class="stat-card commission-stat">
-                    <div class="stat-icon">
-                        <i class="fas fa-percentage text-warning"></i>
-                    </div>
-                    <div class="stat-info">
-                        <h5 class="text-warning mb-1">{{ commission_bookings|length }}</h5>
-                        <small class="text-muted">Có hoa hồng</small>
-                    </div>
-                </div>
-            </div>
-            <div class="col-lg-3 col-6 mb-3">
-                <div class="stat-card no-commission-stat">
-                    <div class="stat-icon">
-                        <i class="fas fa-check text-success"></i>
-                    </div>
-                    <div class="stat-info">
-                        <h5 class="text-success mb-1">{{ no_commission_bookings|length }}</h5>
-                        <small class="text-muted">Không hoa hồng</small>
-                    </div>
-                </div>
-            </div>
-            <div class="col-lg-3 col-6 mb-3">
-                <div class="stat-card total-stat">
-                    <div class="stat-icon">
-                        <i class="fas fa-users text-info"></i>
-                    </div>
-                    <div class="stat-info">
-                        <h5 class="text-info mb-1">{{ all_bookings|length }}</h5>
-                        <small class="text-muted">Tổng khách</small>
-                    </div>
-                </div>
-            </div>
-            <div class="col-lg-3 col-6 mb-3">
-                <div class="stat-card commission-rate-stat">
-                    <div class="stat-icon">
-                        <i class="fas fa-chart-pie text-primary"></i>
-                    </div>
-                    <div class="stat-info">
-                        <h5 class="text-primary mb-1">{{ "%.0f"|format((commission_bookings|length / all_bookings|length) * 100) }}%</h5>
-                        <small class="text-muted">Tỷ lệ có hoa hồng</small>
-                    </div>
-                </div>
-            </div>
-        </div>
-        
-        <!-- Quick Commission List -->
-        {% if commission_bookings %}
-        <div class="alert alert-warning">
-            <h6 class="alert-heading mb-2"><i class="fas fa-percentage"></i> Khách có hoa hồng hôm nay:</h6>
-            <div class="commission-quick-list">
-                {% for booking in commission_bookings %}
-                    {% set commission = booking.get('Hoa hồng', 0) or 0 %}
-                    <span class="badge bg-warning text-dark me-2 mb-1">
-                        {{ booking.get('Tên người đặt', 'N/A') }}: {{ "{:,.0f}".format(commission) }}đ
-                    </span>
-                {% endfor %}
-            </div>
-        </div>
-        {% endif %}
-        
-        {% if no_commission_bookings %}
-        <div class="alert alert-success">
-            <h6 class="alert-heading mb-2"><i class="fas fa-check"></i> Khách không hoa hồng:</h6>
-            <div class="no-commission-quick-list">
-                {% for booking in no_commission_bookings %}
-                    <span class="badge bg-success text-white me-2 mb-1">
-                        {{ booking.get('Tên người đặt', 'N/A') }}
-                    </span>
-                {% endfor %}
-            </div>
-        </div>
-        {% endif %}
-    </div>
-    {% endif %}
-
     <!-- 💰 UNPAID GUESTS WARNING SECTION -->
     {%- set _today_str = date.strftime('%Y-%m-%d') -%}
     {%- set unpaid_staying = [] -%}
@@ -451,115 +336,36 @@ setInterval(loadVbCd, 5 * 60 * 1000);
     {%- set overdue_unpaid = overdue_unpaid if overdue_unpaid is defined else [] -%}
 
     {% if unpaid_staying|length > 0 or unpaid_checkin|length > 0 or overdue_unpaid|length > 0 %}
-    <div class="card border-0 shadow-sm mb-4" style="background:linear-gradient(135deg,#fef2f2 0%,#fff5f5 100%);border-left:4px solid #dc2626!important;">
-        <div class="card-body py-3 px-4">
-            <div class="d-flex align-items-center justify-content-between mb-3">
-                <h6 class="mb-0 fw-bold" style="color:#991b1b;font-size:1rem;">
-                    <span style="font-size:1.1rem;">💰</span>
-                    Chưa Thu Tiền –
-                    <span style="color:#dc2626;">{{ unpaid_staying|length + unpaid_checkin|length + overdue_unpaid|length }} khách</span>
-                </h6>
-                {% set total_unpaid_amount = namespace(val=0) %}
-                {% for b in unpaid_staying + unpaid_checkin %}
-                    {% set amt = (b.get('Tổng thanh toán', 0) or 0)|float %}
-                    {% set total_unpaid_amount.val = total_unpaid_amount.val + amt %}
-                {% endfor %}
-                {% for b in overdue_unpaid %}
-                    {% set total_unpaid_amount.val = total_unpaid_amount.val + b['Tổng thanh toán'] %}
-                {% endfor %}
-                <span class="badge" style="background:#dc2626;color:#fff;font-size:.85rem;padding:6px 12px;border-radius:8px;">
-                    {{ "{:,.0f}".format(total_unpaid_amount.val) }}đ chưa thu
-                </span>
-            </div>
-
-            {% if unpaid_staying|length > 0 %}
-            <div class="mb-3">
-                <div class="mb-2" style="font-size:.82rem;font-weight:700;color:#b91c1c;">
-                    <i class="fas fa-bed me-1"></i> Đang lưu trú ({{ unpaid_staying|length }} khách) – chưa thanh toán:
-                </div>
-                <div class="d-flex flex-wrap gap-2">
-                    {% for b in unpaid_staying %}
-                    {% set ci = b.get('Check-in Date', '') %}
-                    {% set co = b.get('Check-out Date', '') %}
-                    {% set amt = (b.get('Tổng thanh toán', 0) or 0)|float %}
-                    {% set comm = (b.get('Hoa hồng', 0) or 0)|int %}
-                    {% set bid = b.get('Số đặt phòng', '') %}
-                    {% set room = b.get('Tên chỗ nghỉ', '') or b.get('room_name', '') %}
-                    <div data-summary-card="1" style="background:#fff;border:1.5px solid #fca5a5;border-radius:8px;padding:8px 12px;min-width:180px;max-width:220px;">
-                        <div style="font-weight:700;font-size:.88rem;color:#1e293b;margin-bottom:3px;">
-                            {{ b.get('Tên người đặt', 'N/A') }}
-                        </div>
-                        {% if room %}
-                        <div style="font-size:.75rem;color:#64748b;margin-bottom:3px;">
-                            <i class="fas fa-door-open me-1"></i>{{ room }}
-                        </div>
-                        {% endif %}
-                        {% if ci %}
-                        <div style="font-size:.75rem;color:#64748b;margin-bottom:4px;">
-                            <i class="fas fa-calendar me-1"></i>
-                            {% if ci is string and ci|length >= 10 %}{{ ci[8:10] }}/{{ ci[5:7] }}{% else %}{{ ci }}{% endif %}
-                            →
-                            {% if co is string and co|length >= 10 %}{{ co[8:10] }}/{{ co[5:7] }}{% else %}{{ co }}{% endif %}
-                        </div>
-                        {% endif %}
-                        <div style="font-weight:800;font-size:.92rem;color:#dc2626;margin-bottom:6px;">
-                            {{ "{:,.0f}".format(amt) }}đ
-                        </div>
-                        <div class="pay-area" id="pay-{{ bid }}"
-                             data-booking-id="{{ bid }}"
-                             data-amount="{{ amt|int }}"
-                             data-commission="{{ comm }}">
-                            <button class="btn-pay-now" onclick="showPayCollect(this)">💰 Thu Tiền</button>
-                        </div>
-                    </div>
-                    {% endfor %}
-                </div>
-            </div>
-            {% endif %}
-
+    {% set total_unpaid_amount = namespace(val=0) %}
+    {% for b in unpaid_staying + unpaid_checkin %}
+        {% set total_unpaid_amount.val = total_unpaid_amount.val + ((b.get('Tổng thanh toán', 0) or 0)|float) %}
+    {% endfor %}
+    {% for b in overdue_unpaid %}
+        {% set total_unpaid_amount.val = total_unpaid_amount.val + b['Tổng thanh toán'] %}
+    {% endfor %}
+    {# One line; tap to open. Thu Tiền for today's guests is on each guest card below — only guests who
+       already checked out (no card today) get their own card here. #}
+    <details class="unpaid-box mb-3">
+        <summary>
+            <span class="ub-title">💰 Chưa thu tiền · {{ unpaid_staying|length + unpaid_checkin|length + overdue_unpaid|length }} khách</span>
+            <span class="ub-amt">{{ "{:,.0f}".format(total_unpaid_amount.val) }}đ</span>
+            {% if overdue_unpaid|length > 0 %}<span class="ub-gone">⚠️ {{ overdue_unpaid|length }} đã đi</span>{% endif %}
+            <span class="ub-more">▾</span>
+        </summary>
+        <div class="ub-body">
             {% if unpaid_checkin|length > 0 %}
-            <div>
-                <div class="mb-2" style="font-size:.82rem;font-weight:700;color:#b45309;">
-                    <i class="fas fa-sign-in-alt me-1"></i> Check-in hôm nay ({{ unpaid_checkin|length }} khách) – chưa thanh toán:
-                </div>
-                <div class="d-flex flex-wrap gap-2">
-                    {% for b in unpaid_checkin %}
-                    {% set co = b.get('Check-out Date', '') %}
-                    {% set ci = b.get('Check-in Date', '') %}
-                    {% set amt = (b.get('Tổng thanh toán', 0) or 0)|float %}
-                    {% set comm = (b.get('Hoa hồng', 0) or 0)|int %}
-                    {% set bid = b.get('Số đặt phòng', '') %}
-                    {% set room = b.get('Tên chỗ nghỉ', '') or b.get('room_name', '') %}
-                    <div data-summary-card="1" style="background:#fffbeb;border:1.5px solid #fcd34d;border-radius:8px;padding:8px 12px;min-width:180px;max-width:220px;">
-                        <div style="font-weight:700;font-size:.88rem;color:#1e293b;margin-bottom:3px;">
-                            {{ b.get('Tên người đặt', 'N/A') }}
-                        </div>
-                        {% if room %}
-                        <div style="font-size:.75rem;color:#64748b;margin-bottom:3px;">
-                            <i class="fas fa-door-open me-1"></i>{{ room }}
-                        </div>
-                        {% endif %}
-                        {% if ci %}
-                        <div style="font-size:.75rem;color:#64748b;margin-bottom:4px;">
-                            <i class="fas fa-calendar me-1"></i>→
-                            {% if co is string and co|length >= 10 %}{{ co[8:10] }}/{{ co[5:7] }}{% else %}{{ co }}{% endif %}
-                        </div>
-                        {% endif %}
-                        <div style="font-weight:800;font-size:.92rem;color:#d97706;margin-bottom:6px;">
-                            {{ "{:,.0f}".format(amt) }}đ
-                        </div>
-                        <div class="pay-area" id="pay-{{ bid }}"
-                             data-booking-id="{{ bid }}"
-                             data-amount="{{ amt|int }}"
-                             data-commission="{{ comm }}">
-                            <button class="btn-pay-now" onclick="showPayCollect(this)">💰 Thu Tiền</button>
-                        </div>
-                    </div>
-                    {% endfor %}
-                </div>
+            <div class="ub-line"><b>🛬 Check-in hôm nay:</b>
+                {% for b in unpaid_checkin %}{{ b.get('Tên người đặt', 'N/A') }} <span class="ub-n">{{ "{:,.0f}".format((b.get('Tổng thanh toán', 0) or 0)|float) }}đ</span>{% if not loop.last %} · {% endif %}{% endfor %}
             </div>
             {% endif %}
-
+            {% if unpaid_staying|length > 0 %}
+            <div class="ub-line"><b>🏨 Đang ở:</b>
+                {% for b in unpaid_staying %}{{ b.get('Tên người đặt', 'N/A') }} <span class="ub-n">{{ "{:,.0f}".format((b.get('Tổng thanh toán', 0) or 0)|float) }}đ</span>{% if not loop.last %} · {% endif %}{% endfor %}
+            </div>
+            {% endif %}
+            {% if unpaid_staying|length > 0 or unpaid_checkin|length > 0 %}
+            <div class="ub-hint">Thu tiền ngay trong thẻ của từng khách bên dưới.</div>
+            {% endif %}
             {# ── Đã check-out nhưng chưa thu — quan trọng nhất, họ đã đi rồi ── #}
             {% if overdue_unpaid|length > 0 %}
             <div class="mt-3 pt-3" style="border-top:2px dashed #fca5a5;">
@@ -609,9 +415,26 @@ setInterval(loadVbCd, 5 * 60 * 1000);
                 </div>
             </div>
             {% endif %}
-
         </div>
-    </div>
+    </details>
+    <style>
+        .unpaid-box { background: linear-gradient(135deg,#fef2f2 0%,#fff5f5 100%); border-left: 4px solid #dc2626;
+            border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,.06); }
+        .unpaid-box > summary { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 10px 14px;
+            cursor: pointer; list-style: none; }
+        .unpaid-box > summary::-webkit-details-marker { display: none; }
+        .ub-title { font-weight: 800; color: #991b1b; font-size: .95rem; }
+        .ub-amt { background: #dc2626; color: #fff; font-weight: 800; font-size: .8rem; border-radius: 8px; padding: 3px 9px; }
+        .ub-gone { background: #fff; color: #dc2626; border: 1.5px solid #dc2626; font-weight: 800; font-size: .75rem;
+            border-radius: 8px; padding: 2px 8px; }
+        .ub-more { margin-left: auto; color: #b91c1c; font-weight: 800; }
+        .unpaid-box[open] .ub-more { transform: rotate(180deg); }
+        .ub-body { padding: 0 14px 12px; }
+        .ub-line { font-size: .82rem; color: #334155; margin-bottom: 6px; line-height: 1.5; }
+        .ub-line b { color: #991b1b; }
+        .ub-n { color: #dc2626; font-weight: 700; }
+        .ub-hint { font-size: .74rem; color: #64748b; margin-bottom: 4px; }
+    </style>
     {% endif %}
 
     <!-- 👻 HIDDEN GUESTS RESTORE PANEL -->
