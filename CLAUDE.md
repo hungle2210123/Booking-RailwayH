@@ -282,8 +282,9 @@ started from the toolbar popup, the right-click menu or Alt+Shift+S — an in-pa
 via `POST /api/ext/booking/screenshot`; served by `GET /api/booking_screenshot/<bid>?v=guest|full`.
 `static/js/booking_card.js` (`HotelCard.open`) shows the guest version and shares it via the phone share sheet
 (wa.me cannot carry images); falls back to a drawn confirmation card when no screenshot exists.
-Auto mode: optional host permission `<all_urls>` (granted from the popup "Bật tự chụp") lets the capture run right
-after the phone is saved (`auto-shot` message → `shoot(tab, true)`); checks the tab is still active, restores scroll.
+Auto mode is ALWAYS ON (owner decision, Oct 2026): `<all_urls>` is a required host permission so the capture can run
+without activeTab — after the phone is saved (`auto-shot` message → `shoot(tab, true)`); checks the tab is still
+active, restores scroll. No on/off toggle in the popup (only a status line).
 Also captures when a reservation page opens (`shotOnOpen`, once per booking per 10 min per tab, waits until the tab is
 visible). Sending on phones = 2 steps: text via wa.me/Zalo/SMS, then 📷 (`HotelCard.quickShare`) shares the prefetched
 image (`HotelCard.prefetch` on step 1) — share must run inside the tap, so it is fetched ahead.

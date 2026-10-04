@@ -23,8 +23,8 @@ chrome.runtime.onInstalled.addListener(() => {
 chrome.contextMenus.onClicked.addListener((info, tab) => { if (info.menuItemId === 'hp-shot') shoot(tab); });
 chrome.commands.onCommand.addListener((cmd, tab) => { if (cmd === 'capture-booking') shoot(tab); });
 
-// Optional, switched on by the owner in the popup: lets the extension capture right after Booking's
-// own "Hiển thị số điện thoại" is clicked (that click alone does not grant activeTab).
+// Always on (owner decision): <all_urls> lets the extension capture when a reservation opens and right
+// after Booking's own "Hiển thị số điện thoại" is clicked (those do not grant activeTab).
 const AUTO_SHOT_PERMISSION = { origins: ['<all_urls>'] };
 
 async function shoot(tab, auto = false) {

@@ -37,11 +37,10 @@ hoặc phím **Alt+Shift+S**). Tiện ích chụp đúng khung thông tin + kh�
 Trên điện thoại: menu **💬 Nhắn Khách** hoặc trang lịch → **📷 Ảnh** → **Gửi ảnh** → chọn WhatsApp/Zalo → chọn khách.
 (Chrome chỉ cho chụp ngay sau khi bạn tự bấm chuột phải / biểu tượng / phím tắt — nút trong trang không chụp được.)
 
-**⚡ Tự chụp khi bấm "Hiển thị số điện thoại"** (khuyên dùng): bấm biểu tượng tiện ích → **Bật tự chụp** → Chrome hỏi
-quyền "đọc dữ liệu trên mọi trang web" → Cho phép. Từ đó mỗi lần bạn bấm hiện số trong một đặt phòng, tiện ích lưu số
-**và** ảnh đặt phòng cùng lúc, rồi trả trang về đúng chỗ bạn đang xem. Chỉ chụp khi tab Booking đang mở trước mắt bạn.
-Tắt lại bằng nút **Tắt tự chụp**.
-Khi đã bật, tiện ích còn **tự chụp ngay khi bạn mở trang một khách** (mở lại cùng khách trong 10 phút thì không chụp lại),
+**⚡ Tự chụp — luôn bật:** không cần bật gì. Mỗi lần bạn mở trang một khách, tiện ích tự chụp khung đặt phòng;
+bấm "Hiển thị số điện thoại" thì lưu số **và** chụp lại (có số). Xong thì trả trang về đúng chỗ bạn đang xem.
+Chỉ chụp khi tab Booking đang mở trước mắt bạn.
+Tiện ích **tự chụp ngay khi bạn mở trang một khách** (mở lại cùng khách trong 10 phút thì không chụp lại),
 và chụp thêm lần nữa sau khi bạn bấm hiện số. Mở trang ở tab nền thì đợi tới khi bạn nhìn vào tab đó mới chụp.
 
 ## 💬 Gửi tin + ảnh cho khách (trên điện thoại)

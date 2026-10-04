@@ -514,7 +514,7 @@
     } finally { phoneBusy = false; }
   }
 
-  // ⚡ Auto-capture of the reservation box (needs "Bật tự chụp" in the popup):
+  // ⚡ Auto-capture of the reservation box (always on — owner decision):
   //   'open'  — when a reservation page is opened (not again for 10 min in this tab)
   //   'phone' — again right after the phone is revealed, so the number is in the owner's copy
   const autoShotDone = new Set();
@@ -534,7 +534,7 @@
       if (r?.reason === 'off' && kind === 'phone') {
         let hinted = false;
         try { hinted = sessionStorage.getItem('hp_autoshot_hint') === '1'; sessionStorage.setItem('hp_autoshot_hint', '1'); } catch (e) {}
-        if (!hinted) toast(lastPhoneToast + '<br><small>⚡ Muốn lưu luôn ảnh đặt phòng: bấm biểu tượng tiện ích → <b>Bật tự chụp</b>.</small>');
+        if (!hinted) toast(lastPhoneToast + '<br><small>⚠️ Chưa tự chụp được ảnh đặt phòng: vào <b>chrome://extensions</b> bấm ↻ ở tiện ích Hotel Pro.</small>', 'warn');
       } else if (r?.error === 'busy') {
         setTimeout(() => autoShot(kind), 2500);       // another capture was running
       }
