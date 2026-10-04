@@ -57,10 +57,17 @@
       .tag.cx { display: inline-block; font-size: 10px; font-weight: 800; background: #dc2626; color: #fff; border-radius: 6px; padding: 0 6px; margin-left: 4px; }
       .paid { margin-top: 8px; font-size: 12px; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 6px 8px; color: #166534; }
       .toast { position: absolute; right: 0; bottom: 56px; width: 300px; max-width: calc(100vw - 36px); background: #0f172a; color: #fff; font-size: 13px; line-height: 1.4; border-radius: 12px; padding: 10px 12px; box-shadow: 0 8px 24px rgba(0,0,0,.25); }
-      .toast.ok { background: #166534; } .toast.warn { background: #b45309; }
+      .toast.ok { background: #166534; } .toast.warn { background: #b45309; } .toast.partner { background: #6d28d9; }
+      .fab2 { background: #16a34a; margin-right: 8px; } .fab2:hover { background: #15803d; }
+      .tpl { display: block; width: 100%; text-align: left; border: 1.5px solid #e2e8f0; background: #fff; border-radius: 10px;
+             padding: 8px 10px; margin-bottom: 6px; font-size: 13px; font-weight: 700; cursor: pointer; color: #0f172a; }
+      .tpl.on { border-color: #16a34a; background: #f0fdf4; }
+      .pv { white-space: pre-wrap; font-size: 12px; line-height: 1.45; background: #f8fafc; border: 1px solid #e2e8f0;
+            border-radius: 10px; padding: 8px 10px; max-height: 220px; overflow: auto; margin: 4px 0 0; }
+      .ptag { display: inline-block; font-size: 11px; font-weight: 800; background: #ede9fe; color: #6d28d9; border-radius: 999px; padding: 2px 8px; }
     </style>
     <div class="panel" id="panel"></div>
-    <button class="fab" id="fab" type="button">📥 Gửi về Hotel Pro</button>`;
+    <button class="fab fab2" id="fill" type="button" style="display:none">💬 Điền tin</button><button class="fab" id="fab" type="button">📥 Gửi về Hotel Pro</button>`;
 
   const $ = sel => root.querySelector(sel);
   const panel = $('#panel');
@@ -437,7 +444,9 @@
   // ── Số điện thoại hiện ra trên trang đặt phòng → tự lưu về web ──────
   // Chỉ ĐỌC trang: chính bạn bấm nút "Hiển thị số điện thoại" của Booking, tiện ích đọc số đó rồi lưu.
   // Không tự bấm, không tự mở trang, không moi số đang ẩn.
-  const PHONE_FIND = /(?:\+|00|0)\d[\d\s().\-]{6,18}\d/g;
+  // Not inside a longer run of digits — a booking number like 5091703794 must not yield "091703794"
+  // …and never across a line break (the address line under the phone starts with digits too)
+  const PHONE_FIND = /(?<![\d+])(?:\+|00|0)\d[\d \t ().\-]{6,18}\d(?!\d)/g;
   const digitsOf = s => String(s || '').replace(/\D/g, '');
   const digitsOk = s => { const n = digitsOf(s).length; return n >= 8 && n <= 15; };
   const EMAILS_RE = /[^\s@]+@[^\s@]+\.[a-z]{2,}/gi;
@@ -475,20 +484,29 @@
     el.innerHTML = html;
     clearTimeout(toastTimer); toastTimer = setTimeout(() => el.remove(), 7000);
   }
+  // "Đối tác Booking.com" box: booked through a partner company. The number shown is the partner's
+  // (same local number for everyone, only the country code changes) → never saved as the guest's.
+  const PARTNER_WORDS = ['cong ty hop tac voi booking.com', 'partner company of booking.com',
+                         'company that partners with booking.com', 'through a booking.com partner'];
+  const isPartnerBooking = () => { const t = fold(document.body.innerText || ''); return PARTNER_WORDS.some(w => t.includes(w)); };
+
   const phoneDone = new Set();
   let phoneBusy = false;
   async function checkPhone() {
     if (phoneBusy || busy || !chrome.runtime?.id) return;
+    const partner = isPartnerBooking();
     const ph = guestPhone();
-    if (!ph) return;
-    const key = location.href.split('#')[0] + '|' + digitsOf(ph);
+    if (!ph && !partner) return;
+    const key = location.href.split('#')[0] + '|' + (partner ? 'partner' : digitsOf(ph));
     if (phoneDone.has(key)) return;
     phoneBusy = true;
     try {
       phoneDone.add(key);
-      const r = await api('/api/ext/booking/phone', { ...capture(), phone: ph });
+      const r = await api('/api/ext/booking/phone', { ...capture(), phone: ph || '', partner });
       if (!r?.success) { phoneDone.delete(key); return; }
-      if (r.status === 'saved') toast(`📞 Đã lưu SĐT <b>${esc(r.phone)}</b> cho <b>${esc(r.guest_name)}</b>`, 'ok');
+      if (r.status === 'partner') toast(`🤝 <b>${esc(r.guest_name)}</b> đặt qua <b>đối tác Booking</b> — số trên trang là của đối tác nên <b>không lưu</b>. Bấm <b>💬 Điền tin</b> để xin số Zalo/WhatsApp trong khung chat.`, 'partner');
+      else if (r.status === 'partner_not_on_web') toast('🤝 Đặt qua <b>đối tác Booking</b> — số trên trang là của đối tác, không phải của khách. Booking này chưa có trên web: bấm 📥 để thêm.', 'partner');
+      else if (r.status === 'saved') toast(`📞 Đã lưu SĐT <b>${esc(r.phone)}</b> cho <b>${esc(r.guest_name)}</b>`, 'ok');
       else if (r.status === 'same') toast(`📞 SĐT của <b>${esc(r.guest_name)}</b> đã có trên web`);
       else if (r.status === 'duplicate') toast(`⚠️ Số <b>${esc(r.phone)}</b> đang là của khách <b>${esc(r.other_name)}</b> — chưa lưu, kiểm tra lại`, 'warn');
       else if (r.status === 'not_on_web') toast(`📞 Thấy SĐT nhưng booking #${esc(r.booking_id)} chưa có trên web — bấm 📥 để thêm trước`, 'warn');
@@ -502,6 +520,75 @@
     revealSpot = el.parentElement?.parentElement || el.parentElement;
     [600, 1500, 3000, 6000].forEach(ms => setTimeout(checkPhone, ms));
   }, true);
-  // Nếu số đã hiện sẵn khi mở trang.
+  // Nếu số đã hiện sẵn khi mở trang (hoặc là đặt phòng qua đối tác).
   [2500, 6000].forEach(ms => setTimeout(checkPhone, ms));
+
+  // ── 💬 Điền tin: put a ready message into Booking's own "Trò chuyện với khách" box ──────
+  // Only types into the box on the page you are looking at; YOU read it and press Booking's Gửi.
+  const resId = () => { try { const q = new URL(location.href).searchParams; return q.get('res_id') || q.get('reservation_id') || ''; } catch (e) { return ''; } };
+  function chatBox() {
+    const cands = [...document.querySelectorAll('textarea, [contenteditable="true"], [role="textbox"]')]
+      .filter(el => !host.contains(el) && el.offsetParent !== null);
+    const hint = el => fold([el.getAttribute('placeholder'), el.getAttribute('aria-label'), el.getAttribute('data-placeholder')].join(' '));
+    return cands.find(el => /soan tin nhan|tin nhan|message|reply|tra loi/.test(hint(el))) || cands[cands.length - 1] || null;
+  }
+  function putInChat(box, text) {
+    box.focus();
+    if (box.tagName === 'TEXTAREA' || box.tagName === 'INPUT') {
+      const proto = box.tagName === 'TEXTAREA' ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
+      Object.getOwnPropertyDescriptor(proto, 'value').set.call(box, text);   // so the page's framework sees it
+      box.dispatchEvent(new Event('input', { bubbles: true }));
+      box.dispatchEvent(new Event('change', { bubbles: true }));
+    } else {
+      document.execCommand('selectAll', false, null);
+      document.execCommand('insertText', false, text);
+    }
+    box.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  }
+  // Booking names often end with the country code ("Lucas de Kok nl") — not part of a greeting
+  const cleanName = n => String(n || '').replace(/\s+[a-z]{2}$/, '').trim();
+  const fillTokens = (t, g) => t
+    .replace(/\{ten\}/g, cleanName(g.ten) || 'bạn').replace(/\{nhan\}/g, g.nhan || '')
+    .replace(/\{tra\}/g, g.tra || '').replace(/\{phong\}/g, g.phong ? ' (' + g.phong + ')' : '');
+
+  const fillBtn = $('#fill');
+  const refreshFillBtn = () => { fillBtn.style.display = resId() ? '' : 'none'; };
+  refreshFillBtn();
+  setInterval(refreshFillBtn, 2000);              // the extranet can switch pages without reloading
+  fillBtn.addEventListener('click', async () => {
+    fillBtn.textContent = '⏳ ...';
+    const r = await api('/api/ext/auto_messages', { ...capture(), partner: isPartnerBooking() });
+    fillBtn.textContent = '💬 Điền tin';
+    if (!r?.success) { showProblem(r?.error || 'Lỗi không rõ', 'Kiểm tra địa chỉ web trong biểu tượng tiện ích (góc trên trình duyệt).'); return; }
+    let cur = r.templates.find(t => t.id === r.default_id) || r.templates[0];
+    const draw = () => {
+      const text = fillTokens(cur.content, r.guest || {});
+      panel.innerHTML = `<h3>💬 Điền tin vào khung chat Booking</h3>
+        ${r.partner ? '<p><span class="ptag">🤝 Khách đặt qua đối tác — xin số Zalo/WhatsApp</span></p>' : ''}
+        <p class="hint">Chọn mẫu → <b>Điền vào khung chat</b> → đọc lại rồi tự bấm <b>Gửi</b> của Booking. Tiện ích không tự gửi.
+          Sửa mẫu ở web: menu 💬 Nhắn Khách.</p>
+        ${r.templates.map(t => `<button type="button" class="tpl ${t === cur ? 'on' : ''}" data-id="${esc(t.id)}">${esc(t.name)}</button>`).join('')}
+        <pre class="pv">${esc(text)}</pre>
+        <div class="row"><button class="close" id="b_close" type="button">Đóng</button>
+          <button class="save" id="b_put" type="button">✍️ Điền vào khung chat</button></div>
+        <div class="msg" id="msg"></div>`;
+      panel.classList.add('open');
+      $('#b_close').onclick = () => panel.classList.remove('open');
+      root.querySelectorAll('.tpl').forEach(b => {
+        b.onclick = () => { cur = r.templates.find(t => String(t.id) === b.dataset.id) || cur; draw(); };
+      });
+      $('#b_put').onclick = () => {
+        const box = chatBox();
+        if (!box) {
+          const m = $('#msg'); m.className = 'msg err';
+          m.textContent = '❌ Không thấy khung "Soạn tin nhắn" — mở phần "Trò chuyện với khách" trên trang rồi bấm lại.';
+          return;
+        }
+        putInChat(box, text);
+        panel.classList.remove('open');
+        toast('✍️ Đã điền tin vào khung chat — đọc lại rồi bấm <b>Gửi</b> của Booking', 'ok');
+      };
+    };
+    draw();
+  });
 })();

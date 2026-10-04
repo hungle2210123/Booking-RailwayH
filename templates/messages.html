@@ -56,6 +56,10 @@
   .nophone .t { font-size:.85rem; font-weight:800; color:#b45309; margin-bottom:6px; }
   .nophone .n { font-size:.8rem; color:var(--muted); background:#fff; border:1px dashed #fcd9a6; border-radius:10px;
                 padding:7px 10px; margin-bottom:5px; }
+  .nophone.partner .t { color:#7c3aed; }
+  .nophone.partner .n { border-color:#ddd6fe; }
+  .pnote { font-size:.76rem; color:#5b21b6; background:#f5f3ff; border:1px solid #ddd6fe; border-radius:10px;
+           padding:7px 10px; margin-bottom:6px; }
   .tip { font-size:.78rem; color:var(--muted); background:#eff6ff; border:1px solid #bfdbfe; border-radius:10px;
          padding:8px 10px; margin-bottom:12px; }
   #copytoast { position:fixed; left:50%; bottom:24px; transform:translateX(-50%); background:#0f172a; color:#fff;
@@ -119,6 +123,16 @@
   </div>
   {% else %}
   <div class="empty">Chưa có khách nào có số điện thoại trong khoảng này.<br>Lấy số trên máy tính (bấm "Hiển thị số điện thoại" trong Booking) rồi mở lại trang này.</div>
+  {% endif %}
+
+  {% if partner %}
+  <div class="nophone partner">
+    <div class="t">🤝 {{ partner|length }} khách đặt qua đối tác Booking — không có số thật</div>
+    <div class="pnote">Số trên Booking là của công ty đối tác. Mở đặt phòng trên máy tính → bấm <b>💬 Điền tin</b> của tiện ích → tin xin số Zalo/WhatsApp được điền sẵn vào khung chat Booking → bấm Gửi.</div>
+    {% for g in partner %}
+    <div class="n">{{ g.name }} · {{ g.nhan }} → {{ g.tra }}{% if g.phong %} · {{ g.phong }}{% endif %}</div>
+    {% endfor %}
+  </div>
   {% endif %}
 
   {% if no_phone %}

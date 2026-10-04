@@ -1758,7 +1758,26 @@ def ext_booking_phone():
         body = request.get_json(silent=True) or {}
         p = parse_reservation_page(body)
         bid = p.get('booking_id')
+
+        # Booked through a Booking.com partner company: the page shows the partner's number
+        # (same local number for every guest, only the country code changes) → never store it.
+        if body.get('partner') and bid:
+            existing = _ext_existing(bid)
+            if not existing:
+                return jsonify({'success': True, 'status': 'partner_not_on_web', 'booking_id': bid})
+            _ensure_partner_column()
+            _xdb.session.execute(text("UPDATE bookings SET via_partner = TRUE WHERE booking_id = :b"), {'b': bid})
+            shown = clean_phone(body.get('phone'))
+            if shown and existing['guest_id'] and _phone_tail(existing['phone']) == _phone_tail(shown):
+                _xdb.session.execute(text("UPDATE guests SET phone = NULL, updated_at = NOW() WHERE guest_id = :g"),
+                                     {'g': existing['guest_id']})
+            _xdb.session.commit()
+            return jsonify({'success': True, 'status': 'partner', 'booking_id': bid,
+                            'guest_name': existing['guest_name'] or p.get('guest_name') or bid})
+
         phone = clean_phone(body.get('phone'))
+        if phone and bid and re.sub(r'\D', '', phone) in str(bid):
+            phone = None    # a slice of the booking number (5020848034 → "020848034"), not a phone
         if not bid or not phone:
             return jsonify({'success': True, 'status': 'no_phone'})
         existing = _ext_existing(bid)
@@ -1768,11 +1787,13 @@ def ext_booking_phone():
         name = existing['guest_name'] or p.get('guest_name') or bid
         if re.sub(r'\D', '', existing['phone']) == re.sub(r'\D', '', phone):
             return jsonify({'success': True, 'status': 'same', 'booking_id': bid, 'phone': phone, 'guest_name': name})
-        # Same number already on a DIFFERENT person → almost certainly a wrong read; do not save
+        # Same local number already on a DIFFERENT person → a wrong read or a partner/relay number
+        # (partners keep the local part and swap the country code) → do not save
         other = _xdb.session.execute(text(r"""
             SELECT full_name FROM guests
-            WHERE regexp_replace(COALESCE(phone, ''), '\D', '', 'g') = :d AND guest_id IS DISTINCT FROM :gid
-            LIMIT 1"""), {'d': re.sub(r'\D', '', phone), 'gid': existing['guest_id']}).fetchone()
+            WHERE RIGHT(regexp_replace(COALESCE(phone, ''), '\D', '', 'g'), 9) = :t
+              AND guest_id IS DISTINCT FROM :gid
+            LIMIT 1"""), {'t': _phone_tail(phone), 'gid': existing['guest_id']}).fetchone()
         if other and _fold(other[0] or '') != _fold(name):
             return jsonify({'success': True, 'status': 'duplicate', 'booking_id': bid, 'phone': phone,
                             'guest_name': name, 'other_name': other[0]})
@@ -1819,6 +1840,45 @@ AUTO_MSG_DEFAULT = (
     "Hello {ten}! This is Cozy Homestay Hanoi. We confirm your stay: check-in {nhan}, check-out {tra}{phong}.\n"
     "Could you let us know your expected arrival time so we can prepare your room? Thank you!"
 )
+# For guests booked through a Booking.com partner company (their real number is not shown):
+# sent in the Booking chat to ask for a WhatsApp / Zalo number.
+AUTO_MSG_PARTNER_NAME = 'Xin số Zalo/WhatsApp (khách qua đối tác)'
+AUTO_MSG_PARTNER = (
+    "Xin chào {ten}! 👋\n"
+    "Cảm ơn bạn đã đặt phòng tại Cozy Homestay Hanoi: nhận phòng {nhan}, trả phòng {tra}{phong}.\n"
+    "Bạn cho mình xin số Zalo hoặc WhatsApp để gửi hướng dẫn nhận phòng (địa chỉ, cách vào nhà, wifi) nhé. "
+    "Bạn báo giúp mình giờ dự kiến tới nơi luôn ạ. Cảm ơn bạn!\n\n"
+    "Hello {ten}! 👋\n"
+    "Thank you for booking Cozy Homestay Hanoi: check-in {nhan}, check-out {tra}{phong}.\n"
+    "Could you please share your WhatsApp (or Zalo) number so we can send you the check-in instructions "
+    "(address, how to get in, Wi-Fi)? Please also let us know your expected arrival time. Thank you!"
+)
+AUTO_MSG_DEFAULTS = [(AUTO_MSG_DEFAULT_NAME, AUTO_MSG_DEFAULT), (AUTO_MSG_PARTNER_NAME, AUTO_MSG_PARTNER)]
+
+
+def _phone_tail(phone):
+    """Last 9 digits — the local number without the country code. Partner companies keep this part
+    and swap the country code per guest (+84 203… / +62 203…), so this is what identifies them."""
+    return re.sub(r'\D', '', str(phone or ''))[-9:]
+
+
+_PARTNER_COL_READY = False
+
+
+def _ensure_partner_column():
+    """bookings.via_partner = TRUE when the reservation came through a Booking.com partner company
+    (set by the extension from the 'Đối tác Booking.com' box). Added once per process."""
+    global _PARTNER_COL_READY
+    if _PARTNER_COL_READY:
+        return
+    from core.models import db as _xdb
+    try:
+        _xdb.session.execute(text("ALTER TABLE bookings ADD COLUMN IF NOT EXISTS via_partner BOOLEAN DEFAULT NULL"))
+        _xdb.session.commit()
+        _PARTNER_COL_READY = True
+    except Exception as e:
+        _xdb.session.rollback()
+        print(f"[via_partner] column check failed: {e}")
 
 
 def _auto_msg_templates():
@@ -1833,11 +1893,12 @@ def _auto_msg_templates():
             _xdb.session.execute(text(
                 "SELECT setval('message_templates_template_id_seq', "
                 "GREATEST((SELECT COALESCE(MAX(template_id), 0) FROM message_templates), 1))"))
-            _xdb.session.execute(text("""
-                INSERT INTO message_templates (template_name, category, template_content, created_at, updated_at)
-                SELECT :n, :c, :t, NOW(), NOW()
-                WHERE NOT EXISTS (SELECT 1 FROM message_templates WHERE template_name = :n)
-            """), {'n': AUTO_MSG_DEFAULT_NAME, 'c': AUTO_MSG_CATEGORY, 't': AUTO_MSG_DEFAULT})
+            for _n, _t in AUTO_MSG_DEFAULTS:
+                _xdb.session.execute(text("""
+                    INSERT INTO message_templates (template_name, category, template_content, created_at, updated_at)
+                    SELECT :n, :c, :t, NOW(), NOW()
+                    WHERE NOT EXISTS (SELECT 1 FROM message_templates WHERE template_name = :n)
+                """), {'n': _n, 'c': AUTO_MSG_CATEGORY, 't': _t})
             _xdb.session.commit()
         except Exception as e:
             _xdb.session.rollback()
@@ -1845,6 +1906,46 @@ def _auto_msg_templates():
         rows = _xdb.session.execute(sql, {'c': AUTO_MSG_CATEGORY}).fetchall()
     return ([{'id': r[0], 'name': r[1], 'content': r[2]} for r in rows]
             or [{'id': None, 'name': AUTO_MSG_DEFAULT_NAME, 'content': AUTO_MSG_DEFAULT}])
+
+
+@app.route('/api/ext/auto_messages', methods=['POST'])
+def ext_auto_messages():
+    """Templates + this guest's details, so the extension can put a ready message into Booking's own
+    "Trò chuyện với khách" box (the owner reads it and presses Gửi — the extension never sends)."""
+    err = _ext_auth_error()
+    if err:
+        return err
+    try:
+        from core.booking_page_parser import parse_reservation_page
+        from core.models import db as _xdb
+        body = request.get_json(silent=True) or {}
+        p = parse_reservation_page(body)
+        bid = p.get('booking_id')
+        dm = lambda iso: '/'.join(reversed(iso.split('-')[1:])) if iso else ''   # 2026-10-04 → 04/10
+        guest = {'ten': p.get('guest_name') or '', 'nhan': dm(p.get('checkin_date')),
+                 'tra': dm(p.get('checkout_date')), 'phong': p.get('listing') or ''}
+        partner = bool(body.get('partner'))
+        if bid:
+            _ensure_partner_column()
+            row = _xdb.session.execute(text("""
+                SELECT COALESCE(g.full_name, b.guest_name), b.checkin_date, b.checkout_date,
+                       b.accommodation_name, b.via_partner
+                FROM bookings b LEFT JOIN guests g ON g.guest_id = b.guest_id WHERE b.booking_id = :b
+            """), {'b': bid}).fetchone()
+            if row:   # the web knows this booking → use its data (room name is reliable there)
+                guest = {'ten': row[0] or guest['ten'],
+                         'nhan': row[1].strftime('%d/%m') if row[1] else guest['nhan'],
+                         'tra': row[2].strftime('%d/%m') if row[2] else guest['tra'],
+                         'phong': row[3] or guest['phong']}
+                partner = partner or bool(row[4])
+        templates = _auto_msg_templates()
+        default = next((t for t in templates if t['name'] == AUTO_MSG_PARTNER_NAME), None) if partner else None
+        return jsonify({'success': True, 'templates': templates, 'guest': guest, 'partner': partner,
+                        'default_id': (default or templates[0])['id']})
+    except Exception as e:
+        from core.models import db as _xdb
+        _xdb.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 
 @app.route('/messages')
@@ -1858,9 +1959,10 @@ def messages_page():
         days = 3
     today = (datetime.utcnow() + timedelta(hours=7)).date()
     end = today + timedelta(days=days - 1)
+    _ensure_partner_column()
     rows = _xdb.session.execute(text("""
         SELECT b.booking_id, COALESCE(g.full_name, b.guest_name) AS name,
-               b.checkin_date, b.checkout_date, b.accommodation_name, g.phone
+               b.checkin_date, b.checkout_date, b.accommodation_name, g.phone, b.via_partner
         FROM bookings b LEFT JOIN guests g ON g.guest_id = b.guest_id
         WHERE b.checkin_date >= :a AND b.checkin_date <= :b
           AND COALESCE(b.booking_status, '') NOT IN ('cancelled', 'deleted')
@@ -1868,7 +1970,7 @@ def messages_page():
         ORDER BY b.checkin_date, name
     """), {'a': today, 'b': end}).fetchall()
 
-    guests, no_phone = [], []
+    guests, no_phone, partner = [], [], []
     for r in rows:
         ci, co = r[2], r[3]
         item = {
@@ -1878,12 +1980,14 @@ def messages_page():
             'phong': r[4] or '', 'phone': r[5] or '',
         }
         links = _msg_phone_links(r[5])
-        if links:
+        if r[6]:                       # partner booking: any number on file is the partner's
+            partner.append(item)
+        elif links:
             item.update(links)
             guests.append(item)
         else:
             no_phone.append(item)
-    return render_template('messages.html', guests=guests, no_phone=no_phone,
+    return render_template('messages.html', guests=guests, no_phone=no_phone, partner=partner,
                            days=days, today_str=today.strftime('%d/%m/%Y'), total=len(rows),
                            templates=_auto_msg_templates(), auto_category=AUTO_MSG_CATEGORY)
 
@@ -4657,10 +4761,15 @@ def calendar_details(date_str):
                                     'nhan': _dm(_g.get('Check-in Date')), 'tra': _dm(_g.get('Check-out Date')),
                                     'phong': str(_g.get('Tên chỗ nghỉ', '') or '').strip()}
             if _ph_info:
-                for _bid, _phone in _phdb.session.execute(text("""
-                    SELECT b.booking_id, g.phone FROM bookings b JOIN guests g ON g.guest_id = b.guest_id
-                    WHERE b.booking_id = ANY(:bids) AND COALESCE(g.phone, '') <> ''
+                _ensure_partner_column()
+                for _bid, _phone, _partner in _phdb.session.execute(text("""
+                    SELECT b.booking_id, g.phone, b.via_partner FROM bookings b
+                    LEFT JOIN guests g ON g.guest_id = b.guest_id
+                    WHERE b.booking_id = ANY(:bids) AND (COALESCE(g.phone, '') <> '' OR b.via_partner)
                 """), {'bids': list(_ph_info)}).fetchall():
+                    if _partner:    # booked via a Booking.com partner — the number is not the guest's
+                        phone_map[_bid] = {'partner': True, **_ph_info.get(_bid, {})}
+                        continue
                     _links = _msg_phone_links(_phone)
                     if _links:
                         _digits = re.sub(r'\D', '', _phone)

@@ -1459,7 +1459,9 @@ setInterval(loadVbCd, 5 * 60 * 1000);
 
         {# ── Guest phone (from the Chrome extension) ── #}
         {% set ph = phone_map.get(booking_id|string) if phone_map else None %}
-        {% if ph %}
+        {% if ph and ph.partner %}
+        <span class="guest-partner" title="Đặt qua công ty đối tác của Booking — số trên Booking không phải của khách. Nhắn khách trong khung chat Booking (nút 💬 Điền tin của tiện ích).">🤝 Đối tác · nhắn qua Booking</span>
+        {% elif ph %}
         <a class="guest-phone" href="tel:{{ ph.tel }}" title="Gọi {{ ph.display }}">📞 {{ ph.display }}</a>
         {# The pre-written message (auto_msg) is filled in by the script at the end of the page #}
         <a class="guest-wa msg-link" data-ch="wa" data-num="{{ ph.wa }}"
@@ -1574,6 +1576,9 @@ setInterval(loadVbCd, 5 * 60 * 1000);
         .cd-close { display: none; }
         body.cd-compact .guest-card.cd-open > .cd-close { display: block; text-align: center; font-size: .75rem;
             font-weight: 700; color: #64748b; padding: 6px 0 0; }
+        .guest-partner { font-size: .62rem; font-weight: 800; padding: 1px 7px; border-radius: 20px; flex-shrink: 0;
+            background: #f5f3ff; color: #6d28d9; border: 1px solid #ddd6fe; }
+        body.cd-compact .guest-partner { font-size: .72rem; padding: 3px 9px; }
         .guest-zalo { font-size: 0.6rem; font-weight: 800; padding: 1px 7px; border-radius: 20px; text-decoration: none;
             flex-shrink: 0; background: #e0edff; color: #0050c8; border: 1px solid #a8c8ff; }
         body.cd-compact .guest-phone, body.cd-compact .guest-wa, body.cd-compact .guest-zalo { font-size: .72rem !important; padding: 3px 9px !important; }

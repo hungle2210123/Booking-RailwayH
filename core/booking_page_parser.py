@@ -51,7 +51,7 @@ MONTHS = {
     'sep': 9, 'sept': 9, 'oct': 10, 'nov': 11, 'dec': 12,
 }
 
-PHONE_RE = re.compile(r'(\+?\d[\d\s\-().]{6,}\d)')
+PHONE_RE = re.compile(r'(\+?\d[\d \t \-().]{6,}\d)')   # one line only: the address below starts with digits
 EMAIL_RE = re.compile(r'[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}')
 
 
