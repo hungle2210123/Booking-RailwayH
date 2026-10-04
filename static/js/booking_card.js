@@ -162,22 +162,35 @@
 
   // Images fetched ahead of time, so the share sheet can open straight from a tap (phones only allow
   // sharing directly inside the tap, not after waiting for a download).
-  const ready = new Map();          // bookingId → result of getImage (or a pending promise)
-  function prefetch(bookingId) {
-    if (ready.has(bookingId)) return;
-    ready.set(bookingId, getImage(bookingId)
-      .then(v => { ready.set(bookingId, v); return v; })
-      .catch(() => { ready.delete(bookingId); }));
+  // A screenshot may be taken on the PC after the phone fetched the drawn card, so nothing is trusted for long.
+  const ready = new Map();          // bookingId → { v: getImage result, at: time fetched }
+  const pending = new Map();        // bookingId → fetch in progress
+  const FRESH_SHOT_MS = 2 * 60 * 1000, SHARE_MAX_AGE_MS = 5 * 60 * 1000;
+  function prefetch(bookingId, force) {
+    const c = ready.get(bookingId);
+    if (!force && c && c.v.isShot && Date.now() - c.at < FRESH_SHOT_MS) return;
+    if (pending.has(bookingId)) return;
+    pending.set(bookingId, getImage(bookingId)
+      .then(v => { ready.set(bookingId, { v, at: Date.now() }); })
+      .catch(() => {})
+      .finally(() => pending.delete(bookingId)));
   }
-  // "Bước 2" after the text was sent: share the ready image at once; otherwise show the preview.
+  // "Bước 2" after the text was sent: share the ready image at once — only if it is recent and no newer
+  // fetch is running; otherwise open the preview, which always loads the latest picture.
   function quickShare(bookingId) {
-    const v = ready.get(bookingId);
-    if (v && v.file && navigator.canShare && navigator.canShare({ files: [v.file] })) {
-      navigator.share({ files: [v.file] }).catch(e => { if (e.name !== 'AbortError') open(bookingId); });
+    const c = ready.get(bookingId);
+    if (!pending.has(bookingId) && c && Date.now() - c.at < SHARE_MAX_AGE_MS &&
+        navigator.canShare && navigator.canShare({ files: [c.v.file] })) {
+      navigator.share({ files: [c.v.file] }).catch(e => { if (e.name !== 'AbortError') open(bookingId); });
       return;
     }
     open(bookingId);
   }
+  // Coming back from WhatsApp / Zalo: refresh the pictures of the guests waiting for step 2
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) return;
+    document.querySelectorAll('.card.step2[data-bid], .guest-img.go[data-bid]').forEach(el => prefetch(el.dataset.bid, true));
+  });
 
   async function open(bookingId) {
     ensureCss();
@@ -190,9 +203,9 @@
     ov.addEventListener('click', e => { if (e.target === ov) close(); });
     const box = ov.querySelector('.hc-box');
     try {
-      const cached = ready.get(bookingId);
-      const { blob, isShot, fname, file } = (cached && cached.file) ? cached : await getImage(bookingId);
-      ready.set(bookingId, { blob, isShot, fname, file });
+      const v = await getImage(bookingId);             // the preview always shows the latest picture
+      ready.set(bookingId, { v, at: Date.now() });
+      const { blob, isShot, fname, file } = v;
       url = URL.createObjectURL(blob);
       const canShare = !!(navigator.canShare && navigator.canShare({ files: [file] }));
       const canCopy = !!(navigator.clipboard && navigator.clipboard.write && window.ClipboardItem);

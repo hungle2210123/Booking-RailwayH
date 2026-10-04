@@ -696,6 +696,7 @@
         : union(area, { left: cardR.left, right: cardR.right, top: cardR.bottom, bottom: R(price).bottom + 70 });
     }
     area = grow(area, 10);
+    if (head && R(head).top - 4 > area.top) area = box({ ...area, top: R(head).top - 4 });   // not the link line above the title
     // What the guest must not see: commission, IATA, internal notes, Booking's notices, partner box
     const masks = [];
     leaves.forEach(el => {
@@ -706,7 +707,12 @@
                                      R(v).left < r.right && R(v).right > r.left);
         masks.push(grow(val ? union(r, R(val)) : box(r), 3));
       } else if (/ban het|sold out/.test(t)) {
-        masks.push(grow(box(R(el.parentElement || el)), 3));
+        // the notice row includes its ⓘ icon: climb while the text stays the same (icons add no text)
+        // (start from the paragraph: the matched leaf is often the "…phòng đã bán hết" link at its end)
+        let row = el.parentElement || el;
+        const own = fold(row.innerText || row.textContent || '');
+        while (row.parentElement && fold(row.parentElement.innerText || '') === own) row = row.parentElement;
+        masks.push(grow(box(R(row)), 4));
       } else if (t === 'doi tac booking.com' || t === 'booking.com partner') {
         let blk = el;
         while (blk.parentElement && !/(cong ty hop tac|partner company|partners with)/.test(fold(blk.innerText || ''))) blk = blk.parentElement;
