@@ -477,12 +477,12 @@
     return null;
   }
   let toastTimer;
-  function toast(html, kind) {
+  function toast(html, kind, ms = 7000) {
     let el = $('#toast');
     if (!el) { el = document.createElement('div'); el.id = 'toast'; root.appendChild(el); }
     el.className = 'toast ' + (kind || '');
     el.innerHTML = html;
-    clearTimeout(toastTimer); toastTimer = setTimeout(() => el.remove(), 7000);
+    clearTimeout(toastTimer); toastTimer = setTimeout(() => el.remove(), ms);
   }
   // "Đối tác Booking.com" box: booked through a partner company. The number shown is the partner's
   // (same local number for everyone, only the country code changes) → never saved as the guest's.
@@ -510,26 +510,56 @@
       else if (r.status === 'same') toast(`📞 SĐT của <b>${esc(r.guest_name)}</b> đã có trên web`);
       else if (r.status === 'duplicate') toast(`⚠️ Số <b>${esc(r.phone)}</b> đang là của khách <b>${esc(r.other_name)}</b> — chưa lưu, kiểm tra lại`, 'warn');
       else if (r.status === 'not_on_web') toast(`📞 Thấy SĐT nhưng booking #${esc(r.booking_id)} chưa có trên web — bấm 📥 để thêm trước`, 'warn');
-      if (['saved', 'same', 'partner'].includes(r.status)) autoShot();
+      if (['saved', 'same', 'partner'].includes(r.status)) autoShot('phone');
     } finally { phoneBusy = false; }
   }
 
-  // ⚡ The phone is now on screen → also capture the reservation box, if switched on in the popup
-  // ("Tự chụp khi bấm Hiển thị số điện thoại"). Once per booking per page.
+  // ⚡ Auto-capture of the reservation box (needs "Bật tự chụp" in the popup):
+  //   'open'  — when a reservation page is opened (not again for 10 min in this tab)
+  //   'phone' — again right after the phone is revealed, so the number is in the owner's copy
   const autoShotDone = new Set();
   let lastPhoneToast = '';
-  function autoShot() {
+  const SHOT_AGAIN_MS = 10 * 60 * 1000;
+  const shotStampKey = bid => 'hp_shot_' + bid;
+  function autoShot(kind) {
     const bid = resId();
-    if (!bid || autoShotDone.has(bid) || !chrome.runtime?.id) return;
-    autoShotDone.add(bid);
-    lastPhoneToast = $('#toast')?.innerHTML || '';
-    chrome.runtime.sendMessage({ type: 'auto-shot' }).then(r => {
-      if (r?.reason !== 'off') return;
-      autoShotDone.delete(bid);
-      let hinted = false;
-      try { hinted = sessionStorage.getItem('hp_autoshot_hint') === '1'; sessionStorage.setItem('hp_autoshot_hint', '1'); } catch (e) {}
-      if (!hinted) toast(lastPhoneToast + '<br><small>⚡ Muốn lưu luôn ảnh đặt phòng mỗi lần hiện số: bấm biểu tượng tiện ích → <b>Bật tự chụp</b>.</small>');
-    }).catch(() => autoShotDone.delete(bid));
+    if (!bid || !chrome.runtime?.id) return Promise.resolve(null);
+    const key = bid + '|' + kind;
+    if (autoShotDone.has(key)) return Promise.resolve(null);
+    autoShotDone.add(key);
+    lastPhoneToast = kind === 'phone' ? ($('#toast')?.innerHTML || '') : '';
+    return chrome.runtime.sendMessage({ type: 'auto-shot' }).then(r => {
+      if (r?.success) return r;
+      autoShotDone.delete(key);                      // allow another try
+      if (r?.reason === 'off' && kind === 'phone') {
+        let hinted = false;
+        try { hinted = sessionStorage.getItem('hp_autoshot_hint') === '1'; sessionStorage.setItem('hp_autoshot_hint', '1'); } catch (e) {}
+        if (!hinted) toast(lastPhoneToast + '<br><small>⚡ Muốn lưu luôn ảnh đặt phòng: bấm biểu tượng tiện ích → <b>Bật tự chụp</b>.</small>');
+      } else if (r?.error === 'busy') {
+        setTimeout(() => autoShot(kind), 2500);       // another capture was running
+      }
+      return r;
+    }).catch(() => { autoShotDone.delete(key); return null; });
+  }
+  function shotOnOpen() {
+    const bid = resId();
+    if (!bid) return;
+    let last = 0;
+    try { last = +sessionStorage.getItem(shotStampKey(bid)) || 0; } catch (e) {}
+    if (Date.now() - last < SHOT_AGAIN_MS) return;
+    let tries = 0;
+    const go = async () => {
+      if (document.hidden || resId() !== bid) return;
+      const r = await autoShot('open');
+      if (r && !r.success && r.reason !== 'off' && /khung/i.test(r.error || '') && ++tries < 2) setTimeout(go, 4000);
+    };
+    if (!document.hidden) { setTimeout(go, 3000); return; }
+    // opened in a background tab → take it when you look at it
+    document.addEventListener('visibilitychange', function once() {
+      if (document.hidden) return;
+      document.removeEventListener('visibilitychange', once);
+      setTimeout(go, 1500);
+    });
   }
   // Chỉ phản ứng khi bạn bấm đúng nút "Hiển thị số điện thoại"; số hiện ra sau đó một chút.
   document.addEventListener('click', e => {
@@ -571,7 +601,11 @@
     .replace(/\{tra\}/g, g.tra || '').replace(/\{phong\}/g, g.phong ? ' (' + g.phong + ')' : '');
 
   const fillBtn = $('#fill');
-  const refreshFillBtn = () => { fillBtn.style.display = resId() ? '' : 'none'; };
+  let shownResId = null;
+  const refreshFillBtn = () => {
+    fillBtn.style.display = resId() ? '' : 'none';
+    if (resId() !== shownResId) { shownResId = resId(); shotOnOpen(); }
+  };
   refreshFillBtn();
   setInterval(refreshFillBtn, 2000);              // the extranet can switch pages without reloading
   fillBtn.addEventListener('click', async () => {
@@ -624,6 +658,7 @@
   let pendingShot = null;
 
   function prepareShot(auto) {
+    if (pendingShot) return { ok: false, error: 'busy' };
     const bid = resId();
     if (!bid) return { ok: false, error: 'Mở trang chi tiết của một đặt phòng rồi chụp lại' };
     const visibleLeaves = () => [...document.querySelectorAll('body *')]
@@ -717,8 +752,10 @@
       if (!p.auto) toast('📸 Đang lưu ảnh lên web…');
       const r = await api('/api/ext/booking/screenshot', { booking_id: p.bid, full, guest });
       if (!r?.success) throw new Error(r?.error || 'Lỗi không rõ');
+      try { sessionStorage.setItem(shotStampKey(p.bid), String(Date.now())); } catch (e) {}
       if (p.auto) {
-        toast((lastPhoneToast ? lastPhoneToast + '<br>' : '') + '📸 Đã lưu luôn <b>ảnh đặt phòng</b> (bản gửi khách đã che hoa hồng)', 'ok');
+        if (lastPhoneToast) toast(lastPhoneToast + '<br>📸 Đã lưu luôn <b>ảnh đặt phòng</b> (bản gửi khách đã che hoa hồng)', 'ok');
+        else toast('📸 Đã lưu ảnh đặt phòng', 'ok', 2500);
         return;
       }
       $('#toast')?.remove();

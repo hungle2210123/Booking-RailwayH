@@ -1281,7 +1281,7 @@ setInterval(loadVbCd, 5 * 60 * 1000);
         </button>
 
         {# ── Booking-confirmation image (drawn on the phone, sent via the share sheet) ── #}
-        <button type="button" class="guest-img" onclick="HotelCard.open('{{ booking_id }}')" title="Ảnh xác nhận đặt phòng để gửi khách">📷 Ảnh</button>
+        <button type="button" class="guest-img" data-bid="{{ booking_id }}" onclick="HotelCard.quickShare('{{ booking_id }}')" title="Ảnh xác nhận đặt phòng để gửi khách">📷 Ảnh</button>
 
         {# ── Guest phone (from the Chrome extension) ── #}
         {% set ph = phone_map.get(booking_id|string) if phone_map else None %}
@@ -1405,6 +1405,8 @@ setInterval(loadVbCd, 5 * 60 * 1000);
         .guest-img { font-size: .6rem; font-weight: 800; padding: 1px 7px; border-radius: 20px; flex-shrink: 0; cursor: pointer;
             background: #f3e8ff; color: #6b21a8; border: 1px solid #d8b4fe; font-family: inherit; line-height: 1.5; }
         body.cd-compact .guest-img { font-size: .72rem; padding: 3px 9px; }
+        .guest-img.go { background: #7c3aed; color: #fff; border-color: #7c3aed; animation: imgpulse 1.2s ease-in-out infinite; }
+        @keyframes imgpulse { 50% { transform: scale(1.08); } }
         .guest-partner { font-size: .62rem; font-weight: 800; padding: 1px 7px; border-radius: 20px; flex-shrink: 0;
             background: #f5f3ff; color: #6d28d9; border: 1px solid #ddd6fe; }
         body.cd-compact .guest-partner { font-size: .72rem; padding: 3px 9px; }
@@ -6344,6 +6346,16 @@ function showQuickToast(msg, type) {
         };
         try { navigator.clipboard.writeText(text).then(ok, fallback); } catch (e) { fallback(); }
     }
+    // After the text (step 1) the 📷 chip of the same guest lights up; its picture is fetched meanwhile
+    document.querySelectorAll('.apt-selector').forEach(sel => {
+        const img = sel.querySelector('.guest-img');
+        if (!img) return;
+        img.addEventListener('pointerdown', () => window.HotelCard && HotelCard.prefetch(img.dataset.bid));
+        sel.querySelectorAll('.msg-link').forEach(a => {
+            a.addEventListener('pointerdown', () => window.HotelCard && HotelCard.prefetch(img.dataset.bid));
+            a.addEventListener('click', () => { img.classList.add('go'); img.textContent = '📷 Gửi ảnh'; window.HotelCard && HotelCard.prefetch(img.dataset.bid); });
+        });
+    });
     document.querySelectorAll('.msg-link').forEach(a => {
         const msg = fill(a.dataset);
         if (a.dataset.ch === 'wa') a.href = 'https://wa.me/' + a.dataset.num + '?text=' + encodeURIComponent(msg);

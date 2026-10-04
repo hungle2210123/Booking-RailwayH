@@ -41,6 +41,13 @@ Trên điện thoại: menu **💬 Nhắn Khách** hoặc trang lịch → **�
 quyền "đọc dữ liệu trên mọi trang web" → Cho phép. Từ đó mỗi lần bạn bấm hiện số trong một đặt phòng, tiện ích lưu số
 **và** ảnh đặt phòng cùng lúc, rồi trả trang về đúng chỗ bạn đang xem. Chỉ chụp khi tab Booking đang mở trước mắt bạn.
 Tắt lại bằng nút **Tắt tự chụp**.
+Khi đã bật, tiện ích còn **tự chụp ngay khi bạn mở trang một khách** (mở lại cùng khách trong 10 phút thì không chụp lại),
+và chụp thêm lần nữa sau khi bạn bấm hiện số. Mở trang ở tab nền thì đợi tới khi bạn nhìn vào tab đó mới chụp.
+
+## 💬 Gửi tin + ảnh cho khách (trên điện thoại)
+① Trang **💬 Nhắn Khách** hoặc trang lịch → chạm **WhatsApp** (hoặc Zalo/SMS) → tin soạn sẵn → Gửi.
+② Quay lại web: nút **📷** đang nhấp nháy → chạm → WhatsApp / Zalo → chọn khách vừa nhắn (đầu danh sách) → Gửi ảnh.
+(Link WhatsApp chỉ mang được chữ, nên ảnh gửi ở bước ②; nhắn trước để chat của khách nằm đầu danh sách chia sẻ.)
 
 ## 💬 Điền tin vào khung chat Booking
 Trang chi tiết đặt phòng → nút xanh **💬 Điền tin** → chọn mẫu → **Điền vào khung chat** → đọc lại rồi tự bấm **Gửi**.

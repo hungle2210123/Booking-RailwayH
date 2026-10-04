@@ -284,6 +284,9 @@ via `POST /api/ext/booking/screenshot`; served by `GET /api/booking_screenshot/<
 (wa.me cannot carry images); falls back to a drawn confirmation card when no screenshot exists.
 Auto mode: optional host permission `<all_urls>` (granted from the popup "Bật tự chụp") lets the capture run right
 after the phone is saved (`auto-shot` message → `shoot(tab, true)`); checks the tab is still active, restores scroll.
+Also captures when a reservation page opens (`shotOnOpen`, once per booking per 10 min per tab, waits until the tab is
+visible). Sending on phones = 2 steps: text via wa.me/Zalo/SMS, then 📷 (`HotelCard.quickShare`) shares the prefetched
+image (`HotelCard.prefetch` on step 1) — share must run inside the tap, so it is fetched ahead.
 Room names shown to guests go through `_room_label()` / `looks_like_room()` (a Booking notice was once stored as a room).
 
 ### **📞 Chrome extension — phone handling**

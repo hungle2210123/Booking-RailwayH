@@ -142,6 +142,43 @@
     document.head.appendChild(s);
   }
 
+  const shotUrl = (bookingId, v) => `/api/booking_screenshot/${encodeURIComponent(bookingId)}?v=${v}&t=${Date.now()}`;
+
+  // The picture sent to the guest: the Booking.com screenshot (guest version — commission and
+  // internal notes covered) when the extension has taken one, otherwise the drawn card.
+  async function getImage(bookingId) {
+    const d = await fetch('/api/booking_card/' + encodeURIComponent(bookingId)).then(r => r.json());
+    if (!d.success) throw new Error(d.error || 'Không lấy được dữ liệu');
+    let blob = null;
+    if (d.shot) {
+      const res = await fetch(shotUrl(bookingId, 'guest'));
+      if (res.ok) blob = await res.blob();
+    }
+    const isShot = !!blob;
+    if (!blob) blob = await new Promise(res => draw(d).toBlob(res, 'image/png'));
+    const fname = `booking-${d.booking_id}.${blob.type === 'image/jpeg' ? 'jpg' : 'png'}`;
+    return { d, blob, isShot, fname, file: new File([blob], fname, { type: blob.type || 'image/png' }) };
+  }
+
+  // Images fetched ahead of time, so the share sheet can open straight from a tap (phones only allow
+  // sharing directly inside the tap, not after waiting for a download).
+  const ready = new Map();          // bookingId → result of getImage (or a pending promise)
+  function prefetch(bookingId) {
+    if (ready.has(bookingId)) return;
+    ready.set(bookingId, getImage(bookingId)
+      .then(v => { ready.set(bookingId, v); return v; })
+      .catch(() => { ready.delete(bookingId); }));
+  }
+  // "Bước 2" after the text was sent: share the ready image at once; otherwise show the preview.
+  function quickShare(bookingId) {
+    const v = ready.get(bookingId);
+    if (v && v.file && navigator.canShare && navigator.canShare({ files: [v.file] })) {
+      navigator.share({ files: [v.file] }).catch(e => { if (e.name !== 'AbortError') open(bookingId); });
+      return;
+    }
+    open(bookingId);
+  }
+
   async function open(bookingId) {
     ensureCss();
     let url = null;
@@ -153,21 +190,10 @@
     ov.addEventListener('click', e => { if (e.target === ov) close(); });
     const box = ov.querySelector('.hc-box');
     try {
-      const d = await fetch('/api/booking_card/' + encodeURIComponent(bookingId)).then(r => r.json());
-      if (!d.success) throw new Error(d.error || 'Không lấy được dữ liệu');
-      // Prefer the real Booking.com screenshot (guest version: commission / internal notes covered)
-      const shotUrl = v => `/api/booking_screenshot/${encodeURIComponent(bookingId)}?v=${v}&t=${Date.now()}`;
-      let blob = null;
-      if (d.shot) {
-        const res = await fetch(shotUrl('guest'));
-        if (res.ok) blob = await res.blob();
-      }
-      const isShot = !!blob;
-      if (!blob) blob = await new Promise(res => draw(d).toBlob(res, 'image/png'));
+      const cached = ready.get(bookingId);
+      const { blob, isShot, fname, file } = (cached && cached.file) ? cached : await getImage(bookingId);
+      ready.set(bookingId, { blob, isShot, fname, file });
       url = URL.createObjectURL(blob);
-      const ext = blob.type === 'image/jpeg' ? 'jpg' : 'png';
-      const fname = `booking-${d.booking_id}.${ext}`;
-      const file = new File([blob], fname, { type: blob.type || 'image/png' });
       const canShare = !!(navigator.canShare && navigator.canShare({ files: [file] }));
       const canCopy = !!(navigator.clipboard && navigator.clipboard.write && window.ClipboardItem);
       box.innerHTML = `<img class="hc-img" src="${url}" alt="Booking confirmation">
@@ -191,7 +217,7 @@
           e.preventDefault();
           const imgEl = box.querySelector('.hc-img');
           if (!showingFull) {
-            if (!fullUrl) { const r = await fetch(shotUrl('full')); if (!r.ok) return; fullUrl = URL.createObjectURL(await r.blob()); }
+            if (!fullUrl) { const r = await fetch(shotUrl(bookingId, 'full')); if (!r.ok) return; fullUrl = URL.createObjectURL(await r.blob()); }
             imgEl.src = fullUrl; fullLink.textContent = 'Xem bản gửi khách'; showingFull = true;
           } else {
             imgEl.src = url; fullLink.textContent = 'Xem bản đầy đủ'; showingFull = false;
@@ -215,5 +241,5 @@
     }
   }
 
-  window.HotelCard = { open, draw };
+  window.HotelCard = { open, draw, prefetch, quickShare };
 })();

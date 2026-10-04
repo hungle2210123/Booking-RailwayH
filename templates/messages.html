@@ -56,6 +56,11 @@
       color:#fff; cursor:pointer; font-family:inherit; line-height:1.1; min-width:0; }
   .b-wa { background:#25d366; } .b-sms { background:#2563eb; } .b-zalo { background:#0068ff; } .b-copy { background:#475569; }
   .b-img { background:#7c3aed; }
+  .step-hint { display:none; font-size:.76rem; color:#5b21b6; background:#f5f3ff; border:1px solid #ddd6fe;
+               border-radius:10px; padding:7px 10px; margin-top:8px; }
+  .card.step2 .step-hint { display:block; }
+  .card.step2 .b-img { animation: imgpulse 1.2s ease-in-out infinite; box-shadow:0 0 0 3px #c4b5fd; }
+  @keyframes imgpulse { 50% { transform: scale(1.06); } }
   .n .nimg { float:right; border:none; background:#ede9fe; color:#6d28d9; font-weight:800; font-size:.72rem;
              border-radius:8px; padding:2px 8px; cursor:pointer; font-family:inherit; }
   .btns .ico { font-size:1.1rem; }
@@ -92,7 +97,8 @@
     </div>
   </div>
 
-  <div class="tip">📱 Mở trang này <b>trên điện thoại</b> để nhắn bằng app thật. Mỗi khách bấm 1 nút → app mở sẵn tin → bấm Gửi.</div>
+  <div class="tip">📱 Mở trang này <b>trên điện thoại</b>. Mỗi khách: ① chạm <b>WhatsApp</b> (hoặc Zalo/SMS) → tin soạn sẵn → Gửi.
+    ② quay lại, chạm <b>📷 Ảnh</b> (đang nhấp nháy) → chọn khách vừa nhắn → Gửi ảnh xác nhận đặt phòng.</div>
 
   <details class="tmpl" id="edit">
     <summary>✏️ Tin nhắn tự động <span class="tcur" id="tcur"></span></summary>
@@ -131,8 +137,9 @@
         <a class="b-sms"><span class="ico">💬</span>SMS</a>
         <a class="b-zalo" target="_blank" rel="noopener"><span class="ico">🔵</span>Zalo</a>
         <button type="button" class="b-copy"><span class="ico">📋</span>Chép tin</button>
-        <button type="button" class="b-img" onclick="HotelCard.open('{{ g.booking_id }}')"><span class="ico">📷</span>Ảnh</button>
+        <button type="button" class="b-img" onclick="HotelCard.quickShare('{{ g.booking_id }}')"><span class="ico">📷</span>Ảnh</button>
       </div>
+      <div class="step-hint">② Gửi tin xong thì quay lại đây, chạm <b>📷 Ảnh</b> → WhatsApp / Zalo → chọn khách vừa nhắn (đầu danh sách) → Gửi.</div>
     </div>
     {% endfor %}
   </div>
@@ -145,7 +152,7 @@
     <div class="t">🤝 {{ partner|length }} khách đặt qua đối tác Booking — không có số thật</div>
     <div class="pnote">Số trên Booking là của công ty đối tác. Mở đặt phòng trên máy tính → bấm <b>💬 Điền tin</b> của tiện ích → tin xin số Zalo/WhatsApp được điền sẵn vào khung chat Booking → bấm Gửi.</div>
     {% for g in partner %}
-    <div class="n"><button type="button" class="nimg" onclick="HotelCard.open('{{ g.booking_id }}')">📷 Ảnh</button>{{ g.name }} · {{ g.nhan }} → {{ g.tra }}{% if g.phong %} · {{ g.phong }}{% endif %}</div>
+    <div class="n"><button type="button" class="nimg" onclick="HotelCard.quickShare('{{ g.booking_id }}')">📷 Ảnh</button>{{ g.name }} · {{ g.nhan }} → {{ g.tra }}{% if g.phong %} · {{ g.phong }}{% endif %}</div>
     {% endfor %}
   </div>
   {% endif %}
@@ -290,6 +297,17 @@
 
   box.addEventListener('input', () => { markDirty(); render(); });
   nameBox.addEventListener('input', markDirty);
+
+  // Step 1 (text) → step 2 (picture): fetch the picture while WhatsApp / Zalo is open,
+  // then the 📷 button lights up and opens the share sheet straight away.
+  document.querySelectorAll('.card').forEach(card => {
+    const bid = card.dataset.bid;
+    card.querySelectorAll('.b-wa, .b-sms, .b-zalo, .b-copy').forEach(b => {
+      b.addEventListener('pointerdown', () => HotelCard.prefetch(bid));
+      b.addEventListener('click', () => { card.classList.add('step2'); HotelCard.prefetch(bid); });
+    });
+    card.querySelector('.b-img').addEventListener('pointerdown', () => HotelCard.prefetch(bid));
+  });
 
   // "đã nhắn" ghi nhớ trên máy này
   document.querySelectorAll('.card').forEach(card => {
