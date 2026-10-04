@@ -14,10 +14,17 @@
     #test { background: #e2e8f0; }
     #msg { margin-top: 10px; font-size: 12px; min-height: 16px; }
     small { color: #64748b; }
+    .shoot { width: 100%; background: #7c3aed; color: #fff; font-size: 14px; padding: 11px; }
+    .shint { margin: 6px 0 10px; }
+    hr { border: 0; border-top: 1px solid #e2e8f0; margin: 8px 0; }
   </style>
 </head>
 <body>
   <h1>📥 Gửi về Hotel Pro</h1>
+  <button id="shoot" type="button" class="shoot">📸 Chụp ảnh đặt phòng đang mở</button>
+  <p class="shint"><small>Lưu 2 bản lên web: bản đầy đủ để quản lý, bản gửi khách (đã che hoa hồng, ghi chú nội bộ).
+    Cũng chụp được bằng <b>chuột phải → 📸</b> hoặc phím <b>Alt+Shift+S</b>.</small></p>
+  <hr>
   <label for="server">Địa chỉ web Hotel Pro</label>
   <input id="server" placeholder="https://web-production-8f671.up.railway.app">
   <label for="token">Mã bảo mật <small>(chỉ cần nếu đã đặt EXTENSION_TOKEN trên máy chủ)</small></label>

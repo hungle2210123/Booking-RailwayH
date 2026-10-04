@@ -566,7 +566,7 @@
       panel.innerHTML = `<h3>💬 Điền tin vào khung chat Booking</h3>
         ${r.partner ? '<p><span class="ptag">🤝 Khách đặt qua đối tác — xin số Zalo/WhatsApp</span></p>' : ''}
         <p class="hint">Chọn mẫu → <b>Điền vào khung chat</b> → đọc lại rồi tự bấm <b>Gửi</b> của Booking. Tiện ích không tự gửi.
-          Sửa mẫu ở web: menu 💬 Nhắn Khách.</p>
+          Sửa mẫu ở web: menu 💬 Nhắn Khách.<br>📸 Ảnh đặt phòng để gửi khách: <b>chuột phải → Chụp ảnh đặt phòng</b> (hoặc Alt+Shift+S).</p>
         ${r.templates.map(t => `<button type="button" class="tpl ${t === cur ? 'on' : ''}" data-id="${esc(t.id)}">${esc(t.name)}</button>`).join('')}
         <pre class="pv">${esc(text)}</pre>
         <div class="row"><button class="close" id="b_close" type="button">Đóng</button>
@@ -590,5 +590,137 @@
       };
     };
     draw();
+  });
+
+  // ── 📸 Screenshot of the reservation box ─────────────────────────────────────────────
+  // Started from the toolbar icon, right-click menu or Alt+Shift+S (Chrome only allows a capture
+  // right after you invoke the extension). Saves 2 versions: full (owner) + guest (internal parts covered).
+  const MASK_LABELS = ['khoan co tinh hoa hong', 'hoa hong uoc tinh', 'ma iata', 'ghi chu (chi danh cho noi bo)',
+                       'commissionable amount', 'commission', 'iata', 'internal note'];
+  const R = el => el.getBoundingClientRect();
+  const box = r => ({ left: r.left, top: r.top, right: r.right, bottom: r.bottom, width: r.right - r.left, height: r.bottom - r.top });
+  const union = (a, b) => box({ left: Math.min(a.left, b.left), top: Math.min(a.top, b.top),
+                                right: Math.max(a.right, b.right), bottom: Math.max(a.bottom, b.bottom) });
+  const grow = (a, p) => box({ left: a.left - p, top: a.top - p, right: a.right + p, bottom: a.bottom + p });
+  let pendingShot = null;
+
+  function prepareShot() {
+    const bid = resId();
+    if (!bid) return { ok: false, error: 'Mở trang chi tiết của một đặt phòng rồi chụp lại' };
+    const visibleLeaves = () => [...document.querySelectorAll('body *')]
+      .filter(el => el.children.length === 0 && !host.contains(el) && el.getClientRects().length);
+    const ft = el => fold(rawText(el));
+    let leaves = visibleLeaves();
+    const idLeaf = leaves.find(el => /^(ma so dat phong|booking number|reservation number)/.test(ft(el)));
+    if (!idLeaf) return { ok: false, error: 'Không thấy khung thông tin đặt phòng trên trang này' };
+    // The info box: smallest ancestor holding the check-in and the total, plus its own padding/border
+    let card = idLeaf;
+    while (card.parentElement && card.parentElement !== document.body) {
+      const t = fold(card.innerText || '');
+      if (/(nhan phong|check-in)/.test(t) && /(tong tien|total)/.test(t)) break;
+      card = card.parentElement;
+    }
+    for (let p = card.parentElement; p && p !== document.body; p = p.parentElement) {
+      const a = R(card), b = R(p);
+      if (b.width <= a.width + 60 && b.height <= a.height + 80) card = p; else break;
+    }
+    // Put it near the top of the screen (instantly, so positions are final)
+    window.scrollTo({ top: Math.max(0, R(card).top + window.scrollY - 70), behavior: 'instant' });
+    leaves = visibleLeaves();
+    const cardR = box(R(card));
+    let area = cardR;
+    const head = leaves.find(el => /^(chi tiet dat phong|reservation details|booking details)$/.test(ft(el)));
+    if (head && R(head).bottom <= cardR.top + 2 && cardR.top - R(head).bottom < 140) area = union(area, R(head));
+    // The room block under it ("Studio … VND 1.007.760" + dates)
+    const price = leaves.find(el => /^vnd\s?[\d.,]+$/.test(ft(el)) && R(el).top > cardR.bottom - 5 && R(el).top < cardR.bottom + 420);
+    if (price) {
+      // climb to the whole room box: stop below the container that also holds the info box
+      let blk = price;
+      while (blk.parentElement && !blk.parentElement.contains(card) && R(blk.parentElement).height <= 450) blk = blk.parentElement;
+      area = R(blk).height <= 450 ? union(area, R(blk))
+        : union(area, { left: cardR.left, right: cardR.right, top: cardR.bottom, bottom: R(price).bottom + 70 });
+    }
+    area = grow(area, 10);
+    // What the guest must not see: commission, IATA, internal notes, Booking's notices, partner box
+    const masks = [];
+    leaves.forEach(el => {
+      const t = ft(el), r = R(el);
+      if (r.bottom < area.top || r.top > area.bottom) return;
+      if (MASK_LABELS.some(w => t.startsWith(w))) {
+        const val = leaves.find(v => v !== el && R(v).top >= r.bottom - 3 && R(v).top - r.bottom < 40 &&
+                                     R(v).left < r.right && R(v).right > r.left);
+        masks.push(grow(val ? union(r, R(val)) : box(r), 3));
+      } else if (/ban het|sold out/.test(t)) {
+        masks.push(grow(box(R(el.parentElement || el)), 3));
+      } else if (t === 'doi tac booking.com' || t === 'booking.com partner') {
+        let blk = el;
+        while (blk.parentElement && !/(cong ty hop tac|partner company|partners with)/.test(fold(blk.innerText || ''))) blk = blk.parentElement;
+        if (R(blk).height < 260) masks.push(grow(box(R(blk)), 3));
+      }
+    });
+    host.style.visibility = 'hidden';            // our own buttons must not appear in the picture
+    setTimeout(() => { host.style.visibility = ''; }, 6000);   // never leave them hidden if the capture fails
+    panel.classList.remove('open');
+    pendingShot = { bid, area, masks, vw: window.innerWidth, vh: window.innerHeight, cut: area.bottom > window.innerHeight };
+    return { ok: true };
+  }
+
+  async function finishShot(dataUrl) {
+    const p = pendingShot;
+    pendingShot = null;
+    try {
+      if (!p) throw new Error('Hết thời gian — chụp lại nhé');
+      const img = await new Promise((res, rej) => {     // (img.decode() can stall in a background tab)
+        const i = new Image();
+        i.onload = () => res(i);
+        i.onerror = () => rej(new Error('Ảnh chụp bị lỗi'));
+        i.src = dataUrl;
+      });
+      const s = img.width / p.vw;
+      const a = { left: Math.max(0, p.area.left), top: Math.max(0, p.area.top),
+                  right: Math.min(p.vw, p.area.right), bottom: Math.min(p.vh, p.area.bottom) };
+      const make = masked => {
+        const c = document.createElement('canvas');
+        c.width = Math.round((a.right - a.left) * s);
+        c.height = Math.round((a.bottom - a.top) * s);
+        const x = c.getContext('2d');
+        x.drawImage(img, a.left * s, a.top * s, c.width, c.height, 0, 0, c.width, c.height);
+        if (masked) {
+          x.fillStyle = '#ffffff';
+          p.masks.forEach(m => x.fillRect((m.left - a.left) * s, (m.top - a.top) * s, m.width * s, m.height * s));
+        }
+        return c.toDataURL('image/jpeg', 0.9);
+      };
+      const full = make(false), guest = make(true);
+      host.style.visibility = '';
+      toast('📸 Đang lưu ảnh lên web…');
+      const r = await api('/api/ext/booking/screenshot', { booking_id: p.bid, full, guest });
+      if (!r?.success) throw new Error(r?.error || 'Lỗi không rõ');
+      $('#toast')?.remove();
+      panel.innerHTML = `<h3>📸 Đã lưu ảnh đặt phòng #${esc(r.booking_id)}</h3>
+        <p class="hint">Đây là bản <b>gửi khách</b> (đã che hoa hồng, IATA, ghi chú nội bộ). Bản đầy đủ cũng đã lưu để quản lý.
+          ${r.on_web ? 'Trên điện thoại: <b>💬 Nhắn Khách</b> hoặc trang lịch → <b>📷 Ảnh</b> → Gửi.'
+                     : '⚠️ Đặt phòng này chưa có trên web — bấm 📥 để thêm.'}
+          ${p.cut ? '<br>⚠️ Khung dài hơn màn hình nên phần dưới bị cắt — thu nhỏ trang (Ctrl và phím −) rồi chụp lại.' : ''}</p>
+        <img src="${guest}" alt="" style="width:100%;border-radius:10px;border:1px solid #e2e8f0">
+        <div class="row"><button class="close" id="b_close" type="button">Đóng</button></div>`;
+      panel.classList.add('open');
+      $('#b_close').onclick = () => panel.classList.remove('open');
+    } catch (e) {
+      host.style.visibility = '';
+      toast('❌ Chụp ảnh: ' + esc(e.message), 'warn');
+    }
+  }
+
+  chrome.runtime.onMessage.addListener((msg, _sender, reply) => {
+    if (msg?.type === 'shot-prepare') {
+      try { reply(prepareShot()); } catch (e) { host.style.visibility = ''; reply({ ok: false, error: e.message }); }
+    } else if (msg?.type === 'shot-image') {
+      finishShot(msg.dataUrl);
+    } else if (msg?.type === 'shot-error') {
+      host.style.visibility = '';
+      toast('📸 ' + esc(msg.error), 'warn');
+    }
+    return false;
   });
 })();

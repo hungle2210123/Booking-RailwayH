@@ -1971,6 +1971,90 @@ def ext_auto_messages():
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
+_SHOT_TABLE_READY = False
+
+
+def _ensure_shot_table():
+    """Screenshots of the Booking.com reservation box, taken by the extension: one per booking,
+    'full' for the owner and 'guest' with commission / internal notes covered (safe to send)."""
+    global _SHOT_TABLE_READY
+    if _SHOT_TABLE_READY:
+        return
+    from core.models import db as _xdb
+    try:
+        _xdb.session.execute(text("""
+            CREATE TABLE IF NOT EXISTS booking_screenshots (
+                booking_id VARCHAR(50) PRIMARY KEY,
+                full_img   BYTEA NOT NULL,
+                guest_img  BYTEA NOT NULL,
+                mime       VARCHAR(30) NOT NULL DEFAULT 'image/jpeg',
+                created_at TIMESTAMP DEFAULT NOW(),
+                updated_at TIMESTAMP DEFAULT NOW()
+            )"""))
+        _xdb.session.commit()
+        _SHOT_TABLE_READY = True
+    except Exception as e:
+        _xdb.session.rollback()
+        print(f"[booking_screenshots] table check failed: {e}")
+
+
+def _decode_data_url(data_url, max_bytes=6 * 1024 * 1024):
+    m = re.match(r'^data:(image/(?:jpeg|png));base64,(.+)$', str(data_url or ''), re.S)
+    if not m:
+        return None, None
+    import base64
+    raw = base64.b64decode(m.group(2), validate=False)
+    return (m.group(1), raw) if 0 < len(raw) <= max_bytes else (None, None)
+
+
+@app.route('/api/ext/booking/screenshot', methods=['POST'])
+def ext_booking_screenshot():
+    """Save the reservation-box screenshot the extension took on the page the owner is viewing."""
+    err = _ext_auth_error()
+    if err:
+        return err
+    try:
+        from core.models import db as _xdb
+        body = request.get_json(silent=True) or {}
+        bid = str(body.get('booking_id') or '').strip()
+        if not re.match(r'^[A-Za-z0-9_\-]{4,40}$', bid):
+            return jsonify({'success': False, 'error': 'Thiếu mã đặt phòng'}), 400
+        mime, full = _decode_data_url(body.get('full'))
+        mime2, guest = _decode_data_url(body.get('guest'))
+        if not full or not guest:
+            return jsonify({'success': False, 'error': 'Ảnh không hợp lệ'}), 400
+        _ensure_shot_table()
+        _xdb.session.execute(text("""
+            INSERT INTO booking_screenshots (booking_id, full_img, guest_img, mime, created_at, updated_at)
+            VALUES (:b, :f, :g, :m, NOW(), NOW())
+            ON CONFLICT (booking_id) DO UPDATE
+              SET full_img = EXCLUDED.full_img, guest_img = EXCLUDED.guest_img, mime = EXCLUDED.mime, updated_at = NOW()
+        """), {'b': bid, 'f': full, 'g': guest, 'm': mime})
+        _xdb.session.commit()
+        on_web = _ext_existing(bid) is not None
+        return jsonify({'success': True, 'booking_id': bid, 'on_web': on_web,
+                        'size_kb': round((len(full) + len(guest)) / 1024)})
+    except Exception as e:
+        from core.models import db as _xdb
+        _xdb.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/booking_screenshot/<booking_id>')
+def booking_screenshot(booking_id):
+    """The saved Booking.com screenshot: ?v=guest (default, safe to send) or ?v=full (owner)."""
+    from core.models import db as _xdb
+    _ensure_shot_table()
+    col = 'full_img' if request.args.get('v') == 'full' else 'guest_img'
+    row = _xdb.session.execute(text(f"SELECT {col}, mime FROM booking_screenshots WHERE booking_id = :b"),
+                               {'b': booking_id}).fetchone()
+    if not row:
+        return jsonify({'success': False, 'error': 'Chưa có ảnh chụp'}), 404
+    resp = app.response_class(bytes(row[0]), mimetype=row[1] or 'image/jpeg')
+    resp.headers['Cache-Control'] = 'no-store'
+    return resp
+
+
 @app.route('/api/booking_card/<booking_id>')
 def booking_card_data(booking_id):
     """Data for the booking-confirmation image drawn on the phone (static/js/booking_card.js)."""
@@ -1988,7 +2072,11 @@ def booking_card_data(booking_id):
             return jsonify({'success': False, 'error': 'Không tìm thấy đặt phòng'}), 404
         ci, co = row[2], row[3]
         total, collected = float(row[5] or 0), float(row[6] or 0)
+        _ensure_shot_table()
+        shot = _xdb.session.execute(text("SELECT updated_at FROM booking_screenshots WHERE booking_id = :b"),
+                                    {'b': booking_id}).scalar()
         return jsonify({
+            'shot': shot.isoformat() if shot else None,     # a Booking.com screenshot exists → show that
             'success': True, 'booking_id': row[0], 'name': row[1] or '',
             'checkin': ci.isoformat() if ci else None, 'checkout': co.isoformat() if co else None,
             'nights': (co - ci).days if ci and co else None, 'room': _room_label(row[4]),

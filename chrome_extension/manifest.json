@@ -1,23 +1,44 @@
 {
   "manifest_version": 3,
   "name": "Gửi về Hotel Pro",
-  "version": "1.7.0",
+  "version": "1.8.0",
   "description": "Gửi đặt phòng đang xem trên extranet Booking.com (kèm số điện thoại) về web Hotel Pro bằng 1 cú bấm.",
-  "permissions": ["storage"],
+  "permissions": [
+    "storage",
+    "contextMenus",
+    "activeTab"
+  ],
   "host_permissions": [
     "https://admin.booking.com/*",
     "https://*.up.railway.app/*",
     "http://localhost:5000/*",
     "http://127.0.0.1:5000/*"
   ],
-  "background": { "service_worker": "background.js" },
+  "background": {
+    "service_worker": "background.js"
+  },
   "content_scripts": [
     {
-      "matches": ["https://admin.booking.com/*"],
-      "js": ["content.js"],
+      "matches": [
+        "https://admin.booking.com/*"
+      ],
+      "js": [
+        "content.js"
+      ],
       "run_at": "document_idle"
     }
   ],
-  "action": { "default_title": "Hotel Pro — cài đặt", "default_popup": "options.html" },
-  "options_page": "options.html"
+  "action": {
+    "default_title": "Hotel Pro — cài đặt",
+    "default_popup": "options.html"
+  },
+  "options_page": "options.html",
+  "commands": {
+    "capture-booking": {
+      "suggested_key": {
+        "default": "Alt+Shift+S"
+      },
+      "description": "Chụp ảnh đặt phòng đang mở (gửi khách)"
+    }
+  }
 }

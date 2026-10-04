@@ -155,10 +155,19 @@
     try {
       const d = await fetch('/api/booking_card/' + encodeURIComponent(bookingId)).then(r => r.json());
       if (!d.success) throw new Error(d.error || 'Không lấy được dữ liệu');
-      const blob = await new Promise(res => draw(d).toBlob(res, 'image/png'));
+      // Prefer the real Booking.com screenshot (guest version: commission / internal notes covered)
+      const shotUrl = v => `/api/booking_screenshot/${encodeURIComponent(bookingId)}?v=${v}&t=${Date.now()}`;
+      let blob = null;
+      if (d.shot) {
+        const res = await fetch(shotUrl('guest'));
+        if (res.ok) blob = await res.blob();
+      }
+      const isShot = !!blob;
+      if (!blob) blob = await new Promise(res => draw(d).toBlob(res, 'image/png'));
       url = URL.createObjectURL(blob);
-      const fname = `booking-${d.booking_id}.png`;
-      const file = new File([blob], fname, { type: 'image/png' });
+      const ext = blob.type === 'image/jpeg' ? 'jpg' : 'png';
+      const fname = `booking-${d.booking_id}.${ext}`;
+      const file = new File([blob], fname, { type: blob.type || 'image/png' });
       const canShare = !!(navigator.canShare && navigator.canShare({ files: [file] }));
       const canCopy = !!(navigator.clipboard && navigator.clipboard.write && window.ClipboardItem);
       box.innerHTML = `<img class="hc-img" src="${url}" alt="Booking confirmation">
@@ -170,8 +179,25 @@
         </div>
         <div class="hc-note">${canShare
           ? 'Bấm <b>Gửi ảnh</b> → chọn WhatsApp hoặc Zalo → chọn khách → Gửi.'
-          : 'Máy này không gửi ảnh trực tiếp được: bấm <b>Chép ảnh</b> rồi dán (Ctrl+V) vào WhatsApp Web / Zalo, hoặc <b>Tải ảnh</b>.'}</div>`;
+          : 'Máy này không gửi ảnh trực tiếp được: bấm <b>Chép ảnh</b> rồi dán (Ctrl+V) vào WhatsApp Web / Zalo, hoặc <b>Tải ảnh</b>.'}
+          ${isShot
+            ? '<br>📸 Ảnh chụp từ Booking — bản gửi khách (đã che hoa hồng, ghi chú nội bộ). <a href="#" class="hc-full">Xem bản đầy đủ</a>'
+            : '<br>Ảnh tự tạo. Muốn ảnh chụp đúng từ Booking: trên máy tính mở đặt phòng → <b>chuột phải → 📸 Chụp ảnh đặt phòng</b>.'}</div>`;
       box.querySelector('.hc-close').onclick = close;
+      const fullLink = box.querySelector('.hc-full');
+      if (fullLink) {
+        let showingFull = false, fullUrl = null;
+        fullLink.onclick = async e => {       // owner view only — sending always uses the guest version
+          e.preventDefault();
+          const imgEl = box.querySelector('.hc-img');
+          if (!showingFull) {
+            if (!fullUrl) { const r = await fetch(shotUrl('full')); if (!r.ok) return; fullUrl = URL.createObjectURL(await r.blob()); }
+            imgEl.src = fullUrl; fullLink.textContent = 'Xem bản gửi khách'; showingFull = true;
+          } else {
+            imgEl.src = url; fullLink.textContent = 'Xem bản đầy đủ'; showingFull = false;
+          }
+        };
+      }
       const share = box.querySelector('.hc-share');
       if (share) share.onclick = async () => {
         try { await navigator.share({ files: [file], title: 'Booking confirmation' }); }

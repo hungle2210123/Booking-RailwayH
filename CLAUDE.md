@@ -275,6 +275,15 @@ booking number. Calendar shows "🤝 Đối tác"; /messages lists them separate
 template into Booking's own chat box (`POST /api/ext/auto_messages`; partner → `AUTO_MSG_PARTNER_NAME`); the owner
 presses Gửi — never auto-sent.
 
+### **📸 Booking.com screenshot for guests (`booking_screenshots` table)**
+Extension captures the reservation box + room block (`chrome.tabs.captureVisibleTab`; needs `activeTab`, so it is
+started from the toolbar popup, the right-click menu or Alt+Shift+S — an in-page button cannot capture). Saves
+`full_img` (owner) and `guest_img` (commission / IATA / internal note / Booking notices / partner box painted white)
+via `POST /api/ext/booking/screenshot`; served by `GET /api/booking_screenshot/<bid>?v=guest|full`.
+`static/js/booking_card.js` (`HotelCard.open`) shows the guest version and shares it via the phone share sheet
+(wa.me cannot carry images); falls back to a drawn confirmation card when no screenshot exists.
+Room names shown to guests go through `_room_label()` / `looks_like_room()` (a Booking notice was once stored as a room).
+
 ### **📞 Chrome extension — phone handling**
 `POST /api/ext/booking/phone`: when the owner clicks Booking's own "Hiển thị số điện thoại", the extension reads the
 number ONLY from the guest block (next to `@guest.booking.com` / the reveal button) and saves it to the booking;

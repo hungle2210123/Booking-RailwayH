@@ -9,6 +9,12 @@ $('save').addEventListener('click', async () => {
   say('✅ Đã lưu', true);
 });
 
+// Opening this popup gives the extension permission to capture the current tab ("activeTab")
+$('shoot').addEventListener('click', () => {
+  chrome.runtime.sendMessage({ type: 'shoot' });
+  setTimeout(() => window.close(), 150);     // the result shows on the Booking page itself
+});
+
 $('test').addEventListener('click', async () => {
   await chrome.storage.sync.set({ server: $('server').value.trim() || DEFAULTS.server, token: $('token').value.trim() });
   say('Đang kiểm tra...', true);
