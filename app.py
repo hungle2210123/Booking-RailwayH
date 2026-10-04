@@ -2418,7 +2418,7 @@ def messages_page():
             no_phone.append(item)
     return render_template('messages.html', guests=guests, no_phone=no_phone, partner=partner,
                            view=view, days=days, today_str=today.strftime('%d/%m/%Y'), total=len(rows),
-                           buttons=buttons)
+                           buttons=buttons, now_str=(datetime.utcnow() + timedelta(hours=7)).strftime('%H:%M:%S'))
 
 
 @app.route('/bookings')
