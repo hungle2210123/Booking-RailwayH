@@ -255,6 +255,13 @@ python run.py  # Test the Railway runner script locally
 
 ## 🆕 **Latest Updates (October 2026)**
 
+### **🧹 Repo cleanup (Oct 2026)**
+Only what the Dockerfile copies is kept at the root (app.py, run.py, gunicorn.conf.py, backup_routes.py,
+production_booking_extractor.py, force_migration.py, migrate_add_*.py, core/, templates/, static/) + chrome_extension/,
+deploy config, CLAUDE.md, README, BACKUP_BEFORE_CLEANUP/, instance/ (local sqlite fallback). ~80 old tracked files were
+removed (git history has them); ~130 local-only files were MOVED to `C:\Users\T14\Desktop\hotel_flask_app\_luu_tru_2026-10-04\`.
+Rule for future cleanups: a file not in the Dockerfile COPY list never reaches Railway; check pages before/after.
+
 ### **🧭 Guest journey messaging (`core/journey.py`, `static/js/journey.js`, `/journey`)**
 /messages (tabs 🛬 Sắp đến / 🏨 Đang ở) shows per guest a strip of steps 👋 welcome · 🕐 confirm · 🛂 passport ·
 🧳 luggage (optional) · 🔑 checkin · 💳 payment · ⭐ thanks (+ ➕ any Mẫu Câu template). Each step sends a message_templates
