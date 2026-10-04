@@ -1772,12 +1772,23 @@ def ext_booking_phone():
         p = parse_reservation_page(body)
         bid = p.get('booking_id')
 
+        def _create_from_page(phone_):
+            """Booking not on the web yet: add it from this same page (owner prefers no extra 📥 click).
+            Returns (ok, error). Cancelled / no-show reservations are never added."""
+            if p.get('status') in ('cancelled', 'no_show'):
+                return False, 'Booking đã hủy / vắng mặt'
+            res, _code = _ext_save_one({**p, 'phone': phone_ or '', 'cancelled': False})
+            return (bool(res.get('success')) and res.get('action') == 'created'), res.get('error') or res.get('message')
+
         # Booked through a Booking.com partner company: the page shows the partner's number
         # (same local number for every guest, only the country code changes) → never store it.
         if body.get('partner') and bid:
             existing = _ext_existing(bid)
             if not existing:
-                return jsonify({'success': True, 'status': 'partner_not_on_web', 'booking_id': bid})
+                ok, why = _create_from_page(None)          # the number on the page is the partner's
+                existing = _ext_existing(bid) if ok else None
+                if not existing:
+                    return jsonify({'success': True, 'status': 'partner_not_on_web', 'booking_id': bid, 'error': why})
             _ensure_partner_column()
             _xdb.session.execute(text("UPDATE bookings SET via_partner = TRUE WHERE booking_id = :b"), {'b': bid})
             shown = clean_phone(body.get('phone'))
@@ -1794,11 +1805,8 @@ def ext_booking_phone():
         if not bid or not phone:
             return jsonify({'success': True, 'status': 'no_phone'})
         existing = _ext_existing(bid)
-        if not existing:
-            return jsonify({'success': True, 'status': 'not_on_web', 'booking_id': bid,
-                            'phone': phone, 'guest_name': p.get('guest_name')})
-        name = existing['guest_name'] or p.get('guest_name') or bid
-        if re.sub(r'\D', '', existing['phone']) == re.sub(r'\D', '', phone):
+        name = (existing and existing['guest_name']) or p.get('guest_name') or bid
+        if existing and re.sub(r'\D', '', existing['phone']) == re.sub(r'\D', '', phone):
             return jsonify({'success': True, 'status': 'same', 'booking_id': bid, 'phone': phone, 'guest_name': name})
         # Same local number already on a DIFFERENT person → a wrong read or a partner/relay number
         # (partners keep the local part and swap the country code) → do not save
@@ -1806,10 +1814,16 @@ def ext_booking_phone():
             SELECT full_name FROM guests
             WHERE RIGHT(regexp_replace(COALESCE(phone, ''), '\D', '', 'g'), 9) = :t
               AND guest_id IS DISTINCT FROM :gid
-            LIMIT 1"""), {'t': _phone_tail(phone), 'gid': existing['guest_id']}).fetchone()
+            LIMIT 1"""), {'t': _phone_tail(phone), 'gid': existing['guest_id'] if existing else None}).fetchone()
         if other and _fold(other[0] or '') != _fold(name):
             return jsonify({'success': True, 'status': 'duplicate', 'booking_id': bid, 'phone': phone,
                             'guest_name': name, 'other_name': other[0]})
+        if not existing:
+            ok, why = _create_from_page(phone)
+            if not ok:
+                return jsonify({'success': True, 'status': 'not_on_web', 'booking_id': bid, 'error': why,
+                                'phone': phone, 'guest_name': p.get('guest_name')})
+            return jsonify({'success': True, 'status': 'created', 'booking_id': bid, 'phone': phone, 'guest_name': name})
         result, code = _ext_save_one({'booking_id': bid, 'phone': phone})
         if not result.get('success'):
             return jsonify(result), code
@@ -1890,12 +1904,16 @@ def _phone_tail(phone):
     return re.sub(r'\D', '', str(phone or ''))[-9:]
 
 
-def _room_label(listing):
+def _room_label(listing, keep_note=False):
     """Room name for messages / the confirmation image — '' when the stored text is not a room name
-    (e.g. a Booking notice sentence read by mistake), so it never reaches a guest."""
+    (e.g. a Booking notice sentence read by mistake), so it never reaches a guest.
+    The owner's own note in brackets ("Deluxe 4 Người (2 Giường 18 Hàng Bè)") is for the owner only →
+    removed unless keep_note (owner-facing screens)."""
     from core.booking_page_parser import looks_like_room
     t = re.sub(r'\s+', ' ', str(listing or '')).strip()
-    return t if looks_like_room(t) else ''
+    if not looks_like_room(t):
+        return ''
+    return t if keep_note else re.sub(r'\s*[(\[][^)\]]*[)\]]', '', t).strip(' -·,')
 
 
 _PARTNER_COL_READY = False
@@ -2385,7 +2403,7 @@ def messages_page():
         item = {
             'booking_id': r[0], 'name': J.clean_name((r[1] or r[0]).strip()),
             'nhan': ci.strftime('%d/%m') if ci else '', 'tra': co.strftime('%d/%m') if co else '',
-            'phong': _room_label(r[4]), 'phone': r[5] or '',
+            'phong': _room_label(r[4], keep_note=True), 'phone': r[5] or '',
             'apt': apt['name'] if apt else '',
             'sent': done, 'next': J.recommended_step(done, ci, co, today, prefs['hidden']),
             'shot': int(shots[r[0]].timestamp()) if r[0] in shots else None,

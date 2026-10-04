@@ -505,18 +505,20 @@
       const r = await api('/api/ext/booking/phone', { ...capture(), phone: ph || '', partner });
       if (!r?.success) { phoneDone.delete(key); return; }
       if (r.status === 'partner') toast(`🤝 <b>${esc(r.guest_name)}</b> đặt qua <b>đối tác Booking</b> — số trên trang là của đối tác nên <b>không lưu</b>. Bấm <b>💬 Điền tin</b> để xin số Zalo/WhatsApp trong khung chat.`, 'partner');
-      else if (r.status === 'partner_not_on_web') toast('🤝 Đặt qua <b>đối tác Booking</b> — số trên trang là của đối tác, không phải của khách. Booking này chưa có trên web: bấm 📥 để thêm.', 'partner');
+      else if (r.status === 'partner_not_on_web') toast(`🤝 Đặt qua <b>đối tác Booking</b> — số trên trang là của đối tác, không phải của khách. Chưa tự thêm được booking${r.error ? ' (' + esc(r.error) + ')' : ''}: bấm 📥 để thêm.`, 'partner');
+      else if (r.status === 'created') toast(`📥 Đã tự thêm booking <b>${esc(r.guest_name)}</b> vào web + lưu SĐT <b>${esc(r.phone)}</b>`, 'ok');
       else if (r.status === 'saved') toast(`📞 Đã lưu SĐT <b>${esc(r.phone)}</b> cho <b>${esc(r.guest_name)}</b>`, 'ok');
       else if (r.status === 'same') toast(`📞 SĐT của <b>${esc(r.guest_name)}</b> đã có trên web`);
       else if (r.status === 'duplicate') toast(`⚠️ Số <b>${esc(r.phone)}</b> đang là của khách <b>${esc(r.other_name)}</b> — chưa lưu, kiểm tra lại`, 'warn');
-      else if (r.status === 'not_on_web') toast(`📞 Thấy SĐT nhưng booking #${esc(r.booking_id)} chưa có trên web — bấm 📥 để thêm trước`, 'warn');
-      if (['saved', 'same', 'partner'].includes(r.status)) autoShot('phone');
+      else if (r.status === 'not_on_web') toast(`📞 Thấy SĐT nhưng chưa tự thêm được booking #${esc(r.booking_id)}${r.error ? ' (' + esc(r.error) + ')' : ''} — bấm 📥 để thêm`, 'warn');
+      // 📸 the Booking picture is taken only once the phone is on the page (owner decision, Oct 2026)
+      if (['saved', 'created'].includes(r.status)) shotWhenVisible(true);          // just revealed → always a fresh picture
+      else if (['same', 'partner'].includes(r.status)) shotWhenVisible(false);     // already known → not again within 10 min
     } finally { phoneBusy = false; }
   }
 
-  // ⚡ Auto-capture of the reservation box (always on — owner decision):
-  //   'open'  — when a reservation page is opened (not again for 10 min in this tab)
-  //   'phone' — again right after the phone is revealed, so the number is in the owner's copy
+  // ⚡ Auto-capture of the reservation box (always on — owner decision), only once the guest's phone shows
+  //   on the page (revealed now, already shown, or a partner booking) — not before.
   const autoShotDone = new Set();
   let lastPhoneToast = '';
   const SHOT_AGAIN_MS = 10 * 60 * 1000;
@@ -541,19 +543,21 @@
       return r;
     }).catch(() => { autoShotDone.delete(key); return null; });
   }
-  function shotOnOpen() {
+  function shotWhenVisible(fresh) {
     const bid = resId();
     if (!bid) return;
-    let last = 0;
-    try { last = +sessionStorage.getItem(shotStampKey(bid)) || 0; } catch (e) {}
-    if (Date.now() - last < SHOT_AGAIN_MS) return;
+    if (!fresh) {
+      let last = 0;
+      try { last = +sessionStorage.getItem(shotStampKey(bid)) || 0; } catch (e) {}
+      if (Date.now() - last < SHOT_AGAIN_MS) return;
+    }
     let tries = 0;
     const go = async () => {
       if (document.hidden || resId() !== bid) return;
-      const r = await autoShot('open');
+      const r = await autoShot('phone');
       if (r && !r.success && r.reason !== 'off' && /khung/i.test(r.error || '') && ++tries < 2) setTimeout(go, 4000);
     };
-    if (!document.hidden) { setTimeout(go, 3000); return; }
+    if (!document.hidden) { setTimeout(go, 800); return; }
     // opened in a background tab → take it when you look at it
     document.addEventListener('visibilitychange', function once() {
       if (document.hidden) return;
@@ -604,7 +608,10 @@
   let shownResId = null;
   const refreshFillBtn = () => {
     fillBtn.style.display = resId() ? '' : 'none';
-    if (resId() !== shownResId) { shownResId = resId(); shotOnOpen(); }
+    if (resId() !== shownResId) {                // another reservation opened (also without a reload)
+      if (shownResId !== null) [2500, 6000].forEach(ms => setTimeout(checkPhone, ms));
+      shownResId = resId();
+    }
   };
   refreshFillBtn();
   setInterval(refreshFillBtn, 2000);              // the extranet can switch pages without reloading
@@ -713,6 +720,15 @@
         const own = fold(row.innerText || row.textContent || '');
         while (row.parentElement && fold(row.parentElement.innerText || '') === own) row = row.parentElement;
         masks.push(grow(box(R(row)), 4));
+      } else if (r.top > cardR.bottom - 5 && !/vnd|\d{1,2}\s+thang|\d{4}/.test(t) && /\([^)]*\)\s*$/.test(rawText(el))) {
+        // the room title in the room block: "(2 Giường 18 Hàng Bè)" is the owner's own note → cover just that part
+        const node = [...el.childNodes].find(n => n.nodeType === 3 && n.textContent.includes('('));
+        if (node) {
+          const range = document.createRange();
+          range.setStart(node, node.textContent.lastIndexOf('('));
+          range.setEnd(node, node.textContent.length);
+          [...range.getClientRects()].forEach(q => masks.push(grow(box(q), 2)));
+        }
       } else if (t === 'doi tac booking.com' || t === 'booking.com partner') {
         let blk = el;
         while (blk.parentElement && !/(cong ty hop tac|partner company|partners with)/.test(fold(blk.innerText || ''))) blk = blk.parentElement;
