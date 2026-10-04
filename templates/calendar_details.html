@@ -6346,14 +6346,12 @@ function showQuickToast(msg, type) {
         };
         try { navigator.clipboard.writeText(text).then(ok, fallback); } catch (e) { fallback(); }
     }
-    // After the text (step 1) the 📷 chip of the same guest lights up; its picture is fetched meanwhile
+    // After the text (step 1) the 📷 chip of the same guest lights up
     document.querySelectorAll('.apt-selector').forEach(sel => {
         const img = sel.querySelector('.guest-img');
         if (!img) return;
-        img.addEventListener('pointerdown', () => window.HotelCard && HotelCard.prefetch(img.dataset.bid));
         sel.querySelectorAll('.msg-link').forEach(a => {
-            a.addEventListener('pointerdown', () => window.HotelCard && HotelCard.prefetch(img.dataset.bid));
-            a.addEventListener('click', () => { img.classList.add('go'); img.textContent = '📷 Gửi ảnh'; window.HotelCard && HotelCard.prefetch(img.dataset.bid); });
+            a.addEventListener('click', () => { img.classList.add('go'); img.textContent = '📷 Gửi ảnh'; });
         });
     });
     document.querySelectorAll('.msg-link').forEach(a => {

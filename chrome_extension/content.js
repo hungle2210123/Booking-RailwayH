@@ -719,10 +719,17 @@
         if (R(blk).height < 260) masks.push(grow(box(R(blk)), 3));
       }
     });
+    // Floating tooltips / popovers over the box (e.g. the mouse now rests on "Thanh toán của khách" after
+    // the scroll) must not be in the picture: hide them for the capture only.
+    const overlaps = r => r.right > area.left && r.left < area.right && r.bottom > area.top && r.top < area.bottom;
+    const floating = [...document.querySelectorAll('[role="tooltip"], [class*="tooltip" i], [class*="popover" i]')]
+      .filter(el => !host.contains(el) && !el.contains(card) && el.getClientRects().length &&
+                    ['absolute', 'fixed'].includes(getComputedStyle(el).position) && overlaps(R(el)));
+    floating.forEach(el => { el.dataset.hpVis = el.style.visibility; el.style.visibility = 'hidden'; });
     host.style.visibility = 'hidden';            // our own buttons must not appear in the picture
-    setTimeout(() => { host.style.visibility = ''; }, 6000);   // never leave them hidden if the capture fails
+    setTimeout(() => { host.style.visibility = ''; restoreFloating(floating); }, 6000);   // never leave things hidden
     panel.classList.remove('open');
-    pendingShot = { bid, area, masks, auto: !!auto, backTo, vw: window.innerWidth, vh: window.innerHeight, cut: area.bottom > window.innerHeight };
+    pendingShot = { bid, area, masks, floating, auto: !!auto, backTo, vw: window.innerWidth, vh: window.innerHeight, cut: area.bottom > window.innerHeight };
     return { ok: true };
   }
 
@@ -737,6 +744,7 @@
         i.onerror = () => rej(new Error('Ảnh chụp bị lỗi'));
         i.src = dataUrl;
       });
+      restoreFloating(p.floating);
       window.scrollTo({ top: p.backTo, behavior: 'instant' });     // picture taken — page back where you were
       const s = img.width / p.vw;
       const a = { left: Math.max(0, p.area.left), top: Math.max(0, p.area.top),
@@ -781,7 +789,18 @@
   }
   function cancelShot() {           // capture refused / failed: buttons back, page back
     host.style.visibility = '';
-    if (pendingShot) { window.scrollTo({ top: pendingShot.backTo, behavior: 'instant' }); pendingShot = null; }
+    if (pendingShot) {
+      restoreFloating(pendingShot.floating);
+      window.scrollTo({ top: pendingShot.backTo, behavior: 'instant' });
+      pendingShot = null;
+    }
+  }
+  function restoreFloating(list) {
+    (list || []).forEach(el => {
+      if (!('hpVis' in el.dataset)) return;
+      el.style.visibility = el.dataset.hpVis;
+      delete el.dataset.hpVis;
+    });
   }
 
   chrome.runtime.onMessage.addListener((msg, _sender, reply) => {

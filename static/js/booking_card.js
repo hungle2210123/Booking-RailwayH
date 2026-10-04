@@ -132,12 +132,16 @@
     s.textContent = `
       .hc-ov{position:fixed;inset:0;z-index:99999;background:rgba(15,23,42,.62);display:flex;align-items:center;justify-content:center;padding:14px;}
       .hc-box{background:#fff;border-radius:16px;max-width:440px;width:100%;max-height:94vh;overflow:auto;padding:12px;box-shadow:0 20px 50px rgba(0,0,0,.35);}
-      .hc-img{display:block;width:100%;height:auto;border-radius:10px;border:1px solid #e2e8f0;}
+      .hc-head{display:flex;align-items:center;gap:8px;margin:0 0 8px;}
+      .hc-title{flex:1;min-width:0;font-weight:800;font-size:.95rem;color:#0f172a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+      .hc-x{border:none;background:#f1f5f9;color:#334155;width:34px;height:34px;border-radius:50%;font-size:1rem;font-weight:800;cursor:pointer;flex-shrink:0;}
+      .hc-img{display:block;width:100%;height:auto;max-height:46vh;object-fit:contain;background:#f8fafc;border-radius:10px;border:1px solid #e2e8f0;}
       .hc-btns{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;}
-      .hc-btns button,.hc-btns a{flex:1 1 40%;text-align:center;border:none;border-radius:10px;padding:12px 8px;font-weight:800;font-size:.92rem;cursor:pointer;text-decoration:none;font-family:inherit;}
-      .hc-share{background:#16a34a;color:#fff;flex-basis:100% !important;}
-      .hc-copy{background:#2563eb;color:#fff;} .hc-dl{background:#e0e7ff;color:#1e3a8a;} .hc-close{background:#e2e8f0;color:#0f172a;}
-      .hc-note{font-size:.78rem;color:#64748b;margin-top:8px;line-height:1.4;}
+      .hc-btns button,.hc-btns a{flex:1 1 40%;display:flex;align-items:center;justify-content:center;text-align:center;border:none;border-radius:12px;padding:13px 8px;font-weight:800;font-size:.95rem;cursor:pointer;text-decoration:none;font-family:inherit;}
+      .hc-share{background:#16a34a;color:#fff;flex-basis:100% !important;font-size:1rem !important;}
+      .hc-copy{background:#2563eb;color:#fff;} .hc-dl{background:#e0e7ff;color:#1e3a8a;}
+      .hc-note{font-size:.78rem;color:#64748b;margin-top:8px;line-height:1.45;}
+      .hc-note a{color:#2563eb;font-weight:700;}
       .hc-load{padding:30px 10px;text-align:center;font-weight:700;color:#334155;}`;
     document.head.appendChild(s);
   }
@@ -160,37 +164,22 @@
     return { d, blob, isShot, fname, file: new File([blob], fname, { type: blob.type || 'image/png' }) };
   }
 
-  // Images fetched ahead of time, so the share sheet can open straight from a tap (phones only allow
-  // sharing directly inside the tap, not after waiting for a download).
-  // A screenshot may be taken on the PC after the phone fetched the drawn card, so nothing is trusted for long.
-  const ready = new Map();          // bookingId → { v: getImage result, at: time fetched }
-  const pending = new Map();        // bookingId → fetch in progress
-  const FRESH_SHOT_MS = 2 * 60 * 1000, SHARE_MAX_AGE_MS = 5 * 60 * 1000;
-  function prefetch(bookingId, force) {
-    const c = ready.get(bookingId);
-    if (!force && c && c.v.isShot && Date.now() - c.at < FRESH_SHOT_MS) return;
-    if (pending.has(bookingId)) return;
-    pending.set(bookingId, getImage(bookingId)
-      .then(v => { ready.set(bookingId, { v, at: Date.now() }); })
-      .catch(() => {})
-      .finally(() => pending.delete(bookingId)));
+  // JPEG → PNG: Safari can only put PNG pictures on the clipboard
+  function toPng(blob) {
+    if (blob.type === 'image/png') return Promise.resolve(blob);
+    return new Promise((res, rej) => {
+      const u = URL.createObjectURL(blob), img = new Image();
+      img.onload = () => {
+        const c = document.createElement('canvas');
+        c.width = img.naturalWidth; c.height = img.naturalHeight;
+        c.getContext('2d').drawImage(img, 0, 0);
+        URL.revokeObjectURL(u);
+        c.toBlob(b => (b ? res(b) : rej(new Error('Không đổi được ảnh'))), 'image/png');
+      };
+      img.onerror = () => { URL.revokeObjectURL(u); rej(new Error('Ảnh bị lỗi')); };
+      img.src = u;
+    });
   }
-  // "Bước 2" after the text was sent: share the ready image at once — only if it is recent and no newer
-  // fetch is running; otherwise open the preview, which always loads the latest picture.
-  function quickShare(bookingId) {
-    const c = ready.get(bookingId);
-    if (!pending.has(bookingId) && c && Date.now() - c.at < SHARE_MAX_AGE_MS &&
-        navigator.canShare && navigator.canShare({ files: [c.v.file] })) {
-      navigator.share({ files: [c.v.file] }).catch(e => { if (e.name !== 'AbortError') open(bookingId); });
-      return;
-    }
-    open(bookingId);
-  }
-  // Coming back from WhatsApp / Zalo: refresh the pictures of the guests waiting for step 2
-  document.addEventListener('visibilitychange', () => {
-    if (document.hidden) return;
-    document.querySelectorAll('.card.step2[data-bid], .guest-img.go[data-bid]').forEach(el => prefetch(el.dataset.bid, true));
-  });
 
   async function open(bookingId) {
     ensureCss();
@@ -203,26 +192,29 @@
     ov.addEventListener('click', e => { if (e.target === ov) close(); });
     const box = ov.querySelector('.hc-box');
     try {
-      const v = await getImage(bookingId);             // the preview always shows the latest picture
-      ready.set(bookingId, { v, at: Date.now() });
-      const { blob, isShot, fname, file } = v;
+      const { d, blob, isShot, fname, file } = await getImage(bookingId);   // always the latest picture
       url = URL.createObjectURL(blob);
       const canShare = !!(navigator.canShare && navigator.canShare({ files: [file] }));
       const canCopy = !!(navigator.clipboard && navigator.clipboard.write && window.ClipboardItem);
-      box.innerHTML = `<img class="hc-img" src="${url}" alt="Booking confirmation">
+      const png = canCopy ? toPng(blob) : null;      // prepared now, so "Sao chép" works inside the tap
+      if (png) png.catch(() => {});
+      const name = cleanName(d.name).replace(/</g, '&lt;');
+      box.innerHTML = `
+        <div class="hc-head"><div class="hc-title">📷 Ảnh xác nhận · ${name}</div>
+          <button type="button" class="hc-x" aria-label="Đóng">✕</button></div>
+        <img class="hc-img" src="${url}" alt="Booking confirmation">
         <div class="hc-btns">
           ${canShare ? '<button type="button" class="hc-share">📤 Gửi ảnh (WhatsApp / Zalo…)</button>' : ''}
-          ${canCopy ? '<button type="button" class="hc-copy">📋 Chép ảnh</button>' : ''}
+          ${canCopy ? '<button type="button" class="hc-copy">📋 Sao chép ảnh</button>' : ''}
           <a class="hc-dl" href="${url}" download="${fname}">⬇️ Tải ảnh</a>
-          <button type="button" class="hc-close">Đóng</button>
         </div>
         <div class="hc-note">${canShare
-          ? 'Bấm <b>Gửi ảnh</b> → chọn WhatsApp hoặc Zalo → chọn khách → Gửi.'
-          : 'Máy này không gửi ảnh trực tiếp được: bấm <b>Chép ảnh</b> rồi dán (Ctrl+V) vào WhatsApp Web / Zalo, hoặc <b>Tải ảnh</b>.'}
+          ? '<b>Gửi ảnh</b> → chọn WhatsApp hoặc Zalo → chọn khách → Gửi. Hoặc <b>Sao chép ảnh</b> rồi dán vào khung chat của khách.'
+          : '<b>Sao chép ảnh</b> rồi dán (Ctrl+V) vào WhatsApp Web / Zalo, hoặc <b>Tải ảnh</b>.'}
           ${isShot
             ? '<br>📸 Ảnh chụp từ Booking — bản gửi khách (đã che hoa hồng, ghi chú nội bộ). <a href="#" class="hc-full">Xem bản đầy đủ</a>'
-            : '<br>Ảnh tự tạo. Muốn ảnh chụp đúng từ Booking: trên máy tính mở đặt phòng → <b>chuột phải → 📸 Chụp ảnh đặt phòng</b>.'}</div>`;
-      box.querySelector('.hc-close').onclick = close;
+            : '<br>Ảnh tự tạo — chưa có ảnh chụp từ Booking. Mở đặt phòng này trên máy tính là tiện ích tự chụp.'}</div>`;
+      box.querySelector('.hc-x').onclick = close;
       const fullLink = box.querySelector('.hc-full');
       if (fullLink) {
         let showingFull = false, fullUrl = null;
@@ -239,13 +231,15 @@
       }
       const share = box.querySelector('.hc-share');
       if (share) share.onclick = async () => {
-        try { await navigator.share({ files: [file], title: 'Booking confirmation' }); }
+        try { await navigator.share({ files: [file] }); }
         catch (e) { if (e.name !== 'AbortError') box.querySelector('.hc-note').textContent = '❌ ' + e.message; }
       };
       const cp = box.querySelector('.hc-copy');
       if (cp) cp.onclick = async () => {
-        try { await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]); cp.textContent = '✅ Đã chép — dán vào chat'; }
-        catch (e) { cp.textContent = 'Không chép được — dùng Tải ảnh'; }
+        try {
+          await navigator.clipboard.write([new ClipboardItem({ 'image/png': png })]);
+          cp.textContent = '✅ Đã sao chép — dán vào chat';
+        } catch (e) { cp.textContent = 'Không sao chép được — dùng Tải ảnh'; }
       };
     } catch (e) {
       box.innerHTML = `<div class="hc-load">❌ ${String(e.message || e).replace(/</g, '&lt;')}</div>
@@ -254,5 +248,5 @@
     }
   }
 
-  window.HotelCard = { open, draw, prefetch, quickShare };
+  window.HotelCard = { open, draw, quickShare: open };   // 📷 always shows the preview first
 })();
