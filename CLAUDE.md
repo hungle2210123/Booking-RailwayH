@@ -266,6 +266,15 @@ cards show a JS-built `.cd-sum` line, tap opens `.cd-open`. Guests without a pho
 phone → wa (intl digits), sms (+intl), zalo (VN 0-form). Nav: "💬 Nhắn Khách". Workflow = capture + reveal phones on
 PC, message from the phone. WhatsApp bulk-blast from a personal account is intentionally NOT built (ban risk).
 
+### **🤝 Partner bookings (`bookings.via_partner`)**
+Reservations with the "Đối tác Booking.com" box were made through a partner company: the phone on the page is the
+partner's (`+<guest country> 203 5640 799` — same last 9 digits for every guest). Extension detects the box and posts
+`partner: true` → server sets `via_partner = TRUE` and never stores that number (`_ensure_partner_column()`).
+Server also rejects a phone whose last 9 digits (`_phone_tail`) are on another guest, or that is a slice of the
+booking number. Calendar shows "🤝 Đối tác"; /messages lists them separately. Extension "💬 Điền tin" types a chosen
+template into Booking's own chat box (`POST /api/ext/auto_messages`; partner → `AUTO_MSG_PARTNER_NAME`); the owner
+presses Gửi — never auto-sent.
+
 ### **📞 Chrome extension — phone handling**
 `POST /api/ext/booking/phone`: when the owner clicks Booking's own "Hiển thị số điện thoại", the extension reads the
 number ONLY from the guest block (next to `@guest.booking.com` / the reveal button) and saves it to the booking;
