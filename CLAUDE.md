@@ -253,7 +253,22 @@ python run.py  # Test the Railway runner script locally
 - **Revenue Calculation:** Per-night distribution
 - **Commission Tracking:** Real-time analytics
 
-## 🆕 **Latest Updates (September 2026)**
+## 🆕 **Latest Updates (October 2026)**
+
+### **💬 "Nhắn khách" page (`/messages`, `templates/messages.html`)**
+Mobile-first page: upcoming arrivals (checkin_date in [today, today+days]) that have a phone, each with
+WhatsApp / SMS / Zalo / Copy buttons + a pre-filled editable bilingual greeting (tokens `{ten}{nhan}{tra}{phong}`,
+saved in localStorage). Guests without a phone listed separately. Links built in JS; `_msg_phone_links()` normalises
+phone → wa (intl digits), sms (+intl), zalo (VN 0-form). Nav: "💬 Nhắn Khách". Workflow = capture + reveal phones on
+PC, message from the phone. WhatsApp bulk-blast from a personal account is intentionally NOT built (ban risk).
+
+### **📞 Chrome extension — phone handling**
+`POST /api/ext/booking/phone`: when the owner clicks Booking's own "Hiển thị số điện thoại", the extension reads the
+number ONLY from the guest block (next to `@guest.booking.com` / the reveal button) and saves it to the booking;
+duplicate-guard rejects a number already on another guest. Extension is **read-only on Booking** — it never auto-clicks
+the reveal, never calls Booking APIs, never scrapes (deliberate: Booking gates the phone behind a human click; automating
+that is circumvention + account-ban risk, so it was removed). Extension also imports the reservation list/detail
+(new/changed/cancelled, multi-room ⚠️, new-listing 🆕). Current ext version: see `chrome_extension/manifest.json`.
 
 ### **🏠 Vacancy = placement-based (`core/occupancy.py`)**
 Vacancy board (`/api/vacancy_preview`) + "Tình trạng căn hộ" bar (`/api/apartment_daily_summary`) only count a
