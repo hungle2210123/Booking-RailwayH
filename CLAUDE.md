@@ -327,7 +327,6 @@ also be `checkin_status='confirmed'`. Everything else is returned as `pending` (
 listing name / room_id (listing names are sold across apartments; TN bookings carry Hội Vũ room_ids).
 `over` = placed guests beyond the apartment's active room count → "VƯỢT" warning.
 `/api/apartment_placement_check` warns before placing a guest into a full apartment.
-⚠️ `send_test_email.py` still uses the old guess-based `_classify_apt` (not migrated yet).
 
 ### **🛏️ 2-bedroom bookings (`core/two_bedroom.py`)**
 `bookings.two_bedroom` BOOLEAN: NULL = auto-detect from listing ("2 PN", "2 phòng ngủ", "Two-Bedroom"; "2 Giường" is
@@ -394,47 +393,9 @@ Also wrapped revenue calc with `pd.Timestamp(co) - pd.Timestamp(ci)` as safety n
 
 ---
 
-### **📧 Email Notification System (Phòng Trống)**
-**Status:** ✅ PRODUCTION READY  
-**File:** `send_test_email.py` (root directory)
-
-**Architecture — 2 loại email:**
-
-| Email | Khi nào | Nội dung |
-|-------|---------|---------|
-| Báo cáo ngày | 07:00 hàng ngày | 4 ngày tới — tất cả căn hộ |
-| Cảnh báo sớm | 08:00 + 20:00 | Khi ngày nào có >3 phòng trống |
-
-**Logic tính phòng trống — thứ tự ưu tiên:**
-```
-1. actual_apartment (INTEGER apt_id — user gán tay trên calendar details)
-   → Số đen nền mỗi card: 118 / 18 / 25
-2. room_id rõ ràng → rooms table lookup
-   → rid 4,5 = 18HB | rid 1244-1247 = 25HV | rid 1793,2,3 = 118HB
-3. accommodation_name matching (fallback)
-   → keywords: "hang be", "hàng bè" → apt2 | "hoi vu", "hội vũ" → apt506
-```
-
-**Apartments load ĐỘNG từ DB** (không hardcode):
-```python
-cur.execute("SELECT a.apartment_id, a.apartment_name, r.room_id, r.room_name
-             FROM apartments a JOIN rooms r ON r.apartment_id=a.apartment_id
-             WHERE a.is_active=true ORDER BY a.apartment_id, r.room_id")
-```
-
-**Cấu hình (trong `.env`):**
-```
-SMTP_EMAIL=ngotri.2210@gmail.com
-SMTP_APP_PASSWORD=<16-char App Password>
-NOTIFY_EMAILS=ngotri.2210@gmail.com,other@gmail.com
-REPORT_HOUR=7
-ALERT_THRESHOLD=3
-```
-
-**Chạy thủ công:**
-```bash
-python -X utf8 send_test_email.py
-```
+### **📧 Vacancy e-mails — REMOVED (Oct 2026)**
+Owner dropped the "Phòng Trống" settings page, its e-mails (`send_test_email.py`) and the Mobile Check-in page
+(`/mobile_checkin`). The vacancy board on the calendar (`/api/vacancy_preview`) stays.
 
 **Quan trọng — `actual_apartment` column:**
 - Được thêm auto vào bảng bookings: `ALTER TABLE bookings ADD COLUMN IF NOT EXISTS actual_apartment VARCHAR(100)`
@@ -462,7 +423,7 @@ rooms:
 
 **accommodation_name inconsistency:** 30+ kiểu viết khác nhau trong DB
 (ví dụ: "118 Hang Bac Hostel", "Ban Cong Hang Bac", "ban công", "Sofa Hàng Bạc"...)
-→ Không dùng LIKE query trực tiếp — dùng hàm `_classify_apt()` trong send_test_email.py
+→ Không dùng LIKE query trực tiếp — dùng `actual_apartment` (xem core/occupancy.py)
 
 ---
 
