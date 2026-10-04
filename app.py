@@ -1877,6 +1877,14 @@ def _phone_tail(phone):
     return re.sub(r'\D', '', str(phone or ''))[-9:]
 
 
+def _room_label(listing):
+    """Room name for messages / the confirmation image — '' when the stored text is not a room name
+    (e.g. a Booking notice sentence read by mistake), so it never reaches a guest."""
+    from core.booking_page_parser import looks_like_room
+    t = re.sub(r'\s+', ' ', str(listing or '')).strip()
+    return t if looks_like_room(t) else ''
+
+
 _PARTNER_COL_READY = False
 
 
@@ -1938,7 +1946,7 @@ def ext_auto_messages():
         bid = p.get('booking_id')
         dm = lambda iso: '/'.join(reversed(iso.split('-')[1:])) if iso else ''   # 2026-10-04 → 04/10
         guest = {'ten': p.get('guest_name') or '', 'nhan': dm(p.get('checkin_date')),
-                 'tra': dm(p.get('checkout_date')), 'phong': p.get('listing') or ''}
+                 'tra': dm(p.get('checkout_date')), 'phong': _room_label(p.get('listing'))}
         partner = bool(body.get('partner'))
         if bid:
             _ensure_partner_column()
@@ -1951,12 +1959,44 @@ def ext_auto_messages():
                 guest = {'ten': row[0] or guest['ten'],
                          'nhan': row[1].strftime('%d/%m') if row[1] else guest['nhan'],
                          'tra': row[2].strftime('%d/%m') if row[2] else guest['tra'],
-                         'phong': row[3] or guest['phong']}
+                         'phong': _room_label(row[3]) or guest['phong']}
                 partner = partner or bool(row[4])
         templates = _auto_msg_templates()
         default = next((t for t in templates if t['name'] == AUTO_MSG_PARTNER_NAME), None) if partner else None
         return jsonify({'success': True, 'templates': templates, 'guest': guest, 'partner': partner,
                         'default_id': (default or _auto_msg_for(templates, 'EN'))['id']})
+    except Exception as e:
+        from core.models import db as _xdb
+        _xdb.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/booking_card/<booking_id>')
+def booking_card_data(booking_id):
+    """Data for the booking-confirmation image drawn on the phone (static/js/booking_card.js)."""
+    try:
+        from core.models import db as _xdb
+        row = _xdb.session.execute(text("""
+            SELECT b.booking_id, COALESCE(g.full_name, b.guest_name), b.checkin_date, b.checkout_date,
+                   b.accommodation_name, b.room_amount, b.collected_amount, a.apartment_name, a.apartment_address
+            FROM bookings b
+            LEFT JOIN guests g ON g.guest_id = b.guest_id
+            LEFT JOIN apartments a ON a.apartment_id::text = b.actual_apartment
+            WHERE b.booking_id = :b
+        """), {'b': booking_id}).fetchone()
+        if not row:
+            return jsonify({'success': False, 'error': 'Không tìm thấy đặt phòng'}), 404
+        ci, co = row[2], row[3]
+        total, collected = float(row[5] or 0), float(row[6] or 0)
+        return jsonify({
+            'success': True, 'booking_id': row[0], 'name': row[1] or '',
+            'checkin': ci.isoformat() if ci else None, 'checkout': co.isoformat() if co else None,
+            'nights': (co - ci).days if ci and co else None, 'room': _room_label(row[4]),
+            'total': total, 'paid': collected > 0 and collected >= total - 100,
+            # only once the guest is placed in an apartment
+            'apartment': row[7] or '', 'address': (row[8] or '').strip(),
+            'brand': 'Cozy Homestay Hanoi',
+        })
     except Exception as e:
         from core.models import db as _xdb
         _xdb.session.rollback()
@@ -1992,7 +2032,7 @@ def messages_page():
             'booking_id': r[0], 'name': (r[1] or r[0]).strip(),
             'nhan': ci.strftime('%d/%m') if ci else '', 'tra': co.strftime('%d/%m') if co else '',
             'ngay_full': ci.strftime('%d/%m/%Y') if ci else '', 'ci_iso': ci.isoformat() if ci else '',
-            'phong': r[4] or '', 'phone': r[5] or '',
+            'phong': _room_label(r[4]), 'phone': r[5] or '',
         }
         links = _msg_phone_links(r[5])
         if r[6]:                       # partner booking: any number on file is the partner's
@@ -4774,7 +4814,7 @@ def calendar_details(date_str):
                 if _b and _b not in _ph_info:
                     _ph_info[_b] = {'ten': str(_g.get('Tên người đặt', '') or '').strip(),
                                     'nhan': _dm(_g.get('Check-in Date')), 'tra': _dm(_g.get('Check-out Date')),
-                                    'phong': str(_g.get('Tên chỗ nghỉ', '') or '').strip()}
+                                    'phong': _room_label(_g.get('Tên chỗ nghỉ'))}
             if _ph_info:
                 _ensure_partner_column()
                 for _bid, _phone, _partner in _phdb.session.execute(text("""

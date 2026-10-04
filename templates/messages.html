@@ -50,11 +50,14 @@
   .chk { display:flex; align-items:center; gap:5px; font-size:.75rem; color:var(--muted); white-space:nowrap; }
   .chk input { width:18px; height:18px; }
 
-  .btns { display:grid; grid-template-columns:repeat(4,1fr); gap:7px; margin-top:11px; }
+  .btns { display:grid; grid-template-columns:repeat(5,1fr); gap:6px; margin-top:11px; }
   .btns a, .btns button { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px;
-      text-decoration:none; border:none; border-radius:11px; padding:9px 4px; font-size:.74rem; font-weight:700;
-      color:#fff; cursor:pointer; font-family:inherit; line-height:1.1; }
+      text-decoration:none; border:none; border-radius:11px; padding:9px 2px; font-size:.68rem; font-weight:700;
+      color:#fff; cursor:pointer; font-family:inherit; line-height:1.1; min-width:0; }
   .b-wa { background:#25d366; } .b-sms { background:#2563eb; } .b-zalo { background:#0068ff; } .b-copy { background:#475569; }
+  .b-img { background:#7c3aed; }
+  .n .nimg { float:right; border:none; background:#ede9fe; color:#6d28d9; font-weight:800; font-size:.72rem;
+             border-radius:8px; padding:2px 8px; cursor:pointer; font-family:inherit; }
   .btns .ico { font-size:1.1rem; }
 
   .empty { text-align:center; color:var(--muted); padding:30px 10px; }
@@ -71,7 +74,7 @@
   #copytoast { position:fixed; left:50%; bottom:24px; transform:translateX(-50%); background:#0f172a; color:#fff;
       font-size:.85rem; padding:9px 16px; border-radius:999px; opacity:0; transition:opacity .2s; pointer-events:none; z-index:50; }
   #copytoast.show { opacity:1; }
-  @media (max-width:360px){ .btns{ grid-template-columns:repeat(2,1fr);} }
+  @media (max-width:360px){ .btns{ grid-template-columns:repeat(3,1fr);} }
 </style>
 {% endblock %}
 
@@ -128,6 +131,7 @@
         <a class="b-sms"><span class="ico">💬</span>SMS</a>
         <a class="b-zalo" target="_blank" rel="noopener"><span class="ico">🔵</span>Zalo</a>
         <button type="button" class="b-copy"><span class="ico">📋</span>Chép tin</button>
+        <button type="button" class="b-img" onclick="HotelCard.open('{{ g.booking_id }}')"><span class="ico">📷</span>Ảnh</button>
       </div>
     </div>
     {% endfor %}
@@ -141,7 +145,7 @@
     <div class="t">🤝 {{ partner|length }} khách đặt qua đối tác Booking — không có số thật</div>
     <div class="pnote">Số trên Booking là của công ty đối tác. Mở đặt phòng trên máy tính → bấm <b>💬 Điền tin</b> của tiện ích → tin xin số Zalo/WhatsApp được điền sẵn vào khung chat Booking → bấm Gửi.</div>
     {% for g in partner %}
-    <div class="n">{{ g.name }} · {{ g.nhan }} → {{ g.tra }}{% if g.phong %} · {{ g.phong }}{% endif %}</div>
+    <div class="n"><button type="button" class="nimg" onclick="HotelCard.open('{{ g.booking_id }}')">📷 Ảnh</button>{{ g.name }} · {{ g.nhan }} → {{ g.tra }}{% if g.phong %} · {{ g.phong }}{% endif %}</div>
     {% endfor %}
   </div>
   {% endif %}
@@ -159,6 +163,7 @@
 {% endblock %}
 
 {% block scripts %}
+<script src="{{ url_for('static', filename='js/booking_card.js') }}"></script>
 <script>
 (function () {
   // Templates are stored on the server (message_templates, category below) → shared by every device

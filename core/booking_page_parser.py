@@ -202,7 +202,7 @@ def parse_reservation_page(page):
     g = re.search(r'\d+', _value(page, lines, 'guests') or '')
     out['guests'] = int(g.group(0)) if g else None
     room = _value(page, lines, 'room')
-    out['listing'] = room[:120] if room else None
+    out['listing'] = room if looks_like_room(room) else None
 
     head = _fold(' '.join(lines[:40]))
     if any(w in head for w in NOSHOW_WORDS):
@@ -319,11 +319,25 @@ def is_reservation_list(headers, rows=None):
     return 'booking_id' in inferred and 'checkin' in inferred
 
 
+_NOTICE_WORDS = ('quy vi', 'ban het', 'bao cao', 'vui long', 'luu y', 'please', 'you can', 'sold out',
+                 'availability', 'tinh trang phong')
+
+
+def looks_like_room(text):
+    """A room / unit name ("Studio Có Sân Hiên (101 - 103 TN)", "2 PN Hàng Bè") — not one of Booking's
+    notice sentences that also start with "Phòng …" ("…này đã được bán hết… Quý vị có thể…")."""
+    t = re.sub(r'\s+', ' ', str(text or '')).strip()
+    if not t or len(t) > 80 or len(t.split()) > 16:
+        return False
+    f = _fold(t)
+    return not any(w in f for w in _NOTICE_WORDS) and t.count('. ') == 0
+
+
 def split_rooms(cell_text):
     """'101 - 103 TN' → ('101 - 103 TN', 1); two lines or '2 x Phòng Đôi' → several rooms.
     Returns (listing text with rooms joined by ' + ', number of rooms)."""
     lines = [re.sub(r'\s+', ' ', l).strip() for l in str(cell_text or '').split('\n')]
-    lines = [l for l in lines if l]
+    lines = [l for l in lines if l and looks_like_room(l)]     # drop notice lines inside the cell
     total = 0
     for l in lines:
         m = re.match(r'^(\d{1,2})\s*[x×]\s+', l, re.I)

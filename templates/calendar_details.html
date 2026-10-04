@@ -1457,6 +1457,9 @@ setInterval(loadVbCd, 5 * 60 * 1000);
             🛏️ 2PN
         </button>
 
+        {# ── Booking-confirmation image (drawn on the phone, sent via the share sheet) ── #}
+        <button type="button" class="guest-img" onclick="HotelCard.open('{{ booking_id }}')" title="Ảnh xác nhận đặt phòng để gửi khách">📷 Ảnh</button>
+
         {# ── Guest phone (from the Chrome extension) ── #}
         {% set ph = phone_map.get(booking_id|string) if phone_map else None %}
         {% if ph and ph.partner %}
@@ -1576,6 +1579,9 @@ setInterval(loadVbCd, 5 * 60 * 1000);
         .cd-close { display: none; }
         body.cd-compact .guest-card.cd-open > .cd-close { display: block; text-align: center; font-size: .75rem;
             font-weight: 700; color: #64748b; padding: 6px 0 0; }
+        .guest-img { font-size: .6rem; font-weight: 800; padding: 1px 7px; border-radius: 20px; flex-shrink: 0; cursor: pointer;
+            background: #f3e8ff; color: #6b21a8; border: 1px solid #d8b4fe; font-family: inherit; line-height: 1.5; }
+        body.cd-compact .guest-img { font-size: .72rem; padding: 3px 9px; }
         .guest-partner { font-size: .62rem; font-weight: 800; padding: 1px 7px; border-radius: 20px; flex-shrink: 0;
             background: #f5f3ff; color: #6d28d9; border: 1px solid #ddd6fe; }
         body.cd-compact .guest-partner { font-size: .72rem; padding: 3px 9px; }
@@ -6497,6 +6503,7 @@ function showQuickToast(msg, type) {
     </div>
 </div>
 
+<script src="{{ url_for('static', filename='js/booking_card.js') }}"></script>
 <script>
 (function () {
     // ── Pre-written message on the WhatsApp / Zalo chips (edited on /messages, shared by every device) ──
