@@ -21,7 +21,14 @@
       .jr-name{flex:1;min-width:0;font-weight:800;font-size:1.02rem;color:#0f172a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
       .jr-x{border:none;background:#f1f5f9;width:34px;height:34px;border-radius:50%;font-weight:800;cursor:pointer;flex-shrink:0;}
       .jr-meta{font-size:.78rem;color:#64748b;margin-top:2px;}
-      .jr-apt{display:inline-block;font-size:.7rem;font-weight:800;border-radius:999px;padding:1px 8px;background:#e0f2fe;color:#075985;margin-left:4px;}
+      .jr-apt{display:inline-block;font-size:.72rem;font-weight:800;border-radius:999px;padding:2px 9px;background:#e0f2fe;color:#075985;
+          margin-left:6px;border:1px solid #7dd3fc;cursor:pointer;font-family:inherit;}
+      .jr-pick button.cur{background:#f59e0b;color:#fff;}
+      .jr-pick button.clear{border-color:#cbd5e1;color:#64748b;}
+      .jr-edit{border:none;background:none;color:#2563eb;font-weight:800;font-size:.74rem;cursor:pointer;padding:0;font-family:inherit;}
+      .jr-editbox{background:#fefce8;border:1px solid #fde68a;border-radius:12px;padding:9px;margin-top:8px;}
+      .jr-editbox .jr-ta{min-height:200px;background:#fff;}
+      .jr-save{background:#2563eb;} .jr-cancel{background:#94a3b8;}
       .jr-pick{margin-top:6px;padding:7px 8px;background:#fffbeb;border:1px solid #fde68a;border-radius:10px;font-size:.78rem;color:#92400e;}
       .jr-pick button{margin:4px 4px 0 0;border:1.5px solid #f59e0b;background:#fff;color:#92400e;font-weight:800;border-radius:9px;padding:5px 9px;cursor:pointer;font-family:inherit;font-size:.78rem;}
       .jr-steps{display:flex;gap:6px;overflow-x:auto;padding:8px 0 2px;scrollbar-width:none;}
@@ -80,6 +87,21 @@
   }
 
   // ── open / load ──────────────────────────────────────────────────────────────
+  const cache = new Map();          // bid → { p: promise of the guest data, at }
+  function fetchGuest(bid) {
+    const c = cache.get(bid);
+    if (c && Date.now() - c.at < 20000) return c.p;
+    const p = fetch('/api/journey/guest/' + encodeURIComponent(bid)).then(r => r.json());
+    cache.set(bid, { p, at: Date.now() });
+    p.catch(() => cache.delete(bid));
+    return p;
+  }
+  // start loading while the finger is still on the chip (saves the network wait on tap)
+  document.addEventListener('pointerdown', e => {
+    const chip = e.target.closest && e.target.closest('.jchip[data-bid], .guest-journey[data-bid]');
+    if (chip) fetchGuest(chip.dataset.bid);
+  }, { passive: true });
+
   async function open(bid, step) {
     css();
     close();
@@ -89,8 +111,8 @@
     ov.addEventListener('click', e => { if (e.target === ov) close(); });
     document.body.appendChild(ov);
     try {
-      const data = await fetch('/api/journey/guest/' + encodeURIComponent(bid)).then(r => r.json());
-      if (!data.success) throw new Error(data.error || 'Lỗi tải dữ liệu');
+      const data = await fetchGuest(bid);
+      if (!data.success) { cache.delete(bid); throw new Error(data.error || 'Lỗi tải dữ liệu'); }
       st = { bid, data, step: step || data.recommended || data.steps[0].key, ov };
       render();
     } catch (e) {
@@ -107,15 +129,19 @@
   function render() {
     const b = st.data.booking;
     const box = st.ov.querySelector('.jr');
-    const steps = st.data.steps.map(s => `<button type="button" data-k="${s.key}"
+    const hidden = st.data.hidden || [];
+    const tabs = st.data.steps.filter(s => !hidden.includes(s.key) || s.key === st.step).concat(st.data.favorites || []);
+    const steps = tabs.map(s => `<button type="button" data-k="${s.key}"
         class="${s.key === st.step ? 'on' : ''} ${s.sent_at ? 'sent' : ''} ${s.key === st.data.recommended ? 'next' : ''}">
         ${s.emoji} ${esc(s.label)}${s.sent_at ? ' ✓' : ''}</button>`).join('')
       + `<button type="button" data-k="__more" class="${st.step === '__more' ? 'on' : ''}">➕ Tin khác</button>`;
-    const pick = b.apt ? '' : `<div class="jr-pick">⚠️ Khách chưa xếp căn — chọn căn để gửi đúng địa chỉ & hướng dẫn:<br>
-        ${b.apartments.map(a => `<button type="button" data-apt="${a.id}">${esc(a.name)}</button>`).join('')}</div>`;
+    const showPick = !b.apt || st.pickApt;
+    const pick = !showPick ? '' : `<div class="jr-pick">${b.apt ? 'Đổi căn cho khách:' : '⚠️ Khách chưa xếp căn — chọn căn để gửi đúng địa chỉ & hướng dẫn:'}<br>
+        ${b.apartments.map(a => `<button type="button" data-apt="${a.id}" class="${b.apt && b.apt.id === a.id ? 'cur' : ''}">${esc(a.name)}</button>`).join('')}
+        ${b.apt ? '<button type="button" data-apt="" class="clear">✕ Bỏ xếp căn</button>' : ''}</div>`;
     box.innerHTML = `
       <div class="jr-h">
-        <div class="jr-top"><div class="jr-name">${esc(b.name)}${b.apt ? `<span class="jr-apt">${esc(b.apt.name)}</span>` : ''}</div>
+        <div class="jr-top"><div class="jr-name">${esc(b.name)}${b.apt ? `<button type="button" class="jr-apt" title="Đổi căn">🏠 ${esc(b.apt.name)} · đổi</button>` : ''}</div>
           <button type="button" class="jr-x" aria-label="Đóng">✕</button></div>
         <div class="jr-meta">${esc(b.nhan)} → ${esc(b.tra)}${b.phong ? ' · ' + esc(b.phong) : ''}
           ${b.partner ? ' · 🤝 qua đối tác' : (b.phone ? ' · 📞 ' + esc(b.phone) : ' · chưa có số')}</div>
@@ -126,10 +152,14 @@
     box.querySelector('.jr-x').onclick = close;
     box.querySelectorAll('.jr-steps button').forEach(btn => btn.onclick = () => { st.step = btn.dataset.k; st.more = null; render(); });
     box.querySelectorAll('.jr-pick button').forEach(btn => btn.onclick = () => setApartment(btn.dataset.apt));
+    const aptBtn = box.querySelector('.jr-apt');
+    if (aptBtn) aptBtn.onclick = () => { st.pickApt = !st.pickApt; render(); };
     const on = box.querySelector('.jr-steps .on');
     if (on) on.scrollIntoView({ inline: 'center', block: 'nearest' });
-    if (st.step === '__more') renderMore(box.querySelector('.jr-body'));
-    else renderStep(box.querySelector('.jr-body'), curStep());
+    const body = box.querySelector('.jr-body');
+    if (st.step === '__more') renderMore(body);
+    else if (st.step.startsWith('fav:')) renderFav(body, (st.data.favorites || []).find(f => f.key === st.step));
+    else renderStep(body, curStep());
   }
 
   function renderStep(body, s) {
@@ -150,15 +180,17 @@
     const b = st.data.booking, L = b.links;
     st.text = text; st.files = null;
     body.innerHTML = `
-      <div class="jr-tpl">Mẫu: <b>${esc(template.name)}</b> · sửa được trước khi gửi (vd. số phòng)</div>
+      <div class="jr-tpl">Mẫu: <b>${esc(template.name)}</b> · ô dưới sửa được cho lần gửi này (vd. số phòng) ·
+        <button type="button" class="jr-edit">✏️ Sửa mẫu gốc</button></div>
       <textarea class="jr-ta">${esc(text)}</textarea>
-      ${images.length ? `<div class="jr-imgs">${images.map(im => `<img src="${esc(im.url)}" alt="" data-url="${esc(im.url)}">`).join('')}</div>`
+      ${images.length ? `<div class="jr-imgs">${images.map(im => `<img alt="" data-url="${esc(im.url)}">`).join('')}</div>`
                       : '<div class="jr-noimg">Bước này chưa có ảnh — thêm ở ⚙️ Tin &amp; ảnh.</div>'}
       <div class="jr-btns"></div>
       ${step ? `<label class="jr-sent"><input type="checkbox" ${step.sent_at ? 'checked' : ''}> Đã gửi bước này</label>` : ''}
       <div class="jr-note"></div>`;
     const ta = body.querySelector('.jr-ta');
     ta.addEventListener('input', () => { st.text = ta.value; refreshLinks(); });
+    body.querySelector('.jr-edit').onclick = () => editTemplate(body, template);
     body.querySelectorAll('.jr-imgs img').forEach(img => img.onclick = () => zoom(img.dataset.url));
     const btns = body.querySelector('.jr-btns');
     const note = body.querySelector('.jr-note');
@@ -198,12 +230,17 @@
           ? '<b>Gửi tin + ảnh</b> → chọn WhatsApp (hoặc Zalo) → chọn khách → Gửi. Lần đầu nhắn khách mới: bấm <b>WhatsApp (chữ)</b> trước để mở đúng chat, rồi gửi ảnh.'
           : (L ? 'Bấm <b>WhatsApp</b> → mở đúng chat của khách với tin soạn sẵn → Gửi.' : 'Khách chưa có số: chép tin để gửi qua kênh khác.'));
 
-    // Pictures are fetched now so the share sheet can open straight from the tap
-    if (images.length && shareOk) {
-      Promise.all(images.map((im, i) => fetch(im.url).then(r => r.ok ? r.blob() : null).then(bl => bl &&
-        new File([bl], `${(template.name || 'guide').replace(/[^\w-]+/g, '_').slice(0, 30)}-${i + 1}.${bl.type === 'image/png' ? 'png' : 'jpg'}`, { type: bl.type || 'image/jpeg' }))))
+    // Pictures are downloaded once: shown as thumbnails and kept ready, so the share sheet can open
+    // straight from the tap
+    const thumbs = body.querySelectorAll('.jr-imgs img');
+    if (images.length) {
+      Promise.all(images.map((im, i) => fetch(im.url).then(r => r.ok ? r.blob() : null).then(bl => {
+        if (!bl) return null;
+        if (thumbs[i]) thumbs[i].src = URL.createObjectURL(bl);
+        return new File([bl], `${(template.name || 'guide').replace(/[^\w-]+/g, '_').slice(0, 30)}-${i + 1}.${bl.type === 'image/png' ? 'png' : 'jpg'}`, { type: bl.type || 'image/jpeg' });
+      }).catch(() => null)))
         .then(files => {
-          if (!st) return;
+          if (!st || !shareOk) return;
           st.files = files.filter(Boolean);
           const share = btns.querySelector('.jr-share'), only = btns.querySelector('.jr-imgonly');
           if (!st.files.length || !navigator.canShare({ files: st.files })) {
@@ -222,6 +259,54 @@
     }
     const cb = body.querySelector('.jr-sent input');
     if (cb) cb.onchange = () => markSent(step, cb.checked);
+  }
+
+  // A pinned template ("Check in trễ", "Nhắc để chìa"…): filled in for this guest, tracked like a step
+  async function renderFav(body, fav) {
+    if (!fav) { body.innerHTML = '<div class="jr-warn">Mẫu ghim này không còn — chỉnh ở ⚙️ Nút, tin &amp; ảnh.</div>'; return; }
+    st.favCache = st.favCache || {};
+    let c = st.favCache[fav.key];
+    if (!c) {
+      body.innerHTML = '<div style="padding:16px;color:#64748b">⏳ Đang tải…</div>';
+      c = await fetch(`/api/journey/compose?booking_id=${encodeURIComponent(st.bid)}&template_id=${fav.id}`).then(x => x.json()).catch(() => null);
+      if (!c || !c.success) { body.innerHTML = '<div class="jr-warn">Không tải được mẫu.</div>'; return; }
+      st.favCache[fav.key] = c;
+    }
+    if (!st || st.step !== fav.key) return;
+    editor(body, c.template, c.text, c.images, fav);
+  }
+
+  // Edit the template's own text (with {ten} {nhan} {tra} {phong} {can}) — saved for every guest
+  async function editTemplate(body, template) {
+    const r = await fetch('/api/templates/' + template.id).then(x => x.json()).catch(() => null);
+    if (!r || !r.success) { toast('Không tải được mẫu'); return; }
+    const box = document.createElement('div');
+    box.className = 'jr-editbox';
+    box.innerHTML = `<div class="jr-tpl" style="margin-top:0">✏️ Sửa mẫu gốc <b>${esc(template.name)}</b> — lưu là dùng cho <b>mọi khách</b>.
+        Tự thay: {ten} tên · {nhan} ngày nhận · {tra} ngày trả · {phong} (phòng) · {can} tên căn</div>
+      <textarea class="jr-ta">${esc(r.template.Message || '')}</textarea>
+      <div class="jr-btns"><button type="button" class="jr-cancel">Huỷ</button><button type="button" class="jr-save">💾 Lưu mẫu</button></div>`;
+    body.innerHTML = '';
+    body.appendChild(box);
+    box.querySelector('.jr-cancel').onclick = () => render();
+    box.querySelector('.jr-save').onclick = async () => {
+      const content = box.querySelector('.jr-ta').value.trim();
+      if (!content) { toast('Mẫu không được để trống'); return; }
+      const res = await fetch('/api/templates/' + template.id, { method: 'PUT', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ Message: content }) }).then(x => x.json()).catch(() => null);
+      if (!res || !res.success) { toast('❌ ' + ((res && res.error) || 'Không lưu được')); return; }
+      toast('✅ Đã lưu mẫu');
+      const bid = st.bid, keep = st.step;
+      cache.delete(bid);
+      if (st.favCache) delete st.favCache[keep];
+      if (keep === '__more') {                   // refresh the picked template too
+        const c = await fetch(`/api/journey/compose?booking_id=${encodeURIComponent(bid)}&template_id=${template.id}`).then(x => x.json());
+        await open(bid, keep);
+        if (st && c.success) { st.more = c; render(); }
+      } else {
+        await open(bid, keep);
+      }
+    };
   }
 
   // ── "➕ Tin khác": any template from Mẫu Câu ───────────────────────────────────
@@ -257,21 +342,26 @@
     if (!st || !step) return;
     const bid = st.bid;
     step.sent_at = sent ? new Date().toISOString() : null;
-    fetch('/api/journey/sent', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+    cache.delete(bid);
+    document.querySelectorAll(`.jchip[data-bid="${CSS.escape(bid)}"][data-step="${step.key}"]`)
+      .forEach(chip => chip.classList.toggle('sent', sent));
+    // save, then refresh which step is next (the ✓ above is already shown)
+    await fetch('/api/journey/sent', { method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ booking_id: bid, step: step.key, sent }) }).catch(() => {});
-    // refresh the strip on the page (✓ and which step is next)
-    const fresh = await fetch('/api/journey/guest/' + encodeURIComponent(bid)).then(r => r.json()).catch(() => null);
+    cache.delete(bid);
+    const fresh = await fetchGuest(bid).catch(() => null);
     if (!fresh || !fresh.success) return;
     document.querySelectorAll(`.jchip[data-bid="${CSS.escape(bid)}"]`).forEach(chip => {
-      const s = fresh.steps.find(x => x.key === chip.dataset.step);
+      const s = fresh.steps.find(x => x.key === chip.dataset.step) || (fresh.favorites || []).find(x => x.key === chip.dataset.step);
       chip.classList.toggle('sent', !!(s && s.sent_at));
       chip.classList.toggle('next', chip.dataset.step === fresh.recommended);
     });
     if (st && st.bid === bid) {
       st.data.recommended = fresh.recommended;
       fresh.steps.forEach(s => { const o = st.data.steps.find(x => x.key === s.key); if (o) o.sent_at = s.sent_at; });
+      (fresh.favorites || []).forEach(f => { const o = (st.data.favorites || []).find(x => x.key === f.key); if (o) o.sent_at = f.sent_at; });
       st.ov.querySelectorAll('.jr-steps button').forEach(btn => {
-        const s = st.data.steps.find(x => x.key === btn.dataset.k);
+        const s = st.data.steps.find(x => x.key === btn.dataset.k) || (st.data.favorites || []).find(x => x.key === btn.dataset.k);
         if (!s) return;
         btn.classList.toggle('sent', !!s.sent_at);
         btn.classList.toggle('next', s.key === fresh.recommended);
@@ -281,24 +371,36 @@
   }
 
   async function setApartment(aptId) {
+    const bid = st.bid, step = st.step;
     const r = await fetch('/api/set_actual_apartment', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ booking_id: st.bid, actual_apartment: String(aptId) }) }).then(x => x.json()).catch(() => null);
+      body: JSON.stringify({ booking_id: bid, actual_apartment: String(aptId || '') }) }).then(x => x.json()).catch(() => null);
     if (!r || r.success === false) { toast('Không lưu được căn'); return; }
-    toast('Đã xếp căn');
-    const step = st.step;
-    await open(st.bid, step);
-    document.querySelectorAll(`.card[data-bid="${CSS.escape(st ? st.bid : '')}"] .apt`).forEach(el => {
-      if (st && st.data.booking.apt) { el.textContent = st.data.booking.apt.name; el.classList.remove('none'); }
+    toast(aptId ? 'Đã xếp căn' : 'Đã bỏ xếp căn');
+    cache.delete(bid);
+    await open(bid, step);
+    const apt = st && st.data.booking.apt;
+    document.querySelectorAll(`.card[data-bid="${CSS.escape(bid)}"] .apt`).forEach(el => {
+      el.textContent = apt ? apt.name : 'chưa xếp căn';
+      el.classList.toggle('none', !apt);
     });
   }
 
-  function zoom(url) {
+  function zoom(url, fullUrl) {
+    css();
     const z = document.createElement('div');
     z.className = 'jr-zoom';
     z.innerHTML = `<img src="${esc(url)}" alt=""><div><a href="${esc(url)}" download>⬇️ Tải ảnh</a>
-      <button type="button" class="c">📋 Sao chép ảnh</button><button type="button" class="x">Đóng</button></div>`;
+      <button type="button" class="c">📋 Sao chép ảnh</button>
+      ${fullUrl ? '<button type="button" class="f">Xem bản đầy đủ</button>' : ''}
+      <button type="button" class="x">Đóng</button></div>`;
     z.addEventListener('click', e => { if (e.target === z) z.remove(); });
     z.querySelector('.x').onclick = () => z.remove();
+    const f = z.querySelector('.f');
+    if (f) f.onclick = () => {                     // owner check only — the guest gets the covered version
+      const img = z.querySelector('img'), toFull = img.getAttribute('src') !== fullUrl;
+      img.setAttribute('src', toFull ? fullUrl : url);
+      f.textContent = toFull ? 'Xem bản gửi khách' : 'Xem bản đầy đủ';
+    };
     const png = fetch(url).then(r => r.blob()).then(bl => bl.type === 'image/png' ? bl : new Promise((res, rej) => {
       const u = URL.createObjectURL(bl), im = new Image();
       im.onload = () => { const c = document.createElement('canvas'); c.width = im.naturalWidth; c.height = im.naturalHeight;
@@ -313,5 +415,5 @@
     document.body.appendChild(z);
   }
 
-  window.Journey = { open, close };
+  window.Journey = { open, close, zoom };
 })();

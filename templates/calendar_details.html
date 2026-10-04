@@ -1282,7 +1282,7 @@ setInterval(loadVbCd, 5 * 60 * 1000);
 
         {# ── Booking-confirmation image (drawn on the phone, sent via the share sheet) ── #}
         <button type="button" class="guest-img" data-bid="{{ booking_id }}" onclick="HotelCard.quickShare('{{ booking_id }}')" title="Ảnh xác nhận đặt phòng để gửi khách">📷 Ảnh</button>
-        <button type="button" class="guest-journey" onclick="Journey.open('{{ booking_id }}')" title="Gửi tin hướng dẫn theo hành trình (chào, passport, nhận phòng, thanh toán…)">🧭 Nhắn</button>
+        <button type="button" class="guest-journey" data-bid="{{ booking_id }}" onclick="Journey.open('{{ booking_id }}')" title="Gửi tin hướng dẫn theo hành trình (chào, passport, nhận phòng, thanh toán…)">🧭 Nhắn</button>
 
         {# ── Guest phone (from the Chrome extension) ── #}
         {% set ph = phone_map.get(booking_id|string) if phone_map else None %}
@@ -1362,7 +1362,7 @@ setInterval(loadVbCd, 5 * 60 * 1000);
     <!-- ══ PHONE TOOLBAR: jump between sections + compact / full cards ══ -->
     <style>
         .cd-toolbar { position: sticky; top: 0; z-index: 60; display: flex; align-items: center; gap: 6px;
-            flex-wrap: wrap; background: rgba(248,250,252,.96); backdrop-filter: blur(6px);
+            flex-wrap: wrap; background: #f8fafc;   /* solid: a blurred sticky bar repaints on every scroll */
             border: 1px solid #e2e8f0; border-radius: 12px; padding: 6px 8px; margin: 6px 0 10px; }
         .cd-jump { display: flex; gap: 5px; flex: 1; min-width: 0; }
         .cd-jump a { flex: 1; min-width: 0; text-align: center; text-decoration: none; font-size: .76rem; font-weight: 700;
@@ -1409,7 +1409,7 @@ setInterval(loadVbCd, 5 * 60 * 1000);
         .guest-journey { font-size: .6rem; font-weight: 800; padding: 1px 7px; border-radius: 20px; flex-shrink: 0; cursor: pointer;
             background: #ecfdf5; color: #047857; border: 1px solid #6ee7b7; font-family: inherit; line-height: 1.5; }
         body.cd-compact .guest-journey { font-size: .72rem; padding: 3px 9px; }
-        .guest-img.go { background: #7c3aed; color: #fff; border-color: #7c3aed; animation: imgpulse 1.2s ease-in-out infinite; }
+        .guest-img.go { background: #7c3aed; color: #fff; border-color: #7c3aed; box-shadow: 0 0 0 2px #c4b5fd; }
         @keyframes imgpulse { 50% { transform: scale(1.08); } }
         .guest-partner { font-size: .62rem; font-weight: 800; padding: 1px 7px; border-radius: 20px; flex-shrink: 0;
             background: #f5f3ff; color: #6d28d9; border: 1px solid #ddd6fe; }
@@ -2308,7 +2308,7 @@ setInterval(loadVbCd, 5 * 60 * 1000);
         border: none;
         font-size: 0.68rem;
         padding: 2px 8px;
-        animation: pill-pulse 2s ease-in-out infinite;
+        /* no endless pulse: with ~20 unpaid cards it made scrolling jerky on phones */
     }
     @keyframes pill-pulse {
         0%, 100% { opacity: 1; }
@@ -6332,8 +6332,8 @@ function showQuickToast(msg, type) {
     </div>
 </div>
 
-<script src="{{ url_for('static', filename='js/booking_card.js') }}"></script>
-<script src="{{ url_for('static', filename='js/journey.js') }}"></script>
+<script src="{{ asset('js/booking_card.js') }}"></script>
+<script src="{{ asset('js/journey.js') }}"></script>
 <script>
 (function () {
     // ── Pre-written message on the WhatsApp / Zalo chips (edited on /messages, shared by every device) ──

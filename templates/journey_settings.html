@@ -31,13 +31,29 @@
   .state { font-size:.74rem; margin-top:4px; min-height:1em; }
   .state.ok { color:#16a34a; } .state.err { color:#dc2626; }
   .edit { font-size:.74rem; font-weight:700; color:#2563eb; text-decoration:none; }
+  .btnbox { background:#fff7ed; border:1px solid #fed7aa; border-radius:14px; padding:10px 12px; margin-bottom:12px; }
+  .btnbox h3 { margin:0 0 2px; font-size:1rem; font-weight:800; color:#9a3412; }
+  .btnbox .hint { font-size:.76rem; color:var(--muted); line-height:1.4; }
+  .toggles { display:grid; grid-template-columns:1fr 1fr; gap:6px; margin:8px 0 4px; }
+  .toggles label { display:flex; align-items:center; gap:7px; background:#fff; border:1px solid var(--line); border-radius:10px;
+                   padding:7px 9px; font-size:.84rem; font-weight:700; color:#334155; }
+  .toggles input { width:18px; height:18px; }
+  .fav { display:flex; align-items:center; gap:6px; background:#fff; border:1px solid var(--line); border-radius:10px; padding:6px 8px; margin-top:6px; }
+  .fav input.em { width:42px; text-align:center; font-size:1.05rem; }
+  .fav input.lb { flex:1; min-width:0; }
+  .fav input { border:1px solid var(--line); border-radius:8px; padding:6px; font-family:inherit; font-size:.86rem; }
+  .fav small { display:block; font-size:.68rem; color:var(--muted); }
+  .fav .rm { border:none; background:#fee2e2; color:#b91c1c; border-radius:8px; width:30px; height:30px; font-weight:900; cursor:pointer; flex-shrink:0; }
+  .addfav { display:flex; gap:6px; margin-top:8px; }
+  .addfav select { flex:1; }
+  .addfav button { border:none; background:#ea580c; color:#fff; font-weight:800; border-radius:10px; padding:0 12px; cursor:pointer; font-family:inherit; white-space:nowrap; }
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="wrap">
   <div class="head">
-    <h2>⚙️ Tin &amp; ảnh hành trình</h2>
+    <h2>⚙️ Nút, tin &amp; ảnh</h2>
     <a class="back" href="/messages">← Nhắn khách</a>
   </div>
   <div class="intro">
@@ -45,6 +61,7 @@
     gửi hành lý, thanh toán) thì chọn mẫu riêng cho từng căn; căn không chọn sẽ dùng <b>Mặc định</b>.
     Ảnh lưu trong cơ sở dữ liệu — cập nhật web không bị mất. Sửa chữ của mẫu ở <a class="edit" href="{{ url_for('ai_assistant') }}">Mẫu Câu</a>.
   </div>
+  <div id="btns"></div>
   <div id="lost"></div>
   <div id="steps"><div class="none">⏳ Đang tải…</div></div>
 </div>
@@ -62,6 +79,53 @@
     document.getElementById('lost').innerHTML = cfg.lost_images
       ? `<div class="lost">⚠️ ${cfg.lost_images} ảnh cũ trong Mẫu Câu đã mất khi web cập nhật (ảnh cũ lưu dạng file). Tải lại ảnh ở các bước dưới đây.</div>` : '';
     render();
+  }
+
+  // ── 📌 the buttons on each guest card ──
+  function renderButtons() {
+    const prefs = cfg.prefs, favs = cfg.favorites;
+    const box = document.getElementById('btns');
+    box.innerHTML = `<div class="btnbox">
+      <h3>📌 Nút trên thẻ khách</h3>
+      <div class="hint">Bật các bước bạn hay nhắn; ghim thêm mẫu hay dùng thành nút riêng (vd. Check in trễ, Nhắc để chìa, Taxi).</div>
+      <div class="toggles">${cfg.steps.map(s => `<label><input type="checkbox" data-step="${s.key}" ${prefs.hidden.includes(s.key) ? '' : 'checked'}>
+        ${s.emoji} ${esc(s.label)}</label>`).join('')}</div>
+      <div class="rlab" style="margin-top:8px">Mẫu đã ghim</div>
+      ${favs.length ? '' : '<div class="none">Chưa ghim mẫu nào.</div>'}
+      ${favs.map(f => `<div class="fav" data-id="${f.id}">
+          <input class="em" value="${esc(f.emoji)}" maxlength="4" aria-label="Biểu tượng">
+          <div style="flex:1;min-width:0"><input class="lb" value="${esc(f.label)}" maxlength="30" placeholder="Tên nút ngắn" style="width:100%">
+            <small>${esc(f.name)}</small></div>
+          <button type="button" class="rm" title="Bỏ ghim">✕</button></div>`).join('')}
+      <div class="addfav"><select>${options('').replace('— không dùng —', '— chọn mẫu để ghim —')}</select>
+        <button type="button">＋ Ghim</button></div>
+      <div class="state"></div>
+    </div>`;
+    const state = box.querySelector('.state');
+    const save = async next => {
+      state.textContent = 'Đang lưu…'; state.className = 'state';
+      const r = await fetch('/api/journey/prefs', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(next) }).then(x => x.json()).catch(() => null);
+      if (!r || !r.success) { state.textContent = '❌ Không lưu được'; state.className = 'state err'; return; }
+      cfg.prefs = r.prefs; cfg.favorites = r.favorites;
+      renderButtons();
+      const st2 = document.querySelector('#btns .state'); st2.textContent = '✅ Đã lưu'; st2.className = 'state ok';
+    };
+    const current = () => ({
+      hidden: [...box.querySelectorAll('.toggles input')].filter(i => !i.checked).map(i => i.dataset.step),
+      favorites: [...box.querySelectorAll('.fav')].map(el => ({ id: +el.dataset.id,
+        emoji: el.querySelector('.em').value.trim() || '📌', label: el.querySelector('.lb').value.trim() })),
+    });
+    box.querySelectorAll('.toggles input').forEach(i => i.onchange = () => save(current()));
+    box.querySelectorAll('.fav input').forEach(i => i.onchange = () => save(current()));
+    box.querySelectorAll('.fav .rm').forEach(b => b.onclick = () => { b.closest('.fav').remove(); save(current()); });
+    box.querySelector('.addfav button').onclick = () => {
+      const id = +box.querySelector('.addfav select').value;
+      if (!id) return;
+      const next = current();
+      if (!next.favorites.some(f => f.id === id)) next.favorites.push({ id, emoji: '📌', label: '' });
+      save(next);
+    };
   }
 
   function options(selected) {
@@ -97,7 +161,8 @@
         ${rowHtml(s, 0, s.per_apt ? 'Mặc định' : 'Mẫu dùng', s.per_apt ? '(căn chưa chọn riêng)' : '')}
         ${s.per_apt ? cfg.apartments.map(a => rowHtml(s, a.id, a.name, '')).join('') : ''}
       </div>`).join('');
-    document.querySelectorAll('.row').forEach(bind);
+    document.querySelectorAll('#steps .row').forEach(bind);
+    renderButtons();
   }
 
   function bind(row) {

@@ -7,7 +7,9 @@ template's pictures (template_images, stored in the database so redeploys do not
 
   journey_map   (step, apartment_id, template_id)   apartment_id 0 = default for every apartment
   journey_log   (booking_id, step, sent_at)         what has already been sent to a booking
+  journey_prefs (key, value)                        the owner's card buttons: hidden steps + pinned templates
 """
+import json
 import re
 import unicodedata
 from datetime import timedelta
@@ -73,6 +75,8 @@ def ensure(session):
                 step VARCHAR(30) NOT NULL,
                 sent_at TIMESTAMP NOT NULL DEFAULT NOW(),
                 PRIMARY KEY (booking_id, step))"""))
+        session.execute(text("""
+            CREATE TABLE IF NOT EXISTS journey_prefs (key VARCHAR(40) PRIMARY KEY, value TEXT NOT NULL)"""))
         # Pictures live in the database: files on Railway's disk vanish at every deploy
         session.execute(text("ALTER TABLE template_images ADD COLUMN IF NOT EXISTS image_data BYTEA"))
         session.execute(text("ALTER TABLE template_images ADD COLUMN IF NOT EXISTS image_mime VARCHAR(30)"))
@@ -162,10 +166,10 @@ def template_for(jmap, step, apt_id):
     return m.get(apt_id) if apt_id is not None and apt_id in m else m.get(0)
 
 
-def recommended_step(sent, checkin, checkout, today):
-    """First step not sent yet whose time has come (optional steps are never suggested)."""
+def recommended_step(sent, checkin, checkout, today, hidden=()):
+    """First step not sent yet whose time has come (optional and hidden steps are never suggested)."""
     for s in STEPS:
-        if s.get('optional') or s['key'] in sent:
+        if s.get('optional') or s['key'] in sent or s['key'] in hidden:
             continue
         anchor, offset = s['from']
         base = checkin if anchor == 'ci' else checkout
@@ -204,3 +208,52 @@ def log_sent(session, booking_id, step, sent=True):
         session.execute(text("DELETE FROM journey_log WHERE booking_id = :b AND step = :s"),
                         {'b': booking_id, 's': step})
     session.commit()
+
+
+# ── the owner's buttons on each guest card ─────────────────────────────────────
+# hidden: journey steps not shown (the owner rarely sends "Cảm ơn")
+# favorites: Mẫu Câu templates pinned as extra buttons ("Check in trễ", "Nhắc để chìa", …)
+DEFAULT_PREFS = {'hidden': ['thanks'], 'favorites': []}
+FAV_RE = re.compile(r'^fav:(\d+)$')
+
+
+def is_step_key(key):
+    return key in STEP_KEYS or bool(FAV_RE.match(str(key or '')))
+
+
+def get_prefs(session):
+    row = session.execute(text("SELECT value FROM journey_prefs WHERE key = 'buttons'")).fetchone()
+    try:
+        p = json.loads(row[0]) if row else {}
+    except ValueError:
+        p = {}
+    hidden = [k for k in p.get('hidden', DEFAULT_PREFS['hidden']) if k in STEP_KEYS]
+    favs = []
+    for f in p.get('favorites', []):
+        try:
+            favs.append({'id': int(f['id']), 'label': str(f.get('label') or '')[:30], 'emoji': str(f.get('emoji') or '📌')[:4]})
+        except (KeyError, TypeError, ValueError):
+            continue
+    return {'hidden': hidden, 'favorites': favs[:12]}
+
+
+def set_prefs(session, prefs):
+    clean = {'hidden': [k for k in prefs.get('hidden', []) if k in STEP_KEYS],
+             'favorites': [{'id': int(f['id']), 'label': str(f.get('label') or '')[:30], 'emoji': str(f.get('emoji') or '📌')[:4]}
+                           for f in prefs.get('favorites', []) if str(f.get('id', '')).isdigit()][:12]}
+    session.execute(text("""
+        INSERT INTO journey_prefs (key, value) VALUES ('buttons', :v)
+        ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value"""), {'v': json.dumps(clean, ensure_ascii=False)})
+    session.commit()
+    return clean
+
+
+def favorites_named(session, prefs):
+    """Pinned templates with a label to show (their own label, else the template name); missing ones dropped."""
+    ids = [f['id'] for f in prefs['favorites']]
+    if not ids:
+        return []
+    names = {r[0]: r[1] for r in session.execute(text(
+        "SELECT template_id, template_name FROM message_templates WHERE template_id = ANY(:i)"), {'i': ids}).fetchall()}
+    return [{'key': f"fav:{f['id']}", 'id': f['id'], 'emoji': f['emoji'], 'label': f['label'] or names[f['id']],
+             'name': names[f['id']]} for f in prefs['favorites'] if f['id'] in names]

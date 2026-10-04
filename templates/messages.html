@@ -26,6 +26,12 @@
   .group-t.partner { color:#7c3aed; } .group-t.nophone { color:#b45309; }
   .card { background:#fff; border:1px solid var(--line); border-radius:14px; padding:11px 12px; margin-bottom:10px; }
   .card.partner { border-color:#ddd6fe; } .card.nophone { border-style:dashed; }
+  .chead { display:flex; gap:10px; align-items:flex-start; }
+  .cinfo { flex:1; min-width:0; }
+  .cshot { width:86px; height:80px; object-fit:cover; object-position:top left; border-radius:9px; border:1px solid var(--line);
+           flex-shrink:0; cursor:zoom-in; background:#f8fafc; }
+  .cshot.none { display:flex; align-items:center; justify-content:center; text-align:center; font-size:.62rem; font-weight:700;
+                color:#94a3b8; border-style:dashed; cursor:default; line-height:1.3; }
   .ctop { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
   .ctop b { font-size:1.02rem; color:var(--ink); }
   .apt { font-size:.7rem; font-weight:800; border-radius:999px; padding:2px 8px; background:#e0f2fe; color:#075985; }
@@ -34,17 +40,19 @@
   .cphone { font-size:.8rem; color:#334155; font-weight:600; margin-top:2px; }
   .cphone.partner { color:#6d28d9; } .cphone.none { color:#b45309; }
 
-  .jstrip { display:grid; grid-template-columns:repeat(4, 1fr); gap:6px; margin-top:10px; }
+  .jstrip { display:grid; grid-template-columns:repeat(4, 1fr); gap:11px 6px; margin-top:12px; }
   .jchip { display:flex; flex-direction:column; align-items:center; gap:1px; border:1.5px solid var(--line); background:#f8fafc;
            border-radius:11px; padding:6px 2px; cursor:pointer; font-family:inherit; color:#334155; min-width:0; position:relative; }
   .jchip .e { font-size:1.15rem; line-height:1.2; }
   .jchip .l { font-size:.64rem; font-weight:700; line-height:1.15; text-align:center; }
   .jchip.sent { background:#dcfce7; border-color:#86efac; color:#166534; }
   .jchip.sent::after { content:'✓'; position:absolute; top:2px; right:5px; font-size:.7rem; font-weight:900; color:#16a34a; }
-  .jchip.next { border-color:#2563eb; background:#eff6ff; color:#1d4ed8; box-shadow:0 0 0 2px #bfdbfe;
-                animation:jpulse 1.4s ease-in-out infinite; }
-  @keyframes jpulse { 50% { box-shadow:0 0 0 5px #dbeafe; } }
+  .jchip.next { border:2px solid #2563eb; background:#dbeafe; color:#1d4ed8; }
+  .jchip.next::before { content:'TIẾP'; position:absolute; top:-7px; left:50%; transform:translateX(-50%); background:#2563eb;
+                        color:#fff; font-size:.52rem; font-weight:900; border-radius:6px; padding:0 5px; letter-spacing:.3px; }
   .jchip.more { background:#fff; border-style:dashed; }
+  .jchip.fav { background:#fff7ed; border-color:#fed7aa; color:#9a3412; }
+  .jchip.fav.sent { background:#dcfce7; border-color:#86efac; color:#166534; }
 
   .empty { text-align:center; color:var(--muted); padding:30px 10px; background:#fff; border:1px dashed var(--line); border-radius:14px; }
 </style>
@@ -55,17 +63,29 @@
 {% block content %}
 {% macro card(g, kind) %}
 <div class="card {{ kind }}" data-bid="{{ g.booking_id }}">
-  <div class="ctop">
-    <b>{{ g.name }}</b>
-    <span class="apt {{ '' if g.apt else 'none' }}">{{ g.apt or 'chưa xếp căn' }}</span>
+  <div class="chead">
+    <div class="cinfo">
+      <div class="ctop">
+        <b>{{ g.name }}</b>
+        <span class="apt {{ '' if g.apt else 'none' }}">{{ g.apt or 'chưa xếp căn' }}</span>
+      </div>
+      <div class="cmeta">{{ g.nhan }} → {{ g.tra }}{% if g.phong %} · {{ g.phong }}{% endif %}</div>
+      {% if kind == 'phone' %}<div class="cphone">📞 {{ g.phone }}</div>
+      {% elif kind == 'partner' %}<div class="cphone partner">🤝 Đặt qua đối tác — nhắn trong khung chat Booking</div>
+      {% else %}<div class="cphone none">⏳ Chưa có số — mở đặt phòng trên máy tính, bấm hiện số</div>{% endif %}
+    </div>
+    {# The Booking screenshot that will be sent — visible here to check it first #}
+    {% if g.shot %}
+    <img class="cshot" loading="lazy" alt="Ảnh đặt phòng" title="Ảnh đặt phòng — chạm để xem to"
+         src="/api/booking_screenshot/{{ g.booking_id }}?v=guest&t={{ g.shot }}"
+         onclick="Journey.zoom(this.src, '/api/booking_screenshot/{{ g.booking_id }}?v=full&t={{ g.shot }}')">
+    {% else %}
+    <div class="cshot none" title="Mở đặt phòng này trên máy tính, tiện ích tự chụp">📸<br>chưa có<br>ảnh</div>
+    {% endif %}
   </div>
-  <div class="cmeta">{{ g.nhan }} → {{ g.tra }}{% if g.phong %} · {{ g.phong }}{% endif %}</div>
-  {% if kind == 'phone' %}<div class="cphone">📞 {{ g.phone }}</div>
-  {% elif kind == 'partner' %}<div class="cphone partner">🤝 Đặt qua đối tác — nhắn trong khung chat Booking</div>
-  {% else %}<div class="cphone none">⏳ Chưa có số — mở đặt phòng trên máy tính, bấm hiện số</div>{% endif %}
   <div class="jstrip">
-    {% for s in steps %}
-    <button type="button" class="jchip {{ 'sent' if s.key in g.sent }} {{ 'next' if g.next == s.key }}"
+    {% for s in buttons %}
+    <button type="button" class="jchip {{ 'sent' if s.key in g.sent }} {{ 'next' if g.next == s.key }} {{ 'fav' if s.id }}"
             data-bid="{{ g.booking_id }}" data-step="{{ s.key }}"
             onclick="Journey.open('{{ g.booking_id }}', '{{ s.key }}')">
       <span class="e">{{ s.emoji }}</span><span class="l">{{ s.label }}</span>
@@ -80,7 +100,7 @@
 <div class="wrap">
   <div class="head">
     <h2>💬 Nhắn khách</h2>
-    <a class="gear" href="/journey">⚙️ Tin &amp; ảnh</a>
+    <a class="gear" href="/journey">⚙️ Nút, tin &amp; ảnh</a>
   </div>
   <div class="tabs">
     <a href="?view=arriving&days={{ days }}" class="{{ 'on' if view == 'arriving' }}">🛬 Sắp đến</a>
@@ -96,7 +116,7 @@
     </div>
     {% endif %}
   </div>
-  <div class="legend">Chạm một bước để xem tin + ảnh rồi gửi · <b style="color:#16a34a">✓</b> đã gửi · <b style="color:#1d4ed8">ô xanh nhấp nháy</b> = nên gửi tiếp</div>
+  <div class="legend">Chạm một bước để xem tin + ảnh rồi gửi · <b style="color:#16a34a">✓</b> đã gửi · <b style="color:#1d4ed8">TIẾP</b> = nên gửi tiếp</div>
 
   {% for g in guests %}{{ card(g, 'phone') }}{% endfor %}
   {% if not guests and not partner and not no_phone %}
@@ -116,5 +136,5 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="{{ url_for('static', filename='js/journey.js') }}"></script>
+<script src="{{ asset('js/journey.js') }}"></script>
 {% endblock %}

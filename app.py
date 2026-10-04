@@ -204,7 +204,20 @@ def add_header(response):
         response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, post-check=0, pre-check=0, max-age=0'
         response.headers['Pragma'] = 'no-cache'
         response.headers['Expires'] = '-1'
+    elif request.path.startswith('/static/') and request.args.get('v') and response.status_code == 200:
+        # asset() URLs carry the file's version, so the phone can keep them without asking again
+        response.headers['Cache-Control'] = 'public, max-age=31536000, immutable'
     return response
+
+
+@app.template_global()
+def asset(filename):
+    """url_for('static') + ?v=<file mtime>: cached for good, and a new deploy changes the URL."""
+    try:
+        v = int(os.path.getmtime(os.path.join(app.static_folder, filename)))
+    except OSError:
+        v = 0
+    return url_for('static', filename=filename, v=v)
 
 # ==============================================================================
 # HELPER FUNCTIONS
@@ -2118,13 +2131,26 @@ def journey_config():
         imgs = J.images_of(_xdb.session, [t['id'] for t in tpls if t['images']])
         lost = _xdb.session.execute(text("SELECT COUNT(*) FROM template_images WHERE image_data IS NULL")).scalar()
         jmap = J.load_map(_xdb.session)
+        prefs = J.get_prefs(_xdb.session)
         return jsonify({'success': True, 'steps': _jsonable_steps(J), 'apartments': J.apartments(_xdb.session),
+                        'prefs': prefs, 'favorites': J.favorites_named(_xdb.session, prefs),
                         'map': {s: {str(a): t for a, t in m.items()} for s, m in jmap.items()},
                         'templates': tpls, 'images': {str(k): v for k, v in imgs.items()}, 'lost_images': lost})
     except Exception as e:
         from core.models import db as _xdb
         _xdb.session.rollback()
         return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/journey/prefs', methods=['GET', 'POST'])
+def journey_prefs():
+    """The owner's buttons on each guest card: which steps are hidden, which templates are pinned."""
+    _xdb, J = _journey()
+    if request.method == 'POST':
+        prefs = J.set_prefs(_xdb.session, request.get_json(silent=True) or {})
+    else:
+        prefs = J.get_prefs(_xdb.session)
+    return jsonify({'success': True, 'prefs': prefs, 'favorites': J.favorites_named(_xdb.session, prefs)})
 
 
 @app.route('/api/journey/map', methods=['POST'])
@@ -2266,8 +2292,12 @@ def journey_guest(booking_id):
                           'text': J.fill(t['content'], b['guest']) if t else '',
                           'images': pics, 'sent_at': sent.get(s['key']),
                           'needs_apt': bool(unplaced)})
-        return jsonify({'success': True, 'steps': steps,
-                        'recommended': J.recommended_step(sent, b['checkin'], b['checkout'], today),
+        prefs = J.get_prefs(_xdb.session)
+        favs = J.favorites_named(_xdb.session, prefs)
+        for f in favs:
+            f['sent_at'] = sent.get(f['key'])
+        return jsonify({'success': True, 'steps': steps, 'hidden': prefs['hidden'], 'favorites': favs,
+                        'recommended': J.recommended_step(sent, b['checkin'], b['checkout'], today, prefs['hidden']),
                         'booking': {'id': b['id'], 'name': J.clean_name(b['name']), 'nhan': b['guest']['nhan'],
                                     'tra': b['guest']['tra'], 'phong': b['guest']['phong'], 'phone': b['phone'],
                                     'links': b['links'], 'partner': b['partner'],
@@ -2305,7 +2335,7 @@ def journey_sent():
     _xdb, J = _journey()
     body = request.get_json(silent=True) or {}
     bid, step = str(body.get('booking_id') or '').strip(), body.get('step')
-    if not bid or step not in J.STEP_KEYS:
+    if not bid or not J.is_step_key(step):
         return jsonify({'success': False, 'error': 'Dữ liệu không hợp lệ'}), 400
     J.log_sent(_xdb.session, bid, step, bool(body.get('sent', True)))
     return jsonify({'success': True})
@@ -2340,6 +2370,13 @@ def messages_page():
 
     sent = J.sent_status(_xdb.session, [r[0] for r in rows])
     apts = {a['id']: a for a in J.apartments(_xdb.session)}
+    prefs = J.get_prefs(_xdb.session)
+    buttons = ([s for s in J.STEPS if s['key'] not in prefs['hidden']]
+               + J.favorites_named(_xdb.session, prefs))
+    _ensure_shot_table()      # which guests already have the Booking screenshot (shown on the card to check)
+    shots = {b: t for b, t in _xdb.session.execute(text(
+        "SELECT booking_id, updated_at FROM booking_screenshots WHERE booking_id = ANY(:b)"),
+        {'b': [r[0] for r in rows]}).fetchall()} if rows else {}
     guests, no_phone, partner = [], [], []
     for r in rows:
         ci, co = r[2], r[3]
@@ -2350,7 +2387,8 @@ def messages_page():
             'nhan': ci.strftime('%d/%m') if ci else '', 'tra': co.strftime('%d/%m') if co else '',
             'phong': _room_label(r[4]), 'phone': r[5] or '',
             'apt': apt['name'] if apt else '',
-            'sent': done, 'next': J.recommended_step(done, ci, co, today),
+            'sent': done, 'next': J.recommended_step(done, ci, co, today, prefs['hidden']),
+            'shot': int(shots[r[0]].timestamp()) if r[0] in shots else None,
         }
         if r[6]:                       # partner booking: any number on file is the partner's
             partner.append(item)
@@ -2360,7 +2398,7 @@ def messages_page():
             no_phone.append(item)
     return render_template('messages.html', guests=guests, no_phone=no_phone, partner=partner,
                            view=view, days=days, today_str=today.strftime('%d/%m/%Y'), total=len(rows),
-                           steps=J.STEPS)
+                           buttons=buttons)
 
 
 @app.route('/bookings')
