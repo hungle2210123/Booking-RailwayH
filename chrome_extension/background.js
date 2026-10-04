@@ -23,28 +23,42 @@ chrome.runtime.onInstalled.addListener(() => {
 chrome.contextMenus.onClicked.addListener((info, tab) => { if (info.menuItemId === 'hp-shot') shoot(tab); });
 chrome.commands.onCommand.addListener((cmd, tab) => { if (cmd === 'capture-booking') shoot(tab); });
 
-async function shoot(tab) {
+// Optional, switched on by the owner in the popup: lets the extension capture right after Booking's
+// own "Hiển thị số điện thoại" is clicked (that click alone does not grant activeTab).
+const AUTO_SHOT_PERMISSION = { origins: ['<all_urls>'] };
+
+async function shoot(tab, auto = false) {
   if (!tab || !BOOKING_RE.test(tab.url || '')) return { success: false, error: 'Mở một đặt phòng trên admin.booking.com trước' };
   const tell = msg => chrome.tabs.sendMessage(tab.id, msg).catch(() => null);
-  const prep = await tell({ type: 'shot-prepare' });
+  const prep = await tell({ type: 'shot-prepare', auto });
   if (!prep?.ok) {
-    await tell({ type: 'shot-error', error: prep?.error || 'Tải lại trang Booking (F5) rồi thử lại' });
+    if (!auto) await tell({ type: 'shot-error', error: prep?.error || 'Tải lại trang Booking (F5) rồi thử lại' });
     return { success: false, error: prep?.error };
   }
   await new Promise(r => setTimeout(r, 300));          // let the page settle after scrolling
   try {
+    // captureVisibleTab takes whatever tab is showing — make sure it is still this Booking page
+    const now = await chrome.tabs.get(tab.id);
+    if (!now.active || !BOOKING_RE.test(now.url || '')) throw new Error('Trang Booking không còn đang mở trên màn hình');
     const dataUrl = await chrome.tabs.captureVisibleTab(tab.windowId, { format: 'png' });
-    await tell({ type: 'shot-image', dataUrl });
+    await tell({ type: 'shot-image', dataUrl, auto });
     return { success: true };
   } catch (e) {
-    await tell({ type: 'shot-error', error: 'Không chụp được: ' + e.message });
+    await tell({ type: 'shot-error', error: 'Không chụp được: ' + e.message, auto });
     return { success: false, error: e.message };
   }
 }
 
-chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
+chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (msg?.type === 'shoot') {                        // from the toolbar popup
     chrome.tabs.query({ active: true, currentWindow: true }).then(([tab]) => shoot(tab)).then(sendResponse);
+    return true;
+  }
+  if (msg?.type === 'auto-shot') {                    // the guest's phone was just revealed on this page
+    chrome.permissions.contains(AUTO_SHOT_PERMISSION).then(ok => {
+      if (!ok) return { success: false, reason: 'off' };
+      return shoot(sender.tab, true);
+    }).then(sendResponse);
     return true;
   }
   if (msg?.type !== 'api') return false;

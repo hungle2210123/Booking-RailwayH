@@ -15,6 +15,26 @@ $('shoot').addEventListener('click', () => {
   setTimeout(() => window.close(), 150);     // the result shows on the Booking page itself
 });
 
+// ⚡ Auto-capture when the phone is revealed — needs an optional permission the owner grants here
+const AUTO = { origins: ['<all_urls>'] };
+async function autoUI() {
+  const on = await chrome.permissions.contains(AUTO);
+  $('autoState').textContent = on ? '✅ đang bật' : '⏸ đang tắt';
+  $('autoOn').style.display = on ? 'none' : '';
+  $('autoOff').style.display = on ? '' : 'none';
+}
+$('autoOn').addEventListener('click', async () => {
+  const ok = await chrome.permissions.request(AUTO);
+  await autoUI();
+  ok ? say('✅ Đã bật — F5 trang Booking rồi bấm "Hiển thị số điện thoại"', true) : say('Chưa bật (bạn đã từ chối quyền)');
+});
+$('autoOff').addEventListener('click', async () => {
+  await chrome.permissions.remove(AUTO);
+  await autoUI();
+  say('Đã tắt tự chụp', true);
+});
+autoUI();
+
 $('test').addEventListener('click', async () => {
   await chrome.storage.sync.set({ server: $('server').value.trim() || DEFAULTS.server, token: $('token').value.trim() });
   say('Đang kiểm tra...', true);

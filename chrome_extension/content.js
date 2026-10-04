@@ -510,7 +510,26 @@
       else if (r.status === 'same') toast(`📞 SĐT của <b>${esc(r.guest_name)}</b> đã có trên web`);
       else if (r.status === 'duplicate') toast(`⚠️ Số <b>${esc(r.phone)}</b> đang là của khách <b>${esc(r.other_name)}</b> — chưa lưu, kiểm tra lại`, 'warn');
       else if (r.status === 'not_on_web') toast(`📞 Thấy SĐT nhưng booking #${esc(r.booking_id)} chưa có trên web — bấm 📥 để thêm trước`, 'warn');
+      if (['saved', 'same', 'partner'].includes(r.status)) autoShot();
     } finally { phoneBusy = false; }
+  }
+
+  // ⚡ The phone is now on screen → also capture the reservation box, if switched on in the popup
+  // ("Tự chụp khi bấm Hiển thị số điện thoại"). Once per booking per page.
+  const autoShotDone = new Set();
+  let lastPhoneToast = '';
+  function autoShot() {
+    const bid = resId();
+    if (!bid || autoShotDone.has(bid) || !chrome.runtime?.id) return;
+    autoShotDone.add(bid);
+    lastPhoneToast = $('#toast')?.innerHTML || '';
+    chrome.runtime.sendMessage({ type: 'auto-shot' }).then(r => {
+      if (r?.reason !== 'off') return;
+      autoShotDone.delete(bid);
+      let hinted = false;
+      try { hinted = sessionStorage.getItem('hp_autoshot_hint') === '1'; sessionStorage.setItem('hp_autoshot_hint', '1'); } catch (e) {}
+      if (!hinted) toast(lastPhoneToast + '<br><small>⚡ Muốn lưu luôn ảnh đặt phòng mỗi lần hiện số: bấm biểu tượng tiện ích → <b>Bật tự chụp</b>.</small>');
+    }).catch(() => autoShotDone.delete(bid));
   }
   // Chỉ phản ứng khi bạn bấm đúng nút "Hiển thị số điện thoại"; số hiện ra sau đó một chút.
   document.addEventListener('click', e => {
@@ -604,7 +623,7 @@
   const grow = (a, p) => box({ left: a.left - p, top: a.top - p, right: a.right + p, bottom: a.bottom + p });
   let pendingShot = null;
 
-  function prepareShot() {
+  function prepareShot(auto) {
     const bid = resId();
     if (!bid) return { ok: false, error: 'Mở trang chi tiết của một đặt phòng rồi chụp lại' };
     const visibleLeaves = () => [...document.querySelectorAll('body *')]
@@ -625,6 +644,7 @@
       if (b.width <= a.width + 60 && b.height <= a.height + 80) card = p; else break;
     }
     // Put it near the top of the screen (instantly, so positions are final)
+    const backTo = window.scrollY;
     window.scrollTo({ top: Math.max(0, R(card).top + window.scrollY - 70), behavior: 'instant' });
     leaves = visibleLeaves();
     const cardR = box(R(card));
@@ -661,7 +681,7 @@
     host.style.visibility = 'hidden';            // our own buttons must not appear in the picture
     setTimeout(() => { host.style.visibility = ''; }, 6000);   // never leave them hidden if the capture fails
     panel.classList.remove('open');
-    pendingShot = { bid, area, masks, vw: window.innerWidth, vh: window.innerHeight, cut: area.bottom > window.innerHeight };
+    pendingShot = { bid, area, masks, auto: !!auto, backTo, vw: window.innerWidth, vh: window.innerHeight, cut: area.bottom > window.innerHeight };
     return { ok: true };
   }
 
@@ -676,6 +696,7 @@
         i.onerror = () => rej(new Error('Ảnh chụp bị lỗi'));
         i.src = dataUrl;
       });
+      window.scrollTo({ top: p.backTo, behavior: 'instant' });     // picture taken — page back where you were
       const s = img.width / p.vw;
       const a = { left: Math.max(0, p.area.left), top: Math.max(0, p.area.top),
                   right: Math.min(p.vw, p.area.right), bottom: Math.min(p.vh, p.area.bottom) };
@@ -693,9 +714,13 @@
       };
       const full = make(false), guest = make(true);
       host.style.visibility = '';
-      toast('📸 Đang lưu ảnh lên web…');
+      if (!p.auto) toast('📸 Đang lưu ảnh lên web…');
       const r = await api('/api/ext/booking/screenshot', { booking_id: p.bid, full, guest });
       if (!r?.success) throw new Error(r?.error || 'Lỗi không rõ');
+      if (p.auto) {
+        toast((lastPhoneToast ? lastPhoneToast + '<br>' : '') + '📸 Đã lưu luôn <b>ảnh đặt phòng</b> (bản gửi khách đã che hoa hồng)', 'ok');
+        return;
+      }
       $('#toast')?.remove();
       panel.innerHTML = `<h3>📸 Đã lưu ảnh đặt phòng #${esc(r.booking_id)}</h3>
         <p class="hint">Đây là bản <b>gửi khách</b> (đã che hoa hồng, IATA, ghi chú nội bộ). Bản đầy đủ cũng đã lưu để quản lý.
@@ -711,15 +736,19 @@
       toast('❌ Chụp ảnh: ' + esc(e.message), 'warn');
     }
   }
+  function cancelShot() {           // capture refused / failed: buttons back, page back
+    host.style.visibility = '';
+    if (pendingShot) { window.scrollTo({ top: pendingShot.backTo, behavior: 'instant' }); pendingShot = null; }
+  }
 
   chrome.runtime.onMessage.addListener((msg, _sender, reply) => {
     if (msg?.type === 'shot-prepare') {
-      try { reply(prepareShot()); } catch (e) { host.style.visibility = ''; reply({ ok: false, error: e.message }); }
+      try { reply(prepareShot(msg.auto)); } catch (e) { cancelShot(); reply({ ok: false, error: e.message }); }
     } else if (msg?.type === 'shot-image') {
       finishShot(msg.dataUrl);
     } else if (msg?.type === 'shot-error') {
-      host.style.visibility = '';
-      toast('📸 ' + esc(msg.error), 'warn');
+      cancelShot();
+      toast((msg.auto ? '📸 Không tự chụp được ảnh: ' : '📸 ') + esc(msg.error), 'warn');
     }
     return false;
   });

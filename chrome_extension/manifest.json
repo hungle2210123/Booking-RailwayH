@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Gửi về Hotel Pro",
-  "version": "1.8.0",
+  "version": "1.9.0",
   "description": "Gửi đặt phòng đang xem trên extranet Booking.com (kèm số điện thoại) về web Hotel Pro bằng 1 cú bấm.",
   "permissions": [
     "storage",
@@ -40,5 +40,8 @@
       },
       "description": "Chụp ảnh đặt phòng đang mở (gửi khách)"
     }
-  }
+  },
+  "optional_host_permissions": [
+    "<all_urls>"
+  ]
 }

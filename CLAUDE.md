@@ -282,6 +282,8 @@ started from the toolbar popup, the right-click menu or Alt+Shift+S — an in-pa
 via `POST /api/ext/booking/screenshot`; served by `GET /api/booking_screenshot/<bid>?v=guest|full`.
 `static/js/booking_card.js` (`HotelCard.open`) shows the guest version and shares it via the phone share sheet
 (wa.me cannot carry images); falls back to a drawn confirmation card when no screenshot exists.
+Auto mode: optional host permission `<all_urls>` (granted from the popup "Bật tự chụp") lets the capture run right
+after the phone is saved (`auto-shot` message → `shoot(tab, true)`); checks the tab is still active, restores scroll.
 Room names shown to guests go through `_room_label()` / `looks_like_room()` (a Booking notice was once stored as a room).
 
 ### **📞 Chrome extension — phone handling**

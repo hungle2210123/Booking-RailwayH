@@ -17,6 +17,10 @@
     .shoot { width: 100%; background: #7c3aed; color: #fff; font-size: 14px; padding: 11px; }
     .shint { margin: 6px 0 10px; }
     hr { border: 0; border-top: 1px solid #e2e8f0; margin: 8px 0; }
+    .auto { background: #f5f3ff; border: 1px solid #ddd6fe; border-radius: 10px; padding: 9px 10px; margin-bottom: 10px; }
+    .auto-head { font-size: 13px; margin-bottom: 4px; }
+    .auto .row { margin-top: 8px; }
+    .auto-on { background: #16a34a; color: #fff; } .auto-off { background: #e2e8f0; }
   </style>
 </head>
 <body>
@@ -24,6 +28,16 @@
   <button id="shoot" type="button" class="shoot">📸 Chụp ảnh đặt phòng đang mở</button>
   <p class="shint"><small>Lưu 2 bản lên web: bản đầy đủ để quản lý, bản gửi khách (đã che hoa hồng, ghi chú nội bộ).
     Cũng chụp được bằng <b>chuột phải → 📸</b> hoặc phím <b>Alt+Shift+S</b>.</small></p>
+  <div class="auto">
+    <div class="auto-head"><b>⚡ Tự chụp khi bấm "Hiển thị số điện thoại"</b> <span id="autoState"></span></div>
+    <small>Bật thì mỗi lần bạn bấm hiện số trong một đặt phòng, tiện ích lưu số <b>và</b> chụp ảnh đặt phòng luôn.
+      Chrome sẽ hỏi quyền "đọc dữ liệu trên mọi trang web" — tiện ích chỉ dùng quyền này để chụp trang Booking
+      đang mở trước mắt bạn. Tắt lại lúc nào cũng được.</small>
+    <div class="row">
+      <button id="autoOn" type="button" class="auto-on">Bật tự chụp</button>
+      <button id="autoOff" type="button" class="auto-off">Tắt tự chụp</button>
+    </div>
+  </div>
   <hr>
   <label for="server">Địa chỉ web Hotel Pro</label>
   <input id="server" placeholder="https://web-production-8f671.up.railway.app">
