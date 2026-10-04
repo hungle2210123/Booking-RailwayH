@@ -12,7 +12,7 @@ template's pictures (template_images, stored in the database so redeploys do not
 import json
 import re
 import unicodedata
-from datetime import timedelta
+from datetime import datetime, timedelta, timezone
 
 from sqlalchemy import text
 
@@ -218,9 +218,30 @@ DEFAULT_PREFS = {'hidden': ['thanks'], 'favorites': []}
 FAV_RE = re.compile(r'^fav:(\d+)$')
 
 
+# "Đã nhắn" ticked by hand on the guest card (messaged outside the app, e.g. in Booking's chat)
+MANUAL_KEY = 'contacted'
+
+
 def is_step_key(key):
-    """Keys that can be marked as sent: journey steps and pinned templates (not groups)."""
-    return key in STEP_KEYS or bool(FAV_RE.match(str(key or '')))
+    """Keys that can be marked as sent: journey steps, pinned templates (not groups), the manual mark."""
+    return key in STEP_KEYS or key == MANUAL_KEY or bool(FAV_RE.match(str(key or '')))
+
+
+def last_contact(done, favorites=()):
+    """The latest thing sent to a guest → {'label', 'at'} (VN time 'HH:MM dd/mm'), None when nothing yet."""
+    if not done:
+        return None
+    key, at = max(done.items(), key=lambda kv: kv[1])
+    names = {s['key']: f"{s['emoji']} {s['label']}" for s in STEPS}
+    names.update({f['key']: f"{f['emoji']} {f['label']}" for f in favorites})
+    names[MANUAL_KEY] = '✋ Đánh dấu tay'
+    try:
+        t = datetime.fromisoformat(at)
+        t = (t.astimezone(timezone.utc).replace(tzinfo=None) if t.tzinfo else t) + timedelta(hours=7)
+        when = t.strftime('%H:%M %d/%m')
+    except ValueError:
+        when = ''
+    return {'label': names.get(key, '📝 Tin khác'), 'at': when}
 
 
 def _clean_fav(f):

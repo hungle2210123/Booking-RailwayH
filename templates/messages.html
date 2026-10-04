@@ -53,6 +53,22 @@
   .jchip.next::before { content:'TIẾP'; position:absolute; top:-7px; left:50%; transform:translateX(-50%); background:#2563eb;
                         color:#fff; font-size:.52rem; font-weight:900; border-radius:6px; padding:0 5px; letter-spacing:.3px; }
   .jchip.more { background:#fff; border-style:dashed; }
+  .card.todo { border-left:4px solid #ef4444; }
+  .card.done { border-left:4px solid #22c55e; }
+  .cstate { display:block; margin:3px 0 1px; border:none; border-radius:8px; padding:3px 8px; font-size:.72rem; font-weight:800;
+            font-family:inherit; cursor:pointer; text-align:left; max-width:100%; }
+  .cstate.todo { background:#fee2e2; color:#b91c1c; }
+  .cstate.todo small { font-weight:600; opacity:.8; }
+  .cstate.done { background:#dcfce7; color:#166534; }
+  .sfilter { display:flex; gap:6px; margin:6px 0 8px; }
+  .sfilter button { flex:1; border:1.5px solid var(--line); background:#fff; border-radius:10px; padding:7px 4px; font-size:.78rem;
+                    font-weight:800; color:#334155; cursor:pointer; font-family:inherit; }
+  .sfilter button.on { background:#0f172a; border-color:#0f172a; color:#fff; }
+  body.f-todo .card.done, body.f-done .card.todo { display:none; }
+  .fempty { text-align:center; color:var(--muted); font-size:.85rem; padding:14px; }
+  .card.fresh { border:2px solid #22c55e; background:#f0fdf4; }
+  .live-toast { position:fixed; left:50%; bottom:20px; transform:translateX(-50%); background:#16a34a; color:#fff; font-weight:800;
+                font-size:.88rem; padding:10px 18px; border-radius:999px; z-index:9999; box-shadow:0 6px 18px rgba(0,0,0,.2); cursor:pointer; }
   .jchip.fav { background:#fff7ed; border-color:#fed7aa; color:#9a3412; }
   .jchip.fav.sent { background:#dcfce7; border-color:#86efac; color:#166534; }
 
@@ -64,7 +80,7 @@
 
 {% block content %}
 {% macro card(g, kind) %}
-<div class="card {{ kind }}" data-bid="{{ g.booking_id }}">
+<div class="card {{ kind }} {{ 'done' if g.last else 'todo' }}" data-bid="{{ g.booking_id }}">
   <div class="chead">
     <div class="cinfo">
       <div class="ctop">
@@ -72,6 +88,13 @@
         <button type="button" class="apt {{ '' if g.apt else 'none' }}" title="Chọn / đổi căn"
                 onclick="Journey.open('{{ g.booking_id }}', null, {pickApt: true})">{{ g.apt or 'chưa xếp căn' }}</button>
       </div>
+      {% if g.last %}
+      <button type="button" class="cstate done" data-bid="{{ g.booking_id }}" data-manual="{{ 1 if g.manual else 0 }}"
+              title="Chạm để bỏ dấu tay">✅ Đã nhắn · {{ g.last.label }} · {{ g.last.at }}</button>
+      {% else %}
+      <button type="button" class="cstate todo" data-bid="{{ g.booking_id }}" data-manual="0"
+              title="Đã nhắn ngoài app? Chạm để đánh dấu">🔴 Chưa nhắn <small>· chạm nếu đã nhắn ngoài</small></button>
+      {% endif %}
       <div class="cmeta">{{ g.nhan }} → {{ g.tra }}{% if g.phong %} · {{ g.phong }}{% endif %}</div>
       {% if kind == 'phone' %}<div class="cphone">📞 {{ g.phone }}</div>
       {% elif kind == 'partner' %}<div class="cphone partner">🤝 Đặt qua đối tác — nhắn trong khung chat Booking</div>
@@ -109,6 +132,7 @@
     <a href="?view=arriving&days={{ days }}" class="{{ 'on' if view == 'arriving' }}">🛬 Sắp đến</a>
     <a href="?view=staying" class="{{ 'on' if view == 'staying' }}">🏨 Đang ở</a>
   </div>
+  <div id="live">{# swapped in place when new guests / phones / pictures arrive — no manual refresh #}
   <div class="bar">
     <div class="sub">{% if view == 'arriving' %}Nhận phòng từ hôm nay {{ today_str }}{% else %}Đang ở hôm nay {{ today_str }}{% endif %} · {{ total }} khách</div>
     {% if view == 'arriving' %}
@@ -118,6 +142,11 @@
       <a href="?view=arriving&days=7" class="{{ 'on' if days == 7 }}">7 ngày</a>
     </div>
     {% endif %}
+  </div>
+  <div class="sfilter">
+    <button type="button" data-f="all">Tất cả <b></b></button>
+    <button type="button" data-f="todo">🔴 Chưa nhắn <b></b></button>
+    <button type="button" data-f="done">✅ Đã nhắn <b></b></button>
   </div>
   <div class="legend">Chạm một bước để xem tin + ảnh rồi gửi · <b style="color:#16a34a">✓</b> đã gửi · <b style="color:#1d4ed8">TIẾP</b> = nên gửi tiếp</div>
 
@@ -135,9 +164,87 @@
   <div class="group-t nophone">⏳ {{ no_phone|length }} khách chưa có số</div>
   {% for g in no_phone %}{{ card(g, 'nophone') }}{% endfor %}
   {% endif %}
+  </div>
 </div>
 {% endblock %}
 
 {% block scripts %}
 <script src="{{ asset('js/journey.js') }}"></script>
+<script>
+// Keep the list up to date by itself: every 30 s while the page is open, and at once when you come back to it
+// (new bookings from the extension, phones, Booking pictures). Never while a send sheet / picture is open.
+(function () {
+  let busy = false, again = false, last = Date.now();
+  async function refresh(now) {
+    if (busy) { again = again || now; return; }
+    if (document.hidden || document.querySelector('.jr-ov, .jr-zoom')) return;
+    if (!now && Date.now() - last < 25000) return;
+    busy = true; last = Date.now();
+    try {
+      const html = await fetch(location.href, { cache: 'no-store' }).then(r => r.ok ? r.text() : null);
+      const fresh = html && new DOMParser().parseFromString(html, 'text/html').getElementById('live');
+      const cur = document.getElementById('live');
+      if (!fresh || !cur || fresh.innerHTML === cur.innerHTML || document.querySelector('.jr-ov, .jr-zoom')) return;
+      const before = new Set([...cur.querySelectorAll('.card')].map(c => c.dataset.bid));
+      cur.innerHTML = fresh.innerHTML;
+      applyFilter();
+      const added = [...cur.querySelectorAll('.card')].filter(c => !before.has(c.dataset.bid));
+      added.forEach(c => c.classList.add('fresh'));
+      if (added.length) {
+        const t = document.createElement('div');
+        t.className = 'live-toast';
+        t.textContent = `🆕 ${added.length} khách mới`;
+        t.onclick = () => { added[0].scrollIntoView({ behavior: 'smooth', block: 'center' }); t.remove(); };
+        document.body.appendChild(t);
+        setTimeout(() => t.remove(), 6000);
+      }
+    } catch (e) { /* offline — try again later */ } finally {
+      busy = false;
+      if (again) { again = false; refresh(true); }
+    }
+  }
+  // 🔴 Chưa nhắn / ✅ Đã nhắn: filter (remembered on this device) + counts
+  let filter = 'all';
+  try { filter = localStorage.getItem('msg_filter') || 'all'; } catch (e) {}
+  function applyFilter() {
+    document.body.classList.remove('f-todo', 'f-done');
+    if (filter !== 'all') document.body.classList.add('f-' + filter);
+    const cards = [...document.querySelectorAll('#live .card')];
+    const n = { all: cards.length, todo: cards.filter(c => c.classList.contains('todo')).length };
+    n.done = n.all - n.todo;
+    document.querySelectorAll('.sfilter button').forEach(b => {
+      b.classList.toggle('on', b.dataset.f === filter);
+      b.querySelector('b').textContent = n[b.dataset.f];
+    });
+    let em = document.querySelector('#live .fempty');
+    const none = filter !== 'all' && cards.length && !n[filter];
+    if (none && !em) { em = document.createElement('div'); em.className = 'fempty'; document.getElementById('live').appendChild(em); }
+    if (em) { em.style.display = none ? '' : 'none'; em.textContent = filter === 'todo' ? '🎉 Đã nhắn hết khách' : 'Chưa nhắn khách nào'; }
+  }
+  document.addEventListener('click', e => {        // delegated: the bar is inside #live, which gets swapped
+    const b = e.target.closest && e.target.closest('.sfilter button');
+    if (!b) return;
+    filter = b.dataset.f;
+    try { localStorage.setItem('msg_filter', filter); } catch (e2) {}
+    applyFilter();
+  });
+  // tap the red "Chưa nhắn" when you messaged outside the app (Booking chat, a call…); tap a hand mark to undo it
+  document.addEventListener('click', async e => {
+    const st = e.target.closest && e.target.closest('.cstate');
+    if (!st) return;
+    const todo = st.classList.contains('todo');
+    if (!todo && st.dataset.manual !== '1') { Journey.open(st.dataset.bid); return; }   // sent from the app → open its steps
+    st.disabled = true;
+    await fetch('/api/journey/sent', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ booking_id: st.dataset.bid, step: 'contacted', sent: todo }) }).catch(() => {});
+    refresh(true);
+  });
+  window.MsgLive = { refresh: () => refresh(true) };
+  applyFilter();
+  setInterval(() => refresh(false), 30000);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) refresh(true); });
+  window.addEventListener('focus', () => refresh(true));
+  window.addEventListener('pageshow', e => { if (e.persisted) refresh(true); });
+})();
+</script>
 {% endblock %}

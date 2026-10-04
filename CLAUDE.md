@@ -268,6 +268,11 @@ Send = wa.me text (targets the number) or share sheet with pictures + text (text
 Card buttons = `journey_prefs['buttons']`: hidden steps + pinned favorites, each either a template `{id}` (key `fav:<id>`,
 tracked as sent) or a whole group `{cat}` (key `cat:<category>`, opens that group's list — e.g. ❌ Xin hủy, 🔁 Change).
 Pin/unpin with 📌 inside ➕ Tin khác or at /journey. Tapping the apartment chip on a /messages card opens the apartment picker.
+/messages keeps itself up to date: `#live` is re-fetched every 30 s and when the page becomes visible again (never
+while a sheet/zoom is open) and swapped in place; new cards get a green border + "🆕 N khách mới". Each card shows
+🔴 Chưa nhắn / ✅ Đã nhắn (+ last step and VN time, `J.last_contact`); filter Tất cả / Chưa nhắn / Đã nhắn (localStorage,
+delegated clicks — the bar is inside `#live`). Tapping 🔴 records the manual mark `journey_log.step='contacted'`
+(`J.MANUAL_KEY`, messaged outside the app); tapping a hand mark removes it.
 
 ### **💬 "Nhắn khách" page (`/messages`, `templates/messages.html`)**
 Mobile-first page: upcoming arrivals (checkin_date in [today, today+days]) that have a phone, each with

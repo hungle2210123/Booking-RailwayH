@@ -132,8 +132,10 @@
   function close() {
     document.querySelectorAll('.jr-ov').forEach(o => o.remove());
     const reload = st && st.pinsChanged && document.querySelector('.jstrip');
+    const had = !!st;
     st = null;
     if (reload) location.reload();
+    else if (had && window.MsgLive) setTimeout(window.MsgLive.refresh, 700);   // ✅ Đã nhắn on the card
   }
   const curStep = () => st.data.steps.find(s => s.key === st.step);
 

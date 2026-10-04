@@ -2407,6 +2407,8 @@ def messages_page():
             'apt': apt['name'] if apt else '',
             'sent': done, 'next': J.recommended_step(done, ci, co, today, prefs['hidden']),
             'shot': int(shots[r[0]].timestamp()) if r[0] in shots else None,
+            'last': J.last_contact(done, buttons),          # None = not messaged yet
+            'manual': J.MANUAL_KEY in done,
         }
         if r[6]:                       # partner booking: any number on file is the partner's
             partner.append(item)
