@@ -109,7 +109,15 @@
   .live-toast button { margin-left:10px; border:none; background:#fff; color:#0f172a; font-weight:800; border-radius:999px;
                        padding:3px 10px; cursor:pointer; font-family:inherit; }
   .card.gone { opacity:.35; pointer-events:none; transition:opacity .2s; }
-  .cextra { display:none; }
+  .cextra { font-size:.76rem; color:#475569; margin-top:2px; font-weight:600; font-variant-numeric:tabular-nums; }
+  .cextra .cx-id { display:none; }
+  /* ⭐ most valuable guests: warm tint + a ribbon on top (sorted first by the server) */
+  .card.vip1 { background:#fffbeb; border-color:#fcd34d; box-shadow:0 3px 12px rgba(245,158,11,.18); }
+  .card.vip2 { background:linear-gradient(180deg, #fef3c7 0, #fffbeb 140px); border-color:#f59e0b; box-shadow:0 4px 16px rgba(217,119,6,.28); }
+  .vipbar { margin:-11px -12px 9px; padding:5px 12px; border-radius:13px 13px 0 0; font-size:.78rem; font-weight:900;
+            color:#92400e; background:#fde68a; letter-spacing:.2px; }
+  .card.vip2 .vipbar { background:linear-gradient(90deg, #f59e0b, #fbbf24); color:#fff; text-shadow:0 1px 1px rgba(0,0,0,.15); }
+  .card.vip1 .cextra, .card.vip2 .cextra { color:#92400e; }
   @media (min-width: 992px) {
     .wrap { max-width:1480px; padding:18px 28px 100px; }
     .head h2 { font-size:1.7rem; }
@@ -134,7 +142,9 @@
     .cstate { font-size:.86rem; padding:5px 10px; margin:6px 0 3px; }
     .cmeta { font-size:.95rem; margin-top:4px; }
     .cphone { font-size:1.02rem; margin-top:4px; }
-    .cextra { display:block; font-size:.86rem; color:#475569; margin-top:4px; font-variant-numeric:tabular-nums; }
+    .cextra { font-size:.86rem; margin-top:4px; }
+    .cextra .cx-id { display:inline; }
+    .vipbar { margin:-16px -18px 12px; padding:7px 18px; font-size:.9rem; border-radius:15px 15px 0 0; }
     .cshot { width:200px; height:150px; border-radius:11px; }
     .cshot.none { font-size:.8rem; }
     .jstrip { grid-template-columns:none; grid-auto-flow:column; grid-auto-columns:minmax(0, 1fr); gap:8px; margin-top:14px; }
@@ -176,7 +186,8 @@
 
 {% block content %}
 {% macro card(g, kind) %}
-<div class="card {{ kind }} {{ 'unreach' if g.unreach else ('done' if g.last else 'todo') }}" data-bid="{{ g.booking_id }}">
+<div class="card {{ kind }} {{ 'unreach' if g.unreach else ('done' if g.last else 'todo') }} {{ 'vip' ~ g.tier if g.tier }}" data-bid="{{ g.booking_id }}">
+  {% if g.tier %}<div class="vipbar">{{ '⭐⭐ Khách VIP' if g.tier == 2 else '⭐ Ưu tiên' }} · {{ g.total or '—' }}đ · {{ g.nights or '?' }} đêm</div>{% endif %}
   <div class="chead">
     <div class="cinfo">
       <div class="ctop">
@@ -195,7 +206,7 @@
       {% endif %}
       <div class="cmeta">{{ g.nhan }} → {{ g.tra }}{% if g.phong %} · {{ g.phong }}{% endif %}</div>
       {% if g.cho %}<div class="cmeta cho">🏨 {{ g.cho }}</div>{% endif %}
-      <div class="cextra">Mã {{ g.booking_id }}{% if g.nights %} · {{ g.nights }} đêm{% endif %}{% if g.total %} · {{ g.total }}đ{% endif %}</div>
+      <div class="cextra"><span class="cx-id">Mã {{ g.booking_id }} · </span>💰 {{ g.total or '—' }}đ{% if g.nights %} · {{ g.nights }} đêm{% endif %}</div>
       {% if kind == 'phone' or (kind == 'unreach' and g.has_phone) %}<div class="cphone">📞 {{ g.phone }}</div>
       {% elif kind == 'unreach' %}<div class="cphone none">Chưa có số thật</div>
       {% elif kind == 'partner' %}<div class="cphone partner">🤝 Đặt qua đối tác — nhắn trong khung chat Booking</div>

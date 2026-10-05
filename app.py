@@ -2629,6 +2629,7 @@ def messages_page():
             'cho': r[9] or '',                               # Booking listing name ({cho})
             'nights': (co - ci).days if ci and co else None,
             'total': f"{float(r[10]):,.0f}".replace(',', '.') if r[10] else '',
+            'total_num': float(r[10] or 0),
             'cs': r[8] or '',                                # arrival status, put back by "Hoàn tác"
             'unreach': J.vn_time(done[J.UNREACHABLE_KEY]) if J.UNREACHABLE_KEY in done else None,
             'has_phone': bool(_msg_phone_links(r[5])) and not r[6],
@@ -2641,6 +2642,13 @@ def messages_page():
             guests.append(item)
         else:
             no_phone.append(item)
+    # Most valuable guests first (owner, Oct 2026): total price, then length of stay. Tiers from the real spread:
+    # ⭐⭐ VIP ≈ top 10% (≥ 3,000,000đ or ≥ 5 nights), ⭐ Ưu tiên ≈ top 20% (≥ 2,000,000đ or ≥ 4 nights).
+    for lst in (guests, partner, no_phone, unreachable):
+        for g in lst:
+            n = g['nights'] or 0
+            g['tier'] = 2 if g['total_num'] >= 3_000_000 or n >= 5 else (1 if g['total_num'] >= 2_000_000 or n >= 4 else 0)
+        lst.sort(key=lambda g: (-g['total_num'], -(g['nights'] or 0)))
     return render_template('messages.html', guests=guests, no_phone=no_phone, partner=partner, unreachable=unreachable,
                            view=view, days=days, today_str=today.strftime('%d/%m/%Y'), total=len(rows),
                            buttons=buttons, now_str=(datetime.utcnow() + timedelta(hours=7)).strftime('%H:%M:%S'))

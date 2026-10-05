@@ -297,6 +297,9 @@ click listener: on iPhone Safari a delegated listener did not fire for taps on t
 Send sheet (journey.js) on iPhone: sized to the visible screen (`100dvh`), page behind locked (`body.jr-lock`), sticky
 header with a big "✕ Đóng"; opening pushes one history entry (`jrSheet`) so swipe-back / ‹ closes the sheet
 (`close('reopen')` when re-rendering keeps the entry). Same fit for the photo-import sheet.
+Sorted by value (owner): every group by total price desc, then nights desc. Tiers (from the real spread of 443
+bookings): ⭐⭐ VIP = ≥ 3,000,000đ or ≥ 5 nights (~top 10%), ⭐ Ưu tiên = ≥ 2,000,000đ or ≥ 4 nights (~top 20%) →
+gold tint + ribbon. Every card shows "💰 total · N đêm" (`.cextra`; the booking number only on desktop).
 Desktop ≥992px: 2-column card grid (3 ≥1900px), bigger text, 200×150 Booking picture, all chips on one row,
 an extra line "Mã · N đêm · total" (`.cextra`, desktop only); the send sheet is 760px wide.
 Booking listing name per booking (`bookings.property_name`) → token `{cho}` = " <name>" or "" ("Thank you for
