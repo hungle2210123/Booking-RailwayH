@@ -199,6 +199,9 @@
   .reload { border-color:#9ca3af; box-shadow:0 6px 18px rgba(15,23,42,.18); }
   .cconf { background:#f0fdf4; color:#166534; }
   .days a.on { background:#1f2937; border-color:#1f2937; }
+  /* 📵 could not be reached: dimmed so the main guests stand out; full again on hover / while tapping */
+  .card.unreach { opacity:.5; filter:grayscale(1); transition:opacity .15s, filter .15s; }
+  .card.unreach:hover, .card.unreach:focus-within, .card.unreach:active { opacity:1; filter:none; }
   /* button icons in black & white (owner) — status marks (🔴 ✅ ⭐) keep their colour */
   .jchip .e { filter:grayscale(1) contrast(1.15); opacity:.85; }
   .jchip.cancel .e { opacity:.7; }

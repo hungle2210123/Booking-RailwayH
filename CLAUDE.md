@@ -409,6 +409,8 @@ purple edge are untouched. Updates on placement (`setApt` sets `data-apt`) and o
 Each column (Đến / Đang ở / Trả) is grouped by apartment (apartments' order, unplaced last) with a header
 "🏠 name · N" (`.apt-group-h`); `cdSortByApt(id)` runs after the old sorts (groupSection: confirmed → none →
 cancelling; staying: soonest checkout) so their order is kept inside each apartment group.
+Guests marked 📵 on /messages are dimmed (`.cd-unreach`: opacity .42 + grey, full on hover/tap) and go last in their
+apartment group; on /messages the 📵 group cards are dimmed the same way.
 
 ### **🛏️ 2-bedroom bookings (`core/two_bedroom.py`)**
 `bookings.two_bedroom` BOOLEAN: NULL = auto-detect from listing ("2 PN", "2 phòng ngủ", "Two-Bedroom"; "2 Giường" is

@@ -1525,7 +1525,8 @@ setInterval(loadVbCd, 5 * 60 * 1000);
         const order = ALL.map(a => String(a.id));
         const keyCol = col => { const c = col.querySelector('.guest-card'); return c ? keyOf(c) : 'none'; };
         const rank = k => (k === 'none' ? 9999 : order.indexOf(k));
-        cols.sort((a, b) => rank(keyCol(a)) - rank(keyCol(b)));       // stable: keeps the order within a group
+        const unreach = col => (col.querySelector('.guest-card.cd-unreach') ? 1 : 0);
+        cols.sort((a, b) => rank(keyCol(a)) - rank(keyCol(b)) || unreach(a) - unreach(b));   // stable; 📵 last in its group
         const count = {};
         cols.forEach(col => { const k = keyCol(col); count[k] = (count[k] || 0) + 1; });
         let last = null;
@@ -5734,6 +5735,8 @@ function cdPaintContact(bar, info) {
     if (!btn) return;
     if (!btn.dataset.orig) btn.dataset.orig = btn.innerHTML;
     btn.classList.remove('pc-msg', 'pc-unreach');
+    const card = bar.closest('.guest-card');
+    if (card) card.classList.toggle('cd-unreach', !!(info && info.unreach));
     if (info && info.unreach) {
         btn.classList.add('pc-unreach');
         btn.innerHTML = '📵 Không liên lạc được · ' + info.unreach;
@@ -5767,6 +5770,7 @@ function cdSyncFromDB() {
                 if (card) _applyStatus(card, bar, dbStat);
                 changed = true;
             });
+            if (!changed && window.cdSortByApt) ['checkin-cards','staying-cards','checkout-cards'].forEach(window.cdSortByApt);
             if (changed) {
                 ['checkin-cards','staying-cards','checkout-cards'].forEach(groupSection);
                 if (typeof loadAptNotifyBar === 'function') loadAptNotifyBar();
@@ -6624,6 +6628,9 @@ function showQuickToast(msg, type) {
      red = act now (chưa thu, báo hủy) · amber = soon (trả hôm nay / mai) · green = done (xác nhận đến, đã nhắn)
      · the apartment's colour only on the card's left edge and its name chip · everything else black / grey / white -->
 <style id="calm-colours">
+  /* 📵 could not be reached: dimmed, comes back on hover / tap so it can still be handled */
+  body .guest-card.cd-unreach { opacity:.42; filter:grayscale(1); transition:opacity .15s, filter .15s; }
+  body .guest-card.cd-unreach:hover, body .guest-card.cd-unreach:focus-within, body .guest-card.cd-unreach.cd-open { opacity:1; filter:none; }
   body .three-section-row .section-header-compact { background:#1f2937 !important; color:#fff !important; }
   body .cd-jump a { background:#fff !important; color:#1f2937 !important; border:1.5px solid #d1d5db !important; }
   body .guest-card, body .guest-card.apt-tint, body .guest-card.apt1-guest, body .guest-card.apt2-guest { background:#fff !important; }
