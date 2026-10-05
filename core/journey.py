@@ -222,28 +222,35 @@ FAV_RE = re.compile(r'^fav:(\d+)$')
 
 # "Đã nhắn" ticked by hand on the guest card (messaged outside the app, e.g. in Booking's chat)
 MANUAL_KEY = 'contacted'
+# "📵 Không liên lạc được": the guest is moved to its own group at the bottom of /messages, to deal with later
+UNREACHABLE_KEY = 'unreachable'
 
 
 def is_step_key(key):
-    """Keys that can be marked as sent: journey steps, pinned templates (not groups), the manual mark."""
-    return key in STEP_KEYS or key == MANUAL_KEY or bool(FAV_RE.match(str(key or '')))
+    """Keys that can be logged: journey steps, pinned templates (not groups), the manual and unreachable marks."""
+    return key in STEP_KEYS or key in (MANUAL_KEY, UNREACHABLE_KEY) or bool(FAV_RE.match(str(key or '')))
+
+
+def vn_time(iso):
+    """'HH:MM dd/mm' in Vietnam time for a journey_log time (stored in UTC)."""
+    try:
+        t = datetime.fromisoformat(iso)
+        t = (t.astimezone(timezone.utc).replace(tzinfo=None) if t.tzinfo else t) + timedelta(hours=7)
+        return t.strftime('%H:%M %d/%m')
+    except (TypeError, ValueError):
+        return ''
 
 
 def last_contact(done, favorites=()):
     """The latest thing sent to a guest → {'label', 'at'} (VN time 'HH:MM dd/mm'), None when nothing yet."""
+    done = {k: v for k, v in (done or {}).items() if k != UNREACHABLE_KEY}
     if not done:
         return None
     key, at = max(done.items(), key=lambda kv: kv[1])
     names = {s['key']: f"{s['emoji']} {s['label']}" for s in STEPS}
     names.update({f['key']: f"{f['emoji']} {f['label']}" for f in favorites})
     names[MANUAL_KEY] = '✋ Đánh dấu tay'
-    try:
-        t = datetime.fromisoformat(at)
-        t = (t.astimezone(timezone.utc).replace(tzinfo=None) if t.tzinfo else t) + timedelta(hours=7)
-        when = t.strftime('%H:%M %d/%m')
-    except ValueError:
-        when = ''
-    return {'label': names.get(key, '📝 Tin khác'), 'at': when}
+    return {'label': names.get(key, '📝 Tin khác'), 'at': vn_time(at)}
 
 
 def _clean_fav(f):

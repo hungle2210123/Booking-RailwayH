@@ -69,6 +69,12 @@
 
   .group-t { font-size:.85rem; font-weight:800; margin:16px 2px 6px; }
   .group-t.partner { color:#7c3aed; } .group-t.nophone { color:#b45309; }
+  .group-t.unreach { color:#475569; border-top:1px dashed #cbd5e1; padding-top:12px; }
+  .card.unreach { background:#f8fafc; border-left:4px solid #94a3b8; }
+  .cstate.unreach { background:#e2e8f0; color:#334155; cursor:default; }
+  .jchip.unreach-btn { background:#fff; border-color:#cbd5e1; color:#475569; }
+  .jchip.unreach-btn.on { border-color:#86efac; color:#166534; }
+  body.f-todo .card.unreach, body.f-done .card.unreach, body.f-todo .group-t.unreach, body.f-done .group-t.unreach { display:none; }
   .card { background:#fff; border:1px solid var(--line); border-radius:14px; padding:11px 12px; margin-bottom:10px; }
   .card.partner { border-color:#ddd6fe; } .card.nophone { border-style:dashed; }
   .chead { display:flex; gap:10px; align-items:flex-start; }
@@ -123,7 +129,7 @@
 
 {% block content %}
 {% macro card(g, kind) %}
-<div class="card {{ kind }} {{ 'done' if g.last else 'todo' }}" data-bid="{{ g.booking_id }}">
+<div class="card {{ kind }} {{ 'unreach' if g.unreach else ('done' if g.last else 'todo') }}" data-bid="{{ g.booking_id }}">
   <div class="chead">
     <div class="cinfo">
       <div class="ctop">
@@ -131,7 +137,9 @@
         <button type="button" class="apt {{ '' if g.apt else 'none' }}" title="Chọn / đổi căn"
                 onclick="Journey.open('{{ g.booking_id }}', null, {pickApt: true})">{{ g.apt or 'chưa xếp căn' }}</button>
       </div>
-      {% if g.last %}
+      {% if g.unreach %}
+      <div class="cstate unreach">📵 Không liên lạc được · từ {{ g.unreach }}</div>
+      {% elif g.last %}
       <button type="button" class="cstate done" data-bid="{{ g.booking_id }}" data-manual="{{ 1 if g.manual else 0 }}"
               title="Chạm để bỏ dấu tay">✅ Đã nhắn · {{ g.last.label }} · {{ g.last.at }}</button>
       {% else %}
@@ -139,7 +147,8 @@
               title="Đã nhắn ngoài app? Chạm để đánh dấu">🔴 Chưa nhắn <small>· chạm nếu đã nhắn ngoài</small></button>
       {% endif %}
       <div class="cmeta">{{ g.nhan }} → {{ g.tra }}{% if g.phong %} · {{ g.phong }}{% endif %}</div>
-      {% if kind == 'phone' %}<div class="cphone">📞 {{ g.phone }}</div>
+      {% if kind == 'phone' or (kind == 'unreach' and g.has_phone) %}<div class="cphone">📞 {{ g.phone }}</div>
+      {% elif kind == 'unreach' %}<div class="cphone none">Chưa có số thật</div>
       {% elif kind == 'partner' %}<div class="cphone partner">🤝 Đặt qua đối tác — nhắn trong khung chat Booking</div>
       {% else %}<div class="cphone none">⏳ Chưa có số — mở đặt phòng trên máy tính, bấm hiện số</div>{% endif %}
     </div>
@@ -160,6 +169,10 @@
       <span class="e">{{ s.emoji }}</span><span class="l">{{ s.label }}</span>
     </button>
     {% endfor %}
+    <button type="button" class="jchip unreach-btn {{ 'on' if g.unreach }}" data-bid="{{ g.booking_id }}" data-on="{{ 1 if g.unreach else 0 }}">
+      {% if g.unreach %}<span class="e">↩️</span><span class="l">Liên lạc lại được</span>
+      {% else %}<span class="e">📵</span><span class="l">Không liên lạc được</span>{% endif %}
+    </button>
     <button type="button" class="jchip cancel" data-bid="{{ g.booking_id }}" data-name="{{ g.name }}" data-cs="{{ g.cs }}">
       <span class="e">🚫</span><span class="l">Hủy khách</span>
     </button>
@@ -198,7 +211,7 @@
   <div class="legend">Chạm một bước để xem tin + ảnh rồi gửi · tin chung (Passport, Change, Xin hủy…) ở nút <b>⚡ Tin nhanh</b></div>
 
   {% for g in guests %}{{ card(g, 'phone') }}{% endfor %}
-  {% if not guests and not partner and not no_phone %}
+  {% if not guests and not partner and not no_phone and not unreachable %}
   <div class="empty">Không có khách nào trong khoảng này.</div>
   {% endif %}
 
@@ -210,6 +223,11 @@
   {% if no_phone %}
   <div class="group-t nophone">⏳ {{ no_phone|length }} khách chưa có số</div>
   {% for g in no_phone %}{{ card(g, 'nophone') }}{% endfor %}
+  {% endif %}
+
+  {% if unreachable %}
+  <div class="group-t unreach">📵 {{ unreachable|length }} khách không liên lạc được — để quản lý sau</div>
+  {% for g in unreachable %}{{ card(g, 'unreach') }}{% endfor %}
   {% endif %}
   </div>
 </div>
@@ -410,7 +428,7 @@
   function applyFilter() {
     document.body.classList.remove('f-todo', 'f-done');
     if (filter !== 'all') document.body.classList.add('f-' + filter);
-    const cards = [...document.querySelectorAll('#live .card')];
+    const cards = [...document.querySelectorAll('#live .card:not(.unreach)')];
     const n = { all: cards.length, todo: cards.filter(c => c.classList.contains('todo')).length };
     n.done = n.all - n.todo;
     document.querySelectorAll('.sfilter button').forEach(b => {
@@ -461,6 +479,20 @@
     t.querySelector('button').onclick = async () => { t.remove(); restored.add(bid); await setStatus(prev); refresh(true); };
     document.body.appendChild(t);
     setTimeout(() => t.remove(), 8000);
+  });
+  // 📵 Không liên lạc được ⇄ ↩️ Liên lạc lại được
+  document.addEventListener('click', async e => {
+    const btn = e.target.closest && e.target.closest('.jchip.unreach-btn');
+    if (!btn) return;
+    const on = btn.dataset.on !== '1';
+    btn.disabled = true;
+    const card = btn.closest('.card');
+    if (card) card.classList.add('gone');
+    const r = await fetch('/api/journey/sent', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ booking_id: btn.dataset.bid, step: 'unreachable', sent: on }) }).then(x => x.json()).catch(() => null);
+    if (!r || !r.success) { btn.disabled = false; if (card) card.classList.remove('gone'); alert('Không lưu được — thử lại'); return; }
+    restored.add(btn.dataset.bid);                // moved between groups, not a new guest
+    refresh(true);
   });
   window.MsgLive = { refresh: () => refresh(true) };
   applyFilter();

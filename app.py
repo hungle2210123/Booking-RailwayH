@@ -2535,7 +2535,7 @@ def messages_page():
     shots = {b: t for b, t in _xdb.session.execute(text(
         "SELECT booking_id, updated_at FROM booking_screenshots WHERE booking_id = ANY(:b)"),
         {'b': [r[0] for r in rows]}).fetchall()} if rows else {}
-    guests, no_phone, partner = [], [], []
+    guests, no_phone, partner, unreachable = [], [], [], []
     for r in rows:
         ci, co = r[2], r[3]
         apt = apts.get(J.apt_id_of(r[7]))
@@ -2550,14 +2550,18 @@ def messages_page():
             'last': J.last_contact(done, buttons),          # None = not messaged yet
             'manual': J.MANUAL_KEY in done,
             'cs': r[8] or '',                                # arrival status, put back by "Hoàn tác"
+            'unreach': J.vn_time(done[J.UNREACHABLE_KEY]) if J.UNREACHABLE_KEY in done else None,
+            'has_phone': bool(_msg_phone_links(r[5])) and not r[6],
         }
-        if r[6]:                       # partner booking: any number on file is the partner's
+        if item['unreach']:            # 📵 marked: its own group at the bottom, dealt with later
+            unreachable.append(item)
+        elif r[6]:                       # partner booking: any number on file is the partner's
             partner.append(item)
         elif _msg_phone_links(r[5]):
             guests.append(item)
         else:
             no_phone.append(item)
-    return render_template('messages.html', guests=guests, no_phone=no_phone, partner=partner,
+    return render_template('messages.html', guests=guests, no_phone=no_phone, partner=partner, unreachable=unreachable,
                            view=view, days=days, today_str=today.strftime('%d/%m/%Y'), total=len(rows),
                            buttons=buttons, now_str=(datetime.utcnow() + timedelta(hours=7)).strftime('%H:%M:%S'))
 

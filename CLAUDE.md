@@ -285,6 +285,8 @@ while a sheet/zoom is open) and swapped in place; new cards get a green border +
 🔴 Chưa nhắn / ✅ Đã nhắn (+ last step and VN time, `J.last_contact`); filter Tất cả / Chưa nhắn / Đã nhắn (localStorage,
 delegated clicks — the bar is inside `#live`). Tapping 🔴 records the manual mark `journey_log.step='contacted'`
 (`J.MANUAL_KEY`, messaged outside the app); tapping a hand mark removes it.
+📵 Không liên lạc được chip (journey_log step `J.UNREACHABLE_KEY`='unreachable', ignored by last_contact) moves the guest
+to its own group at the bottom ("để quản lý sau", not counted in the filter); ↩️ Liên lạc lại được removes the mark.
 No per-step ✓ anywhere (owner: useless) — sending is still logged quietly in journey_log, only for that line.
 🚫 Hủy khách chip on every card = calendar "Báo hủy" (`/api/set_checkin_status` 'cancelling'); the card leaves, toast
 "Hoàn tác" restores the previous checkin_status (card carries it as data-cs).
