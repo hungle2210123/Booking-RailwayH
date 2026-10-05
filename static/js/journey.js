@@ -70,6 +70,7 @@
       .jr-big img{width:100%;border-radius:12px;border:1px solid #e2e8f0;cursor:zoom-in;min-height:120px;background:#f1f5f9;}
       .jr-row{display:flex;gap:5px;align-items:stretch;}
       .jr-pins{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:4px;}
+      .jr-steps .ic,.jr-pins .ic{filter:grayscale(1);}
       .jr-pins button{border:1.5px solid #fdba74;background:#fff7ed;color:#9a3412;font-weight:800;border-radius:12px;padding:9px 12px;
           font-size:.88rem;cursor:pointer;font-family:inherit;}
       .jr-who{display:flex;align-items:center;gap:8px;margin-top:6px;font-size:.78rem;font-weight:700;color:#475569;}
@@ -204,7 +205,7 @@
     const hidden = st.data.hidden || [];
     const tabs = st.data.steps.filter(s => !hidden.includes(s.key) || s.key === st.step).concat(st.data.favorites || []);
     wrap.innerHTML = tabs.map(s => `<button type="button" data-k="${esc(s.key)}"
-        class="${s.key === st.step ? 'on' : ''}">${s.emoji} ${esc(s.label)}</button>`).join('')
+        class="${s.key === st.step ? 'on' : ''}"><span class="ic">${s.emoji}</span> ${esc(s.label)}</button>`).join('')
       + `<button type="button" data-k="__more" class="${st.step === '__more' ? 'on' : ''}">➕ Tin khác</button>`;
     wrap.querySelectorAll('button').forEach(btn => btn.onclick = () => { st.step = btn.dataset.k; st.more = null; render(); });
     const on = wrap.querySelector('.on');
@@ -437,7 +438,7 @@
     };
     const pins = cat ? [] : favs();
     body.innerHTML = (pins.length ? `<div class="jr-cat">📌 Hay dùng</div><div class="jr-pins">${pins.map(f =>
-          `<button type="button" data-fid="${f.id || ''}" data-fcat="${esc(f.cat || '')}">${esc(f.emoji)} ${esc(f.label)}</button>`).join('')}</div>` : '')
+          `<button type="button" data-fid="${f.id || ''}" data-fcat="${esc(f.cat || '')}"><span class="ic">${esc(f.emoji)}</span> ${esc(f.label)}</button>`).join('')}</div>` : '')
       + (cat ? `<div class="jr-cath"><div class="jr-cat">${esc(cat)}</div>
           <button type="button" class="jr-catpin on" data-cat="${esc(cat)}">📌 Đã ghim nhóm</button></div>` : '')
       + `<input class="jr-search" placeholder="🔎 Tìm mẫu: check in trễ, taxi, giặt, chìa khoá…"><div class="jr-list">${draw('')}</div>`

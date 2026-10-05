@@ -199,6 +199,9 @@
   .reload { border-color:#9ca3af; box-shadow:0 6px 18px rgba(15,23,42,.18); }
   .cconf { background:#f0fdf4; color:#166534; }
   .days a.on { background:#1f2937; border-color:#1f2937; }
+  /* button icons in black & white (owner) — status marks (🔴 ✅ ⭐) keep their colour */
+  .jchip .e { filter:grayscale(1) contrast(1.15); opacity:.85; }
+  .jchip.cancel .e { opacity:.7; }
 </style>
 {% endblock %}
 
