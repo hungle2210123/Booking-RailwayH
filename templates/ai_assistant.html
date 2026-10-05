@@ -1508,6 +1508,7 @@ document.getElementById('manualBookingForm').addEventListener('submit', function
 {% endblock %}
 
 {% block scripts %}
+<script src="{{ asset('js/journey.js') }}"></script>
 <script>
     // MINIMAL TEST: Just define the essential functions
     console.log('🔧 MINIMAL TEST: Starting...');
@@ -2722,6 +2723,9 @@ document.getElementById('manualBookingForm').addEventListener('submit', function
                                 <div class="d-flex gap-2 flex-wrap">
                                     <button class="btn btn-sm btn-primary" onclick="useTemplate('${templateId}')" title="Copy content to clipboard">
                                         <i class="fas fa-copy"></i> Copy
+                                    </button>
+                                    <button class="btn btn-sm btn-success" onclick="Journey.quick('${templateId}')" title="Gửi chữ + ảnh qua WhatsApp / Zalo">
+                                        📤 Gửi chữ + ảnh
                                     </button>
                                     <button class="btn btn-sm btn-outline-warning" onclick="editTemplate('${templateId}')" title="Edit this template">
                                         <i class="fas fa-edit"></i> Edit

@@ -274,9 +274,12 @@ Sent steps: `journey_log`; next step = `recommended_step()` by dates. Pictures a
 Send = wa.me text (targets the number) or share sheet with pictures + text (text also copied). Calendar card chip 🧭 Nhắn.
 🔑 checkin has `images_only`: when the apartment's check-in template has pictures, the sheet shows only the guide
 picture(s) (📤 Gửi ảnh / Mở chat WhatsApp·Zalo / Sao chép ảnh) — no text; without a picture the text is used. All 4 apartments have their guide (template_images 9, 10, 11, 17).
-Card buttons = `journey_prefs['buttons']`: hidden steps + pinned favorites, each either a template `{id}` (key `fav:<id>`,
-tracked as sent) or a whole group `{cat}` (key `cat:<category>`, opens that group's list — e.g. ❌ Xin hủy, 🔁 Change).
-Pin/unpin with 📌 inside ➕ Tin khác or at /journey. Tapping the apartment chip on a /messages card opens the apartment picker.
+Guest cards show only the journey steps not in `journey_prefs['buttons'].hidden` (owner: passport + thanks hidden →
+👋 🕐 🧳 🔑 💳 + 🚫 Hủy khách). General messages live in the floating ⚡ Tin nhanh button (`Journey.quick()`, above 🔄):
+pinned favorites first (template `{id}` or whole group `{cat}`: 🛂 Passport, 🔁 Change, ❌ Xin hủy, 🚕 Taxi, ⭐ Cảm ơn),
+then every group; optional guest picker fills {ten} and gives that guest's WhatsApp/Zalo/SMS links; without a guest
+`/api/journey/compose` fills {ten} = "there". The Mẫu Câu page (ai_assistant.html) has "📤 Gửi chữ + ảnh" →
+`Journey.quick(templateId)` (share sheet with text + pictures). Pin/unpin with 📌 in the list or at /journey. Tapping the apartment chip on a /messages card opens the apartment picker.
 /messages keeps itself up to date: `#live` is re-fetched every 30 s and when the page becomes visible again (never
 while a sheet/zoom is open) and swapped in place; new cards get a green border + "🆕 N khách mới". Each card shows
 🔴 Chưa nhắn / ✅ Đã nhắn (+ last step and VN time, `J.last_contact`); filter Tất cả / Chưa nhắn / Đã nhắn (localStorage,

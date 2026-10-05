@@ -91,7 +91,7 @@
         (Cũng ghim được ngay trong ➕ Tin khác bằng nút 📌.)</div>
       <div class="toggles">${cfg.steps.map(s => `<label><input type="checkbox" data-step="${s.key}" ${prefs.hidden.includes(s.key) ? '' : 'checked'}>
         ${s.emoji} ${esc(s.label)}</label>`).join('')}</div>
-      <div class="rlab" style="margin-top:8px">Nút đã ghim</div>
+      <div class="rlab" style="margin-top:8px">Nút hay dùng trong ⚡ Tin nhanh</div>
       ${favs.length ? '' : '<div class="none">Chưa ghim mẫu nào.</div>'}
       ${favs.map(f => `<div class="fav" ${f.cat ? `data-cat="${esc(f.cat)}"` : `data-id="${f.id}"`}>
           <input class="em" value="${esc(f.emoji)}" maxlength="4" aria-label="Biểu tượng">

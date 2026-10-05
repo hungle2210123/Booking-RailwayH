@@ -2456,12 +2456,14 @@ def journey_compose():
         tid = int(request.args.get('template_id') or 0)
     except ValueError:
         tid = 0
-    b = _journey_booking(_xdb, request.args.get('booking_id') or '')
+    bid = request.args.get('booking_id') or ''
+    b = _journey_booking(_xdb, bid) if bid else None
     t = _journey_texts(_xdb, [tid]).get(tid)
-    if not b or not t:
+    if not t or (bid and not b):
         return jsonify({'success': False, 'error': 'Không tìm thấy'}), 404
+    guest = b['guest'] if b else {}                  # no guest: ⚡ Tin nhanh / Mẫu Câu page
     return jsonify({'success': True, 'template': {'id': t['id'], 'name': t['name']},
-                    'text': J.fill(t['content'], b['guest']), 'images': J.images_of(_xdb.session, [tid]).get(tid, [])})
+                    'text': J.fill(t['content'], guest), 'images': J.images_of(_xdb.session, [tid]).get(tid, [])})
 
 
 @app.route('/api/journey/sent', methods=['POST'])
@@ -2506,8 +2508,7 @@ def messages_page():
     sent = J.sent_status(_xdb.session, [r[0] for r in rows])
     apts = {a['id']: a for a in J.apartments(_xdb.session)}
     prefs = J.get_prefs(_xdb.session)
-    buttons = ([s for s in J.STEPS if s['key'] not in prefs['hidden']]
-               + J.favorites_named(_xdb.session, prefs))
+    buttons = [s for s in J.STEPS if s['key'] not in prefs['hidden']]    # pinned ones: ⚡ Tin nhanh
     _ensure_shot_table()      # which guests already have the Booking screenshot (shown on the card to check)
     shots = {b: t for b, t in _xdb.session.execute(text(
         "SELECT booking_id, updated_at FROM booking_screenshots WHERE booking_id = ANY(:b)"),

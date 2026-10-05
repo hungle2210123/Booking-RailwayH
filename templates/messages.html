@@ -13,6 +13,11 @@
             border:2px solid #2563eb; border-radius:50%; background:#fff; font-size:1.5rem; cursor:pointer;
             box-shadow:0 6px 18px rgba(37,99,235,.45); }
   .reload:active { transform:scale(.92); }
+  .quickbtn { position:fixed; right:16px; bottom:calc(86px + env(safe-area-inset-bottom)); z-index:900; width:54px; height:54px;
+              border:none; border-radius:50%; background:#f59e0b; color:#fff; font-size:1.3rem; cursor:pointer; line-height:1;
+              box-shadow:0 6px 18px rgba(245,158,11,.45); display:flex; flex-direction:column; align-items:center; justify-content:center; }
+  .quickbtn small { font-size:.5rem; font-weight:800; margin-top:1px; }
+  .quickbtn:active { transform:scale(.92); }
   .head .gear { margin-left:auto; }
   .wrap { padding-bottom:90px !important; }   /* the last card is not hidden under the button */
   .live-toast { left:16px !important; transform:none !important; }
@@ -155,9 +160,6 @@
       <span class="e">{{ s.emoji }}</span><span class="l">{{ s.label }}</span>
     </button>
     {% endfor %}
-    <button type="button" class="jchip more" onclick="Journey.open('{{ g.booking_id }}', '__more')">
-      <span class="e">➕</span><span class="l">Tin khác</span>
-    </button>
     <button type="button" class="jchip cancel" data-bid="{{ g.booking_id }}" data-name="{{ g.name }}" data-cs="{{ g.cs }}">
       <span class="e">🚫</span><span class="l">Hủy khách</span>
     </button>
@@ -168,6 +170,7 @@
   <div class="head">
     <h2>💬 Nhắn khách</h2>
     <button type="button" class="reload" id="reload" title="Làm mới danh sách" aria-label="Làm mới">🔄</button>
+    <button type="button" class="quickbtn" onclick="Journey.quick()" title="Tin nhắn mẫu chung" aria-label="Tin nhanh">⚡<small>Tin nhanh</small></button>
     <a class="gear" href="/journey">⚙️ Nút, tin &amp; ảnh</a>
   </div>
   <div class="upd" id="upd">Tự cập nhật · lúc {{ now_str }}</div>
@@ -192,7 +195,7 @@
     <button type="button" data-f="todo">🔴 Chưa nhắn <b></b></button>
     <button type="button" data-f="done">✅ Đã nhắn <b></b></button>
   </div>
-  <div class="legend">Chạm một bước để xem tin + ảnh rồi gửi</div>
+  <div class="legend">Chạm một bước để xem tin + ảnh rồi gửi · tin chung (Passport, Change, Xin hủy…) ở nút <b>⚡ Tin nhanh</b></div>
 
   {% for g in guests %}{{ card(g, 'phone') }}{% endfor %}
   {% if not guests and not partner and not no_phone %}
