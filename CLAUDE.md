@@ -406,6 +406,9 @@ tonight's free rooms from `/api/vacancy_preview` (same numbers as the Phòng tr�
 a "⏳ Chưa xếp căn" tile. Tap a tile = show only that apartment's cards (`.apt-filtered-out`). Cards get the apartment
 colour (8px left edge, light tint, coloured watermark; unplaced = grey dashed edge); payment strip on top and the 2PN
 purple edge are untouched. Updates on placement (`setApt` sets `data-apt`) and on status changes (MutationObserver).
+Each column (Đến / Đang ở / Trả) is grouped by apartment (apartments' order, unplaced last) with a header
+"🏠 name · N" (`.apt-group-h`); `cdSortByApt(id)` runs after the old sorts (groupSection: confirmed → none →
+cancelling; staying: soonest checkout) so their order is kept inside each apartment group.
 
 ### **🛏️ 2-bedroom bookings (`core/two_bedroom.py`)**
 `bookings.two_bedroom` BOOLEAN: NULL = auto-detect from listing ("2 PN", "2 phòng ngủ", "Two-Bedroom"; "2 Giường" is

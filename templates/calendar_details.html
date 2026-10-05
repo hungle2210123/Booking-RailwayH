@@ -1473,6 +1473,11 @@ setInterval(loadVbCd, 5 * 60 * 1000);
       .guest-card.apt-tint .apt-watermark { color:color-mix(in srgb, var(--apt-c) 22%, transparent); }
       .guest-card.apt-none:not(.two-br-card) { border-left:8px dashed #94a3b8 !important; background:#fff !important; }
       .apt-filtered-out { display:none !important; }
+      .apt-group-h { flex:0 0 100%; width:100%; box-sizing:border-box; margin:6px 0 0; padding:4px 10px; font-size:.78rem;
+                     font-weight:800; color:#1f2937; background:#f9fafb; border-left:5px solid var(--apt-c, #94a3b8);
+                     border-radius:6px; }
+      .apt-group-h:first-child { margin-top:0; }
+      .apt-group-h.none { border-left-style:dashed; color:#4b5563; }
       @media (max-width: 768px) {
         .aov-grid { grid-template-columns:repeat(2, minmax(0, 1fr)); gap:8px; }
         .aot { padding:8px 9px; }
@@ -1509,11 +1514,43 @@ setInterval(loadVbCd, 5 * 60 * 1000);
         card.classList.toggle('apt-none', !a);
         if (a) card.style.setProperty('--apt-c', a.color); else card.style.removeProperty('--apt-c');
       }
+      // Inside each column (Đến / Đang ở / Trả) cards are grouped by apartment, in the apartments' order, unplaced
+      // last, with a small header per group; the order inside a group (confirmed first / soonest checkout) is kept.
+      function sortSection(id) {
+        const box = document.getElementById(id);
+        if (!box) return;
+        box.querySelectorAll(':scope > .apt-group-h').forEach(h => h.remove());
+        const cols = Array.from(box.querySelectorAll(':scope > .guest-card-col'));
+        if (!cols.length) return;
+        const order = ALL.map(a => String(a.id));
+        const keyCol = col => { const c = col.querySelector('.guest-card'); return c ? keyOf(c) : 'none'; };
+        const rank = k => (k === 'none' ? 9999 : order.indexOf(k));
+        cols.sort((a, b) => rank(keyCol(a)) - rank(keyCol(b)));       // stable: keeps the order within a group
+        const count = {};
+        cols.forEach(col => { const k = keyCol(col); count[k] = (count[k] || 0) + 1; });
+        let last = null;
+        cols.forEach(col => {
+          const k = keyCol(col);
+          if (k !== last) {
+            const a = byId[k], h = document.createElement('div');
+            h.className = 'apt-group-h' + (a ? '' : ' none');
+            h.dataset.k = k;
+            if (a) h.style.setProperty('--apt-c', a.color);
+            h.textContent = (a ? '🏠 ' + a.name : '⏳ Chưa xếp căn') + ' · ' + count[k];
+            box.appendChild(h);
+            last = k;
+          }
+          box.appendChild(col);
+        });
+      }
+      window.cdSortByApt = sortSection;
+
       function applyFilter() {
         document.querySelectorAll('.three-section-row .guest-card').forEach(card => {
           const col = card.closest('.guest-card-col') || card;
           col.classList.toggle('apt-filtered-out', !!filter && keyOf(card) !== filter);
         });
+        document.querySelectorAll('.apt-group-h').forEach(h => h.classList.toggle('apt-filtered-out', !!filter && h.dataset.k !== filter));
       }
       function render() {
         const box = document.getElementById('aptOverview');
@@ -1553,6 +1590,7 @@ setInterval(loadVbCd, 5 * 60 * 1000);
         box.innerHTML = `<div class="aov-h"><b>🏠 Theo căn hộ</b><small>chạm một căn để chỉ xem khách của căn đó</small>
             ${filter ? `<button type="button" class="aov-clear">✕ Xem tất cả</button>` : ''}</div>
           <div class="aov-grid">${tiles.join('')}</div>`;
+        SECS.forEach(([id]) => sortSection(id));
         box.querySelectorAll('.aot').forEach(t => t.onclick = () => { filter = filter === t.dataset.k ? null : t.dataset.k; render(); });
         const clr = box.querySelector('.aov-clear');
         if (clr) clr.onclick = () => { filter = null; render(); };
@@ -1575,8 +1613,9 @@ setInterval(loadVbCd, 5 * 60 * 1000);
         loadVac().then(render);
         const row = document.querySelector('.three-section-row');
         if (row) new MutationObserver(muts => {
-          if (muts.some(m => m.type === 'childList' || (m.target.classList && m.target.classList.contains('guest-card')))) again();
-        }).observe(row, { subtree: true, childList: true, attributes: true, attributeFilter: ['data-apt', 'class'] });
+          if (muts.some(m => m.target.classList && m.target.classList.contains('guest-card')
+                             && (m.attributeName === 'data-apt' || /status-/.test(m.oldValue + ' ' + m.target.className)))) again();
+        }).observe(row, { subtree: true, attributes: true, attributeOldValue: true, attributeFilter: ['data-apt', 'class'] });
       });
     })();
     </script>
@@ -5664,6 +5703,7 @@ function groupSection(containerId) {
     ['confirmed', 'none', 'cancelling'].forEach(key => {
         groups[key].forEach(col => container.appendChild(col));
     });
+    if (window.cdSortByApt) window.cdSortByApt(containerId);   // then by apartment (keeps this order inside)
 }
 
 // Update the "X / Y xác nhận" badge in the check-in section header
@@ -5767,6 +5807,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const cols = Array.from(stayingContainer.querySelectorAll(':scope > .guest-card-col'));
         cols.sort((a, b) => parseInt(a.dataset.remaining ?? 99) - parseInt(b.dataset.remaining ?? 99));
         cols.forEach(col => stayingContainer.appendChild(col));
+        if (window.cdSortByApt) window.cdSortByApt('staying-cards');
     }
 
     // Load saved late arrival times for check-in cards
