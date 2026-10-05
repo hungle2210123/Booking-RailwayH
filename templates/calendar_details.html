@@ -1434,6 +1434,148 @@ setInterval(loadVbCd, 5 * 60 * 1000);
         </div>
     </div>
 
+    <!-- 🏠 Per-apartment overview: arriving / staying / leaving per apartment + tonight's rooms; tap = show only it -->
+    <div id="aptOverview" class="aov"></div>
+    <script>window.CD_APTS = {{ apartments_list|tojson }};</script>
+    <style>
+      .aov { margin: 4px 0 14px; }
+      .aov-h { display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:8px; }
+      .aov-h b { font-size:1.05rem; color:#0f172a; }
+      .aov-h small { color:#64748b; font-size:.8rem; }
+      .aov-clear { margin-left:auto; border:none; background:#0f172a; color:#fff; font-weight:800; border-radius:999px; padding:5px 12px;
+                   font-size:.8rem; cursor:pointer; }
+      .aov-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(140px, 1fr)); gap:10px; }
+      .aot { text-align:left; border:2px solid color-mix(in srgb, var(--apt-c) 35%, #e2e8f0); border-top:6px solid var(--apt-c);
+             background:color-mix(in srgb, var(--apt-c) 7%, #fff); border-radius:12px; padding:9px 11px; cursor:pointer;
+             font-family:inherit; transition:transform .12s, box-shadow .12s; }
+      .aot:hover { transform:translateY(-2px); box-shadow:0 6px 16px rgba(15,23,42,.10); }
+      .aot.on { box-shadow:0 0 0 3px var(--apt-c); }
+      .aov.filtering .aot:not(.on) { opacity:.45; }
+      .aot-name { font-weight:900; color:var(--apt-c); font-size:.98rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+      .aot-n { display:grid; grid-template-columns:repeat(3, 1fr); gap:4px; margin:7px 0 6px; }
+      .aot-n span { background:#fff; border-radius:8px; padding:4px 2px; text-align:center; font-size:.68rem; color:#475569; font-weight:700;
+                    border:1px solid #eef2f7; }
+      .aot-n b { display:block; font-size:1.35rem; line-height:1.1; color:#0f172a; }
+      .aot-n .zero b { color:#cbd5e1; }
+      .aot-night { font-size:.76rem; color:#334155; font-weight:700; }
+      .aot-bar { height:7px; border-radius:999px; background:#e2e8f0; overflow:hidden; margin-top:4px; }
+      .aot-bar i { display:block; height:100%; background:var(--apt-c); border-radius:999px; }
+      .aot-night.over { color:#b91c1c; }
+      .aot.none { --apt-c:#64748b; border-style:dashed; border-top-style:solid; }
+      /* cards: the apartment's colour (left edge, light tint, coloured big number); payment strip on top stays */
+      .guest-card.apt-tint { background:color-mix(in srgb, var(--apt-c) 8%, #fff) !important; border-color:color-mix(in srgb, var(--apt-c) 30%, #e5e7eb) !important; }
+      .guest-card.apt-tint:not(.two-br-card) { border-left:8px solid var(--apt-c) !important; }
+      .guest-card.apt-tint .apt-watermark { color:color-mix(in srgb, var(--apt-c) 22%, transparent); }
+      .guest-card.apt-none:not(.two-br-card) { border-left:8px dashed #94a3b8 !important; background:#fff !important; }
+      .apt-filtered-out { display:none !important; }
+      @media (max-width: 768px) {
+        .aov-grid { grid-template-columns:repeat(2, minmax(0, 1fr)); gap:8px; }
+        .aot { padding:8px 9px; }
+        .aot-n b { font-size:1.15rem; }
+        .aot-n span { font-size:.58rem; white-space:nowrap; padding:3px 1px; }
+        .aot-name { font-size:.9rem; }
+        .aot-night { font-size:.7rem; }
+      }
+    </style>
+    <script>
+    // Built from the cards on the page (data-apt = the apartment a guest is placed in), so it always matches them.
+    (function () {
+      const ALL = window.CD_APTS || [];
+      const byId = {};
+      ALL.forEach(a => { byId[String(a.id)] = a; });
+      const SECS = [['checkin-cards', 'in'], ['staying-cards', 'stay'], ['checkout-cards', 'out']];
+      let filter = null;
+      let vac = null;                  // tonight per apartment from /api/vacancy_preview (same numbers as the Phòng trống board)
+      function loadVac() {
+        const el = document.getElementById('checkin-cards');          // read late: this script runs above the columns
+        const DAY = el ? el.dataset.date : '';
+        return fetch('/api/vacancy_preview').then(r => r.json()).then(d => {
+          const day = (d.days || []).find(x => x.date === DAY);
+          vac = {};
+          if (day) day.apts.forEach(a => { vac[String(a.id)] = a; });
+        }).catch(() => { vac = null; });
+      }
+      const keyOf = card => (byId[card.dataset.apt || ''] ? String(card.dataset.apt) : 'none');
+      const esc = t => String(t == null ? '' : t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+      function paint(card) {
+        const a = byId[card.dataset.apt || ''];
+        card.classList.toggle('apt-tint', !!a);
+        card.classList.toggle('apt-none', !a);
+        if (a) card.style.setProperty('--apt-c', a.color); else card.style.removeProperty('--apt-c');
+      }
+      function applyFilter() {
+        document.querySelectorAll('.three-section-row .guest-card').forEach(card => {
+          const col = card.closest('.guest-card-col') || card;
+          col.classList.toggle('apt-filtered-out', !!filter && keyOf(card) !== filter);
+        });
+      }
+      function render() {
+        const box = document.getElementById('aptOverview');
+        if (!box) return;
+        const c = {};
+        SECS.forEach(([id, k]) => document.querySelectorAll('#' + id + ' .guest-card').forEach(card => {
+          paint(card);
+          if (card.classList.contains('status-cancelling')) return;      // reported cancelled today
+          const key = keyOf(card);
+          c[key] = c[key] || { in: 0, stay: 0, out: 0 };
+          c[key][k]++;
+        }));
+        const tiles = ALL.filter(a => a.active !== false || c[String(a.id)]).map(a => {
+          const n = c[String(a.id)] || { in: 0, stay: 0, out: 0 };
+          const placed = n.in + n.stay;                       // guests placed here for tonight (cards)
+          const v = vac && vac[String(a.id)];
+          let nightTxt, pct = 0, warn = false;
+          if (v) {                                            // the vacancy board's rule: counted once arrival is confirmed
+            const waiting = Math.max(0, placed - v.occupied - v.over);
+            pct = v.total ? Math.min(100, Math.round(v.occupied / v.total * 100)) : 0;
+            nightTxt = `🌙 Đêm nay còn trống <b>${v.free}/${v.total}</b>` + (waiting ? ` · ⏳ ${waiting} chờ xác nhận` : '');
+            if (placed > v.total) { warn = true; nightTxt += `<br>⚠️ Đã xếp ${placed} khách cho ${v.total} phòng`; }
+            if (v.over) { warn = true; nightTxt += `<br>⚠️ VƯỢT ${v.over} phòng`; }
+          } else {
+            const cap = a.capacity || 0;
+            pct = cap ? Math.min(100, Math.round(placed / cap * 100)) : 0;
+            nightTxt = `🌙 Đêm nay đã xếp ${placed}${cap ? '/' + cap + ' phòng' : ' khách'}`;
+            warn = cap && placed > cap;
+          }
+          return tile(String(a.id), a.name, a.color, n, nightTxt, pct, warn);
+        });
+        const u = c.none;
+        if (u && (u.in || u.stay || u.out)) {
+          tiles.push(tile('none', '⏳ Chưa xếp căn', '#64748b', u, `Cần xếp căn: ${u.in + u.stay} khách đêm nay`, 0, false));
+        }
+        box.classList.toggle('filtering', !!filter);
+        box.innerHTML = `<div class="aov-h"><b>🏠 Theo căn hộ</b><small>chạm một căn để chỉ xem khách của căn đó</small>
+            ${filter ? `<button type="button" class="aov-clear">✕ Xem tất cả</button>` : ''}</div>
+          <div class="aov-grid">${tiles.join('')}</div>`;
+        box.querySelectorAll('.aot').forEach(t => t.onclick = () => { filter = filter === t.dataset.k ? null : t.dataset.k; render(); });
+        const clr = box.querySelector('.aov-clear');
+        if (clr) clr.onclick = () => { filter = null; render(); };
+        applyFilter();
+      }
+      function tile(k, name, color, n, nightTxt, pct, over) {
+        const cell = (v, label) => `<span class="${v ? '' : 'zero'}"><b>${v}</b>${label}</span>`;
+        return `<button type="button" class="aot ${k === 'none' ? 'none' : ''} ${filter === k ? 'on' : ''}" data-k="${esc(k)}" style="--apt-c:${esc(color)}">
+          <div class="aot-name">${k === 'none' ? '' : '🏠 '}${esc(name)}</div>
+          <div class="aot-n">${cell(n.in, '🛬 Đến')}${cell(n.stay, '🏨 Đang ở')}${cell(n.out, '🧳 Trả')}</div>
+          <div class="aot-night ${over ? 'over' : ''}">${nightTxt}</div>
+          ${k === 'none' ? '' : `<div class="aot-bar"><i style="width:${pct}%"></i></div>`}
+        </button>`;
+      }
+      window.cdAptOverview = () => { render(); loadVac().then(render); };
+      let t = null;
+      const again = () => { clearTimeout(t); t = setTimeout(() => window.cdAptOverview(), 400); };   // confirm / cancel / placement
+      document.addEventListener('DOMContentLoaded', () => {
+        render();
+        loadVac().then(render);
+        const row = document.querySelector('.three-section-row');
+        if (row) new MutationObserver(muts => {
+          if (muts.some(m => m.type === 'childList' || (m.target.classList && m.target.classList.contains('guest-card')))) again();
+        }).observe(row, { subtree: true, childList: true, attributes: true, attributeFilter: ['data-apt', 'class'] });
+      });
+    })();
+    </script>
+
     <!-- 🎯 THREE COLUMNS LAYOUT: Check-in, Staying, Checkout side by side -->
     <div class="row three-section-row">
         <!-- Check-in Section -->
@@ -1480,7 +1622,7 @@ setInterval(loadVbCd, 5 * 60 * 1000);
                             {%- endfor %}
                         {%- endif %}
                         <div class="guest-card-col">
-                            <div class="guest-card {{ 'has-commission' if has_commission else 'no-commission' }} {{ _ns.card_apt_class }} {{ 'is-paid' if is_paid else 'not-paid' }}">
+                            <div data-apt="{{ apt_map.get(_bid_apt)|default('', true) }}" class="guest-card {{ 'has-commission' if has_commission else 'no-commission' }} {{ _ns.card_apt_class }} {{ 'is-paid' if is_paid else 'not-paid' }}">
                                 {% if _ns.card_apt_wm %}<div class="apt-watermark" aria-hidden="true">{{ _ns.card_apt_wm }}</div>{% endif %}
                                 <div class="guest-header d-flex justify-content-between align-items-start">
                                     <div class="flex-grow-1 min-width-0">
@@ -1687,7 +1829,7 @@ setInterval(loadVbCd, 5 * 60 * 1000);
                             {%- endfor %}
                         {%- endif %}
                         <div class="guest-card-col" data-remaining="{{ remaining }}">
-                            <div class="guest-card {{ 'has-commission' if has_commission else 'no-commission' }} {{ _ns.card_apt_class }} {{ 'is-paid' if is_paid else 'not-paid' }}">
+                            <div data-apt="{{ apt_map.get(_bid_apt)|default('', true) }}" class="guest-card {{ 'has-commission' if has_commission else 'no-commission' }} {{ _ns.card_apt_class }} {{ 'is-paid' if is_paid else 'not-paid' }}">
                                 {% if _ns.card_apt_wm %}<div class="apt-watermark" aria-hidden="true">{{ _ns.card_apt_wm }}</div>{% endif %}
                                 <div class="guest-header d-flex justify-content-between align-items-start">
                                     <div class="flex-grow-1 min-width-0">
@@ -1863,7 +2005,7 @@ setInterval(loadVbCd, 5 * 60 * 1000);
                             {%- endfor %}
                         {%- endif %}
                         <div class="guest-card-col">
-                            <div class="guest-card {{ 'has-commission' if has_commission else 'no-commission' }} {{ _ns.card_apt_class }} {{ 'is-paid' if is_paid else 'not-paid' }}">
+                            <div data-apt="{{ apt_map.get(_bid_apt)|default('', true) }}" class="guest-card {{ 'has-commission' if has_commission else 'no-commission' }} {{ _ns.card_apt_class }} {{ 'is-paid' if is_paid else 'not-paid' }}">
                                 {% if _ns.card_apt_wm %}<div class="apt-watermark" aria-hidden="true">{{ _ns.card_apt_wm }}</div>{% endif %}
                                 <div class="guest-header d-flex justify-content-between align-items-start">
                                     <div class="flex-grow-1 min-width-0">
@@ -4434,6 +4576,11 @@ async function setApt(bookingId, aptId, color) {
             if (clr) clr.remove();
             if (picker) picker.classList.add('open');
         }
+
+        // Colour + per-apartment board follow the new placement
+        const _card = sel && sel.closest('.guest-card');
+        if (_card) _card.dataset.apt = aptId || '';
+        if (window.cdAptOverview) window.cdAptOverview();
 
         // Refresh notification bar + vacancy board
         loadAptNotifyBar();

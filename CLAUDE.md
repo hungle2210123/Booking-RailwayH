@@ -380,6 +380,14 @@ listing name / room_id (listing names are sold across apartments; TN bookings ca
 `over` = placed guests beyond the apartment's active room count → "VƯỢT" warning.
 `/api/apartment_placement_check` warns before placing a guest into a full apartment.
 
+### **🏠 Per-apartment view on calendar_details (`#aptOverview`)**
+Above the 3 columns: one tile per apartment (colour = `apartments_list[i].color`, same as the apartment picker) with
+🛬 Đến / 🏨 Đang ở / 🧳 Trả counted from the cards (`data-apt` = actual_apartment; 'cancelling' cards skipped), plus
+tonight's free rooms from `/api/vacancy_preview` (same numbers as the Phòng trống board) and "⏳ N chờ xác nhận";
+a "⏳ Chưa xếp căn" tile. Tap a tile = show only that apartment's cards (`.apt-filtered-out`). Cards get the apartment
+colour (8px left edge, light tint, coloured watermark; unplaced = grey dashed edge); payment strip on top and the 2PN
+purple edge are untouched. Updates on placement (`setApt` sets `data-apt`) and on status changes (MutationObserver).
+
 ### **🛏️ 2-bedroom bookings (`core/two_bedroom.py`)**
 `bookings.two_bedroom` BOOLEAN: NULL = auto-detect from listing ("2 PN", "2 phòng ngủ", "Two-Bedroom"; "2 Giường" is
 NOT 2PN), TRUE/FALSE = manual (`/api/set_two_bedroom`). Shown as 🛏️ 2PN toggle on cards, a check-out watch panel in

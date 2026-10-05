@@ -5187,6 +5187,8 @@ def calendar_details(date_str):
                 'color':      _APT_COLORS[_i % len(_APT_COLORS)],
                 'emoji':      _APT_EMOJIS[_i % len(_APT_EMOJIS)],
                 'rooms':      [{'name': r.room_name, 'name_lower': r.room_name.lower()} for r in _rooms],
+                'active':     bool(getattr(_apt, 'is_active', True)),
+                'capacity':   sum(1 for r in _rooms if getattr(r, 'is_active', True)),
             })
 
         # ── Load actual_apartment assignments from DB ──
