@@ -2001,8 +2001,26 @@ AUTO_MSG_PARTNER = (
     "Could you please share your WhatsApp (or Zalo) number so we can send you the check-in instructions "
     "(address, how to get in, Wi-Fi)? Please also let us know your expected arrival time. Thank you!"
 )
+# Chinese guests (Booking shows "cn" next to the name): ask to add the owner's WeChat + arrival time
+AUTO_MSG_ZH_NAME = 'Xin WeChat + giờ đến (中文)'
+AUTO_MSG_ZH = (
+    "{ten} 您好！👋\n"
+    "感谢您预订 Cozy Homestay Hanoi：入住 {nhan}，退房 {tra}（日/月）{phong}。\n"
+    "请问您方便加一下我们的微信吗？我们会通过微信发送入住指南（地址、进门方法、Wi-Fi），沟通也更方便。\n"
+    "我们的微信号：Itr_ong1022\n"
+    "（也可以搜索手机号：+84 365 773 410）\n"
+    "另外，请告诉我们您预计几点到达，我们好提前为您准备房间。谢谢！😊"
+)
+AUTO_MSG_ZH_COUNTRIES = ('cn', 'hk', 'mo', 'tw')
 AUTO_MSG_DEFAULTS = [(AUTO_MSG_DEFAULT_NAME, AUTO_MSG_DEFAULT), (AUTO_MSG_VI_NAME, AUTO_MSG_VI),
-                     (AUTO_MSG_PARTNER_NAME, AUTO_MSG_PARTNER)]
+                     (AUTO_MSG_PARTNER_NAME, AUTO_MSG_PARTNER), (AUTO_MSG_ZH_NAME, AUTO_MSG_ZH)]
+
+
+def _is_chinese_guest(name, page_text=''):
+    """Booking writes the guest's country code after the name ("JING CAO cn") or on its own line under it."""
+    codes = '|'.join(AUTO_MSG_ZH_COUNTRIES)
+    return bool(re.search(rf'\s({codes})$', str(name or '').strip())
+                or re.search(rf'(?m)^\s*({codes})\s*$', '\n'.join(str(page_text or '').splitlines()[:80])))
 
 
 def _auto_msg_for(templates, lang):
@@ -2108,7 +2126,11 @@ def ext_auto_messages():
                          'phong': _room_label(row[3]) or guest['phong']}
                 partner = partner or bool(row[4])
         templates = _auto_msg_templates()
-        default = next((t for t in templates if t['name'] == AUTO_MSG_PARTNER_NAME), None) if partner else None
+        default = None
+        if _is_chinese_guest(guest['ten'], body.get('text')) or _is_chinese_guest(p.get('guest_name')):
+            default = next((t for t in templates if t['name'] == AUTO_MSG_ZH_NAME), None)   # WeChat, even via a partner
+        if not default and partner:
+            default = next((t for t in templates if t['name'] == AUTO_MSG_PARTNER_NAME), None)
         return jsonify({'success': True, 'templates': templates, 'guest': guest, 'partner': partner,
                         'default_id': (default or _auto_msg_for(templates, 'EN'))['id']})
     except Exception as e:

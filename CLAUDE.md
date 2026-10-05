@@ -326,6 +326,9 @@ Server also rejects a phone whose last 9 digits (`_phone_tail`) are on another g
 booking number. Calendar shows "🤝 Đối tác"; /messages lists them separately. Extension "💬 Điền tin" types a chosen
 template into Booking's own chat box (`POST /api/ext/auto_messages`; partner → `AUTO_MSG_PARTNER_NAME`); the owner
 presses Gửi — never auto-sent.
+Chinese guests (country code cn/hk/mo/tw after the name or on its own line under it, `_is_chinese_guest`) get
+`AUTO_MSG_ZH_NAME` 'Xin WeChat + giờ đến (中文)' (template 216, owner WeChat ID Itr_ong1022 / +84 365 773 410) as the
+preselected message — even when booked via a partner. Also pinned as 🇨🇳 WeChat in ⚡ Tin nhanh.
 
 ### **📸 Booking.com screenshot for guests (`booking_screenshots` table)**
 Extension captures the reservation box + room block (`chrome.tabs.captureVisibleTab`; needs `activeTab`, so it is
