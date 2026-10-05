@@ -312,6 +312,8 @@ a new real booking has the same dates and price ±1,000đ or same first two name
 `_rename_booking`: bookings PK + booking_history, booking_screenshots, cancellation_actions, journey_log,
 revenue_calendar; arrival_times (FK, no cascade on update) is copied, deleted and re-inserted). Name cleanup drops
 icon tokens OCR'd at both ends ("4 ZHI Li 0" → "ZHI Li").
+The extension's list page and detail page also find the provisional booking (row shows "mã tạm … → <real>", a
+reservation cancelled on Booking cancels it instead of being skipped as 'skip_cancelled').
 
 ### **🤝 Partner bookings (`bookings.via_partner`)**
 Reservations with the "Đối tác Booking.com" box were made through a partner company: the phone on the page is the

@@ -1748,8 +1748,14 @@ def ext_booking_parse():
             known = _ext_known_listings()
             for row in parse_reservation_list(page.get('headers'), page.get('rows')):
                 existing = _ext_existing(row['booking_id'])
+                tmp = None
+                if not existing:
+                    tmp = _provisional_match(_ext_fields(row))
+                    existing = _ext_existing(tmp) if tmp else None
                 if existing:
-                    _, changes = _ext_diff(existing, _ext_fields(row))
+                    _, changes = _ext_diff(existing, _ext_fields({**row, 'cancelled': row['status'] == 'cancelled'}))
+                    if tmp:
+                        changes.insert(0, f"mã tạm {tmp} → {row['booking_id']}")
                     action = 'changed' if changes else 'same'
                 else:
                     changes = []
@@ -1764,6 +1770,9 @@ def ext_booking_parse():
                             'diag': {'headers': page.get('headers'), 'cols': [len(r) for r in (page.get('rows') or [])[:5]]}}), 400
         parsed = parse_reservation_page(page)
         existing = _ext_existing(parsed['booking_id']) if parsed.get('booking_id') else None
+        if not existing and parsed.get('booking_id'):
+            tmp = _provisional_match(_ext_fields(parsed))
+            existing = _ext_existing(tmp) if tmp else None
         return jsonify({'success': True, 'mode': 'single', 'parsed': parsed, 'existing': existing,
                         'listings': _ext_listings()})
     except Exception as e:
