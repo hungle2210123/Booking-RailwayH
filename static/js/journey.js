@@ -17,6 +17,8 @@
       .jr{background:#fff;width:100%;max-width:560px;max-height:93vh;overflow:auto;border-radius:18px 18px 0 0;
           box-shadow:0 -10px 40px rgba(0,0,0,.3);padding:0 14px 16px;font-family:inherit;}
       @media(min-width:700px){.jr-ov{align-items:center}.jr{border-radius:18px}}
+      @media(min-width:992px){.jr{max-width:760px;padding:20px 24px}.jr-name{font-size:1.25rem}.jr-ta{font-size:1rem;min-height:190px}
+        .jr-imgs img{height:150px}.jr-steps button{font-size:.92rem}}
       .jr-h{position:sticky;top:0;background:#fff;padding:12px 0 8px;z-index:2;border-bottom:1px solid #f1f5f9;}
       .jr-top{display:flex;align-items:center;gap:8px;}
       .jr-name{flex:1;min-width:0;font-weight:800;font-size:1.02rem;color:#0f172a;overflow-wrap:anywhere;}

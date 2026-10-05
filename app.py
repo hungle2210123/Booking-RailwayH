@@ -2592,7 +2592,7 @@ def messages_page():
     rows = _xdb.session.execute(text(f"""
         SELECT b.booking_id, COALESCE(g.full_name, b.guest_name) AS name,
                b.checkin_date, b.checkout_date, b.accommodation_name, g.phone, b.via_partner, b.actual_apartment,
-               b.checkin_status, b.property_name
+               b.checkin_status, b.property_name, b.room_amount
         FROM bookings b LEFT JOIN guests g ON g.guest_id = b.guest_id
         WHERE {where}
           AND COALESCE(b.booking_status, '') NOT IN ('cancelled', 'deleted')
@@ -2623,6 +2623,8 @@ def messages_page():
             'last': J.last_contact(done, buttons),          # None = not messaged yet
             'manual': J.MANUAL_KEY in done,
             'cho': r[9] or '',                               # Booking listing name ({cho})
+            'nights': (co - ci).days if ci and co else None,
+            'total': f"{float(r[10]):,.0f}".replace(',', '.') if r[10] else '',
             'cs': r[8] or '',                                # arrival status, put back by "Hoàn tác"
             'unreach': J.vn_time(done[J.UNREACHABLE_KEY]) if J.UNREACHABLE_KEY in done else None,
             'has_phone': bool(_msg_phone_links(r[5])) and not r[6],

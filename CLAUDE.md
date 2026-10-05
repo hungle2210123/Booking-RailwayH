@@ -292,6 +292,10 @@ No per-step ✓ anywhere (owner: useless) — sending is still logged quietly in
 "Hoàn tác" restores the previous checkin_status (card carries it as data-cs).
 
 ### **💬 "Nhắn khách" page (`/messages`, `templates/messages.html`)**
+Buttons inside `#live` (filter, 🔴/✅ mark, 📵, 🚫) call `window.MsgAct.*(this)` via onclick — NOT a document-level
+click listener: on iPhone Safari a delegated listener did not fire for taps on the button's text (📵 "không bấm được").
+Desktop ≥992px: 2-column card grid (3 ≥1900px), bigger text, 200×150 Booking picture, all chips on one row,
+an extra line "Mã · N đêm · total" (`.cextra`, desktop only); the send sheet is 760px wide.
 Booking listing name per booking (`bookings.property_name`) → token `{cho}` = " <name>" or "" ("Thank you for
 booking{cho}!" reads right either way; no hard-coded brand). Read by `property_from_page()` from the extranet top bar
 (line with / next to the `hotel_id` of the URL) on every page the extension posts (phone, Điền tin), remembered in

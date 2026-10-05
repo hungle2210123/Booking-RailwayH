@@ -104,6 +104,47 @@
   .live-toast button { margin-left:10px; border:none; background:#fff; color:#0f172a; font-weight:800; border-radius:999px;
                        padding:3px 10px; cursor:pointer; font-family:inherit; }
   .card.gone { opacity:.35; pointer-events:none; transition:opacity .2s; }
+  .cextra { display:none; }
+  @media (min-width: 992px) {
+    .wrap { max-width:1480px; padding:18px 28px 100px; }
+    .head h2 { font-size:1.7rem; }
+    .gear { font-size:.95rem; padding:8px 14px; }
+    .upd { font-size:.8rem; }
+    .addphoto { font-size:1rem; padding:13px; max-width:520px; }
+    .tabs { max-width:520px; }
+    .tabs a { font-size:1rem; padding:11px 6px; }
+    .sub { font-size:.95rem; }
+    .days a { font-size:.88rem; padding:5px 14px; }
+    .sfilter { max-width:640px; }
+    .sfilter button { font-size:.92rem; padding:10px 6px; }
+    .legend { font-size:.88rem; padding:9px 14px; }
+    #live { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:16px; align-items:start; }
+    #live > :not(.card) { grid-column:1 / -1; }
+    #live .card { margin-bottom:0; }
+    .group-t { font-size:1.05rem; margin:14px 2px 0; }
+    .card { padding:16px 18px; border-radius:16px; box-shadow:0 2px 10px rgba(15,23,42,.05); }
+    .chead { gap:16px; }
+    .ctop b { font-size:1.3rem; }
+    .apt { font-size:.82rem; padding:3px 11px; }
+    .cstate { font-size:.86rem; padding:5px 10px; margin:6px 0 3px; }
+    .cmeta { font-size:.95rem; margin-top:4px; }
+    .cphone { font-size:1.02rem; margin-top:4px; }
+    .cextra { display:block; font-size:.86rem; color:#475569; margin-top:4px; font-variant-numeric:tabular-nums; }
+    .cshot { width:200px; height:150px; border-radius:11px; }
+    .cshot.none { font-size:.8rem; }
+    .jstrip { grid-template-columns:none; grid-auto-flow:column; grid-auto-columns:minmax(0, 1fr); gap:8px; margin-top:14px; }
+    .jchip { padding:10px 4px; border-radius:12px; gap:3px; }
+    .jchip:hover { border-color:#93c5fd; background:#eff6ff; }
+    .jchip.cancel:hover { border-color:#fca5a5; background:#fef2f2; }
+    .jchip .e { font-size:1.45rem; }
+    .jchip .l { font-size:.78rem; }
+    .reload, .quickbtn { right:28px; width:62px; height:62px; }
+    .quickbtn { bottom:100px; font-size:1.5rem; }
+    .quickbtn small { font-size:.58rem; }
+  }
+  @media (min-width: 1900px) {
+    #live { grid-template-columns:repeat(3, minmax(0, 1fr)); }
+  }
   .card.todo { border-left:4px solid #ef4444; }
   .card.done { border-left:4px solid #22c55e; }
   .cstate { display:block; margin:3px 0 1px; border:none; border-radius:8px; padding:3px 8px; font-size:.72rem; font-weight:800;
@@ -141,14 +182,15 @@
       {% if g.unreach %}
       <div class="cstate unreach">📵 Không liên lạc được · từ {{ g.unreach }}</div>
       {% elif g.last %}
-      <button type="button" class="cstate done" data-bid="{{ g.booking_id }}" data-manual="{{ 1 if g.manual else 0 }}"
+      <button type="button" class="cstate done" onclick="MsgAct.mark(this)" data-bid="{{ g.booking_id }}" data-manual="{{ 1 if g.manual else 0 }}"
               title="Chạm để bỏ dấu tay">✅ Đã nhắn · {{ g.last.label }} · {{ g.last.at }}</button>
       {% else %}
-      <button type="button" class="cstate todo" data-bid="{{ g.booking_id }}" data-manual="0"
+      <button type="button" class="cstate todo" onclick="MsgAct.mark(this)" data-bid="{{ g.booking_id }}" data-manual="0"
               title="Đã nhắn ngoài app? Chạm để đánh dấu">🔴 Chưa nhắn <small>· chạm nếu đã nhắn ngoài</small></button>
       {% endif %}
       <div class="cmeta">{{ g.nhan }} → {{ g.tra }}{% if g.phong %} · {{ g.phong }}{% endif %}</div>
       {% if g.cho %}<div class="cmeta cho">🏨 {{ g.cho }}</div>{% endif %}
+      <div class="cextra">Mã {{ g.booking_id }}{% if g.nights %} · {{ g.nights }} đêm{% endif %}{% if g.total %} · {{ g.total }}đ{% endif %}</div>
       {% if kind == 'phone' or (kind == 'unreach' and g.has_phone) %}<div class="cphone">📞 {{ g.phone }}</div>
       {% elif kind == 'unreach' %}<div class="cphone none">Chưa có số thật</div>
       {% elif kind == 'partner' %}<div class="cphone partner">🤝 Đặt qua đối tác — nhắn trong khung chat Booking</div>
@@ -171,11 +213,11 @@
       <span class="e">{{ s.emoji }}</span><span class="l">{{ s.label }}</span>
     </button>
     {% endfor %}
-    <button type="button" class="jchip unreach-btn {{ 'on' if g.unreach }}" data-bid="{{ g.booking_id }}" data-on="{{ 1 if g.unreach else 0 }}">
+    <button type="button" class="jchip unreach-btn {{ 'on' if g.unreach }}" onclick="MsgAct.unreach(this)" data-bid="{{ g.booking_id }}" data-on="{{ 1 if g.unreach else 0 }}">
       {% if g.unreach %}<span class="e">↩️</span><span class="l">Liên lạc lại được</span>
       {% else %}<span class="e">📵</span><span class="l">Không liên lạc được</span>{% endif %}
     </button>
-    <button type="button" class="jchip cancel" data-bid="{{ g.booking_id }}" data-name="{{ g.name }}" data-cs="{{ g.cs }}">
+    <button type="button" class="jchip cancel" onclick="MsgAct.cancel(this)" data-bid="{{ g.booking_id }}" data-name="{{ g.name }}" data-cs="{{ g.cs }}">
       <span class="e">🚫</span><span class="l">Hủy khách</span>
     </button>
   </div>
@@ -206,9 +248,9 @@
     {% endif %}
   </div>
   <div class="sfilter">
-    <button type="button" data-f="all">Tất cả <b></b></button>
-    <button type="button" data-f="todo">🔴 Chưa nhắn <b></b></button>
-    <button type="button" data-f="done">✅ Đã nhắn <b></b></button>
+    <button type="button" onclick="MsgAct.filter(this)" data-f="all">Tất cả <b></b></button>
+    <button type="button" onclick="MsgAct.filter(this)" data-f="todo">🔴 Chưa nhắn <b></b></button>
+    <button type="button" onclick="MsgAct.filter(this)" data-f="done">✅ Đã nhắn <b></b></button>
   </div>
   <div class="legend">Chạm một bước để xem tin + ảnh rồi gửi · tin chung (Passport, Change, Xin hủy…) ở nút <b>⚡ Tin nhanh</b></div>
 
@@ -443,29 +485,26 @@
     if (none && !em) { em = document.createElement('div'); em.className = 'fempty'; document.getElementById('live').appendChild(em); }
     if (em) { em.style.display = none ? '' : 'none'; em.textContent = filter === 'todo' ? '🎉 Đã nhắn hết khách' : 'Chưa nhắn khách nào'; }
   }
-  document.addEventListener('click', e => {        // delegated: the bar is inside #live, which gets swapped
-    const b = e.target.closest && e.target.closest('.sfilter button');
-    if (!b) return;
+  // Buttons inside #live call these directly (onclick="MsgAct.…(this)"): iPhone Safari does not reliably give a
+  // document-level click listener the tapped button, and #live is re-rendered on every refresh.
+  const MsgAct = window.MsgAct = {};
+  MsgAct.filter = b => {
     filter = b.dataset.f;
     try { localStorage.setItem('msg_filter', filter); } catch (e2) {}
     applyFilter();
-  });
+  };
   // tap the red "Chưa nhắn" when you messaged outside the app (Booking chat, a call…); tap a hand mark to undo it
-  document.addEventListener('click', async e => {
-    const st = e.target.closest && e.target.closest('.cstate');
-    if (!st) return;
+  MsgAct.mark = async st => {
     const todo = st.classList.contains('todo');
     if (!todo && st.dataset.manual !== '1') { Journey.open(st.dataset.bid); return; }   // sent from the app → open its steps
     st.disabled = true;
     await fetch('/api/journey/sent', { method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ booking_id: st.dataset.bid, step: 'contacted', sent: todo }) }).catch(() => {});
     refresh(true);
-  });
+  };
   // 🚫 Hủy khách = the calendar's "Báo hủy" (checkin_status 'cancelling'): leaves this list, the calendar,
   // the vacancy board and revenue at once. Hoàn tác puts the previous status back.
-  document.addEventListener('click', async e => {
-    const btn = e.target.closest && e.target.closest('.jchip.cancel');
-    if (!btn) return;
+  MsgAct.cancel = async btn => {
     const bid = btn.dataset.bid, name = btn.dataset.name, prev = btn.dataset.cs || '';
     if (!confirm(`Hủy đặt phòng của "${name}"?\n\nKhách sẽ được đánh dấu BÁO HỦY (lịch, phòng trống và doanh thu cập nhật ngay).`)) return;
     const card = btn.closest('.card');
@@ -482,11 +521,10 @@
     t.querySelector('button').onclick = async () => { t.remove(); restored.add(bid); await setStatus(prev); refresh(true); };
     document.body.appendChild(t);
     setTimeout(() => t.remove(), 8000);
-  });
+  };
   // 📵 Không liên lạc được ⇄ ↩️ Liên lạc lại được
-  document.addEventListener('click', async e => {
-    const btn = e.target.closest && e.target.closest('.jchip.unreach-btn');
-    if (!btn) return;
+  MsgAct.unreach = async btn => {
+    if (btn.disabled) return;
     const on = btn.dataset.on !== '1';
     btn.disabled = true;
     const card = btn.closest('.card');
@@ -496,7 +534,7 @@
     if (!r || !r.success) { btn.disabled = false; if (card) card.classList.remove('gone'); alert('Không lưu được — thử lại'); return; }
     restored.add(btn.dataset.bid);                // moved between groups, not a new guest
     refresh(true);
-  });
+  };
   window.MsgLive = { refresh: () => refresh(true) };
   applyFilter();
   function stamp() {
