@@ -2054,7 +2054,9 @@ AUTO_MSG_VI = (
 )
 # For guests booked through a Booking.com partner company (their real number is not shown):
 # sent in the Booking chat to ask for a WhatsApp / Zalo number.
-AUTO_MSG_PARTNER_NAME = 'Xin số WhatsApp (EN) – khách qua đối tác'
+# Booking chat ('💬 Điền tin') only asks for a number to continue on WhatsApp / Zalo / WeChat (owner, Oct 2026):
+# every guest gets one of the three 'Xin …' messages (with the arrival-time question in it).
+AUTO_MSG_PARTNER_NAME = 'Xin số WhatsApp + giờ đến (EN)'
 AUTO_MSG_PARTNER = (
     "Hello {ten}! 👋\n"
     "Thank you for booking{cho}: check-in {nhan}, check-out {tra}{phong}.\n"
@@ -2062,14 +2064,14 @@ AUTO_MSG_PARTNER = (
     "(address, how to get in, Wi-Fi)?\n"
     "Please also let us know your expected arrival time. Thank you!"
 )
-AUTO_MSG_PARTNER_VI_NAME = 'Xin số Zalo/WhatsApp (VI) – khách qua đối tác'
+AUTO_MSG_PARTNER_VI_NAME = 'Xin số Zalo/WhatsApp + giờ đến (VI)'
 AUTO_MSG_PARTNER_VI = (
     "Xin chào {ten}! 👋\n"
     "Cảm ơn bạn đã đặt phòng{cho}: nhận phòng {nhan}, trả phòng {tra}{phong}.\n"
     "Bạn cho mình xin số Zalo hoặc WhatsApp để gửi hướng dẫn nhận phòng (địa chỉ, cách vào nhà, wifi) nhé.\n"
     "Bạn báo giúp mình giờ dự kiến tới nơi luôn ạ. Cảm ơn bạn!"
 )
-PARTNER_TAG = 'khách qua đối tác'          # partner templates are never the normal default
+ASK_PREFIX = 'Xin '                       # the 'ask for a number' messages: only these in Điền tin, never the chips' default
 
 # Chinese guests (Booking shows "cn" next to the name): ask to add the owner's WeChat + arrival time
 AUTO_MSG_ZH_NAME = 'Xin WeChat + giờ đến (中文)'
@@ -2105,7 +2107,7 @@ def _is_vn_guest(name, page_text=''):
 def _auto_msg_for(templates, lang):
     """The template for a channel: name tagged "(EN)" / "(VI)", else the first non-partner one."""
     tag = f'({lang})'.lower()
-    normal = [t for t in templates if PARTNER_TAG not in (t['name'] or '')]
+    normal = [t for t in templates if not (t['name'] or '').startswith(ASK_PREFIX)]
     return (next((t for t in normal if tag in (t['name'] or '').lower()), None)
             or (normal[0] if normal else None)
             or templates[0])
@@ -2219,14 +2221,17 @@ def ext_auto_messages():
         if _is_chinese_guest(guest['ten'], body.get('text')) or _is_chinese_guest(p.get('guest_name')):
             default = next((t for t in templates if t['name'] == AUTO_MSG_ZH_NAME), None)   # WeChat, even via a partner
         vn = _is_vn_guest(guest['ten'], body.get('text')) or _is_vn_guest(p.get('guest_name'))
-        if not default and partner:     # booked via a partner: ask for a number, in the guest's language
+        # Booking chat = ask for a number in the guest's language (cn → WeChat, vn → Zalo, others → WhatsApp)
+        asks = [t for t in templates if (t['name'] or '').startswith(ASK_PREFIX)]
+        if asks:
+            _order = {AUTO_MSG_PARTNER_NAME: 0, AUTO_MSG_PARTNER_VI_NAME: 1, AUTO_MSG_ZH_NAME: 2}
+            templates = sorted(asks, key=lambda t: _order.get(t['name'], 9))
+        if not default:
             default = next((t for t in templates if t['name'] == (AUTO_MSG_PARTNER_VI_NAME if vn else AUTO_MSG_PARTNER_NAME)), None)
-        if not default and vn:
-            default = _auto_msg_for(templates, 'VI')
         templates = [{**t, 'content': (t['content'] or '').replace('{cho}', f' {cho}' if cho else '')} for t in templates]
         guest['cho'] = cho
         return jsonify({'success': True, 'templates': templates, 'guest': guest, 'partner': partner,
-                        'default_id': (default or _auto_msg_for(templates, 'EN'))['id']})
+                        'default_id': (default or templates[0])['id']})
     except Exception as e:
         from core.models import db as _xdb
         _xdb.session.rollback()
