@@ -347,6 +347,10 @@ presses Gửi — never auto-sent.
 Chinese guests (country code cn/hk/mo/tw after the name or on its own line under it, `_is_chinese_guest`) get
 `AUTO_MSG_ZH_NAME` 'Xin WeChat + giờ đến (中文)' (template 216, owner WeChat ID Itr_ong1022 / +84 365 773 410) as the
 preselected message — even when booked via a partner. Also pinned as 🇨🇳 WeChat in ⚡ Tin nhanh.
+Partner "ask for a number" message is split by language (owner): 'Xin số WhatsApp (EN) – khách qua đối tác' (217) and
+'Xin số Zalo/WhatsApp (VI) – khách qua đối tác' (214). Preselection in Điền tin: Chinese → 中文 WeChat; partner → VI if
+the guest is "vn" (`_is_vn_guest`) else EN; other "vn" guests → 'Hỏi giờ đến (VI)'; everyone else → 'Hỏi giờ đến (EN)'.
+Templates whose name contains `PARTNER_TAG` are never picked by `_auto_msg_for`.
 
 ### **📸 Booking.com screenshot for guests (`booking_screenshots` table)**
 Extension captures the reservation box + room block (`chrome.tabs.captureVisibleTab`; needs `activeTab`, so it is
