@@ -26,11 +26,16 @@
   .upd { font-size:.7rem; color:var(--muted); margin:-4px 0 6px; text-align:right; }
   .addphoto { display:block; width:100%; border:1.5px dashed #2563eb; background:#eff6ff; color:#1d4ed8; font-weight:800;
               font-size:.88rem; border-radius:12px; padding:10px; margin:0 0 10px; cursor:pointer; font-family:inherit; }
-  .ap-ov { position:fixed; inset:0; z-index:99990; background:rgba(15,23,42,.55); display:flex; align-items:flex-end; justify-content:center; }
-  .ap { background:#fff; width:100%; max-width:560px; max-height:92vh; overflow:auto; border-radius:18px 18px 0 0; padding:14px 14px 22px; box-sizing:border-box; }
+  .ap-ov { position:fixed; inset:0; height:100vh; height:100dvh; z-index:99990; background:rgba(15,23,42,.55); display:flex;
+           align-items:flex-end; justify-content:center; overscroll-behavior:contain; }
+  .ap { background:#fff; width:100%; max-width:560px; max-height:88vh; max-height:calc(100dvh - 28px); overflow:auto;
+        overscroll-behavior:contain; border-radius:18px 18px 0 0; padding:0 14px calc(22px + env(safe-area-inset-bottom)); box-sizing:border-box; }
+  .ap .top { position:sticky; top:0; background:#fff; z-index:2; padding:12px 0 8px; border-bottom:1px solid #f1f5f9; }
   .ap h3 { margin:0; font-size:1.05rem; font-weight:800; }
   .ap .top { display:flex; align-items:center; justify-content:space-between; gap:8px; }
-  .ap .x { border:none; background:#f1f5f9; width:34px; height:34px; border-radius:50%; font-weight:800; cursor:pointer; }
+  .ap .x { border:none; background:#e2e8f0; height:40px; min-width:40px; padding:0 13px; border-radius:999px; font-weight:800;
+           cursor:pointer; font-family:inherit; color:#0f172a; }
+  .ap .x::after { content:' Đóng'; font-size:.82rem; }
   .ap .hint { font-size:.78rem; color:var(--muted); margin:6px 0 10px; line-height:1.45; }
   .ap .pick { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
   .ap .pick button, .ap .pick label { border:1.5px solid #cbd5e1; background:#f8fafc; border-radius:12px; padding:12px 6px; font-weight:800;

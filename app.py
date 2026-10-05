@@ -2106,8 +2106,12 @@ def _room_label(listing, keep_note=False):
     (e.g. a Booking notice sentence read by mistake), so it never reaches a guest.
     The owner's own note in brackets ("Deluxe 4 Người (2 Giường 18 Hàng Bè)") is for the owner only →
     removed unless keep_note (owner-facing screens)."""
+    import unicodedata
     from core.booking_page_parser import looks_like_room
     t = re.sub(r'\s+', ' ', str(listing or '')).strip()
+    # stray marks typed before the name on Booking ("̣ 2 phòng ngủ…": a lone dot-below accent)
+    while t and t[0] not in '([' and (unicodedata.category(t[0]).startswith(('M', 'P', 'Z', 'C')) or t[0] in '·-'):
+        t = t[1:].lstrip()
     if not looks_like_room(t):
         return ''
     return t if keep_note else re.sub(r'\s*[(\[][^)\]]*[)\]]', '', t).strip(' -·,')

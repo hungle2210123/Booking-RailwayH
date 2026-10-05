@@ -294,6 +294,9 @@ No per-step ✓ anywhere (owner: useless) — sending is still logged quietly in
 ### **💬 "Nhắn khách" page (`/messages`, `templates/messages.html`)**
 Buttons inside `#live` (filter, 🔴/✅ mark, 📵, 🚫) call `window.MsgAct.*(this)` via onclick — NOT a document-level
 click listener: on iPhone Safari a delegated listener did not fire for taps on the button's text (📵 "không bấm được").
+Send sheet (journey.js) on iPhone: sized to the visible screen (`100dvh`), page behind locked (`body.jr-lock`), sticky
+header with a big "✕ Đóng"; opening pushes one history entry (`jrSheet`) so swipe-back / ‹ closes the sheet
+(`close('reopen')` when re-rendering keeps the entry). Same fit for the photo-import sheet.
 Desktop ≥992px: 2-column card grid (3 ≥1900px), bigger text, 200×150 Booking picture, all chips on one row,
 an extra line "Mã · N đêm · total" (`.cextra`, desktop only); the send sheet is 760px wide.
 Booking listing name per booking (`bookings.property_name`) → token `{cho}` = " <name>" or "" ("Thank you for

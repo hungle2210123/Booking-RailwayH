@@ -13,9 +13,12 @@
     const s = document.createElement('style');
     s.id = 'jr-css';
     s.textContent = `
-      .jr-ov{position:fixed;inset:0;z-index:99990;background:rgba(15,23,42,.55);display:flex;align-items:flex-end;justify-content:center;}
-      .jr{background:#fff;width:100%;max-width:560px;max-height:93vh;overflow:auto;border-radius:18px 18px 0 0;
-          box-shadow:0 -10px 40px rgba(0,0,0,.3);padding:0 14px 16px;font-family:inherit;}
+      .jr-ov{position:fixed;inset:0;height:100vh;height:100dvh;z-index:99990;background:rgba(15,23,42,.55);display:flex;
+          align-items:flex-end;justify-content:center;overscroll-behavior:contain;}
+      .jr{background:#fff;width:100%;max-width:560px;max-height:88vh;max-height:calc(100dvh - 28px);overflow:auto;
+          overscroll-behavior:contain;-webkit-overflow-scrolling:touch;border-radius:18px 18px 0 0;
+          box-shadow:0 -10px 40px rgba(0,0,0,.3);padding:0 14px calc(18px + env(safe-area-inset-bottom));font-family:inherit;}
+      body.jr-lock{overflow:hidden;}
       @media(min-width:700px){.jr-ov{align-items:center}.jr{border-radius:18px}}
       @media(min-width:992px){.jr{max-width:760px;padding:20px 24px}.jr-name{font-size:1.25rem}.jr-ta{font-size:1rem;min-height:190px}
         .jr-imgs img{height:150px}.jr-steps button{font-size:.92rem}}
@@ -23,7 +26,9 @@
       .jr-top{display:flex;align-items:center;gap:8px;}
       .jr-name{flex:1;min-width:0;font-weight:800;font-size:1.02rem;color:#0f172a;overflow-wrap:anywhere;}
       .jr-name .jr-apt{display:table;margin:4px 0 0;}
-      .jr-x{border:none;background:#f1f5f9;width:34px;height:34px;border-radius:50%;font-weight:800;cursor:pointer;flex-shrink:0;}
+      .jr-x{border:none;background:#e2e8f0;height:40px;min-width:40px;padding:0 13px;border-radius:999px;font-weight:800;
+          font-size:.9rem;color:#0f172a;cursor:pointer;flex-shrink:0;font-family:inherit;}
+      .jr-x::after{content:' Đóng';font-size:.82rem;}
       .jr-meta{font-size:.78rem;color:#64748b;margin-top:2px;}
       .jr-apt{display:inline-block;font-size:.72rem;font-weight:800;border-radius:999px;padding:2px 9px;background:#e0f2fe;color:#075985;
           margin-left:6px;border:1px solid #7dd3fc;cursor:pointer;font-family:inherit;}
@@ -119,12 +124,13 @@
 
   async function open(bid, step, opts) {
     css();
-    close();
+    close('reopen');
     const ov = document.createElement('div');
     ov.className = 'jr-ov';
     ov.innerHTML = '<div class="jr"><div style="padding:30px;text-align:center;font-weight:700;color:#334155">⏳ Đang tải…</div></div>';
     ov.addEventListener('click', e => { if (e.target === ov) close(); });
     document.body.appendChild(ov);
+    sheetOpened();
     try {
       const data = await fetchGuest(bid);
       if (!data.success) { cache.delete(bid); throw new Error(data.error || 'Lỗi tải dữ liệu'); }
@@ -134,8 +140,26 @@
       ov.querySelector('.jr').innerHTML = `<div style="padding:24px;text-align:center;color:#b91c1c;font-weight:700">❌ ${esc(e.message)}</div>`;
     }
   }
-  function close() {
+  // The sheet takes one history entry: swiping back (or the browser's ‹) closes it instead of leaving the page
+  function sheetOpened() {
+    document.body.classList.add('jr-lock');
+    if (!(history.state && history.state.jrSheet)) {
+      try { history.pushState({ ...(history.state || {}), jrSheet: 1 }, ''); } catch (e) {}
+    }
+  }
+  window.addEventListener('popstate', () => {
+    if (document.querySelector('.jr-ov, .jr-zoom') && !(history.state && history.state.jrSheet)) {
+      document.querySelectorAll('.jr-zoom').forEach(z => z.remove());
+      close(true);
+    }
+  });
+  function close(fromHistory) {
+    const open_ = document.querySelector('.jr-ov');
     document.querySelectorAll('.jr-ov').forEach(o => o.remove());
+    document.body.classList.remove('jr-lock');
+    if (open_ && fromHistory !== true && fromHistory !== 'reopen' && history.state && history.state.jrSheet) {
+      try { history.back(); } catch (e) {}
+    }
     const reload = st && st.pinsChanged && document.querySelector('.jstrip');
     const had = !!st;
     st = null;
@@ -162,7 +186,7 @@
         <div class="jr-steps"></div>
       </div>
       <div class="jr-body"></div>`;
-    box.querySelector('.jr-x').onclick = close;
+    box.querySelector('.jr-x').onclick = () => close();
     drawTabs();
     box.querySelectorAll('.jr-pick button').forEach(btn => btn.onclick = () => setApartment(btn.dataset.apt));
     const aptBtn = box.querySelector('.jr-apt');
@@ -529,12 +553,13 @@
   // Text + pictures go out together through the phone's share sheet. A guest can be picked to fill the name.
   async function quick(templateId) {
     css();
-    close();
+    close('reopen');
     const ov = document.createElement('div');
     ov.className = 'jr-ov';
     ov.innerHTML = '<div class="jr"><div style="padding:30px;text-align:center;font-weight:700;color:#334155">⏳ Đang tải…</div></div>';
     ov.addEventListener('click', e => { if (e.target === ov) close(); });
     document.body.appendChild(ov);
+    sheetOpened();
     const prefs = await fetch('/api/journey/prefs').then(r => r.json()).catch(() => null);
     st = { bid: '', quick: true, ov, step: '__more', more: null,
            data: { booking: { name: '', links: null, partner: false, apartments: [] }, steps: [],
@@ -555,7 +580,7 @@
         </label>` : ''}
       </div>
       <div class="jr-body"></div>`;
-    box.querySelector('.jr-x').onclick = close;
+    box.querySelector('.jr-x').onclick = () => close();
     const back = box.querySelector('.jr-back');
     if (back) back.onclick = () => { st.more = null; renderQuick(); };
     const sel = box.querySelector('.jr-who select');
