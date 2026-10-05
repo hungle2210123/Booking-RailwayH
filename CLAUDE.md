@@ -290,6 +290,9 @@ No per-step ✓ anywhere (owner: useless) — sending is still logged quietly in
 "Hoàn tác" restores the previous checkin_status (card carries it as data-cs).
 
 ### **💬 "Nhắn khách" page (`/messages`, `templates/messages.html`)**
+No property / brand name in guest messages (owner, Oct 2026): the Booking listings have different names
+("Studio Hanoi Old Quarter…", "Cozy Studio…", "Suite Apartment…"), so templates say "your host" / "Cảm ơn bạn đã đặt phòng"
+and rely on dates + room name; the drawn confirmation card says "Hanoi Old Quarter".
 Mobile-first page: upcoming arrivals (checkin_date in [today, today+days]) that have a phone, each with
 WhatsApp / SMS / Zalo / Copy buttons + a pre-filled bilingual greeting (tokens `{ten}{nhan}{tra}{phong}`).
 The greeting lives in `message_templates` with category `AUTO_MSG_CATEGORY = '0 · Nhắn tự động'` (default seeded

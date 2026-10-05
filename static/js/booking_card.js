@@ -64,7 +64,7 @@
       x.strokeStyle = '#fff'; x.lineWidth = 11; x.lineCap = 'round'; x.lineJoin = 'round';
       x.beginPath(); x.moveTo(bx - 21, by + 2); x.lineTo(bx - 5, by + 19); x.lineTo(bx + 23, by - 15); x.stroke();
     }
-    text(d.brand || 'Cozy Homestay Hanoi', L + PAD, T + 118, `800 58px ${FONT}`, '#fff');
+    text(d.brand || 'Hanoi Old Quarter', L + PAD, T + 118, `800 58px ${FONT}`, '#fff');
     if ('letterSpacing' in x) x.letterSpacing = '5px';
     text('BOOKING CONFIRMATION', L + PAD, T + 184, `700 30px ${FONT}`, 'rgba(255,255,255,.92)');
     if ('letterSpacing' in x) x.letterSpacing = '0px';

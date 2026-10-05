@@ -1979,13 +1979,13 @@ AUTO_MSG_CATEGORY = '0 · Nhắn tự động'
 AUTO_MSG_DEFAULT_NAME = 'Hỏi giờ đến (EN)'
 AUTO_MSG_DEFAULT = (
     "Hello {ten}! 👋\n"
-    "This is Cozy Homestay Hanoi. We confirm your stay: check-in {nhan}, check-out {tra}{phong}.\n"
+    "This is your host. We confirm your stay: check-in {nhan}, check-out {tra}{phong}.\n"
     "Could you let us know your expected arrival time so we can prepare your room? Thank you!"
 )
 AUTO_MSG_VI_NAME = 'Hỏi giờ đến (VI)'
 AUTO_MSG_VI = (
     "Xin chào {ten}! 👋\n"
-    "Cozy Homestay Hanoi xác nhận đặt phòng của bạn: nhận phòng {nhan}, trả phòng {tra}{phong}.\n"
+    "Mình là chủ nhà, xác nhận đặt phòng của bạn: nhận phòng {nhan}, trả phòng {tra}{phong}.\n"
     "Bạn cho mình xin giờ dự kiến tới để chuẩn bị phòng chu đáo nhé. Cảm ơn bạn!"
 )
 # For guests booked through a Booking.com partner company (their real number is not shown):
@@ -1993,11 +1993,11 @@ AUTO_MSG_VI = (
 AUTO_MSG_PARTNER_NAME = 'Xin số Zalo/WhatsApp (khách qua đối tác)'
 AUTO_MSG_PARTNER = (
     "Xin chào {ten}! 👋\n"
-    "Cảm ơn bạn đã đặt phòng tại Cozy Homestay Hanoi: nhận phòng {nhan}, trả phòng {tra}{phong}.\n"
+    "Cảm ơn bạn đã đặt phòng: nhận phòng {nhan}, trả phòng {tra}{phong}.\n"
     "Bạn cho mình xin số Zalo hoặc WhatsApp để gửi hướng dẫn nhận phòng (địa chỉ, cách vào nhà, wifi) nhé. "
     "Bạn báo giúp mình giờ dự kiến tới nơi luôn ạ. Cảm ơn bạn!\n\n"
     "Hello {ten}! 👋\n"
-    "Thank you for booking Cozy Homestay Hanoi: check-in {nhan}, check-out {tra}{phong}.\n"
+    "Thank you for your booking: check-in {nhan}, check-out {tra}{phong}.\n"
     "Could you please share your WhatsApp (or Zalo) number so we can send you the check-in instructions "
     "(address, how to get in, Wi-Fi)? Please also let us know your expected arrival time. Thank you!"
 )
@@ -2005,7 +2005,7 @@ AUTO_MSG_PARTNER = (
 AUTO_MSG_ZH_NAME = 'Xin WeChat + giờ đến (中文)'
 AUTO_MSG_ZH = (
     "{ten} 您好！👋\n"
-    "感谢您预订 Cozy Homestay Hanoi：入住 {nhan}，退房 {tra}（日/月）{phong}。\n"
+    "感谢您的预订：入住 {nhan}，退房 {tra}（日/月）{phong}。\n"
     "请问您方便加一下我们的微信吗？我们会通过微信发送入住指南（地址、进门方法、Wi-Fi），沟通也更方便。\n"
     "我们的微信号：Itr_ong1022\n"
     "（也可以搜索手机号：+84 365 773 410）\n"
@@ -2251,7 +2251,7 @@ def booking_card_data(booking_id):
             'total': total, 'paid': collected > 0 and collected >= total - 100,
             # only once the guest is placed in an apartment
             'apartment': row[7] or '', 'address': (row[8] or '').strip(),
-            'brand': 'Cozy Homestay Hanoi',
+            'brand': 'Hanoi Old Quarter',          # the owner's listings have different names on Booking
         })
     except Exception as e:
         from core.models import db as _xdb
