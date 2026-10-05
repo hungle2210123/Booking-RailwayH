@@ -6578,4 +6578,36 @@ function showQuickToast(msg, type) {
 })();
 </script>
 
+
+<!-- ═══ Calm colours (owner, Oct 2026): colour only for what needs attention ═══
+     red = act now (chưa thu, báo hủy) · amber = soon (trả hôm nay / mai) · green = done (xác nhận đến, đã nhắn)
+     · the apartment's colour only on the card's left edge and its name chip · everything else black / grey / white -->
+<style id="calm-colours">
+  body .three-section-row .section-header-compact { background:#1f2937 !important; color:#fff !important; }
+  body .cd-jump a { background:#fff !important; color:#1f2937 !important; border:1.5px solid #d1d5db !important; }
+  body .guest-card, body .guest-card.apt-tint, body .guest-card.apt1-guest, body .guest-card.apt2-guest { background:#fff !important; }
+  body .guest-card.apt-tint { border-color:#e5e7eb !important; }
+  body .guest-card .apt-watermark { color:rgba(15,23,42,.07) !important; }
+  body .guest-card.is-paid { border-top:2px solid #e5e7eb !important; filter:none; }
+  body .guest-card .detail-amount { color:#111827 !important; }
+  body .guest-card .checkout-countdown.cnt-soon { background:#f3f4f6 !important; color:#4b5563 !important; }
+  body .guest-card .checkout-countdown.cnt-tomorrow { background:#fef3c7 !important; color:#92400e !important; }
+  body .guest-card .pay-status-pill.pill-paid { background:#f3f4f6 !important; color:#374151 !important; }
+  body .guest-card .pay-done-badge { color:#374151 !important; }
+  body .guest-card .btn-pay-now { color:#111827 !important; border-color:#9ca3af !important; background:#fff !important; }
+  body .guest-card .guest-img, body .guest-card .guest-journey, body .guest-card .guest-phone,
+  body .guest-card .guest-wa, body .guest-card .guest-zalo, body .guest-card .guest-partner {
+      background:#fff !important; color:#1f2937 !important; border:1px solid #d1d5db !important; }
+  body .guest-card .btn.w-100 { background:#fff !important; color:#374151 !important; border-color:#d1d5db !important; }
+  body .guest-card .btn.w-100 i { color:#6b7280 !important; }
+  body .guest-card .apt-sel-btn:not(.active) { color:#4b5563 !important; border-color:#d1d5db !important; background:#fff !important; }
+  body .guest-card .two-br-toggle:not(.on) { color:#9ca3af !important; border-color:#e5e7eb !important; }
+  body .btn-qstatus.pending-btn.active { background:#374151 !important; border-color:#374151 !important; color:#fff !important; box-shadow:none !important; }
+  body .btn-qstatus.pending-btn.pc-msg.active { background:#15803d !important; border-color:#15803d !important; }
+  body .btn-qstatus.pending-btn.pc-unreach.active { background:#6b7280 !important; border-color:#6b7280 !important; }
+  /* per-apartment board: white tiles, the apartment colour only as the top line and the name */
+  body .aot { background:#fff !important; border-color:#e5e7eb !important; }
+  body .aot-bar i { background:#374151 !important; }
+</style>
+
 {% endblock %}

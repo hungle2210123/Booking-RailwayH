@@ -121,6 +121,7 @@
             color:#92400e; background:#fde68a; letter-spacing:.2px; }
   .card.vip2 .vipbar { background:linear-gradient(90deg, #f59e0b, #fbbf24); color:#fff; text-shadow:0 1px 1px rgba(0,0,0,.15); }
   .card.vip1 .cextra, .card.vip2 .cextra { color:#92400e; }
+  .cextra b { color:#111827; }
   @media (min-width: 992px) {
     .wrap { max-width:1480px; padding:18px 28px 100px; }
     .head h2 { font-size:1.7rem; }
@@ -182,6 +183,22 @@
   .jchip.fav { background:#fff7ed; border-color:#fed7aa; color:#9a3412; }
 
   .empty { text-align:center; color:var(--muted); padding:30px 10px; background:#fff; border:1px dashed var(--line); border-radius:14px; }
+  /* Calm colours: red = act now (chưa nhắn), amber = needs doing (chưa xếp căn, chưa có số, VIP), green = done (small);
+     everything else black / grey / white */
+  .card.done { border-left-color:#d1d5db; }
+  .cstate.done { background:#f3f4f6; color:#374151; }
+  .apt { background:#fff; color:#1f2937; border:1px solid #d1d5db; }
+  .apt.none { background:#fef3c7; color:#92400e; border-color:#fcd34d; }
+  .cmeta.cho { color:#4b5563; }
+  .cphone.partner { color:#4b5563; }
+  .card.partner { border-color:var(--line); }
+  .group-t.partner, .group-t.nophone, .group-t.unreach { color:#1f2937; }
+  .jchip.fav, .jchip.unreach-btn { background:#f8fafc; border-color:var(--line); color:#334155; }
+  .addphoto { border-color:#9ca3af; background:#fff; color:#1f2937; }
+  .quickbtn { background:#1f2937; box-shadow:0 6px 18px rgba(15,23,42,.35); }
+  .reload { border-color:#9ca3af; box-shadow:0 6px 18px rgba(15,23,42,.18); }
+  .cconf { background:#f0fdf4; color:#166534; }
+  .days a.on { background:#1f2937; border-color:#1f2937; }
 </style>
 {% endblock %}
 
@@ -212,7 +229,7 @@
       <div class="cmeta">{{ g.nhan }} → {{ g.tra }}{% if g.phong %} · {{ g.phong }}{% endif %}</div>
       {% if g.cho %}<div class="cmeta cho">🏨 {{ g.cho }}</div>{% endif %}
       {% if g.confirmed and g.last %}<div class="cconf">🙋 Khách đã xác nhận đến</div>{% endif %}
-      <div class="cextra"><span class="cx-id">Mã {{ g.booking_id }} · </span>💰 {{ g.total or '—' }}đ{% if g.nights %} · {{ g.nights }} đêm{% endif %}</div>
+      <div class="cextra"><span class="cx-id">Mã {{ g.booking_id }} · </span>💰 <b>{{ g.total or '—' }}đ</b>{% if g.nights %} · {{ g.nights }} đêm{% endif %}{% if g.per_night %} · {{ g.per_night }}đ/đêm{% endif %}</div>
       {% if kind == 'phone' or (kind == 'unreach' and g.has_phone) %}<div class="cphone">📞 {{ g.phone }}</div>
       {% elif kind == 'unreach' %}<div class="cphone none">Chưa có số thật</div>
       {% elif kind == 'partner' %}<div class="cphone partner">🤝 Đặt qua đối tác — nhắn trong khung chat Booking</div>

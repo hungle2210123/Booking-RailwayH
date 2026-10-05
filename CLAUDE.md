@@ -383,6 +383,13 @@ listing name / room_id (listing names are sold across apartments; TN bookings ca
 `over` = placed guests beyond the apartment's active room count → "VƯỢT" warning.
 `/api/apartment_placement_check` warns before placing a guest into a full apartment.
 
+### **🎨 Calm colours (owner, Oct 2026) — /messages + calendar_details**
+Colour only for what needs attention: red = act now (⚡ Chưa thu, 🔴 Chưa nhắn, Báo hủy, VƯỢT), amber = soon / to do
+(Trả hôm nay / ngày mai, chưa xếp căn, chưa có số, ⭐ VIP), green = done (small: Xác nhận đến, 💬 Đã nhắn); the
+apartment colour only on the card's left edge + its name chip. Everything else black / grey / white. Calendar: one
+override layer `<style id="calm-colours">` at the end of calendar_details.html (`body …` + !important); /messages: the
+"Calm colours" block at the end of its <style>. /messages cards show "💰 total · N đêm · price/đêm".
+
 ### **🔄 /messages ⇄ calendar_details sync (arrival status)**
 The server is the only source: calendar_details no longer pushes this browser's localStorage statuses to the DB on
 load (old "STEP 0" brought back statuses cleared on another device / "Hoàn tác"). `cdSyncFromDB()` applies the DB

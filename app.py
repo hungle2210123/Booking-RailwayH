@@ -2630,6 +2630,8 @@ def messages_page():
             'nights': (co - ci).days if ci and co else None,
             'total': f"{float(r[10]):,.0f}".replace(',', '.') if r[10] else '',
             'total_num': float(r[10] or 0),
+            'per_night': (f"{float(r[10]) / (co - ci).days:,.0f}".replace(',', '.')
+                          if r[10] and ci and co and (co - ci).days > 0 else ''),
             'confirmed': r[8] == 'confirmed',                # "✅ Xác nhận đến" (shared with the calendar)
             'cs': r[8] or '',                                # arrival status, put back by "Hoàn tác"
             'unreach': J.vn_time(done[J.UNREACHABLE_KEY]) if J.UNREACHABLE_KEY in done else None,
