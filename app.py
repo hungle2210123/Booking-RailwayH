@@ -2630,6 +2630,7 @@ def messages_page():
             'nights': (co - ci).days if ci and co else None,
             'total': f"{float(r[10]):,.0f}".replace(',', '.') if r[10] else '',
             'total_num': float(r[10] or 0),
+            'confirmed': r[8] == 'confirmed',                # "✅ Xác nhận đến" (shared with the calendar)
             'cs': r[8] or '',                                # arrival status, put back by "Hoàn tác"
             'unreach': J.vn_time(done[J.UNREACHABLE_KEY]) if J.UNREACHABLE_KEY in done else None,
             'has_phone': bool(_msg_phone_links(r[5])) and not r[6],
@@ -10156,7 +10157,16 @@ def get_checkin_statuses():
             {'bids': bids}
         ).fetchall()
         statuses = {r[0]: r[1] for r in rows}
-        return jsonify({'success': True, 'statuses': statuses})
+        # what /messages knows: last message sent / "📵 không liên lạc được" (shown on the calendar's status bar)
+        contact = {}
+        try:
+            from core import journey as J
+            for bid, done in J.sent_status(db.session, bids).items():
+                last = J.last_contact(done)
+                contact[bid] = {'last': last, 'unreach': J.vn_time(done[J.UNREACHABLE_KEY]) if J.UNREACHABLE_KEY in done else None}
+        except Exception as _ce:
+            print(f"[checkin_statuses] contact info failed: {_ce}")
+        return jsonify({'success': True, 'statuses': statuses, 'contact': contact})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e), 'statuses': {}})
 

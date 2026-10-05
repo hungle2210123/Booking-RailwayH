@@ -681,6 +681,11 @@ setInterval(loadVbCd, 5 * 60 * 1000);
             background: #1565c0; color: #fff; border-color: #1565c0;
             box-shadow: 0 2px 6px rgba(21,101,192,0.3);
         }
+        /* /messages already messaged this guest / marked unreachable */
+        .btn-qstatus.pending-btn.pc-msg { border-color:#16a34a; color:#166534; font-size:.72rem; }
+        .btn-qstatus.pending-btn.pc-msg.active { background:#16a34a; color:#fff; border-color:#16a34a; box-shadow:0 2px 6px rgba(22,163,74,.3); }
+        .btn-qstatus.pending-btn.pc-unreach { border-color:#64748b; color:#334155; font-size:.72rem; }
+        .btn-qstatus.pending-btn.pc-unreach.active { background:#64748b; color:#fff; border-color:#64748b; }
         /* Late arrival button — full-width row 3 (check-in cards only) */
         .btn-qstatus.late-btn {
             grid-column: 1 / -1; grid-row: 3;
@@ -5555,6 +5560,7 @@ function toggleGuestStatus(btn, newStatus) {
     const name = bar.dataset.name || 'Khách';
     const key  = _statusKey(date, bid);
     const cur  = localStorage.getItem(key);
+    window._cdRecent[bid] = Date.now();      // the 30 s sync must not undo this tap while it is being saved
 
     const sectionId = card.closest('.guest-cards-row')?.id || null;
 
@@ -5679,21 +5685,66 @@ function updateCheckinBadge() {
     }
 }
 
+// ── Sync with the server (shared by the phone's /messages page and every browser) ──
+// Statuses: confirmed / cancelling / none. Contact: last message sent from /messages or "📵 không liên lạc được",
+// shown on the "Chưa liên hệ" button. A status just changed here is not overwritten for 10 s (save in flight).
+window._cdRecent = window._cdRecent || {};
+function cdPaintContact(bar, info) {
+    const btn = bar.querySelector('.pending-btn');
+    if (!btn) return;
+    if (!btn.dataset.orig) btn.dataset.orig = btn.innerHTML;
+    btn.classList.remove('pc-msg', 'pc-unreach');
+    if (info && info.unreach) {
+        btn.classList.add('pc-unreach');
+        btn.innerHTML = '📵 Không liên lạc được · ' + info.unreach;
+    } else if (info && info.last) {
+        btn.classList.add('pc-msg');
+        btn.innerHTML = '💬 Đã nhắn · ' + info.last.label + ' · ' + info.last.at;
+    } else {
+        btn.innerHTML = btn.dataset.orig;
+    }
+}
+function cdSyncFromDB() {
+    const bars = Array.from(document.querySelectorAll('.quick-status-bar'));
+    const bids = [...new Set(bars.map(b => b.dataset.bid).filter(Boolean))];
+    if (!bids.length) return;
+    const params = bids.map(b => `bids[]=${encodeURIComponent(b)}`).join('&');
+    fetch(`/api/get_checkin_statuses?${params}`)
+        .then(r => r.json())
+        .then(data => {
+            if (!data.success) return;
+            let changed = false;
+            bars.forEach(bar => {
+                const bid = bar.dataset.bid;
+                cdPaintContact(bar, (data.contact || {})[bid]);
+                if (Date.now() - (window._cdRecent[bid] || 0) < 10000) return;   // just changed here
+                const key = _statusKey(bar.dataset.date, bid);
+                const dbStat = data.statuses[bid] || null;
+                const lsStat = localStorage.getItem(key) || null;
+                if (dbStat === lsStat) return;
+                if (dbStat) localStorage.setItem(key, dbStat); else localStorage.removeItem(key);
+                const card = bar.closest('.guest-card');
+                if (card) _applyStatus(card, bar, dbStat);
+                changed = true;
+            });
+            if (changed) {
+                ['checkin-cards','staying-cards','checkout-cards'].forEach(groupSection);
+                if (typeof loadAptNotifyBar === 'function') loadAptNotifyBar();
+                if (typeof loadVbCd === 'function') loadVbCd();
+            }
+            updateCheckinBadge();
+            recalculateRevenue();
+        })
+        .catch(() => {});   // offline: this browser's statuses stay on screen
+}
+
 // Restore all statuses then regroup all sections
 // DB statuses take precedence (shared across all devices/browsers)
 document.addEventListener('DOMContentLoaded', () => {
     const bars = Array.from(document.querySelectorAll('.quick-status-bar'));
 
-    // ── STEP 0: Unconditionally push all localStorage statuses to DB ──────
-    // Runs on EVERY page load, idempotent (same value = same UPDATE).
-    // This is the primary mechanism for uploading statuses set before the
-    // DB sync feature existed, and keeps DB current on every reload.
-    bars.forEach(bar => {
-        const ls = localStorage.getItem(_statusKey(bar.dataset.date, bar.dataset.bid));
-        if (ls === 'confirmed' || ls === 'cancelling') {
-            _saveStatusToDB(bar.dataset.bid, ls);
-        }
-    });
+    // (STEP 0 removed, Oct 2026: it pushed this browser's old statuses over the server's on every load, so a
+    //  status cleared on another device — or "Hoàn tác" on /messages — came back. The server now decides.)
 
     // ── STEP 1: Apply localStorage immediately (zero-latency UI) ──────────
     bars.forEach(bar => {
@@ -5705,36 +5756,10 @@ document.addEventListener('DOMContentLoaded', () => {
     updateCheckinBadge();  // update confirmed count badge
     recalculateRevenue();  // initial render with localStorage statuses
 
-    // ── STEP 2: Fetch DB statuses (DB wins over localStorage) ─────────────
-    const bids = bars.map(b => b.dataset.bid).filter(Boolean);
-    if (bids.length) {
-        const params = bids.map(b => `bids[]=${encodeURIComponent(b)}`).join('&');
-        fetch(`/api/get_checkin_statuses?${params}`)
-            .then(r => r.json())
-            .then(data => {
-                if (!data.success) return; // Step 0 already uploaded, nothing more to do
-                let changed = false;
-                bars.forEach(bar => {
-                    const bid    = bar.dataset.bid;
-                    const date   = bar.dataset.date;
-                    const key    = _statusKey(date, bid);
-                    const dbStat = data.statuses[bid] || null;
-                    const lsStat = localStorage.getItem(key) || null;
-                    if (!dbStat || dbStat === lsStat) return; // no change needed
-                    // DB has a different/newer value → update localStorage + card
-                    localStorage.setItem(key, dbStat);
-                    const card = bar.closest('.guest-card');
-                    if (card) _applyStatus(card, bar, dbStat);
-                    changed = true;
-                });
-                if (changed) {
-                    ['checkin-cards','staying-cards','checkout-cards'].forEach(groupSection);
-                }
-                updateCheckinBadge();  // update confirmed count after DB sync
-                recalculateRevenue();  // recalc after DB statuses applied
-            })
-            .catch(() => {}); // silent fail — localStorage still works offline
-    }
+    // ── STEP 2: the server's statuses win (also a cleared one) + what /messages did; again every 30 s ──
+    cdSyncFromDB();
+    setInterval(() => { if (!document.hidden) cdSyncFromDB(); }, 30000);
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) cdSyncFromDB(); });
 
     // Sort staying cards by remaining nights ascending (soonest checkout first)
     const stayingContainer = document.getElementById('staying-cards');

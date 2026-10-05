@@ -383,6 +383,15 @@ listing name / room_id (listing names are sold across apartments; TN bookings ca
 `over` = placed guests beyond the apartment's active room count → "VƯỢT" warning.
 `/api/apartment_placement_check` warns before placing a guest into a full apartment.
 
+### **🔄 /messages ⇄ calendar_details sync (arrival status)**
+The server is the only source: calendar_details no longer pushes this browser's localStorage statuses to the DB on
+load (old "STEP 0" brought back statuses cleared on another device / "Hoàn tác"). `cdSyncFromDB()` applies the DB
+status (also a cleared one) on load, every 30 s and when the tab is shown again; a status tapped here is not
+overwritten for 10 s (`window._cdRecent`). `/api/get_checkin_statuses` also returns `contact` (journey_log): the
+calendar's "📞 Chưa liên hệ" button shows "💬 Đã nhắn · step · time" or "📵 Không liên lạc được · time".
+/messages shows "🙋 Khách đã xác nhận đến" for checkin_status 'confirmed' (counts as contacted); there is NO confirm
+button on /messages (owner: confirming stays on the calendar).
+
 ### **🏠 Per-apartment view on calendar_details (`#aptOverview`)**
 Above the 3 columns: one tile per apartment (colour = `apartments_list[i].color`, same as the apartment picker) with
 🛬 Đến / 🏨 Đang ở / 🧳 Trả counted from the cards (`data-apt` = actual_apartment; 'cancelling' cards skipped), plus

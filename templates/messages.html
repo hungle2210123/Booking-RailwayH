@@ -106,6 +106,9 @@
   .jchip .l { font-size:.64rem; font-weight:700; line-height:1.15; text-align:center; }
   .jchip.more { background:#fff; border-style:dashed; }
   .jchip.cancel { background:#fff; border-color:#fecaca; color:#b91c1c; }
+  .cstate.conf { cursor:default; }
+  .cconf { display:inline-block; margin-top:3px; font-size:.72rem; font-weight:800; color:#166534; background:#dcfce7;
+           border-radius:8px; padding:2px 8px; }
   .live-toast button { margin-left:10px; border:none; background:#fff; color:#0f172a; font-weight:800; border-radius:999px;
                        padding:3px 10px; cursor:pointer; font-family:inherit; }
   .card.gone { opacity:.35; pointer-events:none; transition:opacity .2s; }
@@ -186,7 +189,7 @@
 
 {% block content %}
 {% macro card(g, kind) %}
-<div class="card {{ kind }} {{ 'unreach' if g.unreach else ('done' if g.last else 'todo') }} {{ 'vip' ~ g.tier if g.tier }}" data-bid="{{ g.booking_id }}">
+<div class="card {{ kind }} {{ 'unreach' if g.unreach else ('done' if g.last or g.confirmed else 'todo') }} {{ 'vip' ~ g.tier if g.tier }}" data-bid="{{ g.booking_id }}">
   {% if g.tier %}<div class="vipbar">{{ '⭐⭐ Khách VIP' if g.tier == 2 else '⭐ Ưu tiên' }} · {{ g.total or '—' }}đ · {{ g.nights or '?' }} đêm</div>{% endif %}
   <div class="chead">
     <div class="cinfo">
@@ -197,6 +200,8 @@
       </div>
       {% if g.unreach %}
       <div class="cstate unreach">📵 Không liên lạc được · từ {{ g.unreach }}</div>
+      {% elif g.confirmed and not g.last %}
+      <div class="cstate done conf">🙋 Khách đã xác nhận đến</div>
       {% elif g.last %}
       <button type="button" class="cstate done" onclick="MsgAct.mark(this)" data-bid="{{ g.booking_id }}" data-manual="{{ 1 if g.manual else 0 }}"
               title="Chạm để bỏ dấu tay">✅ Đã nhắn · {{ g.last.label }} · {{ g.last.at }}</button>
@@ -206,6 +211,7 @@
       {% endif %}
       <div class="cmeta">{{ g.nhan }} → {{ g.tra }}{% if g.phong %} · {{ g.phong }}{% endif %}</div>
       {% if g.cho %}<div class="cmeta cho">🏨 {{ g.cho }}</div>{% endif %}
+      {% if g.confirmed and g.last %}<div class="cconf">🙋 Khách đã xác nhận đến</div>{% endif %}
       <div class="cextra"><span class="cx-id">Mã {{ g.booking_id }} · </span>💰 {{ g.total or '—' }}đ{% if g.nights %} · {{ g.nights }} đêm{% endif %}</div>
       {% if kind == 'phone' or (kind == 'unreach' and g.has_phone) %}<div class="cphone">📞 {{ g.phone }}</div>
       {% elif kind == 'unreach' %}<div class="cphone none">Chưa có số thật</div>
