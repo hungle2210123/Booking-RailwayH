@@ -720,15 +720,6 @@
         const own = fold(row.innerText || row.textContent || '');
         while (row.parentElement && fold(row.parentElement.innerText || '') === own) row = row.parentElement;
         masks.push(grow(box(R(row)), 4));
-      } else if (r.top > cardR.bottom - 5 && !/vnd|\d{1,2}\s+thang|\d{4}/.test(t) && /\([^)]*\)\s*$/.test(rawText(el))) {
-        // the room title in the room block: "(2 Giường 18 Hàng Bè)" is the owner's own note → cover just that part
-        const node = [...el.childNodes].find(n => n.nodeType === 3 && n.textContent.includes('('));
-        if (node) {
-          const range = document.createRange();
-          range.setStart(node, node.textContent.lastIndexOf('('));
-          range.setEnd(node, node.textContent.length);
-          [...range.getClientRects()].forEach(q => masks.push(grow(box(q), 2)));
-        }
       } else if (t === 'doi tac booking.com' || t === 'booking.com partner') {
         let blk = el;
         while (blk.parentElement && !/(cong ty hop tac|partner company|partners with)/.test(fold(blk.innerText || ''))) blk = blk.parentElement;

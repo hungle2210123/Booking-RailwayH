@@ -355,8 +355,9 @@ active, restores scroll. No on/off toggle in the popup (only a status line).
 Captures ONLY once the guest phone is on the page (`shotWhenVisible`: just revealed → always; already known / partner →
 once per 10 min per tab; waits until the tab is visible) — not on page open (owner, Oct 2026). If the booking is not
 on the web yet, `/api/ext/booking/phone` adds it from the same page (`_create_from_page`, status `created`).
-Guest image also covers the owner's bracket note in the room title; `_room_label()` strips it from messages
-(`keep_note=True` only on owner screens). Sending on phones = 2 steps: text via wa.me/Zalo/SMS, then 📷 (`HotelCard.quickShare`) shares the prefetched
+The owner's bracket note in the room title ("(Ban Công Hàng Bạc)") is NOT covered in the picture any more (ext 1.15,
+owner: needed to recognise the room); /messages cards show the FULL picture (zoom opens it, toggle to the guest one).
+`_room_label()` still strips the note from message text (`keep_note=True` on owner screens). Sending on phones = 2 steps: text via wa.me/Zalo/SMS, then 📷 (`HotelCard.quickShare`) shares the prefetched
 image (`HotelCard.prefetch` on step 1) — share must run inside the tap, so it is fetched ahead.
 Room names shown to guests go through `_room_label()` / `looks_like_room()` (a Booking notice was once stored as a room).
 

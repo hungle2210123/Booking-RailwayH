@@ -493,13 +493,15 @@
     });
   }
 
-  function zoom(url, fullUrl) {
+  // url = the picture sent to guests; fullUrl = the owner's full one (fullFirst: open on it — the guest card)
+  function zoom(url, fullUrl, fullFirst) {
     css();
     const z = document.createElement('div');
     z.className = 'jr-zoom';
-    z.innerHTML = `<img src="${esc(url)}" alt=""><div><a href="${esc(url)}" download>⬇️ Tải ảnh</a>
+    const first = fullFirst && fullUrl ? fullUrl : url;
+    z.innerHTML = `<img src="${esc(first)}" alt=""><div><a href="${esc(url)}" download>⬇️ Tải ảnh</a>
       <button type="button" class="c">📋 Sao chép ảnh</button>
-      ${fullUrl ? '<button type="button" class="f">Xem bản đầy đủ</button>' : ''}
+      ${fullUrl ? `<button type="button" class="f">${first === fullUrl ? 'Xem bản gửi khách' : 'Xem bản đầy đủ'}</button>` : ''}
       <button type="button" class="x">Đóng</button></div>`;
     z.addEventListener('click', e => { if (e.target === z) z.remove(); });
     z.querySelector('.x').onclick = () => z.remove();

@@ -199,8 +199,8 @@
     {# The Booking screenshot that will be sent — visible here to check it first #}
     {% if g.shot %}
     <img class="cshot" loading="lazy" alt="Ảnh đặt phòng" title="Ảnh đặt phòng — chạm để xem to"
-         src="/api/booking_screenshot/{{ g.booking_id }}?v=guest&t={{ g.shot }}"
-         onclick="Journey.zoom(this.src, '/api/booking_screenshot/{{ g.booking_id }}?v=full&t={{ g.shot }}')">
+         src="/api/booking_screenshot/{{ g.booking_id }}?v=full&t={{ g.shot }}"
+         onclick="Journey.zoom('/api/booking_screenshot/{{ g.booking_id }}?v=guest&t={{ g.shot }}', this.src, true)">
     {% else %}
     <div class="cshot none" title="Mở đặt phòng này trên máy tính, tiện ích tự chụp">📸<br>chưa có<br>ảnh</div>
     {% endif %}
