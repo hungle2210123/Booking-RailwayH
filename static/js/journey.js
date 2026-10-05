@@ -356,7 +356,7 @@
     const box = document.createElement('div');
     box.className = 'jr-editbox';
     box.innerHTML = `<div class="jr-tpl" style="margin-top:0">✏️ Sửa mẫu gốc <b>${esc(template.name)}</b> — lưu là dùng cho <b>mọi khách</b>.
-        Tự thay: {ten} tên · {nhan} ngày nhận · {tra} ngày trả · {phong} (phòng) · {can} tên căn</div>
+        Tự thay: {ten} tên · {nhan} ngày nhận · {tra} ngày trả · {phong} (phòng) · {can} tên căn · {cho} tên chỗ nghỉ trên Booking</div>
       <textarea class="jr-ta">${esc(r.template.Message || '')}</textarea>
       <div class="jr-btns"><button type="button" class="jr-cancel">Huỷ</button><button type="button" class="jr-save">💾 Lưu mẫu</button></div>`;
     body.innerHTML = '';

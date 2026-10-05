@@ -170,6 +170,34 @@ def _value(page, lines, field):
     return _from_pairs(page.get('pairs'), field) or _from_lines(lines, field)
 
 
+def hotel_id_of(url):
+    q = parse_qs(urlparse(url or '').query)
+    v = (q.get('hotel_id') or q.get('hotelid') or [''])[0]
+    return v if re.fullmatch(r'\d{5,10}', v or '') else None
+
+
+def _property_ok(name):
+    n = re.sub(r'\s+', ' ', str(name or '')).strip(' ·-|')
+    if not (4 <= len(n) <= 150) or not re.search(r'[^\W\d_]{3}', n) or _fold(n) in ('booking.com', 'extranet'):
+        return None
+    return n
+
+
+def property_from_page(url, text):
+    """Listing name in the extranet's top bar: "Studio Hanoi Old Quarter - Steps to Everything  16496275"
+    (name next to the property id that is also in the URL). The bar truncates it on screen, the text is whole."""
+    hid = hotel_id_of(url)
+    lines = [l.strip() for l in str(text or '').splitlines() if l.strip()][:60]
+    for i, l in enumerate(lines):
+        if hid and hid in l:
+            rest = _property_ok(l.replace(hid, ''))
+            if rest:
+                return rest
+            if i > 0:
+                return _property_ok(lines[i - 1])
+    return None
+
+
 def parse_reservation_page(page):
     url = page.get('url') or ''
     text = page.get('text') or ''
@@ -236,6 +264,8 @@ def parse_reservation_page(page):
         notes.append('Ngày trả phòng không sau ngày nhận phòng — kiểm tra lại')
         out['checkout_date'] = None
 
+    out['hotel_id'] = hotel_id_of(url)
+    out['property_name'] = property_from_page(url, text)
     out['missing'] = [k for k in ('booking_id', 'guest_name', 'checkin_date', 'checkout_date',
                                   'room_amount', 'phone') if not out.get(k)]
     out['notes'] = notes
@@ -425,7 +455,7 @@ def parse_pulse_text(text):
     lines = [l for l in lines if l]
     folded = [_fold(l) for l in lines]
     out = {'booking_id': None, 'guest_name': None, 'checkin_date': None, 'checkout_date': None,
-           'listing': None, 'room_amount': None, 'guests': None, 'phone': None}
+           'listing': None, 'room_amount': None, 'guests': None, 'phone': None, 'property_name': None}
 
     # Booking number: after its label, else a lone 10-digit number
     m = re.search(r'(?:ma so dat phong|so dat phong|ma dat phong|booking number|reservation number)\D{0,25}(\d{9,11})',
@@ -453,6 +483,11 @@ def parse_pulse_text(text):
             return None
         return n
     prop = next((i for i, f in enumerate(folded[:12]) if re.search(r'cozy|hanoi|homestay|old quarter|hostel', f)), None)
+    if prop is not None:
+        ptoks = lines[prop].split()
+        while ptoks and (len(ptoks[-1]) <= 2 and not ptoks[-1].isalnum() or len(ptoks[-1]) == 1):   # "U)" share icon
+            ptoks.pop()
+        out['property_name'] = _property_ok(' '.join(ptoks))
     if prop:
         for j in range(prop - 1, max(-1, prop - 3), -1):
             out['guest_name'] = _name(lines[j])

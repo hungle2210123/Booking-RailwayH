@@ -1579,6 +1579,51 @@ def _ext_diff(existing, f):
     return updates, changes
 
 
+# The Booking listing a guest booked ("Studio Hanoi Old Quarter - Steps to Everything") → {cho} in messages.
+# bookings.property_name; booking_properties remembers hotel_id → name from detail pages for the list page.
+_PROPERTY_READY = False
+
+
+def _ensure_property_column():
+    global _PROPERTY_READY
+    if _PROPERTY_READY:
+        return
+    from core.models import db as _xdb
+    try:
+        _xdb.session.execute(text("ALTER TABLE bookings ADD COLUMN IF NOT EXISTS property_name VARCHAR(200)"))
+        _xdb.session.execute(text("""CREATE TABLE IF NOT EXISTS booking_properties (
+            hotel_id VARCHAR(20) PRIMARY KEY, name VARCHAR(200) NOT NULL, updated_at TIMESTAMP DEFAULT NOW())"""))
+        _xdb.session.commit()
+        _PROPERTY_READY = True
+    except Exception as e:
+        _xdb.session.rollback()
+        print(f"[property] column setup failed: {e}")
+
+
+def _property_for(hotel_id, name=None):
+    """Learn / recall the listing name of a Booking property id."""
+    from core.models import db as _xdb
+    _ensure_property_column()
+    if hotel_id and name:
+        _xdb.session.execute(text("""INSERT INTO booking_properties (hotel_id, name, updated_at) VALUES (:h, :n, NOW())
+            ON CONFLICT (hotel_id) DO UPDATE SET name = EXCLUDED.name, updated_at = NOW()"""), {'h': hotel_id, 'n': name})
+        _xdb.session.commit()
+        return name
+    if hotel_id:
+        return _xdb.session.execute(text("SELECT name FROM booking_properties WHERE hotel_id = :h"), {'h': hotel_id}).scalar()
+    return name
+
+
+def _set_property(booking_id, name):
+    from core.models import db as _xdb
+    if not (booking_id and name):
+        return
+    _ensure_property_column()
+    _xdb.session.execute(text("""UPDATE bookings SET property_name = :n
+        WHERE booking_id = :b AND property_name IS DISTINCT FROM :n"""), {'n': name[:200], 'b': booking_id})
+    _xdb.session.commit()
+
+
 # Bookings added from a phone screenshot without a booking number get a provisional id "TAM-yymmdd-XXXX".
 # When the real reservation reaches the web (extension on the PC: list / detail / phone), the provisional
 # booking with the same stay is switched to the real number instead of creating a second booking.
@@ -1632,6 +1677,17 @@ def _rename_booking(old, new):
 
 
 def _ext_save_one(d):
+    """Create or update one booking (+ its Booking listing name). Returns (result dict, http status)."""
+    result, code = _ext_save_one_core(d)
+    if result.get('success') and result.get('booking_id'):
+        try:
+            _set_property(result['booking_id'], str(d.get('property_name') or '').strip() or _property_for(d.get('hotel_id')))
+        except Exception as e:
+            print(f"[property] not saved: {e}")
+    return result, code
+
+
+def _ext_save_one_core(d):
     """Create or update one booking. Returns (result dict, http status)."""
     from core.models import db as _xdb
     f = _ext_fields(d)
@@ -1746,6 +1802,9 @@ def ext_booking_parse():
         if page.get('mode') == 'list' and is_reservation_list(page.get('headers'), page.get('rows')):
             items = []
             known = _ext_known_listings()
+            from core.booking_page_parser import hotel_id_of
+            _hid = hotel_id_of(page.get('url'))
+            _pname = _property_for(_hid)
             for row in parse_reservation_list(page.get('headers'), page.get('rows')):
                 existing = _ext_existing(row['booking_id'])
                 tmp = None
@@ -1760,7 +1819,7 @@ def ext_booking_parse():
                 else:
                     changes = []
                     action = 'skip_cancelled' if row['status'] == 'cancelled' else 'new'
-                items.append({**row, 'action': action, 'changes': changes,
+                items.append({**row, 'action': action, 'changes': changes, 'hotel_id': _hid, 'property_name': _pname,
                               'existing_name': existing['guest_name'] if existing else None,
                               'new_listing': bool(row['listing']) and row['listing'].lower() not in known})
             return jsonify({'success': True, 'mode': 'list', 'items': items, 'listings': _ext_listings()})
@@ -1855,7 +1914,7 @@ def booking_from_photo_save():
     from core.models import db as _xdb
     d = request.get_json(silent=True) or {}
     fields = {k: d.get(k) for k in ('booking_id', 'guest_name', 'checkin_date', 'checkout_date', 'listing',
-                                    'room_amount', 'phone')}
+                                    'room_amount', 'phone', 'property_name')}
     fields['cancelled'] = False
     if not str(fields.get('booking_id') or '').strip():
         # the Booking app screen often has no booking number → provisional id, switched to the real one later
@@ -1885,6 +1944,11 @@ def ext_booking_phone():
         body = request.get_json(silent=True) or {}
         p = parse_reservation_page(body)
         bid = p.get('booking_id')
+        p['property_name'] = _property_for(p.get('hotel_id'), p.get('property_name'))
+        try:
+            _set_property(bid, p['property_name'])
+        except Exception:
+            pass
 
         def _create_from_page(phone_):
             """Booking not on the web yet: add it from this same page (owner prefers no extra 📥 click).
@@ -1979,13 +2043,13 @@ AUTO_MSG_CATEGORY = '0 · Nhắn tự động'
 AUTO_MSG_DEFAULT_NAME = 'Hỏi giờ đến (EN)'
 AUTO_MSG_DEFAULT = (
     "Hello {ten}! 👋\n"
-    "This is your host. We confirm your stay: check-in {nhan}, check-out {tra}{phong}.\n"
+    "Thank you for booking{cho}! We confirm your stay: check-in {nhan}, check-out {tra}{phong}.\n"
     "Could you let us know your expected arrival time so we can prepare your room? Thank you!"
 )
 AUTO_MSG_VI_NAME = 'Hỏi giờ đến (VI)'
 AUTO_MSG_VI = (
     "Xin chào {ten}! 👋\n"
-    "Mình là chủ nhà, xác nhận đặt phòng của bạn: nhận phòng {nhan}, trả phòng {tra}{phong}.\n"
+    "Cảm ơn bạn đã đặt phòng{cho}! Mình xác nhận đặt phòng của bạn: nhận phòng {nhan}, trả phòng {tra}{phong}.\n"
     "Bạn cho mình xin giờ dự kiến tới để chuẩn bị phòng chu đáo nhé. Cảm ơn bạn!"
 )
 # For guests booked through a Booking.com partner company (their real number is not shown):
@@ -1993,11 +2057,11 @@ AUTO_MSG_VI = (
 AUTO_MSG_PARTNER_NAME = 'Xin số Zalo/WhatsApp (khách qua đối tác)'
 AUTO_MSG_PARTNER = (
     "Xin chào {ten}! 👋\n"
-    "Cảm ơn bạn đã đặt phòng: nhận phòng {nhan}, trả phòng {tra}{phong}.\n"
+    "Cảm ơn bạn đã đặt phòng{cho}: nhận phòng {nhan}, trả phòng {tra}{phong}.\n"
     "Bạn cho mình xin số Zalo hoặc WhatsApp để gửi hướng dẫn nhận phòng (địa chỉ, cách vào nhà, wifi) nhé. "
     "Bạn báo giúp mình giờ dự kiến tới nơi luôn ạ. Cảm ơn bạn!\n\n"
     "Hello {ten}! 👋\n"
-    "Thank you for your booking: check-in {nhan}, check-out {tra}{phong}.\n"
+    "Thank you for booking{cho}: check-in {nhan}, check-out {tra}{phong}.\n"
     "Could you please share your WhatsApp (or Zalo) number so we can send you the check-in instructions "
     "(address, how to get in, Wi-Fi)? Please also let us know your expected arrival time. Thank you!"
 )
@@ -2005,7 +2069,7 @@ AUTO_MSG_PARTNER = (
 AUTO_MSG_ZH_NAME = 'Xin WeChat + giờ đến (中文)'
 AUTO_MSG_ZH = (
     "{ten} 您好！👋\n"
-    "感谢您的预订：入住 {nhan}，退房 {tra}（日/月）{phong}。\n"
+    "感谢您预订{cho}：入住 {nhan}，退房 {tra}（日/月）{phong}。\n"
     "请问您方便加一下我们的微信吗？我们会通过微信发送入住指南（地址、进门方法、Wi-Fi），沟通也更方便。\n"
     "我们的微信号：Itr_ong1022\n"
     "（也可以搜索手机号：+84 365 773 410）\n"
@@ -2111,6 +2175,11 @@ def ext_auto_messages():
         dm = lambda iso: '/'.join(reversed(iso.split('-')[1:])) if iso else ''   # 2026-10-04 → 04/10
         guest = {'ten': p.get('guest_name') or '', 'nhan': dm(p.get('checkin_date')),
                  'tra': dm(p.get('checkout_date')), 'phong': _room_label(p.get('listing'))}
+        cho = _property_for(p.get('hotel_id'), p.get('property_name')) or ''
+        try:
+            _set_property(bid, cho)
+        except Exception:
+            pass
         partner = bool(body.get('partner'))
         if bid:
             _ensure_partner_column()
@@ -2131,6 +2200,8 @@ def ext_auto_messages():
             default = next((t for t in templates if t['name'] == AUTO_MSG_ZH_NAME), None)   # WeChat, even via a partner
         if not default and partner:
             default = next((t for t in templates if t['name'] == AUTO_MSG_PARTNER_NAME), None)
+        templates = [{**t, 'content': (t['content'] or '').replace('{cho}', f' {cho}' if cho else '')} for t in templates]
+        guest['cho'] = cho
         return jsonify({'success': True, 'templates': templates, 'guest': guest, 'partner': partner,
                         'default_id': (default or _auto_msg_for(templates, 'EN'))['id']})
     except Exception as e:
@@ -2388,10 +2459,11 @@ def journey_image(image_id):
 def _journey_booking(_xdb, booking_id):
     from core import journey as J
     J.ensure(_xdb.session)
+    _ensure_property_column()
     _ensure_partner_column()
     row = _xdb.session.execute(text("""
         SELECT b.booking_id, COALESCE(g.full_name, b.guest_name), b.checkin_date, b.checkout_date,
-               b.accommodation_name, g.phone, b.actual_apartment, b.via_partner
+               b.accommodation_name, g.phone, b.actual_apartment, b.via_partner, b.property_name
         FROM bookings b LEFT JOIN guests g ON g.guest_id = b.guest_id WHERE b.booking_id = :b"""),
         {'b': booking_id}).fetchone()
     if not row:
@@ -2401,7 +2473,7 @@ def _journey_booking(_xdb, booking_id):
     apt = apts.get(apt_id)
     guest = {'ten': row[1] or '', 'nhan': row[2].strftime('%d/%m') if row[2] else '',
              'tra': row[3].strftime('%d/%m') if row[3] else '', 'phong': _room_label(row[4]),
-             'can': apt['name'] if apt else ''}
+             'can': apt['name'] if apt else '', 'cho': row[8] or ''}
     partner = bool(row[7])
     return {'id': row[0], 'name': row[1] or row[0], 'checkin': row[2], 'checkout': row[3], 'guest': guest,
             'phone': '' if partner else (row[5] or ''), 'links': None if partner else _msg_phone_links(row[5]),
@@ -2506,6 +2578,7 @@ def messages_page():
     from core.models import db as _xdb
     from core import journey as J
     J.ensure(_xdb.session)
+    _ensure_property_column()
     view = 'staying' if request.args.get('view') == 'staying' else 'arriving'
     try:
         days = max(1, min(int(request.args.get('days', 3)), 14))
@@ -2519,7 +2592,7 @@ def messages_page():
     rows = _xdb.session.execute(text(f"""
         SELECT b.booking_id, COALESCE(g.full_name, b.guest_name) AS name,
                b.checkin_date, b.checkout_date, b.accommodation_name, g.phone, b.via_partner, b.actual_apartment,
-               b.checkin_status
+               b.checkin_status, b.property_name
         FROM bookings b LEFT JOIN guests g ON g.guest_id = b.guest_id
         WHERE {where}
           AND COALESCE(b.booking_status, '') NOT IN ('cancelled', 'deleted')
@@ -2549,6 +2622,7 @@ def messages_page():
             'shot': int(shots[r[0]].timestamp()) if r[0] in shots else None,
             'last': J.last_contact(done, buttons),          # None = not messaged yet
             'manual': J.MANUAL_KEY in done,
+            'cho': r[9] or '',                               # Booking listing name ({cho})
             'cs': r[8] or '',                                # arrival status, put back by "Hoàn tác"
             'unreach': J.vn_time(done[J.UNREACHABLE_KEY]) if J.UNREACHABLE_KEY in done else None,
             'has_phone': bool(_msg_phone_links(r[5])) and not r[6],
@@ -5238,11 +5312,14 @@ def calendar_details(date_str):
                                     'phong': _room_label(_g.get('Tên chỗ nghỉ'))}
             if _ph_info:
                 _ensure_partner_column()
-                for _bid, _phone, _partner in _phdb.session.execute(text("""
-                    SELECT b.booking_id, g.phone, b.via_partner FROM bookings b
+                _ensure_property_column()
+                for _bid, _phone, _partner, _cho in _phdb.session.execute(text("""
+                    SELECT b.booking_id, g.phone, b.via_partner, b.property_name FROM bookings b
                     LEFT JOIN guests g ON g.guest_id = b.guest_id
                     WHERE b.booking_id = ANY(:bids) AND (COALESCE(g.phone, '') <> '' OR b.via_partner)
                 """), {'bids': list(_ph_info)}).fetchall():
+                    if _bid in _ph_info:
+                        _ph_info[_bid]['cho'] = _cho or ''
                     if _partner:    # booked via a Booking.com partner — the number is not the guest's
                         phone_map[_bid] = {'partner': True, **_ph_info.get(_bid, {})}
                         continue

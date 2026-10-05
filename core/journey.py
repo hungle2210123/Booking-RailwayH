@@ -191,14 +191,16 @@ def clean_name(name):
 
 
 def fill(content, guest):
-    """Tokens: {ten} guest · {nhan} check-in dd/mm · {tra} check-out · {phong} " (room)" · {can} apartment."""
+    """Tokens: {ten} guest · {nhan} check-in dd/mm · {tra} check-out · {phong} " (room)" · {can} apartment ·
+    {cho} " <Booking listing name>" (empty when unknown, so "Thank you for booking{cho}!" always reads right)."""
     phong = guest.get('phong') or ''
     return (str(content or '')
             .replace('{ten}', clean_name(guest.get('ten')) or 'there')
             .replace('{nhan}', guest.get('nhan') or '')
             .replace('{tra}', guest.get('tra') or '')
             .replace('{phong}', f' ({phong})' if phong else '')
-            .replace('{can}', guest.get('can') or ''))
+            .replace('{can}', guest.get('can') or '')
+            .replace('{cho}', f" {guest['cho']}" if guest.get('cho') else ''))
 
 
 def log_sent(session, booking_id, step, sent=True):

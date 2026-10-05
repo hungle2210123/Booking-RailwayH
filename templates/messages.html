@@ -69,6 +69,7 @@
 
   .group-t { font-size:.85rem; font-weight:800; margin:16px 2px 6px; }
   .group-t.partner { color:#7c3aed; } .group-t.nophone { color:#b45309; }
+  .cmeta.cho { color:#0f766e; font-weight:600; }
   .group-t.unreach { color:#475569; border-top:1px dashed #cbd5e1; padding-top:12px; }
   .card.unreach { background:#f8fafc; border-left:4px solid #94a3b8; }
   .cstate.unreach { background:#e2e8f0; color:#334155; cursor:default; }
@@ -147,6 +148,7 @@
               title="Đã nhắn ngoài app? Chạm để đánh dấu">🔴 Chưa nhắn <small>· chạm nếu đã nhắn ngoài</small></button>
       {% endif %}
       <div class="cmeta">{{ g.nhan }} → {{ g.tra }}{% if g.phong %} · {{ g.phong }}{% endif %}</div>
+      {% if g.cho %}<div class="cmeta cho">🏨 {{ g.cho }}</div>{% endif %}
       {% if kind == 'phone' or (kind == 'unreach' and g.has_phone) %}<div class="cphone">📞 {{ g.phone }}</div>
       {% elif kind == 'unreach' %}<div class="cphone none">Chưa có số thật</div>
       {% elif kind == 'partner' %}<div class="cphone partner">🤝 Đặt qua đối tác — nhắn trong khung chat Booking</div>
@@ -243,6 +245,7 @@
   const FIELDS = [['booking_id', 'Mã đặt phòng', 'text', 'numeric'], ['guest_name', 'Tên khách', 'text'],
                   ['checkin_date', 'Nhận phòng', 'date'], ['checkout_date', 'Trả phòng', 'date'],
                   ['listing', 'Loại phòng', 'text'], ['room_amount', 'Tổng tiền (đ)', 'text', 'numeric'],
+                  ['property_name', 'Tên chỗ nghỉ (tin đăng)', 'text'],
                   ['phone', 'Số điện thoại (nếu có)', 'tel']];
   const fmt = n => n ? Math.round(n).toLocaleString('vi-VN') : '';
 
@@ -344,10 +347,10 @@
     const val = k => edited.has(k) ? cur[k] : (k === 'room_amount' ? fmt(p[k]) : (p[k] || ''));
     const inp = f => `<div class="f"><label>${f[1]}</label>
       <input data-k="${f[0]}" type="${f[2]}" ${f[3] ? `inputmode="${f[3]}"` : ''} value="${esc(val(f[0]))}"
-             class="${val(f[0]) || f[0] === 'phone' || f[0] === 'booking_id' ? '' : 'miss'}"
+             class="${val(f[0]) || ['phone', 'booking_id', 'property_name'].includes(f[0]) ? '' : 'miss'}"
              ${f[0] === 'booking_id' ? 'placeholder="Không có cũng được — dùng mã tạm"' : ''}></div>`;
     box.innerHTML = inp(FIELDS[0]) + inp(FIELDS[1]) + `<div class="two">${inp(FIELDS[2])}${inp(FIELDS[3])}</div>`
-      + inp(FIELDS[4]) + `<div class="two">${inp(FIELDS[5])}${inp(FIELDS[6])}</div>`
+      + inp(FIELDS[4]) + `<div class="two">${inp(FIELDS[5])}${inp(FIELDS[7])}</div>` + inp(FIELDS[6])
       + (!val('booking_id') ? `<div class="note info">Không có <b>mã đặt phòng</b> cũng lưu được: web dùng <b>mã tạm</b>,
           khi anh mở booking này trên máy tính (tiện ích Chrome) sẽ <b>tự đổi sang mã thật</b>, không bị trùng.</div>` : '')
       + (p.matched ? `<div class="note info">Ảnh không có mã đặt phòng — đã tìm thấy booking cùng ngày &amp; cùng giá trên web.</div>` : '')
@@ -366,7 +369,7 @@
     const body = {};
     FIELDS.forEach(f => { body[f[0]] = v(f[0]); });
     body.room_amount = body.room_amount.replace(/\D/g, '');
-    const missing = FIELDS.filter(f => f[0] !== 'phone' && f[0] !== 'booking_id' && !body[f[0]]).map(f => f[1]);
+    const missing = FIELDS.filter(f => !['phone', 'booking_id', 'property_name'].includes(f[0]) && !body[f[0]]).map(f => f[1]);
     if (missing.length) { status('Còn thiếu: ' + missing.join(', '), true); return; }
     const btn = ov.querySelector('.save'), label = btn.textContent;
     btn.disabled = true; btn.textContent = 'Đang lưu…';

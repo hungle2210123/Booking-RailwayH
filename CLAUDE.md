@@ -292,9 +292,12 @@ No per-step ✓ anywhere (owner: useless) — sending is still logged quietly in
 "Hoàn tác" restores the previous checkin_status (card carries it as data-cs).
 
 ### **💬 "Nhắn khách" page (`/messages`, `templates/messages.html`)**
-No property / brand name in guest messages (owner, Oct 2026): the Booking listings have different names
-("Studio Hanoi Old Quarter…", "Cozy Studio…", "Suite Apartment…"), so templates say "your host" / "Cảm ơn bạn đã đặt phòng"
-and rely on dates + room name; the drawn confirmation card says "Hanoi Old Quarter".
+Booking listing name per booking (`bookings.property_name`) → token `{cho}` = " <name>" or "" ("Thank you for
+booking{cho}!" reads right either way; no hard-coded brand). Read by `property_from_page()` from the extranet top bar
+(line with / next to the `hotel_id` of the URL) on every page the extension posts (phone, Điền tin), remembered in
+`booking_properties(hotel_id, name)` for list-page rows (`_property_for`), and from the Pulse screenshot header (line under
+the guest name). Saved by `_ext_save_one` (wrapper → `_ext_save_one_core`) / `_set_property`. Shown on /messages cards
+(🏨 line) so a wrong read is visible. Extension templates get {cho} filled on the server. Drawn card says "Hanoi Old Quarter".
 Mobile-first page: upcoming arrivals (checkin_date in [today, today+days]) that have a phone, each with
 WhatsApp / SMS / Zalo / Copy buttons + a pre-filled bilingual greeting (tokens `{ten}{nhan}{tra}{phong}`).
 The greeting lives in `message_templates` with category `AUTO_MSG_CATEGORY = '0 · Nhắn tự động'` (default seeded

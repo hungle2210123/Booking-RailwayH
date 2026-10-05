@@ -1292,10 +1292,10 @@ setInterval(loadVbCd, 5 * 60 * 1000);
         <a class="guest-phone" href="tel:{{ ph.tel }}" title="Gọi {{ ph.display }}">📞 {{ ph.display }}</a>
         {# The pre-written message (auto_msg) is filled in by the script at the end of the page #}
         <a class="guest-wa msg-link" data-ch="wa" data-num="{{ ph.wa }}"
-           data-ten="{{ ph.ten }}" data-nhan="{{ ph.nhan }}" data-tra="{{ ph.tra }}" data-phong="{{ ph.phong }}"
+           data-ten="{{ ph.ten }}" data-nhan="{{ ph.nhan }}" data-tra="{{ ph.tra }}" data-phong="{{ ph.phong }}" data-cho="{{ ph.cho }}"
            href="https://wa.me/{{ ph.wa }}" target="_blank" rel="noopener" title="Nhắn WhatsApp (tin soạn sẵn)">WhatsApp</a>
         <a class="guest-zalo msg-link" data-ch="zalo" data-num="{{ ph.zalo }}"
-           data-ten="{{ ph.ten }}" data-nhan="{{ ph.nhan }}" data-tra="{{ ph.tra }}" data-phong="{{ ph.phong }}"
+           data-ten="{{ ph.ten }}" data-nhan="{{ ph.nhan }}" data-tra="{{ ph.tra }}" data-phong="{{ ph.phong }}" data-cho="{{ ph.cho }}"
            href="https://zalo.me/{{ ph.zalo }}" target="_blank" rel="noopener" title="Mở Zalo — tin đã chép sẵn, chỉ cần dán">Zalo</a>
         {% endif %}
 
@@ -6329,7 +6329,8 @@ function showQuickToast(msg, type) {
     const cleanName = n => String(n || '').replace(/\s+[a-z]{2}$/, '').trim();
     const fill = d => (AUTO_MSG[d.ch] || AUTO_MSG.wa)
         .replace(/\{ten\}/g, cleanName(d.ten) || 'bạn').replace(/\{nhan\}/g, d.nhan || '')
-        .replace(/\{tra\}/g, d.tra || '').replace(/\{phong\}/g, d.phong ? ' (' + d.phong + ')' : '');
+        .replace(/\{tra\}/g, d.tra || '').replace(/\{phong\}/g, d.phong ? ' (' + d.phong + ')' : '')
+        .replace(/\{cho\}/g, d.cho ? ' ' + d.cho : '');
     function copyText(text) {
         const ok = () => { if (typeof showCalToast === 'function') showCalToast('📋 Đã chép tin — dán vào Zalo rồi gửi', 'info'); };
         const fallback = () => {
