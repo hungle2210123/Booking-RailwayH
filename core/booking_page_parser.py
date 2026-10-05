@@ -441,6 +441,13 @@ def parse_pulse_text(text):
         n = re.sub(r'^(?:t\s*i\s*n\s*n\s*h\S*)\s*', '', n, flags=re.I)  # "Tin nhắn" / "Tinnhắn" back link
         n = re.sub(r'(\s+[a-z]{1,2})+$', '', n.strip())           # trailing icon / country code ("li", "nl")
         n = re.sub(r'[^\w\s.\'-]+', '', n).strip()
+        toks = n.split()
+        icon = lambda t: len(t) == 1 or re.search(r'\d', t) or not re.search(r'[^\W\d_]', t)
+        while toks and icon(toks[0]):                               # back arrow read as "4", "<", "«"
+            toks.pop(0)
+        while toks and (icon(toks[-1]) or re.fullmatch(r'[a-z]{1,2}', toks[-1])):   # share icon "0", "U)"
+            toks.pop()
+        n = ' '.join(toks)
         bad = _fold(n)
         if not (2 <= len(n) <= 60) or bad in ('khac', 'tin nhan') or re.search(r'\d{3,}|trang chu|phong trong|dat phong', bad):
             return None

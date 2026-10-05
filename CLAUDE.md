@@ -306,6 +306,12 @@ core/booking_page_parser.py: name = header line above the property name ("Cozy S
 with 0) → editable form (missing fields red) → `POST /api/booking_from_photo/save` = `_ext_save_one` (same rules as
 the extension). The booking number is usually in a second screenshot; when missing, a booking already on the web with the
 same dates + price (±1,000đ, exactly one) is taken (`matched`).
+No booking number at all (the Pulse screen often has none) → saved with a provisional id `TAM-yymmdd-XXXX`
+(`_provisional_id`). `_ext_save_one` (extension list/detail/phone, photo import) switches it to the real number when
+a new real booking has the same dates and price ±1,000đ or same first two name words (`_provisional_match` →
+`_rename_booking`: bookings PK + booking_history, booking_screenshots, cancellation_actions, journey_log,
+revenue_calendar; arrival_times (FK, no cascade on update) is copied, deleted and re-inserted). Name cleanup drops
+icon tokens OCR'd at both ends ("4 ZHI Li 0" → "ZHI Li").
 
 ### **🤝 Partner bookings (`bookings.via_partner`)**
 Reservations with the "Đối tác Booking.com" box were made through a partner company: the phone on the page is the

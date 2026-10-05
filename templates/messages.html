@@ -323,11 +323,12 @@
     const val = k => edited.has(k) ? cur[k] : (k === 'room_amount' ? fmt(p[k]) : (p[k] || ''));
     const inp = f => `<div class="f"><label>${f[1]}</label>
       <input data-k="${f[0]}" type="${f[2]}" ${f[3] ? `inputmode="${f[3]}"` : ''} value="${esc(val(f[0]))}"
-             class="${val(f[0]) || f[0] === 'phone' ? '' : 'miss'}"></div>`;
+             class="${val(f[0]) || f[0] === 'phone' || f[0] === 'booking_id' ? '' : 'miss'}"
+             ${f[0] === 'booking_id' ? 'placeholder="Không có cũng được — dùng mã tạm"' : ''}></div>`;
     box.innerHTML = inp(FIELDS[0]) + inp(FIELDS[1]) + `<div class="two">${inp(FIELDS[2])}${inp(FIELDS[3])}</div>`
       + inp(FIELDS[4]) + `<div class="two">${inp(FIELDS[5])}${inp(FIELDS[6])}</div>`
-      + (!val('booking_id') ? `<div class="note warn">Chưa thấy <b>Mã số đặt phòng</b>: trong app Booking kéo xuống phần mã,
-          chụp thêm 1 ảnh rồi bấm <b>Chọn ảnh</b> / <b>Dán ảnh</b> lần nữa — hoặc gõ mã vào ô trên.</div>` : '')
+      + (!val('booking_id') ? `<div class="note info">Không có <b>mã đặt phòng</b> cũng lưu được: web dùng <b>mã tạm</b>,
+          khi anh mở booking này trên máy tính (tiện ích Chrome) sẽ <b>tự đổi sang mã thật</b>, không bị trùng.</div>` : '')
       + (p.matched ? `<div class="note info">Ảnh không có mã đặt phòng — đã tìm thấy booking cùng ngày &amp; cùng giá trên web.</div>` : '')
       + (existing ? `<div class="note info">Booking này <b>đã có trên web</b> (${esc(existing.guest_name)}) — Lưu sẽ cập nhật
           ngày / giá / phòng; tiền đã thu và căn đã xếp giữ nguyên.</div>` : '')
@@ -344,7 +345,7 @@
     const body = {};
     FIELDS.forEach(f => { body[f[0]] = v(f[0]); });
     body.room_amount = body.room_amount.replace(/\D/g, '');
-    const missing = FIELDS.filter(f => f[0] !== 'phone' && !body[f[0]]).map(f => f[1]);
+    const missing = FIELDS.filter(f => f[0] !== 'phone' && f[0] !== 'booking_id' && !body[f[0]]).map(f => f[1]);
     if (missing.length) { status('Còn thiếu: ' + missing.join(', '), true); return; }
     const btn = ov.querySelector('.save'), label = btn.textContent;
     btn.disabled = true; btn.textContent = 'Đang lưu…';

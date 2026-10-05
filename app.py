@@ -1579,6 +1579,58 @@ def _ext_diff(existing, f):
     return updates, changes
 
 
+# Bookings added from a phone screenshot without a booking number get a provisional id "TAM-yymmdd-XXXX".
+# When the real reservation reaches the web (extension on the PC: list / detail / phone), the provisional
+# booking with the same stay is switched to the real number instead of creating a second booking.
+PROVISIONAL_PREFIX = 'TAM-'
+
+
+def _provisional_id(checkin):
+    import secrets
+    return f"{PROVISIONAL_PREFIX}{checkin.strftime('%y%m%d')}-{secrets.token_hex(2).upper()}"
+
+
+def _provisional_match(f):
+    """The one provisional booking for the same stay (dates, and price ±1,000đ or same guest name), else None."""
+    from core.models import db as _xdb
+    if not (f.get('checkin_date') and f.get('checkout_date')):
+        return None
+    rows = _xdb.session.execute(text("""
+        SELECT b.booking_id, COALESCE(g.full_name, b.guest_name), b.room_amount
+        FROM bookings b LEFT JOIN guests g ON g.guest_id = b.guest_id
+        WHERE b.booking_id LIKE :p AND b.checkin_date = :ci AND b.checkout_date = :co"""),
+        {'p': PROVISIONAL_PREFIX + '%', 'ci': f['checkin_date'], 'co': f['checkout_date']}).fetchall()
+    def fold(t):
+        import unicodedata
+        t = unicodedata.normalize('NFD', str(t or '')).lower()
+        return re.sub(r'[^a-z ]', '', ''.join(c for c in t if unicodedata.category(c) != 'Mn').replace('đ', 'd'))
+    same = [r[0] for r in rows
+            if (f.get('room_amount') and r[2] is not None and abs(float(r[2]) - float(f['room_amount'])) < 1000)
+            or (f.get('guest_name') and fold(r[1]).split()[:2] == fold(f['guest_name']).split()[:2])]
+    return same[0] if len(same) == 1 else None
+
+
+def _rename_booking(old, new):
+    """Give a booking its real number everywhere it is referenced (one transaction)."""
+    from core.models import db as _xdb
+    s = _xdb.session
+    keep = s.execute(text("SELECT arrival_date, arrival_time, notes, created_at, updated_at FROM arrival_times "
+                          "WHERE booking_id = :o"), {'o': old}).fetchall()
+    s.execute(text("DELETE FROM arrival_times WHERE booking_id = :o"), {'o': old})     # FK: re-added below
+    s.execute(text("UPDATE bookings SET booking_id = :n WHERE booking_id = :o"), {'n': new, 'o': old})
+    for t in ('booking_history', 'booking_screenshots', 'cancellation_actions', 'journey_log', 'revenue_calendar'):
+        try:
+            s.execute(text(f"UPDATE {t} SET booking_id = :n WHERE booking_id = :o"), {'n': new, 'o': old})
+        except Exception:
+            s.rollback()
+            raise
+    for r in keep:
+        s.execute(text("INSERT INTO arrival_times (booking_id, arrival_date, arrival_time, notes, created_at, updated_at) "
+                       "VALUES (:b, :d, :t, :n, :c, :u)"),
+                  {'b': new, 'd': r[0], 't': r[1], 'n': r[2], 'c': r[3], 'u': r[4]})
+    s.commit()
+
+
 def _ext_save_one(d):
     """Create or update one booking. Returns (result dict, http status)."""
     from core.models import db as _xdb
@@ -1590,6 +1642,11 @@ def _ext_save_one(d):
         return {'success': False, 'booking_id': bid, 'error': 'Ngày trả phòng phải sau ngày nhận phòng'}, 400
 
     existing = _ext_existing(bid)
+    if not existing and not bid.startswith(PROVISIONAL_PREFIX):
+        tmp = _provisional_match(f)
+        if tmp:                       # added earlier from a phone screenshot → now gets its real number
+            _rename_booking(tmp, bid)
+            existing = _ext_existing(bid)
 
     # ── New booking ──
     if not existing:
@@ -1791,6 +1848,12 @@ def booking_from_photo_save():
     fields = {k: d.get(k) for k in ('booking_id', 'guest_name', 'checkin_date', 'checkout_date', 'listing',
                                     'room_amount', 'phone')}
     fields['cancelled'] = False
+    if not str(fields.get('booking_id') or '').strip():
+        # the Booking app screen often has no booking number → provisional id, switched to the real one later
+        ci = _ext_fields(fields)['checkin_date']
+        if not ci:
+            return jsonify({'success': False, 'error': 'Thiếu ngày nhận phòng'}), 400
+        fields['booking_id'] = _provisional_id(ci)
     try:
         result, code = _ext_save_one(fields)
         return jsonify(result), code
@@ -1820,7 +1883,8 @@ def ext_booking_phone():
             if p.get('status') in ('cancelled', 'no_show'):
                 return False, 'Booking đã hủy / vắng mặt'
             res, _code = _ext_save_one({**p, 'phone': phone_ or '', 'cancelled': False})
-            return (bool(res.get('success')) and res.get('action') == 'created'), res.get('error') or res.get('message')
+            return bool(res.get('success')) and res.get('action') in ('created', 'updated', 'unchanged'), \
+                res.get('error') or res.get('message')
 
         # Booked through a Booking.com partner company: the page shows the partner's number
         # (same local number for every guest, only the country code changes) → never store it.
