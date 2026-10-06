@@ -341,7 +341,11 @@ Reservations with the "Đối tác Booking.com" box were made through a partner 
 partner's (`+<guest country> 203 5640 799` — same last 9 digits for every guest). Extension detects the box and posts
 `partner: true` → server sets `via_partner = TRUE` and never stores that number (`_ensure_partner_column()`).
 Server also rejects a phone whose last 9 digits (`_phone_tail`) are on another guest, or that is a slice of the
-booking number. Calendar shows "🤝 Đối tác"; /messages lists them separately. Extension "💬 Điền tin" types a chosen
+booking number. Calendar shows "🤝 Đối tác"; /messages lists them separately.
+A number the owner types in for a partner booking (the guest sent it in the Booking chat) is the guest's own:
+`_real_guest_phone(phone, partner)` keeps any number whose last 9 digits are not in `PARTNER_PHONE_TAILS`
+({'035640799'}) → shown and usable on /messages (normal list, "🤝 qua đối tác, số khách gửi"), in the send sheet and on
+the calendar chips. Saving never drops a typed number (the extension only clears a stored number equal to the partner's). Extension "💬 Điền tin" types a chosen
 template into Booking's own chat box (`POST /api/ext/auto_messages`; partner → `AUTO_MSG_PARTNER_NAME`); the owner
 presses Gửi — never auto-sent.
 Chinese guests (country code cn/hk/mo/tw after the name or on its own line under it, `_is_chinese_guest`) get

@@ -236,7 +236,7 @@
       {% if g.cho %}<div class="cmeta cho">🏨 {{ g.cho }}</div>{% endif %}
       {% if g.confirmed and g.last %}<div class="cconf">🙋 Khách đã xác nhận đến</div>{% endif %}
       <div class="cextra"><span class="cx-id">Mã {{ g.booking_id }} · </span>💰 <b>{{ g.total or '—' }}đ</b>{% if g.nights %} · {{ g.nights }} đêm{% endif %}{% if g.per_night %} · {{ g.per_night }}đ/đêm{% endif %}</div>
-      {% if kind == 'phone' or (kind == 'unreach' and g.has_phone) %}<div class="cphone">📞 {{ g.phone }}</div>
+      {% if kind == 'phone' or (kind == 'unreach' and g.has_phone) %}<div class="cphone">📞 {{ g.phone }}{% if g.via_partner %} <small style="color:#6b7280;font-weight:600">· 🤝 qua đối tác, số khách gửi</small>{% endif %}</div>
       {% elif kind == 'unreach' %}<div class="cphone none">Chưa có số thật</div>
       {% elif kind == 'partner' %}<div class="cphone partner">🤝 Đặt qua đối tác — nhắn trong khung chat Booking</div>
       {% else %}<div class="cphone none">⏳ Chưa có số — mở đặt phòng trên máy tính, bấm hiện số</div>{% endif %}

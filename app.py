@@ -2119,6 +2119,20 @@ def _phone_tail(phone):
     return re.sub(r'\D', '', str(phone or ''))[-9:]
 
 
+# The partner company's number on partner bookings: "+<guest country> 203 5640 799" (same last 9 digits for everyone)
+PARTNER_PHONE_TAILS = {'035640799'}
+
+
+def _real_guest_phone(phone, partner):
+    """The guest's own number, or ''. On a partner booking a number is only kept when it is not the partner's —
+    the owner typed in the number the guest sent in the Booking chat."""
+    if not phone or not _msg_phone_links(phone):
+        return ''
+    if partner and _phone_tail(phone) in PARTNER_PHONE_TAILS:
+        return ''
+    return phone
+
+
 def _room_label(listing, keep_note=False):
     """Room name for messages / the confirmation image — '' when the stored text is not a room name
     (e.g. a Booking notice sentence read by mistake), so it never reaches a guest.
@@ -2504,8 +2518,9 @@ def _journey_booking(_xdb, booking_id):
              'can': apt['name'] if apt else '', 'cho': row[8] or ''}
     partner = bool(row[7])
     return {'id': row[0], 'name': row[1] or row[0], 'checkin': row[2], 'checkout': row[3], 'guest': guest,
-            'phone': '' if partner else (row[5] or ''), 'links': None if partner else _msg_phone_links(row[5]),
-            'partner': partner, 'apt_id': apt_id if apt else None, 'apt': apt, 'apartments': list(apts.values())}
+            'phone': _real_guest_phone(row[5], partner),
+            'links': _msg_phone_links(_real_guest_phone(row[5], partner)) if _real_guest_phone(row[5], partner) else None,
+            'partner': partner and not _real_guest_phone(row[5], partner), 'apt_id': apt_id if apt else None, 'apt': apt, 'apartments': list(apts.values())}
 
 
 def _journey_texts(_xdb, tids):
@@ -2659,14 +2674,15 @@ def messages_page():
             'confirmed': r[8] == 'confirmed',                # "✅ Xác nhận đến" (shared with the calendar)
             'cs': r[8] or '',                                # arrival status, put back by "Hoàn tác"
             'unreach': J.unreachable_at(done, r[8] == 'confirmed'),
-            'has_phone': bool(_msg_phone_links(r[5])) and not r[6],
+            'has_phone': bool(_real_guest_phone(r[5], bool(r[6]))),
+            'via_partner': bool(r[6]),
         }
         if item['unreach']:            # 📵 marked: its own group at the bottom, dealt with later
             unreachable.append(item)
-        elif r[6]:                       # partner booking: any number on file is the partner's
-            partner.append(item)
-        elif _msg_phone_links(r[5]):
+        elif item['has_phone']:          # also a partner guest whose own number the owner typed in
             guests.append(item)
+        elif r[6]:                       # partner booking without the guest's own number
+            partner.append(item)
         else:
             no_phone.append(item)
     # Most valuable guests first (owner, Oct 2026): total price, then length of stay. Tiers from the real spread:
@@ -5363,7 +5379,7 @@ def calendar_details(date_str):
                 """), {'bids': list(_ph_info)}).fetchall():
                     if _bid in _ph_info:
                         _ph_info[_bid]['cho'] = _cho or ''
-                    if _partner:    # booked via a Booking.com partner — the number is not the guest's
+                    if _partner and not _real_guest_phone(_phone, True):    # partner's number / none of the guest's own
                         phone_map[_bid] = {'partner': True, **_ph_info.get(_bid, {})}
                         continue
                     _links = _msg_phone_links(_phone)
