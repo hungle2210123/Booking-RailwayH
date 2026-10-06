@@ -5600,6 +5600,7 @@ function toggleGuestStatus(btn, newStatus) {
     const name = bar.dataset.name || 'Khách';
     const key  = _statusKey(date, bid);
     const cur  = localStorage.getItem(key);
+    if (newStatus === 'none' && !cur) { cdToggleContacted(bar); return; }   // no status: the button marks "đã liên hệ"
     window._cdRecent[bid] = Date.now();      // the 30 s sync must not undo this tap while it is being saved
 
     const sectionId = card.closest('.guest-cards-row')?.id || null;
@@ -5735,11 +5736,16 @@ function cdPaintContact(bar, info) {
     if (!btn) return;
     if (!btn.dataset.orig) btn.dataset.orig = btn.innerHTML;
     btn.classList.remove('pc-msg', 'pc-unreach');
+    bar._contact = info || null;
+    btn.title = 'Bấm khi đã liên hệ được khách (bấm lại để bỏ)';
     const card = bar.closest('.guest-card');
     if (card) card.classList.toggle('cd-unreach', !!(info && info.unreach) && !card.classList.contains('status-confirmed'));
     if (info && info.unreach) {
         btn.classList.add('pc-unreach');
         btn.innerHTML = '📵 Không liên lạc được · ' + info.unreach;
+    } else if (info && info.last && info.last.manual) {
+        btn.classList.add('pc-msg');
+        btn.innerHTML = '✅ Đã liên hệ · ' + info.last.at;
     } else if (info && info.last) {
         btn.classList.add('pc-msg');
         btn.innerHTML = '💬 Đã nhắn · ' + info.last.label + ' · ' + info.last.at;
@@ -5747,6 +5753,22 @@ function cdPaintContact(bar, info) {
         btn.innerHTML = btn.dataset.orig;
     }
 }
+async function cdToggleContacted(bar) {
+    const info = bar._contact;
+    if (info && info.last && !info.last.manual && !info.unreach) {
+        if (typeof showCalToast === 'function') showCalToast('💬 Khách đã được nhắn từ trang Nhắn khách', 'info');
+        return;
+    }
+    const on = !(info && info.last && info.last.manual && !info.unreach);
+    const d = new Date(), p = n => String(n).padStart(2, '0');
+    cdPaintContact(bar, on ? { last: { label: '✋ Đã liên hệ', at: `${p(d.getHours())}:${p(d.getMinutes())} ${p(d.getDate())}/${p(d.getMonth() + 1)}`, manual: true } } : null);
+    const r = await fetch('/api/journey/sent', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ booking_id: bar.dataset.bid, step: 'contacted', sent: on }) }).then(x => x.json()).catch(() => null);
+    if (!r || !r.success) { cdPaintContact(bar, info); alert('Không lưu được — thử lại'); return; }
+    if (typeof showCalToast === 'function') showCalToast(on ? '✅ Đã liên hệ' : '📞 Chưa liên hệ', 'info');
+    cdSyncFromDB();
+}
+
 function cdSyncFromDB() {
     const bars = Array.from(document.querySelectorAll('.quick-status-bar'));
     const bids = [...new Set(bars.map(b => b.dataset.bid).filter(Boolean))];

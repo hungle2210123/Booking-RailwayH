@@ -401,6 +401,9 @@ load (old "STEP 0" brought back statuses cleared on another device / "Hoàn tác
 status (also a cleared one) on load, every 30 s and when the tab is shown again; a status tapped here is not
 overwritten for 10 s (`window._cdRecent`). `/api/get_checkin_statuses` also returns `contact` (journey_log): the
 calendar's "📞 Chưa liên hệ" button shows "💬 Đã nhắn · step · time" or "📵 Không liên lạc được · time".
+With no arrival status that button is a toggle (`cdToggleContacted`): "📞 Chưa liên hệ" ⇄ "✅ Đã liên hệ · time" = the same
+manual mark as /messages (journey_log 'contacted', label '✋ Đã liên hệ'); with confirmed / cancelling it still clears the
+status (old behaviour). A guest already messaged from /messages just gets a toast.
 /messages shows "🙋 Khách đã xác nhận đến" for checkin_status 'confirmed' (counts as contacted); there is NO confirm
 button on /messages (owner: confirming stays on the calendar).
 

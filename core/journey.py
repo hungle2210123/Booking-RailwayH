@@ -262,8 +262,8 @@ def last_contact(done, favorites=()):
     key, at = max(done.items(), key=lambda kv: kv[1])
     names = {s['key']: f"{s['emoji']} {s['label']}" for s in STEPS}
     names.update({f['key']: f"{f['emoji']} {f['label']}" for f in favorites})
-    names[MANUAL_KEY] = '✋ Đánh dấu tay'
-    return {'label': names.get(key, '📝 Tin khác'), 'at': vn_time(at)}
+    names[MANUAL_KEY] = '✋ Đã liên hệ'
+    return {'label': names.get(key, '📝 Tin khác'), 'at': vn_time(at), 'manual': key == MANUAL_KEY}
 
 
 def _clean_fav(f):
