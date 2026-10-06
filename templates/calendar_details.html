@@ -5736,7 +5736,7 @@ function cdPaintContact(bar, info) {
     if (!btn.dataset.orig) btn.dataset.orig = btn.innerHTML;
     btn.classList.remove('pc-msg', 'pc-unreach');
     const card = bar.closest('.guest-card');
-    if (card) card.classList.toggle('cd-unreach', !!(info && info.unreach));
+    if (card) card.classList.toggle('cd-unreach', !!(info && info.unreach) && !card.classList.contains('status-confirmed'));
     if (info && info.unreach) {
         btn.classList.add('pc-unreach');
         btn.innerHTML = '📵 Không liên lạc được · ' + info.unreach;

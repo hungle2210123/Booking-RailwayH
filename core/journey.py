@@ -233,6 +233,17 @@ def is_step_key(key):
     return key in STEP_KEYS or key in (MANUAL_KEY, UNREACHABLE_KEY) or bool(FAV_RE.match(str(key or '')))
 
 
+def unreachable_at(done, confirmed=False):
+    """VN time of a "📵 không liên lạc được" mark that still holds, else None. A guest who confirmed arrival, or got
+    a message after being marked, has been reached."""
+    at = (done or {}).get(UNREACHABLE_KEY)
+    if not at or confirmed:
+        return None
+    if any(v > at for k, v in done.items() if k != UNREACHABLE_KEY):
+        return None
+    return vn_time(at)
+
+
 def vn_time(iso):
     """'HH:MM dd/mm' in Vietnam time for a journey_log time (stored in UTC)."""
     try:

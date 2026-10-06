@@ -2658,7 +2658,7 @@ def messages_page():
                           if r[10] and ci and co and (co - ci).days > 0 else ''),
             'confirmed': r[8] == 'confirmed',                # "✅ Xác nhận đến" (shared with the calendar)
             'cs': r[8] or '',                                # arrival status, put back by "Hoàn tác"
-            'unreach': J.vn_time(done[J.UNREACHABLE_KEY]) if J.UNREACHABLE_KEY in done else None,
+            'unreach': J.unreachable_at(done, r[8] == 'confirmed'),
             'has_phone': bool(_msg_phone_links(r[5])) and not r[6],
         }
         if item['unreach']:            # 📵 marked: its own group at the bottom, dealt with later
@@ -10156,6 +10156,12 @@ def set_checkin_status():
             text("UPDATE bookings SET checkin_status = :s WHERE booking_id = :bid"),
             {'s': status, 'bid': booking_id}
         )
+        if status == 'confirmed':      # the guest was reached → no "📵 không liên lạc được" any more
+            try:
+                db.session.execute(text("DELETE FROM journey_log WHERE booking_id = :bid AND step = 'unreachable'"),
+                                   {'bid': booking_id})
+            except Exception:
+                pass
         db.session.commit()
         return jsonify({'success': True, 'booking_id': booking_id, 'status': status})
     except Exception as e:
@@ -10189,7 +10195,7 @@ def get_checkin_statuses():
             from core import journey as J
             for bid, done in J.sent_status(db.session, bids).items():
                 last = J.last_contact(done)
-                contact[bid] = {'last': last, 'unreach': J.vn_time(done[J.UNREACHABLE_KEY]) if J.UNREACHABLE_KEY in done else None}
+                contact[bid] = {'last': last, 'unreach': J.unreachable_at(done, statuses.get(bid) == 'confirmed')}
         except Exception as _ce:
             print(f"[checkin_statuses] contact info failed: {_ce}")
         return jsonify({'success': True, 'statuses': statuses, 'contact': contact})

@@ -416,6 +416,8 @@ Each column (Đến / Đang ở / Trả) is grouped by apartment (apartments' or
 cancelling; staying: soonest checkout) so their order is kept inside each apartment group.
 Guests marked 📵 on /messages are dimmed (`.cd-unreach`: opacity .42 + grey, full on hover/tap) and go last in their
 apartment group; on /messages the 📵 group cards are dimmed the same way.
+A 📵 mark only holds while nothing newer happened (`J.unreachable_at`): not once the guest is confirmed (✅ Xác nhận
+đến also deletes the mark in `set_checkin_status`), not when a message was sent after it; confirmed cards are never dimmed.
 
 ### **🛏️ 2-bedroom bookings (`core/two_bedroom.py`)**
 `bookings.two_bedroom` BOOLEAN: NULL = auto-detect from listing ("2 PN", "2 phòng ngủ", "Two-Bedroom"; "2 Giường" is
