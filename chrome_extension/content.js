@@ -240,7 +240,8 @@
 
   function show(result) {
     const p = result.parsed, ex = result.existing;
-    const val = k => (k === 'room_amount' || k === 'commission') ? fmt(p[k]) : (p[k] ?? '');
+    const val = k => (k === 'room_amount' || k === 'commission') ? fmt(p[k])
+      : (p[k] ?? ((k === 'phone' || k === 'email') && ex && ex[k] ? ex[k] : ''));
     const old = k => {
       if (!ex) return null;
       const map = { checkin_date: ex.checkin_date, checkout_date: ex.checkout_date, guest_name: ex.guest_name,
@@ -253,7 +254,7 @@
       if (k === 'room_amount' || k === 'commission') return Math.abs(Number(o) - Number(n)) >= 1;
       return String(o).trim() !== String(n).trim();
     };
-    const missing = new Set(p.missing || []);
+    const missing = new Set((p.missing || []).filter(k => !((k === 'phone' || k === 'email') && ex && ex[k])));
     panel.innerHTML = `
       <h3>${esc(p.guest_name || 'Đặt phòng')}${ex ? '<span class="badge old">Đã có trên web</span>' : '<span class="badge new">Booking mới</span>'}</h3>
       <p class="hint">Kiểm tra / sửa thông tin rồi bấm Lưu. Ô <b style="color:#b91c1c">đỏ</b> = chưa đọc được, ô <b style="color:#b45309">vàng</b> = khác với trên web.</p>
@@ -278,6 +279,7 @@
     panel.classList.add('open');
     $('#b_close').onclick = () => panel.classList.remove('open');
     $('#b_save').onclick = save;
+    panel.querySelectorAll('.grid input').forEach(i => i.addEventListener('input', () => i.classList.remove('missing')));
   }
 
   async function save() {
@@ -297,7 +299,8 @@
     if (r?.success) {
       msg.className = 'msg ok';
       const link = r.checkin_date ? ` · <a href="${esc(r._server)}/calendar_details/${esc(r.checkin_date)}" target="_blank">Mở lịch ngày ${esc(r.checkin_date.split('-').reverse().slice(0, 2).join('/'))}</a>` : '';
-      msg.innerHTML = '✅ ' + esc(r.message) + link;
+      const saved = body.phone ? ` · 📞 SĐT trên web: <b>${esc(body.phone)}</b>` : '';
+      msg.innerHTML = '✅ ' + esc(r.action === 'unchanged' ? 'Đã lưu — trên web đã đúng như vậy' : r.message) + saved + link;
     } else {
       msg.className = 'msg err';
       msg.textContent = '❌ ' + (r?.error || 'Lỗi không rõ');
