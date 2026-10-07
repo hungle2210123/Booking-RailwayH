@@ -10214,7 +10214,9 @@ def get_checkin_statuses():
                 contact[bid] = {'last': last, 'unreach': J.unreachable_at(done, statuses.get(bid) == 'confirmed')}
         except Exception as _ce:
             print(f"[checkin_statuses] contact info failed: {_ce}")
-        return jsonify({'success': True, 'statuses': statuses, 'contact': contact})
+        apts = {r[0]: (r[1] or '') for r in db.session.execute(
+            text("SELECT booking_id, actual_apartment FROM bookings WHERE booking_id = ANY(:bids)"), {'bids': bids}).fetchall()}
+        return jsonify({'success': True, 'statuses': statuses, 'contact': contact, 'apts': apts})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e), 'statuses': {}})
 

@@ -408,6 +408,9 @@ calendar's "📞 Chưa liên hệ" button shows "💬 Đã nhắn · step · tim
 With no arrival status that button is a toggle (`cdToggleContacted`): "📞 Chưa liên hệ" ⇄ "✅ Đã liên hệ · time" = the same
 manual mark as /messages (journey_log 'contacted', label '✋ Đã liên hệ'); with confirmed / cancelling it still clears the
 status (old behaviour). A guest already messaged from /messages just gets a toast.
+Placements sync too: `/api/get_checkin_statuses` returns `apts` (actual_apartment) for every card on the page; the sync
+moves a card placed / moved on /messages or another device (`cdApplyAptUI` = the picker's look, shared with `setApt`,
+then data-apt + the per-apartment board/groups).
 /messages shows "🙋 Khách đã xác nhận đến" for checkin_status 'confirmed' (counts as contacted); there is NO confirm
 button on /messages (owner: confirming stays on the calendar).
 

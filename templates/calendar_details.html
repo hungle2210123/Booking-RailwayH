@@ -4543,8 +4543,78 @@ async function confirmPlacementCapacity(bookingId, aptId, aptLabel) {
     }
 }
 
+// The apartment picker of one card shows aptId (chip + buttons) — after a tap here or a placement made elsewhere
+function cdApplyAptUI(bookingId, aptId, color) {
+    // Update selector UI — compact single-line style
+    const sel   = document.getElementById('asel-'  + bookingId);
+    const chip  = document.getElementById('acur-'  + bookingId);
+    const picker = document.getElementById('arow-' + bookingId);
+    if (!sel) return false;
+
+    // Reset ALL choice buttons to outline
+    sel.querySelectorAll('.apt-sel-btn:not(.clear-btn)').forEach(btn => {
+        const c = btn.dataset.color || '#999';
+        btn.classList.remove('active');
+        btn.style.background  = '';
+        btn.style.borderColor = c;
+        btn.style.color       = c;
+    });
+
+    if (aptId) {
+        // Mark chosen button active
+        const chosenBtn = document.getElementById('asbtn-' + bookingId + '-' + aptId);
+        if (chosenBtn) {
+            chosenBtn.classList.add('active');
+            chosenBtn.style.background  = color;
+            chosenBtn.style.borderColor = 'transparent';
+            chosenBtn.style.color       = '#fff';
+        }
+        const aptName = chosenBtn ? (chosenBtn.dataset.label || chosenBtn.textContent.trim()) : aptId;
+
+        // Update chip
+        if (chip) {
+            chip.style.background = color;
+            chip.style.display    = 'inline-flex';
+            chip.innerHTML = `${aptName}<span class="aac-check">✓</span>`;
+        }
+
+        // Ensure "đổi" link exists right after chip
+        if (sel && !sel.querySelector('.apt-change-link')) {
+            const lnk = document.createElement('span');
+            lnk.className = 'apt-change-link';
+            lnk.textContent = 'đổi';
+            lnk.onclick = () => toggleAptPicker(bookingId);
+            chip.insertAdjacentElement('afterend', lnk);
+        }
+
+        // Ensure clear button in picker
+        if (picker && !picker.querySelector('.clear-btn')) {
+            const clr = document.createElement('button');
+            clr.className = 'apt-sel-btn clear-btn';
+            clr.textContent = '✕';
+            clr.onclick = () => setApt(bookingId, '', '');
+            picker.appendChild(clr);
+        }
+
+        // Close picker after selection
+        if (picker) picker.classList.remove('open');
+
+    } else {
+        // Cleared: hide chip + "đổi" link, open picker
+        if (chip) { chip.style.display = 'none'; chip.innerHTML = ''; }
+        const lnk = sel.querySelector('.apt-change-link');
+        if (lnk) lnk.remove();
+        const clr = picker && picker.querySelector('.clear-btn');
+        if (clr) clr.remove();
+        if (picker) picker.classList.add('open');
+    }
+    return true;
+}
+
 async function setApt(bookingId, aptId, color) {
     if (!bookingId) return;
+    window._cdRecent = window._cdRecent || {};
+    window._cdRecent[bookingId] = Date.now();
     if (aptId) {
         const btn = document.getElementById('asbtn-' + bookingId + '-' + aptId);
         const label = btn ? (btn.dataset.label || btn.textContent.trim()) : aptId;
@@ -4558,69 +4628,8 @@ async function setApt(bookingId, aptId, color) {
         const data = await res.json();
         if (!data.success) { alert('Lỗi: ' + data.message); return; }
 
-        // Update selector UI — compact single-line style
-        const sel   = document.getElementById('asel-'  + bookingId);
-        const chip  = document.getElementById('acur-'  + bookingId);
-        const picker = document.getElementById('arow-' + bookingId);
-        if (!sel) { loadAptNotifyBar(); return; }
-
-        // Reset ALL choice buttons to outline
-        sel.querySelectorAll('.apt-sel-btn:not(.clear-btn)').forEach(btn => {
-            const c = btn.dataset.color || '#999';
-            btn.classList.remove('active');
-            btn.style.background  = '';
-            btn.style.borderColor = c;
-            btn.style.color       = c;
-        });
-
-        if (aptId) {
-            // Mark chosen button active
-            const chosenBtn = document.getElementById('asbtn-' + bookingId + '-' + aptId);
-            if (chosenBtn) {
-                chosenBtn.classList.add('active');
-                chosenBtn.style.background  = color;
-                chosenBtn.style.borderColor = 'transparent';
-                chosenBtn.style.color       = '#fff';
-            }
-            const aptName = chosenBtn ? (chosenBtn.dataset.label || chosenBtn.textContent.trim()) : aptId;
-
-            // Update chip
-            if (chip) {
-                chip.style.background = color;
-                chip.style.display    = 'inline-flex';
-                chip.innerHTML = `${aptName}<span class="aac-check">✓</span>`;
-            }
-
-            // Ensure "đổi" link exists right after chip
-            if (sel && !sel.querySelector('.apt-change-link')) {
-                const lnk = document.createElement('span');
-                lnk.className = 'apt-change-link';
-                lnk.textContent = 'đổi';
-                lnk.onclick = () => toggleAptPicker(bookingId);
-                chip.insertAdjacentElement('afterend', lnk);
-            }
-
-            // Ensure clear button in picker
-            if (picker && !picker.querySelector('.clear-btn')) {
-                const clr = document.createElement('button');
-                clr.className = 'apt-sel-btn clear-btn';
-                clr.textContent = '✕';
-                clr.onclick = () => setApt(bookingId, '', '');
-                picker.appendChild(clr);
-            }
-
-            // Close picker after selection
-            if (picker) picker.classList.remove('open');
-
-        } else {
-            // Cleared: hide chip + "đổi" link, open picker
-            if (chip) { chip.style.display = 'none'; chip.innerHTML = ''; }
-            const lnk = sel.querySelector('.apt-change-link');
-            if (lnk) lnk.remove();
-            const clr = picker && picker.querySelector('.clear-btn');
-            if (clr) clr.remove();
-            if (picker) picker.classList.add('open');
-        }
+        if (!cdApplyAptUI(bookingId, aptId, color)) { loadAptNotifyBar(); return; }
+        const sel = document.getElementById('asel-' + bookingId);
 
         // Colour + per-apartment board follow the new placement
         const _card = sel && sel.closest('.guest-card');
@@ -5771,7 +5780,8 @@ async function cdToggleContacted(bar) {
 
 function cdSyncFromDB() {
     const bars = Array.from(document.querySelectorAll('.quick-status-bar'));
-    const bids = [...new Set(bars.map(b => b.dataset.bid).filter(Boolean))];
+    const bids = [...new Set(bars.map(b => b.dataset.bid)
+        .concat([...document.querySelectorAll('.apt-selector[id^="asel-"]')].map(x => x.id.slice(5))).filter(Boolean))];
     if (!bids.length) return;
     const params = bids.map(b => `bids[]=${encodeURIComponent(b)}`).join('&');
     fetch(`/api/get_checkin_statuses?${params}`)
@@ -5793,6 +5803,23 @@ function cdSyncFromDB() {
                 changed = true;
             });
             if (!changed && window.cdSortByApt) ['checkin-cards','staying-cards','checkout-cards'].forEach(window.cdSortByApt);
+            // placements made on /messages or another device
+            let aptChanged = false;
+            Object.entries(data.apts || {}).forEach(([bid, aptId]) => {
+                if (Date.now() - (window._cdRecent[bid] || 0) < 10000) return;
+                const sel = document.getElementById('asel-' + bid);
+                const card = sel && sel.closest('.guest-card');
+                if (!card || String(card.dataset.apt || '') === String(aptId || '')) return;
+                const a = (window.CD_APTS || []).find(x => String(x.id) === String(aptId));
+                cdApplyAptUI(bid, aptId || '', a ? a.color : '');
+                card.dataset.apt = aptId || '';
+                aptChanged = true;
+            });
+            if (aptChanged) {
+                if (window.cdAptOverview) window.cdAptOverview();
+                if (typeof loadAptNotifyBar === 'function') loadAptNotifyBar();
+                if (typeof loadVbCd === 'function') loadVbCd();
+            }
             if (changed) {
                 ['checkin-cards','staying-cards','checkout-cards'].forEach(groupSection);
                 if (typeof loadAptNotifyBar === 'function') loadAptNotifyBar();
