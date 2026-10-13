@@ -327,6 +327,9 @@ core/booking_page_parser.py: name = header line above the property name ("Cozy S
 with 0) → editable form (missing fields red) → `POST /api/booking_from_photo/save` = `_ext_save_one` (same rules as
 the extension). The booking number is usually in a second screenshot; when missing, a booking already on the web with the
 same dates + price (±1,000đ, exactly one) is taken (`matched`).
+Phone: a screenshot of the app's call dialog ("Gọi +84 90 … bằng", tap Liên hệ) adds the number — together with the
+booking screenshots, or alone later: name over the dialog → the one unfinished booking with that name
+(`_photo_booking_by_name`, country code ignored) → `matched_name`, Lưu adds the phone. One screenshot only = no phone.
 No booking number at all (the Pulse screen often has none) → saved with a provisional id `TAM-yymmdd-XXXX`
 (`_provisional_id`). `_ext_save_one` (extension list/detail/phone, photo import) switches it to the real number when
 a new real booking has the same dates and price ±1,000đ or same first two name words (`_provisional_match` →
@@ -367,8 +370,9 @@ via `POST /api/ext/booking/screenshot`; served by `GET /api/booking_screenshot/<
 Auto mode is ALWAYS ON (owner decision, Oct 2026): `<all_urls>` is a required host permission so the capture can run
 without activeTab — after the phone is saved (`auto-shot` message → `shoot(tab, true)`); checks the tab is still
 active, restores scroll. No on/off toggle in the popup (only a status line).
-Captures ONLY once the guest phone is on the page (`shotWhenVisible`: just revealed → always; already known / partner →
-once per 10 min per tab; waits until the tab is visible) — not on page open (owner, Oct 2026). If the booking is not
+Captures ONLY right after the owner clicked Booking's "Hiển thị số điện thoại" on that page (`revealAt`, 20 s) and the
+number showed (`shotAfterReveal`, once per page, skipped if the tab is hidden / not focused) — never on page open or
+tab switch (ext 1.17, owner: background-tab captures came out wrong). A number already on the page is still saved. If the booking is not
 on the web yet, `/api/ext/booking/phone` adds it from the same page (`_create_from_page`, status `created`).
 The owner's bracket note in the room title ("(Ban Công Hàng Bạc)") is NOT covered in the picture any more (ext 1.15,
 owner: needed to recognise the room); /messages cards show the FULL picture (zoom opens it, toggle to the guest one).

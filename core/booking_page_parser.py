@@ -528,6 +528,12 @@ def parse_pulse_text(text):
     out['guests'] = int(g.group(1)) if g else None
     for l in lines:
         p = clean_phone(l) if re.search(r'\+\d[\d\s]{7,}', l) else None
+        if not p:
+            # the app's call dialog "Gọi +84 90 4288459 bằng" (OCR sometimes loses the "+")
+            c = re.search(r'\b(?:goi|call)\s*\+?\s*((?:84|0)[\d \t().-]{7,16}\d)', _fold(l))
+            d = re.sub(r'\D', '', c.group(1)) if c else ''
+            if 9 <= len(d) <= 13:
+                p = '+' + d if d.startswith('84') else d
         if p:
             out['phone'] = p
             break

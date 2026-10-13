@@ -343,7 +343,9 @@
     ov.innerHTML = `<div class="ap">
       <div class="top"><h3>📷 Thêm đặt phòng từ ảnh</h3><button type="button" class="x" aria-label="Đóng">✕</button></div>
       <div class="hint">Chụp màn hình đặt phòng trong app Booking (tên, ngày, phòng, giá — và <b>Mã số đặt phòng</b>, có thể 2 ảnh),
-        rồi chọn ảnh hoặc dán vào đây. Ảnh được đọc ngay trên máy, không gửi đi đâu.</div>
+        rồi chọn ảnh hoặc dán vào đây. Ảnh được đọc ngay trên máy, không gửi đi đâu.<br>
+        📞 <b>Có số điện thoại?</b> Trong app bấm <b>Liên hệ</b> → chụp màn hình khung <b>"Gọi +84 …"</b> rồi thêm ảnh đó vào
+        (cùng lúc, hoặc riêng sau này) — web tự điền số cho đúng khách. Chỉ 1 ảnh đặt phòng = khách chưa có số.</div>
       <div class="pick">
         <label>🖼 Chọn ảnh<input type="file" accept="image/*" multiple hidden></label>
         <button type="button" class="paste">📋 Dán ảnh</button>
@@ -441,6 +443,8 @@
       + (!val('booking_id') ? `<div class="note info">Không có <b>mã đặt phòng</b> cũng lưu được: web dùng <b>mã tạm</b>,
           khi anh mở booking này trên máy tính (tiện ích Chrome) sẽ <b>tự đổi sang mã thật</b>, không bị trùng.</div>` : '')
       + (p.matched ? `<div class="note info">Ảnh không có mã đặt phòng — đã tìm thấy booking cùng ngày &amp; cùng giá trên web.</div>` : '')
+      + (p.matched_name ? `<div class="note info">Ảnh gọi điện — đã tìm thấy booking của khách này trên web; <b>Lưu</b> sẽ thêm số điện thoại.</div>` : '')
+      + (p.phone ? `<div class="note info">📞 Đọc được số <b>${esc(p.phone)}</b> từ ảnh — kiểm tra lại cho đúng trước khi lưu.</div>` : '')
       + (existing ? `<div class="note info">Booking này <b>đã có trên web</b> (${esc(existing.guest_name)}) — Lưu sẽ cập nhật
           ngày / giá / phòng; tiền đã thu và căn đã xếp giữ nguyên.</div>` : '')
       + `<button type="button" class="save">💾 ${existing ? 'Cập nhật' : 'Lưu vào web'}</button>`;

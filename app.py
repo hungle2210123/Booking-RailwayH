@@ -1900,11 +1900,38 @@ def booking_from_photo_parse():
             p['booking_id'] = rows[0][0]
             p['matched'] = True
             p['missing'] = [k for k in p['missing'] if k != 'booking_id']
+    if not p.get('booking_id') and not p.get('checkin_date') and p.get('guest_name'):
+        # only the call screen ("Gọi +84 …" over the guest's name): the guest's upcoming booking already on the web
+        bid = _photo_booking_by_name(p['guest_name'])
+        if bid:
+            ex = _ext_existing(bid)
+            p.update({'booking_id': bid, 'checkin_date': ex['checkin_date'], 'checkout_date': ex['checkout_date'],
+                      'listing': p.get('listing') or ex['listing'], 'room_amount': p.get('room_amount') or ex['room_amount'],
+                      'matched_name': True})
+            p['missing'] = [k for k in p.get('missing', []) if not ex.get(k)]
     existing = _ext_existing(p['booking_id']) if p.get('booking_id') else None
     if existing and not p.get('guest_name'):
         p['guest_name'] = existing['guest_name']
     return jsonify({'success': True, 'parsed': p,
                     'existing': {'guest_name': existing['guest_name']} if existing else None})
+
+
+def _photo_booking_by_name(name):
+    """The one not-yet-finished booking whose guest has this name (any case / accents / word order), else None."""
+    from core.models import db as _xdb
+    from core.booking_page_parser import _fold
+    # web names often end with the country code ("Jack Bayley gb"), the app screen does not
+    words = lambda s: sorted(re.sub(r'[^a-z ]', ' ', _fold(re.sub(r'\s+[a-z]{2}$', '', str(s or '').strip()))).split())
+    want = words(name)
+    if len(want) < 2:
+        return None
+    rows = _xdb.session.execute(text("""
+        SELECT b.booking_id, COALESCE(g.full_name, b.guest_name) FROM bookings b
+        LEFT JOIN guests g ON g.guest_id = b.guest_id
+        WHERE b.checkout_date >= CURRENT_DATE - 1
+          AND COALESCE(b.booking_status, '') NOT IN ('deleted', 'cancelled', 'Đã hủy')""")).fetchall()
+    hits = [r[0] for r in rows if words(r[1]) == want]
+    return hits[0] if len(hits) == 1 else None
 
 
 @app.route('/api/booking_from_photo/save', methods=['POST'])

@@ -501,7 +501,7 @@
     const ph = guestPhone();
     if (!ph && !partner) return;
     const key = location.href.split('#')[0] + '|' + (partner ? 'partner' : digitsOf(ph));
-    if (phoneDone.has(key)) return;
+    if (phoneDone.has(key)) { if (ph && revealedNow()) shotAfterReveal(); return; }
     phoneBusy = true;
     try {
       phoneDone.add(key);
@@ -514,18 +514,18 @@
       else if (r.status === 'same') toast(`📞 SĐT của <b>${esc(r.guest_name)}</b> đã có trên web`);
       else if (r.status === 'duplicate') toast(`⚠️ Số <b>${esc(r.phone)}</b> đang là của khách <b>${esc(r.other_name)}</b> — chưa lưu, kiểm tra lại`, 'warn');
       else if (r.status === 'not_on_web') toast(`📞 Thấy SĐT nhưng chưa tự thêm được booking #${esc(r.booking_id)}${r.error ? ' (' + esc(r.error) + ')' : ''} — bấm 📥 để thêm`, 'warn');
-      // 📸 the Booking picture is taken only once the phone is on the page (owner decision, Oct 2026)
-      if (['saved', 'created'].includes(r.status)) shotWhenVisible(true);          // just revealed → always a fresh picture
-      else if (['same', 'partner'].includes(r.status)) shotWhenVisible(false);     // already known → not again within 10 min
+      // 📸 the Booking picture is taken only right after YOU clicked "Hiển thị số điện thoại" and the number shows
+      //    (owner, Oct 2026: never on page open / tab switch — those pictures came out wrong)
+      if (ph && revealedNow() && ['saved', 'created', 'same', 'partner', 'duplicate'].includes(r.status)) shotAfterReveal();
     } finally { phoneBusy = false; }
   }
 
-  // ⚡ Auto-capture of the reservation box (always on — owner decision), only once the guest's phone shows
-  //   on the page (revealed now, already shown, or a partner booking) — not before.
+  // ⚡ Auto-capture of the reservation box (always on — owner decision), only right after the owner clicked
+  //   Booking's "Hiển thị số điện thoại" on this page and the number showed — never on page open or tab switch.
   const autoShotDone = new Set();
   let lastPhoneToast = '';
-  const SHOT_AGAIN_MS = 10 * 60 * 1000;
-  const shotStampKey = bid => 'hp_shot_' + bid;
+  let revealAt = 0;
+  const revealedNow = () => Date.now() - revealAt < 20000;
   function autoShot(kind) {
     const bid = resId();
     if (!bid || !chrome.runtime?.id) return Promise.resolve(null);
@@ -546,37 +546,28 @@
       return r;
     }).catch(() => { autoShotDone.delete(key); return null; });
   }
-  function shotWhenVisible(fresh) {
+  function shotAfterReveal() {
     const bid = resId();
-    if (!bid) return;
-    if (!fresh) {
-      let last = 0;
-      try { last = +sessionStorage.getItem(shotStampKey(bid)) || 0; } catch (e) {}
-      if (Date.now() - last < SHOT_AGAIN_MS) return;
-    }
+    if (!bid || autoShotDone.has(bid + '|phone')) return;
     let tries = 0;
     const go = async () => {
-      if (document.hidden || resId() !== bid) return;
+      // you went to another tab meanwhile → no picture (Alt+Shift+S takes one by hand)
+      if (document.hidden || !document.hasFocus() || resId() !== bid) return;
       const r = await autoShot('phone');
-      if (r && !r.success && r.reason !== 'off' && /khung/i.test(r.error || '') && ++tries < 2) setTimeout(go, 4000);
+      if (r && !r.success && r.reason !== 'off' && /khung/i.test(r.error || '') && ++tries < 2) setTimeout(go, 3000);
     };
-    if (!document.hidden) { setTimeout(go, 800); return; }
-    // opened in a background tab → take it when you look at it
-    document.addEventListener('visibilitychange', function once() {
-      if (document.hidden) return;
-      document.removeEventListener('visibilitychange', once);
-      setTimeout(go, 1500);
-    });
+    setTimeout(go, 1000);                            // the number has just appeared: let the page settle
   }
   // Chỉ phản ứng khi bạn bấm đúng nút "Hiển thị số điện thoại"; số hiện ra sau đó một chút.
   document.addEventListener('click', e => {
     if (host.contains(e.target)) return;
     const el = e.target.closest ? e.target.closest('button, a, [role="button"], span') : null;
     if (!isRevealEl(el)) return;
+    revealAt = Date.now();
     revealSpot = el.parentElement?.parentElement || el.parentElement;
     [600, 1500, 3000, 6000].forEach(ms => setTimeout(checkPhone, ms));
   }, true);
-  // Nếu số đã hiện sẵn khi mở trang (hoặc là đặt phòng qua đối tác).
+  // Nếu số đã hiện sẵn khi mở trang (hoặc là đặt phòng qua đối tác): chỉ lưu số, KHÔNG chụp ảnh.
   [2500, 6000].forEach(ms => setTimeout(checkPhone, ms));
 
   // ── 💬 Điền tin: put a ready message into Booking's own "Trò chuyện với khách" box ──────
