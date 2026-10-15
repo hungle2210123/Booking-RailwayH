@@ -305,15 +305,19 @@ a separate "📋 Chép tin tiếng Việt (Zalo)" button copies without leaving;
 
 ### **💰 Thu tiền tab (`/messages?view=pay`, `_messages_pay_page`)**
 Guests staying / leaving today / checked out ≤ 10 days (`PAY_DAYS_BACK`) with room money still open. Paid = collected ≥
-total − 1,000đ. Layout (owner, Oct 15: "khó bao quát"): collector bar (LOC LE / THAO LE, localStorage `pay_collector`) →
-overview box (per apartment: guests, money left, longest owed, tap = jump) → ONE compact row per guest
-(`payrow`, `<details>`), grouped by apartment (`_pay_by_apartment`: apartment with the longest-owed guest first,
-unplaced last), inside the longest owed first (`overdue` = days since check-in) then room. Row: days owed (red ≥ 3,
-amber ≥ 1), name, room, dates + tags (đã trả phòng / trả hôm nay / 🙋 báo đã trả / 📨 đã nhắn / 📝 note), amount left and
-a green ✅ Đã thu = the remaining amount by the chosen collector in one tap (`MsgPay.paid`, toast Hoàn tác). Tap the
-row for: 💳 Nhắn thu tiền (journey 'payment'), 📨 đã nhắn ngoài app, 🙋 khách báo đã trả (cash / transfer, not counted),
-💰 Thu 1 phần / số khác (sheet), 📝 ghi chú, history. ✅ đã thu and 🙈 không cần thu are folded at the bottom. The
-floating ⚡ / 🔄 sit on the LEFT on this tab (the ✅ buttons are on the right). `POST /api/pay/collect` (amount +
+total − 1,000đ. Purpose (owner): watch that every guest got the payment message in time to pay BEFORE check-out.
+Layout: overview box (per apartment: money left, guests, 🔴 N chưa nhắn, longest owed; tap = jump) → filter
+Tất cả / 🔴 Chưa nhắn / 📨 Đã nhắn, chờ trả / 🙋 Báo đã trả (localStorage `pay_filter`) → red alert "N khách trả phòng hôm
+nay / ngày mai CHƯA được nhắn" → ONE compact row per guest (`payrow`, `<details>`) grouped by apartment
+(`_pay_by_apartment`: apartment with the longest-owed guest first, unplaced last). Inside an apartment: checked-out
+guests still owing first (longest owed first), then by check-out date (the deadline) soonest first, not-messaged
+before messaged, then room. Row: left = message status (`status` todo/asked/claimed/paid: 🔴 CHƯA NHẮN — tap = mark
+"đã nhắn" outside the app, 📨 ĐÃ NHẮN dd/mm, 🙋 BÁO ĐÃ TRẢ, ✅), name, room, deadline (⛔ đã trả phòng N ngày / ⏳ HÔM NAY /
+ngày mai / còn N ngày), amount left, 💳 Nhắn (journey 'payment' step, only when not messaged) and ✅ Đã thu → small
+sheet: 💵/🏦 + big LOC LE / THAO LE buttons, tapping one saves the remaining amount for THAT collector (owner: choose per
+guest, no shared collector bar) + "Thu số khác / 1 phần…" (full sheet). Tap the row for 📨/🙋 toggles, 📝 ghi chú,
+history. ✅ đã thu and 🙈 không cần thu are folded at the bottom. No floating ⚡ / 🔄 on this tab (they covered the
+row buttons; the list refreshes itself). `POST /api/pay/collect` (amount +
 collector + method) ADDS to `collected_amount`, sets collector, booking_history 'messages_pay', commission untouched —
 unlike /api/collect_payment which resets commission when not sent; undo = same amount with undo=true. Marks in table `payment_marks(booking_id, claimed_at, claim_method,
 note, log, skipped)` via `POST /api/pay/mark` (claim/unclaim/note/skip/unskip). The calendar reads the same columns.

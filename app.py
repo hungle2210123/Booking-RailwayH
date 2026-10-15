@@ -2760,6 +2760,7 @@ def _pay_items(_xdb, J, today):
             'apt': apt['name'] if apt else '', 'phong': _room_label(r[9], keep_note=True),
             'co': co, 'ci': ci,
             'overdue': (today - ci).days if ci else 0,          # days owed: since arrival
+            'left_days': (co - today).days if co else 0,         # days until check-out (the deadline to pay)
             'out_days': (today - co).days if co and co < today else 0,
             'apt_rank': apt_rank.get(apt['id'], 99) if apt else 99,
             'total': _vnd(total), 'total_num': total, 'got': _vnd(got), 'got_num': got,
@@ -2772,6 +2773,9 @@ def _pay_items(_xdb, J, today):
             'skipped': bool(m and m[5]),
             'has_phone': bool(_real_guest_phone(r[10], bool(r[11]))),
         })
+        it = items[-1]
+        # payment message status — what the owner watches: 🔴 not messaged / 📨 messaged / 🙋 says paid / ✅ paid
+        it['status'] = 'paid' if paid else ('claimed' if it['claimed'] else ('asked' if it['asked'] else 'todo'))
     return items
 
 
@@ -2851,8 +2855,14 @@ def _pay_by_apartment(items):
         b = blocks.setdefault(i['apt_rank'], {'apt': i['apt'] or 'Chưa xếp căn', 'rank': i['apt_rank'], 'items': []})
         b['items'].append(i)
     out = []
+    # inside an apartment (owner, Oct 15: "giám sát nhắn khách để họ kịp thanh toán trước ngày check out"):
+    # checked-out guests first (longest owed first), then by check-out date — the deadline — soonest first,
+    # not-yet-messaged before messaged on the same day, then room
+    st_rank = {'todo': 0, 'asked': 1, 'claimed': 2}
     for b in blocks.values():
-        b['items'].sort(key=lambda i: (-i['overdue'], i['phong'], i['name']))
+        b['items'].sort(key=lambda i: ((0, -i['overdue'], 0) if i['phase'] == 0
+                                       else (1, i['left_days'], st_rank.get(i['status'], 3)), i['phong'], i['name']))
+        b['n_todo'] = sum(1 for i in b['items'] if i['status'] == 'todo')
         b['n'] = len(b['items'])
         b['left_num'] = sum(i['left_num'] for i in b['items'])
         b['left'] = _vnd(b['left_num'])
@@ -2878,6 +2888,9 @@ def _messages_pay_page():
                            unpaid=_pay_by_apartment(open_),          # 🙋 claimed guests stay in the list, tagged
                            paid=_pay_by_apartment(paid), skipped=skipped,
                            n_claimed=len(claimed), n_unpaid=len(open_), n_paid=len(paid),
+                           n_todo=sum(1 for i in open_ if i['status'] == 'todo'),
+                           n_asked=sum(1 for i in open_ if i['status'] == 'asked'),
+                           n_todo_soon=sum(1 for i in open_ if i['status'] == 'todo' and i['phase'] in (1, 2)),
                            n_out=sum(1 for i in unpaid if i['phase'] == 0),
                            pay_left=_vnd(sum(i['left_num'] for i in open_)),
                            pay_claimed=_vnd(sum(i['left_num'] for i in claimed)),
