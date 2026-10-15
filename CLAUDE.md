@@ -312,7 +312,7 @@ Tất cả / 🔴 Chưa nhắn / 📨 Đã nhắn, chờ trả / 🙋 Báo đã 
 nay / ngày mai CHƯA được nhắn" → ONE compact row per guest (`payrow`, `<details>`) grouped by apartment
 (`_pay_by_apartment`: apartment with the longest-owed guest first, unplaced last). Inside an apartment: checked-out
 guests still owing first (longest owed first), then by check-out date (the deadline) soonest first, not-messaged
-before messaged, then room. Row: left = message status (`status` todo/asked/claimed/paid: 🔴 CHƯA NHẮN — tap = mark
+before messaged, then room. Row (each shows "🛬 Nhận dd/mm → 🧳 Trả dd/mm · N đêm"): left = message status (`status` todo/asked/claimed/paid: 🔴 CHƯA NHẮN — tap = mark
 "đã nhắn" outside the app, 📨 ĐÃ NHẮN dd/mm, 🙋 BÁO ĐÃ TRẢ, ✅), name, room, deadline (⛔ đã trả phòng N ngày / ⏳ HÔM NAY /
 ngày mai / còn N ngày), amount left, 💳 Nhắn (journey 'payment' step, only when not messaged) and ✅ Đã thu → small
 sheet: 💵/🏦 + big LOC LE / THAO LE buttons, tapping one saves the remaining amount for THAT collector (owner: choose per

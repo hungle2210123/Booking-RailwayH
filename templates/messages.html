@@ -119,6 +119,8 @@
   .prow.s-todo { border-left-color:#dc2626; } .prow.s-asked { border-left-color:#3b82f6; }
   .prow.s-claimed { border-left-color:#f59e0b; } .prow.s-paid { border-left-color:#16a34a; }
   .prow summary { grid-template-columns:56px 1fr auto !important; }
+  .pdates { font-size:.78rem; color:#0f172a; font-weight:600; }
+  .pdates b { font-weight:800; }
   .pdl { font-weight:800; } .pdl.red { color:#dc2626; } .pdl.amber { color:#b45309; }
   .psend { border:1.5px solid #2563eb; background:#eff6ff; color:#1d4ed8; font-weight:800; font-size:.78rem; border-radius:10px;
            padding:6px 10px; white-space:nowrap; font-family:inherit; }
@@ -352,11 +354,12 @@
     <span class="pmain">
       <b class="pname">{{ p.name }}</b>
       <span class="psub">🛏️ {{ p.phong or 'chưa rõ phòng' }}</span>
+      <span class="pdates">🛬 Nhận <b>{{ p.nhan }}</b> → 🧳 Trả <b>{{ p.tra }}</b>{% if p.nights %} · {{ p.nights }} đêm{% endif %}</span>
       <span class="psub">
         {%- if p.phase == 0 %}<b class="pdl red">⛔ Đã trả phòng {{ p.out_days }} ngày</b>
         {%- elif p.phase == 1 %}<b class="pdl red">⏳ Trả phòng HÔM NAY</b>
         {%- elif p.phase == 2 %}<b class="pdl amber">⏳ Trả phòng ngày mai</b>
-        {%- else %}<span class="pdl">Trả {{ p.tra }} · còn {{ p.left_days }} ngày</span>{% endif %}
+        {%- else %}<span class="pdl">⏳ Còn {{ p.left_days }} ngày đến hạn trả phòng</span>{% endif %}
         {%- if p.asked and p.status != 'asked' %} · 📨 đã nhắn {{ p.asked }}{% elif p.asked %} · nhắn lúc {{ p.asked }}{% endif %}
         {%- if p.note %} · 📝 {{ p.note }}{% endif %}</span>
     </span>
