@@ -302,6 +302,9 @@
                     font-weight:800; color:#334155; cursor:pointer; font-family:inherit; }
   .sfilter button.on { background:#0f172a; border-color:#0f172a; color:#fff; }
   body.f-todo .card.done, body.f-done .card.todo { display:none; }
+  body.f-unreach #live .card:not(.unreach), body.f-unreach #live .group-t:not(.unreach) { display:none; }
+  body.f-unreach .group-t.unreach { border-top:none; padding-top:0; margin-top:4px; }
+  .sfilter { flex-wrap:wrap; } .sfilter button[data-f="unreach"] { flex-basis:100%; }
   .fempty { text-align:center; color:var(--muted); font-size:.85rem; padding:14px; }
   .card.fresh { border:2px solid #22c55e; background:#f0fdf4; }
   .live-toast { position:fixed; left:50%; bottom:20px; transform:translateX(-50%); background:#16a34a; color:#fff; font-weight:800;
@@ -520,6 +523,7 @@
     <button type="button" onclick="MsgAct.filter(this)" data-f="all">Tất cả <b></b></button>
     <button type="button" onclick="MsgAct.filter(this)" data-f="todo">🔴 Chưa nhắn <b></b></button>
     <button type="button" onclick="MsgAct.filter(this)" data-f="done">✅ Đã nhắn <b></b></button>
+    <button type="button" onclick="MsgAct.filter(this)" data-f="unreach">📵 Không liên lạc được <b></b></button>
   </div>
   <div class="legend">Chạm một bước để xem tin + ảnh rồi gửi · tin chung (Passport, Change, Xin hủy…) ở nút <b>⚡ Tin nhanh</b></div>
 
@@ -919,19 +923,21 @@
   let filter = 'all';
   try { filter = localStorage.getItem('msg_filter') || 'all'; } catch (e) {}
   function applyFilter() {
-    document.body.classList.remove('f-todo', 'f-done');
+    document.body.classList.remove('f-todo', 'f-done', 'f-unreach');
     if (filter !== 'all') document.body.classList.add('f-' + filter);
     const cards = [...document.querySelectorAll('#live .card:not(.unreach)')];
-    const n = { all: cards.length, todo: cards.filter(c => c.classList.contains('todo')).length };
+    const n = { all: cards.length, todo: cards.filter(c => c.classList.contains('todo')).length,
+                unreach: document.querySelectorAll('#live .card.unreach').length };
     n.done = n.all - n.todo;
     document.querySelectorAll('.sfilter button').forEach(b => {
       b.classList.toggle('on', b.dataset.f === filter);
       b.querySelector('b').textContent = n[b.dataset.f];
     });
     let em = document.querySelector('#live .fempty');
-    const none = filter !== 'all' && cards.length && !n[filter];
+    const none = filter !== 'all' && (cards.length || filter === 'unreach') && !n[filter];
     if (none && !em) { em = document.createElement('div'); em.className = 'fempty'; document.getElementById('live').appendChild(em); }
-    if (em) { em.style.display = none ? '' : 'none'; em.textContent = filter === 'todo' ? '🎉 Đã nhắn hết khách' : 'Chưa nhắn khách nào'; }
+    if (em) { em.style.display = none ? '' : 'none'; em.textContent = filter === 'todo' ? '🎉 Đã nhắn hết khách'
+      : (filter === 'unreach' ? 'Không có khách nào "không liên lạc được"' : 'Chưa nhắn khách nào'); }
   }
   // Buttons inside #live call these directly (onclick="MsgAct.…(this)"): iPhone Safari does not reliably give a
   // document-level click listener the tapped button, and #live is re-rendered on every refresh.
