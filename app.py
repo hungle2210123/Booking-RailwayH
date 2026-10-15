@@ -2733,7 +2733,9 @@ def _pay_items(_xdb, J, today):
         "SELECT booking_id, claimed_at, claim_method, note, log, skipped FROM payment_marks WHERE booking_id = ANY(:b)"),
         {'b': bids}).fetchall()} if bids else {}
     sent = J.sent_status(_xdb.session, bids)
-    apts = {a['id']: a for a in J.apartments(_xdb.session)}
+    apt_list = J.apartments(_xdb.session)
+    apts = {a['id']: a for a in apt_list}
+    apt_rank = {a['id']: n for n, a in enumerate(apt_list)}
     items = []
     for r in rows:
         ci, co = r[2], r[3]
@@ -2756,6 +2758,7 @@ def _pay_items(_xdb, J, today):
             'nhan': ci.strftime('%d/%m') if ci else '', 'tra': co.strftime('%d/%m') if co else '',
             'nights': (co - ci).days if ci and co else None, 'when': when, 'phase': phase,
             'apt': apt['name'] if apt else '', 'phong': _room_label(r[9], keep_note=True),
+            'co': co, 'apt_rank': apt_rank.get(apt['id'], 99) if apt else 99,
             'total': _vnd(total), 'total_num': total, 'got': _vnd(got), 'got_num': got,
             'left': _vnd(left), 'left_num': left, 'paid': paid, 'over': total > 0 and got > total + 1000,
             'collector': r[6] or '', 'confirmed': r[7] == 'confirmed',
@@ -2837,6 +2840,24 @@ def pay_collect():
     return jsonify({'success': True, 'collected': new, 'collected_str': _vnd(new)})
 
 
+def _pay_days(items, today):
+    """[{label, n, left, items}] — one block per check-out day, in the list's order."""
+    wd = ['Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7', 'CN']
+    out = []
+    for i in items:
+        co = i['co']
+        if not out or out[-1]['co'] != co:
+            d = (co - today).days
+            name = ('Hôm nay' if d == 0 else 'Ngày mai' if d == 1 else 'Hôm qua' if d == -1
+                    else f"{-d} ngày trước" if d < 0 else wd[co.weekday()])
+            out.append({'co': co, 'label': f"{name} · {co.strftime('%d/%m')}", 'today': d == 0, 'items': [], 'left_num': 0})
+        out[-1]['items'].append(i)
+        out[-1]['left_num'] += i['left_num']
+    for b in out:
+        b['n'], b['left'] = len(b['items']), _vnd(b['left_num'])
+    return out
+
+
 def _messages_pay_page():
     from core.models import db as _xdb
     from core import journey as J
@@ -2845,15 +2866,23 @@ def _messages_pay_page():
     today = _vn_now().date()
     items = _pay_items(_xdb, J, today)
     open_ = [i for i in items if not i['paid'] and not i['skipped']]
-    claimed = sorted([i for i in open_ if i['claimed']], key=lambda i: (i['phase'], -i['left_num']))
-    unpaid = sorted([i for i in open_ if not i['claimed']], key=lambda i: (i['phase'], -i['left_num']))
+    # by day — today's check-outs first (collect before they leave), then the next days; inside a day by apartment
+    # (apartments' order, unplaced last) and room. Checked-out guests: the most recent day first.
+    by_day = lambda i: (i['co'], i['apt_rank'], i['apt'], i['phong'], i['name'])
+    claimed = sorted([i for i in open_ if i['claimed']], key=by_day)
+    unpaid = sorted([i for i in open_ if not i['claimed']], key=by_day)
     # paid: only the ones still here or just gone (to check again); skipped: at the bottom
-    paid = sorted([i for i in items if i['paid'] and i['phase'] >= 1], key=lambda i: (i['phase'], i['name']))
+    paid = sorted([i for i in items if i['paid'] and i['phase'] >= 1], key=by_day)
     skipped = [i for i in items if i['skipped'] and not i['paid']]
-    unpaid_past = [i for i in unpaid if i['phase'] == 0]           # already checked out: chase / check later
+    unpaid_past = sorted([i for i in unpaid if i['phase'] == 0],    # already checked out: chase / check later
+                         key=lambda i: (-i['co'].toordinal(), i['apt_rank'], i['apt'], i['phong'], i['name']))
     unpaid = [i for i in unpaid if i['phase'] > 0]
+    claimed, unpaid, unpaid_past, paid = (_pay_days(x, today) for x in (claimed, unpaid, unpaid_past, paid))
+    count = lambda days: sum(b['n'] for b in days)
     return render_template('messages.html', view='pay', claimed=claimed, unpaid=unpaid, unpaid_past=unpaid_past,
-                           paid=paid, skipped=skipped, pay_past=_vnd(sum(i['left_num'] for i in unpaid_past)),
+                           paid=paid, skipped=skipped, n_claimed=count(claimed), n_unpaid=count(unpaid),
+                           n_past=count(unpaid_past), n_paid=count(paid),
+                           pay_past=_vnd(sum(b['left_num'] for b in unpaid_past)),
                            pay_left=_vnd(sum(i['left_num'] for i in open_)),
                            pay_claimed=_vnd(sum(i['left_num'] for i in claimed)),
                            collectors=PAY_COLLECTORS, today_str=today.strftime('%d/%m/%Y'),

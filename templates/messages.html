@@ -103,6 +103,9 @@
   .pstrip .jchip.on { border-color:#fcd34d; background:#fffbeb; }
   .pstrip .pcollect { border-color:#16a34a; background:#f0fdf4; color:#166534; }
   .pcard.paid { opacity:.8; } .pcard.claim { border-left:6px solid #f59e0b; } .pcard.unpaid { border-left:6px solid #ef4444; }
+  .pday { position:sticky; top:0; z-index:5; margin:10px 0 6px; padding:6px 10px; border-radius:10px; background:#f1f5f9;
+          font-size:.8rem; font-weight:800; color:#334155; }
+  .pday.today { background:#fef2f2; color:#b91c1c; }
   .group-t.pclaim { color:#92400e; } .group-t.ppast small { display:block; font-weight:600; color:var(--muted); }
   .pcard.past { border-left-color:#fca5a5; } .group-t.ppaid { color:#166534; }
   .pay-ov { position:fixed; inset:0; height:100dvh; z-index:99990; background:rgba(15,23,42,.55); display:flex; align-items:flex-end; justify-content:center; }
@@ -370,21 +373,25 @@
   <div id="live" data-v="{{ page_version('messages.html', 'js/journey.js') }}">{# swapped in place when new guests / phones / pictures arrive — no manual refresh #}
   {% if view == 'pay' %}
   <div class="psum">
-    <div><small>Chưa thu (tất cả)</small><b>{{ claimed|length + unpaid|length + unpaid_past|length }} khách · {{ pay_left }}đ</b></div>
-    <div><small>Khách báo đã trả — chờ gom</small><b>{{ claimed|length }} khách · {{ pay_claimed }}đ</b></div>
+    <div><small>Chưa thu (tất cả)</small><b>{{ n_claimed + n_unpaid + n_past }} khách · {{ pay_left }}đ</b></div>
+    <div><small>Khách báo đã trả — chờ gom</small><b>{{ n_claimed }} khách · {{ pay_claimed }}đ</b></div>
   </div>
   <div class="legend">Khách đang ở, trả phòng hôm nay và đã trả phòng ≤ 10 ngày chưa thu · <b>💰 Xác nhận tiền thực tế</b>
     khi đã gom / nhận được tiền (ghi vào lịch như "Thu tiền")</div>
-  {% if claimed %}<div class="group-t pclaim">🙋 {{ claimed|length }} khách báo đã trả — chờ gom tiền</div>
-  {% for p in claimed %}{{ paycard(p, 'claim') }}{% endfor %}{% endif %}
-  {% if unpaid %}<div class="group-t">⚡ {{ unpaid|length }} khách đang ở chưa thu</div>
-  {% for p in unpaid %}{{ paycard(p, 'unpaid') }}{% endfor %}{% endif %}
-  {% if unpaid_past %}<div class="group-t ppast">🧾 {{ unpaid_past|length }} khách đã trả phòng, chưa ghi nhận thu · {{ pay_past }}đ
+  {% macro paydays(days, kind) %}{% for d in days %}
+  <div class="pday {{ 'today' if d.today }}">📅 Trả phòng {{ d.label }} · {{ d.n }} khách{% if kind != 'paid' %} · còn {{ d.left }}đ{% endif %}</div>
+  {% for p in d['items'] %}{{ paycard(p, kind) }}{% endfor %}
+  {% endfor %}{% endmacro %}
+  {% if claimed %}<div class="group-t pclaim">🙋 {{ n_claimed }} khách báo đã trả — chờ gom tiền</div>
+  {{ paydays(claimed, 'claim') }}{% endif %}
+  {% if unpaid %}<div class="group-t">⚡ {{ n_unpaid }} khách đang ở chưa thu</div>
+  {{ paydays(unpaid, 'unpaid') }}{% endif %}
+  {% if unpaid_past %}<div class="group-t ppast">🧾 {{ n_past }} khách đã trả phòng, chưa ghi nhận thu · {{ pay_past }}đ
     <small>— đã thu rồi thì bấm 💰 để ghi lại; Booking thu thì chọn 🙈</small></div>
-  {% for p in unpaid_past %}{{ paycard(p, 'unpaid past') }}{% endfor %}{% endif %}
+  {{ paydays(unpaid_past, 'unpaid past') }}{% endif %}
   {% if not claimed and not unpaid and not unpaid_past %}<div class="empty">🎉 Đã thu hết tiền phòng.</div>{% endif %}
-  {% if paid %}<div class="group-t ppaid">✅ {{ paid|length }} khách đã thu (đang ở / trả hôm nay)</div>
-  {% for p in paid %}{{ paycard(p, 'paid') }}{% endfor %}{% endif %}
+  {% if paid %}<div class="group-t ppaid">✅ {{ n_paid }} khách đã thu (đang ở / trả hôm nay)</div>
+  {{ paydays(paid, 'paid') }}{% endif %}
   {% if skipped %}<div class="group-t">🙈 {{ skipped|length }} khách không cần thu (Booking thu / miễn)</div>
   {% for p in skipped %}{{ paycard(p, 'skip') }}{% endfor %}{% endif %}
   {% else %}

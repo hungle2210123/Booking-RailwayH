@@ -306,7 +306,9 @@ a separate "📋 Chép tin tiếng Việt (Zalo)" button copies without leaving;
 ### **💰 Thu tiền tab (`/messages?view=pay`, `_messages_pay_page`)**
 Guests staying / leaving today / checked out ≤ 10 days (`PAY_DAYS_BACK`) with room money still open. Paid = collected ≥
 total − 1,000đ. Groups: 🙋 khách báo đã trả — chờ gom (claimed), ⚡ đang ở chưa thu, 🧾 đã trả phòng chưa ghi nhận
-thu, ✅ đã thu (staying / today), 🙈 không cần thu. Per card: 💳 Nhắn thu tiền (journey 'payment' step), 📨 đã nhắn
+thu, ✅ đã thu (staying / today), 🙈 không cần thu. Each group is split into check-out days (`_pay_days`, sticky
+"📅 Trả phòng Hôm nay · dd/mm · N khách · còn X đ"): today first, then the next days (checked-out: most recent first);
+inside a day by apartment (apartments' order, unplaced last) then room (owner, Oct 15). Per card: 💳 Nhắn thu tiền (journey 'payment' step), 📨 đã nhắn
 ngoài app (journey_log 'payment'), 🙋 khách báo đã trả (cash / transfer, not counted), 📝 ghi chú, 💰 Xác nhận tiền
 thực tế → `POST /api/pay/collect` (amount + collector LOC LE / THAO LE + method; ADDED to `collected_amount`, collector
 set, booking_history 'messages_pay', commission untouched — unlike /api/collect_payment which resets commission when
