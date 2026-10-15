@@ -379,7 +379,7 @@
   <div class="legend">Khách đang ở, trả phòng hôm nay và đã trả phòng ≤ 10 ngày chưa thu · <b>💰 Xác nhận tiền thực tế</b>
     khi đã gom / nhận được tiền (ghi vào lịch như "Thu tiền")</div>
   {% macro paydays(days, kind) %}{% for d in days %}
-  <div class="pday {{ 'today' if d.today }}">📅 Trả phòng {{ d.label }} · {{ d.n }} khách{% if kind != 'paid' %} · còn {{ d.left }}đ{% endif %}</div>
+  <div class="pday {{ 'today' if d.today }}">🛬 Nhận phòng {{ d.label }} · {{ d.n }} khách{% if kind != 'paid' %} · còn {{ d.left }}đ{% endif %}</div>
   {% for p in d['items'] %}{{ paycard(p, kind) }}{% endfor %}
   {% endfor %}{% endmacro %}
   {% if claimed %}<div class="group-t pclaim">🙋 {{ n_claimed }} khách báo đã trả — chờ gom tiền</div>

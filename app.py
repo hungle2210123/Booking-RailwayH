@@ -2758,7 +2758,7 @@ def _pay_items(_xdb, J, today):
             'nhan': ci.strftime('%d/%m') if ci else '', 'tra': co.strftime('%d/%m') if co else '',
             'nights': (co - ci).days if ci and co else None, 'when': when, 'phase': phase,
             'apt': apt['name'] if apt else '', 'phong': _room_label(r[9], keep_note=True),
-            'co': co, 'apt_rank': apt_rank.get(apt['id'], 99) if apt else 99,
+            'co': co, 'ci': ci, 'apt_rank': apt_rank.get(apt['id'], 99) if apt else 99,
             'total': _vnd(total), 'total_num': total, 'got': _vnd(got), 'got_num': got,
             'left': _vnd(left), 'left_num': left, 'paid': paid, 'over': total > 0 and got > total + 1000,
             'collector': r[6] or '', 'confirmed': r[7] == 'confirmed',
@@ -2841,16 +2841,15 @@ def pay_collect():
 
 
 def _pay_days(items, today):
-    """[{label, n, left, items}] — one block per check-out day, in the list's order."""
+    """[{label, n, left, items}] — one block per check-in day, in the list's order."""
     wd = ['Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7', 'CN']
     out = []
     for i in items:
-        co = i['co']
-        if not out or out[-1]['co'] != co:
-            d = (co - today).days
-            name = ('Hôm nay' if d == 0 else 'Ngày mai' if d == 1 else 'Hôm qua' if d == -1
-                    else f"{-d} ngày trước" if d < 0 else wd[co.weekday()])
-            out.append({'co': co, 'label': f"{name} · {co.strftime('%d/%m')}", 'today': d == 0, 'items': [], 'left_num': 0})
+        ci = i['ci']
+        if not out or out[-1]['ci'] != ci:
+            d = (ci - today).days
+            name = ('Hôm nay' if d == 0 else 'Hôm qua' if d == -1 else f"{-d} ngày trước" if d < 0 else wd[ci.weekday()])
+            out.append({'ci': ci, 'label': f"{name} · {ci.strftime('%d/%m')}", 'today': d == 0, 'items': [], 'left_num': 0})
         out[-1]['items'].append(i)
         out[-1]['left_num'] += i['left_num']
     for b in out:
@@ -2866,16 +2865,15 @@ def _messages_pay_page():
     today = _vn_now().date()
     items = _pay_items(_xdb, J, today)
     open_ = [i for i in items if not i['paid'] and not i['skipped']]
-    # by day — today's check-outs first (collect before they leave), then the next days; inside a day by apartment
-    # (apartments' order, unplaced last) and room. Checked-out guests: the most recent day first.
-    by_day = lambda i: (i['co'], i['apt_rank'], i['apt'], i['phong'], i['name'])
+    # by CHECK-IN day (owner, Oct 15) — today's arrivals first, then yesterday's, … ; inside a day by apartment
+    # (apartments' order, unplaced last) and room. Checked-out guests the same way (most recent first).
+    by_day = lambda i: (-i['ci'].toordinal(), i['apt_rank'], i['apt'], i['phong'], i['name'])
     claimed = sorted([i for i in open_ if i['claimed']], key=by_day)
     unpaid = sorted([i for i in open_ if not i['claimed']], key=by_day)
     # paid: only the ones still here or just gone (to check again); skipped: at the bottom
     paid = sorted([i for i in items if i['paid'] and i['phase'] >= 1], key=by_day)
     skipped = [i for i in items if i['skipped'] and not i['paid']]
-    unpaid_past = sorted([i for i in unpaid if i['phase'] == 0],    # already checked out: chase / check later
-                         key=lambda i: (-i['co'].toordinal(), i['apt_rank'], i['apt'], i['phong'], i['name']))
+    unpaid_past = [i for i in unpaid if i['phase'] == 0]           # already checked out: chase / check later
     unpaid = [i for i in unpaid if i['phase'] > 0]
     claimed, unpaid, unpaid_past, paid = (_pay_days(x, today) for x in (claimed, unpaid, unpaid_past, paid))
     count = lambda days: sum(b['n'] for b in days)
