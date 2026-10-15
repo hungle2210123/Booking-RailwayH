@@ -80,6 +80,54 @@
   .cstate.unreach { background:#e2e8f0; color:#334155; cursor:default; }
   .jchip.unreach-btn { background:#fff; border-color:#cbd5e1; color:#475569; }
   .jchip.confirm { background:#fff; border-color:#86efac; color:#166534; }
+
+  /* 💰 Thu tiền — compact list */
+  /* the floating ⚡ / 🔄 go to the left here: the ✅ Đã thu buttons are on the right */
+  .wrap:has(.pwho) ~ .reload, body:has(.pwho) .reload, body:has(.pwho) .quickbtn { right:auto !important; left:12px; }
+  body:has(.pwho) .live-toast { left:auto !important; right:16px; }
+  .pwho { display:flex; align-items:center; gap:6px; flex-wrap:wrap; font-size:.8rem; font-weight:700; color:#475569; margin:4px 0 8px; }
+  .pwho button { border:2px solid #cbd5e1; background:#fff; border-radius:999px; padding:5px 12px; font-weight:800; font-family:inherit; }
+  .pwho button.on { background:#0f172a; border-color:#0f172a; color:#fff; }
+  .pwho.need button { border-color:#ef4444; animation:pw 1s 2; }
+  @keyframes pw { 50% { transform:scale(1.08); } }
+  .pov { background:#fff; border:1.5px solid var(--line); border-radius:14px; padding:8px 10px; margin-bottom:8px; }
+  .pov-h { display:flex; justify-content:space-between; font-weight:800; padding:2px 0 6px; border-bottom:1px solid var(--line); }
+  .pov-h b { color:#b91c1c; }
+  .pov-r { display:grid; grid-template-columns:1fr auto auto auto; gap:10px; align-items:center; padding:7px 0; font-size:.86rem;
+           color:#0f172a; text-decoration:none; border-bottom:1px dashed var(--line); }
+  .pov-r:last-of-type { border-bottom:none; }
+  .pov-r span:first-child { font-weight:800; } .pov-r.none span:first-child { color:#64748b; }
+  .pov-d { font-size:.72rem; font-weight:800; border-radius:999px; padding:2px 8px; background:#f1f5f9; color:#475569; }
+  .pov-d.o3 { background:#b91c1c; color:#fff; } .pov-d.o1 { background:#fef3c7; color:#92400e; }
+  .pov-f { font-size:.78rem; font-weight:700; color:#92400e; padding-top:6px; }
+  .papt { position:sticky; top:0; z-index:5; margin:12px 0 0; padding:8px 12px; border-radius:10px 10px 0 0; background:#0f172a;
+          color:#fff; font-size:.88rem; font-weight:800; scroll-margin-top:8px; }
+  .papt.none { background:#475569; } .papt.sub { position:static; background:#334155; }
+  .plist { background:#fff; border:1.5px solid var(--line); border-top:none; border-radius:0 0 12px 12px; overflow:hidden; }
+  .prow { border-top:1px solid var(--line); border-left:5px solid #cbd5e1; }
+  .prow:first-child { border-top:none; }
+  .prow.o3 { border-left-color:#dc2626; } .prow.o1 { border-left-color:#f59e0b; } .prow.paid { border-left-color:#16a34a; }
+  .prow summary { list-style:none; display:grid; grid-template-columns:42px 1fr auto; gap:8px; align-items:center; padding:8px 8px 8px 6px; cursor:pointer; }
+  .prow summary::-webkit-details-marker { display:none; }
+  .prow[open] summary { background:#f8fafc; }
+  .pdays { text-align:center; line-height:1; }
+  .pdays b { display:block; font-size:1.25rem; }
+  .pdays small { font-size:.6rem; color:#64748b; font-weight:700; }
+  .prow.o3 .pdays b { color:#dc2626; } .prow.o1 .pdays b { color:#b45309; } .prow.o0 .pdays b { color:#94a3b8; }
+  .pmain { min-width:0; display:flex; flex-direction:column; gap:1px; }
+  .pname { font-size:.92rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .psub { font-size:.74rem; color:#64748b; line-height:1.3; }
+  .psub .red { color:#dc2626; } .psub .amber { color:#b45309; }
+  .pright { display:flex; flex-direction:column; align-items:flex-end; gap:4px; }
+  .pamt { font-size:.92rem; white-space:nowrap; }
+  .prow:not(.paid) .pamt { color:#b91c1c; }
+  .pby { font-size:.68rem; color:#166534; font-weight:700; }
+  .pdone { border:none; background:#16a34a; color:#fff; font-weight:800; font-size:.8rem; border-radius:10px; padding:7px 10px;
+           white-space:nowrap; font-family:inherit; }
+  .pdone:disabled { opacity:.5; }
+  .pbody { padding:6px 10px 10px 14px; background:#f8fafc; }
+  .pbody .plog { font-size:.72rem; white-space:pre-wrap; margin:4px 0; color:#334155; font-family:inherit; }
+  .pfold { margin-top:14px; } .pfold > summary { font-weight:800; color:#166534; padding:8px 4px; cursor:pointer; }
   /* 💰 Thu tiền */
   .psum { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin:6px 0 8px; }
   .psum div { background:#fff; border:1.5px solid var(--line); border-radius:12px; padding:8px 10px; }
@@ -103,6 +151,13 @@
   .pstrip .jchip.on { border-color:#fcd34d; background:#fffbeb; }
   .pstrip .pcollect { border-color:#16a34a; background:#f0fdf4; color:#166534; }
   .pcard.paid { opacity:.8; } .pcard.claim { border-left:6px solid #f59e0b; } .pcard.unpaid { border-left:6px solid #ef4444; }
+  .papt { position:sticky; top:0; z-index:5; margin:14px 0 6px; padding:8px 12px; border-radius:10px; background:#0f172a;
+           color:#fff; font-size:.88rem; font-weight:800; }
+  .papt span { color:#fca5a5; font-weight:700; }
+  .papt.none { background:#475569; }
+  .proom { font-size:.95rem; font-weight:800; color:#0f172a; margin-bottom:3px; }
+  .pover { font-size:.72rem; font-weight:800; border-radius:999px; padding:2px 9px; }
+  .pover.o3 { background:#b91c1c; color:#fff; } .pover.o1 { background:#fef3c7; color:#92400e; } .pover.o0 { background:#f1f5f9; color:#64748b; }
   .pday { position:sticky; top:0; z-index:5; margin:10px 0 6px; padding:6px 10px; border-radius:10px; background:#f1f5f9;
           font-size:.8rem; font-weight:800; color:#334155; }
   .pday.today { background:#fef2f2; color:#b91c1c; }
@@ -257,43 +312,50 @@
 
 
 {% block content %}
-{% macro paycard(p, kind) %}
-<div class="card pcard {{ kind }}" data-bid="{{ p.booking_id }}">
-  <div class="ctop"><b>{{ p.name }}</b>
-    <span class="apt {{ '' if p.apt else 'none' }}">{{ p.apt or 'chưa xếp căn' }}</span></div>
-  <div class="cmeta">{{ p.nhan }} → {{ p.tra }}{% if p.nights %} · {{ p.nights }} đêm{% endif %} ·
-    <b class="pwhen ph{{ p.phase }}">{{ p.when }}</b>{% if p.phase == 0 and not p.confirmed %} · <span class="pwarn">chưa xác nhận đến</span>{% endif %}</div>
-  <div class="pmoney">
-    <span>Tổng <b>{{ p.total }}đ</b></span>
-    <span>Đã thu <b class="{{ 'pgot' if p.got_num else '' }}">{{ p.got }}đ</b>{% if p.collector %} <small>· {{ p.collector }}</small>{% endif %}</span>
-    {% if not p.paid %}<span class="pleft">Còn <b>{{ p.left }}đ</b></span>{% endif %}
-    {% if p.over %}<span class="pwarn">⚠️ thu nhiều hơn tổng — kiểm tra lại</span>{% endif %}
+{% macro payrow(p) %}
+<details class="prow {{ 'o3' if p.overdue >= 3 else ('o1' if p.overdue >= 1 else 'o0') }} {{ 'paid' if p.paid }}" data-bid="{{ p.booking_id }}">
+  <summary>
+    <span class="pdays">{% if p.paid %}✅{% else %}<b>{{ p.overdue }}</b><small>ngày</small>{% endif %}</span>
+    <span class="pmain">
+      <b class="pname">{{ p.name }}</b>
+      <span class="psub">🛏️ {{ p.phong or 'chưa rõ phòng' }}</span>
+      <span class="psub">{{ p.nhan }} → {{ p.tra }}{% if p.phase == 0 %} · <b class="red">đã trả phòng</b>{% elif p.phase == 1 %} · <b class="amber">trả hôm nay</b>{% endif %}
+        {%- if p.claimed %} · <b class="amber">🙋 báo đã trả</b>{% endif %}{% if p.asked %} · 📨 đã nhắn{% endif %}{% if p.note %} · 📝 {{ p.note }}{% endif %}</span>
+    </span>
+    <span class="pright">
+      <b class="pamt">{{ p.got if p.paid else p.left }}đ</b>
+      {% if p.paid %}<small class="pby">{{ p.collector }}</small>
+      {% else %}<button type="button" class="pdone" data-bid="{{ p.booking_id }}" data-name="{{ p.name }}" data-left="{{ p.left_num|int }}"
+              data-method="{{ p.claim_method }}" onclick="event.preventDefault(); event.stopPropagation(); MsgPay.paid(this)">✅ Đã thu</button>{% endif %}
+    </span>
+  </summary>
+  <div class="pbody">
+    <div class="pmoney">
+      <span>Tổng <b>{{ p.total }}đ</b></span>
+      <span>Đã thu <b class="{{ 'pgot' if p.got_num else '' }}">{{ p.got }}đ</b>{% if p.collector %} <small>· {{ p.collector }}</small>{% endif %}</span>
+      {% if not p.paid %}<span class="pleft">Còn <b>{{ p.left }}đ</b></span>{% endif %}
+      {% if p.over %}<span class="pwarn">⚠️ thu nhiều hơn tổng — kiểm tra lại</span>{% endif %}
+    </div>
+    <div class="psub">{{ p.when }}{% if p.nights %} · {{ p.nights }} đêm{% endif %}{% if p.phase == 0 and not p.confirmed %} · <span class="pwarn">chưa xác nhận đến</span>{% endif %}
+      {% if p.claimed %} · 🙋 báo đã trả{% if p.claim_method == 'cash' %} (💵 tiền mặt){% elif p.claim_method == 'transfer' %} (🏦 chuyển khoản){% endif %} {{ p.claimed }}{% endif %}
+      {% if p.asked %} · 📨 đã nhắn thu tiền {{ p.asked }}{% endif %}</div>
+    {% if p.log %}<pre class="plog">{{ p.log }}</pre>{% endif %}
+    <div class="jstrip pstrip">
+      {% if not p.paid %}
+      <button type="button" class="jchip" onclick="Journey.open('{{ p.booking_id }}', 'payment')"><span class="e">💳</span><span class="l">Nhắn thu tiền</span></button>
+      <button type="button" class="jchip" onclick="MsgPay.asked(this)" data-bid="{{ p.booking_id }}" data-on="{{ 1 if p.asked else 0 }}">
+        {% if p.asked %}<span class="e">↩️</span><span class="l">Bỏ "đã nhắn"</span>{% else %}<span class="e">📨</span><span class="l">Đã nhắn ngoài app</span>{% endif %}</button>
+      <button type="button" class="jchip {{ 'on' if p.claimed }}" onclick="MsgPay.claim(this)" data-bid="{{ p.booking_id }}" data-on="{{ 1 if p.claimed else 0 }}">
+        {% if p.claimed %}<span class="e">↩️</span><span class="l">Bỏ "báo đã trả"</span>{% else %}<span class="e">🙋</span><span class="l">Khách báo đã trả</span>{% endif %}</button>
+      {% endif %}
+      <button type="button" class="jchip pcollect" onclick="MsgPay.collect(this)" data-bid="{{ p.booking_id }}" data-name="{{ p.name }}"
+              data-total="{{ p.total_num|int }}" data-got="{{ p.got_num|int }}" data-left="{{ p.left_num|int }}" data-method="{{ p.claim_method }}">
+        <span class="e">💰</span><span class="l">{{ 'Thu thêm / sửa' if p.paid else 'Thu 1 phần / số khác' }}</span></button>
+      <button type="button" class="jchip" onclick="MsgPay.note(this)" data-bid="{{ p.booking_id }}" data-note="{{ p.note }}"><span class="e">📝</span><span class="l">Ghi chú</span></button>
+      {% if p.skipped %}<button type="button" class="jchip" onclick="MsgPay.skip(this, false)" data-bid="{{ p.booking_id }}"><span class="e">↩️</span><span class="l">Cần thu lại</span></button>{% endif %}
+    </div>
   </div>
-  <div class="pstate">
-    {% if p.paid %}<span class="pst ok">✅ Đã thu đủ</span>{% endif %}
-    {% if p.claimed %}<span class="pst claim">🙋 Khách báo đã trả{% if p.claim_method == 'cash' %} · 💵 tiền mặt{% elif p.claim_method == 'transfer' %} · 🏦 chuyển khoản{% endif %} · {{ p.claimed }}</span>{% endif %}
-    {% if p.asked %}<span class="pst asked">📨 Đã nhắn thu tiền · {{ p.asked }}</span>
-    {% elif not p.paid %}<span class="pst todo">✉️ Chưa nhắn thu tiền</span>{% endif %}
-  </div>
-  {% if p.note %}<div class="pnote" onclick="MsgPay.note(this)" data-bid="{{ p.booking_id }}" data-note="{{ p.note }}">📝 {{ p.note }}</div>{% endif %}
-  {% if p.log %}<details class="plog"><summary>Lịch sử thu ({{ p.log.split('\n')|length }})</summary><pre>{{ p.log }}</pre></details>{% endif %}
-  <div class="jstrip pstrip">
-    {% if not p.paid %}
-    <button type="button" class="jchip" onclick="Journey.open('{{ p.booking_id }}', 'payment')"><span class="e">💳</span><span class="l">Nhắn thu tiền</span></button>
-    <button type="button" class="jchip" onclick="MsgPay.asked(this)" data-bid="{{ p.booking_id }}" data-on="{{ 1 if p.asked else 0 }}">
-      {% if p.asked %}<span class="e">↩️</span><span class="l">Bỏ "đã nhắn"</span>{% else %}<span class="e">📨</span><span class="l">Đã nhắn ngoài app</span>{% endif %}</button>
-    <button type="button" class="jchip {{ 'on' if p.claimed }}" onclick="MsgPay.claim(this)" data-bid="{{ p.booking_id }}" data-on="{{ 1 if p.claimed else 0 }}">
-      {% if p.claimed %}<span class="e">↩️</span><span class="l">Bỏ "khách báo trả"</span>{% else %}<span class="e">🙋</span><span class="l">Khách báo đã trả</span>{% endif %}</button>
-    {% endif %}
-    <button type="button" class="jchip pcollect" onclick="MsgPay.collect(this)" data-bid="{{ p.booking_id }}" data-name="{{ p.name }}"
-            data-total="{{ p.total_num|int }}" data-got="{{ p.got_num|int }}" data-left="{{ p.left_num|int }}" data-method="{{ p.claim_method }}">
-      <span class="e">💰</span><span class="l">{{ 'Thu thêm / sửa' if p.paid else 'Xác nhận tiền thực tế' }}</span></button>
-    <button type="button" class="jchip" onclick="MsgPay.note(this)" data-bid="{{ p.booking_id }}" data-note="{{ p.note }}"><span class="e">📝</span><span class="l">Ghi chú</span></button>
-    {% if kind == 'skip' %}
-    <button type="button" class="jchip" onclick="MsgPay.skip(this, false)" data-bid="{{ p.booking_id }}"><span class="e">↩️</span><span class="l">Cần thu lại</span></button>
-    {% endif %}
-  </div>
-</div>
+</details>
 {% endmacro %}
 {% macro card(g, kind) %}
 <div class="card {{ kind }} {{ 'unreach' if g.unreach else ('done' if g.last or g.confirmed else 'todo') }} {{ 'vip' ~ g.tier if g.tier }}" data-bid="{{ g.booking_id }}">
@@ -372,28 +434,33 @@
   </div>
   <div id="live" data-v="{{ page_version('messages.html', 'js/journey.js') }}">{# swapped in place when new guests / phones / pictures arrive — no manual refresh #}
   {% if view == 'pay' %}
-  <div class="psum">
-    <div><small>Chưa thu (tất cả)</small><b>{{ n_claimed + n_unpaid + n_past }} khách · {{ pay_left }}đ</b></div>
-    <div><small>Khách báo đã trả — chờ gom</small><b>{{ n_claimed }} khách · {{ pay_claimed }}đ</b></div>
+  <div class="pwho">Người thu khi bấm ✅:
+    {% for c in collectors %}<button type="button" data-v="{{ c }}" onclick="MsgPay.who(this)">{{ c }}</button>{% endfor %}</div>
+  <div class="pov">
+    <div class="pov-h"><span>💰 Chưa thu</span><b>{{ n_unpaid }} khách · {{ pay_left }}đ</b></div>
+    {% for blk in unpaid %}
+    <a class="pov-r {{ 'none' if blk.rank == 99 }}" href="#papt-{{ blk.rank }}" onclick="MsgPay.jump(event, 'papt-{{ blk.rank }}')">
+      <span>🏠 {{ blk.apt }}</span><span>{{ blk.n }} khách</span><b>{{ blk.left }}đ</b>
+      <span class="pov-d {{ 'o3' if blk.max_over >= 3 else ('o1' if blk.max_over >= 1 else '') }}">{{ blk.max_over }} ngày</span></a>
+    {% endfor %}
+    {% if n_claimed %}<div class="pov-f">🙋 {{ n_claimed }} khách báo đã trả, chờ gom · {{ pay_claimed }}đ</div>{% endif %}
   </div>
-  <div class="legend">Khách đang ở, trả phòng hôm nay và đã trả phòng ≤ 10 ngày chưa thu · <b>💰 Xác nhận tiền thực tế</b>
-    khi đã gom / nhận được tiền (ghi vào lịch như "Thu tiền")</div>
-  {% macro paydays(days, kind) %}{% for d in days %}
-  <div class="pday {{ 'today' if d.today }}">🛬 Nhận phòng {{ d.label }} · {{ d.n }} khách{% if kind != 'paid' %} · còn {{ d.left }}đ{% endif %}</div>
-  {% for p in d['items'] %}{{ paycard(p, kind) }}{% endfor %}
-  {% endfor %}{% endmacro %}
-  {% if claimed %}<div class="group-t pclaim">🙋 {{ n_claimed }} khách báo đã trả — chờ gom tiền</div>
-  {{ paydays(claimed, 'claim') }}{% endif %}
-  {% if unpaid %}<div class="group-t">⚡ {{ n_unpaid }} khách đang ở chưa thu</div>
-  {{ paydays(unpaid, 'unpaid') }}{% endif %}
-  {% if unpaid_past %}<div class="group-t ppast">🧾 {{ n_past }} khách đã trả phòng, chưa ghi nhận thu · {{ pay_past }}đ
-    <small>— đã thu rồi thì bấm 💰 để ghi lại; Booking thu thì chọn 🙈</small></div>
-  {{ paydays(unpaid_past, 'unpaid past') }}{% endif %}
-  {% if not claimed and not unpaid and not unpaid_past %}<div class="empty">🎉 Đã thu hết tiền phòng.</div>{% endif %}
-  {% if paid %}<div class="group-t ppaid">✅ {{ n_paid }} khách đã thu (đang ở / trả hôm nay)</div>
-  {{ paydays(paid, 'paid') }}{% endif %}
-  {% if skipped %}<div class="group-t">🙈 {{ skipped|length }} khách không cần thu (Booking thu / miễn)</div>
-  {% for p in skipped %}{{ paycard(p, 'skip') }}{% endfor %}{% endif %}
+  <div class="legend">Mỗi dòng 1 khách · số bên trái = <b>số ngày nợ</b> (từ ngày nhận phòng), lâu nhất ở trên · bấm
+    <b>✅ Đã thu</b> = thu đủ số còn lại (ghi vào lịch) · chạm dòng để nhắn thu tiền, ghi chú, thu 1 phần…</div>
+  {% for blk in unpaid %}
+  <div class="papt {{ 'none' if blk.rank == 99 }}" id="papt-{{ blk.rank }}">🏠 {{ blk.apt }} · {{ blk.n }} khách · còn {{ blk.left }}đ</div>
+  <div class="plist">{% for p in blk['items'] %}{{ payrow(p) }}{% endfor %}</div>
+  {% endfor %}
+  {% if not unpaid %}<div class="empty">🎉 Đã thu hết tiền phòng.</div>{% endif %}
+  {% if paid %}
+  <details class="pfold"><summary>✅ {{ n_paid }} khách đã thu (đang ở / trả hôm nay) — chạm để xem</summary>
+    {% for blk in paid %}<div class="papt sub">🏠 {{ blk.apt }} · {{ blk.n }} khách</div>
+    <div class="plist">{% for p in blk['items'] %}{{ payrow(p) }}{% endfor %}</div>{% endfor %}
+  </details>{% endif %}
+  {% if skipped %}
+  <details class="pfold"><summary>🙈 {{ skipped|length }} khách không cần thu (Booking thu / miễn)</summary>
+    <div class="plist">{% for p in skipped %}{{ payrow(p) }}{% endfor %}</div>
+  </details>{% endif %}
   {% else %}
   <div class="bar">
     <div class="sub">{% if view == 'arriving' %}Nhận phòng từ hôm nay {{ today_str }}{% else %}Đang ở hôm nay {{ today_str }}{% endif %} · {{ total }} khách</div>
@@ -490,6 +557,33 @@
     if (!r || !r.success) { alert('Không lưu được — thử lại'); return; }
     done();
   };
+  // ✅ Đã thu: the remaining amount, collected by the person chosen on top (remembered on this phone)
+  const getWho = () => { try { return localStorage.getItem('pay_collector') || ''; } catch (e) { return ''; } };
+  const paintWho = () => document.querySelectorAll('.pwho button').forEach(x => x.classList.toggle('on', x.dataset.v === getWho()));
+  MsgPay.who = b => { try { localStorage.setItem('pay_collector', b.dataset.v); } catch (e) {} paintWho(); };
+  MsgPay.jump = (e, id) => { e.preventDefault(); const el = document.getElementById(id); if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' }); };
+  MsgPay.paid = async b => {
+    const who = getWho();
+    if (!who) {
+      const bar = document.querySelector('.pwho');
+      if (bar) { bar.classList.remove('need'); void bar.offsetWidth; bar.classList.add('need'); bar.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
+      toast('Chọn <b>người thu</b> (LOC LE / THAO LE) ở trên trước');
+      return;
+    }
+    const amount = +b.dataset.left;
+    if (!amount) return;
+    b.disabled = true; b.textContent = '⏳';
+    const r = await post('/api/pay/collect', { booking_id: b.dataset.bid, amount, collector: who, method: b.dataset.method || '' });
+    if (!r || !r.success) { b.disabled = false; b.textContent = '✅ Đã thu'; alert('❌ ' + ((r && r.error) || 'Không lưu được')); return; }
+    toast(`✅ Đã thu ${fmt(amount)}đ · ${esc(b.dataset.name)} · ${esc(who)} — lịch cập nhật`, async () => {
+      const u = await post('/api/pay/collect', { booking_id: b.dataset.bid, amount, collector: who, undo: true });
+      if (!u || !u.success) alert('Không hoàn tác được — sửa ở lịch'); done();
+    });
+    done();
+  };
+  const paintSoon = () => setTimeout(paintWho, 0);
+  paintSoon();
+  new MutationObserver(paintSoon).observe(document.getElementById('live') || document.body, { childList: true });
   // 💰 the amount actually gathered: amount + who collected + how
   MsgPay.collect = b => {
     const d = b.dataset, left = +d.left, total = +d.total, got = +d.got;

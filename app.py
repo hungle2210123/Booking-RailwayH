@@ -2758,7 +2758,10 @@ def _pay_items(_xdb, J, today):
             'nhan': ci.strftime('%d/%m') if ci else '', 'tra': co.strftime('%d/%m') if co else '',
             'nights': (co - ci).days if ci and co else None, 'when': when, 'phase': phase,
             'apt': apt['name'] if apt else '', 'phong': _room_label(r[9], keep_note=True),
-            'co': co, 'ci': ci, 'apt_rank': apt_rank.get(apt['id'], 99) if apt else 99,
+            'co': co, 'ci': ci,
+            'overdue': (today - ci).days if ci else 0,          # days owed: since arrival
+            'out_days': (today - co).days if co and co < today else 0,
+            'apt_rank': apt_rank.get(apt['id'], 99) if apt else 99,
             'total': _vnd(total), 'total_num': total, 'got': _vnd(got), 'got_num': got,
             'left': _vnd(left), 'left_num': left, 'paid': paid, 'over': total > 0 and got > total + 1000,
             'collector': r[6] or '', 'confirmed': r[7] == 'confirmed',
@@ -2840,20 +2843,22 @@ def pay_collect():
     return jsonify({'success': True, 'collected': new, 'collected_str': _vnd(new)})
 
 
-def _pay_days(items, today):
-    """[{label, n, left, items}] — one block per check-in day, in the list's order."""
-    wd = ['Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7', 'CN']
-    out = []
+def _pay_by_apartment(items):
+    """[{apt, n, left, max_over, items}] — one block per apartment (unplaced last). Inside: the guest who has owed the
+    longest first, then by room. Blocks: the apartment with the longest-owed guest first (owner, Oct 15)."""
+    blocks = {}
     for i in items:
-        ci = i['ci']
-        if not out or out[-1]['ci'] != ci:
-            d = (ci - today).days
-            name = ('Hôm nay' if d == 0 else 'Hôm qua' if d == -1 else f"{-d} ngày trước" if d < 0 else wd[ci.weekday()])
-            out.append({'ci': ci, 'label': f"{name} · {ci.strftime('%d/%m')}", 'today': d == 0, 'items': [], 'left_num': 0})
-        out[-1]['items'].append(i)
-        out[-1]['left_num'] += i['left_num']
-    for b in out:
-        b['n'], b['left'] = len(b['items']), _vnd(b['left_num'])
+        b = blocks.setdefault(i['apt_rank'], {'apt': i['apt'] or 'Chưa xếp căn', 'rank': i['apt_rank'], 'items': []})
+        b['items'].append(i)
+    out = []
+    for b in blocks.values():
+        b['items'].sort(key=lambda i: (-i['overdue'], i['phong'], i['name']))
+        b['n'] = len(b['items'])
+        b['left_num'] = sum(i['left_num'] for i in b['items'])
+        b['left'] = _vnd(b['left_num'])
+        b['max_over'] = max(i['overdue'] for i in b['items'])
+        out.append(b)
+    out.sort(key=lambda b: (b['rank'] == 99, -b['max_over'], b['rank']))
     return out
 
 
@@ -2865,28 +2870,20 @@ def _messages_pay_page():
     today = _vn_now().date()
     items = _pay_items(_xdb, J, today)
     open_ = [i for i in items if not i['paid'] and not i['skipped']]
-    # by CHECK-IN day (owner, Oct 15) — today's arrivals first, then yesterday's, … ; inside a day by apartment
-    # (apartments' order, unplaced last) and room. Checked-out guests the same way (most recent first).
-    by_day = lambda i: (-i['ci'].toordinal(), i['apt_rank'], i['apt'], i['phong'], i['name'])
-    claimed = sorted([i for i in open_ if i['claimed']], key=by_day)
-    unpaid = sorted([i for i in open_ if not i['claimed']], key=by_day)
-    # paid: only the ones still here or just gone (to check again); skipped: at the bottom
-    paid = sorted([i for i in items if i['paid'] and i['phase'] >= 1], key=by_day)
+    claimed = [i for i in open_ if i['claimed']]
+    unpaid = [i for i in open_ if not i['claimed']]          # staying AND checked-out: longest owed first
+    paid = [i for i in items if i['paid'] and i['phase'] >= 1]   # still here / leaving today: to check again
     skipped = [i for i in items if i['skipped'] and not i['paid']]
-    unpaid_past = [i for i in unpaid if i['phase'] == 0]           # already checked out: chase / check later
-    unpaid = [i for i in unpaid if i['phase'] > 0]
-    claimed, unpaid, unpaid_past, paid = (_pay_days(x, today) for x in (claimed, unpaid, unpaid_past, paid))
-    count = lambda days: sum(b['n'] for b in days)
-    return render_template('messages.html', view='pay', claimed=claimed, unpaid=unpaid, unpaid_past=unpaid_past,
-                           paid=paid, skipped=skipped, n_claimed=count(claimed), n_unpaid=count(unpaid),
-                           n_past=count(unpaid_past), n_paid=count(paid),
-                           pay_past=_vnd(sum(b['left_num'] for b in unpaid_past)),
+    return render_template('messages.html', view='pay',
+                           unpaid=_pay_by_apartment(open_),          # 🙋 claimed guests stay in the list, tagged
+                           paid=_pay_by_apartment(paid), skipped=skipped,
+                           n_claimed=len(claimed), n_unpaid=len(open_), n_paid=len(paid),
+                           n_out=sum(1 for i in unpaid if i['phase'] == 0),
                            pay_left=_vnd(sum(i['left_num'] for i in open_)),
                            pay_claimed=_vnd(sum(i['left_num'] for i in claimed)),
                            collectors=PAY_COLLECTORS, today_str=today.strftime('%d/%m/%Y'),
                            guests=[], no_phone=[], partner=[], unreachable=[], buttons=[], days=3, total=len(items),
                            now_str=_vn_now().strftime('%H:%M:%S'))
-
 
 @app.route('/messages')
 def messages_page():
