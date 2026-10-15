@@ -287,7 +287,7 @@
     <a href="?view=arriving&days={{ days }}" class="{{ 'on' if view == 'arriving' }}">🛬 Sắp đến</a>
     <a href="?view=staying" class="{{ 'on' if view == 'staying' }}">🏨 Đang ở</a>
   </div>
-  <div id="live">{# swapped in place when new guests / phones / pictures arrive — no manual refresh #}
+  <div id="live" data-v="{{ page_version('messages.html', 'js/journey.js') }}">{# swapped in place when new guests / phones / pictures arrive — no manual refresh #}
   <div class="bar">
     <div class="sub">{% if view == 'arriving' %}Nhận phòng từ hôm nay {{ today_str }}{% else %}Đang ở hôm nay {{ today_str }}{% endif %} · {{ total }} khách</div>
     {% if view == 'arriving' %}
@@ -502,7 +502,10 @@
       const fresh = html && new DOMParser().parseFromString(html, 'text/html').getElementById('live');
       const cur = document.getElementById('live');
       stamp();
-      if (!fresh || !cur || fresh.innerHTML === cur.innerHTML || document.querySelector('.jr-ov, .jr-zoom')) return;
+      if (!fresh || !cur || document.querySelector('.jr-ov, .jr-zoom')) return;
+      // a new version was deployed: reload the whole page, so the new buttons come with their code
+      if (fresh.dataset.v && cur.dataset.v && fresh.dataset.v !== cur.dataset.v) { location.reload(); return; }
+      if (fresh.innerHTML === cur.innerHTML) return;
       const before = new Set([...cur.querySelectorAll('.card')].map(c => c.dataset.bid));
       cur.innerHTML = fresh.innerHTML;
       applyFilter();

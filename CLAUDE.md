@@ -280,7 +280,9 @@ pinned favorites first (template `{id}` or whole group `{cat}`: 🛂 Passport, �
 then every group; optional guest picker fills {ten} and gives that guest's WhatsApp/Zalo/SMS links; without a guest
 `/api/journey/compose` fills {ten} = "there". The Mẫu Câu page (ai_assistant.html) has "📤 Gửi chữ + ảnh" →
 `Journey.quick(templateId)` (share sheet with text + pictures). Pin/unpin with 📌 in the list or at /journey. Tapping the apartment chip on a /messages card opens the apartment picker.
-/messages keeps itself up to date: `#live` is re-fetched every 30 s and when the page becomes visible again (never
+/messages reloads the WHOLE page when a new version is deployed (`#live[data-v]` = `page_version('messages.html',
+'js/journey.js')`, newest mtime): swapping new cards into an old page gave buttons without their code (✅ Xác nhận đến
+"không bấm được", Oct 15). /messages keeps itself up to date: `#live` is re-fetched every 30 s and when the page becomes visible again (never
 while a sheet/zoom is open) and swapped in place; new cards get a green border + "🆕 N khách mới". Each card shows
 🔴 Chưa nhắn / ✅ Đã nhắn (+ last step and VN time, `J.last_contact`); filter Tất cả / Chưa nhắn / Đã nhắn (localStorage,
 delegated clicks — the bar is inside `#live`). Tapping 🔴 records the manual mark `journey_log.step='contacted'`

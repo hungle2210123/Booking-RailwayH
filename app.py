@@ -219,6 +219,20 @@ def asset(filename):
         v = 0
     return url_for('static', filename=filename, v=v)
 
+
+@app.template_global()
+def page_version(template, *scripts):
+    """Newest mtime of a page's template + its scripts. A page that refreshes itself in place reloads fully when
+    this changes (a new deploy), so new buttons never arrive without the code behind them."""
+    paths = [os.path.join(app.root_path, app.template_folder, template)] + [os.path.join(app.static_folder, s) for s in scripts]
+    v = 0
+    for p in paths:
+        try:
+            v = max(v, int(os.path.getmtime(p)))
+        except OSError:
+            pass
+    return v
+
 # ==============================================================================
 # HELPER FUNCTIONS
 # ==============================================================================
