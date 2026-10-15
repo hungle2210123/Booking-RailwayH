@@ -2685,12 +2685,190 @@ def journey_sent():
     return jsonify({'success': True})
 
 
+# ── 💰 /messages?view=pay — collecting the room money ──────────────────────────────────────────────────────────
+# Per guest: 💳 payment message (journey step 'payment', also marked by hand), 🙋 "khách báo đã trả" (cash in the
+# box / transfer — not counted yet), 📝 note, and 💰 the amount actually gathered → bookings.collected_amount +
+# collector (cumulative, like the calendar's "Thu tiền"; commission untouched). 🙈 = nothing to collect here.
+PAY_COLLECTORS = ('LOC LE', 'THAO LE')
+PAY_DAYS_BACK = 10                       # checked-out guests still listed when not paid
+_PAY_READY = False
+
+
+def _ensure_pay_table():
+    global _PAY_READY
+    if _PAY_READY:
+        return
+    from core.models import db as _xdb
+    _xdb.session.execute(text("""
+        CREATE TABLE IF NOT EXISTS payment_marks (
+            booking_id VARCHAR(50) PRIMARY KEY,
+            claimed_at TIMESTAMP, claim_method VARCHAR(20),
+            note TEXT, log TEXT, skipped BOOLEAN NOT NULL DEFAULT FALSE,
+            updated_at TIMESTAMP NOT NULL DEFAULT NOW())"""))
+    _xdb.session.commit()
+    _PAY_READY = True
+
+
+def _vnd(v):
+    return f"{float(v or 0):,.0f}".replace(',', '.')
+
+
+def _vn_now():
+    return datetime.utcnow() + timedelta(hours=7)
+
+
+def _pay_items(_xdb, J, today):
+    since = today - timedelta(days=PAY_DAYS_BACK)
+    rows = _xdb.session.execute(text("""
+        SELECT b.booking_id, COALESCE(g.full_name, b.guest_name), b.checkin_date, b.checkout_date,
+               b.room_amount, b.collected_amount, b.collector, b.checkin_status, b.actual_apartment,
+               b.accommodation_name, g.phone, b.via_partner
+        FROM bookings b LEFT JOIN guests g ON g.guest_id = b.guest_id
+        WHERE b.checkin_date <= :today AND b.checkout_date >= :since
+          AND COALESCE(b.booking_status, '') NOT IN ('cancelled', 'deleted')
+          AND COALESCE(b.checkin_status, '') NOT IN ('cancelling', 'no_show')
+        ORDER BY b.checkout_date, b.checkin_date"""), {'today': today, 'since': since}).fetchall()
+    bids = [r[0] for r in rows]
+    marks = {r[0]: r for r in _xdb.session.execute(text(
+        "SELECT booking_id, claimed_at, claim_method, note, log, skipped FROM payment_marks WHERE booking_id = ANY(:b)"),
+        {'b': bids}).fetchall()} if bids else {}
+    sent = J.sent_status(_xdb.session, bids)
+    apts = {a['id']: a for a in J.apartments(_xdb.session)}
+    items = []
+    for r in rows:
+        ci, co = r[2], r[3]
+        total, got = float(r[4] or 0), float(r[5] or 0)
+        m = marks.get(r[0])
+        apt = apts.get(J.apt_id_of(r[8]))
+        paid = (got >= total - 1000) if total > 0 else bool(r[6])
+        left = max(total - got, 0)
+        if co < today:
+            when, phase = f"Đã trả phòng {(today - co).days} ngày trước", 0
+        elif co == today:
+            when, phase = 'Trả phòng hôm nay', 1
+        elif co == today + timedelta(days=1):
+            when, phase = 'Trả phòng ngày mai', 2
+        else:
+            when, phase = f"Trả phòng {co.strftime('%d/%m')}", 3
+        asked = sent.get(r[0], {}).get('payment')
+        items.append({
+            'booking_id': r[0], 'name': J.clean_name((r[1] or r[0]).strip()),
+            'nhan': ci.strftime('%d/%m') if ci else '', 'tra': co.strftime('%d/%m') if co else '',
+            'nights': (co - ci).days if ci and co else None, 'when': when, 'phase': phase,
+            'apt': apt['name'] if apt else '', 'phong': _room_label(r[9], keep_note=True),
+            'total': _vnd(total), 'total_num': total, 'got': _vnd(got), 'got_num': got,
+            'left': _vnd(left), 'left_num': left, 'paid': paid, 'over': total > 0 and got > total + 1000,
+            'collector': r[6] or '', 'confirmed': r[7] == 'confirmed',
+            'asked': J.vn_time(asked) if asked else '',
+            'claimed': J.vn_time(m[1].isoformat()) if m and m[1] else '',
+            'claim_method': (m[2] or '') if m else '',
+            'note': (m[3] or '') if m else '', 'log': (m[4] or '') if m else '',
+            'skipped': bool(m and m[5]),
+            'has_phone': bool(_real_guest_phone(r[10], bool(r[11]))),
+        })
+    return items
+
+
+@app.route('/api/pay/mark', methods=['POST'])
+def pay_mark():
+    """🙋 khách báo đã trả (method) / bỏ · 📝 note · 🙈 không cần thu / bỏ."""
+    from core.models import db as _xdb
+    _ensure_pay_table()
+    d = request.get_json(silent=True) or {}
+    bid, action = str(d.get('booking_id') or '').strip(), d.get('action')
+    if not bid or action not in ('claim', 'unclaim', 'note', 'skip', 'unskip'):
+        return jsonify({'success': False, 'error': 'Dữ liệu không hợp lệ'}), 400
+    _xdb.session.execute(text("INSERT INTO payment_marks (booking_id) VALUES (:b) ON CONFLICT (booking_id) DO NOTHING"),
+                         {'b': bid})
+    if action == 'claim':
+        method = d.get('method') if d.get('method') in ('cash', 'transfer') else None
+        _xdb.session.execute(text("UPDATE payment_marks SET claimed_at = NOW(), claim_method = :m, updated_at = NOW() "
+                                  "WHERE booking_id = :b"), {'b': bid, 'm': method})
+    elif action == 'unclaim':
+        _xdb.session.execute(text("UPDATE payment_marks SET claimed_at = NULL, claim_method = NULL, updated_at = NOW() "
+                                  "WHERE booking_id = :b"), {'b': bid})
+    elif action == 'note':
+        _xdb.session.execute(text("UPDATE payment_marks SET note = :n, updated_at = NOW() WHERE booking_id = :b"),
+                             {'b': bid, 'n': str(d.get('note') or '').strip()[:500] or None})
+    else:
+        _xdb.session.execute(text("UPDATE payment_marks SET skipped = :s, updated_at = NOW() WHERE booking_id = :b"),
+                             {'b': bid, 's': action == 'skip'})
+    _xdb.session.commit()
+    return jsonify({'success': True})
+
+
+@app.route('/api/pay/collect', methods=['POST'])
+def pay_collect():
+    """💰 the money actually gathered for a booking: added to collected_amount (an undo sends the same amount
+    back with undo=true). Only the collected amount and the collector change — commission stays as it is."""
+    from core.models import db as _xdb
+    _ensure_pay_table()
+    d = request.get_json(silent=True) or {}
+    bid = str(d.get('booking_id') or '').strip()
+    collector = d.get('collector')
+    try:
+        amount = float(str(d.get('amount') or '0').replace('.', '').replace(',', ''))
+    except ValueError:
+        amount = 0
+    undo = bool(d.get('undo'))
+    if not bid or collector not in PAY_COLLECTORS or amount <= 0:
+        return jsonify({'success': False, 'error': 'Cần số tiền và người thu (LOC LE / THAO LE)'}), 400
+    row = _xdb.session.execute(text("SELECT collected_amount, collector FROM bookings WHERE booking_id = :b"),
+                               {'b': bid}).fetchone()
+    if not row:
+        return jsonify({'success': False, 'error': 'Không tìm thấy đặt phòng'}), 404
+    old = float(row[0] or 0)
+    new = old - amount if undo else old + amount
+    if new < 0:
+        return jsonify({'success': False, 'error': 'Số tiền đã thu không thể âm'}), 400
+    keep = row[1] if undo and new > 0 else (None if undo else collector)
+    upd = {'collected_amount': new, 'collector': (keep or '') if undo else collector}
+    record_booking_history(bid, upd, changed_by='messages_pay')
+    _xdb.session.execute(text("UPDATE bookings SET collected_amount = :c, collector = :k, updated_at = NOW() "
+                              "WHERE booking_id = :b"), {'c': new, 'k': upd['collector'], 'b': bid})
+    method = {'cash': 'Tiền mặt', 'transfer': 'Chuyển khoản'}.get(d.get('method'), '')
+    line = (f"{_vn_now().strftime('%H:%M %d/%m')} · {'↩️ Hoàn tác ' if undo else '💰 '}{_vnd(amount)}đ · {collector}"
+            + (f" · {method}" if method and not undo else ''))
+    _xdb.session.execute(text("""
+        INSERT INTO payment_marks (booking_id, log) VALUES (:b, :l)
+        ON CONFLICT (booking_id) DO UPDATE SET log = CONCAT_WS(E'\n', payment_marks.log, :l), updated_at = NOW()"""),
+        {'b': bid, 'l': line})
+    _xdb.session.commit()
+    return jsonify({'success': True, 'collected': new, 'collected_str': _vnd(new)})
+
+
+def _messages_pay_page():
+    from core.models import db as _xdb
+    from core import journey as J
+    J.ensure(_xdb.session)
+    _ensure_pay_table()
+    today = _vn_now().date()
+    items = _pay_items(_xdb, J, today)
+    open_ = [i for i in items if not i['paid'] and not i['skipped']]
+    claimed = sorted([i for i in open_ if i['claimed']], key=lambda i: (i['phase'], -i['left_num']))
+    unpaid = sorted([i for i in open_ if not i['claimed']], key=lambda i: (i['phase'], -i['left_num']))
+    # paid: only the ones still here or just gone (to check again); skipped: at the bottom
+    paid = sorted([i for i in items if i['paid'] and i['phase'] >= 1], key=lambda i: (i['phase'], i['name']))
+    skipped = [i for i in items if i['skipped'] and not i['paid']]
+    unpaid_past = [i for i in unpaid if i['phase'] == 0]           # already checked out: chase / check later
+    unpaid = [i for i in unpaid if i['phase'] > 0]
+    return render_template('messages.html', view='pay', claimed=claimed, unpaid=unpaid, unpaid_past=unpaid_past,
+                           paid=paid, skipped=skipped, pay_past=_vnd(sum(i['left_num'] for i in unpaid_past)),
+                           pay_left=_vnd(sum(i['left_num'] for i in open_)),
+                           pay_claimed=_vnd(sum(i['left_num'] for i in claimed)),
+                           collectors=PAY_COLLECTORS, today_str=today.strftime('%d/%m/%Y'),
+                           guests=[], no_phone=[], partner=[], unreachable=[], buttons=[], days=3, total=len(items),
+                           now_str=_vn_now().strftime('%H:%M:%S'))
+
+
 @app.route('/messages')
 def messages_page():
     """Phone page for messaging guests: arriving (or staying) guests, each with the journey strip
     (👋 🕐 🛂 🧳 🔑 💳 ⭐) — what was sent, what is due next — and a send sheet (static/js/journey.js)."""
     from core.models import db as _xdb
     from core import journey as J
+    if request.args.get('view') == 'pay':
+        return _messages_pay_page()
     J.ensure(_xdb.session)
     _ensure_property_column()
     view = 'staying' if request.args.get('view') == 'staying' else 'arriving'

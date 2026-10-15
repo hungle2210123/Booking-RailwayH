@@ -80,6 +80,47 @@
   .cstate.unreach { background:#e2e8f0; color:#334155; cursor:default; }
   .jchip.unreach-btn { background:#fff; border-color:#cbd5e1; color:#475569; }
   .jchip.confirm { background:#fff; border-color:#86efac; color:#166534; }
+  /* 💰 Thu tiền */
+  .psum { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin:6px 0 8px; }
+  .psum div { background:#fff; border:1.5px solid var(--line); border-radius:12px; padding:8px 10px; }
+  .psum small { display:block; color:var(--muted); font-size:.7rem; font-weight:700; }
+  .psum b { font-size:.95rem; color:#b91c1c; }
+  .psum div + div b { color:#92400e; }
+  .pcard .ctop { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+  .pcard .apt { font-size:.72rem; font-weight:800; border:1.5px solid var(--line); border-radius:999px; padding:2px 9px; background:#fff; }
+  .pcard .apt.none { border-style:dashed; color:#92400e; border-color:#fcd34d; }
+  .pwhen.ph0 { color:#b91c1c; } .pwhen.ph1 { color:#b45309; } .pwhen.ph2 { color:#92400e; }
+  .pwarn { color:#b45309; font-weight:700; font-size:.78rem; }
+  .pmoney { display:flex; flex-wrap:wrap; gap:4px 12px; margin:6px 0; font-size:.86rem; color:#334155; }
+  .pmoney .pleft b { color:#b91c1c; } .pmoney .pgot { color:#166534; }
+  .pstate { display:flex; flex-wrap:wrap; gap:5px; margin:4px 0; }
+  .pst { font-size:.74rem; font-weight:700; border-radius:8px; padding:3px 8px; background:#f1f5f9; color:#334155; }
+  .pst.ok { background:#f0fdf4; color:#166534; } .pst.claim { background:#fffbeb; color:#92400e; }
+  .pst.todo { background:#fef2f2; color:#b91c1c; }
+  .pnote { font-size:.82rem; background:#f8fafc; border:1px dashed #cbd5e1; border-radius:8px; padding:5px 8px; margin:4px 0; cursor:pointer; }
+  .plog summary { font-size:.72rem; color:var(--muted); cursor:pointer; }
+  .plog pre { font-size:.72rem; white-space:pre-wrap; margin:4px 0; color:#334155; font-family:inherit; }
+  .pstrip .jchip.on { border-color:#fcd34d; background:#fffbeb; }
+  .pstrip .pcollect { border-color:#16a34a; background:#f0fdf4; color:#166534; }
+  .pcard.paid { opacity:.8; } .pcard.claim { border-left:6px solid #f59e0b; } .pcard.unpaid { border-left:6px solid #ef4444; }
+  .group-t.pclaim { color:#92400e; } .group-t.ppast small { display:block; font-weight:600; color:var(--muted); }
+  .pcard.past { border-left-color:#fca5a5; } .group-t.ppaid { color:#166534; }
+  .pay-ov { position:fixed; inset:0; height:100dvh; z-index:99990; background:rgba(15,23,42,.55); display:flex; align-items:flex-end; justify-content:center; }
+  .pay-box { background:#fff; width:100%; max-width:520px; border-radius:18px 18px 0 0; padding:16px 16px calc(18px + env(safe-area-inset-bottom)); max-height:92dvh; overflow:auto; }
+  .pay-box h3 { margin:0 0 4px; font-size:1.05rem; font-weight:800; }
+  .pay-box .pm { font-size:.85rem; color:#475569; margin-bottom:10px; }
+  .pay-box label { display:block; font-size:.75rem; font-weight:800; color:#64748b; margin:10px 0 4px; }
+  .pay-box input { width:100%; font-size:1.4rem; font-weight:800; padding:10px 12px; border:2px solid #cbd5e1; border-radius:12px; font-family:inherit; }
+  .pay-seg { display:flex; gap:6px; flex-wrap:wrap; }
+  .pay-seg button { flex:1; min-width:120px; border:2px solid #cbd5e1; background:#fff; border-radius:12px; padding:10px; font-weight:800; font-size:.92rem; font-family:inherit; }
+  .pay-seg button.on { border-color:#0f172a; background:#0f172a; color:#fff; }
+  .pay-quick { display:flex; gap:6px; margin-top:6px; flex-wrap:wrap; }
+  .pay-quick button { border:1px solid #cbd5e1; background:#f8fafc; border-radius:999px; padding:5px 10px; font-weight:700; font-size:.78rem; font-family:inherit; }
+  .pay-go { width:100%; margin-top:14px; border:none; background:#16a34a; color:#fff; font-weight:800; font-size:1.05rem; padding:14px; border-radius:14px; font-family:inherit; }
+  .pay-go:disabled { opacity:.5; }
+  .pay-alt { width:100%; margin-top:8px; border:1.5px solid #cbd5e1; background:#fff; color:#475569; font-weight:700; padding:10px; border-radius:12px; font-family:inherit; }
+  .pay-err { color:#b91c1c; font-weight:700; font-size:.85rem; margin-top:8px; }
+
   .jchip.confirm.on { background:#f0fdf4; }
   .jchip.unreach-btn.on { border-color:#86efac; color:#166534; }
   body.f-todo .card.unreach, body.f-done .card.unreach, body.f-todo .group-t.unreach, body.f-done .group-t.unreach { display:none; }
@@ -213,6 +254,44 @@
 
 
 {% block content %}
+{% macro paycard(p, kind) %}
+<div class="card pcard {{ kind }}" data-bid="{{ p.booking_id }}">
+  <div class="ctop"><b>{{ p.name }}</b>
+    <span class="apt {{ '' if p.apt else 'none' }}">{{ p.apt or 'chưa xếp căn' }}</span></div>
+  <div class="cmeta">{{ p.nhan }} → {{ p.tra }}{% if p.nights %} · {{ p.nights }} đêm{% endif %} ·
+    <b class="pwhen ph{{ p.phase }}">{{ p.when }}</b>{% if p.phase == 0 and not p.confirmed %} · <span class="pwarn">chưa xác nhận đến</span>{% endif %}</div>
+  <div class="pmoney">
+    <span>Tổng <b>{{ p.total }}đ</b></span>
+    <span>Đã thu <b class="{{ 'pgot' if p.got_num else '' }}">{{ p.got }}đ</b>{% if p.collector %} <small>· {{ p.collector }}</small>{% endif %}</span>
+    {% if not p.paid %}<span class="pleft">Còn <b>{{ p.left }}đ</b></span>{% endif %}
+    {% if p.over %}<span class="pwarn">⚠️ thu nhiều hơn tổng — kiểm tra lại</span>{% endif %}
+  </div>
+  <div class="pstate">
+    {% if p.paid %}<span class="pst ok">✅ Đã thu đủ</span>{% endif %}
+    {% if p.claimed %}<span class="pst claim">🙋 Khách báo đã trả{% if p.claim_method == 'cash' %} · 💵 tiền mặt{% elif p.claim_method == 'transfer' %} · 🏦 chuyển khoản{% endif %} · {{ p.claimed }}</span>{% endif %}
+    {% if p.asked %}<span class="pst asked">📨 Đã nhắn thu tiền · {{ p.asked }}</span>
+    {% elif not p.paid %}<span class="pst todo">✉️ Chưa nhắn thu tiền</span>{% endif %}
+  </div>
+  {% if p.note %}<div class="pnote" onclick="MsgPay.note(this)" data-bid="{{ p.booking_id }}" data-note="{{ p.note }}">📝 {{ p.note }}</div>{% endif %}
+  {% if p.log %}<details class="plog"><summary>Lịch sử thu ({{ p.log.split('\n')|length }})</summary><pre>{{ p.log }}</pre></details>{% endif %}
+  <div class="jstrip pstrip">
+    {% if not p.paid %}
+    <button type="button" class="jchip" onclick="Journey.open('{{ p.booking_id }}', 'payment')"><span class="e">💳</span><span class="l">Nhắn thu tiền</span></button>
+    <button type="button" class="jchip" onclick="MsgPay.asked(this)" data-bid="{{ p.booking_id }}" data-on="{{ 1 if p.asked else 0 }}">
+      {% if p.asked %}<span class="e">↩️</span><span class="l">Bỏ "đã nhắn"</span>{% else %}<span class="e">📨</span><span class="l">Đã nhắn ngoài app</span>{% endif %}</button>
+    <button type="button" class="jchip {{ 'on' if p.claimed }}" onclick="MsgPay.claim(this)" data-bid="{{ p.booking_id }}" data-on="{{ 1 if p.claimed else 0 }}">
+      {% if p.claimed %}<span class="e">↩️</span><span class="l">Bỏ "khách báo trả"</span>{% else %}<span class="e">🙋</span><span class="l">Khách báo đã trả</span>{% endif %}</button>
+    {% endif %}
+    <button type="button" class="jchip pcollect" onclick="MsgPay.collect(this)" data-bid="{{ p.booking_id }}" data-name="{{ p.name }}"
+            data-total="{{ p.total_num|int }}" data-got="{{ p.got_num|int }}" data-left="{{ p.left_num|int }}" data-method="{{ p.claim_method }}">
+      <span class="e">💰</span><span class="l">{{ 'Thu thêm / sửa' if p.paid else 'Xác nhận tiền thực tế' }}</span></button>
+    <button type="button" class="jchip" onclick="MsgPay.note(this)" data-bid="{{ p.booking_id }}" data-note="{{ p.note }}"><span class="e">📝</span><span class="l">Ghi chú</span></button>
+    {% if kind == 'skip' %}
+    <button type="button" class="jchip" onclick="MsgPay.skip(this, false)" data-bid="{{ p.booking_id }}"><span class="e">↩️</span><span class="l">Cần thu lại</span></button>
+    {% endif %}
+  </div>
+</div>
+{% endmacro %}
 {% macro card(g, kind) %}
 <div class="card {{ kind }} {{ 'unreach' if g.unreach else ('done' if g.last or g.confirmed else 'todo') }} {{ 'vip' ~ g.tier if g.tier }}" data-bid="{{ g.booking_id }}">
   {% if g.tier %}<div class="vipbar">{{ '⭐⭐ Khách VIP' if g.tier == 2 else '⭐ Ưu tiên' }} · {{ g.total or '—' }}đ · {{ g.nights or '?' }} đêm</div>{% endif %}
@@ -286,8 +365,29 @@
   <div class="tabs">
     <a href="?view=arriving&days={{ days }}" class="{{ 'on' if view == 'arriving' }}">🛬 Sắp đến</a>
     <a href="?view=staying" class="{{ 'on' if view == 'staying' }}">🏨 Đang ở</a>
+    <a href="?view=pay" class="{{ 'on' if view == 'pay' }}">💰 Thu tiền</a>
   </div>
   <div id="live" data-v="{{ page_version('messages.html', 'js/journey.js') }}">{# swapped in place when new guests / phones / pictures arrive — no manual refresh #}
+  {% if view == 'pay' %}
+  <div class="psum">
+    <div><small>Chưa thu (tất cả)</small><b>{{ claimed|length + unpaid|length + unpaid_past|length }} khách · {{ pay_left }}đ</b></div>
+    <div><small>Khách báo đã trả — chờ gom</small><b>{{ claimed|length }} khách · {{ pay_claimed }}đ</b></div>
+  </div>
+  <div class="legend">Khách đang ở, trả phòng hôm nay và đã trả phòng ≤ 10 ngày chưa thu · <b>💰 Xác nhận tiền thực tế</b>
+    khi đã gom / nhận được tiền (ghi vào lịch như "Thu tiền")</div>
+  {% if claimed %}<div class="group-t pclaim">🙋 {{ claimed|length }} khách báo đã trả — chờ gom tiền</div>
+  {% for p in claimed %}{{ paycard(p, 'claim') }}{% endfor %}{% endif %}
+  {% if unpaid %}<div class="group-t">⚡ {{ unpaid|length }} khách đang ở chưa thu</div>
+  {% for p in unpaid %}{{ paycard(p, 'unpaid') }}{% endfor %}{% endif %}
+  {% if unpaid_past %}<div class="group-t ppast">🧾 {{ unpaid_past|length }} khách đã trả phòng, chưa ghi nhận thu · {{ pay_past }}đ
+    <small>— đã thu rồi thì bấm 💰 để ghi lại; Booking thu thì chọn 🙈</small></div>
+  {% for p in unpaid_past %}{{ paycard(p, 'unpaid past') }}{% endfor %}{% endif %}
+  {% if not claimed and not unpaid and not unpaid_past %}<div class="empty">🎉 Đã thu hết tiền phòng.</div>{% endif %}
+  {% if paid %}<div class="group-t ppaid">✅ {{ paid|length }} khách đã thu (đang ở / trả hôm nay)</div>
+  {% for p in paid %}{{ paycard(p, 'paid') }}{% endfor %}{% endif %}
+  {% if skipped %}<div class="group-t">🙈 {{ skipped|length }} khách không cần thu (Booking thu / miễn)</div>
+  {% for p in skipped %}{{ paycard(p, 'skip') }}{% endfor %}{% endif %}
+  {% else %}
   <div class="bar">
     <div class="sub">{% if view == 'arriving' %}Nhận phòng từ hôm nay {{ today_str }}{% else %}Đang ở hôm nay {{ today_str }}{% endif %} · {{ total }} khách</div>
     {% if view == 'arriving' %}
@@ -324,11 +424,124 @@
   <div class="group-t unreach">📵 {{ unreachable|length }} khách không liên lạc được — để quản lý sau</div>
   {% for g in unreachable %}{{ card(g, 'unreach') }}{% endfor %}
   {% endif %}
+  {% endif %}{# view #}
   </div>
 </div>
 {% endblock %}
 
 {% block scripts %}
+
+<script>
+// 💰 Thu tiền: marks (đã nhắn / khách báo đã trả / ghi chú / không cần thu) and the amount actually gathered
+(function () {
+  const post = (url, body) => fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body) }).then(r => r.json()).catch(() => null);
+  const fmt = n => Math.round(+n || 0).toLocaleString('vi-VN');
+  const num = s => +String(s || '').replace(/\D/g, '') || 0;
+  const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const done = () => window.MsgLive && window.MsgLive.refresh();
+  function toast(html, undo) {
+    const t = document.createElement('div');
+    t.className = 'live-toast';
+    t.innerHTML = html + (undo ? '<button type="button">Hoàn tác</button>' : '');
+    if (undo) t.querySelector('button').onclick = () => { t.remove(); undo(); };
+    document.body.appendChild(t);
+    setTimeout(() => t.remove(), undo ? 8000 : 3500);
+  }
+  const PAY_COLLECTORS = {{ (collectors or ['LOC LE', 'THAO LE'])|list|tojson }};
+  const MsgPay = window.MsgPay = {};
+  // 📨 the payment message was sent outside the app (or take the mark away)
+  MsgPay.asked = async b => {
+    b.disabled = true;
+    const r = await post('/api/journey/sent', { booking_id: b.dataset.bid, step: 'payment', sent: b.dataset.on !== '1' });
+    if (!r || !r.success) { b.disabled = false; alert('Không lưu được — thử lại'); return; }
+    done();
+  };
+  // 🙋 the guest says it is paid (cash in the box / transfer) — counted only when the money is gathered
+  MsgPay.claim = async b => {
+    const on = b.dataset.on !== '1';
+    let method = null;
+    if (on) {
+      const c = prompt('Khách trả bằng gì?\n1 = 💵 Tiền mặt (bỏ thùng / đưa)\n2 = 🏦 Chuyển khoản\n(để trống nếu chưa rõ)', '1');
+      if (c === null) return;
+      method = c.trim() === '2' ? 'transfer' : (c.trim() === '1' ? 'cash' : null);
+    }
+    b.disabled = true;
+    const r = await post('/api/pay/mark', { booking_id: b.dataset.bid, action: on ? 'claim' : 'unclaim', method });
+    if (!r || !r.success) { b.disabled = false; alert('Không lưu được — thử lại'); return; }
+    done();
+  };
+  MsgPay.note = async b => {
+    const n = prompt('Ghi chú thu tiền (vd. "hẹn chuyển khoản tối nay", "đã gửi QR"):', b.dataset.note || '');
+    if (n === null) return;
+    const r = await post('/api/pay/mark', { booking_id: b.dataset.bid, action: 'note', note: n });
+    if (!r || !r.success) { alert('Không lưu được — thử lại'); return; }
+    done();
+  };
+  MsgPay.skip = async (b, on) => {
+    const r = await post('/api/pay/mark', { booking_id: b.dataset.bid, action: on ? 'skip' : 'unskip' });
+    if (!r || !r.success) { alert('Không lưu được — thử lại'); return; }
+    done();
+  };
+  // 💰 the amount actually gathered: amount + who collected + how
+  MsgPay.collect = b => {
+    const d = b.dataset, left = +d.left, total = +d.total, got = +d.got;
+    let who = '';
+    try { who = localStorage.getItem('pay_collector') || ''; } catch (e) {}
+    let method = d.method || 'cash';
+    const ov = document.createElement('div');
+    ov.className = 'pay-ov';
+    ov.innerHTML = `<div class="pay-box">
+      <h3>💰 Xác nhận tiền thực tế · ${esc(d.name)}</h3>
+      <div class="pm">Tổng <b>${fmt(total)}đ</b> · đã thu <b>${fmt(got)}đ</b> · còn <b style="color:#b91c1c">${fmt(left)}đ</b></div>
+      <label>Số tiền gom được / nhận được lần này</label>
+      <input inputmode="numeric" class="pay-amt" value="${left ? fmt(left) : ''}" placeholder="0">
+      <div class="pay-quick">${left ? `<button type="button" data-v="${left}">Còn lại ${fmt(left)}</button>` : ''}
+        <button type="button" data-v="${total}">Tổng ${fmt(total)}</button><button type="button" data-v="0">Xóa</button></div>
+      <label>Người thu</label>
+      <div class="pay-seg pay-who">${PAY_COLLECTORS.map(c => `<button type="button" data-v="${c}" class="${c === who ? 'on' : ''}">${c}</button>`).join('')}</div>
+      <label>Cách trả</label>
+      <div class="pay-seg pay-how"><button type="button" data-v="cash">💵 Tiền mặt</button><button type="button" data-v="transfer">🏦 Chuyển khoản</button></div>
+      <button type="button" class="pay-go">✅ Xác nhận đã thu</button>
+      <div class="pay-err"></div>
+      <button type="button" class="pay-alt pay-skip">🙈 Không cần thu ở đây (Booking thu / miễn phí)</button>
+      <button type="button" class="pay-alt pay-x">Đóng</button>
+    </div>`;
+    document.body.appendChild(ov);
+    const $ = s => ov.querySelector(s), amt = $('.pay-amt'), err = $('.pay-err');
+    const seg = (sel, v) => ov.querySelectorAll(sel + ' button').forEach(x => x.classList.toggle('on', x.dataset.v === v));
+    seg('.pay-how', method);
+    amt.addEventListener('input', () => { const v = num(amt.value); amt.value = v ? fmt(v) : ''; });
+    ov.querySelectorAll('.pay-quick button').forEach(x => x.onclick = () => { const v = +x.dataset.v; amt.value = v ? fmt(v) : ''; });
+    ov.querySelectorAll('.pay-who button').forEach(x => x.onclick = () => { who = x.dataset.v; seg('.pay-who', who); });
+    ov.querySelectorAll('.pay-how button').forEach(x => x.onclick = () => { method = x.dataset.v; seg('.pay-how', method); });
+    const close = () => ov.remove();
+    ov.addEventListener('click', e => { if (e.target === ov) close(); });
+    $('.pay-x').onclick = close;
+    $('.pay-skip').onclick = async () => {
+      if (!confirm('Không cần thu tiền khách này ở đây (vd. đã trả qua Booking)?')) return;
+      await MsgPay.skip(b, true); close();
+    };
+    $('.pay-go').onclick = async () => {
+      const amount = num(amt.value);
+      if (!amount) { err.textContent = 'Nhập số tiền'; return; }
+      if (!who) { err.textContent = 'Chọn người thu'; return; }
+      if (got + amount > total + 1000 && !confirm(`Tổng đã thu sẽ là ${fmt(got + amount)}đ — nhiều hơn tiền phòng ${fmt(total)}đ. Vẫn lưu?`)) return;
+      try { localStorage.setItem('pay_collector', who); } catch (e) {}
+      $('.pay-go').disabled = true;
+      const r = await post('/api/pay/collect', { booking_id: d.bid, amount, collector: who, method });
+      if (!r || !r.success) { $('.pay-go').disabled = false; err.textContent = '❌ ' + ((r && r.error) || 'Không lưu được'); return; }
+      close();
+      toast(`💰 Đã ghi thu ${fmt(amount)}đ · ${esc(d.name)} — lịch cập nhật`, async () => {
+        const u = await post('/api/pay/collect', { booking_id: d.bid, amount, collector: who, undo: true });
+        if (!u || !u.success) alert('Không hoàn tác được — sửa ở lịch'); done();
+      });
+      done();
+    };
+    setTimeout(() => amt.focus(), 50);
+  };
+})();
+</script>
 <script>
 // 📷 Booking made while away from the computer: screenshots of the Booking app → read on the phone (OCR, no
 // API key) → fields to check → saved like the Chrome extension does. Nothing is saved without the owner's tap.

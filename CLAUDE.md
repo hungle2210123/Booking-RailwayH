@@ -303,6 +303,16 @@ Templates without one show a hint and Zalo copies the English. Zalo cannot pre-f
 chat): the 🔵 Zalo tap copies synchronously (`copyNow`, readonly textarea + execCommand, before the page leaves) and
 a separate "📋 Chép tin tiếng Việt (Zalo)" button copies without leaving; the owner pastes in Zalo (giữ ô nhập → Dán).
 
+### **💰 Thu tiền tab (`/messages?view=pay`, `_messages_pay_page`)**
+Guests staying / leaving today / checked out ≤ 10 days (`PAY_DAYS_BACK`) with room money still open. Paid = collected ≥
+total − 1,000đ. Groups: 🙋 khách báo đã trả — chờ gom (claimed), ⚡ đang ở chưa thu, 🧾 đã trả phòng chưa ghi nhận
+thu, ✅ đã thu (staying / today), 🙈 không cần thu. Per card: 💳 Nhắn thu tiền (journey 'payment' step), 📨 đã nhắn
+ngoài app (journey_log 'payment'), 🙋 khách báo đã trả (cash / transfer, not counted), 📝 ghi chú, 💰 Xác nhận tiền
+thực tế → `POST /api/pay/collect` (amount + collector LOC LE / THAO LE + method; ADDED to `collected_amount`, collector
+set, booking_history 'messages_pay', commission untouched — unlike /api/collect_payment which resets commission when
+not sent; toast Hoàn tác = same amount with undo). Marks in table `payment_marks(booking_id, claimed_at, claim_method,
+note, log, skipped)` via `POST /api/pay/mark` (claim/unclaim/note/skip/unskip). The calendar reads the same columns.
+
 ### **💬 "Nhắn khách" page (`/messages`, `templates/messages.html`)**
 Buttons inside `#live` (filter, 🔴/✅ mark, 📵, 🚫) call `window.MsgAct.*(this)` via onclick — NOT a document-level
 click listener: on iPhone Safari a delegated listener did not fire for taps on the button's text (📵 "không bấm được").
