@@ -79,6 +79,8 @@
   .card.unreach { background:#f8fafc; border-left:4px solid #94a3b8; }
   .cstate.unreach { background:#e2e8f0; color:#334155; cursor:default; }
   .jchip.unreach-btn { background:#fff; border-color:#cbd5e1; color:#475569; }
+  .jchip.confirm { background:#fff; border-color:#86efac; color:#166534; }
+  .jchip.confirm.on { background:#f0fdf4; }
   .jchip.unreach-btn.on { border-color:#86efac; color:#166534; }
   body.f-todo .card.unreach, body.f-done .card.unreach, body.f-todo .group-t.unreach, body.f-done .group-t.unreach { display:none; }
   .card { background:#fff; border:1px solid var(--line); border-radius:14px; padding:11px 12px; margin-bottom:10px; }
@@ -258,6 +260,10 @@
       <span class="e">{{ s.emoji }}</span><span class="l">{{ s.label }}</span>
     </button>
     {% endfor %}
+    <button type="button" class="jchip confirm {{ 'on' if g.confirmed }}" onclick="MsgAct.confirm(this)" data-bid="{{ g.booking_id }}" data-on="{{ 1 if g.confirmed else 0 }}">
+      {% if g.confirmed %}<span class="e">🙋</span><span class="l">Đã xác nhận · bỏ</span>
+      {% else %}<span class="e">✅</span><span class="l">Xác nhận đến</span>{% endif %}
+    </button>
     <button type="button" class="jchip unreach-btn {{ 'on' if g.unreach }}" onclick="MsgAct.unreach(this)" data-bid="{{ g.booking_id }}" data-on="{{ 1 if g.unreach else 0 }}">
       {% if g.unreach %}<span class="e">↩️</span><span class="l">Liên lạc lại được</span>
       {% else %}<span class="e">📵</span><span class="l">Không liên lạc được</span>{% endif %}
@@ -570,6 +576,22 @@
     t.querySelector('button').onclick = async () => { t.remove(); restored.add(bid); await setStatus(prev); refresh(true); };
     document.body.appendChild(t);
     setTimeout(() => t.remove(), 8000);
+  };
+  // ✅ Xác nhận đến ⇄ bỏ — the same arrival status as the calendar (checkin_status 'confirmed'), so the calendar,
+  // the vacancy board and the apartment tiles follow at once
+  MsgAct.confirm = async btn => {
+    if (btn.disabled) return;
+    const on = btn.dataset.on !== '1';
+    btn.disabled = true;
+    const r = await fetch('/api/set_checkin_status', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ booking_id: btn.dataset.bid, status: on ? 'confirmed' : '' }) }).then(x => x.json()).catch(() => null);
+    if (!r || !r.success) { btn.disabled = false; alert('Không lưu được — thử lại'); return; }
+    const t = document.createElement('div');
+    t.className = 'live-toast';
+    t.textContent = on ? '🙋 Đã xác nhận khách đến — lịch cập nhật' : 'Đã bỏ xác nhận đến';
+    document.body.appendChild(t); setTimeout(() => t.remove(), 3500);
+    restored.add(btn.dataset.bid);
+    refresh(true);
   };
   // 📵 Không liên lạc được ⇄ ↩️ Liên lạc lại được
   MsgAct.unreach = async btn => {

@@ -56,6 +56,9 @@
       .jr-btns a,.jr-btns button{display:flex;align-items:center;justify-content:center;gap:5px;border:none;border-radius:12px;
           padding:12px 6px;font-weight:800;font-size:.9rem;cursor:pointer;text-decoration:none;font-family:inherit;color:#fff;text-align:center;}
       .jr-btns .wide{grid-column:1/-1;font-size:1rem;}
+      .jr-lang{display:flex;gap:6px;flex-wrap:wrap;margin:6px 0;font-size:13px;color:#64748b;}
+      .jr-lang button{border:1px solid #cbd5e1;background:#fff;border-radius:999px;padding:6px 12px;font-weight:700;color:#334155;}
+      .jr-lang button.on{background:#0f172a;border-color:#0f172a;color:#fff;}
       .jr-share{background:#16a34a;} .jr-wa{background:#25d366;} .jr-zalo{background:#0068ff;} .jr-sms{background:#2563eb;}
       .jr-copy{background:#475569;} .jr-imgonly{background:#7c3aed;}
       .jr-btns .off{opacity:.45;pointer-events:none;}
@@ -281,17 +284,29 @@
   // The editable message + pictures + send buttons (a step, or a template picked in "Tin khác")
   function editor(body, template, text, images, step) {
     const b = st.data.booking, L = b.links;
-    st.text = text; st.files = null;
+    // English for WhatsApp / SMS, Vietnamese for Zalo (and by default for Vietnamese guests)
+    const texts = { en: text, vi: template.text_vi || '' };
+    let lang = b.vn && texts.vi ? 'vi' : 'en';
+    st.text = texts[lang]; st.files = null;
     body.innerHTML = `
       <div class="jr-tpl">Mẫu: <b>${esc(template.name)}</b> · ô dưới sửa được cho lần gửi này (vd. số phòng) ·
         <button type="button" class="jr-edit">✏️ Sửa mẫu gốc</button></div>
-      <textarea class="jr-ta">${esc(text)}</textarea>
+      <div class="jr-lang">${texts.vi
+        ? `<button type="button" data-l="en">🇬🇧 English</button><button type="button" data-l="vi">🇻🇳 Tiếng Việt · Zalo</button>`
+        : `<span>🇻🇳 Mẫu này chưa có bản tiếng Việt cho Zalo — bấm <b>✏️ Sửa mẫu gốc</b> để thêm.</span>`}</div>
+      <textarea class="jr-ta">${esc(st.text)}</textarea>
       ${images.length ? `<div class="jr-imgs">${images.map(im => `<img alt="" data-url="${esc(im.url)}">`).join('')}</div>`
                       : '<div class="jr-noimg">Bước này chưa có ảnh — thêm ở ⚙️ Tin &amp; ảnh.</div>'}
       <div class="jr-btns"></div>
       <div class="jr-note"></div>`;
     const ta = body.querySelector('.jr-ta');
-    ta.addEventListener('input', () => { st.text = ta.value; refreshLinks(); });
+    ta.addEventListener('input', () => { st.text = texts[lang] = ta.value; refreshLinks(); });
+    const setLang = l => {
+      lang = l; st.text = ta.value = texts[l];
+      body.querySelectorAll('.jr-lang button').forEach(x => x.classList.toggle('on', x.dataset.l === l));
+      refreshLinks();
+    };
+    body.querySelectorAll('.jr-lang button').forEach(x => x.onclick = () => setLang(x.dataset.l));
     body.querySelector('.jr-edit').onclick = () => editTemplate(body, template);
     body.querySelectorAll('.jr-imgs img').forEach(img => img.onclick = () => zoom(img.dataset.url));
     const btns = body.querySelector('.jr-btns');
@@ -318,11 +333,16 @@
       btns.querySelector('.jr-zalo').href = `https://zalo.me/${L.zalo}`;
       btns.querySelector('.jr-sms').href = `sms:${L.sms}?&body=${enc}`;
     }
-    refreshLinks();
+    setLang(lang);
     if (L) {
       btns.querySelector('.jr-wa').addEventListener('click', sent);
       btns.querySelector('.jr-sms').addEventListener('click', sent);
-      btns.querySelector('.jr-zalo').addEventListener('click', () => { copyText(st.text); toast('Đã chép tin — dán vào Zalo'); sent(); });
+      btns.querySelector('.jr-zalo').addEventListener('click', () => {
+        if (texts.vi) setLang('vi');               // Zalo = Vietnamese guests → the Vietnamese text
+        copyText(st.text);
+        toast(texts.vi ? 'Đã chép tin tiếng Việt — dán vào Zalo' : 'Mẫu chưa có tiếng Việt — đã chép bản tiếng Anh');
+        sent();
+      });
     }
     btns.querySelector('.jr-copy').onclick = () => { copyText(st.text); toast('Đã chép tin nhắn'); };
 
@@ -378,13 +398,18 @@
 
   // Edit the template's own text (with {ten} {nhan} {tra} {phong} {can}) — saved for every guest
   async function editTemplate(body, template) {
-    const r = await fetch('/api/templates/' + template.id).then(x => x.json()).catch(() => null);
+    const [r, rv] = await Promise.all([
+      fetch('/api/templates/' + template.id).then(x => x.json()).catch(() => null),
+      fetch('/api/journey/vi/' + template.id).then(x => x.json()).catch(() => null)]);
     if (!r || !r.success) { toast('Không tải được mẫu'); return; }
     const box = document.createElement('div');
     box.className = 'jr-editbox';
     box.innerHTML = `<div class="jr-tpl" style="margin-top:0">✏️ Sửa mẫu gốc <b>${esc(template.name)}</b> — lưu là dùng cho <b>mọi khách</b>.
         Tự thay: {ten} tên · {nhan} ngày nhận · {tra} ngày trả · {phong} (phòng) · {can} tên căn · {cho} tên chỗ nghỉ trên Booking</div>
+      <div class="jr-cat">🇬🇧 English (WhatsApp / SMS)</div>
       <textarea class="jr-ta">${esc(r.template.Message || '')}</textarea>
+      <div class="jr-cat">🇻🇳 Tiếng Việt (Zalo) — để trống nếu không cần</div>
+      <textarea class="jr-ta jr-ta-vi">${esc((rv && rv.text_vi) || '')}</textarea>
       <div class="jr-btns"><button type="button" class="jr-cancel">Huỷ</button><button type="button" class="jr-save">💾 Lưu mẫu</button></div>`;
     body.innerHTML = '';
     body.appendChild(box);
@@ -395,6 +420,9 @@
       const res = await fetch('/api/templates/' + template.id, { method: 'PUT', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ Message: content }) }).then(x => x.json()).catch(() => null);
       if (!res || !res.success) { toast('❌ ' + ((res && res.error) || 'Không lưu được')); return; }
+      const resVi = await fetch('/api/journey/vi/' + template.id, { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text_vi: box.querySelector('.jr-ta-vi').value }) }).then(x => x.json()).catch(() => null);
+      if (!resVi || !resVi.success) { toast('❌ Chưa lưu được bản tiếng Việt'); return; }
       toast('✅ Đã lưu mẫu');
       if (st.quick) { pickTemplate(template.id); return; }
       const bid = st.bid, keep = st.step;

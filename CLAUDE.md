@@ -291,6 +291,14 @@ No per-step ✓ anywhere (owner: useless) — sending is still logged quietly in
 🚫 Hủy khách chip on every card = calendar "Báo hủy" (`/api/set_checkin_status` 'cancelling'); the card leaves, toast
 "Hoàn tác" restores the previous checkin_status (card carries it as data-cs).
 
+### **🇻🇳 Zalo = Vietnamese text (`message_templates.template_content_vi`)**
+Each template can have a Vietnamese version (column added in `J.ensure`). The send sheet (`editor` in journey.js) has
+🇬🇧 English / 🇻🇳 Tiếng Việt · Zalo; 🔵 Zalo always switches to and copies the Vietnamese text; Vietnamese guests
+(`vn` code or Vietnamese letters in the name, `_vn_guest_name`) open in Vietnamese. {ten} without a name = "bạn".
+✏️ Sửa mẫu gốc edits both (`GET/POST /api/journey/vi/<id>`). Written (friendly "mình/bạn … nha/nhé" style) for every
+journey-step template + Taxi + Cảm ơn + Passport (CCCD for Vietnamese guests); floors: EN "1st floor" = VN "tầng 2".
+Templates without one show a hint and Zalo copies the English.
+
 ### **💬 "Nhắn khách" page (`/messages`, `templates/messages.html`)**
 Buttons inside `#live` (filter, 🔴/✅ mark, 📵, 🚫) call `window.MsgAct.*(this)` via onclick — NOT a document-level
 click listener: on iPhone Safari a delegated listener did not fire for taps on the button's text (📵 "không bấm được").
@@ -415,8 +423,9 @@ status (old behaviour). A guest already messaged from /messages just gets a toas
 Placements sync too: `/api/get_checkin_statuses` returns `apts` (actual_apartment) for every card on the page; the sync
 moves a card placed / moved on /messages or another device (`cdApplyAptUI` = the picker's look, shared with `setApt`,
 then data-apt + the per-apartment board/groups).
-/messages shows "🙋 Khách đã xác nhận đến" for checkin_status 'confirmed' (counts as contacted); there is NO confirm
-button on /messages (owner: confirming stays on the calendar).
+/messages shows "🙋 Khách đã xác nhận đến" for checkin_status 'confirmed' (counts as contacted). Owner reversed this
+(Oct 15): every card has a ✅ Xác nhận đến chip (`MsgAct.confirm`, toggles to "🙋 Đã xác nhận · bỏ") = the calendar's
+status via `/api/set_checkin_status` ('confirmed' / ''), so the calendar, vacancy board and apartment tiles follow.
 
 ### **🏠 Per-apartment view on calendar_details (`#aptOverview`)**
 Above the 3 columns: one tile per apartment (colour = `apartments_list[i].color`, same as the apartment picker) with

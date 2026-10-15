@@ -82,6 +82,8 @@ def ensure(session):
         # Pictures live in the database: files on Railway's disk vanish at every deploy
         session.execute(text("ALTER TABLE template_images ADD COLUMN IF NOT EXISTS image_data BYTEA"))
         session.execute(text("ALTER TABLE template_images ADD COLUMN IF NOT EXISTS image_mime VARCHAR(30)"))
+        # Vietnamese version of a template — what the 🔵 Zalo button sends (Vietnamese guests)
+        session.execute(text("ALTER TABLE message_templates ADD COLUMN IF NOT EXISTS template_content_vi TEXT"))
         session.commit()
         if not session.execute(text("SELECT 1 FROM journey_map LIMIT 1")).fetchone():
             _seed(session)
@@ -190,12 +192,12 @@ def clean_name(name):
     return re.sub(r'\s+[a-z]{2}$', '', str(name or '').strip()).strip()
 
 
-def fill(content, guest):
+def fill(content, guest, lang='en'):
     """Tokens: {ten} guest · {nhan} check-in dd/mm · {tra} check-out · {phong} " (room)" · {can} apartment ·
     {cho} " <Booking listing name>" (empty when unknown, so "Thank you for booking{cho}!" always reads right)."""
     phong = guest.get('phong') or ''
     return (str(content or '')
-            .replace('{ten}', clean_name(guest.get('ten')) or 'there')
+            .replace('{ten}', clean_name(guest.get('ten')) or ('bạn' if lang == 'vi' else 'there'))
             .replace('{nhan}', guest.get('nhan') or '')
             .replace('{tra}', guest.get('tra') or '')
             .replace('{phong}', f' ({phong})' if phong else '')

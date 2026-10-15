@@ -2552,9 +2552,24 @@ def _journey_booking(_xdb, booking_id):
 
 def _journey_texts(_xdb, tids):
     rows = _xdb.session.execute(text(
-        "SELECT template_id, template_name, template_content FROM message_templates WHERE template_id = ANY(:t)"),
+        "SELECT template_id, template_name, template_content, template_content_vi FROM message_templates "
+        "WHERE template_id = ANY(:t)"),
         {'t': [t for t in set(tids) if t]}).fetchall() if any(tids) else []
-    return {r[0]: {'id': r[0], 'name': r[1], 'content': r[2] or ''} for r in rows}
+    return {r[0]: {'id': r[0], 'name': r[1], 'content': r[2] or '', 'content_vi': (r[3] or '').strip()} for r in rows}
+
+
+def _journey_tpl(J, t, guest):
+    """The template as the send sheet gets it: id, name and its Vietnamese text (for 🔵 Zalo), filled in."""
+    return {'id': t['id'], 'name': t['name'],
+            'text_vi': J.fill(t['content_vi'], guest, 'vi') if t.get('content_vi') else ''}
+
+
+_VN_LETTERS = re.compile('[ăâđêôơưạảấầẩẫậắằẳẵặẹẻẽếềểễệỉịọỏốồổỗộớờởỡợụủứừửữựỳỵỷỹ]')
+
+
+def _vn_guest_name(name):
+    """Vietnamese guest: country code 'vn' after the name, or Vietnamese letters in it."""
+    return _is_vn_guest(name) or bool(_VN_LETTERS.search(str(name or '').lower()))
 
 
 @app.route('/api/journey/guest/<booking_id>')
@@ -2585,7 +2600,7 @@ def journey_guest(booking_id):
             if s.get('booking_image') and has_shot:
                 pics.insert(0, {'id': 'booking', 'url': f'/api/booking_screenshot/{booking_id}?v=guest', 'booking': True})
             steps.append({'key': s['key'], 'emoji': s['emoji'], 'label': s['label'],
-                          'template': {'id': t['id'], 'name': t['name']} if t else None,
+                          'template': _journey_tpl(J, t, b['guest']) if t else None,
                           'text': J.fill(t['content'], b['guest']) if t else '',
                           'images': pics, 'sent_at': sent.get(s['key']),
                           'images_only': bool(s.get('images_only') and pics),
@@ -2598,7 +2613,7 @@ def journey_guest(booking_id):
                         'recommended': J.recommended_step(sent, b['checkin'], b['checkout'], today, prefs['hidden']),
                         'booking': {'id': b['id'], 'name': J.clean_name(b['name']), 'nhan': b['guest']['nhan'],
                                     'tra': b['guest']['tra'], 'phong': b['guest']['phong'], 'phone': b['phone'],
-                                    'links': b['links'], 'partner': b['partner'],
+                                    'links': b['links'], 'partner': b['partner'], 'vn': _vn_guest_name(b['name']),
                                     'apt': b['apt'], 'apartments': b['apartments']}})
     except Exception as e:
         from core.models import db as _xdb
@@ -2626,8 +2641,23 @@ def journey_compose():
     if not t or (bid and not b):
         return jsonify({'success': False, 'error': 'Không tìm thấy'}), 404
     guest = b['guest'] if b else {}                  # no guest: ⚡ Tin nhanh / Mẫu Câu page
-    return jsonify({'success': True, 'template': {'id': t['id'], 'name': t['name']},
+    return jsonify({'success': True, 'template': _journey_tpl(J, t, guest),
                     'text': J.fill(t['content'], guest), 'images': J.images_of(_xdb.session, [tid]).get(tid, [])})
+
+
+@app.route('/api/journey/vi/<int:template_id>', methods=['GET', 'POST'])
+def journey_template_vi(template_id):
+    """The Vietnamese text of a template (raw, with tokens) — read / saved from the send sheet's ✏️ Sửa mẫu gốc."""
+    _xdb, J = _journey()
+    if request.method == 'POST':
+        vi = str((request.get_json(silent=True) or {}).get('text_vi') or '').strip()
+        _xdb.session.execute(text("UPDATE message_templates SET template_content_vi = :v, updated_at = NOW() "
+                                  "WHERE template_id = :t"), {'v': vi or None, 't': template_id})
+        _xdb.session.commit()
+        return jsonify({'success': True})
+    row = _xdb.session.execute(text("SELECT template_content_vi FROM message_templates WHERE template_id = :t"),
+                               {'t': template_id}).fetchone()
+    return jsonify({'success': True, 'text_vi': (row[0] if row else '') or ''})
 
 
 @app.route('/api/journey/sent', methods=['POST'])
