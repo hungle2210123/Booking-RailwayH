@@ -59,6 +59,7 @@
       .jr-lang{display:flex;gap:6px;flex-wrap:wrap;margin:6px 0;font-size:13px;color:#64748b;}
       .jr-lang button{border:1px solid #cbd5e1;background:#fff;border-radius:999px;padding:6px 12px;font-weight:700;color:#334155;}
       .jr-lang button.on{background:#0f172a;border-color:#0f172a;color:#fff;}
+      .jr-copyvi{background:#e0ecff !important;color:#0b4fd6 !important;border:1.5px solid #0068ff !important;}
       .jr-share{background:#16a34a;} .jr-wa{background:#25d366;} .jr-zalo{background:#0068ff;} .jr-sms{background:#2563eb;}
       .jr-copy{background:#475569;} .jr-imgonly{background:#7c3aed;}
       .jr-btns .off{opacity:.45;pointer-events:none;}
@@ -101,6 +102,20 @@
     if (!t) { t = document.createElement('div'); t.className = 'jr-toast'; document.body.appendChild(t); }
     t.textContent = msg; t.classList.add('show');
     clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove('show'), 2400);
+  }
+  // Synchronous copy (iPhone: a readonly textarea selected with setSelectionRange) — done before the page leaves
+  // for the Zalo app, so the text is on the clipboard when the chat opens
+  function copyNow(text) {
+    const ta = document.createElement('textarea');
+    ta.value = text; ta.setAttribute('readonly', '');
+    ta.style.cssText = 'position:fixed;top:0;left:0;opacity:0;font-size:16px;';
+    document.body.appendChild(ta);
+    ta.focus(); ta.select(); ta.setSelectionRange(0, text.length);
+    let ok = false;
+    try { ok = document.execCommand('copy'); } catch (e) {}
+    ta.remove();
+    if (!ok) copyText(text);
+    return ok;
   }
   function copyText(text) {
     const fallback = () => {
@@ -320,10 +335,11 @@
     if (L) {
       btns.insertAdjacentHTML('beforeend', `
         <a class="jr-wa ${images.length ? '' : 'wide'}" target="_blank" rel="noopener">🟢 WhatsApp${images.length ? ' (chữ)' : ''}</a>
-        <a class="jr-zalo" target="_blank" rel="noopener">🔵 Zalo</a>
+        <a class="jr-zalo" target="_blank" rel="noopener">🔵 Zalo${texts.vi ? ' · tự chép tin Việt' : ''}</a>
         <a class="jr-sms">💬 SMS</a>`);
     }
-    btns.insertAdjacentHTML('beforeend', `<button type="button" class="jr-copy">📋 Chép tin</button>`);
+    if (texts.vi) btns.insertAdjacentHTML('beforeend', `<button type="button" class="jr-copyvi">📋 Chép tin tiếng Việt (Zalo)</button>`);
+    btns.insertAdjacentHTML('beforeend', `<button type="button" class="jr-copy">📋 Chép tin${texts.vi ? ' đang hiện' : ''}</button>`);
     if (images.length && shareOk) btns.insertAdjacentHTML('beforeend', `<button type="button" class="jr-imgonly off">🖼 Chỉ gửi ảnh</button>`);
 
     function refreshLinks() {
@@ -337,20 +353,30 @@
     if (L) {
       btns.querySelector('.jr-wa').addEventListener('click', sent);
       btns.querySelector('.jr-sms').addEventListener('click', sent);
+      // Zalo cannot pre-fill a message (unlike WhatsApp): the text is copied in the same tap, then paste it in the chat
       btns.querySelector('.jr-zalo').addEventListener('click', () => {
         if (texts.vi) setLang('vi');               // Zalo = Vietnamese guests → the Vietnamese text
-        copyText(st.text);
-        toast(texts.vi ? 'Đã chép tin tiếng Việt — dán vào Zalo' : 'Mẫu chưa có tiếng Việt — đã chép bản tiếng Anh');
+        copyNow(st.text);
+        toast(texts.vi ? 'Đã chép tin tiếng Việt — trong Zalo giữ ô nhập → Dán' : 'Mẫu chưa có tiếng Việt — đã chép bản tiếng Anh');
         sent();
       });
     }
+    const cvi = btns.querySelector('.jr-copyvi');
+    if (cvi) cvi.onclick = () => {
+      setLang('vi');
+      copyNow(st.text);
+      cvi.textContent = '✅ Đã chép tin tiếng Việt';
+      toast('Đã chép — mở Zalo, giữ ô nhập tin → Dán');
+      setTimeout(() => { if (cvi.isConnected) cvi.textContent = '📋 Chép tin tiếng Việt (Zalo)'; }, 2500);
+    };
     btns.querySelector('.jr-copy').onclick = () => { copyText(st.text); toast('Đã chép tin nhắn'); };
 
     note.innerHTML = b.partner
       ? '🤝 Khách đặt qua đối tác: chép tin rồi dán vào khung chat Booking (trên máy tính có nút 💬 Điền tin).'
       : (images.length && shareOk
           ? '<b>Gửi tin + ảnh</b> → chọn WhatsApp (hoặc Zalo) → chọn khách → Gửi. Lần đầu nhắn khách mới: bấm <b>WhatsApp (chữ)</b> trước để mở đúng chat, rồi gửi ảnh.'
-          : (L ? 'Bấm <b>WhatsApp</b> → mở đúng chat của khách với tin soạn sẵn → Gửi.' : 'Khách chưa có số: chép tin để gửi qua kênh khác.'));
+          : (L ? 'Bấm <b>WhatsApp</b> → mở đúng chat của khách với tin soạn sẵn → Gửi.' : 'Khách chưa có số: chép tin để gửi qua kênh khác.'))
+      + (L && texts.vi ? '<br>🔵 <b>Zalo</b> không cho điền sẵn tin: bấm Zalo là tin tiếng Việt <b>đã được chép</b> → trong Zalo <b>giữ ô nhập tin → Dán</b> → Gửi.' : '');
 
     // Pictures are downloaded once: shown as thumbnails and kept ready, so the share sheet can open
     // straight from the tap
