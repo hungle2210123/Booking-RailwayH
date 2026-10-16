@@ -494,8 +494,8 @@
     <button type="button" data-f="claimed" onclick="MsgPay.filter(this)">🙋 Báo đã trả <b>{{ n_claimed }}</b></button>
   </div>
   {% if n_todo_soon %}<div class="palert">⚠️ <b>{{ n_todo_soon }} khách trả phòng hôm nay / ngày mai CHƯA được nhắn thu tiền</b></div>{% endif %}
-  <div class="legend">Bên trái = <b>đã nhắn thu tiền chưa</b> (chạm 🔴 nếu đã nhắn ngoài app) · mỗi căn: khách đã trả phòng
-    còn nợ ở trên, rồi theo <b>ngày trả phòng gần nhất</b> · <b>💳 Nhắn</b> mở tin thu tiền · <b>✅ Đã thu</b> = thu đủ số còn lại
+  <div class="legend">Bên trái = <b>đã nhắn thu tiền chưa</b> (chạm 🔴 nếu đã nhắn ngoài app) · mỗi căn xếp theo <b>ngày nhận
+    phòng — nhận lâu nhất ở trên</b>, mới nhận ở dưới · <b>💳 Nhắn</b> mở tin thu tiền · <b>✅ Đã thu</b> = thu đủ số còn lại
     (ghi vào lịch) · chạm dòng để ghi chú, thu 1 phần…</div>
   {% for blk in unpaid %}<div class="pblock">
   <div class="papt {{ 'none' if blk.rank == 99 }}" id="papt-{{ blk.rank }}">🏠 {{ blk.apt }} · {{ blk.n }} khách{% if blk.n_todo %} · 🔴 {{ blk.n_todo }} chưa nhắn{% endif %} · còn {{ blk.left }}đ</div>

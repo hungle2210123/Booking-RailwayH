@@ -2855,20 +2855,18 @@ def _pay_by_apartment(items):
         b = blocks.setdefault(i['apt_rank'], {'apt': i['apt'] or 'Chưa xếp căn', 'rank': i['apt_rank'], 'items': []})
         b['items'].append(i)
     out = []
-    # inside an apartment (owner, Oct 15: "giám sát nhắn khách để họ kịp thanh toán trước ngày check out"):
-    # checked-out guests first (longest owed first), then by check-out date — the deadline — soonest first,
-    # not-yet-messaged before messaged on the same day, then room
+    # inside an apartment by CHECK-IN date, the oldest first (owner, Oct 16: the guests who arrived longest ago are
+    # messaged / collected first, the newest arrivals at the bottom); same day: not-yet-messaged first, then room
     st_rank = {'todo': 0, 'asked': 1, 'claimed': 2}
     for b in blocks.values():
-        b['items'].sort(key=lambda i: ((0, -i['overdue'], 0) if i['phase'] == 0
-                                       else (1, i['left_days'], st_rank.get(i['status'], 3)), i['phong'], i['name']))
+        b['items'].sort(key=lambda i: (i['ci'], st_rank.get(i['status'], 3), i['phong'], i['name']))
         b['n_todo'] = sum(1 for i in b['items'] if i['status'] == 'todo')
         b['n'] = len(b['items'])
         b['left_num'] = sum(i['left_num'] for i in b['items'])
         b['left'] = _vnd(b['left_num'])
         b['max_over'] = max(i['overdue'] for i in b['items'])
         out.append(b)
-    out.sort(key=lambda b: (b['rank'] == 99, -b['max_over'], b['rank']))
+    out.sort(key=lambda b: (-b['max_over'], b['rank']))      # the apartment with the oldest arrival first (unplaced too)
     return out
 
 
