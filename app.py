@@ -2628,6 +2628,7 @@ def journey_guest(booking_id):
                         'booking': {'id': b['id'], 'name': J.clean_name(b['name']), 'nhan': b['guest']['nhan'],
                                     'tra': b['guest']['tra'], 'phong': b['guest']['phong'], 'phone': b['phone'],
                                     'links': b['links'], 'partner': b['partner'], 'vn': _vn_guest_name(b['name']),
+                                    'no_whatsapp': 'no_whatsapp' in sent, 'no_zalo': 'no_zalo' in sent,
                                     'apt': b['apt'], 'apartments': b['apartments']}})
     except Exception as e:
         from core.models import db as _xdb
@@ -2960,6 +2961,7 @@ def messages_page():
             'unreach': J.unreachable_at(done, r[8] == 'confirmed'),
             'has_phone': bool(_real_guest_phone(r[5], bool(r[6]))),
             'via_partner': bool(r[6]),
+            'no_wa': 'no_whatsapp' in done, 'no_zalo': 'no_zalo' in done,
         }
         if item['unreach']:            # 📵 marked: its own group at the bottom, dealt with later
             unreachable.append(item)

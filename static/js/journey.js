@@ -60,6 +60,15 @@
       .jr-lang button{border:1px solid #cbd5e1;background:#fff;border-radius:999px;padding:6px 12px;font-weight:700;color:#334155;}
       .jr-lang button.on{background:#0f172a;border-color:#0f172a;color:#fff;}
       .jr-copyvi{background:#e0ecff !important;color:#0b4fd6 !important;border:1.5px solid #0068ff !important;}
+      .jr-ask{background:#fffbeb;border:2px solid #f59e0b;border-radius:14px;padding:10px 12px;margin:0 0 10px;}
+      .jr-ask-q{font-size:.9rem;color:#0f172a;line-height:1.4;}
+      .jr-ask-b{display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;}
+      .jr-ask-b button{flex:1;min-width:120px;border:none;border-radius:10px;padding:11px 8px;font-weight:800;font-size:.92rem;font-family:inherit;}
+      .jr-ask .ok{background:#16a34a;color:#fff;} .jr-ask .no{background:#fff;color:#b91c1c;border:1.5px solid #fca5a5;}
+      .jr-ask .mark{background:#0f172a;color:#fff;} .jr-ask .skip{background:#fff;color:#475569;border:1.5px solid #cbd5e1;}
+      .jr-ask-tip{font-size:.78rem;color:#64748b;margin-top:6px;}
+      .jr-nochan{margin-left:6px;border:1px solid #fcd34d;background:#fffbeb;color:#92400e;border-radius:999px;padding:2px 9px;font-size:.74rem;font-weight:800;font-family:inherit;}
+      .jr-dim{opacity:.45;}
       .jr-share{background:#16a34a;} .jr-wa{background:#25d366;} .jr-zalo{background:#0068ff;} .jr-sms{background:#2563eb;}
       .jr-copy{background:#475569;} .jr-imgonly{background:#7c3aed;}
       .jr-btns .off{opacity:.45;pointer-events:none;}
@@ -215,6 +224,7 @@
     else if (st.step.startsWith('cat:')) renderMore(body, st.step.slice(4));
     else if (st.step.startsWith('fav:')) renderFav(body, (st.data.favorites || []).find(f => f.key === st.step));
     else renderStep(body, curStep());
+    drawNoChannel();
   }
 
   // step tabs = steps the owner shows + pinned templates / groups + ➕
@@ -260,6 +270,9 @@
         ? 'Bấm <b>📤 Gửi ảnh</b> → chọn WhatsApp (hoặc Zalo) → chọn khách → Gửi. Khách mới chưa có trong danh bạ: bấm <b>Mở chat WhatsApp</b> trước.'
         : 'Trên máy tính: bấm <b>Mở chat WhatsApp</b>, rồi <b>Sao chép ảnh</b> và dán (Ctrl+V) vào chat.'}</div>`;
     const btns = body.querySelector('.jr-btns'), note = body.querySelector('.jr-note');
+    const wa = btns.querySelector('.jr-wa'), za = btns.querySelector('.jr-zalo');
+    if (wa) wa.addEventListener('click', () => askSent(body, step, 'whatsapp'));
+    if (za) za.addEventListener('click', () => askSent(body, step, 'zalo'));
     const imgs = body.querySelectorAll('.jr-big img');
     imgs.forEach(img => img.onclick = () => zoom(img.dataset.url));
     const blobs = Promise.all(images.map((im, i) => fetch(im.url).then(r => r.ok ? r.blob() : null).then(bl => {
@@ -283,7 +296,7 @@
       try {
         const png = blobs.then(list => toPng(list.find(Boolean)));
         await navigator.clipboard.write([new ClipboardItem({ 'image/png': png })]);
-        e.target.textContent = '✅ Đã chép ảnh'; markSent(step, true);
+        e.target.textContent = '✅ Đã chép ảnh'; askSent(body, step, 'copy');
       } catch (err) { e.target.textContent = 'Không chép được — giữ ảnh để lưu'; }
     };
   }
@@ -328,6 +341,7 @@
     const note = body.querySelector('.jr-note');
     const shareOk = !!(navigator.canShare);
     const sent = () => step && markSent(step, true);
+    const ask = ch => step && askSent(body, step, ch);      // opened a chat: ask when back whether it was sent
 
     if (images.length && shareOk) {
       btns.insertAdjacentHTML('beforeend', `<button type="button" class="jr-share wide off">⏳ Đang tải ${images.length} ảnh…</button>`);
@@ -351,14 +365,14 @@
     }
     setLang(lang);
     if (L) {
-      btns.querySelector('.jr-wa').addEventListener('click', sent);
-      btns.querySelector('.jr-sms').addEventListener('click', sent);
+      btns.querySelector('.jr-wa').addEventListener('click', () => ask('whatsapp'));
+      btns.querySelector('.jr-sms').addEventListener('click', () => ask('sms'));
       // Zalo cannot pre-fill a message (unlike WhatsApp): the text is copied in the same tap, then paste it in the chat
       btns.querySelector('.jr-zalo').addEventListener('click', () => {
         if (texts.vi) setLang('vi');               // Zalo = Vietnamese guests → the Vietnamese text
         copyNow(st.text);
         toast(texts.vi ? 'Đã chép tin tiếng Việt — trong Zalo giữ ô nhập → Dán' : 'Mẫu chưa có tiếng Việt — đã chép bản tiếng Anh');
-        sent();
+        ask('zalo');
       });
     }
     const cvi = btns.querySelector('.jr-copyvi');
@@ -543,6 +557,68 @@
     if (!st.quick) drawTabs();
     redraw();
     rebind();
+  }
+
+  // ── "Đã gửi được chưa?" — opening WhatsApp / Zalo / SMS is not proof of sending (a guest without WhatsApp
+  //    gets nothing), so the step is logged only when the owner says so ──
+  const CH = { whatsapp: 'WhatsApp', zalo: 'Zalo', sms: 'SMS', copy: 'ảnh đã chép' };
+  function askSent(body, step, ch) {
+    const old = body.querySelector('.jr-ask');
+    if (old) old.remove();
+    const bar = document.createElement('div');
+    bar.className = 'jr-ask';
+    const draw = () => {
+      bar.innerHTML = `<div class="jr-ask-q">Tin <b>${esc(step.label || 'này')}</b> đã gửi được cho khách qua <b>${CH[ch] || ch}</b> chưa?</div>
+        <div class="jr-ask-b"><button type="button" class="ok">✅ Đã gửi</button><button type="button" class="no">❌ Không gửi được</button></div>`;
+      bar.querySelector('.ok').onclick = async () => {
+        await markSent(step, true);
+        bar.innerHTML = '<div class="jr-ask-q">✅ Đã ghi: đã nhắn khách.</div>';
+        setTimeout(() => bar.remove(), 2500);
+      };
+      bar.querySelector('.no').onclick = () => {
+        const chan = ch === 'whatsapp' || ch === 'zalo' ? ch : null;
+        bar.innerHTML = `<div class="jr-ask-q">Không ghi là đã nhắn.${chan ? ` Khách không dùng <b>${CH[chan]}</b>?` : ''}</div>
+          <div class="jr-ask-b">${chan ? `<button type="button" class="mark">📌 Ghi nhớ: khách không có ${CH[chan]}</button>` : ''}
+            <button type="button" class="skip">Bỏ qua</button></div>
+          <div class="jr-ask-tip">Thử <b>${ch === 'zalo' ? 'WhatsApp' : 'Zalo'}</b> hoặc <b>SMS</b> ở dưới, hoặc đánh dấu 📵 trên thẻ khách nếu không liên lạc được.</div>`;
+        const m = bar.querySelector('.mark');
+        if (m) m.onclick = async () => {
+          await setNoChannel(chan, true);
+          bar.innerHTML = `<div class="jr-ask-q">📌 Đã ghi nhớ: khách không dùng ${CH[chan]} — lần sau dùng ${chan === 'whatsapp' ? 'Zalo / SMS' : 'WhatsApp / SMS'}.</div>`;
+          setTimeout(() => bar.remove(), 3500);
+        };
+        bar.querySelector('.skip').onclick = () => bar.remove();
+      };
+    };
+    draw();
+    const at = body.querySelector('.jr-btns');          // right above the send buttons, where the finger is
+    if (at) at.before(bar); else body.prepend(bar);
+    bar.scrollIntoView({ block: 'center' });
+  }
+  async function setNoChannel(ch, on) {
+    if (!st) return;
+    const bid = st.bid, key = 'no_' + ch;
+    await fetch('/api/journey/sent', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ booking_id: bid, step: key, sent: on }) }).catch(() => {});
+    cache.delete(bid);
+    if (st && st.data && st.data.booking) { st.data.booking[key] = on; drawNoChannel(); }
+  }
+  // "⚠️ Khách không dùng WhatsApp" on the sheet, with the matching button dimmed (tap the note to take it back)
+  function drawNoChannel() {
+    const b = st && st.data && st.data.booking;
+    const meta = st && st.ov && st.ov.querySelector('.jr-meta');
+    if (!b || !meta) return;
+    meta.querySelectorAll('.jr-nochan').forEach(x => x.remove());
+    ['whatsapp', 'zalo'].forEach(ch => {
+      if (!b['no_' + ch]) return;
+      const t = document.createElement('button');
+      t.type = 'button'; t.className = 'jr-nochan';
+      t.textContent = `⚠️ Khách không dùng ${CH[ch]} · bỏ`;
+      t.onclick = () => setNoChannel(ch, false);
+      meta.appendChild(t);
+    });
+    st.ov.querySelectorAll('.jr-wa').forEach(a => a.classList.toggle('jr-dim', !!b.no_whatsapp));
+    st.ov.querySelectorAll('.jr-zalo').forEach(a => a.classList.toggle('jr-dim', !!b.no_zalo));
   }
 
   // ── actions ──────────────────────────────────────────────────────────────────

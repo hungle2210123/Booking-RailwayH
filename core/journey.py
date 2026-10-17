@@ -230,9 +230,15 @@ MANUAL_KEY = 'contacted'
 UNREACHABLE_KEY = 'unreachable'
 
 
+# "this guest has no WhatsApp / Zalo" (a link opened but the message could not be sent) — a note, not a message
+NO_CHANNEL_KEYS = ('no_whatsapp', 'no_zalo')
+NOT_A_MESSAGE = (UNREACHABLE_KEY,) + NO_CHANNEL_KEYS
+
+
 def is_step_key(key):
-    """Keys that can be logged: journey steps, pinned templates (not groups), the manual and unreachable marks."""
-    return key in STEP_KEYS or key in (MANUAL_KEY, UNREACHABLE_KEY) or bool(FAV_RE.match(str(key or '')))
+    """Keys that can be logged: journey steps, pinned templates (not groups), the manual, unreachable and
+    no-WhatsApp / no-Zalo marks."""
+    return (key in STEP_KEYS or key in (MANUAL_KEY,) + NOT_A_MESSAGE or bool(FAV_RE.match(str(key or ''))))
 
 
 def unreachable_at(done, confirmed=False):
@@ -241,7 +247,7 @@ def unreachable_at(done, confirmed=False):
     at = (done or {}).get(UNREACHABLE_KEY)
     if not at or confirmed:
         return None
-    if any(v > at for k, v in done.items() if k != UNREACHABLE_KEY):
+    if any(v > at for k, v in done.items() if k not in NOT_A_MESSAGE):
         return None
     return vn_time(at)
 
@@ -258,7 +264,7 @@ def vn_time(iso):
 
 def last_contact(done, favorites=()):
     """The latest thing sent to a guest → {'label', 'at'} (VN time 'HH:MM dd/mm'), None when nothing yet."""
-    done = {k: v for k, v in (done or {}).items() if k != UNREACHABLE_KEY}
+    done = {k: v for k, v in (done or {}).items() if k not in NOT_A_MESSAGE}
     if not done:
         return None
     key, at = max(done.items(), key=lambda kv: kv[1])

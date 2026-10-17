@@ -291,6 +291,12 @@ delegated clicks — the bar is inside `#live`). Tapping 🔴 records the manual
 to its own group at the bottom ("để quản lý sau", not counted in Tất cả / Chưa nhắn / Đã nhắn; its own filter chip
 "📵 Không liên lạc được N" shows only that group, `body.f-unreach`); ↩️ Liên lạc lại được removes the mark.
 No per-step ✓ anywhere (owner: useless) — sending is still logged quietly in journey_log, only for that line.
+Opening WhatsApp / Zalo / SMS (or copying the check-in picture) is NOT logged as sent (owner, Oct 17: guests without
+WhatsApp got "đã nhắn"): `askSent` puts a bar above the send buttons "Tin … đã gửi được qua WhatsApp chưa? ✅ Đã gửi /
+❌ Không gửi được"; only ✅ logs the step. ❌ offers "📌 Ghi nhớ: khách không có WhatsApp/Zalo" = journey_log key
+`no_whatsapp` / `no_zalo` (`J.NO_CHANNEL_KEYS`, part of `J.NOT_A_MESSAGE`, ignored by last_contact / unreachable_at):
+the sheet shows "⚠️ Khách không dùng WhatsApp · bỏ" (tap = remove) and dims that button; the /messages card shows it
+next to the phone. The share sheet (📤 Gửi tin + ảnh) still logs on its own — it resolves only when sent.
 🚫 Hủy khách chip on every card = calendar "Báo hủy" (`/api/set_checkin_status` 'cancelling'); the card leaves, toast
 "Hoàn tác" restores the previous checkin_status (card carries it as data-cs).
 
