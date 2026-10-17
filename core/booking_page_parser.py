@@ -450,6 +450,31 @@ def parse_reservation_list(headers, rows):
 _PULSE_DATE = re.compile(r'(\d{1,2})\s*th[aá]ng\s*(\d{1,2}),?\s*(\d{4})', re.I)
 
 
+def parse_pulse_texts(texts):
+    """Several screenshots of one booking (booking screen, call dialog with the phone, booking number…): each is read
+    on its own, then merged — the dates come from the screenshot that shows the booking, never a pair made of one date
+    from the dimmed call screen and one from the booking screen."""
+    texts = [t for t in (texts or []) if str(t or '').strip()]
+    if len(texts) <= 1:
+        return parse_pulse_text(texts[0] if texts else '')
+    parsed = [parse_pulse_text(t) for t in texts]
+
+    def score(p):
+        both = bool(p.get('checkin_date') and p.get('checkout_date'))
+        return (both, bool(p.get('room_amount')), bool(p.get('listing')), not p.get('phone'))
+    order = sorted(parsed, key=score, reverse=True)
+    out = dict(order[0])
+    for p in order[1:]:
+        for k, v in p.items():
+            if k != 'missing' and v and not out.get(k):
+                out[k] = v
+    if not (out.get('checkin_date') and out.get('checkout_date')):
+        out['checkin_date'] = out['checkout_date'] = None
+    out['missing'] = [k for k in ('booking_id', 'guest_name', 'checkin_date', 'checkout_date', 'listing', 'room_amount')
+                      if not out.get(k)]
+    return out
+
+
 def parse_pulse_text(text):
     lines = [re.sub(r'\s+', ' ', l).strip() for l in str(text or '').splitlines()]
     lines = [l for l in lines if l]
@@ -507,7 +532,7 @@ def parse_pulse_text(text):
             iso = parse_date(f'{d} tháng {mth} {y}')
             if iso:
                 found.append(iso)
-    if len(found) >= 2:
+    if len(found) >= 2 and found[1] > found[0]:
         out['checkin_date'], out['checkout_date'] = found[0].isoformat(), found[1].isoformat()
 
     # Room: the line under "1 phòng" / "2 phòng"
@@ -516,9 +541,12 @@ def parse_pulse_text(text):
             out['listing'] = lines[i + 1]
             break
 
-    # Total price
+    # Total price ("Tổng giá tiền đặt phòng"; OCR often reads "Téng gia tién dat phong") — never the commission line
     for l, f in zip(lines, folded):
-        if f.startswith(('tong gia tien dat phong', 'tong gia', 'tong tien', 'total price')):
+        if 'hoa hong' in f or 'commission' in f:
+            continue
+        if (f.startswith(('tong gia', 'tong tien', 'total price'))
+                or re.search(r'\bgia ti\S*n \S*at ph\S*ng|^t\S{2,3} gia\b', f)):
             v = parse_money(l)
             if v:
                 out['room_amount'] = v

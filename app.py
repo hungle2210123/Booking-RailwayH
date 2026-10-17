@@ -1899,8 +1899,9 @@ def ext_booking_save_many():
 @app.route('/api/booking_from_photo/parse', methods=['POST'])
 def booking_from_photo_parse():
     """/messages "📷 Thêm từ ảnh": text OCR'd on the phone from Booking app screenshots → fields to check."""
-    from core.booking_page_parser import parse_pulse_text
-    p = parse_pulse_text((request.get_json(silent=True) or {}).get('text', ''))
+    from core.booking_page_parser import parse_pulse_texts
+    body = request.get_json(silent=True) or {}
+    p = parse_pulse_texts(body.get('texts') or [body.get('text', '')])   # each screenshot read on its own
     if not p.get('booking_id') and p.get('checkin_date') and p.get('checkout_date'):
         # no booking number on the screenshot: the same stay (dates + price) already on the web is that booking
         from core.models import db as _xdb
@@ -2327,6 +2328,33 @@ def _decode_data_url(data_url, max_bytes=6 * 1024 * 1024):
     import base64
     raw = base64.b64decode(m.group(2), validate=False)
     return (m.group(1), raw) if 0 < len(raw) <= max_bytes else (None, None)
+
+
+@app.route('/api/booking_from_photo/shot', methods=['POST'])
+def booking_from_photo_shot():
+    """The Booking app screenshot of a booking added from /messages → its booking picture (full + guest version with
+    the commission line covered), so it can be sent to the guest. A picture taken on the PC is never replaced."""
+    from core.models import db as _xdb
+    try:
+        body = request.get_json(silent=True) or {}
+        bid = str(body.get('booking_id') or '').strip()
+        if not re.match(r'^[A-Za-z0-9_\-]{4,40}$', bid) or not _ext_existing(bid):
+            return jsonify({'success': False, 'error': 'Không tìm thấy đặt phòng'}), 400
+        mime, full = _decode_data_url(body.get('full'))
+        _m2, guest = _decode_data_url(body.get('guest'))
+        if not full or not guest:
+            return jsonify({'success': False, 'error': 'Ảnh không hợp lệ'}), 400
+        _ensure_shot_table()
+        if _xdb.session.execute(text("SELECT 1 FROM booking_screenshots WHERE booking_id = :b"), {'b': bid}).fetchone():
+            return jsonify({'success': True, 'kept': True})      # already has a picture (PC capture or earlier)
+        _xdb.session.execute(text("""
+            INSERT INTO booking_screenshots (booking_id, full_img, guest_img, mime, created_at, updated_at)
+            VALUES (:b, :f, :g, :m, NOW(), NOW())"""), {'b': bid, 'f': full, 'g': guest, 'm': mime})
+        _xdb.session.commit()
+        return jsonify({'success': True, 'saved': True})
+    except Exception as e:
+        _xdb.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 
 @app.route('/api/ext/booking/screenshot', methods=['POST'])

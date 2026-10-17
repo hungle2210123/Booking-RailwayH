@@ -731,7 +731,7 @@
 // 📷 Booking made while away from the computer: screenshots of the Booking app → read on the phone (OCR, no
 // API key) → fields to check → saved like the Chrome extension does. Nothing is saved without the owner's tap.
 (function () {
-  let ov = null, texts = [], edited = new Set(), worker = null;
+  let ov = null, texts = [], shots = [], edited = new Set(), worker = null;
   const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const FIELDS = [['booking_id', 'Mã đặt phòng', 'text', 'numeric'], ['guest_name', 'Tên khách', 'text'],
                   ['checkin_date', 'Nhận phòng', 'date'], ['checkout_date', 'Trả phòng', 'date'],
@@ -741,7 +741,7 @@
   const fmt = n => n ? Math.round(n).toLocaleString('vi-VN') : '';
 
   function open() {
-    texts = []; edited = new Set();
+    texts = []; shots = []; edited = new Set();
     ov = document.createElement('div');
     ov.className = 'ap-ov';
     ov.innerHTML = `<div class="ap">
@@ -822,15 +822,51 @@
         if (!ov) return;
         ov.querySelector('.thumbs').insertAdjacentHTML('beforeend', `<img src="${url}" alt="">`);
         status(`Đang đọc ảnh ${texts.length + 1}…`);
-        const r = await worker.recognize(canvas);
+        const r = await worker.recognize(canvas, {}, { text: true, blocks: true });
         texts.push(r.data.text);
+        shots.push({ file: f, text: r.data.text, lines: ocrLines(r.data) });
       }
       const p = await fetch('/api/booking_from_photo/parse', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: texts.join('\n') }) }).then(x => x.json());
+        body: JSON.stringify({ text: texts.join('\n'), texts }) }).then(x => x.json());
       if (!ov) return;
       status('');
       showForm(p.parsed, p.existing);
     } catch (e) { status('❌ Không đọc được ảnh: ' + (e.message || e), true); }
+  }
+
+  // OCR lines with their boxes (to cover the commission line in the picture sent to guests)
+  function ocrLines(d) {
+    if (d.lines && d.lines.length) return d.lines.map(l => ({ text: l.text, bbox: l.bbox }));
+    const out = [];
+    (d.blocks || []).forEach(b => (b.paragraphs || []).forEach(p => (p.lines || []).forEach(l => out.push({ text: l.text, bbox: l.bbox }))));
+    return out;
+  }
+  // The screenshot that shows the booking (check-in + check-out, not the call dialog) becomes its picture:
+  // full = as is, guest = commission line painted over; both shrunk to ≤ 1000 px wide JPEG
+  async function saveShot(bookingId) {
+    const fold = s => (s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd');
+    const pick = shots.map(s => ({ s, t: fold(s.text) }))
+      .filter(x => /nhan phong/.test(x.t) && /tra phong/.test(x.t) && !/goi\s*\+?\s*\d/.test(x.t))
+      .sort((a, b) => /tong|gia tien/.test(b.t) - /tong|gia tien/.test(a.t))[0];
+    if (!pick) return;
+    const url = URL.createObjectURL(pick.s.file), img = new Image();
+    img.src = url; await img.decode();
+    const k = Math.min(1, 1000 / img.naturalWidth);
+    const draw = mask => {
+      const c = document.createElement('canvas');
+      c.width = Math.round(img.naturalWidth * k); c.height = Math.round(img.naturalHeight * k);
+      const x = c.getContext('2d');
+      x.drawImage(img, 0, 0, c.width, c.height);
+      if (mask) pick.s.lines.filter(l => /hoa hong|commission/.test(fold(l.text))).forEach(l => {
+        const b = l.bbox, px = x.getImageData(2, Math.max(0, Math.round(b.y0 * k)), 1, 1).data;   // the row's own background
+        x.fillStyle = `rgb(${px[0]},${px[1]},${px[2]})`;
+        x.fillRect(0, b.y0 * k - 6, c.width, (b.y1 - b.y0) * k + 12);
+      });
+      return c.toDataURL('image/jpeg', 0.85);
+    };
+    await fetch('/api/booking_from_photo/shot', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ booking_id: bookingId, full: draw(false), guest: draw(true) }) }).catch(() => null);
+    URL.revokeObjectURL(url);
   }
 
   function showForm(p, existing) {
@@ -874,6 +910,7 @@
       btn.disabled = false; btn.textContent = label;
       status('❌ ' + ((r && (r.error || r.message)) || 'Không lưu được'), true); return;
     }
+    if (r.booking_id) await saveShot(r.booking_id).catch(() => null);   // the screenshot = the booking picture for the guest
     close();
     const t = document.createElement('div'); t.className = 'live-toast';
     t.textContent = r.action === 'created' ? `✅ Đã thêm ${body.guest_name}` : `✅ Đã cập nhật ${body.guest_name}`;
