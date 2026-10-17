@@ -369,7 +369,9 @@ booking screenshots, or alone later: name over the dialog → the one unfinished
 (`_photo_booking_by_name`, country code ignored) → `matched_name`, Lưu adds the phone. One screenshot only = no phone.
 Several screenshots are read ONE BY ONE (`parse_pulse_texts`: each parsed, the one showing both dates + price wins,
 the others fill the gaps) — joining their text made the dimmed call screen's dates pair up with the booking's (dates lost,
-Oct 17). A date pair must have check-out after check-in. Total price also matches OCR misreads ("Téng gia tién dat
+Oct 17). A date pair must have check-out after check-in. Dates are read from the text after "Nhận phòng" as one run
+(`_PULSE_DATE_LOOSE`): the year often wraps to the next line ("T3, 20 tháng 10" / "2026"); a date without a year takes the
+check-in's year (+1 when it would fall before it). Total price also matches OCR misreads ("Téng gia tién dat
 phong"), never the "hoa hồng" line. On Lưu the screenshot showing the booking (Nhận + Trả phòng, not the call dialog) is
 saved as the booking picture (`POST /api/booking_from_photo/shot`, ≤ 1000 px JPEG; guest version = commission line
 painted over with the row's background, using tesseract.js line boxes `blocks: true`) unless the booking already has

@@ -448,6 +448,7 @@ def parse_reservation_list(headers, rows):
 # Used by /messages "📷 Thêm từ ảnh" for bookings made while the owner is away from the computer.
 # The text is OCR output (one or more screenshots joined), so every field is a best guess the owner checks.
 _PULSE_DATE = re.compile(r'(\d{1,2})\s*th[aá]ng\s*(\d{1,2}),?\s*(\d{4})', re.I)
+_PULSE_DATE_LOOSE = re.compile(r'(\d{1,2})\s*th[aáà]ng\s*(\d{1,2})(?:,?\s*(?:n[aă]m\s*)?(\d{4}))?', re.I)
 
 
 def parse_pulse_texts(texts):
@@ -525,13 +526,18 @@ def parse_pulse_text(text):
                 break
 
     # Dates: the first two after "Nhận phòng" (check-in, check-out)
+    # The year can wrap onto the next line ("T3, 20 tháng 10" / "2026"), so the text after "Nhận phòng" is read as one
+    # run and a date without its year takes the check-in's year (the next year when it would fall before it).
     start = next((i for i, f in enumerate(folded) if 'nhan phong' in f or 'check-in' in f), 0)
+    run = ' '.join(lines[start:start + 12])
     found = []
-    for l in lines[start:]:
-        for d, mth, y in _PULSE_DATE.findall(l):
-            iso = parse_date(f'{d} tháng {mth} {y}')
-            if iso:
-                found.append(iso)
+    for d, mth, y in _PULSE_DATE_LOOSE.findall(run):
+        yr = int(y) if y else (found[0].year if found else date.today().year)
+        dt = _mk(yr, int(mth), int(d))
+        if dt and not y and found and dt <= found[0]:
+            dt = _mk(yr + 1, int(mth), int(d))
+        if dt:
+            found.append(dt)
     if len(found) >= 2 and found[1] > found[0]:
         out['checkin_date'], out['checkout_date'] = found[0].isoformat(), found[1].isoformat()
 
