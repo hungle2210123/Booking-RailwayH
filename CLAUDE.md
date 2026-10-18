@@ -503,6 +503,15 @@ Expense tools live at `/expenses` (`templates/expenses.html`).
 Removed unauthenticated debug routes incl. `/api/clear_imported_data` (wiped all bookings).
 Commission is intentionally NOT shown on the dashboard (owner decision: most direct-pay guests cancel on Booking).
 
+### **📋 Mẫu Câu page (`/ai_assistant`, `ai_assistant.html`) — text and pictures apart (owner, Oct 18)**
+Card header button = 💬 Nhắn khách (`Journey.quick(id)`: pick a guest → WhatsApp / Zalo / SMS with the text). Open card:
+"① Chữ" (💬 Nhắn thẳng cho khách · 📋 Chép chữ = `useTemplate`) then "② Ảnh" (gallery; 📋 Chép on every picture =
+`tplCopyImage`, PNG to the clipboard; 📤 Gửi N ảnh cho khách = `tplShareImages`, pictures only through the share sheet,
+files prefetched by `tplPrefetch` so the share opens inside the tap). A picture whose file is gone shows "⚠️ Ảnh đã mất"
+(`tplImgLost`). "Thêm ảnh" (`POST /api/templates/<id>/images`) now also stores the bytes in `template_images.image_data`
+— before, it only wrote to Railway's disk, which every deploy wipes (IMG_3831 QR added to templates 71/120/158 was lost;
+those 3 dead rows were deleted). Max 3 pictures per template.
+
 ### **📋 Message template categories**
 Renamed to numbered guest-journey categories "1 · Chào đón…" → "11 · Cảm ơn…" (sorted numerically in the UI).
 Old categories backed up in `BACKUP_BEFORE_CLEANUP/message_template_categories_2026-09-27.json`.

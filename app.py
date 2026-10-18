@@ -11323,7 +11323,11 @@ def add_template_images(template_id):
         
         # Ensure directory exists
         os.makedirs(os.path.dirname(full_path), exist_ok=True)
+        image_bytes = file.read()
+        file.stream.seek(0)
         file.save(full_path)
+        if not image_bytes or len(image_bytes) > 8 * 1024 * 1024:
+            return jsonify({'success': False, 'error': 'Ảnh rỗng hoặc lớn hơn 8MB'}), 400
         
         # Create database record (with error handling for missing table)
         try:
@@ -11335,6 +11339,13 @@ def add_template_images(template_id):
             )
             
             db.session.add(template_image)
+            db.session.flush()
+            # The picture itself lives in the database: files on Railway's disk vanish at every deploy
+            # (IMG_3831 added to 3 payment templates on Oct 18 was lost that way)
+            from core import journey as _J
+            _J.ensure(db.session)
+            db.session.execute(text("UPDATE template_images SET image_data = :d, image_mime = :m WHERE image_id = :i"),
+                               {'d': image_bytes, 'm': (file.mimetype or 'image/jpeg')[:30], 'i': template_image.image_id})
             db.session.commit()
             
             print(f"📋 Template Images: Added image to template {template_id}")

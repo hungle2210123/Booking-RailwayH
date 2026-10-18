@@ -2688,8 +2688,8 @@ document.getElementById('manualBookingForm').addEventListener('submit', function
                                 </div>
                                 <div class="template-snippet">${makeSnippetVi(templateContent, terms)}</div>
                             </div>
-                            <button class="btn btn-sm btn-primary quick-copy" onclick="event.stopPropagation(); useTemplate('${templateId}')" title="Copy nội dung">
-                                <i class="fas fa-copy"></i><span class="d-none d-sm-inline"> Copy</span>
+                            <button class="btn btn-sm btn-success quick-copy" onclick="event.stopPropagation(); Journey.quick('${templateId}')" title="Nhắn thẳng cho khách (WhatsApp / Zalo / SMS)">
+                                💬<span class="d-none d-sm-inline"> Nhắn khách</span>
                             </button>
                         </div>
 
@@ -2702,12 +2702,22 @@ document.getElementById('manualBookingForm').addEventListener('submit', function
                                     <div class="small text-dark bg-white border rounded p-2" style="white-space: pre-wrap; max-height: 220px; overflow-y: auto; line-height: 1.45;">${highlightVi(templateContent, terms)}</div>
                                 </div>
                                 
+                                <!-- ① Chữ: send straight to a guest / copy -->
+                                <div class="tpl-part">
+                                    <div class="tpl-part-h">① Chữ</div>
+                                    <div class="d-flex gap-2 flex-wrap">
+                                        <button class="btn btn-success tpl-big" onclick="Journey.quick('${templateId}')" title="Chọn khách → mở WhatsApp / Zalo / SMS với tin soạn sẵn">
+                                            💬 Nhắn thẳng cho khách
+                                        </button>
+                                        <button class="btn btn-outline-primary tpl-big" onclick="useTemplate('${templateId}')" title="Chép chữ">
+                                            📋 Chép chữ
+                                        </button>
+                                    </div>
+                                </div>
                                 <!-- Template Images Gallery Section -->
                                 <div class="mb-3">
                                     <div class="d-flex justify-content-between align-items-center mb-2">
-                                        <small class="text-muted fw-bold">
-                                            <i class="fas fa-images me-1"></i>Hình ảnh đính kèm:
-                                        </small>
+                                        <div class="tpl-part-h mb-0">② Ảnh <small class="fw-normal text-muted">— gửi riêng, WhatsApp không gửi chữ + ảnh cùng lúc</small></div>
                                         <button class="btn btn-sm btn-outline-primary" onclick="showMultiImageModal('${templateId}')" title="Add images to this template" data-template-name="${templateLabel.replace(/'/g, '&#39;').replace(/"/g, '&quot;')}">
                                             <i class="fas fa-plus me-1"></i> Thêm ảnh
                                         </button>
@@ -2719,14 +2729,8 @@ document.getElementById('manualBookingForm').addEventListener('submit', function
                                     </div>
                                 </div>
                                 
-                                <!-- Action Buttons -->
+                                <!-- other actions -->
                                 <div class="d-flex gap-2 flex-wrap">
-                                    <button class="btn btn-sm btn-primary" onclick="useTemplate('${templateId}')" title="Copy content to clipboard">
-                                        <i class="fas fa-copy"></i> Copy
-                                    </button>
-                                    <button class="btn btn-sm btn-success" onclick="Journey.quick('${templateId}')" title="Gửi chữ + ảnh qua WhatsApp / Zalo">
-                                        📤 Gửi chữ + ảnh
-                                    </button>
                                     <button class="btn btn-sm btn-outline-warning" onclick="editTemplate('${templateId}')" title="Edit this template">
                                         <i class="fas fa-edit"></i> Edit
                                     </button>
@@ -3413,6 +3417,67 @@ document.getElementById('manualBookingForm').addEventListener('submit', function
         }
     };
     
+    // ② Ảnh — pictures go on their own (WhatsApp drops the text when both are shared together).
+    // They are downloaded ahead, so the phone's share sheet can open straight from the tap.
+    const _tplFiles = {};
+    window.tplPrefetch = function (templateId, urls) {
+        _tplFiles[templateId] = null;
+        Promise.all(urls.map((u, i) => fetch(u).then(r => r.ok ? r.blob() : null).then(b => b && b.type.startsWith('image/')
+            ? new File([b], `anh-${templateId}-${i + 1}.${b.type === 'image/png' ? 'png' : 'jpg'}`, { type: b.type }) : null)
+            .catch(() => null)))
+          .then(files => { _tplFiles[templateId] = files.filter(Boolean); });
+    };
+    window.tplShareImages = function (templateId, btn) {
+        const files = _tplFiles[templateId];
+        if (!files) { showToast('Đang tải ảnh… bấm lại sau 1 giây', 'info'); return; }
+        if (!files.length) { showToast('Ảnh của mẫu này đã mất — xoá và thêm lại ảnh', 'error'); return; }
+        if (!(navigator.canShare && navigator.canShare({ files }))) {
+            showToast('Máy này không gửi ảnh trực tiếp được — dùng 📋 Chép trên từng ảnh rồi dán vào chat', 'info'); return;
+        }
+        navigator.share({ files }).catch(e => { if (e.name !== 'AbortError') showToast('❌ ' + e.message, 'error'); });
+    };
+    function _toPng(blob) {
+        return blob.type === 'image/png' ? Promise.resolve(blob) : new Promise((res, rej) => {
+            const u = URL.createObjectURL(blob), im = new Image();
+            im.onload = () => { const c = document.createElement('canvas'); c.width = im.naturalWidth; c.height = im.naturalHeight;
+                c.getContext('2d').drawImage(im, 0, 0); URL.revokeObjectURL(u); c.toBlob(b => b ? res(b) : rej(), 'image/png'); };
+            im.onerror = rej; im.src = u;
+        });
+    }
+    window.tplCopyImage = async function (btn, url) {
+        try {
+            const png = fetch(url).then(r => r.blob()).then(_toPng);
+            await navigator.clipboard.write([new ClipboardItem({ 'image/png': png })]);
+            btn.textContent = '✅ Đã chép';
+            setTimeout(() => { btn.textContent = '📋 Chép'; }, 2000);
+        } catch (e) { showToast('Không chép được ảnh — nhấn giữ ảnh để lưu / chép', 'error'); }
+    };
+    // a picture whose file was lost (uploaded before pictures were kept in the database)
+    window.tplImgLost = function (img) {
+        const item = img.closest('.template-image-item');
+        if (!item || item.classList.contains('lost')) return;
+        item.classList.add('lost');
+        img.replaceWith(Object.assign(document.createElement('div'), {
+            className: 'tpl-lost', innerHTML: '⚠️ Ảnh đã mất<br><small>bấm ✕ xoá rồi “Thêm ảnh” lại</small>' }));
+        const c = item.querySelector('.tpl-imgcopy');
+        if (c) c.remove();
+    };
+    (function () {
+        const st = document.createElement('style');
+        st.textContent = `
+          .tpl-part { margin-bottom: 12px; }
+          .tpl-part-h { font-weight: 800; font-size: .85rem; color: #334155; margin-bottom: 6px; }
+          .tpl-big { font-weight: 700; padding: 9px 14px; border-radius: 10px; }
+          .tpl-imgact { display: flex; align-items: center; gap: 10px; margin-top: 8px; flex-wrap: wrap; }
+          .template-image-item { position: relative; }
+          .tpl-imgcopy { position: absolute; left: 4px; bottom: 4px; border: none; border-radius: 8px; background: rgba(15,23,42,.8);
+                         color: #fff; font-size: .72rem; font-weight: 700; padding: 3px 7px; }
+          .tpl-lost { width: 100%; height: 100%; min-height: 90px; display: flex; flex-direction: column; align-items: center;
+                      justify-content: center; text-align: center; background: #fef2f2; color: #b91c1c; font-size: .75rem;
+                      font-weight: 700; border-radius: 8px; padding: 6px; }`;
+        document.head.appendChild(st);
+    })();
+
     // Load template images for main gallery display (Enhanced with legacy support)
     async function loadTemplateImages(templateId) {
         try {
@@ -3459,23 +3524,22 @@ document.getElementById('manualBookingForm').addEventListener('submit', function
                     
                     html += `
                         <div class="template-image-item">
-                            <img src="${imageUrl}" alt="Image ${index + 1}" 
-                                 onclick="showImageModal('${imageUrl}', 'Template Image')" 
+                            <img src="${imageUrl}" alt="Image ${index + 1}"
+                                 onclick="showImageModal('${imageUrl}', 'Template Image')"
+                                 onerror="tplImgLost(this)"
                                  title="Click để xem chi tiết">
                             ${deleteButton}
+                            <button class="tpl-imgcopy" onclick="event.stopPropagation(); tplCopyImage(this, '${imageUrl}')" title="Chép ảnh này">📋 Chép</button>
                         </div>
                     `;
                 });
                 html += '</div>';
+                html += `<div class="tpl-imgact">
+                    <button class="btn btn-primary tpl-big tpl-imgsend" onclick="tplShareImages('${templateId}', this)">
+                        📤 Gửi ${images.length > 1 ? images.length + ' ảnh' : 'ảnh'} cho khách</button>
+                    <small class="text-muted">${images.length} hình ảnh</small></div>`;
                 container.innerHTML = html;
-                
-                // Show image count
-                const countHtml = `<div class="text-center mt-2">
-                    <small class="text-muted">
-                        <i class="fas fa-images me-1"></i>${images.length} hình ảnh
-                    </small>
-                </div>`;
-                container.innerHTML += countHtml;
+                tplPrefetch(templateId, images.map(im => im.url || im.image_url).filter(Boolean));
             } else {
                 container.innerHTML = `
                     <div class="template-empty-images" onclick="showMultiImageModal('${templateId}')">
