@@ -505,12 +505,13 @@ Removed unauthenticated debug routes incl. `/api/clear_imported_data` (wiped all
 Commission is intentionally NOT shown on the dashboard (owner decision: most direct-pay guests cancel on Booking).
 
 ### **📋 Mẫu Câu page (`/ai_assistant`, `ai_assistant.html`) — text and pictures apart (owner, Oct 18)**
-Owner (Oct 18): ONE tap must open the phone's share sheet — no in-between sheet. Card header button 📤 Gửi chữ and
-"① Chữ" 📤 Gửi chữ = `tplShareText(id,'en')` → `navigator.share({text})` (tokens filled like the server without a guest:
-{ten} = there / bạn, others empty; no share sheet → copied); 🇻🇳 Gửi tiếng Việt (shown when the template has a Vietnamese
-version, fetched by `tplLoadVi` when the card opens); 📋 Chép; 👤 Chọn khách… (`Journey.quick`, for a guest not in the
-phone's contacts). "② Ảnh" (gallery; 📋 Chép on every picture = `tplCopyImage`, PNG to the clipboard; 📤 Gửi N ảnh cho
-khách = `tplShareImages`, pictures only through the share sheet, files prefetched by `tplPrefetch` so the share opens inside the tap). A picture whose file is gone shows "⚠️ Ảnh đã mất"
+Owner (Oct 18): ONE tap must open the phone's share sheet — no in-between sheet, one slim send row per open card
+(`.tpl-send`): 📤 Gửi chữ = `tplShareText(id,'en')` → `navigator.share({text})` (tokens filled like the server without a
+guest: {ten} = there / bạn, others empty; no share sheet → copied) · 🖼 Gửi N ảnh = `tplShareImages` (pictures only;
+only when the template has pictures) · 🇻🇳 Tiếng Việt ONLY on check-in guide templates (category "3 · …Check-in", text
+fetched by `tplLoadVi`; owner: Vietnamese guests pay by transfer themselves) · 📋 Chép chữ. Card header button = 📤 Gửi
+chữ. No "Chọn khách" here (removed). Gallery "Ảnh đính kèm": 📋 Chép on every picture = `tplCopyImage` (PNG to the
+clipboard); files prefetched by `tplPrefetch` so the share opens inside the tap). A picture whose file is gone shows "⚠️ Ảnh đã mất"
 (`tplImgLost`). "Thêm ảnh" (`POST /api/templates/<id>/images`) now also stores the bytes in `template_images.image_data`
 — before, it only wrote to Railway's disk, which every deploy wipes (IMG_3831 QR added to templates 71/120/158 was lost;
 those 3 dead rows were deleted). Max 3 pictures per template.

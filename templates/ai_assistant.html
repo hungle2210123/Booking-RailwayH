@@ -2648,6 +2648,10 @@ document.getElementById('manualBookingForm').addEventListener('submit', function
                         versionInfo = `Version ${match[1]}`;
                     }
                 }
+                // one send row: text, pictures (when the template has some), Vietnamese only for check-in guides
+                // (owner: Vietnamese guests pay by transfer themselves — only the check-in guide is needed in Vietnamese)
+                const nImg = (template.images || []).length;
+                const isCheckin = /check.?in/i.test(category) || /^3\s*·/.test(category);
                 const categoryOptions = allCategories.map(c =>
                     `<option value="${c.replace(/"/g, '&quot;')}"${c === category ? ' selected' : ''}>${c}</option>`
                 ).join('');
@@ -2702,28 +2706,17 @@ document.getElementById('manualBookingForm').addEventListener('submit', function
                                     <div class="small text-dark bg-white border rounded p-2" style="white-space: pre-wrap; max-height: 220px; overflow-y: auto; line-height: 1.45;">${highlightVi(templateContent, terms)}</div>
                                 </div>
                                 
-                                <!-- ① Chữ: send straight to a guest / copy -->
-                                <div class="tpl-part">
-                                    <div class="tpl-part-h">① Chữ</div>
-                                    <div class="d-flex gap-2 flex-wrap">
-                                        <button class="btn btn-success tpl-big" onclick="tplShareText('${templateId}', 'en', this)" title="Mở bảng chia sẻ: chọn WhatsApp / Zalo → chọn khách → Gửi">
-                                            📤 Gửi chữ
-                                        </button>
-                                        <button class="btn btn-success tpl-big d-none" id="tplvi-${templateId}" onclick="tplShareText('${templateId}', 'vi', this)" title="Gửi bản tiếng Việt (Zalo)">
-                                            🇻🇳 Gửi tiếng Việt
-                                        </button>
-                                        <button class="btn btn-outline-primary tpl-big" onclick="useTemplate('${templateId}')" title="Chép chữ">
-                                            📋 Chép
-                                        </button>
-                                        <button class="btn btn-link btn-sm" onclick="Journey.quick('${templateId}')" title="Chọn khách trong danh sách → mở đúng chat của khách (khách chưa lưu danh bạ)">
-                                            👤 Chọn khách…
-                                        </button>
-                                    </div>
+                                <!-- Send to a guest: one tap = the phone's share sheet (WhatsApp / Zalo → chat → Gửi) -->
+                                <div class="tpl-send">
+                                    <button class="btn btn-success tpl-big" onclick="tplShareText('${templateId}', 'en', this)" title="Chọn WhatsApp / Zalo → chọn khách → Gửi">📤 Gửi chữ</button>
+                                    ${nImg ? `<button class="btn btn-primary tpl-big" onclick="tplShareImages('${templateId}', this)" title="Chỉ gửi ảnh (WhatsApp không gửi chữ + ảnh cùng lúc)">🖼 Gửi ${nImg > 1 ? nImg + ' ảnh' : 'ảnh'}</button>` : ''}
+                                    ${isCheckin ? `<button class="btn btn-success tpl-big d-none" id="tplvi-${templateId}" onclick="tplShareText('${templateId}', 'vi', this)" title="Hướng dẫn bằng tiếng Việt">🇻🇳 Tiếng Việt</button>` : ''}
+                                    <button class="btn btn-outline-secondary tpl-big" onclick="useTemplate('${templateId}')" title="Chép chữ">📋 Chép chữ</button>
                                 </div>
                                 <!-- Template Images Gallery Section -->
                                 <div class="mb-3">
                                     <div class="d-flex justify-content-between align-items-center mb-2">
-                                        <div class="tpl-part-h mb-0">② Ảnh <small class="fw-normal text-muted">— gửi riêng, WhatsApp không gửi chữ + ảnh cùng lúc</small></div>
+                                        <div class="tpl-part-h mb-0">Ảnh đính kèm <small class="fw-normal text-muted">· 📋 trên ảnh = chép ảnh đó</small></div>
                                         <button class="btn btn-sm btn-outline-primary" onclick="showMultiImageModal('${templateId}')" title="Add images to this template" data-template-name="${templateLabel.replace(/'/g, '&#39;').replace(/"/g, '&quot;')}">
                                             <i class="fas fa-plus me-1"></i> Thêm ảnh
                                         </button>
@@ -3439,7 +3432,7 @@ document.getElementById('manualBookingForm').addEventListener('submit', function
             .replace(/\{(nhan|tra|phong|can|cho|diachi)\}/g, '').replace(/[ \t]+\n/g, '\n').trim();
     }
     window.tplLoadVi = function (templateId) {
-        if (templateId in _tplVi) return;
+        if (templateId in _tplVi || !document.getElementById('tplvi-' + templateId)) return;
         _tplVi[templateId] = '';
         fetch('/api/journey/vi/' + templateId).then(r => r.json()).then(d => {
             _tplVi[templateId] = (d && d.text_vi) || '';
@@ -3501,7 +3494,8 @@ document.getElementById('manualBookingForm').addEventListener('submit', function
           .tpl-part { margin-bottom: 12px; }
           .tpl-part-h { font-weight: 800; font-size: .85rem; color: #334155; margin-bottom: 6px; }
           .tpl-big { font-weight: 700; padding: 9px 14px; border-radius: 10px; }
-          .tpl-imgact { display: flex; align-items: center; gap: 10px; margin-top: 8px; flex-wrap: wrap; }
+          .tpl-send { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+          .tpl-send .tpl-big { flex: 1 1 auto; }
           .template-image-item { position: relative; }
           .tpl-imgcopy { position: absolute; left: 4px; bottom: 4px; border: none; border-radius: 8px; background: rgba(15,23,42,.8);
                          color: #fff; font-size: .72rem; font-weight: 700; padding: 3px 7px; }
@@ -3568,10 +3562,6 @@ document.getElementById('manualBookingForm').addEventListener('submit', function
                     `;
                 });
                 html += '</div>';
-                html += `<div class="tpl-imgact">
-                    <button class="btn btn-primary tpl-big tpl-imgsend" onclick="tplShareImages('${templateId}', this)">
-                        📤 Gửi ${images.length > 1 ? images.length + ' ảnh' : 'ảnh'} cho khách</button>
-                    <small class="text-muted">${images.length} hình ảnh</small></div>`;
                 container.innerHTML = html;
                 tplPrefetch(templateId, images.map(im => im.url || im.image_url).filter(Boolean));
             } else {
