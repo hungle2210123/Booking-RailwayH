@@ -524,6 +524,10 @@ same templates as the /messages journey (`journey_map`). Each row: 🖼 N ảnh 
 📤 Chữ (`navigator.share({text})`, tokens filled without a guest) · 🇻🇳 (check-in only) · 📋.
 Layout (owner, Oct 18 "tách rõ từng mục"): a 3×2 grid of big tabs (icon · name · count), ONE group shown at a time
 (`go(i)`, last tab remembered in localStorage `quick_tab`), each group its own colour (`.c0`…`.c5`: header band + row edge).
+Every group (QUICK_GROUPS keys pin/msg/welcome/passport/checkin/payment) ends with "＋ Thêm mẫu vào <group>" → picker over
+all templates (templates the group shows by itself = "✓ có sẵn"). 📌 Hay dùng saves to the journey favorites; the other
+groups save to journey_prefs 'quick_extra' {group: [template ids]} via `POST /api/quick/extra {group, id, on}`. Added
+rows read "➕ <template name>" and have ✕ to take them out (check-in additions also get 🇻🇳 when a Vietnamese text exists).
 
 ### **📋 Mẫu Câu page (`/ai_assistant`, `ai_assistant.html`) — text and pictures apart (owner, Oct 18)**
 Owner (Oct 18): ONE tap must open the phone's share sheet — no in-between sheet, one slim send row per open card

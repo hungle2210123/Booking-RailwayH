@@ -63,7 +63,9 @@
   .pc { font-size:.75rem; font-weight:800; color:var(--muted); margin:10px 2px 4px; }
   .pt { display:flex; align-items:center; gap:8px; width:100%; text-align:left; border:1px solid var(--line); background:#fff;
         border-radius:10px; padding:10px; margin-bottom:5px; font:600 .9rem inherit; font-family:inherit; color:var(--ink); }
-  .pt.on { border-color:#f59e0b; background:#fffbeb; }
+  .pt.on { border-color:#16a34a; background:#f0fdf4; }
+  .pt:disabled { opacity:.6; }
+  .empty { background:#fff; border:1px dashed var(--line); border-radius:12px; padding:14px; color:var(--muted); font-size:.9rem; }
   .pt span { flex:1; }
   .toast { position:fixed; left:50%; bottom:calc(20px + env(safe-area-inset-bottom)); transform:translateX(-50%); background:var(--ink);
            color:#fff; padding:10px 16px; border-radius:12px; font-size:.9rem; z-index:20; max-width:90vw; text-align:center; }
@@ -72,18 +74,19 @@
 <body>
 <header>
   <div class="t"><h1>⚡ Tin nhanh</h1><a href="/messages">💬 Nhắn khách</a></div>
-  <div class="tabs">{% for g, items in groups %}<button type="button" class="tab c{{ loop.index0 }}" data-i="{{ loop.index0 }}" onclick="go({{ loop.index0 }})">
-    <span class="ti">{{ g.split(' ', 1)[0] }}</span><span class="tl">{{ g.split(' ', 1)[1] if ' ' in g else g }}</span><span class="tn">{{ items|length }}</span></button>{% endfor %}</div>
+  <div class="tabs">{% for g in groups %}<button type="button" class="tab c{{ loop.index0 }}" data-i="{{ loop.index0 }}" onclick="go({{ loop.index0 }})">
+    <span class="ti">{{ g.title.split(' ', 1)[0] }}</span><span class="tl">{{ g.title.split(' ', 1)[1] }}</span><span class="tn">{{ g['items']|length }}</span></button>{% endfor %}</div>
 </header>
 <main>
   <div class="hint" id="addhint" hidden>📲 <b>Đưa lên màn hình chính:</b> bấm nút <b>Chia sẻ</b> của Safari (ô vuông có mũi tên) →
     <b>Thêm vào MH chính</b> → Thêm. Lần sau bấm biểu tượng <b>Tin nhanh</b> là vào thẳng đây.</div>
-  {% for g, items in groups %}
+  {% for g in groups %}
   <section class="grp c{{ loop.index0 }}" id="g{{ loop.index0 }}">
-  <h2><span>{{ g }}</span><small>{{ items|length }} mẫu</small></h2>
-  {% for it in items %}
-  <div class="row" data-i="{{ it.id }}">
-    <div class="lb">{{ it.label }}{% if it.pinned %}<button type="button" class="unpin" data-id="{{ it.id }}" onclick="togglePin({{ it.id }}, false)" title="Bỏ khỏi Hay dùng">✕</button>{% endif %}</div>
+  <h2><span>{{ g.title }}</span><small>{{ g['items']|length }} mẫu</small></h2>
+  {% if not g['items'] %}<div class="empty">Chưa có mẫu nào — bấm <b>＋ Thêm mẫu</b> bên dưới.</div>{% endif %}
+  {% for it in g['items'] %}
+  <div class="row">
+    <div class="lb">{{ it.label }}{% if it.kind %}<button type="button" class="unpin" onclick="setIn('{{ g.key }}', {{ it.id }}, false)" title="Bỏ khỏi mục này">✕</button>{% endif %}</div>
     <div class="nm">{{ it.name }}</div>
     <div class="btns">
       {% if it.images %}<button type="button" class="b-img wait" data-id="{{ it.id }}" onclick="sendImgs(this)">🖼 {{ it.images|length }} ảnh</button>{% endif %}
@@ -93,13 +96,13 @@
     </div>
   </div>
   {% endfor %}
+  <button type="button" class="addpin" onclick="openPicker('{{ g.key }}')">＋ Thêm mẫu vào {{ g.title }}</button>
   </section>
   {% endfor %}
-  <button type="button" class="addpin" onclick="openPicker()">＋ Chọn mẫu hay dùng (ghim vào 📌)</button>
 </main>
 <div class="pick" id="pick" hidden>
   <div class="pick-box">
-    <div class="pick-h"><b>📌 Chọn mẫu hay dùng</b><button type="button" onclick="closePicker()">Xong</button></div>
+    <div class="pick-h"><b id="pickt">Thêm mẫu</b><button type="button" onclick="closePicker()">Xong</button></div>
     <input type="search" id="pickq" placeholder="Tìm mẫu…" oninput="drawPicker()">
     <div id="picklist">⏳ Đang tải…</div>
   </div>
@@ -108,8 +111,10 @@
 // Each button opens the phone's share sheet straight away: choose WhatsApp / Zalo → choose the chat → Gửi.
 // Text and pictures go apart (WhatsApp drops one of them when both are shared together).
 const DATA = {};
-{% for g, items in groups %}{% for it in items %}DATA[{{ it.id }}] = {{ it|tojson }};
+{% for g in groups %}{% for it in g['items'] %}DATA[{{ it.id }}] = Object.assign(DATA[{{ it.id }}] || {}, {{ it|tojson }}, DATA[{{ it.id }}] && DATA[{{ it.id }}].text_vi ? { text_vi: DATA[{{ it.id }}].text_vi } : {});
 {% endfor %}{% endfor %}
+const GROUPS = {{ groups|map(attribute='key')|list|tojson }}, TITLES = {{ groups|map(attribute='title')|list|tojson }};
+const MEMBERS = {{ members|tojson }}, FIXED = {{ fixed|tojson }};
 const files = {};
 function toast(t) {
   document.querySelectorAll('.toast').forEach(x => x.remove());
@@ -145,22 +150,36 @@ function sendImgs(b) {
   if (navigator.canShare && navigator.canShare({ files: f })) navigator.share({ files: f }).catch(() => {});
   else toast('Máy này không gửi ảnh trực tiếp được');
 }
-// 📌 choose the templates shown in "Hay dùng" (the same pins as ⚡ Tin nhanh on /messages)
-let PINNED = new Set({{ pinned_ids|tojson }}), ALL = null, changed = false;
-async function togglePin(id, on) {
-  const r = await fetch('/api/journey/prefs').then(x => x.json()).catch(() => null);
-  if (!r || !r.success) { toast('Không tải được — thử lại'); return; }
-  const prefs = r.prefs;
-  prefs.favorites = (prefs.favorites || []).filter(f => f.id !== id);
-  if (on) prefs.favorites.push({ id, label: '', emoji: '📌' });
-  const w = await fetch('/api/journey/prefs', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(prefs) }).then(x => x.json()).catch(() => null);
-  if (!w || !w.success) { toast('Không lưu được — thử lại'); return; }
-  on ? PINNED.add(id) : PINNED.delete(id);
+// ＋ Thêm mẫu: any template into any group. 📌 Hay dùng = the journey pins (same as ⚡ Tin nhanh on /messages);
+// the other groups keep their own list (/api/quick/extra). Templates a group shows by itself stay (✓ có sẵn).
+let ALL = null, TARGET = null, changed = false;
+async function setIn(group, id, on) {
+  let ok = false;
+  if (group === 'pin') {
+    const r = await fetch('/api/journey/prefs').then(x => x.json()).catch(() => null);
+    if (r && r.success) {
+      const prefs = r.prefs;
+      prefs.favorites = (prefs.favorites || []).filter(f => f.id !== id);
+      if (on) prefs.favorites.push({ id, label: '', emoji: '📌' });
+      const w = await fetch('/api/journey/prefs', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(prefs) }).then(x => x.json()).catch(() => null);
+      ok = !!(w && w.success);
+    }
+  } else {
+    const w = await fetch('/api/quick/extra', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ group, id, on }) }).then(x => x.json()).catch(() => null);
+    ok = !!(w && w.success);
+  }
+  if (!ok) { toast('Không lưu được — thử lại'); return; }
+  const m = MEMBERS[group] = (MEMBERS[group] || []).filter(x => x !== id);
+  if (on) m.push(id);
   changed = true;
   if (document.getElementById('pick').hidden) location.reload(); else drawPicker();
 }
-async function openPicker() {
+async function openPicker(group) {
+  TARGET = group;
+  document.getElementById('pickt').textContent = '＋ Thêm mẫu vào ' + TITLES[GROUPS.indexOf(group)];
+  document.getElementById('pickq').value = '';
   document.getElementById('pick').hidden = false;
   if (!ALL) {
     const r = await fetch('/api/journey/templates').then(x => x.json()).catch(() => null);
@@ -170,15 +189,18 @@ async function openPicker() {
 }
 function closePicker() { document.getElementById('pick').hidden = true; if (changed) location.reload(); }
 function drawPicker() {
-  const f = s => (s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/g, 'd');
+  const f = s => (s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd');
   const q = f(document.getElementById('pickq').value);
+  const IN = new Set(MEMBERS[TARGET] || []), FIX = new Set(FIXED[TARGET] || []);
   const groups = {};
   (ALL || []).filter(t => !q || f(t.name + ' ' + t.category).includes(q))
     .forEach(t => (groups[t.category || 'Khác'] = groups[t.category || 'Khác'] || []).push(t));
   const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   document.getElementById('picklist').innerHTML = Object.keys(groups).sort((a, b) => a.localeCompare(b, 'vi', { numeric: true }))
-    .map(c => `<div class="pc">${esc(c)}</div>` + groups[c].map(t => `<button type="button" class="pt ${PINNED.has(t.id) ? 'on' : ''}"
-      onclick="togglePin(${t.id}, ${!PINNED.has(t.id)})"><span>${esc(t.name)}</span>${t.images ? `🖼${t.images}` : ''} ${PINNED.has(t.id) ? '⭐' : '☆'}</button>`).join(''))
+    .map(c => `<div class="pc">${esc(c)}</div>` + groups[c].map(t => FIX.has(t.id)
+      ? `<button type="button" class="pt on" disabled><span>${esc(t.name)}</span>✓ có sẵn</button>`
+      : `<button type="button" class="pt ${IN.has(t.id) ? 'on' : ''}" onclick="setIn('${TARGET}', ${t.id}, ${!IN.has(t.id)})">
+          <span>${esc(t.name)}</span>${t.images ? `🖼${t.images}` : ''} ${IN.has(t.id) ? '✅' : '＋'}</button>`).join(''))
     .join('') || 'Không có mẫu nào khớp.';
 }
 // pictures are downloaded ahead so the share sheet can open inside the tap
