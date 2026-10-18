@@ -2944,22 +2944,30 @@ def quick_page():
     apts = J.apartments(_xdb.session)
     prefs = J.get_prefs(_xdb.session)
     extra = _quick_extra(_xdb)
+    hidden = _quick_extra(_xdb, 'quick_hidden')    # built-in rows the owner took out (✕), back from ＋ Thêm mẫu
     rows = []        # (group key, label, template_id, vi, how it got there: '' fixed / 'pin' / 'extra')
+    defaults = {}    # group key → built-in template ids (also the hidden ones, for the picker)
 
     def add(key, label, tid, vi=False, kind=''):
         if tid and not any(r[2] == tid and r[0] == key for r in rows):
             rows.append((key, label, tid, vi, kind))
+
+    def add_default(key, label, tid, vi=False):
+        if tid:
+            defaults.setdefault(key, []).append(tid)
+            if tid not in hidden.get(key, []):
+                add(key, label, tid, vi)
     for f in J.favorites_named(_xdb.session, prefs):
         if f.get('id'):
             add('pin', f"{f['emoji']} {f['label']}", f['id'], kind='pin')
-    add('msg', '🕐 Xác nhận & hỏi giờ đến', J.template_for(jmap, 'confirm', None))
+    add_default('msg', '🕐 Xác nhận & hỏi giờ đến', J.template_for(jmap, 'confirm', None))
     for a in apts:
-        add('welcome', f"👋 {a['name']}", J.template_for(jmap, 'welcome', a['id']))
-    add('passport', '🛂 Xin passport / visa', J.template_for(jmap, 'passport', None))
+        add_default('welcome', f"👋 {a['name']}", J.template_for(jmap, 'welcome', a['id']))
+    add_default('passport', '🛂 Xin passport / visa', J.template_for(jmap, 'passport', None))
     for a in apts:
-        add('checkin', f"🔑 {a['name']}", J.template_for(jmap, 'checkin', a['id']), vi=True)
+        add_default('checkin', f"🔑 {a['name']}", J.template_for(jmap, 'checkin', a['id']), vi=True)
     for a in apts:
-        add('payment', f"💳 {a['name']}", J.template_for(jmap, 'payment', a['id']))
+        add_default('payment', f"💳 {a['name']}", J.template_for(jmap, 'payment', a['id']))
     # templates the owner added to a group (＋ Thêm mẫu vào mục này)
     for key, _title in QUICK_GROUPS[1:]:
         for tid in extra.get(key, []):
@@ -2981,16 +2989,17 @@ def quick_page():
         })
     return render_template('quick.html', groups=groups,
                            members={g['key']: [it['id'] for it in g['items']] for g in groups},
-                           fixed={g['key']: [it['id'] for it in g['items'] if not it['kind']] for g in groups})
+                           fixed=defaults)
 
 
 QUICK_GROUPS = [('pin', '📌 Hay dùng'), ('msg', '💬 Nhắn khách'), ('welcome', '👋 Chào & địa chỉ'),
                 ('passport', '🛂 Passport'), ('checkin', '🔑 Nhận phòng'), ('payment', '💳 Thanh toán')]
 
 
-def _quick_extra(_xdb):
-    """{group key: [template ids]} added by the owner to /tin-nhanh groups (journey_prefs 'quick_extra')."""
-    row = _xdb.session.execute(text("SELECT value FROM journey_prefs WHERE key = 'quick_extra'")).fetchone()
+def _quick_extra(_xdb, pref='quick_extra'):
+    """{group key: [template ids]} added by the owner to /tin-nhanh groups (journey_prefs 'quick_extra'), or with
+    pref='quick_hidden' the built-in rows taken out of a group."""
+    row = _xdb.session.execute(text("SELECT value FROM journey_prefs WHERE key = :k"), {'k': pref}).fetchone()
     try:
         data = json.loads(row[0]) if row else {}
     except ValueError:
@@ -3001,7 +3010,8 @@ def _quick_extra(_xdb):
 
 @app.route('/api/quick/extra', methods=['POST'])
 def quick_extra_set():
-    """Add / remove a template in one /tin-nhanh group (📌 Hay dùng uses the journey favorites instead)."""
+    """Add / remove a template in one /tin-nhanh group (📌 Hay dùng uses the journey favorites instead).
+    builtin=true: a group's own template — off hides it, on shows it again (journey_prefs 'quick_hidden')."""
     from core.models import db as _xdb
     from core import journey as J
     J.ensure(_xdb.session)
@@ -3013,14 +3023,15 @@ def quick_extra_set():
         tid = 0
     if key not in {k for k, _ in QUICK_GROUPS[1:]} or not tid:
         return jsonify({'success': False, 'error': 'Dữ liệu không hợp lệ'}), 400
-    extra = _quick_extra(_xdb)
+    pref = 'quick_hidden' if d.get('builtin') else 'quick_extra'
+    extra = _quick_extra(_xdb, pref)
     ids = [i for i in extra.get(key, []) if i != tid]
-    if on:
+    if on != (pref == 'quick_hidden'):
         ids.append(tid)
     extra[key] = ids
     _xdb.session.execute(text("""
-        INSERT INTO journey_prefs (key, value) VALUES ('quick_extra', :v)
-        ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value"""), {'v': json.dumps(extra)})
+        INSERT INTO journey_prefs (key, value) VALUES (:k, :v)
+        ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value"""), {'k': pref, 'v': json.dumps(extra)})
     _xdb.session.commit()
     return jsonify({'success': True, 'extra': extra})
 
@@ -3029,7 +3040,7 @@ def quick_extra_set():
 def quick_manifest():
     resp = jsonify({
         'name': 'Tin nhanh — Hotel Pro', 'short_name': 'Tin nhanh', 'start_url': '/tin-nhanh', 'scope': '/',
-        'display': 'standalone', 'background_color': '#0f172a', 'theme_color': '#0f172a',
+        'display': 'standalone', 'background_color': '#f6f7f9', 'theme_color': '#ffffff',
         'icons': [{'src': '/static/images/quick-icon-180.png', 'sizes': '180x180', 'type': 'image/png'},
                   {'src': '/static/images/quick-icon-512.png', 'sizes': '512x512', 'type': 'image/png'}],
     })

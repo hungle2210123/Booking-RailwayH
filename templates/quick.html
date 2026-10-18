@@ -9,88 +9,95 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Tin nhanh">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
-<meta name="theme-color" content="#0f172a">
+<meta name="theme-color" content="#ffffff">
 <link rel="apple-touch-icon" href="{{ asset('images/quick-icon-180.png') }}">
 <link rel="icon" href="{{ asset('images/quick-icon-180.png') }}">
 <link rel="manifest" href="/tin-nhanh.webmanifest">
 <style>
-  :root { --ink:#0f172a; --muted:#64748b; --line:#e2e8f0; --bg:#f1f5f9; }
+  /* Calm on purpose (owner, Oct 18 "tối giản, đừng màu mè"): white cards, grey lines, one dark colour for the
+     main action. No per-group colours. */
+  :root { --ink:#111827; --muted:#6b7280; --line:#e5e7eb; --bg:#f6f7f9; --soft:#f3f4f6; }
   * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
   body { margin:0; background:var(--bg); color:var(--ink); font:16px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
          padding:env(safe-area-inset-top) 0 calc(24px + env(safe-area-inset-bottom)); }
-  header { position:sticky; top:0; z-index:5; background:var(--ink); color:#fff; padding:12px 16px 10px; }
-  header .t { display:flex; align-items:center; gap:10px; }
-  header h1 { margin:0; font-size:1.25rem; flex:1; }
-  header a { color:#cbd5e1; font-size:.85rem; text-decoration:none; border:1px solid #334155; border-radius:999px; padding:5px 10px; }
-  /* group colours */
-  .c0 { --c:#d97706; --l:#fffbeb; } .c1 { --c:#2563eb; --l:#eff6ff; } .c2 { --c:#0d9488; --l:#f0fdfa; }
-  .c3 { --c:#475569; --l:#f8fafc; } .c4 { --c:#7c3aed; --l:#f5f3ff; } .c5 { --c:#059669; --l:#ecfdf5; }
-  .tabs { display:grid; grid-template-columns:repeat(3, 1fr); gap:6px; margin-top:10px; }
-  .tab { display:flex; flex-direction:column; align-items:center; gap:1px; border:2px solid #334155; background:#1e293b; color:#e2e8f0;
-         border-radius:12px; padding:7px 4px; font-family:inherit; }
-  .tab .ti { font-size:1.25rem; line-height:1.1; } .tab .tl { font-size:.74rem; font-weight:700; text-align:center; line-height:1.15; }
-  .tab .tn { font-size:.62rem; opacity:.7; }
-  .tab.on { background:var(--l); border-color:var(--c); color:var(--c); }
-  .grp { display:none; } .grp.on { display:block; }
-  .grp h2 { display:flex; align-items:baseline; justify-content:space-between; margin:14px 0 10px; padding:12px 14px; border-radius:14px;
-            background:var(--c); color:#fff; font-size:1.1rem; }
-  .grp h2 small { font-size:.8rem; opacity:.85; font-weight:600; }
-  .grp .row { border-left:5px solid var(--c); }
-  .jump button { flex:none; border:1px solid #334155; background:#1e293b; color:#e2e8f0; border-radius:999px; padding:6px 12px;
-                 font:600 .85rem inherit; font-family:inherit; }
+  button { font-family:inherit; color:inherit; cursor:pointer; }
+  header { position:sticky; top:0; z-index:5; background:#fff; border-bottom:1px solid var(--line); padding:10px 12px; }
+  header .t { display:flex; align-items:center; gap:10px; max-width:640px; margin:0 auto; }
+  header h1 { margin:0; font-size:1.15rem; flex:1; }
+  header a { color:var(--muted); font-size:.85rem; text-decoration:none; border:1px solid var(--line); border-radius:999px; padding:5px 11px; }
+  .tabs { display:grid; grid-template-columns:repeat(3, 1fr); gap:6px; margin:10px auto 0; max-width:640px; }
+  .tab { display:flex; align-items:center; justify-content:center; gap:5px; border:1px solid var(--line); background:#fff;
+         border-radius:10px; padding:9px 4px; font-size:.82rem; font-weight:600; }
+  .tab .tn { font-size:.72rem; color:var(--muted); font-weight:500; }
+  .tab.on { background:var(--ink); border-color:var(--ink); color:#fff; }
+  .tab.on .tn { color:#d1d5db; }
   main { padding:0 12px; max-width:640px; margin:0 auto; }
-  .hint { background:#fffbeb; border:1px solid #fcd34d; color:#92400e; border-radius:12px; padding:10px 12px; margin:12px 0 0; font-size:.85rem; }
-  h2 { font-size:.95rem; margin:18px 4px 8px; }
-  .row { background:#fff; border:1px solid var(--line); border-radius:14px; padding:10px 10px 10px 12px; margin-bottom:8px; }
-  .row .lb { font-weight:700; font-size:.98rem; }
+  .grp { display:none; } .grp.on { display:block; }
+  .grp h2 { display:flex; align-items:baseline; justify-content:space-between; margin:16px 2px 8px; font-size:1rem; }
+  .grp h2 small { font-size:.78rem; color:var(--muted); font-weight:500; }
+  .hint { background:#fff; border:1px solid var(--line); border-radius:12px; padding:10px 12px; margin:12px 0 0; font-size:.85rem; color:var(--muted); }
+  .row { background:#fff; border:1px solid var(--line); border-radius:12px; padding:10px 10px 10px 12px; margin-bottom:8px; }
+  .top { display:flex; align-items:flex-start; gap:6px; }
+  .top .tx { flex:1; min-width:0; }
+  .row .lb { font-weight:600; font-size:.97rem; }
   .row .nm { font-size:.75rem; color:var(--muted); margin-top:1px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-  .btns { display:flex; gap:6px; margin-top:8px; }
-  .btns button { flex:1; border:none; border-radius:11px; padding:12px 6px; font:700 .92rem inherit; font-family:inherit; color:#fff; }
-  .b-txt { background:#16a34a; } .b-img { background:#7c3aed; } .b-vi { background:#dc2626; }
-  .b-copy { flex:0 0 52px !important; background:#e2e8f0 !important; color:var(--ink) !important; }
-  .btns button.wait { opacity:.55; }
-  .unpin { float:right; border:none; background:#f1f5f9; color:#64748b; border-radius:999px; width:28px; height:28px; font-weight:800; }
-  .addpin { display:block; width:100%; margin:18px 0 6px; border:2px dashed #94a3b8; background:#fff; color:var(--ink); border-radius:14px;
-            padding:14px; font:700 .95rem inherit; font-family:inherit; }
-  [hidden] { display:none !important; }
-  .pick { position:fixed; inset:0; z-index:30; background:rgba(15,23,42,.55); display:flex; align-items:flex-end; }
-  .pick-box { background:#fff; width:100%; max-height:88dvh; border-radius:18px 18px 0 0; display:flex; flex-direction:column;
-              padding:12px 12px calc(12px + env(safe-area-inset-bottom)); }
-  .pick-h { display:flex; align-items:center; justify-content:space-between; margin-bottom:8px; }
-  .pick-h button { border:none; background:var(--ink); color:#fff; border-radius:10px; padding:8px 16px; font:700 .95rem inherit; font-family:inherit; }
-  #pickq { width:100%; font-size:16px; padding:10px 12px; border:1px solid var(--line); border-radius:10px; margin-bottom:8px; }
-  #picklist { overflow:auto; }
-  .pc { font-size:.75rem; font-weight:800; color:var(--muted); margin:10px 2px 4px; }
-  .pt { display:flex; align-items:center; gap:8px; width:100%; text-align:left; border:1px solid var(--line); background:#fff;
-        border-radius:10px; padding:10px; margin-bottom:5px; font:600 .9rem inherit; font-family:inherit; color:var(--ink); }
-  .pt.on { border-color:#16a34a; background:#f0fdf4; }
-  .pt:disabled { opacity:.6; }
+  .ic { flex:none; border:none; background:var(--soft); color:var(--muted); border-radius:8px; height:30px; min-width:30px; padding:0 8px;
+        font-size:.8rem; font-weight:600; }
+  .btns { display:flex; gap:6px; margin-top:9px; }
+  .btns button { flex:1; border:1px solid var(--line); background:#fff; border-radius:10px; padding:11px 6px; font-size:.9rem; font-weight:600; }
+  .btns .b-txt { background:var(--ink); border-color:var(--ink); color:#fff; }
+  .btns .b-copy { flex:0 0 48px; background:var(--soft); border-color:var(--soft); }
+  .btns button.wait { opacity:.5; }
+  .addpin { display:block; width:100%; margin:14px 0 6px; border:1px dashed #cbd5e1; background:transparent; color:var(--muted); border-radius:12px;
+            padding:13px; font-size:.92rem; font-weight:600; }
   .empty { background:#fff; border:1px dashed var(--line); border-radius:12px; padding:14px; color:var(--muted); font-size:.9rem; }
+  [hidden] { display:none !important; }
+  /* bottom sheets: template picker + editor */
+  .pick { position:fixed; inset:0; z-index:30; background:rgba(17,24,39,.45); display:flex; align-items:flex-end; }
+  .pick-box { background:#fff; width:100%; max-width:640px; margin:0 auto; max-height:90dvh; border-radius:16px 16px 0 0; display:flex; flex-direction:column;
+              padding:12px 12px calc(12px + env(safe-area-inset-bottom)); }
+  .pick-h { display:flex; align-items:center; gap:8px; margin-bottom:8px; }
+  .pick-h b { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .pick-h button { border:none; background:var(--ink); color:#fff; border-radius:10px; padding:8px 16px; font-size:.95rem; font-weight:600; }
+  .pick-h button.ghost { background:var(--soft); color:var(--ink); }
+  #pickq { width:100%; font-size:16px; padding:10px 12px; border:1px solid var(--line); border-radius:10px; margin-bottom:8px; }
+  #picklist, #edbody { overflow:auto; }
+  .pc { font-size:.74rem; font-weight:700; color:var(--muted); margin:10px 2px 4px; }
+  .pt { display:flex; align-items:center; gap:8px; width:100%; text-align:left; border:1px solid var(--line); background:#fff;
+        border-radius:10px; padding:10px; margin-bottom:5px; font-size:.9rem; font-weight:500; }
   .pt span { flex:1; }
+  .pt.on { border-color:var(--ink); background:var(--soft); }
+  .lab { font-size:.78rem; font-weight:700; color:var(--muted); margin:10px 2px 4px; }
+  #edbody textarea { width:100%; min-height:150px; font-size:16px; line-height:1.4; font-family:inherit; padding:10px; border:1px solid var(--line);
+                     border-radius:10px; resize:vertical; }
+  .note { font-size:.75rem; color:var(--muted); margin:2px 2px 0; }
   .toast { position:fixed; left:50%; bottom:calc(20px + env(safe-area-inset-bottom)); transform:translateX(-50%); background:var(--ink);
-           color:#fff; padding:10px 16px; border-radius:12px; font-size:.9rem; z-index:20; max-width:90vw; text-align:center; }
+           color:#fff; padding:10px 16px; border-radius:12px; font-size:.9rem; z-index:40; max-width:90vw; text-align:center; }
 </style>
 </head>
 <body>
 <header>
   <div class="t"><h1>⚡ Tin nhanh</h1><a href="/messages">💬 Nhắn khách</a></div>
-  <div class="tabs">{% for g in groups %}<button type="button" class="tab c{{ loop.index0 }}" data-i="{{ loop.index0 }}" onclick="go({{ loop.index0 }})">
-    <span class="ti">{{ g.title.split(' ', 1)[0] }}</span><span class="tl">{{ g.title.split(' ', 1)[1] }}</span><span class="tn">{{ g['items']|length }}</span></button>{% endfor %}</div>
+  <div class="tabs">{% for g in groups %}<button type="button" class="tab" data-i="{{ loop.index0 }}" onclick="go({{ loop.index0 }})">
+    <span>{{ g.title }}</span><span class="tn">{{ g['items']|length }}</span></button>{% endfor %}</div>
 </header>
 <main>
   <div class="hint" id="addhint" hidden>📲 <b>Đưa lên màn hình chính:</b> bấm nút <b>Chia sẻ</b> của Safari (ô vuông có mũi tên) →
     <b>Thêm vào MH chính</b> → Thêm. Lần sau bấm biểu tượng <b>Tin nhanh</b> là vào thẳng đây.</div>
   {% for g in groups %}
-  <section class="grp c{{ loop.index0 }}" id="g{{ loop.index0 }}">
+  <section class="grp" id="g{{ loop.index0 }}">
   <h2><span>{{ g.title }}</span><small>{{ g['items']|length }} mẫu</small></h2>
   {% if not g['items'] %}<div class="empty">Chưa có mẫu nào — bấm <b>＋ Thêm mẫu</b> bên dưới.</div>{% endif %}
   {% for it in g['items'] %}
   <div class="row">
-    <div class="lb">{{ it.label }}{% if it.kind %}<button type="button" class="unpin" onclick="setIn('{{ g.key }}', {{ it.id }}, false)" title="Bỏ khỏi mục này">✕</button>{% endif %}</div>
-    <div class="nm">{{ it.name }}</div>
+    <div class="top">
+      <div class="tx"><div class="lb">{{ it.label }}</div><div class="nm">{{ it.name }}</div></div>
+      <button type="button" class="ic" data-id="{{ it.id }}" onclick="openEdit(this)" title="Sửa mẫu">✏️ Sửa</button>
+      <button type="button" class="ic" onclick="takeOut('{{ g.key }}', {{ it.id }}, {{ 'false' if it.kind else 'true' }})" title="Bỏ khỏi mục này">✕</button>
+    </div>
     <div class="btns">
+      <button type="button" class="b-txt" data-id="{{ it.id }}" onclick="sendText(this, 'en')">📤 Gửi chữ</button>
       {% if it.images %}<button type="button" class="b-img wait" data-id="{{ it.id }}" onclick="sendImgs(this)">🖼 {{ it.images|length }} ảnh</button>{% endif %}
-      <button type="button" class="b-txt" data-id="{{ it.id }}" onclick="sendText(this, 'en')">📤 Chữ</button>
       {% if it.text_vi %}<button type="button" class="b-vi" data-id="{{ it.id }}" onclick="sendText(this, 'vi')">🇻🇳 Việt</button>{% endif %}
       <button type="button" class="b-copy" data-id="{{ it.id }}" onclick="copyText(this)" title="Chép chữ">📋</button>
     </div>
@@ -107,6 +114,20 @@
     <div id="picklist">⏳ Đang tải…</div>
   </div>
 </div>
+<div class="pick" id="ed" hidden>
+  <div class="pick-box">
+    <div class="pick-h"><b id="edt">✏️ Sửa mẫu</b><button type="button" class="ghost" onclick="closeEdit()">Huỷ</button>
+      <button type="button" id="edsave" onclick="saveEdit()">💾 Lưu</button></div>
+    <div id="edbody">
+      <div class="note">Lưu là đổi mẫu gốc — dùng cho mọi khách, cả trang Nhắn khách và Mẫu Câu.
+        Tự thay: {ten} tên khách · {nhan} ngày nhận · {tra} ngày trả · {phong} phòng · {can} tên căn</div>
+      <div class="lab">🇬🇧 English (WhatsApp)</div>
+      <textarea id="eden"></textarea>
+      <div class="lab">🇻🇳 Tiếng Việt (Zalo) — để trống nếu không cần</div>
+      <textarea id="edvi"></textarea>
+    </div>
+  </div>
+</div>
 <script>
 // Each button opens the phone's share sheet straight away: choose WhatsApp / Zalo → choose the chat → Gửi.
 // Text and pictures go apart (WhatsApp drops one of them when both are shared together).
@@ -116,6 +137,8 @@ const DATA = {};
 const GROUPS = {{ groups|map(attribute='key')|list|tojson }}, TITLES = {{ groups|map(attribute='title')|list|tojson }};
 const MEMBERS = {{ members|tojson }}, FIXED = {{ fixed|tojson }};
 const files = {};
+const post = (url, body) => fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+  .then(x => x.json()).catch(() => null);
 function toast(t) {
   document.querySelectorAll('.toast').forEach(x => x.remove());
   const el = Object.assign(document.createElement('div'), { className: 'toast', textContent: t });
@@ -150,24 +173,24 @@ function sendImgs(b) {
   if (navigator.canShare && navigator.canShare({ files: f })) navigator.share({ files: f }).catch(() => {});
   else toast('Máy này không gửi ảnh trực tiếp được');
 }
-// ＋ Thêm mẫu: any template into any group. 📌 Hay dùng = the journey pins (same as ⚡ Tin nhanh on /messages);
-// the other groups keep their own list (/api/quick/extra). Templates a group shows by itself stay (✓ có sẵn).
+// ＋ Thêm mẫu / ✕: any template into any group. 📌 Hay dùng = the journey pins (same as ⚡ Tin nhanh on /messages);
+// the other groups keep their own list (/api/quick/extra). A group's built-in templates can be taken out too
+// (builtin: hidden, the template itself stays) and come back from the picker.
 let ALL = null, TARGET = null, changed = false;
 async function setIn(group, id, on) {
   let ok = false;
+  const builtin = (FIXED[group] || []).includes(id);
   if (group === 'pin') {
     const r = await fetch('/api/journey/prefs').then(x => x.json()).catch(() => null);
     if (r && r.success) {
       const prefs = r.prefs;
       prefs.favorites = (prefs.favorites || []).filter(f => f.id !== id);
       if (on) prefs.favorites.push({ id, label: '', emoji: '📌' });
-      const w = await fetch('/api/journey/prefs', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(prefs) }).then(x => x.json()).catch(() => null);
+      const w = await post('/api/journey/prefs', prefs);
       ok = !!(w && w.success);
     }
   } else {
-    const w = await fetch('/api/quick/extra', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ group, id, on }) }).then(x => x.json()).catch(() => null);
+    const w = await post('/api/quick/extra', { group, id, on, builtin });
     ok = !!(w && w.success);
   }
   if (!ok) { toast('Không lưu được — thử lại'); return; }
@@ -175,6 +198,10 @@ async function setIn(group, id, on) {
   if (on) m.push(id);
   changed = true;
   if (document.getElementById('pick').hidden) location.reload(); else drawPicker();
+}
+function takeOut(group, id, builtin) {
+  const msg = builtin ? 'Bỏ mẫu này khỏi mục? (Mẫu vẫn còn, thêm lại được bằng ＋ Thêm mẫu)' : 'Bỏ mẫu này khỏi mục?';
+  if (confirm(msg)) setIn(group, id, false);
 }
 async function openPicker(group) {
   TARGET = group;
@@ -189,7 +216,7 @@ async function openPicker(group) {
 }
 function closePicker() { document.getElementById('pick').hidden = true; if (changed) location.reload(); }
 function drawPicker() {
-  const f = s => (s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd');
+  const f = s => (s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/g, 'd');
   const q = f(document.getElementById('pickq').value);
   const IN = new Set(MEMBERS[TARGET] || []), FIX = new Set(FIXED[TARGET] || []);
   const groups = {};
@@ -197,11 +224,41 @@ function drawPicker() {
     .forEach(t => (groups[t.category || 'Khác'] = groups[t.category || 'Khác'] || []).push(t));
   const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   document.getElementById('picklist').innerHTML = Object.keys(groups).sort((a, b) => a.localeCompare(b, 'vi', { numeric: true }))
-    .map(c => `<div class="pc">${esc(c)}</div>` + groups[c].map(t => FIX.has(t.id)
-      ? `<button type="button" class="pt on" disabled><span>${esc(t.name)}</span>✓ có sẵn</button>`
-      : `<button type="button" class="pt ${IN.has(t.id) ? 'on' : ''}" onclick="setIn('${TARGET}', ${t.id}, ${!IN.has(t.id)})">
-          <span>${esc(t.name)}</span>${t.images ? `🖼${t.images}` : ''} ${IN.has(t.id) ? '✅' : '＋'}</button>`).join(''))
+    .map(c => `<div class="pc">${esc(c)}</div>` + groups[c].map(t =>
+      `<button type="button" class="pt ${IN.has(t.id) ? 'on' : ''}" onclick="setIn('${TARGET}', ${t.id}, ${!IN.has(t.id)})">
+        <span>${esc(t.name)}${FIX.has(t.id) ? ' <small style="color:#6b7280">· mặc định</small>' : ''}</span>${t.images ? `🖼${t.images}` : ''}
+        ${IN.has(t.id) ? '✓' : '＋'}</button>`).join(''))
     .join('') || 'Không có mẫu nào khớp.';
+}
+// ✏️ Sửa: the template's own text (English + Vietnamese) — the same as "Sửa mẫu gốc" on /messages
+let EDIT = 0;
+async function openEdit(b) {
+  EDIT = +b.dataset.id;
+  document.getElementById('edt').textContent = '✏️ ' + DATA[EDIT].name;
+  const en = document.getElementById('eden'), vi = document.getElementById('edvi');
+  en.value = vi.value = ''; en.placeholder = '⏳ Đang tải…';
+  document.getElementById('ed').hidden = false;
+  const [r, rv] = await Promise.all([
+    fetch('/api/templates/' + EDIT).then(x => x.json()).catch(() => null),
+    fetch('/api/journey/vi/' + EDIT).then(x => x.json()).catch(() => null)]);
+  if (!r || !r.success) { toast('Không tải được mẫu'); closeEdit(); return; }
+  en.placeholder = '';
+  en.value = r.template.Message || '';
+  vi.value = (rv && rv.text_vi) || '';
+}
+function closeEdit() { document.getElementById('ed').hidden = true; EDIT = 0; }
+async function saveEdit() {
+  const content = document.getElementById('eden').value.trim();
+  if (!content) { toast('Mẫu không được để trống'); return; }
+  const btn = document.getElementById('edsave'); btn.disabled = true;
+  const res = await fetch('/api/templates/' + EDIT, { method: 'PUT', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ Message: content }) }).then(x => x.json()).catch(() => null);
+  const resVi = res && res.success ? await post('/api/journey/vi/' + EDIT, { text_vi: document.getElementById('edvi').value }) : null;
+  btn.disabled = false;
+  if (!res || !res.success) { toast('❌ ' + ((res && res.error) || 'Không lưu được')); return; }
+  if (!resVi || !resVi.success) { toast('❌ Chưa lưu được bản tiếng Việt'); return; }
+  toast('✅ Đã lưu mẫu');
+  setTimeout(() => location.reload(), 700);
 }
 // pictures are downloaded ahead so the share sheet can open inside the tap
 (async () => {
