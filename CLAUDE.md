@@ -296,7 +296,11 @@ WhatsApp got "đã nhắn"): `askSent` puts a bar above the send buttons "Tin �
 ❌ Không gửi được"; only ✅ logs the step. ❌ offers "📌 Ghi nhớ: khách không có WhatsApp/Zalo" = journey_log key
 `no_whatsapp` / `no_zalo` (`J.NO_CHANNEL_KEYS`, part of `J.NOT_A_MESSAGE`, ignored by last_contact / unreachable_at):
 the sheet shows "⚠️ Khách không dùng WhatsApp · bỏ" (tap = remove) and dims that button; the /messages card shows it
-next to the phone. The share sheet (📤 Gửi tin + ảnh) still logs on its own — it resolves only when sent.
+next to the phone. The share sheet still logs on its own — it resolves only when sent.
+Text and pictures are sent SEPARATELY (owner, Oct 18: WhatsApp drops one when both go in one share): the editor shows
+"① Gửi chữ" (textarea + WhatsApp / Zalo / SMS / copy) then "② Gửi N ảnh riêng" (thumbnails + 📤 Gửi ảnh cho khách =
+`navigator.share({files})` only, + 📋 Sao chép ảnh = first picture as PNG for WhatsApp Web / Zalo PC). The old combined
+"📤 Gửi tin + ảnh" and "🖼 Chỉ gửi ảnh" buttons are gone.
 🚫 Hủy khách chip on every card = calendar "Báo hủy" (`/api/set_checkin_status` 'cancelling'); the card leaves, toast
 "Hoàn tác" restores the previous checkin_status (card carries it as data-cs).
 

@@ -71,6 +71,11 @@
       .jr-dim{opacity:.45;}
       .jr-share{background:#16a34a;} .jr-wa{background:#25d366;} .jr-zalo{background:#0068ff;} .jr-sms{background:#2563eb;}
       .jr-copy{background:#475569;} .jr-imgonly{background:#7c3aed;}
+      .jr-stepl{font-size:.8rem;font-weight:700;color:#334155;margin:12px 0 4px;}
+      .jr-imgact{display:flex;gap:8px;margin-top:8px;}
+      .jr-imgact button{border:none;border-radius:12px;padding:13px 10px;font-weight:800;font-size:.95rem;font-family:inherit;color:#fff;}
+      .jr-imgsend{flex:2;background:#7c3aed;} .jr-imgcopy{flex:1;background:#475569;}
+      .jr-imgsend.off{opacity:.55;pointer-events:none;}
       .jr-btns .off{opacity:.45;pointer-events:none;}
       .jr-note{font-size:.76rem;color:#64748b;margin-top:8px;line-height:1.45;}
       .jr-warn{font-size:.82rem;color:#92400e;background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:9px 10px;margin-top:10px;}
@@ -316,16 +321,23 @@
     const texts = { en: text, vi: template.text_vi || '' };
     let lang = b.vn && texts.vi ? 'vi' : 'en';
     st.text = texts[lang]; st.files = null;
+    const shareOk0 = !!navigator.canShare;
     body.innerHTML = `
       <div class="jr-tpl">Mẫu: <b>${esc(template.name)}</b> · ô dưới sửa được cho lần gửi này (vd. số phòng) ·
         <button type="button" class="jr-edit">✏️ Sửa mẫu gốc</button></div>
       <div class="jr-lang">${texts.vi
         ? `<button type="button" data-l="en">🇬🇧 English</button><button type="button" data-l="vi">🇻🇳 Tiếng Việt · Zalo</button>`
         : `<span>🇻🇳 Mẫu này chưa có bản tiếng Việt cho Zalo — bấm <b>✏️ Sửa mẫu gốc</b> để thêm.</span>`}</div>
+      ${images.length ? '<div class="jr-stepl">① Gửi <b>chữ</b></div>' : ''}
       <textarea class="jr-ta">${esc(st.text)}</textarea>
-      ${images.length ? `<div class="jr-imgs">${images.map(im => `<img alt="" data-url="${esc(im.url)}">`).join('')}</div>`
-                      : '<div class="jr-noimg">Bước này chưa có ảnh — thêm ở ⚙️ Tin &amp; ảnh.</div>'}
       <div class="jr-btns"></div>
+      ${images.length ? `<div class="jr-stepl">② Gửi <b>${images.length} ảnh</b> riêng — WhatsApp không gửi được chữ + ảnh cùng lúc</div>
+        <div class="jr-imgs">${images.map(im => `<img alt="" data-url="${esc(im.url)}">`).join('')}</div>
+        <div class="jr-imgact">
+          ${shareOk0 ? `<button type="button" class="jr-imgsend off">⏳ Đang tải ${images.length} ảnh…</button>` : ''}
+          <button type="button" class="jr-imgcopy">📋 Sao chép ảnh</button>
+        </div>`
+                      : '<div class="jr-noimg">Bước này chưa có ảnh — thêm ở ⚙️ Tin &amp; ảnh.</div>'}
       <div class="jr-note"></div>`;
     const ta = body.querySelector('.jr-ta');
     ta.addEventListener('input', () => { st.text = texts[lang] = ta.value; refreshLinks(); });
@@ -343,18 +355,14 @@
     const sent = () => step && markSent(step, true);
     const ask = ch => step && askSent(body, step, ch);      // opened a chat: ask when back whether it was sent
 
-    if (images.length && shareOk) {
-      btns.insertAdjacentHTML('beforeend', `<button type="button" class="jr-share wide off">⏳ Đang tải ${images.length} ảnh…</button>`);
-    }
     if (L) {
       btns.insertAdjacentHTML('beforeend', `
-        <a class="jr-wa ${images.length ? '' : 'wide'}" target="_blank" rel="noopener">🟢 WhatsApp${images.length ? ' (chữ)' : ''}</a>
+        <a class="jr-wa wide" target="_blank" rel="noopener">🟢 WhatsApp${images.length ? ' (chữ)' : ''}</a>
         <a class="jr-zalo" target="_blank" rel="noopener">🔵 Zalo${texts.vi ? ' · tự chép tin Việt' : ''}</a>
         <a class="jr-sms">💬 SMS</a>`);
     }
     if (texts.vi) btns.insertAdjacentHTML('beforeend', `<button type="button" class="jr-copyvi">📋 Chép tin tiếng Việt (Zalo)</button>`);
     btns.insertAdjacentHTML('beforeend', `<button type="button" class="jr-copy">📋 Chép tin${texts.vi ? ' đang hiện' : ''}</button>`);
-    if (images.length && shareOk) btns.insertAdjacentHTML('beforeend', `<button type="button" class="jr-imgonly off">🖼 Chỉ gửi ảnh</button>`);
 
     function refreshLinks() {
       if (!L) return;
@@ -387,8 +395,9 @@
 
     note.innerHTML = b.partner
       ? '🤝 Khách đặt qua đối tác: chép tin rồi dán vào khung chat Booking (trên máy tính có nút 💬 Điền tin).'
-      : (images.length && shareOk
-          ? '<b>Gửi tin + ảnh</b> → chọn WhatsApp (hoặc Zalo) → chọn khách → Gửi. Lần đầu nhắn khách mới: bấm <b>WhatsApp (chữ)</b> trước để mở đúng chat, rồi gửi ảnh.'
+      : (images.length
+          ? '① Bấm <b>WhatsApp (chữ)</b> → mở đúng chat của khách với tin soạn sẵn → Gửi. ② Quay lại, bấm <b>📤 Gửi ảnh cho khách</b> → chọn WhatsApp → chọn khách → Gửi'
+            + (shareOk ? '' : ' (trên máy tính: <b>📋 Sao chép ảnh</b> rồi dán Ctrl+V vào chat)') + '.'
           : (L ? 'Bấm <b>WhatsApp</b> → mở đúng chat của khách với tin soạn sẵn → Gửi.' : 'Khách chưa có số: chép tin để gửi qua kênh khác.'))
       + (L && texts.vi ? '<br>🔵 <b>Zalo</b> không cho điền sẵn tin: bấm Zalo là tin tiếng Việt <b>đã được chép</b> → trong Zalo <b>giữ ô nhập tin → Dán</b> → Gửi.' : '');
 
@@ -402,21 +411,25 @@
         return new File([bl], `${(template.name || 'guide').replace(/[^\w-]+/g, '_').slice(0, 30)}-${i + 1}.${bl.type === 'image/png' ? 'png' : 'jpg'}`, { type: bl.type || 'image/jpeg' });
       }).catch(() => null)))
         .then(files => {
-          if (!st || !shareOk) return;
+          if (!st) return;
           st.files = files.filter(Boolean);
-          const share = btns.querySelector('.jr-share'), only = btns.querySelector('.jr-imgonly');
-          if (!st.files.length || !navigator.canShare({ files: st.files })) {
-            share.textContent = 'Máy này không gửi ảnh trực tiếp được'; return;
-          }
-          share.classList.remove('off'); only.classList.remove('off');
-          share.textContent = `📤 Gửi tin + ${st.files.length} ảnh`;
-          share.onclick = () => {
-            copyText(st.text);                        // in case the app keeps only the pictures
-            navigator.share({ files: st.files, text: st.text }).then(sent).catch(e => {
-              if (e.name !== 'AbortError') note.textContent = '❌ ' + e.message;
-            });
+          const copy = body.querySelector('.jr-imgcopy');
+          if (copy) copy.onclick = async e => {
+            try {
+              await navigator.clipboard.write([new ClipboardItem({ 'image/png': toPng(st.files[0]) })]);
+              e.target.textContent = '✅ Đã chép ảnh' + (st.files.length > 1 ? ' (ảnh 1)' : '');
+            } catch (err) { e.target.textContent = 'Không chép được — giữ ảnh để lưu'; }
           };
-          only.onclick = () => navigator.share({ files: st.files }).then(sent).catch(() => {});
+          const send = body.querySelector('.jr-imgsend');
+          if (!send) return;
+          if (!st.files.length || !navigator.canShare({ files: st.files })) {
+            send.textContent = 'Máy này không gửi ảnh trực tiếp được'; return;
+          }
+          send.classList.remove('off');
+          send.textContent = `📤 Gửi ${st.files.length > 1 ? st.files.length + ' ảnh' : 'ảnh'} cho khách`;
+          send.onclick = () => navigator.share({ files: st.files }).then(sent).catch(e => {
+            if (e.name !== 'AbortError') note.textContent = '❌ ' + e.message;
+          });
         });
     }
   }
