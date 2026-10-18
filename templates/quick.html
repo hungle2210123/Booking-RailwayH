@@ -22,13 +22,25 @@
   header .t { display:flex; align-items:center; gap:10px; }
   header h1 { margin:0; font-size:1.25rem; flex:1; }
   header a { color:#cbd5e1; font-size:.85rem; text-decoration:none; border:1px solid #334155; border-radius:999px; padding:5px 10px; }
-  .jump { display:flex; gap:6px; overflow-x:auto; margin-top:10px; scrollbar-width:none; }
-  .jump::-webkit-scrollbar { display:none; }
+  /* group colours */
+  .c0 { --c:#d97706; --l:#fffbeb; } .c1 { --c:#2563eb; --l:#eff6ff; } .c2 { --c:#0d9488; --l:#f0fdfa; }
+  .c3 { --c:#475569; --l:#f8fafc; } .c4 { --c:#7c3aed; --l:#f5f3ff; } .c5 { --c:#059669; --l:#ecfdf5; }
+  .tabs { display:grid; grid-template-columns:repeat(3, 1fr); gap:6px; margin-top:10px; }
+  .tab { display:flex; flex-direction:column; align-items:center; gap:1px; border:2px solid #334155; background:#1e293b; color:#e2e8f0;
+         border-radius:12px; padding:7px 4px; font-family:inherit; }
+  .tab .ti { font-size:1.25rem; line-height:1.1; } .tab .tl { font-size:.74rem; font-weight:700; text-align:center; line-height:1.15; }
+  .tab .tn { font-size:.62rem; opacity:.7; }
+  .tab.on { background:var(--l); border-color:var(--c); color:var(--c); }
+  .grp { display:none; } .grp.on { display:block; }
+  .grp h2 { display:flex; align-items:baseline; justify-content:space-between; margin:14px 0 10px; padding:12px 14px; border-radius:14px;
+            background:var(--c); color:#fff; font-size:1.1rem; }
+  .grp h2 small { font-size:.8rem; opacity:.85; font-weight:600; }
+  .grp .row { border-left:5px solid var(--c); }
   .jump button { flex:none; border:1px solid #334155; background:#1e293b; color:#e2e8f0; border-radius:999px; padding:6px 12px;
                  font:600 .85rem inherit; font-family:inherit; }
   main { padding:0 12px; max-width:640px; margin:0 auto; }
   .hint { background:#fffbeb; border:1px solid #fcd34d; color:#92400e; border-radius:12px; padding:10px 12px; margin:12px 0 0; font-size:.85rem; }
-  h2 { font-size:.95rem; margin:18px 4px 8px; scroll-margin-top:110px; }
+  h2 { font-size:.95rem; margin:18px 4px 8px; }
   .row { background:#fff; border:1px solid var(--line); border-radius:14px; padding:10px 10px 10px 12px; margin-bottom:8px; }
   .row .lb { font-weight:700; font-size:.98rem; }
   .row .nm { font-size:.75rem; color:var(--muted); margin-top:1px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
@@ -60,13 +72,15 @@
 <body>
 <header>
   <div class="t"><h1>⚡ Tin nhanh</h1><a href="/messages">💬 Nhắn khách</a></div>
-  <div class="jump">{% for g, items in groups %}<button type="button" onclick="go({{ loop.index0 }})">{{ g }}</button>{% endfor %}</div>
+  <div class="tabs">{% for g, items in groups %}<button type="button" class="tab c{{ loop.index0 }}" data-i="{{ loop.index0 }}" onclick="go({{ loop.index0 }})">
+    <span class="ti">{{ g.split(' ', 1)[0] }}</span><span class="tl">{{ g.split(' ', 1)[1] if ' ' in g else g }}</span><span class="tn">{{ items|length }}</span></button>{% endfor %}</div>
 </header>
 <main>
   <div class="hint" id="addhint" hidden>📲 <b>Đưa lên màn hình chính:</b> bấm nút <b>Chia sẻ</b> của Safari (ô vuông có mũi tên) →
     <b>Thêm vào MH chính</b> → Thêm. Lần sau bấm biểu tượng <b>Tin nhanh</b> là vào thẳng đây.</div>
   {% for g, items in groups %}
-  <h2 id="g{{ loop.index0 }}">{{ g }}</h2>
+  <section class="grp c{{ loop.index0 }}" id="g{{ loop.index0 }}">
+  <h2><span>{{ g }}</span><small>{{ items|length }} mẫu</small></h2>
   {% for it in items %}
   <div class="row" data-i="{{ it.id }}">
     <div class="lb">{{ it.label }}{% if it.pinned %}<button type="button" class="unpin" data-id="{{ it.id }}" onclick="togglePin({{ it.id }}, false)" title="Bỏ khỏi Hay dùng">✕</button>{% endif %}</div>
@@ -79,6 +93,7 @@
     </div>
   </div>
   {% endfor %}
+  </section>
   {% endfor %}
   <button type="button" class="addpin" onclick="openPicker()">＋ Chọn mẫu hay dùng (ghim vào 📌)</button>
 </main>
@@ -101,7 +116,14 @@ function toast(t) {
   const el = Object.assign(document.createElement('div'), { className: 'toast', textContent: t });
   document.body.appendChild(el); setTimeout(() => el.remove(), 2600);
 }
-function go(i) { document.getElementById('g' + i).scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+function go(i) {
+  document.querySelectorAll('.grp').forEach(g => g.classList.toggle('on', g.id === 'g' + i));
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('on', t.dataset.i == i));
+  try { localStorage.setItem('quick_tab', i); } catch (e) {}
+  window.scrollTo(0, 0);
+}
+(() => { let i = 0; try { i = +localStorage.getItem('quick_tab') || 0; } catch (e) {}
+  go(document.getElementById('g' + i) ? i : 0); })();
 function copyNow(text) {
   const ta = document.createElement('textarea');
   ta.value = text; ta.setAttribute('readonly', ''); ta.style.cssText = 'position:fixed;top:0;opacity:0;font-size:16px';

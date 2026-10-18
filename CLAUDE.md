@@ -522,6 +522,8 @@ Groups: 📌 Hay dùng (journey_prefs favorites with an id — the same pins as 
 apartment) · 🛂 Passport · 🔑 Nhận phòng (checkin per apartment, + 🇻🇳 Việt) · 💳 Thanh toán (payment per apartment) — the
 same templates as the /messages journey (`journey_map`). Each row: 🖼 N ảnh (pictures only, prefetched as Files) ·
 📤 Chữ (`navigator.share({text})`, tokens filled without a guest) · 🇻🇳 (check-in only) · 📋.
+Layout (owner, Oct 18 "tách rõ từng mục"): a 3×2 grid of big tabs (icon · name · count), ONE group shown at a time
+(`go(i)`, last tab remembered in localStorage `quick_tab`), each group its own colour (`.c0`…`.c5`: header band + row edge).
 
 ### **📋 Mẫu Câu page (`/ai_assistant`, `ai_assistant.html`) — text and pictures apart (owner, Oct 18)**
 Owner (Oct 18): ONE tap must open the phone's share sheet — no in-between sheet, one slim send row per open card
