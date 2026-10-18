@@ -2929,6 +2929,68 @@ def _messages_pay_page():
                            guests=[], no_phone=[], partner=[], unreachable=[], buttons=[], days=3, total=len(items),
                            now_str=_vn_now().strftime('%H:%M:%S'))
 
+# ── ⚡ /tin-nhanh — the iPhone home-screen "app": the templates used most, one tap each ─────────────────────────
+# Groups: 💬 Nhắn khách (ask arrival time + each apartment's address), 🛂 Passport, 🔑 Nhận phòng and 💳 Thanh toán per
+# apartment (same templates as the /messages journey), then the single templates pinned in ⚡ Tin nhanh.
+# Every row sends straight from the phone's share sheet: 📤 text · 🖼 pictures (apart: WhatsApp drops one when both go
+# together) · 🇻🇳 only on the check-in guides. Added to the home screen it opens full screen (manifest below).
+@app.route('/tin-nhanh')
+@app.route('/quick')
+def quick_page():
+    from core.models import db as _xdb
+    from core import journey as J
+    J.ensure(_xdb.session)
+    jmap = J.load_map(_xdb.session)
+    apts = J.apartments(_xdb.session)
+    prefs = J.get_prefs(_xdb.session)
+    rows = []        # (group, label, template_id, vi)
+
+    def add(group, label, tid, vi=False):
+        if tid and not any(r[2] == tid and r[0] == group for r in rows):
+            rows.append((group, label, tid, vi))
+    add('💬 Nhắn khách', '🕐 Xác nhận & hỏi giờ đến', J.template_for(jmap, 'confirm', None))
+    for a in apts:
+        add('👋 Chào & địa chỉ', f"👋 {a['name']}", J.template_for(jmap, 'welcome', a['id']))
+    add('🛂 Passport', '🛂 Xin passport / visa', J.template_for(jmap, 'passport', None))
+    for a in apts:
+        add('🔑 Nhận phòng', f"🔑 {a['name']}", J.template_for(jmap, 'checkin', a['id']), vi=True)
+    for a in apts:
+        add('💳 Thanh toán', f"💳 {a['name']}", J.template_for(jmap, 'payment', a['id']))
+    for f in J.favorites_named(_xdb.session, prefs):
+        if f.get('id'):
+            add('📌 Hay dùng', f"{f['emoji']} {f['label']}", f['id'])
+    tids = [r[2] for r in rows]
+    texts = _journey_texts(_xdb, tids)
+    imgs = J.images_of(_xdb.session, tids)
+    groups = {}
+    for g, label, tid, vi in rows:
+        t = texts.get(tid)
+        if not t:
+            continue
+        groups.setdefault(g, []).append({
+            'id': tid, 'label': label, 'name': t['name'],
+            'text': J.fill(t['content'], {}),
+            'text_vi': J.fill(t['content_vi'], {}, 'vi') if vi and t.get('content_vi') else '',
+            'images': [im['url'] for im in imgs.get(tid, [])],
+            'pinned': g == '📌 Hay dùng',
+        })
+    order = ['📌 Hay dùng', '💬 Nhắn khách', '👋 Chào & địa chỉ', '🛂 Passport', '🔑 Nhận phòng', '💳 Thanh toán']
+    return render_template('quick.html', groups=sorted(groups.items(), key=lambda kv: order.index(kv[0])),
+                           pinned_ids=[r[2] for r in rows if r[0] == '📌 Hay dùng'])
+
+
+@app.route('/tin-nhanh.webmanifest')
+def quick_manifest():
+    resp = jsonify({
+        'name': 'Tin nhanh — Hotel Pro', 'short_name': 'Tin nhanh', 'start_url': '/tin-nhanh', 'scope': '/',
+        'display': 'standalone', 'background_color': '#0f172a', 'theme_color': '#0f172a',
+        'icons': [{'src': '/static/images/quick-icon-180.png', 'sizes': '180x180', 'type': 'image/png'},
+                  {'src': '/static/images/quick-icon-512.png', 'sizes': '512x512', 'type': 'image/png'}],
+    })
+    resp.mimetype = 'application/manifest+json'
+    return resp
+
+
 @app.route('/messages')
 def messages_page():
     """Phone page for messaging guests: arriving (or staying) guests, each with the journey strip

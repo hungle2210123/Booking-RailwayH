@@ -514,6 +514,15 @@ by the sheet after its over-total confirm) when the booking is already paid and 
 5 bookings counted exactly twice (Philippe 19.19M → 9.59M, Chiara Gelmi, Jorge Nava, Hong Tran, AIR8n) were corrected
 (booking_history 'fix_double_collect', backup BACKUP_BEFORE_CLEANUP/double_collected_fix_2026-10-18.json).
 
+### **⚡ /tin-nhanh — iPhone home-screen "app" (`quick_page`, `templates/quick.html`)**
+Standalone page (no base layout) + `/tin-nhanh.webmanifest` + apple-touch-icon `static/images/quick-icon-180.png`
+(512 too): Safari → Chia sẻ → Thêm vào MH chính opens it full screen (hint shown in Safari when not installed).
+Groups: 📌 Hay dùng (journey_prefs favorites with an id — the same pins as ⚡ Tin nhanh; ✕ unpins, "＋ Chọn mẫu hay dùng"
+= picker over all templates, saved via /api/journey/prefs) · 💬 Nhắn khách (confirm step) · 👋 Chào & địa chỉ (welcome per
+apartment) · 🛂 Passport · 🔑 Nhận phòng (checkin per apartment, + 🇻🇳 Việt) · 💳 Thanh toán (payment per apartment) — the
+same templates as the /messages journey (`journey_map`). Each row: 🖼 N ảnh (pictures only, prefetched as Files) ·
+📤 Chữ (`navigator.share({text})`, tokens filled without a guest) · 🇻🇳 (check-in only) · 📋.
+
 ### **📋 Mẫu Câu page (`/ai_assistant`, `ai_assistant.html`) — text and pictures apart (owner, Oct 18)**
 Owner (Oct 18): ONE tap must open the phone's share sheet — no in-between sheet, one slim send row per open card
 (`.tpl-send`): 📤 Gửi chữ = `tplShareText(id,'en')` → `navigator.share({text})` (tokens filled like the server without a
