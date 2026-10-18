@@ -310,7 +310,8 @@ Each template can have a Vietnamese version (column added in `J.ensure`). The se
 🇬🇧 English / 🇻🇳 Tiếng Việt · Zalo; 🔵 Zalo always switches to and copies the Vietnamese text; Vietnamese guests
 (`vn` code or Vietnamese letters in the name, `_vn_guest_name`) open in Vietnamese. {ten} without a name = "bạn".
 ✏️ Sửa mẫu gốc edits both (`GET/POST /api/journey/vi/<id>`). Written (friendly "mình/bạn … nha/nhé" style) for every
-journey-step template + Taxi + Cảm ơn + Passport (CCCD for Vietnamese guests); floors: EN "1st floor" = VN "tầng 2".
+journey-step template + Taxi + Cảm ơn + Passport (CCCD for Vietnamese guests; the Vietnamese check-in guides do NOT ask
+for CCCD — owner, Oct 18; old texts in BACKUP_BEFORE_CLEANUP/checkin_vi_cccd_2026-10-18.json); floors: EN "1st floor" = VN "tầng 2".
 Templates without one show a hint and Zalo copies the English. Zalo cannot pre-fill a message (zalo.me only opens the
 chat): the 🔵 Zalo tap copies synchronously (`copyNow`, readonly textarea + execCommand, before the page leaves) and
 a separate "📋 Chép tin tiếng Việt (Zalo)" button copies without leaving; the owner pastes in Zalo (giữ ô nhập → Dán).
