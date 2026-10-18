@@ -2688,8 +2688,8 @@ document.getElementById('manualBookingForm').addEventListener('submit', function
                                 </div>
                                 <div class="template-snippet">${makeSnippetVi(templateContent, terms)}</div>
                             </div>
-                            <button class="btn btn-sm btn-success quick-copy" onclick="event.stopPropagation(); Journey.quick('${templateId}')" title="Nhắn thẳng cho khách (WhatsApp / Zalo / SMS)">
-                                💬<span class="d-none d-sm-inline"> Nhắn khách</span>
+                            <button class="btn btn-sm btn-success quick-copy" onclick="event.stopPropagation(); tplShareText('${templateId}', 'en', this)" title="Gửi chữ: chọn WhatsApp / Zalo → chọn khách">
+                                📤<span class="d-none d-sm-inline"> Gửi chữ</span>
                             </button>
                         </div>
 
@@ -2706,11 +2706,17 @@ document.getElementById('manualBookingForm').addEventListener('submit', function
                                 <div class="tpl-part">
                                     <div class="tpl-part-h">① Chữ</div>
                                     <div class="d-flex gap-2 flex-wrap">
-                                        <button class="btn btn-success tpl-big" onclick="Journey.quick('${templateId}')" title="Chọn khách → mở WhatsApp / Zalo / SMS với tin soạn sẵn">
-                                            💬 Nhắn thẳng cho khách
+                                        <button class="btn btn-success tpl-big" onclick="tplShareText('${templateId}', 'en', this)" title="Mở bảng chia sẻ: chọn WhatsApp / Zalo → chọn khách → Gửi">
+                                            📤 Gửi chữ
+                                        </button>
+                                        <button class="btn btn-success tpl-big d-none" id="tplvi-${templateId}" onclick="tplShareText('${templateId}', 'vi', this)" title="Gửi bản tiếng Việt (Zalo)">
+                                            🇻🇳 Gửi tiếng Việt
                                         </button>
                                         <button class="btn btn-outline-primary tpl-big" onclick="useTemplate('${templateId}')" title="Chép chữ">
-                                            📋 Chép chữ
+                                            📋 Chép
+                                        </button>
+                                        <button class="btn btn-link btn-sm" onclick="Journey.quick('${templateId}')" title="Chọn khách trong danh sách → mở đúng chat của khách (khách chưa lưu danh bạ)">
+                                            👤 Chọn khách…
                                         </button>
                                     </div>
                                 </div>
@@ -3427,6 +3433,33 @@ document.getElementById('manualBookingForm').addEventListener('submit', function
             .catch(() => null)))
           .then(files => { _tplFiles[templateId] = files.filter(Boolean); });
     };
+    const _tplVi = {};
+    function _tplFill(t, lang) {
+        return String(t || '').replace(/\{ten\}/g, lang === 'vi' ? 'bạn' : 'there')
+            .replace(/\{(nhan|tra|phong|can|cho|diachi)\}/g, '').replace(/[ \t]+\n/g, '\n').trim();
+    }
+    window.tplLoadVi = function (templateId) {
+        if (templateId in _tplVi) return;
+        _tplVi[templateId] = '';
+        fetch('/api/journey/vi/' + templateId).then(r => r.json()).then(d => {
+            _tplVi[templateId] = (d && d.text_vi) || '';
+            const b = document.getElementById('tplvi-' + templateId);
+            if (b && _tplVi[templateId]) b.classList.remove('d-none');
+        }).catch(() => {});
+    };
+    // ① one tap → the phone's share sheet with the text: choose WhatsApp / Zalo, choose the chat, Gửi.
+    // No share sheet (computer) → the text is copied instead.
+    window.tplShareText = function (templateId, lang, btn) {
+        const t = (window.templates || []).find(x => x.id == templateId);
+        const raw = lang === 'vi' ? _tplVi[templateId] : (t && (t.content || t.Message));
+        const text = _tplFill(raw, lang);
+        if (!text) { showToast('Mẫu chưa có nội dung', 'error'); return; }
+        if (navigator.share) {
+            navigator.share({ text }).catch(e => { if (e.name !== 'AbortError') showToast('❌ ' + e.message, 'error'); });
+        } else {
+            window.copyToClipboard(text).then(() => showToast('Đã chép chữ — dán vào WhatsApp / Zalo', 'success'));
+        }
+    };
     window.tplShareImages = function (templateId, btn) {
         const files = _tplFiles[templateId];
         if (!files) { showToast('Đang tải ảnh… bấm lại sau 1 giây', 'info'); return; }
@@ -3481,6 +3514,7 @@ document.getElementById('manualBookingForm').addEventListener('submit', function
     // Load template images for main gallery display (Enhanced with legacy support)
     async function loadTemplateImages(templateId) {
         try {
+            window.tplLoadVi && window.tplLoadVi(templateId);
             const container = document.getElementById(`template-images-${templateId}`);
             if (!container) return;
             

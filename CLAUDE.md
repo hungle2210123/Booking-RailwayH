@@ -297,6 +297,7 @@ WhatsApp got "đã nhắn"): `askSent` puts a bar above the send buttons "Tin �
 `no_whatsapp` / `no_zalo` (`J.NO_CHANNEL_KEYS`, part of `J.NOT_A_MESSAGE`, ignored by last_contact / unreachable_at):
 the sheet shows "⚠️ Khách không dùng WhatsApp · bỏ" (tap = remove) and dims that button; the /messages card shows it
 next to the phone. The share sheet still logs on its own — it resolves only when sent.
+Without a guest (⚡ Tin nhanh / Mẫu Câu) the editor also has 📤 Gửi chữ = share sheet with the text (`.jr-sharetext`).
 Text and pictures are sent SEPARATELY (owner, Oct 18: WhatsApp drops one when both go in one share): the editor shows
 "① Gửi chữ" (textarea + WhatsApp / Zalo / SMS / copy) then "② Gửi N ảnh riêng" (thumbnails + 📤 Gửi ảnh cho khách =
 `navigator.share({files})` only, + 📋 Sao chép ảnh = first picture as PNG for WhatsApp Web / Zalo PC). The old combined
@@ -504,10 +505,12 @@ Removed unauthenticated debug routes incl. `/api/clear_imported_data` (wiped all
 Commission is intentionally NOT shown on the dashboard (owner decision: most direct-pay guests cancel on Booking).
 
 ### **📋 Mẫu Câu page (`/ai_assistant`, `ai_assistant.html`) — text and pictures apart (owner, Oct 18)**
-Card header button = 💬 Nhắn khách (`Journey.quick(id)`: pick a guest → WhatsApp / Zalo / SMS with the text). Open card:
-"① Chữ" (💬 Nhắn thẳng cho khách · 📋 Chép chữ = `useTemplate`) then "② Ảnh" (gallery; 📋 Chép on every picture =
-`tplCopyImage`, PNG to the clipboard; 📤 Gửi N ảnh cho khách = `tplShareImages`, pictures only through the share sheet,
-files prefetched by `tplPrefetch` so the share opens inside the tap). A picture whose file is gone shows "⚠️ Ảnh đã mất"
+Owner (Oct 18): ONE tap must open the phone's share sheet — no in-between sheet. Card header button 📤 Gửi chữ and
+"① Chữ" 📤 Gửi chữ = `tplShareText(id,'en')` → `navigator.share({text})` (tokens filled like the server without a guest:
+{ten} = there / bạn, others empty; no share sheet → copied); 🇻🇳 Gửi tiếng Việt (shown when the template has a Vietnamese
+version, fetched by `tplLoadVi` when the card opens); 📋 Chép; 👤 Chọn khách… (`Journey.quick`, for a guest not in the
+phone's contacts). "② Ảnh" (gallery; 📋 Chép on every picture = `tplCopyImage`, PNG to the clipboard; 📤 Gửi N ảnh cho
+khách = `tplShareImages`, pictures only through the share sheet, files prefetched by `tplPrefetch` so the share opens inside the tap). A picture whose file is gone shows "⚠️ Ảnh đã mất"
 (`tplImgLost`). "Thêm ảnh" (`POST /api/templates/<id>/images`) now also stores the bytes in `template_images.image_data`
 — before, it only wrote to Railway's disk, which every deploy wipes (IMG_3831 QR added to templates 71/120/158 was lost;
 those 3 dead rows were deleted). Max 3 pictures per template.

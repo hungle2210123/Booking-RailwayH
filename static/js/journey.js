@@ -71,6 +71,7 @@
       .jr-dim{opacity:.45;}
       .jr-share{background:#16a34a;} .jr-wa{background:#25d366;} .jr-zalo{background:#0068ff;} .jr-sms{background:#2563eb;}
       .jr-copy{background:#475569;} .jr-imgonly{background:#7c3aed;}
+      .jr-sharetext{background:#16a34a;}
       .jr-stepl{font-size:.8rem;font-weight:700;color:#334155;margin:12px 0 4px;}
       .jr-imgact{display:flex;gap:8px;margin-top:8px;}
       .jr-imgact button{border:none;border-radius:12px;padding:13px 10px;font-weight:800;font-size:.95rem;font-family:inherit;color:#fff;}
@@ -360,6 +361,11 @@
         <a class="jr-wa wide" target="_blank" rel="noopener">🟢 WhatsApp${images.length ? ' (chữ)' : ''}</a>
         <a class="jr-zalo" target="_blank" rel="noopener">🔵 Zalo${texts.vi ? ' · tự chép tin Việt' : ''}</a>
         <a class="jr-sms">💬 SMS</a>`);
+    }
+    // no guest picked (⚡ Tin nhanh / Mẫu Câu): one tap → the phone's share sheet with the text (WhatsApp → chat → Gửi)
+    if (!L && navigator.share) {
+      btns.insertAdjacentHTML('beforeend', `<button type="button" class="jr-sharetext wide">📤 Gửi chữ — chọn WhatsApp / Zalo</button>`);
+      btns.querySelector('.jr-sharetext').onclick = () => navigator.share({ text: st.text }).catch(() => {});
     }
     if (texts.vi) btns.insertAdjacentHTML('beforeend', `<button type="button" class="jr-copyvi">📋 Chép tin tiếng Việt (Zalo)</button>`);
     btns.insertAdjacentHTML('beforeend', `<button type="button" class="jr-copy">📋 Chép tin${texts.vi ? ' đang hiện' : ''}</button>`);
