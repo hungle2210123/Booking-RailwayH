@@ -1,0 +1,32 @@
+[
+ {
+  "booking_id": "6404901587",
+  "guest": "Hong Tran",
+  "room_amount": 650000.0,
+  "collected_amount_before": 1300000.0
+ },
+ {
+  "booking_id": "AIR8n",
+  "guest": "Khach AIR 8 dem",
+  "room_amount": 2200000.0,
+  "collected_amount_before": 4400000.0
+ },
+ {
+  "booking_id": "5553764080",
+  "guest": "Jorge Nava",
+  "room_amount": 381888.0,
+  "collected_amount_before": 763776.0
+ },
+ {
+  "booking_id": "5974449038",
+  "guest": "Philippe COULOIGNER",
+  "room_amount": 9594800.0,
+  "collected_amount_before": 19189600.0
+ },
+ {
+  "booking_id": "5261285824",
+  "guest": "Chiara Gelmi",
+  "room_amount": 5692444.0,
+  "collected_amount_before": 11384888.0
+ }
+]

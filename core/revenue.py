@@ -48,14 +48,14 @@ def load_bookings(session, text):
         SELECT booking_id, guest_name, checkin_date, checkout_date,
                room_amount, collected_amount, commission, commission_status,
                collector, booking_status, checkin_status, arrival_confirmed,
-               actual_apartment, accommodation_name
+               actual_apartment, accommodation_name, taxi_amount
         FROM bookings
         WHERE checkin_date IS NOT NULL
     """)).fetchall()
     keys = ('booking_id', 'guest_name', 'checkin_date', 'checkout_date',
             'room_amount', 'collected_amount', 'commission', 'commission_status',
             'collector', 'booking_status', 'checkin_status', 'arrival_confirmed',
-            'actual_apartment', 'accommodation_name')
+            'actual_apartment', 'accommodation_name', 'taxi_amount')
     return [dict(zip(keys, r)) for r in rows]
 
 
@@ -101,7 +101,12 @@ def classify(b, today):
     else:
         return None   # > 2 days past arrival, never confirmed, never paid → no-show
 
-    value = (collected if collected > 0 else room) if paid else room
+    # paid → the money actually collected for the ROOM (a taxi collected with it is not room revenue)
+    taxi = _f(b.get('taxi_amount'))
+    room_paid = collected - taxi if 0 < taxi < collected else collected
+    value = (room_paid if room_paid > 0 else room) if paid else room
+    # collected ≠ room price (double "Thu tiền", different price agreed…) → shown next to the night so it gets checked
+    mismatch = bool(paid and room > 0 and room_paid > 0 and abs(room_paid - room) > 1000)
     return {
         'booking_id': b['booking_id'],
         'name': b.get('guest_name') or b['booking_id'],
@@ -110,6 +115,8 @@ def classify(b, today):
         'apartment_id': str(b.get('actual_apartment') or '').strip(),
         'value': value,
         'per_night': value / nights,
+        'room_per_night': room / nights,
+        'mismatch': mismatch,
         'paid': paid,
         'collector': collector if paid else '',
         'state': state,
@@ -259,6 +266,7 @@ def build_overview(bookings, rooms, month, apartments, expenses_by_month=None, t
             'booking_id': x['booking_id'], 'name': x['name'],
             'apartment': apt_names.get(x['apartment_id'], ''), 'listing': x['listing'],
             'per_night': x['per_night'], 'status': kind, 'status_label': STATUS_LABELS[kind],
+            'room_per_night': x['room_per_night'], 'mismatch': x['mismatch'],
             'checkin': x['checkin'].isoformat(), 'checkout': x['checkout'].isoformat(), 'nights': x['nights'],
             'is_arrival': x['checkin'] == d, 'is_last_night': x['checkout'] == d + timedelta(days=1),
         }

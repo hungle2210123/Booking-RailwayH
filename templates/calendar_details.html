@@ -2211,7 +2211,7 @@ setInterval(loadVbCd, 5 * 60 * 1000);
                                 </h6>
                                 <p class="h4 text-success" id="rev-confirmed-amount">{{ "{:,.0f}".format(day_revenue_info.daily_total) }}đ</p>
 
-                                {% if day_revenue_info.daily_total_minus_commission != day_revenue_info.daily_total %}
+                                {% if false %}{# commission no longer tracked (owner, Oct 18) #}
                                 <hr>
                                 <h6 class="text-primary"><i class="fas fa-minus-circle"></i> Sau Trừ Hoa Hồng</h6>
                                 <p class="h4 text-primary" id="rev-confirmed-net">{{ "{:,.0f}".format(day_revenue_info.daily_total_minus_commission) }}đ</p>
@@ -2238,7 +2238,7 @@ setInterval(loadVbCd, 5 * 60 * 1000);
                     <!-- Detailed Booking Breakdown -->
                     {% if day_revenue_info.bookings %}
                     <hr>
-                    <h6 class="mb-3"><i class="fas fa-list"></i> Chi Tiết Từng Booking - Phân Tích Hoa Hồng</h6>
+                    <h6 class="mb-3"><i class="fas fa-list"></i> Chi Tiết Từng Booking</h6>
                     <div class="table-responsive">
                         <table class="table table-sm table-hover booking-breakdown-table">
                             <thead class="table-dark">
@@ -4299,7 +4299,7 @@ function renderCompactCalendarForPage(dailyData, year, month, selectedDay) {
                         <div class="guest-pricing small">
                             <div class="text-success fw-bold">💰 ${totalAmount}</div>
                             <div class="text-info">📅 ${pricePerNight}/đêm (${nights} đêm)</div>
-                            ${hasCommission ? `
+                            ${false ? `
                                 <div class="text-warning fw-bold" style="font-size: 0.8em;">
                                     <i class="fas fa-percentage"></i> Hoa hồng: ${commission.toLocaleString('vi-VN')}đ
                                 </div>
@@ -5046,7 +5046,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         <input type="number" class="form-control" id="edit_room_amount" name="room_amount" step="1000" required>
                     </div>
 
-                    <div class="mb-3">
+                    <div class="mb-3" style="display:none">{# commission not tracked any more — the stored value is kept #}
                         <label for="edit_commission" class="form-label">
                             <i class="fas fa-percentage me-1 text-info"></i>Hoa hồng (VND)
                         </label>
@@ -6677,6 +6677,11 @@ function showQuickToast(msg, type) {
      red = act now (chưa thu, báo hủy) · amber = soon (trả hôm nay / mai) · green = done (xác nhận đến, đã nhắn)
      · the apartment's colour only on the card's left edge and its name chip · everything else black / grey / white -->
 <style id="calm-colours">
+  /* commission is not tracked any more (owner, Oct 18) */
+  body .commission-badge, body .booking-breakdown-table i.fa-percentage, body .booking-breakdown-table i.fa-check { display:none !important; }
+  body .booking-breakdown-table th:nth-child(4), body .booking-breakdown-table td:nth-child(4),
+  body .booking-breakdown-table th:nth-child(5), body .booking-breakdown-table td:nth-child(5),
+  body .booking-breakdown-table th:nth-child(6), body .booking-breakdown-table td:nth-child(6) { display:none !important; }
   /* 📵 could not be reached: dimmed, comes back on hover / tap so it can still be handled */
   body .guest-card.cd-unreach { opacity:.42; filter:grayscale(1); transition:opacity .15s, filter .15s; }
   body .guest-card.cd-unreach:hover, body .guest-card.cd-unreach:focus-within, body .guest-card.cd-unreach.cd-open { opacity:1; filter:none; }

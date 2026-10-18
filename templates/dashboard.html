@@ -312,7 +312,7 @@
                     <li><b>Dự kiến</b>: các đêm sau hôm nay đã có người đặt — chỉ để tham khảo, không cộng vào doanh thu.</li>
                     <li>Không tính: khách hủy / báo hủy / không đến, và khách quá 2 ngày sau ngày đến vẫn chưa xác nhận, chưa thu.</li>
                     <li><b>Chưa thu</b>: khách đã xác nhận đến nhưng chưa ghi nhận thu tiền.</li>
-                    <li><b>Lãi ước tính</b> = Doanh thu − chi phí loại "Công việc" (nhập ở trang Chi phí). Hoa hồng chưa được trừ.</li>
+                    <li><b>Lãi ước tính</b> = Doanh thu − chi phí loại "Công việc" (nhập ở trang Chi phí).</li>
                     <li><b>Công suất</b> = đêm phòng đã bán ÷ (số phòng × số ngày). Hiện "—" khi số đêm bán vượt số phòng đang khai báo (giai đoạn chưa nhập đủ phòng).</li>
                     <li><b>Giá TB/đêm</b> = doanh thu ÷ đêm phòng bán. <b>Doanh thu/phòng (RevPAR)</b> = doanh thu ÷ (số phòng × số ngày).</li>
                     <li>Theo căn hộ dựa trên căn đã chọn cho khách ở trang Lịch.</li>
@@ -413,7 +413,8 @@
                     ${g.is_arrival ? '<span class="tag in">vào hôm nay</span>' : ''}${g.is_last_night ? '<span class="tag out">đêm cuối</span>' : ''}</div>
                 <div class="sub">${ddmm(g.checkin)} → ${ddmm(g.checkout)} · ${g.nights} đêm · <span class="pill ${g.status}">${esc(g.status_label)}</span></div>
             </div>
-            <div class="amt">${fmt(g.per_night)}<div class="sub" style="font-weight:600">/đêm</div></div>
+            <div class="amt">${fmt(g.per_night)}<div class="sub" style="font-weight:600">/đêm</div>
+                ${g.mismatch ? `<div class="sub" style="color:#b45309;font-weight:700" title="Số đã thu khác giá phòng — kiểm tra lại (thu trùng? giá khác?)">⚠️ giá phòng ${fmt(g.room_per_night)}/đêm</div>` : ''}</div>
         </div>`).join('') : '<div class="empty">Không có khách đã xác nhận ở đêm này</div>';
         const pending = x.pending.length ? `<div class="pend-head">⏳ Chờ xác nhận đến — chưa tính vào doanh thu
                 (${x.pending.length} khách · ${short(x.pending_value)})</div>`
@@ -422,7 +423,8 @@
                     <div class="nm">${esc(g.name)}<span class="tag apt" style="opacity:.7">${esc(g.apartment || g.listing || 'Chưa xếp căn')}</span></div>
                     <div class="sub">${ddmm(g.checkin)} → ${ddmm(g.checkout)} · ${g.nights} đêm</div>
                 </div>
-                <div class="amt">${fmt(g.per_night)}<div class="sub" style="font-weight:600">/đêm</div></div>
+                <div class="amt">${fmt(g.per_night)}<div class="sub" style="font-weight:600">/đêm</div>
+                ${g.mismatch ? `<div class="sub" style="color:#b45309;font-weight:700" title="Số đã thu khác giá phòng — kiểm tra lại (thu trùng? giá khác?)">⚠️ giá phòng ${fmt(g.room_per_night)}/đêm</div>` : ''}</div>
             </div>`).join('') : '';
         box.innerHTML = head + rows + pending;
     }

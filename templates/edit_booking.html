@@ -237,7 +237,7 @@
                             <label for="total_payment"><i class="fas fa-coins me-1"></i>Tổng thanh toán (VND)</label>
                             <input type="number" id="total_payment" name="room_amount" value="{{ booking.get('Tổng thanh toán', 0) }}" step="any" required>
                         </div>
-                        <div class="form-group">
+                        <div class="form-group" style="display:none">{# commission not tracked any more — stored value kept #}
                             <label for="commission"><i class="fas fa-percentage me-1 text-warning"></i>Hoa hồng (VND)</label>
                             <input type="number" id="commission" name="commission" value="{{ booking.get('Hoa hồng', 0) }}" 
                                    placeholder="Nhập số tiền hoa hồng" min="0" step="any">

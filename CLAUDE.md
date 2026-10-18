@@ -503,6 +503,16 @@ that day; shown "—" when nights sold exceed rooms on record). No debt lists on
 Expense tools live at `/expenses` (`templates/expenses.html`).
 Removed unauthenticated debug routes incl. `/api/clear_imported_data` (wiped all bookings).
 Commission is intentionally NOT shown on the dashboard (owner decision: most direct-pay guests cancel on Booking).
+Oct 18: commission is no longer tracked ANYWHERE — hidden on calendar_details (card "HH" badge, "Sau trừ hoa hồng",
+breakdown columns, edit field), the month calendar, /bookings (column + modals) and edit_booking; the column and old
+values stay in the DB and forms keep the stored value. /api/collect_payment no longer resets commission to 0 when the
+caller sends none (the calendar's Thu tiền never sent it).
+Revenue = money collected for the ROOM: `collected − taxi_amount` (`room_paid`); a paid booking whose room money differs
+from the room price by > 1,000đ is flagged on the dashboard day list ("⚠️ giá phòng X/đêm"). Double "Thu tiền" is
+refused: /api/collect_payment (409 `duplicate`, unless `allow_duplicate`) and /api/pay/collect (unless `force`, sent
+by the sheet after its over-total confirm) when the booking is already paid and the same full amount comes again.
+5 bookings counted exactly twice (Philippe 19.19M → 9.59M, Chiara Gelmi, Jorge Nava, Hong Tran, AIR8n) were corrected
+(booking_history 'fix_double_collect', backup BACKUP_BEFORE_CLEANUP/double_collected_fix_2026-10-18.json).
 
 ### **📋 Mẫu Câu page (`/ai_assistant`, `ai_assistant.html`) — text and pictures apart (owner, Oct 18)**
 Owner (Oct 18): ONE tap must open the phone's share sheet — no in-between sheet, one slim send row per open card

@@ -2857,6 +2857,10 @@ def pay_collect():
     if not row:
         return jsonify({'success': False, 'error': 'Không tìm thấy đặt phòng'}), 404
     old = float(row[0] or 0)
+    room = float(_xdb.session.execute(text("SELECT room_amount FROM bookings WHERE booking_id = :b"), {'b': bid}).scalar() or 0)
+    if not undo and not d.get('force') and room > 0 and old >= room - 1000 and abs(amount - room) <= 1000:
+        return jsonify({'success': False, 'duplicate': True,
+                        'error': f'Khách này đã thu đủ {_vnd(old)}đ — không ghi thêm lần nữa (tránh thu trùng)'}), 409
     new = old - amount if undo else old + amount
     if new < 0:
         return jsonify({'success': False, 'error': 'Số tiền đã thu không thể âm'}), 400
@@ -9108,7 +9112,7 @@ def collect_payment():
         if commission_type == 'none':
             update_data['commission'] = 0
             print("[COLLECT_PAYMENT] Setting commission to 0 (no commission)")
-        elif commission_amount is not None:  # FIXED: Removed > 0 condition
+        elif 'commission_amount' in data and commission_amount is not None:  # only when the caller sent one (the calendar's Thu tiền does not)
             update_data['commission'] = float(commission_amount)
             print(f"[COLLECT_PAYMENT] Setting commission to {commission_amount}")
         else:
@@ -9121,6 +9125,13 @@ def collect_payment():
         from core.models import Booking as _BookingModel
         existing_booking = _BookingModel.query.get(booking_id)
         existing_collected = float(existing_booking.collected_amount or 0) if existing_booking else 0
+        _room = float(existing_booking.room_amount or 0) if existing_booking else 0
+        if (payment_type != 'taxi' and collector_name != 'SYSTEM' and _room > 0 and existing_collected >= _room - 1000
+                and abs(float(collected_amount or 0) - _room) <= 1000 and not data.get('allow_duplicate')):
+            # the same full amount again on a booking already paid = a double tap (Philippe / Chiara were counted twice)
+            return jsonify({'success': False, 'duplicate': True,
+                            'message': f'⚠️ Khách này đã thu đủ {existing_collected:,.0f}đ — không ghi thêm lần nữa (tránh thu trùng). '
+                                       f'Cần sửa số tiền thì dùng Sửa booking.'}), 409
         total_collected = existing_collected + float(collected_amount)
         update_data['collected_amount'] = total_collected
         print(f"[COLLECT_PAYMENT] 💰 Cumulative collected: {existing_collected} + {collected_amount} = {total_collected}")
@@ -9128,7 +9139,7 @@ def collect_payment():
 
         # 🆕 UPDATE commission_status based on commission decision
         valid_commission_statuses = ['pending', 'confirmed', 'cancelled']
-        if commission_status in valid_commission_statuses:
+        if 'commission_status' in data and commission_status in valid_commission_statuses:
             update_data['commission_status'] = commission_status
             print(f"[COLLECT_PAYMENT] 🆕 Setting commission_status to: {commission_status}")
         else:

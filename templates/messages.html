@@ -711,10 +711,11 @@
       const amount = num(amt.value);
       if (!amount) { err.textContent = 'Nhập số tiền'; return; }
       if (!who) { err.textContent = 'Chọn người thu'; return; }
-      if (got + amount > total + 1000 && !confirm(`Tổng đã thu sẽ là ${fmt(got + amount)}đ — nhiều hơn tiền phòng ${fmt(total)}đ. Vẫn lưu?`)) return;
+      const over = got + amount > total + 1000;
+      if (over && !confirm(`Tổng đã thu sẽ là ${fmt(got + amount)}đ — nhiều hơn tiền phòng ${fmt(total)}đ. Vẫn lưu?`)) return;
       try { localStorage.setItem('pay_collector', who); } catch (e) {}
       $('.pay-go').disabled = true;
-      const r = await post('/api/pay/collect', { booking_id: d.bid, amount, collector: who, method });
+      const r = await post('/api/pay/collect', { booking_id: d.bid, amount, collector: who, method, force: over });
       if (!r || !r.success) { $('.pay-go').disabled = false; err.textContent = '❌ ' + ((r && r.error) || 'Không lưu được'); return; }
       close();
       toast(`💰 Đã ghi thu ${fmt(amount)}đ · ${esc(d.name)} — lịch cập nhật`, async () => {
