@@ -520,16 +520,17 @@ Standalone page (no base layout) + `/tin-nhanh.webmanifest` + apple-touch-icon `
 (512 too): Safari → Chia sẻ → Thêm vào MH chính opens it full screen (hint shown in Safari when not installed).
 Groups: 📌 Hay dùng (journey_prefs favorites with an id — the same pins as ⚡ Tin nhanh; ✕ unpins, "＋ Chọn mẫu hay dùng"
 = picker over all templates, saved via /api/journey/prefs) · 💬 Nhắn khách (confirm step) · 👋 Chào & địa chỉ (welcome per
-apartment) · 🛂 Passport · 🔑 Nhận phòng (checkin per apartment, + 🇻🇳 Việt) · 💳 Thanh toán (payment per apartment) — the
+apartment) · 🧳 Gửi hành lý (luggage step: 'Đến sớm · chung' = default + one per apartment; 19 TN = template 221,
+mapped Oct 19) · 🛂 Passport · 🔑 Nhận phòng (checkin per apartment, + 🇻🇳 Việt) · 💳 Thanh toán (payment per apartment) — the
 same templates as the /messages journey (`journey_map`). Each row: 🖼 N ảnh (pictures only, prefetched as Files) ·
 📤 Chữ (`navigator.share({text})`, tokens filled without a guest) · 🇻🇳 (check-in only) · 📋.
-Layout: a 3×2 grid of tabs (name · count), ONE group shown at a time (`go(i)`, last tab remembered in localStorage
+Layout: a 4-column grid of tabs (7 groups) (name · count), ONE group shown at a time (`go(i)`, last tab remembered in localStorage
 `quick_tab`). Calm look (owner, Oct 18 "tối giản, đừng màu mè"): white cards, grey lines, light header, the only dark
 colour = the active tab and 📤 Gửi chữ; no per-group colours. Every row has ✏️ Sửa (edits the template itself, EN + VI,
 same as "Sửa mẫu gốc": PUT /api/templates/<id> + POST /api/journey/vi/<id>) and ✕ (confirm). ✕ on a group's built-in
 row hides it (journey_prefs 'quick_hidden', `builtin: true` on /api/quick/extra; the template and /messages are untouched)
 — it comes back from the picker ("· mặc định").
-Every group (QUICK_GROUPS keys pin/msg/welcome/passport/checkin/payment) ends with "＋ Thêm mẫu vào <group>" → picker over
+Every group (QUICK_GROUPS keys pin/msg/welcome/luggage/passport/checkin/payment) ends with "＋ Thêm mẫu vào <group>" → picker over
 all templates (templates the group shows by itself = "✓ có sẵn"). 📌 Hay dùng saves to the journey favorites; the other
 groups save to journey_prefs 'quick_extra' {group: [template ids]} via `POST /api/quick/extra {group, id, on}`. Added
 rows read "➕ <template name>" and have ✕ to take them out (check-in additions also get 🇻🇳 when a Vietnamese text exists).

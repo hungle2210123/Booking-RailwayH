@@ -2963,6 +2963,9 @@ def quick_page():
     add_default('msg', '🕐 Xác nhận & hỏi giờ đến', J.template_for(jmap, 'confirm', None))
     for a in apts:
         add_default('welcome', f"👋 {a['name']}", J.template_for(jmap, 'welcome', a['id']))
+    add_default('luggage', '🧳 Đến sớm · chung', J.template_for(jmap, 'luggage', None))
+    for a in apts:
+        add_default('luggage', f"🧳 {a['name']}", J.template_for(jmap, 'luggage', a['id']))
     add_default('passport', '🛂 Xin passport / visa', J.template_for(jmap, 'passport', None))
     for a in apts:
         add_default('checkin', f"🔑 {a['name']}", J.template_for(jmap, 'checkin', a['id']), vi=True)
@@ -2992,8 +2995,8 @@ def quick_page():
                            fixed=defaults)
 
 
-QUICK_GROUPS = [('pin', '📌 Hay dùng'), ('msg', '💬 Nhắn khách'), ('welcome', '👋 Chào & địa chỉ'),
-                ('passport', '🛂 Passport'), ('checkin', '🔑 Nhận phòng'), ('payment', '💳 Thanh toán')]
+QUICK_GROUPS = [('pin', '📌 Hay dùng'), ('msg', '💬 Nhắn khách'), ('welcome', '👋 Địa chỉ'),
+                ('luggage', '🧳 Gửi hành lý'), ('passport', '🛂 Passport'), ('checkin', '🔑 Nhận phòng'), ('payment', '💳 Thanh toán')]
 
 
 def _quick_extra(_xdb, pref='quick_extra'):
