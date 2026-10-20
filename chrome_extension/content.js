@@ -57,6 +57,9 @@
       .tag.cx { display: inline-block; font-size: 10px; font-weight: 800; background: #dc2626; color: #fff; border-radius: 6px; padding: 0 6px; margin-left: 4px; }
       .paid { margin-top: 8px; font-size: 12px; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 6px 8px; color: #166534; }
       .toast { position: absolute; right: 0; bottom: 56px; width: 300px; max-width: calc(100vw - 36px); background: #0f172a; color: #fff; font-size: 13px; line-height: 1.4; border-radius: 12px; padding: 10px 12px; box-shadow: 0 8px 24px rgba(0,0,0,.25); }
+      .toast { cursor: pointer; }
+      /* a panel is open → the toast goes to the top of the screen so it never covers the panel's buttons */
+      .panel.open ~ #toast { position: fixed; top: 18px; bottom: auto; right: 18px; }
       .toast.ok { background: #166534; } .toast.warn { background: #b45309; } .toast.partner { background: #6d28d9; }
       .fab2 { background: #16a34a; margin-right: 8px; } .fab2:hover { background: #15803d; }
       .fab3 { background: #4f46e5; margin-right: 8px; } .fab3:hover { background: #4338ca; }
@@ -496,7 +499,8 @@
     let el = $('#toast');
     if (!el) { el = document.createElement('div'); el.id = 'toast'; root.appendChild(el); }
     el.className = 'toast ' + (kind || '');
-    el.innerHTML = html;
+    el.innerHTML = html + ' <span style="opacity:.6">· bấm để tắt</span>';
+    el.onclick = () => { clearTimeout(toastTimer); el.remove(); };
     clearTimeout(toastTimer); toastTimer = setTimeout(() => el.remove(), ms);
   }
   // "Đối tác Booking.com" box: booked through a partner company. The number shown is the partner's
