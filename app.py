@@ -1588,8 +1588,11 @@ def _ext_diff(existing, f):
     # it is only stored when a new booking is created.
     if f['listing'] and f['listing'] != existing['listing']:
         updates['accommodation_name'] = f['listing']; changes.append(f"phòng: {existing['listing'] or '—'} → {f['listing']}")
-    if f['cancelled'] and existing['booking_status'] != 'cancelled':
-        updates['booking_status'] = 'cancelled'; changes.append('ĐÃ HỦY trên Booking')
+    # Cancelled on Booking → the calendar's "Báo hủy" (checkin_status 'cancelling'), NOT booking_status 'cancelled':
+    # a wrong tick hid the guest from /messages and the calendar with no way back (owner, Oct 20). The card stays on
+    # the calendar marked Báo hủy and is undone / confirmed there.
+    if f['cancelled'] and existing['booking_status'] != 'cancelled' and existing['checkin_status'] != 'cancelling':
+        updates['checkin_status'] = 'cancelling'; changes.append('Báo hủy (hủy trên Booking)')
     return updates, changes
 
 

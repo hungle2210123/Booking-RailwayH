@@ -446,6 +446,12 @@ owner: needed to recognise the room); /messages cards show the FULL picture (zoo
 image (`HotelCard.prefetch` on step 1) — share must run inside the tap, so it is fetched ahead.
 Room names shown to guests go through `_room_label()` / `looks_like_room()` (a Booking notice was once stored as a room).
 
+### **🚫 "Đã hủy trên Booking" = Báo hủy, never hidden (ext 1.18.2, owner Oct 20)**
+A reservation the extension sees as cancelled (detail page tick "Khách đã HỦY trên Booking.com" or the list page status)
+sets `checkin_status = 'cancelling'` (the calendar's "Báo hủy", undo / confirm there) in `_ext_diff` — it no longer sets
+`booking_status = 'cancelled'`, which hid the guest from /messages and the calendar with no way back (Sandrine Cadiou
+6879991448 was ticked by mistake and restored, history 'owner_restore'). New bookings already cancelled are still skipped.
+
 ### **📞 Chrome extension — phone handling**
 `POST /api/ext/booking/phone`: when the owner clicks Booking's own "Hiển thị số điện thoại", the extension reads the
 number ONLY from the guest block (next to `@guest.booking.com` / the reveal button) and saves it to the booking;

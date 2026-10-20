@@ -283,7 +283,7 @@
           </div>`).join('')}
       </div>
       <datalist id="hp_listings">${(result.listings || []).map(l => `<option value="${esc(l)}">`).join('')}</datalist>
-      <label class="chk"><input type="checkbox" id="f_cancelled" ${p.status === 'cancelled' ? 'checked' : ''}> Booking này đã HỦY trên Booking.com</label>
+      <label class="chk"><input type="checkbox" id="f_cancelled" ${p.status === 'cancelled' ? 'checked' : ''}> Khách đã HỦY trên Booking.com → <b>Báo hủy</b> trên lịch (không xoá, hoàn tác được)</label>
       ${ex && (ex.collector || ex.collected_amount) ? `<div class="paid">💰 Đã thu ${fmt(ex.collected_amount)}đ (${esc(ex.collector)}) — tiền đã thu, căn đã xếp, xác nhận đến trên web sẽ giữ nguyên.</div>` : ''}
       ${(p.notes || []).map(n => `<p class="msg err">${esc(n)}</p>`).join('')}
       <div class="row">
