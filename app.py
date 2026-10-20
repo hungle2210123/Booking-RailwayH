@@ -2304,7 +2304,8 @@ GEMINI_MODEL = os.getenv('GEMINI_MODEL', 'gemini-3.8-flash')   # gemini-1.5/2.5 
 
 
 def _gemini_json(system, prompt, timeout=40):
-    key = os.getenv('GEMINI_API_KEY') or os.getenv('GOOGLE_API_KEY')
+    # pasted values sometimes carry spaces / quotes / a line break
+    key = (os.getenv('GEMINI_API_KEY') or os.getenv('GOOGLE_API_KEY') or '').strip().strip('"'').strip()
     if not key:
         raise RuntimeError('Chưa có mã Gemini — thêm GEMINI_API_KEY trong Railway → Variables')
     import requests as _rq
@@ -2316,7 +2317,8 @@ def _gemini_json(system, prompt, timeout=40):
                                             'thinkingConfig': {'thinkingLevel': 'low'}}})
     d = r.json()
     if r.status_code != 200:
-        raise RuntimeError('Gemini: ' + str((d.get('error') or {}).get('message') or r.status_code)[:300])
+        raise RuntimeError('Gemini: ' + str((d.get('error') or {}).get('message') or r.status_code)[:300]
+                           + f' (mã {key[:5]}…{key[-4:]}, {len(key)} ký tự)')
     parts = d['candidates'][0]['content']['parts']
     return json.loads(next(p['text'] for p in reversed(parts) if p.get('text')))
 
