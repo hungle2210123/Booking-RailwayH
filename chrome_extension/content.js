@@ -59,6 +59,18 @@
       .toast { position: absolute; right: 0; bottom: 56px; width: 300px; max-width: calc(100vw - 36px); background: #0f172a; color: #fff; font-size: 13px; line-height: 1.4; border-radius: 12px; padding: 10px 12px; box-shadow: 0 8px 24px rgba(0,0,0,.25); }
       .toast.ok { background: #166534; } .toast.warn { background: #b45309; } .toast.partner { background: #6d28d9; }
       .fab2 { background: #16a34a; margin-right: 8px; } .fab2:hover { background: #15803d; }
+      .fab3 { background: #4f46e5; margin-right: 8px; } .fab3:hover { background: #4338ca; }
+      .ai-ta { width: 100%; min-height: 110px; font: 13px/1.45 system-ui, sans-serif; padding: 8px 10px; border: 1.5px solid #cbd5e1;
+               border-radius: 10px; resize: vertical; }
+      .ai-ta.vi { min-height: 64px; }
+      .ai-vi { font-size: 12px; color: #475569; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 7px 9px;
+               margin-top: 6px; white-space: pre-wrap; }
+      .ai-sec { font-size: 12px; font-weight: 800; color: #334155; margin: 12px 0 5px; }
+      .ai-row { display: flex; gap: 6px; margin-top: 6px; }
+      .ai-row button { flex: 1; border: 1.5px solid #cbd5e1; background: #fff; border-radius: 10px; padding: 8px; font-weight: 800;
+                       font-size: 13px; cursor: pointer; color: #0f172a; }
+      .ai-row button.rec { background: #dc2626; border-color: #dc2626; color: #fff; }
+      .ai-row button:disabled { opacity: .5; cursor: wait; }
       .tpl { display: block; width: 100%; text-align: left; border: 1.5px solid #e2e8f0; background: #fff; border-radius: 10px;
              padding: 8px 10px; margin-bottom: 6px; font-size: 13px; font-weight: 700; cursor: pointer; color: #0f172a; }
       .tpl.on { border-color: #16a34a; background: #f0fdf4; }
@@ -67,7 +79,7 @@
       .ptag { display: inline-block; font-size: 11px; font-weight: 800; background: #ede9fe; color: #6d28d9; border-radius: 999px; padding: 2px 8px; }
     </style>
     <div class="panel" id="panel"></div>
-    <button class="fab fab2" id="fill" type="button" style="display:none">💬 Điền tin</button><button class="fab" id="fab" type="button">📥 Gửi về Hotel Pro</button>`;
+    <button class="fab fab3" id="ai" type="button" style="display:none">🤖 Trả lời AI</button><button class="fab fab2" id="fill" type="button" style="display:none">💬 Điền tin</button><button class="fab" id="fab" type="button">📥 Gửi về Hotel Pro</button>`;
 
   const $ = sel => root.querySelector(sel);
   const panel = $('#panel');
@@ -644,6 +656,107 @@
       };
     };
     draw();
+  });
+
+  // ── 🤖 Trả lời AI: a reply for the conversation open on the screen ────────────────────
+  // Reads ONLY the conversation already shown on this page (the column around Booking's message box) and the
+  // booking number on it; the web adds what it knows about the guest and asks the AI. 🎤 = speak Vietnamese
+  // (Chrome's speech recognition), the AI writes it as an English message. The text is only TYPED into Booking's
+  // box — you read it and press Booking's own Gửi. Nothing is ever sent by the extension.
+  const aiBtn = $('#ai');
+  setInterval(() => { aiBtn.style.display = chatBox() ? '' : 'none'; }, 2000);
+  function chatThread() {
+    const box = chatBox();
+    if (!box) return '';
+    let el = box, best = null;
+    while ((el = el.parentElement) && el !== document.body) {
+      if (el.getBoundingClientRect().width > window.innerWidth * 0.75) break;   // stop before the whole page
+      if ((el.innerText || '').length > 120) best = el;
+    }
+    return ((best || box.parentElement)?.innerText || '').slice(-6000);
+  }
+  function pageBookingNumber() {
+    if (resId()) return resId();
+    const t = fold(document.body.innerText || '');
+    const m = t.match(/(?:so dat phong|ma dat phong|booking number|reservation number)[^0-9]{0,40}(\d{8,12})/);
+    return m ? m[1] : '';
+  }
+  let aiState = { en: '', vi: '', note: '' };
+  async function aiAsk(mode, viText) {
+    const busy = root.querySelectorAll('#ai_again, #ai_tr, #ai_put');
+    busy.forEach(b => { b.disabled = true; });
+    const m = $('#ai_msg'); if (m) { m.className = 'msg'; m.textContent = mode === 'translate' ? '⏳ Đang viết thành tiếng Anh…' : '⏳ AI đang đọc tin nhắn…'; }
+    const r = await api('/api/ext/ai_reply', { mode, vi: viText || '', thread: chatThread(), booking_id: pageBookingNumber() });
+    busy.forEach(b => { b.disabled = false; });
+    if (!r?.success) { if (m) { m.className = 'msg err'; m.textContent = '❌ ' + (r?.error || 'Lỗi không rõ'); } return; }
+    aiState = { en: r.en, vi: r.vi, note: r.known ? `Khách có trên web (mã ${r.booking_id}) — AI dùng ngày, căn, địa chỉ của khách.`
+                                               : 'Chưa thấy đặt phòng này trên web — AI chỉ dựa vào tin nhắn.' };
+    drawAi();
+  }
+  function drawAi(keepVi) {
+    const viDraft = keepVi ?? ($('#ai_vi')?.value || '');
+    panel.innerHTML = `<h3>🤖 Trả lời khách bằng AI</h3>
+      <p class="hint">AI đọc cuộc trò chuyện đang mở → gợi ý câu trả lời. Không ổn thì <b>🎤 nói</b> hoặc gõ ý của bạn bằng tiếng Việt
+        → AI viết thành tiếng Anh. Bấm <b>Điền vào khung chat</b>, đọc lại rồi tự bấm <b>Gửi</b> của Booking.</p>
+      <div class="ai-sec">✉️ Tin sẽ gửi (sửa được)</div>
+      <textarea class="ai-ta" id="ai_en" placeholder="⏳ …">${esc(aiState.en)}</textarea>
+      ${aiState.vi ? `<div class="ai-vi">🇻🇳 ${esc(aiState.vi)}</div>` : ''}
+      ${aiState.note ? `<p class="hint" style="margin:6px 0 0">${esc(aiState.note)}</p>` : ''}
+      <div class="ai-sec">🗣️ Ý của bạn (tiếng Việt)</div>
+      <textarea class="ai-ta vi" id="ai_vi" placeholder="Ví dụ: ok bạn, 2h chiều tới là có phòng, tới nơi nhắn WhatsApp cho mình">${esc(viDraft)}</textarea>
+      <div class="ai-row"><button type="button" id="ai_mic">🎤 Nói</button><button type="button" id="ai_tr">🇬🇧 Viết thành tiếng Anh</button></div>
+      <div class="row"><button class="close" id="b_close" type="button">Đóng</button>
+        <button class="close" id="ai_again" type="button">🔄 Gợi ý lại</button>
+        <button class="save" id="ai_put" type="button">✍️ Điền vào khung chat</button></div>
+      <div class="msg" id="ai_msg"></div>`;
+    panel.classList.add('open');
+    $('#b_close').onclick = () => { stopMic(); panel.classList.remove('open'); };
+    $('#ai_again').onclick = () => aiAsk('suggest');
+    $('#ai_tr').onclick = () => {
+      const v = $('#ai_vi').value.trim();
+      if (!v) { const m = $('#ai_msg'); m.className = 'msg err'; m.textContent = 'Nói hoặc gõ ý của bạn trước đã'; return; }
+      stopMic(); aiAsk('translate', v);
+    };
+    $('#ai_put').onclick = () => {
+      const text = $('#ai_en').value.trim(), box = chatBox(), m = $('#ai_msg');
+      if (!text) { m.className = 'msg err'; m.textContent = 'Chưa có tin để điền'; return; }
+      if (!box) { m.className = 'msg err'; m.textContent = '❌ Không thấy khung "Soạn tin nhắn" trên trang'; return; }
+      stopMic(); putInChat(box, text); panel.classList.remove('open');
+      toast('✍️ Đã điền tin vào khung chat — đọc lại rồi bấm <b>Gửi</b> của Booking', 'ok');
+    };
+    $('#ai_mic').onclick = toggleMic;
+  }
+  // 🎤 Chrome's own speech recognition (Vietnamese). Chrome asks once for the microphone.
+  let rec = null;
+  function stopMic() { if (rec) { try { rec.stop(); } catch (e) {} rec = null; } }
+  function toggleMic() {
+    const btn = $('#ai_mic');
+    if (rec) { stopMic(); btn.classList.remove('rec'); btn.textContent = '🎤 Nói'; return; }
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR) { const m = $('#ai_msg'); m.className = 'msg err'; m.textContent = 'Trình duyệt này không nhận giọng nói — hãy gõ'; return; }
+    const ta = $('#ai_vi'), before = ta.value.trim();
+    rec = new SR(); rec.lang = 'vi-VN'; rec.continuous = true; rec.interimResults = true;
+    rec.onresult = e => {
+      let said = '';
+      for (let i = 0; i < e.results.length; i++) said += e.results[i][0].transcript;
+      ta.value = (before ? before + ' ' : '') + said.trim();
+    };
+    rec.onerror = e => {
+      const m = $('#ai_msg');
+      if (m && e.error !== 'no-speech' && e.error !== 'aborted') {
+        m.className = 'msg err';
+        m.textContent = e.error === 'not-allowed' ? '🎤 Chưa cho phép micro — bấm biểu tượng ổ khoá cạnh địa chỉ trang → Micro → Cho phép'
+                                                  : '🎤 Lỗi micro: ' + e.error;
+      }
+    };
+    rec.onend = () => { rec = null; const b = $('#ai_mic'); if (b) { b.classList.remove('rec'); b.textContent = '🎤 Nói'; } };
+    rec.start();
+    btn.classList.add('rec'); btn.textContent = '⏹ Dừng nói';
+  }
+  aiBtn.addEventListener('click', () => {
+    aiState = { en: '', vi: '', note: '' };
+    drawAi('');
+    aiAsk('suggest');
   });
 
   // ── 📸 Screenshot of the reservation box ─────────────────────────────────────────────

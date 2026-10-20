@@ -2294,6 +2294,120 @@ def ext_auto_messages():
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
+# ── 🤖 AI reply in Booking's chat (extension "🤖 Trả lời AI") ─────────────────────────────────────────────────
+# The extension sends the conversation shown on the page the owner opened (+ the booking number on it). We add what
+# the web knows about this guest (dates, apartment, address, luggage / payment templates) and ask Gemini for a reply.
+# mode 'suggest' = best answer to the guest's last messages; mode 'translate' = the owner's Vietnamese (typed or
+# spoken) rewritten as a polite English message. Always returns {en, vi}; the extension only types it into Booking's
+# box — the owner reads it and presses Gửi. Key: GEMINI_API_KEY or GOOGLE_API_KEY (Railway variables).
+GEMINI_MODEL = os.getenv('GEMINI_MODEL', 'gemini-3.8-flash')   # gemini-1.5/2.5 are closed to new keys (Oct 2026)
+
+
+def _gemini_json(system, prompt, timeout=40):
+    key = os.getenv('GEMINI_API_KEY') or os.getenv('GOOGLE_API_KEY')
+    if not key:
+        raise RuntimeError('Chưa có mã Gemini — thêm GEMINI_API_KEY trong Railway → Variables')
+    import requests as _rq
+    r = _rq.post(f'https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_MODEL}:generateContent',
+                 headers={'x-goog-api-key': key, 'Content-Type': 'application/json'}, timeout=timeout,
+                 json={'systemInstruction': {'parts': [{'text': system}]},
+                       'contents': [{'role': 'user', 'parts': [{'text': prompt}]}],
+                       'generationConfig': {'responseMimeType': 'application/json',
+                                            'thinkingConfig': {'thinkingLevel': 'low'}}})
+    d = r.json()
+    if r.status_code != 200:
+        raise RuntimeError('Gemini: ' + str((d.get('error') or {}).get('message') or r.status_code)[:300])
+    parts = d['candidates'][0]['content']['parts']
+    return json.loads(next(p['text'] for p in reversed(parts) if p.get('text')))
+
+
+_AI_BOOKING_COLS = """booking_id, guest_name, checkin_date, checkout_date, room_amount, collected_amount,
+                      accommodation_name, actual_apartment, checkin_status"""
+
+
+def _ai_guest_context(_xdb, bid, name):
+    """What the web knows about this guest, as plain lines for the AI (no door codes / Wi-Fi passwords)."""
+    from core import journey as J
+    row = None
+    if bid:
+        row = _xdb.session.execute(text(f"SELECT {_AI_BOOKING_COLS} FROM bookings WHERE booking_id = :b"),
+                                   {'b': bid}).fetchone()
+    if not row and name and len(name.strip()) >= 3:
+        rows = _xdb.session.execute(text(f"""
+            SELECT {_AI_BOOKING_COLS} FROM bookings
+            WHERE LOWER(guest_name) LIKE :n AND checkout_date >= CURRENT_DATE - 3
+              AND COALESCE(booking_status, '') <> 'deleted'
+            ORDER BY checkin_date LIMIT 2"""), {'n': '%' + name.lower().strip()[:40] + '%'}).fetchall()
+        row = rows[0] if len(rows) == 1 else None
+    lines, apt = [], None
+    if row:
+        apts = {a['id']: a for a in J.apartments(_xdb.session)}
+        try:
+            apt = apts.get(int(row[7])) if row[7] else None
+        except (TypeError, ValueError):
+            apt = None
+        nights = (row[3] - row[2]).days if row[2] and row[3] else 0
+        left = float(row[4] or 0) - float(row[5] or 0)
+        lines += [f"Guest: {row[1]} · booking {row[0]}",
+                  f"Check-in {row[2]:%a %d %b %Y}, check-out {row[3]:%a %d %b %Y} ({nights} nights)" if row[2] and row[3] else '',
+                  f"Room booked: {_room_label(row[6]) or row[6] or '?'}",
+                  f"Apartment: {apt['name']} — {apt['address']}" if apt else 'Apartment: not decided yet (do not promise an address)',
+                  f"Price {float(row[4] or 0):,.0f} VND, still to pay {max(left, 0):,.0f} VND (paid at the property: cash or bank QR)",
+                  'Guest already confirmed arrival' if row[8] == 'confirmed' else '']
+    jmap = J.load_map(_xdb.session)
+    aid = apt['id'] if apt else None
+    tids = {step: J.template_for(jmap, step, aid) for step in ('confirm', 'welcome', 'luggage', 'payment')}
+    texts = _journey_texts(_xdb, list(tids.values()))
+    for step, tid in tids.items():
+        if tid in texts and (apt or step in ('confirm', 'luggage')):
+            lines.append(f"[Our usual '{step}' message]\n{texts[tid]['content']}")
+    return '\n'.join(l for l in lines if l), (row[0] if row else '')
+
+
+_AI_SYSTEM = """You help the owner of small serviced apartments in Hanoi Old Quarter (Vietnam) answer guests in the
+Booking.com chat. Facts you may use: standard check-in from 14:00, check-out before 12:00; early arrival: guests can
+leave their luggage and we tell them when the room is ready; late arrival is fine (the self check-in guide is sent on
+the day). Use ONLY the facts given — never invent prices, discounts, room changes, door codes or Wi-Fi passwords; when
+something is unknown, say we will check and get back shortly. Write like a friendly host texting: short, warm, clear,
+no corporate tone, at most one emoji, no signature. Reply in the guest's language (default English).
+Return JSON: {"en": "<the message to send>", "vi": "<the same message in natural Vietnamese for the owner to read>"}."""
+
+
+@app.route('/api/ext/ai_reply', methods=['POST'])
+def ext_ai_reply():
+    err = _ext_auth_error()
+    if err:
+        return err
+    from core.models import db as _xdb
+    try:
+        body = request.get_json(silent=True) or {}
+        thread = str(body.get('thread') or '')[-6000:]
+        vi = str(body.get('vi') or '').strip()
+        mode = 'translate' if body.get('mode') == 'translate' else 'suggest'
+        if mode == 'translate' and not vi:
+            return jsonify({'success': False, 'error': 'Chưa có nội dung tiếng Việt'}), 400
+        bid = str(body.get('booking_id') or '').strip()
+        if not bid:
+            m = re.search(r'\b(\d{10})\b', thread)
+            bid = m.group(1) if m else ''
+        ctx, found = _ai_guest_context(_xdb, bid, str(body.get('guest_name') or ''))
+        prompt = (f"=== What we know about this guest ===\n{ctx or '(booking not found in our system)'}\n\n"
+                  f"=== Conversation on the Booking.com page (oldest first; may include page labels) ===\n"
+                  f"{thread or '(empty)'}\n\n")
+        if mode == 'translate':
+            prompt += (f"=== The owner wants to say (Vietnamese, maybe spoken / informal) ===\n{vi}\n\n"
+                       "Write that as the reply to send: keep the owner's meaning exactly, in natural friendly English "
+                       "(or the guest's language); add nothing the owner did not say except a short greeting / thanks.")
+        else:
+            prompt += "Write the best reply to the guest's latest message(s) that are not answered yet."
+        out = _gemini_json(_AI_SYSTEM, prompt)
+        return jsonify({'success': True, 'en': str(out.get('en') or '').strip(), 'vi': str(out.get('vi') or '').strip(),
+                        'booking_id': found, 'known': bool(found)})
+    except Exception as e:
+        _xdb.session.rollback()
+        return jsonify({'success': False, 'error': str(e)[:300]}), 500
+
+
 _SHOT_TABLE_READY = False
 
 

@@ -412,6 +412,19 @@ directly): 'Xin số WhatsApp + giờ đến (EN)' (217), 'Xin số Zalo/WhatsAp
 'Hỏi giờ đến (EN/VI)' (213/215) stay for the calendar's WhatsApp/Zalo chips and the /messages 🕐 step; `_auto_msg_for`
 never picks an 'Xin …' message.
 
+### **🤖 Trả lời AI in Booking's chat (ext 1.18, `POST /api/ext/ai_reply`)**
+Extension button "🤖 Trả lời AI" (shown whenever Booking's message box is on the page — inbox or reservation page):
+reads ONLY the conversation column already on screen (`chatThread()`: ancestors of the box narrower than 75% of the
+window) + the booking number on the page (`pageBookingNumber()`), server adds what the web knows (`_ai_guest_context`:
+dates, nights, room, placed apartment + address, money left, the journey confirm/welcome/luggage/payment templates of
+that apartment — never the check-in guide: door codes / Wi-Fi stay out) and asks Gemini (`_gemini_json`, REST,
+`GEMINI_MODEL` default 'gemini-3.8-flash' — 1.5/2.5 refuse new keys; key env GEMINI_API_KEY or GOOGLE_API_KEY, the
+owner put it in Railway as GOOGLE_API_KEY on Oct 20). Returns {en, vi}: editable English text + Vietnamese meaning.
+"🗣️ Ý của bạn": type or 🎤 speak Vietnamese (Chrome webkitSpeechRecognition vi-VN, mic permission on admin.booking.com)
+→ "🇬🇧 Viết thành tiếng Anh" (mode 'translate': keeps the owner's meaning). "✍️ Điền vào khung chat" only types it into
+Booking's box (same `putInChat` as 💬 Điền tin) — the owner presses Gửi; nothing is ever sent automatically.
+The old Gemini routes (image extraction etc.) still use the dead 'gemini-1.5-flash' via the genai SDK.
+
 ### **📸 Booking.com screenshot for guests (`booking_screenshots` table)**
 Extension captures the reservation box + room block (`chrome.tabs.captureVisibleTab`; needs `activeTab`, so it is
 started from the toolbar popup, the right-click menu or Alt+Shift+S — an in-page button cannot capture). Saves
