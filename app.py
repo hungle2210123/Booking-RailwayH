@@ -2301,6 +2301,9 @@ def ext_auto_messages():
 # spoken) rewritten as a polite English message. Always returns {en, vi}; the extension only types it into Booking's
 # box — the owner reads it and presses Gửi. Key: GEMINI_API_KEY or GOOGLE_API_KEY (Railway variables).
 GEMINI_MODEL = os.getenv('GEMINI_MODEL', 'gemini-3.8-flash')   # gemini-1.5/2.5 are closed to new keys (Oct 2026)
+# Free tier = a few requests per MINUTE per model (owner hit 429 after a few taps, Oct 20) and each model has its own
+# quota → on 429 the next model is tried.
+GEMINI_FALLBACK_MODELS = ('gemini-3.7-flash', 'gemini-3.5-flash', 'gemini-3.5-flash-lite', 'gemini-3.1-flash-lite')
 
 
 def _gemini_keys():
@@ -2319,21 +2322,30 @@ def _gemini_json(system, prompt, timeout=40):
     if not keys:
         raise RuntimeError('Chưa có mã Gemini — thêm GOOGLE_API_KEY trong Railway → Variables')
     import requests as _rq
-    last = ''
-    for key in keys:                      # a refused key → try the next one
-        r = _rq.post(f'https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_MODEL}:generateContent',
-                     headers={'x-goog-api-key': key, 'Content-Type': 'application/json'}, timeout=timeout,
-                     json={'systemInstruction': {'parts': [{'text': system}]},
-                           'contents': [{'role': 'user', 'parts': [{'text': prompt}]}],
-                           'generationConfig': {'responseMimeType': 'application/json',
-                                                'thinkingConfig': {'thinkingLevel': 'low'}}})
-        d = r.json()
-        if r.status_code == 200:
-            parts = d['candidates'][0]['content']['parts']
-            return json.loads(next(p['text'] for p in reversed(parts) if p.get('text')))
-        last = str((d.get('error') or {}).get('message') or r.status_code)[:300] + f' (mã {key[:5]}…{key[-4:]})'
-        if r.status_code not in (400, 401, 403):
-            break
+    last, busy = '', False
+    models = [GEMINI_MODEL] + [m for m in GEMINI_FALLBACK_MODELS if m != GEMINI_MODEL]
+    for key in keys:                      # a refused key → the next key
+        for model in models:              # a model out of quota (429) / overloaded (503) → the next model
+            r = _rq.post(f'https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent',
+                         headers={'x-goog-api-key': key, 'Content-Type': 'application/json'}, timeout=timeout,
+                         json={'systemInstruction': {'parts': [{'text': system}]},
+                               'contents': [{'role': 'user', 'parts': [{'text': prompt}]}],
+                               'generationConfig': {'responseMimeType': 'application/json',
+                                                    'thinkingConfig': {'thinkingLevel': 'low'}}})
+            try:
+                d = r.json()
+            except ValueError:
+                d = {}
+            if r.status_code == 200:
+                parts = d['candidates'][0]['content']['parts']
+                return json.loads(next(p['text'] for p in reversed(parts) if p.get('text')))
+            last = str((d.get('error') or {}).get('message') or r.status_code)[:200]
+            if r.status_code in (429, 500, 503, 404):
+                busy = busy or r.status_code == 429
+                continue
+            break                         # bad key (400/401/403) → next key
+    if busy:
+        raise RuntimeError('AI miễn phí đang hết lượt trong phút này — đợi khoảng 1 phút rồi bấm lại')
     raise RuntimeError('Gemini: ' + last)
 
 _AI_BOOKING_COLS = """booking_id, guest_name, checkin_date, checkout_date, room_amount, collected_amount,

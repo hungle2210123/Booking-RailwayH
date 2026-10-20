@@ -418,7 +418,8 @@ reads ONLY the conversation column already on screen (`chatThread()`: ancestors 
 window) + the booking number on the page (`pageBookingNumber()`), server adds what the web knows (`_ai_guest_context`:
 dates, nights, room, placed apartment + address, money left, the journey confirm/welcome/luggage/payment templates of
 that apartment — never the check-in guide: door codes / Wi-Fi stay out) and asks Gemini (`_gemini_json`, REST,
-`GEMINI_MODEL` default 'gemini-3.8-flash' — 1.5/2.5 refuse new keys; key env GEMINI_API_KEY or GOOGLE_API_KEY, the
+`GEMINI_MODEL` default 'gemini-3.8-flash' — 1.5/2.5 refuse new keys; free tier = few requests/minute per model, so a 429
+falls through `GEMINI_FALLBACK_MODELS` (3.7-flash, 3.5-flash, 3.5-flash-lite, 3.1-flash-lite); every key is tried (`_gemini_keys`); key env GEMINI_API_KEY or GOOGLE_API_KEY, the
 owner put it in Railway as GOOGLE_API_KEY on Oct 20). Returns {en, vi}: editable English text + Vietnamese meaning.
 "🗣️ Ý của bạn": type or 🎤 speak Vietnamese (Chrome webkitSpeechRecognition vi-VN, mic permission on admin.booking.com)
 → "🇬🇧 Viết thành tiếng Anh" (mode 'translate': keeps the owner's meaning). "✍️ Điền vào khung chat" only types it into
