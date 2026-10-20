@@ -2303,25 +2303,38 @@ def ext_auto_messages():
 GEMINI_MODEL = os.getenv('GEMINI_MODEL', 'gemini-3.8-flash')   # gemini-1.5/2.5 are closed to new keys (Oct 2026)
 
 
-def _gemini_json(system, prompt, timeout=40):
-    # pasted values sometimes carry spaces / quotes / a line break
-    key = (os.getenv('GEMINI_API_KEY') or os.getenv('GOOGLE_API_KEY') or '').strip().strip('"\'').strip()
-    if not key:
-        raise RuntimeError('Chưa có mã Gemini — thêm GEMINI_API_KEY trong Railway → Variables')
-    import requests as _rq
-    r = _rq.post(f'https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_MODEL}:generateContent',
-                 headers={'x-goog-api-key': key, 'Content-Type': 'application/json'}, timeout=timeout,
-                 json={'systemInstruction': {'parts': [{'text': system}]},
-                       'contents': [{'role': 'user', 'parts': [{'text': prompt}]}],
-                       'generationConfig': {'responseMimeType': 'application/json',
-                                            'thinkingConfig': {'thinkingLevel': 'low'}}})
-    d = r.json()
-    if r.status_code != 200:
-        raise RuntimeError('Gemini: ' + str((d.get('error') or {}).get('message') or r.status_code)[:300]
-                           + f' (mã {key[:5]}…{key[-4:]}, {len(key)} ký tự)')
-    parts = d['candidates'][0]['content']['parts']
-    return json.loads(next(p['text'] for p in reversed(parts) if p.get('text')))
+def _gemini_keys():
+    """Every Gemini key set on the server, newest first (GOOGLE_API_KEY = the one added Oct 20; an old revoked one
+    may still sit in GEMINI_API_KEY). Pasted values sometimes carry spaces / quotes / a line break."""
+    keys = []
+    for name in ('GOOGLE_API_KEY', 'GEMINI_API_KEY'):
+        k = (os.getenv(name) or '').strip().strip('"\'').strip()
+        if k and k not in keys:
+            keys.append(k)
+    return keys
 
+
+def _gemini_json(system, prompt, timeout=40):
+    keys = _gemini_keys()
+    if not keys:
+        raise RuntimeError('Chưa có mã Gemini — thêm GOOGLE_API_KEY trong Railway → Variables')
+    import requests as _rq
+    last = ''
+    for key in keys:                      # a refused key → try the next one
+        r = _rq.post(f'https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_MODEL}:generateContent',
+                     headers={'x-goog-api-key': key, 'Content-Type': 'application/json'}, timeout=timeout,
+                     json={'systemInstruction': {'parts': [{'text': system}]},
+                           'contents': [{'role': 'user', 'parts': [{'text': prompt}]}],
+                           'generationConfig': {'responseMimeType': 'application/json',
+                                                'thinkingConfig': {'thinkingLevel': 'low'}}})
+        d = r.json()
+        if r.status_code == 200:
+            parts = d['candidates'][0]['content']['parts']
+            return json.loads(next(p['text'] for p in reversed(parts) if p.get('text')))
+        last = str((d.get('error') or {}).get('message') or r.status_code)[:300] + f' (mã {key[:5]}…{key[-4:]})'
+        if r.status_code not in (400, 401, 403):
+            break
+    raise RuntimeError('Gemini: ' + last)
 
 _AI_BOOKING_COLS = """booking_id, guest_name, checkin_date, checkout_date, room_amount, collected_amount,
                       accommodation_name, actual_apartment, checkin_status"""
