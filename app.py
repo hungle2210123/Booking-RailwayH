@@ -1693,8 +1693,74 @@ def _rename_booking(old, new):
     s.commit()
 
 
+def _room_ids(bid, n):
+    """Booking ids for the rooms of one reservation: the 1st room keeps the number, the others get -2, -3 …"""
+    return [bid if i == 1 else f'{bid}-{i}' for i in range(1, n + 1)]
+
+
+def _ext_save_rooms(d, rooms):
+    """A reservation of several rooms (owner, Oct 21): every room is its own booking on the web — <id> for room 1,
+    <id>-2, <id>-3 … for the next ones, in the page's order (stable when a room is cancelled later). Each gets its
+    own room name, price and dates; a room the guest cancelled ("Hủy bởi khách") becomes Báo hủy on the calendar.
+    Rooms after the first share the first room's guest row (phone / e-mail live there)."""
+    from core.models import db as _xdb
+    bid = str(d.get('booking_id') or '').strip()
+    ids = _room_ids(bid, len(rooms))
+    all_cancelled = bool(d.get('cancelled')) or d.get('status') == 'cancelled'
+    results, lines = [], []
+    for i, (sid, r) in enumerate(zip(ids, rooms), 1):
+        cancelled = all_cancelled or bool(r.get('cancelled'))
+        sub = {**d, '_room': True, 'booking_id': sid, 'listing': r.get('title') or d.get('listing'),
+               'room_amount': r.get('price') or 0, 'commission': None, 'rooms': 1,
+               'checkin_date': r.get('checkin') or d.get('checkin_date'),
+               'checkout_date': r.get('checkout') or d.get('checkout_date'), 'cancelled': cancelled}
+        if i > 1:                                   # contact details stay on room 1's guest row
+            sub.update({'phone': '', 'email': ''})
+        new_cancelled = cancelled and not _ext_existing(sid)
+        if new_cancelled:
+            if i > 1:                               # a cancelled extra room that never reached the web: nothing to do
+                lines.append(f"#{i} {sub['listing']}: đã hủy, không thêm")
+                continue
+            sub['cancelled'] = False                # room 1 keeps the reservation number → created, then Báo hủy
+        res, code = _ext_save_one(sub)
+        if new_cancelled and res.get('success'):
+            _xdb.session.execute(text("UPDATE bookings SET checkin_status = 'cancelling', updated_at = NOW() "
+                                      "WHERE booking_id = :b"), {'b': sid})
+            _xdb.session.commit()
+        if i > 1 and res.get('success'):            # same guest as room 1
+            _xdb.session.execute(text("""
+                UPDATE bookings SET guest_id = (SELECT guest_id FROM bookings WHERE booking_id = :main)
+                WHERE booking_id = :b AND (SELECT guest_id FROM bookings WHERE booking_id = :main) IS NOT NULL"""),
+                {'b': sid, 'main': bid})
+            _xdb.session.commit()
+        results.append(res)
+        state = 'Báo hủy' if cancelled else {'created': 'mới', 'updated': 'cập nhật'}.get(res.get('action'), 'không đổi')
+        lines.append(f"#{i} {sub['listing']} · {float(sub['room_amount'] or 0):,.0f}đ: "
+                     + (state if res.get('success') else '❌ ' + str(res.get('error'))))
+    ok = all(r.get('success') for r in results)
+    first = results[0] if results else {}
+    return {'success': ok, 'action': 'split', 'booking_id': bid, 'checkin_date': first.get('checkin_date')
+            or (d.get('checkin_date') if isinstance(d.get('checkin_date'), str) else None),
+            'message': f"Khách đặt {len(rooms)} phòng → {len(rooms)} đặt phòng riêng trên web: " + ' | '.join(lines),
+            'rooms': results}, (200 if ok else 400)
+
+
 def _ext_save_one(d):
-    """Create or update one booking (+ its Booking listing name). Returns (result dict, http status)."""
+    """Create or update one booking (+ its Booking listing name). Returns (result dict, http status).
+    Several rooms in the reservation (`rooms` from the detail page) → one booking per room (`_ext_save_rooms`)."""
+    rooms = d.get('rooms')
+    bid = str(d.get('booking_id') or '').strip()
+    if not d.get('_room') and isinstance(rooms, list) and len(rooms) >= 2 and bid:
+        return _ext_save_rooms(d, rooms)
+    if not d.get('_room') and bid and _ext_existing(f'{bid}-2'):
+        # Already split into rooms; a page without the room boxes (list row, phone, photo) must not write the
+        # whole reservation's room names / total onto room 1 — only dates, contact details and a cancellation.
+        d = {**d, 'listing': '', 'room_amount': None, 'commission': None, 'rooms': 1}
+        if d.get('cancelled') or d.get('status') == 'cancelled':
+            n = 2
+            while _ext_existing(f'{bid}-{n}'):
+                _ext_save_one_core({**d, 'booking_id': f'{bid}-{n}', 'phone': '', 'email': '', 'cancelled': True})
+                n += 1
     result, code = _ext_save_one_core(d)
     if result.get('success') and result.get('booking_id'):
         try:

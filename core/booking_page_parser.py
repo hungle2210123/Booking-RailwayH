@@ -161,9 +161,54 @@ def _room_block(lines):
             continue
         if any(f == v or f.startswith(v + ':') for v in _ALL_LABELS) or f.startswith(('tong', 'total', 'khoan', 'hoa hong')):
             continue
-        if looks_like_room(t) and t not in found:
+        if looks_like_room(t) and not _is_rate_line(t) and t not in found:
             found.append(t)
     return ' + '.join(found) or None
+
+
+# Rate-plan lines sit in the room box too ("Standard Rate, Country Rate: Domestic(20%), Basic Deal(17%), Giảm giá
+# Genius 15%") — never a room.
+_RATE_LINE = re.compile(r'%|rate|deal|genius|giam gia|discount|non-refundable|khong hoan', re.I)
+
+
+def _is_rate_line(t):
+    return bool(_RATE_LINE.search(_fold(t)))
+
+
+ROOM_CANCEL_WORDS = ('huy boi khach', 'da huy', 'cancelled by guest', 'canceled by guest', 'cancelled', 'canceled')
+
+
+def room_blocks(lines):
+    """Every room box on the detail page, in page order: title ("1 Studio … (Phòng Thường Hội Vũ) Hủy bởi khách"),
+    price, check-in, check-out. A booking of several rooms gives several boxes; a room the guest cancelled carries
+    the "Hủy bởi khách" badge (same line or the next one). Returns [{title, price, checkin, checkout, cancelled}]."""
+    out = []
+    for i in range(len(lines) - 2):
+        t, j, cancelled = lines[i], i + 1, False
+        if _fold(lines[j]) in ROOM_CANCEL_WORDS:          # badge on its own line
+            cancelled, j = True, j + 1
+        if j + 1 >= len(lines) or not _VND_LINE.match(lines[j].replace('\u00a0', ' ')):
+            continue
+        d1 = parse_date(lines[j + 1])
+        if not d1:
+            continue
+        f = _fold(t)
+        if any(f == v or f.startswith(v + ':') for v in _ALL_LABELS) or f.startswith(('tong', 'total', 'khoan', 'hoa hong')):
+            continue
+        title = re.sub(r'^\d{1,2}\s+', '', t).strip()             # the "1" / "2" number box
+        for w in ('Hủy bởi khách', 'Cancelled by guest', 'Canceled by guest', 'Đã hủy', 'Cancelled', 'Canceled'):
+            if _fold(title).endswith(_fold(w)):
+                cancelled, title = True, title[:len(title) - len(w)].strip()
+                break
+        if not looks_like_room(title) or _is_rate_line(title):
+            continue
+        d2 = parse_date(lines[j + 2]) if j + 2 < len(lines) else None
+        price = parse_money(lines[j])
+        if any(b['title'] == title and b['price'] == price for b in out):
+            continue
+        out.append({'title': title, 'price': price, 'cancelled': cancelled,
+                    'checkin': d1.isoformat(), 'checkout': d2.isoformat() if d2 and d2 > d1 else None})
+    return out
 
 
 def _value(page, lines, field):
@@ -251,6 +296,11 @@ def parse_reservation_page(page):
     out['guests'] = int(g.group(0)) if g else None
     room = _value(page, lines, 'room')
     out['listing'] = room if looks_like_room(room) else _room_block(lines)
+    # Several rooms in one reservation → each is saved as its own booking on the web (<id>, <id>-2, …)
+    blocks = room_blocks(lines)
+    out['rooms'] = blocks if len(blocks) >= 2 else []
+    if out['rooms']:
+        out['listing'] = ' + '.join(b['title'] for b in blocks)
 
     head = _fold(' '.join(lines[:40]))
     if any(w in head for w in NOSHOW_WORDS):

@@ -253,8 +253,10 @@
     ['email', 'Email', 'text', true],
   ];
 
+  let shownRooms = [];
   function show(result) {
     const p = result.parsed, ex = result.existing;
+    shownRooms = p.rooms || [];
     const val = k => (k === 'room_amount' || k === 'commission') ? fmt(p[k])
       : (p[k] ?? ((k === 'phone' || k === 'email') && ex && ex[k] ? ex[k] : ''));
     const old = k => {
@@ -282,6 +284,12 @@
             ${differs(k) ? `<span class="was">Trên web: ${esc(k === 'room_amount' || k === 'commission' ? fmt(old(k)) : old(k))}</span>` : ''}
           </div>`).join('')}
       </div>
+      ${shownRooms.length > 1 ? `<div class="paid" style="background:#eff6ff;border-color:#bfdbfe;color:#1e3a8a">
+        🛏️ <b>Khách đặt ${shownRooms.length} phòng</b> → lưu thành ${shownRooms.length} đặt phòng riêng trên web
+        (mỗi phòng tên, giá, ngày riêng; phòng bị hủy → <b>Báo hủy</b>):
+        ${shownRooms.map((r, i) => `<div style="margin-top:4px">#${i + 1} ${esc(r.title)} · ${fmt(r.price)}đ
+          ${r.cancelled ? '<span class="tag cx">Hủy bởi khách</span>' : ''}</div>`).join('')}
+        <div style="margin-top:4px;opacity:.75">Mã trên web: ${esc(p.booking_id || '')}${shownRooms.slice(1).map((_, i) => ', ' + esc(p.booking_id || '') + '-' + (i + 2)).join('')}</div></div>` : ''}
       <datalist id="hp_listings">${(result.listings || []).map(l => `<option value="${esc(l)}">`).join('')}</datalist>
       <label class="chk"><input type="checkbox" id="f_cancelled" ${p.status === 'cancelled' ? 'checked' : ''}> Khách đã HỦY trên Booking.com → <b>Báo hủy</b> trên lịch (không xoá, hoàn tác được)</label>
       ${ex && (ex.collector || ex.collected_amount) ? `<div class="paid">💰 Đã thu ${fmt(ex.collected_amount)}đ (${esc(ex.collector)}) — tiền đã thu, căn đã xếp, xác nhận đến trên web sẽ giữ nguyên.</div>` : ''}
@@ -306,6 +314,7 @@
       commission: v('commission').replace(/\D/g, ''), phone: v('phone'),
       nationality: v('nationality'), email: v('email'),
       cancelled: $('#f_cancelled').checked,
+      rooms: shownRooms.length > 1 ? shownRooms : undefined,
     };
     const btn = $('#b_save'), msg = $('#msg');
     btn.disabled = true; msg.className = 'msg'; msg.textContent = 'Đang lưu...';

@@ -452,6 +452,18 @@ sets `checkin_status = 'cancelling'` (the calendar's "Báo hủy", undo / confir
 `booking_status = 'cancelled'`, which hid the guest from /messages and the calendar with no way back (Sandrine Cadiou
 6879991448 was ticked by mistake and restored, history 'owner_restore'). New bookings already cancelled are still skipped.
 
+### **🛏️ Several rooms in one reservation = one booking per room (ext 1.19, owner Oct 21)**
+`room_blocks()` (core/booking_page_parser.py) reads every room box of the detail page: title (number box "1 " and the
+"Hủy bởi khách" badge stripped), price, dates, `cancelled`; rate-plan lines ("Standard Rate … Genius 15%") are never rooms
+(`_is_rate_line`, also in `_room_block`). 2+ rooms → `parsed['rooms']`; the panel lists them and sends them on save.
+`_ext_save_one` → `_ext_save_rooms`: room 1 keeps the reservation number, the next rooms get `<id>-2`, `<id>-3`
+(`_room_ids`, page order → stable when a room is cancelled later); each its own listing / price / dates; a cancelled room
+→ Báo hủy (a new cancelled extra room is not added; a new cancelled room 1 is created then Báo hủy, so the number stays);
+rooms 2+ take room 1's guest_id (phone / e-mail). Once `<id>-2` exists, a save without room boxes (list row, phone,
+photo) no longer writes the whole reservation's room names / total onto room 1; a whole-reservation cancellation
+reaches every room. Fixed: Tien Pham 6180825357 (Queen = Báo hủy, Deluxe = 6180825357-2); Tien Nguyen 6129929264 listing
+(rate line removed).
+
 ### **📞 Chrome extension — phone handling**
 `POST /api/ext/booking/phone`: when the owner clicks Booking's own "Hiển thị số điện thoại", the extension reads the
 number ONLY from the guest block (next to `@guest.booking.com` / the reveal button) and saves it to the booking;
