@@ -239,6 +239,10 @@
   .cmeta { font-size:.78rem; color:var(--muted); margin-top:2px; }
   .cphone { font-size:.8rem; color:#334155; font-weight:600; margin-top:2px; }
   .cphone.partner { color:#6d28d9; } .cphone.none { color:#b45309; }
+  /* 📞 add / fix the number the guest sent (owner, Oct 22) */
+  .phedit { border:none; background:#f1f5f9; color:#475569; border-radius:8px; padding:3px 8px; font-size:.72rem; font-weight:700; margin-left:4px; }
+  .phadd { display:inline-block; margin-top:5px; border:1.5px dashed #94a3b8; background:#fff; color:#0f172a; border-radius:10px;
+           padding:7px 12px; font-size:.82rem; font-weight:700; }
 
   .jstrip { display:grid; grid-template-columns:repeat(4, 1fr); gap:11px 6px; margin-top:12px; }
   .jchip { display:flex; flex-direction:column; align-items:center; gap:1px; border:1.5px solid var(--line); background:#f8fafc;
@@ -438,10 +442,13 @@
       {% if g.cho %}<div class="cmeta cho">🏨 {{ g.cho }}</div>{% endif %}
       {% if g.confirmed and g.last %}<div class="cconf">🙋 Khách đã xác nhận đến</div>{% endif %}
       <div class="cextra"><span class="cx-id">Mã {{ g.booking_id }} · </span>💰 <b>{{ g.total or '—' }}đ</b>{% if g.nights %} · {{ g.nights }} đêm{% endif %}{% if g.per_night %} · {{ g.per_night }}đ/đêm{% endif %}</div>
-      {% if kind == 'phone' or (kind == 'unreach' and g.has_phone) %}<div class="cphone">📞 {{ g.phone }}{% if g.no_wa %} <small class="nochan">⚠️ không dùng WhatsApp</small>{% endif %}{% if g.no_zalo %} <small class="nochan">⚠️ không dùng Zalo</small>{% endif %}{% if g.via_partner %} <small style="color:#6b7280;font-weight:600">· 🤝 qua đối tác, số khách gửi</small>{% endif %}</div>
+      {% if kind == 'phone' or (kind == 'unreach' and g.has_phone) %}<div class="cphone">📞 {{ g.phone }}{% if g.no_wa %} <small class="nochan">⚠️ không dùng WhatsApp</small>{% endif %}{% if g.no_zalo %} <small class="nochan">⚠️ không dùng Zalo</small>{% endif %}{% if g.via_partner %} <small style="color:#6b7280;font-weight:600">· 🤝 qua đối tác, số khách gửi</small>{% endif %}
+        <button type="button" class="phedit" onclick="MsgAct.phone(this)" data-bid="{{ g.booking_id }}" data-phone="{{ g.phone }}" title="Sửa số">✏️ Sửa số</button></div>
       {% elif kind == 'unreach' %}<div class="cphone none">Chưa có số thật</div>
       {% elif kind == 'partner' %}<div class="cphone partner">🤝 Đặt qua đối tác — nhắn trong khung chat Booking</div>
-      {% else %}<div class="cphone none">⏳ Chưa có số — mở đặt phòng trên máy tính, bấm hiện số</div>{% endif %}
+      {% else %}<div class="cphone none">⏳ Chưa có số</div>{% endif %}
+      {% if not (kind == 'phone' or (kind == 'unreach' and g.has_phone)) %}
+      <button type="button" class="phadd" onclick="MsgAct.phone(this)" data-bid="{{ g.booking_id }}" data-phone="">📞 Thêm số khách gửi</button>{% endif %}
     </div>
     {# The Booking screenshot that will be sent — visible here to check it first #}
     {% if g.shot %}
@@ -1085,6 +1092,25 @@
       body: JSON.stringify({ booking_id: btn.dataset.bid, step: 'unreachable', sent: on }) }).then(x => x.json()).catch(() => null);
     if (!r || !r.success) { btn.disabled = false; if (card) card.classList.remove('gone'); alert('Không lưu được — thử lại'); return; }
     restored.add(btn.dataset.bid);                // moved between groups, not a new guest
+    refresh(true);
+  };
+  // 📞 Thêm / sửa số: the guest sent their number → paste it here (local VN 0… → +84; foreign with the country code)
+  MsgAct.phone = async btn => {
+    const cur = btn.dataset.phone || '';
+    const typed = prompt(cur ? 'Sửa số điện thoại của khách:' : 'Số điện thoại khách gửi (số nước ngoài ghi cả mã nước, vd +33 6 12 34 56 78):', cur);
+    if (typed === null || !typed.trim() || typed.trim() === cur) return;
+    const send = force => fetch('/api/messages/phone', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ booking_id: btn.dataset.bid, phone: typed, force }) }).then(x => x.json()).catch(() => null);
+    btn.disabled = true;
+    let r = await send(false);
+    if (r && r.status === 'duplicate' && confirm(`Số này đang là của khách "${r.other_name}". Vẫn lưu cho khách này?`)) r = await send(true);
+    btn.disabled = false;
+    if (!r || !r.success) { if (!r || r.status !== 'duplicate') alert('❌ ' + ((r && r.error) || 'Không lưu được — thử lại')); return; }
+    const t = document.createElement('div');
+    t.className = 'live-toast';
+    t.textContent = '📞 Đã lưu số ' + r.phone + ' — nhắn WhatsApp / Zalo được ngay';
+    document.body.appendChild(t); setTimeout(() => t.remove(), 3500);
+    restored.add(btn.dataset.bid);                // moved to the main list, not a new guest
     refresh(true);
   };
   window.MsgLive = { refresh: () => refresh(true) };

@@ -340,6 +340,10 @@ click listener: on iPhone Safari a delegated listener did not fire for taps on t
 Send sheet (journey.js) on iPhone: sized to the visible screen (`100dvh`), page behind locked (`body.jr-lock`), sticky
 header with a big "✕ Đóng"; opening pushes one history entry (`jrSheet`) so swipe-back / ‹ closes the sheet
 (`close('reopen')` when re-rendering keeps the entry). Same fit for the photo-import sheet.
+📞 Phone on the card (owner, Oct 22): "✏️ Sửa số" next to a number, "📞 Thêm số khách gửi" on cards without one
+(partner / no phone) → prompt → `POST /api/messages/phone` (`_typed_phone`: local VN 0… → +84, 00… → +, 8–15 digits;
+the partner's number refused; a number on another guest → 409 `duplicate`, confirm sends force) → saved on the guest
+row via `_ext_save_one` (shared by every room of a split reservation); the card moves to the main list on refresh.
 Sorted by value (owner): every group by total price desc, then nights desc. Guests with a phone are also grouped by
 ROOM TYPE (owner, Oct 22): `room_groups` = one `.rgroup` block per room name as booked (`g.phong`, case/space-folded),
 header "🛏️ room · N khách", the block holding the most valuable guest first, value order kept inside; a scrollable chip

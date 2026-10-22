@@ -2124,6 +2124,58 @@ def ext_booking_phone():
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
+def _typed_phone(raw):
+    """A number the owner typed / pasted ("0905 123 456", "+33 6 12 34 56 78", "0033…") → '+<digits>' or ''.
+    A local Vietnamese number (0 + 9 digits) gets +84."""
+    t = str(raw or '').strip()
+    d = re.sub(r'\D', '', t)
+    if t.startswith('00'):
+        d, t = d[2:], '+' + d[2:]
+    if not t.startswith('+') and len(d) == 10 and d.startswith('0'):
+        d = '84' + d[1:]
+    if not 8 <= len(d) <= 15:
+        return ''
+    return '+' + d
+
+
+@app.route('/api/messages/phone', methods=['POST'])
+def messages_set_phone():
+    """📞 Thêm / sửa số on a /messages card (owner, Oct 22): the guest sent their number (Booking chat, e-mail…)
+    → saved on the guest row, shared by every room of the reservation, shown everywhere (cards, calendar chips).
+    A number already on a different guest asks first (force=true to save anyway); the partner company's number
+    is never saved."""
+    from core.models import db as _xdb
+    try:
+        d = request.get_json(silent=True) or {}
+        bid = str(d.get('booking_id') or '').strip()
+        phone = _typed_phone(d.get('phone'))
+        existing = _ext_existing(bid) if bid else None
+        if not existing:
+            return jsonify({'success': False, 'error': 'Không tìm thấy đặt phòng'}), 404
+        if not phone:
+            return jsonify({'success': False, 'error': 'Số không hợp lệ — nhập 8–15 chữ số, số nước ngoài có mã nước (+33…)'}), 400
+        if _phone_tail(phone) in PARTNER_PHONE_TAILS:
+            return jsonify({'success': False, 'error': 'Đây là số của công ty đối tác Booking, không phải số khách'}), 400
+        if re.sub(r'\D', '', existing['phone']) == re.sub(r'\D', '', phone):
+            return jsonify({'success': True, 'status': 'same', 'phone': phone})
+        other = _xdb.session.execute(text(r"""
+            SELECT full_name FROM guests
+            WHERE RIGHT(regexp_replace(COALESCE(phone, ''), '\D', '', 'g'), 9) = :t
+              AND guest_id IS DISTINCT FROM :gid
+            LIMIT 1"""), {'t': _phone_tail(phone), 'gid': existing['guest_id']}).fetchone()
+        if other and not d.get('force'):
+            return jsonify({'success': False, 'status': 'duplicate', 'other_name': other[0] or '',
+                            'error': f"Số này đang là của khách {other[0] or 'khác'}"}), 409
+        result, code = _ext_save_one({'booking_id': bid, 'phone': phone})
+        if not result.get('success'):
+            return jsonify(result), code
+        record_booking_history(bid, {'phone': phone}, changed_by='messages_phone')
+        return jsonify({'success': True, 'status': 'saved', 'phone': phone})
+    except Exception as e:
+        _xdb.session.rollback()
+        return jsonify({'success': False, 'error': str(e)[:200]}), 500
+
+
 def _msg_phone_links(phone):
     """Build click-to-message targets from a stored phone. wa = international digits (no + / no
     leading 0), sms = +international, zalo = VN local 0-form when Vietnamese else international."""
