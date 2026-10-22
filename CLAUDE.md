@@ -344,6 +344,12 @@ header with a big "✕ Đóng"; opening pushes one history entry (`jrSheet`) so 
 (partner / no phone) → prompt → `POST /api/messages/phone` (`_typed_phone`: local VN 0… → +84, 00… → +, 8–15 digits;
 the partner's number refused; a number on another guest → 409 `duplicate`, confirm sends force) → saved on the guest
 row via `_ext_save_one` (shared by every room of a split reservation); the card moves to the main list on refresh.
+📞 "Cập nhật số từ ảnh chụp tin nhắn" (owner, Oct 22): screenshots of the Booking app chat (several at once) → OCR on the
+phone (`window.PhotoOcr` = the photo import's tesseract loader + dark-mode `prepare`) → `POST /api/phone_from_chat/parse`
+(`parse_chat_shot`: name = line above "22 thg 10 - 26 thg 10 2026", dates from it, number = LAST phone-like number that
+is not in any message template (`_owner_numbers`), not the partner's, not a 10-digit booking number; `_chat_booking`
+matches name (+ dates when several)) → one row per screenshot with an editable number + 💾 Lưu số / Lưu tất cả →
+/api/messages/phone. Tested on the owner's 2 real screenshots (Mỹ Trân Ngô, Thành Đạt Hồ): both found.
 Sorted by value (owner): every group by total price desc, then nights desc. Guests with a phone are also grouped by
 ROOM TYPE (owner, Oct 22): `room_groups` = one `.rgroup` block per room name as booked (`g.phong`, case/space-folded),
 header "🛏️ room · N khách", the block holding the most valuable guest first, value order kept inside; a scrollable chip

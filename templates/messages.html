@@ -24,6 +24,15 @@
   .reload.spin { animation:rl .8s linear infinite; }
   @keyframes rl { to { transform:rotate(360deg); } }
   .upd { font-size:.7rem; color:var(--muted); margin:-4px 0 6px; text-align:right; }
+  #chatphone { margin-top:6px; }
+  .cp-row { display:flex; gap:10px; border:1px solid #e2e8f0; border-radius:12px; padding:8px; margin-top:8px; }
+  .cp-row img { width:64px; height:110px; object-fit:cover; object-position:top; border-radius:8px; flex:none; background:#f1f5f9; }
+  .cp-m { flex:1; min-width:0; display:flex; flex-direction:column; gap:3px; }
+  .cp-m small { color:#64748b; font-size:.75rem; }
+  .cp-m input { font-size:16px; padding:8px 10px; border:1.5px solid #cbd5e1; border-radius:8px; margin-top:2px; }
+  .cp-save, .cp-all { border:none; background:#0f172a; color:#fff; border-radius:10px; padding:9px; font-weight:800; margin-top:4px; }
+  .cp-save:disabled { opacity:.4; } .cp-all { width:100%; margin-top:10px; padding:12px; }
+  .cp-ok { color:#15803d; font-weight:800; font-size:.85rem; } .cp-err { color:#b91c1c; font-size:.8rem; font-weight:700; }
   .addphoto { display:block; width:100%; border:1.5px dashed #2563eb; background:#eff6ff; color:#1d4ed8; font-weight:800;
               font-size:.88rem; border-radius:12px; padding:10px; margin:0 0 10px; cursor:pointer; font-family:inherit; }
   .ap-ov { position:fixed; inset:0; height:100vh; height:100dvh; z-index:99990; background:rgba(15,23,42,.55); display:flex;
@@ -490,6 +499,7 @@
   </div>
   <div class="upd" id="upd">Tự cập nhật · lúc {{ now_str }}</div>
   <button type="button" class="addphoto" id="addphoto">📷 Thêm đặt phòng từ ảnh app Booking</button>
+  <button type="button" class="addphoto" id="chatphone">📞 Cập nhật số từ ảnh chụp tin nhắn</button>
   <div class="tabs">
     <a href="?view=arriving&days={{ days }}" class="{{ 'on' if view == 'arriving' }}">🛬 Sắp đến</a>
     <a href="?view=staying" class="{{ 'on' if view == 'staying' }}">🏨 Đang ở</a>
@@ -947,6 +957,88 @@
     if (window.MsgLive) window.MsgLive.refresh();
   }
   document.getElementById('addphoto').onclick = open;
+  window.PhotoOcr = { load: loadTesseract, prepare };
+})();
+
+// 📞 Number from screenshots of the Booking app chat (owner, Oct 22): one or several screenshots → read on the phone →
+// guest + number found by the server → one row per screenshot, the owner taps Lưu (or Lưu tất cả).
+(function () {
+  let ov = null, worker = null, rows = [];
+  const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const post = (u, b) => fetch(u, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(b) })
+    .then(x => x.json()).catch(() => null);
+  const digits = v => String(v || '').replace(/\D/g, '');
+  function open() {
+    rows = [];
+    ov = document.createElement('div');
+    ov.className = 'ap-ov';
+    ov.innerHTML = `<div class="ap">
+      <div class="top"><h3>📞 Cập nhật số từ ảnh tin nhắn</h3><button type="button" class="x" aria-label="Đóng">✕</button></div>
+      <div class="hint">Khách gửi số trong khung chat app Booking → <b>chụp màn hình</b> cuộc trò chuyện (thấy tên khách, ngày ở và số)
+        → chọn ảnh ở đây, được chọn <b>nhiều ảnh</b> cùng lúc. Web tự tìm khách và số, bạn chỉ cần bấm <b>Lưu</b>.</div>
+      <div class="pick"><label>🖼 Chọn ảnh<input type="file" accept="image/*" multiple hidden></label></div>
+      <div class="status"></div>
+      <div class="cp-list"></div>
+    </div>`;
+    document.body.appendChild(ov);
+    ov.addEventListener('click', e => { if (e.target === ov) close(); });
+    ov.querySelector('.x').onclick = close;
+    ov.querySelector('input[type=file]').onchange = e => { read([...e.target.files]); e.target.value = ''; };
+  }
+  function close() { if (ov) ov.remove(); ov = null; }
+  function status(t, err) { const el = ov && ov.querySelector('.status'); if (el) { el.textContent = t; el.className = 'status' + (err ? ' err' : ''); } }
+  async function read(files) {
+    if (!files.length) return;
+    try {
+      status(window.Tesseract ? 'Đang đọc ảnh…' : 'Đang tải bộ đọc chữ (lần đầu ~10 giây)…');
+      await window.PhotoOcr.load();
+      if (!worker) worker = await Tesseract.createWorker('vie+eng');
+      let i = 0;
+      for (const f of files) {
+        if (!ov) return;
+        status(`Đang đọc ảnh ${++i}/${files.length}…`);
+        const { canvas, url } = await window.PhotoOcr.prepare(f);
+        const r = await worker.recognize(canvas);
+        const p = await post('/api/phone_from_chat/parse', { text: r.data.text });
+        rows.push({ url, p: (p && p.parsed) || {}, state: '' });
+        draw();
+      }
+      status('');
+    } catch (e) { status('❌ Không đọc được ảnh: ' + (e.message || e), true); }
+  }
+  function draw() {
+    if (!ov) return;
+    const ready = rows.filter(r => r.p.booking_id && r.p.phone && r.state !== 'ok' && digits(r.p.current_phone) !== digits(r.p.phone));
+    ov.querySelector('.cp-list').innerHTML = rows.map((r, i) => {
+      const p = r.p, same = p.current_phone && p.phone && digits(p.current_phone) === digits(p.phone);
+      return `<div class="cp-row">
+        <img src="${r.url}" alt="">
+        <div class="cp-m">
+          <b>${esc(p.matched_name || p.guest_name || 'Không đọc được tên')}</b>
+          <small>${p.booking_id ? `${esc(p.nhan)} → ${esc(p.tra)} · mã ${esc(p.booking_id)}` : '⚠️ Không tìm thấy khách này trên web'}</small>
+          ${p.current_phone ? `<small>Số đang lưu: ${esc(p.current_phone)}</small>` : '<small>Chưa có số</small>'}
+          <input type="tel" data-i="${i}" value="${esc(p.phone || '')}" placeholder="Không thấy số — gõ vào đây">
+          ${(p.phones || []).length > 1 ? `<small>Các số trong ảnh: ${p.phones.map(esc).join(', ')}</small>` : ''}
+          ${r.state === 'ok' ? '<div class="cp-ok">✅ Đã lưu</div>' : same ? '<div class="cp-ok">✔ Số này đã có trên web</div>'
+            : `<button type="button" class="cp-save" data-i="${i}" ${p.booking_id ? '' : 'disabled'}>💾 Lưu số</button>`}
+          ${r.state && r.state !== 'ok' ? `<div class="cp-err">${esc(r.state)}</div>` : ''}
+        </div></div>`;
+    }).join('') + (ready.length > 1 ? `<button type="button" class="cp-all">💾 Lưu tất cả ${ready.length} số</button>` : '');
+    ov.querySelectorAll('.cp-row input').forEach(inp => inp.oninput = () => { rows[inp.dataset.i].p.phone = inp.value; });
+    ov.querySelectorAll('.cp-save').forEach(b => b.onclick = () => save(+b.dataset.i).then(draw));
+    const all = ov.querySelector('.cp-all');
+    if (all) all.onclick = async () => { for (const r of ready) await save(rows.indexOf(r)); draw(); };
+  }
+  async function save(i) {
+    const r = rows[i];
+    if (!r.p.booking_id || !r.p.phone) return;
+    let res = await post('/api/messages/phone', { booking_id: r.p.booking_id, phone: r.p.phone });
+    if (res && res.status === 'duplicate' && confirm(`Số ${r.p.phone} đang là của khách "${res.other_name}". Vẫn lưu cho ${r.p.matched_name}?`))
+      res = await post('/api/messages/phone', { booking_id: r.p.booking_id, phone: r.p.phone, force: true });
+    r.state = res && res.success ? 'ok' : ((res && res.error) || 'Không lưu được');
+    if (res && res.success && window.MsgLive) window.MsgLive.refresh();
+  }
+  document.getElementById('chatphone').onclick = open;
 })();
 </script>
 <script src="{{ asset('js/journey.js') }}"></script>

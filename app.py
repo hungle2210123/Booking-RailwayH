@@ -2138,6 +2138,107 @@ def _typed_phone(raw):
     return '+' + d
 
 
+# ── 📞 Number from a screenshot of the Booking app chat (owner, Oct 22) ─────────────────────────────────────
+# The guest wrote their number in the Booking chat → the owner screenshots the conversation (one or several) → the
+# phone reads the text (tesseract, like the photo import) → here: guest name = the line above "22 thg 10 - 26 thg 10
+# 2026", dates from that line, the number = the LAST phone-like number on the screen that is not the owner's own
+# (numbers in the message templates) nor a booking number → the booking. The owner taps Lưu (nothing saved here).
+_CHAT_RANGE = re.compile(r'(\d{1,2})\s*th[gq]\.?\s*(\d{1,2})(?:\s+(\d{4}))?\s*[-–—]\s*(\d{1,2})\s*th[gq]\.?\s*(\d{1,2})\s+(\d{4})', re.I)
+_CHAT_PHONE = re.compile(r'(?<![\d:])(\+?\d[\d .\-]{7,17}\d)(?![\d:])')
+
+
+def _owner_numbers(_xdb):
+    """Last 9 digits of every number written in the message templates (the owner's WhatsApp / WeChat / hotline)."""
+    tails = set()
+    for (c,) in _xdb.session.execute(text(
+            "SELECT COALESCE(template_content, '') || ' ' || COALESCE(template_content_vi, '') FROM message_templates")).fetchall():
+        for m in _CHAT_PHONE.finditer(c or ''):
+            d = re.sub(r'\D', '', m.group(1))
+            if len(d) >= 9:
+                tails.add(d[-9:])
+    return tails
+
+
+def parse_chat_shot(text_, owner_tails=()):
+    from core.booking_page_parser import _fold
+    lines = [re.sub(r'\s+', ' ', l).strip() for l in str(text_ or '').splitlines() if l.strip()]
+    out = {'guest_name': None, 'checkin_date': None, 'checkout_date': None, 'phone': None, 'phones': []}
+    for i, l in enumerate(lines):
+        m = _CHAT_RANGE.search(l)
+        if not m:
+            continue
+        d1, m1, y1, d2, m2, y2 = m.groups()
+        y2 = int(y2)
+        y1 = int(y1) if y1 else (y2 - 1 if int(m1) > int(m2) else y2)
+        try:
+            out['checkin_date'] = datetime(y1, int(m1), int(d1)).date().isoformat()
+            out['checkout_date'] = datetime(y2, int(m2), int(d2)).date().isoformat()
+        except ValueError:
+            pass
+        for j in range(i - 1, -1, -1):                      # the guest's name sits right above the dates
+            n = re.sub(r'\s*Chi ti[eế]t\s*$', '', lines[j], flags=re.I).strip(' .·-')
+            f = _fold(n)
+            if n and not re.search(r'\d{2}:\d{2}', n) and f not in ('tin nhan', 'messages', 'message') and len(n) <= 60:
+                out['guest_name'] = n
+                break
+        break
+    seen = []
+    for m in _CHAT_PHONE.finditer('\n'.join(lines)):
+        raw = m.group(1)
+        d = re.sub(r'\D', '', raw)
+        if not 9 <= len(d) <= 15:
+            continue
+        if len(d) == 10 and not d.startswith('0') and not raw.strip().startswith('+'):
+            continue                                        # a Booking reservation number
+        if d[-9:] in owner_tails or d[-9:] in PARTNER_PHONE_TAILS:
+            continue
+        if not (raw.strip().startswith('+') or d.startswith('0') or d.startswith('84')):
+            continue
+        p = _typed_phone(raw)
+        if p and p not in seen:
+            seen.append(p)
+    out['phones'] = seen
+    out['phone'] = seen[-1] if seen else None              # the latest message is lowest on the screen
+    return out
+
+
+def _chat_booking(_xdb, name, ci, co):
+    """The booking of this chat: same name (any order / accents / country code) and, when there are several, the
+    same dates; else the only booking with these dates whose name shares a word."""
+    from core.booking_page_parser import _fold
+    words = lambda s: set(re.sub(r'[^a-z ]', ' ', _fold(re.sub(r'\s+[a-z]{2}$', '', str(s or '').strip()))).split())
+    want = words(name)
+    rows = _xdb.session.execute(text("""
+        SELECT b.booking_id, COALESCE(g.full_name, b.guest_name), b.checkin_date, b.checkout_date, g.phone
+        FROM bookings b LEFT JOIN guests g ON g.guest_id = b.guest_id
+        WHERE b.checkout_date >= CURRENT_DATE - 3 AND COALESCE(b.booking_status, '') NOT IN ('deleted', 'cancelled')
+        ORDER BY b.booking_id""")).fetchall()
+    same_dates = lambda r: (not ci or str(r[2]) == ci) and (not co or str(r[3]) == co)
+    exact = [r for r in rows if want and words(r[1]) == want]
+    if len(exact) > 1:
+        exact = [r for r in exact if same_dates(r)] or exact
+    if exact:
+        return exact[0]
+    near = [r for r in rows if ci and same_dates(r) and want & words(r[1])]
+    return near[0] if len(near) == 1 else None
+
+
+@app.route('/api/phone_from_chat/parse', methods=['POST'])
+def phone_from_chat_parse():
+    from core.models import db as _xdb
+    try:
+        txt = str((request.get_json(silent=True) or {}).get('text') or '')
+        p = parse_chat_shot(txt, _owner_numbers(_xdb))
+        b = _chat_booking(_xdb, p['guest_name'], p['checkin_date'], p['checkout_date']) if (p['guest_name'] or p['checkin_date']) else None
+        if b:
+            p.update({'booking_id': b[0], 'matched_name': b[1], 'current_phone': b[4] or '',
+                      'nhan': b[2].strftime('%d/%m') if b[2] else '', 'tra': b[3].strftime('%d/%m') if b[3] else ''})
+        return jsonify({'success': True, 'parsed': p})
+    except Exception as e:
+        _xdb.session.rollback()
+        return jsonify({'success': False, 'error': str(e)[:200]}), 500
+
+
 @app.route('/api/messages/phone', methods=['POST'])
 def messages_set_phone():
     """📞 Thêm / sửa số on a /messages card (owner, Oct 22): the guest sent their number (Booking chat, e-mail…)
