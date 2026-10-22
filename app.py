@@ -3342,7 +3342,17 @@ def messages_page():
             n = g['nights'] or 0
             g['tier'] = 2 if g['total_num'] >= 3_000_000 or n >= 5 else (1 if g['total_num'] >= 2_000_000 or n >= 4 else 0)
         lst.sort(key=lambda g: (-g['total_num'], -(g['nights'] or 0)))
-    return render_template('messages.html', guests=guests, no_phone=no_phone, partner=partner, unreachable=unreachable,
+    # …and grouped by room type (owner, Oct 22): one block per room name as booked, the block holding the most
+    # valuable guest first; inside a block the value order above stays.
+    room_groups = {}
+    for g in guests:
+        room = g['phong'] or 'Chưa rõ loại phòng'
+        room_groups.setdefault(re.sub(r'\s+', ' ', room).strip().casefold(), {'room': room, 'items': []})['items'].append(g)
+    room_groups = list(room_groups.values())        # insertion order = order of each block's best guest
+    for i, rg in enumerate(room_groups):
+        rg['key'] = f'r{i}'
+    return render_template('messages.html', guests=guests, room_groups=room_groups,
+                           no_phone=no_phone, partner=partner, unreachable=unreachable,
                            view=view, days=days, today_str=today.strftime('%d/%m/%Y'), total=len(rows),
                            buttons=buttons, now_str=(datetime.utcnow() + timedelta(hours=7)).strftime('%H:%M:%S'))
 

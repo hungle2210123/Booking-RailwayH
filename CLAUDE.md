@@ -340,7 +340,11 @@ click listener: on iPhone Safari a delegated listener did not fire for taps on t
 Send sheet (journey.js) on iPhone: sized to the visible screen (`100dvh`), page behind locked (`body.jr-lock`), sticky
 header with a big "✕ Đóng"; opening pushes one history entry (`jrSheet`) so swipe-back / ‹ closes the sheet
 (`close('reopen')` when re-rendering keeps the entry). Same fit for the photo-import sheet.
-Sorted by value (owner): every group by total price desc, then nights desc. Tiers (from the real spread of 443
+Sorted by value (owner): every group by total price desc, then nights desc. Guests with a phone are also grouped by
+ROOM TYPE (owner, Oct 22): `room_groups` = one `.rgroup` block per room name as booked (`g.phong`, case/space-folded),
+header "🛏️ room · N khách", the block holding the most valuable guest first, value order kept inside; a scrollable chip
+row "🛏️ Loại phòng" (`MsgAct.room`, localStorage `msg_room`) shows one room type; `applyRoom()` (run by applyFilter) also
+hides a block whose cards are all hidden by 🔴 / ✅. Tiers (from the real spread of 443
 bookings): ⭐⭐ VIP = ≥ 3,000,000đ or ≥ 5 nights (~top 10%), ⭐ Ưu tiên = ≥ 2,000,000đ or ≥ 4 nights (~top 20%) →
 gold tint + ribbon. Every card shows "💰 total · N đêm" (`.cextra`; the booking number only on desktop).
 Desktop ≥992px: 2-column card grid (3 ≥1900px), bigger text, 200×150 Booking picture, all chips on one row,

@@ -73,6 +73,18 @@
             padding:6px 10px; margin-bottom:12px; }
 
   .group-t { font-size:.85rem; font-weight:800; margin:16px 2px 6px; }
+  /* 🛏️ room-type blocks (owner, Oct 22): plain header, chips to show one room type */
+  .rgrp { font-size:.88rem; font-weight:800; color:#0f172a; margin:14px 2px 6px; padding-bottom:4px; border-bottom:1px solid #e2e8f0; }
+  .rgrp span { color:#64748b; font-weight:600; }
+  .rchips { display:flex; gap:6px; align-items:center; margin:8px 0 2px; font-size:.78rem; color:#64748b;
+            overflow-x:auto; white-space:nowrap; scrollbar-width:none; -webkit-overflow-scrolling:touch; }
+  .rchips::-webkit-scrollbar { display:none; }
+  .rchips span, .rchips button { flex:none; }
+  .rchips button { border:1px solid #e2e8f0; background:#fff; color:#0f172a; border-radius:999px; padding:5px 10px; font-size:.78rem; font-weight:600;
+                   max-width:220px; overflow:hidden; text-overflow:ellipsis; }
+  .rchips button b { color:#64748b; font-weight:600; }
+  .rchips button.on { background:#0f172a; border-color:#0f172a; color:#fff; } .rchips button.on b { color:#cbd5e1; }
+  .rgroup.r-off { display:none; }
   .group-t.partner { color:#7c3aed; } .group-t.nophone { color:#b45309; }
   .cmeta.cho { color:#0f766e; font-weight:600; }
   .group-t.unreach { color:#475569; border-top:1px dashed #cbd5e1; padding-top:12px; }
@@ -531,7 +543,16 @@
   </div>
   <div class="legend">Chạm một bước để xem tin + ảnh rồi gửi · tin chung (Passport, Change, Xin hủy…) ở nút <b>⚡ Tin nhanh</b></div>
 
-  {% for g in guests %}{{ card(g, 'phone') }}{% endfor %}
+  {% if room_groups|length > 1 %}
+  <div class="rchips"><span>🛏️ Loại phòng:</span>
+    <button type="button" data-r="all" onclick="MsgAct.room(this)">Tất cả</button>
+    {% for rg in room_groups %}<button type="button" data-r="{{ rg.key }}" onclick="MsgAct.room(this)">{{ rg.room }} <b>{{ rg['items']|length }}</b></button>{% endfor %}
+  </div>
+  {% endif %}
+  {% for rg in room_groups %}<div class="rgroup" data-r="{{ rg.key }}">
+    {% if room_groups|length > 1 %}<div class="rgrp">🛏️ {{ rg.room }} <span>· {{ rg['items']|length }} khách</span></div>{% endif %}
+    {% for g in rg['items'] %}{{ card(g, 'phone') }}{% endfor %}
+  </div>{% endfor %}
   {% if not guests and not partner and not no_phone and not unreachable %}
   <div class="empty">Không có khách nào trong khoảng này.</div>
   {% endif %}
@@ -964,7 +985,20 @@
   // 🔴 Chưa nhắn / ✅ Đã nhắn: filter (remembered on this device) + counts
   let filter = 'all';
   try { filter = localStorage.getItem('msg_filter') || 'all'; } catch (e) {}
+  let room = 'all';
+  try { room = localStorage.getItem('msg_room') || 'all'; } catch (e) {}
+  function applyRoom() {
+    const groups = [...document.querySelectorAll('#live .rgroup')];
+    if (room !== 'all' && !groups.some(g => g.dataset.r === room)) room = 'all';
+    groups.forEach(g => {
+      // hidden by the room chip, or every card in it hidden by the 🔴 / ✅ filter → no empty header left
+      const anyCard = [...g.querySelectorAll('.card')].some(c => getComputedStyle(c).display !== 'none');
+      g.classList.toggle('r-off', (room !== 'all' && g.dataset.r !== room) || !anyCard);
+    });
+    document.querySelectorAll('#live .rchips button').forEach(b => b.classList.toggle('on', b.dataset.r === room));
+  }
   function applyFilter() {
+    document.querySelectorAll('#live .rgroup').forEach(g => g.classList.remove('r-off'));
     document.body.classList.remove('f-todo', 'f-done', 'f-unreach');
     if (filter !== 'all') document.body.classList.add('f-' + filter);
     const cards = [...document.querySelectorAll('#live .card:not(.unreach)')];
@@ -980,10 +1014,16 @@
     if (none && !em) { em = document.createElement('div'); em.className = 'fempty'; document.getElementById('live').appendChild(em); }
     if (em) { em.style.display = none ? '' : 'none'; em.textContent = filter === 'todo' ? '🎉 Đã nhắn hết khách'
       : (filter === 'unreach' ? 'Không có khách nào "không liên lạc được"' : 'Chưa nhắn khách nào'); }
+    applyRoom();
   }
   // Buttons inside #live call these directly (onclick="MsgAct.…(this)"): iPhone Safari does not reliably give a
   // document-level click listener the tapped button, and #live is re-rendered on every refresh.
   const MsgAct = window.MsgAct = {};
+  MsgAct.room = b => {
+    room = b.dataset.r;
+    try { localStorage.setItem('msg_room', room); } catch (e2) {}
+    applyFilter();
+  };
   MsgAct.filter = b => {
     filter = b.dataset.f;
     try { localStorage.setItem('msg_filter', filter); } catch (e2) {}
