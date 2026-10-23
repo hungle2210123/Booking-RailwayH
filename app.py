@@ -5610,12 +5610,28 @@ def calendar_view(year=None, month=None):
 #     price_adjustment_count = 0
 
     revenue_by_date = {}
+    # Same numbers as the dashboard (core/revenue.py): confirmed / paid nights, Báo hủy and unconfirmed arrivals
+    # left out (shown apart as "⏳ chờ"), future = booked forecast (owner, Oct 23: the cell said 14.2M, dashboard 12.5M).
+    _rev_figs = None
+    try:
+        from core import revenue as _R
+        from core.models import db as _rdb
+        _rev_figs = _R.day_figures(_R.load_bookings(_rdb.session, text),
+                                   [datetime(year, month, dd).date() for dd in range(1, num_days + 1)])
+    except Exception as _e:
+        print(f"[calendar] day_figures failed, old figures used: {_e}")
     for day in range(1, num_days + 1):
         date_str = f"{year}-{month:02d}-{day:02d}"
         date_obj = datetime.strptime(date_str, "%Y-%m-%d").date()
 
+        if _rev_figs is not None:
+            _fg = _rev_figs[date_obj]
+            revenue_by_date[date_obj] = type('obj', (object,), {
+                'daily_total': _fg['shown'], 'daily_total_minus_commission': _fg['shown'], 'total_commission': 0,
+                'pending': _fg['pending'], 'pending_n': _fg['pending_n'],
+            })()
         # Use optimized daily revenue data if available, fallback to calendar info
-        if date_obj in daily_revenue_data:
+        elif date_obj in daily_revenue_data:
             revenue_info = daily_revenue_data[date_obj]
             print(f"🎯 [CALENDAR_DEBUG] {date_str}: Using optimized data - {revenue_info['daily_total']:,.0f}đ")
             revenue_by_date[date_obj] = type('obj', (object,), {
@@ -6027,6 +6043,31 @@ def calendar_details(date_str):
             except (ValueError, TypeError, AttributeError, KeyError):
                 continue
 
+        # The headline / breakdown use the dashboard's numbers (core/revenue.py) so the day page, the month calendar
+        # and the dashboard agree (owner, Oct 23). Guests leaving today are not counted (their last night was
+        # yesterday); unconfirmed arrivals stay apart as "chờ xác nhận".
+        rev_pn = {}
+        try:
+            from core import revenue as _R
+            from core.models import db as _xdb_cd
+            _fg = _R.day_figures(_R.load_bookings(_xdb_cd.session, text), [date_obj])[date_obj]
+            confirmed_rev, confirmed_comm, confirmed_net = _fg['shown'], 0.0, _fg['shown']
+            pending_rev = _fg['pending']
+            rev_pn = {r['booking_id']: round(r['per_night']) for r in _fg['rows']}
+            _live = [r for r in _fg['counted'] if r['is_arrival'] and r['confirmed']]   # added back by the page's JS
+            stay_co_rev = confirmed_rev - sum(r['per_night'] for r in _live)
+            stay_co_comm = 0.0
+            _stay_co_n = len(_fg['counted']) - len(_live)
+            _pending_checkins = [None] * _fg['pending_n']
+            revenue_guests = _fg['counted']
+            detailed_bookings = [type('obj', (object,), {
+                'booking_id': r['booking_id'], 'guest_name': r['name'], 'daily_amount': r['per_night'],
+                'daily_amount_minus_commission': r['per_night'], 'commission_amount': 0,
+                'total_amount': r['value'], 'nights': r['nights']})() for r in _fg['counted']]
+        except Exception as _e:
+            print(f"[calendar_details] day_figures failed, old figures used: {_e}")
+            _stay_co_n = len(check_out + staying_over)
+
         day_revenue_info = type('obj', (object,), {
             'daily_total':                  confirmed_rev,
             'daily_total_minus_commission': confirmed_net,
@@ -6040,7 +6081,7 @@ def calendar_details(date_str):
             # Staying + checkout revenue (fixed; used by client-side recalculation)
             'stay_co_rev':   stay_co_rev,
             'stay_co_comm':  stay_co_comm,
-            'stay_co_count': len(check_out + staying_over),
+            'stay_co_count': _stay_co_n,
         })()
         
         # Build apartments_list for dynamic room badge colouring
@@ -6285,7 +6326,7 @@ def calendar_details(date_str):
             check_in=check_in,
             check_out=check_out,
             staying_over=staying_over,
-            day_revenue_info=day_revenue_info,
+            day_revenue_info=day_revenue_info, rev_pn=rev_pn,
             current_date=date_obj,
             pd=pd,
             timedelta=timedelta,

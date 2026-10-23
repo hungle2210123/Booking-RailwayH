@@ -1726,6 +1726,7 @@ setInterval(loadVbCd, 5 * 60 * 1000);
                                 {%- set _ci_collected = (booking.get('Số tiền đã thu', 0) or 0)|float %}
                                 {%- set _ci_effective = _ci_collected if _ci_collected > 0 else total_payment %}
                                 {%- set _ci_daily_rev  = (_ci_effective  / total_nights)|round|int if total_nights > 0 else _ci_effective|round|int %}
+                                {%- if rev_pn and booking.get('Số đặt phòng') in rev_pn %}{% set _ci_daily_rev = rev_pn[booking.get('Số đặt phòng')] %}{% endif %}
                                 {%- set _ci_daily_comm = (commission / total_nights)|round|int if total_nights > 0 else commission|round|int %}
                                 <div class="card-details">
                                     <div class="detail-row">

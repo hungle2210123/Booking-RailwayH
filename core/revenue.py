@@ -138,6 +138,41 @@ def _nights_of(x):
     return [x['checkin'] + timedelta(days=i) for i in range(x['nights'])]
 
 
+def day_figures(bookings, days, today=None):
+    """The dashboard's numbers for the given dates, so the month calendar and the day page show the SAME amount
+    (owner, Oct 23: calendar 14.2M / day page 16.4M / dashboard 12.5M for one day). Per date:
+    revenue (paid + due nights, past/today), expected (future nights), pending (arrived ≤ 2 days ago, not confirmed,
+    not paid — not counted until confirmed), shown = revenue (past/today) or expected (future), rows per booking.
+    A night belongs to the date it starts on: guests leaving that day are not counted."""
+    today = today or vn_today()
+    want = set(days)
+    out = {d: {'revenue': 0.0, 'expected': 0.0, 'pending': 0.0, 'pending_n': 0, 'rows': []} for d in want}
+    for b in bookings:
+        x = classify(b, today)
+        if not x:
+            continue
+        for d in _nights_of(x):
+            if d not in want:
+                continue
+            kind = night_kind(x, d, today)
+            o = out[d]
+            if kind == 'pending':
+                o['pending'] += x['per_night']
+                o['pending_n'] += 1
+            elif kind == 'expected':
+                o['expected'] += x['per_night']
+            else:
+                o['revenue'] += x['per_night']
+            o['rows'].append({'booking_id': x['booking_id'], 'name': x['name'], 'per_night': x['per_night'],
+                              'value': x['value'], 'nights': x['nights'], 'kind': kind,
+                              'is_arrival': x['checkin'] == d,
+                              'confirmed': b.get('checkin_status') == 'confirmed'})
+    for d, o in out.items():
+        o['shown'] = o['revenue'] if d <= today else o['expected']
+        o['counted'] = [r for r in o['rows'] if r['kind'] != 'pending']
+    return out
+
+
 def _month_key(d):
     return d.strftime('%Y-%m')
 

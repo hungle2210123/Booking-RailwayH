@@ -561,6 +561,11 @@ Revenue = money collected for the ROOM: `collected − taxi_amount` (`room_paid`
 from the room price by > 1,000đ is flagged on the dashboard day list ("⚠️ giá phòng X/đêm"). Double "Thu tiền" is
 refused: /api/collect_payment (409 `duplicate`, unless `allow_duplicate`) and /api/pay/collect (unless `force`, sent
 by the sheet after its over-total confirm) when the booking is already paid and the same full amount comes again.
+ONE day figure everywhere (owner, Oct 23: same day showed 12.5M dashboard / 14.2M month calendar / 16.4M day page):
+`core.revenue.day_figures(bookings, dates)` (dashboard rules: per night, paid → room money, Báo hủy / no-show out,
+unconfirmed arrivals = pending, future = expected, guests leaving that day NOT counted) now feeds the month calendar cell
+(+ "⏳ +Xđ · N chờ xác nhận" line) and the calendar_details headline / breakdown / `rev_pn` (per-night data-rev for the
+page's JS recalculation; `stay_co_rev` = total minus confirmed arrivals). Old `get_daily_revenue_by_stay` only as fallback.
 5 bookings counted exactly twice (Philippe 19.19M → 9.59M, Chiara Gelmi, Jorge Nava, Hong Tran, AIR8n) were corrected
 (booking_history 'fix_double_collect', backup BACKUP_BEFORE_CLEANUP/double_collected_fix_2026-10-18.json).
 
