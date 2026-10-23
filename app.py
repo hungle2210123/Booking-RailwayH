@@ -3289,7 +3289,7 @@ def _messages_pay_page():
                            pay_left=_vnd(sum(i['left_num'] for i in open_)),
                            pay_claimed=_vnd(sum(i['left_num'] for i in claimed)),
                            collectors=PAY_COLLECTORS, today_str=today.strftime('%d/%m/%Y'),
-                           guests=[], no_phone=[], partner=[], unreachable=[], buttons=[], days=3, total=len(items),
+                           guests=[], no_phone=[], partner=[], unreachable=[], buttons=[], days=1, total=len(items),
                            now_str=_vn_now().strftime('%H:%M:%S'))
 
 # ── ⚡ /tin-nhanh — the iPhone home-screen "app": the templates used most, one tap each ─────────────────────────
@@ -3426,7 +3426,7 @@ def messages_page():
     _ensure_property_column()
     view = 'staying' if request.args.get('view') == 'staying' else 'arriving'
     try:
-        days = max(1, min(int(request.args.get('days', 3)), 14))
+        days = max(1, min(int(request.args.get('days', 1)), 14))     # default = today only (owner, Oct 23)
     except (TypeError, ValueError):
         days = 3
     today = (datetime.utcnow() + timedelta(hours=7)).date()
@@ -3497,14 +3497,28 @@ def messages_page():
         lst.sort(key=lambda g: (-g['total_num'], -(g['nights'] or 0)))
     # …and grouped by room type (owner, Oct 22): one block per room name as booked, the block holding the most
     # valuable guest first; inside a block the value order above stays.
-    room_groups = {}
-    for g in guests:
-        room = g['phong'] or 'Chưa rõ loại phòng'
-        room_groups.setdefault(re.sub(r'\s+', ' ', room).strip().casefold(), {'room': room, 'items': []})['items'].append(g)
-    room_groups = list(room_groups.values())        # insertion order = order of each block's best guest
-    for i, rg in enumerate(room_groups):
-        rg['key'] = f'r{i}'
-    return render_template('messages.html', guests=guests, room_groups=room_groups,
+    # Every list (with phone, partner, no phone, 📵) is grouped the same way; one key per room name across the lists,
+    # so the "🛏️ Loại phòng" chip shows that room type everywhere.
+    room_keys, room_names = {}, {}
+
+    def by_room(lst):
+        blocks = {}
+        for g in lst:
+            room = g['phong'] or 'Chưa rõ loại phòng'
+            fold = re.sub(r'\s+', ' ', room).strip().casefold()
+            key = room_keys.setdefault(fold, f'r{len(room_keys)}')
+            room_names.setdefault(key, room)
+            blocks.setdefault(key, {'key': key, 'room': room, 'items': []})['items'].append(g)
+        return list(blocks.values())               # insertion order = order of each block's best guest
+    room_groups, partner_groups = by_room(guests), by_room(partner)
+    nophone_groups, unreach_groups = by_room(no_phone), by_room(unreachable)
+    counts = {}
+    for blocks in (room_groups, partner_groups, nophone_groups, unreach_groups):
+        for b in blocks:
+            counts[b['key']] = counts.get(b['key'], 0) + len(b['items'])
+    room_chips = [{'key': k, 'room': room_names[k], 'n': counts[k]} for k in room_keys.values()]
+    return render_template('messages.html', guests=guests, room_groups=room_groups, partner_groups=partner_groups,
+                           nophone_groups=nophone_groups, unreach_groups=unreach_groups, room_chips=room_chips,
                            no_phone=no_phone, partner=partner, unreachable=unreachable,
                            view=view, days=days, today_str=today.strftime('%d/%m/%Y'), total=len(rows),
                            buttons=buttons, now_str=(datetime.utcnow() + timedelta(hours=7)).strftime('%H:%M:%S'))

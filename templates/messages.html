@@ -426,6 +426,11 @@
   </div>
 </details>
 {% endmacro %}
+{# 🛏️ one block per room type (header only when the page has more than one room type) #}
+{% macro room_blocks(blocks, kind) %}{% for rg in blocks %}<div class="rgroup" data-r="{{ rg.key }}">
+  {% if room_chips|length > 1 %}<div class="rgrp">🛏️ {{ rg.room }} <span>· {{ rg['items']|length }} khách</span></div>{% endif %}
+  {% for g in rg['items'] %}{{ card(g, kind) }}{% endfor %}
+</div>{% endfor %}{% endmacro %}
 {% macro card(g, kind) %}
 <div class="card {{ kind }} {{ 'unreach' if g.unreach else ('done' if g.last or g.confirmed else 'todo') }} {{ 'vip' ~ g.tier if g.tier }}" data-bid="{{ g.booking_id }}">
   {% if g.tier %}<div class="vipbar">{{ '⭐⭐ Khách VIP' if g.tier == 2 else '⭐ Ưu tiên' }} · {{ g.total or '—' }}đ · {{ g.nights or '?' }} đêm</div>{% endif %}
@@ -560,33 +565,30 @@
   </div>
   <div class="legend">Chạm một bước để xem tin + ảnh rồi gửi · tin chung (Passport, Change, Xin hủy…) ở nút <b>⚡ Tin nhanh</b></div>
 
-  {% if room_groups|length > 1 %}
+  {% if room_chips|length > 1 %}
   <div class="rchips"><span>🛏️ Loại phòng:</span>
     <button type="button" data-r="all" onclick="MsgAct.room(this)">Tất cả</button>
-    {% for rg in room_groups %}<button type="button" data-r="{{ rg.key }}" onclick="MsgAct.room(this)">{{ rg.room }} <b>{{ rg['items']|length }}</b></button>{% endfor %}
+    {% for rc in room_chips %}<button type="button" data-r="{{ rc.key }}" onclick="MsgAct.room(this)">{{ rc.room }} <b>{{ rc.n }}</b></button>{% endfor %}
   </div>
   {% endif %}
-  {% for rg in room_groups %}<div class="rgroup" data-r="{{ rg.key }}">
-    {% if room_groups|length > 1 %}<div class="rgrp">🛏️ {{ rg.room }} <span>· {{ rg['items']|length }} khách</span></div>{% endif %}
-    {% for g in rg['items'] %}{{ card(g, 'phone') }}{% endfor %}
-  </div>{% endfor %}
+  {{ room_blocks(room_groups, 'phone') }}
   {% if not guests and not partner and not no_phone and not unreachable %}
   <div class="empty">Không có khách nào trong khoảng này.</div>
   {% endif %}
 
   {% if partner %}
   <div class="group-t partner">🤝 {{ partner|length }} khách qua đối tác Booking (không có số thật)</div>
-  {% for g in partner %}{{ card(g, 'partner') }}{% endfor %}
+  {{ room_blocks(partner_groups, 'partner') }}
   {% endif %}
 
   {% if no_phone %}
   <div class="group-t nophone">⏳ {{ no_phone|length }} khách chưa có số</div>
-  {% for g in no_phone %}{{ card(g, 'nophone') }}{% endfor %}
+  {{ room_blocks(nophone_groups, 'nophone') }}
   {% endif %}
 
   {% if unreachable %}
   <div class="group-t unreach">📵 {{ unreachable|length }} khách không liên lạc được — để quản lý sau</div>
-  {% for g in unreachable %}{{ card(g, 'unreach') }}{% endfor %}
+  {{ room_blocks(unreach_groups, 'unreach') }}
   {% endif %}
   {% endif %}{# view #}
   </div>

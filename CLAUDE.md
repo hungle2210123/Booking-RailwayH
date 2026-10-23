@@ -365,6 +365,9 @@ booking{cho}!" reads right either way; no hard-coded brand). Read by `property_f
 `booking_properties(hotel_id, name)` for list-page rows (`_property_for`), and from the Pulse screenshot header (line under
 the guest name). Saved by `_ext_save_one` (wrapper → `_ext_save_one_core`) / `_set_property`. Shown on /messages cards
 (🏨 line) so a wrong read is visible. Extension templates get {cho} filled on the server. Drawn card says "Hanoi Old Quarter".
+Default view = TODAY only (`days` default 1, owner Oct 23; Hôm nay / 3 ngày / 7 ngày links). The room-type grouping covers
+every list (with phone, 🤝 partner, ⏳ no phone, 📵) via the `room_blocks` macro; `by_room()` gives one key per room name
+across the lists so a chip (`room_chips`, counts over all lists) shows that room type everywhere.
 Mobile-first page: upcoming arrivals (checkin_date in [today, today+days]) that have a phone, each with
 WhatsApp / SMS / Zalo / Copy buttons + a pre-filled bilingual greeting (tokens `{ten}{nhan}{tra}{phong}`).
 The greeting lives in `message_templates` with category `AUTO_MSG_CATEGORY = '0 · Nhắn tự động'` (default seeded
