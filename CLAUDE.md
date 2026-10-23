@@ -356,7 +356,10 @@ Sorted by value (owner): every group by total price desc, then nights desc. Ever
 apartment's calendar colour (same palette/order as calendar_details). Big tabs like ⚡ Tin nhanh (`.atabs`, 3 per row,
 ABOVE the 🔴/✅ filter): 🏠 Tất cả + every active apartment (count, "🔴 N" not messaged; empty ones dimmed) + Chưa xếp căn;
 tap = only that apartment on screen (`MsgAct.room`, localStorage `msg_apt`, `body.one-apt` hides the block header);
-`applyRoom()` also hides empty blocks / section titles and says "Không có khách nào ở căn này". Tiers (from the real spread of 443
+`applyRoom()` also hides empty blocks / section titles and says "Không có khách nào ở căn này".
+Phones (< 992px): the inline tabs are hidden; a floating 🏠 button (`#aptfab`, above ⚡ Tin nhanh, coloured with the chosen
+apartment, its short name under the icon) opens a bottom sheet with the same tabs (`MsgAct.aptSheet`, clones of `.atab`);
+a bar "🏠 Đang xem: … · ✕ Xem tất cả" (`#aptnow`) shows while one apartment is chosen. Hidden on the Thu tiền tab. Tiers (from the real spread of 443
 bookings): ⭐⭐ VIP = ≥ 3,000,000đ or ≥ 5 nights (~top 10%), ⭐ Ưu tiên = ≥ 2,000,000đ or ≥ 4 nights (~top 20%) →
 gold tint + ribbon. Every card shows "💰 total · N đêm" (`.cextra`; the booking number only on desktop).
 Desktop ≥992px: 2-column card grid (3 ≥1900px), bigger text, 200×150 Booking picture, all chips on one row,

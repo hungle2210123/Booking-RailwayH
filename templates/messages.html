@@ -17,6 +17,29 @@
               border:none; border-radius:50%; background:#f59e0b; color:#fff; font-size:1.3rem; cursor:pointer; line-height:1;
               box-shadow:0 6px 18px rgba(245,158,11,.45); display:flex; flex-direction:column; align-items:center; justify-content:center; }
   .quickbtn small { font-size:.5rem; font-weight:800; margin-top:1px; }
+  /* 🏠 floating apartment filter (owner, Oct 23): above ⚡ Tin nhanh, follows the screen; tap = sheet with the apartments.
+     Coloured with the chosen apartment; on phones it replaces the inline tabs. */
+  .aptfab { --c:#0f172a; position:fixed; right:16px; bottom:calc(152px + env(safe-area-inset-bottom)); z-index:900; width:54px; height:54px;
+            border:none; border-radius:50%; background:var(--c); color:#fff; font-size:1.25rem; cursor:pointer; line-height:1;
+            box-shadow:0 6px 18px rgba(15,23,42,.35); display:flex; flex-direction:column; align-items:center; justify-content:center; padding:0 3px; }
+  .aptfab small { font-size:.48rem; font-weight:800; margin-top:2px; max-width:50px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .aptfab:active { transform:scale(.92); }
+  .aptfab[hidden] { display:none; }
+  .apt-ov { position:fixed; inset:0; z-index:99980; background:rgba(15,23,42,.45); display:flex; align-items:flex-end; justify-content:center; }
+  .apt-sh { background:#fff; width:100%; max-width:520px; border-radius:18px 18px 0 0; padding:14px 14px calc(16px + env(safe-area-inset-bottom)); }
+  .apt-sh h3 { margin:0 0 10px; font-size:1rem; display:flex; justify-content:space-between; align-items:center; }
+  .apt-sh h3 button { border:none; background:#f1f5f9; border-radius:10px; padding:6px 12px; font-weight:700; }
+  .apt-sh .atab { width:100%; flex-direction:row; justify-content:space-between; align-items:center; padding:13px 14px; font-size:.95rem;
+                  margin-bottom:7px; border-top-width:1px; border-left:6px solid var(--c); }
+  .apt-sh .atab .an { -webkit-line-clamp:1; }
+  .apt-sh .atab .ac { font-size:.8rem; white-space:nowrap; }
+  .aptnow { display:none; align-items:center; gap:8px; margin:8px 0 2px; padding:8px 12px; border-radius:12px; font-weight:800; font-size:.88rem;
+            background:#f8fafc; border:1px solid #e2e8f0; border-left:5px solid var(--c, #0f172a); }
+  .aptnow button { margin-left:auto; border:none; background:#e2e8f0; border-radius:8px; padding:4px 10px; font-weight:700; font-size:.78rem; }
+  @media (max-width: 991.98px) {
+    #live .atabs { display:none; }                 /* phones: the floating 🏠 button instead */
+    body.one-apt .aptnow { display:flex; }
+  }
   .quickbtn:active { transform:scale(.92); }
   .head .gear { margin-left:auto; }
   .wrap { padding-bottom:90px !important; }   /* the last card is not hidden under the button */
@@ -109,7 +132,7 @@
 
   /* 💰 Thu tiền — compact list */
   /* no floating ⚡ / 🔄 on this tab: they covered the 🔴 / ✅ buttons (the list refreshes itself after every tap) */
-  body:has(.pov) .reload, body:has(.pov) .quickbtn { display:none !important; }
+  body:has(.pov) .reload, body:has(.pov) .quickbtn, body:has(.pov) .aptfab { display:none !important; }
   .pwho { display:flex; align-items:center; gap:6px; flex-wrap:wrap; font-size:.8rem; font-weight:700; color:#475569; margin:4px 0 8px; }
   .pwho button { border:2px solid #cbd5e1; background:#fff; border-radius:999px; padding:5px 12px; font-weight:800; font-family:inherit; }
   .pwho button.on { background:#0f172a; border-color:#0f172a; color:#fff; }
@@ -504,6 +527,7 @@
     <h2>💬 Nhắn khách</h2>
     <button type="button" class="reload" id="reload" title="Làm mới danh sách" aria-label="Làm mới">🔄</button>
     <button type="button" class="quickbtn" onclick="Journey.quick()" title="Tin nhắn mẫu chung" aria-label="Tin nhanh">⚡<small>Tin nhanh</small></button>
+    <button type="button" class="aptfab" id="aptfab" onclick="MsgAct.aptSheet()" title="Lọc theo căn hộ" aria-label="Lọc căn hộ" hidden>🏠<small>Căn hộ</small></button>
     <a class="gear" href="/journey">⚙️ Nút, tin &amp; ảnh</a>
   </div>
   <div class="upd" id="upd">Tự cập nhật · lúc {{ now_str }}</div>
@@ -570,6 +594,7 @@
       <span class="ac">{{ t.n }} khách{% if t.todo %} · <b>🔴 {{ t.todo }}</b>{% endif %}</span></button>
     {% endif %}{% endfor %}
   </div>
+  <div class="aptnow" id="aptnow"><span></span><button type="button" onclick="MsgAct.room({dataset:{r:'all'}})">✕ Xem tất cả</button></div>
   <div class="sfilter">
     <button type="button" onclick="MsgAct.filter(this)" data-f="all">Tất cả <b></b></button>
     <button type="button" onclick="MsgAct.filter(this)" data-f="todo">🔴 Chưa nhắn <b></b></button>
@@ -1105,6 +1130,17 @@
     });
     document.querySelectorAll('#live .atab').forEach(b => b.classList.toggle('on', b.dataset.r === room));
     document.body.classList.toggle('one-apt', room !== 'all');      // one apartment → its header is the tab itself
+    // floating 🏠 button + "đang xem" bar follow the choice
+    const cur = document.querySelector(`#live .atab[data-r="${room}"]`), fab = document.getElementById('aptfab');
+    const nameOf = el => el ? el.querySelector('.an').textContent.replace('🏠', '').trim() : '';
+    const colorOf = el => (el && el.style.getPropertyValue('--c')) || '#0f172a';
+    if (fab) {
+      fab.hidden = !document.querySelector('#live .atabs');
+      fab.style.setProperty('--c', room === 'all' ? '#0f172a' : colorOf(cur));
+      fab.querySelector('small').textContent = room === 'all' ? 'Căn hộ' : nameOf(cur);
+    }
+    const now = document.getElementById('aptnow');
+    if (now) { now.style.setProperty('--c', colorOf(cur)); now.querySelector('span').textContent = '🏠 Đang xem: ' + nameOf(cur); }
     // a section title (🤝 đối tác / ⏳ chưa có số / 📵) with nothing left under it is hidden too
     document.querySelectorAll('#live .group-t').forEach(h => {
       let n = h.nextElementSibling, any = false;
@@ -1138,10 +1174,30 @@
   // Buttons inside #live call these directly (onclick="MsgAct.…(this)"): iPhone Safari does not reliably give a
   // document-level click listener the tapped button, and #live is re-rendered on every refresh.
   const MsgAct = window.MsgAct = {};
+  // 🏠 sheet: the same apartment tabs, big, one tap = filter + close
+  MsgAct.aptSheet = () => {
+    const tabs = [...document.querySelectorAll('#live .atabs .atab')];
+    if (!tabs.length) return;
+    const ov = document.createElement('div');
+    ov.className = 'apt-ov';
+    ov.innerHTML = '<div class="apt-sh"><h3>🏠 Xem khách của căn <button type="button">Đóng</button></h3><div class="apt-list"></div></div>';
+    const list = ov.querySelector('.apt-list');
+    tabs.forEach(t => {
+      const b = t.cloneNode(true);
+      b.removeAttribute('onclick');
+      b.onclick = () => { ov.remove(); MsgAct.room(b); };
+      list.appendChild(b);
+    });
+    ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });
+    ov.querySelector('h3 button').onclick = () => ov.remove();
+    document.body.appendChild(ov);
+  };
   MsgAct.room = b => {
     room = b.dataset.r;
     try { localStorage.setItem('msg_apt', room); } catch (e2) {}
-    window.scrollTo({ top: (document.querySelector('#live .atabs')?.getBoundingClientRect().top || 0) + scrollY - 8 });
+    const top = document.querySelector('#live .atabs');
+    const anchor = top && top.offsetParent ? top : document.querySelector('#live .sfilter');   // phones: tabs hidden
+    if (anchor) window.scrollTo({ top: anchor.getBoundingClientRect().top + scrollY - 8 });
     applyFilter();
   };
   MsgAct.filter = b => {
