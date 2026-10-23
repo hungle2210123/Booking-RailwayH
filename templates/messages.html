@@ -82,17 +82,21 @@
             padding:6px 10px; margin-bottom:12px; }
 
   .group-t { font-size:.85rem; font-weight:800; margin:16px 2px 6px; }
-  /* 🛏️ room-type blocks (owner, Oct 22): plain header, chips to show one room type */
-  .rgrp { font-size:.88rem; font-weight:800; color:#0f172a; margin:14px 2px 6px; padding-bottom:4px; border-bottom:1px solid #e2e8f0; }
+  /* 🏠 apartment tabs (owner, Oct 23): big tabs like ⚡ Tin nhanh — Tất cả + one per apartment + Chưa xếp căn;
+     one apartment on screen at a time; each apartment keeps its calendar colour (top edge + block header) */
+  .atabs { display:grid; grid-template-columns:repeat(3, 1fr); gap:6px; margin:10px 0 4px; }
+  .atab { --c:#0f172a; display:flex; flex-direction:column; align-items:flex-start; gap:1px; text-align:left; min-width:0;
+          border:1px solid #e2e8f0; border-top:4px solid var(--c); background:#fff; color:#0f172a; border-radius:12px;
+          padding:7px 9px; font-size:.8rem; font-weight:700; line-height:1.2; }
+  .atab .an { width:100%; overflow:hidden; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; word-break:break-word; }
+  .atab .ac { font-size:.7rem; color:#64748b; font-weight:600; }
+  .atab .ac b { color:#dc2626; }
+  .atab.on { background:var(--c); border-color:var(--c); color:#fff; } .atab.on .ac, .atab.on .ac b { color:#fff; }
+  .atab.zero { opacity:.45; }
+  .rgrp { --c:#0f172a; font-size:.9rem; font-weight:800; color:var(--c); margin:14px 2px 6px; padding:0 0 4px 8px;
+          border-left:4px solid var(--c); border-bottom:1px solid #e2e8f0; }
   .rgrp span { color:#64748b; font-weight:600; }
-  .rchips { display:flex; gap:6px; align-items:center; margin:8px 0 2px; font-size:.78rem; color:#64748b;
-            overflow-x:auto; white-space:nowrap; scrollbar-width:none; -webkit-overflow-scrolling:touch; }
-  .rchips::-webkit-scrollbar { display:none; }
-  .rchips span, .rchips button { flex:none; }
-  .rchips button { border:1px solid #e2e8f0; background:#fff; color:#0f172a; border-radius:999px; padding:5px 10px; font-size:.78rem; font-weight:600;
-                   max-width:220px; overflow:hidden; text-overflow:ellipsis; }
-  .rchips button b { color:#64748b; font-weight:600; }
-  .rchips button.on { background:#0f172a; border-color:#0f172a; color:#fff; } .rchips button.on b { color:#cbd5e1; }
+  body.one-apt .rgrp { display:none; }
   .rgroup.r-off { display:none; }
   .group-t.partner { color:#7c3aed; } .group-t.nophone { color:#b45309; }
   .cmeta.cho { color:#0f766e; font-weight:600; }
@@ -428,7 +432,7 @@
 {% endmacro %}
 {# 🛏️ one block per room type (header only when the page has more than one room type) #}
 {% macro room_blocks(blocks, kind) %}{% for rg in blocks %}<div class="rgroup" data-r="{{ rg.key }}">
-  {% if room_chips|length > 1 %}<div class="rgrp">🛏️ {{ rg.room }} <span>· {{ rg['items']|length }} khách</span></div>{% endif %}
+  <div class="rgrp" style="--c:{{ rg.color }}">🏠 {{ rg.name }} <span>· {{ rg['items']|length }} khách</span></div>
   {% for g in rg['items'] %}{{ card(g, kind) }}{% endfor %}
 </div>{% endfor %}{% endmacro %}
 {% macro card(g, kind) %}
@@ -557,6 +561,15 @@
     </div>
     {% endif %}
   </div>
+  <div class="atabs">
+    <button type="button" class="atab" data-r="all" onclick="MsgAct.room(this)"><span class="an">🏠 Tất cả</span>
+      <span class="ac">{{ total }} khách</span></button>
+    {% for t in apt_tabs %}{% if t.n or t.key != 'none' %}
+    <button type="button" class="atab {{ 'zero' if not t.n }}" data-r="{{ t.key }}" style="--c:{{ t.color }}" onclick="MsgAct.room(this)">
+      <span class="an">{{ t.name }}</span>
+      <span class="ac">{{ t.n }} khách{% if t.todo %} · <b>🔴 {{ t.todo }}</b>{% endif %}</span></button>
+    {% endif %}{% endfor %}
+  </div>
   <div class="sfilter">
     <button type="button" onclick="MsgAct.filter(this)" data-f="all">Tất cả <b></b></button>
     <button type="button" onclick="MsgAct.filter(this)" data-f="todo">🔴 Chưa nhắn <b></b></button>
@@ -565,12 +578,6 @@
   </div>
   <div class="legend">Chạm một bước để xem tin + ảnh rồi gửi · tin chung (Passport, Change, Xin hủy…) ở nút <b>⚡ Tin nhanh</b></div>
 
-  {% if room_chips|length > 1 %}
-  <div class="rchips"><span>🛏️ Loại phòng:</span>
-    <button type="button" data-r="all" onclick="MsgAct.room(this)">Tất cả</button>
-    {% for rc in room_chips %}<button type="button" data-r="{{ rc.key }}" onclick="MsgAct.room(this)">{{ rc.room }} <b>{{ rc.n }}</b></button>{% endfor %}
-  </div>
-  {% endif %}
   {{ room_blocks(room_groups, 'phone') }}
   {% if not guests and not partner and not no_phone and not unreachable %}
   <div class="empty">Không có khách nào trong khoảng này.</div>
@@ -1087,16 +1094,27 @@
   let filter = 'all';
   try { filter = localStorage.getItem('msg_filter') || 'all'; } catch (e) {}
   let room = 'all';
-  try { room = localStorage.getItem('msg_room') || 'all'; } catch (e) {}
+  try { room = localStorage.getItem('msg_apt') || 'all'; } catch (e) {}
   function applyRoom() {
     const groups = [...document.querySelectorAll('#live .rgroup')];
-    if (room !== 'all' && !groups.some(g => g.dataset.r === room)) room = 'all';
+    if (room !== 'all' && !document.querySelector(`#live .atab[data-r="${room}"]`)) room = 'all';
     groups.forEach(g => {
       // hidden by the room chip, or every card in it hidden by the 🔴 / ✅ filter → no empty header left
       const anyCard = [...g.querySelectorAll('.card')].some(c => getComputedStyle(c).display !== 'none');
       g.classList.toggle('r-off', (room !== 'all' && g.dataset.r !== room) || !anyCard);
     });
-    document.querySelectorAll('#live .rchips button').forEach(b => b.classList.toggle('on', b.dataset.r === room));
+    document.querySelectorAll('#live .atab').forEach(b => b.classList.toggle('on', b.dataset.r === room));
+    document.body.classList.toggle('one-apt', room !== 'all');      // one apartment → its header is the tab itself
+    // a section title (🤝 đối tác / ⏳ chưa có số / 📵) with nothing left under it is hidden too
+    document.querySelectorAll('#live .group-t').forEach(h => {
+      let n = h.nextElementSibling, any = false;
+      while (n && !n.classList.contains('group-t')) { if (n.classList.contains('rgroup') && !n.classList.contains('r-off')) any = true; n = n.nextElementSibling; }
+      h.style.display = any ? '' : 'none';
+    });
+    let em = document.querySelector('#live .aempty');
+    const none = room !== 'all' && !groups.some(g => !g.classList.contains('r-off'));
+    if (none && !em) { em = document.createElement('div'); em.className = 'empty aempty'; document.querySelector('#live .atabs').after(em); }
+    if (em) { em.style.display = none ? '' : 'none'; em.textContent = 'Không có khách nào ở căn này' + (filter !== 'all' ? ' (theo bộ lọc đang chọn)' : '') + '.'; }
   }
   function applyFilter() {
     document.querySelectorAll('#live .rgroup').forEach(g => g.classList.remove('r-off'));
@@ -1122,7 +1140,8 @@
   const MsgAct = window.MsgAct = {};
   MsgAct.room = b => {
     room = b.dataset.r;
-    try { localStorage.setItem('msg_room', room); } catch (e2) {}
+    try { localStorage.setItem('msg_apt', room); } catch (e2) {}
+    window.scrollTo({ top: (document.querySelector('#live .atabs')?.getBoundingClientRect().top || 0) + scrollY - 8 });
     applyFilter();
   };
   MsgAct.filter = b => {

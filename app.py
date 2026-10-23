@@ -3462,7 +3462,7 @@ def messages_page():
             'booking_id': r[0], 'name': J.clean_name((r[1] or r[0]).strip()),
             'nhan': ci.strftime('%d/%m') if ci else '', 'tra': co.strftime('%d/%m') if co else '',
             'phong': _room_label(r[4], keep_note=True), 'phone': r[5] or '',
-            'apt': apt['name'] if apt else '',
+            'apt': apt['name'] if apt else '', 'apt_id': apt['id'] if apt else None,
             'sent': done, 'next': J.recommended_step(done, ci, co, today, prefs['hidden']),
             'shot': int(shots[r[0]].timestamp()) if r[0] in shots else None,
             'last': J.last_contact(done, buttons),          # None = not messaged yet
@@ -3497,28 +3497,30 @@ def messages_page():
         lst.sort(key=lambda g: (-g['total_num'], -(g['nights'] or 0)))
     # …and grouped by room type (owner, Oct 22): one block per room name as booked, the block holding the most
     # valuable guest first; inside a block the value order above stays.
-    # Every list (with phone, partner, no phone, 📵) is grouped the same way; one key per room name across the lists,
-    # so the "🛏️ Loại phòng" chip shows that room type everywhere.
-    room_keys, room_names = {}, {}
+    # …and grouped by APARTMENT (owner, Oct 23 — "loại căn hộ", not room type): every list (with phone, partner, no
+    # phone, 📵) in the apartments' order, "Chưa xếp căn" last; value order kept inside. Tabs like ⚡ Tin nhanh show ONE
+    # apartment at a time (or all); each apartment keeps its calendar colour.
+    _palette = ['#1976D2', '#2E7D32', '#7B1FA2', '#E64A19', '#00838F', '#F57F17']    # same as the calendar
+    _all_ids = [r[0] for r in _xdb.session.execute(text("SELECT apartment_id FROM apartments ORDER BY apartment_id")).fetchall()]
+    apt_tabs = [{'key': f"a{a['id']}", 'name': a['name'], 'n': 0, 'todo': 0,
+                 'color': _palette[_all_ids.index(a['id']) % len(_palette)] if a['id'] in _all_ids else '#64748b'}
+                for a in apts.values()]
+    apt_tabs.append({'key': 'none', 'name': 'Chưa xếp căn', 'n': 0, 'todo': 0, 'color': '#b45309'})
+    tab_of = {t['key']: t for t in apt_tabs}
 
-    def by_room(lst):
+    def by_apt(lst):
         blocks = {}
         for g in lst:
-            room = g['phong'] or 'Chưa rõ loại phòng'
-            fold = re.sub(r'\s+', ' ', room).strip().casefold()
-            key = room_keys.setdefault(fold, f'r{len(room_keys)}')
-            room_names.setdefault(key, room)
-            blocks.setdefault(key, {'key': key, 'room': room, 'items': []})['items'].append(g)
-        return list(blocks.values())               # insertion order = order of each block's best guest
-    room_groups, partner_groups = by_room(guests), by_room(partner)
-    nophone_groups, unreach_groups = by_room(no_phone), by_room(unreachable)
-    counts = {}
-    for blocks in (room_groups, partner_groups, nophone_groups, unreach_groups):
-        for b in blocks:
-            counts[b['key']] = counts.get(b['key'], 0) + len(b['items'])
-    room_chips = [{'key': k, 'room': room_names[k], 'n': counts[k]} for k in room_keys.values()]
+            key = f"a{g['apt_id']}" if g['apt_id'] in apts else 'none'
+            t = tab_of[key]
+            t['n'] += 1
+            t['todo'] += 0 if (g['last'] or g['confirmed'] or g['unreach']) else 1
+            blocks.setdefault(key, {'key': key, 'name': t['name'], 'color': t['color'], 'items': []})['items'].append(g)
+        return [blocks[t['key']] for t in apt_tabs if t['key'] in blocks]
+    room_groups, partner_groups = by_apt(guests), by_apt(partner)
+    nophone_groups, unreach_groups = by_apt(no_phone), by_apt(unreachable)
     return render_template('messages.html', guests=guests, room_groups=room_groups, partner_groups=partner_groups,
-                           nophone_groups=nophone_groups, unreach_groups=unreach_groups, room_chips=room_chips,
+                           nophone_groups=nophone_groups, unreach_groups=unreach_groups, apt_tabs=apt_tabs,
                            no_phone=no_phone, partner=partner, unreachable=unreachable,
                            view=view, days=days, today_str=today.strftime('%d/%m/%Y'), total=len(rows),
                            buttons=buttons, now_str=(datetime.utcnow() + timedelta(hours=7)).strftime('%H:%M:%S'))

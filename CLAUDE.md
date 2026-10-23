@@ -350,11 +350,13 @@ phone (`window.PhotoOcr` = the photo import's tesseract loader + dark-mode `prep
 is not in any message template (`_owner_numbers`), not the partner's, not a 10-digit booking number; `_chat_booking`
 matches name (+ dates when several)) → one row per screenshot with an editable number + 💾 Lưu số / Lưu tất cả →
 /api/messages/phone. Tested on the owner's 2 real screenshots (Mỹ Trân Ngô, Thành Đạt Hồ): both found.
-Sorted by value (owner): every group by total price desc, then nights desc. Guests with a phone are also grouped by
-ROOM TYPE (owner, Oct 22): `room_groups` = one `.rgroup` block per room name as booked (`g.phong`, case/space-folded),
-header "🛏️ room · N khách", the block holding the most valuable guest first, value order kept inside; a scrollable chip
-row "🛏️ Loại phòng" (`MsgAct.room`, localStorage `msg_room`) shows one room type; `applyRoom()` (run by applyFilter) also
-hides a block whose cards are all hidden by 🔴 / ✅. Tiers (from the real spread of 443
+Sorted by value (owner): every group by total price desc, then nights desc. Every list (with phone, 🤝 partner,
+⏳ no phone, 📵) is grouped by APARTMENT (owner, Oct 23 — "loại căn hộ", the Oct 22 room-type grouping was a mix-up):
+`by_apt()` → `.rgroup` blocks in the apartments' order, "Chưa xếp căn" last, header "🏠 name · N khách" in the
+apartment's calendar colour (same palette/order as calendar_details). Big tabs like ⚡ Tin nhanh (`.atabs`, 3 per row,
+ABOVE the 🔴/✅ filter): 🏠 Tất cả + every active apartment (count, "🔴 N" not messaged; empty ones dimmed) + Chưa xếp căn;
+tap = only that apartment on screen (`MsgAct.room`, localStorage `msg_apt`, `body.one-apt` hides the block header);
+`applyRoom()` also hides empty blocks / section titles and says "Không có khách nào ở căn này". Tiers (from the real spread of 443
 bookings): ⭐⭐ VIP = ≥ 3,000,000đ or ≥ 5 nights (~top 10%), ⭐ Ưu tiên = ≥ 2,000,000đ or ≥ 4 nights (~top 20%) →
 gold tint + ribbon. Every card shows "💰 total · N đêm" (`.cextra`; the booking number only on desktop).
 Desktop ≥992px: 2-column card grid (3 ≥1900px), bigger text, 200×150 Booking picture, all chips on one row,
@@ -365,9 +367,7 @@ booking{cho}!" reads right either way; no hard-coded brand). Read by `property_f
 `booking_properties(hotel_id, name)` for list-page rows (`_property_for`), and from the Pulse screenshot header (line under
 the guest name). Saved by `_ext_save_one` (wrapper → `_ext_save_one_core`) / `_set_property`. Shown on /messages cards
 (🏨 line) so a wrong read is visible. Extension templates get {cho} filled on the server. Drawn card says "Hanoi Old Quarter".
-Default view = TODAY only (`days` default 1, owner Oct 23; Hôm nay / 3 ngày / 7 ngày links). The room-type grouping covers
-every list (with phone, 🤝 partner, ⏳ no phone, 📵) via the `room_blocks` macro; `by_room()` gives one key per room name
-across the lists so a chip (`room_chips`, counts over all lists) shows that room type everywhere.
+Default view = TODAY only (`days` default 1, owner Oct 23; Hôm nay / 3 ngày / 7 ngày links).
 Mobile-first page: upcoming arrivals (checkin_date in [today, today+days]) that have a phone, each with
 WhatsApp / SMS / Zalo / Copy buttons + a pre-filled bilingual greeting (tokens `{ten}{nhan}{tra}{phong}`).
 The greeting lives in `message_templates` with category `AUTO_MSG_CATEGORY = '0 · Nhắn tự động'` (default seeded
