@@ -3426,7 +3426,9 @@ def messages_page():
     _ensure_property_column()
     view = 'staying' if request.args.get('view') == 'staying' else 'arriving'
     try:
-        days = max(1, min(int(request.args.get('days', 1)), 14))     # default = today only (owner, Oct 23)
+        # Always opens on TODAY (owner, Oct 23): a longer range only when chosen with the 3 ngày / 7 ngày buttons (pick=1) —
+        # an old saved link / home-screen icon with days=3 still opens on today.
+        days = max(1, min(int(request.args.get('days', 1)), 14)) if request.args.get('pick') else 1
     except (TypeError, ValueError):
         days = 3
     today = (datetime.utcnow() + timedelta(hours=7)).date()

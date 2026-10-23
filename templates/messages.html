@@ -534,7 +534,7 @@
   <button type="button" class="addphoto" id="addphoto">📷 Thêm đặt phòng từ ảnh app Booking</button>
   <button type="button" class="addphoto" id="chatphone">📞 Cập nhật số từ ảnh chụp tin nhắn</button>
   <div class="tabs">
-    <a href="?view=arriving&days={{ days }}" class="{{ 'on' if view == 'arriving' }}">🛬 Sắp đến</a>
+    <a href="?view=arriving" class="{{ 'on' if view == 'arriving' }}">🛬 Sắp đến</a>
     <a href="?view=staying" class="{{ 'on' if view == 'staying' }}">🏨 Đang ở</a>
     <a href="?view=pay" class="{{ 'on' if view == 'pay' }}">💰 Thu tiền</a>
   </div>
@@ -580,8 +580,8 @@
     {% if view == 'arriving' %}
     <div class="days">
       <a href="?view=arriving&days=1" class="{{ 'on' if days == 1 }}">Hôm nay</a>
-      <a href="?view=arriving&days=3" class="{{ 'on' if days == 3 }}">3 ngày</a>
-      <a href="?view=arriving&days=7" class="{{ 'on' if days == 7 }}">7 ngày</a>
+      <a href="?view=arriving&days=3&pick=1" class="{{ 'on' if days == 3 }}">3 ngày</a>
+      <a href="?view=arriving&days=7&pick=1" class="{{ 'on' if days == 7 }}">7 ngày</a>
     </div>
     {% endif %}
   </div>
