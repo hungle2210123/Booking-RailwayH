@@ -603,6 +603,10 @@ clipboard); files prefetched by `tplPrefetch` so the share opens inside the tap)
 (`tplImgLost`). "Thêm ảnh" (`POST /api/templates/<id>/images`) now also stores the bytes in `template_images.image_data`
 — before, it only wrote to Railway's disk, which every deploy wipes (IMG_3831 QR added to templates 71/120/158 was lost;
 those 3 dead rows were deleted). Max 3 pictures per template.
+Deleting a picture (owner, Oct 24 "không xóa được ảnh"): the ✕ sat half outside the clipped frame (untappable on phones)
+and the gallery was redrawn from the cached `window.templates` (still holding the picture) → now a 28px ✕ inside the
+corner; `deleteTemplateImage(imageId, templateId, btn)` removes the picture from the cache + the screen, redraws that
+card's gallery and updates / removes its "🖼 Gửi N ảnh" button.
 
 ### **📋 Message template categories**
 Renamed to numbered guest-journey categories "1 · Chào đón…" → "11 · Cảm ơn…" (sorted numerically in the UI).

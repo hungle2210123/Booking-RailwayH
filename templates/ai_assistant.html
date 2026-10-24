@@ -1072,22 +1072,26 @@ document.getElementById('manualBookingForm').addEventListener('submit', function
         cursor: pointer;
     }
     
+    /* ✕ inside the picture's corner, big enough for a finger (owner, Oct 24: it sat half outside the clipped frame →
+       could not be tapped on the phone) */
     .template-image-delete {
         position: absolute;
-        top: -8px;
-        right: -8px;
-        background: #dc3545;
+        top: 4px;
+        right: 4px;
+        z-index: 3;
+        background: rgba(220,53,69,.92);
         color: white;
-        border: none;
+        border: 2px solid #fff;
         border-radius: 50%;
-        width: 20px;
-        height: 20px;
-        font-size: 10px;
+        width: 28px;
+        height: 28px;
+        font-size: 12px;
         display: flex;
         align-items: center;
         justify-content: center;
         cursor: pointer;
-        z-index: 10;
+        padding: 0;
+        box-shadow: 0 1px 4px rgba(0,0,0,.3);
     }
     
     .template-image-delete:hover {
@@ -3289,7 +3293,7 @@ document.getElementById('manualBookingForm').addEventListener('submit', function
                     const imageUrl = image.url || image.image_url || '#';
                     const deleteButton = image.id ? 
                         `<button class="template-image-delete" 
-                                onclick="deleteTemplateImage(${image.id})"
+                                onclick="event.stopPropagation(); deleteTemplateImage(${image.id}, '${templateId}', this)"
                                 title="Xóa hình ảnh này">
                             <i class="fas fa-times"></i>
                         </button>` : 
@@ -3391,24 +3395,36 @@ document.getElementById('manualBookingForm').addEventListener('submit', function
     };
     
     // Delete template image
-    window.deleteTemplateImage = async function(imageId) {
+    // Delete one picture of a template. The page keeps the templates (with their pictures) in window.templates —
+    // the deleted picture is taken out there too, else the gallery drew it again ("không xóa được ảnh", Oct 24).
+    window.deleteTemplateImage = async function(imageId, templateId, btn) {
         if (!confirm('Bạn có chắc chắn muốn xóa hình ảnh này?')) {
             return;
         }
-        
         try {
-            const response = await fetch(`/api/templates/images/${imageId}`, {
-                method: 'DELETE'
+            const response = await fetch(`/api/templates/images/${imageId}`, { method: 'DELETE' });
+            const data = await response.json().catch(() => ({}));
+            if (!data.success && response.status !== 404) {     // 404 = already gone → just tidy the screen
+                showToast(data.error || data.message || 'Không thể xóa hình ảnh', 'error');
+                return;
+            }
+            const tid = templateId || currentTemplateIdForImages;
+            (window.templates || []).forEach(t => {
+                if (Array.isArray(t.images)) t.images = t.images.filter(im => String(im.id) !== String(imageId));
             });
-            
-            const data = await response.json();
-            
-            if (data.success) {
-                showToast('Đã xóa hình ảnh', 'success');
-                loadCurrentTemplateImages(currentTemplateIdForImages);
-                loadTemplateImages(currentTemplateIdForImages); // Refresh main gallery
-            } else {
-                showToast(data.message || 'Không thể xóa hình ảnh', 'error');
+            const item = btn && btn.closest('.template-image-item');
+            if (item) item.remove();
+            // the "🖼 Gửi N ảnh" button follows the new count (gone with the last picture)
+            const left = ((window.templates || []).find(t => String(t.id) === String(tid)) || {}).images;
+            const sendBtn = tid && document.querySelector(`#details-${tid} [onclick*="tplShareImages"]`);
+            if (sendBtn && Array.isArray(left)) {
+                if (left.length) sendBtn.textContent = '🖼 Gửi ' + (left.length > 1 ? left.length + ' ảnh' : 'ảnh');
+                else sendBtn.remove();
+            }
+            showToast('Đã xóa hình ảnh', 'success');
+            if (tid) {
+                if (currentTemplateIdForImages) loadCurrentTemplateImages(currentTemplateIdForImages);
+                loadTemplateImages(tid);                  // card gallery + the files the 🖼 Gửi ảnh button shares
             }
         } catch (error) {
             console.error('Error deleting image:', error);
@@ -3540,7 +3556,7 @@ document.getElementById('manualBookingForm').addEventListener('submit', function
                     const imageUrl = image.url || image.image_url || '#';
                     const deleteButton = image.id ? 
                         `<button class="template-image-delete" 
-                                onclick="deleteTemplateImage(${image.id})"
+                                onclick="event.stopPropagation(); deleteTemplateImage(${image.id}, '${templateId}', this)"
                                 title="Xóa hình ảnh này">
                             <i class="fas fa-times"></i>
                         </button>` : 
