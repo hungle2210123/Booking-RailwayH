@@ -16,7 +16,7 @@ print("=" * 80)
 database_url = os.environ.get('DATABASE_URL')
 if not database_url:
     print("⚠️  No DATABASE_URL - using local database")
-    database_url = "postgresql://postgres:locloc123@localhost:5432/hotel_booking"
+    database_url = os.getenv("LOCAL_DATABASE_URL", "")
 
 print(f"📍 Database: {database_url[:50]}...")
 

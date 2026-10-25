@@ -14,7 +14,7 @@ class DataSyncService:
     """Service for synchronizing data between local and Railway databases"""
     
     def __init__(self):
-        self.local_db_url = os.getenv('LOCAL_DATABASE_URL', 'postgresql://postgres:locloc123@localhost:5432/hotel_booking')
+        self.local_db_url = os.getenv('LOCAL_DATABASE_URL', '')   # set in the local .env
         self.railway_db_url = os.getenv('RAILWAY_DATABASE_URL') or os.getenv('DATABASE_URL')  # Railway database
         
     def test_connections(self):

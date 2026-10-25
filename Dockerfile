@@ -17,6 +17,7 @@ COPY migrate_add_apartments.py .
 COPY migrate_add_rooms.py .
 COPY force_migration.py .
 COPY core/ ./core/
+COPY app_parts/ ./app_parts/
 COPY templates/ ./templates/
 COPY static/ ./static/
 

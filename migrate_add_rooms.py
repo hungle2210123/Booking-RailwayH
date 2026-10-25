@@ -16,7 +16,7 @@ is_railway = bool(
     os.getenv('RAILWAY_SERVICE_ID') or
     (os.getenv('DATABASE_URL') and 'railway' in os.getenv('DATABASE_URL', '').lower())
 )
-DATABASE_URL = os.getenv('DATABASE_URL', "postgresql://postgres:locloc123@localhost:5432/hotel_booking")
+DATABASE_URL = os.getenv('DATABASE_URL', os.getenv("LOCAL_DATABASE_URL", ""))
 
 print("=" * 80)
 print("🏠 ROOM MANAGEMENT SYSTEM - DATABASE MIGRATION")
