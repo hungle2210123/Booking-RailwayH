@@ -559,6 +559,16 @@ def booking_from_photo_parse():
               AND COALESCE(booking_status, '') NOT IN ('deleted')
               AND (:amt IS NULL OR ABS(COALESCE(room_amount, 0) - :amt) < 1000)"""),
             {'ci': p['checkin_date'], 'co': p['checkout_date'], 'amt': p.get('room_amount')}).fetchall()
+        if len(rows) != 1 and p.get('guest_name'):
+            # price on the web differs (edited / collected amount): same dates + same guest name is that booking too.
+            # The app header cuts long names ("Maheshwaran S…"), so every word read must START a word of the web name.
+            rows = [r for r in _xdb.session.execute(text("""
+                SELECT b.booking_id, COALESCE(g.full_name, b.guest_name) FROM bookings b
+                LEFT JOIN guests g ON g.guest_id = b.guest_id
+                WHERE b.checkin_date = :ci AND b.checkout_date = :co
+                  AND COALESCE(b.booking_status, '') NOT IN ('deleted')"""),
+                {'ci': p['checkin_date'], 'co': p['checkout_date']}).fetchall()
+                    if _name_starts(p['guest_name'], r[1])]
         if len(rows) == 1:
             p['booking_id'] = rows[0][0]
             p['matched'] = True
@@ -577,6 +587,15 @@ def booking_from_photo_parse():
         p['guest_name'] = existing['guest_name']
     return jsonify({'success': True, 'parsed': p,
                     'existing': {'guest_name': existing['guest_name']} if existing else None})
+
+
+def _name_starts(read, web):
+    """Every word OCR'd from the app ("Maheshwaran S") starts a word of the web name ("Maheshwaran Subramanian in")."""
+    from core.booking_page_parser import _fold
+    fold = lambda s: re.sub(r'[^a-z ]', ' ', _fold(s or '')).split()
+    have = fold(web)
+    want = [w for w in fold(read) if len(w) >= 1]
+    return bool(want) and len(want[0]) >= 3 and all(any(h.startswith(w) for h in have) for w in want)
 
 
 def _photo_booking_by_name(name):

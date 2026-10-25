@@ -98,3 +98,15 @@ def test_rate_plan_line_is_not_a_room():
 def test_single_room_page_has_no_rooms_list():
     text = TWO_ROOMS.split('2 Studio')[0]
     assert parse_reservation_page({'url': 'x?res_id=1', 'text': text})['rooms'] == []
+
+
+@pytest.mark.parametrize('line, want', [
+    ('Gọi +91 79-04749633 bằng', '+917904749633'),        # owner, Oct 25: India number with a dash
+    ('Goi 91 79-04749633 bang', '+917904749633'),         # OCR lost the "+"
+    ('Gọi +84 90 4288459 bằng', '+84904288459'),
+    ('Gọi 0904 288 459 bằng', '0904288459'),
+    ('+44 7700 900123', '+447700900123'),
+])
+def test_pulse_call_dialog_phone(line, want):
+    from core.booking_page_parser import parse_pulse_text
+    assert parse_pulse_text(line)['phone'] == want

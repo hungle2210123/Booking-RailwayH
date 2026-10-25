@@ -191,3 +191,10 @@ card's gallery and updates / removes its "🖼 Gửi N ảnh" button.
 Renamed to numbered guest-journey categories "1 · Chào đón…" → "11 · Cảm ơn…" (sorted numerically in the UI).
 Old categories backed up in `BACKUP_BEFORE_CLEANUP/message_template_categories_2026-09-27.json`.
 
+
+**📷 Thêm từ ảnh — Oct 25 fixes** (owner: Maheshwaran's call-dialog phone was not picked up): `parse_pulse_text` reads
+phones of ANY country with dashes / dots / brackets ("Gọi +91 79-04749633 bằng"; a number without "+" not starting with 0
+gets "+"). `booking_from_photo_parse`: when there is no booking number and dates + price match nothing (web price edited),
+it matches same dates + guest name where every OCR'd word starts a word of the web name (`_name_starts`, the app cuts
+long names "Maheshwaran S…") — so saving updates that booking instead of creating a provisional duplicate.
+Tests: `test_pulse_call_dialog_phone`, `test_photo_call_dialog_updates_existing_booking`.

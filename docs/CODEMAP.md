@@ -36,7 +36,7 @@ _p01_health_cancellations — health, cancellations centre, OK status, auto-sync
 - app_parts/p01_health_cancellations.py:755 `auto_sync_dashboard` ← `/auto_sync` — Auto sync dashboard for managing bidirectional database synchronization
 - app_parts/p01_health_cancellations.py:780 `debug_routes` ← `/debug/routes` — Debug route to check all registered routes
 
-## app_parts/p02_pages_extension.py (719 lines)
+## app_parts/p02_pages_extension.py (738 lines)
 _p02_pages_extension — page shells (/, dashboard, expenses, apartments), dashboard API, Chrome extension import/save, photo import, phone from extension_
 - app_parts/p02_pages_extension.py:5 `apartment_management` ← `/apartments` — Apartment management page
 - app_parts/p02_pages_extension.py:11 `index` ← `/` · `/hom-nay` — Open the app on TODAY's day page (owner, Oct 25) — Vietnam date, the server runs UTC.
@@ -64,10 +64,11 @@ _p02_pages_extension — page shells (/, dashboard, expenses, apartments), dashb
 - app_parts/p02_pages_extension.py:505 `ext_booking_save` ← `/api/ext/booking/save` POST — Save one booking checked by the user in the extension panel.
 - app_parts/p02_pages_extension.py:526 `ext_booking_save_many` ← `/api/ext/booking/save_many` POST — Save the rows ticked on the reservation list page — each one independently.
 - app_parts/p02_pages_extension.py:548 `booking_from_photo_parse` ← `/api/booking_from_photo/parse` POST — /messages "📷 Thêm từ ảnh": text OCR'd on the phone from Booking app screenshots → fields to check.
-- app_parts/p02_pages_extension.py:582 `_photo_booking_by_name` — The one not-yet-finished booking whose guest has this name (any case / accents / word order), else None.
-- app_parts/p02_pages_extension.py:601 `booking_from_photo_save` ← `/api/booking_from_photo/save` POST — Save the checked fields — same rules as the Chrome extension (only Booking facts; collected money,
-- app_parts/p02_pages_extension.py:624 `ext_booking_phone` ← `/api/ext/booking/phone` POST — A reservation page now shows the guest phone (the owner clicked Booking's own
-- app_parts/p02_pages_extension.py:706 `_typed_phone` — A number the owner typed / pasted ("0905 123 456", "+33 6 12 34 56 78", "0033…") → '+<digits>' or ''.
+- app_parts/p02_pages_extension.py:592 `_name_starts` — Every word OCR'd from the app ("Maheshwaran S") starts a word of the web name ("Maheshwaran Subramanian in").
+- app_parts/p02_pages_extension.py:601 `_photo_booking_by_name` — The one not-yet-finished booking whose guest has this name (any case / accents / word order), else None.
+- app_parts/p02_pages_extension.py:620 `booking_from_photo_save` ← `/api/booking_from_photo/save` POST — Save the checked fields — same rules as the Chrome extension (only Booking facts; collected money,
+- app_parts/p02_pages_extension.py:643 `ext_booking_phone` ← `/api/ext/booking/phone` POST — A reservation page now shows the guest phone (the owner clicked Booking's own
+- app_parts/p02_pages_extension.py:725 `_typed_phone` — A number the owner typed / pasted ("0905 123 456", "+33 6 12 34 56 78", "0033…") → '+<digits>' or ''.
 
 ## app_parts/p03_messages_journey.py (1393 lines)
 _p03_messages_journey — phone from chat screenshots, /api/messages/phone, auto messages, AI reply, Booking screenshots, journey, Thu tiền (pay), /tin-nhanh, /messages_
@@ -381,7 +382,7 @@ _p14_electricity — electricity calculator + meters/readings/bills_
 - core/auto_sync_service.py:23 class `SyncStatus` — Status of database synchronization
 - core/auto_sync_service.py:32 class `AutoSyncService` — Automatic bidirectional database synchronization service
 
-## core/booking_page_parser.py (626 lines)
+## core/booking_page_parser.py (627 lines)
 - core/booking_page_parser.py:21 `_fold`
 - core/booking_page_parser.py:58 `parse_date` — 'Fri, 3 Oct 2026' · 'Oct 3, 2026' · '2026-10-03' · '03/10/2026' · 'T6, 3 thg 10, 2026'
 - core/booking_page_parser.py:80 `_mk`

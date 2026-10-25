@@ -611,13 +611,14 @@ def parse_pulse_text(text):
     g = re.search(r'(\d+)\s*nguoi lon', ' '.join(folded))
     out['guests'] = int(g.group(1)) if g else None
     for l in lines:
-        p = clean_phone(l) if re.search(r'\+\d[\d\s]{7,}', l) else None
+        # "+84 90 4288459", "+91 79-04749633" (any country; spaces, dashes, dots, brackets inside)
+        p = clean_phone(l) if re.search(r'\+\s?\d[\d\s().-]{7,}', l) else None
         if not p:
-            # the app's call dialog "Gọi +84 90 4288459 bằng" (OCR sometimes loses the "+")
-            c = re.search(r'\b(?:goi|call)\s*\+?\s*((?:84|0)[\d \t().-]{7,16}\d)', _fold(l))
-            d = re.sub(r'\D', '', c.group(1)) if c else ''
-            if 9 <= len(d) <= 13:
-                p = '+' + d if d.startswith('84') else d
+            # the app's call dialog "Gọi +91 79-04749633 bằng" (OCR sometimes loses the "+")
+            c = re.search(r'\b(?:goi|call)\s*(\+?)\s*(\d[\d \t().-]{7,17}\d)', _fold(l))
+            d = re.sub(r'\D', '', c.group(2)) if c else ''
+            if 9 <= len(d) <= 15:
+                p = d if d.startswith('0') else '+' + d       # a number not starting with 0 is international
         if p:
             out['phone'] = p
             break

@@ -98,3 +98,21 @@ def test_messages_apartment_groups_and_today(client):
     assert 'class="on">Hôm nay<' in old_link                 # an old saved "3 ngày" link still opens on today
     picked = client.get('/messages?view=arriving&days=7&pick=1').get_data(as_text=True)
     assert 'class="on">7 ngày<' in picked
+
+
+# ── 📷 Thêm từ ảnh: call-dialog phone of a booking already on the web ─────────────────────────────────────────────
+def test_photo_call_dialog_updates_existing_booking(client, db, booking):
+    """Owner, Oct 25: Booking app screenshots of Maheshwaran (name cut "Maheshwaran S…", "Gọi +91 79-04749633 bằng",
+    price 991.848 while the web has 800.000) → must find the existing booking and store the phone, not make a new one."""
+    bid = booking(guest_name='Zzmaheshwaran Subramanian in', checkin_date='2030-03-14', checkout_date='2030-03-15',
+                  room_amount=800000, listing='Studio Có Ban Công (Ban Công Hàng Bạc)')
+    shot = ('< Zzmaheshwaran S\nStudio Hanoi Old Quarter\nNhận phòng Trả phòng\nT5, 14 tháng 3 2030 T6, 15 tháng 3 2030\n'
+            '1 phòng\nBan Công Hàng Bạc\nTổng giá tiền đặt phòng VND 991.848')
+    call = shot.replace('1 phòng', 'Gọi +91 79-04749633 bằng\nChính\nPhụ\nHủy\n1 phòng')
+    p = client.post('/api/booking_from_photo/parse', json={'texts': [shot, call]}).get_json()['parsed']
+    assert p['booking_id'] == bid and p['phone'] == '+917904749633'
+    r = client.post('/api/booking_from_photo/save', json={**p, 'booking_id': bid}).get_json()
+    assert r['success'], r
+    assert phone_of(db, bid) == '+917904749633'
+    n = db.session.execute(text("SELECT count(*) FROM bookings WHERE guest_name ILIKE 'Zzmaheshwaran%'")).scalar()
+    assert n == 1
