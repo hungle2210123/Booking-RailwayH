@@ -7,9 +7,11 @@ def apartment_management():
     return render_template('apartments.html')
 
 @app.route('/')
+@app.route('/hom-nay')
 def index():
-    """Redirect root to revenue calendar."""
-    return redirect(url_for('calendar_view'))
+    """Open the app on TODAY's day page (owner, Oct 25) — Vietnam date, the server runs UTC."""
+    from core.occupancy import vn_today
+    return redirect(url_for('calendar_details', date_str=vn_today().isoformat()))
 
 @app.route('/dashboard')
 def dashboard():

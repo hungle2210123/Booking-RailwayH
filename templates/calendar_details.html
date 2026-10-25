@@ -32,7 +32,7 @@
                                class="btn btn-sm btn-outline-secondary flex-fill">
                                 <i class="fas fa-chevron-left"></i> Hôm qua
                             </a>
-                            <a href="{{ url_for('calendar_details', date_str=date.today().strftime('%Y-%m-%d')) }}"
+                            <a href="/hom-nay"
                                class="btn btn-sm btn-primary flex-fill">
                                 Hôm nay
                             </a>
@@ -1465,11 +1465,17 @@ setInterval(loadVbCd, 5 * 60 * 1000);
         .pr-col + .pr-col { border-left: 1px dashed #e2e8f0; }
         .pr-col-t { font-size: .68rem; font-weight: 900; text-transform: uppercase; letter-spacing: .3px; margin-bottom: 2px; }
         .pr-col.out .pr-col-t { color: #c2410c; } .pr-col.in .pr-col-t { color: #15803d; }
-        .pr-g { display: flex; align-items: center; gap: 4px; padding: 3px 0; font-size: .82rem; font-weight: 700; color: #0f172a;
-                cursor: pointer; min-width: 0; }
+        .pr-g { padding: 4px 0 5px; cursor: pointer; min-width: 0; border-top: 1px solid #f1f5f9; }
+        .pr-col-t + .pr-g { border-top: none; }
+        .pr-g1 { display: flex; align-items: center; gap: 4px; font-size: .84rem; font-weight: 800; color: #0f172a; min-width: 0; }
+        .pr-g2 { font-size: .74rem; color: #475569; margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .pr-g2 b { color: #0f172a; }
+        .pr-g2 .pd { font-style: normal; color: #16a34a; font-weight: 900; }
+        .pr-g3 { font-size: .68rem; color: #94a3b8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .pr-g .nm { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
         .pr-g .tb { flex-shrink: 0; font-size: .6rem; font-weight: 900; color: #fff; background: #7c3aed; border-radius: 4px; padding: 0 4px; }
         .pr-g.wait .nm { color: #9ca3af; }
+        .pr-un-g .pr-g { border-top: none; }
         .pr-empty { font-size: .74rem; color: #cbd5e1; }
         @media (max-width: 768px) {
             .cd-fab-label { display: none; }
@@ -5773,7 +5779,7 @@ function showQuickToast(msg, type) {
     const SECS = [['all', 'Tất cả'], ['checkin-cards', '🛬 Đến'], ['staying-cards', '🏨 Ở'], ['checkout-cards', '🧳 Trả'],
                   ['pair', '🔄 Trả ↔ Đến']];
     const XF = [['2pn', '🛏️ Chỉ 2PN'], ['unpaid', '⚡ Chưa thu'], ['unconf', '⏳ Chưa xác nhận']];
-    const view = { sec: 'all', xf: {} };
+    const view = { sec: 'pair', xf: {} };            // owner, Oct 25: open on 🔄 Trả ↔ Đến
     const fab = document.createElement('button');
     fab.type = 'button'; fab.className = 'cdx-fab'; fab.title = 'Chọn nhanh phần muốn xem';
     document.body.appendChild(fab);
@@ -5860,6 +5866,23 @@ function showQuickToast(msg, type) {
 
     // ── 🔄 Trả ↔ Đến board: per apartment, guests leaving next to guests arriving; arrivals not placed on top with
     //    one-tap apartment chips (setApt — same as the card's picker, with its "căn đã đủ" check) ──
+    // price per night: the card's "…đ/đêm" line, else total ÷ nights (1-night cards have no per-night line)
+    const perNightOf = card => {
+        const amts = [...card.querySelectorAll('.detail-amount')];
+        const pn = amts.find(x => /đêm/.test(x.textContent));
+        if (pn) return pn.textContent.replace(/\D/g, '');
+        const total = Number((amts[0] || {}).textContent ? amts[0].textContent.replace(/\D/g, '') : 0);
+        const n = parseInt(((card.querySelector('.detail-nights') || {}).textContent || '1'), 10) || 1;
+        return total ? String(Math.round(total / n)) : '';
+    };
+    // room type name only (the line also holds "Trả ngày mai" / "Còn 2đ" badges)
+    const roomOf = card => {
+        const rt = card.querySelector(':scope > .room-type');
+        if (!rt) return '';
+        const c = rt.cloneNode(true);
+        c.querySelectorAll('.checkout-countdown, button').forEach(x => x.remove());
+        return c.textContent.replace(/\s+/g, ' ').trim();
+    };
     const guestOf = card => {
         const sel = card.querySelector('[id^="asel-"]');
         return {
@@ -5869,6 +5892,9 @@ function showQuickToast(msg, type) {
             tb: card.classList.contains('two-br-card'),
             ok: card.classList.contains('status-confirmed'),
             nights: ((card.querySelector('.detail-nights') || {}).textContent || '').trim().split(' ·')[0],
+            perNight: perNightOf(card),
+            room: roomOf(card),
+            paid: card.classList.contains('is-paid'),
         };
     };
     const live = id => [...document.querySelectorAll('#' + id + ' .guest-card')]
@@ -5878,8 +5904,12 @@ function showQuickToast(msg, type) {
         if (!box) return;
         const ins = live('checkin-cards'), outs = live('checkout-cards'), stays = live('staying-cards');
         const e = t => String(t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+        // 762,152 → "762k" · 1,524,303 → "1,52tr"
+        const money = v => { v = Number(v) || 0; return !v ? '' : v < 1e6 ? Math.round(v / 1000) + 'k' : (v / 1e6).toFixed(2).replace('.', ',') + 'tr'; };
         const row = (g, kind) => `<div class="pr-g ${kind === 'in' && !g.ok ? 'wait' : ''}" data-bid="${e(g.bid)}">
-            ${kind === 'in' ? (g.ok ? '✅' : '⏳') : '🧳'}<span class="nm">${e(g.name)}</span>${g.tb ? '<span class="tb">2PN</span>' : ''}</div>`;
+            <div class="pr-g1">${kind === 'in' ? (g.ok ? '✅' : '⏳') : '🧳'}<span class="nm">${e(g.name)}</span>${g.tb ? '<span class="tb">2PN</span>' : ''}</div>
+            <div class="pr-g2">${e(g.nights)}${g.perNight ? ` · <b>${money(g.perNight)}</b>/đêm` : ''}${g.paid ? ' <i class="pd">✓</i>' : ''}</div>
+            ${g.room ? `<div class="pr-g3">${e(g.room)}</div>` : ''}</div>`;
         const aptsOn = (window.CD_APTS || []).filter(a => a.active !== false);
         const freeOf = id => {          // rooms not yet given to a guest placed for tonight (arriving — even ⏳ — + staying)
             const a = APTS[id];
@@ -5927,6 +5957,7 @@ function showQuickToast(msg, type) {
         }
     });
     applyView();
+    window.addEventListener('load', applyView);      // again once 2PN marks / placements of the cards are set
 
     // ── Jump to a section (the toolbar stays on top) ──
     document.querySelectorAll('.cd-jump a').forEach(a => a.addEventListener('click', e => {

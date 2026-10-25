@@ -134,3 +134,8 @@ apartment chips "18HB còn 1" → `setApt()` (same call + "căn đã đủ" chec
 apartment: header "đêm nay đã xếp X/Y" (arriving incl. ⏳ + staying; ⚠️ when over), left 🧳 Trả, right 🛬 Đến (⏳ grey =
 not confirmed), purple 2PN tags so 2PN leaves / arrivals pair up. Tap a name = open its card below. Re-renders after
 every placement (aptOverview render → `cdAfterFilter`).
+Oct 25 (later): **Trả ↔ Đến is the default view** of the day page (`view.sec = 'pair'`; ✕ Thoát / ↺ Xem tất cả = all).
+Each guest = 3 short lines: name (+2PN) · "N đêm · 762k/đêm ✓(paid)" (per night = card's đ/đêm line, else total ÷ nights)
+· room type (grey, from `.room-type` without the countdown badge). **App opens on today**: `/` and `/hom-nay` redirect
+to `/calendar_details/<Vietnam today>`; nav "Lịch Doanh Thu" → /hom-nay, the month calendar is the new nav item
+"Lịch tháng"; the day page's "Hôm nay" button and Thu tiền's "← Lịch" use /hom-nay.

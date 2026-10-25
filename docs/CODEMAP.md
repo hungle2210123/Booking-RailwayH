@@ -36,38 +36,38 @@ _p01_health_cancellations — health, cancellations centre, OK status, auto-sync
 - app_parts/p01_health_cancellations.py:755 `auto_sync_dashboard` ← `/auto_sync` — Auto sync dashboard for managing bidirectional database synchronization
 - app_parts/p01_health_cancellations.py:780 `debug_routes` ← `/debug/routes` — Debug route to check all registered routes
 
-## app_parts/p02_pages_extension.py (717 lines)
+## app_parts/p02_pages_extension.py (719 lines)
 _p02_pages_extension — page shells (/, dashboard, expenses, apartments), dashboard API, Chrome extension import/save, photo import, phone from extension_
 - app_parts/p02_pages_extension.py:5 `apartment_management` ← `/apartments` — Apartment management page
-- app_parts/p02_pages_extension.py:10 `index` ← `/` — Redirect root to revenue calendar.
-- app_parts/p02_pages_extension.py:15 `dashboard` ← `/dashboard` — Revenue & collection overview. All numbers come from /api/dashboard/overview
-- app_parts/p02_pages_extension.py:22 `expenses_page` ← `/expenses` — Expense entry / overview (moved out of the old dashboard).
-- app_parts/p02_pages_extension.py:28 `api_dashboard_overview` ← `/api/dashboard/overview` — ?month=YYYY-MM (default: current month, Vietnam time).
-- app_parts/p02_pages_extension.py:83 `_ext_auth_error` — Optional shared secret: set EXTENSION_TOKEN on the server and in the extension options.
-- app_parts/p02_pages_extension.py:91 `_ext_existing`
-- app_parts/p02_pages_extension.py:114 `ext_ping` ← `/api/ext/ping`
-- app_parts/p02_pages_extension.py:121 `_ext_fields` — Normalise fields coming from the extension.
-- app_parts/p02_pages_extension.py:153 `_ext_diff` — Booking-fact changes (column → value) + readable list. Never touches what the app manages.
-- app_parts/p02_pages_extension.py:181 `_ensure_property_column`
-- app_parts/p02_pages_extension.py:197 `_property_for` — Learn / recall the listing name of a Booking property id.
-- app_parts/p02_pages_extension.py:211 `_set_property`
-- app_parts/p02_pages_extension.py:227 `_provisional_id`
-- app_parts/p02_pages_extension.py:232 `_provisional_match` — The one provisional booking for the same stay (dates, and price ±1,000đ or same guest name), else None.
-- app_parts/p02_pages_extension.py:252 `_rename_booking` — Give a booking its real number everywhere it is referenced (one transaction).
-- app_parts/p02_pages_extension.py:273 `_room_ids` — Booking ids for the rooms of one reservation: the 1st room keeps the number, the others get -2, -3 …
-- app_parts/p02_pages_extension.py:278 `_ext_save_rooms` — A reservation of several rooms (owner, Oct 21): every room is its own booking on the web — <id> for room 1,
-- app_parts/p02_pages_extension.py:325 `_ext_save_one` — Create or update one booking (+ its Booking listing name). Returns (result dict, http status).
-- app_parts/p02_pages_extension.py:350 `_ext_save_one_core` — Create or update one booking. Returns (result dict, http status).
-- app_parts/p02_pages_extension.py:436 `_ext_known_listings`
-- app_parts/p02_pages_extension.py:442 `_ext_listings`
-- app_parts/p02_pages_extension.py:452 `ext_booking_parse` ← `/api/ext/booking/parse` POST — Turn a captured page into fields + what is already in the system.
-- app_parts/p02_pages_extension.py:503 `ext_booking_save` ← `/api/ext/booking/save` POST — Save one booking checked by the user in the extension panel.
-- app_parts/p02_pages_extension.py:524 `ext_booking_save_many` ← `/api/ext/booking/save_many` POST — Save the rows ticked on the reservation list page — each one independently.
-- app_parts/p02_pages_extension.py:546 `booking_from_photo_parse` ← `/api/booking_from_photo/parse` POST — /messages "📷 Thêm từ ảnh": text OCR'd on the phone from Booking app screenshots → fields to check.
-- app_parts/p02_pages_extension.py:580 `_photo_booking_by_name` — The one not-yet-finished booking whose guest has this name (any case / accents / word order), else None.
-- app_parts/p02_pages_extension.py:599 `booking_from_photo_save` ← `/api/booking_from_photo/save` POST — Save the checked fields — same rules as the Chrome extension (only Booking facts; collected money,
-- app_parts/p02_pages_extension.py:622 `ext_booking_phone` ← `/api/ext/booking/phone` POST — A reservation page now shows the guest phone (the owner clicked Booking's own
-- app_parts/p02_pages_extension.py:704 `_typed_phone` — A number the owner typed / pasted ("0905 123 456", "+33 6 12 34 56 78", "0033…") → '+<digits>' or ''.
+- app_parts/p02_pages_extension.py:11 `index` ← `/` · `/hom-nay` — Open the app on TODAY's day page (owner, Oct 25) — Vietnam date, the server runs UTC.
+- app_parts/p02_pages_extension.py:17 `dashboard` ← `/dashboard` — Revenue & collection overview. All numbers come from /api/dashboard/overview
+- app_parts/p02_pages_extension.py:24 `expenses_page` ← `/expenses` — Expense entry / overview (moved out of the old dashboard).
+- app_parts/p02_pages_extension.py:30 `api_dashboard_overview` ← `/api/dashboard/overview` — ?month=YYYY-MM (default: current month, Vietnam time).
+- app_parts/p02_pages_extension.py:85 `_ext_auth_error` — Optional shared secret: set EXTENSION_TOKEN on the server and in the extension options.
+- app_parts/p02_pages_extension.py:93 `_ext_existing`
+- app_parts/p02_pages_extension.py:116 `ext_ping` ← `/api/ext/ping`
+- app_parts/p02_pages_extension.py:123 `_ext_fields` — Normalise fields coming from the extension.
+- app_parts/p02_pages_extension.py:155 `_ext_diff` — Booking-fact changes (column → value) + readable list. Never touches what the app manages.
+- app_parts/p02_pages_extension.py:183 `_ensure_property_column`
+- app_parts/p02_pages_extension.py:199 `_property_for` — Learn / recall the listing name of a Booking property id.
+- app_parts/p02_pages_extension.py:213 `_set_property`
+- app_parts/p02_pages_extension.py:229 `_provisional_id`
+- app_parts/p02_pages_extension.py:234 `_provisional_match` — The one provisional booking for the same stay (dates, and price ±1,000đ or same guest name), else None.
+- app_parts/p02_pages_extension.py:254 `_rename_booking` — Give a booking its real number everywhere it is referenced (one transaction).
+- app_parts/p02_pages_extension.py:275 `_room_ids` — Booking ids for the rooms of one reservation: the 1st room keeps the number, the others get -2, -3 …
+- app_parts/p02_pages_extension.py:280 `_ext_save_rooms` — A reservation of several rooms (owner, Oct 21): every room is its own booking on the web — <id> for room 1,
+- app_parts/p02_pages_extension.py:327 `_ext_save_one` — Create or update one booking (+ its Booking listing name). Returns (result dict, http status).
+- app_parts/p02_pages_extension.py:352 `_ext_save_one_core` — Create or update one booking. Returns (result dict, http status).
+- app_parts/p02_pages_extension.py:438 `_ext_known_listings`
+- app_parts/p02_pages_extension.py:444 `_ext_listings`
+- app_parts/p02_pages_extension.py:454 `ext_booking_parse` ← `/api/ext/booking/parse` POST — Turn a captured page into fields + what is already in the system.
+- app_parts/p02_pages_extension.py:505 `ext_booking_save` ← `/api/ext/booking/save` POST — Save one booking checked by the user in the extension panel.
+- app_parts/p02_pages_extension.py:526 `ext_booking_save_many` ← `/api/ext/booking/save_many` POST — Save the rows ticked on the reservation list page — each one independently.
+- app_parts/p02_pages_extension.py:548 `booking_from_photo_parse` ← `/api/booking_from_photo/parse` POST — /messages "📷 Thêm từ ảnh": text OCR'd on the phone from Booking app screenshots → fields to check.
+- app_parts/p02_pages_extension.py:582 `_photo_booking_by_name` — The one not-yet-finished booking whose guest has this name (any case / accents / word order), else None.
+- app_parts/p02_pages_extension.py:601 `booking_from_photo_save` ← `/api/booking_from_photo/save` POST — Save the checked fields — same rules as the Chrome extension (only Booking facts; collected money,
+- app_parts/p02_pages_extension.py:624 `ext_booking_phone` ← `/api/ext/booking/phone` POST — A reservation page now shows the guest phone (the owner clicked Booking's own
+- app_parts/p02_pages_extension.py:706 `_typed_phone` — A number the owner typed / pasted ("0905 123 456", "+33 6 12 34 56 78", "0033…") → '+<digits>' or ''.
 
 ## app_parts/p03_messages_journey.py (1393 lines)
 _p03_messages_journey — phone from chat screenshots, /api/messages/phone, auto messages, AI reply, Booking screenshots, journey, Thu tiền (pay), /tin-nhanh, /messages_
@@ -718,8 +718,8 @@ _p14_electricity — electricity calculator + meters/readings/bills_
 - templates/auto_sync_dashboard.html: 266 `refreshSyncStatus` · 303 `updateSyncStatusDisplay` · 363 `updateTableBreakdown` · 395 `checkSyncNotifications` · 426 `updateAutoSyncToggle` · 441 `performSync` · 504 `performTableSync` · 531 `toggleAutoSync`
 - templates/auto_sync_dashboard.html: 551 `loadSyncHistory` · 581 `handleNotificationAction` · 592 `showToast`
 
-## templates/base.html (637 lines)
-- templates/base.html: 553 `fastNavigate` · 565 `goToHome` · 577 `isPWAInstalled` · 595 `showInstallInstructions`
+## templates/base.html (642 lines)
+- templates/base.html: 558 `fastNavigate` · 570 `goToHome` · 582 `isPWAInstalled` · 600 `showInstallInstructions`
 
 ## templates/bookings.html (3195 lines)
 - templates/bookings.html: 1096 `toggleDeleteButton` · 1216 `performDuplicateAnalysis` · 1282 `displayDuplicateResults` · 1524 `cancelBooking` · 1625 `showDuplicateDetail` · 1699 `showDuplicateComparison` · 1821 `cancelDuplicateBooking` · 1870 `deleteDuplicateBooking`
@@ -734,18 +734,18 @@ _p14_electricity — electricity calculator + meters/readings/bills_
 - templates/calendar.html: 156 `loadVacancyBoard` · 1662 `toggleCanceledPanel` · 1691 `refreshCanceledGuests` · 1760 `displayCanceledGuests` · 1883 `getAISuggestions` · 1953 `displayAISuggestions` · 2113 `restoreBookingFromAI` · 2178 `restoreBooking`
 - templates/calendar.html: 2242 `deleteBooking` · 2319 `loadCanceledGuestsCount` · 2385 `filterByApartment`
 
-## templates/calendar_details.html (5981 lines)
-- templates/calendar_details.html: 147 `loadVbCd` · 229 `twoBrLine` · 239 `twoBrWatch` · 1548 `loadVac` · 1560 `paint` · 1568 `sortSection` · 1598 `applyFilter` · 1605 `render`
-- templates/calendar_details.html: 1650 `tile` · 1659 `cdAptOverview` · 3402 `quickCancelCalendarGuest` · 3431 `loadMonthlyCalendarForPage` · 3444 `renderCompactCalendarForPage` · 3485 `loadAptNotifyBar` · 3583 `confirmPlacementCapacity` · 3604 `cdApplyAptUI`
-- templates/calendar_details.html: 3671 `setApt` · 3705 `toggleAptPicker` · 3711 `markTwoBedroomCards` · 3741 `toggleTwoBedroom` · 4154 `loadEditRoomDropdown` · 4211 `navigateToDate` · 4217 `openQuickEditModal` · 4263 `saveQuickEdit`
-- templates/calendar_details.html: 4313 `showPayCollect` · 4327 `showAmountEdit` · 4343 `confirmAmount` · 4355 `showCollectors` · 4369 `toggleHiddenPanel` · 4377 `openHiddenModal` · 4383 `closeHiddenModal` · 4387 `loadHiddenGuests`
-- templates/calendar_details.html: 4427 `restoreGuestModal` · 4451 `restoreGuest` · 4490 `markNoShow` · 4523 `collectRemaining` · 4532 `resetPay` · 4540 `doCollect` · 4604 `showCalToast` · 4617 `_statusKey`
-- templates/calendar_details.html: 4620 `_saveStatusToDB` · 4629 `_refreshOccupancyBoards` · 4636 `_applyStatus` · 4672 `toggleGuestStatus` · 4719 `openCancelNotify` · 4732 `closeCancelNotify` · 4736 `copyCancelMsg` · 4759 `groupSection`
-- templates/calendar_details.html: 4789 `updateCheckinBadge` · 4811 `cdPaintContact` · 4833 `cdToggleContacted` · 4849 `cdSyncFromDB` · 4946 `recalculateRevenue` · 5031 `showLateArrival` · 5058 `pickLateHour` · 5068 `saveLateArrival`
-- templates/calendar_details.html: 5089 `clearLateArrival` · 5112 `showLateArrivalBadge` · 5142 `loadArrivalTimes` · 5307 `openGlobalHistory` · 5314 `loadGlobalHistory` · 5340 `filterHistoryList` · 5355 `renderHistoryList` · 5417 `closeHistoryModal`
-- templates/calendar_details.html: 5421 `askDeleteHistory` · 5429 `closePasswordModal` · 5434 `confirmDeleteHistory` · 5480 `openExtendModal` · 5500 `adjustNights` · 5506 `setNights` · 5511 `recalcExtend` · 5535 `formatDateVN`
-- templates/calendar_details.html: 5541 `confirmExtendStay` · 5577 `showQuickToast` · 5668 `copyText` · 5726 `listRow` · 5749 `cdListRows` · 5756 `setMode` · 5766 `cdMode` · 5781 `passXf`
-- templates/calendar_details.html: 5788 `applyView` · 5820 `cdAfterFilter` · 5821 `sheet` · 5876 `renderPair`
+## templates/calendar_details.html (6012 lines)
+- templates/calendar_details.html: 147 `loadVbCd` · 229 `twoBrLine` · 239 `twoBrWatch` · 1554 `loadVac` · 1566 `paint` · 1574 `sortSection` · 1604 `applyFilter` · 1611 `render`
+- templates/calendar_details.html: 1656 `tile` · 1665 `cdAptOverview` · 3408 `quickCancelCalendarGuest` · 3437 `loadMonthlyCalendarForPage` · 3450 `renderCompactCalendarForPage` · 3491 `loadAptNotifyBar` · 3589 `confirmPlacementCapacity` · 3610 `cdApplyAptUI`
+- templates/calendar_details.html: 3677 `setApt` · 3711 `toggleAptPicker` · 3717 `markTwoBedroomCards` · 3747 `toggleTwoBedroom` · 4160 `loadEditRoomDropdown` · 4217 `navigateToDate` · 4223 `openQuickEditModal` · 4269 `saveQuickEdit`
+- templates/calendar_details.html: 4319 `showPayCollect` · 4333 `showAmountEdit` · 4349 `confirmAmount` · 4361 `showCollectors` · 4375 `toggleHiddenPanel` · 4383 `openHiddenModal` · 4389 `closeHiddenModal` · 4393 `loadHiddenGuests`
+- templates/calendar_details.html: 4433 `restoreGuestModal` · 4457 `restoreGuest` · 4496 `markNoShow` · 4529 `collectRemaining` · 4538 `resetPay` · 4546 `doCollect` · 4610 `showCalToast` · 4623 `_statusKey`
+- templates/calendar_details.html: 4626 `_saveStatusToDB` · 4635 `_refreshOccupancyBoards` · 4642 `_applyStatus` · 4678 `toggleGuestStatus` · 4725 `openCancelNotify` · 4738 `closeCancelNotify` · 4742 `copyCancelMsg` · 4765 `groupSection`
+- templates/calendar_details.html: 4795 `updateCheckinBadge` · 4817 `cdPaintContact` · 4839 `cdToggleContacted` · 4855 `cdSyncFromDB` · 4952 `recalculateRevenue` · 5037 `showLateArrival` · 5064 `pickLateHour` · 5074 `saveLateArrival`
+- templates/calendar_details.html: 5095 `clearLateArrival` · 5118 `showLateArrivalBadge` · 5148 `loadArrivalTimes` · 5313 `openGlobalHistory` · 5320 `loadGlobalHistory` · 5346 `filterHistoryList` · 5361 `renderHistoryList` · 5423 `closeHistoryModal`
+- templates/calendar_details.html: 5427 `askDeleteHistory` · 5435 `closePasswordModal` · 5440 `confirmDeleteHistory` · 5486 `openExtendModal` · 5506 `adjustNights` · 5512 `setNights` · 5517 `recalcExtend` · 5541 `formatDateVN`
+- templates/calendar_details.html: 5547 `confirmExtendStay` · 5583 `showQuickToast` · 5674 `copyText` · 5732 `listRow` · 5755 `cdListRows` · 5762 `setMode` · 5772 `cdMode` · 5787 `passXf`
+- templates/calendar_details.html: 5794 `applyView` · 5826 `cdAfterFilter` · 5827 `sheet` · 5902 `renderPair`
 
 ## templates/crawl_bookings.html (404 lines)
 - templates/crawl_bookings.html: 335 `displayResults`

@@ -52,3 +52,11 @@ def test_day_page_list_mode_and_view_button(client):
     assert 'cdx-fab' in html and 'cd-list' in html and 'cdListRows' in html
     assert 'id="cdPair"' in html and 'renderPair' in html          # 🔄 Trả ↔ Đến board
     assert 'canceled-guests-panel mb-4' not in html
+
+
+def test_app_opens_on_today(client):
+    """Owner, Oct 25: opening the app (/) or "Lịch Doanh Thu" (/hom-nay) lands on TODAY's day page (Vietnam date)."""
+    from core.occupancy import vn_today
+    for url in ('/', '/hom-nay'):
+        r = client.get(url)
+        assert r.status_code == 302 and r.headers['Location'].endswith(f'/calendar_details/{vn_today().isoformat()}'), url
