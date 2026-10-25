@@ -1,0 +1,15 @@
+{
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python \"$CLAUDE_PROJECT_DIR/tools/codemap.py\" >/dev/null 2>&1 || true",
+            "timeout": 60
+          }
+        ]
+      }
+    ]
+  }
+}

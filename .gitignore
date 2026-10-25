@@ -125,3 +125,5 @@ node_modules/
 # project notes for Claude (no secrets in here)
 !docs/
 !docs/*.md
+!.claude/rules/*.md
+!.claude/agents/*.md

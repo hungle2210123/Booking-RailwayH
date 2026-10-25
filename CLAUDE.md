@@ -24,8 +24,15 @@ https://web-production-8f671.up.railway.app — **push straight to main** ("git 
   phone) · **`docs/calendar_revenue.md`** (vacancy, calm colours, sync, per-apartment view, 2PN, dashboard/revenue, rooms) ·
   `docs/history.md` (pre-Oct-2026 notes). Full old CLAUDE.md (local only, git-ignored): `BACKUP_BEFORE_CLEANUP/CLAUDE_full_2026-10-25.md`.
   When a feature changes, update its docs/*.md section (not this file) — keep this file short.
+- `.claude/rules/*.md` load automatically when you open files of an area (messages, extension, calendar/revenue, Mẫu Câu,
+  tests) — the key rules of that area. A Stop hook (`.claude/settings.json`) re-runs `tools/codemap.py` after every turn,
+  so CODEMAP stays current. For BROAD searches ("every place that changes X") use the `code-locator` subagent (Haiku,
+  read-only, answers file:line); for one known name just grep CODEMAP (faster: tested 6/6 correct, ~9 s per Haiku search).
 
 ## Verify before pushing
+- **Tests: `python -m pytest`** (58 tests, ~80 s, real DB; `-m "not db_write"` = read-only only). Pages, route table, parsers
+  (phone, chat screenshot, multi-room), flows (phone save, Báo hủy, room split, template picture delete, /messages today +
+  apartments) and revenue consistency. Add a test for every bug the owner reports.
 - Smoke test: `python tools/smoke.py` (24 main pages / APIs on the real DB, prints ALL OK).
 - Test on real data with throwaway rows (booking ids like `9990001234`, template `ZZ TEST …`) and delete them after.
 - Jinja templates are cached: restart the preview server (`.claude/launch.json` "flask-app") after template edits.
