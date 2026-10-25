@@ -123,6 +123,25 @@
 .vbcd-warn { font-size:11px; font-weight:700; color:#b91c1c; background:#fef2f2;
              padding:4px 10px; border-top:1px solid #fecaca; }
 @keyframes vbcd-pulse { 50% { opacity:.55; } }
+.vbcd-2pn { font-size:12px; font-weight:800; color:#5b21b6; background:#f5f3ff;
+            padding:4px 10px; border-top:1px solid #ddd6fe; }
+/* 2-bedroom watch list (next 14 days) */
+.tbw { border:2px solid #7c3aed; border-radius:10px; overflow:hidden; margin:4px 0 8px; }
+.tbw-hd { background:#7c3aed; color:#fff; font-size:12px; font-weight:800; padding:6px 10px;
+          display:flex; justify-content:space-between; align-items:center; }
+.tbw-day { display:block; text-decoration:none; color:inherit; padding:7px 10px;
+           border-top:1px solid #ede9fe; background:#fff; }
+.tbw-day:hover { background:#faf5ff; color:inherit; }
+.tbw-day.today { background:#f5f3ff; }
+.tbw-date { font-size:12px; font-weight:800; color:#222; }
+.tbw-date small { font-weight:600; color:#888; margin-left:4px; }
+.tbw-line { font-size:12.5px; line-height:1.45; margin-top:2px; }
+.tbw-out { color:#c2410c; font-weight:800; }
+.tbw-in  { color:#15803d; font-weight:800; }
+.tbw-apt { font-size:10.5px; font-weight:800; color:#5b21b6; background:#ede9fe; border-radius:4px; padding:0 4px; }
+.tbw-noapt { font-size:10.5px; font-weight:800; color:#fff; background:#dc2626; border-radius:4px; padding:0 4px; }
+.tbw-unc { font-size:10.5px; color:#b45309; }
+.tbw-empty { font-size:11px; color:#94a3b8; padding:8px 10px; background:#fff; }
 </style>
 
 <script>
@@ -192,8 +211,10 @@ function loadVbCd() {
           + '</div>'
           + '<div class="vbcd-apts">' + aptHtml + '</div>'
           + (warn ? '<div class="vbcd-warn">' + warn + '</div>' : '')
+          + twoBrLine(day.two_br)
           + '</a>';
       }
+      html += twoBrWatch(d.two_br_days || [], esc);
       html += '<div style="font-size:10px;color:#94a3b8;line-height:1.35;padding:0 2px;">'
         + 'Chỉ tính khách đã <b>xác nhận đến</b> và <b>chọn căn</b>. ⏳ = khách chưa xếp, rê chuột để xem tên.'
         + '</div>';
@@ -203,6 +224,41 @@ function loadVbCd() {
       var el2 = document.getElementById('vb-cd-rows');
       if (el2) el2.innerHTML = '<div style="font-size:10px;color:#f87171;padding:6px;">Lỗi tải dữ liệu</div>';
     });
+}
+
+// 🛏️ 2PN line on a day card: how many 2-bedroom guests leave / arrive that day
+function twoBrLine(t) {
+  if (!t || (!t.out && !t.in)) return '';
+  var parts = [];
+  if (t.out) parts.push(t.out + ' trả');
+  if (t.in) parts.push(t.in + ' đến');
+  return '<div class="vbcd-2pn">🛏️ 2PN: ' + parts.join(' · ')
+    + (t.stay ? ' <span style="font-weight:600;color:#7c3aed;">(' + t.stay + ' đang ở)</span>' : '') + '</div>';
+}
+
+// 🛏️ 2PN watch list: every day in the next 14 days with a 2-bedroom check-out or arrival
+function twoBrWatch(days, esc) {
+  var guest = function(g) {
+    var tag = g.placed ? ' <span class="tbw-apt">' + esc(g.apt) + '</span>' : ' <span class="tbw-noapt">chưa xếp căn</span>';
+    return esc(g.name) + ' <small style="color:#888;">' + g.nights + 'đ</small>' + tag;
+  };
+  var rows = '', n = 0;
+  for (var i = 0; i < days.length; i++) {
+    var w = days[i];
+    if (!w.out.length && !w.in.length) continue;
+    n++;
+    var lines = '';
+    if (w.out.length) lines += '<div class="tbw-line"><span class="tbw-out">🧳 Trả ' + w.out.length + ':</span> '
+      + w.out.map(guest).join(', ') + '</div>';
+    if (w.in.length) lines += '<div class="tbw-line"><span class="tbw-in">🛬 Đến ' + w.in.length + ':</span> '
+      + w.in.map(guest).join(', ') + '</div>';
+    rows += '<a class="tbw-day' + (i === 0 ? ' today' : '') + '" href="/calendar_details/' + w.date + '">'
+      + '<div class="tbw-date">' + esc(w.label) + '<small>' + esc(w.weekday) + ' ' + esc(w.date_short) + '</small></div>'
+      + lines + '</a>';
+  }
+  if (!n) rows = '<div class="tbw-empty">Không có khách 2PN đến / trả trong 14 ngày tới.</div>';
+  return '<div class="tbw"><div class="tbw-hd"><span>🛏️ PHÒNG 2 NGỦ — 14 NGÀY TỚI</span><span>' + n + ' ngày</span></div>'
+    + rows + '</div>';
 }
 
 // Gọi ngay khi DOM sẵn sàng

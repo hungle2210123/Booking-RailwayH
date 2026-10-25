@@ -144,6 +144,7 @@
             .chip-full { background:#fef2f2;color:#dc2626;border:1px solid #fecaca; }
             .chip-pend { background:#fff7ed;color:#c2410c;border:1px dashed #fb923c; }
             .vb-apt-cell.over { background:#fef2f2;border-radius:4px; }
+            .vb-2pn { font-size:10px;font-weight:800;color:#5b21b6;background:#f5f3ff;border-top:1px solid #ddd6fe;padding:3px 10px; }
             .vb-over { font-size:8px;font-weight:900;color:#fff;background:#dc2626;border-radius:3px;padding:0 3px; }
             </style>
 
@@ -172,6 +173,7 @@
                     const barCls  = isFull ? 'bar-full' : isAlert ? 'bar-alert' : isHot ? 'bar-hot' : 'bar-free';
                     const chipCls = free === 0 ? 'chip-full' : free <= THRESHOLD ? 'chip-warn' : 'chip-ok';
                     const chipTxt = free === 0 ? 'HẾT' : free + ' trống';
+                    const tb = day.two_br;
                     const pendTip = (day.pending || []).map(p => `${p.name} (${p.reason_label})`).join(', ');
                     const pendChip = pend ? `<span class="vb-total-chip chip-pend" title="Chưa tính vào căn nào: ${pendTip.replace(/"/g, '&quot;')}">⏳ ${pend} chờ</span>` : '';
 
@@ -194,6 +196,7 @@
                         <div class="vb-col-dt">${day.weekday} · ${day.date_display}</div>
                       </div>
                       <div class="vb-col-apts">${apts}</div>
+                      ${tb && (tb.out || tb.in) ? `<div class="vb-2pn">🛏️ 2PN: ${[tb.out ? tb.out + ' trả' : '', tb.in ? tb.in + ' đến' : ''].filter(Boolean).join(' · ')}</div>` : ''}
                     </a>`;
                   });
                   html += '</div>';

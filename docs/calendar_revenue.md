@@ -49,9 +49,14 @@ A 📵 mark only holds while nothing newer happened (`J.unreachable_at`): not on
 đến also deletes the mark in `set_checkin_status`), not when a message was sent after it; confirmed cards are never dimmed.
 
 ### **🛏️ 2-bedroom bookings (`core/two_bedroom.py`)**
-`bookings.two_bedroom` BOOLEAN: NULL = auto-detect from listing ("2 PN", "2 phòng ngủ", "Two-Bedroom"; "2 Giường" is
-NOT 2PN), TRUE/FALSE = manual (`/api/set_two_bedroom`). Shown as 🛏️ 2PN toggle on cards, a check-out watch panel in
-calendar_details (next 3 days) and "🛏️ N trả 2PN" badges in the month calendar.
+`bookings.two_bedroom` BOOLEAN: NULL = auto-detect from listing ("2 PN", "2 phòng ngủ", "Two-Bedroom", and since Oct 25
+also "2 Giường" — owner: priced like 2PN, watch the same; "Giường đôi / cỡ King" are not), TRUE/FALSE = manual
+(`/api/set_two_bedroom`). Shown as 🛏️ 2PN toggle on cards, a check-out watch panel in calendar_details (next 3 days)
+and "🛏️ N trả 2PN" badges in the month calendar.
+Phòng trống board (`/api/vacancy_preview` → `two_br_days` from `core.two_bedroom.watch_days`, 14 days; per day card
+`two_br` = counts): purple "🛏️ 2PN: N trả · N đến (N đang ở)" line on each day card (calendar_details sidebar + month
+calendar board) and, under the cards, the purple "🛏️ PHÒNG 2 NGỦ — 14 NGÀY TỚI" list: each day with a 2PN check-out
+or arrival, names + nights + apartment (red "chưa xếp căn" when not placed); tap = that day's page.
 
 ### **🗑️ Delete apartment**
 `DELETE /api/apartments/<id>` (body `move_bookings_to`: id or null) + `/api/apartments/<id>/delete_check`.

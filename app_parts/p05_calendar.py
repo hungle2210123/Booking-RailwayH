@@ -42,7 +42,23 @@ def api_vacancy_preview():
                 'sellable'     : occ['sellable'],
                 'over_count'   : occ['over_count'],
             })
-        return jsonify({'success':True,'days':days})
+
+        # 2-bedroom (2PN) arrivals / check-outs for the next 14 days — expensive units, watched closely
+        two_br_days = []
+        try:
+            from core.two_bedroom import watch_days
+            two_br_days = watch_days(_db.session, _text, today, 14, today, apartments)
+            for i, w in enumerate(two_br_days):
+                d = today + timedelta(days=i)
+                w['weekday'] = vn_days[(d.weekday()+1)%7]
+                w['label'] = labels[i] if i < len(labels) else d.strftime('%d/%m')
+                w['date_short'] = d.strftime('%d/%m')
+                if i < len(days):
+                    days[i]['two_br'] = {'in': len(w['in']), 'out': len(w['out']), 'stay': len(w['stay'])}
+        except Exception as _tbe:
+            _db.session.rollback()
+            print(f"[vacancy_preview] 2PN watch failed: {_tbe}")
+        return jsonify({'success':True,'days':days,'two_br_days':two_br_days})
     except Exception as e:
         return jsonify({'success':False,'error':str(e),'days':[]})
 
