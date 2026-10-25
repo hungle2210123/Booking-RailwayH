@@ -5959,6 +5959,25 @@ function showQuickToast(msg, type) {
     applyView();
     window.addEventListener('load', applyView);      // again once 2PN marks / placements of the cards are set
 
+    // ── Open straight on the Trả ↔ Đến board (owner, Oct 25: no long scroll on the phone). The boards above load
+    //    late and push it down, so it is re-aligned for ~3 s — until the owner touches / scrolls the page. ──
+    (function landOnPair() {
+        if (location.hash || view.sec !== 'pair') return;
+        let touched = false;
+        ['touchstart', 'wheel', 'keydown', 'mousedown'].forEach(ev =>
+            window.addEventListener(ev, () => { touched = true; }, { once: true, passive: true }));
+        const go = () => {
+            const box = document.getElementById('cdPair');
+            if (touched || !box || !document.body.classList.contains('cdx-pair')) return;
+            const bar = document.querySelector('.cd-toolbar');
+            const top = box.getBoundingClientRect().top + window.scrollY - ((bar ? bar.offsetHeight : 50) + 10);
+            if (Math.abs(window.scrollY - top) > 4) window.scrollTo({ top, behavior: 'auto' });
+        };
+        if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
+        [0, 300, 800, 1500, 2200, 3000].forEach(ms => setTimeout(go, ms));
+        window.addEventListener('load', () => setTimeout(go, 50));
+    })();
+
     // ── Jump to a section (the toolbar stays on top) ──
     document.querySelectorAll('.cd-jump a').forEach(a => a.addEventListener('click', e => {
         e.preventDefault();

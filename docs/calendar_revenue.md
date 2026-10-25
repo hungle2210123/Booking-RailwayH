@@ -139,3 +139,6 @@ Each guest = 3 short lines: name (+2PN) · "N đêm · 762k/đêm ✓(paid)" (pe
 · room type (grey, from `.room-type` without the countdown badge). **App opens on today**: `/` and `/hom-nay` redirect
 to `/calendar_details/<Vietnam today>`; nav "Lịch Doanh Thu" → /hom-nay, the month calendar is the new nav item
 "Lịch tháng"; the day page's "Hôm nay" button and Thu tiền's "← Lịch" use /hom-nay.
+The day page **opens scrolled to the Trả ↔ Đến board** (`landOnPair`: no URL hash and pair view → scroll so the board
+sits under the sticky toolbar; re-aligned at 0–3 s because the boards above load late; stops as soon as the owner
+touches / scrolls; `history.scrollRestoration = 'manual'`).

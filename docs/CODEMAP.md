@@ -735,7 +735,7 @@ _p14_electricity — electricity calculator + meters/readings/bills_
 - templates/calendar.html: 156 `loadVacancyBoard` · 1662 `toggleCanceledPanel` · 1691 `refreshCanceledGuests` · 1760 `displayCanceledGuests` · 1883 `getAISuggestions` · 1953 `displayAISuggestions` · 2113 `restoreBookingFromAI` · 2178 `restoreBooking`
 - templates/calendar.html: 2242 `deleteBooking` · 2319 `loadCanceledGuestsCount` · 2385 `filterByApartment`
 
-## templates/calendar_details.html (6012 lines)
+## templates/calendar_details.html (6031 lines)
 - templates/calendar_details.html: 147 `loadVbCd` · 229 `twoBrLine` · 239 `twoBrWatch` · 1554 `loadVac` · 1566 `paint` · 1574 `sortSection` · 1604 `applyFilter` · 1611 `render`
 - templates/calendar_details.html: 1656 `tile` · 1665 `cdAptOverview` · 3408 `quickCancelCalendarGuest` · 3437 `loadMonthlyCalendarForPage` · 3450 `renderCompactCalendarForPage` · 3491 `loadAptNotifyBar` · 3589 `confirmPlacementCapacity` · 3610 `cdApplyAptUI`
 - templates/calendar_details.html: 3677 `setApt` · 3711 `toggleAptPicker` · 3717 `markTwoBedroomCards` · 3747 `toggleTwoBedroom` · 4160 `loadEditRoomDropdown` · 4217 `navigateToDate` · 4223 `openQuickEditModal` · 4269 `saveQuickEdit`
