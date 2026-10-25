@@ -1435,6 +1435,42 @@ setInterval(loadVbCd, 5 * 60 * 1000);
         .cdx-clear { width: 100%; margin-top: 12px; border: none; background: #f1f5f9; color: #0f172a; border-radius: 11px;
                      padding: 11px; font-weight: 800; font-size: .88rem; }
         .cdx-sec-out, .cdx-out { display: none !important; }
+        .cdx-b.wide { grid-column: 1 / -1; }
+        /* ── 🔄 Trả ↔ Đến: per apartment, who leaves (left) next to who arrives (right) — to place arrivals ── */
+        #cdPair { display: none; margin: 0 0 14px; }
+        body.cdx-pair #cdPair { display: block; }
+        .pr-h { display: flex; align-items: center; gap: 8px; margin: 2px 0 8px; }
+        .pr-h b { font-size: 1.02rem; color: #0f172a; }
+        .pr-h small { color: #64748b; font-size: .74rem; }
+        .pr-h button { margin-left: auto; flex-shrink: 0; border: none; background: #0f172a; color: #fff; font-weight: 800;
+                       border-radius: 999px; padding: 5px 12px; font-size: .78rem; line-height: 1.2; width: auto; height: auto; }
+        .pr-h b { white-space: nowrap; }
+        .pr-un { border: 2px dashed #f59e0b; background: #fffbeb; border-radius: 12px; padding: 8px 10px; margin-bottom: 10px; }
+        .pr-un-t { font-weight: 900; color: #92400e; font-size: .86rem; margin-bottom: 4px; }
+        .pr-un-g { padding: 6px 0; border-top: 1px solid #fde68a; }
+        .pr-un-g:first-of-type { border-top: none; }
+        .pr-chips { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 4px; }
+        .pr-chip { border: 2px solid var(--apt-c); background: #fff; color: var(--apt-c); border-radius: 8px; padding: 4px 9px;
+                   font-weight: 900; font-size: .8rem; font-family: inherit; }
+        .pr-chip small { font-weight: 700; color: #64748b; margin-left: 3px; }
+        .pr-chip.full { opacity: .45; }
+        .pr-apt { border: 1.5px solid #e2e8f0; border-left: 7px solid var(--apt-c); border-radius: 12px; background: #fff;
+                  margin-bottom: 8px; overflow: hidden; }
+        .pr-apt-h { display: flex; justify-content: space-between; align-items: center; padding: 6px 10px;
+                    background: color-mix(in srgb, var(--apt-c) 9%, #fff); font-weight: 900; font-size: .88rem; color: #0f172a; }
+        .pr-apt-h span { font-size: .74rem; font-weight: 800; color: #15803d; }
+        .pr-apt-h span.low { color: #b45309; } .pr-apt-h span.over { color: #dc2626; }
+        .pr-cols { display: grid; grid-template-columns: 1fr 1fr; }
+        .pr-col { padding: 5px 8px 7px; min-width: 0; }
+        .pr-col + .pr-col { border-left: 1px dashed #e2e8f0; }
+        .pr-col-t { font-size: .68rem; font-weight: 900; text-transform: uppercase; letter-spacing: .3px; margin-bottom: 2px; }
+        .pr-col.out .pr-col-t { color: #c2410c; } .pr-col.in .pr-col-t { color: #15803d; }
+        .pr-g { display: flex; align-items: center; gap: 4px; padding: 3px 0; font-size: .82rem; font-weight: 700; color: #0f172a;
+                cursor: pointer; min-width: 0; }
+        .pr-g .nm { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
+        .pr-g .tb { flex-shrink: 0; font-size: .6rem; font-weight: 900; color: #fff; background: #7c3aed; border-radius: 4px; padding: 0 4px; }
+        .pr-g.wait .nm { color: #9ca3af; }
+        .pr-empty { font-size: .74rem; color: #cbd5e1; }
         @media (max-width: 768px) {
             .cd-fab-label { display: none; }
             .cd-fab { padding: 11px 13px !important; font-size: 1.05rem !important; }
@@ -1635,6 +1671,9 @@ setInterval(loadVbCd, 5 * 60 * 1000);
       });
     })();
     </script>
+
+    <!-- 🔄 Trả ↔ Đến board (👁 Xem → Trả ↔ Đến): filled by JS from the cards -->
+    <div id="cdPair"></div>
 
     <!-- 🎯 THREE COLUMNS LAYOUT: Check-in, Staying, Checkout side by side -->
     <div class="row three-section-row">
@@ -5731,7 +5770,8 @@ function showQuickToast(msg, type) {
     setMode(saved || (window.innerWidth < 768 ? 'list' : 'full'));       // phones start with the list
 
     // ── 👁 Xem: floating button → sheet (section · apartment · 2PN / chưa thu / chưa xác nhận · display mode) ──
-    const SECS = [['all', 'Tất cả'], ['checkin-cards', '🛬 Đến'], ['staying-cards', '🏨 Ở'], ['checkout-cards', '🧳 Trả']];
+    const SECS = [['all', 'Tất cả'], ['checkin-cards', '🛬 Đến'], ['staying-cards', '🏨 Ở'], ['checkout-cards', '🧳 Trả'],
+                  ['pair', '🔄 Trả ↔ Đến']];
     const XF = [['2pn', '🛏️ Chỉ 2PN'], ['unpaid', '⚡ Chưa thu'], ['unconf', '⏳ Chưa xác nhận']];
     const view = { sec: 'all', xf: {} };
     const fab = document.createElement('button');
@@ -5749,7 +5789,8 @@ function showQuickToast(msg, type) {
         SECS.slice(1).forEach(([id]) => {
             const box = document.getElementById(id);
             const col = box && box.closest('.col-lg-4');
-            if (col) col.classList.toggle('cdx-sec-out', view.sec !== 'all' && view.sec !== id);
+            const show = view.sec === 'all' || view.sec === id || (view.sec === 'pair' && id !== 'staying-cards');
+            if (col) col.classList.toggle('cdx-sec-out', !show);
             if (!box) return;
             box.querySelectorAll(':scope > .guest-card-col').forEach(c => {
                 const card = c.querySelector('.guest-card');
@@ -5766,11 +5807,13 @@ function showQuickToast(msg, type) {
                 h.textContent = h.textContent.replace(/ · \d+$/, ' · ' + shown);     // count = guests shown
             });
         });
+        document.body.classList.toggle('cdx-pair', view.sec === 'pair');
+        if (view.sec === 'pair') renderPair();
         const apt = window.cdAptFilter ? window.cdAptFilter() : null;
         const a = apt && APTS[apt];
         const nOn = (view.sec !== 'all') + (apt ? 1 : 0) + Object.values(view.xf).filter(Boolean).length;
         fab.style.setProperty('--c', a ? a.color : (apt === 'none' ? '#64748b' : '#0f172a'));
-        const label = view.sec !== 'all' ? SECS.find(x => x[0] === view.sec)[1].split(' ')[1]
+        const label = view.sec === 'pair' ? 'Trả↔Đến' : view.sec !== 'all' ? SECS.find(x => x[0] === view.sec)[1].split(' ')[1]
                     : a ? abbr(a.name) : apt === 'none' ? 'Chưa xếp' : 'Xem';
         fab.innerHTML = '👁<small>' + label + '</small>' + (nOn ? '<span class="cdx-dot">' + nOn + '</span>' : '');
     }
@@ -5787,8 +5830,10 @@ function showQuickToast(msg, type) {
         const unplaced = [...document.querySelectorAll('.three-section-row .guest-card')].filter(c => !APTS[c.dataset.apt || '']).length;
         if (unplaced) apts.push(b('', apt === 'none', '⏳ Chưa xếp<small>' + unplaced + ' khách</small>', 'data-apt="none"', '#64748b'));
         ov.innerHTML = `<div class="cdx-sh"><h3>👁 Xem nhanh <button type="button" data-close>Xong</button></h3>
-            <div class="cdx-lbl">Phần</div><div class="cdx-grid g4">${SECS.map(([id, t]) =>
+            <div class="cdx-lbl">Phần</div><div class="cdx-grid g4">${SECS.filter(x => x[0] !== 'pair').map(([id, t]) =>
                 b('', view.sec === id, t + (id === 'all' ? '' : '<small>' + cnt(id) + '</small>'), `data-sec="${id}"`)).join('')}</div>
+            <div class="cdx-grid" style="margin-top:6px">${b('', view.sec === 'pair', '🔄 Trả ↔ Đến<small>xếp khách đến vào căn có khách trả</small>',
+                'data-sec="pair"').replace('class="cdx-b', 'class="cdx-b wide')}</div>
             <div class="cdx-lbl">Căn hộ</div><div class="cdx-grid">${b('', !apt, 'Tất cả', 'data-apt=""')}${apts.join('')}</div>
             <div class="cdx-lbl">Chỉ xem</div><div class="cdx-grid">${XF.map(([k, t]) => b('', view.xf[k], t, `data-xf="${k}"`)).join('')}</div>
             <div class="cdx-lbl">Kiểu thẻ</div><div class="cdx-grid">${Object.keys(MODES).map(m =>
@@ -5805,12 +5850,82 @@ function showQuickToast(msg, type) {
             else if (t.hasAttribute('data-reset')) { view.sec = 'all'; view.xf = {}; window.cdAptFilter(null); }
             applyView();
             ov.remove();
-            const first = document.querySelector('.three-section-row .col-lg-4:not(.cdx-sec-out)');
+            const first = view.sec === 'pair' ? document.getElementById('cdPair')
+                        : document.querySelector('.three-section-row .col-lg-4:not(.cdx-sec-out)');
             if (first) window.scrollTo({ top: first.getBoundingClientRect().top + window.scrollY - 70, behavior: 'smooth' });
         });
         document.body.appendChild(ov);
     }
     fab.addEventListener('click', sheet);
+
+    // ── 🔄 Trả ↔ Đến board: per apartment, guests leaving next to guests arriving; arrivals not placed on top with
+    //    one-tap apartment chips (setApt — same as the card's picker, with its "căn đã đủ" check) ──
+    const guestOf = card => {
+        const sel = card.querySelector('[id^="asel-"]');
+        return {
+            card, bid: sel ? sel.id.slice(5) : '',
+            name: ((card.querySelector('.guest-name') || {}).textContent || '').trim(),
+            apt: APTS[card.dataset.apt || ''] ? String(card.dataset.apt) : '',
+            tb: card.classList.contains('two-br-card'),
+            ok: card.classList.contains('status-confirmed'),
+            nights: ((card.querySelector('.detail-nights') || {}).textContent || '').trim().split(' ·')[0],
+        };
+    };
+    const live = id => [...document.querySelectorAll('#' + id + ' .guest-card')]
+        .filter(c => !c.classList.contains('status-cancelling')).map(guestOf);
+    function renderPair() {
+        const box = document.getElementById('cdPair');
+        if (!box) return;
+        const ins = live('checkin-cards'), outs = live('checkout-cards'), stays = live('staying-cards');
+        const e = t => String(t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+        const row = (g, kind) => `<div class="pr-g ${kind === 'in' && !g.ok ? 'wait' : ''}" data-bid="${e(g.bid)}">
+            ${kind === 'in' ? (g.ok ? '✅' : '⏳') : '🧳'}<span class="nm">${e(g.name)}</span>${g.tb ? '<span class="tb">2PN</span>' : ''}</div>`;
+        const aptsOn = (window.CD_APTS || []).filter(a => a.active !== false);
+        const freeOf = id => {          // rooms not yet given to a guest placed for tonight (arriving — even ⏳ — + staying)
+            const a = APTS[id];
+            return (a.capacity || 0) - ins.concat(stays).filter(g => g.apt === id).length;
+        };
+        const un = ins.filter(g => !g.apt);
+        let html = `<div class="pr-h"><b>🔄 Trả ↔ Đến</b><small>trái: trả · phải: đến</small>
+            <button type="button" data-pr-close>✕ Thoát</button></div>`;
+        if (un.length) {
+            html += `<div class="pr-un"><div class="pr-un-t">⏳ ${un.length} khách đến chưa xếp căn — chạm căn để xếp</div>`
+                + un.map(g => `<div class="pr-un-g">${row(g, 'in')}<div class="pr-chips">${aptsOn.map(a => {
+                    const f = freeOf(String(a.id));
+                    return `<button type="button" class="pr-chip ${f <= 0 ? 'full' : ''}" style="--apt-c:${e(a.color)}"
+                        data-place="${e(g.bid)}" data-apt="${a.id}" data-color="${e(a.color)}">${e(abbr(a.name))}<small>còn ${Math.max(f, 0)}</small></button>`;
+                }).join('')}</div></div>`).join('') + '</div>';
+        }
+        aptsOn.forEach(a => {
+            const id = String(a.id);
+            const o = outs.filter(g => g.apt === id), i = ins.filter(g => g.apt === id);
+            if (!o.length && !i.length) return;
+            const f = freeOf(id);
+            html += `<div class="pr-apt" style="--apt-c:${e(a.color)}">
+                <div class="pr-apt-h">🏠 ${e(a.name)}<span class="${f < 0 ? 'over' : f <= 0 ? 'low' : ''}">đêm nay đã xếp ${(a.capacity || 0) - f}/${a.capacity || 0}${f < 0 ? ' ⚠️' : ''}</span></div>
+                <div class="pr-cols"><div class="pr-col out"><div class="pr-col-t">🧳 Trả ${o.length}</div>${o.map(g => row(g, 'out')).join('') || '<div class="pr-empty">—</div>'}</div>
+                <div class="pr-col in"><div class="pr-col-t">🛬 Đến ${i.length}</div>${i.map(g => row(g, 'in')).join('') || '<div class="pr-empty">—</div>'}</div></div></div>`;
+        });
+        const outUn = outs.filter(g => !g.apt);
+        if (outUn.length) html += `<div class="pr-apt" style="--apt-c:#94a3b8"><div class="pr-apt-h">Trả · chưa ghi căn</div>
+            <div class="pr-cols"><div class="pr-col out">${outUn.map(g => row(g, 'out')).join('')}</div><div class="pr-col"></div></div></div>`;
+        if (!ins.length && !outs.length) html += '<div class="pr-empty" style="padding:8px">Hôm nay không có khách đến / trả.</div>';
+        box.innerHTML = html;
+    }
+    document.addEventListener('click', ev => {
+        const box = document.getElementById('cdPair');
+        if (!box || !box.contains(ev.target)) return;
+        if (ev.target.closest('[data-pr-close]')) { view.sec = 'all'; applyView(); return; }
+        const chip = ev.target.closest('[data-place]');
+        if (chip) { setApt(chip.dataset.place, chip.dataset.apt, chip.dataset.color); return; }   // board re-renders after
+        const g = ev.target.closest('.pr-g');
+        const sel = g && g.dataset.bid && document.getElementById('asel-' + g.dataset.bid);
+        const card = sel && sel.closest('.guest-card');
+        if (card) {                                    // open that guest's full card below
+            if (document.body.classList.contains('cd-compact')) card.classList.add('cd-open');
+            window.scrollTo({ top: card.getBoundingClientRect().top + window.scrollY - 70, behavior: 'smooth' });
+        }
+    });
     applyView();
 
     // ── Jump to a section (the toolbar stays on top) ──

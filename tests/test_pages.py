@@ -50,4 +50,5 @@ def test_day_page_list_mode_and_view_button(client):
     from datetime import date
     html = client.get(f'/calendar_details/{date.today().isoformat()}').get_data(as_text=True)
     assert 'cdx-fab' in html and 'cd-list' in html and 'cdListRows' in html
+    assert 'id="cdPair"' in html and 'renderPair' in html          # 🔄 Trả ↔ Đến board
     assert 'canceled-guests-panel mb-4' not in html

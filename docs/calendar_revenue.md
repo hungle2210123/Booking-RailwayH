@@ -128,3 +128,9 @@ screen; tap = full card (the compact `cd-open` handler), "▴ Thu gọn" closes.
 above the bottom; colour = chosen apartment; red dot = number of active filters) opens a sheet: Phần (Tất cả / Đến /
 Ở / Trả — hides the other columns), Căn hộ (uses the aptOverview filter via `window.cdAptFilter`), Chỉ xem (2PN /
 Chưa thu / Chưa xác nhận), Kiểu thẻ, ↺ Xem tất cả. Group headers show the count of guests shown. Filters reset on reload.
+**🔄 Trả ↔ Đến** (👁 Xem → Phần, owner Oct 25: match leaving and arriving guests to place arrivals): `#cdPair` board
+above the columns (`body.cdx-pair`, the Ở column is hidden). Top: arrivals not placed yet, each with one-tap
+apartment chips "18HB còn 1" → `setApt()` (same call + "căn đã đủ" check as the card picker). Then one block per
+apartment: header "đêm nay đã xếp X/Y" (arriving incl. ⏳ + staying; ⚠️ when over), left 🧳 Trả, right 🛬 Đến (⏳ grey =
+not confirmed), purple 2PN tags so 2PN leaves / arrivals pair up. Tap a name = open its card below. Re-renders after
+every placement (aptOverview render → `cdAfterFilter`).
