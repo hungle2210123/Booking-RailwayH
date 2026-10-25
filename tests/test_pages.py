@@ -43,3 +43,11 @@ def test_all_parts_loaded(app_module):
 @pytest.mark.parametrize('url', ['/debug/env', '/debug/local_postgres', '/debug/db-config'])
 def test_secret_debug_pages_closed(client, url):
     assert client.get(url).status_code == 404
+
+
+def test_day_page_list_mode_and_view_button(client):
+    """Owner, Oct 25 (phone): list mode (one row per guest) + floating 👁 Xem sheet; no Khách Đã Hủy panel."""
+    from datetime import date
+    html = client.get(f'/calendar_details/{date.today().isoformat()}').get_data(as_text=True)
+    assert 'cdx-fab' in html and 'cd-list' in html and 'cdListRows' in html
+    assert 'canceled-guests-panel mb-4' not in html

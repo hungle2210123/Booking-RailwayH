@@ -119,3 +119,12 @@ rooms:
 
 ---
 
+
+### **📃 Day page on the phone: list mode + 👁 Xem button (Oct 25)**
+`cdModeBtn` cycles 📃 Danh sách → 📋 Gọn → 📄 Đủ (localStorage `hotelpro.cd.mode2`; phones start in Danh sách).
+Danh sách = `body.cd-compact.cd-list`: each card shows only its `.cd-row` (built by `listRow()` from the card: ⏳/✅
+status, name, 2PN tag, apartment chip, dates · nights · countdown, money with ⚡ unpaid / ✓ paid) — ~10 guests per
+screen; tap = full card (the compact `cd-open` handler), "▴ Thu gọn" closes. Floating round **👁 Xem** button (right,
+above the bottom; colour = chosen apartment; red dot = number of active filters) opens a sheet: Phần (Tất cả / Đến /
+Ở / Trả — hides the other columns), Căn hộ (uses the aptOverview filter via `window.cdAptFilter`), Chỉ xem (2PN /
+Chưa thu / Chưa xác nhận), Kiểu thẻ, ↺ Xem tất cả. Group headers show the count of guests shown. Filters reset on reload.

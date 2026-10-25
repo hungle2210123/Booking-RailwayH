@@ -734,17 +734,18 @@ _p14_electricity — electricity calculator + meters/readings/bills_
 - templates/calendar.html: 156 `loadVacancyBoard` · 1662 `toggleCanceledPanel` · 1691 `refreshCanceledGuests` · 1760 `displayCanceledGuests` · 1883 `getAISuggestions` · 1953 `displayAISuggestions` · 2113 `restoreBookingFromAI` · 2178 `restoreBooking`
 - templates/calendar.html: 2242 `deleteBooking` · 2319 `loadCanceledGuestsCount` · 2385 `filterByApartment`
 
-## templates/calendar_details.html (5690 lines)
-- templates/calendar_details.html: 147 `loadVbCd` · 229 `twoBrLine` · 239 `twoBrWatch` · 1460 `loadVac` · 1472 `paint` · 1480 `sortSection` · 1510 `applyFilter` · 1517 `render`
-- templates/calendar_details.html: 1561 `tile` · 1570 `cdAptOverview` · 3309 `quickCancelCalendarGuest` · 3338 `loadMonthlyCalendarForPage` · 3351 `renderCompactCalendarForPage` · 3392 `loadAptNotifyBar` · 3490 `confirmPlacementCapacity` · 3511 `cdApplyAptUI`
-- templates/calendar_details.html: 3578 `setApt` · 3612 `toggleAptPicker` · 3618 `markTwoBedroomCards` · 3648 `toggleTwoBedroom` · 4061 `loadEditRoomDropdown` · 4118 `navigateToDate` · 4124 `openQuickEditModal` · 4170 `saveQuickEdit`
-- templates/calendar_details.html: 4220 `showPayCollect` · 4234 `showAmountEdit` · 4250 `confirmAmount` · 4262 `showCollectors` · 4276 `toggleHiddenPanel` · 4284 `openHiddenModal` · 4290 `closeHiddenModal` · 4294 `loadHiddenGuests`
-- templates/calendar_details.html: 4334 `restoreGuestModal` · 4358 `restoreGuest` · 4397 `markNoShow` · 4430 `collectRemaining` · 4439 `resetPay` · 4447 `doCollect` · 4511 `showCalToast` · 4524 `_statusKey`
-- templates/calendar_details.html: 4527 `_saveStatusToDB` · 4536 `_refreshOccupancyBoards` · 4543 `_applyStatus` · 4579 `toggleGuestStatus` · 4626 `openCancelNotify` · 4639 `closeCancelNotify` · 4643 `copyCancelMsg` · 4666 `groupSection`
-- templates/calendar_details.html: 4696 `updateCheckinBadge` · 4718 `cdPaintContact` · 4740 `cdToggleContacted` · 4756 `cdSyncFromDB` · 4853 `recalculateRevenue` · 4938 `showLateArrival` · 4965 `pickLateHour` · 4975 `saveLateArrival`
-- templates/calendar_details.html: 4996 `clearLateArrival` · 5019 `showLateArrivalBadge` · 5049 `loadArrivalTimes` · 5214 `openGlobalHistory` · 5221 `loadGlobalHistory` · 5247 `filterHistoryList` · 5262 `renderHistoryList` · 5324 `closeHistoryModal`
-- templates/calendar_details.html: 5328 `askDeleteHistory` · 5336 `closePasswordModal` · 5341 `confirmDeleteHistory` · 5387 `openExtendModal` · 5407 `adjustNights` · 5413 `setNights` · 5418 `recalcExtend` · 5442 `formatDateVN`
-- templates/calendar_details.html: 5448 `confirmExtendStay` · 5484 `showQuickToast` · 5575 `copyText` · 5627 `setMode`
+## templates/calendar_details.html (5866 lines)
+- templates/calendar_details.html: 147 `loadVbCd` · 229 `twoBrLine` · 239 `twoBrWatch` · 1512 `loadVac` · 1524 `paint` · 1532 `sortSection` · 1562 `applyFilter` · 1569 `render`
+- templates/calendar_details.html: 1614 `tile` · 1623 `cdAptOverview` · 3363 `quickCancelCalendarGuest` · 3392 `loadMonthlyCalendarForPage` · 3405 `renderCompactCalendarForPage` · 3446 `loadAptNotifyBar` · 3544 `confirmPlacementCapacity` · 3565 `cdApplyAptUI`
+- templates/calendar_details.html: 3632 `setApt` · 3666 `toggleAptPicker` · 3672 `markTwoBedroomCards` · 3702 `toggleTwoBedroom` · 4115 `loadEditRoomDropdown` · 4172 `navigateToDate` · 4178 `openQuickEditModal` · 4224 `saveQuickEdit`
+- templates/calendar_details.html: 4274 `showPayCollect` · 4288 `showAmountEdit` · 4304 `confirmAmount` · 4316 `showCollectors` · 4330 `toggleHiddenPanel` · 4338 `openHiddenModal` · 4344 `closeHiddenModal` · 4348 `loadHiddenGuests`
+- templates/calendar_details.html: 4388 `restoreGuestModal` · 4412 `restoreGuest` · 4451 `markNoShow` · 4484 `collectRemaining` · 4493 `resetPay` · 4501 `doCollect` · 4565 `showCalToast` · 4578 `_statusKey`
+- templates/calendar_details.html: 4581 `_saveStatusToDB` · 4590 `_refreshOccupancyBoards` · 4597 `_applyStatus` · 4633 `toggleGuestStatus` · 4680 `openCancelNotify` · 4693 `closeCancelNotify` · 4697 `copyCancelMsg` · 4720 `groupSection`
+- templates/calendar_details.html: 4750 `updateCheckinBadge` · 4772 `cdPaintContact` · 4794 `cdToggleContacted` · 4810 `cdSyncFromDB` · 4907 `recalculateRevenue` · 4992 `showLateArrival` · 5019 `pickLateHour` · 5029 `saveLateArrival`
+- templates/calendar_details.html: 5050 `clearLateArrival` · 5073 `showLateArrivalBadge` · 5103 `loadArrivalTimes` · 5268 `openGlobalHistory` · 5275 `loadGlobalHistory` · 5301 `filterHistoryList` · 5316 `renderHistoryList` · 5378 `closeHistoryModal`
+- templates/calendar_details.html: 5382 `askDeleteHistory` · 5390 `closePasswordModal` · 5395 `confirmDeleteHistory` · 5441 `openExtendModal` · 5461 `adjustNights` · 5467 `setNights` · 5472 `recalcExtend` · 5496 `formatDateVN`
+- templates/calendar_details.html: 5502 `confirmExtendStay` · 5538 `showQuickToast` · 5629 `copyText` · 5687 `listRow` · 5710 `cdListRows` · 5717 `setMode` · 5727 `cdMode` · 5741 `passXf`
+- templates/calendar_details.html: 5748 `applyView` · 5777 `cdAfterFilter` · 5778 `sheet`
 
 ## templates/crawl_bookings.html (404 lines)
 - templates/crawl_bookings.html: 335 `displayResults`

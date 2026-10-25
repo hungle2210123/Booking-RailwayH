@@ -1343,7 +1343,7 @@ setInterval(loadVbCd, 5 * 60 * 1000);
         /* ── Compact cards: name, room, one summary line, apartment + phone row. Tap to open. ── */
         body.cd-compact .guest-card { padding: 9px 11px !important; cursor: pointer; margin-bottom: 0 !important; }
         body.cd-compact .guest-cards-row { gap: 6px !important; }
-        body.cd-compact .guest-card:not(.cd-open) > *:not(.guest-header):not(.room-type):not(.apt-selector):not(.cd-sum):not(.two-br-alert-banner):not(.late-arrival-display),
+        body.cd-compact .guest-card:not(.cd-open) > *:not(.guest-header):not(.room-type):not(.apt-selector):not(.cd-sum):not(.two-br-alert-banner):not(.late-arrival-display):not(.cd-row),
         body.cd-compact .guest-card:not(.cd-open) > .late-arrival-display:empty,
         body.cd-compact .guest-card:not(.cd-open) .guest-header .btn-group,
         body.cd-compact .guest-card:not(.cd-open) .commission-badge,
@@ -1383,6 +1383,58 @@ setInterval(loadVbCd, 5 * 60 * 1000);
         .guest-zalo { font-size: 0.6rem; font-weight: 800; padding: 1px 7px; border-radius: 20px; text-decoration: none;
             flex-shrink: 0; background: #e0edff; color: #0050c8; border: 1px solid #a8c8ff; }
         body.cd-compact .guest-phone, body.cd-compact .guest-wa, body.cd-compact .guest-zalo { font-size: .72rem !important; padding: 3px 9px !important; }
+        /* ── 📃 List mode (owner, Oct 25: see many guests at once on the phone): one 2-line row per guest,
+           tap = the full card. body has cd-compact + cd-list so the compact open/close handler is reused. ── */
+        .cd-row { display: none; }
+        body.cd-list .guest-card:not(.cd-open) > *:not(.cd-row) { display: none !important; }
+        body.cd-list .guest-card:not(.cd-open) > .cd-row { display: block !important; }
+        body.cd-list .guest-card:not(.cd-open) { padding: 6px 10px !important; min-height: 0 !important; }
+        body.cd-list .guest-card:not(.cd-open)::after { display: none !important; }
+        body.cd-list .guest-cards-row { gap: 4px !important; }
+        body.cd-list .apt-group-h { margin-top: 4px; padding: 3px 9px; }
+        .cd-row-1 { display: flex; align-items: center; gap: 6px; min-width: 0; }
+        .cd-row-name { font-weight: 800; font-size: .95rem; color: #0f172a; min-width: 0; flex: 1;
+                       white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .cd-row-apt { flex-shrink: 0; font-size: .68rem; font-weight: 800; color: #fff; background: var(--apt-c, #94a3b8);
+                      border-radius: 5px; padding: 1px 6px; }
+        .cd-row-apt.none { background: #fff; color: #b45309; border: 1px dashed #f59e0b; }
+        .cd-row-2pn { flex-shrink: 0; font-size: .66rem; font-weight: 800; color: #fff; background: #7c3aed; border-radius: 5px; padding: 1px 5px; }
+        .cd-row-2 { display: flex; align-items: center; gap: 6px; font-size: .74rem; color: #64748b; margin-top: 1px; white-space: nowrap; }
+        .cd-row-2 > span:first-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+        .cd-row-2 .cd-row-cnt { font-weight: 700; color: #92400e; flex-shrink: 0; }
+        .cd-row-2 .cd-row-money { margin-left: auto; font-weight: 800; color: #0f172a; flex-shrink: 0; }
+        .cd-row-2 .cd-row-money.unpaid { color: #dc2626; }
+        .cd-row-2 .cd-row-money.unpaid::before { content: '⚡'; }
+        .cd-row-2 .cd-row-money.paid::after { content: ' ✓'; color: #16a34a; }
+        /* ── 👁 Xem: floating button + sheet (section / apartment / extra filters / display mode) ── */
+        .cdx-fab { position: fixed; right: 16px; bottom: calc(80px + env(safe-area-inset-bottom)); z-index: 8000;
+                   width: 58px; height: 58px; border: none; border-radius: 50%; background: var(--c, #0f172a); color: #fff;
+                   font-size: 1.3rem; line-height: 1; cursor: pointer; box-shadow: 0 6px 18px rgba(15,23,42,.35);
+                   display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 0 3px; }
+        .cdx-fab small { font-size: .5rem; font-weight: 800; margin-top: 2px; max-width: 54px; overflow: hidden;
+                         text-overflow: ellipsis; white-space: nowrap; }
+        .cdx-fab:active { transform: scale(.92); }
+        .cdx-fab .cdx-dot { position: absolute; top: 2px; right: 2px; min-width: 18px; height: 18px; border-radius: 9px;
+                            background: #dc2626; color: #fff; font-size: .62rem; font-weight: 900; display: flex;
+                            align-items: center; justify-content: center; border: 2px solid #fff; }
+        .cdx-ov { position: fixed; inset: 0; z-index: 99980; background: rgba(15,23,42,.45); display: flex;
+                  align-items: flex-end; justify-content: center; }
+        .cdx-sh { background: #fff; width: 100%; max-width: 520px; border-radius: 18px 18px 0 0; max-height: 86vh; overflow-y: auto;
+                  padding: 12px 14px calc(16px + env(safe-area-inset-bottom)); }
+        .cdx-sh h3 { margin: 0 0 6px; font-size: 1rem; display: flex; justify-content: space-between; align-items: center; }
+        .cdx-sh h3 button { border: 1px solid #cbd5e1; background: #fff; border-radius: 9px; padding: 5px 12px; font-weight: 700; }
+        .cdx-lbl { font-size: .72rem; font-weight: 800; color: #64748b; text-transform: uppercase; letter-spacing: .4px; margin: 10px 0 5px; }
+        .cdx-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+        .cdx-grid.g4 { grid-template-columns: repeat(4, 1fr); }
+        .cdx-grid.g2 { grid-template-columns: repeat(2, 1fr); }
+        .cdx-b { border: 1.5px solid #e2e8f0; background: #fff; color: #0f172a; border-radius: 11px; padding: 10px 4px;
+                 font-size: .82rem; font-weight: 800; cursor: pointer; font-family: inherit; line-height: 1.2; }
+        .cdx-b small { display: block; font-size: .68rem; color: #64748b; font-weight: 700; margin-top: 2px; }
+        .cdx-b.on { background: var(--c, #0f172a); border-color: var(--c, #0f172a); color: #fff; }
+        .cdx-b.on small { color: rgba(255,255,255,.8); }
+        .cdx-clear { width: 100%; margin-top: 12px; border: none; background: #f1f5f9; color: #0f172a; border-radius: 11px;
+                     padding: 11px; font-weight: 800; font-size: .88rem; }
+        .cdx-sec-out, .cdx-out { display: none !important; }
         @media (max-width: 768px) {
             .cd-fab-label { display: none; }
             .cd-fab { padding: 11px 13px !important; font-size: 1.05rem !important; }
@@ -1557,6 +1609,7 @@ setInterval(loadVbCd, 5 * 60 * 1000);
         const clr = box.querySelector('.aov-clear');
         if (clr) clr.onclick = () => { filter = null; render(); };
         applyFilter();
+        if (window.cdAfterFilter) window.cdAfterFilter();      // list rows + 👁 Xem extra filters
       }
       function tile(k, name, color, n, nightTxt, pct, over) {
         const cell = (v, label) => `<span class="${v ? '' : 'zero'}"><b>${v}</b>${label}</span>`;
@@ -1568,6 +1621,7 @@ setInterval(loadVbCd, 5 * 60 * 1000);
         </button>`;
       }
       window.cdAptOverview = () => { render(); loadVac().then(render); };
+      window.cdAptFilter = k => { if (k !== undefined) { filter = k; render(); } return filter; };
       let t = null;
       const again = () => { clearTimeout(t); t = setTimeout(() => window.cdAptOverview(), 400); };   // confirm / cancel / placement
       document.addEventListener('DOMContentLoaded', () => {
@@ -5622,20 +5676,142 @@ function showQuickToast(msg, type) {
         card.classList.add('cd-open');
     });
 
-    const MODE_KEY = 'hotelpro.cd.mode';
-    const modeBtn = document.getElementById('cdModeBtn');
-    function setMode(m) {
-        document.body.classList.toggle('cd-compact', m === 'compact');
-        modeBtn.textContent = m === 'compact' ? '📄 Đủ' : '📋 Gọn';    // what a tap switches to
+    // ── 📃 List rows: name · apartment · 2PN / dates · countdown · money (built from the card itself) ──
+    const APTS = {};
+    (window.CD_APTS || []).forEach(a => { APTS[String(a.id)] = a; });
+    // '118 Hang Bac Hostel' → '118HB', '19 Tho Nhuom' → '19TN' (same short names as the Phòng trống board)
+    const abbr = n => {
+        const w = String(n || '').split(/\s+/).filter(Boolean);
+        return w.filter(x => /^\d+$/.test(x)).join('') + w.filter(x => !/^\d+$/.test(x)).slice(0, 2).map(x => x[0].toUpperCase()).join('');
+    };
+    function listRow(card) {
+        let row = card.querySelector(':scope > .cd-row');
+        if (!row) { row = document.createElement('div'); row.className = 'cd-row'; card.prepend(row); }
+        const name = (card.querySelector('.guest-name') || {}).textContent || '';
+        const a = APTS[card.dataset.apt || ''];
+        const dates = (card.querySelector('.detail-checkout') || {}).textContent || '';
+        const nights = (card.querySelector('.detail-nights') || {}).textContent || '';
+        const cnt = (card.querySelector('.checkout-countdown') || {}).textContent || '';
+        const money = (card.querySelector('.detail-amount') || {}).textContent || '';
+        row.innerHTML = '';
+        const l1 = document.createElement('div'); l1.className = 'cd-row-1';
+        l1.appendChild(span('cd-st', ''));
+        l1.appendChild(span('cd-row-name', name.trim()));
+        if (card.classList.contains('two-br-card')) l1.appendChild(span('cd-row-2pn', '2PN'));
+        const ap = span('cd-row-apt' + (a ? '' : ' none'), a ? abbr(a.name) : 'chưa xếp');
+        if (a) ap.style.setProperty('--apt-c', a.color);
+        l1.appendChild(ap);
+        const l2 = document.createElement('div'); l2.className = 'cd-row-2';
+        l2.appendChild(span('', dates.trim() + (nights ? ' · ' + nights.trim() : '')));
+        if (cnt.trim()) l2.appendChild(span('cd-row-cnt', cnt.trim()));
+        l2.appendChild(span('cd-row-money ' + (card.classList.contains('is-paid') ? 'paid' : 'unpaid'), money.trim()));
+        row.appendChild(l1); row.appendChild(l2);
     }
-    modeBtn.addEventListener('click', () => {
-        const m = document.body.classList.contains('cd-compact') ? 'full' : 'compact';
-        setMode(m);
-        try { localStorage.setItem(MODE_KEY, m); } catch (e) {}
-    });
+    window.cdListRows = () => document.querySelectorAll('.three-section-row .guest-card').forEach(listRow);
+
+    const MODE_KEY = 'hotelpro.cd.mode2';
+    const MODES = { list: '📃 Danh sách', compact: '📋 Gọn', full: '📄 Đủ' };
+    const NEXT = { list: 'compact', compact: 'full', full: 'list' };
+    const modeBtn = document.getElementById('cdModeBtn');
+    let mode = 'full';
+    function setMode(m, keep) {
+        mode = MODES[m] ? m : 'list';
+        document.body.classList.toggle('cd-compact', mode !== 'full');
+        document.body.classList.toggle('cd-list', mode === 'list');
+        if (mode === 'list') window.cdListRows();
+        document.querySelectorAll('.guest-card.cd-open').forEach(c => c.classList.remove('cd-open'));
+        modeBtn.textContent = MODES[mode];                               // the mode you are in; tap = next one
+        if (keep) try { localStorage.setItem(MODE_KEY, mode); } catch (e) {}
+    }
+    window.cdSetMode = setMode;
+    window.cdMode = () => mode;
+    modeBtn.addEventListener('click', () => setMode(NEXT[mode], true));
     let saved = null;
     try { saved = localStorage.getItem(MODE_KEY); } catch (e) {}
-    setMode(saved || (window.innerWidth < 768 ? 'compact' : 'full'));   // phones start compact
+    setMode(saved || (window.innerWidth < 768 ? 'list' : 'full'));       // phones start with the list
+
+    // ── 👁 Xem: floating button → sheet (section · apartment · 2PN / chưa thu / chưa xác nhận · display mode) ──
+    const SECS = [['all', 'Tất cả'], ['checkin-cards', '🛬 Đến'], ['staying-cards', '🏨 Ở'], ['checkout-cards', '🧳 Trả']];
+    const XF = [['2pn', '🛏️ Chỉ 2PN'], ['unpaid', '⚡ Chưa thu'], ['unconf', '⏳ Chưa xác nhận']];
+    const view = { sec: 'all', xf: {} };
+    const fab = document.createElement('button');
+    fab.type = 'button'; fab.className = 'cdx-fab'; fab.title = 'Chọn nhanh phần muốn xem';
+    document.body.appendChild(fab);
+    const visibleCards = id => [...document.querySelectorAll('#' + id + ' .guest-card')];
+    function passXf(card) {
+        if (view.xf['2pn'] && !card.classList.contains('two-br-card')) return false;
+        if (view.xf.unpaid && !card.classList.contains('not-paid')) return false;
+        if (view.xf.unconf && (card.classList.contains('status-confirmed') || card.classList.contains('status-cancelling')
+                               || !card.closest('#checkin-cards'))) return false;
+        return true;
+    }
+    function applyView() {
+        SECS.slice(1).forEach(([id]) => {
+            const box = document.getElementById(id);
+            const col = box && box.closest('.col-lg-4');
+            if (col) col.classList.toggle('cdx-sec-out', view.sec !== 'all' && view.sec !== id);
+            if (!box) return;
+            box.querySelectorAll(':scope > .guest-card-col').forEach(c => {
+                const card = c.querySelector('.guest-card');
+                c.classList.toggle('cdx-out', !!card && !passXf(card));
+            });
+            // a group header with nothing left under it is hidden too
+            box.querySelectorAll(':scope > .apt-group-h').forEach(h => {
+                let n = h.nextElementSibling, shown = 0;
+                while (n && !n.classList.contains('apt-group-h')) {
+                    if (!n.classList.contains('cdx-out') && !n.classList.contains('apt-filtered-out')) shown++;
+                    n = n.nextElementSibling;
+                }
+                h.classList.toggle('cdx-out', !shown);
+                h.textContent = h.textContent.replace(/ · \d+$/, ' · ' + shown);     // count = guests shown
+            });
+        });
+        const apt = window.cdAptFilter ? window.cdAptFilter() : null;
+        const a = apt && APTS[apt];
+        const nOn = (view.sec !== 'all') + (apt ? 1 : 0) + Object.values(view.xf).filter(Boolean).length;
+        fab.style.setProperty('--c', a ? a.color : (apt === 'none' ? '#64748b' : '#0f172a'));
+        const label = view.sec !== 'all' ? SECS.find(x => x[0] === view.sec)[1].split(' ')[1]
+                    : a ? abbr(a.name) : apt === 'none' ? 'Chưa xếp' : 'Xem';
+        fab.innerHTML = '👁<small>' + label + '</small>' + (nOn ? '<span class="cdx-dot">' + nOn + '</span>' : '');
+    }
+    window.cdAfterFilter = () => { if (mode === 'list') window.cdListRows(); applyView(); };
+    function sheet() {
+        const ov = document.createElement('div');
+        ov.className = 'cdx-ov';
+        const apt = window.cdAptFilter ? window.cdAptFilter() : null;
+        const cnt = id => visibleCards(id).length;
+        const b = (cls, on, html, data, c) => `<button type="button" class="cdx-b ${on ? 'on' : ''}" ${data}${c ? ` style="--c:${c}"` : ''}>${html}</button>`;
+        const aptCount = k => document.querySelectorAll(`.three-section-row .guest-card${k === 'none' ? '' : `[data-apt="${k}"]`}`).length;
+        const apts = (window.CD_APTS || []).filter(x => x.active !== false).map(x =>
+            b('', apt === String(x.id), abbr(x.name) + '<small>' + aptCount(String(x.id)) + ' khách</small>', `data-apt="${x.id}"`, x.color));
+        const unplaced = [...document.querySelectorAll('.three-section-row .guest-card')].filter(c => !APTS[c.dataset.apt || '']).length;
+        if (unplaced) apts.push(b('', apt === 'none', '⏳ Chưa xếp<small>' + unplaced + ' khách</small>', 'data-apt="none"', '#64748b'));
+        ov.innerHTML = `<div class="cdx-sh"><h3>👁 Xem nhanh <button type="button" data-close>Xong</button></h3>
+            <div class="cdx-lbl">Phần</div><div class="cdx-grid g4">${SECS.map(([id, t]) =>
+                b('', view.sec === id, t + (id === 'all' ? '' : '<small>' + cnt(id) + '</small>'), `data-sec="${id}"`)).join('')}</div>
+            <div class="cdx-lbl">Căn hộ</div><div class="cdx-grid">${b('', !apt, 'Tất cả', 'data-apt=""')}${apts.join('')}</div>
+            <div class="cdx-lbl">Chỉ xem</div><div class="cdx-grid">${XF.map(([k, t]) => b('', view.xf[k], t, `data-xf="${k}"`)).join('')}</div>
+            <div class="cdx-lbl">Kiểu thẻ</div><div class="cdx-grid">${Object.keys(MODES).map(m =>
+                b('', mode === m, MODES[m] + '<small>' + ({ list: 'nhiều khách nhất', compact: 'vừa', full: 'đầy đủ nút' })[m] + '</small>', `data-mode="${m}"`)).join('')}</div>
+            <button type="button" class="cdx-clear" data-reset>↺ Xem tất cả</button></div>`;
+        ov.addEventListener('click', e => {
+            const t = e.target.closest('button');
+            if (e.target === ov || (t && t.hasAttribute('data-close'))) { ov.remove(); return; }
+            if (!t) return;
+            if (t.dataset.sec) view.sec = t.dataset.sec;
+            else if (t.dataset.apt !== undefined) window.cdAptFilter(t.dataset.apt || null);
+            else if (t.dataset.xf) view.xf[t.dataset.xf] = !view.xf[t.dataset.xf];
+            else if (t.dataset.mode) setMode(t.dataset.mode, true);
+            else if (t.hasAttribute('data-reset')) { view.sec = 'all'; view.xf = {}; window.cdAptFilter(null); }
+            applyView();
+            ov.remove();
+            const first = document.querySelector('.three-section-row .col-lg-4:not(.cdx-sec-out)');
+            if (first) window.scrollTo({ top: first.getBoundingClientRect().top + window.scrollY - 70, behavior: 'smooth' });
+        });
+        document.body.appendChild(ov);
+    }
+    fab.addEventListener('click', sheet);
+    applyView();
 
     // ── Jump to a section (the toolbar stays on top) ──
     document.querySelectorAll('.cd-jump a').forEach(a => a.addEventListener('click', e => {
