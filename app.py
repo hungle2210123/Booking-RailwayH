@@ -193,6 +193,17 @@ print("✅ Flask-Caching initialized with 30s TTL")
 # CACHE CONTROL FOR TEMPLATES
 # ==============================================================================
 
+# Debug pages that print connection settings are closed to the public (Oct 25: /debug/env showed the first 50 characters
+# of DATABASE_URL — the password — to anyone). Open them only by setting DEBUG_ROUTES=1 on the server for a moment.
+_SECRET_DEBUG_PATHS = ('/debug/env', '/debug/local_postgres', '/debug/db-config')
+
+
+@app.before_request
+def _close_secret_debug_pages():
+    if request.path.rstrip('/') in _SECRET_DEBUG_PATHS and os.getenv('DEBUG_ROUTES') != '1':
+        return 'Not found', 404
+
+
 @app.after_request
 def add_header(response):
     """

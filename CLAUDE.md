@@ -48,6 +48,7 @@ https://web-production-8f671.up.railway.app — **push straight to main** ("git 
   "Hiển thị số điện thoại", never call Booking APIs, never scrape. It only TYPES into Booking's chat box; the owner presses Gửi.
 - No bulk WhatsApp sending from a personal account. Partner-company phone numbers (tail `035640799`) are never a guest's phone.
 - The owner creates / rotates API keys and passwords themselves (Gemini key is `GOOGLE_API_KEY` on Railway). Never paste secrets into chat.
+- `/debug/env`, `/debug/local_postgres`, `/debug/db-config` return 404 unless env `DEBUG_ROUTES=1` (they printed DB settings).
 - Cancelled on Booking → `checkin_status='cancelling'` (Báo hủy, undoable), never hide a booking for good.
 - UI: calm colours (black/grey/white; red = act now, amber = soon, green = done), phone-first, Vietnamese labels, few big buttons.
 - Owner likes always-on automation (no on/off toggles) and wants work pushed directly; explain results simply in Vietnamese.
