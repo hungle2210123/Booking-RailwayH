@@ -127,3 +127,4 @@ node_modules/
 !docs/*.md
 !.claude/rules/*.md
 !.claude/agents/*.md
+!tests/test_*.py
