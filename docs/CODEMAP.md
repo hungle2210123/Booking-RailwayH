@@ -156,17 +156,17 @@ _p04_bookings_expenses — /bookings list + add/edit/cancel/delete, manual entry
 - app_parts/p04_bookings_expenses.py:1609 `bulk_add_expenses` ← `/api/expenses/bulk` POST — Add multiple expenses at once (from AI or JSON input)
 - app_parts/p04_bookings_expenses.py:1677 `save_extracted_bookings` ← `/bookings/save_extracted` POST — Save multiple extracted bookings from AI photo processing
 
-## app_parts/p05_calendar.py (1254 lines)
+## app_parts/p05_calendar.py (1258 lines)
 _p05_calendar — vacancy preview, /calendar month, /calendar_details day page, placement, 2PN, apartment daily summary_
 - app_parts/p05_calendar.py:5 `api_vacancy_preview` ← `/api/vacancy_preview` — Vacancy per apartment for the next few days (sidebar board + email preview widget).
 - app_parts/p05_calendar.py:67 `api_month_vacancy` ← `/api/month_vacancy` — Free rooms per night for a whole month (mini calendar on calendar_details).
-- app_parts/p05_calendar.py:114 `calendar_view` ← `/calendar/` · `/calendar/<int:year>/<int:month>` — Calendar view with PostgreSQL data - supports apartment filtering
-- app_parts/p05_calendar.py:397 `debug_revenue` ← `/debug_revenue` — Debug route to test revenue calculations
-- app_parts/p05_calendar.py:436 `calendar_details` ← `/calendar_details/<date_str>` — Calendar details view for specific date
-- app_parts/p05_calendar.py:970 `set_actual_apartment` ← `/api/set_actual_apartment` POST — Save which actual apartment a guest is assigned to.
-- app_parts/p05_calendar.py:1010 `set_two_bedroom` ← `/api/set_two_bedroom` POST — Mark a booking as 2-bedroom (true), not 2-bedroom (false) or back to auto-detect (null).
-- app_parts/p05_calendar.py:1042 `apartment_placement_check` ← `/api/apartment_placement_check` GET — Before placing a guest: would the apartment exceed its room count on any night?
-- app_parts/p05_calendar.py:1075 `apartment_daily_summary` ← `/api/apartment_daily_summary` GET — Returns per-apartment occupancy for a given date.
+- app_parts/p05_calendar.py:117 `calendar_view` ← `/calendar/` · `/calendar/<int:year>/<int:month>` — Calendar view with PostgreSQL data - supports apartment filtering
+- app_parts/p05_calendar.py:400 `debug_revenue` ← `/debug_revenue` — Debug route to test revenue calculations
+- app_parts/p05_calendar.py:439 `calendar_details` ← `/calendar_details/<date_str>` — Calendar details view for specific date
+- app_parts/p05_calendar.py:974 `set_actual_apartment` ← `/api/set_actual_apartment` POST — Save which actual apartment a guest is assigned to.
+- app_parts/p05_calendar.py:1014 `set_two_bedroom` ← `/api/set_two_bedroom` POST — Mark a booking as 2-bedroom (true), not 2-bedroom (false) or back to auto-detect (null).
+- app_parts/p05_calendar.py:1046 `apartment_placement_check` ← `/api/apartment_placement_check` GET — Before placing a guest: would the apartment exceed its room count on any night?
+- app_parts/p05_calendar.py:1079 `apartment_daily_summary` ← `/api/apartment_daily_summary` GET — Returns per-apartment occupancy for a given date.
 
 ## app_parts/p06_payments_booking_api.py (1913 lines)
 _p06_payments_booking_api — mobile payment page + analytics, booking API (get/quick-update/extend), image/text booking extraction, duplicates check_
@@ -635,7 +635,7 @@ _p14_electricity — electricity calculator + meters/readings/bills_
 - core/sync_triggers.py:100 `trigger_sync_on_expense_change` — Trigger sync when expense data changes
 - core/sync_triggers.py:104 `trigger_sync_on_note_change` — Trigger sync when notes change
 
-## core/two_bedroom.py (116 lines)
+## core/two_bedroom.py (122 lines)
 - core/two_bedroom.py:29 `_fold`
 - core/two_bedroom.py:35 `listing_is_two_bedroom`
 - core/two_bedroom.py:39 `is_two_bedroom` — Manual flag wins; otherwise detect from the listing name.
@@ -734,17 +734,17 @@ _p14_electricity — electricity calculator + meters/readings/bills_
 - templates/calendar.html: 156 `loadVacancyBoard` · 1662 `toggleCanceledPanel` · 1691 `refreshCanceledGuests` · 1760 `displayCanceledGuests` · 1883 `getAISuggestions` · 1953 `displayAISuggestions` · 2113 `restoreBookingFromAI` · 2178 `restoreBooking`
 - templates/calendar.html: 2242 `deleteBooking` · 2319 `loadCanceledGuestsCount` · 2385 `filterByApartment`
 
-## templates/calendar_details.html (5685 lines)
-- templates/calendar_details.html: 146 `loadVbCd` · 228 `twoBrLine` · 238 `twoBrWatch` · 1456 `loadVac` · 1468 `paint` · 1476 `sortSection` · 1506 `applyFilter` · 1513 `render`
-- templates/calendar_details.html: 1557 `tile` · 1566 `cdAptOverview` · 3305 `quickCancelCalendarGuest` · 3334 `loadMonthlyCalendarForPage` · 3347 `renderCompactCalendarForPage` · 3387 `loadAptNotifyBar` · 3485 `confirmPlacementCapacity` · 3506 `cdApplyAptUI`
-- templates/calendar_details.html: 3573 `setApt` · 3607 `toggleAptPicker` · 3613 `markTwoBedroomCards` · 3643 `toggleTwoBedroom` · 4056 `loadEditRoomDropdown` · 4113 `navigateToDate` · 4119 `openQuickEditModal` · 4165 `saveQuickEdit`
-- templates/calendar_details.html: 4215 `showPayCollect` · 4229 `showAmountEdit` · 4245 `confirmAmount` · 4257 `showCollectors` · 4271 `toggleHiddenPanel` · 4279 `openHiddenModal` · 4285 `closeHiddenModal` · 4289 `loadHiddenGuests`
-- templates/calendar_details.html: 4329 `restoreGuestModal` · 4353 `restoreGuest` · 4392 `markNoShow` · 4425 `collectRemaining` · 4434 `resetPay` · 4442 `doCollect` · 4506 `showCalToast` · 4519 `_statusKey`
-- templates/calendar_details.html: 4522 `_saveStatusToDB` · 4531 `_refreshOccupancyBoards` · 4538 `_applyStatus` · 4574 `toggleGuestStatus` · 4621 `openCancelNotify` · 4634 `closeCancelNotify` · 4638 `copyCancelMsg` · 4661 `groupSection`
-- templates/calendar_details.html: 4691 `updateCheckinBadge` · 4713 `cdPaintContact` · 4735 `cdToggleContacted` · 4751 `cdSyncFromDB` · 4848 `recalculateRevenue` · 4933 `showLateArrival` · 4960 `pickLateHour` · 4970 `saveLateArrival`
-- templates/calendar_details.html: 4991 `clearLateArrival` · 5014 `showLateArrivalBadge` · 5044 `loadArrivalTimes` · 5209 `openGlobalHistory` · 5216 `loadGlobalHistory` · 5242 `filterHistoryList` · 5257 `renderHistoryList` · 5319 `closeHistoryModal`
-- templates/calendar_details.html: 5323 `askDeleteHistory` · 5331 `closePasswordModal` · 5336 `confirmDeleteHistory` · 5382 `openExtendModal` · 5402 `adjustNights` · 5408 `setNights` · 5413 `recalcExtend` · 5437 `formatDateVN`
-- templates/calendar_details.html: 5443 `confirmExtendStay` · 5479 `showQuickToast` · 5570 `copyText` · 5622 `setMode`
+## templates/calendar_details.html (5690 lines)
+- templates/calendar_details.html: 147 `loadVbCd` · 229 `twoBrLine` · 239 `twoBrWatch` · 1460 `loadVac` · 1472 `paint` · 1480 `sortSection` · 1510 `applyFilter` · 1517 `render`
+- templates/calendar_details.html: 1561 `tile` · 1570 `cdAptOverview` · 3309 `quickCancelCalendarGuest` · 3338 `loadMonthlyCalendarForPage` · 3351 `renderCompactCalendarForPage` · 3392 `loadAptNotifyBar` · 3490 `confirmPlacementCapacity` · 3511 `cdApplyAptUI`
+- templates/calendar_details.html: 3578 `setApt` · 3612 `toggleAptPicker` · 3618 `markTwoBedroomCards` · 3648 `toggleTwoBedroom` · 4061 `loadEditRoomDropdown` · 4118 `navigateToDate` · 4124 `openQuickEditModal` · 4170 `saveQuickEdit`
+- templates/calendar_details.html: 4220 `showPayCollect` · 4234 `showAmountEdit` · 4250 `confirmAmount` · 4262 `showCollectors` · 4276 `toggleHiddenPanel` · 4284 `openHiddenModal` · 4290 `closeHiddenModal` · 4294 `loadHiddenGuests`
+- templates/calendar_details.html: 4334 `restoreGuestModal` · 4358 `restoreGuest` · 4397 `markNoShow` · 4430 `collectRemaining` · 4439 `resetPay` · 4447 `doCollect` · 4511 `showCalToast` · 4524 `_statusKey`
+- templates/calendar_details.html: 4527 `_saveStatusToDB` · 4536 `_refreshOccupancyBoards` · 4543 `_applyStatus` · 4579 `toggleGuestStatus` · 4626 `openCancelNotify` · 4639 `closeCancelNotify` · 4643 `copyCancelMsg` · 4666 `groupSection`
+- templates/calendar_details.html: 4696 `updateCheckinBadge` · 4718 `cdPaintContact` · 4740 `cdToggleContacted` · 4756 `cdSyncFromDB` · 4853 `recalculateRevenue` · 4938 `showLateArrival` · 4965 `pickLateHour` · 4975 `saveLateArrival`
+- templates/calendar_details.html: 4996 `clearLateArrival` · 5019 `showLateArrivalBadge` · 5049 `loadArrivalTimes` · 5214 `openGlobalHistory` · 5221 `loadGlobalHistory` · 5247 `filterHistoryList` · 5262 `renderHistoryList` · 5324 `closeHistoryModal`
+- templates/calendar_details.html: 5328 `askDeleteHistory` · 5336 `closePasswordModal` · 5341 `confirmDeleteHistory` · 5387 `openExtendModal` · 5407 `adjustNights` · 5413 `setNights` · 5418 `recalcExtend` · 5442 `formatDateVN`
+- templates/calendar_details.html: 5448 `confirmExtendStay` · 5484 `showQuickToast` · 5575 `copyText` · 5627 `setMode`
 
 ## templates/crawl_bookings.html (404 lines)
 - templates/crawl_bookings.html: 335 `displayResults`

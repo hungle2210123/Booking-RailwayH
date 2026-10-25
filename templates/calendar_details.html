@@ -64,7 +64,7 @@
                             </div>
                         </div>
                         <div class="mt-1" style="font-size:10px;color:#64748b;line-height:1.5;">
-                            Số = <b>phòng còn trống</b> (giống khung Phòng trống, đã trừ khách chờ xếp) ·
+                            Số = <b>phòng còn trống</b> (khách chưa bấm xác nhận đến không tính; đã trừ khách sắp đến chưa xếp căn) ·
                             <span style="color:#dc2626;font-weight:800;">đỏ</span> hết/thiếu ·
                             <span style="color:#b45309;font-weight:800;">vàng</span> còn 1–3 ·
                             <span style="color:#5b21b6;font-weight:800;">🛏️ viền tím</span> có khách 2PN trả (T) / đến (Đ)
@@ -139,6 +139,7 @@
 .tbw-apt { font-size:10.5px; font-weight:800; color:#5b21b6; background:#ede9fe; border-radius:4px; padding:0 4px; }
 .tbw-noapt { font-size:10.5px; font-weight:800; color:#fff; background:#dc2626; border-radius:4px; padding:0 4px; }
 .tbw-unc { font-size:10.5px; color:#b45309; }
+.tbw-wait { color:#9ca3af; font-size:11.5px; }
 .tbw-empty { font-size:11px; color:#94a3b8; padding:8px 10px; background:#fff; }
 </style>
 
@@ -243,13 +244,16 @@ function twoBrWatch(days, esc) {
   var rows = '', n = 0;
   for (var i = 0; i < days.length; i++) {
     var w = days[i];
-    if (!w.out.length && !w.in.length) continue;
-    n++;
+    var wait = w.waiting || [];
+    if (!w.out.length && !w.in.length && !wait.length) continue;
+    if (w.out.length || w.in.length) n++;
     var lines = '';
     if (w.out.length) lines += '<div class="tbw-line"><span class="tbw-out">🧳 Trả ' + w.out.length + ':</span> '
       + w.out.map(guest).join(', ') + '</div>';
     if (w.in.length) lines += '<div class="tbw-line"><span class="tbw-in">🛬 Đến ' + w.in.length + ':</span> '
       + w.in.map(guest).join(', ') + '</div>';
+    if (wait.length) lines += '<div class="tbw-line tbw-wait">⏳ Chưa xác nhận đến (không tính): '
+      + wait.map(function(g){ return esc(g.name); }).join(', ') + '</div>';
     rows += '<a class="tbw-day' + (i === 0 ? ' today' : '') + '" href="/calendar_details/' + w.date + '">'
       + '<div class="tbw-date">' + esc(w.label) + '<small>' + esc(w.weekday) + ' ' + esc(w.date_short) + '</small></div>'
       + lines + '</a>';
@@ -3362,7 +3366,8 @@ function renderCompactCalendarForPage(d, year, month, selectedDay) {
         const tb = day.past ? 0 : day.two_br_out + day.two_br_in;   // past days: just the date, calm
         const tbTxt = tb ? `<div class="mc-2pn">🛏️${day.two_br_out ? day.two_br_out + 'T' : ''}${day.two_br_in ? day.two_br_in + 'Đ' : ''}</div>` : '';
         const tip = `${day.day}/${month}: còn ${free} phòng trống / ${day.total}`
-            + (day.pending ? ` · ${day.pending} khách chờ xếp` : '')
+            + (day.unplaced ? ` · đã trừ ${day.unplaced} khách chưa xếp căn` : '')
+            + (day.unconfirmed ? ` · ${day.unconfirmed} khách chưa xác nhận đến (không tính)` : '')
             + (tb ? ` · 2PN: ${day.two_br_out} trả, ${day.two_br_in} đến (${day.two_br_names.join(', ')})` : '');
         html += `<a class="${cls}${tb ? ' mc-has2pn' : ''}" href="/calendar_details/${day.date}" title="${esc(tip)}">
                     <div class="day-number">${day.day}</div>

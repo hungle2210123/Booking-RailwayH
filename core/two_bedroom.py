@@ -71,6 +71,9 @@ def watch_days(session, text, start, days, today, apartments=None):
     Used by the Phòng trống board so 2-bedroom turnovers further ahead are visible.
     Skips cancelled / Báo hủy / no-show bookings and unconfirmed guests more than 2 days
     past arrival (same rules as the calendar_details 2PN panel).
+    Guests whose arrival day has come but who are NOT confirmed ("Xác nhận đến") are not counted
+    in in / out / stay (owner, Oct 25: guests not reached yet must not count); they are listed
+    under `waiting` on today's entry so they are not forgotten.
     `apartments`: {apartment_id: {'abbr': ...}} to label placed guests.
     """
     from datetime import timedelta
@@ -101,6 +104,7 @@ def watch_days(session, text, start, days, today, apartments=None):
             'booking_id': bid, 'name': name or bid, 'checkin': ci, 'checkout': co,
             'nights': max((co - ci).days, 1), 'apt': abbr, 'placed': bool(abbr),
             'confirmed': status == 'confirmed',
+            'waiting': status != 'confirmed' and ci <= today,
         })
 
     def _short(g):
@@ -109,8 +113,10 @@ def watch_days(session, text, start, days, today, apartments=None):
     out = []
     for i in range(days):
         d = start + timedelta(days=i)
-        arrive = [_short(g) for g in guests if g['checkin'] == d]
-        leave = [_short(g) for g in guests if g['checkout'] == d]
-        stay = [_short(g) for g in guests if g['checkin'] < d < g['checkout']]
-        out.append({'date': d.strftime('%Y-%m-%d'), 'in': arrive, 'out': leave, 'stay': stay})
+        counted = [g for g in guests if not g['waiting']]
+        arrive = [_short(g) for g in counted if g['checkin'] == d]
+        leave = [_short(g) for g in counted if g['checkout'] == d]
+        stay = [_short(g) for g in counted if g['checkin'] < d < g['checkout']]
+        waiting = [_short(g) for g in guests if g['waiting']] if d == today else []
+        out.append({'date': d.strftime('%Y-%m-%d'), 'in': arrive, 'out': leave, 'stay': stay, 'waiting': waiting})
     return out

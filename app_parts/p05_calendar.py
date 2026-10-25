@@ -67,8 +67,10 @@ def api_vacancy_preview():
 def api_month_vacancy():
     """Free rooms per night for a whole month (mini calendar on calendar_details).
 
-    Same rules as the Phòng trống board (core/occupancy.py): `free` = rooms left once placed guests
-    AND guests still waiting (unconfirmed / not placed) get a room — negative means short of rooms.
+    Same rules as the Phòng trống board (core/occupancy.py): `free` = rooms not taken by placed,
+    counted guests, minus bookings not placed in an apartment yet ('unassigned'). Guests whose
+    arrival day came but who are not confirmed ('unconfirmed') are NOT subtracted (owner, Oct 25).
+    Negative = short of rooms.
     Plus 2PN check-outs / arrivals per day (core.two_bedroom.watch_days).
     """
     from core.models import db as _db
@@ -93,10 +95,11 @@ def api_month_vacancy():
             d = start + timedelta(days=i)
             occ = occupancy_for_night(bookings, apartments, d, today)
             w = two_br[i]
+            unplaced = sum(1 for p in occ['pending'] if p['reason'] == 'unassigned')
             days.append({
                 'date': d.isoformat(), 'day': d.day,
-                'free': occ['sellable'], 'total': capacity,
-                'booked': capacity - occ['total_free'] + occ['pending_count'],
+                'free': occ['total_free'] - unplaced, 'total': capacity,
+                'unplaced': unplaced, 'unconfirmed': occ['pending_count'] - unplaced,
                 'pending': occ['pending_count'], 'over': occ['over_count'],
                 'two_br_out': len(w['out']), 'two_br_in': len(w['in']),
                 'two_br_names': [g['name'] for g in w['out']] + [g['name'] for g in w['in']],
@@ -919,8 +922,9 @@ def calendar_details(date_str):
             for (_bid, _name, _ci, _co, _listing, _apt, _cst, _flag, _collector) in _rows:
                 if not is_two_bedroom(_listing, _flag):
                     continue
-                # Unconfirmed well past their arrival day = no-show, nothing to check out
-                if _cst != 'confirmed' and _ci < _today_date - timedelta(days=2):
+                # Arrival day reached but not confirmed ("Xác nhận đến") = not counted (owner, Oct 25);
+                # they show in the board's "⏳ Chưa xác nhận đến" line instead
+                if _cst != 'confirmed' and _ci <= _today_date:
                     continue
                 _apt_info = _apt_names.get(str(_apt or ''))
                 two_br_upcoming.append({

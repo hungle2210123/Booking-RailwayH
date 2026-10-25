@@ -44,5 +44,22 @@ def test_month_vacancy_matches_board(client):
     by_date = {x['date']: x for x in d['days']}
     for day in board:
         if day['date'] in by_date:
-            assert by_date[day['date']]['free'] == day['sellable'], day['date']
+            unplaced = sum(1 for p in day['pending'] if p['reason'] == 'unassigned')
+            assert by_date[day['date']]['free'] == day['total_free'] - unplaced, day['date']
             assert by_date[day['date']]['two_br_out'] == day['two_br']['out']
+
+
+def test_unconfirmed_2pn_guests_not_counted(app_module):
+    """Owner, Oct 25: a 2PN guest whose arrival day came without "Xác nhận đến" is not counted."""
+    from core.models import db
+    from sqlalchemy import text
+    from core.occupancy import vn_today
+    from core.two_bedroom import watch_days
+    today = vn_today()
+    with app_module.app.app_context():
+        days = watch_days(db.session, text, today, 3, today)
+    waiting = {g['booking_id'] for g in days[0]['waiting']}
+    assert all(not g['confirmed'] for g in days[0]['waiting'])
+    for w in days:
+        assert not waiting & {g['booking_id'] for g in w['in'] + w['out'] + w['stay']}, w['date']
+    assert all(not w['waiting'] for w in days[1:])

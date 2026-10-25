@@ -60,8 +60,10 @@ or arrival, names + nights + apartment (red "chưa xếp căn" when not placed);
 
 ### **📅 Mini month calendar on calendar_details ("Phòng trống tháng")**
 Rebuilt Oct 25 (old one counted every guest touching the day from /api/daily_customer_breakdown — 17 on a 14-room
-day, all yellow). Now `/api/month_vacancy?month=YYYY-MM`: per night `free` = the board's `sellable` (rooms left after
-placed + waiting guests; negative = short), red ≤ 0, amber 1–3, green more; 🛏️ purple bottom edge + "N T / N Đ" = 2PN
+day, all yellow). Now `/api/month_vacancy?month=YYYY-MM`: per night `free` = board's `total_free` minus bookings not
+placed yet ('unassigned'); guests whose arrival day came WITHOUT "Xác nhận đến" are NOT subtracted (owner, Oct 25:
+guests not reached / not confirmed must not count) — same rule in the 2PN watch (`watch_days`: they go to today's
+`waiting` list, shown grey "⏳ Chưa xác nhận đến (không tính)") and the day page's 2PN check-out panel. Red ≤ 0, amber 1–3, green more; 🛏️ purple bottom edge + "N T / N Đ" = 2PN
 check-outs / arrivals; past days just the date (grey). Tap = open that day. Test: `test_month_vacancy_matches_board`.
 The orange "Khách Đã Hủy – Cửa Sổ Phục Hồi" panel (+ its AI-suggestion JS) was removed from calendar_details (owner:
 not needed; Báo hủy is handled on the cards). The month calendar page still has its own older panel.
