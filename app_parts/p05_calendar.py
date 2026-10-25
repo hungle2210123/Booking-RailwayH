@@ -63,6 +63,52 @@ def api_vacancy_preview():
         return jsonify({'success':False,'error':str(e),'days':[]})
 
 
+@app.route('/api/month_vacancy')
+def api_month_vacancy():
+    """Free rooms per night for a whole month (mini calendar on calendar_details).
+
+    Same rules as the Phòng trống board (core/occupancy.py): `free` = rooms left once placed guests
+    AND guests still waiting (unconfirmed / not placed) get a room — negative means short of rooms.
+    Plus 2PN check-outs / arrivals per day (core.two_bedroom.watch_days).
+    """
+    from core.models import db as _db
+    try:
+        from datetime import date as _d, timedelta
+        from sqlalchemy import text as _text
+        from core.occupancy import load_apartments, load_bookings, occupancy_for_night, vn_today
+        from core.two_bedroom import watch_days
+
+        year, month = map(int, (request.args.get('month') or vn_today().strftime('%Y-%m')).split('-'))
+        start = _d(year, month, 1)
+        end = _d(year + (month == 12), month % 12 + 1, 1)
+        n_days = (end - start).days
+        today = vn_today()
+        apartments = load_apartments(_db.session, _text)
+        capacity = sum(a['capacity'] for a in apartments.values())
+        bookings = load_bookings(_db.session, _text, start, end)
+        two_br = watch_days(_db.session, _text, start, n_days, today, apartments)
+
+        days = []
+        for i in range(n_days):
+            d = start + timedelta(days=i)
+            occ = occupancy_for_night(bookings, apartments, d, today)
+            w = two_br[i]
+            days.append({
+                'date': d.isoformat(), 'day': d.day,
+                'free': occ['sellable'], 'total': capacity,
+                'booked': capacity - occ['total_free'] + occ['pending_count'],
+                'pending': occ['pending_count'], 'over': occ['over_count'],
+                'two_br_out': len(w['out']), 'two_br_in': len(w['in']),
+                'two_br_names': [g['name'] for g in w['out']] + [g['name'] for g in w['in']],
+                'past': d < today,
+            })
+        return jsonify({'success': True, 'month': f'{year}-{month:02d}', 'today': today.isoformat(),
+                        'capacity': capacity, 'days': days})
+    except Exception as e:
+        _db.session.rollback()
+        return jsonify({'success': False, 'error': str(e), 'days': []})
+
+
 @app.route('/calendar/')
 @app.route('/calendar/<int:year>/<int:month>')
 def calendar_view(year=None, month=None):

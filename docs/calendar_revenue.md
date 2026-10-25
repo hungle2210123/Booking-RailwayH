@@ -58,6 +58,14 @@ Phòng trống board (`/api/vacancy_preview` → `two_br_days` from `core.two_be
 calendar board) and, under the cards, the purple "🛏️ PHÒNG 2 NGỦ — 14 NGÀY TỚI" list: each day with a 2PN check-out
 or arrival, names + nights + apartment (red "chưa xếp căn" when not placed); tap = that day's page.
 
+### **📅 Mini month calendar on calendar_details ("Phòng trống tháng")**
+Rebuilt Oct 25 (old one counted every guest touching the day from /api/daily_customer_breakdown — 17 on a 14-room
+day, all yellow). Now `/api/month_vacancy?month=YYYY-MM`: per night `free` = the board's `sellable` (rooms left after
+placed + waiting guests; negative = short), red ≤ 0, amber 1–3, green more; 🛏️ purple bottom edge + "N T / N Đ" = 2PN
+check-outs / arrivals; past days just the date (grey). Tap = open that day. Test: `test_month_vacancy_matches_board`.
+The orange "Khách Đã Hủy – Cửa Sổ Phục Hồi" panel (+ its AI-suggestion JS) was removed from calendar_details (owner:
+not needed; Báo hủy is handled on the cards). The month calendar page still has its own older panel.
+
 ### **🗑️ Delete apartment**
 `DELETE /api/apartments/<id>` (body `move_bookings_to`: id or null) + `/api/apartments/<id>/delete_check`.
 `bookings.apartment_id` FK is RESTRICT → bookings are moved first; rooms cascade.
