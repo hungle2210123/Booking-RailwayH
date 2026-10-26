@@ -90,7 +90,7 @@ body.wide #app{max-width:1180px}
 .croom .cst{display:flex;flex-direction:column;justify-content:center;padding-left:10px;font-size:12px;font-weight:700;color:#1E293B}
 .slot{grid-row:1;border-radius:10px;border:1.5px dashed #E3E6EC;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#94A3B8}
 .bar{grid-row:1;z-index:1;border-radius:10px;padding:4px 8px;text-align:left;overflow:hidden;min-width:0;border:none}
-.bar b{display:block;font-size:12px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bar b{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;font-size:12px;font-weight:800;line-height:1.2;overflow:hidden;word-break:break-word}
 .bar small{display:block;font-size:10px;font-weight:600;opacity:.9;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .drop{grid-row:1;z-index:2;border-radius:10px;font-size:12px;font-weight:800}
 /* messages */
@@ -119,6 +119,9 @@ body.wide #app{max-width:1180px}
 .pickbar{position:fixed;left:10px;right:10px;bottom:calc(86px + env(safe-area-inset-bottom));z-index:60;max-width:760px;margin:0 auto;background:rgba(14,21,37,.94);color:#fff;border-radius:14px;padding:4px 4px 4px 12px;display:flex;align-items:center;gap:6px}
 .pickbar div{flex:1;min-width:0;font-size:12px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .pickbar button{min-height:36px;min-width:36px;border-radius:10px;border:none;background:rgba(255,255,255,.14);color:#fff;font-size:12px;font-weight:800;padding:0 10px}
+.reload{position:fixed;bottom:calc(90px + env(safe-area-inset-bottom));left:12px;z-index:55;height:40px;border-radius:20px;border:1px solid #E2E5EB;background:rgba(255,255,255,.95);color:#0E1525;font-size:12px;font-weight:800;padding:0 12px;display:flex;align-items:center;gap:6px;box-shadow:0 4px 12px rgba(14,21,37,.12)}
+.reload.busy svg{animation:spin .8s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}
+body.picking .reload{display:none}
 .toast{position:fixed;left:16px;right:16px;bottom:calc(96px + env(safe-area-inset-bottom));z-index:99999;max-width:520px;margin:0 auto;background:#0E1525;color:#fff;border-radius:14px;padding:12px 16px;font-size:13px;font-weight:700;box-shadow:0 10px 30px rgba(14,21,37,.3)}
 /* sheets */
 .ov{position:fixed;inset:0;z-index:9000;background:rgba(14,21,37,.48);display:flex;align-items:flex-end;justify-content:center}
@@ -137,6 +140,7 @@ body.wide #app{max-width:1180px}
 <div id="app"><div class="empty" style="padding-top:80px">Đang tải…</div></div>
 <nav class="nav" id="nav"></nav>
 <div id="float"></div>
+<button class="reload" id="reload" onclick="M.reload()" aria-label="Tải lại dữ liệu"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.3 5.7M20 4v7h-7"></path></svg><span id="reloadT">Tải lại</span></button>
 <div id="sheet"></div>
 <script src="{{ asset('js/journey.js') }}"></script>
 <script>
@@ -174,7 +178,7 @@ body.wide #app{max-width:1180px}
       const r = await fetch('/api/moi/data', { cache: 'no-store' });
       const d = await r.json();
       if (!d.success) throw new Error('data');
-      S.data = d; TODAY = d.today; APT = d.apartments; aptById = {}; APT.forEach((a) => { aptById[a.id] = a; });
+      S.data = d; TODAY = d.today; S.loadedAt = new Date(); APT = d.apartments; aptById = {}; APT.forEach((a) => { aptById[a.id] = a; });
       B = d.bookings.map((b) => ({ ...b, ciO: offOf(b.ci), coO: offOf(b.co) }));
       byId = {}; B.forEach((b) => { byId[b.id] = b; });
       render();
@@ -207,7 +211,8 @@ body.wide #app{max-width:1180px}
   const toast = (t) => { let el = $('.toast'); if (!el) { el = document.createElement('div'); el.className = 'toast'; document.body.appendChild(el); }
                          el.textContent = t; clearTimeout(toastT); toastT = setTimeout(() => el.remove(), 2600); };
   const M = window.M = {};
-  M.tab = (t) => { S.tab = t; S.pick = null; LS.set('tab', t); render(); window.scrollTo(0, 0); };
+  M.reload = async () => { const b = $('#reload'); b.classList.add('busy'); await load(true); b.classList.remove('busy'); toast('Đã tải dữ liệu mới nhất'); };
+  M.tab = (t) => { S.tab = t; S.pick = null; LS.set('tab', t); render(); window.scrollTo(0, 0); load(true); };
   M.set = (k, v) => { S[k] = v; if (k === 'calView') LS.set(k, v); render(); };
   M.day = (d) => { S.day = Math.max(0, Math.min(20, d)); render(); };
   M.open = (id) => { S.sel = id; S.move = false; S.pick = null; renderSheet(); };
@@ -298,6 +303,8 @@ body.wide #app{max-width:1180px}
   function render() {
     if (!S.data) return;
     document.body.classList.toggle('wide', wide());
+    document.body.classList.toggle('picking', !!S.pick);
+    const rt = $('#reloadT'); if (rt && S.loadedAt) rt.textContent = 'Tải lại · ' + String(S.loadedAt.getHours()).padStart(2, '0') + ':' + String(S.loadedAt.getMinutes()).padStart(2, '0');
     const v = S.tab === 'cal' ? viewCal() : S.tab === 'msg' ? viewMsg() : S.tab === 'pay' ? viewPay() : viewDay();
     $('#app').innerHTML = v;
     renderNav(); renderFloat();
@@ -404,7 +411,7 @@ body.wide #app{max-width:1180px}
     const { ws, we } = calWin(), N = S.calN, days = []; for (let i = ws; i < we; i++) days.push(i);
     const colW = N === 3 ? 'minmax(0,1fr)' : N === 7 ? '74px' : '72px';
     const cols = `78px repeat(${N}, ${colW})`, width = N === 3 ? '100%' : (78 + N * 78) + 'px';
-    const rowH = N === 3 ? '52px' : '40px';
+    const rowH = N === 3 ? '64px' : '52px';
     const room = S.calView === 'room';
     const freeStyle = (f) => f <= 0 ? 'background:#FEE2E2;color:#B91C1C' : f === 1 ? 'background:#FEF3C7;color:#92400E' : 'background:#DCFCE7;color:#166534';
     const pk = S.pick && byId[S.pick];
@@ -412,10 +419,10 @@ body.wide #app{max-width:1180px}
       const st = Math.max(b.ciO, ws), en = Math.min(b.coO, we), solid = b.ciO > 0 || b.confirmed;
       const sty = dashedAmber ? 'background:#FEF3C7;color:#92400E;border:1.5px dashed #F59E0B'
                 : solid ? `background:${a.color};color:#fff` : `background:#fff;color:${a.color};border:1.5px dashed ${a.color}`;
-      const name = (b.ciO < ws ? '‹ ' : '') + (N === 3 ? b.name : b.name.split(' ')[0]) + (b.coO > we ? ' ›' : '') + (b.tb ? ' · 2PN' : '');
+      const name = (b.ciO < ws ? '‹ ' : '') + b.name + (b.coO > we ? ' ›' : '') + (b.tb ? ' · 2PN' : '');
       const act = room ? `M.pickG('${b.id}')` : `M.open('${b.id}')`;
       return `<button class="bar" onclick="${act}" style="grid-column:${st - ws + 2} / span ${en - st};${sty}${S.pick === b.id ? ';box-shadow:0 0 0 3px #F59E0B' : ''}" aria-label="${esc(b.name)}">
-        <b>${esc(name)}</b>${N === 3 ? `<small class="num">${b.nights} đêm · ${short(b.per_night)}${b.ciO <= 0 && !b.confirmed && b.coO > 0 ? ' · chờ' : b.paid ? ' · đã thu' : ''}</small>` : ''}</button>`;
+        <b>${esc(name)}</b><small>${esc(b.listing || 'chưa rõ loại phòng')}</small>${N === 3 ? `<small class="num">${b.nights} đêm · ${short(b.per_night)}${b.ciO <= 0 && !b.confirmed && b.coO > 0 ? ' · chờ' : b.paid ? ' · đã thu' : ''}</small>` : ''}</button>`;
     };
     const slots = (taken) => days.filter((dd) => !taken.has(dd)).map((dd) => `<div class="slot" style="grid-column:${dd - ws + 2}">${N === 3 ? 'trống' : ''}</div>`).join('');
     const span = (list) => { const t = new Set(); list.forEach((b) => { for (let dd = Math.max(b.ciO, ws); dd < Math.min(b.coO, we); dd++) t.add(dd); }); return t; };
