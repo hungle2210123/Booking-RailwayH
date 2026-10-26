@@ -55,3 +55,20 @@ def test_moi_add_booking_and_eta(client, db, throwaway):
     row = db.session.execute(text("SELECT actual_apartment, room_amount FROM bookings WHERE booking_id = :b"), {'b': bid}).fetchone()
     assert row[0] == str(apt) and float(row[1]) == 1200000
     db.session.execute(text("DELETE FROM arrival_times WHERE booking_id = :b"), {'b': bid}); db.session.commit()
+
+
+@pytest.mark.db_write
+def test_moi_reminders(client, db, booking):
+    """⏰ Nhắc việc on a guest: saved (Vietnam time), listed in /api/moi/data, ticked done, deleted."""
+    bid = booking(checkin_date='2030-04-01', checkout_date='2030-04-03')
+    r = client.post('/api/moi/reminder', json={'booking_id': bid, 'at': '2030-04-01T19:00', 'note': 'ZZ Phản hồi khách'}).get_json()
+    assert r['success'] and r['id']
+    try:
+        rem = [x for x in client.get('/api/moi/data').get_json()['reminders'] if x['id'] == r['id']]
+        assert rem and rem[0]['at'] == '2030-04-01T19:00' and not rem[0]['done']
+        assert client.post('/api/moi/reminder', json={'id': r['id'], 'done': True}).get_json()['success']
+        assert db.session.execute(text("SELECT done FROM moi_reminders WHERE id = :i"), {'i': r['id']}).scalar() is True
+        assert client.post('/api/moi/reminder', json={'booking_id': bid, 'at': 'sai giờ'}).status_code == 400
+    finally:
+        client.post('/api/moi/reminder', json={'id': r['id'], 'delete': True})
+    assert db.session.execute(text("SELECT count(*) FROM moi_reminders WHERE id = :i"), {'i': r['id']}).scalar() == 0

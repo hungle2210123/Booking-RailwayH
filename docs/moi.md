@@ -62,3 +62,12 @@ grey (dimmed) không liên lạc được.
   with VALARM, floating local time, 00:00–04:59 = the night after check-in day) — the tap saves `/api/arrival_times`
   and Safari offers "Thêm vào Lịch", so the alarm rings even with the web closed. ETA ≥ 18:00 (or after midnight) =
   "muộn". Chi tiết ngày shows a "Giờ khách hẹn đến" card (unconfirmed arrivals with a time, in time order).
+- **⏰ Nhắc / báo trễ in one tap** (owner: opening the guest card each time was too slow): a ⏰ button on every Đến /
+  Trả / Đang ở row of Chi tiết ngày (rows are now `div.g`, the bell stops the click) and two buttons on every Nhắn khách
+  card (⏰ Báo đến trễ / giờ đến · 🔔 Nhắc việc). The sheet has two parts: **Khách báo đến trễ** (the Giờ đến sheet above)
+  and **Nhắc việc**: quick notes (Phản hồi khách, Gọi lại, Nhắc thanh toán, Gửi mã cửa, Đón khách, Hỏi giờ đến) + free
+  text, quick times (15/30 phút, 1/2 tiếng nữa, tối nay 19:00/21:00, sáng mai 8:00, trưa mai 12:00, giờ khác) →
+  `POST /api/moi/reminder` (table `moi_reminders`: booking_id, remind_at = Vietnam local, note, done; `{id, done}` ticks,
+  `{id, delete}` removes) + the iPhone Calendar alarm (.ics) whose text carries the guest's name, phone, apartment/room,
+  dates, money, room type, booking number. Chi tiết ngày (today) starts with "🔔 Việc cần nhắc" (overdue red, Xong);
+  the nav badge on Chi tiết ngày = overdue reminders; a due reminder toasts while the page is open.

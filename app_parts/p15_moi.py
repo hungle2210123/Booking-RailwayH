@@ -17,6 +17,12 @@ def _moi_ensure():
     from core.models import db as _xdb
     try:
         _xdb.session.execute(text("ALTER TABLE bookings ADD COLUMN IF NOT EXISTS room_no INTEGER DEFAULT NULL"))
+        # ⏰ reminders the owner sets on a guest ("phản hồi khách này lúc 19:00"); remind_at = Vietnam local time
+        _xdb.session.execute(text("""
+            CREATE TABLE IF NOT EXISTS moi_reminders (
+                id SERIAL PRIMARY KEY, booking_id VARCHAR(50) NOT NULL, remind_at TIMESTAMP NOT NULL,
+                note TEXT NOT NULL DEFAULT '', done BOOLEAN NOT NULL DEFAULT FALSE,
+                created_at TIMESTAMP NOT NULL DEFAULT NOW())"""))
         _xdb.session.commit()
     except Exception:
         _xdb.session.rollback()
@@ -112,7 +118,12 @@ def moi_data():
             'claimed': bool(m and m[1]), 'claim_method': (m[2] or '') if m else '', 'note': (m[3] or '') if m else '',
             'skipped': bool(m and m[4]), 'asked': 'payment' in done,
         })
-    return jsonify({'success': True, 'today': today.isoformat(), 'apartments': apts, 'bookings': out,
+    # reminders: every open one + those done today (so a just-ticked one stays visible until tomorrow)
+    rems = [{'id': r[0], 'booking_id': r[1], 'at': r[2].strftime('%Y-%m-%dT%H:%M'), 'note': r[3], 'done': bool(r[4])}
+            for r in _xdb.session.execute(text("""
+                SELECT id, booking_id, remind_at, note, done FROM moi_reminders
+                WHERE NOT done OR remind_at >= :d ORDER BY remind_at"""), {'d': datetime.combine(today, datetime.min.time())}).fetchall()]
+    return jsonify({'success': True, 'today': today.isoformat(), 'reminders': rems, 'apartments': apts, 'bookings': out,
                     'steps': [{'key': s['key'], 'emoji': s['emoji'], 'label': s['label']} for s in buttons],
                     'collectors': list(PAY_COLLECTORS)})
 
@@ -155,3 +166,30 @@ def moi_set_room():
                          {'apt': str(apt), 'room': room, 'b': bid})
     _xdb.session.commit()
     return jsonify({'success': True})
+
+
+@app.route('/api/moi/reminder', methods=['POST'])
+def moi_reminder():
+    """⏰ Add a reminder on a guest ({booking_id, at: 'YYYY-MM-DDTHH:MM' Vietnam time, note}), or tick / untick one
+    ({id, done}), or delete one ({id, delete: true})."""
+    from core.models import db as _xdb
+    _moi_ensure()
+    d = request.get_json(silent=True) or {}
+    if d.get('id'):
+        if d.get('delete'):
+            _xdb.session.execute(text("DELETE FROM moi_reminders WHERE id = :i"), {'i': int(d['id'])})
+        else:
+            _xdb.session.execute(text("UPDATE moi_reminders SET done = :d WHERE id = :i"), {'i': int(d['id']), 'd': bool(d.get('done', True))})
+        _xdb.session.commit()
+        return jsonify({'success': True})
+    bid, note = str(d.get('booking_id') or '').strip(), str(d.get('note') or '').strip()[:300]
+    try:
+        at = datetime.strptime(str(d.get('at') or '')[:16], '%Y-%m-%dT%H:%M')
+    except ValueError:
+        return jsonify({'success': False, 'error': 'Giờ nhắc không hợp lệ'}), 400
+    if not bid or not _xdb.session.execute(text("SELECT 1 FROM bookings WHERE booking_id = :b"), {'b': bid}).fetchone():
+        return jsonify({'success': False, 'error': 'Không tìm thấy đặt phòng'}), 404
+    rid = _xdb.session.execute(text("INSERT INTO moi_reminders (booking_id, remind_at, note) VALUES (:b, :a, :n) RETURNING id"),
+                               {'b': bid, 'a': at, 'n': note or 'Nhắc khách'}).scalar()
+    _xdb.session.commit()
+    return jsonify({'success': True, 'id': rid})

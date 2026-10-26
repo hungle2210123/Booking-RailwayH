@@ -122,6 +122,15 @@ body.wide #app{max-width:1180px}
 .reload{position:fixed;bottom:calc(90px + env(safe-area-inset-bottom));left:12px;z-index:55;height:40px;border-radius:20px;border:1px solid #E2E5EB;background:rgba(255,255,255,.95);color:#0E1525;font-size:12px;font-weight:800;padding:0 12px;display:flex;align-items:center;gap:6px;box-shadow:0 4px 12px rgba(14,21,37,.12)}
 .reload.busy svg{animation:spin .8s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}
 body.picking .reload{display:none}
+.bell{flex-shrink:0;min-width:40px;height:34px;border-radius:10px;border:1px solid #E2E5EB;background:#fff;font-size:15px;line-height:1;padding:0 6px;color:#0E1525;display:inline-flex;align-items:center;justify-content:center;gap:3px}
+.bell.has{background:#FEF3C7;border-color:#FCD34D;color:#92400E;font-size:11px;font-weight:800}
+div.g{cursor:pointer}
+.remrow{display:flex;align-items:center;gap:8px;border-radius:12px;padding:8px 8px 8px 10px;background:#F7F8FA}
+.remrow b{font-size:14px;font-weight:800;min-width:56px}
+.remrow .t{flex:1;min-width:0;font-size:13px;font-weight:700;line-height:1.3}
+.remrow .t small{display:block;font-size:11px;font-weight:600;color:#64748B;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.okb{min-height:38px;min-width:44px;border-radius:10px;border:none;background:#15803D;color:#fff;font-size:12px;font-weight:800;padding:0 10px}
+textarea.note{width:100%;min-height:70px;border-radius:12px;border:1.5px solid #E2E5EB;padding:10px 12px;font-size:16px;font-family:inherit;resize:vertical}
 .fgrid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}
 .fbox{border:1.5px solid #E2E5EB;background:#fff;border-radius:12px;min-height:56px;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:4px 2px;color:#0E1525}
 .fbox b{font-size:18px;font-weight:800;line-height:1.1}.fbox small{font-size:10.5px;font-weight:700;line-height:1.2;text-align:center}
@@ -213,6 +222,30 @@ a.big{display:flex;align-items:center;justify-content:center;text-decoration:non
     if (b.last || b.manual) return { k: 'wait', c: '#F59E0B', t: 'Đã nhắn — chờ khách trả lời', s: (last || 'Nhắn ngoài app') + ' · chạm khi khách trả lời', line: 'Chờ trả lời', bg: '#FEF3C7', fg: '#78350F' };
     return { k: 'todo', c: '#DC2626', t: 'Chưa nhắn', s: 'Chạm nếu đã nhắn ngoài app (Booking, gọi…)', line: 'Chưa nhắn', bg: '#FEE2E2', fg: '#7F1D1D' };
   };
+  const pad = (n) => String(n).padStart(2, '0');
+  const localStr = (d) => d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) + 'T' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+  const parseLocal = (x) => new Date(+x.slice(0, 4), +x.slice(5, 7) - 1, +x.slice(8, 10), +x.slice(11, 13), +x.slice(14, 16));
+  const remLabel = (x) => { const d = parseLocal(x), now = new Date(), tm = pad(d.getHours()) + ':' + pad(d.getMinutes());
+    if (d.toDateString() === now.toDateString()) return tm;
+    const t = new Date(now); t.setDate(now.getDate() + 1); if (d.toDateString() === t.toDateString()) return 'mai ' + tm;
+    const y = new Date(now); y.setDate(now.getDate() - 1); if (d.toDateString() === y.toDateString()) return 'qua ' + tm;
+    return d.getDate() + '/' + (d.getMonth() + 1) + ' ' + tm; };
+  const REM = () => (S.data && S.data.reminders) || [];
+  const remsOf = (id) => REM().filter((r) => r.booking_id === id && !r.done);
+  const overdue = (r) => !r.done && parseLocal(r.at) <= new Date();
+  const icsText = (v) => String(v || '').replace(/[\\,;]/g, (c) => '\\' + c).replace(/\n/g, '\\n');
+  const icsLocal = (d) => d.getFullYear() + pad(d.getMonth() + 1) + pad(d.getDate()) + 'T' + pad(d.getHours()) + pad(d.getMinutes()) + '00';
+  const guestInfo = (b) => { const a = aptById[b.apt];
+    return [b.name + (b.tb ? ' (2PN)' : ''), b.phone ? 'SĐT ' + b.phone : (b.partner ? 'Đối tác Booking — nhắn qua Booking' : 'chưa có số'),
+            (a ? a.name + (b.room_no ? ' · Phòng ' + b.room_no : '') : 'chưa xếp căn'), dm(b.ciO) + ' → ' + dm(b.coO) + ' · ' + b.nights + ' đêm · ' + fmt(b.total),
+            b.listing, 'Mã ' + b.id, location.origin + '/moi'].filter(Boolean).join('\n'); };
+  const icsHref = (uid, start, title, desc, trigMin) => 'data:text/calendar;charset=utf-8,' + encodeURIComponent(['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Hotel Pro//moi//VI',
+    'BEGIN:VEVENT', 'UID:' + uid + '@hotelpro', 'DTSTAMP:' + new Date().toISOString().replace(/[-:]/g, '').slice(0, 15) + 'Z',
+    'DTSTART:' + icsLocal(start), 'DTEND:' + icsLocal(new Date(start.getTime() + 15 * 6e4)), 'SUMMARY:' + icsText(title), 'DESCRIPTION:' + icsText(desc),
+    'BEGIN:VALARM', 'ACTION:DISPLAY', 'DESCRIPTION:' + icsText(title), 'TRIGGER:' + (trigMin ? '-PT' + trigMin + 'M' : 'PT0M'), 'END:VALARM', 'END:VEVENT', 'END:VCALENDAR'].join('\r\n'));
+  const bell = (b) => { const r = remsOf(b.id), e = b.eta && b.ciO >= 0 && !b.confirmed;
+    return `<button class="bell ${r.length || e ? 'has' : ''}" onclick="event.stopPropagation();M.remind('${b.id}')" aria-label="Nhắc / báo trễ cho ${esc(b.name)}">⏰${r.length ? remLabel(r[0].at) : e ? b.eta : ''}</button>`; };
+  const remLine = (b) => remsOf(b.id).map((r) => `<div class="g4" style="color:${overdue(r) ? '#DC2626' : '#B45309'}">🔔 ${remLabel(r.at)} · ${esc(r.note)}</div>`).join('');
   const late = (b) => !!b.eta && (b.eta >= '18:00' || b.eta < '05:00');
   const tierOf = (b) => (b.total >= 3e6 || b.nights >= 5 ? 'VIP' : b.total >= 2e6 || b.nights >= 4 ? 'Ưu tiên' : '');
 
@@ -274,7 +307,24 @@ a.big{display:flex;align-items:center;justify-content:center;text-decoration:non
   M.status = (id) => { const b = byId[id], st = stOf(b);
     if (st.k === 'todo') M.mark(id, 'contacted', true); else if (st.k === 'wait') M.mark(id, 'replied', true); else M.open(id); };
   M.unreach = (id) => { const b = byId[id]; M.mark(id, 'unreachable', !b.unreach); if (!b.unreach) toast(b.name + ' → Không liên lạc được'); };
-  M.eta = (id) => { const b = byId[id]; S.sel = null; S.etaFor = id; S.etaVal = b.eta || '20:00'; S.etaRem = LS.get('etaRem', 30); renderSheet(); };
+  M.remind = (id, mode) => { const b = byId[id]; S.sel = null; S.etaFor = id; S.etaVal = b.eta || '20:00'; S.etaRem = LS.get('etaRem', 30);
+    S.remMode = mode || (b.ciO >= 0 && !b.confirmed ? 'late' : 'note'); S.remNote = ''; S.remAt = ''; renderSheet(); };
+  M.eta = (id) => M.remind(id, 'late');
+  M.remPreset = (k) => { const d = new Date();
+    if (k > 0) d.setTime(d.getTime() + k * 6e4); else { const [h, mi, add] = { '-1': [19, 0, 0], '-2': [21, 0, 0], '-3': [8, 0, 1], '-4': [12, 0, 1] }[k]; d.setDate(d.getDate() + add); d.setHours(h, mi, 0, 0); }
+    S.remAt = localStr(d); renderSheet(); };
+  M.remSave = (alarm) => {
+    const b = byId[S.etaFor]; const note = (S.remNote || '').trim() || 'Phản hồi khách';
+    if (!b || !S.remAt) return toast('Chọn giờ nhắc trước');
+    fetch('/api/moi/reminder', { method: 'POST', headers: { 'Content-Type': 'application/json' }, keepalive: true,
+      body: JSON.stringify({ booking_id: b.id, at: S.remAt, note }) }).then(() => load(true)).catch(() => toast('Lỗi: không lưu được lời nhắc'));
+    S.data.reminders = REM().concat([{ id: 0, booking_id: b.id, at: S.remAt, note, done: false }]);
+    S.etaFor = null; renderSheet(); render();
+    toast('Đã đặt nhắc ' + remLabel(S.remAt) + ': ' + note + (alarm ? ' — bấm "Thêm" trong Lịch để bật báo thức' : ''));
+  };
+  M.remDone = async (rid, del) => { if (!rid) return load(true);
+    const r = await post('/api/moi/reminder', del ? { id: rid, delete: true } : { id: rid, done: true });
+    if (!r.ok) return toast('Lỗi: không lưu được'); toast(del ? 'Đã xoá lời nhắc' : 'Đã xong ✓'); await load(true); renderSheet(); };
   M.etaSave = (alarm) => {
     const b = byId[S.etaFor], t = S.etaVal;
     if (!b || !/^\d{2}:\d{2}$/.test(t)) return toast('Chọn giờ đến trước');
@@ -294,7 +344,7 @@ a.big{display:flex;align-items:center;justify-content:center;text-decoration:non
     return ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Hotel Pro//moi//VI', 'BEGIN:VEVENT', 'UID:moi-' + b.id + '-' + t.replace(':', '') + '@hotelpro',
       'DTSTAMP:' + new Date().toISOString().replace(/[-:]/g, '').slice(0, 15) + 'Z', 'DTSTART:' + f(base), 'DTEND:' + f(end),
       'SUMMARY:' + txt('Khách đến: ' + b.name + (a ? ' · ' + a.short + (b.room_no ? ' P' + b.room_no : '') : '')),
-      'DESCRIPTION:' + txt((b.phone ? b.phone + ' · ' : '') + b.listing + ' · ' + b.nights + ' đêm · mã ' + b.id),
+      'DESCRIPTION:' + txt(guestInfo(b).replace(/\n/g, ' · ')),
       'BEGIN:VALARM', 'ACTION:DISPLAY', 'DESCRIPTION:' + txt('Khách ' + b.name + ' sắp đến'), 'TRIGGER:' + (rem ? '-PT' + rem + 'M' : 'PT0M'), 'END:VALARM',
       'END:VEVENT', 'END:VCALENDAR'].join('\r\n');
   };
@@ -356,7 +406,8 @@ a.big{display:flex;align-items:center;justify-content:center;text-decoration:non
     const todoMsg = B.filter((b) => b.ciO === 0 && !b.unreach && stOf(b).k === 'todo').length;
     const unpaid = payItems().filter((b) => payStatus(b) !== 'paid').length;
     const nb = (t, label, ic, badge) => `<button class="navb ${S.tab === t ? 'on' : ''}" onclick="M.tab('${t}')">${svg(ic, 24)}${label}${badge ? `<span class="badge">${badge}</span>` : ''}</button>`;
-    $('#nav').innerHTML = `<div>${nb('day', 'Chi tiết ngày', 'day')}${nb('cal', 'Lịch', 'cal')}
+    const due = REM().filter((r) => byId[r.booking_id] && overdue(r)).length;
+    $('#nav').innerHTML = `<div>${nb('day', 'Chi tiết ngày', 'day', due)}${nb('cal', 'Lịch', 'cal')}
       <div style="flex:1;display:flex;justify-content:center"><button class="plus" onclick="M.add()" aria-label="Thêm đặt phòng"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"></path></svg></button></div>
       ${nb('msg', 'Nhắn khách', 'msg', todoMsg)}${nb('pay', 'Thu tiền', 'pay', unpaid)}</div>`;
   }
@@ -416,6 +467,12 @@ a.big{display:flex;align-items:center;justify-content:center;text-decoration:non
          <div class="chips4">${APT.map((a) => { const f = a.rooms - B.filter((o) => o.apt === a.id && inHouse(o, d)).length;
            return `<button class="chip ${f > 0 ? '' : 'off'}" style="background:${a.color}" onclick="M.place('${b.id}',${a.id})">${esc(a.short)}<small>${f > 0 ? 'còn ' + f : 'hết'}</small></button>`; }).join('')}</div></div>`).join('') + '</div>';
     }
+    const openRem = REM().filter((r) => !r.done && byId[r.booking_id]).sort((p, q) => p.at.localeCompare(q.at));
+    if (openRem.length && d === 0) h += `<div class="card" style="padding:12px 14px;border:1.5px solid ${openRem.some(overdue) ? '#FCA5A5' : '#FCD34D'}"><div style="font-size:13px;font-weight:800;margin-bottom:6px">🔔 Việc cần nhắc · ${openRem.length}</div>
+      <div style="display:flex;flex-direction:column;gap:6px">${openRem.map((r) => { const b = byId[r.booking_id], a = aptById[b.apt];
+        return `<div class="remrow" style="background:${overdue(r) ? '#FEF2F2' : '#FFFBEB'}" onclick="M.remind('${b.id}','note')"><b class="num" style="color:${overdue(r) ? '#DC2626' : '#92400E'}">${remLabel(r.at)}</b>
+          <div class="t">${esc(r.note)}<small>${esc(b.name)} · ${a ? esc(a.short) + (b.room_no ? ' P' + b.room_no : '') : 'chưa xếp'}${b.phone ? ' · ' + esc(b.phone) : ''}</small></div>
+          <button class="okb" onclick="event.stopPropagation();M.remDone(${r.id})">Xong</button></div>`; }).join('')}</div></div>`;
     const etaL = ins.filter((b) => b.eta && !b.confirmed).sort((p, q) => (p.eta < '05:00' ? '24' + p.eta : p.eta).localeCompare(q.eta < '05:00' ? '24' + q.eta : q.eta));
     if (etaL.length) h += `<div class="card" style="padding:12px 14px"><div style="font-size:13px;font-weight:800;margin-bottom:6px">Giờ khách hẹn đến</div>
       <div style="display:flex;flex-direction:column;gap:6px">${etaL.map((b) => { const a = aptById[b.apt];
@@ -426,15 +483,15 @@ a.big{display:flex;align-items:center;justify-content:center;text-decoration:non
     h += `<div class="seg"><button class="${S.seg === 'pair' ? 'on' : ''}" onclick="M.set('seg','pair')">Trả ↔ Đến</button><button class="${S.seg === 'stay' ? 'on' : ''}" onclick="M.set('seg','stay')">Đang ở · ${stays.length}</button></div>`;
     if (S.seg === 'stay') {
       h += '<div class="card" style="padding:4px 16px 6px">' + (stays.sort((p, q) => p.coO - q.coO).map((b) => { const a = aptById[b.apt], left = b.coO - d;
-        return `<button class="g" onclick="M.open('${b.id}')" style="padding:12px 0"><div class="g1"><span class="dot" style="background:${a ? a.color : '#94A3B8'}"></span><span class="gn">${esc(b.name)}</span>${b.tb ? '<span class="tb">2PN</span>' : ''}<span style="font-size:11px;font-weight:800;color:${left === 1 ? '#B45309' : '#64748B'}">${left === 1 ? 'Trả mai' : 'Còn ' + left + ' đêm'}</span></div>
-          <div class="g2 num">${a ? esc(a.short) + (b.room_no ? ' · P' + b.room_no : '') : 'chưa xếp'} · ${b.nights} đêm · <b>${short(b.per_night)}</b>/đêm${b.paid ? ' · <span style="color:#15803D;font-weight:800">đã thu</span>' : ''}</div></button>`; }).join('') || '<div class="empty">Không có khách ở lại đêm này.</div>') + '</div>';
+        return `<div class="g" role="button" tabindex="0" onclick="M.open('${b.id}')" style="padding:12px 0"><div class="g1"><span class="dot" style="background:${a ? a.color : '#94A3B8'}"></span><span class="gn">${esc(b.name)}</span>${b.tb ? '<span class="tb">2PN</span>' : ''}<span style="font-size:11px;font-weight:800;color:${left === 1 ? '#B45309' : '#64748B'}">${left === 1 ? 'Trả mai' : 'Còn ' + left + ' đêm'}</span>${bell(b)}</div>
+          <div class="g2 num">${a ? esc(a.short) + (b.room_no ? ' · P' + b.room_no : '') : 'chưa xếp'} · ${b.nights} đêm · <b>${short(b.per_night)}</b>/đêm${b.paid ? ' · <span style="color:#15803D;font-weight:800">đã thu</span>' : ''}</div>${remLine(b)}</div>`; }).join('') || '<div class="empty">Không có khách ở lại đêm này.</div>') + '</div>';
     } else {
       const row = (b, kind) => { const st = stOf(b);
-        return `<button class="g" onclick="M.open('${b.id}')" style="${kind === 'in' && st.k === 'unreach' ? 'opacity:.5;filter:grayscale(.7)' : ''}">
-          <div class="g1"><span class="dot" style="background:${kind === 'out' ? '#CBD5E1' : st.c}"></span><span class="gn">${esc(b.name)}</span>${b.tb ? '<span class="tb">2PN</span>' : ''}</div>
+        return `<div class="g" role="button" tabindex="0" onclick="M.open('${b.id}')" style="${kind === 'in' && st.k === 'unreach' ? 'opacity:.5;filter:grayscale(.7)' : ''}">
+          <div class="g1"><span class="dot" style="background:${kind === 'out' ? '#CBD5E1' : st.c}"></span><span class="gn">${esc(b.name)}</span>${b.tb ? '<span class="tb">2PN</span>' : ''}${bell(b)}</div>
           <div class="g2 num">${b.nights} đêm · <b>${short(b.per_night)}</b>/đêm${b.room_no ? ' · P' + b.room_no : ''}</div>
           <div class="g3">${esc(b.listing)}</div>
-          ${kind === 'in' ? `<div class="g4" style="color:${st.c === '#F59E0B' ? '#B45309' : st.c}">${st.line}</div>` : (b.paid ? '' : '<div class="g4" style="color:#DC2626">Chưa thu</div>')}</button>`; };
+          ${kind === 'in' ? `<div class="g4" style="color:${st.c === '#F59E0B' ? '#B45309' : st.c}">${st.line}</div>` : (b.paid ? '' : '<div class="g4" style="color:#DC2626">Chưa thu</div>')}${remLine(b)}</div>`; };
       APT.forEach((a) => {
         const o = outs.filter((b) => b.apt === a.id), i = ins.filter((b) => b.apt === a.id);
         const used = B.filter((b) => b.apt === a.id && inHouse(b, d)).length, over = used > a.rooms;
@@ -545,7 +602,10 @@ a.big{display:flex;align-items:center;justify-content:center;text-decoration:non
       <div class="num" style="font-size:12px;color:#334155;font-weight:700;margin-top:8px">${dm(b.ciO)} → ${dm(b.coO)} · ${b.nights} đêm</div>
       <div class="num" style="font-size:11px;color:#64748B;font-weight:600;margin-top:2px">${esc(b.listing)} · Mã ${esc(b.id)}</div>
       <button class="st" onclick="M.status('${b.id}')" style="background:${st.bg};color:${st.fg}"><span class="dot" style="width:10px;height:10px;background:${st.c}"></span><span style="flex:1;min-width:0"><b>${st.t}</b><small>${esc(st.s)}</small></span></button>
-      ${st.k === 'wait' ? `<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;margin-top:6px"><button onclick="M.mark('${b.id}','replied',true)" style="min-height:40px;border-radius:10px;border:1px solid #BFDBFE;background:#EFF6FF;color:#1D4ED8;font-size:12px;font-weight:800">Khách đã trả lời</button><button onclick="M.eta('${b.id}')" style="min-height:40px;border-radius:10px;border:1px solid #BFDBFE;background:#EFF6FF;color:#1D4ED8;font-size:12px;font-weight:800">Ghi giờ đến…</button></div>` : ''}
+      <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;margin-top:6px">
+        <button onclick="M.remind('${b.id}','late')" style="min-height:44px;border-radius:10px;border:1px solid #BFDBFE;background:#EFF6FF;color:#1D4ED8;font-size:12px;font-weight:800">⏰ ${b.eta ? 'Đến ' + b.eta + (late(b) ? ' · muộn' : '') : 'Báo đến trễ / giờ đến'}</button>
+        <button onclick="M.remind('${b.id}','note')" style="min-height:44px;border-radius:10px;border:1px solid ${remsOf(b.id).length ? '#FCD34D' : '#E2E5EB'};background:${remsOf(b.id).length ? '#FEF3C7' : '#fff'};color:${remsOf(b.id).length ? '#92400E' : '#0E1525'};font-size:12px;font-weight:800">🔔 ${remsOf(b.id).length ? 'Nhắc ' + remLabel(remsOf(b.id)[0].at) : 'Nhắc việc'}</button></div>
+      ${remsOf(b.id).map((r) => `<div style="font-size:12px;font-weight:700;margin-top:4px;color:${overdue(r) ? '#DC2626' : '#92400E'}">🔔 ${remLabel(r.at)} · ${esc(r.note)}</div>`).join('')}
       <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px">
         <button class="tag" onclick="M.pickApt('${b.id}')" style="${a ? `background:${a.color};color:#fff` : 'border:1.5px dashed #F59E0B;background:#FFFBEB;color:#92400E'};font-weight:800">${a ? esc(a.short) + (b.room_no ? ' · P' + b.room_no : '') + ' · đổi căn' : 'Chưa xếp căn · chọn'}</button>
         ${b.phone ? `<span class="tag num" style="background:#EFF6FF;color:#1D4ED8;padding-right:4px;gap:6px">${esc(b.phone)}<button onclick="M.phone('${b.id}')" style="min-height:28px;border-radius:7px;border:none;background:#fff;color:#1D4ED8;font-size:11px;font-weight:800;padding:0 8px">Sửa số</button></span>`
@@ -660,9 +720,34 @@ a.big{display:flex;align-items:center;justify-content:center;text-decoration:non
       const TIMES = ['12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00', '21:00', '22:00', '23:00', '00:00', '01:00'];
       const rems = [[-1, 'Không nhắc'], [0, 'Đúng giờ'], [30, 'Trước 30 phút'], [60, 'Trước 1 tiếng']];
       const ics = S.etaRem >= 0 && /^\d{2}:\d{2}$/.test(t) ? 'data:text/calendar;charset=utf-8,' + encodeURIComponent(icsFor(b, t, S.etaRem)) : '';
-      el.innerHTML = `<div class="ov" onclick="if(event.target===this)M.close()"><div class="sh"><div class="handle"></div>
-        <div style="display:flex;align-items:center;gap:10px"><div style="flex:1;min-width:0"><div class="kick" style="color:#64748B">GIỜ ĐẾN · ${dm(b.ciO)}</div><div style="font-size:20px;font-weight:800">${esc(b.name)}</div></div><button class="x" onclick="M.close()" aria-label="Đóng">${svg('x', 18, 2.4)}</button></div>
-        <div style="font-size:12px;color:#475569;font-weight:600;margin-top:4px">Khách báo đến muộn? Chọn giờ khách hẹn — sau 0:00 tính là đêm ${dm(b.ciO)}.</div>
+      const a = aptById[b.apt], mine = REM().filter((r) => r.booking_id === b.id);
+      const head = `<div class="ov" onclick="if(event.target===this)M.close()"><div class="sh"><div class="handle"></div>
+        <div style="display:flex;align-items:center;gap:10px"><div style="flex:1;min-width:0"><div class="kick" style="color:#64748B">NHẮC · ${a ? esc(a.short) + (b.room_no ? ' P' + b.room_no : '') : 'CHƯA XẾP CĂN'} · ${dm(b.ciO)} → ${dm(b.coO)}</div><div style="font-size:20px;font-weight:800">${esc(b.name)}</div>
+          <div class="num" style="font-size:12px;color:#1D4ED8;font-weight:700">${b.phone ? esc(b.phone) : b.partner ? 'Đối tác — nhắn qua Booking' : 'chưa có số'}</div></div><button class="x" onclick="M.close()" aria-label="Đóng">${svg('x', 18, 2.4)}</button></div>
+        <div class="seg" style="margin-top:12px"><button class="${S.remMode === 'late' ? 'on' : ''}" onclick="S_set('remMode','late')">⏰ Khách báo đến trễ</button><button class="${S.remMode === 'note' ? 'on' : ''}" onclick="S_set('remMode','note')">🔔 Nhắc việc${mine.filter((r) => !r.done).length ? ' · ' + mine.filter((r) => !r.done).length : ''}</button></div>`;
+      if (S.remMode === 'note') {
+        const NOTES = ['Phản hồi khách', 'Gọi lại khách', 'Nhắc khách thanh toán', 'Gửi mã cửa / hướng dẫn', 'Đón khách', 'Hỏi giờ đến'];
+        const PRE = [[15, '15 phút nữa'], [30, '30 phút nữa'], [60, '1 tiếng nữa'], [120, '2 tiếng nữa'], [-1, 'Tối nay 19:00'], [-2, 'Tối nay 21:00'], [-3, 'Sáng mai 8:00'], [-4, 'Trưa mai 12:00']];
+        const note = (S.remNote || '').trim() || 'Phản hồi khách';
+        const href = S.remAt ? icsHref('moi-rem-' + b.id + '-' + S.remAt.replace(/\D/g, ''), parseLocal(S.remAt), '🔔 ' + note + ' — ' + b.name, guestInfo(b), 0) : '';
+        el.innerHTML = head + `
+          ${mine.length ? `<div class="lbl">Đã đặt</div><div style="display:flex;flex-direction:column;gap:6px">${mine.map((r) => `<div class="remrow" style="${r.done ? 'opacity:.5' : ''}">
+            <b class="num" style="color:${overdue(r) ? '#DC2626' : '#92400E'}">${remLabel(r.at)}</b><div class="t">${esc(r.note)}<small>${r.done ? 'đã xong' : overdue(r) ? 'đã tới giờ' : 'sắp tới'}</small></div>
+            ${r.done ? '' : `<button class="okb" onclick="M.remDone(${r.id})">Xong</button>`}<button class="x" style="width:38px;height:38px" onclick="M.remDone(${r.id},true)" aria-label="Xoá">${svg('x', 14, 2.4)}</button></div>`).join('')}</div>` : ''}
+          <div class="lbl">Nhắc việc gì</div>
+          <div style="display:flex;flex-wrap:wrap;gap:6px">${NOTES.map((x) => `<button class="pill ${S.remNote === x ? 'on' : ''}" onclick="S_set('remNote','${x}')">${x}</button>`).join('')}</div>
+          <textarea class="note" style="margin-top:8px" placeholder="Ghi chú thêm (vd: khách hỏi chỗ gửi xe máy)" oninput="S_put('remNote',this.value)">${esc(S.remNote || '')}</textarea>
+          <div class="lbl">Nhắc lúc</div>
+          <div class="tgrid">${PRE.map(([k, l]) => `<button class="tchip" style="font-size:12px" onclick="M.remPreset(${k})">${l}</button>`).join('')}</div>
+          <label class="fld"><span>Giờ khác</span><input type="datetime-local" value="${esc(S.remAt)}" onchange="S_put('remAt',this.value);renderSheetPub()"></label>
+          ${S.remAt ? `<div style="margin-top:10px;font-size:14px;font-weight:800">Nhắc ${remLabel(S.remAt)} · ${esc(note)}</div>
+            <a class="big" href="${href}" onclick="M.remSave(true)" style="margin-top:10px;background:#0E1525;color:#fff">Lưu + đặt báo thức (Lịch iPhone)</a>
+            <button class="big" onclick="M.remSave(false)" style="margin-top:8px;background:#fff;color:#0E1525;border:1px solid #E2E5EB">Chỉ lưu (nhắc khi mở web)</button>` : '<div style="margin-top:10px;font-size:12px;color:#64748B;font-weight:600">Chọn giờ nhắc ở trên.</div>'}
+          <div style="font-size:11px;color:#64748B;font-weight:600;margin-top:10px;line-height:1.45">Báo thức trong Lịch iPhone có đủ tên, số điện thoại, căn/phòng, ngày ở và mã đặt phòng của khách.</div></div></div>`;
+        return;
+      }
+      el.innerHTML = head + `
+        <div style="font-size:12px;color:#475569;font-weight:600;margin-top:10px">Khách báo đến muộn? Chọn giờ khách hẹn — sau 0:00 tính là đêm ${dm(b.ciO)}.</div>
         <div class="lbl">Khách hẹn đến lúc</div>
         <div class="tgrid">${TIMES.map((x) => `<button class="tchip num ${t === x ? 'on' : ''}" onclick="S_set('etaVal','${x}')">${x}</button>`).join('')}
           <label style="grid-column:span 2;display:flex;align-items:center;gap:6px;border:1.5px dashed #94A3B8;border-radius:12px;padding:0 8px;min-height:48px"><span style="font-size:12px;font-weight:700;color:#475569">Giờ khác</span>
@@ -736,6 +821,12 @@ a.big{display:flex;align-items:center;justify-content:center;text-decoration:non
         <button onclick="M.cancel('${b.id}')" style="min-height:44px;border-radius:12px;border:1px solid #FECACA;background:#fff;color:#B91C1C;font-size:12px;font-weight:700">Báo hủy</button></div></div></div>`;
   }
   window.S_set = (k, v) => { S[k] = v; renderSheet(); };
+  window.renderSheetPub = () => renderSheet();
+  window.S_put = (k, v) => { S[k] = v; };
+  // reminders that come due while the page is open: a toast (the iPhone Calendar alarm rings even when it is closed)
+  const alerted = new Set();
+  setInterval(() => { REM().forEach((r) => { if (r.id && overdue(r) && !alerted.has(r.id)) { alerted.add(r.id); const b = byId[r.booking_id];
+    toast('🔔 ' + r.note + (b ? ' — ' + b.name : '')); if (S.tab === 'day') render(); } }); }, 30000);
 
   window.addEventListener('resize', () => { const w = wide(); if (w !== document.body.classList.contains('wide')) render(); });
   load();
