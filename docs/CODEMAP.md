@@ -373,7 +373,7 @@ _p14_electricity — electricity calculator + meters/readings/bills_
 - app_parts/p14_electricity.py:449 `delete_electricity_image` ← `/api/electricity/images/<int:image_id>` DELETE — Delete electricity image
 - app_parts/p14_electricity.py:463 `get_electricity_analytics` ← `/api/electricity/analytics` GET — Get electricity analytics data for charts and comparisons
 
-## app_parts/p15_moi.py (342 lines)
+## app_parts/p15_moi.py (343 lines)
 _p15_moi — /moi: the new phone-first app (owner, Oct 26), built from the approved mockup. Runs NEXT TO the old pages_
 - app_parts/p15_moi.py:12 `_moi_ensure` — bookings.room_no (room 1..N inside the placed apartment) — added once per process.
 - app_parts/p15_moi.py:32 `_moi_apartments` — Active apartments with short name, colour (index among ALL apartments, like the calendar) and room count.
@@ -847,13 +847,13 @@ _p15_moi — /moi: the new phone-first app (owner, Oct 26), built from the appro
 - templates/mobile_payment.html: 484 `cardCls` · 490 `dateBadge` · 498 `renderDates` · 557 `toISO` · 564 `openSheet` · 583 `closeSheet` · 588 `pick` · 594 `tickTs`
 - templates/mobile_payment.html: 601 `doConfirm` · 642 `showToast` · 649 `loadHistory` · 696 `switchTab` · 705 `changeOffset` · 707 `loadAnalytics` · 812 `openDetail` · 873 `closeDetail`
 
-## templates/moi.html (849 lines)
+## templates/moi.html (842 lines)
 - templates/moi.html: 196 `load` · 271 `M.reload` · 272 `M.tab` · 273 `M.set` · 274 `M.day` · 275 `M.open` · 276 `M.close` · 277 `M.add`
 - templates/moi.html: 278 `M.addSave` · 291 `M.place` · 296 `M.room` · 303 `M.confirm` · 309 `M.cancel` · 315 `M.mark` · 319 `M.status` · 321 `M.unreach`
 - templates/moi.html: 322 `M.calDone` · 323 `M.remind` · 325 `M.eta` · 326 `M.remPreset` · 329 `M.remSave` · 338 `M.remDone` · 341 `M.etaSave` · 364 `M.phone`
 - templates/moi.html: 371 `M.send` · 372 `M.pickApt` · 373 `M.quick` · 374 `M.payOpen` · 375 `M.collect` · 383 `M.partial` · 385 `M.undoPay` · 388 `M.payCycle`
-- templates/moi.html: 393 `M.pickG` · 394 `M.auto` · 409 `render` · 418 `renderNav` · 427 `renderFloat` · 443 `viewDay` · 530 `viewCal` · 604 `M.cal`
-- templates/moi.html: 608 `msgCard` · 639 `viewMsg` · 675 `M.aptSheetOpen` · 688 `viewPay` · 730 `renderSheet` · 836 `S_set` · 837 `renderSheetPub` · 838 `S_put`
+- templates/moi.html: 393 `M.pickG` · 394 `M.auto` · 409 `render` · 418 `renderNav` · 427 `renderFloat` · 443 `viewDay` · 524 `viewCal` · 598 `M.cal`
+- templates/moi.html: 602 `msgCard` · 632 `viewMsg` · 668 `M.aptSheetOpen` · 681 `viewPay` · 723 `renderSheet` · 829 `S_set` · 830 `renderSheetPub` · 831 `S_put`
 
 ## templates/quick.html (279 lines)
 - templates/quick.html: 142 `toast` · 147 `go` · 155 `copyNow` · 163 `sendText` · 168 `copyText` · 169 `sendImgs` · 180 `setIn` · 202 `takeOut`

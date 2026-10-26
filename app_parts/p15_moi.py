@@ -329,6 +329,7 @@ def moi_feed(token):
     except Exception:
         _xdb.session.rollback()
         etas, times = [], {}
+    etas = []          # owner, Oct 26: reminders only — no arrival-time events
     for r in etas:
         g, t = row(r), times.get(r[0])
         if not t or not g['ci']:

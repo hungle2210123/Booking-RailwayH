@@ -81,3 +81,7 @@ grey (dimmed) không liên lạc được.
   guests not confirmed yet (alarm 30 min before), stable UIDs, REFRESH-INTERVAL 15 min, guest details in each event.
   Shown as a card on Chi tiết ngày until done (localStorage `moi.calOk`) and at the bottom of the Nhắc sheet; steps:
   Đăng ký → keep "Cảnh báo sự kiện" ON (older iOS: turn OFF "Xoá cảnh báo") → ✓. Wrong token = 404. Test `test_moi_calendar_subscription`.
+- Oct 26 (owner): **ONE "🔔 Nhắc việc" button only, no arrival-time notes** — the "Khách báo đến trễ / Giờ đến" part, the
+  "Giờ khách hẹn đến" card and the "Giờ đến … sửa" line are gone from /moi; the bell on every row and the guest-sheet
+  button open Nhắc việc directly; the calendar feed lists reminders only (ETA events removed; `/api/moi/ics` and
+  `arrival_times` stay for the old pages).
