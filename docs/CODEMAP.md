@@ -841,12 +841,13 @@ _p15_moi — /moi: the new phone-first app (owner, Oct 26), built from the appro
 - templates/mobile_payment.html: 484 `cardCls` · 490 `dateBadge` · 498 `renderDates` · 557 `toISO` · 564 `openSheet` · 583 `closeSheet` · 588 `pick` · 594 `tickTs`
 - templates/mobile_payment.html: 601 `doConfirm` · 642 `showToast` · 649 `loadHistory` · 696 `switchTab` · 705 `changeOffset` · 707 `loadAnalytics` · 812 `openDetail` · 873 `closeDetail`
 
-## templates/moi.html (651 lines)
-- templates/moi.html: 172 `load` · 210 `M.tab` · 211 `M.set` · 212 `M.day` · 213 `M.open` · 214 `M.close` · 215 `M.place` · 220 `M.room`
-- templates/moi.html: 227 `M.confirm` · 233 `M.cancel` · 239 `M.mark` · 243 `M.status` · 245 `M.unreach` · 246 `M.eta` · 253 `M.phone` · 260 `M.send`
-- templates/moi.html: 261 `M.pickApt` · 262 `M.quick` · 263 `M.payOpen` · 264 `M.collect` · 272 `M.partial` · 274 `M.undoPay` · 277 `M.payCycle` · 282 `M.pickG`
-- templates/moi.html: 283 `M.auto` · 298 `render` · 305 `renderNav` · 313 `renderFloat` · 329 `viewDay` · 403 `viewCal` · 477 `M.cal` · 481 `msgCard`
-- templates/moi.html: 509 `viewMsg` · 545 `M.aptSheetOpen` · 558 `viewPay` · 600 `renderSheet` · 644 `S_set`
+## templates/moi.html (745 lines)
+- templates/moi.html: 187 `load` · 226 `M.reload` · 227 `M.tab` · 228 `M.set` · 229 `M.day` · 230 `M.open` · 231 `M.close` · 232 `M.add`
+- templates/moi.html: 233 `M.addSave` · 246 `M.place` · 251 `M.room` · 258 `M.confirm` · 264 `M.cancel` · 270 `M.mark` · 274 `M.status` · 276 `M.unreach`
+- templates/moi.html: 277 `M.eta` · 278 `M.etaSave` · 301 `M.phone` · 308 `M.send` · 309 `M.pickApt` · 310 `M.quick` · 311 `M.payOpen` · 312 `M.collect`
+- templates/moi.html: 320 `M.partial` · 322 `M.undoPay` · 325 `M.payCycle` · 330 `M.pickG` · 331 `M.auto` · 346 `render` · 355 `renderNav` · 363 `renderFloat`
+- templates/moi.html: 379 `viewDay` · 459 `viewCal` · 533 `M.cal` · 537 `msgCard` · 565 `viewMsg` · 601 `M.aptSheetOpen` · 614 `viewPay` · 656 `renderSheet`
+- templates/moi.html: 738 `S_set`
 
 ## templates/quick.html (279 lines)
 - templates/quick.html: 142 `toast` · 147 `go` · 155 `copyNow` · 163 `sendText` · 168 `copyText` · 169 `sendImgs` · 180 `setIn` · 202 `takeOut`

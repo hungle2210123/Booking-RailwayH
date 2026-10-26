@@ -122,6 +122,17 @@ body.wide #app{max-width:1180px}
 .reload{position:fixed;bottom:calc(90px + env(safe-area-inset-bottom));left:12px;z-index:55;height:40px;border-radius:20px;border:1px solid #E2E5EB;background:rgba(255,255,255,.95);color:#0E1525;font-size:12px;font-weight:800;padding:0 12px;display:flex;align-items:center;gap:6px;box-shadow:0 4px 12px rgba(14,21,37,.12)}
 .reload.busy svg{animation:spin .8s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}
 body.picking .reload{display:none}
+.fgrid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}
+.fbox{border:1.5px solid #E2E5EB;background:#fff;border-radius:12px;min-height:56px;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:4px 2px;color:#0E1525}
+.fbox b{font-size:18px;font-weight:800;line-height:1.1}.fbox small{font-size:10.5px;font-weight:700;line-height:1.2;text-align:center}
+.fbox.on{background:var(--c);border-color:var(--c);color:#fff}
+.tgrid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}
+.tchip{min-height:48px;border-radius:12px;border:1.5px solid #E2E5EB;background:#fff;font-size:15px;font-weight:800}
+.tchip.on{background:#0E1525;border-color:#0E1525;color:#fff}
+.fld{display:block;margin-top:10px}.fld span{display:block;font-size:12px;font-weight:700;color:#475569;margin-bottom:4px}
+.fld input,.fld select{width:100%;min-height:46px;border-radius:12px;border:1.5px solid #E2E5EB;padding:0 12px;font-size:16px;font-family:inherit;background:#fff;color:#0E1525}
+.fld2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+a.big{display:flex;align-items:center;justify-content:center;text-decoration:none}
 .toast{position:fixed;left:16px;right:16px;bottom:calc(96px + env(safe-area-inset-bottom));z-index:99999;max-width:520px;margin:0 auto;background:#0E1525;color:#fff;border-radius:14px;padding:12px 16px;font-size:13px;font-weight:700;box-shadow:0 10px 30px rgba(14,21,37,.3)}
 /* sheets */
 .ov{position:fixed;inset:0;z-index:9000;background:rgba(14,21,37,.48);display:flex;align-items:flex-end;justify-content:center}
@@ -198,10 +209,11 @@ body.picking .reload{display:none}
     const last = b.last ? b.last.label + ' · ' + b.last.at : '';
     if (b.unreach) return { k: 'unreach', c: '#475569', t: 'Không liên lạc được', s: 'Để quản lý sau', line: 'Không liên lạc được', bg: '#E2E8F0', fg: '#334155' };
     if (b.confirmed && b.ciO <= 0) return { k: 'ok', c: '#16A34A', t: b.ciO < 0 ? 'Đang ở' : 'Đã xác nhận đến', s: b.eta ? 'Đến lúc ' + b.eta : 'Khách đã nhận phòng', line: b.ciO < 0 ? 'Đang ở' : 'Đã đến', bg: '#DCFCE7', fg: '#14532D' };
-    if (b.eta || b.replied) return { k: 'reply', c: '#2563EB', t: b.eta ? 'Đã hẹn đến lúc ' + b.eta : 'Khách đã trả lời', s: last || 'Đã liên lạc', line: b.eta ? 'Hẹn ' + b.eta : 'Đã trả lời', bg: '#DBEAFE', fg: '#1E3A8A' };
+    if (b.eta || b.replied) return { k: 'reply', c: '#2563EB', t: b.eta ? 'Đã hẹn đến lúc ' + b.eta + (late(b) ? ' — đến muộn' : '') : 'Khách đã trả lời', s: last || 'Đã liên lạc', line: b.eta ? 'Hẹn ' + b.eta + (late(b) ? ' · muộn' : '') : 'Đã trả lời', bg: '#DBEAFE', fg: '#1E3A8A' };
     if (b.last || b.manual) return { k: 'wait', c: '#F59E0B', t: 'Đã nhắn — chờ khách trả lời', s: (last || 'Nhắn ngoài app') + ' · chạm khi khách trả lời', line: 'Chờ trả lời', bg: '#FEF3C7', fg: '#78350F' };
     return { k: 'todo', c: '#DC2626', t: 'Chưa nhắn', s: 'Chạm nếu đã nhắn ngoài app (Booking, gọi…)', line: 'Chưa nhắn', bg: '#FEE2E2', fg: '#7F1D1D' };
   };
+  const late = (b) => !!b.eta && (b.eta >= '18:00' || b.eta < '05:00');
   const tierOf = (b) => (b.total >= 3e6 || b.nights >= 5 ? 'VIP' : b.total >= 2e6 || b.nights >= 4 ? 'Ưu tiên' : '');
 
   // ── API calls (all existing endpoints, so every old page shows the same) ──
@@ -216,7 +228,21 @@ body.picking .reload{display:none}
   M.set = (k, v) => { S[k] = v; if (k === 'calView') LS.set(k, v); render(); };
   M.day = (d) => { S.day = Math.max(0, Math.min(20, d)); render(); };
   M.open = (id) => { S.sel = id; S.move = false; S.pick = null; renderSheet(); };
-  M.close = () => { S.sel = null; S.collect = null; S.aptSheet = false; renderSheet(); renderFloat(); };
+  M.close = () => { S.sel = null; S.collect = null; S.aptSheet = false; S.etaFor = null; S.adding = false; renderSheet(); renderFloat(); };
+  M.add = () => { S.sel = null; S.adding = true; renderSheet(); setTimeout(() => { const i = $('#fName'); if (i) i.focus(); }, 50); };
+  M.addSave = async (btn) => {
+    const v = (id) => ($('#' + id).value || '').trim();
+    const body = { guest_name: v('fName'), checkin_date: v('fCi'), checkout_date: v('fCo'), listing: v('fListing'),
+                   room_amount: v('fAmt').replace(/\D/g, ''), phone: v('fPhone'), booking_id: v('fBid') };
+    if (!body.guest_name || !body.checkin_date || !body.checkout_date) return toast('Cần tên khách, ngày đến và ngày đi');
+    if (body.checkout_date <= body.checkin_date) return toast('Ngày đi phải sau ngày đến');
+    btn.disabled = true; btn.textContent = 'Đang lưu…';
+    const r = await post('/api/booking_from_photo/save', body);
+    if (!r.ok) { btn.disabled = false; btn.textContent = 'Lưu khách'; return toast('Lỗi: ' + (r.j.error || r.j.message || 'không lưu được')); }
+    const apt = v('fApt');
+    if (apt && r.j.booking_id) await post('/api/set_actual_apartment', { booking_id: r.j.booking_id, actual_apartment: apt });
+    S.adding = false; renderSheet(); toast((r.j.action === 'created' ? 'Đã thêm ' : 'Đã cập nhật ') + body.guest_name); await load(true);
+  };
   M.place = async (id, aid) => {
     const b = byId[id]; const r = await post('/api/set_actual_apartment', { booking_id: id, actual_apartment: String(aid) });
     if (!r.ok) return toast('Lỗi: ' + (r.j.message || r.j.error || 'không lưu được'));
@@ -248,12 +274,29 @@ body.picking .reload{display:none}
   M.status = (id) => { const b = byId[id], st = stOf(b);
     if (st.k === 'todo') M.mark(id, 'contacted', true); else if (st.k === 'wait') M.mark(id, 'replied', true); else M.open(id); };
   M.unreach = (id) => { const b = byId[id]; M.mark(id, 'unreachable', !b.unreach); if (!b.unreach) toast(b.name + ' → Không liên lạc được'); };
-  M.eta = async (id) => {
-    const b = byId[id]; const v = prompt('Giờ ' + b.name + ' đến (vd 14:30):', b.eta || '');
-    if (v == null) return; const t = v.trim().replace(/[hg.]/i, ':');
-    if (!/^\d{1,2}:\d{2}$/.test(t)) return toast('Giờ chưa đúng, ví dụ 14:30');
-    const r = await post('/api/arrival_times', { booking_id: id, estimated_arrival: t.padStart(5, '0') });
-    if (!r.ok) return toast('Lỗi: không lưu được giờ đến'); toast('Đã ghi giờ đến ' + t); await load(true); renderSheet();
+  M.eta = (id) => { const b = byId[id]; S.sel = null; S.etaFor = id; S.etaVal = b.eta || '20:00'; S.etaRem = LS.get('etaRem', 30); renderSheet(); };
+  M.etaSave = (alarm) => {
+    const b = byId[S.etaFor], t = S.etaVal;
+    if (!b || !/^\d{2}:\d{2}$/.test(t)) return toast('Chọn giờ đến trước');
+    LS.set('etaRem', S.etaRem);
+    fetch('/api/arrival_times', { method: 'POST', headers: { 'Content-Type': 'application/json' }, keepalive: true,
+      body: JSON.stringify({ booking_id: b.id, estimated_arrival: t }) }).then(() => load(true)).catch(() => toast('Lỗi: không lưu được giờ đến'));
+    b.eta = t; S.etaFor = null; renderSheet(); render();
+    toast('Đã ghi giờ đến ' + t + ' cho ' + b.name + (alarm ? ' — bấm "Thêm" trong Lịch để bật báo thức' : ''));
+  };
+  // iPhone reminder: an .ics event with an alarm, opened by the tap itself (Safari shows "Thêm vào Lịch")
+  const icsFor = (b, t, rem) => {
+    const [hh, mm] = t.split(':').map(Number);
+    const base = new Date(Date.parse(b.ci + 'T00:00:00Z') + ((hh < 5 ? 24 : 0) + hh) * 36e5 + mm * 6e4);
+    const f = (d) => d.toISOString().slice(0, 16).replace(/[-:]/g, '') + '00';
+    const a = aptById[b.apt], end = new Date(base.getTime() + 30 * 6e4);
+    const txt = (v) => String(v || '').replace(/[\\,;]/g, (c) => '\\' + c).replace(/\n/g, ' ');
+    return ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Hotel Pro//moi//VI', 'BEGIN:VEVENT', 'UID:moi-' + b.id + '-' + t.replace(':', '') + '@hotelpro',
+      'DTSTAMP:' + new Date().toISOString().replace(/[-:]/g, '').slice(0, 15) + 'Z', 'DTSTART:' + f(base), 'DTEND:' + f(end),
+      'SUMMARY:' + txt('Khách đến: ' + b.name + (a ? ' · ' + a.short + (b.room_no ? ' P' + b.room_no : '') : '')),
+      'DESCRIPTION:' + txt((b.phone ? b.phone + ' · ' : '') + b.listing + ' · ' + b.nights + ' đêm · mã ' + b.id),
+      'BEGIN:VALARM', 'ACTION:DISPLAY', 'DESCRIPTION:' + txt('Khách ' + b.name + ' sắp đến'), 'TRIGGER:' + (rem ? '-PT' + rem + 'M' : 'PT0M'), 'END:VALARM',
+      'END:VEVENT', 'END:VCALENDAR'].join('\r\n');
   };
   M.phone = async (id) => {
     const b = byId[id]; const v = prompt((b.phone ? 'Sửa' : 'Thêm') + ' số của ' + b.name + ':', b.phone || '');
@@ -314,7 +357,7 @@ body.picking .reload{display:none}
     const unpaid = payItems().filter((b) => payStatus(b) !== 'paid').length;
     const nb = (t, label, ic, badge) => `<button class="navb ${S.tab === t ? 'on' : ''}" onclick="M.tab('${t}')">${svg(ic, 24)}${label}${badge ? `<span class="badge">${badge}</span>` : ''}</button>`;
     $('#nav').innerHTML = `<div>${nb('day', 'Chi tiết ngày', 'day')}${nb('cal', 'Lịch', 'cal')}
-      <div style="flex:1;display:flex;justify-content:center"><a class="plus" href="/add_booking" aria-label="Thêm đặt phòng"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"></path></svg></a></div>
+      <div style="flex:1;display:flex;justify-content:center"><button class="plus" onclick="M.add()" aria-label="Thêm đặt phòng"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"></path></svg></button></div>
       ${nb('msg', 'Nhắn khách', 'msg', todoMsg)}${nb('pay', 'Thu tiền', 'pay', unpaid)}</div>`;
   }
   function renderFloat() {
@@ -373,6 +416,12 @@ body.picking .reload{display:none}
          <div class="chips4">${APT.map((a) => { const f = a.rooms - B.filter((o) => o.apt === a.id && inHouse(o, d)).length;
            return `<button class="chip ${f > 0 ? '' : 'off'}" style="background:${a.color}" onclick="M.place('${b.id}',${a.id})">${esc(a.short)}<small>${f > 0 ? 'còn ' + f : 'hết'}</small></button>`; }).join('')}</div></div>`).join('') + '</div>';
     }
+    const etaL = ins.filter((b) => b.eta && !b.confirmed).sort((p, q) => (p.eta < '05:00' ? '24' + p.eta : p.eta).localeCompare(q.eta < '05:00' ? '24' + q.eta : q.eta));
+    if (etaL.length) h += `<div class="card" style="padding:12px 14px"><div style="font-size:13px;font-weight:800;margin-bottom:6px">Giờ khách hẹn đến</div>
+      <div style="display:flex;flex-direction:column;gap:6px">${etaL.map((b) => { const a = aptById[b.apt];
+        return `<button onclick="M.eta('${b.id}')" style="display:flex;align-items:center;gap:10px;border:none;border-radius:12px;padding:8px 10px;text-align:left;background:${late(b) ? '#F5F3FF' : '#EFF6FF'}">
+          <b class="num" style="font-size:17px;color:${late(b) ? '#6D28D9' : '#1D4ED8'};min-width:52px">${b.eta}</b><span style="flex:1;min-width:0;font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(b.name)}</span>
+          <span style="font-size:11px;font-weight:800;color:#475569">${a ? esc(a.short) : 'chưa xếp'}${late(b) ? ' · muộn' : ''}</span></button>`; }).join('')}</div></div>`;
     const stays = B.filter((b) => b.ciO < d && d < b.coO);
     h += `<div class="seg"><button class="${S.seg === 'pair' ? 'on' : ''}" onclick="M.set('seg','pair')">Trả ↔ Đến</button><button class="${S.seg === 'stay' ? 'on' : ''}" onclick="M.set('seg','stay')">Đang ở · ${stays.length}</button></div>`;
     if (S.seg === 'stay') {
@@ -540,9 +589,9 @@ body.picking .reload{display:none}
     return `<div style="padding:calc(18px + env(safe-area-inset-top)) 16px 8px"><div class="kick" style="color:#64748B">HÔM NAY · ${todoToday} KHÁCH ĐẾN CHƯA ĐƯỢC NHẮN</div><div class="h1">Nhắn khách</div></div>
       <div class="wrap" style="display:flex;flex-direction:column;gap:10px">
         <div class="seg"><button class="${S.mtab === 'arr' ? 'on' : ''}" onclick="M.set('mtab','arr')">Sắp đến · ${arr.length}</button><button class="${S.mtab === 'stay' ? 'on' : ''}" onclick="M.set('mtab','stay')">Đang ở · ${stay.length}</button></div>
-        ${S.mtab === 'arr' ? `<div class="row">${[[1, 'Hôm nay'], [3, '3 ngày'], [7, '7 ngày']].map(([k, l]) => `<button class="pill ${S.mrange === k ? 'on' : ''}" onclick="M.set('mrange',${k})">${l}</button>`).join('')}</div>` : ''}
-        <div class="row"><button class="pill ${S.mf === 'all' ? 'on' : ''}" onclick="M.set('mf','all')">Tất cả ${n.all}</button><button class="pill red ${S.mf === 'todo' ? 'on' : ''}" onclick="M.set('mf','todo')">Chưa nhắn ${n.todo}</button>
-          <button class="pill green ${S.mf === 'done' ? 'on' : ''}" onclick="M.set('mf','done')">Đã nhắn ${n.done}</button><button class="pill ${S.mf === 'unreach' ? 'on' : ''}" onclick="M.set('mf','unreach')">Không liên lạc được ${n.unreach}</button></div>
+        ${S.mtab === 'arr' ? `<div class="seg">${[[1, 'Hôm nay'], [3, '3 ngày'], [7, '7 ngày']].map(([k, l]) => `<button class="${S.mrange === k ? 'on' : ''}" onclick="M.set('mrange',${k})">${l}</button>`).join('')}</div>` : ''}
+        <div class="fgrid">${[['all', 'Tất cả', n.all, '#0E1525'], ['todo', 'Chưa nhắn', n.todo, '#DC2626'], ['done', 'Đã nhắn', n.done, '#15803D'], ['unreach', 'Không liên lạc', n.unreach, '#475569']]
+          .map(([k, l, c, col]) => `<button class="fbox ${S.mf === k ? 'on' : ''}" style="--c:${col}" onclick="M.set('mf','${k}')"><b class="num">${c}</b><small>${l}</small></button>`).join('')}</div>
         <button onclick="M.quick()" style="min-height:50px;border-radius:14px;border:none;background:#F59E0B;color:#0E1525;font-size:14px;font-weight:800;display:flex;align-items:center;justify-content:center;gap:8px">${bolt(18)}Tin nhanh — mẫu câu chung</button>
         <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px"><a href="/messages#photo" style="display:flex;align-items:center;justify-content:center;text-align:center;min-height:46px;border-radius:12px;border:1px dashed #94A3B8;background:#fff;font-size:12px;font-weight:700;color:#0E1525;text-decoration:none">Thêm đặt phòng từ ảnh</a>
           <a href="/messages#chatphone" style="display:flex;align-items:center;justify-content:center;text-align:center;min-height:46px;border-radius:12px;border:1px dashed #94A3B8;background:#fff;font-size:12px;font-weight:700;color:#0E1525;text-decoration:none">Cập nhật số từ ảnh chat</a></div>
@@ -606,6 +655,41 @@ body.picking .reload{display:none}
   // ═════ SHEETS ═════
   function renderSheet() {
     const el = $('#sheet');
+    if (S.etaFor && byId[S.etaFor]) {
+      const b = byId[S.etaFor], t = S.etaVal || '';
+      const TIMES = ['12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00', '21:00', '22:00', '23:00', '00:00', '01:00'];
+      const rems = [[-1, 'Không nhắc'], [0, 'Đúng giờ'], [30, 'Trước 30 phút'], [60, 'Trước 1 tiếng']];
+      const ics = S.etaRem >= 0 && /^\d{2}:\d{2}$/.test(t) ? 'data:text/calendar;charset=utf-8,' + encodeURIComponent(icsFor(b, t, S.etaRem)) : '';
+      el.innerHTML = `<div class="ov" onclick="if(event.target===this)M.close()"><div class="sh"><div class="handle"></div>
+        <div style="display:flex;align-items:center;gap:10px"><div style="flex:1;min-width:0"><div class="kick" style="color:#64748B">GIỜ ĐẾN · ${dm(b.ciO)}</div><div style="font-size:20px;font-weight:800">${esc(b.name)}</div></div><button class="x" onclick="M.close()" aria-label="Đóng">${svg('x', 18, 2.4)}</button></div>
+        <div style="font-size:12px;color:#475569;font-weight:600;margin-top:4px">Khách báo đến muộn? Chọn giờ khách hẹn — sau 0:00 tính là đêm ${dm(b.ciO)}.</div>
+        <div class="lbl">Khách hẹn đến lúc</div>
+        <div class="tgrid">${TIMES.map((x) => `<button class="tchip num ${t === x ? 'on' : ''}" onclick="S_set('etaVal','${x}')">${x}</button>`).join('')}
+          <label style="grid-column:span 2;display:flex;align-items:center;gap:6px;border:1.5px dashed #94A3B8;border-radius:12px;padding:0 8px;min-height:48px"><span style="font-size:12px;font-weight:700;color:#475569">Giờ khác</span>
+            <input type="time" value="${esc(t)}" onchange="S_set('etaVal',this.value)" style="flex:1;min-width:0;border:none;font-size:16px;font-weight:800;font-family:inherit;background:transparent"></label></div>
+        <div class="lbl">Báo thức nhắc tôi</div>
+        <div class="seg">${rems.map(([k, l]) => `<button class="${S.etaRem === k ? 'on' : ''}" onclick="S_set('etaRem',${k})" style="font-size:12px">${l}</button>`).join('')}</div>
+        ${ics ? `<a class="big" href="${ics}" onclick="M.etaSave(true)" style="margin-top:16px;background:#0E1525;color:#fff">Lưu ${esc(t)} + đặt báo thức (Lịch iPhone)</a>
+                 <button class="big" onclick="M.etaSave(false)" style="margin-top:8px;background:#fff;color:#0E1525;border:1px solid #E2E5EB">Chỉ lưu giờ đến</button>`
+              : `<button class="big" onclick="M.etaSave(false)" style="margin-top:16px;background:#0E1525;color:#fff">Lưu giờ đến ${esc(t)}</button>`}
+        <div style="font-size:11px;color:#64748B;font-weight:600;margin-top:10px;line-height:1.45">Báo thức nằm trong ứng dụng Lịch của iPhone (bấm "Thêm" khi iPhone hỏi) — kêu đúng giờ kể cả khi không mở web.</div></div></div>`;
+      return;
+    }
+    if (S.adding) {
+      const lst = [...new Set(B.map((b) => b.listing).filter(Boolean))].sort();
+      const iso = (o) => new Date(Date.parse(TODAY + 'T00:00:00Z') + o * 864e5).toISOString().slice(0, 10);
+      el.innerHTML = `<div class="ov" onclick="if(event.target===this)M.close()"><div class="sh"><div class="handle"></div>
+        <div style="display:flex;align-items:center;gap:10px"><div style="flex:1"><div class="kick" style="color:#64748B">THÊM ĐẶT PHÒNG</div><div style="font-size:20px;font-weight:800">Khách mới</div></div><button class="x" onclick="M.close()" aria-label="Đóng">${svg('x', 18, 2.4)}</button></div>
+        <a href="/messages#photo" style="display:flex;align-items:center;justify-content:center;margin-top:12px;min-height:48px;border-radius:12px;border:1.5px dashed #94A3B8;font-size:13px;font-weight:800;color:#0E1525;text-decoration:none">Thêm từ ảnh chụp app Booking (tự điền)</a>
+        <label class="fld"><span>Tên khách *</span><input id="fName" autocomplete="off"></label>
+        <div class="fld2"><label class="fld"><span>Ngày đến *</span><input id="fCi" type="date" value="${iso(0)}"></label><label class="fld"><span>Ngày đi *</span><input id="fCo" type="date" value="${iso(1)}"></label></div>
+        <label class="fld"><span>Loại phòng (như trên Booking)</span><input id="fListing" list="fLst" autocomplete="off"><datalist id="fLst">${lst.map((x) => `<option value="${esc(x)}"></option>`).join('')}</datalist></label>
+        <div class="fld2"><label class="fld"><span>Tổng tiền (đ)</span><input id="fAmt" inputmode="numeric" placeholder="vd 1500000"></label><label class="fld"><span>Số điện thoại</span><input id="fPhone" type="tel" placeholder="+84…"></label></div>
+        <div class="fld2"><label class="fld"><span>Xếp vào căn</span><select id="fApt"><option value="">Chưa xếp</option>${APT.map((a) => `<option value="${a.id}">${esc(a.name)}</option>`).join('')}</select></label>
+          <label class="fld"><span>Mã đặt phòng (nếu có)</span><input id="fBid" inputmode="numeric" placeholder="để trống = mã tạm"></label></div>
+        <button class="big" onclick="M.addSave(this)" style="margin-top:16px;background:#0E1525;color:#fff">Lưu khách</button></div></div>`;
+      return;
+    }
     if (S.collect && byId[S.collect]) {
       const b = byId[S.collect], left = Math.max(b.total - b.collected, 0);
       el.innerHTML = `<div class="ov" onclick="if(event.target===this)M.close()"><div class="sh"><div class="handle"></div>
@@ -633,7 +717,10 @@ body.picking .reload{display:none}
       <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:16px">
         <div class="info"><small>Ngày ở</small><b class="num">${dm(b.ciO)} → ${dm(b.coO)}</b></div><div class="info"><small>Giá / đêm</small><b class="num">${short(b.per_night)} · ${b.nights} đêm</b></div>
         <div class="info"><small>Tổng tiền</small><b class="num">${fmt(b.total)}</b></div><div class="info"><small>Thanh toán</small><b style="color:${b.paid ? '#15803D' : '#DC2626'}">${b.paid ? 'Đã thu · ' + esc(b.collector) : b.collected ? 'Đã thu ' + short(b.collected) : 'Chưa thu'}</b></div></div>
-      <div style="font-size:13px;color:#475569;margin-top:10px;font-weight:600">${esc(b.listing)} · ${b.phone ? `<a href="tel:${esc(b.phone)}">${esc(b.phone)}</a>` : b.partner ? 'Đối tác — nhắn qua Booking' : 'Chưa có số'} · Mã ${esc(b.id)}</div>
+      <div style="font-size:13px;color:#475569;margin-top:10px;font-weight:600">${esc(b.listing)} · Mã ${esc(b.id)}</div>
+      <div style="display:flex;align-items:center;gap:8px;margin-top:8px;background:#EFF6FF;border-radius:12px;padding:6px 6px 6px 12px">
+        <span class="num" style="flex:1;min-width:0;font-size:14px;font-weight:800;color:#1D4ED8">${b.phone ? `<a href="tel:${esc(b.phone)}" style="text-decoration:none">${esc(b.phone)}</a>` : b.partner ? 'Đối tác — chưa có số khách' : 'Chưa có số điện thoại'}</span>
+        <button onclick="M.phone('${b.id}')" style="min-height:38px;border-radius:10px;border:none;background:#fff;color:#1D4ED8;font-size:12px;font-weight:800;padding:0 12px">${b.phone ? 'Sửa số' : 'Thêm số'}</button></div>
       <div class="lbl">Tin đã nhắn</div><div style="display:grid;grid-template-columns:repeat(${S.data.steps.length},minmax(0,1fr));gap:4px">${sentBars}</div>
       ${b.ciO <= 0 && b.coO > 0 ? `<button class="big" onclick="M.confirm('${b.id}')" style="margin-top:16px;${b.confirmed ? 'background:#DCFCE7;color:#15803D' : 'background:#0E1525;color:#fff'}">${b.confirmed ? 'Đã xác nhận đến — chạm để bỏ' : 'Xác nhận khách đã đến'}</button>` : ''}
       <div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-top:10px">
@@ -644,7 +731,7 @@ body.picking .reload{display:none}
       ${S.move ? `<div class="lbl">Chọn căn</div><div class="chips4">${aptChips}</div>` : ''}
       ${a ? `<div class="lbl">Số phòng trong ${esc(a.short)}</div><div class="chips4">${roomChips}</div>` : ''}
       <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:14px">
-        <button onclick="M.eta('${b.id}')" style="min-height:44px;border-radius:12px;border:1px solid #E2E5EB;background:#fff;font-size:12px;font-weight:700">Giờ đến ${b.eta ? '· ' + b.eta : ''}</button>
+        <button onclick="M.eta('${b.id}')" style="min-height:44px;border-radius:12px;border:1px solid ${b.eta ? '#BFDBFE' : '#E2E5EB'};background:${b.eta ? '#EFF6FF' : '#fff'};color:${b.eta ? '#1D4ED8' : '#0E1525'};font-size:12px;font-weight:800">${b.eta ? 'Đến ' + b.eta : 'Giờ đến / trễ'}</button>
         <button onclick="M.unreach('${b.id}')" style="min-height:44px;border-radius:12px;border:1px solid #E2E5EB;background:#fff;font-size:12px;font-weight:700">${b.unreach ? 'Liên lạc lại được' : 'Không liên lạc được'}</button>
         <button onclick="M.cancel('${b.id}')" style="min-height:44px;border-radius:12px;border:1px solid #FECACA;background:#fff;color:#B91C1C;font-size:12px;font-weight:700">Báo hủy</button></div></div></div>`;
   }

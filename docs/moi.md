@@ -50,3 +50,15 @@ room_no when the apartment changes (a number belongs to its apartment).
 
 Contact-status colours: red chưa nhắn · amber đã nhắn, chờ trả lời · blue đã trả lời / hẹn giờ · green đã đến / đang ở ·
 grey (dimmed) không liên lạc được.
+
+## Oct 26 (later) — owner feedback
+- ➕ opens "Thêm đặt phòng" INSIDE /moi (no jump to the old /add_booking): name, dates, room type (datalist of known
+  listings), total, phone, apartment, booking number (empty = provisional id) → `/api/booking_from_photo/save`
+  (+ `/api/set_actual_apartment`); link "Thêm từ ảnh chụp app Booking" → /messages#photo.
+- Nhắn khách filters = one row of 4 equal boxes (count + label), range = small segment (the chip row was cut off).
+- Guest sheet: phone row with Sửa số / Thêm số (`/api/messages/phone`).
+- **Giờ đến / đến trễ** sheet (`M.eta`): quick times 12:00 … 01:00 + "Giờ khác", reminder Không nhắc / Đúng giờ / Trước 30
+  phút / Trước 1 tiếng (remembered). "Lưu + đặt báo thức (Lịch iPhone)" is an `<a href="data:text/calendar…">` (.ics
+  with VALARM, floating local time, 00:00–04:59 = the night after check-in day) — the tap saves `/api/arrival_times`
+  and Safari offers "Thêm vào Lịch", so the alarm rings even with the web closed. ETA ≥ 18:00 (or after midnight) =
+  "muộn". Chi tiết ngày shows a "Giờ khách hẹn đến" card (unconfirmed arrivals with a time, in time order).

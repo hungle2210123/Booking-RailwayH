@@ -40,3 +40,18 @@ def test_moi_replied_mark(client, booking):
     assert client.post('/api/journey/sent', json={'booking_id': bid, 'step': 'replied', 'sent': True}).get_json()['success']
     from core import journey as J
     assert 'replied' in J.NOT_A_MESSAGE
+
+
+@pytest.mark.db_write
+def test_moi_add_booking_and_eta(client, db, throwaway):
+    """➕ on /moi saves through /api/booking_from_photo/save (+ apartment), and the arrival time shows in /api/moi/data."""
+    bid = throwaway()
+    r = client.post('/api/booking_from_photo/save', json={'booking_id': bid, 'guest_name': 'ZZ Moi Add', 'checkin_date': '2030-03-01',
+                                                          'checkout_date': '2030-03-03', 'listing': 'Studio Test', 'room_amount': '1200000'}).get_json()
+    assert r['success'] and r['booking_id'] == bid
+    apt = client.get('/api/moi/data').get_json()['apartments'][0]['id']
+    assert client.post('/api/set_actual_apartment', json={'booking_id': bid, 'actual_apartment': str(apt)}).get_json()['success']
+    assert client.post('/api/arrival_times', json={'booking_id': bid, 'estimated_arrival': '20:30'}).get_json()['success']
+    row = db.session.execute(text("SELECT actual_apartment, room_amount FROM bookings WHERE booking_id = :b"), {'b': bid}).fetchone()
+    assert row[0] == str(apt) and float(row[1]) == 1200000
+    db.session.execute(text("DELETE FROM arrival_times WHERE booking_id = :b"), {'b': bid}); db.session.commit()
