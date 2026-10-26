@@ -255,7 +255,7 @@ a.big{display:flex;align-items:center;justify-content:center;text-decoration:non
     if (ok && compact) return `<div style="margin-top:12px;font-size:11px;color:#15803D;font-weight:700;line-height:1.45">📅 Đã kết nối Lịch iPhone — lời nhắc tự hiện trong Lịch và kêu đúng giờ (Lịch tự cập nhật khoảng 15 phút một lần). <a href="${S.feed}" onclick="M.calDone()" style="color:#15803D">Kết nối lại</a></div>`;
     return `<div style="margin-top:14px;border:1.5px solid ${ok ? '#BBF7D0' : '#FCD34D'};background:${ok ? '#F0FDF4' : '#FFFBEB'};border-radius:14px;padding:12px">
       <div style="font-size:13px;font-weight:800">${ok ? '📅 Đã kết nối Lịch iPhone' : '📅 Bật báo thức trên iPhone — làm 1 lần'}</div>
-      <div style="font-size:12px;color:#475569;font-weight:600;line-height:1.5;margin-top:4px">Bấm nút dưới → iPhone hỏi <b>"Đăng ký lịch"</b> → bấm <b>Đăng ký</b> → <b>TẮT "Xoá cảnh báo"</b> (để báo thức kêu) → <b>Xong</b>. Từ đó mọi lời nhắc và giờ khách hẹn đến tự hiện trong Lịch, kêu kể cả khi tắt web.</div>
+      <div style="font-size:12px;color:#475569;font-weight:600;line-height:1.5;margin-top:4px">Bấm nút dưới → iPhone hỏi <b>"Đăng ký lịch"</b> → bấm <b>Đăng ký</b> → để <b>"Cảnh báo sự kiện" BẬT</b> (iOS cũ: <b>TẮT "Xoá cảnh báo"</b>) → bấm <b>✓ / Xong</b>. Từ đó mọi lời nhắc và giờ khách hẹn đến tự hiện trong Lịch, kêu kể cả khi tắt web.</div>
       <a class="big" href="${S.feed}" onclick="M.calDone()" style="margin-top:10px;min-height:48px;background:${ok ? '#fff' : '#0E1525'};color:${ok ? '#15803D' : '#fff'};${ok ? 'border:1px solid #BBF7D0;' : ''}font-size:14px">${ok ? 'Kết nối lại' : 'Kết nối Lịch iPhone'}</a></div>`;
   };
   const late = (b) => !!b.eta && (b.eta >= '18:00' || b.eta < '05:00');

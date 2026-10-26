@@ -80,4 +80,4 @@ grey (dimmed) không liên lạc được.
   `moi_settings`, made once); `/cal/<token>.ics` lists open reminders (alarm at the time) + promised arrival times of
   guests not confirmed yet (alarm 30 min before), stable UIDs, REFRESH-INTERVAL 15 min, guest details in each event.
   Shown as a card on Chi tiết ngày until done (localStorage `moi.calOk`) and at the bottom of the Nhắc sheet; steps:
-  Đăng ký → turn OFF "Xoá cảnh báo" (Remove Alerts) → Xong. Wrong token = 404. Test `test_moi_calendar_subscription`.
+  Đăng ký → keep "Cảnh báo sự kiện" ON (older iOS: turn OFF "Xoá cảnh báo") → ✓. Wrong token = 404. Test `test_moi_calendar_subscription`.
