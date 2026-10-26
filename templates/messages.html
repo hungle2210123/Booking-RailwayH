@@ -1073,6 +1073,11 @@
     if (res && res.success && window.MsgLive) window.MsgLive.refresh();
   }
   document.getElementById('chatphone').onclick = open;
+  // /moi links here: #photo opens "Thêm đặt phòng từ ảnh", #chatphone opens "Cập nhật số từ ảnh chụp tin nhắn"
+  window.addEventListener('load', () => {
+    const b = { '#photo': 'addphoto', '#chatphone': 'chatphone' }[location.hash];
+    if (b) { history.replaceState(null, '', location.pathname + location.search); document.getElementById(b).click(); }
+  });
 })();
 </script>
 <script src="{{ asset('js/journey.js') }}"></script>

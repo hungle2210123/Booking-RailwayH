@@ -232,7 +232,9 @@ UNREACHABLE_KEY = 'unreachable'
 
 # "this guest has no WhatsApp / Zalo" (a link opened but the message could not be sent) — a note, not a message
 NO_CHANNEL_KEYS = ('no_whatsapp', 'no_zalo')
-NOT_A_MESSAGE = (UNREACHABLE_KEY,) + NO_CHANNEL_KEYS
+# "the guest answered" (marked on /moi) — a note, not a message
+REPLIED_KEY = 'replied'
+NOT_A_MESSAGE = (UNREACHABLE_KEY,) + NO_CHANNEL_KEYS + (REPLIED_KEY,)
 
 
 def is_step_key(key):

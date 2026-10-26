@@ -1,0 +1,651 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0E1525">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Hotel Pro — giao diện mới</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+/* /moi — the new phone-first app (owner, Oct 26). Old pages stay as they are. Colours: ink #0E1525 header, white cards,
+   apartment colours = the calendar's, red = act now · amber = waiting · blue = answered · green = done · grey = unreachable */
+*{box-sizing:border-box}
+html,body{margin:0;background:#F4F5F8;color:#0E1525;font-family:'Be Vietnam Pro',system-ui,-apple-system,sans-serif;-webkit-text-size-adjust:100%}
+button{font-family:inherit;cursor:pointer;touch-action:manipulation;color:inherit}
+a{color:#1D4ED8}
+.num{font-variant-numeric:tabular-nums}
+#app{max-width:780px;margin:0 auto;padding-bottom:calc(92px + env(safe-area-inset-bottom))}
+body.wide #app{max-width:1180px}
+.card{background:#fff;border-radius:20px;box-shadow:0 1px 2px rgba(14,21,37,.05),0 10px 30px rgba(14,21,37,.06)}
+.hero{background:#0E1525;color:#fff;padding:calc(18px + env(safe-area-inset-top)) 18px 60px;border-radius:0 0 30px 30px}
+.kick{font-size:11px;font-weight:700;letter-spacing:1.4px;color:#94A3B8}
+.h1{font-size:28px;font-weight:800;letter-spacing:-.5px;margin-top:4px}
+.hbtn{width:44px;height:44px;border-radius:14px;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.06);color:#fff;display:flex;align-items:center;justify-content:center}
+.wrap{padding:0 14px}
+.pull{margin-top:-40px;display:flex;flex-direction:column;gap:12px}
+.dot{width:8px;height:8px;border-radius:50%;display:inline-block;flex-shrink:0}
+.seg{display:flex;background:#E9EBF0;border-radius:14px;padding:4px;gap:4px}
+.seg button{flex:1;border:none;border-radius:11px;min-height:40px;padding:0 6px;font-size:13px;font-weight:700;background:transparent;color:#475569}
+.seg button.on{background:#fff;color:#0E1525;box-shadow:0 1px 3px rgba(14,21,37,.12)}
+.pill{border-radius:999px;min-height:38px;padding:0 14px;font-size:13px;font-weight:700;white-space:nowrap;border:1px solid #E2E5EB;background:#fff;color:#334155}
+.pill.on{border-color:#0E1525;background:#0E1525;color:#fff}
+.pill.red.on{border-color:#DC2626;background:#DC2626}
+.pill.green.on{border-color:#15803D;background:#15803D}
+.row{display:flex;gap:6px;overflow-x:auto;padding-bottom:2px;-webkit-overflow-scrolling:touch}
+.tb{flex-shrink:0;font-size:10px;font-weight:800;letter-spacing:.3px;color:#fff;background:#6D28D9;border-radius:6px;padding:2px 6px}
+.gh{display:flex;align-items:center;gap:8px;margin:14px 0 6px;font-size:13px;font-weight:800}
+.gh i{width:6px;height:18px;border-radius:3px;display:inline-block}
+.gh span{font-weight:600;color:#64748B}
+.empty{padding:20px 16px;text-align:center;font-size:14px;font-weight:700;color:#475569}
+/* day page */
+.strip{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:5px;margin-top:14px}
+.dayb{border:none;border-radius:14px;min-height:62px;display:flex;flex-direction:column;align-items:center;justify-content:center;position:relative;background:rgba(255,255,255,.06);color:#fff}
+.dayb.on{background:#fff;color:#0E1525}
+.dayb .w{font-size:10px;font-weight:700;opacity:.8}.dayb .n{font-size:16px;font-weight:800}.dayb .f{font-size:9px;font-weight:700}
+.dayb .p{position:absolute;top:5px;right:5px;width:7px;height:7px;border-radius:50%;background:#A78BFA}
+.kpis{display:flex;align-items:center;gap:14px;margin-top:16px}
+.ring{position:relative;width:100px;height:100px;flex-shrink:0}
+.ring b{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:30px;font-weight:800;line-height:1}
+.ring b small{font-size:10px;font-weight:700;color:#A7B0C0;margin-top:3px}
+.kg{flex:1;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.kb{background:rgba(255,255,255,.07);border-radius:14px;padding:9px 12px}
+.kb small{display:block;font-size:11px;color:#A7B0C0;font-weight:600}.kb b{font-size:21px;font-weight:800}
+.kb em{font-style:normal;font-size:12px;font-weight:700;margin-left:6px}
+.unc{padding:14px 16px;border:1.5px solid #FCD34D}
+.unc h4{margin:0;display:flex;gap:8px;align-items:center;font-size:14px;color:#92400E}
+.chips4{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;margin-top:8px}
+.chip{border-radius:12px;min-height:48px;font-size:13px;font-weight:800;border:none;color:#fff;padding:4px}
+.chip small{display:block;font-size:10px;font-weight:600;opacity:.88}
+.chip.off{background:#fff!important;color:#64748B;border:1.5px solid #E2E5EB}
+.ab{overflow:hidden}
+.abh{display:flex;align-items:center;gap:10px;padding:13px 16px 10px}
+.abh b{font-size:15px;font-weight:800;flex:1}
+.cells{display:flex;gap:3px}.cells i{width:10px;height:16px;border-radius:3px;display:inline-block}
+.abh em{font-style:normal;font-size:12px;font-weight:800;min-width:66px;text-align:right}
+.cols{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));border-top:1px solid #F1F2F5}
+.col{padding:9px 12px 8px 16px;min-width:0}.col+.col{border-left:1px solid #F1F2F5;padding:9px 16px 8px 12px}
+.colh{font-size:11px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;margin-bottom:2px}
+.g{display:block;width:100%;text-align:left;border:none;background:transparent;padding:8px 0;border-top:1px solid #F1F2F5}
+.colh+.g{border-top:none}
+.g1{display:flex;align-items:center;gap:6px;min-width:0}
+.gn{font-size:14px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1;min-width:0}
+.g2{font-size:12px;color:#475569;margin-top:2px;padding-left:14px}.g2 b{color:#0E1525}
+.g3{font-size:11px;color:#64748B;margin-top:1px;padding-left:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.g4{font-size:11px;font-weight:800;padding-left:14px;margin-top:1px}
+.legend{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;font-size:11px;color:#475569;font-weight:600;padding:4px 0 10px}
+.legend span{display:flex;align-items:center;gap:5px}
+/* calendar */
+.cal{margin:0 8px 14px;overflow-x:auto;-webkit-overflow-scrolling:touch;overscroll-behavior-x:contain}
+.cg{display:grid;column-gap:4px}
+.cst{position:sticky;left:0;z-index:3;background:#fff}
+.cdh{border:none;text-align:center;border-radius:12px;padding:6px 0;min-height:52px;background:#F4F5F8;color:#334155}
+.cdh.t{background:#0E1525;color:#fff}
+.cdh .w{font-size:11px;font-weight:700}.cdh .n{font-size:17px;font-weight:800}
+.capt{margin-top:10px;padding:6px 0;background:#F7F8FA;border-radius:0 10px 10px 0;align-items:center}
+.capt .cst{background:#F7F8FA;display:flex;align-items:center;gap:6px;padding-left:10px;font-size:12px;font-weight:800}
+.fr{text-align:center;font-size:11px;font-weight:800;border-radius:8px;padding:3px 0}
+.croom{margin-top:4px;align-items:stretch}
+.croom .cst{display:flex;flex-direction:column;justify-content:center;padding-left:10px;font-size:12px;font-weight:700;color:#1E293B}
+.slot{grid-row:1;border-radius:10px;border:1.5px dashed #E3E6EC;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#94A3B8}
+.bar{grid-row:1;z-index:1;border-radius:10px;padding:4px 8px;text-align:left;overflow:hidden;min-width:0;border:none}
+.bar b{display:block;font-size:12px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bar small{display:block;font-size:10px;font-weight:600;opacity:.9;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.drop{grid-row:1;z-index:2;border-radius:10px;font-size:12px;font-weight:800}
+/* messages */
+.mc{padding:0;overflow:hidden}.mc .top{height:5px}.mc .in{padding:12px 14px}
+.st{width:100%;margin-top:10px;border-radius:12px;padding:9px 12px;text-align:left;display:flex;align-items:center;gap:10px;border:none}
+.st b{display:block;font-size:13px;font-weight:800}.st small{display:block;font-size:11px;font-weight:600;opacity:.85}
+.tag{display:inline-flex;align-items:center;min-height:36px;border-radius:10px;padding:0 10px;font-size:12px;font-weight:700;border:none}
+.steps{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+.stp{min-height:56px;border-radius:12px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;padding:4px;border:1px solid #E2E5EB;background:#fff;color:#0E1525}
+.stp b{font-size:13px;font-weight:800}.stp small{font-size:10px;font-weight:600;opacity:.8}
+.stp.rec{border:none;background:#0E1525;color:#fff}
+.stp.done{background:#F0FDF4;border-color:#BBF7D0;color:#14532D}
+.shot{width:64px;height:48px;flex-shrink:0;border-radius:8px;background:#E2E5EB;object-fit:cover}
+/* pay */
+.prow{padding:12px 14px}
+.pst{flex-shrink:0;min-height:34px;border-radius:9px;padding:0 8px;font-size:10px;font-weight:800;letter-spacing:.3px;border:none}
+/* bottom nav + floating */
+.nav{position:fixed;left:0;right:0;bottom:0;z-index:50;background:rgba(255,255,255,.97);border-top:1px solid #E6E8EE;display:flex;align-items:flex-start;padding:0 8px env(safe-area-inset-bottom);height:calc(76px + env(safe-area-inset-bottom))}
+.nav>div{display:flex;flex:1;max-width:780px;margin:0 auto}
+.navb{flex:1;border:none;background:transparent;display:flex;flex-direction:column;align-items:center;gap:3px;font-size:11px;font-weight:700;padding:9px 0 0;min-height:60px;position:relative;color:#94A3B8}
+.navb.on{color:#0E1525}
+.badge{position:absolute;top:3px;left:calc(50% + 6px);min-width:18px;height:18px;border-radius:9px;background:#DC2626;color:#fff;font-size:10px;font-weight:800;display:flex;align-items:center;justify-content:center;padding:0 5px;border:2px solid #fff}
+.plus{width:50px;height:50px;margin-top:10px;border-radius:16px;border:none;background:#0E1525;color:#fff;display:flex;align-items:center;justify-content:center}
+.fab{position:fixed;right:16px;z-index:45;width:56px;height:56px;border-radius:50%;border:none;display:flex;flex-direction:column;align-items:center;justify-content:center;box-shadow:0 8px 20px rgba(14,21,37,.3)}
+.fab small{font-size:9px;font-weight:800}
+.pickbar{position:fixed;left:10px;right:10px;bottom:calc(86px + env(safe-area-inset-bottom));z-index:60;max-width:760px;margin:0 auto;background:rgba(14,21,37,.94);color:#fff;border-radius:14px;padding:4px 4px 4px 12px;display:flex;align-items:center;gap:6px}
+.pickbar div{flex:1;min-width:0;font-size:12px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pickbar button{min-height:36px;min-width:36px;border-radius:10px;border:none;background:rgba(255,255,255,.14);color:#fff;font-size:12px;font-weight:800;padding:0 10px}
+.toast{position:fixed;left:16px;right:16px;bottom:calc(96px + env(safe-area-inset-bottom));z-index:99999;max-width:520px;margin:0 auto;background:#0E1525;color:#fff;border-radius:14px;padding:12px 16px;font-size:13px;font-weight:700;box-shadow:0 10px 30px rgba(14,21,37,.3)}
+/* sheets */
+.ov{position:fixed;inset:0;z-index:9000;background:rgba(14,21,37,.48);display:flex;align-items:flex-end;justify-content:center}
+.sh{width:100%;max-width:560px;background:#fff;border-radius:28px 28px 0 0;padding:10px 20px calc(24px + env(safe-area-inset-bottom));max-height:90vh;max-height:90dvh;overflow-y:auto;overscroll-behavior:contain}
+@media(min-width:700px){.ov{align-items:center}.sh{border-radius:24px}}
+.handle{width:40px;height:5px;border-radius:3px;background:#D9DCE3;margin:0 auto 14px}
+.x{width:44px;height:44px;border-radius:14px;border:1px solid #E2E5EB;background:#fff;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.info{background:#F4F5F8;border-radius:14px;padding:10px 12px}.info small{display:block;font-size:11px;color:#64748B;font-weight:600}.info b{font-size:15px;font-weight:800}
+.act{border:1px solid #E2E5EB;background:#fff;border-radius:14px;min-height:58px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;font-size:12px;font-weight:700;text-decoration:none;color:#0E1525}
+.big{width:100%;min-height:54px;border-radius:16px;border:none;font-size:15px;font-weight:800}
+.lbl{font-size:11px;font-weight:800;letter-spacing:.6px;color:#64748B;margin:14px 0 6px;text-transform:uppercase}
+.old{color:#94A3B8;font-size:12px;font-weight:700;text-decoration:none;border:1px solid rgba(255,255,255,.2);border-radius:10px;padding:6px 10px}
+</style>
+</head>
+<body>
+<div id="app"><div class="empty" style="padding-top:80px">Đang tải…</div></div>
+<nav class="nav" id="nav"></nav>
+<div id="float"></div>
+<div id="sheet"></div>
+<script src="{{ asset('js/journey.js') }}"></script>
+<script>
+(function () {
+  const $ = (s) => document.querySelector(s);
+  const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const fmt = (v) => Math.round(v || 0).toLocaleString('vi-VN') + 'đ';
+  const short = (v) => !v ? '—' : v < 1e6 ? Math.round(v / 1000) + 'k' : (v / 1e6).toFixed(2).replace('.', ',') + 'tr';
+  const WD = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'], WDF = ['Chủ nhật', 'Thứ hai', 'Thứ ba', 'Thứ tư', 'Thứ năm', 'Thứ sáu', 'Thứ bảy'];
+  const ICON = {
+    day: 'M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z', cal: 'M4 6h16v14H4zM4 10h16M8 3v4M16 3v4',
+    msg: 'M4 5h16v11H8l-4 4z', pay: 'M3 7h18v12H3zM16 13h2M3 7l3-3h12l3 3', x: 'M6 6l12 12M18 6 6 18',
+    l: 'M15 6l-6 6 6 6', r: 'M9 6l6 6-6 6', home: 'M3 10.5 12 3l9 7.5V20H3zM9 20v-6h6v6', phone: 'M5 4h4l2 5-3 2a11 11 0 0 0 5 5l2-3 5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2',
+    warn: 'M12 9v4M12 17h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z',
+  };
+  const svg = (k, w = 20, sw = 2) => `<svg width="${w}" height="${w}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${sw}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${ICON[k]}"></path></svg>`;
+  const bolt = (w = 20) => `<svg width="${w}" height="${w}" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M13 2 4 14h7l-1 8 9-12h-7z"></path></svg>`;
+  const LS = { get(k, d) { try { const v = localStorage.getItem('moi.' + k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } },
+               set(k, v) { try { localStorage.setItem('moi.' + k, JSON.stringify(v)); } catch (e) {} } };
+  const wide = () => window.innerWidth >= 992;
+
+  // ── state ──
+  const S = { data: null, tab: LS.get('tab', 'day'), day: 0, seg: 'pair', calN: wide() ? 14 : 3, calStart: 0,
+              calView: LS.get('calView', 'room'), pick: null,
+              mtab: 'arr', mrange: 1, mf: 'all', mapt: null, pf: 'all', papt: null, showPaid: false,
+              sel: null, move: false, collect: null, cmethod: 'cash', aptSheet: false };
+  let B = [], byId = {}, APT = [], aptById = {}, TODAY = '';
+
+  // ── data ──
+  const offOf = (iso) => Math.round((Date.parse(iso + 'T00:00:00Z') - Date.parse(TODAY + 'T00:00:00Z')) / 864e5);
+  const dateOf = (o) => { const d = new Date(Date.parse(TODAY + 'T00:00:00Z') + o * 864e5); return { d: d.getUTCDate(), m: d.getUTCMonth() + 1, w: d.getUTCDay() }; };
+  const dm = (o) => { const x = dateOf(o); return x.d + '/' + x.m; };
+  async function load(quiet) {
+    try {
+      const r = await fetch('/api/moi/data', { cache: 'no-store' });
+      const d = await r.json();
+      if (!d.success) throw new Error('data');
+      S.data = d; TODAY = d.today; APT = d.apartments; aptById = {}; APT.forEach((a) => { aptById[a.id] = a; });
+      B = d.bookings.map((b) => ({ ...b, ciO: offOf(b.ci), coO: offOf(b.co) }));
+      byId = {}; B.forEach((b) => { byId[b.id] = b; });
+      render();
+    } catch (e) { if (!quiet) $('#app').innerHTML = '<div class="empty" style="padding-top:80px">Không tải được dữ liệu — kéo xuống để tải lại.</div>'; }
+  }
+  window.MsgLive = { refresh: () => load(true) };            // journey.js calls this after its send sheet closes
+  setInterval(() => { if (!document.hidden && !$('.ov') && !$('.jr-ov') && !S.pick) load(true); }, 45000);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) load(true); });
+
+  // ── shared rules ──
+  const inHouse = (b, d) => b.ciO <= d && d < b.coO;
+  // counted for "phòng trống": confirmed, or not arrived yet (core/occupancy: an unconfirmed guest whose day came is not counted)
+  const counts = (b, d) => inHouse(b, d) && (b.confirmed || b.ciO > 0);
+  const roomsOf = (aid) => (aptById[aid] || {}).rooms || 0;
+  const CAP = () => APT.reduce((t, a) => t + a.rooms, 0);
+  const stOf = (b) => {
+    const last = b.last ? b.last.label + ' · ' + b.last.at : '';
+    if (b.unreach) return { k: 'unreach', c: '#475569', t: 'Không liên lạc được', s: 'Để quản lý sau', line: 'Không liên lạc được', bg: '#E2E8F0', fg: '#334155' };
+    if (b.confirmed && b.ciO <= 0) return { k: 'ok', c: '#16A34A', t: b.ciO < 0 ? 'Đang ở' : 'Đã xác nhận đến', s: b.eta ? 'Đến lúc ' + b.eta : 'Khách đã nhận phòng', line: b.ciO < 0 ? 'Đang ở' : 'Đã đến', bg: '#DCFCE7', fg: '#14532D' };
+    if (b.eta || b.replied) return { k: 'reply', c: '#2563EB', t: b.eta ? 'Đã hẹn đến lúc ' + b.eta : 'Khách đã trả lời', s: last || 'Đã liên lạc', line: b.eta ? 'Hẹn ' + b.eta : 'Đã trả lời', bg: '#DBEAFE', fg: '#1E3A8A' };
+    if (b.last || b.manual) return { k: 'wait', c: '#F59E0B', t: 'Đã nhắn — chờ khách trả lời', s: (last || 'Nhắn ngoài app') + ' · chạm khi khách trả lời', line: 'Chờ trả lời', bg: '#FEF3C7', fg: '#78350F' };
+    return { k: 'todo', c: '#DC2626', t: 'Chưa nhắn', s: 'Chạm nếu đã nhắn ngoài app (Booking, gọi…)', line: 'Chưa nhắn', bg: '#FEE2E2', fg: '#7F1D1D' };
+  };
+  const tierOf = (b) => (b.total >= 3e6 || b.nights >= 5 ? 'VIP' : b.total >= 2e6 || b.nights >= 4 ? 'Ưu tiên' : '');
+
+  // ── API calls (all existing endpoints, so every old page shows the same) ──
+  const post = async (url, body) => { const r = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+                                       let j = {}; try { j = await r.json(); } catch (e) {} return { ok: r.ok && j.success !== false, status: r.status, j }; };
+  let toastT = null;
+  const toast = (t) => { let el = $('.toast'); if (!el) { el = document.createElement('div'); el.className = 'toast'; document.body.appendChild(el); }
+                         el.textContent = t; clearTimeout(toastT); toastT = setTimeout(() => el.remove(), 2600); };
+  const M = window.M = {};
+  M.tab = (t) => { S.tab = t; S.pick = null; LS.set('tab', t); render(); window.scrollTo(0, 0); };
+  M.set = (k, v) => { S[k] = v; if (k === 'calView') LS.set(k, v); render(); };
+  M.day = (d) => { S.day = Math.max(0, Math.min(20, d)); render(); };
+  M.open = (id) => { S.sel = id; S.move = false; S.pick = null; renderSheet(); };
+  M.close = () => { S.sel = null; S.collect = null; S.aptSheet = false; renderSheet(); renderFloat(); };
+  M.place = async (id, aid) => {
+    const b = byId[id]; const r = await post('/api/set_actual_apartment', { booking_id: id, actual_apartment: String(aid) });
+    if (!r.ok) return toast('Lỗi: ' + (r.j.message || r.j.error || 'không lưu được'));
+    toast('Đã xếp ' + b.name + ' vào ' + aptById[aid].name); S.move = false; await load(true); renderSheet();
+  };
+  M.room = async (id, aid, no) => {
+    const b = byId[id];
+    let r = await post('/api/moi/room', { booking_id: id, apartment_id: aid, room_no: no });
+    if (r.status === 409 && confirm((r.j.error || 'Phòng đã có khách') + '\n\nVẫn xếp vào đây?')) r = await post('/api/moi/room', { booking_id: id, apartment_id: aid, room_no: no, force: true });
+    if (!r.ok) return r.status === 409 ? null : toast('Lỗi: ' + (r.j.error || 'không lưu được'));
+    S.pick = null; toast('Đã xếp ' + b.name + ' vào ' + aptById[aid].short + (no ? ' · Phòng ' + no : '')); await load(true); renderSheet();
+  };
+  M.confirm = async (id) => {
+    const b = byId[id]; const next = b.confirmed ? '' : 'confirmed';
+    const r = await post('/api/set_checkin_status', { booking_id: id, status: next });
+    if (!r.ok) return toast('Lỗi: không lưu được');
+    toast(next ? b.name + ' đã đến' : 'Đã bỏ xác nhận đến'); await load(true); renderSheet();
+  };
+  M.cancel = async (id) => {
+    const b = byId[id]; if (!confirm('Báo hủy ' + b.name + '?\n(giống "Báo hủy" trên lịch — hoàn tác được)')) return;
+    const r = await post('/api/set_checkin_status', { booking_id: id, status: 'cancelling' });
+    if (!r.ok) return toast('Lỗi: không lưu được');
+    S.sel = null; renderSheet(); toast('Đã báo hủy ' + b.name); await load(true);
+  };
+  M.mark = async (id, key, on) => {
+    const r = await post('/api/journey/sent', { booking_id: id, step: key, sent: on !== false });
+    if (!r.ok) return toast('Lỗi: không lưu được'); await load(true); renderSheet();
+  };
+  M.status = (id) => { const b = byId[id], st = stOf(b);
+    if (st.k === 'todo') M.mark(id, 'contacted', true); else if (st.k === 'wait') M.mark(id, 'replied', true); else M.open(id); };
+  M.unreach = (id) => { const b = byId[id]; M.mark(id, 'unreachable', !b.unreach); if (!b.unreach) toast(b.name + ' → Không liên lạc được'); };
+  M.eta = async (id) => {
+    const b = byId[id]; const v = prompt('Giờ ' + b.name + ' đến (vd 14:30):', b.eta || '');
+    if (v == null) return; const t = v.trim().replace(/[hg.]/i, ':');
+    if (!/^\d{1,2}:\d{2}$/.test(t)) return toast('Giờ chưa đúng, ví dụ 14:30');
+    const r = await post('/api/arrival_times', { booking_id: id, estimated_arrival: t.padStart(5, '0') });
+    if (!r.ok) return toast('Lỗi: không lưu được giờ đến'); toast('Đã ghi giờ đến ' + t); await load(true); renderSheet();
+  };
+  M.phone = async (id) => {
+    const b = byId[id]; const v = prompt((b.phone ? 'Sửa' : 'Thêm') + ' số của ' + b.name + ':', b.phone || '');
+    if (v == null || !v.trim()) return;
+    let r = await post('/api/messages/phone', { booking_id: id, phone: v.trim() });
+    if (r.j.status === 'duplicate' && confirm('Số này đang là của khách "' + (r.j.other_name || '') + '".\n\nVẫn lưu cho ' + b.name + '?')) r = await post('/api/messages/phone', { booking_id: id, phone: v.trim(), force: true });
+    if (!r.ok) return toast('Lỗi: ' + (r.j.error || 'không lưu được')); toast('Đã lưu số ' + (r.j.phone || '')); await load(true);
+  };
+  M.send = (id, step) => { S.sel = null; renderSheet(); window.Journey && Journey.open(id, step || null); };
+  M.pickApt = (id) => { window.Journey && Journey.open(id, null, { pickApt: true }); };
+  M.quick = () => window.Journey && Journey.quick();
+  M.payOpen = (id) => { S.sel = null; S.collect = id; S.cmethod = 'cash'; renderSheet(); };
+  M.collect = async (id, who, amount) => {
+    const b = byId[id]; const amt = amount || Math.max(b.total - b.collected, 0);
+    if (!amt) return toast('Không còn tiền phải thu');
+    let r = await post('/api/pay/collect', { booking_id: id, amount: amt, collector: who, method: S.cmethod === 'bank' ? 'transfer' : 'cash' });
+    if (r.status === 409 && r.j.duplicate && confirm(r.j.error + '\n\nVẫn ghi?')) r = await post('/api/pay/collect', { booking_id: id, amount: amt, collector: who, method: S.cmethod === 'bank' ? 'transfer' : 'cash', force: true });
+    if (!r.ok) return toast('Lỗi: ' + (r.j.error || 'không lưu được'));
+    S.collect = null; renderSheet(); toast(who + ' đã thu ' + fmt(amt) + ' của ' + b.name); await load(true);
+  };
+  M.partial = (id, who) => { const v = prompt('Số tiền ' + who + ' đã thu (đ):', ''); if (!v) return;
+    const n = Number(String(v).replace(/[^\d]/g, '')); if (!n) return toast('Số tiền chưa đúng'); M.collect(id, who, n); };
+  M.undoPay = async (id) => { const b = byId[id]; if (!confirm('Hoàn tác: bỏ ' + fmt(b.collected) + ' đã thu của ' + b.name + '?')) return;
+    const r = await post('/api/pay/collect', { booking_id: id, amount: b.collected, collector: b.collector || 'LOC LE', undo: true });
+    if (!r.ok) return toast('Lỗi: ' + (r.j.error || 'không hoàn tác được')); toast('Đã hoàn tác'); await load(true); };
+  M.payCycle = async (id) => { const b = byId[id], s = payStatus(b);
+    const r = s === 'todo' ? await post('/api/journey/sent', { booking_id: id, step: 'payment', sent: true })
+            : s === 'asked' ? await post('/api/pay/mark', { booking_id: id, action: 'claim' })
+            : await post('/api/pay/mark', { booking_id: id, action: 'unclaim' });
+    if (!r.ok) return toast('Lỗi: không lưu được'); await load(true); };
+  M.pickG = (id) => { S.pick = S.pick === id ? null : id; render(); };
+  M.auto = async () => {
+    const { ws, we } = calWin(); const todo = B.filter((b) => b.apt && !b.room_no && b.coO > Math.max(ws, 0) && b.ciO < we).sort((p, q) => p.ciO - q.ciO);
+    let n = 0; const taken = B.filter((b) => b.apt && b.room_no).map((b) => ({ apt: b.apt, no: b.room_no, ci: b.ciO, co: b.coO }));
+    for (const b of todo) {
+      for (let no = 1; no <= roomsOf(b.apt); no++) {
+        if (taken.some((t) => t.apt === b.apt && t.no === no && t.ci < b.coO && b.ciO < t.co)) continue;
+        const r = await post('/api/moi/room', { booking_id: b.id, apartment_id: b.apt, room_no: no });
+        if (r.ok) { taken.push({ apt: b.apt, no, ci: b.ciO, co: b.coO }); n++; }
+        break;
+      }
+    }
+    toast(n ? 'Đã tự xếp phòng cho ' + n + ' khách' : 'Không còn phòng trống phù hợp'); await load(true);
+  };
+
+  // ── render ──
+  function render() {
+    if (!S.data) return;
+    document.body.classList.toggle('wide', wide());
+    const v = S.tab === 'cal' ? viewCal() : S.tab === 'msg' ? viewMsg() : S.tab === 'pay' ? viewPay() : viewDay();
+    $('#app').innerHTML = v;
+    renderNav(); renderFloat();
+  }
+  function renderNav() {
+    const todoMsg = B.filter((b) => b.ciO === 0 && !b.unreach && stOf(b).k === 'todo').length;
+    const unpaid = payItems().filter((b) => payStatus(b) !== 'paid').length;
+    const nb = (t, label, ic, badge) => `<button class="navb ${S.tab === t ? 'on' : ''}" onclick="M.tab('${t}')">${svg(ic, 24)}${label}${badge ? `<span class="badge">${badge}</span>` : ''}</button>`;
+    $('#nav').innerHTML = `<div>${nb('day', 'Chi tiết ngày', 'day')}${nb('cal', 'Lịch', 'cal')}
+      <div style="flex:1;display:flex;justify-content:center"><a class="plus" href="/add_booking" aria-label="Thêm đặt phòng"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"></path></svg></a></div>
+      ${nb('msg', 'Nhắn khách', 'msg', todoMsg)}${nb('pay', 'Thu tiền', 'pay', unpaid)}</div>`;
+  }
+  function renderFloat() {
+    let h = '';
+    if (S.tab === 'msg') {
+      const a = S.mapt && aptById[S.mapt];
+      h += `<button class="fab" style="bottom:calc(158px + env(safe-area-inset-bottom));background:${a ? a.color : (S.mapt === 'none' ? '#B45309' : '#0E1525')};color:#fff" onclick="M.set('aptSheet',true);M.aptSheetOpen()" aria-label="Lọc theo căn">${svg('home', 20, 2.2)}<small>${a ? esc(a.short) : S.mapt === 'none' ? 'Chưa xếp' : 'Căn hộ'}</small></button>
+            <button class="fab" style="bottom:calc(92px + env(safe-area-inset-bottom));background:#F59E0B;color:#0E1525" onclick="M.quick()" aria-label="Tin nhanh">${bolt()}<small>Tin nhanh</small></button>`;
+    }
+    if (S.pick && S.tab === 'cal' && byId[S.pick]) {
+      const b = byId[S.pick], n = freeRoomsFor(b);
+      h += `<div class="pickbar"><span class="dot" style="background:#F59E0B"></span><div>${esc(b.name.split(' ')[0])} ${dm(b.ciO)}–${dm(b.coO)} <span style="color:#86EFAC">· ${n ? n + ' phòng trống — chạm ô xanh' : 'không còn phòng trống'}</span></div>
+            <button onclick="M.open('${b.id}')">Thẻ</button><button onclick="M.pickG(null)" aria-label="Bỏ chọn">${svg('x', 14, 2.6)}</button></div>`;
+    }
+    $('#float').innerHTML = h;
+  }
+
+  // ═════ CHI TIẾT NGÀY ═════
+  function viewDay() {
+    const d = S.day, cap = CAP();
+    const x = dateOf(d);
+    const title = d === 0 ? 'Hôm nay' : d === 1 ? 'Ngày mai' : WDF[x.w] + ' ' + x.d + '/' + x.m;
+    const s0 = Math.max(0, Math.min(d - 3, 14));
+    let strip = '';
+    for (let i = s0; i < s0 + 7; i++) {
+      const y = dateOf(i), free = cap - B.filter((b) => counts(b, i)).length;
+      const on = i === d, col = free <= 0 ? (on ? '#DC2626' : '#FCA5A5') : free <= 3 ? (on ? '#B45309' : '#FCD34D') : (on ? '#15803D' : '#6EE7B7');
+      const tb = B.some((b) => b.tb && (b.ciO === i || b.coO === i));
+      strip += `<button class="dayb ${on ? 'on' : ''}" onclick="M.day(${i})" aria-label="${WDF[y.w]} ${y.d}/${y.m}: còn ${free} phòng"><span class="w">${WD[y.w]}</span><span class="n num">${y.d}</span><span class="f num" style="color:${col}">${free > 0 ? free + ' trống' : free === 0 ? 'hết' : 'thiếu ' + -free}</span>${tb ? '<span class="p"></span>' : ''}</button>`;
+    }
+    const tonight = B.filter((b) => counts(b, d)), free = cap - tonight.length;
+    const ins = B.filter((b) => b.ciO === d), outs = B.filter((b) => b.coO === d);
+    const wait = d <= 0 ? ins.filter((b) => !b.confirmed).length : 0;
+    const due = B.filter((b) => inHouse(b, d) && !b.paid).reduce((t, b) => t + Math.max(b.total - b.collected, 0), 0);
+    const C = 2 * Math.PI * 44, ringCol = free <= 0 ? '#F87171' : free <= 3 ? '#FBBF24' : '#34D399';
+    const tbOut = outs.filter((b) => b.tb).length;
+    let h = `<div class="hero"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
+        <div><div class="kick">${WDF[x.w].toUpperCase()} · ${x.d} THÁNG ${x.m}</div><div class="h1">${title}</div></div>
+        <div style="display:flex;gap:8px;align-items:center"><a class="old" href="/hom-nay">Bản cũ</a>
+          <button class="hbtn" onclick="M.day(${d - 1})" aria-label="Ngày trước">${svg('l', 18, 2.2)}</button>
+          <button class="hbtn" onclick="M.day(${d + 1})" aria-label="Ngày sau">${svg('r', 18, 2.2)}</button></div></div>
+      <div class="strip">${strip}</div>
+      <div class="kpis"><div class="ring"><svg width="100" height="100" viewBox="0 0 104 104" role="img" aria-label="Phòng có khách"><circle cx="52" cy="52" r="44" fill="none" stroke="rgba(255,255,255,.12)" stroke-width="10"></circle>
+          <circle cx="52" cy="52" r="44" fill="none" stroke="${ringCol}" stroke-width="10" stroke-linecap="round" stroke-dasharray="${(C * Math.min(tonight.length, cap) / Math.max(cap, 1)).toFixed(1)} ${C.toFixed(1)}" transform="rotate(-90 52 52)"></circle></svg>
+          <b class="num">${free}<small>trống / ${cap}</small></b></div>
+        <div class="kg"><div class="kb"><small>Khách đến</small><b class="num">${ins.length}</b>${wait ? `<em style="color:#FBBF24">${wait} chờ</em>` : ''}</div>
+          <div class="kb"><small>Trả phòng</small><b class="num">${outs.length}</b>${tbOut ? `<em style="color:#C4B5FD">${tbOut} 2PN</em>` : ''}</div>
+          <div class="kb" style="grid-column:1/-1;display:flex;justify-content:space-between;align-items:center;padding:8px 8px 8px 12px">
+            <div><small>Chưa thu (khách đêm này)</small><b class="num" style="font-size:17px">${fmt(due)}</b></div>
+            <button onclick="M.tab('pay')" style="border:none;background:#fff;color:#0E1525;border-radius:11px;padding:0 16px;min-height:44px;font-size:13px;font-weight:800">Thu</button></div></div></div></div>
+      <div class="wrap pull">`;
+    const un = B.filter((b) => !b.apt && inHouse(b, d));
+    if (un.length) {
+      h += `<div class="card unc"><h4>${svg('warn', 18, 2.2)}${un.length} khách chưa xếp căn — chạm căn để xếp</h4>` + un.map((b) =>
+        `<div style="margin-top:10px"><button class="g" style="padding:0;border:none" onclick="M.open('${b.id}')"><div style="display:flex;justify-content:space-between;gap:8px;font-size:14px;font-weight:700">${esc(b.name)}<span class="num" style="font-weight:600;color:#475569;font-size:12px">${b.nights} đêm · ${short(b.per_night)}/đêm</span></div></button>
+         <div class="chips4">${APT.map((a) => { const f = a.rooms - B.filter((o) => o.apt === a.id && inHouse(o, d)).length;
+           return `<button class="chip ${f > 0 ? '' : 'off'}" style="background:${a.color}" onclick="M.place('${b.id}',${a.id})">${esc(a.short)}<small>${f > 0 ? 'còn ' + f : 'hết'}</small></button>`; }).join('')}</div></div>`).join('') + '</div>';
+    }
+    const stays = B.filter((b) => b.ciO < d && d < b.coO);
+    h += `<div class="seg"><button class="${S.seg === 'pair' ? 'on' : ''}" onclick="M.set('seg','pair')">Trả ↔ Đến</button><button class="${S.seg === 'stay' ? 'on' : ''}" onclick="M.set('seg','stay')">Đang ở · ${stays.length}</button></div>`;
+    if (S.seg === 'stay') {
+      h += '<div class="card" style="padding:4px 16px 6px">' + (stays.sort((p, q) => p.coO - q.coO).map((b) => { const a = aptById[b.apt], left = b.coO - d;
+        return `<button class="g" onclick="M.open('${b.id}')" style="padding:12px 0"><div class="g1"><span class="dot" style="background:${a ? a.color : '#94A3B8'}"></span><span class="gn">${esc(b.name)}</span>${b.tb ? '<span class="tb">2PN</span>' : ''}<span style="font-size:11px;font-weight:800;color:${left === 1 ? '#B45309' : '#64748B'}">${left === 1 ? 'Trả mai' : 'Còn ' + left + ' đêm'}</span></div>
+          <div class="g2 num">${a ? esc(a.short) + (b.room_no ? ' · P' + b.room_no : '') : 'chưa xếp'} · ${b.nights} đêm · <b>${short(b.per_night)}</b>/đêm${b.paid ? ' · <span style="color:#15803D;font-weight:800">đã thu</span>' : ''}</div></button>`; }).join('') || '<div class="empty">Không có khách ở lại đêm này.</div>') + '</div>';
+    } else {
+      const row = (b, kind) => { const st = stOf(b);
+        return `<button class="g" onclick="M.open('${b.id}')" style="${kind === 'in' && st.k === 'unreach' ? 'opacity:.5;filter:grayscale(.7)' : ''}">
+          <div class="g1"><span class="dot" style="background:${kind === 'out' ? '#CBD5E1' : st.c}"></span><span class="gn">${esc(b.name)}</span>${b.tb ? '<span class="tb">2PN</span>' : ''}</div>
+          <div class="g2 num">${b.nights} đêm · <b>${short(b.per_night)}</b>/đêm${b.room_no ? ' · P' + b.room_no : ''}</div>
+          <div class="g3">${esc(b.listing)}</div>
+          ${kind === 'in' ? `<div class="g4" style="color:${st.c === '#F59E0B' ? '#B45309' : st.c}">${st.line}</div>` : (b.paid ? '' : '<div class="g4" style="color:#DC2626">Chưa thu</div>')}</button>`; };
+      APT.forEach((a) => {
+        const o = outs.filter((b) => b.apt === a.id), i = ins.filter((b) => b.apt === a.id);
+        const used = B.filter((b) => b.apt === a.id && inHouse(b, d)).length, over = used > a.rooms;
+        h += `<div class="card ab"><div class="abh"><span class="dot" style="width:12px;height:12px;background:${a.color}"></span><b>${esc(a.name)}</b>
+          <span class="cells">${Array.from({ length: a.rooms }, (_, k) => `<i style="background:${k < used ? (over ? '#DC2626' : a.color) : '#E5E7EB'}"></i>`).join('')}</span>
+          <em class="num" style="color:${over ? '#DC2626' : '#475569'}">${over ? 'vượt ' + (used - a.rooms) : 'đã xếp ' + used + '/' + a.rooms}</em></div>
+          <div class="cols"><div class="col"><div class="colh" style="color:#64748B">Trả · ${o.length}</div>${o.map((b) => row(b, 'out')).join('') || '<div style="font-size:13px;color:#94A3B8;padding:6px 0">—</div>'}</div>
+          <div class="col"><div class="colh" style="color:#15803D">Đến · ${i.length}</div>${i.map((b) => row(b, 'in')).join('') || '<div style="font-size:13px;color:#94A3B8;padding:6px 0">—</div>'}</div></div></div>`;
+      });
+      const oNone = outs.filter((b) => !b.apt);
+      if (oNone.length) h += `<div class="card ab"><div class="abh"><b>Trả · chưa ghi căn</b></div><div style="padding:0 16px 8px">${oNone.map((b) => row(b, 'out')).join('')}</div></div>`;
+      h += `<div class="legend"><span><i class="dot" style="background:#DC2626"></i>Chưa nhắn</span><span><i class="dot" style="background:#F59E0B"></i>Chờ trả lời</span>
+        <span><i class="dot" style="background:#2563EB"></i>Đã trả lời / hẹn giờ</span><span><i class="dot" style="background:#16A34A"></i>Đã đến</span><span><i class="dot" style="background:#475569;opacity:.5"></i>Không liên lạc được</span></div>`;
+    }
+    return h + '</div>';
+  }
+
+  // ═════ LỊCH PHÒNG ═════
+  const calWin = () => { const ws = S.calStart, we = ws + S.calN; return { ws, we }; };
+  const fits = (b, aid, no) => !B.some((o) => o.id !== b.id && o.apt === aid && o.room_no === no && o.ciO < b.coO && b.ciO < o.coO);
+  const freeRoomsFor = (b) => APT.reduce((t, a) => { for (let n = 1; n <= a.rooms; n++) if (!(b.apt === a.id && b.room_no === n) && fits(b, a.id, n)) t++; return t; }, 0);
+  function viewCal() {
+    const { ws, we } = calWin(), N = S.calN, days = []; for (let i = ws; i < we; i++) days.push(i);
+    const colW = N === 3 ? 'minmax(0,1fr)' : N === 7 ? '74px' : '72px';
+    const cols = `78px repeat(${N}, ${colW})`, width = N === 3 ? '100%' : (78 + N * 78) + 'px';
+    const rowH = N === 3 ? '52px' : '40px';
+    const room = S.calView === 'room';
+    const freeStyle = (f) => f <= 0 ? 'background:#FEE2E2;color:#B91C1C' : f === 1 ? 'background:#FEF3C7;color:#92400E' : 'background:#DCFCE7;color:#166534';
+    const pk = S.pick && byId[S.pick];
+    const bar = (b, a, dashedAmber) => {
+      const st = Math.max(b.ciO, ws), en = Math.min(b.coO, we), solid = b.ciO > 0 || b.confirmed;
+      const sty = dashedAmber ? 'background:#FEF3C7;color:#92400E;border:1.5px dashed #F59E0B'
+                : solid ? `background:${a.color};color:#fff` : `background:#fff;color:${a.color};border:1.5px dashed ${a.color}`;
+      const name = (b.ciO < ws ? '‹ ' : '') + (N === 3 ? b.name : b.name.split(' ')[0]) + (b.coO > we ? ' ›' : '') + (b.tb ? ' · 2PN' : '');
+      const act = room ? `M.pickG('${b.id}')` : `M.open('${b.id}')`;
+      return `<button class="bar" onclick="${act}" style="grid-column:${st - ws + 2} / span ${en - st};${sty}${S.pick === b.id ? ';box-shadow:0 0 0 3px #F59E0B' : ''}" aria-label="${esc(b.name)}">
+        <b>${esc(name)}</b>${N === 3 ? `<small class="num">${b.nights} đêm · ${short(b.per_night)}${b.ciO <= 0 && !b.confirmed && b.coO > 0 ? ' · chờ' : b.paid ? ' · đã thu' : ''}</small>` : ''}</button>`;
+    };
+    const slots = (taken) => days.filter((dd) => !taken.has(dd)).map((dd) => `<div class="slot" style="grid-column:${dd - ws + 2}">${N === 3 ? 'trống' : ''}</div>`).join('');
+    const span = (list) => { const t = new Set(); list.forEach((b) => { for (let dd = Math.max(b.ciO, ws); dd < Math.min(b.coO, we); dd++) t.add(dd); }); return t; };
+    const drop = (aid, no) => {
+      if (!pk || !room) return '';
+      const st = Math.max(pk.ciO, ws), en = Math.min(pk.coO, we);
+      if (en <= st || (pk.apt === aid && pk.room_no === no)) return '';
+      const ok = fits(pk, aid, no);
+      return `<button class="drop" onclick="M.room('${pk.id}',${aid},${no})" style="grid-column:${st - ws + 2} / span ${en - st};${ok ? 'background:rgba(22,163,74,.12);border:2px dashed #16A34A;color:#166534' : 'background:rgba(220,38,38,.08);border:1.5px dashed #FCA5A5;color:#B91C1C;opacity:.75'}">${ok ? 'Xếp vào đây' : 'Trùng khách'}</button>`;
+    };
+    let rows = '';
+    APT.forEach((a) => {
+      rows += `<div class="cg capt" style="grid-template-columns:${cols}"><div class="cst"><span class="dot" style="width:10px;height:10px;background:${a.color}"></span>${esc(a.short)}</div>` +
+        days.map((dd) => { const f = a.rooms - B.filter((b) => b.apt === a.id && counts(b, dd)).length;
+          return `<div class="fr num" style="${freeStyle(f)}">${f > 0 ? 'Trống ' + f : f === 0 ? 'Kín phòng' : 'Thừa ' + -f}</div>`; }).join('') + '</div>';
+      const list = B.filter((b) => b.apt === a.id && b.coO > ws && b.ciO < we);
+      if (room) {
+        for (let no = 1; no <= a.rooms; no++) {
+          const mine = list.filter((b) => b.room_no === no);
+          rows += `<div class="cg croom" style="grid-template-columns:${cols};min-height:${rowH}"><div class="cst" style="grid-row:1;grid-column:1">Phòng ${no}</div>${slots(span(mine))}${mine.map((b) => bar(b, a)).join('')}${drop(a.id, no)}</div>`;
+        }
+        const noRoom = list.filter((b) => !b.room_no || b.room_no > a.rooms);
+        if (noRoom.length) {          // placed in the apartment, no room yet: one lane per overlap
+          const ends = [], lane = {};
+          noRoom.sort((p, q) => p.ciO - q.ciO).forEach((b) => { let k = ends.findIndex((e) => e <= b.ciO); if (k < 0) { k = ends.length; ends.push(0); } ends[k] = b.coO; lane[b.id] = k; });
+          ends.forEach((_, k) => { rows += `<div class="cg croom" style="grid-template-columns:${cols};min-height:${rowH}"><div class="cst" style="grid-row:1;grid-column:1;color:#92400E;font-size:11px">Chưa có số</div>${noRoom.filter((b) => lane[b.id] === k).map((b) => bar(b, a, true)).join('')}</div>`; });
+        }
+      } else {
+        const ends = [], lane = {};
+        list.sort((p, q) => p.ciO - q.ciO || q.coO - p.coO).forEach((b) => { let k = ends.findIndex((e) => e <= b.ciO); if (k < 0) { k = ends.length; ends.push(0); } ends[k] = b.coO; lane[b.id] = k; });
+        for (let k = 0; k < Math.max(a.rooms, ends.length); k++) {
+          const mine = list.filter((b) => lane[b.id] === k);
+          rows += `<div class="cg croom" style="grid-template-columns:${cols};min-height:${rowH}"><div class="cst" style="grid-row:1;grid-column:1;color:#DC2626">${k < a.rooms ? '' : 'Thừa'}</div>${slots(span(mine))}${mine.map((b) => bar(b, a)).join('')}</div>`;
+        }
+      }
+    });
+    const loose = B.filter((b) => !b.apt && b.coO > ws && b.ciO < we && (b.confirmed || b.ciO > 0 || b.coO > 0));
+    if (loose.length) {
+      rows += `<div class="cg capt" style="grid-template-columns:${cols}"><div class="cst"><span class="dot" style="width:10px;height:10px;background:#F59E0B"></span>Chưa xếp</div></div>`;
+      loose.forEach((b) => { rows += `<div class="cg croom" style="grid-template-columns:${cols};min-height:${rowH}"><div class="cst" style="grid-row:1;grid-column:1;color:#92400E;font-size:11px">Chưa có căn</div>${bar(b, { color: '#F59E0B' }, true)}</div>`; });
+    }
+    const head = days.map((dd) => { const y = dateOf(dd); return `<button class="cdh ${dd === 0 ? 't' : ''}" onclick="M.day(${dd});M.tab('day')" aria-label="Chi tiết ${y.d}/${y.m}"><div class="w">${WD[y.w]}</div><div class="n num">${y.d}</div></button>`; }).join('');
+    const noRoomN = B.filter((b) => b.apt && !b.room_no && b.coO > Math.max(ws, 0) && b.ciO < we).length;
+    const a0 = dateOf(ws), a1 = dateOf(we - 1);
+    return `<div style="padding:calc(18px + env(safe-area-inset-top)) 16px 10px">
+      <div class="kick" style="color:#64748B">${a0.d}/${a0.m} – ${a1.d}/${a1.m} · ${CAP()} PHÒNG</div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-top:4px"><div class="h1" style="margin:0">Lịch phòng</div>
+        <div style="display:flex;gap:6px"><button class="x" style="width:40px;height:40px" onclick="M.cal(-1)" aria-label="Lùi ngày">${svg('l', 16, 2.4)}</button><button class="x" style="width:40px;height:40px" onclick="M.cal(1)" aria-label="Tới ngày">${svg('r', 16, 2.4)}</button></div></div>
+      <div class="seg" style="margin-top:12px">${[[3, '3 ngày · rõ chữ'], [7, '7 ngày'], [14, '14 ngày']].map(([n, l]) => `<button class="${S.calN === n ? 'on' : ''}" onclick="M.set('calN',${n})">${l}</button>`).join('')}</div>
+      <div class="seg" style="margin-top:8px"><button class="${room ? 'on' : ''}" onclick="M.set('calView','room')">Theo phòng 1-2-3-4</button><button class="${room ? '' : 'on'}" onclick="M.set('calView','apt')">Theo căn (tự xếp)</button></div>
+      <div style="margin-top:8px;font-size:11px;color:#475569;font-weight:600;line-height:1.45">${room ? 'Xếp phòng: <b style="color:#0E1525">chạm tên khách</b> → chạm ô xanh <b style="color:#166534">"Xếp vào đây"</b>. Chạm lại để bỏ chọn.' : 'Không cần số phòng: mỗi căn có số dòng bằng số phòng, khách tự xếp vào dòng còn trống.'}</div>
+      <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:8px;font-size:11px;font-weight:600;color:#475569"><b style="color:#0E1525">Ô cạnh tên căn = phòng còn trống đêm đó:</b>
+        <span class="fr" style="padding:2px 6px;background:#DCFCE7;color:#166534">Trống 2</span><span class="fr" style="padding:2px 6px;background:#FEF3C7;color:#92400E">Trống 1</span><span class="fr" style="padding:2px 6px;background:#FEE2E2;color:#B91C1C">Kín phòng</span></div>
+      ${room && noRoomN ? `<button onclick="M.auto()" style="width:100%;margin-top:10px;min-height:44px;border-radius:12px;border:1.5px dashed #0E1525;background:#fff;font-size:13px;font-weight:800">Tự xếp phòng cho ${noRoomN} khách đã có căn</button>` : ''}</div>
+      <div class="card cal"><div style="width:${width};padding:8px 8px 10px 0">
+        <div class="cg" style="grid-template-columns:${cols};padding-bottom:6px;border-bottom:1px solid #EEF0F4"><div class="cst"></div>${head}</div>${rows}</div></div>
+      <div class="legend"><span><i style="width:18px;height:11px;border-radius:3px;background:#1976D2;display:inline-block"></i>Có khách</span><span><i style="width:18px;height:11px;border-radius:3px;border:1.5px dashed #1976D2;display:inline-block"></i>Chưa xác nhận</span><span><i style="width:18px;height:11px;border-radius:3px;border:1.5px dashed #CBD5E1;display:inline-block"></i>Trống</span><span><i style="width:18px;height:11px;border-radius:3px;background:#FEF3C7;border:1.5px dashed #F59E0B;display:inline-block"></i>Chưa có số phòng</span></div>`;
+  }
+  M.cal = (dir) => { S.calStart = Math.max(-10, Math.min(20, S.calStart + dir * (S.calN === 3 ? 1 : 3))); render(); };
+
+  // ═════ NHẮN KHÁCH ═════
+  const STEP_SUB = { welcome: 'lời chào', confirm: '+ ảnh booking', passport: 'hộ chiếu', luggage: 'tuỳ chọn', checkin: 'ảnh hướng dẫn', payment: '+ mã QR', thanks: 'khi trả phòng' };
+  function msgCard(b) {
+    const a = aptById[b.apt], st = stOf(b), tier = tierOf(b);
+    const steps = S.data.steps.map((s) => `<button class="stp ${s.key === b.next ? 'rec' : b.sent.includes(s.key) ? 'done' : ''}" onclick="M.send('${b.id}','${s.key}')"><b>${s.emoji} ${esc(s.label.split(' &')[0])}</b><small>${s.key === b.next ? 'nên gửi bây giờ' : b.sent.includes(s.key) ? 'đã gửi' : STEP_SUB[s.key] || ''}</small></button>`).join('')
+      + `<button class="stp" onclick="M.send('${b.id}','__more')"><b>➕ Mẫu khác</b><small>tất cả mẫu</small></button>`;
+    return `<div class="card mc" style="${tier ? 'border:1.5px solid #FCD34D;' : ''}${st.k === 'unreach' ? 'opacity:.55;filter:grayscale(.6);' : ''}"><div class="top" style="background:${st.c}"></div><div class="in">
+      <div style="display:flex;align-items:flex-start;gap:10px"><div style="flex:1;min-width:0"><div style="font-size:17px;font-weight:800;line-height:1.25">${esc(b.name)}</div>
+        <div style="display:flex;gap:5px;flex-wrap:wrap;margin-top:4px">${tier ? `<span style="font-size:10px;font-weight:800;color:#78350F;background:#FDE68A;border-radius:6px;padding:2px 7px">${tier}</span>` : ''}${b.tb ? '<span class="tb">2PN</span>' : ''}<span style="font-size:10px;font-weight:700;color:#475569;background:#F1F5F9;border-radius:6px;padding:2px 7px">${b.vn ? 'Tiếng Việt' : 'English'}</span></div></div>
+        <div style="text-align:right;flex-shrink:0"><div class="num" style="font-size:16px;font-weight:800">${fmt(b.total)}</div><div class="num" style="font-size:11px;color:#64748B;font-weight:600">${short(b.per_night)}/đêm</div></div></div>
+      <div class="num" style="font-size:12px;color:#334155;font-weight:700;margin-top:8px">${dm(b.ciO)} → ${dm(b.coO)} · ${b.nights} đêm</div>
+      <div class="num" style="font-size:11px;color:#64748B;font-weight:600;margin-top:2px">${esc(b.listing)} · Mã ${esc(b.id)}</div>
+      <button class="st" onclick="M.status('${b.id}')" style="background:${st.bg};color:${st.fg}"><span class="dot" style="width:10px;height:10px;background:${st.c}"></span><span style="flex:1;min-width:0"><b>${st.t}</b><small>${esc(st.s)}</small></span></button>
+      ${st.k === 'wait' ? `<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;margin-top:6px"><button onclick="M.mark('${b.id}','replied',true)" style="min-height:40px;border-radius:10px;border:1px solid #BFDBFE;background:#EFF6FF;color:#1D4ED8;font-size:12px;font-weight:800">Khách đã trả lời</button><button onclick="M.eta('${b.id}')" style="min-height:40px;border-radius:10px;border:1px solid #BFDBFE;background:#EFF6FF;color:#1D4ED8;font-size:12px;font-weight:800">Ghi giờ đến…</button></div>` : ''}
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px">
+        <button class="tag" onclick="M.pickApt('${b.id}')" style="${a ? `background:${a.color};color:#fff` : 'border:1.5px dashed #F59E0B;background:#FFFBEB;color:#92400E'};font-weight:800">${a ? esc(a.short) + (b.room_no ? ' · P' + b.room_no : '') + ' · đổi căn' : 'Chưa xếp căn · chọn'}</button>
+        ${b.phone ? `<span class="tag num" style="background:#EFF6FF;color:#1D4ED8;padding-right:4px;gap:6px">${esc(b.phone)}<button onclick="M.phone('${b.id}')" style="min-height:28px;border-radius:7px;border:none;background:#fff;color:#1D4ED8;font-size:11px;font-weight:800;padding:0 8px">Sửa số</button></span>`
+          : b.partner ? `<span class="tag" style="background:#F5F3FF;color:#5B21B6">Đối tác · nhắn qua Booking</span><button class="tag" onclick="M.phone('${b.id}')" style="border:1.5px dashed #A78BFA;background:#fff;color:#5B21B6;font-weight:800">+ Số khách gửi</button>`
+          : `<button class="tag" onclick="M.phone('${b.id}')" style="border:1.5px dashed #F59E0B;background:#FFFBEB;color:#92400E;font-weight:800">+ Thêm số khách gửi</button>`}
+        ${b.no_wa ? '<span class="tag" style="background:#FEF2F2;color:#B91C1C;font-size:11px;font-weight:800">Không dùng WhatsApp</span>' : ''}${b.no_zalo ? '<span class="tag" style="background:#FEF2F2;color:#B91C1C;font-size:11px;font-weight:800">Không dùng Zalo</span>' : ''}</div>
+      <div style="display:flex;gap:10px;align-items:center;margin-top:10px;background:#F7F8FA;border-radius:12px;padding:8px">
+        <img class="shot" src="/api/booking_screenshot/${encodeURIComponent(b.id)}?v=guest" alt="" loading="lazy" onerror="this.style.visibility='hidden'" onclick="Journey.zoom && Journey.zoom(this.src)">
+        <div style="flex:1;min-width:0;font-size:11px;color:#475569;font-weight:600;line-height:1.5"><div>Chỗ nghỉ: <b style="color:#0E1525">${esc(b.property || '—')}</b></div>
+          <div>Giờ đến: <b style="color:${b.eta ? '#1D4ED8' : '#94A3B8'}">${b.eta || 'chưa biết'}</b> <button onclick="M.eta('${b.id}')" style="border:none;background:none;color:#1D4ED8;font-size:11px;font-weight:800;padding:0 2px">sửa</button> · Liên hệ: ${b.last ? esc(b.last.at) : 'chưa có'}</div></div></div>
+      <div class="lbl">Gửi tin</div><div class="steps">${steps}</div>
+      <div style="display:flex;align-items:center;gap:4px;margin-top:10px;border-top:1px solid #F1F2F5;padding-top:6px">
+        <button onclick="M.unreach('${b.id}')" style="min-height:40px;border:none;background:transparent;font-size:12px;font-weight:700;color:#475569;padding:0 6px">${b.unreach ? 'Liên lạc lại được' : 'Không liên lạc được'}</button>
+        <button onclick="M.cancel('${b.id}')" style="min-height:40px;border:none;background:transparent;font-size:12px;font-weight:700;color:#B91C1C;padding:0 6px">Hủy khách</button>
+        <button onclick="M.open('${b.id}')" style="margin-left:auto;min-height:40px;border:none;background:transparent;font-size:12px;font-weight:800;color:#0E1525;padding:0 6px">Thẻ khách ›</button></div></div></div>`;
+  }
+  function viewMsg() {
+    const arr = B.filter((b) => b.ciO >= 0 && b.ciO < S.mrange), stay = B.filter((b) => b.ciO < 0 && b.coO >= 0);
+    const scope0 = S.mtab === 'arr' ? arr : stay;
+    const key = (b) => (b.apt ? String(b.apt) : 'none');
+    const scope = scope0.filter((b) => !S.mapt || key(b) === String(S.mapt));
+    const done = (b) => stOf(b).k !== 'todo';
+    const n = { all: scope.filter((b) => !b.unreach).length, todo: scope.filter((b) => !b.unreach && !done(b)).length,
+                done: scope.filter((b) => !b.unreach && done(b)).length, unreach: scope.filter((b) => b.unreach).length };
+    const pass = (b) => (S.mf === 'unreach' ? b.unreach : !b.unreach && (S.mf === 'all' || (S.mf === 'todo' ? !done(b) : done(b))));
+    const shown = scope.filter(pass).sort((p, q) => q.total - p.total || q.nights - p.nights);
+    let groups = '';
+    if (S.mf === 'unreach') {
+      if (shown.length) groups += `<div class="gh"><i style="background:#94A3B8"></i>Không liên lạc được — để quản lý sau<span>· ${shown.length}</span></div>` + shown.map(msgCard).join('<div style="height:10px"></div>');
+    } else {
+      APT.map((a) => String(a.id)).concat(['none']).forEach((k) => {
+        const list = shown.filter((b) => key(b) === k); if (!list.length) return;
+        const a = aptById[k];
+        groups += `<div class="gh"><i style="background:${a ? a.color : '#F59E0B'}"></i>${a ? esc(a.name) : 'Chưa xếp căn'}<span>· ${list.length} khách</span></div>` + list.map(msgCard).join('<div style="height:10px"></div>');
+      });
+      const un = scope.filter((b) => b.unreach);
+      if (S.mf === 'all' && un.length) groups += `<div class="gh"><i style="background:#94A3B8"></i>Không liên lạc được<span>· ${un.length}</span></div>` + un.map(msgCard).join('<div style="height:10px"></div>');
+    }
+    const todoToday = B.filter((b) => b.ciO === 0 && !b.unreach && stOf(b).k === 'todo').length;
+    const a = S.mapt && (aptById[S.mapt] || (S.mapt === 'none' ? { name: 'Chưa xếp căn', color: '#B45309' } : null));
+    return `<div style="padding:calc(18px + env(safe-area-inset-top)) 16px 8px"><div class="kick" style="color:#64748B">HÔM NAY · ${todoToday} KHÁCH ĐẾN CHƯA ĐƯỢC NHẮN</div><div class="h1">Nhắn khách</div></div>
+      <div class="wrap" style="display:flex;flex-direction:column;gap:10px">
+        <div class="seg"><button class="${S.mtab === 'arr' ? 'on' : ''}" onclick="M.set('mtab','arr')">Sắp đến · ${arr.length}</button><button class="${S.mtab === 'stay' ? 'on' : ''}" onclick="M.set('mtab','stay')">Đang ở · ${stay.length}</button></div>
+        ${S.mtab === 'arr' ? `<div class="row">${[[1, 'Hôm nay'], [3, '3 ngày'], [7, '7 ngày']].map(([k, l]) => `<button class="pill ${S.mrange === k ? 'on' : ''}" onclick="M.set('mrange',${k})">${l}</button>`).join('')}</div>` : ''}
+        <div class="row"><button class="pill ${S.mf === 'all' ? 'on' : ''}" onclick="M.set('mf','all')">Tất cả ${n.all}</button><button class="pill red ${S.mf === 'todo' ? 'on' : ''}" onclick="M.set('mf','todo')">Chưa nhắn ${n.todo}</button>
+          <button class="pill green ${S.mf === 'done' ? 'on' : ''}" onclick="M.set('mf','done')">Đã nhắn ${n.done}</button><button class="pill ${S.mf === 'unreach' ? 'on' : ''}" onclick="M.set('mf','unreach')">Không liên lạc được ${n.unreach}</button></div>
+        <button onclick="M.quick()" style="min-height:50px;border-radius:14px;border:none;background:#F59E0B;color:#0E1525;font-size:14px;font-weight:800;display:flex;align-items:center;justify-content:center;gap:8px">${bolt(18)}Tin nhanh — mẫu câu chung</button>
+        <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px"><a href="/messages#photo" style="display:flex;align-items:center;justify-content:center;text-align:center;min-height:46px;border-radius:12px;border:1px dashed #94A3B8;background:#fff;font-size:12px;font-weight:700;color:#0E1525;text-decoration:none">Thêm đặt phòng từ ảnh</a>
+          <a href="/messages#chatphone" style="display:flex;align-items:center;justify-content:center;text-align:center;min-height:46px;border-radius:12px;border:1px dashed #94A3B8;background:#fff;font-size:12px;font-weight:700;color:#0E1525;text-decoration:none">Cập nhật số từ ảnh chat</a></div>
+        ${a ? `<div style="display:flex;align-items:center;gap:8px;background:${a.color};color:#fff;border-radius:12px;padding:8px 8px 8px 14px;font-size:13px;font-weight:800"><span style="flex:1">Đang xem: ${esc(a.name)}</span><button onclick="M.set('mapt',null)" style="min-height:36px;border-radius:10px;border:none;background:rgba(255,255,255,.2);color:#fff;font-size:12px;font-weight:800;padding:0 12px">Xem tất cả</button></div>` : ''}
+      </div><div class="wrap" style="padding-bottom:90px">${groups || `<div class="card empty" style="margin-top:12px">${S.mf === 'todo' ? 'Đã nhắn hết cho khách trong mục này.' : 'Không có khách nào ở đây.'}</div>`}</div>`;
+  }
+  M.aptSheetOpen = () => {
+    const scope0 = S.mtab === 'arr' ? B.filter((b) => b.ciO >= 0 && b.ciO < S.mrange) : B.filter((b) => b.ciO < 0 && b.coO >= 0);
+    const tile = (k, label, color) => { const list = scope0.filter((b) => !k || (k === 'none' ? !b.apt : String(b.apt) === String(k)));
+      const todo = list.filter((b) => !b.unreach && stOf(b).k === 'todo').length, on = String(S.mapt || '') === String(k || '');
+      return `<button onclick="M.set('mapt',${k ? `'${k}'` : 'null'});M.close()" style="min-height:76px;border-radius:14px;padding:8px 6px;${on ? `border:none;background:${color};color:#fff` : `border:1.5px solid #E2E5EB;background:#fff;color:#0E1525;${list.length ? '' : 'opacity:.45'}`}">
+        <div style="font-size:14px;font-weight:800">${esc(label)}</div><div class="num" style="font-size:11px;font-weight:700;opacity:.85">${list.length} khách</div>${todo ? `<div style="font-size:11px;font-weight:800;color:${on ? '#FECACA' : '#DC2626'}">${todo} chưa nhắn</div>` : ''}</button>`; };
+    $('#sheet').innerHTML = `<div class="ov" onclick="if(event.target===this)M.close()"><div class="sh"><div class="handle"></div><div style="display:flex;align-items:center;justify-content:space-between"><b style="font-size:18px">Xem khách của căn</b><button class="x" onclick="M.close()" aria-label="Đóng">${svg('x', 18, 2.4)}</button></div>
+      <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:14px">${tile(null, 'Tất cả', '#0E1525')}${APT.map((a) => tile(String(a.id), a.short, a.color)).join('')}${tile('none', 'Chưa xếp', '#B45309')}</div></div></div>`;
+  };
+
+  // ═════ THU TIỀN ═════
+  const payItems = () => B.filter((b) => b.ciO <= 0 && b.coO >= -10 && !b.skipped && b.total > 0);
+  const payStatus = (b) => (b.paid ? 'paid' : b.claimed ? 'claimed' : b.asked ? 'asked' : 'todo');
+  function viewPay() {
+    const items = payItems(), unpaid = items.filter((b) => !b.paid);
+    const left = (b) => Math.max(b.total - b.collected, 0);
+    const ST = { todo: ['CHƯA NHẮN', '#DC2626', '#fff'], asked: ['ĐÃ NHẮN', '#E0E7FF', '#3730A3'], claimed: ['BÁO ĐÃ TRẢ', '#EDE9FE', '#5B21B6'] };
+    const pass = (b) => (S.pf === 'all' || payStatus(b) === S.pf) && (!S.papt || String(b.apt) === String(S.papt));
+    const dl = (b) => b.coO < 0 ? ['Đã trả phòng ' + -b.coO + ' ngày', '#991B1B'] : b.coO === 0 ? ['Trả HÔM NAY', '#DC2626'] : b.coO === 1 ? ['Trả ngày mai', '#B45309'] : ['Còn ' + b.coO + ' ngày', '#475569'];
+    const row = (b) => { const s = payStatus(b), [t, c] = dl(b);
+      return `<div class="card prow"><div style="display:flex;align-items:flex-start;gap:10px">
+        <button class="pst" onclick="M.payCycle('${b.id}')" style="background:${ST[s][1]};color:${ST[s][2]}">${ST[s][0]}</button>
+        <button onclick="M.open('${b.id}')" style="flex:1;min-width:0;border:none;background:none;text-align:left;padding:0"><div style="font-size:15px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(b.name)}</div>
+          <div class="num" style="font-size:12px;color:#475569;font-weight:600">Nhận ${dm(b.ciO)} → Trả ${dm(b.coO)} · ${b.nights} đêm${b.room_no ? ' · P' + b.room_no : ''}</div>
+          <div style="font-size:12px;font-weight:800;color:${c};margin-top:2px">${t}</div>${b.collected ? `<div class="num" style="font-size:11px;color:#475569">Đã thu ${fmt(b.collected)} / ${fmt(b.total)}</div>` : ''}${b.note ? `<div style="font-size:11px;color:#92400E">Ghi chú: ${esc(b.note)}</div>` : ''}</button>
+        <div class="num" style="font-size:16px;font-weight:800;text-align:right">${fmt(left(b))}</div></div>
+        <div style="display:grid;grid-template-columns:${s === 'todo' ? 'repeat(2,minmax(0,1fr))' : '1fr'};gap:8px;margin-top:10px">
+          ${s === 'todo' ? `<button onclick="M.send('${b.id}','payment')" style="min-height:46px;border-radius:12px;border:1px solid #E2E5EB;background:#fff;font-size:13px;font-weight:800">Nhắn thanh toán</button>` : ''}
+          <button onclick="M.payOpen('${b.id}')" style="min-height:46px;border-radius:12px;border:none;background:#0E1525;color:#fff;font-size:13px;font-weight:800">Đã thu…</button></div></div>`; };
+    let groups = '';
+    APT.forEach((a) => { const list = unpaid.filter((b) => b.apt === a.id && pass(b)).sort((p, q) => p.ciO - q.ciO); if (!list.length) return;
+      groups += `<div class="gh"><i style="background:${a.color}"></i>${esc(a.name)}<b class="num" style="margin-left:auto">${fmt(list.reduce((t, b) => t + left(b), 0))}</b></div>` + list.map(row).join('<div style="height:8px"></div>'); });
+    const nn = unpaid.filter((b) => !b.apt && pass(b));
+    if (nn.length && !S.papt) groups += `<div class="gh"><i style="background:#F59E0B"></i>Chưa xếp căn<b class="num" style="margin-left:auto">${fmt(nn.reduce((t, b) => t + left(b), 0))}</b></div>` + nn.map(row).join('<div style="height:8px"></div>');
+    const urgent = unpaid.filter((b) => (b.coO === 0 || b.coO === 1) && payStatus(b) === 'todo');
+    const paidL = items.filter((b) => b.paid).sort((p, q) => q.coO - p.coO);
+    const ov = APT.map((a) => { const list = unpaid.filter((b) => b.apt === a.id), todo = list.filter((b) => payStatus(b) === 'todo').length, on = String(S.papt) === String(a.id);
+      return `<button onclick="M.set('papt',${on ? 'null' : a.id})" style="text-align:left;border-radius:14px;padding:9px 11px;color:#fff;${on ? 'border:2px solid #fff;background:rgba(255,255,255,.16)' : 'border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.06)'}">
+        <div style="display:flex;align-items:center;gap:6px;font-size:12px;font-weight:800"><span class="dot" style="background:${a.color}"></span>${esc(a.short)}</div><div class="num" style="font-size:16px;font-weight:800;margin-top:2px">${fmt(list.reduce((t, b) => t + left(b), 0))}</div>
+        <div style="font-size:10px;font-weight:600;color:#A7B0C0">${list.length} khách${todo ? ' · ' + todo + ' chưa nhắn' : ''}</div></button>`; }).join('');
+    const pf = [['all', 'Tất cả'], ['todo', 'Chưa nhắn'], ['asked', 'Đã nhắn, chờ trả'], ['claimed', 'Báo đã trả']].map(([k, l]) =>
+      `<button class="pill ${S.pf === k ? 'on' : ''}" onclick="M.set('pf','${k}')">${l} ${unpaid.filter((b) => k === 'all' || payStatus(b) === k).length}</button>`).join('');
+    return `<div class="hero" style="padding-bottom:18px"><div class="kick">CÒN PHẢI THU · ${unpaid.length} KHÁCH</div><div class="num" style="font-size:34px;font-weight:800;letter-spacing:-1px;margin-top:4px">${fmt(unpaid.reduce((t, b) => t + left(b), 0))}</div>
+        <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:14px">${ov}</div></div>
+      <div class="wrap"><div class="row" style="margin-top:12px">${pf}</div>
+        ${urgent.length ? `<div style="margin-top:10px;background:#FEF2F2;border:1.5px solid #FCA5A5;color:#991B1B;border-radius:14px;padding:10px 12px;font-size:13px;font-weight:800">${urgent.length} khách trả phòng hôm nay / ngày mai CHƯA được nhắn thanh toán</div>` : ''}
+        ${groups || '<div class="card empty" style="margin-top:12px">Không còn khách nào phải thu trong mục này.</div>'}
+        ${paidL.length ? `<button onclick="M.set('showPaid',${!S.showPaid})" style="width:100%;margin-top:14px;min-height:46px;border-radius:12px;border:1px solid #E2E5EB;background:#fff;font-size:13px;font-weight:800;color:#15803D">${S.showPaid ? 'Ẩn' : 'Xem'} khách đã thu (${paidL.length})</button>` : ''}
+        ${S.showPaid ? paidL.map((b) => { const a = aptById[b.apt]; return `<div style="display:flex;align-items:center;gap:10px;background:#fff;border-radius:14px;padding:10px 14px;margin-top:8px"><span class="dot" style="background:${a ? a.color : '#94A3B8'}"></span>
+          <div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:700">${esc(b.name)}</div><div style="font-size:11px;color:#15803D;font-weight:800">${esc(b.collector || 'Đã thu')} · ${fmt(b.collected)}</div></div>
+          <button onclick="M.undoPay('${b.id}')" style="min-height:36px;border-radius:10px;border:1px solid #E2E5EB;background:#fff;font-size:11px;font-weight:800;color:#475569;padding:0 10px">Hoàn tác</button></div>`; }).join('') : ''}
+        <div style="height:20px"></div></div>`;
+  }
+
+  // ═════ SHEETS ═════
+  function renderSheet() {
+    const el = $('#sheet');
+    if (S.collect && byId[S.collect]) {
+      const b = byId[S.collect], left = Math.max(b.total - b.collected, 0);
+      el.innerHTML = `<div class="ov" onclick="if(event.target===this)M.close()"><div class="sh"><div class="handle"></div>
+        <div style="display:flex;align-items:center;gap:10px"><div style="flex:1;min-width:0"><div class="kick" style="color:#64748B">THU TIỀN</div><div style="font-size:20px;font-weight:800">${esc(b.name)}</div></div><button class="x" onclick="M.close()" aria-label="Đóng">${svg('x', 18, 2.4)}</button></div>
+        <div class="num" style="font-size:30px;font-weight:800;margin-top:10px">${fmt(left)}</div><div class="num" style="font-size:12px;color:#475569;font-weight:600">Nhận ${dm(b.ciO)} → Trả ${dm(b.coO)} · ${b.nights} đêm${b.collected ? ' · đã thu ' + fmt(b.collected) : ''}</div>
+        <div class="seg" style="margin-top:14px"><button class="${S.cmethod === 'cash' ? 'on' : ''}" onclick="S_set('cmethod','cash')">Tiền mặt</button><button class="${S.cmethod === 'bank' ? 'on' : ''}" onclick="S_set('cmethod','bank')">Chuyển khoản</button></div>
+        <div class="lbl">Ai đã thu? — chạm là lưu</div>
+        <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px">${S.data.collectors.map((p) => `<button onclick="M.collect('${b.id}','${p}')" style="min-height:72px;border-radius:16px;border:none;background:#0E1525;color:#fff"><div style="font-size:18px;font-weight:800">${p}</div><div class="num" style="font-size:11px;font-weight:600;color:#A7B0C0">thu ${fmt(left)}</div></button>`).join('')}</div>
+        <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:10px">${S.data.collectors.map((p) => `<button onclick="M.partial('${b.id}','${p}')" style="min-height:44px;border-radius:12px;border:1px solid #E2E5EB;background:#fff;font-size:12px;font-weight:700">${p} thu số khác…</button>`).join('')}</div></div></div>`;
+      return;
+    }
+    if (!S.sel || !byId[S.sel]) { el.innerHTML = ''; return; }
+    const b = byId[S.sel], a = aptById[b.apt], st = stOf(b);
+    const status = b.coO === 0 ? 'Trả hôm nay' : b.ciO < 0 ? 'Đang ở' : b.ciO > 0 ? 'Đến ' + dm(b.ciO) : b.confirmed ? 'Đã xác nhận đến' : 'Chờ xác nhận đến';
+    const sentBars = S.data.steps.map((s) => `<div><div style="height:6px;border-radius:3px;background:${b.sent.includes(s.key) ? '#16A34A' : '#E5E7EB'}"></div><div style="font-size:10px;font-weight:700;margin-top:4px;color:${b.sent.includes(s.key) ? '#15803D' : '#64748B'}">${esc(s.label.split(' &')[0])}</div></div>`).join('');
+    const aptChips = APT.map((x) => { const f = x.rooms - B.filter((o) => o.apt === x.id && o.id !== b.id && inHouse(o, Math.max(b.ciO, 0))).length;
+      return `<button class="chip ${f > 0 ? '' : 'off'}" style="background:${x.color}" onclick="M.place('${b.id}',${x.id})">${esc(x.short)}<small>${f > 0 ? 'còn ' + f : 'hết'}</small></button>`; }).join('');
+    const roomChips = a ? Array.from({ length: a.rooms }, (_, k) => { const no = k + 1, ok = fits(b, a.id, no), on = b.room_no === no;
+      return `<button class="chip" style="${on ? `background:${a.color}` : ok ? `background:#fff;color:${a.color};border:2px solid ${a.color}` : 'background:#F1F5F9;color:#94A3B8;border:1px dashed #CBD5E1'}" onclick="M.room('${b.id}',${a.id},${no})">Phòng ${no}<small>${on ? 'đang ở đây' : ok ? 'trống' : 'trùng'}</small></button>`; }).join('') : '';
+    el.innerHTML = `<div class="ov" onclick="if(event.target===this)M.close()"><div class="sh"><div class="handle"></div>
+      <div style="display:flex;align-items:flex-start;gap:10px"><div style="flex:1;min-width:0"><div style="font-size:22px;font-weight:800;letter-spacing:-.3px">${esc(b.name)}</div>
+        <div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap"><span style="font-size:11px;font-weight:800;color:#fff;background:${a ? a.color : '#64748B'};border-radius:7px;padding:3px 8px">${a ? esc(a.name) + (b.room_no ? ' · Phòng ' + b.room_no : '') : 'Chưa xếp căn'}</span>${b.tb ? '<span class="tb" style="font-size:11px;padding:3px 8px">2PN</span>' : ''}
+          <span style="font-size:11px;font-weight:800;border-radius:7px;padding:3px 8px;background:${st.bg};color:${st.fg}">${status} · ${st.line}</span></div></div>
+        <button class="x" onclick="M.close()" aria-label="Đóng">${svg('x', 18, 2.4)}</button></div>
+      <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:16px">
+        <div class="info"><small>Ngày ở</small><b class="num">${dm(b.ciO)} → ${dm(b.coO)}</b></div><div class="info"><small>Giá / đêm</small><b class="num">${short(b.per_night)} · ${b.nights} đêm</b></div>
+        <div class="info"><small>Tổng tiền</small><b class="num">${fmt(b.total)}</b></div><div class="info"><small>Thanh toán</small><b style="color:${b.paid ? '#15803D' : '#DC2626'}">${b.paid ? 'Đã thu · ' + esc(b.collector) : b.collected ? 'Đã thu ' + short(b.collected) : 'Chưa thu'}</b></div></div>
+      <div style="font-size:13px;color:#475569;margin-top:10px;font-weight:600">${esc(b.listing)} · ${b.phone ? `<a href="tel:${esc(b.phone)}">${esc(b.phone)}</a>` : b.partner ? 'Đối tác — nhắn qua Booking' : 'Chưa có số'} · Mã ${esc(b.id)}</div>
+      <div class="lbl">Tin đã nhắn</div><div style="display:grid;grid-template-columns:repeat(${S.data.steps.length},minmax(0,1fr));gap:4px">${sentBars}</div>
+      ${b.ciO <= 0 && b.coO > 0 ? `<button class="big" onclick="M.confirm('${b.id}')" style="margin-top:16px;${b.confirmed ? 'background:#DCFCE7;color:#15803D' : 'background:#0E1525;color:#fff'}">${b.confirmed ? 'Đã xác nhận đến — chạm để bỏ' : 'Xác nhận khách đã đến'}</button>` : ''}
+      <div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-top:10px">
+        <button class="act" onclick="M.payOpen('${b.id}')" style="${b.paid ? 'color:#15803D;background:#F0FDF4;border-color:#BBF7D0' : ''}">${svg('pay')}${b.paid ? 'Đã thu' : 'Thu tiền'}</button>
+        <button class="act" onclick="M.send('${b.id}','${b.next || '__more'}')">${svg('msg')}Nhắn</button>
+        ${b.phone ? `<a class="act" href="tel:${esc(b.phone)}">${svg('phone')}Gọi</a>` : `<button class="act" onclick="M.phone('${b.id}')">${svg('phone')}Thêm số</button>`}
+        <button class="act" onclick="S_set('move',${!S.move})">${svg('home')}Đổi căn</button></div>
+      ${S.move ? `<div class="lbl">Chọn căn</div><div class="chips4">${aptChips}</div>` : ''}
+      ${a ? `<div class="lbl">Số phòng trong ${esc(a.short)}</div><div class="chips4">${roomChips}</div>` : ''}
+      <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:14px">
+        <button onclick="M.eta('${b.id}')" style="min-height:44px;border-radius:12px;border:1px solid #E2E5EB;background:#fff;font-size:12px;font-weight:700">Giờ đến ${b.eta ? '· ' + b.eta : ''}</button>
+        <button onclick="M.unreach('${b.id}')" style="min-height:44px;border-radius:12px;border:1px solid #E2E5EB;background:#fff;font-size:12px;font-weight:700">${b.unreach ? 'Liên lạc lại được' : 'Không liên lạc được'}</button>
+        <button onclick="M.cancel('${b.id}')" style="min-height:44px;border-radius:12px;border:1px solid #FECACA;background:#fff;color:#B91C1C;font-size:12px;font-weight:700">Báo hủy</button></div></div></div>`;
+  }
+  window.S_set = (k, v) => { S[k] = v; renderSheet(); };
+
+  window.addEventListener('resize', () => { const w = wide(); if (w !== document.body.classList.contains('wide')) render(); });
+  load();
+})();
+</script>
+</body>
+</html>

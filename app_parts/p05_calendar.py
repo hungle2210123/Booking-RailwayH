@@ -981,14 +981,16 @@ def set_actual_apartment():
         if not booking_id:
             return jsonify({'success': False, 'message': 'Missing booking_id'}), 400
 
+        _moi_ensure()     # bookings.room_no (/moi): a room number belongs to the apartment, so it goes when that changes
         if apt_value:
             _sadb.session.execute(
-                text("UPDATE bookings SET actual_apartment = :apt WHERE booking_id = :bid"),
+                text("UPDATE bookings SET room_no = CASE WHEN actual_apartment = :apt THEN room_no END, "
+                     "actual_apartment = :apt WHERE booking_id = :bid"),
                 {'apt': apt_value, 'bid': booking_id}
             )
         else:
             _sadb.session.execute(
-                text("UPDATE bookings SET actual_apartment = NULL WHERE booking_id = :bid"),
+                text("UPDATE bookings SET actual_apartment = NULL, room_no = NULL WHERE booking_id = :bid"),
                 {'bid': booking_id}
             )
         _sadb.session.commit()

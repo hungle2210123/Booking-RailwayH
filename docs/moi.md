@@ -1,0 +1,52 @@
+# /moi — the new phone-first app (owner, Oct 26 2026)
+
+Built from the approved Design-canvas mockup (https://claude.ai/artifact/Pxax1hBddXkfy5P496eLU2). It runs NEXT TO the
+old pages — nothing was removed (owner: "bản cũ thì khoan xóa, tạm thời cứ để đó"). Entry: nav "✨ Giao diện mới"
+(base.html) and the "Bản cũ" button on /moi goes back to /hom-nay.
+
+Files: `app_parts/p15_moi.py` (routes), `templates/moi.html` (one standalone page, vanilla JS, no base.html),
+`static/js/journey.js` (the SAME send sheet / Tin nhanh as /messages), tests `tests/test_moi.py`.
+
+## Data
+`GET /api/moi/data` — apartments (id, name, short, colour = calendar palette by position among ALL apartments, rooms =
+active room count), journey steps (prefs-hidden removed), collectors, and every booking touching
+[today − PAY_DAYS_BACK, today + 21) without cancelled/deleted/Báo hủy/no-show (unconfirmed > 2 days past arrival = no-show,
+skipped): money (total, per_night, collected, paid like /messages pay), placement (`apt` = actual_apartment, `room_no`),
+`confirmed`, contact (`sent` steps, `manual`, `last`, `next` = recommended_step, `unreach`, `replied`, `eta` from
+`arrival_times`, `no_wa`/`no_zalo`), payment marks (`asked` = payment step sent, `claimed`, `skipped`, `note`), `tb` (2PN).
+
+## Rooms 1..N (new)
+`bookings.room_no` INTEGER (added by `_moi_ensure`): room number INSIDE the placed apartment (owner: "chỉ cần ghi 1234").
+`POST /api/moi/room {booking_id, apartment_id, room_no|null, force}` sets actual_apartment + room_no; 409 `clash` when
+another guest has that room on one of the nights (the page asks, then sends force). `/api/set_actual_apartment` clears
+room_no when the apartment changes (a number belongs to its apartment).
+
+## Screens (all state client-side; data reloaded every 45 s, on return, and after every action;
+`window.MsgLive.refresh` lets journey.js reload after its sheet closes)
+- **Chi tiết ngày**: 7-day strip (free rooms per night, violet dot = 2PN turnover), free-rooms ring, Đến (N chờ), Trả
+  (N 2PN), Chưa thu (unpaid money of guests in house that night). Unplaced guests → one-tap apartment chips
+  (`/api/set_actual_apartment`). Trả ↔ Đến per apartment (cells = rooms used); arrivals coloured by contact status;
+  Đang ở list. Free-room rule = core/occupancy: an unconfirmed guest whose arrival day came is not counted.
+- **Lịch**: 3 / 7 / 14 days (14 default on ≥ 992px). "Theo phòng 1-2-3-4": rows Phòng 1..N per apartment, guests without
+  a number in "Chưa có số" lanes, unplaced at the bottom; tap a guest bar → green "Xếp vào đây" / red "Trùng khách" over
+  every room for those nights → tap green (`/api/moi/room`); compact pick bar (name, dates, free rooms, Thẻ, ✕).
+  "Tự xếp phòng cho N khách đã có căn" fills the first free room of their apartment. "Theo căn (tự xếp)": lanes, no numbers.
+  Header chips per apartment per day: Trống N (green, amber at 1) / Kín phòng / Thừa N.
+- **Nhắn khách**: Sắp đến (Hôm nay / 3 / 7 ngày) / Đang ở; filters Tất cả / Chưa nhắn / Đã nhắn / Không liên lạc được;
+  grouped by apartment, value order, VIP / Ưu tiên tiers; card = coloured top edge + status banner (tap: red → "đã nhắn
+  ngoài app" = journey 'contacted'; amber → 'replied'), "Khách đã trả lời" / "Ghi giờ đến…" (`/api/arrival_times`),
+  apartment chip (journey.js apartment picker), phone Sửa / Thêm (`/api/messages/phone`), Booking picture, steps grid
+  3 columns (recommended = black "nên gửi bây giờ", sent = green "đã gửi") → `Journey.open(id, step)`; "Mẫu khác" →
+  `'__more'`; ⚡ Tin nhanh (button + floating) → `Journey.quick()`; floating 🏠 apartment filter sheet. "Thêm đặt phòng
+  từ ảnh" / "Cập nhật số từ ảnh chat" link to /messages#photo / #chatphone (messages.html opens that sheet).
+- **Thu tiền**: like /messages?view=pay — overview per apartment (tap = filter), filters by status, red alert for
+  check-out today / tomorrow not messaged, rows grouped by apartment (status chip cycles: chưa nhắn → payment step sent →
+  /api/pay/mark claim → unclaim), "Nhắn thanh toán" (journey 'payment'), **"Đã thu…" = collector chosen PER GUEST**:
+  Tiền mặt / Chuyển khoản + LOC LE / THAO LE big buttons (full amount left) or "thu số khác…" (`/api/pay/collect`,
+  duplicate 409 asks first); paid list with Hoàn tác (undo).
+- **Guest sheet** (tap any name): dates, per night, total, payment, phone/tel, sent steps bar, Xác nhận đến
+  (`/api/set_checkin_status`), Thu tiền, Nhắn (next step), Gọi / Thêm số, Đổi căn chips, Phòng 1..N chips, Giờ đến,
+  Không liên lạc được (journey 'unreachable'), Báo hủy ('cancelling', undoable on the calendar).
+
+Contact-status colours: red chưa nhắn · amber đã nhắn, chờ trả lời · blue đã trả lời / hẹn giờ · green đã đến / đang ở ·
+grey (dimmed) không liên lạc được.

@@ -15,7 +15,7 @@ https://web-production-8f671.up.railway.app — **push straight to main** ("git 
   p05 **calendar** month + calendar_details, vacancy, placement · p06 mobile payment, booking API, image/text extraction ·
   p07 /ai_assistant page, homestay, quick notes, arrival times · p08 collect payment, history, imports, check-in status ·
   p09 message templates API + images · p10 apartments/rooms · p11 analytics · p12 sync/crawl/duplicates · p13 translate,
-  railway misc · p14 electricity.
+  railway misc · p14 electricity · p15 **/moi** (new phone app next to the old pages — `docs/moi.md`).
 - `core/`: `journey.py` (messaging steps), `revenue.py` (ALL revenue numbers), `occupancy.py` (vacancy), `booking_page_parser.py`
   (extension + screenshot parsing), `models.py`, `two_bedroom.py`. Front-end: `templates/*.html` (big, inline JS),
   `static/js/journey.js` (send sheet), `static/js/booking_card.js`, `chrome_extension/` (content.js, background.js).

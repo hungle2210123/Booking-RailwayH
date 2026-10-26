@@ -157,7 +157,7 @@ _p04_bookings_expenses — /bookings list + add/edit/cancel/delete, manual entry
 - app_parts/p04_bookings_expenses.py:1609 `bulk_add_expenses` ← `/api/expenses/bulk` POST — Add multiple expenses at once (from AI or JSON input)
 - app_parts/p04_bookings_expenses.py:1677 `save_extracted_bookings` ← `/bookings/save_extracted` POST — Save multiple extracted bookings from AI photo processing
 
-## app_parts/p05_calendar.py (1258 lines)
+## app_parts/p05_calendar.py (1260 lines)
 _p05_calendar — vacancy preview, /calendar month, /calendar_details day page, placement, 2PN, apartment daily summary_
 - app_parts/p05_calendar.py:5 `api_vacancy_preview` ← `/api/vacancy_preview` — Vacancy per apartment for the next few days (sidebar board + email preview widget).
 - app_parts/p05_calendar.py:67 `api_month_vacancy` ← `/api/month_vacancy` — Free rooms per night for a whole month (mini calendar on calendar_details).
@@ -165,9 +165,9 @@ _p05_calendar — vacancy preview, /calendar month, /calendar_details day page, 
 - app_parts/p05_calendar.py:400 `debug_revenue` ← `/debug_revenue` — Debug route to test revenue calculations
 - app_parts/p05_calendar.py:439 `calendar_details` ← `/calendar_details/<date_str>` — Calendar details view for specific date
 - app_parts/p05_calendar.py:974 `set_actual_apartment` ← `/api/set_actual_apartment` POST — Save which actual apartment a guest is assigned to.
-- app_parts/p05_calendar.py:1014 `set_two_bedroom` ← `/api/set_two_bedroom` POST — Mark a booking as 2-bedroom (true), not 2-bedroom (false) or back to auto-detect (null).
-- app_parts/p05_calendar.py:1046 `apartment_placement_check` ← `/api/apartment_placement_check` GET — Before placing a guest: would the apartment exceed its room count on any night?
-- app_parts/p05_calendar.py:1079 `apartment_daily_summary` ← `/api/apartment_daily_summary` GET — Returns per-apartment occupancy for a given date.
+- app_parts/p05_calendar.py:1016 `set_two_bedroom` ← `/api/set_two_bedroom` POST — Mark a booking as 2-bedroom (true), not 2-bedroom (false) or back to auto-detect (null).
+- app_parts/p05_calendar.py:1048 `apartment_placement_check` ← `/api/apartment_placement_check` GET — Before placing a guest: would the apartment exceed its room count on any night?
+- app_parts/p05_calendar.py:1081 `apartment_daily_summary` ← `/api/apartment_daily_summary` GET — Returns per-apartment occupancy for a given date.
 
 ## app_parts/p06_payments_booking_api.py (1913 lines)
 _p06_payments_booking_api — mobile payment page + analytics, booking API (get/quick-update/extend), image/text booking extraction, duplicates check_
@@ -373,6 +373,14 @@ _p14_electricity — electricity calculator + meters/readings/bills_
 - app_parts/p14_electricity.py:449 `delete_electricity_image` ← `/api/electricity/images/<int:image_id>` DELETE — Delete electricity image
 - app_parts/p14_electricity.py:463 `get_electricity_analytics` ← `/api/electricity/analytics` GET — Get electricity analytics data for charts and comparisons
 
+## app_parts/p15_moi.py (157 lines)
+_p15_moi — /moi: the new phone-first app (owner, Oct 26), built from the approved mockup. Runs NEXT TO the old pages_
+- app_parts/p15_moi.py:12 `_moi_ensure` — bookings.room_no (room 1..N inside the placed apartment) — added once per process.
+- app_parts/p15_moi.py:26 `_moi_apartments` — Active apartments with short name, colour (index among ALL apartments, like the calendar) and room count.
+- app_parts/p15_moi.py:39 `moi_page` ← `/moi` — The new phone-first app (old pages stay as they are).
+- app_parts/p15_moi.py:45 `moi_data` ← `/api/moi/data` — Everything /moi shows: apartments, journey steps and every booking that touches [today − 10 days, today + 21 d
+- app_parts/p15_moi.py:121 `moi_set_room` ← `/api/moi/room` POST — Put a guest in room N of an apartment (or only the apartment when room_no is empty). Refused (409) when anothe
+
 ## core/__init__.py (3 lines)
 
 ## core/ai_duplicate_detector.py (255 lines)
@@ -492,7 +500,7 @@ _p14_electricity — electricity calculator + meters/readings/bills_
 - core/gcp_helper.py:6 `_get_gspread_client_production` — Hàm kết nối Google Sheets cho production.
 - core/gcp_helper.py:39 `get_gspread_client_safe` — Wrapper function để tự động chọn phương thức kết nối phù hợp
 
-## core/journey.py (325 lines)
+## core/journey.py (327 lines)
 - core/journey.py:62 `ensure` — Create the tables / columns once per process and seed the first mapping.
 - core/journey.py:96 `_seed`
 - core/journey.py:114 `load_map` — {step: {apartment_id: template_id}}
@@ -507,14 +515,14 @@ _p14_electricity — electricity calculator + meters/readings/bills_
 - core/journey.py:190 `clean_name` — Booking names often end with the country code ("Lucas de Kok nl").
 - core/journey.py:195 `fill` — Tokens: {ten} guest · {nhan} check-in dd/mm · {tra} check-out · {phong} " (room)" · {can} apartment ·
 - core/journey.py:208 `log_sent`
-- core/journey.py:238 `is_step_key` — Keys that can be logged: journey steps, pinned templates (not groups), the manual, unreachable and
-- core/journey.py:244 `unreachable_at` — VN time of a "📵 không liên lạc được" mark that still holds, else None. A guest who confirmed arrival, or got
-- core/journey.py:255 `vn_time` — 'HH:MM dd/mm' in Vietnam time for a journey_log time (stored in UTC).
-- core/journey.py:265 `last_contact` — The latest thing sent to a guest → {'label', 'at'} (VN time 'HH:MM dd/mm'), None when nothing yet.
-- core/journey.py:277 `_clean_fav`
-- core/journey.py:287 `get_prefs`
-- core/journey.py:298 `set_prefs`
-- core/journey.py:308 `favorites_named` — Pinned buttons ready to show: label (own, else the template / group name), key, kind.
+- core/journey.py:240 `is_step_key` — Keys that can be logged: journey steps, pinned templates (not groups), the manual, unreachable and
+- core/journey.py:246 `unreachable_at` — VN time of a "📵 không liên lạc được" mark that still holds, else None. A guest who confirmed arrival, or got
+- core/journey.py:257 `vn_time` — 'HH:MM dd/mm' in Vietnam time for a journey_log time (stored in UTC).
+- core/journey.py:267 `last_contact` — The latest thing sent to a guest → {'label', 'at'} (VN time 'HH:MM dd/mm'), None when nothing yet.
+- core/journey.py:279 `_clean_fav`
+- core/journey.py:289 `get_prefs`
+- core/journey.py:300 `set_prefs`
+- core/journey.py:310 `favorites_named` — Pinned buttons ready to show: label (own, else the template / group name), key, kind.
 
 ## core/logic_postgresql.py (1876 lines)
 - core/logic_postgresql.py:24 `clear_booking_cache` — Clear the global booking data cache - call after any data modification
@@ -719,8 +727,8 @@ _p14_electricity — electricity calculator + meters/readings/bills_
 - templates/auto_sync_dashboard.html: 266 `refreshSyncStatus` · 303 `updateSyncStatusDisplay` · 363 `updateTableBreakdown` · 395 `checkSyncNotifications` · 426 `updateAutoSyncToggle` · 441 `performSync` · 504 `performTableSync` · 531 `toggleAutoSync`
 - templates/auto_sync_dashboard.html: 551 `loadSyncHistory` · 581 `handleNotificationAction` · 592 `showToast`
 
-## templates/base.html (642 lines)
-- templates/base.html: 558 `fastNavigate` · 570 `goToHome` · 582 `isPWAInstalled` · 600 `showInstallInstructions`
+## templates/base.html (647 lines)
+- templates/base.html: 563 `fastNavigate` · 575 `goToHome` · 587 `isPWAInstalled` · 605 `showInstallInstructions`
 
 ## templates/bookings.html (3195 lines)
 - templates/bookings.html: 1096 `toggleDeleteButton` · 1216 `performDuplicateAnalysis` · 1282 `displayDuplicateResults` · 1524 `cancelBooking` · 1625 `showDuplicateDetail` · 1699 `showDuplicateComparison` · 1821 `cancelDuplicateBooking` · 1870 `deleteDuplicateBooking`
@@ -822,16 +830,23 @@ _p14_electricity — electricity calculator + meters/readings/bills_
 - templates/market_intelligence.html: 285 `performMarketAnalysis` · 328 `displayResults` · 357 `createPriceDistributionChart` · 397 `createPropertyTypesChart` · 436 `populatePropertiesTable` · 486 `displayInsights` · 508 `addToHistory` · 528 `exportToJSON`
 - templates/market_intelligence.html: 540 `formatPrice` · 545 `showSection` · 549 `hideSection` · 553 `hideAllResultSections` · 558 `showError` · 563 `retryAnalysis` · 596 `performCustomUrlAnalysis`
 
-## templates/messages.html (1304 lines)
+## templates/messages.html (1309 lines)
 - templates/messages.html: 641 `toast` · 652 `MsgPay.asked` · 659 `MsgPay.claim` · 672 `MsgPay.note` · 679 `MsgPay.skip` · 693 `MsgPay.filter` · 695 `MsgPay.jump` · 696 `MsgPay.paid`
 - templates/messages.html: 744 `MsgPay.collect` · 816 `open` · 840 `close` · 841 `status` · 846 `pasteFromClipboard` · 861 `loadTesseract` · 871 `prepare` · 887 `addImages`
 - templates/messages.html: 911 `ocrLines` · 919 `saveShot` · 945 `showForm` · 971 `save` · 1005 `open` · 1022 `close` · 1023 `status` · 1024 `read`
-- templates/messages.html: 1043 `draw` · 1066 `save` · 1085 `refresh` · 1123 `applyRoom` · 1155 `applyFilter` · 1178 `MsgAct.aptSheet` · 1195 `MsgAct.room` · 1203 `MsgAct.filter`
-- templates/messages.html: 1209 `MsgAct.mark` · 1219 `MsgAct.cancel` · 1239 `MsgAct.confirm` · 1254 `MsgAct.unreach` · 1267 `MsgAct.phone` · 1287 `stamp`
+- templates/messages.html: 1043 `draw` · 1066 `save` · 1090 `refresh` · 1128 `applyRoom` · 1160 `applyFilter` · 1183 `MsgAct.aptSheet` · 1200 `MsgAct.room` · 1208 `MsgAct.filter`
+- templates/messages.html: 1214 `MsgAct.mark` · 1224 `MsgAct.cancel` · 1244 `MsgAct.confirm` · 1259 `MsgAct.unreach` · 1272 `MsgAct.phone` · 1292 `stamp`
 
 ## templates/mobile_payment.html (893 lines)
 - templates/mobile_payment.html: 484 `cardCls` · 490 `dateBadge` · 498 `renderDates` · 557 `toISO` · 564 `openSheet` · 583 `closeSheet` · 588 `pick` · 594 `tickTs`
 - templates/mobile_payment.html: 601 `doConfirm` · 642 `showToast` · 649 `loadHistory` · 696 `switchTab` · 705 `changeOffset` · 707 `loadAnalytics` · 812 `openDetail` · 873 `closeDetail`
+
+## templates/moi.html (651 lines)
+- templates/moi.html: 172 `load` · 210 `M.tab` · 211 `M.set` · 212 `M.day` · 213 `M.open` · 214 `M.close` · 215 `M.place` · 220 `M.room`
+- templates/moi.html: 227 `M.confirm` · 233 `M.cancel` · 239 `M.mark` · 243 `M.status` · 245 `M.unreach` · 246 `M.eta` · 253 `M.phone` · 260 `M.send`
+- templates/moi.html: 261 `M.pickApt` · 262 `M.quick` · 263 `M.payOpen` · 264 `M.collect` · 272 `M.partial` · 274 `M.undoPay` · 277 `M.payCycle` · 282 `M.pickG`
+- templates/moi.html: 283 `M.auto` · 298 `render` · 305 `renderNav` · 313 `renderFloat` · 329 `viewDay` · 403 `viewCal` · 477 `M.cal` · 481 `msgCard`
+- templates/moi.html: 509 `viewMsg` · 545 `M.aptSheetOpen` · 558 `viewPay` · 600 `renderSheet` · 644 `S_set`
 
 ## templates/quick.html (279 lines)
 - templates/quick.html: 142 `toast` · 147 `go` · 155 `copyNow` · 163 `sendText` · 168 `copyText` · 169 `sendImgs` · 180 `setIn` · 202 `takeOut`
