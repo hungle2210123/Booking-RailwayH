@@ -84,3 +84,21 @@ def test_moi_ics_for_iphone(client):
     assert 'DTSTART;TZID=Asia/Ho_Chi_Minh:20300101T193000' in body and 'TRIGGER:-PT30M' in body and 'BEGIN:VALARM' in body
     assert f'Mã {bid}' in body and 'Phản hồi khách' in body
     assert client.get('/api/moi/ics?b=nope&at=2030-01-01T19:30').status_code == 404
+
+
+@pytest.mark.db_write
+def test_moi_calendar_subscription(client, booking):
+    """📅 Kết nối Lịch iPhone: one webcal:// link; the feed lists open reminders (alarm at the time) with the guest's
+    details, and refuses a wrong token."""
+    f = client.get('/api/moi/feed').get_json()
+    assert f['success'] and f['webcal'].startswith('webcal://') and f['webcal'].endswith('.ics')
+    path = '/' + f['https'].split('/', 3)[3]
+    bid = booking(guest_name='ZZ Feed Guest', checkin_date='2030-05-01', checkout_date='2030-05-03')
+    rid = client.post('/api/moi/reminder', json={'booking_id': bid, 'at': '2030-05-01T21:15', 'note': 'ZZ Gọi lại khách'}).get_json()['id']
+    try:
+        body = client.get(path).get_data(as_text=True)
+        assert 'BEGIN:VCALENDAR' in body and f'UID:moi-rem-{rid}@hotelpro' in body
+        assert 'DTSTART;TZID=Asia/Ho_Chi_Minh:20300501T211500' in body and 'ZZ Gọi lại khách' in body and f'Mã {bid}' in body
+    finally:
+        client.post('/api/moi/reminder', json={'id': rid, 'delete': True})
+    assert client.get('/cal/sai-token.ics').status_code == 404

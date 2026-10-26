@@ -204,7 +204,8 @@ a.big{display:flex;align-items:center;justify-content:center;text-decoration:non
       render();
     } catch (e) { if (!quiet) $('#app').innerHTML = '<div class="empty" style="padding-top:80px">Không tải được dữ liệu — kéo xuống để tải lại.</div>'; }
   }
-  window.MsgLive = { refresh: () => load(true) };            // journey.js calls this after its send sheet closes
+  window.MsgLive = { refresh: () => load(true) };
+  fetch('/api/moi/feed').then((r) => r.json()).then((j) => { if (j.success) { S.feed = j.webcal; if (S.tab === 'day') render(); } }).catch(() => {});            // journey.js calls this after its send sheet closes
   setInterval(() => { if (!document.hidden && !$('.ov') && !$('.jr-ov') && !S.pick) load(true); }, 45000);
   document.addEventListener('visibilitychange', () => { if (!document.hidden) load(true); });
 
@@ -246,6 +247,17 @@ a.big{display:flex;align-items:center;justify-content:center;text-decoration:non
   const bell = (b) => { const r = remsOf(b.id), e = b.eta && b.ciO >= 0 && !b.confirmed;
     return `<button class="bell ${r.length || e ? 'has' : ''}" onclick="event.stopPropagation();M.remind('${b.id}')" aria-label="Nhắc / báo trễ cho ${esc(b.name)}">⏰${r.length ? remLabel(r[0].at) : e ? b.eta : ''}</button>`; };
   const remLine = (b) => remsOf(b.id).map((r) => `<div class="g4" style="color:${overdue(r) ? '#DC2626' : '#B45309'}">🔔 ${remLabel(r.at)} · ${esc(r.note)}</div>`).join('');
+  // 📅 one-time "Kết nối Lịch iPhone": a webcal:// subscription (iOS hands it to Calendar from Safari, a Home-Screen
+  // app or an in-app browser; a per-event .ics opened a blank page in the Home-Screen app — owner, Oct 26)
+  const calBlock = (compact) => {
+    if (!S.feed) return '';
+    const ok = LS.get('calOk', false);
+    if (ok && compact) return `<div style="margin-top:12px;font-size:11px;color:#15803D;font-weight:700;line-height:1.45">📅 Đã kết nối Lịch iPhone — lời nhắc tự hiện trong Lịch và kêu đúng giờ (Lịch tự cập nhật khoảng 15 phút một lần). <a href="${S.feed}" onclick="M.calDone()" style="color:#15803D">Kết nối lại</a></div>`;
+    return `<div style="margin-top:14px;border:1.5px solid ${ok ? '#BBF7D0' : '#FCD34D'};background:${ok ? '#F0FDF4' : '#FFFBEB'};border-radius:14px;padding:12px">
+      <div style="font-size:13px;font-weight:800">${ok ? '📅 Đã kết nối Lịch iPhone' : '📅 Bật báo thức trên iPhone — làm 1 lần'}</div>
+      <div style="font-size:12px;color:#475569;font-weight:600;line-height:1.5;margin-top:4px">Bấm nút dưới → iPhone hỏi <b>"Đăng ký lịch"</b> → bấm <b>Đăng ký</b> → <b>TẮT "Xoá cảnh báo"</b> (để báo thức kêu) → <b>Xong</b>. Từ đó mọi lời nhắc và giờ khách hẹn đến tự hiện trong Lịch, kêu kể cả khi tắt web.</div>
+      <a class="big" href="${S.feed}" onclick="M.calDone()" style="margin-top:10px;min-height:48px;background:${ok ? '#fff' : '#0E1525'};color:${ok ? '#15803D' : '#fff'};${ok ? 'border:1px solid #BBF7D0;' : ''}font-size:14px">${ok ? 'Kết nối lại' : 'Kết nối Lịch iPhone'}</a></div>`;
+  };
   const late = (b) => !!b.eta && (b.eta >= '18:00' || b.eta < '05:00');
   const tierOf = (b) => (b.total >= 3e6 || b.nights >= 5 ? 'VIP' : b.total >= 2e6 || b.nights >= 4 ? 'Ưu tiên' : '');
 
@@ -307,6 +319,7 @@ a.big{display:flex;align-items:center;justify-content:center;text-decoration:non
   M.status = (id) => { const b = byId[id], st = stOf(b);
     if (st.k === 'todo') M.mark(id, 'contacted', true); else if (st.k === 'wait') M.mark(id, 'replied', true); else M.open(id); };
   M.unreach = (id) => { const b = byId[id]; M.mark(id, 'unreachable', !b.unreach); if (!b.unreach) toast(b.name + ' → Không liên lạc được'); };
+  M.calDone = () => { LS.set('calOk', true); setTimeout(() => { render(); renderSheet(); }, 800); };
   M.remind = (id, mode) => { const b = byId[id]; S.sel = null; S.etaFor = id; S.etaVal = b.eta || '20:00'; S.etaRem = LS.get('etaRem', 30);
     S.remMode = mode || (b.ciO >= 0 && !b.confirmed ? 'late' : 'note'); S.remNote = ''; S.remAt = ''; renderSheet(); };
   M.eta = (id) => M.remind(id, 'late');
@@ -320,7 +333,7 @@ a.big{display:flex;align-items:center;justify-content:center;text-decoration:non
       body: JSON.stringify({ booking_id: b.id, at: S.remAt, note }) }).then(() => load(true)).catch(() => toast('Lỗi: không lưu được lời nhắc'));
     S.data.reminders = REM().concat([{ id: 0, booking_id: b.id, at: S.remAt, note, done: false }]);
     S.etaFor = null; renderSheet(); render();
-    toast('Đã đặt nhắc ' + remLabel(S.remAt) + ': ' + note + (alarm ? ' — bấm "Thêm" trong Lịch để bật báo thức' : ''));
+    toast('Đã đặt nhắc ' + remLabel(S.remAt) + ': ' + note + (LS.get('calOk', false) ? ' — Lịch iPhone sẽ báo' : ''));
   };
   M.remDone = async (rid, del) => { if (!rid) return load(true);
     const r = await post('/api/moi/reminder', del ? { id: rid, delete: true } : { id: rid, done: true });
@@ -332,7 +345,7 @@ a.big{display:flex;align-items:center;justify-content:center;text-decoration:non
     fetch('/api/arrival_times', { method: 'POST', headers: { 'Content-Type': 'application/json' }, keepalive: true,
       body: JSON.stringify({ booking_id: b.id, estimated_arrival: t }) }).then(() => load(true)).catch(() => toast('Lỗi: không lưu được giờ đến'));
     b.eta = t; S.etaFor = null; renderSheet(); render();
-    toast('Đã ghi giờ đến ' + t + ' cho ' + b.name + (alarm ? ' — bấm "Thêm" trong Lịch để bật báo thức' : ''));
+    toast('Đã ghi giờ đến ' + t + ' cho ' + b.name + (LS.get('calOk', false) ? ' — Lịch iPhone sẽ báo trước 30 phút' : ''));
   };
   // iPhone reminder: an .ics event with an alarm, opened by the tap itself (Safari shows "Thêm vào Lịch")
   const icsFor = (b, t, rem) => {
@@ -467,6 +480,7 @@ a.big{display:flex;align-items:center;justify-content:center;text-decoration:non
          <div class="chips4">${APT.map((a) => { const f = a.rooms - B.filter((o) => o.apt === a.id && inHouse(o, d)).length;
            return `<button class="chip ${f > 0 ? '' : 'off'}" style="background:${a.color}" onclick="M.place('${b.id}',${a.id})">${esc(a.short)}<small>${f > 0 ? 'còn ' + f : 'hết'}</small></button>`; }).join('')}</div></div>`).join('') + '</div>';
     }
+    if (d === 0 && S.feed && !LS.get('calOk', false)) h += `<div class="card" style="padding:2px 14px 14px">${calBlock(false)}</div>`;
     const openRem = REM().filter((r) => !r.done && byId[r.booking_id]).sort((p, q) => p.at.localeCompare(q.at));
     if (openRem.length && d === 0) h += `<div class="card" style="padding:12px 14px;border:1.5px solid ${openRem.some(overdue) ? '#FCA5A5' : '#FCD34D'}"><div style="font-size:13px;font-weight:800;margin-bottom:6px">🔔 Việc cần nhắc · ${openRem.length}</div>
       <div style="display:flex;flex-direction:column;gap:6px">${openRem.map((r) => { const b = byId[r.booking_id], a = aptById[b.apt];
@@ -742,10 +756,9 @@ a.big{display:flex;align-items:center;justify-content:center;text-decoration:non
           <div class="lbl">Nhắc lúc</div>
           <div class="tgrid">${PRE.map(([k, l]) => `<button class="tchip" style="font-size:12px" onclick="M.remPreset(${k})">${l}</button>`).join('')}</div>
           <label class="fld"><span>Giờ khác</span><input type="datetime-local" value="${esc(S.remAt)}" onchange="S_put('remAt',this.value);renderSheetPub()"></label>
-          ${S.remAt ? `<div style="margin-top:10px;font-size:14px;font-weight:800">Nhắc ${remLabel(S.remAt)} · ${esc(note)}</div>
-            <a class="big" href="${href}" target="_blank" rel="noopener" onclick="M.remSave(true)" style="margin-top:10px;background:#0E1525;color:#fff">Lưu + đặt báo thức (Lịch iPhone)</a>
-            <button class="big" onclick="M.remSave(false)" style="margin-top:8px;background:#fff;color:#0E1525;border:1px solid #E2E5EB">Chỉ lưu (nhắc khi mở web)</button>` : '<div style="margin-top:10px;font-size:12px;color:#64748B;font-weight:600">Chọn giờ nhắc ở trên.</div>'}
-          <div style="font-size:11px;color:#64748B;font-weight:600;margin-top:10px;line-height:1.45">Báo thức trong Lịch iPhone có đủ tên, số điện thoại, căn/phòng, ngày ở và mã đặt phòng của khách.</div></div></div>`;
+          ${S.remAt ? `<button class="big" onclick="M.remSave(false)" style="margin-top:12px;background:#0E1525;color:#fff">Lưu nhắc ${remLabel(S.remAt)} · ${esc(note)}</button>` : '<div style="margin-top:10px;font-size:12px;color:#64748B;font-weight:600">Chọn giờ nhắc ở trên.</div>'}
+          <div style="font-size:11px;color:#64748B;font-weight:600;margin-top:8px;line-height:1.45">Báo thức trong Lịch iPhone ghi đủ tên, số điện thoại, căn/phòng, ngày ở và mã đặt phòng của khách.</div>
+          ${calBlock(true)}</div></div>`;
         return;
       }
       el.innerHTML = head + `
@@ -754,12 +767,10 @@ a.big{display:flex;align-items:center;justify-content:center;text-decoration:non
         <div class="tgrid">${TIMES.map((x) => `<button class="tchip num ${t === x ? 'on' : ''}" onclick="S_set('etaVal','${x}')">${x}</button>`).join('')}
           <label style="grid-column:span 2;display:flex;align-items:center;gap:6px;border:1.5px dashed #94A3B8;border-radius:12px;padding:0 8px;min-height:48px"><span style="font-size:12px;font-weight:700;color:#475569">Giờ khác</span>
             <input type="time" value="${esc(t)}" onchange="S_set('etaVal',this.value)" style="flex:1;min-width:0;border:none;font-size:16px;font-weight:800;font-family:inherit;background:transparent"></label></div>
-        <div class="lbl">Báo thức nhắc tôi</div>
-        <div class="seg">${rems.map(([k, l]) => `<button class="${S.etaRem === k ? 'on' : ''}" onclick="S_set('etaRem',${k})" style="font-size:12px">${l}</button>`).join('')}</div>
-        ${ics ? `<a class="big" href="${ics}" target="_blank" rel="noopener" onclick="M.etaSave(true)" style="margin-top:16px;background:#0E1525;color:#fff">Lưu ${esc(t)} + đặt báo thức (Lịch iPhone)</a>
-                 <button class="big" onclick="M.etaSave(false)" style="margin-top:8px;background:#fff;color:#0E1525;border:1px solid #E2E5EB">Chỉ lưu giờ đến</button>`
-              : `<button class="big" onclick="M.etaSave(false)" style="margin-top:16px;background:#0E1525;color:#fff">Lưu giờ đến ${esc(t)}</button>`}
-        <div style="font-size:11px;color:#64748B;font-weight:600;margin-top:10px;line-height:1.45">Báo thức nằm trong ứng dụng Lịch của iPhone (bấm "Thêm" khi iPhone hỏi) — kêu đúng giờ kể cả khi không mở web.</div></div></div>`;
+
+        <button class="big" onclick="M.etaSave(false)" style="margin-top:16px;background:#0E1525;color:#fff">Lưu giờ đến ${esc(t)}</button>
+        <div style="font-size:11px;color:#64748B;font-weight:600;margin-top:8px">Lịch iPhone báo trước 30 phút khi khách hẹn đến.</div>
+        ${calBlock(true)}</div></div>`;
       return;
     }
     if (S.adding) {

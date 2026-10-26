@@ -244,3 +244,99 @@ def moi_ics():
     resp.headers['Content-Disposition'] = 'inline; filename="nhac-khach.ics"'
     resp.headers['Cache-Control'] = 'no-store'
     return resp
+
+
+
+def _moi_feed_token(_xdb):
+    """Secret part of the calendar-subscription link (made once, kept in moi_settings)."""
+    import secrets
+    _xdb.session.execute(text("CREATE TABLE IF NOT EXISTS moi_settings (key VARCHAR(50) PRIMARY KEY, value TEXT NOT NULL)"))
+    tok = _xdb.session.execute(text("SELECT value FROM moi_settings WHERE key = 'feed_token'")).scalar()
+    if not tok:
+        tok = secrets.token_urlsafe(18)
+        _xdb.session.execute(text("INSERT INTO moi_settings (key, value) VALUES ('feed_token', :v) ON CONFLICT (key) DO NOTHING"), {'v': tok})
+        tok = _xdb.session.execute(text("SELECT value FROM moi_settings WHERE key = 'feed_token'")).scalar()
+    _xdb.session.commit()
+    return tok
+
+
+@app.route('/api/moi/feed')
+def moi_feed_link():
+    """The webcal:// link the owner subscribes to ONCE on the iPhone (Lịch → every reminder and promised arrival time,
+    with alarms, appears by itself and rings with the web closed)."""
+    from core.models import db as _xdb
+    _moi_ensure()
+    tok = _moi_feed_token(_xdb)
+    host = request.host_url.split('://', 1)[1].rstrip('/')
+    return jsonify({'success': True, 'webcal': f'webcal://{host}/cal/{tok}.ics', 'https': f'https://{host}/cal/{tok}.ics'})
+
+
+@app.route('/cal/<token>.ics')
+def moi_feed(token):
+    """Subscribed calendar: open reminders (alarm at the time) + promised arrival times of guests not arrived yet
+    (alarm 30 minutes before). Stable UIDs, so a changed time replaces the old event on the next refresh."""
+    from core.models import db as _xdb
+    from core import journey as J
+    _moi_ensure()
+    if token != _moi_feed_token(_xdb):
+        return 'Không tìm thấy', 404
+    today = (datetime.utcnow() + timedelta(hours=7)).date()
+    fmt = lambda d: d.strftime('%Y%m%dT%H%M%S')
+    apts = {str(a['id']): a for a in _moi_apartments(_xdb)}
+
+    def guest_lines(r):
+        a = apts.get(str(r['apt'] or ''))
+        phone = _real_guest_phone(r['phone'], bool(r['partner']))
+        return '\n'.join(x for x in [
+            r['name'], f"SĐT {phone}" if phone else ('Đối tác Booking — nhắn qua Booking' if r['partner'] else 'chưa có số'),
+            (a['name'] + (f" · Phòng {r['room_no']}" if r['room_no'] else '')) if a else 'chưa xếp căn',
+            f"{r['ci']:%d/%m} → {r['co']:%d/%m} · {(r['co'] - r['ci']).days} đêm · {_vnd(r['total'])}đ" if r['ci'] and r['co'] else '',
+            _room_label(r['listing'], keep_note=True) or (r['listing'] or ''), f"Mã {r['bid']}",
+            request.host_url.rstrip('/') + '/moi'] if x)
+
+    def event(uid, start, title, desc, before):
+        return ['BEGIN:VEVENT', f'UID:{uid}@hotelpro', f'DTSTAMP:{datetime.utcnow():%Y%m%dT%H%M%SZ}',
+                f'DTSTART;TZID=Asia/Ho_Chi_Minh:{fmt(start)}', f'DTEND;TZID=Asia/Ho_Chi_Minh:{fmt(start + timedelta(minutes=15))}',
+                f'SUMMARY:{_ics_text(title)}', f'DESCRIPTION:{_ics_text(desc)}',
+                'BEGIN:VALARM', 'ACTION:DISPLAY', f'DESCRIPTION:{_ics_text(title)}',
+                f'TRIGGER:-PT{before}M' if before else 'TRIGGER:PT0M', 'END:VALARM', 'END:VEVENT']
+
+    sel = """SELECT b.booking_id, COALESCE(g.full_name, b.guest_name), g.phone, b.via_partner, b.actual_apartment, b.room_no,
+                    b.checkin_date, b.checkout_date, b.room_amount, b.accommodation_name
+             FROM bookings b LEFT JOIN guests g ON g.guest_id = b.guest_id"""
+    row = lambda r: {'bid': r[0], 'name': J.clean_name((r[1] or r[0]).strip()), 'phone': r[2], 'partner': r[3], 'apt': r[4],
+                     'room_no': r[5], 'ci': r[6], 'co': r[7], 'total': r[8], 'listing': r[9]}
+    out = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Hotel Pro//moi//VI', 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH',
+           'X-WR-CALNAME:Hotel Pro — nhắc khách', 'X-WR-TIMEZONE:Asia/Ho_Chi_Minh',
+           'REFRESH-INTERVAL;VALUE=DURATION:PT15M', 'X-PUBLISHED-TTL:PT15M',
+           'BEGIN:VTIMEZONE', 'TZID:Asia/Ho_Chi_Minh', 'BEGIN:STANDARD', 'DTSTART:19700101T000000', 'TZOFFSETFROM:+0700',
+           'TZOFFSETTO:+0700', 'TZNAME:ICT', 'END:STANDARD', 'END:VTIMEZONE']
+    for rid, bid, at, note in _xdb.session.execute(text(
+            "SELECT id, booking_id, remind_at, note FROM moi_reminders WHERE NOT done AND remind_at >= :d"),
+            {'d': datetime.combine(today - timedelta(days=2), datetime.min.time())}).fetchall():
+        r = _xdb.session.execute(text(sel + " WHERE b.booking_id = :b"), {'b': bid}).fetchone()
+        if r:
+            g = row(r)
+            out += event(f'moi-rem-{rid}', at, f'🔔 {note} — {g["name"]}', guest_lines(g), 0)
+    try:
+        etas = _xdb.session.execute(text(sel + """, arrival_times t
+            WHERE t.booking_id = b.booking_id AND t.arrival_time IS NOT NULL AND b.checkin_date >= :d
+              AND COALESCE(b.booking_status, '') NOT IN ('cancelled', 'deleted')
+              AND COALESCE(b.checkin_status, '') NOT IN ('cancelling', 'no_show', 'confirmed')"""
+            .replace('SELECT b.booking_id', 'SELECT b.booking_id').replace(sel, sel)), {'d': today - timedelta(days=1)}).fetchall()
+        times = {x[0]: x[1] for x in _xdb.session.execute(text(
+            "SELECT booking_id, arrival_time FROM arrival_times WHERE arrival_time IS NOT NULL")).fetchall()}
+    except Exception:
+        _xdb.session.rollback()
+        etas, times = [], {}
+    for r in etas:
+        g, t = row(r), times.get(r[0])
+        if not t or not g['ci']:
+            continue
+        start = datetime.combine(g['ci'] + timedelta(days=1 if t.hour < 5 else 0), t)
+        out += event(f'moi-eta-{g["bid"]}', start, f'Khách đến {t:%H:%M} — {g["name"]}', guest_lines(g), 30)
+    out += ['END:VCALENDAR', '']
+    resp = app.response_class('\r\n'.join(out), mimetype='text/calendar')
+    resp.headers['Content-Type'] = 'text/calendar; charset=utf-8'
+    resp.headers['Cache-Control'] = 'no-store'
+    return resp

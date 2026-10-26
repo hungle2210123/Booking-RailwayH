@@ -75,3 +75,9 @@ grey (dimmed) không liên lạc được.
   both alarm buttons now open `GET /api/moi/ics?b=<id>&at=YYYY-MM-DDTHH:MM&note=…&before=N` in a new tab — a real
   text/calendar file (VTIMEZONE Asia/Ho_Chi_Minh, VALARM, guest name / phone / apartment·room / dates·money / room type /
   booking number in the description); Safari shows the event → "Thêm vào Lịch". Test `test_moi_ics_for_iphone`.
+- **📅 Kết nối Lịch iPhone (one time)** — the per-event .ics opened a blank page in the Home-Screen app (owner, Oct 26),
+  so alarms now come from a SUBSCRIBED calendar: `GET /api/moi/feed` → `webcal://<host>/cal/<token>.ics` (token in table
+  `moi_settings`, made once); `/cal/<token>.ics` lists open reminders (alarm at the time) + promised arrival times of
+  guests not confirmed yet (alarm 30 min before), stable UIDs, REFRESH-INTERVAL 15 min, guest details in each event.
+  Shown as a card on Chi tiết ngày until done (localStorage `moi.calOk`) and at the bottom of the Nhắc sheet; steps:
+  Đăng ký → turn OFF "Xoá cảnh báo" (Remove Alerts) → Xong. Wrong token = 404. Test `test_moi_calendar_subscription`.
