@@ -72,3 +72,15 @@ def test_moi_reminders(client, db, booking):
     finally:
         client.post('/api/moi/reminder', json={'id': r['id'], 'delete': True})
     assert db.session.execute(text("SELECT count(*) FROM moi_reminders WHERE id = :i"), {'i': r['id']}).scalar() == 0
+
+
+def test_moi_ics_for_iphone(client):
+    """The alarm is a real text/calendar file from the server (iPhone ignores data: links): Vietnam time zone, an alarm,
+    and the guest's details."""
+    bid = client.get('/api/moi/data').get_json()['bookings'][0]['id']
+    r = client.get(f'/api/moi/ics?b={bid}&at=2030-01-01T19:30&note=Ph%E1%BA%A3n%20h%E1%BB%93i%20kh%C3%A1ch&before=30')
+    body = r.get_data(as_text=True)
+    assert r.status_code == 200 and r.headers['Content-Type'].startswith('text/calendar')
+    assert 'DTSTART;TZID=Asia/Ho_Chi_Minh:20300101T193000' in body and 'TRIGGER:-PT30M' in body and 'BEGIN:VALARM' in body
+    assert f'Mã {bid}' in body and 'Phản hồi khách' in body
+    assert client.get('/api/moi/ics?b=nope&at=2030-01-01T19:30').status_code == 404

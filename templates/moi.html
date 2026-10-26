@@ -719,7 +719,9 @@ a.big{display:flex;align-items:center;justify-content:center;text-decoration:non
       const b = byId[S.etaFor], t = S.etaVal || '';
       const TIMES = ['12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00', '21:00', '22:00', '23:00', '00:00', '01:00'];
       const rems = [[-1, 'Không nhắc'], [0, 'Đúng giờ'], [30, 'Trước 30 phút'], [60, 'Trước 1 tiếng']];
-      const ics = S.etaRem >= 0 && /^\d{2}:\d{2}$/.test(t) ? 'data:text/calendar;charset=utf-8,' + encodeURIComponent(icsFor(b, t, S.etaRem)) : '';
+      // a plain link to the server's .ics (iPhone ignores data: links): Safari shows the event with "Thêm vào Lịch"
+      const etaAt = /^\d{2}:\d{2}$/.test(t) ? new Date(Date.parse(b.ci + 'T00:00:00Z') + (t < '05:00' ? 864e5 : 0)).toISOString().slice(0, 10) + 'T' + t : '';
+      const ics = S.etaRem >= 0 && etaAt ? '/api/moi/ics?b=' + encodeURIComponent(b.id) + '&at=' + etaAt + '&note=' + encodeURIComponent('Khách đến') + '&before=' + S.etaRem : '';
       const a = aptById[b.apt], mine = REM().filter((r) => r.booking_id === b.id);
       const head = `<div class="ov" onclick="if(event.target===this)M.close()"><div class="sh"><div class="handle"></div>
         <div style="display:flex;align-items:center;gap:10px"><div style="flex:1;min-width:0"><div class="kick" style="color:#64748B">NHẮC · ${a ? esc(a.short) + (b.room_no ? ' P' + b.room_no : '') : 'CHƯA XẾP CĂN'} · ${dm(b.ciO)} → ${dm(b.coO)}</div><div style="font-size:20px;font-weight:800">${esc(b.name)}</div>
@@ -729,7 +731,7 @@ a.big{display:flex;align-items:center;justify-content:center;text-decoration:non
         const NOTES = ['Phản hồi khách', 'Gọi lại khách', 'Nhắc khách thanh toán', 'Gửi mã cửa / hướng dẫn', 'Đón khách', 'Hỏi giờ đến'];
         const PRE = [[15, '15 phút nữa'], [30, '30 phút nữa'], [60, '1 tiếng nữa'], [120, '2 tiếng nữa'], [-1, 'Tối nay 19:00'], [-2, 'Tối nay 21:00'], [-3, 'Sáng mai 8:00'], [-4, 'Trưa mai 12:00']];
         const note = (S.remNote || '').trim() || 'Phản hồi khách';
-        const href = S.remAt ? icsHref('moi-rem-' + b.id + '-' + S.remAt.replace(/\D/g, ''), parseLocal(S.remAt), '🔔 ' + note + ' — ' + b.name, guestInfo(b), 0) : '';
+        const href = S.remAt ? '/api/moi/ics?b=' + encodeURIComponent(b.id) + '&at=' + S.remAt + '&note=' + encodeURIComponent('🔔 ' + note) + '&before=0' : '';
         el.innerHTML = head + `
           ${mine.length ? `<div class="lbl">Đã đặt</div><div style="display:flex;flex-direction:column;gap:6px">${mine.map((r) => `<div class="remrow" style="${r.done ? 'opacity:.5' : ''}">
             <b class="num" style="color:${overdue(r) ? '#DC2626' : '#92400E'}">${remLabel(r.at)}</b><div class="t">${esc(r.note)}<small>${r.done ? 'đã xong' : overdue(r) ? 'đã tới giờ' : 'sắp tới'}</small></div>
@@ -741,7 +743,7 @@ a.big{display:flex;align-items:center;justify-content:center;text-decoration:non
           <div class="tgrid">${PRE.map(([k, l]) => `<button class="tchip" style="font-size:12px" onclick="M.remPreset(${k})">${l}</button>`).join('')}</div>
           <label class="fld"><span>Giờ khác</span><input type="datetime-local" value="${esc(S.remAt)}" onchange="S_put('remAt',this.value);renderSheetPub()"></label>
           ${S.remAt ? `<div style="margin-top:10px;font-size:14px;font-weight:800">Nhắc ${remLabel(S.remAt)} · ${esc(note)}</div>
-            <a class="big" href="${href}" onclick="M.remSave(true)" style="margin-top:10px;background:#0E1525;color:#fff">Lưu + đặt báo thức (Lịch iPhone)</a>
+            <a class="big" href="${href}" target="_blank" rel="noopener" onclick="M.remSave(true)" style="margin-top:10px;background:#0E1525;color:#fff">Lưu + đặt báo thức (Lịch iPhone)</a>
             <button class="big" onclick="M.remSave(false)" style="margin-top:8px;background:#fff;color:#0E1525;border:1px solid #E2E5EB">Chỉ lưu (nhắc khi mở web)</button>` : '<div style="margin-top:10px;font-size:12px;color:#64748B;font-weight:600">Chọn giờ nhắc ở trên.</div>'}
           <div style="font-size:11px;color:#64748B;font-weight:600;margin-top:10px;line-height:1.45">Báo thức trong Lịch iPhone có đủ tên, số điện thoại, căn/phòng, ngày ở và mã đặt phòng của khách.</div></div></div>`;
         return;
@@ -754,7 +756,7 @@ a.big{display:flex;align-items:center;justify-content:center;text-decoration:non
             <input type="time" value="${esc(t)}" onchange="S_set('etaVal',this.value)" style="flex:1;min-width:0;border:none;font-size:16px;font-weight:800;font-family:inherit;background:transparent"></label></div>
         <div class="lbl">Báo thức nhắc tôi</div>
         <div class="seg">${rems.map(([k, l]) => `<button class="${S.etaRem === k ? 'on' : ''}" onclick="S_set('etaRem',${k})" style="font-size:12px">${l}</button>`).join('')}</div>
-        ${ics ? `<a class="big" href="${ics}" onclick="M.etaSave(true)" style="margin-top:16px;background:#0E1525;color:#fff">Lưu ${esc(t)} + đặt báo thức (Lịch iPhone)</a>
+        ${ics ? `<a class="big" href="${ics}" target="_blank" rel="noopener" onclick="M.etaSave(true)" style="margin-top:16px;background:#0E1525;color:#fff">Lưu ${esc(t)} + đặt báo thức (Lịch iPhone)</a>
                  <button class="big" onclick="M.etaSave(false)" style="margin-top:8px;background:#fff;color:#0E1525;border:1px solid #E2E5EB">Chỉ lưu giờ đến</button>`
               : `<button class="big" onclick="M.etaSave(false)" style="margin-top:16px;background:#0E1525;color:#fff">Lưu giờ đến ${esc(t)}</button>`}
         <div style="font-size:11px;color:#64748B;font-weight:600;margin-top:10px;line-height:1.45">Báo thức nằm trong ứng dụng Lịch của iPhone (bấm "Thêm" khi iPhone hỏi) — kêu đúng giờ kể cả khi không mở web.</div></div></div>`;

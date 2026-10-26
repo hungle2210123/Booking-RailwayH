@@ -193,3 +193,54 @@ def moi_reminder():
                                {'b': bid, 'a': at, 'n': note or 'Nhắc khách'}).scalar()
     _xdb.session.commit()
     return jsonify({'success': True, 'id': rid})
+
+
+def _ics_text(v):
+    return str(v or '').replace('\\', '\\\\').replace(',', '\\,').replace(';', '\\;').replace('\n', '\\n')
+
+
+@app.route('/api/moi/ics')
+def moi_ics():
+    """An iPhone Calendar event with an alarm for one guest — opened by a plain link, so Safari shows "Thêm vào Lịch"
+    (a data: link is ignored on iPhone, owner Oct 26). ?b=<booking id>&at=YYYY-MM-DDTHH:MM (Vietnam time)&note=…&before=N
+    (minutes the alarm rings before). The event text carries the guest's name, phone, apartment / room, dates, money."""
+    from core.models import db as _xdb
+    from core import journey as J
+    _moi_ensure()
+    bid = str(request.args.get('b') or '').strip()
+    try:
+        at = datetime.strptime(str(request.args.get('at') or '')[:16], '%Y-%m-%dT%H:%M')
+        before = max(0, min(int(request.args.get('before') or 0), 24 * 60))
+    except ValueError:
+        return 'Giờ không hợp lệ', 400
+    r = _xdb.session.execute(text("""
+        SELECT COALESCE(g.full_name, b.guest_name), g.phone, b.via_partner, b.actual_apartment, b.room_no, b.checkin_date,
+               b.checkout_date, b.room_amount, b.accommodation_name
+        FROM bookings b LEFT JOIN guests g ON g.guest_id = b.guest_id WHERE b.booking_id = :b"""), {'b': bid}).fetchone()
+    if not r:
+        return 'Không tìm thấy đặt phòng', 404
+    name = J.clean_name((r[0] or bid).strip())
+    apt = next((a for a in _moi_apartments(_xdb) if str(a['id']) == str(r[3] or '')), None)
+    phone = _real_guest_phone(r[1], bool(r[2]))
+    note = str(request.args.get('note') or '').strip()[:200] or 'Khách đến'
+    title = f"{note} — {name}"
+    lines = [name,
+             f"SĐT {phone}" if phone else ('Đối tác Booking — nhắn qua Booking' if r[2] else 'chưa có số'),
+             (apt['name'] + (f" · Phòng {r[4]}" if r[4] else '')) if apt else 'chưa xếp căn',
+             f"{r[5]:%d/%m} → {r[6]:%d/%m} · {(r[6] - r[5]).days} đêm · {_vnd(r[7])}đ" if r[5] and r[6] else '',
+             _room_label(r[8], keep_note=True) or (r[8] or ''), f"Mã {bid}", request.host_url.rstrip('/') + '/moi']
+    fmt = lambda d: d.strftime('%Y%m%dT%H%M%S')
+    ics = '\r\n'.join([
+        'BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Hotel Pro//moi//VI', 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH',
+        'BEGIN:VTIMEZONE', 'TZID:Asia/Ho_Chi_Minh', 'BEGIN:STANDARD', 'DTSTART:19700101T000000', 'TZOFFSETFROM:+0700',
+        'TZOFFSETTO:+0700', 'TZNAME:ICT', 'END:STANDARD', 'END:VTIMEZONE',
+        'BEGIN:VEVENT', f"UID:moi-{bid}-{fmt(at)}-{before}@hotelpro", f"DTSTAMP:{datetime.utcnow():%Y%m%dT%H%M%SZ}",
+        f"DTSTART;TZID=Asia/Ho_Chi_Minh:{fmt(at)}", f"DTEND;TZID=Asia/Ho_Chi_Minh:{fmt(at + timedelta(minutes=15))}",
+        f"SUMMARY:{_ics_text(title)}", f"DESCRIPTION:{_ics_text(chr(10).join(l for l in lines if l))}",
+        'BEGIN:VALARM', 'ACTION:DISPLAY', f"DESCRIPTION:{_ics_text(title)}",
+        f"TRIGGER:-PT{before}M" if before else 'TRIGGER:PT0M', 'END:VALARM', 'END:VEVENT', 'END:VCALENDAR', ''])
+    resp = app.response_class(ics, mimetype='text/calendar')
+    resp.headers['Content-Type'] = 'text/calendar; charset=utf-8'
+    resp.headers['Content-Disposition'] = 'inline; filename="nhac-khach.ics"'
+    resp.headers['Cache-Control'] = 'no-store'
+    return resp

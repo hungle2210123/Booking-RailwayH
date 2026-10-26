@@ -373,7 +373,7 @@ _p14_electricity — electricity calculator + meters/readings/bills_
 - app_parts/p14_electricity.py:449 `delete_electricity_image` ← `/api/electricity/images/<int:image_id>` DELETE — Delete electricity image
 - app_parts/p14_electricity.py:463 `get_electricity_analytics` ← `/api/electricity/analytics` GET — Get electricity analytics data for charts and comparisons
 
-## app_parts/p15_moi.py (195 lines)
+## app_parts/p15_moi.py (246 lines)
 _p15_moi — /moi: the new phone-first app (owner, Oct 26), built from the approved mockup. Runs NEXT TO the old pages_
 - app_parts/p15_moi.py:12 `_moi_ensure` — bookings.room_no (room 1..N inside the placed apartment) — added once per process.
 - app_parts/p15_moi.py:32 `_moi_apartments` — Active apartments with short name, colour (index among ALL apartments, like the calendar) and room count.
@@ -381,6 +381,8 @@ _p15_moi — /moi: the new phone-first app (owner, Oct 26), built from the appro
 - app_parts/p15_moi.py:51 `moi_data` ← `/api/moi/data` — Everything /moi shows: apartments, journey steps and every booking that touches [today − 10 days, today + 21 d
 - app_parts/p15_moi.py:132 `moi_set_room` ← `/api/moi/room` POST — Put a guest in room N of an apartment (or only the apartment when room_no is empty). Refused (409) when anothe
 - app_parts/p15_moi.py:172 `moi_reminder` ← `/api/moi/reminder` POST — ⏰ Add a reminder on a guest ({booking_id, at: 'YYYY-MM-DDTHH:MM' Vietnam time, note}), or tick / untick one
+- app_parts/p15_moi.py:198 `_ics_text`
+- app_parts/p15_moi.py:203 `moi_ics` ← `/api/moi/ics` — An iPhone Calendar event with an alarm for one guest — opened by a plain link, so Safari shows "Thêm vào Lịch"
 
 ## core/__init__.py (3 lines)
 
@@ -842,13 +844,13 @@ _p15_moi — /moi: the new phone-first app (owner, Oct 26), built from the appro
 - templates/mobile_payment.html: 484 `cardCls` · 490 `dateBadge` · 498 `renderDates` · 557 `toISO` · 564 `openSheet` · 583 `closeSheet` · 588 `pick` · 594 `tickTs`
 - templates/mobile_payment.html: 601 `doConfirm` · 642 `showToast` · 649 `loadHistory` · 696 `switchTab` · 705 `changeOffset` · 707 `loadAnalytics` · 812 `openDetail` · 873 `closeDetail`
 
-## templates/moi.html (836 lines)
+## templates/moi.html (838 lines)
 - templates/moi.html: 196 `load` · 259 `M.reload` · 260 `M.tab` · 261 `M.set` · 262 `M.day` · 263 `M.open` · 264 `M.close` · 265 `M.add`
 - templates/moi.html: 266 `M.addSave` · 279 `M.place` · 284 `M.room` · 291 `M.confirm` · 297 `M.cancel` · 303 `M.mark` · 307 `M.status` · 309 `M.unreach`
 - templates/moi.html: 310 `M.remind` · 312 `M.eta` · 313 `M.remPreset` · 316 `M.remSave` · 325 `M.remDone` · 328 `M.etaSave` · 351 `M.phone` · 358 `M.send`
 - templates/moi.html: 359 `M.pickApt` · 360 `M.quick` · 361 `M.payOpen` · 362 `M.collect` · 370 `M.partial` · 372 `M.undoPay` · 375 `M.payCycle` · 380 `M.pickG`
 - templates/moi.html: 381 `M.auto` · 396 `render` · 405 `renderNav` · 414 `renderFloat` · 430 `viewDay` · 516 `viewCal` · 590 `M.cal` · 594 `msgCard`
-- templates/moi.html: 625 `viewMsg` · 661 `M.aptSheetOpen` · 674 `viewPay` · 716 `renderSheet` · 823 `S_set` · 824 `renderSheetPub` · 825 `S_put`
+- templates/moi.html: 625 `viewMsg` · 661 `M.aptSheetOpen` · 674 `viewPay` · 716 `renderSheet` · 825 `S_set` · 826 `renderSheetPub` · 827 `S_put`
 
 ## templates/quick.html (279 lines)
 - templates/quick.html: 142 `toast` · 147 `go` · 155 `copyNow` · 163 `sendText` · 168 `copyText` · 169 `sendImgs` · 180 `setIn` · 202 `takeOut`

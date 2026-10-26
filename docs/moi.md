@@ -71,3 +71,7 @@ grey (dimmed) không liên lạc được.
   `{id, delete}` removes) + the iPhone Calendar alarm (.ics) whose text carries the guest's name, phone, apartment/room,
   dates, money, room type, booking number. Chi tiết ngày (today) starts with "🔔 Việc cần nhắc" (overdue red, Xong);
   the nav badge on Chi tiết ngày = overdue reminders; a due reminder toasts while the page is open.
+- Calendar alarm fix (owner, Oct 26: "đã báo lưu nhưng Lịch không có gì"): iPhone ignores `data:text/calendar` links, so
+  both alarm buttons now open `GET /api/moi/ics?b=<id>&at=YYYY-MM-DDTHH:MM&note=…&before=N` in a new tab — a real
+  text/calendar file (VTIMEZONE Asia/Ho_Chi_Minh, VALARM, guest name / phone / apartment·room / dates·money / room type /
+  booking number in the description); Safari shows the event → "Thêm vào Lịch". Test `test_moi_ics_for_iphone`.
