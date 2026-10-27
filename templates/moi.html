@@ -88,6 +88,8 @@ body.wide #app{max-width:1180px}
 .fr{text-align:center;font-size:11px;font-weight:800;border-radius:8px;padding:3px 0}
 .croom{margin-top:4px;align-items:stretch}
 .croom .cst{display:flex;flex-direction:column;justify-content:center;padding-left:10px;font-size:12px;font-weight:700;color:#1E293B}
+.rname{border:none;text-align:left;font-family:inherit;font-size:12px;font-weight:700;color:#1E293B;padding:0 4px 0 10px;line-height:1.2;word-break:break-word}
+.rname span{display:block;font-size:9px;opacity:.45}
 .slot{grid-row:1;border-radius:10px;border:1.5px dashed #E3E6EC;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#94A3B8}
 .bar{grid-row:1;z-index:1;border-radius:10px;padding:4px 8px;text-align:left;overflow:hidden;min-width:0;border:none}
 .bar b{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;font-size:12px;font-weight:800;line-height:1.2;overflow:hidden;word-break:break-word}
@@ -223,6 +225,8 @@ a.big{display:flex;align-items:center;justify-content:center;text-decoration:non
     if (b.last || b.manual) return { k: 'wait', c: '#F59E0B', t: 'Đã nhắn — chờ khách trả lời', s: (last || 'Nhắn ngoài app') + ' · chạm khi khách trả lời', line: 'Chờ trả lời', bg: '#FEF3C7', fg: '#78350F' };
     return { k: 'todo', c: '#DC2626', t: 'Chưa nhắn', s: 'Chạm nếu đã nhắn ngoài app (Booking, gọi…)', line: 'Chưa nhắn', bg: '#FEE2E2', fg: '#7F1D1D' };
   };
+  // room name: the owner's own ("Kitchen", "Ban công") or "Phòng N"
+  const rn = (aid, no) => ((aptById[aid] || {}).room_names || {})[no] || 'Phòng ' + no;
   const pad = (n) => String(n).padStart(2, '0');
   const localStr = (d) => d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) + 'T' + pad(d.getHours()) + ':' + pad(d.getMinutes());
   const parseLocal = (x) => new Date(+x.slice(0, 4), +x.slice(5, 7) - 1, +x.slice(8, 10), +x.slice(11, 13), +x.slice(14, 16));
@@ -238,7 +242,7 @@ a.big{display:flex;align-items:center;justify-content:center;text-decoration:non
   const icsLocal = (d) => d.getFullYear() + pad(d.getMonth() + 1) + pad(d.getDate()) + 'T' + pad(d.getHours()) + pad(d.getMinutes()) + '00';
   const guestInfo = (b) => { const a = aptById[b.apt];
     return [b.name + (b.tb ? ' (2PN)' : ''), b.phone ? 'SĐT ' + b.phone : (b.partner ? 'Đối tác Booking — nhắn qua Booking' : 'chưa có số'),
-            (a ? a.name + (b.room_no ? ' · Phòng ' + b.room_no : '') : 'chưa xếp căn'), dm(b.ciO) + ' → ' + dm(b.coO) + ' · ' + b.nights + ' đêm · ' + fmt(b.total),
+            (a ? a.name + (b.room_no ? ' · ' + rn(b.apt, b.room_no) : '') : 'chưa xếp căn'), dm(b.ciO) + ' → ' + dm(b.coO) + ' · ' + b.nights + ' đêm · ' + fmt(b.total),
             b.listing, 'Mã ' + b.id, location.origin + '/moi'].filter(Boolean).join('\n'); };
   const icsHref = (uid, start, title, desc, trigMin) => 'data:text/calendar;charset=utf-8,' + encodeURIComponent(['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Hotel Pro//moi//VI',
     'BEGIN:VEVENT', 'UID:' + uid + '@hotelpro', 'DTSTAMP:' + new Date().toISOString().replace(/[-:]/g, '').slice(0, 15) + 'Z',
@@ -298,7 +302,7 @@ a.big{display:flex;align-items:center;justify-content:center;text-decoration:non
     let r = await post('/api/moi/room', { booking_id: id, apartment_id: aid, room_no: no });
     if (r.status === 409 && confirm((r.j.error || 'Phòng đã có khách') + '\n\nVẫn xếp vào đây?')) r = await post('/api/moi/room', { booking_id: id, apartment_id: aid, room_no: no, force: true });
     if (!r.ok) return r.status === 409 ? null : toast('Lỗi: ' + (r.j.error || 'không lưu được'));
-    S.pick = null; toast('Đã xếp ' + b.name + ' vào ' + aptById[aid].short + (no ? ' · Phòng ' + no : '')); await load(true); renderSheet();
+    S.pick = null; toast('Đã xếp ' + b.name + ' vào ' + aptById[aid].short + (no ? ' · ' + rn(aid, no) : '')); await load(true); renderSheet();
   };
   M.confirm = async (id) => {
     const b = byId[id]; const next = b.confirmed ? '' : 'confirmed';
@@ -319,6 +323,14 @@ a.big{display:flex;align-items:center;justify-content:center;text-decoration:non
   M.status = (id) => { const b = byId[id], st = stOf(b);
     if (st.k === 'todo') M.mark(id, 'contacted', true); else if (st.k === 'wait') M.mark(id, 'replied', true); else M.open(id); };
   M.unreach = (id) => { const b = byId[id]; M.mark(id, 'unreachable', !b.unreach); if (!b.unreach) toast(b.name + ' → Không liên lạc được'); };
+  M.renameRoom = async (aid, no) => {
+    const a = aptById[aid], cur = rn(aid, no);
+    const v = prompt('Tên cho phòng ' + no + ' của ' + a.name + '\n(vd: Kitchen, Ban công, 101-2PN — để trống = "Phòng ' + no + '"):', cur.startsWith('Phòng ') ? '' : cur);
+    if (v == null) return;
+    const r = await post('/api/moi/room_name', { apartment_id: aid, room_no: no, name: v.trim() });
+    if (!r.ok) return toast('Lỗi: ' + (r.j.error || 'không lưu được'));
+    toast('Đã đổi tên: ' + r.j.name); await load(true);
+  };
   M.calDone = () => { LS.set('calOk', true); setTimeout(() => { render(); renderSheet(); }, 800); };
   M.remind = (id, mode) => { const b = byId[id]; S.sel = null; S.etaFor = id; S.etaVal = b.eta || '20:00'; S.etaRem = LS.get('etaRem', 30);
     S.remMode = 'note'; S.remNote = ''; S.remAt = ''; renderSheet(); };
@@ -356,7 +368,7 @@ a.big{display:flex;align-items:center;justify-content:center;text-decoration:non
     const txt = (v) => String(v || '').replace(/[\\,;]/g, (c) => '\\' + c).replace(/\n/g, ' ');
     return ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Hotel Pro//moi//VI', 'BEGIN:VEVENT', 'UID:moi-' + b.id + '-' + t.replace(':', '') + '@hotelpro',
       'DTSTAMP:' + new Date().toISOString().replace(/[-:]/g, '').slice(0, 15) + 'Z', 'DTSTART:' + f(base), 'DTEND:' + f(end),
-      'SUMMARY:' + txt('Khách đến: ' + b.name + (a ? ' · ' + a.short + (b.room_no ? ' P' + b.room_no : '') : '')),
+      'SUMMARY:' + txt('Khách đến: ' + b.name + (a ? ' · ' + a.short + (b.room_no ? ' · ' + esc(rn(b.apt, b.room_no)) : '') : '')),
       'DESCRIPTION:' + txt(guestInfo(b).replace(/\n/g, ' · ')),
       'BEGIN:VALARM', 'ACTION:DISPLAY', 'DESCRIPTION:' + txt('Khách ' + b.name + ' sắp đến'), 'TRIGGER:' + (rem ? '-PT' + rem + 'M' : 'PT0M'), 'END:VALARM',
       'END:VEVENT', 'END:VCALENDAR'].join('\r\n');
@@ -485,19 +497,19 @@ a.big{display:flex;align-items:center;justify-content:center;text-decoration:non
     if (openRem.length && d === 0) h += `<div class="card" style="padding:12px 14px;border:1.5px solid ${openRem.some(overdue) ? '#FCA5A5' : '#FCD34D'}"><div style="font-size:13px;font-weight:800;margin-bottom:6px">🔔 Việc cần nhắc · ${openRem.length}</div>
       <div style="display:flex;flex-direction:column;gap:6px">${openRem.map((r) => { const b = byId[r.booking_id], a = aptById[b.apt];
         return `<div class="remrow" style="background:${overdue(r) ? '#FEF2F2' : '#FFFBEB'}" onclick="M.remind('${b.id}','note')"><b class="num" style="color:${overdue(r) ? '#DC2626' : '#92400E'}">${remLabel(r.at)}</b>
-          <div class="t">${esc(r.note)}<small>${esc(b.name)} · ${a ? esc(a.short) + (b.room_no ? ' P' + b.room_no : '') : 'chưa xếp'}${b.phone ? ' · ' + esc(b.phone) : ''}</small></div>
+          <div class="t">${esc(r.note)}<small>${esc(b.name)} · ${a ? esc(a.short) + (b.room_no ? ' · ' + esc(rn(b.apt, b.room_no)) : '') : 'chưa xếp'}${b.phone ? ' · ' + esc(b.phone) : ''}</small></div>
           <button class="okb" onclick="event.stopPropagation();M.remDone(${r.id})">Xong</button></div>`; }).join('')}</div></div>`;
     const stays = B.filter((b) => b.ciO < d && d < b.coO);
     h += `<div class="seg"><button class="${S.seg === 'pair' ? 'on' : ''}" onclick="M.set('seg','pair')">Trả ↔ Đến</button><button class="${S.seg === 'stay' ? 'on' : ''}" onclick="M.set('seg','stay')">Đang ở · ${stays.length}</button></div>`;
     if (S.seg === 'stay') {
       h += '<div class="card" style="padding:4px 16px 6px">' + (stays.sort((p, q) => p.coO - q.coO).map((b) => { const a = aptById[b.apt], left = b.coO - d;
         return `<div class="g" role="button" tabindex="0" onclick="M.open('${b.id}')" style="padding:12px 0"><div class="g1"><span class="dot" style="background:${a ? a.color : '#94A3B8'}"></span><span class="gn">${esc(b.name)}</span>${b.tb ? '<span class="tb">2PN</span>' : ''}<span style="font-size:11px;font-weight:800;color:${left === 1 ? '#B45309' : '#64748B'}">${left === 1 ? 'Trả mai' : 'Còn ' + left + ' đêm'}</span>${bell(b)}</div>
-          <div class="g2 num">${a ? esc(a.short) + (b.room_no ? ' · P' + b.room_no : '') : 'chưa xếp'} · ${b.nights} đêm · <b>${short(b.per_night)}</b>/đêm${b.paid ? ' · <span style="color:#15803D;font-weight:800">đã thu</span>' : ''}</div>${remLine(b)}</div>`; }).join('') || '<div class="empty">Không có khách ở lại đêm này.</div>') + '</div>';
+          <div class="g2 num">${a ? esc(a.short) + (b.room_no ? ' · ' + esc(rn(b.apt, b.room_no)) : '') : 'chưa xếp'} · ${b.nights} đêm · <b>${short(b.per_night)}</b>/đêm${b.paid ? ' · <span style="color:#15803D;font-weight:800">đã thu</span>' : ''}</div>${remLine(b)}</div>`; }).join('') || '<div class="empty">Không có khách ở lại đêm này.</div>') + '</div>';
     } else {
       const row = (b, kind) => { const st = stOf(b);
         return `<div class="g" role="button" tabindex="0" onclick="M.open('${b.id}')" style="${kind === 'in' && st.k === 'unreach' ? 'opacity:.5;filter:grayscale(.7)' : ''}">
           <div class="g1"><span class="dot" style="background:${kind === 'out' ? '#CBD5E1' : st.c}"></span><span class="gn">${esc(b.name)}</span>${b.tb ? '<span class="tb">2PN</span>' : ''}${bell(b)}</div>
-          <div class="g2 num">${b.nights} đêm · <b>${short(b.per_night)}</b>/đêm${b.room_no ? ' · P' + b.room_no : ''}</div>
+          <div class="g2 num">${b.nights} đêm · <b>${short(b.per_night)}</b>/đêm${b.room_no ? ' · ' + esc(rn(b.apt, b.room_no)) : ''}</div>
           <div class="g3">${esc(b.listing)}</div>
           ${kind === 'in' ? `<div class="g4" style="color:${st.c === '#F59E0B' ? '#B45309' : st.c}">${st.line}</div>` : (b.paid ? '' : '<div class="g4" style="color:#DC2626">Chưa thu</div>')}${remLine(b)}</div>`; };
       APT.forEach((a) => {
@@ -556,7 +568,7 @@ a.big{display:flex;align-items:center;justify-content:center;text-decoration:non
       if (room) {
         for (let no = 1; no <= a.rooms; no++) {
           const mine = list.filter((b) => b.room_no === no);
-          rows += `<div class="cg croom" style="grid-template-columns:${cols};min-height:${rowH}"><div class="cst" style="grid-row:1;grid-column:1">Phòng ${no}</div>${slots(span(mine))}${mine.map((b) => bar(b, a)).join('')}${drop(a.id, no)}</div>`;
+          rows += `<div class="cg croom" style="grid-template-columns:${cols};min-height:${rowH}"><button class="cst rname" style="grid-row:1;grid-column:1" onclick="M.renameRoom(${a.id},${no})" aria-label="Đổi tên ${esc(rn(a.id, no))}">${esc(rn(a.id, no))}<span>✏️</span></button>${slots(span(mine))}${mine.map((b) => bar(b, a)).join('')}${drop(a.id, no)}</div>`;
         }
         const noRoom = list.filter((b) => !b.room_no || b.room_no > a.rooms);
         if (noRoom.length) {          // placed in the apartment, no room yet: one lane per overlap
@@ -614,7 +626,7 @@ a.big{display:flex;align-items:center;justify-content:center;text-decoration:non
         <button onclick="M.remind('${b.id}','note')" style="width:100%;min-height:44px;border-radius:10px;border:1px solid ${remsOf(b.id).length ? '#FCD34D' : '#E2E5EB'};background:${remsOf(b.id).length ? '#FEF3C7' : '#fff'};color:${remsOf(b.id).length ? '#92400E' : '#0E1525'};font-size:12px;font-weight:800">🔔 ${remsOf(b.id).length ? 'Nhắc ' + remLabel(remsOf(b.id)[0].at) : 'Nhắc việc'}</button></div>
       ${remsOf(b.id).map((r) => `<div style="font-size:12px;font-weight:700;margin-top:4px;color:${overdue(r) ? '#DC2626' : '#92400E'}">🔔 ${remLabel(r.at)} · ${esc(r.note)}</div>`).join('')}
       <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px">
-        <button class="tag" onclick="M.pickApt('${b.id}')" style="${a ? `background:${a.color};color:#fff` : 'border:1.5px dashed #F59E0B;background:#FFFBEB;color:#92400E'};font-weight:800">${a ? esc(a.short) + (b.room_no ? ' · P' + b.room_no : '') + ' · đổi căn' : 'Chưa xếp căn · chọn'}</button>
+        <button class="tag" onclick="M.pickApt('${b.id}')" style="${a ? `background:${a.color};color:#fff` : 'border:1.5px dashed #F59E0B;background:#FFFBEB;color:#92400E'};font-weight:800">${a ? esc(a.short) + (b.room_no ? ' · ' + esc(rn(b.apt, b.room_no)) : '') + ' · đổi căn' : 'Chưa xếp căn · chọn'}</button>
         ${b.phone ? `<span class="tag num" style="background:#EFF6FF;color:#1D4ED8;padding-right:4px;gap:6px">${esc(b.phone)}<button onclick="M.phone('${b.id}')" style="min-height:28px;border-radius:7px;border:none;background:#fff;color:#1D4ED8;font-size:11px;font-weight:800;padding:0 8px">Sửa số</button></span>`
           : b.partner ? `<span class="tag" style="background:#F5F3FF;color:#5B21B6">Đối tác · nhắn qua Booking</span><button class="tag" onclick="M.phone('${b.id}')" style="border:1.5px dashed #A78BFA;background:#fff;color:#5B21B6;font-weight:800">+ Số khách gửi</button>`
           : `<button class="tag" onclick="M.phone('${b.id}')" style="border:1.5px dashed #F59E0B;background:#FFFBEB;color:#92400E;font-weight:800">+ Thêm số khách gửi</button>`}
@@ -688,7 +700,7 @@ a.big{display:flex;align-items:center;justify-content:center;text-decoration:non
       return `<div class="card prow"><div style="display:flex;align-items:flex-start;gap:10px">
         <button class="pst" onclick="M.payCycle('${b.id}')" style="background:${ST[s][1]};color:${ST[s][2]}">${ST[s][0]}</button>
         <button onclick="M.open('${b.id}')" style="flex:1;min-width:0;border:none;background:none;text-align:left;padding:0"><div style="font-size:15px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(b.name)}</div>
-          <div class="num" style="font-size:12px;color:#475569;font-weight:600">Nhận ${dm(b.ciO)} → Trả ${dm(b.coO)} · ${b.nights} đêm${b.room_no ? ' · P' + b.room_no : ''}</div>
+          <div class="num" style="font-size:12px;color:#475569;font-weight:600">Nhận ${dm(b.ciO)} → Trả ${dm(b.coO)} · ${b.nights} đêm${b.room_no ? ' · ' + esc(rn(b.apt, b.room_no)) : ''}</div>
           <div style="font-size:12px;font-weight:800;color:${c};margin-top:2px">${t}</div>${b.collected ? `<div class="num" style="font-size:11px;color:#475569">Đã thu ${fmt(b.collected)} / ${fmt(b.total)}</div>` : ''}${b.note ? `<div style="font-size:11px;color:#92400E">Ghi chú: ${esc(b.note)}</div>` : ''}</button>
         <div class="num" style="font-size:16px;font-weight:800;text-align:right">${fmt(left(b))}</div></div>
         <div style="display:grid;grid-template-columns:${s === 'todo' ? 'repeat(2,minmax(0,1fr))' : '1fr'};gap:8px;margin-top:10px">
@@ -731,7 +743,7 @@ a.big{display:flex;align-items:center;justify-content:center;text-decoration:non
       const ics = S.etaRem >= 0 && etaAt ? '/api/moi/ics?b=' + encodeURIComponent(b.id) + '&at=' + etaAt + '&note=' + encodeURIComponent('Khách đến') + '&before=' + S.etaRem : '';
       const a = aptById[b.apt], mine = REM().filter((r) => r.booking_id === b.id);
       const head = `<div class="ov" onclick="if(event.target===this)M.close()"><div class="sh"><div class="handle"></div>
-        <div style="display:flex;align-items:center;gap:10px"><div style="flex:1;min-width:0"><div class="kick" style="color:#64748B">NHẮC · ${a ? esc(a.short) + (b.room_no ? ' P' + b.room_no : '') : 'CHƯA XẾP CĂN'} · ${dm(b.ciO)} → ${dm(b.coO)}</div><div style="font-size:20px;font-weight:800">${esc(b.name)}</div>
+        <div style="display:flex;align-items:center;gap:10px"><div style="flex:1;min-width:0"><div class="kick" style="color:#64748B">NHẮC · ${a ? esc(a.short) + (b.room_no ? ' · ' + esc(rn(b.apt, b.room_no)) : '') : 'CHƯA XẾP CĂN'} · ${dm(b.ciO)} → ${dm(b.coO)}</div><div style="font-size:20px;font-weight:800">${esc(b.name)}</div>
           <div class="num" style="font-size:12px;color:#1D4ED8;font-weight:700">${b.phone ? esc(b.phone) : b.partner ? 'Đối tác — nhắn qua Booking' : 'chưa có số'}</div></div><button class="x" onclick="M.close()" aria-label="Đóng">${svg('x', 18, 2.4)}</button></div>
         <div style="margin-top:10px;font-size:15px;font-weight:800">🔔 Nhắc việc${mine.filter((r) => !r.done).length ? ' · ' + mine.filter((r) => !r.done).length : ''}</div>`;
       if (S.remMode === 'note') {
@@ -799,10 +811,10 @@ a.big{display:flex;align-items:center;justify-content:center;text-decoration:non
     const aptChips = APT.map((x) => { const f = x.rooms - B.filter((o) => o.apt === x.id && o.id !== b.id && inHouse(o, Math.max(b.ciO, 0))).length;
       return `<button class="chip ${f > 0 ? '' : 'off'}" style="background:${x.color}" onclick="M.place('${b.id}',${x.id})">${esc(x.short)}<small>${f > 0 ? 'còn ' + f : 'hết'}</small></button>`; }).join('');
     const roomChips = a ? Array.from({ length: a.rooms }, (_, k) => { const no = k + 1, ok = fits(b, a.id, no), on = b.room_no === no;
-      return `<button class="chip" style="${on ? `background:${a.color}` : ok ? `background:#fff;color:${a.color};border:2px solid ${a.color}` : 'background:#F1F5F9;color:#94A3B8;border:1px dashed #CBD5E1'}" onclick="M.room('${b.id}',${a.id},${no})">Phòng ${no}<small>${on ? 'đang ở đây' : ok ? 'trống' : 'trùng'}</small></button>`; }).join('') : '';
+      return `<button class="chip" style="${on ? `background:${a.color}` : ok ? `background:#fff;color:${a.color};border:2px solid ${a.color}` : 'background:#F1F5F9;color:#94A3B8;border:1px dashed #CBD5E1'}" onclick="M.room('${b.id}',${a.id},${no})">${esc(rn(a.id, no))}<small>${on ? 'đang ở đây' : ok ? 'trống' : 'trùng'}</small></button>`; }).join('') : '';
     el.innerHTML = `<div class="ov" onclick="if(event.target===this)M.close()"><div class="sh"><div class="handle"></div>
       <div style="display:flex;align-items:flex-start;gap:10px"><div style="flex:1;min-width:0"><div style="font-size:22px;font-weight:800;letter-spacing:-.3px">${esc(b.name)}</div>
-        <div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap"><span style="font-size:11px;font-weight:800;color:#fff;background:${a ? a.color : '#64748B'};border-radius:7px;padding:3px 8px">${a ? esc(a.name) + (b.room_no ? ' · Phòng ' + b.room_no : '') : 'Chưa xếp căn'}</span>${b.tb ? '<span class="tb" style="font-size:11px;padding:3px 8px">2PN</span>' : ''}
+        <div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap"><span style="font-size:11px;font-weight:800;color:#fff;background:${a ? a.color : '#64748B'};border-radius:7px;padding:3px 8px">${a ? esc(a.name) + (b.room_no ? ' · ' + esc(rn(b.apt, b.room_no)) : '') : 'Chưa xếp căn'}</span>${b.tb ? '<span class="tb" style="font-size:11px;padding:3px 8px">2PN</span>' : ''}
           <span style="font-size:11px;font-weight:800;border-radius:7px;padding:3px 8px;background:${st.bg};color:${st.fg}">${status} · ${st.line}</span></div></div>
         <button class="x" onclick="M.close()" aria-label="Đóng">${svg('x', 18, 2.4)}</button></div>
       <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:16px">

@@ -373,19 +373,21 @@ _p14_electricity — electricity calculator + meters/readings/bills_
 - app_parts/p14_electricity.py:449 `delete_electricity_image` ← `/api/electricity/images/<int:image_id>` DELETE — Delete electricity image
 - app_parts/p14_electricity.py:463 `get_electricity_analytics` ← `/api/electricity/analytics` GET — Get electricity analytics data for charts and comparisons
 
-## app_parts/p15_moi.py (343 lines)
+## app_parts/p15_moi.py (382 lines)
 _p15_moi — /moi: the new phone-first app (owner, Oct 26), built from the approved mockup. Runs NEXT TO the old pages_
 - app_parts/p15_moi.py:12 `_moi_ensure` — bookings.room_no (room 1..N inside the placed apartment) — added once per process.
-- app_parts/p15_moi.py:32 `_moi_apartments` — Active apartments with short name, colour (index among ALL apartments, like the calendar) and room count.
-- app_parts/p15_moi.py:45 `moi_page` ← `/moi` — The new phone-first app (old pages stay as they are).
-- app_parts/p15_moi.py:51 `moi_data` ← `/api/moi/data` — Everything /moi shows: apartments, journey steps and every booking that touches [today − 10 days, today + 21 d
-- app_parts/p15_moi.py:132 `moi_set_room` ← `/api/moi/room` POST — Put a guest in room N of an apartment (or only the apartment when room_no is empty). Refused (409) when anothe
-- app_parts/p15_moi.py:172 `moi_reminder` ← `/api/moi/reminder` POST — ⏰ Add a reminder on a guest ({booking_id, at: 'YYYY-MM-DDTHH:MM' Vietnam time, note}), or tick / untick one
-- app_parts/p15_moi.py:198 `_ics_text`
-- app_parts/p15_moi.py:203 `moi_ics` ← `/api/moi/ics` — An iPhone Calendar event with an alarm for one guest — opened by a plain link, so Safari shows "Thêm vào Lịch"
-- app_parts/p15_moi.py:250 `_moi_feed_token` — Secret part of the calendar-subscription link (made once, kept in moi_settings).
-- app_parts/p15_moi.py:264 `moi_feed_link` ← `/api/moi/feed` — The webcal:// link the owner subscribes to ONCE on the iPhone (Lịch → every reminder and promised arrival time
-- app_parts/p15_moi.py:275 `moi_feed` ← `/cal/<token>.ics` — Subscribed calendar: open reminders (alarm at the time) + promised arrival times of guests not arrived yet
+- app_parts/p15_moi.py:37 `_moi_apartments` — Active apartments with short name, colour (index among ALL apartments, like the calendar) and room count.
+- app_parts/p15_moi.py:54 `moi_page` ← `/moi` — The new phone-first app (old pages stay as they are).
+- app_parts/p15_moi.py:60 `moi_data` ← `/api/moi/data` — Everything /moi shows: apartments, journey steps and every booking that touches [today − 10 days, today + 21 d
+- app_parts/p15_moi.py:141 `moi_set_room` ← `/api/moi/room` POST — Put a guest in room N of an apartment (or only the apartment when room_no is empty). Refused (409) when anothe
+- app_parts/p15_moi.py:181 `moi_reminder` ← `/api/moi/reminder` POST — ⏰ Add a reminder on a guest ({booking_id, at: 'YYYY-MM-DDTHH:MM' Vietnam time, note}), or tick / untick one
+- app_parts/p15_moi.py:207 `_ics_text`
+- app_parts/p15_moi.py:212 `moi_ics` ← `/api/moi/ics` — An iPhone Calendar event with an alarm for one guest — opened by a plain link, so Safari shows "Thêm vào Lịch"
+- app_parts/p15_moi.py:259 `_moi_feed_token` — Secret part of the calendar-subscription link (made once, kept in moi_settings).
+- app_parts/p15_moi.py:273 `moi_feed_link` ← `/api/moi/feed` — The webcal:// link the owner subscribes to ONCE on the iPhone (Lịch → every reminder and promised arrival time
+- app_parts/p15_moi.py:284 `moi_feed` ← `/cal/<token>.ics` — Subscribed calendar: open reminders (alarm at the time) + promised arrival times of guests not arrived yet
+- app_parts/p15_moi.py:356 `_moi_room_label` — The owner's name for room `no` of this apartment, else "Phòng N".
+- app_parts/p15_moi.py:362 `moi_room_name` ← `/api/moi/room_name` POST — Rename room N of an apartment ({apartment_id, room_no, name}); an empty name goes back to "Phòng N".
 
 ## core/__init__.py (3 lines)
 
@@ -847,13 +849,14 @@ _p15_moi — /moi: the new phone-first app (owner, Oct 26), built from the appro
 - templates/mobile_payment.html: 484 `cardCls` · 490 `dateBadge` · 498 `renderDates` · 557 `toISO` · 564 `openSheet` · 583 `closeSheet` · 588 `pick` · 594 `tickTs`
 - templates/mobile_payment.html: 601 `doConfirm` · 642 `showToast` · 649 `loadHistory` · 696 `switchTab` · 705 `changeOffset` · 707 `loadAnalytics` · 812 `openDetail` · 873 `closeDetail`
 
-## templates/moi.html (842 lines)
-- templates/moi.html: 196 `load` · 271 `M.reload` · 272 `M.tab` · 273 `M.set` · 274 `M.day` · 275 `M.open` · 276 `M.close` · 277 `M.add`
-- templates/moi.html: 278 `M.addSave` · 291 `M.place` · 296 `M.room` · 303 `M.confirm` · 309 `M.cancel` · 315 `M.mark` · 319 `M.status` · 321 `M.unreach`
-- templates/moi.html: 322 `M.calDone` · 323 `M.remind` · 325 `M.eta` · 326 `M.remPreset` · 329 `M.remSave` · 338 `M.remDone` · 341 `M.etaSave` · 364 `M.phone`
-- templates/moi.html: 371 `M.send` · 372 `M.pickApt` · 373 `M.quick` · 374 `M.payOpen` · 375 `M.collect` · 383 `M.partial` · 385 `M.undoPay` · 388 `M.payCycle`
-- templates/moi.html: 393 `M.pickG` · 394 `M.auto` · 409 `render` · 418 `renderNav` · 427 `renderFloat` · 443 `viewDay` · 524 `viewCal` · 598 `M.cal`
-- templates/moi.html: 602 `msgCard` · 632 `viewMsg` · 668 `M.aptSheetOpen` · 681 `viewPay` · 723 `renderSheet` · 829 `S_set` · 830 `renderSheetPub` · 831 `S_put`
+## templates/moi.html (854 lines)
+- templates/moi.html: 198 `load` · 275 `M.reload` · 276 `M.tab` · 277 `M.set` · 278 `M.day` · 279 `M.open` · 280 `M.close` · 281 `M.add`
+- templates/moi.html: 282 `M.addSave` · 295 `M.place` · 300 `M.room` · 307 `M.confirm` · 313 `M.cancel` · 319 `M.mark` · 323 `M.status` · 325 `M.unreach`
+- templates/moi.html: 326 `M.renameRoom` · 334 `M.calDone` · 335 `M.remind` · 337 `M.eta` · 338 `M.remPreset` · 341 `M.remSave` · 350 `M.remDone` · 353 `M.etaSave`
+- templates/moi.html: 376 `M.phone` · 383 `M.send` · 384 `M.pickApt` · 385 `M.quick` · 386 `M.payOpen` · 387 `M.collect` · 395 `M.partial` · 397 `M.undoPay`
+- templates/moi.html: 400 `M.payCycle` · 405 `M.pickG` · 406 `M.auto` · 421 `render` · 430 `renderNav` · 439 `renderFloat` · 455 `viewDay` · 536 `viewCal`
+- templates/moi.html: 610 `M.cal` · 614 `msgCard` · 644 `viewMsg` · 680 `M.aptSheetOpen` · 693 `viewPay` · 735 `renderSheet` · 841 `S_set` · 842 `renderSheetPub`
+- templates/moi.html: 843 `S_put`
 
 ## templates/quick.html (279 lines)
 - templates/quick.html: 142 `toast` · 147 `go` · 155 `copyNow` · 163 `sendText` · 168 `copyText` · 169 `sendImgs` · 180 `setIn` · 202 `takeOut`

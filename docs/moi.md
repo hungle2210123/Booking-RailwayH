@@ -85,3 +85,6 @@ grey (dimmed) không liên lạc được.
   "Giờ khách hẹn đến" card and the "Giờ đến … sửa" line are gone from /moi; the bell on every row and the guest-sheet
   button open Nhắc việc directly; the calendar feed lists reminders only (ETA events removed; `/api/moi/ics` and
   `arrival_times` stay for the old pages).
+- Oct 27 (owner): **room names** — tap "Phòng N ✏️" on the Lịch → prompt → `POST /api/moi/room_name {apartment_id, room_no, name}`
+  (table `moi_room_names`, ≤ 40 chars, empty = back to "Phòng N"); `apartments[].room_names` in /api/moi/data; the name is
+  used everywhere a room shows (calendar rows, guest sheet chips/header, rows, reminders, calendar feed / .ics text: `_moi_room_label`).

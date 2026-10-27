@@ -102,3 +102,20 @@ def test_moi_calendar_subscription(client, booking):
     finally:
         client.post('/api/moi/reminder', json={'id': rid, 'delete': True})
     assert client.get('/cal/sai-token.ics').status_code == 404
+
+
+@pytest.mark.db_write
+def test_moi_room_names(client, db):
+    """Rooms 1..N of an apartment can carry the owner's own name; empty = back to "Phòng N"; out-of-range refused."""
+    apt = client.get('/api/moi/data').get_json()['apartments'][0]
+    no = apt['rooms']
+    old = apt['room_names'].get(str(no))
+    try:
+        r = client.post('/api/moi/room_name', json={'apartment_id': apt['id'], 'room_no': no, 'name': '  ZZ  Ban công  '}).get_json()
+        assert r['success'] and r['name'] == 'ZZ Ban công'
+        a2 = [a for a in client.get('/api/moi/data').get_json()['apartments'] if a['id'] == apt['id']][0]
+        assert a2['room_names'][str(no)] == 'ZZ Ban công'
+        assert client.post('/api/moi/room_name', json={'apartment_id': apt['id'], 'room_no': no + 1, 'name': 'x'}).status_code == 400
+        assert client.post('/api/moi/room_name', json={'apartment_id': apt['id'], 'room_no': no, 'name': ''}).get_json()['name'] == f'Phòng {no}'
+    finally:
+        client.post('/api/moi/room_name', json={'apartment_id': apt['id'], 'room_no': no, 'name': old or ''})

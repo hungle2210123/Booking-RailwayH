@@ -17,6 +17,11 @@ def _moi_ensure():
     from core.models import db as _xdb
     try:
         _xdb.session.execute(text("ALTER TABLE bookings ADD COLUMN IF NOT EXISTS room_no INTEGER DEFAULT NULL"))
+        # the owner's own names for rooms 1..N of an apartment ("Kitchen", "Ban công", "101-2PN"); none = "Phòng N"
+        _xdb.session.execute(text("""
+            CREATE TABLE IF NOT EXISTS moi_room_names (
+                apartment_id INTEGER NOT NULL, room_no INTEGER NOT NULL, name VARCHAR(40) NOT NULL,
+                PRIMARY KEY (apartment_id, room_no))"""))
         # ⏰ reminders the owner sets on a guest ("phản hồi khách này lúc 19:00"); remind_at = Vietnam local time
         _xdb.session.execute(text("""
             CREATE TABLE IF NOT EXISTS moi_reminders (
@@ -37,7 +42,11 @@ def _moi_apartments(_xdb):
         SELECT a.apartment_id, a.apartment_name, COUNT(r.room_id)
         FROM apartments a LEFT JOIN rooms r ON r.apartment_id = a.apartment_id AND r.is_active = true
         WHERE a.is_active = true GROUP BY a.apartment_id, a.apartment_name ORDER BY a.apartment_id""")).fetchall()
-    return [{'id': r[0], 'name': r[1], 'short': apartment_abbr(r[1]), 'rooms': int(r[2] or 0),
+    _moi_ensure()
+    names = {}
+    for aid, no, nm in _xdb.session.execute(text("SELECT apartment_id, room_no, name FROM moi_room_names")).fetchall():
+        names.setdefault(aid, {})[no] = nm
+    return [{'id': r[0], 'name': r[1], 'short': apartment_abbr(r[1]), 'rooms': int(r[2] or 0), 'room_names': names.get(r[0], {}),
              'color': MOI_PALETTE[all_ids.index(r[0]) % len(MOI_PALETTE)] if r[0] in all_ids else '#64748b'} for r in rows]
 
 
@@ -226,7 +235,7 @@ def moi_ics():
     title = f"{note} — {name}"
     lines = [name,
              f"SĐT {phone}" if phone else ('Đối tác Booking — nhắn qua Booking' if r[2] else 'chưa có số'),
-             (apt['name'] + (f" · Phòng {r[4]}" if r[4] else '')) if apt else 'chưa xếp căn',
+             (apt['name'] + (f" · {_moi_room_label(apt, r[4])}" if r[4] else '')) if apt else 'chưa xếp căn',
              f"{r[5]:%d/%m} → {r[6]:%d/%m} · {(r[6] - r[5]).days} đêm · {_vnd(r[7])}đ" if r[5] and r[6] else '',
              _room_label(r[8], keep_note=True) or (r[8] or ''), f"Mã {bid}", request.host_url.rstrip('/') + '/moi']
     fmt = lambda d: d.strftime('%Y%m%dT%H%M%S')
@@ -289,7 +298,7 @@ def moi_feed(token):
         phone = _real_guest_phone(r['phone'], bool(r['partner']))
         return '\n'.join(x for x in [
             r['name'], f"SĐT {phone}" if phone else ('Đối tác Booking — nhắn qua Booking' if r['partner'] else 'chưa có số'),
-            (a['name'] + (f" · Phòng {r['room_no']}" if r['room_no'] else '')) if a else 'chưa xếp căn',
+            (a['name'] + (f" · {_moi_room_label(a, r['room_no'])}" if r['room_no'] else '')) if a else 'chưa xếp căn',
             f"{r['ci']:%d/%m} → {r['co']:%d/%m} · {(r['co'] - r['ci']).days} đêm · {_vnd(r['total'])}đ" if r['ci'] and r['co'] else '',
             _room_label(r['listing'], keep_note=True) or (r['listing'] or ''), f"Mã {r['bid']}",
             request.host_url.rstrip('/') + '/moi'] if x)
@@ -341,3 +350,33 @@ def moi_feed(token):
     resp.headers['Content-Type'] = 'text/calendar; charset=utf-8'
     resp.headers['Cache-Control'] = 'no-store'
     return resp
+
+
+
+def _moi_room_label(apt, no):
+    """The owner's name for room `no` of this apartment, else "Phòng N"."""
+    return (apt.get('room_names') or {}).get(no) or f'Phòng {no}'
+
+
+@app.route('/api/moi/room_name', methods=['POST'])
+def moi_room_name():
+    """Rename room N of an apartment ({apartment_id, room_no, name}); an empty name goes back to "Phòng N"."""
+    from core.models import db as _xdb
+    _moi_ensure()
+    d = request.get_json(silent=True) or {}
+    try:
+        aid, no = int(d.get('apartment_id')), int(d.get('room_no'))
+    except (TypeError, ValueError):
+        return jsonify({'success': False, 'error': 'Dữ liệu không hợp lệ'}), 400
+    apt = next((a for a in _moi_apartments(_xdb) if a['id'] == aid), None)
+    if not apt or not 1 <= no <= max(apt['rooms'], 1):
+        return jsonify({'success': False, 'error': 'Phòng không tồn tại'}), 400
+    name = ' '.join(str(d.get('name') or '').split())[:40]
+    if name:
+        _xdb.session.execute(text("""INSERT INTO moi_room_names (apartment_id, room_no, name) VALUES (:a, :n, :v)
+                                     ON CONFLICT (apartment_id, room_no) DO UPDATE SET name = EXCLUDED.name"""),
+                             {'a': aid, 'n': no, 'v': name})
+    else:
+        _xdb.session.execute(text("DELETE FROM moi_room_names WHERE apartment_id = :a AND room_no = :n"), {'a': aid, 'n': no})
+    _xdb.session.commit()
+    return jsonify({'success': True, 'name': name or f'Phòng {no}'})
