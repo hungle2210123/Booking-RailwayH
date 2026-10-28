@@ -5777,7 +5777,7 @@ function showQuickToast(msg, type) {
 
     // ── 👁 Xem: floating button → sheet (section · apartment · 2PN / chưa thu / chưa xác nhận · display mode) ──
     const SECS = [['all', 'Tất cả'], ['checkin-cards', '🛬 Đến'], ['staying-cards', '🏨 Ở'], ['checkout-cards', '🧳 Trả'],
-                  ['pair', '🔄 Đến ↔ Trả']];
+                  ['pair', '🔄 Trả ↔ Đến']];
     const XF = [['2pn', '🛏️ Chỉ 2PN'], ['unpaid', '⚡ Chưa thu'], ['unconf', '⏳ Chưa xác nhận']];
     const view = { sec: 'pair', xf: {} };            // owner, Oct 25: open on 🔄 Trả ↔ Đến
     const fab = document.createElement('button');
@@ -5838,7 +5838,7 @@ function showQuickToast(msg, type) {
         ov.innerHTML = `<div class="cdx-sh"><h3>👁 Xem nhanh <button type="button" data-close>Xong</button></h3>
             <div class="cdx-lbl">Phần</div><div class="cdx-grid g4">${SECS.filter(x => x[0] !== 'pair').map(([id, t]) =>
                 b('', view.sec === id, t + (id === 'all' ? '' : '<small>' + cnt(id) + '</small>'), `data-sec="${id}"`)).join('')}</div>
-            <div class="cdx-grid" style="margin-top:6px">${b('', view.sec === 'pair', '🔄 Đến ↔ Trả<small>xếp khách đến vào căn có khách trả</small>',
+            <div class="cdx-grid" style="margin-top:6px">${b('', view.sec === 'pair', '🔄 Trả ↔ Đến<small>xếp khách đến vào căn có khách trả</small>',
                 'data-sec="pair"').replace('class="cdx-b', 'class="cdx-b wide')}</div>
             <div class="cdx-lbl">Căn hộ</div><div class="cdx-grid">${b('', !apt, 'Tất cả', 'data-apt=""')}${apts.join('')}</div>
             <div class="cdx-lbl">Chỉ xem</div><div class="cdx-grid">${XF.map(([k, t]) => b('', view.xf[k], t, `data-xf="${k}"`)).join('')}</div>
@@ -5916,7 +5916,7 @@ function showQuickToast(msg, type) {
             return (a.capacity || 0) - ins.concat(stays).filter(g => g.apt === id).length;
         };
         const un = ins.filter(g => !g.apt);
-        let html = `<div class="pr-h"><b>🔄 Đến ↔ Trả</b><small>trái: đến · phải: trả</small>
+        let html = `<div class="pr-h"><b>🔄 Trả ↔ Đến</b><small>trái: trả · phải: đến</small>
             <button type="button" data-pr-close>✕ Thoát</button></div>`;
         if (un.length) {
             html += `<div class="pr-un"><div class="pr-un-t">⏳ ${un.length} khách đến chưa xếp căn — chạm căn để xếp</div>`
@@ -5933,12 +5933,12 @@ function showQuickToast(msg, type) {
             const f = freeOf(id);
             html += `<div class="pr-apt" style="--apt-c:${e(a.color)}">
                 <div class="pr-apt-h">🏠 ${e(a.name)}<span class="${f < 0 ? 'over' : f <= 0 ? 'low' : ''}">đêm nay đã xếp ${(a.capacity || 0) - f}/${a.capacity || 0}${f < 0 ? ' ⚠️' : ''}</span></div>
-                <div class="pr-cols"><div class="pr-col in"><div class="pr-col-t">🛬 Đến ${i.length}</div>${i.map(g => row(g, 'in')).join('') || '<div class="pr-empty">—</div>'}</div>
-                <div class="pr-col out"><div class="pr-col-t">🧳 Trả ${o.length}</div>${o.map(g => row(g, 'out')).join('') || '<div class="pr-empty">—</div>'}</div></div></div>`;
+                <div class="pr-cols"><div class="pr-col out"><div class="pr-col-t">🧳 Trả ${o.length}</div>${o.map(g => row(g, 'out')).join('') || '<div class="pr-empty">—</div>'}</div>
+                <div class="pr-col in"><div class="pr-col-t">🛬 Đến ${i.length}</div>${i.map(g => row(g, 'in')).join('') || '<div class="pr-empty">—</div>'}</div></div></div>`;
         });
         const outUn = outs.filter(g => !g.apt);
         if (outUn.length) html += `<div class="pr-apt" style="--apt-c:#94a3b8"><div class="pr-apt-h">Trả · chưa ghi căn</div>
-            <div class="pr-cols"><div class="pr-col"></div><div class="pr-col out">${outUn.map(g => row(g, 'out')).join('')}</div></div></div>`;
+            <div class="pr-cols"><div class="pr-col out">${outUn.map(g => row(g, 'out')).join('')}</div><div class="pr-col"></div></div></div>`;
         if (!ins.length && !outs.length) html += '<div class="pr-empty" style="padding:8px">Hôm nay không có khách đến / trả.</div>';
         box.innerHTML = html;
     }

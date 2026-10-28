@@ -88,5 +88,3 @@ grey (dimmed) không liên lạc được.
 - Oct 27 (owner): **room names** — tap "Phòng N ✏️" on the Lịch → prompt → `POST /api/moi/room_name {apartment_id, room_no, name}`
   (table `moi_room_names`, ≤ 40 chars, empty = back to "Phòng N"); `apartments[].room_names` in /api/moi/data; the name is
   used everywhere a room shows (calendar rows, guest sheet chips/header, rows, reminders, calendar feed / .ics text: `_moi_room_label`).
-- Oct 28 (owner): the board is now **Đến ↔ Trả** — arrivals in the LEFT column, check-outs on the right (calendar_details
-  `#cdPair` and the /moi day page; the "Trả · chưa ghi căn" block keeps check-outs in the right column).
