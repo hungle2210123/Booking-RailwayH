@@ -500,7 +500,7 @@ a.big{display:flex;align-items:center;justify-content:center;text-decoration:non
           <div class="t">${esc(r.note)}<small>${esc(b.name)} · ${a ? esc(a.short) + (b.room_no ? ' · ' + esc(rn(b.apt, b.room_no)) : '') : 'chưa xếp'}${b.phone ? ' · ' + esc(b.phone) : ''}</small></div>
           <button class="okb" onclick="event.stopPropagation();M.remDone(${r.id})">Xong</button></div>`; }).join('')}</div></div>`;
     const stays = B.filter((b) => b.ciO < d && d < b.coO);
-    h += `<div class="seg"><button class="${S.seg === 'pair' ? 'on' : ''}" onclick="M.set('seg','pair')">Trả ↔ Đến</button><button class="${S.seg === 'stay' ? 'on' : ''}" onclick="M.set('seg','stay')">Đang ở · ${stays.length}</button></div>`;
+    h += `<div class="seg"><button class="${S.seg === 'pair' ? 'on' : ''}" onclick="M.set('seg','pair')">Đến ↔ Trả</button><button class="${S.seg === 'stay' ? 'on' : ''}" onclick="M.set('seg','stay')">Đang ở · ${stays.length}</button></div>`;
     if (S.seg === 'stay') {
       h += '<div class="card" style="padding:4px 16px 6px">' + (stays.sort((p, q) => p.coO - q.coO).map((b) => { const a = aptById[b.apt], left = b.coO - d;
         return `<div class="g" role="button" tabindex="0" onclick="M.open('${b.id}')" style="padding:12px 0"><div class="g1"><span class="dot" style="background:${a ? a.color : '#94A3B8'}"></span><span class="gn">${esc(b.name)}</span>${b.tb ? '<span class="tb">2PN</span>' : ''}<span style="font-size:11px;font-weight:800;color:${left === 1 ? '#B45309' : '#64748B'}">${left === 1 ? 'Trả mai' : 'Còn ' + left + ' đêm'}</span>${bell(b)}</div>
@@ -518,8 +518,8 @@ a.big{display:flex;align-items:center;justify-content:center;text-decoration:non
         h += `<div class="card ab"><div class="abh"><span class="dot" style="width:12px;height:12px;background:${a.color}"></span><b>${esc(a.name)}</b>
           <span class="cells">${Array.from({ length: a.rooms }, (_, k) => `<i style="background:${k < used ? (over ? '#DC2626' : a.color) : '#E5E7EB'}"></i>`).join('')}</span>
           <em class="num" style="color:${over ? '#DC2626' : '#475569'}">${over ? 'vượt ' + (used - a.rooms) : 'đã xếp ' + used + '/' + a.rooms}</em></div>
-          <div class="cols"><div class="col"><div class="colh" style="color:#64748B">Trả · ${o.length}</div>${o.map((b) => row(b, 'out')).join('') || '<div style="font-size:13px;color:#94A3B8;padding:6px 0">—</div>'}</div>
-          <div class="col"><div class="colh" style="color:#15803D">Đến · ${i.length}</div>${i.map((b) => row(b, 'in')).join('') || '<div style="font-size:13px;color:#94A3B8;padding:6px 0">—</div>'}</div></div></div>`;
+          <div class="cols"><div class="col"><div class="colh" style="color:#15803D">Đến · ${i.length}</div>${i.map((b) => row(b, 'in')).join('') || '<div style="font-size:13px;color:#94A3B8;padding:6px 0">—</div>'}</div>
+          <div class="col"><div class="colh" style="color:#64748B">Trả · ${o.length}</div>${o.map((b) => row(b, 'out')).join('') || '<div style="font-size:13px;color:#94A3B8;padding:6px 0">—</div>'}</div></div></div>`;
       });
       const oNone = outs.filter((b) => !b.apt);
       if (oNone.length) h += `<div class="card ab"><div class="abh"><b>Trả · chưa ghi căn</b></div><div style="padding:0 16px 8px">${oNone.map((b) => row(b, 'out')).join('')}</div></div>`;
