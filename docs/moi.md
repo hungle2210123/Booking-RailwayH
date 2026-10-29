@@ -85,6 +85,12 @@ grey (dimmed) không liên lạc được.
   "Giờ khách hẹn đến" card and the "Giờ đến … sửa" line are gone from /moi; the bell on every row and the guest-sheet
   button open Nhắc việc directly; the calendar feed lists reminders only (ETA events removed; `/api/moi/ics` and
   `arrival_times` stay for the old pages).
+- Oct 29 (owner): **edit on the guest card** — the 4 tiles are buttons: "Ngày ở" → two date inputs (shows new nights;
+  "Lưu · giữ giá / đêm" = total re-worked, "Lưu · giữ tổng tiền"), "Giá / đêm" → total = price × nights, "Tổng tiền" →
+  price worked out (inputs take 988000 / 988k / 3,95tr) → `POST /api/moi/stay {booking_id, checkin_date?, checkout_date?,
+  room_amount?, force?}` (booking history `moi_stay`; 409 when the new nights overlap another guest in the same room).
+  "Thanh toán" tile opens the Thu tiền sheet (paid → Hoàn tác); the separate "Thu tiền" button under it is gone.
+  Test `test_moi_edit_stay`.
 - Oct 27 (owner): **room names** — tap "Phòng N ✏️" on the Lịch → prompt → `POST /api/moi/room_name {apartment_id, room_no, name}`
   (table `moi_room_names`, ≤ 40 chars, empty = back to "Phòng N"); `apartments[].room_names` in /api/moi/data; the name is
   used everywhere a room shows (calendar rows, guest sheet chips/header, rows, reminders, calendar feed / .ics text: `_moi_room_label`).

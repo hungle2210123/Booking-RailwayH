@@ -151,7 +151,15 @@ a.big{display:flex;align-items:center;justify-content:center;text-decoration:non
 @media(min-width:700px){.ov{align-items:center}.sh{border-radius:24px}}
 .handle{width:40px;height:5px;border-radius:3px;background:#D9DCE3;margin:0 auto 14px}
 .x{width:44px;height:44px;border-radius:14px;border:1px solid #E2E5EB;background:#fff;display:flex;align-items:center;justify-content:center;flex-shrink:0}
-.info{background:#F4F5F8;border-radius:14px;padding:10px 12px}.info small{display:block;font-size:11px;color:#64748B;font-weight:600}.info b{font-size:15px;font-weight:800}
+.info{background:#F4F5F8;border-radius:14px;padding:10px 12px}
+button.info{border:1.5px solid transparent;text-align:left;width:100%;font-family:inherit;color:#0E1525;cursor:pointer}
+button.info.on{border-color:#0E1525;background:#fff}
+.info small i{font-style:normal;float:right;color:#2563EB;font-weight:700}
+.edit{margin-top:10px;background:#fff;border:1.5px solid #0E1525;border-radius:16px;padding:4px 12px 12px}
+.enote{margin-top:10px;font-size:13px;line-height:1.5;color:#334155;background:#F4F5F8;border-radius:10px;padding:8px 10px}
+.ebtns{display:flex;gap:8px;margin-top:10px}.ebtns button{flex:1;min-height:46px;border-radius:12px;border:1.5px solid #E2E5EB;background:#fff;font-size:14px;font-weight:800;font-family:inherit}
+.ebtns button.pri{background:#0E1525;border-color:#0E1525;color:#fff}
+.ecancel{width:100%;margin-top:6px;min-height:38px;border:none;background:none;color:#64748B;font-size:13px;font-weight:700;font-family:inherit}.info small{display:block;font-size:11px;color:#64748B;font-weight:600}.info b{font-size:15px;font-weight:800}
 .act{border:1px solid #E2E5EB;background:#fff;border-radius:14px;min-height:58px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;font-size:12px;font-weight:700;text-decoration:none;color:#0E1525}
 .big{width:100%;min-height:54px;border-radius:16px;border:none;font-size:15px;font-weight:800}
 .lbl{font-size:11px;font-weight:800;letter-spacing:.6px;color:#64748B;margin:14px 0 6px;text-transform:uppercase}
@@ -276,7 +284,7 @@ a.big{display:flex;align-items:center;justify-content:center;text-decoration:non
   M.tab = (t) => { S.tab = t; S.pick = null; LS.set('tab', t); render(); window.scrollTo(0, 0); load(true); };
   M.set = (k, v) => { S[k] = v; if (k === 'calView') LS.set(k, v); render(); };
   M.day = (d) => { S.day = Math.max(0, Math.min(20, d)); render(); };
-  M.open = (id) => { S.sel = id; S.move = false; S.pick = null; renderSheet(); };
+  M.open = (id) => { S.sel = id; S.move = false; S.pick = null; S.edit = null; renderSheet(); };
   M.close = () => { S.sel = null; S.collect = null; S.aptSheet = false; S.etaFor = null; S.adding = false; renderSheet(); renderFloat(); };
   M.add = () => { S.sel = null; S.adding = true; renderSheet(); setTimeout(() => { const i = $('#fName'); if (i) i.focus(); }, 50); };
   M.addSave = async (btn) => {
@@ -383,6 +391,46 @@ a.big{display:flex;align-items:center;justify-content:center;text-decoration:non
   M.send = (id, step) => { S.sel = null; renderSheet(); window.Journey && Journey.open(id, step || null); };
   M.pickApt = (id) => { window.Journey && Journey.open(id, null, { pickApt: true }); };
   M.quick = () => window.Journey && Journey.quick();
+  // ── sửa ngày ở / giá đêm / tổng tiền ngay trên thẻ khách (POST /api/moi/stay) ──
+  const money = (v) => { const s = String(v || '').trim().toLowerCase().replace(/\s/g, '');
+    const mul = /(tr|m)$/.test(s) ? 1e6 : /k$/.test(s) ? 1e3 : 1;
+    const num = mul > 1 ? parseFloat(s.replace(/[^\d.,]/g, '').replace(',', '.')) : Number(s.replace(/[^\d]/g, ''));
+    return isFinite(num) ? Math.round(num * mul) : NaN; };
+  const nightsOf = (ci, co) => Math.round((Date.parse(co + 'T00:00:00Z') - Date.parse(ci + 'T00:00:00Z')) / 864e5);
+  M.edit = (id, what) => { S.editFor = id; S.edit = S.edit === what ? null : what; renderSheet();
+    if (S.edit) setTimeout(() => { M.editCalc(id); const i = $(S.edit === 'dates' ? '#eCo' : '#eVal'); if (i) { i.focus(); if (i.select) i.select(); } }, 30); };
+  M.editCalc = (id) => {
+    const b = byId[id], el = $('#eNote'); if (!b || !el) return;
+    const pn = Math.round(b.total / b.nights);
+    if (S.edit === 'dates') {
+      const n = nightsOf($('#eCi').value, $('#eCo').value);
+      el.innerHTML = !(n > 0) ? '<b style="color:#B91C1C">Ngày trả phải sau ngày đến</b>'
+        : `<b>${n} đêm</b>${n !== b.nights ? ' (trước: ' + b.nights + ')' : ''}<br>Giữ giá ${fmt(pn)}/đêm → tổng <b>${fmt(pn * n)}</b><br>Giữ tổng ${fmt(b.total)} → <b>${fmt(Math.round(b.total / n))}</b>/đêm`;
+      return;
+    }
+    const v = money($('#eVal').value);
+    el.innerHTML = !(v >= 0) ? '<b style="color:#B91C1C">Số tiền chưa đúng</b>'
+      : S.edit === 'pn' ? `${b.nights} đêm × ${fmt(v)} = tổng <b>${fmt(v * b.nights)}</b>`
+      : `${fmt(v)} ÷ ${b.nights} đêm = <b>${fmt(Math.round(v / b.nights))}</b>/đêm`;
+  };
+  M.editSave = async (id, mode) => {
+    const b = byId[id]; const body = { booking_id: id };
+    if (S.edit === 'dates') {
+      body.checkin_date = $('#eCi').value; body.checkout_date = $('#eCo').value;
+      const n = nightsOf(body.checkin_date, body.checkout_date);
+      if (!(n > 0)) return toast('Ngày trả phải sau ngày đến');
+      body.room_amount = mode === 'keepTotal' ? b.total : Math.round(b.total / b.nights) * n;
+    } else {
+      const v = money($('#eVal').value);
+      if (!(v >= 0)) return toast('Số tiền chưa đúng');
+      body.room_amount = S.edit === 'pn' ? v * b.nights : v;
+    }
+    let r = await post('/api/moi/stay', body);
+    if (r.status === 409 && confirm((r.j.error || 'Phòng đã có khách') + '\n\nVẫn lưu?')) r = await post('/api/moi/stay', { ...body, force: true });
+    if (!r.ok) return r.status === 409 ? null : toast('Lỗi: ' + (r.j.error || 'không lưu được'));
+    toast('Đã lưu: ' + b.name + ' · ' + r.j.nights + ' đêm · ' + fmt(r.j.room_amount));
+    S.edit = null; await load(true); renderSheet();
+  };
   M.payOpen = (id) => { S.sel = null; S.collect = id; S.cmethod = 'cash'; renderSheet(); };
   M.collect = async (id, who, amount) => {
     const b = byId[id]; const amt = amount || Math.max(b.total - b.collected, 0);
@@ -806,6 +854,18 @@ a.big{display:flex;align-items:center;justify-content:center;text-decoration:non
     }
     if (!S.sel || !byId[S.sel]) { el.innerHTML = ''; return; }
     const b = byId[S.sel], a = aptById[b.apt], st = stOf(b);
+    // tap "Ngày ở" / "Giá / đêm" / "Tổng tiền" → edit right here (the total / per-night is worked out as you type)
+    const ed = S.editFor === b.id ? S.edit : null;
+    const editBox = !ed ? '' : `<div class="edit">${ed === 'dates'
+        ? `<div class="fld2"><label class="fld"><span>Ngày đến</span><input id="eCi" type="date" value="${b.ci}" oninput="M.editCalc('${b.id}')"></label>
+             <label class="fld"><span>Ngày trả</span><input id="eCo" type="date" value="${b.co}" oninput="M.editCalc('${b.id}')"></label></div>
+           <div id="eNote" class="enote"></div>
+           <div class="ebtns"><button class="pri" onclick="M.editSave('${b.id}','keepPn')">Lưu · giữ giá / đêm</button><button onclick="M.editSave('${b.id}','keepTotal')">Lưu · giữ tổng tiền</button></div>`
+        : `<label class="fld"><span>${ed === 'pn' ? 'Giá mỗi đêm (đ) — vd 988000, 988k' : 'Tổng tiền (đ) — vd 3950000, 3,95tr'}</span>
+             <input id="eVal" inputmode="decimal" value="${ed === 'pn' ? Math.round(b.total / b.nights) : Math.round(b.total)}" oninput="M.editCalc('${b.id}')" onkeydown="if(event.key==='Enter')M.editSave('${b.id}')"></label>
+           <div id="eNote" class="enote"></div>
+           <div class="ebtns"><button class="pri" onclick="M.editSave('${b.id}')">Lưu</button></div>`}
+        <button class="ecancel" onclick="M.edit('${b.id}',null)">Huỷ</button></div>`;
     const status = b.coO === 0 ? 'Trả hôm nay' : b.ciO < 0 ? 'Đang ở' : b.ciO > 0 ? 'Đến ' + dm(b.ciO) : b.confirmed ? 'Đã xác nhận đến' : 'Chờ xác nhận đến';
     const sentBars = S.data.steps.map((s) => `<div><div style="height:6px;border-radius:3px;background:${b.sent.includes(s.key) ? '#16A34A' : '#E5E7EB'}"></div><div style="font-size:10px;font-weight:700;margin-top:4px;color:${b.sent.includes(s.key) ? '#15803D' : '#64748B'}">${esc(s.label.split(' &')[0])}</div></div>`).join('');
     const aptChips = APT.map((x) => { const f = x.rooms - B.filter((o) => o.apt === x.id && o.id !== b.id && inHouse(o, Math.max(b.ciO, 0))).length;
@@ -818,16 +878,18 @@ a.big{display:flex;align-items:center;justify-content:center;text-decoration:non
           <span style="font-size:11px;font-weight:800;border-radius:7px;padding:3px 8px;background:${st.bg};color:${st.fg}">${status} · ${st.line}</span></div></div>
         <button class="x" onclick="M.close()" aria-label="Đóng">${svg('x', 18, 2.4)}</button></div>
       <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:16px">
-        <div class="info"><small>Ngày ở</small><b class="num">${dm(b.ciO)} → ${dm(b.coO)}</b></div><div class="info"><small>Giá / đêm</small><b class="num">${short(b.per_night)} · ${b.nights} đêm</b></div>
-        <div class="info"><small>Tổng tiền</small><b class="num">${fmt(b.total)}</b></div><div class="info"><small>Thanh toán</small><b style="color:${b.paid ? '#15803D' : '#DC2626'}">${b.paid ? 'Đã thu · ' + esc(b.collector) : b.collected ? 'Đã thu ' + short(b.collected) : 'Chưa thu'}</b></div></div>
+        <button class="info ${ed === 'dates' ? 'on' : ''}" onclick="M.edit('${b.id}','dates')"><small>Ngày ở <i>sửa</i></small><b class="num">${dm(b.ciO)} → ${dm(b.coO)}</b></button>
+        <button class="info ${ed === 'pn' ? 'on' : ''}" onclick="M.edit('${b.id}','pn')"><small>Giá / đêm <i>sửa</i></small><b class="num">${short(b.per_night)} · ${b.nights} đêm</b></button>
+        <button class="info ${ed === 'total' ? 'on' : ''}" onclick="M.edit('${b.id}','total')"><small>Tổng tiền <i>sửa</i></small><b class="num">${fmt(b.total)}</b></button>
+        <button class="info" onclick="${b.paid ? `M.undoPay('${b.id}')` : `M.payOpen('${b.id}')`}"><small>Thanh toán <i>${b.paid ? 'hoàn tác' : 'thu tiền'}</i></small><b style="color:${b.paid ? '#15803D' : '#DC2626'}">${b.paid ? 'Đã thu · ' + esc(b.collector) : b.collected ? 'Đã thu ' + short(b.collected) + ' · thu nốt' : 'Chưa thu'}</b></button></div>
+      ${editBox}
       <div style="font-size:13px;color:#475569;margin-top:10px;font-weight:600">${esc(b.listing)} · Mã ${esc(b.id)}</div>
       <div style="display:flex;align-items:center;gap:8px;margin-top:8px;background:#EFF6FF;border-radius:12px;padding:6px 6px 6px 12px">
         <span class="num" style="flex:1;min-width:0;font-size:14px;font-weight:800;color:#1D4ED8">${b.phone ? `<a href="tel:${esc(b.phone)}" style="text-decoration:none">${esc(b.phone)}</a>` : b.partner ? 'Đối tác — chưa có số khách' : 'Chưa có số điện thoại'}</span>
         <button onclick="M.phone('${b.id}')" style="min-height:38px;border-radius:10px;border:none;background:#fff;color:#1D4ED8;font-size:12px;font-weight:800;padding:0 12px">${b.phone ? 'Sửa số' : 'Thêm số'}</button></div>
       <div class="lbl">Tin đã nhắn</div><div style="display:grid;grid-template-columns:repeat(${S.data.steps.length},minmax(0,1fr));gap:4px">${sentBars}</div>
       ${b.ciO <= 0 && b.coO > 0 ? `<button class="big" onclick="M.confirm('${b.id}')" style="margin-top:16px;${b.confirmed ? 'background:#DCFCE7;color:#15803D' : 'background:#0E1525;color:#fff'}">${b.confirmed ? 'Đã xác nhận đến — chạm để bỏ' : 'Xác nhận khách đã đến'}</button>` : ''}
-      <div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-top:10px">
-        <button class="act" onclick="M.payOpen('${b.id}')" style="${b.paid ? 'color:#15803D;background:#F0FDF4;border-color:#BBF7D0' : ''}">${svg('pay')}${b.paid ? 'Đã thu' : 'Thu tiền'}</button>
+      <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:10px">
         <button class="act" onclick="M.send('${b.id}','${b.next || '__more'}')">${svg('msg')}Nhắn</button>
         ${b.phone ? `<a class="act" href="tel:${esc(b.phone)}">${svg('phone')}Gọi</a>` : `<button class="act" onclick="M.phone('${b.id}')">${svg('phone')}Thêm số</button>`}
         <button class="act" onclick="S_set('move',${!S.move})">${svg('home')}Đổi căn</button></div>

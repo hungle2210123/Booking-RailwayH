@@ -105,6 +105,26 @@ def test_moi_calendar_subscription(client, booking):
 
 
 @pytest.mark.db_write
+def test_moi_edit_stay(client, db, booking):
+    """Guest card: tap Ngày ở / Giá đêm / Tổng tiền → /api/moi/stay saves dates + total; checkout before check-in is
+    refused, and new dates that overlap another guest in the same room need force."""
+    a = booking(guest_name='ZZ Stay A', checkin_date='2030-06-01', checkout_date='2030-06-03')
+    b = booking(guest_name='ZZ Stay B', checkin_date='2030-06-05', checkout_date='2030-06-07')
+    r = client.post('/api/moi/stay', json={'booking_id': a, 'checkin_date': '2030-06-01', 'checkout_date': '2030-06-04', 'room_amount': 2964000}).get_json()
+    assert r['success'] and r['nights'] == 3
+    row = db.session.execute(text("SELECT checkout_date, room_amount FROM bookings WHERE booking_id = :b"), {'b': a}).fetchone()
+    assert str(row[0])[:10] == '2030-06-04' and float(row[1]) == 2964000
+    assert client.post('/api/moi/stay', json={'booking_id': a, 'room_amount': 3000000}).get_json()['success']   # total only
+    assert client.post('/api/moi/stay', json={'booking_id': a, 'checkin_date': '2030-06-04', 'checkout_date': '2030-06-02'}).status_code == 400
+    apt = client.get('/api/moi/data').get_json()['apartments'][0]['id']
+    for bid in (a, b):
+        assert client.post('/api/moi/room', json={'booking_id': bid, 'apartment_id': apt, 'room_no': 1}).get_json()['success']
+    r = client.post('/api/moi/stay', json={'booking_id': a, 'checkout_date': '2030-06-06'})
+    assert r.status_code == 409 and 'ZZ Stay B' in r.get_json()['error']
+    assert client.post('/api/moi/stay', json={'booking_id': a, 'checkout_date': '2030-06-06', 'force': True}).get_json()['success']
+
+
+@pytest.mark.db_write
 def test_moi_room_names(client, db):
     """Rooms 1..N of an apartment can carry the owner's own name; empty = back to "Phòng N"; out-of-range refused."""
     apt = client.get('/api/moi/data').get_json()['apartments'][0]

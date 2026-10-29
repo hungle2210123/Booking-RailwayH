@@ -177,6 +177,49 @@ def moi_set_room():
     return jsonify({'success': True})
 
 
+@app.route('/api/moi/stay', methods=['POST'])
+def moi_set_stay():
+    """Edit a guest's dates and/or total from the guest card (owner, Oct 29: tap "Ngày ở" / "Giá / đêm" / "Tổng tiền").
+    {booking_id, checkin_date?, checkout_date?, room_amount?, force?}. New dates that overlap another guest in the same
+    room are refused (409) unless force. Written to booking history like every other edit."""
+    from core.models import db as _xdb
+    _moi_ensure()
+    d = request.get_json(silent=True) or {}
+    bid = str(d.get('booking_id') or '').strip()
+    b = _xdb.session.execute(text("SELECT checkin_date, checkout_date, room_amount, actual_apartment, room_no FROM bookings WHERE booking_id = :b"),
+                             {'b': bid}).fetchone()
+    if not b:
+        return jsonify({'success': False, 'error': 'Không tìm thấy đặt phòng'}), 404
+    try:
+        ci = datetime.strptime(d['checkin_date'], '%Y-%m-%d').date() if d.get('checkin_date') else b[0]
+        co = datetime.strptime(d['checkout_date'], '%Y-%m-%d').date() if d.get('checkout_date') else b[1]
+        amount = float(d['room_amount']) if d.get('room_amount') not in (None, '') else float(b[2] or 0)
+    except (TypeError, ValueError):
+        return jsonify({'success': False, 'error': 'Ngày hoặc số tiền chưa đúng'}), 400
+    ci = ci.date() if hasattr(ci, 'date') else ci
+    co = co.date() if hasattr(co, 'date') else co
+    if co <= ci:
+        return jsonify({'success': False, 'error': 'Ngày trả phải sau ngày đến'}), 400
+    if amount < 0:
+        return jsonify({'success': False, 'error': 'Số tiền không được âm'}), 400
+    if b[3] and b[4] and not d.get('force'):
+        clash = _xdb.session.execute(text("""
+            SELECT COALESCE(g.full_name, b.guest_name) FROM bookings b LEFT JOIN guests g ON g.guest_id = b.guest_id
+            WHERE b.booking_id <> :b AND b.actual_apartment = :apt AND b.room_no = :room
+              AND b.checkin_date < :co AND b.checkout_date > :ci
+              AND COALESCE(b.booking_status, '') NOT IN ('cancelled', 'deleted')
+              AND COALESCE(b.checkin_status, '') NOT IN ('cancelling', 'no_show')"""),
+            {'b': bid, 'apt': b[3], 'room': b[4], 'ci': ci, 'co': co}).fetchall()
+        if clash:
+            return jsonify({'success': False, 'clash': [c[0] for c in clash],
+                            'error': 'Những đêm này phòng đã có khách: ' + ', '.join(c[0] for c in clash)}), 409
+    record_booking_history(bid, {'checkin_date': ci, 'checkout_date': co, 'room_amount': amount}, changed_by='moi_stay')
+    _xdb.session.execute(text("""UPDATE bookings SET checkin_date = :ci, checkout_date = :co, room_amount = :amt, updated_at = NOW()
+                                 WHERE booking_id = :b"""), {'ci': ci, 'co': co, 'amt': amount, 'b': bid})
+    _xdb.session.commit()
+    return jsonify({'success': True, 'nights': (co - ci).days, 'room_amount': amount})
+
+
 @app.route('/api/moi/reminder', methods=['POST'])
 def moi_reminder():
     """⏰ Add a reminder on a guest ({booking_id, at: 'YYYY-MM-DDTHH:MM' Vietnam time, note}), or tick / untick one
