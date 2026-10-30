@@ -14,6 +14,11 @@ Hoàn tác) · **Doanh thu** (the /dashboard page: KPIs, mix bar, month heat cal
 collectors, how-it's-counted). Guest card = right drawer (edit dates / price / total, pay tile, steps, confirm, rooms,
 reminders, Báo hủy). Test `test_desk_page`.
 
+**Main page on a computer (owner, Oct 30: "làm thành bảng chính thức")**: `/` redirects computers (no iPhone/Android/Mobile
+in the User-Agent) to /may-tinh; phones still land on today's calendar_details; `/hom-nay` always opens the old day page.
+The sidebar also links every other page (bookings list, month calendar, old /messages, Mẫu câu · AI, Chi phí, Căn hộ &
+phòng, /moi, old day page) — Setup Home and Tiền điện are left out on purpose. Test `test_app_opens_on_today`.
+
 # /moi — the new phone-first app (owner, Oct 26 2026)
 
 Built from the approved Design-canvas mockup (https://claude.ai/artifact/Pxax1hBddXkfy5P496eLU2). It runs NEXT TO the

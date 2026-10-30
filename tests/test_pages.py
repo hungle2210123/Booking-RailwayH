@@ -55,8 +55,14 @@ def test_day_page_list_mode_and_view_button(client):
 
 
 def test_app_opens_on_today(client):
-    """Owner, Oct 25: opening the app (/) or "Lịch Doanh Thu" (/hom-nay) lands on TODAY's day page (Vietnam date)."""
+    """Owner, Oct 25: on a phone, opening the app (/) or "Lịch Doanh Thu" (/hom-nay) lands on TODAY's day page.
+    Owner, Oct 30: on a computer, / opens the desktop app /may-tinh (the main page); /hom-nay stays the old day page."""
     from core.occupancy import vn_today
-    for url in ('/', '/hom-nay'):
-        r = client.get(url)
-        assert r.status_code == 302 and r.headers['Location'].endswith(f'/calendar_details/{vn_today().isoformat()}'), url
+    iphone = {'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 Mobile/15E148'}
+    pc = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/130.0 Safari/537.36'}
+    day = f'/calendar_details/{vn_today().isoformat()}'
+    for url, h in (('/', iphone), ('/hom-nay', iphone), ('/hom-nay', pc)):
+        r = client.get(url, headers=h)
+        assert r.status_code == 302 and r.headers['Location'].endswith(day), (url, h)
+    r = client.get('/', headers=pc)
+    assert r.status_code == 302 and r.headers['Location'].endswith('/may-tinh')

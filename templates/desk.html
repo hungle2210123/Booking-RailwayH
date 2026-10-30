@@ -21,16 +21,16 @@ a{color:#1D4ED8}
 #shell{display:flex;min-height:100vh}
 /* sidebar */
 #side{width:232px;flex-shrink:0;background:#0E1525;color:#fff;padding:20px 14px;display:flex;flex-direction:column;gap:3px;position:sticky;top:0;height:100vh;overflow-y:auto}
-.brand{padding:0 10px 18px}.brand b{font-size:19px;font-weight:800;letter-spacing:-.3px}.brand div{font-size:12px;color:#A7B0C0;margin-top:2px}
-.nav{display:flex;align-items:center;gap:12px;width:100%;border:none;border-radius:10px;padding:0 12px;min-height:44px;font-size:14px;font-weight:600;text-align:left;background:transparent;color:#CBD5E1}
+.brand{padding:0 10px 12px}.brand b{font-size:19px;font-weight:800;letter-spacing:-.3px}.brand div{font-size:12px;color:#A7B0C0;margin-top:2px}
+.nav{display:flex;align-items:center;gap:12px;width:100%;border:none;border-radius:10px;padding:0 12px;min-height:40px;font-size:14px;font-weight:600;text-align:left;background:transparent;color:#CBD5E1}
 .nav:hover{background:rgba(255,255,255,.06)}
 .nav.on{background:rgba(255,255,255,.13);color:#fff}
 .nav .cnt{margin-left:auto;font-size:12px;font-weight:800;border-radius:999px;padding:1px 8px;background:#DC2626;color:#fff}
 .nav .cnt.amber{background:#B45309}
-.sdiv{height:1px;background:rgba(255,255,255,.1);margin:12px 8px}
-.legend-s{padding:0 10px;font-size:12px;color:#CBD5E1;line-height:1.75}.legend-s b{color:#fff;display:block;margin-bottom:2px}
+.sdiv{height:1px;background:rgba(255,255,255,.1);margin:8px 8px}
+.legend-s{padding:0 10px;font-size:11.5px;color:#CBD5E1;line-height:1.6}.legend-s b{color:#fff;display:block;margin-bottom:2px}
 .legend-s div{display:flex;align-items:center;gap:8px}
-.slink{display:flex;align-items:center;gap:10px;color:#CBD5E1;text-decoration:none;font-size:13px;padding:9px 10px;border-radius:10px}
+.slink{display:flex;align-items:center;gap:10px;color:#CBD5E1;text-decoration:none;font-size:13px;padding:7px 10px;border-radius:10px}
 .slink:hover{background:rgba(255,255,255,.06);color:#fff}
 /* main */
 #main{flex:1;min-width:0;display:flex;flex-direction:column}
@@ -46,7 +46,7 @@ a{color:#1D4ED8}
 .btn.sm{min-height:32px;padding:0 10px;font-size:12.5px}
 .btn.xs{min-height:28px;padding:0 9px;font-size:12px;border-radius:8px}
 .btn.busy svg{animation:spin .8s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}
-.search{display:flex;align-items:center;gap:8px;background:#F3F4F7;border:1px solid #E4E7ED;border-radius:10px;padding:0 12px;min-height:38px;color:#64748B;width:240px}
+.search{display:flex;align-items:center;gap:8px;background:#F3F4F7;border:1px solid #E4E7ED;border-radius:10px;padding:0 12px;min-height:38px;color:#64748B;width:210px}
 .search input{border:none;background:transparent;outline:none;font:inherit;font-size:14px;color:#0E1525;width:100%}
 #content{padding:22px 28px 60px;min-width:0}
 /* building blocks */
@@ -553,16 +553,24 @@ button.info.on{border-color:#0E1525;background:#fff}
         <div><span class="dot" style="background:#DC2626"></span>Chưa nhắn</div><div><span class="dot" style="background:#F59E0B"></span>Đã nhắn, chờ trả lời</div>
         <div><span class="dot" style="background:#2563EB"></span>Khách đã trả lời / hẹn giờ</div><div><span class="dot" style="background:#16A34A"></span>Đã đến / đang ở</div>
         <div><span class="dot" style="background:#94A3B8"></span>Không liên lạc được</div><div><span class="tb" style="margin-right:2px">2PN</span>Căn 2 phòng ngủ</div></div>
-      <div style="flex:1"></div>
+      <div style="flex:1;min-height:12px"></div>
+      <div class="legend-s" style="margin-bottom:2px"><b>Trang khác</b></div>
+      <a class="slink" href="/bookings">${ico('day')}Danh sách đặt phòng</a>
+      <a class="slink" href="/calendar/">${ico('cal')}Lịch tháng</a>
+      <a class="slink" href="/messages">${ico('msg')}Nhắn khách (trang cũ)</a>
+      <a class="slink" href="/ai_assistant">${ico('bolt')}Mẫu câu · AI</a>
+      <a class="slink" href="/expenses">${ico('pay')}Chi phí</a>
+      <a class="slink" href="/apartments">${ico('home')}Căn hộ &amp; phòng</a>
+      <div class="sdiv"></div>
       <a class="slink" href="/moi">${ico('mobile')}Bản điện thoại</a>
-      <a class="slink" href="/hom-nay">${ico('back')}Trang cũ</a>`;
+      <a class="slink" href="/hom-nay">${ico('back')}Chi tiết ngày (trang cũ)</a>`;
   }
   function renderTop() {
     const t = S.tab;
     let title = '', sub = '', nav = true;
-    if (t === 'today' || t === 'day') { title = (t === 'day' ? 'Chi tiết ngày · ' : '') + wdf(S.day) + ', ' + dm(S.day) + '/' + isoOf(S.day).slice(0, 4);
+    if (t === 'today' || t === 'day') { title = wdf(S.day) + ', ' + dm(S.day) + '/' + isoOf(S.day).slice(0, 4);
       const ins = B.filter((b) => b.ciO === S.day).length, outs = B.filter((b) => b.coO === S.day).length;
-      sub = rel(S.day) + ' · ' + ins + ' khách đến · ' + outs + ' khách trả · còn ' + Math.max(0, freeOn(S.day)) + ' phòng trống'; }
+      sub = (t === 'day' ? 'Chi tiết ngày · ' : '') + rel(S.day) + ' · ' + ins + ' khách đến · ' + outs + ' khách trả · còn ' + Math.max(0, freeOn(S.day)) + ' phòng trống'; }
     else if (t === 'cal') { title = 'Lịch phòng'; sub = dm(S.calStart) + ' → ' + dm(S.calStart + S.calN - 1) + ' · bấm ngày = chi tiết ngày · bấm khách = xếp phòng'; }
     else if (t === 'msg') { title = 'Nhắn khách'; sub = 'Gửi tin theo từng bước — cùng khung gửi với trang Nhắn khách'; nav = false; }
     else if (t === 'pay') { title = 'Thu tiền'; sub = 'Chọn người thu cho từng khách'; nav = false; }

@@ -6,10 +6,22 @@ def apartment_management():
     """Apartment management page"""
     return render_template('apartments.html')
 
+_PHONE_UA = ('iphone', 'android', 'mobile', 'ipod')
+
+
 @app.route('/')
-@app.route('/hom-nay')
 def index():
-    """Open the app on TODAY's day page (owner, Oct 25) — Vietnam date, the server runs UTC."""
+    """Opening the app: on a computer the desktop app /may-tinh is the main page (owner, Oct 30); on a phone, TODAY's
+    day page as before (owner, Oct 25). /hom-nay always opens the old day page."""
+    ua = (request.headers.get('User-Agent') or '').lower()
+    if not any(k in ua for k in _PHONE_UA):
+        return redirect(url_for('desk_page'))
+    return today_page()
+
+
+@app.route('/hom-nay')
+def today_page():
+    """TODAY's day page (calendar_details) — Vietnam date, the server runs UTC."""
     from core.occupancy import vn_today
     return redirect(url_for('calendar_details', date_str=vn_today().isoformat()))
 
