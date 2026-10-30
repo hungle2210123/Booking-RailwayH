@@ -56,6 +56,14 @@ def moi_page():
     return render_template('moi.html')
 
 
+@app.route('/may-tinh')
+def desk_page():
+    """The desktop app (owner, Oct 30): Hôm nay · Chi tiết ngày · Lịch phòng · Nhắn khách · Thu tiền · Doanh thu, guest card
+    on the right. Same data/actions as /moi (/api/moi/*) and the same revenue numbers as /dashboard
+    (/api/dashboard/overview, core/revenue.py). Old pages stay."""
+    return render_template('desk.html')
+
+
 @app.route('/api/moi/data')
 def moi_data():
     """Everything /moi shows: apartments, journey steps and every booking that touches [today − 10 days, today + 21 days)
@@ -69,7 +77,11 @@ def moi_data():
     _ensure_pay_table()
     _tb_ensure(_xdb.session, text)
     today = (datetime.utcnow() + timedelta(hours=7)).date()
-    since, until = today - timedelta(days=PAY_DAYS_BACK), today + timedelta(days=21)
+    try:                                  # ?ahead=N days (the desktop page's calendar looks further ahead)
+        ahead = min(max(int(request.args.get('ahead', 21)), 7), 120)
+    except ValueError:
+        ahead = 21
+    since, until = today - timedelta(days=PAY_DAYS_BACK), today + timedelta(days=ahead)
     rows = _xdb.session.execute(text("""
         SELECT b.booking_id, COALESCE(g.full_name, b.guest_name), b.checkin_date, b.checkout_date, b.accommodation_name,
                g.phone, b.via_partner, b.actual_apartment, b.room_no, b.checkin_status, b.room_amount,

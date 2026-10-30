@@ -1,3 +1,19 @@
+# /may-tinh — the desktop app (owner, Oct 30 2026)
+
+Built from the approved desktop mockup (https://claude.ai/artifact/NBoQrGqGwHiwF1TAe2amQ2). `templates/desk.html`, route in
+`app_parts/p15_moi.py` (`desk_page`), nav "🖥 Bản máy tính" in base.html. Same data and actions as /moi (`/api/moi/data?ahead=60`,
+`/api/moi/*`, journey.js send sheet / Tin nhanh, /api/pay/*, /api/set_*), revenue numbers ONLY from `/api/dashboard/overview`
+(core/revenue.py — the calendar's per-day revenue and the Doanh thu tab use the dashboard payload, no new calculation).
+Sidebar tabs: **Hôm nay** (14-day strip, 5 KPIs, Trả ↔ Đến per apartment, Việc cần nhắc, Chưa xếp căn, Đang ở) ·
+**Chi tiết ngày** (the old calendar_details layout: Tình trạng căn hộ tiles + Check-in / Đang ở / Check-out cards) ·
+**Lịch phòng** (overview tiles per apartment for one night, window KPIs, room timeline 7/14 days with half-day bars,
+header = free chip + revenue (black real / blue expected) + "N 2PN trả", tap bar = pick → green "Xếp vào đây", double-tap =
+card, tap room name = rename, tap day = day panel) · **Nhắn khách** (table grouped by arrival day, step squares, status
+cycle, apartment filter) · **Thu tiền** (per-apartment, urgent alert, collector buttons per row, method toggle, paid list +
+Hoàn tác) · **Doanh thu** (the /dashboard page: KPIs, mix bar, month heat calendar + day detail, 12-month chart, apartments,
+collectors, how-it's-counted). Guest card = right drawer (edit dates / price / total, pay tile, steps, confirm, rooms,
+reminders, Báo hủy). Test `test_desk_page`.
+
 # /moi — the new phone-first app (owner, Oct 26 2026)
 
 Built from the approved Design-canvas mockup (https://claude.ai/artifact/Pxax1hBddXkfy5P496eLU2). It runs NEXT TO the
