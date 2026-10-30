@@ -561,6 +561,7 @@ button.info.on{border-color:#0E1525;background:#fff}
       <a class="slink" href="/ai_assistant">${ico('bolt')}Mẫu câu · AI</a>
       <a class="slink" href="/expenses">${ico('pay')}Chi phí</a>
       <a class="slink" href="/apartments">${ico('home')}Căn hộ &amp; phòng</a>
+      <a class="slink" href="#" onclick="D.extOpen();return false">${ico('plus')}Tải tiện ích Chrome</a>
       <div class="sdiv"></div>
       <a class="slink" href="/moi">${ico('mobile')}Bản điện thoại</a>
       <a class="slink" href="/hom-nay">${ico('back')}Chi tiết ngày (trang cũ)</a>`;
@@ -742,10 +743,13 @@ button.info.on{border-color:#0E1525;background:#fff}
       else if (b.ciO <= 0) s += 'background:#FFFBEB;color:#92400E;box-shadow:inset 0 0 0 1.5px #F59E0B;';
       else s += `background:${col}1F;color:#0E1525;box-shadow:inset 0 0 0 1px ${col}70;`;
       if (S.pick === b.id || S.sel === b.id) s += 'outline:2.5px solid #F59E0B;outline-offset:1px;';
-      return `<button class="bar" style="${s}" onclick="D.pickG('${esc(b.id)}')" ondblclick="D.open('${esc(b.id)}')" title="${esc(b.name + ' · ' + dm(b.ciO) + ' → ' + dm(b.coO) + ' · ' + b.nights + ' đêm · ' + fmt(b.per_night) + '/đêm · ' + b.listing + ' · ' + st.t + ' · ' + payTxt(b) + ' — bấm để xếp phòng, bấm đúp để mở thẻ')}">
-        <span class="dot" style="background:${st.c};box-shadow:0 0 0 2px #fff"></span><span class="t"><b>${esc(b.name)}</b><small>${b.nights} đêm · ${short(b.per_night)} · ${b.paid ? 'đã thu' : 'chưa thu'}</small></span>${b.tb ? '<span class="tb">2PN</span>' : ''}</button>`; };
+      const tip = esc(b.name + ' · ' + dm(b.ciO) + ' → ' + dm(b.coO) + ' · ' + b.nights + ' đêm · ' + fmt(b.per_night) + '/đêm · ' + b.listing + ' · ' + st.t + ' · ' + payTxt(b) + ' — bấm để xếp phòng, bấm đúp để mở thẻ');
+      const narrow = (sp[1] - sp[0]) * (N === 7 ? 75 : 39) < 120;      // under ~120 px: name only, smaller, no dot / 2PN chip
+      return `<button class="bar" style="${s}${narrow ? 'padding:3px 5px;' : ''}" onclick="D.pickG('${esc(b.id)}')" ondblclick="D.open('${esc(b.id)}')" title="${tip}">
+        ${narrow ? `<span class="t"><b style="font-size:11px">${esc(b.name)}</b><small>${b.nights}đ${b.tb ? ' · 2PN' : ''}</small></span>`
+          : `<span class="dot" style="background:${st.c};box-shadow:0 0 0 2px #fff"></span><span class="t"><b>${esc(b.name)}</b><small>${b.nights} đêm · ${short(b.per_night)} · ${b.paid ? 'đã thu' : 'chưa thu'}</small></span>${b.tb ? '<span class="tb">2PN</span>' : ''}`}</button>`; };
     const lanes = (list) => { const L = []; list.slice().sort((p, q) => p.ciO - q.ciO).forEach((b) => { const l = L.find((x) => x.end <= b.ciO); if (l) { l.bs.push(b); l.end = b.coO; } else L.push({ end: b.coO, bs: [b] }); }); return L; };
-    const vis = (b) => b.coO >= ws && b.ciO < we && match(b);
+    const vis = (b) => b.coO > ws && b.ciO < we && match(b);   // left before the first night shown = not drawn
     const rowSt = tpl + ';min-height:50px;border-top:1px solid #EEF0F4;';
     let rows = '';
     showA.forEach((a) => {
@@ -1129,6 +1133,21 @@ button.info.on{border-color:#0E1525;background:#fff}
         <div class="muted" style="font-size:12px;margin-top:10px;line-height:1.5">Lời nhắc hiện ở trang Hôm nay và trong Lịch iPhone (nếu đã kết nối Lịch ở bản điện thoại) với đủ tên, số, căn/phòng, ngày ở.</div>`);
       return;
     }
+    if (S.modal === 'ext') {
+      el.innerHTML = wrap(head('TIỆN ÍCH CHROME', 'Gửi về Hotel Pro' + (S.extVer ? ' · bản ' + esc(S.extVer) : '')) + `
+        <div class="muted" style="font-size:13px;margin-top:6px;line-height:1.55">Tiện ích chỉ <b>đọc trang Booking bạn đang mở</b> rồi gửi về web — không tự đăng nhập, không tự bấm gì trên Booking.</div>
+        <a class="btn pri" style="width:100%;margin-top:14px;min-height:48px" href="/extension.zip" download>⬇ Tải tiện ích (.zip)</a>
+        <div class="sect">Cài trên máy tính mới (1 lần)</div>
+        <ol style="margin:0;padding-left:20px;font-size:13.5px;line-height:1.7;color:#334155">
+          <li>Bấm <b>Tải tiện ích</b> ở trên, rồi <b>giải nén</b> file .zip (chuột phải → Extract All / Giải nén) — được thư mục <b>chrome_extension</b>.</li>
+          <li>Mở Chrome, gõ <b>chrome://extensions</b> (Edge: <b>edge://extensions</b>).</li>
+          <li>Bật <b>Developer mode / Chế độ nhà phát triển</b> (góc phải trên).</li>
+          <li>Bấm <b>Load unpacked / Tải tiện ích đã giải nén</b> → chọn thư mục <b>chrome_extension</b>.</li>
+          <li>Ghim tiện ích (biểu tượng mảnh ghép 🧩 → 📌), bấm vào → <b>Kiểm tra kết nối</b> → <b>Lưu</b>.</li></ol>
+        <div class="sect">Cập nhật bản mới</div>
+        <div style="font-size:13.5px;line-height:1.6;color:#334155">Tải lại file .zip, giải nén <b>đè lên thư mục cũ</b>, rồi ở chrome://extensions bấm nút <b>↻ tải lại</b> trên thẻ tiện ích.</div>`);
+      return;
+    }
     if (S.modal === 'add') {
       const listings = [...new Set(B.map((b) => b.listing).filter(Boolean))].sort();
       el.innerHTML = wrap(head('THÊM ĐẶT PHÒNG', 'Khách mới') + `
@@ -1145,6 +1164,7 @@ button.info.on{border-color:#0E1525;background:#fff}
     el.innerHTML = '';
   }
   D.mset = (k, v) => { S[k] = v; renderModal(); };
+  D.extOpen = () => { S.modal = 'ext'; renderModal(); fetch('/api/extension/info').then((r) => r.json()).then((j) => { if (j.success) { S.extVer = j.version; if (S.modal === 'ext') renderModal(); } }).catch(() => {}); };
 
   // reminders that come due while the page is open
   const alerted = new Set();

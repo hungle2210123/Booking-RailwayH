@@ -20,6 +20,7 @@ COPY core/ ./core/
 COPY app_parts/ ./app_parts/
 COPY templates/ ./templates/
 COPY static/ ./static/
+COPY chrome_extension/ ./chrome_extension/
 
 # Set default PORT if not provided (Railway will override this)
 ENV PORT=5000

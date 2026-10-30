@@ -83,3 +83,10 @@ the reveal, never calls Booking APIs, never scrapes (deliberate: Booking gates t
 that is circumvention + account-ban risk, so it was removed). Extension also imports the reservation list/detail
 (new/changed/cancelled, multi-room ⚠️, new-listing 🆕). Current ext version: see `chrome_extension/manifest.json`.
 
+
+
+## Download from the web (owner, Oct 30)
+`GET /extension.zip` zips `chrome_extension/` at request time (Dockerfile now COPYs `chrome_extension/`), named
+`hotel_pro_tien_ich_<version>.zip`; `GET /api/extension/info` = manifest version. /may-tinh sidebar "Tải tiện ích Chrome"
+opens the steps (unzip → chrome://extensions → Developer mode → Load unpacked; update = unzip over the old folder → ↻).
+No secrets in the folder (the token field is empty by default). Test `test_extension_download`.

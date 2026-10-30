@@ -66,3 +66,15 @@ def test_app_opens_on_today(client):
         assert r.status_code == 302 and r.headers['Location'].endswith(day), (url, h)
     r = client.get('/', headers=pc)
     assert r.status_code == 302 and r.headers['Location'].endswith('/may-tinh')
+
+
+def test_extension_download(client):
+    """Owner, Oct 30: the Chrome extension can be downloaded from the web (/extension.zip) — a zip with the
+    chrome_extension folder (manifest + scripts), and its version is shown next to the button."""
+    import io, json, zipfile
+    r = client.get('/extension.zip')
+    assert r.status_code == 200 and r.mimetype == 'application/zip'
+    names = zipfile.ZipFile(io.BytesIO(r.data)).namelist()
+    assert {'chrome_extension/manifest.json', 'chrome_extension/content.js', 'chrome_extension/background.js'} <= set(n.replace(chr(92), '/') for n in names)
+    v = json.load(open('chrome_extension/manifest.json', encoding='utf-8'))['version']
+    assert client.get('/api/extension/info').get_json()['version'] == v

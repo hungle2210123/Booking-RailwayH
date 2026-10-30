@@ -25,6 +25,40 @@ def today_page():
     from core.occupancy import vn_today
     return redirect(url_for('calendar_details', date_str=vn_today().isoformat()))
 
+@app.route('/extension.zip')
+def extension_zip():
+    """The Chrome extension as a zip, built from chrome_extension/ at request time (owner, Oct 30: download it from the web
+    when the folder is not on this computer). Unzip → chrome://extensions → Load unpacked → the "chrome_extension" folder."""
+    import json, zipfile
+    base = os.path.join(app.root_path, 'chrome_extension')     # parts run in app.py's namespace: root = app.py's folder
+    if not os.path.isdir(base):
+        return jsonify({'success': False, 'error': 'Không tìm thấy thư mục tiện ích trên máy chủ'}), 404
+    try:
+        version = json.load(open(os.path.join(base, 'manifest.json'), encoding='utf-8')).get('version', '')
+    except Exception:
+        version = ''
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, 'w', zipfile.ZIP_DEFLATED) as z:
+        for root, _dirs, files in os.walk(base):
+            for f in files:
+                full = os.path.join(root, f)
+                z.write(full, os.path.join('chrome_extension', os.path.relpath(full, base)))
+    buf.seek(0)
+    return send_file(buf, mimetype='application/zip', as_attachment=True,
+                     download_name=f'hotel_pro_tien_ich_{version or "moi"}.zip')
+
+
+@app.route('/api/extension/info')
+def extension_info():
+    """Version of the extension the server hands out (shown next to the download button)."""
+    import json
+    try:
+        m = json.load(open(os.path.join(app.root_path, 'chrome_extension', 'manifest.json'), encoding='utf-8'))
+        return jsonify({'success': True, 'version': m.get('version', ''), 'name': m.get('name', '')})
+    except Exception:
+        return jsonify({'success': False}), 404
+
+
 @app.route('/dashboard')
 def dashboard():
     """Revenue & collection overview. All numbers come from /api/dashboard/overview
