@@ -405,7 +405,7 @@ button.info.on{border-color:#0E1525;background:#fff}
   };
   D.send = (id, step) => { window.Journey && Journey.open(id, step || null); };
   D.pickApt = (id) => { window.Journey && Journey.open(id, null, { pickApt: true }); };
-  D.quick = () => window.Journey && Journey.quick();
+  D.quick = () => { location.href = '/tin-nhanh'; };   // the full Tin nhanh page (groups, own groups) — owner, Oct 30
   D.photo = () => { S.modal = null; renderModal(); window.PhotoImport && PhotoImport.booking({ apartments: APT, onSaved: () => load(true) }); };
   D.chatPhone = () => window.PhotoImport && PhotoImport.phone({ onSaved: () => load(true) });
   D.renameRoom = async (aid, no) => {
@@ -884,9 +884,8 @@ button.info.on{border-color:#0E1525;background:#fff}
                 done: scope.filter((b) => !b.unreach && done(b)).length, unreach: scope.filter((b) => b.unreach).length };
     const pass = (b) => (S.mf === 'unreach' ? b.unreach : !b.unreach && (S.mf === 'all' || (S.mf === 'todo' ? !done(b) : done(b))));
     const shown = scope.filter(pass);
-    const cols = 'grid-template-columns:minmax(180px,1.4fr) minmax(110px,1fr) minmax(130px,1fr) 170px 200px minmax(150px,1fr) 80px';
+    const cols = 'grid-template-columns:minmax(200px,1.5fr) minmax(130px,1fr) minmax(150px,1fr) 190px minmax(190px,1fr) 80px';
     const row = (b) => { const st = stOf(b);
-      const steps = S.data.steps.map((s, i) => `<button class="step ${b.sent.includes(s.key) ? 'done' : s.key === b.next ? 'rec' : ''}" onclick="D.send('${esc(b.id)}','${s.key}')" title="${i + 1}. ${esc(s.label)}${b.sent.includes(s.key) ? ' — đã gửi' : s.key === b.next ? ' — nên gửi bây giờ' : ''}">${i + 1}</button>`).join('');
       return `<div class="tr" style="${cols};${b.unreach ? 'opacity:.6' : ''}">
         <button class="nameb" onclick="D.open('${esc(b.id)}')"><span style="display:flex;align-items:center;gap:6px;min-width:0"><span class="gn">${esc(b.name)}</span>${b.tb ? '<span class="tb">2PN</span>' : ''}</span>
           <span class="gs" style="display:block">${b.vn ? 'Tiếng Việt' : 'English'} · ${b.phone ? esc(b.phone) : b.partner ? 'đối tác — nhắn qua Booking' : '<span style="color:#B45309">chưa có số</span>'}</span></button>
@@ -894,7 +893,6 @@ button.info.on{border-color:#0E1525;background:#fff}
         <div style="font-size:13px"><div class="num" style="font-weight:700">${dm(b.ciO)} → ${dm(b.coO)} · ${b.nights} đêm</div><div class="gs">${short(b.per_night)}/đêm · ${fmt(b.total)}</div></div>
         <div><button class="pill" style="background:${st.bg};color:${st.fg};cursor:pointer" onclick="D.status('${esc(b.id)}')" title="${st.k === 'todo' ? 'Bấm nếu đã nhắn ngoài app' : st.k === 'wait' ? 'Bấm khi khách trả lời' : esc(st.s)}">${esc(st.t)}</button>
           <div class="gs" style="font-size:11px">${esc(st.s)}</div></div>
-        <div style="display:flex;gap:4px;flex-wrap:wrap">${steps}</div>
         <div>${b.next ? `<button class="btn sm pri" onclick="D.send('${esc(b.id)}','${b.next}')">Gửi: ${esc(stepLabel(b.next))}</button>` : '<span class="muted" style="font-size:12.5px">Đã gửi đủ</span>'}
           <button class="btn xs" style="margin-top:4px" onclick="D.send('${esc(b.id)}','__more')">Mẫu khác</button></div>
         <div style="display:flex;gap:4px">${bell(b)}<button class="bell" onclick="D.unreach('${esc(b.id)}')" title="${b.unreach ? 'Liên lạc lại được' : 'Không liên lạc được'}">${b.unreach ? '↩' : '✕'}</button></div></div>`; };
@@ -902,7 +900,6 @@ button.info.on{border-color:#0E1525;background:#fff}
     if (S.mtab === 'stay') body = shown.length ? `<div class="tgrp">Đang ở · ${shown.length} khách</div>` + shown.sort((p, q) => p.coO - q.coO).map(row).join('') : '';
     else for (let d = 0; d < S.mrange; d++) { const l = shown.filter((b) => b.ciO === d).sort((p, q) => (p.apt || 999) - (q.apt || 999) || q.total - p.total);
       if (l.length) body += `<div class="tgrp">${rel(d)} · ${wdf(d)} ${dm(d)}<span class="muted" style="font-weight:600">· ${l.length} khách đến · ${l.filter((b) => !b.unreach && !done(b)).length} chưa nhắn</span></div>` + l.map(row).join(''); }
-    const steps = S.data.steps.map((s, i) => (i + 1) + ' ' + s.label.split(' &')[0]).join(' · ');
     return `<div class="stack">
       <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center">
         <div class="seg"><button class="${S.mtab === 'arr' ? 'on' : ''}" onclick="D.set('mtab','arr')">Sắp đến · ${arr.length}</button><button class="${S.mtab === 'stay' ? 'on' : ''}" onclick="D.set('mtab','stay')">Đang ở · ${stay.length}</button></div>
@@ -911,8 +908,8 @@ button.info.on{border-color:#0E1525;background:#fff}
         <span style="flex:1"></span><button class="btn sm" onclick="D.photo()">📷 Thêm đặt phòng từ ảnh</button><button class="btn sm" onclick="D.chatPhone()">📞 Cập nhật số từ ảnh chat</button></div>
       <div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px">${[['all', 'Tất cả', n.all, '#0E1525'], ['todo', 'Chưa nhắn', n.todo, '#DC2626'], ['done', 'Đã nhắn', n.done, '#F59E0B'], ['unreach', 'Không liên lạc được', n.unreach, '#94A3B8']]
         .map(([k, l, c, col]) => `<button class="fbox ${S.mf === k ? 'on' : ''}" onclick="D.set('mf','${k}')"><b class="num" style="${k === 'todo' && c ? 'color:#B91C1C' : ''}">${c}</b><span><i class="dot" style="background:${col}"></i>${l}</span></button>`).join('')}</div>
-      <section class="card" style="overflow:hidden"><div style="padding:9px 16px;font-size:12.5px;color:#475569;border-bottom:1px solid #EEF0F4">Ô số = các bước: ${esc(steps)} — <b style="color:#16A34A">xanh</b> đã gửi, <b>đen</b> nên gửi bây giờ, bấm ô để gửi bước đó. Bấm nhãn liên lạc: chưa nhắn → "đã nhắn ngoài app", chờ trả lời → "khách đã trả lời".</div>
-        <div style="overflow-x:auto"><div style="min-width:1100px"><div class="tr th" style="${cols}"><div>Khách</div><div>Căn · phòng</div><div>Ngày ở</div><div>Liên lạc</div><div>Các bước</div><div>Gửi tiếp</div><div></div></div>
+      <section class="card" style="overflow:hidden"><div style="padding:9px 16px;font-size:12.5px;color:#475569;border-bottom:1px solid #EEF0F4">Bấm nhãn liên lạc: chưa nhắn → "đã nhắn ngoài app", chờ trả lời → "khách đã trả lời". "Gửi" mở đúng tin nên gửi bây giờ; "Mẫu khác" để chọn mẫu bất kỳ.</div>
+        <div style="overflow-x:auto"><div style="min-width:980px"><div class="tr th" style="${cols}"><div>Khách</div><div>Căn · phòng</div><div>Ngày ở</div><div>Liên lạc</div><div>Gửi tiếp</div><div></div></div>
         ${body || `<div class="empty">${S.mf === 'todo' ? 'Đã nhắn hết cho khách trong mục này.' : 'Không có khách nào ở đây.'}</div>`}</div></div></section></div>`;
   }
 

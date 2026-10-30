@@ -191,3 +191,22 @@ def test_moi_room_names(client, db):
         assert client.post('/api/moi/room_name', json={'apartment_id': apt['id'], 'room_no': no, 'name': ''}).get_json()['name'] == f'Phòng {no}'
     finally:
         client.post('/api/moi/room_name', json={'apartment_id': apt['id'], 'room_no': no, 'name': old or ''})
+
+
+@pytest.mark.db_write
+def test_quick_custom_group(client):
+    """Owner, Oct 30: Tin nhanh can get the owner's own groups — add, put a template in, rename, delete (templates stay)."""
+    r = client.post('/api/quick/group', json={'action': 'add', 'title': 'ZZ Thuê xe'}).get_json()
+    key = r['key']
+    try:
+        assert r['success'] and key.startswith('c')
+        tid = client.get('/api/journey/templates').get_json()['templates'][0]['id']
+        assert client.post('/api/quick/extra', json={'group': key, 'id': tid, 'on': True}).get_json()['success']
+        html = client.get('/tin-nhanh').get_data(as_text=True)
+        assert 'ZZ Thuê xe' in html and 'Mục mới' in html and 'Xóa mục' in html
+        assert client.post('/api/quick/group', json={'action': 'rename', 'key': key, 'title': 'ZZ Xe máy'}).get_json()['success']
+        assert 'ZZ Xe máy' in client.get('/tin-nhanh').get_data(as_text=True)
+        assert client.post('/api/quick/group', json={'action': 'add', 'title': ''}).status_code == 400
+    finally:
+        assert client.post('/api/quick/group', json={'action': 'delete', 'key': key}).get_json()['success']
+    assert 'ZZ Xe máy' not in client.get('/tin-nhanh').get_data(as_text=True)

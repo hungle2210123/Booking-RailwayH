@@ -170,6 +170,11 @@ Every group (QUICK_GROUPS keys pin/msg/welcome/luggage/passport/checkin/payment)
 all templates (templates the group shows by itself = "✓ có sẵn"). 📌 Hay dùng saves to the journey favorites; the other
 groups save to journey_prefs 'quick_extra' {group: [template ids]} via `POST /api/quick/extra {group, id, on}`. Added
 rows read "➕ <template name>" and have ✕ to take them out (check-in additions also get 🇻🇳 when a Vietnamese text exists).
+**Own groups (owner, Oct 30)**: "＋ Mục mới" tab → `POST /api/quick/group {action: add|rename|delete, title, key}`, stored in
+journey_prefs 'quick_groups' [{key: 'c1', title}] (`_quick_custom`, `_quick_groups` = QUICK_GROUPS + own); their templates
+use 'quick_extra' like any group; a custom group shows "✏️ Đổi tên mục · 🗑 Xóa mục" (deleting drops the group only).
+The new apps' Tin nhanh buttons (/moi, /may-tinh) open this page; "← Quay lại" goes back to the page that opened it.
+Test `test_quick_custom_group`.
 
 ### **📋 Mẫu Câu page (`/ai_assistant`, `ai_assistant.html`) — text and pictures apart (owner, Oct 18)**
 Owner (Oct 18): ONE tap must open the phone's share sheet — no in-between sheet, one slim send row per open card

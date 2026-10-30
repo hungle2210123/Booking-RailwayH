@@ -391,7 +391,7 @@ button.info.on{border-color:#0E1525;background:#fff}
   };
   M.send = (id, step) => { S.sel = null; renderSheet(); window.Journey && Journey.open(id, step || null); };
   M.pickApt = (id) => { window.Journey && Journey.open(id, null, { pickApt: true }); };
-  M.quick = () => window.Journey && Journey.quick();
+  M.quick = () => { location.href = '/tin-nhanh'; };   // the full Tin nhanh page (groups, own groups) — owner, Oct 30
   // 📷 photo tools inside /moi (static/js/photo_import.js) — no jump to the old /messages page
   M.photo = () => { S.adding = false; S.sel = null; renderSheet(); window.PhotoImport && PhotoImport.booking({ apartments: APT, onSaved: () => load(true) }); };
   M.chatPhone = () => window.PhotoImport && PhotoImport.phone({ onSaved: () => load(true) });

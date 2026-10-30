@@ -59,10 +59,6 @@ def debug_db_config():
         'database_source_setting': os.getenv('DATABASE_SOURCE', 'auto')
     }), 200
 
-@app.route('/quick_collect')
-def quick_collect():
-    """Quick payment collection page - bypasses broken frontend"""
-    return render_template('quick_collect.html')
 
 @app.route('/api/cancellation_notifications')
 def api_cancellation_notifications():
@@ -751,68 +747,5 @@ def api_set_ok_status():
             'traceback': traceback.format_exc()
         }), 500
 
-@app.route('/auto_sync')
-def auto_sync_dashboard():
-    """Auto sync dashboard for managing bidirectional database synchronization"""
-    try:
-        # Debug info for Railway deployment
-        print("🔍 Auto sync dashboard accessed")
-        print(f"🔍 Template folder: {app.template_folder}")
-        
-        # Check if template exists
-        import os
-        template_path = os.path.join(app.template_folder, 'auto_sync_dashboard.html')
-        template_exists = os.path.exists(template_path)
-        print(f"🔍 Template exists: {template_exists}")
-        
-        if not template_exists:
-            return f"<h1>Debug: Template Missing</h1><p>Template path: {template_path}</p><p>Template folder: {app.template_folder}</p>"
-        
-        return render_template('auto_sync_dashboard.html')
-        
-    except Exception as e:
-        print(f"❌ Auto sync dashboard error: {e}")
-        import traceback
-        traceback.print_exc()
-        return f"<h1>Auto Sync Dashboard Error</h1><p>Error: {str(e)}</p><pre>{traceback.format_exc()}</pre>"
 
-@app.route('/debug/routes')
-def debug_routes():
-    """Debug route to check all registered routes"""
-    try:
-        routes_info = []
-        for rule in app.url_map.iter_rules():
-            routes_info.append({
-                'route': rule.rule,
-                'endpoint': rule.endpoint,
-                'methods': list(rule.methods)
-            })
-        
-        # Check specifically for auto sync route
-        auto_sync_routes = [r for r in routes_info if 'auto' in r['route'].lower() or 'sync' in r['endpoint'].lower()]
-        
-        html = "<h1>Route Debug Info</h1>"
-        html += f"<h2>Total Routes: {len(routes_info)}</h2>"
-        html += "<h3>Auto Sync Related Routes:</h3><ul>"
-        
-        if auto_sync_routes:
-            for route in auto_sync_routes:
-                html += f"<li><strong>{route['route']}</strong> → {route['endpoint']} ({route['methods']})</li>"
-        else:
-            html += "<li>❌ No auto sync routes found</li>"
-        
-        html += "</ul>"
-        
-        # Test url_for
-        try:
-            with app.app_context():
-                auto_sync_url = url_for('auto_sync_dashboard')
-                html += f"<h3>url_for Test:</h3><p>✅ url_for('auto_sync_dashboard') = {auto_sync_url}</p>"
-        except Exception as e:
-            html += f"<h3>url_for Test:</h3><p>❌ url_for failed: {str(e)}</p>"
-        
-        return html
-        
-    except Exception as e:
-        return f"<h1>Debug Error</h1><p>{str(e)}</p>"
 

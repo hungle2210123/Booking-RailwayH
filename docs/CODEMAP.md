@@ -16,25 +16,22 @@ Routes are listed as `← /path METHODS`. Line numbers are 1-based. Templates li
 - app.py:566 `is_valid_date` — Check if date value is valid
 - app.py:598 `load_data` — Load booking data from PostgreSQL only
 
-## app_parts/p01_health_cancellations.py (818 lines)
+## app_parts/p01_health_cancellations.py (751 lines)
 _p01_health_cancellations — health, cancellations centre, OK status, auto-sync, debug routes_
 - app_parts/p01_health_cancellations.py:5 `healthcheck` ← `/health` — Railway healthcheck endpoint - returns 200 OK without database access
 - app_parts/p01_health_cancellations.py:15 `debug_db_config` ← `/debug/db-config` — Debug endpoint to show database configuration (for troubleshooting only)
-- app_parts/p01_health_cancellations.py:63 `quick_collect` ← `/quick_collect` — Quick payment collection page - bypasses broken frontend
-- app_parts/p01_health_cancellations.py:68 `api_cancellation_notifications` ← `/api/cancellation_notifications` — API endpoint for cancellation notifications
-- app_parts/p01_health_cancellations.py:87 `api_urgent_alerts` ← `/api/urgent_alerts` — API endpoint for urgent cancellation alerts only
-- app_parts/p01_health_cancellations.py:107 `api_debug_cancellations` ← `/api/debug_cancellations` — Debug endpoint to check cancellation data
-- app_parts/p01_health_cancellations.py:149 `api_confirmed_cancellations` ← `/api/confirmed_cancellations` — View history of confirmed cancellation actions - uses debug_database approach
-- app_parts/p01_health_cancellations.py:200 `api_canceled_customers_management` ← `/api/canceled_customers_management` — Get ALL canceled customers for re-classification management
-- app_parts/p01_health_cancellations.py:253 `api_debug_confirmed_cancellations` ← `/api/debug_confirmed_cancellations` — Debug endpoint specifically for confirmed cancellations
-- app_parts/p01_health_cancellations.py:297 `api_edit_cancellation` ← `/api/edit_cancellation` POST — Edit existing cancellation action (change status, notes, etc.)
-- app_parts/p01_health_cancellations.py:392 `api_delete_cancellation` ← `/api/delete_cancellation` POST — Delete a cancellation action completely
-- app_parts/p01_health_cancellations.py:443 `api_delete_cancellation_by_booking` ← `/api/delete_cancellation` POST — Delete cancellation record by booking_id
-- app_parts/p01_health_cancellations.py:490 `api_confirm_cancellation` ← `/api/confirm_cancellation` POST — Confirm cancellation action and save to database
-- app_parts/p01_health_cancellations.py:601 `api_undo_cancellation` ← `/api/undo_cancellation` POST — Undo cancellation confirmation and allow alert to show again
-- app_parts/p01_health_cancellations.py:664 `api_set_ok_status` ← `/api/set_ok_status` POST — Set OK status for a guest (meaning no more cancellation issues)
-- app_parts/p01_health_cancellations.py:755 `auto_sync_dashboard` ← `/auto_sync` — Auto sync dashboard for managing bidirectional database synchronization
-- app_parts/p01_health_cancellations.py:780 `debug_routes` ← `/debug/routes` — Debug route to check all registered routes
+- app_parts/p01_health_cancellations.py:64 `api_cancellation_notifications` ← `/api/cancellation_notifications` — API endpoint for cancellation notifications
+- app_parts/p01_health_cancellations.py:83 `api_urgent_alerts` ← `/api/urgent_alerts` — API endpoint for urgent cancellation alerts only
+- app_parts/p01_health_cancellations.py:103 `api_debug_cancellations` ← `/api/debug_cancellations` — Debug endpoint to check cancellation data
+- app_parts/p01_health_cancellations.py:145 `api_confirmed_cancellations` ← `/api/confirmed_cancellations` — View history of confirmed cancellation actions - uses debug_database approach
+- app_parts/p01_health_cancellations.py:196 `api_canceled_customers_management` ← `/api/canceled_customers_management` — Get ALL canceled customers for re-classification management
+- app_parts/p01_health_cancellations.py:249 `api_debug_confirmed_cancellations` ← `/api/debug_confirmed_cancellations` — Debug endpoint specifically for confirmed cancellations
+- app_parts/p01_health_cancellations.py:293 `api_edit_cancellation` ← `/api/edit_cancellation` POST — Edit existing cancellation action (change status, notes, etc.)
+- app_parts/p01_health_cancellations.py:388 `api_delete_cancellation` ← `/api/delete_cancellation` POST — Delete a cancellation action completely
+- app_parts/p01_health_cancellations.py:439 `api_delete_cancellation_by_booking` ← `/api/delete_cancellation` POST — Delete cancellation record by booking_id
+- app_parts/p01_health_cancellations.py:486 `api_confirm_cancellation` ← `/api/confirm_cancellation` POST — Confirm cancellation action and save to database
+- app_parts/p01_health_cancellations.py:597 `api_undo_cancellation` ← `/api/undo_cancellation` POST — Undo cancellation confirmation and allow alert to show again
+- app_parts/p01_health_cancellations.py:660 `api_set_ok_status` ← `/api/set_ok_status` POST — Set OK status for a guest (meaning no more cancellation issues)
 
 ## app_parts/p02_pages_extension.py (784 lines)
 _p02_pages_extension — page shells (/, dashboard, expenses, apartments), dashboard API, Chrome extension import/save, photo import, phone from extension_
@@ -73,7 +70,7 @@ _p02_pages_extension — page shells (/, dashboard, expenses, apartments), dashb
 - app_parts/p02_pages_extension.py:689 `ext_booking_phone` ← `/api/ext/booking/phone` POST — A reservation page now shows the guest phone (the owner clicked Booking's own
 - app_parts/p02_pages_extension.py:771 `_typed_phone` — A number the owner typed / pasted ("0905 123 456", "+33 6 12 34 56 78", "0033…") → '+<digits>' or ''.
 
-## app_parts/p03_messages_journey.py (1393 lines)
+## app_parts/p03_messages_journey.py (1450 lines)
 _p03_messages_journey — phone from chat screenshots, /api/messages/phone, auto messages, AI reply, Booking screenshots, journey, Thu tiền (pay), /tin-nhanh, /messages_
 - app_parts/p03_messages_journey.py:13 `_owner_numbers` — Last 9 digits of every number written in the message templates (the owner's WhatsApp / WeChat / hotline).
 - app_parts/p03_messages_journey.py:25 `parse_chat_shot`
@@ -128,12 +125,15 @@ _p03_messages_journey — phone from chat screenshots, /api/messages/phone, auto
 - app_parts/p03_messages_journey.py:1109 `_pay_by_apartment` — [{apt, n, left, max_over, items}] — one block per apartment (unplaced last). Inside: the guest who has owed th
 - app_parts/p03_messages_journey.py:1132 `_messages_pay_page`
 - app_parts/p03_messages_journey.py:1165 `quick_page` ← `/tin-nhanh` · `/quick`
-- app_parts/p03_messages_journey.py:1228 `_quick_extra` — {group key: [template ids]} added by the owner to /tin-nhanh groups (journey_prefs 'quick_extra'), or with
-- app_parts/p03_messages_journey.py:1241 `quick_extra_set` ← `/api/quick/extra` POST — Add / remove a template in one /tin-nhanh group (📌 Hay dùng uses the journey favorites instead).
-- app_parts/p03_messages_journey.py:1269 `quick_manifest` ← `/tin-nhanh.webmanifest`
-- app_parts/p03_messages_journey.py:1281 `messages_page` ← `/messages` — Phone page for messaging guests: arriving (or staying) guests, each with the journey strip
+- app_parts/p03_messages_journey.py:1229 `_quick_custom` — The owner's own /tin-nhanh groups (owner, Oct 30: "thêm được các mục tùy muốn") — journey_prefs 'quick_groups'
+- app_parts/p03_messages_journey.py:1241 `_quick_groups`
+- app_parts/p03_messages_journey.py:1245 `_quick_extra` — {group key: [template ids]} added by the owner to /tin-nhanh groups (journey_prefs 'quick_extra'), or with
+- app_parts/p03_messages_journey.py:1258 `quick_extra_set` ← `/api/quick/extra` POST — Add / remove a template in one /tin-nhanh group (📌 Hay dùng uses the journey favorites instead).
+- app_parts/p03_messages_journey.py:1286 `quick_group_set` ← `/api/quick/group` POST — The owner's own Tin nhanh groups: {action: 'add', title} · {action: 'rename', key, title} · {action: 'delete',
+- app_parts/p03_messages_journey.py:1326 `quick_manifest` ← `/tin-nhanh.webmanifest`
+- app_parts/p03_messages_journey.py:1338 `messages_page` ← `/messages` — Phone page for messaging guests: arriving (or staying) guests, each with the journey strip
 
-## app_parts/p04_bookings_expenses.py (1920 lines)
+## app_parts/p04_bookings_expenses.py (1916 lines)
 _p04_bookings_expenses — /bookings list + add/edit/cancel/delete, manual entry, expenses API, save extracted_
 - app_parts/p04_bookings_expenses.py:5 `view_bookings` ← `/bookings` — Professional booking management with optimized search and filtering
 - app_parts/p04_bookings_expenses.py:357 `health_check` ← `/health` — Enhanced health check endpoint for Railway with database validation
@@ -141,24 +141,23 @@ _p04_bookings_expenses — /bookings list + add/edit/cancel/delete, manual entry
 - app_parts/p04_bookings_expenses.py:413 `test_database_connection` ← `/api/database/test_connection` — Test PostgreSQL connection for pgAdmin/DBeaver compatibility
 - app_parts/p04_bookings_expenses.py:443 `duplicate_management_page` ← `/duplicate_management` — Duplicate management interface
 - app_parts/p04_bookings_expenses.py:448 `add_booking` ← `/bookings/add` GET,POST — Add new booking to PostgreSQL
-- app_parts/p04_bookings_expenses.py:513 `add_booking_from_image` ← `/bookings/add_from_image` GET — Manual text processing page for booking extraction
-- app_parts/p04_bookings_expenses.py:518 `edit_booking` ← `/booking/<booking_id>/edit` GET,POST — Edit booking in PostgreSQL
-- app_parts/p04_bookings_expenses.py:585 `cancel_booking_api` ← `/api/cancel_booking/<booking_id>` POST — Cancel booking (soft cancel - changes status to 'cancelled')
-- app_parts/p04_bookings_expenses.py:597 `delete_booking_api` ← `/api/delete_booking/<booking_id>` DELETE — Delete booking permanently from PostgreSQL
-- app_parts/p04_bookings_expenses.py:610 `cancel_multiple_bookings` ← `/bookings/cancel_multiple` POST — Cancel multiple bookings (soft cancel - changes status to 'cancelled')
-- app_parts/p04_bookings_expenses.py:668 `delete_multiple_bookings` ← `/bookings/delete_multiple` POST — PERMANENTLY DELETE multiple bookings from PostgreSQL (NOT CANCEL)
-- app_parts/p04_bookings_expenses.py:724 `delete_single_booking` ← `/api/delete_booking` POST — Delete a single booking from PostgreSQL
-- app_parts/p04_bookings_expenses.py:756 `manual_booking_entry` ← `/api/manual_booking_entry` POST — Manual booking entry when all AI APIs fail
-- app_parts/p04_bookings_expenses.py:841 `process_booking_table` ← `/api/process_booking_table` POST — Process the specific booking table format with manual extraction
-- app_parts/p04_bookings_expenses.py:997 `get_booking_entry_options` ← `/api/booking_entry_options` GET — Get available booking entry methods and their status
-- app_parts/p04_bookings_expenses.py:1048 `expenses_api` ← `/api/expenses` GET,POST — Expense management with PostgreSQL and Railway compatibility
-- app_parts/p04_bookings_expenses.py:1162 `expense_operations` ← `/api/expenses/<int:expense_id>` DELETE,PUT — Delete or update specific expense
-- app_parts/p04_bookings_expenses.py:1249 `fix_expense_descriptions` ← `/api/fix_expense_descriptions` POST — Fix expense descriptions that show dates instead of content
-- app_parts/p04_bookings_expenses.py:1316 `expense_categories_api` ← `/api/expense_categories` GET,POST — Save and load expense categorizations (Personal/Work)
-- app_parts/p04_bookings_expenses.py:1435 `create_categories_table` ← `/api/create_categories_table` POST — Create expense_categories table if it doesn't exist
-- app_parts/p04_bookings_expenses.py:1457 `analyze_expense_image` ← `/api/analyze_expense_image` POST — Analyze expense image using Gemini AI to extract expense data
-- app_parts/p04_bookings_expenses.py:1609 `bulk_add_expenses` ← `/api/expenses/bulk` POST — Add multiple expenses at once (from AI or JSON input)
-- app_parts/p04_bookings_expenses.py:1677 `save_extracted_bookings` ← `/bookings/save_extracted` POST — Save multiple extracted bookings from AI photo processing
+- app_parts/p04_bookings_expenses.py:514 `edit_booking` ← `/booking/<booking_id>/edit` GET,POST — Edit booking in PostgreSQL
+- app_parts/p04_bookings_expenses.py:581 `cancel_booking_api` ← `/api/cancel_booking/<booking_id>` POST — Cancel booking (soft cancel - changes status to 'cancelled')
+- app_parts/p04_bookings_expenses.py:593 `delete_booking_api` ← `/api/delete_booking/<booking_id>` DELETE — Delete booking permanently from PostgreSQL
+- app_parts/p04_bookings_expenses.py:606 `cancel_multiple_bookings` ← `/bookings/cancel_multiple` POST — Cancel multiple bookings (soft cancel - changes status to 'cancelled')
+- app_parts/p04_bookings_expenses.py:664 `delete_multiple_bookings` ← `/bookings/delete_multiple` POST — PERMANENTLY DELETE multiple bookings from PostgreSQL (NOT CANCEL)
+- app_parts/p04_bookings_expenses.py:720 `delete_single_booking` ← `/api/delete_booking` POST — Delete a single booking from PostgreSQL
+- app_parts/p04_bookings_expenses.py:752 `manual_booking_entry` ← `/api/manual_booking_entry` POST — Manual booking entry when all AI APIs fail
+- app_parts/p04_bookings_expenses.py:837 `process_booking_table` ← `/api/process_booking_table` POST — Process the specific booking table format with manual extraction
+- app_parts/p04_bookings_expenses.py:993 `get_booking_entry_options` ← `/api/booking_entry_options` GET — Get available booking entry methods and their status
+- app_parts/p04_bookings_expenses.py:1044 `expenses_api` ← `/api/expenses` GET,POST — Expense management with PostgreSQL and Railway compatibility
+- app_parts/p04_bookings_expenses.py:1158 `expense_operations` ← `/api/expenses/<int:expense_id>` DELETE,PUT — Delete or update specific expense
+- app_parts/p04_bookings_expenses.py:1245 `fix_expense_descriptions` ← `/api/fix_expense_descriptions` POST — Fix expense descriptions that show dates instead of content
+- app_parts/p04_bookings_expenses.py:1312 `expense_categories_api` ← `/api/expense_categories` GET,POST — Save and load expense categorizations (Personal/Work)
+- app_parts/p04_bookings_expenses.py:1431 `create_categories_table` ← `/api/create_categories_table` POST — Create expense_categories table if it doesn't exist
+- app_parts/p04_bookings_expenses.py:1453 `analyze_expense_image` ← `/api/analyze_expense_image` POST — Analyze expense image using Gemini AI to extract expense data
+- app_parts/p04_bookings_expenses.py:1605 `bulk_add_expenses` ← `/api/expenses/bulk` POST — Add multiple expenses at once (from AI or JSON input)
+- app_parts/p04_bookings_expenses.py:1673 `save_extracted_bookings` ← `/bookings/save_extracted` POST — Save multiple extracted bookings from AI photo processing
 
 ## app_parts/p05_calendar.py (1260 lines)
 _p05_calendar — vacancy preview, /calendar month, /calendar_details day page, placement, 2PN, apartment daily summary_
@@ -172,7 +171,7 @@ _p05_calendar — vacancy preview, /calendar month, /calendar_details day page, 
 - app_parts/p05_calendar.py:1048 `apartment_placement_check` ← `/api/apartment_placement_check` GET — Before placing a guest: would the apartment exceed its room count on any night?
 - app_parts/p05_calendar.py:1081 `apartment_daily_summary` ← `/api/apartment_daily_summary` GET — Returns per-apartment occupancy for a given date.
 
-## app_parts/p06_payments_booking_api.py (1913 lines)
+## app_parts/p06_payments_booking_api.py (1868 lines)
 _p06_payments_booking_api — mobile payment page + analytics, booking API (get/quick-update/extend), image/text booking extraction, duplicates check_
 - app_parts/p06_payments_booking_api.py:8 `mobile_payment_view` ← `/mobile_payment` — Mobile-optimised payment collection page — unpaid guests only.
 - app_parts/p06_payments_booking_api.py:124 `payment_history_today` ← `/api/payment_history_today` GET — Return today's payment collection records from BookingHistory.
@@ -197,7 +196,7 @@ _p06_payments_booking_api — mobile payment page + analytics, booking API (get/
 - app_parts/p06_payments_booking_api.py:1771 `normalize_date` — Normalize various date formats to YYYY-MM-DD
 - app_parts/p06_payments_booking_api.py:1799 `railway_image_diagnostic` ← `/api/railway_image_diagnostic` GET,POST — Railway-specific diagnostic endpoint for image upload debugging
 
-## app_parts/p07_assistant_homestay.py (1069 lines)
+## app_parts/p07_assistant_homestay.py (1043 lines)
 _p07_assistant_homestay — /ai_assistant page, homestay setup, quick notes, arrival times, hidden guests, no-show_
 - app_parts/p07_assistant_homestay.py:6 `ai_assistant` ← `/ai_assistant` — AI Assistant - Message Template Manager
 - app_parts/p07_assistant_homestay.py:14 `homestay_setup` ← `/homestay_setup` — Homestay Setup Tracker interface
@@ -221,13 +220,12 @@ _p07_assistant_homestay — /ai_assistant page, homestay setup, quick notes, arr
 - app_parts/p07_assistant_homestay.py:785 `arrival_times` ← `/api/arrival_times` GET,POST — Arrival times management
 - app_parts/p07_assistant_homestay.py:824 `delete_arrival_time` ← `/api/arrival_times/<booking_id>` DELETE — Clear late-arrival record for a booking.
 - app_parts/p07_assistant_homestay.py:840 `analyze_duplicates_api` ← `/api/analyze_duplicates` GET — API endpoint for AI duplicate analysis with timeout and better error handling
-- app_parts/p07_assistant_homestay.py:897 `database_health_page` ← `/database_health` — Database health check page
-- app_parts/p07_assistant_homestay.py:924 `test_gemini_api` ← `/api/test_gemini` GET — Test endpoint to verify Gemini API connectivity
-- app_parts/p07_assistant_homestay.py:956 `hidden_guests_for_date` ← `/api/hidden_guests_for_date` GET — Query DB directly for bookings touching the given date that are hidden (no arrival confirmation).
-- app_parts/p07_assistant_homestay.py:1020 `restore_arrival` ← `/api/restore_arrival` POST — Restore a hidden guest: set checkin_status='confirmed' + arrival_confirmed=True
-- app_parts/p07_assistant_homestay.py:1046 `mark_no_show` ← `/api/mark_no_show` POST — Mark a booking as no-show — sets checkin_status='no_show' so it stops appearing in overdue panel
+- app_parts/p07_assistant_homestay.py:898 `test_gemini_api` ← `/api/test_gemini` GET — Test endpoint to verify Gemini API connectivity
+- app_parts/p07_assistant_homestay.py:930 `hidden_guests_for_date` ← `/api/hidden_guests_for_date` GET — Query DB directly for bookings touching the given date that are hidden (no arrival confirmation).
+- app_parts/p07_assistant_homestay.py:994 `restore_arrival` ← `/api/restore_arrival` POST — Restore a hidden guest: set checkin_status='confirmed' + arrival_confirmed=True
+- app_parts/p07_assistant_homestay.py:1020 `mark_no_show` ← `/api/mark_no_show` POST — Mark a booking as no-show — sets checkin_status='no_show' so it stops appearing in overdue panel
 
-## app_parts/p08_collect_history_import.py (1554 lines)
+## app_parts/p08_collect_history_import.py (1458 lines)
 _p08_collect_history_import — collect payment, commission status, guest amounts, booking history, Excel/JSON import, check-in status sync_
 - app_parts/p08_collect_history_import.py:5 `collect_payment` ← `/api/collect_payment` POST — API endpoint để thu tiền từ khách hàng - PostgreSQL version
 - app_parts/p08_collect_history_import.py:184 `update_commission_status` ← `/api/update_commission_status` POST — API endpoint to update commission status (pending/confirmed/cancelled)
@@ -240,14 +238,13 @@ _p08_collect_history_import — collect payment, commission status, guest amount
 - app_parts/p08_collect_history_import.py:560 `update_booking_comprehensive` ← `/api/update_booking_comprehensive` POST — Comprehensive update for booking - all editable fields
 - app_parts/p08_collect_history_import.py:662 `update_collected_amount` ← `/api/update_collected_amount` POST — Update only the collected amount for a booking - ADMIN ONLY
 - app_parts/p08_collect_history_import.py:757 `debug_booking_data` ← `/api/debug_booking/<booking_id>` GET — Debug endpoint to check booking data in database
-- app_parts/p08_collect_history_import.py:857 `import_excel_expenses` ← `/api/import_excel_expenses` POST — Import expenses from Excel file
-- app_parts/p08_collect_history_import.py:996 `comprehensive_import` ← `/api/comprehensive_import` POST — Comprehensive import of all data: customers, costs, and message templates
-- app_parts/p08_collect_history_import.py:1248 `import_status` ← `/api/import_status` GET — Get current database status after import
-- app_parts/p08_collect_history_import.py:1275 `import_bookings_json` ← `/api/import_bookings_json` POST — Import bookings directly from JSON data
-- app_parts/p08_collect_history_import.py:1399 `_ensure_checkin_status_column` — Create checkin_status column if it doesn't exist yet.
-- app_parts/p08_collect_history_import.py:1419 `set_checkin_status` ← `/api/set_checkin_status` POST — Save daily check-in arrival status for a booking to PostgreSQL.
-- app_parts/p08_collect_history_import.py:1463 `get_checkin_statuses` ← `/api/get_checkin_statuses` — Return {booking_id: status} for a list of booking IDs.
-- app_parts/p08_collect_history_import.py:1495 `test_import` ← `/test_import` — Simple test import page
+- app_parts/p08_collect_history_import.py:818 `import_excel_expenses` ← `/api/import_excel_expenses` POST — Import expenses from Excel file
+- app_parts/p08_collect_history_import.py:957 `comprehensive_import` ← `/api/comprehensive_import` POST — Comprehensive import of all data: customers, costs, and message templates
+- app_parts/p08_collect_history_import.py:1209 `import_status` ← `/api/import_status` GET — Get current database status after import
+- app_parts/p08_collect_history_import.py:1236 `import_bookings_json` ← `/api/import_bookings_json` POST — Import bookings directly from JSON data
+- app_parts/p08_collect_history_import.py:1360 `_ensure_checkin_status_column` — Create checkin_status column if it doesn't exist yet.
+- app_parts/p08_collect_history_import.py:1380 `set_checkin_status` ← `/api/set_checkin_status` POST — Save daily check-in arrival status for a booking to PostgreSQL.
+- app_parts/p08_collect_history_import.py:1424 `get_checkin_statuses` ← `/api/get_checkin_statuses` — Return {booking_id: status} for a list of booking IDs.
 
 ## app_parts/p09_templates.py (1065 lines)
 _p09_templates — message templates API (Mẫu Câu) + template images, canceled bookings restore/delete_
@@ -328,28 +325,27 @@ _p12_sync_crawl_duplicates — sync services, crawl admin bookings, bulk save, d
 - app_parts/p12_sync_crawl_duplicates.py:1396 `revenue_calculation_comparison` ← `/api/revenue_calculation_comparison` GET — API endpoint to compare traditional vs daily distribution revenue calculation methods
 - app_parts/p12_sync_crawl_duplicates.py:1487 `daily_customer_breakdown` ← `/api/daily_customer_breakdown` POST — API endpoint to get detailed daily customer breakdown for a specific month
 
-## app_parts/p13_misc_railway.py (1954 lines)
+## app_parts/p13_misc_railway.py (1949 lines)
 _p13_misc_railway — translate, quick-notes fixes, railway sync/health/chart data_
 - app_parts/p13_misc_railway.py:5 `translate_text` ← `/api/translate` POST — Translation API endpoint for voice translator
 - app_parts/p13_misc_railway.py:123 `fix_quicknotes_sequence` ← `/fix_quicknotes_sequence` — Fix the QuickNotes auto-increment sequence
 - app_parts/p13_misc_railway.py:170 `fix_quicknotes_constraint` ← `/fix_quicknotes_constraint` — Fix the QuickNotes constraint to allow flexible note types
 - app_parts/p13_misc_railway.py:262 `revenue_comparison_test` ← `/revenue_comparison_test` — Test page to demonstrate dual revenue calculation methods
-- app_parts/p13_misc_railway.py:268 `railway_sync_page` ← `/railway_sync` — Railway sync management page
-- app_parts/p13_misc_railway.py:274 `debug_local_postgres` ← `/debug/local_postgres` — Test local PostgreSQL connection for Railway sync
-- app_parts/p13_misc_railway.py:357 `debug_environment` ← `/debug/env` — Debug environment variables for Railway troubleshooting
-- app_parts/p13_misc_railway.py:394 `railway_sync` ← `/api/railway_sync` POST,GET — API endpoint to sync data from current database to Railway
-- app_parts/p13_misc_railway.py:637 `railway_health_check` ← `/railway/health` — Railway deployment health check endpoint
-- app_parts/p13_misc_railway.py:687 `railway_chart_data` ← `/railway/chart-data` — Railway-specific chart data endpoint for debugging
-- app_parts/p13_misc_railway.py:732 `extract_meter_data_with_python_ocr` — Enhanced electricity meter OCR with visual debugging and improved accuracy
-- app_parts/p13_misc_railway.py:853 `preprocess_meter_image_debug` — Advanced preprocessing for Vietnamese electricity meters with debugging
-- app_parts/p13_misc_railway.py:952 `preprocess_meter_image` — Backward compatibility function - uses gentler preprocessing by default
-- app_parts/p13_misc_railway.py:979 `parse_vietnamese_meter_text` — Parse Vietnamese electricity meter text to extract key information
-- app_parts/p13_misc_railway.py:1078 `parse_vietnamese_meter_text_enhanced` — Enhanced parsing for Vietnamese electricity meters with better accuracy
-- app_parts/p13_misc_railway.py:1226 `parse_vietnamese_meter_text_enhanced_debug` — Enhanced parsing for Vietnamese electricity meters with comprehensive debugging
-- app_parts/p13_misc_railway.py:1454 `extract_meter_data_with_deepseek` — Extract electricity meter data using GPT-4o Mini (vision) via OpenRouter API
-- app_parts/p13_misc_railway.py:1649 `parse_deepseek_fallback_response` — Fallback parser when DeepSeek doesn't return valid JSON
-- app_parts/p13_misc_railway.py:1692 `extract_meter_data_with_openrouter` — Extract electricity meter data using various free models via OpenRouter API
-- app_parts/p13_misc_railway.py:1803 `extract_meter_data_with_multi_api` — Extract electricity meter data using multiple APIs with automatic fallback
+- app_parts/p13_misc_railway.py:269 `debug_local_postgres` ← `/debug/local_postgres` — Test local PostgreSQL connection for Railway sync
+- app_parts/p13_misc_railway.py:352 `debug_environment` ← `/debug/env` — Debug environment variables for Railway troubleshooting
+- app_parts/p13_misc_railway.py:389 `railway_sync` ← `/api/railway_sync` POST,GET — API endpoint to sync data from current database to Railway
+- app_parts/p13_misc_railway.py:632 `railway_health_check` ← `/railway/health` — Railway deployment health check endpoint
+- app_parts/p13_misc_railway.py:682 `railway_chart_data` ← `/railway/chart-data` — Railway-specific chart data endpoint for debugging
+- app_parts/p13_misc_railway.py:727 `extract_meter_data_with_python_ocr` — Enhanced electricity meter OCR with visual debugging and improved accuracy
+- app_parts/p13_misc_railway.py:848 `preprocess_meter_image_debug` — Advanced preprocessing for Vietnamese electricity meters with debugging
+- app_parts/p13_misc_railway.py:947 `preprocess_meter_image` — Backward compatibility function - uses gentler preprocessing by default
+- app_parts/p13_misc_railway.py:974 `parse_vietnamese_meter_text` — Parse Vietnamese electricity meter text to extract key information
+- app_parts/p13_misc_railway.py:1073 `parse_vietnamese_meter_text_enhanced` — Enhanced parsing for Vietnamese electricity meters with better accuracy
+- app_parts/p13_misc_railway.py:1221 `parse_vietnamese_meter_text_enhanced_debug` — Enhanced parsing for Vietnamese electricity meters with comprehensive debugging
+- app_parts/p13_misc_railway.py:1449 `extract_meter_data_with_deepseek` — Extract electricity meter data using GPT-4o Mini (vision) via OpenRouter API
+- app_parts/p13_misc_railway.py:1644 `parse_deepseek_fallback_response` — Fallback parser when DeepSeek doesn't return valid JSON
+- app_parts/p13_misc_railway.py:1687 `extract_meter_data_with_openrouter` — Extract electricity meter data using various free models via OpenRouter API
+- app_parts/p13_misc_railway.py:1798 `extract_meter_data_with_multi_api` — Extract electricity meter data using multiple APIs with automatic fallback
 
 ## app_parts/p14_electricity.py (587 lines)
 _p14_electricity — electricity calculator + meters/readings/bills_
@@ -485,17 +481,6 @@ _p15_moi — /moi: the new phone-first app (owner, Oct 26), built from the appro
 - core/database_import.py:243 `save_expenses_to_database` — Save expenses to PostgreSQL database within Flask context
 - core/database_import.py:298 `comprehensive_database_import` — Comprehensive database import with proper Flask context management
 
-## core/database_service.py (600 lines)
-- core/database_service.py:27 class `DatabaseConfig` — PostgreSQL-only database configuration
-- core/database_service.py:60 class `PerformanceTimer` — Context manager for measuring performance
-- core/database_service.py:85 class `DatabaseError` — Base exception for database operations
-- core/database_service.py:89 class `PostgreSQLError` — PostgreSQL specific error
-- core/database_service.py:97 class `PostgreSQLDatabaseService` — Pure PostgreSQL database service
-- core/database_service.py:559 `init_database_service` — Initialize the PostgreSQL database service
-- core/database_service.py:579 `get_database_service` — Get the database service instance
-- core/database_service.py:592 `get_use_postgresql` — Always return True - PostgreSQL only
-- core/database_service.py:596 `get_primary_backend` — Always return postgresql
-
 ## core/database_service_postgresql.py (794 lines)
 - core/database_service_postgresql.py:27 class `DatabaseConfig` — PostgreSQL-only database configuration
 - core/database_service_postgresql.py:60 class `PerformanceTimer` — Context manager for measuring performance
@@ -509,10 +494,6 @@ _p15_moi — /moi: the new phone-first app (owner, Oct 26), built from the appro
 
 ## core/electricity_service.py (444 lines)
 - core/electricity_service.py:19 class `ElectricityService` — Service class for electricity management operations
-
-## core/gcp_helper.py (52 lines)
-- core/gcp_helper.py:6 `_get_gspread_client_production` — Hàm kết nối Google Sheets cho production.
-- core/gcp_helper.py:39 `get_gspread_client_safe` — Wrapper function để tự động chọn phương thức kết nối phù hợp
 
 ## core/journey.py (327 lines)
 - core/journey.py:62 `ensure` — Create the tables / columns once per process and seed the first mapping.
@@ -651,13 +632,6 @@ _p15_moi — /moi: the new phone-first app (owner, Oct 26), built from the appro
 ## core/sync_service.py (370 lines)
 - core/sync_service.py:13 class `DataSyncService` — Service for synchronizing data between local and Railway databases
 
-## core/sync_triggers.py (106 lines)
-- core/sync_triggers.py:14 class `SyncTriggers` — Manages automatic sync triggers for data changes
-- core/sync_triggers.py:70 `trigger_auto_sync` — Decorator to automatically trigger sync after database operations
-- core/sync_triggers.py:96 `trigger_sync_on_booking_change` — Trigger sync when booking data changes
-- core/sync_triggers.py:100 `trigger_sync_on_expense_change` — Trigger sync when expense data changes
-- core/sync_triggers.py:104 `trigger_sync_on_note_change` — Trigger sync when notes change
-
 ## core/two_bedroom.py (122 lines)
 - core/two_bedroom.py:29 `_fold`
 - core/two_bedroom.py:35 `listing_is_two_bedroom`
@@ -706,11 +680,6 @@ _p15_moi — /moi: the new phone-first app (owner, Oct 26), built from the appro
 - templates/add_booking.html: 4336 `resetSelection` · 4352 `replaceSelectedBookings` · 4391 `clearAllSelections` · 4425 `initializeSelectionAfterTableGeneration` · 4455 `updateAccommodationName` · 4470 `updateAccommodationNameInResults` · 4489 `updateAIRoomType` · 4515 `updateAccommodationInReviewTable`
 - templates/add_booking.html: 4528 `syncRoomTypeSelectors` · 4562 `setupAISaveButtonHandler` · 4592 `handleSaveAllBookings` · 4669 `showAIFallbackSection` · 4681 `scrollToManualForm`
 
-## templates/add_from_image.html (1242 lines)
-- templates/add_from_image.html: 168 `goBack` · 179 `showEmergencyAlert` · 187 `showEmergencyManualAdd` · 241 `processImage` · 550 `clearTextArea` · 554 `processBookingText` · 601 `displayProcessedBookings` · 696 `showDuplicateWarning`
-- templates/add_from_image.html: 791 `keepNewBooking` · 807 `skipDuplicateBooking` · 822 `processAfterDuplicateCheck` · 832 `processSelectedBookings` · 875 `resetForm` · 975 `switchToManualText` · 992 `showManualTextInterface` · 1037 `processManualText`
-- templates/add_from_image.html: 1072 `clearManualText` · 1080 `showManualEntryForm`
-
 ## templates/ai_assistant.html (4003 lines)
 - templates/ai_assistant.html: 445 `showManualEntry` · 454 `hideManualEntry` · 1521 `selectImageFile` · 1527 `capturePhoto` · 1533 `toggleCustomInstructions` · 1558 `sendRAGQuery` · 1562 `ragQuickQuestion` · 1567 `saveCustomInstructions`
 - templates/ai_assistant.html: 1576 `clearCustomInstructions` · 1585 `loadSampleInstructions` · 1593 `startVoiceInstructions` · 1605 `populateCategoryDropdown` · 1642 `showAddTemplateModal` · 1661 `triggerImageUpload` · 1671 `triggerCameraUpload` · 1681 `removeImagePreview`
@@ -726,24 +695,10 @@ _p15_moi — /moi: the new phone-first app (owner, Oct 26), built from the appro
 - templates/ai_assistant.html: 3833 `setTemplateCategory` · 3844 `expandTemplateChips` · 3849 `templateMatchesSearch` · 3856 `renderCategoryChips` · 3896 `filterTemplates` · 3955 `scheduleFilterTemplates` · 3960 `clearTemplateSearch` · 3968 `handleTemplateSearchKey`
 - templates/ai_assistant.html: 3994 `refreshTemplates`
 
-## templates/ai_chat_assistant.html (1270 lines)
-- templates/ai_chat_assistant.html: 513 `setupVoiceRecognition` · 568 `toggleVoiceInput` · 587 `showInstructionExamples` · 597 `setInstruction` · 604 `getCurrentAIConfig` · 637 `showVoiceSuccess` · 646 `showVoiceError` · 656 `loadTemplateCategories`
-- templates/ai_chat_assistant.html: 669 `populateTemplateCategoryDropdown` · 686 `loadSpecificTemplates` · 722 `hideTemplatePreview` · 727 `previewSelectedTemplate` · 778 `copyTemplatePreview` · 795 `enableHoverPreview` · 816 `disableHoverPreview` · 821 `showQuickPreview`
-- templates/ai_chat_assistant.html: 845 `hideQuickPreview` · 851 `initializeRealtimePreview` · 873 `getCurrentAIConfig` · 904 `setupImageHandling` · 969 `selectImageFile` · 974 `capturePhoto` · 979 `isMobile` · 985 `handleImageFile`
-- templates/ai_chat_assistant.html: 1017 `showImagePreview` · 1029 `removeImage` · 1045 `analyzeImage` · 1094 `displayAIResponse` · 1227 `copyToClipboard` · 1243 `showLoading` · 1247 `showSuccess` · 1256 `showError`
-- templates/ai_chat_assistant.html: 1265 `viewTemplates` · 1266 `clearAll`
-
-## templates/apartment_management.html (26 lines)
-- (no named functions)
-
 ## templates/apartments.html (1081 lines)
 - templates/apartments.html: 488 `loadApartments` · 507 `displayApartments` · 591 `updateStats` · 599 `showAddApartmentModal` · 606 `saveNewApartment` · 645 `editApartment` · 675 `loadApartmentRooms` · 687 `displayRooms`
 - templates/apartments.html: 739 `startInlineEdit` · 793 `showRoomToast` · 809 `saveInlineEdit` · 858 `saveApartmentEdit` · 892 `toggleApartment` · 917 `showError` · 926 `escHtml` · 930 `startDeleteApartment`
 - templates/apartments.html: 966 `confirmDeleteApartment` · 1007 `showAddRoomForm` · 1021 `saveNewRoom` · 1057 `deleteRoom`
-
-## templates/auto_sync_dashboard.html (616 lines)
-- templates/auto_sync_dashboard.html: 266 `refreshSyncStatus` · 303 `updateSyncStatusDisplay` · 363 `updateTableBreakdown` · 395 `checkSyncNotifications` · 426 `updateAutoSyncToggle` · 441 `performSync` · 504 `performTableSync` · 531 `toggleAutoSync`
-- templates/auto_sync_dashboard.html: 551 `loadSyncHistory` · 581 `handleNotificationAction` · 592 `showToast`
 
 ## templates/base.html (652 lines)
 - templates/base.html: 568 `fastNavigate` · 580 `goToHome` · 592 `isPWAInstalled` · 610 `showInstallInstructions`
@@ -777,28 +732,15 @@ _p15_moi — /moi: the new phone-first app (owner, Oct 26), built from the appro
 ## templates/crawl_bookings.html (404 lines)
 - templates/crawl_bookings.html: 335 `displayResults`
 
-## templates/customer_care.html (318 lines)
-- templates/customer_care.html: 248 `contactGuest` · 257 `sendWelcomeMessage` · 267 `markAsContacted` · 273 `useTemplate` · 292 `sendMessage` · 302 `refreshCustomerData` · 306 `exportUpcomingGuests` · 310 `viewFullCalendar`
-- templates/customer_care.html: 314 `manageTemplates`
-
 ## templates/dashboard.html (526 lines)
 - templates/dashboard.html: 178 `loadOverview` · 200 `renderMonthPicker` · 208 `shiftMonth` · 216 `render` · 331 `setCalMode` · 338 `heat` · 344 `renderCalendar` · 389 `selectDay`
 - templates/dashboard.html: 398 `renderDayDetail` · 433 `renderChart` · 476 `renderApartments` · 491 `renderCollectors`
-
-## templates/data_health.html (277 lines)
-- templates/data_health.html: 167 `checkDataIssues` · 204 `displayIssues` · 241 `editBooking` · 245 `debugBooking`
-
-## templates/data_management.html (565 lines)
-- templates/data_management.html: 441 `startComprehensiveImport` · 510 `updateProgress` · 518 `showNotification` · 555 `updateStats`
-
-## templates/database_health.html (101 lines)
-- (no named functions)
 
 ## templates/debug_collector_comparison.html (551 lines)
 - templates/debug_collector_comparison.html: 215 `runComparison` · 257 `displayResults` · 283 `populateComparisonTable` · 321 `populateMethodDetails` · 344 `populateGuestDetails` · 392 `getDifferenceClass` · 398 `showError` · 403 `deleteDebugFile`
 - templates/debug_collector_comparison.html: 409 `runJuneSpecificDebug` · 439 `displayJuneSpecificResults`
 
-## templates/desk.html (1218 lines)
+## templates/desk.html (1215 lines)
 - templates/desk.html: 303 `load` · 316 `loadRev` · 329 `needRev` · 346 `D.tab` · 347 `D.set` · 348 `D.q` · 349 `D.reload` · 351 `D.shift`
 - templates/desk.html: 357 `D.toToday` · 358 `D.open` · 359 `D.openDay` · 360 `D.close` · 361 `closeDrawer` · 362 `D.closeModal` · 365 `D.place` · 370 `D.room`
 - templates/desk.html: 377 `D.confirm` · 383 `D.cancel` · 389 `D.mark` · 393 `D.status` · 397 `D.unreach` · 398 `D.replied` · 399 `D.phone` · 406 `D.send`
@@ -806,8 +748,8 @@ _p15_moi — /moi: the new phone-first app (owner, Oct 26), built from the appro
 - templates/desk.html: 436 `D.collect` · 445 `D.partial` · 447 `D.undoPay` · 450 `D.payCycle` · 460 `D.edit` · 462 `D.extN` · 464 `D.extTyped` · 465 `D.editCalc`
 - templates/desk.html: 486 `D.editSave` · 513 `D.remind` · 514 `D.remPreset` · 517 `D.remSet` · 518 `D.remSave` · 525 `D.remDone` · 529 `D.add` · 530 `D.addSave`
 - templates/desk.html: 545 `render` · 554 `renderSide` · 580 `renderTop` · 609 `viewToday` · 666 `dayCard` · 698 `viewDay` · 755 `D.uncancel` · 764 `viewCal`
-- templates/desk.html: 869 `renderPick` · 877 `viewMsg` · 920 `viewPay` · 960 `D.payQuick` · 966 `viewRev` · 1037 `D.revMonth` · 1038 `D.revDay` · 1039 `D.goDay`
-- templates/desk.html: 1040 `drawRevCharts` · 1063 `renderDrawer` · 1069 `guestCard` · 1123 `dayPanel` · 1144 `renderModal` · 1205 `D.mset` · 1206 `D.extOpen`
+- templates/desk.html: 869 `renderPick` · 877 `viewMsg` · 917 `viewPay` · 957 `D.payQuick` · 963 `viewRev` · 1034 `D.revMonth` · 1035 `D.revDay` · 1036 `D.goDay`
+- templates/desk.html: 1037 `drawRevCharts` · 1060 `renderDrawer` · 1066 `guestCard` · 1120 `dayPanel` · 1141 `renderModal` · 1202 `D.mset` · 1203 `D.extOpen`
 
 ## templates/duplicate_management.html (710 lines)
 - templates/duplicate_management.html: 196 `loadDuplicates` · 295 `updateStatistics` · 329 `renderDuplicateGroups` · 475 `toggleBookingSelection` · 506 `updateSelectedCount` · 521 `selectAllDuplicates` · 534 `deleteSelectedBookings` · 582 `showComparison`
@@ -828,11 +770,6 @@ _p15_moi — /moi: the new phone-first app (owner, Oct 26), built from the appro
 - templates/electricity_management.html: 1366 `refreshAnalytics` · 1371 `exportToExcel` · 1380 `exportToPDF` · 1384 `exportChart` · 1394 `generateReport` · 1399 `viewMeter` · 1400 `editMeter` · 1401 `deleteMeter`
 - templates/electricity_management.html: 1407 `viewReading` · 1408 `editReading` · 1409 `deleteReading` · 1415 `viewBill` · 1416 `editBill`
 
-## templates/enhanced_expenses.html (1326 lines)
-- templates/enhanced_expenses.html: 604 `loadOverviewData` · 631 `filterExpensesByMonth` · 666 `groupExpensesByCategory` · 689 `updateCategoryGrid` · 715 `toggleView` · 730 `addCategoryExpense` · 771 `addQuickExpense` · 822 `updateQuickStats`
-- templates/enhanced_expenses.html: 856 `getCategoryDisplayName` · 871 `showSuccessToast` · 884 `showErrorToast` · 897 `exportExpenseData` · 925 `convertToCSV` · 943 `generateReport` · 996 `generateSummaryReport` · 1059 `generateDailyReport`
-- templates/enhanced_expenses.html: 1133 `generateComparisonReport` · 1200 `generateTrendReport` · 1259 `importExcelData` · 1300 `showNotification` · 1322 `exportExpenseData`
-
 ## templates/expenses.html (3491 lines)
 - templates/expenses.html: 829 `forceCloseModal` · 880 `clearAllModalBackdrops` · 910 `addEmergencyModalButton` · 962 `loadMonthlyExpenses` · 1076 `prepareExpenseModal` · 1108 `addExpense` · 1259 `previewExpenseImage` · 1274 `analyzeExpenseImage`
 - templates/expenses.html: 1319 `displayExtractedExpenses` · 1355 `validateExpenseJSON` · 1404 `saveExpenseFromActiveTab` · 1417 `saveBulkExpenses` · 1479 `copyExpensePromptToClipboard` · 1600 `loadExpenseOverview` · 1629 `displayExpenseOverview` · 1715 `updateCounterAnimation`
@@ -851,13 +788,6 @@ _p15_moi — /moi: the new phone-first app (owner, Oct 26), built from the appro
 
 ## templates/journey_settings.html (227 lines)
 - templates/journey_settings.html: 76 `load` · 85 `renderButtons` · 138 `options` · 148 `rowHtml` · 162 `render` · 175 `bind` · 207 `shrink`
-
-## templates/login.html (41 lines)
-- (no named functions)
-
-## templates/market_intelligence.html (643 lines)
-- templates/market_intelligence.html: 285 `performMarketAnalysis` · 328 `displayResults` · 357 `createPriceDistributionChart` · 397 `createPropertyTypesChart` · 436 `populatePropertiesTable` · 486 `displayInsights` · 508 `addToHistory` · 528 `exportToJSON`
-- templates/market_intelligence.html: 540 `formatPrice` · 545 `showSection` · 549 `hideSection` · 553 `hideAllResultSections` · 558 `showError` · 563 `retryAnalysis` · 596 `performCustomUrlAnalysis`
 
 ## templates/messages.html (1309 lines)
 - templates/messages.html: 641 `toast` · 652 `MsgPay.asked` · 659 `MsgPay.claim` · 672 `MsgPay.note` · 679 `MsgPay.skip` · 693 `MsgPay.filter` · 695 `MsgPay.jump` · 696 `MsgPay.paid`
@@ -879,21 +809,8 @@ _p15_moi — /moi: the new phone-first app (owner, Oct 26), built from the appro
 - templates/moi.html: 476 `M.pickG` · 477 `M.auto` · 492 `render` · 501 `renderNav` · 510 `renderFloat` · 526 `viewDay` · 610 `viewCal` · 685 `M.cal`
 - templates/moi.html: 689 `msgCard` · 719 `viewMsg` · 755 `M.aptSheetOpen` · 768 `viewPay` · 810 `renderSheet` · 935 `S_set` · 936 `renderSheetPub` · 937 `S_put`
 
-## templates/quick.html (279 lines)
-- templates/quick.html: 142 `toast` · 147 `go` · 155 `copyNow` · 163 `sendText` · 168 `copyText` · 169 `sendImgs` · 180 `setIn` · 202 `takeOut`
-- templates/quick.html: 206 `openPicker` · 217 `closePicker` · 218 `drawPicker` · 235 `openEdit` · 249 `closeEdit` · 250 `saveEdit`
-
-## templates/quick_collect.html (238 lines)
-- templates/quick_collect.html: 112 `togglePaymentType`
-
-## templates/railway_sync.html (202 lines)
-- templates/railway_sync.html: 76 `startRailwaySync` · 141 `showSyncResults`
-
-## templates/sync_dashboard.html (523 lines)
-- templates/sync_dashboard.html: 194 `testConnections` · 219 `updateConnectionStatus` · 258 `performSync` · 308 `loadDatabaseStatus` · 323 `updateDatabaseStatus` · 338 `getSourceColor` · 347 `getDatabaseColor` · 355 `updateButtonStates`
-- templates/sync_dashboard.html: 375 `setupDatabaseSwitchers` · 381 `switchDatabase` · 447 `displayResults`
-
-## templates/voice_translator.html (637 lines)
-- templates/voice_translator.html: 331 `checkSpeechRecognitionSupport` · 356 `initializeSpeechRecognition` · 440 `getLanguageCode` · 455 `toggleRecording` · 485 `updateStatus` · 494 `resetRecordButton` · 500 `syncTextAndCheck` · 508 `checkTranslateButton`
-- templates/voice_translator.html: 526 `translateText` · 591 `copyTranslation` · 622 `swapLanguages`
+## templates/quick.html (309 lines)
+- templates/quick.html: 146 `toast` · 151 `go` · 159 `copyNow` · 167 `sendText` · 172 `copyText` · 173 `sendImgs` · 184 `setIn` · 206 `takeOut`
+- templates/quick.html: 210 `openPicker` · 221 `closePicker` · 222 `drawPicker` · 239 `openEdit` · 253 `closeEdit` · 254 `saveEdit` · 278 `addGroup` · 286 `renameGroup`
+- templates/quick.html: 293 `deleteGroup`
 

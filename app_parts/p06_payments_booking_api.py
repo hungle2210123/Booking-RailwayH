@@ -1865,49 +1865,4 @@ def railway_image_diagnostic():
             'environment': 'railway' if os.getenv('RAILWAY_PROJECT_ID') else 'local'
         }), 500
 
-# Customer Care Management - DISABLED
-# @app.route('/customer_care')
-# def customer_care():
-#     """Customer care dashboard"""
-#     try:
-#         # Load recent bookings for customer service
-#         df = load_booking_data()
-#         
-#         # Get upcoming arrivals (next 7 days)
-#         today = datetime.today().date()
-#         upcoming_arrivals = []
-#         
-#         if not df.empty:
-#             df_clean = df.copy()
-#             df_clean['Check-in Date'] = pd.to_datetime(df_clean['Check-in Date'], errors='coerce')
-#             
-#             for _, booking in df_clean.iterrows():
-#                 checkin_date = booking['Check-in Date']
-#                 if pd.notna(checkin_date):
-#                     checkin_date = checkin_date.date()
-#                     days_until = (checkin_date - today).days
-#                     if 0 <= days_until <= 7:  # Next 7 days
-#                         upcoming_arrivals.append({
-#                             'guest_name': booking.get('Tên người đặt', 'N/A'),
-#                             'booking_id': booking.get('Số đặt phòng', 'N/A'),
-#                             'checkin_date': checkin_date,
-#                             'checkout_date': pd.to_datetime(booking['Check-out Date']).date() if pd.notna(booking['Check-out Date']) else None,
-#                             'days_until': days_until,
-#                             'total_amount': booking.get('Tổng thanh toán', 0),
-#                             'commission': booking.get('Hoa hồng', 0),
-#                             'collector': booking.get('Người thu tiền', ''),
-#                             'phone': booking.get('phone', ''),
-#                             'notes': booking.get('Ghi chú thanh toán', '')
-#                         })
-#         
-#         upcoming_arrivals.sort(key=lambda x: x['days_until'])
-#         
-#         return render_template('customer_care.html', 
-#                              upcoming_arrivals=upcoming_arrivals,
-#                              today=today)
-#         
-#     except Exception as e:
-#         print(f"Error loading customer care: {e}")
-#         flash(f'Error loading customer care: {str(e)}', 'error')
-#         return render_template('customer_care.html', upcoming_arrivals=[], today=today)
 

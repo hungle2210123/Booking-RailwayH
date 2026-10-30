@@ -353,3 +353,11 @@ Owner dropped the "Phòng Trống" settings page, its e-mails (`send_test_email.
 ---
 
 **📊 System is fully optimized for production use with enhanced mobile experience and streamlined interface.**
+
+## Oct 30 2026 — cleanup (owner: "xóa những gì dư thừa")
+Removed pages nothing linked to + their templates: /auto_sync, /debug/routes, /quick_collect, /database_health,
+/railway_sync, /bookings/add_from_image, /test_import (file missing); commented-out /customer_care, /expenses/enhanced,
+/data_management blocks; unused templates (ai_chat_assistant, apartment_management, data_health, login,
+market_intelligence, sync_dashboard, voice_translator, …); unused core/database_service.py, core/gcp_helper.py,
+core/sync_triggers.py, static/css/style.css; tracked BACKUP_BEFORE_CLEANUP/ai + old JSON backups (all in git history).
+The /moi + /may-tinh Nhắn khách table lost its "Các bước" column (owner).

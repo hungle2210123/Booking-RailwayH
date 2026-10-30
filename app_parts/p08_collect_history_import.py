@@ -813,45 +813,6 @@ def debug_booking_data(booking_id):
             'message': f'Error debugging booking: {str(e)}'
         }), 500
 
-# Enhanced Expenses - DISABLED
-# @app.route('/expenses/enhanced')
-# def enhanced_expenses():
-#     """Enhanced Expense Management Interface"""
-#     try:
-#         # Get existing expense data for display
-#         expenses_df = get_expenses_from_database()
-#         expenses_list = safe_to_dict_records(expenses_df)
-#         
-#         # Group expenses by category for quick stats
-#         from collections import defaultdict
-#         category_stats = defaultdict(lambda: {'count': 0, 'total': 0})
-#         
-#         for expense in expenses_list:
-#             category = expense.get('category', 'miscellaneous')
-#             amount = float(expense.get('amount', 0))
-#             category_stats[category]['count'] += 1
-#             category_stats[category]['total'] += amount
-#         
-#         # Calculate totals
-#         total_expenses = sum(stat['total'] for stat in category_stats.values())
-#         total_count = sum(stat['count'] for stat in category_stats.values())
-#         
-#         # Convert to regular dict for template
-#         stats = dict(category_stats)
-#         
-#         return render_template('enhanced_expenses.html', 
-#                              expenses=expenses_list,
-#                              category_stats=stats,
-#                              total_expenses=total_expenses,
-#                              total_count=total_count)
-#         
-#     except Exception as e:
-#         print(f"Error loading enhanced expenses: {e}")
-#         return render_template('enhanced_expenses.html',
-#                              expenses=[],
-#                              category_stats={},
-#                              total_expenses=0,
-#                              total_count=0)
 
 @app.route('/api/import_excel_expenses', methods=['POST'])
 def import_excel_expenses():
@@ -1490,63 +1451,6 @@ def get_checkin_statuses():
     except Exception as e:
         return jsonify({'success': False, 'error': str(e), 'statuses': {}})
 
-
-@app.route('/test_import')
-def test_import():
-    """Simple test import page"""
-    return send_from_directory('.', 'test_import_simple.html')
-
-# Data Management - DISABLED
-# @app.route('/data_management')
-# def data_management():
-#     """
-#     Comprehensive data management interface
-#     """
-#     try:
-#         from core.models import Guest, Booking, MessageTemplate, Expense
-#         
-#         # Get summary statistics
-#         stats = {
-#             'customers': Guest.query.count(),
-#             'bookings': Booking.query.count(),
-#             'templates': MessageTemplate.query.count(),
-#             'expenses': Expense.query.count()
-#         }
-#         
-#         # Get recent data samples
-#         recent_customers = Guest.query.order_by(Guest.created_at.desc()).limit(5).all()
-#         recent_bookings = Booking.query.order_by(Booking.created_at.desc()).limit(5).all()
-#         recent_templates = MessageTemplate.query.order_by(MessageTemplate.created_at.desc()).limit(5).all()
-#         recent_expenses = Expense.query.order_by(Expense.created_at.desc()).limit(5).all()
-#         
-#         return render_template('data_management.html',
-#                              stats=stats,
-#                              recent_customers=[c.to_dict() for c in recent_customers],
-#                              recent_bookings=[b.to_dict() for b in recent_bookings],
-#                              recent_templates=[t.to_dict() for t in recent_templates],
-#                              recent_expenses=[e.to_dict() for e in recent_expenses])
-#         
-#     except Exception as e:
-#         print(f"Error loading data management: {e}")
-#         return render_template('data_management.html',
-#                              stats={'customers': 0, 'bookings': 0, 'templates': 0, 'expenses': 0},
-#                              recent_customers=[],
-#                              recent_bookings=[],
-#                              recent_templates=[],
-#                              recent_expenses=[])
-
-#                              recent_bookings=[b.to_dict() for b in recent_bookings],
-#                              recent_templates=[t.to_dict() for t in recent_templates],
-#                              recent_expenses=[e.to_dict() for e in recent_expenses])
-#         
-#     except Exception as e:
-#         print(f"Error loading data management: {e}")
-#         return render_template('data_management.html',
-#                              stats={'customers': 0, 'bookings': 0, 'templates': 0, 'expenses': 0},
-#                              recent_customers=[],
-#                              recent_bookings=[],
-#                              recent_templates=[],
-#                              recent_expenses=[])
 
 # ============================================================================
 # API ENDPOINTS FOR AI ASSISTANT TEMPLATES

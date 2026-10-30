@@ -264,11 +264,6 @@ def revenue_comparison_test():
     return render_template('revenue_comparison_test.html')
 
 
-@app.route('/railway_sync')
-def railway_sync_page():
-    """Railway sync management page"""
-    railway_url = os.getenv('RAILWAY_DATABASE_URL')
-    return render_template('railway_sync.html', railway_url=railway_url)
 
 @app.route('/debug/local_postgres')
 def debug_local_postgres():

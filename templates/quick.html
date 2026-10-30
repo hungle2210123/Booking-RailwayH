@@ -52,6 +52,9 @@
             padding:13px; font-size:.92rem; font-weight:600; }
   .empty { background:#fff; border:1px dashed var(--line); border-radius:12px; padding:14px; color:var(--muted); font-size:.9rem; }
   [hidden] { display:none !important; }
+  .newtab { border-style:dashed; color:var(--muted); }
+  .gact { display:flex; gap:8px; margin:4px 0 10px; }
+  .gact button { flex:1; border:1px solid var(--line); background:#fff; border-radius:10px; padding:10px; font-size:.85rem; font-weight:600; color:var(--muted); }
   /* bottom sheets: template picker + editor */
   .pick { position:fixed; inset:0; z-index:30; background:rgba(17,24,39,.45); display:flex; align-items:flex-end; }
   .pick-box { background:#fff; width:100%; max-width:640px; margin:0 auto; max-height:90dvh; border-radius:16px 16px 0 0; display:flex; flex-direction:column;
@@ -77,9 +80,9 @@
 </head>
 <body>
 <header>
-  <div class="t"><h1>⚡ Tin nhanh</h1><a href="/messages">💬 Nhắn khách</a></div>
+  <div class="t"><h1>⚡ Tin nhanh</h1><a href="/moi" id="back">← Quay lại</a></div>
   <div class="tabs">{% for g in groups %}<button type="button" class="tab" data-i="{{ loop.index0 }}" onclick="go({{ loop.index0 }})">
-    <span>{{ g.title }}</span><span class="tn">{{ g['items']|length }}</span></button>{% endfor %}</div>
+    <span>{{ g.title }}</span><span class="tn">{{ g['items']|length }}</span></button>{% endfor %}<button type="button" class="tab newtab" onclick="addGroup()">＋ Mục mới</button></div>
 </header>
 <main>
   <div class="hint" id="addhint" hidden>📲 <b>Đưa lên màn hình chính:</b> bấm nút <b>Chia sẻ</b> của Safari (ô vuông có mũi tên) →
@@ -104,6 +107,7 @@
   </div>
   {% endfor %}
   <button type="button" class="addpin" onclick="openPicker('{{ g.key }}')">＋ Thêm mẫu vào {{ g.title }}</button>
+  {% if g.custom %}<div class="gact"><button type="button" onclick="renameGroup('{{ g.key }}')">✏️ Đổi tên mục</button><button type="button" onclick="deleteGroup('{{ g.key }}')">🗑 Xóa mục</button></div>{% endif %}
   </section>
   {% endfor %}
 </main>
@@ -270,6 +274,32 @@ async function saveEdit() {
     document.querySelectorAll(`.b-img[data-id="${id}"]`).forEach(x => x.classList.remove('wait'));
   }
 })();
+// the owner's own groups (＋ Mục mới): a name with an emoji, then ＋ Thêm mẫu like any group
+async function addGroup() {
+  const t = prompt('Tên mục mới (có thể thêm biểu tượng ở đầu, vd: 🏍 Thuê xe, 🍜 Ăn uống, 🚕 Taxi sân bay):', '');
+  if (!t || !t.trim()) return;
+  const r = await post('/api/quick/group', { action: 'add', title: t.trim() });
+  if (!r || !r.success) { toast('Không lưu được — thử lại'); return; }
+  try { localStorage.setItem('quick_tab', GROUPS.length); } catch (e) {}
+  location.reload();
+}
+async function renameGroup(key) {
+  const t = prompt('Tên mới cho mục:', TITLES[GROUPS.indexOf(key)] || '');
+  if (!t || !t.trim()) return;
+  const r = await post('/api/quick/group', { action: 'rename', key, title: t.trim() });
+  if (!r || !r.success) { toast('Không lưu được — thử lại'); return; }
+  location.reload();
+}
+async function deleteGroup(key) {
+  if (!confirm('Xóa mục "' + (TITLES[GROUPS.indexOf(key)] || '') + '"?\n(Chỉ xóa mục — các mẫu vẫn còn trong Mẫu Câu)')) return;
+  const r = await post('/api/quick/group', { action: 'delete', key });
+  if (!r || !r.success) { toast('Không xóa được — thử lại'); return; }
+  try { localStorage.setItem('quick_tab', 0); } catch (e) {}
+  location.reload();
+}
+// ← Quay lại: back to the page that opened Tin nhanh (the new apps), else the phone app
+(() => { try { const r = document.referrer && new URL(document.referrer);
+  if (r && r.origin === location.origin && !r.pathname.startsWith('/tin-nhanh')) document.getElementById('back').href = r.pathname + r.search; } catch (e) {} })();
 // show how to add it to the home screen when opened in Safari (not yet installed)
 if (!(navigator.standalone || matchMedia('(display-mode: standalone)').matches) && /iPhone|iPad/.test(navigator.userAgent)) {
   document.getElementById('addhint').hidden = false;

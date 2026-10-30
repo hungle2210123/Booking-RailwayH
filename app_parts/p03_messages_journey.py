@@ -1169,6 +1169,7 @@ def quick_page():
     jmap = J.load_map(_xdb.session)
     apts = J.apartments(_xdb.session)
     prefs = J.get_prefs(_xdb.session)
+    all_groups = _quick_groups(_xdb)
     extra = _quick_extra(_xdb)
     hidden = _quick_extra(_xdb, 'quick_hidden')    # built-in rows the owner took out (✕), back from ＋ Thêm mẫu
     rows = []        # (group key, label, template_id, vi, how it got there: '' fixed / 'pin' / 'extra')
@@ -1198,13 +1199,13 @@ def quick_page():
     for a in apts:
         add_default('payment', f"💳 {a['name']}", J.template_for(jmap, 'payment', a['id']))
     # templates the owner added to a group (＋ Thêm mẫu vào mục này)
-    for key, _title in QUICK_GROUPS[1:]:
+    for key, _title in all_groups[1:]:
         for tid in extra.get(key, []):
             add(key, '', tid, vi=(key == 'checkin'), kind='extra')
     tids = [r[2] for r in rows]
     texts = _journey_texts(_xdb, tids)
     imgs = J.images_of(_xdb.session, tids)
-    groups = [{'key': k, 'title': t, 'items': []} for k, t in QUICK_GROUPS]
+    groups = [{'key': k, 'title': t, 'items': [], 'custom': k[:1] == 'c' and k[1:].isdigit()} for k, t in all_groups]
     by_key = {g['key']: g for g in groups}
     for key, label, tid, vi, kind in rows:
         t = texts.get(tid)
@@ -1225,6 +1226,22 @@ QUICK_GROUPS = [('pin', '📌 Hay dùng'), ('msg', '💬 Nhắn khách'), ('welc
                 ('luggage', '🧳 Gửi hành lý'), ('passport', '🛂 Passport'), ('checkin', '🔑 Nhận phòng'), ('payment', '💳 Thanh toán')]
 
 
+def _quick_custom(_xdb):
+    """The owner's own /tin-nhanh groups (owner, Oct 30: "thêm được các mục tùy muốn") — journey_prefs 'quick_groups'
+    [{key: 'c1', title: '🏍 Thuê xe'}]; their templates live in 'quick_extra' like the built-in groups."""
+    row = _xdb.session.execute(text("SELECT value FROM journey_prefs WHERE key = 'quick_groups'")).fetchone()
+    try:
+        data = json.loads(row[0]) if row else []
+    except ValueError:
+        data = []
+    return [(str(g['key']), str(g['title'])[:40]) for g in data
+            if isinstance(g, dict) and re.match(r'^c\d+$', str(g.get('key', ''))) and g.get('title')]
+
+
+def _quick_groups(_xdb):
+    return QUICK_GROUPS + _quick_custom(_xdb)
+
+
 def _quick_extra(_xdb, pref='quick_extra'):
     """{group key: [template ids]} added by the owner to /tin-nhanh groups (journey_prefs 'quick_extra'), or with
     pref='quick_hidden' the built-in rows taken out of a group."""
@@ -1233,7 +1250,7 @@ def _quick_extra(_xdb, pref='quick_extra'):
         data = json.loads(row[0]) if row else {}
     except ValueError:
         data = {}
-    keys = {k for k, _ in QUICK_GROUPS[1:]}
+    keys = {k for k, _ in _quick_groups(_xdb)[1:]}
     return {k: [int(i) for i in v if str(i).isdigit()][:30] for k, v in data.items() if k in keys and isinstance(v, list)}
 
 
@@ -1250,7 +1267,7 @@ def quick_extra_set():
         tid = int(d.get('id'))
     except (TypeError, ValueError):
         tid = 0
-    if key not in {k for k, _ in QUICK_GROUPS[1:]} or not tid:
+    if key not in {k for k, _ in _quick_groups(_xdb)[1:]} or not tid:
         return jsonify({'success': False, 'error': 'Dữ liệu không hợp lệ'}), 400
     pref = 'quick_hidden' if d.get('builtin') else 'quick_extra'
     extra = _quick_extra(_xdb, pref)
@@ -1263,6 +1280,46 @@ def quick_extra_set():
         ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value"""), {'k': pref, 'v': json.dumps(extra)})
     _xdb.session.commit()
     return jsonify({'success': True, 'extra': extra})
+
+
+@app.route('/api/quick/group', methods=['POST'])
+def quick_group_set():
+    """The owner's own Tin nhanh groups: {action: 'add', title} · {action: 'rename', key, title} · {action: 'delete', key}.
+    Deleting a group only drops the group (its templates stay in Mẫu Câu)."""
+    from core.models import db as _xdb
+    from core import journey as J
+    J.ensure(_xdb.session)
+    d = request.get_json(silent=True) or {}
+    act, title = d.get('action'), ' '.join(str(d.get('title') or '').split())[:40]
+    groups = [{'key': k, 'title': t} for k, t in _quick_custom(_xdb)]
+    if act == 'add':
+        if not title:
+            return jsonify({'success': False, 'error': 'Cần tên mục'}), 400
+        n = max([int(g['key'][1:]) for g in groups if g['key'][1:].isdigit()] + [0]) + 1
+        groups.append({'key': f'c{n}', 'title': title})
+        key = f'c{n}'
+    else:
+        key = str(d.get('key') or '')
+        if not any(g['key'] == key for g in groups):
+            return jsonify({'success': False, 'error': 'Không tìm thấy mục'}), 404
+        if act == 'rename':
+            if not title:
+                return jsonify({'success': False, 'error': 'Cần tên mục'}), 400
+            for g in groups:
+                if g['key'] == key:
+                    g['title'] = title
+        elif act == 'delete':
+            groups = [g for g in groups if g['key'] != key]
+            extra = _quick_extra(_xdb)
+            extra.pop(key, None)
+            _xdb.session.execute(text("""INSERT INTO journey_prefs (key, value) VALUES ('quick_extra', :v)
+                ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value"""), {'v': json.dumps(extra)})
+        else:
+            return jsonify({'success': False, 'error': 'Dữ liệu không hợp lệ'}), 400
+    _xdb.session.execute(text("""INSERT INTO journey_prefs (key, value) VALUES ('quick_groups', :v)
+        ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value"""), {'v': json.dumps(groups, ensure_ascii=False)})
+    _xdb.session.commit()
+    return jsonify({'success': True, 'key': key, 'groups': groups})
 
 
 @app.route('/tin-nhanh.webmanifest')

@@ -893,32 +893,6 @@ def analyze_duplicates_api():
             'error_type': type(e).__name__
         }), 500
 
-@app.route('/database_health')
-def database_health_page():
-    """Database health check page"""
-    try:
-        # Get health status from the API endpoint
-        db_service = get_database_service()
-        health_data = db_service.get_health_status()
-        
-        # Get some basic stats
-        df, _ = load_data()
-        stats = {
-            'total_bookings': len(df),
-            'active_bookings': len(df[df['Tình trạng'] != 'Đã hủy']) if not df.empty else 0,
-            'this_month_bookings': 0
-        }
-        
-        if not df.empty:
-            this_month = datetime.now().replace(day=1)
-            stats['this_month_bookings'] = len(df[df['Check-in Date'] >= this_month])
-        
-        return render_template('database_health.html', health=health_data, stats=stats)
-        
-    except Exception as e:
-        return render_template('database_health.html', 
-                               health={'status': 'error', 'error': str(e)}, 
-                               stats={'total_bookings': 0, 'active_bookings': 0, 'this_month_bookings': 0})
 
 @app.route('/api/test_gemini', methods=['GET'])
 def test_gemini_api():
