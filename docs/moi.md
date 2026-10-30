@@ -114,3 +114,10 @@ grey (dimmed) không liên lạc được.
 - Oct 27 (owner): **room names** — tap "Phòng N ✏️" on the Lịch → prompt → `POST /api/moi/room_name {apartment_id, room_no, name}`
   (table `moi_room_names`, ≤ 40 chars, empty = back to "Phòng N"); `apartments[].room_names` in /api/moi/data; the name is
   used everywhere a room shows (calendar rows, guest sheet chips/header, rows, reminders, calendar feed / .ics text: `_moi_room_label`).
+- Oct 30 (owner): **photo tools inside the new apps** — `static/js/photo_import.js` (`PhotoImport.booking({apartments, onSaved})`,
+  `PhotoImport.phone({onSaved})`): the same OCR + /api/booking_from_photo/* and /api/phone_from_chat/parse as /messages, in
+  the new look, plus "Xếp vào căn" on the booking form; /moi and /may-tinh no longer jump to /messages#photo. **Gia hạn**
+  tile on the guest card (both apps): +N nights, price per extra night (default = current per night), extra money auto =
+  nights × price or typed → /api/moi/stay (checkout + total; room clash asks). The guest card's "Tin đã nhắn" bars are gone;
+  Nhắn khách opens on **Chưa nhắn**. Payment templates 71/120/158/224 (EN) say the QR code works only in a banking app
+  (Vietnamese bank app or an international app that supports Vietnam QR).

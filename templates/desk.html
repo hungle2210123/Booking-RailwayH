@@ -199,6 +199,7 @@ button.info.on{border-color:#0E1525;background:#fff}
 <div id="pickbar"></div>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="{{ asset('js/journey.js') }}"></script>
+<script src="{{ asset('js/photo_import.js') }}"></script>
 <script>
 (function () {
   const $ = (s) => document.querySelector(s);
@@ -222,7 +223,7 @@ button.info.on{border-color:#0E1525;background:#fff}
   // ── state ──
   const S = { data: null, tab: LS.get('tab', 'today'), day: 0, q: '',
               calN: LS.get('calN', 14), calStart: -1, ca: '', pick: null, dsel: null,
-              mtab: 'arr', mrange: 3, mf: 'all', mapt: null, pf: 'all', papt: null, showPaid: false,
+              mtab: 'arr', mrange: 3, mf: 'todo', mapt: null, pf: 'all', papt: null, showPaid: false,
               sel: null, edit: null, editFor: null, move: false,
               modal: null, mfor: null, cmethod: 'cash', remNote: '', remAt: '',
               revMonth: null, revMode: 'revenue', revSel: null };
@@ -394,6 +395,8 @@ button.info.on{border-color:#0E1525;background:#fff}
   D.send = (id, step) => { window.Journey && Journey.open(id, step || null); };
   D.pickApt = (id) => { window.Journey && Journey.open(id, null, { pickApt: true }); };
   D.quick = () => window.Journey && Journey.quick();
+  D.photo = () => { S.modal = null; renderModal(); window.PhotoImport && PhotoImport.booking({ apartments: APT, onSaved: () => load(true) }); };
+  D.chatPhone = () => window.PhotoImport && PhotoImport.phone({ onSaved: () => load(true) });
   D.renameRoom = async (aid, no) => {
     const a = aptById[aid], cur = rn(aid, no);
     const v = prompt('Tên cho phòng ' + no + ' của ' + a.name + '\n(vd: Kitchen, Ban công, 101-2PN — để trống = "Phòng ' + no + '"):', cur.startsWith('Phòng ') ? '' : cur);
@@ -443,11 +446,22 @@ button.info.on{border-color:#0E1525;background:#fff}
     const mul = /(tr|m)$/.test(s) ? 1e6 : /k$/.test(s) ? 1e3 : 1;
     const num = mul > 1 ? parseFloat(s.replace(/[^\d.,]/g, '').replace(',', '.')) : Number(s.replace(/[^\d]/g, ''));
     return isFinite(num) ? Math.round(num * mul) : NaN; };
-  D.edit = (id, what) => { S.editFor = id; S.edit = S.edit === what ? null : what; renderDrawer();
-    if (S.edit) setTimeout(() => { D.editCalc(id); const i = $(S.edit === 'dates' ? '#eCo' : '#eVal'); if (i) { i.focus(); if (i.select) i.select(); } }, 30); };
+  D.edit = (id, what) => { S.editFor = id; S.edit = S.edit === what ? null : what; S.extAddEdited = false; renderDrawer();
+    if (S.edit) setTimeout(() => { D.editCalc(id); const i = $(S.edit === 'dates' ? '#eCo' : S.edit === 'extend' ? '#ePn' : '#eVal'); if (i) { i.focus(); if (i.select) i.select(); } }, 30); };
+  D.extN = (id, n) => { const i = $('#eN'); if (i) i.value = n; S.extAddEdited = false; D.editCalc(id);
+    document.querySelectorAll('.extn').forEach((x) => x.classList.toggle('on', +x.dataset.n === n)); };
+  D.extTyped = (id, k) => { S.extAddEdited = k === 'add'; D.editCalc(id); };
   D.editCalc = (id) => {
     const b = byId[id], el = $('#eNote'); if (!b || !el) return;
     const pn = Math.round(b.total / b.nights);
+    if (S.edit === 'extend') {
+      const n = Math.max(0, parseInt($('#eN').value, 10) || 0), p = money($('#ePn').value);
+      if (!S.extAddEdited && p >= 0) $('#eAdd').value = String(n * p);
+      const add = money($('#eAdd').value), co2 = new Date(Date.parse(b.co + 'T00:00:00Z') + n * 864e5).toISOString().slice(0, 10);
+      el.innerHTML = !(n > 0) ? '<b style="color:#B91C1C">Chọn số đêm thêm</b>' : !(add >= 0) ? '<b style="color:#B91C1C">Số tiền chưa đúng</b>'
+        : `Trả phòng mới: <b>${dm(offOf(co2))}</b> (thêm ${n} đêm → tổng ${b.nights + n} đêm)<br>Tiền thêm <b>${fmt(add)}</b> → tổng mới <b>${fmt(b.total + add)}</b>`;
+      return;
+    }
     if (S.edit === 'dates') {
       const n = nightsOf($('#eCi').value, $('#eCo').value);
       el.innerHTML = !(n > 0) ? '<b style="color:#B91C1C">Ngày trả phải sau ngày đến</b>'
@@ -460,7 +474,13 @@ button.info.on{border-color:#0E1525;background:#fff}
   };
   D.editSave = async (id, mode) => {
     const b = byId[id]; const body = { booking_id: id };
-    if (S.edit === 'dates') {
+    if (S.edit === 'extend') {
+      const n = Math.max(0, parseInt($('#eN').value, 10) || 0), add = money($('#eAdd').value);
+      if (!(n > 0)) return toast('Chọn số đêm thêm');
+      if (!(add >= 0)) return toast('Số tiền chưa đúng');
+      body.checkout_date = new Date(Date.parse(b.co + 'T00:00:00Z') + n * 864e5).toISOString().slice(0, 10);
+      body.room_amount = b.total + add;
+    } else if (S.edit === 'dates') {
       body.checkin_date = $('#eCi').value; body.checkout_date = $('#eCo').value;
       const n = nightsOf(body.checkin_date, body.checkout_date);
       if (!(n > 0)) return toast('Ngày trả phải sau ngày đến');
@@ -552,6 +572,7 @@ button.info.on{border-color:#0E1525;background:#fff}
       ${t !== 'rev' ? `<label class="search">${ico('search', 16)}<input id="q" type="search" value="${esc(S.q)}" oninput="D.q(this.value)" placeholder="Tìm khách: tên, mã, số…" aria-label="Tìm khách"></label>` : ''}
       <button class="btn" id="rl" onclick="D.reload()">${ico('reload', 16)}Tải lại</button>
       <button class="btn warn" onclick="D.quick()">${ico('bolt', 16)}Tin nhanh</button>
+      <button class="btn" onclick="D.photo()" title="Thêm đặt phòng từ ảnh chụp app Booking">📷 Từ ảnh</button>
       <button class="btn pri" onclick="D.add()">${ico('plus', 16)}Thêm đặt phòng</button>`;
   }
 
@@ -627,7 +648,7 @@ button.info.on{border-color:#0E1525;background:#fff}
     }
     if (nx) acts.push(`<button class="btn sm pri" style="grid-column:1/-1" onclick="D.send('${esc(b.id)}','${nx}')">Gửi: ${esc(stepLabel(nx))}</button>`);
     acts.push(`<button class="btn sm" ${kind === 'in' ? 'style="grid-column:1/-1"' : ''} onclick="D.remind('${esc(b.id)}')">🔔 ${remsOf(b.id).length ? 'Nhắc ' + remLabel(remsOf(b.id)[0].at) : (kind === 'in' ? 'Đến muộn · Nhắc việc' : 'Nhắc việc')}</button>`);
-    if (kind !== 'in') acts.push(`<button class="btn sm" onclick="D.open('${esc(b.id)}');D.edit('${esc(b.id)}','dates')">Gia hạn / đổi ngày</button>`);
+    if (kind !== 'in') acts.push(`<button class="btn sm" onclick="D.open('${esc(b.id)}');D.edit('${esc(b.id)}','extend')">Gia hạn phòng</button>`);
     if (!b.paid && b.total > 0) acts.push(`<button class="btn sm" style="grid-column:1/-1;color:#166534;border-color:#86EFAC" onclick="D.payOpen('${esc(b.id)}')">${b.collected ? 'Thu nốt ' + fmt(left(b)) : 'Thu tiền ' + fmt(b.total)}</button>`);
     const tag = kind === 'in' ? 'Ở ' + b.nights + ' đêm · trả ' + wd(b.coO) + ' ' + dm(b.coO) : l === 0 ? 'Trả hôm nay' : l === 1 ? 'Trả ngày mai' : 'Còn ' + l + ' đêm';
     const wa = b.phone ? b.phone.replace(/[^\d]/g, '') : '';
@@ -834,7 +855,7 @@ button.info.on{border-color:#0E1525;background:#fff}
         <div class="seg"><button class="${S.mtab === 'arr' ? 'on' : ''}" onclick="D.set('mtab','arr')">Sắp đến · ${arr.length}</button><button class="${S.mtab === 'stay' ? 'on' : ''}" onclick="D.set('mtab','stay')">Đang ở · ${stay.length}</button></div>
         ${S.mtab === 'arr' ? `<div class="seg">${[[1, 'Hôm nay'], [2, 'Đến mai'], [3, '3 ngày'], [7, '7 ngày']].map(([k, l]) => `<button class="${S.mrange === k ? 'on' : ''}" onclick="D.set('mrange',${k})">${l}</button>`).join('')}</div>` : ''}
         <div class="apf"><button class="${!S.mapt ? 'on' : ''}" onclick="D.set('mapt',null)">Tất cả căn</button>${APT.map((a) => `<button class="${String(S.mapt) === String(a.id) ? 'on' : ''}" onclick="D.set('mapt','${a.id}')"><span class="dot" style="background:${a.color}"></span>${esc(a.short)}</button>`).join('')}<button class="${S.mapt === 'none' ? 'on' : ''}" onclick="D.set('mapt','none')">Chưa xếp căn</button></div>
-        <span style="flex:1"></span><a class="btn sm" href="/messages#photo">Thêm đặt phòng từ ảnh</a><a class="btn sm" href="/messages#chatphone">Cập nhật số từ ảnh chat</a></div>
+        <span style="flex:1"></span><button class="btn sm" onclick="D.photo()">📷 Thêm đặt phòng từ ảnh</button><button class="btn sm" onclick="D.chatPhone()">📞 Cập nhật số từ ảnh chat</button></div>
       <div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px">${[['all', 'Tất cả', n.all, '#0E1525'], ['todo', 'Chưa nhắn', n.todo, '#DC2626'], ['done', 'Đã nhắn', n.done, '#F59E0B'], ['unreach', 'Không liên lạc được', n.unreach, '#94A3B8']]
         .map(([k, l, c, col]) => `<button class="fbox ${S.mf === k ? 'on' : ''}" onclick="D.set('mf','${k}')"><b class="num" style="${k === 'todo' && c ? 'color:#B91C1C' : ''}">${c}</b><span><i class="dot" style="background:${col}"></i>${l}</span></button>`).join('')}</div>
       <section class="card" style="overflow:hidden"><div style="padding:9px 16px;font-size:12.5px;color:#475569;border-bottom:1px solid #EEF0F4">Ô số = các bước: ${esc(steps)} — <b style="color:#16A34A">xanh</b> đã gửi, <b>đen</b> nên gửi bây giờ, bấm ô để gửi bước đó. Bấm nhãn liên lạc: chưa nhắn → "đã nhắn ngoài app", chờ trả lời → "khách đã trả lời".</div>
@@ -995,7 +1016,13 @@ button.info.on{border-color:#0E1525;background:#fff}
   function guestCard(b) {
     const a = aptById[b.apt], st = stOf(b), ed = S.editFor === b.id ? S.edit : null, id = esc(b.id);
     const status = b.coO === 0 ? 'Trả hôm nay' : b.ciO < 0 ? 'Đang ở' : b.ciO > 0 ? 'Đến ' + dm(b.ciO) : b.confirmed ? 'Đã xác nhận đến' : 'Chờ xác nhận đến';
-    const editBox = !ed ? '' : `<div class="edit">${ed === 'dates'
+    const extBox = `<div class="fld2"><label class="fld"><span>Thêm mấy đêm (bấm nhanh +1 +2 … bên dưới)</span><input id="eN" type="number" min="1" max="60" value="1" inputmode="numeric" oninput="D.extTyped('${id}','n')"></label>
+           <label class="fld"><span>Giá mỗi đêm thêm (đ)</span><input id="ePn" inputmode="decimal" value="${Math.round(b.total / b.nights)}" oninput="D.extTyped('${id}','pn')"></label></div>
+         <div style="display:flex;gap:6px;margin-top:8px">${[1, 2, 3, 5, 7].map((n) => `<button type="button" class="tchip extn ${n === 1 ? 'on' : ''}" data-n="${n}" style="flex:1;min-height:40px" onclick="D.extN('${id}',${n})">+${n}</button>`).join('')}</div>
+         <label class="fld"><span>Tiền thêm (đ) — tự tính = số đêm × giá, hoặc gõ số khác (vd 1,2tr)</span><input id="eAdd" inputmode="decimal" oninput="D.extTyped('${id}','add')"></label>
+         <div id="eNote" class="enote"></div>`;
+    const extSave = `<button class="btn pri" style="width:100%;margin-top:10px" onclick="D.editSave('${id}')">Lưu gia hạn</button>`;
+    const editBox = !ed ? '' : `<div class="edit">${ed === 'extend' ? extBox + extSave : ed === 'dates'
         ? `<div class="fld2"><label class="fld"><span>Ngày đến</span><input id="eCi" type="date" value="${b.ci}" oninput="D.editCalc('${id}')" onchange="D.editCalc('${id}')"></label>
              <label class="fld"><span>Ngày trả</span><input id="eCo" type="date" value="${b.co}" oninput="D.editCalc('${id}')" onchange="D.editCalc('${id}')"></label></div>
            <div id="eNote" class="enote"></div>
@@ -1004,7 +1031,6 @@ button.info.on{border-color:#0E1525;background:#fff}
              <input id="eVal" inputmode="decimal" value="${ed === 'pn' ? Math.round(b.total / b.nights) : Math.round(b.total)}" oninput="D.editCalc('${id}')" onkeydown="if(event.key==='Enter')D.editSave('${id}')"></label>
            <div id="eNote" class="enote"></div><button class="btn pri" style="width:100%;margin-top:10px" onclick="D.editSave('${id}')">Lưu</button>`}
         <button class="btn sm" style="width:100%;margin-top:6px;border:none;color:#64748B" onclick="D.edit('${id}',null)">Huỷ</button></div>`;
-    const steps = S.data.steps.map((s) => `<button onclick="D.send('${id}','${s.key}')" title="${esc(s.label)}" style="border:none;background:none;padding:0;text-align:left"><div style="height:6px;border-radius:3px;background:${b.sent.includes(s.key) ? '#16A34A' : s.key === b.next ? '#0E1525' : '#E5E7EB'}"></div><div style="font-size:10.5px;font-weight:700;margin-top:4px;color:${b.sent.includes(s.key) ? '#15803D' : s.key === b.next ? '#0E1525' : '#64748B'}">${esc(s.label.split(' &')[0])}</div></button>`).join('');
     const aptChips = APT.map((x) => { const f = x.rooms - B.filter((o) => o.apt === x.id && o.id !== b.id && counts(o, Math.max(b.ciO, 0))).length, on = b.apt === x.id;
       return `<button class="chipb ${f > 0 || on ? '' : 'off'}" style="background:${on ? '#0E1525' : x.color}" onclick="D.place('${id}',${x.id})">${esc(x.short)}<small>${on ? 'đang ở đây' : f > 0 ? 'còn ' + f : 'hết'}</small></button>`; }).join('');
     const roomChips = a ? Array.from({ length: a.rooms }, (_, k) => { const no = k + 1, ok = fits(b, a.id, no), on = b.room_no === no;
@@ -1018,13 +1044,13 @@ button.info.on{border-color:#0E1525;background:#fff}
         <button class="info ${ed === 'dates' ? 'on' : ''}" onclick="D.edit('${id}','dates')"><small>Ngày ở <i>sửa</i></small><b class="num">${dm(b.ciO)} → ${dm(b.coO)}</b></button>
         <button class="info ${ed === 'pn' ? 'on' : ''}" onclick="D.edit('${id}','pn')"><small>Giá / đêm <i>sửa</i></small><b class="num">${short(b.per_night)} · ${b.nights} đêm</b></button>
         <button class="info ${ed === 'total' ? 'on' : ''}" onclick="D.edit('${id}','total')"><small>Tổng tiền <i>sửa</i></small><b class="num">${fmt(b.total)}</b></button>
-        <button class="info" onclick="${b.paid ? `D.undoPay('${id}')` : `D.payOpen('${id}')`}"><small>Thanh toán <i>${b.paid ? 'hoàn tác' : 'thu tiền'}</i></small><b style="color:${b.paid ? '#15803D' : '#DC2626'}">${b.paid ? 'Đã thu · ' + esc(b.collector) : b.collected ? 'Đã thu ' + short(b.collected) + ' · còn ' + short(left(b)) : 'Chưa thu'}</b></button></div>
+        <button class="info" onclick="${b.paid ? `D.undoPay('${id}')` : `D.payOpen('${id}')`}"><small>Thanh toán <i>${b.paid ? 'hoàn tác' : 'thu tiền'}</i></small><b style="color:${b.paid ? '#15803D' : '#DC2626'}">${b.paid ? 'Đã thu · ' + esc(b.collector) : b.collected ? 'Đã thu ' + short(b.collected) + ' · còn ' + short(left(b)) : 'Chưa thu'}</b></button>
+        <button class="info ${ed === 'extend' ? 'on' : ''}" style="grid-column:1/-1;text-align:center" onclick="D.edit('${id}','extend')"><b>➕ Gia hạn thêm đêm</b><small>tự tính tiền theo giá đêm — hoặc tự nhập số tiền</small></button></div>
       ${editBox}
       <div style="display:flex;align-items:center;gap:8px;margin-top:10px;background:#EFF6FF;border-radius:12px;padding:6px 6px 6px 12px">
         <span class="num" style="flex:1;min-width:0;font-size:14px;font-weight:800;color:#1D4ED8">${b.phone ? `<a href="tel:${esc(b.phone)}" style="text-decoration:none">${esc(b.phone)}</a>` : b.partner ? 'Đối tác — chưa có số khách' : 'Chưa có số điện thoại'}</span>
         <button class="btn xs" style="border:none;color:#1D4ED8" onclick="D.phone('${id}')">${b.phone ? 'Sửa số' : 'Thêm số'}</button></div>
-      <div class="sect">Tin đã nhắn · bấm để gửi bước đó</div><div style="display:grid;grid-template-columns:repeat(${S.data.steps.length},minmax(0,1fr));gap:4px">${steps}</div>
-      <div class="gs" style="margin-top:6px;white-space:normal">${b.last ? 'Gần nhất: ' + esc(b.last.label) + ' · ' + esc(b.last.at) : 'Chưa gửi tin nào'}${b.next ? ' · nên gửi: <b>' + esc(stepLabel(b.next)) + '</b>' : ''}</div>
+      <div class="gs" style="margin-top:10px;white-space:normal">${b.last ? 'Gần nhất: ' + esc(b.last.label) + ' · ' + esc(b.last.at) : 'Chưa gửi tin nào'}${b.next ? ' · nên gửi: <b>' + esc(stepLabel(b.next)) + '</b>' : ''}</div>
       ${b.ciO <= 0 && b.coO > 0 ? `<button class="btn ${b.confirmed ? '' : 'ok'}" style="width:100%;margin-top:14px;min-height:46px;${b.confirmed ? 'background:#DCFCE7;color:#15803D;border-color:#BBF7D0' : ''}" onclick="D.confirm('${id}')">${b.confirmed ? 'Đã xác nhận đến — bấm để bỏ' : 'Xác nhận khách đã đến'}</button>` : ''}
       <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:10px">
         <button class="btn pri" onclick="D.send('${id}','${b.next || '__more'}')">${ico('msg', 16)}${b.next ? 'Gửi tiếp' : 'Nhắn'}</button>
@@ -1103,7 +1129,7 @@ button.info.on{border-color:#0E1525;background:#fff}
         <div class="fld2"><label class="fld"><span>Căn hộ</span><select id="fApt"><option value="">Chưa xếp</option>${APT.map((a) => `<option value="${a.id}">${esc(a.name)}</option>`).join('')}</select></label>
           <label class="fld"><span>Mã đặt phòng (nếu có)</span><input id="fBid" inputmode="numeric" placeholder="để trống = mã tạm"></label></div>
         <button class="btn pri" style="width:100%;margin-top:16px;min-height:46px" onclick="D.addSave(this)">Lưu khách</button>
-        <a href="/messages#photo" style="display:block;text-align:center;margin-top:10px;font-size:13px;font-weight:700">Hoặc thêm từ ảnh chụp app Booking →</a>`);
+        <button class="btn" style="width:100%;margin-top:10px;border-style:dashed" onclick="D.photo()">📷 Hoặc thêm từ ảnh chụp app Booking</button>`);
       return;
     }
     el.innerHTML = '';

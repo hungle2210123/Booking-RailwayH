@@ -7,7 +7,8 @@ def test_desk_page(client):
     """/may-tinh (desktop app) renders, and /api/moi/data looks further ahead with ?ahead=."""
     r = client.get('/may-tinh')
     html = r.get_data(as_text=True)
-    assert r.status_code == 200 and 'Hotel Pro — máy tính' in html and 'journey.js' in html and 'viewRev' in html
+    assert r.status_code == 200 and 'Hotel Pro — máy tính' in html and 'journey.js' in html and 'photo_import.js' in html and 'viewRev' in html
+    assert 'photo_import.js' in client.get('/moi').get_data(as_text=True) and client.get('/static/js/photo_import.js').status_code == 200
     d = client.get('/api/moi/data?ahead=60').get_json()
     assert d['success'] and all(b['ci'] < (__import__('datetime').date.fromisoformat(d['today']) + __import__('datetime').timedelta(days=60)).isoformat()
                                 for b in d['bookings'])

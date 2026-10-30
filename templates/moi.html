@@ -173,6 +173,7 @@ button.info.on{border-color:#0E1525;background:#fff}
 <button class="reload" id="reload" onclick="M.reload()" aria-label="Tải lại dữ liệu"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.3 5.7M20 4v7h-7"></path></svg><span id="reloadT">Tải lại</span></button>
 <div id="sheet"></div>
 <script src="{{ asset('js/journey.js') }}"></script>
+<script src="{{ asset('js/photo_import.js') }}"></script>
 <script>
 (function () {
   const $ = (s) => document.querySelector(s);
@@ -195,7 +196,7 @@ button.info.on{border-color:#0E1525;background:#fff}
   // ── state ──
   const S = { data: null, tab: LS.get('tab', 'day'), day: 0, seg: 'pair', calN: wide() ? 14 : 3, calStart: 0,
               calView: LS.get('calView', 'room'), pick: null,
-              mtab: 'arr', mrange: 1, mf: 'all', mapt: null, pf: 'all', papt: null, showPaid: false,
+              mtab: 'arr', mrange: 1, mf: 'todo', mapt: null, pf: 'all', papt: null, showPaid: false,
               sel: null, move: false, collect: null, cmethod: 'cash', aptSheet: false };
   let B = [], byId = {}, APT = [], aptById = {}, TODAY = '';
 
@@ -391,17 +392,31 @@ button.info.on{border-color:#0E1525;background:#fff}
   M.send = (id, step) => { S.sel = null; renderSheet(); window.Journey && Journey.open(id, step || null); };
   M.pickApt = (id) => { window.Journey && Journey.open(id, null, { pickApt: true }); };
   M.quick = () => window.Journey && Journey.quick();
+  // 📷 photo tools inside /moi (static/js/photo_import.js) — no jump to the old /messages page
+  M.photo = () => { S.adding = false; S.sel = null; renderSheet(); window.PhotoImport && PhotoImport.booking({ apartments: APT, onSaved: () => load(true) }); };
+  M.chatPhone = () => window.PhotoImport && PhotoImport.phone({ onSaved: () => load(true) });
   // ── sửa ngày ở / giá đêm / tổng tiền ngay trên thẻ khách (POST /api/moi/stay) ──
   const money = (v) => { const s = String(v || '').trim().toLowerCase().replace(/\s/g, '');
     const mul = /(tr|m)$/.test(s) ? 1e6 : /k$/.test(s) ? 1e3 : 1;
     const num = mul > 1 ? parseFloat(s.replace(/[^\d.,]/g, '').replace(',', '.')) : Number(s.replace(/[^\d]/g, ''));
     return isFinite(num) ? Math.round(num * mul) : NaN; };
   const nightsOf = (ci, co) => Math.round((Date.parse(co + 'T00:00:00Z') - Date.parse(ci + 'T00:00:00Z')) / 864e5);
-  M.edit = (id, what) => { S.editFor = id; S.edit = S.edit === what ? null : what; renderSheet();
-    if (S.edit) setTimeout(() => { M.editCalc(id); const i = $(S.edit === 'dates' ? '#eCo' : '#eVal'); if (i) { i.focus(); if (i.select) i.select(); } }, 30); };
+  M.edit = (id, what) => { S.editFor = id; S.edit = S.edit === what ? null : what; S.extAddEdited = false; renderSheet();
+    if (S.edit) setTimeout(() => { M.editCalc(id); const i = $(S.edit === 'dates' ? '#eCo' : S.edit === 'extend' ? '#ePn' : '#eVal'); if (i) { i.focus(); if (i.select) i.select(); } }, 30); };
+  M.extN = (id, n) => { const i = $('#eN'); if (i) i.value = n; S.extAddEdited = false; M.editCalc(id);
+    document.querySelectorAll('.extn').forEach((x) => x.classList.toggle('on', +x.dataset.n === n)); };
+  M.extTyped = (id, k) => { S.extAddEdited = k === 'add'; M.editCalc(id); };
   M.editCalc = (id) => {
     const b = byId[id], el = $('#eNote'); if (!b || !el) return;
     const pn = Math.round(b.total / b.nights);
+    if (S.edit === 'extend') {
+      const n = Math.max(0, parseInt($('#eN').value, 10) || 0), p = money($('#ePn').value);
+      if (!S.extAddEdited && p >= 0) $('#eAdd').value = String(n * p);
+      const add = money($('#eAdd').value), co2 = new Date(Date.parse(b.co + 'T00:00:00Z') + n * 864e5).toISOString().slice(0, 10);
+      el.innerHTML = !(n > 0) ? '<b style="color:#B91C1C">Chọn số đêm thêm</b>' : !(add >= 0) ? '<b style="color:#B91C1C">Số tiền chưa đúng</b>'
+        : `Trả phòng mới: <b>${dm(offOf(co2))}</b> (thêm ${n} đêm → tổng ${b.nights + n} đêm)<br>Tiền thêm <b>${fmt(add)}</b> → tổng mới <b>${fmt(b.total + add)}</b>`;
+      return;
+    }
     if (S.edit === 'dates') {
       const n = nightsOf($('#eCi').value, $('#eCo').value);
       el.innerHTML = !(n > 0) ? '<b style="color:#B91C1C">Ngày trả phải sau ngày đến</b>'
@@ -415,7 +430,13 @@ button.info.on{border-color:#0E1525;background:#fff}
   };
   M.editSave = async (id, mode) => {
     const b = byId[id]; const body = { booking_id: id };
-    if (S.edit === 'dates') {
+    if (S.edit === 'extend') {
+      const n = Math.max(0, parseInt($('#eN').value, 10) || 0), add = money($('#eAdd').value);
+      if (!(n > 0)) return toast('Chọn số đêm thêm');
+      if (!(add >= 0)) return toast('Số tiền chưa đúng');
+      body.checkout_date = new Date(Date.parse(b.co + 'T00:00:00Z') + n * 864e5).toISOString().slice(0, 10);
+      body.room_amount = b.total + add;
+    } else if (S.edit === 'dates') {
       body.checkin_date = $('#eCi').value; body.checkout_date = $('#eCo').value;
       const n = nightsOf(body.checkin_date, body.checkout_date);
       if (!(n > 0)) return toast('Ngày trả phải sau ngày đến');
@@ -725,8 +746,8 @@ button.info.on{border-color:#0E1525;background:#fff}
         <div class="fgrid">${[['all', 'Tất cả', n.all, '#0E1525'], ['todo', 'Chưa nhắn', n.todo, '#DC2626'], ['done', 'Đã nhắn', n.done, '#15803D'], ['unreach', 'Không liên lạc', n.unreach, '#475569']]
           .map(([k, l, c, col]) => `<button class="fbox ${S.mf === k ? 'on' : ''}" style="--c:${col}" onclick="M.set('mf','${k}')"><b class="num">${c}</b><small>${l}</small></button>`).join('')}</div>
         <button onclick="M.quick()" style="min-height:50px;border-radius:14px;border:none;background:#F59E0B;color:#0E1525;font-size:14px;font-weight:800;display:flex;align-items:center;justify-content:center;gap:8px">${bolt(18)}Tin nhanh — mẫu câu chung</button>
-        <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px"><a href="/messages#photo" style="display:flex;align-items:center;justify-content:center;text-align:center;min-height:46px;border-radius:12px;border:1px dashed #94A3B8;background:#fff;font-size:12px;font-weight:700;color:#0E1525;text-decoration:none">Thêm đặt phòng từ ảnh</a>
-          <a href="/messages#chatphone" style="display:flex;align-items:center;justify-content:center;text-align:center;min-height:46px;border-radius:12px;border:1px dashed #94A3B8;background:#fff;font-size:12px;font-weight:700;color:#0E1525;text-decoration:none">Cập nhật số từ ảnh chat</a></div>
+        <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px"><button type="button" onclick="M.photo()" style="display:flex;align-items:center;justify-content:center;text-align:center;min-height:46px;border-radius:12px;border:1px dashed #94A3B8;background:#fff;font-size:12px;font-weight:700;color:#0E1525;text-decoration:none">Thêm đặt phòng từ ảnh</button>
+          <button type="button" onclick="M.chatPhone()" style="display:flex;align-items:center;justify-content:center;text-align:center;min-height:46px;border-radius:12px;border:1px dashed #94A3B8;background:#fff;font-size:12px;font-weight:700;color:#0E1525;text-decoration:none">Cập nhật số từ ảnh chat</button></div>
         ${a ? `<div style="display:flex;align-items:center;gap:8px;background:${a.color};color:#fff;border-radius:12px;padding:8px 8px 8px 14px;font-size:13px;font-weight:800"><span style="flex:1">Đang xem: ${esc(a.name)}</span><button onclick="M.set('mapt',null)" style="min-height:36px;border-radius:10px;border:none;background:rgba(255,255,255,.2);color:#fff;font-size:12px;font-weight:800;padding:0 12px">Xem tất cả</button></div>` : ''}
       </div><div class="wrap" style="padding-bottom:90px">${groups || `<div class="card empty" style="margin-top:12px">${S.mf === 'todo' ? 'Đã nhắn hết cho khách trong mục này.' : 'Không có khách nào ở đây.'}</div>`}</div>`;
   }
@@ -836,7 +857,7 @@ button.info.on{border-color:#0E1525;background:#fff}
       const iso = (o) => new Date(Date.parse(TODAY + 'T00:00:00Z') + o * 864e5).toISOString().slice(0, 10);
       el.innerHTML = `<div class="ov" onclick="if(event.target===this)M.close()"><div class="sh"><div class="handle"></div>
         <div style="display:flex;align-items:center;gap:10px"><div style="flex:1"><div class="kick" style="color:#64748B">THÊM ĐẶT PHÒNG</div><div style="font-size:20px;font-weight:800">Khách mới</div></div><button class="x" onclick="M.close()" aria-label="Đóng">${svg('x', 18, 2.4)}</button></div>
-        <a href="/messages#photo" style="display:flex;align-items:center;justify-content:center;margin-top:12px;min-height:48px;border-radius:12px;border:1.5px dashed #94A3B8;font-size:13px;font-weight:800;color:#0E1525;text-decoration:none">Thêm từ ảnh chụp app Booking (tự điền)</a>
+        <button type="button" onclick="M.photo()" style="display:flex;align-items:center;justify-content:center;margin-top:12px;min-height:48px;border-radius:12px;border:1.5px dashed #94A3B8;font-size:13px;font-weight:800;color:#0E1525;background:#fff;width:100%">Thêm từ ảnh chụp app Booking (tự điền)</button>
         <label class="fld"><span>Tên khách *</span><input id="fName" autocomplete="off"></label>
         <div class="fld2"><label class="fld"><span>Ngày đến *</span><input id="fCi" type="date" value="${iso(0)}"></label><label class="fld"><span>Ngày đi *</span><input id="fCo" type="date" value="${iso(1)}"></label></div>
         <label class="fld"><span>Loại phòng (như trên Booking)</span><input id="fListing" list="fLst" autocomplete="off"><datalist id="fLst">${lst.map((x) => `<option value="${esc(x)}"></option>`).join('')}</datalist></label>
@@ -861,7 +882,13 @@ button.info.on{border-color:#0E1525;background:#fff}
     const b = byId[S.sel], a = aptById[b.apt], st = stOf(b);
     // tap "Ngày ở" / "Giá / đêm" / "Tổng tiền" → edit right here (the total / per-night is worked out as you type)
     const ed = S.editFor === b.id ? S.edit : null;
-    const editBox = !ed ? '' : `<div class="edit">${ed === 'dates'
+    const extBox = `<div class="fld2"><label class="fld"><span>Thêm mấy đêm (bấm nhanh +1 +2 … bên dưới)</span><input id="eN" type="number" min="1" max="60" value="1" inputmode="numeric" oninput="M.extTyped('${b.id}','n')"></label>
+           <label class="fld"><span>Giá mỗi đêm thêm (đ)</span><input id="ePn" inputmode="decimal" value="${Math.round(b.total / b.nights)}" oninput="M.extTyped('${b.id}','pn')"></label></div>
+         <div style="display:flex;gap:6px;margin-top:8px">${[1, 2, 3, 5, 7].map((n) => `<button type="button" class="tchip extn ${n === 1 ? 'on' : ''}" data-n="${n}" style="flex:1;min-height:40px" onclick="M.extN('${b.id}',${n})">+${n}</button>`).join('')}</div>
+         <label class="fld"><span>Tiền thêm (đ) — tự tính = số đêm × giá, hoặc gõ số khác (vd 1,2tr)</span><input id="eAdd" inputmode="decimal" oninput="M.extTyped('${b.id}','add')"></label>
+         <div id="eNote" class="enote"></div>`;
+    const extSave = `<div class="ebtns"><button class="pri" onclick="M.editSave('${b.id}')">Lưu gia hạn</button></div>`;
+    const editBox = !ed ? '' : `<div class="edit">${ed === 'extend' ? extBox + extSave : ed === 'dates'
         ? `<div class="fld2"><label class="fld"><span>Ngày đến</span><input id="eCi" type="date" value="${b.ci}" oninput="M.editCalc('${b.id}')" onchange="M.editCalc('${b.id}')"></label>
              <label class="fld"><span>Ngày trả</span><input id="eCo" type="date" value="${b.co}" oninput="M.editCalc('${b.id}')" onchange="M.editCalc('${b.id}')"></label></div>
            <div id="eNote" class="enote"></div>
@@ -872,7 +899,6 @@ button.info.on{border-color:#0E1525;background:#fff}
            <div class="ebtns"><button class="pri" onclick="M.editSave('${b.id}')">Lưu</button></div>`}
         <button class="ecancel" onclick="M.edit('${b.id}',null)">Huỷ</button></div>`;
     const status = b.coO === 0 ? 'Trả hôm nay' : b.ciO < 0 ? 'Đang ở' : b.ciO > 0 ? 'Đến ' + dm(b.ciO) : b.confirmed ? 'Đã xác nhận đến' : 'Chờ xác nhận đến';
-    const sentBars = S.data.steps.map((s) => `<div><div style="height:6px;border-radius:3px;background:${b.sent.includes(s.key) ? '#16A34A' : '#E5E7EB'}"></div><div style="font-size:10px;font-weight:700;margin-top:4px;color:${b.sent.includes(s.key) ? '#15803D' : '#64748B'}">${esc(s.label.split(' &')[0])}</div></div>`).join('');
     const aptChips = APT.map((x) => { const f = x.rooms - B.filter((o) => o.apt === x.id && o.id !== b.id && inHouse(o, Math.max(b.ciO, 0))).length;
       return `<button class="chip ${f > 0 ? '' : 'off'}" style="background:${x.color}" onclick="M.place('${b.id}',${x.id})">${esc(x.short)}<small>${f > 0 ? 'còn ' + f : 'hết'}</small></button>`; }).join('');
     const roomChips = a ? Array.from({ length: a.rooms }, (_, k) => { const no = k + 1, ok = fits(b, a.id, no), on = b.room_no === no;
@@ -886,13 +912,13 @@ button.info.on{border-color:#0E1525;background:#fff}
         <button class="info ${ed === 'dates' ? 'on' : ''}" onclick="M.edit('${b.id}','dates')"><small>Ngày ở <i>sửa</i></small><b class="num">${dm(b.ciO)} → ${dm(b.coO)}</b></button>
         <button class="info ${ed === 'pn' ? 'on' : ''}" onclick="M.edit('${b.id}','pn')"><small>Giá / đêm <i>sửa</i></small><b class="num">${short(b.per_night)} · ${b.nights} đêm</b></button>
         <button class="info ${ed === 'total' ? 'on' : ''}" onclick="M.edit('${b.id}','total')"><small>Tổng tiền <i>sửa</i></small><b class="num">${fmt(b.total)}</b></button>
-        <button class="info" onclick="${b.paid ? `M.undoPay('${b.id}')` : `M.payOpen('${b.id}')`}"><small>Thanh toán <i>${b.paid ? 'hoàn tác' : 'thu tiền'}</i></small><b style="color:${b.paid ? '#15803D' : '#DC2626'}">${b.paid ? 'Đã thu · ' + esc(b.collector) : b.collected ? 'Đã thu ' + short(b.collected) + ' · thu nốt' : 'Chưa thu'}</b></button></div>
+        <button class="info" onclick="${b.paid ? `M.undoPay('${b.id}')` : `M.payOpen('${b.id}')`}"><small>Thanh toán <i>${b.paid ? 'hoàn tác' : 'thu tiền'}</i></small><b style="color:${b.paid ? '#15803D' : '#DC2626'}">${b.paid ? 'Đã thu · ' + esc(b.collector) : b.collected ? 'Đã thu ' + short(b.collected) + ' · thu nốt' : 'Chưa thu'}</b></button>
+        <button class="info ${ed === 'extend' ? 'on' : ''}" style="grid-column:1/-1;text-align:center" onclick="M.edit('${b.id}','extend')"><b>➕ Gia hạn thêm đêm</b><small>tự tính tiền theo giá đêm — hoặc tự nhập số tiền</small></button></div>
       ${editBox}
       <div style="font-size:13px;color:#475569;margin-top:10px;font-weight:600">${esc(b.listing)} · Mã ${esc(b.id)}</div>
       <div style="display:flex;align-items:center;gap:8px;margin-top:8px;background:#EFF6FF;border-radius:12px;padding:6px 6px 6px 12px">
         <span class="num" style="flex:1;min-width:0;font-size:14px;font-weight:800;color:#1D4ED8">${b.phone ? `<a href="tel:${esc(b.phone)}" style="text-decoration:none">${esc(b.phone)}</a>` : b.partner ? 'Đối tác — chưa có số khách' : 'Chưa có số điện thoại'}</span>
         <button onclick="M.phone('${b.id}')" style="min-height:38px;border-radius:10px;border:none;background:#fff;color:#1D4ED8;font-size:12px;font-weight:800;padding:0 12px">${b.phone ? 'Sửa số' : 'Thêm số'}</button></div>
-      <div class="lbl">Tin đã nhắn</div><div style="display:grid;grid-template-columns:repeat(${S.data.steps.length},minmax(0,1fr));gap:4px">${sentBars}</div>
       ${b.ciO <= 0 && b.coO > 0 ? `<button class="big" onclick="M.confirm('${b.id}')" style="margin-top:16px;${b.confirmed ? 'background:#DCFCE7;color:#15803D' : 'background:#0E1525;color:#fff'}">${b.confirmed ? 'Đã xác nhận đến — chạm để bỏ' : 'Xác nhận khách đã đến'}</button>` : ''}
       <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:10px">
         <button class="act" onclick="M.send('${b.id}','${b.next || '__more'}')">${svg('msg')}Nhắn</button>
