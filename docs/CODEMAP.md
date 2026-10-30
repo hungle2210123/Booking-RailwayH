@@ -795,16 +795,16 @@ _p15_moi — /moi: the new phone-first app (owner, Oct 26), built from the appro
 - templates/debug_collector_comparison.html: 215 `runComparison` · 257 `displayResults` · 283 `populateComparisonTable` · 321 `populateMethodDetails` · 344 `populateGuestDetails` · 392 `getDifferenceClass` · 398 `showError` · 403 `deleteDebugFile`
 - templates/debug_collector_comparison.html: 409 `runJuneSpecificDebug` · 439 `displayJuneSpecificResults`
 
-## templates/desk.html (1149 lines)
+## templates/desk.html (1151 lines)
 - templates/desk.html: 292 `load` · 305 `loadRev` · 318 `needRev` · 335 `D.tab` · 336 `D.set` · 337 `D.q` · 338 `D.reload` · 340 `D.shift`
 - templates/desk.html: 346 `D.toToday` · 347 `D.open` · 348 `D.openDay` · 349 `D.close` · 350 `closeDrawer` · 351 `D.closeModal` · 354 `D.place` · 359 `D.room`
 - templates/desk.html: 366 `D.confirm` · 372 `D.cancel` · 378 `D.mark` · 382 `D.status` · 386 `D.unreach` · 387 `D.replied` · 388 `D.phone` · 395 `D.send`
 - templates/desk.html: 396 `D.pickApt` · 397 `D.quick` · 398 `D.photo` · 399 `D.chatPhone` · 400 `D.renameRoom` · 408 `D.pickG` · 409 `D.auto` · 424 `D.payOpen`
 - templates/desk.html: 425 `D.collect` · 434 `D.partial` · 436 `D.undoPay` · 439 `D.payCycle` · 449 `D.edit` · 451 `D.extN` · 453 `D.extTyped` · 454 `D.editCalc`
 - templates/desk.html: 475 `D.editSave` · 502 `D.remind` · 503 `D.remPreset` · 506 `D.remSet` · 507 `D.remSave` · 514 `D.remDone` · 518 `D.add` · 519 `D.addSave`
-- templates/desk.html: 534 `render` · 543 `renderSide` · 560 `renderTop` · 589 `viewToday` · 641 `dayCard` · 674 `viewDay` · 716 `viewCal` · 816 `renderPick`
-- templates/desk.html: 824 `viewMsg` · 867 `viewPay` · 907 `D.payQuick` · 913 `viewRev` · 984 `D.revMonth` · 985 `D.revDay` · 986 `D.goDay` · 987 `drawRevCharts`
-- templates/desk.html: 1010 `renderDrawer` · 1016 `guestCard` · 1070 `dayPanel` · 1091 `renderModal` · 1137 `D.mset`
+- templates/desk.html: 534 `render` · 543 `renderSide` · 560 `renderTop` · 589 `viewToday` · 641 `dayCard` · 674 `viewDay` · 716 `viewCal` · 818 `renderPick`
+- templates/desk.html: 826 `viewMsg` · 869 `viewPay` · 909 `D.payQuick` · 915 `viewRev` · 986 `D.revMonth` · 987 `D.revDay` · 988 `D.goDay` · 989 `drawRevCharts`
+- templates/desk.html: 1012 `renderDrawer` · 1018 `guestCard` · 1072 `dayPanel` · 1093 `renderModal` · 1139 `D.mset`
 
 ## templates/duplicate_management.html (710 lines)
 - templates/duplicate_management.html: 196 `loadDuplicates` · 295 `updateStatistics` · 329 `renderDuplicateGroups` · 475 `toggleBookingSelection` · 506 `updateSelectedCount` · 521 `selectAllDuplicates` · 534 `deleteSelectedBookings` · 582 `showComparison`
@@ -867,14 +867,14 @@ _p15_moi — /moi: the new phone-first app (owner, Oct 26), built from the appro
 - templates/mobile_payment.html: 484 `cardCls` · 490 `dateBadge` · 498 `renderDates` · 557 `toISO` · 564 `openSheet` · 583 `closeSheet` · 588 `pick` · 594 `tickTs`
 - templates/mobile_payment.html: 601 `doConfirm` · 642 `showToast` · 649 `loadHistory` · 696 `switchTab` · 705 `changeOffset` · 707 `loadAnalytics` · 812 `openDetail` · 873 `closeDetail`
 
-## templates/moi.html (947 lines)
+## templates/moi.html (948 lines)
 - templates/moi.html: 207 `load` · 284 `M.reload` · 285 `M.tab` · 286 `M.set` · 287 `M.day` · 288 `M.open` · 289 `M.close` · 290 `M.add`
 - templates/moi.html: 291 `M.addSave` · 304 `M.place` · 309 `M.room` · 316 `M.confirm` · 322 `M.cancel` · 328 `M.mark` · 332 `M.status` · 334 `M.unreach`
 - templates/moi.html: 335 `M.renameRoom` · 343 `M.calDone` · 344 `M.remind` · 346 `M.eta` · 347 `M.remPreset` · 350 `M.remSave` · 359 `M.remDone` · 362 `M.etaSave`
 - templates/moi.html: 385 `M.phone` · 392 `M.send` · 393 `M.pickApt` · 394 `M.quick` · 396 `M.photo` · 397 `M.chatPhone` · 404 `M.edit` · 406 `M.extN`
 - templates/moi.html: 408 `M.extTyped` · 409 `M.editCalc` · 431 `M.editSave` · 457 `M.payOpen` · 458 `M.collect` · 466 `M.partial` · 468 `M.undoPay` · 471 `M.payCycle`
-- templates/moi.html: 476 `M.pickG` · 477 `M.auto` · 492 `render` · 501 `renderNav` · 510 `renderFloat` · 526 `viewDay` · 610 `viewCal` · 684 `M.cal`
-- templates/moi.html: 688 `msgCard` · 718 `viewMsg` · 754 `M.aptSheetOpen` · 767 `viewPay` · 809 `renderSheet` · 934 `S_set` · 935 `renderSheetPub` · 936 `S_put`
+- templates/moi.html: 476 `M.pickG` · 477 `M.auto` · 492 `render` · 501 `renderNav` · 510 `renderFloat` · 526 `viewDay` · 610 `viewCal` · 685 `M.cal`
+- templates/moi.html: 689 `msgCard` · 719 `viewMsg` · 755 `M.aptSheetOpen` · 768 `viewPay` · 810 `renderSheet` · 935 `S_set` · 936 `renderSheetPub` · 937 `S_put`
 
 ## templates/quick.html (279 lines)
 - templates/quick.html: 142 `toast` · 147 `go` · 155 `copyNow` · 163 `sendText` · 168 `copyText` · 169 `sendImgs` · 180 `setIn` · 202 `takeOut`

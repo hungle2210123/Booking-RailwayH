@@ -626,12 +626,13 @@ button.info.on{border-color:#0E1525;background:#fff}
     };
     const slots = (taken) => days.filter((dd) => !taken.has(dd)).map((dd) => `<div class="slot" style="grid-column:${dd - ws + 2}">${N === 3 ? 'trống' : ''}</div>`).join('');
     const span = (list) => { const t = new Set(); list.forEach((b) => { for (let dd = Math.max(b.ciO, ws); dd < Math.min(b.coO, we); dd++) t.add(dd); }); return t; };
+    // picking a guest: a green "Xếp vào đây" only on rooms that are free from tonight on; a room with another guest just
+    // says "trùng khách" under its name — nothing is drawn over the other guests' bars (owner, Oct 30 screenshot)
+    const pickable = (aid, no) => pk && room && !(pk.apt === aid && pk.room_no === no) && Math.min(pk.coO, we) > Math.max(pk.ciO, ws, 0);
     const drop = (aid, no) => {
-      if (!pk || !room) return '';
-      const st = Math.max(pk.ciO, ws), en = Math.min(pk.coO, we);
-      if (en <= st || (pk.apt === aid && pk.room_no === no)) return '';
-      const ok = fits(pk, aid, no);
-      return `<button class="drop" onclick="M.room('${pk.id}',${aid},${no})" style="grid-column:${st - ws + 2} / span ${en - st};${ok ? 'background:rgba(22,163,74,.12);border:2px dashed #16A34A;color:#166534' : 'background:rgba(220,38,38,.08);border:1.5px dashed #FCA5A5;color:#B91C1C;opacity:.75'}">${ok ? 'Xếp vào đây' : 'Trùng khách'}</button>`;
+      if (!pickable(aid, no) || !fits(pk, aid, no)) return '';
+      const st = Math.max(pk.ciO, ws, 0), en = Math.min(pk.coO, we);
+      return `<button class="drop" onclick="M.room('${pk.id}',${aid},${no})" style="grid-column:${st - ws + 2} / span ${en - st};background:#DCFCE7;border:2px dashed #16A34A;color:#166534">Xếp vào đây</button>`;
     };
     let rows = '';
     APT.forEach((a) => {
@@ -642,7 +643,7 @@ button.info.on{border-color:#0E1525;background:#fff}
       if (room) {
         for (let no = 1; no <= a.rooms; no++) {
           const mine = list.filter((b) => b.room_no === no);
-          rows += `<div class="cg croom" style="grid-template-columns:${cols};min-height:${rowH}"><button class="cst rname" style="grid-row:1;grid-column:1" onclick="M.renameRoom(${a.id},${no})" aria-label="Đổi tên ${esc(rn(a.id, no))}">${esc(rn(a.id, no))}<span>✏️</span></button>${slots(span(mine))}${mine.map((b) => bar(b, a)).join('')}${drop(a.id, no)}</div>`;
+          rows += `<div class="cg croom" style="grid-template-columns:${cols};min-height:${rowH}"><button class="cst rname" style="grid-row:1;grid-column:1" onclick="M.renameRoom(${a.id},${no})" aria-label="Đổi tên ${esc(rn(a.id, no))}">${esc(rn(a.id, no))}${pickable(a.id, no) && !fits(pk, a.id, no) ? '<span style="opacity:1;color:#B91C1C;font-size:10px;font-weight:800">trùng khách</span>' : '<span>✏️</span>'}</button>${slots(span(mine))}${mine.map((b) => bar(b, a)).join('')}${drop(a.id, no)}</div>`;
         }
         const noRoom = list.filter((b) => !b.room_no || b.room_no > a.rooms);
         if (noRoom.length) {          // placed in the apartment, no room yet: one lane per overlap

@@ -744,12 +744,14 @@ button.info.on{border-color:#0E1525;background:#fff}
       rows += `<div style="${tpl};min-height:34px;border-top:1px solid #E4E7ED;background:#F8FAFC"><div class="rl" style="background:#F8FAFC;flex-direction:row;align-items:center;justify-content:flex-start;gap:8px"><span class="dot" style="background:${a.color}"></span><b>${esc(a.name)} · ${a.rooms} phòng</b></div>
         ${days.map((o, i) => { const f = a.rooms - usedIn(a.id, o); return `<div style="${dcol(i)}display:flex;align-items:center;justify-content:center;font-size:11.5px;font-weight:800;border-left:1px solid #EEF0F4;color:${f <= 0 ? (f < 0 ? '#B91C1C' : '#475569') : f === 1 ? '#B45309' : '#15803D'}">${f > 0 ? 'Trống ' + f : f === 0 ? 'Kín' : 'Thừa ' + -f}</div>`; }).join('')}</div>`;
       for (let no = 1; no <= a.rooms; no++) {
-        let drop = '';
-        if (pk && !(pk.apt === a.id && pk.room_no === no)) { const sp = span(pk);
-          if (sp) { const ok = fits(pk, a.id, no);
-            drop = `<button class="drop" onclick="D.room('${esc(pk.id)}',${a.id},${no})" style="${at(sp)}${ok ? 'background:#16A34A;color:#fff;border:none' : 'background:#FEF2F2;color:#B91C1C;border:1.5px dashed #FCA5A5'}">${ok ? 'Xếp vào đây' : 'Trùng khách'}</button>`; } }
+        // picking: green "Xếp vào đây" only where the room is free from tonight on; a clash is a note under the room name
+        let drop = '', clash = false;
+        if (pk && !(pk.apt === a.id && pk.room_no === no)) { const sp0 = span(pk), lo = 2 * Math.max(0, ws) ;
+          const sp = sp0 && [Math.max(sp0[0], 2 * Math.max(pk.ciO, 0) + 1), sp0[1]];
+          if (sp && sp[1] > sp[0] && sp[1] > lo) { if (fits(pk, a.id, no))
+            drop = `<button class="drop" onclick="D.room('${esc(pk.id)}',${a.id},${no})" style="${at(sp)}background:#16A34A;color:#fff;border:none">Xếp vào đây</button>`; else clash = true; } }
         const bs = B.filter((b) => b.apt === a.id && b.room_no === no && vis(b));
-        rows += `<div style="${rowSt}"><button class="rl" onclick="D.renameRoom(${a.id},${no})" title="Bấm để đổi tên phòng"><b>${esc(rn(a.id, no))}</b><small>${esc((bs[0] || {}).listing || 'bấm để đổi tên')}</small></button>${cells()}${drop || bs.map(bar).join('')}</div>`;
+        rows += `<div style="${rowSt}"><button class="rl" onclick="D.renameRoom(${a.id},${no})" title="Bấm để đổi tên phòng"><b>${esc(rn(a.id, no))}</b>${clash ? '<small style="color:#B91C1C;font-weight:800">trùng khách</small>' : `<small>${esc((bs[0] || {}).listing || 'bấm để đổi tên')}</small>`}</button>${cells()}${bs.map(bar).join('')}${drop}</div>`;
       }
       lanes(B.filter((b) => b.apt === a.id && !b.room_no && vis(b))).forEach((l) => {
         rows += `<div style="${rowSt}background:#FFFDF5"><div class="rl" style="background:#FFFDF5"><b style="color:#92400E">Chưa có số phòng</b><small>bấm khách → chọn ô xanh</small></div>${cells()}${l.bs.map(bar).join('')}</div>`; });
