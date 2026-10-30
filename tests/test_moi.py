@@ -125,6 +125,28 @@ def test_moi_edit_stay(client, db, booking):
 
 
 @pytest.mark.db_write
+def test_moi_past_nights_never_clash(client, booking):
+    """Owner, Oct 30: Kim left today, Michael (arrived 2 days ago) was moved into the same room — the shared PAST night
+    is history, not "Trùng khách"; shortening a stay that already overlaps someone is never blocked either."""
+    from datetime import datetime, timedelta
+    t = (datetime.utcnow() + timedelta(hours=7)).date()
+    iso = lambda n: (t + timedelta(days=n)).isoformat()
+    kim = booking(guest_name='ZZ Kim', checkin_date=iso(-4), checkout_date=iso(0))
+    mike = booking(guest_name='ZZ Michael', checkin_date=iso(-2), checkout_date=iso(5))
+    nxt = booking(guest_name='ZZ Next', checkin_date=iso(3), checkout_date=iso(6))
+    d = client.get('/api/moi/data').get_json()
+    busy = {(b['apt'], b['room_no']) for b in d['bookings'] if b['room_no'] and b['co'] > iso(0) and b['ci'] < iso(6)}
+    apt, no = next((a['id'], n) for a in d['apartments'] for n in range(1, a['rooms'] + 1) if (a['id'], n) not in busy)   # a room real guests don't use
+    assert client.post('/api/moi/room', json={'booking_id': kim, 'apartment_id': apt, 'room_no': no}).get_json()['success']
+    assert client.post('/api/moi/room', json={'booking_id': mike, 'apartment_id': apt, 'room_no': no}).get_json()['success']
+    assert client.post('/api/moi/room', json={'booking_id': nxt, 'apartment_id': apt, 'room_no': no, 'force': True}).get_json()['success']
+    # Michael overlaps "Next" from day 3 on; checking him out at day 3 removes nights — saved without asking
+    assert client.post('/api/moi/stay', json={'booking_id': mike, 'checkout_date': iso(3)}).get_json()['success']
+    # adding nights into "Next"'s stay asks
+    assert client.post('/api/moi/stay', json={'booking_id': mike, 'checkout_date': iso(4)}).status_code == 409
+
+
+@pytest.mark.db_write
 def test_moi_room_names(client, db):
     """Rooms 1..N of an apartment can carry the owner's own name; empty = back to "Phòng N"; out-of-range refused."""
     apt = client.get('/api/moi/data').get_json()['apartments'][0]

@@ -137,6 +137,29 @@ def moi_data():
                     'collectors': list(PAY_COLLECTORS)})
 
 
+def _moi_room_clash(_xdb, bid, apt, room, ranges):
+    """Guests (other than bid) who have room `room` of apartment `apt` on any night of `ranges` [(ci, co), …].
+    Nights before today are never a clash — they are history (owner, Oct 30: Kim left today, Michael moved into
+    101 from today and was still shown "Trùng khách")."""
+    today = (datetime.utcnow() + timedelta(hours=7)).date()
+    names = []
+    for ci, co in ranges:
+        ci = max(ci.date() if hasattr(ci, 'date') else ci, today)
+        co = co.date() if hasattr(co, 'date') else co
+        if co <= ci:
+            continue
+        for (n,) in _xdb.session.execute(text("""
+            SELECT COALESCE(g.full_name, b.guest_name) FROM bookings b LEFT JOIN guests g ON g.guest_id = b.guest_id
+            WHERE b.booking_id <> :b AND b.actual_apartment = :apt AND b.room_no = :room
+              AND b.checkin_date < :co AND b.checkout_date > :ci
+              AND COALESCE(b.booking_status, '') NOT IN ('cancelled', 'deleted')
+              AND COALESCE(b.checkin_status, '') NOT IN ('cancelling', 'no_show')"""),
+                {'b': bid, 'apt': str(apt), 'room': room, 'ci': ci, 'co': co}).fetchall():
+            if n not in names:
+                names.append(n)
+    return names
+
+
 @app.route('/api/moi/room', methods=['POST'])
 def moi_set_room():
     """Put a guest in room N of an apartment (or only the apartment when room_no is empty). Refused (409) when another
@@ -160,16 +183,9 @@ def moi_set_room():
     if room is not None and not 1 <= room <= max(cap, 1):
         return jsonify({'success': False, 'error': f'Căn này chỉ có {cap} phòng'}), 400
     if room is not None and not d.get('force'):
-        clash = _xdb.session.execute(text("""
-            SELECT COALESCE(g.full_name, b.guest_name) FROM bookings b LEFT JOIN guests g ON g.guest_id = b.guest_id
-            WHERE b.booking_id <> :b AND b.actual_apartment = :apt AND b.room_no = :room
-              AND b.checkin_date < :co AND b.checkout_date > :ci
-              AND COALESCE(b.booking_status, '') NOT IN ('cancelled', 'deleted')
-              AND COALESCE(b.checkin_status, '') NOT IN ('cancelling', 'no_show')"""),
-            {'b': bid, 'apt': str(apt), 'room': room, 'ci': b[0], 'co': b[1]}).fetchall()
+        clash = _moi_room_clash(_xdb, bid, apt, room, [(b[0], b[1])])
         if clash:
-            return jsonify({'success': False, 'clash': [c[0] for c in clash],
-                            'error': 'Phòng này đã có khách: ' + ', '.join(c[0] for c in clash)}), 409
+            return jsonify({'success': False, 'clash': clash, 'error': 'Phòng này đã có khách: ' + ', '.join(clash)}), 409
     record_booking_history(bid, {'actual_apartment': str(apt), 'room_no': room}, changed_by='moi_room')
     _xdb.session.execute(text("UPDATE bookings SET actual_apartment = :apt, room_no = :room, updated_at = NOW() WHERE booking_id = :b"),
                          {'apt': str(apt), 'room': room, 'b': bid})
@@ -180,8 +196,8 @@ def moi_set_room():
 @app.route('/api/moi/stay', methods=['POST'])
 def moi_set_stay():
     """Edit a guest's dates and/or total from the guest card (owner, Oct 29: tap "Ngày ở" / "Giá / đêm" / "Tổng tiền").
-    {booking_id, checkin_date?, checkout_date?, room_amount?, force?}. New dates that overlap another guest in the same
-    room are refused (409) unless force. Written to booking history like every other edit."""
+    {booking_id, checkin_date?, checkout_date?, room_amount?, force?}. Nights ADDED (from today on) that another guest
+    has in the same room are refused (409) unless force. Written to booking history like every other edit."""
     from core.models import db as _xdb
     _moi_ensure()
     d = request.get_json(silent=True) or {}
@@ -203,16 +219,12 @@ def moi_set_stay():
     if amount < 0:
         return jsonify({'success': False, 'error': 'Số tiền không được âm'}), 400
     if b[3] and b[4] and not d.get('force'):
-        clash = _xdb.session.execute(text("""
-            SELECT COALESCE(g.full_name, b.guest_name) FROM bookings b LEFT JOIN guests g ON g.guest_id = b.guest_id
-            WHERE b.booking_id <> :b AND b.actual_apartment = :apt AND b.room_no = :room
-              AND b.checkin_date < :co AND b.checkout_date > :ci
-              AND COALESCE(b.booking_status, '') NOT IN ('cancelled', 'deleted')
-              AND COALESCE(b.checkin_status, '') NOT IN ('cancelling', 'no_show')"""),
-            {'b': bid, 'apt': b[3], 'room': b[4], 'ci': ci, 'co': co}).fetchall()
+        # only the nights this edit ADDS can clash: shortening a stay or changing the price never asks
+        old_ci = b[0].date() if hasattr(b[0], 'date') else b[0]
+        old_co = b[1].date() if hasattr(b[1], 'date') else b[1]
+        clash = _moi_room_clash(_xdb, bid, b[3], b[4], [(ci, min(co, old_ci)), (max(ci, old_co), co)])
         if clash:
-            return jsonify({'success': False, 'clash': [c[0] for c in clash],
-                            'error': 'Những đêm này phòng đã có khách: ' + ', '.join(c[0] for c in clash)}), 409
+            return jsonify({'success': False, 'clash': clash, 'error': 'Những đêm thêm vào, phòng đã có khách: ' + ', '.join(clash)}), 409
     record_booking_history(bid, {'checkin_date': ci, 'checkout_date': co, 'room_amount': amount}, changed_by='moi_stay')
     _xdb.session.execute(text("""UPDATE bookings SET checkin_date = :ci, checkout_date = :co, room_amount = :amt, updated_at = NOW()
                                  WHERE booking_id = :b"""), {'ci': ci, 'co': co, 'amt': amount, 'b': bid})

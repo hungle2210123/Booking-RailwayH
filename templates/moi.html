@@ -425,6 +425,8 @@ button.info.on{border-color:#0E1525;background:#fff}
       if (!(v >= 0)) return toast('Số tiền chưa đúng');
       body.room_amount = S.edit === 'pn' ? v * b.nights : v;
     }
+    if ((!body.checkin_date || body.checkin_date === b.ci) && (!body.checkout_date || body.checkout_date === b.co) && Math.round(body.room_amount) === Math.round(b.total))
+      return toast('Chưa có gì thay đổi — chọn ngày / nhập số mới rồi bấm Lưu');
     let r = await post('/api/moi/stay', body);
     if (r.status === 409 && confirm((r.j.error || 'Phòng đã có khách') + '\n\nVẫn lưu?')) r = await post('/api/moi/stay', { ...body, force: true });
     if (!r.ok) return r.status === 409 ? null : toast('Lỗi: ' + (r.j.error || 'không lưu được'));
@@ -579,7 +581,10 @@ button.info.on{border-color:#0E1525;background:#fff}
 
   // ═════ LỊCH PHÒNG ═════
   const calWin = () => { const ws = S.calStart, we = ws + S.calN; return { ws, we }; };
-  const fits = (b, aid, no) => !B.some((o) => o.id !== b.id && o.apt === aid && o.room_no === no && o.ciO < b.coO && b.ciO < o.coO);
+  // a room "fits" when nobody else has it on the nights from TONIGHT on — past nights are history (owner, Oct 30: Kim
+  // left today, Michael moved into 101 from today → no "Trùng khách")
+  const fits = (b, aid, no) => { const s = Math.max(b.ciO, 0);
+    return s >= b.coO || !B.some((o) => o.id !== b.id && o.apt === aid && o.room_no === no && Math.max(o.ciO, 0) < b.coO && s < o.coO); };
   const freeRoomsFor = (b) => APT.reduce((t, a) => { for (let n = 1; n <= a.rooms; n++) if (!(b.apt === a.id && b.room_no === n) && fits(b, a.id, n)) t++; return t; }, 0);
   function viewCal() {
     const { ws, we } = calWin(), N = S.calN, days = []; for (let i = ws; i < we; i++) days.push(i);
@@ -857,8 +862,8 @@ button.info.on{border-color:#0E1525;background:#fff}
     // tap "Ngày ở" / "Giá / đêm" / "Tổng tiền" → edit right here (the total / per-night is worked out as you type)
     const ed = S.editFor === b.id ? S.edit : null;
     const editBox = !ed ? '' : `<div class="edit">${ed === 'dates'
-        ? `<div class="fld2"><label class="fld"><span>Ngày đến</span><input id="eCi" type="date" value="${b.ci}" oninput="M.editCalc('${b.id}')"></label>
-             <label class="fld"><span>Ngày trả</span><input id="eCo" type="date" value="${b.co}" oninput="M.editCalc('${b.id}')"></label></div>
+        ? `<div class="fld2"><label class="fld"><span>Ngày đến</span><input id="eCi" type="date" value="${b.ci}" oninput="M.editCalc('${b.id}')" onchange="M.editCalc('${b.id}')"></label>
+             <label class="fld"><span>Ngày trả</span><input id="eCo" type="date" value="${b.co}" oninput="M.editCalc('${b.id}')" onchange="M.editCalc('${b.id}')"></label></div>
            <div id="eNote" class="enote"></div>
            <div class="ebtns"><button class="pri" onclick="M.editSave('${b.id}','keepPn')">Lưu · giữ giá / đêm</button><button onclick="M.editSave('${b.id}','keepTotal')">Lưu · giữ tổng tiền</button></div>`
         : `<label class="fld"><span>${ed === 'pn' ? 'Giá mỗi đêm (đ) — vd 988000, 988k' : 'Tổng tiền (đ) — vd 3950000, 3,95tr'}</span>

@@ -91,6 +91,10 @@ grey (dimmed) không liên lạc được.
   room_amount?, force?}` (booking history `moi_stay`; 409 when the new nights overlap another guest in the same room).
   "Thanh toán" tile opens the Thu tiền sheet (paid → Hoàn tác); the separate "Thu tiền" button under it is gone.
   Test `test_moi_edit_stay`.
+- Oct 30 (owner: "Kim trả hôm nay, Michael chuyển vào 101 vẫn báo trùng"; "sửa ngày trả không lưu được"): **past nights are
+  never a clash** — `fits()` in moi.html and `_moi_room_clash()` (used by /api/moi/room and /api/moi/stay) look only at
+  nights from today on. /api/moi/stay asks (409) only for nights the edit ADDS, so shortening a stay / changing the price
+  is never blocked by an overlap that already existed. Saving with nothing changed says so. Test `test_moi_past_nights_never_clash`.
 - Oct 27 (owner): **room names** — tap "Phòng N ✏️" on the Lịch → prompt → `POST /api/moi/room_name {apartment_id, room_no, name}`
   (table `moi_room_names`, ≤ 40 chars, empty = back to "Phòng N"); `apartments[].room_names` in /api/moi/data; the name is
   used everywhere a room shows (calendar rows, guest sheet chips/header, rows, reminders, calendar feed / .ics text: `_moi_room_label`).
