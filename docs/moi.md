@@ -126,3 +126,10 @@ grey (dimmed) không liên lạc được.
   nights × price or typed → /api/moi/stay (checkout + total; room clash asks). The guest card's "Tin đã nhắn" bars are gone;
   Nhắn khách opens on **Chưa nhắn**. Payment templates 71/120/158/224 (EN) say the QR code works only in a banking app
   (Vietnamese bank app or an international app that supports Vietnam QR).
+- Oct 30 (owner approved mockup "ChiTietNgay.dc.html"): **/may-tinh Chi tiết ngày redesigned** — top: free rooms + "Việc cần
+  làm" tiles (Chờ xác nhận đến · Chưa thu tiền · Dọn gấp = check-out and check-in in the same room that day · Phòng 2 ngủ ·
+  Xem tất cả; tap = filter), "Chỉ khách cần làm" dims the rest; one block per apartment (room squares, Còn N trống / Kín,
+  counts, unpaid money) with the same three columns Đến · Ở tiếp · Trả; compact cards (room chip, money tag, one main
+  action Xác nhận đến → Thu tiền → Gửi bước tiếp, icons nhắn · gọi · nhắc · thẻ). **Khách đã báo hủy** at the bottom:
+  `/api/moi/data` → `cancelled` (checkin_status 'cancelling', arrival ≥ today − 3), shown on the days of their stay until
+  3 days after arrival, "Hoàn tác — khách vẫn đến" = /api/set_checkin_status ''. Test `test_moi_cancelled_list`.

@@ -101,6 +101,17 @@ a{color:#1D4ED8}
 .lk{display:inline-flex;align-items:center;border-radius:999px;padding:3px 10px;font-size:12px;font-weight:700;background:#fff;color:#334155;border:1px solid #E2E5EB;text-decoration:none}
 .lk:hover{background:#F6F7F9}
 .colhead{display:flex;align-items:center;justify-content:space-between;gap:8px;color:#fff;background:#0E1525;border-radius:12px;padding:11px 16px;font-size:15px;font-weight:800}
+/* day page (one block per apartment) */
+.todo{border:none;border-radius:12px;padding:10px 14px;text-align:left;display:flex;flex-direction:column;gap:2px;min-width:0}
+.todo b{font-size:22px;font-weight:800;line-height:1.1}.todo span{font-size:12.5px;font-weight:700}
+.colh2{font-size:11px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;color:#64748B;display:flex;align-items:center;gap:6px;padding:0 2px 2px}
+.colh2 i{font-style:normal;border-radius:999px;background:#E9EBF0;color:#334155;padding:0 7px;font-size:11px}
+.g2{background:#fff;border:1px solid #E4E7ED;border-radius:12px;padding:10px 12px;display:flex;flex-direction:column;gap:6px;min-width:0}
+.g2.dim{opacity:.35}
+.room{flex-shrink:0;border:none;border-radius:6px;padding:1px 7px;font-size:11.5px;font-weight:800;color:#fff;max-width:110px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.act2{border:none;border-radius:9px;min-height:32px;padding:0 10px;font-size:12.5px;font-weight:800;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ib{width:32px;height:32px;border-radius:9px;border:1px solid #E2E5EB;background:#fff;color:#475569;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;padding:0;text-decoration:none}
+.ib:hover{background:#F4F6F9;color:#0E1525}
 /* calendar */
 .ovt{text-align:left;color:#0E1525;background:#fff;border:none;border-radius:14px;padding:14px 16px;display:flex;flex-direction:column;box-shadow:inset 0 0 0 1px #E4E7ED}
 .ovt.on{box-shadow:inset 0 0 0 2px #0E1525}
@@ -223,7 +234,7 @@ button.info.on{border-color:#0E1525;background:#fff}
   // ── state ──
   const S = { data: null, tab: LS.get('tab', 'today'), day: 0, q: '',
               calN: LS.get('calN', 14), calStart: -1, ca: '', pick: null, dsel: null,
-              mtab: 'arr', mrange: 3, mf: 'todo', mapt: null, pf: 'all', papt: null, showPaid: false,
+              dayF: 'all', dayTodo: false, mtab: 'arr', mrange: 3, mf: 'todo', mapt: null, pf: 'all', papt: null, showPaid: false,
               sel: null, edit: null, editFor: null, move: false,
               modal: null, mfor: null, cmethod: 'cash', remNote: '', remAt: '',
               revMonth: null, revMode: 'revenue', revSel: null };
@@ -646,80 +657,108 @@ button.info.on{border-color:#0E1525;background:#fff}
         </div></div></div>`;
   }
 
-  // ═════════════════════ CHI TIẾT NGÀY (like the old calendar_details page) ═════════════════════
+  // ═════════════════════ CHI TIẾT NGÀY — one block per apartment (approved mockup, Oct 30) ═════════════════════
+  // top: free rooms + "Việc cần làm" (tap = filter) · each apartment: Đến · Ở tiếp · Trả in the same frame · compact cards
+  // (room chip, money tag, one main action + small icons) · Báo hủy guests at the bottom until 3 days after arrival
+  const turnIn = (b, d) => b.coO === d && b.apt && b.room_no ? B.find((x) => x.ciO === d && x.apt === b.apt && x.room_no === b.room_no && x.id !== b.id) : null;
+  const dayNeeds = (b, d) => ({ confirm: b.ciO === d && d <= 0 && !b.confirmed, pay: !b.paid && b.total > 0 && b.ciO < d,
+                                clean: !!turnIn(b, d), tb: b.tb && (b.ciO === d || b.coO === d) });
   function dayCard(b, kind) {
-    const st = stOf(b), d = S.day, l = b.coO - d, nx = b.next, a = aptById[b.apt];
-    const acts = [];
-    if (kind === 'in') {
-      acts.push(b.confirmed ? `<button class="btn sm" style="color:#166534;border-color:#86EFAC;background:#F0FDF4" onclick="D.confirm('${esc(b.id)}')">Đã xác nhận · bỏ</button>`
-        : `<button class="btn sm ok" onclick="D.confirm('${esc(b.id)}')">Xác nhận đến</button>`);
-      acts.push(`<button class="btn sm red" onclick="D.cancel('${esc(b.id)}')">Báo hủy</button>`);
-    }
-    if (nx) acts.push(`<button class="btn sm pri" style="grid-column:1/-1" onclick="D.send('${esc(b.id)}','${nx}')">Gửi: ${esc(stepLabel(nx))}</button>`);
-    acts.push(`<button class="btn sm" ${kind === 'in' ? 'style="grid-column:1/-1"' : ''} onclick="D.remind('${esc(b.id)}')">🔔 ${remsOf(b.id).length ? 'Nhắc ' + remLabel(remsOf(b.id)[0].at) : (kind === 'in' ? 'Đến muộn · Nhắc việc' : 'Nhắc việc')}</button>`);
-    if (kind !== 'in') acts.push(`<button class="btn sm" onclick="D.open('${esc(b.id)}');D.edit('${esc(b.id)}','extend')">Gia hạn phòng</button>`);
-    if (!b.paid && b.total > 0) acts.push(`<button class="btn sm" style="grid-column:1/-1;color:#166534;border-color:#86EFAC" onclick="D.payOpen('${esc(b.id)}')">${b.collected ? 'Thu nốt ' + fmt(left(b)) : 'Thu tiền ' + fmt(b.total)}</button>`);
-    const tag = kind === 'in' ? 'Ở ' + b.nights + ' đêm · trả ' + wd(b.coO) + ' ' + dm(b.coO) : l === 0 ? 'Trả hôm nay' : l === 1 ? 'Trả ngày mai' : 'Còn ' + l + ' đêm';
-    const wa = b.phone ? b.phone.replace(/[^\d]/g, '') : '';
-    return `<div class="card dcard">
-      <div style="display:flex;align-items:flex-start;gap:8px"><button class="nameb" style="flex:1;min-width:0" onclick="D.open('${esc(b.id)}')"><span style="font-size:15.5px;font-weight:800">${esc(b.name)}</span></button>
-        <span class="pill" style="${b.paid ? 'background:#DCFCE7;color:#166534' : b.collected ? 'background:#FEF3C7;color:#92400E' : 'background:#DC2626;color:#fff'}">${b.paid ? 'Đã thu' + (b.collector ? ' · ' + esc(b.collector) : '') : b.collected ? 'Thu một phần' : 'Chưa thu'}</span></div>
-      <div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center"><span class="pill" style="background:#E9EBF0;color:#334155;white-space:normal">${esc(b.listing || '—')}</span>
-        <span class="pill" style="${kind === 'out' || l === 1 ? 'background:#FEF3C7;color:#92400E' : 'background:#EEF2FF;color:#3730A3'}">${tag}</span>${b.tb ? '<span class="tb">2PN</span>' : ''}</div>
-      <div style="display:flex;justify-content:space-between;gap:8px;font-size:12px;color:#64748B"><span>Mã ${esc(b.id)}</span><span class="num" style="font-weight:600">${dm(b.ciO)} → ${dm(b.coO)}</span></div>
-      <div style="display:flex;justify-content:space-between;align-items:baseline"><span style="font-size:14px;font-weight:700">${b.nights} đêm${kind === 'stay' ? ' · đêm thứ ' + (d - b.ciO + 1) : ''}</span><span class="num" style="font-size:18px;font-weight:800">${fmt(b.total)}</span></div>
-      <div style="display:flex;justify-content:space-between;font-size:12px;color:#475569"><span>Giá mỗi đêm</span><span class="num" style="font-weight:700">${fmt(b.per_night)}</span></div>
-      ${b.collected && !b.paid ? `<div style="background:#F0FDF4;border:1px solid #BBF7D0;border-radius:8px;padding:6px 10px;font-size:12px;font-weight:700;display:flex;justify-content:space-between"><span style="color:#166534">Đã thu ${fmt(b.collected)}</span><span style="color:#B91C1C">Còn ${fmt(left(b))}</span></div>` : ''}
-      ${kind === 'out' && b.tb ? '<div style="background:#F5F3FF;border:1px solid #DDD6FE;border-radius:8px;padding:6px 10px;font-size:12px;font-weight:700;color:#5B21B6">Căn 2 phòng ngủ trả phòng — kiểm tra kỹ trước khi khách mới đến</div>' : ''}
-      <button onclick="D.status('${esc(b.id)}')" style="display:flex;align-items:center;gap:8px;border:none;border-radius:8px;padding:6px 10px;background:${st.bg};color:${st.fg};text-align:left;font-size:12px;font-weight:700"><span class="dot" style="background:${st.c}"></span><span style="flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(st.t)} · ${esc(st.s)}</span></button>
-      ${remsOf(b.id).map((r) => `<div style="font-size:12px;font-weight:700;color:${overdue(r) ? '#DC2626' : '#92400E'}">🔔 ${remLabel(r.at)} · ${esc(r.note)}</div>`).join('')}
-      <div class="dacts">${acts.join('')}</div>
-      <div class="dlinks"><span class="pill" style="${a ? 'background:' + a.color + ';color:#fff' : 'background:#FEF3C7;color:#92400E'}">${esc(where(b))}</span>
-        <button class="lk" onclick="D.open('${esc(b.id)}')">Đổi căn</button><button class="lk" onclick="D.send('${esc(b.id)}','__more')">Nhắn</button>
-        <button class="lk" onclick="Journey.zoom && Journey.zoom('/api/booking_screenshot/${encodeURIComponent(b.id)}?v=guest')">Ảnh</button>
-        ${b.phone ? `<a class="lk num" href="tel:${esc(b.phone)}">${esc(b.phone)}</a><a class="lk" href="https://wa.me/${wa}" target="_blank" rel="noopener">WhatsApp</a>${b.vn ? `<a class="lk" href="https://zalo.me/${wa.replace(/^84/, '0')}" target="_blank" rel="noopener">Zalo</a>` : ''}`
-          : `<button class="lk" style="border-style:dashed;color:#92400E" onclick="D.phone('${esc(b.id)}')">+ Thêm số</button>`}</div></div>`;
+    const d = S.day, n = dayNeeds(b, d), tin = turnIn(b, d), st = stOf(b), a = aptById[b.apt], id = esc(b.id);
+    let act;
+    if (n.confirm) act = [`D.confirm('${id}')`, 'Xác nhận đến', 'background:#15803D;color:#fff'];
+    else if (n.pay) act = [`D.payOpen('${id}')`, (b.collected ? 'Thu nốt ' : 'Thu tiền ') + short(left(b)), 'background:#0E1525;color:#fff'];
+    else if (b.next) act = [`D.send('${id}','${b.next}')`, 'Gửi: ' + stepLabel(b.next), kind === 'out' ? 'background:#F1F5F9;color:#0E1525' : 'background:#0E1525;color:#fff'];
+    else act = [`D.send('${id}','__more')`, 'Nhắn tin', 'background:#F1F5F9;color:#0E1525'];
+    const stay = kind === 'in' ? b.nights + ' đêm · trả ' + dm(b.coO) + ' · ' + short(b.per_night) + '/đêm'
+      : kind === 'stay' ? 'đêm ' + (d - b.ciO + 1) + '/' + b.nights + ' · trả ' + dm(b.coO) + ' · ' + short(b.per_night) + '/đêm'
+      : b.nights + ' đêm · ' + dm(b.ciO) + ' → ' + dm(b.coO) + ' · ' + short(b.per_night) + '/đêm';
+    const note = tin ? 'Dọn gấp → ' + tin.name + ' đến cùng phòng' : kind === 'out' && b.tb ? 'Phòng 2 ngủ — kiểm tra kỹ trước khách mới' : '';
+    const todo = n.confirm || n.pay || n.clean;
+    const rems = remsOf(b.id);
+    const ib = (onclick, label, icon) => `<button class="ib" onclick="${onclick}" title="${label}" aria-label="${label}">${icon}</button>`;
+    return `<div class="g2 ${S.dayTodo && !todo ? 'dim' : ''}">
+      <div style="display:flex;align-items:center;gap:8px;min-width:0">
+        <button class="room" style="background:${a ? a.color : '#F59E0B'}" onclick="D.open('${id}')" title="Đổi căn / phòng">${esc(b.room_no ? rn(b.apt, b.room_no) : a ? 'chưa số' : 'chưa căn')}</button>
+        <button class="nameb gn" style="flex:1" onclick="D.open('${id}')">${esc(b.name)}</button>
+        ${b.tb ? '<span class="tb">2PN</span>' : ''}
+        <span class="pill" style="${b.paid ? 'background:#DCFCE7;color:#166534' : kind === 'in' && !b.collected ? 'background:#F1F5F9;color:#475569' : b.collected ? 'background:#FEF3C7;color:#92400E' : 'background:#FEE2E2;color:#991B1B'}">${b.paid ? 'Đã thu' + (b.collector ? ' · ' + esc(b.collector) : '') : b.collected ? 'Còn ' + short(left(b)) : kind === 'in' ? 'Chưa thu' : 'Chưa thu ' + short(b.total)}</span></div>
+      <div style="display:flex;justify-content:space-between;gap:8px;font-size:12px;color:#475569;font-weight:600"><span class="num">${stay}</span><span class="num" style="color:#0E1525;font-weight:800">${fmt(b.total)}</span></div>
+      ${note ? `<div style="font-size:12px;font-weight:800;border-radius:8px;padding:4px 8px;${tin ? 'background:#E0F2FE;color:#075985' : 'background:#EDE9FE;color:#5B21B6'}">${esc(note)}</div>` : ''}
+      <button onclick="D.status('${id}')" title="${st.k === 'todo' ? 'Bấm nếu đã nhắn ngoài app' : st.k === 'wait' ? 'Bấm khi khách trả lời' : 'Mở thẻ khách'}" style="display:flex;align-items:center;gap:6px;border:none;background:none;padding:0;text-align:left;min-width:0">
+        <span class="dot" style="background:${st.c}"></span><span style="font-size:12px;font-weight:700;color:#334155;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(st.t)}${st.k === 'wait' || st.k === 'reply' ? ' · ' + esc(st.s) : ''}</span></button>
+      ${rems.length ? `<div style="font-size:12px;font-weight:800;color:${overdue(rems[0]) ? '#B91C1C' : '#92400E'}">🔔 ${remLabel(rems[0].at)} · ${esc(rems[0].note)}</div>` : ''}
+      <div style="display:flex;align-items:center;gap:6px">
+        <button class="act2" style="${act[2]}" onclick="${act[0]}">${esc(act[1])}</button>
+        ${ib(`D.send('${id}','${b.next || '__more'}')`, 'Nhắn tin', ico('msg', 15))}
+        ${b.phone ? `<a class="ib" href="tel:${esc(b.phone)}" title="Gọi ${esc(b.phone)}" aria-label="Gọi">${ico('phone', 15)}</a>` : ib(`D.phone('${id}')`, 'Thêm số điện thoại', ico('phone', 15))}
+        ${ib(`D.remind('${id}')`, 'Nhắc việc', ico('bell', 15))}
+        ${ib(`D.open('${id}')`, 'Thẻ khách: gia hạn, sửa giá, đổi căn, ảnh, báo hủy…', '<b style="font-size:15px;line-height:1">⋯</b>')}</div></div>`;
   }
   function viewDay() {
-    const d = S.day;
-    const ins = B.filter((b) => b.ciO === d && match(b)), stays = B.filter((b) => b.ciO < d && d < b.coO && match(b)), outs = B.filter((b) => b.coO === d && match(b));
-    const tonight = B.filter((b) => counts(b, d)), free = CAP() - tonight.length;
-    const wait = B.filter((b) => b.apt && inHouse(b, d) && b.ciO <= 0 && !b.confirmed), noApt = B.filter((b) => !b.apt && inHouse(b, d));
-    const tbOut = B.filter((b) => b.coO === d && b.tb).length;
-    const tiles = APT.map((a) => {
-      const occ = B.filter((b) => b.apt === a.id && counts(b, d)), f = a.rooms - occ.length;
-      const nIn = B.filter((b) => b.apt === a.id && b.ciO === d).length, nOut = B.filter((b) => b.apt === a.id && b.coO === d).length;
-      const nStay = B.filter((b) => b.apt === a.id && b.ciO < d && d < b.coO).length;
-      return `<div class="aptst" style="background:${f <= 0 ? '#FEF2F2' : f === 1 ? '#FFFBEB' : '#F0FDF4'};border:1px solid ${f <= 0 ? '#FECACA' : f === 1 ? '#FDE68A' : '#BBF7D0'}">
-        <div style="display:flex;align-items:center;gap:8px;font-size:14px;font-weight:800"><span class="dot" style="width:11px;height:11px;background:${a.color}"></span>${esc(a.name)}</div>
-        <div style="display:flex;align-items:center;gap:10px;margin-top:8px"><span class="num" style="font-size:42px;font-weight:800;line-height:1;color:${fcol(f)}">${Math.max(0, f)}</span>
-          <div><div style="font-size:13px;font-weight:700">${f > 0 ? 'phòng trống' : f === 0 ? 'hết phòng' : 'thừa ' + -f + ' khách'}</div><div class="muted" style="font-size:12px">trên ${a.rooms} phòng</div></div></div>
-        <div style="display:flex;gap:4px;margin-top:10px;flex-wrap:wrap">${Array.from({ length: a.rooms }, (_, k) => `<span title="${esc(rn(a.id, k + 1))}" style="width:22px;height:22px;border-radius:6px;${k < occ.length ? 'background:' + a.color : 'background:#fff;border:1.5px dashed ' + a.color + '99'}"></span>`).join('')}</div>
-        <div style="font-size:12px;font-weight:700;color:#334155;margin-top:8px">${nStay} đang ở · ${nIn} đến · ${nOut} trả</div>
-        <div class="gs" style="white-space:normal;line-height:1.45">${occ.length ? occ.map((b) => esc(b.name) + (b.room_no ? ' (' + esc(rn(b.apt, b.room_no)) + ')' : '')).join(', ') : 'Chưa có khách'}</div></div>`;
-    }).join('');
-    const col = (title, badge, list, kind) => {
-      const groups = APT.map((a) => ({ a, l: list.filter((b) => b.apt === a.id) })).concat([{ a: null, l: list.filter((b) => !b.apt) }]).filter((g) => g.l.length);
-      return `<section style="display:flex;flex-direction:column;gap:10px;min-width:0"><div class="colhead"><span>${title}</span><span class="pill" style="background:#fff;color:#0E1525">${badge}</span></div>
-        ${groups.map((g) => `<div style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:800;color:#334155;padding:4px 2px 0"><span class="dot" style="background:${g.a ? g.a.color : '#F59E0B'}"></span>${g.a ? esc(g.a.name) : 'Chưa xếp căn'} · ${g.l.length}</div>
-          <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:10px;align-items:start">${g.l.map((b) => dayCard(b, kind)).join('')}</div>`).join('') || '<div class="card empty">Không có khách</div>'}</section>`;
+    const d = S.day, f = S.dayF || 'all';
+    const all = B.filter(match);
+    const ins = all.filter((b) => b.ciO === d), stays = all.filter((b) => b.ciO < d && d < b.coO), outs = all.filter((b) => b.coO === d);
+    const people = [...ins, ...stays, ...outs];
+    const need = (k) => people.filter((b) => dayNeeds(b, d)[k]);
+    const free = freeOn(d), tonight = B.filter((b) => counts(b, d)).length;
+    const T = [['confirm', 'Chờ xác nhận đến', '#FEF3C7', '#92400E', need('confirm').map((b) => b.name.split(' ')[0]).join(', ') || 'không có'],
+               ['pay', 'Chưa thu tiền', '#FEE2E2', '#991B1B', short(need('pay').reduce((t, b) => t + left(b), 0)) + ' · khách ở / trả'],
+               ['clean', 'Dọn gấp', '#E0F2FE', '#075985', 'trả rồi có khách đến cùng phòng'],
+               ['tb', 'Phòng 2 ngủ', '#EDE9FE', '#5B21B6', 'trả / đến hôm đó'],
+               ['all', 'Xem tất cả', '#F1F5F9', '#0E1525', people.length + ' khách']];
+    const todos = T.map(([k, l, bg, fg, sub]) => `<button class="todo" onclick="D.set('dayF','${k}')" style="background:${bg};color:${fg};${f === k ? 'box-shadow:inset 0 0 0 2px ' + fg : ''}">
+      <b class="num">${k === 'all' ? people.length : need(k).length}</b><span>${l}</span><span style="font-weight:600;opacity:.85;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(sub)}</span></button>`).join('');
+    const pass = (b) => f === 'all' || dayNeeds(b, d)[f];
+    const COLS = [['in', 'Đến hôm nay', '#16A34A', ins, 'Không có khách đến'], ['stay', 'Ở tiếp qua đêm', '#2563EB', stays, 'Không có khách ở tiếp'], ['out', 'Trả phòng', '#94A3B8', outs, 'Không có khách trả']];
+    const band = (a) => {
+      const key = (b) => a ? b.apt === a.id : !b.apt;
+      const mine = people.filter(key);
+      if (!a && !mine.length) return '';
+      const n = a ? a.rooms : 0, used = a ? usedIn(a.id, d) : 0, fr = n - used;
+      const unpaid = mine.filter((b) => dayNeeds(b, d).pay).reduce((t, b) => t + left(b), 0);
+      const color = a ? a.color : '#F59E0B';
+      return `<section class="card" style="overflow:hidden"><div style="display:flex;flex-wrap:wrap;align-items:center;gap:10px;padding:12px 16px;border-bottom:1px solid #EEF0F4;box-shadow:inset 0 3px 0 ${color}">
+          <span class="dot" style="width:12px;height:12px;background:${color}"></span><b style="font-size:16px">${a ? esc(a.name) : 'Chưa xếp căn'}</b>
+          ${a ? `<span style="display:flex;gap:3px">${Array.from({ length: n }, (_, k) => `<span title="${esc(rn(a.id, k + 1))}" style="width:14px;height:14px;border-radius:4px;${k < used ? 'background:' + a.color : 'background:#fff;border:1.5px dashed ' + a.color + '99'}"></span>`).join('')}</span>
+            <span class="pill" style="${fr > 0 ? (fr === 1 ? 'background:#FEF3C7;color:#92400E' : 'background:#DCFCE7;color:#166534') : 'background:#FEE2E2;color:#991B1B'}">${fr > 0 ? 'Còn ' + fr + ' trống' : fr === 0 ? 'Kín phòng' : 'Thừa ' + -fr + ' khách'}</span>` : '<span class="pill" style="background:#FEF3C7;color:#92400E">chưa trừ phòng trống — bấm tên khách để xếp</span>'}
+          <span style="font-size:12.5px;color:#475569;font-weight:600">${mine.filter((b) => b.ciO === d).length} đến · ${mine.filter((b) => b.ciO < d && d < b.coO).length} ở tiếp · ${mine.filter((b) => b.coO === d).length} trả</span>
+          <span style="margin-left:auto;font-size:12.5px;font-weight:700;color:${unpaid ? '#991B1B' : '#166534'}">${unpaid ? 'Chưa thu ' + short(unpaid) : 'Đã thu đủ'}</span></div>
+        <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;padding:12px 16px 16px">${COLS.map(([k, title, dot, list, empty]) => {
+          const l = list.filter(key).filter(pass).sort((p, q) => (p.room_no || 99) - (q.room_no || 99));
+          return `<div style="display:flex;flex-direction:column;gap:8px;min-width:0"><div class="colh2"><span class="dot" style="background:${dot}"></span>${title}<i>${list.filter(key).length}</i></div>
+            ${l.map((b) => dayCard(b, k)).join('') || `<div class="muted" style="font-size:12.5px;font-weight:600;padding:8px 4px">${f === 'all' ? empty : '—'}</div>`}</div>`; }).join('')}</div></section>`;
     };
-    return `<div class="stack">
-      <section class="card"><div class="ch"><div><h3>Tình trạng căn hộ — ${wd(d)} ${dm(d)}</h3>
-          <div style="display:flex;flex-wrap:wrap;gap:4px 16px;margin-top:6px;font-size:13px;color:#475569;font-weight:600"><span>${tonight.length} có khách đêm nay</span>
-            <span>${B.filter((b) => b.ciO === d).length} đến (${B.filter((b) => b.ciO === d && !b.confirmed).length} chưa xác nhận)</span><span>${B.filter((b) => b.coO === d).length} trả${tbOut ? ' · <b style="color:#6D28D9">' + tbOut + ' phòng 2 ngủ</b>' : ''}</span>
-            ${wait.length + noApt.length ? `<span style="color:#B45309">${wait.length + noApt.length} chờ xếp (chưa trừ phòng)</span>` : ''}</div></div>
-          <span class="pill" style="font-size:14px;padding:6px 14px;${fbg(free)}">Còn ${Math.max(0, free)} phòng trống / ${CAP()}</span></div>
-        <div style="padding:16px 18px;display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px">${tiles}</div>
-        ${wait.length + noApt.length ? `<div style="margin:0 18px 16px;background:#FFFBEB;border:1px dashed #F59E0B;border-radius:10px;padding:10px 14px;font-size:13px;color:#92400E;line-height:1.55">
-          <b>${wait.length + noApt.length} khách chưa tính vào căn nào (không trừ phòng trống):</b>
-          ${wait.length ? `<div>Chưa bấm xác nhận đến: ${wait.map((b) => `<a href="#" onclick="D.open('${esc(b.id)}');return false" style="color:#92400E;font-weight:700">${esc(b.name)}</a>`).join(', ')}</div>` : ''}
-          ${noApt.length ? `<div>Chưa xếp căn: ${noApt.map((b) => `<a href="#" onclick="D.open('${esc(b.id)}');return false" style="color:#92400E;font-weight:700">${esc(b.name)}</a>`).join(', ')}</div>` : ''}</div>` : ''}</section>
-      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(330px,1fr));gap:18px;align-items:start">
-        ${col('Khách Check-in', ins.filter((b) => b.confirmed).length + ' / ' + ins.length + ' xác nhận', ins, 'in')}
-        ${col('Khách Đang Ở', stays.length + ' khách', stays, 'stay')}
-        ${col('Khách Check-out', outs.length + ' khách' + (tbOut ? ' · ' + tbOut + ' 2PN' : ''), outs, 'out')}</div></div>`;
+    // Báo hủy: from 3 days before today, the stays that touch this day — undo puts the guest back
+    const CX = ((S.data && S.data.cancelled) || []).map((b) => ({ ...b, ciO: offOf(b.ci), coO: offOf(b.co) }))
+      .filter((b) => b.ciO >= -3 && b.ciO <= d && d <= b.coO && match(b));
+    const cx = CX.length ? `<section class="card" style="overflow:hidden;border-color:#FECACA"><div style="display:flex;flex-wrap:wrap;align-items:center;gap:10px;padding:12px 16px;border-bottom:1px solid #FEE2E2;background:#FEF2F2">
+        <b style="font-size:15px;color:#991B1B">Khách đã báo hủy · ${CX.length}</b><span style="font-size:12.5px;color:#7F1D1D;font-weight:600">không tính phòng, không tính tiền · tự ẩn khi quá 3 ngày sau ngày đến · bấm Hoàn tác nếu khách vẫn đến</span></div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:10px;padding:12px 16px 16px">${CX.map((b) => { const a = aptById[b.apt];
+        return `<div class="g2" style="background:#FFFBFB;border-color:#FECACA"><div style="display:flex;align-items:center;gap:8px;min-width:0">
+          <span class="room" style="background:${a ? a.color : '#94A3B8'};opacity:.6">${esc(b.room_no && a ? rn(b.apt, b.room_no) : a ? a.short : 'chưa căn')}</span>
+          <span class="gn" style="flex:1;text-decoration:line-through;color:#7F1D1D">${esc(b.name)}</span><span class="pill" style="background:#FEE2E2;color:#991B1B">Báo hủy</span></div>
+          <div style="display:flex;justify-content:space-between;gap:8px;font-size:12px;color:#475569;font-weight:600"><span class="num">${dm(b.ciO)} → ${dm(b.coO)} · ${b.nights} đêm · ${esc(b.listing || '')}</span><span class="num" style="font-weight:800">${fmt(b.total)}</span></div>
+          <div style="display:flex;align-items:center;gap:6px"><span style="flex:1;font-size:12px;color:#64748B;font-weight:600">Ẩn sau ${dm(b.ciO + 3)}${b.phone ? ' · ' + esc(b.phone) : ''}</span>
+            <button class="act2" style="flex:0 0 auto;background:#fff;color:#0E1525;border:1px solid #E2E5EB" onclick="D.uncancel('${esc(b.id)}')">Hoàn tác — khách vẫn đến</button></div></div>`; }).join('')}</div></section>` : '';
+    return `<div class="stack" style="gap:16px">
+      <div style="display:flex;justify-content:flex-end"><div class="seg"><button class="${!S.dayTodo ? 'on' : ''}" onclick="D.set('dayTodo',false)">Tất cả khách</button><button class="${S.dayTodo ? 'on' : ''}" onclick="D.set('dayTodo',true)">Chỉ khách cần làm</button></div></div>
+      <section class="card" style="padding:14px 16px;display:flex;flex-wrap:wrap;gap:14px;align-items:stretch">
+        <div style="display:flex;align-items:center;gap:12px;padding-right:16px;border-right:1px solid #EEF0F4">
+          <div class="num" style="font-size:44px;font-weight:800;line-height:1;color:${fcol(free)}">${Math.max(0, free)}</div>
+          <div><div style="font-size:14px;font-weight:800">phòng trống đêm ${d === 0 ? 'nay' : dm(d)}</div><div style="font-size:12.5px;color:#475569;font-weight:600">trên ${CAP()} phòng · ${tonight} có khách</div></div></div>
+        <div style="flex:1;min-width:0"><div style="font-size:11.5px;font-weight:800;letter-spacing:.6px;color:#64748B;margin-bottom:6px">VIỆC CẦN LÀM ${d === 0 ? 'HÔM NAY' : 'NGÀY ' + dm(d)} · bấm để lọc</div>
+          <div style="display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px">${todos}</div></div></section>
+      ${APT.map(band).join('')}${band(null)}${cx}
+      <div style="font-size:12.5px;color:#475569;line-height:1.6"><b>Cách đọc:</b> ô màu đầu thẻ = <b>phòng</b> (màu của căn, bấm để đổi) · nhãn bên phải = <b>tiền</b> · chấm = <b>liên lạc</b> (bấm khi đã nhắn ngoài app / khách trả lời) · nút đen = <b>việc nên làm ngay</b> · nút nhỏ: nhắn · gọi · nhắc · thẻ khách (gia hạn, sửa giá, đổi căn, ảnh, báo hủy).</div></div>`;
   }
+  D.uncancel = async (id) => {
+    const b = ((S.data && S.data.cancelled) || []).find((x) => x.id === id);
+    if (!confirm('Hoàn tác báo hủy cho ' + (b ? b.name : id) + '?\nKhách sẽ được tính lại phòng và tiền.')) return;
+    const r = await post('/api/set_checkin_status', { booking_id: id, status: '' });
+    if (!r.ok) return toast('Lỗi: không lưu được');
+    toast('Đã hoàn tác: ' + (b ? b.name : id) + ' trở lại danh sách'); await load(true);
+  };
 
   // ═════════════════════ LỊCH PHÒNG ═════════════════════
   function viewCal() {

@@ -144,7 +144,24 @@ def moi_data():
             for r in _xdb.session.execute(text("""
                 SELECT id, booking_id, remind_at, note, done FROM moi_reminders
                 WHERE NOT done OR remind_at >= :d ORDER BY remind_at"""), {'d': datetime.combine(today, datetime.min.time())}).fetchall()]
+    # Báo hủy guests (owner, Oct 30): shown on the day page until 3 days after their arrival day, undoable there
+    cancelled = []
+    for r in _xdb.session.execute(text("""
+            SELECT b.booking_id, COALESCE(g.full_name, b.guest_name), b.checkin_date, b.checkout_date, b.accommodation_name,
+                   b.actual_apartment, b.room_no, b.room_amount, g.phone, b.via_partner
+            FROM bookings b LEFT JOIN guests g ON g.guest_id = b.guest_id
+            WHERE b.checkin_status = 'cancelling' AND COALESCE(b.booking_status, '') NOT IN ('cancelled', 'deleted')
+              AND b.checkin_date >= :since AND b.checkin_date < :until
+            ORDER BY b.checkin_date, b.booking_id"""), {'since': today - timedelta(days=3), 'until': until}).fetchall():
+        if not r[2] or not r[3]:
+            continue
+        apt = J.apt_id_of(r[5])
+        cancelled.append({'id': r[0], 'name': J.clean_name((r[1] or r[0]).strip()), 'ci': r[2].isoformat(), 'co': r[3].isoformat(),
+                          'nights': max((r[3] - r[2]).days, 1), 'total': float(r[7] or 0),
+                          'listing': _room_label(r[4], keep_note=True) or (r[4] or ''),
+                          'apt': apt if apt in apt_ids else None, 'room_no': r[6], 'phone': _real_guest_phone(r[8], bool(r[9]))})
     return jsonify({'success': True, 'today': today.isoformat(), 'reminders': rems, 'apartments': apts, 'bookings': out,
+                    'cancelled': cancelled,
                     'steps': [{'key': s['key'], 'emoji': s['emoji'], 'label': s['label']} for s in buttons],
                     'collectors': list(PAY_COLLECTORS)})
 

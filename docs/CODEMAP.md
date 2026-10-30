@@ -376,24 +376,24 @@ _p14_electricity — electricity calculator + meters/readings/bills_
 - app_parts/p14_electricity.py:449 `delete_electricity_image` ← `/api/electricity/images/<int:image_id>` DELETE — Delete electricity image
 - app_parts/p14_electricity.py:463 `get_electricity_analytics` ← `/api/electricity/analytics` GET — Get electricity analytics data for charts and comparisons
 
-## app_parts/p15_moi.py (449 lines)
+## app_parts/p15_moi.py (466 lines)
 _p15_moi — /moi: the new phone-first app (owner, Oct 26), built from the approved mockup. Runs NEXT TO the old pages_
 - app_parts/p15_moi.py:12 `_moi_ensure` — bookings.room_no (room 1..N inside the placed apartment) — added once per process.
 - app_parts/p15_moi.py:37 `_moi_apartments` — Active apartments with short name, colour (index among ALL apartments, like the calendar) and room count.
 - app_parts/p15_moi.py:54 `moi_page` ← `/moi` — The new phone-first app (old pages stay as they are).
 - app_parts/p15_moi.py:60 `desk_page` ← `/may-tinh` — The desktop app (owner, Oct 30): Hôm nay · Chi tiết ngày · Lịch phòng · Nhắn khách · Thu tiền · Doanh thu, gue
 - app_parts/p15_moi.py:68 `moi_data` ← `/api/moi/data` — Everything /moi shows: apartments, journey steps and every booking that touches [today − 10 days, today + 21 d
-- app_parts/p15_moi.py:152 `_moi_room_clash` — Guests (other than bid) who have room `room` of apartment `apt` on any night of `ranges` [(ci, co), …].
-- app_parts/p15_moi.py:176 `moi_set_room` ← `/api/moi/room` POST — Put a guest in room N of an apartment (or only the apartment when room_no is empty). Refused (409) when anothe
-- app_parts/p15_moi.py:209 `moi_set_stay` ← `/api/moi/stay` POST — Edit a guest's dates and/or total from the guest card (owner, Oct 29: tap "Ngày ở" / "Giá / đêm" / "Tổng tiền"
-- app_parts/p15_moi.py:248 `moi_reminder` ← `/api/moi/reminder` POST — ⏰ Add a reminder on a guest ({booking_id, at: 'YYYY-MM-DDTHH:MM' Vietnam time, note}), or tick / untick one
-- app_parts/p15_moi.py:274 `_ics_text`
-- app_parts/p15_moi.py:279 `moi_ics` ← `/api/moi/ics` — An iPhone Calendar event with an alarm for one guest — opened by a plain link, so Safari shows "Thêm vào Lịch"
-- app_parts/p15_moi.py:326 `_moi_feed_token` — Secret part of the calendar-subscription link (made once, kept in moi_settings).
-- app_parts/p15_moi.py:340 `moi_feed_link` ← `/api/moi/feed` — The webcal:// link the owner subscribes to ONCE on the iPhone (Lịch → every reminder and promised arrival time
-- app_parts/p15_moi.py:351 `moi_feed` ← `/cal/<token>.ics` — Subscribed calendar: open reminders (alarm at the time) + promised arrival times of guests not arrived yet
-- app_parts/p15_moi.py:423 `_moi_room_label` — The owner's name for room `no` of this apartment, else "Phòng N".
-- app_parts/p15_moi.py:429 `moi_room_name` ← `/api/moi/room_name` POST — Rename room N of an apartment ({apartment_id, room_no, name}); an empty name goes back to "Phòng N".
+- app_parts/p15_moi.py:169 `_moi_room_clash` — Guests (other than bid) who have room `room` of apartment `apt` on any night of `ranges` [(ci, co), …].
+- app_parts/p15_moi.py:193 `moi_set_room` ← `/api/moi/room` POST — Put a guest in room N of an apartment (or only the apartment when room_no is empty). Refused (409) when anothe
+- app_parts/p15_moi.py:226 `moi_set_stay` ← `/api/moi/stay` POST — Edit a guest's dates and/or total from the guest card (owner, Oct 29: tap "Ngày ở" / "Giá / đêm" / "Tổng tiền"
+- app_parts/p15_moi.py:265 `moi_reminder` ← `/api/moi/reminder` POST — ⏰ Add a reminder on a guest ({booking_id, at: 'YYYY-MM-DDTHH:MM' Vietnam time, note}), or tick / untick one
+- app_parts/p15_moi.py:291 `_ics_text`
+- app_parts/p15_moi.py:296 `moi_ics` ← `/api/moi/ics` — An iPhone Calendar event with an alarm for one guest — opened by a plain link, so Safari shows "Thêm vào Lịch"
+- app_parts/p15_moi.py:343 `_moi_feed_token` — Secret part of the calendar-subscription link (made once, kept in moi_settings).
+- app_parts/p15_moi.py:357 `moi_feed_link` ← `/api/moi/feed` — The webcal:// link the owner subscribes to ONCE on the iPhone (Lịch → every reminder and promised arrival time
+- app_parts/p15_moi.py:368 `moi_feed` ← `/cal/<token>.ics` — Subscribed calendar: open reminders (alarm at the time) + promised arrival times of guests not arrived yet
+- app_parts/p15_moi.py:440 `_moi_room_label` — The owner's name for room `no` of this apartment, else "Phòng N".
+- app_parts/p15_moi.py:446 `moi_room_name` ← `/api/moi/room_name` POST — Rename room N of an apartment ({apartment_id, room_no, name}); an empty name goes back to "Phòng N".
 
 ## core/__init__.py (3 lines)
 
@@ -798,16 +798,16 @@ _p15_moi — /moi: the new phone-first app (owner, Oct 26), built from the appro
 - templates/debug_collector_comparison.html: 215 `runComparison` · 257 `displayResults` · 283 `populateComparisonTable` · 321 `populateMethodDetails` · 344 `populateGuestDetails` · 392 `getDifferenceClass` · 398 `showError` · 403 `deleteDebugFile`
 - templates/debug_collector_comparison.html: 409 `runJuneSpecificDebug` · 439 `displayJuneSpecificResults`
 
-## templates/desk.html (1179 lines)
-- templates/desk.html: 292 `load` · 305 `loadRev` · 318 `needRev` · 335 `D.tab` · 336 `D.set` · 337 `D.q` · 338 `D.reload` · 340 `D.shift`
-- templates/desk.html: 346 `D.toToday` · 347 `D.open` · 348 `D.openDay` · 349 `D.close` · 350 `closeDrawer` · 351 `D.closeModal` · 354 `D.place` · 359 `D.room`
-- templates/desk.html: 366 `D.confirm` · 372 `D.cancel` · 378 `D.mark` · 382 `D.status` · 386 `D.unreach` · 387 `D.replied` · 388 `D.phone` · 395 `D.send`
-- templates/desk.html: 396 `D.pickApt` · 397 `D.quick` · 398 `D.photo` · 399 `D.chatPhone` · 400 `D.renameRoom` · 408 `D.pickG` · 409 `D.auto` · 424 `D.payOpen`
-- templates/desk.html: 425 `D.collect` · 434 `D.partial` · 436 `D.undoPay` · 439 `D.payCycle` · 449 `D.edit` · 451 `D.extN` · 453 `D.extTyped` · 454 `D.editCalc`
-- templates/desk.html: 475 `D.editSave` · 502 `D.remind` · 503 `D.remPreset` · 506 `D.remSet` · 507 `D.remSave` · 514 `D.remDone` · 518 `D.add` · 519 `D.addSave`
-- templates/desk.html: 534 `render` · 543 `renderSide` · 569 `renderTop` · 598 `viewToday` · 650 `dayCard` · 683 `viewDay` · 725 `viewCal` · 830 `renderPick`
-- templates/desk.html: 838 `viewMsg` · 881 `viewPay` · 921 `D.payQuick` · 927 `viewRev` · 998 `D.revMonth` · 999 `D.revDay` · 1000 `D.goDay` · 1001 `drawRevCharts`
-- templates/desk.html: 1024 `renderDrawer` · 1030 `guestCard` · 1084 `dayPanel` · 1105 `renderModal` · 1166 `D.mset` · 1167 `D.extOpen`
+## templates/desk.html (1218 lines)
+- templates/desk.html: 303 `load` · 316 `loadRev` · 329 `needRev` · 346 `D.tab` · 347 `D.set` · 348 `D.q` · 349 `D.reload` · 351 `D.shift`
+- templates/desk.html: 357 `D.toToday` · 358 `D.open` · 359 `D.openDay` · 360 `D.close` · 361 `closeDrawer` · 362 `D.closeModal` · 365 `D.place` · 370 `D.room`
+- templates/desk.html: 377 `D.confirm` · 383 `D.cancel` · 389 `D.mark` · 393 `D.status` · 397 `D.unreach` · 398 `D.replied` · 399 `D.phone` · 406 `D.send`
+- templates/desk.html: 407 `D.pickApt` · 408 `D.quick` · 409 `D.photo` · 410 `D.chatPhone` · 411 `D.renameRoom` · 419 `D.pickG` · 420 `D.auto` · 435 `D.payOpen`
+- templates/desk.html: 436 `D.collect` · 445 `D.partial` · 447 `D.undoPay` · 450 `D.payCycle` · 460 `D.edit` · 462 `D.extN` · 464 `D.extTyped` · 465 `D.editCalc`
+- templates/desk.html: 486 `D.editSave` · 513 `D.remind` · 514 `D.remPreset` · 517 `D.remSet` · 518 `D.remSave` · 525 `D.remDone` · 529 `D.add` · 530 `D.addSave`
+- templates/desk.html: 545 `render` · 554 `renderSide` · 580 `renderTop` · 609 `viewToday` · 666 `dayCard` · 698 `viewDay` · 755 `D.uncancel` · 764 `viewCal`
+- templates/desk.html: 869 `renderPick` · 877 `viewMsg` · 920 `viewPay` · 960 `D.payQuick` · 966 `viewRev` · 1037 `D.revMonth` · 1038 `D.revDay` · 1039 `D.goDay`
+- templates/desk.html: 1040 `drawRevCharts` · 1063 `renderDrawer` · 1069 `guestCard` · 1123 `dayPanel` · 1144 `renderModal` · 1205 `D.mset` · 1206 `D.extOpen`
 
 ## templates/duplicate_management.html (710 lines)
 - templates/duplicate_management.html: 196 `loadDuplicates` · 295 `updateStatistics` · 329 `renderDuplicateGroups` · 475 `toggleBookingSelection` · 506 `updateSelectedCount` · 521 `selectAllDuplicates` · 534 `deleteSelectedBookings` · 582 `showComparison`

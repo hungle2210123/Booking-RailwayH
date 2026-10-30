@@ -158,6 +158,25 @@ def test_moi_past_nights_never_clash(client, booking):
 
 
 @pytest.mark.db_write
+def test_moi_cancelled_list(client, booking):
+    """Owner, Oct 30: Báo hủy guests are listed on the day page (data['cancelled']) until 3 days after arrival, never in
+    the normal list; undo (status '') puts them back."""
+    from datetime import datetime, timedelta
+    t = (datetime.utcnow() + timedelta(hours=7)).date()
+    iso = lambda n: (t + timedelta(days=n)).isoformat()
+    recent = booking(guest_name='ZZ Huy Gan', checkin_date=iso(-2), checkout_date=iso(1))
+    old = booking(guest_name='ZZ Huy Cu', checkin_date=iso(-5), checkout_date=iso(-3))
+    for bid in (recent, old):
+        assert client.post('/api/set_checkin_status', json={'booking_id': bid, 'status': 'cancelling'}).get_json()['success']
+    d = client.get('/api/moi/data').get_json()
+    ids = [c['id'] for c in d['cancelled']]
+    assert recent in ids and old not in ids and recent not in [b['id'] for b in d['bookings']]
+    assert client.post('/api/set_checkin_status', json={'booking_id': recent, 'status': ''}).get_json()['success']
+    d = client.get('/api/moi/data').get_json()
+    assert recent not in [c['id'] for c in d['cancelled']] and recent in [b['id'] for b in d['bookings']]
+
+
+@pytest.mark.db_write
 def test_moi_room_names(client, db):
     """Rooms 1..N of an apartment can carry the owner's own name; empty = back to "Phòng N"; out-of-range refused."""
     apt = client.get('/api/moi/data').get_json()['apartments'][0]
