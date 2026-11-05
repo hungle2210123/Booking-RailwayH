@@ -53,7 +53,11 @@ def _moi_apartments(_xdb):
 @app.route('/moi')
 def moi_page():
     """The new phone-first app (old pages stay as they are)."""
-    return render_template('moi.html')
+    # no-cache: the iPhone (home-screen app / Safari tab) kept showing an old copy of the page after a deploy, so new
+    # parts (the booking picture on the guest card) did not appear (owner, Nov 5)
+    resp = make_response(render_template('moi.html'))
+    resp.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+    return resp
 
 
 @app.route('/may-tinh')
@@ -61,7 +65,9 @@ def desk_page():
     """The desktop app (owner, Oct 30): Hôm nay · Chi tiết ngày · Lịch phòng · Nhắn khách · Thu tiền · Doanh thu, guest card
     on the right. Same data/actions as /moi (/api/moi/*) and the same revenue numbers as /dashboard
     (/api/dashboard/overview, core/revenue.py). Old pages stay."""
-    return render_template('desk.html')
+    resp = make_response(render_template('desk.html'))
+    resp.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+    return resp
 
 
 @app.route('/api/moi/data')
