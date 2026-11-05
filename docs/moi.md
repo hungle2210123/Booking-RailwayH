@@ -141,3 +141,8 @@ grey (dimmed) không liên lạc được.
   check-out / long past arrival never confirmed (the no-show skip in /api/moi/data is gone — they show "Chờ xác
   nhận" until confirmed); /may-tinh day cards offer it for staying / leaving guests too. The phone guest card shows the
   booking picture (?v=full, tap = zoom). Test `test_moi_split_stay`.
+- Nov 5 (owner: "bấm xác nhận đến rồi mà lịch không đổi"): the click had never reached the server (DB still NULL) — `post()`
+  in both apps swallowed network errors silently. Now `post()` returns {ok:false} on a network error, `confirm` updates the
+  screen at once, retries once and shows "⚠️ CHƯA LƯU được…" if it still fails; /may-tinh Hôm nay arrival rows get a one-tap
+  "✓ Đã đến". **🧹 Copy tin dọn phòng** (/may-tinh Hôm nay + Chi tiết ngày, /moi day page): rooms of the guests leaving that
+  day per apartment, "⚡ Dọn gấp" where a new guest comes into the same room, arrivals per apartment — copied for Zalo.

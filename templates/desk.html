@@ -336,7 +336,8 @@ button.info.on{border-color:#0E1525;background:#fff}
   document.addEventListener('visibilitychange', () => { if (!document.hidden && !S.modal && !S.edit) load(true); });
 
   // ── API ──
-  const post = async (url, body) => { const r = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  const post = async (url, body) => { let r; try { r = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }); }
+                                       catch (e) { return { ok: false, status: 0, j: { error: 'mất kết nối mạng' } }; }   // never fail silently
     let j = {}; try { j = await r.json(); } catch (e) {} return { ok: r.ok && j.success !== false, status: r.status, j }; };
   let toastT = null;
   const toast = (t) => { let el = $('.toast'); if (!el) { el = document.createElement('div'); el.className = 'toast'; el.setAttribute('role', 'status'); document.body.appendChild(el); }
@@ -375,11 +376,47 @@ button.info.on{border-color:#0E1525;background:#fff}
     S.pick = null; toast('Đã xếp ' + b.name + ' vào ' + aptById[aid].short + (no ? ' · ' + rn(aid, no) : '')); await load(true);
   };
   D.confirm = async (id) => {
-    const b = byId[id]; const next = b.confirmed ? '' : 'confirmed';
-    const r = await post('/api/set_checkin_status', { booking_id: id, status: next });
-    if (!r.ok) return toast('Lỗi: không lưu được');
-    toast(next ? b.name + ' đã đến' : 'Đã bỏ xác nhận đến'); await load(true);
+    // shows at once, retries once, says so clearly when it could not be saved (owner, Nov 5: "bấm rồi mà lịch không đổi")
+    const b = byId[id]; if (!b || b._busy) return; b._busy = true;
+    const next = b.confirmed ? '' : 'confirmed';
+    b.confirmed = !!next; render(); renderDrawer();
+    let r = null;
+    for (let k = 0; k < 2 && !(r && r.ok); k++) { r = await post('/api/set_checkin_status', { booking_id: id, status: next }); if (!r.ok) await new Promise((x) => setTimeout(x, 900)); }
+    b._busy = false;
+    if (!r.ok) { b.confirmed = !next; render(); renderDrawer(); return toast('⚠️ CHƯA LƯU được ' + (next ? 'xác nhận đến' : 'bỏ xác nhận') + ' cho ' + b.name + ' — kiểm tra mạng rồi bấm lại'); }
+    toast(next ? '✓ ' + b.name + ' đã đến — đã cập nhật lịch và doanh thu' : 'Đã bỏ xác nhận đến'); await load(true);
   };
+
+  // 🧹 the cleaning message for the cleaners (owner, Nov 5): rooms of the guests leaving that day, per apartment,
+  // "dọn gấp" where a new guest arrives in the same room, then the arrivals — copied, ready to paste in Zalo
+  const cleanText = (d) => {
+    const outs = B.filter((b) => b.coO === d), ins = B.filter((b) => b.ciO === d);
+    const lines = [], urgent = [];
+    let total = 0;
+    APT.forEach((a) => {
+      const mine = outs.filter((b) => b.apt === a.id);
+      if (!mine.length) return;
+      const named = mine.filter((b) => b.room_no).sort((p, q) => p.room_no - q.room_no).map((b) => rn(a.id, b.room_no));
+      const unnamed = mine.length - named.length;
+      total += mine.length;
+      lines.push('• ' + a.name + ': ' + [named.join(', '), unnamed ? unnamed + ' phòng chưa ghi số' : ''].filter(Boolean).join(' + '));
+      mine.filter((b) => b.room_no && ins.some((x) => x.apt === a.id && x.room_no === b.room_no)).forEach((b) => urgent.push(a.short + ' ' + rn(a.id, b.room_no)));
+    });
+    const loose = outs.filter((b) => !b.apt).length;
+    if (loose) { total += loose; lines.push('• Chưa xếp căn: ' + loose + ' phòng'); }
+    const head = '🧹 DỌN PHÒNG ' + WDF[new Date(Date.parse(TODAY + 'T00:00:00Z') + d * 864e5).getUTCDay()].toUpperCase() + ' ' + dm(d);
+    if (!total) return head + '\nHôm nay không có phòng trả.';
+    const arr = APT.map((a) => [a.short, ins.filter((b) => b.apt === a.id).length]).filter((x) => x[1]).map((x) => x[0] + ' ' + x[1]).join(' · ');
+    return [head, ...lines, 'Tổng: ' + total + ' phòng',
+      urgent.length ? '⚡ Dọn gấp (có khách mới đến cùng phòng): ' + urgent.join(', ') : '',
+      arr ? 'Khách đến hôm nay: ' + arr : ''].filter(Boolean).join('\n');
+  };
+  const copyText = (t) => { let ok = false;
+    try { const ta = document.createElement('textarea'); ta.value = t; ta.setAttribute('readonly', ''); ta.style.cssText = 'position:fixed;top:0;opacity:0;font-size:16px';
+      document.body.appendChild(ta); ta.select(); ta.setSelectionRange(0, t.length); ok = document.execCommand('copy'); ta.remove(); } catch (e) {}
+    if (!ok && navigator.clipboard) navigator.clipboard.writeText(t).catch(() => {});
+    return true; };
+  D.cleanCopy = (d) => { const t = cleanText(d == null ? S.day : d); copyText(t); toast('Đã copy tin dọn phòng — dán vào Zalo / WhatsApp gửi các cô'); };
   D.cancel = async (id) => {
     const b = byId[id]; if (!confirm('Báo hủy ' + b.name + '?\n(giống "Báo hủy" trên lịch — hoàn tác được ở Lịch tháng / trang cũ)')) return;
     const r = await post('/api/set_checkin_status', { booking_id: id, status: 'cancelling' });
@@ -624,7 +661,7 @@ button.info.on{border-color:#0E1525;background:#fff}
     const pill = kind === 'out' ? `<span class="pill" style="${payStyle(b)}">${esc(payTxt(b))}</span>` : `<span class="pill" style="background:${st.bg};color:${st.fg}">${esc(st.t)}</span>`;
     const l2 = [b.room_no ? rn(b.apt, b.room_no) : (b.apt ? 'chưa có số' : 'chưa xếp căn'), b.nights + ' đêm', short(b.per_night) + '/đêm', b.listing].filter(Boolean).join(' · ');
     return `<div class="gr"><button class="main" onclick="D.open('${esc(b.id)}')"><span class="dot" style="background:${kind === 'out' ? '#CBD5E1' : st.c}"></span>
-      <span style="flex:1;min-width:0"><span style="display:flex;align-items:center;gap:6px;min-width:0"><span class="gn">${esc(b.name)}</span>${b.tb ? '<span class="tb">2PN</span>' : ''}</span><span class="gs" style="display:block">${esc(l2)}</span></span>${pill}</button>${bell(b)}</div>`;
+      <span style="flex:1;min-width:0"><span style="display:flex;align-items:center;gap:6px;min-width:0"><span class="gn">${esc(b.name)}</span>${b.tb ? '<span class="tb">2PN</span>' : ''}</span><span class="gs" style="display:block">${esc(l2)}</span></span>${pill}</button>${kind === 'in' && b.ciO <= 0 && !b.confirmed ? `<button class="btn xs ok" onclick="event.stopPropagation();D.confirm('${esc(b.id)}')" title="Xác nhận khách đã đến">✓ Đã đến</button>` : ''}${bell(b)}</div>`;
   };
 
   // ═════════════════════ HÔM NAY ═════════════════════
@@ -663,7 +700,8 @@ button.info.on{border-color:#0E1525;background:#fff}
         <div class="card kpi"><div class="l">Việc cần nhắc</div><div class="v num">${rems.length}</div><div class="s" style="${overN ? 'color:#B91C1C;font-weight:700' : ''}">${overN ? overN + ' việc đã tới giờ' : 'không có việc quá giờ'}</div></div>
       </div>
       <div class="two"><section class="card l"><div class="ch"><div><h3>Trả ↔ Đến theo căn</h3><div class="muted" style="font-size:12.5px;margin-top:2px">trái: khách trả · phải: khách đến · ô màu = phòng có khách đêm đó</div></div>
-          <span class="pill" style="background:#F1F5F9;color:#334155">${wd(d)} ${dm(d)} · ${rel(d).toLowerCase()}</span></div>${apts}</section>
+          <div style="display:flex;gap:8px;align-items:center"><button class="btn sm" onclick="D.cleanCopy(${d})" title="Copy tin nhắn: các phòng cần dọn hôm đó, theo căn">🧹 Copy tin dọn phòng</button>
+          <span class="pill" style="background:#F1F5F9;color:#334155">${wd(d)} ${dm(d)} · ${rel(d).toLowerCase()}</span></div></div>${apts}</section>
         <div class="r">
           <section class="card"><div class="ch"><h3>Việc cần nhắc · ${rems.length}</h3><span class="muted" style="font-size:12.5px">báo cả trên Lịch iPhone</span></div><div style="padding:6px 10px 10px">
             ${rems.map((r) => { const b = byId[r.booking_id]; return `<div class="remrow"><b class="num" style="width:64px;font-size:13.5px;color:${overdue(r) ? '#B91C1C' : '#0E1525'}">${remLabel(r.at)}</b>
@@ -765,7 +803,7 @@ button.info.on{border-color:#0E1525;background:#fff}
           <div style="display:flex;align-items:center;gap:6px"><span style="flex:1;font-size:12px;color:#64748B;font-weight:600">Ẩn sau ${dm(b.ciO + 3)}${b.phone ? ' · ' + esc(b.phone) : ''}</span>
             <button class="act2" style="flex:0 0 auto;background:#fff;color:#0E1525;border:1px solid #E2E5EB" onclick="D.uncancel('${esc(b.id)}')">Hoàn tác — khách vẫn đến</button></div></div>`; }).join('')}</div></section>` : '';
     return `<div class="stack" style="gap:16px">
-      <div style="display:flex;justify-content:flex-end"><div class="seg"><button class="${!S.dayTodo ? 'on' : ''}" onclick="D.set('dayTodo',false)">Tất cả khách</button><button class="${S.dayTodo ? 'on' : ''}" onclick="D.set('dayTodo',true)">Chỉ khách cần làm</button></div></div>
+      <div style="display:flex;justify-content:flex-end;gap:10px;align-items:center"><button class="btn sm" onclick="D.cleanCopy(${d})">🧹 Copy tin dọn phòng</button><div class="seg"><button class="${!S.dayTodo ? 'on' : ''}" onclick="D.set('dayTodo',false)">Tất cả khách</button><button class="${S.dayTodo ? 'on' : ''}" onclick="D.set('dayTodo',true)">Chỉ khách cần làm</button></div></div>
       <section class="card" style="padding:14px 16px;display:flex;flex-wrap:wrap;gap:14px;align-items:stretch">
         <div style="display:flex;align-items:center;gap:12px;padding-right:16px;border-right:1px solid #EEF0F4">
           <div class="num" style="font-size:44px;font-weight:800;line-height:1;color:${fcol(free)}">${Math.max(0, free)}</div>
