@@ -372,7 +372,7 @@ _p14_electricity — electricity calculator + meters/readings/bills_
 - app_parts/p14_electricity.py:449 `delete_electricity_image` ← `/api/electricity/images/<int:image_id>` DELETE — Delete electricity image
 - app_parts/p14_electricity.py:463 `get_electricity_analytics` ← `/api/electricity/analytics` GET — Get electricity analytics data for charts and comparisons
 
-## app_parts/p15_moi.py (755 lines)
+## app_parts/p15_moi.py (777 lines)
 _p15_moi — /moi: the new phone-first app (owner, Oct 26), built from the approved mockup. Runs NEXT TO the old pages_
 - app_parts/p15_moi.py:12 `_moi_ensure` — bookings.room_no (room 1..N inside the placed apartment) — added once per process.
 - app_parts/p15_moi.py:37 `_moi_apartments` — Active apartments with short name, colour (index among ALL apartments, like the calendar) and room count.
@@ -391,18 +391,18 @@ _p15_moi — /moi: the new phone-first app (owner, Oct 26), built from the appro
 - app_parts/p15_moi.py:432 `moi_feed` ← `/cal/<token>.ics` — Subscribed calendar: open reminders (alarm at the time) + promised arrival times of guests not arrived yet
 - app_parts/p15_moi.py:508 `_moi_clean_text` — The cleaners' message for `day` (owner, Nov 5: short — "Dọn phòng thứ năm 5/11 / Hàng Bạc: 102, 201"): the roo
 - app_parts/p15_moi.py:533 `moi_clean_feed` ← `/don-phong/<token>.txt` — Plain text of today's cleaning message (?d=1 tomorrow) — for an iPhone Shortcut that sends it at 8:00. The tok
-- app_parts/p15_moi.py:560 `_zbot_token`
-- app_parts/p15_moi.py:564 `_zbot_call`
-- app_parts/p15_moi.py:579 `_zbot_get`
-- app_parts/p15_moi.py:590 `_zbot_put`
-- app_parts/p15_moi.py:596 `_zbot_secret`
-- app_parts/p15_moi.py:605 `_zbot_send_clean` — Send the cleaning message of `day` to every chat that is on (or only `only`). Returns [(name, ok, error)].
-- app_parts/p15_moi.py:621 `zbot_tick` — One check (called every minute by zbot_loop): between 8:00 and 12:00 Vietnam time, the first worker that claim
-- app_parts/p15_moi.py:650 `zbot_loop`
-- app_parts/p15_moi.py:665 `zbot_hook` ← `/zalo-bot/hook` POST — Zalo calls this when someone messages the bot: remember the chat (new people are switched on) and answer.
-- app_parts/p15_moi.py:690 `moi_zbot` ← `/api/moi/zbot` GET,POST — Setup sheet in /moi: status · connect (setWebhook) · switch a person on/off · rename · send a test now.
-- app_parts/p15_moi.py:729 `_moi_room_label` — The owner's name for room `no` of this apartment, else "Phòng N".
-- app_parts/p15_moi.py:735 `moi_room_name` ← `/api/moi/room_name` POST — Rename room N of an apartment ({apartment_id, room_no, name}); an empty name goes back to "Phòng N".
+- app_parts/p15_moi.py:560 `_zbot_token` — Railway Variable ZALO_BOT_TOKEN, or the one the owner pasted in the /moi bot tab (moi_settings 'zbot_token' —
+- app_parts/p15_moi.py:573 `_zbot_call`
+- app_parts/p15_moi.py:588 `_zbot_get`
+- app_parts/p15_moi.py:599 `_zbot_put`
+- app_parts/p15_moi.py:605 `_zbot_secret`
+- app_parts/p15_moi.py:614 `_zbot_send_clean` — Send the cleaning message of `day` to every chat that is on (or only `only`). Returns [(name, ok, error)].
+- app_parts/p15_moi.py:630 `zbot_tick` — One check (called every minute by zbot_loop): between 8:00 and 12:00 Vietnam time, the first worker that claim
+- app_parts/p15_moi.py:659 `zbot_loop`
+- app_parts/p15_moi.py:674 `zbot_hook` ← `/zalo-bot/hook` POST — Zalo calls this when someone messages the bot: remember the chat (new people are switched on) and answer.
+- app_parts/p15_moi.py:699 `moi_zbot` ← `/api/moi/zbot` GET,POST — Setup sheet in /moi: status · connect (setWebhook) · switch a person on/off · rename · send a test now.
+- app_parts/p15_moi.py:751 `_moi_room_label` — The owner's name for room `no` of this apartment, else "Phòng N".
+- app_parts/p15_moi.py:757 `moi_room_name` ← `/api/moi/room_name` POST — Rename room N of an apartment ({apartment_id, room_no, name}); an empty name goes back to "Phòng N".
 
 ## core/__init__.py (3 lines)
 
@@ -814,7 +814,7 @@ _p15_moi — /moi: the new phone-first app (owner, Oct 26), built from the appro
 - templates/mobile_payment.html: 484 `cardCls` · 490 `dateBadge` · 498 `renderDates` · 557 `toISO` · 564 `openSheet` · 583 `closeSheet` · 588 `pick` · 594 `tickTs`
 - templates/mobile_payment.html: 601 `doConfirm` · 642 `showToast` · 649 `loadHistory` · 696 `switchTab` · 705 `changeOffset` · 707 `loadAnalytics` · 812 `openDetail` · 873 `closeDetail`
 
-## templates/moi.html (1061 lines)
+## templates/moi.html (1060 lines)
 - templates/moi.html: 207 `load` · 285 `M.reload` · 286 `M.tab` · 287 `M.set` · 288 `M.day` · 289 `M.open` · 290 `M.close` · 291 `M.add`
 - templates/moi.html: 292 `M.addSave` · 305 `M.place` · 310 `M.room` · 317 `M.confirm` · 351 `M.cleanLink` · 352 `M.cleanSetup` · 354 `M.zbotLoad` · 355 `M.zbot`
 - templates/moi.html: 363 `M.cleanCopy` · 364 `M.cancel` · 370 `M.mark` · 374 `M.status` · 376 `M.unreach` · 377 `M.renameRoom` · 385 `M.calDone` · 386 `M.remind`
@@ -822,7 +822,7 @@ _p15_moi — /moi: the new phone-first app (owner, Oct 26), built from the appro
 - templates/moi.html: 436 `M.quick` · 438 `M.photo` · 439 `M.chatPhone` · 446 `M.edit` · 448 `M.extN` · 452 `M.splitApt` · 458 `M.extTyped` · 459 `M.editCalc`
 - templates/moi.html: 487 `M.editSave` · 521 `M.payOpen` · 522 `M.collect` · 530 `M.partial` · 532 `M.undoPay` · 535 `M.payCycle` · 540 `M.pickG` · 541 `M.auto`
 - templates/moi.html: 556 `render` · 565 `renderNav` · 574 `renderFloat` · 590 `viewDay` · 675 `viewCal` · 750 `M.cal` · 754 `msgCard` · 784 `viewMsg`
-- templates/moi.html: 820 `M.aptSheetOpen` · 833 `viewPay` · 875 `renderSheet` · 1048 `S_set` · 1049 `renderSheetPub` · 1050 `S_put`
+- templates/moi.html: 820 `M.aptSheetOpen` · 833 `viewPay` · 875 `renderSheet` · 1047 `S_set` · 1048 `renderSheetPub` · 1049 `S_put`
 
 ## templates/quick.html (309 lines)
 - templates/quick.html: 146 `toast` · 151 `go` · 159 `copyNow` · 167 `sendText` · 172 `copyText` · 173 `sendImgs` · 184 `setIn` · 206 `takeOut`
