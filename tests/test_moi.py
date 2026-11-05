@@ -285,3 +285,27 @@ def test_zalo_bot_hook_and_send(client, monkeypatch):
                 appmod._zbot_put(db, 'zbot_last', last)
             else:
                 db.session.execute(appmod.text("DELETE FROM moi_settings WHERE key = 'zbot_last'")); db.session.commit()
+
+
+def test_zalo_bot_tick_reads_db_token(monkeypatch):
+    """The 8:00 sender runs in a background thread (no app context): it must still find the token pasted in /moi."""
+    import app as appmod
+    from datetime import datetime as _dt
+    calls = []
+
+    class FakeDT(_dt):
+        @classmethod
+        def utcnow(cls):
+            return _dt(2026, 11, 5, 1, 30)   # 8:30 in Vietnam
+    monkeypatch.setattr(appmod, 'datetime', FakeDT)
+    monkeypatch.delenv('ZALO_BOT_TOKEN', raising=False)
+    real = appmod._zbot_token
+
+    def tok():
+        calls.append(1)
+        return ''          # no token → no send, but it was asked inside the app context without crashing
+    monkeypatch.setattr(appmod, '_zbot_token', tok)
+    assert appmod.zbot_tick() is False and calls
+    monkeypatch.setattr(appmod, '_zbot_token', real)
+    with appmod.app.app_context():
+        real()   # works inside the context

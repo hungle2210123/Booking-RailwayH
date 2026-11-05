@@ -628,14 +628,16 @@ def _zbot_send_clean(_xdb, day=None, only=None):
 
 
 def zbot_tick():
-    """One check (called every minute by zbot_loop): between 8:00 and 12:00 Vietnam time, the first worker that claims
-    today sends. A deploy at 9:30 still sends once; nothing is sent twice."""
+    """One check (called every minute by zbot_loop): between 8:00 and 10:00 Vietnam time, the first worker that claims
+    today sends. A restart at 8:30 still sends once; nothing is sent twice."""
     now = datetime.utcnow() + timedelta(hours=7)
-    if not (8 <= now.hour < 12) or not _zbot_token():
+    if not (8 <= now.hour < 10):
         return False
     from core.models import db as _xdb
     with app.app_context():
         try:
+            if not _zbot_token():   # the pasted token lives in the DB → needs the app context (was checked outside it)
+                return False
             chats = _zbot_get(_xdb, 'zbot_chats', {}) or {}
             if not any(c.get('on') for c in chats.values()):
                 return False

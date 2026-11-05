@@ -153,4 +153,4 @@ iPhone Shortcuts + Zalo always asks "Hãy xác nhận" (Zalo's own action), so t
 Creator and sets Railway Variable `ZALO_BOT_TOKEN`. /moi → 🧹 → "⏰ Tự gửi…" → tab 🤖 Bot Zalo: Kết nối (setWebhook to
 `/zalo-bot/hook`, secret in moi_settings `zbot_secret`, header `X-Bot-Api-Secret-Token`) → the cleaners message the bot
 once → listed in `zbot_chats` (on/off, rename, Gửi thử). `zbot_loop()` starts in gunicorn.conf.py post_fork; `zbot_tick()`
-sends once per day between 8:00–12:00 (atomic claim on `zbot_sent`). Result in `zbot_last`. Groups are beta at Zalo.
+sends once per day between 8:00–10:00 (atomic claim on `zbot_sent`). Result in `zbot_last`. Groups are beta at Zalo.
