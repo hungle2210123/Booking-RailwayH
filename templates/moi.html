@@ -360,7 +360,7 @@ button.info.on{border-color:#0E1525;background:#fff}
     if (action === 'rename') { const c = (S.zbot.chats || []).find(x => x.id === id); const n = prompt('Tên người nhận', c ? c.name : ''); if (!n) return; extra = { name: n }; }
     if (action === 'remove' && !confirm('Bỏ người này khỏi danh sách nhận tin?')) return;
     toast(action === 'test' ? 'Đang gửi thử…' : 'Đang lưu…');
-    const j = await post('/api/moi/zbot', Object.assign({ action, id }, extra || {}));
+    const j = (await post('/api/moi/zbot', Object.assign({ action, id }, extra || {}))).j || {};   // post() → {ok, status, j}
     if (!j.success) { S.zbErr = j.error || 'lỗi'; renderSheet(); return toast('Chưa được: ' + S.zbErr); }
     S.zbErr = '';
     if (action === 'token') S.zbTok = '';
