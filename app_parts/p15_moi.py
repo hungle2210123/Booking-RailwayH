@@ -714,7 +714,10 @@ def moi_zbot():
             me = _zbot_call('getMe')
             if not me.get('ok'):
                 _xdb.session.execute(text("DELETE FROM moi_settings WHERE key = 'zbot_token'")); _xdb.session.commit()
-                return jsonify({'success': False, 'error': 'Zalo không nhận mã này — kiểm tra lại ô Bot Token (' + str(me.get('description') or '')[:80] + ')'})
+                why = str(me.get('description') or '')[:80]
+                print(f"⚠️ Zalo bot getMe refused the pasted token: {me.get('error_code')} {why}")
+                return jsonify({'success': False, 'error': ('Zalo báo mã này không còn dùng được (đã Reset?) — copy mã MỚI NHẤT trong ô Bot Token rồi dán lại'
+                                                            if me.get('error_code') == 401 or 'Unauthorized' in why else 'Zalo chưa nhận mã: ' + why)})
             act = 'connect'
         if act == 'connect':
             url = 'https://' + request.host_url.split('://', 1)[1].rstrip('/') + '/zalo-bot/hook'
