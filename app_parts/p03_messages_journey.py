@@ -624,6 +624,9 @@ def booking_screenshot(booking_id):
     col = 'full_img' if request.args.get('v') == 'full' else 'guest_img'
     row = _xdb.session.execute(text(f"SELECT {col}, mime FROM booking_screenshots WHERE booking_id = :b"),
                                {'b': booking_id}).fetchone()
+    if not row and re.search(r'-p\d+$', booking_id):      # a split part shows its stay's picture
+        row = _xdb.session.execute(text(f"SELECT {col}, mime FROM booking_screenshots WHERE booking_id = :b"),
+                                   {'b': re.sub(r'-p\d+$', '', booking_id)}).fetchone()
     if not row:
         return jsonify({'success': False, 'error': 'Chưa có ảnh chụp'}), 404
     resp = app.response_class(bytes(row[0]), mimetype=row[1] or 'image/jpeg')

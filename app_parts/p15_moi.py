@@ -116,8 +116,7 @@ def moi_data():
         total, got = float(r[10] or 0), float(r[11] or 0)
         nights = max((co - ci).days, 1)
         confirmed = r[9] == 'confirmed'
-        if not confirmed and ci < today - timedelta(days=2) and co > today:
-            continue                                     # never came (no-show): not on any list (core/occupancy rule)
+        # unconfirmed long after arrival stays on the lists (owner, Nov 5): it still needs "Xác nhận đến" to count
         apt = J.apt_id_of(r[7])
         last = J.last_contact(done, buttons)
         m = marks.get(bid)
@@ -259,6 +258,64 @@ def moi_set_stay():
                                  WHERE booking_id = :b"""), {'ci': ci, 'co': co, 'amt': amount, 'b': bid})
     _xdb.session.commit()
     return jsonify({'success': True, 'nights': (co - ci).days, 'room_amount': amount})
+
+
+@app.route('/api/moi/split', methods=['POST'])
+def moi_split():
+    """Split a stay over two rooms (owner, Nov 5: "ngày 3 ở một phòng, ngày 4 một phòng khác"): {booking_id, at (the
+    first night in the new room), apartment_id?, room_no?, force?}. The booking keeps [check-in, at); a new booking
+    "<id>-pN" gets [at, check-out) in the chosen room. Price and money already collected are shared by nights, so the
+    revenue per night and the totals stay the same; contact history is copied. The extension leaves split stays' dates alone."""
+    from core.models import db as _xdb
+    _moi_ensure()
+    d = request.get_json(silent=True) or {}
+    bid = str(d.get('booking_id') or '').strip()
+    b = _xdb.session.execute(text("""SELECT checkin_date, checkout_date, room_amount, collected_amount, actual_apartment, room_no
+                                     FROM bookings WHERE booking_id = :b"""), {'b': bid}).fetchone()
+    if not b:
+        return jsonify({'success': False, 'error': 'Không tìm thấy đặt phòng'}), 404
+    ci, co = b[0], b[1]
+    try:
+        at = datetime.strptime(str(d.get('at')), '%Y-%m-%d').date()
+    except ValueError:
+        return jsonify({'success': False, 'error': 'Ngày tách chưa đúng'}), 400
+    if not ci < at < co:
+        return jsonify({'success': False, 'error': 'Ngày tách phải nằm giữa ngày đến và ngày trả'}), 400
+    apt = str(d.get('apartment_id') or b[4] or '') or None
+    try:
+        room = int(d['room_no']) if d.get('room_no') not in (None, '') else None
+    except (TypeError, ValueError):
+        return jsonify({'success': False, 'error': 'Số phòng chưa đúng'}), 400
+    if apt and room and not d.get('force'):
+        clash = _moi_room_clash(_xdb, bid, apt, room, [(at, co)])
+        if clash:
+            return jsonify({'success': False, 'clash': clash, 'error': 'Những đêm này phòng đã có khách: ' + ', '.join(clash)}), 409
+    base = re.sub(r'-p\d+$', '', bid)
+    k = 2
+    while _xdb.session.execute(text("SELECT 1 FROM bookings WHERE booking_id = :b"), {'b': f'{base}-p{k}'}).fetchone():
+        k += 1
+    nid = f'{base}-p{k}'
+    n, n1 = (co - ci).days, (at - ci).days
+    amount, got = float(b[2] or 0), float(b[3] or 0)
+    a1, g1 = round(amount * n1 / n), round(got * n1 / n)
+    keep = [c for (c,) in _xdb.session.execute(text("""SELECT column_name FROM information_schema.columns
+            WHERE table_name = 'bookings' ORDER BY ordinal_position""")).fetchall()
+            if c not in ('booking_id', 'checkin_date', 'room_amount', 'collected_amount', 'actual_apartment', 'room_no',
+                         'created_at', 'updated_at')]
+    cols = ', '.join(keep)
+    record_booking_history(bid, {'checkout_date': at, 'room_amount': a1}, changed_by='moi_split')   # before the change (it diffs)
+    _xdb.session.execute(text(f"""INSERT INTO bookings (booking_id, checkin_date, room_amount, collected_amount, actual_apartment, room_no, {cols})
+        SELECT :nid, :at, :a2, :g2, :apt, :room, {cols} FROM bookings WHERE booking_id = :b"""),
+        {'nid': nid, 'at': at, 'a2': amount - a1, 'g2': got - g1, 'apt': apt, 'room': room, 'b': bid})
+    _xdb.session.execute(text("UPDATE bookings SET checkout_date = :at, room_amount = :a1, collected_amount = :g1, updated_at = NOW() WHERE booking_id = :b"),
+                         {'at': at, 'a1': a1, 'g1': g1, 'b': bid})
+    try:       # the guest was already messaged — the new part keeps that history
+        _xdb.session.execute(text("""INSERT INTO journey_log (booking_id, step, sent_at)
+            SELECT :nid, step, sent_at FROM journey_log WHERE booking_id = :b ON CONFLICT DO NOTHING"""), {'nid': nid, 'b': bid})
+    except Exception:
+        pass
+    _xdb.session.commit()
+    return jsonify({'success': True, 'new_id': nid, 'nights': [n1, n - n1], 'amounts': [a1, amount - a1]})
 
 
 @app.route('/api/moi/reminder', methods=['POST'])

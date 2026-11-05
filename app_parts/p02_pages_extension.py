@@ -155,6 +155,9 @@ def _ext_existing(booking_id):
         'listing': row[6] or '', 'phone': row[7] or '', 'email': row[8] or '',
         'collected_amount': float(row[9] or 0), 'collector': row[10] or '',
         'booking_status': row[11] or '', 'checkin_status': row[12] or '', 'guest_id': row[13],
+        # the owner split this stay over two rooms (/api/moi/split → "<id>-p2"): Booking's whole-stay dates / price
+        # must not undo the split
+        'split': bool(_xdb.session.execute(text("SELECT 1 FROM bookings WHERE booking_id = :b"), {'b': row[0] + '-p2'}).fetchone()),
     }
 
 
@@ -203,6 +206,8 @@ def _ext_diff(existing, f):
     updates, changes = {}, []
     if f['guest_name'] and not existing['guest_name']:
         updates['guest_name'] = f['guest_name']; changes.append(f"tên: {f['guest_name']}")
+    if existing.get('split'):          # dates / price belong to the split parts now
+        f = {**f, 'checkin_date': None, 'checkout_date': None, 'room_amount': None}
     if f['checkin_date'] and f['checkin_date'].isoformat() != existing['checkin_date']:
         updates['checkin_date'] = f['checkin_date']; changes.append(f"nhận phòng {existing['checkin_date']} → {f['checkin_date']}")
     if f['checkout_date'] and f['checkout_date'].isoformat() != existing['checkout_date']:

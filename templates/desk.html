@@ -458,13 +458,27 @@ button.info.on{border-color:#0E1525;background:#fff}
     const num = mul > 1 ? parseFloat(s.replace(/[^\d.,]/g, '').replace(',', '.')) : Number(s.replace(/[^\d]/g, ''));
     return isFinite(num) ? Math.round(num * mul) : NaN; };
   D.edit = (id, what) => { S.editFor = id; S.edit = S.edit === what ? null : what; S.extAddEdited = false; renderDrawer();
-    if (S.edit) setTimeout(() => { D.editCalc(id); const i = $(S.edit === 'dates' ? '#eCo' : S.edit === 'extend' ? '#ePn' : '#eVal'); if (i) { i.focus(); if (i.select) i.select(); } }, 30); };
+    if (S.edit) setTimeout(() => { D.editCalc(id); if (S.edit === 'split') return D.splitApt(id); const i = $(S.edit === 'dates' ? '#eCo' : S.edit === 'extend' ? '#ePn' : '#eVal'); if (i) { i.focus(); if (i.select) i.select(); } }, 30); };
   D.extN = (id, n) => { const i = $('#eN'); if (i) i.value = n; S.extAddEdited = false; D.editCalc(id);
     document.querySelectorAll('.extn').forEach((x) => x.classList.toggle('on', +x.dataset.n === n)); };
+  // ✂ split a stay over two rooms (POST /api/moi/split)
+  const isoAt = (o) => new Date(Date.parse(TODAY + 'T00:00:00Z') + o * 864e5).toISOString().slice(0, 10);
+  D.splitApt = (id, keep) => { const b = byId[id], el = $('#sRoom'), aid = +($('#sApt') || {}).value; if (!el) return;
+    const a = aptById[aid], at = $('#sAt') ? offOf($('#sAt').value) : b.ciO + 1, part = { ...b, id: '__split', ciO: at, coO: b.coO };
+    el.innerHTML = '<option value="">chưa xếp số phòng</option>' + (a ? Array.from({ length: a.rooms }, (_, k) => k + 1).map((no) => {
+      const ok = fits({ ...part, apt: aid, room_no: null }, aid, no);
+      return `<option value="${no}" ${keep == no ? 'selected' : ''}>${esc(rn(aid, no))}${ok ? ' · trống' : ' · trùng khách'}</option>`; }).join('') : '');
+    D.editCalc(id); };
   D.extTyped = (id, k) => { S.extAddEdited = k === 'add'; D.editCalc(id); };
   D.editCalc = (id) => {
     const b = byId[id], el = $('#eNote'); if (!b || !el) return;
     const pn = Math.round(b.total / b.nights);
+    if (S.edit === 'split') {
+      const at = offOf($('#sAt').value), n1 = at - b.ciO, n2 = b.coO - at, a1 = Math.round(b.total * n1 / b.nights);
+      const aid = +$('#sApt').value, no = +$('#sRoom').value || 0, a = aptById[aid];
+      el.innerHTML = `<b>Phần 1</b> · ${esc(where(b))} · ${dm(b.ciO)} → ${dm(at)} · ${n1} đêm · ${fmt(a1)}<br><b>Phần 2</b> · ${a ? esc(a.short) + (no ? ' · ' + esc(rn(aid, no)) : ' · chưa có số') : 'chưa xếp căn'} · ${dm(at)} → ${dm(b.coO)} · ${n2} đêm · ${fmt(b.total - a1)}${b.collected ? '<br>Tiền đã thu ' + fmt(b.collected) + ' cũng chia theo số đêm' : ''}`;
+      return;
+    }
     if (S.edit === 'extend') {
       const n = Math.max(0, parseInt($('#eN').value, 10) || 0), p = money($('#ePn').value);
       if (!S.extAddEdited && p >= 0) $('#eAdd').value = String(n * p);
@@ -485,6 +499,14 @@ button.info.on{border-color:#0E1525;background:#fff}
   };
   D.editSave = async (id, mode) => {
     const b = byId[id]; const body = { booking_id: id };
+    if (S.edit === 'split') {
+      const sb = { booking_id: id, at: $('#sAt').value, apartment_id: +$('#sApt').value || null, room_no: +$('#sRoom').value || null };
+      let r = await post('/api/moi/split', sb);
+      if (r.status === 409 && confirm((r.j.error || 'Phòng đã có khách') + '\n\nVẫn tách vào phòng này?')) r = await post('/api/moi/split', { ...sb, force: true });
+      if (!r.ok) return r.status === 409 ? null : toast('Lỗi: ' + (r.j.error || 'không tách được'));
+      toast('Đã tách: ' + b.name + ' · ' + r.j.nights[0] + ' đêm + ' + r.j.nights[1] + ' đêm');
+      S.edit = null; await load(true); return renderDrawer();
+    }
     if (S.edit === 'extend') {
       const n = Math.max(0, parseInt($('#eN').value, 10) || 0), add = money($('#eAdd').value);
       if (!(n > 0)) return toast('Chọn số đêm thêm');
@@ -661,7 +683,8 @@ button.info.on{border-color:#0E1525;background:#fff}
   // top: free rooms + "Việc cần làm" (tap = filter) · each apartment: Đến · Ở tiếp · Trả in the same frame · compact cards
   // (room chip, money tag, one main action + small icons) · Báo hủy guests at the bottom until 3 days after arrival
   const turnIn = (b, d) => b.coO === d && b.apt && b.room_no ? B.find((x) => x.ciO === d && x.apt === b.apt && x.room_no === b.room_no && x.id !== b.id) : null;
-  const dayNeeds = (b, d) => ({ confirm: b.ciO === d && d <= 0 && !b.confirmed, pay: !b.paid && b.total > 0 && b.ciO < d,
+  const dayNeeds = (b, d) => ({ confirm: !b.confirmed && b.ciO <= 0 && b.ciO <= d,   // also staying / leaving guests never confirmed (owner, Nov 5)
+                                 pay: !b.paid && b.total > 0 && b.ciO < d,
                                 clean: !!turnIn(b, d), tb: b.tb && (b.ciO === d || b.coO === d) });
   function dayCard(b, kind) {
     const d = S.day, n = dayNeeds(b, d), tin = turnIn(b, d), st = stOf(b), a = aptById[b.apt], id = esc(b.id);
@@ -1072,7 +1095,11 @@ button.info.on{border-color:#0E1525;background:#fff}
          <label class="fld"><span>Tiền thêm (đ) — tự tính = số đêm × giá, hoặc gõ số khác (vd 1,2tr)</span><input id="eAdd" inputmode="decimal" oninput="D.extTyped('${id}','add')"></label>
          <div id="eNote" class="enote"></div>`;
     const extSave = `<button class="btn pri" style="width:100%;margin-top:10px" onclick="D.editSave('${id}')">Lưu gia hạn</button>`;
-    const editBox = !ed ? '' : `<div class="edit">${ed === 'extend' ? extBox + extSave : ed === 'dates'
+    const splitBox = ed !== 'split' ? '' : `<label class="fld"><span>Từ đêm nào ở phòng mới?</span><select id="sAt" onchange="D.splitApt('${id}', ($('#sRoom') || {}).value)">${Array.from({ length: b.nights - 1 }, (_, k) => b.ciO + k + 1).map((o) => `<option value="${isoAt(o)}">từ đêm ${dm(o)} (đêm thứ ${o - b.ciO + 1})</option>`).join('')}</select></label>
+         <div class="fld2"><label class="fld"><span>Căn cho phần sau</span><select id="sApt" onchange="D.splitApt('${id}')">${APT.map((x) => `<option value="${x.id}" ${x.id === b.apt ? 'selected' : ''}>${esc(x.name)}</option>`).join('')}</select></label>
+           <label class="fld"><span>Phòng</span><select id="sRoom" onchange="D.editCalc('${id}')"></select></label></div>
+         <div id="eNote" class="enote"></div>`;
+    const editBox = !ed ? '' : `<div class="edit">${ed === 'split' ? splitBox + `<button class="btn pri" style="width:100%;margin-top:10px;" onclick="D.editSave('${id}')">✂ Lưu tách phòng</button>` : ed === 'extend' ? extBox + extSave : ed === 'dates'
         ? `<div class="fld2"><label class="fld"><span>Ngày đến</span><input id="eCi" type="date" value="${b.ci}" oninput="D.editCalc('${id}')" onchange="D.editCalc('${id}')"></label>
              <label class="fld"><span>Ngày trả</span><input id="eCo" type="date" value="${b.co}" oninput="D.editCalc('${id}')" onchange="D.editCalc('${id}')"></label></div>
            <div id="eNote" class="enote"></div>
@@ -1095,13 +1122,14 @@ button.info.on{border-color:#0E1525;background:#fff}
         <button class="info ${ed === 'pn' ? 'on' : ''}" onclick="D.edit('${id}','pn')"><small>Giá / đêm <i>sửa</i></small><b class="num">${short(b.per_night)} · ${b.nights} đêm</b></button>
         <button class="info ${ed === 'total' ? 'on' : ''}" onclick="D.edit('${id}','total')"><small>Tổng tiền <i>sửa</i></small><b class="num">${fmt(b.total)}</b></button>
         <button class="info" onclick="${b.paid ? `D.undoPay('${id}')` : `D.payOpen('${id}')`}"><small>Thanh toán <i>${b.paid ? 'hoàn tác' : 'thu tiền'}</i></small><b style="color:${b.paid ? '#15803D' : '#DC2626'}">${b.paid ? 'Đã thu · ' + esc(b.collector) : b.collected ? 'Đã thu ' + short(b.collected) + ' · còn ' + short(left(b)) : 'Chưa thu'}</b></button>
-        <button class="info ${ed === 'extend' ? 'on' : ''}" style="grid-column:1/-1;text-align:center" onclick="D.edit('${id}','extend')"><b>➕ Gia hạn thêm đêm</b><small>tự tính tiền theo giá đêm — hoặc tự nhập số tiền</small></button></div>
+        <button class="info ${ed === 'extend' ? 'on' : ''}" style="grid-column:1/-1;text-align:center" onclick="D.edit('${id}','extend')"><b>➕ Gia hạn thêm đêm</b><small>tự tính tiền theo giá đêm — hoặc tự nhập số tiền</small></button>
+        ${b.nights >= 2 ? `<button class="info ${ed === 'split' ? 'on' : ''}" style="grid-column:1/-1;text-align:center" onclick="D.edit('${id}','split')"><b>✂ Tách phòng — đổi phòng giữa chừng</b><small>vd đêm đầu phòng 101, các đêm sau phòng 102 — lịch và doanh thu tự chia đúng</small></button>` : ''}</div>
       ${editBox}
       <div style="display:flex;align-items:center;gap:8px;margin-top:10px;background:#EFF6FF;border-radius:12px;padding:6px 6px 6px 12px">
         <span class="num" style="flex:1;min-width:0;font-size:14px;font-weight:800;color:#1D4ED8">${b.phone ? `<a href="tel:${esc(b.phone)}" style="text-decoration:none">${esc(b.phone)}</a>` : b.partner ? 'Đối tác — chưa có số khách' : 'Chưa có số điện thoại'}</span>
         <button class="btn xs" style="border:none;color:#1D4ED8" onclick="D.phone('${id}')">${b.phone ? 'Sửa số' : 'Thêm số'}</button></div>
       <div class="gs" style="margin-top:10px;white-space:normal">${b.last ? 'Gần nhất: ' + esc(b.last.label) + ' · ' + esc(b.last.at) : 'Chưa gửi tin nào'}${b.next ? ' · nên gửi: <b>' + esc(stepLabel(b.next)) + '</b>' : ''}</div>
-      ${b.ciO <= 0 && b.coO > 0 ? `<button class="btn ${b.confirmed ? '' : 'ok'}" style="width:100%;margin-top:14px;min-height:46px;${b.confirmed ? 'background:#DCFCE7;color:#15803D;border-color:#BBF7D0' : ''}" onclick="D.confirm('${id}')">${b.confirmed ? 'Đã xác nhận đến — bấm để bỏ' : 'Xác nhận khách đã đến'}</button>` : ''}
+      ${b.ciO <= 0 && (b.coO > 0 || !b.confirmed) ? `<button class="btn ${b.confirmed ? '' : 'ok'}" style="width:100%;margin-top:14px;min-height:46px;${b.confirmed ? 'background:#DCFCE7;color:#15803D;border-color:#BBF7D0' : ''}" onclick="D.confirm('${id}')">${b.confirmed ? 'Đã xác nhận đến — bấm để bỏ' : 'Xác nhận khách đã đến'}</button>` : ''}
       <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:10px">
         <button class="btn pri" onclick="D.send('${id}','${b.next || '__more'}')">${ico('msg', 16)}${b.next ? 'Gửi tiếp' : 'Nhắn'}</button>
         ${b.phone ? `<a class="btn" href="tel:${esc(b.phone)}">${ico('phone', 16)}Gọi</a>` : `<button class="btn" onclick="D.phone('${id}')">${ico('phone', 16)}Thêm số</button>`}
@@ -1113,7 +1141,7 @@ button.info.on{border-color:#0E1525;background:#fff}
         ${r.done ? '<span class="muted" style="font-size:12px">đã xong</span>' : `<button class="btn xs" onclick="D.remDone(${r.id})">Xong</button>`}<button class="btn xs" onclick="D.remDone(${r.id},true)" aria-label="Xoá lời nhắc">${ico('x', 12, 2.4)}</button></div>`).join('')}` : ''}
       <div class="sect">Căn hộ</div><div class="grid4">${aptChips}</div>
       ${a ? `<div class="sect">Phòng trong ${esc(a.short)} · bấm để xếp</div><div style="display:flex;flex-wrap:wrap;gap:6px">${roomChips}</div>` : ''}
-      <div class="sect">Ảnh đặt phòng</div><div style="display:flex;gap:10px;align-items:center"><img class="shot" src="/api/booking_screenshot/${encodeURIComponent(b.id)}?v=guest" alt="Ảnh đặt phòng" loading="lazy" onerror="this.style.visibility='hidden'" onclick="Journey.zoom && Journey.zoom(this.src)">
+      <div class="sect">Ảnh đặt phòng</div><div style="display:flex;gap:10px;align-items:center"><img class="shot" src="/api/booking_screenshot/${encodeURIComponent(b.id)}?v=full" alt="Ảnh đặt phòng" loading="lazy" onerror="this.style.visibility='hidden'" onclick="Journey.zoom && Journey.zoom(this.src)">
         <div class="gs" style="white-space:normal">${b.vn ? 'Khách Việt' : 'Khách nước ngoài'}${b.no_wa ? ' · không dùng WhatsApp' : ''}${b.no_zalo ? ' · không dùng Zalo' : ''}${b.note ? '<br>Ghi chú thu tiền: ' + esc(b.note) : ''}</div></div>
       <button class="btn red" style="margin-top:20px" onclick="D.cancel('${id}')">Báo hủy (hoàn tác được)</button>`;
   }

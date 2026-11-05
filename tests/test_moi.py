@@ -210,3 +210,34 @@ def test_quick_custom_group(client):
     finally:
         assert client.post('/api/quick/group', json={'action': 'delete', 'key': key}).get_json()['success']
     assert 'ZZ Xe máy' not in client.get('/tin-nhanh').get_data(as_text=True)
+
+
+@pytest.mark.db_write
+def test_moi_split_stay(client, db, booking):
+    """Owner, Nov 5: a guest moves rooms mid-stay → ✂ Tách phòng: [ci, at) stays, "<id>-p2" gets [at, co) in the new
+    room; price and collected money shared by nights (totals unchanged); Booking re-imports don't undo it."""
+    a = booking(guest_name='ZZ Tach', checkin_date='2030-07-01', checkout_date='2030-07-04', room_amount=3000000)
+    apt = client.get('/api/moi/data').get_json()['apartments'][0]['id']
+    nid = a + '-p2'
+    try:
+        r = client.post('/api/moi/split', json={'booking_id': a, 'at': '2030-07-02', 'apartment_id': apt, 'room_no': 2}).get_json()
+        assert r['success'] and r['new_id'] == nid and r['nights'] == [1, 2] and r['amounts'] == [1000000, 2000000]
+        rows = {x[0]: x[1:] for x in db.session.execute(text("""SELECT booking_id, checkin_date, checkout_date, room_amount, actual_apartment, room_no
+            FROM bookings WHERE booking_id IN (:a, :n)"""), {'a': a, 'n': nid}).fetchall()}
+        assert str(rows[a][1]) == '2030-07-02' and float(rows[a][2]) == 1000000
+        assert str(rows[nid][0]) == '2030-07-02' and str(rows[nid][1]) == '2030-07-04' and float(rows[nid][2]) == 2000000
+        assert rows[nid][3] == str(apt) and rows[nid][4] == 2
+        assert client.post('/api/moi/split', json={'booking_id': a, 'at': '2030-07-05'}).status_code == 400
+        # the extension's whole-stay dates no longer touch a split stay
+        ex = app_module_existing(a)
+        assert ex['split'] is True
+    finally:
+        db.session.execute(text("DELETE FROM journey_log WHERE booking_id = :n"), {'n': nid})
+        db.session.execute(text("DELETE FROM bookings WHERE booking_id = :n"), {'n': nid})
+        db.session.commit()
+
+
+def app_module_existing(bid):
+    import app as _app
+    with _app.app.app_context():
+        return _app._ext_existing(bid)

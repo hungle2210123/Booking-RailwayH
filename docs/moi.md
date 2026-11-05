@@ -133,3 +133,11 @@ grey (dimmed) không liên lạc được.
   action Xác nhận đến → Thu tiền → Gửi bước tiếp, icons nhắn · gọi · nhắc · thẻ). **Khách đã báo hủy** at the bottom:
   `/api/moi/data` → `cancelled` (checkin_status 'cancelling', arrival ≥ today − 3), shown on the days of their stay until
   3 days after arrival, "Hoàn tác — khách vẫn đến" = /api/set_checkin_status ''. Test `test_moi_cancelled_list`.
+- Nov 5 (owner): **✂ Tách phòng** on the guest card (both apps, stays ≥ 2 nights): pick "from night X", apartment + room
+  (free / trùng shown) → `POST /api/moi/split {booking_id, at, apartment_id, room_no, force}` — the booking keeps
+  [ci, at), new booking `<id>-pN` gets [at, co) (all columns copied, price + collected shared by nights, journey_log
+  copied, 409 on room clash). `_ext_existing()['split']` makes the extension leave a split stay's dates / price alone;
+  `/api/booking_screenshot/<id>-pN` falls back to the stay's picture. **Xác nhận đến** now also for guests past
+  check-out / long past arrival never confirmed (the no-show skip in /api/moi/data is gone — they show "Chờ xác
+  nhận" until confirmed); /may-tinh day cards offer it for staying / leaving guests too. The phone guest card shows the
+  booking picture (?v=full, tap = zoom). Test `test_moi_split_stay`.

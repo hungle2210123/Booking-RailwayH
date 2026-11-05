@@ -33,7 +33,7 @@ _p01_health_cancellations — health, cancellations centre, OK status, auto-sync
 - app_parts/p01_health_cancellations.py:597 `api_undo_cancellation` ← `/api/undo_cancellation` POST — Undo cancellation confirmation and allow alert to show again
 - app_parts/p01_health_cancellations.py:660 `api_set_ok_status` ← `/api/set_ok_status` POST — Set OK status for a guest (meaning no more cancellation issues)
 
-## app_parts/p02_pages_extension.py (784 lines)
+## app_parts/p02_pages_extension.py (789 lines)
 _p02_pages_extension — page shells (/, dashboard, expenses, apartments), dashboard API, Chrome extension import/save, photo import, phone from extension_
 - app_parts/p02_pages_extension.py:5 `apartment_management` ← `/apartments` — Apartment management page
 - app_parts/p02_pages_extension.py:13 `index` ← `/` — Opening the app: on a computer the desktop app /may-tinh is the main page (owner, Oct 30); on a phone, TODAY's
@@ -45,32 +45,32 @@ _p02_pages_extension — page shells (/, dashboard, expenses, apartments), dashb
 - app_parts/p02_pages_extension.py:76 `api_dashboard_overview` ← `/api/dashboard/overview` — ?month=YYYY-MM (default: current month, Vietnam time).
 - app_parts/p02_pages_extension.py:131 `_ext_auth_error` — Optional shared secret: set EXTENSION_TOKEN on the server and in the extension options.
 - app_parts/p02_pages_extension.py:139 `_ext_existing`
-- app_parts/p02_pages_extension.py:162 `ext_ping` ← `/api/ext/ping`
-- app_parts/p02_pages_extension.py:169 `_ext_fields` — Normalise fields coming from the extension.
-- app_parts/p02_pages_extension.py:201 `_ext_diff` — Booking-fact changes (column → value) + readable list. Never touches what the app manages.
-- app_parts/p02_pages_extension.py:229 `_ensure_property_column`
-- app_parts/p02_pages_extension.py:245 `_property_for` — Learn / recall the listing name of a Booking property id.
-- app_parts/p02_pages_extension.py:259 `_set_property`
-- app_parts/p02_pages_extension.py:275 `_provisional_id`
-- app_parts/p02_pages_extension.py:280 `_provisional_match` — The one provisional booking for the same stay (dates, and price ±1,000đ or same guest name), else None.
-- app_parts/p02_pages_extension.py:300 `_rename_booking` — Give a booking its real number everywhere it is referenced (one transaction).
-- app_parts/p02_pages_extension.py:321 `_room_ids` — Booking ids for the rooms of one reservation: the 1st room keeps the number, the others get -2, -3 …
-- app_parts/p02_pages_extension.py:326 `_ext_save_rooms` — A reservation of several rooms (owner, Oct 21): every room is its own booking on the web — <id> for room 1,
-- app_parts/p02_pages_extension.py:373 `_ext_save_one` — Create or update one booking (+ its Booking listing name). Returns (result dict, http status).
-- app_parts/p02_pages_extension.py:398 `_ext_save_one_core` — Create or update one booking. Returns (result dict, http status).
-- app_parts/p02_pages_extension.py:484 `_ext_known_listings`
-- app_parts/p02_pages_extension.py:490 `_ext_listings`
-- app_parts/p02_pages_extension.py:500 `ext_booking_parse` ← `/api/ext/booking/parse` POST — Turn a captured page into fields + what is already in the system.
-- app_parts/p02_pages_extension.py:551 `ext_booking_save` ← `/api/ext/booking/save` POST — Save one booking checked by the user in the extension panel.
-- app_parts/p02_pages_extension.py:572 `ext_booking_save_many` ← `/api/ext/booking/save_many` POST — Save the rows ticked on the reservation list page — each one independently.
-- app_parts/p02_pages_extension.py:594 `booking_from_photo_parse` ← `/api/booking_from_photo/parse` POST — /messages "📷 Thêm từ ảnh": text OCR'd on the phone from Booking app screenshots → fields to check.
-- app_parts/p02_pages_extension.py:638 `_name_starts` — Every word OCR'd from the app ("Maheshwaran S") starts a word of the web name ("Maheshwaran Subramanian in").
-- app_parts/p02_pages_extension.py:647 `_photo_booking_by_name` — The one not-yet-finished booking whose guest has this name (any case / accents / word order), else None.
-- app_parts/p02_pages_extension.py:666 `booking_from_photo_save` ← `/api/booking_from_photo/save` POST — Save the checked fields — same rules as the Chrome extension (only Booking facts; collected money,
-- app_parts/p02_pages_extension.py:689 `ext_booking_phone` ← `/api/ext/booking/phone` POST — A reservation page now shows the guest phone (the owner clicked Booking's own
-- app_parts/p02_pages_extension.py:771 `_typed_phone` — A number the owner typed / pasted ("0905 123 456", "+33 6 12 34 56 78", "0033…") → '+<digits>' or ''.
+- app_parts/p02_pages_extension.py:165 `ext_ping` ← `/api/ext/ping`
+- app_parts/p02_pages_extension.py:172 `_ext_fields` — Normalise fields coming from the extension.
+- app_parts/p02_pages_extension.py:204 `_ext_diff` — Booking-fact changes (column → value) + readable list. Never touches what the app manages.
+- app_parts/p02_pages_extension.py:234 `_ensure_property_column`
+- app_parts/p02_pages_extension.py:250 `_property_for` — Learn / recall the listing name of a Booking property id.
+- app_parts/p02_pages_extension.py:264 `_set_property`
+- app_parts/p02_pages_extension.py:280 `_provisional_id`
+- app_parts/p02_pages_extension.py:285 `_provisional_match` — The one provisional booking for the same stay (dates, and price ±1,000đ or same guest name), else None.
+- app_parts/p02_pages_extension.py:305 `_rename_booking` — Give a booking its real number everywhere it is referenced (one transaction).
+- app_parts/p02_pages_extension.py:326 `_room_ids` — Booking ids for the rooms of one reservation: the 1st room keeps the number, the others get -2, -3 …
+- app_parts/p02_pages_extension.py:331 `_ext_save_rooms` — A reservation of several rooms (owner, Oct 21): every room is its own booking on the web — <id> for room 1,
+- app_parts/p02_pages_extension.py:378 `_ext_save_one` — Create or update one booking (+ its Booking listing name). Returns (result dict, http status).
+- app_parts/p02_pages_extension.py:403 `_ext_save_one_core` — Create or update one booking. Returns (result dict, http status).
+- app_parts/p02_pages_extension.py:489 `_ext_known_listings`
+- app_parts/p02_pages_extension.py:495 `_ext_listings`
+- app_parts/p02_pages_extension.py:505 `ext_booking_parse` ← `/api/ext/booking/parse` POST — Turn a captured page into fields + what is already in the system.
+- app_parts/p02_pages_extension.py:556 `ext_booking_save` ← `/api/ext/booking/save` POST — Save one booking checked by the user in the extension panel.
+- app_parts/p02_pages_extension.py:577 `ext_booking_save_many` ← `/api/ext/booking/save_many` POST — Save the rows ticked on the reservation list page — each one independently.
+- app_parts/p02_pages_extension.py:599 `booking_from_photo_parse` ← `/api/booking_from_photo/parse` POST — /messages "📷 Thêm từ ảnh": text OCR'd on the phone from Booking app screenshots → fields to check.
+- app_parts/p02_pages_extension.py:643 `_name_starts` — Every word OCR'd from the app ("Maheshwaran S") starts a word of the web name ("Maheshwaran Subramanian in").
+- app_parts/p02_pages_extension.py:652 `_photo_booking_by_name` — The one not-yet-finished booking whose guest has this name (any case / accents / word order), else None.
+- app_parts/p02_pages_extension.py:671 `booking_from_photo_save` ← `/api/booking_from_photo/save` POST — Save the checked fields — same rules as the Chrome extension (only Booking facts; collected money,
+- app_parts/p02_pages_extension.py:694 `ext_booking_phone` ← `/api/ext/booking/phone` POST — A reservation page now shows the guest phone (the owner clicked Booking's own
+- app_parts/p02_pages_extension.py:776 `_typed_phone` — A number the owner typed / pasted ("0905 123 456", "+33 6 12 34 56 78", "0033…") → '+<digits>' or ''.
 
-## app_parts/p03_messages_journey.py (1450 lines)
+## app_parts/p03_messages_journey.py (1453 lines)
 _p03_messages_journey — phone from chat screenshots, /api/messages/phone, auto messages, AI reply, Booking screenshots, journey, Thu tiền (pay), /tin-nhanh, /messages_
 - app_parts/p03_messages_journey.py:13 `_owner_numbers` — Last 9 digits of every number written in the message templates (the owner's WhatsApp / WeChat / hotline).
 - app_parts/p03_messages_journey.py:25 `parse_chat_shot`
@@ -97,41 +97,41 @@ _p03_messages_journey — phone from chat screenshots, /api/messages/phone, auto
 - app_parts/p03_messages_journey.py:560 `booking_from_photo_shot` ← `/api/booking_from_photo/shot` POST — The Booking app screenshot of a booking added from /messages → its booking picture (full + guest version with
 - app_parts/p03_messages_journey.py:587 `ext_booking_screenshot` ← `/api/ext/booking/screenshot` POST — Save the reservation-box screenshot the extension took on the page the owner is viewing.
 - app_parts/p03_messages_journey.py:620 `booking_screenshot` ← `/api/booking_screenshot/<booking_id>` — The saved Booking.com screenshot: ?v=guest (default, safe to send) or ?v=full (owner).
-- app_parts/p03_messages_journey.py:635 `booking_card_data` ← `/api/booking_card/<booking_id>` — Data for the booking-confirmation image drawn on the phone (static/js/booking_card.js).
-- app_parts/p03_messages_journey.py:672 `_journey`
-- app_parts/p03_messages_journey.py:679 `_jsonable_steps`
-- app_parts/p03_messages_journey.py:684 `journey_settings` ← `/journey` — Which Mẫu Câu template + pictures each journey step sends, per apartment.
-- app_parts/p03_messages_journey.py:690 `journey_config` ← `/api/journey/config`
-- app_parts/p03_messages_journey.py:709 `journey_prefs` ← `/api/journey/prefs` GET,POST — The owner's buttons on each guest card: which steps are hidden, which templates are pinned.
-- app_parts/p03_messages_journey.py:720 `journey_map_set` ← `/api/journey/map` POST
-- app_parts/p03_messages_journey.py:743 `journey_images_add` ← `/api/journey/images/<int:template_id>` POST — Pictures for a template, uploaded from the phone (already resized there); kept in the database.
-- app_parts/p03_messages_journey.py:777 `journey_image_delete` ← `/api/journey/images/<int:image_id>` DELETE
-- app_parts/p03_messages_journey.py:785 `journey_image` ← `/api/journey/image/<int:image_id>`
-- app_parts/p03_messages_journey.py:796 `_journey_booking`
-- app_parts/p03_messages_journey.py:821 `_journey_texts`
-- app_parts/p03_messages_journey.py:829 `_journey_tpl` — The template as the send sheet gets it: id, name and its Vietnamese text (for 🔵 Zalo), filled in.
-- app_parts/p03_messages_journey.py:838 `_vn_guest_name` — Vietnamese guest: country code 'vn' after the name, or Vietnamese letters in it.
-- app_parts/p03_messages_journey.py:844 `journey_guest` ← `/api/journey/guest/<booking_id>` — Everything the 'send' sheet needs for one guest: each step's message (for the guest's apartment),
-- app_parts/p03_messages_journey.py:894 `journey_templates` ← `/api/journey/templates`
-- app_parts/p03_messages_journey.py:900 `journey_compose` ← `/api/journey/compose` — Any Mẫu Câu template, filled in for this guest ('➕ Tin khác').
-- app_parts/p03_messages_journey.py:918 `journey_template_vi` ← `/api/journey/vi/<int:template_id>` GET,POST — The Vietnamese text of a template (raw, with tokens) — read / saved from the send sheet's ✏️ Sửa mẫu gốc.
-- app_parts/p03_messages_journey.py:933 `journey_sent` ← `/api/journey/sent` POST
-- app_parts/p03_messages_journey.py:952 `_ensure_pay_table`
-- app_parts/p03_messages_journey.py:967 `_vnd`
-- app_parts/p03_messages_journey.py:971 `_vn_now`
-- app_parts/p03_messages_journey.py:975 `_pay_items`
-- app_parts/p03_messages_journey.py:1038 `pay_mark` ← `/api/pay/mark` POST — 🙋 khách báo đã trả (method) / bỏ · 📝 note · 🙈 không cần thu / bỏ.
-- app_parts/p03_messages_journey.py:1066 `pay_collect` ← `/api/pay/collect` POST — 💰 the money actually gathered for a booking: added to collected_amount (an undo sends the same amount
-- app_parts/p03_messages_journey.py:1109 `_pay_by_apartment` — [{apt, n, left, max_over, items}] — one block per apartment (unplaced last). Inside: the guest who has owed th
-- app_parts/p03_messages_journey.py:1132 `_messages_pay_page`
-- app_parts/p03_messages_journey.py:1165 `quick_page` ← `/tin-nhanh` · `/quick`
-- app_parts/p03_messages_journey.py:1229 `_quick_custom` — The owner's own /tin-nhanh groups (owner, Oct 30: "thêm được các mục tùy muốn") — journey_prefs 'quick_groups'
-- app_parts/p03_messages_journey.py:1241 `_quick_groups`
-- app_parts/p03_messages_journey.py:1245 `_quick_extra` — {group key: [template ids]} added by the owner to /tin-nhanh groups (journey_prefs 'quick_extra'), or with
-- app_parts/p03_messages_journey.py:1258 `quick_extra_set` ← `/api/quick/extra` POST — Add / remove a template in one /tin-nhanh group (📌 Hay dùng uses the journey favorites instead).
-- app_parts/p03_messages_journey.py:1286 `quick_group_set` ← `/api/quick/group` POST — The owner's own Tin nhanh groups: {action: 'add', title} · {action: 'rename', key, title} · {action: 'delete',
-- app_parts/p03_messages_journey.py:1326 `quick_manifest` ← `/tin-nhanh.webmanifest`
-- app_parts/p03_messages_journey.py:1338 `messages_page` ← `/messages` — Phone page for messaging guests: arriving (or staying) guests, each with the journey strip
+- app_parts/p03_messages_journey.py:638 `booking_card_data` ← `/api/booking_card/<booking_id>` — Data for the booking-confirmation image drawn on the phone (static/js/booking_card.js).
+- app_parts/p03_messages_journey.py:675 `_journey`
+- app_parts/p03_messages_journey.py:682 `_jsonable_steps`
+- app_parts/p03_messages_journey.py:687 `journey_settings` ← `/journey` — Which Mẫu Câu template + pictures each journey step sends, per apartment.
+- app_parts/p03_messages_journey.py:693 `journey_config` ← `/api/journey/config`
+- app_parts/p03_messages_journey.py:712 `journey_prefs` ← `/api/journey/prefs` GET,POST — The owner's buttons on each guest card: which steps are hidden, which templates are pinned.
+- app_parts/p03_messages_journey.py:723 `journey_map_set` ← `/api/journey/map` POST
+- app_parts/p03_messages_journey.py:746 `journey_images_add` ← `/api/journey/images/<int:template_id>` POST — Pictures for a template, uploaded from the phone (already resized there); kept in the database.
+- app_parts/p03_messages_journey.py:780 `journey_image_delete` ← `/api/journey/images/<int:image_id>` DELETE
+- app_parts/p03_messages_journey.py:788 `journey_image` ← `/api/journey/image/<int:image_id>`
+- app_parts/p03_messages_journey.py:799 `_journey_booking`
+- app_parts/p03_messages_journey.py:824 `_journey_texts`
+- app_parts/p03_messages_journey.py:832 `_journey_tpl` — The template as the send sheet gets it: id, name and its Vietnamese text (for 🔵 Zalo), filled in.
+- app_parts/p03_messages_journey.py:841 `_vn_guest_name` — Vietnamese guest: country code 'vn' after the name, or Vietnamese letters in it.
+- app_parts/p03_messages_journey.py:847 `journey_guest` ← `/api/journey/guest/<booking_id>` — Everything the 'send' sheet needs for one guest: each step's message (for the guest's apartment),
+- app_parts/p03_messages_journey.py:897 `journey_templates` ← `/api/journey/templates`
+- app_parts/p03_messages_journey.py:903 `journey_compose` ← `/api/journey/compose` — Any Mẫu Câu template, filled in for this guest ('➕ Tin khác').
+- app_parts/p03_messages_journey.py:921 `journey_template_vi` ← `/api/journey/vi/<int:template_id>` GET,POST — The Vietnamese text of a template (raw, with tokens) — read / saved from the send sheet's ✏️ Sửa mẫu gốc.
+- app_parts/p03_messages_journey.py:936 `journey_sent` ← `/api/journey/sent` POST
+- app_parts/p03_messages_journey.py:955 `_ensure_pay_table`
+- app_parts/p03_messages_journey.py:970 `_vnd`
+- app_parts/p03_messages_journey.py:974 `_vn_now`
+- app_parts/p03_messages_journey.py:978 `_pay_items`
+- app_parts/p03_messages_journey.py:1041 `pay_mark` ← `/api/pay/mark` POST — 🙋 khách báo đã trả (method) / bỏ · 📝 note · 🙈 không cần thu / bỏ.
+- app_parts/p03_messages_journey.py:1069 `pay_collect` ← `/api/pay/collect` POST — 💰 the money actually gathered for a booking: added to collected_amount (an undo sends the same amount
+- app_parts/p03_messages_journey.py:1112 `_pay_by_apartment` — [{apt, n, left, max_over, items}] — one block per apartment (unplaced last). Inside: the guest who has owed th
+- app_parts/p03_messages_journey.py:1135 `_messages_pay_page`
+- app_parts/p03_messages_journey.py:1168 `quick_page` ← `/tin-nhanh` · `/quick`
+- app_parts/p03_messages_journey.py:1232 `_quick_custom` — The owner's own /tin-nhanh groups (owner, Oct 30: "thêm được các mục tùy muốn") — journey_prefs 'quick_groups'
+- app_parts/p03_messages_journey.py:1244 `_quick_groups`
+- app_parts/p03_messages_journey.py:1248 `_quick_extra` — {group key: [template ids]} added by the owner to /tin-nhanh groups (journey_prefs 'quick_extra'), or with
+- app_parts/p03_messages_journey.py:1261 `quick_extra_set` ← `/api/quick/extra` POST — Add / remove a template in one /tin-nhanh group (📌 Hay dùng uses the journey favorites instead).
+- app_parts/p03_messages_journey.py:1289 `quick_group_set` ← `/api/quick/group` POST — The owner's own Tin nhanh groups: {action: 'add', title} · {action: 'rename', key, title} · {action: 'delete',
+- app_parts/p03_messages_journey.py:1329 `quick_manifest` ← `/tin-nhanh.webmanifest`
+- app_parts/p03_messages_journey.py:1341 `messages_page` ← `/messages` — Phone page for messaging guests: arriving (or staying) guests, each with the journey strip
 
 ## app_parts/p04_bookings_expenses.py (1916 lines)
 _p04_bookings_expenses — /bookings list + add/edit/cancel/delete, manual entry, expenses API, save extracted_
@@ -372,24 +372,25 @@ _p14_electricity — electricity calculator + meters/readings/bills_
 - app_parts/p14_electricity.py:449 `delete_electricity_image` ← `/api/electricity/images/<int:image_id>` DELETE — Delete electricity image
 - app_parts/p14_electricity.py:463 `get_electricity_analytics` ← `/api/electricity/analytics` GET — Get electricity analytics data for charts and comparisons
 
-## app_parts/p15_moi.py (466 lines)
+## app_parts/p15_moi.py (523 lines)
 _p15_moi — /moi: the new phone-first app (owner, Oct 26), built from the approved mockup. Runs NEXT TO the old pages_
 - app_parts/p15_moi.py:12 `_moi_ensure` — bookings.room_no (room 1..N inside the placed apartment) — added once per process.
 - app_parts/p15_moi.py:37 `_moi_apartments` — Active apartments with short name, colour (index among ALL apartments, like the calendar) and room count.
 - app_parts/p15_moi.py:54 `moi_page` ← `/moi` — The new phone-first app (old pages stay as they are).
 - app_parts/p15_moi.py:60 `desk_page` ← `/may-tinh` — The desktop app (owner, Oct 30): Hôm nay · Chi tiết ngày · Lịch phòng · Nhắn khách · Thu tiền · Doanh thu, gue
 - app_parts/p15_moi.py:68 `moi_data` ← `/api/moi/data` — Everything /moi shows: apartments, journey steps and every booking that touches [today − 10 days, today + 21 d
-- app_parts/p15_moi.py:169 `_moi_room_clash` — Guests (other than bid) who have room `room` of apartment `apt` on any night of `ranges` [(ci, co), …].
-- app_parts/p15_moi.py:193 `moi_set_room` ← `/api/moi/room` POST — Put a guest in room N of an apartment (or only the apartment when room_no is empty). Refused (409) when anothe
-- app_parts/p15_moi.py:226 `moi_set_stay` ← `/api/moi/stay` POST — Edit a guest's dates and/or total from the guest card (owner, Oct 29: tap "Ngày ở" / "Giá / đêm" / "Tổng tiền"
-- app_parts/p15_moi.py:265 `moi_reminder` ← `/api/moi/reminder` POST — ⏰ Add a reminder on a guest ({booking_id, at: 'YYYY-MM-DDTHH:MM' Vietnam time, note}), or tick / untick one
-- app_parts/p15_moi.py:291 `_ics_text`
-- app_parts/p15_moi.py:296 `moi_ics` ← `/api/moi/ics` — An iPhone Calendar event with an alarm for one guest — opened by a plain link, so Safari shows "Thêm vào Lịch"
-- app_parts/p15_moi.py:343 `_moi_feed_token` — Secret part of the calendar-subscription link (made once, kept in moi_settings).
-- app_parts/p15_moi.py:357 `moi_feed_link` ← `/api/moi/feed` — The webcal:// link the owner subscribes to ONCE on the iPhone (Lịch → every reminder and promised arrival time
-- app_parts/p15_moi.py:368 `moi_feed` ← `/cal/<token>.ics` — Subscribed calendar: open reminders (alarm at the time) + promised arrival times of guests not arrived yet
-- app_parts/p15_moi.py:440 `_moi_room_label` — The owner's name for room `no` of this apartment, else "Phòng N".
-- app_parts/p15_moi.py:446 `moi_room_name` ← `/api/moi/room_name` POST — Rename room N of an apartment ({apartment_id, room_no, name}); an empty name goes back to "Phòng N".
+- app_parts/p15_moi.py:168 `_moi_room_clash` — Guests (other than bid) who have room `room` of apartment `apt` on any night of `ranges` [(ci, co), …].
+- app_parts/p15_moi.py:192 `moi_set_room` ← `/api/moi/room` POST — Put a guest in room N of an apartment (or only the apartment when room_no is empty). Refused (409) when anothe
+- app_parts/p15_moi.py:225 `moi_set_stay` ← `/api/moi/stay` POST — Edit a guest's dates and/or total from the guest card (owner, Oct 29: tap "Ngày ở" / "Giá / đêm" / "Tổng tiền"
+- app_parts/p15_moi.py:264 `moi_split` ← `/api/moi/split` POST — Split a stay over two rooms (owner, Nov 5: "ngày 3 ở một phòng, ngày 4 một phòng khác"): {booking_id, at (the
+- app_parts/p15_moi.py:322 `moi_reminder` ← `/api/moi/reminder` POST — ⏰ Add a reminder on a guest ({booking_id, at: 'YYYY-MM-DDTHH:MM' Vietnam time, note}), or tick / untick one
+- app_parts/p15_moi.py:348 `_ics_text`
+- app_parts/p15_moi.py:353 `moi_ics` ← `/api/moi/ics` — An iPhone Calendar event with an alarm for one guest — opened by a plain link, so Safari shows "Thêm vào Lịch"
+- app_parts/p15_moi.py:400 `_moi_feed_token` — Secret part of the calendar-subscription link (made once, kept in moi_settings).
+- app_parts/p15_moi.py:414 `moi_feed_link` ← `/api/moi/feed` — The webcal:// link the owner subscribes to ONCE on the iPhone (Lịch → every reminder and promised arrival time
+- app_parts/p15_moi.py:425 `moi_feed` ← `/cal/<token>.ics` — Subscribed calendar: open reminders (alarm at the time) + promised arrival times of guests not arrived yet
+- app_parts/p15_moi.py:497 `_moi_room_label` — The owner's name for room `no` of this apartment, else "Phòng N".
+- app_parts/p15_moi.py:503 `moi_room_name` ← `/api/moi/room_name` POST — Rename room N of an apartment ({apartment_id, room_no, name}); an empty name goes back to "Phòng N".
 
 ## core/__init__.py (3 lines)
 
@@ -740,16 +741,16 @@ _p15_moi — /moi: the new phone-first app (owner, Oct 26), built from the appro
 - templates/debug_collector_comparison.html: 215 `runComparison` · 257 `displayResults` · 283 `populateComparisonTable` · 321 `populateMethodDetails` · 344 `populateGuestDetails` · 392 `getDifferenceClass` · 398 `showError` · 403 `deleteDebugFile`
 - templates/debug_collector_comparison.html: 409 `runJuneSpecificDebug` · 439 `displayJuneSpecificResults`
 
-## templates/desk.html (1215 lines)
+## templates/desk.html (1243 lines)
 - templates/desk.html: 303 `load` · 316 `loadRev` · 329 `needRev` · 346 `D.tab` · 347 `D.set` · 348 `D.q` · 349 `D.reload` · 351 `D.shift`
 - templates/desk.html: 357 `D.toToday` · 358 `D.open` · 359 `D.openDay` · 360 `D.close` · 361 `closeDrawer` · 362 `D.closeModal` · 365 `D.place` · 370 `D.room`
 - templates/desk.html: 377 `D.confirm` · 383 `D.cancel` · 389 `D.mark` · 393 `D.status` · 397 `D.unreach` · 398 `D.replied` · 399 `D.phone` · 406 `D.send`
 - templates/desk.html: 407 `D.pickApt` · 408 `D.quick` · 409 `D.photo` · 410 `D.chatPhone` · 411 `D.renameRoom` · 419 `D.pickG` · 420 `D.auto` · 435 `D.payOpen`
-- templates/desk.html: 436 `D.collect` · 445 `D.partial` · 447 `D.undoPay` · 450 `D.payCycle` · 460 `D.edit` · 462 `D.extN` · 464 `D.extTyped` · 465 `D.editCalc`
-- templates/desk.html: 486 `D.editSave` · 513 `D.remind` · 514 `D.remPreset` · 517 `D.remSet` · 518 `D.remSave` · 525 `D.remDone` · 529 `D.add` · 530 `D.addSave`
-- templates/desk.html: 545 `render` · 554 `renderSide` · 580 `renderTop` · 609 `viewToday` · 666 `dayCard` · 698 `viewDay` · 755 `D.uncancel` · 764 `viewCal`
-- templates/desk.html: 869 `renderPick` · 877 `viewMsg` · 917 `viewPay` · 957 `D.payQuick` · 963 `viewRev` · 1034 `D.revMonth` · 1035 `D.revDay` · 1036 `D.goDay`
-- templates/desk.html: 1037 `drawRevCharts` · 1060 `renderDrawer` · 1066 `guestCard` · 1120 `dayPanel` · 1141 `renderModal` · 1202 `D.mset` · 1203 `D.extOpen`
+- templates/desk.html: 436 `D.collect` · 445 `D.partial` · 447 `D.undoPay` · 450 `D.payCycle` · 460 `D.edit` · 462 `D.extN` · 466 `D.splitApt` · 472 `D.extTyped`
+- templates/desk.html: 473 `D.editCalc` · 500 `D.editSave` · 535 `D.remind` · 536 `D.remPreset` · 539 `D.remSet` · 540 `D.remSave` · 547 `D.remDone` · 551 `D.add`
+- templates/desk.html: 552 `D.addSave` · 567 `render` · 576 `renderSide` · 602 `renderTop` · 631 `viewToday` · 689 `dayCard` · 721 `viewDay` · 778 `D.uncancel`
+- templates/desk.html: 787 `viewCal` · 892 `renderPick` · 900 `viewMsg` · 940 `viewPay` · 980 `D.payQuick` · 986 `viewRev` · 1057 `D.revMonth` · 1058 `D.revDay`
+- templates/desk.html: 1059 `D.goDay` · 1060 `drawRevCharts` · 1083 `renderDrawer` · 1089 `guestCard` · 1148 `dayPanel` · 1169 `renderModal` · 1230 `D.mset` · 1231 `D.extOpen`
 
 ## templates/duplicate_management.html (710 lines)
 - templates/duplicate_management.html: 196 `loadDuplicates` · 295 `updateStatistics` · 329 `renderDuplicateGroups` · 475 `toggleBookingSelection` · 506 `updateSelectedCount` · 521 `selectAllDuplicates` · 534 `deleteSelectedBookings` · 582 `showComparison`
@@ -800,14 +801,15 @@ _p15_moi — /moi: the new phone-first app (owner, Oct 26), built from the appro
 - templates/mobile_payment.html: 484 `cardCls` · 490 `dateBadge` · 498 `renderDates` · 557 `toISO` · 564 `openSheet` · 583 `closeSheet` · 588 `pick` · 594 `tickTs`
 - templates/mobile_payment.html: 601 `doConfirm` · 642 `showToast` · 649 `loadHistory` · 696 `switchTab` · 705 `changeOffset` · 707 `loadAnalytics` · 812 `openDetail` · 873 `closeDetail`
 
-## templates/moi.html (948 lines)
+## templates/moi.html (978 lines)
 - templates/moi.html: 207 `load` · 284 `M.reload` · 285 `M.tab` · 286 `M.set` · 287 `M.day` · 288 `M.open` · 289 `M.close` · 290 `M.add`
 - templates/moi.html: 291 `M.addSave` · 304 `M.place` · 309 `M.room` · 316 `M.confirm` · 322 `M.cancel` · 328 `M.mark` · 332 `M.status` · 334 `M.unreach`
 - templates/moi.html: 335 `M.renameRoom` · 343 `M.calDone` · 344 `M.remind` · 346 `M.eta` · 347 `M.remPreset` · 350 `M.remSave` · 359 `M.remDone` · 362 `M.etaSave`
 - templates/moi.html: 385 `M.phone` · 392 `M.send` · 393 `M.pickApt` · 394 `M.quick` · 396 `M.photo` · 397 `M.chatPhone` · 404 `M.edit` · 406 `M.extN`
-- templates/moi.html: 408 `M.extTyped` · 409 `M.editCalc` · 431 `M.editSave` · 457 `M.payOpen` · 458 `M.collect` · 466 `M.partial` · 468 `M.undoPay` · 471 `M.payCycle`
-- templates/moi.html: 476 `M.pickG` · 477 `M.auto` · 492 `render` · 501 `renderNav` · 510 `renderFloat` · 526 `viewDay` · 610 `viewCal` · 685 `M.cal`
-- templates/moi.html: 689 `msgCard` · 719 `viewMsg` · 755 `M.aptSheetOpen` · 768 `viewPay` · 810 `renderSheet` · 935 `S_set` · 936 `renderSheetPub` · 937 `S_put`
+- templates/moi.html: 410 `M.splitApt` · 416 `M.extTyped` · 417 `M.editCalc` · 445 `M.editSave` · 479 `M.payOpen` · 480 `M.collect` · 488 `M.partial` · 490 `M.undoPay`
+- templates/moi.html: 493 `M.payCycle` · 498 `M.pickG` · 499 `M.auto` · 514 `render` · 523 `renderNav` · 532 `renderFloat` · 548 `viewDay` · 632 `viewCal`
+- templates/moi.html: 707 `M.cal` · 711 `msgCard` · 741 `viewMsg` · 777 `M.aptSheetOpen` · 790 `viewPay` · 832 `renderSheet` · 965 `S_set` · 966 `renderSheetPub`
+- templates/moi.html: 967 `S_put`
 
 ## templates/quick.html (309 lines)
 - templates/quick.html: 146 `toast` · 151 `go` · 159 `copyNow` · 167 `sendText` · 172 `copyText` · 173 `sendImgs` · 184 `setIn` · 206 `takeOut`
