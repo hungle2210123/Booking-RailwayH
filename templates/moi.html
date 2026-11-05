@@ -79,6 +79,8 @@ body.wide #app{max-width:1180px}
 /* calendar */
 .cal{margin:0 8px 14px;overflow-x:auto;-webkit-overflow-scrolling:touch;overscroll-behavior-x:contain}
 .cg{display:grid;column-gap:4px}
+.hcal .cg{column-gap:2px}
+.bar.tiny{padding:4px 4px}.bar.tiny b{font-size:10.5px;-webkit-line-clamp:3}
 .cst{position:sticky;left:0;z-index:3;background:#fff}
 .cdh{border:none;text-align:center;border-radius:12px;padding:6px 0;min-height:52px;background:#F4F5F8;color:#334155}
 .cdh.t{background:#0E1525;color:#fff}
@@ -680,37 +682,46 @@ button.info.on{border-color:#0E1525;background:#fff}
   const freeRoomsFor = (b) => APT.reduce((t, a) => { for (let n = 1; n <= a.rooms; n++) if (!(b.apt === a.id && b.room_no === n) && fits(b, a.id, n)) t++; return t; }, 0);
   function viewCal() {
     const { ws, we } = calWin(), N = S.calN, days = []; for (let i = ws; i < we; i++) days.push(i);
-    const colW = N === 3 ? 'minmax(0,1fr)' : N === 7 ? '74px' : '72px';
-    const cols = `78px repeat(${N}, ${colW})`, width = N === 3 ? '100%' : (78 + N * 78) + 'px';
+    // half-day grid (owner, Nov 5 — same as the desktop calendar): every day = 2 columns, left = morning (the guest who
+    // leaves), right = afternoon (the guest who arrives) → one look shows who goes and who comes on the same room
+    const colW = N === 3 ? 'minmax(0,1fr)' : '37px';
+    const cols = `78px repeat(${N * 2}, ${colW})`, width = N === 3 ? '100%' : (78 + N * 78) + 'px';
+    const H0 = (b) => b.ciO < ws ? 0 : 2 * (b.ciO - ws) + 1, H1 = (b) => b.coO >= we ? 2 * N : 2 * (b.coO - ws) + 1;
+    const dcol = (dd) => `${2 * (dd - ws) + 2} / span 2`;
     const rowH = N === 3 ? '64px' : '52px';
     const room = S.calView === 'room';
     const freeStyle = (f) => f <= 0 ? 'background:#FEE2E2;color:#B91C1C' : f === 1 ? 'background:#FEF3C7;color:#92400E' : 'background:#DCFCE7;color:#166534';
     const pk = S.pick && byId[S.pick];
     const bar = (b, a, dashedAmber) => {
-      const st = Math.max(b.ciO, ws), en = Math.min(b.coO, we), solid = b.ciO > 0 || b.confirmed;
+      const h0 = H0(b), w = H1(b) - h0, solid = b.ciO > 0 || b.confirmed;
       const sty = dashedAmber ? 'background:#FEF3C7;color:#92400E;border:1.5px dashed #F59E0B'
                 : solid ? `background:${a.color};color:#fff` : `background:#fff;color:${a.color};border:1.5px dashed ${a.color}`;
       const name = (b.ciO < ws ? '‹ ' : '') + b.name + (b.coO > we ? ' ›' : '') + (b.tb ? ' · 2PN' : '');
       const act = room ? `M.pickG('${b.id}')` : `M.open('${b.id}')`;
-      return `<button class="bar" onclick="${act}" style="grid-column:${st - ws + 2} / span ${en - st};${sty}${S.pick === b.id ? ';box-shadow:0 0 0 3px #F59E0B' : ''}" aria-label="${esc(b.name)}">
-        <b>${esc(name)}</b><small>${esc(b.listing || 'chưa rõ loại phòng')}</small>${N === 3 ? `<small class="num">${b.nights} đêm · ${short(b.per_night)}${b.ciO <= 0 && !b.confirmed && b.coO > 0 ? ' · chờ' : b.paid ? ' · đã thu' : ''}</small>` : ''}</button>`;
+      // narrow pieces (only the check-out morning, or 1 night) show just the name — no room for more
+      const tiny = w <= (N === 3 ? 1 : 2), slim = w <= (N === 3 ? 3 : 4);
+      return `<button class="bar${tiny ? ' tiny' : ''}" onclick="${act}" style="grid-column:${h0 + 2} / span ${w};${sty}${S.pick === b.id ? ';box-shadow:0 0 0 3px #F59E0B' : ''}" aria-label="${esc(b.name)}">
+        <b>${esc(tiny ? b.name.split(' ')[0] : name)}</b>${slim ? '' : `<small>${esc(b.listing || 'chưa rõ loại phòng')}</small>`}${N === 3 && !tiny ? `<small class="num">${b.nights} đêm${slim ? '' : ' · ' + short(b.per_night)}${b.ciO <= 0 && !b.confirmed && b.coO > 0 ? ' · chờ' : b.paid && !slim ? ' · đã thu' : ''}</small>` : ''}</button>`;
     };
-    const slots = (taken) => days.filter((dd) => !taken.has(dd)).map((dd) => `<div class="slot" style="grid-column:${dd - ws + 2}">${N === 3 ? 'trống' : ''}</div>`).join('');
-    const span = (list) => { const t = new Set(); list.forEach((b) => { for (let dd = Math.max(b.ciO, ws); dd < Math.min(b.coO, we); dd++) t.add(dd); }); return t; };
+    // empty halves: a whole free day says "trống"; a free afternoon after a check-out also says "trống" (free tonight)
+    const slots = (taken) => days.map((dd) => { const L = 2 * (dd - ws), fl = !taken.has(L), fr = !taken.has(L + 1);
+      if (fl && fr) return `<div class="slot" style="grid-column:${L + 2} / span 2">${N === 3 ? 'trống' : ''}</div>`;
+      return (fl ? `<div class="slot" style="grid-column:${L + 2}"></div>` : '') + (fr ? `<div class="slot" style="grid-column:${L + 3}">${N === 3 ? 'trống' : ''}</div>` : ''); }).join('');
+    const span = (list) => { const t = new Set(); list.forEach((b) => { for (let h = H0(b); h < H1(b); h++) t.add(h); }); return t; };
     // picking a guest: a green "Xếp vào đây" only on rooms that are free from tonight on; a room with another guest just
     // says "trùng khách" under its name — nothing is drawn over the other guests' bars (owner, Oct 30 screenshot)
     const pickable = (aid, no) => pk && room && !(pk.apt === aid && pk.room_no === no) && Math.min(pk.coO, we) > Math.max(pk.ciO, ws, 0);
     const drop = (aid, no) => {
       if (!pickable(aid, no) || !fits(pk, aid, no)) return '';
-      const st = Math.max(pk.ciO, ws, 0), en = Math.min(pk.coO, we);
-      return `<button class="drop" onclick="M.room('${pk.id}',${aid},${no})" style="grid-column:${st - ws + 2} / span ${en - st};background:#DCFCE7;border:2px dashed #16A34A;color:#166534">Xếp vào đây</button>`;
+      const d0 = Math.max(pk.ciO, ws, 0), h0 = 2 * (d0 - ws) + (d0 === pk.ciO ? 1 : 0);
+      return `<button class="drop" onclick="M.room('${pk.id}',${aid},${no})" style="grid-column:${h0 + 2} / span ${H1(pk) - h0};background:#DCFCE7;border:2px dashed #16A34A;color:#166534">Xếp vào đây</button>`;
     };
     let rows = '';
     APT.forEach((a) => {
       rows += `<div class="cg capt" style="grid-template-columns:${cols}"><div class="cst"><span class="dot" style="width:10px;height:10px;background:${a.color}"></span>${esc(a.short)}</div>` +
         days.map((dd) => { const f = a.rooms - B.filter((b) => b.apt === a.id && counts(b, dd)).length;
-          return `<div class="fr num" style="${freeStyle(f)}">${f > 0 ? 'Trống ' + f : f === 0 ? 'Kín phòng' : 'Thừa ' + -f}</div>`; }).join('') + '</div>';
-      const list = B.filter((b) => b.apt === a.id && b.coO > ws && b.ciO < we);
+          return `<div class="fr num" style="grid-column:${dcol(dd)};${freeStyle(f)}">${f > 0 ? 'Trống ' + f : f === 0 ? 'Kín phòng' : 'Thừa ' + -f}</div>`; }).join('') + '</div>';
+      const list = B.filter((b) => b.apt === a.id && b.coO >= ws && b.ciO < we && b.coO > b.ciO);
       if (room) {
         for (let no = 1; no <= a.rooms; no++) {
           const mine = list.filter((b) => b.room_no === no);
@@ -736,7 +747,7 @@ button.info.on{border-color:#0E1525;background:#fff}
       rows += `<div class="cg capt" style="grid-template-columns:${cols}"><div class="cst"><span class="dot" style="width:10px;height:10px;background:#F59E0B"></span>Chưa xếp</div></div>`;
       loose.forEach((b) => { rows += `<div class="cg croom" style="grid-template-columns:${cols};min-height:${rowH}"><div class="cst" style="grid-row:1;grid-column:1;color:#92400E;font-size:11px">Chưa có căn</div>${bar(b, { color: '#F59E0B' }, true)}</div>`; });
     }
-    const head = days.map((dd) => { const y = dateOf(dd); return `<button class="cdh ${dd === 0 ? 't' : ''}" onclick="M.day(${dd});M.tab('day')" aria-label="Chi tiết ${y.d}/${y.m}"><div class="w">${WD[y.w]}</div><div class="n num">${y.d}</div></button>`; }).join('');
+    const head = days.map((dd) => { const y = dateOf(dd); return `<button class="cdh ${dd === 0 ? 't' : ''}" style="grid-column:${dcol(dd)}" onclick="M.day(${dd});M.tab('day')" aria-label="Chi tiết ${y.d}/${y.m}"><div class="w">${WD[y.w]}</div><div class="n num">${y.d}</div></button>`; }).join('');
     const noRoomN = B.filter((b) => b.apt && !b.room_no && b.coO > Math.max(ws, 0) && b.ciO < we).length;
     const a0 = dateOf(ws), a1 = dateOf(we - 1);
     return `<div style="padding:calc(18px + env(safe-area-inset-top)) 16px 10px">
@@ -748,8 +759,9 @@ button.info.on{border-color:#0E1525;background:#fff}
       <div style="margin-top:8px;font-size:11px;color:#475569;font-weight:600;line-height:1.45">${room ? 'Xếp phòng: <b style="color:#0E1525">chạm tên khách</b> → chạm ô xanh <b style="color:#166534">"Xếp vào đây"</b>. Chạm lại để bỏ chọn.' : 'Không cần số phòng: mỗi căn có số dòng bằng số phòng, khách tự xếp vào dòng còn trống.'}</div>
       <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:8px;font-size:11px;font-weight:600;color:#475569"><b style="color:#0E1525">Ô cạnh tên căn = phòng còn trống đêm đó:</b>
         <span class="fr" style="padding:2px 6px;background:#DCFCE7;color:#166534">Trống 2</span><span class="fr" style="padding:2px 6px;background:#FEF3C7;color:#92400E">Trống 1</span><span class="fr" style="padding:2px 6px;background:#FEE2E2;color:#B91C1C">Kín phòng</span></div>
-      ${room && noRoomN ? `<button onclick="M.auto()" style="width:100%;margin-top:10px;min-height:44px;border-radius:12px;border:1.5px dashed #0E1525;background:#fff;font-size:13px;font-weight:800">Tự xếp phòng cho ${noRoomN} khách đã có căn</button>` : ''}</div>
-      <div class="card cal"><div style="width:${width};padding:8px 8px 10px 0">
+      ${room && noRoomN ? `<button onclick="M.auto()" style="width:100%;margin-top:10px;min-height:44px;border-radius:12px;border:1.5px dashed #0E1525;background:#fff;font-size:13px;font-weight:800">Tự xếp phòng cho ${noRoomN} khách đã có căn</button>` : ''}
+      <div style="margin-top:6px;font-size:11px;color:#475569;font-weight:600">Mỗi ngày chia đôi: <b style="color:#0E1525">nửa trái = khách trả sáng</b>, <b style="color:#0E1525">nửa phải = khách đến chiều</b>.</div></div>
+      <div class="card cal hcal"><div style="width:${width};padding:8px 8px 10px 0">
         <div class="cg" style="grid-template-columns:${cols};padding-bottom:6px;border-bottom:1px solid #EEF0F4"><div class="cst"></div>${head}</div>${rows}</div></div>
       <div class="legend"><span><i style="width:18px;height:11px;border-radius:3px;background:#1976D2;display:inline-block"></i>Có khách</span><span><i style="width:18px;height:11px;border-radius:3px;border:1.5px dashed #1976D2;display:inline-block"></i>Chưa xác nhận</span><span><i style="width:18px;height:11px;border-radius:3px;border:1.5px dashed #CBD5E1;display:inline-block"></i>Trống</span><span><i style="width:18px;height:11px;border-radius:3px;background:#FEF3C7;border:1.5px dashed #F59E0B;display:inline-block"></i>Chưa có số phòng</span></div>`;
   }

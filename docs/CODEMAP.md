@@ -372,7 +372,7 @@ _p14_electricity — electricity calculator + meters/readings/bills_
 - app_parts/p14_electricity.py:449 `delete_electricity_image` ← `/api/electricity/images/<int:image_id>` DELETE — Delete electricity image
 - app_parts/p14_electricity.py:463 `get_electricity_analytics` ← `/api/electricity/analytics` GET — Get electricity analytics data for charts and comparisons
 
-## app_parts/p15_moi.py (780 lines)
+## app_parts/p15_moi.py (785 lines)
 _p15_moi — /moi: the new phone-first app (owner, Oct 26), built from the approved mockup. Runs NEXT TO the old pages_
 - app_parts/p15_moi.py:12 `_moi_ensure` — bookings.room_no (room 1..N inside the placed apartment) — added once per process.
 - app_parts/p15_moi.py:37 `_moi_apartments` — Active apartments with short name, colour (index among ALL apartments, like the calendar) and room count.
@@ -391,18 +391,18 @@ _p15_moi — /moi: the new phone-first app (owner, Oct 26), built from the appro
 - app_parts/p15_moi.py:432 `moi_feed` ← `/cal/<token>.ics` — Subscribed calendar: open reminders (alarm at the time) + promised arrival times of guests not arrived yet
 - app_parts/p15_moi.py:508 `_moi_clean_text` — The cleaners' message for `day` (owner, Nov 5: short — "Dọn phòng thứ năm 5/11 / Hàng Bạc: 102, 201"): the roo
 - app_parts/p15_moi.py:533 `moi_clean_feed` ← `/don-phong/<token>.txt` — Plain text of today's cleaning message (?d=1 tomorrow) — for an iPhone Shortcut that sends it at 8:00. The tok
-- app_parts/p15_moi.py:560 `_zbot_token` — Railway Variable ZALO_BOT_TOKEN, or the one the owner pasted in the /moi bot tab (moi_settings 'zbot_token' —
-- app_parts/p15_moi.py:573 `_zbot_call`
-- app_parts/p15_moi.py:588 `_zbot_get`
-- app_parts/p15_moi.py:599 `_zbot_put`
-- app_parts/p15_moi.py:605 `_zbot_secret`
-- app_parts/p15_moi.py:614 `_zbot_send_clean` — Send the cleaning message of `day` to every chat that is on (or only `only`). Returns [(name, ok, error)].
-- app_parts/p15_moi.py:630 `zbot_tick` — One check (called every minute by zbot_loop): between 8:00 and 12:00 Vietnam time, the first worker that claim
-- app_parts/p15_moi.py:659 `zbot_loop`
-- app_parts/p15_moi.py:674 `zbot_hook` ← `/zalo-bot/hook` POST — Zalo calls this when someone messages the bot: remember the chat (new people are switched on) and answer.
-- app_parts/p15_moi.py:699 `moi_zbot` ← `/api/moi/zbot` GET,POST — Setup sheet in /moi: status · connect (setWebhook) · switch a person on/off · rename · send a test now.
-- app_parts/p15_moi.py:754 `_moi_room_label` — The owner's name for room `no` of this apartment, else "Phòng N".
-- app_parts/p15_moi.py:760 `moi_room_name` ← `/api/moi/room_name` POST — Rename room N of an apartment ({apartment_id, room_no, name}); an empty name goes back to "Phòng N".
+- app_parts/p15_moi.py:561 `_zbot_token` — Railway Variable ZALO_BOT_TOKEN, or the one the owner pasted in the /moi bot tab (moi_settings 'zbot_token' —
+- app_parts/p15_moi.py:574 `_zbot_call`
+- app_parts/p15_moi.py:589 `_zbot_get`
+- app_parts/p15_moi.py:600 `_zbot_put`
+- app_parts/p15_moi.py:606 `_zbot_secret`
+- app_parts/p15_moi.py:615 `_zbot_send_clean` — Send the cleaning message of `day` to every chat that is on (or only `only`). Returns [(name, ok, error)].
+- app_parts/p15_moi.py:631 `zbot_tick` — One check (called every minute by zbot_loop): between 8:00 and 10:00 Vietnam time, the first worker that claim
+- app_parts/p15_moi.py:664 `zbot_loop`
+- app_parts/p15_moi.py:679 `zbot_hook` ← `/zalo-bot/hook` POST — Zalo calls this when someone messages the bot: remember the chat (new people are switched on) and answer.
+- app_parts/p15_moi.py:704 `moi_zbot` ← `/api/moi/zbot` GET,POST — Setup sheet in /moi: status · connect (setWebhook) · switch a person on/off · rename · send a test now.
+- app_parts/p15_moi.py:759 `_moi_room_label` — The owner's name for room `no` of this apartment, else "Phòng N".
+- app_parts/p15_moi.py:765 `moi_room_name` ← `/api/moi/room_name` POST — Rename room N of an apartment ({apartment_id, room_no, name}); an empty name goes back to "Phòng N".
 
 ## core/__init__.py (3 lines)
 
