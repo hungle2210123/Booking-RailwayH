@@ -555,6 +555,7 @@ def moi_clean_feed(token):
 # X-Bot-Api-Secret-Token) records who messaged the bot → moi_settings 'zbot_chats'; each worker runs zbot_loop() (started
 # in gunicorn.conf.py post_fork) and ONE of them claims the day ('zbot_sent', atomic) and sends.
 ZBOT_API = 'https://bot-api.zaloplatforms.com/bot'
+ZBOT_BEAT = ''
 
 
 def _zbot_token():
@@ -630,7 +631,9 @@ def _zbot_send_clean(_xdb, day=None, only=None):
 def zbot_tick():
     """One check (called every minute by zbot_loop): between 8:00 and 10:00 Vietnam time, the first worker that claims
     today sends. A restart at 8:30 still sends once; nothing is sent twice."""
+    global ZBOT_BEAT
     now = datetime.utcnow() + timedelta(hours=7)
+    ZBOT_BEAT = now.strftime('%H:%M')   # shown in /api/moi/zbot: proof this worker's loop is alive
     if not (8 <= now.hour < 10):
         return False
     from core.models import db as _xdb
@@ -750,7 +753,7 @@ def moi_zbot():
     return jsonify({'success': True, 'token': bool(_zbot_token()) and bool(me), 'bot': me.get('account_name') or me.get('display_name') or '',
                     'connected': bool(((info or {}).get('result') or {}).get('url', '').endswith('/zalo-bot/hook')),
                     'chats': [dict(c, id=k) for k, c in chats.items()], 'last': _zbot_get(_xdb, 'zbot_last'),
-                    'sent_day': _zbot_get(_xdb, 'zbot_sent')})
+                    'sent_day': _zbot_get(_xdb, 'zbot_sent'), 'loop': ZBOT_BEAT})
 
 
 def _moi_room_label(apt, no):
