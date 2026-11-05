@@ -287,7 +287,7 @@ button.info.on{border-color:#0E1525;background:#fff}
   M.set = (k, v) => { S[k] = v; if (k === 'calView') LS.set(k, v); render(); };
   M.day = (d) => { S.day = Math.max(0, Math.min(20, d)); render(); };
   M.open = (id) => { S.sel = id; S.move = false; S.pick = null; S.edit = null; renderSheet(); };
-  M.close = () => { S.sel = null; S.collect = null; S.aptSheet = false; S.etaFor = null; S.adding = false; renderSheet(); renderFloat(); };
+  M.close = () => { S.cleanSetup = null; S.sel = null; S.collect = null; S.aptSheet = false; S.etaFor = null; S.adding = false; renderSheet(); renderFloat(); };
   M.add = () => { S.sel = null; S.adding = true; renderSheet(); setTimeout(() => { const i = $('#fName'); if (i) i.focus(); }, 50); };
   M.addSave = async (btn) => {
     const v = (id) => ($('#' + id).value || '').trim();
@@ -349,6 +349,7 @@ button.info.on{border-color:#0E1525;background:#fff}
     return true; };
   // the secret plain-text link of the cleaning message, for an iPhone Shortcut that sends it every morning
   M.cleanLink = () => { if (!S.cleanUrl) return toast('Đang tải link… thử lại sau 1 giây'); copyText(S.cleanUrl); toast('Đã copy link tin dọn phòng — dán vào Phím tắt (Lấy nội dung của URL)'); };
+  M.cleanSetup = (how) => { S.sel = null; S.cleanSetup = how || S.cleanSetup || 'sms'; renderSheet(); };
   M.cleanCopy = (d) => { const t = cleanText(d == null ? S.day : d); copyText(t); toast('Đã copy tin dọn phòng — dán vào Zalo / WhatsApp gửi các cô'); };
   M.cancel = async (id) => {
     const b = byId[id]; if (!confirm('Báo hủy ' + b.name + '?\n(giống "Báo hủy" trên lịch — hoàn tác được)')) return;
@@ -624,7 +625,7 @@ button.info.on{border-color:#0E1525;background:#fff}
           <div class="t">${esc(r.note)}<small>${esc(b.name)} · ${a ? esc(a.short) + (b.room_no ? ' · ' + esc(rn(b.apt, b.room_no)) : '') : 'chưa xếp'}${b.phone ? ' · ' + esc(b.phone) : ''}</small></div>
           <button class="okb" onclick="event.stopPropagation();M.remDone(${r.id})">Xong</button></div>`; }).join('')}</div></div>`;
     const stays = B.filter((b) => b.ciO < d && d < b.coO);
-    h += `<button onclick="M.cleanCopy(${d})" style="width:100%;min-height:46px;border-radius:14px;border:1.5px dashed #94A3B8;background:#fff;font-size:14px;font-weight:800;color:#0E1525;margin-bottom:8px">🧹 Copy tin dọn phòng ${dm(d)} — gửi các cô</button>${d === 0 ? `<button onclick="M.cleanLink()" style="width:100%;border:none;background:none;font-size:12px;font-weight:700;color:#475569;margin:-4px 0 8px;text-decoration:underline">Copy link để iPhone tự gửi lúc 8 giờ sáng</button>` : ''}`;
+    h += `<button onclick="M.cleanCopy(${d})" style="width:100%;min-height:46px;border-radius:14px;border:1.5px dashed #94A3B8;background:#fff;font-size:14px;font-weight:800;color:#0E1525;margin-bottom:8px">🧹 Copy tin dọn phòng ${dm(d)} — gửi các cô</button>${d === 0 ? `<button onclick="M.cleanSetup()" style="width:100%;border:none;background:none;font-size:12px;font-weight:700;color:#475569;margin:-4px 0 8px;text-decoration:underline">⏰ Cài để iPhone tự gửi tin này lúc 8 giờ sáng</button>` : ''}`;
     h += `<div class="seg"><button class="${S.seg === 'pair' ? 'on' : ''}" onclick="M.set('seg','pair')">Trả ↔ Đến</button><button class="${S.seg === 'stay' ? 'on' : ''}" onclick="M.set('seg','stay')">Đang ở · ${stays.length}</button></div>`;
     if (S.seg === 'stay') {
       h += '<div class="card" style="padding:4px 16px 6px">' + (stays.sort((p, q) => p.coO - q.coO).map((b) => { const a = aptById[b.apt], left = b.coO - d;
@@ -863,6 +864,25 @@ button.info.on{border-color:#0E1525;background:#fff}
   // ═════ SHEETS ═════
   function renderSheet() {
     const el = $('#sheet');
+    if (S.cleanSetup) {
+      // ⏰ the iPhone sends the cleaning message by itself every morning (Phím tắt → Tự động hóa). A web page cannot
+      // create the shortcut, so: copy the link here, open Phím tắt from here, follow the short steps (owner, Nov 5)
+      const sms = S.cleanSetup === 'sms';
+      const step = (n, t, extra) => `<div style="display:flex;gap:10px;align-items:flex-start;margin-top:10px"><b style="flex:0 0 26px;height:26px;border-radius:50%;background:#0E1525;color:#fff;font-size:13px;display:flex;align-items:center;justify-content:center">${n}</b><div style="flex:1;font-size:14px;line-height:1.5;color:#1E293B">${t}${extra || ''}</div></div>`;
+      el.innerHTML = `<div class="ov" onclick="if(event.target===this)M.close()"><div class="sh"><div class="handle"></div>
+        <div style="display:flex;align-items:center;gap:10px"><div style="flex:1"><div class="kick" style="color:#64748B">TỰ GỬI MỖI SÁNG</div><div style="font-size:20px;font-weight:800">Tin dọn phòng lúc 8:00</div></div><button class="x" onclick="M.close()" aria-label="Đóng">${svg('x', 18, 2.4)}</button></div>
+        <div class="seg" style="margin-top:12px"><button class="${sms ? 'on' : ''}" onclick="M.cleanSetup('sms')">Tự gửi tin nhắn (SMS / iMessage)</button><button class="${!sms ? 'on' : ''}" onclick="M.cleanSetup('zalo')">Qua Zalo (2 chạm)</button></div>
+        <div style="font-size:12.5px;color:#475569;font-weight:600;margin-top:8px;line-height:1.5">${sms ? 'Gửi hoàn toàn tự động. Cô dùng iPhone = miễn phí (iMessage); máy Android = SMS theo gói cước.' : 'Zalo không cho tự gửi: 8:00 iPhone tự copy tin và mở Zalo — bạn chỉ dán vào chat của cô rồi bấm gửi.'}</div>
+        ${step(1, 'Copy link tin dọn phòng:', `<button class="big" style="margin-top:6px;min-height:46px;background:#0E1525;color:#fff" onclick="M.cleanLink()">📋 Copy link</button>`)}
+        ${step(2, 'Mở app <b>Phím tắt</b> → tab <b>Tự động hóa</b> (dưới cùng) → <b>＋</b> / <b>Tạo mục tự động hóa</b> → <b>Thời gian trong ngày</b> → <b>8:00</b>, <b>Hàng ngày</b> → <b>Chạy ngay</b> → Tiếp.', `<a class="big" href="shortcuts://" style="margin-top:6px;min-height:46px;background:#fff;color:#0E1525;border:1.5px solid #0E1525">Mở app Phím tắt</a>`)}
+        ${step(3, 'Bấm <b>Mục tự động hóa trống mới</b> → <b>Thêm tác vụ</b> → gõ tìm <b>"Lấy nội dung của URL"</b> → chạm chữ <b>URL</b> → <b>dán link</b> vừa copy.')}
+        ${sms ? step(4, 'Thêm tác vụ <b>"Gửi tin nhắn"</b> → chạm <b>Tin nhắn</b> chọn <b>Nội dung của URL</b> → chạm <b>Người nhận</b> chọn <b>cô dọn phòng</b>.')
+              : step(4, 'Thêm tác vụ <b>"Sao chép vào bảng nhớ tạm"</b> (tự lấy Nội dung của URL), rồi thêm <b>"Mở ứng dụng"</b> → chọn <b>Zalo</b>.')}
+        ${step(5, 'Bấm <b>Xong</b>. Từ mai ' + (sms ? 'đúng 8:00 iPhone tự gửi tin cho cô.' : '8:00 Zalo tự mở với tin đã copy — vào chat của cô, giữ ô nhập → Dán → Gửi.'))}
+        <div style="margin-top:14px;background:#F4F5F8;border-radius:12px;padding:10px 12px;font-size:12.5px;color:#334155;line-height:1.5"><b>Tin sẽ gửi trông thế này:</b><br>${esc(cleanText(0)).replace(/\n/g, '<br>')}</div>
+        <div style="font-size:12px;color:#64748B;margin-top:8px;line-height:1.5">Muốn thử ngay: trong Phím tắt mở mục vừa tạo → bấm ▶ chạy thử.</div></div></div>`;
+      return;
+    }
     if (S.etaFor && byId[S.etaFor]) {
       const b = byId[S.etaFor], t = S.etaVal || '';
       const TIMES = ['12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00', '21:00', '22:00', '23:00', '00:00', '01:00'];
