@@ -146,3 +146,11 @@ grey (dimmed) không liên lạc được.
   screen at once, retries once and shows "⚠️ CHƯA LƯU được…" if it still fails; /may-tinh Hôm nay arrival rows get a one-tap
   "✓ Đã đến". **🧹 Copy tin dọn phòng** (/may-tinh Hôm nay + Chi tiết ngày, /moi day page): rooms of the guests leaving that
   day per apartment, "⚡ Dọn gấp" where a new guest comes into the same room, arrivals per apartment — copied for Zalo.
+
+## 🤖 Zalo bot — cleaning message at 8:00 (Nov 5)
+iPhone Shortcuts + Zalo always asks "Hãy xác nhận" (Zalo's own action), so the web sends instead via **Zalo Bot Platform**
+(`https://bot-api.zaloplatforms.com/bot<TOKEN>/sendMessage`, docs.zaloplatforms.com). Owner makes the bot in Zalo Bot
+Creator and sets Railway Variable `ZALO_BOT_TOKEN`. /moi → 🧹 → "⏰ Tự gửi…" → tab 🤖 Bot Zalo: Kết nối (setWebhook to
+`/zalo-bot/hook`, secret in moi_settings `zbot_secret`, header `X-Bot-Api-Secret-Token`) → the cleaners message the bot
+once → listed in `zbot_chats` (on/off, rename, Gửi thử). `zbot_loop()` starts in gunicorn.conf.py post_fork; `zbot_tick()`
+sends once per day between 8:00–12:00 (atomic claim on `zbot_sent`). Result in `zbot_last`. Groups are beta at Zalo.

@@ -547,6 +547,185 @@ def moi_clean_feed(token):
     return resp
 
 
+# ---------------------------------------------------------------------------------------------------------------------
+# 🤖 Zalo Bot (owner, Nov 5): the web itself sends the cleaners' message at 8:00 into their Zalo — fully automatic, no
+# phone, no "Hãy xác nhận" (iPhone Shortcuts + Zalo always asked). Zalo Bot Platform (docs.zaloplatforms.com):
+# POST https://bot-api.zaloplatforms.com/bot<TOKEN>/<method>. The owner makes the bot in "Zalo Bot Creator" and puts its
+# token in Railway Variables as ZALO_BOT_TOKEN (never in code / chat). Webhook /zalo-bot/hook (secret header
+# X-Bot-Api-Secret-Token) records who messaged the bot → moi_settings 'zbot_chats'; each worker runs zbot_loop() (started
+# in gunicorn.conf.py post_fork) and ONE of them claims the day ('zbot_sent', atomic) and sends.
+ZBOT_API = 'https://bot-api.zaloplatforms.com/bot'
+
+
+def _zbot_token():
+    return (os.environ.get('ZALO_BOT_TOKEN') or '').strip()
+
+
+def _zbot_call(method, body=None, timeout=15):
+    import requests as _rq
+    tok = _zbot_token()
+    if not tok:
+        return {'ok': False, 'description': 'Chưa có ZALO_BOT_TOKEN trong Railway Variables'}
+    try:
+        r = _rq.post(f'{ZBOT_API}{tok}/{method}', json=body or {}, timeout=timeout)
+        try:
+            return r.json()
+        except ValueError:
+            return {'ok': False, 'description': f'HTTP {r.status_code}'}
+    except Exception as e:  # network
+        return {'ok': False, 'description': str(e)[:200]}
+
+
+def _zbot_get(_xdb, key, default=None):
+    _moi_feed_token(_xdb)  # makes moi_settings
+    v = _xdb.session.execute(text("SELECT value FROM moi_settings WHERE key = :k"), {'k': key}).scalar()
+    if v is None:
+        return default
+    try:
+        return json.loads(v)
+    except ValueError:
+        return v
+
+
+def _zbot_put(_xdb, key, value):
+    _xdb.session.execute(text("INSERT INTO moi_settings (key, value) VALUES (:k, :v) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value"),
+                         {'k': key, 'v': json.dumps(value, ensure_ascii=False)})
+    _xdb.session.commit()
+
+
+def _zbot_secret(_xdb):
+    import secrets
+    sec = _zbot_get(_xdb, 'zbot_secret')
+    if not sec:
+        sec = secrets.token_urlsafe(24)
+        _zbot_put(_xdb, 'zbot_secret', sec)
+    return sec
+
+
+def _zbot_send_clean(_xdb, day=None, only=None):
+    """Send the cleaning message of `day` to every chat that is on (or only `only`). Returns [(name, ok, error)]."""
+    day = day or (datetime.utcnow() + timedelta(hours=7)).date()
+    msg = _moi_clean_text(_xdb, day)
+    chats = _zbot_get(_xdb, 'zbot_chats', {}) or {}
+    out = []
+    for cid, c in chats.items():
+        if (only and cid != only) or (not only and not c.get('on')):
+            continue
+        r = _zbot_call('sendMessage', {'chat_id': cid, 'text': msg})
+        out.append((c.get('name') or cid, bool(r.get('ok')), '' if r.get('ok') else str(r.get('description') or r)[:160]))
+    _zbot_put(_xdb, 'zbot_last', {'at': (datetime.utcnow() + timedelta(hours=7)).strftime('%d/%m %H:%M'),
+                                  'sent': [{'name': n, 'ok': ok, 'err': e} for n, ok, e in out]})
+    return out
+
+
+def zbot_tick():
+    """One check (called every minute by zbot_loop): between 8:00 and 12:00 Vietnam time, the first worker that claims
+    today sends. A deploy at 9:30 still sends once; nothing is sent twice."""
+    now = datetime.utcnow() + timedelta(hours=7)
+    if not (8 <= now.hour < 12) or not _zbot_token():
+        return False
+    from core.models import db as _xdb
+    with app.app_context():
+        try:
+            chats = _zbot_get(_xdb, 'zbot_chats', {}) or {}
+            if not any(c.get('on') for c in chats.values()):
+                return False
+            day = now.date().isoformat()
+            got = _xdb.session.execute(text(
+                "INSERT INTO moi_settings (key, value) VALUES ('zbot_sent', :d) ON CONFLICT (key) DO UPDATE "
+                "SET value = EXCLUDED.value WHERE moi_settings.value < EXCLUDED.value RETURNING value"), {'d': day}).fetchone()
+            _xdb.session.commit()
+            if not got:
+                return False
+            _zbot_send_clean(_xdb, now.date())
+            return True
+        except Exception as e:
+            _xdb.session.rollback()
+            print(f'⚠️ Zalo bot: {e}')
+            return False
+        finally:
+            _xdb.session.remove()
+
+
+def zbot_loop():
+    import threading, time as _t
+
+    def run():
+        _t.sleep(20)
+        while True:
+            try:
+                zbot_tick()
+            except Exception as e:
+                print(f'⚠️ Zalo bot loop: {e}')
+            _t.sleep(60)
+    threading.Thread(target=run, daemon=True, name='zalo-bot').start()
+
+
+@app.route('/zalo-bot/hook', methods=['POST'])
+def zbot_hook():
+    """Zalo calls this when someone messages the bot: remember the chat (new people are switched on) and answer."""
+    from core.models import db as _xdb
+    if request.headers.get('X-Bot-Api-Secret-Token', '') != _zbot_secret(_xdb):
+        return jsonify({'ok': False}), 403
+    ev = request.get_json(silent=True) or {}
+    m = ev.get('message') or {}
+    chat = m.get('chat') or {}
+    cid = str(chat.get('id') or '')
+    if cid:
+        chats = _zbot_get(_xdb, 'zbot_chats', {}) or {}
+        new = cid not in chats
+        name = (m.get('from') or {}).get('display_name') or ''
+        if chat.get('chat_type') == 'GROUP':
+            name = 'Nhóm' + (f' (qua {name})' if name else '')
+        c = chats.get(cid) or {'on': True}
+        c.update({'name': c.get('name') if not new else name, 'type': chat.get('chat_type') or '', 'seen': (datetime.utcnow() + timedelta(hours=7)).strftime('%d/%m %H:%M')})
+        chats[cid] = c
+        _zbot_put(_xdb, 'zbot_chats', chats)
+        if new:
+            _zbot_call('sendMessage', {'chat_id': cid, 'text': 'Đã kết nối ✅ Mỗi sáng 8:00 bot sẽ gửi danh sách phòng cần dọn vào đây.'})
+    return jsonify({'ok': True})
+
+
+@app.route('/api/moi/zbot', methods=['GET', 'POST'])
+def moi_zbot():
+    """Setup sheet in /moi: status · connect (setWebhook) · switch a person on/off · rename · send a test now."""
+    from core.models import db as _xdb
+    _moi_ensure()
+    if request.method == 'POST':
+        d = request.get_json(silent=True) or {}
+        act = d.get('action')
+        chats = _zbot_get(_xdb, 'zbot_chats', {}) or {}
+        if act == 'connect':
+            url = 'https://' + request.host_url.split('://', 1)[1].rstrip('/') + '/zalo-bot/hook'
+            r = _zbot_call('setWebhook', {'url': url, 'secret_token': _zbot_secret(_xdb)})
+            if not r.get('ok'):
+                return jsonify({'success': False, 'error': str(r.get('description') or r)[:200]})
+        elif act in ('toggle', 'rename', 'remove') and d.get('id') in chats:
+            if act == 'toggle':
+                chats[d['id']]['on'] = not chats[d['id']].get('on')
+            elif act == 'rename':
+                chats[d['id']]['name'] = (d.get('name') or '').strip()[:60] or chats[d['id']].get('name')
+            else:
+                chats.pop(d['id'])
+            _zbot_put(_xdb, 'zbot_chats', chats)
+        elif act == 'test':
+            out = _zbot_send_clean(_xdb, only=d.get('id'))
+            if not out:
+                return jsonify({'success': False, 'error': 'Chưa có ai được bật để nhận tin'})
+            bad = [f'{n}: {e}' for n, ok, e in out if not ok]
+            if bad:
+                return jsonify({'success': False, 'error': '; '.join(bad)})
+        else:
+            return jsonify({'success': False, 'error': 'Không rõ thao tác'}), 400
+    info = _zbot_call('getWebhookInfo') if _zbot_token() else {}
+    me = (_zbot_call('getMe') if _zbot_token() else {}).get('result') or {}
+    chats = _zbot_get(_xdb, 'zbot_chats', {}) or {}
+    return jsonify({'success': True, 'token': bool(_zbot_token()), 'bot': me.get('account_name') or me.get('display_name') or '',
+                    'connected': bool(((info or {}).get('result') or {}).get('url', '').endswith('/zalo-bot/hook')),
+                    'chats': [dict(c, id=k) for k, c in chats.items()], 'last': _zbot_get(_xdb, 'zbot_last'),
+                    'sent_day': _zbot_get(_xdb, 'zbot_sent')})
+
+
 def _moi_room_label(apt, no):
     """The owner's name for room `no` of this apartment, else "Phòng N"."""
     return (apt.get('room_names') or {}).get(no) or f'Phòng {no}'

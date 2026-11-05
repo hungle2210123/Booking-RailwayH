@@ -254,3 +254,34 @@ def test_clean_message_link(client):
     assert 'Khách đến' not in body and 'Hostel' not in body
     assert client.get(path + '?d=1').get_data(as_text=True).startswith('Dọn phòng ')
     assert client.get('/don-phong/sai.txt').status_code == 404
+
+
+def test_zalo_bot_hook_and_send(client, monkeypatch):
+    """Owner, Nov 5: the web sends the cleaning message into Zalo itself (Zalo Bot). The webhook refuses a wrong secret,
+    remembers who messaged the bot, and 'Gửi thử' sends the cleaning text to that chat (Zalo API mocked)."""
+    import app as appmod
+    from core.models import db
+    sent = []
+    monkeypatch.setenv('ZALO_BOT_TOKEN', 'test-token')
+    monkeypatch.setattr(appmod, '_zbot_call', lambda m, body=None, timeout=15: (sent.append((m, body)) or {'ok': True, 'result': {}}))
+    with appmod.app.app_context():
+        old = appmod._zbot_get(db, 'zbot_chats', {})
+        last = appmod._zbot_get(db, 'zbot_last')
+        sec = appmod._zbot_secret(db)
+    try:
+        ev = {'event_name': 'message.text.received', 'message': {'from': {'id': 'zz', 'display_name': 'ZZ TEST Cô'}, 'chat': {'id': 'zz-test-chat', 'chat_type': 'PRIVATE'}, 'text': 'hi'}}
+        assert client.post('/zalo-bot/hook', json=ev, headers={'X-Bot-Api-Secret-Token': 'wrong'}).status_code == 403
+        assert client.post('/zalo-bot/hook', json=ev, headers={'X-Bot-Api-Secret-Token': sec}).status_code == 200
+        j = client.get('/api/moi/zbot').get_json()
+        c = [x for x in j['chats'] if x['id'] == 'zz-test-chat']
+        assert c and c[0]['on'] and c[0]['name'] == 'ZZ TEST Cô'
+        sent.clear()
+        assert client.post('/api/moi/zbot', json={'action': 'test', 'id': 'zz-test-chat'}).get_json()['success']
+        assert sent[0][0] == 'sendMessage' and sent[0][1]['chat_id'] == 'zz-test-chat' and sent[0][1]['text'].startswith(('Dọn phòng', 'Hôm nay'))
+    finally:
+        with appmod.app.app_context():
+            appmod._zbot_put(db, 'zbot_chats', old)
+            if last is not None:
+                appmod._zbot_put(db, 'zbot_last', last)
+            else:
+                db.session.execute(appmod.text("DELETE FROM moi_settings WHERE key = 'zbot_last'")); db.session.commit()

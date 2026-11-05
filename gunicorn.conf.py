@@ -22,3 +22,9 @@ def post_fork(server, worker):
         server.log.info(f"Worker {worker.pid}: fresh database connection pool")
     except Exception as e:  # never stop a worker from booting because of this
         server.log.warning(f"Worker {worker.pid}: could not reset DB pool: {e}")
+    # 🤖 Zalo bot: every worker checks once a minute; only one sends the 8:00 cleaning message (p15_moi zbot_tick)
+    try:
+        from app import zbot_loop
+        zbot_loop()
+    except Exception as e:
+        server.log.warning(f"Worker {worker.pid}: Zalo bot loop not started: {e}")
