@@ -216,7 +216,7 @@ button.info.on{border-color:#0E1525;background:#fff}
     } catch (e) { if (!quiet) $('#app').innerHTML = '<div class="empty" style="padding-top:80px">Không tải được dữ liệu — kéo xuống để tải lại.</div>'; }
   }
   window.MsgLive = { refresh: () => load(true) };
-  fetch('/api/moi/feed').then((r) => r.json()).then((j) => { if (j.success) { S.feed = j.webcal; if (S.tab === 'day') render(); } }).catch(() => {});            // journey.js calls this after its send sheet closes
+  fetch('/api/moi/feed').then((r) => r.json()).then((j) => { if (j.success) { S.feed = j.webcal; S.cleanUrl = j.clean; if (S.tab === 'day') render(); } }).catch(() => {});            // journey.js calls this after its send sheet closes
   setInterval(() => { if (!document.hidden && !$('.ov') && !$('.jr-ov') && !S.pick) load(true); }, 45000);
   document.addEventListener('visibilitychange', () => { if (!document.hidden) load(true); });
 
@@ -328,33 +328,27 @@ button.info.on{border-color:#0E1525;background:#fff}
 
   // 🧹 the cleaning message for the cleaners (owner, Nov 5): rooms of the guests leaving that day, per apartment,
   // "dọn gấp" where a new guest arrives in the same room, then the arrivals — copied, ready to paste in Zalo
+  const STREET = { 1: 'Hàng Bạc', 2: 'Hàng Bè', 506: 'Hội Vũ', 877: 'Thợ Nhuộm' };
+  const WDV = ['chủ nhật', 'thứ hai', 'thứ ba', 'thứ tư', 'thứ năm', 'thứ sáu', 'thứ bảy'];
   const cleanText = (d) => {
-    const outs = B.filter((b) => b.coO === d), ins = B.filter((b) => b.ciO === d);
-    const lines = [], urgent = [];
-    let total = 0;
+    const outs = B.filter((b) => b.coO === d), lines = [];
     APT.forEach((a) => {
-      const mine = outs.filter((b) => b.apt === a.id);
-      if (!mine.length) return;
-      const named = mine.filter((b) => b.room_no).sort((p, q) => p.room_no - q.room_no).map((b) => rn(a.id, b.room_no));
-      const unnamed = mine.length - named.length;
-      total += mine.length;
-      lines.push('• ' + a.name + ': ' + [named.join(', '), unnamed ? unnamed + ' phòng chưa ghi số' : ''].filter(Boolean).join(' + '));
-      mine.filter((b) => b.room_no && ins.some((x) => x.apt === a.id && x.room_no === b.room_no)).forEach((b) => urgent.push(a.short + ' ' + rn(a.id, b.room_no)));
+      const mine = outs.filter((b) => b.apt === a.id); if (!mine.length) return;
+      const rooms = mine.filter((b) => b.room_no).sort((p, q) => p.room_no - q.room_no).map((b) => rn(a.id, b.room_no));
+      const loose = mine.length - rooms.length;
+      lines.push((STREET[a.id] || a.name.replace(/\d+|hostel/gi, '').trim()) + ': ' + rooms.concat(loose ? [loose + ' phòng chưa ghi số'] : []).join(', '));
     });
-    const loose = outs.filter((b) => !b.apt).length;
-    if (loose) { total += loose; lines.push('• Chưa xếp căn: ' + loose + ' phòng'); }
-    const head = '🧹 DỌN PHÒNG ' + WDF[new Date(Date.parse(TODAY + 'T00:00:00Z') + d * 864e5).getUTCDay()].toUpperCase() + ' ' + dm(d);
-    if (!total) return head + '\nHôm nay không có phòng trả.';
-    const arr = APT.map((a) => [a.short, ins.filter((b) => b.apt === a.id).length]).filter((x) => x[1]).map((x) => x[0] + ' ' + x[1]).join(' · ');
-    return [head, ...lines, 'Tổng: ' + total + ' phòng',
-      urgent.length ? '⚡ Dọn gấp (có khách mới đến cùng phòng): ' + urgent.join(', ') : '',
-      arr ? 'Khách đến hôm nay: ' + arr : ''].filter(Boolean).join('\n');
+    const loose = outs.filter((b) => !b.apt).length; if (loose) lines.push('Chưa xếp căn: ' + loose + ' phòng');
+    const dt = new Date(Date.parse(TODAY + 'T00:00:00Z') + d * 864e5);
+    return 'Dọn phòng ' + WDV[dt.getUTCDay()] + ' ' + dt.getUTCDate() + '/' + (dt.getUTCMonth() + 1) + '\n' + (lines.length ? lines.join('\n') : 'Hôm nay không có phòng trả');
   };
   const copyText = (t) => { let ok = false;
     try { const ta = document.createElement('textarea'); ta.value = t; ta.setAttribute('readonly', ''); ta.style.cssText = 'position:fixed;top:0;opacity:0;font-size:16px';
       document.body.appendChild(ta); ta.select(); ta.setSelectionRange(0, t.length); ok = document.execCommand('copy'); ta.remove(); } catch (e) {}
     if (!ok && navigator.clipboard) navigator.clipboard.writeText(t).catch(() => {});
     return true; };
+  // the secret plain-text link of the cleaning message, for an iPhone Shortcut that sends it every morning
+  M.cleanLink = () => { if (!S.cleanUrl) return toast('Đang tải link… thử lại sau 1 giây'); copyText(S.cleanUrl); toast('Đã copy link tin dọn phòng — dán vào Phím tắt (Lấy nội dung của URL)'); };
   M.cleanCopy = (d) => { const t = cleanText(d == null ? S.day : d); copyText(t); toast('Đã copy tin dọn phòng — dán vào Zalo / WhatsApp gửi các cô'); };
   M.cancel = async (id) => {
     const b = byId[id]; if (!confirm('Báo hủy ' + b.name + '?\n(giống "Báo hủy" trên lịch — hoàn tác được)')) return;
@@ -630,7 +624,7 @@ button.info.on{border-color:#0E1525;background:#fff}
           <div class="t">${esc(r.note)}<small>${esc(b.name)} · ${a ? esc(a.short) + (b.room_no ? ' · ' + esc(rn(b.apt, b.room_no)) : '') : 'chưa xếp'}${b.phone ? ' · ' + esc(b.phone) : ''}</small></div>
           <button class="okb" onclick="event.stopPropagation();M.remDone(${r.id})">Xong</button></div>`; }).join('')}</div></div>`;
     const stays = B.filter((b) => b.ciO < d && d < b.coO);
-    h += `<button onclick="M.cleanCopy(${d})" style="width:100%;min-height:46px;border-radius:14px;border:1.5px dashed #94A3B8;background:#fff;font-size:14px;font-weight:800;color:#0E1525;margin-bottom:8px">🧹 Copy tin dọn phòng ${dm(d)} — gửi các cô</button>`;
+    h += `<button onclick="M.cleanCopy(${d})" style="width:100%;min-height:46px;border-radius:14px;border:1.5px dashed #94A3B8;background:#fff;font-size:14px;font-weight:800;color:#0E1525;margin-bottom:8px">🧹 Copy tin dọn phòng ${dm(d)} — gửi các cô</button>${d === 0 ? `<button onclick="M.cleanLink()" style="width:100%;border:none;background:none;font-size:12px;font-weight:700;color:#475569;margin:-4px 0 8px;text-decoration:underline">Copy link để iPhone tự gửi lúc 8 giờ sáng</button>` : ''}`;
     h += `<div class="seg"><button class="${S.seg === 'pair' ? 'on' : ''}" onclick="M.set('seg','pair')">Trả ↔ Đến</button><button class="${S.seg === 'stay' ? 'on' : ''}" onclick="M.set('seg','stay')">Đang ở · ${stays.length}</button></div>`;
     if (S.seg === 'stay') {
       h += '<div class="card" style="padding:4px 16px 6px">' + (stays.sort((p, q) => p.coO - q.coO).map((b) => { const a = aptById[b.apt], left = b.coO - d;

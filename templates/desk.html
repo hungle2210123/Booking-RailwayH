@@ -389,27 +389,19 @@ button.info.on{border-color:#0E1525;background:#fff}
 
   // 🧹 the cleaning message for the cleaners (owner, Nov 5): rooms of the guests leaving that day, per apartment,
   // "dọn gấp" where a new guest arrives in the same room, then the arrivals — copied, ready to paste in Zalo
+  const STREET = { 1: 'Hàng Bạc', 2: 'Hàng Bè', 506: 'Hội Vũ', 877: 'Thợ Nhuộm' };
+  const WDV = ['chủ nhật', 'thứ hai', 'thứ ba', 'thứ tư', 'thứ năm', 'thứ sáu', 'thứ bảy'];
   const cleanText = (d) => {
-    const outs = B.filter((b) => b.coO === d), ins = B.filter((b) => b.ciO === d);
-    const lines = [], urgent = [];
-    let total = 0;
+    const outs = B.filter((b) => b.coO === d), lines = [];
     APT.forEach((a) => {
-      const mine = outs.filter((b) => b.apt === a.id);
-      if (!mine.length) return;
-      const named = mine.filter((b) => b.room_no).sort((p, q) => p.room_no - q.room_no).map((b) => rn(a.id, b.room_no));
-      const unnamed = mine.length - named.length;
-      total += mine.length;
-      lines.push('• ' + a.name + ': ' + [named.join(', '), unnamed ? unnamed + ' phòng chưa ghi số' : ''].filter(Boolean).join(' + '));
-      mine.filter((b) => b.room_no && ins.some((x) => x.apt === a.id && x.room_no === b.room_no)).forEach((b) => urgent.push(a.short + ' ' + rn(a.id, b.room_no)));
+      const mine = outs.filter((b) => b.apt === a.id); if (!mine.length) return;
+      const rooms = mine.filter((b) => b.room_no).sort((p, q) => p.room_no - q.room_no).map((b) => rn(a.id, b.room_no));
+      const loose = mine.length - rooms.length;
+      lines.push((STREET[a.id] || a.name.replace(/\d+|hostel/gi, '').trim()) + ': ' + rooms.concat(loose ? [loose + ' phòng chưa ghi số'] : []).join(', '));
     });
-    const loose = outs.filter((b) => !b.apt).length;
-    if (loose) { total += loose; lines.push('• Chưa xếp căn: ' + loose + ' phòng'); }
-    const head = '🧹 DỌN PHÒNG ' + WDF[new Date(Date.parse(TODAY + 'T00:00:00Z') + d * 864e5).getUTCDay()].toUpperCase() + ' ' + dm(d);
-    if (!total) return head + '\nHôm nay không có phòng trả.';
-    const arr = APT.map((a) => [a.short, ins.filter((b) => b.apt === a.id).length]).filter((x) => x[1]).map((x) => x[0] + ' ' + x[1]).join(' · ');
-    return [head, ...lines, 'Tổng: ' + total + ' phòng',
-      urgent.length ? '⚡ Dọn gấp (có khách mới đến cùng phòng): ' + urgent.join(', ') : '',
-      arr ? 'Khách đến hôm nay: ' + arr : ''].filter(Boolean).join('\n');
+    const loose = outs.filter((b) => !b.apt).length; if (loose) lines.push('Chưa xếp căn: ' + loose + ' phòng');
+    const dt = new Date(Date.parse(TODAY + 'T00:00:00Z') + d * 864e5);
+    return 'Dọn phòng ' + WDV[dt.getUTCDay()] + ' ' + dt.getUTCDate() + '/' + (dt.getUTCMonth() + 1) + '\n' + (lines.length ? lines.join('\n') : 'Hôm nay không có phòng trả');
   };
   const copyText = (t) => { let ok = false;
     try { const ta = document.createElement('textarea'); ta.value = t; ta.setAttribute('readonly', ''); ta.style.cssText = 'position:fixed;top:0;opacity:0;font-size:16px';

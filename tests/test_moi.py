@@ -241,3 +241,16 @@ def app_module_existing(bid):
     import app as _app
     with _app.app.app_context():
         return _app._ext_existing(bid)
+
+
+def test_clean_message_link(client):
+    """Owner, Nov 5: the cleaners' message is short ("Dọn phòng thứ năm 5/11" / "Hàng Bạc: 102, 201") and has a secret
+    plain-text link for an iPhone Shortcut that sends it at 8:00; a wrong token is refused."""
+    f = client.get('/api/moi/feed').get_json()
+    path = '/' + f['clean'].split('/', 3)[3]
+    r = client.get(path)
+    body = r.get_data(as_text=True)
+    assert r.status_code == 200 and r.mimetype == 'text/plain' and body.startswith('Dọn phòng ')
+    assert 'Khách đến' not in body and 'Hostel' not in body
+    assert client.get(path + '?d=1').get_data(as_text=True).startswith('Dọn phòng ')
+    assert client.get('/don-phong/sai.txt').status_code == 404

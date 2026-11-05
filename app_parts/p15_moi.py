@@ -418,7 +418,8 @@ def moi_feed_link():
     _moi_ensure()
     tok = _moi_feed_token(_xdb)
     host = request.host_url.split('://', 1)[1].rstrip('/')
-    return jsonify({'success': True, 'webcal': f'webcal://{host}/cal/{tok}.ics', 'https': f'https://{host}/cal/{tok}.ics'})
+    return jsonify({'success': True, 'webcal': f'webcal://{host}/cal/{tok}.ics', 'https': f'https://{host}/cal/{tok}.ics',
+                    'clean': f'https://{host}/don-phong/{tok}.txt'})
 
 
 @app.route('/cal/<token>.ics')
@@ -492,6 +493,52 @@ def moi_feed(token):
     resp.headers['Cache-Control'] = 'no-store'
     return resp
 
+
+
+MOI_STREET = {1: 'Hàng Bạc', 2: 'Hàng Bè', 506: 'Hội Vũ', 877: 'Thợ Nhuộm'}     # what the cleaners call each apartment
+MOI_WEEKDAY = ['thứ hai', 'thứ ba', 'thứ tư', 'thứ năm', 'thứ sáu', 'thứ bảy', 'chủ nhật']
+
+
+def _moi_clean_text(_xdb, day):
+    """The cleaners' message for `day` (owner, Nov 5: short — "Dọn phòng thứ năm 5/11 / Hàng Bạc: 102, 201"): the rooms
+    of the guests leaving that day, per apartment. Same text as the 🧹 button in /moi and /may-tinh."""
+    apts = _moi_apartments(_xdb)
+    rows = _xdb.session.execute(text("""
+        SELECT actual_apartment, room_no FROM bookings
+        WHERE checkout_date = :d AND COALESCE(booking_status, '') NOT IN ('cancelled', 'deleted')
+          AND COALESCE(checkin_status, '') NOT IN ('cancelling', 'no_show')"""), {'d': day}).fetchall()
+    head = f'Dọn phòng {MOI_WEEKDAY[day.weekday()]} {day.day}/{day.month}'
+    lines = []
+    for a in apts:
+        mine = [r for r in rows if str(r[0] or '') == str(a['id'])]
+        if not mine:
+            continue
+        rooms = [_moi_room_label(a, r[1]) for r in sorted(mine, key=lambda r: r[1] or 99) if r[1]]
+        loose = len(mine) - len(rooms)
+        street = MOI_STREET.get(a['id']) or re.sub(r'\d+|hostel', '', a['name'], flags=re.I).strip()
+        lines.append(f"{street}: {', '.join(rooms + ([f'{loose} phòng chưa ghi số'] if loose else []))}")
+    loose = sum(1 for r in rows if not r[0])
+    if loose:
+        lines.append(f'Chưa xếp căn: {loose} phòng')
+    return head + '\n' + ('\n'.join(lines) if lines else 'Hôm nay không có phòng trả')
+
+
+@app.route('/don-phong/<token>.txt')
+def moi_clean_feed(token):
+    """Plain text of today's cleaning message (?d=1 tomorrow) — for an iPhone Shortcut that sends it at 8:00. The token
+    is the calendar-subscription one, so the link is not guessable."""
+    from core.models import db as _xdb
+    _moi_ensure()
+    if token != _moi_feed_token(_xdb):
+        return 'Không tìm thấy', 404
+    try:
+        add = max(-1, min(int(request.args.get('d', 0)), 7))
+    except ValueError:
+        add = 0
+    day = (datetime.utcnow() + timedelta(hours=7)).date() + timedelta(days=add)
+    resp = app.response_class(_moi_clean_text(_xdb, day), mimetype='text/plain; charset=utf-8')
+    resp.headers['Cache-Control'] = 'no-store'
+    return resp
 
 
 def _moi_room_label(apt, no):
