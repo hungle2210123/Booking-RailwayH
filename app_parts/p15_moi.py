@@ -558,7 +558,16 @@ ZBOT_API = 'https://bot-api.zaloplatforms.com/bot'
 
 
 def _zbot_token():
-    return (os.environ.get('ZALO_BOT_TOKEN') or '').strip()
+    """Railway Variable ZALO_BOT_TOKEN, or the one the owner pasted in the /moi bot tab (moi_settings 'zbot_token' —
+    easier from the iPhone; never sent back to the page)."""
+    tok = (os.environ.get('ZALO_BOT_TOKEN') or '').strip()
+    if tok:
+        return tok
+    try:
+        from core.models import db as _xdb
+        return (_xdb.session.execute(text("SELECT value FROM moi_settings WHERE key = 'zbot_token'")).scalar() or '').strip().strip('"')
+    except Exception:
+        return ''
 
 
 def _zbot_call(method, body=None, timeout=15):
@@ -695,6 +704,18 @@ def moi_zbot():
         d = request.get_json(silent=True) or {}
         act = d.get('action')
         chats = _zbot_get(_xdb, 'zbot_chats', {}) or {}
+        if act == 'token':
+            tok = (d.get('token') or '').strip()
+            if len(tok) < 10:
+                return jsonify({'success': False, 'error': 'Mã quá ngắn — copy cả ô Bot Token'})
+            _moi_feed_token(_xdb)
+            _xdb.session.execute(text("INSERT INTO moi_settings (key, value) VALUES ('zbot_token', :v) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value"), {'v': tok})
+            _xdb.session.commit()
+            me = _zbot_call('getMe')
+            if not me.get('ok'):
+                _xdb.session.execute(text("DELETE FROM moi_settings WHERE key = 'zbot_token'")); _xdb.session.commit()
+                return jsonify({'success': False, 'error': 'Zalo không nhận mã này — kiểm tra lại ô Bot Token (' + str(me.get('description') or '')[:80] + ')'})
+            act = 'connect'
         if act == 'connect':
             url = 'https://' + request.host_url.split('://', 1)[1].rstrip('/') + '/zalo-bot/hook'
             r = _zbot_call('setWebhook', {'url': url, 'secret_token': _zbot_secret(_xdb)})
@@ -720,7 +741,8 @@ def moi_zbot():
     info = _zbot_call('getWebhookInfo') if _zbot_token() else {}
     me = (_zbot_call('getMe') if _zbot_token() else {}).get('result') or {}
     chats = _zbot_get(_xdb, 'zbot_chats', {}) or {}
-    return jsonify({'success': True, 'token': bool(_zbot_token()), 'bot': me.get('account_name') or me.get('display_name') or '',
+    # a reset (old) token fails getMe → the page asks for the new one again
+    return jsonify({'success': True, 'token': bool(_zbot_token()) and bool(me), 'bot': me.get('account_name') or me.get('display_name') or '',
                     'connected': bool(((info or {}).get('result') or {}).get('url', '').endswith('/zalo-bot/hook')),
                     'chats': [dict(c, id=k) for k, c in chats.items()], 'last': _zbot_get(_xdb, 'zbot_last'),
                     'sent_day': _zbot_get(_xdb, 'zbot_sent')})

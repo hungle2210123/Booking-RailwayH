@@ -358,7 +358,7 @@ button.info.on{border-color:#0E1525;background:#fff}
     toast(action === 'test' ? 'Đang gửi thử…' : 'Đang lưu…');
     const j = await post('/api/moi/zbot', Object.assign({ action, id }, extra || {}));
     if (!j.success) return toast('Chưa được: ' + (j.error || 'lỗi'));
-    S.zbot = j; toast(action === 'test' ? 'Đã gửi ✅ xem trong Zalo' : action === 'connect' ? 'Đã kết nối bot ✅' : 'Đã lưu'); renderSheet();
+    S.zbot = j; toast(action === 'test' ? 'Đã gửi ✅ xem trong Zalo' : action === 'connect' || action === 'token' ? 'Đã kết nối bot ✅' : 'Đã lưu'); renderSheet();
   };
   M.cleanCopy = (d) => { const t = cleanText(d == null ? S.day : d); copyText(t); toast('Đã copy tin dọn phòng — dán vào Zalo / WhatsApp gửi các cô'); };
   M.cancel = async (id) => {
@@ -886,10 +886,9 @@ button.info.on{border-color:#0E1525;background:#fff}
           if (!zb) return '<div style="padding:24px 0;text-align:center;color:#64748B;font-weight:700">Đang tải…</div>';
           const card = (t) => `<div style="margin-top:10px;background:#F7F8FA;border-radius:12px;padding:10px 12px;font-size:13.5px;line-height:1.55;color:#1E293B">${t}</div>`;
           let h = `<div style="font-size:12.5px;color:#475569;font-weight:600;margin-top:8px;line-height:1.5">Web tự gửi vào Zalo của các cô lúc 8:00 mỗi sáng — không cần điện thoại, không phải bấm xác nhận.</div>`;
-          if (!zb.token) return h + step(1, 'Mở <b>Zalo Bot Creator</b> → bot của bạn → <b>Thiết lập chung</b> → <b>Bot Token</b> → copy mã.')
-            + step(2, 'Vào <b>Railway</b> → dự án → <b>Variables</b> → <b>New Variable</b>: tên <b>ZALO_BOT_TOKEN</b>, giá trị = mã vừa copy → Add. Railway tự chạy lại (~3 phút).')
-            + step(3, 'Quay lại đây, mở lại trang này — sẽ hiện nút kết nối.')
-            + card('🔒 Mã bot là chìa khóa bí mật: chỉ dán vào Railway, không gửi cho ai.');
+          if (!zb.token) return h + step(1, 'Mở <b>Zalo Bot Creator</b> → bot của bạn → <b>Thiết lập chung</b> → ô <b>Bot Token</b> → bấm 👁 → copy <b>cả mã</b>.')
+            + step(2, 'Dán vào đây rồi bấm Lưu — web tự kiểm tra mã và kết nối bot:', `<input id="zbTok" type="password" autocomplete="off" placeholder="Dán Bot Token" style="width:100%;margin-top:6px;min-height:46px;border-radius:12px;border:1.5px solid #CBD5E1;padding:0 12px;font-size:15px"><button class="big" style="margin-top:8px;min-height:46px;background:#0E1525;color:#fff" onclick="M.zbot('token',null,{token:$('#zbTok').value})">💾 Lưu mã và kết nối</button>`)
+            + card('🔒 Mã bot là chìa khóa bí mật: chỉ dán ở đây, không gửi cho ai. Đổi mã (Reset) thì dán lại mã mới.');
           if (!zb.connected) return h + card(`Đã có mã bot${zb.bot ? ' <b>' + esc(zb.bot) + '</b>' : ''} ✅. Bấm để bot báo về web khi có người nhắn:`)
             + `<button class="big" style="margin-top:10px;background:#0E1525;color:#fff" onclick="M.zbot('connect')">🔗 Kết nối bot với web</button>`;
           const list = (zb.chats || []).map(c => `<div style="display:flex;align-items:center;gap:8px;margin-top:8px;background:#F7F8FA;border-radius:12px;padding:8px 10px">
