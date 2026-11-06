@@ -309,3 +309,53 @@ def test_zalo_bot_tick_reads_db_token(monkeypatch):
     monkeypatch.setattr(appmod, '_zbot_token', real)
     with appmod.app.app_context():
         real()   # works inside the context
+
+
+def test_staff_leave_and_extra_via_bot(client, monkeypatch):
+    """Owner, Nov 6: a cleaner writes "mai em xin nghỉ" to the Zalo bot → waits → the owner answers "duyệt" → she is
+    told, the other cleaner is told "dọn CẢ 2 BÊN", and on that day the 8:00 message skips her and warns the other.
+    The owner writing "hôm nay cô Dung dọn 2 phòng thêm 150" records 2 rooms / 150.000đ at once."""
+    import app as appmod
+    from datetime import timedelta
+    from core.models import db
+    sent = []
+    monkeypatch.setenv('ZALO_BOT_TOKEN', 'test-token')
+    monkeypatch.setattr(appmod, '_zbot_call', lambda m, body=None, timeout=15: (sent.append((m, body)) or {'ok': True, 'result': {}}))
+    with appmod.app.app_context():
+        old = appmod._zbot_get(db, 'zbot_chats', {})
+        last = appmod._zbot_get(db, 'zbot_last')
+        sec = appmod._zbot_secret(db)
+        appmod._zbot_put(db, 'zbot_chats', {'zz-a': {'name': 'ZZTEST Dung Trần', 'on': False, 'role': 'staff'},
+                                            'zz-b': {'name': 'ZZTEST Hường Nguyễn', 'on': False, 'role': 'staff'},
+                                            'zz-o': {'name': 'ZZTEST Chủ', 'on': False, 'role': 'owner'}})
+    H = {'X-Bot-Api-Secret-Token': sec}
+    say = lambda cid, t: client.post('/zalo-bot/hook', json={'message': {'from': {'display_name': 'x'}, 'chat': {'id': cid, 'chat_type': 'PRIVATE'}, 'text': t}}, headers=H)
+    to = lambda cid: [b['text'] for m, b in sent if m == 'sendMessage' and b['chat_id'] == cid]
+    try:
+        say('zz-a', 'mai em xin nghỉ ạ')
+        assert 'chờ duyệt' in to('zz-a')[-1] and 'xin nghỉ' in to('zz-o')[-1]
+        j = client.get('/api/moi/staff').get_json()
+        assert any(p['who'] == 'ZZTEST Dung Trần' and p['kind'] == 'leave' for p in j['pending'])
+        say('zz-o', 'duyệt')
+        assert 'Đã duyệt' in to('zz-a')[-1] and 'CẢ 2 BÊN' in to('zz-b')[-1]
+        with appmod.app.app_context():
+            tomorrow = appmod._vn_now().date() + timedelta(days=1)
+            assert appmod.staff_off_on(db, tomorrow) == {'zz-a'}
+            sent.clear()
+            chats = appmod._zbot_get(db, 'zbot_chats', {})
+            for k in chats: chats[k]['on'] = True
+            appmod._zbot_put(db, 'zbot_chats', chats)
+            appmod._zbot_send_clean(db, tomorrow)
+            assert not to('zz-a') and to('zz-b')[0].startswith('⚠️ Hôm nay ZZTEST Dung Trần nghỉ')
+        say('zz-o', 'hôm nay cô Dung dọn 2 phòng. Thêm 150')
+        assert '2 phòng — 150.000đ' in to('zz-a')[-1]
+        p = [x for x in client.get('/api/moi/staff').get_json()['people'] if x['id'] == 'zz-a'][0]
+        assert p['extra_total'] >= 150000
+        say('zz-b', 'abc xyz')
+        assert 'chưa hiểu' in to('zz-b')[-1]
+    finally:
+        with appmod.app.app_context():
+            db.session.execute(appmod.text("DELETE FROM staff_log WHERE chat_id LIKE 'zz-%'")); db.session.commit()
+            appmod._zbot_put(db, 'zbot_chats', old)
+            if last is not None:
+                appmod._zbot_put(db, 'zbot_last', last)

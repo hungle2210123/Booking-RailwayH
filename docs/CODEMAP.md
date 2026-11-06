@@ -372,37 +372,64 @@ _p14_electricity — electricity calculator + meters/readings/bills_
 - app_parts/p14_electricity.py:449 `delete_electricity_image` ← `/api/electricity/images/<int:image_id>` DELETE — Delete electricity image
 - app_parts/p14_electricity.py:463 `get_electricity_analytics` ← `/api/electricity/analytics` GET — Get electricity analytics data for charts and comparisons
 
-## app_parts/p15_moi.py (785 lines)
+## app_parts/p15_moi.py (811 lines)
 _p15_moi — /moi: the new phone-first app (owner, Oct 26), built from the approved mockup. Runs NEXT TO the old pages_
 - app_parts/p15_moi.py:12 `_moi_ensure` — bookings.room_no (room 1..N inside the placed apartment) — added once per process.
 - app_parts/p15_moi.py:37 `_moi_apartments` — Active apartments with short name, colour (index among ALL apartments, like the calendar) and room count.
 - app_parts/p15_moi.py:54 `moi_page` ← `/moi` — The new phone-first app (old pages stay as they are).
-- app_parts/p15_moi.py:64 `desk_page` ← `/may-tinh` — The desktop app (owner, Oct 30): Hôm nay · Chi tiết ngày · Lịch phòng · Nhắn khách · Thu tiền · Doanh thu, gue
-- app_parts/p15_moi.py:74 `moi_data` ← `/api/moi/data` — Everything /moi shows: apartments, journey steps and every booking that touches [today − 10 days, today + 21 d
-- app_parts/p15_moi.py:174 `_moi_room_clash` — Guests (other than bid) who have room `room` of apartment `apt` on any night of `ranges` [(ci, co), …].
-- app_parts/p15_moi.py:198 `moi_set_room` ← `/api/moi/room` POST — Put a guest in room N of an apartment (or only the apartment when room_no is empty). Refused (409) when anothe
-- app_parts/p15_moi.py:231 `moi_set_stay` ← `/api/moi/stay` POST — Edit a guest's dates and/or total from the guest card (owner, Oct 29: tap "Ngày ở" / "Giá / đêm" / "Tổng tiền"
-- app_parts/p15_moi.py:270 `moi_split` ← `/api/moi/split` POST — Split a stay over two rooms (owner, Nov 5: "ngày 3 ở một phòng, ngày 4 một phòng khác"): {booking_id, at (the
-- app_parts/p15_moi.py:328 `moi_reminder` ← `/api/moi/reminder` POST — ⏰ Add a reminder on a guest ({booking_id, at: 'YYYY-MM-DDTHH:MM' Vietnam time, note}), or tick / untick one
-- app_parts/p15_moi.py:354 `_ics_text`
-- app_parts/p15_moi.py:359 `moi_ics` ← `/api/moi/ics` — An iPhone Calendar event with an alarm for one guest — opened by a plain link, so Safari shows "Thêm vào Lịch"
-- app_parts/p15_moi.py:406 `_moi_feed_token` — Secret part of the calendar-subscription link (made once, kept in moi_settings).
-- app_parts/p15_moi.py:420 `moi_feed_link` ← `/api/moi/feed` — The webcal:// link the owner subscribes to ONCE on the iPhone (Lịch → every reminder and promised arrival time
-- app_parts/p15_moi.py:432 `moi_feed` ← `/cal/<token>.ics` — Subscribed calendar: open reminders (alarm at the time) + promised arrival times of guests not arrived yet
-- app_parts/p15_moi.py:508 `_moi_clean_text` — The cleaners' message for `day` (owner, Nov 5: short — "Dọn phòng thứ năm 5/11 / Hàng Bạc: 102, 201"): the roo
-- app_parts/p15_moi.py:533 `moi_clean_feed` ← `/don-phong/<token>.txt` — Plain text of today's cleaning message (?d=1 tomorrow) — for an iPhone Shortcut that sends it at 8:00. The tok
-- app_parts/p15_moi.py:561 `_zbot_token` — Railway Variable ZALO_BOT_TOKEN, or the one the owner pasted in the /moi bot tab (moi_settings 'zbot_token' —
-- app_parts/p15_moi.py:574 `_zbot_call`
-- app_parts/p15_moi.py:589 `_zbot_get`
-- app_parts/p15_moi.py:600 `_zbot_put`
-- app_parts/p15_moi.py:606 `_zbot_secret`
-- app_parts/p15_moi.py:615 `_zbot_send_clean` — Send the cleaning message of `day` to every chat that is on (or only `only`). Returns [(name, ok, error)].
-- app_parts/p15_moi.py:631 `zbot_tick` — One check (called every minute by zbot_loop): between 8:00 and 10:00 Vietnam time, the first worker that claim
-- app_parts/p15_moi.py:664 `zbot_loop`
-- app_parts/p15_moi.py:679 `zbot_hook` ← `/zalo-bot/hook` POST — Zalo calls this when someone messages the bot: remember the chat (new people are switched on) and answer.
-- app_parts/p15_moi.py:704 `moi_zbot` ← `/api/moi/zbot` GET,POST — Setup sheet in /moi: status · connect (setWebhook) · switch a person on/off · rename · send a test now.
-- app_parts/p15_moi.py:759 `_moi_room_label` — The owner's name for room `no` of this apartment, else "Phòng N".
-- app_parts/p15_moi.py:765 `moi_room_name` ← `/api/moi/room_name` POST — Rename room N of an apartment ({apartment_id, room_no, name}); an empty name goes back to "Phòng N".
+- app_parts/p15_moi.py:70 `moi_version` ← `/api/version`
+- app_parts/p15_moi.py:77 `desk_page` ← `/may-tinh` — The desktop app (owner, Oct 30): Hôm nay · Chi tiết ngày · Lịch phòng · Nhắn khách · Thu tiền · Doanh thu, gue
+- app_parts/p15_moi.py:87 `moi_data` ← `/api/moi/data` — Everything /moi shows: apartments, journey steps and every booking that touches [today − 10 days, today + 21 d
+- app_parts/p15_moi.py:187 `_moi_room_clash` — Guests (other than bid) who have room `room` of apartment `apt` on any night of `ranges` [(ci, co), …].
+- app_parts/p15_moi.py:211 `moi_set_room` ← `/api/moi/room` POST — Put a guest in room N of an apartment (or only the apartment when room_no is empty). Refused (409) when anothe
+- app_parts/p15_moi.py:244 `moi_set_stay` ← `/api/moi/stay` POST — Edit a guest's dates and/or total from the guest card (owner, Oct 29: tap "Ngày ở" / "Giá / đêm" / "Tổng tiền"
+- app_parts/p15_moi.py:283 `moi_split` ← `/api/moi/split` POST — Split a stay over two rooms (owner, Nov 5: "ngày 3 ở một phòng, ngày 4 một phòng khác"): {booking_id, at (the
+- app_parts/p15_moi.py:341 `moi_reminder` ← `/api/moi/reminder` POST — ⏰ Add a reminder on a guest ({booking_id, at: 'YYYY-MM-DDTHH:MM' Vietnam time, note}), or tick / untick one
+- app_parts/p15_moi.py:367 `_ics_text`
+- app_parts/p15_moi.py:372 `moi_ics` ← `/api/moi/ics` — An iPhone Calendar event with an alarm for one guest — opened by a plain link, so Safari shows "Thêm vào Lịch"
+- app_parts/p15_moi.py:419 `_moi_feed_token` — Secret part of the calendar-subscription link (made once, kept in moi_settings).
+- app_parts/p15_moi.py:433 `moi_feed_link` ← `/api/moi/feed` — The webcal:// link the owner subscribes to ONCE on the iPhone (Lịch → every reminder and promised arrival time
+- app_parts/p15_moi.py:445 `moi_feed` ← `/cal/<token>.ics` — Subscribed calendar: open reminders (alarm at the time) + promised arrival times of guests not arrived yet
+- app_parts/p15_moi.py:521 `_moi_clean_text` — The cleaners' message for `day` (owner, Nov 5: short — "Dọn phòng thứ năm 5/11 / Hàng Bạc: 102, 201"): the roo
+- app_parts/p15_moi.py:546 `moi_clean_feed` ← `/don-phong/<token>.txt` — Plain text of today's cleaning message (?d=1 tomorrow) — for an iPhone Shortcut that sends it at 8:00. The tok
+- app_parts/p15_moi.py:574 `_zbot_token` — Railway Variable ZALO_BOT_TOKEN, or the one the owner pasted in the /moi bot tab (moi_settings 'zbot_token' —
+- app_parts/p15_moi.py:587 `_zbot_call`
+- app_parts/p15_moi.py:602 `_zbot_get`
+- app_parts/p15_moi.py:613 `_zbot_put`
+- app_parts/p15_moi.py:619 `_zbot_secret`
+- app_parts/p15_moi.py:628 `_zbot_send_clean` — Send the cleaning message of `day` to every chat that is on (or only `only`). Returns [(name, ok, error)].
+- app_parts/p15_moi.py:648 `zbot_tick` — One check (called every minute by zbot_loop): between 8:00 and 10:00 Vietnam time, the first worker that claim
+- app_parts/p15_moi.py:681 `zbot_loop`
+- app_parts/p15_moi.py:696 `zbot_hook` ← `/zalo-bot/hook` POST — Zalo calls this when someone messages the bot: remember the chat (new people are switched on) and answer.
+- app_parts/p15_moi.py:730 `moi_zbot` ← `/api/moi/zbot` GET,POST — Setup sheet in /moi: status · connect (setWebhook) · switch a person on/off · rename · send a test now.
+- app_parts/p15_moi.py:785 `_moi_room_label` — The owner's name for room `no` of this apartment, else "Phòng N".
+- app_parts/p15_moi.py:791 `moi_room_name` ← `/api/moi/room_name` POST — Rename room N of an apartment ({apartment_id, room_no, name}); an empty name goes back to "Phòng N".
+
+## app_parts/p16_staff.py (385 lines)
+_p16_staff — 👥 Nhân viên (owner, Nov 6): the cleaners talk to the Zalo bot (p15_moi zbot_*) in plain words._
+- app_parts/p16_staff.py:17 `_staff_ensure`
+- app_parts/p16_staff.py:29 `_vn_now`
+- app_parts/p16_staff.py:33 `_fold` — lower case, no accents ("Hường" → "huong"), đ → d.
+- app_parts/p16_staff.py:39 `_staff_day_label`
+- app_parts/p16_staff.py:43 `staff_parse_days` — Dates in a Vietnamese message → list of dates ([] = none said). Understands hôm nay / nay, mai / ngày mai,
+- app_parts/p16_staff.py:87 `staff_parse_money` — 'thêm 150' / '150k' / '150.000' / '150 nghìn' → 150000; None if no amount.
+- app_parts/p16_staff.py:108 `staff_parse_rooms`
+- app_parts/p16_staff.py:113 `_staff_chats`
+- app_parts/p16_staff.py:117 `_staff_people`
+- app_parts/p16_staff.py:121 `_staff_name`
+- app_parts/p16_staff.py:125 `_staff_find` — A cleaner named in the owner's message ("cô Dung", "chị Hường") → (chat id, chat) or (None, None).
+- app_parts/p16_staff.py:136 `_staff_say`
+- app_parts/p16_staff.py:141 `_staff_tell_owners`
+- app_parts/p16_staff.py:147 `staff_off_on` — chat ids of cleaners with an approved day off on `day`.
+- app_parts/p16_staff.py:154 `staff_clean_note` — Line put on top of the 8:00 message for cleaner `cid` when another cleaner is off that day.
+- app_parts/p16_staff.py:165 `_staff_add`
+- app_parts/p16_staff.py:175 `_staff_row`
+- app_parts/p16_staff.py:181 `_staff_extra_text`
+- app_parts/p16_staff.py:188 `staff_decide` — Owner approves / refuses a waiting leave or extra → the cleaner is told; an approved day off today/tomorrow is
+- app_parts/p16_staff.py:211 `staff_month` — {chat id: {name, leaves: [...], extras: [...], extra_total}} for month 'YYYY-MM' (+ pending list).
+- app_parts/p16_staff.py:237 `staff_month_text`
+- app_parts/p16_staff.py:252 `staff_handle_text` — A message to the bot from a cleaner or the owner. Returns the reply text ('' = none).
+- app_parts/p16_staff.py:325 `moi_staff` ← `/api/moi/staff` GET,POST — 👥 Nhân viên sheet in /moi: waiting requests, who is off today, month list; actions: decide, add (leave/extra),
 
 ## core/__init__.py (3 lines)
 
@@ -753,7 +780,7 @@ _p15_moi — /moi: the new phone-first app (owner, Oct 26), built from the appro
 - templates/debug_collector_comparison.html: 215 `runComparison` · 257 `displayResults` · 283 `populateComparisonTable` · 321 `populateMethodDetails` · 344 `populateGuestDetails` · 392 `getDifferenceClass` · 398 `showError` · 403 `deleteDebugFile`
 - templates/debug_collector_comparison.html: 409 `runJuneSpecificDebug` · 439 `displayJuneSpecificResults`
 
-## templates/desk.html (1273 lines)
+## templates/desk.html (1292 lines)
 - templates/desk.html: 303 `load` · 316 `loadRev` · 329 `needRev` · 347 `D.tab` · 348 `D.set` · 349 `D.q` · 350 `D.reload` · 352 `D.shift`
 - templates/desk.html: 358 `D.toToday` · 359 `D.open` · 360 `D.openDay` · 361 `D.close` · 362 `closeDrawer` · 363 `D.closeModal` · 366 `D.place` · 371 `D.room`
 - templates/desk.html: 378 `D.confirm` · 411 `D.cleanCopy` · 412 `D.cancel` · 418 `D.mark` · 422 `D.status` · 426 `D.unreach` · 427 `D.replied` · 428 `D.phone`
@@ -763,7 +790,7 @@ _p15_moi — /moi: the new phone-first app (owner, Oct 26), built from the appro
 - templates/desk.html: 580 `D.add` · 581 `D.addSave` · 596 `render` · 605 `renderSide` · 631 `renderTop` · 660 `viewToday` · 719 `dayCard` · 751 `viewDay`
 - templates/desk.html: 808 `D.uncancel` · 817 `viewCal` · 922 `renderPick` · 930 `viewMsg` · 970 `viewPay` · 1010 `D.payQuick` · 1016 `viewRev` · 1087 `D.revMonth`
 - templates/desk.html: 1088 `D.revDay` · 1089 `D.goDay` · 1090 `drawRevCharts` · 1113 `renderDrawer` · 1119 `guestCard` · 1178 `dayPanel` · 1199 `renderModal` · 1260 `D.mset`
-- templates/desk.html: 1261 `D.extOpen`
+- templates/desk.html: 1261 `D.extOpen` · 1277 `check`
 
 ## templates/duplicate_management.html (710 lines)
 - templates/duplicate_management.html: 196 `loadDuplicates` · 295 `updateStatistics` · 329 `renderDuplicateGroups` · 475 `toggleBookingSelection` · 506 `updateSelectedCount` · 521 `selectAllDuplicates` · 534 `deleteSelectedBookings` · 582 `showComparison`
@@ -814,15 +841,16 @@ _p15_moi — /moi: the new phone-first app (owner, Oct 26), built from the appro
 - templates/mobile_payment.html: 484 `cardCls` · 490 `dateBadge` · 498 `renderDates` · 557 `toISO` · 564 `openSheet` · 583 `closeSheet` · 588 `pick` · 594 `tickTs`
 - templates/mobile_payment.html: 601 `doConfirm` · 642 `showToast` · 649 `loadHistory` · 696 `switchTab` · 705 `changeOffset` · 707 `loadAnalytics` · 812 `openDetail` · 873 `closeDetail`
 
-## templates/moi.html (1081 lines)
-- templates/moi.html: 209 `load` · 287 `M.reload` · 288 `M.tab` · 289 `M.set` · 290 `M.day` · 291 `M.open` · 292 `M.close` · 293 `M.add`
-- templates/moi.html: 294 `M.addSave` · 307 `M.place` · 312 `M.room` · 319 `M.confirm` · 353 `M.cleanLink` · 354 `M.cleanSetup` · 356 `M.zbotLoad` · 358 `M.zbTokSet`
-- templates/moi.html: 359 `M.zbotSave` · 360 `M.zbot` · 371 `M.cleanCopy` · 372 `M.cancel` · 378 `M.mark` · 382 `M.status` · 384 `M.unreach` · 385 `M.renameRoom`
-- templates/moi.html: 393 `M.calDone` · 394 `M.remind` · 396 `M.eta` · 397 `M.remPreset` · 400 `M.remSave` · 409 `M.remDone` · 412 `M.etaSave` · 435 `M.phone`
-- templates/moi.html: 442 `M.send` · 443 `M.pickApt` · 444 `M.quick` · 446 `M.photo` · 447 `M.chatPhone` · 454 `M.edit` · 456 `M.extN` · 460 `M.splitApt`
-- templates/moi.html: 466 `M.extTyped` · 467 `M.editCalc` · 495 `M.editSave` · 529 `M.payOpen` · 530 `M.collect` · 538 `M.partial` · 540 `M.undoPay` · 543 `M.payCycle`
-- templates/moi.html: 548 `M.pickG` · 549 `M.auto` · 564 `render` · 573 `renderNav` · 582 `renderFloat` · 598 `viewDay` · 683 `viewCal` · 771 `M.cal`
-- templates/moi.html: 775 `msgCard` · 805 `viewMsg` · 841 `M.aptSheetOpen` · 854 `viewPay` · 896 `renderSheet` · 1068 `S_set` · 1069 `renderSheetPub` · 1070 `S_put`
+## templates/moi.html (1167 lines)
+- templates/moi.html: 209 `M_staffBadge` · 210 `load` · 289 `M.reload` · 290 `M.tab` · 291 `M.set` · 292 `M.day` · 293 `M.open` · 294 `M.close`
+- templates/moi.html: 295 `M.add` · 296 `M.addSave` · 309 `M.place` · 314 `M.room` · 321 `M.confirm` · 355 `M.cleanLink` · 358 `M.staffLoad` · 360 `M.staffOpen`
+- templates/moi.html: 361 `M.stfSet` · 364 `M.st` · 380 `M.cleanSetup` · 382 `M.zbotLoad` · 384 `M.zbTokSet` · 385 `M.zbotSave` · 386 `M.zbot` · 397 `M.cleanCopy`
+- templates/moi.html: 398 `M.cancel` · 404 `M.mark` · 408 `M.status` · 410 `M.unreach` · 411 `M.renameRoom` · 419 `M.calDone` · 420 `M.remind` · 422 `M.eta`
+- templates/moi.html: 423 `M.remPreset` · 426 `M.remSave` · 435 `M.remDone` · 438 `M.etaSave` · 461 `M.phone` · 468 `M.send` · 469 `M.pickApt` · 470 `M.quick`
+- templates/moi.html: 472 `M.photo` · 473 `M.chatPhone` · 480 `M.edit` · 482 `M.extN` · 486 `M.splitApt` · 492 `M.extTyped` · 493 `M.editCalc` · 521 `M.editSave`
+- templates/moi.html: 555 `M.payOpen` · 556 `M.collect` · 564 `M.partial` · 566 `M.undoPay` · 569 `M.payCycle` · 574 `M.pickG` · 575 `M.auto` · 590 `render`
+- templates/moi.html: 599 `renderNav` · 608 `renderFloat` · 624 `viewDay` · 709 `viewCal` · 797 `M.cal` · 801 `msgCard` · 831 `viewMsg` · 867 `M.aptSheetOpen`
+- templates/moi.html: 880 `viewPay` · 922 `renderSheet` · 1135 `S_set` · 1136 `renderSheetPub` · 1137 `S_put` · 1152 `check`
 
 ## templates/quick.html (309 lines)
 - templates/quick.html: 146 `toast` · 151 `go` · 159 `copyNow` · 167 `sendText` · 172 `copyText` · 173 `sendImgs` · 184 `setIn` · 206 `takeOut`

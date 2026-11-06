@@ -154,3 +154,11 @@ Creator and sets Railway Variable `ZALO_BOT_TOKEN`. /moi → 🧹 → "⏰ Tự 
 `/zalo-bot/hook`, secret in moi_settings `zbot_secret`, header `X-Bot-Api-Secret-Token`) → the cleaners message the bot
 once → listed in `zbot_chats` (on/off, rename, Gửi thử). `zbot_loop()` starts in gunicorn.conf.py post_fork; `zbot_tick()`
 sends once per day between 8:00–10:00 (atomic claim on `zbot_sent`). Result in `zbot_last`. Groups are beta at Zalo.
+
+## 👥 Nhân viên — nghỉ & làm thêm via the Zalo bot (Nov 6, app_parts/p16_staff.py)
+Bot chats get a role in `zbot_chats[id].role`: `staff` (cleaner) / `owner` / ''. Table `staff_log` (kind leave|extra, day,
+rooms, amount, status pending|approved|rejected|deleted, source bot|owner). The webhook passes every text to
+`staff_handle_text`: cleaner "mai em xin nghỉ" / "nghỉ 10-12/11" → pending + owners told; owner "duyệt"/"không" decides
+the newest pending; owner "hôm nay cô Dung dọn 2 phòng thêm 150" → approved extra (2 rooms, 150.000đ) + cleaner told.
+Approved day off → `_zbot_send_clean` skips her that day and puts "⚠️ … nghỉ — dọn CẢ 2 BÊN" on the other's message.
+/moi Hôm nay → "👥 Nhân viên" sheet (/api/moi/staff): approve, quick record, month list, "Gửi tổng kết", roles. No salary.

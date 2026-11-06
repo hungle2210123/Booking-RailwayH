@@ -630,11 +630,15 @@ def _zbot_send_clean(_xdb, day=None, only=None):
     day = day or (datetime.utcnow() + timedelta(hours=7)).date()
     msg = _moi_clean_text(_xdb, day)
     chats = _zbot_get(_xdb, 'zbot_chats', {}) or {}
+    off = staff_off_on(_xdb, day)          # p16: a cleaner on an approved day off gets nothing; the other "dọn cả 2 bên"
     out = []
     for cid, c in chats.items():
-        if (only and cid != only) or (not only and not c.get('on')):
+        if (only and cid != only) or (not only and (not c.get('on') or cid in off)):
             continue
-        r = _zbot_call('sendMessage', {'chat_id': cid, 'text': msg})
+        body = staff_clean_note(_xdb, day, cid) + msg
+        if c.get('role') == 'staff':
+            body += '\n\nXin nghỉ: nhắn "mai em xin nghỉ" · Làm thêm: "hôm nay em làm thêm 2 phòng"'
+        r = _zbot_call('sendMessage', {'chat_id': cid, 'text': body})
         out.append((c.get('name') or cid, bool(r.get('ok')), '' if r.get('ok') else str(r.get('description') or r)[:160]))
     _zbot_put(_xdb, 'zbot_last', {'at': (datetime.utcnow() + timedelta(hours=7)).strftime('%d/%m %H:%M'),
                                   'sent': [{'name': n, 'ok': ok, 'err': e} for n, ok, e in out]})
@@ -710,6 +714,15 @@ def zbot_hook():
         _zbot_put(_xdb, 'zbot_chats', chats)
         if new:
             _zbot_call('sendMessage', {'chat_id': cid, 'text': 'Đã kết nối ✅ Mỗi sáng 8:00 bot sẽ gửi danh sách phòng cần dọn vào đây.'})
+        elif m.get('text'):
+            try:                            # p16: xin nghỉ / làm thêm / duyệt in plain words
+                reply = staff_handle_text(_xdb, cid, c, m.get('text') or '')
+            except Exception as e:
+                _xdb.session.rollback()
+                print(f'⚠️ staff bot: {e}')
+                reply = ''
+            if reply:
+                _zbot_call('sendMessage', {'chat_id': cid, 'text': reply})
     return jsonify({'ok': True})
 
 

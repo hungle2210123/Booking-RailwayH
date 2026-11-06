@@ -206,6 +206,7 @@ button.info.on{border-color:#0E1525;background:#fff}
   const offOf = (iso) => Math.round((Date.parse(iso + 'T00:00:00Z') - Date.parse(TODAY + 'T00:00:00Z')) / 864e5);
   const dateOf = (o) => { const d = new Date(Date.parse(TODAY + 'T00:00:00Z') + o * 864e5); return { d: d.getUTCDate(), m: d.getUTCMonth() + 1, w: d.getUTCDay() }; };
   const dm = (o) => { const x = dateOf(o); return x.d + '/' + x.m; };
+  function M_staffBadge() { fetch('/api/moi/staff', { cache: 'no-store' }).then((r) => r.json()).then((j) => { if (j.success && j.pending.length !== (S.stPend || 0)) { S.stPend = j.pending.length; if (!$('.ov')) render(); } }).catch(() => {}); }
   async function load(quiet) {
     try {
       const r = await fetch('/api/moi/data', { cache: 'no-store' });
@@ -218,6 +219,7 @@ button.info.on{border-color:#0E1525;background:#fff}
     } catch (e) { if (!quiet) $('#app').innerHTML = '<div class="empty" style="padding-top:80px">Không tải được dữ liệu — kéo xuống để tải lại.</div>'; }
   }
   window.MsgLive = { refresh: () => load(true) };
+  M_staffBadge();
   fetch('/api/moi/feed').then((r) => r.json()).then((j) => { if (j.success) { S.feed = j.webcal; S.cleanUrl = j.clean; if (S.tab === 'day') render(); } }).catch(() => {});            // journey.js calls this after its send sheet closes
   setInterval(() => { if (!document.hidden && !$('.ov') && !$('.jr-ov') && !S.pick) load(true); }, 45000);
   document.addEventListener('visibilitychange', () => { if (!document.hidden) load(true); });
@@ -289,7 +291,7 @@ button.info.on{border-color:#0E1525;background:#fff}
   M.set = (k, v) => { S[k] = v; if (k === 'calView') LS.set(k, v); render(); };
   M.day = (d) => { S.day = Math.max(0, Math.min(20, d)); render(); };
   M.open = (id) => { S.sel = id; S.move = false; S.pick = null; S.edit = null; renderSheet(); };
-  M.close = () => { S.cleanSetup = null; S.sel = null; S.collect = null; S.aptSheet = false; S.etaFor = null; S.adding = false; renderSheet(); renderFloat(); };
+  M.close = () => { S.staffOn = false; S.cleanSetup = null; S.sel = null; S.collect = null; S.aptSheet = false; S.etaFor = null; S.adding = false; renderSheet(); renderFloat(); };
   M.add = () => { S.sel = null; S.adding = true; renderSheet(); setTimeout(() => { const i = $('#fName'); if (i) i.focus(); }, 50); };
   M.addSave = async (btn) => {
     const v = (id) => ($('#' + id).value || '').trim();
@@ -351,6 +353,30 @@ button.info.on{border-color:#0E1525;background:#fff}
     return true; };
   // the secret plain-text link of the cleaning message, for an iPhone Shortcut that sends it every morning
   M.cleanLink = () => { if (!S.cleanUrl) return toast('Đang tải link… thử lại sau 1 giây'); copyText(S.cleanUrl); toast('Đã copy link tin dọn phòng — dán vào Phím tắt (Lấy nội dung của URL)'); };
+  // 👥 Nhân viên (p16_staff): requests from the Zalo bot to approve, quick record of extra work / a day off, month list
+  const isoAdd = (iso, n) => { const d = new Date(iso + 'T00:00:00'); d.setDate(d.getDate() + n); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
+  M.staffLoad = async (month) => { try { const j = await (await fetch('/api/moi/staff' + (month ? '?month=' + month : ''), { cache: 'no-store' })).json();
+    if (j.success) { S.st = j; S.stPend = j.pending.length; if (!S.stf) S.stf = { kind: 'extra', day: j.today, rooms: 0, amount: '' }; if (S.staffOn) renderSheet(); } } catch (e) {} };
+  M.staffOpen = () => { S.sel = null; S.cleanSetup = null; S.staffOn = true; renderSheet(); M.staffLoad(S.st && S.st.month); };
+  M.stfSet = (k, v) => { S.stf[k] = v;
+    if (k === 'rooms' && S.st && S.st.price) S.stf.amount = String(v * S.st.price);
+    if (k !== 'amount' && k !== 'note') renderSheet(); };
+  M.st = async (action, extra) => {
+    if (action === 'delete' && !confirm('Xóa dòng này?')) return;
+    if (action === 'price') { const v = prompt('Giá 1 phòng làm thêm (đồng) — để tự tính tiền khi chọn số phòng', S.st.price || ''); if (v === null) return; extra = { price: parseInt(v.replace(/\D/g, '')) || 0 }; }
+    if (action === 'add') {
+      const f = S.stf; if (!f.who) return toast('Chọn cô trước');
+      extra = { chat_id: f.who, kind: f.kind, day: f.day, rooms: f.rooms || '', amount: String(f.amount || '').replace(/\D/g, ''), note: f.note || '' };
+      if (f.kind === 'extra' && !extra.rooms && !extra.amount) return toast('Chọn số phòng hoặc nhập tiền');
+    }
+    toast('Đang lưu…');
+    const j = (await post('/api/moi/staff', Object.assign({ action, month: S.st && S.st.month }, extra || {}))).j || {};
+    if (!j.success) return toast('Chưa được: ' + (j.error || 'lỗi'));
+    S.st = j; S.stPend = j.pending.length;
+    if (action === 'add') { S.stf = { kind: S.stf.kind, day: j.today, rooms: 0, amount: '', who: S.stf.who }; toast('Đã ghi ✅ bot đã báo cho cô'); }
+    else toast(action === 'summary' ? 'Đã gửi tổng kết cho các cô ✅' : 'Đã lưu');
+    renderSheet();
+  };
   M.cleanSetup = (how) => { S.sel = null; S.cleanSetup = how || S.cleanSetup || 'bot'; renderSheet(); if (S.cleanSetup === 'bot') M.zbotLoad(); };
   // 🤖 Zalo bot: the web sends the cleaning message itself at 8:00 (p15_moi /api/moi/zbot)
   M.zbotLoad = async () => { try { const j = await (await fetch('/api/moi/zbot')).json(); if (j.success) { S.zbot = j; if (S.cleanSetup === 'bot') renderSheet(); } } catch (e) {} };
@@ -643,7 +669,7 @@ button.info.on{border-color:#0E1525;background:#fff}
           <div class="t">${esc(r.note)}<small>${esc(b.name)} · ${a ? esc(a.short) + (b.room_no ? ' · ' + esc(rn(b.apt, b.room_no)) : '') : 'chưa xếp'}${b.phone ? ' · ' + esc(b.phone) : ''}</small></div>
           <button class="okb" onclick="event.stopPropagation();M.remDone(${r.id})">Xong</button></div>`; }).join('')}</div></div>`;
     const stays = B.filter((b) => b.ciO < d && d < b.coO);
-    h += `<button onclick="M.cleanCopy(${d})" style="width:100%;min-height:46px;border-radius:14px;border:1.5px dashed #94A3B8;background:#fff;font-size:14px;font-weight:800;color:#0E1525;margin-bottom:8px">🧹 Copy tin dọn phòng ${dm(d)} — gửi các cô</button>${d === 0 ? `<button onclick="M.cleanSetup()" style="width:100%;border:none;background:none;font-size:12px;font-weight:700;color:#475569;margin:-4px 0 8px;text-decoration:underline">⏰ Tự gửi tin này cho các cô lúc 8 giờ sáng</button>` : ''}`;
+    h += `<button onclick="M.cleanCopy(${d})" style="width:100%;min-height:46px;border-radius:14px;border:1.5px dashed #94A3B8;background:#fff;font-size:14px;font-weight:800;color:#0E1525;margin-bottom:8px">🧹 Copy tin dọn phòng ${dm(d)} — gửi các cô</button>${d === 0 ? `<button onclick="M.cleanSetup()" style="width:100%;border:none;background:none;font-size:12px;font-weight:700;color:#475569;margin:-4px 0 8px;text-decoration:underline">⏰ Tự gửi tin này cho các cô lúc 8 giờ sáng</button><button onclick="M.staffOpen()" style="width:100%;min-height:46px;border-radius:14px;border:1.5px solid #E2E5EB;background:#fff;font-size:14px;font-weight:800;color:#0E1525;margin-bottom:8px">👥 Nhân viên — nghỉ & làm thêm${S.stPend ? ` <span style="background:#DC2626;color:#fff;border-radius:10px;padding:1px 8px;font-size:12px">${S.stPend} chờ duyệt</span>` : ''}</button>` : ''}`;
     h += `<div class="seg"><button class="${S.seg === 'pair' ? 'on' : ''}" onclick="M.set('seg','pair')">Trả ↔ Đến</button><button class="${S.seg === 'stay' ? 'on' : ''}" onclick="M.set('seg','stay')">Đang ở · ${stays.length}</button></div>`;
     if (S.seg === 'stay') {
       h += '<div class="card" style="padding:4px 16px 6px">' + (stays.sort((p, q) => p.coO - q.coO).map((b) => { const a = aptById[b.apt], left = b.coO - d;
@@ -895,6 +921,47 @@ button.info.on{border-color:#0E1525;background:#fff}
   // ═════ SHEETS ═════
   function renderSheet() {
     const el = $('#sheet');
+    if (S.staffOn) {
+      const st = S.st, f = S.stf || {};
+      const box = (inner, bg) => `<div style="margin-top:10px;background:${bg || '#F7F8FA'};border-radius:14px;padding:10px 12px">${inner}</div>`;
+      const chip = (on, label, act) => `<button onclick="${act}" style="min-height:40px;padding:0 12px;border-radius:12px;border:1.5px solid ${on ? '#0E1525' : '#E2E5EB'};background:${on ? '#0E1525' : '#fff'};color:${on ? '#fff' : '#0E1525'};font-size:13px;font-weight:800">${label}</button>`;
+      let h = `<div style="display:flex;align-items:center;gap:10px"><div style="flex:1"><div class="kick" style="color:#64748B">NHÂN VIÊN</div><div style="font-size:20px;font-weight:800">Nghỉ & làm thêm</div></div><button class="x" onclick="M.close()" aria-label="Đóng">${svg('x', 18, 2.4)}</button></div>`;
+      if (!st) h += '<div style="padding:30px 0;text-align:center;color:#64748B;font-weight:700">Đang tải…</div>';
+      else {
+        const roleRow = (c) => `<div style="display:flex;align-items:center;gap:6px;margin-top:6px"><b style="flex:1;min-width:0;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(c.name || 'Không tên')}</b>${[['staff', 'Nhân viên'], ['owner', 'Chủ'], ['', 'Khác']].map(([r, l]) => `<button onclick="M.st('role',{id:'${esc(c.id)}',role:'${r}'})" style="min-height:32px;padding:0 9px;border-radius:9px;border:1px solid ${c.role === r ? '#0E1525' : '#E2E5EB'};background:${c.role === r ? '#0E1525' : '#fff'};color:${c.role === r ? '#fff' : '#334155'};font-size:11.5px;font-weight:800">${l}</button>`).join('')}</div>`;
+        if (!st.staff.length) h += box(`<b style="font-size:14px">Chọn ai là nhân viên (người trong bot Zalo):</b>${st.chats.map(roleRow).join('')}<div style="font-size:12px;color:#64748B;margin-top:8px;line-height:1.5">"Chủ" = người được bot báo khi có cô xin nghỉ và trả lời "duyệt" ngay trong Zalo.</div>`, '#FEF3C7');
+        else {
+          // waiting requests
+          if (st.pending.length) h += `<div class="lbl">Chờ duyệt · ${st.pending.length}</div>` + st.pending.map((r) => box(`<div style="font-size:14px;font-weight:800">${r.kind === 'leave' ? '🙋' : '🧹'} ${esc(r.who)} ${r.kind === 'leave' ? 'xin nghỉ' : 'làm thêm'} ${esc(r.label)}${r.kind === 'extra' ? ' — ' + (r.rooms ? r.rooms + ' phòng' : '') + (r.amount ? ' · ' + fmt(r.amount) : '') : ''}</div>${r.note ? `<div style="font-size:12px;color:#64748B;margin-top:2px">"${esc(r.note)}"</div>` : ''}
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px"><button onclick="M.st('decide',{id:${r.id},ok:true})" style="min-height:42px;border-radius:12px;border:none;background:#16A34A;color:#fff;font-weight:800">✓ Duyệt</button><button onclick="M.st('decide',{id:${r.id},ok:false})" style="min-height:42px;border-radius:12px;border:1px solid #E2E5EB;background:#fff;font-weight:800">✕ Không</button></div>`, '#FFF7ED')).join('');
+          h += box(st.off_today.length ? `<b style="color:#B91C1C">Hôm nay nghỉ: ${esc(st.off_today.join(', '))}</b> — tin 8:00 đã báo cô kia dọn cả 2 bên.` : '<b style="color:#15803D">Hôm nay đủ người ✓</b>');
+          // quick record
+          const t = st.today, rooms = [1, 2, 3, 4, 5, 6];
+          h += `<div class="lbl">Ghi nhanh</div>` + box(`<div style="display:flex;gap:6px;flex-wrap:wrap">${st.staff.map((p) => chip(f.who === p.id, esc(p.name), `M.stfSet('who','${esc(p.id)}')`)).join('')}</div>
+            <div class="seg" style="margin-top:8px"><button class="${f.kind !== 'leave' ? 'on' : ''}" onclick="M.stfSet('kind','extra')">🧹 Làm thêm</button><button class="${f.kind === 'leave' ? 'on' : ''}" onclick="M.stfSet('kind','leave')">🙋 Nghỉ</button></div>
+            <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;align-items:center">${[[-1, 'Hôm qua'], [0, 'Hôm nay'], [1, 'Mai']].map(([n, l]) => chip(f.day === isoAdd(t, n), l, `M.stfSet('day','${isoAdd(t, n)}')`)).join('')}<input type="date" value="${esc(f.day)}" onchange="M.stfSet('day',this.value)" style="min-height:40px;border-radius:12px;border:1.5px solid #E2E5EB;padding:0 8px;font-family:inherit;font-size:13px"></div>
+            ${f.kind !== 'leave' ? `<div style="font-size:12px;font-weight:700;color:#475569;margin-top:10px">Số phòng</div><div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px">${rooms.map((n) => chip(f.rooms === n, n, `M.stfSet('rooms',${n})`)).join('')}</div>
+            <div style="display:flex;gap:8px;align-items:center;margin-top:8px"><input inputmode="numeric" placeholder="Tiền, vd 150000" value="${esc(f.amount || '')}" oninput="M.stfSet('amount',this.value)" style="flex:1;min-width:0;min-height:44px;border-radius:12px;border:1.5px solid #CBD5E1;padding:0 12px;font-size:15px;font-family:inherit"><button onclick="M.st('price')" style="min-height:44px;border:none;background:none;color:#475569;font-size:12px;font-weight:700;text-decoration:underline">${st.price ? 'Giá ' + short(st.price) + '/phòng' : 'Đặt giá/phòng'}</button></div>` : ''}
+            <button class="big" style="margin-top:10px;min-height:46px;background:#0E1525;color:#fff" onclick="M.st('add')">${f.kind === 'leave' ? 'Ghi ngày nghỉ & báo các cô' : 'Ghi làm thêm & báo cho cô'}</button>`);
+          // month
+          const [yy, mm] = st.month.split('-').map(Number), prev = mm === 1 ? `${yy - 1}-12` : `${yy}-${String(mm - 1).padStart(2, '0')}`, next = mm === 12 ? `${yy + 1}-01` : `${yy}-${String(mm + 1).padStart(2, '0')}`;
+          h += `<div style="display:flex;align-items:center;gap:8px;margin-top:18px"><div class="lbl" style="margin:0;flex:1">Tháng ${mm}/${yy}</div><button class="x" style="width:36px;height:36px" onclick="M.staffLoad('${prev}')" aria-label="Tháng trước">${svg('l', 14, 2.4)}</button><button class="x" style="width:36px;height:36px" onclick="M.staffLoad('${next}')" aria-label="Tháng sau">${svg('r', 14, 2.4)}</button></div>`;
+          const del = (x) => `<button onclick="M.st('delete',{id:${x.id}})" style="border:none;background:none;color:#94A3B8;font-size:14px;padding:0 4px" aria-label="Xóa">✕</button>`;
+          const tag = (x) => x.status === 'pending' ? ' <i style="color:#B45309;font-style:normal">· chờ duyệt</i>' : x.status === 'rejected' ? ' <i style="color:#94A3B8;font-style:normal">· không duyệt</i>' : '';
+          h += st.people.map((p) => { const lv = p.leaves, ex = p.extras;
+            return box(`<div style="display:flex;justify-content:space-between;align-items:baseline"><b style="font-size:15px">${esc(p.name)}</b><b class="num" style="font-size:15px;color:#15803D">${fmt(p.extra_total)}</b></div>
+              <div style="font-size:12px;color:#475569;font-weight:700;margin-top:2px">Nghỉ ${p.leave_days} ngày · làm thêm ${ex.filter((x) => x.status === 'approved').length} lần</div>
+              ${lv.map((x) => `<div style="display:flex;align-items:center;font-size:13px;margin-top:6px"><span style="flex:1">🙋 Nghỉ ${esc(x.label)}${tag(x)}</span>${del(x)}</div>`).join('')}
+              ${ex.map((x) => `<div style="display:flex;align-items:center;font-size:13px;margin-top:6px"><span style="flex:1">🧹 ${esc(x.label)}${x.rooms ? ' · ' + x.rooms + ' phòng' : ''}${tag(x)}</span><b class="num" style="margin-right:4px">${x.amount ? fmt(x.amount) : '—'}</b>${del(x)}</div>`).join('')}
+              ${!lv.length && !ex.length ? '<div style="font-size:12.5px;color:#94A3B8;margin-top:6px">Chưa có gì trong tháng này.</div>' : ''}`); }).join('');
+          h += `<button class="big" style="margin-top:12px;min-height:46px;background:#fff;color:#0E1525;border:1.5px solid #0E1525" onclick="if(confirm('Gửi tổng kết tháng ${mm}/${yy} cho từng cô qua Zalo?'))M.st('summary')">📤 Gửi tổng kết tháng ${mm} cho các cô</button>`;
+          h += `<details style="margin-top:14px"><summary style="font-size:12.5px;font-weight:800;color:#475569">Ai là nhân viên / chủ trong bot</summary>${st.chats.map(roleRow).join('')}</details>`;
+          h += `<div style="font-size:12px;color:#64748B;margin-top:10px;line-height:1.55">Các cô nhắn bot: <b>"mai em xin nghỉ"</b>, <b>"nghỉ 10-12/11"</b>, <b>"hôm nay em làm thêm 2 phòng"</b>, <b>"xem tháng"</b>, <b>"hủy"</b>.<br>Bạn nhắn bot: <b>"duyệt"</b> / <b>"không"</b>, hoặc <b>"hôm nay cô Dung dọn 2 phòng thêm 150"</b>.</div>`;
+        }
+      }
+      el.innerHTML = `<div class="ov" onclick="if(event.target===this)M.close()"><div class="sh"><div class="handle"></div>${h}</div></div>`;
+      return;
+    }
     if (S.cleanSetup) {
       // ⏰ the iPhone sends the cleaning message by itself every morning (Phím tắt → Tự động hóa). A web page cannot
       // create the shortcut, so: copy the link here, open Phím tắt from here, follow the short steps (owner, Nov 5)
