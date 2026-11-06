@@ -206,12 +206,39 @@ def _staff_extra_text(r):
     return ' — '.join(bits)
 
 
+def staff_leave(_xdb, cid, d, by_owner, note=''):
+    """ONE day off per cleaner per day, whoever writes it (owner, Nov 6: "nếu cả hai cùng nhắn thì cũng phải lọc").
+    Returns 'new' (waiting) · 'waiting' (already asked) · 'done' (already approved) · 'approved' (owner approved now)."""
+    _staff_ensure(_xdb)
+    ex = _xdb.session.execute(text(
+        "SELECT id, status FROM staff_log WHERE kind = 'leave' AND chat_id = :c AND day = :d AND status IN ('pending', 'approved') "
+        "ORDER BY (status = 'approved') DESC, id LIMIT 1"), {'c': cid, 'd': d}).fetchone()
+    if ex and ex[1] == 'approved':
+        return 'done'
+    if ex:                                   # she asked already → the owner's message approves that request
+        if by_owner:
+            staff_decide(_xdb, ex[0], True)
+            return 'approved'
+        return 'waiting'
+    rid = _staff_add(_xdb, cid, 'leave', d, 'pending', 'owner' if by_owner else 'bot', note=note)
+    if by_owner:
+        staff_decide(_xdb, rid, True)
+        return 'approved'
+    return 'new'
+
+
 def staff_decide(_xdb, rid, ok):
     """Owner approves / refuses a waiting leave or extra → the cleaner is told; an approved day off today/tomorrow is
     told to the other cleaners too ("dọn cả 2 bên")."""
     r = _staff_row(_xdb, rid)
     if not r or r['status'] != 'pending':
         return None
+    if ok and r['kind'] == 'leave' and _xdb.session.execute(text(
+            "SELECT 1 FROM staff_log WHERE kind = 'leave' AND chat_id = :c AND day = :d AND status = 'approved' AND id <> :i"),
+            {'c': r['chat_id'], 'd': r['day'], 'i': rid}).fetchone():
+        _xdb.session.execute(text("UPDATE staff_log SET status = 'deleted' WHERE id = :i"), {'i': rid})   # same day twice
+        _xdb.session.commit()
+        return r
     _xdb.session.execute(text("UPDATE staff_log SET status = :s, decided_at = NOW() WHERE id = :i"),
                          {'s': 'approved' if ok else 'rejected', 'i': rid})
     _xdb.session.commit()
@@ -246,6 +273,8 @@ def staff_month(_xdb, ym):
         item = {'id': r['id'], 'day': r['day'].isoformat(), 'label': _staff_day_label(r['day']), 'rooms': r['rooms'],
                 'amount': r['amount'], 'note': r['note'], 'status': r['status'], 'source': r['source']}
         if r['kind'] == 'leave':
+            if r['status'] == 'approved' and any(x['day'] == item['day'] and x['status'] == 'approved' for x in p['leaves']):
+                continue                       # duplicate of the same day (written twice before Nov 6) → once
             p['leaves'].append(item)
             p['leave_days'] += r['status'] == 'approved'
         else:
@@ -316,10 +345,15 @@ def staff_handle_text(_xdb, cid, chat, msg):
             if not cid2:
                 return 'Chưa rõ cô nào — ghi tên, vd "cô Dung nghỉ mai".'
             days = days or [today]
-            for d in days:
-                rid = _staff_add(_xdb, cid2, 'leave', d, 'pending', 'owner', note=msg)
-                staff_decide(_xdb, rid, True)
-            return f"✅ Đã ghi: {_staff_name(c2)} nghỉ {', '.join(_staff_day_label(d) for d in days)}."
+            res = {d: staff_leave(_xdb, cid2, d, True, msg) for d in days}
+            new = [d for d in days if res[d] != 'done']
+            old = [d for d in days if res[d] == 'done']
+            out = []
+            if new:
+                out.append(f"✅ Đã ghi: {_staff_name(c2)} nghỉ {', '.join(_staff_day_label(d) for d in new)}.")
+            if old:
+                out.append(f"ℹ️ {', '.join(_staff_day_label(d) for d in old)} đã có trong sổ rồi — không ghi thêm.")
+            return ' '.join(out)
         rooms, money = staff_parse_rooms(msg), staff_parse_money(msg)
         if cid2 and (rooms or money or _re.search(r'\b(them|don|boi duong)\b', t)):
             # owner's message with money = bồi dưỡng (owner, Nov 6) — days off are counted by themselves (−/+150k)
@@ -349,10 +383,16 @@ def staff_handle_text(_xdb, cid, chat, msg):
             return 'Em nghỉ ngày nào ạ? Nhắn vd "nghỉ mai", "nghỉ thứ 7" hoặc "nghỉ 10/11".'
         if len(days) > 14:
             return 'Nhiều ngày quá — nhắn từng đợt ngắn hơn ạ.'
-        for d in days:
-            _staff_add(_xdb, cid, 'leave', d, 'pending', 'bot', note=msg)
-        lab = ', '.join(_staff_day_label(d) for d in days)
-        return f"📝 Đã gửi xin nghỉ {lab} — chờ duyệt. Nhắn \"hủy\" nếu nhầm."
+        res = {d: staff_leave(_xdb, cid, d, False, msg) for d in days}
+        lab = lambda ks: ', '.join(_staff_day_label(d) for d in days if res[d] in ks)
+        out = []
+        if lab(('new',)):
+            out.append(f"📝 Đã gửi xin nghỉ {lab(('new',))} — chờ duyệt. Nhắn \"hủy\" nếu nhầm.")
+        if lab(('waiting',)):
+            out.append(f"⏳ Nghỉ {lab(('waiting',))} đã gửi rồi, đang chờ duyệt.")
+        if lab(('done',)):
+            out.append(f"✅ Nghỉ {lab(('done',))} đã được duyệt rồi ạ.")
+        return '\n'.join(out)
     if _re.search(r'\b(lam them|them)\b', t) or staff_parse_rooms(msg):
         d = (days or [today])[0]
         rooms, money = staff_parse_rooms(msg), staff_parse_money(msg)
@@ -386,8 +426,7 @@ def moi_staff():
             except ValueError:
                 return jsonify({'success': False, 'error': 'Ngày không đúng'})
             if d.get('kind') == 'leave':
-                rid = _staff_add(_xdb, cid, 'leave', day, 'pending', 'owner', note=d.get('note') or '')
-                staff_decide(_xdb, rid, True)
+                staff_leave(_xdb, cid, day, True, d.get('note') or '')
             else:
                 rooms = int(d['rooms']) if str(d.get('rooms') or '').isdigit() else None
                 amount = int(d['amount']) if str(d.get('amount') or '').isdigit() else None

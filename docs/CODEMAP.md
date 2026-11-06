@@ -405,7 +405,7 @@ _p15_moi — /moi: the new phone-first app (owner, Oct 26), built from the appro
 - app_parts/p15_moi.py:791 `_moi_room_label` — The owner's name for room `no` of this apartment, else "Phòng N".
 - app_parts/p15_moi.py:797 `moi_room_name` ← `/api/moi/room_name` POST — Rename room N of an apartment ({apartment_id, room_no, name}); an empty name goes back to "Phòng N".
 
-## app_parts/p16_staff.py (439 lines)
+## app_parts/p16_staff.py (478 lines)
 _p16_staff — 👥 Nhân viên (owner, Nov 6): the cleaners talk to the Zalo bot (p15_moi zbot_*) in plain words._
 - app_parts/p16_staff.py:18 `_staff_ensure`
 - app_parts/p16_staff.py:30 `_vn_now`
@@ -426,13 +426,14 @@ _p16_staff — 👥 Nhân viên (owner, Nov 6): the cleaners talk to the Zalo bo
 - app_parts/p16_staff.py:186 `_staff_add`
 - app_parts/p16_staff.py:196 `_staff_row`
 - app_parts/p16_staff.py:202 `_staff_extra_text`
-- app_parts/p16_staff.py:209 `staff_decide` — Owner approves / refuses a waiting leave or extra → the cleaner is told; an approved day off today/tomorrow is
-- app_parts/p16_staff.py:232 `staff_month` — {chat id: {name, leaves: [...], extras: [...], extra_total}} for month 'YYYY-MM' (+ pending list).
-- app_parts/p16_staff.py:273 `_vnd`
-- app_parts/p16_staff.py:278 `staff_month_text`
-- app_parts/p16_staff.py:296 `staff_handle_text` — A message to the bot from a cleaner or the owner. Returns the reply text ('' = none).
-- app_parts/p16_staff.py:368 `moi_staff` ← `/api/moi/staff` GET,POST — 👥 Nhân viên sheet in /moi: waiting requests, who is off today, month list; actions: decide, add (leave/extra),
-- app_parts/p16_staff.py:434 `staff_copy_owner` — Copy of a cleaner's message to the bot + the bot's answer → the owner(s).
+- app_parts/p16_staff.py:209 `staff_leave` — ONE day off per cleaner per day, whoever writes it (owner, Nov 6: "nếu cả hai cùng nhắn thì cũng phải lọc").
+- app_parts/p16_staff.py:230 `staff_decide` — Owner approves / refuses a waiting leave or extra → the cleaner is told; an approved day off today/tomorrow is
+- app_parts/p16_staff.py:259 `staff_month` — {chat id: {name, leaves: [...], extras: [...], extra_total}} for month 'YYYY-MM' (+ pending list).
+- app_parts/p16_staff.py:302 `_vnd`
+- app_parts/p16_staff.py:307 `staff_month_text`
+- app_parts/p16_staff.py:325 `staff_handle_text` — A message to the bot from a cleaner or the owner. Returns the reply text ('' = none).
+- app_parts/p16_staff.py:408 `moi_staff` ← `/api/moi/staff` GET,POST — 👥 Nhân viên sheet in /moi: waiting requests, who is off today, month list; actions: decide, add (leave/extra),
+- app_parts/p16_staff.py:473 `staff_copy_owner` — Copy of a cleaner's message to the bot + the bot's answer → the owner(s).
 
 ## core/__init__.py (3 lines)
 

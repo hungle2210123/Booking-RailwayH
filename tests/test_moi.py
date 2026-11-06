@@ -362,6 +362,19 @@ def test_staff_leave_and_extra_via_bot(client, monkeypatch):
         with appmod.app.app_context():
             from datetime import date as _d
             assert 'zz-b' in appmod.staff_off_on(db, _d(appmod._vn_now().year, 11, 6))
+        # both write the same day off → counted once (owner, Nov 6)
+        say('zz-b', 'em xin nghỉ 6/11 ạ')
+        assert 'duyệt rồi' in to('zz-b')[-1]
+        say('zz-o', 'chị Hường nghỉ 6/11')
+        assert 'đã có trong sổ' in to('zz-o')[-1]
+        with appmod.app.app_context():
+            n = db.session.execute(appmod.text("SELECT COUNT(*) FROM staff_log WHERE chat_id = 'zz-b' AND kind = 'leave' AND status = 'approved'")).scalar()
+            assert n == 1
+        say('zz-a', 'em nghỉ 20/11')                      # she asks, then the owner writes it → her request approved, one row
+        say('zz-o', 'cô Dung nghỉ 20/11')
+        with appmod.app.app_context():
+            rows = db.session.execute(appmod.text("SELECT status FROM staff_log WHERE chat_id = 'zz-a' AND kind = 'leave' AND EXTRACT(DAY FROM day) = 20")).fetchall()
+            assert [r[0] for r in rows] == ['approved']
         say('zz-b', 'abc xyz')
         assert 'chưa hiểu' in to('zz-b')[-1]
     finally:
