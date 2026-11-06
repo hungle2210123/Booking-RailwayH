@@ -10,6 +10,7 @@ import re as _re
 from datetime import date
 import unicodedata as _ud
 
+STAFF_DAY_RATE = 150000          # owner, Nov 6: one day off = −150k for her, +150k for the one who covers
 STAFF_WD = ['thứ hai', 'thứ ba', 'thứ tư', 'thứ năm', 'thứ sáu', 'thứ bảy', 'chủ nhật']
 _STAFF_READY = False
 
@@ -144,15 +145,24 @@ def _staff_find(_xdb, text_):
     return hits[0] if len(hits) == 1 else (None, None)
 
 
-def _staff_say(cid, msg):
-    if cid:
-        _zbot_call('sendMessage', {'chat_id': cid, 'text': msg[:1990]})
+def _staff_say(cid, msg, copy=True):
+    """Send to one chat; anything sent to a cleaner is also copied to the owner(s) (owner, Nov 6: "tôi muốn nhìn thấy
+    toàn bộ tin nhắn")."""
+    if not cid:
+        return
+    _zbot_call('sendMessage', {'chat_id': cid, 'text': msg[:1990]})
+    if copy:
+        from core.models import db as _xdb
+        chats = _staff_chats(_xdb)
+        c = chats.get(cid) or {}
+        if c.get('role') != 'owner':
+            _staff_tell_owners(_xdb, f"📨 Bot → {_staff_name(c)}:\n{msg}")
 
 
 def _staff_tell_owners(_xdb, msg):
     for cid, c in _staff_chats(_xdb).items():
         if c.get('role') == 'owner':
-            _staff_say(cid, msg)
+            _zbot_call('sendMessage', {'chat_id': cid, 'text': msg[:1990]})
 
 
 def staff_off_on(_xdb, day):
@@ -190,7 +200,7 @@ def _staff_row(_xdb, rid):
 
 
 def _staff_extra_text(r):
-    bits = [f"{r['rooms']} phòng" if r.get('rooms') else 'làm thêm']
+    bits = [f"{r['rooms']} phòng" if r.get('rooms') else 'bồi dưỡng']
     if r.get('amount'):
         bits.append(f"{r['amount']:,}đ".replace(',', '.'))
     return ' — '.join(bits)
@@ -242,17 +252,40 @@ def staff_month(_xdb, ym):
             p['extras'].append(item)
             if r['status'] == 'approved':
                 p['extra_total'] += r['amount'] or 0
+    # money rule (owner, Nov 6): every approved day off = −150.000đ for her, +150.000đ for the cleaner who covers
+    # (each other cleaner not off that day); bồi dưỡng (extras) are added on top
+    rate = STAFF_DAY_RATE
+    off_by_day = {}
+    for p in out.values():
+        for x in p['leaves']:
+            if x['status'] == 'approved':
+                off_by_day.setdefault(x['day'], set()).add(p['id'])
+    for p in out.values():
+        p['covers'] = [{'day': d, 'label': _staff_day_label(date.fromisoformat(d)),
+                        'who': ', '.join(out[o]['name'] for o in offs if o in out)}
+                       for d, offs in sorted(off_by_day.items()) if p['id'] not in offs and p['id'] in people]
+        p['minus'] = p['leave_days'] * rate
+        p['plus'] = len(p['covers']) * rate
+        p['net'] = p['plus'] - p['minus'] + p['extra_total']
     return list(out.values())
+
+
+def _vnd(v, sign=False):
+    t = f"{abs(v):,}đ".replace(',', '.')
+    return (('+' if v > 0 else '−' if v < 0 else '') if sign else ('−' if v < 0 else '')) + t
 
 
 def staff_month_text(p, ym):
     lv = [x for x in p['leaves'] if x['status'] == 'approved']
     ex = [x for x in p['extras'] if x['status'] == 'approved']
     lines = [f"📋 Tổng kết tháng {int(ym[5:7])}/{ym[:4]} — {p['name']}",
-             f"Nghỉ: {len(lv)} ngày" + (f" ({', '.join(x['label'] for x in lv)})" if lv else '')]
-    lines.append(f"Làm thêm: {len(ex)} lần — {p['extra_total']:,}đ".replace(',', '.'))
-    for x in ex:
-        lines.append(f"  • {x['label']}: {_staff_extra_text(x)}")
+             f"• Nghỉ {len(lv)} ngày: {_vnd(-p['minus'], True)}" + (f" ({', '.join(x['label'] for x in lv)})" if lv else ''),
+             f"• Dọn thay {len(p['covers'])} ngày: {_vnd(p['plus'], True)}" + (f" ({', '.join(c['label'] for c in p['covers'])})" if p['covers'] else '')]
+    if ex:
+        lines.append(f"• Bồi dưỡng: {_vnd(p['extra_total'], True)}")
+        for x in ex:
+            lines.append(f"   – {x['label']}: {_staff_extra_text(x)}" + (f" ({x['note']})" if x.get('note') and x.get('source') == 'app' else ''))
+    lines.append(f"= Cộng / trừ tháng này: {_vnd(p['net'], True)}")
     return '\n'.join(lines)
 
 
@@ -288,12 +321,13 @@ def staff_handle_text(_xdb, cid, chat, msg):
                 staff_decide(_xdb, rid, True)
             return f"✅ Đã ghi: {_staff_name(c2)} nghỉ {', '.join(_staff_day_label(d) for d in days)}."
         rooms, money = staff_parse_rooms(msg), staff_parse_money(msg)
-        if cid2 and (rooms or money or _re.search(r'\b(them|don)\b', t)):
+        if cid2 and (rooms or money or _re.search(r'\b(them|don|boi duong)\b', t)):
+            # owner's message with money = bồi dưỡng (owner, Nov 6) — days off are counted by themselves (−/+150k)
             d = (days or [today])[0]
             rid = _staff_add(_xdb, cid2, 'extra', d, 'approved', 'owner', rooms=rooms, amount=money, note=msg)
             r = _staff_row(_xdb, rid)
-            _staff_say(cid2, f"📝 Đã ghi làm thêm {_staff_day_label(d)}: {_staff_extra_text(r)}.")
-            return f"✅ Đã ghi: {_staff_name(c2)} làm thêm {_staff_day_label(d)} — {_staff_extra_text(r)}."
+            _staff_say(cid2, f"🎁 Đã ghi {_staff_day_label(d)}: {_staff_extra_text(r)}.")
+            return f"✅ Đã ghi: {_staff_name(c2)} {_staff_day_label(d)} — {_staff_extra_text(r)}."
         if _re.search(r'\b(nghi|them|don)\b', t):
             return 'Chưa hiểu — ghi rõ tên cô, vd "hôm nay cô Dung dọn 2 phòng thêm 150" hoặc "cô Hường nghỉ mai".'
         return ''
@@ -318,14 +352,12 @@ def staff_handle_text(_xdb, cid, chat, msg):
         for d in days:
             _staff_add(_xdb, cid, 'leave', d, 'pending', 'bot', note=msg)
         lab = ', '.join(_staff_day_label(d) for d in days)
-        _staff_tell_owners(_xdb, f"🙋 {_staff_name(chat)} xin nghỉ {lab}.\nTrả lời \"duyệt\" hoặc \"không\" — hoặc duyệt trong app (Hôm nay → 👥 Nhân viên).")
         return f"📝 Đã gửi xin nghỉ {lab} — chờ duyệt. Nhắn \"hủy\" nếu nhầm."
     if _re.search(r'\b(lam them|them)\b', t) or staff_parse_rooms(msg):
         d = (days or [today])[0]
         rooms, money = staff_parse_rooms(msg), staff_parse_money(msg)
         rid = _staff_add(_xdb, cid, 'extra', d, 'pending', 'bot', rooms=rooms, amount=money, note=msg)
         r = _staff_row(_xdb, rid)
-        _staff_tell_owners(_xdb, f"🧹 {_staff_name(chat)} báo làm thêm {_staff_day_label(d)}: {_staff_extra_text(r)}.\nTrả lời \"duyệt\" hoặc \"không\".")
         return f"📝 Đã ghi làm thêm {_staff_day_label(d)}: {_staff_extra_text(r)} — chờ duyệt."
     if _re.fullmatch(r'(ok|oke|okay|vang|da|nhan|da nhan|ok a|vang a|da a)[.! a]*', t):
         return ''
@@ -359,9 +391,12 @@ def moi_staff():
             else:
                 rooms = int(d['rooms']) if str(d.get('rooms') or '').isdigit() else None
                 amount = int(d['amount']) if str(d.get('amount') or '').isdigit() else None
-                rid = _staff_add(_xdb, cid, 'extra', day, 'approved', 'owner', rooms=rooms, amount=amount, note=d.get('note') or '')
+                if not amount:
+                    return jsonify({'success': False, 'error': 'Nhập số tiền'})
+                note = (d.get('note') or '').strip()
+                _staff_add(_xdb, cid, 'extra', day, 'approved', 'app', rooms=rooms, amount=amount, note=note)
                 if d.get('tell', True):
-                    _staff_say(cid, f"📝 Đã ghi làm thêm {_staff_day_label(day)}: {_staff_extra_text(_staff_row(_xdb, rid))}.")
+                    _staff_say(cid, f"🎁 Bồi dưỡng {_vnd(amount)}" + (f" — {note}" if note else '') + f" ({_staff_day_label(day)}). Cảm ơn chị!")
         elif act == 'delete':
             _xdb.session.execute(text("UPDATE staff_log SET status = 'deleted' WHERE id = :i"), {'i': int(d.get('id') or 0)})
             _xdb.session.commit()
@@ -394,3 +429,11 @@ def moi_staff():
                                  'label': _staff_day_label(r['day']), 'rooms': r['rooms'], 'amount': r['amount'],
                                  'note': r['note']} for r in pend],
                     'people': staff_month(_xdb, ym), 'price': _zbot_get(_xdb, 'staff_room_price', 0) or 0})
+
+
+def staff_copy_owner(_xdb, chat, text_, reply, tail=''):
+    """Copy of a cleaner's message to the bot + the bot's answer → the owner(s)."""
+    msg = f"💬 {_staff_name(chat)}: {text_}"
+    if reply:
+        msg += f"\n🤖 Bot trả lời: {reply}"
+    _staff_tell_owners(_xdb, msg + tail)

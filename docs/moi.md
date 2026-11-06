@@ -161,4 +161,6 @@ rooms, amount, status pending|approved|rejected|deleted, source bot|owner). The 
 `staff_handle_text`: cleaner "mai em xin nghỉ" / "nghỉ 10-12/11" → pending + owners told; owner "duyệt"/"không" decides
 the newest pending; owner "hôm nay cô Dung dọn 2 phòng thêm 150" → approved extra (2 rooms, 150.000đ) + cleaner told.
 Approved day off → `_zbot_send_clean` skips her that day and puts "⚠️ … nghỉ — dọn CẢ 2 BÊN" on the other's message.
-/moi Hôm nay → "👥 Nhân viên" sheet (/api/moi/staff): approve, quick record, month list, "Gửi tổng kết", roles. No salary.
+/moi Hôm nay → "👥 Nhân viên" sheet (/api/moi/staff): approve, 🎁 bồi dưỡng (money + note), month list, "Gửi tổng kết", roles.
+Money (owner Nov 6): approved day off = −150k (`STAFF_DAY_RATE`) for her, +150k "dọn thay" for the other; + bồi dưỡng.
+No salary. Every message to/from a cleaner is copied to the owner chat(s) (`_staff_say` copy, `staff_copy_owner`).

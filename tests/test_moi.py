@@ -333,11 +333,12 @@ def test_staff_leave_and_extra_via_bot(client, monkeypatch):
     to = lambda cid: [b['text'] for m, b in sent if m == 'sendMessage' and b['chat_id'] == cid]
     try:
         say('zz-a', 'mai em xin nghỉ ạ')
-        assert 'chờ duyệt' in to('zz-a')[-1] and 'xin nghỉ' in to('zz-o')[-1]
+        assert 'chờ duyệt' in to('zz-a')[-1] and 'mai em xin nghỉ' in to('zz-o')[-1] and 'duyệt' in to('zz-o')[-1]
         j = client.get('/api/moi/staff').get_json()
         assert any(p['who'] == 'ZZTEST Dung Trần' and p['kind'] == 'leave' for p in j['pending'])
         say('zz-o', 'duyệt')
         assert 'Đã duyệt' in to('zz-a')[-1] and 'CẢ 2 BÊN' in to('zz-b')[-1]
+        assert any('Bot → ZZTEST Hường' in x for x in to('zz-o'))       # the owner sees what the cleaners got
         with appmod.app.app_context():
             tomorrow = appmod._vn_now().date() + timedelta(days=1)
             assert appmod.staff_off_on(db, tomorrow) == {'zz-a'}
@@ -348,9 +349,14 @@ def test_staff_leave_and_extra_via_bot(client, monkeypatch):
             appmod._zbot_send_clean(db, tomorrow)
             assert not to('zz-a') and to('zz-b')[0].startswith('⚠️ Hôm nay ZZTEST Dung Trần nghỉ')
         say('zz-o', 'hôm nay cô Dung dọn 2 phòng. Thêm 150')
-        assert '2 phòng — 150.000đ' in to('zz-a')[-1]
-        p = [x for x in client.get('/api/moi/staff').get_json()['people'] if x['id'] == 'zz-a'][0]
-        assert p['extra_total'] >= 150000
+        assert '2 phòng — 150.000đ' in to('zz-a')[-1] and '🎁' in to('zz-a')[-1]
+        ppl = {x['id']: x for x in client.get('/api/moi/staff').get_json()['people']}
+        assert ppl['zz-a']['extra_total'] >= 150000
+        # money rule: a day off = −150k for her, +150k for the other (if in this month)
+        import datetime as _dt
+        tm = appmod._vn_now().date() + _dt.timedelta(days=1)
+        if tm.month == appmod._vn_now().month:
+            assert ppl['zz-a']['minus'] >= 150000 and any(c['day'] == tm.isoformat() for c in ppl['zz-b']['covers'])
         say('zz-o', 'Chị Hường xin nghỉ 6/11 nhé')            # the owner records a day off → approved at once
         assert 'Đã ghi' in to('zz-o')[-1] and 'Đã duyệt' in to('zz-b')[-1]
         with appmod.app.app_context():

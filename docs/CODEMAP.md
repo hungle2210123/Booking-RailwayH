@@ -372,7 +372,7 @@ _p14_electricity — electricity calculator + meters/readings/bills_
 - app_parts/p14_electricity.py:449 `delete_electricity_image` ← `/api/electricity/images/<int:image_id>` DELETE — Delete electricity image
 - app_parts/p14_electricity.py:463 `get_electricity_analytics` ← `/api/electricity/analytics` GET — Get electricity analytics data for charts and comparisons
 
-## app_parts/p15_moi.py (811 lines)
+## app_parts/p15_moi.py (817 lines)
 _p15_moi — /moi: the new phone-first app (owner, Oct 26), built from the approved mockup. Runs NEXT TO the old pages_
 - app_parts/p15_moi.py:12 `_moi_ensure` — bookings.room_no (room 1..N inside the placed apartment) — added once per process.
 - app_parts/p15_moi.py:37 `_moi_apartments` — Active apartments with short name, colour (index among ALL apartments, like the calendar) and room count.
@@ -401,36 +401,38 @@ _p15_moi — /moi: the new phone-first app (owner, Oct 26), built from the appro
 - app_parts/p15_moi.py:648 `zbot_tick` — One check (called every minute by zbot_loop): between 8:00 and 10:00 Vietnam time, the first worker that claim
 - app_parts/p15_moi.py:681 `zbot_loop`
 - app_parts/p15_moi.py:696 `zbot_hook` ← `/zalo-bot/hook` POST — Zalo calls this when someone messages the bot: remember the chat (new people are switched on) and answer.
-- app_parts/p15_moi.py:730 `moi_zbot` ← `/api/moi/zbot` GET,POST — Setup sheet in /moi: status · connect (setWebhook) · switch a person on/off · rename · send a test now.
-- app_parts/p15_moi.py:785 `_moi_room_label` — The owner's name for room `no` of this apartment, else "Phòng N".
-- app_parts/p15_moi.py:791 `moi_room_name` ← `/api/moi/room_name` POST — Rename room N of an apartment ({apartment_id, room_no, name}); an empty name goes back to "Phòng N".
+- app_parts/p15_moi.py:736 `moi_zbot` ← `/api/moi/zbot` GET,POST — Setup sheet in /moi: status · connect (setWebhook) · switch a person on/off · rename · send a test now.
+- app_parts/p15_moi.py:791 `_moi_room_label` — The owner's name for room `no` of this apartment, else "Phòng N".
+- app_parts/p15_moi.py:797 `moi_room_name` ← `/api/moi/room_name` POST — Rename room N of an apartment ({apartment_id, room_no, name}); an empty name goes back to "Phòng N".
 
-## app_parts/p16_staff.py (396 lines)
+## app_parts/p16_staff.py (439 lines)
 _p16_staff — 👥 Nhân viên (owner, Nov 6): the cleaners talk to the Zalo bot (p15_moi zbot_*) in plain words._
-- app_parts/p16_staff.py:17 `_staff_ensure`
-- app_parts/p16_staff.py:29 `_vn_now`
-- app_parts/p16_staff.py:33 `_fold` — lower case, no accents ("Hường" → "huong"), đ → d.
-- app_parts/p16_staff.py:39 `_staff_day_label`
-- app_parts/p16_staff.py:47 `_staff_dates_norm` — Voice typing: 'ngày 6 tháng 11' / 'sáu tháng 11' / '6 tháng mười một' → '6/11' (folded text).
-- app_parts/p16_staff.py:54 `staff_parse_days` — Dates in a Vietnamese message → list of dates ([] = none said). Understands hôm nay / nay, mai / ngày mai,
-- app_parts/p16_staff.py:98 `staff_parse_money` — 'thêm 150' / '150k' / '150.000' / '150 nghìn' → 150000; None if no amount.
-- app_parts/p16_staff.py:119 `staff_parse_rooms`
-- app_parts/p16_staff.py:124 `_staff_chats`
-- app_parts/p16_staff.py:128 `_staff_people`
-- app_parts/p16_staff.py:132 `_staff_name`
-- app_parts/p16_staff.py:136 `_staff_find` — A cleaner named in the owner's message ("cô Dung", "chị Hường") → (chat id, chat) or (None, None).
-- app_parts/p16_staff.py:147 `_staff_say`
-- app_parts/p16_staff.py:152 `_staff_tell_owners`
-- app_parts/p16_staff.py:158 `staff_off_on` — chat ids of cleaners with an approved day off on `day`.
-- app_parts/p16_staff.py:165 `staff_clean_note` — Line put on top of the 8:00 message for cleaner `cid` when another cleaner is off that day.
-- app_parts/p16_staff.py:176 `_staff_add`
-- app_parts/p16_staff.py:186 `_staff_row`
-- app_parts/p16_staff.py:192 `_staff_extra_text`
-- app_parts/p16_staff.py:199 `staff_decide` — Owner approves / refuses a waiting leave or extra → the cleaner is told; an approved day off today/tomorrow is
-- app_parts/p16_staff.py:222 `staff_month` — {chat id: {name, leaves: [...], extras: [...], extra_total}} for month 'YYYY-MM' (+ pending list).
-- app_parts/p16_staff.py:248 `staff_month_text`
-- app_parts/p16_staff.py:263 `staff_handle_text` — A message to the bot from a cleaner or the owner. Returns the reply text ('' = none).
-- app_parts/p16_staff.py:336 `moi_staff` ← `/api/moi/staff` GET,POST — 👥 Nhân viên sheet in /moi: waiting requests, who is off today, month list; actions: decide, add (leave/extra),
+- app_parts/p16_staff.py:18 `_staff_ensure`
+- app_parts/p16_staff.py:30 `_vn_now`
+- app_parts/p16_staff.py:34 `_fold` — lower case, no accents ("Hường" → "huong"), đ → d.
+- app_parts/p16_staff.py:40 `_staff_day_label`
+- app_parts/p16_staff.py:48 `_staff_dates_norm` — Voice typing: 'ngày 6 tháng 11' / 'sáu tháng 11' / '6 tháng mười một' → '6/11' (folded text).
+- app_parts/p16_staff.py:55 `staff_parse_days` — Dates in a Vietnamese message → list of dates ([] = none said). Understands hôm nay / nay, mai / ngày mai,
+- app_parts/p16_staff.py:99 `staff_parse_money` — 'thêm 150' / '150k' / '150.000' / '150 nghìn' → 150000; None if no amount.
+- app_parts/p16_staff.py:120 `staff_parse_rooms`
+- app_parts/p16_staff.py:125 `_staff_chats`
+- app_parts/p16_staff.py:129 `_staff_people`
+- app_parts/p16_staff.py:133 `_staff_name`
+- app_parts/p16_staff.py:137 `_staff_find` — A cleaner named in the owner's message ("cô Dung", "chị Hường") → (chat id, chat) or (None, None).
+- app_parts/p16_staff.py:148 `_staff_say` — Send to one chat; anything sent to a cleaner is also copied to the owner(s) (owner, Nov 6: "tôi muốn nhìn thấy
+- app_parts/p16_staff.py:162 `_staff_tell_owners`
+- app_parts/p16_staff.py:168 `staff_off_on` — chat ids of cleaners with an approved day off on `day`.
+- app_parts/p16_staff.py:175 `staff_clean_note` — Line put on top of the 8:00 message for cleaner `cid` when another cleaner is off that day.
+- app_parts/p16_staff.py:186 `_staff_add`
+- app_parts/p16_staff.py:196 `_staff_row`
+- app_parts/p16_staff.py:202 `_staff_extra_text`
+- app_parts/p16_staff.py:209 `staff_decide` — Owner approves / refuses a waiting leave or extra → the cleaner is told; an approved day off today/tomorrow is
+- app_parts/p16_staff.py:232 `staff_month` — {chat id: {name, leaves: [...], extras: [...], extra_total}} for month 'YYYY-MM' (+ pending list).
+- app_parts/p16_staff.py:273 `_vnd`
+- app_parts/p16_staff.py:278 `staff_month_text`
+- app_parts/p16_staff.py:296 `staff_handle_text` — A message to the bot from a cleaner or the owner. Returns the reply text ('' = none).
+- app_parts/p16_staff.py:368 `moi_staff` ← `/api/moi/staff` GET,POST — 👥 Nhân viên sheet in /moi: waiting requests, who is off today, month list; actions: decide, add (leave/extra),
+- app_parts/p16_staff.py:434 `staff_copy_owner` — Copy of a cleaner's message to the bot + the bot's answer → the owner(s).
 
 ## core/__init__.py (3 lines)
 
@@ -842,16 +844,16 @@ _p16_staff — 👥 Nhân viên (owner, Nov 6): the cleaners talk to the Zalo bo
 - templates/mobile_payment.html: 484 `cardCls` · 490 `dateBadge` · 498 `renderDates` · 557 `toISO` · 564 `openSheet` · 583 `closeSheet` · 588 `pick` · 594 `tickTs`
 - templates/mobile_payment.html: 601 `doConfirm` · 642 `showToast` · 649 `loadHistory` · 696 `switchTab` · 705 `changeOffset` · 707 `loadAnalytics` · 812 `openDetail` · 873 `closeDetail`
 
-## templates/moi.html (1167 lines)
+## templates/moi.html (1169 lines)
 - templates/moi.html: 209 `M_staffBadge` · 210 `load` · 289 `M.reload` · 290 `M.tab` · 291 `M.set` · 292 `M.day` · 293 `M.open` · 294 `M.close`
 - templates/moi.html: 295 `M.add` · 296 `M.addSave` · 309 `M.place` · 314 `M.room` · 321 `M.confirm` · 355 `M.cleanLink` · 358 `M.staffLoad` · 360 `M.staffOpen`
-- templates/moi.html: 361 `M.stfSet` · 364 `M.st` · 380 `M.cleanSetup` · 382 `M.zbotLoad` · 384 `M.zbTokSet` · 385 `M.zbotSave` · 386 `M.zbot` · 397 `M.cleanCopy`
-- templates/moi.html: 398 `M.cancel` · 404 `M.mark` · 408 `M.status` · 410 `M.unreach` · 411 `M.renameRoom` · 419 `M.calDone` · 420 `M.remind` · 422 `M.eta`
-- templates/moi.html: 423 `M.remPreset` · 426 `M.remSave` · 435 `M.remDone` · 438 `M.etaSave` · 461 `M.phone` · 468 `M.send` · 469 `M.pickApt` · 470 `M.quick`
-- templates/moi.html: 472 `M.photo` · 473 `M.chatPhone` · 480 `M.edit` · 482 `M.extN` · 486 `M.splitApt` · 492 `M.extTyped` · 493 `M.editCalc` · 521 `M.editSave`
-- templates/moi.html: 555 `M.payOpen` · 556 `M.collect` · 564 `M.partial` · 566 `M.undoPay` · 569 `M.payCycle` · 574 `M.pickG` · 575 `M.auto` · 590 `render`
-- templates/moi.html: 599 `renderNav` · 608 `renderFloat` · 624 `viewDay` · 709 `viewCal` · 797 `M.cal` · 801 `msgCard` · 831 `viewMsg` · 867 `M.aptSheetOpen`
-- templates/moi.html: 880 `viewPay` · 922 `renderSheet` · 1135 `S_set` · 1136 `renderSheetPub` · 1137 `S_put` · 1152 `check`
+- templates/moi.html: 361 `M.staffRe` · 362 `M.stfSet` · 365 `M.st` · 381 `M.cleanSetup` · 383 `M.zbotLoad` · 385 `M.zbTokSet` · 386 `M.zbotSave` · 387 `M.zbot`
+- templates/moi.html: 398 `M.cleanCopy` · 399 `M.cancel` · 405 `M.mark` · 409 `M.status` · 411 `M.unreach` · 412 `M.renameRoom` · 420 `M.calDone` · 421 `M.remind`
+- templates/moi.html: 423 `M.eta` · 424 `M.remPreset` · 427 `M.remSave` · 436 `M.remDone` · 439 `M.etaSave` · 462 `M.phone` · 469 `M.send` · 470 `M.pickApt`
+- templates/moi.html: 471 `M.quick` · 473 `M.photo` · 474 `M.chatPhone` · 481 `M.edit` · 483 `M.extN` · 487 `M.splitApt` · 493 `M.extTyped` · 494 `M.editCalc`
+- templates/moi.html: 522 `M.editSave` · 556 `M.payOpen` · 557 `M.collect` · 565 `M.partial` · 567 `M.undoPay` · 570 `M.payCycle` · 575 `M.pickG` · 576 `M.auto`
+- templates/moi.html: 591 `render` · 600 `renderNav` · 609 `renderFloat` · 625 `viewDay` · 710 `viewCal` · 798 `M.cal` · 802 `msgCard` · 832 `viewMsg`
+- templates/moi.html: 868 `M.aptSheetOpen` · 881 `viewPay` · 923 `renderSheet` · 1137 `S_set` · 1138 `renderSheetPub` · 1139 `S_put` · 1154 `check`
 
 ## templates/quick.html (309 lines)
 - templates/quick.html: 146 `toast` · 151 `go` · 159 `copyNow` · 167 `sendText` · 172 `copyText` · 173 `sendImgs` · 184 `setIn` · 206 `takeOut`

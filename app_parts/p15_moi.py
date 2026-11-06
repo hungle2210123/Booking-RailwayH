@@ -723,6 +723,12 @@ def zbot_hook():
                 reply = ''
             if reply:
                 _zbot_call('sendMessage', {'chat_id': cid, 'text': reply})
+            if c.get('role') == 'staff':     # the owner sees every message of the cleaners + the bot's answer
+                try:
+                    tail = '\nTrả lời "duyệt" hoặc "không" (hoặc duyệt trong app → 👥 Nhân viên).' if 'chờ duyệt' in reply else ''
+                    staff_copy_owner(_xdb, c, m.get('text') or '', reply, tail)
+                except Exception as e:
+                    print(f'⚠️ staff copy: {e}')
     return jsonify({'ok': True})
 
 
