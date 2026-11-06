@@ -40,10 +40,21 @@ def _staff_day_label(d):
     return f"{STAFF_WD[d.weekday()]} {d.day}/{d.month}"
 
 
+_STAFF_NUM = {'mot': 1, 'hai': 2, 'ba': 3, 'bon': 4, 'tu': 4, 'nam': 5, 'sau': 6, 'bay': 7, 'tam': 8, 'chin': 9, 'muoi': 10,
+              'muoi mot': 11, 'muoi hai': 12}
+
+
+def _staff_dates_norm(t):
+    """Voice typing: 'ngày 6 tháng 11' / 'sáu tháng 11' / '6 tháng mười một' → '6/11' (folded text)."""
+    w = r'(\d{1,2}|muoi mot|muoi hai|mot|hai|ba|bon|tu|nam|sau|bay|tam|chin|muoi)'
+    num = lambda x: int(x) if x.isdigit() else _STAFF_NUM[x]
+    return _re.sub(r'\b(?:ngay\s*)?' + w + r'\s*thang\s*' + w + r'\b', lambda m: f'{num(m.group(1))}/{num(m.group(2))}', t)
+
+
 def staff_parse_days(text_, today):
     """Dates in a Vietnamese message → list of dates ([] = none said). Understands hôm nay / nay, mai / ngày mai,
-    mốt / ngày kia, hôm qua, thứ 2..7 / chủ nhật (the next one), 10/11, 10-12/11, 10/11-12/11."""
-    t = _fold(text_)
+    mốt / ngày kia, hôm qua, thứ 2..7 / chủ nhật (the next one), 10/11, 10-12/11, 10/11-12/11, 6 tháng 11."""
+    t = _staff_dates_norm(_fold(text_))
     m = _re.search(r'\b(\d{1,2})(?:/(\d{1,2}))?\s*(?:-|den|toi)\s*(\d{1,2})/(\d{1,2})\b', t)
     if m:
         d1, m1, d2, m2 = int(m.group(1)), int(m.group(2) or m.group(4)), int(m.group(3)), int(m.group(4))
@@ -86,7 +97,7 @@ def staff_parse_days(text_, today):
 
 def staff_parse_money(text_):
     """'thêm 150' / '150k' / '150.000' / '150 nghìn' → 150000; None if no amount."""
-    t = _fold(text_)
+    t = _staff_dates_norm(_fold(text_))
     best = None
     for m in _re.finditer(r'(\d{1,3}(?:[.,]\d{3})+|\d+)\s*(k|nghin|ngan|ng|d|dong|tr|trieu)?(?=\s|$|[.,!?)])', t):
         num, unit = m.group(1), m.group(2) or ''

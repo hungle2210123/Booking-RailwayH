@@ -359,3 +359,15 @@ def test_staff_leave_and_extra_via_bot(client, monkeypatch):
             appmod._zbot_put(db, 'zbot_chats', old)
             if last is not None:
                 appmod._zbot_put(db, 'zbot_last', last)
+
+
+def test_staff_parse_voice_dates():
+    """Owner, Nov 6: "sáu tháng 11 chị Hương làm thêm 150" (voice typing) → 6/11, 150.000đ."""
+    from datetime import date
+    import app as appmod
+    T = date(2026, 11, 6)
+    for s, d, money in [('6/11 chị Hương làm thêm 150', date(2026, 11, 6), 150000),
+                        ('sáu tháng 11 chị Hường làm thêm 150', date(2026, 11, 6), 150000),
+                        ('chị Hường làm thêm 150 ngày 5 tháng 11', date(2026, 11, 5), 150000),
+                        ('hôm qua cô Dung dọn 3 phòng thêm 200k', date(2026, 11, 5), 200000)]:
+        assert appmod.staff_parse_days(s, T) == [d] and appmod.staff_parse_money(s) == money, s
