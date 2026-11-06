@@ -55,8 +55,21 @@ def moi_page():
     """The new phone-first app (old pages stay as they are)."""
     # no-cache: the iPhone (home-screen app / Safari tab) kept showing an old copy of the page after a deploy, so new
     # parts (the booking picture on the guest card) did not appear (owner, Nov 5)
-    resp = make_response(render_template('moi.html'))
+    resp = make_response(render_template('moi.html', build=MOI_BUILD))
     resp.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+    return resp
+
+
+# The running build (Railway sets RAILWAY_GIT_COMMIT_SHA; else this process's start time). /moi and /may-tinh keep it and
+# ask /api/version when the iPhone brings the app back / every few minutes → a new deploy reloads the page by itself
+# (owner, Nov 6: the home-screen app kept the old version until they saved it again)
+MOI_BUILD = (os.environ.get('RAILWAY_GIT_COMMIT_SHA') or '')[:12] or datetime.utcnow().strftime('%Y%m%d%H%M%S')
+
+
+@app.route('/api/version')
+def moi_version():
+    resp = jsonify({'build': MOI_BUILD})
+    resp.headers['Cache-Control'] = 'no-store'
     return resp
 
 
@@ -65,7 +78,7 @@ def desk_page():
     """The desktop app (owner, Oct 30): Hôm nay · Chi tiết ngày · Lịch phòng · Nhắn khách · Thu tiền · Doanh thu, guest card
     on the right. Same data/actions as /moi (/api/moi/*) and the same revenue numbers as /dashboard
     (/api/dashboard/overview, core/revenue.py). Old pages stay."""
-    resp = make_response(render_template('desk.html'))
+    resp = make_response(render_template('desk.html', build=MOI_BUILD))
     resp.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
     return resp
 

@@ -814,15 +814,15 @@ _p15_moi — /moi: the new phone-first app (owner, Oct 26), built from the appro
 - templates/mobile_payment.html: 484 `cardCls` · 490 `dateBadge` · 498 `renderDates` · 557 `toISO` · 564 `openSheet` · 583 `closeSheet` · 588 `pick` · 594 `tickTs`
 - templates/mobile_payment.html: 601 `doConfirm` · 642 `showToast` · 649 `loadHistory` · 696 `switchTab` · 705 `changeOffset` · 707 `loadAnalytics` · 812 `openDetail` · 873 `closeDetail`
 
-## templates/moi.html (1078 lines)
+## templates/moi.html (1081 lines)
 - templates/moi.html: 209 `load` · 287 `M.reload` · 288 `M.tab` · 289 `M.set` · 290 `M.day` · 291 `M.open` · 292 `M.close` · 293 `M.add`
 - templates/moi.html: 294 `M.addSave` · 307 `M.place` · 312 `M.room` · 319 `M.confirm` · 353 `M.cleanLink` · 354 `M.cleanSetup` · 356 `M.zbotLoad` · 358 `M.zbTokSet`
 - templates/moi.html: 359 `M.zbotSave` · 360 `M.zbot` · 371 `M.cleanCopy` · 372 `M.cancel` · 378 `M.mark` · 382 `M.status` · 384 `M.unreach` · 385 `M.renameRoom`
 - templates/moi.html: 393 `M.calDone` · 394 `M.remind` · 396 `M.eta` · 397 `M.remPreset` · 400 `M.remSave` · 409 `M.remDone` · 412 `M.etaSave` · 435 `M.phone`
 - templates/moi.html: 442 `M.send` · 443 `M.pickApt` · 444 `M.quick` · 446 `M.photo` · 447 `M.chatPhone` · 454 `M.edit` · 456 `M.extN` · 460 `M.splitApt`
 - templates/moi.html: 466 `M.extTyped` · 467 `M.editCalc` · 495 `M.editSave` · 529 `M.payOpen` · 530 `M.collect` · 538 `M.partial` · 540 `M.undoPay` · 543 `M.payCycle`
-- templates/moi.html: 548 `M.pickG` · 549 `M.auto` · 564 `render` · 573 `renderNav` · 582 `renderFloat` · 598 `viewDay` · 683 `viewCal` · 768 `M.cal`
-- templates/moi.html: 772 `msgCard` · 802 `viewMsg` · 838 `M.aptSheetOpen` · 851 `viewPay` · 893 `renderSheet` · 1065 `S_set` · 1066 `renderSheetPub` · 1067 `S_put`
+- templates/moi.html: 548 `M.pickG` · 549 `M.auto` · 564 `render` · 573 `renderNav` · 582 `renderFloat` · 598 `viewDay` · 683 `viewCal` · 771 `M.cal`
+- templates/moi.html: 775 `msgCard` · 805 `viewMsg` · 841 `M.aptSheetOpen` · 854 `viewPay` · 896 `renderSheet` · 1068 `S_set` · 1069 `renderSheetPub` · 1070 `S_put`
 
 ## templates/quick.html (309 lines)
 - templates/quick.html: 146 `toast` · 151 `go` · 159 `copyNow` · 167 `sendText` · 172 `copyText` · 173 `sendImgs` · 184 `setIn` · 206 `takeOut`
