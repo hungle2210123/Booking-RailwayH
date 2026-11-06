@@ -351,6 +351,11 @@ def test_staff_leave_and_extra_via_bot(client, monkeypatch):
         assert '2 phòng — 150.000đ' in to('zz-a')[-1]
         p = [x for x in client.get('/api/moi/staff').get_json()['people'] if x['id'] == 'zz-a'][0]
         assert p['extra_total'] >= 150000
+        say('zz-o', 'Chị Hường xin nghỉ 6/11 nhé')            # the owner records a day off → approved at once
+        assert 'Đã ghi' in to('zz-o')[-1] and 'Đã duyệt' in to('zz-b')[-1]
+        with appmod.app.app_context():
+            from datetime import date as _d
+            assert 'zz-b' in appmod.staff_off_on(db, _d(appmod._vn_now().year, 11, 6))
         say('zz-b', 'abc xyz')
         assert 'chưa hiểu' in to('zz-b')[-1]
     finally:
