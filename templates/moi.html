@@ -206,7 +206,10 @@ button.info.on{border-color:#0E1525;background:#fff}
   const offOf = (iso) => Math.round((Date.parse(iso + 'T00:00:00Z') - Date.parse(TODAY + 'T00:00:00Z')) / 864e5);
   const dateOf = (o) => { const d = new Date(Date.parse(TODAY + 'T00:00:00Z') + o * 864e5); return { d: d.getUTCDate(), m: d.getUTCMonth() + 1, w: d.getUTCDay() }; };
   const dm = (o) => { const x = dateOf(o); return x.d + '/' + x.m; };
-  function M_staffBadge() { fetch('/api/moi/staff', { cache: 'no-store' }).then((r) => r.json()).then((j) => { if (j.success && j.pending.length !== (S.stPend || 0)) { S.stPend = j.pending.length; if (!$('.ov')) render(); } }).catch(() => {}); }
+  function M_staffBadge() {
+    fetch('/api/moi/staff', { cache: 'no-store' }).then((r) => r.json()).then((j) => { if (j.success) { S.stPend = j.pending.length; S.stInfo = { pend: j.pending.length, off: j.off_today }; if (!$('.ov')) render(); } }).catch(() => {});
+    fetch('/api/moi/zbot', { cache: 'no-store' }).then((r) => r.json()).then((j) => { if (j.success) { S.zbot = j; if (!$('.ov')) render(); } }).catch(() => {});
+  }
   async function load(quiet) {
     try {
       const r = await fetch('/api/moi/data', { cache: 'no-store' });
@@ -291,7 +294,7 @@ button.info.on{border-color:#0E1525;background:#fff}
   M.set = (k, v) => { S[k] = v; if (k === 'calView') LS.set(k, v); render(); };
   M.day = (d) => { S.day = Math.max(0, Math.min(20, d)); render(); };
   M.open = (id) => { S.sel = id; S.move = false; S.pick = null; S.edit = null; renderSheet(); };
-  M.close = () => { S.staffOn = false; S.cleanSetup = null; S.sel = null; S.collect = null; S.aptSheet = false; S.etaFor = null; S.adding = false; renderSheet(); renderFloat(); };
+  M.close = () => { if (S.staffOn || S.cleanSetup) setTimeout(M_staffBadge, 300); S.calSheet = false; S.staffOn = false; S.cleanSetup = null; S.sel = null; S.collect = null; S.aptSheet = false; S.etaFor = null; S.adding = false; renderSheet(); renderFloat(); };
   M.add = () => { S.sel = null; S.adding = true; renderSheet(); setTimeout(() => { const i = $('#fName'); if (i) i.focus(); }, 50); };
   M.addSave = async (btn) => {
     const v = (id) => ($('#' + id).value || '').trim();
@@ -359,6 +362,7 @@ button.info.on{border-color:#0E1525;background:#fff}
     if (j.success) { S.st = j; S.stPend = j.pending.length; if (!S.stf) S.stf = { kind: 'extra', day: j.today, rooms: 0, amount: '' }; if (S.staffOn) renderSheet(); } } catch (e) {} };
   M.staffOpen = () => { S.sel = null; S.cleanSetup = null; S.staffOn = true; renderSheet(); M.staffLoad(S.st && S.st.month); };
   M.staffRe = () => renderSheet();
+  M.calOpen = () => { S.sel = null; S.calSheet = true; renderSheet(); };
   M.stfSet = (k, v) => { S.stf[k] = v;
     if (k === 'rooms' && S.st && S.st.price) S.stf.amount = String(v * S.st.price);
     if (k !== 'amount' && k !== 'note') renderSheet(); };
@@ -662,7 +666,6 @@ button.info.on{border-color:#0E1525;background:#fff}
          <div class="chips4">${APT.map((a) => { const f = a.rooms - B.filter((o) => o.apt === a.id && inHouse(o, d)).length;
            return `<button class="chip ${f > 0 ? '' : 'off'}" style="background:${a.color}" onclick="M.place('${b.id}',${a.id})">${esc(a.short)}<small>${f > 0 ? 'còn ' + f : 'hết'}</small></button>`; }).join('')}</div></div>`).join('') + '</div>';
     }
-    if (d === 0 && S.feed && !LS.get('calOk', false)) h += `<div class="card" style="padding:2px 14px 14px">${calBlock(false)}</div>`;
     const openRem = REM().filter((r) => !r.done && byId[r.booking_id]).sort((p, q) => p.at.localeCompare(q.at));
     if (openRem.length && d === 0) h += `<div class="card" style="padding:12px 14px;border:1.5px solid ${openRem.some(overdue) ? '#FCA5A5' : '#FCD34D'}"><div style="font-size:13px;font-weight:800;margin-bottom:6px">🔔 Việc cần nhắc · ${openRem.length}</div>
       <div style="display:flex;flex-direction:column;gap:6px">${openRem.map((r) => { const b = byId[r.booking_id], a = aptById[b.apt];
@@ -670,7 +673,24 @@ button.info.on{border-color:#0E1525;background:#fff}
           <div class="t">${esc(r.note)}<small>${esc(b.name)} · ${a ? esc(a.short) + (b.room_no ? ' · ' + esc(rn(b.apt, b.room_no)) : '') : 'chưa xếp'}${b.phone ? ' · ' + esc(b.phone) : ''}</small></div>
           <button class="okb" onclick="event.stopPropagation();M.remDone(${r.id})">Xong</button></div>`; }).join('')}</div></div>`;
     const stays = B.filter((b) => b.ciO < d && d < b.coO);
-    h += `<button onclick="M.cleanCopy(${d})" style="width:100%;min-height:46px;border-radius:14px;border:1.5px dashed #94A3B8;background:#fff;font-size:14px;font-weight:800;color:#0E1525;margin-bottom:8px">🧹 Copy tin dọn phòng ${dm(d)} — gửi các cô</button>${d === 0 ? `<button onclick="M.cleanSetup()" style="width:100%;border:none;background:none;font-size:12px;font-weight:700;color:#475569;margin:-4px 0 8px;text-decoration:underline">⏰ Tự gửi tin này cho các cô lúc 8 giờ sáng</button><button onclick="M.staffOpen()" style="width:100%;min-height:46px;border-radius:14px;border:1.5px solid #E2E5EB;background:#fff;font-size:14px;font-weight:800;color:#0E1525;margin-bottom:8px">👥 Nhân viên — nghỉ & làm thêm${S.stPend ? ` <span style="background:#DC2626;color:#fff;border-radius:10px;padding:1px 8px;font-size:12px">${S.stPend} chờ duyệt</span>` : ''}</button>` : ''}`;
+    // 🧰 Việc hằng ngày (owner, Nov 7: "gộp chung … thành một mục"): 4 tiles with their state — cleaning message,
+    // Zalo bot 8:00, staff (nghỉ / chờ duyệt), iPhone calendar. Other days: only the cleaning message.
+    {
+      const outs = B.filter((b) => b.apt && b.coO === d).length, zb = S.zbot, si = S.stInfo, calOk = LS.get('calOk', false);
+      const tile = (icon, title, state, col, act) => `<button onclick="${act}" style="text-align:left;border:1.5px solid #E7E9EE;background:#fff;border-radius:14px;padding:10px 11px;min-height:76px;display:flex;flex-direction:column;justify-content:space-between;gap:4px">
+          <span style="display:flex;align-items:center;gap:7px;font-size:13.5px;font-weight:800;color:#0E1525"><span style="font-size:17px">${icon}</span>${title}</span>
+          <span style="font-size:11.5px;font-weight:800;color:${col};line-height:1.3">${state}</span></button>`;
+      const cleanT = tile('🧹', 'Tin dọn phòng', outs ? `Copy tin ${dm(d)} · ${outs} phòng trả` : `Copy tin ${dm(d)} · không phòng trả`, '#475569', `M.cleanCopy(${d})`);
+      if (d !== 0) h += `<div style="margin-bottom:10px">${cleanT}</div>`;
+      else {
+        const sentToday = zb && zb.sent_day === S.data.today;
+        const botT = tile('🤖', 'Bot Zalo 8:00', !zb ? 'Đang xem…' : sentToday ? '✓ Sáng nay đã gửi' : zb.connected ? '✓ Đang bật' : 'Chưa cài — chạm để cài', !zb ? '#94A3B8' : sentToday || zb.connected ? '#15803D' : '#B45309', `M.cleanSetup('bot')`);
+        const stT = tile('👥', 'Nhân viên', !si ? 'Nghỉ & bồi dưỡng' : si.pend ? `${si.pend} chờ duyệt` : si.off.length ? `Hôm nay ${esc(si.off.join(', '))} nghỉ` : '✓ Hôm nay đủ người', !si ? '#475569' : si.pend ? '#DC2626' : si.off.length ? '#B45309' : '#15803D', 'M.staffOpen()');
+        const calT = tile('📅', 'Lịch iPhone', calOk ? '✓ Đã kết nối' : 'Chưa bật — chạm để bật', calOk ? '#15803D' : '#B45309', 'M.calOpen()');
+        h += `<div class="card" style="padding:12px 12px 12px"><div style="display:flex;align-items:baseline;justify-content:space-between;margin:0 2px 8px"><b style="font-size:14px">Việc hằng ngày</b><span style="font-size:11px;color:#64748B;font-weight:700">dọn phòng · nhân viên · nhắc việc</span></div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">${cleanT}${botT}${stT}${calT}</div></div>`;
+      }
+    }
     h += `<div class="seg"><button class="${S.seg === 'pair' ? 'on' : ''}" onclick="M.set('seg','pair')">Trả ↔ Đến</button><button class="${S.seg === 'stay' ? 'on' : ''}" onclick="M.set('seg','stay')">Đang ở · ${stays.length}</button></div>`;
     if (S.seg === 'stay') {
       h += '<div class="card" style="padding:4px 16px 6px">' + (stays.sort((p, q) => p.coO - q.coO).map((b) => { const a = aptById[b.apt], left = b.coO - d;
@@ -922,6 +942,12 @@ button.info.on{border-color:#0E1525;background:#fff}
   // ═════ SHEETS ═════
   function renderSheet() {
     const el = $('#sheet');
+    if (S.calSheet) {
+      el.innerHTML = `<div class="ov" onclick="if(event.target===this)M.close()"><div class="sh"><div class="handle"></div>
+        <div style="display:flex;align-items:center;gap:10px"><div style="flex:1"><div class="kick" style="color:#64748B">NHẮC VIỆC</div><div style="font-size:20px;font-weight:800">Lịch iPhone</div></div><button class="x" onclick="M.close()" aria-label="Đóng">${svg('x', 18, 2.4)}</button></div>
+        ${S.feed ? calBlock(false) : '<div style="padding:24px 0;text-align:center;color:#64748B;font-weight:700">Đang tải…</div>'}</div></div>`;
+      return;
+    }
     if (S.staffOn) {
       const st = S.st, f = S.stf || {};
       const box = (inner, bg) => `<div style="margin-top:10px;background:${bg || '#F7F8FA'};border-radius:14px;padding:10px 12px">${inner}</div>`;
