@@ -164,3 +164,10 @@ Approved day off → `_zbot_send_clean` skips her that day and puts "⚠️ … 
 /moi Hôm nay → "👥 Nhân viên" sheet (/api/moi/staff): approve, 🎁 bồi dưỡng (money + note), month list, "Gửi tổng kết", roles.
 Money (owner Nov 6): approved day off = −150k (`STAFF_DAY_RATE`) for her, +150k "dọn thay" for the other; + bồi dưỡng.
 No salary. Every message to/from a cleaner is copied to the owner chat(s) (`_staff_say` copy, `staff_copy_owner`).
+
+
+## Calendar: payment marks · overlaps · ☀ ở trong ngày (Nov 7)
+- Every bar (phone + desktop) has a corner mark: ✓ green paid · ½ amber part · ₫ red unpaid once arrived (`ciO<0 || ciO==0 && confirmed`).
+- Two guests on one room at once are stacked in lines (`laneUp`), room name says "2 khách 1 đêm" — nothing is hidden.
+- ☀ Ở trong ngày (card button, 1-night guests): `moi_settings 'dayuse'` list, POST `/api/moi/dayuse` {booking_id, on};
+  feed field `du`. Drawn in the LEFT (daytime) half of the arrival day; `counts()` / `fits()` skip it (no 'Thừa'); money unchanged.
