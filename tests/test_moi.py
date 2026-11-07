@@ -395,3 +395,23 @@ def test_staff_parse_voice_dates():
                         ('chị Hường làm thêm 150 ngày 5 tháng 11', date(2026, 11, 5), 150000),
                         ('hôm qua cô Dung dọn 3 phòng thêm 200k', date(2026, 11, 5), 200000)]:
         assert appmod.staff_parse_days(s, T) == [d] and appmod.staff_parse_money(s) == money, s
+
+
+def test_quick_new_sentence_and_rename(client):
+    """Owner, Nov 7: Tin nhanh — ✍️ write a new sentence right in a group, and 🏷 rename a sentence."""
+    from sqlalchemy import text as _t
+    from core.models import db
+    import app as appmod
+    a = client.post('/api/templates/add', json={'name': 'ZZ TEST câu mới', 'content': 'Hello ZZ', 'category': 'Tin nhanh'}).get_json()
+    tid = a['template']['id']
+    try:
+        assert client.post('/api/quick/extra', json={'group': 'passport', 'id': tid, 'on': True, 'builtin': False}).get_json()['success']
+        assert client.post('/api/quick/label', json={'id': tid, 'label': 'ZZ TEST tên mới'}).get_json()['success']
+        page = client.get('/tin-nhanh').get_data(as_text=True)
+        assert 'ZZ TEST tên mới' in page and '✍️ Viết câu mới' in page and '🏷 Tên' in page
+    finally:
+        client.post('/api/quick/extra', json={'group': 'passport', 'id': tid, 'on': False, 'builtin': False})
+        with appmod.app.app_context():
+            labels = appmod._quick_labels(db); labels.pop(str(tid), None)
+            db.session.execute(_t("UPDATE journey_prefs SET value = :v WHERE key = 'quick_labels'"), {'v': appmod.json.dumps(labels)})
+            db.session.execute(_t("DELETE FROM message_templates WHERE template_id = :i"), {'i': tid}); db.session.commit()

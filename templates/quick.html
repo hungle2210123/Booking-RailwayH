@@ -41,6 +41,9 @@
   .top .tx { flex:1; min-width:0; }
   .row .lb { font-weight:600; font-size:.97rem; }
   .row .nm { font-size:.75rem; color:var(--muted); margin-top:1px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .addrow { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+  .addrow .addpin { margin:0; }
+  .edname { width:100%; box-sizing:border-box; min-height:44px; border:1.5px solid #CBD5E1; border-radius:10px; padding:0 10px; font-size:16px; font-family:inherit; }
   .ic { flex:none; border:none; background:var(--soft); color:var(--muted); border-radius:8px; height:30px; min-width:30px; padding:0 8px;
         font-size:.8rem; font-weight:600; }
   .btns { display:flex; gap:6px; margin-top:9px; }
@@ -95,6 +98,7 @@
   <div class="row">
     <div class="top">
       <div class="tx"><div class="lb">{{ it.label }}</div><div class="nm">{{ it.name }}</div></div>
+      <button type="button" class="ic" data-id="{{ it.id }}" onclick="renameIt(this)" title="Đổi tên">🏷 Tên</button>
       <button type="button" class="ic" data-id="{{ it.id }}" onclick="openEdit(this)" title="Sửa mẫu">✏️ Sửa</button>
       <button type="button" class="ic" onclick="takeOut('{{ g.key }}', {{ it.id }}, {{ 'false' if it.kind else 'true' }})" title="Bỏ khỏi mục này">✕</button>
     </div>
@@ -106,7 +110,7 @@
     </div>
   </div>
   {% endfor %}
-  <button type="button" class="addpin" onclick="openPicker('{{ g.key }}')">＋ Thêm mẫu vào {{ g.title }}</button>
+  <div class="addrow"><button type="button" class="addpin" onclick="openNew('{{ g.key }}')">✍️ Viết câu mới</button><button type="button" class="addpin" onclick="openPicker('{{ g.key }}')">＋ Chọn mẫu có sẵn</button></div>
   {% if g.custom %}<div class="gact"><button type="button" onclick="renameGroup('{{ g.key }}')">✏️ Đổi tên mục</button><button type="button" onclick="deleteGroup('{{ g.key }}')">🗑 Xóa mục</button></div>{% endif %}
   </section>
   {% endfor %}
@@ -125,6 +129,8 @@
     <div id="edbody">
       <div class="note">Lưu là đổi mẫu gốc — dùng cho mọi khách, cả trang Nhắn khách và Mẫu Câu.
         Tự thay: {ten} tên khách · {nhan} ngày nhận · {tra} ngày trả · {phong} phòng · {can} tên căn</div>
+      <div class="lab">🏷 Tên câu (hiện trong Tin nhanh)</div>
+      <input id="edname" class="edname" placeholder="vd: 🚕 Gọi taxi sân bay">
       <div class="lab">🇬🇧 English (WhatsApp)</div>
       <textarea id="eden"></textarea>
       <div class="lab">🇻🇳 Tiếng Việt (Zalo) — để trống nếu không cần</div>
@@ -236,7 +242,26 @@ function drawPicker() {
 }
 // ✏️ Sửa: the template's own text (English + Vietnamese) — the same as "Sửa mẫu gốc" on /messages
 let EDIT = 0;
+let NEWIN = '';
+// ✍️ Viết câu mới: a brand-new sentence written right here → saved as a template and put in this group (owner, Nov 7)
+function openNew(group) {
+  EDIT = 0; NEWIN = group;
+  document.getElementById('edt').textContent = '✍️ Câu mới — ' + TITLES[GROUPS.indexOf(group)];
+  ['edname', 'eden', 'edvi'].forEach(i => { document.getElementById(i).value = ''; });
+  document.getElementById('eden').placeholder = 'Viết câu tiếng Anh ở đây…';
+  document.getElementById('ed').hidden = false;
+  setTimeout(() => document.getElementById('edname').focus(), 50);
+}
+// 🏷 Tên: rename only
+async function renameIt(b) {
+  const id = +b.dataset.id, t = prompt('Tên mới cho câu này:', DATA[id].label || DATA[id].name || '');
+  if (!t || !t.trim()) return;
+  const r = await post('/api/quick/label', { id, label: t.trim() });
+  if (!r || !r.success) { toast('❌ ' + ((r && r.error) || 'Không lưu được')); return; }
+  toast('✅ Đã đổi tên'); setTimeout(() => location.reload(), 500);
+}
 async function openEdit(b) {
+  NEWIN = '';
   EDIT = +b.dataset.id;
   document.getElementById('edt').textContent = '✏️ ' + DATA[EDIT].name;
   const en = document.getElementById('eden'), vi = document.getElementById('edvi');
@@ -248,13 +273,29 @@ async function openEdit(b) {
   if (!r || !r.success) { toast('Không tải được mẫu'); closeEdit(); return; }
   en.placeholder = '';
   en.value = r.template.Message || '';
+  document.getElementById('edname').value = DATA[EDIT].label || r.template.Label || '';
   vi.value = (rv && rv.text_vi) || '';
 }
 function closeEdit() { document.getElementById('ed').hidden = true; EDIT = 0; }
 async function saveEdit() {
   const content = document.getElementById('eden').value.trim();
   if (!content) { toast('Mẫu không được để trống'); return; }
+  const name = document.getElementById('edname').value.trim();
   const btn = document.getElementById('edsave'); btn.disabled = true;
+  if (NEWIN) {                                   // ✍️ new sentence → new template → into this group
+    if (!name) { btn.disabled = false; toast('Đặt tên cho câu'); return; }
+    const a = await post('/api/templates/add', { name, content, category: 'Tin nhanh' });
+    const id = a && a.success && (a.id || (a.template && a.template.id));
+    if (!id) { btn.disabled = false; toast('❌ ' + ((a && a.error) || 'Không lưu được') + (a && /exist/i.test(a.error || '') ? ' — tên này đã có, đặt tên khác' : '')); return; }
+    const vi = document.getElementById('edvi').value.trim();
+    if (vi) await post('/api/journey/vi/' + id, { text_vi: vi });
+    await post('/api/quick/label', { id, label: name });
+    EDIT = id; btn.disabled = false; closeEdit();
+    toast('✅ Đã thêm câu mới');
+    await setIn(NEWIN, id, true);
+    return;
+  }
+  if (name && name !== (DATA[EDIT].label || '')) await post('/api/quick/label', { id: EDIT, label: name });
   const res = await fetch('/api/templates/' + EDIT, { method: 'PUT', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ Message: content }) }).then(x => x.json()).catch(() => null);
   const resVi = res && res.success ? await post('/api/journey/vi/' + EDIT, { text_vi: document.getElementById('edvi').value }) : null;

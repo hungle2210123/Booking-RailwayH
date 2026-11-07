@@ -70,7 +70,7 @@ _p02_pages_extension — page shells (/, dashboard, expenses, apartments), dashb
 - app_parts/p02_pages_extension.py:694 `ext_booking_phone` ← `/api/ext/booking/phone` POST — A reservation page now shows the guest phone (the owner clicked Booking's own
 - app_parts/p02_pages_extension.py:776 `_typed_phone` — A number the owner typed / pasted ("0905 123 456", "+33 6 12 34 56 78", "0033…") → '+<digits>' or ''.
 
-## app_parts/p03_messages_journey.py (1453 lines)
+## app_parts/p03_messages_journey.py (1489 lines)
 _p03_messages_journey — phone from chat screenshots, /api/messages/phone, auto messages, AI reply, Booking screenshots, journey, Thu tiền (pay), /tin-nhanh, /messages_
 - app_parts/p03_messages_journey.py:13 `_owner_numbers` — Last 9 digits of every number written in the message templates (the owner's WhatsApp / WeChat / hotline).
 - app_parts/p03_messages_journey.py:25 `parse_chat_shot`
@@ -125,13 +125,15 @@ _p03_messages_journey — phone from chat screenshots, /api/messages/phone, auto
 - app_parts/p03_messages_journey.py:1112 `_pay_by_apartment` — [{apt, n, left, max_over, items}] — one block per apartment (unplaced last). Inside: the guest who has owed th
 - app_parts/p03_messages_journey.py:1135 `_messages_pay_page`
 - app_parts/p03_messages_journey.py:1168 `quick_page` ← `/tin-nhanh` · `/quick`
-- app_parts/p03_messages_journey.py:1232 `_quick_custom` — The owner's own /tin-nhanh groups (owner, Oct 30: "thêm được các mục tùy muốn") — journey_prefs 'quick_groups'
-- app_parts/p03_messages_journey.py:1244 `_quick_groups`
-- app_parts/p03_messages_journey.py:1248 `_quick_extra` — {group key: [template ids]} added by the owner to /tin-nhanh groups (journey_prefs 'quick_extra'), or with
-- app_parts/p03_messages_journey.py:1261 `quick_extra_set` ← `/api/quick/extra` POST — Add / remove a template in one /tin-nhanh group (📌 Hay dùng uses the journey favorites instead).
-- app_parts/p03_messages_journey.py:1289 `quick_group_set` ← `/api/quick/group` POST — The owner's own Tin nhanh groups: {action: 'add', title} · {action: 'rename', key, title} · {action: 'delete',
-- app_parts/p03_messages_journey.py:1329 `quick_manifest` ← `/tin-nhanh.webmanifest`
-- app_parts/p03_messages_journey.py:1341 `messages_page` ← `/messages` — Phone page for messaging guests: arriving (or staying) guests, each with the journey strip
+- app_parts/p03_messages_journey.py:1233 `_quick_custom` — The owner's own /tin-nhanh groups (owner, Oct 30: "thêm được các mục tùy muốn") — journey_prefs 'quick_groups'
+- app_parts/p03_messages_journey.py:1245 `_quick_groups`
+- app_parts/p03_messages_journey.py:1249 `_quick_extra` — {group key: [template ids]} added by the owner to /tin-nhanh groups (journey_prefs 'quick_extra'), or with
+- app_parts/p03_messages_journey.py:1262 `quick_extra_set` ← `/api/quick/extra` POST — Add / remove a template in one /tin-nhanh group (📌 Hay dùng uses the journey favorites instead).
+- app_parts/p03_messages_journey.py:1289 `_quick_labels` — {template id (str): title shown in Tin nhanh} — journey_prefs 'quick_labels' (🏷 Đổi tên, owner Nov 7).
+- app_parts/p03_messages_journey.py:1300 `quick_label_set` ← `/api/quick/label` POST — 🏷 Đổi tên: {id, label} — the title of that sentence in Tin nhanh; the template's own name (Mẫu Câu) follows.
+- app_parts/p03_messages_journey.py:1325 `quick_group_set` ← `/api/quick/group` POST — The owner's own Tin nhanh groups: {action: 'add', title} · {action: 'rename', key, title} · {action: 'delete',
+- app_parts/p03_messages_journey.py:1365 `quick_manifest` ← `/tin-nhanh.webmanifest`
+- app_parts/p03_messages_journey.py:1377 `messages_page` ← `/messages` — Phone page for messaging guests: arriving (or staying) guests, each with the journey strip
 
 ## app_parts/p04_bookings_expenses.py (1916 lines)
 _p04_bookings_expenses — /bookings list + add/edit/cancel/delete, manual entry, expenses API, save extracted_
@@ -845,19 +847,19 @@ _p16_staff — 👥 Nhân viên (owner, Nov 6): the cleaners talk to the Zalo bo
 - templates/mobile_payment.html: 484 `cardCls` · 490 `dateBadge` · 498 `renderDates` · 557 `toISO` · 564 `openSheet` · 583 `closeSheet` · 588 `pick` · 594 `tickTs`
 - templates/mobile_payment.html: 601 `doConfirm` · 642 `showToast` · 649 `loadHistory` · 696 `switchTab` · 705 `changeOffset` · 707 `loadAnalytics` · 812 `openDetail` · 873 `closeDetail`
 
-## templates/moi.html (1169 lines)
-- templates/moi.html: 209 `M_staffBadge` · 210 `load` · 289 `M.reload` · 290 `M.tab` · 291 `M.set` · 292 `M.day` · 293 `M.open` · 294 `M.close`
-- templates/moi.html: 295 `M.add` · 296 `M.addSave` · 309 `M.place` · 314 `M.room` · 321 `M.confirm` · 355 `M.cleanLink` · 358 `M.staffLoad` · 360 `M.staffOpen`
-- templates/moi.html: 361 `M.staffRe` · 362 `M.stfSet` · 365 `M.st` · 381 `M.cleanSetup` · 383 `M.zbotLoad` · 385 `M.zbTokSet` · 386 `M.zbotSave` · 387 `M.zbot`
-- templates/moi.html: 398 `M.cleanCopy` · 399 `M.cancel` · 405 `M.mark` · 409 `M.status` · 411 `M.unreach` · 412 `M.renameRoom` · 420 `M.calDone` · 421 `M.remind`
-- templates/moi.html: 423 `M.eta` · 424 `M.remPreset` · 427 `M.remSave` · 436 `M.remDone` · 439 `M.etaSave` · 462 `M.phone` · 469 `M.send` · 470 `M.pickApt`
-- templates/moi.html: 471 `M.quick` · 473 `M.photo` · 474 `M.chatPhone` · 481 `M.edit` · 483 `M.extN` · 487 `M.splitApt` · 493 `M.extTyped` · 494 `M.editCalc`
-- templates/moi.html: 522 `M.editSave` · 556 `M.payOpen` · 557 `M.collect` · 565 `M.partial` · 567 `M.undoPay` · 570 `M.payCycle` · 575 `M.pickG` · 576 `M.auto`
-- templates/moi.html: 591 `render` · 600 `renderNav` · 609 `renderFloat` · 625 `viewDay` · 710 `viewCal` · 798 `M.cal` · 802 `msgCard` · 832 `viewMsg`
-- templates/moi.html: 868 `M.aptSheetOpen` · 881 `viewPay` · 923 `renderSheet` · 1137 `S_set` · 1138 `renderSheetPub` · 1139 `S_put` · 1154 `check`
+## templates/moi.html (1195 lines)
+- templates/moi.html: 209 `M_staffBadge` · 213 `load` · 292 `M.reload` · 293 `M.tab` · 294 `M.set` · 295 `M.day` · 296 `M.open` · 297 `M.close`
+- templates/moi.html: 298 `M.add` · 299 `M.addSave` · 312 `M.place` · 317 `M.room` · 324 `M.confirm` · 358 `M.cleanLink` · 361 `M.staffLoad` · 363 `M.staffOpen`
+- templates/moi.html: 364 `M.staffRe` · 365 `M.calOpen` · 366 `M.stfSet` · 369 `M.st` · 385 `M.cleanSetup` · 387 `M.zbotLoad` · 389 `M.zbTokSet` · 390 `M.zbotSave`
+- templates/moi.html: 391 `M.zbot` · 402 `M.cleanCopy` · 403 `M.cancel` · 409 `M.mark` · 413 `M.status` · 415 `M.unreach` · 416 `M.renameRoom` · 424 `M.calDone`
+- templates/moi.html: 425 `M.remind` · 427 `M.eta` · 428 `M.remPreset` · 431 `M.remSave` · 440 `M.remDone` · 443 `M.etaSave` · 466 `M.phone` · 473 `M.send`
+- templates/moi.html: 474 `M.pickApt` · 475 `M.quick` · 477 `M.photo` · 478 `M.chatPhone` · 485 `M.edit` · 487 `M.extN` · 491 `M.splitApt` · 497 `M.extTyped`
+- templates/moi.html: 498 `M.editCalc` · 526 `M.editSave` · 560 `M.payOpen` · 561 `M.collect` · 569 `M.partial` · 571 `M.undoPay` · 574 `M.payCycle` · 579 `M.pickG`
+- templates/moi.html: 580 `M.auto` · 595 `render` · 604 `renderNav` · 613 `renderFloat` · 629 `viewDay` · 730 `viewCal` · 818 `M.cal` · 822 `msgCard`
+- templates/moi.html: 852 `viewMsg` · 888 `M.aptSheetOpen` · 901 `viewPay` · 943 `renderSheet` · 1163 `S_set` · 1164 `renderSheetPub` · 1165 `S_put` · 1180 `check`
 
-## templates/quick.html (309 lines)
-- templates/quick.html: 146 `toast` · 151 `go` · 159 `copyNow` · 167 `sendText` · 172 `copyText` · 173 `sendImgs` · 184 `setIn` · 206 `takeOut`
-- templates/quick.html: 210 `openPicker` · 221 `closePicker` · 222 `drawPicker` · 239 `openEdit` · 253 `closeEdit` · 254 `saveEdit` · 278 `addGroup` · 286 `renameGroup`
-- templates/quick.html: 293 `deleteGroup`
+## templates/quick.html (350 lines)
+- templates/quick.html: 152 `toast` · 157 `go` · 165 `copyNow` · 173 `sendText` · 178 `copyText` · 179 `sendImgs` · 190 `setIn` · 212 `takeOut`
+- templates/quick.html: 216 `openPicker` · 227 `closePicker` · 228 `drawPicker` · 247 `openNew` · 256 `renameIt` · 263 `openEdit` · 279 `closeEdit` · 280 `saveEdit`
+- templates/quick.html: 319 `addGroup` · 327 `renameGroup` · 334 `deleteGroup`
 

@@ -1175,6 +1175,7 @@ def quick_page():
     all_groups = _quick_groups(_xdb)
     extra = _quick_extra(_xdb)
     hidden = _quick_extra(_xdb, 'quick_hidden')    # built-in rows the owner took out (✕), back from ＋ Thêm mẫu
+    labels = _quick_labels(_xdb)                   # 🏷 names the owner gave to rows (owner, Nov 7)
     rows = []        # (group key, label, template_id, vi, how it got there: '' fixed / 'pin' / 'extra')
     defaults = {}    # group key → built-in template ids (also the hidden ones, for the picker)
 
@@ -1215,7 +1216,7 @@ def quick_page():
         if not t:
             continue
         by_key[key]['items'].append({
-            'id': tid, 'label': label or f"➕ {t['name']}", 'name': t['name'], 'kind': kind,
+            'id': tid, 'label': labels.get(str(tid)) or label or t['name'], 'name': t['name'], 'kind': kind,
             'text': J.fill(t['content'], {}),
             'text_vi': J.fill(t['content_vi'], {}, 'vi') if vi and t.get('content_vi') else '',
             'images': [im['url'] for im in imgs.get(tid, [])],
@@ -1283,6 +1284,41 @@ def quick_extra_set():
         ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value"""), {'k': pref, 'v': json.dumps(extra)})
     _xdb.session.commit()
     return jsonify({'success': True, 'extra': extra})
+
+
+def _quick_labels(_xdb):
+    """{template id (str): title shown in Tin nhanh} — journey_prefs 'quick_labels' (🏷 Đổi tên, owner Nov 7)."""
+    row = _xdb.session.execute(text("SELECT value FROM journey_prefs WHERE key = 'quick_labels'")).fetchone()
+    try:
+        v = json.loads(row[0]) if row else {}
+        return v if isinstance(v, dict) else {}
+    except ValueError:
+        return {}
+
+
+@app.route('/api/quick/label', methods=['POST'])
+def quick_label_set():
+    """🏷 Đổi tên: {id, label} — the title of that sentence in Tin nhanh; the template's own name (Mẫu Câu) follows."""
+    from core.models import db as _xdb, MessageTemplate
+    d = request.get_json(silent=True) or {}
+    try:
+        tid = int(d.get('id'))
+    except (TypeError, ValueError):
+        return jsonify({'success': False, 'error': 'Thiếu mẫu'}), 400
+    lab = (d.get('label') or '').strip()[:80]
+    if not lab:
+        return jsonify({'success': False, 'error': 'Tên trống'}), 400
+    from core import journey as J
+    J.ensure(_xdb.session)
+    labels = _quick_labels(_xdb)
+    labels[str(tid)] = lab
+    _xdb.session.execute(text("""INSERT INTO journey_prefs (key, value) VALUES ('quick_labels', :v)
+        ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value"""), {'v': json.dumps(labels, ensure_ascii=False)})
+    t = MessageTemplate.query.get(tid)
+    if t and not MessageTemplate.query.filter(MessageTemplate.template_name == lab, MessageTemplate.template_id != tid).first():
+        t.template_name = lab          # same name in Mẫu Câu (skipped if another template already has it)
+    _xdb.session.commit()
+    return jsonify({'success': True})
 
 
 @app.route('/api/quick/group', methods=['POST'])
