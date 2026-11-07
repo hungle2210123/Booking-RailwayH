@@ -126,6 +126,7 @@ def moi_data():
         _xdb.session.rollback()
     apts = _moi_apartments(_xdb)
     apt_ids = {a['id'] for a in apts}
+    dayuse = set(_zbot_get(_xdb, 'dayuse', []) or [])   # ☀ guests who only used the room during the day (owner, Nov 7)
     out = []
     for r in rows:
         bid, ci, co = r[0], r[2], r[3]
@@ -156,6 +157,7 @@ def moi_data():
             'no_wa': 'no_whatsapp' in done, 'no_zalo': 'no_zalo' in done,
             'claimed': bool(m and m[1]), 'claim_method': (m[2] or '') if m else '', 'note': (m[3] or '') if m else '',
             'skipped': bool(m and m[4]), 'asked': 'payment' in done,
+            'du': bid in dayuse,
         })
     # reminders: every open one + those done today (so a just-ticked one stays visible until tomorrow)
     rems = [{'id': r[0], 'booking_id': r[1], 'at': r[2].strftime('%Y-%m-%dT%H:%M'), 'note': r[3], 'done': bool(r[4])}
@@ -614,6 +616,22 @@ def _zbot_put(_xdb, key, value):
     _xdb.session.execute(text("INSERT INTO moi_settings (key, value) VALUES (:k, :v) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value"),
                          {'k': key, 'v': json.dumps(value, ensure_ascii=False)})
     _xdb.session.commit()
+
+
+@app.route('/api/moi/dayuse', methods=['POST'])
+def moi_dayuse():
+    """☀ Ở trong ngày {booking_id, on}: the guest used the room only during the day of arrival (owner, Nov 7: 104 Hội Vũ —
+    Sho left the same day, Agustina slept there that night). Calendars draw them in the daytime half and do not count
+    the night (no 'Thừa'); money / revenue are unchanged."""
+    from core.models import db as _xdb
+    d = request.get_json(silent=True) or {}
+    bid = str(d.get('booking_id') or '').strip()
+    if not bid:
+        return jsonify({'success': False, 'error': 'Thiếu mã đặt phòng'}), 400
+    cur = set(_zbot_get(_xdb, 'dayuse', []) or [])
+    cur.add(bid) if d.get('on') else cur.discard(bid)
+    _zbot_put(_xdb, 'dayuse', sorted(cur))
+    return jsonify({'success': True, 'on': bid in cur})
 
 
 def _zbot_secret(_xdb):

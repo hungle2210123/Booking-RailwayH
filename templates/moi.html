@@ -232,7 +232,7 @@ button.info.on{border-color:#0E1525;background:#fff}
   // ── shared rules ──
   const inHouse = (b, d) => b.ciO <= d && d < b.coO;
   // counted for "phòng trống": confirmed, or not arrived yet (core/occupancy: an unconfirmed guest whose day came is not counted)
-  const counts = (b, d) => inHouse(b, d) && (b.confirmed || b.ciO > 0);
+  const counts = (b, d) => !b.du && inHouse(b, d) && (b.confirmed || b.ciO > 0);   // ☀ ở trong ngày = no night
   const roomsOf = (aid) => (aptById[aid] || {}).rooms || 0;
   const CAP = () => APT.reduce((t, a) => t + a.rooms, 0);
   const stOf = (b) => {
@@ -414,6 +414,10 @@ button.info.on{border-color:#0E1525;background:#fff}
   };
   M.status = (id) => { const b = byId[id], st = stOf(b);
     if (st.k === 'todo') M.mark(id, 'contacted', true); else if (st.k === 'wait') M.mark(id, 'replied', true); else M.open(id); };
+  M.dayuse = async (id) => { const b = byId[id];
+    const r = await post('/api/moi/dayuse', { booking_id: id, on: !b.du });
+    if (!r.ok) return toast('Lỗi: không lưu được'); toast(b.du ? b.name + ': ở qua đêm' : '☀ ' + b.name + ': ở trong ngày — đêm đó phòng trống cho khách khác');
+    await load(true); renderSheet(); };
   M.unreach = (id) => { const b = byId[id]; M.mark(id, 'unreachable', !b.unreach); if (!b.unreach) toast(b.name + ' → Không liên lạc được'); };
   M.renameRoom = async (aid, no) => {
     const a = aptById[aid], cur = rn(aid, no);
@@ -727,7 +731,7 @@ button.info.on{border-color:#0E1525;background:#fff}
   // a room "fits" when nobody else has it on the nights from TONIGHT on — past nights are history (owner, Oct 30: Kim
   // left today, Michael moved into 101 from today → no "Trùng khách")
   const fits = (b, aid, no) => { const s = Math.max(b.ciO, 0);
-    return s >= b.coO || !B.some((o) => o.id !== b.id && o.apt === aid && o.room_no === no && Math.max(o.ciO, 0) < b.coO && s < o.coO); };
+    return b.du || s >= b.coO || !B.some((o) => o.id !== b.id && !o.du && o.apt === aid && o.room_no === no && Math.max(o.ciO, 0) < b.coO && s < o.coO); };
   const freeRoomsFor = (b) => APT.reduce((t, a) => { for (let n = 1; n <= a.rooms; n++) if (!(b.apt === a.id && b.room_no === n) && fits(b, a.id, n)) t++; return t; }, 0);
   function viewCal() {
     const { ws, we } = calWin(), N = S.calN, days = []; for (let i = ws; i < we; i++) days.push(i);
@@ -735,7 +739,8 @@ button.info.on{border-color:#0E1525;background:#fff}
     // leaves), right = afternoon (the guest who arrives) → one look shows who goes and who comes on the same room
     const colW = N === 3 ? 'minmax(0,1fr)' : '37px';
     const cols = `78px repeat(${N * 2}, ${colW})`, width = N === 3 ? '100%' : (78 + N * 78) + 'px';
-    const H0 = (b) => b.ciO < ws ? 0 : 2 * (b.ciO - ws) + 1, H1 = (b) => b.coO >= we ? 2 * N : 2 * (b.coO - ws) + 1;
+    // ☀ ở trong ngày: only the daytime (left) half of the arrival day — the night guest starts in the right half
+    const H0 = (b) => b.du ? 2 * (b.ciO - ws) : b.ciO < ws ? 0 : 2 * (b.ciO - ws) + 1, H1 = (b) => b.du ? 2 * (b.ciO - ws) + 1 : b.coO >= we ? 2 * N : 2 * (b.coO - ws) + 1;
     const dcol = (dd) => `${2 * (dd - ws) + 2} / span 2`;
     const rowH = N === 3 ? '64px' : '52px';
     const room = S.calView === 'room';
@@ -745,7 +750,8 @@ button.info.on{border-color:#0E1525;background:#fff}
       const h0 = H0(b), w = H1(b) - h0, solid = b.ciO > 0 || b.confirmed;
       // 📵 guest we cannot reach (marked "Không liên lạc được") and not arrived yet → red, stands out (owner, Nov 6)
       const lost = b.unreach && !b.confirmed;
-      const sty = lost ? 'background:#FEE2E2;color:#991B1B;border:1.5px dashed #DC2626'
+      const sty = b.du ? `background:#FFFBEB;color:#92400E;border:1.5px solid ${a.color}`
+                : lost ? 'background:#FEE2E2;color:#991B1B;border:1.5px dashed #DC2626'
                 : dashedAmber ? 'background:#FEF3C7;color:#92400E;border:1.5px dashed #F59E0B'
                 : solid ? `background:${a.color};color:#fff` : `background:#fff;color:${a.color};border:1.5px dashed ${a.color}`;
       const name = (lost ? '📵 ' : '') + (b.ciO < ws ? '‹ ' : '') + b.name + (b.coO > we ? ' ›' : '') + (b.tb ? ' · 2PN' : '');
@@ -756,13 +762,17 @@ button.info.on{border-color:#0E1525;background:#fff}
       // ✓ green = paid · ½ amber = part paid · ₫ red = not paid and already arrived (future guests: no mark yet)
       const pay = b.paid ? ['✓', '#16A34A'] : b.collected ? ['½', '#F59E0B'] : (b.ciO < 0 || (b.ciO === 0 && b.confirmed)) ? ['₫', '#DC2626'] : null;
       const payMark = pay ? `<i class="paym" style="background:${pay[1]}${tiny ? ';top:auto;bottom:3px' : ''}" aria-label="${b.paid ? 'Đã thu' : b.collected ? 'Thu một phần' : 'Chưa thu'}">${pay[0]}</i>` : '';
-      return `<button class="bar${tiny ? ' tiny' : ''}" onclick="${act}" style="grid-column:${h0 + 2} / span ${w};${sty}${S.pick === b.id ? ';box-shadow:0 0 0 3px #F59E0B' : ''}" aria-label="${esc(b.name)}">${payMark}
-        <b${pay && !tiny ? ' style="padding-right:14px"' : ''}>${esc(tiny ? (lost ? '📵 ' : '') + b.name.split(' ')[0] : name)}</b>${slim ? '' : `<small>${esc(b.listing || 'chưa rõ loại phòng')}</small>`}${N === 3 && !tiny ? `<small class="num">${b.nights} đêm${slim ? '' : ' · ' + short(b.per_night)}${b.ciO <= 0 && !b.confirmed && b.coO > 0 ? ' · chờ' : ''}${!slim ? (b.paid ? ' · đã thu' : b.collected ? ' · thu ' + short(b.collected) : (b.ciO < 0 || b.confirmed) ? ' · CHƯA THU' : '') : ''}</small>` : ''}</button>`;
+      return `<button class="bar${tiny ? ' tiny' : ''}" onclick="${act}" style="grid-row:${(b._ln || 0) + 1};grid-column:${h0 + 2} / span ${w};${sty}${S.pick === b.id ? ';box-shadow:0 0 0 3px #F59E0B' : ''}" aria-label="${esc(b.name)}">${payMark}
+        <b${pay && !tiny ? ' style="padding-right:14px"' : ''}>${esc(tiny ? (b.du ? '☀' : (lost ? '📵 ' : '') + b.name.split(' ')[0]) : name)}</b>${slim ? '' : `<small>${esc(b.listing || 'chưa rõ loại phòng')}</small>`}${N === 3 && !tiny ? `<small class="num">${b.nights} đêm${slim ? '' : ' · ' + short(b.per_night)}${b.ciO <= 0 && !b.confirmed && b.coO > 0 ? ' · chờ' : ''}${!slim ? (b.paid ? ' · đã thu' : b.collected ? ' · thu ' + short(b.collected) : (b.ciO < 0 || b.confirmed) ? ' · CHƯA THU' : '') : ''}</small>` : ''}</button>`;
     };
     // empty halves: a whole free day says "trống"; a free afternoon after a check-out also says "trống" (free tonight)
-    const slots = (taken) => days.map((dd) => { const L = 2 * (dd - ws), fl = !taken.has(L), fr = !taken.has(L + 1);
-      if (fl && fr) return `<div class="slot" style="grid-column:${L + 2} / span 2">${N === 3 ? 'trống' : ''}</div>`;
-      return (fl ? `<div class="slot" style="grid-column:${L + 2}"></div>` : '') + (fr ? `<div class="slot" style="grid-column:${L + 3}">${N === 3 ? 'trống' : ''}</div>` : ''); }).join('');
+    const slots = (taken, nl = 1) => days.map((dd) => { const L = 2 * (dd - ws), fl = !taken.has(L), fr = !taken.has(L + 1), gr = `grid-row:1 / span ${nl};`;
+      if (fl && fr) return `<div class="slot" style="${gr}grid-column:${L + 2} / span 2">${N === 3 ? 'trống' : ''}</div>`;
+      return (fl ? `<div class="slot" style="${gr}grid-column:${L + 2}"></div>` : '') + (fr ? `<div class="slot" style="${gr}grid-column:${L + 3}">${N === 3 ? 'trống' : ''}</div>` : ''); }).join('');
+    // two guests on the same room at the same time (owner, Nov 7): stacked in 2 lines instead of one hiding the other
+    const laneUp = (mine) => { const ends = []; mine.slice().sort((p, q) => H0(p) - H0(q)).forEach((b) => {
+      let k = ends.findIndex((e) => e <= H0(b)); if (k < 0) { k = ends.length; ends.push(0); } ends[k] = H1(b); b._ln = k; }); return Math.max(ends.length, 1); };
+    const clashIn = (mine) => days.some((dd) => mine.filter((b) => counts(b, dd)).length > 1);
     const span = (list) => { const t = new Set(); list.forEach((b) => { for (let h = H0(b); h < H1(b); h++) t.add(h); }); return t; };
     // picking a guest: a green "Xếp vào đây" only on rooms that are free from tonight on; a room with another guest just
     // says "trùng khách" under its name — nothing is drawn over the other guests' bars (owner, Oct 30 screenshot)
@@ -777,24 +787,24 @@ button.info.on{border-color:#0E1525;background:#fff}
       rows += `<div class="cg capt" style="grid-template-columns:${cols}"><div class="cst"><span class="dot" style="width:10px;height:10px;background:${a.color}"></span>${esc(a.short)}</div>` +
         days.map((dd) => { const f = a.rooms - B.filter((b) => b.apt === a.id && counts(b, dd)).length;
           return `<div class="fr num" style="grid-column:${dcol(dd)};${freeStyle(f)}">${f > 0 ? 'Trống ' + f : f === 0 ? 'Kín phòng' : 'Thừa ' + -f}</div>`; }).join('') + '</div>';
-      const list = B.filter((b) => b.apt === a.id && b.coO >= ws && b.ciO < we && b.coO > b.ciO);
+      const list = B.filter((b) => b.apt === a.id && b.coO >= ws && b.ciO < we && b.coO > b.ciO && (!b.du || b.ciO >= ws));
       if (room) {
         for (let no = 1; no <= a.rooms; no++) {
-          const mine = list.filter((b) => b.room_no === no);
-          rows += `<div class="cg croom" style="grid-template-columns:${cols};min-height:${rowH}"><button class="cst rname" style="grid-row:1;grid-column:1" onclick="M.renameRoom(${a.id},${no})" aria-label="Đổi tên ${esc(rn(a.id, no))}">${esc(rn(a.id, no))}${pickable(a.id, no) && !fits(pk, a.id, no) ? '<span style="opacity:1;color:#B91C1C;font-size:10px;font-weight:800">trùng khách</span>' : '<span>✏️</span>'}</button>${slots(span(mine))}${mine.map((b) => bar(b, a)).join('')}${drop(a.id, no)}</div>`;
+          const mine = list.filter((b) => b.room_no === no), nl = laneUp(mine), clash = clashIn(mine);
+          rows += `<div class="cg croom" style="grid-template-columns:${cols};min-height:${nl > 1 ? nl * 46 + 'px;grid-template-rows:repeat(' + nl + ',1fr)' : rowH};row-gap:3px"><button class="cst rname" style="grid-row:1 / span ${nl};grid-column:1" onclick="M.renameRoom(${a.id},${no})" aria-label="Đổi tên ${esc(rn(a.id, no))}">${esc(rn(a.id, no))}${clash ? '<span style="opacity:1;color:#B91C1C;font-size:10px;font-weight:800;line-height:1.2">2 khách 1 đêm — chạm khách → ☀ / đổi phòng</span>' : pickable(a.id, no) && !fits(pk, a.id, no) ? '<span style="opacity:1;color:#B91C1C;font-size:10px;font-weight:800">trùng khách</span>' : '<span>✏️</span>'}</button>${slots(span(mine), nl)}${mine.map((b) => bar(b, a)).join('')}${drop(a.id, no)}</div>`;
         }
         const noRoom = list.filter((b) => !b.room_no || b.room_no > a.rooms);
         if (noRoom.length) {          // placed in the apartment, no room yet: one lane per overlap
           const ends = [], lane = {};
           noRoom.sort((p, q) => p.ciO - q.ciO).forEach((b) => { let k = ends.findIndex((e) => e <= b.ciO); if (k < 0) { k = ends.length; ends.push(0); } ends[k] = b.coO; lane[b.id] = k; });
-          ends.forEach((_, k) => { rows += `<div class="cg croom" style="grid-template-columns:${cols};min-height:${rowH}"><div class="cst" style="grid-row:1;grid-column:1;color:#92400E;font-size:11px">Chưa có số</div>${noRoom.filter((b) => lane[b.id] === k).map((b) => bar(b, a, true)).join('')}</div>`; });
+          ends.forEach((_, k) => { rows += `<div class="cg croom" style="grid-template-columns:${cols};min-height:${rowH}"><div class="cst" style="grid-row:1;grid-column:1;color:#92400E;font-size:11px">Chưa có số</div>${noRoom.filter((b) => lane[b.id] === k).map((b) => { b._ln = 0; return bar(b, a, true); }).join('')}</div>`; });
         }
       } else {
         const ends = [], lane = {};
         list.sort((p, q) => p.ciO - q.ciO || q.coO - p.coO).forEach((b) => { let k = ends.findIndex((e) => e <= b.ciO); if (k < 0) { k = ends.length; ends.push(0); } ends[k] = b.coO; lane[b.id] = k; });
         for (let k = 0; k < Math.max(a.rooms, ends.length); k++) {
           const mine = list.filter((b) => lane[b.id] === k);
-          rows += `<div class="cg croom" style="grid-template-columns:${cols};min-height:${rowH}"><div class="cst" style="grid-row:1;grid-column:1;color:#DC2626">${k < a.rooms ? '' : 'Thừa'}</div>${slots(span(mine))}${mine.map((b) => bar(b, a)).join('')}</div>`;
+          rows += `<div class="cg croom" style="grid-template-columns:${cols};min-height:${rowH}"><div class="cst" style="grid-row:1;grid-column:1;color:#DC2626">${k < a.rooms ? '' : 'Thừa'}</div>${slots(span(mine))}${mine.map((b) => { b._ln = 0; return bar(b, a); }).join('')}</div>`;
         }
       }
     });
@@ -820,7 +830,7 @@ button.info.on{border-color:#0E1525;background:#fff}
       <div class="card cal hcal"><div style="width:${width};padding:8px 8px 10px 0">
         <div class="cg" style="grid-template-columns:${cols};padding-bottom:6px;border-bottom:1px solid #EEF0F4"><div class="cst"></div>${head}</div>${rows}</div></div>
       <div class="legend"><span><i style="width:18px;height:11px;border-radius:3px;background:#1976D2;display:inline-block"></i>Có khách</span><span><i style="width:18px;height:11px;border-radius:3px;border:1.5px dashed #1976D2;display:inline-block"></i>Chưa xác nhận</span><span><i style="width:18px;height:11px;border-radius:3px;border:1.5px dashed #CBD5E1;display:inline-block"></i>Trống</span><span><i style="width:18px;height:11px;border-radius:3px;background:#FEF3C7;border:1.5px dashed #F59E0B;display:inline-block"></i>Chưa có số phòng</span><span><i style="width:18px;height:11px;border-radius:3px;background:#FEE2E2;border:1.5px dashed #DC2626;display:inline-block"></i>📵 Không liên lạc được</span></div>
-      <div class="legend" style="padding-top:0"><span><i class="paym" style="position:static;background:#16A34A">✓</i>Đã thu</span><span><i class="paym" style="position:static;background:#F59E0B">½</i>Thu một phần</span><span><i class="paym" style="position:static;background:#DC2626">₫</i>Chưa thu (khách đã đến)</span></div>`;
+      <div class="legend" style="padding-top:0"><span><i class="paym" style="position:static;background:#16A34A">✓</i>Đã thu</span><span><i class="paym" style="position:static;background:#F59E0B">½</i>Thu một phần</span><span><i class="paym" style="position:static;background:#DC2626">₫</i>Chưa thu (khách đã đến)</span><span><i style="width:16px;height:12px;border-radius:3px;background:#FFFBEB;border:1.5px solid #94A3B8"></i>☀ Ở trong ngày (không tính đêm)</span></div>`;
   }
   M.cal = (dir) => { S.calStart = Math.max(-10, Math.min(20, S.calStart + dir * (S.calN === 3 ? 1 : 3))); render(); };
 
@@ -1165,7 +1175,8 @@ button.info.on{border-color:#0E1525;background:#fff}
       <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:14px">
         <button onclick="M.remind('${b.id}')" style="min-height:44px;border-radius:12px;border:1px solid ${remsOf(b.id).length ? '#FCD34D' : '#E2E5EB'};background:${remsOf(b.id).length ? '#FEF3C7' : '#fff'};color:${remsOf(b.id).length ? '#92400E' : '#0E1525'};font-size:12px;font-weight:800">🔔 ${remsOf(b.id).length ? 'Nhắc ' + remLabel(remsOf(b.id)[0].at) : 'Nhắc việc'}</button>
         <button onclick="M.unreach('${b.id}')" style="min-height:44px;border-radius:12px;border:1px solid #E2E5EB;background:#fff;font-size:12px;font-weight:700">${b.unreach ? 'Liên lạc lại được' : 'Không liên lạc được'}</button>
-        <button onclick="M.cancel('${b.id}')" style="min-height:44px;border-radius:12px;border:1px solid #FECACA;background:#fff;color:#B91C1C;font-size:12px;font-weight:700">Báo hủy</button></div></div></div>`;
+        <button onclick="M.cancel('${b.id}')" style="min-height:44px;border-radius:12px;border:1px solid #FECACA;background:#fff;color:#B91C1C;font-size:12px;font-weight:700">Báo hủy</button></div>
+      ${b.nights === 1 || b.du ? `<button onclick="M.dayuse('${b.id}')" style="width:100%;margin-top:8px;min-height:44px;border-radius:12px;border:1px solid ${b.du ? '#FCD34D' : '#E2E5EB'};background:${b.du ? '#FEF3C7' : '#fff'};color:${b.du ? '#92400E' : '#0E1525'};font-size:12.5px;font-weight:800">${b.du ? '☀ Đang ghi: ở trong ngày ' + dm(b.ciO) + ' — bấm để bỏ' : '☀ Khách ở trong ngày (trả phòng ngay hôm ' + dm(b.ciO) + ')'}</button>` : ''}</div></div>`;
   }
   window.S_set = (k, v) => { S[k] = v; renderSheet(); };
   window.renderSheetPub = () => renderSheet();

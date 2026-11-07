@@ -341,7 +341,7 @@ def test_staff_leave_and_extra_via_bot(client, monkeypatch):
         assert any('Bot → ZZTEST Hường' in x for x in to('zz-o'))       # the owner sees what the cleaners got
         with appmod.app.app_context():
             tomorrow = appmod._vn_now().date() + timedelta(days=1)
-            assert appmod.staff_off_on(db, tomorrow) == {'zz-a'}
+            assert {c for c in appmod.staff_off_on(db, tomorrow) if c.startswith('zz-')} == {'zz-a'}   # real cleaners may be off too
             sent.clear()
             chats = appmod._zbot_get(db, 'zbot_chats', {})
             for k in chats: chats[k]['on'] = True
@@ -415,3 +415,21 @@ def test_quick_new_sentence_and_rename(client):
             labels = appmod._quick_labels(db); labels.pop(str(tid), None)
             db.session.execute(_t("UPDATE journey_prefs SET value = :v WHERE key = 'quick_labels'"), {'v': appmod.json.dumps(labels)})
             db.session.execute(_t("DELETE FROM message_templates WHERE template_id = :i"), {'i': tid}); db.session.commit()
+
+
+@pytest.mark.db_write
+def test_dayuse_flag(client, booking):
+    """☀ Ở trong ngày (owner, Nov 7: 104 Hội Vũ — Sho left the same day, Agustina slept there): the flag reaches the
+    calendar data and can be undone; the calendars draw it in the daytime half and do not count the night."""
+    from datetime import date, timedelta
+    d0 = date.today() + timedelta(days=3)
+    bid = booking(guest_name='ZZ Dayuse', checkin_date=d0.isoformat(), checkout_date=(d0 + timedelta(days=1)).isoformat())
+    try:
+        assert client.post('/api/moi/dayuse', json={'booking_id': bid, 'on': True}).get_json()['on'] is True
+        b = [x for x in client.get('/api/moi/data').get_json()['bookings'] if x['id'] == bid][0]
+        assert b['du'] is True
+    finally:
+        assert client.post('/api/moi/dayuse', json={'booking_id': bid, 'on': False}).get_json()['on'] is False
+    assert client.post('/api/moi/dayuse', json={}).status_code == 400
+    for page in ('/moi', '/may-tinh'):
+        assert 'dayuse' in client.get(page).get_data(as_text=True)
