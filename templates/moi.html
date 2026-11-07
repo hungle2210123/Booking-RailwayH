@@ -80,6 +80,8 @@ body.wide #app{max-width:1180px}
 .cal{margin:0 8px 14px;overflow-x:auto;-webkit-overflow-scrolling:touch;overscroll-behavior-x:contain}
 .cg{display:grid;column-gap:4px}
 .hcal .cg{column-gap:2px}
+.bar{position:relative}
+.paym{position:absolute;top:3px;right:3px;width:16px;height:16px;border-radius:50%;color:#fff;font-style:normal;font-size:10.5px;font-weight:900;display:flex;align-items:center;justify-content:center;box-shadow:0 0 0 1.5px #fff}
 .bar.tiny{padding:4px 4px}.bar.tiny b{font-size:10.5px;-webkit-line-clamp:3}
 .cst{position:sticky;left:0;z-index:3;background:#fff}
 .cdh{border:none;text-align:center;border-radius:12px;padding:6px 0;min-height:52px;background:#F4F5F8;color:#334155}
@@ -750,8 +752,12 @@ button.info.on{border-color:#0E1525;background:#fff}
       const act = room ? `M.pickG('${b.id}')` : `M.open('${b.id}')`;
       // narrow pieces (only the check-out morning, or 1 night) show just the name — no room for more
       const tiny = w <= (N === 3 ? 1 : 2), slim = w <= (N === 3 ? 3 : 4);
-      return `<button class="bar${tiny ? ' tiny' : ''}" onclick="${act}" style="grid-column:${h0 + 2} / span ${w};${sty}${S.pick === b.id ? ';box-shadow:0 0 0 3px #F59E0B' : ''}" aria-label="${esc(b.name)}">
-        <b>${esc(tiny ? (lost ? '📵 ' : '') + b.name.split(' ')[0] : name)}</b>${slim ? '' : `<small>${esc(b.listing || 'chưa rõ loại phòng')}</small>`}${N === 3 && !tiny ? `<small class="num">${b.nights} đêm${slim ? '' : ' · ' + short(b.per_night)}${b.ciO <= 0 && !b.confirmed && b.coO > 0 ? ' · chờ' : b.paid && !slim ? ' · đã thu' : ''}</small>` : ''}</button>`;
+      // 💰 payment mark in the corner (owner, Nov 7: "không biết check out hôm nay đã thu tiền hay chưa"):
+      // ✓ green = paid · ½ amber = part paid · ₫ red = not paid and already arrived (future guests: no mark yet)
+      const pay = b.paid ? ['✓', '#16A34A'] : b.collected ? ['½', '#F59E0B'] : (b.ciO < 0 || (b.ciO === 0 && b.confirmed)) ? ['₫', '#DC2626'] : null;
+      const payMark = pay ? `<i class="paym" style="background:${pay[1]}${tiny ? ';top:auto;bottom:3px' : ''}" aria-label="${b.paid ? 'Đã thu' : b.collected ? 'Thu một phần' : 'Chưa thu'}">${pay[0]}</i>` : '';
+      return `<button class="bar${tiny ? ' tiny' : ''}" onclick="${act}" style="grid-column:${h0 + 2} / span ${w};${sty}${S.pick === b.id ? ';box-shadow:0 0 0 3px #F59E0B' : ''}" aria-label="${esc(b.name)}">${payMark}
+        <b${pay && !tiny ? ' style="padding-right:14px"' : ''}>${esc(tiny ? (lost ? '📵 ' : '') + b.name.split(' ')[0] : name)}</b>${slim ? '' : `<small>${esc(b.listing || 'chưa rõ loại phòng')}</small>`}${N === 3 && !tiny ? `<small class="num">${b.nights} đêm${slim ? '' : ' · ' + short(b.per_night)}${b.ciO <= 0 && !b.confirmed && b.coO > 0 ? ' · chờ' : ''}${!slim ? (b.paid ? ' · đã thu' : b.collected ? ' · thu ' + short(b.collected) : (b.ciO < 0 || b.confirmed) ? ' · CHƯA THU' : '') : ''}</small>` : ''}</button>`;
     };
     // empty halves: a whole free day says "trống"; a free afternoon after a check-out also says "trống" (free tonight)
     const slots = (taken) => days.map((dd) => { const L = 2 * (dd - ws), fl = !taken.has(L), fr = !taken.has(L + 1);
@@ -813,7 +819,8 @@ button.info.on{border-color:#0E1525;background:#fff}
       <div style="margin-top:6px;font-size:11px;color:#475569;font-weight:600">Mỗi ngày chia đôi: <b style="color:#0E1525">nửa trái = khách trả sáng</b>, <b style="color:#0E1525">nửa phải = khách đến chiều</b>.</div></div>
       <div class="card cal hcal"><div style="width:${width};padding:8px 8px 10px 0">
         <div class="cg" style="grid-template-columns:${cols};padding-bottom:6px;border-bottom:1px solid #EEF0F4"><div class="cst"></div>${head}</div>${rows}</div></div>
-      <div class="legend"><span><i style="width:18px;height:11px;border-radius:3px;background:#1976D2;display:inline-block"></i>Có khách</span><span><i style="width:18px;height:11px;border-radius:3px;border:1.5px dashed #1976D2;display:inline-block"></i>Chưa xác nhận</span><span><i style="width:18px;height:11px;border-radius:3px;border:1.5px dashed #CBD5E1;display:inline-block"></i>Trống</span><span><i style="width:18px;height:11px;border-radius:3px;background:#FEF3C7;border:1.5px dashed #F59E0B;display:inline-block"></i>Chưa có số phòng</span><span><i style="width:18px;height:11px;border-radius:3px;background:#FEE2E2;border:1.5px dashed #DC2626;display:inline-block"></i>📵 Không liên lạc được</span></div>`;
+      <div class="legend"><span><i style="width:18px;height:11px;border-radius:3px;background:#1976D2;display:inline-block"></i>Có khách</span><span><i style="width:18px;height:11px;border-radius:3px;border:1.5px dashed #1976D2;display:inline-block"></i>Chưa xác nhận</span><span><i style="width:18px;height:11px;border-radius:3px;border:1.5px dashed #CBD5E1;display:inline-block"></i>Trống</span><span><i style="width:18px;height:11px;border-radius:3px;background:#FEF3C7;border:1.5px dashed #F59E0B;display:inline-block"></i>Chưa có số phòng</span><span><i style="width:18px;height:11px;border-radius:3px;background:#FEE2E2;border:1.5px dashed #DC2626;display:inline-block"></i>📵 Không liên lạc được</span></div>
+      <div class="legend" style="padding-top:0"><span><i class="paym" style="position:static;background:#16A34A">✓</i>Đã thu</span><span><i class="paym" style="position:static;background:#F59E0B">½</i>Thu một phần</span><span><i class="paym" style="position:static;background:#DC2626">₫</i>Chưa thu (khách đã đến)</span></div>`;
   }
   M.cal = (dir) => { S.calStart = Math.max(-10, Math.min(20, S.calStart + dir * (S.calN === 3 ? 1 : 3))); render(); };
 
