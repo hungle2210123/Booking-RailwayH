@@ -355,7 +355,8 @@ CLEAN_HINT = 'Dọn xong phòng nào, nhắn SỐ của phòng đó (vd: 1 — h
 
 def clean_rooms(_xdb, day):
     """The numbered rooms to clean on `day` (guests marked arrived who leave that day, with a room number) →
-    ([{n, key, label, arriving, done}], state). `arriving` = another guest moves into that room the same day."""
+    ([{n, key, label, prio, done}], state). `prio` = the owner marked it 'ưu tiên dọn sớm' in the app (owner, Nov 11:
+    the app cannot know who comes early — no automatic 'khách vào hôm nay')."""
     iso = day.isoformat()
     st = _zbot_get(_xdb, 'clean_state') or {}
     if st.get('day') != iso:
@@ -364,10 +365,6 @@ def clean_rooms(_xdb, day):
         SELECT actual_apartment, room_no FROM bookings
         WHERE checkout_date = :d AND COALESCE(booking_status, '') NOT IN ('cancelled', 'deleted')
           AND checkin_status = 'confirmed' AND room_no IS NOT NULL AND COALESCE(actual_apartment, '') <> ''"""), {'d': day}).fetchall()
-    arr = {(str(r[0]), r[1]) for r in _xdb.session.execute(text("""
-        SELECT actual_apartment, room_no FROM bookings
-        WHERE checkin_date = :d AND COALESCE(booking_status, '') NOT IN ('cancelled', 'deleted')
-          AND COALESCE(checkin_status, '') NOT IN ('cancelling', 'no_show') AND room_no IS NOT NULL"""), {'d': day}).fetchall()}
     items, new = [], False
     for a in _moi_apartments(_xdb):
         street = MOI_STREET.get(a['id']) or a['name']
@@ -377,14 +374,14 @@ def clean_rooms(_xdb, day):
                 st['nums'][key] = max(st['nums'].values(), default=0) + 1
                 new = True
             items.append({'n': st['nums'][key], 'key': key, 'label': f"{street} {_moi_room_label(a, no)}",
-                          'arriving': (str(a['id']), no) in arr, 'done': st['done'].get(key)})
+                          'prio': key in (st.get('prio') or []), 'done': st['done'].get(key)})
     if new:
         _zbot_put(_xdb, 'clean_state', st)
     return sorted(items, key=lambda x: x['n']), st
 
 
 def clean_lines(items):
-    return '\n'.join(f"{x['n']}. {x['label']}" + (' — khách vào hôm nay' if x['arriving'] else '')
+    return '\n'.join(f"{x['n']}. {x['label']}" + (' — ⚡ ƯU TIÊN dọn sớm' if x['prio'] else '')
                      + (f" ✅ {x['done'].get('at', '')}".rstrip() if x['done'] else '') for x in items)
 
 
@@ -410,6 +407,24 @@ def clean_mark(_xdb, key, on, by=''):
         else:
             st['done'].pop(key, None)
         _zbot_put(_xdb, 'clean_state', st)
+    return clean_rooms(_xdb, today)[0]
+
+
+def clean_prio(_xdb, key, on):
+    """⚡ The owner picks a room to clean first (a guest comes early) → saved and told to every chat that is on, at once."""
+    today = _vn_now().date()
+    items, st = clean_rooms(_xdb, today)
+    x = next((i for i in items if i['key'] == key), None)
+    if not x or bool(on) == x['prio']:
+        return items
+    st['prio'] = [k for k in (st.get('prio') or []) if k != key] + ([key] if on else [])
+    _zbot_put(_xdb, 'clean_state', st)
+    msg = (f"⚡ ƯU TIÊN dọn sớm: {x['n']}. {x['label']} — khách vào sớm, các cô dọn phòng này TRƯỚC giúp em. "
+           f"Xong nhắn số {x['n']}." if on else f"↩️ {x['n']}. {x['label']} không cần dọn sớm nữa, các cô dọn như bình thường nhé.")
+    off = staff_off_on(_xdb, today)
+    for cid, c in _staff_chats(_xdb).items():
+        if c.get('on') and cid not in off:
+            _zbot_call('sendMessage', {'chat_id': cid, 'text': msg})
     return clean_rooms(_xdb, today)[0]
 
 

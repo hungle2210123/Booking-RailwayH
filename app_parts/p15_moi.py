@@ -792,6 +792,8 @@ def moi_zbot():
             _zbot_put(_xdb, 'zbot_chats', chats)
         elif act == 'clean_done':        # the owner ticks a room in the app
             clean_mark(_xdb, str(d.get('key') or ''), bool(d.get('on')), 'app')
+        elif act == 'clean_prio':        # ⚡ ưu tiên dọn sớm → the cleaners are told at once
+            clean_prio(_xdb, str(d.get('key') or ''), bool(d.get('on')))
         elif act in ('test', 'resend'):
             out = _zbot_send_clean(_xdb, only=d.get('id') if act == 'test' else None,
                                    prefix='🔄 CẬP NHẬT — bản mới nhất, thay tin trước:\n' if act == 'resend' else '')

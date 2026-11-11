@@ -195,7 +195,7 @@ _p12_sync_crawl_duplicates — sync services, crawl admin bookings, bulk save, d
 - app_parts/p13_misc_railway.py:1087 `extract_meter_data_with_openrouter` — Extract electricity meter data using various free models via OpenRouter API
 - app_parts/p13_misc_railway.py:1198 `extract_meter_data_with_multi_api` — Extract electricity meter data using multiple APIs with automatic fallback
 
-## app_parts/p15_moi.py (843 lines)
+## app_parts/p15_moi.py (845 lines)
 _p15_moi — /moi: the new phone-first app (owner, Oct 26), built from the approved mockup. Runs NEXT TO the old pages_
 - app_parts/p15_moi.py:12 `_moi_ensure` — bookings.room_no (room 1..N inside the placed apartment) — added once per process.
 - app_parts/p15_moi.py:37 `_moi_apartments` — Active apartments with short name, colour (index among ALL apartments, like the calendar) and room count.
@@ -226,10 +226,10 @@ _p15_moi — /moi: the new phone-first app (owner, Oct 26), built from the appro
 - app_parts/p15_moi.py:702 `zbot_loop`
 - app_parts/p15_moi.py:717 `zbot_hook` ← `/zalo-bot/hook` POST — Zalo calls this when someone messages the bot: remember the chat (new people are switched on) and answer.
 - app_parts/p15_moi.py:757 `moi_zbot` ← `/api/moi/zbot` GET,POST — Setup sheet in /moi: status · connect (setWebhook) · switch a person on/off · rename · send a test now.
-- app_parts/p15_moi.py:817 `_moi_room_label` — The owner's name for room `no` of this apartment, else "Phòng N".
-- app_parts/p15_moi.py:823 `moi_room_name` ← `/api/moi/room_name` POST — Rename room N of an apartment ({apartment_id, room_no, name}); an empty name goes back to "Phòng N".
+- app_parts/p15_moi.py:819 `_moi_room_label` — The owner's name for room `no` of this apartment, else "Phòng N".
+- app_parts/p15_moi.py:825 `moi_room_name` ← `/api/moi/room_name` POST — Rename room N of an apartment ({apartment_id, room_no, name}); an empty name goes back to "Phòng N".
 
-## app_parts/p16_staff.py (661 lines)
+## app_parts/p16_staff.py (676 lines)
 _p16_staff — 👥 Nhân viên (owner, Nov 6): the cleaners talk to the Zalo bot (p15_moi zbot_*) in plain words._
 - app_parts/p16_staff.py:18 `_staff_ensure`
 - app_parts/p16_staff.py:30 `_vn_now`
@@ -257,14 +257,15 @@ _p16_staff — 👥 Nhân viên (owner, Nov 6): the cleaners talk to the Zalo bo
 - app_parts/p16_staff.py:317 `_vnd`
 - app_parts/p16_staff.py:322 `staff_month_text`
 - app_parts/p16_staff.py:356 `clean_rooms` — The numbered rooms to clean on `day` (guests marked arrived who leave that day, with a room number) →
-- app_parts/p16_staff.py:386 `clean_lines`
-- app_parts/p16_staff.py:391 `clean_message` — The 8:00 message: numbered rooms + how to answer (no rooms → the plain text of _moi_clean_text).
-- app_parts/p16_staff.py:403 `clean_mark` — Mark / unmark one room of today as cleaned. Returns the fresh item list.
-- app_parts/p16_staff.py:416 `staff_clean_reply` — '1' / '1 3' / 'xong một' / 'xong hết' / 'bỏ 2' from a cleaner (or the owner) → mark today's rooms. None = the
-- app_parts/p16_staff.py:467 `clean_ask` — 12:30 "dọn tới đâu rồi", 13:00 and 13:30 reminders (before guests come in at 14:00) → every chat that is on. E
-- app_parts/p16_staff.py:499 `staff_handle_text` — A message to the bot from a cleaner or the owner. Returns the reply text ('' = none).
-- app_parts/p16_staff.py:585 `moi_staff` ← `/api/moi/staff` GET,POST — 👥 Nhân viên sheet in /moi: waiting requests, who is off today, month list; actions: decide, add (leave/extra),
-- app_parts/p16_staff.py:656 `staff_copy_owner` — Copy of a cleaner's message to the bot + the bot's answer → the owner(s).
+- app_parts/p16_staff.py:383 `clean_lines`
+- app_parts/p16_staff.py:388 `clean_message` — The 8:00 message: numbered rooms + how to answer (no rooms → the plain text of _moi_clean_text).
+- app_parts/p16_staff.py:400 `clean_mark` — Mark / unmark one room of today as cleaned. Returns the fresh item list.
+- app_parts/p16_staff.py:413 `clean_prio` — ⚡ The owner picks a room to clean first (a guest comes early) → saved and told to every chat that is on, at on
+- app_parts/p16_staff.py:431 `staff_clean_reply` — '1' / '1 3' / 'xong một' / 'xong hết' / 'bỏ 2' from a cleaner (or the owner) → mark today's rooms. None = the
+- app_parts/p16_staff.py:482 `clean_ask` — 12:30 "dọn tới đâu rồi", 13:00 and 13:30 reminders (before guests come in at 14:00) → every chat that is on. E
+- app_parts/p16_staff.py:514 `staff_handle_text` — A message to the bot from a cleaner or the owner. Returns the reply text ('' = none).
+- app_parts/p16_staff.py:600 `moi_staff` ← `/api/moi/staff` GET,POST — 👥 Nhân viên sheet in /moi: waiting requests, who is off today, month list; actions: decide, add (leave/extra),
+- app_parts/p16_staff.py:671 `staff_copy_owner` — Copy of a cleaner's message to the bot + the bot's answer → the owner(s).
 
 ## core/__init__.py (3 lines)
 
@@ -542,17 +543,17 @@ _p16_staff — 👥 Nhân viên (owner, Nov 6): the cleaners talk to the Zalo bo
 ## templates/journey_settings.html (231 lines)
 - templates/journey_settings.html: 79 `load` · 88 `renderButtons` · 141 `options` · 151 `rowHtml` · 165 `render` · 178 `bind` · 210 `shrink`
 
-## templates/moi.html (1227 lines)
+## templates/moi.html (1236 lines)
 - templates/moi.html: 217 `M_staffBadge` · 221 `load` · 300 `M.reload` · 301 `M.tab` · 302 `M.set` · 303 `M.day` · 304 `M.open` · 305 `M.close`
 - templates/moi.html: 306 `M.add` · 307 `M.addSave` · 320 `M.place` · 325 `M.room` · 332 `M.confirm` · 366 `M.cleanLink` · 369 `M.staffLoad` · 371 `M.staffOpen`
 - templates/moi.html: 372 `M.staffRe` · 373 `M.calOpen` · 374 `M.stfSet` · 377 `M.st` · 394 `M.cleanSetup` · 396 `M.zbotLoad` · 398 `M.zbTokSet` · 399 `M.zbotSave`
-- templates/moi.html: 400 `M.zbot` · 411 `M.zbotResend` · 418 `M.cleanDone` · 423 `M.cleanCopy` · 424 `M.cancel` · 430 `M.mark` · 434 `M.status` · 436 `M.dayuse`
-- templates/moi.html: 440 `M.copyPhone` · 441 `M.unreach` · 442 `M.renameRoom` · 450 `M.calDone` · 451 `M.remind` · 453 `M.eta` · 454 `M.remPreset` · 457 `M.remSave`
-- templates/moi.html: 466 `M.remDone` · 469 `M.etaSave` · 492 `M.phone` · 499 `M.send` · 500 `M.pickApt` · 501 `M.quick` · 503 `M.photo` · 504 `M.chatPhone`
-- templates/moi.html: 511 `M.edit` · 513 `M.extN` · 517 `M.splitApt` · 523 `M.extTyped` · 524 `M.editCalc` · 552 `M.editSave` · 586 `M.payOpen` · 587 `M.collect`
-- templates/moi.html: 595 `M.partial` · 597 `M.undoPay` · 600 `M.payCycle` · 605 `M.pickG` · 606 `M.auto` · 621 `render` · 630 `renderNav` · 639 `renderFloat`
-- templates/moi.html: 655 `viewDay` · 760 `viewCal` · 860 `M.cal` · 864 `msgCard` · 894 `viewMsg` · 930 `M.aptSheetOpen` · 943 `viewPay` · 985 `renderSheet`
-- templates/moi.html: 1212 `S_set` · 1213 `renderSheetPub` · 1214 `S_put`
+- templates/moi.html: 400 `M.zbot` · 411 `M.zbotResend` · 418 `M.cleanDone` · 423 `M.cleanPrio` · 429 `M.cleanCopy` · 430 `M.cancel` · 436 `M.mark` · 440 `M.status`
+- templates/moi.html: 442 `M.dayuse` · 446 `M.copyPhone` · 447 `M.unreach` · 448 `M.renameRoom` · 456 `M.calDone` · 457 `M.remind` · 459 `M.eta` · 460 `M.remPreset`
+- templates/moi.html: 463 `M.remSave` · 472 `M.remDone` · 475 `M.etaSave` · 498 `M.phone` · 505 `M.send` · 506 `M.pickApt` · 507 `M.quick` · 509 `M.photo`
+- templates/moi.html: 510 `M.chatPhone` · 517 `M.edit` · 519 `M.extN` · 523 `M.splitApt` · 529 `M.extTyped` · 530 `M.editCalc` · 558 `M.editSave` · 592 `M.payOpen`
+- templates/moi.html: 593 `M.collect` · 601 `M.partial` · 603 `M.undoPay` · 606 `M.payCycle` · 611 `M.pickG` · 612 `M.auto` · 627 `render` · 636 `renderNav`
+- templates/moi.html: 645 `renderFloat` · 661 `viewDay` · 769 `viewCal` · 869 `M.cal` · 873 `msgCard` · 903 `viewMsg` · 939 `M.aptSheetOpen` · 952 `viewPay`
+- templates/moi.html: 994 `renderSheet` · 1221 `S_set` · 1222 `renderSheetPub` · 1223 `S_put`
 
 ## templates/quick.html (357 lines)
 - templates/quick.html: 158 `toast` · 163 `go` · 171 `copyNow` · 179 `sendText` · 184 `copyText` · 185 `sendImgs` · 196 `setIn` · 218 `takeOut`

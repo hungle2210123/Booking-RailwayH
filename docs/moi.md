@@ -212,3 +212,5 @@ Owner: the cleaners' phones are slow → no link / page; they answer the bot wit
 - `clean_ask` (from `zbot_tick`): 12:30 "dọn tới đâu rồi" + 13:00 and 13:30 reminders (guests come in from 14:00), each once
   (`zbot_ask`), only while a room is open. /moi → Việc hằng ngày shows "Dọn xong hôm nay n/m"; tapping a row toggles it
   (`/api/moi/zbot` action `clean_done`).
+- ⚡ Dọn sớm: the owner picks a room in that list (`clean_prio`, action `clean_prio`) → saved in `clean_state.prio`, the bot
+  tells the cleaners at once and the line shows "⚡ ƯU TIÊN dọn sớm". No automatic "khách vào hôm nay" (owner: the app cannot know).

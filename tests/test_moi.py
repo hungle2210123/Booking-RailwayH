@@ -596,6 +596,10 @@ def test_clean_done_by_number(app, db, booking, monkeypatch):
             assert '12:30' in sent[-1][1]['text'] and '1. Thợ Nhuộm' in sent[-1][1]['text']
             assert appmod.clean_ask(db, datetime(2030, 1, 12, 12, 32)) is False         # once
             assert appmod.clean_ask(db, datetime(2030, 1, 12, 13, 1)) is True and '13:00' in sent[-1][1]['text']
+            assert 'khách vào hôm nay' not in msg                                        # owner: no automatic guess
+            k = appmod.clean_rooms(db, date(2030, 1, 12))[0][0]['key']                  # ⚡ owner picks 'dọn sớm' in the app
+            assert appmod.clean_prio(db, k, True)[0]['prio'] and 'ƯU TIÊN dọn sớm: 1. Thợ Nhuộm' in sent[-1][1]['text']
+            assert '⚡ ƯU TIÊN' in appmod.clean_message(db, date(2030, 1, 12))
             r = appmod.staff_clean_reply(db, me, 'Xong một')
             assert '✅ Đã ghi dọn xong: Thợ Nhuộm' in r and 'xong hết' in r
             it = appmod.clean_rooms(db, date(2030, 1, 12))[0]

@@ -420,6 +420,12 @@ button.info.on{border-color:#0E1525;background:#fff}
     if (!j.success) return toast('Chưa lưu được: ' + (j.error || 'lỗi'));
     S.zbot = j; render();
   };
+  M.cleanPrio = async (key, on, label) => {    // ⚡ ưu tiên dọn sớm — the bot tells the cleaners at once
+    if (!confirm(on ? 'Báo các cô DỌN SỚM phòng ' + label + '?\nBot Zalo sẽ nhắn cho các cô ngay.' : 'Bỏ ưu tiên phòng ' + label + '?\nBot sẽ báo các cô dọn như bình thường.')) return;
+    const j = (await post('/api/moi/zbot', { action: 'clean_prio', key, on })).j || {};
+    if (!j.success) return toast('Chưa gửi được: ' + (j.error || 'lỗi'));
+    S.zbot = j; render(); toast(on ? 'Đã báo các cô dọn sớm ⚡' : 'Đã bỏ ưu tiên');
+  };
   M.cleanCopy = (d) => { const t = cleanText(d == null ? S.day : d); copyText(t); toast('Đã copy tin dọn phòng — dán vào Zalo / WhatsApp gửi các cô'); };
   M.cancel = async (id) => {
     const b = byId[id]; if (!confirm('Báo hủy ' + b.name + '?\n(giống "Báo hủy" trên lịch — hoàn tác được)')) return;
@@ -716,9 +722,12 @@ button.info.on{border-color:#0E1525;background:#fff}
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">${cleanT}${botT}${stT}${calT}</div>
           ${zb && zb.connected ? `<button onclick="M.zbotResend()" style="margin-top:8px;width:100%;min-height:44px;border-radius:12px;border:0;background:#0E1525;color:#fff;font-size:14px;font-weight:800">📤 Gửi lại tin dọn cho các cô</button>` : ''}
           ${zb && zb.clean && zb.clean.length ? `<div style="margin-top:10px;border-top:1px solid #EEF0F4;padding-top:8px"><div style="display:flex;justify-content:space-between;font-size:12.5px;font-weight:800;color:#475569;margin:0 2px 6px"><span>🧹 Dọn xong hôm nay</span><span style="color:${zb.clean.every((x) => x.done) ? '#15803D' : '#B45309'}">${zb.clean.filter((x) => x.done).length}/${zb.clean.length} phòng</span></div>
-            ${zb.clean.map((x) => `<button onclick="M.cleanDone('${x.key}',${x.done ? 'false' : 'true'})" style="display:flex;align-items:center;gap:8px;width:100%;min-height:42px;margin-top:4px;padding:6px 10px;border-radius:10px;border:1.5px solid ${x.done ? '#BBF7D0' : '#E7E9EE'};background:${x.done ? '#F0FDF4' : '#fff'};text-align:left;font-size:14px;color:#0E1525">
-              <b style="width:22px;color:#64748B">${x.n}</b><span style="flex:1;font-weight:700">${esc(x.label)}${x.arriving ? ' <span style="font-size:11.5px;font-weight:800;color:#B45309">· khách vào hôm nay</span>' : ''}</span>
-              <span style="font-size:12.5px;font-weight:800;color:${x.done ? '#15803D' : '#94A3B8'}">${x.done ? '✓ ' + esc(x.done.at || '') + (x.done.by && x.done.by !== 'app' ? ' · ' + esc(x.done.by.split(' ').slice(-1)[0]) : '') : 'chưa xong'}</span></button>`).join('')}</div>` : ''}</div>`;
+            ${zb.clean.map((x) => `<div style="display:flex;gap:6px;margin-top:4px">
+              <button onclick="M.cleanDone('${x.key}',${x.done ? 'false' : 'true'})" style="flex:1;min-width:0;display:flex;align-items:center;gap:8px;min-height:44px;padding:6px 10px;border-radius:10px;border:1.5px solid ${x.done ? '#BBF7D0' : x.prio ? '#FCD34D' : '#E7E9EE'};background:${x.done ? '#F0FDF4' : x.prio ? '#FFFBEB' : '#fff'};text-align:left;font-size:14px;color:#0E1525">
+                <b style="width:20px;color:#64748B">${x.n}</b><span style="flex:1;font-weight:700">${esc(x.label)}</span>
+                <span style="font-size:12.5px;font-weight:800;color:${x.done ? '#15803D' : '#94A3B8'}">${x.done ? '✓ ' + esc(x.done.at || '') + (x.done.by && x.done.by !== 'app' ? ' · ' + esc(x.done.by.split(' ').slice(-1)[0]) : '') : 'chưa xong'}</span></button>
+              ${x.done ? '' : `<button onclick="M.cleanPrio('${x.key}',${x.prio ? 'false' : 'true'},'${esc(x.label)}')" style="flex:none;min-width:86px;min-height:44px;border-radius:10px;font-size:12.5px;font-weight:800;border:1.5px solid ${x.prio ? '#B45309' : '#E7E9EE'};background:${x.prio ? '#B45309' : '#fff'};color:${x.prio ? '#fff' : '#475569'}">⚡ ${x.prio ? 'Đang ưu tiên' : 'Dọn sớm'}</button>`}</div>`).join('')}
+            <div style="font-size:11.5px;color:#64748B;margin:6px 2px 0">Chạm ⚡ Dọn sớm → bot báo các cô dọn phòng đó trước.</div></div>` : ''}</div>`;
       }
     }
     h += `<div class="seg"><button class="${S.seg === 'pair' ? 'on' : ''}" onclick="M.set('seg','pair')">Trả ↔ Đến</button><button class="${S.seg === 'stay' ? 'on' : ''}" onclick="M.set('seg','stay')">Đang ở · ${stays.length}</button></div>`;
