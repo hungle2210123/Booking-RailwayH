@@ -183,3 +183,9 @@ No salary. Every message to/from a cleaner is copied to the owner chat(s) (`_sta
 `static/js/proxy_tool.js` — `ProxyTool.open()` (sidebar link in /may-tinh ONLY — owner: not on the phone):
 paste `curl -x http://USER:PASS@HOST:PORT …` (many lines ok) → `HOST:PORT:USER:PASS`, Copy. Browser only: nothing is
 sent to the server or stored (passwords). `ProxyTool.convert` is tested with node (`test_proxy_tool_convert`, fake data).
+
+## ➖ Trừ tiền (Nov 11)
+👥 Nhân viên sheet: one form "Bồi dưỡng / Trừ tiền" with a 2-button switch (`S.stf.kind` 'extra' | 'fine'). A fine is
+`staff_log.kind='fine'` (approved at once, source 'app'): bot tells her "➖ Trừ tiền …", `staff_month` gives
+`fines` / `fine_total`, `net = plus − minus + extra_total − fine_total`, month summary lists "• Trừ tiền", deleting it
+sends THU HỒI (`staff_recall_text`). Confirm dialog before a fine is saved.

@@ -515,3 +515,31 @@ def test_proxy_tool_convert():
     r = json.loads(subprocess.run([node, '-e', code], capture_output=True, text=True, encoding='utf-8').stdout)
     assert r['out'] == ['geo.example.com:12321:uSer123:pA55_country-fr_session-ab12_lifetime-72h',
                         '1.2.3.4:1080:bob:p:w', 'geo.example.com:12321:u:p'] and r['bad'] == ['hello']
+
+
+def test_staff_fine(client, monkeypatch):
+    """Owner, Nov 11: ➖ Trừ tiền works like bồi dưỡng (who / amount / reason): the bot tells her, the month subtracts it,
+    the summary lists it, deleting it sends THU HỒI."""
+    import app as appmod
+    from core.models import db
+    sent = []
+    monkeypatch.setenv('ZALO_BOT_TOKEN', 'test-token')
+    monkeypatch.setattr(appmod, '_zbot_call', lambda m, body=None, timeout=15: (sent.append((m, body)) or {'ok': True, 'result': {}}))
+    with appmod.app.app_context():
+        old = appmod._zbot_get(db, 'zbot_chats', {})
+        appmod._zbot_put(db, 'zbot_chats', {'zz-a': {'name': 'ZZTEST Dung', 'on': False, 'role': 'staff'}})
+    to = lambda cid: [b['text'] for m, b in sent if m == 'sendMessage' and b['chat_id'] == cid]
+    try:
+        j = client.post('/api/moi/staff', json={'action': 'add', 'chat_id': 'zz-a', 'kind': 'fine', 'amount': '50000', 'note': 'Làm vỡ cốc'}).get_json()
+        assert j['success'] and to('zz-a')[-1].startswith('➖ Trừ tiền 50.000đ — Làm vỡ cốc')
+        p = [x for x in j['people'] if x['id'] == 'zz-a'][0]
+        assert p['fine_total'] == 50000 and not p['extras']
+        assert p['net'] == p['plus'] - p['minus'] + p['extra_total'] - 50000      # real days off this month may add 'dọn thay'
+        with appmod.app.app_context():
+            assert '• Trừ tiền: −50.000đ' in appmod.staff_month_text(p, j['month'])
+        assert client.post('/api/moi/staff', json={'action': 'delete', 'id': p['fines'][0]['id']}).get_json()['success']
+        assert to('zz-a')[-1].startswith('↩️ THU HỒI: tin trừ tiền 50.000đ')
+    finally:
+        with appmod.app.app_context():
+            db.session.execute(appmod.text("DELETE FROM staff_log WHERE chat_id LIKE 'zz-%'")); db.session.commit()
+            appmod._zbot_put(db, 'zbot_chats', old)

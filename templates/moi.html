@@ -373,14 +373,15 @@ button.info.on{border-color:#0E1525;background:#fff}
     if (action === 'price') { const v = prompt('Giá 1 phòng làm thêm (đồng) — để tự tính tiền khi chọn số phòng', S.st.price || ''); if (v === null) return; extra = { price: parseInt(v.replace(/\D/g, '')) || 0 }; }
     if (action === 'add') {
       const f = S.stf; if (!f.who) return toast('Chọn cô trước');
-      extra = { chat_id: f.who, kind: 'extra', day: S.st.today, amount: String(f.amount || '').replace(/\D/g, ''), note: f.note || '' };
+      extra = { chat_id: f.who, kind: f.kind === 'fine' ? 'fine' : 'extra', day: S.st.today, amount: String(f.amount || '').replace(/\D/g, ''), note: f.note || '' };
       if (!extra.amount) return toast('Chọn hoặc nhập số tiền');
+      if (extra.kind === 'fine' && !confirm('TRỪ ' + Number(extra.amount).toLocaleString('vi-VN') + 'đ của ' + ((S.st.staff.find((p) => p.id === f.who) || {}).name || 'cô') + '?\nBot sẽ báo cho cô.')) return;
     }
     toast('Đang lưu…');
     const j = (await post('/api/moi/staff', Object.assign({ action, month: S.st && S.st.month }, extra || {}))).j || {};
     if (!j.success) return toast('Chưa được: ' + (j.error || 'lỗi'));
     S.st = j; S.stPend = j.pending.length;
-    if (action === 'add') { S.stf = { day: j.today, amount: '', note: '', who: S.stf.who }; toast('Đã ghi ✅ bot đã báo cho cô'); }
+    if (action === 'add') { S.stf = { kind: 'extra', day: j.today, amount: '', note: '', who: S.stf.who }; toast('Đã ghi ✅ bot đã báo cho cô'); }
     else toast(action === 'summary' ? 'Đã gửi tổng kết cho các cô ✅' : 'Đã lưu');
     renderSheet();
   };
@@ -989,25 +990,30 @@ button.info.on{border-color:#0E1525;background:#fff}
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px"><button onclick="M.st('decide',{id:${r.id},ok:true})" style="min-height:42px;border-radius:12px;border:none;background:#16A34A;color:#fff;font-weight:800">✓ Duyệt</button><button onclick="M.st('decide',{id:${r.id},ok:false})" style="min-height:42px;border-radius:12px;border:1px solid #E2E5EB;background:#fff;font-weight:800">✕ Không</button></div>`, '#FFF7ED')).join('');
           h += box(st.off_today.length ? `<b style="color:#B91C1C">Hôm nay nghỉ: ${esc(st.off_today.join(', '))}</b> — tin 8:00 đã báo cô kia dọn cả 2 bên.` : '<b style="color:#15803D">Hôm nay đủ người ✓</b>');
           // bồi dưỡng only (owner, Nov 6: days off come from the bot; −150k / +150k is automatic)
-          h += `<div class="lbl">🎁 Bồi dưỡng thêm</div>` + box(`<div style="display:flex;gap:6px;flex-wrap:wrap">${st.staff.map((p) => chip(f.who === p.id, esc(p.name), `M.stfSet('who','${esc(p.id)}')`)).join('')}</div>
+          const fine = f.kind === 'fine';
+          h += `<div class="lbl">Bồi dưỡng / Trừ tiền</div>` + box(`<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:10px">
+              <button onclick="M.stfSet('kind','extra')" style="min-height:42px;border-radius:12px;font-weight:800;font-size:14px;border:1.5px solid ${fine ? '#E2E5EB' : '#15803D'};background:${fine ? '#fff' : '#F0FDF4'};color:${fine ? '#475569' : '#15803D'}">🎁 Bồi dưỡng (+)</button>
+              <button onclick="M.stfSet('kind','fine')" style="min-height:42px;border-radius:12px;font-weight:800;font-size:14px;border:1.5px solid ${fine ? '#B91C1C' : '#E2E5EB'};background:${fine ? '#FEF2F2' : '#fff'};color:${fine ? '#B91C1C' : '#475569'}">➖ Trừ tiền (−)</button></div>
+            <div style="display:flex;gap:6px;flex-wrap:wrap">${st.staff.map((p) => chip(f.who === p.id, esc(p.name), `M.stfSet('who','${esc(p.id)}')`)).join('')}</div>
             <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px">${[50000, 100000, 150000, 200000].map((v) => chip(String(f.amount) === String(v), short(v), `M.stfSet('amount','${v}');M.staffRe()`)).join('')}</div>
             <input inputmode="numeric" placeholder="Hoặc nhập số tiền, vd 120000" value="${esc(f.amount || '')}" oninput="M.stfSet('amount',this.value)" style="width:100%;margin-top:8px;min-height:44px;border-radius:12px;border:1.5px solid #CBD5E1;padding:0 12px;font-size:15px;font-family:inherit">
-            <input placeholder="Ghi chú (không bắt buộc), vd dọn Tết" value="${esc(f.note || '')}" oninput="M.stfSet('note',this.value)" style="width:100%;margin-top:8px;min-height:44px;border-radius:12px;border:1.5px solid #CBD5E1;padding:0 12px;font-size:15px;font-family:inherit">
-            <button class="big" style="margin-top:10px;min-height:46px;background:#0E1525;color:#fff" onclick="M.st('add')">Ghi bồi dưỡng & báo cho cô</button>
+            <input placeholder="${fine ? 'Lý do trừ, vd làm vỡ cốc' : 'Ghi chú (không bắt buộc), vd dọn Tết'}" value="${esc(f.note || '')}" oninput="M.stfSet('note',this.value)" style="width:100%;margin-top:8px;min-height:44px;border-radius:12px;border:1.5px solid #CBD5E1;padding:0 12px;font-size:15px;font-family:inherit">
+            <button class="big" style="margin-top:10px;min-height:46px;background:${fine ? '#B91C1C' : '#0E1525'};color:#fff" onclick="M.st('add')">${fine ? 'Ghi trừ tiền & báo cho cô' : 'Ghi bồi dưỡng & báo cho cô'}</button>
             <div style="font-size:12px;color:#64748B;margin-top:8px;line-height:1.5">Ngày nghỉ tự tính: cô nghỉ <b>−150k</b>, cô dọn thay <b>+150k</b>.</div>`);
           // month
           const [yy, mm] = st.month.split('-').map(Number), prev = mm === 1 ? `${yy - 1}-12` : `${yy}-${String(mm - 1).padStart(2, '0')}`, next = mm === 12 ? `${yy + 1}-01` : `${yy}-${String(mm + 1).padStart(2, '0')}`;
           h += `<div style="display:flex;align-items:center;gap:8px;margin-top:18px"><div class="lbl" style="margin:0;flex:1">Tháng ${mm}/${yy}</div><button class="x" style="width:36px;height:36px" onclick="M.staffLoad('${prev}')" aria-label="Tháng trước">${svg('l', 14, 2.4)}</button><button class="x" style="width:36px;height:36px" onclick="M.staffLoad('${next}')" aria-label="Tháng sau">${svg('r', 14, 2.4)}</button></div>`;
           const del = (x) => `<button onclick="M.st('delete',{id:${x.id}})" style="border:none;background:none;color:#94A3B8;font-size:14px;padding:0 4px" aria-label="Xóa">✕</button>`;
           const tag = (x) => x.status === 'pending' ? ' <i style="color:#B45309;font-style:normal">· chờ duyệt</i>' : x.status === 'rejected' ? ' <i style="color:#94A3B8;font-style:normal">· không duyệt</i>' : '';
-          h += st.people.map((p) => { const lv = p.leaves, ex = p.extras;
+          h += st.people.map((p) => { const lv = p.leaves, ex = p.extras, fn = p.fines || [];
             const sg = (v) => (v > 0 ? '+' : v < 0 ? '−' : '') + fmt(Math.abs(v)), cov = p.covers || [];
             return box(`<div style="display:flex;justify-content:space-between;align-items:baseline"><b style="font-size:15px">${esc(p.name)}</b><b class="num" style="font-size:16px;color:${p.net < 0 ? '#B91C1C' : p.net > 0 ? '#15803D' : '#475569'}">${sg(p.net)}</b></div>
-              <div style="font-size:12px;color:#475569;font-weight:700;margin-top:2px">Nghỉ ${p.leave_days} ngày <span style="color:#B91C1C">${sg(-p.minus)}</span> · dọn thay ${cov.length} ngày <span style="color:#15803D">${sg(p.plus)}</span>${p.extra_total ? ` · bồi dưỡng <span style="color:#15803D">${sg(p.extra_total)}</span>` : ''}</div>
+              <div style="font-size:12px;color:#475569;font-weight:700;margin-top:2px">Nghỉ ${p.leave_days} ngày <span style="color:#B91C1C">${sg(-p.minus)}</span> · dọn thay ${cov.length} ngày <span style="color:#15803D">${sg(p.plus)}</span>${p.extra_total ? ` · bồi dưỡng <span style="color:#15803D">${sg(p.extra_total)}</span>` : ''}${p.fine_total ? ` · trừ tiền <span style="color:#B91C1C">${sg(-p.fine_total)}</span>` : ''}</div>
               ${lv.map((x) => `<div style="display:flex;align-items:center;font-size:13px;margin-top:6px"><span style="flex:1">🙋 Nghỉ ${esc(x.label)}${tag(x)}</span>${x.status === 'approved' ? '<b class="num" style="color:#B91C1C;margin-right:4px">−150k</b>' : ''}${del(x)}</div>`).join('')}
               ${cov.map((c) => `<div style="display:flex;align-items:center;font-size:13px;margin-top:6px"><span style="flex:1">🧹 Dọn thay ${esc(c.who)} ${esc(c.label)}</span><b class="num" style="color:#15803D;margin-right:22px">+150k</b></div>`).join('')}
               ${ex.map((x) => `<div style="display:flex;align-items:center;font-size:13px;margin-top:6px"><span style="flex:1">🎁 ${esc(x.label)}${x.rooms ? ' · ' + x.rooms + ' phòng' : ''}${x.note && x.source === 'app' ? ' · ' + esc(x.note) : ''}${tag(x)}</span><b class="num" style="color:#15803D;margin-right:4px">${x.amount ? '+' + short(x.amount) : '—'}</b>${del(x)}</div>`).join('')}
-              ${!lv.length && !ex.length && !cov.length ? '<div style="font-size:12.5px;color:#94A3B8;margin-top:6px">Chưa có gì trong tháng này.</div>' : ''}`); }).join('');
+              ${fn.map((x) => `<div style="display:flex;align-items:center;font-size:13px;margin-top:6px"><span style="flex:1">➖ ${esc(x.label)}${x.note ? ' · ' + esc(x.note) : ''}</span><b class="num" style="color:#B91C1C;margin-right:4px">−${short(x.amount || 0)}</b>${del(x)}</div>`).join('')}
+              ${!lv.length && !ex.length && !cov.length && !fn.length ? '<div style="font-size:12.5px;color:#94A3B8;margin-top:6px">Chưa có gì trong tháng này.</div>' : ''}`); }).join('');
           h += `<button class="big" style="margin-top:12px;min-height:46px;background:#fff;color:#0E1525;border:1.5px solid #0E1525" onclick="if(confirm('Gửi tổng kết tháng ${mm}/${yy} cho từng cô qua Zalo?'))M.st('summary')">📤 Gửi tổng kết tháng ${mm} cho các cô</button>`;
           h += `<details style="margin-top:14px"><summary style="font-size:12.5px;font-weight:800;color:#475569">Ai là nhân viên / chủ trong bot</summary>${st.chats.map(roleRow).join('')}</details>`;
           h += `<div style="font-size:12px;color:#64748B;margin-top:10px;line-height:1.55">Các cô nhắn bot: <b>"mai em xin nghỉ"</b>, <b>"nghỉ 10-12/11"</b>, <b>"hôm nay em làm thêm 2 phòng"</b>, <b>"xem tháng"</b>, <b>"hủy"</b>.<br>Bạn nhắn bot: <b>"duyệt"</b> / <b>"không"</b>, <b>"chị Hường xin nghỉ 6/11"</b> (tự duyệt), <b>"bồi dưỡng cô Dung 100"</b>.</div>`;

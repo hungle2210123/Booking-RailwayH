@@ -261,7 +261,8 @@ def staff_recall_text(r):
     d = _staff_day_label(r['day'])
     if r['kind'] == 'leave':
         return f"↩️ THU HỒI: tin duyệt nghỉ {d} — ghi nhầm, chị bỏ qua giúp em nhé."
-    what = f"bồi dưỡng {_vnd(r['amount'])}" if r.get('amount') else 'làm thêm'
+    what = (f"trừ tiền {_vnd(r['amount'])}" if r['kind'] == 'fine' else
+            f"bồi dưỡng {_vnd(r['amount'])}" if r.get('amount') else 'làm thêm')
     return f"↩️ THU HỒI: tin {what}" + (f" — {r['note']}" if r.get('note') else '') + f" ({d}) — gửi nhầm, chị bỏ qua giúp em nhé."
 
 
@@ -274,11 +275,12 @@ def staff_month(_xdb, ym):
         "SELECT id, chat_id, kind, day, rooms, amount, note, status, source FROM staff_log "
         "WHERE day >= :a AND day < :b AND status <> 'deleted' ORDER BY day, id"), {'a': a, 'b': b}).mappings().fetchall()
     people = _staff_people(_xdb)
-    out = {cid: {'id': cid, 'name': _staff_name(c), 'leaves': [], 'extras': [], 'extra_total': 0, 'leave_days': 0}
-           for cid, c in people.items()}
+    out = {cid: {'id': cid, 'name': _staff_name(c), 'leaves': [], 'extras': [], 'extra_total': 0, 'leave_days': 0,
+                 'fines': [], 'fine_total': 0} for cid, c in people.items()}
     for r in rows:
         p = out.setdefault(r['chat_id'], {'id': r['chat_id'], 'name': _staff_name(_staff_chats(_xdb).get(r['chat_id'])),
-                                          'leaves': [], 'extras': [], 'extra_total': 0, 'leave_days': 0})
+                                          'leaves': [], 'extras': [], 'extra_total': 0, 'leave_days': 0,
+                                          'fines': [], 'fine_total': 0})
         item = {'id': r['id'], 'day': r['day'].isoformat(), 'label': _staff_day_label(r['day']), 'rooms': r['rooms'],
                 'amount': r['amount'], 'note': r['note'], 'status': r['status'], 'source': r['source']}
         if r['kind'] == 'leave':
@@ -286,6 +288,10 @@ def staff_month(_xdb, ym):
                 continue                       # duplicate of the same day (written twice before Nov 6) → once
             p['leaves'].append(item)
             p['leave_days'] += r['status'] == 'approved'
+        elif r['kind'] == 'fine':
+            p['fines'].append(item)
+            if r['status'] == 'approved':
+                p['fine_total'] += r['amount'] or 0
         else:
             p['extras'].append(item)
             if r['status'] == 'approved':
@@ -304,7 +310,7 @@ def staff_month(_xdb, ym):
                        for d, offs in sorted(off_by_day.items()) if p['id'] not in offs and p['id'] in people]
         p['minus'] = p['leave_days'] * rate
         p['plus'] = len(p['covers']) * rate
-        p['net'] = p['plus'] - p['minus'] + p['extra_total']
+        p['net'] = p['plus'] - p['minus'] + p['extra_total'] - p['fine_total']
     return list(out.values())
 
 
@@ -323,6 +329,11 @@ def staff_month_text(p, ym):
         lines.append(f"• Bồi dưỡng: {_vnd(p['extra_total'], True)}")
         for x in ex:
             lines.append(f"   – {x['label']}: {_staff_extra_text(x)}" + (f" ({x['note']})" if x.get('note') and x.get('source') == 'app' else ''))
+    fn = [x for x in p.get('fines', []) if x['status'] == 'approved']
+    if fn:
+        lines.append(f"• Trừ tiền: {_vnd(-p['fine_total'], True)}")
+        for x in fn:
+            lines.append(f"   – {x['label']}: {_vnd(x['amount'] or 0)}" + (f" ({x['note']})" if x.get('note') else ''))
     lines.append(f"= Cộng / trừ tháng này: {_vnd(p['net'], True)}")
     return '\n'.join(lines)
 
@@ -442,9 +453,12 @@ def moi_staff():
                 if not amount:
                     return jsonify({'success': False, 'error': 'Nhập số tiền'})
                 note = (d.get('note') or '').strip()
-                _staff_add(_xdb, cid, 'extra', day, 'approved', 'app', rooms=rooms, amount=amount, note=note)
+                fine = d.get('kind') == 'fine'          # ➖ Trừ tiền (owner, Nov 11): same form, subtracted in the month
+                _staff_add(_xdb, cid, 'fine' if fine else 'extra', day, 'approved', 'app', rooms=None if fine else rooms,
+                           amount=amount, note=note)
                 if d.get('tell', True):
-                    _staff_say(cid, f"🎁 Bồi dưỡng {_vnd(amount)}" + (f" — {note}" if note else '') + f" ({_staff_day_label(day)}). Cảm ơn chị!")
+                    _staff_say(cid, (f"➖ Trừ tiền {_vnd(amount)}" if fine else f"🎁 Bồi dưỡng {_vnd(amount)}")
+                               + (f" — {note}" if note else '') + f" ({_staff_day_label(day)})." + ('' if fine else ' Cảm ơn chị!'))
         elif act == 'delete':
             r = _staff_row(_xdb, int(d.get('id') or 0))
             _xdb.session.execute(text("UPDATE staff_log SET status = 'deleted' WHERE id = :i"), {'i': int(d.get('id') or 0)})
