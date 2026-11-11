@@ -180,6 +180,6 @@ No salary. Every message to/from a cleaner is copied to the owner chat(s) (`_sta
 - Deleting an approved bồi dưỡng / day off in 👥 Nhân viên → bot sends her `staff_recall_text` ("↩️ THU HỒI: … gửi nhầm").
 
 ## 🔧 Đổi định dạng proxy (Nov 11)
-`static/js/proxy_tool.js` — `ProxyTool.open()` (button under "Việc hằng ngày" in /moi, sidebar link in /may-tinh):
+`static/js/proxy_tool.js` — `ProxyTool.open()` (sidebar link in /may-tinh ONLY — owner: not on the phone):
 paste `curl -x http://USER:PASS@HOST:PORT …` (many lines ok) → `HOST:PORT:USER:PASS`, Copy. Browser only: nothing is
 sent to the server or stored (passwords). `ProxyTool.convert` is tested with node (`test_proxy_tool_convert`, fake data).
