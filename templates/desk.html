@@ -629,16 +629,10 @@ button.info.on{border-color:#0E1525;background:#fff}
         <div><span class="dot" style="background:#94A3B8"></span>Không liên lạc được</div><div><span class="tb" style="margin-right:2px">2PN</span>Căn 2 phòng ngủ</div></div>
       <div style="flex:1;min-height:12px"></div>
       <div class="legend-s" style="margin-bottom:2px"><b>Trang khác</b></div>
-      <a class="slink" href="/bookings">${ico('day')}Danh sách đặt phòng</a>
-      <a class="slink" href="/calendar/">${ico('cal')}Lịch tháng</a>
-      <a class="slink" href="/messages">${ico('msg')}Nhắn khách (trang cũ)</a>
-      <a class="slink" href="/ai_assistant">${ico('bolt')}Mẫu câu · AI</a>
-      <a class="slink" href="/expenses">${ico('pay')}Chi phí</a>
-      <a class="slink" href="/apartments">${ico('home')}Căn hộ &amp; phòng</a>
+      <a class="slink" href="/tin-nhanh">${ico('bolt')}Tin nhanh · Mẫu câu</a>
       <a class="slink" href="#" onclick="D.extOpen();return false">${ico('plus')}Tải tiện ích Chrome</a>
       <div class="sdiv"></div>
-      <a class="slink" href="/moi">${ico('mobile')}Bản điện thoại</a>
-      <a class="slink" href="/hom-nay">${ico('back')}Chi tiết ngày (trang cũ)</a>`;
+      <a class="slink" href="/moi">${ico('mobile')}Bản điện thoại</a>`;
   }
   function renderTop() {
     const t = S.tab;
@@ -1071,7 +1065,7 @@ button.info.on{border-color:#0E1525;background:#fff}
       : `<div style="display:flex;flex-wrap:wrap;align-items:baseline;gap:6px 18px;padding-bottom:8px"><b style="font-size:16px">${ddmm(x.date)} (${x.weekday})</b>
           <span>${x.is_future ? `Dự kiến <b style="color:${C.exp}">${fmt(x.expected)}</b>` : `<b>${fmt(x.revenue)}</b>`}</span><span>${x.rooms}/${x.capacity} phòng${x.occupancy !== null ? ' (' + x.occupancy + '%)' : ''}</span>
           <span>Giá TB ${short(x.adr)}/đêm</span><span>↓ ${x.arrivals} vào · ↑ ${x.departures} trả</span>
-          ${(() => { const o = offOf(x.date); return o >= -10 && o < 60 ? `<button class="btn xs" onclick="D.goDay(${o})">Mở Chi tiết ngày →</button>` : `<a class="btn xs" href="/calendar_details/${x.date}">Mở lịch ngày này →</a>`; })()}</div>
+          ${(() => { const o = offOf(x.date); return o >= -10 && o < 60 ? `<button class="btn xs" onclick="D.goDay(${o})">Mở Chi tiết ngày →</button>` : ''; })()}</div>
         ${x.guests.map((g) => `<div class="grow"><div style="flex:1;min-width:0"><div style="font-size:14px;font-weight:700">${esc(g.name)} <span class="pill" style="background:#F1F5F9;color:#334155">${esc(g.apartment || g.listing || 'Chưa xếp căn')}</span>${g.is_arrival ? ' <span class="pill" style="background:#DCFCE7;color:#166534">vào hôm nay</span>' : ''}${g.is_last_night ? ' <span class="pill" style="background:#FEF3C7;color:#92400E">đêm cuối</span>' : ''}</div>
           <div class="gs">${ddmm(g.checkin)} → ${ddmm(g.checkout)} · ${g.nights} đêm · ${esc(g.status_label)}</div></div><div class="num" style="text-align:right;font-weight:800">${fmt(g.per_night)}<div class="gs" style="font-weight:600">/đêm${g.mismatch ? ' · <b style="color:#B45309">giá phòng ' + fmt(g.room_per_night) + '</b>' : ''}</div></div></div>`).join('') || '<div class="muted" style="font-size:13px;padding:6px 0">Không có khách đã xác nhận ở đêm này</div>'}
         ${x.pending.length ? `<div style="margin-top:8px;font-size:13px;font-weight:800;color:#92400E">⏳ Chờ xác nhận đến — chưa tính (${x.pending.length} khách · ${short(x.pending_value)})</div>` + x.pending.map((g) => `<div class="grow" style="opacity:.8"><div style="flex:1;min-width:0"><div style="font-size:14px;font-weight:700">${esc(g.name)}</div><div class="gs">${esc(g.apartment || g.listing || 'Chưa xếp căn')} · ${ddmm(g.checkin)} → ${ddmm(g.checkout)}</div></div><div class="num" style="font-weight:800">${fmt(g.per_night)}</div></div>`).join('') : ''}`;
@@ -1079,11 +1073,11 @@ button.info.on{border-color:#0E1525;background:#fff}
     const maxC = Math.max(...d.collectors.map((c) => c.amount), 1);
     return `<div class="stack">
       <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><select onchange="D.revMonth(this.value)" style="min-height:38px;border-radius:10px;border:1px solid #DDE1E8;padding:0 12px;font:inherit;font-weight:700">${[...new Set([...(d.months_available || []), d.month, d.today.slice(0, 7)])].sort().reverse().map((mm) => `<option value="${mm}" ${mm === d.month ? 'selected' : ''}>Tháng ${parseInt(mm.slice(5))}/${mm.slice(0, 4)}</option>`).join('')}</select>
-        <span class="muted" style="font-size:13px">Doanh thu = các đêm khách đã ở thật (đã xác nhận đến hoặc đã thu) · cùng số với trang Tổng quan doanh thu</span>
-        <span style="flex:1"></span><a class="btn sm" href="/expenses">Chi phí</a><a class="btn sm" href="/dashboard?month=${d.month}">Trang Tổng quan cũ</a></div>
+        <span class="muted" style="font-size:13px">Doanh thu = các đêm khách đã ở thật (đã xác nhận đến hoặc đã thu) · cùng quy tắc trên điện thoại</span>
+        </div>
       <div class="kpis k6">${kp('Doanh thu', fmt(k.revenue), change, '#0E1525')}${kp('Đã thu', fmt(k.collected), k.collect_rate + '% doanh thu', C.paid)}${kp('Chưa thu', fmt(k.due), 'khách đã xác nhận đến, chưa ghi nhận thu', C.due)}
         ${kp('Dự kiến (chưa tính)', fmt(k.expected), k.expected_nights + ' đêm đã đặt sau hôm nay' + (k.pending_count ? `<br><span style="color:#92400E">⏳ ${k.pending_count} khách chờ xác nhận (${short(k.pending_value)}) — chưa tính</span>` : ''), C.exp)}
-        ${kp('Chi phí tháng', k.expenses === null ? '—' : fmt(k.expenses), k.expenses === null ? '<a href="/expenses">Chưa nhập chi phí</a>' : 'Công việc ' + short(k.expenses_work) + ' · <a href="/expenses">xem</a>', '#9333EA')}
+        ${kp('Chi phí tháng', k.expenses === null ? '—' : fmt(k.expenses), k.expenses === null ? 'chưa có chi phí' : 'Công việc ' + short(k.expenses_work), '#9333EA')}
         ${kp('Lãi ước tính', k.profit === null ? '—' : fmt(k.profit), 'doanh thu − chi phí công việc', '#0F766E')}</div>
       <div class="kpis k6">${kp('Công suất phòng', pct(k.occupancy), occNote, C.occ)}${kp('Giá TB / đêm', short(k.adr), k.room_nights + ' đêm phòng thực tế', '#0891B2')}
         ${kp('Doanh thu / phòng', k.revpar === null ? '—' : short(k.revpar), 'mỗi phòng mỗi ngày (RevPAR)', '#4F46E5')}${kp('TB mỗi ngày' + (s.days_counted < s.days_in_month ? ' (đến nay)' : ''), short(s.avg_day), 'Ngày thường ' + short(s.avg_weekday) + ' · Cuối tuần ' + short(s.avg_weekend), '#16A34A')}

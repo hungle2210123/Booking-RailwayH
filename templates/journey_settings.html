@@ -1,5 +1,7 @@
-{% extends "base.html" %}
-{% block title %}Tin & ảnh hành trình — Hotel Pro{% endblock %}
+<!doctype html>
+<html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>{% block title %}Tin & ảnh hành trình — Hotel Pro{% endblock %}</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
 
 {% block head_extra %}
 <style>
@@ -50,16 +52,16 @@
 </style>
 {% endblock %}
 
-{% block content %}
+</head><body style="background:#F6F7F9"><main class="container py-3" style="max-width:820px">{% block content %}
 <div class="wrap">
   <div class="head">
     <h2>⚙️ Nút, tin &amp; ảnh</h2>
-    <a class="back" href="/messages">← Nhắn khách</a>
+    <a class="back" href="/moi">← Về app</a>
   </div>
   <div class="intro">
     Mỗi bước gửi một <b>mẫu tin trong Mẫu Câu</b> + <b>ảnh của mẫu đó</b>. Bước nào khác nhau theo căn (địa chỉ, đường vào,
     gửi hành lý, thanh toán) thì chọn mẫu riêng cho từng căn; căn không chọn sẽ dùng <b>Mặc định</b>.
-    Ảnh lưu trong cơ sở dữ liệu — cập nhật web không bị mất. Sửa chữ của mẫu ở <a class="edit" href="{{ url_for('ai_assistant') }}">Mẫu Câu</a>.
+    Ảnh lưu trong cơ sở dữ liệu — cập nhật web không bị mất. Sửa chữ của mẫu ở <a class="edit" href="/tin-nhanh">Tin nhanh</a>.
   </div>
   <div id="btns"></div>
   <div id="lost"></div>
@@ -67,6 +69,7 @@
 </div>
 {% endblock %}
 
+</main><script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 {% block scripts %}
 <script>
 (function () {
@@ -225,3 +228,4 @@
 })();
 </script>
 {% endblock %}
+</body></html>

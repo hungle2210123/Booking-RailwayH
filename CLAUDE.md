@@ -10,12 +10,13 @@ https://web-production-8f671.up.railway.app — **push straight to main** ("git 
 - Python: `app.py` (≈600 lines: imports, config, DB setup, shared helpers) then **`app_parts/pNN_*.py`**, executed in order
   INSIDE app.py's namespace (one shared global namespace — same as one big file; endpoint names unchanged).
   New code goes in the part of its feature. A new part file must keep the `pNN_` prefix (load order) — Dockerfile copies `app_parts/`.
-  p01 health, cancellations, auto-sync, debug · p02 page shells, dashboard API, **Chrome extension** import/save, photo import ·
-  p03 **/messages**, phone, AI reply, screenshots, journey, Thu tiền, /tin-nhanh · p04 /bookings, add/edit, expenses ·
-  p05 **calendar** month + calendar_details, vacancy, placement · p06 mobile payment, booking API, image/text extraction ·
-  p07 /ai_assistant page, homestay, quick notes, arrival times · p08 collect payment, history, imports, check-in status ·
-  p09 message templates API + images · p10 apartments/rooms · p11 analytics · p12 sync/crawl/duplicates · p13 translate,
-  railway misc · p14 electricity · p15 **/moi** + **/may-tinh** (new phone + desktop apps; `/` on a computer opens /may-tinh — `docs/moi.md`) · p16 staff (Zalo bot: nghỉ / làm thêm).
+  **Nov 11: the OLD VERSION WAS REMOVED** (owner: "xóa toàn bộ phiên bản cũ" — only Tin nhanh kept): the only pages are
+  **/moi** (phone) · **/may-tinh** (computer) · **/tin-nhanh** (+ /quick) · **/journey** (Tin & ảnh settings, linked from
+  the send sheet). `/` → /moi on a phone, /may-tinh on a computer; old addresses (/calendar, /messages, /bookings,
+  /dashboard, /hom-nay …) redirect there (p02). Never re-add old pages — build in moi.html / desk.html.
+  Parts now hold mostly APIs: p01 health · p02 `/`, dashboard API, **Chrome extension** import/save, photo import ·
+  p03 phone, AI reply, screenshots, journey, Thu tiền, /tin-nhanh · p04-p13 the APIs the new apps / extension still call
+  (booking, placement, templates, rooms, translate …) · p15 **/moi** + **/may-tinh** (`docs/moi.md`) · p16 staff (Zalo bot).
 - `core/`: `journey.py` (messaging steps), `revenue.py` (ALL revenue numbers), `occupancy.py` (vacancy), `booking_page_parser.py`
   (extension + screenshot parsing), `models.py`, `two_bedroom.py`. Front-end: `templates/*.html` (big, inline JS),
   `static/js/journey.js` (send sheet), `static/js/booking_card.js`, `chrome_extension/` (content.js, background.js).
@@ -30,10 +31,10 @@ https://web-production-8f671.up.railway.app — **push straight to main** ("git 
   read-only, answers file:line); for one known name just grep CODEMAP (faster: tested 6/6 correct, ~9 s per Haiku search).
 
 ## Verify before pushing
-- **Tests: `python -m pytest`** (58 tests, ~80 s, real DB; `-m "not db_write"` = read-only only). Pages, route table, parsers
-  (phone, chat screenshot, multi-room), flows (phone save, Báo hủy, room split, template picture delete, /messages today +
-  apartments) and revenue consistency. Add a test for every bug the owner reports.
-- Smoke test: `python tools/smoke.py` (24 main pages / APIs on the real DB, prints ALL OK).
+- **Tests: `python -m pytest`** (~100 tests, real DB; `-m "not db_write"` = read-only only). Pages + old-address redirects,
+  route table, parsers, flows, /moi + staff bot, and `node --check` of every inline script of /moi and /may-tinh.
+  Add a test for every bug the owner reports.
+- Smoke test: `python tools/smoke.py` (main pages / APIs on the real DB, prints ALL OK).
 - Test on real data with throwaway rows (booking ids like `9990001234`, template `ZZ TEST …`) and delete them after.
 - Jinja templates are cached: restart the preview server (`.claude/launch.json` "flask-app") after template edits.
 - UI changes: check at 375px (owner's iPhone) with the browser preview. Never leave test data or temp files in `static/`.

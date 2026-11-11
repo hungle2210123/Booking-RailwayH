@@ -84,8 +84,6 @@ from core.dashboard_routes import process_dashboard_data, safe_to_dict_records
 # Import pure PostgreSQL database service
 from core.database_service_postgresql import init_database_service, get_database_service, DatabaseConfig
 
-# Import crawling service for authenticated web scraping
-from core.crawl_service import CrawlIntegration
 
 # Import sync API blueprints (optional - removed during cleanup)
 # from railway_sync_api import sync_bp
@@ -117,24 +115,14 @@ except Exception as e:
     print(f"❌ Production booking extractor error: {e}")
     PRODUCTION_EXTRACTOR_AVAILABLE = False
 
-# Import optimized crawling and performance monitoring
-from core.performance_dashboard import performance_bp
 
 # Import caching configuration
 from core.cache_config import init_cache, clear_booking_cache
 
-# Import backup and export functionality
-from backup_routes import register_backup_routes
 
 # Learning mode removed for simplicity
 
 # Import test dashboard blueprint (optional - for development/testing only)
-try:
-    from core.test_dashboard_route import test_dashboard_bp
-    test_dashboard_available = True
-except ImportError:
-    print("ℹ️  Test dashboard module not available (expected in production)")
-    test_dashboard_available = False
 
 # Configuration
 BASE_DIR = Path(__file__).resolve().parent
@@ -166,18 +154,7 @@ app = Flask(__name__, template_folder=BASE_DIR / "templates", static_folder=BASE
 # Learning mode blueprint removed
 
 # Register test dashboard blueprint (only if available)
-if test_dashboard_available:
-    app.register_blueprint(test_dashboard_bp)
-    print("✅ Test dashboard blueprint registered")
-else:
-    print("ℹ️  Test dashboard blueprint skipped (not available in production)")
 
-# Register performance monitoring blueprint
-app.register_blueprint(performance_bp)
-
-# Register backup and export routes
-register_backup_routes(app)
-print("✅ Backup and export routes registered")
 
 # Production configuration with temporary debug for auto sync
 railway_env = os.getenv('RAILWAY_PROJECT_ID') is not None

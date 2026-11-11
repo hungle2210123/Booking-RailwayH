@@ -11,24 +11,8 @@ def _money(s):
     return int(re.sub(r'\D', '', s))
 
 
-@pytest.mark.parametrize('d', DAYS, ids=lambda d: d.isoformat())
-def test_day_page_equals_dashboard(client, d):
-    dash = client.get(f'/api/dashboard/overview?month={d:%Y-%m}').get_json()
-    day = next(x for x in dash['days'] if x['date'] == d.isoformat())
-    want = round(day['expected'] if day['is_future'] else day['revenue'])
-    page = client.get(f'/calendar_details/{d.isoformat()}').get_data(as_text=True)
-    got = _money(re.search(r'id="rev-confirmed-amount">([^<]+)<', page).group(1))
-    assert abs(got - want) <= 1, (d, got, want)
 
 
-def test_month_cell_equals_dashboard(client):
-    d = date.today()
-    dash = client.get(f'/api/dashboard/overview?month={d:%Y-%m}').get_json()
-    want = {x['date']: round(x['expected'] if x['is_future'] else x['revenue']) for x in dash['days']}
-    html = client.get(f'/calendar/{d.year}/{d.month}').get_data(as_text=True)
-    cells = [_money(v) for v in re.findall(r'fa-coins"></i> ([\d,]+)đ', html)]
-    shown = [v for k, v in sorted(want.items()) if v > 0]
-    assert cells == shown
 
 
 def test_day_figures_rules():

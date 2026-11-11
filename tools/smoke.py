@@ -14,11 +14,8 @@ with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.St
     import app as A
 
 today = date.today().isoformat()
-URLS = ['/health', '/', '/dashboard', '/bookings', '/calendar/', f'/calendar_details/{today}',
-        '/messages', '/messages?view=staying', '/messages?view=pay', '/journey', '/tin-nhanh', '/mobile_payment',
-        '/expenses', '/ai_assistant', '/apartments', '/homestay_setup', '/electricity-management',
-        '/electricity-calculator', '/api/vacancy_preview', '/api/dashboard/overview', '/api/journey/templates',
-        '/api/journey/prefs', '/api/templates', f'/api/apartment_daily_summary?date={today}']
+URLS = ['/health', '/', '/moi', '/may-tinh', '/journey', '/tin-nhanh', '/api/moi/data', '/api/moi/feed',
+        '/api/moi/staff', '/api/dashboard/overview', '/api/journey/templates', '/api/journey/prefs', '/api/templates']
 
 c = A.app.test_client()
 bad = 0

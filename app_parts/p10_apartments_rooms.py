@@ -5,10 +5,6 @@
 # APARTMENT MANAGEMENT ROUTES - 100% Data-Driven System
 # ============================================================
 
-@app.route('/apartments')
-def apartments_management():
-    """Apartment management page - Add/Edit/Delete apartments without code changes"""
-    return render_template('apartments.html')
 
 @app.route('/api/apartments', methods=['GET'])
 def get_apartments_list():
@@ -298,81 +294,6 @@ def get_apartment_rooms(apartment_id):
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
-@app.route('/api/accommodation_options', methods=['GET'])
-def get_accommodation_options():
-    """Return ALL apartments + rooms for the booking edit dropdown.
-
-    Strategy (two-pass):
-    1. ALL rows from the apartments table (no is_active filter — avoids missing
-       apartments whose flag may be wrong).
-    2. Scan distinct accommodation_name values in bookings and surface any that
-       aren't already covered by a formal apartment entry (e.g. legacy strings
-       like '25 hoi vu' that exist only in booking records).
-
-    Colour palette matches the calendar for visual consistency.
-    """
-    try:
-        from core.models import Apartment as AptModel, Room as RoomModel, Booking, db
-        from sqlalchemy import distinct as sa_distinct
-
-        APT_COLORS = ['#1976D2', '#2E7D32', '#7B1FA2', '#E64A19', '#00838F', '#F57F17']
-
-        # ── Pass 1: formal apartment table (ALL rows, no is_active filter) ──────
-        apts = AptModel.query.order_by(AptModel.apartment_id).all()
-        result = []
-        covered_names_lower = set()          # track what we've already included
-
-        for idx, apt in enumerate(apts):
-            rooms = RoomModel.query.filter_by(
-                apartment_id=apt.apartment_id
-            ).order_by(RoomModel.display_order).all()
-            result.append({
-                'id':    apt.apartment_id,
-                'name':  apt.apartment_name,
-                'color': APT_COLORS[idx % len(APT_COLORS)],
-                'rooms': [{'name': r.room_name} for r in rooms],
-            })
-            covered_names_lower.add(apt.apartment_name.lower().strip())
-            # Also mark individual room names so we don't duplicate them
-            for r in rooms:
-                covered_names_lower.add(r.room_name.lower().strip())
-
-        # ── Pass 2: legacy accommodation_name strings in bookings ────────────────
-        # Group raw strings by their "parent" name (normalise case) and collect
-        # unique room-level values seen within each parent group.
-        legacy_rows = (
-            db.session.query(sa_distinct(Booking.accommodation_name))
-            .filter(
-                Booking.accommodation_name.isnot(None),
-                Booking.accommodation_name != '',
-            )
-            .order_by(Booking.accommodation_name)
-            .all()
-        )
-
-        for (acc_name,) in legacy_rows:
-            if not acc_name:
-                continue
-            acc_lower = acc_name.lower().strip()
-            if acc_lower in covered_names_lower:
-                continue  # already represented by a formal apartment or room
-            # Surface as a standalone "apartment" with no sub-rooms
-            idx_legacy = len(result)
-            result.append({
-                'id':    None,
-                'name':  acc_name,
-                'color': APT_COLORS[idx_legacy % len(APT_COLORS)],
-                'rooms': [],
-            })
-            covered_names_lower.add(acc_lower)
-
-        print(f"📋 accommodation_options: {len(result)} entries returned")
-        return jsonify({'success': True, 'apartments': result})
-    except Exception as e:
-        print(f"Error loading accommodation options: {e}")
-        return jsonify({'success': False, 'error': str(e)}), 500
-
-
 @app.route('/api/apartments/<int:apartment_id>/stats', methods=['GET'])
 def get_apartment_stats(apartment_id):
     """Get statistics for a specific apartment"""
@@ -610,80 +531,4 @@ def get_room_details(room_id):
 # END OF APARTMENT MANAGEMENT ROUTES
 # ============================================================
 
-@app.route('/migrate')
-def migration_tool():
-    """Serve the database migration tool page"""
-    return send_from_directory('.', 'run_migration.html')
-
-@app.route('/api/migrate_database', methods=['POST'])
-def migrate_database():
-    """Enhanced migration route for multi-image functionality"""
-    try:
-        from core.models import db
-        from sqlalchemy import text
-        
-        migration_results = []
-        
-        # 1. Check and add image_path column to message_templates table
-        check_column_sql = """
-        SELECT column_name 
-        FROM information_schema.columns 
-        WHERE table_name = 'message_templates' 
-        AND column_name = 'image_path';
-        """
-        
-        result = db.session.execute(text(check_column_sql)).fetchone()
-        
-        if not result:
-            # Add the missing column
-            alter_sql = "ALTER TABLE message_templates ADD COLUMN image_path VARCHAR(500);"
-            db.session.execute(text(alter_sql))
-            migration_results.append("Added image_path column to message_templates")
-        else:
-            migration_results.append("image_path column already exists")
-        
-        # 2. Check and create template_images table
-        check_table_sql = """
-        SELECT table_name 
-        FROM information_schema.tables 
-        WHERE table_name = 'template_images';
-        """
-        
-        table_result = db.session.execute(text(check_table_sql)).fetchone()
-        
-        if not table_result:
-            # Create template_images table
-            create_table_sql = """
-            CREATE TABLE template_images (
-                image_id SERIAL PRIMARY KEY,
-                template_id INTEGER NOT NULL,
-                image_path VARCHAR(500) NOT NULL,
-                image_filename VARCHAR(255) NOT NULL,
-                image_order INTEGER DEFAULT 1,
-                alt_text VARCHAR(255),
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (template_id) REFERENCES message_templates(template_id) ON DELETE CASCADE
-            );
-            """
-            db.session.execute(text(create_table_sql))
-            migration_results.append("Created template_images table")
-        else:
-            migration_results.append("template_images table already exists")
-        
-        db.session.commit()
-        
-        return jsonify({
-            'success': True,
-            'message': 'Database migration completed successfully',
-            'results': migration_results
-        })
-            
-    except Exception as e:
-        db.session.rollback()
-        return jsonify({
-            'success': False,
-            'message': f'Migration failed: {str(e)}',
-            'action': 'error'
-        }), 500
 

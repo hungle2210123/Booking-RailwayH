@@ -81,7 +81,7 @@ def test_template_image_delete(client, db):
     db.session.commit()
     try:
         assert client.get(f'/api/templates/{tid}/images').get_json()['count'] == 1
-        assert client.delete(f'/api/templates/images/{img}').get_json()['success']
+        assert client.delete(f'/api/journey/images/{img}').status_code == 200    # the page that deletes pictures now
         assert client.get(f'/api/templates/{tid}/images').get_json()['count'] == 0
     finally:
         db.session.execute(text("DELETE FROM template_images WHERE template_id = :t"), {'t': tid})
@@ -90,14 +90,6 @@ def test_template_image_delete(client, db):
 
 
 # ── 💬 /messages groups guests by apartment and opens on today ─────────────────────────────────────────────────
-def test_messages_apartment_groups_and_today(client):
-    h = client.get('/messages').get_data(as_text=True)
-    assert 'class="on">Hôm nay<' in h                       # always today by default
-    assert 'id="aptfab"' in h and 'class="atabs"' in h       # floating 🏠 + apartment tabs
-    old_link = client.get('/messages?view=arriving&days=3').get_data(as_text=True)
-    assert 'class="on">Hôm nay<' in old_link                 # an old saved "3 ngày" link still opens on today
-    picked = client.get('/messages?view=arriving&days=7&pick=1').get_data(as_text=True)
-    assert 'class="on">7 ngày<' in picked
 
 
 # ── 📷 Thêm từ ảnh: call-dialog phone of a booking already on the web ─────────────────────────────────────────────

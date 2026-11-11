@@ -660,8 +660,7 @@ button.info.on{border-color:#0E1525;background:#fff}
     const tbOut = outs.filter((b) => b.tb).length;
     let h = `<div class="hero"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
         <div><div class="kick">${WDF[x.w].toUpperCase()} · ${x.d} THÁNG ${x.m}</div><div class="h1">${title}</div></div>
-        <div style="display:flex;gap:8px;align-items:center"><a class="old" href="/hom-nay">Bản cũ</a>
-          <button class="hbtn" onclick="M.day(${d - 1})" aria-label="Ngày trước">${svg('l', 18, 2.2)}</button>
+        <div style="display:flex;gap:8px;align-items:center">          <button class="hbtn" onclick="M.day(${d - 1})" aria-label="Ngày trước">${svg('l', 18, 2.2)}</button>
           <button class="hbtn" onclick="M.day(${d + 1})" aria-label="Ngày sau">${svg('r', 18, 2.2)}</button></div></div>
       <div class="strip">${strip}</div>
       <div class="kpis"><div class="ring"><svg width="100" height="100" viewBox="0 0 104 104" role="img" aria-label="Phòng có khách"><circle cx="52" cy="52" r="44" fill="none" stroke="rgba(255,255,255,.12)" stroke-width="10"></circle>

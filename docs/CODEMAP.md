@@ -4,73 +4,55 @@ Python: `app.py` (setup, config, helpers) then `app_parts/pNN_*.py`, executed in
 namespace (one shared global namespace — a helper defined in any part is visible to later ones).
 Routes are listed as `← /path METHODS`. Line numbers are 1-based. Templates list their JS functions.
 
-## app.py (637 lines)
-- app.py:202 `_close_secret_debug_pages`
-- app.py:208 `add_header` — Add cache control headers to prevent browser caching of HTML templates.
-- app.py:225 `asset` — url_for('static') + ?v=<file mtime>: cached for good, and a new deploy changes the URL.
-- app.py:235 `page_version` — Newest mtime of a page's template + its scripts. A page that refreshes itself in place reloads fully when
-- app.py:251 `safe_parse_vietnamese_number` — Safely parse Vietnamese-formatted numbers like '400,000' or '400.000'
-- app.py:510 `inject_pandas`
-- app.py:515 `safe_date_format` — Safely format date values, handling None, NaT, and string values
-- app.py:542 `safe_day_name` — Safely get day name from date value
-- app.py:566 `is_valid_date` — Check if date value is valid
-- app.py:598 `load_data` — Load booking data from PostgreSQL only
+## app.py (614 lines)
+- app.py:179 `_close_secret_debug_pages`
+- app.py:185 `add_header` — Add cache control headers to prevent browser caching of HTML templates.
+- app.py:202 `asset` — url_for('static') + ?v=<file mtime>: cached for good, and a new deploy changes the URL.
+- app.py:212 `page_version` — Newest mtime of a page's template + its scripts. A page that refreshes itself in place reloads fully when
+- app.py:228 `safe_parse_vietnamese_number` — Safely parse Vietnamese-formatted numbers like '400,000' or '400.000'
+- app.py:487 `inject_pandas`
+- app.py:492 `safe_date_format` — Safely format date values, handling None, NaT, and string values
+- app.py:519 `safe_day_name` — Safely get day name from date value
+- app.py:543 `is_valid_date` — Check if date value is valid
+- app.py:575 `load_data` — Load booking data from PostgreSQL only
 
-## app_parts/p01_health_cancellations.py (751 lines)
+## app_parts/p01_health_cancellations.py (14 lines)
 _p01_health_cancellations — health, cancellations centre, OK status, auto-sync, debug routes_
 - app_parts/p01_health_cancellations.py:5 `healthcheck` ← `/health` — Railway healthcheck endpoint - returns 200 OK without database access
-- app_parts/p01_health_cancellations.py:15 `debug_db_config` ← `/debug/db-config` — Debug endpoint to show database configuration (for troubleshooting only)
-- app_parts/p01_health_cancellations.py:64 `api_cancellation_notifications` ← `/api/cancellation_notifications` — API endpoint for cancellation notifications
-- app_parts/p01_health_cancellations.py:83 `api_urgent_alerts` ← `/api/urgent_alerts` — API endpoint for urgent cancellation alerts only
-- app_parts/p01_health_cancellations.py:103 `api_debug_cancellations` ← `/api/debug_cancellations` — Debug endpoint to check cancellation data
-- app_parts/p01_health_cancellations.py:145 `api_confirmed_cancellations` ← `/api/confirmed_cancellations` — View history of confirmed cancellation actions - uses debug_database approach
-- app_parts/p01_health_cancellations.py:196 `api_canceled_customers_management` ← `/api/canceled_customers_management` — Get ALL canceled customers for re-classification management
-- app_parts/p01_health_cancellations.py:249 `api_debug_confirmed_cancellations` ← `/api/debug_confirmed_cancellations` — Debug endpoint specifically for confirmed cancellations
-- app_parts/p01_health_cancellations.py:293 `api_edit_cancellation` ← `/api/edit_cancellation` POST — Edit existing cancellation action (change status, notes, etc.)
-- app_parts/p01_health_cancellations.py:388 `api_delete_cancellation` ← `/api/delete_cancellation` POST — Delete a cancellation action completely
-- app_parts/p01_health_cancellations.py:439 `api_delete_cancellation_by_booking` ← `/api/delete_cancellation` POST — Delete cancellation record by booking_id
-- app_parts/p01_health_cancellations.py:486 `api_confirm_cancellation` ← `/api/confirm_cancellation` POST — Confirm cancellation action and save to database
-- app_parts/p01_health_cancellations.py:597 `api_undo_cancellation` ← `/api/undo_cancellation` POST — Undo cancellation confirmation and allow alert to show again
-- app_parts/p01_health_cancellations.py:660 `api_set_ok_status` ← `/api/set_ok_status` POST — Set OK status for a guest (meaning no more cancellation issues)
 
-## app_parts/p02_pages_extension.py (789 lines)
-_p02_pages_extension — page shells (/, dashboard, expenses, apartments), dashboard API, Chrome extension import/save, photo import, phone from extension_
-- app_parts/p02_pages_extension.py:5 `apartment_management` ← `/apartments` — Apartment management page
-- app_parts/p02_pages_extension.py:13 `index` ← `/` — Opening the app: on a computer the desktop app /may-tinh is the main page (owner, Oct 30); on a phone, TODAY's
-- app_parts/p02_pages_extension.py:23 `today_page` ← `/hom-nay` — TODAY's day page (calendar_details) — Vietnam date, the server runs UTC.
-- app_parts/p02_pages_extension.py:29 `extension_zip` ← `/extension.zip` — The Chrome extension as a zip, built from chrome_extension/ at request time (owner, Oct 30: download it from t
-- app_parts/p02_pages_extension.py:52 `extension_info` ← `/api/extension/info` — Version of the extension the server hands out (shown next to the download button).
-- app_parts/p02_pages_extension.py:63 `dashboard` ← `/dashboard` — Revenue & collection overview. All numbers come from /api/dashboard/overview
-- app_parts/p02_pages_extension.py:70 `expenses_page` ← `/expenses` — Expense entry / overview (moved out of the old dashboard).
-- app_parts/p02_pages_extension.py:76 `api_dashboard_overview` ← `/api/dashboard/overview` — ?month=YYYY-MM (default: current month, Vietnam time).
-- app_parts/p02_pages_extension.py:131 `_ext_auth_error` — Optional shared secret: set EXTENSION_TOKEN on the server and in the extension options.
-- app_parts/p02_pages_extension.py:139 `_ext_existing`
-- app_parts/p02_pages_extension.py:165 `ext_ping` ← `/api/ext/ping`
-- app_parts/p02_pages_extension.py:172 `_ext_fields` — Normalise fields coming from the extension.
-- app_parts/p02_pages_extension.py:204 `_ext_diff` — Booking-fact changes (column → value) + readable list. Never touches what the app manages.
-- app_parts/p02_pages_extension.py:234 `_ensure_property_column`
-- app_parts/p02_pages_extension.py:250 `_property_for` — Learn / recall the listing name of a Booking property id.
-- app_parts/p02_pages_extension.py:264 `_set_property`
-- app_parts/p02_pages_extension.py:280 `_provisional_id`
-- app_parts/p02_pages_extension.py:285 `_provisional_match` — The one provisional booking for the same stay (dates, and price ±1,000đ or same guest name), else None.
-- app_parts/p02_pages_extension.py:305 `_rename_booking` — Give a booking its real number everywhere it is referenced (one transaction).
-- app_parts/p02_pages_extension.py:326 `_room_ids` — Booking ids for the rooms of one reservation: the 1st room keeps the number, the others get -2, -3 …
-- app_parts/p02_pages_extension.py:331 `_ext_save_rooms` — A reservation of several rooms (owner, Oct 21): every room is its own booking on the web — <id> for room 1,
-- app_parts/p02_pages_extension.py:378 `_ext_save_one` — Create or update one booking (+ its Booking listing name). Returns (result dict, http status).
-- app_parts/p02_pages_extension.py:403 `_ext_save_one_core` — Create or update one booking. Returns (result dict, http status).
-- app_parts/p02_pages_extension.py:489 `_ext_known_listings`
-- app_parts/p02_pages_extension.py:495 `_ext_listings`
-- app_parts/p02_pages_extension.py:505 `ext_booking_parse` ← `/api/ext/booking/parse` POST — Turn a captured page into fields + what is already in the system.
-- app_parts/p02_pages_extension.py:556 `ext_booking_save` ← `/api/ext/booking/save` POST — Save one booking checked by the user in the extension panel.
-- app_parts/p02_pages_extension.py:577 `ext_booking_save_many` ← `/api/ext/booking/save_many` POST — Save the rows ticked on the reservation list page — each one independently.
-- app_parts/p02_pages_extension.py:599 `booking_from_photo_parse` ← `/api/booking_from_photo/parse` POST — /messages "📷 Thêm từ ảnh": text OCR'd on the phone from Booking app screenshots → fields to check.
-- app_parts/p02_pages_extension.py:643 `_name_starts` — Every word OCR'd from the app ("Maheshwaran S") starts a word of the web name ("Maheshwaran Subramanian in").
-- app_parts/p02_pages_extension.py:652 `_photo_booking_by_name` — The one not-yet-finished booking whose guest has this name (any case / accents / word order), else None.
-- app_parts/p02_pages_extension.py:671 `booking_from_photo_save` ← `/api/booking_from_photo/save` POST — Save the checked fields — same rules as the Chrome extension (only Booking facts; collected money,
-- app_parts/p02_pages_extension.py:694 `ext_booking_phone` ← `/api/ext/booking/phone` POST — A reservation page now shows the guest phone (the owner clicked Booking's own
-- app_parts/p02_pages_extension.py:776 `_typed_phone` — A number the owner typed / pasted ("0905 123 456", "+33 6 12 34 56 78", "0033…") → '+<digits>' or ''.
+## app_parts/p02_pages_extension.py (767 lines)
+- app_parts/p02_pages_extension.py:6 `index` ← `/` — Opening the app: computer → /may-tinh, phone → /moi. The old pages were removed (owner, Nov 11: "xóa toàn bộ
+- app_parts/p02_pages_extension.py:20 `extension_zip` ← `/extension.zip` — The Chrome extension as a zip, built from chrome_extension/ at request time (owner, Oct 30: download it from t
+- app_parts/p02_pages_extension.py:43 `extension_info` ← `/api/extension/info` — Version of the extension the server hands out (shown next to the download button).
+- app_parts/p02_pages_extension.py:54 `api_dashboard_overview` ← `/api/dashboard/overview` — ?month=YYYY-MM (default: current month, Vietnam time).
+- app_parts/p02_pages_extension.py:109 `_ext_auth_error` — Optional shared secret: set EXTENSION_TOKEN on the server and in the extension options.
+- app_parts/p02_pages_extension.py:117 `_ext_existing`
+- app_parts/p02_pages_extension.py:143 `ext_ping` ← `/api/ext/ping`
+- app_parts/p02_pages_extension.py:150 `_ext_fields` — Normalise fields coming from the extension.
+- app_parts/p02_pages_extension.py:182 `_ext_diff` — Booking-fact changes (column → value) + readable list. Never touches what the app manages.
+- app_parts/p02_pages_extension.py:212 `_ensure_property_column`
+- app_parts/p02_pages_extension.py:228 `_property_for` — Learn / recall the listing name of a Booking property id.
+- app_parts/p02_pages_extension.py:242 `_set_property`
+- app_parts/p02_pages_extension.py:258 `_provisional_id`
+- app_parts/p02_pages_extension.py:263 `_provisional_match` — The one provisional booking for the same stay (dates, and price ±1,000đ or same guest name), else None.
+- app_parts/p02_pages_extension.py:283 `_rename_booking` — Give a booking its real number everywhere it is referenced (one transaction).
+- app_parts/p02_pages_extension.py:304 `_room_ids` — Booking ids for the rooms of one reservation: the 1st room keeps the number, the others get -2, -3 …
+- app_parts/p02_pages_extension.py:309 `_ext_save_rooms` — A reservation of several rooms (owner, Oct 21): every room is its own booking on the web — <id> for room 1,
+- app_parts/p02_pages_extension.py:356 `_ext_save_one` — Create or update one booking (+ its Booking listing name). Returns (result dict, http status).
+- app_parts/p02_pages_extension.py:381 `_ext_save_one_core` — Create or update one booking. Returns (result dict, http status).
+- app_parts/p02_pages_extension.py:467 `_ext_known_listings`
+- app_parts/p02_pages_extension.py:473 `_ext_listings`
+- app_parts/p02_pages_extension.py:483 `ext_booking_parse` ← `/api/ext/booking/parse` POST — Turn a captured page into fields + what is already in the system.
+- app_parts/p02_pages_extension.py:534 `ext_booking_save` ← `/api/ext/booking/save` POST — Save one booking checked by the user in the extension panel.
+- app_parts/p02_pages_extension.py:555 `ext_booking_save_many` ← `/api/ext/booking/save_many` POST — Save the rows ticked on the reservation list page — each one independently.
+- app_parts/p02_pages_extension.py:577 `booking_from_photo_parse` ← `/api/booking_from_photo/parse` POST — /messages "📷 Thêm từ ảnh": text OCR'd on the phone from Booking app screenshots → fields to check.
+- app_parts/p02_pages_extension.py:621 `_name_starts` — Every word OCR'd from the app ("Maheshwaran S") starts a word of the web name ("Maheshwaran Subramanian in").
+- app_parts/p02_pages_extension.py:630 `_photo_booking_by_name` — The one not-yet-finished booking whose guest has this name (any case / accents / word order), else None.
+- app_parts/p02_pages_extension.py:649 `booking_from_photo_save` ← `/api/booking_from_photo/save` POST — Save the checked fields — same rules as the Chrome extension (only Booking facts; collected money,
+- app_parts/p02_pages_extension.py:672 `ext_booking_phone` ← `/api/ext/booking/phone` POST — A reservation page now shows the guest phone (the owner clicked Booking's own
+- app_parts/p02_pages_extension.py:754 `_typed_phone` — A number the owner typed / pasted ("0905 123 456", "+33 6 12 34 56 78", "0033…") → '+<digits>' or ''.
 
-## app_parts/p03_messages_journey.py (1489 lines)
+## app_parts/p03_messages_journey.py (1350 lines)
 _p03_messages_journey — phone from chat screenshots, /api/messages/phone, auto messages, AI reply, Booking screenshots, journey, Thu tiền (pay), /tin-nhanh, /messages_
 - app_parts/p03_messages_journey.py:13 `_owner_numbers` — Last 9 digits of every number written in the message templates (the owner's WhatsApp / WeChat / hotline).
 - app_parts/p03_messages_journey.py:25 `parse_chat_shot`
@@ -123,256 +105,95 @@ _p03_messages_journey — phone from chat screenshots, /api/messages/phone, auto
 - app_parts/p03_messages_journey.py:1041 `pay_mark` ← `/api/pay/mark` POST — 🙋 khách báo đã trả (method) / bỏ · 📝 note · 🙈 không cần thu / bỏ.
 - app_parts/p03_messages_journey.py:1069 `pay_collect` ← `/api/pay/collect` POST — 💰 the money actually gathered for a booking: added to collected_amount (an undo sends the same amount
 - app_parts/p03_messages_journey.py:1112 `_pay_by_apartment` — [{apt, n, left, max_over, items}] — one block per apartment (unplaced last). Inside: the guest who has owed th
-- app_parts/p03_messages_journey.py:1135 `_messages_pay_page`
-- app_parts/p03_messages_journey.py:1168 `quick_page` ← `/tin-nhanh` · `/quick`
-- app_parts/p03_messages_journey.py:1233 `_quick_custom` — The owner's own /tin-nhanh groups (owner, Oct 30: "thêm được các mục tùy muốn") — journey_prefs 'quick_groups'
-- app_parts/p03_messages_journey.py:1245 `_quick_groups`
-- app_parts/p03_messages_journey.py:1249 `_quick_extra` — {group key: [template ids]} added by the owner to /tin-nhanh groups (journey_prefs 'quick_extra'), or with
-- app_parts/p03_messages_journey.py:1262 `quick_extra_set` ← `/api/quick/extra` POST — Add / remove a template in one /tin-nhanh group (📌 Hay dùng uses the journey favorites instead).
-- app_parts/p03_messages_journey.py:1289 `_quick_labels` — {template id (str): title shown in Tin nhanh} — journey_prefs 'quick_labels' (🏷 Đổi tên, owner Nov 7).
-- app_parts/p03_messages_journey.py:1300 `quick_label_set` ← `/api/quick/label` POST — 🏷 Đổi tên: {id, label} — the title of that sentence in Tin nhanh; the template's own name (Mẫu Câu) follows.
-- app_parts/p03_messages_journey.py:1325 `quick_group_set` ← `/api/quick/group` POST — The owner's own Tin nhanh groups: {action: 'add', title} · {action: 'rename', key, title} · {action: 'delete',
-- app_parts/p03_messages_journey.py:1365 `quick_manifest` ← `/tin-nhanh.webmanifest`
-- app_parts/p03_messages_journey.py:1377 `messages_page` ← `/messages` — Phone page for messaging guests: arriving (or staying) guests, each with the journey strip
+- app_parts/p03_messages_journey.py:1143 `quick_page` ← `/tin-nhanh` · `/quick`
+- app_parts/p03_messages_journey.py:1208 `_quick_custom` — The owner's own /tin-nhanh groups (owner, Oct 30: "thêm được các mục tùy muốn") — journey_prefs 'quick_groups'
+- app_parts/p03_messages_journey.py:1220 `_quick_groups`
+- app_parts/p03_messages_journey.py:1224 `_quick_extra` — {group key: [template ids]} added by the owner to /tin-nhanh groups (journey_prefs 'quick_extra'), or with
+- app_parts/p03_messages_journey.py:1237 `quick_extra_set` ← `/api/quick/extra` POST — Add / remove a template in one /tin-nhanh group (📌 Hay dùng uses the journey favorites instead).
+- app_parts/p03_messages_journey.py:1264 `_quick_labels` — {template id (str): title shown in Tin nhanh} — journey_prefs 'quick_labels' (🏷 Đổi tên, owner Nov 7).
+- app_parts/p03_messages_journey.py:1275 `quick_label_set` ← `/api/quick/label` POST — 🏷 Đổi tên: {id, label} — the title of that sentence in Tin nhanh; the template's own name (Mẫu Câu) follows.
+- app_parts/p03_messages_journey.py:1300 `quick_group_set` ← `/api/quick/group` POST — The owner's own Tin nhanh groups: {action: 'add', title} · {action: 'rename', key, title} · {action: 'delete',
+- app_parts/p03_messages_journey.py:1340 `quick_manifest` ← `/tin-nhanh.webmanifest`
 
-## app_parts/p04_bookings_expenses.py (1916 lines)
+## app_parts/p04_bookings_expenses.py (335 lines)
 _p04_bookings_expenses — /bookings list + add/edit/cancel/delete, manual entry, expenses API, save extracted_
-- app_parts/p04_bookings_expenses.py:5 `view_bookings` ← `/bookings` — Professional booking management with optimized search and filtering
-- app_parts/p04_bookings_expenses.py:357 `health_check` ← `/health` — Enhanced health check endpoint for Railway with database validation
-- app_parts/p04_bookings_expenses.py:399 `database_health` ← `/api/database/health` — Check PostgreSQL database health
-- app_parts/p04_bookings_expenses.py:413 `test_database_connection` ← `/api/database/test_connection` — Test PostgreSQL connection for pgAdmin/DBeaver compatibility
-- app_parts/p04_bookings_expenses.py:443 `duplicate_management_page` ← `/duplicate_management` — Duplicate management interface
-- app_parts/p04_bookings_expenses.py:448 `add_booking` ← `/bookings/add` GET,POST — Add new booking to PostgreSQL
-- app_parts/p04_bookings_expenses.py:514 `edit_booking` ← `/booking/<booking_id>/edit` GET,POST — Edit booking in PostgreSQL
-- app_parts/p04_bookings_expenses.py:581 `cancel_booking_api` ← `/api/cancel_booking/<booking_id>` POST — Cancel booking (soft cancel - changes status to 'cancelled')
-- app_parts/p04_bookings_expenses.py:593 `delete_booking_api` ← `/api/delete_booking/<booking_id>` DELETE — Delete booking permanently from PostgreSQL
-- app_parts/p04_bookings_expenses.py:606 `cancel_multiple_bookings` ← `/bookings/cancel_multiple` POST — Cancel multiple bookings (soft cancel - changes status to 'cancelled')
-- app_parts/p04_bookings_expenses.py:664 `delete_multiple_bookings` ← `/bookings/delete_multiple` POST — PERMANENTLY DELETE multiple bookings from PostgreSQL (NOT CANCEL)
-- app_parts/p04_bookings_expenses.py:720 `delete_single_booking` ← `/api/delete_booking` POST — Delete a single booking from PostgreSQL
-- app_parts/p04_bookings_expenses.py:752 `manual_booking_entry` ← `/api/manual_booking_entry` POST — Manual booking entry when all AI APIs fail
-- app_parts/p04_bookings_expenses.py:837 `process_booking_table` ← `/api/process_booking_table` POST — Process the specific booking table format with manual extraction
-- app_parts/p04_bookings_expenses.py:993 `get_booking_entry_options` ← `/api/booking_entry_options` GET — Get available booking entry methods and their status
-- app_parts/p04_bookings_expenses.py:1044 `expenses_api` ← `/api/expenses` GET,POST — Expense management with PostgreSQL and Railway compatibility
-- app_parts/p04_bookings_expenses.py:1158 `expense_operations` ← `/api/expenses/<int:expense_id>` DELETE,PUT — Delete or update specific expense
-- app_parts/p04_bookings_expenses.py:1245 `fix_expense_descriptions` ← `/api/fix_expense_descriptions` POST — Fix expense descriptions that show dates instead of content
-- app_parts/p04_bookings_expenses.py:1312 `expense_categories_api` ← `/api/expense_categories` GET,POST — Save and load expense categorizations (Personal/Work)
-- app_parts/p04_bookings_expenses.py:1431 `create_categories_table` ← `/api/create_categories_table` POST — Create expense_categories table if it doesn't exist
-- app_parts/p04_bookings_expenses.py:1453 `analyze_expense_image` ← `/api/analyze_expense_image` POST — Analyze expense image using Gemini AI to extract expense data
-- app_parts/p04_bookings_expenses.py:1605 `bulk_add_expenses` ← `/api/expenses/bulk` POST — Add multiple expenses at once (from AI or JSON input)
-- app_parts/p04_bookings_expenses.py:1673 `save_extracted_bookings` ← `/bookings/save_extracted` POST — Save multiple extracted bookings from AI photo processing
+- app_parts/p04_bookings_expenses.py:6 `health_check` ← `/health` — Enhanced health check endpoint for Railway with database validation
+- app_parts/p04_bookings_expenses.py:49 `manual_booking_entry` ← `/api/manual_booking_entry` POST — Manual booking entry when all AI APIs fail
+- app_parts/p04_bookings_expenses.py:135 `expenses_api` ← `/api/expenses` GET,POST — Expense management with PostgreSQL and Railway compatibility
+- app_parts/p04_bookings_expenses.py:249 `expense_operations` ← `/api/expenses/<int:expense_id>` DELETE,PUT — Delete or update specific expense
 
-## app_parts/p05_calendar.py (1260 lines)
-_p05_calendar — vacancy preview, /calendar month, /calendar_details day page, placement, 2PN, apartment daily summary_
-- app_parts/p05_calendar.py:5 `api_vacancy_preview` ← `/api/vacancy_preview` — Vacancy per apartment for the next few days (sidebar board + email preview widget).
-- app_parts/p05_calendar.py:67 `api_month_vacancy` ← `/api/month_vacancy` — Free rooms per night for a whole month (mini calendar on calendar_details).
-- app_parts/p05_calendar.py:117 `calendar_view` ← `/calendar/` · `/calendar/<int:year>/<int:month>` — Calendar view with PostgreSQL data - supports apartment filtering
-- app_parts/p05_calendar.py:400 `debug_revenue` ← `/debug_revenue` — Debug route to test revenue calculations
-- app_parts/p05_calendar.py:439 `calendar_details` ← `/calendar_details/<date_str>` — Calendar details view for specific date
-- app_parts/p05_calendar.py:974 `set_actual_apartment` ← `/api/set_actual_apartment` POST — Save which actual apartment a guest is assigned to.
-- app_parts/p05_calendar.py:1016 `set_two_bedroom` ← `/api/set_two_bedroom` POST — Mark a booking as 2-bedroom (true), not 2-bedroom (false) or back to auto-detect (null).
-- app_parts/p05_calendar.py:1048 `apartment_placement_check` ← `/api/apartment_placement_check` GET — Before placing a guest: would the apartment exceed its room count on any night?
-- app_parts/p05_calendar.py:1081 `apartment_daily_summary` ← `/api/apartment_daily_summary` GET — Returns per-apartment occupancy for a given date.
+## app_parts/p05_calendar.py (45 lines)
+- app_parts/p05_calendar.py:5 `set_actual_apartment` ← `/api/set_actual_apartment` POST — Save which actual apartment a guest is assigned to.
 
-## app_parts/p06_payments_booking_api.py (1868 lines)
-_p06_payments_booking_api — mobile payment page + analytics, booking API (get/quick-update/extend), image/text booking extraction, duplicates check_
-- app_parts/p06_payments_booking_api.py:8 `mobile_payment_view` ← `/mobile_payment` — Mobile-optimised payment collection page — unpaid guests only.
-- app_parts/p06_payments_booking_api.py:124 `payment_history_today` ← `/api/payment_history_today` GET — Return today's payment collection records from BookingHistory.
-- app_parts/p06_payments_booking_api.py:174 `payment_weekly_chart` ← `/api/payment_weekly_chart` GET — Return daily payment totals for the past 7 days (VN time), starting from today backwards.
-- app_parts/p06_payments_booking_api.py:232 `payment_analytics` ← `/api/payment_analytics` GET — Unified analytics endpoint.
-- app_parts/p06_payments_booking_api.py:371 `payment_day_detail` ← `/api/payment_day_detail` GET — Returns individual transactions for a date range (for detail drill-down).
-- app_parts/p06_payments_booking_api.py:436 `get_booking_details` ← `/api/booking/<booking_id>` GET — Get booking details for comprehensive edit modal
-- app_parts/p06_payments_booking_api.py:475 `quick_update_booking` ← `/api/booking/<booking_id>/quick-update` POST — Quick update booking from calendar details page
-- app_parts/p06_payments_booking_api.py:501 `extend_booking` ← `/api/booking/<booking_id>/extend` POST — Extend a guest's stay: push checkout date forward and add extra amount.
-- app_parts/p06_payments_booking_api.py:580 `check_existing_bookings` ← `/api/check_existing_bookings` POST — Check which bookings already exist in the system
-- app_parts/p06_payments_booking_api.py:618 `process_pasted_image` ← `/api/process_pasted_image` POST — Enhanced photo processing with smart single/multiple booking detection
-- app_parts/p06_payments_booking_api.py:825 `process_booking_text` ← `/api/process_booking_text` POST — Process booking information from text input using advanced parsing
-- app_parts/p06_payments_booking_api.py:864 `check_room_conflict` ← `/api/check_room_conflict` POST — Check if proposed bookings overlap with existing reservations in the same room.
-- app_parts/p06_payments_booking_api.py:951 `check_duplicates` ← `/api/check_duplicates` POST — Check for duplicate bookings against existing data with accurate date overlap detection
-- app_parts/p06_payments_booking_api.py:1109 `process_booking_image_advanced` ← `/api/process_booking_image_advanced` POST — Advanced image processing using production extractor
-- app_parts/p06_payments_booking_api.py:1176 `extract_booking_fallback` — Fallback extraction for when production extractor is not available
-- app_parts/p06_payments_booking_api.py:1457 `parse_booking_text` — Advanced text parser for booking information with multiple format support
-- app_parts/p06_payments_booking_api.py:1499 `detect_table_format` — Detect if text is in table format
-- app_parts/p06_payments_booking_api.py:1515 `parse_table_format` — Parse table format text (tab-separated or space-separated)
-- app_parts/p06_payments_booking_api.py:1553 `parse_table_row` — Parse a single table row into booking data
-- app_parts/p06_payments_booking_api.py:1633 `parse_single_booking_block` — Parse a single booking from text block
-- app_parts/p06_payments_booking_api.py:1771 `normalize_date` — Normalize various date formats to YYYY-MM-DD
-- app_parts/p06_payments_booking_api.py:1799 `railway_image_diagnostic` ← `/api/railway_image_diagnostic` GET,POST — Railway-specific diagnostic endpoint for image upload debugging
+## app_parts/p06_payments_booking_api.py (626 lines)
+- app_parts/p06_payments_booking_api.py:4 `extract_booking_fallback` — Fallback extraction for when production extractor is not available
+- app_parts/p06_payments_booking_api.py:285 `parse_booking_text` — Advanced text parser for booking information with multiple format support
+- app_parts/p06_payments_booking_api.py:327 `detect_table_format` — Detect if text is in table format
+- app_parts/p06_payments_booking_api.py:343 `parse_table_format` — Parse table format text (tab-separated or space-separated)
+- app_parts/p06_payments_booking_api.py:381 `parse_table_row` — Parse a single table row into booking data
+- app_parts/p06_payments_booking_api.py:461 `parse_single_booking_block` — Parse a single booking from text block
+- app_parts/p06_payments_booking_api.py:599 `normalize_date` — Normalize various date formats to YYYY-MM-DD
 
-## app_parts/p07_assistant_homestay.py (1043 lines)
+## app_parts/p07_assistant_homestay.py (132 lines)
 _p07_assistant_homestay — /ai_assistant page, homestay setup, quick notes, arrival times, hidden guests, no-show_
-- app_parts/p07_assistant_homestay.py:6 `ai_assistant` ← `/ai_assistant` — AI Assistant - Message Template Manager
-- app_parts/p07_assistant_homestay.py:14 `homestay_setup` ← `/homestay_setup` — Homestay Setup Tracker interface
-- app_parts/p07_assistant_homestay.py:19 `homestay_properties_api` ← `/api/homestay/properties` GET,POST — Get all properties or create new property
-- app_parts/p07_assistant_homestay.py:62 `homestay_property_detail` ← `/api/homestay/properties/<int:property_id>` GET,PUT,DELETE — Get, update, or delete a specific property
-- app_parts/p07_assistant_homestay.py:122 `homestay_purchases_api` ← `/api/homestay/purchases` GET,POST — Get all purchases or create new purchase
-- app_parts/p07_assistant_homestay.py:184 `homestay_purchase_detail` ← `/api/homestay/purchases/<int:purchase_id>` GET,PUT,DELETE — Get, update, or delete a specific purchase
-- app_parts/p07_assistant_homestay.py:254 `homestay_templates_api` ← `/api/homestay/templates` GET,POST — Get all item templates or create new template
-- app_parts/p07_assistant_homestay.py:307 `homestay_analytics` ← `/api/homestay/analytics/<int:property_id>` GET — Get analytics for a specific property
-- app_parts/p07_assistant_homestay.py:355 `upload_homestay_images` ← `/api/homestay/images/upload` POST — Upload product images with AI processing
-- app_parts/p07_assistant_homestay.py:417 `get_homestay_images` ← `/api/homestay/images` GET — Get all uploaded product images
-- app_parts/p07_assistant_homestay.py:457 `homestay_image_detail` ← `/api/homestay/images/<int:image_id>` GET,PUT,DELETE — Get, update, or delete image
-- app_parts/p07_assistant_homestay.py:515 `convert_image_to_purchase` ← `/api/homestay/images/<int:image_id>/convert` POST — Convert image to purchase record
-- app_parts/p07_assistant_homestay.py:557 `process_product_image_with_ai` — Process product image with Gemini AI to extract metadata
-- app_parts/p07_assistant_homestay.py:627 `test_js` ← `/test_js` — Test JavaScript functions
-- app_parts/p07_assistant_homestay.py:632 `debug_functions` ← `/debug_functions` — Debug function availability
-- app_parts/p07_assistant_homestay.py:637 `emergency_fix` ← `/emergency_fix` — Emergency fix for canceled customer management
-- app_parts/p07_assistant_homestay.py:642 `simple_test` ← `/simple_test` — Simple test for canceled customer management
-- app_parts/p07_assistant_homestay.py:648 `quick_notes` ← `/api/quick_notes` GET,POST — Quick notes management
-- app_parts/p07_assistant_homestay.py:724 `quick_note_detail` ← `/api/quick_notes/<int:note_id>` GET,PUT,DELETE — Quick note detail operations
-- app_parts/p07_assistant_homestay.py:785 `arrival_times` ← `/api/arrival_times` GET,POST — Arrival times management
-- app_parts/p07_assistant_homestay.py:824 `delete_arrival_time` ← `/api/arrival_times/<booking_id>` DELETE — Clear late-arrival record for a booking.
-- app_parts/p07_assistant_homestay.py:840 `analyze_duplicates_api` ← `/api/analyze_duplicates` GET — API endpoint for AI duplicate analysis with timeout and better error handling
-- app_parts/p07_assistant_homestay.py:898 `test_gemini_api` ← `/api/test_gemini` GET — Test endpoint to verify Gemini API connectivity
-- app_parts/p07_assistant_homestay.py:930 `hidden_guests_for_date` ← `/api/hidden_guests_for_date` GET — Query DB directly for bookings touching the given date that are hidden (no arrival confirmation).
-- app_parts/p07_assistant_homestay.py:994 `restore_arrival` ← `/api/restore_arrival` POST — Restore a hidden guest: set checkin_status='confirmed' + arrival_confirmed=True
-- app_parts/p07_assistant_homestay.py:1020 `mark_no_show` ← `/api/mark_no_show` POST — Mark a booking as no-show — sets checkin_status='no_show' so it stops appearing in overdue panel
+- app_parts/p07_assistant_homestay.py:7 `process_product_image_with_ai` — Process product image with Gemini AI to extract metadata
+- app_parts/p07_assistant_homestay.py:78 `arrival_times` ← `/api/arrival_times` GET,POST — Arrival times management
+- app_parts/p07_assistant_homestay.py:117 `delete_arrival_time` ← `/api/arrival_times/<booking_id>` DELETE — Clear late-arrival record for a booking.
 
-## app_parts/p08_collect_history_import.py (1458 lines)
+## app_parts/p08_collect_history_import.py (160 lines)
 _p08_collect_history_import — collect payment, commission status, guest amounts, booking history, Excel/JSON import, check-in status sync_
-- app_parts/p08_collect_history_import.py:5 `collect_payment` ← `/api/collect_payment` POST — API endpoint để thu tiền từ khách hàng - PostgreSQL version
-- app_parts/p08_collect_history_import.py:184 `update_commission_status` ← `/api/update_commission_status` POST — API endpoint to update commission status (pending/confirmed/cancelled)
-- app_parts/p08_collect_history_import.py:247 `confirm_no_cancellation` ← `/api/confirm_no_cancellation` POST — 🆕 NEW ENDPOINT: Confirm that commission will NOT be cancelled.
-- app_parts/p08_collect_history_import.py:326 `update_guest_amounts` ← `/api/update_guest_amounts` POST — Update room and taxi amounts for a booking
-- app_parts/p08_collect_history_import.py:407 `record_booking_history` — Record field-level changes to a booking into booking_history table.
-- app_parts/p08_collect_history_import.py:496 `get_all_history` ← `/api/history/all` GET — Get all booking history across all bookings, newest first.
-- app_parts/p08_collect_history_import.py:526 `get_booking_history` ← `/api/booking/<booking_id>/history` GET — Get edit history for a booking.
-- app_parts/p08_collect_history_import.py:540 `delete_booking_history` ← `/api/booking_history/<int:history_id>` DELETE — Delete a history entry — requires password 001022.
-- app_parts/p08_collect_history_import.py:560 `update_booking_comprehensive` ← `/api/update_booking_comprehensive` POST — Comprehensive update for booking - all editable fields
-- app_parts/p08_collect_history_import.py:662 `update_collected_amount` ← `/api/update_collected_amount` POST — Update only the collected amount for a booking - ADMIN ONLY
-- app_parts/p08_collect_history_import.py:757 `debug_booking_data` ← `/api/debug_booking/<booking_id>` GET — Debug endpoint to check booking data in database
-- app_parts/p08_collect_history_import.py:818 `import_excel_expenses` ← `/api/import_excel_expenses` POST — Import expenses from Excel file
-- app_parts/p08_collect_history_import.py:957 `comprehensive_import` ← `/api/comprehensive_import` POST — Comprehensive import of all data: customers, costs, and message templates
-- app_parts/p08_collect_history_import.py:1209 `import_status` ← `/api/import_status` GET — Get current database status after import
-- app_parts/p08_collect_history_import.py:1236 `import_bookings_json` ← `/api/import_bookings_json` POST — Import bookings directly from JSON data
-- app_parts/p08_collect_history_import.py:1360 `_ensure_checkin_status_column` — Create checkin_status column if it doesn't exist yet.
-- app_parts/p08_collect_history_import.py:1380 `set_checkin_status` ← `/api/set_checkin_status` POST — Save daily check-in arrival status for a booking to PostgreSQL.
-- app_parts/p08_collect_history_import.py:1424 `get_checkin_statuses` ← `/api/get_checkin_statuses` — Return {booking_id: status} for a list of booking IDs.
+- app_parts/p08_collect_history_import.py:6 `record_booking_history` — Record field-level changes to a booking into booking_history table.
+- app_parts/p08_collect_history_import.py:94 `_ensure_checkin_status_column` — Create checkin_status column if it doesn't exist yet.
+- app_parts/p08_collect_history_import.py:114 `set_checkin_status` ← `/api/set_checkin_status` POST — Save daily check-in arrival status for a booking to PostgreSQL.
 
-## app_parts/p09_templates.py (1065 lines)
+## app_parts/p09_templates.py (529 lines)
 _p09_templates — message templates API (Mẫu Câu) + template images, canceled bookings restore/delete_
 - app_parts/p09_templates.py:5 `get_templates` ← `/api/templates` GET — Get all message templates from PostgreSQL database
 - app_parts/p09_templates.py:131 `add_template` ← `/api/templates/add` POST — Add a new message template to PostgreSQL database
 - app_parts/p09_templates.py:213 `handle_template` ← `/api/templates/<template_id>` GET,PUT,DELETE — Get, update or delete a specific template from PostgreSQL database
-- app_parts/p09_templates.py:303 `import_templates` ← `/templates/import` GET — Import templates - placeholder endpoint
-- app_parts/p09_templates.py:320 `debug_templates` ← `/api/templates/debug` GET,POST — Debug templates functionality
-- app_parts/p09_templates.py:351 `import_templates_from_json` ← `/api/templates/import_json` POST — Import templates from JSON file to database
-- app_parts/p09_templates.py:463 `fix_template_sequence` ← `/api/templates/fix_sequence` POST — Fix the template_id sequence to prevent duplicate key errors
-- app_parts/p09_templates.py:499 `verify_templates` ← `/api/templates/verify` GET — Verify template database structure and content
-- app_parts/p09_templates.py:543 `upload_template_image` ← `/api/templates/upload_image` POST — Upload an image for a message template
-- app_parts/p09_templates.py:604 `serve_template_image` ← `/api/templates/image/<filename>` — Serve template images
-- app_parts/p09_templates.py:641 `get_template_images` ← `/api/templates/<template_id>/images` GET — Get all images for a template
-- app_parts/p09_templates.py:681 `add_template_images` ← `/api/templates/<template_id>/images` POST — Add a single image to a template
-- app_parts/p09_templates.py:791 `delete_template_image` ← `/api/templates/images/<image_id>` DELETE — Delete a specific template image
-- app_parts/p09_templates.py:823 `delete_legacy_image` ← `/api/templates/<template_id>/legacy-image` DELETE — Delete legacy image from message_templates.image_path
-- app_parts/p09_templates.py:862 `get_canceled_bookings` ← `/api/canceled_bookings` GET — Get all canceled bookings for calendar management
-- app_parts/p09_templates.py:928 `cleanup_old_cancellations` ← `/api/cleanup_old_cancellations` POST — Permanently delete cancelled bookings whose updated_at is older than 30 days.
-- app_parts/p09_templates.py:955 `restore_booking` ← `/api/restore_booking/<booking_id>` POST — Restore a canceled booking back to confirmed status
-- app_parts/p09_templates.py:1015 `delete_booking` ← `/api/delete_booking/<booking_id>` DELETE — Permanently delete a canceled booking from the system
+- app_parts/p09_templates.py:304 `serve_template_image` ← `/api/templates/image/<filename>` — Serve template images
+- app_parts/p09_templates.py:341 `get_template_images` ← `/api/templates/<template_id>/images` GET — Get all images for a template
+- app_parts/p09_templates.py:381 `add_template_images` ← `/api/templates/<template_id>/images` POST — Add a single image to a template
+- app_parts/p09_templates.py:492 `delete_legacy_image` ← `/api/templates/<template_id>/legacy-image` DELETE — Delete legacy image from message_templates.image_path
 
-## app_parts/p10_apartments_rooms.py (689 lines)
+## app_parts/p10_apartments_rooms.py (534 lines)
 _p10_apartments_rooms — apartments + rooms CRUD, migrate_
-- app_parts/p10_apartments_rooms.py:9 `apartments_management` ← `/apartments` — Apartment management page - Add/Edit/Delete apartments without code changes
-- app_parts/p10_apartments_rooms.py:14 `get_apartments_list` ← `/api/apartments` GET — Get all apartments with statistics
-- app_parts/p10_apartments_rooms.py:43 `get_apartment_details` ← `/api/apartments/<int:apartment_id>` GET — Get single apartment details
-- app_parts/p10_apartments_rooms.py:61 `create_new_apartment` ← `/api/apartments` POST — Create new apartment - NO CODE CHANGES NEEDED
-- app_parts/p10_apartments_rooms.py:118 `update_apartment_info` ← `/api/apartments/<int:apartment_id>` PUT — Update apartment details
-- app_parts/p10_apartments_rooms.py:161 `toggle_apartment_status` ← `/api/apartments/<int:apartment_id>/toggle` POST — Toggle apartment active status
-- app_parts/p10_apartments_rooms.py:188 `_apartment_references` — How many bookings point at this apartment (placement, apartment_id, or one of its rooms).
-- app_parts/p10_apartments_rooms.py:207 `apartment_delete_check` ← `/api/apartments/<int:apartment_id>/delete_check` GET — What deleting this apartment would affect — shown to the user before confirming.
-- app_parts/p10_apartments_rooms.py:226 `delete_apartment_permanently` ← `/api/apartments/<int:apartment_id>` DELETE — Delete an apartment (e.g. one added by mistake).
-- app_parts/p10_apartments_rooms.py:279 `get_apartment_rooms` ← `/api/apartments/<int:apartment_id>/rooms` GET — Get all rooms for an apartment
-- app_parts/p10_apartments_rooms.py:302 `get_accommodation_options` ← `/api/accommodation_options` GET — Return ALL apartments + rooms for the booking edit dropdown.
-- app_parts/p10_apartments_rooms.py:377 `get_apartment_stats` ← `/api/apartments/<int:apartment_id>/stats` GET — Get statistics for a specific apartment
-- app_parts/p10_apartments_rooms.py:437 `create_room` ← `/api/rooms` POST — Create new room - Web manageable
-- app_parts/p10_apartments_rooms.py:493 `update_room` ← `/api/rooms/<int:room_id>` PUT — Update room details - Web manageable
-- app_parts/p10_apartments_rooms.py:534 `delete_room` ← `/api/rooms/<int:room_id>` DELETE — Delete room - Web manageable
-- app_parts/p10_apartments_rooms.py:587 `get_room_details` ← `/api/rooms/<int:room_id>` GET — Get single room details
-- app_parts/p10_apartments_rooms.py:614 `migration_tool` ← `/migrate` — Serve the database migration tool page
-- app_parts/p10_apartments_rooms.py:619 `migrate_database` ← `/api/migrate_database` POST — Enhanced migration route for multi-image functionality
+- app_parts/p10_apartments_rooms.py:10 `get_apartments_list` ← `/api/apartments` GET — Get all apartments with statistics
+- app_parts/p10_apartments_rooms.py:39 `get_apartment_details` ← `/api/apartments/<int:apartment_id>` GET — Get single apartment details
+- app_parts/p10_apartments_rooms.py:57 `create_new_apartment` ← `/api/apartments` POST — Create new apartment - NO CODE CHANGES NEEDED
+- app_parts/p10_apartments_rooms.py:114 `update_apartment_info` ← `/api/apartments/<int:apartment_id>` PUT — Update apartment details
+- app_parts/p10_apartments_rooms.py:157 `toggle_apartment_status` ← `/api/apartments/<int:apartment_id>/toggle` POST — Toggle apartment active status
+- app_parts/p10_apartments_rooms.py:184 `_apartment_references` — How many bookings point at this apartment (placement, apartment_id, or one of its rooms).
+- app_parts/p10_apartments_rooms.py:203 `apartment_delete_check` ← `/api/apartments/<int:apartment_id>/delete_check` GET — What deleting this apartment would affect — shown to the user before confirming.
+- app_parts/p10_apartments_rooms.py:222 `delete_apartment_permanently` ← `/api/apartments/<int:apartment_id>` DELETE — Delete an apartment (e.g. one added by mistake).
+- app_parts/p10_apartments_rooms.py:275 `get_apartment_rooms` ← `/api/apartments/<int:apartment_id>/rooms` GET — Get all rooms for an apartment
+- app_parts/p10_apartments_rooms.py:298 `get_apartment_stats` ← `/api/apartments/<int:apartment_id>/stats` GET — Get statistics for a specific apartment
+- app_parts/p10_apartments_rooms.py:358 `create_room` ← `/api/rooms` POST — Create new room - Web manageable
+- app_parts/p10_apartments_rooms.py:414 `update_room` ← `/api/rooms/<int:room_id>` PUT — Update room details - Web manageable
+- app_parts/p10_apartments_rooms.py:455 `delete_room` ← `/api/rooms/<int:room_id>` DELETE — Delete room - Web manageable
+- app_parts/p10_apartments_rooms.py:508 `get_room_details` ← `/api/rooms/<int:room_id>` GET — Get single room details
 
-## app_parts/p11_analytics.py (1879 lines)
-_p11_analytics — guest arrival confirm, monthly/weekly/collector details & charts, revenue analytics, debug revenue_
-- app_parts/p11_analytics.py:5 `confirm_guest_arrival` ← `/api/confirm_guest_arrival` POST — Confirm guest arrival to enable commission notifications
-- app_parts/p11_analytics.py:39 `get_monthly_guest_details` ← `/api/monthly_guest_details` POST — Get detailed guest breakdown for a specific month and collection status
-- app_parts/p11_analytics.py:233 `get_weekly_guest_details` ← `/api/weekly_guest_details` POST — Get detailed guest breakdown for a specific week and collection status
-- app_parts/p11_analytics.py:388 `get_collector_guest_details` ← `/api/collector_guest_details` POST — Get detailed guest breakdown for a specific collector in the current period
-- app_parts/p11_analytics.py:550 `get_collector_chart_data` ← `/api/collector_chart_data` POST — Get collector chart data for a specific period - supports month selection
-- app_parts/p11_analytics.py:709 `get_unchecked_in_guests` ← `/api/unchecked_in_guests` GET — Get unchecked-in guests for current month - money to be collected
-- app_parts/p11_analytics.py:809 `get_prorated_monthly_revenue` ← `/api/prorated_monthly_revenue` GET — PRO-RATED MONTHLY REVENUE CALCULATION with APARTMENT FILTERING and MONTH SELECTION
-- app_parts/p11_analytics.py:1161 `get_monthly_checked_in_revenue` ← `/api/monthly_checked_in_revenue` GET — 🏢 MONTHLY CHECKED-IN REVENUE WITH APARTMENT FILTERING
-- app_parts/p11_analytics.py:1235 `get_apartments_config` ← `/api/apartments_config` GET — 🏗️ DATABASE-DRIVEN APARTMENT CONFIGURATION
-- app_parts/p11_analytics.py:1300 `add_apartment` ← `/api/apartments` POST — Add new apartment
-- app_parts/p11_analytics.py:1324 `railway_status` ← `/api/railway_status` GET — Debug endpoint for Railway deployment status
-- app_parts/p11_analytics.py:1361 `railway_setup_guide` ← `/api/railway_setup_guide` GET — Railway deployment setup guide
-- app_parts/p11_analytics.py:1398 `debug_data_status` ← `/api/debug_data_status` GET — 🚨 CRITICAL: Debug endpoint to check for data loss - shows ALL bookings including cancelled
-- app_parts/p11_analytics.py:1457 `debug_all_months` ← `/api/debug_all_months` GET — Debug endpoint to see ALL months with bookings
-- app_parts/p11_analytics.py:1495 `get_collector_available_months` ← `/api/collector_available_months` GET — Get list of ALL months that have booking data (not just collector data)
-- app_parts/p11_analytics.py:1590 `debug_collector_comparison` ← `/api/debug_collector_comparison` POST — Debug endpoint to compare collector amounts from different calculations
-- app_parts/p11_analytics.py:1740 `debug_june_revenue_specific` ← `/api/debug_june_revenue_specific` POST — Debug the specific June revenue discrepancy: 36,109,006 vs 31,976,006
-- app_parts/p11_analytics.py:1876 `debug_collector_comparison_page` ← `/debug_collector_comparison` — Debug page to compare collector calculations
+## app_parts/p11_analytics.py (65 lines)
+- app_parts/p11_analytics.py:5 `add_apartment` ← `/api/apartments` POST — Add new apartment
+- app_parts/p11_analytics.py:29 `railway_status` ← `/api/railway_status` GET — Debug endpoint for Railway deployment status
 
-## app_parts/p12_sync_crawl_duplicates.py (1663 lines)
+## app_parts/p12_sync_crawl_duplicates.py (598 lines)
 _p12_sync_crawl_duplicates — sync services, crawl admin bookings, bulk save, duplicate management, revenue comparison_
-- app_parts/p12_sync_crawl_duplicates.py:9 `api_test_sync_connections` ← `/api/sync/test_connections` — Test connections to both local and Railway databases
-- app_parts/p12_sync_crawl_duplicates.py:28 `api_sync_status` ← `/api/sync/status` — Get current database status and record counts
-- app_parts/p12_sync_crawl_duplicates.py:74 `api_auto_sync_status` ← `/api/auto-sync/status` — Auto-sync status endpoint for the dashboard
-- app_parts/p12_sync_crawl_duplicates.py:127 `api_sync_history` ← `/api/sync/history` — Get sync history for the dashboard
-- app_parts/p12_sync_crawl_duplicates.py:155 `api_sync_perform` ← `/api/sync/perform` POST — Perform actual sync operation
-- app_parts/p12_sync_crawl_duplicates.py:752 `api_expenses` — Get monthly expenses for dashboard
-- app_parts/p12_sync_crawl_duplicates.py:794 `get_crawl_capabilities` ← `/api/crawl_capabilities` GET — Get comprehensive crawling capabilities for current environment
-- app_parts/p12_sync_crawl_duplicates.py:940 `crawl_admin_bookings` ← `/api/crawl_admin_bookings` POST — API endpoint for crawling booking admin panel with AI extraction
-- app_parts/p12_sync_crawl_duplicates.py:1184 `save_bulk_bookings` ← `/api/save_bulk_bookings` POST — Save multiple bookings extracted from crawling
-- app_parts/p12_sync_crawl_duplicates.py:1289 `duplicate_management` ← `/api/duplicate_management` GET — Get comprehensive duplicate analysis for manual review
-- app_parts/p12_sync_crawl_duplicates.py:1371 `delete_duplicate_booking` ← `/api/delete_duplicate_booking` POST — Delete a specific booking from a duplicate group
-- app_parts/p12_sync_crawl_duplicates.py:1396 `revenue_calculation_comparison` ← `/api/revenue_calculation_comparison` GET — API endpoint to compare traditional vs daily distribution revenue calculation methods
-- app_parts/p12_sync_crawl_duplicates.py:1487 `daily_customer_breakdown` ← `/api/daily_customer_breakdown` POST — API endpoint to get detailed daily customer breakdown for a specific month
+- app_parts/p12_sync_crawl_duplicates.py:558 `api_expenses` — Get monthly expenses for dashboard
 
-## app_parts/p13_misc_railway.py (1949 lines)
-_p13_misc_railway — translate, quick-notes fixes, railway sync/health/chart data_
-- app_parts/p13_misc_railway.py:5 `translate_text` ← `/api/translate` POST — Translation API endpoint for voice translator
-- app_parts/p13_misc_railway.py:123 `fix_quicknotes_sequence` ← `/fix_quicknotes_sequence` — Fix the QuickNotes auto-increment sequence
-- app_parts/p13_misc_railway.py:170 `fix_quicknotes_constraint` ← `/fix_quicknotes_constraint` — Fix the QuickNotes constraint to allow flexible note types
-- app_parts/p13_misc_railway.py:262 `revenue_comparison_test` ← `/revenue_comparison_test` — Test page to demonstrate dual revenue calculation methods
-- app_parts/p13_misc_railway.py:269 `debug_local_postgres` ← `/debug/local_postgres` — Test local PostgreSQL connection for Railway sync
-- app_parts/p13_misc_railway.py:352 `debug_environment` ← `/debug/env` — Debug environment variables for Railway troubleshooting
-- app_parts/p13_misc_railway.py:389 `railway_sync` ← `/api/railway_sync` POST,GET — API endpoint to sync data from current database to Railway
-- app_parts/p13_misc_railway.py:632 `railway_health_check` ← `/railway/health` — Railway deployment health check endpoint
-- app_parts/p13_misc_railway.py:682 `railway_chart_data` ← `/railway/chart-data` — Railway-specific chart data endpoint for debugging
-- app_parts/p13_misc_railway.py:727 `extract_meter_data_with_python_ocr` — Enhanced electricity meter OCR with visual debugging and improved accuracy
-- app_parts/p13_misc_railway.py:848 `preprocess_meter_image_debug` — Advanced preprocessing for Vietnamese electricity meters with debugging
-- app_parts/p13_misc_railway.py:947 `preprocess_meter_image` — Backward compatibility function - uses gentler preprocessing by default
-- app_parts/p13_misc_railway.py:974 `parse_vietnamese_meter_text` — Parse Vietnamese electricity meter text to extract key information
-- app_parts/p13_misc_railway.py:1073 `parse_vietnamese_meter_text_enhanced` — Enhanced parsing for Vietnamese electricity meters with better accuracy
-- app_parts/p13_misc_railway.py:1221 `parse_vietnamese_meter_text_enhanced_debug` — Enhanced parsing for Vietnamese electricity meters with comprehensive debugging
-- app_parts/p13_misc_railway.py:1449 `extract_meter_data_with_deepseek` — Extract electricity meter data using GPT-4o Mini (vision) via OpenRouter API
-- app_parts/p13_misc_railway.py:1644 `parse_deepseek_fallback_response` — Fallback parser when DeepSeek doesn't return valid JSON
-- app_parts/p13_misc_railway.py:1687 `extract_meter_data_with_openrouter` — Extract electricity meter data using various free models via OpenRouter API
-- app_parts/p13_misc_railway.py:1798 `extract_meter_data_with_multi_api` — Extract electricity meter data using multiple APIs with automatic fallback
-
-## app_parts/p14_electricity.py (587 lines)
-_p14_electricity — electricity calculator + meters/readings/bills_
-- app_parts/p14_electricity.py:5 `electricity_calculator` ← `/electricity-calculator` — Render the electricity bill calculator page
-- app_parts/p14_electricity.py:10 `process_electricity_meter` ← `/api/electricity/process_meter` POST — Multi-API OCR with automatic fallback - Gemini → OpenRouter → Manual
-- app_parts/p14_electricity.py:67 `calculate_electricity_bill` ← `/api/electricity/calculate` POST — Calculate electricity bill based on meter readings
-- app_parts/p14_electricity.py:127 `electricity_management` ← `/electricity-management` — Render the electricity management page
-- app_parts/p14_electricity.py:132 `get_electricity_meters` ← `/api/electricity/meters` GET — Get all electricity meters
-- app_parts/p14_electricity.py:141 `create_electricity_meter` ← `/api/electricity/meters` POST — Create a new electricity meter
-- app_parts/p14_electricity.py:162 `update_electricity_meter` ← `/api/electricity/meters/<int:meter_uuid>` PUT — Update an electricity meter
-- app_parts/p14_electricity.py:177 `delete_electricity_meter` ← `/api/electricity/meters/<int:meter_uuid>` DELETE — Delete (deactivate) an electricity meter
-- app_parts/p14_electricity.py:191 `get_electricity_readings` ← `/api/electricity/readings` GET — Get electricity readings with optional filters
-- app_parts/p14_electricity.py:210 `create_electricity_reading` ← `/api/electricity/readings` POST — Create a new electricity reading
-- app_parts/p14_electricity.py:237 `update_electricity_reading` ← `/api/electricity/readings/<int:reading_id>` PUT — Update an electricity reading
-- app_parts/p14_electricity.py:257 `delete_electricity_reading` ← `/api/electricity/readings/<int:reading_id>` DELETE — Delete an electricity reading
-- app_parts/p14_electricity.py:271 `save_electricity_calculation` ← `/api/electricity/save_calculation` POST — Save calculation results to database
-- app_parts/p14_electricity.py:312 `get_electricity_dashboard_stats` ← `/api/electricity/dashboard_stats` GET — Get electricity dashboard statistics
-- app_parts/p14_electricity.py:326 `search_electricity_data` ← `/api/electricity/search` GET — Search electricity data
-- app_parts/p14_electricity.py:343 `get_electricity_bills` ← `/api/electricity/bills` GET — Get electricity bills
-- app_parts/p14_electricity.py:354 `create_electricity_bill` ← `/api/electricity/bills` POST — Create a new electricity bill from readings
-- app_parts/p14_electricity.py:377 `view_ocr_debug` ← `/api/electricity/debug/<filename>` — View OCR debug information and processed images
-- app_parts/p14_electricity.py:410 `save_electricity_image` ← `/api/electricity/images/<int:reading_id>` POST — Save image for an electricity reading
-- app_parts/p14_electricity.py:436 `get_electricity_image` ← `/api/electricity/images/<int:image_id>` GET — Get electricity image data
-- app_parts/p14_electricity.py:449 `delete_electricity_image` ← `/api/electricity/images/<int:image_id>` DELETE — Delete electricity image
-- app_parts/p14_electricity.py:463 `get_electricity_analytics` ← `/api/electricity/analytics` GET — Get electricity analytics data for charts and comparisons
+## app_parts/p13_misc_railway.py (1349 lines)
+- app_parts/p13_misc_railway.py:5 `debug_local_postgres` ← `/debug/local_postgres` — Test local PostgreSQL connection for Railway sync
+- app_parts/p13_misc_railway.py:88 `debug_environment` ← `/debug/env` — Debug environment variables for Railway troubleshooting
+- app_parts/p13_misc_railway.py:127 `extract_meter_data_with_python_ocr` — Enhanced electricity meter OCR with visual debugging and improved accuracy
+- app_parts/p13_misc_railway.py:248 `preprocess_meter_image_debug` — Advanced preprocessing for Vietnamese electricity meters with debugging
+- app_parts/p13_misc_railway.py:347 `preprocess_meter_image` — Backward compatibility function - uses gentler preprocessing by default
+- app_parts/p13_misc_railway.py:374 `parse_vietnamese_meter_text` — Parse Vietnamese electricity meter text to extract key information
+- app_parts/p13_misc_railway.py:473 `parse_vietnamese_meter_text_enhanced` — Enhanced parsing for Vietnamese electricity meters with better accuracy
+- app_parts/p13_misc_railway.py:621 `parse_vietnamese_meter_text_enhanced_debug` — Enhanced parsing for Vietnamese electricity meters with comprehensive debugging
+- app_parts/p13_misc_railway.py:849 `extract_meter_data_with_deepseek` — Extract electricity meter data using GPT-4o Mini (vision) via OpenRouter API
+- app_parts/p13_misc_railway.py:1044 `parse_deepseek_fallback_response` — Fallback parser when DeepSeek doesn't return valid JSON
+- app_parts/p13_misc_railway.py:1087 `extract_meter_data_with_openrouter` — Extract electricity meter data using various free models via OpenRouter API
+- app_parts/p13_misc_railway.py:1198 `extract_meter_data_with_multi_api` — Extract electricity meter data using multiple APIs with automatic fallback
 
 ## app_parts/p15_moi.py (837 lines)
 _p15_moi — /moi: the new phone-first app (owner, Oct 26), built from the approved mockup. Runs NEXT TO the old pages_
@@ -497,12 +318,6 @@ _p16_staff — 👥 Nhân viên (owner, Nov 6): the cleaners talk to the Zalo bo
 - core/comprehensive_import.py:641 `save_to_database` — Save all imported data to PostgreSQL database using Flask-aware database module
 - core/comprehensive_import.py:679 `main` — Main execution function - Ultra Think Optimization
 
-## core/crawl_service.py (429 lines)
-- core/crawl_service.py:38 class `ProfileCrawler` — Browser profile management for authenticated crawling
-- core/crawl_service.py:112 class `FirecrawlService` — Firecrawl API integration for content extraction
-- core/crawl_service.py:159 class `BookingCrawler` — Main booking data crawler with AI integration
-- core/crawl_service.py:312 class `CrawlIntegration` — Integration point for Flask application
-
 ## core/dashboard_routes.py (1811 lines)
 - core/dashboard_routes.py:11 `safe_to_dict_records` — Safely convert DataFrame to dict records, handling duplicate columns and undefined values
 - core/dashboard_routes.py:51 `process_dashboard_data` — Xử lý dữ liệu dashboard phức tạp
@@ -539,9 +354,6 @@ _p16_staff — 👥 Nhân viên (owner, Nov 6): the cleaners talk to the Zalo bo
 - core/database_service_postgresql.py:773 `get_database_service` — Get the database service instance
 - core/database_service_postgresql.py:786 `get_use_postgresql` — Always return True - PostgreSQL only
 - core/database_service_postgresql.py:790 `get_primary_backend` — Always return postgresql
-
-## core/electricity_service.py (444 lines)
-- core/electricity_service.py:19 class `ElectricityService` — Service class for electricity management operations
 
 ## core/journey.py (327 lines)
 - core/journey.py:62 `ensure` — Create the tables / columns once per process and seed the first mapping.
@@ -653,14 +465,6 @@ _p16_staff — 👥 Nhân viên (owner, Nov 6): the cleaners talk to the Zalo bo
 - core/optimized_railway_crawler.py:184 class `CircuitBreaker` — Circuit breaker pattern for service reliability
 - core/optimized_railway_crawler.py:227 class `OptimizedRailwayCrawler` — 100% Performance Railway Crawling Service
 
-## core/performance_dashboard.py (440 lines)
-- core/performance_dashboard.py:14 `get_crawl_performance` ← `/api/crawl_performance` GET — Get real-time crawling performance metrics
-- core/performance_dashboard.py:63 `performance_dashboard` ← `/performance_dashboard` — HTML dashboard for performance monitoring
-- core/performance_dashboard.py:389 `_get_optimization_recommendations` — Generate optimization recommendations based on performance data
-
-## core/railway_crawl_service.py (448 lines)
-- core/railway_crawl_service.py:19 class `RailwayCrawlService` — Railway-compatible crawling service with multiple cloud-optimized methods
-
 ## core/revenue.py (388 lines)
 - core/revenue.py:35 `vn_today`
 - core/revenue.py:39 `_f`
@@ -714,142 +518,22 @@ _p16_staff — 👥 Nhân viên (owner, Nov 6): the cleaners talk to the Zalo bo
 
 # Templates (inline JS functions)
 
-## templates/add_booking.html (4914 lines)
-- templates/add_booking.html: 634 `loadRoomsFromDB` · 670 `_buildRoomOptionsHTML` · 689 `buildAllDropdowns` · 704 `resolveAccommodation` · 710 `smartMatchRoom` · 716 `selectMode` · 752 `setupManualMode` · 787 `displayManualImage`
-- templates/add_booking.html: 811 `showManualProcessingOptions` · 835 `processManualImage` · 909 `parseMoneyInput` · 917 `formatMoneyDisplay` · 924 `setupMoneyInputFormatting` · 954 `handleManualFormSubmit` · 1012 `checkManualRoomConflictLive` · 1072 `toggleJSONImport`
-- templates/add_booking.html: 1087 `copyExtractionPrompt` · 1104 `focusJSONInput` · 1119 `importJSONBookings` · 1222 `showExtractedBookingsTable` · 1375 `showMultipleBookingsOption` · 1384 `fillManualFormWithData` · 1434 `selectApartment` · 1484 `saveExtractedBookingsToSession`
-- templates/add_booking.html: 1493 `loadExtractedBookingsFromSession` · 1514 `clearExtractedBookingsSession` · 1524 `testPhotoUpload` · 1542 `fixPhotoUpload` · 1582 `nuclearFixPhotoUpload` · 1623 `initPhotoUploadImmediate` · 1786 `testPhotoUpload` · 1803 `fixPhotoUpload`
-- templates/add_booking.html: 1852 `processPhoto` · 1970 `showAIAnalysisResults` · 2038 `showFilteredBookings` · 2068 `showDuplicateAnalysis` · 2134 `addBulkActionButtons` · 2187 `bulkKeepAll` · 2204 `bulkReplaceAll` · 2227 `bulkSkipAll`
-- templates/add_booking.html: 2244 `bulkSelectByConfidence` · 2278 `showReviewTable` · 2317 `checkExistingBookings` · 2380 `generateReviewTableHtml` · 2554 `resetPhotoUpload` · 2582 `updateBookingData` · 2610 `removeBookingRow` · 2635 `removeAllExistingBookings`
-- templates/add_booking.html: 2677 `addManualRow` · 2702 `validateBookings` · 2736 `loadRoomDropdown` · 2969 `clearForm` · 3021 `checkCrawlingCapabilities` · 3189 `updateGeneratedUrl` · 3354 `detectCrawledDuplicates` · 3405 `displayCrawlResults`
-- templates/add_booking.html: 3564 `fillFormWithBooking` · 3600 `saveBulkBookings` · 3610 `saveAllCrawledBookings` · 3675 `showTemporaryMessage` · 3697 `showDuplicateDetails` · 3743 `saveNonDuplicateBookings` · 3785 `clearSessionAfterSave` · 3795 `selectAllNewBookings`
-- templates/add_booking.html: 3818 `selectAllExtractedBookings` · 3842 `keepExtractedBooking` · 3879 `skipDuplicateBooking` · 3917 `replaceExistingBooking` · 4011 `updateDuplicateSummary` · 4041 `addPersistentNotification` · 4062 `updateNotificationPanel` · 4106 `clearAllNotifications`
-- templates/add_booking.html: 4112 `showQuickToast` · 4135 `showToast` · 4172 `initializeSelection` · 4179 `toggleSelectAll` · 4231 `updateSelection` · 4290 `updateSelectionControls` · 4300 `updateBulkActionButtons` · 4322 `getSelectedBookings`
-- templates/add_booking.html: 4336 `resetSelection` · 4352 `replaceSelectedBookings` · 4391 `clearAllSelections` · 4425 `initializeSelectionAfterTableGeneration` · 4455 `updateAccommodationName` · 4470 `updateAccommodationNameInResults` · 4489 `updateAIRoomType` · 4515 `updateAccommodationInReviewTable`
-- templates/add_booking.html: 4528 `syncRoomTypeSelectors` · 4562 `setupAISaveButtonHandler` · 4592 `handleSaveAllBookings` · 4669 `showAIFallbackSection` · 4681 `scrollToManualForm`
-
-## templates/ai_assistant.html (4003 lines)
-- templates/ai_assistant.html: 445 `showManualEntry` · 454 `hideManualEntry` · 1521 `selectImageFile` · 1527 `capturePhoto` · 1533 `toggleCustomInstructions` · 1558 `sendRAGQuery` · 1562 `ragQuickQuestion` · 1567 `saveCustomInstructions`
-- templates/ai_assistant.html: 1576 `clearCustomInstructions` · 1585 `loadSampleInstructions` · 1593 `startVoiceInstructions` · 1605 `populateCategoryDropdown` · 1642 `showAddTemplateModal` · 1661 `triggerImageUpload` · 1671 `triggerCameraUpload` · 1681 `removeImagePreview`
-- templates/ai_assistant.html: 1690 `handleImagePreview` · 1749 `addNewTemplate` · 1847 `finishAddTemplate` · 1865 `importFromSheets` · 1870 `exportToSheets` · 1875 `testSheetsConnection` · 1899 `loadSpecificTemplates` · 1903 `previewSelectedTemplate`
-- templates/ai_assistant.html: 1908 `copyResponseContent` · 1921 `copyPreviewContent` · 1941 `showImageModal` · 1957 `copyImageToClipboard` · 1981 `downloadImage` · 1990 `copyImageFromModal` · 2010 `downloadImageFromModal` · 2022 `editTemplateName`
-- templates/ai_assistant.html: 2045 `saveTemplateName` · 2104 `cancelEditTemplateName` · 2126 `handleTemplateNameKeypress` · 2141 `showAddImageModal` · 2159 `triggerExistingImageUpload` · 2166 `triggerExistingCameraUpload` · 2173 `removeExistingImagePreview` · 2181 `handleExistingImagePreview`
-- templates/ai_assistant.html: 2194 `uploadImageToExistingTemplate` · 2268 `handleImageFile` · 2279 `showImagePreview` · 2291 `removeImage` · 2314 `analyzeImage` · 2390 `displayAIResponse` · 2428 `copyToClipboard` · 2468 `loadTemplates`
-- templates/ai_assistant.html: 2516 `escapeHtml` · 2521 `foldVi` · 2527 `foldWithMap` · 2538 `highlightVi` · 2559 `makeSnippetVi` · 2573 `renderTemplates` · 2776 `initDragDrop` · 2817 `toggleMoveMode`
-- templates/ai_assistant.html: 2833 `changeTemplateCategory` · 2846 `moveTemplateToCategory` · 2882 `updateCategoryCounts` · 2894 `showDragToast` · 2915 `useTemplate` · 2971 `previewTemplate` · 3026 `deleteTemplate` · 3092 `showTemplateToast`
-- templates/ai_assistant.html: 3124 `toggleTemplateDetails` · 3206 `showToast` · 3243 `showMultiImageModal` · 3266 `loadCurrentTemplateImages` · 3335 `triggerMultiImageUpload` · 3340 `triggerMultiCameraUpload` · 3345 `removeNewImagePreview` · 3353 `uploadNewImageToTemplate`
-- templates/ai_assistant.html: 3400 `deleteTemplateImage` · 3438 `tplPrefetch` · 3446 `_tplFill` · 3450 `tplLoadVi` · 3461 `tplShareText` · 3472 `tplShareImages` · 3481 `_toPng` · 3489 `tplCopyImage`
-- templates/ai_assistant.html: 3498 `tplImgLost` · 3525 `loadTemplateImages` · 3606 `deleteLegacyImage` · 3716 `editTemplate` · 3746 `saveTemplateEdit` · 3811 `getRecentTemplateIds` · 3815 `rememberRecentTemplate` · 3825 `useTemplate`
-- templates/ai_assistant.html: 3833 `setTemplateCategory` · 3844 `expandTemplateChips` · 3849 `templateMatchesSearch` · 3856 `renderCategoryChips` · 3896 `filterTemplates` · 3955 `scheduleFilterTemplates` · 3960 `clearTemplateSearch` · 3968 `handleTemplateSearchKey`
-- templates/ai_assistant.html: 3994 `refreshTemplates`
-
-## templates/apartments.html (1081 lines)
-- templates/apartments.html: 488 `loadApartments` · 507 `displayApartments` · 591 `updateStats` · 599 `showAddApartmentModal` · 606 `saveNewApartment` · 645 `editApartment` · 675 `loadApartmentRooms` · 687 `displayRooms`
-- templates/apartments.html: 739 `startInlineEdit` · 793 `showRoomToast` · 809 `saveInlineEdit` · 858 `saveApartmentEdit` · 892 `toggleApartment` · 917 `showError` · 926 `escHtml` · 930 `startDeleteApartment`
-- templates/apartments.html: 966 `confirmDeleteApartment` · 1007 `showAddRoomForm` · 1021 `saveNewRoom` · 1057 `deleteRoom`
-
-## templates/base.html (652 lines)
-- templates/base.html: 568 `fastNavigate` · 580 `goToHome` · 592 `isPWAInstalled` · 610 `showInstallInstructions`
-
-## templates/bookings.html (3195 lines)
-- templates/bookings.html: 1096 `toggleDeleteButton` · 1216 `performDuplicateAnalysis` · 1282 `displayDuplicateResults` · 1524 `cancelBooking` · 1625 `showDuplicateDetail` · 1699 `showDuplicateComparison` · 1821 `cancelDuplicateBooking` · 1870 `deleteDuplicateBooking`
-- templates/bookings.html: 1875 `permanentlyDeleteBooking` · 1922 `updateBookingStatusInDisplay` · 1948 `removeDynamicallyBookingFromDisplay` · 1972 `updateBookingStatistics` · 2001 `showToast` · 2034 `showBookingDetails` · 2042 `compareBookings` · 2053 `refreshDuplicateAnalysis`
-- templates/bookings.html: 2078 `initializeProfessionalSearch` · 2128 `initializeProfessionalPagination` · 2148 `displaySearchStats` · 2172 `enhanceTableExperience` · 2198 `initializeDeleteFunctionality` · 2239 `updateDeleteButtonVisibility` · 2264 `cancelMultipleBookings` · 2319 `deleteMultipleBookings`
-- templates/bookings.html: 2328 `initializeFilterToggle` · 2398 `updateFilterView` · 2407 `cancelSelectedBookings` · 2430 `clearAllSelections` · 2450 `updateSelectedCount` · 2461 `hideBulkActions` · 2470 `showBulkActions` · 2479 `updateBulkActionsVisibility`
-- templates/bookings.html: 2491 `setupBulkSelectionListeners` · 2528 `updateFilterView` · 2564 `testAIDuplicateButton` · 2581 `testShowAllFilter` · 2592 `testShowActiveFilter` · 2604 `testAIAPI` · 2632 `forceOpenAIModal` · 2648 `testBulkCancellation`
-- templates/bookings.html: 2675 `checkAIButtonSetup` · 2704 `deleteBooking` · 2805 `loadIntegratedDuplicates` · 2855 `updateIntegratedStatistics` · 2885 `renderIntegratedDuplicateGroups` · 2983 `toggleIntegratedBookingSelection` · 3006 `updateIntegratedSelectedCount` · 3018 `selectAllIntegratedDuplicates`
-- templates/bookings.html: 3027 `deleteIntegratedSelectedBookings`
-
-## templates/calendar.html (2400 lines)
-- templates/calendar.html: 156 `loadVacancyBoard` · 1662 `toggleCanceledPanel` · 1691 `refreshCanceledGuests` · 1760 `displayCanceledGuests` · 1883 `getAISuggestions` · 1953 `displayAISuggestions` · 2113 `restoreBookingFromAI` · 2178 `restoreBooking`
-- templates/calendar.html: 2242 `deleteBooking` · 2319 `loadCanceledGuestsCount` · 2385 `filterByApartment`
-
-## templates/calendar_details.html (6031 lines)
-- templates/calendar_details.html: 147 `loadVbCd` · 229 `twoBrLine` · 239 `twoBrWatch` · 1554 `loadVac` · 1566 `paint` · 1574 `sortSection` · 1604 `applyFilter` · 1611 `render`
-- templates/calendar_details.html: 1656 `tile` · 1665 `cdAptOverview` · 3408 `quickCancelCalendarGuest` · 3437 `loadMonthlyCalendarForPage` · 3450 `renderCompactCalendarForPage` · 3491 `loadAptNotifyBar` · 3589 `confirmPlacementCapacity` · 3610 `cdApplyAptUI`
-- templates/calendar_details.html: 3677 `setApt` · 3711 `toggleAptPicker` · 3717 `markTwoBedroomCards` · 3747 `toggleTwoBedroom` · 4160 `loadEditRoomDropdown` · 4217 `navigateToDate` · 4223 `openQuickEditModal` · 4269 `saveQuickEdit`
-- templates/calendar_details.html: 4319 `showPayCollect` · 4333 `showAmountEdit` · 4349 `confirmAmount` · 4361 `showCollectors` · 4375 `toggleHiddenPanel` · 4383 `openHiddenModal` · 4389 `closeHiddenModal` · 4393 `loadHiddenGuests`
-- templates/calendar_details.html: 4433 `restoreGuestModal` · 4457 `restoreGuest` · 4496 `markNoShow` · 4529 `collectRemaining` · 4538 `resetPay` · 4546 `doCollect` · 4610 `showCalToast` · 4623 `_statusKey`
-- templates/calendar_details.html: 4626 `_saveStatusToDB` · 4635 `_refreshOccupancyBoards` · 4642 `_applyStatus` · 4678 `toggleGuestStatus` · 4725 `openCancelNotify` · 4738 `closeCancelNotify` · 4742 `copyCancelMsg` · 4765 `groupSection`
-- templates/calendar_details.html: 4795 `updateCheckinBadge` · 4817 `cdPaintContact` · 4839 `cdToggleContacted` · 4855 `cdSyncFromDB` · 4952 `recalculateRevenue` · 5037 `showLateArrival` · 5064 `pickLateHour` · 5074 `saveLateArrival`
-- templates/calendar_details.html: 5095 `clearLateArrival` · 5118 `showLateArrivalBadge` · 5148 `loadArrivalTimes` · 5313 `openGlobalHistory` · 5320 `loadGlobalHistory` · 5346 `filterHistoryList` · 5361 `renderHistoryList` · 5423 `closeHistoryModal`
-- templates/calendar_details.html: 5427 `askDeleteHistory` · 5435 `closePasswordModal` · 5440 `confirmDeleteHistory` · 5486 `openExtendModal` · 5506 `adjustNights` · 5512 `setNights` · 5517 `recalcExtend` · 5541 `formatDateVN`
-- templates/calendar_details.html: 5547 `confirmExtendStay` · 5583 `showQuickToast` · 5674 `copyText` · 5732 `listRow` · 5755 `cdListRows` · 5762 `setMode` · 5772 `cdMode` · 5787 `passXf`
-- templates/calendar_details.html: 5794 `applyView` · 5826 `cdAfterFilter` · 5827 `sheet` · 5902 `renderPair`
-
-## templates/crawl_bookings.html (404 lines)
-- templates/crawl_bookings.html: 335 `displayResults`
-
-## templates/dashboard.html (526 lines)
-- templates/dashboard.html: 178 `loadOverview` · 200 `renderMonthPicker` · 208 `shiftMonth` · 216 `render` · 331 `setCalMode` · 338 `heat` · 344 `renderCalendar` · 389 `selectDay`
-- templates/dashboard.html: 398 `renderDayDetail` · 433 `renderChart` · 476 `renderApartments` · 491 `renderCollectors`
-
-## templates/debug_collector_comparison.html (551 lines)
-- templates/debug_collector_comparison.html: 215 `runComparison` · 257 `displayResults` · 283 `populateComparisonTable` · 321 `populateMethodDetails` · 344 `populateGuestDetails` · 392 `getDifferenceClass` · 398 `showError` · 403 `deleteDebugFile`
-- templates/debug_collector_comparison.html: 409 `runJuneSpecificDebug` · 439 `displayJuneSpecificResults`
-
-## templates/desk.html (1322 lines)
+## templates/desk.html (1314 lines)
 - templates/desk.html: 304 `load` · 317 `loadRev` · 330 `needRev` · 348 `D.tab` · 349 `D.set` · 350 `D.q` · 351 `D.reload` · 353 `D.shift`
 - templates/desk.html: 359 `D.toToday` · 360 `D.open` · 361 `D.openDay` · 362 `D.close` · 363 `closeDrawer` · 364 `D.closeModal` · 367 `D.place` · 372 `D.room`
-- templates/desk.html: 379 `D.confirm` · 412 `D.zbotResend` · 421 `D.cleanCopy` · 422 `D.cancel` · 428 `D.mark` · 432 `D.status` · 436 `D.dayuse` · 440 `D.unreach`
-- templates/desk.html: 441 `D.replied` · 442 `D.phone` · 449 `D.send` · 450 `D.pickApt` · 451 `D.quick` · 452 `D.photo` · 453 `D.chatPhone` · 454 `D.renameRoom`
-- templates/desk.html: 462 `D.pickG` · 463 `D.auto` · 478 `D.payOpen` · 479 `D.collect` · 488 `D.partial` · 490 `D.undoPay` · 493 `D.payCycle` · 503 `D.edit`
-- templates/desk.html: 505 `D.extN` · 509 `D.splitApt` · 515 `D.extTyped` · 516 `D.editCalc` · 543 `D.editSave` · 578 `D.remind` · 579 `D.remPreset` · 582 `D.remSet`
-- templates/desk.html: 583 `D.remSave` · 590 `D.remDone` · 594 `D.add` · 595 `D.addSave` · 610 `render` · 619 `renderSide` · 645 `renderTop` · 674 `viewToday`
-- templates/desk.html: 733 `dayCard` · 765 `viewDay` · 822 `D.uncancel` · 831 `viewCal` · 951 `renderPick` · 959 `viewMsg` · 999 `viewPay` · 1039 `D.payQuick`
-- templates/desk.html: 1045 `viewRev` · 1116 `D.revMonth` · 1117 `D.revDay` · 1118 `D.goDay` · 1119 `drawRevCharts` · 1142 `renderDrawer` · 1148 `guestCard` · 1208 `dayPanel`
-- templates/desk.html: 1229 `renderModal` · 1290 `D.mset` · 1291 `D.extOpen` · 1307 `check`
+- templates/desk.html: 379 `D.confirm` · 412 `D.zbotResend` · 419 `D.cleanCopy` · 420 `D.cancel` · 426 `D.mark` · 430 `D.status` · 434 `D.dayuse` · 438 `D.unreach`
+- templates/desk.html: 439 `D.replied` · 440 `D.phone` · 447 `D.send` · 448 `D.pickApt` · 449 `D.quick` · 450 `D.photo` · 451 `D.chatPhone` · 452 `D.renameRoom`
+- templates/desk.html: 460 `D.pickG` · 461 `D.auto` · 476 `D.payOpen` · 477 `D.collect` · 486 `D.partial` · 488 `D.undoPay` · 491 `D.payCycle` · 501 `D.edit`
+- templates/desk.html: 503 `D.extN` · 507 `D.splitApt` · 513 `D.extTyped` · 514 `D.editCalc` · 541 `D.editSave` · 576 `D.remind` · 577 `D.remPreset` · 580 `D.remSet`
+- templates/desk.html: 581 `D.remSave` · 588 `D.remDone` · 592 `D.add` · 593 `D.addSave` · 608 `render` · 617 `renderSide` · 637 `renderTop` · 666 `viewToday`
+- templates/desk.html: 725 `dayCard` · 757 `viewDay` · 814 `D.uncancel` · 823 `viewCal` · 943 `renderPick` · 951 `viewMsg` · 991 `viewPay` · 1031 `D.payQuick`
+- templates/desk.html: 1037 `viewRev` · 1108 `D.revMonth` · 1109 `D.revDay` · 1110 `D.goDay` · 1111 `drawRevCharts` · 1134 `renderDrawer` · 1140 `guestCard` · 1200 `dayPanel`
+- templates/desk.html: 1221 `renderModal` · 1282 `D.mset` · 1283 `D.extOpen` · 1299 `check`
 
-## templates/duplicate_management.html (710 lines)
-- templates/duplicate_management.html: 196 `loadDuplicates` · 295 `updateStatistics` · 329 `renderDuplicateGroups` · 475 `toggleBookingSelection` · 506 `updateSelectedCount` · 521 `selectAllDuplicates` · 534 `deleteSelectedBookings` · 582 `showComparison`
-- templates/duplicate_management.html: 684 `showGuestFilterIndicator` · 695 `hideGuestFilterIndicator` · 703 `clearGuestFilter`
+## templates/journey_settings.html (231 lines)
+- templates/journey_settings.html: 79 `load` · 88 `renderButtons` · 141 `options` · 151 `rowHtml` · 165 `render` · 178 `bind` · 210 `shrink`
 
-## templates/edit_booking.html (394 lines)
-- (no named functions)
-
-## templates/electricity_calculator.html (1750 lines)
-- templates/electricity_calculator.html: 594 `handleFileUpload` · 651 `uploadAndProcessImage` · 904 `removeImage` · 922 `generateExtractionCode` · 936 `showCodeGenerationModal` · 996 `generateAutomaticCode` · 1079 `copyGeneratedCode` · 1095 `executeGeneratedCode`
-- templates/electricity_calculator.html: 1127 `addManualData` · 1222 `editMeterId` · 1278 `validateImageDataAssociation` · 1309 `showOCRDebug` · 1415 `calculateElectricity` · 1470 `displayResults` · 1536 `drawComparisonChart` · 1635 `showError`
-- templates/electricity_calculator.html: 1644 `showSuccess` · 1654 `openImageModal` · 1690 `saveToDatabase`
-
-## templates/electricity_management.html (1418 lines)
-- templates/electricity_management.html: 707 `loadDashboardStats` · 723 `loadMeters` · 742 `displayMeters` · 779 `loadReadings` · 804 `displayReadings` · 838 `loadBills` · 856 `displayBills` · 890 `populateMeterSelects`
-- templates/electricity_management.html: 899 `saveMeter` · 937 `saveReading` · 975 `createBill` · 1010 `performSearch` · 1034 `refreshMeters` · 1035 `refreshReadings` · 1036 `refreshBills` · 1039 `formatDate`
-- templates/electricity_management.html: 1044 `showEmptyState` · 1061 `loadAnalytics` · 1083 `displayAnalyticsSummary` · 1114 `createMonthlyChart` · 1224 `createMeterDistributionChart` · 1270 `createTopMetersChart` · 1318 `displayMonthlyTable` · 1362 `updateChartPeriod`
-- templates/electricity_management.html: 1366 `refreshAnalytics` · 1371 `exportToExcel` · 1380 `exportToPDF` · 1384 `exportChart` · 1394 `generateReport` · 1399 `viewMeter` · 1400 `editMeter` · 1401 `deleteMeter`
-- templates/electricity_management.html: 1407 `viewReading` · 1408 `editReading` · 1409 `deleteReading` · 1415 `viewBill` · 1416 `editBill`
-
-## templates/expenses.html (3491 lines)
-- templates/expenses.html: 829 `forceCloseModal` · 880 `clearAllModalBackdrops` · 910 `addEmergencyModalButton` · 962 `loadMonthlyExpenses` · 1076 `prepareExpenseModal` · 1108 `addExpense` · 1259 `previewExpenseImage` · 1274 `analyzeExpenseImage`
-- templates/expenses.html: 1319 `displayExtractedExpenses` · 1355 `validateExpenseJSON` · 1404 `saveExpenseFromActiveTab` · 1417 `saveBulkExpenses` · 1479 `copyExpensePromptToClipboard` · 1600 `loadExpenseOverview` · 1629 `displayExpenseOverview` · 1715 `updateCounterAnimation`
-- templates/expenses.html: 1727 `filterExpenseTable` · 1772 `clearExpenseFilters` · 1783 `filterByToday` · 1790 `filterByYesterday` · 1799 `filterByThisWeek` · 1816 `filterByThisMonth` · 1824 `filterByLastMonth` · 1834 `editExpenseDate`
-- templates/expenses.html: 1894 `saveExpenseDate` · 1937 `bulkEditDates` · 2009 `saveBulkDates` · 2074 `updateTodayStats` · 2098 `toggleExpenseSelection` · 2108 `toggleSelectAll` · 2129 `updateSelectAllCheckbox` · 2136 `updateBulkActionToolbar`
-- templates/expenses.html: 2148 `clearBulkSelection` · 2159 `quickCategorize` · 2186 `bulkCategorize` · 2235 `bulkDeleteExpenses` · 2276 `deleteExpenseFromOverview` · 2300 `renderExpenseCalendar` · 2416 `changeCalendarMonth` · 2424 `showDayExpenses`
-- templates/expenses.html: 2437 `loadMonthlyBudget` · 2446 `updateMonthlyBudget` · 2486 `getWeeksInMonth` · 2515 `calculateWeeklySpending` · 2555 `redistributeBudget` · 2625 `renderWeeklyBudgetBreakdown` · 2767 `loadExpenseReview` · 2833 `renderExpenseList`
-- templates/expenses.html: 2905 `generateCategorySection` · 3005 `updateSummary` · 3040 `showNoDataMessage` · 3054 `showErrorMessage` · 3069 `categorizeSelected` · 3125 `selectAllExpenses` · 3141 `clearAllSelections` · 3157 `toggleSelectAll`
-- templates/expenses.html: 3169 `updateSelectedCount` · 3195 `showExpenseToast` · 3232 `fixExpenseDescriptions` · 3276 `editExpense` · 3330 `saveExpenseEdit` · 3384 `deleteExpense` · 3447 `showExpenseToast` · 3482 `showDashboardToast`
-
-## templates/homestay_setup.html (1455 lines)
-- templates/homestay_setup.html: 781 `loadProperties` · 794 `displayProperties` · 835 `selectProperty` · 851 `showAddPropertyModal` · 857 `addProperty` · 893 `loadPurchases` · 907 `displayPurchases` · 976 `showAddPurchaseModal`
-- templates/homestay_setup.html: 987 `addPurchase` · 1030 `editPurchase` · 1063 `updatePurchase` · 1106 `deletePurchase` · 1135 `loadAnalytics` · 1155 `filterByCategory` · 1169 `formatCurrency` · 1177 `getCategoryIcon`
-- templates/homestay_setup.html: 1191 `getStatusBadge` · 1201 `showToast` · 1215 `uploadImages` · 1254 `loadImages` · 1271 `displayImages` · 1335 `convertImageToPurchase` · 1358 `viewImageDetail` · 1426 `deleteImage`
-- templates/homestay_setup.html: 1451 `searchImages`
-
-## templates/journey_settings.html (227 lines)
-- templates/journey_settings.html: 76 `load` · 85 `renderButtons` · 138 `options` · 148 `rowHtml` · 162 `render` · 175 `bind` · 207 `shrink`
-
-## templates/messages.html (1309 lines)
-- templates/messages.html: 641 `toast` · 652 `MsgPay.asked` · 659 `MsgPay.claim` · 672 `MsgPay.note` · 679 `MsgPay.skip` · 693 `MsgPay.filter` · 695 `MsgPay.jump` · 696 `MsgPay.paid`
-- templates/messages.html: 744 `MsgPay.collect` · 816 `open` · 840 `close` · 841 `status` · 846 `pasteFromClipboard` · 861 `loadTesseract` · 871 `prepare` · 887 `addImages`
-- templates/messages.html: 911 `ocrLines` · 919 `saveShot` · 945 `showForm` · 971 `save` · 1005 `open` · 1022 `close` · 1023 `status` · 1024 `read`
-- templates/messages.html: 1043 `draw` · 1066 `save` · 1090 `refresh` · 1128 `applyRoom` · 1160 `applyFilter` · 1183 `MsgAct.aptSheet` · 1200 `MsgAct.room` · 1208 `MsgAct.filter`
-- templates/messages.html: 1214 `MsgAct.mark` · 1224 `MsgAct.cancel` · 1244 `MsgAct.confirm` · 1259 `MsgAct.unreach` · 1272 `MsgAct.phone` · 1292 `stamp`
-
-## templates/mobile_payment.html (893 lines)
-- templates/mobile_payment.html: 484 `cardCls` · 490 `dateBadge` · 498 `renderDates` · 557 `toISO` · 564 `openSheet` · 583 `closeSheet` · 588 `pick` · 594 `tickTs`
-- templates/mobile_payment.html: 601 `doConfirm` · 642 `showToast` · 649 `loadHistory` · 696 `switchTab` · 705 `changeOffset` · 707 `loadAnalytics` · 812 `openDetail` · 873 `closeDetail`
-
-## templates/moi.html (1224 lines)
+## templates/moi.html (1223 lines)
 - templates/moi.html: 211 `M_staffBadge` · 215 `load` · 294 `M.reload` · 295 `M.tab` · 296 `M.set` · 297 `M.day` · 298 `M.open` · 299 `M.close`
 - templates/moi.html: 300 `M.add` · 301 `M.addSave` · 314 `M.place` · 319 `M.room` · 326 `M.confirm` · 360 `M.cleanLink` · 363 `M.staffLoad` · 365 `M.staffOpen`
 - templates/moi.html: 366 `M.staffRe` · 367 `M.calOpen` · 368 `M.stfSet` · 371 `M.st` · 387 `M.cleanSetup` · 389 `M.zbotLoad` · 391 `M.zbTokSet` · 392 `M.zbotSave`
@@ -858,8 +542,8 @@ _p16_staff — 👥 Nhân viên (owner, Nov 6): the cleaners talk to the Zalo bo
 - templates/moi.html: 457 `M.etaSave` · 480 `M.phone` · 487 `M.send` · 488 `M.pickApt` · 489 `M.quick` · 491 `M.photo` · 492 `M.chatPhone` · 499 `M.edit`
 - templates/moi.html: 501 `M.extN` · 505 `M.splitApt` · 511 `M.extTyped` · 512 `M.editCalc` · 540 `M.editSave` · 574 `M.payOpen` · 575 `M.collect` · 583 `M.partial`
 - templates/moi.html: 585 `M.undoPay` · 588 `M.payCycle` · 593 `M.pickG` · 594 `M.auto` · 609 `render` · 618 `renderNav` · 627 `renderFloat` · 643 `viewDay`
-- templates/moi.html: 745 `viewCal` · 845 `M.cal` · 849 `msgCard` · 879 `viewMsg` · 915 `M.aptSheetOpen` · 928 `viewPay` · 970 `renderSheet` · 1192 `S_set`
-- templates/moi.html: 1193 `renderSheetPub` · 1194 `S_put` · 1209 `check`
+- templates/moi.html: 744 `viewCal` · 844 `M.cal` · 848 `msgCard` · 878 `viewMsg` · 914 `M.aptSheetOpen` · 927 `viewPay` · 969 `renderSheet` · 1191 `S_set`
+- templates/moi.html: 1192 `renderSheetPub` · 1193 `S_put` · 1208 `check`
 
 ## templates/quick.html (350 lines)
 - templates/quick.html: 152 `toast` · 157 `go` · 165 `copyNow` · 173 `sendText` · 178 `copyText` · 179 `sendImgs` · 190 `setIn` · 212 `takeOut`

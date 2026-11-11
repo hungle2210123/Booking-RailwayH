@@ -1,29 +1,20 @@
-# p02_pages_extension — page shells (/, dashboard, expenses, apartments), dashboard API, Chrome extension import/save, photo import, phone from extension
-# Part of app.py (lines 1427-2140 before the Oct 25 split). Runs inside app.py's namespace
-# (see the loader at the end of app.py): every name defined in app.py and earlier parts is available here.
-@app.route('/apartments')
-def apartment_management():
-    """Apartment management page"""
-    return render_template('apartments.html')
 
 _PHONE_UA = ('iphone', 'android', 'mobile', 'ipod')
 
 
 @app.route('/')
 def index():
-    """Opening the app: on a computer the desktop app /may-tinh is the main page (owner, Oct 30); on a phone, TODAY's
-    day page as before (owner, Oct 25). /hom-nay always opens the old day page."""
+    """Opening the app: computer → /may-tinh, phone → /moi. The old pages were removed (owner, Nov 11: "xóa toàn bộ
+    phiên bản cũ", only Tin nhanh kept) — their old addresses (bookmarks) land here too."""
     ua = (request.headers.get('User-Agent') or '').lower()
-    if not any(k in ua for k in _PHONE_UA):
-        return redirect(url_for('desk_page'))
-    return today_page()
+    return redirect('/moi' if any(k in ua for k in _PHONE_UA) else url_for('desk_page'))
 
 
-@app.route('/hom-nay')
-def today_page():
-    """TODAY's day page (calendar_details) — Vietnam date, the server runs UTC."""
-    from core.occupancy import vn_today
-    return redirect(url_for('calendar_details', date_str=vn_today().isoformat()))
+for _old in ('/hom-nay', '/dashboard', '/bookings', '/calendar/', '/calendar/<path:_x>', '/calendar_details/<path:_x>',
+             '/messages', '/expenses', '/apartments', '/ai_assistant', '/booking/<path:_x>', '/mobile_payment',
+             '/electricity', '/homestay_setup', '/duplicate_management'):
+    app.add_url_rule(_old, 'old_' + re.sub(r'\W+', '_', _old), lambda **_k: index())
+
 
 @app.route('/extension.zip')
 def extension_zip():
@@ -57,19 +48,6 @@ def extension_info():
         return jsonify({'success': True, 'version': m.get('version', ''), 'name': m.get('name', '')})
     except Exception:
         return jsonify({'success': False}), 404
-
-
-@app.route('/dashboard')
-def dashboard():
-    """Revenue & collection overview. All numbers come from /api/dashboard/overview
-    (rules in core/revenue.py) so every figure on the page uses the same definition."""
-    return render_template('dashboard.html')
-
-
-@app.route('/expenses')
-def expenses_page():
-    """Expense entry / overview (moved out of the old dashboard)."""
-    return render_template('expenses.html')
 
 
 @app.route('/api/dashboard/overview')
