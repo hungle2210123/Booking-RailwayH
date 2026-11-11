@@ -536,20 +536,20 @@ _p16_staff — 👥 Nhân viên (owner, Nov 6): the cleaners talk to the Zalo bo
 ## templates/journey_settings.html (231 lines)
 - templates/journey_settings.html: 79 `load` · 88 `renderButtons` · 141 `options` · 151 `rowHtml` · 165 `render` · 178 `bind` · 210 `shrink`
 
-## templates/moi.html (1212 lines)
-- templates/moi.html: 211 `M_staffBadge` · 215 `load` · 294 `M.reload` · 295 `M.tab` · 296 `M.set` · 297 `M.day` · 298 `M.open` · 299 `M.close`
-- templates/moi.html: 300 `M.add` · 301 `M.addSave` · 314 `M.place` · 319 `M.room` · 326 `M.confirm` · 360 `M.cleanLink` · 363 `M.staffLoad` · 365 `M.staffOpen`
-- templates/moi.html: 366 `M.staffRe` · 367 `M.calOpen` · 368 `M.stfSet` · 371 `M.st` · 388 `M.cleanSetup` · 390 `M.zbotLoad` · 392 `M.zbTokSet` · 393 `M.zbotSave`
-- templates/moi.html: 394 `M.zbot` · 405 `M.zbotResend` · 412 `M.cleanCopy` · 413 `M.cancel` · 419 `M.mark` · 423 `M.status` · 425 `M.dayuse` · 429 `M.copyPhone`
-- templates/moi.html: 430 `M.unreach` · 431 `M.renameRoom` · 439 `M.calDone` · 440 `M.remind` · 442 `M.eta` · 443 `M.remPreset` · 446 `M.remSave` · 455 `M.remDone`
-- templates/moi.html: 458 `M.etaSave` · 481 `M.phone` · 488 `M.send` · 489 `M.pickApt` · 490 `M.quick` · 492 `M.photo` · 493 `M.chatPhone` · 500 `M.edit`
-- templates/moi.html: 502 `M.extN` · 506 `M.splitApt` · 512 `M.extTyped` · 513 `M.editCalc` · 541 `M.editSave` · 575 `M.payOpen` · 576 `M.collect` · 584 `M.partial`
-- templates/moi.html: 586 `M.undoPay` · 589 `M.payCycle` · 594 `M.pickG` · 595 `M.auto` · 610 `render` · 619 `renderNav` · 628 `renderFloat` · 644 `viewDay`
-- templates/moi.html: 745 `viewCal` · 845 `M.cal` · 849 `msgCard` · 879 `viewMsg` · 915 `M.aptSheetOpen` · 928 `viewPay` · 970 `renderSheet` · 1197 `S_set`
-- templates/moi.html: 1198 `renderSheetPub` · 1199 `S_put`
+## templates/moi.html (1218 lines)
+- templates/moi.html: 217 `M_staffBadge` · 221 `load` · 300 `M.reload` · 301 `M.tab` · 302 `M.set` · 303 `M.day` · 304 `M.open` · 305 `M.close`
+- templates/moi.html: 306 `M.add` · 307 `M.addSave` · 320 `M.place` · 325 `M.room` · 332 `M.confirm` · 366 `M.cleanLink` · 369 `M.staffLoad` · 371 `M.staffOpen`
+- templates/moi.html: 372 `M.staffRe` · 373 `M.calOpen` · 374 `M.stfSet` · 377 `M.st` · 394 `M.cleanSetup` · 396 `M.zbotLoad` · 398 `M.zbTokSet` · 399 `M.zbotSave`
+- templates/moi.html: 400 `M.zbot` · 411 `M.zbotResend` · 418 `M.cleanCopy` · 419 `M.cancel` · 425 `M.mark` · 429 `M.status` · 431 `M.dayuse` · 435 `M.copyPhone`
+- templates/moi.html: 436 `M.unreach` · 437 `M.renameRoom` · 445 `M.calDone` · 446 `M.remind` · 448 `M.eta` · 449 `M.remPreset` · 452 `M.remSave` · 461 `M.remDone`
+- templates/moi.html: 464 `M.etaSave` · 487 `M.phone` · 494 `M.send` · 495 `M.pickApt` · 496 `M.quick` · 498 `M.photo` · 499 `M.chatPhone` · 506 `M.edit`
+- templates/moi.html: 508 `M.extN` · 512 `M.splitApt` · 518 `M.extTyped` · 519 `M.editCalc` · 547 `M.editSave` · 581 `M.payOpen` · 582 `M.collect` · 590 `M.partial`
+- templates/moi.html: 592 `M.undoPay` · 595 `M.payCycle` · 600 `M.pickG` · 601 `M.auto` · 616 `render` · 625 `renderNav` · 634 `renderFloat` · 650 `viewDay`
+- templates/moi.html: 751 `viewCal` · 851 `M.cal` · 855 `msgCard` · 885 `viewMsg` · 921 `M.aptSheetOpen` · 934 `viewPay` · 976 `renderSheet` · 1203 `S_set`
+- templates/moi.html: 1204 `renderSheetPub` · 1205 `S_put`
 
-## templates/quick.html (351 lines)
-- templates/quick.html: 152 `toast` · 157 `go` · 165 `copyNow` · 173 `sendText` · 178 `copyText` · 179 `sendImgs` · 190 `setIn` · 212 `takeOut`
-- templates/quick.html: 216 `openPicker` · 227 `closePicker` · 228 `drawPicker` · 247 `openNew` · 256 `renameIt` · 263 `openEdit` · 279 `closeEdit` · 280 `saveEdit`
-- templates/quick.html: 319 `addGroup` · 327 `renameGroup` · 334 `deleteGroup`
+## templates/quick.html (357 lines)
+- templates/quick.html: 158 `toast` · 163 `go` · 171 `copyNow` · 179 `sendText` · 184 `copyText` · 185 `sendImgs` · 196 `setIn` · 218 `takeOut`
+- templates/quick.html: 222 `openPicker` · 233 `closePicker` · 234 `drawPicker` · 253 `openNew` · 262 `renameIt` · 269 `openEdit` · 285 `closeEdit` · 286 `saveEdit`
+- templates/quick.html: 325 `addGroup` · 333 `renameGroup` · 340 `deleteGroup`
 

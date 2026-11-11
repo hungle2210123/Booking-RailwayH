@@ -2,7 +2,7 @@
 <html lang="vi">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
 <title>Tin nhanh</title>
 <!-- iPhone: Safari → Chia sẻ → "Thêm vào MH chính" = an app icon that opens this page full screen -->
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -14,6 +14,12 @@
 <link rel="icon" href="{{ asset('images/quick-icon-180.png') }}">
 <link rel="manifest" href="/tin-nhanh.webmanifest">
 <style>
+/* iPhone zoom lock (owner, Nov 11: "thanh tab xịt lên xịt xuống, trang trượt qua lại"): Safari zooms the whole page
+   when an input with text under 16px gets focus and stays zoomed → the page pans sideways and the fixed tab bar drifts.
+   Every field is 16px on phones, pinch / double-tap zoom is off, and nothing can scroll the page sideways. */
+html{touch-action:pan-x pan-y}
+body{overflow-x:clip;overscroll-behavior-x:none}
+@media (max-width:900px){input,textarea,select{font-size:16px!important}}
   /* Calm on purpose (owner, Oct 18 "tối giản, đừng màu mè"): white cards, grey lines, one dark colour for the
      main action. No per-group colours. */
   :root { --ink:#111827; --muted:#6b7280; --line:#e5e7eb; --bg:#f6f7f9; --soft:#f3f4f6; }

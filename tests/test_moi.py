@@ -557,3 +557,12 @@ def test_auto_update_on_every_app_page(client, url):
     if node:
         js = os.path.join(os.path.dirname(__file__), '..', 'static', 'js', 'autoupdate.js')
         assert subprocess.run([node, '--check', js]).returncode == 0
+
+
+@pytest.mark.parametrize('url', ['/moi', '/tin-nhanh'])
+def test_iphone_zoom_lock(client, url):
+    """Owner, Nov 11: focusing a field with text under 16px made the iPhone zoom the page and keep it zoomed → the page
+    slid sideways and the bottom tab bar drifted. Phone pages lock the zoom and force 16px fields."""
+    html = client.get(url).get_data(as_text=True)
+    assert 'maximum-scale=1' in html and 'input,textarea,select{font-size:16px!important}' in html
+    assert 'touch-action:pan-x pan-y' in html

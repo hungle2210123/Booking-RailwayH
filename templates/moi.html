@@ -2,13 +2,19 @@
 <html lang="vi">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#0E1525">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <title>Hotel Pro — giao diện mới</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
+/* iPhone zoom lock (owner, Nov 11: "thanh tab xịt lên xịt xuống, trang trượt qua lại"): Safari zooms the whole page
+   when an input with text under 16px gets focus and stays zoomed → the page pans sideways and the fixed tab bar drifts.
+   Every field is 16px on phones, pinch / double-tap zoom is off, and nothing can scroll the page sideways. */
+html{touch-action:pan-x pan-y}
+body{overflow-x:clip;overscroll-behavior-x:none}
+@media (max-width:900px){input,textarea,select{font-size:16px!important}}
 /* /moi — the new phone-first app (owner, Oct 26). Old pages stay as they are. Colours: ink #0E1525 header, white cards,
    apartment colours = the calendar's, red = act now · amber = waiting · blue = answered · green = done · grey = unreachable */
 *{box-sizing:border-box}

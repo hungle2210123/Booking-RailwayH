@@ -195,3 +195,9 @@ sends THU HỒI (`staff_recall_text`). Confirm dialog before a fine is saved.
 `/api/version` answer). Checks on visibilitychange / pageshow / focus / every 60 s. Nothing open → reload; a sheet,
 dialog or focused input open → bar "🔄 Có bản mới — chạm để cập nhật" (tap = reload) + reload as soon as it closes.
 Before: silent 20 s retries while a sheet was open (owner looked for the new button inside the sheet → never updated).
+
+## iPhone zoom lock (Nov 11)
+Owner: "thanh tab xịt lên xịt xuống, trang trượt qua lại". Cause: a focused field with text < 16px makes iOS zoom the
+page and stay zoomed (the 15px bồi dưỡng / trừ tiền inputs). Fix in moi.html + quick.html: viewport `maximum-scale=1`,
+`html{touch-action:pan-x pan-y}`, `body{overflow-x:clip}`, and `input,textarea,select{font-size:16px!important}` under
+900px. Never add a phone field under 16px (test `test_iphone_zoom_lock`).
