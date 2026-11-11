@@ -433,3 +433,49 @@ def test_dayuse_flag(client, booking):
     assert client.post('/api/moi/dayuse', json={}).status_code == 400
     for page in ('/moi', '/may-tinh'):
         assert 'dayuse' in client.get(page).get_data(as_text=True)
+
+
+def test_clean_message_only_arrived_guests(app, db, booking):
+    """Owner, Nov 11: a guest never marked arrived (or no guest) = the room is still clean → not in the 8:00 message
+    (it showed '1 phòng chưa ghi số')."""
+    import app as appmod
+    from datetime import date
+    bid = booking(checkin_date='2030-01-10', checkout_date='2030-01-12')
+    db.session.execute(appmod.text("UPDATE bookings SET actual_apartment = '877', room_no = NULL WHERE booking_id = :b"), {'b': bid})
+    db.session.commit()
+    with app.app_context():
+        t = appmod._moi_clean_text(db, date(2030, 1, 12))
+        assert 'Thợ Nhuộm' not in t and 'chưa ghi số' not in t
+        db.session.execute(appmod.text("UPDATE bookings SET checkin_status = 'confirmed' WHERE booking_id = :b"), {'b': bid})
+        db.session.commit()
+        assert 'Thợ Nhuộm: 1 phòng chưa ghi số' in appmod._moi_clean_text(db, date(2030, 1, 12))
+
+
+def test_staff_delete_recalls_and_resend(client, monkeypatch):
+    """Owner, Nov 11: deleting a bồi dưỡng given to the wrong cleaner → the bot tells her 'THU HỒI'; the 📤 button
+    resends today's newest cleaning message to everyone (marked CẬP NHẬT)."""
+    import app as appmod
+    from core.models import db
+    sent = []
+    monkeypatch.setenv('ZALO_BOT_TOKEN', 'test-token')
+    monkeypatch.setattr(appmod, '_zbot_call', lambda m, body=None, timeout=15: (sent.append((m, body)) or {'ok': True, 'result': {}}))
+    with appmod.app.app_context():
+        old = appmod._zbot_get(db, 'zbot_chats', {})
+        last = appmod._zbot_get(db, 'zbot_last')
+        appmod._zbot_put(db, 'zbot_chats', {'zz-a': {'name': 'ZZTEST Dung', 'on': True, 'role': 'staff'}})
+    to = lambda cid: [b['text'] for m, b in sent if m == 'sendMessage' and b['chat_id'] == cid]
+    try:
+        j = client.post('/api/moi/staff', json={'action': 'add', 'chat_id': 'zz-a', 'kind': 'extra', 'amount': '150000', 'note': 'Làm thêm chiều 1p'}).get_json()
+        assert j['success'] and '🎁' in to('zz-a')[-1]
+        rid = [e for p in j['people'] if p['id'] == 'zz-a' for e in p['extras']][0]['id']
+        assert client.post('/api/moi/staff', json={'action': 'delete', 'id': rid}).get_json()['success']
+        assert to('zz-a')[-1].startswith('↩️ THU HỒI: tin bồi dưỡng 150.000đ — Làm thêm chiều 1p')
+        sent.clear()
+        assert client.post('/api/moi/zbot', json={'action': 'resend'}).get_json()['success']
+        assert to('zz-a')[0].startswith('🔄 CẬP NHẬT') and 'Dọn phòng' in to('zz-a')[0]
+    finally:
+        with appmod.app.app_context():
+            db.session.execute(appmod.text("DELETE FROM staff_log WHERE chat_id LIKE 'zz-%'")); db.session.commit()
+            appmod._zbot_put(db, 'zbot_chats', old)
+            if last is not None:
+                appmod._zbot_put(db, 'zbot_last', last)

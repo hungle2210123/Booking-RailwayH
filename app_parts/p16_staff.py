@@ -256,6 +256,15 @@ def staff_decide(_xdb, rid, ok):
     return r
 
 
+def staff_recall_text(r):
+    """Message to the cleaner when the owner deletes a bồi dưỡng / day off she was already told about."""
+    d = _staff_day_label(r['day'])
+    if r['kind'] == 'leave':
+        return f"↩️ THU HỒI: tin duyệt nghỉ {d} — ghi nhầm, chị bỏ qua giúp em nhé."
+    what = f"bồi dưỡng {_vnd(r['amount'])}" if r.get('amount') else 'làm thêm'
+    return f"↩️ THU HỒI: tin {what}" + (f" — {r['note']}" if r.get('note') else '') + f" ({d}) — gửi nhầm, chị bỏ qua giúp em nhé."
+
+
 def staff_month(_xdb, ym):
     """{chat id: {name, leaves: [...], extras: [...], extra_total}} for month 'YYYY-MM' (+ pending list)."""
     _staff_ensure(_xdb)
@@ -437,8 +446,11 @@ def moi_staff():
                 if d.get('tell', True):
                     _staff_say(cid, f"🎁 Bồi dưỡng {_vnd(amount)}" + (f" — {note}" if note else '') + f" ({_staff_day_label(day)}). Cảm ơn chị!")
         elif act == 'delete':
+            r = _staff_row(_xdb, int(d.get('id') or 0))
             _xdb.session.execute(text("UPDATE staff_log SET status = 'deleted' WHERE id = :i"), {'i': int(d.get('id') or 0)})
             _xdb.session.commit()
+            if r and r['status'] == 'approved':      # she was told → take it back (owner, Nov 11: "bấm nhầm người")
+                _staff_say(r['chat_id'], staff_recall_text(r))
         elif act == 'role':
             chats = _staff_chats(_xdb)
             if d.get('id') in chats and d.get('role') in ('staff', 'owner', ''):

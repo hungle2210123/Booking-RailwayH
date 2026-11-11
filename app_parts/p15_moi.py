@@ -522,12 +522,13 @@ MOI_WEEKDAY = ['thứ hai', 'thứ ba', 'thứ tư', 'thứ năm', 'thứ sáu',
 
 def _moi_clean_text(_xdb, day):
     """The cleaners' message for `day` (owner, Nov 5: short — "Dọn phòng thứ năm 5/11 / Hàng Bạc: 102, 201"): the rooms
-    of the guests leaving that day, per apartment. Same text as the 🧹 button in /moi and /may-tinh."""
+    of the guests leaving that day, per apartment. Same text as the 🧹 button in /moi and /may-tinh.
+    Only guests marked arrived ('confirmed'): owner, Nov 11 — a guest never confirmed / no guest = the room is still clean."""
     apts = _moi_apartments(_xdb)
     rows = _xdb.session.execute(text("""
         SELECT actual_apartment, room_no FROM bookings
         WHERE checkout_date = :d AND COALESCE(booking_status, '') NOT IN ('cancelled', 'deleted')
-          AND COALESCE(checkin_status, '') NOT IN ('cancelling', 'no_show')"""), {'d': day}).fetchall()
+          AND checkin_status = 'confirmed'"""), {'d': day}).fetchall()
     head = f'Dọn phòng {MOI_WEEKDAY[day.weekday()]} {day.day}/{day.month}'
     lines = []
     for a in apts:
@@ -643,10 +644,10 @@ def _zbot_secret(_xdb):
     return sec
 
 
-def _zbot_send_clean(_xdb, day=None, only=None):
+def _zbot_send_clean(_xdb, day=None, only=None, prefix=''):
     """Send the cleaning message of `day` to every chat that is on (or only `only`). Returns [(name, ok, error)]."""
     day = day or (datetime.utcnow() + timedelta(hours=7)).date()
-    msg = _moi_clean_text(_xdb, day)
+    msg = prefix + _moi_clean_text(_xdb, day)
     chats = _zbot_get(_xdb, 'zbot_chats', {}) or {}
     off = staff_off_on(_xdb, day)          # p16: a cleaner on an approved day off gets nothing; the other "dọn cả 2 bên"
     out = []
@@ -787,8 +788,9 @@ def moi_zbot():
             else:
                 chats.pop(d['id'])
             _zbot_put(_xdb, 'zbot_chats', chats)
-        elif act == 'test':
-            out = _zbot_send_clean(_xdb, only=d.get('id'))
+        elif act in ('test', 'resend'):
+            out = _zbot_send_clean(_xdb, only=d.get('id') if act == 'test' else None,
+                                   prefix='🔄 CẬP NHẬT — bản mới nhất, thay tin trước:\n' if act == 'resend' else '')
             if not out:
                 return jsonify({'success': False, 'error': 'Chưa có ai được bật để nhận tin'})
             bad = [f'{n}: {e}' for n, ok, e in out if not ok]

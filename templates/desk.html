@@ -393,7 +393,7 @@ button.info.on{border-color:#0E1525;background:#fff}
   const STREET = { 1: 'Hàng Bạc', 2: 'Hàng Bè', 506: 'Hội Vũ', 877: 'Thợ Nhuộm' };
   const WDV = ['chủ nhật', 'thứ hai', 'thứ ba', 'thứ tư', 'thứ năm', 'thứ sáu', 'thứ bảy'];
   const cleanText = (d) => {
-    const outs = B.filter((b) => b.coO === d), lines = [];
+    const outs = B.filter((b) => b.coO === d && b.confirmed), lines = [];   // not arrived = room still clean (Nov 11)
     APT.forEach((a) => {
       const mine = outs.filter((b) => b.apt === a.id); if (!mine.length) return;
       const rooms = mine.filter((b) => b.room_no).sort((p, q) => p.room_no - q.room_no).map((b) => rn(a.id, b.room_no));
@@ -409,6 +409,15 @@ button.info.on{border-color:#0E1525;background:#fff}
       document.body.appendChild(ta); ta.select(); ta.setSelectionRange(0, t.length); ok = document.execCommand('copy'); ta.remove(); } catch (e) {}
     if (!ok && navigator.clipboard) navigator.clipboard.writeText(t).catch(() => {});
     return true; };
+  D.zbotResend = async () => {
+    if (!confirm('Gửi lại tin dọn phòng hôm nay (bản mới nhất) cho các cô qua bot Zalo?
+
+' + cleanText(0))) return;
+    toast('Đang gửi…');
+    let j = {};
+    try { j = await (await fetch('/api/moi/zbot', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'resend' }) })).json(); } catch (e) {}
+    toast(j.success ? 'Đã gửi lại ✅ các cô đã nhận bản mới' : 'Chưa gửi được: ' + (j.error || 'lỗi mạng'));
+  };
   D.cleanCopy = (d) => { const t = cleanText(d == null ? S.day : d); copyText(t); toast('Đã copy tin dọn phòng — dán vào Zalo / WhatsApp gửi các cô'); };
   D.cancel = async (id) => {
     const b = byId[id]; if (!confirm('Báo hủy ' + b.name + '?\n(giống "Báo hủy" trên lịch — hoàn tác được ở Lịch tháng / trang cũ)')) return;
@@ -697,7 +706,7 @@ button.info.on{border-color:#0E1525;background:#fff}
         <div class="card kpi"><div class="l">Việc cần nhắc</div><div class="v num">${rems.length}</div><div class="s" style="${overN ? 'color:#B91C1C;font-weight:700' : ''}">${overN ? overN + ' việc đã tới giờ' : 'không có việc quá giờ'}</div></div>
       </div>
       <div class="two"><section class="card l"><div class="ch"><div><h3>Trả ↔ Đến theo căn</h3><div class="muted" style="font-size:12.5px;margin-top:2px">trái: khách trả · phải: khách đến · ô màu = phòng có khách đêm đó</div></div>
-          <div style="display:flex;gap:8px;align-items:center"><button class="btn sm" onclick="D.cleanCopy(${d})" title="Copy tin nhắn: các phòng cần dọn hôm đó, theo căn">🧹 Copy tin dọn phòng</button>
+          <div style="display:flex;gap:8px;align-items:center"><button class="btn sm" onclick="D.cleanCopy(${d})" title="Copy tin nhắn: các phòng cần dọn hôm đó, theo căn">🧹 Copy tin dọn phòng</button>${d === 0 ? `<button class="btn sm" onclick="D.zbotResend()" title="Bot Zalo gửi lại tin dọn phòng hôm nay (bản mới nhất) cho các cô">📤 Gửi lại cho các cô</button>` : ''}
           <span class="pill" style="background:#F1F5F9;color:#334155">${wd(d)} ${dm(d)} · ${rel(d).toLowerCase()}</span></div></div>${apts}</section>
         <div class="r">
           <section class="card"><div class="ch"><h3>Việc cần nhắc · ${rems.length}</h3><span class="muted" style="font-size:12.5px">báo cả trên Lịch iPhone</span></div><div style="padding:6px 10px 10px">

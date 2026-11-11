@@ -171,3 +171,10 @@ No salary. Every message to/from a cleaner is copied to the owner chat(s) (`_sta
 - Two guests on one room at once are stacked in lines (`laneUp`), room name says "2 khách 1 đêm" — nothing is hidden.
 - ☀ Ở trong ngày (card button, 1-night guests): `moi_settings 'dayuse'` list, POST `/api/moi/dayuse` {booking_id, on};
   feed field `du`. Drawn in the LEFT (daytime) half of the arrival day; `counts()` / `fits()` skip it (no 'Thừa'); money unchanged.
+
+## Cleaning message & staff fixes (Nov 11)
+- 8:00 message / 🧹 copy (p15 `_moi_clean_text`, moi.html + desk.html `cleanText`): only guests marked arrived
+  (`checkin_status='confirmed'`) — owner: not confirmed / no guest = the room is still clean (was "1 phòng chưa ghi số").
+- 📤 "Gửi lại tin dọn cho các cô" (moi Việc hằng ngày, desk Trả ↔ Đến, today only): `/api/moi/zbot` action `resend` →
+  `_zbot_send_clean(prefix='🔄 CẬP NHẬT …')` to every chat that is on.
+- Deleting an approved bồi dưỡng / day off in 👥 Nhân viên → bot sends her `staff_recall_text` ("↩️ THU HỒI: … gửi nhầm").

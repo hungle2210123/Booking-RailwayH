@@ -340,7 +340,7 @@ button.info.on{border-color:#0E1525;background:#fff}
   const STREET = { 1: 'Hàng Bạc', 2: 'Hàng Bè', 506: 'Hội Vũ', 877: 'Thợ Nhuộm' };
   const WDV = ['chủ nhật', 'thứ hai', 'thứ ba', 'thứ tư', 'thứ năm', 'thứ sáu', 'thứ bảy'];
   const cleanText = (d) => {
-    const outs = B.filter((b) => b.coO === d), lines = [];
+    const outs = B.filter((b) => b.coO === d && b.confirmed), lines = [];   // not arrived = room still clean (Nov 11)
     APT.forEach((a) => {
       const mine = outs.filter((b) => b.apt === a.id); if (!mine.length) return;
       const rooms = mine.filter((b) => b.room_no).sort((p, q) => p.room_no - q.room_no).map((b) => rn(a.id, b.room_no));
@@ -400,6 +400,13 @@ button.info.on{border-color:#0E1525;background:#fff}
     S.zbErr = '';
     if (action === 'token') S.zbTok = '';
     S.zbot = j; toast(action === 'test' ? 'Đã gửi ✅ xem trong Zalo' : action === 'connect' || action === 'token' ? 'Đã kết nối bot ✅' : 'Đã lưu'); renderSheet();
+  };
+  M.zbotResend = async () => {
+    if (!confirm('Gửi lại tin dọn phòng hôm nay (bản mới nhất) cho các cô qua bot Zalo?\n\n' + cleanText(0))) return;
+    toast('Đang gửi…');
+    const j = (await post('/api/moi/zbot', { action: 'resend' })).j || {};
+    if (!j.success) return toast('Chưa gửi được: ' + (j.error || 'lỗi'));
+    S.zbot = j; toast('Đã gửi lại ✅ các cô đã nhận bản mới');
   };
   M.cleanCopy = (d) => { const t = cleanText(d == null ? S.day : d); copyText(t); toast('Đã copy tin dọn phòng — dán vào Zalo / WhatsApp gửi các cô'); };
   M.cancel = async (id) => {
@@ -683,7 +690,7 @@ button.info.on{border-color:#0E1525;background:#fff}
     // 🧰 Việc hằng ngày (owner, Nov 7: "gộp chung … thành một mục"): 4 tiles with their state — cleaning message,
     // Zalo bot 8:00, staff (nghỉ / chờ duyệt), iPhone calendar. Other days: only the cleaning message.
     {
-      const outs = B.filter((b) => b.apt && b.coO === d).length, zb = S.zbot, si = S.stInfo, calOk = LS.get('calOk', false);
+      const outs = B.filter((b) => b.apt && b.coO === d && b.confirmed).length, zb = S.zbot, si = S.stInfo, calOk = LS.get('calOk', false);
       const tile = (icon, title, state, col, act) => `<button onclick="${act}" style="text-align:left;border:1.5px solid #E7E9EE;background:#fff;border-radius:14px;padding:10px 11px;min-height:76px;display:flex;flex-direction:column;justify-content:space-between;gap:4px">
           <span style="display:flex;align-items:center;gap:7px;font-size:13.5px;font-weight:800;color:#0E1525"><span style="font-size:17px">${icon}</span>${title}</span>
           <span style="font-size:11.5px;font-weight:800;color:${col};line-height:1.3">${state}</span></button>`;
@@ -695,7 +702,8 @@ button.info.on{border-color:#0E1525;background:#fff}
         const stT = tile('👥', 'Nhân viên', !si ? 'Nghỉ & bồi dưỡng' : si.pend ? `${si.pend} chờ duyệt` : si.off.length ? `Hôm nay ${esc(si.off.join(', '))} nghỉ` : '✓ Hôm nay đủ người', !si ? '#475569' : si.pend ? '#DC2626' : si.off.length ? '#B45309' : '#15803D', 'M.staffOpen()');
         const calT = tile('📅', 'Lịch iPhone', calOk ? '✓ Đã kết nối' : 'Chưa bật — chạm để bật', calOk ? '#15803D' : '#B45309', 'M.calOpen()');
         h += `<div class="card" style="padding:12px 12px 12px"><div style="display:flex;align-items:baseline;justify-content:space-between;margin:0 2px 8px"><b style="font-size:14px">Việc hằng ngày</b><span style="font-size:11px;color:#64748B;font-weight:700">dọn phòng · nhân viên · nhắc việc</span></div>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">${cleanT}${botT}${stT}${calT}</div></div>`;
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">${cleanT}${botT}${stT}${calT}</div>
+          ${zb && zb.connected ? `<button onclick="M.zbotResend()" style="margin-top:8px;width:100%;min-height:44px;border-radius:12px;border:0;background:#0E1525;color:#fff;font-size:14px;font-weight:800">📤 Gửi lại tin dọn cho các cô</button>` : ''}</div>`;
       }
     }
     h += `<div class="seg"><button class="${S.seg === 'pair' ? 'on' : ''}" onclick="M.set('seg','pair')">Trả ↔ Đến</button><button class="${S.seg === 'stay' ? 'on' : ''}" onclick="M.set('seg','stay')">Đang ở · ${stays.length}</button></div>`;
