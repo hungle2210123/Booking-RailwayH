@@ -566,3 +566,46 @@ def test_iphone_zoom_lock(client, url):
     html = client.get(url).get_data(as_text=True)
     assert 'maximum-scale=1' in html and 'input,textarea,select{font-size:16px!important}' in html
     assert 'touch-action:pan-x pan-y' in html
+
+
+def test_clean_done_by_number(app, db, booking, monkeypatch):
+    """Owner, Nov 11: the cleaners' phones are slow → no link. Rooms are numbered in the 8:00 message; she answers the
+    number ('xong một', '1') and the room is marked cleaned; 'bỏ 1' undoes; 12:00 the bot asks about the rooms still open
+    (once). Other messages ('mai em xin nghỉ', 'ok') are not touched."""
+    import app as appmod
+    from datetime import date, datetime
+    bid = booking(checkin_date='2030-01-10', checkout_date='2030-01-12')
+    db.session.execute(appmod.text("UPDATE bookings SET actual_apartment = '877', room_no = 3, checkin_status = 'confirmed' "
+                                   "WHERE booking_id = :b"), {'b': bid})
+    db.session.commit()
+    sent = []
+    monkeypatch.setattr(appmod, '_zbot_call', lambda m, body=None, timeout=15: (sent.append((m, body)) or {'ok': True, 'result': {}}))
+    monkeypatch.setattr(appmod, '_vn_now', lambda: datetime(2030, 1, 12, 12, 5))
+    me = {'name': 'ZZTEST Dung', 'role': 'staff'}
+    with app.app_context():
+        keep = {k: appmod._zbot_get(db, k) for k in ('clean_state', 'zbot_ask', 'zbot_chats')}
+        try:
+            appmod._zbot_put(db, 'zbot_chats', {'zz-a': dict(me, on=True)})
+            msg = appmod.clean_message(db, date(2030, 1, 12))
+            assert msg.startswith('Dọn phòng') and '1. Thợ Nhuộm' in msg and 'nhắn SỐ' in msg
+            assert appmod.staff_clean_reply(db, me, 'mai em xin nghỉ') is None
+            assert appmod.staff_clean_reply(db, me, 'ok') is None
+            assert 'Không có phòng số 7' in appmod.staff_clean_reply(db, me, '7')
+            assert appmod.clean_ask(db, datetime(2030, 1, 12, 12, 5)) is True
+            assert '12:00' in sent[-1][1]['text'] and '1. Thợ Nhuộm' in sent[-1][1]['text']
+            assert appmod.clean_ask(db, datetime(2030, 1, 12, 12, 6)) is False          # once
+            r = appmod.staff_clean_reply(db, me, 'Xong một')
+            assert '✅ Đã ghi dọn xong: Thợ Nhuộm' in r and 'xong hết' in r
+            it = appmod.clean_rooms(db, date(2030, 1, 12))[0]
+            assert it[0]['done']['by'] == 'ZZTEST Dung' and it[0]['n'] == 1
+            n = len(sent)
+            assert appmod.clean_ask(db, datetime(2030, 1, 12, 13, 31)) is False and len(sent) == n   # all done → no reminder
+            r = appmod.staff_clean_reply(db, me, 'bỏ 1')
+            assert r.startswith('↩️') and 'Còn lại' in r
+            assert not appmod.clean_rooms(db, date(2030, 1, 12))[0][0]['done']
+        finally:
+            for k, v in keep.items():
+                if v is None:
+                    db.session.execute(appmod.text("DELETE FROM moi_settings WHERE key = :k"), {'k': k}); db.session.commit()
+                else:
+                    appmod._zbot_put(db, k, v)

@@ -409,11 +409,16 @@ button.info.on{border-color:#0E1525;background:#fff}
     S.zbot = j; toast(action === 'test' ? 'Đã gửi ✅ xem trong Zalo' : action === 'connect' || action === 'token' ? 'Đã kết nối bot ✅' : 'Đã lưu'); renderSheet();
   };
   M.zbotResend = async () => {
-    if (!confirm('Gửi lại tin dọn phòng hôm nay (bản mới nhất) cho các cô qua bot Zalo?\n\n' + cleanText(0))) return;
+    if (!confirm('Gửi lại tin dọn phòng hôm nay (bản mới nhất) cho các cô qua bot Zalo?\n\n' + ((S.zbot && S.zbot.clean_text) || cleanText(0)))) return;
     toast('Đang gửi…');
     const j = (await post('/api/moi/zbot', { action: 'resend' })).j || {};
     if (!j.success) return toast('Chưa gửi được: ' + (j.error || 'lỗi'));
     S.zbot = j; toast('Đã gửi lại ✅ các cô đã nhận bản mới');
+  };
+  M.cleanDone = async (key, on) => {          // owner ticks a room cleaned (the cleaners do it by answering the number in Zalo)
+    const j = (await post('/api/moi/zbot', { action: 'clean_done', key, on })).j || {};
+    if (!j.success) return toast('Chưa lưu được: ' + (j.error || 'lỗi'));
+    S.zbot = j; render();
   };
   M.cleanCopy = (d) => { const t = cleanText(d == null ? S.day : d); copyText(t); toast('Đã copy tin dọn phòng — dán vào Zalo / WhatsApp gửi các cô'); };
   M.cancel = async (id) => {
@@ -709,7 +714,11 @@ button.info.on{border-color:#0E1525;background:#fff}
         const calT = tile('📅', 'Lịch iPhone', calOk ? '✓ Đã kết nối' : 'Chưa bật — chạm để bật', calOk ? '#15803D' : '#B45309', 'M.calOpen()');
         h += `<div class="card" style="padding:12px 12px 12px"><div style="display:flex;align-items:baseline;justify-content:space-between;margin:0 2px 8px"><b style="font-size:14px">Việc hằng ngày</b><span style="font-size:11px;color:#64748B;font-weight:700">dọn phòng · nhân viên · nhắc việc</span></div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">${cleanT}${botT}${stT}${calT}</div>
-          ${zb && zb.connected ? `<button onclick="M.zbotResend()" style="margin-top:8px;width:100%;min-height:44px;border-radius:12px;border:0;background:#0E1525;color:#fff;font-size:14px;font-weight:800">📤 Gửi lại tin dọn cho các cô</button>` : ''}</div>`;
+          ${zb && zb.connected ? `<button onclick="M.zbotResend()" style="margin-top:8px;width:100%;min-height:44px;border-radius:12px;border:0;background:#0E1525;color:#fff;font-size:14px;font-weight:800">📤 Gửi lại tin dọn cho các cô</button>` : ''}
+          ${zb && zb.clean && zb.clean.length ? `<div style="margin-top:10px;border-top:1px solid #EEF0F4;padding-top:8px"><div style="display:flex;justify-content:space-between;font-size:12.5px;font-weight:800;color:#475569;margin:0 2px 6px"><span>🧹 Dọn xong hôm nay</span><span style="color:${zb.clean.every((x) => x.done) ? '#15803D' : '#B45309'}">${zb.clean.filter((x) => x.done).length}/${zb.clean.length} phòng</span></div>
+            ${zb.clean.map((x) => `<button onclick="M.cleanDone('${x.key}',${x.done ? 'false' : 'true'})" style="display:flex;align-items:center;gap:8px;width:100%;min-height:42px;margin-top:4px;padding:6px 10px;border-radius:10px;border:1.5px solid ${x.done ? '#BBF7D0' : '#E7E9EE'};background:${x.done ? '#F0FDF4' : '#fff'};text-align:left;font-size:14px;color:#0E1525">
+              <b style="width:22px;color:#64748B">${x.n}</b><span style="flex:1;font-weight:700">${esc(x.label)}${x.arriving ? ' <span style="font-size:11.5px;font-weight:800;color:#B45309">· khách vào hôm nay</span>' : ''}</span>
+              <span style="font-size:12.5px;font-weight:800;color:${x.done ? '#15803D' : '#94A3B8'}">${x.done ? '✓ ' + esc(x.done.at || '') + (x.done.by && x.done.by !== 'app' ? ' · ' + esc(x.done.by.split(' ').slice(-1)[0]) : '') : 'chưa xong'}</span></button>`).join('')}</div>` : ''}</div>`;
       }
     }
     h += `<div class="seg"><button class="${S.seg === 'pair' ? 'on' : ''}" onclick="M.set('seg','pair')">Trả ↔ Đến</button><button class="${S.seg === 'stay' ? 'on' : ''}" onclick="M.set('seg','stay')">Đang ở · ${stays.length}</button></div>`;
@@ -1054,7 +1063,7 @@ button.info.on{border-color:#0E1525;background:#fff}
           return h + card(`🟢 Bot${zb.bot ? ' <b>' + esc(zb.bot) + '</b>' : ''} đã kết nối. ${last}`)
             + `<div class="lbl" style="margin-top:14px">Người nhận tin 8:00</div>${list || card('Chưa có ai. Gửi <b>link bot</b> (Zalo Bot Creator → Thông tin → Chia sẻ → <b>Deeplink</b>) cho cô Dung, chị Hường → các cô mở link, nhắn <b>"hi"</b> cho bot → tên các cô tự hiện ở đây (bấm Tải lại).')}`
             + `<button class="big" style="margin-top:10px;min-height:44px;background:#fff;color:#0E1525;border:1.5px solid #CBD5E1" onclick="M.zbotLoad();toast('Đang tải lại…')">↻ Tải lại danh sách</button>`
-            + `<div style="margin-top:14px;background:#F4F5F8;border-radius:12px;padding:10px 12px;font-size:12.5px;color:#334155;line-height:1.5"><b>Tin sẽ gửi trông thế này:</b><br>${esc(cleanText(0)).replace(/\n/g, '<br>')}</div>`;
+            + `<div style="margin-top:14px;background:#F4F5F8;border-radius:12px;padding:10px 12px;font-size:12.5px;color:#334155;line-height:1.5"><b>Tin sẽ gửi trông thế này:</b><br>${esc((S.zbot && S.zbot.clean_text) || cleanText(0)).replace(/\n/g, '<br>')}</div>`;
         })() + '</div></div>' : `
         <div style="font-size:12.5px;color:#475569;font-weight:600;margin-top:8px;line-height:1.5">${sms ? 'Gửi hoàn toàn tự động. Cô dùng iPhone = miễn phí (iMessage); máy Android = SMS theo gói cước.' : 'Zalo không cho tự gửi: 8:00 iPhone tự copy tin và mở Zalo — bạn chỉ dán vào chat của cô rồi bấm gửi.'}</div>
         ${step(1, 'Copy link tin dọn phòng:', `<button class="big" style="margin-top:6px;min-height:46px;background:#0E1525;color:#fff" onclick="M.cleanLink()">📋 Copy link</button>`)}
@@ -1063,7 +1072,7 @@ button.info.on{border-color:#0E1525;background:#fff}
         ${sms ? step(4, 'Thêm tác vụ <b>"Gửi tin nhắn"</b> → chạm <b>Tin nhắn</b> chọn <b>Nội dung của URL</b> → chạm <b>Người nhận</b> chọn <b>cô dọn phòng</b>.')
               : step(4, 'Thêm tác vụ <b>"Sao chép vào bảng nhớ tạm"</b> (tự lấy Nội dung của URL), rồi thêm <b>"Mở ứng dụng"</b> → chọn <b>Zalo</b>.')}
         ${step(5, 'Bấm <b>Xong</b>. Từ mai ' + (sms ? 'đúng 8:00 iPhone tự gửi tin cho cô.' : '8:00 Zalo tự mở với tin đã copy — vào chat của cô, giữ ô nhập → Dán → Gửi.'))}
-        <div style="margin-top:14px;background:#F4F5F8;border-radius:12px;padding:10px 12px;font-size:12.5px;color:#334155;line-height:1.5"><b>Tin sẽ gửi trông thế này:</b><br>${esc(cleanText(0)).replace(/\n/g, '<br>')}</div>
+        <div style="margin-top:14px;background:#F4F5F8;border-radius:12px;padding:10px 12px;font-size:12.5px;color:#334155;line-height:1.5"><b>Tin sẽ gửi trông thế này:</b><br>${esc((S.zbot && S.zbot.clean_text) || cleanText(0)).replace(/\n/g, '<br>')}</div>
         <div style="font-size:12px;color:#64748B;margin-top:8px;line-height:1.5">Muốn thử ngay: trong Phím tắt mở mục vừa tạo → bấm ▶ chạy thử.</div></div></div>`}`;
       return;
     }

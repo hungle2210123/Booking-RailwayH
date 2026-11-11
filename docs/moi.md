@@ -201,3 +201,14 @@ Owner: "thanh tab xịt lên xịt xuống, trang trượt qua lại". Cause: a 
 page and stay zoomed (the 15px bồi dưỡng / trừ tiền inputs). Fix in moi.html + quick.html: viewport `maximum-scale=1`,
 `html{touch-action:pan-x pan-y}`, `body{overflow-x:clip}`, and `input,textarea,select{font-size:16px!important}` under
 900px. Never add a phone field under 16px (test `test_iphone_zoom_lock`).
+
+
+## 🧹 Dọn xong bằng số (Nov 11)
+Owner: the cleaners' phones are slow → no link / page; they answer the bot with a NUMBER.
+- `clean_rooms(day)` (p16) numbers the rooms of the day (arrived guests leaving, with a room number); numbers are kept all
+  day in `moi_settings 'clean_state'` {day, nums, done}. `clean_message` = the 8:00 text (numbered + how to answer).
+- `staff_clean_reply`: "1" / "1 3" / "xong một" / "xong hết" / "bỏ 2" / a room number (101) → mark / unmark; the bot answers
+  what is left; the owner gets the usual copy. Anything else falls through to xin nghỉ / làm thêm.
+- `clean_ask` (from `zbot_tick`): 12:00 "dọn tới đâu rồi" + 13:30 reminder (guests come in from 14:00), each once
+  (`zbot_ask`), only while a room is open. /moi → Việc hằng ngày shows "Dọn xong hôm nay n/m"; tapping a row toggles it
+  (`/api/moi/zbot` action `clean_done`).

@@ -647,7 +647,7 @@ def _zbot_secret(_xdb):
 def _zbot_send_clean(_xdb, day=None, only=None, prefix=''):
     """Send the cleaning message of `day` to every chat that is on (or only `only`). Returns [(name, ok, error)]."""
     day = day or (datetime.utcnow() + timedelta(hours=7)).date()
-    msg = prefix + _moi_clean_text(_xdb, day)
+    msg = prefix + clean_message(_xdb, day)     # p16: numbered rooms — she answers the number when a room is done
     chats = _zbot_get(_xdb, 'zbot_chats', {}) or {}
     off = staff_off_on(_xdb, day)          # p16: a cleaner on an approved day off gets nothing; the other "dọn cả 2 bên"
     out = []
@@ -670,7 +670,7 @@ def zbot_tick():
     global ZBOT_BEAT
     now = datetime.utcnow() + timedelta(hours=7)
     ZBOT_BEAT = now.strftime('%H:%M')   # shown in /api/moi/zbot: proof this worker's loop is alive
-    if not (8 <= now.hour < 10):
+    if not (8 <= now.hour < 10 or 12 <= now.hour < 14):
         return False
     from core.models import db as _xdb
     with app.app_context():
@@ -680,6 +680,8 @@ def zbot_tick():
             chats = _zbot_get(_xdb, 'zbot_chats', {}) or {}
             if not any(c.get('on') for c in chats.values()):
                 return False
+            if now.hour >= 12:      # p16: 12:00 "dọn tới đâu rồi" · 13:30 reminder of the rooms not marked cleaned
+                return clean_ask(_xdb, now)
             day = now.date().isoformat()
             got = _xdb.session.execute(text(
                 "INSERT INTO moi_settings (key, value) VALUES ('zbot_sent', :d) ON CONFLICT (key) DO UPDATE "
@@ -788,6 +790,8 @@ def moi_zbot():
             else:
                 chats.pop(d['id'])
             _zbot_put(_xdb, 'zbot_chats', chats)
+        elif act == 'clean_done':        # the owner ticks a room in the app
+            clean_mark(_xdb, str(d.get('key') or ''), bool(d.get('on')), 'app')
         elif act in ('test', 'resend'):
             out = _zbot_send_clean(_xdb, only=d.get('id') if act == 'test' else None,
                                    prefix='🔄 CẬP NHẬT — bản mới nhất, thay tin trước:\n' if act == 'resend' else '')
@@ -805,7 +809,9 @@ def moi_zbot():
     return jsonify({'success': True, 'token': bool(_zbot_token()) and bool(me), 'bot': me.get('account_name') or me.get('display_name') or '',
                     'connected': bool(((info or {}).get('result') or {}).get('url', '').endswith('/zalo-bot/hook')),
                     'chats': [dict(c, id=k) for k, c in chats.items()], 'last': _zbot_get(_xdb, 'zbot_last'),
-                    'sent_day': _zbot_get(_xdb, 'zbot_sent'), 'loop': ZBOT_BEAT})
+                    'sent_day': _zbot_get(_xdb, 'zbot_sent'), 'loop': ZBOT_BEAT,
+                    'clean': clean_rooms(_xdb, (datetime.utcnow() + timedelta(hours=7)).date())[0],
+                    'clean_text': clean_message(_xdb, (datetime.utcnow() + timedelta(hours=7)).date())})
 
 
 def _moi_room_label(apt, no):
