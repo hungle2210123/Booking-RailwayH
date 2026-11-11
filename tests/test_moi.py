@@ -500,3 +500,18 @@ def test_page_scripts_parse(client, url):
             assert r.returncode == 0, f'{url} script #{i}: {r.stderr[:400]}'
         finally:
             os.unlink(f.name)
+
+
+def test_proxy_tool_convert():
+    """Owner, Nov 11: 🔧 paste 'curl -x http://USER:PASS@HOST:PORT …' → 'HOST:PORT:USER:PASS' (browser only, fake data here)."""
+    import json, shutil, subprocess, os
+    node = shutil.which('node')
+    if not node:
+        pytest.skip('node not installed')
+    js = os.path.join(os.path.dirname(__file__), '..', 'static', 'js', 'proxy_tool.js').replace(os.sep, '/')
+    text_in = '\n'.join(['$ curl -v -x http://uSer123:pA55_country-fr_session-ab12_lifetime-72h@geo.example.com:12321 -L https://ipv4.icanhazip.com',
+                         'socks5://bob:p:w@1.2.3.4:1080', 'geo.example.com:12321:u:p', 'hello'])
+    code = f"const P=require({json.dumps(js)});console.log(JSON.stringify(P.convert({json.dumps(text_in)})))"
+    r = json.loads(subprocess.run([node, '-e', code], capture_output=True, text=True, encoding='utf-8').stdout)
+    assert r['out'] == ['geo.example.com:12321:uSer123:pA55_country-fr_session-ab12_lifetime-72h',
+                        '1.2.3.4:1080:bob:p:w', 'geo.example.com:12321:u:p'] and r['bad'] == ['hello']

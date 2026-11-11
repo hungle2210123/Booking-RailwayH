@@ -518,32 +518,32 @@ _p16_staff — 👥 Nhân viên (owner, Nov 6): the cleaners talk to the Zalo bo
 
 # Templates (inline JS functions)
 
-## templates/desk.html (1314 lines)
-- templates/desk.html: 304 `load` · 317 `loadRev` · 330 `needRev` · 348 `D.tab` · 349 `D.set` · 350 `D.q` · 351 `D.reload` · 353 `D.shift`
-- templates/desk.html: 359 `D.toToday` · 360 `D.open` · 361 `D.openDay` · 362 `D.close` · 363 `closeDrawer` · 364 `D.closeModal` · 367 `D.place` · 372 `D.room`
-- templates/desk.html: 379 `D.confirm` · 412 `D.zbotResend` · 419 `D.cleanCopy` · 420 `D.cancel` · 426 `D.mark` · 430 `D.status` · 434 `D.dayuse` · 438 `D.unreach`
-- templates/desk.html: 439 `D.replied` · 440 `D.phone` · 447 `D.send` · 448 `D.pickApt` · 449 `D.quick` · 450 `D.photo` · 451 `D.chatPhone` · 452 `D.renameRoom`
-- templates/desk.html: 460 `D.pickG` · 461 `D.auto` · 476 `D.payOpen` · 477 `D.collect` · 486 `D.partial` · 488 `D.undoPay` · 491 `D.payCycle` · 501 `D.edit`
-- templates/desk.html: 503 `D.extN` · 507 `D.splitApt` · 513 `D.extTyped` · 514 `D.editCalc` · 541 `D.editSave` · 576 `D.remind` · 577 `D.remPreset` · 580 `D.remSet`
-- templates/desk.html: 581 `D.remSave` · 588 `D.remDone` · 592 `D.add` · 593 `D.addSave` · 608 `render` · 617 `renderSide` · 637 `renderTop` · 666 `viewToday`
-- templates/desk.html: 725 `dayCard` · 757 `viewDay` · 814 `D.uncancel` · 823 `viewCal` · 943 `renderPick` · 951 `viewMsg` · 991 `viewPay` · 1031 `D.payQuick`
-- templates/desk.html: 1037 `viewRev` · 1108 `D.revMonth` · 1109 `D.revDay` · 1110 `D.goDay` · 1111 `drawRevCharts` · 1134 `renderDrawer` · 1140 `guestCard` · 1200 `dayPanel`
-- templates/desk.html: 1221 `renderModal` · 1282 `D.mset` · 1283 `D.extOpen` · 1299 `check`
+## templates/desk.html (1316 lines)
+- templates/desk.html: 305 `load` · 318 `loadRev` · 331 `needRev` · 349 `D.tab` · 350 `D.set` · 351 `D.q` · 352 `D.reload` · 354 `D.shift`
+- templates/desk.html: 360 `D.toToday` · 361 `D.open` · 362 `D.openDay` · 363 `D.close` · 364 `closeDrawer` · 365 `D.closeModal` · 368 `D.place` · 373 `D.room`
+- templates/desk.html: 380 `D.confirm` · 413 `D.zbotResend` · 420 `D.cleanCopy` · 421 `D.cancel` · 427 `D.mark` · 431 `D.status` · 435 `D.dayuse` · 439 `D.unreach`
+- templates/desk.html: 440 `D.replied` · 441 `D.phone` · 448 `D.send` · 449 `D.pickApt` · 450 `D.quick` · 451 `D.photo` · 452 `D.chatPhone` · 453 `D.renameRoom`
+- templates/desk.html: 461 `D.pickG` · 462 `D.auto` · 477 `D.payOpen` · 478 `D.collect` · 487 `D.partial` · 489 `D.undoPay` · 492 `D.payCycle` · 502 `D.edit`
+- templates/desk.html: 504 `D.extN` · 508 `D.splitApt` · 514 `D.extTyped` · 515 `D.editCalc` · 542 `D.editSave` · 577 `D.remind` · 578 `D.remPreset` · 581 `D.remSet`
+- templates/desk.html: 582 `D.remSave` · 589 `D.remDone` · 593 `D.add` · 594 `D.addSave` · 609 `render` · 618 `renderSide` · 639 `renderTop` · 668 `viewToday`
+- templates/desk.html: 727 `dayCard` · 759 `viewDay` · 816 `D.uncancel` · 825 `viewCal` · 945 `renderPick` · 953 `viewMsg` · 993 `viewPay` · 1033 `D.payQuick`
+- templates/desk.html: 1039 `viewRev` · 1110 `D.revMonth` · 1111 `D.revDay` · 1112 `D.goDay` · 1113 `drawRevCharts` · 1136 `renderDrawer` · 1142 `guestCard` · 1202 `dayPanel`
+- templates/desk.html: 1223 `renderModal` · 1284 `D.mset` · 1285 `D.extOpen` · 1301 `check`
 
 ## templates/journey_settings.html (231 lines)
 - templates/journey_settings.html: 79 `load` · 88 `renderButtons` · 141 `options` · 151 `rowHtml` · 165 `render` · 178 `bind` · 210 `shrink`
 
-## templates/moi.html (1223 lines)
-- templates/moi.html: 211 `M_staffBadge` · 215 `load` · 294 `M.reload` · 295 `M.tab` · 296 `M.set` · 297 `M.day` · 298 `M.open` · 299 `M.close`
-- templates/moi.html: 300 `M.add` · 301 `M.addSave` · 314 `M.place` · 319 `M.room` · 326 `M.confirm` · 360 `M.cleanLink` · 363 `M.staffLoad` · 365 `M.staffOpen`
-- templates/moi.html: 366 `M.staffRe` · 367 `M.calOpen` · 368 `M.stfSet` · 371 `M.st` · 387 `M.cleanSetup` · 389 `M.zbotLoad` · 391 `M.zbTokSet` · 392 `M.zbotSave`
-- templates/moi.html: 393 `M.zbot` · 404 `M.zbotResend` · 411 `M.cleanCopy` · 412 `M.cancel` · 418 `M.mark` · 422 `M.status` · 424 `M.dayuse` · 428 `M.copyPhone`
-- templates/moi.html: 429 `M.unreach` · 430 `M.renameRoom` · 438 `M.calDone` · 439 `M.remind` · 441 `M.eta` · 442 `M.remPreset` · 445 `M.remSave` · 454 `M.remDone`
-- templates/moi.html: 457 `M.etaSave` · 480 `M.phone` · 487 `M.send` · 488 `M.pickApt` · 489 `M.quick` · 491 `M.photo` · 492 `M.chatPhone` · 499 `M.edit`
-- templates/moi.html: 501 `M.extN` · 505 `M.splitApt` · 511 `M.extTyped` · 512 `M.editCalc` · 540 `M.editSave` · 574 `M.payOpen` · 575 `M.collect` · 583 `M.partial`
-- templates/moi.html: 585 `M.undoPay` · 588 `M.payCycle` · 593 `M.pickG` · 594 `M.auto` · 609 `render` · 618 `renderNav` · 627 `renderFloat` · 643 `viewDay`
-- templates/moi.html: 744 `viewCal` · 844 `M.cal` · 848 `msgCard` · 878 `viewMsg` · 914 `M.aptSheetOpen` · 927 `viewPay` · 969 `renderSheet` · 1191 `S_set`
-- templates/moi.html: 1192 `renderSheetPub` · 1193 `S_put` · 1208 `check`
+## templates/moi.html (1225 lines)
+- templates/moi.html: 212 `M_staffBadge` · 216 `load` · 295 `M.reload` · 296 `M.tab` · 297 `M.set` · 298 `M.day` · 299 `M.open` · 300 `M.close`
+- templates/moi.html: 301 `M.add` · 302 `M.addSave` · 315 `M.place` · 320 `M.room` · 327 `M.confirm` · 361 `M.cleanLink` · 364 `M.staffLoad` · 366 `M.staffOpen`
+- templates/moi.html: 367 `M.staffRe` · 368 `M.calOpen` · 369 `M.stfSet` · 372 `M.st` · 388 `M.cleanSetup` · 390 `M.zbotLoad` · 392 `M.zbTokSet` · 393 `M.zbotSave`
+- templates/moi.html: 394 `M.zbot` · 405 `M.zbotResend` · 412 `M.cleanCopy` · 413 `M.cancel` · 419 `M.mark` · 423 `M.status` · 425 `M.dayuse` · 429 `M.copyPhone`
+- templates/moi.html: 430 `M.unreach` · 431 `M.renameRoom` · 439 `M.calDone` · 440 `M.remind` · 442 `M.eta` · 443 `M.remPreset` · 446 `M.remSave` · 455 `M.remDone`
+- templates/moi.html: 458 `M.etaSave` · 481 `M.phone` · 488 `M.send` · 489 `M.pickApt` · 490 `M.quick` · 492 `M.photo` · 493 `M.chatPhone` · 500 `M.edit`
+- templates/moi.html: 502 `M.extN` · 506 `M.splitApt` · 512 `M.extTyped` · 513 `M.editCalc` · 541 `M.editSave` · 575 `M.payOpen` · 576 `M.collect` · 584 `M.partial`
+- templates/moi.html: 586 `M.undoPay` · 589 `M.payCycle` · 594 `M.pickG` · 595 `M.auto` · 610 `render` · 619 `renderNav` · 628 `renderFloat` · 644 `viewDay`
+- templates/moi.html: 746 `viewCal` · 846 `M.cal` · 850 `msgCard` · 880 `viewMsg` · 916 `M.aptSheetOpen` · 929 `viewPay` · 971 `renderSheet` · 1193 `S_set`
+- templates/moi.html: 1194 `renderSheetPub` · 1195 `S_put` · 1210 `check`
 
 ## templates/quick.html (350 lines)
 - templates/quick.html: 152 `toast` · 157 `go` · 165 `copyNow` · 173 `sendText` · 178 `copyText` · 179 `sendImgs` · 190 `setIn` · 212 `takeOut`

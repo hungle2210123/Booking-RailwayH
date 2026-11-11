@@ -178,6 +178,7 @@ button.info.on{border-color:#0E1525;background:#fff}
 <div id="sheet"></div>
 <script src="{{ asset('js/journey.js') }}"></script>
 <script src="{{ asset('js/photo_import.js') }}"></script>
+<script src="{{ asset('js/proxy_tool.js') }}"></script>
 <script>
 (function () {
   const $ = (s) => document.querySelector(s);
@@ -702,7 +703,8 @@ button.info.on{border-color:#0E1525;background:#fff}
         const calT = tile('📅', 'Lịch iPhone', calOk ? '✓ Đã kết nối' : 'Chưa bật — chạm để bật', calOk ? '#15803D' : '#B45309', 'M.calOpen()');
         h += `<div class="card" style="padding:12px 12px 12px"><div style="display:flex;align-items:baseline;justify-content:space-between;margin:0 2px 8px"><b style="font-size:14px">Việc hằng ngày</b><span style="font-size:11px;color:#64748B;font-weight:700">dọn phòng · nhân viên · nhắc việc</span></div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">${cleanT}${botT}${stT}${calT}</div>
-          ${zb && zb.connected ? `<button onclick="M.zbotResend()" style="margin-top:8px;width:100%;min-height:44px;border-radius:12px;border:0;background:#0E1525;color:#fff;font-size:14px;font-weight:800">📤 Gửi lại tin dọn cho các cô</button>` : ''}</div>`;
+          ${zb && zb.connected ? `<button onclick="M.zbotResend()" style="margin-top:8px;width:100%;min-height:44px;border-radius:12px;border:0;background:#0E1525;color:#fff;font-size:14px;font-weight:800">📤 Gửi lại tin dọn cho các cô</button>` : ''}
+          <button onclick="ProxyTool.open()" style="margin-top:8px;width:100%;min-height:40px;border-radius:12px;border:1.5px solid #E7E9EE;background:#fff;color:#475569;font-size:13px;font-weight:800">🔧 Công cụ: đổi định dạng proxy</button></div>`;
       }
     }
     h += `<div class="seg"><button class="${S.seg === 'pair' ? 'on' : ''}" onclick="M.set('seg','pair')">Trả ↔ Đến</button><button class="${S.seg === 'stay' ? 'on' : ''}" onclick="M.set('seg','stay')">Đang ở · ${stays.length}</button></div>`;

@@ -212,6 +212,7 @@ button.info.on{border-color:#0E1525;background:#fff}
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="{{ asset('js/journey.js') }}"></script>
 <script src="{{ asset('js/photo_import.js') }}"></script>
+<script src="{{ asset('js/proxy_tool.js') }}"></script>
 <script>
 (function () {
   const $ = (s) => document.querySelector(s);
@@ -631,6 +632,7 @@ button.info.on{border-color:#0E1525;background:#fff}
       <div class="legend-s" style="margin-bottom:2px"><b>Trang khác</b></div>
       <a class="slink" href="/tin-nhanh">${ico('bolt')}Tin nhanh · Mẫu câu</a>
       <a class="slink" href="#" onclick="D.extOpen();return false">${ico('plus')}Tải tiện ích Chrome</a>
+      <a class="slink" href="#" onclick="ProxyTool.open();return false">${ico('bolt')}Đổi định dạng proxy</a>
       <div class="sdiv"></div>
       <a class="slink" href="/moi">${ico('mobile')}Bản điện thoại</a>`;
   }

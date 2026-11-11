@@ -178,3 +178,8 @@ No salary. Every message to/from a cleaner is copied to the owner chat(s) (`_sta
 - 📤 "Gửi lại tin dọn cho các cô" (moi Việc hằng ngày, desk Trả ↔ Đến, today only): `/api/moi/zbot` action `resend` →
   `_zbot_send_clean(prefix='🔄 CẬP NHẬT …')` to every chat that is on.
 - Deleting an approved bồi dưỡng / day off in 👥 Nhân viên → bot sends her `staff_recall_text` ("↩️ THU HỒI: … gửi nhầm").
+
+## 🔧 Đổi định dạng proxy (Nov 11)
+`static/js/proxy_tool.js` — `ProxyTool.open()` (button under "Việc hằng ngày" in /moi, sidebar link in /may-tinh):
+paste `curl -x http://USER:PASS@HOST:PORT …` (many lines ok) → `HOST:PORT:USER:PASS`, Copy. Browser only: nothing is
+sent to the server or stored (passwords). `ProxyTool.convert` is tested with node (`test_proxy_tool_convert`, fake data).
