@@ -229,7 +229,7 @@ _p15_moi — /moi: the new phone-first app (owner, Oct 26), built from the appro
 - app_parts/p15_moi.py:817 `_moi_room_label` — The owner's name for room `no` of this apartment, else "Phòng N".
 - app_parts/p15_moi.py:823 `moi_room_name` ← `/api/moi/room_name` POST — Rename room N of an apartment ({apartment_id, room_no, name}); an empty name goes back to "Phòng N".
 
-## app_parts/p16_staff.py (660 lines)
+## app_parts/p16_staff.py (661 lines)
 _p16_staff — 👥 Nhân viên (owner, Nov 6): the cleaners talk to the Zalo bot (p15_moi zbot_*) in plain words._
 - app_parts/p16_staff.py:18 `_staff_ensure`
 - app_parts/p16_staff.py:30 `_vn_now`
@@ -261,10 +261,10 @@ _p16_staff — 👥 Nhân viên (owner, Nov 6): the cleaners talk to the Zalo bo
 - app_parts/p16_staff.py:391 `clean_message` — The 8:00 message: numbered rooms + how to answer (no rooms → the plain text of _moi_clean_text).
 - app_parts/p16_staff.py:403 `clean_mark` — Mark / unmark one room of today as cleaned. Returns the fresh item list.
 - app_parts/p16_staff.py:416 `staff_clean_reply` — '1' / '1 3' / 'xong một' / 'xong hết' / 'bỏ 2' from a cleaner (or the owner) → mark today's rooms. None = the
-- app_parts/p16_staff.py:467 `clean_ask` — 12:00 "dọn tới đâu rồi" and 13:30 reminder (before guests come in at 14:00) → every chat that is on. Each is s
-- app_parts/p16_staff.py:498 `staff_handle_text` — A message to the bot from a cleaner or the owner. Returns the reply text ('' = none).
-- app_parts/p16_staff.py:584 `moi_staff` ← `/api/moi/staff` GET,POST — 👥 Nhân viên sheet in /moi: waiting requests, who is off today, month list; actions: decide, add (leave/extra),
-- app_parts/p16_staff.py:655 `staff_copy_owner` — Copy of a cleaner's message to the bot + the bot's answer → the owner(s).
+- app_parts/p16_staff.py:467 `clean_ask` — 12:30 "dọn tới đâu rồi", 13:00 and 13:30 reminders (before guests come in at 14:00) → every chat that is on. E
+- app_parts/p16_staff.py:499 `staff_handle_text` — A message to the bot from a cleaner or the owner. Returns the reply text ('' = none).
+- app_parts/p16_staff.py:585 `moi_staff` ← `/api/moi/staff` GET,POST — 👥 Nhân viên sheet in /moi: waiting requests, who is off today, month list; actions: decide, add (leave/extra),
+- app_parts/p16_staff.py:656 `staff_copy_owner` — Copy of a cleaner's message to the bot + the bot's answer → the owner(s).
 
 ## core/__init__.py (3 lines)
 

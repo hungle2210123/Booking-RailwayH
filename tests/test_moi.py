@@ -570,8 +570,8 @@ def test_iphone_zoom_lock(client, url):
 
 def test_clean_done_by_number(app, db, booking, monkeypatch):
     """Owner, Nov 11: the cleaners' phones are slow → no link. Rooms are numbered in the 8:00 message; she answers the
-    number ('xong một', '1') and the room is marked cleaned; 'bỏ 1' undoes; 12:00 the bot asks about the rooms still open
-    (once). Other messages ('mai em xin nghỉ', 'ok') are not touched."""
+    number ('xong một', '1') and the room is marked cleaned; 'bỏ 1' undoes; 12:30 the bot asks about the rooms still open,
+    13:00 / 13:30 it reminds (each once). Other messages ('mai em xin nghỉ', 'ok') are not touched."""
     import app as appmod
     from datetime import date, datetime
     bid = booking(checkin_date='2030-01-10', checkout_date='2030-01-12')
@@ -591,9 +591,11 @@ def test_clean_done_by_number(app, db, booking, monkeypatch):
             assert appmod.staff_clean_reply(db, me, 'mai em xin nghỉ') is None
             assert appmod.staff_clean_reply(db, me, 'ok') is None
             assert 'Không có phòng số 7' in appmod.staff_clean_reply(db, me, '7')
-            assert appmod.clean_ask(db, datetime(2030, 1, 12, 12, 5)) is True
-            assert '12:00' in sent[-1][1]['text'] and '1. Thợ Nhuộm' in sent[-1][1]['text']
-            assert appmod.clean_ask(db, datetime(2030, 1, 12, 12, 6)) is False          # once
+            assert appmod.clean_ask(db, datetime(2030, 1, 12, 12, 5)) is False         # owner: first question at 12:30
+            assert appmod.clean_ask(db, datetime(2030, 1, 12, 12, 31)) is True
+            assert '12:30' in sent[-1][1]['text'] and '1. Thợ Nhuộm' in sent[-1][1]['text']
+            assert appmod.clean_ask(db, datetime(2030, 1, 12, 12, 32)) is False         # once
+            assert appmod.clean_ask(db, datetime(2030, 1, 12, 13, 1)) is True and '13:00' in sent[-1][1]['text']
             r = appmod.staff_clean_reply(db, me, 'Xong một')
             assert '✅ Đã ghi dọn xong: Thợ Nhuộm' in r and 'xong hết' in r
             it = appmod.clean_rooms(db, date(2030, 1, 12))[0]

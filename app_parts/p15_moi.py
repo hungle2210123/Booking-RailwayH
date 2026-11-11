@@ -680,7 +680,7 @@ def zbot_tick():
             chats = _zbot_get(_xdb, 'zbot_chats', {}) or {}
             if not any(c.get('on') for c in chats.values()):
                 return False
-            if now.hour >= 12:      # p16: 12:00 "dọn tới đâu rồi" · 13:30 reminder of the rooms not marked cleaned
+            if now.hour >= 12:      # p16: 12:30 "dọn tới đâu rồi" · 13:00 + 13:30 reminders of the rooms not marked cleaned
                 return clean_ask(_xdb, now)
             day = now.date().isoformat()
             got = _xdb.session.execute(text(

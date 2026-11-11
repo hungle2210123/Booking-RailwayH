@@ -344,8 +344,8 @@ STAFF_HELP = ("Nhắn cho bot:\n• Xin nghỉ: \"mai em xin nghỉ\" / \"nghỉ
 
 
 # ── 🧹 Dọn xong (owner, Nov 11): the cleaners' phones are slow → no link, no page. Every room of the day has a NUMBER in the
-# 8:00 message; she answers just that number ("1", "1 3", "xong một") and the room is marked cleaned. 12:00 the bot asks
-# "dọn tới đâu rồi", 13:30 it reminds the rooms still open (guests come in from 14:00). State = moi_settings 'clean_state'
+# 8:00 message; she answers just that number ("1", "1 3", "xong một") and the room is marked cleaned. 12:30 the bot asks
+# "dọn tới đâu rồi", 13:00 and 13:30 it reminds the rooms still open (guests come in from 14:00). State = moi_settings 'clean_state'
 # {day, nums: {"apt:room": n}, done: {"apt:room": {at, by}}} — numbers never change during the day.
 CLEAN_NUM = {'mot': 1, 'hai': 2, 'ba': 3, 'bon': 4, 'tu': 4, 'nam': 5, 'sau': 6, 'bay': 7, 'tam': 8, 'chin': 9, 'muoi': 10}
 CLEAN_FILL = {'xong', 'roi', 'da', 'don', 'phong', 'so', 'em', 'chi', 'co', 'a', 'nhe', 'nha', 'ok', 'va', 'het', 'ca', 'tat'}
@@ -465,10 +465,11 @@ def staff_clean_reply(_xdb, chat, msg):
 
 
 def clean_ask(_xdb, now):
-    """12:00 "dọn tới đâu rồi" and 13:30 reminder (before guests come in at 14:00) → every chat that is on. Each is sent
+    """12:30 "dọn tới đâu rồi", 13:00 and 13:30 reminders (before guests come in at 14:00) → every chat that is on. Each is sent
     once (claimed in moi_settings 'zbot_ask'), and only while some room is not marked cleaned."""
     hm = (now.hour, now.minute)
-    slot = '12' if (12, 0) <= hm < (12, 45) else '13' if (13, 30) <= hm < (14, 0) else None
+    # owner, Nov 11: ask at 12:30, remind at 13:00 and again at 13:30
+    slot = '1230' if (12, 30) <= hm < (12, 55) else '1300' if (13, 0) <= hm < (13, 25) else '1330' if (13, 30) <= hm < (14, 0) else None
     if not slot:
         return False
     got = _xdb.session.execute(text(
@@ -482,11 +483,11 @@ def clean_ask(_xdb, now):
     left = [x for x in items if not x['done']]
     if not left:
         return False
-    if slot == '12':
-        msg = (f'🧹 12:00 — các cô dọn tới đâu rồi ạ? Đã xong {len(items) - len(left)}/{len(items)} phòng.\nChưa báo xong:\n'
+    if slot == '1230':
+        msg = (f'🧹 12:30 — các cô dọn tới đâu rồi ạ? Đã xong {len(items) - len(left)}/{len(items)} phòng.\nChưa báo xong:\n'
                + clean_lines(left) + '\n\n' + CLEAN_HINT)
     else:
-        msg = (f'⏰ 13:30 — còn {len(left)} phòng chưa báo xong, khách vào từ 14:00:\n' + clean_lines(left)
+        msg = (f'⏰ {slot[:2]}:{slot[2:]} — còn {len(left)} phòng chưa báo xong, khách vào từ 14:00:\n' + clean_lines(left)
                + '\n\nXong phòng nào nhắn số giúp em. Chưa kịp phòng nào thì báo anh Lộc nhé.')
     off = staff_off_on(_xdb, now.date())
     for cid, c in _staff_chats(_xdb).items():
