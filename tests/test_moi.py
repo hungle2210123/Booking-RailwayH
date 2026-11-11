@@ -479,3 +479,24 @@ def test_staff_delete_recalls_and_resend(client, monkeypatch):
             appmod._zbot_put(db, 'zbot_chats', old)
             if last is not None:
                 appmod._zbot_put(db, 'zbot_last', last)
+
+
+@pytest.mark.parametrize('url', ['/may-tinh', '/moi'])
+def test_page_scripts_parse(client, url):
+    """Nov 11: a raw newline inside a JS string broke /may-tinh ('Đang tải dữ liệu…' forever) while the page still
+    returned 200. Every inline <script> of the big pages must pass `node --check`."""
+    import re, shutil, subprocess, tempfile, os
+    node = shutil.which('node')
+    if not node:
+        pytest.skip('node not installed')
+    html = client.get(url).get_data(as_text=True)
+    for i, js in enumerate(re.findall(r'<script(?![^>]*\bsrc=)[^>]*>(.*?)</script>', html, re.S)):
+        if not js.strip() or 'application/json' in js[:0]:
+            continue
+        with tempfile.NamedTemporaryFile('w', suffix='.js', delete=False, encoding='utf-8') as f:
+            f.write(js)
+        try:
+            r = subprocess.run([node, '--check', f.name], capture_output=True, text=True, encoding='utf-8')
+            assert r.returncode == 0, f'{url} script #{i}: {r.stderr[:400]}'
+        finally:
+            os.unlink(f.name)

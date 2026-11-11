@@ -410,9 +410,7 @@ button.info.on{border-color:#0E1525;background:#fff}
     if (!ok && navigator.clipboard) navigator.clipboard.writeText(t).catch(() => {});
     return true; };
   D.zbotResend = async () => {
-    if (!confirm('Gửi lại tin dọn phòng hôm nay (bản mới nhất) cho các cô qua bot Zalo?
-
-' + cleanText(0))) return;
+    if (!confirm('Gửi lại tin dọn phòng hôm nay (bản mới nhất) cho các cô qua bot Zalo?\n\n' + cleanText(0))) return;
     toast('Đang gửi…');
     let j = {};
     try { j = await (await fetch('/api/moi/zbot', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'resend' }) })).json(); } catch (e) {}
