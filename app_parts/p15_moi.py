@@ -647,14 +647,14 @@ def _zbot_secret(_xdb):
 def _zbot_send_clean(_xdb, day=None, only=None, prefix=''):
     """Send the cleaning message of `day` to every chat that is on (or only `only`). Returns [(name, ok, error)]."""
     day = day or (datetime.utcnow() + timedelta(hours=7)).date()
-    msg = prefix + clean_message(_xdb, day)     # p16: numbered rooms — she answers the number when a room is done
     chats = _zbot_get(_xdb, 'zbot_chats', {}) or {}
     off = staff_off_on(_xdb, day)          # p16: a cleaner on an approved day off gets nothing; the other "dọn cả 2 bên"
     out = []
     for cid, c in chats.items():
         if (only and cid != only) or (not only and (not c.get('on') or cid in off)):
             continue
-        body = staff_clean_note(_xdb, day, cid) + msg
+        # p16: each cleaner gets HER rooms with her fixed numbers — she answers the number when a room is done
+        body = staff_clean_note(_xdb, day, cid) + prefix + clean_message(_xdb, day, c)
         if c.get('role') == 'staff':
             body += '\n\nXin nghỉ: nhắn "mai em xin nghỉ" · Làm thêm: "hôm nay em làm thêm 2 phòng"'
         r = _zbot_call('sendMessage', {'chat_id': cid, 'text': body})
@@ -812,7 +812,7 @@ def moi_zbot():
                     'connected': bool(((info or {}).get('result') or {}).get('url', '').endswith('/zalo-bot/hook')),
                     'chats': [dict(c, id=k) for k, c in chats.items()], 'last': _zbot_get(_xdb, 'zbot_last'),
                     'sent_day': _zbot_get(_xdb, 'zbot_sent'), 'loop': ZBOT_BEAT,
-                    'clean': clean_rooms(_xdb, (datetime.utcnow() + timedelta(hours=7)).date())[0],
+                    'clean': clean_board(_xdb, (datetime.utcnow() + timedelta(hours=7)).date()),
                     'clean_text': clean_message(_xdb, (datetime.utcnow() + timedelta(hours=7)).date())})
 
 

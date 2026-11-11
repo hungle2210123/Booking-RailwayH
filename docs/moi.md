@@ -205,12 +205,15 @@ page and stay zoomed (the 15px bồi dưỡng / trừ tiền inputs). Fix in moi
 
 ## 🧹 Dọn xong bằng số (Nov 11)
 Owner: the cleaners' phones are slow → no link / page; they answer the bot with a NUMBER.
-- `clean_rooms(day)` (p16) numbers the rooms of the day (arrived guests leaving, with a room number); numbers are kept all
-  day in `moi_settings 'clean_state'` {day, nums, done}. `clean_message` = the 8:00 text (numbered + how to answer).
+- **Fixed numbers per cleaner** (owner: "chia ra rõ 2 bên"): `CLEAN_SIDES` in p16 — cô Dung = Hàng Bạc 1-4, Hàng Bè 5-6 ·
+  chị Hường = Thợ Nhuộm 1-4, Hội Vũ 5-8 (matched by first name; `chat['apts']` overrides). `clean_nums` = her numbers;
+  the other side continues after hers (used when the other cleaner is off → `clean_view` gives her those rooms too).
+- `clean_rooms(day)` = rooms of the day (arrived guests leaving, with a room number); state `moi_settings 'clean_state'`
+  {day, done, prio}. `clean_message(day, chat)` = the 8:00 text: a cleaner gets HER rooms + how to answer, the owner both lists.
 - `staff_clean_reply`: "1" / "1 3" / "xong một" / "xong hết" / "bỏ 2" / a room number (101) → mark / unmark; the bot answers
-  what is left; the owner gets the usual copy. Anything else falls through to xin nghỉ / làm thêm.
-- `clean_ask` (from `zbot_tick`): 12:30 "dọn tới đâu rồi" + 13:00 and 13:30 reminders (guests come in from 14:00), each once
-  (`zbot_ask`), only while a room is open. /moi → Việc hằng ngày shows "Dọn xong hôm nay n/m"; tapping a row toggles it
-  (`/api/moi/zbot` action `clean_done`).
-- ⚡ Dọn sớm: the owner picks a room in that list (`clean_prio`, action `clean_prio`) → saved in `clean_state.prio`, the bot
-  tells the cleaners at once and the line shows "⚡ ƯU TIÊN dọn sớm". No automatic "khách vào hôm nay" (owner: the app cannot know).
+  what is left; the owner gets the usual copy. Anything else falls through to xin nghỉ / làm thêm. The owner ticks in the app.
+- `clean_ask` (from `zbot_tick`): 12:30 "dọn tới đâu rồi" + 13:00 and 13:30 reminders, each once (`zbot_ask`), each
+  cleaner only her open rooms. /moi → Việc hằng ngày shows "Dọn xong hôm nay n/m" grouped by cleaner (`clean_board`);
+  tapping a row toggles it (`/api/moi/zbot` action `clean_done`).
+- ⚡ Dọn sớm: the owner picks a room in that list (`clean_prio`) → saved in `clean_state.prio`, the bot tells the cleaner of
+  that room at once. No automatic "khách vào hôm nay" (owner: the app cannot know).

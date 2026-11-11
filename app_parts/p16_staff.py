@@ -343,94 +343,172 @@ STAFF_HELP = ("Nhắn cho bot:\n• Xin nghỉ: \"mai em xin nghỉ\" / \"nghỉ
 
 
 
-# ── 🧹 Dọn xong (owner, Nov 11): the cleaners' phones are slow → no link, no page. Every room of the day has a NUMBER in the
-# 8:00 message; she answers just that number ("1", "1 3", "xong một") and the room is marked cleaned. 12:30 the bot asks
-# "dọn tới đâu rồi", 13:00 and 13:30 it reminds the rooms still open (guests come in from 14:00). State = moi_settings 'clean_state'
-# {day, nums: {"apt:room": n}, done: {"apt:room": {at, by}}} — numbers never change during the day.
+# ── 🧹 Dọn xong (owner, Nov 11): the cleaners' phones are slow → no link, no page. Each cleaner has her OWN FIXED numbers
+# (owner: "chia ra rõ 2 bên cho 2 cô" — cô Dung 1-4 = Hàng Bạc, 5-6 = Hàng Bè · chị Hường 1-4 = Thợ Nhuộm, 5-8 = Hội Vũ):
+# a room has the same number every day. The 8:00 message lists HER rooms of the day; she answers the number ("1", "1 3",
+# "xong một") and the room is marked cleaned. 12:30 the bot asks "dọn tới đâu rồi", 13:00 and 13:30 it reminds the rooms
+# still open. When the other cleaner is off she also gets the other side (numbers continue after hers).
+# State = moi_settings 'clean_state' {day, done: {"apt:room": {at, by}}, prio: ["apt:room"]}.
 CLEAN_NUM = {'mot': 1, 'hai': 2, 'ba': 3, 'bon': 4, 'tu': 4, 'nam': 5, 'sau': 6, 'bay': 7, 'tam': 8, 'chin': 9, 'muoi': 10}
 CLEAN_FILL = {'xong', 'roi', 'da', 'don', 'phong', 'so', 'em', 'chi', 'co', 'a', 'nhe', 'nha', 'ok', 'va', 'het', 'ca', 'tat'}
 CLEAN_UNDO = {'bo', 'chua', 'nham', 'huy'}
 CLEAN_HINT = 'Dọn xong phòng nào, nhắn SỐ của phòng đó (vd: 1 — hoặc 1 3 nếu xong 2 phòng).'
+CLEAN_SIDES = {'dung': [1, 2], 'huong': [877, 506]}      # first name (folded) → her apartments, in number order
+
+
+def clean_side(chat):
+    """Apartment ids a cleaner looks after ([] = not a cleaner with a side, e.g. the owner). chat['apts'] overrides the name."""
+    chat = chat or {}
+    if chat.get('apts'):
+        return [int(x) for x in chat['apts']]
+    if chat.get('role') != 'staff':
+        return []
+    return next((CLEAN_SIDES[w] for w in _fold(_staff_name(chat)).split() if w in CLEAN_SIDES), [])
+
+
+def clean_nums(apts, chat):
+    """{"apt:room": her fixed number} — her apartments first (in her order), then the others (used when she covers)."""
+    side = clean_side(chat)
+    order = [a for i in side for a in apts if a['id'] == i] + [a for a in apts if a['id'] not in side]
+    out, n = {}, 0
+    for a in order:
+        for no in range(1, a['rooms'] + 1):
+            n += 1
+            out[f"{a['id']}:{no}"] = n
+    return out
+
+
+def clean_label(a, no):
+    return f"{MOI_STREET.get(a['id']) or a['name']} {_moi_room_label(a, no)}"
 
 
 def clean_rooms(_xdb, day):
-    """The numbered rooms to clean on `day` (guests marked arrived who leave that day, with a room number) →
-    ([{n, key, label, prio, done}], state). `prio` = the owner marked it 'ưu tiên dọn sớm' in the app (owner, Nov 11:
-    the app cannot know who comes early — no automatic 'khách vào hôm nay')."""
+    """Rooms to clean on `day` (guests marked arrived who leave that day, with a room number) →
+    ([{key, apt, no, label, prio, done}], state, apartments). `prio` = the owner marked it '⚡ dọn sớm' in the app."""
     iso = day.isoformat()
     st = _zbot_get(_xdb, 'clean_state') or {}
     if st.get('day') != iso:
-        st = {'day': iso, 'nums': {}, 'done': {}}
+        st = {'day': iso, 'done': {}, 'prio': []}
+    st.setdefault('done', {}); st.setdefault('prio', [])
     rows = _xdb.session.execute(text("""
         SELECT actual_apartment, room_no FROM bookings
         WHERE checkout_date = :d AND COALESCE(booking_status, '') NOT IN ('cancelled', 'deleted')
           AND checkin_status = 'confirmed' AND room_no IS NOT NULL AND COALESCE(actual_apartment, '') <> ''"""), {'d': day}).fetchall()
-    items, new = [], False
-    for a in _moi_apartments(_xdb):
-        street = MOI_STREET.get(a['id']) or a['name']
+    apts, items = _moi_apartments(_xdb), []
+    for a in apts:
         for no in sorted({r[1] for r in rows if str(r[0]) == str(a['id'])}):
             key = f"{a['id']}:{no}"
-            if key not in st['nums']:
-                st['nums'][key] = max(st['nums'].values(), default=0) + 1
-                new = True
-            items.append({'n': st['nums'][key], 'key': key, 'label': f"{street} {_moi_room_label(a, no)}",
-                          'prio': key in (st.get('prio') or []), 'done': st['done'].get(key)})
-    if new:
-        _zbot_put(_xdb, 'clean_state', st)
-    return sorted(items, key=lambda x: x['n']), st
+            items.append({'key': key, 'apt': a['id'], 'no': no, 'label': clean_label(a, no),
+                          'prio': key in st['prio'], 'done': st['done'].get(key)})
+    return items, st, apts
+
+
+def clean_view(_xdb, day, chat, got=None):
+    """The rooms of the day THIS cleaner must clean, with her numbers: her side + the apartments nobody working today has."""
+    side = clean_side(chat)
+    if not side:
+        return []
+    items, _, apts = got or clean_rooms(_xdb, day)
+    off = staff_off_on(_xdb, day)
+    covered = {i for cid, c in _staff_people(_xdb).items() if cid not in off for i in clean_side(c)}
+    nums = clean_nums(apts, chat)
+    return sorted((dict(x, n=nums.get(x['key'], 0)) for x in items if x['apt'] in side or x['apt'] not in covered),
+                  key=lambda x: x['n'])
+
+
+def clean_board(_xdb, day, got=None):
+    """All rooms of the day for the owner / the app: each with the number and name of the cleaner whose side it is."""
+    items, _, apts = got or clean_rooms(_xdb, day)
+    people = list(_staff_people(_xdb).values())
+    out = []
+    for x in items:
+        c = next((p for p in people if x['apt'] in clean_side(p)), None)
+        out.append(dict(x, n=clean_nums(apts, c).get(x['key'], 0) if c else 0, who=_staff_name(c) if c else ''))
+    return sorted(out, key=lambda x: (x['who'] == '', x['who'], x['n']))
 
 
 def clean_lines(items):
-    return '\n'.join(f"{x['n']}. {x['label']}" + (' — ⚡ ƯU TIÊN dọn sớm' if x['prio'] else '')
+    return '\n'.join((f"{x['n']}. " if x.get('n') else '• ') + x['label'] + (' — ⚡ ƯU TIÊN dọn sớm' if x['prio'] else '')
                      + (f" ✅ {x['done'].get('at', '')}".rstrip() if x['done'] else '') for x in items)
 
 
-def clean_message(_xdb, day):
-    """The 8:00 message: numbered rooms + how to answer (no rooms → the plain text of _moi_clean_text)."""
-    items, _ = clean_rooms(_xdb, day)
-    if not items:
-        return _moi_clean_text(_xdb, day)
+def clean_groups(board):
+    out = []
+    for who in dict.fromkeys(x['who'] for x in board):
+        out.append(f"— {who or 'Chưa chia cho ai'} —\n" + clean_lines([x for x in board if x['who'] == who]))
+    return '\n'.join(out)
+
+
+def clean_message(_xdb, day, chat=None):
+    """The 8:00 message. A cleaner gets HER rooms with her fixed numbers + how to answer; the owner gets both lists."""
+    got = clean_rooms(_xdb, day)
+    head = f'Dọn phòng {MOI_WEEKDAY[day.weekday()]} {day.day}/{day.month}\n'
     loose = _xdb.session.execute(text("""
         SELECT COUNT(*) FROM bookings WHERE checkout_date = :d AND COALESCE(booking_status, '') NOT IN ('cancelled', 'deleted')
           AND checkin_status = 'confirmed' AND (room_no IS NULL OR COALESCE(actual_apartment, '') = '')"""), {'d': day}).scalar() or 0
-    return (f'Dọn phòng {MOI_WEEKDAY[day.weekday()]} {day.day}/{day.month}\n' + clean_lines(items)
-            + (f'\nChưa ghi số phòng: {loose} phòng' if loose else '') + '\n\n' + CLEAN_HINT)
+    tail = f'\nChưa ghi số phòng: {loose} phòng' if loose else ''
+    if clean_side(chat):
+        v = clean_view(_xdb, day, chat, got)
+        return head + (clean_lines(v) + tail + '\n\n' + CLEAN_HINT if v else 'Hôm nay bên mình không có phòng trả.' + tail)
+    if not got[0]:
+        return _moi_clean_text(_xdb, day)
+    return head + clean_groups(clean_board(_xdb, day, got)) + tail
 
 
 def clean_mark(_xdb, key, on, by=''):
-    """Mark / unmark one room of today as cleaned. Returns the fresh item list."""
+    """Mark / unmark one room of today as cleaned (the owner, in the app). Returns the fresh board."""
     today = _vn_now().date()
-    items, st = clean_rooms(_xdb, today)
-    if key in st['nums']:
+    items, st, _ = clean_rooms(_xdb, today)
+    if any(x['key'] == key for x in items):
         if on:
             st['done'][key] = {'at': _vn_now().strftime('%H:%M'), 'by': by}
         else:
             st['done'].pop(key, None)
         _zbot_put(_xdb, 'clean_state', st)
-    return clean_rooms(_xdb, today)[0]
+    return clean_board(_xdb, today)
+
+
+def _clean_send(_xdb, day, make):
+    """make(chat) → text or '' for every chat that is on and not off that day. Returns how many were sent."""
+    off, n = staff_off_on(_xdb, day), 0
+    for cid, c in _staff_chats(_xdb).items():
+        if c.get('on') and cid not in off:
+            msg = make(c)
+            if msg:
+                _zbot_call('sendMessage', {'chat_id': cid, 'text': msg[:1990]})
+                n += 1
+    return n
 
 
 def clean_prio(_xdb, key, on):
-    """⚡ The owner picks a room to clean first (a guest comes early) → saved and told to every chat that is on, at once."""
+    """⚡ The owner picks a room to clean first (a guest comes early) → saved; the cleaner who has that room (and the
+    owner) is told at once, with HER number."""
     today = _vn_now().date()
-    items, st = clean_rooms(_xdb, today)
+    items, st, _ = clean_rooms(_xdb, today)
     x = next((i for i in items if i['key'] == key), None)
     if not x or bool(on) == x['prio']:
-        return items
-    st['prio'] = [k for k in (st.get('prio') or []) if k != key] + ([key] if on else [])
+        return clean_board(_xdb, today)
+    st['prio'] = [k for k in st['prio'] if k != key] + ([key] if on else [])
     _zbot_put(_xdb, 'clean_state', st)
-    msg = (f"⚡ ƯU TIÊN dọn sớm: {x['n']}. {x['label']} — khách vào sớm, các cô dọn phòng này TRƯỚC giúp em. "
-           f"Xong nhắn số {x['n']}." if on else f"↩️ {x['n']}. {x['label']} không cần dọn sớm nữa, các cô dọn như bình thường nhé.")
-    off = staff_off_on(_xdb, today)
-    for cid, c in _staff_chats(_xdb).items():
-        if c.get('on') and cid not in off:
-            _zbot_call('sendMessage', {'chat_id': cid, 'text': msg})
-    return clean_rooms(_xdb, today)[0]
+
+    def make(c):
+        if clean_side(c):
+            v = next((i for i in clean_view(_xdb, today, c) if i['key'] == key), None)
+            if not v:
+                return ''
+            name = f"{v['n']}. {x['label']}"
+            return (f"⚡ ƯU TIÊN dọn sớm: {name} — khách vào sớm, dọn phòng này TRƯỚC giúp em. Xong nhắn số {v['n']}."
+                    if on else f"↩️ {name} không cần dọn sớm nữa, dọn như bình thường nhé.")
+        return (f"⚡ Đã báo ưu tiên dọn sớm: {x['label']}." if on else f"↩️ Đã bỏ ưu tiên: {x['label']}.")
+    _clean_send(_xdb, today, make)
+    return clean_board(_xdb, today)
 
 
 def staff_clean_reply(_xdb, chat, msg):
-    """'1' / '1 3' / 'xong một' / 'xong hết' / 'bỏ 2' from a cleaner (or the owner) → mark today's rooms. None = the
-    message is about something else."""
+    """'1' / '1 3' / 'xong một' / 'xong hết' / 'bỏ 2' from a cleaner → mark HER rooms of today. None = the message is
+    about something else (or the sender has no side — the owner ticks in the app)."""
+    if not clean_side(chat):
+        return None
     toks = _re.findall(r'[a-z]+|\d+', _fold(msg))
     if not toks or any(not (w.isdigit() or w in CLEAN_NUM or w in CLEAN_FILL or w in CLEAN_UNDO) for w in toks):
         return None
@@ -439,25 +517,32 @@ def staff_clean_reply(_xdb, chat, msg):
     every = not nums and 'xong' in toks and ('het' in toks or 'ca' in toks) and not undo
     if not nums and not every:
         return None
-    items, st = clean_rooms(_xdb, _vn_now().date())
-    if not items:
-        return None if not (every or 'xong' in toks) else 'Hôm nay không có phòng nào trong danh sách dọn.'
+    today = _vn_now().date()
+    got = clean_rooms(_xdb, today)
+    st, apts = got[1], got[2]
+    view = clean_view(_xdb, today, chat, got)
+    mine = {n: k for k, n in clean_nums(apts, chat).items()}
     hit, bad = [], []
     if every:
-        hit = [x for x in items if not x['done']]
+        hit = [x for x in view if not x['done']]
     for n in nums:
-        x = next((i for i in items if i['n'] == n), None)
-        if not x:
-            same = [i for i in items if i['label'].split()[-1] == str(n)]      # she typed the ROOM number (101)
+        x = next((i for i in view if i['n'] == n), None)
+        if not x and n not in mine:
+            same = [i for i in view if i['label'].split()[-1] == str(n)]      # she typed the ROOM number (101)
             if len(same) > 1:
                 bad.append(f"Phòng {n} có ở {', '.join(i['label'].rsplit(' ', 1)[0] for i in same)} — nhắn số thứ tự: "
                            + ' hoặc '.join(str(i['n']) for i in same))
                 continue
             x = same[0] if same else None
-        if not x:
-            bad.append(f'Không có phòng số {n} trong danh sách hôm nay.')
-        elif x not in hit:
-            hit.append(x)
+        if x:
+            if x not in hit:
+                hit.append(x)
+        elif n in mine:
+            aid, no = mine[n].split(':')
+            a = next(a for a in apts if str(a['id']) == aid)
+            bad.append(f"Số {n} là {clean_label(a, int(no))} — hôm nay phòng này không có trong danh sách dọn.")
+        else:
+            bad.append(f'Không có phòng số {n}.')
     by, at = _staff_name(chat), _vn_now().strftime('%H:%M')
     for x in hit:
         if undo:
@@ -466,8 +551,7 @@ def staff_clean_reply(_xdb, chat, msg):
             st['done'][x['key']] = {'at': at, 'by': by}
     if hit:
         _zbot_put(_xdb, 'clean_state', st)
-    items = clean_rooms(_xdb, _vn_now().date())[0]
-    left = [x for x in items if not x['done']]
+    left = [x for x in clean_view(_xdb, today, chat) if not x['done']]
     out = []
     if hit:
         out.append(('↩️ Đã bỏ dấu: ' if undo else '✅ Đã ghi dọn xong: ') + ', '.join(x['label'] for x in hit) + '.')
@@ -480,10 +564,9 @@ def staff_clean_reply(_xdb, chat, msg):
 
 
 def clean_ask(_xdb, now):
-    """12:30 "dọn tới đâu rồi", 13:00 and 13:30 reminders (before guests come in at 14:00) → every chat that is on. Each is sent
-    once (claimed in moi_settings 'zbot_ask'), and only while some room is not marked cleaned."""
+    """12:30 "dọn tới đâu rồi", 13:00 and 13:30 reminders → each cleaner gets HER open rooms, the owner gets all of them.
+    Each is sent once (claimed in moi_settings 'zbot_ask'), and only to someone who still has a room not marked cleaned."""
     hm = (now.hour, now.minute)
-    # owner, Nov 11: ask at 12:30, remind at 13:00 and again at 13:30
     slot = '1230' if (12, 30) <= hm < (12, 55) else '1300' if (13, 0) <= hm < (13, 25) else '1330' if (13, 30) <= hm < (14, 0) else None
     if not slot:
         return False
@@ -494,21 +577,21 @@ def clean_ask(_xdb, now):
     _xdb.session.commit()
     if not got:
         return False
-    items = clean_rooms(_xdb, now.date())[0]
-    left = [x for x in items if not x['done']]
-    if not left:
-        return False
-    if slot == '1230':
-        msg = (f'🧹 12:30 — các cô dọn tới đâu rồi ạ? Đã xong {len(items) - len(left)}/{len(items)} phòng.\nChưa báo xong:\n'
-               + clean_lines(left) + '\n\n' + CLEAN_HINT)
-    else:
-        msg = (f'⏰ {slot[:2]}:{slot[2:]} — còn {len(left)} phòng chưa báo xong, khách vào từ 14:00:\n' + clean_lines(left)
-               + '\n\nXong phòng nào nhắn số giúp em. Chưa kịp phòng nào thì báo anh Lộc nhé.')
-    off = staff_off_on(_xdb, now.date())
-    for cid, c in _staff_chats(_xdb).items():
-        if c.get('on') and cid not in off:
-            _zbot_call('sendMessage', {'chat_id': cid, 'text': msg[:1990]})
-    return True
+    day, rooms = now.date(), clean_rooms(_xdb, now.date())
+
+    def make(c):
+        side = clean_side(c)
+        every = clean_view(_xdb, day, c, rooms) if side else clean_board(_xdb, day, rooms)
+        left = [x for x in every if not x['done']]
+        if not left:
+            return ''
+        lines = clean_lines(left) if side else clean_groups(left)
+        if slot == '1230':
+            return (f'🧹 12:30 — dọn tới đâu rồi ạ? Đã xong {len(every) - len(left)}/{len(every)} phòng.\nChưa báo xong:\n'
+                    + lines + ('\n\n' + CLEAN_HINT if side else ''))
+        return (f'⏰ {slot[:2]}:{slot[2:]} — còn {len(left)} phòng chưa báo xong:\n' + lines
+                + ('\n\nXong phòng nào nhắn số giúp em. Chưa kịp phòng nào thì báo anh Lộc nhé.' if side else ''))
+    return _clean_send(_xdb, day, make) > 0
 
 
 def staff_handle_text(_xdb, cid, chat, msg):

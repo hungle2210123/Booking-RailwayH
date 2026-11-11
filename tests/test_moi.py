@@ -569,9 +569,10 @@ def test_iphone_zoom_lock(client, url):
 
 
 def test_clean_done_by_number(app, db, booking, monkeypatch):
-    """Owner, Nov 11: the cleaners' phones are slow → no link. Rooms are numbered in the 8:00 message; she answers the
-    number ('xong một', '1') and the room is marked cleaned; 'bỏ 1' undoes; 12:30 the bot asks about the rooms still open,
-    13:00 / 13:30 it reminds (each once). Other messages ('mai em xin nghỉ', 'ok') are not touched."""
+    """Owner, Nov 11: the cleaners' phones are slow → no link. Each cleaner has her own FIXED numbers (cô Dung 1-4 Hàng Bạc,
+    5-6 Hàng Bè · chị Hường 1-4 Thợ Nhuộm, 5-8 Hội Vũ); she answers the number ('xong ba', '3') and the room is marked
+    cleaned; 'bỏ 3' undoes; 12:30 the bot asks about HER rooms still open, 13:00 / 13:30 it reminds (each once). No
+    automatic 'khách vào hôm nay' — the owner picks ⚡ Dọn sớm. Other messages ('mai em xin nghỉ', 'ok') are not touched."""
     import app as appmod
     from datetime import date, datetime
     bid = booking(checkin_date='2030-01-10', checkout_date='2030-01-12')
@@ -581,34 +582,46 @@ def test_clean_done_by_number(app, db, booking, monkeypatch):
     sent = []
     monkeypatch.setattr(appmod, '_zbot_call', lambda m, body=None, timeout=15: (sent.append((m, body)) or {'ok': True, 'result': {}}))
     monkeypatch.setattr(appmod, '_vn_now', lambda: datetime(2030, 1, 12, 12, 5))
-    me = {'name': 'ZZTEST Dung', 'role': 'staff'}
+    D = date(2030, 1, 12)
+    dung, huong, boss = ({'name': 'ZZTEST Dung', 'role': 'staff', 'on': True}, {'name': 'ZZTEST Hường', 'role': 'staff', 'on': True},
+                         {'name': 'ZZTEST Chủ', 'role': 'owner', 'on': True})
+    to = lambda cid: [b['text'] for m, b in sent if m == 'sendMessage' and b['chat_id'] == cid]
     with app.app_context():
         keep = {k: appmod._zbot_get(db, k) for k in ('clean_state', 'zbot_ask', 'zbot_chats')}
         try:
-            appmod._zbot_put(db, 'zbot_chats', {'zz-a': dict(me, on=True)})
-            msg = appmod.clean_message(db, date(2030, 1, 12))
-            assert msg.startswith('Dọn phòng') and '1. Thợ Nhuộm' in msg and 'nhắn SỐ' in msg
-            assert appmod.staff_clean_reply(db, me, 'mai em xin nghỉ') is None
-            assert appmod.staff_clean_reply(db, me, 'ok') is None
-            assert 'Không có phòng số 7' in appmod.staff_clean_reply(db, me, '7')
-            assert appmod.clean_ask(db, datetime(2030, 1, 12, 12, 5)) is False         # owner: first question at 12:30
+            appmod._zbot_put(db, 'zbot_chats', {'zz-a': dung, 'zz-b': huong, 'zz-o': boss})
+            apts = appmod._moi_apartments(db)
+            nd, nh = appmod.clean_nums(apts, dung), appmod.clean_nums(apts, huong)
+            assert [nd['1:1'], nd['1:4'], nd['2:1'], nd['2:2']] == [1, 4, 5, 6]                 # cô Dung: 6 numbers
+            assert [nh['877:1'], nh['877:4'], nh['506:1'], nh['506:4']] == [1, 4, 5, 8]         # chị Hường: 8 numbers
+            msg = appmod.clean_message(db, D, huong)
+            assert msg.startswith('Dọn phòng') and '3. Thợ Nhuộm' in msg and 'nhắn SỐ' in msg and 'khách vào hôm nay' not in msg
+            assert 'Thợ Nhuộm' not in appmod.clean_message(db, D, dung)                         # not her side
+            assert '— ZZTEST Hường —\n3. Thợ Nhuộm' in appmod.clean_message(db, D, boss)         # the owner sees both sides
+            assert appmod.staff_clean_reply(db, huong, 'mai em xin nghỉ') is None
+            assert appmod.staff_clean_reply(db, huong, 'ok') is None
+            assert appmod.staff_clean_reply(db, boss, '3') is None                             # the owner ticks in the app
+            assert 'hôm nay phòng này không có trong danh sách' in appmod.staff_clean_reply(db, huong, '7')
+            assert 'Không có phòng số 40' in appmod.staff_clean_reply(db, huong, '40')
+            assert appmod.clean_ask(db, datetime(2030, 1, 12, 12, 5)) is False                 # first question at 12:30
             assert appmod.clean_ask(db, datetime(2030, 1, 12, 12, 31)) is True
-            assert '12:30' in sent[-1][1]['text'] and '1. Thợ Nhuộm' in sent[-1][1]['text']
-            assert appmod.clean_ask(db, datetime(2030, 1, 12, 12, 32)) is False         # once
-            assert appmod.clean_ask(db, datetime(2030, 1, 12, 13, 1)) is True and '13:00' in sent[-1][1]['text']
-            assert 'khách vào hôm nay' not in msg                                        # owner: no automatic guess
-            k = appmod.clean_rooms(db, date(2030, 1, 12))[0][0]['key']                  # ⚡ owner picks 'dọn sớm' in the app
-            assert appmod.clean_prio(db, k, True)[0]['prio'] and 'ƯU TIÊN dọn sớm: 1. Thợ Nhuộm' in sent[-1][1]['text']
-            assert '⚡ ƯU TIÊN' in appmod.clean_message(db, date(2030, 1, 12))
-            r = appmod.staff_clean_reply(db, me, 'Xong một')
+            assert '12:30' in to('zz-b')[-1] and '3. Thợ Nhuộm' in to('zz-b')[-1] and to('zz-o') and not to('zz-a')
+            assert appmod.clean_ask(db, datetime(2030, 1, 12, 12, 32)) is False                # once
+            assert appmod.clean_ask(db, datetime(2030, 1, 12, 13, 1)) is True and '13:00' in to('zz-b')[-1]
+            k = appmod.clean_rooms(db, D)[0][0]['key']                                         # ⚡ owner picks 'dọn sớm'
+            assert appmod.clean_prio(db, k, True)[0]['prio'] and 'ƯU TIÊN dọn sớm: 3. Thợ Nhuộm' in to('zz-b')[-1]
+            assert '⚡ ƯU TIÊN' in appmod.clean_message(db, D, huong) and not to('zz-a')
+            r = appmod.staff_clean_reply(db, huong, 'Xong ba')
             assert '✅ Đã ghi dọn xong: Thợ Nhuộm' in r and 'xong hết' in r
-            it = appmod.clean_rooms(db, date(2030, 1, 12))[0]
-            assert it[0]['done']['by'] == 'ZZTEST Dung' and it[0]['n'] == 1
+            b = appmod.clean_board(db, D)
+            assert b[0]['done']['by'] == 'ZZTEST Hường' and b[0]['n'] == 3 and b[0]['who'] == 'ZZTEST Hường'
             n = len(sent)
             assert appmod.clean_ask(db, datetime(2030, 1, 12, 13, 31)) is False and len(sent) == n   # all done → no reminder
-            r = appmod.staff_clean_reply(db, me, 'bỏ 1')
-            assert r.startswith('↩️') and 'Còn lại' in r
-            assert not appmod.clean_rooms(db, date(2030, 1, 12))[0][0]['done']
+            r = appmod.staff_clean_reply(db, huong, 'bỏ 3')
+            assert r.startswith('↩️') and 'Còn lại' in r and not appmod.clean_board(db, D)[0]['done']
+            # chị Hường off → cô Dung covers: the room appears in HER list, numbered after her own 6
+            appmod._zbot_put(db, 'zbot_chats', {'zz-a': dung, 'zz-o': boss})
+            assert '13. Thợ Nhuộm' in appmod.clean_message(db, D, dung)
         finally:
             for k, v in keep.items():
                 if v is None:
