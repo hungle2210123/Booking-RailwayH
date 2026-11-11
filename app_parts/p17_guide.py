@@ -9,10 +9,10 @@ import io as _io
 from urllib.parse import quote as _q
 
 GUIDE_APTS = {
-    'hb':  {'name': '118 Hàng Bạc', 'apt': '1',   'area': 'oq',   'secs': ['door_hb', 'water', 'laundry', 'checkout_hb', 'wifi', 'food']},
-    'hbe': {'name': '18 Hàng Bè',   'apt': '2',   'area': 'oq',   'secs': ['water', 'laundry', 'checkout', 'wifi', 'food']},
-    'hv':  {'name': '25 Hội Vũ',    'apt': '506', 'area': 'west', 'secs': ['water', 'laundry', 'checkout', 'wifi', 'food']},
-    'tn':  {'name': '19 Thợ Nhuộm', 'apt': '877', 'area': 'west', 'secs': ['door_tn', 'water', 'laundry', 'checkout', 'wifi', 'food']},
+    'hb':  {'name': '118 Hàng Bạc', 'no': '118', 'color': '#0F766E', 'tag': 'Silver street · heart of the Old Quarter', 'apt': '1',   'area': 'oq',   'secs': ['door_hb', 'water', 'laundry', 'checkout_hb', 'wifi', 'food']},
+    'hbe': {'name': '18 Hàng Bè',   'no': '18',  'color': '#B45309', 'tag': 'Old Quarter · near Hoàn Kiếm Lake', 'apt': '2',   'area': 'oq',   'secs': ['water', 'laundry', 'checkout', 'wifi', 'food']},
+    'hv':  {'name': '25 Hội Vũ',    'no': '25',  'color': '#7C3AED', 'tag': 'Quiet lane · near Hàng Bông street', 'apt': '506', 'area': 'west', 'secs': ['water', 'laundry', 'checkout', 'wifi', 'food']},
+    'tn':  {'name': '19 Thợ Nhuộm', 'no': '19',  'color': '#2563EB', 'tag': 'French Quarter side · near the cathedral', 'apt': '877', 'area': 'west', 'secs': ['door_tn', 'water', 'laundry', 'checkout', 'wifi', 'food']},
 }
 
 # Each section: icon, title, short line, steps [(pic, text)], optional tip / warn. Every text = {'en':…, 'vi':…}.
@@ -166,7 +166,8 @@ def guide_page(key=None):
                          for s in apt['secs']],
                 'food': _guide_food(apt['area'])}
     return render_template('guide.html', data=data,
-                           apts=[{'key': k, 'name': v['name']} for k, v in GUIDE_APTS.items()])
+                           apts=[{'key': k, 'name': v['name'], 'no': v['no'], 'color': v['color'], 'tag': v['tag']}
+                                 for k, v in GUIDE_APTS.items()])
 
 
 def _guide_qr_svg(url):
@@ -193,11 +194,10 @@ def guide_qr():
 def guide_print():
     """Printable QR sheet: per apartment one big 'whole guide' QR + one per place (door, water heater, washer)."""
     base = _guide_base()
-    names = {'door': ('🚪', 'Roller door · Cửa cuốn'), 'water': ('🚿', 'Hot water · Nước nóng'),
-             'laundry': ('👕', 'Washer & dryer · Máy giặt, sấy')}
+    names = {'door': ('🚪', 'Roller door'), 'water': ('🚿', 'Hot water'), 'laundry': ('👕', 'Washer & dryer')}
     cards = []
     for k, a in GUIDE_APTS.items():
-        cards.append({'apt': a['name'], 'icon': '📖', 'label': 'Guest guide · Hướng dẫn', 'url': f'{base}/hd/{k}'})
+        cards.append({'apt': a['name'], 'icon': '📖', 'label': 'Guest guide', 'url': f'{base}/hd/{k}'})
         for s in a['secs']:
             sid = s.split('_')[0]
             if sid in names:

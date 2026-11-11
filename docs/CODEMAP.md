@@ -444,9 +444,9 @@ _p17_guide — 📖 Hướng dẫn cho khách (owner, Nov 11): a public, phone-f
 - app_parts/p17_guide.py:139 `_guide_food`
 - app_parts/p17_guide.py:149 `_guide_base`
 - app_parts/p17_guide.py:158 `guide_page` ← `/hd` · `/hd/<key>`
-- app_parts/p17_guide.py:172 `_guide_qr_svg`
-- app_parts/p17_guide.py:182 `guide_qr` ← `/hd/qr.svg`
-- app_parts/p17_guide.py:193 `guide_print` ← `/hd/in` — Printable QR sheet: per apartment one big 'whole guide' QR + one per place (door, water heater, washer).
+- app_parts/p17_guide.py:173 `_guide_qr_svg`
+- app_parts/p17_guide.py:183 `guide_qr` ← `/hd/qr.svg`
+- app_parts/p17_guide.py:194 `guide_print` ← `/hd/in` — Printable QR sheet: per apartment one big 'whole guide' QR + one per place (door, water heater, washer).
 
 ## core/__init__.py (3 lines)
 
@@ -838,8 +838,9 @@ _p17_guide — 📖 Hướng dẫn cho khách (owner, Nov 11): a public, phone-f
 - templates/expenses.html: 2905 `generateCategorySection` · 3005 `updateSummary` · 3040 `showNoDataMessage` · 3054 `showErrorMessage` · 3069 `categorizeSelected` · 3125 `selectAllExpenses` · 3141 `clearAllSelections` · 3157 `toggleSelectAll`
 - templates/expenses.html: 3169 `updateSelectedCount` · 3195 `showExpenseToast` · 3232 `fixExpenseDescriptions` · 3276 `editExpense` · 3330 `saveExpenseEdit` · 3384 `deleteExpense` · 3447 `showExpenseToast` · 3482 `showDashboardToast`
 
-## templates/guide.html (175 lines)
-- templates/guide.html: 100 `pic` · 120 `foodHtml` · 136 `secHtml` · 149 `render`
+## templates/guide.html (286 lines)
+- templates/guide.html: 154 `pic` · 174 `chooser` · 184 `home` · 200 `topic` · 229 `allSteps` · 236 `food` · 252 `shade` · 256 `view`
+- templates/guide.html: 257 `render` · 270 `go`
 
 ## templates/guide_print.html (36 lines)
 - (no named functions)

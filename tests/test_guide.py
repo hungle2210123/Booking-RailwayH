@@ -9,6 +9,7 @@ def test_guide_page(client, key):
     assert r.status_code == 200
     html = r.get_data(as_text=True)
     assert 'Hot water' in html and 'Washer' in html and 'Local food' in html
+    assert 'class="lang"' not in html                                # English only (owner, Nov 11)
     # roller door only where there is one (owner, Nov 11): Hàng Bạc (■ then ▲) and Thợ Nhuộm (code, slowly)
     assert ('door_' in html or '"id": "door"' in html) == (key in ('hb', 'tn'))
     assert not re.search(r'password\s*[:=]\s*\w', html, re.I)        # no wifi / door secrets on a public page

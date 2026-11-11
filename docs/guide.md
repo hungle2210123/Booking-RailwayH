@@ -1,6 +1,9 @@
 # Guest guide /hd (Nov 11, 2026)
-Public, bilingual (EN default, VI by phone language or `?lang=vi`) self-help page per apartment so guests stop asking
-small things. Code: `app_parts/p17_guide.py` (all text in `GUIDE_SECS`, apartments in `GUIDE_APTS`, food in `GUIDE_FOOD`),
+Public, ENGLISH-ONLY (owner, Nov 11) app-like self-help guide so guests stop asking small things.
+Flow: /hd choose apartment (remembered) → topic tiles → one topic per screen (step carousel: Next/Back, swipe,
+progress bar, 'Show all steps'); history.pushState so the iPhone back swipe works. Look: Plus Jakarta Sans, deep-green
+hero + lantern, one colour per topic (COL in guide.html), animated remote/keypad/breaker pictures, sticky 'Need help' dock.
+The `vi` texts in GUIDE_SECS are kept but not shown. Code: `app_parts/p17_guide.py` (all text in `GUIDE_SECS`, apartments in `GUIDE_APTS`, food in `GUIDE_FOOD`),
 `templates/guide.html` (renders from JSON, tiles → sections), `templates/guide_print.html` (QR sheet). Tests: `tests/test_guide.py`.
 - URLs: `/hd` choose · `/hd/hb` 118 Hàng Bạc · `/hd/hbe` 18 Hàng Bè · `/hd/hv` 25 Hội Vũ · `/hd/tn` 19 Thợ Nhuộm ·
   `?s=door|water|laundry|checkout|wifi|food` jumps to a section (QR stickers use this) · `/hd/in` printable QR sheet (14 codes).
