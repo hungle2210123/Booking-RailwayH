@@ -1293,24 +1293,7 @@ button.info.on{border-color:#0E1525;background:#fff}
   load();
 })();
 </script>
-<script>
-// auto-update: a new deploy reloads the page by itself (home-screen app on the iPhone) — never while a sheet/dialog is open
-(function () {
-  const BUILD = '{{ build }}';
-  let busy = false;
-  async function check() {
-    if (busy || document.hidden) return; busy = true;
-    try {
-      const j = await (await fetch('/api/version', { cache: 'no-store' })).json();
-      if (j.build && j.build !== BUILD) {
-        const open = document.querySelector('.ov, .jr-ov, #modal .modal, #drawer.open, input:focus, textarea:focus');
-        if (!open) location.reload(); else setTimeout(check, 20000);
-      }
-    } catch (e) {} finally { busy = false; }
-  }
-  document.addEventListener('visibilitychange', () => { if (!document.hidden) setTimeout(check, 800); });
-  setInterval(check, 180000);
-})();
-</script>
+<script>window.__BUILD = '{{ build }}';</script>
+<script src="{{ asset('js/autoupdate.js') }}"></script>
 </body>
 </html>

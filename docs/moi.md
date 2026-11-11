@@ -189,3 +189,9 @@ sent to the server or stored (passwords). `ProxyTool.convert` is tested with nod
 `staff_log.kind='fine'` (approved at once, source 'app'): bot tells her "➖ Trừ tiền …", `staff_month` gives
 `fines` / `fine_total`, `net = plus − minus + extra_total − fine_total`, month summary lists "• Trừ tiền", deleting it
 sends THU HỒI (`staff_recall_text`). Confirm dialog before a fine is saved.
+
+## Auto-update of the home-screen apps (Nov 11)
+`static/js/autoupdate.js` on /moi, /may-tinh AND /tin-nhanh (template sets `window.__BUILD`; Tin nhanh uses the first
+`/api/version` answer). Checks on visibilitychange / pageshow / focus / every 60 s. Nothing open → reload; a sheet,
+dialog or focused input open → bar "🔄 Có bản mới — chạm để cập nhật" (tap = reload) + reload as soon as it closes.
+Before: silent 20 s retries while a sheet was open (owner looked for the new button inside the sheet → never updated).

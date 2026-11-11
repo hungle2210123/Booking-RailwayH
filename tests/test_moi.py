@@ -481,7 +481,7 @@ def test_staff_delete_recalls_and_resend(client, monkeypatch):
                 appmod._zbot_put(db, 'zbot_last', last)
 
 
-@pytest.mark.parametrize('url', ['/may-tinh', '/moi'])
+@pytest.mark.parametrize('url', ['/may-tinh', '/moi', '/tin-nhanh'])
 def test_page_scripts_parse(client, url):
     """Nov 11: a raw newline inside a JS string broke /may-tinh ('Đang tải dữ liệu…' forever) while the page still
     returned 200. Every inline <script> of the big pages must pass `node --check`."""
@@ -543,3 +543,17 @@ def test_staff_fine(client, monkeypatch):
         with appmod.app.app_context():
             db.session.execute(appmod.text("DELETE FROM staff_log WHERE chat_id LIKE 'zz-%'")); db.session.commit()
             appmod._zbot_put(db, 'zbot_chats', old)
+
+
+@pytest.mark.parametrize('url', ['/may-tinh', '/moi', '/tin-nhanh'])
+def test_auto_update_on_every_app_page(client, url):
+    """Owner, Nov 11: the iPhone home-screen icons must update by themselves — every app page loads autoupdate.js
+    (Tin nhanh had none; /moi waited silently while a sheet was open → now a 'Có bản mới' bar)."""
+    import shutil, subprocess, os
+    html = client.get(url).get_data(as_text=True)
+    assert 'js/autoupdate.js' in html
+    assert client.get('/api/version').get_json()['build']
+    node = shutil.which('node')
+    if node:
+        js = os.path.join(os.path.dirname(__file__), '..', 'static', 'js', 'autoupdate.js')
+        assert subprocess.run([node, '--check', js]).returncode == 0

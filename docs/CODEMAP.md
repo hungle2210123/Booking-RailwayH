@@ -494,6 +494,9 @@ _p16_staff — 👥 Nhân viên (owner, Nov 6): the cleaners talk to the Zalo bo
 
 # JavaScript
 
+## static/js/autoupdate.js
+- static/js/autoupdate.js: 13 `showBar` · 24 `check`
+
 ## static/js/booking_card.js
 - static/js/booking_card.js: 21 `roundRect` · 28 `wrap` · 45 `paint` · 118 `draw` · 128 `ensureCss` · 153 `getImage` · 168 `toPng` · 184 `open`
 
@@ -518,7 +521,7 @@ _p16_staff — 👥 Nhân viên (owner, Nov 6): the cleaners talk to the Zalo bo
 
 # Templates (inline JS functions)
 
-## templates/desk.html (1316 lines)
+## templates/desk.html (1299 lines)
 - templates/desk.html: 305 `load` · 318 `loadRev` · 331 `needRev` · 349 `D.tab` · 350 `D.set` · 351 `D.q` · 352 `D.reload` · 354 `D.shift`
 - templates/desk.html: 360 `D.toToday` · 361 `D.open` · 362 `D.openDay` · 363 `D.close` · 364 `closeDrawer` · 365 `D.closeModal` · 368 `D.place` · 373 `D.room`
 - templates/desk.html: 380 `D.confirm` · 413 `D.zbotResend` · 420 `D.cleanCopy` · 421 `D.cancel` · 427 `D.mark` · 431 `D.status` · 435 `D.dayuse` · 439 `D.unreach`
@@ -528,12 +531,12 @@ _p16_staff — 👥 Nhân viên (owner, Nov 6): the cleaners talk to the Zalo bo
 - templates/desk.html: 582 `D.remSave` · 589 `D.remDone` · 593 `D.add` · 594 `D.addSave` · 609 `render` · 618 `renderSide` · 639 `renderTop` · 668 `viewToday`
 - templates/desk.html: 727 `dayCard` · 759 `viewDay` · 816 `D.uncancel` · 825 `viewCal` · 945 `renderPick` · 953 `viewMsg` · 993 `viewPay` · 1033 `D.payQuick`
 - templates/desk.html: 1039 `viewRev` · 1110 `D.revMonth` · 1111 `D.revDay` · 1112 `D.goDay` · 1113 `drawRevCharts` · 1136 `renderDrawer` · 1142 `guestCard` · 1202 `dayPanel`
-- templates/desk.html: 1223 `renderModal` · 1284 `D.mset` · 1285 `D.extOpen` · 1301 `check`
+- templates/desk.html: 1223 `renderModal` · 1284 `D.mset` · 1285 `D.extOpen`
 
 ## templates/journey_settings.html (231 lines)
 - templates/journey_settings.html: 79 `load` · 88 `renderButtons` · 141 `options` · 151 `rowHtml` · 165 `render` · 178 `bind` · 210 `shrink`
 
-## templates/moi.html (1229 lines)
+## templates/moi.html (1212 lines)
 - templates/moi.html: 211 `M_staffBadge` · 215 `load` · 294 `M.reload` · 295 `M.tab` · 296 `M.set` · 297 `M.day` · 298 `M.open` · 299 `M.close`
 - templates/moi.html: 300 `M.add` · 301 `M.addSave` · 314 `M.place` · 319 `M.room` · 326 `M.confirm` · 360 `M.cleanLink` · 363 `M.staffLoad` · 365 `M.staffOpen`
 - templates/moi.html: 366 `M.staffRe` · 367 `M.calOpen` · 368 `M.stfSet` · 371 `M.st` · 388 `M.cleanSetup` · 390 `M.zbotLoad` · 392 `M.zbTokSet` · 393 `M.zbotSave`
@@ -543,9 +546,9 @@ _p16_staff — 👥 Nhân viên (owner, Nov 6): the cleaners talk to the Zalo bo
 - templates/moi.html: 502 `M.extN` · 506 `M.splitApt` · 512 `M.extTyped` · 513 `M.editCalc` · 541 `M.editSave` · 575 `M.payOpen` · 576 `M.collect` · 584 `M.partial`
 - templates/moi.html: 586 `M.undoPay` · 589 `M.payCycle` · 594 `M.pickG` · 595 `M.auto` · 610 `render` · 619 `renderNav` · 628 `renderFloat` · 644 `viewDay`
 - templates/moi.html: 745 `viewCal` · 845 `M.cal` · 849 `msgCard` · 879 `viewMsg` · 915 `M.aptSheetOpen` · 928 `viewPay` · 970 `renderSheet` · 1197 `S_set`
-- templates/moi.html: 1198 `renderSheetPub` · 1199 `S_put` · 1214 `check`
+- templates/moi.html: 1198 `renderSheetPub` · 1199 `S_put`
 
-## templates/quick.html (350 lines)
+## templates/quick.html (351 lines)
 - templates/quick.html: 152 `toast` · 157 `go` · 165 `copyNow` · 173 `sendText` · 178 `copyText` · 179 `sendImgs` · 190 `setIn` · 212 `takeOut`
 - templates/quick.html: 216 `openPicker` · 227 `closePicker` · 228 `drawPicker` · 247 `openNew` · 256 `renameIt` · 263 `openEdit` · 279 `closeEdit` · 280 `saveEdit`
 - templates/quick.html: 319 `addGroup` · 327 `renameGroup` · 334 `deleteGroup`
