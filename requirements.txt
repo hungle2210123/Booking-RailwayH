@@ -60,4 +60,3 @@ aiohttp>=3.9.0,<4.0.0
 # - pytesseract (required for OCR fallback)
 # - plotly (required by dashboard_routes.py for charts)
 # - aiohttp (required by optimized_railway_crawler.py)
-qrcode>=7.4,<9
