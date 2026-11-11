@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>QR hướng dẫn khách</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#f6f6f4;color:#111;font:15px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
+.bar{max-width:900px;margin:0 auto;padding:16px;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.bar h1{font-size:19px;margin:0;flex:1}
+.bar button{border:0;background:#111;color:#fff;border-radius:12px;padding:10px 16px;font:600 15px inherit}
+.bar p{flex-basis:100%;margin:0;color:#555;font-size:14px}
+.grid{max-width:900px;margin:0 auto;padding:0 16px 32px;display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px}
+.card{background:#fff;border:1.5px dashed #bbb;border-radius:14px;padding:14px;text-align:center;break-inside:avoid}
+.card .ic{font-size:30px;line-height:1}
+.card b{display:block;font-size:16px;margin-top:4px}
+.card small{display:block;color:#555}
+.card svg{width:100%;max-width:170px;height:auto;margin:8px auto 4px;display:block}
+.card .sc{font-size:13px;font-weight:600}
+@media print{.bar button,.bar p{display:none}body{background:#fff}.grid{grid-template-columns:repeat(3,1fr)}}
+</style>
+</head>
+<body>
+<div class="bar"><h1>📖 Mã QR hướng dẫn khách</h1><button onclick="print()">🖨 In / Lưu PDF</button>
+<p>Cắt theo đường chấm, dán đúng chỗ: cửa cuốn, cạnh tủ cầu dao / bình nóng lạnh, máy giặt. Tấm "Hướng dẫn" dán trong phòng.</p></div>
+<div class="grid">
+{% for c in cards %}
+<div class="card"><div class="ic">{{ c.icon }}</div><b>{{ c.label }}</b><small>{{ c.apt }}</small>
+{{ c.svg|safe }}
+<div class="sc">Scan me · Quét mã</div></div>
+{% endfor %}
+</div>
+</body>
+</html>

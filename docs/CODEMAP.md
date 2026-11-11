@@ -438,6 +438,16 @@ _p16_staff — 👥 Nhân viên (owner, Nov 6): the cleaners talk to the Zalo bo
 - app_parts/p16_staff.py:408 `moi_staff` ← `/api/moi/staff` GET,POST — 👥 Nhân viên sheet in /moi: waiting requests, who is off today, month list; actions: decide, add (leave/extra),
 - app_parts/p16_staff.py:473 `staff_copy_owner` — Copy of a cleaner's message to the bot + the bot's answer → the owner(s).
 
+## app_parts/p17_guide.py (208 lines)
+_p17_guide — 📖 Hướng dẫn cho khách (owner, Nov 11): a public, phone-first, bilingual (EN/VI) self-help page per_
+- app_parts/p17_guide.py:109 `_f`
+- app_parts/p17_guide.py:139 `_guide_food`
+- app_parts/p17_guide.py:149 `_guide_base`
+- app_parts/p17_guide.py:158 `guide_page` ← `/hd` · `/hd/<key>`
+- app_parts/p17_guide.py:172 `_guide_qr_svg`
+- app_parts/p17_guide.py:182 `guide_qr` ← `/hd/qr.svg`
+- app_parts/p17_guide.py:193 `guide_print` ← `/hd/in` — Printable QR sheet: per apartment one big 'whole guide' QR + one per place (door, water heater, washer).
+
 ## core/__init__.py (3 lines)
 
 ## core/ai_duplicate_detector.py (255 lines)
@@ -827,6 +837,12 @@ _p16_staff — 👥 Nhân viên (owner, Nov 6): the cleaners talk to the Zalo bo
 - templates/expenses.html: 2437 `loadMonthlyBudget` · 2446 `updateMonthlyBudget` · 2486 `getWeeksInMonth` · 2515 `calculateWeeklySpending` · 2555 `redistributeBudget` · 2625 `renderWeeklyBudgetBreakdown` · 2767 `loadExpenseReview` · 2833 `renderExpenseList`
 - templates/expenses.html: 2905 `generateCategorySection` · 3005 `updateSummary` · 3040 `showNoDataMessage` · 3054 `showErrorMessage` · 3069 `categorizeSelected` · 3125 `selectAllExpenses` · 3141 `clearAllSelections` · 3157 `toggleSelectAll`
 - templates/expenses.html: 3169 `updateSelectedCount` · 3195 `showExpenseToast` · 3232 `fixExpenseDescriptions` · 3276 `editExpense` · 3330 `saveExpenseEdit` · 3384 `deleteExpense` · 3447 `showExpenseToast` · 3482 `showDashboardToast`
+
+## templates/guide.html (175 lines)
+- templates/guide.html: 100 `pic` · 120 `foodHtml` · 136 `secHtml` · 149 `render`
+
+## templates/guide_print.html (36 lines)
+- (no named functions)
 
 ## templates/homestay_setup.html (1455 lines)
 - templates/homestay_setup.html: 781 `loadProperties` · 794 `displayProperties` · 835 `selectProperty` · 851 `showAddPropertyModal` · 857 `addProperty` · 893 `loadPurchases` · 907 `displayPurchases` · 976 `showAddPurchaseModal`
