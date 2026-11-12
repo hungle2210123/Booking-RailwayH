@@ -752,7 +752,7 @@ def test_booking_mail_alert(app, db, client, monkeypatch):
         assert not any('Mã 9990077001' in a['lines'] for a in left)
         assert [m['seen'] for m in client.get('/api/moi/mail_list').get_json()['mails'] if m['booking_id'] == '9990077001'] == [True]   # still listed
         s = client.get('/api/moi/mail_setup').get_json()
-        assert '/api/mail-hook/' + tok in s['script'] and 'from:booking.com' in s['script'] and s['last']
+        assert '/api/mail-hook/' + tok in s['script'] and 'booking.com' in s['script'] and 'guiLaiHomNay' in s['script'] and s['last']
         for url in ('/moi', '/may-tinh'):
             assert 'js/mail_alerts.js' in client.get(url).get_data(as_text=True)
     finally:
@@ -859,12 +859,15 @@ Suite Apartment Hanoi Old Quarter - Lee's
         assert not zalo()                                                     # arrives in 3 days → silent
         assert client.post('/api/mail-hook/' + tok, json={'id': 'zz-mail-m2', 'subject': sub, 'body': now}).get_json()['kind'] == 'msg'
         assert client.post('/api/mail-hook/' + tok, json={'id': 'zz-mail-m2', 'subject': sub, 'body': now}).get_json().get('dup')
+        import time
+        old = {'id': 'zz-mail-m4', 'subject': sub, 'body': now, 'date': (time.time() - 3 * 3600) * 1000}     # re-sent old mail
+        assert client.post('/api/mail-hook/' + tok, json=old).get_json().get('quiet')                         # saved, no Zalo
         z = zalo()
         assert len(z) == 1 and z[0].startswith('💬 KHÁCH ĐẾN HÔM NAY NHẮN') and '👤 Elva ZZTest' in z[0]
         assert 'standing on the road' in z[0] and "🏠 Suite Apartment Hanoi Old Quarter - Lee's" in z[0]
         assert f'{today.day}/{today.month} → ' in z[0] and 'Mã 9990088001' in z[0]
         row = [m for m in client.get('/api/moi/mail_list').get_json()['mails'] if m['booking_id'] == '9990088001']
-        assert len(row) == 1 and row[0]['kind'] == 'msg' and row[0]['guest'] == 'Elva ZZTest' and 'standing' in row[0]['text']
+        assert len(row) == 2 and row[0]['kind'] == 'msg' and row[0]['guest'] == 'Elva ZZTest' and 'standing' in row[0]['text']
         assert not any('9990088001' in ' '.join(a['lines']) for a in client.get('/api/moi/mail_alerts').get_json()['alerts'])   # no red bar
         # a new booking for ANOTHER day: kept quiet — no Zalo, not in the bar, not in the list
         far = today + timedelta(days=30)

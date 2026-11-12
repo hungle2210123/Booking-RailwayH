@@ -166,8 +166,9 @@ def mail_hook(token):
     subject, body = str(d.get('subject') or '')[:400], str(d.get('body') or '')[:8000]
     _zbot_put(_xdb, 'mail_last', {'at': _vn_now().strftime('%d/%m %H:%M'), 'subject': subject[:80]})    # proof the script is alive
     # the last 40 subjects received (any kind) — to check WHICH mails the Gmail scripts really send (guest messages?)
-    recent = (_zbot_get(_xdb, 'mail_recent') or [])[-39:] + [f"{_vn_now():%d/%m %H:%M} {subject[:70]}"]
-    _zbot_put(_xdb, 'mail_recent', recent)
+    if not str(d.get('id') or '').startswith('zz-'):        # (not the tests' mails)
+        recent = (_zbot_get(_xdb, 'mail_recent') or [])[-39:] + [f"{_vn_now():%d/%m %H:%M} {subject[:70]}"]
+        _zbot_put(_xdb, 'mail_recent', recent)
     mid = str(d.get('id') or '')[:80] or None
     at = _vn_now()
     try:        # the script sends the mail's own time (ms) → exact; an older script without it = the minute it arrived
@@ -191,6 +192,8 @@ def mail_hook(token):
             {'at': at, 'm': mid, 'b': g['booking_id'], 'p': g['prop'] or prop, 'a': apt, 'd': g['ci'], 's': subject, 'g': g['guest'],
              't': g['text'], 'co': g['co']})
         _xdb.session.commit()
+        if at < _vn_now() - timedelta(minutes=30):      # re-sent old mail (guiLaiHomNay): saved for the list, no Zalo
+            return jsonify({'ok': True, 'kind': 'msg', 'quiet': True})
         try:
             mail_notify(_xdb, mail_msg_text(g, at, MOI_STREET.get(int(apt)) if (apt or '').isdigit() else ''))
         except Exception as e:
@@ -376,7 +379,7 @@ function kiemTraThuBooking() {
   var props = PropertiesService.getScriptProperties();
   var last = Number(props.getProperty('last') || 0) || (Date.now() - 6 * 3600 * 1000);
   var newest = last;
-  var threads = GmailApp.search('from:booking.com after:' + Math.floor(last / 1000 - 120), 0, 30);
+  var threads = GmailApp.search('from:(booking.com OR guest.booking.com) after:' + Math.floor(last / 1000 - 120), 0, 50);
   threads.forEach(function (t) {
     t.getMessages().forEach(function (m) {
       var at = m.getDate().getTime();
@@ -387,6 +390,13 @@ function kiemTraThuBooking() {
     });
   });
   if (newest > last) props.setProperty('last', String(newest));
+}
+
+// Chạy hàm này 1 lần khi muốn app nhận lại toàn bộ thư Booking từ 0 giờ hôm nay (thư đã báo rồi không báo lại).
+function guiLaiHomNay() {
+  var d = new Date(); d.setHours(0, 0, 0, 0);
+  PropertiesService.getScriptProperties().setProperty('last', String(d.getTime()));
+  kiemTraThuBooking();
 }
 
 function caiDat() {

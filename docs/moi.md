@@ -252,3 +252,5 @@ Owner: new-booking mails get buried in Gmail; they want a notification on the iP
   the bar or the list). 💬 **Guest messages**: mails "Chúng tôi nhận được tin nhắn này từ <khách>" → `mail_guest_msg` (name, text,
   check-in/out, listing, booking number); only guests arriving TODAY → Zalo "💬 KHÁCH ĐẾN HÔM NAY NHẮN" (`mail_msg_text`), stored
   as kind `msg` (columns guest, body, co) and shown under the "💬 Tin khách" chip of the list — never in the red bar.
+- Script function `guiLaiHomNay` (run by hand in script.google.com) re-sends every Booking mail since 0:00: known mails are
+  dups, guest messages older than 30 min are saved quiet (list only). `moi_settings 'mail_recent'` = last 40 subjects received.
