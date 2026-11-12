@@ -891,8 +891,8 @@ def test_one_tap_payment_messages(app, db, client, booking):
     import app as appmod
     bid = booking(guest_name='ZZ Pay Test', checkin_date='2030-01-10', checkout_date='2030-01-12')
     j = client.get(f'/api/moi/pay_msg/{bid}').get_json()
-    if not j['success']:                       # the throwaway guest has no phone yet
-        assert 'số điện thoại' in j['error']
+    if not j['wa']:                            # the throwaway guest has no phone yet → the texts can still be copied
+        assert j['success'] and j['remind'] and isinstance(j['images'], list)
         with app.app_context():
             db.session.execute(appmod.text("UPDATE guests SET phone = '+46700000001' WHERE guest_id = (SELECT guest_id FROM bookings WHERE booking_id = :b)"), {'b': bid})
             db.session.execute(appmod.text("UPDATE bookings SET actual_apartment = '1', room_amount = 1500000, collected_amount = 500000 WHERE booking_id = :b"), {'b': bid})
@@ -907,6 +907,7 @@ def test_one_tap_payment_messages(app, db, client, booking):
         db.session.execute(appmod.text("DELETE FROM journey_log WHERE booking_id = :b"), {'b': bid}); db.session.commit()
     html = client.get('/moi').get_data(as_text=True)
     assert 'payMsgBox' in html and '💬 WhatsApp' in html and 'Nhắc thu tiền' in html
+    assert '📋 Copy tin' in html and 'M.payImgs' in html and '🟢 Gửi WhatsApp' in html       # send · copy · pictures
 
 
 def test_send_sheet_arrived_guest_only_money_messages(app, db, client, booking):

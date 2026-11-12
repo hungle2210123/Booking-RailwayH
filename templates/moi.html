@@ -454,10 +454,24 @@ button.info.on{border-color:#0E1525;background:#fff}
   M.payMsgLoad = async (id) => { S.pm = { id, loading: true };
     let j = {}; try { j = await (await fetch('/api/moi/pay_msg/' + encodeURIComponent(id), { cache: 'no-store' })).json(); } catch (e) {}
     if (!S.pm || S.pm.id !== id) return;
-    S.pm = Object.assign({ id }, j.success ? j : { err: j.error || 'Chưa tải được tin' }); if (S.sel === id || (S.sel && S.sel.id === id) || $('.ov')) renderSheet(); };
+    S.pm = Object.assign({ id }, j.success ? j : { err: j.error || 'Chưa tải được tin' }); if (S.sel === id || (S.sel && S.sel.id === id) || $('.ov')) renderSheet();
+    const pm = S.pm;
+    if (pm.images && pm.images.length) Promise.all(pm.images.map((u, i) => fetch(u).then((r) => r.blob()).then((bl) =>
+      new File([bl], `thanh-toan-${i + 1}.${bl.type === 'image/png' ? 'png' : 'jpg'}`, { type: bl.type || 'image/jpeg' })).catch(() => null)))
+      .then((fs) => { pm.files = fs.filter(Boolean); }); };
   M.payMsgTap = (id, kind) => { const pm = S.pm || {}; if (pm.id !== id || !pm[kind]) return;
     copyText(pm[kind]); toast('Đã copy tin — WhatsApp đang mở, bấm Gửi'); pm[kind + '_sent'] = true;
     post('/api/moi/pay_msg/' + encodeURIComponent(id), { kind }); setTimeout(renderSheet, 800); };
+  M.payMsgCopy = (id, kind) => { const pm = S.pm || {}; if (pm.id !== id || !pm[kind]) return;
+    copyText(pm[kind]); toast('📋 Đã copy tin — dán vào Zalo / Booking / WeChat… của khách'); pm[kind + '_sent'] = true;
+    post('/api/moi/pay_msg/' + encodeURIComponent(id), { kind }); renderSheet(); };
+  // 🖼 the payment pictures: the files are fetched when the sheet opens, so the share sheet opens straight from the tap
+  M.payImgs = (id) => { const pm = S.pm || {}; if (pm.id !== id) return;
+    const files = pm.files || [];
+    if (files.length && navigator.canShare && navigator.canShare({ files })) {
+      navigator.share({ files }).then(() => { pm.ask_sent = true; post('/api/moi/pay_msg/' + encodeURIComponent(id), { kind: 'ask' }); renderSheet(); }).catch(() => {});
+    } else if (window.Journey && Journey.open) { toast('Mở bảng Nhắn để gửi ảnh'); Journey.open(id, 'payment'); }
+    else toast(pm.files ? 'Máy này không gửi ảnh trực tiếp được' : 'Ảnh đang tải — chạm lại sau 1 giây'); };
   M.copyPhone = (id) => { const p = (byId[id] || {}).phone; if (!p) return; copyText(p); toast('📋 Đã copy ' + p); };
   M.unreach = (id) => { const b = byId[id]; M.mark(id, 'unreachable', !b.unreach); if (!b.unreach) toast(b.name + ' → Không liên lạc được'); };
   M.renameRoom = async (aid, no) => {
@@ -1007,18 +1021,27 @@ button.info.on{border-color:#0E1525;background:#fff}
   }
 
   // ═════ SHEETS ═════
-  // 💳 two one-tap WhatsApp messages under the phone number, only while room money is still open
+  // 💳 money messages under the phone number, only while room money is still open (owner, Nov 12): each message can be
+  // SENT (WhatsApp opens with the text) or just COPIED (guest without a normal number → paste in Zalo / Booking / WeChat);
+  // 🖼 = the payment pictures (QR, instructions) through the iPhone share sheet.
   function payMsgBox(b) {
-    if (!b.phone || b.paid) return '';
+    if (b.paid) return '';
     if (!S.pm || S.pm.id !== b.id) { setTimeout(() => M.payMsgLoad(b.id), 0); }
     const pm = S.pm && S.pm.id === b.id ? S.pm : { loading: true };
-    const one = (kind, label, sub, col) => { const t = pm[kind], done = pm[kind + '_sent'];
-      const st = `flex:1;min-width:0;min-height:52px;border-radius:12px;padding:6px 8px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;text-decoration:none;font-weight:800;font-size:13.5px;line-height:1.2;`;
-      return t ? `<a href="https://wa.me/${pm.wa}?text=${encodeURIComponent(t)}" target="_blank" rel="noopener" onclick="M.payMsgTap('${b.id}','${kind}')" style="${st}background:${col};color:#fff">${label}<small style="font-size:11px;font-weight:700;opacity:.9;margin-top:2px">${done ? '✓ đã mở · chạm để gửi lại' : sub}</small></a>`
-        : `<span style="${st}background:#F1F5F9;color:#94A3B8">${label}<small style="font-size:11px;font-weight:700;margin-top:2px">${pm.loading ? 'đang tải…' : kind === 'ask' && pm.needs_apt ? 'xếp căn trước' : 'chưa có mẫu tin'}</small></span>`; };
-    return `<div style="margin-top:8px;border:1.5px solid #FDE68A;background:#FFFBEB;border-radius:12px;padding:8px">
-      <div style="font-size:12px;font-weight:800;color:#92400E;margin:0 2px 6px">💳 Chưa thu đủ — nhắn WhatsApp 1 chạm (tự copy tin, mở chat của khách)</div>
-      ${pm.err ? `<div style="font-size:13px;font-weight:700;color:#B91C1C;padding:4px 2px">${esc(pm.err)}</div>` : `<div style="display:flex;gap:8px">${one('ask', '💳 Báo thu tiền', 'tin thanh toán của căn', '#0E1525')}${one('remind', '⏰ Nhắc thu tiền', 'trả trong hôm nay', '#B45309')}</div>`}</div>`;
+    const bt = `flex:1;min-width:0;min-height:44px;border-radius:10px;padding:0 6px;display:inline-flex;align-items:center;justify-content:center;text-align:center;text-decoration:none;font-weight:800;font-size:13px;line-height:1.15;border:none;`;
+    const off = (label) => `<span style="${bt}background:#F1F5F9;color:#94A3B8">${label}</span>`;
+    const row = (kind, title, sub, pics) => { const t = pm[kind], done = pm[kind + '_sent'];
+      const why = pm.loading ? 'đang tải…' : kind === 'ask' && pm.needs_apt ? 'xếp căn cho khách trước' : 'chưa có mẫu tin';
+      return `<div style="margin-top:8px"><div style="display:flex;align-items:baseline;gap:6px;margin:0 2px 5px"><b style="font-size:14px">${title}</b><span style="flex:1;font-size:11.5px;color:#64748B;font-weight:700">${t ? sub : why}</span>${done ? '<span style="font-size:11.5px;font-weight:800;color:#15803D">✓ đã gửi / copy</span>' : ''}</div>
+        <div style="display:flex;gap:6px">
+          ${t && pm.wa ? `<a href="https://wa.me/${pm.wa}?text=${encodeURIComponent(t)}" target="_blank" rel="noopener" onclick="M.payMsgTap('${b.id}','${kind}')" style="${bt}background:#16A34A;color:#fff">🟢 Gửi WhatsApp</a>` : off(t ? 'Chưa có số WhatsApp' : '🟢 Gửi WhatsApp')}
+          ${t ? `<button onclick="M.payMsgCopy('${b.id}','${kind}')" style="${bt}background:#0E1525;color:#fff">📋 Copy tin</button>` : off('📋 Copy tin')}
+          ${pics ? (pm.images && pm.images.length ? `<button onclick="M.payImgs('${b.id}')" style="${bt}background:#fff;color:#0E1525;border:1.5px solid #CBD5E1">🖼 Gửi ${pm.images.length} ảnh</button>` : off('🖼 Chưa có ảnh')) : ''}
+        </div></div>`; };
+    return `<div style="margin-top:8px;border:1.5px solid #FDE68A;background:#FFFBEB;border-radius:12px;padding:8px 8px 10px">
+      <div style="font-size:12px;font-weight:800;color:#92400E;margin:0 2px">💳 Chưa thu đủ — nhắn khách</div>
+      ${pm.err ? `<div style="font-size:13px;font-weight:700;color:#B91C1C;padding:6px 2px 0">${esc(pm.err)}</div>`
+        : row('ask', '💳 Báo thu tiền', 'tin thanh toán của căn', true) + row('remind', '⏰ Nhắc thu tiền', 'trả trong hôm nay', false)}</div>`;
   }
   function renderSheet() {
     const el = $('#sheet');

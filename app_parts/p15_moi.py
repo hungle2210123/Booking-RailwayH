@@ -921,8 +921,6 @@ def moi_pay_msg(booking_id):
     b = _journey_booking(_xdb, booking_id)
     if not b:
         return jsonify({'success': False, 'error': 'Không tìm thấy đặt phòng'}), 404
-    if not b['links']:
-        return jsonify({'success': False, 'error': 'Chưa có số điện thoại của khách'})
     rid = _pay_remind_id(_xdb)
     left = _pay_left(_xdb, booking_id)
     vn = _vn_guest_name(b['name'])
@@ -936,6 +934,8 @@ def moi_pay_msg(booking_id):
     aid = J.template_for(J.load_map(_xdb.session), 'payment', b['apt_id']) if b['apt_id'] is not None else None
     texts = _journey_texts(_xdb, [x for x in (rid, aid) if x])
     sent = J.sent_status(_xdb.session, [booking_id]).get(booking_id, {})
-    return jsonify({'success': True, 'wa': b['links']['wa'], 'ask': render(texts.get(aid)), 'remind': render(texts.get(rid)),
+    # no (usable) phone → wa '' : the texts can still be copied and the pictures shared (owner: "có khách không dùng số chuẩn")
+    return jsonify({'success': True, 'wa': (b['links'] or {}).get('wa', ''), 'ask': render(texts.get(aid)), 'remind': render(texts.get(rid)),
+                    'images': [i['url'] for i in J.images_of(_xdb.session, [aid]).get(aid, [])] if aid else [],
                     'needs_apt': b['apt_id'] is None, 'left': left, 'ask_sent': bool(sent.get('payment')),
                     'remind_sent': bool(sent.get('pay_remind'))})

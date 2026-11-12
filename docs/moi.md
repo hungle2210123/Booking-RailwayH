@@ -261,3 +261,6 @@ open, `payMsgBox`: **💳 Báo thu tiền** (journey 'payment' template of the a
 `payment - Nhắc thanh toán hôm nay`, made once by `/api/moi/pay_msg`, EN + VI, editable in Mẫu Câu; `{tien}` = money left).
 The buttons are real `<a href="wa.me/…?text=…">` (iPhone opens apps only from a direct tap) — texts are fetched when the
 sheet opens (`M.payMsgLoad`); a tap also copies the text and logs journey `payment` / `pay_remind`. The owner presses Send.
+- Each message has **🟢 Gửi WhatsApp** and **📋 Copy tin** (guest without a normal number → paste in Zalo / Booking / WeChat; the
+  box shows even without a phone, `wa` = ''); Báo thu tiền also has **🖼 Gửi N ảnh** = the payment template's pictures through
+  the iPhone share sheet (`M.payImgs`; files pre-fetched in `M.payMsgLoad`; falls back to the send sheet).

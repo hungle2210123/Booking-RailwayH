@@ -584,18 +584,18 @@ _p17_mail — 📧 Booking.com e-mails → the app (owner, Nov 12: "khi nhận �
 ## templates/journey_settings.html (231 lines)
 - templates/journey_settings.html: 79 `load` · 88 `renderButtons` · 141 `options` · 151 `rowHtml` · 165 `render` · 178 `bind` · 210 `shrink`
 
-## templates/moi.html (1287 lines)
+## templates/moi.html (1310 lines)
 - templates/moi.html: 217 `M_staffBadge` · 221 `load` · 300 `M.reload` · 301 `M.tab` · 302 `M.set` · 303 `M.day` · 304 `M.open` · 305 `M.close`
 - templates/moi.html: 306 `M.add` · 307 `M.addSave` · 320 `M.place` · 325 `M.room` · 332 `M.confirm` · 366 `M.cleanLink` · 369 `M.staffLoad` · 371 `M.staffOpen`
 - templates/moi.html: 373 `M.logOpen` · 375 `M.logSet` · 376 `M.staffRe` · 377 `M.calOpen` · 378 `M.stfSet` · 381 `M.st` · 398 `M.cleanSetup` · 400 `M.zbotLoad`
 - templates/moi.html: 402 `M.zbTokSet` · 403 `M.zbotSave` · 404 `M.zbot` · 415 `M.zbotResend` · 422 `M.cleanDone` · 427 `M.cleanPrio` · 433 `M.cleanCopy` · 434 `M.cancel`
-- templates/moi.html: 440 `M.mark` · 444 `M.status` · 446 `M.dayuse` · 454 `M.payMsgLoad` · 458 `M.payMsgTap` · 461 `M.copyPhone` · 462 `M.unreach` · 463 `M.renameRoom`
-- templates/moi.html: 471 `M.calDone` · 472 `M.remind` · 474 `M.eta` · 475 `M.remPreset` · 478 `M.remSave` · 487 `M.remDone` · 490 `M.etaSave` · 513 `M.phone`
-- templates/moi.html: 520 `M.send` · 521 `M.pickApt` · 522 `M.quick` · 524 `M.photo` · 525 `M.chatPhone` · 532 `M.edit` · 534 `M.extN` · 538 `M.splitApt`
-- templates/moi.html: 544 `M.extTyped` · 545 `M.editCalc` · 573 `M.editSave` · 607 `M.payOpen` · 608 `M.collect` · 616 `M.partial` · 618 `M.undoPay` · 621 `M.payCycle`
-- templates/moi.html: 626 `M.pickG` · 627 `M.auto` · 642 `render` · 651 `renderNav` · 660 `renderFloat` · 676 `viewDay` · 785 `viewCal` · 885 `M.cal`
-- templates/moi.html: 889 `msgCard` · 919 `viewMsg` · 955 `M.aptSheetOpen` · 968 `viewPay` · 1011 `payMsgBox` · 1023 `renderSheet` · 1271 `S_set` · 1272 `renderSheetPub`
-- templates/moi.html: 1273 `S_put`
+- templates/moi.html: 440 `M.mark` · 444 `M.status` · 446 `M.dayuse` · 454 `M.payMsgLoad` · 462 `M.payMsgTap` · 465 `M.payMsgCopy` · 469 `M.payImgs` · 475 `M.copyPhone`
+- templates/moi.html: 476 `M.unreach` · 477 `M.renameRoom` · 485 `M.calDone` · 486 `M.remind` · 488 `M.eta` · 489 `M.remPreset` · 492 `M.remSave` · 501 `M.remDone`
+- templates/moi.html: 504 `M.etaSave` · 527 `M.phone` · 534 `M.send` · 535 `M.pickApt` · 536 `M.quick` · 538 `M.photo` · 539 `M.chatPhone` · 546 `M.edit`
+- templates/moi.html: 548 `M.extN` · 552 `M.splitApt` · 558 `M.extTyped` · 559 `M.editCalc` · 587 `M.editSave` · 621 `M.payOpen` · 622 `M.collect` · 630 `M.partial`
+- templates/moi.html: 632 `M.undoPay` · 635 `M.payCycle` · 640 `M.pickG` · 641 `M.auto` · 656 `render` · 665 `renderNav` · 674 `renderFloat` · 690 `viewDay`
+- templates/moi.html: 799 `viewCal` · 899 `M.cal` · 903 `msgCard` · 933 `viewMsg` · 969 `M.aptSheetOpen` · 982 `viewPay` · 1027 `payMsgBox` · 1046 `renderSheet`
+- templates/moi.html: 1294 `S_set` · 1295 `renderSheetPub` · 1296 `S_put`
 
 ## templates/quick.html (357 lines)
 - templates/quick.html: 158 `toast` · 163 `go` · 171 `copyNow` · 179 `sendText` · 184 `copyText` · 185 `sendImgs` · 196 `setIn` · 218 `takeOut`
