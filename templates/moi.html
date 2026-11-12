@@ -368,7 +368,11 @@ button.info.on{border-color:#0E1525;background:#fff}
   const isoAdd = (iso, n) => { const d = new Date(iso + 'T00:00:00'); d.setDate(d.getDate() + n); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
   M.staffLoad = async (month) => { try { const j = await (await fetch('/api/moi/staff' + (month ? '?month=' + month : ''), { cache: 'no-store' })).json();
     if (j.success) { S.st = j; S.stPend = j.pending.length; if (!S.stf) S.stf = { kind: 'extra', day: j.today, rooms: 0, amount: '' }; if (S.staffOn) renderSheet(); } } catch (e) {} };
-  M.staffOpen = () => { S.sel = null; S.cleanSetup = null; S.staffOn = true; renderSheet(); M.staffLoad(S.st && S.st.month); };
+  M.staffOpen = () => { S.sel = null; S.cleanSetup = null; S.staffOn = true; S.stLog = null; renderSheet(); M.staffLoad(S.st && S.st.month); };
+  // 💬 Tin nhắn bot ↔ các cô (owner, Nov 12): every message, filtered by cleaner and by kind
+  M.logOpen = async () => { S.stLog = S.stLog || { who: '', kind: '' }; renderSheet();
+    try { const j = await (await fetch('/api/moi/zbot_log', { cache: 'no-store' })).json(); if (j.success) { S.log = j; if (S.stLog) renderSheet(); } } catch (e) {} };
+  M.logSet = (k, v) => { if (v === 'back') S.stLog = null; else S.stLog[k] = v; renderSheet(); };
   M.staffRe = () => renderSheet();
   M.calOpen = () => { S.sel = null; S.calSheet = true; renderSheet(); };
   M.stfSet = (k, v) => { S.stf[k] = v;
@@ -1004,8 +1008,28 @@ button.info.on{border-color:#0E1525;background:#fff}
       const box = (inner, bg) => `<div style="margin-top:10px;background:${bg || '#F7F8FA'};border-radius:14px;padding:10px 12px">${inner}</div>`;
       const chip = (on, label, act) => `<button onclick="${act}" style="min-height:40px;padding:0 12px;border-radius:12px;border:1.5px solid ${on ? '#0E1525' : '#E2E5EB'};background:${on ? '#0E1525' : '#fff'};color:${on ? '#fff' : '#0E1525'};font-size:13px;font-weight:800">${label}</button>`;
       let h = `<div style="display:flex;align-items:center;gap:10px"><div style="flex:1"><div class="kick" style="color:#64748B">NHÂN VIÊN</div><div style="font-size:20px;font-weight:800">Nghỉ & làm thêm</div></div><button class="x" onclick="M.close()" aria-label="Đóng">${svg('x', 18, 2.4)}</button></div>`;
-      if (!st) h += '<div style="padding:30px 0;text-align:center;color:#64748B;font-weight:700">Đang tải…</div>';
+      if (S.stLog) {
+        const L = S.log, fl = S.stLog, KIND = { don: ['🧹', 'Dọn phòng'], nv: ['👥', 'Nghỉ & tiền'], khac: ['💬', 'Khác'] };
+        h = `<div style="display:flex;align-items:center;gap:10px"><button class="x" onclick="M.logSet('', 'back')" aria-label="Quay lại">${svg('l', 18, 2.4)}</button><div style="flex:1"><div class="kick" style="color:#64748B">NHÂN VIÊN</div><div style="font-size:20px;font-weight:800">Tin nhắn bot</div></div><button class="x" onclick="M.close()" aria-label="Đóng">${svg('x', 18, 2.4)}</button></div>`;
+        if (!L) h += '<div style="padding:30px 0;text-align:center;color:#64748B;font-weight:700">Đang tải…</div>';
+        else {
+          const nm = (id) => ((L.people.find((p) => p.id === id) || {}).name || 'Nhân viên').split(' ')[0];
+          h += `<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:12px">${chip(!fl.who, 'Tất cả', "M.logSet('who','')")}${L.people.map((p) => chip(fl.who === p.id, esc(p.name.split(' ')[0]), `M.logSet('who','${esc(p.id)}')`)).join('')}</div>
+            <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">${chip(!fl.kind, 'Mọi loại', "M.logSet('kind','')")}${Object.keys(KIND).map((k) => chip(fl.kind === k, KIND[k][0] + ' ' + KIND[k][1], `M.logSet('kind','${k}')`)).join('')}</div>`;
+          const ms = L.msgs.filter((m) => (!fl.who || m.chat_id === fl.who) && (!fl.kind || m.kind === fl.kind));
+          if (!ms.length) h += '<div style="padding:26px 0;text-align:center;color:#64748B;font-weight:700;font-size:14px">Chưa có tin nào.<br><span style="font-size:12.5px;font-weight:600">Tin được lưu từ hôm nay trở đi.</span></div>';
+          let day = '';
+          ms.forEach((m) => {
+            if (m.day !== day) { day = m.day; h += `<div style="margin:14px 2px 4px;font-size:12px;font-weight:800;color:#64748B;text-transform:uppercase;letter-spacing:.04em">${esc(day)}</div>`; }
+            const inn = m.dir === 'in';
+            h += `<div style="margin-top:6px;margin-${inn ? 'left' : 'right'}:26px;background:${inn ? '#F0FDF4' : '#F4F5F8'};border:1px solid ${inn ? '#BBF7D0' : '#E7E9EE'};border-radius:12px;padding:8px 10px">
+              <div style="display:flex;gap:6px;align-items:center;font-size:11.5px;font-weight:800;color:${inn ? '#15803D' : '#475569'}"><span style="flex:1">${inn ? esc(nm(m.chat_id)) + ' nhắn bot' : 'Bot → ' + esc(nm(m.chat_id))}</span><span style="color:#64748B">${KIND[m.kind][0]} ${KIND[m.kind][1]} · ${esc(m.at)}</span></div>
+              <div style="margin-top:4px;font-size:13.5px;line-height:1.45;white-space:pre-wrap;overflow-wrap:anywhere">${esc(m.body)}</div></div>`;
+          });
+        }
+      } else if (!st) h += '<div style="padding:30px 0;text-align:center;color:#64748B;font-weight:700">Đang tải…</div>';
       else {
+        h += `<button onclick="M.logOpen()" style="margin-top:12px;width:100%;min-height:46px;border-radius:12px;border:1.5px solid #E2E5EB;background:#fff;color:#0E1525;font-size:14px;font-weight:800">💬 Tin nhắn bot ↔ các cô</button>`;
         const roleRow = (c) => `<div style="display:flex;align-items:center;gap:6px;margin-top:6px"><b style="flex:1;min-width:0;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(c.name || 'Không tên')}</b>${[['staff', 'Nhân viên'], ['owner', 'Chủ'], ['', 'Khác']].map(([r, l]) => `<button onclick="M.st('role',{id:'${esc(c.id)}',role:'${r}'})" style="min-height:32px;padding:0 9px;border-radius:9px;border:1px solid ${c.role === r ? '#0E1525' : '#E2E5EB'};background:${c.role === r ? '#0E1525' : '#fff'};color:${c.role === r ? '#fff' : '#334155'};font-size:11.5px;font-weight:800">${l}</button>`).join('')}</div>`;
         if (!st.staff.length) h += box(`<b style="font-size:14px">Chọn ai là nhân viên (người trong bot Zalo):</b>${st.chats.map(roleRow).join('')}<div style="font-size:12px;color:#64748B;margin-top:8px;line-height:1.5">"Chủ" = người được bot báo khi có cô xin nghỉ và trả lời "duyệt" ngay trong Zalo.</div>`, '#FEF3C7');
         else {

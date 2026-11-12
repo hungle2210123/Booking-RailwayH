@@ -628,3 +628,38 @@ def test_clean_done_by_number(app, db, booking, monkeypatch):
                     db.session.execute(appmod.text("DELETE FROM moi_settings WHERE key = :k"), {'k': k}); db.session.commit()
                 else:
                     appmod._zbot_put(db, k, v)
+
+
+def test_bot_copies_per_cleaner_and_log(app, db, client, monkeypatch):
+    """Owner, Nov 12 (screenshot: one merged list 'Dung Trần / Hường Nguyễn' in the owner's Zalo was confusing): the owner
+    gets ONE COPY PER CLEANER ('📨 Bot → name'), never a merged list; and /api/moi/zbot_log lists the bot ↔ cleaner
+    messages with a kind (dọn phòng / nghỉ & tiền / khác)."""
+    import app as appmod
+    from datetime import date
+    sent = []
+    monkeypatch.setattr(appmod, '_zbot_call', lambda m, body=None, timeout=15: (sent.append((m, body)) or {'ok': True, 'result': {}}))
+    to = lambda cid: [b['text'] for m, b in sent if m == 'sendMessage' and b['chat_id'] == cid]
+    with app.app_context():
+        keep = {k: appmod._zbot_get(db, k) for k in ('zbot_chats', 'zbot_last', 'clean_state')}
+        try:
+            appmod._zbot_put(db, 'zbot_chats', {'zz-a': {'name': 'ZZTEST Dung', 'role': 'staff', 'on': True},
+                                                'zz-b': {'name': 'ZZTEST Hường', 'role': 'staff', 'on': True},
+                                                'zz-o': {'name': 'ZZTEST Chủ', 'role': 'owner', 'on': True}})
+            appmod._zbot_send_clean(db, date(2030, 1, 12))
+            assert len(to('zz-a')) == 1 and len(to('zz-b')) == 1
+            mine = to('zz-o')
+            assert len(mine) == 2 and mine[0].startswith('📨 Bot → ZZTEST Dung:') and mine[1].startswith('📨 Bot → ZZTEST Hường:')
+            assert not any('— ZZTEST' in x for x in mine)                    # no merged list
+            assert appmod.zbot_msg_kind('out', 'Dọn phòng thứ năm 12/11\n4. Hàng Bạc 202') == 'don'
+            assert appmod.zbot_msg_kind('in', '1 4') == 'don' and appmod.zbot_msg_kind('in', 'xong hết') == 'don'
+            assert appmod.zbot_msg_kind('in', 'mai em xin nghỉ') == 'nv' and appmod.zbot_msg_kind('out', '🎁 Bồi dưỡng 50.000đ') == 'nv'
+            assert appmod.zbot_msg_kind('in', 'em chào anh') == 'khac'
+        finally:
+            for k, v in keep.items():
+                if v is None:
+                    db.session.execute(appmod.text("DELETE FROM moi_settings WHERE key = :k"), {'k': k}); db.session.commit()
+                else:
+                    appmod._zbot_put(db, k, v)
+    j = client.get('/api/moi/zbot_log').get_json()
+    assert j['success'] and isinstance(j['msgs'], list) and 'people' in j
+    assert 'Tin nhắn bot ↔ các cô' in client.get('/moi').get_data(as_text=True)

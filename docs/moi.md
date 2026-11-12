@@ -217,3 +217,11 @@ Owner: the cleaners' phones are slow → no link / page; they answer the bot wit
   tapping a row toggles it (`/api/moi/zbot` action `clean_done`).
 - ⚡ Dọn sớm: the owner picks a room in that list (`clean_prio`) → saved in `clean_state.prio`, the bot tells the cleaner of
   that room at once. No automatic "khách vào hôm nay" (owner: the app cannot know).
+
+## 💬 Tin nhắn bot (Nov 12)
+Owner: the merged list in their Zalo was confusing; they want to manage every bot ↔ cleaner message.
+- The owner never gets a merged list: `_zbot_send_clean` / `_clean_send` send each cleaner her message and the owner ONE COPY
+  PER CLEANER ("📨 Bot → name"). Only when no cleaner has a side do the other chats get the grouped text.
+- Log: table `zbot_msgs` (at VN time, chat_id, dir in/out, body) — written by `zbot_log` from `_zbot_call` (every sendMessage
+  to a cleaner) and `zbot_hook` (her messages). `zbot_msg_kind` → don / nv / khac. Kept 60 days.
+- /moi → 👥 Nhân viên → "💬 Tin nhắn bot ↔ các cô" (`M.logOpen`, `/api/moi/zbot_log`): filter by cleaner and kind, by day.

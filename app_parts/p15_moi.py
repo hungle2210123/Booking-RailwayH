@@ -595,7 +595,10 @@ def _zbot_call(method, body=None, timeout=15):
     try:
         r = _rq.post(f'{ZBOT_API}{tok}/{method}', json=body or {}, timeout=timeout)
         try:
-            return r.json()
+            j = r.json()
+            if method == 'sendMessage' and j.get('ok') and body:      # p16: kept for 💬 Tin nhắn bot (cleaners' chats only)
+                zbot_log(body.get('chat_id'), 'out', body.get('text') or '')
+            return j
         except ValueError:
             return {'ok': False, 'description': f'HTTP {r.status_code}'}
     except Exception as e:  # network
@@ -650,15 +653,23 @@ def _zbot_send_clean(_xdb, day=None, only=None, prefix=''):
     chats = _zbot_get(_xdb, 'zbot_chats', {}) or {}
     off = staff_off_on(_xdb, day)          # p16: a cleaner on an approved day off gets nothing; the other "dọn cả 2 bên"
     out = []
+    live = {k: c for k, c in chats.items() if c.get('on') and k not in off}
+    girls = [k for k, c in live.items() if clean_side(c)]          # p16: cleaners with a side
     for cid, c in chats.items():
         if (only and cid != only) or (not only and (not c.get('on') or cid in off)):
             continue
+        if not only and girls and cid not in girls:
+            continue        # owner, Nov 12: no merged list — the owner gets one copy per cleaner (below)
         # p16: each cleaner gets HER rooms with her fixed numbers — she answers the number when a room is done
         body = staff_clean_note(_xdb, day, cid) + prefix + clean_message(_xdb, day, c)
         if c.get('role') == 'staff':
             body += '\n\nXin nghỉ: nhắn "mai em xin nghỉ" · Làm thêm: "hôm nay em làm thêm 2 phòng"'
         r = _zbot_call('sendMessage', {'chat_id': cid, 'text': body})
         out.append((c.get('name') or cid, bool(r.get('ok')), '' if r.get('ok') else str(r.get('description') or r)[:160]))
+        if not only and cid in girls:
+            for o in live:
+                if o not in girls:
+                    _zbot_call('sendMessage', {'chat_id': o, 'text': f"📨 Bot → {c.get('name') or 'Nhân viên'}:\n{body}"[:1990]})
     _zbot_put(_xdb, 'zbot_last', {'at': (datetime.utcnow() + timedelta(hours=7)).strftime('%d/%m %H:%M'),
                                   'sent': [{'name': n, 'ok': ok, 'err': e} for n, ok, e in out]})
     return out
@@ -736,6 +747,7 @@ def zbot_hook():
         if new:
             _zbot_call('sendMessage', {'chat_id': cid, 'text': 'Đã kết nối ✅ Mỗi sáng 8:00 bot sẽ gửi danh sách phòng cần dọn vào đây.'})
         elif m.get('text'):
+            zbot_log(cid, 'in', m.get('text') or '')
             try:                            # p16: xin nghỉ / làm thêm / duyệt in plain words
                 reply = staff_handle_text(_xdb, cid, c, m.get('text') or '')
             except Exception as e:

@@ -23,8 +23,61 @@ def _staff_ensure(_xdb):
         id SERIAL PRIMARY KEY, chat_id VARCHAR(64) NOT NULL, kind VARCHAR(10) NOT NULL, day DATE NOT NULL,
         rooms INTEGER, amount INTEGER, note TEXT, status VARCHAR(12) NOT NULL DEFAULT 'pending',
         source VARCHAR(10) NOT NULL DEFAULT 'bot', created_at TIMESTAMP DEFAULT NOW(), decided_at TIMESTAMP)"""))
+    # 💬 every message bot ↔ cleaner (owner, Nov 12: "quản lý tất cả các tin nhắn") — read in /moi → Nhân viên → Tin nhắn bot
+    _xdb.session.execute(text("""CREATE TABLE IF NOT EXISTS zbot_msgs (
+        id SERIAL PRIMARY KEY, at TIMESTAMP NOT NULL, chat_id VARCHAR(64) NOT NULL, dir VARCHAR(3) NOT NULL, body TEXT NOT NULL)"""))
+    _xdb.session.execute(text("CREATE INDEX IF NOT EXISTS zbot_msgs_at ON zbot_msgs (at)"))
     _xdb.session.commit()
     _STAFF_READY = True
+
+
+def zbot_log(cid, direction, body):
+    """Keep one message of a CLEANER's chat ('out' = bot → her, 'in' = she → bot). Never raises; test chats (zz-…) are skipped."""
+    from core.models import db as _xdb
+    cid = str(cid or '')
+    if not cid or cid.startswith('zz-') or not (body or '').strip():
+        return
+    try:
+        if (_staff_chats(_xdb).get(cid) or {}).get('role') != 'staff':
+            return
+        _staff_ensure(_xdb)
+        _xdb.session.execute(text("INSERT INTO zbot_msgs (at, chat_id, dir, body) VALUES (:t, :c, :d, :b)"),
+                             {'t': _vn_now(), 'c': cid, 'd': direction, 'b': body[:4000]})
+        _xdb.session.commit()
+    except Exception as e:
+        _xdb.session.rollback()
+        print(f'⚠️ zbot log: {e}')
+
+
+def zbot_msg_kind(direction, body):
+    """'don' (dọn phòng: list, asks, numbers, ưu tiên) · 'nv' (nghỉ, làm thêm, bồi dưỡng, trừ tiền) · 'khac'."""
+    t = _fold(body)
+    if any(k in t for k in ('nghi', 'boi duong', 'tru tien', 'lam them', 'thu hoi', 'duyet', 'cong / tru')):
+        return 'nv'
+    if any(k in t for k in ('don phong', 'don xong', 'don som', 'chua bao xong', 'don toi dau', 'bo dau', 'con lai', 'khong co phong so',
+                            'danh sach don', 'nhan so')):
+        return 'don'
+    toks = _re.findall(r'[a-z]+|\d+', t)
+    if direction == 'in' and toks and all(w.isdigit() or w in CLEAN_NUM or w in CLEAN_FILL or w in CLEAN_UNDO for w in toks):
+        return 'don'
+    return 'khac'
+
+
+@app.route('/api/moi/zbot_log')
+def moi_zbot_log():
+    """💬 Tin nhắn bot ↔ các cô, newest first (last 30 days, 500 at most): [{id, chat_id, dir, at, day, body, kind}]."""
+    from core.models import db as _xdb
+    _moi_ensure(); _staff_ensure(_xdb)
+    _xdb.session.execute(text("DELETE FROM zbot_msgs WHERE at < :t"), {'t': _vn_now() - timedelta(days=60)})
+    _xdb.session.commit()
+    rows = _xdb.session.execute(text("SELECT id, at, chat_id, dir, body FROM zbot_msgs WHERE at >= :t ORDER BY id DESC LIMIT 500"),
+                                {'t': _vn_now() - timedelta(days=30)}).fetchall()
+    people = _staff_people(_xdb)
+    today = _vn_now().date()
+    lab = lambda d: 'Hôm nay' if d == today else 'Hôm qua' if d == today - timedelta(days=1) else f'{MOI_WEEKDAY[d.weekday()].capitalize()} {d.day}/{d.month}'
+    return jsonify({'success': True, 'people': [{'id': k, 'name': _staff_name(c)} for k, c in people.items()],
+                    'msgs': [{'id': r[0], 'chat_id': r[2], 'dir': r[3], 'at': r[1].strftime('%H:%M'), 'day': lab(r[1].date()),
+                              'body': r[4], 'kind': zbot_msg_kind(r[3], r[4])} for r in rows]})
 
 
 def _vn_now():
@@ -471,9 +524,19 @@ def clean_mark(_xdb, key, on, by=''):
 def _clean_send(_xdb, day, make):
     """make(chat) → text or '' for every chat that is on and not off that day. Returns how many were sent."""
     off, n = staff_off_on(_xdb, day), 0
-    for cid, c in _staff_chats(_xdb).items():
-        if c.get('on') and cid not in off:
-            msg = make(c)
+    live = {cid: c for cid, c in _staff_chats(_xdb).items() if c.get('on') and cid not in off}
+    rest = [cid for cid, c in live.items() if not clean_side(c)]
+    girls = {cid: c for cid, c in live.items() if clean_side(c)}
+    for cid, c in girls.items():
+        msg = make(c)
+        if msg:
+            _zbot_call('sendMessage', {'chat_id': cid, 'text': msg[:1990]})
+            n += 1
+            for o in rest:      # owner, Nov 12: "nhắn riêng cho hai cô, đừng nhắn chung" → one copy per cleaner
+                _zbot_call('sendMessage', {'chat_id': o, 'text': f"📨 Bot → {_staff_name(c)}:\n{msg}"[:1990]})
+    if not girls:
+        for cid in rest:
+            msg = make(live[cid])
             if msg:
                 _zbot_call('sendMessage', {'chat_id': cid, 'text': msg[:1990]})
                 n += 1
@@ -499,7 +562,7 @@ def clean_prio(_xdb, key, on):
             name = f"{v['n']}. {x['label']}"
             return (f"⚡ ƯU TIÊN dọn sớm: {name} — khách vào sớm, dọn phòng này TRƯỚC giúp em. Xong nhắn số {v['n']}."
                     if on else f"↩️ {name} không cần dọn sớm nữa, dọn như bình thường nhé.")
-        return (f"⚡ Đã báo ưu tiên dọn sớm: {x['label']}." if on else f"↩️ Đã bỏ ưu tiên: {x['label']}.")
+        return ''
     _clean_send(_xdb, today, make)
     return clean_board(_xdb, today)
 
