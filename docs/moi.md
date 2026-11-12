@@ -254,3 +254,10 @@ Owner: new-booking mails get buried in Gmail; they want a notification on the iP
   as kind `msg` (columns guest, body, co) and shown under the "💬 Tin khách" chip of the list — never in the red bar.
 - Script function `guiLaiHomNay` (run by hand in script.google.com) re-sends every Booking mail since 0:00: known mails are
   dups, guest messages older than 30 min are saved quiet (list only). `moi_settings 'mail_recent'` = last 40 subjects received.
+
+## 💳 One-tap WhatsApp payment messages (Nov 12)
+Guest sheet in /moi, under the phone row: 4th button **💬 WhatsApp** (opens the guest's chat, `waNum`) and, while room money is
+open, `payMsgBox`: **💳 Báo thu tiền** (journey 'payment' template of the apartment) · **⏰ Nhắc thu tiền** (template
+`payment - Nhắc thanh toán hôm nay`, made once by `/api/moi/pay_msg`, EN + VI, editable in Mẫu Câu; `{tien}` = money left).
+The buttons are real `<a href="wa.me/…?text=…">` (iPhone opens apps only from a direct tap) — texts are fetched when the
+sheet opens (`M.payMsgLoad`); a tap also copies the text and logs journey `payment` / `pay_remind`. The owner presses Send.

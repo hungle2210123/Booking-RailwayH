@@ -302,7 +302,7 @@ button.info.on{border-color:#0E1525;background:#fff}
   M.set = (k, v) => { S[k] = v; if (k === 'calView') LS.set(k, v); render(); };
   M.day = (d) => { S.day = Math.max(0, Math.min(20, d)); render(); };
   M.open = (id) => { S.sel = id; S.move = false; S.pick = null; S.edit = null; renderSheet(); };
-  M.close = () => { if (S.staffOn || S.cleanSetup) setTimeout(M_staffBadge, 300); S.calSheet = false; S.staffOn = false; S.cleanSetup = null; S.sel = null; S.collect = null; S.aptSheet = false; S.etaFor = null; S.adding = false; renderSheet(); renderFloat(); };
+  M.close = () => { if (S.staffOn || S.cleanSetup) setTimeout(M_staffBadge, 300); S.pm = null; S.calSheet = false; S.staffOn = false; S.cleanSetup = null; S.sel = null; S.collect = null; S.aptSheet = false; S.etaFor = null; S.adding = false; renderSheet(); renderFloat(); };
   M.add = () => { S.sel = null; S.adding = true; renderSheet(); setTimeout(() => { const i = $('#fName'); if (i) i.focus(); }, 50); };
   M.addSave = async (btn) => {
     const v = (id) => ($('#' + id).value || '').trim();
@@ -447,6 +447,17 @@ button.info.on{border-color:#0E1525;background:#fff}
     const r = await post('/api/moi/dayuse', { booking_id: id, on: !b.du });
     if (!r.ok) return toast('Lỗi: không lưu được'); toast(b.du ? b.name + ': ở qua đêm' : '☀ ' + b.name + ': ở trong ngày — đêm đó phòng trống cho khách khác');
     await load(true); renderSheet(); };
+  // 💬 WhatsApp of the guest + 💳 one-tap payment messages (owner, Nov 12): the links are real <a href="wa.me/…?text=…">
+  // (an iPhone only opens another app from a direct tap), so the texts are fetched when the guest sheet opens.
+  const waNum = (p) => { const raw = String(p || '').trim(), d = raw.replace(/\D/g, ''); if (!d) return '';
+    return raw.startsWith('+') ? d : d.startsWith('00') ? d.slice(2) : (d.startsWith('0') && d.length >= 9 && d.length <= 11) ? '84' + d.slice(1) : d; };
+  M.payMsgLoad = async (id) => { S.pm = { id, loading: true };
+    let j = {}; try { j = await (await fetch('/api/moi/pay_msg/' + encodeURIComponent(id), { cache: 'no-store' })).json(); } catch (e) {}
+    if (!S.pm || S.pm.id !== id) return;
+    S.pm = Object.assign({ id }, j.success ? j : { err: j.error || 'Chưa tải được tin' }); if (S.sel === id || (S.sel && S.sel.id === id) || $('.ov')) renderSheet(); };
+  M.payMsgTap = (id, kind) => { const pm = S.pm || {}; if (pm.id !== id || !pm[kind]) return;
+    copyText(pm[kind]); toast('Đã copy tin — WhatsApp đang mở, bấm Gửi'); pm[kind + '_sent'] = true;
+    post('/api/moi/pay_msg/' + encodeURIComponent(id), { kind }); setTimeout(renderSheet, 800); };
   M.copyPhone = (id) => { const p = (byId[id] || {}).phone; if (!p) return; copyText(p); toast('📋 Đã copy ' + p); };
   M.unreach = (id) => { const b = byId[id]; M.mark(id, 'unreachable', !b.unreach); if (!b.unreach) toast(b.name + ' → Không liên lạc được'); };
   M.renameRoom = async (aid, no) => {
@@ -996,6 +1007,19 @@ button.info.on{border-color:#0E1525;background:#fff}
   }
 
   // ═════ SHEETS ═════
+  // 💳 two one-tap WhatsApp messages under the phone number, only while room money is still open
+  function payMsgBox(b) {
+    if (!b.phone || b.paid) return '';
+    if (!S.pm || S.pm.id !== b.id) { setTimeout(() => M.payMsgLoad(b.id), 0); }
+    const pm = S.pm && S.pm.id === b.id ? S.pm : { loading: true };
+    const one = (kind, label, sub, col) => { const t = pm[kind], done = pm[kind + '_sent'];
+      const st = `flex:1;min-width:0;min-height:52px;border-radius:12px;padding:6px 8px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;text-decoration:none;font-weight:800;font-size:13.5px;line-height:1.2;`;
+      return t ? `<a href="https://wa.me/${pm.wa}?text=${encodeURIComponent(t)}" target="_blank" rel="noopener" onclick="M.payMsgTap('${b.id}','${kind}')" style="${st}background:${col};color:#fff">${label}<small style="font-size:11px;font-weight:700;opacity:.9;margin-top:2px">${done ? '✓ đã mở · chạm để gửi lại' : sub}</small></a>`
+        : `<span style="${st}background:#F1F5F9;color:#94A3B8">${label}<small style="font-size:11px;font-weight:700;margin-top:2px">${pm.loading ? 'đang tải…' : kind === 'ask' && pm.needs_apt ? 'xếp căn trước' : 'chưa có mẫu tin'}</small></span>`; };
+    return `<div style="margin-top:8px;border:1.5px solid #FDE68A;background:#FFFBEB;border-radius:12px;padding:8px">
+      <div style="font-size:12px;font-weight:800;color:#92400E;margin:0 2px 6px">💳 Chưa thu đủ — nhắn WhatsApp 1 chạm (tự copy tin, mở chat của khách)</div>
+      ${pm.err ? `<div style="font-size:13px;font-weight:700;color:#B91C1C;padding:4px 2px">${esc(pm.err)}</div>` : `<div style="display:flex;gap:8px">${one('ask', '💳 Báo thu tiền', 'tin thanh toán của căn', '#0E1525')}${one('remind', '⏰ Nhắc thu tiền', 'trả trong hôm nay', '#B45309')}</div>`}</div>`;
+  }
   function renderSheet() {
     const el = $('#sheet');
     if (S.calSheet) {
@@ -1225,8 +1249,9 @@ button.info.on{border-color:#0E1525;background:#fff}
       <div style="font-size:13px;color:#475569;margin-top:10px;font-weight:600">${esc(b.listing)} · Mã ${esc(b.id)}</div>
       <div style="display:flex;flex-wrap:wrap;align-items:center;gap:6px 8px;margin-top:8px;background:#EFF6FF;border-radius:12px;padding:6px 6px 6px 12px">
         <span class="num" style="flex:1 0 auto;white-space:nowrap;font-size:14px;font-weight:800;color:#1D4ED8">${b.phone ? `<a href="tel:${esc(b.phone)}" style="text-decoration:none">${esc(b.phone)}</a>` : b.partner ? 'Đối tác — chưa có số khách' : 'Chưa có số điện thoại'}</span>
-        ${b.phone ? `<a href="tel:${esc(b.phone)}" style="min-height:36px;border-radius:9px;border:none;font-size:12px;font-weight:800;padding:0 10px;display:inline-flex;align-items:center;text-decoration:none;min-height:38px;background:#16A34A;color:#fff">📞 Gọi</a><button onclick="M.copyPhone('${b.id}')" style="min-height:36px;border-radius:9px;border:none;font-size:12px;font-weight:800;padding:0 10px;display:inline-flex;align-items:center;text-decoration:none;min-height:38px;background:#fff;color:#1D4ED8">📋 Copy</button>` : ''}
+        ${b.phone ? `<a href="tel:${esc(b.phone)}" style="min-height:36px;border-radius:9px;border:none;font-size:12px;font-weight:800;padding:0 10px;display:inline-flex;align-items:center;text-decoration:none;min-height:38px;background:#16A34A;color:#fff">📞 Gọi</a><button onclick="M.copyPhone('${b.id}')" style="min-height:36px;border-radius:9px;border:none;font-size:12px;font-weight:800;padding:0 10px;display:inline-flex;align-items:center;text-decoration:none;min-height:38px;background:#fff;color:#1D4ED8">📋 Copy</button><a href="https://wa.me/${waNum(b.phone)}" target="_blank" rel="noopener" style="min-height:38px;border-radius:9px;font-size:12px;font-weight:800;padding:0 10px;display:inline-flex;align-items:center;text-decoration:none;background:#fff;color:#15803D;border:1.5px solid #86EFAC">💬 WhatsApp</a>` : ''}
         <button onclick="M.phone('${b.id}')" style="min-height:38px;border-radius:10px;border:none;background:#fff;color:#1D4ED8;font-size:12px;font-weight:800;padding:0 12px">${b.phone ? 'Sửa' : 'Thêm số'}</button></div>
+      ${payMsgBox(b)}
       <div style="display:flex;gap:10px;align-items:center;margin-top:8px;background:#F7F8FA;border-radius:12px;padding:8px">
         <img src="/api/booking_screenshot/${encodeURIComponent(b.id)}?v=full" alt="Ảnh đặt phòng" loading="lazy" style="width:72px;height:96px;object-fit:cover;border-radius:8px;background:#E2E5EB;flex-shrink:0" onerror="this.replaceWith(Object.assign(document.createElement('div'),{textContent:'Chưa có ảnh đặt phòng',style:'font-size:12px;color:#64748B;font-weight:700;padding:8px'}))" onclick="window.Journey && Journey.zoom && Journey.zoom(this.src)">
         <div style="flex:1;min-width:0;font-size:12px;color:#475569;font-weight:600;line-height:1.5">Ảnh đặt phòng — chạm để xem lớn, so lại tên, ngày, giá<br>${b.property ? 'Chỗ nghỉ: ' + esc(b.property) : ''}</div></div>

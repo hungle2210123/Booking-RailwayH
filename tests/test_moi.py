@@ -883,3 +883,27 @@ Suite Apartment Hanoi Old Quarter - Lee's
                     db.session.execute(appmod.text("DELETE FROM moi_settings WHERE key = :k"), {'k': k}); db.session.commit()
                 else:
                     appmod._zbot_put(db, k, v)
+
+
+def test_one_tap_payment_messages(app, db, client, booking):
+    """Owner, Nov 12: on the guest sheet, next to the phone → 💬 WhatsApp, and two one-tap messages while money is open:
+    💳 Báo thu tiền (the apartment's payment template) and ⏰ Nhắc thu tiền ("pay today… rule: on the check-in day")."""
+    import app as appmod
+    bid = booking(guest_name='ZZ Pay Test', checkin_date='2030-01-10', checkout_date='2030-01-12')
+    j = client.get(f'/api/moi/pay_msg/{bid}').get_json()
+    if not j['success']:                       # the throwaway guest has no phone yet
+        assert 'số điện thoại' in j['error']
+        with app.app_context():
+            db.session.execute(appmod.text("UPDATE guests SET phone = '+46700000001' WHERE guest_id = (SELECT guest_id FROM bookings WHERE booking_id = :b)"), {'b': bid})
+            db.session.execute(appmod.text("UPDATE bookings SET actual_apartment = '1', room_amount = 1500000, collected_amount = 500000 WHERE booking_id = :b"), {'b': bid})
+            db.session.commit()
+        j = client.get(f'/api/moi/pay_msg/{bid}').get_json()
+    assert j['success'] and j['wa'] == '46700000001' and j['left'] == 1000000
+    assert 'ZZ Pay Test' in j['remind'] and 'pay today' in j['remind'] and '1,000,000 VND' in j['remind'] and '10/01' in j['remind']
+    assert j['ask'] and '{' not in j['remind'] and not j['remind_sent']
+    assert client.post(f'/api/moi/pay_msg/{bid}', json={'kind': 'remind'}).get_json()['success']
+    assert client.get(f'/api/moi/pay_msg/{bid}').get_json()['remind_sent']
+    with app.app_context():
+        db.session.execute(appmod.text("DELETE FROM journey_log WHERE booking_id = :b"), {'b': bid}); db.session.commit()
+    html = client.get('/moi').get_data(as_text=True)
+    assert 'payMsgBox' in html and '💬 WhatsApp' in html and 'Nhắc thu tiền' in html

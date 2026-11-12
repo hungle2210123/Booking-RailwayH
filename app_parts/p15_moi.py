@@ -857,3 +857,58 @@ def moi_room_name():
         _xdb.session.execute(text("DELETE FROM moi_room_names WHERE apartment_id = :a AND room_no = :n"), {'a': aid, 'n': no})
     _xdb.session.commit()
     return jsonify({'success': True, 'name': name or f'Phòng {no}'})
+
+
+# ── 💳 One-tap payment messages on the guest sheet (owner, Nov 12) ─────────────────────────────────────────────────────
+# "Báo thu tiền" = the journey 'payment' template of the guest's apartment · "Nhắc thu tiền" = the template below (made once,
+# editable in Mẫu Câu). The phone gets {wa, ask, remind}; a tap copies the text and opens the guest's WhatsApp with it typed
+# in — the owner presses Send (never sent by the app). {tien} = the room money still open.
+PAY_REMIND_NAME = 'payment - Nhắc thanh toán hôm nay'
+PAY_REMIND_EN = ("Hi {ten}, a gentle reminder about the payment for your stay ({nhan} – {tra}): {tien}.\n"
+                 "Could you please pay today? Our company's rule is that payment is collected on the check-in day, "
+                 "and we need to close the books with the company this evening.\nThank you so much! 🙏")
+PAY_REMIND_VI = ("Chào {ten}, mình nhắc nhẹ về tiền phòng ({nhan} – {tra}): {tien}.\n"
+                 "Bạn thanh toán giúp mình trong hôm nay nhé, vì quy định là thu tiền vào ngày nhận phòng và mình cần chốt sổ "
+                 "với công ty trong tối nay.\nCảm ơn bạn nhiều! 🙏")
+
+
+@app.route('/api/moi/pay_msg/<booking_id>', methods=['GET', 'POST'])
+def moi_pay_msg(booking_id):
+    """GET → {wa, ask, remind} filled in for this guest. POST {kind} → remember that the message was opened (journey log)."""
+    from core.models import db as _xdb
+    _xdb2, J = _journey()
+    if request.method == 'POST':
+        kind = (request.get_json(silent=True) or {}).get('kind')
+        if kind in ('ask', 'remind'):
+            J.log_sent(_xdb.session, booking_id, 'payment' if kind == 'ask' else 'pay_remind')
+        return jsonify({'success': True})
+    b = _journey_booking(_xdb, booking_id)
+    if not b:
+        return jsonify({'success': False, 'error': 'Không tìm thấy đặt phòng'}), 404
+    if not b['links']:
+        return jsonify({'success': False, 'error': 'Chưa có số điện thoại của khách'})
+    _xdb.session.execute(text("""
+        INSERT INTO message_templates (template_name, category, template_content, template_content_vi, created_at, updated_at)
+        SELECT :n, COALESCE((SELECT category FROM message_templates WHERE LOWER(template_name) LIKE 'payment%' LIMIT 1), 'payment'),
+               :en, :vi, NOW(), NOW()
+        WHERE NOT EXISTS (SELECT 1 FROM message_templates WHERE template_name = :n)"""),
+        {'n': PAY_REMIND_NAME, 'en': PAY_REMIND_EN, 'vi': PAY_REMIND_VI})
+    _xdb.session.commit()
+    money = _xdb.session.execute(text("SELECT COALESCE(room_amount, 0), COALESCE(collected_amount, 0) FROM bookings WHERE booking_id = :b"),
+                                 {'b': booking_id}).fetchone()
+    left = max(0, int((money[0] or 0) - (money[1] or 0)))
+    vn = _vn_guest_name(b['name'])
+    tien = (f"{left:,}".replace(',', '.') + 'đ') if vn else (f"{left:,} VND")
+
+    def render(t):
+        if not t:
+            return ''
+        raw = (t['content_vi'] if vn and t.get('content_vi') else t['content']) or ''
+        return J.fill(raw, b['guest'], 'vi' if vn else 'en').replace('{tien}', tien)
+    rid = _xdb.session.execute(text("SELECT template_id FROM message_templates WHERE template_name = :n"), {'n': PAY_REMIND_NAME}).scalar()
+    aid = J.template_for(J.load_map(_xdb.session), 'payment', b['apt_id']) if b['apt_id'] is not None else None
+    texts = _journey_texts(_xdb, [x for x in (rid, aid) if x])
+    sent = J.sent_status(_xdb.session, [booking_id]).get(booking_id, {})
+    return jsonify({'success': True, 'wa': b['links']['wa'], 'ask': render(texts.get(aid)), 'remind': render(texts.get(rid)),
+                    'needs_apt': b['apt_id'] is None, 'left': left, 'ask_sent': bool(sent.get('payment')),
+                    'remind_sent': bool(sent.get('pay_remind'))})
