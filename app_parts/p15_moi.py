@@ -865,8 +865,9 @@ def moi_room_name():
 # in — the owner presses Send (never sent by the app). {tien} = the room money still open.
 PAY_REMIND_NAME = 'payment - Nhắc thanh toán hôm nay'
 # owner, Nov 12: "hơi nặng nề… ghi kiểu thân thiện nhất, đừng quá chi tiết" → short, no amount, no dates
-PAY_REMIND_EN = ('Hi {ten}! Sorry to bother you 😊\nWould it be possible to pay for the room today? Our company asks us to collect payment on the check-in day, and I need to send them the report tonight.\nThank you so much! 🙏')
-PAY_REMIND_VI = ('Chào {ten}! Phiền bạn một chút 😊\nBạn thanh toán tiền phòng giúp mình trong hôm nay được không ạ? Theo quy định của công ty thì tiền phòng thu vào ngày nhận phòng, và tối nay mình cần báo cáo cho công ty.\nCảm ơn bạn nhiều! 🙏')
+# wording good on the check-in day AND later — it is usually sent on day 2 (owner, Nov 12)
+PAY_REMIND_EN = ("Hi {ten}! Sorry to bother you 😊\nUnder our company's policy, the room payment is due on the check-in day. Could you please help me settle it today? I need to send my report to the company tonight.\nThank you so much! 🙏")
+PAY_REMIND_VI = ('Chào {ten}! Phiền bạn một chút 😊\nTheo quy định của công ty thì tiền phòng cần thanh toán từ ngày nhận phòng. Bạn thanh toán giúp mình trong hôm nay được không ạ? Tối nay mình cần gửi báo cáo cho công ty.\nCảm ơn bạn nhiều! 🙏')
 
 
 def _pay_remind_id(_xdb):
