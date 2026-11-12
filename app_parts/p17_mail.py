@@ -165,6 +165,9 @@ def mail_hook(token):
     d = request.get_json(silent=True) or {}
     subject, body = str(d.get('subject') or '')[:400], str(d.get('body') or '')[:8000]
     _zbot_put(_xdb, 'mail_last', {'at': _vn_now().strftime('%d/%m %H:%M'), 'subject': subject[:80]})    # proof the script is alive
+    # the last 40 subjects received (any kind) — to check WHICH mails the Gmail scripts really send (guest messages?)
+    recent = (_zbot_get(_xdb, 'mail_recent') or [])[-39:] + [f"{_vn_now():%d/%m %H:%M} {subject[:70]}"]
+    _zbot_put(_xdb, 'mail_recent', recent)
     mid = str(d.get('id') or '')[:80] or None
     at = _vn_now()
     try:        # the script sends the mail's own time (ms) → exact; an older script without it = the minute it arrived
