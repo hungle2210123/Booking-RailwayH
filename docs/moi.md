@@ -248,3 +248,7 @@ Owner: new-booking mails get buried in Gmail; they want a notification on the iP
 - 📧 "Thư đặt phòng Booking" button (/moi Việc hằng ngày, /may-tinh sidebar → `MailAlerts.list()`, `/api/moi/mail_list`): every
   booking mail of 14 days by day — time booked, booking number (Copy mã), apartment, arrival, "đã vào app"; chips Phút chót
   (default) / Tất cả / Đặt mới / Hủy; ⚙ Cài đặt opens the setup sheet. The app cannot pull Gmail — the script pushes every minute.
+- **Only today** (owner, Nov 12): a booking / cancel mail whose arrival day is not today is stored quiet (seen, no Zalo, not in
+  the bar or the list). 💬 **Guest messages**: mails "Chúng tôi nhận được tin nhắn này từ <khách>" → `mail_guest_msg` (name, text,
+  check-in/out, listing, booking number); only guests arriving TODAY → Zalo "💬 KHÁCH ĐẾN HÔM NAY NHẮN" (`mail_msg_text`), stored
+  as kind `msg` (columns guest, body, co) and shown under the "💬 Tin khách" chip of the list — never in the red bar.

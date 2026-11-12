@@ -22,6 +22,8 @@ def _mail_ensure(_xdb):
     _xdb.session.execute(text("""CREATE TABLE IF NOT EXISTS mail_alerts (
         id SERIAL PRIMARY KEY, at TIMESTAMP NOT NULL, mail_id VARCHAR(80) UNIQUE, kind VARCHAR(10) NOT NULL,
         booking_id VARCHAR(20), prop TEXT, apt VARCHAR(10), day DATE, subject TEXT, seen BOOLEAN NOT NULL DEFAULT FALSE)"""))
+    for col in ('guest TEXT', 'body TEXT', 'co DATE'):          # 💬 guest messages (kind 'msg')
+        _xdb.session.execute(text(f"ALTER TABLE mail_alerts ADD COLUMN IF NOT EXISTS {col}"))
     _xdb.session.commit()
     _MAIL_READY = True
 
@@ -63,6 +65,68 @@ def mail_parse(subject, body=''):
     return {'kind': kind, 'booking_id': m.group(1) if m else '', 'day': day}
 
 
+def _mail_date(s):
+    """'T5, 12 tháng 11 2026' / '12 November 2026' / 'Nov 12, 2026' (folded text) → date or None."""
+    try:
+        d = _re_m.search(r'(\d{1,2}) thang (\d{1,2}),? (\d{4})', s)
+        if d:
+            return date(int(d.group(3)), int(d.group(2)), int(d.group(1)))
+        d = _re_m.search(r'(\d{1,2}) ([a-z]{3,9})\.?,? (\d{4})', s) or _re_m.search(r'([a-z]{3,9})\.? (\d{1,2}),? (\d{4})', s)
+        if d:
+            g = d.groups()
+            word, num = (g[1], g[0]) if g[0].isdigit() else (g[0], g[1])
+            mon = next((v for k, v in MAIL_MONTH.items() if k.startswith(word[:3])), None)
+            return date(int(g[2]), mon, int(num)) if mon else None
+    except ValueError:
+        pass
+    return None
+
+
+def mail_guest_msg(subject, body):
+    """A "guest wrote to you" mail (owner's screenshot, Nov 12: subject "Chúng tôi nhận được tin nhắn này từ Elva Dahlgaard",
+    body "… Elva Dahlgaard đã nhắn: <text> Trả lời --> … Nhận phòng: T5, 12 tháng 11 2026 … Tên chỗ nghỉ: …") →
+    {guest, text, ci, co, prop, booking_id} or None."""
+    m = _re_m.search(r'(?:nhận được tin nhắn này từ|received this message from|new message from)\s+(.+)', subject or '', _re_m.I)
+    if not m:
+        return None
+    guest = m.group(1).strip(' .!')
+    b = (body or '').replace('\r', '')
+    lines = [x.strip() for x in b.split('\n')]
+
+    def after(*labels):          # the first non-empty line after a label line ("Nhận phòng:" / "Check-in:")
+        for i, x in enumerate(lines):
+            f = _fold(x).rstrip(':').strip()
+            if f in labels or any(_fold(x).startswith(l + ':') for l in labels):
+                same = x.split(':', 1)[1].strip() if ':' in x else ''
+                if same:
+                    return same
+                return next((y for y in lines[i + 1:i + 4] if y), '')
+        return ''
+    txt = b
+    cut = _re_m.search(r'(?:đã nhắn|said|wrote)\s*:\s*', txt, _re_m.I)
+    if cut:
+        txt = txt[cut.end():]
+    else:
+        txt = _re_m.sub(r'^.*?##-.*?-##', '', txt, count=1, flags=_re_m.S)
+        txt = _re_m.sub(r'(?:Mã xác nhận|Confirmation number)\s*:\s*\d+', '', txt, flags=_re_m.I)
+    end = _re_m.search(r'\n?\s*(?:Trả lời|Reply)\b|\n\s*(?:Chi tiết đặt phòng|Reservation details|Booking details)', txt, _re_m.I)
+    if end:
+        txt = txt[:end.start()]
+    txt = ' '.join(txt.split())[:600]
+    bid = _re_m.search(r'(?:Mã xác nhận|Confirmation number)\s*:\s*(\d{9,11})', b, _re_m.I) or _re_m.search(r'res_id=(\d{9,11})', b)
+    return {'guest': guest, 'text': txt, 'ci': _mail_date(_fold(after('nhan phong', 'check-in', 'check in'))),
+            'co': _mail_date(_fold(after('tra phong', 'check-out', 'check out'))),
+            'prop': after('ten cho nghi', 'property name', 'property')[:120], 'booking_id': bid.group(1) if bid else ''}
+
+
+def mail_msg_text(g, at, street=''):
+    """Zalo text for a message of a guest arriving today (owner: name · what they wrote · dates · listing)."""
+    span = ' → '.join(f'{d.day}/{d.month}' for d in (g.get('ci'), g.get('co')) if d)
+    return '\n'.join(x for x in [f"💬 KHÁCH ĐẾN HÔM NAY NHẮN — {at:%H:%M}", f"👤 {g['guest']}", f"“{g['text']}”" if g.get('text') else '',
+                                 '📅 ' + ' · '.join(x for x in [span, street] if x) if span or street else '',
+                                 f"🏠 {g['prop']}" if g.get('prop') else '', f"Mã {g['booking_id']}" if g.get('booking_id') else ''] if x)
+
+
 def _mail_property(_xdb, blob):
     """The listing named in the mail → (name, apartment id it is usually placed in) — from the names already in bookings."""
     rows = _xdb.session.execute(text("""
@@ -101,9 +165,6 @@ def mail_hook(token):
     d = request.get_json(silent=True) or {}
     subject, body = str(d.get('subject') or '')[:400], str(d.get('body') or '')[:8000]
     _zbot_put(_xdb, 'mail_last', {'at': _vn_now().strftime('%d/%m %H:%M'), 'subject': subject[:80]})    # proof the script is alive
-    p = mail_parse(subject, body)
-    if not p:
-        return jsonify({'ok': True, 'skipped': True})
     mid = str(d.get('id') or '')[:80] or None
     at = _vn_now()
     try:        # the script sends the mail's own time (ms) → exact; an older script without it = the minute it arrived
@@ -111,6 +172,30 @@ def mail_hook(token):
             at = min(at, datetime.utcfromtimestamp(float(d['date']) / 1000) + timedelta(hours=7))
     except (TypeError, ValueError, OverflowError, OSError):
         pass
+    today = _vn_now().date()
+    g = mail_guest_msg(subject, body)
+    if g:       # 💬 a guest wrote on Booking — only guests ARRIVING TODAY are reported (owner, Nov 12)
+        if not g['ci'] and g['booking_id']:
+            g['ci'], g['co'] = _xdb.session.execute(text("SELECT checkin_date, checkout_date FROM bookings WHERE booking_id = :b"),
+                                                    {'b': g['booking_id']}).fetchone() or (None, None)
+        if g['ci'] != today:
+            return jsonify({'ok': True, 'skipped': True, 'why': 'not arriving today'})
+        if mid and _xdb.session.execute(text("SELECT 1 FROM mail_alerts WHERE mail_id = :m"), {'m': mid}).fetchone():
+            return jsonify({'ok': True, 'dup': True})
+        prop, apt = _mail_property(_xdb, g['prop'] or body)
+        _xdb.session.execute(text("""INSERT INTO mail_alerts (at, mail_id, kind, booking_id, prop, apt, day, subject, seen, guest, body, co)
+            VALUES (:at, :m, 'msg', :b, :p, :a, :d, :s, TRUE, :g, :t, :co)"""),
+            {'at': at, 'm': mid, 'b': g['booking_id'], 'p': g['prop'] or prop, 'a': apt, 'd': g['ci'], 's': subject, 'g': g['guest'],
+             't': g['text'], 'co': g['co']})
+        _xdb.session.commit()
+        try:
+            mail_notify(_xdb, mail_msg_text(g, at, MOI_STREET.get(int(apt)) if (apt or '').isdigit() else ''))
+        except Exception as e:
+            print(f'⚠️ guest message → Zalo: {e}')
+        return jsonify({'ok': True, 'kind': 'msg'})
+    p = mail_parse(subject, body)
+    if not p:
+        return jsonify({'ok': True, 'skipped': True})
     prop, apt = _mail_property(_xdb, subject + '\n' + body)
     # the same booking + kind twice (Booking sometimes sends 2 mails) → one alert
     dup = _xdb.session.execute(text("""SELECT 1 FROM mail_alerts WHERE (mail_id = :m AND :m IS NOT NULL)
@@ -118,10 +203,13 @@ def mail_hook(token):
         {'m': mid, 'b': p['booking_id'], 'k': p['kind'], 't': _vn_now() - timedelta(days=2)}).fetchone()
     if dup:
         return jsonify({'ok': True, 'dup': True})
-    _xdb.session.execute(text("""INSERT INTO mail_alerts (at, mail_id, kind, booking_id, prop, apt, day, subject)
-        VALUES (:at, :m, :k, :b, :p, :a, :d, :s)"""), {'at': at, 'm': mid, 'k': p['kind'], 'b': p['booking_id'],
-                                                      'p': prop, 'a': apt, 'd': p['day'], 's': subject})
+    now = (p['day'] or today) == today
+    _xdb.session.execute(text("""INSERT INTO mail_alerts (at, mail_id, kind, booking_id, prop, apt, day, subject, seen)
+        VALUES (:at, :m, :k, :b, :p, :a, :d, :s, :seen)"""), {'at': at, 'm': mid, 'k': p['kind'], 'b': p['booking_id'],
+                                                      'p': prop, 'a': apt, 'd': p['day'], 's': subject, 'seen': not now})
     _xdb.session.commit()
+    if not now:      # kept (for the record) but not announced: the guest does not arrive today
+        return jsonify({'ok': True, 'kind': p['kind'], 'quiet': True})
     msg = mail_text({'kind': p['kind'], 'booking_id': p['booking_id'], 'prop': prop, 'apt': apt, 'day': p['day'], 'at': at}, _vn_now().date())
     try:        # → the owner's Zalo = a notification on the iPhone
         mail_notify(_xdb, msg + '\nMở Booking để xem chi tiết.')
@@ -138,13 +226,16 @@ def moi_mail_list():
     _moi_ensure(); _mail_ensure(_xdb)
     rows = _xdb.session.execute(text("""SELECT m.id, m.at, m.kind, m.booking_id, m.prop, m.apt, m.day, m.seen,
                EXISTS (SELECT 1 FROM bookings b WHERE b.booking_id = m.booking_id)
-        FROM mail_alerts m WHERE m.at > :t ORDER BY m.at DESC LIMIT 200"""), {'t': _vn_now() - timedelta(days=14)}).fetchall()
+               , m.guest, m.body, m.co
+        FROM mail_alerts m WHERE m.at > :t AND (m.day IS NULL OR m.day = m.at::date)      -- only same-day arrivals (owner)
+        ORDER BY m.at DESC LIMIT 200"""), {'t': _vn_now() - timedelta(days=14)}).fetchall()
     today = _vn_now().date()
     lab = lambda d: 'Hôm nay' if d == today else 'Hôm qua' if d == today - timedelta(days=1) else f'{MOI_WEEKDAY[d.weekday()].capitalize()} {d.day}/{d.month}'
     out = []
     for r in rows:
         d = r[6]
-        out.append({'id': r[0], 'kind': r[2], 'label': {'last': 'Phút chót', 'new': 'Đặt mới', 'cancel': 'Hủy', 'change': 'Đổi'}[r[2]],
+        out.append({'id': r[0], 'kind': r[2], 'label': {'last': 'Phút chót', 'new': 'Đặt mới', 'cancel': 'Hủy', 'change': 'Đổi', 'msg': 'Tin khách'}[r[2]],
+                    'guest': r[9] or '', 'text': r[10] or '', 'stay': ' → '.join(f'{x.day}/{x.month}' for x in (d, r[11]) if x),
                     'group': lab(r[1].date()), 'time': r[1].strftime('%H:%M'), 'booking_id': r[3] or '',
                     'place': MOI_STREET.get(int(r[5])) if (r[5] or '').isdigit() else '', 'prop': r[4] or '',
                     'arrive': '' if not d else 'hôm nay' if d == today else 'ngày mai' if d == today + timedelta(days=1) else f'{d.day}/{d.month}',
@@ -169,7 +260,7 @@ def moi_mail_alerts():
         AND EXISTS (SELECT 1 FROM bookings b WHERE b.booking_id = m.booking_id)"""))
     _xdb.session.commit()
     rows = _xdb.session.execute(text("""SELECT id, at, kind, booking_id, prop, apt, day FROM mail_alerts
-        WHERE seen = FALSE AND at > :t ORDER BY id DESC LIMIT 30"""), {'t': _vn_now() - timedelta(days=3)}).fetchall()
+        WHERE seen = FALSE AND kind <> 'msg' AND at > :t ORDER BY id DESC LIMIT 30"""), {'t': _vn_now() - timedelta(days=3)}).fetchall()
     today = _vn_now().date()
     out = []
     for r in rows:

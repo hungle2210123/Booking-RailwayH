@@ -61,9 +61,9 @@
       if (kind === undefined || !window.__maMails) { try { const j = await (await fetch('/api/moi/mail_list', { cache: 'no-store' })).json(); if (j.success) { window.__maMails = j.mails; window.__maLast = j.last; } } catch (e) {} }
       const all = window.__maMails || [], ms = all.filter((m) => !k || m.kind === k);
       const chip = (v, label) => `<button onclick="MailAlerts.list('${v}')" style="min-height:40px;padding:0 12px;border-radius:12px;font-size:13px;font-weight:800;border:1.5px solid ${k === v ? '#0E1525' : '#E2E5EB'};background:${k === v ? '#0E1525' : '#fff'};color:${k === v ? '#fff' : '#0E1525'}">${label} · ${all.filter((m) => !v || m.kind === v).length}</button>`;
-      const COL = { last: '#B45309', new: '#0E1525', cancel: '#B91C1C', change: '#475569' };
-      let h = head('BOOKING.COM · GMAIL · 14 NGÀY', 'Thư đặt phòng')
-        + `<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:12px">${chip('last', '⚡ Phút chót')}${chip('', 'Tất cả')}${chip('new', 'Đặt mới')}${chip('cancel', 'Hủy')}</div>`
+      const COL = { last: '#B45309', new: '#0E1525', cancel: '#B91C1C', change: '#475569', msg: '#1D4ED8' };
+      let h = head('BOOKING.COM · GMAIL · 14 NGÀY', 'Thư Booking hôm đó')
+        + `<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:12px">${chip('last', '⚡ Phút chót')}${chip('', 'Tất cả')}${chip('new', 'Đặt mới')}${chip('cancel', 'Hủy')}${chip('msg', '💬 Tin khách')}</div>`
         + `<div style="margin-top:8px;font-size:12.5px;color:#64748B">${window.__maLast ? 'Gmail tự kiểm tra mỗi phút · thư gần nhất nhận lúc ' + esc(window.__maLast.at) : 'Chưa nhận được thư nào từ Gmail — bấm ⚙ Cài đặt ở dưới.'}</div>`;
       if (!ms.length) h += '<div style="padding:26px 0;text-align:center;color:#64748B;font-weight:700">Không có thư nào.</div>';
       let g = '';
@@ -71,6 +71,7 @@
         if (m.group !== g) { g = m.group; h += `<div style="margin:14px 2px 2px;font-size:12px;font-weight:800;color:#64748B;text-transform:uppercase;letter-spacing:.04em">${esc(g)}</div>`; }
         h += `<div style="margin-top:6px;border:1.5px solid #E7E9EE;border-radius:14px;padding:10px 12px;background:${m.kind === 'cancel' ? '#FEF2F2' : '#fff'}">
           <div style="display:flex;align-items:center;gap:8px"><b style="font-size:20px;font-variant-numeric:tabular-nums">${esc(m.time)}</b><span style="font-size:11.5px;font-weight:800;color:#fff;background:${COL[m.kind]};border-radius:999px;padding:3px 8px">${esc(m.label)}</span><span style="flex:1"></span><span style="font-size:12px;font-weight:800;color:${m.in_app ? '#15803D' : '#94A3B8'}">${m.in_app ? '✓ đã vào app' : 'chưa vào app'}</span></div>
+          ${m.kind === 'msg' ? `<div style="margin-top:6px;font-size:15px;font-weight:800">👤 ${esc(m.guest)}${m.stay ? ` <span style="font-size:12.5px;font-weight:700;color:#64748B">· ${esc(m.stay)}</span>` : ''}</div><div style="margin-top:4px;background:#EFF6FF;border-radius:10px;padding:8px 10px;font-size:14px;line-height:1.45;overflow-wrap:anywhere">${esc(m.text)}</div>` : ''}
           <div style="display:flex;align-items:center;gap:8px;margin-top:6px"><span style="flex:1;font-size:15px;font-weight:800;font-variant-numeric:tabular-nums">Mã ${esc(m.booking_id || '—')}</span>${m.booking_id ? `<button onclick="MailAlerts.copyId('${esc(m.booking_id)}')" style="min-height:34px;padding:0 10px;border-radius:10px;border:1.5px solid #E2E5EB;background:#fff;font-size:12.5px;font-weight:800;color:#0E1525">Copy mã</button>` : ''}</div>
           <div style="font-size:13px;color:#475569;margin-top:4px;overflow-wrap:anywhere">${esc([m.place, m.arrive ? 'khách đến ' + m.arrive : ''].filter(Boolean).join(' · '))}${m.prop ? '<br>' + esc(m.prop) : ''}</div></div>`;
       });

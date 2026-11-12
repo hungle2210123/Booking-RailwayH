@@ -147,7 +147,10 @@ def test_moi_past_nights_never_clash(client, booking):
     nxt = booking(guest_name='ZZ Next', checkin_date=iso(3), checkout_date=iso(6))
     d = client.get('/api/moi/data').get_json()
     busy = {(b['apt'], b['room_no']) for b in d['bookings'] if b['room_no'] and b['co'] > iso(0) and b['ci'] < iso(6)}
-    apt, no = next((a['id'], n) for a in d['apartments'] for n in range(1, a['rooms'] + 1) if (a['id'], n) not in busy)   # a room real guests don't use
+    free = [(a['id'], n) for a in d['apartments'] for n in range(1, a['rooms'] + 1) if (a['id'], n) not in busy]   # a room real guests don't use
+    if not free:
+        pytest.skip('every room has a real guest this week — nothing free to test on')
+    apt, no = free[0]
     assert client.post('/api/moi/room', json={'booking_id': kim, 'apartment_id': apt, 'room_no': no}).get_json()['success']
     assert client.post('/api/moi/room', json={'booking_id': mike, 'apartment_id': apt, 'room_no': no}).get_json()['success']
     assert client.post('/api/moi/room', json={'booking_id': nxt, 'apartment_id': apt, 'room_no': no, 'force': True}).get_json()['success']
@@ -727,7 +730,8 @@ def test_booking_mail_alert(app, db, client, monkeypatch):
         keep = {k: appmod._zbot_get(db, k) for k in ('zbot_chats', 'mail_last')}
         tok = appmod._mail_token(db)
         appmod._zbot_put(db, 'zbot_chats', {'zz-o': {'name': 'ZZTEST Chủ', 'role': 'owner', 'on': True}})
-    mail = {'id': 'zz-mail-1', 'subject': 'Booking.com - Đặt phòng mới vào phút cuối (9990077001, Thứ Năm, 12 tháng 11, 2026)',
+    t0 = appmod._vn_now().date()
+    mail = {'id': 'zz-mail-1', 'subject': f'Booking.com - Đặt phòng mới vào phút cuối (9990077001, Thứ Năm, {t0.day} tháng {t0.month}, {t0.year})',
             'body': 'Studio Hanoi Old Quarter - Steps to Everything\nBooking confirmation — 9990077001'}
     try:
         assert client.post('/api/mail-hook/wrong', json=mail).status_code == 403
@@ -787,10 +791,87 @@ def test_booking_bot_is_separate(app, db, client, monkeypatch):
         assert client.post('/zalo-bot2/hook', json=hook, headers={'X-Bot-Api-Secret-Token': sec + '2'}).status_code == 200
         assert client.get('/api/moi/mail_setup').get_json()['bot2_chats'] == [{'id': 'zz-me', 'name': 'ZZTEST Chủ'}]
         one.clear(); two.clear()
-        mail = {'id': 'zz-mail-9', 'subject': 'Booking.com - Đặt phòng mới! (9990077009, Thứ Sáu, 13 tháng 11, 2026)'}
+        t0 = appmod._vn_now().date()
+        mail = {'id': 'zz-mail-9', 'subject': f'Booking.com - Đặt phòng mới! (9990077009, Thứ Sáu, {t0.day} tháng {t0.month}, {t0.year})'}
         assert client.post('/api/mail-hook/' + tok, json=mail).get_json()['kind'] == 'new'
         assert [b['chat_id'] for m, b, _t in two if m == 'sendMessage'] == ['zz-me'] and 'Mã 9990077009' in two[0][1]['text']
         assert not one                                                   # nothing through the cleaning bot
+    finally:
+        with app.app_context():
+            db.session.execute(appmod.text("DELETE FROM mail_alerts WHERE mail_id LIKE 'zz-mail-%'")); db.session.commit()
+            for k, v in keep.items():
+                if v is None:
+                    db.session.execute(appmod.text("DELETE FROM moi_settings WHERE key = :k"), {'k': k}); db.session.commit()
+                else:
+                    appmod._zbot_put(db, k, v)
+
+
+def test_guest_message_mail_today_only(app, db, client, monkeypatch):
+    """Owner's Gmail screenshot, Nov 12 ("Chúng tôi nhận được tin nhắn này từ Elva Dahlgaard" — "But we are standing on the road
+    and can't find it"): a message of a guest ARRIVING TODAY → the bot tells the owner name · text · dates · listing; guests of
+    other days are not reported. Booking mails for another arrival day are kept quiet too ("chỉ cần những cái trong ngày")."""
+    import app as appmod
+    from datetime import date, timedelta
+    sent = []
+    monkeypatch.setattr(appmod, '_zbot_call', lambda m, body=None, timeout=15: (sent.append((m, body)) or {'ok': True, 'result': {}}))
+    monkeypatch.setattr(appmod, '_zbot2_call', lambda *_a, **_k: {'ok': False, 'description': 'test'})
+    monkeypatch.setattr(appmod, '_zbot2_token', lambda _x: '')
+    body = """##- Vui lòng nhập phản hồi phía trên dòng này -##
+Mã xác nhận: 9990088001
+
+Quý vị có tin nhắn mới từ khách
+
+Elva ZZTest đã nhắn:
+
+But we are standing on the road and can’t find it
+
+Trả lời --> https://admin.booking.com/hotel/hoteladmin/extranet_ng/manage/messaging/inbox.html?res_id=9990088001
+
+Chi tiết đặt phòng
+Tên khách:
+Elva ZZTest
+Nhận phòng:
+T5, 12 tháng 11 2026
+Trả phòng:
+T7, 14 tháng 11 2026
+Tên chỗ nghỉ:
+Suite Apartment Hanoi Old Quarter - Lee's
+"""
+    g = appmod.mail_guest_msg('Chúng tôi nhận được tin nhắn này từ Elva ZZTest', body)
+    assert g == {'guest': 'Elva ZZTest', 'text': 'But we are standing on the road and can’t find it', 'ci': date(2026, 11, 12),
+                 'co': date(2026, 11, 14), 'prop': "Suite Apartment Hanoi Old Quarter - Lee's", 'booking_id': '9990088001'}
+    short = 'We will come later today 😊 Trả lời --> https://admin.booking.com/x?res_id=9990088001\nNhận phòng: 12 November 2026'
+    g2 = appmod.mail_guest_msg('We received this message from Elva ZZTest', short)
+    assert g2['text'] == 'We will come later today 😊' and g2['ci'] == date(2026, 11, 12) and g2['booking_id'] == '9990088001'
+    assert appmod.mail_guest_msg('Booking.com - Đặt phòng mới! (5052369999)', '') is None
+    with app.app_context():
+        keep = {k: appmod._zbot_get(db, k) for k in ('zbot_chats', 'mail_last')}
+        tok = appmod._mail_token(db)
+        appmod._zbot_put(db, 'zbot_chats', {'zz-o': {'name': 'ZZTEST Chủ', 'role': 'owner', 'on': True}})
+        today = appmod._vn_now().date()
+    vn = lambda d: f'T5, {d.day} tháng {d.month} {d.year}'
+    zalo = lambda: [b['text'] for m, b in sent if b['chat_id'] == 'zz-o']
+    try:
+        now = body.replace('T5, 12 tháng 11 2026', vn(today)).replace('T7, 14 tháng 11 2026', vn(today + timedelta(days=2)))
+        later = body.replace('T5, 12 tháng 11 2026', vn(today + timedelta(days=3)))
+        sub = 'Chúng tôi nhận được tin nhắn này từ Elva ZZTest'
+        assert client.post('/api/mail-hook/' + tok, json={'id': 'zz-mail-m1', 'subject': sub, 'body': later}).get_json().get('skipped')
+        assert not zalo()                                                     # arrives in 3 days → silent
+        assert client.post('/api/mail-hook/' + tok, json={'id': 'zz-mail-m2', 'subject': sub, 'body': now}).get_json()['kind'] == 'msg'
+        assert client.post('/api/mail-hook/' + tok, json={'id': 'zz-mail-m2', 'subject': sub, 'body': now}).get_json().get('dup')
+        z = zalo()
+        assert len(z) == 1 and z[0].startswith('💬 KHÁCH ĐẾN HÔM NAY NHẮN') and '👤 Elva ZZTest' in z[0]
+        assert 'standing on the road' in z[0] and "🏠 Suite Apartment Hanoi Old Quarter - Lee's" in z[0]
+        assert f'{today.day}/{today.month} → ' in z[0] and 'Mã 9990088001' in z[0]
+        row = [m for m in client.get('/api/moi/mail_list').get_json()['mails'] if m['booking_id'] == '9990088001']
+        assert len(row) == 1 and row[0]['kind'] == 'msg' and row[0]['guest'] == 'Elva ZZTest' and 'standing' in row[0]['text']
+        assert not any('9990088001' in ' '.join(a['lines']) for a in client.get('/api/moi/mail_alerts').get_json()['alerts'])   # no red bar
+        # a new booking for ANOTHER day: kept quiet — no Zalo, not in the bar, not in the list
+        far = today + timedelta(days=30)
+        j = client.post('/api/mail-hook/' + tok, json={'id': 'zz-mail-m3', 'subject': f'Booking.com - Đặt phòng mới! (9990088002, Thứ Sáu, {far.day} tháng {far.month}, {far.year})'}).get_json()
+        assert j.get('quiet') and len(zalo()) == 1
+        assert not any(m['booking_id'] == '9990088002' for m in client.get('/api/moi/mail_list').get_json()['mails'])
+        assert not any('9990088002' in ' '.join(a['lines']) for a in client.get('/api/moi/mail_alerts').get_json()['alerts'])
     finally:
         with app.app_context():
             db.session.execute(appmod.text("DELETE FROM mail_alerts WHERE mail_id LIKE 'zz-mail-%'")); db.session.commit()
