@@ -864,12 +864,9 @@ def moi_room_name():
 # editable in Mẫu Câu). The phone gets {wa, ask, remind}; a tap copies the text and opens the guest's WhatsApp with it typed
 # in — the owner presses Send (never sent by the app). {tien} = the room money still open.
 PAY_REMIND_NAME = 'payment - Nhắc thanh toán hôm nay'
-PAY_REMIND_EN = ("Hi {ten}, a gentle reminder about the payment for your stay ({nhan} – {tra}): {tien}.\n"
-                 "Could you please pay today? Our company's rule is that payment is collected on the check-in day, "
-                 "and we need to close the books with the company this evening.\nThank you so much! 🙏")
-PAY_REMIND_VI = ("Chào {ten}, mình nhắc nhẹ về tiền phòng ({nhan} – {tra}): {tien}.\n"
-                 "Bạn thanh toán giúp mình trong hôm nay nhé, vì quy định là thu tiền vào ngày nhận phòng và mình cần chốt sổ "
-                 "với công ty trong tối nay.\nCảm ơn bạn nhiều! 🙏")
+# owner, Nov 12: "hơi nặng nề… ghi kiểu thân thiện nhất, đừng quá chi tiết" → short, no amount, no dates
+PAY_REMIND_EN = ('Hi {ten}! Sorry to bother you 😊\nWould it be possible to pay for the room today? Our company asks us to collect payment on the check-in day, and I need to send them the report tonight.\nThank you so much! 🙏')
+PAY_REMIND_VI = ('Chào {ten}! Phiền bạn một chút 😊\nBạn thanh toán tiền phòng giúp mình trong hôm nay được không ạ? Theo quy định của công ty thì tiền phòng thu vào ngày nhận phòng, và tối nay mình cần báo cáo cho công ty.\nCảm ơn bạn nhiều! 🙏')
 
 
 def _pay_remind_id(_xdb):

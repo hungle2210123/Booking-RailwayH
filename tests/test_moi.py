@@ -899,7 +899,8 @@ def test_one_tap_payment_messages(app, db, client, booking):
             db.session.commit()
         j = client.get(f'/api/moi/pay_msg/{bid}').get_json()
     assert j['success'] and j['wa'] == '46700000001' and j['left'] == 1000000
-    assert 'ZZ Pay Test' in j['remind'] and 'pay today' in j['remind'] and '1,000,000 VND' in j['remind'] and '10/01' in j['remind']
+    assert 'ZZ Pay Test' in j['remind'] and 'pay for the room today' in j['remind'] and 'check-in day' in j['remind']
+    assert 'VND' not in j['remind'] and len(j['remind']) < 260            # owner: friendly and short, no amount / dates
     assert j['ask'] and '{' not in j['remind'] and not j['remind_sent']
     assert client.post(f'/api/moi/pay_msg/{bid}', json={'kind': 'remind'}).get_json()['success']
     assert client.get(f'/api/moi/pay_msg/{bid}').get_json()['remind_sent']
@@ -926,7 +927,7 @@ def test_send_sheet_arrived_guest_only_money_messages(app, db, client, booking):
     j = client.get(f'/api/journey/guest/{bid}').get_json()
     assert j['arrived_only'] and [s['key'] for s in j['steps']] == ['payment', 'pay_remind'] and not j['favorites']
     rem = j['steps'][1]
-    assert 'pay today' in rem['text'] and '900,000 VND' in rem['text'] and '{' not in rem['text'] and j['recommended'] == 'payment'
+    assert 'pay for the room today' in rem['text'] and '{' not in rem['text'] and j['recommended'] == 'payment'
     assert client.post('/api/journey/sent', json={'booking_id': bid, 'step': 'pay_remind'}).get_json()['success']
     assert client.get(f'/api/journey/guest/{bid}').get_json()['steps'][1]['sent_at']
     full = client.get(f'/api/journey/guest/{bid}?all=1').get_json()
