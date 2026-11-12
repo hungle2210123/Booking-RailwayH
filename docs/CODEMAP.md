@@ -52,7 +52,7 @@ _p01_health_cancellations — health, cancellations centre, OK status, auto-sync
 - app_parts/p02_pages_extension.py:672 `ext_booking_phone` ← `/api/ext/booking/phone` POST — A reservation page now shows the guest phone (the owner clicked Booking's own
 - app_parts/p02_pages_extension.py:754 `_typed_phone` — A number the owner typed / pasted ("0905 123 456", "+33 6 12 34 56 78", "0033…") → '+<digits>' or ''.
 
-## app_parts/p03_messages_journey.py (1350 lines)
+## app_parts/p03_messages_journey.py (1361 lines)
 _p03_messages_journey — phone from chat screenshots, /api/messages/phone, auto messages, AI reply, Booking screenshots, journey, Thu tiền (pay), /tin-nhanh, /messages_
 - app_parts/p03_messages_journey.py:13 `_owner_numbers` — Last 9 digits of every number written in the message templates (the owner's WhatsApp / WeChat / hotline).
 - app_parts/p03_messages_journey.py:25 `parse_chat_shot`
@@ -94,26 +94,26 @@ _p03_messages_journey — phone from chat screenshots, /api/messages/phone, auto
 - app_parts/p03_messages_journey.py:832 `_journey_tpl` — The template as the send sheet gets it: id, name and its Vietnamese text (for 🔵 Zalo), filled in.
 - app_parts/p03_messages_journey.py:841 `_vn_guest_name` — Vietnamese guest: country code 'vn' after the name, or Vietnamese letters in it.
 - app_parts/p03_messages_journey.py:847 `journey_guest` ← `/api/journey/guest/<booking_id>` — Everything the 'send' sheet needs for one guest: each step's message (for the guest's apartment),
-- app_parts/p03_messages_journey.py:897 `journey_templates` ← `/api/journey/templates`
-- app_parts/p03_messages_journey.py:903 `journey_compose` ← `/api/journey/compose` — Any Mẫu Câu template, filled in for this guest ('➕ Tin khác').
-- app_parts/p03_messages_journey.py:921 `journey_template_vi` ← `/api/journey/vi/<int:template_id>` GET,POST — The Vietnamese text of a template (raw, with tokens) — read / saved from the send sheet's ✏️ Sửa mẫu gốc.
-- app_parts/p03_messages_journey.py:936 `journey_sent` ← `/api/journey/sent` POST
-- app_parts/p03_messages_journey.py:955 `_ensure_pay_table`
-- app_parts/p03_messages_journey.py:970 `_vnd`
-- app_parts/p03_messages_journey.py:974 `_vn_now`
-- app_parts/p03_messages_journey.py:978 `_pay_items`
-- app_parts/p03_messages_journey.py:1041 `pay_mark` ← `/api/pay/mark` POST — 🙋 khách báo đã trả (method) / bỏ · 📝 note · 🙈 không cần thu / bỏ.
-- app_parts/p03_messages_journey.py:1069 `pay_collect` ← `/api/pay/collect` POST — 💰 the money actually gathered for a booking: added to collected_amount (an undo sends the same amount
-- app_parts/p03_messages_journey.py:1112 `_pay_by_apartment` — [{apt, n, left, max_over, items}] — one block per apartment (unplaced last). Inside: the guest who has owed th
-- app_parts/p03_messages_journey.py:1143 `quick_page` ← `/tin-nhanh` · `/quick`
-- app_parts/p03_messages_journey.py:1208 `_quick_custom` — The owner's own /tin-nhanh groups (owner, Oct 30: "thêm được các mục tùy muốn") — journey_prefs 'quick_groups'
-- app_parts/p03_messages_journey.py:1220 `_quick_groups`
-- app_parts/p03_messages_journey.py:1224 `_quick_extra` — {group key: [template ids]} added by the owner to /tin-nhanh groups (journey_prefs 'quick_extra'), or with
-- app_parts/p03_messages_journey.py:1237 `quick_extra_set` ← `/api/quick/extra` POST — Add / remove a template in one /tin-nhanh group (📌 Hay dùng uses the journey favorites instead).
-- app_parts/p03_messages_journey.py:1264 `_quick_labels` — {template id (str): title shown in Tin nhanh} — journey_prefs 'quick_labels' (🏷 Đổi tên, owner Nov 7).
-- app_parts/p03_messages_journey.py:1275 `quick_label_set` ← `/api/quick/label` POST — 🏷 Đổi tên: {id, label} — the title of that sentence in Tin nhanh; the template's own name (Mẫu Câu) follows.
-- app_parts/p03_messages_journey.py:1300 `quick_group_set` ← `/api/quick/group` POST — The owner's own Tin nhanh groups: {action: 'add', title} · {action: 'rename', key, title} · {action: 'delete',
-- app_parts/p03_messages_journey.py:1340 `quick_manifest` ← `/tin-nhanh.webmanifest`
+- app_parts/p03_messages_journey.py:908 `journey_templates` ← `/api/journey/templates`
+- app_parts/p03_messages_journey.py:914 `journey_compose` ← `/api/journey/compose` — Any Mẫu Câu template, filled in for this guest ('➕ Tin khác').
+- app_parts/p03_messages_journey.py:932 `journey_template_vi` ← `/api/journey/vi/<int:template_id>` GET,POST — The Vietnamese text of a template (raw, with tokens) — read / saved from the send sheet's ✏️ Sửa mẫu gốc.
+- app_parts/p03_messages_journey.py:947 `journey_sent` ← `/api/journey/sent` POST
+- app_parts/p03_messages_journey.py:966 `_ensure_pay_table`
+- app_parts/p03_messages_journey.py:981 `_vnd`
+- app_parts/p03_messages_journey.py:985 `_vn_now`
+- app_parts/p03_messages_journey.py:989 `_pay_items`
+- app_parts/p03_messages_journey.py:1052 `pay_mark` ← `/api/pay/mark` POST — 🙋 khách báo đã trả (method) / bỏ · 📝 note · 🙈 không cần thu / bỏ.
+- app_parts/p03_messages_journey.py:1080 `pay_collect` ← `/api/pay/collect` POST — 💰 the money actually gathered for a booking: added to collected_amount (an undo sends the same amount
+- app_parts/p03_messages_journey.py:1123 `_pay_by_apartment` — [{apt, n, left, max_over, items}] — one block per apartment (unplaced last). Inside: the guest who has owed th
+- app_parts/p03_messages_journey.py:1154 `quick_page` ← `/tin-nhanh` · `/quick`
+- app_parts/p03_messages_journey.py:1219 `_quick_custom` — The owner's own /tin-nhanh groups (owner, Oct 30: "thêm được các mục tùy muốn") — journey_prefs 'quick_groups'
+- app_parts/p03_messages_journey.py:1231 `_quick_groups`
+- app_parts/p03_messages_journey.py:1235 `_quick_extra` — {group key: [template ids]} added by the owner to /tin-nhanh groups (journey_prefs 'quick_extra'), or with
+- app_parts/p03_messages_journey.py:1248 `quick_extra_set` ← `/api/quick/extra` POST — Add / remove a template in one /tin-nhanh group (📌 Hay dùng uses the journey favorites instead).
+- app_parts/p03_messages_journey.py:1275 `_quick_labels` — {template id (str): title shown in Tin nhanh} — journey_prefs 'quick_labels' (🏷 Đổi tên, owner Nov 7).
+- app_parts/p03_messages_journey.py:1286 `quick_label_set` ← `/api/quick/label` POST — 🏷 Đổi tên: {id, label} — the title of that sentence in Tin nhanh; the template's own name (Mẫu Câu) follows.
+- app_parts/p03_messages_journey.py:1311 `quick_group_set` ← `/api/quick/group` POST — The owner's own Tin nhanh groups: {action: 'add', title} · {action: 'rename', key, title} · {action: 'delete',
+- app_parts/p03_messages_journey.py:1351 `quick_manifest` ← `/tin-nhanh.webmanifest`
 
 ## app_parts/p04_bookings_expenses.py (335 lines)
 _p04_bookings_expenses — /bookings list + add/edit/cancel/delete, manual entry, expenses API, save extracted_
@@ -195,7 +195,7 @@ _p12_sync_crawl_duplicates — sync services, crawl admin bookings, bulk save, d
 - app_parts/p13_misc_railway.py:1087 `extract_meter_data_with_openrouter` — Extract electricity meter data using various free models via OpenRouter API
 - app_parts/p13_misc_railway.py:1198 `extract_meter_data_with_multi_api` — Extract electricity meter data using multiple APIs with automatic fallback
 
-## app_parts/p15_moi.py (914 lines)
+## app_parts/p15_moi.py (941 lines)
 _p15_moi — /moi: the new phone-first app (owner, Oct 26), built from the approved mockup. Runs NEXT TO the old pages_
 - app_parts/p15_moi.py:12 `_moi_ensure` — bookings.room_no (room 1..N inside the placed apartment) — added once per process.
 - app_parts/p15_moi.py:37 `_moi_apartments` — Active apartments with short name, colour (index among ALL apartments, like the calendar) and room count.
@@ -228,7 +228,11 @@ _p15_moi — /moi: the new phone-first app (owner, Oct 26), built from the appro
 - app_parts/p15_moi.py:771 `moi_zbot` ← `/api/moi/zbot` GET,POST — Setup sheet in /moi: status · connect (setWebhook) · switch a person on/off · rename · send a test now.
 - app_parts/p15_moi.py:833 `_moi_room_label` — The owner's name for room `no` of this apartment, else "Phòng N".
 - app_parts/p15_moi.py:839 `moi_room_name` ← `/api/moi/room_name` POST — Rename room N of an apartment ({apartment_id, room_no, name}); an empty name goes back to "Phòng N".
-- app_parts/p15_moi.py:876 `moi_pay_msg` ← `/api/moi/pay_msg/<booking_id>` GET,POST — GET → {wa, ask, remind} filled in for this guest. POST {kind} → remember that the message was opened (journey 
+- app_parts/p15_moi.py:875 `_pay_remind_id` — Id of the reminder template — made the first time (the owner edits it in Mẫu Câu afterwards).
+- app_parts/p15_moi.py:887 `_pay_left`
+- app_parts/p15_moi.py:893 `_pay_tien`
+- app_parts/p15_moi.py:897 `pay_remind_step` — ⏰ Nhắc thanh toán as a step of the send sheet (p03 journey_guest) — shown for guests already marked arrived.
+- app_parts/p15_moi.py:912 `moi_pay_msg` ← `/api/moi/pay_msg/<booking_id>` GET,POST — GET → {wa, ask, remind} filled in for this guest. POST {kind} → remember that the message was opened (journey 
 
 ## app_parts/p16_staff.py (870 lines)
 _p16_staff — 👥 Nhân viên (owner, Nov 6): the cleaners talk to the Zalo bot (p15_moi zbot_*) in plain words._
@@ -542,10 +546,10 @@ _p17_mail — 📧 Booking.com e-mails → the app (owner, Nov 12: "khi nhận �
 - static/js/booking_card.js: 21 `roundRect` · 28 `wrap` · 45 `paint` · 118 `draw` · 128 `ensureCss` · 153 `getImage` · 168 `toPng` · 184 `open`
 
 ## static/js/journey.js
-- static/js/journey.js: 11 `css` · 115 `toast` · 123 `copyNow` · 135 `copyText` · 145 `fetchGuest` · 159 `open` · 178 `sheetOpened` · 190 `close`
-- static/js/journey.js: 206 `render` · 237 `drawTabs` · 249 `renderStep` · 263 `imagesOnly` · 309 `toPng` · 319 `editor` · 373 `refreshLinks` · 444 `renderFav`
-- static/js/journey.js: 459 `editTemplate` · 501 `renderMore` · 552 `catButton` · 560 `togglePin` · 584 `askSent` · 617 `setNoChannel` · 626 `drawNoChannel` · 645 `markSent`
-- static/js/journey.js: 655 `setApartment` · 671 `zoom` · 704 `quick` · 720 `renderQuick` · 747 `pickTemplate`
+- static/js/journey.js: 11 `css` · 115 `toast` · 123 `copyNow` · 135 `copyText` · 145 `fetchGuest` · 159 `open` · 180 `sheetOpened` · 192 `close`
+- static/js/journey.js: 208 `render` · 239 `drawTabs` · 255 `renderStep` · 269 `imagesOnly` · 315 `toPng` · 325 `editor` · 379 `refreshLinks` · 450 `renderFav`
+- static/js/journey.js: 465 `editTemplate` · 507 `renderMore` · 558 `catButton` · 566 `togglePin` · 590 `askSent` · 623 `setNoChannel` · 632 `drawNoChannel` · 651 `markSent`
+- static/js/journey.js: 661 `setApartment` · 677 `zoom` · 710 `quick` · 726 `renderQuick` · 753 `pickTemplate`
 
 ## static/js/mail_alerts.js
 - static/js/mail_alerts.js: 14 `box` · 16 `drawBar` · 29 `drawList` · 39 `load`

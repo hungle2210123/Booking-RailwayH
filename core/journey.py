@@ -240,7 +240,7 @@ NOT_A_MESSAGE = (UNREACHABLE_KEY,) + NO_CHANNEL_KEYS + (REPLIED_KEY,)
 def is_step_key(key):
     """Keys that can be logged: journey steps, pinned templates (not groups), the manual, unreachable and
     no-WhatsApp / no-Zalo marks."""
-    return (key in STEP_KEYS or key in (MANUAL_KEY,) + NOT_A_MESSAGE or bool(FAV_RE.match(str(key or ''))))
+    return (key in STEP_KEYS or key in (MANUAL_KEY, 'pay_remind') + NOT_A_MESSAGE or bool(FAV_RE.match(str(key or ''))))
 
 
 def unreachable_at(done, confirmed=False):

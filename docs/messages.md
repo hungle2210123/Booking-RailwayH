@@ -203,3 +203,9 @@ gets "+"). `booking_from_photo_parse`: when there is no booking number and dates
 it matches same dates + guest name where every OCR'd word starts a word of the web name (`_name_starts`, the app cuts
 long names "Maheshwaran S…") — so saving updates that booking instead of creating a provisional duplicate.
 Tests: `test_pulse_call_dialog_phone`, `test_photo_call_dialog_updates_existing_booking`.
+
+### Arrived guests: only the money messages (Nov 12)
+`/api/journey/guest/<id>` for a booking with `checkin_status = 'confirmed'` returns only 💳 `payment` + ⏰ `pay_remind`
+(`pay_remind_step` in p15, template "payment - Nhắc thanh toán hôm nay", `{tien}` = money left), no favourites,
+`arrived_only: true`. journey.js then shows "⋯ Hiện tất cả tin" instead of "➕ Tin khác" → reloads with `?all=1`.
+`pay_remind` is a loggable key (`J.is_step_key`).

@@ -907,3 +907,28 @@ def test_one_tap_payment_messages(app, db, client, booking):
         db.session.execute(appmod.text("DELETE FROM journey_log WHERE booking_id = :b"), {'b': bid}); db.session.commit()
     html = client.get('/moi').get_data(as_text=True)
     assert 'payMsgBox' in html and '💬 WhatsApp' in html and 'Nhắc thu tiền' in html
+
+
+def test_send_sheet_arrived_guest_only_money_messages(app, db, client, booking):
+    """Owner, Nov 12: once a guest is marked arrived, the send sheet shows only 💳 Thanh toán and ⏰ Nhắc thanh toán (no
+    welcome / passport / check-in …); '⋯ Hiện tất cả tin' (?all=1) brings the rest back. Not arrived = everything as before."""
+    import app as appmod
+    bid = booking(guest_name='ZZ Arrived Test', checkin_date='2030-01-10', checkout_date='2030-01-12')
+    with app.app_context():
+        db.session.execute(appmod.text("UPDATE bookings SET actual_apartment = '1', room_amount = 900000 WHERE booking_id = :b"), {'b': bid})
+        db.session.commit()
+    before = client.get(f'/api/journey/guest/{bid}').get_json()
+    assert not before['arrived_only'] and {'welcome', 'checkin', 'payment'} <= {s['key'] for s in before['steps']}
+    with app.app_context():
+        db.session.execute(appmod.text("UPDATE bookings SET checkin_status = 'confirmed' WHERE booking_id = :b"), {'b': bid})
+        db.session.commit()
+    j = client.get(f'/api/journey/guest/{bid}').get_json()
+    assert j['arrived_only'] and [s['key'] for s in j['steps']] == ['payment', 'pay_remind'] and not j['favorites']
+    rem = j['steps'][1]
+    assert 'pay today' in rem['text'] and '900,000 VND' in rem['text'] and '{' not in rem['text'] and j['recommended'] == 'payment'
+    assert client.post('/api/journey/sent', json={'booking_id': bid, 'step': 'pay_remind'}).get_json()['success']
+    assert client.get(f'/api/journey/guest/{bid}').get_json()['steps'][1]['sent_at']
+    full = client.get(f'/api/journey/guest/{bid}?all=1').get_json()
+    assert not full['arrived_only'] and 'welcome' in {s['key'] for s in full['steps']}
+    with app.app_context():
+        db.session.execute(appmod.text("DELETE FROM journey_log WHERE booking_id = :b"), {'b': bid}); db.session.commit()

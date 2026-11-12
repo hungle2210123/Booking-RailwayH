@@ -872,6 +872,42 @@ PAY_REMIND_VI = ("Chào {ten}, mình nhắc nhẹ về tiền phòng ({nhan} –
                  "với công ty trong tối nay.\nCảm ơn bạn nhiều! 🙏")
 
 
+def _pay_remind_id(_xdb):
+    """Id of the reminder template — made the first time (the owner edits it in Mẫu Câu afterwards)."""
+    _xdb.session.execute(text("""
+        INSERT INTO message_templates (template_name, category, template_content, template_content_vi, created_at, updated_at)
+        SELECT :n, COALESCE((SELECT category FROM message_templates WHERE LOWER(template_name) LIKE 'payment%' LIMIT 1), 'payment'),
+               :en, :vi, NOW(), NOW()
+        WHERE NOT EXISTS (SELECT 1 FROM message_templates WHERE template_name = :n)"""),
+        {'n': PAY_REMIND_NAME, 'en': PAY_REMIND_EN, 'vi': PAY_REMIND_VI})
+    _xdb.session.commit()
+    return _xdb.session.execute(text("SELECT template_id FROM message_templates WHERE template_name = :n"), {'n': PAY_REMIND_NAME}).scalar()
+
+
+def _pay_left(_xdb, booking_id):
+    m = _xdb.session.execute(text("SELECT COALESCE(room_amount, 0), COALESCE(collected_amount, 0) FROM bookings WHERE booking_id = :b"),
+                             {'b': booking_id}).fetchone() or (0, 0)
+    return max(0, int((m[0] or 0) - (m[1] or 0)))
+
+
+def _pay_tien(left, vn):
+    return (f"{left:,}".replace(',', '.') + 'đ') if vn else f"{left:,} VND"
+
+
+def pay_remind_step(_xdb, J, b, booking_id, sent):
+    """⏰ Nhắc thanh toán as a step of the send sheet (p03 journey_guest) — shown for guests already marked arrived."""
+    rid = _pay_remind_id(_xdb)
+    t = _journey_texts(_xdb, [rid]).get(rid)
+    if not t:
+        return None
+    left = _pay_left(_xdb, booking_id)
+    tpl = _journey_tpl(J, t, b['guest'])
+    tpl['text_vi'] = tpl['text_vi'].replace('{tien}', _pay_tien(left, True))
+    return {'key': 'pay_remind', 'emoji': '⏰', 'label': 'Nhắc thanh toán', 'template': tpl,
+            'text': J.fill(t['content'], b['guest']).replace('{tien}', _pay_tien(left, False)), 'images': [],
+            'sent_at': sent.get('pay_remind'), 'images_only': False, 'needs_apt': False}
+
+
 @app.route('/api/moi/pay_msg/<booking_id>', methods=['GET', 'POST'])
 def moi_pay_msg(booking_id):
     """GET → {wa, ask, remind} filled in for this guest. POST {kind} → remember that the message was opened (journey log)."""
@@ -887,25 +923,16 @@ def moi_pay_msg(booking_id):
         return jsonify({'success': False, 'error': 'Không tìm thấy đặt phòng'}), 404
     if not b['links']:
         return jsonify({'success': False, 'error': 'Chưa có số điện thoại của khách'})
-    _xdb.session.execute(text("""
-        INSERT INTO message_templates (template_name, category, template_content, template_content_vi, created_at, updated_at)
-        SELECT :n, COALESCE((SELECT category FROM message_templates WHERE LOWER(template_name) LIKE 'payment%' LIMIT 1), 'payment'),
-               :en, :vi, NOW(), NOW()
-        WHERE NOT EXISTS (SELECT 1 FROM message_templates WHERE template_name = :n)"""),
-        {'n': PAY_REMIND_NAME, 'en': PAY_REMIND_EN, 'vi': PAY_REMIND_VI})
-    _xdb.session.commit()
-    money = _xdb.session.execute(text("SELECT COALESCE(room_amount, 0), COALESCE(collected_amount, 0) FROM bookings WHERE booking_id = :b"),
-                                 {'b': booking_id}).fetchone()
-    left = max(0, int((money[0] or 0) - (money[1] or 0)))
+    rid = _pay_remind_id(_xdb)
+    left = _pay_left(_xdb, booking_id)
     vn = _vn_guest_name(b['name'])
-    tien = (f"{left:,}".replace(',', '.') + 'đ') if vn else (f"{left:,} VND")
+    tien = _pay_tien(left, vn)
 
     def render(t):
         if not t:
             return ''
         raw = (t['content_vi'] if vn and t.get('content_vi') else t['content']) or ''
         return J.fill(raw, b['guest'], 'vi' if vn else 'en').replace('{tien}', tien)
-    rid = _xdb.session.execute(text("SELECT template_id FROM message_templates WHERE template_name = :n"), {'n': PAY_REMIND_NAME}).scalar()
     aid = J.template_for(J.load_map(_xdb.session), 'payment', b['apt_id']) if b['apt_id'] is not None else None
     texts = _journey_texts(_xdb, [x for x in (rid, aid) if x])
     sent = J.sent_status(_xdb.session, [booking_id]).get(booking_id, {})

@@ -880,8 +880,19 @@ def journey_guest(booking_id):
         favs = J.favorites_named(_xdb.session, prefs)
         for f in favs:
             f['sent_at'] = sent.get(f['key'])
-        return jsonify({'success': True, 'steps': steps, 'hidden': prefs['hidden'], 'favorites': favs,
-                        'recommended': J.recommended_step(sent, b['checkin'], b['checkout'], today, prefs['hidden']),
+        hidden, rec = prefs['hidden'], J.recommended_step(sent, b['checkin'], b['checkout'], today, prefs['hidden'])
+        # Owner, Nov 12: a guest already marked ARRIVED only needs the money messages — 💳 Thanh toán + ⏰ Nhắc thanh toán
+        # (welcome / passport / check-in … are over). ?all=1 = "Hiện tất cả tin".
+        arrived = _xdb.session.execute(text("SELECT checkin_status FROM bookings WHERE booking_id = :b"),
+                                       {'b': booking_id}).scalar() == 'confirmed'
+        only_pay = arrived and request.args.get('all') != '1'
+        if only_pay:
+            rem = pay_remind_step(_xdb, J, b, booking_id, sent)          # p15
+            steps = [s for s in steps if s['key'] == 'payment'] + ([rem] if rem else [])
+            favs, hidden = [], []
+            rec = 'pay_remind' if rem and sent.get('payment') else 'payment'
+        return jsonify({'success': True, 'steps': steps, 'hidden': hidden, 'favorites': favs, 'arrived_only': only_pay,
+                        'recommended': rec,
                         'booking': {'id': b['id'], 'name': J.clean_name(b['name']), 'nhan': b['guest']['nhan'],
                                     'tra': b['guest']['tra'], 'phong': b['guest']['phong'], 'phone': b['phone'],
                                     'links': b['links'], 'partner': b['partner'], 'vn': _vn_guest_name(b['name']),

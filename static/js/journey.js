@@ -142,12 +142,12 @@
 
   // ── open / load ──────────────────────────────────────────────────────────────
   const cache = new Map();          // bid → { p: promise of the guest data, at }
-  function fetchGuest(bid) {
-    const c = cache.get(bid);
+  function fetchGuest(bid, all) {          // all = every message, also for a guest already marked arrived
+    const k = bid + (all ? '|all' : ''), c = cache.get(k);
     if (c && Date.now() - c.at < 20000) return c.p;
-    const p = fetch('/api/journey/guest/' + encodeURIComponent(bid)).then(r => r.json());
-    cache.set(bid, { p, at: Date.now() });
-    p.catch(() => cache.delete(bid));
+    const p = fetch('/api/journey/guest/' + encodeURIComponent(bid) + (all ? '?all=1' : '')).then(r => r.json());
+    cache.set(k, { p, at: Date.now() });
+    p.catch(() => cache.delete(k));
     return p;
   }
   // start loading while the finger is still on the chip (saves the network wait on tap)
@@ -166,9 +166,11 @@
     document.body.appendChild(ov);
     sheetOpened();
     try {
-      const data = await fetchGuest(bid);
-      if (!data.success) { cache.delete(bid); throw new Error(data.error || 'Lỗi tải dữ liệu'); }
-      st = { bid, data, step: step || data.recommended || data.steps[0].key, ov, pickApt: !!(opts && opts.pickApt) };
+      const all = !!(opts && opts.all);
+      const data = await fetchGuest(bid, all);
+      if (!data.success) { cache.delete(bid); cache.delete(bid + '|all'); throw new Error(data.error || 'Lỗi tải dữ liệu'); }
+      const want = step && data.steps.concat(data.favorites || []).some(s => s.key === step) ? step : null;   // a step hidden for arrived guests
+      st = { bid, data, step: want || data.recommended || data.steps[0].key, ov, pickApt: !!(opts && opts.pickApt) };
       render();
     } catch (e) {
       ov.querySelector('.jr').innerHTML = `<div style="padding:24px;text-align:center;color:#b91c1c;font-weight:700">❌ ${esc(e.message)}</div>`;
@@ -240,8 +242,12 @@
     const tabs = st.data.steps.filter(s => !hidden.includes(s.key) || s.key === st.step).concat(st.data.favorites || []);
     wrap.innerHTML = tabs.map(s => `<button type="button" data-k="${esc(s.key)}"
         class="${s.key === st.step ? 'on' : ''}"><span class="ic">${s.emoji}</span> ${esc(s.label)}</button>`).join('')
-      + `<button type="button" data-k="__more" class="${st.step === '__more' ? 'on' : ''}">➕ Tin khác</button>`;
-    wrap.querySelectorAll('button').forEach(btn => btn.onclick = () => { st.step = btn.dataset.k; st.more = null; render(); });
+      + (st.data.arrived_only      // guest already arrived: only the money messages (owner, Nov 12) — the rest one tap away
+        ? `<button type="button" data-k="__all" style="border-style:dashed;color:#64748b">⋯ Hiện tất cả tin</button>`
+        : `<button type="button" data-k="__more" class="${st.step === '__more' ? 'on' : ''}">➕ Tin khác</button>`);
+    wrap.querySelectorAll('button').forEach(btn => btn.onclick = () => {
+      if (btn.dataset.k === '__all') return open(st.bid, null, { all: true });
+      st.step = btn.dataset.k; st.more = null; render(); });
     const on = wrap.querySelector('.on');
     if (on) on.scrollIntoView({ inline: 'center', block: 'nearest' });
   }
