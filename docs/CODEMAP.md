@@ -279,7 +279,7 @@ _p16_staff — 👥 Nhân viên (owner, Nov 6): the cleaners talk to the Zalo bo
 - app_parts/p16_staff.py:788 `moi_staff` ← `/api/moi/staff` GET,POST — 👥 Nhân viên sheet in /moi: waiting requests, who is off today, month list; actions: decide, add (leave/extra),
 - app_parts/p16_staff.py:859 `staff_copy_owner` — Copy of a cleaner's message to the bot + the bot's answer → the owner(s).
 
-## app_parts/p17_mail.py (292 lines)
+## app_parts/p17_mail.py (314 lines)
 _p17_mail — 📧 Booking.com e-mails → the app (owner, Nov 12: "khi nhận được mail thì hệ thống tự cập nhật trên app là đang có_
 - app_parts/p17_mail.py:18 `_mail_ensure`
 - app_parts/p17_mail.py:29 `_mail_token`
@@ -287,14 +287,15 @@ _p17_mail — 📧 Booking.com e-mails → the app (owner, Nov 12: "khi nhận �
 - app_parts/p17_mail.py:66 `_mail_property` — The listing named in the mail → (name, apartment id it is usually placed in) — from the names already in booki
 - app_parts/p17_mail.py:79 `mail_text` — The Zalo message / app line for one alert. a['at'] = when Booking sent the mail = when the guest booked / canc
 - app_parts/p17_mail.py:95 `mail_hook` ← `/api/mail-hook/<token>` POST — Called by the owner's Gmail script for every new mail from booking.com: {id, subject, body}.
-- app_parts/p17_mail.py:134 `moi_mail_alerts` ← `/api/moi/mail_alerts` GET,POST — The bar on /moi and /may-tinh: alerts of the last 3 days not marked seen. A NEW booking already in the app (im
-- app_parts/p17_mail.py:164 `_zbot2_token`
-- app_parts/p17_mail.py:168 `_zbot2_call`
-- app_parts/p17_mail.py:183 `mail_notify` — Booking alert → the booking bot's receivers; the cleaning bot's owner chats only while the booking bot is not 
-- app_parts/p17_mail.py:195 `zbot2_hook` ← `/zalo-bot2/hook` POST — Zalo calls this when someone writes to the BOOKING bot: that person becomes a receiver of the booking alerts.
-- app_parts/p17_mail.py:213 `moi_mail_bot` ← `/api/moi/mail_bot` POST — Setup of the booking bot: token (checked with getMe, then setWebhook) · test · remove a receiver · off (back t
-- app_parts/p17_mail.py:250 `_mail_setup_info`
-- app_parts/p17_mail.py:285 `moi_mail_setup` ← `/api/moi/mail_setup` — 📧 setup sheet: the script to paste into Google Apps Script (with this app's private address) + the last mail r
+- app_parts/p17_mail.py:134 `moi_mail_list` ← `/api/moi/mail_list` — 📧 Thư đặt phòng Booking (owner, Nov 12: "một nút để xem các gmail báo đặt phòng phút chót, gồm thời gian đặt p
+- app_parts/p17_mail.py:156 `moi_mail_alerts` ← `/api/moi/mail_alerts` GET,POST — The bar on /moi and /may-tinh: alerts of the last 3 days not marked seen. A NEW booking already in the app (im
+- app_parts/p17_mail.py:186 `_zbot2_token`
+- app_parts/p17_mail.py:190 `_zbot2_call`
+- app_parts/p17_mail.py:205 `mail_notify` — Booking alert → the booking bot's receivers; the cleaning bot's owner chats only while the booking bot is not 
+- app_parts/p17_mail.py:217 `zbot2_hook` ← `/zalo-bot2/hook` POST — Zalo calls this when someone writes to the BOOKING bot: that person becomes a receiver of the booking alerts.
+- app_parts/p17_mail.py:235 `moi_mail_bot` ← `/api/moi/mail_bot` POST — Setup of the booking bot: token (checked with getMe, then setWebhook) · test · remove a receiver · off (back t
+- app_parts/p17_mail.py:272 `_mail_setup_info`
+- app_parts/p17_mail.py:307 `moi_mail_setup` ← `/api/moi/mail_setup` — 📧 setup sheet: the script to paste into Google Apps Script (with this app's private address) + the last mail r
 
 ## core/__init__.py (3 lines)
 

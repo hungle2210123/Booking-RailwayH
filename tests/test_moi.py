@@ -714,6 +714,9 @@ def test_booking_mail_alert(app, db, client, monkeypatch):
     from datetime import date
     sent = []
     monkeypatch.setattr(appmod, '_zbot_call', lambda m, body=None, timeout=15: (sent.append((m, body)) or {'ok': True, 'result': {}}))
+    # never the owner's REAL booking bot from a test (Nov 12: a test alert reached their Zalo once the 2nd bot was set up)
+    monkeypatch.setattr(appmod, '_zbot2_call', lambda *_a, **_k: {'ok': False, 'description': 'test'})
+    monkeypatch.setattr(appmod, '_zbot2_token', lambda _x: '')
     p = appmod.mail_parse('Booking.com - Đặt phòng mới vào phút cuối (5052369462, Thứ Năm, 12 tháng 11, 2026)')
     assert p == {'kind': 'last', 'booking_id': '5052369462', 'day': date(2026, 11, 12)}
     assert appmod.mail_parse('Booking.com - Đặt phòng mới! (5052369999, Thứ Sáu, 13 tháng 11, 2026)')['kind'] == 'new'
@@ -738,8 +741,12 @@ def test_booking_mail_alert(app, db, client, monkeypatch):
         assert '⏱ Đặt lúc ' in zalo[0] and ' hôm nay' in zalo[0]              # owner: show WHEN the booking was made
         mine = [a for a in client.get('/api/moi/mail_alerts').get_json()['alerts'] if 'Mã 9990077001' in a['lines']]
         assert len(mine) == 1 and mine[0]['kind'] == 'last' and mine[0]['lines'][0].startswith('⏱ Đặt lúc ')
+        row = [m for m in client.get('/api/moi/mail_list').get_json()['mails'] if m['booking_id'] == '9990077001']   # 📧 list button
+        assert len(row) == 1 and row[0]['kind'] == 'last' and row[0]['label'] == 'Phút chót' and row[0]['group'] == 'Hôm nay'
+        assert len(row[0]['time']) == 5 and row[0]['place'] == 'Hàng Bạc' and not row[0]['in_app']
         left = client.post('/api/moi/mail_alerts', json={'id': mine[0]['id']}).get_json()['alerts']
         assert not any('Mã 9990077001' in a['lines'] for a in left)
+        assert [m['seen'] for m in client.get('/api/moi/mail_list').get_json()['mails'] if m['booking_id'] == '9990077001'] == [True]   # still listed
         s = client.get('/api/moi/mail_setup').get_json()
         assert '/api/mail-hook/' + tok in s['script'] and 'from:booking.com' in s['script'] and s['last']
         for url in ('/moi', '/may-tinh'):

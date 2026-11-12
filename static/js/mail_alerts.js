@@ -42,7 +42,7 @@
   }
   window.MailAlerts = {
     open: () => { open = true; drawList(); },
-    close: () => { open = false; box().innerHTML = ''; },
+    close: () => { open = false; window.__maMails = null; box().innerHTML = ''; },
     seen: async (id) => { const j = await post(id ? { id } : { all: true }); if (j.success) { list = j.alerts; drawBar(); if (list.length) drawList(); else MailAlerts.close(); } },
     bot: async (action, id) => {       // 🤖 the separate Zalo bot for booking alerts
       const body = { action, id };
@@ -52,6 +52,36 @@
       if (!j.success) return alert('Chưa được: ' + (j.error || 'lỗi mạng'));
       if (action === 'test') alert('Đã gửi tin thử ✅ xem trong Zalo');
       MailAlerts.setup();
+    },
+    // 📧 every booking mail of the last 14 days — time booked + booking number (owner, Nov 12)
+    list: async (kind) => {
+      open = false; window.__maKind = kind === undefined ? (window.__maKind === undefined ? 'last' : window.__maKind) : kind;
+      const k = window.__maKind;
+      if (!window.__maMails) box().innerHTML = sheet(head('BOOKING.COM · GMAIL', 'Thư đặt phòng') + '<div style="padding:24px 0;text-align:center;color:#64748B;font-weight:700">Đang tải…</div>');
+      if (kind === undefined || !window.__maMails) { try { const j = await (await fetch('/api/moi/mail_list', { cache: 'no-store' })).json(); if (j.success) { window.__maMails = j.mails; window.__maLast = j.last; } } catch (e) {} }
+      const all = window.__maMails || [], ms = all.filter((m) => !k || m.kind === k);
+      const chip = (v, label) => `<button onclick="MailAlerts.list('${v}')" style="min-height:40px;padding:0 12px;border-radius:12px;font-size:13px;font-weight:800;border:1.5px solid ${k === v ? '#0E1525' : '#E2E5EB'};background:${k === v ? '#0E1525' : '#fff'};color:${k === v ? '#fff' : '#0E1525'}">${label} · ${all.filter((m) => !v || m.kind === v).length}</button>`;
+      const COL = { last: '#B45309', new: '#0E1525', cancel: '#B91C1C', change: '#475569' };
+      let h = head('BOOKING.COM · GMAIL · 14 NGÀY', 'Thư đặt phòng')
+        + `<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:12px">${chip('last', '⚡ Phút chót')}${chip('', 'Tất cả')}${chip('new', 'Đặt mới')}${chip('cancel', 'Hủy')}</div>`
+        + `<div style="margin-top:8px;font-size:12.5px;color:#64748B">${window.__maLast ? 'Gmail tự kiểm tra mỗi phút · thư gần nhất nhận lúc ' + esc(window.__maLast.at) : 'Chưa nhận được thư nào từ Gmail — bấm ⚙ Cài đặt ở dưới.'}</div>`;
+      if (!ms.length) h += '<div style="padding:26px 0;text-align:center;color:#64748B;font-weight:700">Không có thư nào.</div>';
+      let g = '';
+      ms.forEach((m) => {
+        if (m.group !== g) { g = m.group; h += `<div style="margin:14px 2px 2px;font-size:12px;font-weight:800;color:#64748B;text-transform:uppercase;letter-spacing:.04em">${esc(g)}</div>`; }
+        h += `<div style="margin-top:6px;border:1.5px solid #E7E9EE;border-radius:14px;padding:10px 12px;background:${m.kind === 'cancel' ? '#FEF2F2' : '#fff'}">
+          <div style="display:flex;align-items:center;gap:8px"><b style="font-size:20px;font-variant-numeric:tabular-nums">${esc(m.time)}</b><span style="font-size:11.5px;font-weight:800;color:#fff;background:${COL[m.kind]};border-radius:999px;padding:3px 8px">${esc(m.label)}</span><span style="flex:1"></span><span style="font-size:12px;font-weight:800;color:${m.in_app ? '#15803D' : '#94A3B8'}">${m.in_app ? '✓ đã vào app' : 'chưa vào app'}</span></div>
+          <div style="display:flex;align-items:center;gap:8px;margin-top:6px"><span style="flex:1;font-size:15px;font-weight:800;font-variant-numeric:tabular-nums">Mã ${esc(m.booking_id || '—')}</span>${m.booking_id ? `<button onclick="MailAlerts.copyId('${esc(m.booking_id)}')" style="min-height:34px;padding:0 10px;border-radius:10px;border:1.5px solid #E2E5EB;background:#fff;font-size:12.5px;font-weight:800;color:#0E1525">Copy mã</button>` : ''}</div>
+          <div style="font-size:13px;color:#475569;margin-top:4px;overflow-wrap:anywhere">${esc([m.place, m.arrive ? 'khách đến ' + m.arrive : ''].filter(Boolean).join(' · '))}${m.prop ? '<br>' + esc(m.prop) : ''}</div></div>`;
+      });
+      h += `<div style="display:flex;gap:8px;margin-top:14px">${btn('↻ Tải lại', 'MailAlerts.list()', true)}${btn('Mở Booking', `window.open('${BOOKING}','_blank')`)}${btn('⚙ Cài đặt', 'MailAlerts.setup()')}</div>`;
+      box().innerHTML = sheet(h);
+    },
+    copyId: async (id) => {
+      try { await navigator.clipboard.writeText(id); } catch (e) { const a = document.createElement('textarea'); a.value = id; document.body.appendChild(a); a.select(); document.execCommand('copy'); a.remove(); }
+      const el = document.createElement('div'); el.textContent = 'Đã copy mã ' + id;
+      el.style.cssText = 'position:fixed;left:50%;bottom:90px;transform:translateX(-50%);z-index:99999;background:#0E1525;color:#fff;padding:10px 16px;border-radius:999px;font:800 13.5px/1 inherit';
+      document.body.appendChild(el); setTimeout(() => el.remove(), 1600);
     },
     setup: async () => {
       open = false;

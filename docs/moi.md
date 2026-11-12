@@ -245,3 +245,6 @@ Owner: new-booking mails get buried in Gmail; they want a notification on the iP
   bot's owner chats. Tests mock `_zbot2_call`.
 - ⏱ "Đặt lúc HH:MM hôm nay" in the Zalo message and the app list = the mail's own time (`date` ms sent by the script; an
   older pasted script without it → the minute the mail reached the app, at most ~1 minute later).
+- 📧 "Thư đặt phòng Booking" button (/moi Việc hằng ngày, /may-tinh sidebar → `MailAlerts.list()`, `/api/moi/mail_list`): every
+  booking mail of 14 days by day — time booked, booking number (Copy mã), apartment, arrival, "đã vào app"; chips Phút chót
+  (default) / Tất cả / Đặt mới / Hủy; ⚙ Cài đặt opens the setup sheet. The app cannot pull Gmail — the script pushes every minute.

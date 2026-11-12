@@ -130,6 +130,28 @@ def mail_hook(token):
     return jsonify({'ok': True, 'kind': p['kind']})
 
 
+@app.route('/api/moi/mail_list')
+def moi_mail_list():
+    """📧 Thư đặt phòng Booking (owner, Nov 12: "một nút để xem các gmail báo đặt phòng phút chót, gồm thời gian đặt phòng và
+    mã đặt phòng"): every booking mail of the last 14 days, newest first, seen or not."""
+    from core.models import db as _xdb
+    _moi_ensure(); _mail_ensure(_xdb)
+    rows = _xdb.session.execute(text("""SELECT m.id, m.at, m.kind, m.booking_id, m.prop, m.apt, m.day, m.seen,
+               EXISTS (SELECT 1 FROM bookings b WHERE b.booking_id = m.booking_id)
+        FROM mail_alerts m WHERE m.at > :t ORDER BY m.at DESC LIMIT 200"""), {'t': _vn_now() - timedelta(days=14)}).fetchall()
+    today = _vn_now().date()
+    lab = lambda d: 'Hôm nay' if d == today else 'Hôm qua' if d == today - timedelta(days=1) else f'{MOI_WEEKDAY[d.weekday()].capitalize()} {d.day}/{d.month}'
+    out = []
+    for r in rows:
+        d = r[6]
+        out.append({'id': r[0], 'kind': r[2], 'label': {'last': 'Phút chót', 'new': 'Đặt mới', 'cancel': 'Hủy', 'change': 'Đổi'}[r[2]],
+                    'group': lab(r[1].date()), 'time': r[1].strftime('%H:%M'), 'booking_id': r[3] or '',
+                    'place': MOI_STREET.get(int(r[5])) if (r[5] or '').isdigit() else '', 'prop': r[4] or '',
+                    'arrive': '' if not d else 'hôm nay' if d == today else 'ngày mai' if d == today + timedelta(days=1) else f'{d.day}/{d.month}',
+                    'seen': bool(r[7]), 'in_app': bool(r[8])})
+    return jsonify({'success': True, 'mails': out, 'last': _zbot_get(_xdb, 'mail_last')})
+
+
 @app.route('/api/moi/mail_alerts', methods=['GET', 'POST'])
 def moi_mail_alerts():
     """The bar on /moi and /may-tinh: alerts of the last 3 days not marked seen. A NEW booking already in the app (imported
