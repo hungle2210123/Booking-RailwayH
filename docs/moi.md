@@ -220,8 +220,12 @@ Owner: the cleaners' phones are slow → no link / page; they answer the bot wit
 
 ## 💬 Tin nhắn bot (Nov 12)
 Owner: the merged list in their Zalo was confusing; they want to manage every bot ↔ cleaner message.
-- The owner never gets a merged list: `_zbot_send_clean` / `_clean_send` send each cleaner her message and the owner ONE COPY
-  PER CLEANER ("📨 Bot → name"). Only when no cleaner has a side do the other chats get the grouped text.
+- The owner's Zalo stays SHORT (owner, Nov 12: copies of every reminder were "rất rối"): room NAMES, never the cleaners'
+  numbers. 8:00 → one "📋 Dọn phòng … bot đã gửi các cô" with a line per cleaner (`clean_status(every=True)`); 12:30 / 13:00 /
+  13:30 → one "⏰ … bot đã nhắc các cô" + what is left per cleaner; a room report → "✅ Hường báo xong: … " + status
+  (`staff_copy_owner`); free text → "💬 Hường: …". The full text of everything is in the app log below.
+- The bot reads real messages: "5 / 7 / Đã song", "5 7 Hội vũ đã song" (`CLEAN_DONE`, `CLEAN_BLOCK` in `staff_clean_reply`);
+  free text with a number but no "xong" is not a report. Unknown text → `STAFF_ACK` ("đã chuyển lời cho anh Lộc"), no menu.
 - Log: table `zbot_msgs` (at VN time, chat_id, dir in/out, body) — written by `zbot_log` from `_zbot_call` (every sendMessage
   to a cleaner) and `zbot_hook` (her messages). `zbot_msg_kind` → don / nv / khac. Kept 60 days.
 - /moi → 👥 Nhân viên → "💬 Tin nhắn bot ↔ các cô" (`M.logOpen`, `/api/moi/zbot_log`): filter by cleaner and kind, by day.

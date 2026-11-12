@@ -376,7 +376,7 @@ def test_staff_leave_and_extra_via_bot(client, monkeypatch):
             rows = db.session.execute(appmod.text("SELECT status FROM staff_log WHERE chat_id = 'zz-a' AND kind = 'leave' AND EXTRACT(DAY FROM day) = 20")).fetchall()
             assert [r[0] for r in rows] == ['approved']
         say('zz-b', 'abc xyz')
-        assert 'chưa hiểu' in to('zz-b')[-1]
+        assert 'chuyển lời' in to('zz-b')[-1] and 'Xin nghỉ' not in to('zz-b')[-1]     # no long menu (owner, Nov 12)
     finally:
         with appmod.app.app_context():
             db.session.execute(appmod.text("DELETE FROM staff_log WHERE chat_id LIKE 'zz-%'")); db.session.commit()
@@ -632,7 +632,7 @@ def test_clean_done_by_number(app, db, booking, monkeypatch):
 
 def test_bot_copies_per_cleaner_and_log(app, db, client, monkeypatch):
     """Owner, Nov 12 (screenshot: one merged list 'Dung Trần / Hường Nguyễn' in the owner's Zalo was confusing): the owner
-    gets ONE COPY PER CLEANER ('📨 Bot → name'), never a merged list; and /api/moi/zbot_log lists the bot ↔ cleaner
+    gets ONE short note (a line per cleaner, room names), never a merged numbered list; and /api/moi/zbot_log lists the bot ↔ cleaner
     messages with a kind (dọn phòng / nghỉ & tiền / khác)."""
     import app as appmod
     from datetime import date
@@ -648,8 +648,8 @@ def test_bot_copies_per_cleaner_and_log(app, db, client, monkeypatch):
             appmod._zbot_send_clean(db, date(2030, 1, 12))
             assert len(to('zz-a')) == 1 and len(to('zz-b')) == 1
             mine = to('zz-o')
-            assert len(mine) == 2 and mine[0].startswith('📨 Bot → ZZTEST Dung:') and mine[1].startswith('📨 Bot → ZZTEST Hường:')
-            assert not any('— ZZTEST' in x for x in mine)                    # no merged list
+            assert len(mine) == 1 and mine[0].startswith('📋 Dọn phòng') and '• ZZTEST' in mine[0]   # ONE short note
+            assert not any('— ZZTEST' in x or '📨' in x for x in mine)       # no merged numbered list, no copies
             assert appmod.zbot_msg_kind('out', 'Dọn phòng thứ năm 12/11\n4. Hàng Bạc 202') == 'don'
             assert appmod.zbot_msg_kind('in', '1 4') == 'don' and appmod.zbot_msg_kind('in', 'xong hết') == 'don'
             assert appmod.zbot_msg_kind('in', 'mai em xin nghỉ') == 'nv' and appmod.zbot_msg_kind('out', '🎁 Bồi dưỡng 50.000đ') == 'nv'
@@ -663,3 +663,44 @@ def test_bot_copies_per_cleaner_and_log(app, db, client, monkeypatch):
     j = client.get('/api/moi/zbot_log').get_json()
     assert j['success'] and isinstance(j['msgs'], list) and 'people' in j
     assert 'Tin nhắn bot ↔ các cô' in client.get('/moi').get_data(as_text=True)
+
+
+def test_bot_understands_real_cleaner_messages(app, db, booking, monkeypatch):
+    """Owner's screenshots, Nov 12: chị Hường wrote "5 / 7 / Đã song" and "5 / 7 / Hội vũ / Đã song" → the bot answered
+    'Bot chưa hiểu' + a long menu, and "Chưa dọn đc phòng nào còn chờ khách chả phòng" got the same menu. Now the numbers
+    are understood, free text gets a short 'đã chuyển lời', and the owner gets one short status line with room names."""
+    import app as appmod
+    from datetime import date, datetime
+    for no in (1, 3):
+        bid = booking(checkin_date='2030-01-10', checkout_date='2030-01-12')
+        db.session.execute(appmod.text("UPDATE bookings SET actual_apartment = '506', room_no = :n, checkin_status = 'confirmed' "
+                                       "WHERE booking_id = :b"), {'b': bid, 'n': no})
+    db.session.commit()
+    sent = []
+    monkeypatch.setattr(appmod, '_zbot_call', lambda m, body=None, timeout=15: (sent.append((m, body)) or {'ok': True, 'result': {}}))
+    monkeypatch.setattr(appmod, '_vn_now', lambda: datetime(2030, 1, 12, 13, 35))
+    huong = {'name': 'Hường ZZTEST', 'role': 'staff', 'on': True}
+    to = lambda cid: [b['text'] for m, b in sent if m == 'sendMessage' and b['chat_id'] == cid]
+    with app.app_context():
+        keep = {k: appmod._zbot_get(db, k) for k in ('clean_state', 'zbot_chats')}
+        try:
+            appmod._zbot_put(db, 'zbot_chats', {'zz-b': huong, 'zz-o': {'name': 'ZZTEST Chủ', 'role': 'owner', 'on': True}})
+            assert appmod.staff_clean_reply(db, huong, 'phòng 5 hết giấy vệ sinh') is None        # not a report
+            assert appmod.staff_clean_reply(db, huong, 'Chưa dọn đc phòng nào còn chờ khách chả phòng') is None
+            assert appmod.staff_handle_text(db, 'zz-b', huong, 'Chưa dọn đc phòng nào còn chờ khách chả phòng') == appmod.STAFF_ACK
+            assert appmod.staff_clean_reply(db, huong, 'mai em nghỉ 5') is None
+            r = appmod.staff_handle_text(db, 'zz-b', huong, '5\n7\nHội vũ\nĐã song')
+            assert r.startswith('✅ Đã ghi dọn xong: Hội Vũ') and 'xong hết' in r
+            assert all(x['done'] for x in appmod.clean_view(db, date(2030, 1, 12), huong))
+            appmod.staff_copy_owner(db, huong, '5\n7\nĐã song', r)
+            assert to('zz-o')[-1].startswith('✅ Hường báo xong: Hội Vũ') and '• Hường: xong hết 2/2 ✅' in to('zz-o')[-1]
+            appmod.staff_copy_owner(db, huong, 'Chưa dọn đc\nphòng nào', appmod.STAFF_ACK)
+            assert to('zz-o')[-1] == '💬 Hường: Chưa dọn đc phòng nào'
+            assert appmod.staff_clean_reply(db, huong, 'bỏ 5').startswith('↩️')
+            assert '• Hường: còn 1/2 — Hội Vũ' in appmod.clean_status(db, date(2030, 1, 12))
+        finally:
+            for k, v in keep.items():
+                if v is None:
+                    db.session.execute(appmod.text("DELETE FROM moi_settings WHERE key = :k"), {'k': k}); db.session.commit()
+                else:
+                    appmod._zbot_put(db, k, v)

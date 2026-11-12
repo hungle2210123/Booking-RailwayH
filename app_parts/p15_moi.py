@@ -666,10 +666,12 @@ def _zbot_send_clean(_xdb, day=None, only=None, prefix=''):
             body += '\n\nXin nghỉ: nhắn "mai em xin nghỉ" · Làm thêm: "hôm nay em làm thêm 2 phòng"'
         r = _zbot_call('sendMessage', {'chat_id': cid, 'text': body})
         out.append((c.get('name') or cid, bool(r.get('ok')), '' if r.get('ok') else str(r.get('description') or r)[:160]))
-        if not only and cid in girls:
-            for o in live:
-                if o not in girls:
-                    _zbot_call('sendMessage', {'chat_id': o, 'text': f"📨 Bot → {c.get('name') or 'Nhân viên'}:\n{body}"[:1990]})
+    if not only and girls:      # the owner: ONE short message, a line per cleaner with room names (owner, Nov 12)
+        note = (prefix + f'📋 Dọn phòng {MOI_WEEKDAY[day.weekday()]} {day.day}/{day.month} — bot đã gửi các cô:\n'
+                + clean_status(_xdb, day, every=True))
+        for o in live:
+            if o not in girls:
+                _zbot_call('sendMessage', {'chat_id': o, 'text': note[:1990]})
     _zbot_put(_xdb, 'zbot_last', {'at': (datetime.utcnow() + timedelta(hours=7)).strftime('%d/%m %H:%M'),
                                   'sent': [{'name': n, 'ok': ok, 'err': e} for n, ok, e in out]})
     return out

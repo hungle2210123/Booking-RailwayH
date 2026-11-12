@@ -404,7 +404,11 @@ STAFF_HELP = ("Nhắn cho bot:\n• Xin nghỉ: \"mai em xin nghỉ\" / \"nghỉ
 # State = moi_settings 'clean_state' {day, done: {"apt:room": {at, by}}, prio: ["apt:room"]}.
 CLEAN_NUM = {'mot': 1, 'hai': 2, 'ba': 3, 'bon': 4, 'tu': 4, 'nam': 5, 'sau': 6, 'bay': 7, 'tam': 8, 'chin': 9, 'muoi': 10}
 CLEAN_FILL = {'xong', 'roi', 'da', 'don', 'phong', 'so', 'em', 'chi', 'co', 'a', 'nhe', 'nha', 'ok', 'va', 'het', 'ca', 'tat'}
+CLEAN_FILL |= {'song', 'xog', 'xg', 'sog', 'sach', 'se', 'rui', 'r', 'ah', 'ak', 'nhe', 'hoi', 'vu', 'hang', 'bac', 'be', 'tho', 'nhuom', 'ben'}
 CLEAN_UNDO = {'bo', 'chua', 'nham', 'huy'}
+CLEAN_DONE = {'xong', 'song', 'xog', 'xg', 'sog', 'sach'}          # "Đã song" = đã xong (owner's screenshot, Nov 12)
+CLEAN_BLOCK = {'nghi', 'them', 'thang', 'mai', 'hom', 'thu', 'ngay', 'tuan', 'k', 'nghin', 'ngan', 'trieu', 'tien', 'luong', 'xem'}
+STAFF_ACK = 'Dạ, bot đã chuyển lời cho anh Lộc ạ.'
 CLEAN_HINT = 'Dọn xong phòng nào, nhắn SỐ của phòng đó (vd: 1 — hoặc 1 3 nếu xong 2 phòng).'
 CLEAN_SIDES = {'dung': [1, 2], 'huong': [877, 506]}      # first name (folded) → her apartments, in number order
 
@@ -492,6 +496,33 @@ def clean_groups(board):
     return '\n'.join(out)
 
 
+def clean_short(items):
+    """'Thợ Nhuộm 103 · Hội Vũ 101, 103' — room names for the owner (numbers are only for the cleaners)."""
+    by = {}
+    for x in items:
+        street, room = x['label'].rsplit(' ', 1)
+        by.setdefault(street, []).append(room + (' ⚡' if x['prio'] and not x['done'] else ''))
+    return ' · '.join(f"{s} {', '.join(r)}" for s, r in by.items())
+
+
+def clean_status(_xdb, day, every=False):
+    """One line per cleaner for the owner: what is left (or, every=True, all her rooms of the day)."""
+    got, off, out = clean_rooms(_xdb, day), staff_off_on(_xdb, day), []
+    for cid, c in _staff_people(_xdb).items():
+        if cid in off or not clean_side(c):
+            continue
+        v = clean_view(_xdb, day, c, got)
+        who = _staff_name(c).split()[0]
+        if not v:
+            out.append(f'• {who}: không có phòng')
+        elif every:
+            out.append(f'• {who} ({len(v)} phòng): {clean_short(v)}')
+        else:
+            left = [x for x in v if not x['done']]
+            out.append(f'• {who}: còn {len(left)}/{len(v)} — {clean_short(left)}' if left else f'• {who}: xong hết {len(v)}/{len(v)} ✅')
+    return '\n'.join(out)
+
+
 def clean_message(_xdb, day, chat=None):
     """The 8:00 message. A cleaner gets HER rooms with her fixed numbers + how to answer; the owner gets both lists."""
     got = clean_rooms(_xdb, day)
@@ -521,8 +552,9 @@ def clean_mark(_xdb, key, on, by=''):
     return clean_board(_xdb, today)
 
 
-def _clean_send(_xdb, day, make):
-    """make(chat) → text or '' for every chat that is on and not off that day. Returns how many were sent."""
+def _clean_send(_xdb, day, make, note=None):
+    """make(chat) → text or '' for every cleaner that is on and not off that day; then the other chats (the owner) get
+    ONE short note() — owner, Nov 12: copies of every reminder were "rất rối". Returns how many cleaners were told."""
     off, n = staff_off_on(_xdb, day), 0
     live = {cid: c for cid, c in _staff_chats(_xdb).items() if c.get('on') and cid not in off}
     rest = [cid for cid, c in live.items() if not clean_side(c)]
@@ -532,8 +564,9 @@ def _clean_send(_xdb, day, make):
         if msg:
             _zbot_call('sendMessage', {'chat_id': cid, 'text': msg[:1990]})
             n += 1
-            for o in rest:      # owner, Nov 12: "nhắn riêng cho hai cô, đừng nhắn chung" → one copy per cleaner
-                _zbot_call('sendMessage', {'chat_id': o, 'text': f"📨 Bot → {_staff_name(c)}:\n{msg}"[:1990]})
+    if girls and n and note:
+        for o in rest:
+            _zbot_call('sendMessage', {'chat_id': o, 'text': note()[:1990]})
     if not girls:
         for cid in rest:
             msg = make(live[cid])
@@ -563,7 +596,8 @@ def clean_prio(_xdb, key, on):
             return (f"⚡ ƯU TIÊN dọn sớm: {name} — khách vào sớm, dọn phòng này TRƯỚC giúp em. Xong nhắn số {v['n']}."
                     if on else f"↩️ {name} không cần dọn sớm nữa, dọn như bình thường nhé.")
         return ''
-    _clean_send(_xdb, today, make)
+    who = next((_staff_name(c).split()[0] for c in _staff_people(_xdb).values() if x['apt'] in clean_side(c)), 'các cô')
+    _clean_send(_xdb, today, make, lambda: (f"⚡ Đã báo {who} dọn sớm: {x['label']}." if on else f"↩️ Đã báo {who} bỏ ưu tiên: {x['label']}."))
     return clean_board(_xdb, today)
 
 
@@ -572,12 +606,18 @@ def staff_clean_reply(_xdb, chat, msg):
     about something else (or the sender has no side — the owner ticks in the app)."""
     if not clean_side(chat):
         return None
-    toks = _re.findall(r'[a-z]+|\d+', _fold(msg))
-    if not toks or any(not (w.isdigit() or w in CLEAN_NUM or w in CLEAN_FILL or w in CLEAN_UNDO) for w in toks):
+    t = _fold(msg)
+    toks = _re.findall(r'[a-z]+|\d+', t)
+    # not a room report: other requests (nghỉ, làm thêm, tiền…), dates / times / money
+    if not toks or any(w in CLEAN_BLOCK for w in toks) or _re.search(r'\d\s*[/:]\s*\d|\d[.,]\d{3}|\d{4,}', t):
         return None
-    nums = [int(w) if w.isdigit() else CLEAN_NUM[w] for w in toks if w.isdigit() or w in CLEAN_NUM]
-    undo = any(w in CLEAN_UNDO for w in toks)
-    every = not nums and 'xong' in toks and ('het' in toks or 'ca' in toks) and not undo
+    known = all(w.isdigit() or w in CLEAN_NUM or w in CLEAN_FILL or w in CLEAN_UNDO for w in toks)
+    said = any(w in CLEAN_DONE for w in toks)
+    if not (known or said):         # free text with a number in it ("phòng 5 hết giấy") is NOT a report
+        return None
+    nums = [int(w) for w in toks if w.isdigit()] + ([CLEAN_NUM[w] for w in toks if w in CLEAN_NUM] if known else [])
+    undo = bool(nums) and any(w in CLEAN_UNDO for w in toks)
+    every = not nums and said and ('het' in toks or 'ca' in toks) and not any(w in CLEAN_UNDO for w in toks)
     if not nums and not every:
         return None
     today = _vn_now().date()
@@ -654,7 +694,7 @@ def clean_ask(_xdb, now):
                     + lines + ('\n\n' + CLEAN_HINT if side else ''))
         return (f'⏰ {slot[:2]}:{slot[2:]} — còn {len(left)} phòng chưa báo xong:\n' + lines
                 + ('\n\nXong phòng nào nhắn số giúp em. Chưa kịp phòng nào thì báo anh Lộc nhé.' if side else ''))
-    return _clean_send(_xdb, day, make) > 0
+    return _clean_send(_xdb, day, make, lambda: f'⏰ {slot[:2]}:{slot[2:]} — bot đã nhắc các cô.\n' + clean_status(_xdb, day)) > 0
 
 
 def staff_handle_text(_xdb, cid, chat, msg):
@@ -739,7 +779,9 @@ def staff_handle_text(_xdb, cid, chat, msg):
         return f"📝 Đã ghi làm thêm {_staff_day_label(d)}: {_staff_extra_text(r)} — chờ duyệt."
     if _re.fullmatch(r'(ok|oke|okay|vang|da|nhan|da nhan|ok a|vang a|da a)[.! a]*', t):
         return ''
-    return 'Bot chưa hiểu ạ.\n' + STAFF_HELP
+    if _re.fullmatch(r'(help|huong dan|giup|cach nhan|\?)[.! ?]*', t):
+        return STAFF_HELP
+    return STAFF_ACK        # owner, Nov 12: no long "Bot chưa hiểu" menu — her words go to the owner as they are
 
 
 @app.route('/api/moi/staff', methods=['GET', 'POST'])
@@ -816,7 +858,13 @@ def moi_staff():
 
 def staff_copy_owner(_xdb, chat, text_, reply, tail=''):
     """Copy of a cleaner's message to the bot + the bot's answer → the owner(s)."""
-    msg = f"💬 {_staff_name(chat)}: {text_}"
-    if reply:
-        msg += f"\n🤖 Bot trả lời: {reply}"
+    who, said = _staff_name(chat).split()[0], ' '.join((text_ or '').split())
+    head = (reply or '').split('\n')[0]
+    if head.startswith(('✅ Đã ghi dọn xong', '↩️ Đã bỏ dấu')):      # a room report → one short status, room NAMES
+        msg = (head.replace('Đã ghi dọn xong', f'{who} báo xong').replace('Đã bỏ dấu', f'{who} bỏ dấu')
+               + '\n' + clean_status(_xdb, _vn_now().date()))
+    else:
+        msg = f"💬 {who}: {said}"
+        if reply and reply != STAFF_ACK:
+            msg += f"\n🤖 Bot: {reply}"
     _staff_tell_owners(_xdb, msg + tail)
