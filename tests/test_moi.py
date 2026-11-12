@@ -735,14 +735,55 @@ def test_booking_mail_alert(app, db, client, monkeypatch):
         zalo = [b['text'] for m, b in sent if b['chat_id'] == 'zz-o']
         assert len(zalo) == 1 and zalo[0].startswith('🆕 ĐẶT PHÒNG MỚI — PHÚT CUỐI') and 'Mã 9990077001' in zalo[0]
         assert 'Studio Hanoi Old Quarter - Steps to Everything' in zalo[0]
+        assert '⏱ Đặt lúc ' in zalo[0] and ' hôm nay' in zalo[0]              # owner: show WHEN the booking was made
         mine = [a for a in client.get('/api/moi/mail_alerts').get_json()['alerts'] if 'Mã 9990077001' in a['lines']]
-        assert len(mine) == 1 and mine[0]['kind'] == 'last'
+        assert len(mine) == 1 and mine[0]['kind'] == 'last' and mine[0]['lines'][0].startswith('⏱ Đặt lúc ')
         left = client.post('/api/moi/mail_alerts', json={'id': mine[0]['id']}).get_json()['alerts']
         assert not any('Mã 9990077001' in a['lines'] for a in left)
         s = client.get('/api/moi/mail_setup').get_json()
         assert '/api/mail-hook/' + tok in s['script'] and 'from:booking.com' in s['script'] and s['last']
         for url in ('/moi', '/may-tinh'):
             assert 'js/mail_alerts.js' in client.get(url).get_data(as_text=True)
+    finally:
+        with app.app_context():
+            db.session.execute(appmod.text("DELETE FROM mail_alerts WHERE mail_id LIKE 'zz-mail-%'")); db.session.commit()
+            for k, v in keep.items():
+                if v is None:
+                    db.session.execute(appmod.text("DELETE FROM moi_settings WHERE key = :k"), {'k': k}); db.session.commit()
+                else:
+                    appmod._zbot_put(db, k, v)
+
+
+def test_booking_bot_is_separate(app, db, client, monkeypatch):
+    """Owner, Nov 12: "cần lấy con bot khác — con này dùng cho dọn vệ sinh". A second bot (own token, pasted in the app):
+    whoever writes to it becomes a receiver; booking alerts go ONLY through it, nothing through the cleaning bot."""
+    import app as appmod
+    one, two = [], []
+    monkeypatch.setattr(appmod, '_zbot_call', lambda m, body=None, timeout=15: (one.append((m, body)) or {'ok': True, 'result': {}}))
+    monkeypatch.setattr(appmod, '_zbot2_call', lambda _x, m, body=None, token=None: (two.append((m, body, token)) or {'ok': True, 'result': {'account_name': 'ZZ Bot'}}))
+    KEYS = ('zbot_chats', 'zbot2_token', 'zbot2_chats', 'zbot2_name', 'mail_last')
+    with app.app_context():
+        keep = {k: appmod._zbot_get(db, k) for k in KEYS}
+        tok, sec = appmod._mail_token(db), appmod._zbot_secret(db)
+        appmod._zbot_put(db, 'zbot_chats', {'zz-o': {'name': 'ZZTEST Chủ', 'role': 'owner', 'on': True}})
+        for k in ('zbot2_token', 'zbot2_chats'):
+            db.session.execute(appmod.text("DELETE FROM moi_settings WHERE key = :k"), {'k': k})
+        db.session.commit()
+    try:
+        assert not client.post('/api/moi/mail_bot', json={'action': 'token', 'token': 'abc'}).get_json()['success']
+        j = client.post('/api/moi/mail_bot', json={'action': 'token', 'token': 'zz-second-bot-token-123'}).get_json()
+        assert j['success'] and j['bot2'] and j['bot2_name'] == 'ZZ Bot' and not j['bot2_chats']
+        assert any(m == 'setWebhook' and b['url'].endswith('/zalo-bot2/hook') for m, b, _t in two)
+        assert not client.post('/api/moi/mail_bot', json={'action': 'test'}).get_json()['success']       # nobody wrote to it yet
+        hook = {'message': {'chat': {'id': 'zz-me'}, 'from': {'display_name': 'ZZTEST Chủ'}, 'text': 'alo'}}
+        assert client.post('/zalo-bot2/hook', json=hook).status_code == 403
+        assert client.post('/zalo-bot2/hook', json=hook, headers={'X-Bot-Api-Secret-Token': sec + '2'}).status_code == 200
+        assert client.get('/api/moi/mail_setup').get_json()['bot2_chats'] == [{'id': 'zz-me', 'name': 'ZZTEST Chủ'}]
+        one.clear(); two.clear()
+        mail = {'id': 'zz-mail-9', 'subject': 'Booking.com - Đặt phòng mới! (9990077009, Thứ Sáu, 13 tháng 11, 2026)'}
+        assert client.post('/api/mail-hook/' + tok, json=mail).get_json()['kind'] == 'new'
+        assert [b['chat_id'] for m, b, _t in two if m == 'sendMessage'] == ['zz-me'] and 'Mã 9990077009' in two[0][1]['text']
+        assert not one                                                   # nothing through the cleaning bot
     finally:
         with app.app_context():
             db.session.execute(appmod.text("DELETE FROM mail_alerts WHERE mail_id LIKE 'zz-mail-%'")); db.session.commit()

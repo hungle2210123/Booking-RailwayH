@@ -239,3 +239,9 @@ Owner: new-booking mails get buried in Gmail; they want a notification on the iP
 - Each alert → `_staff_tell_owners` (Zalo = iPhone notification) and a red bar on /moi + /may-tinh (`/api/moi/mail_alerts`) until
   "Đã xem" or, for a new booking, until the extension imports it. A cancel mail only notifies — no status change.
 - `moi_settings 'mail_last'` = last mail received (proof the script runs). Never log in to / scrape Booking from here.
+- **Separate booking bot** (owner: the first bot is for cleaning): a 2nd Zalo bot — token pasted in the setup sheet
+  (`/api/moi/mail_bot` action `token` → getMe + setWebhook `/zalo-bot2/hook`, stored `moi_settings 'zbot2_token'`); whoever
+  writes to it is a receiver (`zbot2_chats`). `mail_notify` sends through it only; without it, falls back to the cleaning
+  bot's owner chats. Tests mock `_zbot2_call`.
+- ⏱ "Đặt lúc HH:MM hôm nay" in the Zalo message and the app list = the mail's own time (`date` ms sent by the script; an
+  older pasted script without it → the minute the mail reached the app, at most ~1 minute later).

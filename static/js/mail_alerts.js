@@ -44,21 +44,42 @@
     open: () => { open = true; drawList(); },
     close: () => { open = false; box().innerHTML = ''; },
     seen: async (id) => { const j = await post(id ? { id } : { all: true }); if (j.success) { list = j.alerts; drawBar(); if (list.length) drawList(); else MailAlerts.close(); } },
+    bot: async (action, id) => {       // 🤖 the separate Zalo bot for booking alerts
+      const body = { action, id };
+      if (action === 'token') body.token = ((document.getElementById('maTok') || {}).value || '').replace(/\s+/g, '');
+      if (action === 'off' && !confirm('Bỏ bot đặt phòng? Tin báo sẽ quay về bot dọn phòng.')) return;
+      let j = {}; try { j = await (await fetch('/api/moi/mail_bot', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })).json(); } catch (e) {}
+      if (!j.success) return alert('Chưa được: ' + (j.error || 'lỗi mạng'));
+      if (action === 'test') alert('Đã gửi tin thử ✅ xem trong Zalo');
+      MailAlerts.setup();
+    },
     setup: async () => {
       open = false;
-      box().innerHTML = sheet(head('CÀI 1 LẦN', 'Gmail Booking → app') + '<div style="padding:24px 0;text-align:center;color:#64748B;font-weight:700">Đang tải…</div>');
+      if (!document.getElementById('maOv') || !document.getElementById('maOv').innerHTML) box().innerHTML = sheet(head('CÀI 1 LẦN', 'Gmail Booking → app') + '<div style="padding:24px 0;text-align:center;color:#64748B;font-weight:700">Đang tải…</div>');
       let j = {}; try { j = await (await fetch('/api/moi/mail_setup', { cache: 'no-store' })).json(); } catch (e) {}
       if (!j.success) return;
       window.__maScript = j.script;
+      const card = (inner) => `<div style="margin-top:14px;border:1.5px solid #E7E9EE;border-radius:14px;padding:12px">${inner}</div>`;
+      const botBox = card(`<div style="font-size:15px;font-weight:800">🤖 Bot Zalo riêng để báo đặt phòng</div>` + (!j.bot2
+        ? `<div style="font-size:13px;color:#475569;line-height:1.5;margin-top:4px">Hiện tin báo đang đi chung bot dọn phòng. Muốn tách riêng: mở <b>Zalo Bot Creator</b> → <b>tạo bot mới</b> (vd "Đặt phòng") → <b>Thiết lập chung</b> → copy <b>Bot Token</b> → dán vào đây.</div>
+           <textarea id="maTok" rows="2" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="Dán Bot Token của bot MỚI" style="width:100%;box-sizing:border-box;margin-top:8px;padding:10px 12px;border:1.5px solid #CBD5E1;border-radius:12px;font-size:16px;resize:none"></textarea>
+           <div style="display:flex;margin-top:8px">${btn('Lưu & kết nối bot', "MailAlerts.bot('token')", true)}</div>`
+        : `<div style="font-size:13.5px;font-weight:700;color:#15803D;margin-top:4px">✓ Đã kết nối${j.bot2_name ? ' — ' + esc(j.bot2_name) : ''}</div>`
+          + (j.bot2_chats.length
+            ? `<div style="font-size:13px;color:#475569;margin-top:6px">Người nhận tin báo:</div>` + j.bot2_chats.map((c) => `<div style="display:flex;align-items:center;gap:8px;margin-top:6px"><b style="flex:1;font-size:14px">${esc(c.name)}</b><button onclick="MailAlerts.bot('remove','${esc(c.id)}')" style="min-height:34px;padding:0 10px;border-radius:10px;border:1.5px solid #E2E5EB;background:#fff;font-size:12.5px;font-weight:800;color:#B91C1C">Bỏ</button></div>`).join('')
+              + `<div style="display:flex;gap:8px;margin-top:10px">${btn('Gửi tin thử', "MailAlerts.bot('test')", true)}${btn('Bỏ bot này', "MailAlerts.bot('off')")}</div>`
+            : `<div style="margin-top:8px;border-radius:12px;padding:10px 12px;font-size:13.5px;font-weight:700;background:#FEF3C7;color:#92400E;line-height:1.5">Còn 1 bước: mở Zalo, tìm bot mới và <b>nhắn cho nó 1 tin bất kỳ</b> (vd "alo") để bot biết gửi cho ai. Rồi bấm Tải lại.</div>
+               <div style="display:flex;gap:8px;margin-top:10px">${btn('↻ Tải lại', 'MailAlerts.setup()', true)}${btn('Bỏ bot này', "MailAlerts.bot('off')")}</div>`)));
       const step = (n, t) => `<div style="display:flex;gap:10px;margin-top:10px"><b style="flex:none;width:26px;height:26px;border-radius:50%;background:#0E1525;color:#fff;font-size:13px;display:flex;align-items:center;justify-content:center">${n}</b><div style="flex:1;font-size:14px;line-height:1.5">${t}</div></div>`;
       box().innerHTML = sheet(head('CÀI 1 LẦN · NÊN LÀM TRÊN MÁY TÍNH', 'Gmail Booking → app')
         + `<div style="margin-top:12px;border-radius:12px;padding:10px 12px;font-size:13.5px;font-weight:700;background:${j.last ? '#F0FDF4' : '#FEF3C7'};color:${j.last ? '#15803D' : '#92400E'}">${j.last ? '✓ Đang chạy — thư gần nhất nhận lúc ' + esc(j.last.at) : 'Chưa nhận được thư nào — làm 5 bước dưới đây.'}</div>`
-        + (j.zalo ? '' : '<div style="margin-top:8px;border-radius:12px;padding:10px 12px;font-size:13px;font-weight:700;background:#FEF2F2;color:#B91C1C">Bot Zalo chưa có ai là "Chủ" đang bật → sẽ không có thông báo trên điện thoại (app vẫn hiện).</div>')
+        + (j.zalo || (j.bot2 && j.bot2_chats.length) ? '' : '<div style="margin-top:8px;border-radius:12px;padding:10px 12px;font-size:13px;font-weight:700;background:#FEF2F2;color:#B91C1C">Bot Zalo chưa có ai là "Chủ" đang bật → sẽ không có thông báo trên điện thoại (app vẫn hiện).</div>')
         + step(1, 'Mở <b>script.google.com</b> bằng đúng tài khoản Gmail đang nhận thư Booking → <b>Dự án mới</b>.')
         + step(2, 'Xóa hết chữ có sẵn, bấm nút dưới để copy rồi <b>dán</b> vào.<div style="display:flex;margin-top:8px">' + btn('📋 Copy đoạn script', 'MailAlerts.copy()', true) + '</div>')
         + step(3, 'Bấm 💾 <b>Lưu</b>. Ở ô chọn hàm phía trên chọn <b>caiDat</b> rồi bấm <b>▶ Chạy</b>.')
         + step(4, 'Google hỏi quyền: <b>Xem lại quyền</b> → chọn tài khoản → <b>Nâng cao</b> → <b>Đi tới dự án (không an toàn)</b> → <b>Cho phép</b>. (Google báo vậy vì script do chính bạn tạo, chưa qua kiểm duyệt.)')
         + step(5, 'Xong. Từ giờ mỗi phút script tự xem thư mới của Booking và báo lên app + Zalo. Mở lại bảng này để thấy dòng xanh "Đang chạy".')
+        + botBox
         + '<div style="margin-top:12px;font-size:12.5px;color:#64748B;line-height:1.5">Script chỉ đọc thư gửi từ booking.com, chạy trong Gmail của bạn; không ai nhận mật khẩu. Đoạn script có địa chỉ riêng của app — đừng gửi cho người khác.</div>');
     },
     copy: async () => {

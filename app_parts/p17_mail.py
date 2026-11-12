@@ -77,13 +77,17 @@ def _mail_property(_xdb, blob):
 
 
 def mail_text(a, today):
-    """The Zalo message / app line for one alert."""
+    """The Zalo message / app line for one alert. a['at'] = when Booking sent the mail = when the guest booked / cancelled."""
     street = MOI_STREET.get(int(a['apt'])) if (a.get('apt') or '').isdigit() else ''
     when = ''
     if a.get('day'):
         d = a['day']
         when = ' — đến HÔM NAY' if d == today else ' — đến NGÀY MAI' if d == today + timedelta(days=1) else f' — đến {d.day}/{d.month}'
-    return '\n'.join(x for x in [MAIL_KIND[a['kind']] + when, ' · '.join(x for x in [street, a.get('prop') or ''] if x),
+    at = a.get('at')
+    verb = 'Hủy lúc' if a['kind'] == 'cancel' else 'Đổi lúc' if a['kind'] == 'change' else 'Đặt lúc'
+    made = (f"⏱ {verb} {at:%H:%M}" + (' hôm nay' if at.date() == today else ' hôm qua' if at.date() == today - timedelta(days=1)
+                                     else f' ngày {at.day}/{at.month}')) if at else ''
+    return '\n'.join(x for x in [MAIL_KIND[a['kind']] + when, made, ' · '.join(x for x in [street, a.get('prop') or ''] if x),
                                  f"Mã {a['booking_id']}" if a.get('booking_id') else ''] if x)
 
 
@@ -101,6 +105,12 @@ def mail_hook(token):
     if not p:
         return jsonify({'ok': True, 'skipped': True})
     mid = str(d.get('id') or '')[:80] or None
+    at = _vn_now()
+    try:        # the script sends the mail's own time (ms) → exact; an older script without it = the minute it arrived
+        if d.get('date'):
+            at = min(at, datetime.utcfromtimestamp(float(d['date']) / 1000) + timedelta(hours=7))
+    except (TypeError, ValueError, OverflowError, OSError):
+        pass
     prop, apt = _mail_property(_xdb, subject + '\n' + body)
     # the same booking + kind twice (Booking sometimes sends 2 mails) → one alert
     dup = _xdb.session.execute(text("""SELECT 1 FROM mail_alerts WHERE (mail_id = :m AND :m IS NOT NULL)
@@ -109,12 +119,12 @@ def mail_hook(token):
     if dup:
         return jsonify({'ok': True, 'dup': True})
     _xdb.session.execute(text("""INSERT INTO mail_alerts (at, mail_id, kind, booking_id, prop, apt, day, subject)
-        VALUES (:at, :m, :k, :b, :p, :a, :d, :s)"""), {'at': _vn_now(), 'm': mid, 'k': p['kind'], 'b': p['booking_id'],
+        VALUES (:at, :m, :k, :b, :p, :a, :d, :s)"""), {'at': at, 'm': mid, 'k': p['kind'], 'b': p['booking_id'],
                                                       'p': prop, 'a': apt, 'd': p['day'], 's': subject})
     _xdb.session.commit()
-    msg = mail_text({'kind': p['kind'], 'booking_id': p['booking_id'], 'prop': prop, 'apt': apt, 'day': p['day']}, _vn_now().date())
+    msg = mail_text({'kind': p['kind'], 'booking_id': p['booking_id'], 'prop': prop, 'apt': apt, 'day': p['day'], 'at': at}, _vn_now().date())
     try:        # → the owner's Zalo = a notification on the iPhone
-        _staff_tell_owners(_xdb, msg + '\nMở Booking để xem chi tiết.')
+        mail_notify(_xdb, msg + '\nMở Booking để xem chi tiết.')
     except Exception as e:
         print(f'⚠️ mail alert → Zalo: {e}')
     return jsonify({'ok': True, 'kind': p['kind']})
@@ -141,11 +151,106 @@ def moi_mail_alerts():
     today = _vn_now().date()
     out = []
     for r in rows:
-        a = {'kind': r[2], 'booking_id': r[3] or '', 'prop': r[4] or '', 'apt': r[5] or '', 'day': r[6]}
+        a = {'kind': r[2], 'booking_id': r[3] or '', 'prop': r[4] or '', 'apt': r[5] or '', 'day': r[6], 'at': r[1]}
         lines = mail_text(a, today).split('\n')
         out.append({'id': r[0], 'at': ('' if r[1].date() == today else f'{r[1].day}/{r[1].month} ') + r[1].strftime('%H:%M'),
                     'kind': r[2], 'bad': r[2] == 'cancel', 'title': lines[0], 'lines': lines[1:]})
     return jsonify({'success': True, 'alerts': out})
+
+
+# ── 🤖 Bot riêng cho đặt phòng (owner, Nov 12: "cần lấy con bot khác — con này là dùng cho dọn vệ sinh") ─────────────────
+# A SECOND Zalo bot only for booking mails: its token is pasted by the owner in the setup sheet (moi_settings 'zbot2_token'),
+# whoever writes to it becomes a receiver ('zbot2_chats'). Until it is set up, alerts go to the owner through the cleaning bot.
+def _zbot2_token(_xdb):
+    return (_zbot_get(_xdb, 'zbot2_token') or '').strip()
+
+
+def _zbot2_call(_xdb, method, body=None, token=None):
+    import requests as _rq
+    tok = token or _zbot2_token(_xdb)
+    if not tok:
+        return {'ok': False, 'description': 'Chưa có bot đặt phòng'}
+    try:
+        r = _rq.post(f'{ZBOT_API}{tok}/{method}', json=body or {}, timeout=15)
+        try:
+            return r.json()
+        except ValueError:
+            return {'ok': False, 'description': f'HTTP {r.status_code}'}
+    except Exception as e:  # network
+        return {'ok': False, 'description': str(e)[:200]}
+
+
+def mail_notify(_xdb, msg):
+    """Booking alert → the booking bot's receivers; the cleaning bot's owner chats only while the booking bot is not set up."""
+    chats = _zbot_get(_xdb, 'zbot2_chats', {}) or {}
+    if _zbot2_token(_xdb) and chats:
+        for cid in chats:
+            _zbot2_call(_xdb, 'sendMessage', {'chat_id': cid, 'text': msg[:1990]})
+        return 'bot2'
+    _staff_tell_owners(_xdb, msg)
+    return 'bot1'
+
+
+@app.route('/zalo-bot2/hook', methods=['POST'])
+def zbot2_hook():
+    """Zalo calls this when someone writes to the BOOKING bot: that person becomes a receiver of the booking alerts."""
+    from core.models import db as _xdb
+    if request.headers.get('X-Bot-Api-Secret-Token', '') != _zbot_secret(_xdb) + '2':
+        return jsonify({'ok': False}), 403
+    m = (request.get_json(silent=True) or {}).get('message') or {}
+    cid = str((m.get('chat') or {}).get('id') or '')
+    if cid:
+        chats = _zbot_get(_xdb, 'zbot2_chats', {}) or {}
+        new = cid not in chats
+        chats[cid] = {'name': (m.get('from') or {}).get('display_name') or (chats.get(cid) or {}).get('name') or ''}
+        _zbot_put(_xdb, 'zbot2_chats', chats)
+        _zbot2_call(_xdb, 'sendMessage', {'chat_id': cid, 'text': 'Đã kết nối ✅ Bot này sẽ báo ngay khi Booking gửi thư đặt phòng mới / hủy.'
+                                          if new else 'Bot này chỉ báo đặt phòng mới / hủy từ Booking ạ.'})
+    return jsonify({'ok': True})
+
+
+@app.route('/api/moi/mail_bot', methods=['POST'])
+def moi_mail_bot():
+    """Setup of the booking bot: token (checked with getMe, then setWebhook) · test · remove a receiver · off (back to the cleaning bot)."""
+    from core.models import db as _xdb
+    _moi_ensure(); _mail_ensure(_xdb)
+    d = request.get_json(silent=True) or {}
+    act = d.get('action')
+    if act == 'token':
+        tok = ''.join(str(d.get('token') or '').split())
+        if len(tok) < 10:
+            return jsonify({'success': False, 'error': 'Mã quá ngắn — copy cả ô Bot Token'})
+        if tok == _zbot_token():
+            return jsonify({'success': False, 'error': 'Đây là mã của bot dọn phòng — cần tạo một bot MỚI rồi dán mã của bot mới'})
+        me = _zbot2_call(_xdb, 'getMe', token=tok)
+        if not me.get('ok'):
+            return jsonify({'success': False, 'error': 'Zalo chưa nhận mã này: ' + str(me.get('description') or '')[:80]})
+        url = 'https://' + request.host_url.split('://', 1)[1].rstrip('/') + '/zalo-bot2/hook'
+        r = _zbot2_call(_xdb, 'setWebhook', {'url': url, 'secret_token': _zbot_secret(_xdb) + '2'}, token=tok)
+        if not r.get('ok'):
+            return jsonify({'success': False, 'error': str(r.get('description') or r)[:200]})
+        _zbot_put(_xdb, 'zbot2_token', tok)
+        _zbot_put(_xdb, 'zbot2_name', (me.get('result') or {}).get('account_name') or (me.get('result') or {}).get('display_name') or '')
+    elif act == 'test':
+        if mail_notify(_xdb, '🆕 TIN THỬ — bot báo đặt phòng đang chạy ✅') != 'bot2':
+            return jsonify({'success': False, 'error': 'Chưa có ai nhận — mở Zalo, nhắn 1 tin bất kỳ cho bot mới trước'})
+    elif act == 'remove':
+        chats = _zbot_get(_xdb, 'zbot2_chats', {}) or {}
+        chats.pop(str(d.get('id') or ''), None)
+        _zbot_put(_xdb, 'zbot2_chats', chats)
+    elif act == 'off':
+        for k in ('zbot2_token', 'zbot2_chats', 'zbot2_name'):
+            _xdb.session.execute(text("DELETE FROM moi_settings WHERE key = :k"), {'k': k})
+        _xdb.session.commit()
+    else:
+        return jsonify({'success': False, 'error': 'Không rõ thao tác'}), 400
+    return jsonify(dict(_mail_setup_info(_xdb), success=True))
+
+
+def _mail_setup_info(_xdb):
+    chats = _zbot_get(_xdb, 'zbot2_chats', {}) or {}
+    return {'bot2': bool(_zbot2_token(_xdb)), 'bot2_name': _zbot_get(_xdb, 'zbot2_name') or '',
+            'bot2_chats': [{'id': k, 'name': c.get('name') or 'Không tên'} for k, c in chats.items()]}
 
 
 MAIL_SCRIPT = '''// Hotel Pro — báo thư đặt phòng Booking.com lên app. Dán toàn bộ vào script.google.com, chọn hàm "caiDat" rồi bấm Chạy 1 lần.
@@ -161,7 +266,7 @@ function kiemTraThuBooking() {
       var at = m.getDate().getTime();
       if (at <= last) return;
       var r = UrlFetchApp.fetch(HOOK, { method: 'post', contentType: 'application/json', muteHttpExceptions: true,
-        payload: JSON.stringify({ id: m.getId(), subject: m.getSubject(), body: m.getPlainBody().slice(0, 6000) }) });
+        payload: JSON.stringify({ id: m.getId(), date: at, subject: m.getSubject(), body: m.getPlainBody().slice(0, 6000) }) });
       if (r.getResponseCode() === 200 && at > newest) newest = at;
     });
   });
@@ -182,5 +287,6 @@ def moi_mail_setup():
     from core.models import db as _xdb
     _moi_ensure(); _mail_ensure(_xdb)
     hook = 'https://' + request.host_url.split('://', 1)[1].rstrip('/') + '/api/mail-hook/' + _mail_token(_xdb)
-    return jsonify({'success': True, 'script': MAIL_SCRIPT.replace('__HOOK__', hook), 'last': _zbot_get(_xdb, 'mail_last'),
-                    'zalo': any(c.get('role') == 'owner' and c.get('on') for c in _staff_chats(_xdb).values())})
+    return jsonify(dict(_mail_setup_info(_xdb), success=True, script=MAIL_SCRIPT.replace('__HOOK__', hook),
+                        last=_zbot_get(_xdb, 'mail_last'),
+                        zalo=any(c.get('role') == 'owner' and c.get('on') for c in _staff_chats(_xdb).values())))
