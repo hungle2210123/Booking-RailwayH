@@ -229,3 +229,13 @@ Owner: the merged list in their Zalo was confusing; they want to manage every bo
 - Log: table `zbot_msgs` (at VN time, chat_id, dir in/out, body) — written by `zbot_log` from `_zbot_call` (every sendMessage
   to a cleaner) and `zbot_hook` (her messages). `zbot_msg_kind` → don / nv / khac. Kept 60 days.
 - /moi → 👥 Nhân viên → "💬 Tin nhắn bot ↔ các cô" (`M.logOpen`, `/api/moi/zbot_log`): filter by cleaner and kind, by day.
+
+## 📧 Thư Booking → app (Nov 12) — `app_parts/p17_mail.py`, `static/js/mail_alerts.js`
+Owner: new-booking mails get buried in Gmail; they want a notification on the iPhone + in the app, then open Booking themselves.
+- A Google Apps Script in the owner's own Gmail (`MAIL_SCRIPT`, shown with a Copy button in `MailAlerts.setup()` — /moi "📧 Báo đặt
+  phòng mới từ Gmail Booking", /may-tinh sidebar) checks every minute and POSTs new booking.com mails to `/api/mail-hook/<token>`.
+- `mail_parse(subject)` → new / last (phút cuối) / cancel / change + booking number + arrival date; other mails are skipped.
+  The listing → apartment comes from `bookings.property_name` (`_mail_property`). Table `mail_alerts` (one per booking + kind).
+- Each alert → `_staff_tell_owners` (Zalo = iPhone notification) and a red bar on /moi + /may-tinh (`/api/moi/mail_alerts`) until
+  "Đã xem" or, for a new booking, until the extension imports it. A cancel mail only notifies — no status change.
+- `moi_settings 'mail_last'` = last mail received (proof the script runs). Never log in to / scrape Booking from here.

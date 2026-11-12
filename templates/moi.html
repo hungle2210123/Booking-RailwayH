@@ -724,6 +724,7 @@ button.info.on{border-color:#0E1525;background:#fff}
         const calT = tile('📅', 'Lịch iPhone', calOk ? '✓ Đã kết nối' : 'Chưa bật — chạm để bật', calOk ? '#15803D' : '#B45309', 'M.calOpen()');
         h += `<div class="card" style="padding:12px 12px 12px"><div style="display:flex;align-items:baseline;justify-content:space-between;margin:0 2px 8px"><b style="font-size:14px">Việc hằng ngày</b><span style="font-size:11px;color:#64748B;font-weight:700">dọn phòng · nhân viên · nhắc việc</span></div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">${cleanT}${botT}${stT}${calT}</div>
+          <button onclick="MailAlerts.setup()" style="margin-top:8px;width:100%;min-height:40px;border-radius:12px;border:1.5px solid #E7E9EE;background:#fff;color:#475569;font-size:13px;font-weight:800">📧 Báo đặt phòng mới từ Gmail Booking</button>
           ${zb && zb.connected ? `<button onclick="M.zbotResend()" style="margin-top:8px;width:100%;min-height:44px;border-radius:12px;border:0;background:#0E1525;color:#fff;font-size:14px;font-weight:800">📤 Gửi lại tin dọn cho các cô</button>` : ''}
           ${zb && zb.clean && zb.clean.length ? `<div style="margin-top:10px;border-top:1px solid #EEF0F4;padding-top:8px"><div style="display:flex;justify-content:space-between;font-size:12.5px;font-weight:800;color:#475569;margin:0 2px 6px"><span>🧹 Dọn xong hôm nay</span><span style="color:${zb.clean.every((x) => x.done) ? '#15803D' : '#B45309'}">${zb.clean.filter((x) => x.done).length}/${zb.clean.length} phòng</span></div>
             ${zb.clean.map((x, i) => `${i === 0 || zb.clean[i - 1].who !== x.who ? `<div style="font-size:12px;font-weight:800;color:#64748B;margin:8px 2px 2px">${esc(x.who || 'Chưa chia cho ai')}</div>` : ''}<div style="display:flex;gap:6px;margin-top:4px">
@@ -1256,5 +1257,6 @@ button.info.on{border-color:#0E1525;background:#fff}
 </script>
 <script>window.__BUILD = '{{ build }}';</script>
 <script src="{{ asset('js/autoupdate.js') }}"></script>
+<script src="{{ asset('js/mail_alerts.js') }}"></script>
 </body>
 </html>

@@ -16,7 +16,7 @@ https://web-production-8f671.up.railway.app — **push straight to main** ("git 
   /dashboard, /hom-nay …) redirect there (p02). Never re-add old pages — build in moi.html / desk.html.
   Parts now hold mostly APIs: p01 health · p02 `/`, dashboard API, **Chrome extension** import/save, photo import ·
   p03 phone, AI reply, screenshots, journey, Thu tiền, /tin-nhanh · p04-p13 the APIs the new apps / extension still call
-  (booking, placement, templates, rooms, translate …) · p15 **/moi** + **/may-tinh** (`docs/moi.md`) · p16 staff (Zalo bot).
+  (booking, placement, templates, rooms, translate …) · p15 **/moi** + **/may-tinh** (`docs/moi.md`) · p16 staff (Zalo bot) · p17 Booking mails → alerts (Gmail script).
 - `core/`: `journey.py` (messaging steps), `revenue.py` (ALL revenue numbers), `occupancy.py` (vacancy), `booking_page_parser.py`
   (extension + screenshot parsing), `models.py`, `two_bedroom.py`. Front-end: `templates/*.html` (big, inline JS),
   `static/js/journey.js` (send sheet), `static/js/booking_card.js`, `chrome_extension/` (content.js, background.js).

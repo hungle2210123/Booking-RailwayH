@@ -704,3 +704,50 @@ def test_bot_understands_real_cleaner_messages(app, db, booking, monkeypatch):
                     db.session.execute(appmod.text("DELETE FROM moi_settings WHERE key = :k"), {'k': k}); db.session.commit()
                 else:
                     appmod._zbot_put(db, k, v)
+
+
+def test_booking_mail_alert(app, db, client, monkeypatch):
+    """Owner, Nov 12 (Gmail screenshot "Booking.com - Đặt phòng mới vào phút cuối (5052369462, Thứ Năm, 12 tháng 11, 2026)"):
+    the Gmail script posts the mail → the owner gets a Zalo message, the app shows the alert until 'Đã xem'; the same mail
+    twice = one alert; other Booking mails are ignored; a wrong token is refused."""
+    import app as appmod
+    from datetime import date
+    sent = []
+    monkeypatch.setattr(appmod, '_zbot_call', lambda m, body=None, timeout=15: (sent.append((m, body)) or {'ok': True, 'result': {}}))
+    p = appmod.mail_parse('Booking.com - Đặt phòng mới vào phút cuối (5052369462, Thứ Năm, 12 tháng 11, 2026)')
+    assert p == {'kind': 'last', 'booking_id': '5052369462', 'day': date(2026, 11, 12)}
+    assert appmod.mail_parse('Booking.com - Đặt phòng mới! (5052369999, Thứ Sáu, 13 tháng 11, 2026)')['kind'] == 'new'
+    assert appmod.mail_parse('Booking.com - New booking! (5052369999, Friday, 13 November 2026)')['day'] == date(2026, 11, 13)
+    assert appmod.mail_parse('Booking.com - Đặt phòng bị hủy (5052369999, Thứ Sáu, 13 tháng 11, 2026)')['kind'] == 'cancel'
+    assert appmod.mail_parse('Hóa đơn hoa hồng tháng 10 của Quý vị') is None
+    with app.app_context():
+        keep = {k: appmod._zbot_get(db, k) for k in ('zbot_chats', 'mail_last')}
+        tok = appmod._mail_token(db)
+        appmod._zbot_put(db, 'zbot_chats', {'zz-o': {'name': 'ZZTEST Chủ', 'role': 'owner', 'on': True}})
+    mail = {'id': 'zz-mail-1', 'subject': 'Booking.com - Đặt phòng mới vào phút cuối (9990077001, Thứ Năm, 12 tháng 11, 2026)',
+            'body': 'Studio Hanoi Old Quarter - Steps to Everything\nBooking confirmation — 9990077001'}
+    try:
+        assert client.post('/api/mail-hook/wrong', json=mail).status_code == 403
+        assert client.post('/api/mail-hook/' + tok, json=mail).get_json()['kind'] == 'last'
+        assert client.post('/api/mail-hook/' + tok, json=mail).get_json().get('dup')                       # once
+        assert client.post('/api/mail-hook/' + tok, json=dict(mail, id='zz-mail-2')).get_json().get('dup')  # 2nd mail, same booking
+        assert client.post('/api/mail-hook/' + tok, json={'id': 'zz-mail-3', 'subject': 'Tin nhắn mới từ khách'}).get_json().get('skipped')
+        zalo = [b['text'] for m, b in sent if b['chat_id'] == 'zz-o']
+        assert len(zalo) == 1 and zalo[0].startswith('🆕 ĐẶT PHÒNG MỚI — PHÚT CUỐI') and 'Mã 9990077001' in zalo[0]
+        assert 'Studio Hanoi Old Quarter - Steps to Everything' in zalo[0]
+        mine = [a for a in client.get('/api/moi/mail_alerts').get_json()['alerts'] if 'Mã 9990077001' in a['lines']]
+        assert len(mine) == 1 and mine[0]['kind'] == 'last'
+        left = client.post('/api/moi/mail_alerts', json={'id': mine[0]['id']}).get_json()['alerts']
+        assert not any('Mã 9990077001' in a['lines'] for a in left)
+        s = client.get('/api/moi/mail_setup').get_json()
+        assert '/api/mail-hook/' + tok in s['script'] and 'from:booking.com' in s['script'] and s['last']
+        for url in ('/moi', '/may-tinh'):
+            assert 'js/mail_alerts.js' in client.get(url).get_data(as_text=True)
+    finally:
+        with app.app_context():
+            db.session.execute(appmod.text("DELETE FROM mail_alerts WHERE mail_id LIKE 'zz-mail-%'")); db.session.commit()
+            for k, v in keep.items():
+                if v is None:
+                    db.session.execute(appmod.text("DELETE FROM moi_settings WHERE key = :k"), {'k': k}); db.session.commit()
+                else:
+                    appmod._zbot_put(db, k, v)

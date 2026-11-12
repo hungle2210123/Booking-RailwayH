@@ -8,7 +8,7 @@
  * window.__BUILD = the build the page was rendered with (set by the template); if missing, the first answer is used. */
 (function () {
   let build = window.__BUILD || null, busy = false, bar = null, waiting = false;
-  const OPEN = '.ov, .jr-ov, #modal .modal, #drawer.open, #pxOv, input:focus, textarea:focus, select:focus';
+  const OPEN = '.ov, .jr-ov, #modal .modal, #drawer.open, #pxOv, #maOv > div, input:focus, textarea:focus, select:focus';
   const reload = () => { try { sessionStorage.setItem('au_reloaded', String(Date.now())); } catch (e) {} location.reload(); };
   function showBar() {
     if (bar) return;

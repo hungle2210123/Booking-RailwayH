@@ -1,0 +1,186 @@
+# p17_mail — 📧 Booking.com e-mails → the app (owner, Nov 12: "khi nhận được mail thì hệ thống tự cập nhật trên app là đang có
+# một đặt phòng vừa mới đặt" — the Gmail inbox is full, new-booking mails get buried).
+#  · A small Google Apps Script in the OWNER'S OWN Gmail (they paste it once; no password is given to anyone) looks every
+#    minute for new mails from booking.com and POSTs subject + text to /api/mail-hook/<token>.
+#  · The mail only has the booking number, the listing name and the arrival date — enough for "🆕 có đặt phòng mới":
+#    the owner gets a Zalo message from the bot at once (= a notification on the iPhone) and the app shows a bar on
+#    /moi and /may-tinh (static/js/mail_alerts.js) until they tap "Đã xem" or the booking is imported by the extension.
+#  · Nothing is done ON Booking (hard rule): no login, no scraping; a cancellation mail only NOTIFIES (no status change).
+import re as _re_m
+
+_MAIL_READY = False
+MAIL_KIND = {'last': '🆕 ĐẶT PHÒNG MỚI — PHÚT CUỐI', 'new': '🆕 ĐẶT PHÒNG MỚI', 'cancel': '❌ KHÁCH HỦY trên Booking',
+             'change': '✏️ Khách ĐỔI đặt phòng'}
+MAIL_MONTH = {'january': 1, 'february': 2, 'march': 3, 'april': 4, 'may': 5, 'june': 6, 'july': 7, 'august': 8,
+              'september': 9, 'october': 10, 'november': 11, 'december': 12}
+
+
+def _mail_ensure(_xdb):
+    global _MAIL_READY
+    if _MAIL_READY:
+        return
+    _xdb.session.execute(text("""CREATE TABLE IF NOT EXISTS mail_alerts (
+        id SERIAL PRIMARY KEY, at TIMESTAMP NOT NULL, mail_id VARCHAR(80) UNIQUE, kind VARCHAR(10) NOT NULL,
+        booking_id VARCHAR(20), prop TEXT, apt VARCHAR(10), day DATE, subject TEXT, seen BOOLEAN NOT NULL DEFAULT FALSE)"""))
+    _xdb.session.commit()
+    _MAIL_READY = True
+
+
+def _mail_token(_xdb):
+    import secrets
+    tok = _zbot_get(_xdb, 'mail_token')
+    if not tok:
+        tok = secrets.token_urlsafe(18)
+        _zbot_put(_xdb, 'mail_token', tok)
+    return tok
+
+
+def mail_parse(subject, body=''):
+    """A Booking.com mail → {kind, booking_id, day} or None when it is not about a new / cancelled / changed booking.
+    Subjects seen (owner's phone, Nov 12): "Booking.com - Đặt phòng mới vào phút cuối (5052369462, Thứ Năm, 12 tháng 11, 2026)"."""
+    s = _fold(subject or '')
+    kind = ('cancel' if _re_m.search(r'\bhuy\b|cancel', s) else
+            'change' if _re_m.search(r'thay doi|chinh sua|sua doi|modif|changed', s) else
+            'last' if _re_m.search(r'phut cuoi|last[- ]minute', s) and _re_m.search(r'dat phong|booking|reservation', s) else
+            'new' if _re_m.search(r'dat phong moi|new booking|new reservation', s) else None)
+    if not kind:
+        return None
+    m = _re_m.search(r'(?<!\d)(\d{9,11})(?!\d)', subject or '') or _re_m.search(r'(?<!\d)(\d{10})(?!\d)', body or '')
+    day = None
+    d = _re_m.search(r'(\d{1,2}) thang (\d{1,2}),? (\d{4})', s)
+    try:
+        if d:
+            day = date(int(d.group(3)), int(d.group(2)), int(d.group(1)))
+        else:
+            d = _re_m.search(r'(\d{1,2}) ([a-z]+),? (\d{4})', s) or _re_m.search(r'([a-z]+) (\d{1,2}),? (\d{4})', s)
+            if d:
+                g = d.groups()
+                mon = MAIL_MONTH.get(g[1]) or MAIL_MONTH.get(g[0])
+                dd = int(g[0]) if g[0].isdigit() else int(g[1])
+                day = date(int(g[2]), mon, dd) if mon else None
+    except ValueError:
+        day = None
+    return {'kind': kind, 'booking_id': m.group(1) if m else '', 'day': day}
+
+
+def _mail_property(_xdb, blob):
+    """The listing named in the mail → (name, apartment id it is usually placed in) — from the names already in bookings."""
+    rows = _xdb.session.execute(text("""
+        SELECT property_name, actual_apartment, COUNT(*) FROM bookings
+        WHERE COALESCE(property_name, '') <> '' AND COALESCE(actual_apartment, '') <> '' GROUP BY 1, 2 ORDER BY 3 DESC""")).fetchall()
+    low, best = (blob or '').lower(), ('', '')
+    for name, apt, _n in rows:
+        n = (name or '').strip()
+        if len(n) >= 12 and len(n) > len(best[0]) and n.lower() in low:
+            best = (n, str(apt))
+    return best
+
+
+def mail_text(a, today):
+    """The Zalo message / app line for one alert."""
+    street = MOI_STREET.get(int(a['apt'])) if (a.get('apt') or '').isdigit() else ''
+    when = ''
+    if a.get('day'):
+        d = a['day']
+        when = ' — đến HÔM NAY' if d == today else ' — đến NGÀY MAI' if d == today + timedelta(days=1) else f' — đến {d.day}/{d.month}'
+    return '\n'.join(x for x in [MAIL_KIND[a['kind']] + when, ' · '.join(x for x in [street, a.get('prop') or ''] if x),
+                                 f"Mã {a['booking_id']}" if a.get('booking_id') else ''] if x)
+
+
+@app.route('/api/mail-hook/<token>', methods=['POST'])
+def mail_hook(token):
+    """Called by the owner's Gmail script for every new mail from booking.com: {id, subject, body}."""
+    from core.models import db as _xdb
+    _moi_ensure(); _mail_ensure(_xdb)
+    if token != _mail_token(_xdb):
+        return jsonify({'ok': False}), 403
+    d = request.get_json(silent=True) or {}
+    subject, body = str(d.get('subject') or '')[:400], str(d.get('body') or '')[:8000]
+    _zbot_put(_xdb, 'mail_last', {'at': _vn_now().strftime('%d/%m %H:%M'), 'subject': subject[:80]})    # proof the script is alive
+    p = mail_parse(subject, body)
+    if not p:
+        return jsonify({'ok': True, 'skipped': True})
+    mid = str(d.get('id') or '')[:80] or None
+    prop, apt = _mail_property(_xdb, subject + '\n' + body)
+    # the same booking + kind twice (Booking sometimes sends 2 mails) → one alert
+    dup = _xdb.session.execute(text("""SELECT 1 FROM mail_alerts WHERE (mail_id = :m AND :m IS NOT NULL)
+        OR (booking_id = :b AND :b <> '' AND kind = :k AND at > :t)"""),
+        {'m': mid, 'b': p['booking_id'], 'k': p['kind'], 't': _vn_now() - timedelta(days=2)}).fetchone()
+    if dup:
+        return jsonify({'ok': True, 'dup': True})
+    _xdb.session.execute(text("""INSERT INTO mail_alerts (at, mail_id, kind, booking_id, prop, apt, day, subject)
+        VALUES (:at, :m, :k, :b, :p, :a, :d, :s)"""), {'at': _vn_now(), 'm': mid, 'k': p['kind'], 'b': p['booking_id'],
+                                                      'p': prop, 'a': apt, 'd': p['day'], 's': subject})
+    _xdb.session.commit()
+    msg = mail_text({'kind': p['kind'], 'booking_id': p['booking_id'], 'prop': prop, 'apt': apt, 'day': p['day']}, _vn_now().date())
+    try:        # → the owner's Zalo = a notification on the iPhone
+        _staff_tell_owners(_xdb, msg + '\nMở Booking để xem chi tiết.')
+    except Exception as e:
+        print(f'⚠️ mail alert → Zalo: {e}')
+    return jsonify({'ok': True, 'kind': p['kind']})
+
+
+@app.route('/api/moi/mail_alerts', methods=['GET', 'POST'])
+def moi_mail_alerts():
+    """The bar on /moi and /may-tinh: alerts of the last 3 days not marked seen. A NEW booking already in the app (imported
+    by the extension) is done by itself. POST {id} or {all: true} = Đã xem."""
+    from core.models import db as _xdb
+    _moi_ensure(); _mail_ensure(_xdb)
+    if request.method == 'POST':
+        d = request.get_json(silent=True) or {}
+        if d.get('all'):
+            _xdb.session.execute(text("UPDATE mail_alerts SET seen = TRUE WHERE seen = FALSE"))
+        else:
+            _xdb.session.execute(text("UPDATE mail_alerts SET seen = TRUE WHERE id = :i"), {'i': int(d.get('id') or 0)})
+        _xdb.session.commit()
+    _xdb.session.execute(text("""UPDATE mail_alerts m SET seen = TRUE WHERE seen = FALSE AND kind IN ('new', 'last')
+        AND EXISTS (SELECT 1 FROM bookings b WHERE b.booking_id = m.booking_id)"""))
+    _xdb.session.commit()
+    rows = _xdb.session.execute(text("""SELECT id, at, kind, booking_id, prop, apt, day FROM mail_alerts
+        WHERE seen = FALSE AND at > :t ORDER BY id DESC LIMIT 30"""), {'t': _vn_now() - timedelta(days=3)}).fetchall()
+    today = _vn_now().date()
+    out = []
+    for r in rows:
+        a = {'kind': r[2], 'booking_id': r[3] or '', 'prop': r[4] or '', 'apt': r[5] or '', 'day': r[6]}
+        lines = mail_text(a, today).split('\n')
+        out.append({'id': r[0], 'at': ('' if r[1].date() == today else f'{r[1].day}/{r[1].month} ') + r[1].strftime('%H:%M'),
+                    'kind': r[2], 'bad': r[2] == 'cancel', 'title': lines[0], 'lines': lines[1:]})
+    return jsonify({'success': True, 'alerts': out})
+
+
+MAIL_SCRIPT = '''// Hotel Pro — báo thư đặt phòng Booking.com lên app. Dán toàn bộ vào script.google.com, chọn hàm "caiDat" rồi bấm Chạy 1 lần.
+var HOOK = '__HOOK__';
+
+function kiemTraThuBooking() {
+  var props = PropertiesService.getScriptProperties();
+  var last = Number(props.getProperty('last') || 0) || (Date.now() - 6 * 3600 * 1000);
+  var newest = last;
+  var threads = GmailApp.search('from:booking.com after:' + Math.floor(last / 1000 - 120), 0, 30);
+  threads.forEach(function (t) {
+    t.getMessages().forEach(function (m) {
+      var at = m.getDate().getTime();
+      if (at <= last) return;
+      var r = UrlFetchApp.fetch(HOOK, { method: 'post', contentType: 'application/json', muteHttpExceptions: true,
+        payload: JSON.stringify({ id: m.getId(), subject: m.getSubject(), body: m.getPlainBody().slice(0, 6000) }) });
+      if (r.getResponseCode() === 200 && at > newest) newest = at;
+    });
+  });
+  if (newest > last) props.setProperty('last', String(newest));
+}
+
+function caiDat() {
+  ScriptApp.getProjectTriggers().forEach(function (t) { ScriptApp.deleteTrigger(t); });
+  ScriptApp.newTrigger('kiemTraThuBooking').timeBased().everyMinutes(1).create();
+  kiemTraThuBooking();
+}
+'''
+
+
+@app.route('/api/moi/mail_setup')
+def moi_mail_setup():
+    """📧 setup sheet: the script to paste into Google Apps Script (with this app's private address) + the last mail received."""
+    from core.models import db as _xdb
+    _moi_ensure(); _mail_ensure(_xdb)
+    hook = 'https://' + request.host_url.split('://', 1)[1].rstrip('/') + '/api/mail-hook/' + _mail_token(_xdb)
+    return jsonify({'success': True, 'script': MAIL_SCRIPT.replace('__HOOK__', hook), 'last': _zbot_get(_xdb, 'mail_last'),
+                    'zalo': any(c.get('role') == 'owner' and c.get('on') for c in _staff_chats(_xdb).values())})

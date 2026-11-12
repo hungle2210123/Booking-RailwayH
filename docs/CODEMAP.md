@@ -279,6 +279,17 @@ _p16_staff — 👥 Nhân viên (owner, Nov 6): the cleaners talk to the Zalo bo
 - app_parts/p16_staff.py:788 `moi_staff` ← `/api/moi/staff` GET,POST — 👥 Nhân viên sheet in /moi: waiting requests, who is off today, month list; actions: decide, add (leave/extra),
 - app_parts/p16_staff.py:859 `staff_copy_owner` — Copy of a cleaner's message to the bot + the bot's answer → the owner(s).
 
+## app_parts/p17_mail.py (186 lines)
+_p17_mail — 📧 Booking.com e-mails → the app (owner, Nov 12: "khi nhận được mail thì hệ thống tự cập nhật trên app là đang có_
+- app_parts/p17_mail.py:18 `_mail_ensure`
+- app_parts/p17_mail.py:29 `_mail_token`
+- app_parts/p17_mail.py:38 `mail_parse` — A Booking.com mail → {kind, booking_id, day} or None when it is not about a new / cancelled / changed booking.
+- app_parts/p17_mail.py:66 `_mail_property` — The listing named in the mail → (name, apartment id it is usually placed in) — from the names already in booki
+- app_parts/p17_mail.py:79 `mail_text` — The Zalo message / app line for one alert.
+- app_parts/p17_mail.py:91 `mail_hook` ← `/api/mail-hook/<token>` POST — Called by the owner's Gmail script for every new mail from booking.com: {id, subject, body}.
+- app_parts/p17_mail.py:124 `moi_mail_alerts` ← `/api/moi/mail_alerts` GET,POST — The bar on /moi and /may-tinh: alerts of the last 3 days not marked seen. A NEW booking already in the app (im
+- app_parts/p17_mail.py:180 `moi_mail_setup` ← `/api/moi/mail_setup` — 📧 setup sheet: the script to paste into Google Apps Script (with this app's private address) + the last mail r
+
 ## core/__init__.py (3 lines)
 
 ## core/ai_duplicate_detector.py (255 lines)
@@ -525,6 +536,9 @@ _p16_staff — 👥 Nhân viên (owner, Nov 6): the cleaners talk to the Zalo bo
 - static/js/journey.js: 459 `editTemplate` · 501 `renderMore` · 552 `catButton` · 560 `togglePin` · 584 `askSent` · 617 `setNoChannel` · 626 `drawNoChannel` · 645 `markSent`
 - static/js/journey.js: 655 `setApartment` · 671 `zoom` · 704 `quick` · 720 `renderQuick` · 747 `pickTemplate`
 
+## static/js/mail_alerts.js
+- static/js/mail_alerts.js: 14 `box` · 16 `drawBar` · 29 `drawList` · 39 `load`
+
 ## static/js/photo_import.js
 - static/js/photo_import.js: 14 `css` · 56 `sheet` · 67 `close` · 70 `loadTesseract` · 79 `getWorker` · 86 `prepare` · 103 `fromClipboard` · 122 `booking`
 - static/js/photo_import.js: 154 `form` · 175 `saveShot` · 190 `save` · 210 `phone` · 237 `draw` · 253 `save`
@@ -540,22 +554,22 @@ _p16_staff — 👥 Nhân viên (owner, Nov 6): the cleaners talk to the Zalo bo
 
 # Templates (inline JS functions)
 
-## templates/desk.html (1299 lines)
+## templates/desk.html (1301 lines)
 - templates/desk.html: 305 `load` · 318 `loadRev` · 331 `needRev` · 349 `D.tab` · 350 `D.set` · 351 `D.q` · 352 `D.reload` · 354 `D.shift`
 - templates/desk.html: 360 `D.toToday` · 361 `D.open` · 362 `D.openDay` · 363 `D.close` · 364 `closeDrawer` · 365 `D.closeModal` · 368 `D.place` · 373 `D.room`
 - templates/desk.html: 380 `D.confirm` · 413 `D.zbotResend` · 420 `D.cleanCopy` · 421 `D.cancel` · 427 `D.mark` · 431 `D.status` · 435 `D.dayuse` · 439 `D.unreach`
 - templates/desk.html: 440 `D.replied` · 441 `D.phone` · 448 `D.send` · 449 `D.pickApt` · 450 `D.quick` · 451 `D.photo` · 452 `D.chatPhone` · 453 `D.renameRoom`
 - templates/desk.html: 461 `D.pickG` · 462 `D.auto` · 477 `D.payOpen` · 478 `D.collect` · 487 `D.partial` · 489 `D.undoPay` · 492 `D.payCycle` · 502 `D.edit`
 - templates/desk.html: 504 `D.extN` · 508 `D.splitApt` · 514 `D.extTyped` · 515 `D.editCalc` · 542 `D.editSave` · 577 `D.remind` · 578 `D.remPreset` · 581 `D.remSet`
-- templates/desk.html: 582 `D.remSave` · 589 `D.remDone` · 593 `D.add` · 594 `D.addSave` · 609 `render` · 618 `renderSide` · 639 `renderTop` · 668 `viewToday`
-- templates/desk.html: 727 `dayCard` · 759 `viewDay` · 816 `D.uncancel` · 825 `viewCal` · 945 `renderPick` · 953 `viewMsg` · 993 `viewPay` · 1033 `D.payQuick`
-- templates/desk.html: 1039 `viewRev` · 1110 `D.revMonth` · 1111 `D.revDay` · 1112 `D.goDay` · 1113 `drawRevCharts` · 1136 `renderDrawer` · 1142 `guestCard` · 1202 `dayPanel`
-- templates/desk.html: 1223 `renderModal` · 1284 `D.mset` · 1285 `D.extOpen`
+- templates/desk.html: 582 `D.remSave` · 589 `D.remDone` · 593 `D.add` · 594 `D.addSave` · 609 `render` · 618 `renderSide` · 640 `renderTop` · 669 `viewToday`
+- templates/desk.html: 728 `dayCard` · 760 `viewDay` · 817 `D.uncancel` · 826 `viewCal` · 946 `renderPick` · 954 `viewMsg` · 994 `viewPay` · 1034 `D.payQuick`
+- templates/desk.html: 1040 `viewRev` · 1111 `D.revMonth` · 1112 `D.revDay` · 1113 `D.goDay` · 1114 `drawRevCharts` · 1137 `renderDrawer` · 1143 `guestCard` · 1203 `dayPanel`
+- templates/desk.html: 1224 `renderModal` · 1285 `D.mset` · 1286 `D.extOpen`
 
 ## templates/journey_settings.html (231 lines)
 - templates/journey_settings.html: 79 `load` · 88 `renderButtons` · 141 `options` · 151 `rowHtml` · 165 `render` · 178 `bind` · 210 `shrink`
 
-## templates/moi.html (1260 lines)
+## templates/moi.html (1262 lines)
 - templates/moi.html: 217 `M_staffBadge` · 221 `load` · 300 `M.reload` · 301 `M.tab` · 302 `M.set` · 303 `M.day` · 304 `M.open` · 305 `M.close`
 - templates/moi.html: 306 `M.add` · 307 `M.addSave` · 320 `M.place` · 325 `M.room` · 332 `M.confirm` · 366 `M.cleanLink` · 369 `M.staffLoad` · 371 `M.staffOpen`
 - templates/moi.html: 373 `M.logOpen` · 375 `M.logSet` · 376 `M.staffRe` · 377 `M.calOpen` · 378 `M.stfSet` · 381 `M.st` · 398 `M.cleanSetup` · 400 `M.zbotLoad`
@@ -564,8 +578,8 @@ _p16_staff — 👥 Nhân viên (owner, Nov 6): the cleaners talk to the Zalo bo
 - templates/moi.html: 463 `M.eta` · 464 `M.remPreset` · 467 `M.remSave` · 476 `M.remDone` · 479 `M.etaSave` · 502 `M.phone` · 509 `M.send` · 510 `M.pickApt`
 - templates/moi.html: 511 `M.quick` · 513 `M.photo` · 514 `M.chatPhone` · 521 `M.edit` · 523 `M.extN` · 527 `M.splitApt` · 533 `M.extTyped` · 534 `M.editCalc`
 - templates/moi.html: 562 `M.editSave` · 596 `M.payOpen` · 597 `M.collect` · 605 `M.partial` · 607 `M.undoPay` · 610 `M.payCycle` · 615 `M.pickG` · 616 `M.auto`
-- templates/moi.html: 631 `render` · 640 `renderNav` · 649 `renderFloat` · 665 `viewDay` · 773 `viewCal` · 873 `M.cal` · 877 `msgCard` · 907 `viewMsg`
-- templates/moi.html: 943 `M.aptSheetOpen` · 956 `viewPay` · 998 `renderSheet` · 1245 `S_set` · 1246 `renderSheetPub` · 1247 `S_put`
+- templates/moi.html: 631 `render` · 640 `renderNav` · 649 `renderFloat` · 665 `viewDay` · 774 `viewCal` · 874 `M.cal` · 878 `msgCard` · 908 `viewMsg`
+- templates/moi.html: 944 `M.aptSheetOpen` · 957 `viewPay` · 999 `renderSheet` · 1246 `S_set` · 1247 `renderSheetPub` · 1248 `S_put`
 
 ## templates/quick.html (357 lines)
 - templates/quick.html: 158 `toast` · 163 `go` · 171 `copyNow` · 179 `sendText` · 184 `copyText` · 185 `sendImgs` · 196 `setIn` · 218 `takeOut`
