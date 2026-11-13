@@ -52,7 +52,7 @@ _p01_health_cancellations — health, cancellations centre, OK status, auto-sync
 - app_parts/p02_pages_extension.py:672 `ext_booking_phone` ← `/api/ext/booking/phone` POST — A reservation page now shows the guest phone (the owner clicked Booking's own
 - app_parts/p02_pages_extension.py:754 `_typed_phone` — A number the owner typed / pasted ("0905 123 456", "+33 6 12 34 56 78", "0033…") → '+<digits>' or ''.
 
-## app_parts/p03_messages_journey.py (1361 lines)
+## app_parts/p03_messages_journey.py (1362 lines)
 _p03_messages_journey — phone from chat screenshots, /api/messages/phone, auto messages, AI reply, Booking screenshots, journey, Thu tiền (pay), /tin-nhanh, /messages_
 - app_parts/p03_messages_journey.py:13 `_owner_numbers` — Last 9 digits of every number written in the message templates (the owner's WhatsApp / WeChat / hotline).
 - app_parts/p03_messages_journey.py:25 `parse_chat_shot`
@@ -106,14 +106,14 @@ _p03_messages_journey — phone from chat screenshots, /api/messages/phone, auto
 - app_parts/p03_messages_journey.py:1080 `pay_collect` ← `/api/pay/collect` POST — 💰 the money actually gathered for a booking: added to collected_amount (an undo sends the same amount
 - app_parts/p03_messages_journey.py:1123 `_pay_by_apartment` — [{apt, n, left, max_over, items}] — one block per apartment (unplaced last). Inside: the guest who has owed th
 - app_parts/p03_messages_journey.py:1154 `quick_page` ← `/tin-nhanh` · `/quick`
-- app_parts/p03_messages_journey.py:1219 `_quick_custom` — The owner's own /tin-nhanh groups (owner, Oct 30: "thêm được các mục tùy muốn") — journey_prefs 'quick_groups'
-- app_parts/p03_messages_journey.py:1231 `_quick_groups`
-- app_parts/p03_messages_journey.py:1235 `_quick_extra` — {group key: [template ids]} added by the owner to /tin-nhanh groups (journey_prefs 'quick_extra'), or with
-- app_parts/p03_messages_journey.py:1248 `quick_extra_set` ← `/api/quick/extra` POST — Add / remove a template in one /tin-nhanh group (📌 Hay dùng uses the journey favorites instead).
-- app_parts/p03_messages_journey.py:1275 `_quick_labels` — {template id (str): title shown in Tin nhanh} — journey_prefs 'quick_labels' (🏷 Đổi tên, owner Nov 7).
-- app_parts/p03_messages_journey.py:1286 `quick_label_set` ← `/api/quick/label` POST — 🏷 Đổi tên: {id, label} — the title of that sentence in Tin nhanh; the template's own name (Mẫu Câu) follows.
-- app_parts/p03_messages_journey.py:1311 `quick_group_set` ← `/api/quick/group` POST — The owner's own Tin nhanh groups: {action: 'add', title} · {action: 'rename', key, title} · {action: 'delete',
-- app_parts/p03_messages_journey.py:1351 `quick_manifest` ← `/tin-nhanh.webmanifest`
+- app_parts/p03_messages_journey.py:1220 `_quick_custom` — The owner's own /tin-nhanh groups (owner, Oct 30: "thêm được các mục tùy muốn") — journey_prefs 'quick_groups'
+- app_parts/p03_messages_journey.py:1232 `_quick_groups`
+- app_parts/p03_messages_journey.py:1236 `_quick_extra` — {group key: [template ids]} added by the owner to /tin-nhanh groups (journey_prefs 'quick_extra'), or with
+- app_parts/p03_messages_journey.py:1249 `quick_extra_set` ← `/api/quick/extra` POST — Add / remove a template in one /tin-nhanh group (📌 Hay dùng uses the journey favorites instead).
+- app_parts/p03_messages_journey.py:1276 `_quick_labels` — {template id (str): title shown in Tin nhanh} — journey_prefs 'quick_labels' (🏷 Đổi tên, owner Nov 7).
+- app_parts/p03_messages_journey.py:1287 `quick_label_set` ← `/api/quick/label` POST — 🏷 Đổi tên: {id, label} — the title of that sentence in Tin nhanh; the template's own name (Mẫu Câu) follows.
+- app_parts/p03_messages_journey.py:1312 `quick_group_set` ← `/api/quick/group` POST — The owner's own Tin nhanh groups: {action: 'add', title} · {action: 'rename', key, title} · {action: 'delete',
+- app_parts/p03_messages_journey.py:1352 `quick_manifest` ← `/tin-nhanh.webmanifest`
 
 ## app_parts/p04_bookings_expenses.py (335 lines)
 _p04_bookings_expenses — /bookings list + add/edit/cancel/delete, manual entry, expenses API, save extracted_
@@ -195,7 +195,7 @@ _p12_sync_crawl_duplicates — sync services, crawl admin bookings, bulk save, d
 - app_parts/p13_misc_railway.py:1087 `extract_meter_data_with_openrouter` — Extract electricity meter data using various free models via OpenRouter API
 - app_parts/p13_misc_railway.py:1198 `extract_meter_data_with_multi_api` — Extract electricity meter data using multiple APIs with automatic fallback
 
-## app_parts/p15_moi.py (941 lines)
+## app_parts/p15_moi.py (939 lines)
 _p15_moi — /moi: the new phone-first app (owner, Oct 26), built from the approved mockup. Runs NEXT TO the old pages_
 - app_parts/p15_moi.py:12 `_moi_ensure` — bookings.room_no (room 1..N inside the placed apartment) — added once per process.
 - app_parts/p15_moi.py:37 `_moi_apartments` — Active apartments with short name, colour (index among ALL apartments, like the calendar) and room count.
@@ -228,11 +228,11 @@ _p15_moi — /moi: the new phone-first app (owner, Oct 26), built from the appro
 - app_parts/p15_moi.py:771 `moi_zbot` ← `/api/moi/zbot` GET,POST — Setup sheet in /moi: status · connect (setWebhook) · switch a person on/off · rename · send a test now.
 - app_parts/p15_moi.py:833 `_moi_room_label` — The owner's name for room `no` of this apartment, else "Phòng N".
 - app_parts/p15_moi.py:839 `moi_room_name` ← `/api/moi/room_name` POST — Rename room N of an apartment ({apartment_id, room_no, name}); an empty name goes back to "Phòng N".
-- app_parts/p15_moi.py:875 `_pay_remind_id` — Id of the reminder template — made the first time (the owner edits it in Mẫu Câu afterwards).
-- app_parts/p15_moi.py:887 `_pay_left`
-- app_parts/p15_moi.py:893 `_pay_tien`
-- app_parts/p15_moi.py:897 `pay_remind_step` — ⏰ Nhắc thanh toán as a step of the send sheet (p03 journey_guest) — shown for guests already marked arrived.
-- app_parts/p15_moi.py:912 `moi_pay_msg` ← `/api/moi/pay_msg/<booking_id>` GET,POST — GET → {wa, ask, remind} filled in for this guest. POST {kind} → remember that the message was opened (journey 
+- app_parts/p15_moi.py:873 `_pay_remind_id` — Id of the reminder template — made the first time (the owner edits it in Mẫu Câu afterwards).
+- app_parts/p15_moi.py:885 `_pay_left`
+- app_parts/p15_moi.py:891 `_pay_tien`
+- app_parts/p15_moi.py:895 `pay_remind_step` — ⏰ Nhắc thanh toán as a step of the send sheet (p03 journey_guest) — shown for guests already marked arrived.
+- app_parts/p15_moi.py:910 `moi_pay_msg` ← `/api/moi/pay_msg/<booking_id>` GET,POST — GET → {wa, ask, remind} filled in for this guest. POST {kind} → remember that the message was opened (journey 
 
 ## app_parts/p16_staff.py (870 lines)
 _p16_staff — 👥 Nhân viên (owner, Nov 6): the cleaners talk to the Zalo bot (p15_moi zbot_*) in plain words._

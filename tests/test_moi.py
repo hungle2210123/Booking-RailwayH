@@ -934,3 +934,19 @@ def test_send_sheet_arrived_guest_only_money_messages(app, db, client, booking):
     assert not full['arrived_only'] and 'welcome' in {s['key'] for s in full['steps']}
     with app.app_context():
         db.session.execute(appmod.text("DELETE FROM journey_log WHERE booking_id = :b"), {'b': bid}); db.session.commit()
+
+
+def test_quick_viet_button_in_every_group(client):
+    """Owner, Nov 13: in Tin nhanh the luggage group (and every other one) needs the 🇻🇳 Việt copy like Nhận phòng —
+    it was only shown in the check-in group. Any template with a Vietnamese text gets the button."""
+    import re
+    from core.models import db
+    import app as appmod
+    html = client.get('/tin-nhanh').get_data(as_text=True)
+    on_page = {int(x) for x in re.findall(r'DATA\[(\d+)\]', html)}
+    with appmod.app.app_context():
+        with_vi = {r[0] for r in db.session.execute(appmod.text(
+            "SELECT template_id FROM message_templates WHERE template_id = ANY(:i) AND COALESCE(TRIM(template_content_vi), '') <> ''"),
+            {'i': list(on_page)}).fetchall()}
+    buttons = {int(x) for x in re.findall(r'class="b-vi" data-id="(\d+)"', html)}
+    assert with_vi and with_vi == buttons

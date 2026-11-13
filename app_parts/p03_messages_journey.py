@@ -1204,7 +1204,8 @@ def quick_page():
         by_key[key]['items'].append({
             'id': tid, 'label': labels.get(str(tid)) or label or t['name'], 'name': t['name'], 'kind': kind,
             'text': J.fill(t['content'], {}),
-            'text_vi': J.fill(t['content_vi'], {}, 'vi') if vi and t.get('content_vi') else '',
+            # owner, Nov 13: EVERY group (hành lý, địa chỉ, thanh toán…) has 🇻🇳 Việt when the template has a Vietnamese text
+            'text_vi': J.fill(t['content_vi'], {}, 'vi') if t.get('content_vi') else '',
             'images': [im['url'] for im in imgs.get(tid, [])],
         })
     return render_template('quick.html', groups=groups,
