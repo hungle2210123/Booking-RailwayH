@@ -35,5 +35,17 @@ def test_route_table_complete(app):
     assert len(rules) >= 90
     for must in ('/health', '/moi', '/may-tinh', '/api/moi/data', '/api/messages/phone', '/api/ext/booking/save',
                  '/api/ext/ai_reply', '/api/pay/collect', '/tin-nhanh', '/api/phone_from_chat/parse', '/zalo-bot/hook',
-                 '/don-phong/<token>.txt', '/cal/<token>.ics', '/extension.zip', '/api/journey/compose'):
+                 '/don-phong/<token>.txt', '/cal/<token>.ics', '/extension.zip', '/api/journey/compose', '/dien-ten-sdt.zip'):
         assert must in rules, must
+
+
+def test_dien_ten_sdt_zip(client):
+    """Owner, Nov 13: the Windows tool must be downloadable from the web app; the .ps1 must keep its UTF-8 BOM."""
+    import io, zipfile
+    r = client.get('/dien-ten-sdt.zip')
+    assert r.status_code == 200
+    z = zipfile.ZipFile(io.BytesIO(r.data))
+    names = set(z.namelist())
+    for f in ('dien-ten-sdt.ps1', 'CHAY.bat', 'CAI-DAT.bat', 'cai-dat.ps1', 'README.md'):
+        assert 'DienTenSdt/' + f in names, f
+    assert z.read('DienTenSdt/dien-ten-sdt.ps1')[:3] == b'\xef\xbb\xbf'

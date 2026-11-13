@@ -39,6 +39,24 @@ def extension_zip():
                      download_name=f'hotel_pro_tien_ich_{version or "moi"}.zip')
 
 
+@app.route('/dien-ten-sdt.zip')
+def dien_ten_sdt_zip():
+    """Windows tool "Điền Tên - SĐT" (tools/dien-ten-sdt/) as a zip, so another computer only has to download it (owner,
+    Nov 13). Unzip anywhere → double-click CAI-DAT.bat (makes the Desktop + Start Menu shortcuts and starts it)."""
+    import zipfile
+    base = os.path.join(app.root_path, 'tools', 'dien-ten-sdt')
+    if not os.path.isdir(base):
+        return jsonify({'success': False, 'error': 'Không tìm thấy công cụ trên máy chủ'}), 404
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, 'w', zipfile.ZIP_DEFLATED) as z:
+        for f in sorted(os.listdir(base)):
+            full = os.path.join(base, f)
+            if os.path.isfile(full):
+                z.write(full, os.path.join('DienTenSdt', f))   # raw bytes: the .ps1 keeps its UTF-8 BOM
+    buf.seek(0)
+    return send_file(buf, mimetype='application/zip', as_attachment=True, download_name='DienTenSdt.zip')
+
+
 @app.route('/api/extension/info')
 def extension_info():
     """Version of the extension the server hands out (shown next to the download button)."""

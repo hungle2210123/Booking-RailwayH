@@ -20,6 +20,7 @@ COPY app_parts/ ./app_parts/
 COPY templates/ ./templates/
 COPY static/ ./static/
 COPY chrome_extension/ ./chrome_extension/
+COPY tools/dien-ten-sdt/ ./tools/dien-ten-sdt/
 
 # Set default PORT if not provided (Railway will override this)
 ENV PORT=5000

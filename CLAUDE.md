@@ -51,7 +51,9 @@ https://web-production-8f671.up.railway.app — **push straight to main** ("git 
 - Small always-on-top window: copy a guest info page (Name/Phone), then Alt+1/2/3 = first name / last name / phone, Alt+V = all 3, Alt+C = auto-copy.
 - `dien-ten-sdt.ps1` (PowerShell 5.1 + C# via Add-Type) **must stay UTF-8 WITH BOM**; `CHAY.bat` runs it hidden; `bookmarklet.html` = old fallback.
 - Shortcuts "Dien Ten SDT" (Desktop + Start Menu) run `powershell.exe -NoProfile -STA -ExecutionPolicy Bypass -WindowStyle Hidden -File "<repo>\tools\dien-ten-sdt\dien-ten-sdt.ps1"`, icon shell32.dll,43 — moving the repo breaks them.
-- Compile check after edits: `powershell -NoProfile -ExecutionPolicy Bypass -File tools\dien-ten-sdt\dien-ten-sdt.ps1 -test` (exit 0). Not in the Dockerfile (Windows only).
+- Compile check after edits: `powershell -NoProfile -ExecutionPolicy Bypass -File tools\dien-ten-sdt\dien-ten-sdt.ps1 -test` (exit 0).
+- Download for another PC: `/dien-ten-sdt.zip` (p02, zips the folder; link "Tải tool Điền Tên - SĐT" in /may-tinh sidebar;
+  Dockerfile COPYs `tools/dien-ten-sdt/`). On the new PC: unzip → `CAI-DAT.bat` (→ `cai-dat.ps1`) makes the shortcuts.
 
 ## Data facts
 - PostgreSQL on Railway (production, used for local testing too — `DATABASE_SOURCE=auto`):
