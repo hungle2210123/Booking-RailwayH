@@ -62,7 +62,7 @@
       const all = window.__maMails || [], ms = all.filter((m) => !k || m.kind === k);
       const chip = (v, label) => `<button onclick="MailAlerts.list('${v}')" style="min-height:40px;padding:0 12px;border-radius:12px;font-size:13px;font-weight:800;border:1.5px solid ${k === v ? '#0E1525' : '#E2E5EB'};background:${k === v ? '#0E1525' : '#fff'};color:${k === v ? '#fff' : '#0E1525'}">${label} · ${all.filter((m) => !v || m.kind === v).length}</button>`;
       const COL = { last: '#B45309', new: '#0E1525', cancel: '#B91C1C', change: '#475569', msg: '#1D4ED8' };
-      let h = head('BOOKING.COM · GMAIL · 14 NGÀY', 'Thư Booking hôm đó')
+      let h = head('BOOKING.COM · GMAIL · CHỈ HÔM NAY', 'Thư Booking hôm đó')
         + `<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:12px">${chip('last', '⚡ Phút chót')}${chip('', 'Tất cả')}${chip('new', 'Đặt mới')}${chip('cancel', 'Hủy')}${chip('msg', '💬 Tin khách')}</div>`
         + `<div style="margin-top:8px;font-size:12.5px;color:#64748B">${window.__maLast ? 'Gmail tự kiểm tra mỗi phút · thư gần nhất nhận lúc ' + esc(window.__maLast.at) : 'Chưa nhận được thư nào từ Gmail — bấm ⚙ Cài đặt ở dưới.'}</div>`;
       if (!ms.length) h += '<div style="padding:26px 0;text-align:center;color:#64748B;font-weight:700">Không có thư nào.</div>';

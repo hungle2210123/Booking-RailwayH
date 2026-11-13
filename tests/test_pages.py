@@ -49,3 +49,10 @@ def test_dien_ten_sdt_zip(client):
     for f in ('dien-ten-sdt.ps1', 'CHAY.bat', 'CAI-DAT.bat', 'cai-dat.ps1', 'README.md'):
         assert 'DienTenSdt/' + f in names, f
     assert z.read('DienTenSdt/dien-ten-sdt.ps1')[:3] == b'\xef\xbb\xbf'
+
+
+def test_mail_list_today_only(client):
+    """Owner, Nov 13: the Booking-mail list shows only today's mails; past days are gone."""
+    j = client.get('/api/moi/mail_list').get_json()
+    assert j['success']
+    assert all(m['group'] == 'Hôm nay' for m in j['mails'])

@@ -227,14 +227,17 @@ def mail_hook(token):
 @app.route('/api/moi/mail_list')
 def moi_mail_list():
     """📧 Thư đặt phòng Booking (owner, Nov 12: "một nút để xem các gmail báo đặt phòng phút chót, gồm thời gian đặt phòng và
-    mã đặt phòng"): every booking mail of the last 14 days, newest first, seen or not."""
+    mã đặt phòng"): booking mails of TODAY only, newest first, seen or not (owner, Nov 13: "chỉ hiển thị trong ngày hôm
+    nay, đã qua ngày là phải xoá") — rows older than 3 days are deleted (2 days are kept for the duplicate check)."""
     from core.models import db as _xdb
     _moi_ensure(); _mail_ensure(_xdb)
+    start = _vn_now().replace(hour=0, minute=0, second=0, microsecond=0)
+    _xdb.session.execute(text("DELETE FROM mail_alerts WHERE at < :t"), {'t': start - timedelta(days=3)}); _xdb.session.commit()
     rows = _xdb.session.execute(text("""SELECT m.id, m.at, m.kind, m.booking_id, m.prop, m.apt, m.day, m.seen,
                EXISTS (SELECT 1 FROM bookings b WHERE b.booking_id = m.booking_id)
                , m.guest, m.body, m.co
         FROM mail_alerts m WHERE m.at > :t AND (m.day IS NULL OR m.day = m.at::date)      -- only same-day arrivals (owner)
-        ORDER BY m.at DESC LIMIT 200"""), {'t': _vn_now() - timedelta(days=14)}).fetchall()
+        ORDER BY m.at DESC LIMIT 200"""), {'t': start}).fetchall()
     today = _vn_now().date()
     lab = lambda d: 'Hôm nay' if d == today else 'Hôm qua' if d == today - timedelta(days=1) else f'{MOI_WEEKDAY[d.weekday()].capitalize()} {d.day}/{d.month}'
     out = []
@@ -266,7 +269,7 @@ def moi_mail_alerts():
         AND EXISTS (SELECT 1 FROM bookings b WHERE b.booking_id = m.booking_id)"""))
     _xdb.session.commit()
     rows = _xdb.session.execute(text("""SELECT id, at, kind, booking_id, prop, apt, day FROM mail_alerts
-        WHERE seen = FALSE AND kind <> 'msg' AND at > :t ORDER BY id DESC LIMIT 30"""), {'t': _vn_now() - timedelta(days=3)}).fetchall()
+        WHERE seen = FALSE AND kind <> 'msg' AND at > :t ORDER BY id DESC LIMIT 30"""), {'t': _vn_now().replace(hour=0, minute=0, second=0, microsecond=0)})   # today only (owner, Nov 13).fetchall()
     today = _vn_now().date()
     out = []
     for r in rows:
