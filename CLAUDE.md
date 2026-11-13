@@ -43,7 +43,9 @@ https://web-production-8f671.up.railway.app — **push straight to main** ("git 
 ## Backup
 - `python tools/backup.py` → `OneDrive\HotelPro-Backup\hotelpro-<date>.zip`: git bundle (whole history, restore without
   GitHub) + app settings from the DB (templates EN/VI + pictures, journey map/prefs, apartments, rooms) + Claude memory +
-  KHOI-PHUC.txt. No .env / bot tokens / old bookings (owner: code & features matter, old data does not). Keeps 10.
+  KHOI-PHUC.txt. No .env / bot tokens / old bookings (owner: code & features matter, old data does not). Keeps 12.
+  WEEKLY by Windows Task Scheduler task "HotelPro Backup" (Sunday 21:00, runs later if the PC was off), log
+  `OneDrive\HotelPro-Backupackup-log.txt`.
 
 ## Data facts
 - PostgreSQL on Railway (production, used for local testing too — `DATABASE_SOURCE=auto`):

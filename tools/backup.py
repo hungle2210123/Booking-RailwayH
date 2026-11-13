@@ -7,7 +7,7 @@ Each run writes ONE file  OneDrive\\HotelPro-Backup\\hotelpro-YYYY-MM-DD.zip  co
   · claude-memory/   — Claude's memory notes about this project (rules the owner gave)
   · KHOI-PHUC.txt    — how to restore
 NOT included on purpose: .env and the bot tokens (moi_settings) — secrets stay out of the cloud; old bookings / guests (owner:
-not needed). Keeps the newest 10 zips. Usage:  python tools/backup.py   (--dest <folder> to write elsewhere, e.g. a USB drive)
+not needed). Keeps the newest 12 zips (weekly task 'HotelPro Backup', Sunday 21:00). Usage:  python tools/backup.py   (--dest <folder> to write elsewhere, e.g. a USB drive)
 """
 import base64
 import datetime as dt
@@ -21,7 +21,7 @@ import zipfile
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 MEMORY = pathlib.Path.home() / '.claude' / 'projects' / 'C--Users-T14-Desktop-hotel-flask-app-hotel-flask-app-optimized' / 'memory'
-KEEP = 10          # ~80 MB each → under 1 GB of the free 5 GB OneDrive
+KEEP = 12          # weekly (owner, Nov 13) → ~3 months, ~1 GB of the free 5 GB OneDrive
 TABLES = ['message_templates', 'template_images', 'journey_map', 'journey_prefs', 'apartments', 'rooms', 'moi_room_names']
 
 RESTORE = """KHÔI PHỤC HOTEL PRO TỪ FILE NÀY
@@ -104,7 +104,19 @@ def run(dest=None):
 
 
 if __name__ == '__main__':
+    # run weekly by Windows Task Scheduler (pythonw, no window) → every result is also written to backup-log.txt
     d = sys.argv[sys.argv.index('--dest') + 1] if '--dest' in sys.argv else None
-    path, counts = run(d)
-    print(f'OK  {path}  ({path.stat().st_size / 1e6:.1f} MB)')
-    print('   ', ', '.join(f'{k} {v}' for k, v in counts.items()))
+    log = (pathlib.Path(d) if d else _default_dest()) / 'backup-log.txt'
+    try:
+        path, counts = run(d)
+        line = (f'{dt.datetime.now():%Y-%m-%d %H:%M}  OK  {path.name}  {path.stat().st_size / 1e6:.1f} MB  '
+                + ', '.join(f'{k} {v}' for k, v in counts.items()))
+    except Exception as e:      # noqa: BLE001 — the log must say why
+        line = f'{dt.datetime.now():%Y-%m-%d %H:%M}  LỖI  {e}'
+    old = log.read_text(encoding='utf-8').splitlines()[-200:] if log.exists() else []
+    log.parent.mkdir(parents=True, exist_ok=True)
+    log.write_text(os.linesep.join(old + [line]) + os.linesep, encoding='utf-8')
+    try:
+        print(line)
+    except Exception:           # pythonw has no console
+        pass
