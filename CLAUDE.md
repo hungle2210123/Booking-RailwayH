@@ -40,6 +40,11 @@ https://web-production-8f671.up.railway.app — **push straight to main** ("git 
 - UI changes: check at 375px (owner's iPhone) with the browser preview. Never leave test data or temp files in `static/`.
 - Writing Python edit scripts: put them in the scratchpad and run them (heredocs with quotes break in this shell).
 
+## Backup
+- `python tools/backup.py` → `OneDrive\HotelPro-Backup\hotelpro-<date>.zip`: git bundle (whole history, restore without
+  GitHub) + app settings from the DB (templates EN/VI + pictures, journey map/prefs, apartments, rooms) + Claude memory +
+  KHOI-PHUC.txt. No .env / bot tokens / old bookings (owner: code & features matter, old data does not). Keeps 10.
+
 ## Data facts
 - PostgreSQL on Railway (production, used for local testing too — `DATABASE_SOURCE=auto`):
   the URL is `RAILWAY_DATABASE_URL` in the local `.env` (git-ignored — never commit or paste it; Railway's own `DATABASE_URL`
