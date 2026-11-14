@@ -950,3 +950,37 @@ def test_quick_viet_button_in_every_group(client):
             {'i': list(on_page)}).fetchall()}
     buttons = {int(x) for x in re.findall(r'class="b-vi" data-id="(\d+)"', html)}
     assert with_vi and with_vi == buttons
+
+
+@pytest.mark.db_write
+def test_clean_changes_extension_tells_cleaner(app_module, db, monkeypatch):
+    """Owner, Nov 14: a guest leaving today was extended 2 nights in the app → the cleaner must be told at once that the
+    room no longer needs cleaning. Nothing is really sent: _clean_send is replaced; the real 'clean_sent' row is restored."""
+    from datetime import datetime
+    from sqlalchemy import text
+    A = app_module
+    now = datetime(2026, 11, 14, 10, 0)
+    a = {'id': 1, 'name': '118 Hang Bac Hostel', 'rooms': 4}
+    state = {'rooms': [{'key': '1:3', 'apt': 1, 'no': 3, 'label': 'Hàng Bạc 201', 'prio': False, 'done': None}]}
+    monkeypatch.setattr(A, 'clean_rooms', lambda _x, _d: (state['rooms'], {'done': {}, 'prio': []}, [a]))
+    monkeypatch.setattr(A, '_clean_gone_why', lambda *_: 'khách ở thêm đến 16/11')
+    monkeypatch.setattr(A, 'staff_off_on', lambda *_: set())
+    monkeypatch.setattr(A, '_staff_people', lambda _x: {'c1': {'role': 'staff', 'apts': [1], 'name': 'Co Test'}})
+    sent = []
+    monkeypatch.setattr(A, '_clean_send', lambda _x, _d, make, note: sent.append((make({'role': 'staff', 'apts': [1]}), note())) or 1)
+    old = db.session.execute(text("SELECT value FROM moi_settings WHERE key = 'clean_sent'")).scalar()
+    try:
+        A.clean_sent_save(db, now.date())                       # 8:00: she was told Hàng Bạc 201
+        assert A.clean_changes(db, now) is False                # nothing changed → nothing sent
+        state['rooms'] = []                                     # owner taps ➕ Gia hạn → the room leaves today's list
+        assert A.clean_changes(db, now) is True
+        msg, note = sent[-1]
+        assert 'KHÔNG cần dọn' in msg and '3. Hàng Bạc' in msg and '16/11' in msg
+        assert 'Hàng Bạc' in note and '16/11' in note
+        assert A.clean_changes(db, now) is False                # told once only
+    finally:
+        if old is None:
+            db.session.execute(text("DELETE FROM moi_settings WHERE key = 'clean_sent'"))
+        else:
+            db.session.execute(text("UPDATE moi_settings SET value = :v WHERE key = 'clean_sent'"), {'v': old})
+        db.session.commit()

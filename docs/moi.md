@@ -215,6 +215,11 @@ Owner: the cleaners' phones are slow → no link / page; they answer the bot wit
 - `clean_ask` (from `zbot_tick`): 12:30 "dọn tới đâu rồi" + 13:00 and 13:30 reminders, each once (`zbot_ask`), each
   cleaner only her open rooms. /moi → Việc hằng ngày shows "Dọn xong hôm nay n/m" grouped by cleaner (`clean_board`);
   tapping a row toggles it (`/api/moi/zbot` action `clean_done`).
+- Changes after 8:00 (owner, Nov 14 — a guest leaving today was extended, the cleaner was never told): the 8:00 send saves
+  `clean_sent` {day, keys}; right after a save in the app (`CLEAN_WATCH_PATHS`: stay / room / split / dayuse /
+  set_checkin_status / photo + extension save → `_clean_after_booking_change`) `clean_changes` compares the live list and
+  tells the cleaner of that side "❌ KHÔNG cần dọn nữa: n. … — khách ở thêm đến dd/mm" or "➕ THÊM phòng cần dọn", the owner
+  one line. No timer. Compare-and-swap on the row = told once. A room already marked cleaned is not announced.
 - ⚡ Dọn sớm: the owner picks a room in that list (`clean_prio`) → saved in `clean_state.prio`, the bot tells the cleaner of
   that room at once. No automatic "khách vào hôm nay" (owner: the app cannot know).
 

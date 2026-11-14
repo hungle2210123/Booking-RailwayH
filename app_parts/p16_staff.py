@@ -697,6 +697,104 @@ def clean_ask(_xdb, now):
     return _clean_send(_xdb, day, make, lambda: f'⏰ {slot[:2]}:{slot[2:]} — bot đã nhắc các cô.\n' + clean_status(_xdb, day)) > 0
 
 
+# ── Changes after the 8:00 message (owner, Nov 14: a Hàng Bạc guest leaving today asked for 2 more nights, the owner
+#    extended the booking in the app, but the cleaner was never told the room no longer needs cleaning).
+#    'clean_sent' = {day, keys}: the rooms the cleaners were told today. After every save in the app (_clean_after_save)
+#    the live list is compared with it; a room gone (extended / cancelled / moved) or added → the cleaner of that side is told at once
+#    with HER number, the owner gets one short line. Compare-and-swap on the row → several workers never send twice.
+def clean_sent_save(_xdb, day, keys=None):
+    if keys is None:
+        keys = [x['key'] for x in clean_rooms(_xdb, day)[0]]
+    _zbot_put(_xdb, 'clean_sent', {'day': day.isoformat(), 'keys': sorted(keys)})
+
+
+def _clean_gone_why(_xdb, day, apt, no):
+    """Why a room left today's list: the guest of that room now stays past today → 'khách ở thêm đến 16/11'."""
+    r = _xdb.session.execute(text("""
+        SELECT checkout_date FROM bookings WHERE actual_apartment = :a AND room_no = :n
+          AND COALESCE(booking_status, '') NOT IN ('cancelled', 'deleted') AND COALESCE(checkin_status, '') <> 'cancelling'
+          AND checkin_date <= :d AND checkout_date > :d ORDER BY checkout_date DESC LIMIT 1"""),
+        {'a': str(apt), 'n': no, 'd': day}).fetchone()
+    return f'khách ở thêm đến {r[0].day}/{r[0].month}' if r else 'khách hủy / đổi phòng'
+
+
+def clean_changes(_xdb, now):
+    """Tell the cleaners about rooms removed from / added to today's list since the 8:00 message. True = something sent."""
+    day = now.date()
+    raw = _xdb.session.execute(text("SELECT value FROM moi_settings WHERE key = 'clean_sent'")).scalar()
+    try:
+        sent = json.loads(raw) if raw else None
+    except ValueError:
+        sent = None
+    if not sent or sent.get('day') != day.isoformat():
+        return False                    # today's message not sent yet → it will carry the current list anyway
+    got = clean_rooms(_xdb, day)
+    items, _, apts = got
+    now_keys, old = {x['key'] for x in items}, set(sent.get('keys') or [])
+    gone, new = old - now_keys, now_keys - old
+    if not gone and not new:
+        return False
+    nxt = json.dumps({'day': day.isoformat(), 'keys': sorted(now_keys)}, ensure_ascii=False)
+    won = _xdb.session.execute(text("UPDATE moi_settings SET value = :n WHERE key = 'clean_sent' AND value = :o RETURNING key"),
+                               {'n': nxt, 'o': raw}).fetchone()
+    _xdb.session.commit()
+    if not won:
+        return False                    # another worker already told them
+    st = got[1]
+    by_key = {f"{a['id']}:{no}": (a, no) for a in apts for no in range(1, a['rooms'] + 1)}
+    gone_rows = []
+    for k in sorted(gone):
+        if k in by_key and not st['done'].get(k):   # already cleaned → nothing to undo for her
+            a, no = by_key[k]
+            gone_rows.append({'key': k, 'apt': a['id'], 'label': clean_label(a, no), 'why': _clean_gone_why(_xdb, day, a['id'], no)})
+    new_rows = [x for x in items if x['key'] in new]
+    if not gone_rows and not new_rows:
+        return False
+    people = _staff_people(_xdb)
+    off = staff_off_on(_xdb, day)
+    covered = {i for cid, c in people.items() if cid not in off for i in clean_side(c)}
+
+    def mine(c, apt):
+        side = clean_side(c)
+        return apt in side or apt not in covered
+
+    def make(c):
+        if not clean_side(c):
+            return ''
+        nums = clean_nums(apts, c)
+        lines = [f"❌ KHÔNG cần dọn nữa: {nums.get(x['key'], '')}. {x['label']} — {x['why']}." for x in gone_rows if mine(c, x['apt'])]
+        lines += [f"➕ THÊM phòng cần dọn: {nums.get(x['key'], '')}. {x['label']} — xong nhắn số {nums.get(x['key'], '')}."
+                  for x in new_rows if mine(c, x['apt'])]
+        if not lines:
+            return ''
+        left = [x for x in clean_view(_xdb, day, c, got) if not x['done']]
+        return ('🔄 Đổi lịch dọn hôm nay:\n' + '\n'.join(lines)
+                + ('\n\nCòn lại:\n' + clean_lines(left) if left else '\n\nHôm nay không còn phòng nào cần dọn.'))
+
+    def note():
+        return ('🔄 Đã báo các cô đổi lịch dọn:\n'
+                + '\n'.join([f"❌ {x['label']} — {x['why']}" for x in gone_rows] + [f"➕ {x['label']}" for x in new_rows]))
+    return _clean_send(_xdb, day, make, note) > 0
+
+
+# owner, Nov 14: "bấm gia hạn thêm thì hệ thống cũng phải tự báo lại" — no timer: right after the owner saves a change
+# to a booking (gia hạn / đổi ngày / đổi phòng / báo hủy / đã đến …) the list is compared and the cleaner is told.
+CLEAN_WATCH_PATHS = {'/api/moi/stay', '/api/moi/room', '/api/moi/split', '/api/moi/dayuse', '/api/set_actual_apartment',
+                     '/api/set_checkin_status', '/api/booking_from_photo/save', '/api/ext/booking/save'}
+
+
+@app.after_request
+def _clean_after_booking_change(resp):
+    if request.method == 'POST' and resp.status_code < 400 and request.path in CLEAN_WATCH_PATHS:
+        from core.models import db as _xdb
+        try:
+            clean_changes(_xdb, _vn_now())
+        except Exception as e:
+            _xdb.session.rollback()
+            print(f'⚠️ clean changes: {e}')
+    return resp
+
+
 def staff_handle_text(_xdb, cid, chat, msg):
     """A message to the bot from a cleaner or the owner. Returns the reply text ('' = none)."""
     _staff_ensure(_xdb)

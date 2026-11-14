@@ -672,6 +672,8 @@ def _zbot_send_clean(_xdb, day=None, only=None, prefix=''):
         for o in live:
             if o not in girls:
                 _zbot_call('sendMessage', {'chat_id': o, 'text': note[:1990]})
+    if day == (datetime.utcnow() + timedelta(hours=7)).date() and any(ok for _n, ok, _e in out):
+        clean_sent_save(_xdb, day)      # p16: what the cleaners were told → later changes (gia hạn, hủy) are sent to them
     _zbot_put(_xdb, 'zbot_last', {'at': (datetime.utcnow() + timedelta(hours=7)).strftime('%d/%m %H:%M'),
                                   'sent': [{'name': n, 'ok': ok, 'err': e} for n, ok, e in out]})
     return out
