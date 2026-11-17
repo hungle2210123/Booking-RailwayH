@@ -1059,7 +1059,14 @@
     const headRow = g.head.closest('tr, [role="row"]');
     const col = headRow ? gCells(headRow).indexOf(g.head) : -1;
     const out = [], seen = new Set();
-    g.tbl.querySelectorAll('tr, [role="row"]').forEach(row => {
+    // 1.34 (owner 17/11/2026, 19 Thọ Nhuộm overview "đơ"): the header and the rows can be two separate tables (sticky
+    // header + scrolling body) → look for the rows in the smallest box around the header table that has a row
+    // starting with a property ID.
+    const hasIdRow = el => [...el.querySelectorAll('tr, [role="row"]')].some(r => r !== headRow &&
+      /^\s*\d{5,10}\b/.test(rawText(gCells(r)[0] || r)));
+    let box = g.tbl;
+    for (let k = 0; k < 6 && box.parentElement && !hasIdRow(box); k++) box = box.parentElement;
+    box.querySelectorAll('tr, [role="row"]').forEach(row => {
       if (row === headRow) return;
       const cells = gCells(row);
       if (cells.length < 2) return;
@@ -1329,11 +1336,20 @@
     if (!chrome.runtime?.id || runGet() || resId()) return;
     const { hpAutoRunUntil } = await chrome.storage.local.get('hpAutoRunUntil');
     if (!hpAutoRunUntil || Date.now() > hpAutoRunUntil) return;
+    // 1.34: being on the overview counts as "tried" → a property home reached later never bounces back (was a loop)
+    if (/\/groups\//.test(location.pathname)) { try { sessionStorage.setItem('hp_tried_group', '1'); } catch (e) {} }
     for (let t = 0; t < 40; t++) {                 // the home page draws the "Khách đến" list after loading
       let gp = groupProps();                       // several properties (owner's account) → overview table
       if (gp && gp.length) {
         await wait(2500);                          // the counts can arrive after the rows → read again when settled
         gp = groupProps() || gp;
+        // ONE property (owner, Nov 17: 19 Thọ Nhuộm) → straight to its own home page, which checks "Khách đến · Hôm
+        // nay" itself (the overview's 48-hour count is not needed); hpAutoRunUntil stays set for that page
+        if (gp.length === 1) {
+          try { sessionStorage.setItem('hp_prop_name', gp[0].name); } catch (e) {}
+          location.href = gp[0].url;
+          return;
+        }
         await chrome.storage.local.remove('hpAutoRunUntil');
         const pick = groupPick(gp);
         if (!pick.length) {
@@ -1355,7 +1371,9 @@
       if (a && (a.items.length || (a.n === 0 && t >= 2))) {
         await chrome.storage.local.remove('hpAutoRunUntil');
         const hid = new URL(location.href).searchParams.get('hotel_id') || '';
-        const name = (rawText(document.querySelector('h1, h2')) || '').split('\n')[0].trim().slice(0, 60) || ('căn ' + hid);
+        let name = '';
+        try { name = sessionStorage.getItem('hp_prop_name') || ''; } catch (e) {}
+        name = (name || rawText(document.querySelector('h1, h2')) || '').split('\n')[0].trim().slice(0, 60) || ('căn ' + hid);
         if (!a.items.length) {
           toast('Hôm nay không có khách đến.', 'ok', 15000);
           api('/api/ext/morning', { stage: 'start', note: `${name}: hôm nay không có khách đến — không phải làm gì.`, account: await hpAccount() }).catch(() => {});
@@ -1364,7 +1382,7 @@
         startGroup([{ id: hid, name, n: a.items.length, url: location.href }], true);   // same path: Zalo start / done
         return;
       }
-      // the overview address did not work (error page) → back to the normal home page once
+      // the overview could not be read (error page / unknown layout) → the normal home page, once (never back here)
       if (t === 14 && /\/groups\//.test(location.pathname)) { location.href = 'https://admin.booking.com/'; return; }
       await wait(1500);
     }
