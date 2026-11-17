@@ -1,0 +1,13 @@
+#!/bin/sh
+# Hotel Pro (owner, 17/11/2026: "mỗi khi cập nhật sửa chữa gì đó cũng phải tự động sao lưu, đồng bộ theo luôn").
+# After EVERY commit on this computer (enabled by: git config core.hooksPath .githooks):
+#   1) code backup → OneDrive\HotelPro-Backup\code-moi-nhat.bundle (tools/backup.py --code, log in backup-log.txt)
+#   2) on main: push to GitHub 20 s later (→ Railway redeploys → other computers' hourly updater picks up the tools).
+#      The delay lets a `git commit && git push` typed by hand / by Claude finish first; then this push is a no-op.
+# Both run in the background, so the commit itself is not slowed down. Never fails the commit.
+root=$(git rev-parse --show-toplevel)
+( python "$root/tools/backup.py" --code >/dev/null 2>&1 & )
+if [ "$(git rev-parse --abbrev-ref HEAD)" = "main" ]; then
+  ( sleep 20; git -C "$root" push -q origin main >/dev/null 2>&1 & ) &
+fi
+exit 0

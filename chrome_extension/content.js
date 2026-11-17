@@ -1165,6 +1165,7 @@
   async function groupStep() {
     const g = groupGet();
     if (!g || runGet() || resId()) return;
+    chrome.storage.local.set({ hpRunBusy: Date.now() }).catch(() => {});
     const p = g.props[g.i];
     if (!p) { stopGroup('✅ Xong.'); return; }
     if (p.started) {                                // its guests are done (finishRun brought us back here)
@@ -1258,6 +1259,7 @@
   async function runStep() {
     const q = runGet();
     if (!q) return;
+    chrome.storage.local.set({ hpRunBusy: Date.now() }).catch(() => {});   // 1.29: no self-reload in the middle of a run
     const it = q.items[q.i];
     if (!it) { finishRun('✅ Xong.'); return; }
     refreshRunBtn();

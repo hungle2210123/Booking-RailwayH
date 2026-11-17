@@ -20,40 +20,44 @@ Routes are listed as `← /path METHODS`. Line numbers are 1-based. Templates li
 _p01_health_cancellations — health, cancellations centre, OK status, auto-sync, debug routes_
 - app_parts/p01_health_cancellations.py:5 `healthcheck` ← `/health` — Railway healthcheck endpoint - returns 200 OK without database access
 
-## app_parts/p02_pages_extension.py (813 lines)
+## app_parts/p02_pages_extension.py (870 lines)
 - app_parts/p02_pages_extension.py:6 `index` ← `/` — Opening the app: computer → /may-tinh, phone → /moi. The old pages were removed (owner, Nov 11: "xóa toàn bộ
 - app_parts/p02_pages_extension.py:20 `extension_zip` ← `/extension.zip` — The Chrome extension as a zip, built from chrome_extension/ at request time (owner, Oct 30: download it from t
-- app_parts/p02_pages_extension.py:43 `tu_dong_dang_nhap_userscript` ← `/tu-dong-dang-nhap.user.js` — The owner's Tampermonkey re-login script (tools/tu-dong-dang-nhap/, owner Nov 17: "cài lại rất nhiều thứ"):
-- app_parts/p02_pages_extension.py:54 `dien_ten_sdt_zip` ← `/dien-ten-sdt.zip` — Windows tool "Điền Tên - SĐT" (tools/dien-ten-sdt/) as a zip, so another computer only has to download it (own
-- app_parts/p02_pages_extension.py:72 `extension_info` ← `/api/extension/info` — Version of the extension the server hands out (shown next to the download button).
-- app_parts/p02_pages_extension.py:83 `api_dashboard_overview` ← `/api/dashboard/overview` — ?month=YYYY-MM (default: current month, Vietnam time).
-- app_parts/p02_pages_extension.py:138 `_ext_auth_error` — Optional shared secret: set EXTENSION_TOKEN on the server and in the extension options.
-- app_parts/p02_pages_extension.py:146 `_ext_existing`
-- app_parts/p02_pages_extension.py:172 `ext_ping` ← `/api/ext/ping`
-- app_parts/p02_pages_extension.py:180 `ext_login_needed` ← `/api/ext/login_needed` POST — The 7:00 run found Booking's sign-in page (owner, 17/11/2026) → the Zalo bot tells the owner(s) to sign in on
-- app_parts/p02_pages_extension.py:196 `_ext_fields` — Normalise fields coming from the extension.
-- app_parts/p02_pages_extension.py:228 `_ext_diff` — Booking-fact changes (column → value) + readable list. Never touches what the app manages.
-- app_parts/p02_pages_extension.py:258 `_ensure_property_column`
-- app_parts/p02_pages_extension.py:274 `_property_for` — Learn / recall the listing name of a Booking property id.
-- app_parts/p02_pages_extension.py:288 `_set_property`
-- app_parts/p02_pages_extension.py:304 `_provisional_id`
-- app_parts/p02_pages_extension.py:309 `_provisional_match` — The one provisional booking for the same stay (dates, and price ±1,000đ or same guest name), else None.
-- app_parts/p02_pages_extension.py:329 `_rename_booking` — Give a booking its real number everywhere it is referenced (one transaction).
-- app_parts/p02_pages_extension.py:350 `_room_ids` — Booking ids for the rooms of one reservation: the 1st room keeps the number, the others get -2, -3 …
-- app_parts/p02_pages_extension.py:355 `_ext_save_rooms` — A reservation of several rooms (owner, Oct 21): every room is its own booking on the web — <id> for room 1,
-- app_parts/p02_pages_extension.py:402 `_ext_save_one` — Create or update one booking (+ its Booking listing name). Returns (result dict, http status).
-- app_parts/p02_pages_extension.py:427 `_ext_save_one_core` — Create or update one booking. Returns (result dict, http status).
-- app_parts/p02_pages_extension.py:513 `_ext_known_listings`
-- app_parts/p02_pages_extension.py:519 `_ext_listings`
-- app_parts/p02_pages_extension.py:529 `ext_booking_parse` ← `/api/ext/booking/parse` POST — Turn a captured page into fields + what is already in the system.
-- app_parts/p02_pages_extension.py:580 `ext_booking_save` ← `/api/ext/booking/save` POST — Save one booking checked by the user in the extension panel.
-- app_parts/p02_pages_extension.py:601 `ext_booking_save_many` ← `/api/ext/booking/save_many` POST — Save the rows ticked on the reservation list page — each one independently.
-- app_parts/p02_pages_extension.py:623 `booking_from_photo_parse` ← `/api/booking_from_photo/parse` POST — /messages "📷 Thêm từ ảnh": text OCR'd on the phone from Booking app screenshots → fields to check.
-- app_parts/p02_pages_extension.py:667 `_name_starts` — Every word OCR'd from the app ("Maheshwaran S") starts a word of the web name ("Maheshwaran Subramanian in").
-- app_parts/p02_pages_extension.py:676 `_photo_booking_by_name` — The one not-yet-finished booking whose guest has this name (any case / accents / word order), else None.
-- app_parts/p02_pages_extension.py:695 `booking_from_photo_save` ← `/api/booking_from_photo/save` POST — Save the checked fields — same rules as the Chrome extension (only Booking facts; collected money,
-- app_parts/p02_pages_extension.py:718 `ext_booking_phone` ← `/api/ext/booking/phone` POST — A reservation page now shows the guest phone (the owner clicked Booking's own
-- app_parts/p02_pages_extension.py:800 `_typed_phone` — A number the owner typed / pasted ("0905 123 456", "+33 6 12 34 56 78", "0033…") → '+<digits>' or ''.
+- app_parts/p02_pages_extension.py:50 `_tool_files` — [(full path, path inside HotelPro/)] of every file of the bundle, sorted (same order → same version).
+- app_parts/p02_pages_extension.py:63 `_tools_version`
+- app_parts/p02_pages_extension.py:74 `tools_version` ← `/api/tools/version` — Version of the computer tool bundle — the hourly updater on each PC downloads /bo-cong-cu.zip when it changes.
+- app_parts/p02_pages_extension.py:80 `bo_cong_cu_zip` ← `/bo-cong-cu.zip`
+- app_parts/p02_pages_extension.py:100 `tu_dong_dang_nhap_userscript` ← `/tu-dong-dang-nhap.user.js` — The owner's Tampermonkey re-login script (tools/tu-dong-dang-nhap/, owner Nov 17: "cài lại rất nhiều thứ"):
+- app_parts/p02_pages_extension.py:111 `dien_ten_sdt_zip` ← `/dien-ten-sdt.zip` — Windows tool "Điền Tên - SĐT" (tools/dien-ten-sdt/) as a zip, so another computer only has to download it (own
+- app_parts/p02_pages_extension.py:129 `extension_info` ← `/api/extension/info` — Version of the extension the server hands out (shown next to the download button).
+- app_parts/p02_pages_extension.py:140 `api_dashboard_overview` ← `/api/dashboard/overview` — ?month=YYYY-MM (default: current month, Vietnam time).
+- app_parts/p02_pages_extension.py:195 `_ext_auth_error` — Optional shared secret: set EXTENSION_TOKEN on the server and in the extension options.
+- app_parts/p02_pages_extension.py:203 `_ext_existing`
+- app_parts/p02_pages_extension.py:229 `ext_ping` ← `/api/ext/ping`
+- app_parts/p02_pages_extension.py:237 `ext_login_needed` ← `/api/ext/login_needed` POST — The 7:00 run found Booking's sign-in page (owner, 17/11/2026) → the Zalo bot tells the owner(s) to sign in on
+- app_parts/p02_pages_extension.py:253 `_ext_fields` — Normalise fields coming from the extension.
+- app_parts/p02_pages_extension.py:285 `_ext_diff` — Booking-fact changes (column → value) + readable list. Never touches what the app manages.
+- app_parts/p02_pages_extension.py:315 `_ensure_property_column`
+- app_parts/p02_pages_extension.py:331 `_property_for` — Learn / recall the listing name of a Booking property id.
+- app_parts/p02_pages_extension.py:345 `_set_property`
+- app_parts/p02_pages_extension.py:361 `_provisional_id`
+- app_parts/p02_pages_extension.py:366 `_provisional_match` — The one provisional booking for the same stay (dates, and price ±1,000đ or same guest name), else None.
+- app_parts/p02_pages_extension.py:386 `_rename_booking` — Give a booking its real number everywhere it is referenced (one transaction).
+- app_parts/p02_pages_extension.py:407 `_room_ids` — Booking ids for the rooms of one reservation: the 1st room keeps the number, the others get -2, -3 …
+- app_parts/p02_pages_extension.py:412 `_ext_save_rooms` — A reservation of several rooms (owner, Oct 21): every room is its own booking on the web — <id> for room 1,
+- app_parts/p02_pages_extension.py:459 `_ext_save_one` — Create or update one booking (+ its Booking listing name). Returns (result dict, http status).
+- app_parts/p02_pages_extension.py:484 `_ext_save_one_core` — Create or update one booking. Returns (result dict, http status).
+- app_parts/p02_pages_extension.py:570 `_ext_known_listings`
+- app_parts/p02_pages_extension.py:576 `_ext_listings`
+- app_parts/p02_pages_extension.py:586 `ext_booking_parse` ← `/api/ext/booking/parse` POST — Turn a captured page into fields + what is already in the system.
+- app_parts/p02_pages_extension.py:637 `ext_booking_save` ← `/api/ext/booking/save` POST — Save one booking checked by the user in the extension panel.
+- app_parts/p02_pages_extension.py:658 `ext_booking_save_many` ← `/api/ext/booking/save_many` POST — Save the rows ticked on the reservation list page — each one independently.
+- app_parts/p02_pages_extension.py:680 `booking_from_photo_parse` ← `/api/booking_from_photo/parse` POST — /messages "📷 Thêm từ ảnh": text OCR'd on the phone from Booking app screenshots → fields to check.
+- app_parts/p02_pages_extension.py:724 `_name_starts` — Every word OCR'd from the app ("Maheshwaran S") starts a word of the web name ("Maheshwaran Subramanian in").
+- app_parts/p02_pages_extension.py:733 `_photo_booking_by_name` — The one not-yet-finished booking whose guest has this name (any case / accents / word order), else None.
+- app_parts/p02_pages_extension.py:752 `booking_from_photo_save` ← `/api/booking_from_photo/save` POST — Save the checked fields — same rules as the Chrome extension (only Booking facts; collected money,
+- app_parts/p02_pages_extension.py:775 `ext_booking_phone` ← `/api/ext/booking/phone` POST — A reservation page now shows the guest phone (the owner clicked Booking's own
+- app_parts/p02_pages_extension.py:857 `_typed_phone` — A number the owner typed / pasted ("0905 123 456", "+33 6 12 34 56 78", "0033…") → '+<digits>' or ''.
 
 ## app_parts/p03_messages_journey.py (1362 lines)
 _p03_messages_journey — phone from chat screenshots, /api/messages/phone, auto messages, AI reply, Booking screenshots, journey, Thu tiền (pay), /tin-nhanh, /messages_
@@ -573,24 +577,24 @@ _p17_mail — 📧 Booking.com e-mails → the app (owner, Nov 12: "khi nhận �
 - chrome_extension/content.js: 559 `autoShot` · 579 `shotAfterReveal` · 612 `autoRevealTry` · 639 `chatBox` · 645 `putInChat` · 719 `chatThread` · 729 `pageBookingNumber` · 736 `aiAsk`
 - chrome_extension/content.js: 747 `drawAi` · 782 `stopMic` · 783 `toggleMic` · 825 `prepareShot` · 901 `finishShot` · 955 `cancelShot` · 963 `restoreFloating` · 1009 `guestLinks`
 - chrome_extension/content.js: 1039 `groupTable` · 1052 `groupProps` · 1084 `numUnder` · 1106 `arrivalsToday` · 1142 `startGroup` · 1149 `stopGroup` · 1156 `showGroupDone` · 1165 `groupStep`
-- chrome_extension/content.js: 1196 `refreshRunBtn` · 1214 `startRun` · 1238 `finishRun` · 1249 `showRunDone` · 1258 `runStep` · 1312 `autoMorning`
+- chrome_extension/content.js: 1197 `refreshRunBtn` · 1215 `startRun` · 1239 `finishRun` · 1250 `showRunDone` · 1259 `runStep` · 1314 `autoMorning`
 
 ## chrome_extension/background.js
-- chrome_extension/background.js: 6 `settings` · 30 `shoot` · 58 `scheduleMorning` · 63 `morningRun` · 71 `checkSignedOut` · 82 `signedOutAlert`
+- chrome_extension/background.js: 6 `settings` · 30 `shoot` · 58 `scheduleMorning` · 63 `morningRun` · 71 `checkSignedOut` · 82 `signedOutAlert` · 114 `selfUpdate`
 
 # Templates (inline JS functions)
 
-## templates/desk.html (1310 lines)
+## templates/desk.html (1311 lines)
 - templates/desk.html: 305 `load` · 318 `loadRev` · 331 `needRev` · 349 `D.tab` · 350 `D.set` · 351 `D.q` · 352 `D.reload` · 354 `D.shift`
 - templates/desk.html: 360 `D.toToday` · 361 `D.open` · 362 `D.openDay` · 363 `D.close` · 364 `closeDrawer` · 365 `D.closeModal` · 368 `D.place` · 373 `D.room`
 - templates/desk.html: 380 `D.confirm` · 413 `D.zbotResend` · 420 `D.cleanCopy` · 421 `D.cancel` · 427 `D.mark` · 431 `D.status` · 435 `D.dayuse` · 439 `D.unreach`
 - templates/desk.html: 440 `D.replied` · 441 `D.phone` · 448 `D.send` · 449 `D.pickApt` · 450 `D.quick` · 451 `D.photo` · 452 `D.chatPhone` · 453 `D.renameRoom`
 - templates/desk.html: 461 `D.pickG` · 462 `D.auto` · 477 `D.payOpen` · 478 `D.collect` · 487 `D.partial` · 489 `D.undoPay` · 492 `D.payCycle` · 502 `D.edit`
 - templates/desk.html: 504 `D.extN` · 508 `D.splitApt` · 514 `D.extTyped` · 515 `D.editCalc` · 542 `D.editSave` · 577 `D.remind` · 578 `D.remPreset` · 581 `D.remSet`
-- templates/desk.html: 582 `D.remSave` · 589 `D.remDone` · 593 `D.add` · 594 `D.addSave` · 609 `render` · 618 `renderSide` · 641 `renderTop` · 670 `viewToday`
-- templates/desk.html: 729 `dayCard` · 761 `viewDay` · 818 `D.uncancel` · 827 `viewCal` · 947 `renderPick` · 955 `viewMsg` · 995 `viewPay` · 1035 `D.payQuick`
-- templates/desk.html: 1041 `viewRev` · 1112 `D.revMonth` · 1113 `D.revDay` · 1114 `D.goDay` · 1115 `drawRevCharts` · 1138 `renderDrawer` · 1144 `guestCard` · 1204 `dayPanel`
-- templates/desk.html: 1225 `renderModal` · 1294 `D.mset` · 1295 `D.extOpen`
+- templates/desk.html: 582 `D.remSave` · 589 `D.remDone` · 593 `D.add` · 594 `D.addSave` · 609 `render` · 618 `renderSide` · 640 `renderTop` · 669 `viewToday`
+- templates/desk.html: 728 `dayCard` · 760 `viewDay` · 817 `D.uncancel` · 826 `viewCal` · 946 `renderPick` · 954 `viewMsg` · 994 `viewPay` · 1034 `D.payQuick`
+- templates/desk.html: 1040 `viewRev` · 1111 `D.revMonth` · 1112 `D.revDay` · 1113 `D.goDay` · 1114 `drawRevCharts` · 1137 `renderDrawer` · 1143 `guestCard` · 1203 `dayPanel`
+- templates/desk.html: 1224 `renderModal` · 1295 `D.mset` · 1296 `D.extOpen`
 
 ## templates/journey_settings.html (231 lines)
 - templates/journey_settings.html: 79 `load` · 88 `renderButtons` · 141 `options` · 151 `rowHtml` · 165 `render` · 178 `bind` · 210 `shrink`

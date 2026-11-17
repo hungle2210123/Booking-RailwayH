@@ -107,7 +107,22 @@ chrome.tabs.onUpdated.addListener(async (tabId, info, tab) => {
 });
 chrome.runtime.onInstalled.addListener(scheduleMorning);
 chrome.runtime.onStartup.addListener(() => { scheduleMorning(); setTimeout(morningRun, 60000); });
+// ── 🔄 Tự nạp lại khi file trên đĩa đổi (1.29, owner 17/11/2026: "cập nhật là đồng bộ theo luôn") ──────────────
+// Main PC: Chrome loads the extension straight from the project folder (git changes it). Other PCs: the hourly task
+// "HotelPro Cap Nhat" (tools/cai-dat/cap-nhat.ps1) copies the new files into %LOCALAPPDATA%\HotelPro. Either way the
+// manifest on disk gets a new version → reload. Never during a run (hpRunBusy < 3 min) or the 7:00 start window.
+async function selfUpdate() {
+  try {
+    const m = await (await fetch(chrome.runtime.getURL('manifest.json'), { cache: 'no-store' })).json();
+    if (!m.version || m.version === chrome.runtime.getManifest().version) return;
+    const { hpAutoRunUntil, hpRunBusy } = await chrome.storage.local.get(['hpAutoRunUntil', 'hpRunBusy']);
+    if ((hpAutoRunUntil && Date.now() < hpAutoRunUntil) || (hpRunBusy && Date.now() - hpRunBusy < 180000)) return;
+    chrome.runtime.reload();
+  } catch (e) {}
+}
+chrome.alarms.create('hp-selfupdate', { periodInMinutes: 5 });
 chrome.alarms.onAlarm.addListener(a => {
+  if (a.name === 'hp-selfupdate') selfUpdate();
   if (a.name === 'hp-morning') { scheduleMorning(); morningRun(); }
   if (a.name === 'hp-signout') signedOutAlert();
 });

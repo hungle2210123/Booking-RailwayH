@@ -631,8 +631,7 @@ button.info.on{border-color:#0E1525;background:#fff}
       <div style="flex:1;min-height:12px"></div>
       <div class="legend-s" style="margin-bottom:2px"><b>Trang khác</b></div>
       <a class="slink" href="/tin-nhanh">${ico('bolt')}Tin nhanh · Mẫu câu</a>
-      <a class="slink" href="#" onclick="D.extOpen();return false">${ico('plus')}Tải tiện ích Chrome</a>
-      <a class="slink" href="/dien-ten-sdt.zip" download title="Giải nén → bấm đúp CAI-DAT.bat">${ico('plus')}Tải tool Điền Tên - SĐT</a>
+      <a class="slink" href="#" onclick="D.extOpen();return false">${ico('plus')}Bộ công cụ máy tính</a>
       <a class="slink" href="#" onclick="MailAlerts.list();return false">${ico('bolt')}Thư đặt phòng Booking</a>
       <a class="slink" href="#" onclick="ProxyTool.open();return false">${ico('bolt')}Đổi định dạng proxy</a>
       <div class="sdiv"></div>
@@ -1254,26 +1253,28 @@ button.info.on{border-color:#0E1525;background:#fff}
       return;
     }
     if (S.modal === 'ext') {
-      el.innerHTML = wrap(head('TIỆN ÍCH CHROME', 'Gửi về Hotel Pro' + (S.extVer ? ' · bản ' + esc(S.extVer) : '')) + `
-        <div class="muted" style="font-size:13px;margin-top:6px;line-height:1.55">Mỗi sáng 7:00 tiện ích tự mở Booking, lấy khách đến hôm nay của từng căn, hiện số điện thoại và lưu về web.
-          Cài 2 thứ dưới đây trên mỗi máy tính (mỗi thứ ~1 phút).</div>
-        <a class="btn pri" style="width:100%;margin-top:14px;min-height:48px" href="/extension.zip" download>⬇ Tải tiện ích (.zip)</a>
-        <div class="sect">Cài trên máy tính mới (1 lần)</div>
-        <ol style="margin:0;padding-left:20px;font-size:13.5px;line-height:1.7;color:#334155">
-          <li>Bấm <b>Tải tiện ích</b> ở trên, rồi <b>giải nén</b> file .zip (chuột phải → Extract All / Giải nén) — được thư mục <b>chrome_extension</b>.</li>
-          <li>Mở Chrome, gõ <b>chrome://extensions</b> (Edge: <b>edge://extensions</b>).</li>
-          <li>Bật <b>Developer mode / Chế độ nhà phát triển</b> (góc phải trên).</li>
-          <li>Bấm <b>Load unpacked / Tải tiện ích đã giải nén</b> → chọn thư mục <b>chrome_extension</b>.</li>
-          <li>Ghim tiện ích (biểu tượng mảnh ghép 🧩 → 📌), bấm vào → <b>Kiểm tra kết nối</b> → <b>Lưu</b>.</li></ol>
-        <div class="sect">Cập nhật bản mới</div>
-        <div style="font-size:13.5px;line-height:1.6;color:#334155">Tải lại file .zip, giải nén <b>đè lên thư mục cũ</b>, rồi ở chrome://extensions bấm nút <b>↻ tải lại</b> trên thẻ tiện ích.</div>
-        <div class="sect">Tự đăng nhập Booking (Tampermonkey)</div>
-        <ol style="margin:0;padding-left:20px;font-size:13.5px;line-height:1.7;color:#334155">
-          <li>Cài <a href="https://chromewebstore.google.com/detail/tampermonkey/dhdgffkkebhmkfjojejmpbldmpobfkfo" target="_blank" rel="noopener"><b>Tampermonkey</b></a> → <b>Thêm vào Chrome</b>.</li>
-          <li>Bấm nút dưới → Tampermonkey mở trang cài → bấm <b>Cài đặt / Install</b>. Đã có sẵn booking.com, tự cập nhật bản mới.</li>
-          <li>Lần đầu Booking đòi đăng nhập, script hỏi email + mật khẩu Booking <b>1 lần</b> (chỉ lưu trên máy này).</li></ol>
+      // 🧰 ONE bundle for every computer tool (owner, Nov 17: "một dự án thay vì nhiều tool riêng") — /bo-cong-cu.zip
+      const OL = 'margin:0;padding-left:20px;font-size:13.5px;line-height:1.7;color:#334155';
+      el.innerHTML = wrap(head('BỘ CÔNG CỤ MÁY TÍNH', 'Cài 1 lần · tự cập nhật' + (S.extVer ? ' · tiện ích bản ' + esc(S.extVer) : '')) + `
+        <div class="muted" style="font-size:13px;margin-top:6px;line-height:1.55">Một bộ duy nhất gồm: <b>tiện ích Chrome</b> (7:00 tự lấy khách đến hôm nay,
+          hiện số, lưu về web; mã SMS hỏi qua bot Zalo) · <b>Điền Tên - SĐT</b> (Alt+1/2/3) · <b>Tự đăng nhập Booking</b>.</div>
+        <a class="btn pri" style="width:100%;margin-top:14px;min-height:48px" href="/bo-cong-cu.zip" download>⬇ Tải bộ cài (1 file)</a>
+        <div class="sect">Cài trên máy tính mới (~3 phút)</div>
+        <ol style="${OL}">
+          <li><b>Giải nén</b> file vừa tải (chuột phải → Giải nén) → bấm đúp <b>CAI-DAT.bat</b>.
+            Máy tự chép vào thư mục HotelPro, tạo lối tắt Điền Tên - SĐT, hẹn giờ tự cập nhật, mở sẵn Chrome.</li>
+          <li>Trang <b>chrome://extensions</b> vừa mở: bật <b>Chế độ nhà phát triển</b> → <b>Tải tiện ích đã giải nén</b> →
+            bấm vào ô địa chỉ, <b>Ctrl+V</b> (đường dẫn đã chép sẵn) → Enter → <b>Chọn thư mục</b>. Ghim tiện ích (🧩 → 📌).</li>
+          <li>Trang <b>Tampermonkey</b> vừa mở: <b>Thêm vào Chrome</b> → bấm nút dưới → <b>Cài đặt</b>.
+            Lần đầu Booking đòi đăng nhập, script hỏi email + mật khẩu 1 lần (chỉ lưu trên máy đó).</li></ol>
         <a class="btn" style="width:100%;margin-top:10px;min-height:44px" href="/tu-dong-dang-nhap.user.js" target="_blank" rel="noopener">🔑 Cài script Tự đăng nhập</a>
-        <div class="muted" style="font-size:12px;margin-top:8px;line-height:1.5">Mã xác minh SMS: tiện ích tự chọn "Nhắn tin cho tôi", bot Zalo hỏi mã — trả lời bot là xong.</div>`);
+        <div class="sect">Tự cập nhật — không phải làm gì</div>
+        <div style="font-size:13.5px;line-height:1.6;color:#334155">Mỗi giờ máy tự so với web, có bản mới thì tải về; tiện ích tự nạp lại trong 5 phút
+          (không nạp lại giữa lúc đang lấy khách). Script Tự đăng nhập do Tampermonkey tự cập nhật.
+          Chạy ngay không chờ 7:00: biểu tượng Hotel Pro trên Chrome → <b>▶ Chạy toàn bộ ngay</b>.</div>
+        <div class="muted" style="font-size:12px;margin-top:10px;line-height:1.5">Tải riêng từng thứ (ít dùng):
+          <a href="/extension.zip" download>tiện ích</a> · <a href="/dien-ten-sdt.zip" download>Điền Tên - SĐT</a>.
+          Hướng dẫn đầy đủ: file HUONG-DAN.txt trong bộ cài.</div>`);
       return;
     }
     if (S.modal === 'add') {

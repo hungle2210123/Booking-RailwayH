@@ -8,6 +8,10 @@ Each run writes ONE file  OneDrive\\HotelPro-Backup\\hotelpro-YYYY-MM-DD.zip  co
   · KHOI-PHUC.txt    — how to restore
 NOT included on purpose: .env and the bot tokens (moi_settings) — secrets stay out of the cloud; old bookings / guests (owner:
 not needed). Keeps the newest 12 zips (weekly task 'HotelPro Backup', Sunday 21:00). Usage:  python tools/backup.py   (--dest <folder> to write elsewhere, e.g. a USB drive)
+
+--code (owner, Nov 17: "mỗi khi cập nhật sửa chữa gì đó cũng phải tự động sao lưu"): only the code, fast — run by the git
+hook .githooks/post-commit after EVERY commit → OneDrive\HotelPro-Backup\code-moi-nhat.bundle (overwritten; restore:
+`git clone code-moi-nhat.bundle hotelpro`). The weekly full zip above stays as it is.
 """
 import base64
 import datetime as dt
@@ -80,6 +84,18 @@ def _settings():
     return out
 
 
+def run_code(dest=None):
+    """Whole git history → code-moi-nhat.bundle (written to a temp name first, so a failed run keeps the last good one)."""
+    dest = pathlib.Path(dest) if dest else _default_dest()
+    dest.mkdir(parents=True, exist_ok=True)
+    target, tmp = dest / 'code-moi-nhat.bundle', dest / '.code-moi-nhat.tmp'
+    subprocess.run(['git', '-C', str(ROOT), 'bundle', 'create', str(tmp), '--all'], check=True, capture_output=True)
+    os.replace(tmp, target)
+    head = subprocess.run(['git', '-C', str(ROOT), 'log', '-1', '--format=%h %s'], capture_output=True, text=True,
+                          encoding='utf-8', errors='replace').stdout.strip()
+    return target, head
+
+
 def run(dest=None):
     dest = pathlib.Path(dest) if dest else _default_dest()
     dest.mkdir(parents=True, exist_ok=True)
@@ -108,9 +124,13 @@ if __name__ == '__main__':
     d = sys.argv[sys.argv.index('--dest') + 1] if '--dest' in sys.argv else None
     log = (pathlib.Path(d) if d else _default_dest()) / 'backup-log.txt'
     try:
-        path, counts = run(d)
-        line = (f'{dt.datetime.now():%Y-%m-%d %H:%M}  OK  {path.name}  {path.stat().st_size / 1e6:.1f} MB  '
-                + ', '.join(f'{k} {v}' for k, v in counts.items()))
+        if '--code' in sys.argv:
+            path, head = run_code(d)
+            line = f'{dt.datetime.now():%Y-%m-%d %H:%M}  OK  {path.name}  {path.stat().st_size / 1e6:.1f} MB  sau commit {head[:80]}'
+        else:
+            path, counts = run(d)
+            line = (f'{dt.datetime.now():%Y-%m-%d %H:%M}  OK  {path.name}  {path.stat().st_size / 1e6:.1f} MB  '
+                    + ', '.join(f'{k} {v}' for k, v in counts.items()))
     except Exception as e:      # noqa: BLE001 — the log must say why
         line = f'{dt.datetime.now():%Y-%m-%d %H:%M}  LỖI  {e}'
     old = log.read_text(encoding='utf-8').splitlines()[-200:] if log.exists() else []

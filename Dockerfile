@@ -22,6 +22,7 @@ COPY static/ ./static/
 COPY chrome_extension/ ./chrome_extension/
 COPY tools/dien-ten-sdt/ ./tools/dien-ten-sdt/
 COPY tools/tu-dong-dang-nhap/tu-dong-dang-nhap.user.js ./tools/tu-dong-dang-nhap/
+COPY tools/cai-dat/ ./tools/cai-dat/
 
 # Set default PORT if not provided (Railway will override this)
 ENV PORT=5000

@@ -39,6 +39,63 @@ def extension_zip():
                      download_name=f'hotel_pro_tien_ich_{version or "moi"}.zip')
 
 
+# ── 🧰 Bộ công cụ máy tính (owner, Nov 17: "một dự án thay vì nhiều tool riêng", tự cập nhật) ────────────────────
+# ONE zip: HotelPro/{chrome_extension/, dien-ten-sdt/, CAI-DAT.bat, cai-dat.ps1, cap-nhat.ps1, HUONG-DAN.txt,
+# version.txt, server.txt, "Cai script Tu dang nhap.url"}. CAI-DAT.bat installs it in %LOCALAPPDATA%\HotelPro and
+# registers the hourly task "HotelPro Cap Nhat" (cap-nhat.ps1) that compares /api/tools/version and re-downloads.
+TOOL_PARTS = (('chrome_extension', 'chrome_extension'), (os.path.join('tools', 'dien-ten-sdt'), 'dien-ten-sdt'),
+              (os.path.join('tools', 'cai-dat'), ''))
+
+
+def _tool_files():
+    """[(full path, path inside HotelPro/)] of every file of the bundle, sorted (same order → same version)."""
+    out = []
+    for src, arc in TOOL_PARTS:
+        base = os.path.join(app.root_path, src)
+        for root, dirs, files in os.walk(base):
+            dirs[:] = [d for d in dirs if d not in ('__pycache__', '.git')]
+            for f in files:
+                full = os.path.join(root, f)
+                out.append((full, os.path.join(arc, os.path.relpath(full, base)).replace('\\', '/')))
+    return sorted(out, key=lambda x: x[1])
+
+
+def _tools_version():
+    import hashlib
+    h = hashlib.sha1()
+    for full, arc in _tool_files():
+        h.update(arc.encode())
+        with open(full, 'rb') as fh:
+            h.update(fh.read().replace(b'\r\n', b'\n'))     # same files on Windows / Linux → same version
+    return h.hexdigest()[:12]
+
+
+@app.route('/api/tools/version')
+def tools_version():
+    """Version of the computer tool bundle — the hourly updater on each PC downloads /bo-cong-cu.zip when it changes."""
+    return jsonify({'success': True, 'version': _tools_version(), 'files': len(_tool_files())})
+
+
+@app.route('/bo-cong-cu.zip')
+def bo_cong_cu_zip():
+    import zipfile
+    files = _tool_files()
+    if not files:
+        return jsonify({'success': False, 'error': 'Không tìm thấy bộ công cụ trên máy chủ'}), 404
+    server = 'https://' + request.host_url.split('://', 1)[1].rstrip('/')
+    if request.host.startswith(('127.0.0.1', 'localhost')):
+        server = request.host_url.rstrip('/')
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, 'w', zipfile.ZIP_DEFLATED) as z:
+        for full, arc in files:
+            z.write(full, 'HotelPro/' + arc)                   # raw bytes: .ps1 files keep their UTF-8 BOM
+        z.writestr('HotelPro/version.txt', _tools_version())
+        z.writestr('HotelPro/server.txt', server)
+        z.writestr('HotelPro/Cai script Tu dang nhap.url', f'[InternetShortcut]\r\nURL={server}/tu-dong-dang-nhap.user.js\r\n')
+    buf.seek(0)
+    return send_file(buf, mimetype='application/zip', as_attachment=True, download_name='HotelPro-BoCongCu.zip')
+
+
 @app.route('/tu-dong-dang-nhap.user.js')
 def tu_dong_dang_nhap_userscript():
     """The owner's Tampermonkey re-login script (tools/tu-dong-dang-nhap/, owner Nov 17: "cài lại rất nhiều thứ"):

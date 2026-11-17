@@ -103,6 +103,9 @@ Hôm nay" box (aria-controls, else the card with "Xem tất cả đặt phòng")
 another box → opened a guest arriving 21/10). Mock (scratch) had: closed row, 0 rows, tomorrow-only property,
 late-loading counts, an "Đặt phòng mới nhất" list and a hidden "Khách đi" panel — all handled. Re-login = Tampermonkey script `tools/tu-dong-dang-nhap/`;
 background.js now waits 2 more minutes for it before the Zalo "Booking đã đăng xuất" message.
+**🔄 Self-reload (1.29):** background.js alarm `hp-selfupdate` (5 min) fetches its own manifest.json from disk; new version
+→ `chrome.runtime.reload()` unless `hpAutoRunUntil` is active or `hpRunBusy` (set by runStep / groupStep) < 3 min old.
+Files on disk change by git (main PC) or by the hourly "HotelPro Cap Nhat" task (other PCs, see CLAUDE.md "Bộ công cụ").
 **🔐 Verification code via Zalo (1.28, owner 17/11/2026):** `chrome_extension/verify.js` (content script on
 `*.booking.com`, on admin.booking.com only for sign-in/verif URLs). Page "Yêu cầu xác minh bổ sung" → clicks
 "Nhắn tin cho tôi" (never "Gọi cho tôi"; at most once per 3 min, `hpSmsAt`) → code box appears → POST

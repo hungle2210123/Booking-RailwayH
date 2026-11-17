@@ -47,6 +47,18 @@ https://web-production-8f671.up.railway.app — **push straight to main** ("git 
   WEEKLY by Windows Task Scheduler task "HotelPro Backup" (Sunday 21:00, runs later if the PC was off), log
   `OneDrive\HotelPro-Backupackup-log.txt`.
 
+## 🧰 Bộ công cụ máy tính = ONE bundle, auto-update, auto-backup (owner 17/11/2026: "một dự án thay vì nhiều tool riêng")
+- `/bo-cong-cu.zip` (p02 `bo_cong_cu_zip`) = HotelPro/{chrome_extension/, dien-ten-sdt/, tools/cai-dat/*} + version.txt +
+  server.txt. On a new PC: unzip → `CAI-DAT.bat` (`tools/cai-dat/cai-dat.ps1`) → copies to `%LOCALAPPDATA%\HotelPro`,
+  Điền Tên shortcuts, Task Scheduler "HotelPro Cap Nhat" (hourly `cap-nhat.ps1`: `/api/tools/version` changed → re-download).
+  Chrome loads the extension from that folder; background.js `selfUpdate` (every 5 min) reloads when the manifest on disk
+  has a new version (not during a run). Tampermonkey script updates itself (@updateURL `/tu-dong-dang-nhap.user.js`).
+  Owner guide: `tools/cai-dat/HUONG-DAN.txt` + /may-tinh sidebar "Bộ công cụ máy tính". Adding a tool = put it in
+  `TOOL_PARTS` (p02) + Dockerfile COPY. PowerShell files with Vietnamese text: UTF-8 WITH BOM.
+- THIS PC: Chrome loads the extension straight from the repo's `chrome_extension/` (so edits apply after selfUpdate).
+- Git hook `.githooks/post-commit` (enabled per clone: `git config core.hooksPath .githooks`): after every commit →
+  `tools/backup.py --code` → OneDrive\HotelPro-Backup\code-moi-nhat.bundle, and on main a `git push` 20 s later.
+
 ## Windows tool "Điền Tên - SĐT" (`tools/dien-ten-sdt/`, not part of the web app)
 - Small always-on-top window: copy a guest info page (Name/Phone), then Alt+1/2/3 = first name / last name / phone, Alt+V = all 3, Alt+C = auto-copy.
 - `dien-ten-sdt.ps1` (PowerShell 5.1 + C# via Add-Type) **must stay UTF-8 WITH BOM**; `CHAY.bat` runs it hidden; `bookmarklet.html` = old fallback.

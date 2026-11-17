@@ -1,0 +1,38 @@
+HOTEL PRO — BỘ CÔNG CỤ MÁY TÍNH
+================================
+Một bộ duy nhất, cài 1 lần trên mỗi máy tính, sau đó TỰ CẬP NHẬT. Gồm:
+  • Tiện ích Chrome "Gửi về Hotel Pro": 7:00 mỗi sáng tự mở Booking → các căn có khách đến hôm nay → từng khách →
+    hiện số điện thoại → lưu về web. Mã xác minh SMS: tiện ích chọn "Nhắn tin cho tôi", bot Zalo hỏi mã, trả lời bot là xong.
+  • Điền Tên - SĐT: cửa sổ nhỏ, Alt+1/2/3 = tên / họ / số điện thoại, Alt+V = cả 3.
+  • Tự đăng nhập Booking (script Tampermonkey): Booking đăng xuất → tự điền email + mật khẩu.
+
+CÀI TRÊN MÁY MỚI (khoảng 3 phút)
+1. Web Hotel Pro (bản máy tính) → "Bộ công cụ máy tính" → "Tải bộ cài". Giải nén file .zip ở đâu cũng được.
+2. Bấm đúp CAI-DAT.bat. Máy tự:
+     - chép bộ công cụ vào  %LOCALAPPDATA%\HotelPro   (C:\Users\<tên>\AppData\Local\HotelPro)
+     - tạo lối tắt "Dien Ten SDT" trên Desktop + Start Menu và mở nó
+     - tạo việc hẹn giờ "HotelPro Cap Nhat" (mỗi giờ tự tải bản mới)
+     - mở Chrome ở chrome://extensions và trang Tampermonkey, chép sẵn đường dẫn thư mục tiện ích
+3. Trong chrome://extensions: bật "Chế độ nhà phát triển" → "Tải tiện ích đã giải nén" → Ctrl+V vào ô địa chỉ →
+   chọn thư mục chrome_extension. Ghim tiện ích (biểu tượng 🧩 → 📌).
+4. Tampermonkey: "Thêm vào Chrome". Rồi mở file "Cai script Tu dang nhap" trong thư mục HotelPro → "Cài đặt".
+   Lần đầu Booking đòi đăng nhập, script hỏi email + mật khẩu 1 lần (chỉ lưu trên máy đó).
+5. Trong Tampermonkey chỉ để BẬT đúng 1 script "Tự động đăng nhập". Tắt / xoá script cũ "Tự bấm Hiển thị số điện thoại".
+
+TỰ CẬP NHẬT — không phải làm gì
+  • Tiện ích Chrome + Điền Tên - SĐT: mỗi giờ việc "HotelPro Cap Nhat" so phiên bản trên web, có bản mới thì tải về;
+    tiện ích tự nạp lại trong vòng 5 phút (không nạp lại giữa lúc đang chạy lấy khách). Nhật ký: cap-nhat-log.txt.
+  • Script Tự đăng nhập: Tampermonkey tự cập nhật từ web.
+  • Máy chính (có thư mục dự án): tiện ích chạy thẳng từ thư mục dự án → sửa code là có ngay.
+
+CHẠY NGAY KHÔNG CHỜ 7:00
+  Bấm biểu tượng Hotel Pro trên thanh Chrome → "▶ Chạy toàn bộ ngay".
+
+GỠ
+  Xoá thư mục %LOCALAPPDATA%\HotelPro, xoá lối tắt "Dien Ten SDT", trong Task Scheduler xoá "HotelPro Cap Nhat",
+  gỡ tiện ích trong chrome://extensions.
+
+SAO LƯU (máy chính)
+  • Mỗi lần sửa code (mỗi commit): tự sao lưu toàn bộ code vào OneDrive\HotelPro-Backup\code-moi-nhat.bundle và tự đẩy
+    lên GitHub → Railway tự cập nhật web trong ~3 phút → các máy khác tự cập nhật trong vòng 1 giờ.
+  • Chủ nhật 21:00: bản sao lưu đầy đủ (code + cài đặt trong app: Mẫu Câu, ảnh, căn, phòng) hotelpro-<ngày>.zip.

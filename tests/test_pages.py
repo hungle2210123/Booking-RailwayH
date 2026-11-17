@@ -51,6 +51,26 @@ def test_dien_ten_sdt_zip(client):
     assert z.read('DienTenSdt/dien-ten-sdt.ps1')[:3] == b'\xef\xbb\xbf'
 
 
+def test_bo_cong_cu_zip(client):
+    """Owner, Nov 17: ONE bundle for every computer tool, installed by CAI-DAT.bat, updated by the hourly cap-nhat.ps1
+    when /api/tools/version changes. PowerShell files keep their UTF-8 BOM (Vietnamese text in PowerShell 5.1)."""
+    import io, zipfile
+    v = client.get('/api/tools/version').get_json()
+    assert v['success'] and len(v['version']) == 12
+    r = client.get('/bo-cong-cu.zip')
+    assert r.status_code == 200
+    z = zipfile.ZipFile(io.BytesIO(r.data))
+    names = set(z.namelist())
+    for f in ('CAI-DAT.bat', 'cai-dat.ps1', 'cap-nhat.ps1', 'HUONG-DAN.txt', 'version.txt', 'server.txt',
+              'Cai script Tu dang nhap.url', 'chrome_extension/manifest.json', 'chrome_extension/verify.js',
+              'dien-ten-sdt/dien-ten-sdt.ps1', 'dien-ten-sdt/cai-dat.ps1'):
+        assert 'HotelPro/' + f in names, f
+    assert z.read('HotelPro/version.txt').decode() == v['version']
+    for f in ('cai-dat.ps1', 'cap-nhat.ps1', 'dien-ten-sdt/dien-ten-sdt.ps1'):
+        assert z.read('HotelPro/' + f)[:3] == b'\xef\xbb\xbf', f
+    assert client.get('/tu-dong-dang-nhap.user.js').data.startswith(b'// ==UserScript==')
+
+
 def test_mail_list_today_only(client):
     """Owner, Nov 13: the Booking-mail list shows only today's mails; past days are gone."""
     j = client.get('/api/moi/mail_list').get_json()
