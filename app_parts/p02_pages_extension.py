@@ -70,6 +70,16 @@ def _tools_version():
     return h.hexdigest()[:12]
 
 
+@app.route('/chay-ngay')
+def chay_ngay_page():
+    """Opened in a Chrome profile, the extension's chay-ngay.js starts that profile's morning run now (ext 1.32).
+    Without the extension the page just says so."""
+    return ('<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">'
+            '<title>Chạy ngay</title><body style="font:16px system-ui;margin:40px;color:#0f172a">'
+            '<h2>▶ Chạy toàn bộ ngay</h2><p id="st">Đang chờ tiện ích Hotel Pro… (hồ sơ Chrome này chưa cài tiện ích '
+            'thì không có gì xảy ra)</p></body>')
+
+
 @app.route('/api/tools/version')
 def tools_version():
     """Version of the computer tool bundle — the hourly updater on each PC downloads /bo-cong-cu.zip when it changes."""

@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Gửi về Hotel Pro",
-  "version": "1.31.0",
+  "version": "1.32.0",
   "description": "Gửi đặt phòng đang xem trên extranet Booking.com (kèm số điện thoại) về web Hotel Pro bằng 1 cú bấm.",
   "permissions": [
     "storage",
@@ -35,6 +35,17 @@
       ],
       "js": [
         "verify.js"
+      ],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "https://web-production-8f671.up.railway.app/chay-ngay*",
+        "http://127.0.0.1:5000/chay-ngay*",
+        "http://localhost:5000/chay-ngay*"
+      ],
+      "js": [
+        "chay-ngay.js"
       ],
       "run_at": "document_idle"
     }
