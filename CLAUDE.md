@@ -62,6 +62,8 @@ https://web-production-8f671.up.railway.app — **push straight to main** ("git 
 - Read `tools/tu-dong-dang-nhap/HUONG_DAN.md` before editing (Booking traps: hidden password field, "gặp trở ngại" link). Test on its `mock/`.
 - Full morning chain (ext 1.25): 7:00 extension opens admin.booking.com → signed out? script signs in → group overview →
   extension opens each property with arrivals → "▶ Mở từng khách" per property → summary. Details: docs/extension.md.
+- Booking asks for an SMS code (ext 1.28 `verify.js`): it picks "Nhắn tin cho tôi", the Zalo booking bot asks the owner,
+  the owner answers the code in Zalo → `/api/ext/login_code` (p17, one use, 10 min, nonce) → typed + "Gửi".
 
 ## Data facts
 - PostgreSQL on Railway (production, used for local testing too — `DATABASE_SOURCE=auto`):

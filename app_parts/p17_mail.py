@@ -324,11 +324,78 @@ def zbot2_hook():
     if cid:
         chats = _zbot_get(_xdb, 'zbot2_chats', {}) or {}
         new = cid not in chats
+        if not new and m.get('text'):            # 🔐 the Booking verification code the owner was asked for
+            got = login_code_take(_xdb, m.get('text'))
+            if got:
+                _zbot2_call(_xdb, 'sendMessage', {'chat_id': cid, 'text': got})
+                return jsonify({'ok': True})
         chats[cid] = {'name': (m.get('from') or {}).get('display_name') or (chats.get(cid) or {}).get('name') or ''}
         _zbot_put(_xdb, 'zbot2_chats', chats)
         _zbot2_call(_xdb, 'sendMessage', {'chat_id': cid, 'text': 'Đã kết nối ✅ Bot này sẽ báo ngay khi Booking gửi thư đặt phòng mới / hủy.'
                                           if new else 'Bot này chỉ báo đặt phòng mới / hủy từ Booking ạ.'})
     return jsonify({'ok': True})
+
+
+# ── 🔐 Mã xác minh Booking qua Zalo (owner, 17/11/2026) ──────────────────────────────────────────────────────────
+# Booking asks "Yêu cầu xác minh bổ sung" → the extension (verify.js) clicks "Nhắn tin cho tôi" and calls 'ask' with a
+# random nonce → the booking bot asks the owner for the 6-digit SMS code → the owner answers in Zalo → the extension
+# polls 'get' with the SAME nonce, gets the code once (then it is deleted) and types it. Valid 10 minutes.
+LOGIN_CODE_KEY = 'booking_login_code'
+LOGIN_CODE_TTL = 600
+
+
+def login_code_take(_xdb, text_in):
+    """A Zalo message that is just a 4–8 digit code while a code is awaited → kept for the extension; returns the reply
+    (None = not a code / nothing awaited, so the message is handled as usual)."""
+    import re as _re
+    import time as _t
+    s = str(text_in or '').strip()
+    if not _re.fullmatch(r'(?:mã\s*:?\s*)?[\d\s.\-]{4,12}', s, flags=_re.I):
+        return None
+    digits = _re.sub(r'\D', '', s)
+    if not 4 <= len(digits) <= 8:
+        return None
+    p = _zbot_get(_xdb, LOGIN_CODE_KEY) or {}
+    if not isinstance(p, dict) or not p.get('nonce') or _t.time() - float(p.get('asked_at') or 0) > LOGIN_CODE_TTL:
+        return None
+    p.update({'code': digits, 'got_at': _t.time()})
+    _zbot_put(_xdb, LOGIN_CODE_KEY, p)
+    return f'✅ Đã nhận mã {digits}. Máy tính đang điền vào Booking…'
+
+
+@app.route('/api/ext/login_code', methods=['POST'])
+def ext_login_code():
+    """{action:'ask', nonce} → the bot asks the owner for the code · {action:'get', nonce} → {code} once ('' = not yet)."""
+    import re as _re
+    import time as _t
+    err = _ext_auth_error()
+    if err:
+        return err
+    from core.models import db as _xdb
+    _moi_ensure()
+    d = request.get_json(silent=True) or {}
+    nonce = str(d.get('nonce') or '')
+    if not _re.fullmatch(r'[0-9a-f]{16,64}', nonce):
+        return jsonify({'success': False, 'error': 'nonce'}), 400
+    p = _zbot_get(_xdb, LOGIN_CODE_KEY) or {}
+    if not isinstance(p, dict):
+        p = {}
+    if d.get('action') == 'ask':
+        if p.get('nonce') == nonce:              # asked already for this page
+            return jsonify({'success': True})
+        _zbot_put(_xdb, LOGIN_CODE_KEY, {'nonce': nonce, 'asked_at': _t.time(), 'code': ''})
+        mail_notify(_xdb, '🔐 Booking cần MÃ XÁC MINH để đăng nhập.\nMã 6 số vừa được nhắn tới điện thoại '
+                          'chủ nhà (SMS từ Booking). Trả lời tin này bằng đúng mã đó (vd 123456) trong 10 phút — máy tính sẽ tự điền.')
+        return jsonify({'success': True})
+    if d.get('action') == 'get':
+        if p.get('nonce') != nonce or _t.time() - float(p.get('asked_at') or 0) > LOGIN_CODE_TTL:
+            return jsonify({'success': True, 'code': '', 'expired': True})
+        code = p.get('code') or ''
+        if code:                                  # one use only
+            _xdb.session.execute(text("DELETE FROM moi_settings WHERE key = :k"), {'k': LOGIN_CODE_KEY})
+            _xdb.session.commit()
+        return jsonify({'success': True, 'code': code})
+    return jsonify({'success': False, 'error': 'Không rõ thao tác'}), 400
 
 
 @app.route('/api/moi/mail_bot', methods=['POST'])

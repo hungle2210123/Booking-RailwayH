@@ -74,11 +74,17 @@ async function checkSignedOut(tabId) {
   if (!isSignIn(tab.url)) return;
   await chrome.storage.local.set({ hpWaitLogin: Date.now() + 8 * 3600000 });
   // 1.25: the owner's Tampermonkey script (tools/tu-dong-dang-nhap) usually signs in by itself within a minute →
-  // only tell the owner on Zalo if the tab is STILL on the sign-in page 2 minutes later (CAPTCHA, code, wrong password)
-  await new Promise(r => setTimeout(r, 120000));
-  try { tab = await chrome.tabs.get(tabId); } catch (e) { return; }
-  const { hpWaitLogin } = await chrome.storage.local.get('hpWaitLogin');
+  // only tell the owner on Zalo if the tab is STILL on the sign-in page 2 minutes later (CAPTCHA, wrong password)
+  // 1.28: as an alarm (a service worker can be stopped during a long setTimeout)
+  await chrome.storage.local.set({ hpSignTab: tabId });
+  chrome.alarms.create('hp-signout', { when: Date.now() + 120000 });
+}
+async function signedOutAlert() {
+  const { hpSignTab, hpWaitLogin, hpCodeAskAt } = await chrome.storage.local.get(['hpSignTab', 'hpWaitLogin', 'hpCodeAskAt']);
+  let tab;
+  try { tab = await chrome.tabs.get(hpSignTab); } catch (e) { return; }
   if (!hpWaitLogin || !isSignIn(tab.url)) return;          // signed in meanwhile → the run has started
+  if (hpCodeAskAt && Date.now() - hpCodeAskAt < 600000) return;   // verify.js is already asking for the SMS code
   try {
     const { server, token } = await settings();
     await fetch(server + '/api/ext/login_needed', {
@@ -101,7 +107,10 @@ chrome.tabs.onUpdated.addListener(async (tabId, info, tab) => {
 });
 chrome.runtime.onInstalled.addListener(scheduleMorning);
 chrome.runtime.onStartup.addListener(() => { scheduleMorning(); setTimeout(morningRun, 60000); });
-chrome.alarms.onAlarm.addListener(a => { if (a.name === 'hp-morning') { scheduleMorning(); morningRun(); } });
+chrome.alarms.onAlarm.addListener(a => {
+  if (a.name === 'hp-morning') { scheduleMorning(); morningRun(); }
+  if (a.name === 'hp-signout') signedOutAlert();
+});
 
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (msg?.type === 'morning-now') {                  // popup "▶ Chạy toàn bộ ngay" (1.26): the whole 7:00 chain, now

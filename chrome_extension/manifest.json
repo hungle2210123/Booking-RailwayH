@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Gửi về Hotel Pro",
-  "version": "1.27.0",
+  "version": "1.28.0",
   "description": "Gửi đặt phòng đang xem trên extranet Booking.com (kèm số điện thoại) về web Hotel Pro bằng 1 cú bấm.",
   "permissions": [
     "storage",
@@ -26,6 +26,15 @@
       ],
       "js": [
         "content.js"
+      ],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "https://*.booking.com/*"
+      ],
+      "js": [
+        "verify.js"
       ],
       "run_at": "document_idle"
     }

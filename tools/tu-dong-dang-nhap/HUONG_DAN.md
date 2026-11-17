@@ -34,6 +34,8 @@ Quy trình đầy đủ (tiện ích 1.25): 7:00 mở Booking → (hết phiên 
 tiện ích mở lần lượt các căn có khách đến (cột "Đến trong 48 giờ tới" > 0) → ở mỗi căn "▶ Mở từng khách" (bấm hiện số,
 lưu về Hotel Pro) → căn kế tiếp → về tổng quan, báo tổng kết. Nếu sau 2 phút vẫn kẹt ở trang đăng nhập (CAPTCHA, mã xác
 minh) → bot Zalo nhắn chủ nhà; đăng nhập tay xong là tự chạy tiếp.
+Booking đòi "Yêu cầu xác minh bổ sung" (tiện ích 1.28): tiện ích tự chọn "Nhắn tin cho tôi" → bot Zalo đặt phòng hỏi mã →
+chủ nhà trả lời bot đúng mã 6 số trong SMS → tiện ích tự điền và bấm Gửi. Script này không đụng trang đó.
 
 ## Bẫy của Booking (đừng sửa ngược)
 1. Bước email có ô mật khẩu ẩn `#hidden-password` (aria-hidden, nằm ở y≈-2169px). Loại ô **ngoài trang**, KHÔNG loại theo

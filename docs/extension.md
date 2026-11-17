@@ -103,6 +103,16 @@ Hôm nay" box (aria-controls, else the card with "Xem tất cả đặt phòng")
 another box → opened a guest arriving 21/10). Mock (scratch) had: closed row, 0 rows, tomorrow-only property,
 late-loading counts, an "Đặt phòng mới nhất" list and a hidden "Khách đi" panel — all handled. Re-login = Tampermonkey script `tools/tu-dong-dang-nhap/`;
 background.js now waits 2 more minutes for it before the Zalo "Booking đã đăng xuất" message.
+**🔐 Verification code via Zalo (1.28, owner 17/11/2026):** `chrome_extension/verify.js` (content script on
+`*.booking.com`, on admin.booking.com only for sign-in/verif URLs). Page "Yêu cầu xác minh bổ sung" → clicks
+"Nhắn tin cho tôi" (never "Gọi cho tôi"; at most once per 3 min, `hpSmsAt`) → code box appears → POST
+`/api/ext/login_code` {action:'ask', nonce (random 32 hex)} → p17 `ext_login_code` stores moi_settings
+`booking_login_code` {nonce, asked_at, code} and `mail_notify` asks the owner (booking bot; cleaning bot owners if it is
+not set up) → the owner answers the 6 digits in Zalo → `zbot2_hook` / `zbot_hook` (owner role) → `login_code_take`
+keeps it (not logged) → verify.js polls 'get' every 4 s with the SAME nonce, gets it ONCE (row deleted), types it
+(never over a code the owner typed), clicks "Gửi". Valid 10 min (`LOGIN_CODE_TTL`). background.js: the 2-min
+"still signed out" Zalo alert is now an alarm (`hp-signout`) and is skipped while a code was asked < 10 min ago
+(`hpCodeAskAt`). Test: tests/test_flows.py `test_login_code_relay`; mock page tested (SMS click → ask → fill → submit).
 **Signed out at 7:00 (1.24):** background.js `checkSignedOut` (25 s after opening) sees the sign-in page → POST
 `/api/ext/login_needed` → Zalo bot tells the owner(s) (`_staff_tell_owners`); `hpWaitLogin` (8 h) → the first
 admin.booking.com page that loads after the owner signs in starts the run. The extension NEVER types the password. Never on partner bookings (`isPartnerBooking`). Popup switch

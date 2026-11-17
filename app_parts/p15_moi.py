@@ -750,6 +750,9 @@ def zbot_hook():
         _zbot_put(_xdb, 'zbot_chats', chats)
         if new:
             _zbot_call('sendMessage', {'chat_id': cid, 'text': 'Đã kết nối ✅ Mỗi sáng 8:00 bot sẽ gửi danh sách phòng cần dọn vào đây.'})
+        elif m.get('text') and c.get('role') == 'owner' and login_code_take(_xdb, m.get('text')):
+            # 🔐 Booking verification code (p17; asked here only while the booking bot is not set up) — not logged
+            _zbot_call('sendMessage', {'chat_id': cid, 'text': '✅ Đã nhận mã. Máy tính đang điền vào Booking…'})
         elif m.get('text'):
             zbot_log(cid, 'in', m.get('text') or '')
             try:                            # p16: xin nghỉ / làm thêm / duyệt in plain words

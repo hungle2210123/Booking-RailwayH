@@ -1,5 +1,7 @@
 """End-to-end flows on the real database with throwaway rows (ids 9990xxxxxx / templates 'ZZ TEST …', always deleted).
 Each test is one thing the owner asked for and that broke or could break."""
+import os
+
 import pytest
 from sqlalchemy import text
 
@@ -108,3 +110,31 @@ def test_photo_call_dialog_updates_existing_booking(client, db, booking):
     assert phone_of(db, bid) == '+917904749633'
     n = db.session.execute(text("SELECT count(*) FROM bookings WHERE guest_name ILIKE 'Zzmaheshwaran%'")).scalar()
     assert n == 1
+
+
+# ── 🔐 Booking verification code via Zalo (owner, Nov 17) ──────────────────────────────────────────────────────────
+def test_login_code_relay(client, db, app_module, monkeypatch):
+    """ask (bot asks the owner) → owner's Zalo answer '123 456' is kept → get with the SAME nonce returns it once;
+    another nonce never gets it; text that is not a code is ignored."""
+    sent = []
+    monkeypatch.setattr(app_module, 'mail_notify', lambda _db, msg: sent.append(msg) or 'bot2')
+    hdr = {'X-Hotel-Token': os.getenv('EXTENSION_TOKEN', '')}
+    key = app_module.LOGIN_CODE_KEY
+    old = db.session.execute(text("SELECT value FROM moi_settings WHERE key = :k"), {'k': key}).scalar()
+    try:
+        n1, n2 = 'a' * 32, 'b' * 32
+        assert client.post('/api/ext/login_code', json={'action': 'ask', 'nonce': n1}, headers=hdr).get_json()['success']
+        assert len(sent) == 1 and 'MÃ XÁC MINH' in sent[0]
+        assert client.post('/api/ext/login_code', json={'action': 'get', 'nonce': n1}, headers=hdr).get_json()['code'] == ''
+        assert app_module.login_code_take(db, 'ok anh') is None
+        assert app_module.login_code_take(db, '123 456')
+        assert client.post('/api/ext/login_code', json={'action': 'get', 'nonce': n2}, headers=hdr).get_json()['code'] == ''
+        assert client.post('/api/ext/login_code', json={'action': 'get', 'nonce': n1}, headers=hdr).get_json()['code'] == '123456'
+        assert client.post('/api/ext/login_code', json={'action': 'get', 'nonce': n1}, headers=hdr).get_json()['code'] == ''
+        assert app_module.login_code_take(db, '654321') is None          # nothing awaited any more
+        assert client.post('/api/ext/login_code', json={'action': 'get', 'nonce': 'zz'}, headers=hdr).status_code == 400
+    finally:
+        db.session.execute(text("DELETE FROM moi_settings WHERE key = :k"), {'k': key})
+        if old is not None:
+            db.session.execute(text("INSERT INTO moi_settings (key, value) VALUES (:k, :v)"), {'k': key, 'v': old})
+        db.session.commit()
