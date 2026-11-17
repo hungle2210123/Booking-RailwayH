@@ -103,6 +103,13 @@ Hôm nay" box (aria-controls, else the card with "Xem tất cả đặt phòng")
 another box → opened a guest arriving 21/10). Mock (scratch) had: closed row, 0 rows, tomorrow-only property,
 late-loading counts, an "Đặt phòng mới nhất" list and a hidden "Khách đi" panel — all handled. Re-login = Tampermonkey script `tools/tu-dong-dang-nhap/`;
 background.js now waits 2 more minutes for it before the Zalo "Booking đã đăng xuất" message.
+**🖥 Morning report on Zalo (1.30, owner 17/11/2026 "7 giờ sáng làm sao tôi biết máy đã mở chưa"):** content.js
+`startGroup` (auto) → POST `/api/ext/morning` {stage:'start', go, skip} and `stopGroup` (auto) → {stage:'done', ok, total,
+bad}; no arrivals → 'start' with a note. p17 `ext_morning` → `mail_notify` (booking bot) + moi_settings `morning_status`.
+p15 `zbot_tick` 7:20–7:59 VN → p17 `morning_watch`: no 'start' today → ONE warning (claim key `morning_warned`)
+"chưa thấy máy tính chạy… máy TẮT / NGỦ hoặc Chrome chưa mở". Test: `test_morning_report_and_watch`.
+**Rename fix (Nov 17, 5938586704):** `_rename_booking` drops the provisional row of booking_screenshots / journey_log when
+the real number already has one (duplicate key made the whole save fail). Test: `test_rename_keeps_real_numbers_picture`.
 **🔄 Self-reload (1.29):** background.js alarm `hp-selfupdate` (5 min) fetches its own manifest.json from disk; new version
 → `chrome.runtime.reload()` unless `hpAutoRunUntil` is active or `hpRunBusy` (set by runStep / groupStep) < 3 min old.
 Files on disk change by git (main PC) or by the hourly "HotelPro Cap Nhat" task (other PCs, see CLAUDE.md "Bộ công cụ").

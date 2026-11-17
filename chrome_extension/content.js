@@ -1142,15 +1142,25 @@
   async function startGroup(props, auto, all) {
     groupSet({ props, i: 0, back: location.href, ok: 0, total: 0, bad: [], auto: !!auto });
     toast(`🏢 Đến trong 48 giờ — ${groupSummary(all || props)}`, 'ok', 6000);
+    // 1.30: the Zalo booking bot tells the owner the PC is running and which properties (owner, Nov 17)
+    if (auto) {
+      const lab = p => p.name + (p.n > 0 ? ` (${p.n})` : '');
+      const skip = (all || props).filter(p => !props.includes(p)).map(p => lab(p) + (p.closed ? ' đóng' : ''));
+      api('/api/ext/morning', { stage: 'start', go: props.map(lab), skip }).catch(() => {});
+    }
     await wait(4000);                               // let the owner see what was picked
     const g = groupGet();
     if (g && g.i === 0 && !runGet()) location.href = props[0].url;
   }
-  function stopGroup(note) {
+  async function stopGroup(note) {
     const g = groupGet();
     if (!g) return;
     groupSet(null);
     try { sessionStorage.setItem('hp_group_done', JSON.stringify({ note, ok: g.ok, total: g.total, bad: g.bad, n: g.props.length })); } catch (e) {}
+    if (g.auto) {                                   // 1.30: "✅ Xong: đã lưu x/y" on Zalo (wait ≤ 4 s before leaving the page)
+      await Promise.race([api('/api/ext/morning', { stage: 'done', ok: g.ok, total: g.total, bad: g.bad.slice(0, 10),
+        note: /dừng/.test(note || '') ? 'Đã bị dừng giữa chừng.' : '' }).catch(() => {}), wait(4000)]);
+    }
     location.href = g.back;
   }
   function showGroupDone() {
@@ -1322,7 +1332,11 @@
         gp = groupProps() || gp;
         await chrome.storage.local.remove('hpAutoRunUntil');
         const pick = groupPick(gp);
-        if (!pick.length) { toast('🏢 Hôm nay không căn nào có khách đến.<br>' + groupSummary(gp), 'ok', 20000); return; }
+        if (!pick.length) {
+          toast('🏢 Hôm nay không căn nào có khách đến.<br>' + groupSummary(gp), 'ok', 20000);
+          api('/api/ext/morning', { stage: 'start', note: 'Hôm nay không căn nào có khách đến — không phải làm gì.' }).catch(() => {});
+          return;
+        }
         startGroup(pick, true, gp);
         return;
       }

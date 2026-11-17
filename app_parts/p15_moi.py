@@ -685,6 +685,11 @@ def zbot_tick():
     global ZBOT_BEAT
     now = datetime.utcnow() + timedelta(hours=7)
     ZBOT_BEAT = now.strftime('%H:%M')   # shown in /api/moi/zbot: proof this worker's loop is alive
+    if now.hour == 7 and now.minute >= 20:   # p17: the PC's 7:00 run has not reported → tell the owner (once a day)
+        try:
+            morning_watch(now)
+        except Exception as e:
+            print(f'⚠️ morning watch: {e}')
     if not (8 <= now.hour < 10 or 12 <= now.hour < 14):
         return False
     from core.models import db as _xdb

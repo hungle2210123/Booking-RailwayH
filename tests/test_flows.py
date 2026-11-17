@@ -138,3 +138,66 @@ def test_login_code_relay(client, db, app_module, monkeypatch):
         if old is not None:
             db.session.execute(text("INSERT INTO moi_settings (key, value) VALUES (:k, :v)"), {'k': key, 'v': old})
         db.session.commit()
+
+
+
+# ── 📷 provisional TAM-… booking renamed to the real number that already has a picture (owner, Nov 17) ─────────
+def test_rename_keeps_real_numbers_picture(db, app_module, booking, throwaway):
+    """5938586704: the extension saved the guest's picture under the real number while the booking still had its
+    provisional id → renaming hit booking_screenshots_pkey and the save failed. Now the real number's row is kept."""
+    old = booking()
+    new = throwaway()
+    ins = text("INSERT INTO booking_screenshots (booking_id, full_img, guest_img, mime, created_at) "
+               "VALUES (:b, :f, :f, 'image/jpeg', now())")
+    db.session.execute(ins, {'b': old, 'f': b'old'})
+    db.session.execute(ins, {'b': new, 'f': b'new'})
+    for b in (old, new):
+        db.session.execute(text("INSERT INTO journey_log (booking_id, step, sent_at) VALUES (:b, 'welcome', now())"), {'b': b})
+    db.session.execute(text("INSERT INTO journey_log (booking_id, step, sent_at) VALUES (:b, 'checkin', now())"), {'b': old})
+    db.session.commit()
+    try:
+        app_module._rename_booking(old, new)
+        q = lambda sql, b: db.session.execute(text(sql), {'b': b}).fetchall()
+        assert q("SELECT booking_id FROM bookings WHERE booking_id = :b", new)
+        assert not q("SELECT booking_id FROM bookings WHERE booking_id = :b", old)
+        assert [bytes(r[0]) for r in q("SELECT full_img FROM booking_screenshots WHERE booking_id = :b", new)] == [b'new']
+        assert not q("SELECT 1 FROM booking_screenshots WHERE booking_id = :b", old)
+        assert sorted(r[0] for r in q("SELECT step FROM journey_log WHERE booking_id = :b", new)) == ['checkin', 'welcome']
+    finally:
+        for b in (old, new):
+            db.session.execute(text("DELETE FROM booking_screenshots WHERE booking_id = :b"), {'b': b})
+            db.session.execute(text("DELETE FROM journey_log WHERE booking_id = :b"), {'b': b})
+        db.session.commit()
+
+
+
+# ── 🖥 morning run reports on Zalo + 7:20 warning when the PC did not run (owner, Nov 17) ───────────────────────
+def test_morning_report_and_watch(client, db, app_module, monkeypatch):
+    from datetime import datetime, timedelta
+    sent = []
+    monkeypatch.setattr(app_module, 'mail_notify', lambda _db, msg: sent.append(msg) or 'bot2')
+    hdr = {'X-Hotel-Token': os.getenv('EXTENSION_TOKEN', '')}
+    keys = ('morning_status', 'morning_warned')
+    old = {k: db.session.execute(text("SELECT value FROM moi_settings WHERE key = :k"), {'k': k}).scalar() for k in keys}
+    try:
+        for k in keys:
+            db.session.execute(text("DELETE FROM moi_settings WHERE key = :k"), {'k': k})
+        db.session.commit()
+        now = datetime.utcnow() + timedelta(hours=7)
+        # no start today → one warning, never twice
+        assert app_module.morning_watch(now.replace(hour=7, minute=20)) is True
+        assert app_module.morning_watch(now.replace(hour=7, minute=21)) is False
+        assert len(sent) == 1 and 'chưa thấy máy tính' in sent[0]
+        r = client.post('/api/ext/morning', json={'stage': 'start', 'go': ['Hanoi Vintage Studio (2)'], 'skip': ['2 Double Beds (0) đóng']}, headers=hdr)
+        assert r.get_json()['success']
+        assert 'Máy tính đã chạy' in sent[1] and 'Hanoi Vintage Studio (2)' in sent[1] and 'Bỏ qua' in sent[1]
+        client.post('/api/ext/morning', json={'stage': 'done', 'ok': 6, 'total': 7,
+                                              'bad': [{'bid': '5938586704', 'why': 'lỗi'}]}, headers=hdr)
+        assert 'đã lưu 6/7' in sent[2] and '5938586704' in sent[2]
+        assert client.post('/api/ext/morning', json={'stage': 'x'}, headers=hdr).status_code == 400
+    finally:
+        for k in keys:
+            db.session.execute(text("DELETE FROM moi_settings WHERE key = :k"), {'k': k})
+            if old[k] is not None:
+                db.session.execute(text("INSERT INTO moi_settings (key, value) VALUES (:k, :v)"), {'k': k, 'v': old[k]})
+        db.session.commit()

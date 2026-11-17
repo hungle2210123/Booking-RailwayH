@@ -398,6 +398,81 @@ def ext_login_code():
     return jsonify({'success': False, 'error': 'Không rõ thao tác'}), 400
 
 
+# ── 🖥 Báo chạy buổi sáng (owner, Nov 17: "7 giờ sáng làm sao tôi biết máy đã mở chưa và mọi thứ diễn ra thế nào") ──
+# The extension reports its 7:00 run: 'start' (which properties) and 'done' (saved x/y, who failed) → booking bot.
+# morning_watch (zbot_tick, 7:20–7:59 VN, once a day): no 'start' today → "máy tính chưa chạy" (PC off / asleep /
+# Chrome closed). Kept in moi_settings 'morning_status' {day, start_at, done_at, warned}.
+def _vn_today():
+    return (datetime.utcnow() + timedelta(hours=7)).date().isoformat()
+
+
+@app.route('/api/ext/morning', methods=['POST'])
+def ext_morning():
+    err = _ext_auth_error()
+    if err:
+        return err
+    from core.models import db as _xdb
+    _moi_ensure()
+    d = request.get_json(silent=True) or {}
+    stage = d.get('stage')
+    now = (datetime.utcnow() + timedelta(hours=7))
+    st = _zbot_get(_xdb, 'morning_status') or {}
+    if not isinstance(st, dict) or st.get('day') != _vn_today():
+        st = {'day': _vn_today()}
+    names = lambda key: ', '.join(str(x)[:40] for x in (d.get(key) or [])[:12])
+    if stage == 'start':
+        st['start_at'] = now.strftime('%H:%M')
+        msg = f"🖥 {st['start_at']} Máy tính đã chạy: lấy khách đến hôm nay."
+        if d.get('go'):
+            msg += f"\nVào {len(d['go'])} căn: {names('go')}"
+        if d.get('skip'):
+            msg += f"\nBỏ qua: {names('skip')}"
+        if d.get('note'):
+            msg += '\n' + str(d['note'])[:200]
+    elif stage == 'done':
+        st['done_at'] = now.strftime('%H:%M')
+        ok, total = int(d.get('ok') or 0), int(d.get('total') or 0)
+        msg = f"✅ {st['done_at']} Xong: đã lưu {ok}/{total} khách đến hôm nay về Hotel Pro."
+        bad = [b for b in (d.get('bad') or []) if isinstance(b, dict)][:10]
+        if bad:
+            msg += '\nChưa lưu được: ' + ', '.join(f"{b.get('bid')} ({str(b.get('why') or '')[:60]})" for b in bad)
+        if d.get('note'):
+            msg += '\n' + str(d['note'])[:200]
+    else:
+        return jsonify({'success': False, 'error': 'stage'}), 400
+    _zbot_put(_xdb, 'morning_status', st)
+    mail_notify(_xdb, msg)
+    return jsonify({'success': True})
+
+
+def morning_watch(now):
+    """7:20 VN and the PC has not said 'start' today → one Zalo warning."""
+    from core.models import db as _xdb
+    with app.app_context():
+        try:
+            st = _zbot_get(_xdb, 'morning_status') or {}
+            day = now.date().isoformat()
+            if isinstance(st, dict) and st.get('day') == day and (st.get('start_at') or st.get('warned')):
+                return False
+            # claim the warning for today first (several gunicorn workers tick at the same minute)
+            got = _xdb.session.execute(text(
+                "INSERT INTO moi_settings (key, value) VALUES ('morning_warned', :d) ON CONFLICT (key) DO UPDATE "
+                "SET value = EXCLUDED.value WHERE moi_settings.value < EXCLUDED.value RETURNING value"),
+                {'d': json.dumps(day)}).fetchone()
+            _xdb.session.commit()
+            if not got:
+                return False
+            mail_notify(_xdb, f"⚠️ {now:%H:%M} chưa thấy máy tính chạy lấy khách sáng nay.\n"
+                              "Có thể máy đang TẮT / NGỦ, hoặc Chrome chưa mở. Mở máy (hoặc mở Chrome) là tự chạy ngay — "
+                              "bot sẽ báo khi bắt đầu và khi xong.")
+            return True
+        except Exception:
+            _xdb.session.rollback()
+            raise
+        finally:
+            _xdb.session.remove()
+
+
 @app.route('/api/moi/mail_bot', methods=['POST'])
 def moi_mail_bot():
     """Setup of the booking bot: token (checked with getMe, then setWebhook) · test · remove a receiver · off (back to the cleaning bot)."""

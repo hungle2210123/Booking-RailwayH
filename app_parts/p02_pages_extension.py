@@ -391,6 +391,13 @@ def _rename_booking(old, new):
                           "WHERE booking_id = :o"), {'o': old}).fetchall()
     s.execute(text("DELETE FROM arrival_times WHERE booking_id = :o"), {'o': old})     # FK: re-added below
     s.execute(text("UPDATE bookings SET booking_id = :n WHERE booking_id = :o"), {'n': new, 'o': old})
+    # One-per-booking rows that the REAL number may already have (owner, Nov 17: 5938586704 — the extension's auto
+    # picture was saved under the real number before the provisional TAM-… booking was renamed → duplicate key, the
+    # whole save failed). Keep the real number's row (the fresh capture / the same step), drop the provisional copy.
+    s.execute(text("DELETE FROM booking_screenshots WHERE booking_id = :o "
+                   "AND EXISTS (SELECT 1 FROM booking_screenshots WHERE booking_id = :n)"), {'n': new, 'o': old})
+    s.execute(text("DELETE FROM journey_log o WHERE o.booking_id = :o "
+                   "AND EXISTS (SELECT 1 FROM journey_log n WHERE n.booking_id = :n AND n.step = o.step)"), {'n': new, 'o': old})
     for t in ('booking_history', 'booking_screenshots', 'cancellation_actions', 'journey_log', 'revenue_calendar'):
         try:
             s.execute(text(f"UPDATE {t} SET booking_id = :n WHERE booking_id = :o"), {'n': new, 'o': old})
