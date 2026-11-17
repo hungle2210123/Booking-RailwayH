@@ -55,6 +55,8 @@ async function shoot(tab, auto = false) {
 // and as soon as the owner has signed in (any admin.booking.com page loads) the run starts by itself.
 // 1.31 (owner 17/11/2026: 2 Booking accounts): each Chrome profile = one Booking account, with its own run time
 // (popup "Giờ chạy", chrome.storage.local hpMorningAt, default 07:00) and name (hpAccount, shown in the Zalo messages).
+// 1.33: open the overview of ALL properties (admin.booking.com/ opens the last property's home)
+const GROUP_URL = 'https://admin.booking.com/hotel/hoteladmin/groups/home/index.html';
 const today = () => new Date().toLocaleDateString('sv');          // YYYY-MM-DD, local time
 async function morningTime() {
   const { hpMorningAt } = await chrome.storage.local.get('hpMorningAt');
@@ -73,7 +75,7 @@ async function morningRun() {
   const [h, mi] = await morningTime(), now = new Date();
   if (hpLastMorning === today() || now.getHours() * 60 + now.getMinutes() < h * 60 + mi) return;
   await chrome.storage.local.set({ hpLastMorning: today(), hpAutoRunUntil: Date.now() + 10 * 60000 });
-  const tab = await chrome.tabs.create({ url: 'https://admin.booking.com/', active: false });
+  const tab = await chrome.tabs.create({ url: GROUP_URL, active: false });
   setTimeout(() => checkSignedOut(tab.id), 25000);      // redirects to the sign-in page take a few seconds
 }
 const isSignIn = url => !/^https:\/\/admin\.booking\.com\//i.test(url || '') || /sign-?in|login/i.test(url || '');
@@ -111,7 +113,7 @@ chrome.tabs.onUpdated.addListener(async (tabId, info, tab) => {
   await chrome.storage.local.remove('hpWaitLogin');
   if (Date.now() > hpWaitLogin) return;
   await chrome.storage.local.set({ hpAutoRunUntil: Date.now() + 10 * 60000 });
-  const home = 'https://admin.booking.com/';
+  const home = GROUP_URL;
   if (/\/hotel\/hoteladmin\/(extranet_ng\/manage\/home|groups\/)/i.test(tab.url)) chrome.tabs.sendMessage(tabId, { type: 'hp-morning-start' }).catch(() => {});
   else chrome.tabs.update(tabId, { url: home });       // home page shows the "Khách đến" list
 });
@@ -141,7 +143,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (msg?.type === 'morning-now') {                  // popup "▶ Chạy toàn bộ ngay" (1.26): the whole 7:00 chain, now
     (async () => {
       await chrome.storage.local.set({ hpLastMorning: today(), hpAutoRunUntil: Date.now() + 10 * 60000 });
-      const tab = await chrome.tabs.create({ url: 'https://admin.booking.com/', active: true });
+      const tab = await chrome.tabs.create({ url: GROUP_URL, active: true });
       setTimeout(() => checkSignedOut(tab.id), 25000);
     })().then(() => sendResponse({ success: true }));
     return true;

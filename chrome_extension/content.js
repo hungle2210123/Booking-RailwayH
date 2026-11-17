@@ -1032,6 +1032,8 @@
   // "Khách đến" của căn đó → xong thì sang căn kế tiếp → cuối cùng quay về trang tổng quan, báo tổng kết.
   // Hàng đợi căn: sessionStorage 'hp_group_queue' {props, i, back, ok, total, bad, auto}; props[i].started = đã chạy.
   const GROUP_KEY = 'hp_group_queue';
+  // the overview of ALL the account's properties ("Tổng quan hôm nay" + table). background.js opens it at 7:00.
+  const GROUP_URL = 'https://admin.booking.com/hotel/hoteladmin/groups/home/index.html';
   // 1.31: name of this profile's Booking account (popup), put in the Zalo messages
   const hpAccount = async () => { try { return (await chrome.storage.local.get('hpAccount')).hpAccount || ''; } catch (e) { return ''; } };
   const groupGet = () => { try { return JSON.parse(sessionStorage.getItem(GROUP_KEY) || 'null'); } catch (e) { return null; } };
@@ -1343,12 +1345,27 @@
         return;
       }
       const a = arrivalsToday();                   // one property's home: only "Khách đến · Hôm nay"
+      if (a) {
+        // 1.33 (owner 17/11/2026): admin.booking.com/ opens the LAST property's home, not the overview of all
+        // properties → go to the group overview once; an account with one property comes back here (redirect).
+        let tried = null;
+        try { tried = sessionStorage.getItem('hp_tried_group'); sessionStorage.setItem('hp_tried_group', '1'); } catch (e) {}
+        if (!tried) { location.href = GROUP_URL; return; }
+      }
       if (a && (a.items.length || (a.n === 0 && t >= 2))) {
         await chrome.storage.local.remove('hpAutoRunUntil');
-        if (!a.items.length) { toast('Hôm nay không có khách đến.', 'ok', 15000); return; }
-        startRun(a.items);
+        const hid = new URL(location.href).searchParams.get('hotel_id') || '';
+        const name = (rawText(document.querySelector('h1, h2')) || '').split('\n')[0].trim().slice(0, 60) || ('căn ' + hid);
+        if (!a.items.length) {
+          toast('Hôm nay không có khách đến.', 'ok', 15000);
+          api('/api/ext/morning', { stage: 'start', note: `${name}: hôm nay không có khách đến — không phải làm gì.`, account: await hpAccount() }).catch(() => {});
+          return;
+        }
+        startGroup([{ id: hid, name, n: a.items.length, url: location.href }], true);   // same path: Zalo start / done
         return;
       }
+      // the overview address did not work (error page) → back to the normal home page once
+      if (t === 14 && /\/groups\//.test(location.pathname)) { location.href = 'https://admin.booking.com/'; return; }
       await wait(1500);
     }
   }
