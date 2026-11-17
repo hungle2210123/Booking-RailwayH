@@ -128,3 +128,6 @@ node_modules/
 !.claude/rules/*.md
 !.claude/agents/*.md
 !tests/test_*.py
+
+# tool installers / launchers the web app hands out (owner, Nov 17) — must reach Railway
+!tools/**/*.bat
