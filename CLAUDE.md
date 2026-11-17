@@ -67,8 +67,8 @@ https://web-production-8f671.up.railway.app — **push straight to main** ("git 
 - Revenue: one rule set in `core/revenue.py` (`build_overview`, `day_figures`) used by dashboard, month calendar and day page.
 
 ## Hard rules (owner decisions + safety)
-- Never log in to Booking.com or type the owner's passwords. The extension is **read-only on Booking**: never auto-click
-  "Hiển thị số điện thoại", never call Booking APIs, never scrape. It only TYPES into Booking's chat box; the owner presses Gửi.
+- Never log in to Booking.com or type the owner's passwords. The extension is **read-only on Booking**: auto-clicks
+  "Hiển thị số điện thoại" only once per opened booking (owner 17/11/2026; popup switch; never in ▶ runs / partner), never call Booking APIs, never scrape. It only TYPES into Booking's chat box; the owner presses Gửi.
 - No bulk WhatsApp sending from a personal account. Partner-company phone numbers (tail `035640799`) are never a guest's phone.
 - The owner creates / rotates API keys and passwords themselves (Gemini key is `GOOGLE_API_KEY` on Railway). Never paste secrets into chat.
 - `/debug/env`, `/debug/local_postgres`, `/debug/db-config` return 404 unless env `DEBUG_ROUTES=1` (they printed DB settings).

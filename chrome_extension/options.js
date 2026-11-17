@@ -4,6 +4,13 @@ const say = (text, ok) => { $('msg').textContent = text; $('msg').style.color = 
 
 chrome.storage.sync.get(DEFAULTS).then(s => { $('server').value = s.server; $('token').value = s.token; });
 
+// 📞 Tự bấm "Hiển thị số điện thoại" — default on, saved at once
+chrome.storage.sync.get({ hpAutoReveal: true }).then(s => { $('autoReveal').checked = !!s.hpAutoReveal; });
+$('autoReveal').addEventListener('change', async e => {
+  await chrome.storage.sync.set({ hpAutoReveal: e.target.checked });
+  say(e.target.checked ? '✅ Đã bật tự bấm số (mở lại trang khách)' : 'Đã tắt tự bấm số', true);
+});
+
 $('save').addEventListener('click', async () => {
   await chrome.storage.sync.set({ server: $('server').value.trim() || DEFAULTS.server, token: $('token').value.trim() });
   say('✅ Đã lưu', true);

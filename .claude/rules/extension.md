@@ -5,7 +5,7 @@ paths:
   - "core/booking_page_parser.py"
 ---
 # Chrome extension + Booking.com data — read docs/extension.md for the full notes
-- The extension is READ-ONLY on Booking: never auto-click "Hiển thị số điện thoại", never call Booking APIs,
+- The extension is READ-ONLY on Booking: auto-clicks "Hiển thị số điện thoại" ONLY once per opened booking (owner decision 17/11/2026, popup switch, not during ▶ runs / partner bookings), never call Booking APIs,
   never send messages. ONE exception (owner, 17/11/2026, accepts the account risk): "▶ Mở từng khách" (content.js end)
   opens the guests of the visible list one by one at human speed after the owner presses it, saves each, returns.
   Also by itself at 7:00 daily (background.js alarm opens admin.booking.com, uses the owner's open session, never logs in). It only reads the page the owner opened and TYPES into Booking's chat box; the owner presses Gửi.

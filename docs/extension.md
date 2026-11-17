@@ -78,9 +78,11 @@ reaches every room. Fixed: Tien Pham 6180825357 (Queen = Báo hủy, Deluxe = 61
 ### **📞 Chrome extension — phone handling**
 `POST /api/ext/booking/phone`: when the owner clicks Booking's own "Hiển thị số điện thoại", the extension reads the
 number ONLY from the guest block (next to `@guest.booking.com` / the reveal button) and saves it to the booking;
-duplicate-guard rejects a number already on another guest. Extension is **read-only on Booking** — it never auto-clicks
-the reveal, never calls Booking APIs, never scrapes (deliberate: Booking gates the phone behind a human click; automating
-that is circumvention + account-ban risk, so it was removed). Extension also imports the reservation list/detail
+duplicate-guard rejects a number already on another guest. **Auto-click (ext 1.22, owner decision 17/11/2026, owner accepts
+the account risk):** `autoRevealTry` (MutationObserver) clicks the reveal ONCE per `res_id` on an opened booking, after a
+random 1–2 s; the `el.click()` goes through the normal click listener → `checkPhone` + `shotAfterReveal`. Never during
+"▶ Mở từng khách" (`hp_run_queue` set, incl. the 7:00 run), never on partner bookings (`isPartnerBooking`). Popup switch
+`hpAutoReveal` (chrome.storage.sync, default on). Never calls Booking APIs, never scrapes. Extension also imports the reservation list/detail
 (new/changed/cancelled, multi-room ⚠️, new-listing 🆕). Current ext version: see `chrome_extension/manifest.json`.
 
 

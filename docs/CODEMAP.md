@@ -564,13 +564,14 @@ _p17_mail — 📧 Booking.com e-mails → the app (owner, Nov 12: "khi nhận �
 - static/js/photo_import.js: 154 `form` · 175 `saveShot` · 190 `save` · 210 `phone` · 237 `draw` · 253 `save`
 
 ## chrome_extension/content.js
-- chrome_extension/content.js: 117 `allDocs` · 128 `cellsOf` · 135 `fromTable` · 151 `fromBookingNumbers` · 180 `captureList` · 189 `diagnostics` · 214 `capture` · 257 `show`
-- chrome_extension/content.js: 308 `save` · 343 `showList` · 401 `showProblem` · 483 `phonesIn` · 491 `phoneNear` · 499 `guestPhone` · 507 `toast` · 523 `checkPhone`
-- chrome_extension/content.js: 554 `autoShot` · 574 `shotAfterReveal` · 601 `chatBox` · 607 `putInChat` · 681 `chatThread` · 691 `pageBookingNumber` · 698 `aiAsk` · 709 `drawAi`
-- chrome_extension/content.js: 744 `stopMic` · 745 `toggleMic` · 787 `prepareShot` · 863 `finishShot` · 917 `cancelShot` · 925 `restoreFloating`
+- chrome_extension/content.js: 119 `allDocs` · 130 `cellsOf` · 137 `fromTable` · 153 `fromBookingNumbers` · 182 `captureList` · 191 `diagnostics` · 216 `capture` · 259 `show`
+- chrome_extension/content.js: 310 `save` · 345 `showList` · 403 `showProblem` · 486 `phonesIn` · 494 `phoneNear` · 502 `guestPhone` · 510 `toast` · 526 `checkPhone`
+- chrome_extension/content.js: 557 `autoShot` · 577 `shotAfterReveal` · 607 `autoRevealTry` · 632 `chatBox` · 638 `putInChat` · 712 `chatThread` · 722 `pageBookingNumber` · 729 `aiAsk`
+- chrome_extension/content.js: 740 `drawAi` · 775 `stopMic` · 776 `toggleMic` · 818 `prepareShot` · 894 `finishShot` · 948 `cancelShot` · 956 `restoreFloating` · 987 `guestLinks`
+- chrome_extension/content.js: 1004 `refreshRunBtn` · 1013 `startRun` · 1025 `finishRun` · 1034 `showRunDone` · 1043 `runStep` · 1083 `autoMorning`
 
 ## chrome_extension/background.js
-- chrome_extension/background.js: 6 `settings` · 30 `shoot`
+- chrome_extension/background.js: 6 `settings` · 30 `shoot` · 57 `scheduleMorning` · 62 `morningRun`
 
 # Templates (inline JS functions)
 

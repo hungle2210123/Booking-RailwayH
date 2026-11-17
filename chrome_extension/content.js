@@ -1,7 +1,8 @@
 // "Gửi về Hotel Pro" — runs on admin.booking.com pages.
 // Reads what is on the screen when you click a button. The ONE exception (owner, 17/11/2026):
 // "▶ Mở từng khách" opens the guests of the visible list one by one after the owner presses it.
-// It never clicks "Hiển thị số điện thoại", never calls Booking APIs.
+// Owner decision 17/11/2026: on ONE opened booking it clicks "Hiển thị số điện thoại" once (switch in the
+// popup, default on) — never during "▶ Mở từng khách", never on partner bookings. Never calls Booking APIs.
 (function () {
   if (window.__hotelProInjected) return;
   window.__hotelProInjected = true;
@@ -471,7 +472,8 @@
 
   // ── Số điện thoại hiện ra trên trang đặt phòng → tự lưu về web ──────
   // Chỉ ĐỌC trang: chính bạn bấm nút "Hiển thị số điện thoại" của Booking, tiện ích đọc số đó rồi lưu.
-  // Không tự bấm, không tự mở trang, không moi số đang ẩn.
+  // Chủ nhà quyết định 17/11/2026: tiện ích tự bấm nút đó 1 lần trên trang 1 khách (xem autoReveal bên dưới);
+  // không bấm khi đang "▶ Mở từng khách", không bấm đặt phòng qua đối tác.
   // Not inside a longer run of digits — a booking number like 5091703794 must not yield "091703794"
   // …and never across a line break (the address line under the phone starts with digits too)
   const PHONE_FIND = /(?<![\d+])(?:\+|00|0)\d[\d \t ().\-]{6,18}\d(?!\d)/g;
@@ -595,6 +597,34 @@
   }, true);
   // Nếu số đã hiện sẵn khi mở trang (hoặc là đặt phòng qua đối tác): chỉ lưu số, KHÔNG chụp ảnh.
   [2500, 6000].forEach(ms => setTimeout(checkPhone, ms));
+
+  // ── Tự bấm "Hiển thị số điện thoại" (chủ nhà quyết định 17/11/2026, chấp nhận rủi ro tài khoản) ──
+  // 1 lần cho mỗi res_id, chờ 1–2 giây ngẫu nhiên; el.click() kích hoạt listener ở trên → checkPhone + ảnh.
+  // Không bấm khi đang chạy "▶ Mở từng khách" (kể cả lần tự chạy 7:00), không bấm đặt phòng qua đối tác.
+  // Tắt được trong popup tiện ích (hpAutoReveal, mặc định bật).
+  const revealClicked = new Set();
+  let revealTimer = null;
+  function autoRevealTry() {
+    const bid = resId();
+    if (!bid || revealClicked.has(bid) || revealTimer) return;
+    const runActive = () => { try { return !!JSON.parse(sessionStorage.getItem('hp_run_queue') || 'null'); } catch (e) { return false; } };
+    if (runActive() || isPartnerBooking()) return;
+    const el = [...document.querySelectorAll('button, a, [role="button"]')].find(b => !host.contains(b) && b.offsetParent !== null && isRevealEl(b));
+    if (!el) return;
+    revealTimer = setTimeout(() => {
+      revealTimer = null;
+      if (resId() !== bid || revealClicked.has(bid) || runActive() || isPartnerBooking() || !el.isConnected) return;
+      revealClicked.add(bid);
+      el.click();
+    }, 1000 + Math.random() * 1000);
+  }
+  chrome.storage.sync.get({ hpAutoReveal: true }).then(({ hpAutoReveal }) => {
+    if (!hpAutoReveal) return;
+    let pend = null;
+    new MutationObserver(() => { if (!pend) pend = setTimeout(() => { pend = null; autoRevealTry(); }, 400); })
+      .observe(document.body, { childList: true, subtree: true });
+    autoRevealTry();
+  }).catch(() => {});
 
   // ── 💬 Điền tin: put a ready message into Booking's own "Trò chuyện với khách" box ──────
   // Only types into the box on the page you are looking at; YOU read it and press Booking's Gửi.
@@ -946,7 +976,7 @@
   // ── ▶ Mở từng khách: owner decision 17/11/2026 ("tôi không sợ mất tài khoản") ──────────────
   // Only when the owner presses ▶: opens each guest of the visible list (e.g. "Khách đến") one by one at
   // human speed, saves the booking facts to the web, then the next one, then back to the list.
-  // Still NEVER clicks "Hiển thị số điện thoại" (a number already showing is saved by checkPhone as usual).
+  // Never clicks "Hiển thị số điện thoại" during a run (autoRevealTry checks the queue; a number already showing is saved).
   const RUN_KEY = 'hp_run_queue';
   const runGet = () => { try { return JSON.parse(sessionStorage.getItem(RUN_KEY) || 'null'); } catch (e) { return null; } };
   const runSet = q => { try { q ? sessionStorage.setItem(RUN_KEY, JSON.stringify(q)) : sessionStorage.removeItem(RUN_KEY); } catch (e) {} };
@@ -988,7 +1018,7 @@
     if (runGet()) { finishRun('⏹ Đã dừng.'); return; }
     const items = guestLinks();
     if (!items.length) return;
-    if (!confirm(`Tự mở lần lượt ${items.length} khách trên danh sách này và lưu về Hotel Pro?\n(Không tự bấm "Hiển thị số điện thoại".)`)) return;
+    if (!confirm(`Tự mở lần lượt ${items.length} khách trên danh sách này và lưu về Hotel Pro?\n(Trong lúc chạy không tự bấm "Hiển thị số điện thoại".)`)) return;
     startRun(items);
   });
 
