@@ -1032,6 +1032,8 @@
   // "Khách đến" của căn đó → xong thì sang căn kế tiếp → cuối cùng quay về trang tổng quan, báo tổng kết.
   // Hàng đợi căn: sessionStorage 'hp_group_queue' {props, i, back, ok, total, bad, auto}; props[i].started = đã chạy.
   const GROUP_KEY = 'hp_group_queue';
+  // 1.31: name of this profile's Booking account (popup), put in the Zalo messages
+  const hpAccount = async () => { try { return (await chrome.storage.local.get('hpAccount')).hpAccount || ''; } catch (e) { return ''; } };
   const groupGet = () => { try { return JSON.parse(sessionStorage.getItem(GROUP_KEY) || 'null'); } catch (e) { return null; } };
   const groupSet = g => { try { g ? sessionStorage.setItem(GROUP_KEY, JSON.stringify(g)) : sessionStorage.removeItem(GROUP_KEY); } catch (e) {} };
   const gCells = row => [...row.querySelectorAll(':scope > th, :scope > td, :scope > [role="cell"], :scope > [role="columnheader"], :scope > [role="rowheader"], :scope > [role="gridcell"]')];
@@ -1146,7 +1148,7 @@
     if (auto) {
       const lab = p => p.name + (p.n > 0 ? ` (${p.n})` : '');
       const skip = (all || props).filter(p => !props.includes(p)).map(p => lab(p) + (p.closed ? ' đóng' : ''));
-      api('/api/ext/morning', { stage: 'start', go: props.map(lab), skip }).catch(() => {});
+      api('/api/ext/morning', { stage: 'start', go: props.map(lab), skip, account: await hpAccount() }).catch(() => {});
     }
     await wait(4000);                               // let the owner see what was picked
     const g = groupGet();
@@ -1158,7 +1160,7 @@
     groupSet(null);
     try { sessionStorage.setItem('hp_group_done', JSON.stringify({ note, ok: g.ok, total: g.total, bad: g.bad, n: g.props.length })); } catch (e) {}
     if (g.auto) {                                   // 1.30: "✅ Xong: đã lưu x/y" on Zalo (wait ≤ 4 s before leaving the page)
-      await Promise.race([api('/api/ext/morning', { stage: 'done', ok: g.ok, total: g.total, bad: g.bad.slice(0, 10),
+      await Promise.race([api('/api/ext/morning', { stage: 'done', ok: g.ok, total: g.total, bad: g.bad.slice(0, 10), account: await hpAccount(),
         note: /dừng/.test(note || '') ? 'Đã bị dừng giữa chừng.' : '' }).catch(() => {}), wait(4000)]);
     }
     location.href = g.back;
@@ -1334,7 +1336,7 @@
         const pick = groupPick(gp);
         if (!pick.length) {
           toast('🏢 Hôm nay không căn nào có khách đến.<br>' + groupSummary(gp), 'ok', 20000);
-          api('/api/ext/morning', { stage: 'start', note: 'Hôm nay không căn nào có khách đến — không phải làm gì.' }).catch(() => {});
+          api('/api/ext/morning', { stage: 'start', note: 'Hôm nay không căn nào có khách đến — không phải làm gì.', account: await hpAccount() }).catch(() => {});
           return;
         }
         startGroup(pick, true, gp);

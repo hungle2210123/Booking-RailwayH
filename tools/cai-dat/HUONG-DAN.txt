@@ -36,6 +36,15 @@ TỰ ĐÁNH THỨC MÁY LÚC 6:55 (mo-may-buoi-sang.ps1)
   • Bot Zalo báo lúc bắt đầu và lúc xong; 7:20 chưa thấy chạy thì báo "máy chưa chạy".
   • Lỡ TẮT HẲN máy thì không tự bật được — mở máy lên, Chrome mở là tự chạy.
 
+HAI TÀI KHOẢN BOOKING (hoặc nhiều hơn)
+  • Mỗi tài khoản Booking = MỘT hồ sơ Chrome riêng (Booking chỉ giữ 1 tài khoản đăng nhập trong 1 hồ sơ; dùng chung thì
+    sáng nào cũng phải đăng xuất / đăng nhập lại, hay bị đòi mã SMS).
+  • Trong hồ sơ thứ 2: cài tiện ích (Tải tiện ích đã giải nén, cùng thư mục chrome_extension) + Tampermonkey + script
+    Tự đăng nhập, đăng nhập Booking tài khoản 2 một lần.
+  • Bấm biểu tượng Hotel Pro ở MỖI hồ sơ → "Tài khoản Booking của hồ sơ Chrome này": đặt Tên (vd 18 Hàng Bè / 19 Thọ Nhuộm)
+    và Giờ tự chạy LỆCH nhau (07:00 và 07:30) → chạy lần lượt, tin Zalo ghi rõ tài khoản nào.
+  • Lịch đánh thức mở cả 2 hồ sơ:  ... mo-may-buoi-sang.ps1 -CaiDat -ChromeProfile "Default,Booking2"
+
 CHẠY NGAY KHÔNG CHỜ 7:00
   Bấm biểu tượng Hotel Pro trên thanh Chrome → "▶ Chạy toàn bộ ngay".
 

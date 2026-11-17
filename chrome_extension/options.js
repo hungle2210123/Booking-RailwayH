@@ -4,6 +4,14 @@ const say = (text, ok) => { $('msg').textContent = text; $('msg').style.color = 
 
 chrome.storage.sync.get(DEFAULTS).then(s => { $('server').value = s.server; $('token').value = s.token; });
 
+// 👤 per-profile account name + run time (chrome.storage.LOCAL: each Chrome profile keeps its own)
+chrome.storage.local.get({ hpAccount: '', hpMorningAt: '07:00' }).then(s => { $('account').value = s.hpAccount; $('morningAt').value = s.hpMorningAt; });
+$('account').addEventListener('change', async e => { await chrome.storage.local.set({ hpAccount: e.target.value.trim() }); say('✅ Đã lưu tên tài khoản', true); });
+$('morningAt').addEventListener('change', async e => {
+  if (!/^\d{2}:\d{2}$/.test(e.target.value)) return;
+  await chrome.storage.local.set({ hpMorningAt: e.target.value });
+  say('✅ Mỗi sáng tự chạy lúc ' + e.target.value, true);
+});
 // 📞 Tự bấm "Hiển thị số điện thoại" — default on, saved at once
 chrome.storage.sync.get({ hpAutoReveal: true }).then(s => { $('autoReveal').checked = !!s.hpAutoReveal; });
 $('autoReveal').addEventListener('change', async e => {

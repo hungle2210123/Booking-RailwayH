@@ -194,6 +194,9 @@ def test_morning_report_and_watch(client, db, app_module, monkeypatch):
         client.post('/api/ext/morning', json={'stage': 'done', 'ok': 6, 'total': 7,
                                               'bad': [{'bid': '5938586704', 'why': 'lỗi'}]}, headers=hdr)
         assert 'đã lưu 6/7' in sent[2] and '5938586704' in sent[2]
+        # 2 Booking accounts (2 Chrome profiles): the message says which one
+        client.post('/api/ext/morning', json={'stage': 'start', 'account': '19 Thọ Nhuộm', 'go': ['Cozy (1)']}, headers=hdr)
+        assert sent[3].startswith('🖥 [19 Thọ Nhuộm]')
         assert client.post('/api/ext/morning', json={'stage': 'x'}, headers=hdr).status_code == 400
     finally:
         for k in keys:

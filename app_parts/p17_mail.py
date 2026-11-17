@@ -384,7 +384,8 @@ def ext_login_code():
         if p.get('nonce') == nonce:              # asked already for this page
             return jsonify({'success': True})
         _zbot_put(_xdb, LOGIN_CODE_KEY, {'nonce': nonce, 'asked_at': _t.time(), 'code': ''})
-        mail_notify(_xdb, '🔐 Booking cần MÃ XÁC MINH để đăng nhập.\nMã 6 số vừa được nhắn tới điện thoại '
+        acc = str(d.get('account') or '').strip()[:40]
+        mail_notify(_xdb, (f'[{acc}] ' if acc else '') + '🔐 Booking cần MÃ XÁC MINH để đăng nhập.\nMã 6 số vừa được nhắn tới điện thoại '
                           'chủ nhà (SMS từ Booking). Trả lời tin này bằng đúng mã đó (vd 123456) trong 10 phút — máy tính sẽ tự điền.')
         return jsonify({'success': True})
     if d.get('action') == 'get':
@@ -415,6 +416,8 @@ def ext_morning():
     _moi_ensure()
     d = request.get_json(silent=True) or {}
     stage = d.get('stage')
+    acc = str(d.get('account') or '').strip()[:40]
+    tag = f'[{acc}] ' if acc else ''           # 2 Booking accounts (owner, Nov 17): say which one
     now = (datetime.utcnow() + timedelta(hours=7))
     st = _zbot_get(_xdb, 'morning_status') or {}
     if not isinstance(st, dict) or st.get('day') != _vn_today():
@@ -422,7 +425,7 @@ def ext_morning():
     names = lambda key: ', '.join(str(x)[:40] for x in (d.get(key) or [])[:12])
     if stage == 'start':
         st['start_at'] = now.strftime('%H:%M')
-        msg = f"🖥 {st['start_at']} Máy tính đã chạy: lấy khách đến hôm nay."
+        msg = f"🖥 {tag}{st['start_at']} Máy tính đã chạy: lấy khách đến hôm nay."
         if d.get('go'):
             msg += f"\nVào {len(d['go'])} căn: {names('go')}"
         if d.get('skip'):
@@ -432,7 +435,7 @@ def ext_morning():
     elif stage == 'done':
         st['done_at'] = now.strftime('%H:%M')
         ok, total = int(d.get('ok') or 0), int(d.get('total') or 0)
-        msg = f"✅ {st['done_at']} Xong: đã lưu {ok}/{total} khách đến hôm nay về Hotel Pro."
+        msg = f"✅ {tag}{st['done_at']} Xong: đã lưu {ok}/{total} khách đến hôm nay về Hotel Pro."
         bad = [b for b in (d.get('bad') or []) if isinstance(b, dict)][:10]
         if bad:
             msg += '\nChưa lưu được: ' + ', '.join(f"{b.get('bid')} ({str(b.get('why') or '')[:60]})" for b in bad)

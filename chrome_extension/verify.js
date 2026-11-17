@@ -70,7 +70,8 @@
     if (asking) return;                           // step 2: get the code from Zalo
     asking = true;
     const nonce = [...crypto.getRandomValues(new Uint8Array(16))].map(b => b.toString(16).padStart(2, '0')).join('');
-    const r = await api({ action: 'ask', nonce });
+    const { hpAccount } = await chrome.storage.local.get('hpAccount');
+    const r = await api({ action: 'ask', nonce, account: hpAccount || '' });
     if (!r?.success) { say('không gửi được yêu cầu tới Hotel Pro: ' + (r?.error || 'lỗi mạng') + ' — nhập mã bằng tay.', '#b91c1c'); return; }
     await chrome.storage.local.set({ hpCodeAskAt: Date.now() });
     say('đã nhờ bot Zalo hỏi mã — trả lời bot bằng mã 6 số trong SMS.');

@@ -241,10 +241,12 @@ def ext_login_needed():
     if err:
         return err
     from core.models import db as _xdb
+    acc = str((request.get_json(silent=True) or {}).get('account') or '').strip()[:40]
     try:
-        _staff_tell_owners(_xdb, "🔐 Booking đã đăng xuất nên lượt tự lấy khách lúc 7:00 chưa chạy.\n"
-                                 "Mở máy tính, đăng nhập Booking (Chrome tự điền mật khẩu). "
-                                 "Đăng nhập xong tiện ích tự mở từng khách và lưu số.")
+        _staff_tell_owners(_xdb, (f'[{acc}] ' if acc else '') +
+                           "🔐 Booking vẫn đang ở trang đăng nhập sau 2 phút nên lượt tự lấy khách buổi sáng chưa chạy.\n"
+                           "Mở máy tính, đăng nhập Booking (hoặc xem script Tự đăng nhập có báo lỗi không). "
+                           "Đăng nhập xong tiện ích tự mở từng khách và lưu số.")
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)})
     return jsonify({'success': True})

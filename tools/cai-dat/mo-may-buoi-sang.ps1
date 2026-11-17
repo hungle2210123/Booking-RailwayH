@@ -5,7 +5,7 @@
 #              ~2 min without this), then opens Chrome with -ChromeProfile (folder name, e.g. Default) so its
 #              Hotel Pro extension does the 07:00 run. If Chrome is already open this only adds a window.
 # Works from SLEEP only (Start > Power > Sleep), not from Shut down. Keep the charger plugged in.
-param([switch]$CaiDat, [string]$ChromeProfile = 'Default', [int]$Minutes = 45, [string]$At = '06:55')
+param([switch]$CaiDat, [string]$ChromeProfile = 'Default', [int]$Minutes = 90, [string]$At = '06:55')
 $task = 'HotelPro Mo May 6h55'
 
 if ($CaiDat) {
@@ -30,6 +30,7 @@ Add-Content -Path $log -Value ('{0:yyyy-MM-dd HH:mm}  woke, opening Chrome profi
 Start-Sleep -Seconds 20                                                   # let Wi-Fi reconnect
 $chrome = @("$env:ProgramFiles\Google\Chrome\Application\chrome.exe", "${env:ProgramFiles(x86)}\Google\Chrome\Application\chrome.exe",
             "$env:LOCALAPPDATA\Google\Chrome\Application\chrome.exe") | Where-Object { Test-Path $_ } | Select-Object -First 1
-if ($chrome) { Start-Process $chrome "--profile-directory=`"$ChromeProfile`"" }
+# several Booking accounts = several profiles, comma separated (owner, Nov 17), e.g. -ChromeProfile "Default,Profile 37"
+if ($chrome) { foreach ($p in ($ChromeProfile -split ',')) { if ($p.Trim()) { Start-Process $chrome "--profile-directory=`"$($p.Trim())`""; Start-Sleep -Seconds 3 } } }
 Start-Sleep -Seconds ([Math]::Max(0, $Minutes * 60))
 [void][HotelPro.Power]::SetThreadExecutionState([uint32]'0x80000000')   # back to normal (sleep timer applies again)

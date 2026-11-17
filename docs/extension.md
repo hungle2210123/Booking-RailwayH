@@ -103,6 +103,11 @@ Hôm nay" box (aria-controls, else the card with "Xem tất cả đặt phòng")
 another box → opened a guest arriving 21/10). Mock (scratch) had: closed row, 0 rows, tomorrow-only property,
 late-loading counts, an "Đặt phòng mới nhất" list and a hidden "Khách đi" panel — all handled. Re-login = Tampermonkey script `tools/tu-dong-dang-nhap/`;
 background.js now waits 2 more minutes for it before the Zalo "Booking đã đăng xuất" message.
+**👥 Two Booking accounts (1.31, owner 17/11/2026):** one Chrome profile per Booking account (an extranet session is
+one account per profile). Popup "Tài khoản Booking của hồ sơ Chrome này": `hpAccount` (name) + `hpMorningAt` (run time) in
+chrome.storage.LOCAL (per profile) → background `morningTime` / `scheduleMorning`; the name is sent as `account` with
+/api/ext/morning, /api/ext/login_code (ask), /api/ext/login_needed and shown as "[name]" in the Zalo messages.
+Different times (07:00 / 07:30) keep the two runs — and their SMS-code questions — apart.
 **🖥 Morning report on Zalo (1.30, owner 17/11/2026 "7 giờ sáng làm sao tôi biết máy đã mở chưa"):** content.js
 `startGroup` (auto) → POST `/api/ext/morning` {stage:'start', go, skip} and `stopGroup` (auto) → {stage:'done', ok, total,
 bad}; no arrivals → 'start' with a note. p17 `ext_morning` → `mail_notify` (booking bot) + moi_settings `morning_status`.

@@ -53,16 +53,25 @@ async function shoot(tab, auto = false) {
 // run by itself on the "Khách đến" list. PC off at 7:00 → it runs as soon as Chrome starts that day.
 // Uses the owner's own open Booking session; never logs in. Login page (1.24) → the Zalo bot tells the owner,
 // and as soon as the owner has signed in (any admin.booking.com page loads) the run starts by itself.
-const MORNING_HOUR = 7;
+// 1.31 (owner 17/11/2026: 2 Booking accounts): each Chrome profile = one Booking account, with its own run time
+// (popup "Giờ chạy", chrome.storage.local hpMorningAt, default 07:00) and name (hpAccount, shown in the Zalo messages).
 const today = () => new Date().toLocaleDateString('sv');          // YYYY-MM-DD, local time
-function scheduleMorning() {
-  const next = new Date(); next.setHours(MORNING_HOUR, 0, 0, 0);
+async function morningTime() {
+  const { hpMorningAt } = await chrome.storage.local.get('hpMorningAt');
+  const m = /^(\d{1,2}):(\d{2})$/.exec(hpMorningAt || '');
+  return m ? [Math.min(23, +m[1]), Math.min(59, +m[2])] : [7, 0];
+}
+async function scheduleMorning() {
+  const [h, mi] = await morningTime();
+  const next = new Date(); next.setHours(h, mi, 0, 0);
   if (next <= new Date()) next.setDate(next.getDate() + 1);
   chrome.alarms.create('hp-morning', { when: next.getTime() });
 }
+chrome.storage.onChanged.addListener((ch, area) => { if (area === 'local' && ch.hpMorningAt) scheduleMorning(); });
 async function morningRun() {
   const { hpLastMorning } = await chrome.storage.local.get('hpLastMorning');
-  if (hpLastMorning === today() || new Date().getHours() < MORNING_HOUR) return;
+  const [h, mi] = await morningTime(), now = new Date();
+  if (hpLastMorning === today() || now.getHours() * 60 + now.getMinutes() < h * 60 + mi) return;
   await chrome.storage.local.set({ hpLastMorning: today(), hpAutoRunUntil: Date.now() + 10 * 60000 });
   const tab = await chrome.tabs.create({ url: 'https://admin.booking.com/', active: false });
   setTimeout(() => checkSignedOut(tab.id), 25000);      // redirects to the sign-in page take a few seconds
@@ -89,7 +98,8 @@ async function signedOutAlert() {
     const { server, token } = await settings();
     await fetch(server + '/api/ext/login_needed', {
       method: 'POST', signal: AbortSignal.timeout(35000),
-      headers: { 'Content-Type': 'application/json', 'X-Hotel-Token': token }, body: '{}',
+      headers: { 'Content-Type': 'application/json', 'X-Hotel-Token': token },
+      body: JSON.stringify({ account: (await chrome.storage.local.get('hpAccount')).hpAccount || '' }),
     });
   } catch (e) {}
 }
