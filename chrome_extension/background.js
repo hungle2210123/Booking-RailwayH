@@ -70,10 +70,17 @@ async function scheduleMorning() {
   chrome.alarms.create('hp-morning', { when: next.getTime() });
 }
 chrome.storage.onChanged.addListener((ch, area) => { if (area === 'local' && ch.hpMorningAt) scheduleMorning(); });
+// 1.35: keep Windows awake from the extension itself while the morning run works (a PC woken by a timer goes back
+// to sleep after ~2 min; this works in the owner's locked session too). Released 45 min later.
+function stayAwake(minutes = 45) {
+  try { chrome.power.requestKeepAwake('system'); } catch (e) {}
+  chrome.alarms.create('hp-awake-off', { when: Date.now() + minutes * 60000 });
+}
 async function morningRun() {
   const { hpLastMorning } = await chrome.storage.local.get('hpLastMorning');
   const [h, mi] = await morningTime(), now = new Date();
   if (hpLastMorning === today() || now.getHours() * 60 + now.getMinutes() < h * 60 + mi) return;
+  stayAwake();
   await chrome.storage.local.set({ hpLastMorning: today(), hpAutoRunUntil: Date.now() + 10 * 60000 });
   const tab = await chrome.tabs.create({ url: GROUP_URL, active: false });
   setTimeout(() => checkSignedOut(tab.id), 25000);      // redirects to the sign-in page take a few seconds
@@ -135,12 +142,14 @@ async function selfUpdate() {
 chrome.alarms.create('hp-selfupdate', { periodInMinutes: 5 });
 chrome.alarms.onAlarm.addListener(a => {
   if (a.name === 'hp-selfupdate') selfUpdate();
+  if (a.name === 'hp-awake-off') { try { chrome.power.releaseKeepAwake(); } catch (e) {} }
   if (a.name === 'hp-morning') { scheduleMorning(); morningRun(); }
   if (a.name === 'hp-signout') signedOutAlert();
 });
 
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (msg?.type === 'morning-now') {                  // popup "▶ Chạy toàn bộ ngay" (1.26): the whole 7:00 chain, now
+    stayAwake();
     (async () => {
       await chrome.storage.local.set({ hpLastMorning: today(), hpAutoRunUntil: Date.now() + 10 * 60000 });
       const tab = await chrome.tabs.create({ url: GROUP_URL, active: true });

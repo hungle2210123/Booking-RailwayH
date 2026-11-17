@@ -10,8 +10,16 @@
 param([switch]$CaiDat, [switch]$ThuNgay, [switch]$ChayNgay, [string]$ChromeProfile = 'Default', [int]$Minutes = 90,
       [string]$At = '06:55', [int]$InMinutes = 3, [int]$Gap = 12, [string]$Server = 'https://web-production-8f671.up.railway.app')
 $task = 'HotelPro Mo May 6h55'
+# A still-running earlier run of the same task makes Windows REFUSE the next start (0x800710E0, owner's 16:34 / 16:37
+# tests on Nov 17 — the 16:15 test was still keeping the PC awake) → stop it before (re)registering.
+function Stop-Old($name) {
+    try { Stop-ScheduledTask -TaskName $name -ErrorAction Stop } catch {}
+    Get-CimInstance Win32_Process -Filter "Name='powershell.exe'" | Where-Object {
+        $_.ProcessId -ne $PID -and $_.CommandLine -match 'mo-may-buoi-sang' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
+}
 
 if ($ThuNgay) {
+    Stop-Old 'HotelPro Thu Ngay'
     powercfg /setacvalueindex SCHEME_CURRENT SUB_SLEEP RTCWAKE 1
     powercfg /setactive SCHEME_CURRENT
     $ps = "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe"
@@ -26,6 +34,7 @@ if ($ThuNgay) {
 }
 
 if ($CaiDat) {
+    Stop-Old $task
     powercfg /setacvalueindex SCHEME_CURRENT SUB_SLEEP RTCWAKE 1      # "Allow wake timers" = Enable (plugged in)
     powercfg /setactive SCHEME_CURRENT
     $ps = "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe"
