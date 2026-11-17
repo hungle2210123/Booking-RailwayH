@@ -416,58 +416,86 @@ def ext_morning():
     _moi_ensure()
     d = request.get_json(silent=True) or {}
     stage = d.get('stage')
-    acc = str(d.get('account') or '').strip()[:40]
-    tag = f'[{acc}] ' if acc else ''           # 2 Booking accounts (owner, Nov 17): say which one
+    if stage not in ('start', 'done'):
+        return jsonify({'success': False, 'error': 'stage'}), 400
+    # Owner, Nov 17 (screenshot): "quá nhiều thông tin, không biết tin nào chính" → ONE short message per account,
+    # only at the END: ✅ all saved / ⚠️ something to check / ☑️ no guests today. 'start' is recorded silently;
+    # morning_watch warns if a started run never finishes.
+    acc = str(d.get('account') or '').strip()[:40] or 'Booking'
     now = (datetime.utcnow() + timedelta(hours=7))
+    hm = f"{now.hour}:{now.minute:02d}"
     st = _zbot_get(_xdb, 'morning_status') or {}
     if not isinstance(st, dict) or st.get('day') != _vn_today():
         st = {'day': _vn_today()}
-    names = lambda key: ', '.join(str(x)[:40] for x in (d.get(key) or [])[:12])
+    st.setdefault('open', {})
+    msg = None
     if stage == 'start':
-        st['start_at'] = now.strftime('%H:%M')
-        msg = f"🖥 {tag}{st['start_at']} Máy tính đã chạy: lấy khách đến hôm nay."
-        if d.get('go'):
-            msg += f"\nVào {len(d['go'])} căn: {names('go')}"
-        if d.get('skip'):
-            msg += f"\nBỏ qua: {names('skip')}"
-        if d.get('note'):
-            msg += '\n' + str(d['note'])[:200]
-    elif stage == 'done':
-        st['done_at'] = now.strftime('%H:%M')
-        ok, total = int(d.get('ok') or 0), int(d.get('total') or 0)
-        msg = f"✅ {tag}{st['done_at']} Xong: đã lưu {ok}/{total} khách đến hôm nay về Hotel Pro."
-        bad = [b for b in (d.get('bad') or []) if isinstance(b, dict)][:10]
-        if bad:
-            msg += '\nChưa lưu được: ' + ', '.join(f"{b.get('bid')} ({str(b.get('why') or '')[:60]})" for b in bad)
-        if d.get('note'):
-            msg += '\n' + str(d['note'])[:200]
+        st['start_at'] = st.get('start_at') or now.strftime('%H:%M')
+        if d.get('go'):                                    # a run begins → silent, remember it
+            st['open'][acc] = now.strftime('%H:%M')
+        else:                                              # nothing to do today → this IS the result
+            st['open'].pop(acc, None)
+            msg = f"☑️ {acc} · {hm}\nHôm nay không có khách đến."
     else:
-        return jsonify({'success': False, 'error': 'stage'}), 400
+        st['done_at'] = now.strftime('%H:%M')
+        st['open'].pop(acc, None)
+        ok, total = int(d.get('ok') or 0), int(d.get('total') or 0)
+        bad = [b for b in (d.get('bad') or []) if isinstance(b, dict)][:10]
+        stopped = bool(d.get('note'))
+        if total == 0 and not stopped:
+            msg = f"☑️ {acc} · {hm}\nHôm nay không có khách đến."
+        elif ok >= total and not bad and not stopped:
+            msg = f"✅ {acc} · {hm}\nĐã lưu đủ {total} khách đến hôm nay."
+        else:
+            msg = f"⚠️ {acc} · {hm}\nĐã lưu {ok}/{total} khách đến hôm nay."
+            if stopped:
+                msg += '\nBị dừng giữa chừng.'
+            if bad:
+                msg += '\nCần xem tay: ' + ', '.join(f"{b.get('bid')} ({str(b.get('why') or '')[:40]})" for b in bad)
     _zbot_put(_xdb, 'morning_status', st)
-    mail_notify(_xdb, msg)
+    if msg:
+        mail_notify(_xdb, msg)
     return jsonify({'success': True})
 
 
+def _claim_today(_xdb, key, day):
+    """True for the first caller of the day only (several gunicorn workers tick at the same minute)."""
+    got = _xdb.session.execute(text(
+        "INSERT INTO moi_settings (key, value) VALUES (:k, :d) ON CONFLICT (key) DO UPDATE "
+        "SET value = EXCLUDED.value WHERE moi_settings.value < EXCLUDED.value RETURNING value"),
+        {'k': key, 'd': json.dumps(day)}).fetchone()
+    _xdb.session.commit()
+    return bool(got)
+
+
 def morning_watch(now):
-    """7:20 VN and the PC has not said 'start' today → one Zalo warning."""
+    """7:20–7:59 VN: no run started today → one warning; a run started > 30 min ago and not finished → one warning."""
     from core.models import db as _xdb
     with app.app_context():
         try:
             st = _zbot_get(_xdb, 'morning_status') or {}
             day = now.date().isoformat()
-            if isinstance(st, dict) and st.get('day') == day and (st.get('start_at') or st.get('warned')):
+            today = isinstance(st, dict) and st.get('day') == day
+            if today and st.get('start_at'):
+                late = []
+                for acc, t in (st.get('open') or {}).items():
+                    try:
+                        h, m = map(int, str(t).split(':'))
+                    except ValueError:
+                        continue
+                    if now.hour * 60 + now.minute - (h * 60 + m) >= 30:
+                        late.append(f"{acc} (bắt đầu {h}:{m:02d})")
+                if late and _claim_today(_xdb, 'morning_hang_warned', day):
+                    mail_notify(_xdb, f"⚠️ {now.hour}:{now.minute:02d} Máy tính chạy chưa xong: {', '.join(late)}.\n"
+                                      "Mở máy xem trang Booking đang dừng ở đâu.")
+                    return True
                 return False
-            # claim the warning for today first (several gunicorn workers tick at the same minute)
-            got = _xdb.session.execute(text(
-                "INSERT INTO moi_settings (key, value) VALUES ('morning_warned', :d) ON CONFLICT (key) DO UPDATE "
-                "SET value = EXCLUDED.value WHERE moi_settings.value < EXCLUDED.value RETURNING value"),
-                {'d': json.dumps(day)}).fetchone()
-            _xdb.session.commit()
-            if not got:
+            if today and st.get('warned'):
                 return False
-            mail_notify(_xdb, f"⚠️ {now:%H:%M} chưa thấy máy tính chạy lấy khách sáng nay.\n"
-                              "Có thể máy đang TẮT / NGỦ, hoặc Chrome chưa mở. Mở máy (hoặc mở Chrome) là tự chạy ngay — "
-                              "bot sẽ báo khi bắt đầu và khi xong.")
+            if not _claim_today(_xdb, 'morning_warned', day):
+                return False
+            mail_notify(_xdb, f"⚠️ {now.hour}:{now.minute:02d} Máy tính chưa chạy sáng nay.\n"
+                              "Máy đang tắt / ngủ, hoặc Chrome chưa mở. Mở máy là tự chạy ngay.")
             return True
         except Exception:
             _xdb.session.rollback()

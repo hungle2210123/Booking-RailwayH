@@ -112,7 +112,10 @@ Different times (07:00 / 07:30) keep the two runs — and their SMS-code questio
 `startGroup` (auto) → POST `/api/ext/morning` {stage:'start', go, skip} and `stopGroup` (auto) → {stage:'done', ok, total,
 bad}; no arrivals → 'start' with a note. p17 `ext_morning` → `mail_notify` (booking bot) + moi_settings `morning_status`.
 p15 `zbot_tick` 7:20–7:59 VN → p17 `morning_watch`: no 'start' today → ONE warning (claim key `morning_warned`)
-"chưa thấy máy tính chạy… máy TẮT / NGỦ hoặc Chrome chưa mở". Test: `test_morning_report_and_watch`.
+"Máy tính chưa chạy sáng nay". **Short messages (owner 17/11 "quá nhiều thông tin"):** ONE message per account, at the
+end only — `✅ <account> · 7:05 / Đã lưu đủ N khách`, `⚠️ … Đã lưu x/y + Cần xem tay: <bid>`, `☑️ … Hôm nay không có
+khách đến`; 'start' with `go` is silent (kept in `morning_status.open`); a run open ≥ 30 min → ONE "chạy chưa xong"
+warning (claim key `morning_hang_warned`). No account name → "Booking". Test: `test_morning_report_and_watch`.
 **Rename fix (Nov 17, 5938586704):** `_rename_booking` drops the provisional row of booking_screenshots / journey_log when
 the real number already has one (duplicate key made the whole save fail). Test: `test_rename_keeps_real_numbers_picture`.
 **🔄 Self-reload (1.29):** background.js alarm `hp-selfupdate` (5 min) fetches its own manifest.json from disk; new version

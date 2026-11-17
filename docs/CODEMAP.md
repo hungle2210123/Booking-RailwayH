@@ -296,7 +296,7 @@ _p16_staff — 👥 Nhân viên (owner, Nov 6): the cleaners talk to the Zalo bo
 - app_parts/p16_staff.py:886 `moi_staff` ← `/api/moi/staff` GET,POST — 👥 Nhân viên sheet in /moi: waiting requests, who is off today, month list; actions: decide, add (leave/extra),
 - app_parts/p16_staff.py:957 `staff_copy_owner` — Copy of a cleaner's message to the bot + the bot's answer → the owner(s).
 
-## app_parts/p17_mail.py (566 lines)
+## app_parts/p17_mail.py (594 lines)
 _p17_mail — 📧 Booking.com e-mails → the app (owner, Nov 12: "khi nhận được mail thì hệ thống tự cập nhật trên app là đang có_
 - app_parts/p17_mail.py:18 `_mail_ensure`
 - app_parts/p17_mail.py:31 `_mail_token`
@@ -317,10 +317,11 @@ _p17_mail — 📧 Booking.com e-mails → the app (owner, Nov 12: "khi nhận �
 - app_parts/p17_mail.py:367 `ext_login_code` ← `/api/ext/login_code` POST — {action:'ask', nonce} → the bot asks the owner for the code · {action:'get', nonce} → {code} once ('' = not ye
 - app_parts/p17_mail.py:406 `_vn_today`
 - app_parts/p17_mail.py:411 `ext_morning` ← `/api/ext/morning` POST
-- app_parts/p17_mail.py:451 `morning_watch` — 7:20 VN and the PC has not said 'start' today → one Zalo warning.
-- app_parts/p17_mail.py:480 `moi_mail_bot` ← `/api/moi/mail_bot` POST — Setup of the booking bot: token (checked with getMe, then setWebhook) · test · remove a receiver · off (back t
-- app_parts/p17_mail.py:517 `_mail_setup_info`
-- app_parts/p17_mail.py:559 `moi_mail_setup` ← `/api/moi/mail_setup` — 📧 setup sheet: the script to paste into Google Apps Script (with this app's private address) + the last mail r
+- app_parts/p17_mail.py:461 `_claim_today` — True for the first caller of the day only (several gunicorn workers tick at the same minute).
+- app_parts/p17_mail.py:471 `morning_watch` — 7:20–7:59 VN: no run started today → one warning; a run started > 30 min ago and not finished → one warning.
+- app_parts/p17_mail.py:508 `moi_mail_bot` ← `/api/moi/mail_bot` POST — Setup of the booking bot: token (checked with getMe, then setWebhook) · test · remove a receiver · off (back t
+- app_parts/p17_mail.py:545 `_mail_setup_info`
+- app_parts/p17_mail.py:587 `moi_mail_setup` ← `/api/moi/mail_setup` — 📧 setup sheet: the script to paste into Google Apps Script (with this app's private address) + the last mail r
 
 ## core/__init__.py (3 lines)
 
@@ -584,7 +585,8 @@ _p17_mail — 📧 Booking.com e-mails → the app (owner, Nov 12: "khi nhận �
 - chrome_extension/content.js: 1218 `refreshRunBtn` · 1236 `startRun` · 1260 `finishRun` · 1271 `showRunDone` · 1280 `runStep` · 1335 `autoMorning`
 
 ## chrome_extension/background.js
-- chrome_extension/background.js: 6 `settings` · 30 `shoot` · 61 `morningTime` · 66 `scheduleMorning` · 73 `morningRun` · 82 `checkSignedOut` · 93 `signedOutAlert` · 126 `selfUpdate`
+- chrome_extension/background.js: 6 `settings` · 30 `shoot` · 61 `morningTime` · 66 `scheduleMorning` · 75 `stayAwake` · 79 `morningRun` · 89 `checkSignedOut` · 100 `signedOutAlert`
+- chrome_extension/background.js: 133 `selfUpdate`
 
 # Templates (inline JS functions)
 

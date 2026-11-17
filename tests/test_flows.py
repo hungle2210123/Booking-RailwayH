@@ -177,7 +177,7 @@ def test_morning_report_and_watch(client, db, app_module, monkeypatch):
     sent = []
     monkeypatch.setattr(app_module, 'mail_notify', lambda _db, msg: sent.append(msg) or 'bot2')
     hdr = {'X-Hotel-Token': os.getenv('EXTENSION_TOKEN', '')}
-    keys = ('morning_status', 'morning_warned')
+    keys = ('morning_status', 'morning_warned', 'morning_hang_warned')
     old = {k: db.session.execute(text("SELECT value FROM moi_settings WHERE key = :k"), {'k': k}).scalar() for k in keys}
     try:
         for k in keys:
@@ -187,16 +187,26 @@ def test_morning_report_and_watch(client, db, app_module, monkeypatch):
         # no start today → one warning, never twice
         assert app_module.morning_watch(now.replace(hour=7, minute=20)) is True
         assert app_module.morning_watch(now.replace(hour=7, minute=21)) is False
-        assert len(sent) == 1 and 'chưa thấy máy tính' in sent[0]
-        r = client.post('/api/ext/morning', json={'stage': 'start', 'go': ['Hanoi Vintage Studio (2)'], 'skip': ['2 Double Beds (0) đóng']}, headers=hdr)
-        assert r.get_json()['success']
-        assert 'Máy tính đã chạy' in sent[1] and 'Hanoi Vintage Studio (2)' in sent[1] and 'Bỏ qua' in sent[1]
-        client.post('/api/ext/morning', json={'stage': 'done', 'ok': 6, 'total': 7,
+        assert len(sent) == 1 and 'chưa chạy' in sent[0]
+        # owner, Nov 17: ONE short message per account, only the result ('start' is silent)
+        r = client.post('/api/ext/morning', json={'stage': 'start', 'account': '18 Hàng Bè', 'go': ['Hanoi Vintage Studio (2)'], 'skip': ['x']}, headers=hdr)
+        assert r.get_json()['success'] and len(sent) == 1
+        client.post('/api/ext/morning', json={'stage': 'done', 'account': '18 Hàng Bè', 'ok': 6, 'total': 7,
                                               'bad': [{'bid': '5938586704', 'why': 'lỗi'}]}, headers=hdr)
-        assert 'đã lưu 6/7' in sent[2] and '5938586704' in sent[2]
-        # 2 Booking accounts (2 Chrome profiles): the message says which one
-        client.post('/api/ext/morning', json={'stage': 'start', 'account': '19 Thọ Nhuộm', 'go': ['Cozy (1)']}, headers=hdr)
-        assert sent[3].startswith('🖥 [19 Thọ Nhuộm]')
+        assert sent[1].startswith('⚠️ 18 Hàng Bè') and '6/7' in sent[1] and '5938586704' in sent[1]
+        client.post('/api/ext/morning', json={'stage': 'start', 'account': '19 Thọ Nhuộm', 'note': 'x: không có khách'}, headers=hdr)
+        assert sent[2].startswith('☑️ 19 Thọ Nhuộm') and 'không có khách' in sent[2]
+        client.post('/api/ext/morning', json={'stage': 'start', 'go': ['A (1)']}, headers=hdr)
+        client.post('/api/ext/morning', json={'stage': 'done', 'ok': 1, 'total': 1}, headers=hdr)
+        assert sent[3].startswith('✅ Booking') and 'đủ 1 khách' in sent[3] and len(sent) == 4
+        # a run that started and never finished → one warning 30 min later
+        client.post('/api/ext/morning', json={'stage': 'start', 'account': 'Z', 'go': ['A (1)']}, headers=hdr)
+        st = app_module._zbot_get(db, 'morning_status')
+        st['open']['Z'] = '07:00'
+        app_module._zbot_put(db, 'morning_status', st)
+        later = now.replace(hour=7, minute=31)
+        assert app_module.morning_watch(later) is True and 'chưa xong' in sent[4] and 'Z' in sent[4]
+        assert app_module.morning_watch(later) is False
         assert client.post('/api/ext/morning', json={'stage': 'x'}, headers=hdr).status_code == 400
     finally:
         for k in keys:
