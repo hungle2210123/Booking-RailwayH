@@ -2,7 +2,7 @@
 // Reads what is on the screen when you click a button. The ONE exception (owner, 17/11/2026):
 // "▶ Mở từng khách" opens the guests of the visible list one by one after the owner presses it.
 // Owner decision 17/11/2026: on ONE opened booking it clicks "Hiển thị số điện thoại" once (switch in the
-// popup, default on) — never during "▶ Mở từng khách", never on partner bookings. Never calls Booking APIs.
+// popup, default on) — also on each guest of "▶ Mở từng khách" / the 7:00 run (1.23), never on partner bookings. Never calls Booking APIs.
 (function () {
   if (window.__hotelProInjected) return;
   window.__hotelProInjected = true;
@@ -473,7 +473,7 @@
   // ── Số điện thoại hiện ra trên trang đặt phòng → tự lưu về web ──────
   // Chỉ ĐỌC trang: chính bạn bấm nút "Hiển thị số điện thoại" của Booking, tiện ích đọc số đó rồi lưu.
   // Chủ nhà quyết định 17/11/2026: tiện ích tự bấm nút đó 1 lần trên trang 1 khách (xem autoReveal bên dưới);
-  // không bấm khi đang "▶ Mở từng khách", không bấm đặt phòng qua đối tác.
+  // bấm cả khi đang "▶ Mở từng khách" (1.23), không bấm đặt phòng qua đối tác.
   // Not inside a longer run of digits — a booking number like 5091703794 must not yield "091703794"
   // …and never across a line break (the address line under the phone starts with digits too)
   const PHONE_FIND = /(?<![\d+])(?:\+|00|0)\d[\d \t ().\-]{6,18}\d(?!\d)/g;
@@ -522,6 +522,7 @@
   const isPartnerBooking = () => { const t = fold(document.body.innerText || ''); return PARTNER_WORDS.some(w => t.includes(w)); };
 
   const phoneDone = new Set();
+  let phoneSaved = { bid: '', at: 0 }, shotSavedFor = '';   // ▶ Mở từng khách moves on as soon as both are done
   let phoneBusy = false;
   async function checkPhone() {
     if (phoneBusy || busy || !chrome.runtime?.id) return;
@@ -535,6 +536,7 @@
       phoneDone.add(key);
       const r = await api('/api/ext/booking/phone', { ...capture(), phone: ph || '', partner });
       if (!r?.success) { phoneDone.delete(key); return; }
+      phoneSaved = { bid: resId(), at: Date.now() };
       if (r.status === 'partner') toast(`🤝 <b>${esc(r.guest_name)}</b> đặt qua <b>đối tác Booking</b> — số trên trang là của đối tác nên <b>không lưu</b>. Bấm <b>💬 Điền tin</b> để xin số Zalo/WhatsApp trong khung chat.`, 'partner');
       else if (r.status === 'partner_not_on_web') toast(`🤝 Đặt qua <b>đối tác Booking</b> — số trên trang là của đối tác, không phải của khách. Chưa tự thêm được booking${r.error ? ' (' + esc(r.error) + ')' : ''}: bấm 📥 để thêm.`, 'partner');
       else if (r.status === 'created') toast(`📥 Đã tự thêm booking <b>${esc(r.guest_name)}</b> vào web + lưu SĐT <b>${esc(r.phone)}</b>`, 'ok');
@@ -582,6 +584,7 @@
       // you went to another tab meanwhile → no picture (Alt+Shift+S takes one by hand)
       if (document.hidden || !document.hasFocus() || resId() !== bid) return;
       const r = await autoShot('phone');
+      if (r?.success) shotSavedFor = bid;
       if (r && !r.success && r.reason !== 'off' && /khung/i.test(r.error || '') && ++tries < 2) setTimeout(go, 3000);
     };
     setTimeout(go, 1000);                            // the number has just appeared: let the page settle
@@ -600,26 +603,30 @@
 
   // ── Tự bấm "Hiển thị số điện thoại" (chủ nhà quyết định 17/11/2026, chấp nhận rủi ro tài khoản) ──
   // 1 lần cho mỗi res_id, chờ 1–2 giây ngẫu nhiên; el.click() kích hoạt listener ở trên → checkPhone + ảnh.
-  // Không bấm khi đang chạy "▶ Mở từng khách" (kể cả lần tự chạy 7:00), không bấm đặt phòng qua đối tác.
+  // Bấm cả khi đang chạy "▶ Mở từng khách" (kể cả lần tự chạy 7:00 — runStep chờ lưu số), không bấm đặt phòng qua đối tác.
   // Tắt được trong popup tiện ích (hpAutoReveal, mặc định bật).
   const revealClicked = new Set();
   let revealTimer = null;
+  let autoRevealOn = false;
+  // true = a click is scheduled (▶ Mở từng khách then waits for the number to be saved)
   function autoRevealTry() {
     const bid = resId();
-    if (!bid || revealClicked.has(bid) || revealTimer) return;
-    const runActive = () => { try { return !!JSON.parse(sessionStorage.getItem('hp_run_queue') || 'null'); } catch (e) { return false; } };
-    if (runActive() || isPartnerBooking()) return;
+    if (!autoRevealOn || !bid || revealClicked.has(bid)) return false;
+    if (revealTimer) return true;
+    if (isPartnerBooking()) return false;
     const el = [...document.querySelectorAll('button, a, [role="button"]')].find(b => !host.contains(b) && b.offsetParent !== null && isRevealEl(b));
-    if (!el) return;
+    if (!el) return false;
     revealTimer = setTimeout(() => {
       revealTimer = null;
-      if (resId() !== bid || revealClicked.has(bid) || runActive() || isPartnerBooking() || !el.isConnected) return;
+      if (resId() !== bid || revealClicked.has(bid) || isPartnerBooking() || !el.isConnected) return;
       revealClicked.add(bid);
       el.click();
     }, 1000 + Math.random() * 1000);
+    return true;
   }
   chrome.storage.sync.get({ hpAutoReveal: true }).then(({ hpAutoReveal }) => {
     if (!hpAutoReveal) return;
+    autoRevealOn = true;
     let pend = null;
     new MutationObserver(() => { if (!pend) pend = setTimeout(() => { pend = null; autoRevealTry(); }, 400); })
       .observe(document.body, { childList: true, subtree: true });
@@ -976,20 +983,39 @@
   // ── ▶ Mở từng khách: owner decision 17/11/2026 ("tôi không sợ mất tài khoản") ──────────────
   // Only when the owner presses ▶: opens each guest of the visible list (e.g. "Khách đến") one by one at
   // human speed, saves the booking facts to the web, then the next one, then back to the list.
-  // Never clicks "Hiển thị số điện thoại" during a run (autoRevealTry checks the queue; a number already showing is saved).
+  // On each guest it also clicks "Hiển thị số điện thoại" (autoRevealTry, 1.23) and waits until the number is saved.
   const RUN_KEY = 'hp_run_queue';
   const runGet = () => { try { return JSON.parse(sessionStorage.getItem(RUN_KEY) || 'null'); } catch (e) { return null; } };
   const runSet = q => { try { q ? sessionStorage.setItem(RUN_KEY, JSON.stringify(q)) : sessionStorage.removeItem(RUN_KEY); } catch (e) {} };
   const wait = ms => new Promise(r => setTimeout(r, ms));
-  const humanPause = () => wait(2000 + Math.random() * 2000);
+  const humanPause = () => wait(1000 + Math.random() * 1500);
 
   // Guest links of the list on screen: links whose text is a booking number, visible, one per number
+  // Only what is really on screen: the other tabs ("Khách đi", "Lưu trú qua đêm") stay in the page, just hidden
+  // (owner 17/11/2026: 3 guests showed, ▶ said 5).
+  const hiddenTab = a => {
+    if (a.checkVisibility && !a.checkVisibility({ opacityProperty: true, visibilityProperty: true, contentVisibilityAuto: true })) return true;
+    const r = a.getBoundingClientRect();
+    if (!r.width || !r.height) return true;
+    for (let p = a.parentElement; p; p = p.parentElement) {
+      if (p.hidden || p.getAttribute('aria-hidden') === 'true' || p.inert) return true;
+      if (p.getAttribute('role') === 'tabpanel') return false;
+    }
+    return false;
+  };
+  // The list a guest link belongs to (the open tab's panel / list). Owner 17/11/2026: the button said 3 but
+  // the confirm listed 5 (2 from "Khách đi") → only guests of the SAME list as the first one are taken.
+  const listOf = a => a.closest('[role="tabpanel"], ul, ol, table, [role="list"], [role="table"], [role="grid"]') || a.ownerDocument.body;
   function guestLinks() {
+    if (groupTable()) return [];                   // group overview: 8-digit property IDs are not guests
     const seen = new Set(), out = [];
+    let list = null;
     for (const doc of allDocs()) {
       doc.querySelectorAll('a[href]').forEach(a => {
         const n = rawText(a);
-        if (!BID_RE.test(n) || a.offsetParent === null || host.contains(a)) return;
+        if (!BID_RE.test(n) || a.offsetParent === null || host.contains(a) || hiddenTab(a)) return;
+        const l = listOf(a);
+        if (!list) list = l; else if (l !== list) return;
         if (seen.has(n.trim())) return;
         seen.add(n.trim());
         out.push({ bid: n.trim(), url: a.href });
@@ -998,13 +1024,121 @@
     return out;
   }
 
+  // ── 🏢 Trang tổng quan nhiều chỗ nghỉ (ext 1.25, owner 17/11/2026) ─────────────────────────────
+  // Sau khi đăng nhập Booking đưa về bảng "Chỗ nghỉ | … | Đến trong 48 giờ tới …". Lấy các căn có số khách đến > 0
+  // (đọc không ra cột đó → lấy mọi căn), mở lần lượt trang chủ từng căn → "▶ Mở từng khách" trên danh sách
+  // "Khách đến" của căn đó → xong thì sang căn kế tiếp → cuối cùng quay về trang tổng quan, báo tổng kết.
+  // Hàng đợi căn: sessionStorage 'hp_group_queue' {props, i, back, ok, total, bad, auto}; props[i].started = đã chạy.
+  const GROUP_KEY = 'hp_group_queue';
+  const groupGet = () => { try { return JSON.parse(sessionStorage.getItem(GROUP_KEY) || 'null'); } catch (e) { return null; } };
+  const groupSet = g => { try { g ? sessionStorage.setItem(GROUP_KEY, JSON.stringify(g)) : sessionStorage.removeItem(GROUP_KEY); } catch (e) {} };
+  const gCells = row => [...row.querySelectorAll(':scope > th, :scope > td, :scope > [role="cell"], :scope > [role="columnheader"], :scope > [role="rowheader"], :scope > [role="gridcell"]')];
+  // The overview table = the one whose header has "Đến trong 48 giờ" (or "arrivals in the next 48").
+  function groupTable() {
+    if (resId()) return null;
+    for (const doc of allDocs()) {
+      for (const h of doc.querySelectorAll('th, [role="columnheader"]')) {
+        const t = fold(rawText(h));
+        if (/den trong 48|arriv\w* .*48|check-?ins? .*48/.test(t) && !host.contains(h)) {
+          const tbl = h.closest('table, [role="table"], [role="grid"]');
+          if (tbl) return { tbl, head: h };
+        }
+      }
+    }
+    return null;
+  }
+  function groupProps() {
+    const g = groupTable();
+    if (!g) return null;
+    const headRow = g.head.closest('tr, [role="row"]');
+    const col = headRow ? gCells(headRow).indexOf(g.head) : -1;
+    const out = [], seen = new Set();
+    g.tbl.querySelectorAll('tr, [role="row"]').forEach(row => {
+      if (row === headRow) return;
+      const cells = gCells(row);
+      if (cells.length < 2) return;
+      const id = (rawText(cells[0]).match(/\b\d{5,10}\b/) || [])[0];
+      if (!id || seen.has(id)) return;
+      seen.add(id);
+      const name = (cells[1].innerText || rawText(cells[1])).split('\n')[0].trim() || id;
+      let n = -1;                                     // -1 = unknown → visit it anyway
+      if (col >= 0 && cells[col]) { const m = rawText(cells[col]).match(/\d+/); if (m) n = +m[0]; }
+      const links = [...row.querySelectorAll('a[href]')].filter(a => !host.contains(a));
+      const a = links.find(x => new RegExp('hotel_id=' + id + '\\b').test(x.href)) ||
+        links.find(x => /hotel_id=/.test(x.href) && !/reservation|message|review|inbox|status/i.test(x.href));
+      let url = a ? a.href : '';
+      if (!url) {
+        const ses = new URL(location.href).searchParams.get('ses');
+        url = `https://admin.booking.com/hotel/hoteladmin/extranet_ng/manage/home.html?hotel_id=${id}&lang=vi` + (ses ? '&ses=' + encodeURIComponent(ses) : '');
+      }
+      out.push({ id, name, n, url });
+    });
+    return out;
+  }
+  const groupPick = props => { const known = props.filter(p => p.n >= 0); return known.length ? props.filter(p => p.n > 0) : props; };
+  function startGroup(props, auto) {
+    groupSet({ props, i: 0, back: location.href, ok: 0, total: 0, bad: [], auto: !!auto });
+    location.href = props[0].url;
+  }
+  function stopGroup(note) {
+    const g = groupGet();
+    if (!g) return;
+    groupSet(null);
+    try { sessionStorage.setItem('hp_group_done', JSON.stringify({ note, ok: g.ok, total: g.total, bad: g.bad, n: g.props.length })); } catch (e) {}
+    location.href = g.back;
+  }
+  function showGroupDone() {
+    let d = null;
+    try { d = JSON.parse(sessionStorage.getItem('hp_group_done') || 'null'); sessionStorage.removeItem('hp_group_done'); } catch (e) {}
+    if (!d) return;
+    toast(`🏢 ${esc(d.note || '✅ Xong.')} ${d.n} căn có khách đến · đã lưu <b>${d.ok}/${d.total}</b> khách về Hotel Pro.` +
+      (d.bad.length ? `<br>Chưa lưu được: ${d.bad.map(b => `${esc(b.bid)} (${esc(b.why)})`).join(', ')}` : ''),
+      d.bad.length ? 'warn' : 'ok', 30000);
+  }
+  // On a property's home page while the group queue is active: run its "Khách đến" list, or move on.
+  async function groupStep() {
+    const g = groupGet();
+    if (!g || runGet() || resId()) return;
+    const p = g.props[g.i];
+    if (!p) { stopGroup('✅ Xong.'); return; }
+    if (p.started) {                                // its guests are done (finishRun brought us back here)
+      g.i += 1; groupSet(g);
+      await wait(2500);                             // let the "Đã lưu x/y" toast be seen
+      if (!groupGet()) return;
+      if (g.i >= g.props.length) stopGroup('✅ Xong.'); else location.href = g.props[g.i].url;
+      return;
+    }
+    toast(`🏢 Căn ${g.i + 1}/${g.props.length}: <b>${esc(p.name)}</b> — đang tìm khách đến…`, 'ok', 5000);
+    for (let t = 0; t < 14 && groupGet(); t++) {    // the home page draws the "Khách đến" list after loading
+      const items = guestLinks();
+      if (items.length) {
+        p.started = true; groupSet(g);
+        startRun(items);
+        return;
+      }
+      await wait(1500);
+    }
+    if (!groupGet()) return;
+    p.started = true; groupSet(g);                  // no guest link on this page → next property
+    groupStep();
+  }
+
   const runBtn = document.createElement('button');
   runBtn.className = 'fab fab2'; runBtn.type = 'button'; runBtn.style.display = 'none';
   root.insertBefore(runBtn, $('#ai'));
   function refreshRunBtn() {
     const q = runGet();
     if (q) { runBtn.textContent = `⏹ Dừng (${Math.min(q.i + 1, q.items.length)}/${q.items.length})`; runBtn.style.display = ''; return; }
+    const g = groupGet();
+    if (g) { runBtn.textContent = `⏹ Dừng (căn ${Math.min(g.i + 1, g.props.length)}/${g.props.length})`; runBtn.style.display = ''; return; }
     if (resId()) { runBtn.style.display = 'none'; return; }
+    const gp = groupProps();
+    if (gp) {
+      const k = groupPick(gp).length;
+      runBtn.textContent = `▶ Các căn có khách đến (${k})`;
+      runBtn.style.display = k ? '' : 'none';
+      return;
+    }
     const n = guestLinks().length;
     runBtn.textContent = `▶ Mở từng khách (${n})`;
     runBtn.style.display = n ? '' : 'none';
@@ -1015,10 +1149,22 @@
     location.href = items[0].url;
   }
   runBtn.addEventListener('click', () => {
-    if (runGet()) { finishRun('⏹ Đã dừng.'); return; }
+    if (runGet() || groupGet()) {
+      if (groupGet()) { runSet(null); stopGroup('⏹ Đã dừng.'); } else finishRun('⏹ Đã dừng.');
+      return;
+    }
+    const gp = groupProps();
+    if (gp) {
+      const pick = groupPick(gp);
+      if (!pick.length) return;
+      if (!confirm(`Mở lần lượt ${pick.length} căn có khách đến, ở mỗi căn mở từng khách, bấm "Hiển thị số điện thoại" và lưu về Hotel Pro?\n\n` +
+        pick.map(p => `• ${p.name}` + (p.n > 0 ? ` (${p.n})` : '')).join('\n'))) return;
+      startGroup(pick, false);
+      return;
+    }
     const items = guestLinks();
     if (!items.length) return;
-    if (!confirm(`Tự mở lần lượt ${items.length} khách trên danh sách này và lưu về Hotel Pro?\n(Trong lúc chạy không tự bấm "Hiển thị số điện thoại".)`)) return;
+    if (!confirm(`Tự mở lần lượt ${items.length} khách trên danh sách này, bấm "Hiển thị số điện thoại" và lưu về Hotel Pro?\n\nMã đặt phòng: ${items.map(x => x.bid).join(', ')}`)) return;
     startRun(items);
   });
 
@@ -1028,6 +1174,8 @@
     if (!q) return;
     const ok = q.log.filter(l => l.ok).length;
     const bad = q.log.filter(l => !l.ok);
+    const g = groupGet();
+    if (g) { g.ok += ok; g.total += q.items.length; g.bad.push(...bad); groupSet(g); }
     try { sessionStorage.setItem('hp_run_done', JSON.stringify({ note, ok, total: q.items.length, bad })); } catch (e) {}
     if (location.href !== q.back) location.href = q.back; else showRunDone();
   }
@@ -1066,6 +1214,20 @@
         ok = !!s?.success; why = s?.error || '';
         if (ok) toast(`📥 ${q.i + 1}/${q.items.length} · Đã lưu <b>${esc(p.guest_name || it.bid)}</b>`, 'ok', 4000);
         checkPhone();
+        // 👁 click "Hiển thị số điện thoại" too (owner 17/11/2026: fully automatic), then give checkPhone
+        //    (0.6–6 s after the click) + the picture time before going to the next guest
+        let scheduled = false;
+        for (let t = 0; t < 8 && !scheduled && runGet(); t++) { scheduled = autoRevealTry(); if (!scheduled) await wait(750); }
+        // move on as soon as the number + picture are saved (owner 17/11/2026: "phải đợi rất lâu");
+        // picture not possible (tab not in front…) → 4 s after the number; at most 12 s in all
+        if (scheduled) {
+          const bid = resId(), t0 = Date.now();
+          while (Date.now() - t0 < 12000 && runGet()) {
+            if (shotSavedFor === bid) break;
+            if (phoneSaved.bid === bid && Date.now() - phoneSaved.at > 4000) break;
+            await wait(300);
+          }
+        }
       } else why = r?.error || 'không thấy mã đặt phòng';
     } catch (e) { why = e.message; }
     const q2 = runGet();
@@ -1085,6 +1247,14 @@
     const { hpAutoRunUntil } = await chrome.storage.local.get('hpAutoRunUntil');
     if (!hpAutoRunUntil || Date.now() > hpAutoRunUntil) return;
     for (let t = 0; t < 40; t++) {                 // the home page draws the "Khách đến" list after loading
+      const gp = groupProps();                     // several properties (owner's account) → overview table
+      if (gp && gp.length) {
+        await chrome.storage.local.remove('hpAutoRunUntil');
+        const pick = groupPick(gp);
+        if (!pick.length) { toast('🏢 Hôm nay không căn nào có khách đến.', 'ok', 15000); return; }
+        startGroup(pick, true);
+        return;
+      }
       const items = guestLinks();
       if (items.length) {
         await chrome.storage.local.remove('hpAutoRunUntil');
@@ -1094,5 +1264,9 @@
       await wait(1500);
     }
   }
-  if (runGet()) setTimeout(runStep, 1500); else { setTimeout(showRunDone, 1500); setTimeout(autoMorning, 3000); }
+  // background.js: the owner has just signed in after the bot's "Booking đã đăng xuất" → start now
+  chrome.runtime.onMessage.addListener(m => { if (m?.type === 'hp-morning-start') setTimeout(autoMorning, 1500); return false; });
+  if (runGet()) setTimeout(runStep, 1500);
+  else if (groupGet()) { setTimeout(showRunDone, 1500); setTimeout(groupStep, 3000); }
+  else { setTimeout(showRunDone, 1500); setTimeout(showGroupDone, 1500); setTimeout(autoMorning, 3000); }
 })();

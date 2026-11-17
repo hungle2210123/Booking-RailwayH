@@ -51,7 +51,8 @@ async function shoot(tab, auto = false) {
 
 // ── ⏰ Every morning (owner, 17/11/2026): open Booking's home page at 7:00 and let "▶ Mở từng khách"
 // run by itself on the "Khách đến" list. PC off at 7:00 → it runs as soon as Chrome starts that day.
-// Uses the owner's own open Booking session; never logs in (login page → nothing happens).
+// Uses the owner's own open Booking session; never logs in. Login page (1.24) → the Zalo bot tells the owner,
+// and as soon as the owner has signed in (any admin.booking.com page loads) the run starts by itself.
 const MORNING_HOUR = 7;
 const today = () => new Date().toLocaleDateString('sv');          // YYYY-MM-DD, local time
 function scheduleMorning() {
@@ -63,8 +64,41 @@ async function morningRun() {
   const { hpLastMorning } = await chrome.storage.local.get('hpLastMorning');
   if (hpLastMorning === today() || new Date().getHours() < MORNING_HOUR) return;
   await chrome.storage.local.set({ hpLastMorning: today(), hpAutoRunUntil: Date.now() + 10 * 60000 });
-  chrome.tabs.create({ url: 'https://admin.booking.com/', active: false });
+  const tab = await chrome.tabs.create({ url: 'https://admin.booking.com/', active: false });
+  setTimeout(() => checkSignedOut(tab.id), 25000);      // redirects to the sign-in page take a few seconds
 }
+const isSignIn = url => !/^https:\/\/admin\.booking\.com\//i.test(url || '') || /sign-?in|login/i.test(url || '');
+async function checkSignedOut(tabId) {
+  let tab;
+  try { tab = await chrome.tabs.get(tabId); } catch (e) { return; }  // tab closed
+  if (!isSignIn(tab.url)) return;
+  await chrome.storage.local.set({ hpWaitLogin: Date.now() + 8 * 3600000 });
+  // 1.25: the owner's Tampermonkey script (tools/tu-dong-dang-nhap) usually signs in by itself within a minute →
+  // only tell the owner on Zalo if the tab is STILL on the sign-in page 2 minutes later (CAPTCHA, code, wrong password)
+  await new Promise(r => setTimeout(r, 120000));
+  try { tab = await chrome.tabs.get(tabId); } catch (e) { return; }
+  const { hpWaitLogin } = await chrome.storage.local.get('hpWaitLogin');
+  if (!hpWaitLogin || !isSignIn(tab.url)) return;          // signed in meanwhile → the run has started
+  try {
+    const { server, token } = await settings();
+    await fetch(server + '/api/ext/login_needed', {
+      method: 'POST', signal: AbortSignal.timeout(35000),
+      headers: { 'Content-Type': 'application/json', 'X-Hotel-Token': token }, body: '{}',
+    });
+  } catch (e) {}
+}
+// The owner signed in after the bot's message → start the morning run on the first Booking page that loads
+chrome.tabs.onUpdated.addListener(async (tabId, info, tab) => {
+  if (info.status !== 'complete' || isSignIn(tab.url)) return;
+  const { hpWaitLogin } = await chrome.storage.local.get('hpWaitLogin');
+  if (!hpWaitLogin) return;
+  await chrome.storage.local.remove('hpWaitLogin');
+  if (Date.now() > hpWaitLogin) return;
+  await chrome.storage.local.set({ hpAutoRunUntil: Date.now() + 10 * 60000 });
+  const home = 'https://admin.booking.com/';
+  if (/\/hotel\/hoteladmin\/(extranet_ng\/manage\/home|groups\/)/i.test(tab.url)) chrome.tabs.sendMessage(tabId, { type: 'hp-morning-start' }).catch(() => {});
+  else chrome.tabs.update(tabId, { url: home });       // home page shows the "Khách đến" list
+});
 chrome.runtime.onInstalled.addListener(scheduleMorning);
 chrome.runtime.onStartup.addListener(() => { scheduleMorning(); setTimeout(morningRun, 60000); });
 chrome.alarms.onAlarm.addListener(a => { if (a.name === 'hp-morning') { scheduleMorning(); morningRun(); } });

@@ -165,6 +165,23 @@ def ext_ping():
     return jsonify({'success': True, 'app': 'Hotel Pro'})
 
 
+@app.route('/api/ext/login_needed', methods=['POST'])
+def ext_login_needed():
+    """The 7:00 run found Booking's sign-in page (owner, 17/11/2026) → the Zalo bot tells the owner(s) to sign in on
+    the computer. The extension never signs in; once the owner has, it carries on by itself."""
+    err = _ext_auth_error()
+    if err:
+        return err
+    from core.models import db as _xdb
+    try:
+        _staff_tell_owners(_xdb, "🔐 Booking đã đăng xuất nên lượt tự lấy khách lúc 7:00 chưa chạy.\n"
+                                 "Mở máy tính, đăng nhập Booking (Chrome tự điền mật khẩu). "
+                                 "Đăng nhập xong tiện ích tự mở từng khách và lưu số.")
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+    return jsonify({'success': True})
+
+
 def _ext_fields(d):
     """Normalise fields coming from the extension."""
     def as_date(v):

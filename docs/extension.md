@@ -80,8 +80,23 @@ reaches every room. Fixed: Tien Pham 6180825357 (Queen = Báo hủy, Deluxe = 61
 number ONLY from the guest block (next to `@guest.booking.com` / the reveal button) and saves it to the booking;
 duplicate-guard rejects a number already on another guest. **Auto-click (ext 1.22, owner decision 17/11/2026, owner accepts
 the account risk):** `autoRevealTry` (MutationObserver) clicks the reveal ONCE per `res_id` on an opened booking, after a
-random 1–2 s; the `el.click()` goes through the normal click listener → `checkPhone` + `shotAfterReveal`. Never during
-"▶ Mở từng khách" (`hp_run_queue` set, incl. the 7:00 run), never on partner bookings (`isPartnerBooking`). Popup switch
+random 1–2 s; the `el.click()` goes through the normal click listener → `checkPhone` + `shotAfterReveal`. Since 1.23 (owner:
+"tự động hoàn toàn") ALSO on each guest of "▶ Mở từng khách" incl. the 7:00 run — `runStep` calls `autoRevealTry` and
+waits until the number + picture are saved (`phoneSaved` / `shotSavedFor`, 1.23.3; max 12 s) before the next guest.
+`guestLinks` takes only links of the SAME list as the first one (`listOf`, 1.23.2 — hidden "Khách đi" tab was counted).
+**Group overview → every property with arrivals (1.25, owner 17/11/2026):** after sign-in the owner's account lands on the
+group page (table "ID | Chỗ nghỉ | … | Đến trong 48 giờ tới …"). `groupTable` finds it by that header, `groupProps` reads
+each row (ID, name, arrivals count, the row's `hotel_id=` link; no link → builds `extranet_ng/manage/home.html?hotel_id=`),
+`groupPick` keeps rows with count > 0 (column unreadable → all). Queue in sessionStorage `hp_group_queue`; `groupStep` on
+each property home waits ≤ 21 s for the "Khách đến" links → `startRun` (marks `started`); `finishRun` adds the result to the
+group totals and returns to the property home → `groupStep` moves to the next property → back to the overview →
+`showGroupDone` summary toast. 7:00 run starts it by itself (`autoMorning`); by hand: button "▶ Các căn có khách đến (n)"
+on the overview; ⏹ stops the whole chain. `guestLinks` returns [] on the overview (property IDs look like booking numbers).
+Tested on a mock overview (3 properties, one with 0 → skipped). Re-login = Tampermonkey script `tools/tu-dong-dang-nhap/`;
+background.js now waits 2 more minutes for it before the Zalo "Booking đã đăng xuất" message.
+**Signed out at 7:00 (1.24):** background.js `checkSignedOut` (25 s after opening) sees the sign-in page → POST
+`/api/ext/login_needed` → Zalo bot tells the owner(s) (`_staff_tell_owners`); `hpWaitLogin` (8 h) → the first
+admin.booking.com page that loads after the owner signs in starts the run. The extension NEVER types the password. Never on partner bookings (`isPartnerBooking`). Popup switch
 `hpAutoReveal` (chrome.storage.sync, default on). Never calls Booking APIs, never scrapes. Extension also imports the reservation list/detail
 (new/changed/cancelled, multi-room ⚠️, new-listing 🆕). Current ext version: see `chrome_extension/manifest.json`.
 

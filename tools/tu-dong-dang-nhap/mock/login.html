@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Đăng nhập - Báo Giả Lập</title>
+<style>
+body{font-family:Segoe UI,Arial,sans-serif;background:#f4f5f7;margin:0;display:flex;justify-content:center;padding-top:60px}
+.box{background:#fff;padding:32px;border-radius:8px;width:420px;box-shadow:0 2px 10px #0002}
+label{font-weight:600;display:block;margin-bottom:6px}
+input{width:100%;box-sizing:border-box;padding:10px;border:1px solid #888;border-radius:4px;font-size:15px;margin-bottom:16px}
+button{width:100%;padding:12px;background:#0070e0;color:#fff;border:0;border-radius:4px;font-size:16px;font-weight:600;cursor:pointer}
+#err{color:#c00}
+.hint{color:#666;font-size:13px;margin-top:20px}
+</style></head><body>
+<div class="box">
+  <h2>Đăng nhập</h2>
+  <form id="f1" onsubmit="return false">
+    <!-- Bẫy giống Booking: ô mật khẩu ẩn ngoài màn hình -->
+    <div aria-hidden="true" style="position:absolute;top:-2000px"><input type="password" id="hidden-password" name="password" tabindex="-1"></div>
+    <div id="step1">
+      <label for="username">Tên đăng nhập</label>
+      <input id="username" name="username" type="email" autocomplete="username">
+      <button type="button" id="next">Kế tiếp</button>
+    </div>
+    <div id="step2" hidden>
+      <p id="who"></p>
+      <label for="password">Mật khẩu</label>
+      <button type="submit" id="signin">Tiếp theo</button>
+    </div>
+  </form>
+  <p id="err"></p>
+  <button type="button" style="background:none;color:#0070e0" onclick="document.body.innerHTML='<h2>Quý vị gặp trở ngại khi đăng nhập?</h2>'">Quý vị gặp trở ngại khi đăng nhập?</button>
+  <p class="hint">Tài khoản thử: demo@example.com / matkhau123</p>
+</div>
+<script>
+const $ = id => document.getElementById(id);
+$('next').onclick = () => {
+  if (!$('username').value.includes('@')) { $('err').textContent = 'Vui lòng nhập email'; return; }
+  $('err').textContent = 'Đang tải...';
+  setTimeout(() => {               // giả lập trang tải bước 2
+    $('err').textContent = '';
+    $('step1').hidden = true; $('step2').hidden = false;
+    $('who').textContent = $('username').value;
+    const hp = $('hidden-password');            // giống Booking: dùng lại ô ẩn làm ô mật khẩu thật
+    $('step2').insertBefore(hp, $('signin')); hp.removeAttribute('tabindex');
+  }, 800);
+};
+$('signin').onclick = () => {
+  if ($('username').value === 'demo@example.com' && $('hidden-password').value === 'matkhau123') {
+    if (!window.asked2) {                       // giống Booking: hỏi mật khẩu thêm 1 lần
+      window.asked2 = true; $('hidden-password').value = ''; $('err').textContent = ''; return;
+    }
+    localStorage.setItem('session_exp', Date.now() + 45000);   // phiên 45 giây
+    const next = new URLSearchParams(location.search).get('next') || 'index.html';
+    location.href = next;
+  } else { $('err').textContent = 'Sai mật khẩu'; }
+};
+</script></body></html>

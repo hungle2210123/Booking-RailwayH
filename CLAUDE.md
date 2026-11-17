@@ -55,6 +55,14 @@ https://web-production-8f671.up.railway.app — **push straight to main** ("git 
 - Download for another PC: `/dien-ten-sdt.zip` (p02, zips the folder; link "Tải tool Điền Tên - SĐT" in /may-tinh sidebar;
   Dockerfile COPYs `tools/dien-ten-sdt/`). On the new PC: unzip → `CAI-DAT.bat` (→ `cai-dat.ps1`) makes the shortcuts.
 
+## Tampermonkey "Tự động đăng nhập" (`tools/tu-dong-dang-nhap/`, not part of the web app, owner decision 17/11/2026)
+- Userscript the owner installs in Tampermonkey: when Booking's session expires it fills email → Kế tiếp → password → Tiếp theo
+  on account./auth.booking.com. Credentials typed by the owner into Tampermonkey storage only (never in code / git / chat).
+  Acts ONLY on login-page URLs (never on admin.booking.com) → no clash with the extension.
+- Read `tools/tu-dong-dang-nhap/HUONG_DAN.md` before editing (Booking traps: hidden password field, "gặp trở ngại" link). Test on its `mock/`.
+- Full morning chain (ext 1.25): 7:00 extension opens admin.booking.com → signed out? script signs in → group overview →
+  extension opens each property with arrivals → "▶ Mở từng khách" per property → summary. Details: docs/extension.md.
+
 ## Data facts
 - PostgreSQL on Railway (production, used for local testing too — `DATABASE_SOURCE=auto`):
   the URL is `RAILWAY_DATABASE_URL` in the local `.env` (git-ignored — never commit or paste it; Railway's own `DATABASE_URL`
@@ -67,7 +75,7 @@ https://web-production-8f671.up.railway.app — **push straight to main** ("git 
 - Revenue: one rule set in `core/revenue.py` (`build_overview`, `day_figures`) used by dashboard, month calendar and day page.
 
 ## Hard rules (owner decisions + safety)
-- Never log in to Booking.com or type the owner's passwords. The extension is **read-only on Booking**: auto-clicks
+- Claude never logs in to Booking.com or types the owner's passwords (re-login = the owner's own Tampermonkey script above). The extension is **read-only on Booking**: auto-clicks
   "Hiển thị số điện thoại" only once per opened booking (owner 17/11/2026; popup switch; never in ▶ runs / partner), never call Booking APIs, never scrape. It only TYPES into Booking's chat box; the owner presses Gửi.
 - No bulk WhatsApp sending from a personal account. Partner-company phone numbers (tail `035640799`) are never a guest's phone.
 - The owner creates / rotates API keys and passwords themselves (Gemini key is `GOOGLE_API_KEY` on Railway). Never paste secrets into chat.

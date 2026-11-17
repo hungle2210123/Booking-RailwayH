@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Báo Giả Lập</title>
+<script>
+  // Chưa đăng nhập hoặc hết phiên -> chuyển sang trang đăng nhập
+  if (!(+localStorage.getItem('session_exp') > Date.now())) location.replace('login.html?next=index.html');
+</script>
+<style>body{font-family:Georgia,serif;max-width:720px;margin:40px auto;padding:0 16px;line-height:1.6}
+.bar{font-family:Segoe UI,Arial;background:#eef;padding:8px 12px;border-radius:6px}</style>
+</head><body>
+<div class="bar">Đã đăng nhập · phiên còn <b id="t"></b> giây ·
+  <button onclick="localStorage.removeItem('session_exp');location.reload()">Hết phiên ngay</button></div>
+<h1>Bài báo mẫu: Thời tiết Hà Nội tuần này</h1>
+<p>Đây là nội dung chỉ đọc được khi đã đăng nhập. Khi phiên hết hạn, trang sẽ tự refresh và đẩy về trang đăng nhập, giống trang báo thật.</p>
+<script>
+setInterval(() => {
+  const s = Math.round((+localStorage.getItem('session_exp') - Date.now()) / 1000);
+  if (s <= 0) location.reload(); else document.getElementById('t').textContent = s;
+}, 1000);
+</script></body></html>
