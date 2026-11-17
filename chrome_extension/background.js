@@ -104,6 +104,14 @@ chrome.runtime.onStartup.addListener(() => { scheduleMorning(); setTimeout(morni
 chrome.alarms.onAlarm.addListener(a => { if (a.name === 'hp-morning') { scheduleMorning(); morningRun(); } });
 
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
+  if (msg?.type === 'morning-now') {                  // popup "▶ Chạy toàn bộ ngay" (1.26): the whole 7:00 chain, now
+    (async () => {
+      await chrome.storage.local.set({ hpLastMorning: today(), hpAutoRunUntil: Date.now() + 10 * 60000 });
+      const tab = await chrome.tabs.create({ url: 'https://admin.booking.com/', active: true });
+      setTimeout(() => checkSignedOut(tab.id), 25000);
+    })().then(() => sendResponse({ success: true }));
+    return true;
+  }
   if (msg?.type === 'shoot') {                        // from the toolbar popup
     chrome.tabs.query({ active: true, currentWindow: true }).then(([tab]) => shoot(tab)).then(sendResponse);
     return true;

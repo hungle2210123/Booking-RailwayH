@@ -17,6 +17,12 @@ $('save').addEventListener('click', async () => {
 });
 
 // Opening this popup gives the extension permission to capture the current tab ("activeTab")
+// ▶ the whole morning chain right now (opens Booking in a new tab, in front so you can watch)
+$('runAll').addEventListener('click', () => {
+  chrome.runtime.sendMessage({ type: 'morning-now' });
+  setTimeout(() => window.close(), 150);
+});
+
 $('shoot').addEventListener('click', () => {
   chrome.runtime.sendMessage({ type: 'shoot' });
   setTimeout(() => window.close(), 150);     // the result shows on the Booking page itself
