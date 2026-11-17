@@ -5,8 +5,9 @@ paths:
   - "core/booking_page_parser.py"
 ---
 # Chrome extension + Booking.com data — read docs/extension.md for the full notes
-- The extension is READ-ONLY on Booking: never auto-click "Hiển thị số điện thoại", never call Booking APIs, never scrape,
-  never send messages. It only reads the page the owner opened and TYPES into Booking's chat box; the owner presses Gửi.
+- The extension is READ-ONLY on Booking: never auto-click "Hiển thị số điện thoại", never call Booking APIs,
+  never send messages. ONE exception (owner, 17/11/2026, accepts the account risk): "▶ Mở từng khách" (content.js end)
+  opens the guests of the visible list one by one at human speed after the owner presses it, saves each, returns. It only reads the page the owner opened and TYPES into Booking's chat box; the owner presses Gửi.
 - Never log in to Booking or handle the owner's passwords.
 - Cancelled on Booking → `checkin_status='cancelling'` (Báo hủy, undoable), never `booking_status='cancelled'`.
 - Several rooms in one reservation → one booking per room: `<id>`, `<id>-2`, … (`_ext_save_rooms`, page order); rate-plan lines

@@ -1,6 +1,7 @@
 // "Gửi về Hotel Pro" — runs on admin.booking.com pages.
-// Reads ONLY what is already on the screen when you click the button; it never clicks,
-// navigates or loads anything on Booking.com by itself.
+// Reads what is on the screen when you click a button. The ONE exception (owner, 17/11/2026):
+// "▶ Mở từng khách" opens the guests of the visible list one by one after the owner presses it.
+// It never clicks "Hiển thị số điện thoại", never calls Booking APIs.
 (function () {
   if (window.__hotelProInjected) return;
   window.__hotelProInjected = true;
@@ -941,4 +942,109 @@
     }
     return false;
   });
+
+  // ── ▶ Mở từng khách: owner decision 17/11/2026 ("tôi không sợ mất tài khoản") ──────────────
+  // Only when the owner presses ▶: opens each guest of the visible list (e.g. "Khách đến") one by one at
+  // human speed, saves the booking facts to the web, then the next one, then back to the list.
+  // Still NEVER clicks "Hiển thị số điện thoại" (a number already showing is saved by checkPhone as usual).
+  const RUN_KEY = 'hp_run_queue';
+  const runGet = () => { try { return JSON.parse(sessionStorage.getItem(RUN_KEY) || 'null'); } catch (e) { return null; } };
+  const runSet = q => { try { q ? sessionStorage.setItem(RUN_KEY, JSON.stringify(q)) : sessionStorage.removeItem(RUN_KEY); } catch (e) {} };
+  const wait = ms => new Promise(r => setTimeout(r, ms));
+  const humanPause = () => wait(3500 + Math.random() * 3000);
+
+  // Guest links of the list on screen: links whose text is a booking number, visible, one per number
+  function guestLinks() {
+    const seen = new Set(), out = [];
+    for (const doc of allDocs()) {
+      doc.querySelectorAll('a[href]').forEach(a => {
+        const n = rawText(a);
+        if (!BID_RE.test(n) || a.offsetParent === null || host.contains(a)) return;
+        if (seen.has(n.trim())) return;
+        seen.add(n.trim());
+        out.push({ bid: n.trim(), url: a.href });
+      });
+    }
+    return out;
+  }
+
+  const runBtn = document.createElement('button');
+  runBtn.className = 'fab fab2'; runBtn.type = 'button'; runBtn.style.display = 'none';
+  root.insertBefore(runBtn, $('#ai'));
+  function refreshRunBtn() {
+    const q = runGet();
+    if (q) { runBtn.textContent = `⏹ Dừng (${Math.min(q.i + 1, q.items.length)}/${q.items.length})`; runBtn.style.display = ''; return; }
+    if (resId()) { runBtn.style.display = 'none'; return; }
+    const n = guestLinks().length;
+    runBtn.textContent = `▶ Mở từng khách (${n})`;
+    runBtn.style.display = n ? '' : 'none';
+  }
+  setInterval(refreshRunBtn, 2000);
+  runBtn.addEventListener('click', () => {
+    if (runGet()) { finishRun('⏹ Đã dừng.'); return; }
+    const items = guestLinks();
+    if (!items.length) return;
+    if (!confirm(`Tự mở lần lượt ${items.length} khách trên danh sách này và lưu về Hotel Pro?\n(Không tự bấm "Hiển thị số điện thoại".)`)) return;
+    runSet({ items, i: 0, back: location.href, log: [] });
+    location.href = items[0].url;
+  });
+
+  function finishRun(note) {
+    const q = runGet();
+    runSet(null);
+    if (!q) return;
+    const ok = q.log.filter(l => l.ok).length;
+    const bad = q.log.filter(l => !l.ok);
+    try { sessionStorage.setItem('hp_run_done', JSON.stringify({ note, ok, total: q.items.length, bad })); } catch (e) {}
+    if (location.href !== q.back) location.href = q.back; else showRunDone();
+  }
+  function showRunDone() {
+    let d = null;
+    try { d = JSON.parse(sessionStorage.getItem('hp_run_done') || 'null'); sessionStorage.removeItem('hp_run_done'); } catch (e) {}
+    if (!d) return;
+    toast(`${esc(d.note || '✅ Xong.')} Đã lưu <b>${d.ok}/${d.total}</b> khách về Hotel Pro.` +
+      (d.bad.length ? `<br>Chưa lưu được: ${d.bad.map(b => `${esc(b.bid)} (${esc(b.why)})`).join(', ')}` : ''),
+      d.bad.length ? 'warn' : 'ok', 20000);
+  }
+
+  async function runStep() {
+    const q = runGet();
+    if (!q) return;
+    const it = q.items[q.i];
+    if (!it) { finishRun('✅ Xong.'); return; }
+    refreshRunBtn();
+    let ok = false, why = 'không đọc được trang';
+    // wait for the reservation to show (the extranet draws the page after loading)
+    for (let t = 0; t < 20 && !(document.body.innerText || '').includes(it.bid); t++) await wait(750);
+    await wait(1200);
+    if (!runGet()) return;                         // stopped meanwhile
+    try {
+      const r = await api('/api/ext/booking/parse', capture());
+      const p = r?.parsed;
+      if (r?.success && r.mode === 'single' && p?.booking_id) {
+        const rooms = (p.rooms || []).length > 1 ? p.rooms : undefined;
+        const s = await api('/api/ext/booking/save', {
+          booking_id: p.booking_id, guest_name: p.guest_name || '', checkin_date: p.checkin_date || '',
+          checkout_date: p.checkout_date || '', listing: p.listing || '',
+          room_amount: String(p.room_amount || '').replace(/\D/g, ''), commission: String(p.commission || '').replace(/\D/g, ''),
+          phone: '', nationality: p.nationality || '', email: p.email || '',   // phone only via checkPhone (partner rule)
+          cancelled: p.status === 'cancelled', rooms,
+        });
+        ok = !!s?.success; why = s?.error || '';
+        if (ok) toast(`📥 ${q.i + 1}/${q.items.length} · Đã lưu <b>${esc(p.guest_name || it.bid)}</b>`, 'ok', 4000);
+        checkPhone();
+      } else why = r?.error || 'không thấy mã đặt phòng';
+    } catch (e) { why = e.message; }
+    const q2 = runGet();
+    if (!q2) return;
+    q2.log.push({ bid: it.bid, ok, why });
+    q2.i += 1;
+    runSet(q2);
+    await humanPause();
+    if (!runGet()) return;
+    if (q2.i >= q2.items.length) finishRun('✅ Xong.');
+    else location.href = q2.items[q2.i].url;
+  }
+
+  if (runGet()) setTimeout(runStep, 1500); else setTimeout(showRunDone, 1500);
 })();
