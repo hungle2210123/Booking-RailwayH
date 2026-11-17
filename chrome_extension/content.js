@@ -1008,6 +1008,8 @@
   const listOf = a => a.closest('[role="tabpanel"], ul, ol, table, [role="list"], [role="table"], [role="grid"]') || a.ownerDocument.body;
   function guestLinks() {
     if (groupTable()) return [];                   // group overview: 8-digit property IDs are not guests
+    const arr = arrivalsToday();                   // a property's home: only "Khách đến · Hôm nay" (1.27)
+    if (arr) return arr.items;
     const seen = new Set(), out = [];
     let list = null;
     for (const doc of allDocs()) {
@@ -1061,8 +1063,11 @@
       if (!id || seen.has(id)) return;
       seen.add(id);
       const name = (cells[1].innerText || rawText(cells[1])).split('\n')[0].trim() || id;
-      let n = -1;                                     // -1 = unknown → visit it anyway
-      if (col >= 0 && cells[col]) { const m = rawText(cells[col]).match(/\d+/); if (m) n = +m[0]; }
+      // Arrivals count: the text in this row that sits UNDER the "Đến trong 48 giờ tới" header (by position on the
+      // page — 1.27: reading by cell index gave nothing on the real page, so every property was visited)
+      let n = numUnder(row, g.head);
+      if (n < 0 && col >= 0 && cells[col]) { const m = rawText(cells[col]).match(/^\s*(\d+)\s*$/); if (m) n = +m[1]; }
+      const closed = /dong \/ khong the dat|khong the dat phong|closed|not bookable/.test(fold(rawText(row)));
       const links = [...row.querySelectorAll('a[href]')].filter(a => !host.contains(a));
       const a = links.find(x => new RegExp('hotel_id=' + id + '\\b').test(x.href)) ||
         links.find(x => /hotel_id=/.test(x.href) && !/reservation|message|review|inbox|status/i.test(x.href));
@@ -1071,14 +1076,75 @@
         const ses = new URL(location.href).searchParams.get('ses');
         url = `https://admin.booking.com/hotel/hoteladmin/extranet_ng/manage/home.html?hotel_id=${id}&lang=vi` + (ses ? '&ses=' + encodeURIComponent(ses) : '');
       }
-      out.push({ id, name, n, url });
+      out.push({ id, name, n, closed, url });
     });
     return out;
   }
-  const groupPick = props => { const known = props.filter(p => p.n >= 0); return known.length ? props.filter(p => p.n > 0) : props; };
-  function startGroup(props, auto) {
+  // The number shown in `row` straight below `head` (overlapping its left–right span). -1 = none.
+  function numUnder(row, head) {
+    const h = head.getBoundingClientRect();
+    if (!h.width) return -1;
+    for (const el of row.querySelectorAll('*')) {
+      if (el.children.length) continue;               // leaf elements only (the "2" in its blue circle)
+      const t = rawText(el);
+      if (!/^\d{1,3}$/.test(t)) continue;
+      const r = el.getBoundingClientRect();
+      if (!r.width) continue;
+      const cx = (r.left + r.right) / 2;
+      if (cx >= h.left - 4 && cx <= h.right + 4) return +t;
+    }
+    return -1;
+  }
+  // Visit: count > 0. Count 0 → skip. Count unreadable → visit unless the property is closed
+  // (its home page then checks "Khách đến · Hôm nay" itself and leaves at once when it is 0).
+  const groupPick = props => props.filter(p => p.n > 0 || (p.n < 0 && !p.closed));
+
+  // ── "Đặt phòng · Hôm nay · Khách đến N" box on a property's home page (1.27) ──────────────────────
+  // Only TODAY's arrivals: the guest links inside the "Khách đến" tab's panel. Owner 17/11/2026: the run opened a
+  // guest arriving 21/10 (a link from another box of the page) and visited properties with "Khách đến 0".
+  // null = the box is not on the page (yet); { n, items } otherwise (n = the tab's badge number, -1 unknown).
+  function arrivalsToday() {
+    for (const doc of allDocs()) {
+      const tab = [...doc.querySelectorAll('[role="tab"], button, a, li')].find(el =>
+        !host.contains(el) && el.offsetParent !== null && /^khach den\s*\d*$|^arrivals?\s*\d*$/.test(fold(rawText(el)).replace(/\s+/g, ' ').trim()));
+      if (!tab) continue;
+      const m = rawText(tab).match(/(\d+)\s*$/);
+      const n = m ? +m[1] : -1;
+      // the tab's own panel, else the box around the tab bar (the "Đặt phòng" card)
+      let panel = null;
+      const pid = tab.getAttribute('aria-controls') || tab.querySelector('[aria-controls]')?.getAttribute('aria-controls');
+      if (pid) panel = doc.getElementById(pid);
+      if (!panel) {
+        const bar = tab.closest('[role="tablist"], ul, nav') || tab.parentElement;
+        for (let a = bar; a && a !== doc.body; a = a.parentElement) {
+          if (/xem tat ca dat phong|view all reservations|khong co khach den/.test(fold(rawText(a))) || a.querySelector('table, [role="table"], [role="tabpanel"]')) { panel = a; break; }
+        }
+      }
+      if (!panel) return { n, items: [] };
+      const seen = new Set(), items = [];
+      panel.querySelectorAll('a[href]').forEach(a => {
+        const b = rawText(a).trim();
+        if (!BID_RE.test(b) || a.offsetParent === null || hiddenTab(a) || seen.has(b)) return;
+        seen.add(b); items.push({ bid: b, url: a.href });
+      });
+      // a selected-but-other tab (Khách đi…) would show its own list: only trust links while "Khách đến" is selected
+      if (tab.getAttribute('aria-selected') === 'false') return { n, items: [] };
+      return { n, items };
+    }
+    return null;
+  }
+  // "Vào: A (2), B (1) · Bỏ qua: C (0), D (đóng)" — what was read from the overview, shown before leaving it
+  const groupSummary = all => {
+    const go = groupPick(all), skip = all.filter(p => !go.includes(p));
+    const lab = p => `${esc(p.name)} (${p.n >= 0 ? p.n : '?'}${p.closed ? ', đóng' : ''})`;
+    return `Vào: ${go.map(lab).join(', ') || '—'}` + (skip.length ? `<br>Bỏ qua: ${skip.map(lab).join(', ')}` : '');
+  };
+  async function startGroup(props, auto, all) {
     groupSet({ props, i: 0, back: location.href, ok: 0, total: 0, bad: [], auto: !!auto });
-    location.href = props[0].url;
+    toast(`🏢 Đến trong 48 giờ — ${groupSummary(all || props)}`, 'ok', 6000);
+    await wait(4000);                               // let the owner see what was picked
+    const g = groupGet();
+    if (g && g.i === 0 && !runGet()) location.href = props[0].url;
   }
   function stopGroup(note) {
     const g = groupGet();
@@ -1091,7 +1157,7 @@
     let d = null;
     try { d = JSON.parse(sessionStorage.getItem('hp_group_done') || 'null'); sessionStorage.removeItem('hp_group_done'); } catch (e) {}
     if (!d) return;
-    toast(`🏢 ${esc(d.note || '✅ Xong.')} ${d.n} căn có khách đến · đã lưu <b>${d.ok}/${d.total}</b> khách về Hotel Pro.` +
+    toast(`🏢 ${esc(d.note || '✅ Xong.')} Đã xem ${d.n} căn · lưu <b>${d.ok}/${d.total}</b> khách về Hotel Pro.` +
       (d.bad.length ? `<br>Chưa lưu được: ${d.bad.map(b => `${esc(b.bid)} (${esc(b.why)})`).join(', ')}` : ''),
       d.bad.length ? 'warn' : 'ok', 30000);
   }
@@ -1108,14 +1174,15 @@
       if (g.i >= g.props.length) stopGroup('✅ Xong.'); else location.href = g.props[g.i].url;
       return;
     }
-    toast(`🏢 Căn ${g.i + 1}/${g.props.length}: <b>${esc(p.name)}</b> — đang tìm khách đến…`, 'ok', 5000);
-    for (let t = 0; t < 14 && groupGet(); t++) {    // the home page draws the "Khách đến" list after loading
-      const items = guestLinks();
-      if (items.length) {
+    toast(`🏢 Căn ${g.i + 1}/${g.props.length}: <b>${esc(p.name)}</b> — đang xem khách đến hôm nay…`, 'ok', 5000);
+    for (let t = 0; t < 14 && groupGet(); t++) {    // the home page draws the "Khách đến" box after loading
+      const a = arrivalsToday();
+      if (a && a.items.length) {
         p.started = true; groupSet(g);
-        startRun(items);
+        startRun(a.items);
         return;
       }
+      if (a && a.n === 0 && t >= 1) break;          // "Khách đến 0" (seen twice) → next property at once
       await wait(1500);
     }
     if (!groupGet()) return;
@@ -1159,7 +1226,7 @@
       if (!pick.length) return;
       if (!confirm(`Mở lần lượt ${pick.length} căn có khách đến, ở mỗi căn mở từng khách, bấm "Hiển thị số điện thoại" và lưu về Hotel Pro?\n\n` +
         pick.map(p => `• ${p.name}` + (p.n > 0 ? ` (${p.n})` : '')).join('\n'))) return;
-      startGroup(pick, false);
+      startGroup(pick, false, gp);
       return;
     }
     const items = guestLinks();
@@ -1247,18 +1314,21 @@
     const { hpAutoRunUntil } = await chrome.storage.local.get('hpAutoRunUntil');
     if (!hpAutoRunUntil || Date.now() > hpAutoRunUntil) return;
     for (let t = 0; t < 40; t++) {                 // the home page draws the "Khách đến" list after loading
-      const gp = groupProps();                     // several properties (owner's account) → overview table
+      let gp = groupProps();                       // several properties (owner's account) → overview table
       if (gp && gp.length) {
+        await wait(2500);                          // the counts can arrive after the rows → read again when settled
+        gp = groupProps() || gp;
         await chrome.storage.local.remove('hpAutoRunUntil');
         const pick = groupPick(gp);
-        if (!pick.length) { toast('🏢 Hôm nay không căn nào có khách đến.', 'ok', 15000); return; }
-        startGroup(pick, true);
+        if (!pick.length) { toast('🏢 Hôm nay không căn nào có khách đến.<br>' + groupSummary(gp), 'ok', 20000); return; }
+        startGroup(pick, true, gp);
         return;
       }
-      const items = guestLinks();
-      if (items.length) {
+      const a = arrivalsToday();                   // one property's home: only "Khách đến · Hôm nay"
+      if (a && (a.items.length || (a.n === 0 && t >= 2))) {
         await chrome.storage.local.remove('hpAutoRunUntil');
-        startRun(items);
+        if (!a.items.length) { toast('Hôm nay không có khách đến.', 'ok', 15000); return; }
+        startRun(a.items);
         return;
       }
       await wait(1500);

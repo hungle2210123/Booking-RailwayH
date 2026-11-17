@@ -569,8 +569,8 @@ _p17_mail — 📧 Booking.com e-mails → the app (owner, Nov 12: "khi nhận �
 - chrome_extension/content.js: 310 `save` · 345 `showList` · 403 `showProblem` · 486 `phonesIn` · 494 `phoneNear` · 502 `guestPhone` · 510 `toast` · 527 `checkPhone`
 - chrome_extension/content.js: 559 `autoShot` · 579 `shotAfterReveal` · 612 `autoRevealTry` · 639 `chatBox` · 645 `putInChat` · 719 `chatThread` · 729 `pageBookingNumber` · 736 `aiAsk`
 - chrome_extension/content.js: 747 `drawAi` · 782 `stopMic` · 783 `toggleMic` · 825 `prepareShot` · 901 `finishShot` · 955 `cancelShot` · 963 `restoreFloating` · 1009 `guestLinks`
-- chrome_extension/content.js: 1037 `groupTable` · 1050 `groupProps` · 1079 `startGroup` · 1083 `stopGroup` · 1090 `showGroupDone` · 1099 `groupStep` · 1129 `refreshRunBtn` · 1147 `startRun`
-- chrome_extension/content.js: 1171 `finishRun` · 1182 `showRunDone` · 1191 `runStep` · 1245 `autoMorning`
+- chrome_extension/content.js: 1039 `groupTable` · 1052 `groupProps` · 1084 `numUnder` · 1106 `arrivalsToday` · 1142 `startGroup` · 1149 `stopGroup` · 1156 `showGroupDone` · 1165 `groupStep`
+- chrome_extension/content.js: 1196 `refreshRunBtn` · 1214 `startRun` · 1238 `finishRun` · 1249 `showRunDone` · 1258 `runStep` · 1312 `autoMorning`
 
 ## chrome_extension/background.js
 - chrome_extension/background.js: 6 `settings` · 30 `shoot` · 58 `scheduleMorning` · 63 `morningRun` · 71 `checkSignedOut`

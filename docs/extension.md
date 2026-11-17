@@ -92,7 +92,16 @@ each property home waits ≤ 21 s for the "Khách đến" links → `startRun` (
 group totals and returns to the property home → `groupStep` moves to the next property → back to the overview →
 `showGroupDone` summary toast. 7:00 run starts it by itself (`autoMorning`); by hand: button "▶ Các căn có khách đến (n)"
 on the overview; ⏹ stops the whole chain. `guestLinks` returns [] on the overview (property IDs look like booking numbers).
-Tested on a mock overview (3 properties, one with 0 → skipped). Re-login = Tampermonkey script `tools/tu-dong-dang-nhap/`;
+Tested on a mock overview (3 properties, one with 0 → skipped).
+**1.27 fixes (owner 17/11/2026: "lấy khách đến rất lâu, vào cả căn không có khách, cả căn đóng"):** counts are read by
+POSITION (`numUnder`: the leaf number in the row horizontally under the "Đến trong 48 giờ tới" header) — cell index gave
+nothing on the real page; overview re-read 2.5 s later (counts load after rows); `groupPick` = count > 0, or count
+unknown AND not closed ("Đóng / Không thể đặt phòng"); a toast shows "Vào: … · Bỏ qua: …" before leaving. On each
+property home only TODAY's arrivals: `arrivalsToday()` = links inside the "Khách đến" tab's panel of the "Đặt phòng ·
+Hôm nay" box (aria-controls, else the card with "Xem tất cả đặt phòng"); badge "Khách đến 0" → next property at once
+(48 h count can be a guest arriving tomorrow). `guestLinks` uses it too on a home page (the old code took links from
+another box → opened a guest arriving 21/10). Mock (scratch) had: closed row, 0 rows, tomorrow-only property,
+late-loading counts, an "Đặt phòng mới nhất" list and a hidden "Khách đi" panel — all handled. Re-login = Tampermonkey script `tools/tu-dong-dang-nhap/`;
 background.js now waits 2 more minutes for it before the Zalo "Booking đã đăng xuất" message.
 **Signed out at 7:00 (1.24):** background.js `checkSignedOut` (25 s after opening) sees the sign-in page → POST
 `/api/ext/login_needed` → Zalo bot tells the owner(s) (`_staff_tell_owners`); `hpWaitLogin` (8 h) → the first
