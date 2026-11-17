@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Tự động đăng nhập (nhiều trang)
 // @namespace    tu-dong-dang-nhap
-// @version      2.5
+// @version      2.7
 // @description  Dán link trang vào danh sách -> trang đó tự đăng nhập lại khi hết phiên. Mỗi trang một tài khoản riêng.
 // @match        *://*/*
 // @grant        GM_getValue
@@ -9,6 +9,8 @@
 // @grant        GM_deleteValue
 // @grant        GM_registerMenuCommand
 // @run-at       document-idle
+// @updateURL    https://web-production-8f671.up.railway.app/tu-dong-dang-nhap.user.js
+// @downloadURL  https://web-production-8f671.up.railway.app/tu-dong-dang-nhap.user.js
 // ==/UserScript==
 // CÁCH DÙNG (bấm biểu tượng Tampermonkey trên thanh Chrome):
 //   • "➕ Dán link trang cần tự đăng nhập"  -> dán link bất kỳ của trang báo
@@ -43,7 +45,8 @@
     const n = (p.length > 2 && p[p.length - 1].length === 2 && p[p.length - 2].length <= 3) ? 3 : 2;
     return p.slice(-n).join('.');
   };
-  const getSites = () => GM_getValue('sites', []) || [];
+  // 2.6: booking.com is in the list from the start (owner: "cài lại rất nhiều thứ") — nothing to paste on a new computer
+  const getSites = () => GM_getValue('sites', ['booking.com']) || [];
   const setSites = a => GM_setValue('sites', [...new Set(a)].filter(Boolean));
   const here = location.hostname.replace(/^www\./, '').toLowerCase();
   // trang hiện tại thuộc mục nào trong danh sách (khớp cả tên miền con)
@@ -96,16 +99,20 @@
   }
   const find = sel => [...document.querySelectorAll(sel)].find(visible);
   // Nút KHÔNG được bấm (quên mật khẩu, gặp trở ngại, tạo tài khoản, đăng nhập bằng Google...)
-  const BAD = /quên|trở ngại|khôi phục|tạo tài khoản|đăng ký|forgot|trouble|recover|create|register|google|facebook|apple/i;
+  // 2.7 (owner 17/11/2026, password step stopped after 4 tries): + "chỉnh sửa" (goes back to the e-mail step) and the
+  // eye button "Hiển thị mật khẩu" — both are buttons inside the same form as "Tiếp theo" and were pressed instead of it
+  const BAD = /quên|trở ngại|khôi phục|tạo tài khoản|đăng ký|chỉnh sửa|sửa|hiển thị|hiện|ẩn|forgot|trouble|recover|create|register|edit|change|show|hide|google|facebook|apple|passkey|khóa truy cập/i;
   const btnText = b => (b.innerText || b.value || b.getAttribute('aria-label') || '').trim();
+  // a button that can be pressed: has its own words (icon buttons like the eye have none), short, no forbidden word
+  const okBtn = b => { const t = btnText(b); return visible(b) && t.length > 0 && t.length <= 30 && !BAD.test(t); };
   function findBtn(el, re) {
-    // 1) nút submit nằm trong cùng form với ô vừa điền
-    const inForm = el.form && [...el.form.querySelectorAll('button[type=submit], input[type=submit], button:not([type])')]
-      .find(b => visible(b) && !BAD.test(btnText(b)));
-    if (inForm) return inForm;
-    // 2) nút có chữ đúng y "Kế tiếp" / "Đăng nhập"... (chữ ngắn, không chứa từ cấm)
-    return [...document.querySelectorAll('button, input[type=submit], [role=button]')]
-      .find(b => visible(b) && !BAD.test(btnText(b)) && btnText(b).length <= 30 && re.test(btnText(b)));
+    const scope = el.form || document;
+    const all = sel => [...scope.querySelectorAll(sel)].filter(okBtn);
+    // 1) the button whose words say it: "Tiếp theo" / "Kế tiếp" / "Đăng nhập" (same form first, then the page)
+    return all('button, input[type=submit], [role=button]').find(b => re.test(btnText(b))) ||
+      [...document.querySelectorAll('button, input[type=submit], [role=button]')].find(b => okBtn(b) && re.test(btnText(b))) ||
+      // 2) else the form's real submit button (type=submit only — a button without a type can be an icon)
+      all('button[type=submit], input[type=submit]')[0] || null;
   }
 
   function fill(el, v) {
@@ -157,6 +164,13 @@
     console.log('[Tự động đăng nhập]', site, msg);
   }
 
+  const WRONG = /mật khẩu (không đúng|không chính xác|sai)|sai mật khẩu|incorrect password|wrong password|password is incorrect|không khớp/i;
+  // a new version of the script starts with a clean count (the old one may have stopped on its own mistake)
+  const VER = (typeof GM_info !== 'undefined' && GM_info.script && GM_info.script.version) || '';
+  if (GM_getValue('ver:' + site) !== VER) {
+    ['user', 'pass'].forEach(s => GM_deleteValue('tries:' + site + ':' + s));
+    GM_setValue('ver:' + site, VER);
+  }
   let lastStep = '', lastAt = 0, stopped = false;
   function tick() {
     if (stopped) return;
@@ -164,7 +178,14 @@
     const user = find(CFG.userInput);
     if (!pass && !user) return;
     const step = pass ? 'pass' : 'user';
-    if (step === lastStep && Date.now() - lastAt < 4000) return;
+    if (step === lastStep && Date.now() - lastAt < 10000) return;
+    // Booking says the password is wrong → stop at once (more tries could lock the account)
+    if (step === 'pass' && lastStep === 'pass' && WRONG.test(document.body.innerText || '')) {
+      stopped = true;
+      status('Booking báo sai mật khẩu — đã dừng'); badge.style.background = '#c00';
+      alert('[Tự động đăng nhập] ' + site + ': Booking báo SAI MẬT KHẨU, đã dừng. Menu Tampermonkey > Đổi tài khoản để nhập lại.');
+      return;
+    }
 
     const c = creds();
     if (!c) { stopped = true; return; }

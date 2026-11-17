@@ -39,6 +39,17 @@ def extension_zip():
                      download_name=f'hotel_pro_tien_ich_{version or "moi"}.zip')
 
 
+@app.route('/tu-dong-dang-nhap.user.js')
+def tu_dong_dang_nhap_userscript():
+    """The owner's Tampermonkey re-login script (tools/tu-dong-dang-nhap/, owner Nov 17: "cài lại rất nhiều thứ"):
+    opening this address with Tampermonkey installed shows its "Cài đặt" page → 1 click; @updateURL points here, so
+    Tampermonkey also updates it by itself. Holds no password (typed once per computer into Tampermonkey)."""
+    f = os.path.join(app.root_path, 'tools', 'tu-dong-dang-nhap', 'tu-dong-dang-nhap.user.js')
+    if not os.path.isfile(f):
+        return jsonify({'success': False, 'error': 'Không tìm thấy script trên máy chủ'}), 404
+    return send_file(f, mimetype='text/javascript; charset=utf-8', max_age=0)
+
+
 @app.route('/dien-ten-sdt.zip')
 def dien_ten_sdt_zip():
     """Windows tool "Điền Tên - SĐT" (tools/dien-ten-sdt/) as a zip, so another computer only has to download it (owner,

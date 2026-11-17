@@ -7,8 +7,10 @@ và **không sửa tiện ích "Gửi về Hotel Pro"**. Phiên Booking hết h�
 ## Cài (1 lần)
 1. Cài tiện ích **Tampermonkey** từ Chrome Web Store.
 2. `chrome://extensions` → bật **Chế độ nhà phát triển** (Chrome mới cần bước này để userscript chạy).
-3. Biểu tượng Tampermonkey → **Create a new script** → xoá mẫu → dán toàn bộ `tu-dong-dang-nhap.user.js` → Ctrl+S.
-4. Menu Tampermonkey → **➕ Dán link trang cần tự đăng nhập** → dán `booking.com`.
+3. Mở `https://web-production-8f671.up.railway.app/tu-dong-dang-nhap.user.js` (hoặc /may-tinh → Tiện ích Chrome →
+   **🔑 Cài script Tự đăng nhập**) → Tampermonkey hiện trang cài → **Cài đặt**. Từ 2.6: booking.com có sẵn trong danh sách,
+   và Tampermonkey tự cập nhật bản mới từ địa chỉ đó (@updateURL) — không phải dán lại code.
+4. (Không cần nữa từ 2.6: "Dán link booking.com".)
 5. Lần đầu gặp trang đăng nhập, script hỏi tên đăng nhập + mật khẩu (chủ nhà tự gõ). Lưu trong Tampermonkey trên máy này,
    không nằm trong code hay git. Máy thứ 2: làm lại từ bước 1.
 
@@ -42,6 +44,11 @@ chủ nhà trả lời bot đúng mã 6 số trong SMS → tiện ích tự đi�
    tên "hidden" / aria-hidden — bước 2 (auth.booking.com, Auth0 `/u/login/password`) có thể dùng lại chính ô đó.
 2. Bấm nút submit cùng form trước, rồi mới tìm theo chữ (≤30 ký tự), luôn loại các chữ "quên / trở ngại / …".
 3. Điền bằng native value setter + sự kiện input/change (React), đợi 400 ms rồi mới bấm.
+4. (2.7, chủ nhà 17/11/2026: bước mật khẩu dừng sau 4 lần) Bước mật khẩu có nút **"chỉnh sửa"** (quay về bước email) và
+   nút **con mắt** "Hiển thị mật khẩu" trong cùng form, trước "Tiếp theo". Bản cũ lấy nút submit/không-type đầu tiên → bấm
+   nhầm. Nay: tìm nút theo CHỮ trước ("Tiếp theo"…), bỏ nút không có chữ, BAD có "chỉnh sửa / hiển thị / edit / show".
+   Thử lại cùng bước sau 10 s (Booking kiểm mật khẩu chậm); trang báo "sai mật khẩu" → dừng ngay; đổi phiên bản script →
+   xoá bộ đếm lần thử cũ. Mock `mock/login.html` có đủ 2 nút bẫy này.
 
 ## Thử trên trang giả lập
 `python -m http.server 8765` trong thư mục này → mở `http://127.0.0.1:8765/mock/index.html`

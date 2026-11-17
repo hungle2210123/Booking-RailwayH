@@ -21,8 +21,9 @@ button{width:100%;padding:12px;background:#0070e0;color:#fff;border:0;border-rad
       <button type="button" id="next">Kế tiếp</button>
     </div>
     <div id="step2" hidden>
-      <p id="who"></p>
+      <p id="who"></p><button id="edit" style="width:auto;background:none;color:#0070e0">chỉnh sửa</button>
       <label for="password">Mật khẩu</label>
+      <button id="eye" aria-label="Hiển thị mật khẩu" style="width:auto;background:none;color:#333">👁</button>
       <button type="submit" id="signin">Tiếp theo</button>
     </div>
   </form>
@@ -43,6 +44,9 @@ $('next').onclick = () => {
     $('step2').insertBefore(hp, $('signin')); hp.removeAttribute('tabindex');
   }, 800);
 };
+// Bẫy 2.7: "chỉnh sửa" quay về bước email, nút con mắt chỉ đổi kiểu ô — bấm nhầm 2 nút này là kẹt
+$('edit').onclick = e => { e.preventDefault(); window.EDITED = (window.EDITED || 0) + 1; $('step2').hidden = true; $('step1').hidden = false; };
+$('eye').onclick = e => { e.preventDefault(); window.EYE = (window.EYE || 0) + 1; const p = $('hidden-password'); p.type = p.type === 'password' ? 'text' : 'password'; };
 $('signin').onclick = () => {
   if ($('username').value === 'demo@example.com' && $('hidden-password').value === 'matkhau123') {
     if (!window.asked2) {                       // giống Booking: hỏi mật khẩu thêm 1 lần
