@@ -56,3 +56,11 @@ def test_mail_list_today_only(client):
     j = client.get('/api/moi/mail_list').get_json()
     assert j['success']
     assert all(m['group'] == 'Hôm nay' for m in j['mails'])
+
+
+def test_moi_quick_cancel_and_cancelled_list(client):
+    """Owner, Nov 17: ✕ on 'Chưa có số' guests = one-tap Báo hủy (with Hoàn tác), and a list to see / restore cancelled guests."""
+    html = client.get('/moi').get_data(as_text=True)
+    for s in ('M.quickCancel', 'M.undoCancel', 'M.cxList', 'M.cxRestore'):
+        assert s in html, s
+    assert 'cancelled' in client.get('/api/moi/data').get_json()

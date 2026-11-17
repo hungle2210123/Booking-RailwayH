@@ -88,6 +88,12 @@ body.wide #app{max-width:1180px}
 .hcal .cg{column-gap:2px}
 .bar{position:relative}
 .paym{position:absolute;top:3px;right:3px;width:16px;height:16px;border-radius:50%;color:#fff;font-style:normal;font-size:10.5px;font-weight:900;display:flex;align-items:center;justify-content:center;box-shadow:0 0 0 1.5px #fff}
+.qx{position:absolute;top:2px;right:2px;width:30px;height:30px;border-radius:50%;background:#fff;color:#B91C1C;border:1.5px solid #FCA5A5;font-style:normal;font-size:15px;font-weight:900;display:flex;align-items:center;justify-content:center;z-index:2}
+.qx.low{top:auto;bottom:2px}
+.cxl{position:fixed;inset:0;z-index:98;background:#F5F6F8;overflow-y:auto;-webkit-overflow-scrolling:touch}
+.cxl-in{padding:calc(16px + env(safe-area-inset-top)) 16px calc(24px + env(safe-area-inset-bottom))}
+.undo{position:fixed;left:16px;right:16px;bottom:calc(env(safe-area-inset-bottom) + 96px);z-index:99;background:#0E1525;color:#fff;border-radius:14px;padding:10px 10px 10px 14px;display:flex;align-items:center;gap:10px;font-size:14px;font-weight:700;box-shadow:0 8px 24px rgba(0,0,0,.25)}
+.undo span{flex:1}.undo button{min-height:40px;padding:0 14px;border-radius:10px;border:0;background:#fff;color:#0E1525;font-weight:800;font-size:14px}
 .bar.tiny{padding:4px 4px}.bar.tiny b{font-size:10.5px;-webkit-line-clamp:3}
 .cst{position:sticky;left:0;z-index:3;background:#fff}
 .cdh{border:none;text-align:center;border-radius:12px;padding:6px 0;min-height:52px;background:#F4F5F8;color:#334155}
@@ -436,6 +442,49 @@ button.info.on{border-color:#0E1525;background:#fff}
     const r = await post('/api/set_checkin_status', { booking_id: id, status: 'cancelling' });
     if (!r.ok) return toast('Lỗi: không lưu được');
     S.sel = null; renderSheet(); toast('Đã báo hủy ' + b.name); await load(true);
+  };
+  // ✕ on a "Chưa có số" guest: no question, cancelled at once; a bar with Hoàn tác stays 6 s (owner, Nov 17)
+  let undoT;
+  M.quickCancel = async (id) => {
+    const b = byId[id]; if (!b) return;
+    const prev = b.confirmed ? 'confirmed' : '';
+    const r = await post('/api/set_checkin_status', { booking_id: id, status: 'cancelling' });
+    if (!r.ok) return toast('Lỗi: không lưu được');
+    let el = $('.undo'); if (!el) { el = document.createElement('div'); el.className = 'undo'; document.body.appendChild(el); }
+    el.innerHTML = `<span>Đã hủy ${esc(b.name)}</span><button onclick="M.undoCancel('${id}','${prev}')">Hoàn tác</button>`;
+    clearTimeout(undoT); undoT = setTimeout(() => el.remove(), 6000);
+    await load(true);
+  };
+  M.undoCancel = async (id, prev) => {
+    clearTimeout(undoT); const el = $('.undo'); if (el) el.remove();
+    const r = await post('/api/set_checkin_status', { booking_id: id, status: prev });
+    if (!r.ok) return toast('Lỗi: không hoàn tác được');
+    toast('Đã hoàn tác'); await load(true);
+  };
+  // ✕ Khách đã hủy (owner, Nov 17: "xem lại được những khách đã hủy"): guests marked Báo hủy, arrival from 3 days ago on
+  // (data.cancelled) — latest arrival first, ↩ Khôi phục puts the guest back on the calendar.
+  M.cxList = () => {
+    const L = (S.data.cancelled || []).slice().sort((x, y) => (x.ci < y.ci ? 1 : -1));
+    let el = $('.cxl'); if (!el) { el = document.createElement('div'); el.className = 'cxl'; document.body.appendChild(el); }
+    const dm = (s) => +s.slice(8, 10) + '/' + +s.slice(5, 7);
+    el.innerHTML = `<div class="cxl-in"><div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+        <div><div class="kick" style="color:#B91C1C">BÁO HỦY · ĐẾN TỪ 3 NGÀY TRƯỚC</div><div class="h1" style="margin:2px 0 0;font-size:22px">Khách đã hủy · ${L.length}</div></div>
+        <button class="x" style="width:44px;height:44px" onclick="M.cxClose()" aria-label="Đóng">✕</button></div>
+      ${L.length ? L.map((b) => `<div style="border:1.5px solid #E7E9EE;border-radius:14px;padding:12px;margin-bottom:8px;background:#fff">
+        <div style="display:flex;justify-content:space-between;gap:8px;align-items:flex-start"><div style="min-width:0">
+          <b style="font-size:15px">${esc(b.name)}</b>
+          <div style="font-size:12.5px;color:#475569;margin-top:2px">${dm(b.ci)} → ${dm(b.co)} · ${b.nights} đêm${b.total ? ' · ' + fmt(b.total) : ''}</div>
+          <div style="font-size:12px;color:#64748B;margin-top:2px">${b.apt && aptById[b.apt] ? esc(aptById[b.apt].name) + (b.room_no ? ' · phòng ' + b.room_no : '') + ' · ' : ''}${esc(b.listing || '')}</div>
+          <div style="font-size:12px;color:#64748B;margin-top:2px">Mã ${esc(b.id)}${b.phone ? ' · ' + esc(b.phone) : ''}</div></div>
+          <button onclick="M.cxRestore('${b.id}')" style="flex:0 0 auto;min-height:44px;padding:0 12px;border-radius:12px;border:1.5px solid #0E1525;background:#fff;font-size:13px;font-weight:800">↩ Khôi phục</button></div></div>`).join('')
+        : '<div style="padding:24px 0;text-align:center;color:#64748B;font-weight:600">Không có khách nào bị hủy.</div>'}</div>`;
+  };
+  M.cxClose = () => { const el = $('.cxl'); if (el) el.remove(); };
+  M.cxRestore = async (id) => {
+    const r = await post('/api/set_checkin_status', { booking_id: id, status: '' });
+    if (!r.ok) return toast('Lỗi: không khôi phục được');
+    toast('Đã khôi phục — khách trở lại lịch'); await load(true);
+    if ($('.cxl')) M.cxList();
   };
   M.mark = async (id, key, on) => {
     const r = await post('/api/journey/sent', { booking_id: id, step: key, sent: on !== false });
@@ -826,8 +875,10 @@ button.info.on{border-color:#0E1525;background:#fff}
       // ✓ green = paid · ½ amber = part paid · ₫ red = not paid and already arrived (future guests: no mark yet)
       const pay = b.paid ? ['✓', '#16A34A'] : b.collected ? ['½', '#F59E0B'] : (b.ciO < 0 || (b.ciO === 0 && b.confirmed)) ? ['₫', '#DC2626'] : null;
       const payMark = pay ? `<i class="paym" style="background:${pay[1]}${tiny ? ';top:auto;bottom:3px' : ''}" aria-label="${b.paid ? 'Đã thu' : b.collected ? 'Thu một phần' : 'Chưa thu'}">${pay[0]}</i>` : '';
-      return `<button class="bar${tiny ? ' tiny' : ''}" onclick="${act}" style="grid-row:${(b._ln || 0) + 1};grid-column:${h0 + 2} / span ${w};${sty}${S.pick === b.id ? ';box-shadow:0 0 0 3px #F59E0B' : ''}" aria-label="${esc(b.name)}">${payMark}
-        <b${pay && !tiny ? ' style="padding-right:14px"' : ''}>${esc(tiny ? (b.du ? '☀' : (lost ? '📵 ' : '') + b.name.split(' ')[0]) : name)}</b>${slim ? '' : `<small>${esc(b.listing || 'chưa rõ loại phòng')}</small>`}${pn ? (N === 3 && !tiny ? `<small class="num">${b.nights} đêm · ${pn}${b.ciO <= 0 && !b.confirmed && b.coO > 0 ? ' · chờ' : ''}${b.paid ? ' · đã thu' : b.collected ? ' · thu ' + short(b.collected) : (b.ciO < 0 || b.confirmed) ? ' · CHƯA THU' : ''}</small>` : `<small class="num">${pn}</small>`) : ''}</button>`;
+      // ✕ on a guest without a room number (owner, Nov 17: extra guests → one tap = Báo hủy, undo in the toast)
+      const xBtn = dashedAmber && !b.confirmed ? `<i class="qx${pay ? ' low' : ''}" role="button" aria-label="Hủy ${esc(b.name)}" onclick="event.stopPropagation();M.quickCancel('${b.id}')">✕</i>` : '';
+      return `<button class="bar${tiny ? ' tiny' : ''}" onclick="${act}" style="grid-row:${(b._ln || 0) + 1};grid-column:${h0 + 2} / span ${w};${sty}${S.pick === b.id ? ';box-shadow:0 0 0 3px #F59E0B' : ''}" aria-label="${esc(b.name)}">${payMark}${xBtn}
+        <b${(pay || xBtn) && !tiny ? ' style="padding-right:30px"' : ''}>${esc(tiny ? (b.du ? '☀' : (lost ? '📵 ' : '') + b.name.split(' ')[0]) : name)}</b>${slim ? '' : `<small>${esc(b.listing || 'chưa rõ loại phòng')}</small>`}${pn ? (N === 3 && !tiny ? `<small class="num">${b.nights} đêm · ${pn}${b.ciO <= 0 && !b.confirmed && b.coO > 0 ? ' · chờ' : ''}${b.paid ? ' · đã thu' : b.collected ? ' · thu ' + short(b.collected) : (b.ciO < 0 || b.confirmed) ? ' · CHƯA THU' : ''}</small>` : `<small class="num">${pn}</small>`) : ''}</button>`;
     };
     // empty halves: a whole free day says "trống"; a free afternoon after a check-out also says "trống" (free tonight)
     const slots = (taken, nl = 1) => days.map((dd) => { const L = 2 * (dd - ws), fl = !taken.has(L), fr = !taken.has(L + 1), gr = `grid-row:1 / span ${nl};`;
@@ -890,6 +941,7 @@ button.info.on{border-color:#0E1525;background:#fff}
       <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:8px;font-size:11px;font-weight:600;color:#475569"><b style="color:#0E1525">Ô cạnh tên căn = phòng còn trống đêm đó:</b>
         <span class="fr" style="padding:2px 6px;background:#DCFCE7;color:#166534">Trống 2</span><span class="fr" style="padding:2px 6px;background:#FEF3C7;color:#92400E">Trống 1</span><span class="fr" style="padding:2px 6px;background:#FEE2E2;color:#B91C1C">Kín phòng</span></div>
       ${room && noRoomN ? `<button onclick="M.auto()" style="width:100%;margin-top:10px;min-height:44px;border-radius:12px;border:1.5px dashed #0E1525;background:#fff;font-size:13px;font-weight:800">Tự xếp phòng cho ${noRoomN} khách đã có căn</button>` : ''}
+      ${(S.data.cancelled || []).length ? `<button onclick="M.cxList()" style="width:100%;margin-top:8px;min-height:44px;border-radius:12px;border:1.5px solid #FECACA;background:#fff;color:#B91C1C;font-size:13px;font-weight:800">✕ Khách đã hủy · ${S.data.cancelled.length} — xem lại / khôi phục</button>` : ''}
       <div style="margin-top:6px;font-size:11px;color:#475569;font-weight:600">Mỗi ngày chia đôi: <b style="color:#0E1525">nửa trái = khách trả sáng</b>, <b style="color:#0E1525">nửa phải = khách đến chiều</b>.</div></div>
       <div class="card cal hcal"><div style="width:${width};padding:8px 8px 10px 0">
         <div class="cg" style="grid-template-columns:${cols};padding-bottom:6px;border-bottom:1px solid #EEF0F4"><div class="cst"></div>${head}</div>${rows}</div></div>
