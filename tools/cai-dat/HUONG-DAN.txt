@@ -25,6 +25,17 @@ TỰ CẬP NHẬT — không phải làm gì
   • Script Tự đăng nhập: Tampermonkey tự cập nhật từ web.
   • Máy chính (có thư mục dự án): tiện ích chạy thẳng từ thư mục dự án → sửa code là có ngay.
 
+TỰ ĐÁNH THỨC MÁY LÚC 6:55 (mo-may-buoi-sang.ps1)
+  • Tối: Start → Nguồn → NGỦ (Sleep), KHÔNG "Tắt máy". Cắm sạc.
+  • 6:55 máy tự thức, giữ thức 45 phút, mở Chrome đúng hồ sơ có tiện ích → 7:00 tiện ích tự chạy.
+    Chạy được cả khi màn hình đang khoá mật khẩu.
+  • Cài 1 lần (cửa sổ PowerShell):
+      powershell -ExecutionPolicy Bypass -File "%LOCALAPPDATA%\HotelPro\mo-may-buoi-sang.ps1" -CaiDat -ChromeProfile Default
+    "Default" = tên THƯ MỤC hồ sơ Chrome có tiện ích (hồ sơ đầu tiên là Default, các hồ sơ sau là "Profile 2", "Profile 27"…;
+    xem ở chrome://version → "Đường dẫn hồ sơ").
+  • Bot Zalo báo lúc bắt đầu và lúc xong; 7:20 chưa thấy chạy thì báo "máy chưa chạy".
+  • Lỡ TẮT HẲN máy thì không tự bật được — mở máy lên, Chrome mở là tự chạy.
+
 CHẠY NGAY KHÔNG CHỜ 7:00
   Bấm biểu tượng Hotel Pro trên thanh Chrome → "▶ Chạy toàn bộ ngay".
 
