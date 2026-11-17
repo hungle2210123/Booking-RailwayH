@@ -951,7 +951,7 @@
   const runGet = () => { try { return JSON.parse(sessionStorage.getItem(RUN_KEY) || 'null'); } catch (e) { return null; } };
   const runSet = q => { try { q ? sessionStorage.setItem(RUN_KEY, JSON.stringify(q)) : sessionStorage.removeItem(RUN_KEY); } catch (e) {} };
   const wait = ms => new Promise(r => setTimeout(r, ms));
-  const humanPause = () => wait(3500 + Math.random() * 3000);
+  const humanPause = () => wait(2000 + Math.random() * 2000);
 
   // Guest links of the list on screen: links whose text is a booking number, visible, one per number
   function guestLinks() {
@@ -980,13 +980,16 @@
     runBtn.style.display = n ? '' : 'none';
   }
   setInterval(refreshRunBtn, 2000);
+  function startRun(items) {
+    runSet({ items, i: 0, back: location.href, log: [] });
+    location.href = items[0].url;
+  }
   runBtn.addEventListener('click', () => {
     if (runGet()) { finishRun('⏹ Đã dừng.'); return; }
     const items = guestLinks();
     if (!items.length) return;
     if (!confirm(`Tự mở lần lượt ${items.length} khách trên danh sách này và lưu về Hotel Pro?\n(Không tự bấm "Hiển thị số điện thoại".)`)) return;
-    runSet({ items, i: 0, back: location.href, log: [] });
-    location.href = items[0].url;
+    startRun(items);
   });
 
   function finishRun(note) {
@@ -1016,7 +1019,7 @@
     let ok = false, why = 'không đọc được trang';
     // wait for the reservation to show (the extranet draws the page after loading)
     for (let t = 0; t < 20 && !(document.body.innerText || '').includes(it.bid); t++) await wait(750);
-    await wait(1200);
+    await wait(800);
     if (!runGet()) return;                         // stopped meanwhile
     try {
       const r = await api('/api/ext/booking/parse', capture());
@@ -1046,5 +1049,20 @@
     else location.href = q2.items[q2.i].url;
   }
 
-  if (runGet()) setTimeout(runStep, 1500); else setTimeout(showRunDone, 1500);
+  // ⏰ 7:00 every morning background.js opens Booking's home page → start on its own (no question asked)
+  async function autoMorning() {
+    if (!chrome.runtime?.id || runGet() || resId()) return;
+    const { hpAutoRunUntil } = await chrome.storage.local.get('hpAutoRunUntil');
+    if (!hpAutoRunUntil || Date.now() > hpAutoRunUntil) return;
+    for (let t = 0; t < 40; t++) {                 // the home page draws the "Khách đến" list after loading
+      const items = guestLinks();
+      if (items.length) {
+        await chrome.storage.local.remove('hpAutoRunUntil');
+        startRun(items);
+        return;
+      }
+      await wait(1500);
+    }
+  }
+  if (runGet()) setTimeout(runStep, 1500); else { setTimeout(showRunDone, 1500); setTimeout(autoMorning, 3000); }
 })();

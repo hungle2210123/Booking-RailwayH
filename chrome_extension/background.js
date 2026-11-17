@@ -49,6 +49,26 @@ async function shoot(tab, auto = false) {
   }
 }
 
+// ── ⏰ Every morning (owner, 17/11/2026): open Booking's home page at 7:00 and let "▶ Mở từng khách"
+// run by itself on the "Khách đến" list. PC off at 7:00 → it runs as soon as Chrome starts that day.
+// Uses the owner's own open Booking session; never logs in (login page → nothing happens).
+const MORNING_HOUR = 7;
+const today = () => new Date().toLocaleDateString('sv');          // YYYY-MM-DD, local time
+function scheduleMorning() {
+  const next = new Date(); next.setHours(MORNING_HOUR, 0, 0, 0);
+  if (next <= new Date()) next.setDate(next.getDate() + 1);
+  chrome.alarms.create('hp-morning', { when: next.getTime() });
+}
+async function morningRun() {
+  const { hpLastMorning } = await chrome.storage.local.get('hpLastMorning');
+  if (hpLastMorning === today() || new Date().getHours() < MORNING_HOUR) return;
+  await chrome.storage.local.set({ hpLastMorning: today(), hpAutoRunUntil: Date.now() + 10 * 60000 });
+  chrome.tabs.create({ url: 'https://admin.booking.com/', active: false });
+}
+chrome.runtime.onInstalled.addListener(scheduleMorning);
+chrome.runtime.onStartup.addListener(() => { scheduleMorning(); setTimeout(morningRun, 60000); });
+chrome.alarms.onAlarm.addListener(a => { if (a.name === 'hp-morning') { scheduleMorning(); morningRun(); } });
+
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (msg?.type === 'shoot') {                        // from the toolbar popup
     chrome.tabs.query({ active: true, currentWindow: true }).then(([tab]) => shoot(tab)).then(sendResponse);
