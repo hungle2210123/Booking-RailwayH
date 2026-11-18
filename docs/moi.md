@@ -49,7 +49,7 @@ room_no when the apartment changes (a number belongs to its apartment).
   (`/api/set_actual_apartment`). Trả ↔ Đến per apartment (cells = rooms used); arrivals coloured by contact status;
   Đang ở list. Free-room rule = core/occupancy: an unconfirmed guest whose arrival day came is not counted.
 - **Lịch**: 3 / 7 / 14 days (14 default on ≥ 992px). "Theo phòng 1-2-3-4": rows Phòng 1..N per apartment, guests without
-  a number in "Chưa có số" lanes, unplaced at the bottom; tap a guest bar → green "Xếp vào đây" / red "Trùng khách" over
+  a number in "Chưa có số" lanes, unplaced at the bottom (bars there carry a small × = Báo hủy, owner Nov 18); tap a guest bar → green "Xếp vào đây" / red "Trùng khách" over
   every room for those nights → tap green (`/api/moi/room`); compact pick bar (name, dates, free rooms, Thẻ, ✕).
   "Tự xếp phòng cho N khách đã có căn" fills the first free room of their apartment. "Theo căn (tự xếp)": lanes, no numbers.
   Header chips per apartment per day: Trống N (green, amber at 1) / Kín phòng / Thừa N.
