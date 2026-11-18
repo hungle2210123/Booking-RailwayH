@@ -115,10 +115,12 @@ async function signedOutAlert() {
 // The owner signed in after the bot's message → start the morning run on the first Booking page that loads
 chrome.tabs.onUpdated.addListener(async (tabId, info, tab) => {
   if (info.status !== 'complete' || isSignIn(tab.url)) return;
-  const { hpWaitLogin } = await chrome.storage.local.get('hpWaitLogin');
+  const { hpWaitLogin, hpRunBusy, hpFetch } = await chrome.storage.local.get(['hpWaitLogin', 'hpRunBusy', 'hpFetch']);
   if (!hpWaitLogin) return;
   await chrome.storage.local.remove('hpWaitLogin');
   if (Date.now() > hpWaitLogin) return;
+  // 1.36: signed in again in the middle of a run / a new-guest tab → that tab carries on by itself (content.js)
+  if ((hpRunBusy && Date.now() - hpRunBusy < 180000) || hpFetch?.tabId === tabId) return;
   await chrome.storage.local.set({ hpAutoRunUntil: Date.now() + 10 * 60000 });
   const home = GROUP_URL;
   if (/\/hotel\/hoteladmin\/(extranet_ng\/manage\/home|groups\/)/i.test(tab.url)) chrome.tabs.sendMessage(tabId, { type: 'hp-morning-start' }).catch(() => {});
@@ -140,11 +142,72 @@ async function selfUpdate() {
   } catch (e) {}
 }
 chrome.alarms.create('hp-selfupdate', { periodInMinutes: 5 });
+
+// ── 📥 Khách đặt trong ngày (1.36, owner 18/11/2026) ─────────────────────────────────────────────────────────────
+// Booking's mail → server (p17) knows the new guest's number + property. Every minute (only while this PC is awake
+// and Chrome open — no extra wake-ups, owner: "Zalo tự báo mà") ask the server for today's new guests of the
+// properties of THIS profile's Booking account; open them in a background tab (content.js fetchJob: save + phone),
+// then one Zalo line and the tab closes. The morning run of the day comes first. Each guest is tried 3 times at most.
+async function apiCall(path, body) {
+  const { server, token } = await settings();
+  const res = await fetch(server + path, {
+    method: body ? 'POST' : 'GET', signal: AbortSignal.timeout(30000),
+    headers: { 'Content-Type': 'application/json', 'X-Hotel-Token': token },
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  return res.json();
+}
+async function pendingCheck() {
+  const st = await chrome.storage.local.get(['hpLastMorning', 'hpAutoRunUntil', 'hpRunBusy', 'hpFetch', 'hpHotels', 'hpAccount', 'hpWaitLogin', 'hpResetJob']);
+  if (st.hpLastMorning !== today() || st.hpWaitLogin || st.hpResetJob) return;
+  if ((st.hpAutoRunUntil && Date.now() < st.hpAutoRunUntil) || (st.hpRunBusy && Date.now() - st.hpRunBusy < 180000)) return;
+  if (st.hpFetch) {
+    if (Date.now() - st.hpFetch.at < 12 * 60000) { try { await chrome.tabs.get(st.hpFetch.tabId); return; } catch (e) {} }
+    try { await chrome.tabs.remove(st.hpFetch.tabId); } catch (e) {}           // stuck / closed → next try
+    await chrome.storage.local.remove('hpFetch');
+  }
+  const hotels = st.hpHotels || [];
+  if (!hotels.length) return;
+  let r;
+  try { r = await apiCall('/api/ext/pending', { hotels, take: true, account: st.hpAccount || '' }); } catch (e) { return; }
+  if (!r?.items?.length) return;
+  stayAwake(20);
+  const tab = await chrome.tabs.create({ url: GROUP_URL, active: false });
+  await chrome.storage.local.set({ hpFetch: { at: Date.now(), tabId: tab.id, items: r.items } });
+  setTimeout(() => checkSignedOut(tab.id), 25000);
+}
+chrome.alarms.create('hp-pending', { periodInMinutes: 1 });
+// Booking signs out each time a reservation opens (content.js logoutLoop): clear Booking's cookies of this profile
+// (= what fixed it by hand on Nov 18), sign in again (Tampermonkey; SMS code via Zalo) and run again. Once a day.
+async function logoutLoop(tab) {
+  const { hpCookieReset, hpFetch } = await chrome.storage.local.get(['hpCookieReset', 'hpFetch']);
+  if (hpCookieReset === today()) return { reset: false };
+  await chrome.storage.local.set({ hpCookieReset: today(), hpResetJob: { tabId: tab?.id, fetch: hpFetch?.tabId === tab?.id } });
+  chrome.alarms.create('hp-cookie-reset', { when: Date.now() + 30000 });   // let the tab send its Zalo report first
+  return { reset: true };
+}
+async function cookieReset() {
+  const { hpResetJob } = await chrome.storage.local.get('hpResetJob');
+  await chrome.storage.local.remove(['hpResetJob', 'hpFetch']);
+  if (!hpResetJob) return;
+  try { await chrome.tabs.remove(hpResetJob.tabId); } catch (e) {}
+  try {
+    await chrome.browsingData.remove({ origins: ['https://admin.booking.com', 'https://account.booking.com', 'https://auth.booking.com',
+      'https://login.booking.com', 'https://www.booking.com'] }, { cookies: true, localStorage: true, cacheStorage: true, indexedDB: true });
+  } catch (e) {}
+  if (hpResetJob.fetch) return;                       // new guests: the 1-minute check opens them again
+  stayAwake();
+  await chrome.storage.local.set({ hpAutoRunUntil: Date.now() + 15 * 60000 });
+  const tab = await chrome.tabs.create({ url: GROUP_URL, active: false });
+  setTimeout(() => checkSignedOut(tab.id), 25000);
+}
 chrome.alarms.onAlarm.addListener(a => {
   if (a.name === 'hp-selfupdate') selfUpdate();
   if (a.name === 'hp-awake-off') { try { chrome.power.releaseKeepAwake(); } catch (e) {} }
   if (a.name === 'hp-morning') { scheduleMorning(); morningRun(); }
   if (a.name === 'hp-signout') signedOutAlert();
+  if (a.name === 'hp-pending') pendingCheck();
+  if (a.name === 'hp-cookie-reset') cookieReset();
 });
 
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
@@ -156,6 +219,23 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       setTimeout(() => checkSignedOut(tab.id), 25000);
     })().then(() => sendResponse({ success: true }));
     return true;
+  }
+  if (msg?.type === 'fetch-job') {                    // 1.36: is this tab the new-guest tab?
+    chrome.storage.local.get('hpFetch').then(({ hpFetch }) =>
+      sendResponse(hpFetch && hpFetch.tabId === sender.tab?.id ? { items: hpFetch.items } : null));
+    return true;
+  }
+  if (msg?.type === 'fetch-done') {
+    chrome.storage.local.remove('hpFetch').then(() => setTimeout(() => chrome.tabs.remove(sender.tab.id).catch(() => {}), 3000));
+    return false;
+  }
+  if (msg?.type === 'logout-loop') { logoutLoop(sender.tab).then(sendResponse); return true; }
+  if (msg?.type === 'hotels') {                       // the properties of this profile's Booking account
+    chrome.storage.local.get('hpHotels').then(({ hpHotels }) => {
+      const all = [...new Set([...(hpHotels || []), ...(msg.ids || [])])].slice(-30);
+      if (all.length !== (hpHotels || []).length) chrome.storage.local.set({ hpHotels: all });
+    });
+    return false;
   }
   if (msg?.type === 'shoot') {                        // from the toolbar popup
     chrome.tabs.query({ active: true, currentWindow: true }).then(([tab]) => shoot(tab)).then(sendResponse);

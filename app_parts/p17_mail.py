@@ -22,7 +22,8 @@ def _mail_ensure(_xdb):
     _xdb.session.execute(text("""CREATE TABLE IF NOT EXISTS mail_alerts (
         id SERIAL PRIMARY KEY, at TIMESTAMP NOT NULL, mail_id VARCHAR(80) UNIQUE, kind VARCHAR(10) NOT NULL,
         booking_id VARCHAR(20), prop TEXT, apt VARCHAR(10), day DATE, subject TEXT, seen BOOLEAN NOT NULL DEFAULT FALSE)"""))
-    for col in ('guest TEXT', 'body TEXT', 'co DATE'):          # 💬 guest messages (kind 'msg')
+    # 💬 guest messages (kind 'msg') · 📥 new guests fetched by the PC later in the day (fetch_tries / fetched_at)
+    for col in ('guest TEXT', 'body TEXT', 'co DATE', 'fetch_tries INT NOT NULL DEFAULT 0', 'fetched_at TIMESTAMP'):
         _xdb.session.execute(text(f"ALTER TABLE mail_alerts ADD COLUMN IF NOT EXISTS {col}"))
     _xdb.session.commit()
     _MAIL_READY = True
@@ -441,7 +442,8 @@ def ext_morning():
         st['open'].pop(acc, None)
         ok, total = int(d.get('ok') or 0), int(d.get('total') or 0)
         bad = [b for b in (d.get('bad') or []) if isinstance(b, dict)][:10]
-        stopped = bool(d.get('note'))
+        note = str(d.get('note') or '').strip()[:220]
+        stopped = bool(note)
         if total == 0 and not stopped:
             msg = f"☑️ {acc} · {hm}\nHôm nay không có khách đến."
         elif ok >= total and not bad and not stopped:
@@ -449,13 +451,81 @@ def ext_morning():
         else:
             msg = f"⚠️ {acc} · {hm}\nĐã lưu {ok}/{total} khách đến hôm nay."
             if stopped:
-                msg += '\nBị dừng giữa chừng.'
+                msg += '\n' + note
             if bad:
                 msg += '\nCần xem tay: ' + ', '.join(f"{b.get('bid')} ({str(b.get('why') or '')[:40]})" for b in bad)
     _zbot_put(_xdb, 'morning_status', st)
     if msg:
         mail_notify(_xdb, msg)
     return jsonify({'success': True})
+
+
+# ── 📥 Khách đặt trong ngày (owner, Nov 18: "những đặt phòng đến sau tin nhắn sáng … mở máy, tự đăng nhập, vào đúng căn,
+# lấy đúng thông tin khách đó"). The Booking mail (mail_hook) already gives booking number + listing; booking_properties
+# gives the listing's hotel_id. The extension polls /api/ext/pending every 5 min (only the hotels of ITS Booking account),
+# opens that reservation, reveals the phone, saves (→ mail_fetched), then /api/ext/pending {action:'report'} → ONE Zalo
+# line. Works while the PC is awake with Chrome open (owner: no extra wake-ups — "Zalo tự báo mà"); a sleeping PC
+# fetches when it wakes. Only guests ARRIVING TODAY (later days = the morning run of that day). 3 tries max.
+def _pending_rows(_xdb):
+    _mail_ensure(_xdb)
+    return _xdb.session.execute(text("""
+        SELECT m.booking_id, MAX(m.prop), MIN(COALESCE(m.fetch_tries, 0)), MAX(p.hotel_id) FROM mail_alerts m
+        LEFT JOIN booking_properties p ON lower(p.name) = lower(m.prop)
+        WHERE m.kind IN ('last', 'new') AND m.day = :d AND m.booking_id <> '' AND m.fetched_at IS NULL
+          AND COALESCE(m.fetch_tries, 0) < 3
+          AND NOT EXISTS (SELECT 1 FROM mail_alerts c WHERE c.kind = 'cancel' AND c.booking_id = m.booking_id)
+          AND NOT EXISTS (SELECT 1 FROM bookings b JOIN guests g ON g.guest_id = b.guest_id
+                          WHERE b.booking_id = m.booking_id AND COALESCE(g.phone, '') <> '')
+        GROUP BY m.booking_id ORDER BY m.booking_id"""), {'d': _vn_now().date()}).fetchall()
+
+
+def mail_fetched(bid):
+    """The extension saved this booking from its Booking page → it is no longer waiting to be fetched."""
+    from core.models import db as _xdb
+    if not bid:
+        return
+    try:
+        _mail_ensure(_xdb)
+        _xdb.session.execute(text("UPDATE mail_alerts SET fetched_at = NOW() WHERE booking_id = :b AND fetched_at IS NULL"),
+                             {'b': str(bid)})
+        _xdb.session.commit()
+    except Exception as e:
+        _xdb.session.rollback()
+        print(f'⚠️ mail_fetched: {e}')
+
+
+@app.route('/api/ext/pending', methods=['POST'])
+def ext_pending():
+    err = _ext_auth_error()
+    if err:
+        return err
+    from core.models import db as _xdb
+    _moi_ensure()
+    d = request.get_json(silent=True) or {}
+    acc = str(d.get('account') or '').strip()[:40] or 'Booking'
+    if d.get('action') == 'report':
+        now = _vn_now()
+        lines, bad = [], [b for b in (d.get('bad') or []) if isinstance(b, dict)][:8]
+        for bid in [str(x)[:20] for x in (d.get('ok') or [])][:8]:
+            r = _xdb.session.execute(text("""SELECT b.guest_name, COALESCE(g.phone, '') FROM bookings b
+                LEFT JOIN guests g ON g.guest_id = b.guest_id WHERE b.booking_id = :b"""), {'b': bid}).fetchone()
+            lines.append(f"{(r[0] if r else '') or bid} · {'có SĐT' if r and r[1] else 'chưa thấy SĐT'}")
+        lines += [f"Chưa lấy được {b.get('bid')} ({str(b.get('why') or '')[:50]})" for b in bad]
+        note = str(d.get('note') or '').strip()[:220]
+        if note and not note.startswith('✅'):
+            lines.append(note)
+        if not lines:
+            return jsonify({'success': True})
+        icon = '⚠️' if bad or (note and not note.startswith('✅')) or any('chưa thấy' in x for x in lines) else '✅'
+        mail_notify(_xdb, f"{icon} {acc} · {now.hour}:{now.minute:02d} · khách mới\n" + '\n'.join(lines))
+        return jsonify({'success': True})
+    hotels = {str(h) for h in (d.get('hotels') or []) if str(h).isdigit()}
+    items = [{'bid': r[0], 'prop': r[1] or '', 'hotel_id': r[3]} for r in _pending_rows(_xdb) if r[3] and r[3] in hotels]
+    if items and d.get('take'):
+        _xdb.session.execute(text("""UPDATE mail_alerts SET fetch_tries = COALESCE(fetch_tries, 0) + 1
+            WHERE booking_id = ANY(:b) AND fetched_at IS NULL"""), {'b': [i['bid'] for i in items]})
+        _xdb.session.commit()
+    return jsonify({'success': True, 'items': items})
 
 
 def _claim_today(_xdb, key, day):

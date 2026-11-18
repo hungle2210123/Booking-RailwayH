@@ -144,3 +144,18 @@ admin.booking.com page that loads after the owner signs in starts the run. The e
 `hotel_pro_tien_ich_<version>.zip`; `GET /api/extension/info` = manifest version. /may-tinh sidebar "Tải tiện ích Chrome"
 opens the steps (unzip → chrome://extensions → Developer mode → Load unpacked; update = unzip over the old folder → ↻).
 No secrets in the folder (the token field is empty by default). Test `test_extension_download`.
+
+## 1.36 (owner 18/11/2026) — new guests of the day + Booking sign-out loop
+- **📥 Khách đặt trong ngày:** Booking mail → p17 `mail_hook` → `mail_alerts` (kind last/new, day = today). background.js
+  alarm `hp-pending` (every 1 min, only after today's morning run, no run busy) → POST `/api/ext/pending` {hotels: hpHotels,
+  take} → today's new guests of THIS profile's properties (`booking_properties` name → hotel_id; `fetch_tries` < 3; not
+  cancelled; no phone yet). Opens GROUP_URL in a background tab (hpFetch); content.js `fetchJob` builds
+  `booking.html?hotel_id&res_id&ses` and runs the normal run (save + reveal phone); `/api/ext/booking/save` → `mail_fetched`;
+  back on the first page → `{action:'report'}` = ONE Zalo line ("✅ acc · khách mới / name · có SĐT") and the tab closes.
+  `hpHotels` is learned from every admin page with a hotel_id + the overview (`learnHotels`, never 403 pages).
+  No extra PC wake-ups (owner: "Zalo tự báo mà") — works while the PC is awake with Chrome open.
+- **🔑 Sign-out during a run (Nov 18 incident: this profile's cookies went bad, every reservation → `?logout=1`):**
+  `runStep` on a non-reservation page (Tampermonkey signed in again → overview) → same guest again with the new `ses`
+  (`withSes`); same guest twice → skipped; 3 times in a run → `logoutLoop` → background `logoutLoop` (once a day,
+  `hpCookieReset`) clears booking.com cookies/storage of this profile (`browsingData`, = the manual fix) after 30 s, then
+  re-runs the morning chain (or the 1-min check re-opens new guests). The stop note goes into the Zalo report.

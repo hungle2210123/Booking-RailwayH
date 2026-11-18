@@ -20,7 +20,7 @@ Routes are listed as `← /path METHODS`. Line numbers are 1-based. Templates li
 _p01_health_cancellations — health, cancellations centre, OK status, auto-sync, debug routes_
 - app_parts/p01_health_cancellations.py:5 `healthcheck` ← `/health` — Railway healthcheck endpoint - returns 200 OK without database access
 
-## app_parts/p02_pages_extension.py (889 lines)
+## app_parts/p02_pages_extension.py (891 lines)
 - app_parts/p02_pages_extension.py:6 `index` ← `/` — Opening the app: computer → /may-tinh, phone → /moi. The old pages were removed (owner, Nov 11: "xóa toàn bộ
 - app_parts/p02_pages_extension.py:20 `extension_zip` ← `/extension.zip` — The Chrome extension as a zip, built from chrome_extension/ at request time (owner, Oct 30: download it from t
 - app_parts/p02_pages_extension.py:50 `_tool_files` — [(full path, path inside HotelPro/)] of every file of the bundle, sorted (same order → same version).
@@ -52,13 +52,13 @@ _p01_health_cancellations — health, cancellations centre, OK status, auto-sync
 - app_parts/p02_pages_extension.py:595 `_ext_listings`
 - app_parts/p02_pages_extension.py:605 `ext_booking_parse` ← `/api/ext/booking/parse` POST — Turn a captured page into fields + what is already in the system.
 - app_parts/p02_pages_extension.py:656 `ext_booking_save` ← `/api/ext/booking/save` POST — Save one booking checked by the user in the extension panel.
-- app_parts/p02_pages_extension.py:677 `ext_booking_save_many` ← `/api/ext/booking/save_many` POST — Save the rows ticked on the reservation list page — each one independently.
-- app_parts/p02_pages_extension.py:699 `booking_from_photo_parse` ← `/api/booking_from_photo/parse` POST — /messages "📷 Thêm từ ảnh": text OCR'd on the phone from Booking app screenshots → fields to check.
-- app_parts/p02_pages_extension.py:743 `_name_starts` — Every word OCR'd from the app ("Maheshwaran S") starts a word of the web name ("Maheshwaran Subramanian in").
-- app_parts/p02_pages_extension.py:752 `_photo_booking_by_name` — The one not-yet-finished booking whose guest has this name (any case / accents / word order), else None.
-- app_parts/p02_pages_extension.py:771 `booking_from_photo_save` ← `/api/booking_from_photo/save` POST — Save the checked fields — same rules as the Chrome extension (only Booking facts; collected money,
-- app_parts/p02_pages_extension.py:794 `ext_booking_phone` ← `/api/ext/booking/phone` POST — A reservation page now shows the guest phone (the owner clicked Booking's own
-- app_parts/p02_pages_extension.py:876 `_typed_phone` — A number the owner typed / pasted ("0905 123 456", "+33 6 12 34 56 78", "0033…") → '+<digits>' or ''.
+- app_parts/p02_pages_extension.py:679 `ext_booking_save_many` ← `/api/ext/booking/save_many` POST — Save the rows ticked on the reservation list page — each one independently.
+- app_parts/p02_pages_extension.py:701 `booking_from_photo_parse` ← `/api/booking_from_photo/parse` POST — /messages "📷 Thêm từ ảnh": text OCR'd on the phone from Booking app screenshots → fields to check.
+- app_parts/p02_pages_extension.py:745 `_name_starts` — Every word OCR'd from the app ("Maheshwaran S") starts a word of the web name ("Maheshwaran Subramanian in").
+- app_parts/p02_pages_extension.py:754 `_photo_booking_by_name` — The one not-yet-finished booking whose guest has this name (any case / accents / word order), else None.
+- app_parts/p02_pages_extension.py:773 `booking_from_photo_save` ← `/api/booking_from_photo/save` POST — Save the checked fields — same rules as the Chrome extension (only Booking facts; collected money,
+- app_parts/p02_pages_extension.py:796 `ext_booking_phone` ← `/api/ext/booking/phone` POST — A reservation page now shows the guest phone (the owner clicked Booking's own
+- app_parts/p02_pages_extension.py:878 `_typed_phone` — A number the owner typed / pasted ("0905 123 456", "+33 6 12 34 56 78", "0033…") → '+<digits>' or ''.
 
 ## app_parts/p03_messages_journey.py (1362 lines)
 _p03_messages_journey — phone from chat screenshots, /api/messages/phone, auto messages, AI reply, Booking screenshots, journey, Thu tiền (pay), /tin-nhanh, /messages_
@@ -296,32 +296,35 @@ _p16_staff — 👥 Nhân viên (owner, Nov 6): the cleaners talk to the Zalo bo
 - app_parts/p16_staff.py:886 `moi_staff` ← `/api/moi/staff` GET,POST — 👥 Nhân viên sheet in /moi: waiting requests, who is off today, month list; actions: decide, add (leave/extra),
 - app_parts/p16_staff.py:957 `staff_copy_owner` — Copy of a cleaner's message to the bot + the bot's answer → the owner(s).
 
-## app_parts/p17_mail.py (594 lines)
+## app_parts/p17_mail.py (664 lines)
 _p17_mail — 📧 Booking.com e-mails → the app (owner, Nov 12: "khi nhận được mail thì hệ thống tự cập nhật trên app là đang có_
 - app_parts/p17_mail.py:18 `_mail_ensure`
-- app_parts/p17_mail.py:31 `_mail_token`
-- app_parts/p17_mail.py:40 `mail_parse` — A Booking.com mail → {kind, booking_id, day} or None when it is not about a new / cancelled / changed booking.
-- app_parts/p17_mail.py:68 `_mail_date` — 'T5, 12 tháng 11 2026' / '12 November 2026' / 'Nov 12, 2026' (folded text) → date or None.
-- app_parts/p17_mail.py:85 `mail_guest_msg` — A "guest wrote to you" mail (owner's screenshot, Nov 12: subject "Chúng tôi nhận được tin nhắn này từ Elva Dah
-- app_parts/p17_mail.py:122 `mail_msg_text` — Zalo text for a message of a guest arriving today (owner: name · what they wrote · dates · listing).
-- app_parts/p17_mail.py:130 `_mail_property` — The listing named in the mail → (name, apartment id it is usually placed in) — from the names already in booki
-- app_parts/p17_mail.py:143 `mail_text` — The Zalo message / app line for one alert. a['at'] = when Booking sent the mail = when the guest booked / canc
-- app_parts/p17_mail.py:159 `mail_hook` ← `/api/mail-hook/<token>` POST — Called by the owner's Gmail script for every new mail from booking.com: {id, subject, body}.
-- app_parts/p17_mail.py:228 `moi_mail_list` ← `/api/moi/mail_list` — 📧 Thư đặt phòng Booking (owner, Nov 12: "một nút để xem các gmail báo đặt phòng phút chót, gồm thời gian đặt p
-- app_parts/p17_mail.py:256 `moi_mail_alerts` ← `/api/moi/mail_alerts` GET,POST — The bar on /moi and /may-tinh: alerts of the last 3 days not marked seen. A NEW booking already in the app (im
-- app_parts/p17_mail.py:286 `_zbot2_token`
-- app_parts/p17_mail.py:290 `_zbot2_call`
-- app_parts/p17_mail.py:305 `mail_notify` — Booking alert → the booking bot's receivers; the cleaning bot's owner chats only while the booking bot is not 
-- app_parts/p17_mail.py:317 `zbot2_hook` ← `/zalo-bot2/hook` POST — Zalo calls this when someone writes to the BOOKING bot: that person becomes a receiver of the booking alerts.
-- app_parts/p17_mail.py:347 `login_code_take` — A Zalo message that is just a 4–8 digit code while a code is awaited → kept for the extension; returns the rep
-- app_parts/p17_mail.py:367 `ext_login_code` ← `/api/ext/login_code` POST — {action:'ask', nonce} → the bot asks the owner for the code · {action:'get', nonce} → {code} once ('' = not ye
-- app_parts/p17_mail.py:406 `_vn_today`
-- app_parts/p17_mail.py:411 `ext_morning` ← `/api/ext/morning` POST
-- app_parts/p17_mail.py:461 `_claim_today` — True for the first caller of the day only (several gunicorn workers tick at the same minute).
-- app_parts/p17_mail.py:471 `morning_watch` — 7:20–7:59 VN: no run started today → one warning; a run started > 30 min ago and not finished → one warning.
-- app_parts/p17_mail.py:508 `moi_mail_bot` ← `/api/moi/mail_bot` POST — Setup of the booking bot: token (checked with getMe, then setWebhook) · test · remove a receiver · off (back t
-- app_parts/p17_mail.py:545 `_mail_setup_info`
-- app_parts/p17_mail.py:587 `moi_mail_setup` ← `/api/moi/mail_setup` — 📧 setup sheet: the script to paste into Google Apps Script (with this app's private address) + the last mail r
+- app_parts/p17_mail.py:32 `_mail_token`
+- app_parts/p17_mail.py:41 `mail_parse` — A Booking.com mail → {kind, booking_id, day} or None when it is not about a new / cancelled / changed booking.
+- app_parts/p17_mail.py:69 `_mail_date` — 'T5, 12 tháng 11 2026' / '12 November 2026' / 'Nov 12, 2026' (folded text) → date or None.
+- app_parts/p17_mail.py:86 `mail_guest_msg` — A "guest wrote to you" mail (owner's screenshot, Nov 12: subject "Chúng tôi nhận được tin nhắn này từ Elva Dah
+- app_parts/p17_mail.py:123 `mail_msg_text` — Zalo text for a message of a guest arriving today (owner: name · what they wrote · dates · listing).
+- app_parts/p17_mail.py:131 `_mail_property` — The listing named in the mail → (name, apartment id it is usually placed in) — from the names already in booki
+- app_parts/p17_mail.py:144 `mail_text` — The Zalo message / app line for one alert. a['at'] = when Booking sent the mail = when the guest booked / canc
+- app_parts/p17_mail.py:160 `mail_hook` ← `/api/mail-hook/<token>` POST — Called by the owner's Gmail script for every new mail from booking.com: {id, subject, body}.
+- app_parts/p17_mail.py:229 `moi_mail_list` ← `/api/moi/mail_list` — 📧 Thư đặt phòng Booking (owner, Nov 12: "một nút để xem các gmail báo đặt phòng phút chót, gồm thời gian đặt p
+- app_parts/p17_mail.py:257 `moi_mail_alerts` ← `/api/moi/mail_alerts` GET,POST — The bar on /moi and /may-tinh: alerts of the last 3 days not marked seen. A NEW booking already in the app (im
+- app_parts/p17_mail.py:287 `_zbot2_token`
+- app_parts/p17_mail.py:291 `_zbot2_call`
+- app_parts/p17_mail.py:306 `mail_notify` — Booking alert → the booking bot's receivers; the cleaning bot's owner chats only while the booking bot is not 
+- app_parts/p17_mail.py:318 `zbot2_hook` ← `/zalo-bot2/hook` POST — Zalo calls this when someone writes to the BOOKING bot: that person becomes a receiver of the booking alerts.
+- app_parts/p17_mail.py:348 `login_code_take` — A Zalo message that is just a 4–8 digit code while a code is awaited → kept for the extension; returns the rep
+- app_parts/p17_mail.py:368 `ext_login_code` ← `/api/ext/login_code` POST — {action:'ask', nonce} → the bot asks the owner for the code · {action:'get', nonce} → {code} once ('' = not ye
+- app_parts/p17_mail.py:407 `_vn_today`
+- app_parts/p17_mail.py:412 `ext_morning` ← `/api/ext/morning` POST
+- app_parts/p17_mail.py:469 `_pending_rows`
+- app_parts/p17_mail.py:482 `mail_fetched` — The extension saved this booking from its Booking page → it is no longer waiting to be fetched.
+- app_parts/p17_mail.py:498 `ext_pending` ← `/api/ext/pending` POST
+- app_parts/p17_mail.py:531 `_claim_today` — True for the first caller of the day only (several gunicorn workers tick at the same minute).
+- app_parts/p17_mail.py:541 `morning_watch` — 7:20–7:59 VN: no run started today → one warning; a run started > 30 min ago and not finished → one warning.
+- app_parts/p17_mail.py:578 `moi_mail_bot` ← `/api/moi/mail_bot` POST — Setup of the booking bot: token (checked with getMe, then setWebhook) · test · remove a receiver · off (back t
+- app_parts/p17_mail.py:615 `_mail_setup_info`
+- app_parts/p17_mail.py:657 `moi_mail_setup` ← `/api/moi/mail_setup` — 📧 setup sheet: the script to paste into Google Apps Script (with this app's private address) + the last mail r
 
 ## core/__init__.py (3 lines)
 
@@ -582,11 +585,12 @@ _p17_mail — 📧 Booking.com e-mails → the app (owner, Nov 12: "khi nhận �
 - chrome_extension/content.js: 559 `autoShot` · 579 `shotAfterReveal` · 612 `autoRevealTry` · 639 `chatBox` · 645 `putInChat` · 719 `chatThread` · 729 `pageBookingNumber` · 736 `aiAsk`
 - chrome_extension/content.js: 747 `drawAi` · 782 `stopMic` · 783 `toggleMic` · 825 `prepareShot` · 901 `finishShot` · 955 `cancelShot` · 963 `restoreFloating` · 1009 `guestLinks`
 - chrome_extension/content.js: 1043 `groupTable` · 1056 `groupProps` · 1095 `numUnder` · 1117 `arrivalsToday` · 1153 `startGroup` · 1166 `stopGroup` · 1177 `showGroupDone` · 1186 `groupStep`
-- chrome_extension/content.js: 1218 `refreshRunBtn` · 1236 `startRun` · 1260 `finishRun` · 1271 `showRunDone` · 1280 `runStep` · 1335 `autoMorning`
+- chrome_extension/content.js: 1218 `refreshRunBtn` · 1236 `startRun` · 1260 `finishRun` · 1275 `showRunDone` · 1285 `withSes` · 1292 `logoutLoop` · 1309 `fetchJob` · 1336 `learnHotels`
+- chrome_extension/content.js: 1346 `runStep` · 1420 `autoMorning`
 
 ## chrome_extension/background.js
 - chrome_extension/background.js: 6 `settings` · 30 `shoot` · 61 `morningTime` · 66 `scheduleMorning` · 75 `stayAwake` · 79 `morningRun` · 89 `checkSignedOut` · 100 `signedOutAlert`
-- chrome_extension/background.js: 133 `selfUpdate`
+- chrome_extension/background.js: 135 `selfUpdate` · 151 `apiCall` · 160 `pendingCheck` · 182 `logoutLoop` · 189 `cookieReset`
 
 # Templates (inline JS functions)
 

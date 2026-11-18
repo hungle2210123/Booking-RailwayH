@@ -666,6 +666,8 @@ def ext_booking_save():
     from core.models import db as _xdb
     try:
         result, status = _ext_save_one(request.get_json(silent=True) or {})
+        if result.get('success') and result.get('booking_id'):
+            mail_fetched(result['booking_id'])            # p17: a new guest waiting to be fetched is done
         return jsonify(result), status
     except Exception as e:
         _xdb.session.rollback()

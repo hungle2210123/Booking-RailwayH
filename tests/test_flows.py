@@ -214,3 +214,38 @@ def test_morning_report_and_watch(client, db, app_module, monkeypatch):
             if old[k] is not None:
                 db.session.execute(text("INSERT INTO moi_settings (key, value) VALUES (:k, :v)"), {'k': k, 'v': old[k]})
         db.session.commit()
+
+
+# ── 📥 new guests of today fetched by the PC after the morning run (owner, Nov 18) ─────────────────────────────────
+def test_pending_new_guests(client, db, app_module, throwaway, monkeypatch):
+    from datetime import datetime, timedelta
+    sent = []
+    monkeypatch.setattr(app_module, 'mail_notify', lambda _db, msg: sent.append(msg) or 'bot2')
+    hdr = {'X-Hotel-Token': os.getenv('EXTENSION_TOKEN', '')}
+    app_module._mail_ensure(db)
+    hid = db.session.execute(text("SELECT hotel_id, name FROM booking_properties ORDER BY hotel_id LIMIT 1")).fetchone()
+    assert hid, 'booking_properties is empty'
+    bid, today = throwaway(), (datetime.utcnow() + timedelta(hours=7)).date()
+    try:
+        db.session.execute(text("""INSERT INTO mail_alerts (at, mail_id, kind, booking_id, prop, apt, day, subject, seen)
+            VALUES (NOW(), :m, 'last', :b, :p, '', :d, 'ZZ TEST', TRUE)"""), {'m': 'zz-' + bid, 'b': bid, 'p': hid[1], 'd': today})
+        db.session.commit()
+        take = lambda hotels: client.post('/api/ext/pending', json={'hotels': hotels, 'take': True}, headers=hdr).get_json()['items']
+        assert not [i for i in take(['1']) if i['bid'] == bid]                  # another account's properties
+        got = [i for i in take([hid[0]]) if i['bid'] == bid]
+        assert got and got[0]['hotel_id'] == hid[0]
+        # saved from its Booking page → no longer pending
+        r = client.post('/api/ext/booking/save', headers=hdr, json={'booking_id': bid, 'guest_name': 'Test Guest',
+            'checkin_date': today.isoformat(), 'checkout_date': (today + timedelta(days=1)).isoformat(),
+            'room_amount': 500000, 'listing': 'Studio Test Room'})
+        assert r.get_json()['success']
+        assert not [i for i in take([hid[0]]) if i['bid'] == bid]
+        client.post('/api/ext/pending', headers=hdr, json={'action': 'report', 'ok': [bid], 'bad': [], 'account': '18 Hàng Bè'})
+        assert sent[-1].startswith('⚠️ 18 Hàng Bè') and 'Test Guest' in sent[-1] and 'chưa thấy SĐT' in sent[-1]
+        # 3 tries at most
+        db.session.execute(text("UPDATE mail_alerts SET fetched_at = NULL, fetch_tries = 3 WHERE mail_id = :m"), {'m': 'zz-' + bid})
+        db.session.commit()
+        assert not [i for i in take([hid[0]]) if i['bid'] == bid]
+    finally:
+        db.session.execute(text("DELETE FROM mail_alerts WHERE mail_id = :m"), {'m': 'zz-' + bid})
+        db.session.commit()

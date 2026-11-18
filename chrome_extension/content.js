@@ -1170,7 +1170,7 @@
     try { sessionStorage.setItem('hp_group_done', JSON.stringify({ note, ok: g.ok, total: g.total, bad: g.bad, n: g.props.length })); } catch (e) {}
     if (g.auto) {                                   // 1.30: "✅ Xong: đã lưu x/y" on Zalo (wait ≤ 4 s before leaving the page)
       await Promise.race([api('/api/ext/morning', { stage: 'done', ok: g.ok, total: g.total, bad: g.bad.slice(0, 10), account: await hpAccount(),
-        note: /dừng/.test(note || '') ? 'Đã bị dừng giữa chừng.' : '' }).catch(() => {}), wait(4000)]);
+        note: /^⚠️/.test(note || '') ? note : /dừng/.test(note || '') ? 'Đã bị dừng giữa chừng.' : '' }).catch(() => {}), wait(4000)]);
     }
     location.href = g.back;
   }
@@ -1266,7 +1266,11 @@
     const g = groupGet();
     if (g) { g.ok += ok; g.total += q.items.length; g.bad.push(...bad); groupSet(g); }
     try { sessionStorage.setItem('hp_run_done', JSON.stringify({ note, ok, total: q.items.length, bad })); } catch (e) {}
-    if (location.href !== q.back) location.href = q.back; else showRunDone();
+    try {
+      if (sessionStorage.getItem('hp_fetch')) sessionStorage.setItem('hp_fetch_result',
+        JSON.stringify({ ok: q.log.filter(l => l.ok).map(l => l.bid), bad, note }));
+    } catch (e) {}
+    if (location.href !== q.back) location.href = q.back; else { showRunDone(); fetchJob(); }
   }
   function showRunDone() {
     let d = null;
@@ -1277,6 +1281,68 @@
       d.bad.length ? 'warn' : 'ok', 20000);
   }
 
+  // the guest's address with the session of THIS page (after a new sign-in the old `ses` is no longer valid)
+  function withSes(url) {
+    try {
+      const ses = new URL(location.href).searchParams.get('ses'), u = new URL(url);
+      if (ses) u.searchParams.set('ses', ses);
+      return u.href;
+    } catch (e) { return url; }
+  }
+  async function logoutLoop() {
+    const q = runGet();
+    let r = null;
+    try { r = await chrome.runtime.sendMessage({ type: 'logout-loop' }); } catch (e) {}
+    const note = r?.reset
+      ? '⚠️ Booking tự đăng xuất mỗi lần mở chi tiết khách → máy đã tự xóa cookie Booking, đăng nhập lại và chạy lại (Booking có thể hỏi mã SMS qua Zalo).'
+      : '⚠️ Booking tự đăng xuất mỗi lần mở chi tiết khách (hôm nay đã tự sửa 1 lần). Cần anh: chrome://settings/content/all?searchSubpage=booking.com → xóa → đăng nhập lại.';
+    if (q) q.items.slice(q.i).forEach(x => q.log.push({ bid: x.bid, ok: false, why: 'Booking đăng xuất' }));
+    const g = groupGet();
+    if (g && q) {
+      g.ok += q.log.filter(l => l.ok).length; g.total += q.items.length; g.bad.push(...q.log.filter(l => !l.ok)); groupSet(g);
+      runSet(null); stopGroup(note);
+    } else if (q) { runSet(q); finishRun(note); }
+  }
+  // 📥 1.36 Khách đặt trong ngày (owner 18/11/2026): background.js opened this tab for the new guests of today that the
+  // server got from Booking's mails → open each reservation (same run as "▶ Mở từng khách": save + phone), then one
+  // Zalo line and the tab closes.
+  async function fetchJob() {
+    if (!chrome.runtime?.id) return;
+    let job = null;
+    try { job = await chrome.runtime.sendMessage({ type: 'fetch-job' }); } catch (e) {}
+    if (!job || !job.items?.length) return;
+    let res = null;
+    try { res = JSON.parse(sessionStorage.getItem('hp_fetch_result') || 'null'); } catch (e) {}
+    if (res) {
+      try { sessionStorage.removeItem('hp_fetch_result'); } catch (e) {}
+      await Promise.race([api('/api/ext/pending', { action: 'report', ok: res.ok, bad: res.bad, note: res.note, account: await hpAccount() })
+        .catch(() => {}), wait(8000)]);
+      chrome.runtime.sendMessage({ type: 'fetch-done' }).catch(() => {});
+      return;
+    }
+    try { if (sessionStorage.getItem('hp_fetch')) return; } catch (e) {}
+    await wait(2500);                                // the overview after the sign-in redirects carries `ses`
+    if (runGet() || resId()) return;
+    const ses = new URL(location.href).searchParams.get('ses') || '';
+    const items = job.items.map(x => ({ bid: x.bid,
+      url: `https://admin.booking.com/hotel/hoteladmin/extranet_ng/manage/booking.html?hotel_id=${x.hotel_id}&lang=vi` +
+        (ses ? '&ses=' + encodeURIComponent(ses) : '') + `&res_id=${x.bid}&source=homepage` }));
+    try { sessionStorage.setItem('hp_fetch', '1'); } catch (e) {}
+    toast(`📥 Khách mới đặt hôm nay: ${items.map(i => esc(i.bid)).join(', ')} — đang mở…`, 'ok', 5000);
+    await wait(1500);
+    startRun(items);
+  }
+  // the properties of THIS Booking account (a new guest is only opened in the profile whose account has it)
+  function learnHotels() {
+    if (!chrome.runtime?.id || /403/.test(location.pathname)) return;
+    const ids = new Set();
+    const h = new URL(location.href).searchParams.get('hotel_id');
+    if (h && /^\d{5,10}$/.test(h) && !/[?&]has_access=0/.test(location.href)) ids.add(h);
+    (groupProps() || []).forEach(p => p.id && ids.add(p.id));
+    if (ids.size) chrome.runtime.sendMessage({ type: 'hotels', ids: [...ids] }).catch(() => {});
+  }
+  setTimeout(learnHotels, 8000);
+
   async function runStep() {
     const q = runGet();
     if (!q) return;
@@ -1284,6 +1350,25 @@
     const it = q.items[q.i];
     if (!it) { finishRun('✅ Xong.'); return; }
     refreshRunBtn();
+    // 1.36 (owner 18/11/2026): Booking can sign out when a reservation opens (its security check; this profile's
+    // cookies went bad on Nov 18 — EVERY reservation → ?logout=1). The Tampermonkey script signs in again and we land
+    // here on the overview / a home page instead of the guest → try that guest once more with the NEW session; the
+    // same guest twice → skip it; 3 times in this run → stop, and background.js clears Booking's cookies + runs again.
+    if (!resId()) {
+      await wait(2500);
+      const q1 = runGet();
+      if (!q1 || resId()) return;
+      const cur = q1.items[q1.i];
+      cur.bounce = (cur.bounce || 0) + 1; q1.bounce = (q1.bounce || 0) + 1;
+      if (q1.bounce >= 3) { runSet(q1); logoutLoop(); return; }
+      if (cur.bounce >= 2) { q1.log.push({ bid: cur.bid, ok: false, why: 'Booking đăng xuất khi mở khách này' }); q1.i += 1; }
+      runSet(q1);
+      const nx = q1.items[q1.i];
+      if (!nx) { finishRun('✅ Xong.'); return; }
+      toast('🔑 Booking vừa đăng xuất rồi đăng nhập lại — mở lại khách…', 'warn', 5000);
+      location.href = withSes(nx.url);
+      return;
+    }
     let ok = false, why = 'không đọc được trang';
     // wait for the reservation to show (the extranet draws the page after loading)
     for (let t = 0; t < 20 && !(document.body.innerText || '').includes(it.bid); t++) await wait(750);
@@ -1391,5 +1476,5 @@
   chrome.runtime.onMessage.addListener(m => { if (m?.type === 'hp-morning-start') setTimeout(autoMorning, 1500); return false; });
   if (runGet()) setTimeout(runStep, 1500);
   else if (groupGet()) { setTimeout(showRunDone, 1500); setTimeout(groupStep, 3000); }
-  else { setTimeout(showRunDone, 1500); setTimeout(showGroupDone, 1500); setTimeout(autoMorning, 3000); }
+  else { setTimeout(showRunDone, 1500); setTimeout(showGroupDone, 1500); setTimeout(autoMorning, 3000); setTimeout(fetchJob, 2000); }
 })();
