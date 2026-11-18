@@ -22,3 +22,5 @@ paths:
 - Bump `chrome_extension/manifest.json` version on every extension change; the owner reloads it in chrome://extensions
   (also on a second laptop by copying the folder).
 - After changes: `python -m pytest tests/test_parsers.py tests/test_flows.py`.
+- 1.36: new guests of the day (Booking mail → /api/ext/pending, 1-min alarm, this profile's hotels only) are opened + saved
+  like a run; a sign-out loop during a run → the extension clears THIS profile's booking.com cookies once a day (owner's fix of Nov 18).
