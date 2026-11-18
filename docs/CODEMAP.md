@@ -589,8 +589,8 @@ _p17_mail — 📧 Booking.com e-mails → the app (owner, Nov 12: "khi nhận �
 - chrome_extension/content.js: 1346 `runStep` · 1420 `autoMorning`
 
 ## chrome_extension/background.js
-- chrome_extension/background.js: 6 `settings` · 30 `shoot` · 61 `morningTime` · 66 `scheduleMorning` · 75 `stayAwake` · 79 `morningRun` · 89 `checkSignedOut` · 100 `signedOutAlert`
-- chrome_extension/background.js: 135 `selfUpdate` · 151 `apiCall` · 160 `pendingCheck` · 182 `logoutLoop` · 189 `cookieReset`
+- chrome_extension/background.js: 6 `settings` · 30 `shoot` · 61 `morningTime` · 66 `scheduleMorning` · 75 `stayAwake` · 81 `openTab` · 89 `morningRun` · 99 `checkSignedOut`
+- chrome_extension/background.js: 110 `signedOutAlert` · 145 `selfUpdate` · 161 `apiCall` · 170 `pendingCheck` · 192 `logoutLoop` · 199 `cookieReset`
 
 # Templates (inline JS functions)
 

@@ -45,6 +45,13 @@ HAI TÀI KHOẢN BOOKING (hoặc nhiều hơn)
     và Giờ tự chạy LỆCH nhau (07:00 và 07:30) → chạy lần lượt, tin Zalo ghi rõ tài khoản nào.
   • Lịch đánh thức mở cả 2 hồ sơ:  ... mo-may-buoi-sang.ps1 -CaiDat -ChromeProfile "Default,Booking2"
 
+MÁY MỞ 24/7 + CHROME TỰ CHẠY (khuyên dùng với máy bàn)
+  • Để máy chạy luôn (không Ngủ, không Tắt), chỉ tắt màn hình. Tiền điện máy bàn ~100–200 nghìn/tháng.
+  • Lệnh -CaiDat ở trên cũng cài task "HotelPro Giu Chrome": lúc đăng nhập Windows + mỗi 15 phút tự bật Chrome của các
+    hồ sơ đã ghi (chạy NỀN, không mở cửa sổ; Chrome đang chạy thì không làm gì). Lỡ đóng hết cửa sổ Chrome, tiện ích
+    vẫn chạy (biểu tượng Chrome ở góc phải thanh tác vụ). Muốn thoát hẳn Chrome: chuột phải biểu tượng đó → Thoát.
+  • Khách đặt trong ngày (thư Booking báo mới, đến HÔM NAY): ~1 phút sau máy tự mở đúng khách, lấy SĐT, lưu, Zalo báo 1 dòng.
+
 CHẠY NGAY KHÔNG CHỜ 7:00
   Bấm biểu tượng Hotel Pro trên thanh Chrome → "▶ Chạy toàn bộ ngay".
 

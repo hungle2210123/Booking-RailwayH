@@ -7,7 +7,11 @@
 # Works from SLEEP only (Start > Power > Sleep), not from Shut down. Keep the charger plugged in.
 #   -ThuNgay : TEST NOW. One-time task "HotelPro Thu Ngay" in -InMinutes (default 3) that wakes the PC and runs -ChayNgay.
 #   -ChayNgay: open <server>/chay-ngay in each profile (the extension starts its whole run at once), -Gap minutes apart.
-param([switch]$CaiDat, [switch]$ThuNgay, [switch]$ChayNgay, [string]$ChromeProfile = 'Default', [int]$Minutes = 90,
+#   -GiuChrome: (owner 18/11/2026 "để máy tự mở Chrome, đúng profile") keep each profile's Chrome RUNNING without opening a
+#              window: chrome --profile-directory=X --no-startup-window (nothing happens if it already runs). -CaiDat registers
+#              the task "HotelPro Giu Chrome": at sign-in + every 15 min. With the extension's "background" permission
+#              (ext 1.37) Chrome keeps the profile alive after its windows are closed.
+param([switch]$CaiDat, [switch]$ThuNgay, [switch]$ChayNgay, [switch]$GiuChrome, [string]$ChromeProfile = 'Default', [int]$Minutes = 90,
       [string]$At = '06:55', [int]$InMinutes = 3, [int]$Gap = 12, [string]$Server = 'https://web-production-8f671.up.railway.app')
 $task = 'HotelPro Mo May 6h55'
 # A still-running earlier run of the same task makes Windows REFUSE the next start (0x800710E0, owner's 16:34 / 16:37
@@ -16,6 +20,17 @@ function Stop-Old($name) {
     try { Stop-ScheduledTask -TaskName $name -ErrorAction Stop } catch {}
     Get-CimInstance Win32_Process -Filter "Name='powershell.exe'" | Where-Object {
         $_.ProcessId -ne $PID -and $_.CommandLine -match 'mo-may-buoi-sang' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
+}
+
+$chromeExe = @("$env:ProgramFiles\Google\Chrome\Application\chrome.exe", "${env:ProgramFiles(x86)}\Google\Chrome\Application\chrome.exe",
+               "$env:LOCALAPPDATA\Google\Chrome\Application\chrome.exe") | Where-Object { Test-Path $_ } | Select-Object -First 1
+if ($GiuChrome) {
+    if ($chromeExe) {
+        foreach ($p in ($ChromeProfile -split ',')) {
+            if ($p.Trim()) { Start-Process $chromeExe "--profile-directory=`"$($p.Trim())`" --no-startup-window"; Start-Sleep -Seconds 2 }
+        }
+    }
+    exit 0
 }
 
 if ($ThuNgay) {
@@ -46,6 +61,15 @@ if ($CaiDat) {
     Register-ScheduledTask -TaskName $task -Action $act -Trigger $trg -Settings $set -Force | Out-Null
     $t = Get-ScheduledTask -TaskName $task
     Write-Output ("OK task '{0}' at {1}, WakeToRun={2}, profile={3}" -f $task, $At, $t.Settings.WakeToRun, $ChromeProfile)
+    # keep Chrome (each profile) running all the time: at sign-in + every 15 min, no window
+    $act2 = New-ScheduledTaskAction -Execute $ps -Argument ("-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$PSCommandPath`" " +
+                                                           "-GiuChrome -ChromeProfile `"$ChromeProfile`"")
+    $tr1 = New-ScheduledTaskTrigger -AtLogOn -User "$env:USERDOMAIN\$env:USERNAME"
+    $tr2 = New-ScheduledTaskTrigger -Once -At (Get-Date).AddMinutes(1) -RepetitionInterval (New-TimeSpan -Minutes 15)
+    $set2 = New-ScheduledTaskSettingsSet -StartWhenAvailable -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries `
+                                         -ExecutionTimeLimit (New-TimeSpan -Minutes 5) -MultipleInstances IgnoreNew
+    Register-ScheduledTask -TaskName 'HotelPro Giu Chrome' -Action $act2 -Trigger @($tr1, $tr2) -Settings $set2 -Force | Out-Null
+    Write-Output "OK task 'HotelPro Giu Chrome' (sign-in + every 15 min)"
     exit 0
 }
 

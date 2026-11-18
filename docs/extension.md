@@ -159,3 +159,7 @@ No secrets in the folder (the token field is empty by default). Test `test_exten
   (`withSes`); same guest twice → skipped; 3 times in a run → `logoutLoop` → background `logoutLoop` (once a day,
   `hpCookieReset`) clears booking.com cookies/storage of this profile (`browsingData`, = the manual fix) after 30 s, then
   re-runs the morning chain (or the 1-min check re-opens new guests). The stop note goes into the Zalo report.
+- **1.37 Chrome always running (owner 18/11/2026, desktop PC on 24/7):** manifest `background` permission (Chrome keeps the
+  profile alive with no window), `openTab()` opens a minimized window when none exists. Task "HotelPro Giu Chrome"
+  (`mo-may-buoi-sang.ps1 -GiuChrome`, registered by `-CaiDat`: at sign-in + every 15 min) runs
+  `chrome --profile-directory=X --no-startup-window` per profile — tested: no new window when Chrome already runs.

@@ -76,13 +76,23 @@ function stayAwake(minutes = 45) {
   try { chrome.power.requestKeepAwake('system'); } catch (e) {}
   chrome.alarms.create('hp-awake-off', { when: Date.now() + minutes * 60000 });
 }
+// 1.37: Chrome may be running with NO window (background mode, started by the task "HotelPro Giu Chrome" with
+// --no-startup-window, or the owner closed every window) → a tab needs a window: open a minimized one.
+async function openTab(url, active = false) {
+  const wins = await chrome.windows.getAll({ windowTypes: ['normal'] });
+  if (!wins.length) {
+    const w = await chrome.windows.create({ url, focused: !!active, state: active ? 'normal' : 'minimized' });
+    return w.tabs[0];
+  }
+  return chrome.tabs.create({ url, active });
+}
 async function morningRun() {
   const { hpLastMorning } = await chrome.storage.local.get('hpLastMorning');
   const [h, mi] = await morningTime(), now = new Date();
   if (hpLastMorning === today() || now.getHours() * 60 + now.getMinutes() < h * 60 + mi) return;
   stayAwake();
   await chrome.storage.local.set({ hpLastMorning: today(), hpAutoRunUntil: Date.now() + 10 * 60000 });
-  const tab = await chrome.tabs.create({ url: GROUP_URL, active: false });
+  const tab = await openTab(GROUP_URL, false);
   setTimeout(() => checkSignedOut(tab.id), 25000);      // redirects to the sign-in page take a few seconds
 }
 const isSignIn = url => !/^https:\/\/admin\.booking\.com\//i.test(url || '') || /sign-?in|login/i.test(url || '');
@@ -172,7 +182,7 @@ async function pendingCheck() {
   try { r = await apiCall('/api/ext/pending', { hotels, take: true, account: st.hpAccount || '' }); } catch (e) { return; }
   if (!r?.items?.length) return;
   stayAwake(20);
-  const tab = await chrome.tabs.create({ url: GROUP_URL, active: false });
+  const tab = await openTab(GROUP_URL, false);
   await chrome.storage.local.set({ hpFetch: { at: Date.now(), tabId: tab.id, items: r.items } });
   setTimeout(() => checkSignedOut(tab.id), 25000);
 }
@@ -198,7 +208,7 @@ async function cookieReset() {
   if (hpResetJob.fetch) return;                       // new guests: the 1-minute check opens them again
   stayAwake();
   await chrome.storage.local.set({ hpAutoRunUntil: Date.now() + 15 * 60000 });
-  const tab = await chrome.tabs.create({ url: GROUP_URL, active: false });
+  const tab = await openTab(GROUP_URL, false);
   setTimeout(() => checkSignedOut(tab.id), 25000);
 }
 chrome.alarms.onAlarm.addListener(a => {
@@ -215,7 +225,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     stayAwake();
     (async () => {
       await chrome.storage.local.set({ hpLastMorning: today(), hpAutoRunUntil: Date.now() + 10 * 60000 });
-      const tab = await chrome.tabs.create({ url: GROUP_URL, active: true });
+      const tab = await openTab(GROUP_URL, true);
       setTimeout(() => checkSignedOut(tab.id), 25000);
     })().then(() => sendResponse({ success: true }));
     return true;
