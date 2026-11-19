@@ -222,7 +222,7 @@ Tests: `test_pulse_call_dialog_phone`, `test_photo_call_dialog_updates_existing_
   journey key `hoi_tham` (`J.AFTER_STAY_KEY`); tapping the green line again removes it.
 - 📋 **List from Booking** (ext 1.40): on a Booking reservations list, its OWN purple button **💬 Hỏi thăm khách (N)**
   (content.js `askBtn`; owner: NOT inside 📥 Gửi về Hotel Pro — that one is for saving bookings) saves new rows, POSTs the booking numbers (not cancelled) to `/api/ext/out_list` (p15, stored in `journey_prefs` key
-  `out_list` {ids, at}; newest list replaces the old) and opens `/moi?hoitham=1`. after_stay `?list=1` = only those
+  `out_list` {ids, at}; newest list replaces the old). It does NOT open the web (ext 1.41, owner: save on the PC, send later from the phone); `/moi?hoitham=1` still opens that tab. after_stay `?list=1` = only those
   bookings (any date, `<id>-2` rooms too); the tab shows a seg "📋 Từ Booking · N | Tất cả từ 1/11" (localStorage
   `moi.outAll` = list time the owner switched to Tất cả; a newer list switches back). Báo hủy on the web stay hidden.
 - 🔍 Tìm khách → 🟢 WhatsApp (`M.findWa`): pick a Mẫu Câu by title → `/api/journey/compose?greet=1` fills it (name after Hi)

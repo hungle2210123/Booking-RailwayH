@@ -1270,8 +1270,8 @@
       askBtn.textContent = '⏳ Đang gửi danh sách...';
       const o = await api('/api/ext/out_list', { ids: [...new Set(items.map(it => String(it.booking_id).split('-')[0]))] });
       if (!o?.success) { toast('❌ ' + esc(o?.error || 'Lỗi không rõ'), 'warn'); return; }
-      toast(`✅ Đã gửi ${o.n} khách → <b>Nhắn khách › Đã trả phòng</b> (điện thoại hoặc tab vừa mở).`, 'ok', 10000);
-      window.open(o._server + '/moi?hoitham=1', '_blank');
+      // owner, Nov 19: on the PC it only SAVES the list — the owner sends the messages later from the phone
+      toast(`✅ Đã lưu ${o.n} khách vào <b>Nhắn khách › Đã trả phòng</b> — mở trên điện thoại để nhắn.`, 'ok', 10000);
     } finally { askBusy = false; askBtn.textContent = '💬 Hỏi thăm khách'; }
   });
   function startRun(items) {
