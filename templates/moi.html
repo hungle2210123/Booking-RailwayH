@@ -982,8 +982,107 @@ button.info.on{border-color:#0E1525;background:#fff}
         <button onclick="M.cancel('${b.id}')" style="min-height:40px;border:none;background:transparent;font-size:12px;font-weight:700;color:#B91C1C;padding:0 6px">Hủy khách</button>
         <button onclick="M.open('${b.id}')" style="margin-left:auto;min-height:40px;border:none;background:transparent;font-size:12px;font-weight:800;color:#0E1525;padding:0 6px">Thẻ khách ›</button></div></div></div>`;
   }
+  // ═════ 💬 HỎI THĂM KHÁCH ĐÃ TRẢ PHÒNG (owner, Nov 19) ═════
+  // Pick ONE Mẫu Câu (remembered) → each guest's 🟢 WhatsApp button copies the filled-in text AND opens their chat with
+  // it typed in (wa.me ?text=) — the owner only presses Send. Opening is not "sent": ✅ Đã gửi logs 'hoi_tham'.
+  const segMsg = (arrN, stayN) => `<div class="seg"><button class="${S.mtab === 'arr' ? 'on' : ''}" onclick="M.set('mtab','arr')">Sắp đến${arrN != null ? ' · ' + arrN : ''}</button><button class="${S.mtab === 'stay' ? 'on' : ''}" onclick="M.set('mtab','stay')">Đang ở${stayN != null ? ' · ' + stayN : ''}</button><button class="${S.mtab === 'out' ? 'on' : ''}" onclick="M.outGo()">Đã trả phòng</button></div>`;
+  const dmIso = (x) => +x.slice(8, 10) + '/' + +x.slice(5, 7);
+  const copyNow = (t) => { const ta = document.createElement('textarea'); ta.value = t; ta.setAttribute('readonly', ''); ta.style.cssText = 'position:fixed;top:0;opacity:0;font-size:16px';
+    document.body.appendChild(ta); ta.select(); ta.setSelectionRange(0, t.length); let ok = false; try { ok = document.execCommand('copy'); } catch (e) {}
+    ta.remove(); if (!ok && navigator.clipboard) navigator.clipboard.writeText(t).catch(() => {}); };
+  S.outTpl = LS.get('outTpl', null); S.outF = 'todo'; S.out = null; S.outOpened = {};
+  M.outLoad = async () => {
+    const key = String(S.outTpl ? S.outTpl.id : 0); S.outKey = key;
+    try { const j = await (await fetch('/api/moi/after_stay?tid=' + (S.outTpl ? S.outTpl.id : ''), { cache: 'no-store' })).json();
+      if (S.outKey !== key) return; if (!j.success) throw new Error('x'); S.out = j; }
+    catch (e) { S.out = { error: true, guests: [] }; }
+    if (S.tab === 'msg' && S.mtab === 'out') render();
+  };
+  M.outGo = () => { S.mtab = 'out'; if (!S.out) M.outLoad(); render(); };
+  const outText = (g) => (g.vn && g.text_vi) || g.text || g.text_vi;
+  M.outWa = (id) => {          // runs inside the tap: copy first (backup if WhatsApp drops the text), then the link opens
+    const g = ((S.out || {}).guests || []).find((x) => x.id === id); if (!g) return;
+    copyNow(outText(g)); S.outOpened[id] = 1; setTimeout(render, 400);
+  };
+  M.outCopy = (id) => { const g = ((S.out || {}).guests || []).find((x) => x.id === id); if (!g) return; copyNow(outText(g)); toast('📋 Đã chép tin cho ' + g.name); };
+  M.outSent = async (id, on) => {
+    const r = await post('/api/journey/sent', { booking_id: id, step: 'hoi_tham', sent: on });
+    if (!r.ok) return toast('Không lưu được — thử lại');
+    const g = S.out.guests.find((x) => x.id === id); if (g) g.asked = on ? 'vừa xong' : ''; delete S.outOpened[id];
+    toast(on ? '✅ Đã ghi: đã hỏi thăm ' + (g ? g.name : '') : 'Đã bỏ dấu'); render();
+  };
+  M.outPhone = async (id) => {
+    const g = S.out.guests.find((x) => x.id === id); const v = prompt('Số WhatsApp của ' + g.name + ':', g.phone || '');
+    if (v == null || !v.trim()) return;
+    let r = await post('/api/messages/phone', { booking_id: id, phone: v.trim() });
+    if (r.j.status === 'duplicate' && confirm('Số này đang là của khách "' + (r.j.other_name || '') + '".\n\nVẫn lưu cho ' + g.name + '?')) r = await post('/api/messages/phone', { booking_id: id, phone: v.trim(), force: true });
+    if (!r.ok) return toast('Lỗi: ' + (r.j.error || 'không lưu được')); toast('Đã lưu số'); M.outLoad();
+  };
+  // template picker: every Mẫu Câu, grouped by category, with a search box
+  M.outPick = async () => {
+    if (!S.tpls) { const j = await fetch('/api/journey/templates').then((r) => r.json()).catch(() => null); S.tpls = (j && j.templates) || []; }
+    $('#sheet').innerHTML = `<div class="ov" onclick="if(event.target===this)M.close()"><div class="sh"><div class="handle"></div><div style="display:flex;align-items:center;justify-content:space-between"><b style="font-size:18px">Chọn mẫu câu hỏi thăm</b><button class="x" onclick="M.close()" aria-label="Đóng">${svg('x', 18, 2.4)}</button></div>
+      <input id="outQ" placeholder="Tìm mẫu…" oninput="M.outPickDraw()" style="width:100%;margin-top:12px;min-height:46px;border-radius:12px;border:1px solid #E2E5EB;padding:0 12px;font-size:16px">
+      <div id="outList" style="margin-top:10px;max-height:60vh;overflow:auto"></div></div></div>`;
+    M.outPickDraw();
+  };
+  M.outPickDraw = () => {
+    const q = (($('#outQ') || {}).value || '').toLowerCase().trim();
+    const list = S.tpls.filter((t) => !q || (t.name + ' ' + t.category).toLowerCase().includes(q));
+    let html = '', cat = null;
+    list.forEach((t) => { if (t.category !== cat) { cat = t.category; html += `<div style="font-size:11px;font-weight:800;color:#64748B;margin:12px 0 4px;text-transform:uppercase">${esc(cat || 'Khác')}</div>`; }
+      const on = S.outTpl && S.outTpl.id === t.id;
+      html += `<button onclick="M.outChoose(${t.id})" style="display:block;width:100%;text-align:left;min-height:46px;margin-bottom:6px;border-radius:12px;padding:8px 12px;font-size:14px;font-weight:700;${on ? 'border:none;background:#0E1525;color:#fff' : 'border:1px solid #E2E5EB;background:#fff;color:#0E1525'}">${esc(t.name)}</button>`; });
+    $('#outList').innerHTML = html || '<div class="empty">Không có mẫu nào.</div>';
+  };
+  M.outChoose = (id) => { const t = S.tpls.find((x) => x.id === id); S.outTpl = { id, name: t.name }; LS.set('outTpl', S.outTpl); S.out = null; M.close(); M.outLoad(); render(); };
+  function outRow(g) {
+    const opened = S.outOpened[g.id], txt = outText(g);
+    const href = g.wa ? `https://wa.me/${g.wa}${txt ? '?text=' + encodeURIComponent(txt) : ''}` : '';
+    const btn = 'min-height:46px;border-radius:12px;font-size:14px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;text-decoration:none;padding:0 12px';
+    const action = g.asked ? `<button onclick="M.outSent('${g.id}',false)" style="${btn};flex:1;border:1px solid #BBF7D0;background:#F0FDF4;color:#15803D">✅ Đã hỏi thăm · ${esc(g.asked)}</button>`
+      : !g.wa ? (g.partner ? `<span style="${btn};flex:1;background:#F5F3FF;color:#5B21B6;font-size:12px">Đối tác · không có số</span><button onclick="M.outPhone('${g.id}')" style="${btn};border:1.5px dashed #A78BFA;background:#fff;color:#5B21B6">+ Số</button>`
+        : `<button onclick="M.outPhone('${g.id}')" style="${btn};flex:1;border:1.5px dashed #F59E0B;background:#FFFBEB;color:#92400E">+ Thêm số WhatsApp</button>`)
+      : !txt ? `<button onclick="M.outPick()" style="${btn};flex:1;border:1.5px dashed #94A3B8;background:#fff;color:#0E1525">Chọn mẫu câu trước</button>`
+      : `<a href="${href}" target="_blank" rel="noopener" onclick="M.outWa('${g.id}')" style="${btn};flex:1;background:#16A34A;color:#fff">🟢 Nhắn WhatsApp</a>`
+        + `<button onclick="M.outCopy('${g.id}')" style="${btn};border:1px solid #E2E5EB;background:#fff;color:#0E1525" aria-label="Chép tin">📋</button>`
+        + (opened ? `<button onclick="M.outSent('${g.id}',true)" style="${btn};flex-basis:100%;border:none;background:#0E1525;color:#fff">✅ Đã gửi xong</button>` : '');
+    return `<div class="card" style="padding:12px;${g.asked ? 'opacity:.6' : ''}"><div style="display:flex;align-items:baseline;gap:8px"><div style="flex:1;min-width:0;font-size:16px;font-weight:800;line-height:1.25">${esc(g.name)}</div>
+        <span class="num" style="font-size:11px;font-weight:700;color:#475569;background:#F1F5F9;border-radius:6px;padding:2px 7px;flex-shrink:0">${g.vn ? 'VI' : 'EN'}</span></div>
+      <div class="num" style="font-size:12px;color:#64748B;font-weight:600;margin-top:3px">Trả phòng ${dmIso(g.co)} · ${dmIso(g.ci)} → ${dmIso(g.co)} · ${g.nights} đêm${g.room_no && g.apt ? ' · ' + esc(rn(g.apt, g.room_no)) : ''}${g.phone ? ' · ' + esc(g.phone) : ''}</div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px">${action}</div></div>`;
+  }
+  function viewOut() {
+    const all = (S.out && S.out.guests) || [];
+    const key = (g) => (g.apt ? String(g.apt) : 'none');
+    const scope = all.filter((g) => !S.mapt || key(g) === String(S.mapt));
+    const n = { todo: scope.filter((g) => !g.asked).length, done: scope.filter((g) => g.asked).length, all: scope.length };
+    const shown = scope.filter((g) => S.outF === 'all' || (S.outF === 'todo' ? !g.asked : g.asked));
+    let groups = '';
+    APT.map((a) => String(a.id)).concat(['none']).forEach((k) => {
+      const list = shown.filter((g) => key(g) === k); if (!list.length) return;
+      const a = aptById[k];
+      groups += `<div class="gh"><i style="background:${a ? a.color : '#F59E0B'}"></i>${a ? esc(a.name) : 'Chưa xếp căn'}<span>· ${list.length} khách</span></div>` + list.map(outRow).join('<div style="height:8px"></div>');
+    });
+    const aptTabs = `<div style="display:flex;gap:6px;overflow-x:auto;padding-bottom:2px">${[[null, 'Tất cả', '#0E1525']].concat(APT.map((a) => [String(a.id), a.short, a.color])).concat([['none', 'Chưa xếp', '#B45309']]).map(([k, l, c]) => {
+      const cnt = all.filter((g) => !k || key(g) === k).filter((g) => !g.asked).length, on = String(S.mapt || '') === String(k || '');
+      if (k && !all.some((g) => key(g) === k)) return '';
+      return `<button onclick="M.set('mapt',${k ? `'${k}'` : 'null'})" style="flex-shrink:0;min-height:40px;border-radius:20px;padding:0 14px;font-size:13px;font-weight:800;${on ? `border:none;background:${c};color:#fff` : 'border:1px solid #E2E5EB;background:#fff;color:#0E1525'}">${esc(l)}${cnt ? ' · ' + cnt : ''}</button>`; }).join('')}</div>`;
+    const range = S.out && S.out.from ? `từ ${dmIso(S.out.from)} đến ${dmIso(S.out.until)}` : '';
+    return `<div style="padding:calc(18px + env(safe-area-inset-top)) 16px 8px"><div class="kick" style="color:#64748B">HỎI THĂM KHÁCH ĐÃ TRẢ PHÒNG ${esc(range.toUpperCase())}</div><div class="h1">Nhắn khách</div></div>
+      <div class="wrap" style="display:flex;flex-direction:column;gap:10px">
+        ${segMsg()}
+        <button onclick="M.outPick()" style="min-height:54px;border-radius:14px;border:${S.outTpl ? '1px solid #E2E5EB' : '2px solid #F59E0B'};background:${S.outTpl ? '#fff' : '#FFFBEB'};padding:6px 14px;text-align:left;display:flex;align-items:center;gap:10px">
+          <span style="flex:1;min-width:0"><small style="display:block;font-size:11px;font-weight:700;color:#64748B">Mẫu câu gửi cho khách</small><b style="font-size:15px;color:#0E1525">${S.outTpl ? esc(S.outTpl.name) : 'Chạm để chọn mẫu câu'}</b></span><span style="font-size:13px;font-weight:800;color:#2563EB">Đổi ›</span></button>
+        ${aptTabs}
+        <div class="fgrid" style="grid-template-columns:repeat(3,minmax(0,1fr))">${[['todo', 'Chưa hỏi', n.todo, '#DC2626'], ['done', 'Đã hỏi', n.done, '#15803D'], ['all', 'Tất cả', n.all, '#0E1525']]
+          .map(([k, l, c, col]) => `<button class="fbox ${S.outF === k ? 'on' : ''}" style="--c:${col}" onclick="M.set('outF','${k}')"><b class="num">${c}</b><small>${l}</small></button>`).join('')}</div>
+      </div><div class="wrap" style="padding-bottom:90px">${!S.out ? '<div class="card empty" style="margin-top:12px">Đang tải…</div>' : S.out.error ? '<div class="card empty" style="margin-top:12px">Không tải được — thử lại.</div>'
+        : groups || `<div class="card empty" style="margin-top:12px">${S.outF === 'todo' && all.length ? 'Đã hỏi thăm hết khách trong mục này.' : 'Không có khách nào ở đây.'}</div>`}</div>`;
+  }
   function viewMsg() {
-    const arr = B.filter((b) => b.ciO >= 0 && b.ciO < S.mrange), stay = B.filter((b) => b.ciO < 0 && b.coO >= 0);
+    if (S.mtab === 'out') return viewOut();
+    const arr =B.filter((b) => b.ciO >= 0 && b.ciO < S.mrange), stay = B.filter((b) => b.ciO < 0 && b.coO >= 0);
     const scope0 = S.mtab === 'arr' ? arr : stay;
     const key = (b) => (b.apt ? String(b.apt) : 'none');
     const scope = scope0.filter((b) => !S.mapt || key(b) === String(S.mapt));
@@ -1008,7 +1107,7 @@ button.info.on{border-color:#0E1525;background:#fff}
     const a = S.mapt && (aptById[S.mapt] || (S.mapt === 'none' ? { name: 'Chưa xếp căn', color: '#B45309' } : null));
     return `<div style="padding:calc(18px + env(safe-area-inset-top)) 16px 8px"><div class="kick" style="color:#64748B">HÔM NAY · ${todoToday} KHÁCH ĐẾN CHƯA ĐƯỢC NHẮN</div><div class="h1">Nhắn khách</div></div>
       <div class="wrap" style="display:flex;flex-direction:column;gap:10px">
-        <div class="seg"><button class="${S.mtab === 'arr' ? 'on' : ''}" onclick="M.set('mtab','arr')">Sắp đến · ${arr.length}</button><button class="${S.mtab === 'stay' ? 'on' : ''}" onclick="M.set('mtab','stay')">Đang ở · ${stay.length}</button></div>
+        ${segMsg(arr.length, stay.length)}
         ${S.mtab === 'arr' ? `<div class="seg">${[[1, 'Hôm nay'], [3, '3 ngày'], [7, '7 ngày']].map(([k, l]) => `<button class="${S.mrange === k ? 'on' : ''}" onclick="M.set('mrange',${k})">${l}</button>`).join('')}</div>` : ''}
         <div class="fgrid">${[['all', 'Tất cả', n.all, '#0E1525'], ['todo', 'Chưa nhắn', n.todo, '#DC2626'], ['done', 'Đã nhắn', n.done, '#15803D'], ['unreach', 'Không liên lạc', n.unreach, '#475569']]
           .map(([k, l, c, col]) => `<button class="fbox ${S.mf === k ? 'on' : ''}" style="--c:${col}" onclick="M.set('mf','${k}')"><b class="num">${c}</b><small>${l}</small></button>`).join('')}</div>

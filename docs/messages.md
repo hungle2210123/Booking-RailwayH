@@ -209,3 +209,12 @@ Tests: `test_pulse_call_dialog_phone`, `test_photo_call_dialog_updates_existing_
 (`pay_remind_step` in p15, template "payment - Nhắc thanh toán hôm nay", `{tien}` = money left), no favourites,
 `arrived_only: true`. journey.js then shows "⋯ Hiện tất cả tin" instead of "➕ Tin khác" → reloads with `?all=1`.
 `pay_remind` is a loggable key (`J.is_step_key`).
+
+## 💬 Hỏi thăm khách đã trả phòng (owner, Nov 19 2026)
+- /moi → Nhắn khách → 3rd tab **Đã trả phòng** (`viewOut` / `outRow` in moi.html; API `/api/moi/after_stay?tid=` in p15).
+- Guests who checked out from **1/11/2026** (owner: "từ tháng 11 này tới về sau", no older months) until today, grouped by
+  apartment (apartment chips), filter Chưa hỏi / Đã hỏi / Tất cả.
+- ONE Mẫu Câu chosen at the top (remembered in localStorage `moi.outTpl`), filled per guest (EN, or VI for a Vietnamese
+  guest when the template has VI text). `_greet_name`: a bare "Hi ," / "Hello" / "Dear" / "Chào" gets the guest's full name.
+- 🟢 Nhắn WhatsApp = copy the text + open wa.me/<number>?text=… (typed in, owner presses Send). Then ✅ Đã gửi xong logs
+  journey key `hoi_tham` (`J.AFTER_STAY_KEY`); tapping the green line again removes it.

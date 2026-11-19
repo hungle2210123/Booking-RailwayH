@@ -249,3 +249,38 @@ def test_pending_new_guests(client, db, app_module, throwaway, monkeypatch):
     finally:
         db.session.execute(text("DELETE FROM mail_alerts WHERE mail_id = :m"), {'m': 'zz-' + bid})
         db.session.commit()
+
+
+# ── 💬 Hỏi thăm khách đã trả phòng (owner, Nov 19) ─────────────────────────────────────────────────────────────
+def test_after_stay_list_fill_and_mark(client, db, booking):
+    from datetime import datetime, timedelta
+    today = (datetime.utcnow() + timedelta(hours=7)).date()
+    co = max(today.replace(year=2026, month=11, day=2), today - timedelta(days=1)) if today.year == 2026 else today
+    bid = booking(guest_name='Zz Aftertest', checkin_date=(co - timedelta(days=1)).isoformat(), checkout_date=co.isoformat())
+    client.post('/api/messages/phone', json={'booking_id': bid, 'phone': '+44 7700 900123'})
+    tid = db.session.execute(text("SELECT template_id FROM message_templates WHERE template_content LIKE '%{ten}%' LIMIT 1")).scalar()
+    j = client.get(f'/api/moi/after_stay?tid={tid or ""}').get_json()
+    assert j['success'] and j['from'] == '2026-11-01'
+    g = next(x for x in j['guests'] if x['id'] == bid)
+    assert g['wa'] == '447700900123' and not g['asked']
+    if tid:
+        assert 'Zz Aftertest' in g['text'] and '{ten}' not in g['text']
+    assert client.post('/api/journey/sent', json={'booking_id': bid, 'step': 'hoi_tham'}).get_json()['success']
+    g = next(x for x in client.get('/api/moi/after_stay').get_json()['guests'] if x['id'] == bid)
+    assert g['asked']
+
+
+def test_after_stay_name_after_hi(client, db, booking):
+    """Owner, Nov 19: template 'payment - HỦY _ GIẢI THÍCH' starts "Hi , I hope…" → the guest's full name after Hi."""
+    from datetime import datetime, timedelta
+    import app as A
+    assert A._greet_name("Hi , I hope you're well", 'John Werner') == "Hi John Werner, I hope you're well"
+    assert A._greet_name('Hello!\nThanks', 'Ana Li nl') == 'Hello Ana Li!\nThanks'
+    assert A._greet_name('Hi there, thanks', 'Ana') == 'Hi there, thanks'
+    tid = db.session.execute(text("SELECT template_id FROM message_templates WHERE template_content ~* '^hi\s*,' LIMIT 1")).scalar()
+    if not tid:
+        pytest.skip('no "Hi ," template')
+    today = (datetime.utcnow() + timedelta(hours=7)).date()
+    bid = booking(guest_name='Zz Hitest Name', checkin_date=(today - timedelta(days=1)).isoformat(), checkout_date=today.isoformat())
+    g = next(x for x in client.get(f'/api/moi/after_stay?tid={tid}').get_json()['guests'] if x['id'] == bid)
+    assert g['text'].startswith('Hi Zz Hitest Name,')

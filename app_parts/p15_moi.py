@@ -186,6 +186,66 @@ def moi_data():
                     'collectors': list(PAY_COLLECTORS)})
 
 
+_GREET_RE = re.compile(r'^(\s*(?:hi|hello|hey|dear|xin chào|chào))[ \t]*(?=[,!.\n]|$)', re.IGNORECASE)
+
+
+def _greet_name(msg, name):
+    """"Hi , I hope…" → "Hi John Werner, I hope…" (owner, Nov 19): the guest's full name after a bare greeting, for
+    templates written without {ten}. A greeting already followed by a word ("Hi there", "Hi John") is left alone."""
+    from core import journey as J
+    name = J.clean_name(name)
+    return _GREET_RE.sub(lambda m: f'{m.group(1)} {name}', msg, count=1) if name else msg
+
+
+@app.route('/api/moi/after_stay')
+def moi_after_stay():
+    """💬 Hỏi thăm khách đã trả phòng (owner, Nov 19): guests who checked out from 1 Nov 2026 (owner: "từ tháng 11 này
+    tới về sau", older months not needed) until today, with the chosen Mẫu Câu (?tid=) filled in for each (EN + VI)
+    and when they were last asked."""
+    from core.models import db as _xdb
+    from core import journey as J
+    J.ensure(_xdb.session)
+    _moi_ensure()
+    _ensure_partner_column()
+    today = (datetime.utcnow() + timedelta(hours=7)).date()
+    first, until = today.replace(year=2026, month=11, day=1), today
+    try:
+        tid = int(request.args.get('tid') or 0)
+    except ValueError:
+        tid = 0
+    t = _journey_texts(_xdb, [tid]).get(tid) if tid else None
+    rows = _xdb.session.execute(text("""
+        SELECT b.booking_id, COALESCE(g.full_name, b.guest_name), b.checkin_date, b.checkout_date, b.accommodation_name,
+               g.phone, b.via_partner, b.actual_apartment, b.room_no, b.property_name
+        FROM bookings b LEFT JOIN guests g ON g.guest_id = b.guest_id
+        WHERE b.checkout_date >= :f AND b.checkout_date <= :u AND b.checkin_date IS NOT NULL
+          AND COALESCE(b.booking_status, '') NOT IN ('cancelled', 'deleted')
+          AND COALESCE(b.checkin_status, '') NOT IN ('cancelling', 'no_show')
+        ORDER BY b.checkout_date DESC, b.booking_id"""), {'f': first, 'u': until}).fetchall()
+    sent = J.sent_status(_xdb.session, [r[0] for r in rows])
+    apts = {a['id']: a for a in _moi_apartments(_xdb)}
+    out = []
+    for r in rows:
+        bid, ci, co = r[0], r[2], r[3]
+        apt = J.apt_id_of(r[7])
+        apt = apt if apt in apts else None
+        phone = _real_guest_phone(r[5], bool(r[6]))
+        links = _msg_phone_links(phone) if phone else None
+        guest = {'ten': r[1] or '', 'nhan': ci.strftime('%d/%m'), 'tra': co.strftime('%d/%m'),
+                 'phong': _room_label(r[4]), 'can': apts[apt]['name'] if apt else '', 'cho': r[9] or ''}
+        asked = sent.get(bid, {}).get(J.AFTER_STAY_KEY)
+        out.append({
+            'id': bid, 'name': J.clean_name((r[1] or bid).strip()), 'ci': ci.isoformat(), 'co': co.isoformat(),
+            'nights': max((co - ci).days, 1), 'apt': apt, 'room_no': r[8], 'listing': _room_label(r[4], keep_note=True) or '',
+            'phone': phone, 'wa': links['wa'] if links else '', 'partner': bool(r[6]) and not phone,
+            'vn': _vn_guest_name(r[1]), 'asked': J.vn_time(asked) if asked else '',
+            'text': _greet_name(J.fill(t['content'], guest), r[1]) if t else '',
+            'text_vi': _greet_name(J.fill(t['content_vi'], guest, 'vi'), r[1]) if t and t.get('content_vi') else '',
+        })
+    return jsonify({'success': True, 'from': first.isoformat(), 'until': until.isoformat(),
+                    'template': {'id': t['id'], 'name': t['name']} if t else None, 'guests': out})
+
+
 def _moi_room_clash(_xdb, bid, apt, room, ranges):
     """Guests (other than bid) who have room `room` of apartment `apt` on any night of `ranges` [(ci, co), …].
     Nights before today are never a clash — they are history (owner, Oct 30: Kim left today, Michael moved into
