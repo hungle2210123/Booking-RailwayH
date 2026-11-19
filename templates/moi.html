@@ -722,6 +722,7 @@ button.info.on{border-color:#0E1525;background:#fff}
   }
   function renderFloat() {
     let h = '';
+    if (!S.pick) h += `<button class="fab" style="bottom:calc(${S.tab === 'msg' ? 224 : 92}px + env(safe-area-inset-bottom));background:#fff;color:#0E1525;border:1px solid #E2E5EB" onclick="M.findOpen()" aria-label="Tìm khách">🔍<small>Tìm khách</small></button>`;
     if (S.tab === 'msg') {
       const a = S.mapt && aptById[S.mapt];
       h += `<button class="fab" style="bottom:calc(158px + env(safe-area-inset-bottom));background:${a ? a.color : (S.mapt === 'none' ? '#B45309' : '#0E1525')};color:#fff" onclick="M.set('aptSheet',true);M.aptSheetOpen()" aria-label="Lọc theo căn">${svg('home', 20, 2.2)}<small>${a ? esc(a.short) : S.mapt === 'none' ? 'Chưa xếp' : 'Căn hộ'}</small></button>
@@ -1021,6 +1022,31 @@ button.info.on{border-color:#0E1525;background:#fff}
     if (r.j.status === 'duplicate' && confirm('Số này đang là của khách "' + (r.j.other_name || '') + '".\n\nVẫn lưu cho ' + g.name + '?')) r = await post('/api/messages/phone', { booking_id: id, phone: v.trim(), force: true });
     if (!r.ok) return toast('Lỗi: ' + (r.j.error || 'không lưu được')); toast('Đã lưu số'); M.outLoad();
   };
+  // 🔍 Tìm khách (owner, Nov 19): every booking, past or future — by name, phone digits or booking id
+  let findT = null;
+  M.findOpen = () => {
+    $('#sheet').innerHTML = `<div class="ov" onclick="if(event.target===this)M.close()"><div class="sh"><div class="handle"></div><div style="display:flex;align-items:center;justify-content:space-between"><b style="font-size:18px">🔍 Tìm khách</b><button class="x" onclick="M.close()" aria-label="Đóng">${svg('x', 18, 2.4)}</button></div>
+      <input id="findQ" type="search" placeholder="Tên khách, số điện thoại hoặc mã đặt phòng" oninput="M.findRun()" style="width:100%;margin-top:12px;min-height:48px;border-radius:12px;border:1px solid #E2E5EB;padding:0 12px;font-size:16px">
+      <div id="findList" style="margin-top:10px;max-height:62vh;overflow:auto"><div class="empty" style="padding:20px 0">Gõ ít nhất 2 chữ.</div></div></div></div>`;
+    setTimeout(() => { const i = $('#findQ'); if (i) i.focus(); }, 50);
+  };
+  M.findRun = () => { clearTimeout(findT); findT = setTimeout(async () => {
+    const i = $('#findQ'), box = $('#findList'); if (!i || !box) return; const q = i.value.trim();
+    if (q.length < 2) { box.innerHTML = '<div class="empty" style="padding:20px 0">Gõ ít nhất 2 chữ.</div>'; return; }
+    const j = await fetch('/api/moi/search?q=' + encodeURIComponent(q)).then((r) => r.json()).catch(() => null);
+    if (!$('#findQ') || $('#findQ').value.trim() !== q) return;
+    if (!j || !j.success) { box.innerHTML = '<div class="empty" style="padding:20px 0">Không tìm được — thử lại.</div>'; return; }
+    const btn = 'min-height:40px;border-radius:10px;font-size:13px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;text-decoration:none;padding:0 12px';
+    box.innerHTML = j.guests.map((g) => { const a = aptById[g.apt];
+      return `<div class="card" style="padding:12px;margin-bottom:8px;${g.state ? 'opacity:.6' : ''}"><div style="display:flex;align-items:center;gap:8px"><i style="width:10px;height:10px;border-radius:50%;flex-shrink:0;background:${a ? a.color : '#CBD5E1'}"></i>
+          <b style="flex:1;min-width:0;font-size:15px">${esc(g.name)}</b>${g.state ? `<span style="font-size:11px;font-weight:800;color:#B91C1C">${g.state}</span>` : ''}</div>
+        <div class="num" style="font-size:12px;color:#64748B;font-weight:600;margin-top:3px">${dmIso(g.ci)}${g.co ? ' → ' + dmIso(g.co) + '/' + g.co.slice(2, 4) : ''} · ${a ? esc(a.short) + (g.room_no ? ' · ' + esc(rn(g.apt, g.room_no)) : '') : 'chưa xếp căn'}${g.phone ? ' · ' + esc(g.phone) : ''}</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px">
+          ${byId[g.id] ? `<button onclick="M.open('${g.id}')" style="${btn};border:none;background:#0E1525;color:#fff">Thẻ khách</button>` : ''}
+          <button onclick="M.close();M.send('${g.id}','__more')" style="${btn};border:1px solid #E2E5EB;background:#fff;color:#0E1525">💬 Nhắn mẫu</button>
+          ${g.wa ? `<a href="https://wa.me/${g.wa}" target="_blank" rel="noopener" style="${btn};background:#16A34A;color:#fff">🟢 WhatsApp</a><a href="tel:${esc(g.phone)}" style="${btn};border:1px solid #E2E5EB;background:#fff;color:#0E1525">📞</a>` : ''}</div></div>`; }).join('')
+      || '<div class="empty" style="padding:20px 0">Không thấy khách nào.</div>';
+  }, 300); };
   // template picker: every Mẫu Câu, grouped by category, with a search box
   M.outPick = async () => {
     if (!S.tpls) { const j = await fetch('/api/journey/templates').then((r) => r.json()).catch(() => null); S.tpls = (j && j.templates) || []; }

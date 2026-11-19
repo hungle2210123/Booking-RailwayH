@@ -284,3 +284,15 @@ def test_after_stay_name_after_hi(client, db, booking):
     bid = booking(guest_name='Zz Hitest Name', checkin_date=(today - timedelta(days=1)).isoformat(), checkout_date=today.isoformat())
     g = next(x for x in client.get(f'/api/moi/after_stay?tid={tid}').get_json()['guests'] if x['id'] == bid)
     assert g['text'].startswith('Hi Zz Hitest Name,')
+
+
+def test_find_guest_by_name_phone_id(client, booking):
+    """🔍 Tìm khách (owner, Nov 19): any booking by part of the name, phone digits or booking id."""
+    bid = booking(guest_name='Zz Findme Person', checkin_date='2026-11-02', checkout_date='2026-11-04')
+    client.post('/api/messages/phone', json={'booking_id': bid, 'phone': '+44 7700 900456'})
+    for q in ('findme', '900456', bid[-6:]):
+        j = client.get('/api/moi/search', query_string={'q': q}).get_json()
+        assert j['success'] and any(g['id'] == bid for g in j['guests']), q
+    g = next(g for g in client.get('/api/moi/search?q=findme').get_json()['guests'] if g['id'] == bid)
+    assert g['wa'] == '447700900456' and g['state'] == ''
+    assert client.get('/api/moi/search?q=z').get_json()['guests'] == []

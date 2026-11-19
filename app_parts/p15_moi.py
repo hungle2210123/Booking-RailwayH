@@ -186,6 +186,42 @@ def moi_data():
                     'collectors': list(PAY_COLLECTORS)})
 
 
+@app.route('/api/moi/search')
+def moi_search():
+    """🔍 Tìm khách (owner, Nov 19): any booking (past or future) by part of the name, phone digits or booking id —
+    newest stay first, 30 at most. Cancelled ones are listed too (marked)."""
+    from core.models import db as _xdb
+    from core import journey as J
+    _moi_ensure()
+    _ensure_partner_column()
+    q = (request.args.get('q') or '').strip()
+    digits = re.sub(r'\D', '', q)
+    if len(q) < 2:
+        return jsonify({'success': True, 'guests': []})
+    rows = _xdb.session.execute(text("""
+        SELECT b.booking_id, COALESCE(g.full_name, b.guest_name), b.checkin_date, b.checkout_date, b.accommodation_name,
+               g.phone, b.via_partner, b.actual_apartment, b.room_no, b.booking_status, b.checkin_status, b.room_amount
+        FROM bookings b LEFT JOIN guests g ON g.guest_id = b.guest_id
+        WHERE b.checkin_date IS NOT NULL AND COALESCE(b.booking_status, '') <> 'deleted'
+          AND (b.guest_name ILIKE :p OR g.full_name ILIKE :p
+               OR (:d <> '' AND (b.booking_id LIKE :dp OR regexp_replace(COALESCE(g.phone, ''), '\\D', '', 'g') LIKE :dp)))
+        ORDER BY b.checkin_date DESC LIMIT 30"""),
+        {'p': f'%{q}%', 'd': digits if len(digits) >= 3 else '', 'dp': f'%{digits}%'}).fetchall()
+    apt_ids = {a['id'] for a in _moi_apartments(_xdb)}
+    out = []
+    for r in rows:
+        apt = J.apt_id_of(r[7])
+        phone = _real_guest_phone(r[5], bool(r[6]))
+        links = _msg_phone_links(phone) if phone else None
+        state = ('Đã hủy' if r[9] == 'cancelled' else 'Báo hủy' if r[10] == 'cancelling'
+                 else 'Không đến' if r[10] == 'no_show' else '')
+        out.append({'id': r[0], 'name': J.clean_name((r[1] or r[0]).strip()), 'ci': r[2].isoformat(),
+                    'co': r[3].isoformat() if r[3] else '', 'apt': apt if apt in apt_ids else None, 'room_no': r[8],
+                    'listing': _room_label(r[4], keep_note=True) or '', 'phone': phone,
+                    'wa': links['wa'] if links else '', 'state': state, 'total': float(r[11] or 0)})
+    return jsonify({'success': True, 'guests': out})
+
+
 _GREET_RE = re.compile(r'^(\s*(?:hi|hello|hey|dear|xin chào|chào))[ \t]*(?=[,!.\n]|$)', re.IGNORECASE)
 
 
