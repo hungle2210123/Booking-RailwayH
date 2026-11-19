@@ -216,5 +216,6 @@ Tests: `test_pulse_call_dialog_phone`, `test_photo_call_dialog_updates_existing_
   apartment (apartment chips), filter Chưa hỏi / Đã hỏi / Tất cả.
 - ONE Mẫu Câu chosen at the top (remembered in localStorage `moi.outTpl`), filled per guest (EN, or VI for a Vietnamese
   guest when the template has VI text). `_greet_name`: a bare "Hi ," / "Hello" / "Dear" / "Chào" gets the guest's full name.
+- 🔍 search box (`M.outFind`): name / phone digits / booking id, across all apartments and filters.
 - 🟢 Nhắn WhatsApp = copy the text + open wa.me/<number>?text=… (typed in, owner presses Send). Then ✅ Đã gửi xong logs
   journey key `hoi_tham` (`J.AFTER_STAY_KEY`); tapping the green line again removes it.

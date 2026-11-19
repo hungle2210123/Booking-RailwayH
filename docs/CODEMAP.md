@@ -611,7 +611,7 @@ _p17_mail — 📧 Booking.com e-mails → the app (owner, Nov 12: "khi nhận �
 ## templates/journey_settings.html (231 lines)
 - templates/journey_settings.html: 79 `load` · 88 `renderButtons` · 141 `options` · 151 `rowHtml` · 165 `render` · 178 `bind` · 210 `shrink`
 
-## templates/moi.html (1461 lines)
+## templates/moi.html (1467 lines)
 - templates/moi.html: 223 `M_staffBadge` · 227 `load` · 306 `M.reload` · 307 `M.tab` · 308 `M.set` · 309 `M.day` · 310 `M.open` · 311 `M.close`
 - templates/moi.html: 312 `M.add` · 313 `M.addSave` · 326 `M.place` · 331 `M.room` · 338 `M.confirm` · 372 `M.cleanLink` · 375 `M.staffLoad` · 377 `M.staffOpen`
 - templates/moi.html: 379 `M.logOpen` · 381 `M.logSet` · 382 `M.staffRe` · 383 `M.calOpen` · 384 `M.stfSet` · 387 `M.st` · 404 `M.cleanSetup` · 406 `M.zbotLoad`
@@ -622,9 +622,9 @@ _p17_mail — 📧 Booking.com e-mails → the app (owner, Nov 12: "khi nhận �
 - templates/moi.html: 584 `M.pickApt` · 585 `M.quick` · 587 `M.photo` · 588 `M.chatPhone` · 595 `M.edit` · 597 `M.extN` · 601 `M.splitApt` · 607 `M.extTyped`
 - templates/moi.html: 608 `M.editCalc` · 636 `M.editSave` · 670 `M.payOpen` · 671 `M.collect` · 679 `M.partial` · 681 `M.undoPay` · 684 `M.payCycle` · 689 `M.pickG`
 - templates/moi.html: 690 `M.auto` · 705 `render` · 714 `renderNav` · 723 `renderFloat` · 739 `viewDay` · 848 `viewCal` · 951 `M.cal` · 955 `msgCard`
-- templates/moi.html: 994 `M.outLoad` · 1001 `M.outGo` · 1003 `M.outWa` · 1007 `M.outCopy` · 1008 `M.outSent` · 1014 `M.outPhone` · 1022 `M.outPick` · 1029 `M.outPickDraw`
-- templates/moi.html: 1038 `M.outChoose` · 1039 `outRow` · 1055 `viewOut` · 1083 `viewMsg` · 1120 `M.aptSheetOpen` · 1133 `viewPay` · 1178 `payMsgBox` · 1197 `renderSheet`
-- templates/moi.html: 1445 `S_set` · 1446 `renderSheetPub` · 1447 `S_put`
+- templates/moi.html: 994 `M.outLoad` · 1001 `M.outGo` · 1003 `M.outFind` · 1006 `M.outWa` · 1010 `M.outCopy` · 1011 `M.outSent` · 1017 `M.outPhone` · 1025 `M.outPick`
+- templates/moi.html: 1032 `M.outPickDraw` · 1041 `M.outChoose` · 1042 `outRow` · 1058 `viewOut` · 1089 `viewMsg` · 1126 `M.aptSheetOpen` · 1139 `viewPay` · 1184 `payMsgBox`
+- templates/moi.html: 1203 `renderSheet` · 1451 `S_set` · 1452 `renderSheetPub` · 1453 `S_put`
 
 ## templates/quick.html (357 lines)
 - templates/quick.html: 158 `toast` · 163 `go` · 171 `copyNow` · 179 `sendText` · 184 `copyText` · 185 `sendImgs` · 196 `setIn` · 218 `takeOut`

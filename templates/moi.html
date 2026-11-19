@@ -999,6 +999,9 @@ button.info.on{border-color:#0E1525;background:#fff}
     if (S.tab === 'msg' && S.mtab === 'out') render();
   };
   M.outGo = () => { S.mtab = 'out'; if (!S.out) M.outLoad(); render(); };
+  // 🔍 typing searches every apartment and both Chưa hỏi / Đã hỏi (owner looked for a guest further down the list)
+  M.outFind = (el) => { S.outQ = el.value; if (S.outQ.trim()) { S.mapt = null; S.outF = 'all'; } const p = el.selectionStart; render();
+    const i = $('#outFind'); if (i) { i.focus(); try { i.setSelectionRange(p, p); } catch (e) {} } };
   const outText = (g) => (g.vn && g.text_vi) || g.text || g.text_vi;
   M.outWa = (id) => {          // runs inside the tap: copy first (backup if WhatsApp drops the text), then the link opens
     const g = ((S.out || {}).guests || []).find((x) => x.id === id); if (!g) return;
@@ -1055,7 +1058,9 @@ button.info.on{border-color:#0E1525;background:#fff}
   function viewOut() {
     const all = (S.out && S.out.guests) || [];
     const key = (g) => (g.apt ? String(g.apt) : 'none');
-    const scope = all.filter((g) => !S.mapt || key(g) === String(S.mapt));
+    const q = (S.outQ || '').toLowerCase().trim(), qd = q.replace(/\D/g, '');
+    const scope = all.filter((g) => (!S.mapt || key(g) === String(S.mapt))
+      && (!q || g.name.toLowerCase().includes(q) || (qd.length >= 3 && (g.wa.includes(qd) || g.id.includes(qd)))));
     const n = { todo: scope.filter((g) => !g.asked).length, done: scope.filter((g) => g.asked).length, all: scope.length };
     const shown = scope.filter((g) => S.outF === 'all' || (S.outF === 'todo' ? !g.asked : g.asked));
     let groups = '';
@@ -1075,6 +1080,7 @@ button.info.on{border-color:#0E1525;background:#fff}
         <button onclick="M.outPick()" style="min-height:54px;border-radius:14px;border:${S.outTpl ? '1px solid #E2E5EB' : '2px solid #F59E0B'};background:${S.outTpl ? '#fff' : '#FFFBEB'};padding:6px 14px;text-align:left;display:flex;align-items:center;gap:10px">
           <span style="flex:1;min-width:0"><small style="display:block;font-size:11px;font-weight:700;color:#64748B">Mẫu câu gửi cho khách</small><b style="font-size:15px;color:#0E1525">${S.outTpl ? esc(S.outTpl.name) : 'Chạm để chọn mẫu câu'}</b></span><span style="font-size:13px;font-weight:800;color:#2563EB">Đổi ›</span></button>
         ${aptTabs}
+        <input id="outFind" type="search" value="${esc(S.outQ || '')}" placeholder="🔍 Tìm tên, số điện thoại, mã đặt phòng" oninput="M.outFind(this)" style="width:100%;min-height:46px;border-radius:12px;border:1px solid #E2E5EB;padding:0 12px;font-size:16px;background:#fff">
         <div class="fgrid" style="grid-template-columns:repeat(3,minmax(0,1fr))">${[['todo', 'Chưa hỏi', n.todo, '#DC2626'], ['done', 'Đã hỏi', n.done, '#15803D'], ['all', 'Tất cả', n.all, '#0E1525']]
           .map(([k, l, c, col]) => `<button class="fbox ${S.outF === k ? 'on' : ''}" style="--c:${col}" onclick="M.set('outF','${k}')"><b class="num">${c}</b><small>${l}</small></button>`).join('')}</div>
       </div><div class="wrap" style="padding-bottom:90px">${!S.out ? '<div class="card empty" style="margin-top:12px">Đang tải…</div>' : S.out.error ? '<div class="card empty" style="margin-top:12px">Không tải được — thử lại.</div>'
