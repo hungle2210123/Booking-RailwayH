@@ -924,8 +924,13 @@ def journey_compose():
     if not t or (bid and not b):
         return jsonify({'success': False, 'error': 'Không tìm thấy'}), 404
     guest = b['guest'] if b else {}                  # no guest: ⚡ Tin nhanh / Mẫu Câu page
-    return jsonify({'success': True, 'template': _journey_tpl(J, t, guest),
-                    'text': J.fill(t['content'], guest), 'images': J.images_of(_xdb.session, [tid]).get(tid, [])})
+    tpl, msg = _journey_tpl(J, t, guest), J.fill(t['content'], guest)
+    if request.args.get('greet') and guest.get('ten'):   # /moi 🔍 Tìm khách → WhatsApp: full name after a bare "Hi"
+        msg = _greet_name(msg, guest['ten'])
+        if tpl.get('text_vi'):
+            tpl['text_vi'] = _greet_name(tpl['text_vi'], guest['ten'])
+    return jsonify({'success': True, 'template': tpl,
+                    'text': msg, 'images': J.images_of(_xdb.session, [tid]).get(tid, [])})
 
 
 @app.route('/api/journey/vi/<int:template_id>', methods=['GET', 'POST'])

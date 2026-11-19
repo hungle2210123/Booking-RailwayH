@@ -218,7 +218,8 @@ def moi_search():
         out.append({'id': r[0], 'name': J.clean_name((r[1] or r[0]).strip()), 'ci': r[2].isoformat(),
                     'co': r[3].isoformat() if r[3] else '', 'apt': apt if apt in apt_ids else None, 'room_no': r[8],
                     'listing': _room_label(r[4], keep_note=True) or '', 'phone': phone,
-                    'wa': links['wa'] if links else '', 'state': state, 'total': float(r[11] or 0)})
+                    'wa': links['wa'] if links else '', 'state': state, 'total': float(r[11] or 0),
+                    'vn': _vn_guest_name(r[1])})
     return jsonify({'success': True, 'guests': out})
 
 

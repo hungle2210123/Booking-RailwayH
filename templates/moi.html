@@ -1037,6 +1037,7 @@ button.info.on{border-color:#0E1525;background:#fff}
     if (!$('#findQ') || $('#findQ').value.trim() !== q) return;
     if (!j || !j.success) { box.innerHTML = '<div class="empty" style="padding:20px 0">Không tìm được — thử lại.</div>'; return; }
     const btn = 'min-height:40px;border-radius:10px;font-size:13px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;text-decoration:none;padding:0 12px';
+    S.findQ = q; S.findG = {}; j.guests.forEach((g) => { S.findG[g.id] = g; });
     box.innerHTML = j.guests.map((g) => { const a = aptById[g.apt];
       return `<div class="card" style="padding:12px;margin-bottom:8px;${g.state ? 'opacity:.6' : ''}"><div style="display:flex;align-items:center;gap:8px"><i style="width:10px;height:10px;border-radius:50%;flex-shrink:0;background:${a ? a.color : '#CBD5E1'}"></i>
           <b style="flex:1;min-width:0;font-size:15px">${esc(g.name)}</b>${g.state ? `<span style="font-size:11px;font-weight:800;color:#B91C1C">${g.state}</span>` : ''}</div>
@@ -1044,9 +1045,43 @@ button.info.on{border-color:#0E1525;background:#fff}
         <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px">
           ${byId[g.id] ? `<button onclick="M.open('${g.id}')" style="${btn};border:none;background:#0E1525;color:#fff">Thẻ khách</button>` : ''}
           <button onclick="M.close();M.send('${g.id}','__more')" style="${btn};border:1px solid #E2E5EB;background:#fff;color:#0E1525">💬 Nhắn mẫu</button>
-          ${g.wa ? `<a href="https://wa.me/${g.wa}" target="_blank" rel="noopener" style="${btn};background:#16A34A;color:#fff">🟢 WhatsApp</a><a href="tel:${esc(g.phone)}" style="${btn};border:1px solid #E2E5EB;background:#fff;color:#0E1525">📞</a>` : ''}</div></div>`; }).join('')
+          ${g.wa ? `<button onclick="M.findWa('${g.id}')" style="${btn};border:none;background:#16A34A;color:#fff">🟢 WhatsApp</button><a href="tel:${esc(g.phone)}" style="${btn};border:1px solid #E2E5EB;background:#fff;color:#0E1525">📞</a>` : ''}</div></div>`; }).join('')
       || '<div class="empty" style="padding:20px 0">Không thấy khách nào.</div>';
   }, 300); };
+  // 🟢 WhatsApp in Tìm khách (owner, Nov 19): pick a Mẫu Câu by its title → text filled with the guest's name →
+  // one tap copies it (backup) and opens the guest's WhatsApp chat with the text already typed
+  M.findWa = async (id) => {
+    const g = (S.findG || {})[id]; if (!g) return; S.findCur = g;
+    if (!S.tpls) { const j = await fetch('/api/journey/templates').then((r) => r.json()).catch(() => null); S.tpls = (j && j.templates) || []; }
+    $('#sheet').innerHTML = `<div class="ov" onclick="if(event.target===this)M.close()"><div class="sh"><div class="handle"></div><div style="display:flex;align-items:center;justify-content:space-between;gap:8px"><b style="font-size:17px;min-width:0">Chọn mẫu cho ${esc(g.name)}</b><button class="x" onclick="M.close()" aria-label="Đóng">${svg('x', 18, 2.4)}</button></div>
+      <input id="fwQ" placeholder="Tìm mẫu…" oninput="M.findWaDraw()" style="width:100%;margin-top:12px;min-height:46px;border-radius:12px;border:1px solid #E2E5EB;padding:0 12px;font-size:16px">
+      <div id="fwList" style="margin-top:10px;max-height:60vh;overflow:auto"></div>
+      <button onclick="M.findBack()" style="width:100%;margin-top:8px;min-height:44px;border-radius:12px;border:1px solid #E2E5EB;background:#fff;font-weight:800">← Quay lại tìm khách</button></div></div>`;
+    M.findWaDraw();
+  };
+  M.findWaDraw = () => {
+    const q = (($('#fwQ') || {}).value || '').toLowerCase().trim(), last = LS.get('findTpl', null);
+    let list = S.tpls.filter((t) => !q || (t.name + ' ' + t.category).toLowerCase().includes(q));
+    let html = '', cat = null;
+    const one = (t) => `<button onclick="M.findWaPick(${t.id})" style="display:block;width:100%;text-align:left;min-height:46px;margin-bottom:6px;border-radius:12px;padding:8px 12px;font-size:14px;font-weight:700;border:1px solid #E2E5EB;background:#fff;color:#0E1525">${esc(t.name)}</button>`;
+    const lt = !q && last && S.tpls.find((t) => t.id === last);
+    if (lt) html += `<div style="font-size:11px;font-weight:800;color:#64748B;margin:4px 0 4px">VỪA DÙNG</div>` + one(lt);
+    list.forEach((t) => { if (t.category !== cat) { cat = t.category; html += `<div style="font-size:11px;font-weight:800;color:#64748B;margin:12px 0 4px;text-transform:uppercase">${esc(cat || 'Khác')}</div>`; } html += one(t); });
+    $('#fwList').innerHTML = html || '<div class="empty" style="padding:20px 0">Không có mẫu nào.</div>';
+  };
+  M.findWaPick = async (tid) => {
+    const g = S.findCur; if (!g) return; LS.set('findTpl', tid);
+    const j = await fetch('/api/journey/compose?greet=1&template_id=' + tid + '&booking_id=' + encodeURIComponent(g.id)).then((r) => r.json()).catch(() => null);
+    if (!j || !j.success) return toast('Không lấy được mẫu — thử lại');
+    const t = (g.vn && j.template.text_vi) || j.text || j.template.text_vi || ''; S.findText = t;
+    $('#sheet').innerHTML = `<div class="ov" onclick="if(event.target===this)M.close()"><div class="sh"><div class="handle"></div><div style="display:flex;align-items:center;justify-content:space-between;gap:8px"><b style="font-size:17px;min-width:0">${esc(j.template.name)}</b><button class="x" onclick="M.close()" aria-label="Đóng">${svg('x', 18, 2.4)}</button></div>
+      <div style="font-size:13px;color:#64748B;font-weight:700;margin-top:4px">Gửi cho ${esc(g.name)} · ${esc(g.phone)}</div>
+      <div style="margin-top:10px;max-height:42vh;overflow:auto;white-space:pre-wrap;background:#F4F5F7;border-radius:12px;padding:12px;font-size:14px;line-height:1.45">${esc(t)}</div>
+      <a href="https://wa.me/${g.wa}?text=${encodeURIComponent(t)}" target="_blank" rel="noopener" onclick="M.findWaGo()" style="display:flex;align-items:center;justify-content:center;margin-top:12px;min-height:54px;border-radius:14px;background:#16A34A;color:#fff;font-size:16px;font-weight:800;text-decoration:none">🟢 Mở WhatsApp kèm tin</a>
+      <button onclick="M.findWa('${g.id}')" style="width:100%;margin-top:8px;min-height:44px;border-radius:12px;border:1px solid #E2E5EB;background:#fff;font-weight:800">← Đổi mẫu khác</button></div></div>`;
+  };
+  M.findWaGo = () => { copyNow(S.findText || ''); };   // inside the tap: copy first, in case WhatsApp drops the text
+  M.findBack = () => { const q = S.findQ || ''; M.findOpen(); const i = $('#findQ'); if (i && q) { i.value = q; M.findRun(); } };
   // template picker: every Mẫu Câu, grouped by category, with a search box
   M.outPick = async () => {
     if (!S.tpls) { const j = await fetch('/api/journey/templates').then((r) => r.json()).catch(() => null); S.tpls = (j && j.templates) || []; }
