@@ -994,12 +994,19 @@ button.info.on{border-color:#0E1525;background:#fff}
   S.outTpl = LS.get('outTpl', null); S.outF = 'todo'; S.out = null; S.outOpened = {};
   M.outLoad = async () => {
     const key = String(S.outTpl ? S.outTpl.id : 0); S.outKey = key;
-    try { const j = await (await fetch('/api/moi/after_stay?tid=' + (S.outTpl ? S.outTpl.id : ''), { cache: 'no-store' })).json();
-      if (S.outKey !== key) return; if (!j.success) throw new Error('x'); S.out = j; }
+    const allAt = LS.get('outAll', null);   // owner chose "Tất cả" for the list sent at this time
+    try { const j = await (await fetch('/api/moi/after_stay?list=' + (allAt ? 0 : 1) + '&tid=' + (S.outTpl ? S.outTpl.id : ''), { cache: 'no-store' })).json();
+      if (S.outKey !== key) return; if (!j.success) throw new Error('x');
+      if (j.list && !j.list.on && allAt && allAt !== j.list.at) { LS.set('outAll', null); return M.outLoad(); }   // a NEW list came from Booking
+      S.out = j; }
     catch (e) { S.out = { error: true, guests: [] }; }
     if (S.tab === 'msg' && S.mtab === 'out') render();
   };
   M.outGo = () => { S.mtab = 'out'; if (!S.out) M.outLoad(); render(); };
+  // 📋 list sent from a Booking reservations page (extension "💬 Hỏi thăm các khách này") ↔ every guest since 1/11
+  M.outSrc = (v) => { LS.set('outAll', v === 'all' ? ((S.out || {}).list || {}).at || 'x' : null); S.out = null; S.mapt = null; render(); M.outLoad(); };
+  if (/[?&]hoitham=1/.test(location.search)) { S.tab = 'msg'; S.mtab = 'out'; LS.set('outAll', null); M.outLoad();
+    try { history.replaceState(null, '', location.pathname); } catch (e) {} }
   // 🔍 typing searches every apartment and both Chưa hỏi / Đã hỏi (owner looked for a guest further down the list)
   M.outFind = (el) => { S.outQ = el.value; if (S.outQ.trim()) { S.mapt = null; S.outF = 'all'; } const p = el.selectionStart; render();
     const i = $('#outFind'); if (i) { i.focus(); try { i.setSelectionRange(p, p); } catch (e) {} } };
@@ -1134,10 +1141,14 @@ button.info.on{border-color:#0E1525;background:#fff}
       const cnt = all.filter((g) => !k || key(g) === k).filter((g) => !g.asked).length, on = String(S.mapt || '') === String(k || '');
       if (k && !all.some((g) => key(g) === k)) return '';
       return `<button onclick="M.set('mapt',${k ? `'${k}'` : 'null'})" style="flex-shrink:0;min-height:40px;border-radius:20px;padding:0 14px;font-size:13px;font-weight:800;${on ? `border:none;background:${c};color:#fff` : 'border:1px solid #E2E5EB;background:#fff;color:#0E1525'}">${esc(l)}${cnt ? ' · ' + cnt : ''}</button>`; }).join('')}</div>`;
-    const range = S.out && S.out.from ? `từ ${dmIso(S.out.from)} đến ${dmIso(S.out.until)}` : '';
+    const L = S.out && S.out.list, lAt = L && L.at ? L.at.slice(11, 16) + ' ' + dmIso(L.at.slice(0, 10)) : '';
+    const range = L && L.on ? 'danh sách từ Booking' : S.out && S.out.from ? `từ ${dmIso(S.out.from)} đến ${dmIso(S.out.until)}` : '';
+    const srcBar = L ? `<div class="seg"><button class="${L.on ? 'on' : ''}" onclick="M.outSrc('list')">📋 Từ Booking · ${L.n}</button><button class="${L.on ? '' : 'on'}" onclick="M.outSrc('all')">Tất cả từ 1/11</button></div>
+        ${L.on ? `<div style="font-size:12px;color:#64748B;font-weight:600;margin-top:-4px">Danh sách gửi lúc ${lAt}${L.missing ? ` · <b style="color:#B45309">${L.missing} khách chưa có trên web hoặc đã hủy</b>` : ''}</div>` : ''}` : '';
     return `<div style="padding:calc(18px + env(safe-area-inset-top)) 16px 8px"><div class="kick" style="color:#64748B">HỎI THĂM KHÁCH ĐÃ TRẢ PHÒNG ${esc(range.toUpperCase())}</div><div class="h1">Nhắn khách</div></div>
       <div class="wrap" style="display:flex;flex-direction:column;gap:10px">
         ${segMsg()}
+        ${srcBar}
         <button onclick="M.outPick()" style="min-height:54px;border-radius:14px;border:${S.outTpl ? '1px solid #E2E5EB' : '2px solid #F59E0B'};background:${S.outTpl ? '#fff' : '#FFFBEB'};padding:6px 14px;text-align:left;display:flex;align-items:center;gap:10px">
           <span style="flex:1;min-width:0"><small style="display:block;font-size:11px;font-weight:700;color:#64748B">Mẫu câu gửi cho khách</small><b style="font-size:15px;color:#0E1525">${S.outTpl ? esc(S.outTpl.name) : 'Chạm để chọn mẫu câu'}</b></span><span style="font-size:13px;font-weight:800;color:#2563EB">Đổi ›</span></button>
         ${aptTabs}

@@ -220,3 +220,10 @@ Tests: `test_pulse_call_dialog_phone`, `test_photo_call_dialog_updates_existing_
 - 🔍 search box (`M.outFind`): name / phone digits / booking id, across all apartments and filters.
 - 🟢 Nhắn WhatsApp = copy the text + open wa.me/<number>?text=… (typed in, owner presses Send). Then ✅ Đã gửi xong logs
   journey key `hoi_tham` (`J.AFTER_STAY_KEY`); tapping the green line again removes it.
+- 📋 **List from Booking** (ext 1.39): on a Booking reservations list, 📥 Gửi về Hotel Pro → **💬 Hỏi thăm N khách này**
+  saves new rows, POSTs the booking numbers (not cancelled) to `/api/ext/out_list` (p15, stored in `journey_prefs` key
+  `out_list` {ids, at}; newest list replaces the old) and opens `/moi?hoitham=1`. after_stay `?list=1` = only those
+  bookings (any date, `<id>-2` rooms too); the tab shows a seg "📋 Từ Booking · N | Tất cả từ 1/11" (localStorage
+  `moi.outAll` = list time the owner switched to Tất cả; a newer list switches back). Báo hủy on the web stay hidden.
+- 🔍 Tìm khách → 🟢 WhatsApp (`M.findWa`): pick a Mẫu Câu by title → `/api/journey/compose?greet=1` fills it (name after Hi)
+  → "🟢 Mở WhatsApp kèm tin" copies + opens wa.me with the text.

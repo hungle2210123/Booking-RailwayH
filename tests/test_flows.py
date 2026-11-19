@@ -286,6 +286,28 @@ def test_after_stay_name_after_hi(client, db, booking):
     assert g['text'].startswith('Hi Zz Hitest Name,')
 
 
+def test_after_stay_booking_list(client, db, booking):
+    """Owner, Nov 19: '💬 Hỏi thăm các khách này' on a Booking list → Đã trả phòng shows ONLY those guests (any date)."""
+    from datetime import datetime, timedelta
+    today = (datetime.utcnow() + timedelta(hours=7)).date()
+    bid = booking(guest_name='Zz Listtest', checkin_date=(today + timedelta(days=30)).isoformat(),
+                  checkout_date=(today + timedelta(days=32)).isoformat())
+    old = db.session.execute(text("SELECT value FROM journey_prefs WHERE key = 'out_list'")).scalar()
+    try:
+        r = client.post('/api/ext/out_list', json={'ids': [bid, '9990000000']}).get_json()
+        assert r['success'] and r['n'] == 2 and r['found'] == 1
+        j = client.get('/api/moi/after_stay?list=1').get_json()
+        assert [g['id'] for g in j['guests']] == [bid] and j['list']['on'] and j['list']['missing'] == 1
+        j = client.get('/api/moi/after_stay?list=0').get_json()
+        assert not j['list']['on'] and bid not in [g['id'] for g in j['guests']]
+    finally:
+        if old is None:
+            db.session.execute(text("DELETE FROM journey_prefs WHERE key = 'out_list'"))
+        else:
+            db.session.execute(text("UPDATE journey_prefs SET value = :v WHERE key = 'out_list'"), {'v': old})
+        db.session.commit()
+
+
 def test_find_guest_by_name_phone_id(client, booking):
     """🔍 Tìm khách (owner, Nov 19): any booking by part of the name, phone digits or booking id."""
     bid = booking(guest_name='Zz Findme Person', checkin_date='2026-11-02', checkout_date='2026-11-04')

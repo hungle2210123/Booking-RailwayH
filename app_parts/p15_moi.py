@@ -234,6 +234,43 @@ def _greet_name(msg, name):
     return _GREET_RE.sub(lambda m: f'{m.group(1)} {name}', msg, count=1) if name else msg
 
 
+def _out_list_get(session):
+    """The guest list sent from a Booking reservations page ('💬 Hỏi thăm các khách này', ext 1.39): {ids, at}."""
+    row = session.execute(text("SELECT value FROM journey_prefs WHERE key = 'out_list'")).fetchone()
+    try:
+        v = json.loads(row[0]) if row else None
+    except ValueError:
+        v = None
+    return v if isinstance(v, dict) and v.get('ids') else None
+
+
+@app.route('/api/ext/out_list', methods=['POST'])
+def ext_out_list():
+    """💬 Hỏi thăm các khách này (owner, Nov 19): the extension sends the booking numbers of the Booking list the owner
+    is looking at → /moi Nhắn khách › Đã trả phòng shows ONLY these guests (the newest list replaces the old one)."""
+    err = _ext_auth_error()
+    if err:
+        return err
+    from core.models import db as _xdb
+    from core import journey as J
+    J.ensure(_xdb.session)
+    ids = []
+    for x in (request.get_json(silent=True) or {}).get('ids') or []:
+        x = re.sub(r'\D', '', str(x))
+        if 6 <= len(x) <= 14 and x not in ids:
+            ids.append(x)
+    if not ids:
+        return jsonify({'success': False, 'error': 'Không có mã đặt phòng nào'}), 400
+    at = (datetime.utcnow() + timedelta(hours=7)).strftime('%Y-%m-%dT%H:%M')
+    _xdb.session.execute(text("""
+        INSERT INTO journey_prefs (key, value) VALUES ('out_list', :v)
+        ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value"""), {'v': json.dumps({'ids': ids[:300], 'at': at})})
+    _xdb.session.commit()
+    found = _xdb.session.execute(text("SELECT COUNT(DISTINCT split_part(booking_id, '-', 1)) FROM bookings WHERE split_part(booking_id, '-', 1) = ANY(:ids)"),
+                                 {'ids': ids}).scalar() or 0
+    return jsonify({'success': True, 'n': len(ids), 'found': int(found), 'at': at})
+
+
 @app.route('/api/moi/after_stay')
 def moi_after_stay():
     """💬 Hỏi thăm khách đã trả phòng (owner, Nov 19): guests who checked out from 1 Nov 2026 (owner: "từ tháng 11 này
@@ -251,14 +288,20 @@ def moi_after_stay():
     except ValueError:
         tid = 0
     t = _journey_texts(_xdb, [tid]).get(tid) if tid else None
-    rows = _xdb.session.execute(text("""
+    lst = _out_list_get(_xdb.session)
+    use_list = bool(lst) and request.args.get('list') == '1'
+    # list from Booking: exactly those bookings (any date, extra rooms "<id>-2" too); otherwise checked out 1 Nov → today
+    where = ("split_part(b.booking_id, '-', 1) = ANY(:ids)" if use_list
+             else "b.checkout_date >= :f AND b.checkout_date <= :u")
+    rows = _xdb.session.execute(text(f"""
         SELECT b.booking_id, COALESCE(g.full_name, b.guest_name), b.checkin_date, b.checkout_date, b.accommodation_name,
                g.phone, b.via_partner, b.actual_apartment, b.room_no, b.property_name
         FROM bookings b LEFT JOIN guests g ON g.guest_id = b.guest_id
-        WHERE b.checkout_date >= :f AND b.checkout_date <= :u AND b.checkin_date IS NOT NULL
+        WHERE {where} AND b.checkin_date IS NOT NULL AND b.checkout_date IS NOT NULL
           AND COALESCE(b.booking_status, '') NOT IN ('cancelled', 'deleted')
           AND COALESCE(b.checkin_status, '') NOT IN ('cancelling', 'no_show')
-        ORDER BY b.checkout_date DESC, b.booking_id"""), {'f': first, 'u': until}).fetchall()
+        ORDER BY b.checkout_date DESC, b.booking_id"""),
+        {'f': first, 'u': until, 'ids': lst['ids'] if lst else []}).fetchall()
     sent = J.sent_status(_xdb.session, [r[0] for r in rows])
     apts = {a['id']: a for a in _moi_apartments(_xdb)}
     out = []
@@ -279,7 +322,12 @@ def moi_after_stay():
             'text': _greet_name(J.fill(t['content'], guest), r[1]) if t else '',
             'text_vi': _greet_name(J.fill(t['content_vi'], guest, 'vi'), r[1]) if t and t.get('content_vi') else '',
         })
-    return jsonify({'success': True, 'from': first.isoformat(), 'until': until.isoformat(),
+    lst_info = None
+    if lst:
+        have = {r[0].split('-')[0] for r in rows} if use_list else set()
+        lst_info = {'n': len(lst['ids']), 'at': lst.get('at', ''), 'on': use_list,
+                    'missing': len([i for i in lst['ids'] if i not in have]) if use_list else 0}
+    return jsonify({'success': True, 'from': first.isoformat(), 'until': until.isoformat(), 'list': lst_info,
                     'template': {'id': t['id'], 'name': t['name']} if t else None, 'guests': out})
 
 
