@@ -269,3 +269,10 @@ sheet opens (`M.payMsgLoad`); a tap also copies the text and logs journey `payme
 - Each message has **🟢 Gửi WhatsApp** and **📋 Copy tin** (guest without a normal number → paste in Zalo / Booking / WeChat; the
   box shows even without a phone, `wa` = ''); Báo thu tiền also has **🖼 Gửi N ảnh** = the payment template's pictures through
   the iPhone share sheet (`M.payImgs`; files pre-fetched in `M.payMsgLoad`; falls back to the send sheet).
+
+### ❌ Cancellation mails (owner, Nov 19 2026)
+- Every **cancel** mail (any arrival date) and every **"Cập nhật về đặt phòng đã hủy … (đã đánh dấu vắng mặt)"** (kind `cupd`,
+  p17 `mail_parse`, note = text in brackets) → Zalo booking bot, with the app's details (`mail_booking_line`: guest, stay,
+  room, price) + "Mã …". `cupd` is NOT a duplicate of the cancel mail (different kind). `MAIL_ALWAYS = ('cancel', 'cupd')`.
+- 📧 Thư đặt phòng sheet: other mails = today only; ❌ Hủy and ⚠️ Cập nhật hủy (its OWN chip, owner: "rất quan trọng") are
+  kept the whole month until the 5th of the next month (`moi_mail_list` cleanup + query).
