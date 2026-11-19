@@ -175,5 +175,5 @@ No secrets in the folder (the token field is empty by default). Test `test_exten
   `items[].retry` → background opens a VISIBLE focused window. Zalo only when the phone is there or after the 3rd try.
 - 1.43 (owner, Nov 19: "profile mới không hiển thị được số điện thoại — chỉ profile cũ"): each Chrome profile sends its
   own id (`hpPid`, background.js) to `/api/ext/pending`; a guest saved WITHOUT a phone is offered at once to ANOTHER
-  profile (no hotel filter — the old profile 'Lộc' opens every property), the same profile only 30 min later
+  profile OF THE SAME BOOKING ACCOUNT (hotel in its hpHotels — owner: Thọ Nhuộm is a separate account, a profile never switches accounts), the same profile only 30 min later
   (`_pending_rows` p17, columns `fetch_pids`, `fetch_at`). Copying Booking cookies between profiles = refused (login).

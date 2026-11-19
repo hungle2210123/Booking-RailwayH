@@ -246,8 +246,10 @@ def test_pending_new_guests(client, db, app_module, throwaway, monkeypatch):
         client.post('/api/ext/pending', headers=hdr, json={'action': 'report', 'ok': [bid], 'bad': [], 'account': '18 Hàng Bè'})
         assert len(sent) == n0
         assert not [i for i in take([hid[0]]) if i['bid'] == bid]                 # same profile: not before 30 min
-        # another Chrome profile (the old one, where Booking shows phones) takes it at once, even without that hotel listed
-        got = [i for i in client.post('/api/ext/pending', json={'hotels': [], 'take': True, 'pid': 'zz-old'}, headers=hdr).get_json()['items'] if i['bid'] == bid]
+        other = lambda hotels: [i for i in client.post('/api/ext/pending', json={'hotels': hotels, 'take': True, 'pid': 'zz-old'}, headers=hdr).get_json()['items'] if i['bid'] == bid]
+        assert not other([])            # a profile signed in to ANOTHER Booking account never gets it (owner, Nov 19)
+        # another Chrome profile of the SAME account (Booking shows phones there) takes it at once
+        got = other([hid[0]])
         assert got and got[0]['retry']
         db.session.execute(text("UPDATE mail_alerts SET fetch_tries = 3 WHERE mail_id = :m"), {'m': 'zz-' + bid})
         db.session.commit()

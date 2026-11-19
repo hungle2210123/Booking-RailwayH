@@ -511,9 +511,10 @@ def _pending_rows(_xdb, pid='', hotels=()):
     out = []
     for r in _pending_query(_xdb):
         tries, pids, last = r[2] or 0, [x for x in (r[4] or '').split(',') if x], r[5]
-        if tries == 0:
-            ok = bool(r[3]) and r[3] in hotels
-        else:
+        # only a profile whose Booking account HAS this property (owner, Nov 19: Thọ Nhuộm is a separate Booking account —
+        # a profile signed in to the other account cannot open it, and it never switches accounts)
+        ok = bool(r[3]) and r[3] in hotels
+        if ok and tries:
             ok = (pid and pid not in pids) or (last is None or last < now - timedelta(minutes=30))
         if ok:
             out.append(r)
@@ -585,7 +586,7 @@ def ext_pending():
         return jsonify({'success': True})
     hotels = {str(h) for h in (d.get('hotels') or []) if str(h).isdigit()}
     pid = re.sub(r'[^\w-]', '', str(d.get('pid') or ''))[:40]
-    items = [{'bid': r[0], 'prop': r[1] or '', 'hotel_id': r[3], 'retry': bool(r[2])} for r in _pending_rows(_xdb, pid, hotels) if r[3]]
+    items = [{'bid': r[0], 'prop': r[1] or '', 'hotel_id': r[3], 'retry': bool(r[2])} for r in _pending_rows(_xdb, pid, hotels)]
     if items and d.get('take'):
         _xdb.session.execute(text("""UPDATE mail_alerts SET fetch_tries = COALESCE(fetch_tries, 0) + 1, fetch_at = :now,
                 fetch_pids = CASE WHEN :pid = '' THEN fetch_pids ELSE concat_ws(',', NULLIF(fetch_pids, ''), :pid) END
