@@ -24,3 +24,5 @@ paths:
 - After changes: `python -m pytest tests/test_parsers.py tests/test_flows.py`.
 - 1.36: new guests of the day (Booking mail → /api/ext/pending, 1-min alarm, this profile's hotels only) are opened + saved
   like a run; a sign-out loop during a run → the extension clears THIS profile's booking.com cookies once a day (owner's fix of Nov 18).
+- 1.38: morning watchdog — `hpMorningGo` (set by content.js when the morning run really begins); background `pendingCheck`
+  re-runs the morning (3 tries, ≤ 4 h after its time) before any new-guest fetch.

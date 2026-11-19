@@ -78,22 +78,30 @@ function stayAwake(minutes = 45) {
 }
 // 1.37: Chrome may be running with NO window (background mode, started by the task "HotelPro Giu Chrome" with
 // --no-startup-window, or the owner closed every window) → a tab needs a window: open a minimized one.
+// 1.38 (Nov 19: profile Booking2 had no window at 7:00 → no tab, the day counted as done): every way is tried.
 async function openTab(url, active = false) {
-  const wins = await chrome.windows.getAll({ windowTypes: ['normal'] });
-  if (!wins.length) {
-    const w = await chrome.windows.create({ url, focused: !!active, state: active ? 'normal' : 'minimized' });
-    return w.tabs[0];
-  }
-  return chrome.tabs.create({ url, active });
+  let wins = [];
+  try { wins = await chrome.windows.getAll({ windowTypes: ['normal'] }); } catch (e) {}
+  if (wins.length) { try { return await chrome.tabs.create({ url, active }); } catch (e) {} }
+  try { return (await chrome.windows.create({ url, focused: !!active, state: active ? 'normal' : 'minimized' })).tabs[0]; } catch (e) {}
+  return (await chrome.windows.create({ url, focused: !!active })).tabs[0];
 }
-async function morningRun() {
-  const { hpLastMorning } = await chrome.storage.local.get('hpLastMorning');
+// The morning run of the day. `force` = the watchdog (pendingCheck) retries a morning that never really began:
+// no tab, tab closed, Chrome started late, the 7:00 alarm missed. hpMorningGo (content.js) = it began.
+async function morningRun(force = false) {
+  const st = await chrome.storage.local.get(['hpLastMorning', 'hpMorningTry']);
   const [h, mi] = await morningTime(), now = new Date();
-  if (hpLastMorning === today() || now.getHours() * 60 + now.getMinutes() < h * 60 + mi) return;
+  if (now.getHours() * 60 + now.getMinutes() < h * 60 + mi) return;
+  if (!force && st.hpLastMorning === today()) return;
+  const n = st.hpMorningTry?.day === today() ? st.hpMorningTry.n + 1 : 1;
   stayAwake();
-  await chrome.storage.local.set({ hpLastMorning: today(), hpAutoRunUntil: Date.now() + 10 * 60000 });
-  const tab = await openTab(GROUP_URL, false);
-  setTimeout(() => checkSignedOut(tab.id), 25000);      // redirects to the sign-in page take a few seconds
+  await chrome.storage.local.set({ hpLastMorning: today(), hpAutoRunUntil: Date.now() + 10 * 60000, hpMorningTry: { day: today(), n } });
+  let tab;
+  try { tab = await openTab(GROUP_URL, false); } catch (e) {
+    await chrome.storage.local.set({ hpAutoRunUntil: 0 });      // no tab → the 1-minute watchdog tries again
+    return;
+  }
+  setTimeout(() => checkSignedOut(tab.id), 25000);
 }
 const isSignIn = url => !/^https:\/\/admin\.booking\.com\//i.test(url || '') || /sign-?in|login/i.test(url || '');
 async function checkSignedOut(tabId) {
@@ -137,7 +145,7 @@ chrome.tabs.onUpdated.addListener(async (tabId, info, tab) => {
   else chrome.tabs.update(tabId, { url: home });       // home page shows the "Khách đến" list
 });
 chrome.runtime.onInstalled.addListener(scheduleMorning);
-chrome.runtime.onStartup.addListener(() => { scheduleMorning(); setTimeout(morningRun, 60000); });
+chrome.runtime.onStartup.addListener(() => { scheduleMorning(); setTimeout(morningRun, 60000); });   // + watchdog below
 // ── 🔄 Tự nạp lại khi file trên đĩa đổi (1.29, owner 17/11/2026: "cập nhật là đồng bộ theo luôn") ──────────────
 // Main PC: Chrome loads the extension straight from the project folder (git changes it). Other PCs: the hourly task
 // "HotelPro Cap Nhat" (tools/cai-dat/cap-nhat.ps1) copies the new files into %LOCALAPPDATA%\HotelPro. Either way the
@@ -168,14 +176,22 @@ async function apiCall(path, body) {
   return res.json();
 }
 async function pendingCheck() {
-  const st = await chrome.storage.local.get(['hpLastMorning', 'hpAutoRunUntil', 'hpRunBusy', 'hpFetch', 'hpHotels', 'hpAccount', 'hpWaitLogin', 'hpResetJob']);
-  if (st.hpLastMorning !== today() || st.hpWaitLogin || st.hpResetJob) return;
+  const st = await chrome.storage.local.get(['hpLastMorning', 'hpAutoRunUntil', 'hpRunBusy', 'hpFetch', 'hpHotels', 'hpAccount',
+    'hpWaitLogin', 'hpResetJob', 'hpMorningGo', 'hpMorningTry']);
+  if (st.hpWaitLogin || st.hpResetJob) return;
   if ((st.hpAutoRunUntil && Date.now() < st.hpAutoRunUntil) || (st.hpRunBusy && Date.now() - st.hpRunBusy < 180000)) return;
   if (st.hpFetch) {
     if (Date.now() - st.hpFetch.at < 12 * 60000) { try { await chrome.tabs.get(st.hpFetch.tabId); return; } catch (e) {} }
     try { await chrome.tabs.remove(st.hpFetch.tabId); } catch (e) {}           // stuck / closed → next try
     await chrome.storage.local.remove('hpFetch');
   }
+  // 1.38 watchdog (owner Nov 19 "hôm nay hệ thống không tự chạy"): the morning run never really began → run it again,
+  // 3 tries at most, until 4 hours after its time. New guests wait for it (they are part of it anyway).
+  if (st.hpMorningGo !== today() && !(st.hpMorningTry?.day === today() && st.hpMorningTry.n >= 3)) {
+    const [h, mi] = await morningTime(), now = new Date(), m = now.getHours() * 60 + now.getMinutes();
+    if (m >= h * 60 + mi && m < h * 60 + mi + 240) { await morningRun(true); return; }
+  }
+  if (st.hpLastMorning !== today()) return;
   const hotels = st.hpHotels || [];
   if (!hotels.length) return;
   let r;

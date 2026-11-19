@@ -1155,6 +1155,7 @@
     toast(`🏢 Đến trong 48 giờ — ${groupSummary(all || props)}`, 'ok', 6000);
     // 1.30: the Zalo booking bot tells the owner the PC is running and which properties (owner, Nov 17)
     if (auto) {
+      morningGo();
       const lab = p => p.name + (p.n > 0 ? ` (${p.n})` : '');
       const skip = (all || props).filter(p => !props.includes(p)).map(p => lab(p) + (p.closed ? ' đóng' : ''));
       api('/api/ext/morning', { stage: 'start', go: props.map(lab), skip, account: await hpAccount() }).catch(() => {});
@@ -1183,10 +1184,13 @@
       d.bad.length ? 'warn' : 'ok', 30000);
   }
   // On a property's home page while the group queue is active: run its "Khách đến" list, or move on.
+  // 1.38: today's morning run really began (background.js retries the morning until this is set)
+  const morningGo = () => chrome.storage.local.set({ hpMorningGo: new Date().toLocaleDateString('sv') }).catch(() => {});
   async function groupStep() {
     const g = groupGet();
     if (!g || runGet() || resId()) return;
     chrome.storage.local.set({ hpRunBusy: Date.now() }).catch(() => {});
+    if (g.auto) morningGo();
     const p = g.props[g.i];
     if (!p) { stopGroup('✅ Xong.'); return; }
     if (p.started) {                                // its guests are done (finishRun brought us back here)
@@ -1439,6 +1443,7 @@
         const pick = groupPick(gp);
         if (!pick.length) {
           toast('🏢 Hôm nay không căn nào có khách đến.<br>' + groupSummary(gp), 'ok', 20000);
+          morningGo();
           api('/api/ext/morning', { stage: 'start', note: 'Hôm nay không căn nào có khách đến — không phải làm gì.', account: await hpAccount() }).catch(() => {});
           return;
         }
@@ -1461,6 +1466,7 @@
         name = (name || rawText(document.querySelector('h1, h2')) || '').split('\n')[0].trim().slice(0, 60) || ('căn ' + hid);
         if (!a.items.length) {
           toast('Hôm nay không có khách đến.', 'ok', 15000);
+          morningGo();
           api('/api/ext/morning', { stage: 'start', note: `${name}: hôm nay không có khách đến — không phải làm gì.`, account: await hpAccount() }).catch(() => {});
           return;
         }

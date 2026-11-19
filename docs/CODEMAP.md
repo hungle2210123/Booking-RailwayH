@@ -584,13 +584,13 @@ _p17_mail — 📧 Booking.com e-mails → the app (owner, Nov 12: "khi nhận �
 - chrome_extension/content.js: 310 `save` · 345 `showList` · 403 `showProblem` · 486 `phonesIn` · 494 `phoneNear` · 502 `guestPhone` · 510 `toast` · 527 `checkPhone`
 - chrome_extension/content.js: 559 `autoShot` · 579 `shotAfterReveal` · 612 `autoRevealTry` · 639 `chatBox` · 645 `putInChat` · 719 `chatThread` · 729 `pageBookingNumber` · 736 `aiAsk`
 - chrome_extension/content.js: 747 `drawAi` · 782 `stopMic` · 783 `toggleMic` · 825 `prepareShot` · 901 `finishShot` · 955 `cancelShot` · 963 `restoreFloating` · 1009 `guestLinks`
-- chrome_extension/content.js: 1043 `groupTable` · 1056 `groupProps` · 1095 `numUnder` · 1117 `arrivalsToday` · 1153 `startGroup` · 1166 `stopGroup` · 1177 `showGroupDone` · 1186 `groupStep`
-- chrome_extension/content.js: 1218 `refreshRunBtn` · 1236 `startRun` · 1260 `finishRun` · 1275 `showRunDone` · 1285 `withSes` · 1292 `logoutLoop` · 1309 `fetchJob` · 1336 `learnHotels`
-- chrome_extension/content.js: 1346 `runStep` · 1420 `autoMorning`
+- chrome_extension/content.js: 1043 `groupTable` · 1056 `groupProps` · 1095 `numUnder` · 1117 `arrivalsToday` · 1153 `startGroup` · 1167 `stopGroup` · 1178 `showGroupDone` · 1189 `groupStep`
+- chrome_extension/content.js: 1222 `refreshRunBtn` · 1240 `startRun` · 1264 `finishRun` · 1279 `showRunDone` · 1289 `withSes` · 1296 `logoutLoop` · 1313 `fetchJob` · 1340 `learnHotels`
+- chrome_extension/content.js: 1350 `runStep` · 1424 `autoMorning`
 
 ## chrome_extension/background.js
-- chrome_extension/background.js: 6 `settings` · 30 `shoot` · 61 `morningTime` · 66 `scheduleMorning` · 75 `stayAwake` · 81 `openTab` · 89 `morningRun` · 99 `checkSignedOut`
-- chrome_extension/background.js: 110 `signedOutAlert` · 145 `selfUpdate` · 161 `apiCall` · 170 `pendingCheck` · 192 `logoutLoop` · 199 `cookieReset`
+- chrome_extension/background.js: 6 `settings` · 30 `shoot` · 61 `morningTime` · 66 `scheduleMorning` · 75 `stayAwake` · 82 `openTab` · 91 `morningRun` · 107 `checkSignedOut`
+- chrome_extension/background.js: 118 `signedOutAlert` · 153 `selfUpdate` · 169 `apiCall` · 178 `pendingCheck` · 208 `logoutLoop` · 215 `cookieReset`
 
 # Templates (inline JS functions)
 

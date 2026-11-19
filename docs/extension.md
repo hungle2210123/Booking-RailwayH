@@ -163,3 +163,9 @@ No secrets in the folder (the token field is empty by default). Test `test_exten
   profile alive with no window), `openTab()` opens a minimized window when none exists. Task "HotelPro Giu Chrome"
   (`mo-may-buoi-sang.ps1 -GiuChrome`, registered by `-CaiDat`: at sign-in + every 15 min) runs
   `chrome --profile-directory=X --no-startup-window` per profile — tested: no new window when Chrome already runs.
+- **1.38 morning watchdog (Nov 19: no run).** Booking2 had no window at 7:00 → `openTab` gave no tab but the day was marked
+  done; at 7:10 the new-guest check used the session and only that guest was saved. Now: `openTab` tries tabs.create →
+  minimized window → normal window; content.js sets `hpMorningGo`=today when the morning really begins (auto group run /
+  no-guest result); `pendingCheck` (every min) re-runs `morningRun(true)` while it is unset, 3 tries (`hpMorningTry`), until
+  morning time + 4 h, BEFORE new-guest fetches. Same morning in profile Lộc: Booking signed out overnight and the
+  Tampermonkey script did not fill the sign-in page in the background tab (cause unknown) → waited for the owner.
