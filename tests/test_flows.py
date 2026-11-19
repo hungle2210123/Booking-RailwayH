@@ -231,7 +231,7 @@ def test_pending_new_guests(client, db, app_module, throwaway, monkeypatch):
             VALUES (:at, :m, 'last', :b, :p, '', :d, 'ZZ TEST', TRUE)"""), {'m': 'zz-' + bid, 'b': bid, 'p': hid[1], 'd': today,
                                                                 'at': app_module._vn_now()})   # mails are stored in VN time
         db.session.commit()
-        take = lambda hotels: client.post('/api/ext/pending', json={'hotels': hotels, 'take': True}, headers=hdr).get_json()['items']
+        take = lambda hotels: client.post('/api/ext/pending', json={'hotels': hotels, 'take': True, 'pid': 'zz-new'}, headers=hdr).get_json()['items']
         assert not [i for i in take(['1']) if i['bid'] == bid]                  # another account's properties
         got = [i for i in take([hid[0]]) if i['bid'] == bid]
         assert got and got[0]['hotel_id'] == hid[0]
@@ -245,10 +245,9 @@ def test_pending_new_guests(client, db, app_module, throwaway, monkeypatch):
         n0 = len(sent)
         client.post('/api/ext/pending', headers=hdr, json={'action': 'report', 'ok': [bid], 'bad': [], 'account': '18 Hàng Bè'})
         assert len(sent) == n0
-        assert not [i for i in take([hid[0]]) if i['bid'] == bid]                 # not before 10 minutes
-        db.session.execute(text("UPDATE mail_alerts SET at = at - interval '15 minutes' WHERE mail_id = :m"), {'m': 'zz-' + bid})
-        db.session.commit()
-        got = [i for i in take([hid[0]]) if i['bid'] == bid]
+        assert not [i for i in take([hid[0]]) if i['bid'] == bid]                 # same profile: not before 30 min
+        # another Chrome profile (the old one, where Booking shows phones) takes it at once, even without that hotel listed
+        got = [i for i in client.post('/api/ext/pending', json={'hotels': [], 'take': True, 'pid': 'zz-old'}, headers=hdr).get_json()['items'] if i['bid'] == bid]
         assert got and got[0]['retry']
         db.session.execute(text("UPDATE mail_alerts SET fetch_tries = 3 WHERE mail_id = :m"), {'m': 'zz-' + bid})
         db.session.commit()

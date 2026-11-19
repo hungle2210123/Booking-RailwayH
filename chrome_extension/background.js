@@ -195,7 +195,11 @@ async function pendingCheck() {
   const hotels = st.hpHotels || [];
   if (!hotels.length) return;
   let r;
-  try { r = await apiCall('/api/ext/pending', { hotels, take: true, account: st.hpAccount || '' }); } catch (e) { return; }
+  // 1.43: this Chrome profile's own id — a guest saved WITHOUT a phone here is retried by ANOTHER profile at once
+  // (owner Nov 19: Booking shows phone numbers only in the old profile 'Lộc', not in a new one)
+  let { hpPid } = await chrome.storage.local.get('hpPid');
+  if (!hpPid) { hpPid = crypto.randomUUID(); await chrome.storage.local.set({ hpPid }); }
+  try { r = await apiCall('/api/ext/pending', { hotels, take: true, account: st.hpAccount || '', pid: hpPid }); } catch (e) { return; }
   if (!r?.items?.length) return;
   stayAwake(20);
   // 1.42 (owner Nov 19): a retry (the phone did not show in a hidden tab) opens in a VISIBLE window so Booking draws it

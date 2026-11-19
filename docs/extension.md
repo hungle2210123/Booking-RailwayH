@@ -173,3 +173,7 @@ No secrets in the folder (the token field is empty by default). Test `test_exten
   the fetch tab runs hidden (1.37) — Booking may not draw the revealed number there. Now a fetch saved without a phone is
   NOT reported: `/api/ext/pending` report clears `fetched_at`, `_pending_rows` retries it 10 min × tries later (3 tries),
   `items[].retry` → background opens a VISIBLE focused window. Zalo only when the phone is there or after the 3rd try.
+- 1.43 (owner, Nov 19: "profile mới không hiển thị được số điện thoại — chỉ profile cũ"): each Chrome profile sends its
+  own id (`hpPid`, background.js) to `/api/ext/pending`; a guest saved WITHOUT a phone is offered at once to ANOTHER
+  profile (no hotel filter — the old profile 'Lộc' opens every property), the same profile only 30 min later
+  (`_pending_rows` p17, columns `fetch_pids`, `fetch_at`). Copying Booking cookies between profiles = refused (login).

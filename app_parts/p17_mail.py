@@ -25,7 +25,9 @@ def _mail_ensure(_xdb):
         id SERIAL PRIMARY KEY, at TIMESTAMP NOT NULL, mail_id VARCHAR(80) UNIQUE, kind VARCHAR(10) NOT NULL,
         booking_id VARCHAR(20), prop TEXT, apt VARCHAR(10), day DATE, subject TEXT, seen BOOLEAN NOT NULL DEFAULT FALSE)"""))
     # 💬 guest messages (kind 'msg') · 📥 new guests fetched by the PC later in the day (fetch_tries / fetched_at)
-    for col in ('guest TEXT', 'body TEXT', 'co DATE', 'fetch_tries INT NOT NULL DEFAULT 0', 'fetched_at TIMESTAMP'):
+    # fetch_pids / fetch_at (Nov 19): which Chrome profiles already tried a new guest, and when the last one took it
+    for col in ('guest TEXT', 'body TEXT', 'co DATE', 'fetch_tries INT NOT NULL DEFAULT 0', 'fetched_at TIMESTAMP',
+                'fetch_pids TEXT', 'fetch_at TIMESTAMP'):
         _xdb.session.execute(text(f"ALTER TABLE mail_alerts ADD COLUMN IF NOT EXISTS {col}"))
     _xdb.session.commit()
     _MAIL_READY = True
@@ -500,19 +502,35 @@ def ext_morning():
 # opens that reservation, reveals the phone, saves (→ mail_fetched), then /api/ext/pending {action:'report'} → ONE Zalo
 # line. Works while the PC is awake with Chrome open (owner: no extra wake-ups — "Zalo tự báo mà"); a sleeping PC
 # fetches when it wakes. Only guests ARRIVING TODAY (later days = the morning run of that day). 3 tries max.
-def _pending_rows(_xdb):
+def _pending_rows(_xdb, pid='', hotels=()):
+    """Guests this Chrome profile should fetch now. 1st try: a profile whose Booking account has the hotel. A RETRY
+    (saved but no phone — owner, Nov 19: a NEW Chrome profile is not allowed to see phone numbers on Booking) goes at
+    once to ANOTHER profile (the old one, 'Lộc', can open every property); the same profile again only 30 min later."""
     _mail_ensure(_xdb)
+    now = _vn_now()
+    out = []
+    for r in _pending_query(_xdb):
+        tries, pids, last = r[2] or 0, [x for x in (r[4] or '').split(',') if x], r[5]
+        if tries == 0:
+            ok = bool(r[3]) and r[3] in hotels
+        else:
+            ok = (pid and pid not in pids) or (last is None or last < now - timedelta(minutes=30))
+        if ok:
+            out.append(r)
+    return out
+
+
+def _pending_query(_xdb):
     return _xdb.session.execute(text("""
-        SELECT m.booking_id, MAX(m.prop), MIN(COALESCE(m.fetch_tries, 0)), MAX(p.hotel_id) FROM mail_alerts m
+        SELECT m.booking_id, MAX(m.prop), MIN(COALESCE(m.fetch_tries, 0)), MAX(p.hotel_id), MAX(m.fetch_pids), MAX(m.fetch_at)
+        FROM mail_alerts m
         LEFT JOIN booking_properties p ON lower(p.name) = lower(m.prop)
         WHERE m.kind IN ('last', 'new') AND m.day = :d AND m.booking_id <> '' AND m.fetched_at IS NULL
           AND COALESCE(m.fetch_tries, 0) < 3
-          -- a retry (no phone yet) waits 10 min per earlier try (owner, Nov 19: saved without the phone, never tried again)
-          AND m.at < :now - COALESCE(m.fetch_tries, 0) * interval '10 minutes'
           AND NOT EXISTS (SELECT 1 FROM mail_alerts c WHERE c.kind = 'cancel' AND c.booking_id = m.booking_id)
           AND NOT EXISTS (SELECT 1 FROM bookings b JOIN guests g ON g.guest_id = b.guest_id
                           WHERE b.booking_id = m.booking_id AND COALESCE(g.phone, '') <> '')
-        GROUP BY m.booking_id ORDER BY m.booking_id"""), {'d': _vn_now().date(), 'now': _vn_now()}).fetchall()
+        GROUP BY m.booking_id ORDER BY m.booking_id"""), {'d': _vn_now().date()}).fetchall()
 
 
 def mail_fetched(bid):
@@ -566,10 +584,12 @@ def ext_pending():
         mail_notify(_xdb, f"{icon} {acc} · {now.hour}:{now.minute:02d} · khách mới\n" + '\n'.join(lines))
         return jsonify({'success': True})
     hotels = {str(h) for h in (d.get('hotels') or []) if str(h).isdigit()}
-    items = [{'bid': r[0], 'prop': r[1] or '', 'hotel_id': r[3], 'retry': bool(r[2])} for r in _pending_rows(_xdb) if r[3] and r[3] in hotels]
+    pid = re.sub(r'[^\w-]', '', str(d.get('pid') or ''))[:40]
+    items = [{'bid': r[0], 'prop': r[1] or '', 'hotel_id': r[3], 'retry': bool(r[2])} for r in _pending_rows(_xdb, pid, hotels) if r[3]]
     if items and d.get('take'):
-        _xdb.session.execute(text("""UPDATE mail_alerts SET fetch_tries = COALESCE(fetch_tries, 0) + 1
-            WHERE booking_id = ANY(:b) AND fetched_at IS NULL"""), {'b': [i['bid'] for i in items]})
+        _xdb.session.execute(text("""UPDATE mail_alerts SET fetch_tries = COALESCE(fetch_tries, 0) + 1, fetch_at = :now,
+                fetch_pids = CASE WHEN :pid = '' THEN fetch_pids ELSE concat_ws(',', NULLIF(fetch_pids, ''), :pid) END
+            WHERE booking_id = ANY(:b) AND fetched_at IS NULL"""), {'b': [i['bid'] for i in items], 'now': _vn_now(), 'pid': pid})
         _xdb.session.commit()
     return jsonify({'success': True, 'items': items})
 
