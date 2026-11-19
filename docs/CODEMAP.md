@@ -601,7 +601,7 @@ _p17_mail — 📧 Booking.com e-mails → the app (owner, Nov 12: "khi nhận �
 
 # Templates (inline JS functions)
 
-## templates/desk.html (1316 lines)
+## templates/desk.html (1335 lines)
 - templates/desk.html: 307 `load` · 320 `loadRev` · 333 `needRev` · 351 `D.tab` · 352 `D.set` · 353 `D.q` · 354 `D.reload` · 356 `D.shift`
 - templates/desk.html: 362 `D.toToday` · 363 `D.open` · 364 `D.openDay` · 365 `D.close` · 366 `closeDrawer` · 367 `D.closeModal` · 370 `D.place` · 375 `D.room`
 - templates/desk.html: 382 `D.confirm` · 415 `D.zbotResend` · 422 `D.cleanCopy` · 423 `D.cancel` · 429 `D.mark` · 433 `D.status` · 437 `D.dayuse` · 441 `D.unreach`
@@ -611,7 +611,7 @@ _p17_mail — 📧 Booking.com e-mails → the app (owner, Nov 12: "khi nhận �
 - templates/desk.html: 584 `D.remSave` · 591 `D.remDone` · 595 `D.add` · 596 `D.addSave` · 611 `render` · 620 `renderSide` · 642 `renderTop` · 671 `viewToday`
 - templates/desk.html: 730 `dayCard` · 762 `viewDay` · 819 `D.uncancel` · 828 `viewCal` · 951 `renderPick` · 959 `viewMsg` · 999 `viewPay` · 1039 `D.payQuick`
 - templates/desk.html: 1045 `viewRev` · 1116 `D.revMonth` · 1117 `D.revDay` · 1118 `D.goDay` · 1119 `drawRevCharts` · 1142 `renderDrawer` · 1148 `guestCard` · 1208 `dayPanel`
-- templates/desk.html: 1229 `renderModal` · 1300 `D.mset` · 1301 `D.extOpen`
+- templates/desk.html: 1229 `renderModal` · 1319 `D.mset` · 1320 `D.extOpen`
 
 ## templates/journey_settings.html (231 lines)
 - templates/journey_settings.html: 79 `load` · 88 `renderButtons` · 141 `options` · 151 `rowHtml` · 165 `render` · 178 `bind` · 210 `shrink`

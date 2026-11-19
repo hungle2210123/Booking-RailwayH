@@ -43,7 +43,15 @@ HAI TÀI KHOẢN BOOKING (hoặc nhiều hơn)
     Tự đăng nhập, đăng nhập Booking tài khoản 2 một lần.
   • Bấm biểu tượng Hotel Pro ở MỖI hồ sơ → "Tài khoản Booking của hồ sơ Chrome này": đặt Tên (vd 18 Hàng Bè / 19 Thọ Nhuộm)
     và Giờ tự chạy LỆCH nhau (07:00 và 07:30) → chạy lần lượt, tin Zalo ghi rõ tài khoản nào.
-  • Lịch đánh thức mở cả 2 hồ sơ:  ... mo-may-buoi-sang.ps1 -CaiDat -ChromeProfile "Default,Booking2"
+  • Lịch đánh thức mở cả 2 hồ sơ:  ... mo-may-buoi-sang.ps1 -CaiDat -ChromeProfile "Default,Profile 27"
+    (tên THƯ MỤC hồ sơ; máy này 19/11/2026: Default = Lộc = Thọ Nhuộm, Profile 27 = NgoTri = 3 căn kia)
+  • Mở trang tổng quan Booking một lần trong mỗi hồ sơ → tiện ích tự nhận các căn của tài khoản đó.
+
+ĐỔI TÀI KHOẢN TỰ ĐĂNG NHẬP
+  • Mở trang đăng nhập Booking trong hồ sơ cần đổi, F5 → biểu tượng Tampermonkey → mũi tên › cạnh "Tự động đăng nhập"
+    → "🔑 Đổi tài khoản của booking.com" → gõ tài khoản mới.
+  • Tên script mờ = chưa chạy ở tab đó: F5, hoặc chrome://extensions → Tampermonkey → Chi tiết → bật "Cho phép tập lệnh
+    người dùng" (Allow User Scripts).
 
 MÁY MỞ 24/7 + CHROME TỰ CHẠY (khuyên dùng với máy bàn)
   • Để máy chạy luôn (không Ngủ, không Tắt), chỉ tắt màn hình. Tiền điện máy bàn ~100–200 nghìn/tháng.

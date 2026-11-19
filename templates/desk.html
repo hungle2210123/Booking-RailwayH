@@ -1273,6 +1273,25 @@ button.info.on{border-color:#0E1525;background:#fff}
           <li>Trang <b>Tampermonkey</b> vừa mở: <b>Thêm vào Chrome</b> → bấm nút dưới → <b>Cài đặt</b>.
             Lần đầu Booking đòi đăng nhập, script hỏi email + mật khẩu 1 lần (chỉ lưu trên máy đó).</li></ol>
         <a class="btn" style="width:100%;margin-top:10px;min-height:44px" href="/tu-dong-dang-nhap.user.js" target="_blank" rel="noopener">🔑 Cài script Tự đăng nhập</a>
+        <div class="sect">Thêm tài khoản Booking thứ 2 (cùng máy)</div>
+        <ol style="${OL}">
+          <li>Mỗi tài khoản Booking = <b>một hồ sơ (profile) Chrome riêng</b>. Mở Chrome bằng hồ sơ đó (bấm ảnh đại diện góc trên → chọn hồ sơ).</li>
+          <li><b>Tiện ích Hotel Pro</b>: chrome://extensions → bật <b>Chế độ nhà phát triển</b> → <b>Tải tiện ích đã giải nén</b> → chọn
+            <b>cùng thư mục</b> chrome_extension như hồ sơ kia (trong thư mục HotelPro). Ghim tiện ích (🧩 → 📌).</li>
+          <li><b>Tampermonkey</b>: Chrome Web Store → tìm Tampermonkey → Thêm vào Chrome → bấm nút <b>🔑 Cài script Tự đăng nhập</b> ở trên → Cài đặt.
+            Nếu script không chạy: chrome://extensions → Tampermonkey → Chi tiết → bật <b>Cho phép tập lệnh người dùng</b>.</li>
+          <li>Đăng nhập Booking bằng <b>tài khoản của hồ sơ này</b> một lần (script hỏi email + mật khẩu, chỉ lưu trên máy).</li>
+          <li>Bấm biểu tượng Hotel Pro trong hồ sơ → đặt <b>Tên tài khoản</b> (vd "3 căn" / "Thọ Nhuộm") và <b>Giờ tự chạy lệch nhau</b>
+            (07:00 và 07:30) → tin Zalo ghi rõ tài khoản nào.</li>
+          <li>Mở trang tổng quan Booking một lần → tiện ích tự nhận các căn của tài khoản đó.</li>
+          <li>Lệnh tự bật Chrome buổi sáng phải có cả 2 hồ sơ (tên THƯ MỤC hồ sơ, vd <b>Default</b>, <b>Profile 27</b>) — nhờ Claude sửa
+            hoặc xem HUONG-DAN.txt.</li></ol>
+        <div class="sect">Đổi tài khoản Tự đăng nhập</div>
+        <ol style="${OL}">
+          <li>Mở <b>trang đăng nhập Booking</b> trong hồ sơ cần đổi, bấm F5.</li>
+          <li>Biểu tượng <b>Tampermonkey</b> → mũi tên <b>›</b> cạnh "Tự động đăng nhập" → <b>🔑 Đổi tài khoản của booking.com</b>.</li>
+          <li>Trang tải lại, hỏi tên đăng nhập + mật khẩu → gõ tài khoản mới. Tên script <b>mờ</b> = script chưa chạy ở tab đó → F5 hoặc bật
+            "Cho phép tập lệnh người dùng" như trên.</li></ol>
         <div class="sect">Tự cập nhật — không phải làm gì</div>
         <div style="font-size:13.5px;line-height:1.6;color:#334155">Mỗi giờ máy tự so với web, có bản mới thì tải về; tiện ích tự nạp lại trong 5 phút
           (không nạp lại giữa lúc đang lấy khách). Script Tự đăng nhập do Tampermonkey tự cập nhật.
