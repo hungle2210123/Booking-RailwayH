@@ -56,7 +56,9 @@ https://web-production-8f671.up.railway.app — **push straight to main** ("git 
   Owner guide: `tools/cai-dat/HUONG-DAN.txt` + /may-tinh sidebar "Bộ công cụ máy tính". Adding a tool = put it in
   `TOOL_PARTS` (p02) + Dockerfile COPY. PowerShell files with Vietnamese text: UTF-8 WITH BOM.
 - THIS PC: Chrome loads the extension straight from the repo's `chrome_extension/` (so edits apply after selfUpdate).
-  Chrome profile with the extension + Tampermonkey = folder `Default` ("Lộc"); "Profile 27" (NgoTri) also has the extension.
+  Profiles (owner swap, 19/11/2026): `Default` ("Lộc") = Booking account of **Thọ Nhuộm**; `Profile 27` ("NgoTri") =
+  the account of the **other 3 apartments** (needs Tampermonkey). `Booking2` (old "new profile") also has the extension — no longer
+  started by the tasks ("HotelPro Giu Chrome" / "Mo May 6h55" / "Thu Ngay" now `-ChromeProfile "Default,Profile 27"`).
 - Morning wake (owner 17/11/2026): `tools/cai-dat/mo-may-buoi-sang.ps1 -CaiDat` → Task "HotelPro Mo May 6h55" (WakeToRun,
   wake timers on AC) runs the script: SetThreadExecutionState keeps the PC awake 45 min (a timer-woken PC sleeps again
   after ~2 min), opens Chrome `--profile-directory=Default`. From SLEEP only; installed on this PC from %LOCALAPPDATA%\HotelPro.
