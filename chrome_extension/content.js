@@ -1379,8 +1379,11 @@
     const ids = new Set();
     const h = new URL(location.href).searchParams.get('hotel_id');
     if (h && /^\d{5,10}$/.test(h) && !/[?&]has_access=0/.test(location.href)) ids.add(h);
-    (groupProps() || []).forEach(p => p.id && ids.add(p.id));
-    if (ids.size) chrome.runtime.sendMessage({ type: 'hotels', ids: [...ids] }).catch(() => {});
+    const gp = groupProps() || [];
+    gp.forEach(p => p.id && ids.add(p.id));
+    // full = the group overview lists ALL properties of the signed-in account → it REPLACES the list (1.44: the owner
+    // swapped the Booking accounts of two profiles, Nov 19 — old properties must not stay)
+    if (ids.size) chrome.runtime.sendMessage({ type: 'hotels', ids: [...ids], full: gp.length > 0 }).catch(() => {});
   }
   setTimeout(learnHotels, 8000);
 

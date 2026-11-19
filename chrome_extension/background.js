@@ -145,6 +145,12 @@ chrome.tabs.onUpdated.addListener(async (tabId, info, tab) => {
   else chrome.tabs.update(tabId, { url: home });       // home page shows the "Khách đến" list
 });
 chrome.runtime.onInstalled.addListener(scheduleMorning);
+// 1.44 (owner Nov 19: the two profiles swapped Booking accounts): forget the learnt properties ONCE, relearnt from the
+// pages this profile opens next (overview / property home)
+chrome.runtime.onInstalled.addListener(async () => {
+  const { hpHotelsReset } = await chrome.storage.local.get('hpHotelsReset');
+  if (hpHotelsReset !== '1.44') await chrome.storage.local.set({ hpHotels: [], hpHotelsReset: '1.44' });
+});
 chrome.runtime.onStartup.addListener(() => { scheduleMorning(); setTimeout(morningRun, 60000); });   // + watchdog below
 // ── 🔄 Tự nạp lại khi file trên đĩa đổi (1.29, owner 17/11/2026: "cập nhật là đồng bộ theo luôn") ──────────────
 // Main PC: Chrome loads the extension straight from the project folder (git changes it). Other PCs: the hourly task
@@ -265,8 +271,8 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (msg?.type === 'logout-loop') { logoutLoop(sender.tab).then(sendResponse); return true; }
   if (msg?.type === 'hotels') {                       // the properties of this profile's Booking account
     chrome.storage.local.get('hpHotels').then(({ hpHotels }) => {
-      const all = [...new Set([...(hpHotels || []), ...(msg.ids || [])])].slice(-30);
-      if (all.length !== (hpHotels || []).length) chrome.storage.local.set({ hpHotels: all });
+      const all = msg.full ? [...new Set(msg.ids || [])].slice(-30) : [...new Set([...(hpHotels || []), ...(msg.ids || [])])].slice(-30);
+      if (all.join() !== (hpHotels || []).join()) chrome.storage.local.set({ hpHotels: all });
     });
     return false;
   }

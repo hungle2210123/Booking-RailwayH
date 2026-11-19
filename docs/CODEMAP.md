@@ -593,11 +593,11 @@ _p17_mail — 📧 Booking.com e-mails → the app (owner, Nov 12: "khi nhận �
 - chrome_extension/content.js: 747 `drawAi` · 782 `stopMic` · 783 `toggleMic` · 825 `prepareShot` · 901 `finishShot` · 955 `cancelShot` · 963 `restoreFloating` · 1009 `guestLinks`
 - chrome_extension/content.js: 1043 `groupTable` · 1056 `groupProps` · 1095 `numUnder` · 1117 `arrivalsToday` · 1153 `startGroup` · 1167 `stopGroup` · 1178 `showGroupDone` · 1189 `groupStep`
 - chrome_extension/content.js: 1222 `refreshRunBtn` · 1277 `startRun` · 1301 `finishRun` · 1316 `showRunDone` · 1326 `withSes` · 1333 `logoutLoop` · 1350 `fetchJob` · 1377 `learnHotels`
-- chrome_extension/content.js: 1387 `runStep` · 1461 `autoMorning`
+- chrome_extension/content.js: 1390 `runStep` · 1464 `autoMorning`
 
 ## chrome_extension/background.js
 - chrome_extension/background.js: 6 `settings` · 30 `shoot` · 61 `morningTime` · 66 `scheduleMorning` · 75 `stayAwake` · 82 `openTab` · 91 `morningRun` · 107 `checkSignedOut`
-- chrome_extension/background.js: 118 `signedOutAlert` · 153 `selfUpdate` · 169 `apiCall` · 178 `pendingCheck` · 215 `logoutLoop` · 222 `cookieReset`
+- chrome_extension/background.js: 118 `signedOutAlert` · 159 `selfUpdate` · 175 `apiCall` · 184 `pendingCheck` · 221 `logoutLoop` · 228 `cookieReset`
 
 # Templates (inline JS functions)
 

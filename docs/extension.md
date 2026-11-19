@@ -177,3 +177,7 @@ No secrets in the folder (the token field is empty by default). Test `test_exten
   own id (`hpPid`, background.js) to `/api/ext/pending`; a guest saved WITHOUT a phone is offered at once to ANOTHER
   profile OF THE SAME BOOKING ACCOUNT (hotel in its hpHotels — owner: Thọ Nhuộm is a separate account, a profile never switches accounts), the same profile only 30 min later
   (`_pending_rows` p17, columns `fetch_pids`, `fetch_at`). Copying Booking cookies between profiles = refused (login).
+- 1.44 (owner, Nov 19: swapped accounts — profile NgoTri ("Profile 27") = the 3 apartments, profile Lộc ("Default") = Thọ
+  Nhuộm; both profiles were used long with those accounts, so Booking shows phones): `hpHotels` is cleared once
+  (`hpHotelsReset`) and relearnt; the group overview REPLACES the list (`hotels` message `full`). Tampermonkey credentials
+  + popup "Tên tài khoản" are per profile — the owner changes them.
