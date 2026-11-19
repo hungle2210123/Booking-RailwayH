@@ -507,10 +507,12 @@ def _pending_rows(_xdb):
         LEFT JOIN booking_properties p ON lower(p.name) = lower(m.prop)
         WHERE m.kind IN ('last', 'new') AND m.day = :d AND m.booking_id <> '' AND m.fetched_at IS NULL
           AND COALESCE(m.fetch_tries, 0) < 3
+          -- a retry (no phone yet) waits 10 min per earlier try (owner, Nov 19: saved without the phone, never tried again)
+          AND m.at < :now - COALESCE(m.fetch_tries, 0) * interval '10 minutes'
           AND NOT EXISTS (SELECT 1 FROM mail_alerts c WHERE c.kind = 'cancel' AND c.booking_id = m.booking_id)
           AND NOT EXISTS (SELECT 1 FROM bookings b JOIN guests g ON g.guest_id = b.guest_id
                           WHERE b.booking_id = m.booking_id AND COALESCE(g.phone, '') <> '')
-        GROUP BY m.booking_id ORDER BY m.booking_id"""), {'d': _vn_now().date()}).fetchall()
+        GROUP BY m.booking_id ORDER BY m.booking_id"""), {'d': _vn_now().date(), 'now': _vn_now()}).fetchall()
 
 
 def mail_fetched(bid):
@@ -543,7 +545,17 @@ def ext_pending():
         for bid in [str(x)[:20] for x in (d.get('ok') or [])][:8]:
             r = _xdb.session.execute(text("""SELECT b.guest_name, COALESCE(g.phone, '') FROM bookings b
                 LEFT JOIN guests g ON g.guest_id = b.guest_id WHERE b.booking_id = :b"""), {'b': bid}).fetchone()
-            lines.append(f"{(r[0] if r else '') or bid} · {'có SĐT' if r and r[1] else 'chưa thấy SĐT'}")
+            if not (r and r[1]):
+                # saved but no phone (Nov 19: hidden tab) → try again in 10 min in a VISIBLE window; Zalo only at the last try
+                tries = _xdb.session.execute(text("SELECT MAX(COALESCE(fetch_tries, 0)) FROM mail_alerts WHERE booking_id = :b"),
+                                             {'b': bid}).scalar() or 0
+                if tries < 3:
+                    _xdb.session.execute(text("UPDATE mail_alerts SET fetched_at = NULL WHERE booking_id = :b"), {'b': bid})
+                    _xdb.session.commit()
+                    continue
+                lines.append(f"{(r[0] if r else '') or bid} · chưa thấy SĐT (đã thử 3 lần) — mở Booking lấy số giúp")
+                continue
+            lines.append(f"{r[0] or bid} · có SĐT")
         lines += [f"Chưa lấy được {b.get('bid')} ({str(b.get('why') or '')[:50]})" for b in bad]
         note = str(d.get('note') or '').strip()[:220]
         if note and not note.startswith('✅'):
@@ -554,7 +566,7 @@ def ext_pending():
         mail_notify(_xdb, f"{icon} {acc} · {now.hour}:{now.minute:02d} · khách mới\n" + '\n'.join(lines))
         return jsonify({'success': True})
     hotels = {str(h) for h in (d.get('hotels') or []) if str(h).isdigit()}
-    items = [{'bid': r[0], 'prop': r[1] or '', 'hotel_id': r[3]} for r in _pending_rows(_xdb) if r[3] and r[3] in hotels]
+    items = [{'bid': r[0], 'prop': r[1] or '', 'hotel_id': r[3], 'retry': bool(r[2])} for r in _pending_rows(_xdb) if r[3] and r[3] in hotels]
     if items and d.get('take'):
         _xdb.session.execute(text("""UPDATE mail_alerts SET fetch_tries = COALESCE(fetch_tries, 0) + 1
             WHERE booking_id = ANY(:b) AND fetched_at IS NULL"""), {'b': [i['bid'] for i in items]})

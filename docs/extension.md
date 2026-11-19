@@ -169,3 +169,7 @@ No secrets in the folder (the token field is empty by default). Test `test_exten
   no-guest result); `pendingCheck` (every min) re-runs `morningRun(true)` while it is unset, 3 tries (`hpMorningTry`), until
   morning time + 4 h, BEFORE new-guest fetches. Same morning in profile Lộc: Booking signed out overnight and the
   Tampermonkey script did not fill the sign-in page in the background tab (cause unknown) → waited for the owner.
+- 1.42 (owner, Nov 19: two new guests saved WITHOUT phone at 16:09/16:13, Zalo "chưa thấy SĐT", nothing visible on the PC):
+  the fetch tab runs hidden (1.37) — Booking may not draw the revealed number there. Now a fetch saved without a phone is
+  NOT reported: `/api/ext/pending` report clears `fetched_at`, `_pending_rows` retries it 10 min × tries later (3 tries),
+  `items[].retry` → background opens a VISIBLE focused window. Zalo only when the phone is there or after the 3rd try.

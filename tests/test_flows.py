@@ -228,7 +228,8 @@ def test_pending_new_guests(client, db, app_module, throwaway, monkeypatch):
     bid, today = throwaway(), (datetime.utcnow() + timedelta(hours=7)).date()
     try:
         db.session.execute(text("""INSERT INTO mail_alerts (at, mail_id, kind, booking_id, prop, apt, day, subject, seen)
-            VALUES (NOW(), :m, 'last', :b, :p, '', :d, 'ZZ TEST', TRUE)"""), {'m': 'zz-' + bid, 'b': bid, 'p': hid[1], 'd': today})
+            VALUES (:at, :m, 'last', :b, :p, '', :d, 'ZZ TEST', TRUE)"""), {'m': 'zz-' + bid, 'b': bid, 'p': hid[1], 'd': today,
+                                                                'at': app_module._vn_now()})   # mails are stored in VN time
         db.session.commit()
         take = lambda hotels: client.post('/api/ext/pending', json={'hotels': hotels, 'take': True}, headers=hdr).get_json()['items']
         assert not [i for i in take(['1']) if i['bid'] == bid]                  # another account's properties
@@ -240,8 +241,19 @@ def test_pending_new_guests(client, db, app_module, throwaway, monkeypatch):
             'room_amount': 500000, 'listing': 'Studio Test Room'})
         assert r.get_json()['success']
         assert not [i for i in take([hid[0]]) if i['bid'] == bid]
+        # owner, Nov 19: saved WITHOUT the phone → no Zalo yet, tried again 10 min later (retry = visible window)
+        n0 = len(sent)
         client.post('/api/ext/pending', headers=hdr, json={'action': 'report', 'ok': [bid], 'bad': [], 'account': '18 Hàng Bè'})
-        assert sent[-1].startswith('⚠️ 18 Hàng Bè') and 'Test Guest' in sent[-1] and 'chưa thấy SĐT' in sent[-1]
+        assert len(sent) == n0
+        assert not [i for i in take([hid[0]]) if i['bid'] == bid]                 # not before 10 minutes
+        db.session.execute(text("UPDATE mail_alerts SET at = at - interval '15 minutes' WHERE mail_id = :m"), {'m': 'zz-' + bid})
+        db.session.commit()
+        got = [i for i in take([hid[0]]) if i['bid'] == bid]
+        assert got and got[0]['retry']
+        db.session.execute(text("UPDATE mail_alerts SET fetch_tries = 3 WHERE mail_id = :m"), {'m': 'zz-' + bid})
+        db.session.commit()
+        client.post('/api/ext/pending', headers=hdr, json={'action': 'report', 'ok': [bid], 'bad': [], 'account': '18 Hàng Bè'})
+        assert sent[-1].startswith('⚠️ 18 Hàng Bè') and 'Test Guest' in sent[-1] and 'chưa thấy SĐT (đã thử 3 lần)' in sent[-1]
         # 3 tries at most
         db.session.execute(text("UPDATE mail_alerts SET fetched_at = NULL, fetch_tries = 3 WHERE mail_id = :m"), {'m': 'zz-' + bid})
         db.session.commit()

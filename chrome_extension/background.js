@@ -198,7 +198,10 @@ async function pendingCheck() {
   try { r = await apiCall('/api/ext/pending', { hotels, take: true, account: st.hpAccount || '' }); } catch (e) { return; }
   if (!r?.items?.length) return;
   stayAwake(20);
-  const tab = await openTab(GROUP_URL, false);
+  // 1.42 (owner Nov 19): a retry (the phone did not show in a hidden tab) opens in a VISIBLE window so Booking draws it
+  let tab = null;
+  if (r.items.some(i => i.retry)) { try { tab = (await chrome.windows.create({ url: GROUP_URL, focused: true, state: 'normal' })).tabs[0]; } catch (e) {} }
+  if (!tab) tab = await openTab(GROUP_URL, false);
   await chrome.storage.local.set({ hpFetch: { at: Date.now(), tabId: tab.id, items: r.items } });
   setTimeout(() => checkSignedOut(tab.id), 25000);
 }
