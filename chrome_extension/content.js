@@ -364,8 +364,6 @@
         ${list.map(([it, i]) => rowHtml(it, i, on)).join('')}</div>`;
     }).join('');
     const toSave = items.filter(it => it.action === 'new' || it.action === 'changed').length;
-    // 💬 Hỏi thăm (owner, Nov 19): every guest of this table who is not cancelled
-    const askable = items.filter(it => it.status !== 'cancelled' && it.action !== 'skip_cancelled' && it.booking_id);
     panel.innerHTML = `
       <h3>📋 ${items.length} booking trong bảng</h3>
       <p class="hint">Tích các booking muốn lưu. Booking <b>Đã hủy</b> trên Booking sẽ được đánh dấu hủy trên web.
@@ -375,8 +373,6 @@
         <button class="close" id="b_close" type="button">Đóng</button>
         <button class="save" id="b_save" type="button" ${toSave ? '' : 'disabled'}>💾 Lưu ${toSave} booking</button>
       </div>
-      ${askable.length ? `<div class="row"><button class="save" id="b_ask" type="button" style="background:#0f172a">💬 Hỏi thăm ${askable.length} khách này</button></div>
-      <p class="hint" style="margin-top:6px">Lưu các khách trong bảng rồi mở web: mục <b>Đã trả phòng</b> chỉ hiện đúng ${askable.length} khách này, mỗi khách có tin mẫu điền sẵn tên.</p>` : ''}
       <div class="msg" id="msg"></div>`;
     panel.classList.add('open');
     $('#b_close').onclick = () => panel.classList.remove('open');
@@ -386,23 +382,6 @@
       btn.textContent = `💾 Lưu ${n} booking`; btn.disabled = !n;
     };
     root.querySelectorAll('.li input').forEach(c => c.addEventListener('change', recount));
-    const ask = $('#b_ask');
-    if (ask) ask.onclick = async () => {
-      const msg = $('#msg'); ask.disabled = true; msg.className = 'msg';
-      const fresh = askable.filter(it => it.action === 'new' || it.action === 'changed');
-      if (fresh.length) {                 // guests not on the web yet are saved first, so they show up there
-        msg.textContent = `Đang lưu ${fresh.length} booking...`;
-        const s = await api('/api/ext/booking/save_many', { items: fresh.map(it => ({ ...it, cancelled: false })) });
-        if (!s?.success) { ask.disabled = false; msg.className = 'msg err'; msg.textContent = '❌ ' + (s?.error || 'Lỗi không rõ'); return; }
-      }
-      msg.textContent = 'Đang gửi danh sách...';
-      const r = await api('/api/ext/out_list', { ids: [...new Set(askable.map(it => String(it.booking_id).split('-')[0]))] });
-      ask.disabled = false;
-      if (!r?.success) { msg.className = 'msg err'; msg.textContent = '❌ ' + (r?.error || 'Lỗi không rõ'); return; }
-      msg.className = 'msg ok';
-      msg.innerHTML = `✅ Đã gửi ${r.n} khách. Mở <b>Nhắn khách › Đã trả phòng</b> trên điện thoại hoặc <a href="${esc(r._server)}/moi?hoitham=1" target="_blank">mở trên máy này</a>.`;
-      window.open(r._server + '/moi?hoitham=1', '_blank');
-    };
     btn.onclick = async () => {
       const chosen = [...root.querySelectorAll('.li input:checked:not(:disabled)')].map(c => {
         const it = items[+c.dataset.i];
@@ -1258,6 +1237,43 @@
     runBtn.style.display = n ? '' : 'none';
   }
   setInterval(refreshRunBtn, 2000);
+
+  // ── 💬 Hỏi thăm khách (owner, Nov 19 2026): its OWN button, separate from 📥 Gửi về Hotel Pro ──
+  // On a reservations list ("Mã số đặt phòng" table): one click = save guests the web does not have yet, send the
+  // booking numbers of this table (not cancelled) → /moi Nhắn khách › Đã trả phòng shows only these guests. Reads the page only.
+  const askBtn = document.createElement('button');
+  askBtn.className = 'fab'; askBtn.type = 'button'; askBtn.style.cssText = 'display:none;background:#7c3aed;margin-right:8px';
+  root.insertBefore(askBtn, $('#ai'));
+  let askBusy = false;
+  const askRows = () => { try { const l = captureList(); return l && (l.headers.some(isHeaderText) || l.rows.length >= 2) ? l : null; } catch (e) { return null; } };
+  setInterval(() => {
+    if (askBusy) return;
+    const l = !runGet() && !groupGet() && !resId() && guestLinks().length ? askRows() : null;
+    askBtn.style.display = l ? '' : 'none';
+    if (l) askBtn.textContent = `💬 Hỏi thăm khách (${l.rows.length})`;
+  }, 2000);
+  askBtn.addEventListener('click', async () => {
+    if (askBusy) return; askBusy = true;
+    try {
+      askBtn.textContent = '⏳ Đang đọc bảng...';
+      const l = askRows(); if (!l) { toast('❌ Không đọc được bảng đặt phòng trên trang này.', 'warn'); return; }
+      const r = await api('/api/ext/booking/parse', l);
+      if (!r?.success || r.mode !== 'list') { toast('❌ ' + esc(r?.error || 'Không đọc được bảng'), 'warn'); return; }
+      const items = (r.items || []).filter(it => it.status !== 'cancelled' && it.action !== 'skip_cancelled' && it.booking_id);
+      if (!items.length) { toast('Không có khách nào (tất cả đã hủy).', 'warn'); return; }
+      const fresh = items.filter(it => it.action === 'new' || it.action === 'changed');
+      if (fresh.length) {               // guests the web does not have yet are saved first, so they show up there
+        askBtn.textContent = `⏳ Đang lưu ${fresh.length} khách...`;
+        const sv = await api('/api/ext/booking/save_many', { items: fresh.map(it => ({ ...it, cancelled: false })) });
+        if (!sv?.success) { toast('❌ ' + esc(sv?.error || 'Không lưu được'), 'warn'); return; }
+      }
+      askBtn.textContent = '⏳ Đang gửi danh sách...';
+      const o = await api('/api/ext/out_list', { ids: [...new Set(items.map(it => String(it.booking_id).split('-')[0]))] });
+      if (!o?.success) { toast('❌ ' + esc(o?.error || 'Lỗi không rõ'), 'warn'); return; }
+      toast(`✅ Đã gửi ${o.n} khách → <b>Nhắn khách › Đã trả phòng</b> (điện thoại hoặc tab vừa mở).`, 'ok', 10000);
+      window.open(o._server + '/moi?hoitham=1', '_blank');
+    } finally { askBusy = false; askBtn.textContent = '💬 Hỏi thăm khách'; }
+  });
   function startRun(items) {
     runSet({ items, i: 0, back: location.href, log: [] });
     location.href = items[0].url;
