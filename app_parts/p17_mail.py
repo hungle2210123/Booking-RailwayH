@@ -10,7 +10,9 @@ import re as _re_m
 
 _MAIL_READY = False
 MAIL_KIND = {'last': '🆕 ĐẶT PHÒNG MỚI — PHÚT CUỐI', 'new': '🆕 ĐẶT PHÒNG MỚI', 'cancel': '❌ KHÁCH HỦY trên Booking',
-             'change': '✏️ Khách ĐỔI đặt phòng'}
+             'change': '✏️ Khách ĐỔI đặt phòng', 'cupd': '⚠️ CẬP NHẬT đặt phòng ĐÃ HỦY'}
+# owner, Nov 19: every cancellation mail (any arrival date) and every "Cập nhật về đặt phòng đã hủy …" goes to Zalo
+MAIL_ALWAYS = ('cancel', 'cupd')
 MAIL_MONTH = {'january': 1, 'february': 2, 'march': 3, 'april': 4, 'may': 5, 'june': 6, 'july': 7, 'august': 8,
               'september': 9, 'october': 10, 'november': 11, 'december': 12}
 
@@ -42,7 +44,8 @@ def mail_parse(subject, body=''):
     """A Booking.com mail → {kind, booking_id, day} or None when it is not about a new / cancelled / changed booking.
     Subjects seen (owner's phone, Nov 12): "Booking.com - Đặt phòng mới vào phút cuối (5052369462, Thứ Năm, 12 tháng 11, 2026)"."""
     s = _fold(subject or '')
-    kind = ('cancel' if _re_m.search(r'\bhuy\b|cancel', s) else
+    kind = ('cupd' if _re_m.search(r'cap nhat|update', s) and _re_m.search(r'\bhuy\b|cancel', s) else
+            'cancel' if _re_m.search(r'\bhuy\b|cancel', s) else
             'change' if _re_m.search(r'thay doi|chinh sua|sua doi|modif|changed', s) else
             'last' if _re_m.search(r'phut cuoi|last[- ]minute', s) and _re_m.search(r'dat phong|booking|reservation', s) else
             'new' if _re_m.search(r'dat phong moi|new booking|new reservation', s) else None)
@@ -63,7 +66,24 @@ def mail_parse(subject, body=''):
                 day = date(int(g[2]), mon, dd) if mon else None
     except ValueError:
         day = None
-    return {'kind': kind, 'booking_id': m.group(1) if m else '', 'day': day}
+    note = _re_m.search(r'\(([^()0-9]{3,80})\)\s*$', (subject or '').strip())   # "(đã đánh dấu vắng mặt)"
+    return {'kind': kind, 'booking_id': m.group(1) if m else '', 'day': day, 'note': note.group(1).strip() if note else ''}
+
+
+def mail_booking_line(_xdb, bid):
+    """Details of the booking from the app (owner, Nov 19: "báo cả mã số chi tiết"): guest, stay, apartment, money."""
+    if not bid:
+        return '', ''
+    r = _xdb.session.execute(text("""SELECT COALESCE(g.full_name, b.guest_name), b.checkin_date, b.checkout_date, b.room_amount,
+               b.actual_apartment, b.room_no FROM bookings b LEFT JOIN guests g ON g.guest_id = b.guest_id
+        WHERE b.booking_id = :b OR b.booking_id LIKE :p ORDER BY b.booking_id LIMIT 1"""), {'b': bid, 'p': bid + '-%'}).fetchone()
+    if not r:
+        return '', ''
+    ci, co = r[1], r[2]
+    stay = f"{ci.day}/{ci.month} → {co.day}/{co.month} ({max((co - ci).days, 1)} đêm)" if ci and co else ''
+    money = f"{int(r[3]):,}đ".replace(',', '.') if r[3] else ''
+    apt = str(r[4] or '').strip()
+    return ' · '.join(x for x in ['👤 ' + (r[0] or '').strip(), stay, (f'phòng {r[5]}' if r[5] else ''), money] if x and x != '👤 '), apt
 
 
 def _mail_date(s):
@@ -149,10 +169,13 @@ def mail_text(a, today):
         d = a['day']
         when = ' — đến HÔM NAY' if d == today else ' — đến NGÀY MAI' if d == today + timedelta(days=1) else f' — đến {d.day}/{d.month}'
     at = a.get('at')
-    verb = 'Hủy lúc' if a['kind'] == 'cancel' else 'Đổi lúc' if a['kind'] == 'change' else 'Đặt lúc'
+    verb = 'Hủy lúc' if a['kind'] == 'cancel' else 'Gửi lúc' if a['kind'] == 'cupd' else 'Đổi lúc' if a['kind'] == 'change' else 'Đặt lúc'
     made = (f"⏱ {verb} {at:%H:%M}" + (' hôm nay' if at.date() == today else ' hôm qua' if at.date() == today - timedelta(days=1)
                                      else f' ngày {at.day}/{at.month}')) if at else ''
-    return '\n'.join(x for x in [MAIL_KIND[a['kind']] + when, made, ' · '.join(x for x in [street, a.get('prop') or ''] if x),
+    note = a.get('note') or ''
+    if note and _re_m.search(r'vang mat|no.?show', _fold(note)):
+        note += ' — Booking: khách báo ĐÃ Ở, sẽ tính hoa hồng'
+    return '\n'.join(x for x in [MAIL_KIND[a['kind']] + when, (f'📌 {note}' if note else ''), a.get('detail') or '', made, ' · '.join(x for x in [street, a.get('prop') or ''] if x),
                                  f"Mã {a['booking_id']}" if a.get('booking_id') else ''] if x)
 
 
@@ -211,13 +234,16 @@ def mail_hook(token):
     if dup:
         return jsonify({'ok': True, 'dup': True})
     now = (p['day'] or today) == today
+    detail, b_apt = mail_booking_line(_xdb, p['booking_id'])
+    apt = apt or (b_apt if b_apt.isdigit() else '')
     _xdb.session.execute(text("""INSERT INTO mail_alerts (at, mail_id, kind, booking_id, prop, apt, day, subject, seen)
         VALUES (:at, :m, :k, :b, :p, :a, :d, :s, :seen)"""), {'at': at, 'm': mid, 'k': p['kind'], 'b': p['booking_id'],
                                                       'p': prop, 'a': apt, 'd': p['day'], 's': subject, 'seen': not now})
     _xdb.session.commit()
-    if not now:      # kept (for the record) but not announced: the guest does not arrive today
+    if not now and p['kind'] not in MAIL_ALWAYS:    # kept (for the record) but not announced: the guest does not arrive today
         return jsonify({'ok': True, 'kind': p['kind'], 'quiet': True})
-    msg = mail_text({'kind': p['kind'], 'booking_id': p['booking_id'], 'prop': prop, 'apt': apt, 'day': p['day'], 'at': at}, _vn_now().date())
+    msg = mail_text({'kind': p['kind'], 'booking_id': p['booking_id'], 'prop': prop, 'apt': apt, 'day': p['day'], 'at': at,
+                     'note': p.get('note'), 'detail': detail}, _vn_now().date())
     try:        # → the owner's Zalo = a notification on the iPhone
         mail_notify(_xdb, msg + '\nMở Booking để xem chi tiết.')
     except Exception as e:
@@ -233,23 +259,31 @@ def moi_mail_list():
     from core.models import db as _xdb
     _moi_ensure(); _mail_ensure(_xdb)
     start = _vn_now().replace(hour=0, minute=0, second=0, microsecond=0)
-    _xdb.session.execute(text("DELETE FROM mail_alerts WHERE at < :t"), {'t': start - timedelta(days=3)}); _xdb.session.commit()
+    # ❌ cancellation mails are kept for the whole month, until the 5th of the next month (owner, Nov 19)
+    keep = start.replace(day=1)
+    if start.day <= 5:
+        keep = (keep - timedelta(days=1)).replace(day=1)
+    _xdb.session.execute(text("""DELETE FROM mail_alerts WHERE at < :t AND (kind NOT IN ('cancel', 'cupd') OR at < :k)"""),
+                         {'t': start - timedelta(days=3), 'k': keep}); _xdb.session.commit()
     rows = _xdb.session.execute(text("""SELECT m.id, m.at, m.kind, m.booking_id, m.prop, m.apt, m.day, m.seen,
                EXISTS (SELECT 1 FROM bookings b WHERE b.booking_id = m.booking_id)
-               , m.guest, m.body, m.co
-        FROM mail_alerts m WHERE m.at > :t AND (m.day IS NULL OR m.day = m.at::date)      -- only same-day arrivals (owner)
-        ORDER BY m.at DESC LIMIT 200"""), {'t': start}).fetchall()
+               , m.guest, m.body, m.co, m.subject
+        FROM mail_alerts m WHERE (m.at > :t AND (m.day IS NULL OR m.day = m.at::date))     -- only same-day arrivals (owner)
+           OR (m.kind IN ('cancel', 'cupd') AND m.at >= :k)
+        ORDER BY m.at DESC LIMIT 300"""), {'t': start, 'k': keep}).fetchall()
     today = _vn_now().date()
     lab = lambda d: 'Hôm nay' if d == today else 'Hôm qua' if d == today - timedelta(days=1) else f'{MOI_WEEKDAY[d.weekday()].capitalize()} {d.day}/{d.month}'
     out = []
     for r in rows:
         d = r[6]
-        out.append({'id': r[0], 'kind': r[2], 'label': {'last': 'Phút chót', 'new': 'Đặt mới', 'cancel': 'Hủy', 'change': 'Đổi', 'msg': 'Tin khách'}[r[2]],
+        out.append({'id': r[0], 'kind': r[2], 'label': {'last': 'Phút chót', 'new': 'Đặt mới', 'cancel': 'Hủy', 'change': 'Đổi', 'msg': 'Tin khách', 'cupd': 'Cập nhật hủy'}.get(r[2], r[2]),
                     'guest': r[9] or '', 'text': r[10] or '', 'stay': ' → '.join(f'{x.day}/{x.month}' for x in (d, r[11]) if x),
                     'group': lab(r[1].date()), 'time': r[1].strftime('%H:%M'), 'booking_id': r[3] or '',
                     'place': MOI_STREET.get(int(r[5])) if (r[5] or '').isdigit() else '', 'prop': r[4] or '',
                     'arrive': '' if not d else 'hôm nay' if d == today else 'ngày mai' if d == today + timedelta(days=1) else f'{d.day}/{d.month}',
-                    'seen': bool(r[7]), 'in_app': bool(r[8])})
+                    'seen': bool(r[7]), 'in_app': bool(r[8]),
+                    'detail': mail_booking_line(_xdb, r[3])[0] if r[2] in MAIL_ALWAYS else '',
+                    'note': (mail_parse(r[12] or '') or {}).get('note', '') if r[2] == 'cupd' else ''})
     return jsonify({'success': True, 'mails': out, 'last': _zbot_get(_xdb, 'mail_last')})
 
 
@@ -277,7 +311,7 @@ def moi_mail_alerts():
         a = {'kind': r[2], 'booking_id': r[3] or '', 'prop': r[4] or '', 'apt': r[5] or '', 'day': r[6], 'at': r[1]}
         lines = mail_text(a, today).split('\n')
         out.append({'id': r[0], 'at': ('' if r[1].date() == today else f'{r[1].day}/{r[1].month} ') + r[1].strftime('%H:%M'),
-                    'kind': r[2], 'bad': r[2] == 'cancel', 'title': lines[0], 'lines': lines[1:]})
+                    'kind': r[2], 'bad': r[2] in MAIL_ALWAYS, 'title': lines[0], 'lines': lines[1:]})
     return jsonify({'success': True, 'alerts': out})
 
 

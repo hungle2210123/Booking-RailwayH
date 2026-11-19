@@ -72,10 +72,11 @@ def test_bo_cong_cu_zip(client):
 
 
 def test_mail_list_today_only(client):
-    """Owner, Nov 13: the Booking-mail list shows only today's mails; past days are gone."""
+    """Owner, Nov 13: the Booking-mail list shows only today's mails; past days are gone. Nov 19: except ❌ Hủy and
+    ⚠️ Cập nhật hủy, kept until the 5th of the next month."""
     j = client.get('/api/moi/mail_list').get_json()
     assert j['success']
-    assert all(m['group'] == 'Hôm nay' for m in j['mails'])
+    assert all(m['group'] == 'Hôm nay' for m in j['mails'] if m['kind'] not in ('cancel', 'cupd'))
 
 
 def test_moi_quick_cancel_and_cancelled_list(client):

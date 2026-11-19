@@ -721,7 +721,9 @@ def test_booking_mail_alert(app, db, client, monkeypatch):
     monkeypatch.setattr(appmod, '_zbot2_call', lambda *_a, **_k: {'ok': False, 'description': 'test'})
     monkeypatch.setattr(appmod, '_zbot2_token', lambda _x: '')
     p = appmod.mail_parse('Booking.com - Đặt phòng mới vào phút cuối (5052369462, Thứ Năm, 12 tháng 11, 2026)')
-    assert p == {'kind': 'last', 'booking_id': '5052369462', 'day': date(2026, 11, 12)}
+    assert p == {'kind': 'last', 'booking_id': '5052369462', 'day': date(2026, 11, 12), 'note': ''}
+    q = appmod.mail_parse('Cập nhật về đặt phòng đã hủy 5295269423 (đã đánh dấu vắng mặt)')   # owner, Nov 19
+    assert q['kind'] == 'cupd' and q['booking_id'] == '5295269423' and q['note'] == 'đã đánh dấu vắng mặt'
     assert appmod.mail_parse('Booking.com - Đặt phòng mới! (5052369999, Thứ Sáu, 13 tháng 11, 2026)')['kind'] == 'new'
     assert appmod.mail_parse('Booking.com - New booking! (5052369999, Friday, 13 November 2026)')['day'] == date(2026, 11, 13)
     assert appmod.mail_parse('Booking.com - Đặt phòng bị hủy (5052369999, Thứ Sáu, 13 tháng 11, 2026)')['kind'] == 'cancel'
@@ -763,6 +765,31 @@ def test_booking_mail_alert(app, db, client, monkeypatch):
                     db.session.execute(appmod.text("DELETE FROM moi_settings WHERE key = :k"), {'k': k}); db.session.commit()
                 else:
                     appmod._zbot_put(db, k, v)
+
+
+def test_cancel_mails_always_to_zalo_and_kept(app, db, client, monkeypatch):
+    """Owner, Nov 19: cancellations of PAST arrivals were silent, and "Cập nhật về đặt phòng đã hủy … (đã đánh dấu vắng mặt)"
+    was taken for a duplicate → every cancel / cancel-update mail goes to Zalo with the booking's details, and stays in
+    the app's ❌ Hủy list (whole month, until the 5th of next month)."""
+    import app as appmod
+    sent = []
+    monkeypatch.setattr(appmod, 'mail_notify', lambda _x, msg: sent.append(msg))
+    with app.app_context():
+        tok = appmod._mail_token(db)
+    try:
+        r = client.post('/api/mail-hook/' + tok, json={'id': 'zz-mail-c1', 'subject': 'Booking.com - Đặt phòng đã hủy! (9990077002, Thứ Ba, 3 tháng 11, 2026)'}).get_json()
+        assert r['kind'] == 'cancel' and not r.get('quiet')
+        r = client.post('/api/mail-hook/' + tok, json={'id': 'zz-mail-c2', 'subject': 'Cập nhật về đặt phòng đã hủy 9990077002 (đã đánh dấu vắng mặt)'}).get_json()
+        assert r['kind'] == 'cupd' and not r.get('dup')
+        assert len(sent) == 2 and sent[0].startswith('❌ KHÁCH HỦY') and 'Mã 9990077002' in sent[1] and '📌 đã đánh dấu vắng mặt' in sent[1]
+        with app.app_context():     # pretend both arrived 4 days ago: still listed (other kinds go after 3 days)
+            db.session.execute(appmod.text("UPDATE mail_alerts SET at = at - interval '4 days' WHERE mail_id LIKE 'zz-mail-c%'")); db.session.commit()
+        if appmod._vn_now().day > 9:
+            mine = [m for m in client.get('/api/moi/mail_list').get_json()['mails'] if m['booking_id'] == '9990077002']
+            assert sorted(m['kind'] for m in mine) == ['cancel', 'cupd'] and [m['note'] for m in mine if m['kind'] == 'cupd'] == ['đã đánh dấu vắng mặt']
+    finally:
+        with app.app_context():
+            db.session.execute(appmod.text("DELETE FROM mail_alerts WHERE mail_id LIKE 'zz-mail-c%'")); db.session.commit()
 
 
 def test_booking_bot_is_separate(app, db, client, monkeypatch):
