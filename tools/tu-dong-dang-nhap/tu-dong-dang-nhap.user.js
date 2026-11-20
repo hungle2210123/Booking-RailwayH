@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Tự động đăng nhập (nhiều trang)
 // @namespace    tu-dong-dang-nhap
-// @version      2.7
+// @version      2.8
 // @description  Dán link trang vào danh sách -> trang đó tự đăng nhập lại khi hết phiên. Mỗi trang một tài khoản riêng.
 // @match        *://*/*
 // @grant        GM_getValue
@@ -17,6 +17,9 @@
 //   • "✅ Bật cho trang đang mở"            -> dùng khi trang đăng nhập nằm ở tên miền khác (vd: sso.abc.com)
 //   • "📋 Xem / xoá danh sách"
 //   • "🔑 Đổi tài khoản của trang này"
+// 2.8 (chủ nhà 20/11/2026): Chrome điền sẵn email của TÀI KHOẢN KHÁC vào ô tên đăng nhập -> đăng nhập mãi không được.
+//   Tài khoản lưu trong Tampermonkey của hồ sơ Chrome này là CHUẨN: đợi Chrome điền xong rồi gõ đè, kiểm lại ngay trước
+//   khi bấm Kế tiếp; tới bước mật khẩu mà trang đang hiện email khác -> bấm "chỉnh sửa" quay lại bước email để sửa.
 // Script chạy trên mọi trang nhưng chỉ làm việc với trang có trong danh sách.
 
 (function () {
@@ -121,9 +124,19 @@
     el.dispatchEvent(new Event('input', { bubbles: true }));
     el.dispatchEvent(new Event('change', { bubbles: true }));
   }
-  // Chờ một chút sau khi điền (trang React cần thời gian bật nút), rồi mới bấm
-  function press(el, re) {
+  const same = (a, b) => String(a || '').trim().toLowerCase() === String(b || '').trim().toLowerCase();
+  // email trang đang đăng nhập ở bước mật khẩu: ô email còn thấy, hoặc email in trong khung đăng nhập
+  function shownEmail(user, pass) {
+    if (user && user.value.trim()) return user.value.trim();
+    const box = (pass && (pass.form || pass.closest('main, section, div'))) || document.body;
+    const m = (box.innerText || '').match(/[\w.+-]+@[\w-]+(\.[\w-]+)+/);
+    return m ? m[0] : '';
+  }
+  // Chờ một chút sau khi điền (trang React cần thời gian bật nút), rồi mới bấm.
+  // check (2.8): kiểm lại ngay trước khi bấm (Chrome có thể điền đè email khác) — sai mà sửa không được thì không bấm
+  function press(el, re, check) {
     setTimeout(() => {
+      if (check && !check()) { status('ô tên đăng nhập bị điền email khác — thử lại'); return; }
       const b = findBtn(el, re);
       if (b) b.click();
       else if (el.form) el.form.requestSubmit ? el.form.requestSubmit() : el.form.submit();
@@ -171,7 +184,7 @@
     ['user', 'pass'].forEach(s => GM_deleteValue('tries:' + site + ':' + s));
     GM_setValue('ver:' + site, VER);
   }
-  let lastStep = '', lastAt = 0, stopped = false;
+  let lastStep = '', lastAt = 0, stopped = false, seenAt = 0;
   function tick() {
     if (stopped) return;
     const pass = find(CFG.passInput);
@@ -179,6 +192,9 @@
     if (!pass && !user) return;
     const step = pass ? 'pass' : 'user';
     if (step === lastStep && Date.now() - lastAt < 10000) return;
+    // 2.8: đợi 1,5 s sau khi ô hiện ra -> Chrome điền sẵn xong rồi mới gõ đè (gõ trước thì Chrome đè lại email khác)
+    if (!seenAt) { seenAt = Date.now(); return; }
+    if (Date.now() - seenAt < 1500) return;
     // Booking says the password is wrong → stop at once (more tries could lock the account)
     if (step === 'pass' && lastStep === 'pass' && WRONG.test(document.body.innerText || '')) {
       stopped = true;
@@ -197,8 +213,17 @@
     }
     if (step === 'user') {
       fill(user, c.user);
-      press(user, CFG.nextText);
+      press(user, CFG.nextText, () => same(user.value, c.user) || (fill(user, c.user), same(user.value, c.user)));
     } else {
+      // bước mật khẩu nhưng trang đang dùng email KHÁC (Chrome / Booking đã bấm Kế tiếp với email sai) -> quay lại sửa
+      const shown = shownEmail(user, pass);
+      if (shown && !same(shown, c.user)) {
+        const back = [...document.querySelectorAll('button, a, [role=button]')].find(b => visible(b) && btnText(b).length <= 20 && /^(chỉnh sửa|sửa|edit|change)$/i.test(btnText(b)));
+        lastStep = step; lastAt = Date.now();
+        if (back) { back.click(); status('trang đang dùng ' + shown + ' (sai) — quay lại sửa thành ' + c.user); seenAt = 0; }
+        else status('trang đang dùng ' + shown + ', không phải ' + c.user + ' — không tìm thấy nút sửa');
+        return;
+      }
       if (user && !user.value) fill(user, c.user);
       fill(pass, c.pass);
       press(pass, CFG.loginText);

@@ -47,6 +47,11 @@ $('next').onclick = () => {
 // Bẫy 2.7: "chỉnh sửa" quay về bước email, nút con mắt chỉ đổi kiểu ô — bấm nhầm 2 nút này là kẹt
 $('edit').onclick = e => { e.preventDefault(); window.EDITED = (window.EDITED || 0) + 1; $('step2').hidden = true; $('step1').hidden = false; };
 $('eye').onclick = e => { e.preventDefault(); window.EYE = (window.EYE || 0) + 1; const p = $('hidden-password'); p.type = p.type === 'password' ? 'text' : 'password'; };
+// Bẫy 2.8: ?autofill=email -> giống Chrome điền sẵn email của TÀI KHOẢN KHÁC (sau 300 ms);
+//          ?step2=email -> mở thẳng bước mật khẩu với email khác đó (Chrome/Booking đã tự bấm Kế tiếp)
+const qp = new URLSearchParams(location.search);
+if (qp.get('autofill')) setTimeout(() => { $('username').value = qp.get('autofill'); }, 300);
+if (qp.get('step2')) { $('username').value = qp.get('step2'); $('next').click(); }
 $('signin').onclick = () => {
   if ($('username').value === 'demo@example.com' && $('hidden-password').value === 'matkhau123') {
     if (!window.asked2) {                       // giống Booking: hỏi mật khẩu thêm 1 lần

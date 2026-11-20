@@ -4,8 +4,30 @@
     {
       "name": "email-preview",
       "runtimeExecutable": "python",
-      "runtimeArgs": ["-m", "http.server", "7788", "--directory", "static"],
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "7788",
+        "--directory",
+        "static"
+      ],
       "port": 7788
+    },
+    {
+      "name": "login-mock",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["-m", "http.server", "8768", "--directory", "tools/tu-dong-dang-nhap"],
+      "port": 8768
+    },
+    {
+      "name": "flask-app",
+      "runtimeExecutable": "python",
+      "runtimeArgs": [
+        "-X",
+        "utf8",
+        "app.py"
+      ],
+      "port": 5000
     }
   ]
 }

@@ -54,3 +54,7 @@ chủ nhà trả lời bot đúng mã 6 số trong SMS → tiện ích tự đi�
 `python -m http.server 8765` trong thư mục này → mở `http://127.0.0.1:8765/mock/index.html`
 (tài khoản thử `demo@example.com` / `matkhau123`; phiên 45 giây; có đủ các bẫy của Booking: ô ẩn, nút "gặp trở ngại",
 hỏi mật khẩu 2 lần). Trong Tampermonkey: ➕ Dán link `127.0.0.1`.
+5. (2.8, chủ nhà 20/11/2026: đăng nhập mãi không được) Chrome điền sẵn vào ô tên đăng nhập email của **tài khoản khác**
+   (mỗi hồ sơ Chrome là một tài khoản Booking riêng, nhưng Chrome nhớ cả hai). Tài khoản lưu trong Tampermonkey của hồ sơ
+   là CHUẨN: đợi 1,5 s cho Chrome điền xong rồi gõ đè, kiểm lại ngay trước khi bấm Kế tiếp; tới bước mật khẩu mà trang
+   hiện email khác → bấm "chỉnh sửa" quay lại bước email để sửa. Mock: `login.html?autofill=sai@x.com` và `?step2=sai@x.com`.
