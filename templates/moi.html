@@ -328,6 +328,12 @@ button.info.on{border-color:#0E1525;background:#fff}
     if (!r.ok) return toast('Lỗi: ' + (r.j.message || r.j.error || 'không lưu được'));
     toast('Đã xếp ' + b.name + ' vào ' + aptById[aid].name); S.move = false; await load(true); renderSheet();
   };
+  M.unplace = async (id) => {
+    // owner, Nov 20: a placed guest can go back to "Chưa xếp căn" (apartment + room cleared; tap a căn again to re-place)
+    const b = byId[id]; const r = await post('/api/set_actual_apartment', { booking_id: id, actual_apartment: '' });
+    if (!r.ok) return toast('Lỗi: ' + (r.j.message || r.j.error || 'không lưu được'));
+    toast('Đã bỏ xếp căn — ' + b.name + ' về "Chưa xếp căn"'); S.move = false; await load(true); renderSheet();
+  };
   M.room = async (id, aid, no) => {
     const b = byId[id];
     let r = await post('/api/moi/room', { booking_id: id, apartment_id: aid, room_no: no });
@@ -1513,7 +1519,8 @@ button.info.on{border-color:#0E1525;background:#fff}
         ${b.phone ? `<a class="act" href="tel:${esc(b.phone)}">${svg('phone')}Gọi</a>` : `<button class="act" onclick="M.phone('${b.id}')">${svg('phone')}Thêm số</button>`}
         <button class="act" onclick="S_set('move',${!S.move})">${svg('home')}Đổi căn</button></div>
       ${S.move ? `<div class="lbl">Chọn căn</div><div class="chips4">${aptChips}</div>` : ''}
-      ${a ? `<div class="lbl">Số phòng trong ${esc(a.short)}</div><div class="chips4">${roomChips}</div>` : ''}
+      ${a ? `<div class="lbl">Số phòng trong ${esc(a.short)}</div><div class="chips4">${roomChips}</div>
+        <button style="width:100%;margin-top:10px;min-height:44px;border-radius:12px;border:1px solid #E2E5EB;background:#fff;color:#475569;font-size:13px;font-weight:800" onclick="M.unplace('${b.id}')">↩ Bỏ xếp căn — về "Chưa xếp căn"</button>` : ''}
       <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:14px">
         <button onclick="M.remind('${b.id}')" style="min-height:44px;border-radius:12px;border:1px solid ${remsOf(b.id).length ? '#FCD34D' : '#E2E5EB'};background:${remsOf(b.id).length ? '#FEF3C7' : '#fff'};color:${remsOf(b.id).length ? '#92400E' : '#0E1525'};font-size:12px;font-weight:800">🔔 ${remsOf(b.id).length ? 'Nhắc ' + remLabel(remsOf(b.id)[0].at) : 'Nhắc việc'}</button>
         <button onclick="M.unreach('${b.id}')" style="min-height:44px;border-radius:12px;border:1px solid #E2E5EB;background:#fff;font-size:12px;font-weight:700">${b.unreach ? 'Liên lạc lại được' : 'Không liên lạc được'}</button>

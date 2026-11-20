@@ -42,6 +42,10 @@ def test_moi_room_numbers(client, db, booking):
     client.post('/api/set_actual_apartment', json={'booking_id': b, 'actual_apartment': str(other)})
     db.session.expire_all()
     assert db.session.execute(text("SELECT room_no FROM bookings WHERE booking_id = :b"), {'b': b}).scalar() is None
+    # owner, Nov 20: "↩ Bỏ xếp căn" → back to "Chưa xếp căn" (apartment AND room cleared)
+    assert client.post('/api/set_actual_apartment', json={'booking_id': a, 'actual_apartment': ''}).get_json()['success']
+    db.session.expire_all()
+    assert db.session.execute(text("SELECT actual_apartment, room_no FROM bookings WHERE booking_id = :b"), {'b': a}).fetchone() == (None, None)
 
 
 @pytest.mark.db_write

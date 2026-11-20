@@ -372,6 +372,12 @@ button.info.on{border-color:#0E1525;background:#fff}
     if (!r.ok) return toast('Lỗi: ' + (r.j.message || r.j.error || 'không lưu được'));
     toast('Đã xếp ' + b.name + ' vào ' + aptById[aid].name); S.move = false; await load(true);
   };
+  D.unplace = async (id) => {
+    // owner, Nov 20: a placed guest can go back to "Chưa xếp căn" (apartment + room cleared; tap a căn again to re-place)
+    const b = byId[id]; const r = await post('/api/set_actual_apartment', { booking_id: id, actual_apartment: '' });
+    if (!r.ok) return toast('Lỗi: ' + (r.j.message || r.j.error || 'không lưu được'));
+    toast('Đã bỏ xếp căn — ' + b.name + ' về "Chưa xếp căn"'); S.move = false; await load(true);
+  };
   D.room = async (id, aid, no) => {
     const b = byId[id];
     let r = await post('/api/moi/room', { booking_id: id, apartment_id: aid, room_no: no });
@@ -1200,7 +1206,8 @@ button.info.on{border-color:#0E1525;background:#fff}
       ${rems.length ? `<div class="sect">Nhắc việc</div>${rems.map((r) => `<div class="remrow" style="background:#F7F8FA;${r.done ? 'opacity:.55' : ''}"><b class="num" style="width:70px;font-size:13px;color:${overdue(r) ? '#B91C1C' : '#92400E'}">${remLabel(r.at)}</b><span style="flex:1;font-size:13px;font-weight:700">${esc(r.note)}</span>
         ${r.done ? '<span class="muted" style="font-size:12px">đã xong</span>' : `<button class="btn xs" onclick="D.remDone(${r.id})">Xong</button>`}<button class="btn xs" onclick="D.remDone(${r.id},true)" aria-label="Xoá lời nhắc">${ico('x', 12, 2.4)}</button></div>`).join('')}` : ''}
       <div class="sect">Căn hộ</div><div class="grid4">${aptChips}</div>
-      ${a ? `<div class="sect">Phòng trong ${esc(a.short)} · bấm để xếp</div><div style="display:flex;flex-wrap:wrap;gap:6px">${roomChips}</div>` : ''}
+      ${a ? `<div class="sect">Phòng trong ${esc(a.short)} · bấm để xếp</div><div style="display:flex;flex-wrap:wrap;gap:6px">${roomChips}</div>
+        <button style="width:100%;margin-top:10px;min-height:44px;border-radius:12px;border:1px solid #E2E5EB;background:#fff;color:#475569;font-size:13px;font-weight:800" onclick="D.unplace('${id}')">↩ Bỏ xếp căn — về "Chưa xếp căn"</button>` : ''}
       <div class="sect">Ảnh đặt phòng</div><div style="display:flex;gap:10px;align-items:center"><img class="shot" src="/api/booking_screenshot/${encodeURIComponent(b.id)}?v=full" alt="Ảnh đặt phòng" loading="lazy" onerror="this.style.visibility='hidden'" onclick="Journey.zoom && Journey.zoom(this.src)">
         <div class="gs" style="white-space:normal">${b.vn ? 'Khách Việt' : 'Khách nước ngoài'}${b.no_wa ? ' · không dùng WhatsApp' : ''}${b.no_zalo ? ' · không dùng Zalo' : ''}${b.note ? '<br>Ghi chú thu tiền: ' + esc(b.note) : ''}</div></div>
       <button class="btn red" style="margin-top:20px" onclick="D.cancel('${id}')">Báo hủy (hoàn tác được)</button>`;
