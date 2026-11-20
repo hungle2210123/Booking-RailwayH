@@ -321,6 +321,11 @@ def test_after_stay_booking_list(client, db, booking):
         assert [g['id'] for g in j['guests']] == [bid] and j['list']['on'] and j['list']['missing'] == 1
         j = client.get('/api/moi/after_stay?list=0').get_json()
         assert not j['list']['on'] and bid not in [g['id'] for g in j['guests']]
+        # owner, Nov 20: EXACTLY Booking's order (here the earlier stay first, although checkout DESC would put it last)
+        early = booking(guest_name='Zz Listearly', checkin_date=(today + timedelta(days=20)).isoformat(),
+                        checkout_date=(today + timedelta(days=21)).isoformat())
+        client.post('/api/ext/out_list', json={'ids': [early, bid]})
+        assert [g['id'] for g in client.get('/api/moi/after_stay?list=1').get_json()['guests']] == [early, bid]
     finally:
         if old is None:
             db.session.execute(text("DELETE FROM journey_prefs WHERE key = 'out_list'"))

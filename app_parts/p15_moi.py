@@ -302,6 +302,10 @@ def moi_after_stay():
           AND COALESCE(b.checkin_status, '') NOT IN ('cancelling', 'no_show')
         ORDER BY b.checkout_date DESC, b.booking_id"""),
         {'f': first, 'u': until, 'ids': lst['ids'] if lst else []}).fetchall()
+    if use_list:
+        # owner, Nov 20: EXACTLY the order of the Booking page (its rows top → bottom); extra rooms "<id>-2" right after
+        pos = {x: i for i, x in enumerate(lst['ids'])}
+        rows = sorted(rows, key=lambda r: (pos.get(str(r[0]).split('-')[0], 10 ** 6), str(r[0])))
     sent = J.sent_status(_xdb.session, [r[0] for r in rows])
     apts = {a['id']: a for a in _moi_apartments(_xdb)}
     out = []

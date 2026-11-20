@@ -1138,7 +1138,9 @@ button.info.on{border-color:#0E1525;background:#fff}
     const n = { todo: scope.filter((g) => !g.asked).length, done: scope.filter((g) => g.asked).length, all: scope.length };
     const shown = scope.filter((g) => S.outF === 'all' || (S.outF === 'todo' ? !g.asked : g.asked));
     let groups = '';
-    APT.map((a) => String(a.id)).concat(['none']).forEach((k) => {
+    // owner, Nov 20: the list sent from Booking keeps EXACTLY Booking's order (one list, not grouped by apartment)
+    if (S.out && S.out.list && S.out.list.on) groups = shown.map(outRow).join('<div style="height:8px"></div>');
+    else APT.map((a) => String(a.id)).concat(['none']).forEach((k) => {
       const list = shown.filter((g) => key(g) === k); if (!list.length) return;
       const a = aptById[k];
       groups += `<div class="gh"><i style="background:${a ? a.color : '#F59E0B'}"></i>${a ? esc(a.name) : 'Chưa xếp căn'}<span>· ${list.length} khách</span></div>` + list.map(outRow).join('<div style="height:8px"></div>');
