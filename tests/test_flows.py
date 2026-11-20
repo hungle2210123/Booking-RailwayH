@@ -251,8 +251,16 @@ def test_pending_new_guests(client, db, app_module, throwaway, monkeypatch):
         # another Chrome profile of the SAME account (Booking shows phones there) takes it at once
         got = other([hid[0]])
         assert got and got[0]['retry']
+        # owner, Nov 20: page not read yet ("Thiếu: ngày nhận…") → silent retry; Zalo only after the 3rd try
+        n0 = len(sent)
+        client.post('/api/ext/pending', headers=hdr, json={'action': 'report', 'ok': [], 'account': '18 Hàng Bè',
+                                                           'bad': [{'bid': bid, 'why': 'Thiếu: ngày nhận'}]})
+        assert len(sent) == n0
         db.session.execute(text("UPDATE mail_alerts SET fetch_tries = 3 WHERE mail_id = :m"), {'m': 'zz-' + bid})
         db.session.commit()
+        client.post('/api/ext/pending', headers=hdr, json={'action': 'report', 'ok': [], 'account': '18 Hàng Bè',
+                                                           'bad': [{'bid': bid, 'why': 'Thiếu: ngày nhận'}]})
+        assert 'Chưa lấy được ' + bid in sent[-1] and 'đã thử 3 lần' in sent[-1]
         client.post('/api/ext/pending', headers=hdr, json={'action': 'report', 'ok': [bid], 'bad': [], 'account': '18 Hàng Bè'})
         assert sent[-1].startswith('⚠️ 18 Hàng Bè') and 'Test Guest' in sent[-1] and 'chưa thấy SĐT (đã thử 3 lần)' in sent[-1]
         # 3 tries at most

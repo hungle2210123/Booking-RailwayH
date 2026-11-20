@@ -181,3 +181,7 @@ No secrets in the folder (the token field is empty by default). Test `test_exten
   Nhuộm; both profiles were used long with those accounts, so Booking shows phones): `hpHotels` is cleared once
   (`hpHotelsReset`) and relearnt; the group overview REPLACES the list (`hotels` message `full`). Tampermonkey credentials
   + popup "Tên tài khoản" are per profile — the owner changes them.
+- 1.45 (owner, Nov 20: guest booked 9:01, fetched 9:03 → "Chưa lấy được … Thiếu: ngày nhận, ngày trả, giá, loại phòng"):
+  the booking number shows before the rest of the reservation is drawn → `runStep` parses again every 1.5 s (≤ 15 s) until
+  both dates are there. Server: a `bad` item of a new guest is retried silently (same profile 10 min later, was 30);
+  Zalo "Chưa lấy được … đã thử 3 lần" only after the 3rd try.

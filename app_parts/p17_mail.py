@@ -505,7 +505,8 @@ def ext_morning():
 def _pending_rows(_xdb, pid='', hotels=()):
     """Guests this Chrome profile should fetch now. 1st try: a profile whose Booking account has the hotel. A RETRY
     (saved but no phone — owner, Nov 19: a NEW Chrome profile is not allowed to see phone numbers on Booking) goes at
-    once to ANOTHER profile (the old one, 'Lộc', can open every property); the same profile again only 30 min later."""
+    once to ANOTHER profile (the old one, 'Lộc', can open every property); the same profile again 10 min later
+    (Nov 20: was 30 — too slow for a last-minute guest who arrives today)."""
     _mail_ensure(_xdb)
     now = _vn_now()
     out = []
@@ -515,7 +516,7 @@ def _pending_rows(_xdb, pid='', hotels=()):
         # a profile signed in to the other account cannot open it, and it never switches accounts)
         ok = bool(r[3]) and r[3] in hotels
         if ok and tries:
-            ok = (pid and pid not in pids) or (last is None or last < now - timedelta(minutes=30))
+            ok = (pid and pid not in pids) or (last is None or last < now - timedelta(minutes=10))
         if ok:
             out.append(r)
     return out
@@ -575,7 +576,15 @@ def ext_pending():
                 lines.append(f"{(r[0] if r else '') or bid} · chưa thấy SĐT (đã thử 3 lần) — mở Booking lấy số giúp")
                 continue
             lines.append(f"{r[0] or bid} · có SĐT")
-        lines += [f"Chưa lấy được {b.get('bid')} ({str(b.get('why') or '')[:50]})" for b in bad]
+        for b in bad:
+            # Nov 20 (owner: "Chưa lấy được … Thiếu: ngày nhận…" 3 min after the booking — the page was not drawn yet):
+            # not read → silent retry (10 min later / another profile); Zalo only when the 3rd try failed too
+            bb = str(b.get('bid') or '')[:20]
+            tries = _xdb.session.execute(text("SELECT MAX(COALESCE(fetch_tries, 0)) FROM mail_alerts WHERE booking_id = :b"),
+                                         {'b': bb}).scalar()
+            if tries is not None and tries < 3:
+                continue
+            lines.append(f"Chưa lấy được {bb} ({str(b.get('why') or '')[:50]})" + (' — đã thử 3 lần, mở Booking xem giúp' if tries else ''))
         note = str(d.get('note') or '').strip()[:220]
         if note and not note.startswith('✅'):
             lines.append(note)

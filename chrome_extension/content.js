@@ -1419,7 +1419,13 @@
     await wait(800);
     if (!runGet()) return;                         // stopped meanwhile
     try {
-      const r = await api('/api/ext/booking/parse', capture());
+      let r = await api('/api/ext/booking/parse', capture());
+      // 1.45 (owner Nov 20: a guest who booked 2 min earlier → "Thiếu: ngày nhận, ngày trả, giá, loại phòng"): the number
+      // shows before the rest of the page is drawn → read again every 1.5 s (≤ 15 s) until the dates are there
+      for (let t = 0; t < 10 && runGet() && !(r?.parsed?.checkin_date && r?.parsed?.checkout_date); t++) {
+        await wait(1500);
+        r = await api('/api/ext/booking/parse', capture());
+      }
       const p = r?.parsed;
       if (r?.success && r.mode === 'single' && p?.booking_id) {
         const rooms = (p.rooms || []).length > 1 ? p.rooms : undefined;
