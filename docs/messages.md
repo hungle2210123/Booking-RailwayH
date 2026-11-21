@@ -227,3 +227,12 @@ Tests: `test_pulse_call_dialog_phone`, `test_photo_call_dialog_updates_existing_
   `moi.outAll` = list time the owner switched to Tất cả; a newer list switches back). Báo hủy on the web stay hidden.
 - 🔍 Tìm khách → 🟢 WhatsApp (`M.findWa`): pick a Mẫu Câu by title → `/api/journey/compose?greet=1` fills it (name after Hi)
   → "🟢 Mở WhatsApp kèm tin" copies + opens wa.me with the text.
+
+
+### **📒 Sổ nộp tiền (Thu tiền tab, owner Nov 21 2026)**
+Card under the hero of the Thu tiền tab (`depCard` in moi.html): two big buttons "＋ Nộp Thọ Nhuộm" / "＋ Nộp 3 căn chung"
+(118 Hàng Bạc · 18 Hàng Bè · 25 Hội Vũ share one pot) showing this month's total; tap → sheet: amount (10tr / 5,5tr / 800k,
+quick chips), date (default today, time = now VN), note → "Ghi vào sổ". "Xem sổ ›" = month book: ‹ › months, total per pot +
+month total, every row (✕ deletes a mistyped one), last 6 months table. Table `cash_deposits(id, pot 'tn'|'chung', amount,
+note, deposited_at)`, API `/api/moi/deposits` (p15, `DEPOSIT_POTS`). Separate from bookings' collected_amount (it is the
+owner's own cash put away, not guest payments).

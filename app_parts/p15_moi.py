@@ -1098,3 +1098,81 @@ def moi_pay_msg(booking_id):
                     'images': [i['url'] for i in J.images_of(_xdb.session, [aid]).get(aid, [])] if aid else [],
                     'needs_apt': b['apt_id'] is None, 'left': left, 'ask_sent': bool(sent.get('payment')),
                     'remind_sent': bool(sent.get('pay_remind'))})
+
+
+# ═════ 📒 Sổ nộp tiền (owner, Nov 21): the cash the owner gathers and puts away each day, per pot —
+# "Thọ Nhuộm" (its own account) or "3 căn chung" (118 Hàng Bạc · 18 Hàng Bè · 25 Hội Vũ share one). Each tap = one row
+# with date-time, amount and a note; the month view sums each pot so the owner can look back at month end.
+DEPOSIT_POTS = [('tn', 'Thọ Nhuộm', '19 Thọ Nhuộm'), ('chung', '3 căn chung', '118 Hàng Bạc · 18 Hàng Bè · 25 Hội Vũ')]
+_DEP_READY = False
+
+
+def _dep_ensure(_xdb):
+    global _DEP_READY
+    if _DEP_READY:
+        return
+    _xdb.session.execute(text("""
+        CREATE TABLE IF NOT EXISTS cash_deposits (
+            id SERIAL PRIMARY KEY, pot VARCHAR(10) NOT NULL, amount BIGINT NOT NULL, note TEXT NOT NULL DEFAULT '',
+            deposited_at TIMESTAMP NOT NULL, created_at TIMESTAMP NOT NULL DEFAULT NOW())"""))
+    _xdb.session.commit()
+    _DEP_READY = True
+
+
+@app.route('/api/moi/deposits', methods=['GET', 'POST'])
+def moi_deposits():
+    """GET ?month=YYYY-MM → that month's rows + total per pot + the last 6 months' totals.
+    POST {pot, amount, note?, day?} → add a row (day = YYYY-MM-DD, default today; time = now, Vietnam time).
+    POST {delete: id} → remove a mistyped row."""
+    from core.models import db as _xdb
+    _dep_ensure(_xdb)
+    pots = {k for k, _, _ in DEPOSIT_POTS}
+    now = _vn_now().replace(microsecond=0)
+    if request.method == 'POST':
+        d = request.get_json(silent=True) or {}
+        if d.get('delete'):
+            n = _xdb.session.execute(text("DELETE FROM cash_deposits WHERE id = :i"), {'i': int(d['delete'])}).rowcount
+            _xdb.session.commit()
+            return jsonify({'success': bool(n)})
+        try:
+            amount = int(round(float(d.get('amount') or 0)))
+        except (TypeError, ValueError):
+            amount = 0
+        if d.get('pot') not in pots or amount <= 0 or amount > 10_000_000_000:
+            return jsonify({'success': False, 'error': 'Chọn căn và gõ số tiền'}), 400
+        at = now
+        if d.get('day'):
+            try:
+                day = datetime.strptime(str(d['day'])[:10], '%Y-%m-%d').date()
+                at = datetime.combine(day, now.time()) if day != now.date() else now
+            except ValueError:
+                return jsonify({'success': False, 'error': 'Ngày không đúng'}), 400
+        i = _xdb.session.execute(text("INSERT INTO cash_deposits (pot, amount, note, deposited_at) VALUES (:p, :a, :n, :t) RETURNING id"),
+                                 {'p': d['pot'], 'a': amount, 'n': str(d.get('note') or '').strip()[:200], 't': at}).scalar()
+        _xdb.session.commit()
+        return jsonify({'success': True, 'id': i})
+    month = request.args.get('month') or now.strftime('%Y-%m')
+    try:
+        start = datetime.strptime(month[:7] + '-01', '%Y-%m-%d')
+    except ValueError:
+        start = now.replace(day=1, hour=0, minute=0, second=0)
+    end = (start + timedelta(days=32)).replace(day=1)
+    rows = _xdb.session.execute(text("""SELECT id, pot, amount, note, deposited_at FROM cash_deposits
+                                         WHERE deposited_at >= :s AND deposited_at < :e ORDER BY deposited_at DESC, id DESC"""),
+                                {'s': start, 'e': end}).fetchall()
+    first6 = start
+    for _ in range(5):
+        first6 = (first6 - timedelta(days=1)).replace(day=1)
+    hist = _xdb.session.execute(text("""SELECT to_char(deposited_at, 'YYYY-MM') m, pot, SUM(amount), COUNT(*) FROM cash_deposits
+                                         WHERE deposited_at >= :s AND deposited_at < :e GROUP BY 1, 2"""), {'s': first6, 'e': end}).fetchall()
+    months, m = [], first6
+    while m < end:
+        k = m.strftime('%Y-%m')
+        months.append({'month': k, **{p: int(sum(r[2] for r in hist if r[0] == k and r[1] == p)) for p in pots}})
+        m = (m + timedelta(days=32)).replace(day=1)
+    return jsonify({'success': True, 'month': start.strftime('%Y-%m'), 'today': now.strftime('%Y-%m-%d'),
+                    'pots': [{'key': k, 'name': n, 'sub': s, 'total': int(sum(r[2] for r in rows if r[1] == k)),
+                              'count': sum(1 for r in rows if r[1] == k)} for k, n, s in DEPOSIT_POTS],
+                    'rows': [{'id': r[0], 'pot': r[1], 'amount': int(r[2]), 'note': r[3] or '',
+                              'day': r[4].strftime('%Y-%m-%d'), 'at': r[4].strftime('%H:%M %d/%m')} for r in rows],
+                    'months': months[::-1]})

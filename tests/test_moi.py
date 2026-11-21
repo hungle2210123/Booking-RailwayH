@@ -1046,3 +1046,30 @@ def test_clean_changes_extension_tells_cleaner(app_module, db, monkeypatch):
         else:
             db.session.execute(text("UPDATE moi_settings SET value = :v WHERE key = 'clean_sent'"), {'v': old})
         db.session.commit()
+
+
+def test_cash_deposit_book(app, db, client):
+    """Owner, Nov 21: 📒 Sổ nộp tiền — tap "Nộp Thọ Nhuộm" / "Nộp 3 căn chung", the date-time + amount are kept and the
+    month adds up per pot (month-end look back)."""
+    import app as appmod
+    ids = []
+    try:
+        j0 = client.get('/api/moi/deposits').get_json()
+        assert j0['success'] and [p['key'] for p in j0['pots']] == ['tn', 'chung']
+        base = {p['key']: p['total'] for p in j0['pots']}
+        for pot, amt in (('tn', 10_000_000), ('chung', 5_000_000), ('chung', 1_500_000)):
+            r = client.post('/api/moi/deposits', json={'pot': pot, 'amount': amt, 'note': 'ZZ TEST'}).get_json()
+            assert r['success']; ids.append(r['id'])
+        assert not client.post('/api/moi/deposits', json={'pot': 'xx', 'amount': 5}).get_json()['success']
+        assert not client.post('/api/moi/deposits', json={'pot': 'tn', 'amount': 0}).get_json()['success']
+        j = client.get('/api/moi/deposits').get_json()
+        tot = {p['key']: p['total'] for p in j['pots']}
+        assert tot['tn'] - base['tn'] == 10_000_000 and tot['chung'] - base['chung'] == 6_500_000
+        assert any(r['id'] == ids[0] and r['at'] for r in j['rows']) and len(j['months']) == 6
+        assert j['months'][0]['month'] == j['month']
+        assert client.post('/api/moi/deposits', json={'delete': ids.pop()}).get_json()['success']
+    finally:
+        with app.app_context():
+            for i in ids:
+                db.session.execute(appmod.text("DELETE FROM cash_deposits WHERE id = :i"), {'i': i})
+            db.session.commit()

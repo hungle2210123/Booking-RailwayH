@@ -203,7 +203,7 @@ _p12_sync_crawl_duplicates — sync services, crawl admin bookings, bulk save, d
 - app_parts/p13_misc_railway.py:1087 `extract_meter_data_with_openrouter` — Extract electricity meter data using various free models via OpenRouter API
 - app_parts/p13_misc_railway.py:1198 `extract_meter_data_with_multi_api` — Extract electricity meter data using multiple APIs with automatic fallback
 
-## app_parts/p15_moi.py (1100 lines)
+## app_parts/p15_moi.py (1178 lines)
 _p15_moi — /moi: the new phone-first app (owner, Oct 26), built from the approved mockup. Runs NEXT TO the old pages_
 - app_parts/p15_moi.py:12 `_moi_ensure` — bookings.room_no (room 1..N inside the placed apartment) — added once per process.
 - app_parts/p15_moi.py:37 `_moi_apartments` — Active apartments with short name, colour (index among ALL apartments, like the calendar) and room count.
@@ -246,6 +246,8 @@ _p15_moi — /moi: the new phone-first app (owner, Oct 26), built from the appro
 - app_parts/p15_moi.py:1050 `_pay_tien`
 - app_parts/p15_moi.py:1054 `pay_remind_step` — ⏰ Nhắc thanh toán as a step of the send sheet (p03 journey_guest) — shown for guests already marked arrived.
 - app_parts/p15_moi.py:1069 `moi_pay_msg` ← `/api/moi/pay_msg/<booking_id>` GET,POST — GET → {wa, ask, remind} filled in for this guest. POST {kind} → remember that the message was opened (journey 
+- app_parts/p15_moi.py:1110 `_dep_ensure`
+- app_parts/p15_moi.py:1123 `moi_deposits` ← `/api/moi/deposits` GET,POST — GET ?month=YYYY-MM → that month's rows + total per pot + the last 6 months' totals.
 
 ## app_parts/p16_staff.py (968 lines)
 _p16_staff — 👥 Nhân viên (owner, Nov 6): the cleaners talk to the Zalo bot (p15_moi zbot_*) in plain words._
@@ -618,7 +620,7 @@ _p17_mail — 📧 Booking.com e-mails → the app (owner, Nov 12: "khi nhận �
 ## templates/journey_settings.html (231 lines)
 - templates/journey_settings.html: 79 `load` · 88 `renderButtons` · 141 `options` · 151 `rowHtml` · 165 `render` · 178 `bind` · 210 `shrink`
 
-## templates/moi.html (1548 lines)
+## templates/moi.html (1622 lines)
 - templates/moi.html: 223 `M_staffBadge` · 227 `load` · 306 `M.reload` · 307 `M.tab` · 308 `M.set` · 309 `M.day` · 310 `M.open` · 311 `M.close`
 - templates/moi.html: 312 `M.add` · 313 `M.addSave` · 326 `M.place` · 331 `M.unplace` · 337 `M.room` · 344 `M.confirm` · 378 `M.cleanLink` · 381 `M.staffLoad`
 - templates/moi.html: 383 `M.staffOpen` · 385 `M.logOpen` · 387 `M.logSet` · 388 `M.staffRe` · 389 `M.calOpen` · 390 `M.stfSet` · 393 `M.st` · 410 `M.cleanSetup`
@@ -627,12 +629,13 @@ _p17_mail — 📧 Booking.com e-mails → the app (owner, Nov 12: "khi nhận �
 - templates/moi.html: 501 `M.dayuse` · 509 `M.payMsgLoad` · 517 `M.payMsgTap` · 520 `M.payMsgCopy` · 524 `M.payImgs` · 530 `M.copyPhone` · 531 `M.unreach` · 532 `M.renameRoom`
 - templates/moi.html: 540 `M.calDone` · 541 `M.remind` · 543 `M.eta` · 544 `M.remPreset` · 547 `M.remSave` · 556 `M.remDone` · 559 `M.etaSave` · 582 `M.phone`
 - templates/moi.html: 589 `M.send` · 590 `M.pickApt` · 591 `M.quick` · 593 `M.photo` · 594 `M.chatPhone` · 601 `M.edit` · 603 `M.extN` · 607 `M.splitApt`
-- templates/moi.html: 613 `M.extTyped` · 614 `M.editCalc` · 642 `M.editSave` · 676 `M.payOpen` · 677 `M.collect` · 685 `M.partial` · 687 `M.undoPay` · 690 `M.payCycle`
-- templates/moi.html: 695 `M.pickG` · 696 `M.auto` · 711 `render` · 720 `renderNav` · 729 `renderFloat` · 746 `viewDay` · 855 `viewCal` · 958 `M.cal`
-- templates/moi.html: 962 `msgCard` · 1001 `M.outLoad` · 1011 `M.outGo` · 1013 `M.outSrc` · 1017 `M.outFind` · 1020 `M.outWa` · 1024 `M.outCopy` · 1025 `M.outSent`
-- templates/moi.html: 1031 `M.outPhone` · 1040 `M.findOpen` · 1046 `M.findRun` · 1066 `M.findWa` · 1075 `M.findWaDraw` · 1085 `M.findWaPick` · 1096 `M.findWaGo` · 1097 `M.findBack`
-- templates/moi.html: 1099 `M.outPick` · 1106 `M.outPickDraw` · 1115 `M.outChoose` · 1116 `outRow` · 1132 `viewOut` · 1169 `viewMsg` · 1206 `M.aptSheetOpen` · 1219 `viewPay`
-- templates/moi.html: 1264 `payMsgBox` · 1283 `renderSheet` · 1532 `S_set` · 1533 `renderSheetPub` · 1534 `S_put`
+- templates/moi.html: 613 `M.extTyped` · 614 `M.editCalc` · 642 `M.editSave` · 679 `M.depLoad` · 683 `M.depOpen` · 684 `M.depBookOpen` · 685 `M.depChip` · 686 `M.depTyped`
+- templates/moi.html: 687 `M.depSave` · 695 `M.depDel` · 697 `M.depMonth` · 699 `M.payOpen` · 700 `M.collect` · 708 `M.partial` · 710 `M.undoPay` · 713 `M.payCycle`
+- templates/moi.html: 718 `M.pickG` · 719 `M.auto` · 734 `render` · 743 `renderNav` · 752 `renderFloat` · 769 `viewDay` · 878 `viewCal` · 981 `M.cal`
+- templates/moi.html: 985 `msgCard` · 1024 `M.outLoad` · 1034 `M.outGo` · 1036 `M.outSrc` · 1040 `M.outFind` · 1043 `M.outWa` · 1047 `M.outCopy` · 1048 `M.outSent`
+- templates/moi.html: 1054 `M.outPhone` · 1063 `M.findOpen` · 1069 `M.findRun` · 1089 `M.findWa` · 1098 `M.findWaDraw` · 1108 `M.findWaPick` · 1119 `M.findWaGo` · 1120 `M.findBack`
+- templates/moi.html: 1122 `M.outPick` · 1129 `M.outPickDraw` · 1138 `M.outChoose` · 1139 `outRow` · 1155 `viewOut` · 1192 `viewMsg` · 1229 `M.aptSheetOpen` · 1242 `viewPay`
+- templates/moi.html: 1283 `depCard` · 1294 `depRows` · 1307 `payMsgBox` · 1326 `renderSheet` · 1606 `S_set` · 1607 `renderSheetPub` · 1608 `S_put`
 
 ## templates/quick.html (357 lines)
 - templates/quick.html: 158 `toast` · 163 `go` · 171 `copyNow` · 179 `sendText` · 184 `copyText` · 185 `sendImgs` · 196 `setIn` · 218 `takeOut`

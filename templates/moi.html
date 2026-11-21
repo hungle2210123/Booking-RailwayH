@@ -308,7 +308,7 @@ button.info.on{border-color:#0E1525;background:#fff}
   M.set = (k, v) => { S[k] = v; if (k === 'calView') LS.set(k, v); render(); };
   M.day = (d) => { S.day = Math.max(0, Math.min(20, d)); render(); };
   M.open = (id) => { S.sel = id; S.move = false; S.pick = null; S.edit = null; renderSheet(); };
-  M.close = () => { if (S.staffOn || S.cleanSetup) setTimeout(M_staffBadge, 300); S.pm = null; S.calSheet = false; S.staffOn = false; S.cleanSetup = null; S.sel = null; S.collect = null; S.aptSheet = false; S.etaFor = null; S.adding = false; renderSheet(); renderFloat(); };
+  M.close = () => { if (S.staffOn || S.cleanSetup) setTimeout(M_staffBadge, 300); S.pm = null; S.depPot = null; S.depBook = false; S.calSheet = false; S.staffOn = false; S.cleanSetup = null; S.sel = null; S.collect = null; S.aptSheet = false; S.etaFor = null; S.adding = false; renderSheet(); renderFloat(); };
   M.add = () => { S.sel = null; S.adding = true; renderSheet(); setTimeout(() => { const i = $('#fName'); if (i) i.focus(); }, 50); };
   M.addSave = async (btn) => {
     const v = (id) => ($('#' + id).value || '').trim();
@@ -673,6 +673,29 @@ button.info.on{border-color:#0E1525;background:#fff}
     toast('Đã lưu: ' + b.name + ' · ' + r.j.nights + ' đêm · ' + fmt(r.j.room_amount));
     S.edit = null; await load(true); renderSheet();
   };
+  // 📒 Sổ nộp tiền (owner, Nov 21): the cash gathered each day goes to "Thọ Nhuộm" or "3 căn chung"; one tap = one
+  // row with date-time; the book shows each month's totals per pot.
+  const monLbl = (m) => 'Tháng ' + +m.slice(5, 7) + '/' + m.slice(0, 4);
+  M.depLoad = async (month) => { S.depBusy = true;
+    let j = {}; try { j = await (await fetch('/api/moi/deposits' + (month ? '?month=' + month : ''), { cache: 'no-store' })).json(); } catch (e) {}
+    S.depBusy = false; if (j.success) S.dep = j; else if (!S.dep) S.dep = { err: true };
+    if (S.tab === 'pay') render(); if (S.depPot || S.depBook) renderSheet(); };
+  M.depOpen = (pot) => { S.sel = null; S.depBook = false; S.depPot = pot; renderSheet(); setTimeout(() => { const i = $('#depAmt'); if (i) i.focus(); }, 60); };
+  M.depBookOpen = () => { S.sel = null; S.depPot = null; S.depBook = true; renderSheet(); };
+  M.depChip = (v) => { const i = $('#depAmt'); if (i) i.value = v; M.depTyped(); };
+  M.depTyped = () => { const v = money(($('#depAmt') || {}).value), n = $('#depNote2'); if (n) n.textContent = v > 0 ? '= ' + fmt(v) : ''; };
+  M.depSave = async () => { const pot = S.depPot, amt = money(($('#depAmt') || {}).value);
+    if (!(amt > 0)) { toast('Gõ số tiền nộp (vd 10tr, 5000000)'); return; }
+    const day = ($('#depDay') || {}).value || '', note = ($('#depNote') || {}).value || '';
+    const r = await post('/api/moi/deposits', { pot, amount: amt, day, note });
+    if (!r.ok) { toast('Chưa lưu được: ' + (r.j.error || 'lỗi')); return; }
+    const p = ((S.dep && S.dep.pots) || []).find((x) => x.key === pot);
+    S.depPot = null; renderSheet(); toast('📒 Đã ghi nộp ' + fmt(amt) + ' vào ' + (p ? p.name : ''));
+    await M.depLoad(day && S.dep && S.dep.month && day.slice(0, 7) !== S.dep.month ? day.slice(0, 7) : S.dep && S.dep.month); };
+  M.depDel = async (id, amt) => { if (!confirm('Xóa lần nộp ' + fmt(amt) + '?')) return;
+    const r = await post('/api/moi/deposits', { delete: id }); toast(r.ok ? 'Đã xóa' : 'Chưa xóa được'); await M.depLoad(S.dep && S.dep.month); };
+  M.depMonth = (step) => { const m = (S.dep && S.dep.month) || ''; if (!m) return;
+    const d = new Date(+m.slice(0, 4), +m.slice(5, 7) - 1 + step, 1); M.depLoad(d.getFullYear() + '-' + pad(d.getMonth() + 1)); };
   M.payOpen = (id) => { S.sel = null; S.collect = id; S.cmethod = 'cash'; renderSheet(); };
   M.collect = async (id, who, amount) => {
     const b = byId[id]; const amt = amount || Math.max(b.total - b.collected, 0);
@@ -1247,7 +1270,7 @@ button.info.on{border-color:#0E1525;background:#fff}
       `<button class="pill ${S.pf === k ? 'on' : ''}" onclick="M.set('pf','${k}')">${l} ${unpaid.filter((b) => k === 'all' || payStatus(b) === k).length}</button>`).join('');
     return `<div class="hero" style="padding-bottom:18px"><div class="kick">CÒN PHẢI THU · ${unpaid.length} KHÁCH</div><div class="num" style="font-size:34px;font-weight:800;letter-spacing:-1px;margin-top:4px">${fmt(unpaid.reduce((t, b) => t + left(b), 0))}</div>
         <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:14px">${ov}</div></div>
-      <div class="wrap"><div class="row" style="margin-top:12px">${pf}</div>
+      <div class="wrap">${depCard()}<div class="row" style="margin-top:12px">${pf}</div>
         ${urgent.length ? `<div style="margin-top:10px;background:#FEF2F2;border:1.5px solid #FCA5A5;color:#991B1B;border-radius:14px;padding:10px 12px;font-size:13px;font-weight:800">${urgent.length} khách trả phòng hôm nay / ngày mai CHƯA được nhắn thanh toán</div>` : ''}
         ${groups || '<div class="card empty" style="margin-top:12px">Không còn khách nào phải thu trong mục này.</div>'}
         ${paidL.length ? `<button onclick="M.set('showPaid',${!S.showPaid})" style="width:100%;margin-top:14px;min-height:46px;border-radius:12px;border:1px solid #E2E5EB;background:#fff;font-size:13px;font-weight:800;color:#15803D">${S.showPaid ? 'Ẩn' : 'Xem'} khách đã thu (${paidL.length})</button>` : ''}
@@ -1255,6 +1278,26 @@ button.info.on{border-color:#0E1525;background:#fff}
           <div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:700">${esc(b.name)}</div><div style="font-size:11px;color:#15803D;font-weight:800">${esc(b.collector || 'Đã thu')} · ${fmt(b.collected)}</div></div>
           <button onclick="M.undoPay('${b.id}')" style="min-height:36px;border-radius:10px;border:1px solid #E2E5EB;background:#fff;font-size:11px;font-weight:800;color:#475569;padding:0 10px">Hoàn tác</button></div>`; }).join('') : ''}
         <div style="height:20px"></div></div>`;
+  }
+
+  function depCard() {
+    const d = S.dep; if (!d && !S.depBusy) setTimeout(() => M.depLoad(), 0);
+    if (!d || d.err) return `<div class="card" style="margin-top:12px;padding:12px;font-size:13px;font-weight:700;color:#64748B">📒 Sổ nộp tiền — ${d && d.err ? 'chưa tải được, bấm Tải lại' : 'đang tải…'}</div>`;
+    const tot = d.pots.reduce((t, p) => t + p.total, 0);
+    return `<div class="card" style="margin-top:12px;padding:12px">
+      <div style="display:flex;align-items:center;gap:8px"><div style="flex:1;min-width:0"><div style="font-size:15px;font-weight:800">📒 Sổ nộp tiền</div><div class="num" style="font-size:11.5px;color:#64748B;font-weight:700">${monLbl(d.month)} · tổng ${fmt(tot)}</div></div>
+        <button onclick="M.depBookOpen()" style="min-height:40px;padding:0 12px;border-radius:12px;border:1.5px solid #E2E5EB;background:#fff;font-size:13px;font-weight:800">Xem sổ ›</button></div>
+      <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:10px">${d.pots.map((p) => `<button onclick="M.depOpen('${p.key}')" style="text-align:left;min-height:84px;border-radius:14px;border:none;background:#0E1525;color:#fff;padding:10px 12px">
+        <div style="font-size:13px;font-weight:800">＋ Nộp ${esc(p.name)}</div><div class="num" style="font-size:18px;font-weight:800;margin-top:3px">${fmt(p.total)}</div>
+        <div style="font-size:10.5px;font-weight:600;color:#A7B0C0">${p.count} lần · tháng này</div></button>`).join('')}</div></div>`;
+  }
+  function depRows(rows, showPot) {
+    const pn = {}; ((S.dep && S.dep.pots) || []).forEach((p) => { pn[p.key] = p.name; });
+    if (!rows.length) return '<div style="padding:18px 0;text-align:center;color:#64748B;font-weight:700;font-size:13px">Chưa có lần nộp nào trong tháng.</div>';
+    return rows.map((r) => `<div style="display:flex;align-items:center;gap:10px;background:#F7F8FA;border-radius:12px;padding:9px 10px;margin-top:6px">
+      <div style="flex:1;min-width:0"><div class="num" style="font-size:15px;font-weight:800">${fmt(r.amount)}</div>
+        <div style="font-size:11.5px;color:#475569;font-weight:700">${esc(r.at)}${showPot ? ' · ' + esc(pn[r.pot] || r.pot) : ''}${r.note ? ' · ' + esc(r.note) : ''}</div></div>
+      <button onclick="M.depDel(${r.id},${r.amount})" aria-label="Xóa" style="min-width:40px;min-height:40px;border-radius:10px;border:1px solid #E2E5EB;background:#fff;color:#94A3B8;font-weight:800">✕</button></div>`).join('');
   }
 
   // ═════ SHEETS ═════
@@ -1451,6 +1494,37 @@ button.info.on{border-color:#0E1525;background:#fff}
         <div class="fld2"><label class="fld"><span>Xếp vào căn</span><select id="fApt"><option value="">Chưa xếp</option>${APT.map((a) => `<option value="${a.id}">${esc(a.name)}</option>`).join('')}</select></label>
           <label class="fld"><span>Mã đặt phòng (nếu có)</span><input id="fBid" inputmode="numeric" placeholder="để trống = mã tạm"></label></div>
         <button class="big" onclick="M.addSave(this)" style="margin-top:16px;background:#0E1525;color:#fff">Lưu khách</button></div></div>`;
+      return;
+    }
+    if (S.depPot && S.dep && S.dep.pots) {
+      const p = S.dep.pots.find((x) => x.key === S.depPot) || {};
+      el.innerHTML = `<div class="ov" onclick="if(event.target===this)M.close()"><div class="sh"><div class="handle"></div>
+        <div style="display:flex;align-items:center;gap:10px"><div style="flex:1;min-width:0"><div class="kick" style="color:#64748B">NỘP TIỀN</div><div style="font-size:20px;font-weight:800">${esc(p.name || '')}</div><div style="font-size:11.5px;color:#64748B;font-weight:700">${esc(p.sub || '')}</div></div><button class="x" onclick="M.close()" aria-label="Đóng">${svg('x', 18, 2.4)}</button></div>
+        <label class="fld"><span>Số tiền nộp — vd 10tr, 5,5tr, 800k</span><input id="depAmt" inputmode="decimal" autocomplete="off" oninput="M.depTyped()" style="font-size:22px;font-weight:800"></label>
+        <div id="depNote2" class="num" style="font-size:13px;font-weight:800;color:#15803D;min-height:18px;margin:4px 2px 0"></div>
+        <div style="display:flex;gap:6px;margin-top:6px">${['1tr', '2tr', '5tr', '10tr', '20tr'].map((v) => `<button type="button" class="tchip" style="flex:1;min-height:40px" onclick="M.depChip('${v}')">${v}</button>`).join('')}</div>
+        <div class="fld2"><label class="fld"><span>Ngày nộp</span><input id="depDay" type="date" value="${S.dep.today}" max="${S.dep.today}"></label>
+          <label class="fld"><span>Ghi chú (không bắt buộc)</span><input id="depNote" maxlength="200" placeholder="vd tiền 3 khách"></label></div>
+        <button onclick="M.depSave()" style="width:100%;margin-top:12px;min-height:54px;border-radius:14px;border:none;background:#15803D;color:#fff;font-size:16px;font-weight:800">Ghi vào sổ</button>
+        <div class="lbl">Đã nộp ${monLbl(S.dep.month).toLowerCase()} · ${fmt(p.total || 0)}</div>
+        ${depRows(S.dep.rows.filter((r) => r.pot === S.depPot), false)}<div style="height:10px"></div></div></div>`;
+      return;
+    }
+    if (S.depBook) {
+      const d = S.dep;
+      let h = `<div style="display:flex;align-items:center;gap:10px"><div style="flex:1"><div class="kick" style="color:#64748B">SỔ NỘP TIỀN</div><div style="font-size:20px;font-weight:800">${d && d.month ? monLbl(d.month) : ''}</div></div><button class="x" onclick="M.close()" aria-label="Đóng">${svg('x', 18, 2.4)}</button></div>`;
+      if (!d || !d.pots) h += '<div style="padding:30px 0;text-align:center;color:#64748B;font-weight:700">Đang tải…</div>';
+      else {
+        const tot = d.pots.reduce((t, p) => t + p.total, 0), last = d.month >= d.today.slice(0, 7);
+        h += `<div style="display:flex;gap:8px;margin-top:10px"><button onclick="M.depMonth(-1)" style="flex:1;min-height:42px;border-radius:12px;border:1.5px solid #E2E5EB;background:#fff;font-size:13px;font-weight:800">‹ Tháng trước</button>
+            <button onclick="M.depMonth(1)" ${last ? 'disabled' : ''} style="flex:1;min-height:42px;border-radius:12px;border:1.5px solid #E2E5EB;background:#fff;font-size:13px;font-weight:800;${last ? 'opacity:.4' : ''}">Tháng sau ›</button></div>
+          <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:10px">${d.pots.map((p) => `<div style="background:#F7F8FA;border-radius:14px;padding:10px 12px"><div style="font-size:12.5px;font-weight:800">${esc(p.name)}</div><div class="num" style="font-size:18px;font-weight:800">${fmt(p.total)}</div><div style="font-size:11px;color:#64748B;font-weight:700">${p.count} lần nộp</div></div>`).join('')}</div>
+          <div style="display:flex;align-items:center;margin-top:8px;background:#0E1525;color:#fff;border-radius:14px;padding:10px 12px"><b style="flex:1;font-size:13px">Tổng cả tháng</b><b class="num" style="font-size:18px">${fmt(tot)}</b></div>
+          <div class="lbl">Từng lần nộp</div>${depRows(d.rows, true)}
+          <div class="lbl">6 tháng gần đây</div>
+          <div style="background:#F7F8FA;border-radius:14px;padding:4px 12px"><div style="display:flex;gap:8px;padding:6px 0;font-size:10.5px;color:#64748B;font-weight:800"><span style="width:64px">tháng</span>${d.pots.map((p) => `<span style="flex:1;text-align:right">${esc(p.name)}</span>`).join('')}<span style="flex:1;text-align:right">tổng</span></div>${d.months.map((m) => `<div style="display:flex;gap:8px;padding:8px 0;border-bottom:1px solid #E7E9EE;font-size:12.5px"><b style="width:64px">${+m.month.slice(5, 7)}/${m.month.slice(2, 4)}</b>${d.pots.map((p) => `<span class="num" style="flex:1;text-align:right;color:#475569;font-weight:700">${short(m[p.key])}</span>`).join('')}<b class="num" style="flex:1;text-align:right">${short(d.pots.reduce((t, p) => t + (m[p.key] || 0), 0))}</b></div>`).join('')}</div>`;
+      }
+      el.innerHTML = `<div class="ov" onclick="if(event.target===this)M.close()"><div class="sh"><div class="handle"></div>${h}<div style="height:12px"></div></div></div>`;
       return;
     }
     if (S.collect && byId[S.collect]) {
