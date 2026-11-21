@@ -1261,17 +1261,15 @@
       if (!r?.success || r.mode !== 'list') { toast('❌ ' + esc(r?.error || 'Không đọc được bảng'), 'warn'); return; }
       const items = (r.items || []).filter(it => it.status !== 'cancelled' && it.action !== 'skip_cancelled' && it.booking_id);
       if (!items.length) { toast('Không có khách nào (tất cả đã hủy).', 'warn'); return; }
-      const fresh = items.filter(it => it.action === 'new' || it.action === 'changed');
-      if (fresh.length) {               // guests the web does not have yet are saved first, so they show up there
-        askBtn.textContent = `⏳ Đang lưu ${fresh.length} khách...`;
-        const sv = await api('/api/ext/booking/save_many', { items: fresh.map(it => ({ ...it, cancelled: false })) });
-        if (!sv?.success) { toast('❌ ' + esc(sv?.error || 'Không lưu được'), 'warn'); return; }
-      }
+      // 1.46 (owner Nov 21: "Hỏi thăm chỉ để nhắn tin thôi, đâu phải lấy thông tin đặt phòng"): this button ONLY sends
+      // the booking numbers. It never saves / changes a booking (1.4x saved new + changed rows → it overwrote prices,
+      // dates and room names of ~40 guests and added old guests without picture/phone). Saving = 📥 Gửi về Hotel Pro.
       askBtn.textContent = '⏳ Đang gửi danh sách...';
       const o = await api('/api/ext/out_list', { ids: [...new Set(items.map(it => String(it.booking_id).split('-')[0]))] });
       if (!o?.success) { toast('❌ ' + esc(o?.error || 'Lỗi không rõ'), 'warn'); return; }
       // owner, Nov 19: on the PC it only SAVES the list — the owner sends the messages later from the phone
-      toast(`✅ Đã lưu ${o.n} khách vào <b>Nhắn khách › Đã trả phòng</b> — mở trên điện thoại để nhắn.`, 'ok', 10000);
+      toast(`✅ Đã gửi ${o.n} khách sang <b>Nhắn khách › Đã trả phòng</b> — mở trên điện thoại để nhắn.` +
+        (o.found < o.n ? `<br>${o.n - o.found} khách chưa có trên web (không hiện trong danh sách nhắn).` : ''), 'ok', 10000);
     } finally { askBusy = false; askBtn.textContent = '💬 Hỏi thăm khách'; }
   });
   function startRun(items) {

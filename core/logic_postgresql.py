@@ -446,6 +446,11 @@ def add_new_booking(booking_data: Dict) -> bool:
         
         # Check for booking ID conflicts
         existing_booking = db.session.query(Booking).filter_by(booking_id=booking_id).first()
+        if existing_booking and booking_data.get('booking_id', '').strip():
+            # Nov 21 (owner: "PHOTO_2F7624C3" twin of 6923930862): two saves of the SAME Booking number at the same
+            # moment (run + phone save) → the other one already created it; never make a PHOTO_ copy of a real booking
+            print(f"ℹ️ [ADD_NEW_BOOKING] {booking_id} already saved (parallel save) — no duplicate")
+            return True
         if existing_booking:
             # Generate new unique booking_id
             original_id = booking_id
