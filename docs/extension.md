@@ -189,3 +189,6 @@ No secrets in the folder (the token field is empty by default). Test `test_exten
   changed rows from Booking's list and overwrote prices/dates/room names of ~40 guests. A new guest of the day is done
   only with phone AND booking picture (`_pending_query`); saved-but-incomplete → fetched again (≤ 3) even without the
   run's report. `add_new_booking`: the same Booking number saved twice at once → no `PHOTO_` twin.
+- 1.47 (owner, Nov 21: Krizza Ceniza 6923930862 saved twice in the same millisecond → `PHOTO_2F7624C3` twin, no picture):
+  run / group / fetch state lives in sessionStorage, and a tab opened FROM the run tab gets a copy → two tabs ran the same
+  run. Each tab now keeps its own id (`hp_tab`, background `tab-id`); a tab holding another tab's id drops the copied state.

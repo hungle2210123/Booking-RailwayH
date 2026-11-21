@@ -1524,7 +1524,24 @@
   }
   // background.js: the owner has just signed in after the bot's "Booking đã đăng xuất" → start now
   chrome.runtime.onMessage.addListener(m => { if (m?.type === 'hp-morning-start') setTimeout(autoMorning, 1500); return false; });
+  // 1.47 (owner Nov 21: Krizza Ceniza saved twice at the same instant, no picture): a tab Booking opens FROM a run
+  // tab gets a COPY of its sessionStorage → it ran the same run too (double save; a tab behind cannot take the
+  // picture). Each tab remembers its own id; a tab holding another tab's id is a copy → drop the copied run state.
+  (async () => {
+    let me = null;
+    try { me = (await chrome.runtime.sendMessage({ type: 'tab-id' }))?.id ?? null; } catch (e) {}
+    try {
+      const owner = sessionStorage.getItem('hp_tab');
+      if (me != null && owner && owner !== String(me)) {
+        [RUN_KEY, GROUP_KEY, 'hp_fetch', 'hp_fetch_result', 'hp_run_done'].forEach(k => sessionStorage.removeItem(k));
+      }
+      if (me != null) sessionStorage.setItem('hp_tab', String(me));
+    } catch (e) {}
+    startTab();
+  })();
+  function startTab() {
   if (runGet()) setTimeout(runStep, 1500);
   else if (groupGet()) { setTimeout(showRunDone, 1500); setTimeout(groupStep, 3000); }
   else { setTimeout(showRunDone, 1500); setTimeout(showGroupDone, 1500); setTimeout(autoMorning, 3000); setTimeout(fetchJob, 2000); }
+  }
 })();

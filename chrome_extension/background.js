@@ -259,6 +259,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     })().then(() => sendResponse({ success: true }));
     return true;
   }
+  if (msg?.type === 'tab-id') { sendResponse({ id: sender.tab?.id ?? null }); return false; }   // 1.47: copied-tab check
   if (msg?.type === 'fetch-job') {                    // 1.36: is this tab the new-guest tab?
     chrome.storage.local.get('hpFetch').then(({ hpFetch }) =>
       sendResponse(hpFetch && hpFetch.tabId === sender.tab?.id ? { items: hpFetch.items } : null));
