@@ -185,3 +185,7 @@ No secrets in the folder (the token field is empty by default). Test `test_exten
   the booking number shows before the rest of the reservation is drawn → `runStep` parses again every 1.5 s (≤ 15 s) until
   both dates are there. Server: a `bad` item of a new guest is retried silently (same profile 10 min later, was 30);
   Zalo "Chưa lấy được … đã thử 3 lần" only after the 3rd try.
+- 1.46 (owner, Nov 21): "💬 Hỏi thăm khách" ONLY sends booking numbers (`/api/ext/out_list`) — it used to save new +
+  changed rows from Booking's list and overwrote prices/dates/room names of ~40 guests. A new guest of the day is done
+  only with phone AND booking picture (`_pending_query`); saved-but-incomplete → fetched again (≤ 3) even without the
+  run's report. `add_new_booking`: the same Booking number saved twice at once → no `PHOTO_` twin.
