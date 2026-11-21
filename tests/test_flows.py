@@ -246,6 +246,8 @@ def test_pending_new_guests(client, db, app_module, throwaway, monkeypatch):
                            {'t': app_module._vn_now() - timedelta(minutes=20), 'm': 'zz-' + bid})
         db.session.commit()
         assert any(r[0] == bid for r in app_module._pending_query(db))
+        db.session.execute(text("UPDATE mail_alerts SET fetch_at = :t WHERE mail_id = :m"), {'t': app_module._vn_now(), 'm': 'zz-' + bid})
+        db.session.commit()
         # owner, Nov 19: saved WITHOUT the phone → no Zalo yet, tried again 10 min later (retry = visible window)
         n0 = len(sent)
         client.post('/api/ext/pending', headers=hdr, json={'action': 'report', 'ok': [bid], 'bad': [], 'account': '18 Hàng Bè'})
