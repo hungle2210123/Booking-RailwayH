@@ -301,7 +301,7 @@ _p16_staff — 👥 Nhân viên (owner, Nov 6): the cleaners talk to the Zalo bo
 - app_parts/p16_staff.py:886 `moi_staff` ← `/api/moi/staff` GET,POST — 👥 Nhân viên sheet in /moi: waiting requests, who is off today, month list; actions: decide, add (leave/extra),
 - app_parts/p16_staff.py:957 `staff_copy_owner` — Copy of a cleaner's message to the bot + the bot's answer → the owner(s).
 
-## app_parts/p17_mail.py (747 lines)
+## app_parts/p17_mail.py (778 lines)
 _p17_mail — 📧 Booking.com e-mails → the app (owner, Nov 12: "khi nhận được mail thì hệ thống tự cập nhật trên app là đang có_
 - app_parts/p17_mail.py:20 `_mail_ensure`
 - app_parts/p17_mail.py:36 `_mail_token`
@@ -313,25 +313,26 @@ _p17_mail — 📧 Booking.com e-mails → the app (owner, Nov 12: "khi nhận �
 - app_parts/p17_mail.py:153 `_mail_property` — The listing named in the mail → (name, apartment id it is usually placed in) — from the names already in booki
 - app_parts/p17_mail.py:166 `mail_text` — The Zalo message / app line for one alert. a['at'] = when Booking sent the mail = when the guest booked / canc
 - app_parts/p17_mail.py:185 `mail_hook` ← `/api/mail-hook/<token>` POST — Called by the owner's Gmail script for every new mail from booking.com: {id, subject, body}.
-- app_parts/p17_mail.py:257 `moi_mail_list` ← `/api/moi/mail_list` — 📧 Thư đặt phòng Booking (owner, Nov 12: "một nút để xem các gmail báo đặt phòng phút chót, gồm thời gian đặt p
-- app_parts/p17_mail.py:293 `moi_mail_alerts` ← `/api/moi/mail_alerts` GET,POST — The bar on /moi and /may-tinh: alerts of the last 3 days not marked seen. A NEW booking already in the app (im
-- app_parts/p17_mail.py:323 `_zbot2_token`
-- app_parts/p17_mail.py:327 `_zbot2_call`
-- app_parts/p17_mail.py:342 `mail_notify` — Booking alert → the booking bot's receivers; the cleaning bot's owner chats only while the booking bot is not 
-- app_parts/p17_mail.py:354 `zbot2_hook` ← `/zalo-bot2/hook` POST — Zalo calls this when someone writes to the BOOKING bot: that person becomes a receiver of the booking alerts.
-- app_parts/p17_mail.py:384 `login_code_take` — A Zalo message that is just a 4–8 digit code while a code is awaited → kept for the extension; returns the rep
-- app_parts/p17_mail.py:404 `ext_login_code` ← `/api/ext/login_code` POST — {action:'ask', nonce} → the bot asks the owner for the code · {action:'get', nonce} → {code} once ('' = not ye
-- app_parts/p17_mail.py:443 `_vn_today`
-- app_parts/p17_mail.py:448 `ext_morning` ← `/api/ext/morning` POST
-- app_parts/p17_mail.py:505 `_pending_rows` — Guests this Chrome profile should fetch now. 1st try: a profile whose Booking account has the hotel. A RETRY
-- app_parts/p17_mail.py:525 `_pending_query`
-- app_parts/p17_mail.py:545 `mail_fetched` — The extension saved this booking from its Booking page → it is no longer waiting to be fetched.
-- app_parts/p17_mail.py:561 `ext_pending` ← `/api/ext/pending` POST
-- app_parts/p17_mail.py:614 `_claim_today` — True for the first caller of the day only (several gunicorn workers tick at the same minute).
-- app_parts/p17_mail.py:624 `morning_watch` — 7:20–7:59 VN: no run started today → one warning; a run started > 30 min ago and not finished → one warning.
-- app_parts/p17_mail.py:661 `moi_mail_bot` ← `/api/moi/mail_bot` POST — Setup of the booking bot: token (checked with getMe, then setWebhook) · test · remove a receiver · off (back t
-- app_parts/p17_mail.py:698 `_mail_setup_info`
-- app_parts/p17_mail.py:740 `moi_mail_setup` ← `/api/moi/mail_setup` — 📧 setup sheet: the script to paste into Google Apps Script (with this app's private address) + the last mail r
+- app_parts/p17_mail.py:259 `mail_mark_cancelled` — Booking's "Đặt phòng đã hủy" mail → the booking becomes Báo hủy (owner, Nov 21: Krizza Ceniza booked 6:11, can
+- app_parts/p17_mail.py:288 `moi_mail_list` ← `/api/moi/mail_list` — 📧 Thư đặt phòng Booking (owner, Nov 12: "một nút để xem các gmail báo đặt phòng phút chót, gồm thời gian đặt p
+- app_parts/p17_mail.py:324 `moi_mail_alerts` ← `/api/moi/mail_alerts` GET,POST — The bar on /moi and /may-tinh: alerts of the last 3 days not marked seen. A NEW booking already in the app (im
+- app_parts/p17_mail.py:354 `_zbot2_token`
+- app_parts/p17_mail.py:358 `_zbot2_call`
+- app_parts/p17_mail.py:373 `mail_notify` — Booking alert → the booking bot's receivers; the cleaning bot's owner chats only while the booking bot is not 
+- app_parts/p17_mail.py:385 `zbot2_hook` ← `/zalo-bot2/hook` POST — Zalo calls this when someone writes to the BOOKING bot: that person becomes a receiver of the booking alerts.
+- app_parts/p17_mail.py:415 `login_code_take` — A Zalo message that is just a 4–8 digit code while a code is awaited → kept for the extension; returns the rep
+- app_parts/p17_mail.py:435 `ext_login_code` ← `/api/ext/login_code` POST — {action:'ask', nonce} → the bot asks the owner for the code · {action:'get', nonce} → {code} once ('' = not ye
+- app_parts/p17_mail.py:474 `_vn_today`
+- app_parts/p17_mail.py:479 `ext_morning` ← `/api/ext/morning` POST
+- app_parts/p17_mail.py:536 `_pending_rows` — Guests this Chrome profile should fetch now. 1st try: a profile whose Booking account has the hotel. A RETRY
+- app_parts/p17_mail.py:556 `_pending_query`
+- app_parts/p17_mail.py:576 `mail_fetched` — The extension saved this booking from its Booking page → it is no longer waiting to be fetched.
+- app_parts/p17_mail.py:592 `ext_pending` ← `/api/ext/pending` POST
+- app_parts/p17_mail.py:645 `_claim_today` — True for the first caller of the day only (several gunicorn workers tick at the same minute).
+- app_parts/p17_mail.py:655 `morning_watch` — 7:20–7:59 VN: no run started today → one warning; a run started > 30 min ago and not finished → one warning.
+- app_parts/p17_mail.py:692 `moi_mail_bot` ← `/api/moi/mail_bot` POST — Setup of the booking bot: token (checked with getMe, then setWebhook) · test · remove a receiver · off (back t
+- app_parts/p17_mail.py:729 `_mail_setup_info`
+- app_parts/p17_mail.py:771 `moi_mail_setup` ← `/api/moi/mail_setup` — 📧 setup sheet: the script to paste into Google Apps Script (with this app's private address) + the last mail r
 
 ## core/__init__.py (3 lines)
 
@@ -593,7 +594,7 @@ _p17_mail — 📧 Booking.com e-mails → the app (owner, Nov 12: "khi nhận �
 - chrome_extension/content.js: 747 `drawAi` · 782 `stopMic` · 783 `toggleMic` · 825 `prepareShot` · 901 `finishShot` · 955 `cancelShot` · 963 `restoreFloating` · 1009 `guestLinks`
 - chrome_extension/content.js: 1043 `groupTable` · 1056 `groupProps` · 1095 `numUnder` · 1117 `arrivalsToday` · 1153 `startGroup` · 1167 `stopGroup` · 1178 `showGroupDone` · 1189 `groupStep`
 - chrome_extension/content.js: 1222 `refreshRunBtn` · 1275 `startRun` · 1299 `finishRun` · 1314 `showRunDone` · 1324 `withSes` · 1331 `logoutLoop` · 1348 `fetchJob` · 1375 `learnHotels`
-- chrome_extension/content.js: 1388 `runStep` · 1468 `autoMorning`
+- chrome_extension/content.js: 1388 `runStep` · 1468 `autoMorning` · 1542 `startTab`
 
 ## chrome_extension/background.js
 - chrome_extension/background.js: 6 `settings` · 30 `shoot` · 61 `morningTime` · 66 `scheduleMorning` · 75 `stayAwake` · 82 `openTab` · 91 `morningRun` · 107 `checkSignedOut`

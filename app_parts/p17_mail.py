@@ -242,6 +242,9 @@ def mail_hook(token):
         VALUES (:at, :m, :k, :b, :p, :a, :d, :s, :seen)"""), {'at': at, 'm': mid, 'k': p['kind'], 'b': p['booking_id'],
                                                       'p': prop, 'a': apt, 'd': p['day'], 's': subject, 'seen': not now})
     _xdb.session.commit()
+    marked = mail_mark_cancelled(_xdb, p) if p['kind'] == 'cancel' else 0
+    if marked:
+        detail = (detail + '\n' if detail else '') + '→ đã chuyển "Báo hủy" trên lịch (hoàn tác được)'
     if not now and p['kind'] not in MAIL_ALWAYS:    # kept (for the record) but not announced: the guest does not arrive today
         return jsonify({'ok': True, 'kind': p['kind'], 'quiet': True})
     msg = mail_text({'kind': p['kind'], 'booking_id': p['booking_id'], 'prop': prop, 'apt': apt, 'day': p['day'], 'at': at,
@@ -251,6 +254,34 @@ def mail_hook(token):
     except Exception as e:
         print(f'⚠️ mail alert → Zalo: {e}')
     return jsonify({'ok': True, 'kind': p['kind']})
+
+
+def mail_mark_cancelled(_xdb, p):
+    """Booking's "Đặt phòng đã hủy" mail → the booking becomes Báo hủy (owner, Nov 21: Krizza Ceniza booked 6:11, cancelled
+    6:51, still on the calendar). Only a stay that has not ended yet (arrival today or later) and nothing collected —
+    a cancel mail for a PAST stay is the owner's own no-show mark on Booking and must not touch the revenue.
+    Báo hủy is undoable (hard rule: never hide a booking for good). Returns how many rows changed."""
+    bid = str(p.get('booking_id') or '')
+    if not bid.isdigit():
+        return 0
+    try:
+        rows = _xdb.session.execute(text("""
+            UPDATE bookings SET checkin_status = 'cancelling', updated_at = NOW()
+            WHERE (booking_id = :b OR booking_id LIKE :b || '-%') AND checkin_date >= :d
+              AND COALESCE(checkin_status, '') NOT IN ('cancelling', 'no_show')
+              AND COALESCE(booking_status, '') NOT IN ('cancelled', 'deleted')
+              AND COALESCE(collected_amount, 0) = 0
+            RETURNING booking_id"""), {'b': bid, 'd': _vn_now().date()}).fetchall()
+        from core.models import BookingHistory as _BH
+        for r in rows:
+            _xdb.session.add(_BH(booking_id=r[0], field_name='Trạng thái', old_value='', new_value='Báo hủy',
+                                 change_description='Thư Booking "Đặt phòng đã hủy" → Báo hủy', changed_by='booking_mail'))
+        _xdb.session.commit()
+        return len(rows)
+    except Exception as e:
+        _xdb.session.rollback()
+        print(f'⚠️ mail cancel → Báo hủy: {e}')
+        return 0
 
 
 @app.route('/api/moi/mail_list')

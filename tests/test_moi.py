@@ -796,6 +796,30 @@ def test_cancel_mails_always_to_zalo_and_kept(app, db, client, monkeypatch):
             db.session.execute(appmod.text("DELETE FROM mail_alerts WHERE mail_id LIKE 'zz-mail-c%'")); db.session.commit()
 
 
+def test_cancel_mail_marks_upcoming_booking_cancelling(app, db, client, booking, monkeypatch):
+    """Owner, Nov 21: Krizza Ceniza booked 6:11, Booking mailed "Đặt phòng đã hủy" 6:51, still on the calendar →
+    a cancel mail makes an upcoming / today's booking Báo hủy; a PAST stay (owner's own no-show mark) is not touched."""
+    import app as appmod
+    from datetime import timedelta
+    monkeypatch.setattr(appmod, 'mail_notify', lambda _x, msg: None)
+    today = appmod._vn_now().date()
+    fut = booking(guest_name='ZZ Cancelmail', checkin_date=today.isoformat(), checkout_date=(today + timedelta(days=1)).isoformat())
+    old = booking(guest_name='ZZ Pastmail', checkin_date=(today - timedelta(days=9)).isoformat(), checkout_date=(today - timedelta(days=7)).isoformat())
+    with app.app_context():
+        tok = appmod._mail_token(db)
+    try:
+        for i, b in enumerate((fut, old)):
+            client.post('/api/mail-hook/' + tok, json={'id': f'zz-mail-k{i}', 'subject': f'Booking.com - Đặt phòng đã hủy! ({b}, Thứ Bảy, 21 tháng 11, 2026)'})
+        st = lambda b: db.session.execute(appmod.text("SELECT checkin_status FROM bookings WHERE booking_id = :b"), {'b': b}).scalar()
+        db.session.expire_all()
+        assert st(fut) == 'cancelling' and st(old) != 'cancelling'
+    finally:
+        with app.app_context():
+            db.session.execute(appmod.text("DELETE FROM mail_alerts WHERE mail_id LIKE 'zz-mail-k%'"))
+            db.session.execute(appmod.text("DELETE FROM booking_history WHERE booking_id IN (:a, :b)"), {'a': fut, 'b': old})
+            db.session.commit()
+
+
 def test_booking_bot_is_separate(app, db, client, monkeypatch):
     """Owner, Nov 12: "cần lấy con bot khác — con này dùng cho dọn vệ sinh". A second bot (own token, pasted in the app):
     whoever writes to it becomes a receiver; booking alerts go ONLY through it, nothing through the cleaning bot."""
