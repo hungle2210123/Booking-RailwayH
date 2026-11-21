@@ -563,26 +563,35 @@
     if (autoShotDone.has(key)) return Promise.resolve(null);
     autoShotDone.add(key);
     lastPhoneToast = kind === 'phone' ? ($('#toast')?.innerHTML || '') : '';
-    return chrome.runtime.sendMessage({ type: 'auto-shot' }).then(r => {
+    // 1.48 (owner Nov 22: "cần giữ hiển thị màn hình Chrome thì mới chụp được"): the real screen capture only works for
+    // the tab ON the screen → a tab behind, a minimized window, a locked PC draw the box from the page instead
+    // (domshot.js); the screen capture failing for any reason (not 'busy') → the same.
+    const onScreen = !document.hidden && document.hasFocus();
+    const first = onScreen ? chrome.runtime.sendMessage({ type: 'auto-shot' }).catch(() => null) : Promise.resolve(null);
+    return first.then(r => {
+      if (r?.success || r?.error === 'busy') return r;
+      return domAutoShot();
+    }).then(r => {
       if (r?.success) return r;
       autoShotDone.delete(key);                      // allow another try
-      if (r?.reason === 'off' && kind === 'phone') {
-        let hinted = false;
-        try { hinted = sessionStorage.getItem('hp_autoshot_hint') === '1'; sessionStorage.setItem('hp_autoshot_hint', '1'); } catch (e) {}
-        if (!hinted) toast(lastPhoneToast + '<br><small>⚠️ Chưa tự chụp được ảnh đặt phòng: vào <b>chrome://extensions</b> bấm ↻ ở tiện ích Hotel Pro.</small>', 'warn');
-      } else if (r?.error === 'busy') {
-        setTimeout(() => autoShot(kind), 2500);       // another capture was running
-      }
+      if (r?.error === 'busy') setTimeout(() => autoShot(kind), 2500);   // another capture was running
       return r;
     }).catch(() => { autoShotDone.delete(key); return null; });
+  }
+  async function domAutoShot() {
+    if (!window.hpDomShot) return { success: false, error: 'domshot.js chưa nạp' };
+    let prep;
+    try { prep = prepareShot(true); } catch (e) { cancelShot(); return { success: false, error: e.message }; }
+    if (!prep?.ok) return { success: false, error: prep?.error };
+    return (await finishShot(null)) ? { success: true, dom: true } : { success: false, error: 'Không vẽ được khung đặt phòng' };
   }
   function shotAfterReveal() {
     const bid = resId();
     if (!bid || autoShotDone.has(bid + '|phone')) return;
     let tries = 0;
     const go = async () => {
-      // you went to another tab meanwhile → no picture (Alt+Shift+S takes one by hand)
-      if (document.hidden || !document.hasFocus() || resId() !== bid) return;
+      // 1.48: a tab not on the screen is drawn from the page (domshot.js) — only a different booking stops it
+      if (resId() !== bid) return;
       const r = await autoShot('phone');
       if (r?.success) shotSavedFor = bid;
       if (r && !r.success && r.reason !== 'off' && /khung/i.test(r.error || '') && ++tries < 2) setTimeout(go, 3000);
@@ -903,23 +912,31 @@
     pendingShot = null;
     try {
       if (!p) throw new Error('Hết thời gian — chụp lại nhé');
-      const img = await new Promise((res, rej) => {     // (img.decode() can stall in a background tab)
-        const i = new Image();
-        i.onload = () => res(i);
-        i.onerror = () => rej(new Error('Ảnh chụp bị lỗi'));
-        i.src = dataUrl;
-      });
+      let src, s, a, ox = 0, oy = 0;
+      if (dataUrl) {
+        src = await new Promise((res, rej) => {     // (img.decode() can stall in a background tab)
+          const i = new Image();
+          i.onload = () => res(i);
+          i.onerror = () => rej(new Error('Ảnh chụp bị lỗi'));
+          i.src = dataUrl;
+        });
+        s = src.width / p.vw;
+        a = { left: Math.max(0, p.area.left), top: Math.max(0, p.area.top),
+              right: Math.min(p.vw, p.area.right), bottom: Math.min(p.vh, p.area.bottom) };
+      } else {
+        // 1.48: no screen picture → draw the box from the page (positions are those of prepareShot: draw BEFORE
+        // the page scrolls back). Not limited to the screen: a long box is never cut.
+        src = await window.hpDomShot(p.area, host);
+        s = src.width / p.area.width; a = p.area; ox = p.area.left; oy = p.area.top; p.cut = false;
+      }
       restoreFloating(p.floating);
       window.scrollTo({ top: p.backTo, behavior: 'instant' });     // picture taken — page back where you were
-      const s = img.width / p.vw;
-      const a = { left: Math.max(0, p.area.left), top: Math.max(0, p.area.top),
-                  right: Math.min(p.vw, p.area.right), bottom: Math.min(p.vh, p.area.bottom) };
       const make = masked => {
         const c = document.createElement('canvas');
         c.width = Math.round((a.right - a.left) * s);
         c.height = Math.round((a.bottom - a.top) * s);
         const x = c.getContext('2d');
-        x.drawImage(img, a.left * s, a.top * s, c.width, c.height, 0, 0, c.width, c.height);
+        x.drawImage(src, (a.left - ox) * s, (a.top - oy) * s, c.width, c.height, 0, 0, c.width, c.height);
         if (masked) {
           x.fillStyle = '#ffffff';
           p.masks.forEach(m => x.fillRect((m.left - a.left) * s, (m.top - a.top) * s, m.width * s, m.height * s));
@@ -935,7 +952,7 @@
       if (p.auto) {
         if (lastPhoneToast) toast(lastPhoneToast + '<br>📸 Đã lưu luôn <b>ảnh đặt phòng</b> (bản gửi khách đã che hoa hồng)', 'ok');
         else toast('📸 Đã lưu ảnh đặt phòng', 'ok', 2500);
-        return;
+        return true;
       }
       $('#toast')?.remove();
       panel.innerHTML = `<h3>📸 Đã lưu ảnh đặt phòng #${esc(r.booking_id)}</h3>
@@ -947,9 +964,12 @@
         <div class="row"><button class="close" id="b_close" type="button">Đóng</button></div>`;
       panel.classList.add('open');
       $('#b_close').onclick = () => panel.classList.remove('open');
+      return true;
     } catch (e) {
       host.style.visibility = '';
+      if (p) { restoreFloating(p.floating); window.scrollTo({ top: p.backTo, behavior: 'instant' }); }
       toast('❌ Chụp ảnh: ' + esc(e.message), 'warn');
+      return false;
     }
   }
   function cancelShot() {           // capture refused / failed: buttons back, page back
@@ -1450,6 +1470,11 @@
             if (phoneSaved.bid === bid && Date.now() - phoneSaved.at > 4000) break;
             await wait(300);
           }
+        }
+        // 1.48: no picture yet (the number did not show, or the capture failed) → draw it from the page now
+        if (runGet() && resId() === p.booking_id && shotSavedFor !== p.booking_id) {
+          const r2 = await Promise.race([autoShot('run'), wait(10000)]);
+          if (r2?.success) shotSavedFor = p.booking_id;
         }
       } else why = r?.error || 'không thấy mã đặt phòng';
     } catch (e) { why = e.message; }

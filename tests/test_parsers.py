@@ -110,3 +110,20 @@ def test_single_room_page_has_no_rooms_list():
 def test_pulse_call_dialog_phone(line, want):
     from core.booking_page_parser import parse_pulse_text
     assert parse_pulse_text(line)['phone'] == want
+
+
+def test_extension_scripts_and_domshot_loaded_first():
+    """Owner, Nov 22: pictures failed when the Booking tab was not on the screen → ext 1.48 draws the box from the page
+    (domshot.js). It must load BEFORE content.js, and every extension script must parse."""
+    import json, os, shutil, subprocess
+    d = os.path.join(os.path.dirname(__file__), '..', 'chrome_extension')
+    m = json.load(open(os.path.join(d, 'manifest.json'), encoding='utf-8'))
+    js = next(c['js'] for c in m['content_scripts'] if 'content.js' in c['js'])
+    assert js.index('domshot.js') < js.index('content.js')
+    src = open(os.path.join(d, 'content.js'), encoding='utf-8').read()
+    assert 'hpDomShot(p.area, host)' in src and 'domAutoShot()' in src
+    node = shutil.which('node')
+    if node:
+        for f in os.listdir(d):
+            if f.endswith('.js'):
+                assert subprocess.run([node, '--check', os.path.join(d, f)]).returncode == 0, f

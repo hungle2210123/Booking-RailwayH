@@ -593,11 +593,11 @@ _p17_mail — 📧 Booking.com e-mails → the app (owner, Nov 12: "khi nhận �
 ## chrome_extension/content.js
 - chrome_extension/content.js: 119 `allDocs` · 130 `cellsOf` · 137 `fromTable` · 153 `fromBookingNumbers` · 182 `captureList` · 191 `diagnostics` · 216 `capture` · 259 `show`
 - chrome_extension/content.js: 310 `save` · 345 `showList` · 403 `showProblem` · 486 `phonesIn` · 494 `phoneNear` · 502 `guestPhone` · 510 `toast` · 527 `checkPhone`
-- chrome_extension/content.js: 559 `autoShot` · 579 `shotAfterReveal` · 612 `autoRevealTry` · 639 `chatBox` · 645 `putInChat` · 719 `chatThread` · 729 `pageBookingNumber` · 736 `aiAsk`
-- chrome_extension/content.js: 747 `drawAi` · 782 `stopMic` · 783 `toggleMic` · 825 `prepareShot` · 901 `finishShot` · 955 `cancelShot` · 963 `restoreFloating` · 1009 `guestLinks`
-- chrome_extension/content.js: 1043 `groupTable` · 1056 `groupProps` · 1095 `numUnder` · 1117 `arrivalsToday` · 1153 `startGroup` · 1167 `stopGroup` · 1178 `showGroupDone` · 1189 `groupStep`
-- chrome_extension/content.js: 1222 `refreshRunBtn` · 1275 `startRun` · 1299 `finishRun` · 1314 `showRunDone` · 1324 `withSes` · 1331 `logoutLoop` · 1348 `fetchJob` · 1375 `learnHotels`
-- chrome_extension/content.js: 1388 `runStep` · 1468 `autoMorning` · 1542 `startTab`
+- chrome_extension/content.js: 559 `autoShot` · 581 `domAutoShot` · 588 `shotAfterReveal` · 621 `autoRevealTry` · 648 `chatBox` · 654 `putInChat` · 728 `chatThread` · 738 `pageBookingNumber`
+- chrome_extension/content.js: 745 `aiAsk` · 756 `drawAi` · 791 `stopMic` · 792 `toggleMic` · 834 `prepareShot` · 910 `finishShot` · 975 `cancelShot` · 983 `restoreFloating`
+- chrome_extension/content.js: 1029 `guestLinks` · 1063 `groupTable` · 1076 `groupProps` · 1115 `numUnder` · 1137 `arrivalsToday` · 1173 `startGroup` · 1187 `stopGroup` · 1198 `showGroupDone`
+- chrome_extension/content.js: 1209 `groupStep` · 1242 `refreshRunBtn` · 1295 `startRun` · 1319 `finishRun` · 1334 `showRunDone` · 1344 `withSes` · 1351 `logoutLoop` · 1368 `fetchJob`
+- chrome_extension/content.js: 1395 `learnHotels` · 1408 `runStep` · 1493 `autoMorning` · 1567 `startTab`
 
 ## chrome_extension/background.js
 - chrome_extension/background.js: 6 `settings` · 30 `shoot` · 61 `morningTime` · 66 `scheduleMorning` · 75 `stayAwake` · 82 `openTab` · 91 `morningRun` · 107 `checkSignedOut`

@@ -192,3 +192,14 @@ No secrets in the folder (the token field is empty by default). Test `test_exten
 - 1.47 (owner, Nov 21: Krizza Ceniza 6923930862 saved twice in the same millisecond → `PHOTO_2F7624C3` twin, no picture):
   run / group / fetch state lives in sessionStorage, and a tab opened FROM the run tab gets a copy → two tabs ran the same
   run. Each tab now keeps its own id (`hp_tab`, background `tab-id`); a tab holding another tab's id drops the copied state.
+
+### 1.48 (Nov 22 2026) — pictures without the screen (`domshot.js`)
+Owner: "cần giữ hiển thị màn hình Chrome, cần hiển thị khách đó thì mới chụp được". `chrome.tabs.captureVisibleTab` only
+sees the tab ON the screen (tab behind another, minimized window, locked PC at 7:00 → no picture; the pending re-fetch
+filled them minutes later, or never). Now `autoShot`: tab on screen + focused → the real capture as before; otherwise, or
+when it fails (not 'busy') → `domAutoShot`: `prepareShot` (same area + masks) → `window.hpDomShot(area, host)` draws the
+box from the page (boxes/backgrounds/borders, every word at its Range rect with its computed font, inline SVG icons;
+skips fixed/sticky bars, hidden parts, our own host, cross-origin images) → `finishShot(null)` crops/masks/saves as usual.
+Not limited to the viewport (a long box is never cut). `shotAfterReveal` no longer stops on a hidden tab. `runStep`: no
+picture after the wait (number did not show / capture failed) → `autoShot('run')` before the next guest (≤ 10 s).
+Visual check page: `tests/mock_domshot.html` via launch.json "shot-mock" (port 8769) → run `hpDomShot` on `#card`.

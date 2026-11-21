@@ -1,0 +1,29 @@
+<!doctype html><html lang="vi"><head><meta charset="utf-8"><title>mock</title>
+<style>
+body{margin:0;background:#f5f5f5;font-family:"Segoe UI",Arial,sans-serif;color:#1a1a1a}
+.top{position:fixed;top:0;left:0;right:0;height:56px;background:#003580;color:#fff;padding:16px;z-index:5}
+.wrap{padding:90px 24px;display:flex;gap:24px}
+.card{background:#fff;border:1px solid #e7e7e7;border-radius:8px;padding:16px 20px;width:520px}
+h2{font-size:20px;margin:0 0 12px}
+.row{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #eee;font-size:14px}
+.lbl{color:#6b6b6b;text-transform:uppercase;font-size:11px;letter-spacing:.04em}
+.b{font-weight:700}.pill{background:#e7fde9;color:#008009;border-radius:12px;padding:2px 8px;font-size:12px;font-weight:700}
+.hid{visibility:hidden}
+#out{border:2px solid red}
+</style></head><body>
+<div class="top">Booking extranet header (fixed)</div>
+<div class="wrap"><div class="card" id="card">
+ <h2>Chi tiết đặt phòng</h2>
+ <div class="row"><span>Mã số đặt phòng</span><span class="b">5349832389</span></div>
+ <div class="row"><span>Tên khách</span><span class="b">Gido Windmeijer <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" style="color:#0071c2"><circle cx="8" cy="8" r="7"/></svg></span></div>
+ <div class="row"><span>Nhận phòng</span><span>CN, 22 tháng 11 2026</span></div>
+ <div class="row"><span>Trả phòng</span><span>T3, 24 tháng 11 2026</span></div>
+ <div class="row"><span class="lbl">Tổng tiền</span><span class="b">VND 1.792.752</span></div>
+ <div class="row"><span>Trạng thái</span><span class="pill">OK</span></div>
+ <div class="row"><span>Điện thoại</span><span>+31 6 1234 5678</span></div>
+ <p style="font-size:13px;line-height:1.5;color:#333">Một đoạn văn dài để kiểm tra xuống dòng: khách sẽ đến lúc 14:00, xin để chìa khóa ở hộp màu vàng cạnh cầu thang tầng 2, cảm ơn nhiều!</p>
+ <span class="hid">KHÔNG ĐƯỢC HIỆN</span>
+</div></div>
+<div style="height:1500px"></div>
+<script src="../chrome_extension/domshot.js"></script>
+</body></html>
