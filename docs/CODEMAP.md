@@ -301,7 +301,7 @@ _p16_staff — 👥 Nhân viên (owner, Nov 6): the cleaners talk to the Zalo bo
 - app_parts/p16_staff.py:886 `moi_staff` ← `/api/moi/staff` GET,POST — 👥 Nhân viên sheet in /moi: waiting requests, who is off today, month list; actions: decide, add (leave/extra),
 - app_parts/p16_staff.py:957 `staff_copy_owner` — Copy of a cleaner's message to the bot + the bot's answer → the owner(s).
 
-## app_parts/p17_mail.py (740 lines)
+## app_parts/p17_mail.py (747 lines)
 _p17_mail — 📧 Booking.com e-mails → the app (owner, Nov 12: "khi nhận được mail thì hệ thống tự cập nhật trên app là đang có_
 - app_parts/p17_mail.py:20 `_mail_ensure`
 - app_parts/p17_mail.py:36 `_mail_token`
@@ -325,13 +325,13 @@ _p17_mail — 📧 Booking.com e-mails → the app (owner, Nov 12: "khi nhận �
 - app_parts/p17_mail.py:448 `ext_morning` ← `/api/ext/morning` POST
 - app_parts/p17_mail.py:505 `_pending_rows` — Guests this Chrome profile should fetch now. 1st try: a profile whose Booking account has the hotel. A RETRY
 - app_parts/p17_mail.py:525 `_pending_query`
-- app_parts/p17_mail.py:538 `mail_fetched` — The extension saved this booking from its Booking page → it is no longer waiting to be fetched.
-- app_parts/p17_mail.py:554 `ext_pending` ← `/api/ext/pending` POST
-- app_parts/p17_mail.py:607 `_claim_today` — True for the first caller of the day only (several gunicorn workers tick at the same minute).
-- app_parts/p17_mail.py:617 `morning_watch` — 7:20–7:59 VN: no run started today → one warning; a run started > 30 min ago and not finished → one warning.
-- app_parts/p17_mail.py:654 `moi_mail_bot` ← `/api/moi/mail_bot` POST — Setup of the booking bot: token (checked with getMe, then setWebhook) · test · remove a receiver · off (back t
-- app_parts/p17_mail.py:691 `_mail_setup_info`
-- app_parts/p17_mail.py:733 `moi_mail_setup` ← `/api/moi/mail_setup` — 📧 setup sheet: the script to paste into Google Apps Script (with this app's private address) + the last mail r
+- app_parts/p17_mail.py:545 `mail_fetched` — The extension saved this booking from its Booking page → it is no longer waiting to be fetched.
+- app_parts/p17_mail.py:561 `ext_pending` ← `/api/ext/pending` POST
+- app_parts/p17_mail.py:614 `_claim_today` — True for the first caller of the day only (several gunicorn workers tick at the same minute).
+- app_parts/p17_mail.py:624 `morning_watch` — 7:20–7:59 VN: no run started today → one warning; a run started > 30 min ago and not finished → one warning.
+- app_parts/p17_mail.py:661 `moi_mail_bot` ← `/api/moi/mail_bot` POST — Setup of the booking bot: token (checked with getMe, then setWebhook) · test · remove a receiver · off (back t
+- app_parts/p17_mail.py:698 `_mail_setup_info`
+- app_parts/p17_mail.py:740 `moi_mail_setup` ← `/api/moi/mail_setup` — 📧 setup sheet: the script to paste into Google Apps Script (with this app's private address) + the last mail r
 
 ## core/__init__.py (3 lines)
 
@@ -452,7 +452,7 @@ _p17_mail — 📧 Booking.com e-mails → the app (owner, Nov 12: "khi nhận �
 - core/journey.py:305 `set_prefs`
 - core/journey.py:315 `favorites_named` — Pinned buttons ready to show: label (own, else the template / group name), key, kind.
 
-## core/logic_postgresql.py (1876 lines)
+## core/logic_postgresql.py (1881 lines)
 - core/logic_postgresql.py:24 `clear_booking_cache` — Clear the global booking data cache - call after any data modification
 - core/logic_postgresql.py:55 `get_db_connection` — Get database connection from Flask app context
 - core/logic_postgresql.py:60 `execute_query` — Execute SQL query and return DataFrame - SQLAlchemy 2.0 compatible
@@ -463,34 +463,34 @@ _p17_mail — 📧 Booking.com e-mails → the app (owner, Nov 12: "khi nhận �
 - core/logic_postgresql.py:299 `create_demo_data` — Create demo data in PostgreSQL (if needed for testing)
 - core/logic_postgresql.py:365 `_fix_guest_sequence` — Fix PostgreSQL guest_id sequence to prevent duplicate key violations
 - core/logic_postgresql.py:390 `add_new_booking` — Add new booking to PostgreSQL
-- core/logic_postgresql.py:530 `update_booking` — Update existing booking in PostgreSQL
-- core/logic_postgresql.py:645 `cancel_booking_by_id` — Cancel booking in PostgreSQL (soft cancel - preserves data)
-- core/logic_postgresql.py:666 `soft_delete_booking_by_id` — Soft delete - mark as cancelled but preserve all data
-- core/logic_postgresql.py:671 `delete_booking_by_id` — Permanently delete booking and all associated data from PostgreSQL
-- core/logic_postgresql.py:719 `get_room_symbol_by_name` — Get room symbol based on room name (calendar view helper) - SIMPLIFIED 3-SYMBOL SYSTEM
-- core/logic_postgresql.py:740 `_make_apt_abbr` — Short abbreviation: skip numbers, use only first 2 significant words.
-- core/logic_postgresql.py:751 `_booking_matches_apartment` — Return True if accommodation name matches this apartment or any of its rooms.
-- core/logic_postgresql.py:784 `_assign_booking_to_apt` — Assign a booking to exactly ONE apartment.
-- core/logic_postgresql.py:807 `get_daily_activity` — Get daily activity — fully dynamic apartment support.
-- core/logic_postgresql.py:898 `get_overall_calendar_day_info` — Get comprehensive calendar day info — fully dynamic apartment support.
-- core/logic_postgresql.py:1121 `prepare_dashboard_data` — Prepare dashboard data from PostgreSQL using optimized SQL queries
-- core/logic_postgresql.py:1224 `check_duplicate_guests` — Check for duplicate guests in PostgreSQL data
-- core/logic_postgresql.py:1248 `analyze_existing_duplicates` — Analyze existing duplicates in the dataset with performance optimizations
-- core/logic_postgresql.py:1351 `add_expense_to_database` — Add expense to PostgreSQL and return expense_id
-- core/logic_postgresql.py:1430 `get_expenses_from_database` — Get all expenses from PostgreSQL with English field names for API compatibility
-- core/logic_postgresql.py:1462 `import_from_gsheet` — Placeholder - Google Sheets removed
-- core/logic_postgresql.py:1467 `append_multiple_bookings_to_sheet` — Placeholder - Google Sheets removed
-- core/logic_postgresql.py:1472 `update_row_in_gsheet` — Placeholder - Google Sheets removed
-- core/logic_postgresql.py:1477 `delete_row_in_gsheet` — Placeholder - Google Sheets removed
-- core/logic_postgresql.py:1482 `delete_multiple_rows_in_gsheet` — Placeholder - Google Sheets removed
-- core/logic_postgresql.py:1487 `export_data_to_new_sheet` — Placeholder - Google Sheets removed
-- core/logic_postgresql.py:1492 `import_message_templates_from_gsheet` — Placeholder - Google Sheets removed
-- core/logic_postgresql.py:1497 `export_message_templates_to_gsheet` — Placeholder - Google Sheets removed
-- core/logic_postgresql.py:1510 `extract_booking_with_openrouter` — Extract booking information using OpenRouter APIs with multiple models
-- core/logic_postgresql.py:1636 `extract_booking_info_from_image_content_multi_api` — Extract booking information from image using Multiple Gemini APIs with auto-switching
-- core/logic_postgresql.py:1855 `extract_booking_info_from_image_content` — Backward compatibility wrapper - now uses multi-API system
-- core/logic_postgresql.py:1867 `scrape_booking_apartments` — Placeholder for market intelligence
-- core/logic_postgresql.py:1872 `format_apartments_display` — Placeholder for market intelligence
+- core/logic_postgresql.py:535 `update_booking` — Update existing booking in PostgreSQL
+- core/logic_postgresql.py:650 `cancel_booking_by_id` — Cancel booking in PostgreSQL (soft cancel - preserves data)
+- core/logic_postgresql.py:671 `soft_delete_booking_by_id` — Soft delete - mark as cancelled but preserve all data
+- core/logic_postgresql.py:676 `delete_booking_by_id` — Permanently delete booking and all associated data from PostgreSQL
+- core/logic_postgresql.py:724 `get_room_symbol_by_name` — Get room symbol based on room name (calendar view helper) - SIMPLIFIED 3-SYMBOL SYSTEM
+- core/logic_postgresql.py:745 `_make_apt_abbr` — Short abbreviation: skip numbers, use only first 2 significant words.
+- core/logic_postgresql.py:756 `_booking_matches_apartment` — Return True if accommodation name matches this apartment or any of its rooms.
+- core/logic_postgresql.py:789 `_assign_booking_to_apt` — Assign a booking to exactly ONE apartment.
+- core/logic_postgresql.py:812 `get_daily_activity` — Get daily activity — fully dynamic apartment support.
+- core/logic_postgresql.py:903 `get_overall_calendar_day_info` — Get comprehensive calendar day info — fully dynamic apartment support.
+- core/logic_postgresql.py:1126 `prepare_dashboard_data` — Prepare dashboard data from PostgreSQL using optimized SQL queries
+- core/logic_postgresql.py:1229 `check_duplicate_guests` — Check for duplicate guests in PostgreSQL data
+- core/logic_postgresql.py:1253 `analyze_existing_duplicates` — Analyze existing duplicates in the dataset with performance optimizations
+- core/logic_postgresql.py:1356 `add_expense_to_database` — Add expense to PostgreSQL and return expense_id
+- core/logic_postgresql.py:1435 `get_expenses_from_database` — Get all expenses from PostgreSQL with English field names for API compatibility
+- core/logic_postgresql.py:1467 `import_from_gsheet` — Placeholder - Google Sheets removed
+- core/logic_postgresql.py:1472 `append_multiple_bookings_to_sheet` — Placeholder - Google Sheets removed
+- core/logic_postgresql.py:1477 `update_row_in_gsheet` — Placeholder - Google Sheets removed
+- core/logic_postgresql.py:1482 `delete_row_in_gsheet` — Placeholder - Google Sheets removed
+- core/logic_postgresql.py:1487 `delete_multiple_rows_in_gsheet` — Placeholder - Google Sheets removed
+- core/logic_postgresql.py:1492 `export_data_to_new_sheet` — Placeholder - Google Sheets removed
+- core/logic_postgresql.py:1497 `import_message_templates_from_gsheet` — Placeholder - Google Sheets removed
+- core/logic_postgresql.py:1502 `export_message_templates_to_gsheet` — Placeholder - Google Sheets removed
+- core/logic_postgresql.py:1515 `extract_booking_with_openrouter` — Extract booking information using OpenRouter APIs with multiple models
+- core/logic_postgresql.py:1641 `extract_booking_info_from_image_content_multi_api` — Extract booking information from image using Multiple Gemini APIs with auto-switching
+- core/logic_postgresql.py:1860 `extract_booking_info_from_image_content` — Backward compatibility wrapper - now uses multi-API system
+- core/logic_postgresql.py:1872 `scrape_booking_apartments` — Placeholder for market intelligence
+- core/logic_postgresql.py:1877 `format_apartments_display` — Placeholder for market intelligence
 
 ## core/models.py (1227 lines)
 - core/models.py:20 class `Guest`
@@ -592,8 +592,8 @@ _p17_mail — 📧 Booking.com e-mails → the app (owner, Nov 12: "khi nhận �
 - chrome_extension/content.js: 559 `autoShot` · 579 `shotAfterReveal` · 612 `autoRevealTry` · 639 `chatBox` · 645 `putInChat` · 719 `chatThread` · 729 `pageBookingNumber` · 736 `aiAsk`
 - chrome_extension/content.js: 747 `drawAi` · 782 `stopMic` · 783 `toggleMic` · 825 `prepareShot` · 901 `finishShot` · 955 `cancelShot` · 963 `restoreFloating` · 1009 `guestLinks`
 - chrome_extension/content.js: 1043 `groupTable` · 1056 `groupProps` · 1095 `numUnder` · 1117 `arrivalsToday` · 1153 `startGroup` · 1167 `stopGroup` · 1178 `showGroupDone` · 1189 `groupStep`
-- chrome_extension/content.js: 1222 `refreshRunBtn` · 1277 `startRun` · 1301 `finishRun` · 1316 `showRunDone` · 1326 `withSes` · 1333 `logoutLoop` · 1350 `fetchJob` · 1377 `learnHotels`
-- chrome_extension/content.js: 1390 `runStep` · 1470 `autoMorning`
+- chrome_extension/content.js: 1222 `refreshRunBtn` · 1275 `startRun` · 1299 `finishRun` · 1314 `showRunDone` · 1324 `withSes` · 1331 `logoutLoop` · 1348 `fetchJob` · 1375 `learnHotels`
+- chrome_extension/content.js: 1388 `runStep` · 1468 `autoMorning`
 
 ## chrome_extension/background.js
 - chrome_extension/background.js: 6 `settings` · 30 `shoot` · 61 `morningTime` · 66 `scheduleMorning` · 75 `stayAwake` · 82 `openTab` · 91 `morningRun` · 107 `checkSignedOut`

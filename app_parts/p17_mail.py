@@ -527,11 +527,18 @@ def _pending_query(_xdb):
         SELECT m.booking_id, MAX(m.prop), MIN(COALESCE(m.fetch_tries, 0)), MAX(p.hotel_id), MAX(m.fetch_pids), MAX(m.fetch_at)
         FROM mail_alerts m
         LEFT JOIN booking_properties p ON lower(p.name) = lower(m.prop)
-        WHERE m.kind IN ('last', 'new') AND m.day = :d AND m.booking_id <> '' AND m.fetched_at IS NULL
+        WHERE m.kind IN ('last', 'new') AND m.day = :d AND m.booking_id <> ''
           AND COALESCE(m.fetch_tries, 0) < 3
           AND NOT EXISTS (SELECT 1 FROM mail_alerts c WHERE c.kind = 'cancel' AND c.booking_id = m.booking_id)
+          -- owner, Nov 21 ("phải lấy được hình ảnh, số điện thoại, thông tin đầy đủ"): done = saved WITH a phone AND the
+          -- booking picture. Saved but one of them missing → fetched again (≤ 3 tries) even if the run's report never
+          -- came back (5312674826: saved 6:25 without phone/picture, marked fetched, never retried)
           AND NOT EXISTS (SELECT 1 FROM bookings b JOIN guests g ON g.guest_id = b.guest_id
+                          JOIN booking_screenshots s ON s.booking_id = b.booking_id
                           WHERE b.booking_id = m.booking_id AND COALESCE(g.phone, '') <> '')
+          -- a partner booking never shows the guest's phone → once saved with its picture it is done
+          AND NOT EXISTS (SELECT 1 FROM bookings b JOIN booking_screenshots s ON s.booking_id = b.booking_id
+                          WHERE b.booking_id = m.booking_id AND b.via_partner IS TRUE)
         GROUP BY m.booking_id ORDER BY m.booking_id"""), {'d': _vn_now().date()}).fetchall()
 
 
@@ -599,7 +606,7 @@ def ext_pending():
     if items and d.get('take'):
         _xdb.session.execute(text("""UPDATE mail_alerts SET fetch_tries = COALESCE(fetch_tries, 0) + 1, fetch_at = :now,
                 fetch_pids = CASE WHEN :pid = '' THEN fetch_pids ELSE concat_ws(',', NULLIF(fetch_pids, ''), :pid) END
-            WHERE booking_id = ANY(:b) AND fetched_at IS NULL"""), {'b': [i['bid'] for i in items], 'now': _vn_now(), 'pid': pid})
+            WHERE booking_id = ANY(:b)"""), {'b': [i['bid'] for i in items], 'now': _vn_now(), 'pid': pid})
         _xdb.session.commit()
     return jsonify({'success': True, 'items': items})
 
