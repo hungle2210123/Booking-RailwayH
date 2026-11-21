@@ -243,6 +243,23 @@ def property_from_page(url, text):
     return None
 
 
+# Booking badges glued to the guest name (owner Nov 21: "Quay lại Atawhai Thomas" — the returning-guest badge made the
+# app think the guest was Vietnamese and greet "Chào Quay lại …").
+_NAME_BADGE = re.compile(r'^\s*(?:(?:kh[aá]ch\s+)?quay\s+l[aạ]i|returning(?:\s+guest)?|repeat\s+guest|genius(?:\s+level\s*\d)?)\b[\s:·•\-]*', re.I)
+
+
+def strip_name_badges(name):
+    if not name:
+        return name
+    n = str(name).strip()
+    for _ in range(3):
+        m = _NAME_BADGE.match(n)
+        if not m or not n[m.end():].strip():
+            break
+        n = n[m.end():].strip()
+    return n
+
+
 def parse_reservation_page(page):
     url = page.get('url') or ''
     text = page.get('text') or ''
@@ -269,7 +286,7 @@ def parse_reservation_page(page):
             name = h
     if name and len(name) > 80:
         name = None
-    out['guest_name'] = name
+    out['guest_name'] = strip_name_badges(name)
 
     out['checkin_date'] = parse_date(_value(page, lines, 'checkin') or '')
     out['checkout_date'] = parse_date(_value(page, lines, 'checkout') or '')
@@ -467,7 +484,7 @@ def parse_reservation_list(headers, rows):
         g = cell(row, 'guest_name')
         # Name = link text (or first line), without badges like "Genius"
         name = (g.get('link') or (g.get('text') or '').split('\n')[0]).strip()
-        name = re.sub(r'\s*\bGenius\b\s*', ' ', name).strip()
+        name = strip_name_badges(re.sub(r'\s*\bGenius\b\s*', ' ', name).strip())
         status_txt = _fold(cell(row, 'status').get('text'))
         if any(w in status_txt for w in CANCEL_WORDS) or status_txt.startswith('huy'):
             status = 'cancelled'

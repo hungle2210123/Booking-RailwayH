@@ -1080,7 +1080,9 @@ def moi_pay_msg(booking_id):
         return jsonify({'success': False, 'error': 'Không tìm thấy đặt phòng'}), 404
     rid = _pay_remind_id(_xdb)
     left = _pay_left(_xdb, booking_id)
-    vn = _vn_guest_name(b['name'])
+    # owner Nov 21: the money messages are for FOREIGN guests only → always English (Vietnamese guests pay by
+    # transfer themselves; a name with Vietnamese-looking letters must not switch them to Vietnamese)
+    vn = False
     tien = _pay_tien(left, vn)
 
     def render(t):

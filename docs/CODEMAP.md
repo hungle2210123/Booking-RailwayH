@@ -203,7 +203,7 @@ _p12_sync_crawl_duplicates — sync services, crawl admin bookings, bulk save, d
 - app_parts/p13_misc_railway.py:1087 `extract_meter_data_with_openrouter` — Extract electricity meter data using various free models via OpenRouter API
 - app_parts/p13_misc_railway.py:1198 `extract_meter_data_with_multi_api` — Extract electricity meter data using multiple APIs with automatic fallback
 
-## app_parts/p15_moi.py (1098 lines)
+## app_parts/p15_moi.py (1100 lines)
 _p15_moi — /moi: the new phone-first app (owner, Oct 26), built from the approved mockup. Runs NEXT TO the old pages_
 - app_parts/p15_moi.py:12 `_moi_ensure` — bookings.room_no (room 1..N inside the placed apartment) — added once per process.
 - app_parts/p15_moi.py:37 `_moi_apartments` — Active apartments with short name, colour (index among ALL apartments, like the calendar) and room count.
@@ -343,7 +343,7 @@ _p17_mail — 📧 Booking.com e-mails → the app (owner, Nov 12: "khi nhận �
 - core/auto_sync_service.py:23 class `SyncStatus` — Status of database synchronization
 - core/auto_sync_service.py:32 class `AutoSyncService` — Automatic bidirectional database synchronization service
 
-## core/booking_page_parser.py (627 lines)
+## core/booking_page_parser.py (644 lines)
 - core/booking_page_parser.py:21 `_fold`
 - core/booking_page_parser.py:58 `parse_date` — 'Fri, 3 Oct 2026' · 'Oct 3, 2026' · '2026-10-03' · '03/10/2026' · 'T6, 3 thg 10, 2026'
 - core/booking_page_parser.py:80 `_mk`
@@ -358,15 +358,16 @@ _p17_mail — 📧 Booking.com e-mails → the app (owner, Nov 12: "khi nhận �
 - core/booking_page_parser.py:218 `hotel_id_of`
 - core/booking_page_parser.py:224 `_property_ok`
 - core/booking_page_parser.py:231 `property_from_page` — Listing name in the extranet's top bar: "Studio Hanoi Old Quarter - Steps to Everything  16496275"
-- core/booking_page_parser.py:246 `parse_reservation_page`
-- core/booking_page_parser.py:346 `_column_index` — header texts → {field: column index}.
-- core/booking_page_parser.py:371 `_infer_columns` — No usable headers: recognise columns from their content.
-- core/booking_page_parser.py:414 `is_reservation_list`
-- core/booking_page_parser.py:426 `looks_like_room` — A room / unit name ("Studio Có Sân Hiên (101 - 103 TN)", "2 PN Hàng Bè") — not one of Booking's
-- core/booking_page_parser.py:436 `split_rooms` — '101 - 103 TN' → ('101 - 103 TN', 1); two lines or '2 x Phòng Đôi' → several rooms.
-- core/booking_page_parser.py:448 `parse_reservation_list` — rows: [[{'text': cell innerText, 'link': first link text}, ...], ...]
-- core/booking_page_parser.py:504 `parse_pulse_texts` — Several screenshots of one booking (booking screen, call dialog with the phone, booking number…): each is read
-- core/booking_page_parser.py:529 `parse_pulse_text`
+- core/booking_page_parser.py:251 `strip_name_badges`
+- core/booking_page_parser.py:263 `parse_reservation_page`
+- core/booking_page_parser.py:363 `_column_index` — header texts → {field: column index}.
+- core/booking_page_parser.py:388 `_infer_columns` — No usable headers: recognise columns from their content.
+- core/booking_page_parser.py:431 `is_reservation_list`
+- core/booking_page_parser.py:443 `looks_like_room` — A room / unit name ("Studio Có Sân Hiên (101 - 103 TN)", "2 PN Hàng Bè") — not one of Booking's
+- core/booking_page_parser.py:453 `split_rooms` — '101 - 103 TN' → ('101 - 103 TN', 1); two lines or '2 x Phòng Đôi' → several rooms.
+- core/booking_page_parser.py:465 `parse_reservation_list` — rows: [[{'text': cell innerText, 'link': first link text}, ...], ...]
+- core/booking_page_parser.py:521 `parse_pulse_texts` — Several screenshots of one booking (booking screen, call dialog with the phone, booking number…): each is read
+- core/booking_page_parser.py:546 `parse_pulse_text`
 
 ## core/cache_config.py (60 lines)
 - core/cache_config.py:13 `init_cache` — Initialize Flask-Caching with app

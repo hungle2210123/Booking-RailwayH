@@ -959,6 +959,13 @@ def test_one_tap_payment_messages(app, db, client, booking):
     assert j['ask'] and '{' not in j['remind'] and not j['remind_sent']
     assert client.post(f'/api/moi/pay_msg/{bid}', json={'kind': 'remind'}).get_json()['success']
     assert client.get(f'/api/moi/pay_msg/{bid}').get_json()['remind_sent']
+    # owner Nov 21: money messages are for foreign guests only → English even when the name looks Vietnamese
+    with app.app_context():
+        db.session.execute(appmod.text("UPDATE guests SET full_name = 'ZZ Quay lại Nguyễn' WHERE guest_id = (SELECT guest_id FROM bookings WHERE booking_id = :b)"), {'b': bid}); db.session.commit()
+    j = client.get(f'/api/moi/pay_msg/{bid}').get_json()
+    assert 'settle it today' in j['remind'] and 'Chào' not in j['remind']
+    from core.booking_page_parser import strip_name_badges
+    assert strip_name_badges('Quay lại Atawhai Thomas') == 'Atawhai Thomas' and strip_name_badges('Lại Văn Quay') == 'Lại Văn Quay'
     with app.app_context():
         db.session.execute(appmod.text("DELETE FROM journey_log WHERE booking_id = :b"), {'b': bid}); db.session.commit()
     html = client.get('/moi').get_data(as_text=True)
