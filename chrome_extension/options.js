@@ -2,6 +2,21 @@ const DEFAULTS = { server: 'https://web-production-8f671.up.railway.app', token:
 const $ = id => document.getElementById(id);
 const say = (text, ok) => { $('msg').textContent = text; $('msg').style.color = ok ? '#15803d' : '#b91c1c'; };
 
+// 🔄 1.51 (Nov 22): this page is always read from the folder on disk; the background script can be an OLD cached copy
+// (a Chrome restart kept 1.47's). Background older than the files (or too old to answer) → reload the extension once.
+(async () => {
+  try {
+    const disk = (await (await fetch(chrome.runtime.getURL('manifest.json'), { cache: 'no-store' })).json()).version;
+    const bg = await Promise.race([chrome.runtime.sendMessage({ type: 'bg-ver' }).catch(() => null),
+                                   new Promise(r => setTimeout(() => r(null), 3000))]);
+    if (bg?.ver === disk) return;
+    if (sessionStorage.getItem('hpReloaded') === disk) return;       // once per version — never a loop
+    sessionStorage.setItem('hpReloaded', disk);
+    say('🔄 Đang nạp bản mới ' + disk + ' của tiện ích…', true);
+    setTimeout(() => chrome.runtime.reload(), 800);
+  } catch (e) {}
+})();
+
 chrome.storage.sync.get(DEFAULTS).then(s => { $('server').value = s.server; $('token').value = s.token; });
 
 // 👤 per-profile account name + run time (chrome.storage.LOCAL: each Chrome profile keeps its own)

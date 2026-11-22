@@ -217,6 +217,14 @@ function ensureAlarm(name, periodInMinutes) {
     .catch(() => chrome.alarms.create(name, { periodInMinutes }));
 }
 ensureAlarm('hp-selfupdate', 5);
+// written in THIS script (getManifest() would give the new manifest even when the script is an old cached copy);
+// tests/test_parsers.py checks it equals manifest.json
+const BG_VER = '1.51.0';
+// 1.51: the popup / options page asks which version the BACKGROUND runs (Nov 22: after a Chrome restart the manifest
+// was new but Chrome kept the cached 1.47 background script — only a reload replaces it)
+chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
+  if (msg?.type === 'bg-ver') { sendResponse({ ver: BG_VER }); return false; }
+});
 
 // ── 📥 Khách đặt trong ngày (1.36, owner 18/11/2026) ─────────────────────────────────────────────────────────────
 // Booking's mail → server (p17) knows the new guest's number + property. Every minute (only while this PC is awake

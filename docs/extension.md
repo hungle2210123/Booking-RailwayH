@@ -230,3 +230,12 @@ Chrome disables a reloaded unpacked extension, `unsupportedDeveloperExtension`):
 1 min, alarms keep running; adding the "debugger" permission on reload keeps the extension ENABLED. The extension now
 sends `ver` with /api/ext/pending → moi_settings `ext_versions` {pid: {ver, acc, at}} shows what each profile runs.
 An old version (≤ 1.49) can only pick this up by a Chrome restart or the reload button in chrome://extensions.
+
+### 1.51 (Nov 22 2026) — opening the options page reloads a stale background
+After a Chrome restart (12:31) the owner's profiles had the 1.50 manifest (permission "debugger" active) but Chrome kept
+running the CACHED 1.47 background script (`Service Worker/ScriptCache` had no 1.49/1.50 code; prefs
+`service_worker_registration_info` 1.47) — a restart is NOT enough, only a reload replaces it. Fix: background answers
+`{type:'bg-ver'}` with `BG_VER` written in the script (test: equals manifest version); options.js (always served from
+disk) compares it with the disk manifest → different / no answer → `chrome.runtime.reload()` once per version.
+Tested (throwaway Chrome, dev mode on): 1.47 running + 1.51 files on disk → open options.html → 5 s later 1.51 ENABLED.
+To push an update onto a stuck profile: `chrome --profile-directory="<p>" chrome-extension://gfhdcjniielimcbiiblplndioapghjik/options.html`.

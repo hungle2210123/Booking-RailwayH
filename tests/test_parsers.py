@@ -121,6 +121,12 @@ def test_extension_alarms_not_restarted_on_every_wake():
     assert not bad, bad
     assert "ensureAlarm('hp-selfupdate', 5)" in src and "ensureAlarm('hp-pending', 1)" in src
     assert "selfUpdate().then(r => { if (!r) pendingCheck(); })" in src
+    # 1.51: the background reports the version written in its own script; it must match the manifest
+    import json
+    mv = json.load(open(os.path.join(os.path.dirname(__file__), '..', 'chrome_extension', 'manifest.json'), encoding='utf-8'))['version']
+    assert f"const BG_VER = '{mv}';" in src
+    opt = open(os.path.join(os.path.dirname(__file__), '..', 'chrome_extension', 'options.js'), encoding='utf-8').read()
+    assert "type: 'bg-ver'" in opt and 'chrome.runtime.reload()' in opt
 
 
 def test_extension_scripts_and_domshot_loaded_first():
