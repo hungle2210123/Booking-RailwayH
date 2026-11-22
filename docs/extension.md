@@ -217,3 +217,16 @@ off-screen ("Bounds must be at least 50% within visible screen space"; Browser.s
 chrome.debugger). So `openTab` (morning run / new guests / cookie reset) now opens its OWN normal window without focus
 (was a background tab / minimized window). Server: `booking_screenshots.method`; a 'dom' picture never replaces a real
 one; a guest whose only picture is 'dom' is fetched again by /api/ext/pending (≤ 3 tries).
+
+### 1.50 (Nov 22 2026) — self-update really works (1.48 + 1.49 never loaded)
+Owner noon Nov 22: "rất nhiều hình ảnh vẫn không thể lấy được". Cause: both profiles still ran **1.47** (Secure
+Preferences `service_worker_registration_info.version`; last load = Chrome start 0:17). `chrome.alarms.create(name,
+{periodInMinutes})` at the top of background.js runs at EVERY service-worker wake and RESTARTS that alarm; the worker
+sleeps after ~30 s and 'hp-pending' wakes it each minute → the 5-minute 'hp-selfupdate' never fired (proved in a
+throwaway Chrome: a 3-min alarm created that way fired 0 times in 8 min). Since 1.29 updates only arrived when Chrome
+restarted. Fix: `ensureAlarm` (create only when missing) + `selfUpdate()` before every 1-minute `pendingCheck`; no reload
+while a run / new-guest fetch is open. Tested in a throwaway Chrome with developer mode ON (like the owner's; OFF →
+Chrome disables a reloaded unpacked extension, `unsupportedDeveloperExtension`): disk 1.50.0 → 1.50.1 loaded within
+1 min, alarms keep running; adding the "debugger" permission on reload keeps the extension ENABLED. The extension now
+sends `ver` with /api/ext/pending → moi_settings `ext_versions` {pid: {ver, acc, at}} shows what each profile runs.
+An old version (≤ 1.49) can only pick this up by a Chrome restart or the reload button in chrome://extensions.

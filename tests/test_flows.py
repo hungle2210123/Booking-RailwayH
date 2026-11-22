@@ -235,6 +235,9 @@ def test_pending_new_guests(client, db, app_module, throwaway, monkeypatch):
         assert not [i for i in take(['1']) if i['bid'] == bid]                  # another account's properties
         got = [i for i in take([hid[0]]) if i['bid'] == bid]
         assert got and got[0]['hotel_id'] == hid[0]
+        # 1.50: the server remembers which extension version each profile runs
+        client.post('/api/ext/pending', json={'hotels': [], 'pid': 'zz-ver', 'ver': '9.9.9', 'account': 'ZZ'}, headers=hdr)
+        assert (app_module._zbot_get(db, 'ext_versions') or {}).get('zz-ver', {}).get('ver') == '9.9.9'
         # saved from its Booking page → no longer pending
         r = client.post('/api/ext/booking/save', headers=hdr, json={'booking_id': bid, 'guest_name': 'Test Guest',
             'checkin_date': today.isoformat(), 'checkout_date': (today + timedelta(days=1)).isoformat(),
@@ -277,6 +280,9 @@ def test_pending_new_guests(client, db, app_module, throwaway, monkeypatch):
     finally:
         db.session.execute(text("DELETE FROM mail_alerts WHERE mail_id = :m"), {'m': 'zz-' + bid})
         db.session.commit()
+        vs = app_module._zbot_get(db, 'ext_versions') or {}
+        if vs.pop('zz-ver', None):
+            app_module._zbot_put(db, 'ext_versions', vs)
 
 
 # ── 💬 Hỏi thăm khách đã trả phòng (owner, Nov 19) ─────────────────────────────────────────────────────────────

@@ -201,12 +201,22 @@ async function selfUpdate() {
   try {
     const m = await (await fetch(chrome.runtime.getURL('manifest.json'), { cache: 'no-store' })).json();
     if (!m.version || m.version === chrome.runtime.getManifest().version) return;
-    const { hpAutoRunUntil, hpRunBusy } = await chrome.storage.local.get(['hpAutoRunUntil', 'hpRunBusy']);
+    const { hpAutoRunUntil, hpRunBusy, hpFetch } = await chrome.storage.local.get(['hpAutoRunUntil', 'hpRunBusy', 'hpFetch']);
     if ((hpAutoRunUntil && Date.now() < hpAutoRunUntil) || (hpRunBusy && Date.now() - hpRunBusy < 180000)) return;
+    if (hpFetch && Date.now() - hpFetch.at < 12 * 60000) return;      // a new-guest fetch is open
     chrome.runtime.reload();
+    return true;
   } catch (e) {}
 }
-chrome.alarms.create('hp-selfupdate', { periodInMinutes: 5 });
+// 1.50 (Nov 22: 1.48 + 1.49 never loaded — both profiles stayed on 1.47 from 0:17 to noon): this line runs at EVERY
+// wake of the service worker, and alarms.create with the same name RESTARTS the alarm. The worker sleeps after ~30 s and
+// 'hp-pending' wakes it every minute → the 5-minute alarm was pushed back every minute and never fired. Create an
+// alarm only when it is missing; selfUpdate also runs before each new-guest check (below).
+function ensureAlarm(name, periodInMinutes) {
+  chrome.alarms.get(name).then(a => { if (!a || a.periodInMinutes !== periodInMinutes) chrome.alarms.create(name, { periodInMinutes }); })
+    .catch(() => chrome.alarms.create(name, { periodInMinutes }));
+}
+ensureAlarm('hp-selfupdate', 5);
 
 // ── 📥 Khách đặt trong ngày (1.36, owner 18/11/2026) ─────────────────────────────────────────────────────────────
 // Booking's mail → server (p17) knows the new guest's number + property. Every minute (only while this PC is awake
@@ -246,7 +256,8 @@ async function pendingCheck() {
   // (owner Nov 19: Booking shows phone numbers only in the old profile 'Lộc', not in a new one)
   let { hpPid } = await chrome.storage.local.get('hpPid');
   if (!hpPid) { hpPid = crypto.randomUUID(); await chrome.storage.local.set({ hpPid }); }
-  try { r = await apiCall('/api/ext/pending', { hotels, take: true, account: st.hpAccount || '', pid: hpPid }); } catch (e) { return; }
+  try { r = await apiCall('/api/ext/pending', { hotels, take: true, account: st.hpAccount || '', pid: hpPid,
+                                                ver: chrome.runtime.getManifest().version }); } catch (e) { return; }
   if (!r?.items?.length) return;
   stayAwake(20);
   // 1.42 (owner Nov 19): a retry (the phone did not show in a hidden tab) opens in a VISIBLE window so Booking draws it
@@ -256,7 +267,7 @@ async function pendingCheck() {
   await chrome.storage.local.set({ hpFetch: { at: Date.now(), tabId: tab.id, items: r.items } });
   setTimeout(() => checkSignedOut(tab.id), 25000);
 }
-chrome.alarms.create('hp-pending', { periodInMinutes: 1 });
+ensureAlarm('hp-pending', 1);
 // Booking signs out each time a reservation opens (content.js logoutLoop): clear Booking's cookies of this profile
 // (= what fixed it by hand on Nov 18), sign in again (Tampermonkey; SMS code via Zalo) and run again. Once a day.
 async function logoutLoop(tab) {
@@ -286,7 +297,7 @@ chrome.alarms.onAlarm.addListener(a => {
   if (a.name === 'hp-awake-off') { try { chrome.power.releaseKeepAwake(); } catch (e) {} }
   if (a.name === 'hp-morning') { scheduleMorning(); morningRun(); }
   if (a.name === 'hp-signout') signedOutAlert();
-  if (a.name === 'hp-pending') pendingCheck();
+  if (a.name === 'hp-pending') selfUpdate().then(r => { if (!r) pendingCheck(); });   // new files first, then the check
   if (a.name === 'hp-cookie-reset') cookieReset();
 });
 

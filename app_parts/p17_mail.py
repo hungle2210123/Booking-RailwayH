@@ -635,6 +635,15 @@ def ext_pending():
         return jsonify({'success': True})
     hotels = {str(h) for h in (d.get('hotels') or []) if str(h).isdigit()}
     pid = re.sub(r'[^\w-]', '', str(d.get('pid') or ''))[:40]
+    # 1.50 (Nov 22: both profiles silently stayed on an old extension for hours): remember which version each Chrome
+    # profile runs (written when it changes, else once a day) → `ext_versions` in moi_settings
+    ver = re.sub(r'[^\d.]', '', str(d.get('ver') or ''))[:12]
+    if ver and pid:
+        vs = _zbot_get(_xdb, 'ext_versions') or {}
+        stamp = _vn_now().strftime('%d/%m %H:%M')
+        if (vs.get(pid) or {}).get('ver') != ver or (vs.get(pid) or {}).get('at', '')[:5] != stamp[:5]:
+            vs[pid] = {'ver': ver, 'acc': acc, 'at': stamp}
+            _zbot_put(_xdb, 'ext_versions', vs)
     items = [{'bid': r[0], 'prop': r[1] or '', 'hotel_id': r[3], 'retry': bool(r[2])} for r in _pending_rows(_xdb, pid, hotels)]
     if items and d.get('take'):
         _xdb.session.execute(text("""UPDATE mail_alerts SET fetch_tries = COALESCE(fetch_tries, 0) + 1, fetch_at = :now,

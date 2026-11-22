@@ -112,6 +112,17 @@ def test_pulse_call_dialog_phone(line, want):
     assert parse_pulse_text(line)['phone'] == want
 
 
+def test_extension_alarms_not_restarted_on_every_wake():
+    """Nov 22: 1.48 + 1.49 never loaded — background.js re-created its 5-minute self-update alarm at EVERY service
+    worker wake (each minute), which restarts it, so it never fired. Repeating alarms go through ensureAlarm only."""
+    import os, re
+    src = open(os.path.join(os.path.dirname(__file__), '..', 'chrome_extension', 'background.js'), encoding='utf-8').read()
+    bad = [l for l in src.splitlines() if re.match(r'chrome\.alarms\.create\(', l) and 'periodInMinutes' in l]
+    assert not bad, bad
+    assert "ensureAlarm('hp-selfupdate', 5)" in src and "ensureAlarm('hp-pending', 1)" in src
+    assert "selfUpdate().then(r => { if (!r) pendingCheck(); })" in src
+
+
 def test_extension_scripts_and_domshot_loaded_first():
     """Owner, Nov 22: pictures failed when the Booking tab was not on the screen → ext 1.48 draws the box from the page
     (domshot.js). It must load BEFORE content.js, and every extension script must parse."""
