@@ -4,7 +4,7 @@ from datetime import date
 import pytest
 
 TODAY = date.today().isoformat()
-PAGES = ['/health', '/moi', '/may-tinh', '/journey', '/tin-nhanh', '/tin-nhanh.webmanifest',
+PAGES = ['/health', '/moi', '/may-tinh', '/journey', '/tin-nhanh', '/tin-nhanh.webmanifest', '/chi-tieu', '/api/chi/list',
          '/api/moi/data', '/api/dashboard/overview', '/api/journey/templates', '/api/journey/prefs', '/api/templates']
 # Nov 11: the old version was removed (owner: "xóa toàn bộ phiên bản cũ", only Tin nhanh kept) — old addresses
 # (bookmarks) must land in the new app, never 404.

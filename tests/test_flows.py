@@ -384,3 +384,54 @@ def test_drawn_picture_never_replaces_a_real_one(app, db, client, booking):
     finally:
         with app.app_context():
             db.session.execute(appmod.text("DELETE FROM booking_screenshots WHERE booking_id = :b"), {'b': bid}); db.session.commit()
+
+
+# ── 💸 Chi tiêu: receipt picture → Zalo bot "Chi tiêu" (owner, Nov 22) ─────────────────────────────────────────────
+@pytest.mark.db_write
+def test_chi_receipt_bot(client, db, app_module, monkeypatch):
+    import time as _t
+    import types
+    app_module._chi_ensure(db)
+    said = []
+    monkeypatch.setattr(app_module, '_chi_say', lambda _db, cid, msg: said.append(msg))
+    monkeypatch.setattr(app_module, 'CHI_BACKGROUND', False)
+    monkeypatch.setattr('requests.get', lambda *a, **k: types.SimpleNamespace(status_code=200, content=b'\xff\xd8fakejpg',
+                                                                            headers={'Content-Type': 'image/jpeg'}))
+    info = {'is_receipt': True, 'amount': '5,000,000', 'time': '18:19 22/11/2026', 'to_name': 'ZZ TEST NGUOI NHAN',
+            'to_bank': 'Techcombank', 'note': 'coc lam rem', 'tx_code': 'ZZTEST-' + str(int(_t.time()))}
+    monkeypatch.setattr(app_module, 'chi_read_receipt', lambda img, mime='image/jpeg': dict(info))
+    keys = ('zbot3_chats', 'zbot3_open_until')
+    saved = {k: app_module._zbot_get(db, k) for k in keys}
+    hdr = {'X-Bot-Api-Secret-Token': app_module._zbot_secret(db) + '3'}
+    msg = lambda **m: {'message': {'chat': {'id': 'zz-chi', 'chat_type': 'PRIVATE'}, 'from': {'display_name': 'ZZ'}, **m}}
+    try:
+        assert client.post('/zalo-bot3/hook', json=msg(text='alo')).status_code == 403           # no secret
+        app_module._zbot_put(db, 'zbot3_open_until', 0)
+        client.post('/zalo-bot3/hook', json=msg(text='alo'), headers=hdr)
+        assert 'riêng của chủ nhà' in said[-1]                                                  # a stranger is refused
+        app_module._zbot_put(db, 'zbot3_open_until', _t.time() + 60)
+        client.post('/zalo-bot3/hook', json=msg(text='alo'), headers=hdr)
+        assert 'Đã kết nối' in said[-1]
+        client.post('/zalo-bot3/hook', json=msg(photo_url='https://example.com/x.jpg'), headers=hdr)
+        assert said[-1].startswith('✅ Đã lưu 5.000.000đ') and '18:19 22/11/2026' in said[-1] and 'coc lam rem' in said[-1]
+        client.post('/zalo-bot3/hook', json=msg(photo_url='https://example.com/x.jpg'), headers=hdr)
+        assert said[-1].startswith('↩️')                                                        # same receipt twice
+        j = client.get('/api/chi/list?month=2026-11').get_json()
+        row = [r for r in j['items'] if r['to'] == 'ZZ TEST NGUOI NHAN']
+        assert row and row[0]['amount'] == 5000000 and client.get(f"/api/chi/img/{row[0]['id']}").data == b'\xff\xd8fakejpg'
+        client.post('/zalo-bot3/hook', json=msg(text='Tháng 11'), headers=hdr)
+        assert said[-1].startswith('📒 Tháng 11')
+        info.update(is_receipt=False, amount=0, tx_code='')
+        client.post('/zalo-bot3/hook', json=msg(photo_url='https://example.com/y.jpg'), headers=hdr)
+        assert 'không giống biên lai' in said[-1]
+        client.post('/zalo-bot3/hook', json=msg(text='xóa'), headers=hdr)
+        assert said[-1].startswith('🗑 Đã xóa khoản 5.000.000đ')
+        assert not db.session.execute(text("SELECT 1 FROM chi_receipts WHERE to_name = 'ZZ TEST NGUOI NHAN'")).fetchone()
+    finally:
+        db.session.execute(text("DELETE FROM chi_receipts WHERE to_name LIKE 'ZZ TEST%' OR tx_code LIKE 'ZZTEST-%'"))
+        db.session.commit()
+        for k, v in saved.items():
+            if v is None:
+                db.session.execute(text("DELETE FROM moi_settings WHERE key = :k"), {'k': k}); db.session.commit()
+            else:
+                app_module._zbot_put(db, k, v)

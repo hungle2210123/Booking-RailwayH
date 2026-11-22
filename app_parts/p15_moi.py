@@ -839,6 +839,11 @@ def zbot_tick():
             morning_watch(now)
         except Exception as e:
             print(f'⚠️ morning watch: {e}')
+    if now.day == 1 and 8 <= now.hour < 10:   # p18: last month's total of the receipts sent to the "Chi tiêu" bot
+        try:
+            chi_month_report(now)
+        except Exception as e:
+            print(f'⚠️ chi month report: {e}')
     if not (8 <= now.hour < 10 or 12 <= now.hour < 14):
         return False
     from core.models import db as _xdb

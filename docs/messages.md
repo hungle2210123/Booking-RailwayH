@@ -236,3 +236,14 @@ quick chips), date (default today, time = now VN), note → "Ghi vào sổ". "Xe
 month total, every row (✕ deletes a mistyped one), last 6 months table. Table `cash_deposits(id, pot 'tn'|'chung', amount,
 note, deposited_at)`, API `/api/moi/deposits` (p15, `DEPOSIT_POTS`). Separate from bookings' collected_amount (it is the
 owner's own cash put away, not guest payments).
+
+
+## 💸 Chi tiêu — receipt pictures to a Zalo bot (p18, Nov 22 2026)
+Owner: "lưu lại cái hóa đơn … ngày giờ, số tiền, sau đó tổng kết là được. Không cần phân tích chi tiết" · "dùng hình ảnh gửi cho Zalo".
+- 3rd Zalo bot (token pasted on /chi-tieu; keys `zbot3_*`, webhook `/zalo-bot3/hook`, secret = zbot secret + '3').
+- Picture → downloaded from `photo_url` → `chi_read_receipt` (Gemini, ~40 s → runs in a background thread, Zalo answered at once)
+  → `chi_receipts` (amount, at, to_name, to_bank, note, tx_code, picture). Same tx_code (or amount+time+receiver) = not saved twice.
+- Text: "tháng này" / "tháng trước" / "tháng 11" = totals · "xóa" = removes the last saved (2 days). Text is never saved as an
+  expense (the owner's old group has running totals). Only chats connected while "Cho thêm người" is open (30 min) may send.
+- Day 1 of the month, 8–10h (zbot_tick): last month's total to the connected chats. /chi-tieu = month list + pictures + delete.
+- Test: test_flows `test_chi_receipt_bot`.

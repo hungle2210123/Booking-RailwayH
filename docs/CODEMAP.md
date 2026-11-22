@@ -203,7 +203,7 @@ _p12_sync_crawl_duplicates — sync services, crawl admin bookings, bulk save, d
 - app_parts/p13_misc_railway.py:1087 `extract_meter_data_with_openrouter` — Extract electricity meter data using various free models via OpenRouter API
 - app_parts/p13_misc_railway.py:1198 `extract_meter_data_with_multi_api` — Extract electricity meter data using multiple APIs with automatic fallback
 
-## app_parts/p15_moi.py (1178 lines)
+## app_parts/p15_moi.py (1183 lines)
 _p15_moi — /moi: the new phone-first app (owner, Oct 26), built from the approved mockup. Runs NEXT TO the old pages_
 - app_parts/p15_moi.py:12 `_moi_ensure` — bookings.room_no (room 1..N inside the placed apartment) — added once per process.
 - app_parts/p15_moi.py:37 `_moi_apartments` — Active apartments with short name, colour (index among ALL apartments, like the calendar) and room count.
@@ -236,18 +236,18 @@ _p15_moi — /moi: the new phone-first app (owner, Oct 26), built from the appro
 - app_parts/p15_moi.py:790 `_zbot_secret`
 - app_parts/p15_moi.py:799 `_zbot_send_clean` — Send the cleaning message of `day` to every chat that is on (or only `only`). Returns [(name, ok, error)].
 - app_parts/p15_moi.py:831 `zbot_tick` — One check (called every minute by zbot_loop): between 8:00 and 10:00 Vietnam time, the first worker that claim
-- app_parts/p15_moi.py:871 `zbot_loop`
-- app_parts/p15_moi.py:886 `zbot_hook` ← `/zalo-bot/hook` POST — Zalo calls this when someone messages the bot: remember the chat (new people are switched on) and answer.
-- app_parts/p15_moi.py:930 `moi_zbot` ← `/api/moi/zbot` GET,POST — Setup sheet in /moi: status · connect (setWebhook) · switch a person on/off · rename · send a test now.
-- app_parts/p15_moi.py:992 `_moi_room_label` — The owner's name for room `no` of this apartment, else "Phòng N".
-- app_parts/p15_moi.py:998 `moi_room_name` ← `/api/moi/room_name` POST — Rename room N of an apartment ({apartment_id, room_no, name}); an empty name goes back to "Phòng N".
-- app_parts/p15_moi.py:1032 `_pay_remind_id` — Id of the reminder template — made the first time (the owner edits it in Mẫu Câu afterwards).
-- app_parts/p15_moi.py:1044 `_pay_left`
-- app_parts/p15_moi.py:1050 `_pay_tien`
-- app_parts/p15_moi.py:1054 `pay_remind_step` — ⏰ Nhắc thanh toán as a step of the send sheet (p03 journey_guest) — shown for guests already marked arrived.
-- app_parts/p15_moi.py:1069 `moi_pay_msg` ← `/api/moi/pay_msg/<booking_id>` GET,POST — GET → {wa, ask, remind} filled in for this guest. POST {kind} → remember that the message was opened (journey 
-- app_parts/p15_moi.py:1110 `_dep_ensure`
-- app_parts/p15_moi.py:1123 `moi_deposits` ← `/api/moi/deposits` GET,POST — GET ?month=YYYY-MM → that month's rows + total per pot + the last 6 months' totals.
+- app_parts/p15_moi.py:876 `zbot_loop`
+- app_parts/p15_moi.py:891 `zbot_hook` ← `/zalo-bot/hook` POST — Zalo calls this when someone messages the bot: remember the chat (new people are switched on) and answer.
+- app_parts/p15_moi.py:935 `moi_zbot` ← `/api/moi/zbot` GET,POST — Setup sheet in /moi: status · connect (setWebhook) · switch a person on/off · rename · send a test now.
+- app_parts/p15_moi.py:997 `_moi_room_label` — The owner's name for room `no` of this apartment, else "Phòng N".
+- app_parts/p15_moi.py:1003 `moi_room_name` ← `/api/moi/room_name` POST — Rename room N of an apartment ({apartment_id, room_no, name}); an empty name goes back to "Phòng N".
+- app_parts/p15_moi.py:1037 `_pay_remind_id` — Id of the reminder template — made the first time (the owner edits it in Mẫu Câu afterwards).
+- app_parts/p15_moi.py:1049 `_pay_left`
+- app_parts/p15_moi.py:1055 `_pay_tien`
+- app_parts/p15_moi.py:1059 `pay_remind_step` — ⏰ Nhắc thanh toán as a step of the send sheet (p03 journey_guest) — shown for guests already marked arrived.
+- app_parts/p15_moi.py:1074 `moi_pay_msg` ← `/api/moi/pay_msg/<booking_id>` GET,POST — GET → {wa, ask, remind} filled in for this guest. POST {kind} → remember that the message was opened (journey 
+- app_parts/p15_moi.py:1115 `_dep_ensure`
+- app_parts/p15_moi.py:1128 `moi_deposits` ← `/api/moi/deposits` GET,POST — GET ?month=YYYY-MM → that month's rows + total per pot + the last 6 months' totals.
 
 ## app_parts/p16_staff.py (968 lines)
 _p16_staff — 👥 Nhân viên (owner, Nov 6): the cleaners talk to the Zalo bot (p15_moi zbot_*) in plain words._
@@ -335,6 +335,28 @@ _p17_mail — 📧 Booking.com e-mails → the app (owner, Nov 12: "khi nhận �
 - app_parts/p17_mail.py:705 `moi_mail_bot` ← `/api/moi/mail_bot` POST — Setup of the booking bot: token (checked with getMe, then setWebhook) · test · remove a receiver · off (back t
 - app_parts/p17_mail.py:742 `_mail_setup_info`
 - app_parts/p17_mail.py:784 `moi_mail_setup` ← `/api/moi/mail_setup` — 📧 setup sheet: the script to paste into Google Apps Script (with this app's private address) + the last mail r
+
+## app_parts/p18_chi.py (358 lines)
+_p18_chi — 💸 Chi tiêu = ảnh biên lai chuyển khoản gửi cho bot Zalo "Chi tiêu" (owner, Nov 22 2026:_
+- app_parts/p18_chi.py:14 `_chi_ensure`
+- app_parts/p18_chi.py:28 `_chi_token`
+- app_parts/p18_chi.py:32 `_chi_call`
+- app_parts/p18_chi.py:47 `_chi_say`
+- app_parts/p18_chi.py:51 `chi_money`
+- app_parts/p18_chi.py:62 `chi_read_receipt` — Gemini reads the receipt picture → dict (see CHI_PROMPT). Raises RuntimeError when the AI cannot be reached.
+- app_parts/p18_chi.py:95 `_chi_time` — "21:09 22/11/2026" (or "22/11/2026 21:09") → datetime; None when unreadable.
+- app_parts/p18_chi.py:107 `chi_month_total`
+- app_parts/p18_chi.py:115 `chi_save` — A read receipt → (status, row) — status 'saved' / 'dup' / 'bad'.
+- app_parts/p18_chi.py:140 `_chi_summary`
+- app_parts/p18_chi.py:145 `chi_handle` — One message to the bot → the reply text (None = nothing to say).
+- app_parts/p18_chi.py:207 `zbot3_hook` ← `/zalo-bot3/hook` POST
+- app_parts/p18_chi.py:230 `_chi_run`
+- app_parts/p18_chi.py:248 `chi_month_report` — Day 1 of the month, 8–10h VN: last month's total to everyone connected to the bot (once).
+- app_parts/p18_chi.py:272 `chi_page` ← `/chi-tieu`
+- app_parts/p18_chi.py:277 `chi_list` ← `/api/chi/list`
+- app_parts/p18_chi.py:303 `chi_img` ← `/api/chi/img/<int:rid>`
+- app_parts/p18_chi.py:315 `chi_delete` ← `/api/chi/delete` POST
+- app_parts/p18_chi.py:324 `chi_bot` ← `/api/chi/bot` POST — token (getMe → setWebhook) · open (30 min: new people may connect) · remove a chat · off.
 
 ## core/__init__.py (3 lines)
 
@@ -593,11 +615,11 @@ _p17_mail — 📧 Booking.com e-mails → the app (owner, Nov 12: "khi nhận �
 ## chrome_extension/content.js
 - chrome_extension/content.js: 119 `allDocs` · 130 `cellsOf` · 137 `fromTable` · 153 `fromBookingNumbers` · 182 `captureList` · 191 `diagnostics` · 216 `capture` · 259 `show`
 - chrome_extension/content.js: 310 `save` · 345 `showList` · 403 `showProblem` · 486 `phonesIn` · 494 `phoneNear` · 502 `guestPhone` · 510 `toast` · 527 `checkPhone`
-- chrome_extension/content.js: 559 `autoShot` · 581 `domAutoShot` · 588 `shotAfterReveal` · 621 `autoRevealTry` · 648 `chatBox` · 654 `putInChat` · 728 `chatThread` · 738 `pageBookingNumber`
-- chrome_extension/content.js: 745 `aiAsk` · 756 `drawAi` · 791 `stopMic` · 792 `toggleMic` · 834 `prepareShot` · 910 `finishShot` · 975 `cancelShot` · 983 `restoreFloating`
-- chrome_extension/content.js: 1029 `guestLinks` · 1063 `groupTable` · 1076 `groupProps` · 1115 `numUnder` · 1137 `arrivalsToday` · 1173 `startGroup` · 1187 `stopGroup` · 1198 `showGroupDone`
-- chrome_extension/content.js: 1209 `groupStep` · 1242 `refreshRunBtn` · 1295 `startRun` · 1319 `finishRun` · 1334 `showRunDone` · 1344 `withSes` · 1351 `logoutLoop` · 1368 `fetchJob`
-- chrome_extension/content.js: 1395 `learnHotels` · 1408 `runStep` · 1493 `autoMorning` · 1567 `startTab`
+- chrome_extension/content.js: 559 `autoShot` · 581 `domAutoShot` · 588 `shotAfterReveal` · 615 `phoneWatch` · 634 `autoRevealTry` · 661 `chatBox` · 667 `putInChat` · 741 `chatThread`
+- chrome_extension/content.js: 751 `pageBookingNumber` · 758 `aiAsk` · 769 `drawAi` · 804 `stopMic` · 805 `toggleMic` · 847 `prepareShot` · 923 `finishShot` · 988 `cancelShot`
+- chrome_extension/content.js: 996 `restoreFloating` · 1042 `guestLinks` · 1076 `groupTable` · 1089 `groupProps` · 1128 `numUnder` · 1150 `arrivalsToday` · 1186 `startGroup` · 1200 `stopGroup`
+- chrome_extension/content.js: 1211 `showGroupDone` · 1222 `groupStep` · 1255 `refreshRunBtn` · 1308 `startRun` · 1332 `finishRun` · 1347 `showRunDone` · 1357 `withSes` · 1364 `logoutLoop`
+- chrome_extension/content.js: 1381 `fetchJob` · 1408 `learnHotels` · 1421 `runStep` · 1513 `autoMorning` · 1587 `startTab`
 
 ## chrome_extension/background.js
 - chrome_extension/background.js: 6 `settings` · 30 `shoot` · 78 `cdpShot` · 102 `morningTime` · 107 `scheduleMorning` · 116 `stayAwake` · 125 `openTab` · 132 `morningRun`
@@ -605,17 +627,20 @@ _p17_mail — 📧 Booking.com e-mails → the app (owner, Nov 12: "khi nhận �
 
 # Templates (inline JS functions)
 
-## templates/desk.html (1342 lines)
+## templates/chi.html (105 lines)
+- templates/chi.html: 53 `load` · 70 `drawBot` · 85 `post`
+
+## templates/desk.html (1343 lines)
 - templates/desk.html: 307 `load` · 320 `loadRev` · 333 `needRev` · 351 `D.tab` · 352 `D.set` · 353 `D.q` · 354 `D.reload` · 356 `D.shift`
 - templates/desk.html: 362 `D.toToday` · 363 `D.open` · 364 `D.openDay` · 365 `D.close` · 366 `closeDrawer` · 367 `D.closeModal` · 370 `D.place` · 375 `D.unplace`
 - templates/desk.html: 381 `D.room` · 388 `D.confirm` · 421 `D.zbotResend` · 428 `D.cleanCopy` · 429 `D.cancel` · 435 `D.mark` · 439 `D.status` · 443 `D.dayuse`
 - templates/desk.html: 447 `D.unreach` · 448 `D.replied` · 449 `D.phone` · 456 `D.send` · 457 `D.pickApt` · 458 `D.quick` · 459 `D.photo` · 460 `D.chatPhone`
 - templates/desk.html: 461 `D.renameRoom` · 469 `D.pickG` · 470 `D.auto` · 485 `D.payOpen` · 486 `D.collect` · 495 `D.partial` · 497 `D.undoPay` · 500 `D.payCycle`
 - templates/desk.html: 510 `D.edit` · 512 `D.extN` · 516 `D.splitApt` · 522 `D.extTyped` · 523 `D.editCalc` · 550 `D.editSave` · 585 `D.remind` · 586 `D.remPreset`
-- templates/desk.html: 589 `D.remSet` · 590 `D.remSave` · 597 `D.remDone` · 601 `D.add` · 602 `D.addSave` · 617 `render` · 626 `renderSide` · 648 `renderTop`
-- templates/desk.html: 677 `viewToday` · 736 `dayCard` · 768 `viewDay` · 825 `D.uncancel` · 834 `viewCal` · 957 `renderPick` · 965 `viewMsg` · 1005 `viewPay`
-- templates/desk.html: 1045 `D.payQuick` · 1051 `viewRev` · 1122 `D.revMonth` · 1123 `D.revDay` · 1124 `D.goDay` · 1125 `drawRevCharts` · 1148 `renderDrawer` · 1154 `guestCard`
-- templates/desk.html: 1215 `dayPanel` · 1236 `renderModal` · 1326 `D.mset` · 1327 `D.extOpen`
+- templates/desk.html: 589 `D.remSet` · 590 `D.remSave` · 597 `D.remDone` · 601 `D.add` · 602 `D.addSave` · 617 `render` · 626 `renderSide` · 649 `renderTop`
+- templates/desk.html: 678 `viewToday` · 737 `dayCard` · 769 `viewDay` · 826 `D.uncancel` · 835 `viewCal` · 958 `renderPick` · 966 `viewMsg` · 1006 `viewPay`
+- templates/desk.html: 1046 `D.payQuick` · 1052 `viewRev` · 1123 `D.revMonth` · 1124 `D.revDay` · 1125 `D.goDay` · 1126 `drawRevCharts` · 1149 `renderDrawer` · 1155 `guestCard`
+- templates/desk.html: 1216 `dayPanel` · 1237 `renderModal` · 1327 `D.mset` · 1328 `D.extOpen`
 
 ## templates/journey_settings.html (231 lines)
 - templates/journey_settings.html: 79 `load` · 88 `renderButtons` · 141 `options` · 151 `rowHtml` · 165 `render` · 178 `bind` · 210 `shrink`

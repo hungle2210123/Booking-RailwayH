@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Chi tiêu</title>
+<style>
+  :root { --ink:#0E1525; --mut:#64748B; --line:#E7E9EE; --bg:#F7F8FA; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font:15px/1.45 -apple-system, system-ui, "Segoe UI", Roboto, sans-serif; }
+  .wrap { max-width:640px; margin:0 auto; padding:14px 16px 60px; }
+  .top { display:flex; align-items:center; gap:10px; }
+  .top a { color:var(--ink); text-decoration:none; font-weight:800; font-size:22px; padding:4px 8px 4px 0; }
+  h1 { margin:0; font-size:22px; flex:1; }
+  .card { background:#fff; border:1.5px solid var(--line); border-radius:16px; padding:14px; margin-top:12px; }
+  .big { font-size:30px; font-weight:800; font-variant-numeric:tabular-nums; }
+  .mut { color:var(--mut); font-size:13px; font-weight:700; }
+  .chips { display:flex; gap:6px; overflow-x:auto; margin-top:12px; padding-bottom:2px; }
+  .chip { flex:none; min-height:40px; padding:0 12px; border-radius:12px; border:1.5px solid #E2E5EB; background:#fff; font:800 13px inherit; color:var(--ink); }
+  .chip.on { background:var(--ink); color:#fff; border-color:var(--ink); }
+  .row { display:flex; gap:12px; align-items:center; padding:10px 0; border-top:1px solid var(--line); }
+  .row:first-child { border-top:0; }
+  .row img { width:54px; height:72px; object-fit:cover; border-radius:8px; border:1px solid var(--line); flex:none; background:#eee; }
+  .amt { font-size:18px; font-weight:800; font-variant-numeric:tabular-nums; }
+  .who { font-size:14px; font-weight:700; overflow-wrap:anywhere; }
+  .note { font-size:13px; color:#334155; overflow-wrap:anywhere; }
+  .btn { min-height:44px; padding:0 14px; border-radius:12px; border:1.5px solid #E2E5EB; background:#fff; font:800 14px inherit; color:var(--ink); }
+  .btn.dark { background:var(--ink); color:#fff; border-color:var(--ink); }
+  .x { min-height:34px; padding:0 10px; border-radius:10px; border:1.5px solid #E2E5EB; background:#fff; font:800 12.5px inherit; color:#B91C1C; flex:none; }
+  textarea { width:100%; margin-top:8px; padding:10px 12px; border:1.5px solid #CBD5E1; border-radius:12px; font-size:16px; resize:none; }
+  .warn { margin-top:8px; border-radius:12px; padding:10px 12px; font-size:13.5px; font-weight:700; background:#FEF3C7; color:#92400E; line-height:1.5; }
+  .ok { color:#15803D; font-weight:800; }
+  #ov { position:fixed; inset:0; background:rgba(0,0,0,.85); display:none; align-items:center; justify-content:center; z-index:9; }
+  #ov img { max-width:100%; max-height:100%; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top"><a href="/" aria-label="Về trang chính">‹</a><h1>💸 Chi tiêu</h1></div>
+  <div id="sum" class="card"><div class="mut">Đang tải…</div></div>
+  <div id="chips" class="chips"></div>
+  <div id="list" class="card" style="display:none"></div>
+  <div id="bot" class="card"></div>
+</div>
+<div id="ov" onclick="this.style.display='none'"><img id="ovImg" alt="Biên lai"></div>
+<script>
+(() => {
+  const $ = (id) => document.getElementById(id);
+  const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const money = (n) => Number(n || 0).toLocaleString('vi-VN') + 'đ';
+  const monLbl = (m) => { const [y, mo] = m.split('-'); return 'Tháng ' + Number(mo) + '/' + y; };
+  let month = '';
+  async function load(m) {
+    let j = {};
+    try { j = await (await fetch('/api/chi/list' + (m ? '?month=' + m : ''), { cache: 'no-store' })).json(); } catch (e) {}
+    if (!j.success) { $('sum').innerHTML = '<div class="mut">Chưa tải được — kéo xuống để tải lại.</div>'; return; }
+    month = j.month;
+    $('sum').innerHTML = `<div class="mut">${esc(monLbl(j.month))} · ${j.items.length} khoản</div><div class="big">${money(j.total)}</div>`;
+    const ms = j.months.some((x) => x.month === j.month) ? j.months : [{ month: j.month, n: 0, total: 0 }, ...j.months];
+    $('chips').innerHTML = ms.map((x) => `<button class="chip${x.month === j.month ? ' on' : ''}" onclick="Chi.load('${x.month}')">${esc(monLbl(x.month))} · ${money(x.total)}</button>`).join('');
+    $('list').style.display = j.items.length ? '' : 'none';
+    $('list').innerHTML = j.items.map((r) => `<div class="row">
+      <img src="/api/chi/img/${r.id}" loading="lazy" alt="Biên lai" onclick="Chi.show(${r.id})">
+      <div style="flex:1;min-width:0"><div class="amt">${money(r.amount)}</div>
+        <div class="who">${esc(r.to || '—')}${r.bank ? ' <span class="mut">· ' + esc(r.bank) + '</span>' : ''}</div>
+        ${r.note ? `<div class="note">📝 ${esc(r.note)}</div>` : ''}<div class="mut">${esc(r.at)}</div></div>
+      <button class="x" onclick="Chi.del(${r.id}, '${money(r.amount)}')">Xóa</button></div>`).join('');
+    drawBot(j);
+  }
+  function drawBot(j) {
+    if (!j.bot) {
+      $('bot').innerHTML = `<div style="font-size:15px;font-weight:800">🤖 Cài bot Zalo "Chi tiêu" (1 lần)</div>
+        <div style="font-size:13.5px;color:#475569;line-height:1.5;margin-top:4px">Mở <b>Zalo Bot Creator</b> → <b>tạo bot mới</b> (vd "Chi tiêu") → <b>Thiết lập chung</b> → copy <b>Bot Token</b> → dán vào đây.</div>
+        <textarea id="tok" rows="2" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="Dán Bot Token của bot MỚI"></textarea>
+        <div style="display:flex;margin-top:8px"><button class="btn dark" onclick="Chi.bot('token')">Lưu & kết nối bot</button></div>`;
+      return;
+    }
+    $('bot').innerHTML = `<div style="font-size:15px;font-weight:800">🤖 Bot Zalo "Chi tiêu" <span class="ok">✓ ${esc(j.bot_name || 'đã kết nối')}</span></div>
+      <div style="font-size:13.5px;color:#475569;line-height:1.5;margin-top:4px">Chuyển khoản xong → <b>Chia sẻ</b> biên lai → gửi vào bot. Bot lưu ngày giờ + số tiền, trả lời tổng tháng. Nhắn <b>"tháng này"</b> xem tổng · <b>"xóa"</b> bỏ khoản vừa lưu. Ngày 1 hằng tháng bot gửi tổng tháng trước.</div>
+      ${j.chats.length ? '<div class="mut" style="margin-top:8px">Được gửi biên lai:</div>' + j.chats.map((c) => `<div style="display:flex;align-items:center;gap:8px;margin-top:6px"><b style="flex:1;font-size:14px">${esc(c.name)}</b><button class="x" onclick="Chi.bot('remove','${esc(c.id)}')">Bỏ</button></div>`).join('') : ''}
+      ${j.open ? '<div class="warn">Đang mở 30 phút: ai nhắn cho bot lúc này sẽ được gửi biên lai. Mở Zalo, tìm bot và nhắn "alo".</div>'
+               : (j.chats.length ? '' : '<div class="warn">Chưa ai kết nối. Bấm "Cho thêm người" rồi nhắn "alo" cho bot trong Zalo.</div>')}
+      <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap"><button class="btn" onclick="Chi.bot('open')">Cho thêm người</button><button class="btn" onclick="Chi.bot('off')">Bỏ bot này</button></div>`;
+  }
+  async function post(url, body) {
+    try { return await (await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })).json(); } catch (e) { return {}; }
+  }
+  window.Chi = {
+    load,
+    show: (id) => { $('ovImg').src = '/api/chi/img/' + id; $('ov').style.display = 'flex'; },
+    del: async (id, amt) => { if (!confirm('Xóa khoản ' + amt + '?')) return; await post('/api/chi/delete', { id }); load(month); },
+    bot: async (action, id) => {
+      if (action === 'off' && !confirm('Bỏ bot chi tiêu? Biên lai đã lưu vẫn giữ.')) return;
+      const body = { action, id };
+      if (action === 'token') body.token = (($('tok') || {}).value || '').replace(/\s+/g, '');
+      const j = await post('/api/chi/bot', body);
+      if (!j.success) return alert('Chưa được: ' + (j.error || 'lỗi mạng'));
+      load(month);
+    },
+  };
+  load('');
+})();
+</script>
+</body>
+</html>
