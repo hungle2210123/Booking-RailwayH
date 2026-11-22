@@ -303,7 +303,7 @@ _p16_staff — 👥 Nhân viên (owner, Nov 6): the cleaners talk to the Zalo bo
 - app_parts/p16_staff.py:886 `moi_staff` ← `/api/moi/staff` GET,POST — 👥 Nhân viên sheet in /moi: waiting requests, who is off today, month list; actions: decide, add (leave/extra),
 - app_parts/p16_staff.py:957 `staff_copy_owner` — Copy of a cleaner's message to the bot + the bot's answer → the owner(s).
 
-## app_parts/p17_mail.py (789 lines)
+## app_parts/p17_mail.py (791 lines)
 _p17_mail — 📧 Booking.com e-mails → the app (owner, Nov 12: "khi nhận được mail thì hệ thống tự cập nhật trên app là đang có_
 - app_parts/p17_mail.py:20 `_mail_ensure`
 - app_parts/p17_mail.py:36 `_mail_token`
@@ -328,13 +328,13 @@ _p17_mail — 📧 Booking.com e-mails → the app (owner, Nov 12: "khi nhận �
 - app_parts/p17_mail.py:479 `ext_morning` ← `/api/ext/morning` POST
 - app_parts/p17_mail.py:536 `_pending_rows` — Guests this Chrome profile should fetch now. 1st try: a profile whose Booking account has the hotel. A RETRY
 - app_parts/p17_mail.py:556 `_pending_query`
-- app_parts/p17_mail.py:578 `mail_fetched` — The extension saved this booking from its Booking page → it is no longer waiting to be fetched.
-- app_parts/p17_mail.py:594 `ext_pending` ← `/api/ext/pending` POST
-- app_parts/p17_mail.py:656 `_claim_today` — True for the first caller of the day only (several gunicorn workers tick at the same minute).
-- app_parts/p17_mail.py:666 `morning_watch` — 7:20–7:59 VN: no run started today → one warning; a run started > 30 min ago and not finished → one warning.
-- app_parts/p17_mail.py:703 `moi_mail_bot` ← `/api/moi/mail_bot` POST — Setup of the booking bot: token (checked with getMe, then setWebhook) · test · remove a receiver · off (back t
-- app_parts/p17_mail.py:740 `_mail_setup_info`
-- app_parts/p17_mail.py:782 `moi_mail_setup` ← `/api/moi/mail_setup` — 📧 setup sheet: the script to paste into Google Apps Script (with this app's private address) + the last mail r
+- app_parts/p17_mail.py:580 `mail_fetched` — The extension saved this booking from its Booking page → it is no longer waiting to be fetched.
+- app_parts/p17_mail.py:596 `ext_pending` ← `/api/ext/pending` POST
+- app_parts/p17_mail.py:658 `_claim_today` — True for the first caller of the day only (several gunicorn workers tick at the same minute).
+- app_parts/p17_mail.py:668 `morning_watch` — 7:20–7:59 VN: no run started today → one warning; a run started > 30 min ago and not finished → one warning.
+- app_parts/p17_mail.py:705 `moi_mail_bot` ← `/api/moi/mail_bot` POST — Setup of the booking bot: token (checked with getMe, then setWebhook) · test · remove a receiver · off (back t
+- app_parts/p17_mail.py:742 `_mail_setup_info`
+- app_parts/p17_mail.py:784 `moi_mail_setup` ← `/api/moi/mail_setup` — 📧 setup sheet: the script to paste into Google Apps Script (with this app's private address) + the last mail r
 
 ## core/__init__.py (3 lines)
 

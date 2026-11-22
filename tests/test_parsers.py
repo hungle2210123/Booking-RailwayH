@@ -144,3 +144,17 @@ def test_extension_scripts_and_domshot_loaded_first():
         for f in os.listdir(d):
             if f.endswith('.js'):
                 assert subprocess.run([node, '--check', os.path.join(d, f)]).returncode == 0, f
+
+
+def test_extension_reads_number_already_on_page():
+    """Nov 22 (Sanka Silva 6437146610): an old booking arriving today shows the number with no "Hiển thị số" button —
+    the extension must keep reading it (phoneWatch) and PHONE_FIND must catch '+1 555 010 0199' from that guest block."""
+    import os, re, subprocess
+    src = open(os.path.join(os.path.dirname(__file__), '..', 'chrome_extension', 'content.js'), encoding='utf-8').read()
+    assert 'function phoneWatch()' in src and 'setTimeout(phoneWatch, 0)' in src and 'phoneSaved.bid !== bid' in src
+    rx = re.search(r'const PHONE_FIND = (/.+?/g);', src).group(1)
+    text = ("guest.123456@guest.booking.com\nKết nối với khách! … Quý vị chỉ cần gọi cho họ:\n+1 555 010 0199\n"
+            "Quý vị cũng có thể email cho họ\nMã số đặt phòng:\n6437146610")
+    js = f"const m = {{t: {text!r}}}.t.match({rx}); console.log(JSON.stringify(m));"
+    out = subprocess.run(['node', '-e', js], capture_output=True, text=True, encoding='utf-8').stdout.strip()
+    assert out == '["+1 555 010 0199"]', out

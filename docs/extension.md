@@ -240,6 +240,12 @@ disk) compares it with the disk manifest → different / no answer → `chrome.r
 Tested (throwaway Chrome, dev mode on): 1.47 running + 1.51 files on disk → open options.html → 5 s later 1.51 ENABLED.
 To push an update onto a stuck profile: `chrome --profile-directory="<p>" chrome-extension://gfhdcjniielimcbiiblplndioapghjik/options.html`.
 
+### 1.52 (Nov 22 2026) — number already on the page (no "Hiển thị số" button) is read
+Sanka Silva 6437146610 (booked 31/5, arriving today): Booking showed the US number directly, no button → no
+click → only the 2.5 s / 6 s reads after load, both before the page (unfocused run window) was drawn → saved without a
+phone although the picture shows it. Now `phoneWatch()` reads every 1.5 s for 40 s after a reservation opens (stops
+once saved), and a run waits up to 10 s for the number when there is no button.
+
 ### Guest-message mail also triggers the fetch (Nov 22 2026, server only)
 Sanka Silva 6437146610 (arriving today) was never saved: Gmail sent the app only the guest's message mail
 ("Chúng tôi nhận được tin nhắn này từ …", 10:09), no "Đặt phòng mới" mail (not among the last 40 subjects in

@@ -608,7 +608,20 @@
     [600, 1500, 3000, 6000].forEach(ms => setTimeout(checkPhone, ms));
   }, true);
   // Nếu số đã hiện sẵn khi mở trang (hoặc là đặt phòng qua đối tác): chỉ lưu số, KHÔNG chụp ảnh.
-  [2500, 6000].forEach(ms => setTimeout(checkPhone, ms));
+  // 1.52 (owner Nov 22, Sanka Silva 6437146610): an OLD booking arriving today shows the number with NO
+  // "Hiển thị số điện thoại" button; the page (a run's unfocused window) was drawn after the 2.5 s / 6 s reads → the
+  // number was never read. Now: read every 1.5 s for 40 s after a reservation opens, until the number is saved.
+  let phoneWatchT = null;
+  function phoneWatch() {
+    clearInterval(phoneWatchT);
+    const bid = resId(), t0 = Date.now();
+    if (!bid) { [2500, 6000].forEach(ms => setTimeout(checkPhone, ms)); return; }
+    phoneWatchT = setInterval(() => {
+      if (resId() !== bid || phoneSaved.bid === bid || Date.now() - t0 > 40000 || !chrome.runtime?.id) { clearInterval(phoneWatchT); return; }
+      checkPhone();
+    }, 1500);
+  }
+  setTimeout(phoneWatch, 0);                         // after the whole script ran (resId is declared further down)
 
   // ── Tự bấm "Hiển thị số điện thoại" (chủ nhà quyết định 17/11/2026, chấp nhận rủi ro tài khoản) ──
   // 1 lần cho mỗi res_id, chờ 1–2 giây ngẫu nhiên; el.click() kích hoạt listener ở trên → checkPhone + ảnh.
@@ -675,7 +688,7 @@
   const refreshFillBtn = () => {
     fillBtn.style.display = resId() ? '' : 'none';
     if (resId() !== shownResId) {                // another reservation opened (also without a reload)
-      if (shownResId !== null) [2500, 6000].forEach(ms => setTimeout(checkPhone, ms));
+      if (shownResId !== null) phoneWatch();
       shownResId = resId();
     }
   };
@@ -1469,6 +1482,13 @@
             if (shotSavedFor === bid) break;
             if (phoneSaved.bid === bid && Date.now() - phoneSaved.at > 4000) break;
             await wait(300);
+          }
+        }
+        // 1.52: no button (number already on the page: old booking arriving today) → wait up to 10 s for it to be read
+        if (!scheduled) {
+          const bid = resId(), t0 = Date.now();
+          while (Date.now() - t0 < 10000 && runGet() && resId() === bid && phoneSaved.bid !== bid && !isPartnerBooking()) {
+            checkPhone(); await wait(1000);
           }
         }
         // 1.48: no picture yet (the number did not show, or the capture failed) → draw it from the page now
