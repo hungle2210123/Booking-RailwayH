@@ -351,3 +351,24 @@ def test_find_guest_by_name_phone_id(client, booking):
     g = next(g for g in client.get('/api/moi/search?q=findme').get_json()['guests'] if g['id'] == bid)
     assert g['wa'] == '447700900456' and g['state'] == ''
     assert client.get('/api/moi/search?q=z').get_json()['guests'] == []
+
+
+def test_drawn_picture_never_replaces_a_real_one(app, db, client, booking):
+    """Owner, Nov 22 ("tôi vẫn tin vào hình ảnh hơn"): ext 1.49 tells HOW the picture was taken; a picture drawn from the
+    page ('dom', last resort) never overwrites a real one, and a real one replaces a drawn one."""
+    import os, base64, app as appmod
+    hdr = {'X-Hotel-Token': os.getenv('EXTENSION_TOKEN', '')}
+    bid = booking(guest_name='ZZ Shot Test', checkin_date='2030-02-01', checkout_date='2030-02-02')
+    img = lambda c: 'data:image/jpeg;base64,' + base64.b64encode(b'\xff\xd8\xff' + c * 50).decode()
+    post = lambda c, m: client.post('/api/ext/booking/screenshot', headers=hdr, json={'booking_id': bid, 'full': img(c), 'guest': img(c), 'method': m}).get_json()
+    q = lambda: db.session.execute(appmod.text("SELECT method, length(full_img) FROM booking_screenshots WHERE booking_id = :b"), {'b': bid}).fetchone()
+    try:
+        assert post(b'D', 'dom')['success']
+        with app.app_context(): assert q()[0] == 'dom'
+        assert post(b'R', 'cdp')['success']
+        with app.app_context(): assert q()[0] == 'cdp'
+        assert post(b'E', 'dom')['success']
+        with app.app_context(): assert q()[0] == 'cdp'                 # the real picture stays
+    finally:
+        with app.app_context():
+            db.session.execute(appmod.text("DELETE FROM booking_screenshots WHERE booking_id = :b"), {'b': bid}); db.session.commit()

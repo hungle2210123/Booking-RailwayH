@@ -37,15 +37,56 @@ async function shoot(tab, auto = false) {
   }
   await new Promise(r => setTimeout(r, 300));          // let the page settle after scrolling
   try {
-    // captureVisibleTab takes whatever tab is showing — make sure it is still this Booking page
     const now = await chrome.tabs.get(tab.id);
-    if (!now.active || !BOOKING_RE.test(now.url || '')) throw new Error('Trang Booking không còn đang mở trên màn hình');
-    const dataUrl = await chrome.tabs.captureVisibleTab(tab.windowId, { format: 'png' });
-    await tell({ type: 'shot-image', dataUrl, auto });
-    return { success: true };
+    if (!BOOKING_RE.test(now.url || '')) throw new Error('Trang Booking không còn mở');
+    const win = await chrome.windows.get(now.windowId);
+    let dataUrl = null, method = '';
+    // 1) the owner is looking at it → the screen picture, as always
+    if (now.active && win.focused && win.state !== 'minimized') {
+      try { dataUrl = await chrome.tabs.captureVisibleTab(now.windowId, { format: 'png' }); method = 'screen'; } catch (e) {}
+    }
+    // 2) 1.49 (owner Nov 22 "tôi vẫn tin vào hình ảnh hơn"): Chrome draws the tab itself (DevTools protocol) — a REAL
+    //    picture without the screen: window behind other apps / not focused / locked PC. Tested Nov 22 (Chrome 157):
+    //    always works while the tab is the front tab of a NOT minimized window; minimized = never.
+    if (!dataUrl) { dataUrl = await cdpShot(tab.id); if (dataUrl) method = 'cdp'; }
+    // 3) still nothing (minimized window / a tab behind another tab): bring it up WITHOUT taking the focus for half a
+    //    second, take the picture, put everything back
+    if (!dataUrl) {
+      const prev = (await chrome.tabs.query({ windowId: now.windowId, active: true }))[0];
+      const wasMin = win.state === 'minimized';
+      try {
+        if (wasMin) await chrome.windows.update(now.windowId, { state: 'normal', focused: false });
+        if (!now.active) await chrome.tabs.update(tab.id, { active: true });
+        await new Promise(r => setTimeout(r, 600));
+        dataUrl = await cdpShot(tab.id); if (dataUrl) method = 'cdp-front';
+      } finally {
+        if (!now.active && prev && prev.id !== tab.id) chrome.tabs.update(prev.id, { active: true }).catch(() => {});
+        if (wasMin) chrome.windows.update(now.windowId, { state: 'minimized' }).catch(() => {});
+      }
+    }
+    if (!dataUrl) throw new Error('Chrome không vẽ được tab này');
+    await tell({ type: 'shot-image', dataUrl, auto, method });
+    return { success: true, method };
   } catch (e) {
     await tell({ type: 'shot-error', error: 'Không chụp được: ' + e.message, auto });
     return { success: false, error: e.message };
+  }
+}
+// One real picture through the DevTools protocol (permission "debugger"): attach, Page.captureScreenshot, detach at
+// once (Chrome shows its "đang gỡ lỗi" bar only while attached). Only this command — nothing is read or run on the page.
+let cdpBusy = false;
+async function cdpShot(tabId) {
+  if (cdpBusy) return null;
+  cdpBusy = true;
+  const t = { tabId };
+  try {
+    try { await chrome.debugger.attach(t, '1.3'); } catch (e) { if (!/already attached/i.test(e.message || '')) return null; }
+    const r = await Promise.race([chrome.debugger.sendCommand(t, 'Page.captureScreenshot', { format: 'png' }).catch(() => null),
+                                  new Promise(res => setTimeout(() => res(null), 4000))]);
+    return r?.data ? 'data:image/png;base64,' + r.data : null;
+  } finally {
+    try { await chrome.debugger.detach(t); } catch (e) {}
+    cdpBusy = false;
   }
 }
 
@@ -79,12 +120,12 @@ function stayAwake(minutes = 45) {
 // 1.37: Chrome may be running with NO window (background mode, started by the task "HotelPro Giu Chrome" with
 // --no-startup-window, or the owner closed every window) → a tab needs a window: open a minimized one.
 // 1.38 (Nov 19: profile Booking2 had no window at 7:00 → no tab, the day counted as done): every way is tried.
+// 1.49 (owner Nov 22: pictures need the guest drawn): a run opens in its OWN normal window that does not take the focus
+// (was: a background tab / a minimized window — Chrome does not draw those, so no real picture)
 async function openTab(url, active = false) {
-  let wins = [];
-  try { wins = await chrome.windows.getAll({ windowTypes: ['normal'] }); } catch (e) {}
-  if (wins.length) { try { return await chrome.tabs.create({ url, active }); } catch (e) {} }
-  try { return (await chrome.windows.create({ url, focused: !!active, state: active ? 'normal' : 'minimized' })).tabs[0]; } catch (e) {}
-  return (await chrome.windows.create({ url, focused: !!active })).tabs[0];
+  try { return (await chrome.windows.create({ url, focused: !!active, state: 'normal', width: 1280, height: 900 })).tabs[0]; } catch (e) {}
+  try { return (await chrome.windows.create({ url, focused: !!active })).tabs[0]; } catch (e) {}
+  return await chrome.tabs.create({ url, active });
 }
 // The morning run of the day. `force` = the watchdog (pendingCheck) retries a morning that never really began:
 // no tab, tab closed, Chrome started late, the 7:00 alarm missed. hpMorningGo (content.js) = it began.

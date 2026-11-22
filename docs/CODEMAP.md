@@ -60,7 +60,7 @@ _p01_health_cancellations — health, cancellations centre, OK status, auto-sync
 - app_parts/p02_pages_extension.py:796 `ext_booking_phone` ← `/api/ext/booking/phone` POST — A reservation page now shows the guest phone (the owner clicked Booking's own
 - app_parts/p02_pages_extension.py:878 `_typed_phone` — A number the owner typed / pasted ("0905 123 456", "+33 6 12 34 56 78", "0033…") → '+<digits>' or ''.
 
-## app_parts/p03_messages_journey.py (1367 lines)
+## app_parts/p03_messages_journey.py (1373 lines)
 _p03_messages_journey — phone from chat screenshots, /api/messages/phone, auto messages, AI reply, Booking screenshots, journey, Thu tiền (pay), /tin-nhanh, /messages_
 - app_parts/p03_messages_journey.py:13 `_owner_numbers` — Last 9 digits of every number written in the message templates (the owner's WhatsApp / WeChat / hotline).
 - app_parts/p03_messages_journey.py:25 `parse_chat_shot`
@@ -83,45 +83,45 @@ _p03_messages_journey — phone from chat screenshots, /api/messages/phone, auto
 - app_parts/p03_messages_journey.py:440 `_ai_guest_context` — What the web knows about this guest, as plain lines for the AI (no door codes / Wi-Fi passwords).
 - app_parts/p03_messages_journey.py:489 `ext_ai_reply` ← `/api/ext/ai_reply` POST
 - app_parts/p03_messages_journey.py:526 `_ensure_shot_table` — Screenshots of the Booking.com reservation box, taken by the extension: one per booking,
-- app_parts/p03_messages_journey.py:550 `_decode_data_url`
-- app_parts/p03_messages_journey.py:560 `booking_from_photo_shot` ← `/api/booking_from_photo/shot` POST — The Booking app screenshot of a booking added from /messages → its booking picture (full + guest version with
-- app_parts/p03_messages_journey.py:587 `ext_booking_screenshot` ← `/api/ext/booking/screenshot` POST — Save the reservation-box screenshot the extension took on the page the owner is viewing.
-- app_parts/p03_messages_journey.py:620 `booking_screenshot` ← `/api/booking_screenshot/<booking_id>` — The saved Booking.com screenshot: ?v=guest (default, safe to send) or ?v=full (owner).
-- app_parts/p03_messages_journey.py:638 `booking_card_data` ← `/api/booking_card/<booking_id>` — Data for the booking-confirmation image drawn on the phone (static/js/booking_card.js).
-- app_parts/p03_messages_journey.py:675 `_journey`
-- app_parts/p03_messages_journey.py:682 `_jsonable_steps`
-- app_parts/p03_messages_journey.py:687 `journey_settings` ← `/journey` — Which Mẫu Câu template + pictures each journey step sends, per apartment.
-- app_parts/p03_messages_journey.py:693 `journey_config` ← `/api/journey/config`
-- app_parts/p03_messages_journey.py:712 `journey_prefs` ← `/api/journey/prefs` GET,POST — The owner's buttons on each guest card: which steps are hidden, which templates are pinned.
-- app_parts/p03_messages_journey.py:723 `journey_map_set` ← `/api/journey/map` POST
-- app_parts/p03_messages_journey.py:746 `journey_images_add` ← `/api/journey/images/<int:template_id>` POST — Pictures for a template, uploaded from the phone (already resized there); kept in the database.
-- app_parts/p03_messages_journey.py:780 `journey_image_delete` ← `/api/journey/images/<int:image_id>` DELETE
-- app_parts/p03_messages_journey.py:788 `journey_image` ← `/api/journey/image/<int:image_id>`
-- app_parts/p03_messages_journey.py:799 `_journey_booking`
-- app_parts/p03_messages_journey.py:824 `_journey_texts`
-- app_parts/p03_messages_journey.py:832 `_journey_tpl` — The template as the send sheet gets it: id, name and its Vietnamese text (for 🔵 Zalo), filled in.
-- app_parts/p03_messages_journey.py:841 `_vn_guest_name` — Vietnamese guest: country code 'vn' after the name, or Vietnamese letters in it.
-- app_parts/p03_messages_journey.py:847 `journey_guest` ← `/api/journey/guest/<booking_id>` — Everything the 'send' sheet needs for one guest: each step's message (for the guest's apartment),
-- app_parts/p03_messages_journey.py:908 `journey_templates` ← `/api/journey/templates`
-- app_parts/p03_messages_journey.py:914 `journey_compose` ← `/api/journey/compose` — Any Mẫu Câu template, filled in for this guest ('➕ Tin khác').
-- app_parts/p03_messages_journey.py:937 `journey_template_vi` ← `/api/journey/vi/<int:template_id>` GET,POST — The Vietnamese text of a template (raw, with tokens) — read / saved from the send sheet's ✏️ Sửa mẫu gốc.
-- app_parts/p03_messages_journey.py:952 `journey_sent` ← `/api/journey/sent` POST
-- app_parts/p03_messages_journey.py:971 `_ensure_pay_table`
-- app_parts/p03_messages_journey.py:986 `_vnd`
-- app_parts/p03_messages_journey.py:990 `_vn_now`
-- app_parts/p03_messages_journey.py:994 `_pay_items`
-- app_parts/p03_messages_journey.py:1057 `pay_mark` ← `/api/pay/mark` POST — 🙋 khách báo đã trả (method) / bỏ · 📝 note · 🙈 không cần thu / bỏ.
-- app_parts/p03_messages_journey.py:1085 `pay_collect` ← `/api/pay/collect` POST — 💰 the money actually gathered for a booking: added to collected_amount (an undo sends the same amount
-- app_parts/p03_messages_journey.py:1128 `_pay_by_apartment` — [{apt, n, left, max_over, items}] — one block per apartment (unplaced last). Inside: the guest who has owed th
-- app_parts/p03_messages_journey.py:1159 `quick_page` ← `/tin-nhanh` · `/quick`
-- app_parts/p03_messages_journey.py:1225 `_quick_custom` — The owner's own /tin-nhanh groups (owner, Oct 30: "thêm được các mục tùy muốn") — journey_prefs 'quick_groups'
-- app_parts/p03_messages_journey.py:1237 `_quick_groups`
-- app_parts/p03_messages_journey.py:1241 `_quick_extra` — {group key: [template ids]} added by the owner to /tin-nhanh groups (journey_prefs 'quick_extra'), or with
-- app_parts/p03_messages_journey.py:1254 `quick_extra_set` ← `/api/quick/extra` POST — Add / remove a template in one /tin-nhanh group (📌 Hay dùng uses the journey favorites instead).
-- app_parts/p03_messages_journey.py:1281 `_quick_labels` — {template id (str): title shown in Tin nhanh} — journey_prefs 'quick_labels' (🏷 Đổi tên, owner Nov 7).
-- app_parts/p03_messages_journey.py:1292 `quick_label_set` ← `/api/quick/label` POST — 🏷 Đổi tên: {id, label} — the title of that sentence in Tin nhanh; the template's own name (Mẫu Câu) follows.
-- app_parts/p03_messages_journey.py:1317 `quick_group_set` ← `/api/quick/group` POST — The owner's own Tin nhanh groups: {action: 'add', title} · {action: 'rename', key, title} · {action: 'delete',
-- app_parts/p03_messages_journey.py:1357 `quick_manifest` ← `/tin-nhanh.webmanifest`
+- app_parts/p03_messages_journey.py:552 `_decode_data_url`
+- app_parts/p03_messages_journey.py:562 `booking_from_photo_shot` ← `/api/booking_from_photo/shot` POST — The Booking app screenshot of a booking added from /messages → its booking picture (full + guest version with
+- app_parts/p03_messages_journey.py:589 `ext_booking_screenshot` ← `/api/ext/booking/screenshot` POST — Save the reservation-box screenshot the extension took on the page the owner is viewing.
+- app_parts/p03_messages_journey.py:626 `booking_screenshot` ← `/api/booking_screenshot/<booking_id>` — The saved Booking.com screenshot: ?v=guest (default, safe to send) or ?v=full (owner).
+- app_parts/p03_messages_journey.py:644 `booking_card_data` ← `/api/booking_card/<booking_id>` — Data for the booking-confirmation image drawn on the phone (static/js/booking_card.js).
+- app_parts/p03_messages_journey.py:681 `_journey`
+- app_parts/p03_messages_journey.py:688 `_jsonable_steps`
+- app_parts/p03_messages_journey.py:693 `journey_settings` ← `/journey` — Which Mẫu Câu template + pictures each journey step sends, per apartment.
+- app_parts/p03_messages_journey.py:699 `journey_config` ← `/api/journey/config`
+- app_parts/p03_messages_journey.py:718 `journey_prefs` ← `/api/journey/prefs` GET,POST — The owner's buttons on each guest card: which steps are hidden, which templates are pinned.
+- app_parts/p03_messages_journey.py:729 `journey_map_set` ← `/api/journey/map` POST
+- app_parts/p03_messages_journey.py:752 `journey_images_add` ← `/api/journey/images/<int:template_id>` POST — Pictures for a template, uploaded from the phone (already resized there); kept in the database.
+- app_parts/p03_messages_journey.py:786 `journey_image_delete` ← `/api/journey/images/<int:image_id>` DELETE
+- app_parts/p03_messages_journey.py:794 `journey_image` ← `/api/journey/image/<int:image_id>`
+- app_parts/p03_messages_journey.py:805 `_journey_booking`
+- app_parts/p03_messages_journey.py:830 `_journey_texts`
+- app_parts/p03_messages_journey.py:838 `_journey_tpl` — The template as the send sheet gets it: id, name and its Vietnamese text (for 🔵 Zalo), filled in.
+- app_parts/p03_messages_journey.py:847 `_vn_guest_name` — Vietnamese guest: country code 'vn' after the name, or Vietnamese letters in it.
+- app_parts/p03_messages_journey.py:853 `journey_guest` ← `/api/journey/guest/<booking_id>` — Everything the 'send' sheet needs for one guest: each step's message (for the guest's apartment),
+- app_parts/p03_messages_journey.py:914 `journey_templates` ← `/api/journey/templates`
+- app_parts/p03_messages_journey.py:920 `journey_compose` ← `/api/journey/compose` — Any Mẫu Câu template, filled in for this guest ('➕ Tin khác').
+- app_parts/p03_messages_journey.py:943 `journey_template_vi` ← `/api/journey/vi/<int:template_id>` GET,POST — The Vietnamese text of a template (raw, with tokens) — read / saved from the send sheet's ✏️ Sửa mẫu gốc.
+- app_parts/p03_messages_journey.py:958 `journey_sent` ← `/api/journey/sent` POST
+- app_parts/p03_messages_journey.py:977 `_ensure_pay_table`
+- app_parts/p03_messages_journey.py:992 `_vnd`
+- app_parts/p03_messages_journey.py:996 `_vn_now`
+- app_parts/p03_messages_journey.py:1000 `_pay_items`
+- app_parts/p03_messages_journey.py:1063 `pay_mark` ← `/api/pay/mark` POST — 🙋 khách báo đã trả (method) / bỏ · 📝 note · 🙈 không cần thu / bỏ.
+- app_parts/p03_messages_journey.py:1091 `pay_collect` ← `/api/pay/collect` POST — 💰 the money actually gathered for a booking: added to collected_amount (an undo sends the same amount
+- app_parts/p03_messages_journey.py:1134 `_pay_by_apartment` — [{apt, n, left, max_over, items}] — one block per apartment (unplaced last). Inside: the guest who has owed th
+- app_parts/p03_messages_journey.py:1165 `quick_page` ← `/tin-nhanh` · `/quick`
+- app_parts/p03_messages_journey.py:1231 `_quick_custom` — The owner's own /tin-nhanh groups (owner, Oct 30: "thêm được các mục tùy muốn") — journey_prefs 'quick_groups'
+- app_parts/p03_messages_journey.py:1243 `_quick_groups`
+- app_parts/p03_messages_journey.py:1247 `_quick_extra` — {group key: [template ids]} added by the owner to /tin-nhanh groups (journey_prefs 'quick_extra'), or with
+- app_parts/p03_messages_journey.py:1260 `quick_extra_set` ← `/api/quick/extra` POST — Add / remove a template in one /tin-nhanh group (📌 Hay dùng uses the journey favorites instead).
+- app_parts/p03_messages_journey.py:1287 `_quick_labels` — {template id (str): title shown in Tin nhanh} — journey_prefs 'quick_labels' (🏷 Đổi tên, owner Nov 7).
+- app_parts/p03_messages_journey.py:1298 `quick_label_set` ← `/api/quick/label` POST — 🏷 Đổi tên: {id, label} — the title of that sentence in Tin nhanh; the template's own name (Mẫu Câu) follows.
+- app_parts/p03_messages_journey.py:1323 `quick_group_set` ← `/api/quick/group` POST — The owner's own Tin nhanh groups: {action: 'add', title} · {action: 'rename', key, title} · {action: 'delete',
+- app_parts/p03_messages_journey.py:1363 `quick_manifest` ← `/tin-nhanh.webmanifest`
 
 ## app_parts/p04_bookings_expenses.py (335 lines)
 _p04_bookings_expenses — /bookings list + add/edit/cancel/delete, manual entry, expenses API, save extracted_
@@ -303,7 +303,7 @@ _p16_staff — 👥 Nhân viên (owner, Nov 6): the cleaners talk to the Zalo bo
 - app_parts/p16_staff.py:886 `moi_staff` ← `/api/moi/staff` GET,POST — 👥 Nhân viên sheet in /moi: waiting requests, who is off today, month list; actions: decide, add (leave/extra),
 - app_parts/p16_staff.py:957 `staff_copy_owner` — Copy of a cleaner's message to the bot + the bot's answer → the owner(s).
 
-## app_parts/p17_mail.py (778 lines)
+## app_parts/p17_mail.py (780 lines)
 _p17_mail — 📧 Booking.com e-mails → the app (owner, Nov 12: "khi nhận được mail thì hệ thống tự cập nhật trên app là đang có_
 - app_parts/p17_mail.py:20 `_mail_ensure`
 - app_parts/p17_mail.py:36 `_mail_token`
@@ -328,13 +328,13 @@ _p17_mail — 📧 Booking.com e-mails → the app (owner, Nov 12: "khi nhận �
 - app_parts/p17_mail.py:479 `ext_morning` ← `/api/ext/morning` POST
 - app_parts/p17_mail.py:536 `_pending_rows` — Guests this Chrome profile should fetch now. 1st try: a profile whose Booking account has the hotel. A RETRY
 - app_parts/p17_mail.py:556 `_pending_query`
-- app_parts/p17_mail.py:576 `mail_fetched` — The extension saved this booking from its Booking page → it is no longer waiting to be fetched.
-- app_parts/p17_mail.py:592 `ext_pending` ← `/api/ext/pending` POST
-- app_parts/p17_mail.py:645 `_claim_today` — True for the first caller of the day only (several gunicorn workers tick at the same minute).
-- app_parts/p17_mail.py:655 `morning_watch` — 7:20–7:59 VN: no run started today → one warning; a run started > 30 min ago and not finished → one warning.
-- app_parts/p17_mail.py:692 `moi_mail_bot` ← `/api/moi/mail_bot` POST — Setup of the booking bot: token (checked with getMe, then setWebhook) · test · remove a receiver · off (back t
-- app_parts/p17_mail.py:729 `_mail_setup_info`
-- app_parts/p17_mail.py:771 `moi_mail_setup` ← `/api/moi/mail_setup` — 📧 setup sheet: the script to paste into Google Apps Script (with this app's private address) + the last mail r
+- app_parts/p17_mail.py:578 `mail_fetched` — The extension saved this booking from its Booking page → it is no longer waiting to be fetched.
+- app_parts/p17_mail.py:594 `ext_pending` ← `/api/ext/pending` POST
+- app_parts/p17_mail.py:647 `_claim_today` — True for the first caller of the day only (several gunicorn workers tick at the same minute).
+- app_parts/p17_mail.py:657 `morning_watch` — 7:20–7:59 VN: no run started today → one warning; a run started > 30 min ago and not finished → one warning.
+- app_parts/p17_mail.py:694 `moi_mail_bot` ← `/api/moi/mail_bot` POST — Setup of the booking bot: token (checked with getMe, then setWebhook) · test · remove a receiver · off (back t
+- app_parts/p17_mail.py:731 `_mail_setup_info`
+- app_parts/p17_mail.py:773 `moi_mail_setup` ← `/api/moi/mail_setup` — 📧 setup sheet: the script to paste into Google Apps Script (with this app's private address) + the last mail r
 
 ## core/__init__.py (3 lines)
 
@@ -600,8 +600,8 @@ _p17_mail — 📧 Booking.com e-mails → the app (owner, Nov 12: "khi nhận �
 - chrome_extension/content.js: 1395 `learnHotels` · 1408 `runStep` · 1493 `autoMorning` · 1567 `startTab`
 
 ## chrome_extension/background.js
-- chrome_extension/background.js: 6 `settings` · 30 `shoot` · 61 `morningTime` · 66 `scheduleMorning` · 75 `stayAwake` · 82 `openTab` · 91 `morningRun` · 107 `checkSignedOut`
-- chrome_extension/background.js: 118 `signedOutAlert` · 159 `selfUpdate` · 175 `apiCall` · 184 `pendingCheck` · 221 `logoutLoop` · 228 `cookieReset`
+- chrome_extension/background.js: 6 `settings` · 30 `shoot` · 78 `cdpShot` · 102 `morningTime` · 107 `scheduleMorning` · 116 `stayAwake` · 125 `openTab` · 132 `morningRun`
+- chrome_extension/background.js: 148 `checkSignedOut` · 159 `signedOutAlert` · 200 `selfUpdate` · 216 `apiCall` · 225 `pendingCheck` · 262 `logoutLoop` · 269 `cookieReset`
 
 # Templates (inline JS functions)
 

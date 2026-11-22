@@ -203,3 +203,17 @@ skips fixed/sticky bars, hidden parts, our own host, cross-origin images) → `f
 Not limited to the viewport (a long box is never cut). `shotAfterReveal` no longer stops on a hidden tab. `runStep`: no
 picture after the wait (number did not show / capture failed) → `autoShot('run')` before the next guest (≤ 10 s).
 Visual check page: `tests/mock_domshot.html` via launch.json "shot-mock" (port 8769) → run `hpDomShot` on `#card`.
+
+### 1.49 (Nov 22 2026) — REAL pictures without the screen (permission "debugger")
+Owner: "tôi vẫn tin vào hình ảnh hơn" (wants real pixels, not the 1.48 drawing). background `shoot`: (1) tab in front of
+the focused window → captureVisibleTab ('screen'); (2) else `cdpShot` = chrome.debugger attach → `Page.captureScreenshot`
+→ detach ('cdp') — Chrome renders the tab itself: works when the window is not focused, behind other apps, off-screen
+(= occluded, like a locked PC); (3) still nothing (window MINIMIZED, or a tab behind another tab) → window state normal
+WITHOUT focus / tab to front for 0.6 s → cdpShot ('cdp-front') → everything put back; (4) last resort content.js
+`domAutoShot` (1.48 drawing, 'dom'). Experiments Nov 22, Chrome 157, throwaway profile (scratchpad exp/): CDP capture
+ok 3/3 for: front tab of an unfocused/covered/off-screen window, restored-unfocused minimized window, a tab brought to
+front; FAILS (timeout) for a minimized window; flaky for a never-shown background tab. Extensions cannot put a window
+off-screen ("Bounds must be at least 50% within visible screen space"; Browser.setWindowBounds not allowed via
+chrome.debugger). So `openTab` (morning run / new guests / cookie reset) now opens its OWN normal window without focus
+(was a background tab / minimized window). Server: `booking_screenshots.method`; a 'dom' picture never replaces a real
+one; a guest whose only picture is 'dom' is fetched again by /api/ext/pending (≤ 3 tries).

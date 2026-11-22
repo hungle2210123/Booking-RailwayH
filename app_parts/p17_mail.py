@@ -554,6 +554,7 @@ def _pending_rows(_xdb, pid='', hotels=()):
 
 
 def _pending_query(_xdb):
+    _ensure_shot_table()             # (column `method`)
     return _xdb.session.execute(text("""
         SELECT m.booking_id, MAX(m.prop), MIN(COALESCE(m.fetch_tries, 0)), MAX(p.hotel_id), MAX(m.fetch_pids), MAX(m.fetch_at)
         FROM mail_alerts m
@@ -566,7 +567,8 @@ def _pending_query(_xdb):
           -- came back (5312674826: saved 6:25 without phone/picture, marked fetched, never retried)
           AND NOT EXISTS (SELECT 1 FROM bookings b JOIN guests g ON g.guest_id = b.guest_id
                           JOIN booking_screenshots s ON s.booking_id = b.booking_id
-                          WHERE b.booking_id = m.booking_id AND COALESCE(g.phone, '') <> '')
+                          WHERE b.booking_id = m.booking_id AND COALESCE(g.phone, '') <> ''
+                            AND COALESCE(s.method, '') <> 'dom')   -- 1.49: only a DRAWN picture → try for a real one
           -- a partner booking never shows the guest's phone → once saved with its picture it is done
           AND NOT EXISTS (SELECT 1 FROM bookings b JOIN booking_screenshots s ON s.booking_id = b.booking_id
                           WHERE b.booking_id = m.booking_id AND b.via_partner IS TRUE)

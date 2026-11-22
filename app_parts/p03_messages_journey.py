@@ -540,6 +540,8 @@ def _ensure_shot_table():
                 created_at TIMESTAMP DEFAULT NOW(),
                 updated_at TIMESTAMP DEFAULT NOW()
             )"""))
+        # 1.49: how the picture was taken — 'dom' = drawn from the page (no real picture was possible)
+        _xdb.session.execute(text("ALTER TABLE booking_screenshots ADD COLUMN IF NOT EXISTS method VARCHAR(12) DEFAULT NULL"))
         _xdb.session.commit()
         _SHOT_TABLE_READY = True
     except Exception as e:
@@ -600,12 +602,16 @@ def ext_booking_screenshot():
         if not full or not guest:
             return jsonify({'success': False, 'error': 'Ảnh không hợp lệ'}), 400
         _ensure_shot_table()
+        method = str(body.get('method') or '')[:12] or None
+        # owner Nov 22 "tôi vẫn tin vào hình ảnh hơn": a picture DRAWN from the page never replaces a real one
         _xdb.session.execute(text("""
-            INSERT INTO booking_screenshots (booking_id, full_img, guest_img, mime, created_at, updated_at)
-            VALUES (:b, :f, :g, :m, NOW(), NOW())
+            INSERT INTO booking_screenshots (booking_id, full_img, guest_img, mime, created_at, updated_at, method)
+            VALUES (:b, :f, :g, :m, NOW(), NOW(), :me)
             ON CONFLICT (booking_id) DO UPDATE
-              SET full_img = EXCLUDED.full_img, guest_img = EXCLUDED.guest_img, mime = EXCLUDED.mime, updated_at = NOW()
-        """), {'b': bid, 'f': full, 'g': guest, 'm': mime})
+              SET full_img = EXCLUDED.full_img, guest_img = EXCLUDED.guest_img, mime = EXCLUDED.mime, updated_at = NOW(),
+                  method = EXCLUDED.method
+              WHERE EXCLUDED.method IS DISTINCT FROM 'dom' OR booking_screenshots.method = 'dom'
+        """), {'b': bid, 'f': full, 'g': guest, 'm': mime, 'me': method})
         _xdb.session.commit()
         on_web = _ext_existing(bid) is not None
         return jsonify({'success': True, 'booking_id': bid, 'on_web': on_web,

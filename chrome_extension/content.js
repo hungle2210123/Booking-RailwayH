@@ -566,9 +566,9 @@
     // 1.48 (owner Nov 22: "cần giữ hiển thị màn hình Chrome thì mới chụp được"): the real screen capture only works for
     // the tab ON the screen → a tab behind, a minimized window, a locked PC draw the box from the page instead
     // (domshot.js); the screen capture failing for any reason (not 'busy') → the same.
-    const onScreen = !document.hidden && document.hasFocus();
-    const first = onScreen ? chrome.runtime.sendMessage({ type: 'auto-shot' }).catch(() => null) : Promise.resolve(null);
-    return first.then(r => {
+    // 1.49: background.js now takes a REAL picture of a tab not on the screen too (Chrome draws it: DevTools protocol);
+    // the drawing from the page is only the last resort
+    return chrome.runtime.sendMessage({ type: 'auto-shot' }).catch(() => null).then(r => {
       if (r?.success || r?.error === 'busy') return r;
       return domAutoShot();
     }).then(r => {
@@ -907,7 +907,7 @@
     return { ok: true };
   }
 
-  async function finishShot(dataUrl) {
+  async function finishShot(dataUrl, method) {
     const p = pendingShot;
     pendingShot = null;
     try {
@@ -946,7 +946,7 @@
       const full = make(false), guest = make(true);
       host.style.visibility = '';
       if (!p.auto) toast('📸 Đang lưu ảnh lên web…');
-      const r = await api('/api/ext/booking/screenshot', { booking_id: p.bid, full, guest });
+      const r = await api('/api/ext/booking/screenshot', { booking_id: p.bid, full, guest, method: dataUrl ? (method || 'screen') : 'dom' });
       if (!r?.success) throw new Error(r?.error || 'Lỗi không rõ');
       try { sessionStorage.setItem(shotStampKey(p.bid), String(Date.now())); } catch (e) {}
       if (p.auto) {
@@ -992,7 +992,7 @@
     if (msg?.type === 'shot-prepare') {
       try { reply(prepareShot(msg.auto)); } catch (e) { cancelShot(); reply({ ok: false, error: e.message }); }
     } else if (msg?.type === 'shot-image') {
-      finishShot(msg.dataUrl);
+      finishShot(msg.dataUrl, msg.method);
     } else if (msg?.type === 'shot-error') {
       cancelShot();
       toast((msg.auto ? '📸 Không tự chụp được ảnh: ' : '📸 ') + esc(msg.error), 'warn');
