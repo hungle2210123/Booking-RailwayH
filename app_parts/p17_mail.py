@@ -559,7 +559,9 @@ def _pending_query(_xdb):
         SELECT m.booking_id, MAX(m.prop), MIN(COALESCE(m.fetch_tries, 0)), MAX(p.hotel_id), MAX(m.fetch_pids), MAX(m.fetch_at)
         FROM mail_alerts m
         LEFT JOIN booking_properties p ON lower(p.name) = lower(m.prop)
-        WHERE m.kind IN ('last', 'new') AND m.day = :d AND m.booking_id <> ''
+        -- 'msg' too (owner, Nov 22, Sanka Silva 6437146610): Booking's "đặt phòng mới" mail never reached the app, only the
+        -- guest's message mail (same booking number, arriving today) → that alone is enough to open + save the guest
+        WHERE m.kind IN ('last', 'new', 'msg') AND m.day = :d AND m.booking_id <> ''
           AND COALESCE(m.fetch_tries, 0) < 3
           AND NOT EXISTS (SELECT 1 FROM mail_alerts c WHERE c.kind = 'cancel' AND c.booking_id = m.booking_id)
           -- owner, Nov 21 ("phải lấy được hình ảnh, số điện thoại, thông tin đầy đủ"): done = saved WITH a phone AND the

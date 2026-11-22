@@ -225,7 +225,7 @@ def test_pending_new_guests(client, db, app_module, throwaway, monkeypatch):
     app_module._mail_ensure(db)
     hid = db.session.execute(text("SELECT hotel_id, name FROM booking_properties ORDER BY hotel_id LIMIT 1")).fetchone()
     assert hid, 'booking_properties is empty'
-    bid, today = throwaway(), (datetime.utcnow() + timedelta(hours=7)).date()
+    bid, bid2, today = throwaway(), throwaway(), (datetime.utcnow() + timedelta(hours=7)).date()
     try:
         db.session.execute(text("""INSERT INTO mail_alerts (at, mail_id, kind, booking_id, prop, apt, day, subject, seen)
             VALUES (:at, :m, 'last', :b, :p, '', :d, 'ZZ TEST', TRUE)"""), {'m': 'zz-' + bid, 'b': bid, 'p': hid[1], 'd': today,
@@ -277,8 +277,14 @@ def test_pending_new_guests(client, db, app_module, throwaway, monkeypatch):
         db.session.execute(text("UPDATE mail_alerts SET fetched_at = NULL, fetch_tries = 3 WHERE mail_id = :m"), {'m': 'zz-' + bid})
         db.session.commit()
         assert not [i for i in take([hid[0]]) if i['bid'] == bid]
+        # owner, Nov 22 (Sanka Silva): no "đặt phòng mới" mail, only the guest's MESSAGE mail → still fetched
+        db.session.execute(text("""INSERT INTO mail_alerts (at, mail_id, kind, booking_id, prop, apt, day, subject, seen)
+            VALUES (:at, :m, 'msg', :b, :p, '', :d, 'ZZ TEST', TRUE)"""), {'m': 'zz-' + bid2, 'b': bid2, 'p': hid[1], 'd': today,
+                                                               'at': app_module._vn_now()})
+        db.session.commit()
+        assert [i for i in take([hid[0]]) if i['bid'] == bid2]
     finally:
-        db.session.execute(text("DELETE FROM mail_alerts WHERE mail_id = :m"), {'m': 'zz-' + bid})
+        db.session.execute(text("DELETE FROM mail_alerts WHERE mail_id = ANY(:m)"), {'m': ['zz-' + bid, 'zz-' + bid2]})
         db.session.commit()
         vs = app_module._zbot_get(db, 'ext_versions') or {}
         if vs.pop('zz-ver', None):

@@ -239,3 +239,9 @@ running the CACHED 1.47 background script (`Service Worker/ScriptCache` had no 1
 disk) compares it with the disk manifest → different / no answer → `chrome.runtime.reload()` once per version.
 Tested (throwaway Chrome, dev mode on): 1.47 running + 1.51 files on disk → open options.html → 5 s later 1.51 ENABLED.
 To push an update onto a stuck profile: `chrome --profile-directory="<p>" chrome-extension://gfhdcjniielimcbiiblplndioapghjik/options.html`.
+
+### Guest-message mail also triggers the fetch (Nov 22 2026, server only)
+Sanka Silva 6437146610 (arriving today) was never saved: Gmail sent the app only the guest's message mail
+("Chúng tôi nhận được tin nhắn này từ …", 10:09), no "Đặt phòng mới" mail (not among the last 40 subjects in
+`mail_recent`). `_pending_query` now also takes `kind='msg'` rows (they carry booking number, listing and check-in
+day) → the 1-min pending check opens + saves the guest like a new booking. Test: test_flows `test_pending_new_guests`.
