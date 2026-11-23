@@ -260,6 +260,7 @@ button.info.on{border-color:#0E1525;background:#fff}
       S.data = d; TODAY = d.today; S.loadedAt = new Date(); APT = d.apartments; aptById = {}; APT.forEach((a) => { aptById[a.id] = a; });
       B = d.bookings.map((b) => ({ ...b, ciO: offOf(b.ci), coO: offOf(b.co) }));
       byId = {}; B.forEach((b) => { byId[b.id] = b; });
+      if (d.clean && S.zbot) S.zbot.clean = d.clean;   // the cleaning board follows every reload (gia hạn, đổi phòng…)
       render();
     } catch (e) { if (!quiet) $('#app').innerHTML = '<div class="empty" style="padding-top:80px">Không tải được dữ liệu — kéo xuống để tải lại.</div>'; }
   }

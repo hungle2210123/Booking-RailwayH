@@ -183,7 +183,17 @@ def moi_data():
     return jsonify({'success': True, 'today': today.isoformat(), 'reminders': rems, 'apartments': apts, 'bookings': out,
                     'cancelled': cancelled,
                     'steps': [{'key': s['key'], 'emoji': s['emoji'], 'label': s['label']} for s in buttons],
-                    'collectors': list(PAY_COLLECTORS)})
+                    'collectors': list(PAY_COLLECTORS), 'clean': _moi_clean_now(_xdb, today)})
+
+
+def _moi_clean_now(_xdb, today):
+    """Today's cleaning board with every data load (owner, Nov 23: after "gia hạn" Hội Vũ 101/102 stayed on
+    "Dọn xong hôm nay" — the board was only read once when the app opened). None if it cannot be built."""
+    try:
+        return clean_board(_xdb, today)
+    except Exception:
+        _xdb.session.rollback()
+        return None
 
 
 @app.route('/api/moi/search')

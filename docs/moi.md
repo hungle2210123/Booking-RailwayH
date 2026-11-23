@@ -276,3 +276,8 @@ sheet opens (`M.payMsgLoad`); a tap also copies the text and logs journey `payme
   room, price) + "Mã …". `cupd` is NOT a duplicate of the cancel mail (different kind). `MAIL_ALWAYS = ('cancel', 'cupd')`.
 - 📧 Thư đặt phòng sheet: other mails = today only; ❌ Hủy and ⚠️ Cập nhật hủy (its OWN chip, owner: "rất quan trọng") are
   kept the whole month until the 5th of the next month (`moi_mail_list` cleanup + query).
+
+### Cleaning board follows every reload (Nov 23, 2026)
+`/api/moi/data` also returns `clean` (= `clean_board` of today, `_moi_clean_now`); moi.html `load()` copies it into
+`S.zbot.clean`. Before, "🧹 Dọn xong hôm nay" was read once at app open (`/api/moi/zbot`), so after "gia hạn" the
+rooms Hội Vũ 101/102 stayed on it although the server list was already right.
