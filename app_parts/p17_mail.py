@@ -562,6 +562,9 @@ def _pending_query(_xdb):
         -- 'msg' too (owner, Nov 22, Sanka Silva 6437146610): Booking's "đặt phòng mới" mail never reached the app, only the
         -- guest's message mail (same booking number, arriving today) → that alone is enough to open + save the guest
         WHERE m.kind IN ('last', 'new', 'msg') AND m.day = :d AND m.booking_id <> ''
+          -- test rows (9990…, written by the tests on the real DB) are never fetched: Nov 23 the extension opened the
+          -- test booking 9990088001 during a test run → "⚠️ Chưa lấy được 9990088001" reached the owner's Zalo
+          AND (m.booking_id NOT LIKE '9990%' OR NOT :live)
           AND COALESCE(m.fetch_tries, 0) < 3
           AND NOT EXISTS (SELECT 1 FROM mail_alerts c WHERE c.kind = 'cancel' AND c.booking_id = m.booking_id)
           -- owner, Nov 21 ("phải lấy được hình ảnh, số điện thoại, thông tin đầy đủ"): done = saved WITH a phone AND the
@@ -574,7 +577,8 @@ def _pending_query(_xdb):
           -- a partner booking never shows the guest's phone → once saved with its picture it is done
           AND NOT EXISTS (SELECT 1 FROM bookings b JOIN booking_screenshots s ON s.booking_id = b.booking_id
                           WHERE b.booking_id = m.booking_id AND b.via_partner IS TRUE)
-        GROUP BY m.booking_id ORDER BY m.booking_id"""), {'d': _vn_now().date()}).fetchall()
+        GROUP BY m.booking_id ORDER BY m.booking_id"""),
+        {'d': _vn_now().date(), 'live': is_railway}).fetchall()   # the tests run locally
 
 
 def mail_fetched(bid):
