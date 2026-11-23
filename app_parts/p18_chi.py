@@ -418,6 +418,14 @@ def chi_bot():
         if tok in (_zbot_token(), _zbot2_token(_xdb)):
             return jsonify({'success': False, 'error': 'Đây là mã của bot dọn phòng / bot đặt phòng — cần tạo một bot MỚI'})
         me = _chi_call(_xdb, 'getMe', token=tok)
+        # an old page glued the whole message into one line → letters of "Lưu ý…" stuck to the end of the token
+        # (owner, Nov 23: "Unauthorized") → try it with a few trailing letters removed
+        for cut in range(1, 13):
+            if me.get('ok') or not found or len(tok) - cut < 30:
+                break
+            if _chi_call(_xdb, 'getMe', token=tok[:-cut]).get('ok'):
+                tok = tok[:-cut]
+                me = _chi_call(_xdb, 'getMe', token=tok)
         if not me.get('ok'):
             return jsonify({'success': False, 'error': 'Zalo chưa nhận mã này: ' + str(me.get('description') or '')[:80]})
         url = 'https://' + request.host_url.split('://', 1)[1].rstrip('/') + '/zalo-bot3/hook'
