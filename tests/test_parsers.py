@@ -158,3 +158,19 @@ def test_extension_reads_number_already_on_page():
     js = f"const m = {{t: {text!r}}}.t.match({rx}); console.log(JSON.stringify(m));"
     out = subprocess.run(['node', '-e', js], capture_output=True, text=True, encoding='utf-8').stdout.strip()
     assert out == '["+1 555 010 0199"]', out
+
+
+def test_room_picture_label_is_not_a_room():
+    """Nov 23: morning runs saved 7 guests with the room "photo" (the room picture's label) → calendar "chưa rõ loại"."""
+    from core.booking_page_parser import parse_reservation_page, looks_like_room
+    assert not looks_like_room('photo') and not looks_like_room('Photos') and not looks_like_room('ảnh')
+    lines = ['Reservation details', 'Check-in', 'Mon 23 Nov 2026', 'Check-out', 'Thu 26 Nov 2026', 'Guest name:',
+             'ZZ TEST Guest', 'Booking number:', '9990001234', 'Total price', 'VND 1,792,956', 'Room', 'photo',
+             'Standard Studio (Sofa Hàng Bạc)', 'Mon 23 Nov 2026', 'Thu 26 Nov 2026', 'VND 1,792,956']
+    p = parse_reservation_page({'text': '\n'.join(lines), 'pairs': [['Room', 'photo']],
+                                'url': 'https://admin.booking.com/x?res_id=9990001234'})
+    assert p['listing'] == 'Standard Studio (Sofa Hàng Bạc)'
+    lines2 = [l if l != 'Standard Studio (Sofa Hàng Bạc)' else 'Deluxe King Studio' for l in lines]
+    p2 = parse_reservation_page({'text': chr(10).join(lines2), 'pairs': [['Room', 'photo']],
+                                 'url': 'https://admin.booking.com/x?res_id=9990001234'})
+    assert p2['listing'] == 'Deluxe King Studio'

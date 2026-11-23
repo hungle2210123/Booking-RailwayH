@@ -251,3 +251,12 @@ Sanka Silva 6437146610 (arriving today) was never saved: Gmail sent the app only
 ("Chúng tôi nhận được tin nhắn này từ …", 10:09), no "Đặt phòng mới" mail (not among the last 40 subjects in
 `mail_recent`). `_pending_query` now also takes `kind='msg'` rows (they carry booking number, listing and check-in
 day) → the 1-min pending check opens + saves the guest like a new booking. Test: test_flows `test_pending_new_guests`.
+
+### Room "photo" (Nov 23, 2026)
+Morning runs on the English Booking page saved 7 guests with the room name "photo" (the room picture's label was read
+as the room) → calendar "chưa rõ loại". Fix: `looks_like_room` rejects picture words (`_PICTURE_WORD`), so the room box
+title is read (`_room_block`, then `_room_title_line`: a short line naming a room kind, with the owner's note in
+brackets or the price / dates right after it — "Deluxe King Studio"). The save also drops such a name
+(`_ext_listing_text`), so it never overwrites a real one. Also fixed: `_RATE_LINE` and the VND column check held
+backspace bytes instead of `\b` (a broken edit), so "rate" / "deal" lines were not recognised. The 7 bookings were set
+from their saved Booking pictures. Test: `test_room_picture_label_is_not_a_room`.

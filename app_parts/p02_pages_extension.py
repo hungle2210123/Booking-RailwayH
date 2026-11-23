@@ -262,6 +262,13 @@ def ext_login_needed():
     return jsonify({'success': True})
 
 
+def _ext_listing_text(v):
+    """Room name as sent — '' when it is a picture label ("photo"), so it never overwrites the real name."""
+    from core.booking_page_parser import looks_like_room
+    t = re.sub(r'\s+', ' ', str(v or '')).strip()
+    return t if ' + ' in t or looks_like_room(t) else ''
+
+
 def _ext_fields(d):
     """Normalise fields coming from the extension."""
     def as_date(v):
@@ -285,7 +292,7 @@ def _ext_fields(d):
         'checkout_date': as_date(d.get('checkout_date')),
         'room_amount': as_num(d.get('room_amount')),
         'commission': as_num(d.get('commission')),
-        'listing': re.sub(r'\s+', ' ', str(d.get('listing') or '')).strip(),
+        'listing': _ext_listing_text(d.get('listing')),
         'phone': re.sub(r'[^\d+]', '', str(d.get('phone') or '')),
         'email': str(d.get('email') or '').strip(),
         'nationality': str(d.get('nationality') or '').strip()[:60],

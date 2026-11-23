@@ -20,7 +20,7 @@ Routes are listed as `← /path METHODS`. Line numbers are 1-based. Templates li
 _p01_health_cancellations — health, cancellations centre, OK status, auto-sync, debug routes_
 - app_parts/p01_health_cancellations.py:5 `healthcheck` ← `/health` — Railway healthcheck endpoint - returns 200 OK without database access
 
-## app_parts/p02_pages_extension.py (891 lines)
+## app_parts/p02_pages_extension.py (898 lines)
 - app_parts/p02_pages_extension.py:6 `index` ← `/` — Opening the app: computer → /may-tinh, phone → /moi. The old pages were removed (owner, Nov 11: "xóa toàn bộ
 - app_parts/p02_pages_extension.py:20 `extension_zip` ← `/extension.zip` — The Chrome extension as a zip, built from chrome_extension/ at request time (owner, Oct 30: download it from t
 - app_parts/p02_pages_extension.py:50 `_tool_files` — [(full path, path inside HotelPro/)] of every file of the bundle, sorted (same order → same version).
@@ -36,29 +36,30 @@ _p01_health_cancellations — health, cancellations centre, OK status, auto-sync
 - app_parts/p02_pages_extension.py:213 `_ext_existing`
 - app_parts/p02_pages_extension.py:239 `ext_ping` ← `/api/ext/ping`
 - app_parts/p02_pages_extension.py:247 `ext_login_needed` ← `/api/ext/login_needed` POST — The 7:00 run found Booking's sign-in page (owner, 17/11/2026) → the Zalo bot tells the owner(s) to sign in on
-- app_parts/p02_pages_extension.py:265 `_ext_fields` — Normalise fields coming from the extension.
-- app_parts/p02_pages_extension.py:297 `_ext_diff` — Booking-fact changes (column → value) + readable list. Never touches what the app manages.
-- app_parts/p02_pages_extension.py:327 `_ensure_property_column`
-- app_parts/p02_pages_extension.py:343 `_property_for` — Learn / recall the listing name of a Booking property id.
-- app_parts/p02_pages_extension.py:357 `_set_property`
-- app_parts/p02_pages_extension.py:373 `_provisional_id`
-- app_parts/p02_pages_extension.py:378 `_provisional_match` — The one provisional booking for the same stay (dates, and price ±1,000đ or same guest name), else None.
-- app_parts/p02_pages_extension.py:398 `_rename_booking` — Give a booking its real number everywhere it is referenced (one transaction).
-- app_parts/p02_pages_extension.py:426 `_room_ids` — Booking ids for the rooms of one reservation: the 1st room keeps the number, the others get -2, -3 …
-- app_parts/p02_pages_extension.py:431 `_ext_save_rooms` — A reservation of several rooms (owner, Oct 21): every room is its own booking on the web — <id> for room 1,
-- app_parts/p02_pages_extension.py:478 `_ext_save_one` — Create or update one booking (+ its Booking listing name). Returns (result dict, http status).
-- app_parts/p02_pages_extension.py:503 `_ext_save_one_core` — Create or update one booking. Returns (result dict, http status).
-- app_parts/p02_pages_extension.py:589 `_ext_known_listings`
-- app_parts/p02_pages_extension.py:595 `_ext_listings`
-- app_parts/p02_pages_extension.py:605 `ext_booking_parse` ← `/api/ext/booking/parse` POST — Turn a captured page into fields + what is already in the system.
-- app_parts/p02_pages_extension.py:656 `ext_booking_save` ← `/api/ext/booking/save` POST — Save one booking checked by the user in the extension panel.
-- app_parts/p02_pages_extension.py:679 `ext_booking_save_many` ← `/api/ext/booking/save_many` POST — Save the rows ticked on the reservation list page — each one independently.
-- app_parts/p02_pages_extension.py:701 `booking_from_photo_parse` ← `/api/booking_from_photo/parse` POST — /messages "📷 Thêm từ ảnh": text OCR'd on the phone from Booking app screenshots → fields to check.
-- app_parts/p02_pages_extension.py:745 `_name_starts` — Every word OCR'd from the app ("Maheshwaran S") starts a word of the web name ("Maheshwaran Subramanian in").
-- app_parts/p02_pages_extension.py:754 `_photo_booking_by_name` — The one not-yet-finished booking whose guest has this name (any case / accents / word order), else None.
-- app_parts/p02_pages_extension.py:773 `booking_from_photo_save` ← `/api/booking_from_photo/save` POST — Save the checked fields — same rules as the Chrome extension (only Booking facts; collected money,
-- app_parts/p02_pages_extension.py:796 `ext_booking_phone` ← `/api/ext/booking/phone` POST — A reservation page now shows the guest phone (the owner clicked Booking's own
-- app_parts/p02_pages_extension.py:878 `_typed_phone` — A number the owner typed / pasted ("0905 123 456", "+33 6 12 34 56 78", "0033…") → '+<digits>' or ''.
+- app_parts/p02_pages_extension.py:265 `_ext_listing_text` — Room name as sent — '' when it is a picture label ("photo"), so it never overwrites the real name.
+- app_parts/p02_pages_extension.py:272 `_ext_fields` — Normalise fields coming from the extension.
+- app_parts/p02_pages_extension.py:304 `_ext_diff` — Booking-fact changes (column → value) + readable list. Never touches what the app manages.
+- app_parts/p02_pages_extension.py:334 `_ensure_property_column`
+- app_parts/p02_pages_extension.py:350 `_property_for` — Learn / recall the listing name of a Booking property id.
+- app_parts/p02_pages_extension.py:364 `_set_property`
+- app_parts/p02_pages_extension.py:380 `_provisional_id`
+- app_parts/p02_pages_extension.py:385 `_provisional_match` — The one provisional booking for the same stay (dates, and price ±1,000đ or same guest name), else None.
+- app_parts/p02_pages_extension.py:405 `_rename_booking` — Give a booking its real number everywhere it is referenced (one transaction).
+- app_parts/p02_pages_extension.py:433 `_room_ids` — Booking ids for the rooms of one reservation: the 1st room keeps the number, the others get -2, -3 …
+- app_parts/p02_pages_extension.py:438 `_ext_save_rooms` — A reservation of several rooms (owner, Oct 21): every room is its own booking on the web — <id> for room 1,
+- app_parts/p02_pages_extension.py:485 `_ext_save_one` — Create or update one booking (+ its Booking listing name). Returns (result dict, http status).
+- app_parts/p02_pages_extension.py:510 `_ext_save_one_core` — Create or update one booking. Returns (result dict, http status).
+- app_parts/p02_pages_extension.py:596 `_ext_known_listings`
+- app_parts/p02_pages_extension.py:602 `_ext_listings`
+- app_parts/p02_pages_extension.py:612 `ext_booking_parse` ← `/api/ext/booking/parse` POST — Turn a captured page into fields + what is already in the system.
+- app_parts/p02_pages_extension.py:663 `ext_booking_save` ← `/api/ext/booking/save` POST — Save one booking checked by the user in the extension panel.
+- app_parts/p02_pages_extension.py:686 `ext_booking_save_many` ← `/api/ext/booking/save_many` POST — Save the rows ticked on the reservation list page — each one independently.
+- app_parts/p02_pages_extension.py:708 `booking_from_photo_parse` ← `/api/booking_from_photo/parse` POST — /messages "📷 Thêm từ ảnh": text OCR'd on the phone from Booking app screenshots → fields to check.
+- app_parts/p02_pages_extension.py:752 `_name_starts` — Every word OCR'd from the app ("Maheshwaran S") starts a word of the web name ("Maheshwaran Subramanian in").
+- app_parts/p02_pages_extension.py:761 `_photo_booking_by_name` — The one not-yet-finished booking whose guest has this name (any case / accents / word order), else None.
+- app_parts/p02_pages_extension.py:780 `booking_from_photo_save` ← `/api/booking_from_photo/save` POST — Save the checked fields — same rules as the Chrome extension (only Booking facts; collected money,
+- app_parts/p02_pages_extension.py:803 `ext_booking_phone` ← `/api/ext/booking/phone` POST — A reservation page now shows the guest phone (the owner clicked Booking's own
+- app_parts/p02_pages_extension.py:885 `_typed_phone` — A number the owner typed / pasted ("0905 123 456", "+33 6 12 34 56 78", "0033…") → '+<digits>' or ''.
 
 ## app_parts/p03_messages_journey.py (1373 lines)
 _p03_messages_journey — phone from chat screenshots, /api/messages/phone, auto messages, AI reply, Booking screenshots, journey, Thu tiền (pay), /tin-nhanh, /messages_
@@ -367,7 +368,7 @@ _p18_chi — 💸 Chi tiêu = ảnh biên lai chuyển khoản gửi cho bot Zal
 - core/auto_sync_service.py:23 class `SyncStatus` — Status of database synchronization
 - core/auto_sync_service.py:32 class `AutoSyncService` — Automatic bidirectional database synchronization service
 
-## core/booking_page_parser.py (644 lines)
+## core/booking_page_parser.py (672 lines)
 - core/booking_page_parser.py:21 `_fold`
 - core/booking_page_parser.py:58 `parse_date` — 'Fri, 3 Oct 2026' · 'Oct 3, 2026' · '2026-10-03' · '03/10/2026' · 'T6, 3 thg 10, 2026'
 - core/booking_page_parser.py:80 `_mk`
@@ -376,22 +377,23 @@ _p18_chi — 💸 Chi tiêu = ảnh biên lai chuyển khoản gửi cho bot Zal
 - core/booking_page_parser.py:117 `_from_pairs` — Most specific label first ('total price' before 'total'), exact matches only, so a
 - core/booking_page_parser.py:128 `_from_lines` — Value on the same line after the label ('Phone: +84…') or on the next line.
 - core/booking_page_parser.py:153 `_room_block` — The detail page has no "room type" label: the room box shows its title, then the price, then the dates
-- core/booking_page_parser.py:174 `_is_rate_line`
-- core/booking_page_parser.py:181 `room_blocks` — Every room box on the detail page, in page order: title ("1 Studio … (Phòng Thường Hội Vũ) Hủy bởi khách"),
-- core/booking_page_parser.py:214 `_value`
-- core/booking_page_parser.py:218 `hotel_id_of`
-- core/booking_page_parser.py:224 `_property_ok`
-- core/booking_page_parser.py:231 `property_from_page` — Listing name in the extranet's top bar: "Studio Hanoi Old Quarter - Steps to Everything  16496275"
-- core/booking_page_parser.py:251 `strip_name_badges`
-- core/booking_page_parser.py:263 `parse_reservation_page`
-- core/booking_page_parser.py:363 `_column_index` — header texts → {field: column index}.
-- core/booking_page_parser.py:388 `_infer_columns` — No usable headers: recognise columns from their content.
-- core/booking_page_parser.py:431 `is_reservation_list`
-- core/booking_page_parser.py:443 `looks_like_room` — A room / unit name ("Studio Có Sân Hiên (101 - 103 TN)", "2 PN Hàng Bè") — not one of Booking's
-- core/booking_page_parser.py:453 `split_rooms` — '101 - 103 TN' → ('101 - 103 TN', 1); two lines or '2 x Phòng Đôi' → several rooms.
-- core/booking_page_parser.py:465 `parse_reservation_list` — rows: [[{'text': cell innerText, 'link': first link text}, ...], ...]
-- core/booking_page_parser.py:521 `parse_pulse_texts` — Several screenshots of one booking (booking screen, call dialog with the phone, booking number…): each is read
-- core/booking_page_parser.py:546 `parse_pulse_text`
+- core/booking_page_parser.py:173 `_room_title_line` — Last resort when the room box is laid out differently (Nov 23: the English page gave only "photo"): the room
+- core/booking_page_parser.py:194 `_is_rate_line`
+- core/booking_page_parser.py:201 `room_blocks` — Every room box on the detail page, in page order: title ("1 Studio … (Phòng Thường Hội Vũ) Hủy bởi khách"),
+- core/booking_page_parser.py:234 `_value`
+- core/booking_page_parser.py:238 `hotel_id_of`
+- core/booking_page_parser.py:244 `_property_ok`
+- core/booking_page_parser.py:251 `property_from_page` — Listing name in the extranet's top bar: "Studio Hanoi Old Quarter - Steps to Everything  16496275"
+- core/booking_page_parser.py:271 `strip_name_badges`
+- core/booking_page_parser.py:283 `parse_reservation_page`
+- core/booking_page_parser.py:383 `_column_index` — header texts → {field: column index}.
+- core/booking_page_parser.py:408 `_infer_columns` — No usable headers: recognise columns from their content.
+- core/booking_page_parser.py:451 `is_reservation_list`
+- core/booking_page_parser.py:463 `looks_like_room` — A room / unit name ("Studio Có Sân Hiên (101 - 103 TN)", "2 PN Hàng Bè") — not one of Booking's
+- core/booking_page_parser.py:481 `split_rooms` — '101 - 103 TN' → ('101 - 103 TN', 1); two lines or '2 x Phòng Đôi' → several rooms.
+- core/booking_page_parser.py:493 `parse_reservation_list` — rows: [[{'text': cell innerText, 'link': first link text}, ...], ...]
+- core/booking_page_parser.py:549 `parse_pulse_texts` — Several screenshots of one booking (booking screen, call dialog with the phone, booking number…): each is read
+- core/booking_page_parser.py:574 `parse_pulse_text`
 
 ## core/cache_config.py (60 lines)
 - core/cache_config.py:13 `init_cache` — Initialize Flask-Caching with app
@@ -645,22 +647,22 @@ _p18_chi — 💸 Chi tiêu = ảnh biên lai chuyển khoản gửi cho bot Zal
 ## templates/journey_settings.html (231 lines)
 - templates/journey_settings.html: 79 `load` · 88 `renderButtons` · 141 `options` · 151 `rowHtml` · 165 `render` · 178 `bind` · 210 `shrink`
 
-## templates/moi.html (1622 lines)
-- templates/moi.html: 223 `M_staffBadge` · 227 `load` · 306 `M.reload` · 307 `M.tab` · 308 `M.set` · 309 `M.day` · 310 `M.open` · 311 `M.close`
-- templates/moi.html: 312 `M.add` · 313 `M.addSave` · 326 `M.place` · 331 `M.unplace` · 337 `M.room` · 344 `M.confirm` · 378 `M.cleanLink` · 381 `M.staffLoad`
-- templates/moi.html: 383 `M.staffOpen` · 385 `M.logOpen` · 387 `M.logSet` · 388 `M.staffRe` · 389 `M.calOpen` · 390 `M.stfSet` · 393 `M.st` · 410 `M.cleanSetup`
-- templates/moi.html: 412 `M.zbotLoad` · 414 `M.zbTokSet` · 415 `M.zbotSave` · 416 `M.zbot` · 427 `M.zbotResend` · 434 `M.cleanDone` · 439 `M.cleanPrio` · 445 `M.cleanCopy`
-- templates/moi.html: 446 `M.cancel` · 454 `M.quickCancel` · 464 `M.undoCancel` · 472 `M.cxList` · 488 `M.cxClose` · 489 `M.cxRestore` · 495 `M.mark` · 499 `M.status`
-- templates/moi.html: 501 `M.dayuse` · 509 `M.payMsgLoad` · 517 `M.payMsgTap` · 520 `M.payMsgCopy` · 524 `M.payImgs` · 530 `M.copyPhone` · 531 `M.unreach` · 532 `M.renameRoom`
-- templates/moi.html: 540 `M.calDone` · 541 `M.remind` · 543 `M.eta` · 544 `M.remPreset` · 547 `M.remSave` · 556 `M.remDone` · 559 `M.etaSave` · 582 `M.phone`
-- templates/moi.html: 589 `M.send` · 590 `M.pickApt` · 591 `M.quick` · 593 `M.photo` · 594 `M.chatPhone` · 601 `M.edit` · 603 `M.extN` · 607 `M.splitApt`
-- templates/moi.html: 613 `M.extTyped` · 614 `M.editCalc` · 642 `M.editSave` · 679 `M.depLoad` · 683 `M.depOpen` · 684 `M.depBookOpen` · 685 `M.depChip` · 686 `M.depTyped`
-- templates/moi.html: 687 `M.depSave` · 695 `M.depDel` · 697 `M.depMonth` · 699 `M.payOpen` · 700 `M.collect` · 708 `M.partial` · 710 `M.undoPay` · 713 `M.payCycle`
-- templates/moi.html: 718 `M.pickG` · 719 `M.auto` · 734 `render` · 743 `renderNav` · 752 `renderFloat` · 769 `viewDay` · 878 `viewCal` · 981 `M.cal`
-- templates/moi.html: 985 `msgCard` · 1024 `M.outLoad` · 1034 `M.outGo` · 1036 `M.outSrc` · 1040 `M.outFind` · 1043 `M.outWa` · 1047 `M.outCopy` · 1048 `M.outSent`
-- templates/moi.html: 1054 `M.outPhone` · 1063 `M.findOpen` · 1069 `M.findRun` · 1089 `M.findWa` · 1098 `M.findWaDraw` · 1108 `M.findWaPick` · 1119 `M.findWaGo` · 1120 `M.findBack`
-- templates/moi.html: 1122 `M.outPick` · 1129 `M.outPickDraw` · 1138 `M.outChoose` · 1139 `outRow` · 1155 `viewOut` · 1192 `viewMsg` · 1229 `M.aptSheetOpen` · 1242 `viewPay`
-- templates/moi.html: 1283 `depCard` · 1294 `depRows` · 1307 `payMsgBox` · 1326 `renderSheet` · 1606 `S_set` · 1607 `renderSheetPub` · 1608 `S_put`
+## templates/moi.html (1650 lines)
+- templates/moi.html: 225 `roomKind` · 251 `M_staffBadge` · 255 `load` · 334 `M.reload` · 335 `M.tab` · 336 `M.set` · 337 `M.day` · 338 `M.open`
+- templates/moi.html: 339 `M.close` · 340 `M.add` · 341 `M.addSave` · 354 `M.place` · 359 `M.unplace` · 365 `M.room` · 372 `M.confirm` · 406 `M.cleanLink`
+- templates/moi.html: 409 `M.staffLoad` · 411 `M.staffOpen` · 413 `M.logOpen` · 415 `M.logSet` · 416 `M.staffRe` · 417 `M.calOpen` · 418 `M.stfSet` · 421 `M.st`
+- templates/moi.html: 438 `M.cleanSetup` · 440 `M.zbotLoad` · 442 `M.zbTokSet` · 443 `M.zbotSave` · 444 `M.zbot` · 455 `M.zbotResend` · 462 `M.cleanDone` · 467 `M.cleanPrio`
+- templates/moi.html: 473 `M.cleanCopy` · 474 `M.cancel` · 482 `M.quickCancel` · 492 `M.undoCancel` · 500 `M.cxList` · 516 `M.cxClose` · 517 `M.cxRestore` · 523 `M.mark`
+- templates/moi.html: 527 `M.status` · 529 `M.dayuse` · 537 `M.payMsgLoad` · 545 `M.payMsgTap` · 548 `M.payMsgCopy` · 552 `M.payImgs` · 558 `M.copyPhone` · 559 `M.unreach`
+- templates/moi.html: 560 `M.renameRoom` · 568 `M.calDone` · 569 `M.remind` · 571 `M.eta` · 572 `M.remPreset` · 575 `M.remSave` · 584 `M.remDone` · 587 `M.etaSave`
+- templates/moi.html: 610 `M.phone` · 617 `M.send` · 618 `M.pickApt` · 619 `M.quick` · 621 `M.photo` · 622 `M.chatPhone` · 629 `M.edit` · 631 `M.extN`
+- templates/moi.html: 635 `M.splitApt` · 641 `M.extTyped` · 642 `M.editCalc` · 670 `M.editSave` · 707 `M.depLoad` · 711 `M.depOpen` · 712 `M.depBookOpen` · 713 `M.depChip`
+- templates/moi.html: 714 `M.depTyped` · 715 `M.depSave` · 723 `M.depDel` · 725 `M.depMonth` · 727 `M.payOpen` · 728 `M.collect` · 736 `M.partial` · 738 `M.undoPay`
+- templates/moi.html: 741 `M.payCycle` · 746 `M.pickG` · 747 `M.auto` · 762 `render` · 771 `renderNav` · 780 `renderFloat` · 797 `viewDay` · 906 `viewCal`
+- templates/moi.html: 1009 `M.cal` · 1013 `msgCard` · 1052 `M.outLoad` · 1062 `M.outGo` · 1064 `M.outSrc` · 1068 `M.outFind` · 1071 `M.outWa` · 1075 `M.outCopy`
+- templates/moi.html: 1076 `M.outSent` · 1082 `M.outPhone` · 1091 `M.findOpen` · 1097 `M.findRun` · 1117 `M.findWa` · 1126 `M.findWaDraw` · 1136 `M.findWaPick` · 1147 `M.findWaGo`
+- templates/moi.html: 1148 `M.findBack` · 1150 `M.outPick` · 1157 `M.outPickDraw` · 1166 `M.outChoose` · 1167 `outRow` · 1183 `viewOut` · 1220 `viewMsg` · 1257 `M.aptSheetOpen`
+- templates/moi.html: 1270 `viewPay` · 1311 `depCard` · 1322 `depRows` · 1335 `payMsgBox` · 1354 `renderSheet` · 1634 `S_set` · 1635 `renderSheetPub` · 1636 `S_put`
 
 ## templates/quick.html (357 lines)
 - templates/quick.html: 158 `toast` · 163 `go` · 171 `copyNow` · 179 `sendText` · 184 `copyText` · 185 `sendImgs` · 196 `setIn` · 218 `takeOut`

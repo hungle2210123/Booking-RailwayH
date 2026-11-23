@@ -166,9 +166,29 @@ def _room_block(lines):
     return ' + '.join(found) or None
 
 
+_ROOM_WORD = re.compile(r'\b(studio|room|suite|apartment|deluxe|standard|superior|family|double|twin|king|queen|'
+                        r'bedroom|phong|can ho|gia dinh|giuong)\b')
+
+
+def _room_title_line(lines):
+    """Last resort when the room box is laid out differently (Nov 23: the English page gave only "photo"): the room
+    title is a short line naming a room kind and ending with the owner's note in brackets
+    ("Standard Studio (Sofa Hàng Bạc)", "Suite Có Sân Hiên (104 TN)"). First such line, else None."""
+    for i, t in enumerate(lines):
+        t = t.strip()
+        f = _fold(t)
+        near = lines[i + 1:i + 4]          # the room box: price / dates right after the title ("Deluxe King Studio")
+        boxed = any(_VND_LINE.match(x.replace(' ', ' ')) or parse_date(x) for x in near)
+        if ((re.search(r'\([^()]{2,40}\)$', t) or boxed) and _ROOM_WORD.search(f) and len(t.split()) <= 12
+                and ':' not in t and '@' not in t and not any(f == v for v in _ALL_LABELS)
+                and looks_like_room(t) and not _is_rate_line(t)):
+            return t
+    return None
+
+
 # Rate-plan lines sit in the room box too ("Standard Rate, Country Rate: Domestic(20%), Basic Deal(17%), Giảm giá
 # Genius 15%") — never a room.
-_RATE_LINE = re.compile(r'%|rate|deal|genius|giam gia|discount|non-refundable|khong hoan', re.I)
+_RATE_LINE = re.compile(r'%|\brate\b|\bdeal\b|genius|giam gia|discount|non-refundable|khong hoan', re.I)
 
 
 def _is_rate_line(t):
@@ -312,7 +332,7 @@ def parse_reservation_page(page):
     g = re.search(r'\d+', _value(page, lines, 'guests') or '')
     out['guests'] = int(g.group(0)) if g else None
     room = _value(page, lines, 'room')
-    out['listing'] = room if looks_like_room(room) else _room_block(lines)
+    out['listing'] = (room if looks_like_room(room) else None) or _room_block(lines) or _room_title_line(lines)
     # Several rooms in one reservation → each is saved as its own booking on the web (<id>, <id>-2, …)
     blocks = room_blocks(lines)
     out['rooms'] = blocks if len(blocks) >= 2 else []
@@ -405,7 +425,7 @@ def _infer_columns(rows):
             kinds.append('id')
         elif sum(parse_date(v) is not None for v in vals) / n > .6:
             kinds.append('date')
-        elif sum(bool(re.search(r'vnd|₫|d', _fold(v))) for v in vals) / n > .6:
+        elif sum(bool(re.search(r'vnd|₫|\bd\b', _fold(v))) for v in vals) / n > .6:
             kinds.append('money')
         elif sum(_fold(v).split(' ')[0] in ('ok', 'da', 'huy', 'cancelled', 'canceled', 'no-show') for v in vals) / n > .6:
             kinds.append('status')
@@ -447,7 +467,15 @@ def looks_like_room(text):
     if not t or len(t) > 80 or len(t.split()) > 16:
         return False
     f = _fold(t)
+    if _PICTURE_WORD.fullmatch(f):
+        return False
     return not any(w in f for w in _NOTICE_WORDS) and t.count('. ') == 0
+
+
+# Nov 23: the morning runs saved 7 guests with the room "photo" — the label of the room's picture on the reservation
+# page was read as its name. A picture label is never a room (the room box title is read instead).
+_PICTURE_WORD = re.compile(r'(room |phong )?(photos?|images?|pictures?|anh|hinh|hinh anh|anh phong|xem anh|'
+                           r'show photos?|view photos?)')
 
 
 def split_rooms(cell_text):
