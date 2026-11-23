@@ -338,27 +338,30 @@ _p17_mail — 📧 Booking.com e-mails → the app (owner, Nov 12: "khi nhận �
 - app_parts/p17_mail.py:746 `_mail_setup_info`
 - app_parts/p17_mail.py:788 `moi_mail_setup` ← `/api/moi/mail_setup` — 📧 setup sheet: the script to paste into Google Apps Script (with this app's private address) + the last mail r
 
-## app_parts/p18_chi.py (358 lines)
+## app_parts/p18_chi.py (439 lines)
 _p18_chi — 💸 Chi tiêu = ảnh biên lai chuyển khoản gửi cho bot Zalo "Chi tiêu" (owner, Nov 22 2026:_
-- app_parts/p18_chi.py:14 `_chi_ensure`
-- app_parts/p18_chi.py:28 `_chi_token`
-- app_parts/p18_chi.py:32 `_chi_call`
-- app_parts/p18_chi.py:47 `_chi_say`
-- app_parts/p18_chi.py:51 `chi_money`
-- app_parts/p18_chi.py:62 `chi_read_receipt` — Gemini reads the receipt picture → dict (see CHI_PROMPT). Raises RuntimeError when the AI cannot be reached.
-- app_parts/p18_chi.py:95 `_chi_time` — "21:09 22/11/2026" (or "22/11/2026 21:09") → datetime; None when unreadable.
-- app_parts/p18_chi.py:107 `chi_month_total`
-- app_parts/p18_chi.py:115 `chi_save` — A read receipt → (status, row) — status 'saved' / 'dup' / 'bad'.
-- app_parts/p18_chi.py:140 `_chi_summary`
-- app_parts/p18_chi.py:145 `chi_handle` — One message to the bot → the reply text (None = nothing to say).
-- app_parts/p18_chi.py:207 `zbot3_hook` ← `/zalo-bot3/hook` POST
-- app_parts/p18_chi.py:230 `_chi_run`
-- app_parts/p18_chi.py:248 `chi_month_report` — Day 1 of the month, 8–10h VN: last month's total to everyone connected to the bot (once).
-- app_parts/p18_chi.py:272 `chi_page` ← `/chi-tieu`
-- app_parts/p18_chi.py:277 `chi_list` ← `/api/chi/list`
-- app_parts/p18_chi.py:303 `chi_img` ← `/api/chi/img/<int:rid>`
-- app_parts/p18_chi.py:315 `chi_delete` ← `/api/chi/delete` POST
-- app_parts/p18_chi.py:324 `chi_bot` ← `/api/chi/bot` POST — token (getMe → setWebhook) · open (30 min: new people may connect) · remove a chat · off.
+- app_parts/p18_chi.py:17 `_chi_ensure`
+- app_parts/p18_chi.py:31 `_chi_token`
+- app_parts/p18_chi.py:35 `_chi_call`
+- app_parts/p18_chi.py:50 `_chi_say`
+- app_parts/p18_chi.py:54 `chi_money`
+- app_parts/p18_chi.py:65 `chi_read_receipt` — Gemini reads the receipt picture → dict (see CHI_PROMPT). Raises RuntimeError when the AI cannot be reached.
+- app_parts/p18_chi.py:82 `chi_read_voice` — Gemini turns a spoken expense message into a list of items (see CHI_VOICE_PROMPT).
+- app_parts/p18_chi.py:89 `_chi_gemini` — One Gemini call (JSON answer) over the keys / models. Raises RuntimeError when the AI cannot be reached.
+- app_parts/p18_chi.py:122 `_chi_time` — "21:09 22/11/2026" (or "22/11/2026 21:09") → datetime; None when unreadable.
+- app_parts/p18_chi.py:134 `chi_month_total`
+- app_parts/p18_chi.py:142 `chi_save` — A read receipt → (status, row) — status 'saved' / 'dup' / 'bad'.
+- app_parts/p18_chi.py:170 `chi_save_voice` — Spoken items → saved rows [(id, at, amount, to_name, note)] (no picture; the words said are kept in the note).
+- app_parts/p18_chi.py:193 `_chi_summary`
+- app_parts/p18_chi.py:198 `chi_handle` — One message to the bot → the reply text (None = nothing to say).
+- app_parts/p18_chi.py:288 `zbot3_hook` ← `/zalo-bot3/hook` POST
+- app_parts/p18_chi.py:311 `_chi_run`
+- app_parts/p18_chi.py:329 `chi_month_report` — Day 1 of the month, 8–10h VN: last month's total to everyone connected to the bot (once).
+- app_parts/p18_chi.py:353 `chi_page` ← `/chi-tieu`
+- app_parts/p18_chi.py:358 `chi_list` ← `/api/chi/list`
+- app_parts/p18_chi.py:384 `chi_img` ← `/api/chi/img/<int:rid>`
+- app_parts/p18_chi.py:396 `chi_delete` ← `/api/chi/delete` POST
+- app_parts/p18_chi.py:405 `chi_bot` ← `/api/chi/bot` POST — token (getMe → setWebhook) · open (30 min: new people may connect) · remove a chat · off.
 
 ## core/__init__.py (3 lines)
 
@@ -630,8 +633,8 @@ _p18_chi — 💸 Chi tiêu = ảnh biên lai chuyển khoản gửi cho bot Zal
 
 # Templates (inline JS functions)
 
-## templates/chi.html (105 lines)
-- templates/chi.html: 53 `load` · 70 `drawBot` · 85 `post`
+## templates/chi.html (106 lines)
+- templates/chi.html: 54 `load` · 71 `drawBot` · 86 `post`
 
 ## templates/desk.html (1343 lines)
 - templates/desk.html: 307 `load` · 320 `loadRev` · 333 `needRev` · 351 `D.tab` · 352 `D.set` · 353 `D.q` · 354 `D.reload` · 356 `D.shift`

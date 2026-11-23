@@ -427,6 +427,16 @@ def test_chi_receipt_bot(client, db, app_module, monkeypatch):
         client.post('/zalo-bot3/hook', json=msg(text='xóa'), headers=hdr)
         assert said[-1].startswith('🗑 Đã xóa khoản 5.000.000đ')
         assert not db.session.execute(text("SELECT 1 FROM chi_receipts WHERE to_name = 'ZZ TEST NGUOI NHAN'")).fetchone()
+        # owner, Nov 23: spoken expenses (iPhone keyboard mic → text) are saved item by item, no picture
+        monkeypatch.setattr(app_module, 'chi_read_voice', lambda s: [
+            {'amount': 850000, 'what': 'Mua 2 bình ga', 'to_name': 'ZZ TEST GA', 'place': 'Hội Vũ', 'pay': 'tiền mặt'},
+            {'amount': '1.200.000', 'what': 'Sửa điều hòa phòng 102', 'to_name': 'ZZ TEST THO', 'place': 'Thọ Nhuộm', 'pay': ''}])
+        client.post('/zalo-bot3/hook', json=msg(text='mua 2 bình ga 850 nghìn ... 1 triệu 2'), headers=hdr)
+        assert said[-1].startswith('Đã ghi 2 khoản') and '850.000đ · Mua 2 bình ga · Hội Vũ · tiền mặt' in said[-1]
+        rows = [r for r in client.get('/api/chi/list').get_json()['items'] if r['to'].startswith('ZZ TEST')]
+        assert len(rows) == 2 and not any(r['img'] for r in rows) and '🎤 mua 2 bình ga' in rows[0]['note']
+        client.post('/zalo-bot3/hook', json=msg(text='chào bot'), headers=hdr)
+        assert said[-1].startswith('Nói (micro')                                               # no amount, no receipt → help
     finally:
         db.session.execute(text("DELETE FROM chi_receipts WHERE to_name LIKE 'ZZ TEST%' OR tx_code LIKE 'ZZTEST-%'"))
         db.session.commit()

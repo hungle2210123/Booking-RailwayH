@@ -21,9 +21,10 @@
   .row { display:flex; gap:12px; align-items:center; padding:10px 0; border-top:1px solid var(--line); }
   .row:first-child { border-top:0; }
   .row img { width:54px; height:72px; object-fit:cover; border-radius:8px; border:1px solid var(--line); flex:none; background:#eee; }
+  .mic { width:54px; height:72px; border-radius:8px; border:1px solid var(--line); flex:none; display:flex; align-items:center; justify-content:center; font-size:24px; background:#F1F5F9; }
   .amt { font-size:18px; font-weight:800; font-variant-numeric:tabular-nums; }
   .who { font-size:14px; font-weight:700; overflow-wrap:anywhere; }
-  .note { font-size:13px; color:#334155; overflow-wrap:anywhere; }
+  .note { white-space:pre-line; font-size:13px; color:#334155; overflow-wrap:anywhere; }
   .btn { min-height:44px; padding:0 14px; border-radius:12px; border:1.5px solid #E2E5EB; background:#fff; font:800 14px inherit; color:var(--ink); }
   .btn.dark { background:var(--ink); color:#fff; border-color:var(--ink); }
   .x { min-height:34px; padding:0 10px; border-radius:10px; border:1.5px solid #E2E5EB; background:#fff; font:800 12.5px inherit; color:#B91C1C; flex:none; }
@@ -60,9 +61,9 @@
     $('chips').innerHTML = ms.map((x) => `<button class="chip${x.month === j.month ? ' on' : ''}" onclick="Chi.load('${x.month}')">${esc(monLbl(x.month))} · ${money(x.total)}</button>`).join('');
     $('list').style.display = j.items.length ? '' : 'none';
     $('list').innerHTML = j.items.map((r) => `<div class="row">
-      <img src="/api/chi/img/${r.id}" loading="lazy" alt="Biên lai" onclick="Chi.show(${r.id})">
+      ${r.img ? `<img src="/api/chi/img/${r.id}" loading="lazy" alt="Biên lai" onclick="Chi.show(${r.id})">` : '<div class="mic">🎤</div>'}
       <div style="flex:1;min-width:0"><div class="amt">${money(r.amount)}</div>
-        <div class="who">${esc(r.to || '—')}${r.bank ? ' <span class="mut">· ' + esc(r.bank) + '</span>' : ''}</div>
+        <div class="who">${esc(r.to || (r.img ? '—' : ''))}${r.bank ? ' <span class="mut">· ' + esc(r.bank) + '</span>' : ''}</div>
         ${r.note ? `<div class="note">📝 ${esc(r.note)}</div>` : ''}<div class="mut">${esc(r.at)}</div></div>
       <button class="x" onclick="Chi.del(${r.id}, '${money(r.amount)}')">Xóa</button></div>`).join('');
     drawBot(j);
@@ -76,7 +77,7 @@
       return;
     }
     $('bot').innerHTML = `<div style="font-size:15px;font-weight:800">🤖 Bot Zalo "Chi tiêu" <span class="ok">✓ ${esc(j.bot_name || 'đã kết nối')}</span></div>
-      <div style="font-size:13.5px;color:#475569;line-height:1.5;margin-top:4px">Chuyển khoản xong → <b>Chia sẻ</b> biên lai → gửi vào bot. Bot lưu ngày giờ + số tiền, trả lời tổng tháng. Nhắn <b>"tháng này"</b> xem tổng · <b>"xóa"</b> bỏ khoản vừa lưu. Ngày 1 hằng tháng bot gửi tổng tháng trước.</div>
+      <div style="font-size:13.5px;color:#475569;line-height:1.5;margin-top:4px">🎤 Bấm <b>micro trên bàn phím</b>, nói khoản đã chi → bot ghi rõ từng khoản. 🧾 Chuyển khoản xong → <b>Chia sẻ</b> biên lai → gửi vào bot. Bot lưu ngày giờ + số tiền, trả lời tổng tháng. Nhắn <b>"tháng này"</b> xem tổng · <b>"xóa"</b> bỏ khoản vừa lưu. Ngày 1 hằng tháng bot gửi tổng tháng trước.</div>
       ${j.chats.length ? '<div class="mut" style="margin-top:8px">Được gửi biên lai:</div>' + j.chats.map((c) => `<div style="display:flex;align-items:center;gap:8px;margin-top:6px"><b style="flex:1;font-size:14px">${esc(c.name)}</b><button class="x" onclick="Chi.bot('remove','${esc(c.id)}')">Bỏ</button></div>`).join('') : ''}
       ${j.open ? '<div class="warn">Đang mở 30 phút: ai nhắn cho bot lúc này sẽ được gửi biên lai. Mở Zalo, tìm bot và nhắn "alo".</div>'
                : (j.chats.length ? '' : '<div class="warn">Chưa ai kết nối. Bấm "Cho thêm người" rồi nhắn "alo" cho bot trong Zalo.</div>')}

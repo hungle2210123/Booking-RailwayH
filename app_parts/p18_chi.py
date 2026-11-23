@@ -6,7 +6,10 @@
 #    code → saved with the picture (chi_receipts) → the bot answers "✅ Đã lưu … · Tháng 11: …".
 #  · Same transaction code twice → not saved again. "xóa" = remove the last one saved · "tháng này" / "tháng trước" = totals.
 #  · Day 1 of a month, 8–10h: the bot sends last month's total. /chi-tieu = list by month with the pictures.
-#  · Text messages are NOT saved as expenses (owner's group has running totals like "đã ứng … 13.000.000 tổng cộng").
+#  · Nov 23 (owner: "khi tôi voice vào hệ thống để ghi chép lại … chi tiêu một cách rõ ràng nhất, chi tiết nhất"): a SPOKEN
+#    message (iPhone keyboard mic → text) with an amount is an expense too: Gemini splits it into items (amount, what,
+#    receiver, apartment, cash / transfer) → saved without a picture. Text without an amount within 10 min after a
+#    receipt = a note added to that receipt. A picture's caption = its note.
 CHI_READY = False
 CHI_OPEN_MIN = 30          # after setup / "Cho thêm người": who writes to the bot in this window may send receipts
 
@@ -62,6 +65,29 @@ Trả về JSON: {"is_receipt": true/false, "amount": số tiền ĐÃ CHUYỂN 
 def chi_read_receipt(img, mime='image/jpeg'):
     """Gemini reads the receipt picture → dict (see CHI_PROMPT). Raises RuntimeError when the AI cannot be reached."""
     import base64
+    out = _chi_gemini([{'inline_data': {'mime_type': mime, 'data': base64.b64encode(img).decode()}}, {'text': CHI_PROMPT}])
+    return out[0] if isinstance(out, list) and out else out
+
+
+CHI_VOICE_PROMPT = """Chủ nhà (homestay ở Hà Nội: các căn Hàng Bạc, Hàng Bè, Hội Vũ, Thọ Nhuộm) đọc bằng giọng nói một/nhiều khoản
+ĐÃ CHI. Bản chép giọng nói có thể sai chính tả hoặc lẫn chữ tiếng Anh — hiểu theo nghĩa tiếng Việt gần nhất.
+Hôm nay: {today}. Câu nói: «{text}»
+Trả về JSON list, mỗi khoản: {{"amount": số tiền VND nguyên dương ("500k"/"5 trăm nghìn" = 500000, "1 triệu 2" = 1200000),
+"what": nội dung chi viết lại RÕ RÀNG, đúng chính tả, đủ chi tiết đã nói (món gì, số lượng, cho việc gì),
+"to_name": người / nơi nhận ("" nếu không nói), "place": căn liên quan ("Hàng Bạc"/"Hàng Bè"/"Hội Vũ"/"Thọ Nhuộm"/""),
+"pay": "tiền mặt"/"chuyển khoản"/"", "time": "HH:MM DD/MM/YYYY" chỉ khi có nói ngày khác hôm nay (vd "hôm qua"), không thì ""}}.
+Không phải khoản đã chi (câu hỏi, chuyện khác, chỉ là số dư / tổng cộng) → []."""
+
+
+def chi_read_voice(said):
+    """Gemini turns a spoken expense message into a list of items (see CHI_VOICE_PROMPT)."""
+    out = _chi_gemini([{'text': CHI_VOICE_PROMPT.format(today=f'{_vn_now():%d/%m/%Y}', text=str(said)[:1500])}])
+    out = out if isinstance(out, list) else [out] if isinstance(out, dict) else []
+    return [x for x in out if isinstance(x, dict)]
+
+
+def _chi_gemini(parts):
+    """One Gemini call (JSON answer) over the keys / models. Raises RuntimeError when the AI cannot be reached."""
     import requests as _rq
     keys = _gemini_keys()
     if not keys:
@@ -70,26 +96,27 @@ def chi_read_receipt(img, mime='image/jpeg'):
     models = [GEMINI_MODEL] + [m for m in GEMINI_FALLBACK_MODELS if m != GEMINI_MODEL]
     for key in keys:
         for model in models:
-            r = _rq.post(f'https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent',
-                         headers={'x-goog-api-key': key, 'Content-Type': 'application/json'}, timeout=90,
-                         json={'contents': [{'role': 'user', 'parts': [
-                                   {'inline_data': {'mime_type': mime, 'data': base64.b64encode(img).decode()}},
-                                   {'text': CHI_PROMPT}]}],
-                               'generationConfig': {'responseMimeType': 'application/json',
-                                                    'thinkingConfig': {'thinkingLevel': 'low'}}})
+            try:
+                r = _rq.post(f'https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent',
+                             headers={'x-goog-api-key': key, 'Content-Type': 'application/json'}, timeout=90,
+                             json={'contents': [{'role': 'user', 'parts': parts}],
+                                   'generationConfig': {'responseMimeType': 'application/json',
+                                                        'thinkingConfig': {'thinkingLevel': 'low'}}})
+            except _rq.RequestException as e:      # a slow model (read timeout) → the next one
+                last = str(e)[:120]
+                continue
             try:
                 d = r.json()
             except ValueError:
                 d = {}
             if r.status_code == 200:
-                parts = d['candidates'][0]['content']['parts']
-                out = json.loads(next(p['text'] for p in reversed(parts) if p.get('text')))
-                return out[0] if isinstance(out, list) and out else out
+                got = d['candidates'][0]['content']['parts']
+                return json.loads(next(p['text'] for p in reversed(got) if p.get('text')))
             last = str((d.get('error') or {}).get('message') or r.status_code)[:200]
             if r.status_code in (429, 500, 503, 404):
                 continue
             break
-    raise RuntimeError('AI chưa đọc được ảnh: ' + last)
+    raise RuntimeError('AI chưa đọc được: ' + last)
 
 
 def _chi_time(s):
@@ -137,6 +164,32 @@ def chi_save(_xdb, info, img, mime, cid='', sender=''):
     return 'saved', row
 
 
+CHI_NUM_WORD = re.compile(r'\d|\b(nghin|ngan|trieu|tram|chuc|ty|k|cu|xi)\b')
+
+
+def chi_save_voice(_xdb, items, said, cid='', sender=''):
+    """Spoken items → saved rows [(id, at, amount, to_name, note)] (no picture; the words said are kept in the note)."""
+    _chi_ensure(_xdb)
+    rows = []
+    for it in items:
+        try:
+            amount = abs(int(re.sub(r'[^\d]', '', str(it.get('amount') or '')) or 0))
+        except ValueError:
+            amount = 0
+        if amount <= 0:
+            continue
+        at = _chi_time(it.get('time')) or _vn_now().replace(tzinfo=None, second=0, microsecond=0)
+        note = ' · '.join(x for x in (str(it.get('what') or '').strip(), str(it.get('place') or '').strip(),
+                                      str(it.get('pay') or '').strip()) if x)
+        rows.append(_xdb.session.execute(text("""INSERT INTO chi_receipts (at, amount, to_name, to_bank, note, tx_code, chat_id, sender)
+            VALUES (:at, :a, :to, '', :n, '', :c, :s) RETURNING id, at, amount, to_name, note"""),
+            {'at': at, 'a': amount, 'to': str(it.get('to_name') or '').strip()[:120],
+             'n': (note or str(said).strip())[:300] + ('\n🎤 ' + str(said).strip()[:400] if note else ''),
+             'c': cid, 's': sender[:80]}).fetchone())
+    _xdb.session.commit()
+    return rows
+
+
 def _chi_summary(_xdb, y, mo, label):
     n, tot = chi_month_total(_xdb, y, mo)
     return f"📒 {label} ({mo}/{y}): {chi_money(tot)} · {n} khoản" if n else f"📒 {label} ({mo}/{y}): chưa có khoản nào"
@@ -158,8 +211,9 @@ def chi_handle(_xdb, m):
         chats[cid] = {'name': sender or (m.get('chat') or {}).get('chat_type') or ''}
         _zbot_put(_xdb, 'zbot3_chats', chats)
         if not m.get('photo_url'):
-            return ('Đã kết nối ✅\nChuyển khoản xong → bấm "Chia sẻ" trên biên lai của app ngân hàng → gửi ảnh vào đây. '
-                    'Bot lưu ngày giờ + số tiền và cộng theo tháng.\nNhắn "tháng này" để xem tổng, "xóa" để bỏ khoản vừa lưu.')
+            return ('Đã kết nối ✅\n🎤 Bấm micro trên bàn phím, NÓI khoản đã chi (vd "mua bóng đèn 85 nghìn cho Thọ Nhuộm, '
+                    'tiền mặt") → bot ghi rõ từng khoản.\n🧾 Chuyển khoản xong → "Chia sẻ" biên lai → gửi ảnh vào đây.\n'
+                    'Nhắn "tháng này" để xem tổng, "xóa" để bỏ khoản vừa ghi.')
     now = _vn_now()
     if m.get('photo_url'):
         try:
@@ -171,6 +225,9 @@ def chi_handle(_xdb, m):
             if len(img) > 8_000_000:
                 return '⚠️ Ảnh quá lớn — gửi ảnh chụp màn hình biên lai thôi.'
             info = chi_read_receipt(img, mime)
+            cap = str(m.get('caption') or '').strip()
+            if cap:                         # words typed / said with the picture = what it was for
+                info['note'] = (cap + (' · ' + str(info.get('note') or '').strip() if info.get('note') else ''))[:300]
         except Exception as e:
             return f'⚠️ Chưa đọc được ảnh ({str(e)[:80]}). Gửi lại sau 1 phút giúp em.'
         st, row = chi_save(_xdb, info, img, mime, cid, sender)
@@ -198,9 +255,33 @@ def chi_handle(_xdb, m):
     if mm and 1 <= int(mm.group(1)) <= 12:
         y = int(mm.group(2) or now.year)
         return _chi_summary(_xdb, y, int(mm.group(1)), f'Tháng {int(mm.group(1))}')
-    if re.search(r'thang nay|tong|bao nhieu', t):
+    if re.search(r'^\s*(thang nay|tong|bao nhieu)', t) and not re.search(r'\d', t):
         return _chi_summary(_xdb, now.year, now.month, 'Tháng này')
-    return 'Gửi ẢNH biên lai chuyển khoản để lưu. Nhắn "tháng này" / "tháng trước" để xem tổng, "xóa" để bỏ khoản vừa lưu.'
+    said = str(m.get('text') or '').strip()
+    if not said:
+        return ('🎤 Bot chưa nghe được tin thoại của Zalo. Bấm nút MICRO trên bàn phím iPhone rồi nói — '
+                'lời nói thành chữ, gửi đi là bot ghi.')
+    if CHI_NUM_WORD.search(t):
+        try:
+            items = chi_read_voice(said)
+        except Exception as e:
+            return f'⚠️ Chưa ghi được ({str(e)[:80]}). Gửi lại sau 1 phút giúp em.'
+        rows = chi_save_voice(_xdb, items, said, cid, sender)
+        if rows:
+            n, tot = chi_month_total(_xdb, rows[-1][1].year, rows[-1][1].month)
+            lines = [f"✅ {chi_money(r[2])} · {str(r[4]).splitlines()[0]}" + (f" → {r[3]}" if r[3] else '')
+                     + (f" ({r[1]:%d/%m})" if r[1].date() != now.date() else '') for r in rows]
+            return ((f"Đã ghi {len(rows)} khoản:\n" if len(rows) > 1 else '') + '\n'.join(lines)
+                    + f"\n📒 Tháng {rows[-1][1].month}: {chi_money(tot)} · {n} khoản\n(Sai thì nhắn \"xóa\" rồi nói lại)")
+    last = _xdb.session.execute(text("""SELECT id, amount, note FROM chi_receipts WHERE chat_id = :c AND image IS NOT NULL
+        AND created_at > NOW() - INTERVAL '10 minutes' ORDER BY created_at DESC LIMIT 1"""), {'c': cid}).fetchone()
+    if last:                                # words right after a receipt picture = what that transfer was for
+        note = (said + (' · ' + last[2] if last[2] else ''))[:300]
+        _xdb.session.execute(text("UPDATE chi_receipts SET note = :n WHERE id = :i"), {'n': note, 'i': last[0]})
+        _xdb.session.commit()
+        return f"📝 Đã ghi thêm vào khoản {chi_money(last[1])}: {said[:80]}"
+    return ('Nói (micro bàn phím) hoặc gõ khoản đã chi, vd "mua 2 bình nước 120 nghìn cho Hội Vũ, tiền mặt" — '
+            'hoặc gửi ẢNH biên lai. "tháng này" / "tháng trước" = xem tổng · "xóa" = bỏ khoản vừa ghi.')
 
 
 @app.route('/zalo-bot3/hook', methods=['POST'])
@@ -214,8 +295,8 @@ def zbot3_hook():
         return jsonify({'ok': True})
     if mid:
         CHI_SEEN.add(mid)
-    if m.get('photo_url') and CHI_BACKGROUND:
-        # reading a picture takes ~40 s (Gemini) → answer Zalo now, read + reply in the background
+    if (m.get('photo_url') or m.get('text')) and CHI_BACKGROUND:
+        # reading a picture / spoken words takes 5–40 s (Gemini) → answer Zalo now, read + reply in the background
         import threading
         threading.Thread(target=_chi_run, args=(m,), daemon=True).start()
     else:
@@ -284,14 +365,14 @@ def chi_list():
     except ValueError:
         y, mo, first = now.year, now.month, datetime(now.year, now.month, 1)
     nxt = datetime(y + (mo == 12), mo % 12 + 1, 1)
-    rows = _xdb.session.execute(text("""SELECT id, at, amount, to_name, to_bank, note, sender FROM chi_receipts
+    rows = _xdb.session.execute(text("""SELECT id, at, amount, to_name, to_bank, note, sender, image IS NOT NULL FROM chi_receipts
         WHERE at >= :a AND at < :b ORDER BY at DESC"""), {'a': first, 'b': nxt}).fetchall()
     months = _xdb.session.execute(text("""SELECT to_char(at, 'YYYY-MM'), COUNT(*), SUM(amount) FROM chi_receipts
         GROUP BY 1 ORDER BY 1 DESC LIMIT 12""")).fetchall()
     chats = _zbot_get(_xdb, 'zbot3_chats', {}) or {}
     return jsonify({'success': True, 'month': f'{y}-{mo:02d}',
                     'items': [{'id': r[0], 'at': f'{r[1]:%H:%M %d/%m/%Y}', 'amount': int(r[2]), 'to': r[3] or '',
-                               'bank': r[4] or '', 'note': r[5] or '', 'by': r[6] or ''} for r in rows],
+                               'bank': r[4] or '', 'note': r[5] or '', 'by': r[6] or '', 'img': bool(r[7])} for r in rows],
                     'total': sum(int(r[2]) for r in rows),
                     'months': [{'month': r[0], 'n': int(r[1]), 'total': int(r[2])} for r in months],
                     'bot': bool(_chi_token(_xdb)), 'bot_name': _zbot_get(_xdb, 'zbot3_name') or '',

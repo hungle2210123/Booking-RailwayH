@@ -239,6 +239,11 @@ owner's own cash put away, not guest payments).
 
 
 ## 💸 Chi tiêu — receipt pictures to a Zalo bot (p18, Nov 22 2026)
+- **Nov 23: spoken expenses.** A text with an amount (the owner talks with the iPhone keyboard mic) → `chi_read_voice`
+  (Gemini, `CHI_VOICE_PROMPT`) → items {amount, what, to_name, place, pay, time} → `chi_save_voice` (no picture, note =
+  "what · place · pay" + "🎤 words said"). Text without an amount ≤ 10 min after a receipt = that receipt's note; a picture's
+  caption = its note. Zalo voice-note messages are not readable → the bot says to use the keyboard mic. `_chi_gemini`
+  tries the next model on a read timeout. /chi-tieu shows 🎤 instead of a thumbnail.
 Owner: "lưu lại cái hóa đơn … ngày giờ, số tiền, sau đó tổng kết là được. Không cần phân tích chi tiết" · "dùng hình ảnh gửi cho Zalo".
 - 3rd Zalo bot (token pasted on /chi-tieu; keys `zbot3_*`, webhook `/zalo-bot3/hook`, secret = zbot secret + '3').
 - Picture → downloaded from `photo_url` → `chi_read_receipt` (Gemini, ~40 s → runs in a background thread, Zalo answered at once)
