@@ -301,6 +301,10 @@ def zbot3_hook():
     if (m.get('photo_url') or m.get('text')) and CHI_BACKGROUND:
         # reading a picture / spoken words takes 5–40 s (Gemini) → answer Zalo now, read + reply in the background
         import threading
+        cid = str((m.get('chat') or {}).get('id') or '')
+        if m.get('photo_url') and cid in (_zbot_get(_xdb, 'zbot3_chats', {}) or {}):
+            # owner, Nov 23: "gửi hình nhưng hệ thống không phân tích" — the read takes ~1 min and the bot said nothing meanwhile
+            _chi_say(_xdb, cid, '⏳ Em đang đọc biên lai… khoảng 1 phút.')
         threading.Thread(target=_chi_run, args=(m,), daemon=True).start()
     else:
         _chi_run(m, _xdb)
