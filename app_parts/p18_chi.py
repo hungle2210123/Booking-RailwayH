@@ -10,6 +10,9 @@
 #    message (iPhone keyboard mic → text) with an amount is an expense too: Gemini splits it into items (amount, what,
 #    receiver, apartment, cash / transfer) → saved without a picture. Text without an amount within 10 min after a
 #    receipt = a note added to that receipt. A picture's caption = its note.
+#  · Nov 23 (owner: "chọn được phân loại … tiền nào cho căn nào, tiền nào là từ ai"): every item has `apt` (which apartment,
+#    or "Chung") and `payer` (who paid). The bot guesses both (receipt: the sending account's name; voice: what was said;
+#    apartment words in the note); /chi-tieu shows totals per apartment / per payer and one tap changes either.
 CHI_READY = False
 CHI_OPEN_MIN = 30          # after setup / "Cho thêm người": who writes to the bot in this window may send receipts
 
@@ -24,6 +27,8 @@ def _chi_ensure(_xdb):
         created_at TIMESTAMP NOT NULL DEFAULT NOW())"""))
     _xdb.session.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS chi_receipts_tx ON chi_receipts (tx_code) WHERE tx_code <> ''"))
     _xdb.session.execute(text("CREATE INDEX IF NOT EXISTS chi_receipts_at ON chi_receipts (at)"))
+    _xdb.session.execute(text("ALTER TABLE chi_receipts ADD COLUMN IF NOT EXISTS apt TEXT"))
+    _xdb.session.execute(text("ALTER TABLE chi_receipts ADD COLUMN IF NOT EXISTS payer TEXT"))
     _xdb.session.commit()
     CHI_READY = True
 
@@ -58,7 +63,7 @@ def chi_money(n):
 CHI_PROMPT = """Ảnh là biên lai / màn hình "giao dịch thành công" của một app ngân hàng Việt Nam (hoặc ví điện tử).
 Trả về JSON: {"is_receipt": true/false, "amount": số tiền ĐÃ CHUYỂN (số nguyên VND, dương, không phải số dư),
 "time": "HH:MM DD/MM/YYYY" (thời gian thực hiện, "" nếu không thấy), "to_name": tên người / tài khoản nhận,
-"to_bank": ngân hàng nhận ("" nếu không thấy), "note": nội dung chuyển tiền đúng như ảnh, "tx_code": mã giao dịch đúng như ảnh
+"to_bank": ngân hàng nhận ("" nếu không thấy), "from_name": tên người / tài khoản CHUYỂN tiền ("" nếu không thấy), "note": nội dung chuyển tiền đúng như ảnh, "tx_code": mã giao dịch đúng như ảnh
 ("" nếu không thấy)}. Không phải biên lai chuyển tiền → is_receipt false. Không đoán số liệu bị che."""
 
 
@@ -75,7 +80,7 @@ Hôm nay: {today}. Câu nói: «{text}»
 Trả về JSON list, mỗi khoản: {{"amount": số tiền VND nguyên dương ("500k"/"5 trăm nghìn" = 500000, "1 triệu 2" = 1200000),
 "what": nội dung chi viết lại RÕ RÀNG, đúng chính tả, đủ chi tiết đã nói (món gì, số lượng, cho việc gì),
 "to_name": người / nơi nhận ("" nếu không nói), "place": căn liên quan ("Hàng Bạc"/"Hàng Bè"/"Hội Vũ"/"Thọ Nhuộm"/""),
-"pay": "tiền mặt"/"chuyển khoản"/"", "time": "HH:MM DD/MM/YYYY" chỉ khi có nói ngày khác hôm nay (vd "hôm qua"), không thì ""}}.
+"pay": "tiền mặt"/"chuyển khoản"/"", "payer": người BỎ TIỀN RA nếu có nói (vd "anh Tri trả" → "Tri"), không thì "", "time": "HH:MM DD/MM/YYYY" chỉ khi có nói ngày khác hôm nay (vd "hôm qua"), không thì ""}}.
 Không phải khoản đã chi (câu hỏi, chuyện khác, chỉ là số dư / tổng cộng) → []."""
 
 
@@ -139,6 +144,28 @@ def chi_month_total(_xdb, y, mo):
     return int(r[0]), int(r[1])
 
 
+CHI_APTS = ['Hàng Bạc', 'Hàng Bè', 'Hội Vũ', 'Thọ Nhuộm', 'Chung']
+
+
+def chi_apt(*texts):
+    """Apartment named in the words (place / note / caption) → one of CHI_APTS, '' when none or several."""
+    f = ' '.join(_fold(str(t or '')) for t in texts)
+    found = [a for a in CHI_APTS[:4] if _fold(a) in f or _fold(a).replace(' ', '') in f.replace(' ', '')]
+    return found[0] if len(found) == 1 else ''
+
+
+def chi_payer(_xdb, name):
+    """A payer name → the same spelling as an earlier payer when it is the same person ("LE DUC LOC" = "Lê Đức Lộc")."""
+    name = ' '.join(str(name or '').split())[:60]
+    if not name:
+        return ''
+    key = sorted(_fold(name).split())
+    for (p,) in _xdb.session.execute(text("SELECT DISTINCT payer FROM chi_receipts WHERE COALESCE(payer, '') <> ''")).fetchall():
+        if sorted(_fold(p).split()) == key or _fold(p) == _fold(name):
+            return p
+    return name.title() if name.isupper() else name
+
+
 def chi_save(_xdb, info, img, mime, cid='', sender=''):
     """A read receipt → (status, row) — status 'saved' / 'dup' / 'bad'."""
     _chi_ensure(_xdb)
@@ -156,10 +183,12 @@ def chi_save(_xdb, info, img, mime, cid='', sender=''):
         {'t': tx, 'a': amount, 'at': at, 'to': to}).fetchone()
     if dup:
         return 'dup', dup
-    row = _xdb.session.execute(text("""INSERT INTO chi_receipts (at, amount, to_name, to_bank, note, tx_code, image, mime, chat_id, sender)
-        VALUES (:at, :a, :to, :bk, :n, :t, :img, :m, :c, :s) RETURNING id, at, amount, to_name"""),
+    note = str(info.get('note') or '').strip()[:300]
+    row = _xdb.session.execute(text("""INSERT INTO chi_receipts (at, amount, to_name, to_bank, note, tx_code, image, mime, chat_id, sender, apt, payer)
+        VALUES (:at, :a, :to, :bk, :n, :t, :img, :m, :c, :s, :apt, :p) RETURNING id, at, amount, to_name, apt, payer"""),
         {'at': at, 'a': amount, 'to': to, 'bk': str(info.get('to_bank') or '').strip()[:80],
-         'n': str(info.get('note') or '').strip()[:300], 't': tx, 'img': img, 'm': mime, 'c': cid, 's': sender[:80]}).fetchone()
+         'n': note, 't': tx, 'img': img, 'm': mime, 'c': cid, 's': sender[:80],
+         'apt': chi_apt(note), 'p': chi_payer(_xdb, info.get('from_name'))}).fetchone()
     _xdb.session.commit()
     return 'saved', row
 
@@ -181,13 +210,19 @@ def chi_save_voice(_xdb, items, said, cid='', sender=''):
         at = _chi_time(it.get('time')) or _vn_now().replace(tzinfo=None, second=0, microsecond=0)
         note = ' · '.join(x for x in (str(it.get('what') or '').strip(), str(it.get('place') or '').strip(),
                                       str(it.get('pay') or '').strip()) if x)
-        rows.append(_xdb.session.execute(text("""INSERT INTO chi_receipts (at, amount, to_name, to_bank, note, tx_code, chat_id, sender)
-            VALUES (:at, :a, :to, '', :n, '', :c, :s) RETURNING id, at, amount, to_name, note"""),
+        rows.append(_xdb.session.execute(text("""INSERT INTO chi_receipts (at, amount, to_name, to_bank, note, tx_code, chat_id, sender, apt, payer)
+            VALUES (:at, :a, :to, '', :n, '', :c, :s, :apt, :p) RETURNING id, at, amount, to_name, note, apt, payer"""),
             {'at': at, 'a': amount, 'to': str(it.get('to_name') or '').strip()[:120],
              'n': (note or str(said).strip())[:300] + ('\n🎤 ' + str(said).strip()[:400] if note else ''),
-             'c': cid, 's': sender[:80]}).fetchone())
+             'c': cid, 's': sender[:80], 'apt': chi_apt(it.get('place'), it.get('what')),
+             'p': chi_payer(_xdb, it.get('payer'))}).fetchone())
     _xdb.session.commit()
     return rows
+
+
+def _chi_tags(apt, payer, sep='\n'):
+    t = ' · '.join(x for x in ((f'🏠 {apt}' if apt else ''), (f'👤 {payer} trả' if payer else '')) if x)
+    return sep + t if t else ''
 
 
 def _chi_summary(_xdb, y, mo, label):
@@ -238,7 +273,7 @@ def chi_handle(_xdb, m):
         n, tot = chi_month_total(_xdb, row[1].year, row[1].month)
         note = str(info.get('note') or '').strip()
         return (f"✅ Đã lưu {chi_money(row[2])}" + (f" → {row[3]}" if row[3] else '') + f"\n🕘 {row[1]:%H:%M %d/%m/%Y}"
-                + (f"\n📝 {note[:80]}" if note else '') + f"\n📒 Tháng {row[1].month}: {chi_money(tot)} · {n} khoản")
+                + (f"\n📝 {note[:80]}" if note else '') + _chi_tags(row[4], row[5]) + f"\n📒 Tháng {row[1].month}: {chi_money(tot)} · {n} khoản")
     t = _fold(str(m.get('text') or ''))
     if re.fullmatch(r'\s*(xoa|huy|bo)( khoan)?( vua (luu|roi))?\s*', t):
         last = _xdb.session.execute(text("SELECT id, at, amount FROM chi_receipts WHERE created_at > NOW() - INTERVAL '2 days' "
@@ -270,9 +305,10 @@ def chi_handle(_xdb, m):
         if rows:
             n, tot = chi_month_total(_xdb, rows[-1][1].year, rows[-1][1].month)
             lines = [f"✅ {chi_money(r[2])} · {str(r[4]).splitlines()[0]}" + (f" → {r[3]}" if r[3] else '')
-                     + (f" ({r[1]:%d/%m})" if r[1].date() != now.date() else '') for r in rows]
+                     + (f" ({r[1]:%d/%m})" if r[1].date() != now.date() else '') + _chi_tags(r[5], r[6], ' ') for r in rows]
             return ((f"Đã ghi {len(rows)} khoản:\n" if len(rows) > 1 else '') + '\n'.join(lines)
-                    + f"\n📒 Tháng {rows[-1][1].month}: {chi_money(tot)} · {n} khoản\n(Sai thì nhắn \"xóa\" rồi nói lại)")
+                    + f"\n📒 Tháng {rows[-1][1].month}: {chi_money(tot)} · {n} khoản\n(Sai thì nhắn \"xóa\" rồi nói lại · "
+                    "căn / ai trả: sửa trên trang Chi tiêu)")
     last = _xdb.session.execute(text("""SELECT id, amount, note FROM chi_receipts WHERE chat_id = :c AND image IS NOT NULL
         AND created_at > NOW() - INTERVAL '10 minutes' ORDER BY created_at DESC LIMIT 1"""), {'c': cid}).fetchone()
     if re.search(r'\d{8,}:[A-Za-z0-9_-]{20,}', said):
@@ -372,14 +408,18 @@ def chi_list():
     except ValueError:
         y, mo, first = now.year, now.month, datetime(now.year, now.month, 1)
     nxt = datetime(y + (mo == 12), mo % 12 + 1, 1)
-    rows = _xdb.session.execute(text("""SELECT id, at, amount, to_name, to_bank, note, sender, image IS NOT NULL FROM chi_receipts
+    rows = _xdb.session.execute(text("""SELECT id, at, amount, to_name, to_bank, note, sender, image IS NOT NULL, apt, payer FROM chi_receipts
         WHERE at >= :a AND at < :b ORDER BY at DESC"""), {'a': first, 'b': nxt}).fetchall()
     months = _xdb.session.execute(text("""SELECT to_char(at, 'YYYY-MM'), COUNT(*), SUM(amount) FROM chi_receipts
         GROUP BY 1 ORDER BY 1 DESC LIMIT 12""")).fetchall()
     chats = _zbot_get(_xdb, 'zbot3_chats', {}) or {}
     return jsonify({'success': True, 'month': f'{y}-{mo:02d}',
                     'items': [{'id': r[0], 'at': f'{r[1]:%H:%M %d/%m/%Y}', 'amount': int(r[2]), 'to': r[3] or '',
-                               'bank': r[4] or '', 'note': r[5] or '', 'by': r[6] or '', 'img': bool(r[7])} for r in rows],
+                               'bank': r[4] or '', 'note': r[5] or '', 'by': r[6] or '', 'img': bool(r[7]),
+                               'apt': r[8] or '', 'payer': r[9] or ''} for r in rows],
+                    'apts': CHI_APTS,
+                    'payers': [p for (p,) in _xdb.session.execute(text("""SELECT payer FROM chi_receipts
+                        WHERE COALESCE(payer, '') <> '' GROUP BY payer ORDER BY COUNT(*) DESC""")).fetchall()],
                     'total': sum(int(r[2]) for r in rows),
                     'months': [{'month': r[0], 'n': int(r[1]), 'total': int(r[2])} for r in months],
                     'bot': bool(_chi_token(_xdb)), 'bot_name': _zbot_get(_xdb, 'zbot3_name') or '',
@@ -404,6 +444,25 @@ def chi_delete():
     from core.models import db as _xdb
     _chi_ensure(_xdb)
     _xdb.session.execute(text("DELETE FROM chi_receipts WHERE id = :i"), {'i': int((request.get_json(silent=True) or {}).get('id') or 0)})
+    _xdb.session.commit()
+    return jsonify({'success': True})
+
+
+@app.route('/api/chi/set', methods=['POST'])
+def chi_set():
+    """One tap on /chi-tieu: {id, apt} (one of CHI_APTS or '') or {id, payer} (any name, '' = not known)."""
+    from core.models import db as _xdb
+    _chi_ensure(_xdb)
+    d = request.get_json(silent=True) or {}
+    rid = int(d.get('id') or 0)
+    if 'apt' in d:
+        apt = str(d.get('apt') or '')
+        if apt and apt not in CHI_APTS:
+            return jsonify({'success': False, 'error': 'Căn không đúng'})
+        _xdb.session.execute(text("UPDATE chi_receipts SET apt = :v WHERE id = :i"), {'v': apt, 'i': rid})
+    if 'payer' in d:
+        _xdb.session.execute(text("UPDATE chi_receipts SET payer = :v WHERE id = :i"),
+                             {'v': chi_payer(_xdb, d.get('payer')), 'i': rid})
     _xdb.session.commit()
     return jsonify({'success': True})
 

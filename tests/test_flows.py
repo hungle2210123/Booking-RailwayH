@@ -435,10 +435,21 @@ def test_chi_receipt_bot(client, db, app_module, monkeypatch):
         assert said[-1].startswith('Đã ghi 2 khoản') and '850.000đ · Mua 2 bình ga · Hội Vũ · tiền mặt' in said[-1]
         rows = [r for r in client.get('/api/chi/list').get_json()['items'] if r['to'].startswith('ZZ TEST')]
         assert len(rows) == 2 and not any(r['img'] for r in rows) and '🎤 mua 2 bình ga' in rows[0]['note']
+        # owner, Nov 23: each item has an apartment + who paid — guessed, then changed with one tap
+        assert {r['apt'] for r in rows} == {'Hội Vũ', 'Thọ Nhuộm'} and '🏠 Hội Vũ' in said[-1]
+        rid = rows[0]['id']
+        assert client.post('/api/chi/set', json={'id': rid, 'apt': 'Chung'}).get_json()['success']
+        assert not client.post('/api/chi/set', json={'id': rid, 'apt': 'Hà Nội'}).get_json()['success']
+        client.post('/api/chi/set', json={'id': rid, 'payer': 'ZZ TEST PAYER'})
+        j = client.get('/api/chi/list').get_json()
+        r0 = next(r for r in j['items'] if r['id'] == rid)
+        assert r0['apt'] == 'Chung' and r0['payer'] == 'Zz Test Payer' and 'Zz Test Payer' in j['payers'] and 'Chung' in j['apts']
+        assert app_module.chi_payer(db, 'zz test payer') == 'Zz Test Payer'                     # same person, same name
+        assert app_module.chi_apt('mua 4 đèn mây') == '' and app_module.chi_apt('Hội Vũ, Hàng Bè') == '' and app_module.chi_apt('Tho Nhuom phòng 101') == 'Thọ Nhuộm'
         client.post('/zalo-bot3/hook', json=msg(text='chào bot'), headers=hdr)
         assert said[-1].startswith('Nói (micro')                                               # no amount, no receipt → help
     finally:
-        db.session.execute(text("DELETE FROM chi_receipts WHERE to_name LIKE 'ZZ TEST%' OR tx_code LIKE 'ZZTEST-%'"))
+        db.session.execute(text("DELETE FROM chi_receipts WHERE to_name LIKE 'ZZ TEST%' OR tx_code LIKE 'ZZTEST-%' OR payer = 'Zz Test Payer'"))
         db.session.commit()
         for k, v in saved.items():
             if v is None:

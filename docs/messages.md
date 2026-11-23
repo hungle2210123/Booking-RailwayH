@@ -239,6 +239,10 @@ owner's own cash put away, not guest payments).
 
 
 ## 💸 Chi tiêu — receipt pictures to a Zalo bot (p18, Nov 22 2026)
+- **Nov 23: căn + ai trả.** Columns `apt` (one of `CHI_APTS`: 4 apartments + "Chung") and `payer`. Guessed: receipt →
+  Gemini `from_name` (sending account), voice → `payer` said; `chi_apt` = apartment words in note/place. `chi_payer` reuses an
+  earlier spelling of the same person. /chi-tieu: totals "🏠 Theo căn" / "👤 Ai trả" (tap = filter), each row 2 tags → sheet →
+  `/api/chi/set`. Owner's payers: "Lê Đức Lộc" (owner) and "Tri Ngo".
 - **Nov 23: spoken expenses.** A text with an amount (the owner talks with the iPhone keyboard mic) → `chi_read_voice`
   (Gemini, `CHI_VOICE_PROMPT`) → items {amount, what, to_name, place, pay, time} → `chi_save_voice` (no picture, note =
   "what · place · pay" + "🎤 words said"). Text without an amount ≤ 10 min after a receipt = that receipt's note; a picture's

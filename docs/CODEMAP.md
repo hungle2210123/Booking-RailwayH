@@ -338,30 +338,34 @@ _p17_mail — 📧 Booking.com e-mails → the app (owner, Nov 12: "khi nhận �
 - app_parts/p17_mail.py:746 `_mail_setup_info`
 - app_parts/p17_mail.py:788 `moi_mail_setup` ← `/api/moi/mail_setup` — 📧 setup sheet: the script to paste into Google Apps Script (with this app's private address) + the last mail r
 
-## app_parts/p18_chi.py (457 lines)
+## app_parts/p18_chi.py (516 lines)
 _p18_chi — 💸 Chi tiêu = ảnh biên lai chuyển khoản gửi cho bot Zalo "Chi tiêu" (owner, Nov 22 2026:_
-- app_parts/p18_chi.py:17 `_chi_ensure`
-- app_parts/p18_chi.py:31 `_chi_token`
-- app_parts/p18_chi.py:35 `_chi_call`
-- app_parts/p18_chi.py:50 `_chi_say`
-- app_parts/p18_chi.py:54 `chi_money`
-- app_parts/p18_chi.py:65 `chi_read_receipt` — Gemini reads the receipt picture → dict (see CHI_PROMPT). Raises RuntimeError when the AI cannot be reached.
-- app_parts/p18_chi.py:82 `chi_read_voice` — Gemini turns a spoken expense message into a list of items (see CHI_VOICE_PROMPT).
-- app_parts/p18_chi.py:89 `_chi_gemini` — One Gemini call (JSON answer) over the keys / models. Raises RuntimeError when the AI cannot be reached.
-- app_parts/p18_chi.py:122 `_chi_time` — "21:09 22/11/2026" (or "22/11/2026 21:09") → datetime; None when unreadable.
-- app_parts/p18_chi.py:134 `chi_month_total`
-- app_parts/p18_chi.py:142 `chi_save` — A read receipt → (status, row) — status 'saved' / 'dup' / 'bad'.
-- app_parts/p18_chi.py:170 `chi_save_voice` — Spoken items → saved rows [(id, at, amount, to_name, note)] (no picture; the words said are kept in the note).
-- app_parts/p18_chi.py:193 `_chi_summary`
-- app_parts/p18_chi.py:198 `chi_handle` — One message to the bot → the reply text (None = nothing to say).
-- app_parts/p18_chi.py:291 `zbot3_hook` ← `/zalo-bot3/hook` POST
-- app_parts/p18_chi.py:318 `_chi_run`
-- app_parts/p18_chi.py:336 `chi_month_report` — Day 1 of the month, 8–10h VN: last month's total to everyone connected to the bot (once).
-- app_parts/p18_chi.py:360 `chi_page` ← `/chi-tieu`
-- app_parts/p18_chi.py:365 `chi_list` ← `/api/chi/list`
-- app_parts/p18_chi.py:391 `chi_img` ← `/api/chi/img/<int:rid>`
-- app_parts/p18_chi.py:403 `chi_delete` ← `/api/chi/delete` POST
-- app_parts/p18_chi.py:412 `chi_bot` ← `/api/chi/bot` POST — token (getMe → setWebhook) · open (30 min: new people may connect) · remove a chat · off.
+- app_parts/p18_chi.py:20 `_chi_ensure`
+- app_parts/p18_chi.py:36 `_chi_token`
+- app_parts/p18_chi.py:40 `_chi_call`
+- app_parts/p18_chi.py:55 `_chi_say`
+- app_parts/p18_chi.py:59 `chi_money`
+- app_parts/p18_chi.py:70 `chi_read_receipt` — Gemini reads the receipt picture → dict (see CHI_PROMPT). Raises RuntimeError when the AI cannot be reached.
+- app_parts/p18_chi.py:87 `chi_read_voice` — Gemini turns a spoken expense message into a list of items (see CHI_VOICE_PROMPT).
+- app_parts/p18_chi.py:94 `_chi_gemini` — One Gemini call (JSON answer) over the keys / models. Raises RuntimeError when the AI cannot be reached.
+- app_parts/p18_chi.py:127 `_chi_time` — "21:09 22/11/2026" (or "22/11/2026 21:09") → datetime; None when unreadable.
+- app_parts/p18_chi.py:139 `chi_month_total`
+- app_parts/p18_chi.py:150 `chi_apt` — Apartment named in the words (place / note / caption) → one of CHI_APTS, '' when none or several.
+- app_parts/p18_chi.py:157 `chi_payer` — A payer name → the same spelling as an earlier payer when it is the same person ("LE DUC LOC" = "Lê Đức Lộc").
+- app_parts/p18_chi.py:169 `chi_save` — A read receipt → (status, row) — status 'saved' / 'dup' / 'bad'.
+- app_parts/p18_chi.py:199 `chi_save_voice` — Spoken items → saved rows [(id, at, amount, to_name, note)] (no picture; the words said are kept in the note).
+- app_parts/p18_chi.py:223 `_chi_tags`
+- app_parts/p18_chi.py:228 `_chi_summary`
+- app_parts/p18_chi.py:233 `chi_handle` — One message to the bot → the reply text (None = nothing to say).
+- app_parts/p18_chi.py:327 `zbot3_hook` ← `/zalo-bot3/hook` POST
+- app_parts/p18_chi.py:354 `_chi_run`
+- app_parts/p18_chi.py:372 `chi_month_report` — Day 1 of the month, 8–10h VN: last month's total to everyone connected to the bot (once).
+- app_parts/p18_chi.py:396 `chi_page` ← `/chi-tieu`
+- app_parts/p18_chi.py:401 `chi_list` ← `/api/chi/list`
+- app_parts/p18_chi.py:431 `chi_img` ← `/api/chi/img/<int:rid>`
+- app_parts/p18_chi.py:443 `chi_delete` ← `/api/chi/delete` POST
+- app_parts/p18_chi.py:452 `chi_set` ← `/api/chi/set` POST — One tap on /chi-tieu: {id, apt} (one of CHI_APTS or '') or {id, payer} (any name, '' = not known).
+- app_parts/p18_chi.py:471 `chi_bot` ← `/api/chi/bot` POST — token (getMe → setWebhook) · open (30 min: new people may connect) · remove a chat · off.
 
 ## core/__init__.py (3 lines)
 
@@ -633,8 +637,8 @@ _p18_chi — 💸 Chi tiêu = ảnh biên lai chuyển khoản gửi cho bot Zal
 
 # Templates (inline JS functions)
 
-## templates/chi.html (106 lines)
-- templates/chi.html: 54 `load` · 71 `drawBot` · 86 `post`
+## templates/chi.html (157 lines)
+- templates/chi.html: 70 `chips` · 77 `draw` · 93 `pick` · 104 `save` · 110 `load` · 121 `drawBot` · 136 `post`
 
 ## templates/desk.html (1343 lines)
 - templates/desk.html: 307 `load` · 320 `loadRev` · 333 `needRev` · 351 `D.tab` · 352 `D.set` · 353 `D.q` · 354 `D.reload` · 356 `D.shift`
