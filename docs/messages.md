@@ -239,6 +239,9 @@ owner's own cash put away, not guest payments).
 
 
 ## 💸 Chi tiêu — receipt pictures to a Zalo bot (p18, Nov 22 2026)
+- **Nov 23: one link for Nộp + Chi** (owner: "gộp chung cả link nộp tiền và chi tiêu"): /chi-tieu and /chi/xem/<secret> show
+  this month "📒 Đã nộp | 💸 Đã chi", then tabs 💸 Chi tiêu / 📒 Nộp tiền (#nop). The Nộp tab = Sổ nộp tiền read-only (pots, rows by
+  day, 6-month table) from `/api/moi/deposits` (owner) or `/api/chi/nop?t=` (shared link, token-checked).
 - **Nov 23: link chỉ-xem + trang mới.** /chi-tieu shows "💰 Ai đã bỏ tiền" / "🏠 Chi cho căn nào" (bars, %, tap = filter) and
   the list grouped by day. "🔗 Chia sẻ" → `/api/chi/share` → `/chi/xem/<secret>` (`moi_settings` key `chi_share`): same page read-only
   (no delete / tags / bot; list API `?t=` hides chats). "Đổi link" = new secret, old link 404.

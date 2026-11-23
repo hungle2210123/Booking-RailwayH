@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Chi tiêu</title>
+<title>Nộp tiền & Chi tiêu</title>
 <style>
   :root { --ink:#0E1525; --mut:#64748B; --soft:#94A3B8; --line:#E7E9EE; --bg:#F4F5F7; --bar:#334155; }
   * { box-sizing:border-box; }
@@ -63,6 +63,20 @@
   #sh .opts .btn.on { background:var(--ink); color:#fff; border-color:var(--ink); }
   #ov { position:fixed; inset:0; background:rgba(0,0,0,.88); display:none; align-items:center; justify-content:center; z-index:9; }
   #ov img { max-width:100%; max-height:100%; }
+  .tabs { display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-top:12px; background:#E6E8EC; padding:4px; border-radius:14px; }
+  .tabs button { min-height:42px; border:0; border-radius:11px; background:none; font-weight:800; font-size:14.5px; color:#475569; }
+  .tabs button.on { background:#fff; color:var(--ink); box-shadow:0 1px 3px rgba(15,23,42,.12); }
+  .two { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:4px; }
+  .two > div { padding:10px 12px; border-radius:12px; background:#F7F8FA; }
+  .two .v { font-size:20px; font-weight:800; font-variant-numeric:tabular-nums; margin-top:2px; }
+  .pots { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  .pot { padding:12px; border-radius:12px; background:#F7F8FA; }
+  .pot .v { font-size:19px; font-weight:800; font-variant-numeric:tabular-nums; margin-top:2px; }
+  table.hist { width:100%; border-collapse:collapse; font-size:13px; }
+  table.hist th { text-align:right; color:var(--mut); font-weight:800; font-size:12px; padding:6px 0; }
+  table.hist th:first-child, table.hist td:first-child { text-align:left; padding-left:0; white-space:normal !important; }
+  table.hist th, table.hist td { padding-left:10px; white-space:nowrap; }
+  table.hist td { text-align:right; padding-top:7px; padding-bottom:7px; border-top:1px solid var(--line); font-variant-numeric:tabular-nums; font-weight:700; }
   .foot { text-align:center; color:var(--soft); font-size:12px; margin-top:18px; }
 </style>
 </head>
@@ -70,15 +84,20 @@
 <div class="wrap">
   <div class="top">
     {% if not share %}<a href="/" aria-label="Về trang chính">‹</a>{% endif %}
-    <h1>💸 Chi tiêu{% if share %} <span class="ro">Chỉ xem</span>{% endif %}</h1>
+    <h1>Nộp & Chi{% if share %} <span class="ro">Chỉ xem</span>{% endif %}</h1>
     {% if not share %}<button class="shr" onclick="Chi.share()">🔗 Chia sẻ</button>{% endif %}
   </div>
   <div id="chips" class="chips"></div>
   <div id="sum" class="card"><div class="mut">Đang tải…</div></div>
-  <div id="brk"></div>
-  <div id="flt"></div>
-  <div id="list" class="card" style="display:none"></div>
-  {% if not share %}<div id="bot" class="card"></div>{% endif %}
+  <div class="tabs"><button id="tChi" onclick="Chi.tab('chi')">💸 Chi tiêu</button><button id="tNop" onclick="Chi.tab('nop')">📒 Nộp tiền</button></div>
+  <div id="pChi">
+    <div id="chiSum" class="card"></div>
+    <div id="brk"></div>
+    <div id="flt"></div>
+    <div id="list" class="card" style="display:none"></div>
+    {% if not share %}<div id="bot" class="card"></div>{% endif %}
+  </div>
+  <div id="pNop" style="display:none"></div>
   <div id="foot" class="foot"></div>
 </div>
 <div id="sh" onclick="if(event.target===this)this.style.display='none'"><div class="in" id="shIn"></div></div>
@@ -96,7 +115,40 @@
   const attr = (v) => esc(JSON.stringify(v));
   // the bank's automatic transfer text ("X chuyen khoan nhanh qua Zalo", "… chuyen tien QR") says nothing about the expense
   const AUTO_NOTE = /chuyen (khoan|tien)( nhanh)?( qua zalo| qr)?\s*$/i;
-  let month = '', J = null, F = { apt: null, payer: null };
+  let month = '', J = null, D = null, F = { apt: null, payer: null };
+  let TAB = location.hash === '#nop' ? 'nop' : 'chi';
+  function tab(t) {
+    TAB = t;
+    try { history.replaceState(null, '', t === 'nop' ? '#nop' : location.pathname); } catch (e) {}
+    $('tChi').classList.toggle('on', t === 'chi'); $('tNop').classList.toggle('on', t === 'nop');
+    $('pChi').style.display = t === 'chi' ? '' : 'none'; $('pNop').style.display = t === 'nop' ? '' : 'none';
+  }
+  // 📒 Sổ nộp tiền (the Thu tiền tab of /moi writes it; here it is only shown) — owner, Nov 23: "gộp chung cả link nộp tiền và chi tiêu"
+  function drawNop() {
+    if (!D || !D.success) { $('pNop').innerHTML = '<div class="card mut">Chưa tải được sổ nộp tiền.</div>'; return; }
+    const tot = D.pots.reduce((a, p) => a + p.total, 0);
+    let html = `<div class="card"><div class="h">Đã nộp · ${esc(monLbl(D.month))}</div><div class="big">${money(tot)}</div>
+      <div class="pots" style="margin-top:10px">${D.pots.map((p) => `<div class="pot"><div style="font-weight:800">${esc(p.name)}</div>
+        <div class="mut" style="font-size:12px">${esc(p.sub)}</div><div class="v">${money(p.total)}</div><div class="mut">${p.count} lần nộp</div></div>`).join('')}</div>
+      ${RO ? '' : '<div class="mut" style="margin-top:10px">Ghi thêm: trang chính → tab Thu tiền → 📒 Sổ nộp tiền.</div>'}</div>`;
+    const name = Object.fromEntries(D.pots.map((p) => [p.key, p.name]));
+    if (D.rows.length) {
+      const sumDay = {};
+      for (const r of D.rows) sumDay[r.day] = (sumDay[r.day] || 0) + r.amount;
+      let day = '';
+      html += '<div class="card">';
+      for (const r of D.rows) {
+        if (r.day !== day) { day = r.day; html += `<div class="day"><span>${esc(dayLbl(day))}</span><span class="num">${money(sumDay[day])}</span></div>`; }
+        html += `<div class="it" style="align-items:center"><div class="ico" style="height:44px">📒</div><div class="bd"><div class="r1"><div class="ttl">Nộp ${esc(name[r.pot] || r.pot)}</div>
+          <div class="amt num">${money(r.amount)}</div></div>${r.note ? `<div class="sub">${esc(r.note)}</div>` : ''}<div class="mut">${esc(r.at.split(' ')[0])}</div></div></div>`;
+      }
+      html += '</div>';
+    } else html += '<div class="card mut">Tháng này chưa có lần nộp nào.</div>';
+    const hist = D.months.filter((m) => D.pots.some((p) => m[p.key]));
+    if (hist.length) html += `<div class="card"><div class="h">6 tháng gần đây</div><table class="hist"><tr><th>Tháng</th>${D.pots.map((p) => `<th>${esc(p.name)}</th>`).join('')}<th>Tổng</th></tr>`
+      + hist.map((m) => `<tr><td>${esc(monLbl(m.month))}</td>${D.pots.map((p) => `<td>${money(m[p.key])}</td>`).join('')}<td>${money(D.pots.reduce((a, p) => a + m[p.key], 0))}</td></tr>`).join('') + '</table></div>';
+    $('pNop').innerHTML = html;
+  }
 
   function view(r) {          // one item → title / details / the words said
     const lines = String(r.note || '').split('\n');
@@ -119,7 +171,10 @@
   }
   function draw() {
     const n = J.items.length, nImg = J.items.filter((r) => r.img).length;
-    $('sum').innerHTML = `<div class="h">${esc(monLbl(J.month))} · Tổng chi</div><div class="big">${money(J.total)}</div>`
+    const nop = D && D.success ? D.pots.reduce((a, p) => a + p.total, 0) : 0;
+    $('sum').innerHTML = `<div class="h">${esc(monLbl(J.month))}</div><div class="two">
+      <div><div class="mut">📒 Đã nộp</div><div class="v">${money(nop)}</div></div><div><div class="mut">💸 Đã chi</div><div class="v">${money(J.total)}</div></div></div>`;
+    $('chiSum').innerHTML = `<div class="h">Tổng chi · ${esc(monLbl(J.month))}</div><div class="big">${money(J.total)}</div>`
       + `<div class="stats mut"><span>${n} khoản</span>${nImg ? `<span>🧾 ${nImg} biên lai</span>` : ''}${n - nImg ? `<span>🎤 ${n - nImg} ghi bằng lời</span>` : ''}</div>`;
     $('brk').innerHTML = n ? breakdown('payer', '💰 Ai đã bỏ tiền', 'Chưa rõ ai trả', J.payers) + breakdown('apt', '🏠 Chi cho căn nào', 'Chưa chọn căn', J.apts) : '';
     const shown = J.items.filter((r) => (F.apt === null || r.apt === F.apt) && (F.payer === null || r.payer === F.payer));
@@ -155,13 +210,20 @@
     const q = new URLSearchParams();
     if (m) q.set('month', m);
     if (SHARE) q.set('t', SHARE);
-    try { j = await (await fetch('/api/chi/list?' + q, { cache: 'no-store' })).json(); } catch (e) {}
+    const dq = new URLSearchParams(q);
+    const [a, b] = await Promise.all([
+      fetch('/api/chi/list?' + q, { cache: 'no-store' }).then((r) => r.json()).catch(() => ({})),
+      fetch((SHARE ? '/api/chi/nop?' : '/api/moi/deposits?') + dq, { cache: 'no-store' }).then((r) => r.json()).catch(() => ({})),
+    ]);
+    j = a;
+    D = b;
     if (!j.success) { $('sum').innerHTML = `<div class="mut">${esc(j.error || 'Chưa tải được — kéo xuống để tải lại.')}</div>`; return; }
     if (j.month !== month) F = { apt: null, payer: null };
     month = j.month; J = j;
-    const ms = j.months.some((x) => x.month === j.month) ? j.months : [{ month: j.month, n: 0, total: 0 }, ...j.months];
-    $('chips').innerHTML = ms.map((x) => `<button class="chip${x.month === j.month ? ' on' : ''}" onclick="Chi.load('${x.month}')">${esc(monLbl(x.month))} · ${money(x.total)}</button>`).join('');
-    draw();
+    const dm = D && D.success ? D.months.filter((x) => D.pots.some((p) => x[p.key])).map((x) => x.month) : [];
+    const ms = [...new Set([j.month, ...j.months.map((x) => x.month), ...dm])].sort().reverse();
+    $('chips').innerHTML = ms.map((x) => `<button class="chip${x === j.month ? ' on' : ''}" onclick="Chi.load('${x}')">${esc(monLbl(x))}</button>`).join('');
+    draw(); drawNop(); tab(TAB);
     if (!RO) drawBot(j);
   }
   function pick(id, key) {
@@ -187,10 +249,10 @@
     if (!j.success) return alert('Chưa tạo được link');
     const url = location.origin + j.path;
     $('shIn').innerHTML = `<div style="font-size:16px;font-weight:800">🔗 Link xem chi tiêu</div>
-      <div class="mut" style="margin-top:4px;line-height:1.5">Ai có link này xem được <b>tất cả các tháng</b>: tổng chi, ai đã bỏ tiền, chi cho căn nào, ảnh biên lai. Họ <b>không sửa, không xóa</b> được.</div>
+      <div class="mut" style="margin-top:4px;line-height:1.5">Ai có link này xem được <b>tất cả các tháng</b>: <b>sổ nộp tiền</b> và <b>chi tiêu</b> (ai đã bỏ tiền, chi cho căn nào, ảnh biên lai). Họ <b>không sửa, không xóa</b> được.</div>
       <input id="shUrl" readonly value="${esc(url)}">
       <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap"><button class="btn dark" id="shGo">Gửi link</button><button class="btn" id="shCopy">Chép link</button><button class="btn" onclick="Chi.share(true)">Đổi link</button></div>`;
-    $('shGo').onclick = async () => { try { await navigator.share({ title: 'Chi tiêu', url }); } catch (e) { if (e.name !== 'AbortError') copy(url); } };
+    $('shGo').onclick = async () => { try { await navigator.share({ title: 'Nộp tiền & Chi tiêu', url }); } catch (e) { if (e.name !== 'AbortError') copy(url); } };
     $('shCopy').onclick = () => copy(url);
     $('sh').style.display = 'flex';
   }
@@ -217,7 +279,7 @@
     try { return await (await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })).json(); } catch (e) { return {}; }
   }
   window.Chi = {
-    load, pick, share,
+    load, pick, share, tab,
     filt: (key, v) => { if (!key) F = { apt: null, payer: null }; else F[key] = F[key] === v ? null : v; draw(); },
     show: (id) => { $('ovImg').src = '/api/chi/img/' + id + (SHARE ? '?t=' + encodeURIComponent(SHARE) : ''); $('ov').style.display = 'flex'; },
     del: async (id, amt) => { if (!confirm('Xóa khoản ' + amt + '?')) return; await post('/api/chi/delete', { id }); load(month); },

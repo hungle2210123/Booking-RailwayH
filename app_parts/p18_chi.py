@@ -416,6 +416,16 @@ def chi_share_page(tok):
     return render_template('chi.html', share=tok)
 
 
+@app.route('/api/chi/nop')
+def chi_share_nop():
+    """The shared page's 📒 Sổ nộp tiền (read-only; the owner writes it in the Thu tiền tab of /moi)."""
+    from core.models import db as _xdb
+    _moi_ensure()
+    if not _chi_share_ok(_xdb, request.args.get('t')):
+        return jsonify({'success': False, 'error': 'Link không còn dùng được'}), 404
+    return moi_deposits()
+
+
 @app.route('/api/chi/share', methods=['POST'])
 def chi_share():
     """{action: 'get'} → the current link (made once) · {action: 'new'} → a new link, the old one stops working."""

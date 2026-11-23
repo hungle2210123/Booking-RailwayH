@@ -466,6 +466,7 @@ def test_chi_share_link(client, db, app_module):
         assert client.post('/api/chi/share', json={'action': 'get'}).get_json()['path'] == p      # same link each time
         tok = p.rsplit('/', 1)[1]
         page = client.get(p)
+        assert client.get('/api/chi/nop?t=' + tok).get_json()['success'] and client.get('/api/chi/nop?t=x').status_code == 404
         assert page.status_code == 200 and 'Chỉ xem' in page.get_data(as_text=True) and 'id="bot"' not in page.get_data(as_text=True)
         j = client.get('/api/chi/list?t=' + tok).get_json()
         assert j['success'] and j['chats'] == []
