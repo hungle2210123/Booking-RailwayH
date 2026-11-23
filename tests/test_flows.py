@@ -456,3 +456,25 @@ def test_chi_receipt_bot(client, db, app_module, monkeypatch):
                 db.session.execute(text("DELETE FROM moi_settings WHERE key = :k"), {'k': k}); db.session.commit()
             else:
                 app_module._zbot_put(db, k, v)
+
+
+def test_chi_share_link(client, db, app_module):
+    # owner, Nov 23: a link for others to SEE the expenses (read-only); "Đổi link" makes the old one stop working
+    old = app_module._zbot_get(db, 'chi_share')
+    try:
+        p = client.post('/api/chi/share', json={'action': 'get'}).get_json()['path']
+        assert client.post('/api/chi/share', json={'action': 'get'}).get_json()['path'] == p      # same link each time
+        tok = p.rsplit('/', 1)[1]
+        page = client.get(p)
+        assert page.status_code == 200 and 'Chỉ xem' in page.get_data(as_text=True) and 'id="bot"' not in page.get_data(as_text=True)
+        j = client.get('/api/chi/list?t=' + tok).get_json()
+        assert j['success'] and j['chats'] == []
+        assert client.get('/chi/xem/wrong-secret').status_code == 404
+        assert client.get('/api/chi/list?t=wrong-secret').status_code == 404
+        p2 = client.post('/api/chi/share', json={'action': 'new'}).get_json()['path']
+        assert p2 != p and client.get(p).status_code == 404 and client.get(p2).status_code == 200
+    finally:
+        if old is None:
+            db.session.execute(text("DELETE FROM moi_settings WHERE key = 'chi_share'")); db.session.commit()
+        else:
+            app_module._zbot_put(db, 'chi_share', old)

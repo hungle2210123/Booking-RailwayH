@@ -394,13 +394,47 @@ def chi_month_report(now):
 # ── /chi-tieu page ─────────────────────────────────────────────────────────────────────────────────────────────────
 @app.route('/chi-tieu')
 def chi_page():
-    return render_template('chi.html')
+    return render_template('chi.html', share='')
+
+
+# owner, Nov 23: "tạo một cái link … share cho nhiều người cùng xem … chi tiêu … và cả phần nộp tiền" → a read-only page at
+# /chi/xem/<secret> (same page, no delete / no changes / no bot). "Đổi link" makes a new secret = the old link stops working.
+import secrets
+
+
+def _chi_share_ok(_xdb, tok):
+    cur = str(_zbot_get(_xdb, 'chi_share') or '')
+    return bool(tok) and bool(cur) and secrets.compare_digest(str(tok), cur)
+
+
+@app.route('/chi/xem/<tok>')
+def chi_share_page(tok):
+    from core.models import db as _xdb
+    _moi_ensure()
+    if not _chi_share_ok(_xdb, tok):
+        return 'Link này không còn dùng được — xin chủ nhà link mới.', 404
+    return render_template('chi.html', share=tok)
+
+
+@app.route('/api/chi/share', methods=['POST'])
+def chi_share():
+    """{action: 'get'} → the current link (made once) · {action: 'new'} → a new link, the old one stops working."""
+    from core.models import db as _xdb
+    _moi_ensure()
+    tok = str(_zbot_get(_xdb, 'chi_share') or '')
+    if not tok or (request.get_json(silent=True) or {}).get('action') == 'new':
+        tok = secrets.token_urlsafe(12)
+        _zbot_put(_xdb, 'chi_share', tok)
+    return jsonify({'success': True, 'path': f'/chi/xem/{tok}'})
 
 
 @app.route('/api/chi/list')
 def chi_list():
     from core.models import db as _xdb
     _moi_ensure(); _chi_ensure(_xdb)
+    viewer = bool(request.args.get('t'))
+    if viewer and not _chi_share_ok(_xdb, request.args.get('t')):
+        return jsonify({'success': False, 'error': 'Link không còn dùng được'}), 404
     now = _vn_now()
     try:
         y, mo = map(int, str(request.args.get('month') or f'{now.year}-{now.month}').split('-')[:2])
@@ -414,7 +448,7 @@ def chi_list():
         GROUP BY 1 ORDER BY 1 DESC LIMIT 12""")).fetchall()
     chats = _zbot_get(_xdb, 'zbot3_chats', {}) or {}
     return jsonify({'success': True, 'month': f'{y}-{mo:02d}',
-                    'items': [{'id': r[0], 'at': f'{r[1]:%H:%M %d/%m/%Y}', 'amount': int(r[2]), 'to': r[3] or '',
+                    'items': [{'id': r[0], 'at': f'{r[1]:%H:%M %d/%m/%Y}', 'day': f'{r[1]:%Y-%m-%d}', 'amount': int(r[2]), 'to': r[3] or '',
                                'bank': r[4] or '', 'note': r[5] or '', 'by': r[6] or '', 'img': bool(r[7]),
                                'apt': r[8] or '', 'payer': r[9] or ''} for r in rows],
                     'apts': CHI_APTS,
@@ -423,7 +457,7 @@ def chi_list():
                     'total': sum(int(r[2]) for r in rows),
                     'months': [{'month': r[0], 'n': int(r[1]), 'total': int(r[2])} for r in months],
                     'bot': bool(_chi_token(_xdb)), 'bot_name': _zbot_get(_xdb, 'zbot3_name') or '',
-                    'chats': [{'id': k, 'name': c.get('name') or 'Không tên'} for k, c in chats.items()],
+                    'chats': [] if viewer else [{'id': k, 'name': c.get('name') or 'Không tên'} for k, c in chats.items()],
                     'open': float(_zbot_get(_xdb, 'zbot3_open_until') or 0) > time.time()})
 
 

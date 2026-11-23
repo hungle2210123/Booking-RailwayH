@@ -5,95 +5,169 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Chi tiêu</title>
 <style>
-  :root { --ink:#0E1525; --mut:#64748B; --line:#E7E9EE; --bg:#F7F8FA; }
+  :root { --ink:#0E1525; --mut:#64748B; --soft:#94A3B8; --line:#E7E9EE; --bg:#F4F5F7; --bar:#334155; }
   * { box-sizing:border-box; }
   body { margin:0; background:var(--bg); color:var(--ink); font:15px/1.45 -apple-system, system-ui, "Segoe UI", Roboto, sans-serif; }
-  .wrap { max-width:640px; margin:0 auto; padding:14px 16px 60px; }
-  .top { display:flex; align-items:center; gap:10px; }
-  .top a { color:var(--ink); text-decoration:none; font-weight:800; font-size:22px; padding:4px 8px 4px 0; }
-  h1 { margin:0; font-size:22px; flex:1; }
-  .card { background:#fff; border:1.5px solid var(--line); border-radius:16px; padding:14px; margin-top:12px; }
-  .big { font-size:30px; font-weight:800; font-variant-numeric:tabular-nums; }
-  .mut { color:var(--mut); font-size:13px; font-weight:700; }
+  button { font-family:inherit; cursor:pointer; }
+  .wrap { max-width:680px; margin:0 auto; padding:14px 16px 60px; }
+  .top { display:flex; align-items:center; gap:8px; }
+  .top a { color:var(--ink); text-decoration:none; font-weight:800; font-size:24px; padding:4px 8px 4px 0; }
+  h1 { margin:0; font-size:21px; flex:1; }
+  .card { background:#fff; border:1px solid var(--line); border-radius:16px; padding:14px; margin-top:12px; }
+  .h { font-size:13px; font-weight:800; color:var(--mut); text-transform:uppercase; letter-spacing:.04em; margin-bottom:8px; }
+  .big { font-size:32px; font-weight:800; font-variant-numeric:tabular-nums; letter-spacing:-.01em; }
+  .mut { color:var(--mut); font-size:13px; font-weight:600; }
+  .num { font-variant-numeric:tabular-nums; white-space:nowrap; }
   .chips { display:flex; gap:6px; overflow-x:auto; margin-top:12px; padding-bottom:2px; }
-  .chip { flex:none; min-height:40px; padding:0 12px; border-radius:12px; border:1.5px solid #E2E5EB; background:#fff; font:800 13px inherit; color:var(--ink); }
+  .chip { flex:none; min-height:38px; padding:0 12px; border-radius:12px; border:1px solid #DDE1E7; background:#fff; font-weight:800; font-size:13px; color:var(--ink); }
   .chip.on { background:var(--ink); color:#fff; border-color:var(--ink); }
-  .row { display:flex; gap:12px; align-items:center; padding:10px 0; border-top:1px solid var(--line); }
-  .row:first-child { border-top:0; }
-  .row img { width:54px; height:72px; object-fit:cover; border-radius:8px; border:1px solid var(--line); flex:none; background:#eee; }
-  .mic { width:54px; height:72px; border-radius:8px; border:1px solid var(--line); flex:none; display:flex; align-items:center; justify-content:center; font-size:24px; background:#F1F5F9; }
-  .amt { font-size:18px; font-weight:800; font-variant-numeric:tabular-nums; }
-  .who { font-size:14px; font-weight:700; overflow-wrap:anywhere; }
-  .note { white-space:pre-line; font-size:13px; color:#334155; overflow-wrap:anywhere; }
-  .btn { min-height:44px; padding:0 14px; border-radius:12px; border:1.5px solid #E2E5EB; background:#fff; font:800 14px inherit; color:var(--ink); }
+  .stats { display:flex; gap:14px; margin-top:6px; flex-wrap:wrap; }
+  .brk { display:block; width:100%; text-align:left; background:none; border:0; padding:8px 0; border-top:1px solid var(--line); color:var(--ink); }
+  .brk:first-of-type { border-top:0; }
+  .brk .l { display:flex; justify-content:space-between; gap:8px; font-weight:800; font-size:14.5px; }
+  .brk .track { height:6px; border-radius:4px; background:#EEF0F3; margin-top:6px; overflow:hidden; }
+  .brk .fill { height:100%; background:var(--bar); border-radius:4px; }
+  .brk.on .l { color:#0F172A; } .brk.on .fill { background:#0F172A; }
+  .brk.dim .l { color:var(--soft); } .brk.dim .fill { background:#CBD5E1; }
+  .brk .pc { color:var(--mut); font-weight:700; font-size:12.5px; margin-left:6px; }
+  .flt { display:flex; align-items:center; gap:8px; margin-top:12px; padding:10px 12px; border-radius:12px; background:#0E1525; color:#fff; font-weight:800; font-size:14px; }
+  .flt span { flex:1; }
+  .flt button { min-height:32px; border-radius:9px; border:0; background:#fff; color:var(--ink); font-weight:800; padding:0 10px; }
+  .day { display:flex; justify-content:space-between; font-size:13px; font-weight:800; color:var(--mut); margin:16px 4px 6px; }
+  .day:first-child { margin-top:4px; }
+  .it { display:flex; gap:12px; padding:12px 0; border-top:1px solid var(--line); }
+  .it:first-child { border-top:0; }
+  .thumb { width:46px; height:60px; object-fit:cover; border-radius:8px; border:1px solid var(--line); flex:none; background:#eee; }
+  .ico { width:46px; height:60px; border-radius:8px; flex:none; display:flex; align-items:center; justify-content:center; font-size:20px; background:#F1F5F9; }
+  .bd { flex:1; min-width:0; }
+  .r1 { display:flex; gap:8px; align-items:baseline; }
+  .ttl { flex:1; font-weight:800; font-size:15px; overflow-wrap:anywhere; }
+  .amt { font-weight:800; font-size:16px; }
+  .sub { font-size:13px; color:#475569; margin-top:2px; overflow-wrap:anywhere; }
+  .said { font-size:12.5px; color:var(--soft); margin-top:2px; overflow-wrap:anywhere; white-space:pre-line; }
+  .tags { display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; align-items:center; }
+  .tag { min-height:30px; padding:0 9px; border-radius:9px; border:1px solid #DDE1E7; background:#fff; font-weight:800; font-size:12.5px; color:var(--ink); }
+  span.tag { display:inline-flex; align-items:center; background:#F1F5F9; border-color:#F1F5F9; }
+  .tag.empty { border-style:dashed; color:#92400E; border-color:#FCD34D; background:#FFFBEB; }
+  .x { margin-left:auto; min-height:30px; padding:0 9px; border-radius:9px; border:1px solid #F1D4D4; background:#fff; font-weight:800; font-size:12px; color:#B91C1C; }
+  .btn { min-height:44px; padding:0 14px; border-radius:12px; border:1px solid #DDE1E7; background:#fff; font-weight:800; font-size:14px; color:var(--ink); }
   .btn.dark { background:var(--ink); color:#fff; border-color:var(--ink); }
-  .x { min-height:34px; padding:0 10px; border-radius:10px; border:1.5px solid #E2E5EB; background:#fff; font:800 12.5px inherit; color:#B91C1C; flex:none; }
-  textarea { width:100%; margin-top:8px; padding:10px 12px; border:1.5px solid #CBD5E1; border-radius:12px; font-size:16px; resize:none; }
+  .shr { min-height:38px; padding:0 12px; border-radius:11px; border:1px solid #DDE1E7; background:#fff; font-weight:800; font-size:13.5px; color:var(--ink); }
+  textarea, input { width:100%; margin-top:8px; padding:10px 12px; border:1px solid #CBD5E1; border-radius:12px; font-size:16px; resize:none; font-family:inherit; }
   .warn { margin-top:8px; border-radius:12px; padding:10px 12px; font-size:13.5px; font-weight:700; background:#FEF3C7; color:#92400E; line-height:1.5; }
   .ok { color:#15803D; font-weight:800; }
-  .grp { margin-top:12px; }
-  .grp .mut { margin-bottom:6px; }
-  .tags { display:flex; flex-wrap:wrap; gap:6px; margin-top:6px; }
-  .tag { min-height:32px; padding:0 10px; border-radius:10px; border:1.5px solid #E2E5EB; background:#fff; font:800 12.5px inherit; color:var(--ink); }
-  .tag.empty { border-style:dashed; color:#92400E; border-color:#FCD34D; background:#FFFBEB; }
-  .sum2 { display:flex; flex-wrap:wrap; gap:6px; }
-  .sum2 .chip { min-height:36px; font-weight:700; }
-  .sum2 .chip b { font-weight:800; }
+  .ro { display:inline-block; margin-left:6px; padding:2px 8px; border-radius:8px; background:#E2E8F0; color:#334155; font-size:12px; font-weight:800; vertical-align:middle; }
   #sh { position:fixed; inset:0; background:rgba(15,23,42,.45); display:none; align-items:flex-end; z-index:8; }
-  #sh .in { background:#fff; width:100%; max-width:640px; margin:0 auto; border-radius:18px 18px 0 0; padding:16px 16px calc(16px + env(safe-area-inset-bottom)); }
+  #sh .in { background:#fff; width:100%; max-width:680px; margin:0 auto; border-radius:18px 18px 0 0; padding:16px 16px calc(16px + env(safe-area-inset-bottom)); }
   #sh .opts { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:10px; }
   #sh .opts .btn.on { background:var(--ink); color:#fff; border-color:var(--ink); }
-  #sh input { width:100%; min-height:44px; margin-top:10px; padding:0 12px; border:1.5px solid #CBD5E1; border-radius:12px; font-size:16px; }
-  #ov { position:fixed; inset:0; background:rgba(0,0,0,.85); display:none; align-items:center; justify-content:center; z-index:9; }
+  #ov { position:fixed; inset:0; background:rgba(0,0,0,.88); display:none; align-items:center; justify-content:center; z-index:9; }
   #ov img { max-width:100%; max-height:100%; }
+  .foot { text-align:center; color:var(--soft); font-size:12px; margin-top:18px; }
 </style>
 </head>
 <body>
 <div class="wrap">
-  <div class="top"><a href="/" aria-label="Về trang chính">‹</a><h1>💸 Chi tiêu</h1></div>
-  <div id="sum" class="card"><div class="mut">Đang tải…</div></div>
+  <div class="top">
+    {% if not share %}<a href="/" aria-label="Về trang chính">‹</a>{% endif %}
+    <h1>💸 Chi tiêu{% if share %} <span class="ro">Chỉ xem</span>{% endif %}</h1>
+    {% if not share %}<button class="shr" onclick="Chi.share()">🔗 Chia sẻ</button>{% endif %}
+  </div>
   <div id="chips" class="chips"></div>
+  <div id="sum" class="card"><div class="mut">Đang tải…</div></div>
+  <div id="brk"></div>
+  <div id="flt"></div>
   <div id="list" class="card" style="display:none"></div>
-  <div id="bot" class="card"></div>
+  {% if not share %}<div id="bot" class="card"></div>{% endif %}
+  <div id="foot" class="foot"></div>
 </div>
 <div id="sh" onclick="if(event.target===this)this.style.display='none'"><div class="in" id="shIn"></div></div>
 <div id="ov" onclick="this.style.display='none'"><img id="ovImg" alt="Biên lai"></div>
 <script>
 (() => {
+  const SHARE = {{ share|tojson }};      // '' = the owner's page · a secret = the read-only page others open
+  const RO = !!SHARE;
   const $ = (id) => document.getElementById(id);
   const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const money = (n) => Number(n || 0).toLocaleString('vi-VN') + 'đ';
   const monLbl = (m) => { const [y, mo] = m.split('-'); return 'Tháng ' + Number(mo) + '/' + y; };
+  const WD = ['Chủ nhật', 'Thứ hai', 'Thứ ba', 'Thứ tư', 'Thứ năm', 'Thứ sáu', 'Thứ bảy'];
+  const dayLbl = (d) => { const [y, m, dd] = d.split('-').map(Number); return WD[new Date(y, m - 1, dd).getDay()] + ', ' + dd + '/' + m; };
+  const attr = (v) => esc(JSON.stringify(v));
+  // the bank's automatic transfer text ("X chuyen khoan nhanh qua Zalo", "… chuyen tien QR") says nothing about the expense
+  const AUTO_NOTE = /chuyen (khoan|tien)( nhanh)?( qua zalo| qr)?\s*$/i;
   let month = '', J = null, F = { apt: null, payer: null };
-  const NONE = '';      // filter value for "not chosen yet"
-  const sumBy = (key) => { const m = new Map(); for (const r of J.items) m.set(r[key], (m.get(r[key]) || 0) + r.amount); return m; };
-  function chips(key, label, emptyLbl, order) {
-    const m = sumBy(key);
-    if (m.size < 1 || (m.size === 1 && m.has(''))) return '';
-    const ks = [...order.filter((k) => m.has(k)), ...[...m.keys()].filter((k) => k && !order.includes(k)), ...(m.has('') ? [''] : [])];
-    return `<div class="grp"><div class="mut">${label}</div><div class="sum2">` + ks.map((k) =>
-      `<button class="chip${F[key] === k ? ' on' : ''}" onclick="Chi.filt('${key}', ${JSON.stringify(k).replace(/"/g, '&quot;')})">${esc(k || emptyLbl)} · <b>${money(m.get(k))}</b></button>`).join('') + '</div></div>';
+
+  function view(r) {          // one item → title / details / the words said
+    const lines = String(r.note || '').split('\n');
+    const said = lines.filter((x) => x.startsWith('🎤')).map((x) => x.replace(/^🎤\s*/, '')).join(' ');
+    const note = lines.filter((x) => !x.startsWith('🎤')).join(' ').split(' · ').filter((x) => x && !AUTO_NOTE.test(x)).join(' · ');
+    if (r.img) return { title: r.to || 'Chuyển khoản', sub: [note && 'ND: ' + note, r.bank].filter(Boolean).join(' · '), said: '' };
+    return { title: note || said || '—', sub: r.to ? 'Trả cho: ' + r.to : '', said: said ? 'Lời nói: “' + said + '”' : '' };
+  }
+  function breakdown(key, title, emptyLbl, order) {
+    const m = new Map();
+    for (const r of J.items) m.set(r[key], (m.get(r[key]) || 0) + r.amount);
+    const ks = [...order.filter((k) => m.has(k)), ...[...m.keys()].filter((k) => k && !order.includes(k)).sort((a, b) => m.get(b) - m.get(a)), ...(m.has('') ? [''] : [])];
+    const top = Math.max(...m.values(), 1);
+    return `<div class="card"><div class="h">${title}</div>` + ks.map((k) => {
+      const v = m.get(k), cls = F[key] === k ? ' on' : (F[key] !== null ? ' dim' : '');
+      return `<button class="brk${cls}${k ? '' : ' dim'}" onclick="Chi.filt('${key}', ${attr(k)})"><div class="l"><span>${esc(k || emptyLbl)}</span>`
+        + `<span class="num">${money(v)}<span class="pc">${Math.round(v * 100 / J.total)}%</span></span></div>`
+        + `<div class="track"><div class="fill" style="width:${(v * 100 / top).toFixed(1)}%"></div></div></button>`;
+    }).join('') + '</div>';
   }
   function draw() {
+    const n = J.items.length, nImg = J.items.filter((r) => r.img).length;
+    $('sum').innerHTML = `<div class="h">${esc(monLbl(J.month))} · Tổng chi</div><div class="big">${money(J.total)}</div>`
+      + `<div class="stats mut"><span>${n} khoản</span>${nImg ? `<span>🧾 ${nImg} biên lai</span>` : ''}${n - nImg ? `<span>🎤 ${n - nImg} ghi bằng lời</span>` : ''}</div>`;
+    $('brk').innerHTML = n ? breakdown('payer', '💰 Ai đã bỏ tiền', 'Chưa rõ ai trả', J.payers) + breakdown('apt', '🏠 Chi cho căn nào', 'Chưa chọn căn', J.apts) : '';
     const shown = J.items.filter((r) => (F.apt === null || r.apt === F.apt) && (F.payer === null || r.payer === F.payer));
     const on = F.apt !== null || F.payer !== null;
-    const what = [F.apt !== null ? (F.apt || 'Chưa chọn căn') : '', F.payer !== null ? (F.payer ? F.payer + ' trả' : 'Chưa rõ ai trả') : ''].filter(Boolean).join(' · ');
-    $('sum').innerHTML = `<div class="mut">${esc(monLbl(J.month))} · ${J.items.length} khoản</div><div class="big">${money(J.total)}</div>`
-      + (on ? `<div style="margin-top:6px;font-weight:800">${esc(what)}: ${money(shown.reduce((a, r) => a + r.amount, 0))} · ${shown.length} khoản <button class="tag" onclick="Chi.filt()">✕ Bỏ lọc</button></div>` : '')
-      + chips('apt', '🏠 Theo căn', 'Chưa chọn căn', J.apts) + chips('payer', '👤 Ai trả', 'Chưa rõ', J.payers);
+    const what = [F.payer !== null ? (F.payer ? F.payer + ' trả' : 'Chưa rõ ai trả') : '', F.apt !== null ? (F.apt || 'Chưa chọn căn') : ''].filter(Boolean).join(' · ');
+    $('flt').innerHTML = on ? `<div class="flt"><span>${esc(what)} · ${money(shown.reduce((a, r) => a + r.amount, 0))} · ${shown.length} khoản</span><button onclick="Chi.filt()">✕ Bỏ lọc</button></div>` : '';
     $('list').style.display = shown.length ? '' : 'none';
-    $('list').innerHTML = shown.map((r) => `<div class="row">
-      ${r.img ? `<img src="/api/chi/img/${r.id}" loading="lazy" alt="Biên lai" onclick="Chi.show(${r.id})">` : '<div class="mic">🎤</div>'}
-      <div style="flex:1;min-width:0"><div class="amt">${money(r.amount)}</div>
-        <div class="who">${esc(r.to || (r.img ? '—' : ''))}${r.bank ? ' <span class="mut">· ' + esc(r.bank) + '</span>' : ''}</div>
-        ${r.note ? `<div class="note">📝 ${esc(r.note)}</div>` : ''}<div class="mut">${esc(r.at)}</div>
-        <div class="tags"><button class="tag${r.apt ? '' : ' empty'}" onclick="Chi.pick(${r.id}, 'apt')">🏠 ${esc(r.apt || 'Chọn căn')}</button><button class="tag${r.payer ? '' : ' empty'}" onclick="Chi.pick(${r.id}, 'payer')">👤 ${esc(r.payer ? r.payer + ' trả' : 'Ai trả?')}</button></div></div>
-      <button class="x" onclick="Chi.del(${r.id}, '${money(r.amount)}')">Xóa</button></div>`).join('');
+    let html = '', day = '';
+    const sumDay = {};
+    for (const r of shown) sumDay[r.day] = (sumDay[r.day] || 0) + r.amount;
+    for (const r of shown) {
+      if (r.day !== day) {
+        if (day) html += '</div>';
+        day = r.day;
+        html += `<div class="day"><span>${esc(dayLbl(day))}</span><span class="num">${money(sumDay[day])}</span></div><div>`;
+      }
+      const v = view(r), time = r.at.split(' ')[0];
+      const tag = (key, txt, emptyTxt) => RO ? (txt ? `<span class="tag">${esc(txt)}</span>` : '')
+        : `<button class="tag${txt ? '' : ' empty'}" onclick="Chi.pick(${r.id}, '${key}')">${esc(txt || emptyTxt)}</button>`;
+      html += `<div class="it">
+        ${r.img ? `<img class="thumb" src="/api/chi/img/${r.id}${SHARE ? '?t=' + encodeURIComponent(SHARE) : ''}" loading="lazy" alt="Biên lai" onclick="Chi.show(${r.id})">` : '<div class="ico">🎤</div>'}
+        <div class="bd"><div class="r1"><div class="ttl">${esc(v.title)}</div><div class="amt num">${money(r.amount)}</div></div>
+          ${v.sub ? `<div class="sub">${esc(v.sub)}</div>` : ''}${v.said ? `<div class="said">${esc(v.said)}</div>` : ''}
+          <div class="tags"><span class="mut">${esc(time)}</span>${tag('payer', r.payer ? '👤 ' + r.payer + ' trả' : '', '👤 Ai trả?')}${tag('apt', r.apt ? '🏠 ' + r.apt : '', '🏠 Chọn căn')}
+            ${RO ? '' : `<button class="x" onclick="Chi.del(${r.id}, '${money(r.amount)}')">Xóa</button>`}</div></div></div>`;
+    }
+    $('list').innerHTML = html + (day ? '</div>' : '');
+    const now = new Date();
+    $('foot').textContent = 'Cập nhật lúc ' + now.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) + ' ' + now.toLocaleDateString('vi-VN');
+  }
+  async function load(m) {
+    let j = {};
+    const q = new URLSearchParams();
+    if (m) q.set('month', m);
+    if (SHARE) q.set('t', SHARE);
+    try { j = await (await fetch('/api/chi/list?' + q, { cache: 'no-store' })).json(); } catch (e) {}
+    if (!j.success) { $('sum').innerHTML = `<div class="mut">${esc(j.error || 'Chưa tải được — kéo xuống để tải lại.')}</div>`; return; }
+    if (j.month !== month) F = { apt: null, payer: null };
+    month = j.month; J = j;
+    const ms = j.months.some((x) => x.month === j.month) ? j.months : [{ month: j.month, n: 0, total: 0 }, ...j.months];
+    $('chips').innerHTML = ms.map((x) => `<button class="chip${x.month === j.month ? ' on' : ''}" onclick="Chi.load('${x.month}')">${esc(monLbl(x.month))} · ${money(x.total)}</button>`).join('');
+    draw();
+    if (!RO) drawBot(j);
   }
   function pick(id, key) {
     const r = J.items.find((x) => x.id === id); if (!r) return;
     const opts = key === 'apt' ? J.apts : J.payers;
-    $('shIn').innerHTML = `<div style="font-size:16px;font-weight:800">${key === 'apt' ? '🏠 Khoản ' + money(r.amount) + ' cho căn nào?' : '👤 Ai bỏ tiền ra ' + money(r.amount) + '?'}</div>
+    $('shIn').innerHTML = `<div style="font-size:16px;font-weight:800">${key === 'apt' ? '🏠 Khoản ' + money(r.amount) + ' chi cho căn nào?' : '👤 Ai bỏ tiền ra ' + money(r.amount) + '?'}</div>
       <div class="opts">${opts.map((o) => `<button class="btn${r[key] === o ? ' on' : ''}" data-v="${esc(o)}">${esc(o)}</button>`).join('')}
         <button class="btn" data-v="">${key === 'apt' ? 'Bỏ chọn' : 'Chưa rõ'}</button></div>
       ${key === 'payer' ? '<input id="shName" placeholder="Hoặc gõ tên người khác" autocomplete="off"><div style="display:flex;margin-top:8px"><button class="btn dark" id="shSave">Lưu tên này</button></div>' : ''}`;
@@ -107,16 +181,22 @@
     if (!j.success) return alert('Chưa lưu được: ' + (j.error || 'lỗi mạng'));
     load(month);
   }
-  async function load(m) {
-    let j = {};
-    try { j = await (await fetch('/api/chi/list' + (m ? '?month=' + m : ''), { cache: 'no-store' })).json(); } catch (e) {}
-    if (!j.success) { $('sum').innerHTML = '<div class="mut">Chưa tải được — kéo xuống để tải lại.</div>'; return; }
-    if (j.month !== month) F = { apt: null, payer: null };
-    month = j.month; J = j;
-    const ms = j.months.some((x) => x.month === j.month) ? j.months : [{ month: j.month, n: 0, total: 0 }, ...j.months];
-    $('chips').innerHTML = ms.map((x) => `<button class="chip${x.month === j.month ? ' on' : ''}" onclick="Chi.load('${x.month}')">${esc(monLbl(x.month))} · ${money(x.total)}</button>`).join('');
-    draw();
-    drawBot(j);
+  async function share(fresh) {
+    if (fresh && !confirm('Tạo link mới? Link cũ đã gửi cho mọi người sẽ KHÔNG mở được nữa.')) return;
+    const j = await post('/api/chi/share', { action: fresh ? 'new' : 'get' });
+    if (!j.success) return alert('Chưa tạo được link');
+    const url = location.origin + j.path;
+    $('shIn').innerHTML = `<div style="font-size:16px;font-weight:800">🔗 Link xem chi tiêu</div>
+      <div class="mut" style="margin-top:4px;line-height:1.5">Ai có link này xem được <b>tất cả các tháng</b>: tổng chi, ai đã bỏ tiền, chi cho căn nào, ảnh biên lai. Họ <b>không sửa, không xóa</b> được.</div>
+      <input id="shUrl" readonly value="${esc(url)}">
+      <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap"><button class="btn dark" id="shGo">Gửi link</button><button class="btn" id="shCopy">Chép link</button><button class="btn" onclick="Chi.share(true)">Đổi link</button></div>`;
+    $('shGo').onclick = async () => { try { await navigator.share({ title: 'Chi tiêu', url }); } catch (e) { if (e.name !== 'AbortError') copy(url); } };
+    $('shCopy').onclick = () => copy(url);
+    $('sh').style.display = 'flex';
+  }
+  async function copy(url) {
+    try { await navigator.clipboard.writeText(url); } catch (e) { $('shUrl').select(); document.execCommand('copy'); }
+    $('shCopy').textContent = '✓ Đã chép';
   }
   function drawBot(j) {
     if (!j.bot) {
@@ -137,9 +217,9 @@
     try { return await (await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })).json(); } catch (e) { return {}; }
   }
   window.Chi = {
-    load, pick,
+    load, pick, share,
     filt: (key, v) => { if (!key) F = { apt: null, payer: null }; else F[key] = F[key] === v ? null : v; draw(); },
-    show: (id) => { $('ovImg').src = '/api/chi/img/' + id; $('ov').style.display = 'flex'; },
+    show: (id) => { $('ovImg').src = '/api/chi/img/' + id + (SHARE ? '?t=' + encodeURIComponent(SHARE) : ''); $('ov').style.display = 'flex'; },
     del: async (id, amt) => { if (!confirm('Xóa khoản ' + amt + '?')) return; await post('/api/chi/delete', { id }); load(month); },
     bot: async (action, id) => {
       if (action === 'off' && !confirm('Bỏ bot chi tiêu? Biên lai đã lưu vẫn giữ.')) return;

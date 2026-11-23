@@ -338,7 +338,7 @@ _p17_mail — 📧 Booking.com e-mails → the app (owner, Nov 12: "khi nhận �
 - app_parts/p17_mail.py:746 `_mail_setup_info`
 - app_parts/p17_mail.py:788 `moi_mail_setup` ← `/api/moi/mail_setup` — 📧 setup sheet: the script to paste into Google Apps Script (with this app's private address) + the last mail r
 
-## app_parts/p18_chi.py (516 lines)
+## app_parts/p18_chi.py (550 lines)
 _p18_chi — 💸 Chi tiêu = ảnh biên lai chuyển khoản gửi cho bot Zalo "Chi tiêu" (owner, Nov 22 2026:_
 - app_parts/p18_chi.py:20 `_chi_ensure`
 - app_parts/p18_chi.py:36 `_chi_token`
@@ -361,11 +361,14 @@ _p18_chi — 💸 Chi tiêu = ảnh biên lai chuyển khoản gửi cho bot Zal
 - app_parts/p18_chi.py:354 `_chi_run`
 - app_parts/p18_chi.py:372 `chi_month_report` — Day 1 of the month, 8–10h VN: last month's total to everyone connected to the bot (once).
 - app_parts/p18_chi.py:396 `chi_page` ← `/chi-tieu`
-- app_parts/p18_chi.py:401 `chi_list` ← `/api/chi/list`
-- app_parts/p18_chi.py:431 `chi_img` ← `/api/chi/img/<int:rid>`
-- app_parts/p18_chi.py:443 `chi_delete` ← `/api/chi/delete` POST
-- app_parts/p18_chi.py:452 `chi_set` ← `/api/chi/set` POST — One tap on /chi-tieu: {id, apt} (one of CHI_APTS or '') or {id, payer} (any name, '' = not known).
-- app_parts/p18_chi.py:471 `chi_bot` ← `/api/chi/bot` POST — token (getMe → setWebhook) · open (30 min: new people may connect) · remove a chat · off.
+- app_parts/p18_chi.py:405 `_chi_share_ok`
+- app_parts/p18_chi.py:411 `chi_share_page` ← `/chi/xem/<tok>`
+- app_parts/p18_chi.py:420 `chi_share` ← `/api/chi/share` POST — {action: 'get'} → the current link (made once) · {action: 'new'} → a new link, the old one stops working.
+- app_parts/p18_chi.py:432 `chi_list` ← `/api/chi/list`
+- app_parts/p18_chi.py:465 `chi_img` ← `/api/chi/img/<int:rid>`
+- app_parts/p18_chi.py:477 `chi_delete` ← `/api/chi/delete` POST
+- app_parts/p18_chi.py:486 `chi_set` ← `/api/chi/set` POST — One tap on /chi-tieu: {id, apt} (one of CHI_APTS or '') or {id, payer} (any name, '' = not known).
+- app_parts/p18_chi.py:505 `chi_bot` ← `/api/chi/bot` POST — token (getMe → setWebhook) · open (30 min: new people may connect) · remove a chat · off.
 
 ## core/__init__.py (3 lines)
 
@@ -637,8 +640,9 @@ _p18_chi — 💸 Chi tiêu = ảnh biên lai chuyển khoản gửi cho bot Zal
 
 # Templates (inline JS functions)
 
-## templates/chi.html (157 lines)
-- templates/chi.html: 70 `chips` · 77 `draw` · 93 `pick` · 104 `save` · 110 `load` · 121 `drawBot` · 136 `post`
+## templates/chi.html (237 lines)
+- templates/chi.html: 101 `view` · 108 `breakdown` · 120 `draw` · 153 `load` · 167 `pick` · 178 `save` · 184 `share` · 197 `copy`
+- templates/chi.html: 201 `drawBot` · 216 `post`
 
 ## templates/desk.html (1343 lines)
 - templates/desk.html: 307 `load` · 320 `loadRev` · 333 `needRev` · 351 `D.tab` · 352 `D.set` · 353 `D.q` · 354 `D.reload` · 356 `D.shift`

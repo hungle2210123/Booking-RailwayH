@@ -239,6 +239,9 @@ owner's own cash put away, not guest payments).
 
 
 ## 💸 Chi tiêu — receipt pictures to a Zalo bot (p18, Nov 22 2026)
+- **Nov 23: link chỉ-xem + trang mới.** /chi-tieu shows "💰 Ai đã bỏ tiền" / "🏠 Chi cho căn nào" (bars, %, tap = filter) and
+  the list grouped by day. "🔗 Chia sẻ" → `/api/chi/share` → `/chi/xem/<secret>` (`moi_settings` key `chi_share`): same page read-only
+  (no delete / tags / bot; list API `?t=` hides chats). "Đổi link" = new secret, old link 404.
 - **Nov 23: căn + ai trả.** Columns `apt` (one of `CHI_APTS`: 4 apartments + "Chung") and `payer`. Guessed: receipt →
   Gemini `from_name` (sending account), voice → `payer` said; `chi_apt` = apartment words in note/place. `chi_payer` reuses an
   earlier spelling of the same person. /chi-tieu: totals "🏠 Theo căn" / "👤 Ai trả" (tap = filter), each row 2 tags → sheet →
