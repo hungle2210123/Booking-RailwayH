@@ -409,7 +409,10 @@ def chi_bot():
     d = request.get_json(silent=True) or {}
     act = d.get('action')
     if act == 'token':
-        tok = ''.join(str(d.get('token') or '').split())
+        raw = str(d.get('token') or '')
+        # owner, Nov 23: pasted the whole Zalo "Khởi tạo Bot thành công" message → "Not Found"; take the token out of it
+        found = re.search(r'\b\d{8,}:[A-Za-z0-9_-]{20,}', raw)
+        tok = found.group(0) if found else ''.join(raw.split())
         if len(tok) < 10:
             return jsonify({'success': False, 'error': 'Mã quá ngắn — copy cả ô Bot Token'})
         if tok in (_zbot_token(), _zbot2_token(_xdb)):

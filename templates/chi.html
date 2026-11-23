@@ -93,7 +93,7 @@
     bot: async (action, id) => {
       if (action === 'off' && !confirm('Bỏ bot chi tiêu? Biên lai đã lưu vẫn giữ.')) return;
       const body = { action, id };
-      if (action === 'token') body.token = (($('tok') || {}).value || '').replace(/\s+/g, '');
+      if (action === 'token') body.token = ($('tok') || {}).value || '';   // the server picks the token out (even from the whole Zalo message)
       const j = await post('/api/chi/bot', body);
       if (!j.success) return alert('Chưa được: ' + (j.error || 'lỗi mạng'));
       load(month);
