@@ -142,3 +142,10 @@ to `/calendar_details/<Vietnam today>`; nav "Lịch Doanh Thu" → /hom-nay, the
 The day page **opens scrolled to the Trả ↔ Đến board** (`landOnPair`: no URL hash and pair view → scroll so the board
 sits under the sticky toolbar; re-aligned at 0–3 s because the boards above load late; stops as soon as the owner
 touches / scrolls; `history.scrollRestoration = 'manual'`).
+
+## 🏷 Room type on every calendar bar (Nov 23 2026)
+Owner: "không thấy được loại phòng … phải bấm vào thì mới check được". `roomKind(listing, aptId)` (moi.html) turns the
+Booking listing into a short framed tag on every bar except the check-out sliver: the owner's own name in brackets
+("Studio Tiêu Chuẩn (Sofa Hàng Bạc)" → "Sofa"), the row apartment's street dropped ("2 Giường Hội Vũ" in 25HV → "2 Giường",
+kept when it is another apartment's listing), "Studio Deluxe Có Giường Cỡ King" → "Deluxe King", TN numbers keep the type
+word ("Suite 104", "Studio 101–103"), rate plans (" + …") cut. No listing (photo import "photo") → "chưa rõ loại".

@@ -110,6 +110,8 @@ body.wide #app{max-width:1180px}
 .bar{grid-row:1;z-index:1;border-radius:10px;padding:4px 8px;text-align:left;overflow:hidden;min-width:0;border:none}
 .bar b{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;font-size:12px;font-weight:800;line-height:1.2;overflow:hidden;word-break:break-word}
 .bar small{display:block;font-size:10px;font-weight:600;opacity:.9;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bar small.rk{display:inline-block;max-width:100%;margin:2px 0 1px;padding:0 5px;border-radius:6px;box-shadow:inset 0 0 0 1.2px currentColor;font-size:10.5px;font-weight:800;opacity:1}
+.bar small.rk.unk{font-weight:600;opacity:.75;box-shadow:none;padding:0}
 .drop{grid-row:1;z-index:2;border-radius:10px;font-size:12px;font-weight:800}
 /* messages */
 .mc{padding:0;overflow:hidden}.mc .top{height:5px}.mc .in{padding:12px 14px}
@@ -215,6 +217,32 @@ button.info.on{border-color:#0E1525;background:#fff}
               mtab: 'arr', mrange: 1, mf: 'todo', mapt: null, pf: 'all', papt: null, showPaid: false,
               sel: null, move: false, collect: null, cmethod: 'cash', aptSheet: false };
   let B = [], byId = {}, APT = [], aptById = {}, TODAY = '';
+  // 🏷 Short room type of a booking, for placing guests (owner, Nov 23: "không thấy được loại phòng … phải bấm vào mới check").
+  // Booking listing names carry the owner's own short name in brackets: "Studio Tiêu Chuẩn (Sofa Hàng Bạc)" → "Sofa".
+  // The street of the row's own apartment is dropped ("2 Giường Hội Vũ" in 25HV → "2 Giường"); another apartment's stays.
+  const foldS = (s) => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[đĐ]/g, 'd').toLowerCase();
+  const KIND_PLACE = { 1: ['118 hang bac', 'hang bac'], 2: ['18 hang be', 'hang be'], 506: ['25 hoi vu', 'hoi vu'], 877: ['19 tho nhuom', 'tho nhuom', 'tn'] };
+  function roomKind(listing, aptId) {
+    let s = String(listing || '').split(' + ')[0].split(':')[0].replace(/^[\s̀-ͯ.̣]+/, '').trim();
+    const inner = s.match(/\(([^()]+)\)\s*$/);
+    const f0 = foldS(s);
+    if (inner && !/^(vip)$/i.test(inner[1].trim())) s = inner[1].trim();
+    else if (/deluxe/.test(f0) && /king/.test(f0)) s = (/suite/.test(f0) ? 'Suite VIP' : 'Deluxe King');
+    else if (/two-bedroom|2 phong ngu/.test(f0)) s = '2 PN';
+    else if (/^(photo|kitchen|night market|\d{1,3}\s*hang bac)$/.test(f0)) return '';
+    let w = s.split(/\s+/);
+    for (const p of (KIND_PLACE[aptId] || [])) {          // drop this apartment's own street
+      const pw = p.split(' ');
+      for (let i = 0; i + pw.length <= w.length; i++) {
+        if (pw.every((x, k) => foldS(w[i + k]) === x)) { w.splice(i, pw.length); break; }
+      }
+    }
+    s = w.join(' ').replace(/\s*-\s*/g, '–').trim();
+    // TN rooms are named by number ("Suite Có Sân Hiên (104 TN)") → keep the type word: "Suite 104", "Gia Đình 102"
+    const head = inner && String(listing).split('(')[0].split(/\s+(?:Có|Co|Tiêu|Tieu)\s/)[0].trim();
+    if (/^[\d–\s]+$/.test(s) && head && head.length < 12) s = head + ' ' + s;
+    return s.length > 22 ? s.slice(0, 21) + '…' : s;
+  }
 
   // ── data ──
   const offOf = (iso) => Math.round((Date.parse(iso + 'T00:00:00Z') - Date.parse(TODAY + 'T00:00:00Z')) / 864e5);
@@ -908,7 +936,7 @@ button.info.on{border-color:#0E1525;background:#fff}
       // ✕ on a guest without a room number (owner, Nov 17: extra guests → one tap = Báo hủy, undo in the toast)
       const xBtn = dashedAmber && !b.confirmed ? `<i class="qx${pay ? ' low' : ''}" role="button" aria-label="Hủy ${esc(b.name)}" onclick="event.stopPropagation();M.quickCancel('${b.id}')">✕</i>` : '';
       return `<button class="bar${tiny ? ' tiny' : ''}" onclick="${act}" style="grid-row:${(b._ln || 0) + 1};grid-column:${h0 + 2} / span ${w};${sty}${S.pick === b.id ? ';box-shadow:0 0 0 3px #F59E0B' : ''}" aria-label="${esc(b.name)}">${payMark}${xBtn}
-        <b${(pay || xBtn) && !tiny ? ' style="padding-right:30px"' : ''}>${esc(tiny ? (b.du ? '☀' : (lost ? '📵 ' : '') + b.name.split(' ')[0]) : name)}</b>${slim ? '' : `<small>${esc(b.listing || 'chưa rõ loại phòng')}</small>`}${pn ? (N === 3 && !tiny ? `<small class="num">${b.nights} đêm · ${pn}${b.ciO <= 0 && !b.confirmed && b.coO > 0 ? ' · chờ' : ''}${b.paid ? ' · đã thu' : b.collected ? ' · thu ' + short(b.collected) : (b.ciO < 0 || b.confirmed) ? ' · CHƯA THU' : ''}</small>` : `<small class="num">${pn}</small>`) : ''}</button>`;
+        <b${(pay || xBtn) && !tiny ? ' style="padding-right:30px"' : ''}>${esc(tiny ? (b.du ? '☀' : (lost ? '📵 ' : '') + b.name.split(' ')[0]) : name)}</b>${tiny ? '' : (() => { const k = roomKind(b.listing, a.id); return `<small class="rk${k ? '' : ' unk'}">${esc(k || 'chưa rõ loại')}</small>`; })()}${pn ? (N === 3 && !tiny ? `<small class="num">${b.nights} đêm · ${pn}${b.ciO <= 0 && !b.confirmed && b.coO > 0 ? ' · chờ' : ''}${b.paid ? ' · đã thu' : b.collected ? ' · thu ' + short(b.collected) : (b.ciO < 0 || b.confirmed) ? ' · CHƯA THU' : ''}</small>` : `<small class="num">${pn}</small>`) : ''}</button>`;
     };
     // empty halves: a whole free day says "trống"; a free afternoon after a check-out also says "trống" (free tonight)
     const slots = (taken, nl = 1) => days.map((dd) => { const L = 2 * (dd - ws), fl = !taken.has(L), fr = !taken.has(L + 1), gr = `grid-row:1 / span ${nl};`;
