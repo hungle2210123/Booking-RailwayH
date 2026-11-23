@@ -275,7 +275,10 @@ def chi_handle(_xdb, m):
                     + f"\n📒 Tháng {rows[-1][1].month}: {chi_money(tot)} · {n} khoản\n(Sai thì nhắn \"xóa\" rồi nói lại)")
     last = _xdb.session.execute(text("""SELECT id, amount, note FROM chi_receipts WHERE chat_id = :c AND image IS NOT NULL
         AND created_at > NOW() - INTERVAL '10 minutes' ORDER BY created_at DESC LIMIT 1"""), {'c': cid}).fetchone()
-    if last:                                # words right after a receipt picture = what that transfer was for
+    if re.search(r'\d{8,}:[A-Za-z0-9_-]{20,}', said):
+        # Nov 23: the owner forwarded the bot's own "Khởi tạo Bot thành công" message → it became a receipt's note
+        return '🔒 Tin này có mã bot (token) — em không lưu. Xóa tin đó trong Zalo cho an toàn.'
+    if last and len(said) <= 300:           # words right after a receipt picture = what that transfer was for
         note = (said + (' · ' + last[2] if last[2] else ''))[:300]
         _xdb.session.execute(text("UPDATE chi_receipts SET note = :n WHERE id = :i"), {'n': note, 'i': last[0]})
         _xdb.session.commit()

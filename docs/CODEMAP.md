@@ -338,7 +338,7 @@ _p17_mail — 📧 Booking.com e-mails → the app (owner, Nov 12: "khi nhận �
 - app_parts/p17_mail.py:746 `_mail_setup_info`
 - app_parts/p17_mail.py:788 `moi_mail_setup` ← `/api/moi/mail_setup` — 📧 setup sheet: the script to paste into Google Apps Script (with this app's private address) + the last mail r
 
-## app_parts/p18_chi.py (450 lines)
+## app_parts/p18_chi.py (453 lines)
 _p18_chi — 💸 Chi tiêu = ảnh biên lai chuyển khoản gửi cho bot Zalo "Chi tiêu" (owner, Nov 22 2026:_
 - app_parts/p18_chi.py:17 `_chi_ensure`
 - app_parts/p18_chi.py:31 `_chi_token`
@@ -354,14 +354,14 @@ _p18_chi — 💸 Chi tiêu = ảnh biên lai chuyển khoản gửi cho bot Zal
 - app_parts/p18_chi.py:170 `chi_save_voice` — Spoken items → saved rows [(id, at, amount, to_name, note)] (no picture; the words said are kept in the note).
 - app_parts/p18_chi.py:193 `_chi_summary`
 - app_parts/p18_chi.py:198 `chi_handle` — One message to the bot → the reply text (None = nothing to say).
-- app_parts/p18_chi.py:288 `zbot3_hook` ← `/zalo-bot3/hook` POST
-- app_parts/p18_chi.py:311 `_chi_run`
-- app_parts/p18_chi.py:329 `chi_month_report` — Day 1 of the month, 8–10h VN: last month's total to everyone connected to the bot (once).
-- app_parts/p18_chi.py:353 `chi_page` ← `/chi-tieu`
-- app_parts/p18_chi.py:358 `chi_list` ← `/api/chi/list`
-- app_parts/p18_chi.py:384 `chi_img` ← `/api/chi/img/<int:rid>`
-- app_parts/p18_chi.py:396 `chi_delete` ← `/api/chi/delete` POST
-- app_parts/p18_chi.py:405 `chi_bot` ← `/api/chi/bot` POST — token (getMe → setWebhook) · open (30 min: new people may connect) · remove a chat · off.
+- app_parts/p18_chi.py:291 `zbot3_hook` ← `/zalo-bot3/hook` POST
+- app_parts/p18_chi.py:314 `_chi_run`
+- app_parts/p18_chi.py:332 `chi_month_report` — Day 1 of the month, 8–10h VN: last month's total to everyone connected to the bot (once).
+- app_parts/p18_chi.py:356 `chi_page` ← `/chi-tieu`
+- app_parts/p18_chi.py:361 `chi_list` ← `/api/chi/list`
+- app_parts/p18_chi.py:387 `chi_img` ← `/api/chi/img/<int:rid>`
+- app_parts/p18_chi.py:399 `chi_delete` ← `/api/chi/delete` POST
+- app_parts/p18_chi.py:408 `chi_bot` ← `/api/chi/bot` POST — token (getMe → setWebhook) · open (30 min: new people may connect) · remove a chat · off.
 
 ## core/__init__.py (3 lines)
 
