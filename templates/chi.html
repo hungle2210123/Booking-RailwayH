@@ -237,16 +237,42 @@
   function photoField(has) {
     PH = { file: null, remove: false };
     return `<div class="fl">Ảnh chuyển khoản</div><div style="display:flex;gap:8px;align-items:center;margin-top:4px;flex-wrap:wrap">
-      <label class="btn" style="display:inline-flex;align-items:center">📎 ${has ? 'Đổi ảnh' : 'Thêm ảnh'}<input id="ePh" type="file" accept="image/*" style="display:none"></label>
-      ${has ? '<button class="btn" id="ePhX" type="button">Bỏ ảnh</button>' : ''}<span class="mut" id="ePhS">${has ? 'Đang có ảnh' : 'Chưa có ảnh'}</span></div>`;
+      <button class="btn" id="ePaste" type="button">📋 Dán ảnh</button>
+      <label class="btn" style="display:inline-flex;align-items:center">📎 ${has ? 'Đổi ảnh' : 'Chọn ảnh'}<input id="ePh" type="file" accept="image/*" style="display:none"></label>
+      ${has ? '<button class="btn" id="ePhX" type="button">Bỏ ảnh</button>' : ''}<span class="mut" id="ePhS">${has ? 'Đang có ảnh' : 'Chưa có ảnh'}</span></div>
+      <img id="ePhP" alt="" style="display:none;max-width:120px;max-height:160px;margin-top:8px;border-radius:8px;border:1px solid var(--line)">`;
   }
+  // 📋 Dán ảnh (owner, Nov 24: "nút paste hình ảnh … chứ không phải tải lên"): copy the receipt in the bank app / Photos →
+  // tap 📋 → iPhone shows "Dán" → the picture is taken from the clipboard. On a computer Ctrl+V works too.
+  async function usePhoto(f) {
+    $('ePhS').textContent = 'Đang chuẩn bị ảnh…';
+    PH = { file: await shrink(f), remove: false };
+    $('ePhS').textContent = '✓ Đã có ảnh mới';
+    const p = $('ePhP'); if (p) { p.src = URL.createObjectURL(PH.file); p.style.display = 'block'; }
+  }
+  async function pasteClip() {
+    try {
+      for (const item of await navigator.clipboard.read()) {
+        const t = item.types.find((x) => x.startsWith('image/'));
+        if (t) return usePhoto(await item.getType(t));
+      }
+      alert('Trong bộ nhớ tạm chưa có ảnh. Mở ảnh biên lai → giữ ảnh → Sao chép, rồi bấm Dán ảnh.');
+    } catch (e) {
+      if (e && e.name === 'NotAllowedError') return;          // the owner tapped away from "Dán"
+      alert('Máy chưa cho dán ảnh ở đây — dùng nút 📎 Chọn ảnh.');
+    }
+  }
+  document.addEventListener('paste', (e) => {
+    if ($('sh').style.display !== 'flex' || !$('ePh')) return;
+    const f = [...(e.clipboardData || {}).files || []].find((x) => x.type.startsWith('image/'));
+    if (f) { e.preventDefault(); usePhoto(f); }
+  });
   function photoWire() {
     $('ePh').onchange = async (e) => {
       const f = e.target.files[0]; if (!f) return;
-      $('ePhS').textContent = 'Đang chuẩn bị ảnh…';
-      PH = { file: await shrink(f), remove: false };
-      $('ePhS').textContent = '✓ Đã chọn ảnh';
+      usePhoto(f);
     };
+    $('ePaste').onclick = pasteClip;
     if ($('ePhX')) $('ePhX').onclick = () => { PH = { file: null, remove: true }; $('ePhS').textContent = 'Sẽ bỏ ảnh'; };
   }
   async function shrink(f) {

@@ -644,10 +644,10 @@ _p18_chi — 💸 Chi tiêu = ảnh biên lai chuyển khoản gửi cho bot Zal
 
 # Templates (inline JS functions)
 
-## templates/chi.html (405 lines)
-- templates/chi.html: 126 `tab` · 133 `drawNop` · 159 `view` · 166 `breakdown` · 178 `draw` · 214 `load` · 237 `photoField` · 243 `photoWire`
-- templates/chi.html: 252 `shrink` · 262 `form` · 265 `add` · 301 `edit` · 335 `pick` · 346 `save` · 352 `share` · 365 `copy`
-- templates/chi.html: 369 `drawBot` · 384 `post`
+## templates/chi.html (431 lines)
+- templates/chi.html: 126 `tab` · 133 `drawNop` · 159 `view` · 166 `breakdown` · 178 `draw` · 214 `load` · 237 `photoField` · 247 `usePhoto`
+- templates/chi.html: 253 `pasteClip` · 270 `photoWire` · 278 `shrink` · 288 `form` · 291 `add` · 327 `edit` · 361 `pick` · 372 `save`
+- templates/chi.html: 378 `share` · 391 `copy` · 395 `drawBot` · 410 `post`
 
 ## templates/desk.html (1343 lines)
 - templates/desk.html: 307 `load` · 320 `loadRev` · 333 `needRev` · 351 `D.tab` · 352 `D.set` · 353 `D.q` · 354 `D.reload` · 356 `D.shift`
