@@ -458,7 +458,7 @@ def chi_list():
         GROUP BY 1 ORDER BY 1 DESC LIMIT 12""")).fetchall()
     chats = _zbot_get(_xdb, 'zbot3_chats', {}) or {}
     return jsonify({'success': True, 'month': f'{y}-{mo:02d}',
-                    'items': [{'id': r[0], 'at': f'{r[1]:%H:%M %d/%m/%Y}', 'day': f'{r[1]:%Y-%m-%d}', 'amount': int(r[2]), 'to': r[3] or '',
+                    'items': [{'id': r[0], 'at': f'{r[1]:%H:%M %d/%m/%Y}', 'day': f'{r[1]:%Y-%m-%d}', 'iso': f'{r[1]:%Y-%m-%dT%H:%M}', 'amount': int(r[2]), 'to': r[3] or '',
                                'bank': r[4] or '', 'note': r[5] or '', 'by': r[6] or '', 'img': bool(r[7]),
                                'apt': r[8] or '', 'payer': r[9] or ''} for r in rows],
                     'apts': CHI_APTS,
@@ -494,7 +494,9 @@ def chi_delete():
 
 @app.route('/api/chi/set', methods=['POST'])
 def chi_set():
-    """One tap on /chi-tieu: {id, apt} (one of CHI_APTS or '') or {id, payer} (any name, '' = not known)."""
+    """One tap on /chi-tieu: {id, apt} (one of CHI_APTS or '') or {id, payer} (any name, '' = not known).
+    ✏️ Sửa (owner, Nov 24: "AI đọc sai … số tiền cũng sai … cần một cái nút để edit"): {id, amount, what, to, at}
+    — `what` replaces the note but keeps the "🎤 words said" line; `at` = "YYYY-MM-DDTHH:MM"."""
     from core.models import db as _xdb
     _chi_ensure(_xdb)
     d = request.get_json(silent=True) or {}
@@ -507,6 +509,83 @@ def chi_set():
     if 'payer' in d:
         _xdb.session.execute(text("UPDATE chi_receipts SET payer = :v WHERE id = :i"),
                              {'v': chi_payer(_xdb, d.get('payer')), 'i': rid})
+    if 'amount' in d:
+        amount = int(re.sub(r'[^\d]', '', str(d.get('amount') or '')) or 0)
+        if amount <= 0 or amount > 100_000_000_000:
+            return jsonify({'success': False, 'error': 'Số tiền không đúng'})
+        _xdb.session.execute(text("UPDATE chi_receipts SET amount = :v WHERE id = :i"), {'v': amount, 'i': rid})
+    if 'to' in d:
+        _xdb.session.execute(text("UPDATE chi_receipts SET to_name = :v WHERE id = :i"),
+                             {'v': ' '.join(str(d.get('to') or '').split())[:120], 'i': rid})
+    if 'what' in d:
+        old = _xdb.session.execute(text("SELECT note FROM chi_receipts WHERE id = :i"), {'i': rid}).scalar() or ''
+        said = [x for x in str(old).split('\n') if x.startswith('🎤')]
+        what = ' '.join(str(d.get('what') or '').split())[:300]
+        _xdb.session.execute(text("UPDATE chi_receipts SET note = :v WHERE id = :i"),
+                             {'v': '\n'.join(([what] if what else []) + said)[:800], 'i': rid})
+    if d.get('at'):
+        try:
+            at = datetime.strptime(str(d['at'])[:16], '%Y-%m-%dT%H:%M')
+        except ValueError:
+            return jsonify({'success': False, 'error': 'Ngày giờ không đúng'})
+        _xdb.session.execute(text("UPDATE chi_receipts SET at = :v WHERE id = :i"), {'v': at, 'i': rid})
+    _xdb.session.commit()
+    return jsonify({'success': True})
+
+
+def _chi_upload():
+    """The picture sent from /chi-tieu (multipart 'image') → (bytes, mime) or (None, error)."""
+    f = request.files.get('image')
+    if not f:
+        return None, ''
+    img, mime = f.read(), (f.mimetype or 'image/jpeg')
+    if not img or not mime.startswith('image/'):
+        return None, 'Tệp không phải ảnh'
+    if len(img) > 8_000_000:
+        return None, 'Ảnh quá lớn'
+    return img, mime
+
+
+@app.route('/api/chi/add', methods=['POST'])
+def chi_add():
+    """➕ Thêm khoản on /chi-tieu (owner, Nov 24: "một nút nữa để ghi nội dung và thêm hình ảnh chuyển khoản"):
+    multipart {amount, what, to, at, apt, payer, image?} → a new row typed by the owner (no AI)."""
+    from core.models import db as _xdb
+    _chi_ensure(_xdb)
+    d = request.form
+    amount = int(re.sub(r'[^\d]', '', str(d.get('amount') or '')) or 0)
+    if amount <= 0 or amount > 100_000_000_000:
+        return jsonify({'success': False, 'error': 'Gõ số tiền'})
+    try:
+        at = datetime.strptime(str(d.get('at') or '')[:16], '%Y-%m-%dT%H:%M')
+    except ValueError:
+        at = _vn_now().replace(tzinfo=None, second=0, microsecond=0)
+    img, got = _chi_upload()            # (bytes, mime) · (None, '') no picture · (None, error)
+    if img is None and got:
+        return jsonify({'success': False, 'error': got})
+    apt = str(d.get('apt') or '')
+    rid = _xdb.session.execute(text("""INSERT INTO chi_receipts (at, amount, to_name, to_bank, note, tx_code, image, mime, chat_id, sender, apt, payer)
+        VALUES (:at, :a, :to, '', :n, '', :img, :m, '', 'Trang Chi tiêu', :apt, :p) RETURNING id"""),
+        {'at': at, 'a': amount, 'to': ' '.join(str(d.get('to') or '').split())[:120],
+         'n': ' '.join(str(d.get('what') or '').split())[:300], 'img': img, 'm': got if img else None,
+         'apt': apt if apt in CHI_APTS else '', 'p': chi_payer(_xdb, d.get('payer'))}).scalar()
+    _xdb.session.commit()
+    return jsonify({'success': True, 'id': rid})
+
+
+@app.route('/api/chi/photo/<int:rid>', methods=['POST'])
+def chi_photo(rid):
+    """✏️ Sửa → 📎 add / change the transfer picture of one item (multipart 'image'; remove=1 takes it away)."""
+    from core.models import db as _xdb
+    _chi_ensure(_xdb)
+    if request.form.get('remove'):
+        _xdb.session.execute(text("UPDATE chi_receipts SET image = NULL, mime = NULL WHERE id = :i"), {'i': rid})
+    else:
+        img, got = _chi_upload()
+        if not img:
+            return jsonify({'success': False, 'error': got or 'Chưa chọn ảnh'})
+        _xdb.session.execute(text("UPDATE chi_receipts SET image = :img, mime = :m WHERE id = :i"),
+                             {'img': img, 'm': got, 'i': rid})
     _xdb.session.commit()
     return jsonify({'success': True})
 

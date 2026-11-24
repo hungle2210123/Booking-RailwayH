@@ -239,6 +239,10 @@ owner's own cash put away, not guest payments).
 
 
 ## 💸 Chi tiêu — receipt pictures to a Zalo bot (p18, Nov 22 2026)
+- **Nov 24: ✏️ Sửa + ➕ Thêm khoản** (owner: AI misread amounts; "một nút nữa để ghi nội dung và thêm hình ảnh chuyển khoản"):
+  each row ✏️ Sửa → sheet (amount, nội dung, trả cho, ngày giờ, 📎 đổi / bỏ ảnh) → `/api/chi/set` {amount, what, to, at} (what keeps
+  the 🎤 line) + `/api/chi/photo/<id>`. "➕ Thêm khoản chi" → `/api/chi/add` (multipart, no AI). Pictures shrunk on the phone
+  (≤1600px JPEG). Owner page only. Test `test_chi_add_and_edit`.
 - **Nov 23: one link for Nộp + Chi** (owner: "gộp chung cả link nộp tiền và chi tiêu"): /chi-tieu and /chi/xem/<secret> show
   this month "📒 Đã nộp | 💸 Đã chi", then tabs 💸 Chi tiêu / 📒 Nộp tiền (#nop). The Nộp tab = Sổ nộp tiền read-only (pots, rows by
   day, 6-month table) from `/api/moi/deposits` (owner) or `/api/chi/nop?t=` (shared link, token-checked).

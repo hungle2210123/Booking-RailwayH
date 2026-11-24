@@ -49,6 +49,11 @@
   .tag { min-height:30px; padding:0 9px; border-radius:9px; border:1px solid #DDE1E7; background:#fff; font-weight:800; font-size:12.5px; color:var(--ink); }
   span.tag { display:inline-flex; align-items:center; background:#F1F5F9; border-color:#F1F5F9; }
   .tag.empty { border-style:dashed; color:#92400E; border-color:#FCD34D; background:#FFFBEB; }
+  .tag.ed { margin-left:auto; }
+  .tag.ed + .x { margin-left:0; }
+  .fl { display:block; margin-top:10px; font-size:12.5px; font-weight:800; color:var(--mut); }
+  .fl input, .fl .sel { margin-top:4px; }
+  .sel { width:100%; min-height:44px; padding:0 10px; border:1px solid #CBD5E1; border-radius:12px; font-size:16px; background:#fff; font-family:inherit; color:var(--ink); }
   .x { margin-left:auto; min-height:30px; padding:0 9px; border-radius:9px; border:1px solid #F1D4D4; background:#fff; font-weight:800; font-size:12px; color:#B91C1C; }
   .btn { min-height:44px; padding:0 14px; border-radius:12px; border:1px solid #DDE1E7; background:#fff; font-weight:800; font-size:14px; color:var(--ink); }
   .btn.dark { background:var(--ink); color:#fff; border-color:var(--ink); }
@@ -91,6 +96,7 @@
   <div id="sum" class="card"><div class="mut">Đang tải…</div></div>
   <div class="tabs"><button id="tChi" onclick="Chi.tab('chi')">💸 Chi tiêu</button><button id="tNop" onclick="Chi.tab('nop')">📒 Nộp tiền</button></div>
   <div id="pChi">
+    {% if not share %}<button class="btn dark" style="width:100%;margin-top:12px" onclick="Chi.add()">➕ Thêm khoản chi (gõ + ảnh chuyển khoản)</button>{% endif %}
     <div id="chiSum" class="card"></div>
     <div id="brk"></div>
     <div id="flt"></div>
@@ -199,7 +205,7 @@
         <div class="bd"><div class="r1"><div class="ttl">${esc(v.title)}</div><div class="amt num">${money(r.amount)}</div></div>
           ${v.sub ? `<div class="sub">${esc(v.sub)}</div>` : ''}${v.said ? `<div class="said">${esc(v.said)}</div>` : ''}
           <div class="tags"><span class="mut">${esc(time)}</span>${tag('payer', r.payer ? '👤 ' + r.payer + ' trả' : '', '👤 Ai trả?')}${tag('apt', r.apt ? '🏠 ' + r.apt : '', '🏠 Chọn căn')}
-            ${RO ? '' : `<button class="x" onclick="Chi.del(${r.id}, '${money(r.amount)}')">Xóa</button>`}</div></div></div>`;
+            ${RO ? '' : `<button class="tag ed" onclick="Chi.edit(${r.id})">✏️ Sửa</button><button class="x" onclick="Chi.del(${r.id}, '${money(r.amount)}')">Xóa</button>`}</div></div></div>`;
     }
     $('list').innerHTML = html + (day ? '</div>' : '');
     const now = new Date();
@@ -225,6 +231,106 @@
     $('chips').innerHTML = ms.map((x) => `<button class="chip${x === j.month ? ' on' : ''}" onclick="Chi.load('${x}')">${esc(monLbl(x))}</button>`).join('');
     draw(); drawNop(); tab(TAB);
     if (!RO) drawBot(j);
+  }
+  // 📎 the transfer picture: shrunk on the phone (≤1600px JPEG) before it is sent — a phone photo is several MB
+  let PH = { file: null, remove: false };
+  function photoField(has) {
+    PH = { file: null, remove: false };
+    return `<div class="fl">Ảnh chuyển khoản</div><div style="display:flex;gap:8px;align-items:center;margin-top:4px;flex-wrap:wrap">
+      <label class="btn" style="display:inline-flex;align-items:center">📎 ${has ? 'Đổi ảnh' : 'Thêm ảnh'}<input id="ePh" type="file" accept="image/*" style="display:none"></label>
+      ${has ? '<button class="btn" id="ePhX" type="button">Bỏ ảnh</button>' : ''}<span class="mut" id="ePhS">${has ? 'Đang có ảnh' : 'Chưa có ảnh'}</span></div>`;
+  }
+  function photoWire() {
+    $('ePh').onchange = async (e) => {
+      const f = e.target.files[0]; if (!f) return;
+      $('ePhS').textContent = 'Đang chuẩn bị ảnh…';
+      PH = { file: await shrink(f), remove: false };
+      $('ePhS').textContent = '✓ Đã chọn ảnh';
+    };
+    if ($('ePhX')) $('ePhX').onclick = () => { PH = { file: null, remove: true }; $('ePhS').textContent = 'Sẽ bỏ ảnh'; };
+  }
+  async function shrink(f) {
+    try {
+      const bmp = await createImageBitmap(f);
+      const k = Math.min(1, 1600 / Math.max(bmp.width, bmp.height));
+      const c = document.createElement('canvas');
+      c.width = Math.round(bmp.width * k); c.height = Math.round(bmp.height * k);
+      c.getContext('2d').drawImage(bmp, 0, 0, c.width, c.height);
+      return await new Promise((ok) => c.toBlob((b) => ok(b || f), 'image/jpeg', 0.85));
+    } catch (e) { return f; }
+  }
+  async function form(url, fd) {
+    try { return await (await fetch(url, { method: 'POST', body: fd })).json(); } catch (e) { return {}; }
+  }
+  function add() {           // ➕ Thêm khoản — typed by the owner, with or without the transfer picture
+    const now = new Date(), p2 = (n) => String(n).padStart(2, '0');
+    const iso = `${now.getFullYear()}-${p2(now.getMonth() + 1)}-${p2(now.getDate())}T${p2(now.getHours())}:${p2(now.getMinutes())}`;
+    const opts = (arr, empty) => `<option value="">${empty}</option>` + arr.map((o) => `<option>${esc(o)}</option>`).join('');
+    $('shIn').innerHTML = `<div style="font-size:16px;font-weight:800">➕ Thêm khoản chi</div>
+      <label class="fl">Số tiền (đồng)<input id="eAmt" inputmode="numeric" autocomplete="off" placeholder="vd 1.500.000"></label>
+      <div class="mut" id="eAmtV" style="margin-top:4px"></div>
+      <label class="fl">Nội dung<input id="eWhat" autocomplete="off" placeholder="vd Mua 4 đèn mây"></label>
+      <label class="fl">Trả cho<input id="eTo" autocomplete="off" placeholder="Người / nơi nhận tiền"></label>
+      <label class="fl">Ngày giờ<input id="eAt" type="datetime-local" value="${iso}"></label>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <label class="fl">Căn<select id="eApt" class="sel">${opts(J.apts, 'Chưa chọn')}</select></label>
+        <label class="fl">Ai trả<select id="ePay" class="sel">${opts(J.payers, 'Chưa rõ')}</select></label></div>
+      ${photoField(false)}
+      <div style="display:flex;gap:8px;margin-top:12px"><button class="btn dark" id="eSave" style="flex:1">Lưu khoản này</button><button class="btn" onclick="document.getElementById('sh').style.display='none'">Thôi</button></div>`;
+    const amt = $('eAmt');
+    const show = () => { const n = Number(amt.value.replace(/\D/g, '')); $('eAmtV').textContent = n ? '= ' + money(n) : ''; };
+    amt.oninput = () => { const n = amt.value.replace(/\D/g, ''); amt.value = n ? Number(n).toLocaleString('vi-VN') : ''; show(); };
+    photoWire();
+    $('eSave').onclick = async () => {
+      const n = Number(amt.value.replace(/\D/g, ''));
+      if (!n) return alert('Gõ số tiền');
+      const fd = new FormData();
+      fd.append('amount', n); fd.append('what', $('eWhat').value); fd.append('to', $('eTo').value);
+      fd.append('at', $('eAt').value); fd.append('apt', $('eApt').value); fd.append('payer', $('ePay').value);
+      if (PH.file) fd.append('image', PH.file, 'bien-lai.jpg');
+      $('eSave').disabled = true; $('eSave').textContent = 'Đang lưu…';
+      const j = await form('/api/chi/add', fd);
+      if (!j.success) { $('eSave').disabled = false; $('eSave').textContent = 'Lưu khoản này'; return alert('Chưa lưu được: ' + (j.error || 'lỗi mạng')); }
+      $('sh').style.display = 'none';
+      const m = $('eAt').value.slice(0, 7);
+      load(m || month);
+    };
+    $('sh').style.display = 'flex';
+    amt.focus();
+  }
+  function edit(id) {          // ✏️ Sửa — the AI misread the amount / the words (owner, Nov 24)
+    const r = J.items.find((x) => x.id === id); if (!r) return;
+    const what = String(r.note || '').split('\n').filter((x) => !x.startsWith('🎤')).join(' ');
+    const said = String(r.note || '').split('\n').filter((x) => x.startsWith('🎤')).join(' ');
+    $('shIn').innerHTML = `<div style="font-size:16px;font-weight:800">✏️ Sửa khoản chi</div>
+      ${said ? `<div class="said" style="margin-top:4px">Bạn đã nói: ${esc(said.replace(/^🎤\s*/, ''))}</div>` : ''}
+      <label class="fl">Số tiền (đồng)<input id="eAmt" inputmode="numeric" autocomplete="off" value="${esc(Number(r.amount).toLocaleString('vi-VN'))}"></label>
+      <div class="mut" id="eAmtV" style="margin-top:4px"></div>
+      <label class="fl">Nội dung<input id="eWhat" autocomplete="off" value="${esc(what)}" placeholder="vd Mua 4 đèn mây"></label>
+      <label class="fl">Trả cho<input id="eTo" autocomplete="off" value="${esc(r.to)}" placeholder="Người / nơi nhận tiền"></label>
+      <label class="fl">Ngày giờ<input id="eAt" type="datetime-local" value="${esc(r.iso)}"></label>
+      ${photoField(r.img)}
+      <div style="display:flex;gap:8px;margin-top:12px"><button class="btn dark" id="eSave" style="flex:1">Lưu</button><button class="btn" onclick="document.getElementById('sh').style.display='none'">Thôi</button></div>`;
+    const amt = $('eAmt');
+    const show = () => { const n = Number(amt.value.replace(/\D/g, '')); $('eAmtV').textContent = n ? '= ' + money(n) : 'Gõ số tiền'; };
+    amt.oninput = () => { const n = amt.value.replace(/\D/g, ''); amt.value = n ? Number(n).toLocaleString('vi-VN') : ''; show(); };
+    show();
+    photoWire();
+    $('eSave').onclick = async () => {
+      const n = Number(amt.value.replace(/\D/g, ''));
+      if (!n) return alert('Gõ số tiền');
+      $('sh').style.display = 'none';
+      const j = await post('/api/chi/set', { id, amount: n, what: $('eWhat').value, to: $('eTo').value, at: $('eAt').value });
+      if (!j.success) return alert('Chưa lưu được: ' + (j.error || 'lỗi mạng'));
+      if (PH.file || PH.remove) {
+        const fd = new FormData();
+        if (PH.remove) fd.append('remove', '1'); else fd.append('image', PH.file, 'bien-lai.jpg');
+        const k = await form('/api/chi/photo/' + id, fd);
+        if (!k.success) alert('Chưa lưu được ảnh: ' + (k.error || 'lỗi mạng'));
+      }
+      load(month);
+    };
+    $('sh').style.display = 'flex';
   }
   function pick(id, key) {
     const r = J.items.find((x) => x.id === id); if (!r) return;
@@ -279,7 +385,7 @@
     try { return await (await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })).json(); } catch (e) { return {}; }
   }
   window.Chi = {
-    load, pick, share, tab,
+    load, pick, share, tab, edit, add,
     filt: (key, v) => { if (!key) F = { apt: null, payer: null }; else F[key] = F[key] === v ? null : v; draw(); },
     show: (id) => { $('ovImg').src = '/api/chi/img/' + id + (SHARE ? '?t=' + encodeURIComponent(SHARE) : ''); $('ov').style.display = 'flex'; },
     del: async (id, amt) => { if (!confirm('Xóa khoản ' + amt + '?')) return; await post('/api/chi/delete', { id }); load(month); },

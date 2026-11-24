@@ -479,3 +479,36 @@ def test_chi_share_link(client, db, app_module):
             db.session.execute(text("DELETE FROM moi_settings WHERE key = 'chi_share'")); db.session.commit()
         else:
             app_module._zbot_put(db, 'chi_share', old)
+
+
+def test_chi_add_and_edit(client, db, app_module):
+    # owner, Nov 24: "AI đọc sai … cần một cái nút để edit" + "một nút nữa để ghi nội dung và thêm hình ảnh chuyển khoản"
+    import io as _io
+    app_module._chi_ensure(db)
+    try:
+        r = client.post('/api/chi/add', data={'amount': '1.500.000', 'what': 'ZZ TEST mua đèn', 'to': 'ZZ TEST NHAN',
+                                              'at': '2026-11-20T09:30', 'apt': 'Hội Vũ', 'payer': '',
+                                              'image': (_io.BytesIO(b'\xff\xd8zz'), 'a.jpg', 'image/jpeg')},
+                        content_type='multipart/form-data').get_json()
+        assert r['success']
+        rid = r['id']
+        assert not client.post('/api/chi/add', data={'amount': '0'}).get_json()['success']
+        it = lambda: next(x for x in client.get('/api/chi/list?month=2026-11').get_json()['items'] if x['id'] == rid)
+        x = it()
+        assert x['amount'] == 1500000 and x['img'] and x['apt'] == 'Hội Vũ' and x['at'] == '09:30 20/11/2026'
+        assert client.get(f'/api/chi/img/{rid}').data == b'\xff\xd8zz'
+        db.session.execute(text("UPDATE chi_receipts SET note = note || :s WHERE id = :i"), {'s': '\n🎤 ZZ words said', 'i': rid})
+        db.session.commit()
+        assert client.post('/api/chi/set', json={'id': rid, 'amount': '2.000.000', 'what': 'ZZ TEST sửa', 'to': 'ZZ TEST B',
+                                                 'at': '2026-11-21T10:00'}).get_json()['success']
+        x = it()
+        assert x['amount'] == 2000000 and x['note'] == 'ZZ TEST sửa\n🎤 ZZ words said' and x['to'] == 'ZZ TEST B'
+        assert x['at'] == '10:00 21/11/2026'
+        assert not client.post('/api/chi/set', json={'id': rid, 'amount': 'abc'}).get_json()['success']
+        assert client.post(f'/api/chi/photo/{rid}', data={'image': (_io.BytesIO(b'\xff\xd8new'), 'b.jpg', 'image/jpeg')},
+                           content_type='multipart/form-data').get_json()['success']
+        assert client.get(f'/api/chi/img/{rid}').data == b'\xff\xd8new'
+        assert client.post(f'/api/chi/photo/{rid}', data={'remove': '1'}).get_json()['success'] and not it()['img']
+    finally:
+        db.session.execute(text("DELETE FROM chi_receipts WHERE to_name LIKE 'ZZ TEST%'"))
+        db.session.commit()

@@ -338,7 +338,7 @@ _p17_mail — 📧 Booking.com e-mails → the app (owner, Nov 12: "khi nhận �
 - app_parts/p17_mail.py:746 `_mail_setup_info`
 - app_parts/p17_mail.py:788 `moi_mail_setup` ← `/api/moi/mail_setup` — 📧 setup sheet: the script to paste into Google Apps Script (with this app's private address) + the last mail r
 
-## app_parts/p18_chi.py (560 lines)
+## app_parts/p18_chi.py (639 lines)
 _p18_chi — 💸 Chi tiêu = ảnh biên lai chuyển khoản gửi cho bot Zalo "Chi tiêu" (owner, Nov 22 2026:_
 - app_parts/p18_chi.py:20 `_chi_ensure`
 - app_parts/p18_chi.py:36 `_chi_token`
@@ -369,7 +369,10 @@ _p18_chi — 💸 Chi tiêu = ảnh biên lai chuyển khoản gửi cho bot Zal
 - app_parts/p18_chi.py:475 `chi_img` ← `/api/chi/img/<int:rid>`
 - app_parts/p18_chi.py:487 `chi_delete` ← `/api/chi/delete` POST
 - app_parts/p18_chi.py:496 `chi_set` ← `/api/chi/set` POST — One tap on /chi-tieu: {id, apt} (one of CHI_APTS or '') or {id, payer} (any name, '' = not known).
-- app_parts/p18_chi.py:515 `chi_bot` ← `/api/chi/bot` POST — token (getMe → setWebhook) · open (30 min: new people may connect) · remove a chat · off.
+- app_parts/p18_chi.py:536 `_chi_upload` — The picture sent from /chi-tieu (multipart 'image') → (bytes, mime) or (None, error).
+- app_parts/p18_chi.py:550 `chi_add` ← `/api/chi/add` POST — ➕ Thêm khoản on /chi-tieu (owner, Nov 24: "một nút nữa để ghi nội dung và thêm hình ảnh chuyển khoản"):
+- app_parts/p18_chi.py:577 `chi_photo` ← `/api/chi/photo/<int:rid>` POST — ✏️ Sửa → 📎 add / change the transfer picture of one item (multipart 'image'; remove=1 takes it away).
+- app_parts/p18_chi.py:594 `chi_bot` ← `/api/chi/bot` POST — token (getMe → setWebhook) · open (30 min: new people may connect) · remove a chat · off.
 
 ## core/__init__.py (3 lines)
 
@@ -641,9 +644,10 @@ _p18_chi — 💸 Chi tiêu = ảnh biên lai chuyển khoản gửi cho bot Zal
 
 # Templates (inline JS functions)
 
-## templates/chi.html (299 lines)
-- templates/chi.html: 120 `tab` · 127 `drawNop` · 153 `view` · 160 `breakdown` · 172 `draw` · 208 `load` · 229 `pick` · 240 `save`
-- templates/chi.html: 246 `share` · 259 `copy` · 263 `drawBot` · 278 `post`
+## templates/chi.html (405 lines)
+- templates/chi.html: 126 `tab` · 133 `drawNop` · 159 `view` · 166 `breakdown` · 178 `draw` · 214 `load` · 237 `photoField` · 243 `photoWire`
+- templates/chi.html: 252 `shrink` · 262 `form` · 265 `add` · 301 `edit` · 335 `pick` · 346 `save` · 352 `share` · 365 `copy`
+- templates/chi.html: 369 `drawBot` · 384 `post`
 
 ## templates/desk.html (1343 lines)
 - templates/desk.html: 307 `load` · 320 `loadRev` · 333 `needRev` · 351 `D.tab` · 352 `D.set` · 353 `D.q` · 354 `D.reload` · 356 `D.shift`
