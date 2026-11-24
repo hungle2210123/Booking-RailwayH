@@ -526,3 +526,31 @@ def test_chi_add_and_edit(client, db, app_module):
     finally:
         db.session.execute(text("DELETE FROM chi_receipts WHERE to_name LIKE 'ZZ TEST%'"))
         db.session.commit()
+
+
+def test_chi_ocr_receipt_parse(app_module, monkeypatch):
+    # owner Nov 24: "AI đọc lâu quá" → the server reads the receipt itself (OCR text, made-up names / numbers here)
+    out = ['Giao dich thanh cong', '-4,800,000VND', 'Tu tai khoan', 'LEVANAN', '0000111222', 'Toi tai khoan', 'TRANTHIBINH',
+           '1234567890', 'So du sau giao dich:', '********', 'Thoi gian thuc hien:', '09:5920/11/2026', 'Ma giao dich:',
+           'ABC123-', 'XYZ789', 'Noi dung chuyen tien:', 'mua son', 'cho Hoi Vu', 'Cach thuc:', 'Chuyen nhanh 247']
+    p = app_module.chi_parse_ocr(out)
+    assert p['amount'] == 4800000 and p['time'] == '09:59 20/11/2026' and p['direction'] == 'out'
+    assert p['to_name'] == 'TRAN THI BINH' and p['from_name'] == 'LE VAN AN' and p['note'] == 'mua son cho Hoi Vu'
+    assert p['tx_code'] == 'ABC123XYZ789'
+    inc = ['Chi Tiet Giao Dich', 'So tien giao dich', '+40,000,000 VND', 'Tai khoan giao dich', 'LEVANAN', 'Tu taikhoan',
+           'PHAMVANCUONG', 'Thoi gian thuc hien:', '11:4520/11/2026', 'Danh muc:', 'Nhan tien den', 'Noi dung chuyen tien:', 'tien coc']
+    p = app_module.chi_parse_ocr(inc)
+    assert p['amount'] == 40000000 and p['direction'] == 'in' and p['to_name'] == 'PHAM VAN CUONG'
+    short = ['TPBank', 'Chuyen thanh cong!', '7000,000VND', 'NGUYEN VAN DUNG', 'MB Bank', '8240000000', 'Noi dung:', 'ung lam go',
+             'Chuyen nhanh 247:', '15:3123/11/2026']
+    p = app_module.chi_parse_ocr(short)
+    assert p['amount'] == 7000000 and p['to_name'] == 'NGUYEN VAN DUNG' and p['to_bank'] == 'MB Bank' and p['note'] == 'ung lam go'
+    assert app_module.chi_parse_ocr(['Xin chao', 'khong co gi']) is None
+    assert app_module.chi_split_name('TONGVANHOANG') == 'TONG VAN HOANG' and app_module.chi_split_name('MAITHINGA') == 'MAI THI NGA'
+    # OCR found it → Gemini is never called; nothing found → Gemini
+    monkeypatch.setattr(app_module, 'chi_ocr_lines', lambda img: out)
+    monkeypatch.setattr(app_module, 'chi_read_receipt', lambda img, mime='': (_ for _ in ()).throw(AssertionError('no Gemini')))
+    assert app_module.chi_read_fast(b'x')['amount'] == 4800000
+    monkeypatch.setattr(app_module, 'chi_ocr_lines', lambda img: [])
+    monkeypatch.setattr(app_module, 'chi_read_receipt', lambda img, mime='': {'amount': 1, 'by': 'gemini'})
+    assert app_module.chi_read_fast(b'x')['by'] == 'gemini'

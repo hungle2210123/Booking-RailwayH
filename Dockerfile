@@ -6,6 +6,8 @@ WORKDIR /app
 # Install COMPLETE requirements (minimal was missing Flask-Caching)
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
+# receipt OCR (Chi tiêu bot) — no-deps: its deps (headless OpenCV …) come from requirements.txt
+RUN pip install --no-cache-dir --no-deps rapidocr-onnxruntime==1.4.4
 
 # Copy application files
 COPY app.py .

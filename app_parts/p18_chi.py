@@ -75,7 +75,7 @@ CHI_PROMPT = """Ảnh là biên lai / màn hình "giao dịch thành công" củ
 Trả về JSON: {"is_receipt": true/false, "amount": số tiền ĐÃ CHUYỂN (số nguyên VND, dương, không phải số dư),
 "time": "HH:MM DD/MM/YYYY" (thời gian thực hiện, "" nếu không thấy), "to_name": tên người / tài khoản nhận,
 "to_bank": ngân hàng nhận ("" nếu không thấy), "from_name": tên người / tài khoản CHUYỂN tiền ("" nếu không thấy), "note": nội dung chuyển tiền đúng như ảnh, "tx_code": mã giao dịch đúng như ảnh
-("" nếu không thấy)}. Không phải biên lai chuyển tiền → is_receipt false. Không đoán số liệu bị che."""
+("" nếu không thấy), "direction": "in" nếu là tiền NHẬN VÀO tài khoản (số tiền có dấu +, "Nhận tiền", "Tiền đến"), "out" nếu là chuyển đi}. Không phải biên lai chuyển tiền → is_receipt false. Không đoán số liệu bị che."""
 
 
 def chi_read_receipt(img, mime='image/jpeg'):
@@ -83,6 +83,151 @@ def chi_read_receipt(img, mime='image/jpeg'):
     import base64
     out = _chi_gemini([{'inline_data': {'mime_type': mime, 'data': base64.b64encode(img).decode()}}, {'text': CHI_PROMPT}])
     return out[0] if isinstance(out, list) and out else out
+
+
+# ── 🔎 Đọc biên lai NGAY TRÊN MÁY CHỦ (owner Nov 24: "AI đọc lâu quá" + "không cần lấy API") ─────────────────────
+# Google's free key kept answering 503 "high demand" / 429 on every model (a read took 1–3 min or failed). RapidOCR
+# (ONNX, CPU, no key, ~2–3 s) reads the screenshot's text; `chi_parse_ocr` takes the fields from the labels of the
+# bank app ("Số tiền", "Thời gian thực hiện", "Mã giao dịch", "Tới tài khoản", "Nội dung chuyển tiền" …).
+# Gemini is only the fallback when no amount / date is found. The models load once per worker, on first use.
+import threading
+_CHI_OCR = None
+_CHI_OCR_LOCK = threading.Lock()
+
+
+def _chi_ocr_engine():
+    global _CHI_OCR
+    with _CHI_OCR_LOCK:
+        if _CHI_OCR is None:
+            from rapidocr_onnxruntime import RapidOCR
+            _CHI_OCR = RapidOCR()
+        return _CHI_OCR
+
+
+def chi_ocr_lines(img):
+    """The picture's text lines, top to bottom ([] when OCR is not installed / fails)."""
+    try:
+        res, _ = _chi_ocr_engine()(img)
+    except Exception as e:
+        print(f'chi ocr: {e}')
+        return []
+    return [str(r[1]).strip() for r in (res or []) if str(r[1]).strip()]
+
+
+_VN_VOW = ('uyeu|uoi|uou|uya|uye|uyu|oai|oay|oeo|ieu|yeu|uay|uai|ai|ao|au|ay|eo|eu|ia|ie|iu|oa|oe|oi|oo|ua|ue|ui|uo|uu|uy|ye|'
+           'a|e|i|o|u|y')
+_VN_SYL = re.compile(r'(ngh|ng|nh|ch|gh|gi|kh|ph|qu|th|tr|[bcdghklmnpqrstvx])?(' + _VN_VOW + r')(ch|ng|nh|[cmnpt])?')
+
+
+_VN_COMMON = set('nguyen tran le pham hoang huynh phan vu vo dang bui do ho ngo duong ly luong dao doan tong la mai ha '
+                 'van thi thanh tung hoa hung huong lan linh loc duc anh minh nga hue tri tu tuan thu thuy hai hanh hien hieu '
+                 'hong khanh kien trung quang quoc nam nhung phuong son tam tan thang thao trang tuyen vuong viet xuan yen dung '
+                 'cong manh luan khoi cu kinh doanh quy long phuc thinh vinh binh chi giang huy khoa lam my ngoc nhi oanh '
+                 'quan tien toan trinh tuyet uyen vy'.split())
+
+
+def chi_split_name(s):
+    """"MAITHINGA" → "MAI THI NGA": the OCR drops the spaces of upper-case names; split into Vietnamese syllables
+    (fewest syllables wins). A word that is not all syllables is kept as it is."""
+    out = []
+    for w in str(s or '').split():
+        low = w.lower()
+        if not low.isalpha() or not low.isascii() or len(low) <= 4:
+            out.append(w)
+            continue
+        best = {0: ((0, 0), [])}                # fewest syllables, then fewest uncommon ones ("VAN HOANG" not "VA NHOANG")
+        for i in range(len(low)):
+            if i not in best:
+                continue
+            for j in range(i + 1, min(len(low), i + 7) + 1):
+                if not _VN_SYL.fullmatch(low[i:j]):
+                    continue
+                sc = (best[i][0][0] + 1, best[i][0][1] + (low[i:j] not in _VN_COMMON))
+                if j not in best or sc < best[j][0]:
+                    best[j] = (sc, best[i][1] + [w[i:j]])
+        out.append(' '.join(best[len(low)][1]) if len(low) in best else w)
+    return ' '.join(out)
+
+
+_CHI_LABELS = ('so tien', 'tai khoan', 'tu tai khoan', 'toi tai khoan', 'den tai khoan', 'nguoi nhan', 'ten nguoi nhan',
+               'nguoi huong', 'thu huong', 'so du', 'thoi gian', 'ngay giao dich', 'ma giao dich', 'ma tham chieu', 'so tham chieu',
+               'danh muc', 'noi dung', 'cach thuc', 'phi', 'ngan hang', 'trang thai', 'loai giao dich', 'hinh thuc',
+               'chuyen nhanh', 'loi nhan', 'luu mau', 'chia se')
+_CHI_LABELS_NS = tuple(l.replace(' ', '') for l in _CHI_LABELS)
+
+
+def _chi_is_label(f):
+    return f.replace(' ', '').startswith(_CHI_LABELS_NS)     # the OCR drops spaces ("Tu taikhoan")
+
+
+def chi_parse_ocr(lines):
+    """OCR lines of a bank receipt → the same dict as CHI_PROMPT (+ 'direction' in/out); None when no amount / date."""
+    L = [re.sub(r'\s+', ' ', l).strip() for l in lines if l and l.strip()]
+    F = [_fold(l) for l in L]
+    blob = ' \n '.join(F)
+
+    def after(*labels, n=1):
+        """Text of the line(s) after a label (or after ':' on the same line), until the next label."""
+        for lab in labels:
+            for i, f in enumerate(F):
+                if f.replace(' ', '').startswith(lab.replace(' ', '')):
+                    rest = re.split(r'[:：]', L[i], maxsplit=1)
+                    got = [rest[1].strip()] if len(rest) > 1 and rest[1].strip() else []
+                    for k in range(i + 1, min(len(L), i + 1 + n)):
+                        if _chi_is_label(F[k]) or (got and len(got) >= n):
+                            break
+                        got.append(L[k])
+                    if got:
+                        return got
+        return []
+
+    # amount: "+78,000,000 VND" / "-4,800,000VND" / "4.800.000 đ" — the biggest money figure next to a currency
+    amount, sign, at_line = 0, '', -1
+    for i, f in enumerate(F):                 # "7000,000VND" / "15,000000VND": the OCR misplaces the separators
+        m = re.search(r'([+\-−])?\s*(\d[\d.,]*\d)\s*(vnd|đ)', f)
+        if m and not re.search(r'so du|phi', f):
+            v = int(re.sub(r'\D', '', m.group(2)))
+            if v > amount:
+                amount, sign, at_line = v, (m.group(1) or ''), i
+    # time: "17:48 24/11/2026" — the OCR often glues them ("17:4824/11/2026")
+    when = ''
+    seg = ' '.join(after('thoi gian', 'ngay giao dich', n=2)) or ' '.join(L)
+    m = re.search(r'(\d{1,2}):(\d{2})(?::\d{2})?\s*,?\s*(?:ngay\s*)?(\d{1,2})/(\d{1,2})/(\d{4})', _fold(seg)) or \
+        re.search(r'(\d{1,2}):(\d{2})(?::\d{2})?\s*,?\s*(\d{1,2})/(\d{1,2})/(\d{4})', ' '.join(F))
+    if m:
+        when = f'{int(m.group(1)):02d}:{m.group(2)} {int(m.group(3)):02d}/{int(m.group(4)):02d}/{m.group(5)}'
+    else:
+        m = re.search(r'(\d{1,2})/(\d{1,2})/(\d{4})\s*,?\s*(\d{1,2}):(\d{2})', ' '.join(F))
+        if m:
+            when = f'{int(m.group(4)):02d}:{m.group(5)} {int(m.group(1)):02d}/{int(m.group(2)):02d}/{m.group(3)}'
+    if not amount or not when:
+        return None
+    incoming = sign == '+' or bool(re.search(r'nhan tien|tien den|tien vao|ghi co', blob))
+    if sign in ('-', '−'):
+        incoming = False
+    name = lambda xs: chi_split_name(re.sub(r'[^\w .\-&]', '', xs[0]).strip()) if xs else ''
+    frm = name(after('tu tai khoan', 'nguoi chuyen', 'tai khoan nguon'))
+    to = name(after('toi tai khoan', 'den tai khoan', 'ten nguoi nhan', 'nguoi nhan', 'nguoi huong', 'ten nguoi thu huong',
+                    'tai khoan thu huong', 'tai khoan nhan'))
+    bank = ' '.join(after('ngan hang', n=1))[:80]
+    if not to and not incoming and 0 <= at_line < len(L) - 1:
+        # "Chuyển thành công!" screen: the receiver's name is the line under the amount, then the bank
+        nx = L[at_line + 1]
+        if re.fullmatch(r'[A-Za-zÀ-ỹ .]{4,60}', nx) and nx.upper() == nx:
+            to = chi_split_name(nx)
+            if at_line + 2 < len(L) and not re.search(r'\d{6,}', L[at_line + 2]):
+                bank = bank or L[at_line + 2][:80]
+    note = ' '.join(after('noi dung', 'loi nhan', n=3)).strip()
+    tx = re.sub(r'[\s\-]', '', ''.join(after('ma giao dich', 'ma tham chieu', 'so tham chieu', 'ma gd', n=2)))[:80]
+    return {'is_receipt': True, 'amount': amount, 'time': when, 'to_name': (frm if incoming else to)[:120],
+            'from_name': frm, 'to_bank': bank, 'note': note[:300], 'tx_code': tx,
+            'direction': 'in' if incoming else 'out', 'by': 'ocr'}
+
+
+def chi_read_fast(img, mime='image/jpeg'):
+    """OCR on the server first (2–3 s, no key); Gemini only when the OCR finds no amount / date."""
+    info = chi_parse_ocr(chi_ocr_lines(img))
+    return info if info else chi_read_receipt(img, mime)
 
 
 CHI_VOICE_PROMPT = """Chủ nhà (homestay ở Hà Nội: các căn Hàng Bạc, Hàng Bè, Hội Vũ, Thọ Nhuộm) đọc bằng giọng nói một/nhiều khoản
@@ -150,9 +295,9 @@ def _chi_time(s):
 def chi_month_total(_xdb, y, mo):
     first = datetime(y, mo, 1)
     nxt = datetime(y + (mo == 12), mo % 12 + 1, 1)
-    r = _xdb.session.execute(text("SELECT COUNT(*), COALESCE(SUM(amount), 0) FROM chi_receipts WHERE at >= :a AND at < :b"),
-                             {'a': first, 'b': nxt}).fetchone()
-    return int(r[0]), int(r[1])
+    r = _xdb.session.execute(text("SELECT COUNT(*), COALESCE(SUM(amount), 0) FROM chi_receipts WHERE at >= :a AND at < :b "
+                                  "AND COALESCE(kind, 'chi') <> 'thu'"), {'a': first, 'b': nxt}).fetchone()
+    return int(r[0]), int(r[1])          # money OUT only (money in is not spending)
 
 
 CHI_APTS = ['Hàng Bạc', 'Hàng Bè', 'Hội Vũ', 'Thọ Nhuộm', 'Chung']
@@ -195,11 +340,18 @@ def chi_save(_xdb, info, img, mime, cid='', sender=''):
     if dup:
         return 'dup', dup
     note = str(info.get('note') or '').strip()[:300]
-    row = _xdb.session.execute(text("""INSERT INTO chi_receipts (at, amount, to_name, to_bank, note, tx_code, image, mime, chat_id, sender, apt, payer)
-        VALUES (:at, :a, :to, :bk, :n, :t, :img, :m, :c, :s, :apt, :p) RETURNING id, at, amount, to_name, apt, payer"""),
+    if to:                              # "TONG VAN HOANG" already saved as "Tong Van Hoang" / "TONGVAN HOANG" → same spelling
+        key = re.sub(r'\s+', '', _fold(to))
+        for (old,) in _xdb.session.execute(text("SELECT DISTINCT to_name FROM chi_receipts WHERE COALESCE(to_name, '') <> ''")).fetchall():
+            if re.sub(r'\s+', '', _fold(old)) == key:
+                to = old
+                break
+    kind = 'thu' if str(info.get('direction') or '').lower() == 'in' else 'chi'
+    row = _xdb.session.execute(text("""INSERT INTO chi_receipts (at, amount, to_name, to_bank, note, tx_code, image, mime, chat_id, sender, apt, payer, kind)
+        VALUES (:at, :a, :to, :bk, :n, :t, :img, :m, :c, :s, :apt, :p, :k) RETURNING id, at, amount, to_name, apt, payer, kind"""),
         {'at': at, 'a': amount, 'to': to, 'bk': str(info.get('to_bank') or '').strip()[:80],
          'n': note, 't': tx, 'img': img, 'm': mime, 'c': cid, 's': sender[:80],
-         'apt': chi_apt(note), 'p': chi_payer(_xdb, info.get('from_name'))}).fetchone()
+         'apt': chi_apt(note), 'p': chi_payer(_xdb, info.get('from_name')), 'k': kind}).fetchone()
     _xdb.session.commit()
     return 'saved', row
 
@@ -270,7 +422,7 @@ def chi_handle(_xdb, m):
                 return '⚠️ Không tải được ảnh từ Zalo — gửi lại ảnh giúp em.'
             if len(img) > 8_000_000:
                 return '⚠️ Ảnh quá lớn — gửi ảnh chụp màn hình biên lai thôi.'
-            info = chi_read_receipt(img, mime)
+            info = chi_read_fast(img, mime)
             cap = str(m.get('caption') or '').strip()
             if cap:                         # words typed / said with the picture = what it was for
                 info['note'] = (cap + (' · ' + str(info.get('note') or '').strip() if info.get('note') else ''))[:300]
@@ -283,7 +435,9 @@ def chi_handle(_xdb, m):
             return f"↩️ Biên lai này đã lưu rồi ({chi_money(row[2])} · {row[1]:%H:%M %d/%m}) — không lưu lại."
         n, tot = chi_month_total(_xdb, row[1].year, row[1].month)
         note = str(info.get('note') or '').strip()
-        return (f"✅ Đã lưu {chi_money(row[2])}" + (f" → {row[3]}" if row[3] else '') + f"\n🕘 {row[1]:%H:%M %d/%m/%Y}"
+        head = (f"✅ Đã lưu TIỀN VÀO +{chi_money(row[2])}" + (f" ← {row[3]}" if row[3] else '')) if row[6] == 'thu' \
+            else (f"✅ Đã lưu {chi_money(row[2])}" + (f" → {row[3]}" if row[3] else ''))
+        return (head + f"\n🕘 {row[1]:%H:%M %d/%m/%Y}"
                 + (f"\n📝 {note[:80]}" if note else '') + _chi_tags(row[4], row[5]) + f"\n📒 Tháng {row[1].month}: {chi_money(tot)} · {n} khoản")
     t = _fold(str(m.get('text') or ''))
     if re.fullmatch(r'\s*(xoa|huy|bo)( khoan)?( vua (luu|roi))?\s*', t):

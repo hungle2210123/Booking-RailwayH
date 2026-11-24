@@ -28,6 +28,17 @@ openpyxl>=3.1.0,<4.0.0
 # pytesseract>=0.3.10,<1.0.0
 # Note: OCR is wrapped in try/except blocks in app.py, so it's safe to disable
 
+# --- RECEIPT OCR ON THE SERVER (Chi tiêu bot, Nov 24: no Google key, 2-3 s a picture) ---
+# rapidocr-onnxruntime itself is installed with --no-deps in the Dockerfile (it wants the GUI opencv-python,
+# which needs libGL on python:slim) -> its deps are listed here with the headless OpenCV.
+onnxruntime>=1.17,<1.24   # 1.23 tested with numpy 1.x
+opencv-python-headless>=4.8,<4.12   # 4.12 wants numpy 2 (we pin numpy<2)
+pyclipper>=1.3
+Shapely>=2.0
+PyYAML>=6.0
+six>=1.16
+tqdm>=4.60
+
 # --- AI INTEGRATION (GEMINI + OPENROUTER) ---
 google-generativeai>=0.3.0,<1.0.0
 openai>=1.0.0,<2.0.0
