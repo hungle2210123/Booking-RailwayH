@@ -226,6 +226,8 @@ def test_pending_new_guests(client, db, app_module, throwaway, monkeypatch):
     hid = db.session.execute(text("SELECT hotel_id, name FROM booking_properties ORDER BY hotel_id LIMIT 1")).fetchone()
     assert hid, 'booking_properties is empty'
     bid, bid2, today = throwaway(), throwaway(), (datetime.utcnow() + timedelta(hours=7)).date()
+    pause = app_module._zbot_get(db, 'ext_pause_until')      # a real Booking-block pause must not hide the test guests
+    app_module._zbot_put(db, 'ext_pause_until', '')
     try:
         db.session.execute(text("""INSERT INTO mail_alerts (at, mail_id, kind, booking_id, prop, apt, day, subject, seen)
             VALUES (:at, :m, 'last', :b, :p, '', :d, 'ZZ TEST', TRUE)"""), {'m': 'zz-' + bid, 'b': bid, 'p': hid[1], 'd': today,
@@ -284,6 +286,7 @@ def test_pending_new_guests(client, db, app_module, throwaway, monkeypatch):
         db.session.commit()
         assert [i for i in take([hid[0]]) if i['bid'] == bid2]
     finally:
+        app_module._zbot_put(db, 'ext_pause_until', pause or '')
         db.session.execute(text("DELETE FROM mail_alerts WHERE mail_id = ANY(:m)"), {'m': ['zz-' + bid, 'zz-' + bid2]})
         db.session.commit()
         vs = app_module._zbot_get(db, 'ext_versions') or {}
