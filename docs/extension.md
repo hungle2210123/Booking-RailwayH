@@ -260,3 +260,12 @@ brackets or the price / dates right after it — "Deluxe King Studio"). The save
 (`_ext_listing_text`), so it never overwrites a real one. Also fixed: `_RATE_LINE` and the VND column check held
 backspace bytes instead of `\b` (a broken edit), so "rate" / "deal" lines were not recognised. The 7 bookings were set
 from their saved Booking pictures. Test: `test_room_picture_label_is_not_a_room`.
+
+### 1.53 (Nov 24 2026) — Booking blocks reservation pages → pause, no sign-in/out loop
+Chrome history (Profile 27): until 07:00:09 reservations opened fine; from 07:00:23 EVERY `booking.html?res_id=…` →
+`/?logout=1` in the same second (server-side, before any script), even right after a fresh sign-in and after the owner
+cleared all booking.com cookies; overview / home / calendar pages kept working. So it is Booking's own block on
+reservation details for this account / PC (likely after many automatic reservation opens + phone reveals), not cookies.
+The 10-min new-guest retries signed in and out all day (11:29, 11:42, 11:55, 20:41, 21:07 …). Now `logoutLoop` the 2nd
+time in a day sets `hpBlockUntil` = +6 h: `pendingCheck` and `morningRun` do nothing until then (then one try; another
+loop → 6 h more). Zalo/report note "⛔ … TẠM DỪNG tự mở khách 6 tiếng".

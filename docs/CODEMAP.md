@@ -636,11 +636,11 @@ _p18_chi — 💸 Chi tiêu = ảnh biên lai chuyển khoản gửi cho bot Zal
 - chrome_extension/content.js: 751 `pageBookingNumber` · 758 `aiAsk` · 769 `drawAi` · 804 `stopMic` · 805 `toggleMic` · 847 `prepareShot` · 923 `finishShot` · 988 `cancelShot`
 - chrome_extension/content.js: 996 `restoreFloating` · 1042 `guestLinks` · 1076 `groupTable` · 1089 `groupProps` · 1128 `numUnder` · 1150 `arrivalsToday` · 1186 `startGroup` · 1200 `stopGroup`
 - chrome_extension/content.js: 1211 `showGroupDone` · 1222 `groupStep` · 1255 `refreshRunBtn` · 1308 `startRun` · 1332 `finishRun` · 1347 `showRunDone` · 1357 `withSes` · 1364 `logoutLoop`
-- chrome_extension/content.js: 1381 `fetchJob` · 1408 `learnHotels` · 1421 `runStep` · 1513 `autoMorning` · 1587 `startTab`
+- chrome_extension/content.js: 1383 `fetchJob` · 1410 `learnHotels` · 1423 `runStep` · 1515 `autoMorning` · 1589 `startTab`
 
 ## chrome_extension/background.js
 - chrome_extension/background.js: 6 `settings` · 30 `shoot` · 78 `cdpShot` · 102 `morningTime` · 107 `scheduleMorning` · 116 `stayAwake` · 125 `openTab` · 132 `morningRun`
-- chrome_extension/background.js: 148 `checkSignedOut` · 159 `signedOutAlert` · 200 `selfUpdate` · 215 `ensureAlarm` · 234 `apiCall` · 243 `pendingCheck` · 281 `logoutLoop` · 288 `cookieReset`
+- chrome_extension/background.js: 149 `checkSignedOut` · 160 `signedOutAlert` · 201 `selfUpdate` · 216 `ensureAlarm` · 235 `apiCall` · 244 `pendingCheck` · 283 `logoutLoop` · 298 `cookieReset`
 
 # Templates (inline JS functions)
 

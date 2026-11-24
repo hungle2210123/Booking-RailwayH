@@ -130,7 +130,8 @@ async function openTab(url, active = false) {
 // The morning run of the day. `force` = the watchdog (pendingCheck) retries a morning that never really began:
 // no tab, tab closed, Chrome started late, the 7:00 alarm missed. hpMorningGo (content.js) = it began.
 async function morningRun(force = false) {
-  const st = await chrome.storage.local.get(['hpLastMorning', 'hpMorningTry']);
+  const st = await chrome.storage.local.get(['hpLastMorning', 'hpMorningTry', 'hpBlockUntil']);
+  if (st.hpBlockUntil && Date.now() < st.hpBlockUntil) return;     // 1.53 Booking block → wait
   const [h, mi] = await morningTime(), now = new Date();
   if (now.getHours() * 60 + now.getMinutes() < h * 60 + mi) return;
   if (!force && st.hpLastMorning === today()) return;
@@ -219,7 +220,7 @@ function ensureAlarm(name, periodInMinutes) {
 ensureAlarm('hp-selfupdate', 5);
 // written in THIS script (getManifest() would give the new manifest even when the script is an old cached copy);
 // tests/test_parsers.py checks it equals manifest.json
-const BG_VER = '1.52.0';
+const BG_VER = '1.53.0';
 // 1.51: the popup / options page asks which version the BACKGROUND runs (Nov 22: after a Chrome restart the manifest
 // was new but Chrome kept the cached 1.47 background script — only a reload replaces it)
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
@@ -242,8 +243,9 @@ async function apiCall(path, body) {
 }
 async function pendingCheck() {
   const st = await chrome.storage.local.get(['hpLastMorning', 'hpAutoRunUntil', 'hpRunBusy', 'hpFetch', 'hpHotels', 'hpAccount',
-    'hpWaitLogin', 'hpResetJob', 'hpMorningGo', 'hpMorningTry']);
+    'hpWaitLogin', 'hpResetJob', 'hpMorningGo', 'hpMorningTry', 'hpBlockUntil']);
   if (st.hpWaitLogin || st.hpResetJob) return;
+  if (st.hpBlockUntil && Date.now() < st.hpBlockUntil) return;     // 1.53 Booking block → no sign-in/out loop
   if ((st.hpAutoRunUntil && Date.now() < st.hpAutoRunUntil) || (st.hpRunBusy && Date.now() - st.hpRunBusy < 180000)) return;
   if (st.hpFetch) {
     if (Date.now() - st.hpFetch.at < 12 * 60000) { try { await chrome.tabs.get(st.hpFetch.tabId); return; } catch (e) {} }
@@ -280,7 +282,15 @@ ensureAlarm('hp-pending', 1);
 // (= what fixed it by hand on Nov 18), sign in again (Tampermonkey; SMS code via Zalo) and run again. Once a day.
 async function logoutLoop(tab) {
   const { hpCookieReset, hpFetch } = await chrome.storage.local.get(['hpCookieReset', 'hpFetch']);
-  if (hpCookieReset === today()) return { reset: false };
+  // 1.53 (Nov 24: from 7:00 EVERY reservation page → ?logout=1 even after the cookies were cleared — Booking's own
+  // block, not cookies; the 10-min retries kept signing in + out all day): a 2nd loop the same day → no automatic
+  // reservation opening for 6 hours (then one try; loops again → 6 more hours). The owner's own clicks are not touched.
+  if (hpCookieReset === today()) {
+    await chrome.storage.local.set({ hpBlockUntil: Date.now() + 6 * 3600000 });
+    try { await chrome.tabs.remove(tab?.id); } catch (e) {}
+    await chrome.storage.local.remove('hpFetch');
+    return { reset: false, paused: true };
+  }
   await chrome.storage.local.set({ hpCookieReset: today(), hpResetJob: { tabId: tab?.id, fetch: hpFetch?.tabId === tab?.id } });
   chrome.alarms.create('hp-cookie-reset', { when: Date.now() + 30000 });   // let the tab send its Zalo report first
   return { reset: true };
