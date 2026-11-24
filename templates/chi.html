@@ -94,24 +94,37 @@
   table.hist th, table.hist td { padding-left:10px; white-space:nowrap; }
   table.hist td { text-align:right; padding-top:7px; padding-bottom:7px; border-top:1px solid var(--line); font-variant-numeric:tabular-nums; font-weight:700; }
   .foot { text-align:center; color:var(--soft); font-size:12px; margin-top:18px; }
-  table.lst { width:100%; border-collapse:collapse; font-size:14px; }
-  table.lst th { text-align:left; font-size:12px; font-weight:800; color:var(--mut); text-transform:uppercase; letter-spacing:.03em; padding:8px 10px; border-bottom:1px solid var(--line); position:sticky; top:0; background:#fff; z-index:1; }
-  table.lst td { padding:10px; border-top:1px solid var(--line); vertical-align:top; }
-  table.lst tr.dh td { background:#F7F8FA; font-weight:800; color:#475569; font-size:13px; padding:8px 10px; }
-  table.lst tr.row:hover td { background:#FAFBFC; }
-  table.lst .r { text-align:right; white-space:nowrap; }
-  table.lst img { width:72px; height:96px; object-fit:cover; object-position:center 22%; border-radius:6px; border:1px solid var(--line); cursor:zoom-in; display:block; }
-  table.lst .ic { width:72px; height:44px; border-radius:6px; background:#F1F5F9; display:flex; align-items:center; justify-content:center; }
-  table.lst .t1 { font-weight:800; overflow-wrap:anywhere; }
-  table.lst .acts { display:flex; gap:6px; justify-content:flex-end; }
-  table.lst .acts button, table.lst .tag { white-space:nowrap; }
-  table.lst td .tag { max-width:100%; overflow:hidden; text-overflow:ellipsis; }
+  /* 🖥️ computer list = cards with a BIG receipt picture (owner Nov 24: "khó nhìn … làm ảnh to hơn nhiều nữa") */
+  .gday { display:flex; align-items:baseline; justify-content:space-between; margin:22px 2px 10px; }
+  .gday:first-child { margin-top:6px; }
+  .gday b { font-size:15px; } .gday span { font-weight:800; color:#475569; font-variant-numeric:tabular-nums; }
+  .grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(270px, 1fr)); gap:16px; }
+  .gc { background:#fff; border:1px solid var(--line); border-radius:14px; overflow:hidden; display:flex; flex-direction:column; box-shadow:0 1px 2px rgba(15,23,42,.04); }
+  .gc:hover { box-shadow:0 6px 18px rgba(15,23,42,.10); }
+  .gc .pic { height:380px; background:#F1F5F9; border-bottom:1px solid var(--line); cursor:zoom-in; }
+  .gc .pic img { width:100%; height:100%; object-fit:cover; object-position:center 18%; display:block; }
+  .gc .vo { flex:1 0 150px; background:#F8FAFC; border-bottom:1px solid var(--line); padding:16px; display:flex; flex-direction:column; justify-content:center; gap:6px; }
+  .gc .vo .q { font-size:15px; color:#334155; font-style:italic; overflow-wrap:anywhere; }
+  .gc .bd2 { padding:12px 14px 12px; display:flex; flex-direction:column; gap:4px; }
+  .gc .amt2 { font-size:22px; font-weight:800; font-variant-numeric:tabular-nums; letter-spacing:-.01em; }
+  .gc .amt2.in { color:#15803D; }
+  .gc .who { font-weight:800; font-size:14.5px; overflow-wrap:anywhere; }
+  .gc .nd { font-size:13px; color:#475569; overflow-wrap:anywhere; }
+  .gc .meta { display:grid; grid-template-columns:auto 1fr; gap:3px 10px; margin-top:8px; font-size:13px; }
+  .gc .meta dt { color:var(--mut); font-weight:600; } .gc .meta dd { margin:0; font-weight:700; min-width:0; }
+  .lnk { border:0; background:none; padding:0; font:inherit; font-weight:700; color:var(--ink); text-align:left; border-bottom:1px dashed #94A3B8; cursor:pointer; max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .lnk.none { color:#B45309; border-bottom-color:#F59E0B; font-weight:600; }
+  .gc .foot2 { display:flex; align-items:center; gap:8px; padding:10px 14px; border-top:1px solid var(--line); font-size:12.5px; color:var(--mut); }
+  .gc .foot2 .sp { flex:1; }
+  .gbtn { min-height:32px; padding:0 12px; border-radius:9px; border:1px solid #DDE1E7; background:#fff; font-weight:700; font-size:13px; color:var(--ink); }
+  .gbtn.del { color:#B91C1C; border-color:#F1D4D4; }
+  .pill { display:inline-block; padding:2px 8px; border-radius:999px; font-size:12px; font-weight:800; background:#DCFCE7; color:#166534; }
   @media (min-width: 1000px) {
     .wrap { max-width:1320px; padding:20px 28px 60px; }
     .top h1 { font-size:24px; }
     #pChi { display:grid; grid-template-columns:360px minmax(0, 1fr); grid-template-areas:"side main" "bot main"; gap:0 20px; align-items:start; }
     #pChi .side { grid-area:side; } #pChi .main { grid-area:main; } #pChi #bot { grid-area:bot; }
-    #pChi .main #list { margin-top:12px; padding:0; overflow:hidden; }
+    #pChi .main #list { margin-top:4px; padding:0; background:none; border:0; }
     .tabs { max-width:360px; }
     .pots { grid-template-columns:repeat(4, 1fr); }
     #pNop { max-width:900px; }
@@ -133,7 +146,7 @@
   <div class="tabs"><button id="tChi" onclick="Chi.tab('chi')">💸 Chi tiêu</button><button id="tNop" onclick="Chi.tab('nop')">📒 Nộp tiền</button></div>
   <div id="pChi">
     <div class="side">
-      {% if not share %}<button class="btn dark" style="width:100%;margin-top:12px" onclick="Chi.add()">➕ Thêm khoản thu / chi (gõ + ảnh chuyển khoản)</button>{% endif %}
+      {% if not share %}<button class="btn dark" style="width:100%;margin-top:12px" onclick="Chi.add()">➕ Thêm khoản thu / chi</button>{% endif %}
       <div id="chiSum" class="card"></div>
       <div id="kinds" class="chips"></div>
       <div id="brk"></div>
@@ -166,31 +179,33 @@
   let TAB = location.hash === '#nop' ? 'nop' : 'chi';
   // 🖥️ computer (owner Nov 24 "Nộp & Chi trên máy tính"): ≥1000px → 2 columns, the list as a table
   const WIDE = matchMedia('(min-width: 1000px)');
-  function table(shown, dayTot) {
+  function gallery(shown, dayTot) {
     const q = SHARE ? '?t=' + encodeURIComponent(SHARE) : '';
-    const tag = (r, key, txt, emptyTxt) => RO ? esc(txt || '—')
-      : `<button class="tag${txt ? '' : ' empty'}" onclick="Chi.pick(${r.id}, '${key}')">${esc(txt || emptyTxt)}</button>`;
-    let html = `<table class="lst"><thead><tr><th style="width:92px">Ảnh</th><th style="width:58px">Giờ</th><th>Nội dung</th>
-      <th style="width:140px">Ai trả / từ ai</th><th style="width:112px">Căn</th><th class="r" style="width:118px">Số tiền</th>${RO ? '' : '<th style="width:132px"></th>'}</tr></thead><tbody>`;
-    let day = '';
+    const pick = (r, key, txt, emptyTxt) => RO ? esc(txt || '—')
+      : `<button class="lnk${txt ? '' : ' none'}" onclick="Chi.pick(${r.id}, '${key}')">${esc(txt || emptyTxt)}</button>`;
+    let html = '', day = '';
     for (const r of shown) {
       if (r.day !== day) {
+        if (day) html += '</div>';
         day = r.day;
-        html += `<tr class="dh"><td colspan="5">${esc(dayLbl(day))}</td><td class="r num">${dayTot(day)}</td>${RO ? '' : '<td></td>'}</tr>`;
+        html += `<div class="gday"><b>${esc(dayLbl(day))}</b><span>${dayTot(day)}</span></div><div class="grid">`;
       }
       const v = view(r), thu = r.kind === 'thu';
-      html += `<tr class="row">
-        <td>${r.img ? `<img src="/api/chi/img/${r.id}${q}" loading="lazy" alt="Biên lai" onclick="Chi.show(${r.id})">` : '<div class="ic">🎤</div>'}</td>
-        <td class="mut">${esc(r.at.split(' ')[0])}</td>
-        <td><div class="t1">${esc(v.title)}</div>${v.sub ? `<div class="sub">${esc(v.sub)}</div>` : ''}${v.said ? `<div class="said">${esc(v.said)}</div>` : ''}
-          ${thu ? '<span class="tag in" style="margin-top:6px">⬇️ Thu</span>' : ''}</td>
-        <td>${tag(r, 'payer', r.payer, thu ? 'Từ ai?' : 'Ai trả?')}</td>
-        <td>${tag(r, 'apt', r.apt, 'Chọn căn')}</td>
-        <td class="r"><span class="amt num${thu ? ' in' : ''}">${thu ? '+' : ''}${money(r.amount)}</span></td>
-        ${RO ? '' : `<td><div class="acts"><button class="tag" onclick="Chi.edit(${r.id})">✏️ Sửa</button><button class="x" style="margin-left:0" onclick="Chi.del(${r.id}, '${money(r.amount)}')">Xóa</button></div></td>`}
-      </tr>`;
+      html += `<div class="gc">
+        ${r.img ? `<div class="pic" onclick="Chi.show(${r.id})"><img src="/api/chi/img/${r.id}${q}" loading="lazy" alt="Biên lai"></div>`
+                : `<div class="vo"><div class="mut">🎤 Ghi bằng lời</div>${v.said ? `<div class="q">${esc(v.said.replace(/^Lời nói: /, ''))}</div>` : ''}</div>`}
+        <div class="bd2">
+          <div class="amt2${thu ? ' in' : ''}">${thu ? '+' : ''}${money(r.amount)}</div>
+          <div class="who">${esc(v.title)}</div>
+          ${v.sub ? `<div class="nd">${esc(v.sub)}</div>` : ''}
+          <dl class="meta"><dt>${thu ? 'Từ ai' : 'Ai trả'}</dt><dd>${pick(r, 'payer', r.payer, 'Chọn người')}</dd>
+            <dt>Căn</dt><dd>${pick(r, 'apt', r.apt, 'Chọn căn')}</dd></dl>
+        </div>
+        <div class="foot2">${esc(r.at.split(' ')[0])}${thu ? ' <span class="pill">Thu</span>' : ''}<span class="sp"></span>
+          ${RO ? '' : `<button class="gbtn" onclick="Chi.edit(${r.id})">Sửa</button><button class="gbtn del" onclick="Chi.del(${r.id}, '${money(r.amount)}')">Xóa</button>`}</div>
+      </div>`;
     }
-    return html + '</tbody></table>';
+    return html + (day ? '</div>' : '');
   }
   WIDE.addEventListener('change', () => { if (J) draw(); });
   function tab(t) {
@@ -289,7 +304,7 @@
           <div class="tags"><span class="mut">${esc(time)}</span>${r.kind === 'thu' ? '<span class="tag in">⬇️ Thu</span>' : ''}${tag('payer', r.payer ? '👤 ' + r.payer + (r.kind === 'thu' ? ' đưa' : ' trả') : '', r.kind === 'thu' ? '👤 Từ ai?' : '👤 Ai trả?')}${tag('apt', r.apt ? '🏠 ' + r.apt : '', '🏠 Chọn căn')}
             ${RO ? '' : `<button class="tag ed" onclick="Chi.edit(${r.id})">✏️ Sửa</button><button class="x" onclick="Chi.del(${r.id}, '${money(r.amount)}')">Xóa</button>`}</div></div></div>`;
     }
-    $('list').innerHTML = WIDE.matches ? table(shown, dayTot) : html + (day ? '</div>' : '');
+    $('list').innerHTML = WIDE.matches ? gallery(shown, dayTot) : html + (day ? '</div>' : '');
     const now = new Date();
     $('foot').textContent = 'Cập nhật lúc ' + now.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) + ' ' + now.toLocaleDateString('vi-VN');
   }
