@@ -94,6 +94,31 @@
   table.hist th, table.hist td { padding-left:10px; white-space:nowrap; }
   table.hist td { text-align:right; padding-top:7px; padding-bottom:7px; border-top:1px solid var(--line); font-variant-numeric:tabular-nums; font-weight:700; }
   .foot { text-align:center; color:var(--soft); font-size:12px; margin-top:18px; }
+  table.lst { width:100%; border-collapse:collapse; font-size:14px; }
+  table.lst th { text-align:left; font-size:12px; font-weight:800; color:var(--mut); text-transform:uppercase; letter-spacing:.03em; padding:8px 10px; border-bottom:1px solid var(--line); position:sticky; top:0; background:#fff; z-index:1; }
+  table.lst td { padding:10px; border-top:1px solid var(--line); vertical-align:top; }
+  table.lst tr.dh td { background:#F7F8FA; font-weight:800; color:#475569; font-size:13px; padding:8px 10px; }
+  table.lst tr.row:hover td { background:#FAFBFC; }
+  table.lst .r { text-align:right; white-space:nowrap; }
+  table.lst img { width:72px; height:96px; object-fit:cover; object-position:center 22%; border-radius:6px; border:1px solid var(--line); cursor:zoom-in; display:block; }
+  table.lst .ic { width:72px; height:44px; border-radius:6px; background:#F1F5F9; display:flex; align-items:center; justify-content:center; }
+  table.lst .t1 { font-weight:800; overflow-wrap:anywhere; }
+  table.lst .acts { display:flex; gap:6px; justify-content:flex-end; }
+  table.lst .acts button, table.lst .tag { white-space:nowrap; }
+  table.lst td .tag { max-width:100%; overflow:hidden; text-overflow:ellipsis; }
+  @media (min-width: 1000px) {
+    .wrap { max-width:1320px; padding:20px 28px 60px; }
+    .top h1 { font-size:24px; }
+    #pChi { display:grid; grid-template-columns:360px minmax(0, 1fr); grid-template-areas:"side main" "bot main"; gap:0 20px; align-items:start; }
+    #pChi .side { grid-area:side; } #pChi .main { grid-area:main; } #pChi #bot { grid-area:bot; }
+    #pChi .main #list { margin-top:12px; padding:0; overflow:hidden; }
+    .tabs { max-width:360px; }
+    .pots { grid-template-columns:repeat(4, 1fr); }
+    #pNop { max-width:900px; }
+    #sh { align-items:center; }
+    #sh .in { max-width:520px; border-radius:18px; max-height:92vh; overflow:auto; }
+    .thumb { cursor:zoom-in; }
+  }
 </style>
 </head>
 <body>
@@ -107,12 +132,16 @@
   <div id="sum" class="card"><div class="mut">Đang tải…</div></div>
   <div class="tabs"><button id="tChi" onclick="Chi.tab('chi')">💸 Chi tiêu</button><button id="tNop" onclick="Chi.tab('nop')">📒 Nộp tiền</button></div>
   <div id="pChi">
-    {% if not share %}<button class="btn dark" style="width:100%;margin-top:12px" onclick="Chi.add()">➕ Thêm khoản thu / chi (gõ + ảnh chuyển khoản)</button>{% endif %}
-    <div id="chiSum" class="card"></div>
-    <div id="kinds" class="chips"></div>
-    <div id="brk"></div>
-    <div id="flt"></div>
-    <div id="list" class="card" style="display:none"></div>
+    <div class="side">
+      {% if not share %}<button class="btn dark" style="width:100%;margin-top:12px" onclick="Chi.add()">➕ Thêm khoản thu / chi (gõ + ảnh chuyển khoản)</button>{% endif %}
+      <div id="chiSum" class="card"></div>
+      <div id="kinds" class="chips"></div>
+      <div id="brk"></div>
+    </div>
+    <div class="main">
+      <div id="flt"></div>
+      <div id="list" class="card" style="display:none"></div>
+    </div>
     {% if not share %}<div id="bot" class="card"></div>{% endif %}
   </div>
   <div id="pNop" style="display:none"></div>
@@ -135,6 +164,35 @@
   const AUTO_NOTE = /chuyen (khoan|tien)( nhanh)?( qua zalo| qr)?\s*$/i;
   let month = '', J = null, D = null, F = { apt: null, payer: null, kind: null };
   let TAB = location.hash === '#nop' ? 'nop' : 'chi';
+  // 🖥️ computer (owner Nov 24 "Nộp & Chi trên máy tính"): ≥1000px → 2 columns, the list as a table
+  const WIDE = matchMedia('(min-width: 1000px)');
+  function table(shown, dayTot) {
+    const q = SHARE ? '?t=' + encodeURIComponent(SHARE) : '';
+    const tag = (r, key, txt, emptyTxt) => RO ? esc(txt || '—')
+      : `<button class="tag${txt ? '' : ' empty'}" onclick="Chi.pick(${r.id}, '${key}')">${esc(txt || emptyTxt)}</button>`;
+    let html = `<table class="lst"><thead><tr><th style="width:92px">Ảnh</th><th style="width:58px">Giờ</th><th>Nội dung</th>
+      <th style="width:140px">Ai trả / từ ai</th><th style="width:112px">Căn</th><th class="r" style="width:118px">Số tiền</th>${RO ? '' : '<th style="width:132px"></th>'}</tr></thead><tbody>`;
+    let day = '';
+    for (const r of shown) {
+      if (r.day !== day) {
+        day = r.day;
+        html += `<tr class="dh"><td colspan="5">${esc(dayLbl(day))}</td><td class="r num">${dayTot(day)}</td>${RO ? '' : '<td></td>'}</tr>`;
+      }
+      const v = view(r), thu = r.kind === 'thu';
+      html += `<tr class="row">
+        <td>${r.img ? `<img src="/api/chi/img/${r.id}${q}" loading="lazy" alt="Biên lai" onclick="Chi.show(${r.id})">` : '<div class="ic">🎤</div>'}</td>
+        <td class="mut">${esc(r.at.split(' ')[0])}</td>
+        <td><div class="t1">${esc(v.title)}</div>${v.sub ? `<div class="sub">${esc(v.sub)}</div>` : ''}${v.said ? `<div class="said">${esc(v.said)}</div>` : ''}
+          ${thu ? '<span class="tag in" style="margin-top:6px">⬇️ Thu</span>' : ''}</td>
+        <td>${tag(r, 'payer', r.payer, thu ? 'Từ ai?' : 'Ai trả?')}</td>
+        <td>${tag(r, 'apt', r.apt, 'Chọn căn')}</td>
+        <td class="r"><span class="amt num${thu ? ' in' : ''}">${thu ? '+' : ''}${money(r.amount)}</span></td>
+        ${RO ? '' : `<td><div class="acts"><button class="tag" onclick="Chi.edit(${r.id})">✏️ Sửa</button><button class="x" style="margin-left:0" onclick="Chi.del(${r.id}, '${money(r.amount)}')">Xóa</button></div></td>`}
+      </tr>`;
+    }
+    return html + '</tbody></table>';
+  }
+  WIDE.addEventListener('change', () => { if (J) draw(); });
   function tab(t) {
     TAB = t;
     try { history.replaceState(null, '', t === 'nop' ? '#nop' : location.pathname); } catch (e) {}
@@ -231,7 +289,7 @@
           <div class="tags"><span class="mut">${esc(time)}</span>${r.kind === 'thu' ? '<span class="tag in">⬇️ Thu</span>' : ''}${tag('payer', r.payer ? '👤 ' + r.payer + (r.kind === 'thu' ? ' đưa' : ' trả') : '', r.kind === 'thu' ? '👤 Từ ai?' : '👤 Ai trả?')}${tag('apt', r.apt ? '🏠 ' + r.apt : '', '🏠 Chọn căn')}
             ${RO ? '' : `<button class="tag ed" onclick="Chi.edit(${r.id})">✏️ Sửa</button><button class="x" onclick="Chi.del(${r.id}, '${money(r.amount)}')">Xóa</button>`}</div></div></div>`;
     }
-    $('list').innerHTML = html + (day ? '</div>' : '');
+    $('list').innerHTML = WIDE.matches ? table(shown, dayTot) : html + (day ? '</div>' : '');
     const now = new Date();
     $('foot').textContent = 'Cập nhật lúc ' + now.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) + ' ' + now.toLocaleDateString('vi-VN');
   }
