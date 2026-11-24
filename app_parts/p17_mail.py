@@ -632,6 +632,9 @@ def ext_pending():
                 continue
             lines.append(f"Chưa lấy được {bb} ({str(b.get('why') or '')[:50]})" + (' — đã thử 3 lần, mở Booking xem giúp' if tries else ''))
         note = str(d.get('note') or '').strip()[:220]
+        if 'đăng xuất' in note:
+            # Nov 24: Booking logs out on every reservation page (its own block) → no new-guest opening for 6 h
+            _zbot_put(_xdb, 'ext_pause_until', (now + timedelta(hours=6)).strftime('%Y-%m-%d %H:%M'))
         if note and not note.startswith('✅'):
             lines.append(note)
         if not lines:
@@ -650,6 +653,9 @@ def ext_pending():
         if (vs.get(pid) or {}).get('ver') != ver or (vs.get(pid) or {}).get('at', '')[:5] != stamp[:5]:
             vs[pid] = {'ver': ver, 'acc': acc, 'at': stamp}
             _zbot_put(_xdb, 'ext_versions', vs)
+    pause = str(_zbot_get(_xdb, 'ext_pause_until') or '')
+    if pause and _vn_now().strftime('%Y-%m-%d %H:%M') < pause:
+        return jsonify({'success': True, 'items': [], 'paused_until': pause})   # Booking block → do not open guests
     items = [{'bid': r[0], 'prop': r[1] or '', 'hotel_id': r[3], 'retry': bool(r[2])} for r in _pending_rows(_xdb, pid, hotels)]
     if items and d.get('take'):
         _xdb.session.execute(text("""UPDATE mail_alerts SET fetch_tries = COALESCE(fetch_tries, 0) + 1, fetch_at = :now,
