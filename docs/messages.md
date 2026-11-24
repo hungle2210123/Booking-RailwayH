@@ -243,6 +243,7 @@ owner's own cash put away, not guest payments).
   each row ✏️ Sửa → sheet (amount, nội dung, trả cho, ngày giờ, 📎 đổi / bỏ ảnh) → `/api/chi/set` {amount, what, to, at} (what keeps
   the 🎤 line) + `/api/chi/photo/<id>`. "➕ Thêm khoản chi" → `/api/chi/add` (multipart, no AI). Pictures shrunk on the phone
   (≤1600px JPEG). 📋 Dán ảnh = navigator.clipboard.read() (iPhone shows "Dán"); Ctrl+V works while the sheet is open.
+- **Thu / Chi (owner Nov 24 "phần thu riêng, phần chi riêng"):** column `chi_receipts.kind` ('chi' default, 'thu'). `/api/chi/list` → `total` = money out only, `thu` = money in, items[].kind; `/api/chi/set` {kind}; `/api/chi/add` kind. Page: card "Thu – Chi" (⬇️ Tiền vào · ⬆️ Tiền ra · Còn lại when there is income), chips Tất cả / Thu / Chi, breakdowns of the chosen kind (Chi when Tất cả), +green amounts, ✏️ Sửa / ➕ Thêm have a Chi/Thu switch. Bot receipts stay 'chi'. `_chi_ensure` ALTERs only missing columns (two first requests deadlocked on ADD COLUMN IF NOT EXISTS).
   Owner page only. Test `test_chi_add_and_edit`.
 - **Nov 23: one link for Nộp + Chi** (owner: "gộp chung cả link nộp tiền và chi tiêu"): /chi-tieu and /chi/xem/<secret> show
   this month "📒 Đã nộp | 💸 Đã chi", then tabs 💸 Chi tiêu / 📒 Nộp tiền (#nop). The Nộp tab = Sổ nộp tiền read-only (pots, rows by

@@ -27,8 +27,19 @@ def _chi_ensure(_xdb):
         created_at TIMESTAMP NOT NULL DEFAULT NOW())"""))
     _xdb.session.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS chi_receipts_tx ON chi_receipts (tx_code) WHERE tx_code <> ''"))
     _xdb.session.execute(text("CREATE INDEX IF NOT EXISTS chi_receipts_at ON chi_receipts (at)"))
-    _xdb.session.execute(text("ALTER TABLE chi_receipts ADD COLUMN IF NOT EXISTS apt TEXT"))
-    _xdb.session.execute(text("ALTER TABLE chi_receipts ADD COLUMN IF NOT EXISTS payer TEXT"))
+    _xdb.session.commit()
+    # ALTER only for a column really missing: "ADD COLUMN IF NOT EXISTS" still takes the table lock, and two first
+    # requests at once deadlocked (Nov 24). 'kind' (owner Nov 24 "phần thu riêng, phần chi riêng"): 'chi' = money out
+    # (default), 'thu' = money in.
+    have = {c for (c,) in _xdb.session.execute(text(
+        "SELECT column_name FROM information_schema.columns WHERE table_name = 'chi_receipts'")).fetchall()}
+    for col, ddl in (('apt', 'TEXT'), ('payer', 'TEXT'), ('kind', "TEXT NOT NULL DEFAULT 'chi'")):
+        if col not in have:
+            try:
+                _xdb.session.execute(text(f"ALTER TABLE chi_receipts ADD COLUMN IF NOT EXISTS {col} {ddl}"))
+                _xdb.session.commit()
+            except Exception:
+                _xdb.session.rollback()     # another worker added it at the same moment
     _xdb.session.commit()
     CHI_READY = True
 
@@ -452,19 +463,20 @@ def chi_list():
     except ValueError:
         y, mo, first = now.year, now.month, datetime(now.year, now.month, 1)
     nxt = datetime(y + (mo == 12), mo % 12 + 1, 1)
-    rows = _xdb.session.execute(text("""SELECT id, at, amount, to_name, to_bank, note, sender, image IS NOT NULL, apt, payer FROM chi_receipts
+    rows = _xdb.session.execute(text("""SELECT id, at, amount, to_name, to_bank, note, sender, image IS NOT NULL, apt, payer, kind FROM chi_receipts
         WHERE at >= :a AND at < :b ORDER BY at DESC"""), {'a': first, 'b': nxt}).fetchall()
-    months = _xdb.session.execute(text("""SELECT to_char(at, 'YYYY-MM'), COUNT(*), SUM(amount) FROM chi_receipts
+    months = _xdb.session.execute(text("""SELECT to_char(at, 'YYYY-MM'), COUNT(*), SUM(CASE WHEN kind = 'thu' THEN 0 ELSE amount END) FROM chi_receipts
         GROUP BY 1 ORDER BY 1 DESC LIMIT 12""")).fetchall()
     chats = _zbot_get(_xdb, 'zbot3_chats', {}) or {}
     return jsonify({'success': True, 'month': f'{y}-{mo:02d}',
                     'items': [{'id': r[0], 'at': f'{r[1]:%H:%M %d/%m/%Y}', 'day': f'{r[1]:%Y-%m-%d}', 'iso': f'{r[1]:%Y-%m-%dT%H:%M}', 'amount': int(r[2]), 'to': r[3] or '',
                                'bank': r[4] or '', 'note': r[5] or '', 'by': r[6] or '', 'img': bool(r[7]),
-                               'apt': r[8] or '', 'payer': r[9] or ''} for r in rows],
+                               'apt': r[8] or '', 'payer': r[9] or '', 'kind': 'thu' if r[10] == 'thu' else 'chi'} for r in rows],
                     'apts': CHI_APTS,
                     'payers': [p for (p,) in _xdb.session.execute(text("""SELECT payer FROM chi_receipts
                         WHERE COALESCE(payer, '') <> '' GROUP BY payer ORDER BY COUNT(*) DESC""")).fetchall()],
-                    'total': sum(int(r[2]) for r in rows),
+                    'total': sum(int(r[2]) for r in rows if r[10] != 'thu'),      # money out
+                    'thu': sum(int(r[2]) for r in rows if r[10] == 'thu'),          # money in
                     'months': [{'month': r[0], 'n': int(r[1]), 'total': int(r[2])} for r in months],
                     'bot': bool(_chi_token(_xdb)), 'bot_name': _zbot_get(_xdb, 'zbot3_name') or '',
                     'chats': [] if viewer else [{'id': k, 'name': c.get('name') or 'Không tên'} for k, c in chats.items()],
@@ -506,6 +518,8 @@ def chi_set():
         if apt and apt not in CHI_APTS:
             return jsonify({'success': False, 'error': 'Căn không đúng'})
         _xdb.session.execute(text("UPDATE chi_receipts SET apt = :v WHERE id = :i"), {'v': apt, 'i': rid})
+    if d.get('kind') in ('thu', 'chi'):
+        _xdb.session.execute(text("UPDATE chi_receipts SET kind = :v WHERE id = :i"), {'v': d['kind'], 'i': rid})
     if 'payer' in d:
         _xdb.session.execute(text("UPDATE chi_receipts SET payer = :v WHERE id = :i"),
                              {'v': chi_payer(_xdb, d.get('payer')), 'i': rid})
@@ -564,11 +578,12 @@ def chi_add():
     if img is None and got:
         return jsonify({'success': False, 'error': got})
     apt = str(d.get('apt') or '')
-    rid = _xdb.session.execute(text("""INSERT INTO chi_receipts (at, amount, to_name, to_bank, note, tx_code, image, mime, chat_id, sender, apt, payer)
-        VALUES (:at, :a, :to, '', :n, '', :img, :m, '', 'Trang Chi tiêu', :apt, :p) RETURNING id"""),
+    rid = _xdb.session.execute(text("""INSERT INTO chi_receipts (at, amount, to_name, to_bank, note, tx_code, image, mime, chat_id, sender, apt, payer, kind)
+        VALUES (:at, :a, :to, '', :n, '', :img, :m, '', 'Trang Chi tiêu', :apt, :p, :k) RETURNING id"""),
         {'at': at, 'a': amount, 'to': ' '.join(str(d.get('to') or '').split())[:120],
          'n': ' '.join(str(d.get('what') or '').split())[:300], 'img': img, 'm': got if img else None,
-         'apt': apt if apt in CHI_APTS else '', 'p': chi_payer(_xdb, d.get('payer'))}).scalar()
+         'apt': apt if apt in CHI_APTS else '', 'p': chi_payer(_xdb, d.get('payer')),
+         'k': 'thu' if d.get('kind') == 'thu' else 'chi'}).scalar()
     _xdb.session.commit()
     return jsonify({'success': True, 'id': rid})
 

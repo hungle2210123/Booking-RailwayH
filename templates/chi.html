@@ -43,6 +43,17 @@
   .r1 { display:flex; gap:8px; align-items:baseline; }
   .ttl { flex:1; font-weight:800; font-size:15px; overflow-wrap:anywhere; }
   .amt { font-weight:800; font-size:16px; }
+  .amt.in { color:#15803D; }
+  .three { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:10px; }
+  .three .left { grid-column:1 / -1; display:flex; justify-content:space-between; align-items:baseline; }
+  .three > div { background:#F6F7F9; border-radius:12px; padding:10px; min-width:0; }
+  .three .v { font-weight:800; font-size:17px; margin-top:2px; overflow-wrap:anywhere; }
+  .three .in .v { color:#15803D; }
+  .kseg { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:4px; }
+  .kseg button { min-height:44px; border-radius:12px; border:1px solid #DDE1E7; background:#fff; font-weight:800; font-size:14px; color:var(--ink); }
+  .kseg button.on { background:var(--ink); color:#fff; border-color:var(--ink); }
+  .kseg button.on.kin { background:#15803D; border-color:#15803D; }
+  span.tag.in { background:#DCFCE7; border-color:#DCFCE7; color:#166534; }
   .sub { font-size:13px; color:#475569; margin-top:2px; overflow-wrap:anywhere; }
   .said { font-size:12.5px; color:var(--soft); margin-top:2px; overflow-wrap:anywhere; white-space:pre-line; }
   .tags { display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; align-items:center; }
@@ -96,8 +107,9 @@
   <div id="sum" class="card"><div class="mut">Đang tải…</div></div>
   <div class="tabs"><button id="tChi" onclick="Chi.tab('chi')">💸 Chi tiêu</button><button id="tNop" onclick="Chi.tab('nop')">📒 Nộp tiền</button></div>
   <div id="pChi">
-    {% if not share %}<button class="btn dark" style="width:100%;margin-top:12px" onclick="Chi.add()">➕ Thêm khoản chi (gõ + ảnh chuyển khoản)</button>{% endif %}
+    {% if not share %}<button class="btn dark" style="width:100%;margin-top:12px" onclick="Chi.add()">➕ Thêm khoản thu / chi (gõ + ảnh chuyển khoản)</button>{% endif %}
     <div id="chiSum" class="card"></div>
+    <div id="kinds" class="chips"></div>
     <div id="brk"></div>
     <div id="flt"></div>
     <div id="list" class="card" style="display:none"></div>
@@ -121,7 +133,7 @@
   const attr = (v) => esc(JSON.stringify(v));
   // the bank's automatic transfer text ("X chuyen khoan nhanh qua Zalo", "… chuyen tien QR") says nothing about the expense
   const AUTO_NOTE = /chuyen (khoan|tien)( nhanh)?( qua zalo| qr)?\s*$/i;
-  let month = '', J = null, D = null, F = { apt: null, payer: null };
+  let month = '', J = null, D = null, F = { apt: null, payer: null, kind: null };
   let TAB = location.hash === '#nop' ? 'nop' : 'chi';
   function tab(t) {
     TAB = t;
@@ -163,15 +175,15 @@
     if (r.img) return { title: r.to || 'Chuyển khoản', sub: [note && 'ND: ' + note, r.bank].filter(Boolean).join(' · '), said: '' };
     return { title: note || said || '—', sub: r.to ? 'Trả cho: ' + r.to : '', said: said ? 'Lời nói: “' + said + '”' : '' };
   }
-  function breakdown(key, title, emptyLbl, order) {
-    const m = new Map();
-    for (const r of J.items) m.set(r[key], (m.get(r[key]) || 0) + r.amount);
+  function breakdown(items, key, title, emptyLbl, order) {
+    const m = new Map(), tot = items.reduce((a, r) => a + r.amount, 0) || 1;
+    for (const r of items) m.set(r[key], (m.get(r[key]) || 0) + r.amount);
     const ks = [...order.filter((k) => m.has(k)), ...[...m.keys()].filter((k) => k && !order.includes(k)).sort((a, b) => m.get(b) - m.get(a)), ...(m.has('') ? [''] : [])];
     const top = Math.max(...m.values(), 1);
     return `<div class="card"><div class="h">${title}</div>` + ks.map((k) => {
       const v = m.get(k), cls = F[key] === k ? ' on' : (F[key] !== null ? ' dim' : '');
       return `<button class="brk${cls}${k ? '' : ' dim'}" onclick="Chi.filt('${key}', ${attr(k)})"><div class="l"><span>${esc(k || emptyLbl)}</span>`
-        + `<span class="num">${money(v)}<span class="pc">${Math.round(v * 100 / J.total)}%</span></span></div>`
+        + `<span class="num">${money(v)}<span class="pc">${Math.round(v * 100 / tot)}%</span></span></div>`
         + `<div class="track"><div class="fill" style="width:${(v * 100 / top).toFixed(1)}%"></div></div></button>`;
     }).join('') + '</div>';
   }
@@ -180,31 +192,43 @@
     const nop = D && D.success ? D.pots.reduce((a, p) => a + p.total, 0) : 0;
     $('sum').innerHTML = `<div class="h">${esc(monLbl(J.month))}</div><div class="two">
       <div><div class="mut">📒 Đã nộp</div><div class="v">${money(nop)}</div></div><div><div class="mut">💸 Đã chi</div><div class="v">${money(J.total)}</div></div></div>`;
-    $('chiSum').innerHTML = `<div class="h">Tổng chi · ${esc(monLbl(J.month))}</div><div class="big">${money(J.total)}</div>`
+    // 💰 Thu riêng / chi riêng (owner, Nov 24): money in, money out, what is left
+    const thu = J.thu || 0, left = thu - J.total;
+    $('chiSum').innerHTML = `<div class="h">Thu – Chi · ${esc(monLbl(J.month))}</div><div class="three">
+        <div class="in"><div class="mut">⬇️ Tiền vào</div><div class="v num">${money(thu)}</div></div>
+        <div><div class="mut">⬆️ Tiền ra</div><div class="v num">${money(J.total)}</div></div>
+        ${thu ? `<div class="left"><div class="mut">Còn lại (vào − ra)</div><div class="v num"${left < 0 ? ' style="color:#B91C1C"' : ''}>${left < 0 ? '−' : ''}${money(Math.abs(left))}</div></div>` : ''}</div>`
       + `<div class="stats mut"><span>${n} khoản</span>${nImg ? `<span>🧾 ${nImg} biên lai</span>` : ''}${n - nImg ? `<span>🎤 ${n - nImg} ghi bằng lời</span>` : ''}</div>`;
-    $('brk').innerHTML = n ? breakdown('payer', '💰 Ai đã bỏ tiền', 'Chưa rõ ai trả', J.payers) + breakdown('apt', '🏠 Chi cho căn nào', 'Chưa chọn căn', J.apts) : '';
-    const shown = J.items.filter((r) => (F.apt === null || r.apt === F.apt) && (F.payer === null || r.payer === F.payer));
+    const nThu = J.items.filter((r) => r.kind === 'thu').length;
+    const kc = (k, lbl) => `<button class="chip${F.kind === k ? ' on' : ''}" onclick="Chi.kind(${k ? `'${k}'` : 'null'})">${lbl}</button>`;
+    $('kinds').innerHTML = n ? kc(null, `Tất cả · ${n}`) + kc('thu', `⬇️ Thu · ${nThu}`) + kc('chi', `⬆️ Chi · ${n - nThu}`) : '';
+    const bk = F.kind || 'chi', bItems = J.items.filter((r) => r.kind === bk);
+    $('brk').innerHTML = bItems.length ? (bk === 'thu'
+      ? breakdown(bItems, 'payer', '💰 Tiền vào từ ai', 'Chưa rõ từ ai', J.payers) + breakdown(bItems, 'apt', '🏠 Thu của căn nào', 'Chưa chọn căn', J.apts)
+      : breakdown(bItems, 'payer', '💰 Ai đã bỏ tiền', 'Chưa rõ ai trả', J.payers) + breakdown(bItems, 'apt', '🏠 Chi cho căn nào', 'Chưa chọn căn', J.apts)) : '';
+    const shown = J.items.filter((r) => (F.kind === null || r.kind === F.kind) && (F.apt === null || r.apt === F.apt) && (F.payer === null || r.payer === F.payer));
     const on = F.apt !== null || F.payer !== null;
-    const what = [F.payer !== null ? (F.payer ? F.payer + ' trả' : 'Chưa rõ ai trả') : '', F.apt !== null ? (F.apt || 'Chưa chọn căn') : ''].filter(Boolean).join(' · ');
+    const what = [F.payer !== null ? (F.payer ? F.payer + (bk === 'thu' ? ' đưa' : ' trả') : 'Chưa rõ ai') : '', F.apt !== null ? (F.apt || 'Chưa chọn căn') : ''].filter(Boolean).join(' · ');
     $('flt').innerHTML = on ? `<div class="flt"><span>${esc(what)} · ${money(shown.reduce((a, r) => a + r.amount, 0))} · ${shown.length} khoản</span><button onclick="Chi.filt()">✕ Bỏ lọc</button></div>` : '';
     $('list').style.display = shown.length ? '' : 'none';
     let html = '', day = '';
-    const sumDay = {};
-    for (const r of shown) sumDay[r.day] = (sumDay[r.day] || 0) + r.amount;
+    const sumDay = {}, inDay = {};
+    for (const r of shown) { const b = r.kind === 'thu' ? inDay : sumDay; b[r.day] = (b[r.day] || 0) + r.amount; }
+    const dayTot = (d) => [inDay[d] ? `<span style="color:#15803D">+${money(inDay[d])}</span>` : '', sumDay[d] ? money(sumDay[d]) : ''].filter(Boolean).join(' · ');
     for (const r of shown) {
       if (r.day !== day) {
         if (day) html += '</div>';
         day = r.day;
-        html += `<div class="day"><span>${esc(dayLbl(day))}</span><span class="num">${money(sumDay[day])}</span></div><div>`;
+        html += `<div class="day"><span>${esc(dayLbl(day))}</span><span class="num">${dayTot(day)}</span></div><div>`;
       }
       const v = view(r), time = r.at.split(' ')[0];
       const tag = (key, txt, emptyTxt) => RO ? (txt ? `<span class="tag">${esc(txt)}</span>` : '')
         : `<button class="tag${txt ? '' : ' empty'}" onclick="Chi.pick(${r.id}, '${key}')">${esc(txt || emptyTxt)}</button>`;
       html += `<div class="it">
         ${r.img ? `<img class="thumb" src="/api/chi/img/${r.id}${SHARE ? '?t=' + encodeURIComponent(SHARE) : ''}" loading="lazy" alt="Biên lai" onclick="Chi.show(${r.id})">` : '<div class="ico">🎤</div>'}
-        <div class="bd"><div class="r1"><div class="ttl">${esc(v.title)}</div><div class="amt num">${money(r.amount)}</div></div>
+        <div class="bd"><div class="r1"><div class="ttl">${esc(v.title)}</div><div class="amt num${r.kind === 'thu' ? ' in' : ''}">${r.kind === 'thu' ? '+' : ''}${money(r.amount)}</div></div>
           ${v.sub ? `<div class="sub">${esc(v.sub)}</div>` : ''}${v.said ? `<div class="said">${esc(v.said)}</div>` : ''}
-          <div class="tags"><span class="mut">${esc(time)}</span>${tag('payer', r.payer ? '👤 ' + r.payer + ' trả' : '', '👤 Ai trả?')}${tag('apt', r.apt ? '🏠 ' + r.apt : '', '🏠 Chọn căn')}
+          <div class="tags"><span class="mut">${esc(time)}</span>${r.kind === 'thu' ? '<span class="tag in">⬇️ Thu</span>' : ''}${tag('payer', r.payer ? '👤 ' + r.payer + (r.kind === 'thu' ? ' đưa' : ' trả') : '', r.kind === 'thu' ? '👤 Từ ai?' : '👤 Ai trả?')}${tag('apt', r.apt ? '🏠 ' + r.apt : '', '🏠 Chọn căn')}
             ${RO ? '' : `<button class="tag ed" onclick="Chi.edit(${r.id})">✏️ Sửa</button><button class="x" onclick="Chi.del(${r.id}, '${money(r.amount)}')">Xóa</button>`}</div></div></div>`;
     }
     $('list').innerHTML = html + (day ? '</div>' : '');
@@ -224,7 +248,7 @@
     j = a;
     D = b;
     if (!j.success) { $('sum').innerHTML = `<div class="mut">${esc(j.error || 'Chưa tải được — kéo xuống để tải lại.')}</div>`; return; }
-    if (j.month !== month) F = { apt: null, payer: null };
+    if (j.month !== month) F = { apt: null, payer: null, kind: null };
     month = j.month; J = j;
     const dm = D && D.success ? D.months.filter((x) => D.pots.some((p) => x[p.key])).map((x) => x.month) : [];
     const ms = [...new Set([j.month, ...j.months.map((x) => x.month), ...dm])].sort().reverse();
@@ -288,11 +312,28 @@
   async function form(url, fd) {
     try { return await (await fetch(url, { method: 'POST', body: fd })).json(); } catch (e) { return {}; }
   }
+  let KIND = 'chi';               // ⬇️ Thu / ⬆️ Chi chosen in the sheet
+  function kindField(k) {
+    KIND = k;
+    return `<div class="fl">Loại</div><div class="kseg" id="eKind">
+      <button type="button" data-k="chi" class="${k === 'chi' ? 'on' : ''}">⬆️ Chi (tiền ra)</button>
+      <button type="button" data-k="thu" class="kin${k === 'thu' ? ' on' : ''}">⬇️ Thu (tiền vào)</button></div>`;
+  }
+  function kindWire() {
+    $('eKind').querySelectorAll('button').forEach((b) => { b.onclick = () => {
+      KIND = b.dataset.k;
+      $('eKind').querySelectorAll('button').forEach((x) => x.classList.toggle('on', x === b));
+      lbl();
+    }; });
+    const lbl = () => { const to = $('eTo'); if (to) to.parentElement.firstChild.textContent = KIND === 'thu' ? 'Nhận từ' : 'Trả cho'; };
+    lbl();
+  }
   function add() {           // ➕ Thêm khoản — typed by the owner, with or without the transfer picture
     const now = new Date(), p2 = (n) => String(n).padStart(2, '0');
     const iso = `${now.getFullYear()}-${p2(now.getMonth() + 1)}-${p2(now.getDate())}T${p2(now.getHours())}:${p2(now.getMinutes())}`;
     const opts = (arr, empty) => `<option value="">${empty}</option>` + arr.map((o) => `<option>${esc(o)}</option>`).join('');
-    $('shIn').innerHTML = `<div style="font-size:16px;font-weight:800">➕ Thêm khoản chi</div>
+    $('shIn').innerHTML = `<div style="font-size:16px;font-weight:800">➕ Thêm khoản thu / chi</div>
+      ${kindField(F.kind === 'thu' ? 'thu' : 'chi')}
       <label class="fl">Số tiền (đồng)<input id="eAmt" inputmode="numeric" autocomplete="off" placeholder="vd 1.500.000"></label>
       <div class="mut" id="eAmtV" style="margin-top:4px"></div>
       <label class="fl">Nội dung<input id="eWhat" autocomplete="off" placeholder="vd Mua 4 đèn mây"></label>
@@ -306,13 +347,13 @@
     const amt = $('eAmt');
     const show = () => { const n = Number(amt.value.replace(/\D/g, '')); $('eAmtV').textContent = n ? '= ' + money(n) : ''; };
     amt.oninput = () => { const n = amt.value.replace(/\D/g, ''); amt.value = n ? Number(n).toLocaleString('vi-VN') : ''; show(); };
-    photoWire();
+    photoWire(); kindWire();
     $('eSave').onclick = async () => {
       const n = Number(amt.value.replace(/\D/g, ''));
       if (!n) return alert('Gõ số tiền');
       const fd = new FormData();
       fd.append('amount', n); fd.append('what', $('eWhat').value); fd.append('to', $('eTo').value);
-      fd.append('at', $('eAt').value); fd.append('apt', $('eApt').value); fd.append('payer', $('ePay').value);
+      fd.append('at', $('eAt').value); fd.append('apt', $('eApt').value); fd.append('payer', $('ePay').value); fd.append('kind', KIND);
       if (PH.file) fd.append('image', PH.file, 'bien-lai.jpg');
       $('eSave').disabled = true; $('eSave').textContent = 'Đang lưu…';
       const j = await form('/api/chi/add', fd);
@@ -328,7 +369,8 @@
     const r = J.items.find((x) => x.id === id); if (!r) return;
     const what = String(r.note || '').split('\n').filter((x) => !x.startsWith('🎤')).join(' ');
     const said = String(r.note || '').split('\n').filter((x) => x.startsWith('🎤')).join(' ');
-    $('shIn').innerHTML = `<div style="font-size:16px;font-weight:800">✏️ Sửa khoản chi</div>
+    $('shIn').innerHTML = `<div style="font-size:16px;font-weight:800">✏️ Sửa khoản</div>
+      ${kindField(r.kind)}
       ${said ? `<div class="said" style="margin-top:4px">Bạn đã nói: ${esc(said.replace(/^🎤\s*/, ''))}</div>` : ''}
       <label class="fl">Số tiền (đồng)<input id="eAmt" inputmode="numeric" autocomplete="off" value="${esc(Number(r.amount).toLocaleString('vi-VN'))}"></label>
       <div class="mut" id="eAmtV" style="margin-top:4px"></div>
@@ -341,12 +383,12 @@
     const show = () => { const n = Number(amt.value.replace(/\D/g, '')); $('eAmtV').textContent = n ? '= ' + money(n) : 'Gõ số tiền'; };
     amt.oninput = () => { const n = amt.value.replace(/\D/g, ''); amt.value = n ? Number(n).toLocaleString('vi-VN') : ''; show(); };
     show();
-    photoWire();
+    photoWire(); kindWire();
     $('eSave').onclick = async () => {
       const n = Number(amt.value.replace(/\D/g, ''));
       if (!n) return alert('Gõ số tiền');
       $('sh').style.display = 'none';
-      const j = await post('/api/chi/set', { id, amount: n, what: $('eWhat').value, to: $('eTo').value, at: $('eAt').value });
+      const j = await post('/api/chi/set', { id, amount: n, what: $('eWhat').value, to: $('eTo').value, at: $('eAt').value, kind: KIND });
       if (!j.success) return alert('Chưa lưu được: ' + (j.error || 'lỗi mạng'));
       if (PH.file || PH.remove) {
         const fd = new FormData();
@@ -412,7 +454,8 @@
   }
   window.Chi = {
     load, pick, share, tab, edit, add,
-    filt: (key, v) => { if (!key) F = { apt: null, payer: null }; else F[key] = F[key] === v ? null : v; draw(); },
+    filt: (key, v) => { if (!key) F = { apt: null, payer: null, kind: F.kind }; else F[key] = F[key] === v ? null : v; draw(); },
+    kind: (k) => { F = { apt: null, payer: null, kind: k }; draw(); },
     show: (id) => { $('ovImg').src = '/api/chi/img/' + id + (SHARE ? '?t=' + encodeURIComponent(SHARE) : ''); $('ov').style.display = 'flex'; },
     del: async (id, amt) => { if (!confirm('Xóa khoản ' + amt + '?')) return; await post('/api/chi/delete', { id }); load(month); },
     bot: async (action, id) => {

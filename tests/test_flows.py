@@ -512,6 +512,17 @@ def test_chi_add_and_edit(client, db, app_module):
                            content_type='multipart/form-data').get_json()['success']
         assert client.get(f'/api/chi/img/{rid}').data == b'\xff\xd8new'
         assert client.post(f'/api/chi/photo/{rid}', data={'remove': '1'}).get_json()['success'] and not it()['img']
+        # owner Nov 24: "phần thu riêng, phần chi riêng" — money in is kept apart from money out
+        assert x['kind'] == 'chi'
+        before = client.get('/api/chi/list?month=2026-11').get_json()
+        r2 = client.post('/api/chi/add', data={'amount': '300.000', 'what': 'ZZ TEST thu', 'to': 'ZZ TEST KHACH',
+                                               'at': '2026-11-20T11:00', 'kind': 'thu'}, content_type='multipart/form-data').get_json()
+        after = client.get('/api/chi/list?month=2026-11').get_json()
+        assert after['thu'] == before['thu'] + 300000 and after['total'] == before['total']
+        assert next(x for x in after['items'] if x['id'] == r2['id'])['kind'] == 'thu'
+        assert client.post('/api/chi/set', json={'id': r2['id'], 'kind': 'chi'}).get_json()['success']
+        again = client.get('/api/chi/list?month=2026-11').get_json()
+        assert again['thu'] == before['thu'] and again['total'] == before['total'] + 300000
     finally:
         db.session.execute(text("DELETE FROM chi_receipts WHERE to_name LIKE 'ZZ TEST%'"))
         db.session.commit()
