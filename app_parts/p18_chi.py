@@ -33,7 +33,7 @@ def _chi_ensure(_xdb):
     # (default), 'thu' = money in.
     have = {c for (c,) in _xdb.session.execute(text(
         "SELECT column_name FROM information_schema.columns WHERE table_name = 'chi_receipts'")).fetchall()}
-    for col, ddl in (('apt', 'TEXT'), ('payer', 'TEXT'), ('kind', "TEXT NOT NULL DEFAULT 'chi'")):
+    for col, ddl in (('apt', 'TEXT'), ('payer', 'TEXT'), ('kind', "TEXT NOT NULL DEFAULT 'chi'"), ('cat', 'TEXT')):
         if col not in have:
             try:
                 _xdb.session.execute(text(f"ALTER TABLE chi_receipts ADD COLUMN IF NOT EXISTS {col} {ddl}"))
@@ -300,13 +300,63 @@ def chi_month_total(_xdb, y, mo):
     return int(r[0]), int(r[1])          # money OUT only (money in is not spending)
 
 
-CHI_APTS = ['Hàng Bạc', 'Hàng Bè', 'Hội Vũ', 'Thọ Nhuộm', 'Chung']
+CHI_APTS = ['Hàng Bạc', 'Hàng Bè', 'Hội Vũ', 'Thọ Nhuộm', 'Hàng Muối', 'Chung']
+
+# 📊 Hạng mục (owner Nov 24: "thống kê chi tiết nhất … bóc tách từng thứ … dùng cho những giao dịch mới nữa").
+# Money out / money in have their own lists; a new item gets a guess (same receiver as before → its hạng mục; else words).
+CHI_CATS = ['Thuê nhà', 'Vật tư & thiết bị', 'Nhân công', 'Môi giới', 'Mộc', 'Nội thất', 'Điện nước & internet',
+            'Sửa chữa & bảo trì', 'Khác']
+THU_CATS = ['Vốn đầu tư / vay', 'Cho thuê', 'Tiền phòng khách', 'Cọc hủy', 'Góp vốn', 'Khác']
+_CHI_CAT_WORDS = [   # (kind, hạng mục, words in the folded note / receiver) — first match wins
+    ('chi', 'Thuê nhà', r'thue nha|tien nha|coc .*thue|giu cho thue|thue \d+ thang'),
+    ('chi', 'Môi giới', r'mo gioi|moi gioi|hoa hong'),
+    ('chi', 'Mộc', r'\bgo\b|lam go|\bmoc\b|tu bep|canh cua go'),
+    ('chi', 'Nội thất', r'\brem\b|den may|noi that|sofa|giuong|nem|chan ga|ban ghe|guong|tham'),
+    ('chi', 'Sửa chữa & bảo trì', r'sua chua|bao tri|sua dieu hoa|thong tac|ve sinh dieu hoa'),
+    ('chi', 'Nhân công', r'\btho\b|tien cong|nhan cong|ung tien|tam ung|dong nat|thao do|boc vac'),
+    ('chi', 'Vật tư & thiết bị', r'gach|xi mang|\bcat\b|bon cau|voi|lavabo|binh nong lanh|\bong\b|keo|thiet bi|\d*tv\b|tivi|chau|'
+                                 r'vat tu|\bson\b|\bton\b|dieu hoa|may giat|tu lanh|ho ga'),
+    ('chi', 'Điện nước & internet', r'tien dien|tien nuoc|internet|wifi|cuoc mang|evn'),
+    ('thu', 'Cho thuê', r'tien nha|thue|coc tang|tien coc|dong tien nha'),
+    ('thu', 'Cọc hủy', r'coc huy|huy coc|bo coc'),
+    ('thu', 'Vốn đầu tư / vay', r'muon|vay|dau tu|hang muoi|von'),
+    ('thu', 'Tiền phòng khách', r'booking|tien phong|khach'),
+]
+
+
+def chi_guess_cat(_xdb, kind, to, note):
+    """Hạng mục for a new item: what this receiver / sender got before (most often), else words in the note, else ''."""
+    kind = 'thu' if kind == 'thu' else 'chi'
+    key = re.sub(r'\s+', '', _fold(to or ''))
+    if key:
+        got = {}
+        for (n, c) in _xdb.session.execute(text("""SELECT to_name, cat FROM chi_receipts WHERE COALESCE(cat, '') <> ''
+                AND COALESCE(kind, 'chi') = :k AND COALESCE(to_name, '') <> ''"""), {'k': kind}).fetchall():
+            if re.sub(r'\s+', '', _fold(n)) == key:
+                got[c] = got.get(c, 0) + 1
+        if got:
+            return max(got, key=got.get)
+    f = _fold(' '.join([str(note or ''), str(to or '')]))
+    for k, c, w in _CHI_CAT_WORDS:
+        if k == kind and re.search(w, f):
+            return c
+    return ''
+
+
+def _chi_autocat(_xdb, rid):
+    """Fill the hạng mục of a just-saved row (kept when one is already set)."""
+    r = _xdb.session.execute(text("SELECT kind, to_name, note, cat FROM chi_receipts WHERE id = :i"), {'i': rid}).fetchone()
+    if r and not r[3]:
+        c = chi_guess_cat(_xdb, r[0], r[1], r[2])
+        if c:
+            _xdb.session.execute(text("UPDATE chi_receipts SET cat = :c WHERE id = :i"), {'c': c, 'i': rid})
+            _xdb.session.commit()
 
 
 def chi_apt(*texts):
     """Apartment named in the words (place / note / caption) → one of CHI_APTS, '' when none or several."""
     f = ' '.join(_fold(str(t or '')) for t in texts)
-    found = [a for a in CHI_APTS[:4] if _fold(a) in f or _fold(a).replace(' ', '') in f.replace(' ', '')]
+    found = [a for a in CHI_APTS[:5] if _fold(a) in f or _fold(a).replace(' ', '') in f.replace(' ', '')]
     return found[0] if len(found) == 1 else ''
 
 
@@ -353,6 +403,7 @@ def chi_save(_xdb, info, img, mime, cid='', sender=''):
          'n': note, 't': tx, 'img': img, 'm': mime, 'c': cid, 's': sender[:80],
          'apt': chi_apt(note), 'p': chi_payer(_xdb, info.get('from_name')), 'k': kind}).fetchone()
     _xdb.session.commit()
+    _chi_autocat(_xdb, row[0])
     return 'saved', row
 
 
@@ -380,6 +431,8 @@ def chi_save_voice(_xdb, items, said, cid='', sender=''):
              'c': cid, 's': sender[:80], 'apt': chi_apt(it.get('place'), it.get('what')),
              'p': chi_payer(_xdb, it.get('payer'))}).fetchone())
     _xdb.session.commit()
+    for r in rows:
+        _chi_autocat(_xdb, r[0])
     return rows
 
 
@@ -611,21 +664,25 @@ def chi_list():
     if viewer and not _chi_share_ok(_xdb, request.args.get('t')):
         return jsonify({'success': False, 'error': 'Link không còn dùng được'}), 404
     now = _vn_now()
+    all_months = request.args.get('month') == 'all'      # 📊 "Cả dự án": every month together
     try:
         y, mo = map(int, str(request.args.get('month') or f'{now.year}-{now.month}').split('-')[:2])
         first = datetime(y, mo, 1)
     except ValueError:
         y, mo, first = now.year, now.month, datetime(now.year, now.month, 1)
     nxt = datetime(y + (mo == 12), mo % 12 + 1, 1)
-    rows = _xdb.session.execute(text("""SELECT id, at, amount, to_name, to_bank, note, sender, image IS NOT NULL, apt, payer, kind FROM chi_receipts
+    if all_months:
+        first, nxt = datetime(2000, 1, 1), datetime(2100, 1, 1)
+    rows = _xdb.session.execute(text("""SELECT id, at, amount, to_name, to_bank, note, sender, image IS NOT NULL, apt, payer, kind, cat FROM chi_receipts
         WHERE at >= :a AND at < :b ORDER BY at DESC"""), {'a': first, 'b': nxt}).fetchall()
     months = _xdb.session.execute(text("""SELECT to_char(at, 'YYYY-MM'), COUNT(*), SUM(CASE WHEN kind = 'thu' THEN 0 ELSE amount END) FROM chi_receipts
         GROUP BY 1 ORDER BY 1 DESC LIMIT 12""")).fetchall()
     chats = _zbot_get(_xdb, 'zbot3_chats', {}) or {}
-    return jsonify({'success': True, 'month': f'{y}-{mo:02d}',
+    return jsonify({'success': True, 'month': 'all' if all_months else f'{y}-{mo:02d}',
                     'items': [{'id': r[0], 'at': f'{r[1]:%H:%M %d/%m/%Y}', 'day': f'{r[1]:%Y-%m-%d}', 'iso': f'{r[1]:%Y-%m-%dT%H:%M}', 'amount': int(r[2]), 'to': r[3] or '',
                                'bank': r[4] or '', 'note': r[5] or '', 'by': r[6] or '', 'img': bool(r[7]),
-                               'apt': r[8] or '', 'payer': r[9] or '', 'kind': 'thu' if r[10] == 'thu' else 'chi'} for r in rows],
+                               'apt': r[8] or '', 'payer': r[9] or '', 'kind': 'thu' if r[10] == 'thu' else 'chi', 'cat': r[11] or ''} for r in rows],
+                    'cats': {'chi': CHI_CATS, 'thu': THU_CATS},
                     'apts': CHI_APTS,
                     'payers': [p for (p,) in _xdb.session.execute(text("""SELECT payer FROM chi_receipts
                         WHERE COALESCE(payer, '') <> '' GROUP BY payer ORDER BY COUNT(*) DESC""")).fetchall()],
@@ -674,6 +731,9 @@ def chi_set():
         _xdb.session.execute(text("UPDATE chi_receipts SET apt = :v WHERE id = :i"), {'v': apt, 'i': rid})
     if d.get('kind') in ('thu', 'chi'):
         _xdb.session.execute(text("UPDATE chi_receipts SET kind = :v WHERE id = :i"), {'v': d['kind'], 'i': rid})
+    if 'cat' in d:                      # 🏷 hạng mục — one of the lists, or a short name the owner typed
+        _xdb.session.execute(text("UPDATE chi_receipts SET cat = :v WHERE id = :i"),
+                             {'v': ' '.join(str(d.get('cat') or '').split())[:40], 'i': rid})
     if 'payer' in d:
         _xdb.session.execute(text("UPDATE chi_receipts SET payer = :v WHERE id = :i"),
                              {'v': chi_payer(_xdb, d.get('payer')), 'i': rid})
@@ -739,6 +799,12 @@ def chi_add():
          'apt': apt if apt in CHI_APTS else '', 'p': chi_payer(_xdb, d.get('payer')),
          'k': 'thu' if d.get('kind') == 'thu' else 'chi'}).scalar()
     _xdb.session.commit()
+    cat = ' '.join(str(d.get('cat') or '').split())[:40]
+    if cat:
+        _xdb.session.execute(text("UPDATE chi_receipts SET cat = :c WHERE id = :i"), {'c': cat, 'i': rid})
+        _xdb.session.commit()
+    else:
+        _chi_autocat(_xdb, rid)
     return jsonify({'success': True, 'id': rid})
 
 

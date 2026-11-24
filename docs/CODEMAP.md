@@ -338,7 +338,7 @@ _p17_mail — 📧 Booking.com e-mails → the app (owner, Nov 12: "khi nhận �
 - app_parts/p17_mail.py:752 `_mail_setup_info`
 - app_parts/p17_mail.py:794 `moi_mail_setup` ← `/api/moi/mail_setup` — 📧 setup sheet: the script to paste into Google Apps Script (with this app's private address) + the last mail r
 
-## app_parts/p18_chi.py (808 lines)
+## app_parts/p18_chi.py (874 lines)
 _p18_chi — 💸 Chi tiêu = ảnh biên lai chuyển khoản gửi cho bot Zalo "Chi tiêu" (owner, Nov 22 2026:_
 - app_parts/p18_chi.py:20 `_chi_ensure`
 - app_parts/p18_chi.py:47 `_chi_token`
@@ -356,29 +356,31 @@ _p18_chi — 💸 Chi tiêu = ảnh biên lai chuyển khoản gửi cho bot Zal
 - app_parts/p18_chi.py:250 `_chi_gemini` — One Gemini call (JSON answer) over the keys / models. Raises RuntimeError when the AI cannot be reached.
 - app_parts/p18_chi.py:283 `_chi_time` — "21:09 22/11/2026" (or "22/11/2026 21:09") → datetime; None when unreadable.
 - app_parts/p18_chi.py:295 `chi_month_total`
-- app_parts/p18_chi.py:306 `chi_apt` — Apartment named in the words (place / note / caption) → one of CHI_APTS, '' when none or several.
-- app_parts/p18_chi.py:313 `chi_payer` — A payer name → the same spelling as an earlier payer when it is the same person ("LE DUC LOC" = "Lê Đức Lộc").
-- app_parts/p18_chi.py:325 `chi_save` — A read receipt → (status, row) — status 'saved' / 'dup' / 'bad'.
-- app_parts/p18_chi.py:362 `chi_save_voice` — Spoken items → saved rows [(id, at, amount, to_name, note)] (no picture; the words said are kept in the note).
-- app_parts/p18_chi.py:386 `_chi_tags`
-- app_parts/p18_chi.py:391 `_chi_summary`
-- app_parts/p18_chi.py:396 `chi_handle` — One message to the bot → the reply text (None = nothing to say).
-- app_parts/p18_chi.py:492 `zbot3_hook` ← `/zalo-bot3/hook` POST
-- app_parts/p18_chi.py:519 `_chi_run`
-- app_parts/p18_chi.py:537 `chi_month_report` — Day 1 of the month, 8–10h VN: last month's total to everyone connected to the bot (once).
-- app_parts/p18_chi.py:561 `chi_page` ← `/chi-tieu`
-- app_parts/p18_chi.py:570 `_chi_share_ok`
-- app_parts/p18_chi.py:576 `chi_share_page` ← `/chi/xem/<tok>`
-- app_parts/p18_chi.py:585 `chi_share_nop` ← `/api/chi/nop` — The shared page's 📒 Sổ nộp tiền (read-only; the owner writes it in the Thu tiền tab of /moi).
-- app_parts/p18_chi.py:595 `chi_share` ← `/api/chi/share` POST — {action: 'get'} → the current link (made once) · {action: 'new'} → a new link, the old one stops working.
-- app_parts/p18_chi.py:607 `chi_list` ← `/api/chi/list`
-- app_parts/p18_chi.py:641 `chi_img` ← `/api/chi/img/<int:rid>`
-- app_parts/p18_chi.py:653 `chi_delete` ← `/api/chi/delete` POST
-- app_parts/p18_chi.py:662 `chi_set` ← `/api/chi/set` POST — One tap on /chi-tieu: {id, apt} (one of CHI_APTS or '') or {id, payer} (any name, '' = not known).
-- app_parts/p18_chi.py:704 `_chi_upload` — The picture sent from /chi-tieu (multipart 'image') → (bytes, mime) or (None, error).
-- app_parts/p18_chi.py:718 `chi_add` ← `/api/chi/add` POST — ➕ Thêm khoản on /chi-tieu (owner, Nov 24: "một nút nữa để ghi nội dung và thêm hình ảnh chuyển khoản"):
-- app_parts/p18_chi.py:746 `chi_photo` ← `/api/chi/photo/<int:rid>` POST — ✏️ Sửa → 📎 add / change the transfer picture of one item (multipart 'image'; remove=1 takes it away).
-- app_parts/p18_chi.py:763 `chi_bot` ← `/api/chi/bot` POST — token (getMe → setWebhook) · open (30 min: new people may connect) · remove a chat · off.
+- app_parts/p18_chi.py:327 `chi_guess_cat` — Hạng mục for a new item: what this receiver / sender got before (most often), else words in the note, else ''.
+- app_parts/p18_chi.py:346 `_chi_autocat` — Fill the hạng mục of a just-saved row (kept when one is already set).
+- app_parts/p18_chi.py:356 `chi_apt` — Apartment named in the words (place / note / caption) → one of CHI_APTS, '' when none or several.
+- app_parts/p18_chi.py:363 `chi_payer` — A payer name → the same spelling as an earlier payer when it is the same person ("LE DUC LOC" = "Lê Đức Lộc").
+- app_parts/p18_chi.py:375 `chi_save` — A read receipt → (status, row) — status 'saved' / 'dup' / 'bad'.
+- app_parts/p18_chi.py:413 `chi_save_voice` — Spoken items → saved rows [(id, at, amount, to_name, note)] (no picture; the words said are kept in the note).
+- app_parts/p18_chi.py:439 `_chi_tags`
+- app_parts/p18_chi.py:444 `_chi_summary`
+- app_parts/p18_chi.py:449 `chi_handle` — One message to the bot → the reply text (None = nothing to say).
+- app_parts/p18_chi.py:545 `zbot3_hook` ← `/zalo-bot3/hook` POST
+- app_parts/p18_chi.py:572 `_chi_run`
+- app_parts/p18_chi.py:590 `chi_month_report` — Day 1 of the month, 8–10h VN: last month's total to everyone connected to the bot (once).
+- app_parts/p18_chi.py:614 `chi_page` ← `/chi-tieu`
+- app_parts/p18_chi.py:623 `_chi_share_ok`
+- app_parts/p18_chi.py:629 `chi_share_page` ← `/chi/xem/<tok>`
+- app_parts/p18_chi.py:638 `chi_share_nop` ← `/api/chi/nop` — The shared page's 📒 Sổ nộp tiền (read-only; the owner writes it in the Thu tiền tab of /moi).
+- app_parts/p18_chi.py:648 `chi_share` ← `/api/chi/share` POST — {action: 'get'} → the current link (made once) · {action: 'new'} → a new link, the old one stops working.
+- app_parts/p18_chi.py:660 `chi_list` ← `/api/chi/list`
+- app_parts/p18_chi.py:698 `chi_img` ← `/api/chi/img/<int:rid>`
+- app_parts/p18_chi.py:710 `chi_delete` ← `/api/chi/delete` POST
+- app_parts/p18_chi.py:719 `chi_set` ← `/api/chi/set` POST — One tap on /chi-tieu: {id, apt} (one of CHI_APTS or '') or {id, payer} (any name, '' = not known).
+- app_parts/p18_chi.py:764 `_chi_upload` — The picture sent from /chi-tieu (multipart 'image') → (bytes, mime) or (None, error).
+- app_parts/p18_chi.py:778 `chi_add` ← `/api/chi/add` POST — ➕ Thêm khoản on /chi-tieu (owner, Nov 24: "một nút nữa để ghi nội dung và thêm hình ảnh chuyển khoản"):
+- app_parts/p18_chi.py:812 `chi_photo` ← `/api/chi/photo/<int:rid>` POST — ✏️ Sửa → 📎 add / change the transfer picture of one item (multipart 'image'; remove=1 takes it away).
+- app_parts/p18_chi.py:829 `chi_bot` ← `/api/chi/bot` POST — token (getMe → setWebhook) · open (30 min: new people may connect) · remove a chat · off.
 
 ## core/__init__.py (3 lines)
 
@@ -650,10 +652,11 @@ _p18_chi — 💸 Chi tiêu = ảnh biên lai chuyển khoản gửi cho bot Zal
 
 # Templates (inline JS functions)
 
-## templates/chi.html (544 lines)
-- templates/chi.html: 182 `gallery` · 208 `tab` · 215 `drawNop` · 241 `view` · 248 `breakdown` · 260 `draw` · 308 `load` · 331 `photoField`
-- templates/chi.html: 341 `usePhoto` · 347 `pasteClip` · 364 `photoWire` · 372 `shrink` · 382 `form` · 386 `kindField` · 392 `kindWire` · 401 `add`
-- templates/chi.html: 438 `edit` · 473 `pick` · 484 `save` · 490 `share` · 503 `copy` · 507 `drawBot` · 522 `post`
+## templates/chi.html (782 lines)
+- templates/chi.html: 251 `gallery` · 283 `catColor` · 288 `sumBy` · 293 `donut` · 305 `legend` · 309 `dayChart` · 351 `groups` · 361 `drawGroups`
+- templates/chi.html: 386 `drawStat` · 425 `tab` · 433 `drawNop` · 459 `view` · 466 `breakdown` · 478 `draw` · 528 `load` · 553 `photoField`
+- templates/chi.html: 563 `usePhoto` · 569 `pasteClip` · 586 `photoWire` · 594 `shrink` · 604 `form` · 608 `kindField` · 614 `catField` · 619 `kindWire`
+- templates/chi.html: 629 `add` · 667 `edit` · 703 `pick` · 717 `save` · 723 `share` · 736 `copy` · 740 `drawBot` · 755 `post`
 
 ## templates/desk.html (1343 lines)
 - templates/desk.html: 307 `load` · 320 `loadRev` · 333 `needRev` · 351 `D.tab` · 352 `D.set` · 353 `D.q` · 354 `D.reload` · 356 `D.shift`

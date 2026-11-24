@@ -132,6 +132,74 @@
     #sh .in { max-width:520px; border-radius:18px; max-height:92vh; overflow:auto; }
     .thumb { cursor:zoom-in; }
   }
+  /* ── 📊 Thống kê ── */
+  .tabs.t3 { grid-template-columns:1fr 1fr 1fr; }
+  .stTop { display:flex; justify-content:space-between; align-items:center; gap:8px; margin-top:14px; }
+  .kps { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  .kp { margin-top:10px; padding:12px; } .kp .kl { font-size:12px; font-weight:800; color:var(--mut); }
+  .kp .kv { font-size:19px; font-weight:800; margin-top:2px; overflow-wrap:anywhere; } .kp .mut { font-size:12px; overflow-wrap:anywhere; }
+  .pos { color:#15803D; } .neg { color:#B91C1C; }
+  .sh { display:flex; justify-content:space-between; align-items:baseline; gap:8px; flex-wrap:wrap; margin-bottom:8px; }
+  .sh b { font-size:14.5px; }
+  .dns { display:grid; grid-template-columns:1fr; gap:0 12px; }
+  .dw { display:grid; grid-template-columns:150px 1fr; gap:12px; align-items:center; }
+  .dn { width:150px; height:150px; } .dn .dt { font-size:9px; font-weight:800; fill:#64748B; } .dn .db { font-size:15px; font-weight:800; fill:#0E1525; }
+  .lg { display:flex; flex-direction:column; min-width:0; }
+  .lgi { display:grid; grid-template-columns:10px minmax(0,1fr) auto 44px; gap:6px; align-items:center; padding:5px 4px; border:0; border-top:1px solid var(--line);
+    background:none; text-align:left; font-size:12.5px; color:var(--ink); border-radius:6px; }
+  .lgi:first-child { border-top:0; } .lgi.on { background:#EEF2FF; } .lgi i { width:10px; height:10px; border-radius:3px; }
+  .lgi span { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; } .lgi em { font-style:normal; color:var(--mut); text-align:right; font-size:11.5px; }
+  .dc { width:100%; height:auto; display:block; } .dc .gl { stroke:#EEF0F3; } .dc .ax { font-size:11px; fill:#94A3B8; }
+  .dc .bi { fill:#15803D; } .dc .bo { fill:#334155; } .dc .z { stroke:#94A3B8; stroke-dasharray:4 4; }
+  .dc .ln { stroke:#1E3A8A; } .dc circle.pos { fill:#15803D; } .dc circle.neg { fill:#B91C1C; }
+  .key { font-size:12px; color:var(--mut); } .key i { display:inline-block; width:9px; height:9px; border-radius:2px; margin:0 4px 0 8px; }
+  .key i.bi { background:#15803D; } .key i.bo { background:#334155; }
+  .seg { display:grid; grid-template-columns:1fr 1fr; gap:6px; background:#E6E8EC; padding:4px; border-radius:12px; }
+  .seg button { min-height:38px; border:0; border-radius:9px; background:none; font-weight:800; color:#475569; }
+  .seg button.on { background:#fff; color:var(--ink); box-shadow:0 1px 3px rgba(15,23,42,.12); }
+  .sq { margin-top:10px; }
+  .gp { background:#fff; border:1px solid var(--line); border-radius:12px; margin-top:8px; overflow:hidden; }
+  .gp summary { list-style:none; cursor:pointer; display:grid; grid-template-columns:16px minmax(0,1fr) auto; grid-template-areas:"cv gn amt" "cv gb gb"; gap:4px 10px; padding:11px 12px; align-items:center; }
+  .gp summary::-webkit-details-marker { display:none; }
+  .gp .cv { grid-area:cv; color:#94A3B8; transition:transform .15s; align-self:start; margin-top:2px; } .gp[open] .cv { transform:rotate(90deg); }
+  .gp .gn { grid-area:gn; min-width:0; display:flex; flex-direction:column; } .gp .gn b { overflow-wrap:anywhere; } .gp .gn .mut { font-size:12px; }
+  .gp summary > b { grid-area:amt; font-size:15px; }
+  .gp .gb { grid-area:gb; display:grid; grid-template-columns:1fr 46px; gap:8px; align-items:center; } .gp .gb em { font-style:normal; font-size:11.5px; color:var(--mut); text-align:right; }
+  .gc2 { display:flex; flex-wrap:wrap; gap:4px; margin-top:3px; }
+  .ct { font-size:11px; font-weight:800; padding:1px 7px; border-radius:999px; background:color-mix(in srgb, var(--c) 14%, #fff); color:var(--c); }
+  .bar { display:block; height:7px; background:#EEF0F3; border-radius:4px; overflow:hidden; } .bar i { display:block; height:100%; border-radius:4px; }
+  .gp table, .ct2 { width:100%; border-collapse:collapse; font-size:13px; }
+  .gp table { background:#FAFBFC; border-top:1px solid var(--line); table-layout:auto; }
+  .gp td:nth-child(2) { width:100%; }
+  .gp th, .ct2 th { text-align:left; font-size:11px; text-transform:uppercase; letter-spacing:.04em; color:var(--mut); padding:7px 10px; }
+  .gp td, .ct2 td { padding:7px 10px; border-top:1px solid var(--line); vertical-align:top; }
+  .gp tfoot td, .ct2 tfoot td { font-weight:800; border-top:2px solid var(--ink); }
+  .r { text-align:right; white-space:nowrap; } .nw { white-space:nowrap; }
+  .pic { border:0; background:none; padding:0; cursor:zoom-in; font-size:14px; }
+  .t0 { font-size:11px; font-weight:700; color:#64748B; background:#F1F5F9; padding:1px 6px; border-radius:6px; white-space:nowrap; }
+  .gt { display:flex; justify-content:space-between; gap:8px; padding:12px; margin-top:8px; border-radius:12px; background:var(--ink); color:#fff; font-weight:700; }
+  .br { display:grid; grid-template-columns:minmax(0,1fr) 34% auto 44px; gap:8px; align-items:center; padding:6px 0; border-top:1px solid var(--line); font-size:13px; }
+  .br:first-of-type { border-top:0; } .br span:first-child { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:700; }
+  .br em { font-style:normal; font-size:11.5px; color:var(--mut); text-align:right; }
+  .dot { display:inline-block; width:9px; height:9px; border-radius:3px; margin-right:6px; }
+  .td { border-top:1px solid var(--line); } .td:first-of-type { border-top:0; }
+  .td summary { list-style:none; cursor:pointer; display:flex; justify-content:space-between; gap:8px; padding:9px 0; font-size:13px; }
+  .td summary::-webkit-details-marker { display:none; } .td summary b { white-space:nowrap; }
+  .tdr { display:grid; grid-template-columns:minmax(0,1fr) auto auto; gap:8px; align-items:center; padding:5px 0 5px 10px; font-size:12.5px; border-top:1px dashed var(--line); }
+  .tdr span { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .hm { }
+  @media (max-width: 520px) { .dw { grid-template-columns:1fr; justify-items:center; } .lg { width:100%; } .hm { display:none; } }
+  @media (min-width: 1000px) {
+    #pStat { max-width:1600px; }
+    .kps { grid-template-columns:repeat(4, minmax(0,1fr)); } .kp .kv { font-size:23px; }
+    .dns { grid-template-columns:1fr 1fr; } .dw { grid-template-columns:180px 1fr; } .dn { width:180px; height:180px; }
+    .stGrid { display:grid; grid-template-columns:minmax(0,1.7fr) minmax(320px,1fr); gap:20px; align-items:start; }
+    .tabs.t3 { max-width:480px; }
+  }
+  @media print {
+    body { background:#fff; } .top button, .tabs, #chips, #pChi, #pNop, #sum, .stTop button, .seg, .chips, .sq, #foot { display:none !important; }
+    #pStat { display:block !important; } .card, .gp { break-inside:avoid; } .gp table { display:table; }
+  }
 </style>
 </head>
 <body>
@@ -143,7 +211,7 @@
   </div>
   <div id="chips" class="chips"></div>
   <div id="sum" class="card"><div class="mut">Đang tải…</div></div>
-  <div class="tabs"><button id="tChi" onclick="Chi.tab('chi')">💸 Chi tiêu</button><button id="tNop" onclick="Chi.tab('nop')">📒 Nộp tiền</button></div>
+  <div class="tabs t3"><button id="tChi" onclick="Chi.tab('chi')">💸 Thu chi</button><button id="tStat" onclick="Chi.tab('stat')">📊 Thống kê</button><button id="tNop" onclick="Chi.tab('nop')">📒 Nộp tiền</button></div>
   <div id="pChi">
     <div class="side">
       {% if not share %}<button class="btn dark" style="width:100%;margin-top:12px" onclick="Chi.add()">➕ Thêm khoản thu / chi</button>{% endif %}
@@ -157,6 +225,7 @@
     </div>
     {% if not share %}<div id="bot" class="card"></div>{% endif %}
   </div>
+  <div id="pStat" style="display:none"></div>
   <div id="pNop" style="display:none"></div>
   <div id="foot" class="foot"></div>
 </div>
@@ -169,14 +238,14 @@
   const $ = (id) => document.getElementById(id);
   const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const money = (n) => Number(n || 0).toLocaleString('vi-VN') + 'đ';
-  const monLbl = (m) => { const [y, mo] = m.split('-'); return 'Tháng ' + Number(mo) + '/' + y; };
+  const monLbl = (m) => { if (m === 'all') return 'Cả dự án (mọi tháng)'; const [y, mo] = m.split('-'); return 'Tháng ' + Number(mo) + '/' + y; };
   const WD = ['Chủ nhật', 'Thứ hai', 'Thứ ba', 'Thứ tư', 'Thứ năm', 'Thứ sáu', 'Thứ bảy'];
   const dayLbl = (d) => { const [y, m, dd] = d.split('-').map(Number); return WD[new Date(y, m - 1, dd).getDay()] + ', ' + dd + '/' + m; };
   const attr = (v) => esc(JSON.stringify(v));
   // the bank's automatic transfer text ("X chuyen khoan nhanh qua Zalo", "… chuyen tien QR") says nothing about the expense
   const AUTO_NOTE = /chuyen (khoan|tien)( nhanh)?( qua zalo| qr)?\s*$/i;
   let month = '', J = null, D = null, F = { apt: null, payer: null, kind: null };
-  let TAB = location.hash === '#nop' ? 'nop' : 'chi';
+  let TAB = location.hash === '#nop' ? 'nop' : location.hash === '#thong-ke' ? 'stat' : 'chi';
   // 🖥️ computer (owner Nov 24 "Nộp & Chi trên máy tính"): ≥1000px → 2 columns, the list as a table
   const WIDE = matchMedia('(min-width: 1000px)');
   function gallery(shown, dayTot) {
@@ -196,7 +265,7 @@
           <div class="who">${esc(v.title)}</div>
           ${v.sub ? `<div class="nd">${esc(v.sub)}</div>` : ''}
           <dl class="meta"><dt>${thu ? 'Từ ai' : 'Ai trả'}</dt><dd>${pick(r, 'payer', r.payer, 'Chọn người')}</dd>
-            <dt>Căn</dt><dd>${pick(r, 'apt', r.apt, 'Chọn căn')}</dd></dl>
+            <dt>Căn</dt><dd>${pick(r, 'apt', r.apt, 'Chọn căn')}</dd><dt>Hạng mục</dt><dd>${pick(r, 'cat', r.cat, 'Chọn hạng mục')}</dd></dl>
         </div>
         <div class="foot2"><b style="color:var(--ink)">${esc(dayLbl(r.day))}</b> · ${esc(r.at.split(' ')[0])}${thu ? ' <span class="pill">Thu</span>' : ''}<span class="sp"></span>
           ${RO ? '' : `<button class="gbtn" onclick="Chi.edit(${r.id})">Sửa</button><button class="gbtn del" onclick="Chi.del(${r.id}, '${money(r.amount)}')">Xóa</button>`}</div>
@@ -204,12 +273,161 @@
     }
     return html + '</div>';
   }
+  // ── 📊 Thống kê (owner Nov 24: "thống kê chi tiết nhất, biểu đồ, bóc tách từng thứ … dùng cho những giao dịch mới nữa") ──
+  // Everything is computed here from J.items (the month shown, or "Cả dự án" = every month), so a new receipt shows up
+  // in every chart / group at once. Groups = one receiver / sender, open it to see each transfer.
+  const PAL = ['#1E3A8A', '#0F766E', '#B45309', '#7C3AED', '#BE123C', '#15803D', '#0369A1', '#A16207', '#64748B'];
+  let S = { kind: 'chi', cat: null, q: '' };
+  const fold = (t) => String(t || '').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'D').toLowerCase();
+  const tr = (n) => { const v = n / 1e6; return (Math.abs(v) >= 100 ? Math.round(v) : Math.round(v * 10) / 10).toLocaleString('vi-VN') + ' tr'; };
+  function catColor(kind, c) {
+    const L = (J.cats && J.cats[kind]) || [];
+    const i = L.indexOf(c);
+    return c ? PAL[(i < 0 ? L.length + c.length : i) % PAL.length] : '#CBD5E1';
+  }
+  function sumBy(items, key) {
+    const m = new Map();
+    for (const r of items) m.set(r[key] || '', (m.get(r[key] || '') || 0) + r.amount);
+    return [...m.entries()].sort((a, b) => (a[0] === '') - (b[0] === '') || b[1] - a[1]);
+  }
+  function donut(parts, total, kind, label) {
+    const R = 62, C = 2 * Math.PI * R;
+    let off = 0, arcs = '';
+    for (const [c, v] of parts) {
+      const ln = C * v / total;
+      arcs += `<circle r="${R}" cx="80" cy="80" fill="none" stroke="${catColor(kind, c)}" stroke-width="24" stroke-dasharray="${ln.toFixed(2)} ${(C - ln).toFixed(2)}"
+        stroke-dashoffset="${(-off).toFixed(2)}" transform="rotate(-90 80 80)" style="cursor:pointer" onclick="Chi.sCat('${kind}', ${attr(c)})"><title>${esc(c || 'Chưa phân loại')}: ${money(v)}</title></circle>`;
+      off += ln;
+    }
+    return `<svg viewBox="0 0 160 160" class="dn">${arcs}<text x="80" y="74" text-anchor="middle" class="dt">${esc(label)}</text>
+      <text x="80" y="96" text-anchor="middle" class="db">${esc(tr(total))}</text></svg>`;
+  }
+  function legend(parts, total, kind) {
+    return '<div class="lg">' + parts.map(([c, v]) => `<button class="lgi${S.kind === kind && S.cat === c ? ' on' : ''}" onclick="Chi.sCat('${kind}', ${attr(c)})">
+      <i style="background:${catColor(kind, c)}"></i><span>${esc(c || 'Chưa phân loại')}</span><b class="num">${money(v)}</b><em>${(v * 100 / total).toFixed(1)}%</em></button>`).join('') + '</div>';
+  }
+  function dayChart(items) {
+    if (!items.length) return '';
+    const ds = items.map((r) => r.day).sort();
+    const a = new Date(ds[0]), b = new Date(ds[ds.length - 1]);
+    const span = Math.round((b - a) / 864e5) + 1;
+    const byMonth = span > 62;
+    const keys = [];
+    if (byMonth) { for (const r of items) { const k = r.day.slice(0, 7); if (!keys.includes(k)) keys.push(k); } keys.sort(); }
+    else for (let t = new Date(a); t <= b; t.setDate(t.getDate() + 1)) keys.push(t.toISOString().slice(0, 10));
+    const IN = {}, OUT = {};
+    for (const r of items) { const k = byMonth ? r.day.slice(0, 7) : r.day; (r.kind === 'thu' ? IN : OUT)[k] = ((r.kind === 'thu' ? IN : OUT)[k] || 0) + r.amount; }
+    const top = Math.max(1, ...keys.map((k) => Math.max(IN[k] || 0, OUT[k] || 0)));
+    const W = WIDE.matches ? 900 : 420, H = WIDE.matches ? 190 : 170, P = WIDE.matches ? 40 : 34, bw = (W - P - 8) / keys.length;   // phone: text stays readable
+    let s = `<svg viewBox="0 0 ${W} ${H + 30}" class="dc">`;
+    for (let g = 0; g <= 4; g++) {
+      const y = 8 + (H - 8) * g / 4;
+      s += `<line x1="${P}" x2="${W - 4}" y1="${y}" y2="${y}" class="gl"/><text x="${P - 6}" y="${y + 4}" text-anchor="end" class="ax">${tr(top * (1 - g / 4)).replace(' tr', '')}</text>`;
+    }
+    keys.forEach((k, i) => {
+      const x = P + bw * i;
+      [[IN[k] || 0, 'bi', 'Thu'], [OUT[k] || 0, 'bo', 'Chi']].forEach(([v, cls, lab], j) => {
+        const h = (H - 8) * v / top;
+        if (v) s += `<rect x="${(x + bw * 0.12 + j * bw * 0.38).toFixed(1)}" y="${(H - h).toFixed(1)}" width="${(bw * 0.36).toFixed(1)}" height="${h.toFixed(1)}" rx="2" class="${cls}"><title>${esc(k)} · ${lab}: ${money(v)}</title></rect>`;
+      });
+      const lbl = byMonth ? 'T' + Number(k.slice(5, 7)) : String(Number(k.slice(8, 10))) + (k.slice(8, 10) === '01' || i === 0 ? '/' + Number(k.slice(5, 7)) : '');
+      const most = WIDE.matches ? 31 : 12;
+      if (keys.length <= most || i % Math.ceil(keys.length / most) === 0) s += `<text x="${(x + bw / 2).toFixed(1)}" y="${H + 16}" text-anchor="middle" class="ax">${lbl}</text>`;
+    });
+    s += '</svg>';
+    // dòng tiền lũy kế (money in − money out, day after day)
+    let run = 0;
+    const pts = keys.map((k) => (run += (IN[k] || 0) - (OUT[k] || 0)));
+    const lo = Math.min(0, ...pts), hi = Math.max(0, ...pts), rng = (hi - lo) || 1, H2 = 110;
+    const X = (i) => P + bw * i + bw / 2, Y = (v) => 8 + (H2 - 16) * (hi - v) / rng;
+    let s2 = `<svg viewBox="0 0 ${W} ${H2 + 6}" class="dc"><line x1="${P}" x2="${W - 4}" y1="${Y(0)}" y2="${Y(0)}" class="z"/>
+      <text x="${P - 6}" y="${Y(hi) + 4}" text-anchor="end" class="ax">${tr(hi).replace(' tr', '')}</text><text x="${P - 6}" y="${Y(lo) + 4}" text-anchor="end" class="ax">${tr(lo).replace(' tr', '')}</text>
+      <polyline fill="none" stroke-width="2.5" class="ln" points="${pts.map((v, i) => X(i).toFixed(1) + ',' + Y(v).toFixed(1)).join(' ')}"/>`;
+    pts.forEach((v, i) => { s2 += `<circle cx="${X(i).toFixed(1)}" cy="${Y(v).toFixed(1)}" r="3.5" class="${v < 0 ? 'neg' : 'pos'}"><title>${esc(keys[i])}: ${v < 0 ? '−' : ''}${money(Math.abs(v))}</title></circle>`; });
+    s2 += '</svg>';
+    return `<div class="card"><div class="sh"><b>Thu – chi theo ${byMonth ? 'tháng' : 'ngày'}</b><span class="key"><i class="bi"></i>Thu <i class="bo"></i>Chi · triệu đồng</span></div>${s}
+      <div class="sh" style="margin-top:6px"><b>Dòng tiền lũy kế</b><span class="key">cộng dồn thu − chi · cuối kỳ: <b class="${run < 0 ? 'neg' : 'pos'}">${run < 0 ? '−' : ''}${money(Math.abs(run))}</b></span></div>${s2}</div>`;
+  }
+  function groups(items) {
+    const m = new Map();
+    for (const r of items) {
+      const nm = r.to || (r.kind === 'chi' ? (r.img ? 'Chưa rõ người nhận' : 'Tiền mặt / ghi bằng lời') : (r.cat || 'Khác'));
+      const k = fold(nm).replace(/\s+/g, '');
+      if (!m.has(k)) m.set(k, { name: nm, items: [], sum: 0 });
+      const g = m.get(k); g.items.push(r); g.sum += r.amount;
+    }
+    return [...m.values()].sort((a, b) => b.sum - a.sum);
+  }
+  function drawGroups() {
+    const base = J.items.filter((r) => r.kind === S.kind);
+    const shown = base.filter((r) => (S.cat === null || (r.cat || '') === S.cat)
+      && (!S.q || fold([r.to, r.note, r.cat, r.payer].join(' ')).includes(fold(S.q))));
+    const gs = groups(shown), tot = shown.reduce((a, r) => a + r.amount, 0), top = Math.max(1, ...gs.map((g) => g.sum));
+    const q = SHARE ? '?t=' + encodeURIComponent(SHARE) : '';
+    const thu = S.kind === 'thu';
+    $('sGrp').innerHTML = (gs.length ? '' : '<div class="mut" style="padding:14px">Không có khoản nào.</div>') + gs.map((g) => {
+      const cats = [...new Set(g.items.map((r) => r.cat || ''))];
+      const d0 = g.items[g.items.length - 1].day, d1 = g.items[0].day;
+      const rows = g.items.slice().sort((a, b) => (a.day + a.at).localeCompare(b.day + b.at)).map((r) => {
+        const v = view(r);
+        return `<tr><td class="nw">${esc(r.day.slice(8, 10) + '/' + r.day.slice(5, 7))} <span class="mut">${esc(r.at.split(' ')[0])}</span></td>
+          <td>${esc(v.title === g.name ? (v.sub || '—') : v.title)}${r.img ? ` <button class="pic" onclick="Chi.show(${r.id})">🧾</button>` : ' <span class="t0">tiền mặt</span>'}</td>
+          <td class="hm">${RO ? esc(r.cat || '—') : `<button class="lnk${r.cat ? '' : ' none'}" onclick="Chi.pick(${r.id}, 'cat')">${esc(r.cat || 'Chọn')}</button>`}</td>
+          <td class="hm">${esc(r.payer || '—')}</td><td class="r num ${thu ? 'pos' : ''}">${thu ? '+' : ''}${money(r.amount)}</td></tr>`;
+      }).join('');
+      return `<details class="gp"><summary><span class="cv">▸</span><span class="gn"><b>${esc(g.name)}</b><span class="mut">${g.items.length} giao dịch · ${esc(d0 === d1 ? dayLbl(d0) : dayLbl(d0) + ' → ' + dayLbl(d1))}</span>
+        <span class="gc2">${cats.map((c) => `<span class="ct" style="--c:${catColor(S.kind, c)}">${esc(c || 'Chưa phân loại')}</span>`).join('')}</span></span>
+        <span class="gb"><span class="bar"><i style="width:${(g.sum * 100 / top).toFixed(1)}%;background:${catColor(S.kind, cats[0])}"></i></span><em>${(g.sum * 100 / (tot || 1)).toFixed(1)}%</em></span>
+        <b class="r num ${thu ? 'pos' : ''}">${thu ? '+' : ''}${money(g.sum)}</b></summary>
+        <table><thead><tr><th>Ngày</th><th>Nội dung</th><th class="hm">Hạng mục</th><th class="hm">${thu ? 'Từ ai' : 'Ai trả'}</th><th class="r">Số tiền</th></tr></thead><tbody>${rows}</tbody>
+        ${g.items.length > 1 ? `<tfoot><tr><td colspan="2">Cộng ${g.items.length} lần</td><td class="hm"></td><td class="hm"></td><td class="r num">${money(g.sum)}</td></tr></tfoot>` : ''}</table></details>`;
+    }).join('') + (gs.length ? `<div class="gt"><span>${S.cat !== null ? esc(S.cat || 'Chưa phân loại') + ' · ' : ''}${gs.length} ${thu ? 'nguồn' : 'người / nơi nhận'} · ${shown.length} giao dịch</span><b class="num">${money(tot)}</b></div>` : '');
+  }
+  function drawStat() {
+    const it = J.items, out = it.filter((r) => r.kind === 'chi'), inn = it.filter((r) => r.kind === 'thu');
+    const TO = out.reduce((a, r) => a + r.amount, 0), TI = inn.reduce((a, r) => a + r.amount, 0), left = TI - TO;
+    const big = out.slice().sort((a, b) => b.amount - a.amount)[0];
+    const noCat = it.filter((r) => !r.cat), noPay = out.filter((r) => !r.payer), cash = out.filter((r) => !r.img);
+    const kpi = (l, v, d, cls = '') => `<div class="card kp"><div class="kl">${l}</div><div class="kv num ${cls}">${v}</div><div class="mut">${d}</div></div>`;
+    const cOut = sumBy(out, 'cat'), cIn = sumBy(inn, 'cat');
+    const bar = (rows, total, empty) => rows.map(([k, v], i) => `<div class="br"><span>${esc(k || empty)}</span><span class="bar"><i style="width:${(v * 100 / Math.max(1, rows[0][1])).toFixed(1)}%;background:${k ? PAL[i % PAL.length] : '#CBD5E1'}"></i></span><b class="num">${money(v)}</b><em>${(v * 100 / (total || 1)).toFixed(1)}%</em></div>`).join('');
+    const catTable = cOut.map(([c, v]) => { const xs = out.filter((r) => (r.cat || '') === c); const mx = Math.max(...xs.map((r) => r.amount));
+      return `<tr><td><i class="dot" style="background:${catColor('chi', c)}"></i>${esc(c || 'Chưa phân loại')}</td><td class="r">${xs.length}</td><td class="r num">${money(v)}</td><td class="r hm">${money(Math.round(v / xs.length))}</td><td class="r hm">${money(mx)}</td><td class="r">${(v * 100 / (TO || 1)).toFixed(1)}%</td></tr>`; }).join('');
+    const todo = [
+      [noCat, '🏷 Chưa chọn hạng mục', 'cat'], [noPay, '👤 Khoản chi chưa ghi ai trả', 'payer'], [cash, '🧾 Khoản chi không có ảnh biên lai (tiền mặt / ghi bằng lời)', ''],
+    ].filter(([xs]) => xs.length).map(([xs, l, key]) => `<details class="td"><summary><span>${l}</span><b>${xs.length} khoản · ${money(xs.reduce((a, r) => a + r.amount, 0))}</b></summary>
+      ${xs.map((r) => `<div class="tdr"><span>${esc(r.day.slice(8, 10) + '/' + r.day.slice(5, 7))} · ${esc(view(r).title)}</span><b class="num">${money(r.amount)}</b>${!RO && key ? `<button class="lnk none" onclick="Chi.pick(${r.id}, '${key}')">Chọn</button>` : ''}</div>`).join('')}</details>`).join('');
+    $('pStat').innerHTML = `
+      <div class="stTop"><div class="h" style="margin:0">📊 Thống kê · ${esc(monLbl(J.month))}</div><button class="shr" onclick="window.print()">🖨 In / lưu PDF</button></div>
+      <div class="kps">${kpi('⬇️ Tổng thu', money(TI), inn.length + ' khoản', 'pos')}${kpi('⬆️ Tổng chi', money(TO), out.length + ' khoản · ' + new Set(out.map((r) => fold(r.to).replace(/\s+/g, '') || 'x')).size + ' người nhận')}
+        ${kpi('Còn lại (thu − chi)', (left < 0 ? '−' : '') + money(Math.abs(left)), TI ? 'Chi bằng ' + (TO * 100 / TI).toFixed(1) + '% số thu' : 'chưa có khoản thu', left < 0 ? 'neg' : '')}
+        ${kpi('Khoản chi lớn nhất', big ? money(big.amount) : '—', big ? esc(view(big).title) + ' · ' + esc(big.cat || '') : '')}</div>
+      <div class="dns">${out.length ? `<div class="card"><div class="sh"><b>Chi theo hạng mục</b><span class="mut">bấm để lọc</span></div><div class="dw">${donut(cOut, TO, 'chi', 'TỔNG CHI')}${legend(cOut, TO, 'chi')}</div></div>` : ''}
+        ${inn.length ? `<div class="card"><div class="sh"><b>Thu theo nguồn</b><span class="mut">bấm để lọc</span></div><div class="dw">${donut(cIn, TI, 'thu', 'TỔNG THU')}${legend(cIn, TI, 'thu')}</div></div>` : ''}</div>
+      ${dayChart(it)}
+      <div class="stGrid"><div>
+        <div class="sh" style="margin-top:16px"><b style="font-size:16px">Theo người / nơi nhận</b><span class="mut">gộp các lần chuyển · bấm để xem chi tiết</span></div>
+        <div class="seg"><button class="${S.kind === 'chi' ? 'on' : ''}" onclick="Chi.sKind('chi')">⬆️ Chi · ${out.length}</button><button class="${S.kind === 'thu' ? 'on' : ''}" onclick="Chi.sKind('thu')">⬇️ Thu · ${inn.length}</button></div>
+        <div class="chips">${[null, ...sumBy(S.kind === 'thu' ? inn : out, 'cat').map(([c]) => c)].map((c) => `<button class="chip${S.cat === c ? ' on' : ''}" onclick="Chi.sCat('${S.kind}', ${attr(c)}, true)">${esc(c === null ? 'Tất cả hạng mục' : (c || 'Chưa phân loại'))}</button>`).join('')}</div>
+        <input id="sQ" class="sq" placeholder="Tìm tên, nội dung…" value="${esc(S.q)}" autocomplete="off">
+        <div id="sGrp"></div></div>
+      <div>
+        ${out.length ? `<div class="card"><div class="sh"><b>Ai đã bỏ tiền</b></div>${bar(sumBy(out, 'payer'), TO, 'Chưa ghi')}</div>` : ''}
+        ${it.some((r) => r.apt) ? `<div class="card"><div class="sh"><b>Theo căn / dự án</b></div>${bar(sumBy(out, 'apt'), TO, 'Chưa chọn căn')}</div>` : ''}
+        ${out.length ? `<div class="card"><div class="sh"><b>Bảng hạng mục chi</b></div><table class="ct2"><thead><tr><th>Hạng mục</th><th class="r">Số</th><th class="r">Tổng</th><th class="r hm">TB/lần</th><th class="r hm">Lớn nhất</th><th class="r">%</th></tr></thead>
+          <tbody>${catTable}</tbody><tfoot><tr><td>Tổng</td><td class="r">${out.length}</td><td class="r num">${money(TO)}</td><td class="hm"></td><td class="hm"></td><td class="r">100%</td></tr></tfoot></table></div>` : ''}
+        ${todo ? `<div class="card"><div class="sh"><b>Cần bổ sung</b><span class="mut">để thống kê đúng 100%</span></div>${todo}</div>` : ''}
+      </div></div>`;
+    $('sQ').oninput = (e) => { S.q = e.target.value; drawGroups(); };
+    drawGroups();
+  }
   WIDE.addEventListener('change', () => { if (J) draw(); });
   function tab(t) {
     TAB = t;
-    try { history.replaceState(null, '', t === 'nop' ? '#nop' : location.pathname); } catch (e) {}
-    $('tChi').classList.toggle('on', t === 'chi'); $('tNop').classList.toggle('on', t === 'nop');
+    try { history.replaceState(null, '', t === 'nop' ? '#nop' : t === 'stat' ? '#thong-ke' : location.pathname); } catch (e) {}
+    $('tChi').classList.toggle('on', t === 'chi'); $('tNop').classList.toggle('on', t === 'nop'); $('tStat').classList.toggle('on', t === 'stat');
     $('pChi').style.display = t === 'chi' ? '' : 'none'; $('pNop').style.display = t === 'nop' ? '' : 'none';
+    $('pStat').style.display = t === 'stat' ? '' : 'none';
   }
   // 📒 Sổ nộp tiền (the Thu tiền tab of /moi writes it; here it is only shown) — owner, Nov 23: "gộp chung cả link nộp tiền và chi tiêu"
   function drawNop() {
@@ -260,7 +478,9 @@
   function draw() {
     const n = J.items.length, nImg = J.items.filter((r) => r.img).length;
     const nop = D && D.success ? D.pots.reduce((a, p) => a + p.total, 0) : 0;
-    $('sum').innerHTML = `<div class="h">${esc(monLbl(J.month))}</div><div class="two">
+    $('sum').innerHTML = J.month === 'all'
+      ? `<div class="h">${esc(monLbl(J.month))}</div><div class="two"><div><div class="mut">⬇️ Tổng thu</div><div class="v pos">${money(J.thu || 0)}</div></div><div><div class="mut">⬆️ Tổng chi</div><div class="v">${money(J.total)}</div></div></div>`
+      : `<div class="h">${esc(monLbl(J.month))}</div><div class="two">
       <div><div class="mut">📒 Đã nộp</div><div class="v">${money(nop)}</div></div><div><div class="mut">💸 Đã chi</div><div class="v">${money(J.total)}</div></div></div>`;
     // 💰 Thu riêng / chi riêng (owner, Nov 24): money in, money out, what is left
     const thu = J.thu || 0, left = thu - J.total;
@@ -298,7 +518,7 @@
         ${r.img ? `<img class="thumb" src="/api/chi/img/${r.id}${SHARE ? '?t=' + encodeURIComponent(SHARE) : ''}" loading="lazy" alt="Biên lai" onclick="Chi.show(${r.id})">` : '<div class="ico">🎤</div>'}
         <div class="bd"><div class="r1"><div class="ttl">${esc(v.title)}</div><div class="amt num${r.kind === 'thu' ? ' in' : ''}">${r.kind === 'thu' ? '+' : ''}${money(r.amount)}</div></div>
           ${v.sub ? `<div class="sub">${esc(v.sub)}</div>` : ''}${v.said ? `<div class="said">${esc(v.said)}</div>` : ''}
-          <div class="tags"><span class="mut">${esc(time)}</span>${r.kind === 'thu' ? '<span class="tag in">⬇️ Thu</span>' : ''}${tag('payer', r.payer ? '👤 ' + r.payer + (r.kind === 'thu' ? ' đưa' : ' trả') : '', r.kind === 'thu' ? '👤 Từ ai?' : '👤 Ai trả?')}${tag('apt', r.apt ? '🏠 ' + r.apt : '', '🏠 Chọn căn')}
+          <div class="tags"><span class="mut">${esc(time)}</span>${r.kind === 'thu' ? '<span class="tag in">⬇️ Thu</span>' : ''}${tag('payer', r.payer ? '👤 ' + r.payer + (r.kind === 'thu' ? ' đưa' : ' trả') : '', r.kind === 'thu' ? '👤 Từ ai?' : '👤 Ai trả?')}${tag('apt', r.apt ? '🏠 ' + r.apt : '', '🏠 Chọn căn')}${tag('cat', r.cat ? '🏷 ' + r.cat : '', '🏷 Hạng mục?')}
             ${RO ? '' : `<button class="tag ed" onclick="Chi.edit(${r.id})">✏️ Sửa</button><button class="x" onclick="Chi.del(${r.id}, '${money(r.amount)}')">Xóa</button>`}</div></div></div>`;
     }
     $('list').innerHTML = WIDE.matches ? gallery(shown, dayTot) : html + (day ? '</div>' : '');
@@ -311,6 +531,7 @@
     if (m) q.set('month', m);
     if (SHARE) q.set('t', SHARE);
     const dq = new URLSearchParams(q);
+    if (m === 'all') dq.delete('month');           // the deposit book has no "all months" view → this month
     const [a, b] = await Promise.all([
       fetch('/api/chi/list?' + q, { cache: 'no-store' }).then((r) => r.json()).catch(() => ({})),
       fetch((SHARE ? '/api/chi/nop?' : '/api/moi/deposits?') + dq, { cache: 'no-store' }).then((r) => r.json()).catch(() => ({})),
@@ -322,8 +543,9 @@
     month = j.month; J = j;
     const dm = D && D.success ? D.months.filter((x) => D.pots.some((p) => x[p.key])).map((x) => x.month) : [];
     const ms = [...new Set([j.month, ...j.months.map((x) => x.month), ...dm])].sort().reverse();
-    $('chips').innerHTML = ms.map((x) => `<button class="chip${x === j.month ? ' on' : ''}" onclick="Chi.load('${x}')">${esc(monLbl(x))}</button>`).join('');
-    draw(); drawNop(); tab(TAB);
+    $('chips').innerHTML = `<button class="chip${j.month === 'all' ? ' on' : ''}" onclick="Chi.load('all')">📊 Cả dự án</button>`
+      + ms.filter((x) => x !== 'all').map((x) => `<button class="chip${x === j.month ? ' on' : ''}" onclick="Chi.load('${x}')">${esc(monLbl(x))}</button>`).join('');
+    draw(); drawStat(); drawNop(); tab(TAB);
     if (!RO) drawBot(j);
   }
   // 📎 the transfer picture: shrunk on the phone (≤1600px JPEG) before it is sent — a phone photo is several MB
@@ -389,11 +611,17 @@
       <button type="button" data-k="chi" class="${k === 'chi' ? 'on' : ''}">⬆️ Chi (tiền ra)</button>
       <button type="button" data-k="thu" class="kin${k === 'thu' ? ' on' : ''}">⬇️ Thu (tiền vào)</button></div>`;
   }
+  function catField(k, v) {
+    const L = (J.cats && J.cats[k]) || [];
+    return `<label class="fl">Hạng mục<select id="eCat" class="sel"><option value="">Tự đoán / chưa chọn</option>${[...L, ...(v && !L.includes(v) ? [v] : [])]
+      .map((c) => `<option${c === v ? ' selected' : ''}>${esc(c)}</option>`).join('')}</select></label>`;
+  }
   function kindWire() {
     $('eKind').querySelectorAll('button').forEach((b) => { b.onclick = () => {
       KIND = b.dataset.k;
       $('eKind').querySelectorAll('button').forEach((x) => x.classList.toggle('on', x === b));
       lbl();
+      const c = $('eCat'); if (c) c.parentElement.outerHTML = catField(KIND, '');
     }; });
     const lbl = () => { const to = $('eTo'); if (to) to.parentElement.firstChild.textContent = KIND === 'thu' ? 'Nhận từ' : 'Trả cho'; };
     lbl();
@@ -404,6 +632,7 @@
     const opts = (arr, empty) => `<option value="">${empty}</option>` + arr.map((o) => `<option>${esc(o)}</option>`).join('');
     $('shIn').innerHTML = `<div style="font-size:16px;font-weight:800">➕ Thêm khoản thu / chi</div>
       ${kindField(F.kind === 'thu' ? 'thu' : 'chi')}
+      ${catField(KIND, '')}
       <label class="fl">Số tiền (đồng)<input id="eAmt" inputmode="numeric" autocomplete="off" placeholder="vd 1.500.000"></label>
       <div class="mut" id="eAmtV" style="margin-top:4px"></div>
       <label class="fl">Nội dung<input id="eWhat" autocomplete="off" placeholder="vd Mua 4 đèn mây"></label>
@@ -423,7 +652,7 @@
       if (!n) return alert('Gõ số tiền');
       const fd = new FormData();
       fd.append('amount', n); fd.append('what', $('eWhat').value); fd.append('to', $('eTo').value);
-      fd.append('at', $('eAt').value); fd.append('apt', $('eApt').value); fd.append('payer', $('ePay').value); fd.append('kind', KIND);
+      fd.append('at', $('eAt').value); fd.append('apt', $('eApt').value); fd.append('payer', $('ePay').value); fd.append('kind', KIND); fd.append('cat', $('eCat').value);
       if (PH.file) fd.append('image', PH.file, 'bien-lai.jpg');
       $('eSave').disabled = true; $('eSave').textContent = 'Đang lưu…';
       const j = await form('/api/chi/add', fd);
@@ -441,6 +670,7 @@
     const said = String(r.note || '').split('\n').filter((x) => x.startsWith('🎤')).join(' ');
     $('shIn').innerHTML = `<div style="font-size:16px;font-weight:800">✏️ Sửa khoản</div>
       ${kindField(r.kind)}
+      ${catField(r.kind, r.cat)}
       ${said ? `<div class="said" style="margin-top:4px">Bạn đã nói: ${esc(said.replace(/^🎤\s*/, ''))}</div>` : ''}
       <label class="fl">Số tiền (đồng)<input id="eAmt" inputmode="numeric" autocomplete="off" value="${esc(Number(r.amount).toLocaleString('vi-VN'))}"></label>
       <div class="mut" id="eAmtV" style="margin-top:4px"></div>
@@ -458,7 +688,7 @@
       const n = Number(amt.value.replace(/\D/g, ''));
       if (!n) return alert('Gõ số tiền');
       $('sh').style.display = 'none';
-      const j = await post('/api/chi/set', { id, amount: n, what: $('eWhat').value, to: $('eTo').value, at: $('eAt').value, kind: KIND });
+      const j = await post('/api/chi/set', { id, amount: n, what: $('eWhat').value, to: $('eTo').value, at: $('eAt').value, kind: KIND, cat: $('eCat').value });
       if (!j.success) return alert('Chưa lưu được: ' + (j.error || 'lỗi mạng'));
       if (PH.file || PH.remove) {
         const fd = new FormData();
@@ -472,10 +702,13 @@
   }
   function pick(id, key) {
     const r = J.items.find((x) => x.id === id); if (!r) return;
-    const opts = key === 'apt' ? J.apts : J.payers;
-    $('shIn').innerHTML = `<div style="font-size:16px;font-weight:800">${key === 'apt' ? '🏠 Khoản ' + money(r.amount) + ' chi cho căn nào?' : '👤 Ai bỏ tiền ra ' + money(r.amount) + '?'}</div>
+    const opts = key === 'apt' ? J.apts : key === 'cat' ? J.cats[r.kind] : J.payers;
+    const ttl = key === 'apt' ? '🏠 Khoản ' + money(r.amount) + ' chi cho căn nào?' : key === 'cat'
+      ? '🏷 Khoản ' + money(r.amount) + ' thuộc hạng mục nào?' : '👤 Ai bỏ tiền ra ' + money(r.amount) + '?';
+    $('shIn').innerHTML = `<div style="font-size:16px;font-weight:800">${ttl}</div><div class="mut" style="margin-top:2px">${esc(view(r).title)} · ${esc(r.day.slice(8, 10) + '/' + r.day.slice(5, 7))}</div>
       <div class="opts">${opts.map((o) => `<button class="btn${r[key] === o ? ' on' : ''}" data-v="${esc(o)}">${esc(o)}</button>`).join('')}
-        <button class="btn" data-v="">${key === 'apt' ? 'Bỏ chọn' : 'Chưa rõ'}</button></div>
+        <button class="btn" data-v="">${key === 'payer' ? 'Chưa rõ' : 'Bỏ chọn'}</button></div>
+      ${key === 'cat' ? '<input id="shName" placeholder="Hoặc gõ hạng mục khác" autocomplete="off"><div style="display:flex;margin-top:8px"><button class="btn dark" id="shSave">Lưu hạng mục này</button></div>' : ''}
       ${key === 'payer' ? '<input id="shName" placeholder="Hoặc gõ tên người khác" autocomplete="off"><div style="display:flex;margin-top:8px"><button class="btn dark" id="shSave">Lưu tên này</button></div>' : ''}`;
     $('shIn').querySelectorAll('.opts .btn').forEach((b) => { b.onclick = () => save(id, key, b.dataset.v); });
     if ($('shSave')) $('shSave').onclick = () => { const v = $('shName').value.trim(); if (v) save(id, key, v); };
@@ -526,6 +759,11 @@
     load, pick, share, tab, edit, add,
     filt: (key, v) => { if (!key) F = { apt: null, payer: null, kind: F.kind }; else F[key] = F[key] === v ? null : v; draw(); },
     kind: (k) => { F = { apt: null, payer: null, kind: k }; draw(); },
+    sKind: (k) => { S = { kind: k, cat: null, q: S.q }; drawStat(); },
+    sCat: (k, c, chip) => {             // a donut slice / legend line / chip → the groups of that hạng mục
+      S.cat = S.kind === k && S.cat === c && !chip ? null : c; S.kind = k; drawStat();
+      if (!chip) $('sGrp').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    },
     show: (id) => { $('ovImg').src = '/api/chi/img/' + id + (SHARE ? '?t=' + encodeURIComponent(SHARE) : ''); $('ov').style.display = 'flex'; },
     del: async (id, amt) => { if (!confirm('Xóa khoản ' + amt + '?')) return; await post('/api/chi/delete', { id }); load(month); },
     bot: async (action, id) => {

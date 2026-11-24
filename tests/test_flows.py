@@ -554,3 +554,34 @@ def test_chi_ocr_receipt_parse(app_module, monkeypatch):
     monkeypatch.setattr(app_module, 'chi_ocr_lines', lambda img: [])
     monkeypatch.setattr(app_module, 'chi_read_receipt', lambda img, mime='': {'amount': 1, 'by': 'gemini'})
     assert app_module.chi_read_fast(b'x')['by'] == 'gemini'
+
+
+def test_chi_categories_and_stats(client, db, app_module):
+    # owner Nov 24: "thống kê chi tiết nhất … bóc tách từng thứ … dùng cho những giao dịch mới nữa"
+    import io as _io
+    app_module._chi_ensure(db)
+    try:
+        g = app_module.chi_guess_cat
+        assert g(db, 'chi', '', 'Mua 3tv') == 'Vật tư & thiết bị' and g(db, 'chi', '', 'Tien mo gioi t1') == 'Môi giới'
+        assert g(db, 'chi', '', 'ung tien xay 10tr') == 'Nhân công' and g(db, 'thu', '', 'tien khach dong tien nha') == 'Cho thuê'
+        assert g(db, 'chi', '', 'abc xyz') == ''
+        # a new item: guessed from its words; the same receiver next time → the hạng mục it had
+        r = client.post('/api/chi/add', data={'amount': '300000', 'what': 'ZZ TEST mua keo dan gach', 'to': 'ZZ TEST NGUOI A',
+                                              'at': '2026-11-20T09:00'}, content_type='multipart/form-data').get_json()
+        lst = lambda m='2026-11': client.get('/api/chi/list?month=' + m).get_json()
+        x = next(i for i in lst()['items'] if i['id'] == r['id'])
+        assert x['cat'] == 'Vật tư & thiết bị'
+        assert client.post('/api/chi/set', json={'id': r['id'], 'cat': 'Mộc'}).get_json()['success']
+        assert g(db, 'chi', 'ZZTEST  nguoi a', 'khong co chu gi') == 'Mộc'
+        r2 = client.post('/api/chi/add', data={'amount': '5', 'what': 'ZZ TEST', 'to': 'ZZ TEST B', 'cat': 'Khác'},
+                         content_type='multipart/form-data').get_json()
+        j = lst()
+        assert 'Thuê nhà' in j['cats']['chi'] and 'Cho thuê' in j['cats']['thu'] and 'Hàng Muối' in j['apts']
+        assert all('cat' in i for i in j['items'])
+        a = lst('all')
+        assert a['month'] == 'all' and len(a['items']) >= len(j['items']) and any(i['id'] == r['id'] for i in a['items'])
+        page = client.get('/chi-tieu').get_data(as_text=True)
+        assert 'id="pStat"' in page and 'Chi.tab(\'stat\')' in page and 'drawStat' in page
+    finally:
+        db.session.execute(text("DELETE FROM chi_receipts WHERE to_name LIKE 'ZZ TEST%'"))
+        db.session.commit()
