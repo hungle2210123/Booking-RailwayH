@@ -593,6 +593,7 @@ def test_month_sync_adds_only_new(client, db, app_module, throwaway, monkeypatch
     monkeypatch.setattr(app_module, 'mail_notify', lambda _db, msg: sent.append(msg) or 'bot2')
     hdr = {'X-Hotel-Token': os.getenv('EXTENSION_TOKEN', '')}
     new_id, old_id = throwaway(), throwaway()
+    state = app_module._zbot_get(db, 'month_sync')            # the real "last run" record is put back afterwards
     H = ['Tên khách', 'Nhận phòng', 'Ngày đi', 'Phòng', 'Được đặt vào', 'Tình trạng', 'Giá', 'Hoa hồng', 'Mã số đặt phòng']
     row = lambda bid, name, ci, co, st='OK', price='VND 2.136.000': [{'text': x, 'link': ''} for x in
         [name, ci, co, '101 - 103 TN', '16 tháng 11 2026', st, price, 'VND 320.400', bid]]
@@ -623,3 +624,4 @@ def test_month_sync_adds_only_new(client, db, app_module, throwaway, monkeypatch
     finally:
         db.session.execute(text("DELETE FROM bookings WHERE booking_id IN ('9990000001')"))
         db.session.commit()
+        app_module._zbot_put(db, 'month_sync', state or {})
