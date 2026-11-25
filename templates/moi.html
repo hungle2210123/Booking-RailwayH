@@ -975,15 +975,17 @@ button.info.on{border-color:#0E1525;background:#fff}
     };
     // 💰 money of the guests in the apartment TODAY (arrive today … leave today), exact to the đồng
     const dueBox = (a) => {
-      const g = B.filter((b) => b.apt === a.id && b.ciO <= 0 && b.coO >= 0 && !b.skipped && b.total > 0)
-        .sort((p, q) => (p.room_no || 99) - (q.room_no || 99) || p.ciO - q.ciO);
-      if (!g.length) return '';
       const rest = (b) => b.paid ? 0 : Math.max(b.total - (b.collected || 0), 0);
+      // + guests who already left (10 days) not marked paid (owner Nov 26: "không phải ngày nào tôi cũng đi gom tiền")
+      const g = [...B.filter((b) => b.apt === a.id && b.ciO <= 0 && b.coO >= 0 && !b.skipped && b.total > 0)
+        .sort((p, q) => (p.room_no || 99) - (q.room_no || 99) || p.ciO - q.ciO),
+        ...B.filter((b) => b.apt === a.id && b.coO < 0 && b.coO >= -10 && !b.skipped && b.total > 0 && rest(b) > 0).sort((p, q) => p.coO - q.coO)];
+      if (!g.length) return '';
       const due = g.reduce((t, b) => t + rest(b), 0), sum = g.reduce((t, b) => t + b.total, 0), nDue = g.filter((b) => rest(b) > 0).length;
       const line = (b) => { const r = rest(b);
-        return `<button class="dl" onclick="M.open('${b.id}')"><span class="dn">${esc(b.room_no ? rn(a.id, b.room_no) : '—')}</span><span class="dg">${esc(b.name)}<small>${b.nights} đêm · ${b.coO === 0 ? 'trả hôm nay' : b.ciO === 0 ? 'đến hôm nay' : 'trả ' + dm(b.coO)}</small></span><span class="dt num">${fmt(b.total)}</span><span class="dr num" style="color:${r ? '#B91C1C' : '#15803D'}">${r ? fmt(r) : '✓ đã thu'}${r && b.collected ? '<small>đã thu ' + short(b.collected) + '</small>' : ''}</span></button>`; };
+        return `<button class="dl" onclick="M.open('${b.id}')"><span class="dn">${esc(b.room_no ? rn(a.id, b.room_no) : '—')}</span><span class="dg">${esc(b.name)}<small>${b.nights} đêm · ${b.coO < 0 ? '<b style="color:#B91C1C">đã trả phòng ' + dm(b.coO) + '</b>' : b.coO === 0 ? 'trả hôm nay' : b.ciO === 0 ? 'đến hôm nay' : 'trả ' + dm(b.coO)}</small></span><span class="dt num">${fmt(b.total)}</span><span class="dr num" style="color:${r ? '#B91C1C' : '#15803D'}">${r ? fmt(r) : '✓ đã thu'}${r && b.collected ? '<small>đã thu ' + short(b.collected) + '</small>' : ''}</span></button>`; };
       return `<div class="due" style="border-color:${due ? '#FECACA' : '#BBF7D0'}">
-        <button class="dh" onclick="M.set('papt',${a.id});M.tab('pay')" style="background:${due ? '#FEF2F2' : '#F0FDF4'}"><span>💰 ${due ? 'Cần thu hôm nay · ' + nDue + '/' + g.length + ' khách' : 'Đã thu đủ ' + g.length + ' khách đang ở'}</span><b class="num" style="color:${due ? '#B91C1C' : '#15803D'}">${fmt(due)}</b></button>
+        <button class="dh" onclick="M.set('papt',${a.id});M.tab('pay')" style="background:${due ? '#FEF2F2' : '#F0FDF4'}"><span>💰 ${due ? 'Cần thu · ' + nDue + '/' + g.length + ' khách' : 'Đã thu đủ ' + g.length + ' khách đang ở'}</span><b class="num" style="color:${due ? '#B91C1C' : '#15803D'}">${fmt(due)}</b></button>
         <div class="dl dhd"><span class="dn">Phòng</span><span class="dg">Khách</span><span class="dt">Tổng tiền</span><span class="dr">Còn thu</span></div>
         ${g.map(line).join('')}
         <div class="dl dsum"><span class="dn"></span><span class="dg">Cộng</span><span class="dt num">${fmt(sum)}</span><span class="dr num" style="color:${due ? '#B91C1C' : '#15803D'}">${fmt(due)}</span></div></div>`;
