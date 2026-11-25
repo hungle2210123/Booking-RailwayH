@@ -106,10 +106,12 @@ body.wide #app{max-width:1180px}
 .due{position:sticky;left:0;z-index:4;width:calc(100vw - 50px);max-width:420px;margin:6px 0 4px 8px;border:1.5px solid;border-radius:12px;background:#fff;overflow:hidden}
 .due .dh{display:flex;width:100%;align-items:center;justify-content:space-between;gap:8px;border:none;padding:9px 11px;font-size:12px;font-weight:800;color:#0E1525;text-align:left}
 .due .dh b{font-size:17px}
-.due .dl{display:grid;grid-template-columns:34px minmax(0,1fr) auto 84px;gap:6px;align-items:center;width:100%;border:none;border-top:1px solid #F1F5F9;background:#fff;padding:7px 11px;text-align:left;font-size:12px;font-weight:700;color:#0E1525}
+.due .dl{display:grid;grid-template-columns:52px minmax(0,1fr) auto 84px;gap:6px;align-items:center;width:100%;border:none;border-top:1px solid #F1F5F9;background:#fff;padding:7px 11px;text-align:left;font-size:12px;font-weight:700;color:#0E1525}
 .due .dg{overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
 .due .dg small,.due .dr small{display:block;font-size:10px;font-weight:600;color:#64748B;white-space:normal}
-.due .dn{font-size:11px;color:#475569}
+.due .dn{font-size:11px;color:#475569;display:flex;align-items:center;gap:4px}
+.due .ck{width:18px;height:18px;flex:none;border-radius:5px;border:2px solid #CBD5E1;background:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-style:normal;font-weight:900;color:#fff}
+.due .ck.on{background:#6D28D9;border-color:#6D28D9}
 .due .dt,.due .dr{text-align:right;white-space:nowrap}
 .due .dr{font-weight:800}
 .due .dhd{padding:4px 11px;font-size:10px;font-weight:700;color:#64748B;background:#F8FAFC}
@@ -751,6 +753,9 @@ button.info.on{border-color:#0E1525;background:#fff}
   M.undoPay = async (id) => { const b = byId[id]; if (!confirm('Hoàn tác: bỏ ' + fmt(b.collected) + ' đã thu của ' + b.name + '?')) return;
     const r = await post('/api/pay/collect', { booking_id: id, amount: b.collected, collector: b.collector || 'LOC LE', undo: true });
     if (!r.ok) return toast('Lỗi: ' + (r.j.error || 'không hoàn tác được')); toast('Đã hoàn tác'); await load(true); };
+  M.claim = async (id) => { const b = byId[id]; if (!b) return;   // ☑ khách báo đã trả (owner Nov 26)
+    const r = await post('/api/pay/mark', { booking_id: id, action: b.claimed ? 'unclaim' : 'claim' });
+    if (!r.ok) return toast('Lỗi: không lưu được'); toast(b.claimed ? 'Đã bỏ dấu' : '☑ ' + b.name + ' báo đã trả'); await load(true); };
   M.payCycle = async (id) => { const b = byId[id], s = payStatus(b);
     const r = s === 'todo' ? await post('/api/journey/sent', { booking_id: id, step: 'payment', sent: true })
             : s === 'asked' ? await post('/api/pay/mark', { booking_id: id, action: 'claim' })
@@ -983,7 +988,7 @@ button.info.on{border-color:#0E1525;background:#fff}
       if (!g.length) return '';
       const due = g.reduce((t, b) => t + rest(b), 0), sum = g.reduce((t, b) => t + b.total, 0), nDue = g.filter((b) => rest(b) > 0).length;
       const line = (b) => { const r = rest(b);
-        return `<button class="dl" onclick="M.open('${b.id}')"><span class="dn">${esc(b.room_no ? rn(a.id, b.room_no) : '—')}</span><span class="dg">${esc(b.name)}<small>${b.nights} đêm · ${b.coO < 0 ? '<b style="color:#B91C1C">đã trả phòng ' + dm(b.coO) + '</b>' : b.coO === 0 ? 'trả hôm nay' : b.ciO === 0 ? 'đến hôm nay' : 'trả ' + dm(b.coO)}</small></span><span class="dt num">${fmt(b.total)}</span><span class="dr num" style="color:${r ? '#B91C1C' : '#15803D'}">${r ? fmt(r) : '✓ đã thu'}${r && b.collected ? '<small>đã thu ' + short(b.collected) + '</small>' : ''}</span></button>`; };
+        return `<button class="dl" onclick="M.open('${b.id}')"${b.claimed && r ? ' style="background:#F5F3FF"' : ''}><span class="dn">${r ? `<i class="ck${b.claimed ? ' on' : ''}" role="checkbox" aria-checked="${!!b.claimed}" aria-label="Khách báo đã trả" onclick="event.stopPropagation();M.claim('${b.id}')">${b.claimed ? '✓' : ''}</i>` : ''}${esc(b.room_no ? rn(a.id, b.room_no) : '—')}</span><span class="dg">${esc(b.name)}<small>${b.nights} đêm · ${b.coO < 0 ? '<b style="color:#B91C1C">đã trả phòng ' + dm(b.coO) + '</b>' : b.coO === 0 ? 'trả hôm nay' : b.ciO === 0 ? 'đến hôm nay' : 'trả ' + dm(b.coO)}</small></span><span class="dt num">${fmt(b.total)}</span><span class="dr num" style="color:${r ? '#B91C1C' : '#15803D'}">${r ? fmt(r) : '✓ đã thu'}${r && b.collected ? '<small>đã thu ' + short(b.collected) + '</small>' : ''}</span></button>`; };
       return `<div class="due" style="border-color:${due ? '#FECACA' : '#BBF7D0'}">
         <button class="dh" onclick="M.set('papt',${a.id});M.tab('pay')" style="background:${due ? '#FEF2F2' : '#F0FDF4'}"><span>💰 ${due ? 'Cần thu · ' + nDue + '/' + g.length + ' khách' : 'Đã thu đủ ' + g.length + ' khách đang ở'}</span><b class="num" style="color:${due ? '#B91C1C' : '#15803D'}">${fmt(due)}</b></button>
         <div class="dl dhd"><span class="dn">Phòng</span><span class="dg">Khách</span><span class="dt">Tổng tiền</span><span class="dr">Còn thu</span></div>

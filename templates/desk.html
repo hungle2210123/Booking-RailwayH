@@ -202,7 +202,7 @@ button.info.on{border-color:#0E1525;background:#fff}
 .duek{border:1px solid #E4E7ED;border-radius:12px;overflow:hidden;background:#fff}
 .dueh{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:9px 12px;background:#F8FAFC;font-weight:800;font-size:14px}
 .dueh .dot{margin-right:6px}.dueh b{font-size:17px}.dueh small{display:block;font-size:11px;color:#64748B;font-weight:700;margin-left:16px}
-.dl2{display:grid;grid-template-columns:40px minmax(0,1fr) auto;gap:10px;align-items:center;width:100%;text-align:left;border:0;border-top:1px solid #F1F5F9;background:#fff;padding:8px 12px;font:inherit;color:#0E1525;cursor:pointer}
+.dl2{display:grid;grid-template-columns:22px 34px minmax(0,1fr) auto;gap:10px;align-items:center;width:100%;text-align:left;border:0;border-top:1px solid #F1F5F9;background:#fff;padding:8px 12px;font:inherit;color:#0E1525;cursor:pointer}
 .dl2:hover{background:#F8FAFC}.dl2 .rm{font-size:12px;font-weight:800;color:#64748B}
 .dl2 .nm{min-width:0}.dl2 .nm b{display:block;font-size:13px;overflow-wrap:anywhere;line-height:1.3}.dl2 .nm small{display:block;font-size:11px;color:#64748B;font-weight:600}
 .dl2 .nm i{font-style:normal;color:#B91C1C;font-weight:800}
@@ -224,6 +224,9 @@ button.info.on{border-color:#0E1525;background:#fff}
 .atab .r{text-align:right}.atab tfoot td{font-weight:800;border-top:2px solid #0E1525;background:#FAFBFC}
 .asum{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px 20px;padding:10px 14px;margin-bottom:12px;background:#F8FAFC;border-radius:10px;font-size:13px;color:#475569}
 .asum > b{font-size:15px;color:#0E1525}.asum span b{color:#0E1525;font-size:14.5px}
+.ck{width:20px;height:20px;border-radius:6px;border:2px solid #CBD5E1;background:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:13px;font-weight:900;color:#fff;cursor:pointer}
+.ck:hover{border-color:#6D28D9}.ck.on{background:#6D28D9;border-color:#6D28D9}.ck.done{border:0;background:none;color:#16A34A;cursor:default}
+.dl2.clm{background:#F5F3FF}
 </style>
 </head>
 <body>
@@ -523,6 +526,10 @@ button.info.on{border-color:#0E1525;background:#fff}
   D.undoPay = async (id) => { const b = byId[id]; if (!confirm('Hoàn tác: bỏ ' + fmt(b.collected) + ' đã thu của ' + b.name + '?')) return;
     const r = await post('/api/pay/collect', { booking_id: id, amount: b.collected, collector: b.collector || 'LOC LE', undo: true });
     if (!r.ok) return toast('Lỗi: ' + (r.j.error || 'không hoàn tác được')); toast('Đã hoàn tác'); await load(true); };
+  // ☑ the guest said they paid (owner Nov 26: "dấu tích … khi khách báo đã thanh toán") = pay status 'claimed'
+  D.claim = async (id) => { const b = byId[id]; if (!b) return;
+    const r = await post('/api/pay/mark', { booking_id: id, action: b.claimed ? 'unclaim' : 'claim' });
+    if (!r.ok) return toast('Lỗi: không lưu được'); toast(b.claimed ? 'Đã bỏ dấu' : '☑ ' + b.name + ' báo đã trả'); await load(true); };
   D.payCycle = async (id) => { const s = payStatus(byId[id]);
     const r = s === 'todo' ? await post('/api/journey/sent', { booking_id: id, step: 'payment', sent: true })
             : s === 'asked' ? await post('/api/pay/mark', { booking_id: id, action: 'claim' })
@@ -920,14 +927,15 @@ button.info.on{border-color:#0E1525;background:#fff}
       if (!cards.length) return '';
       const all = cards.reduce((t, x) => t + x.due, 0), nPast = cards.reduce((t, x) => t + x.past.length, 0);
       const row = (a, b, gone) => { const r = restOf(b);
-        return `<button class="dl2" onclick="D.open('${esc(b.id)}')" title="Bấm để mở thẻ khách"><span class="rm">${esc(b.room_no ? rn(a.id, b.room_no) : '—')}</span>
+        const ck = r ? `<span class="ck${b.claimed ? ' on' : ''}" role="checkbox" aria-checked="${!!b.claimed}" title="${b.claimed ? 'Khách đã báo đã chuyển — bấm để bỏ' : 'Tích khi khách báo đã thanh toán'}" onclick="event.stopPropagation();D.claim('${esc(b.id)}')">${b.claimed ? '✓' : ''}</span>` : '<span class="ck done">✓</span>';
+        return `<button class="dl2${b.claimed && r ? ' clm' : ''}" onclick="D.open('${esc(b.id)}')" title="Bấm để mở thẻ khách">${ck}<span class="rm">${esc(b.room_no ? rn(a.id, b.room_no) : '—')}</span>
           <span class="nm"><b>${esc(b.name)}</b><small>${b.nights} đêm · ${dm(b.ciO)} → ${dm(b.coO)}${gone ? ' · <i>đã trả phòng ' + (-b.coO) + ' ngày</i>' : b.coO === 0 ? ' · trả hôm nay' : b.ciO === 0 ? ' · đến hôm nay' : ''}</small></span>
-          <span class="mo"><small class="num">Tổng ${fmt(b.total)}</small><b class="num" style="color:${r ? '#B91C1C' : '#15803D'}">${r ? (b.collected ? 'còn ' : '') + fmt(r) : '✓ đã thu'}</b></span></button>`; };
+          <span class="mo"><small class="num">Tổng ${fmt(b.total)}</small><b class="num" style="color:${r ? (b.claimed ? '#6D28D9' : '#B91C1C') : '#15803D'}">${r ? (b.collected ? 'còn ' : '') + fmt(r) : '✓ đã thu'}</b>${r && b.claimed ? '<small style="color:#6D28D9;font-weight:800">khách báo đã trả</small>' : ''}</span></button>`; };
       return `<section class="card" style="padding:14px 16px"><div style="display:flex;align-items:baseline;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:10px">
           <div><b style="font-size:15px">💰 Tiền cần thu</b><span class="muted" style="font-size:12.5px;margin-left:8px">khách đang ở hôm nay${nPast ? ' + <b style="color:#B91C1C">' + nPast + ' khách đã trả phòng mà chưa đánh dấu thu</b> (10 ngày qua)' : ''} · bấm khách để thu</span></div>
           <span class="num" style="font-size:13px;color:#475569;font-weight:700">Tất cả: <b style="font-size:17px;color:${all ? '#B91C1C' : '#15803D'}">${fmt(all)}</b></span></div>
         <div class="dueg">${cards.map(({ a, g, past, due, sum, n }) => `<div class="duek">
-          <div class="dueh" style="border-top:3px solid ${a.color}"><span><span class="dot" style="background:${a.color}"></span>${esc(a.short || a.name)}<small>${n ? n + ' khách chưa thu' : 'đã thu đủ'}</small></span><b class="num" style="color:${due ? '#B91C1C' : '#15803D'}">${due ? fmt(due) : '✓ Đủ'}</b></div>
+          <div class="dueh" style="border-top:3px solid ${a.color}"><span><span class="dot" style="background:${a.color}"></span>${esc(a.short || a.name)}<small>${n ? n + ' khách chưa thu' : 'đã thu đủ'}${(() => { const c = [...g, ...past].filter((b) => b.claimed && restOf(b) > 0); return c.length ? ` · <span style="color:#6D28D9">☑ ${c.length} báo đã trả ${short(c.reduce((t, b) => t + restOf(b), 0))}</span>` : ''; })()}</small></span><b class="num" style="color:${due ? '#B91C1C' : '#15803D'}">${due ? fmt(due) : '✓ Đủ'}</b></div>
           ${g.map((b) => row(a, b, false)).join('')}
           ${past.length ? `<div class="dsub">Đã trả phòng · chưa thu</div>${past.map((b) => row(a, b, true)).join('')}` : ''}
           <div class="dft"><span>Cộng ${g.length + past.length} khách · tổng ${fmt(sum)}</span><b class="num" style="color:${due ? '#B91C1C' : '#15803D'}">${fmt(due)}</b></div></div>`).join('')}</div></section>`;
