@@ -801,7 +801,8 @@ def test_cancel_mail_marks_upcoming_booking_cancelling(app, db, client, booking,
     a cancel mail makes an upcoming / today's booking Báo hủy; a PAST stay (owner's own no-show mark) is not touched."""
     import app as appmod
     from datetime import timedelta
-    monkeypatch.setattr(appmod, 'mail_notify', lambda _x, msg: None)
+    sent = []
+    monkeypatch.setattr(appmod, 'mail_notify', lambda _x, msg: sent.append(msg))
     today = appmod._vn_now().date()
     fut = booking(guest_name='ZZ Cancelmail', checkin_date=today.isoformat(), checkout_date=(today + timedelta(days=1)).isoformat())
     old = booking(guest_name='ZZ Pastmail', checkin_date=(today - timedelta(days=9)).isoformat(), checkout_date=(today - timedelta(days=7)).isoformat())
@@ -813,6 +814,8 @@ def test_cancel_mail_marks_upcoming_booking_cancelling(app, db, client, booking,
         st = lambda b: db.session.execute(appmod.text("SELECT checkin_status FROM bookings WHERE booking_id = :b"), {'b': b}).scalar()
         db.session.expire_all()
         assert st(fut) == 'cancelling' and st(old) != 'cancelling'
+        # owner, Nov 25: no Zalo for a cancel whose check-out is already past
+        assert any(f'Mã {fut}' in m for m in sent) and not any(f'Mã {old}' in m for m in sent)
     finally:
         with app.app_context():
             db.session.execute(appmod.text("DELETE FROM mail_alerts WHERE mail_id LIKE 'zz-mail-k%'"))

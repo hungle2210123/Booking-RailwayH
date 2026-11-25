@@ -12,6 +12,7 @@ _MAIL_READY = False
 MAIL_KIND = {'last': '🆕 ĐẶT PHÒNG MỚI — PHÚT CUỐI', 'new': '🆕 ĐẶT PHÒNG MỚI', 'cancel': '❌ KHÁCH HỦY trên Booking',
              'change': '✏️ Khách ĐỔI đặt phòng', 'cupd': '⚠️ CẬP NHẬT đặt phòng ĐÃ HỦY'}
 # owner, Nov 19: every cancellation mail (any arrival date) and every "Cập nhật về đặt phòng đã hủy …" goes to Zalo
+# (except, Nov 25: a cancel mail whose booking's check-out is already past → saved, no Zalo)
 MAIL_ALWAYS = ('cancel', 'cupd')
 MAIL_MONTH = {'january': 1, 'february': 2, 'march': 3, 'april': 4, 'may': 5, 'june': 6, 'july': 7, 'august': 8,
               'september': 9, 'october': 10, 'november': 11, 'december': 12}
@@ -247,6 +248,11 @@ def mail_hook(token):
         detail = (detail + '\n' if detail else '') + '→ đã chuyển "Báo hủy" trên lịch (hoàn tác được)'
     if not now and p['kind'] not in MAIL_ALWAYS:    # kept (for the record) but not announced: the guest does not arrive today
         return jsonify({'ok': True, 'kind': p['kind'], 'quiet': True})
+    if p['kind'] == 'cancel' and p['booking_id']:   # owner, Nov 25: a cancel mail for a stay whose CHECK-OUT is already
+        co = _xdb.session.execute(text("SELECT checkout_date FROM bookings WHERE booking_id = :b"),   # past = no Zalo
+                                  {'b': p['booking_id']}).scalar()                                    # ('cupd' unchanged)
+        if co and co < today:
+            return jsonify({'ok': True, 'kind': p['kind'], 'quiet': True, 'why': 'checked out already'})
     msg = mail_text({'kind': p['kind'], 'booking_id': p['booking_id'], 'prop': prop, 'apt': apt, 'day': p['day'], 'at': at,
                      'note': p.get('note'), 'detail': detail}, _vn_now().date())
     try:        # → the owner's Zalo = a notification on the iPhone
