@@ -220,7 +220,7 @@ function ensureAlarm(name, periodInMinutes) {
 ensureAlarm('hp-selfupdate', 5);
 // written in THIS script (getManifest() would give the new manifest even when the script is an old cached copy);
 // tests/test_parsers.py checks it equals manifest.json
-const BG_VER = '1.53.0';
+const BG_VER = '1.54.0';
 // 1.51: the popup / options page asks which version the BACKGROUND runs (Nov 22: after a Chrome restart the manifest
 // was new but Chrome kept the cached 1.47 background script — only a reload replaces it)
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
@@ -301,8 +301,12 @@ async function cookieReset() {
   if (!hpResetJob) return;
   try { await chrome.tabs.remove(hpResetJob.tabId); } catch (e) {}
   try {
-    await chrome.browsingData.remove({ origins: ['https://admin.booking.com', 'https://account.booking.com', 'https://auth.booking.com',
-      'https://login.booking.com', 'https://www.booking.com'] }, { cookies: true, localStorage: true, cacheStorage: true, indexedDB: true });
+    // 1.54 (owner Nov 25: profile NgoTri kept being signed out even after clearing booking.com's cookies; clearing ALL the
+    // profile's data fixed it — "cứ xóa toàn bộ cookie là tốt nhất"): every website's data of THIS profile, all time.
+    // Only web pages (unprotectedWeb): extensions keep their own storage (Tampermonkey's saved account, this extension).
+    await chrome.browsingData.remove({ since: 0, originTypes: { unprotectedWeb: true } }, {
+      cookies: true, localStorage: true, cacheStorage: true, indexedDB: true, cache: true, serviceWorkers: true,
+      fileSystems: true, webSQL: true });
   } catch (e) {}
   if (hpResetJob.fetch) return;                       // new guests: the 1-minute check opens them again
   stayAwake();

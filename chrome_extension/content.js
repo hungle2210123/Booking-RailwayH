@@ -1366,10 +1366,10 @@
     let r = null;
     try { r = await chrome.runtime.sendMessage({ type: 'logout-loop' }); } catch (e) {}
     const note = r?.reset
-      ? '⚠️ Booking tự đăng xuất mỗi lần mở chi tiết khách → máy đã tự xóa cookie Booking, đăng nhập lại và chạy lại (Booking có thể hỏi mã SMS qua Zalo).'
+      ? '⚠️ Booking tự đăng xuất mỗi lần mở chi tiết khách → máy đã tự xóa TOÀN BỘ cookie + dữ liệu web của hồ sơ Chrome này, đăng nhập lại và chạy lại (Booking có thể hỏi mã SMS qua Zalo).'
       : r?.paused
-        ? '⛔ Booking vẫn tự đăng xuất mỗi lần mở chi tiết khách (đã xóa cookie mà không hết) → máy TẠM DỪNG tự mở khách 6 tiếng để Booking không khóa thêm. Trang khác vẫn dùng bình thường.'
-        : '⚠️ Booking tự đăng xuất mỗi lần mở chi tiết khách (hôm nay đã tự sửa 1 lần). Cần anh: chrome://settings/content/all?searchSubpage=booking.com → xóa → đăng nhập lại.';
+        ? '⛔ Booking vẫn tự đăng xuất mỗi lần mở chi tiết khách (đã tự xóa toàn bộ dữ liệu mà không hết) → máy TẠM DỪNG tự mở khách 6 tiếng. Thử tay: chrome://settings/clearBrowserData → Mọi lúc → xóa → đăng nhập lại.'
+        : '⚠️ Booking tự đăng xuất mỗi lần mở chi tiết khách (hôm nay đã tự sửa 1 lần). Cần anh: chrome://settings/clearBrowserData → Mọi lúc → xóa → đăng nhập lại.';
     if (q) q.items.slice(q.i).forEach(x => q.log.push({ bid: x.bid, ok: false, why: 'Booking đăng xuất' }));
     const g = groupGet();
     if (g && q) {

@@ -269,3 +269,10 @@ reservation details for this account / PC (likely after many automatic reservati
 The 10-min new-guest retries signed in and out all day (11:29, 11:42, 11:55, 20:41, 21:07 …). Now `logoutLoop` the 2nd
 time in a day sets `hpBlockUntil` = +6 h: `pendingCheck` and `morningRun` do nothing until then (then one try; another
 loop → 6 h more). Zalo/report note "⛔ … TẠM DỪNG tự mở khách 6 tiếng".
+
+### 1.54 (Nov 25 2026) — the sign-out fix clears the WHOLE profile's web data
+Profile NgoTri stayed signed out on every reservation page even with all other extensions off and booking.com's
+cookies cleared; clearing ALL browsing data (all time) fixed it (owner: "cứ xóa toàn bộ cookie là tốt nhất").
+`cookieReset` now runs `browsingData.remove({since: 0, originTypes: {unprotectedWeb: true}})` (cookies, storage,
+cache, service workers …) — extensions keep their storage (Tampermonkey's saved account). Still once a day; the 2nd
+loop pauses automatic opening 6 h (1.53).
