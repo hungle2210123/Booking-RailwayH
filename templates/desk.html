@@ -227,6 +227,8 @@ button.info.on{border-color:#0E1525;background:#fff}
 .ck{width:20px;height:20px;border-radius:6px;border:2px solid #CBD5E1;background:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:13px;font-weight:900;color:#fff;cursor:pointer}
 .ck:hover{border-color:#6D28D9}.ck.on{background:#6D28D9;border-color:#6D28D9}.ck.done{border:0;background:none;color:#16A34A;cursor:default}
 .dl2.clm{background:#F5F3FF}
+.dcl{display:flex;justify-content:space-between;align-items:baseline;gap:8px;padding:8px 12px;border-top:1px solid #DDD6FE;background:#F5F3FF;color:#5B21B6;font-size:12.5px;font-weight:800}.dcl b{font-size:15px}
+.clt{color:#5B21B6;background:#F5F3FF;border:1px solid #DDD6FE;border-radius:9px;padding:4px 10px}.clt b{font-size:16px}
 </style>
 </head>
 <body>
@@ -926,6 +928,9 @@ button.info.on{border-color:#0E1525;background:#fff}
       const cards = showA.map((a) => ({ a, ...dueOf(a) })).filter((x) => x.g.length || x.past.length);
       if (!cards.length) return '';
       const all = cards.reduce((t, x) => t + x.due, 0), nPast = cards.reduce((t, x) => t + x.past.length, 0);
+      // ☑ money of the guests ticked "khách báo đã trả" (owner Nov 26: "biết tôi sẽ thu bao nhiêu tiền của những khách đã báo trả")
+      const clOf = (x) => [...x.g, ...x.past].filter((b) => b.claimed && restOf(b) > 0);
+      const clAll = cards.flatMap(clOf), clSum = clAll.reduce((t, b) => t + restOf(b), 0);
       const row = (a, b, gone) => { const r = restOf(b);
         const ck = r ? `<span class="ck${b.claimed ? ' on' : ''}" role="checkbox" aria-checked="${!!b.claimed}" title="${b.claimed ? 'Khách đã báo đã chuyển — bấm để bỏ' : 'Tích khi khách báo đã thanh toán'}" onclick="event.stopPropagation();D.claim('${esc(b.id)}')">${b.claimed ? '✓' : ''}</span>` : '<span class="ck done">✓</span>';
         return `<button class="dl2${b.claimed && r ? ' clm' : ''}" onclick="D.open('${esc(b.id)}')" title="Bấm để mở thẻ khách">${ck}<span class="rm">${esc(b.room_no ? rn(a.id, b.room_no) : '—')}</span>
@@ -933,11 +938,12 @@ button.info.on{border-color:#0E1525;background:#fff}
           <span class="mo"><small class="num">Tổng ${fmt(b.total)}</small><b class="num" style="color:${r ? (b.claimed ? '#6D28D9' : '#B91C1C') : '#15803D'}">${r ? (b.collected ? 'còn ' : '') + fmt(r) : '✓ đã thu'}</b>${r && b.claimed ? '<small style="color:#6D28D9;font-weight:800">khách báo đã trả</small>' : ''}</span></button>`; };
       return `<section class="card" style="padding:14px 16px"><div style="display:flex;align-items:baseline;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:10px">
           <div><b style="font-size:15px">💰 Tiền cần thu</b><span class="muted" style="font-size:12.5px;margin-left:8px">khách đang ở hôm nay${nPast ? ' + <b style="color:#B91C1C">' + nPast + ' khách đã trả phòng mà chưa đánh dấu thu</b> (10 ngày qua)' : ''} · bấm khách để thu</span></div>
-          <span class="num" style="font-size:13px;color:#475569;font-weight:700">Tất cả: <b style="font-size:17px;color:${all ? '#B91C1C' : '#15803D'}">${fmt(all)}</b></span></div>
+          <span class="num" style="font-size:13px;color:#475569;font-weight:700;display:flex;gap:18px;align-items:baseline;flex-wrap:wrap">${clAll.length ? `<span class="clt">☑ Khách báo đã trả (${clAll.length}): <b>${fmt(clSum)}</b></span>` : ''}<span>Tất cả còn thu: <b style="font-size:17px;color:${all ? '#B91C1C' : '#15803D'}">${fmt(all)}</b></span></span></div>
         <div class="dueg">${cards.map(({ a, g, past, due, sum, n }) => `<div class="duek">
           <div class="dueh" style="border-top:3px solid ${a.color}"><span><span class="dot" style="background:${a.color}"></span>${esc(a.short || a.name)}<small>${n ? n + ' khách chưa thu' : 'đã thu đủ'}${(() => { const c = [...g, ...past].filter((b) => b.claimed && restOf(b) > 0); return c.length ? ` · <span style="color:#6D28D9">☑ ${c.length} báo đã trả ${short(c.reduce((t, b) => t + restOf(b), 0))}</span>` : ''; })()}</small></span><b class="num" style="color:${due ? '#B91C1C' : '#15803D'}">${due ? fmt(due) : '✓ Đủ'}</b></div>
           ${g.map((b) => row(a, b, false)).join('')}
           ${past.length ? `<div class="dsub">Đã trả phòng · chưa thu</div>${past.map((b) => row(a, b, true)).join('')}` : ''}
+          ${(() => { const c = clOf({ g, past }); return c.length ? `<div class="dcl"><span>☑ Khách báo đã trả · ${c.length} khách</span><b class="num">${fmt(c.reduce((t, b) => t + restOf(b), 0))}</b></div>` : ''; })()}
           <div class="dft"><span>Cộng ${g.length + past.length} khách · tổng ${fmt(sum)}</span><b class="num" style="color:${due ? '#B91C1C' : '#15803D'}">${fmt(due)}</b></div></div>`).join('')}</div></section>`;
     };
     let rows = '';

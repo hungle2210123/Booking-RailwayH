@@ -993,6 +993,7 @@ button.info.on{border-color:#0E1525;background:#fff}
         <button class="dh" onclick="M.set('papt',${a.id});M.tab('pay')" style="background:${due ? '#FEF2F2' : '#F0FDF4'}"><span>💰 ${due ? 'Cần thu · ' + nDue + '/' + g.length + ' khách' : 'Đã thu đủ ' + g.length + ' khách đang ở'}</span><b class="num" style="color:${due ? '#B91C1C' : '#15803D'}">${fmt(due)}</b></button>
         <div class="dl dhd"><span class="dn">Phòng</span><span class="dg">Khách</span><span class="dt">Tổng tiền</span><span class="dr">Còn thu</span></div>
         ${g.map(line).join('')}
+        ${(() => { const c = g.filter((b) => b.claimed && rest(b) > 0); return c.length ? `<div class="dl" style="background:#F5F3FF;color:#5B21B6;font-weight:800;cursor:default"><span class="dn"></span><span class="dg">☑ Khách báo đã trả · ${c.length}</span><span class="dt"></span><span class="dr num">${fmt(c.reduce((t, b) => t + rest(b), 0))}</span></div>` : ''; })()}
         <div class="dl dsum"><span class="dn"></span><span class="dg">Cộng</span><span class="dt num">${fmt(sum)}</span><span class="dr num" style="color:${due ? '#B91C1C' : '#15803D'}">${fmt(due)}</span></div></div>`;
     };
     let rows = '';
