@@ -918,7 +918,7 @@ Suite Apartment Hanoi Old Quarter - Lee's
         assert client.post('/api/mail-hook/' + tok, json={'id': 'zz-mail-m2', 'subject': sub, 'body': now}).get_json()['kind'] == 'msg'
         assert client.post('/api/mail-hook/' + tok, json={'id': 'zz-mail-m2', 'subject': sub, 'body': now}).get_json().get('dup')
         import time
-        old = {'id': 'zz-mail-m4', 'subject': sub, 'body': now, 'date': (time.time() - 3 * 3600) * 1000}     # re-sent old mail
+        old = {'id': 'zz-mail-m4', 'subject': sub, 'body': now, 'date': (time.time() - 40 * 60) * 1000}     # re-sent old mail (40 min: > 30 min quiet rule, still today after 00:40)
         assert client.post('/api/mail-hook/' + tok, json=old).get_json().get('quiet')                         # saved, no Zalo
         z = zalo()
         assert len(z) == 1 and z[0].startswith('💬 KHÁCH ĐẾN HÔM NAY NHẮN') and '👤 Elva ZZTest' in z[0]
