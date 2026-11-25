@@ -288,3 +288,7 @@ rooms Hội Vũ 101/102 stayed on it although the server list was already right.
   (`ciO <= 0 && coO >= 0`, not skipped, total > 0) one line each — room · name · nights · Tổng tiền · Còn thu (exact đồng),
   then "Cộng". Header = sum still to collect; tap it → Thu tiền filtered on that apartment; tap a guest → guest sheet.
   Sticky left, so it stays visible when the 7/14-day grid scrolls sideways.
+- Nov 26 (owner): /may-tinh Lịch phòng has no apartment tiles / KPI row any more; it opens with "💰 Tiền cần thu" (guests in
+  the house + guests who left ≤ 10 days ago not marked paid, ☑ "khách báo đã trả" tick = pay claim, its own sum) then the
+  calendar. The Thu tiền page (tab 'pay') is gone from the computer: sidebar item = "Nộp & Chi" (/chi-tieu); old 'pay' → 'cal'.
+  Doanh thu: one card per apartment, "So sánh các căn" table, and the day calendar can show one apartment (`S.revApt`).

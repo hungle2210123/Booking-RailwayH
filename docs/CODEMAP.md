@@ -671,17 +671,17 @@ _p18_chi — 💸 Chi tiêu = ảnh biên lai chuyển khoản gửi cho bot Zal
 - templates/chi.html: 774 `bookField` · 779 `bookWire` · 786 `kindField` · 792 `catField` · 797 `kindWire` · 807 `add` · 847 `edit` · 884 `pick`
 - templates/chi.html: 900 `save` · 907 `pinSheet` · 942 `share` · 955 `copy` · 959 `drawBot` · 974 `post`
 
-## templates/desk.html (1458 lines)
-- templates/desk.html: 338 `load` · 351 `loadRev` · 364 `needRev` · 382 `D.tab` · 383 `D.set` · 384 `D.q` · 385 `D.reload` · 387 `D.shift`
-- templates/desk.html: 393 `D.toToday` · 394 `D.open` · 395 `D.openDay` · 396 `D.close` · 397 `closeDrawer` · 398 `D.closeModal` · 401 `D.place` · 406 `D.unplace`
-- templates/desk.html: 412 `D.room` · 419 `D.confirm` · 452 `D.zbotResend` · 459 `D.cleanCopy` · 460 `D.cancel` · 466 `D.mark` · 470 `D.status` · 474 `D.dayuse`
-- templates/desk.html: 478 `D.unreach` · 479 `D.replied` · 480 `D.phone` · 487 `D.send` · 488 `D.pickApt` · 489 `D.quick` · 490 `D.photo` · 491 `D.chatPhone`
-- templates/desk.html: 492 `D.renameRoom` · 500 `D.pickG` · 501 `D.auto` · 516 `D.payOpen` · 517 `D.collect` · 526 `D.partial` · 528 `D.undoPay` · 532 `D.claim`
-- templates/desk.html: 535 `D.payCycle` · 545 `D.edit` · 547 `D.extN` · 551 `D.splitApt` · 557 `D.extTyped` · 558 `D.editCalc` · 585 `D.editSave` · 620 `D.remind`
-- templates/desk.html: 621 `D.remPreset` · 624 `D.remSet` · 625 `D.remSave` · 632 `D.remDone` · 636 `D.add` · 637 `D.addSave` · 652 `render` · 661 `renderSide`
-- templates/desk.html: 684 `renderTop` · 713 `viewToday` · 772 `dayCard` · 804 `viewDay` · 861 `D.uncancel` · 870 `viewCal` · 1032 `renderPick` · 1040 `viewMsg`
-- templates/desk.html: 1080 `viewPay` · 1120 `D.payQuick` · 1127 `aptCards` · 1144 `aptTable` · 1152 `viewRev` · 1237 `D.revMonth` · 1238 `D.revDay` · 1239 `D.revApt`
-- templates/desk.html: 1240 `D.goDay` · 1241 `drawRevCharts` · 1264 `renderDrawer` · 1270 `guestCard` · 1331 `dayPanel` · 1352 `renderModal` · 1442 `D.mset` · 1443 `D.extOpen`
+## templates/desk.html (1451 lines)
+- templates/desk.html: 339 `load` · 352 `loadRev` · 365 `needRev` · 383 `D.tab` · 384 `D.set` · 385 `D.q` · 386 `D.reload` · 388 `D.shift`
+- templates/desk.html: 394 `D.toToday` · 395 `D.open` · 396 `D.openDay` · 397 `D.close` · 398 `closeDrawer` · 399 `D.closeModal` · 402 `D.place` · 407 `D.unplace`
+- templates/desk.html: 413 `D.room` · 420 `D.confirm` · 453 `D.zbotResend` · 460 `D.cleanCopy` · 461 `D.cancel` · 467 `D.mark` · 471 `D.status` · 475 `D.dayuse`
+- templates/desk.html: 479 `D.unreach` · 480 `D.replied` · 481 `D.phone` · 488 `D.send` · 489 `D.pickApt` · 490 `D.quick` · 491 `D.photo` · 492 `D.chatPhone`
+- templates/desk.html: 493 `D.renameRoom` · 501 `D.pickG` · 502 `D.auto` · 517 `D.payOpen` · 518 `D.collect` · 527 `D.partial` · 529 `D.undoPay` · 533 `D.claim`
+- templates/desk.html: 536 `D.payCycle` · 546 `D.edit` · 548 `D.extN` · 552 `D.splitApt` · 558 `D.extTyped` · 559 `D.editCalc` · 586 `D.editSave` · 621 `D.remind`
+- templates/desk.html: 622 `D.remPreset` · 625 `D.remSet` · 626 `D.remSave` · 633 `D.remDone` · 637 `D.add` · 638 `D.addSave` · 653 `render` · 662 `renderSide`
+- templates/desk.html: 684 `renderTop` · 713 `viewToday` · 772 `dayCard` · 804 `viewDay` · 861 `D.uncancel` · 870 `viewCal` · 1024 `renderPick` · 1032 `viewMsg`
+- templates/desk.html: 1072 `viewPay` · 1112 `D.payQuick` · 1119 `aptCards` · 1136 `aptTable` · 1144 `viewRev` · 1229 `D.revMonth` · 1230 `D.revDay` · 1231 `D.revApt`
+- templates/desk.html: 1232 `D.goDay` · 1233 `drawRevCharts` · 1256 `renderDrawer` · 1262 `guestCard` · 1323 `dayPanel` · 1344 `renderModal` · 1434 `D.mset` · 1435 `D.extOpen`
 
 ## templates/journey_settings.html (231 lines)
 - templates/journey_settings.html: 79 `load` · 88 `renderButtons` · 141 `options` · 151 `rowHtml` · 165 `render` · 178 `bind` · 210 `shrink`

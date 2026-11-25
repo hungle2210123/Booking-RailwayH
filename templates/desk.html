@@ -22,6 +22,7 @@ a{color:#1D4ED8}
 /* sidebar */
 #side{width:232px;flex-shrink:0;background:#0E1525;color:#fff;padding:20px 14px;display:flex;flex-direction:column;gap:3px;position:sticky;top:0;height:100vh;overflow-y:auto}
 .brand{padding:0 10px 12px}.brand b{font-size:19px;font-weight:800;letter-spacing:-.3px}.brand div{font-size:12px;color:#A7B0C0;margin-top:2px}
+a.nav{text-decoration:none}
 .nav{display:flex;align-items:center;gap:12px;width:100%;border:none;border-radius:10px;padding:0 12px;min-height:40px;font-size:14px;font-weight:600;text-align:left;background:transparent;color:#CBD5E1}
 .nav:hover{background:rgba(255,255,255,.06)}
 .nav.on{background:rgba(255,255,255,.13);color:#fff}
@@ -379,7 +380,7 @@ button.info.on{border-color:#0E1525;background:#fff}
     el.textContent = t; clearTimeout(toastT); toastT = setTimeout(() => el.remove(), 2800); };
 
   const D = window.D = {};
-  D.tab = (t) => { S.tab = t; S.pick = null; LS.set('tab', t); closeDrawer(); render(); window.scrollTo(0, 0); load(true); };
+  D.tab = (t) => { if (t === 'pay') t = 'cal'; S.tab = t; S.pick = null; LS.set('tab', t); closeDrawer(); render(); window.scrollTo(0, 0); load(true); };
   D.set = (k, v) => { S[k] = v; if (k === 'calN') LS.set(k, v); render(); };
   D.q = (v) => { S.q = v; render(); const i = $('#q'); if (i) { i.focus(); i.setSelectionRange(v.length, v.length); } };
   D.reload = async () => { const b = $('#rl'); if (b) b.classList.add('busy'); Object.keys(REV).forEach((k) => { REV[k]._at = 0; }); Object.keys(revTried).forEach((k) => { delete revTried[k]; });
@@ -665,7 +666,7 @@ button.info.on{border-color:#0E1525;background:#fff}
     const nb = (k, label, icon, cnt, cls) => `<button class="nav ${S.tab === k ? 'on' : ''}" onclick="D.tab('${k}')">${ico(icon)}${label}${cnt ? `<span class="cnt ${cls || ''}">${cnt}</span>` : ''}</button>`;
     $('#side').innerHTML = `<div class="brand"><b>Hotel Pro</b><div>${APT.length} căn · ${CAP()} phòng · Phố cổ Hà Nội</div></div>
       ${nb('today', 'Hôm nay', 'home', over)}${nb('day', 'Chi tiết ngày', 'day')}${nb('cal', 'Lịch phòng', 'cal')}
-      ${nb('msg', 'Nhắn khách', 'msg', todoMsg)}${nb('pay', 'Thu tiền', 'pay', unpaid, 'amber')}${nb('rev', 'Doanh thu', 'rev')}
+      ${nb('msg', 'Nhắn khách', 'msg', todoMsg)}<a class="nav" href="/chi-tieu">${ico('pay')}Nộp &amp; Chi</a>${nb('rev', 'Doanh thu', 'rev')}
       <div class="sdiv"></div>
       <div class="legend-s"><b>Màu liên lạc</b>
         <div><span class="dot" style="background:#DC2626"></span>Chưa nhắn</div><div><span class="dot" style="background:#F59E0B"></span>Đã nhắn, chờ trả lời</div>
@@ -675,7 +676,6 @@ button.info.on{border-color:#0E1525;background:#fff}
       <div class="legend-s" style="margin-bottom:2px"><b>Trang khác</b></div>
       <a class="slink" href="/tin-nhanh">${ico('bolt')}Tin nhanh · Mẫu câu</a>
       <a class="slink" href="#" onclick="D.extOpen();return false">${ico('plus')}Bộ công cụ máy tính</a>
-      <a class="slink" href="/chi-tieu">${ico('bolt')}Nộp &amp; Chi (thu · chi · biên lai)</a>
       <a class="slink" href="#" onclick="MailAlerts.list();return false">${ico('bolt')}Thư đặt phòng Booking</a>
       <a class="slink" href="#" onclick="ProxyTool.open();return false">${ico('bolt')}Đổi định dạng proxy</a>
       <div class="sdiv"></div>
@@ -1000,14 +1000,6 @@ button.info.on{border-color:#0E1525;background:#fff}
     const insW = B.filter((b) => b.ciO >= ws && b.ciO < we).length, outsW = B.filter((b) => b.coO >= ws && b.coO < we).length, tbW = B.filter((b) => b.tb && b.coO >= ws && b.coO < we).length;
     const noNum = B.filter((b) => b.apt && !b.room_no && b.coO > Math.max(ws, 0) && b.ciO < we).length;
     return `<div class="stack">
-      <section style="display:flex;flex-direction:column;gap:10px"><div style="display:flex;flex-wrap:wrap;align-items:baseline;gap:6px 14px"><h3 style="margin:0;font-size:15px">Tổng quan căn hộ · ${od === 0 ? 'đêm nay' : 'đêm'} ${wd(od)} ${dm(od)}</h3>
-        <span class="muted" style="font-size:13px">bấm một căn để chỉ xem căn đó · bấm ngày trên lịch để xem đêm khác</span></div>
-        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:12px">${tiles}</div></section>
-      <div class="kpis">
-        <div class="card kpi"><div class="l">Doanh thu ${dm(ws)} → ${dm(we - 1)}</div><div class="v num">${have ? short(revSum) : '…'}</div><div class="s">${pend ? '+ ' + short(pend) + ' của khách chờ xác nhận' : 'quá khứ = đã có · tới = dự kiến'}</div></div>
-        <div class="card kpi"><div class="l">Công suất phòng</div><div class="v num">${have && capS ? Math.round(sold * 100 / capS) + '%' : '…'}</div><div class="s">${sold} / ${capS} đêm phòng có khách</div></div>
-        <div class="card kpi"><div class="l">Khách đến · trả</div><div class="v num">${insW} · ${outsW}</div><div class="s">${tbW ? '<b style="color:#6D28D9">' + tbW + ' lần trả phòng 2 ngủ</b>' : 'không có phòng 2 ngủ trả'}</div></div>
-        <div class="card kpi"><div class="l">Đêm còn nhiều phòng nhất</div><div class="v num">${quiet !== null ? wd(quiet) + ' ' + dm(quiet) : '—'}</div><div class="s">${quiet !== null ? 'còn ' + freeOn(quiet) + ' phòng trống' : ''}</div></div></div>
       ${duePanel()}
       <section class="card" style="overflow:hidden">
         <div class="ch"><div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center">
@@ -1447,7 +1439,8 @@ button.info.on{border-color:#0E1525;background:#fff}
   setInterval(() => { REM().forEach((r) => { if (r.id && overdue(r) && !alerted.has(r.id)) { alerted.add(r.id); const b = byId[r.booking_id];
     toast('🔔 ' + r.note + (b ? ' — ' + b.name : '')); renderSide(); } }); }, 30000);
 
-  if (!['today', 'day', 'cal', 'msg', 'pay', 'rev'].includes(S.tab)) S.tab = 'today';
+  if (S.tab === 'pay') S.tab = 'cal';               // Thu tiền page removed (owner Nov 26): money is collected on the calendar
+  if (!['today', 'day', 'cal', 'msg', 'rev'].includes(S.tab)) S.tab = 'today';
   load();
 })();
 </script>
