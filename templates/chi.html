@@ -223,6 +223,8 @@
   .todo button.on { background:#92400E; color:#fff; border-color:#92400E; }
   .dh2 { display:flex; align-items:baseline; gap:16px; margin:16px 4px 6px; font-size:13px; color:var(--mut); font-weight:700; font-variant-numeric:tabular-nums; }
   .dh2:first-child { margin-top:2px; } .dh2 b { font-size:15px; color:var(--ink); margin-right:auto; } .dh2 .ra { color:var(--ink); font-weight:800; }
+  .sumL { display:flex; flex-wrap:wrap; align-items:baseline; gap:6px 22px; margin:12px 0 4px; padding:12px 16px; border-radius:12px; background:var(--ink); color:#fff; font-weight:700; font-size:14px; font-variant-numeric:tabular-nums; }
+  .sumL span:first-child { margin-right:auto; } .sumL b { font-size:17px; } .sumL .pos { color:#86EFAC; } .sumL .neg { color:#FCA5A5; } .sumL b.pos { color:#86EFAC; }
   .tb { background:#fff; border:1px solid var(--line); border-radius:14px; overflow:hidden; }
   .rw { display:grid; grid-template-columns:44px 42px minmax(0, 1fr) auto 132px; gap:12px; align-items:center; padding:7px 14px; border-top:1px solid var(--line); cursor:pointer; }
   .rw:first-child { border-top:0; } .rw:hover { background:#F8FAFC; } .rw.on { background:#EEF2FF; box-shadow:inset 3px 0 0 #1E3A8A; }
@@ -378,7 +380,11 @@
         <div class="cs">${!BOOK && r.book === 'nha' ? '<span class="c2 bkn">🏠 Tiền nhà</span>' : ''}${chip(r.cat, 'hạng mục')}${!thu || r.apt ? chip(r.apt, 'căn') : ''}${chip(r.payer, thu ? 'từ ai' : 'ai trả')}</div>
         <b class="am${thu ? ' in' : ''}${!thu && r.amount >= 5e6 ? ' big' : ''}">${thu ? '+' : ''}${money(r.amount)}</b></div>`;
     }
-    return bar + rib + ban + (html ? html + '</div>' : `<div class="card mut">Không có khoản nào${F.q || F.day || F.todo ? ' khớp bộ lọc' : ''}.</div>`);
+    // Σ of everything listed (owner Nov 25: "hiển thị một con số tổng cộng hết những khoản này")
+    const sO = shown.filter((r) => r.kind !== 'thu').reduce((a, r) => a + r.amount, 0), sI = shown.filter((r) => r.kind === 'thu').reduce((a, r) => a + r.amount, 0);
+    const what = [F.day ? dayLbl(F.day) : '', F.todo ? 'khoản thiếu' : '', F.q ? '“' + F.q + '”' : ''].filter(Boolean).join(' · ');
+    const tot = shown.length ? `<div class="sumL"><span>Tổng cộng ${shown.length} khoản${what ? ' · ' + esc(what) : ''}</span>${sI ? `<span class="pos">Vào +${money(sI)}</span>` : ''}${sO ? `<span>Ra <b>${money(sO)}</b></span>` : ''}${sI && sO ? `<span>Vào − ra <b class="${sI - sO < 0 ? 'neg' : 'pos'}">${sI - sO < 0 ? '−' : ''}${money(Math.abs(sI - sO))}</b></span>` : ''}</div>` : '';
+    return bar + rib + ban + tot + (html ? html + '</div>' + tot : `<div class="card mut">Không có khoản nào${F.q || F.day || F.todo ? ' khớp bộ lọc' : ''}.</div>`);
   }
   function det() {
     const el = $('det'); if (!el || !J) return;
