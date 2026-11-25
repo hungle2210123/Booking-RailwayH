@@ -276,3 +276,21 @@ cookies cleared; clearing ALL browsing data (all time) fixed it (owner: "cứ x�
 `cookieReset` now runs `browsingData.remove({since: 0, originTypes: {unprotectedWeb: true}})` (cookies, storage,
 cache, service workers …) — extensions keep their storage (Tampermonkey's saved account). Still once a day; the 2nd
 loop pauses automatic opening 6 h (1.53).
+
+### 1.55–1.56 (Nov 25 2026) — 📅 Lấy cả tháng (the whole month's list, not only today's arrivals)
+Owner: "lấy khách ở phần Đặt phòng … Nhận phòng, từ ngày hiện tại đến cuối tháng, tình trạng OK, lấy toàn bộ" (the app had
+only 6 future guests). Booking's reservation LIST (`search_reservations.html?date_type=arrival&date_from&date_to&
+reservation_status=ok`) is read page by page ("Tiếp theo", 50 a page; `readAllPages`, `nextPageBtn`) — no reservation
+opened, no phone revealed. `/api/ext/month_sync` (p17) ADDS only guests the web lacks (`_ext_save_one` on list rows);
+existing guests are never changed (list rows overwrote ~40 guests on Nov 21); rows outside the date range are ignored;
+"gone" = guests of that property in the app not OK on the list — reported only, and only when every page was read and the
+page applied the date filter. `/api/ext/month_report` → one Zalo line (new guests · gone) when something changed.
+- Auto: background `monthCheck` in `pendingCheck` after the morning run, once a day (`hpMonthDay`, 3 tries, 15 min each):
+  opens GROUP_URL → content `monthJob`: first the group overview → `month-hotels` keeps only properties NOT "Đóng /
+  Không thể đặt phòng" (owner: "đang lấy lịch của những căn hộ đã đóng cửa"; `hpClosed` remembered; one-property
+  accounts have no overview → kept) → each property's list → `month-step` → next → `finishMonth` → `month-done` closes.
+  Range `monthRange()`: today → end of month (end of NEXT month when < 7 days are left).
+- Manual: button "📅 Lưu cả danh sách vào lịch" on any reservation list (own button, next to 💬 Hỏi thăm).
+- Calendar: guests with no phone (not partner, not arrived) = 📋 "Mới lấy từ danh sách (chưa SĐT)" — dotted grey bar on
+  /moi and /may-tinh (legend + count); the morning run opens them on their arrival day. /may-tinh Lịch has 30 ngày;
+  /moi loads 45 days ahead (`?ahead=45`) and pages up to day 45.

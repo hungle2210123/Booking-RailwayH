@@ -585,3 +585,41 @@ def test_chi_categories_and_stats(client, db, app_module):
     finally:
         db.session.execute(text("DELETE FROM chi_receipts WHERE to_name LIKE 'ZZ TEST%'"))
         db.session.commit()
+
+
+def test_month_sync_adds_only_new(client, db, app_module, throwaway, monkeypatch):
+    # owner Nov 25: "lấy khách ở phần Đặt phòng … Nhận phòng, từ ngày hiện tại đến cuối tháng, tình trạng OK, lấy toàn bộ"
+    sent = []
+    monkeypatch.setattr(app_module, 'mail_notify', lambda _db, msg: sent.append(msg) or 'bot2')
+    hdr = {'X-Hotel-Token': os.getenv('EXTENSION_TOKEN', '')}
+    new_id, old_id = throwaway(), throwaway()
+    H = ['Tên khách', 'Nhận phòng', 'Ngày đi', 'Phòng', 'Được đặt vào', 'Tình trạng', 'Giá', 'Hoa hồng', 'Mã số đặt phòng']
+    row = lambda bid, name, ci, co, st='OK', price='VND 2.136.000': [{'text': x, 'link': ''} for x in
+        [name, ci, co, '101 - 103 TN', '16 tháng 11 2026', st, price, 'VND 320.400', bid]]
+    try:
+        # an existing guest with a phone-checked price: the list must NOT overwrite it
+        assert client.post('/api/ext/booking/save', headers=hdr, json={'booking_id': old_id, 'guest_name': 'ZZ Old Guest',
+            'checkin_date': '2026-11-27', 'checkout_date': '2026-11-29', 'room_amount': 999000, 'listing': 'Studio Test Room'}).get_json()['success']
+        page = {'url': 'https://admin.booking.com/hotel/hoteladmin/extranet_ng/manage/search_reservations.html?hotel_id=17144562&lang=vi',
+                'headers': H, 'rows': [row(new_id, 'ZZ New Guest', '27 tháng 11 2026', '30 tháng 11 2026'),
+                                       row(old_id, 'ZZ Old Guest', '27 tháng 11 2026', '29 tháng 11 2026', price='VND 5.000.000'),
+                                       row('9990000001', 'ZZ Out Of Range', '5 tháng 12 2026', '7 tháng 12 2026')]}
+        j = client.post('/api/ext/month_sync', headers=hdr, json={'pages': [page], 'date_from': '2026-11-25', 'date_to': '2026-11-30',
+                                                                 'account': 'ZZ'}).get_json()
+        assert j['success'] and [x['bid'] for x in j['created']] == [new_id] and j['had'] == 1 and j['rows'] == 2
+        old = db.session.execute(text("SELECT room_amount FROM bookings WHERE booking_id = :b"), {'b': old_id}).scalar()
+        assert float(old) == 999000                                   # untouched
+        new = db.session.execute(text("SELECT checkin_date, checkout_date, guest_name FROM bookings WHERE booking_id = :b"),
+                                 {'b': new_id}).fetchone()
+        assert str(new[0]) == '2026-11-27' and str(new[1]) == '2026-11-30'
+        assert not db.session.execute(text("SELECT 1 FROM bookings WHERE booking_id = '9990000001'")).scalar()
+        # sent again → nothing new (idempotent)
+        j2 = client.post('/api/ext/month_sync', headers=hdr, json={'pages': [page], 'date_from': '2026-11-25', 'date_to': '2026-11-30'}).get_json()
+        assert j2['created'] == [] and j2['had'] == 2
+        r = client.post('/api/ext/month_report', headers=hdr, json={'account': 'ZZ', 'created': j['created'], 'rows': 2,
+                                                                   'date_from': '2026-11-25', 'date_to': '2026-11-30'}).get_json()
+        assert r['sent'] and 'ZZ New Guest' in sent[-1] and 'khách mới' in sent[-1]
+        assert not client.post('/api/ext/month_report', headers=hdr, json={'account': 'ZZ'}).get_json()['sent']
+    finally:
+        db.session.execute(text("DELETE FROM bookings WHERE booking_id IN ('9990000001')"))
+        db.session.commit()

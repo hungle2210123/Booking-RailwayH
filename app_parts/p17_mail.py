@@ -805,3 +805,117 @@ def moi_mail_setup():
     return jsonify(dict(_mail_setup_info(_xdb), success=True, script=MAIL_SCRIPT.replace('__HOOK__', hook),
                         last=_zbot_get(_xdb, 'mail_last'),
                         zalo=any(c.get('role') == 'owner' and c.get('on') for c in _staff_chats(_xdb).values())))
+
+
+# ── 📅 Lấy cả tháng (owner Nov 25: "lấy khách ở phần Đặt phòng … Nhận phòng, từ ngày hiện tại đến cuối tháng, tình trạng OK,
+# lấy toàn bộ … để có cái nhìn bao quát hơn về lịch") ──────────────────────────────────────────────────────────────────
+# The extension reads Booking's reservation LIST (search_reservations, arrival date from today to the end of the month,
+# status OK — every page) and sends the raw rows here. ONLY guests not in the app yet are added: a list row has less
+# than the detail page (no phone, room names cut, price with/without discounts), and saving list rows over existing
+# guests once overwrote ~40 of them (Nov 21, ext 1.46). Guests in the app that are no longer OK on the list are only
+# REPORTED (could be cancelled / moved) — the mail alerts and the detail page decide that. The new ones get their phone
+# and picture when their arrival day comes (the morning run opens each arrival) or when the owner opens them.
+def _month_range_ok(row, d_from, d_to):
+    ci = row.get('checkin_date')
+    return bool(ci) and (not d_from or ci >= d_from) and (not d_to or ci <= d_to)
+
+
+@app.route('/api/ext/month_sync', methods=['POST'])
+def ext_month_sync():
+    err = _ext_auth_error()
+    if err:
+        return err
+    from core.models import db as _xdb
+    from core.booking_page_parser import parse_reservation_list, is_reservation_list, hotel_id_of
+    d = request.get_json(silent=True) or {}
+    d_from = str(d.get('date_from') or '')[:10]
+    d_to = str(d.get('date_to') or '')[:10]
+    acc = str(d.get('account') or '').strip()[:40] or 'Booking'
+    created, had, cancelled_rows, bad, seen, outside = [], 0, 0, [], {}, 0
+    hid = ''
+    for page in (d.get('pages') or [])[:20]:
+        if not is_reservation_list(page.get('headers'), page.get('rows')):
+            continue
+        hid = hotel_id_of(page.get('url')) or str(d.get('hotel_id') or '')
+        pname = _property_for(hid) if hid else ''
+        for row in parse_reservation_list(page.get('headers'), page.get('rows')):
+            bid = row['booking_id']
+            if bid in seen:
+                continue
+            if not _month_range_ok(row, d_from, d_to):
+                outside += 1              # the page did not apply the date filter → never report "gone" from it
+                continue
+            seen[bid] = row
+            if row['status'] != 'ok':
+                cancelled_rows += 1
+                continue
+            if _ext_existing(bid) or _ext_existing(f'{bid}-2'):
+                had += 1
+                continue
+            try:
+                res, _ = _ext_save_one({**row, 'hotel_id': hid, 'property_name': pname, 'cancelled': False})
+            except Exception as e:
+                _xdb.session.rollback()
+                res = {'success': False, 'error': str(e)}
+            if res.get('success') and res.get('action') == 'created':
+                created.append({'bid': bid, 'name': row.get('guest_name') or bid, 'ci': row.get('checkin_date'),
+                                'co': row.get('checkout_date'), 'listing': row.get('listing') or ''})
+            elif res.get('success'):
+                had += 1                    # a "Thêm từ ảnh" guest (TAM-…) got its real number
+            else:
+                bad.append(f"{bid}: {str(res.get('error') or '')[:60]}")
+    # guests of this property in the app, arriving in the range, that the OK list does not show any more
+    gone = []
+    if hid and d_from and d_to and d.get('complete') and not outside:
+        pname = _property_for(hid)
+        if pname:
+            for r in _xdb.session.execute(text("""SELECT booking_id, COALESCE(guest_name, booking_id), checkin_date FROM bookings
+                    WHERE property_name = :p AND checkin_date BETWEEN :a AND :b
+                      AND COALESCE(booking_status, '') NOT IN ('cancelled', 'deleted')
+                      AND COALESCE(checkin_status, '') NOT IN ('cancelling', 'no_show')
+                      AND booking_id ~ '^[0-9]{8,12}(-[0-9]+)?$'"""), {'p': pname, 'a': d_from, 'b': d_to}).fetchall():
+                if r[0].split('-')[0] not in seen:
+                    gone.append({'bid': r[0], 'name': r[1], 'ci': r[2].isoformat()})
+    out = {'success': True, 'created': created, 'had': had, 'not_ok': cancelled_rows, 'bad': bad, 'gone': gone,
+           'rows': len(seen), 'hotel_id': hid}
+    try:                                 # last run per account → shown on the calendar ("Lấy cả tháng lúc …")
+        st = _zbot_get(_xdb, 'month_sync') or {}
+        st[f'{acc}|{hid}'] = {'at': _vn_now().strftime('%H:%M %d/%m'), 'rows': len(seen), 'new': len(created),
+                              'gone': len(gone), 'from': d_from, 'to': d_to, 'acc': acc}
+        _zbot_put(_xdb, 'month_sync', st)
+    except Exception as e:
+        print(f'[month_sync] state not saved: {e}')
+    return jsonify(out)
+
+
+@app.route('/api/ext/month_report', methods=['POST'])
+def ext_month_report():
+    """One Zalo line after the whole month run (all properties of this profile) — only when something is new / gone."""
+    err = _ext_auth_error()
+    if err:
+        return err
+    from core.models import db as _xdb
+    d = request.get_json(silent=True) or {}
+    acc = str(d.get('account') or '').strip()[:40] or 'Booking'
+    new = [x for x in (d.get('created') or []) if isinstance(x, dict)][:30]
+    gone = [x for x in (d.get('gone') or []) if isinstance(x, dict)][:15]
+    note = str(d.get('note') or '').strip()[:200]
+    if not (new or gone or note):
+        return jsonify({'success': True, 'sent': False})
+    dm = lambda s: f"{str(s)[8:10]}/{str(s)[5:7]}" if s else ''
+    lines = [f"📅 {acc} · lịch cả tháng ({dm(d.get('date_from'))}→{dm(d.get('date_to'))}): {int(d.get('rows') or 0)} khách OK"]
+    if new:
+        lines.append(f"➕ {len(new)} khách mới vào lịch (chưa có SĐT, sẽ lấy khi khách đến):")
+        lines += [f"  · {x.get('name')} · {dm(x.get('ci'))}→{dm(x.get('co'))}" for x in new[:12]]
+        if len(new) > 12:
+            lines.append(f"  … và {len(new) - 12} khách nữa")
+    if gone:
+        lines.append(f"⚠️ {len(gone)} khách trong app KHÔNG còn OK trên Booking (hủy / đổi?) — kiểm tra:")
+        lines += [f"  · {x.get('name')} · {dm(x.get('ci'))} · {x.get('bid')}" for x in gone[:8]]
+    if note:
+        lines.append(note)
+    try:
+        mail_notify(_xdb, '\n'.join(lines))
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+    return jsonify({'success': True, 'sent': True})

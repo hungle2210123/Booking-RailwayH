@@ -1305,6 +1305,116 @@
         (o.found < o.n ? `<br>${o.n - o.found} khách chưa có trên web (không hiện trong danh sách nhắn).` : ''), 'ok', 10000);
     } finally { askBusy = false; askBtn.textContent = '💬 Hỏi thăm khách'; }
   });
+  // ── 📅 Lấy cả tháng (1.55, owner Nov 25: "lấy khách ở phần Đặt phòng … Nhận phòng, từ ngày hiện tại đến cuối tháng,
+  // tình trạng OK, lấy toàn bộ") ── reads Booking's reservation LIST, every page ("Tiếp theo"), and sends the rows to
+  // /api/ext/month_sync, which ADDS only the guests the web does not have (never changes existing ones). Reads the page
+  // only: no reservation opened, no phone revealed. Its own button (one button = one job) + once a day by itself.
+  const isResList = () => /search_reservations/.test(location.pathname);
+  function nextPageBtn() {
+    for (const doc of allDocs()) {
+      const el = [...doc.querySelectorAll('button, a, [role="button"]')].find(b => /^(tiếp theo|next)\b/i.test(rawText(b).trim()));
+      if (el) {
+        const off = el.disabled || el.getAttribute('aria-disabled') === 'true' || /disabled/i.test(String(el.className || ''))
+          || el.closest('[aria-disabled="true"], [disabled], [class*="disabled" i]');
+        return off ? null : el;
+      }
+    }
+    return null;
+  }
+  const firstBid = l => { try { return (JSON.stringify(l.rows[0] || '').match(/\d{9,11}/) || [''])[0]; } catch (e) { return ''; } };
+  async function readAllPages(waitS) {
+    const pages = [];
+    let cap = null;
+    for (let t = 0; t < waitS && !(cap = askRows()); t++) await wait(1000);
+    if (!cap) return { pages, complete: false };
+    while (cap && pages.length < 15) {
+      pages.push(cap);
+      const nx = nextPageBtn();
+      if (!nx) return { pages, complete: true };
+      const was = firstBid(cap);
+      nx.click();
+      let moved = null;
+      for (let t = 0; t < 20 && !moved; t++) { await wait(800); const c = askRows(); if (c && firstBid(c) && firstBid(c) !== was) moved = c; }
+      if (!moved) return { pages, complete: false };
+      await wait(700);
+      cap = askRows() || moved;
+    }
+    return { pages, complete: false };
+  }
+  const monthUrl = (hid, ses, job) => 'https://admin.booking.com/hotel/hoteladmin/extranet_ng/manage/search_reservations.html'
+    + `?upcoming_reservations=1&source=nav&hotel_id=${hid}&lang=vi&ses=${encodeURIComponent(ses)}`
+    + `&date_type=arrival&date_from=${job.from}&date_to=${job.to}&reservation_status=ok`;
+  const monthToast = r => `✅ Đọc ${r.rows} khách OK · <b>thêm mới ${r.created.length}</b> vào lịch · ${r.had} khách đã có (giữ nguyên)`
+    + (r.created.length ? '<br>' + r.created.slice(0, 8).map(x => esc(x.name) + ' · ' + esc(String(x.ci).slice(8, 10) + '/' + String(x.ci).slice(5, 7))).join('<br>') : '')
+    + (r.gone?.length ? `<br>⚠️ ${r.gone.length} khách trong app không còn OK trên Booking: ` + r.gone.slice(0, 5).map(x => esc(x.name)).join(', ') : '');
+  const monBtn = document.createElement('button');
+  monBtn.className = 'fab'; monBtn.type = 'button'; monBtn.style.cssText = 'display:none;background:#0f766e;margin-right:8px';
+  root.insertBefore(monBtn, askBtn);
+  let monBusy = false;
+  setInterval(() => {
+    if (monBusy) return;
+    const show = isResList() && !runGet() && !groupGet() && !!askRows();
+    monBtn.style.display = show ? '' : 'none';
+    if (show) monBtn.textContent = '📅 Lưu cả danh sách vào lịch';
+  }, 2000);
+  monBtn.addEventListener('click', async () => {
+    if (monBusy) return; monBusy = true;
+    try {
+      monBtn.textContent = '⏳ Đang đọc từng trang...';
+      const { pages, complete } = await readAllPages(5);
+      if (!pages.length) { toast('❌ Không đọc được bảng đặt phòng trên trang này.', 'warn'); return; }
+      const q = new URL(location.href).searchParams, arr = q.get('date_type') === 'arrival';
+      monBtn.textContent = `⏳ Đang lưu ${pages.length} trang...`;
+      const r = await api('/api/ext/month_sync', { pages, account: await hpAccount(), complete: complete && arr,
+        date_from: arr ? q.get('date_from') || '' : '', date_to: arr ? q.get('date_to') || '' : '' });
+      if (!r?.success) { toast('❌ ' + esc(r?.error || 'Lỗi không rõ'), 'warn'); return; }
+      toast(monthToast(r) + (complete ? '' : '<br>(chưa đọc hết các trang — bấm lại)'), r.gone?.length ? 'warn' : 'ok', 15000);
+    } finally { monBusy = false; monBtn.textContent = '📅 Lưu cả danh sách vào lịch'; }
+  });
+  async function monthJob() {
+    if (!chrome.runtime?.id) return;
+    let job = null;
+    try { job = await chrome.runtime.sendMessage({ type: 'month-job' }); } catch (e) {}
+    if (!job || !job.hotels?.length) return;
+    await wait(2500);
+    // owner Nov 25: "đang lấy lịch của những căn hộ đã đóng cửa rồi" → first stop = the group overview: keep only the
+    // properties that are NOT "Đóng / Không thể đặt phòng" (an account with one property has no overview → kept as is)
+    if (!job.checked) {
+      const ses0 = new URL(location.href).searchParams.get('ses') || '';
+      let went = ''; try { went = sessionStorage.getItem('hp_month_grp') || ''; } catch (e) {}
+      if (!/\/groups\//.test(location.pathname) && went !== job.day) {     // once: go to the overview (one property = no overview)
+        try { sessionStorage.setItem('hp_month_grp', job.day); } catch (e) {}
+        location.href = 'https://admin.booking.com/hotel/hoteladmin/groups/home/index.html' + (ses0 ? '?ses=' + encodeURIComponent(ses0) : '');
+        return;
+      }
+      let gp = null;
+      for (let t = 0; t < 12 && !(gp = groupProps()); t++) await wait(1000);
+      try { job = await chrome.runtime.sendMessage({ type: 'month-hotels', open: gp ? gp.filter(p => !p.closed).map(p => p.id) : null,
+        closed: gp ? gp.filter(p => p.closed).map(p => p.id) : [] }); } catch (e) { return; }
+      if (!job) return;
+      if (!job.hotels.length) { finishMonth(job); return; }
+    }
+    const u = new URL(location.href), ses = u.searchParams.get('ses') || '';
+    const hid = job.hotels[job.i];
+    if (!hid) { finishMonth(job); return; }
+    if (!isResList() || u.searchParams.get('hotel_id') !== hid || u.searchParams.get('date_from') !== job.from) {
+      if (ses) location.href = monthUrl(hid, ses, job);      // no session yet = sign-in page: Tampermonkey signs in first
+      return;
+    }
+    toast(`📅 Đang lấy lịch cả tháng · chỗ nghỉ ${job.i + 1}/${job.hotels.length} · ${esc(job.from)} → ${esc(job.to)}`, 'ok', 5000);
+    const { pages, complete } = await readAllPages(20);
+    let r = null;
+    try { r = await api('/api/ext/month_sync', { pages, date_from: job.from, date_to: job.to, account: await hpAccount(), complete }); } catch (e) {}
+    let nx = null;
+    try { nx = await chrome.runtime.sendMessage({ type: 'month-step', created: r?.created || [], gone: r?.gone || [], rows: r?.rows || 0 }); } catch (e) {}
+    if (nx && nx.hotels[nx.i]) { await wait(1500 + Math.random() * 1500); location.href = monthUrl(nx.hotels[nx.i], ses, nx); return; }
+    finishMonth(nx || job);
+  }
+  async function finishMonth(job) {
+    await Promise.race([api('/api/ext/month_report', { account: await hpAccount(), created: job.created || [], gone: job.gone || [],
+      rows: job.rows || 0, date_from: job.from, date_to: job.to }).catch(() => {}), wait(8000)]);
+    chrome.runtime.sendMessage({ type: 'month-done' }).catch(() => {});
+  }
   function startRun(items) {
     runSet({ items, i: 0, back: location.href, log: [] });
     location.href = items[0].url;
@@ -1589,6 +1699,6 @@
   function startTab() {
   if (runGet()) setTimeout(runStep, 1500);
   else if (groupGet()) { setTimeout(showRunDone, 1500); setTimeout(groupStep, 3000); }
-  else { setTimeout(showRunDone, 1500); setTimeout(showGroupDone, 1500); setTimeout(autoMorning, 3000); setTimeout(fetchJob, 2000); }
+  else { setTimeout(showRunDone, 1500); setTimeout(showGroupDone, 1500); setTimeout(autoMorning, 3000); setTimeout(fetchJob, 2000); setTimeout(monthJob, 2500); }
   }
 })();

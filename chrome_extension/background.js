@@ -220,7 +220,7 @@ function ensureAlarm(name, periodInMinutes) {
 ensureAlarm('hp-selfupdate', 5);
 // written in THIS script (getManifest() would give the new manifest even when the script is an old cached copy);
 // tests/test_parsers.py checks it equals manifest.json
-const BG_VER = '1.54.0';
+const BG_VER = '1.56.0';
 // 1.51: the popup / options page asks which version the BACKGROUND runs (Nov 22: after a Chrome restart the manifest
 // was new but Chrome kept the cached 1.47 background script — only a reload replaces it)
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
@@ -261,6 +261,7 @@ async function pendingCheck() {
   if (st.hpLastMorning !== today()) return;
   const hotels = st.hpHotels || [];
   if (!hotels.length) return;
+  if (await monthCheck(hotels)) return;             // 📅 1.55: the whole month's list, once a day (open properties only)
   let r;
   // 1.43: this Chrome profile's own id — a guest saved WITHOUT a phone here is retried by ANOTHER profile at once
   // (owner Nov 19: Booking shows phone numbers only in the old profile 'Lộc', not in a new one)
@@ -276,6 +277,34 @@ async function pendingCheck() {
   if (!tab) tab = await openTab(GROUP_URL, false);
   await chrome.storage.local.set({ hpFetch: { at: Date.now(), tabId: tab.id, items: r.items } });
   setTimeout(() => checkSignedOut(tab.id), 25000);
+}
+// 📅 1.55 (owner Nov 25: "lấy cả tháng … để có cái nhìn bao quát hơn về lịch"): once a day, after the morning run, read
+// Booking's reservation LIST of every property of this profile (Nhận phòng from today → end of the month — the end of
+// NEXT month when fewer than 7 days are left, status OK, every page) → /api/ext/month_sync adds the guests the web lacks.
+function monthRange() {
+  const t = new Date();
+  let end = new Date(t.getFullYear(), t.getMonth() + 1, 0);
+  if ((end - t) / 864e5 < 7) end = new Date(t.getFullYear(), t.getMonth() + 2, 0);
+  return { from: today(), to: end.toLocaleDateString('sv') };
+}
+async function monthCheck(hotels) {
+  const { hpMonthDay, hpMonth } = await chrome.storage.local.get(['hpMonthDay', 'hpMonth']);
+  if (hpMonthDay === today()) return false;
+  let tries = 1;
+  if (hpMonth && hpMonth.day === today()) {
+    if (Date.now() - hpMonth.at < 15 * 60000) { try { await chrome.tabs.get(hpMonth.tabId); return true; } catch (e) {} }
+    try { await chrome.tabs.remove(hpMonth.tabId); } catch (e) {}           // stuck / closed → try again (3 times a day)
+    tries = (hpMonth.tries || 1) + 1;
+    if (tries > 3) { await chrome.storage.local.set({ hpMonthDay: today() }); await chrome.storage.local.remove('hpMonth'); return false; }
+  }
+  const { from, to } = monthRange();
+  const { hpClosed } = await chrome.storage.local.get('hpClosed');      // closed properties seen on the overview before
+  const tab = await openTab(GROUP_URL, false);
+  await chrome.storage.local.set({ hpMonth: { day: today(), at: Date.now(), tabId: tab.id, i: 0, from, to,
+    hotels: hotels.filter((id) => !(hpClosed || []).includes(id)),
+    created: [], gone: [], rows: 0, tries } });
+  setTimeout(() => checkSignedOut(tab.id), 25000);
+  return true;
 }
 ensureAlarm('hp-pending', 1);
 // Booking signs out each time a reservation opens (content.js logoutLoop): clear Booking's cookies of this profile
@@ -338,6 +367,38 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     chrome.storage.local.get('hpFetch').then(({ hpFetch }) =>
       sendResponse(hpFetch && hpFetch.tabId === sender.tab?.id ? { items: hpFetch.items } : null));
     return true;
+  }
+  if (msg?.type === 'month-job') {                    // 1.55: is this tab the month-list tab?
+    chrome.storage.local.get('hpMonth').then(({ hpMonth }) => sendResponse(hpMonth && hpMonth.tabId === sender.tab?.id ? hpMonth : null));
+    return true;
+  }
+  if (msg?.type === 'month-hotels') {                 // the overview said which properties are open
+    chrome.storage.local.get(['hpMonth', 'hpClosed']).then(async ({ hpMonth, hpClosed }) => {
+      if (!hpMonth || hpMonth.tabId !== sender.tab?.id) return sendResponse(null);
+      const closed = new Set([...(hpClosed || []), ...(msg.closed || [])]);
+      (msg.open || []).forEach((id) => closed.delete(id));
+      hpMonth.hotels = (msg.open || hpMonth.hotels).filter((id) => !closed.has(id));
+      hpMonth.checked = true; hpMonth.at = Date.now();
+      await chrome.storage.local.set({ hpMonth, hpClosed: [...closed] });
+      sendResponse(hpMonth);
+    });
+    return true;
+  }
+  if (msg?.type === 'month-step') {                   // one property read → the next one
+    chrome.storage.local.get('hpMonth').then(async ({ hpMonth }) => {
+      if (!hpMonth || hpMonth.tabId !== sender.tab?.id) return sendResponse(null);
+      hpMonth.i += 1; hpMonth.at = Date.now(); hpMonth.rows += msg.rows || 0;
+      hpMonth.created = [...hpMonth.created, ...(msg.created || [])].slice(0, 60);
+      hpMonth.gone = [...hpMonth.gone, ...(msg.gone || [])].slice(0, 30);
+      await chrome.storage.local.set({ hpMonth });
+      sendResponse(hpMonth);
+    });
+    return true;
+  }
+  if (msg?.type === 'month-done') {
+    chrome.storage.local.set({ hpMonthDay: today() }).then(() => chrome.storage.local.remove('hpMonth'))
+      .then(() => setTimeout(() => chrome.tabs.remove(sender.tab.id).catch(() => {}), 3000));
+    return false;
   }
   if (msg?.type === 'fetch-done') {
     chrome.storage.local.remove('hpFetch').then(() => setTimeout(() => chrome.tabs.remove(sender.tab.id).catch(() => {}), 3000));

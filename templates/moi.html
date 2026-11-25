@@ -254,7 +254,7 @@ button.info.on{border-color:#0E1525;background:#fff}
   }
   async function load(quiet) {
     try {
-      const r = await fetch('/api/moi/data', { cache: 'no-store' });
+      const r = await fetch('/api/moi/data?ahead=45', { cache: 'no-store' });   // 📅 month list (owner Nov 25) → look further
       const d = await r.json();
       if (!d.success) throw new Error('data');
       S.data = d; TODAY = d.today; S.loadedAt = new Date(); APT = d.apartments; aptById = {}; APT.forEach((a) => { aptById[a.id] = a; });
@@ -921,11 +921,13 @@ button.info.on{border-color:#0E1525;background:#fff}
       const h0 = H0(b), w = H1(b) - h0, solid = b.ciO > 0 || b.confirmed;
       // 📵 guest we cannot reach (marked "Không liên lạc được") and not arrived yet → red, stands out (owner, Nov 6)
       const lost = b.unreach && !b.confirmed;
-      const sty = b.du ? `background:#FFFBEB;color:#92400E;border:1.5px solid ${a.color}`
+      const lo = !b.phone && !b.partner && b.ciO > 0 && !lost;   // 📋 month list (owner Nov 25): details come on arrival day
+      const sty = lo && !dashedAmber ? 'background:#F1F5F9;color:#334155;border:1.5px dotted #64748B'
+                : b.du ? `background:#FFFBEB;color:#92400E;border:1.5px solid ${a.color}`
                 : lost ? 'background:#FEE2E2;color:#991B1B;border:1.5px dashed #DC2626'
                 : dashedAmber ? 'background:#FEF3C7;color:#92400E;border:1.5px dashed #F59E0B'
                 : solid ? `background:${a.color};color:#fff` : `background:#fff;color:${a.color};border:1.5px dashed ${a.color}`;
-      const name = (lost ? '📵 ' : '') + (b.ciO < ws ? '‹ ' : '') + b.name + (b.coO > we ? ' ›' : '') + (b.tb ? ' · 2PN' : '');
+      const name = (lost ? '📵 ' : lo ? '📋 ' : '') + (b.ciO < ws ? '‹ ' : '') + b.name + (b.coO > we ? ' ›' : '') + (b.tb ? ' · 2PN' : '');
       const act = room ? `M.pickG('${b.id}')` : `M.open('${b.id}')`;
       // narrow pieces (only the check-out morning, or 1 night) show just the name — no room for more
       const tiny = w <= (N === 3 ? 1 : 2), slim = w <= (N === 3 ? 3 : 4);
@@ -1004,10 +1006,10 @@ button.info.on{border-color:#0E1525;background:#fff}
       <div style="margin-top:6px;font-size:11px;color:#475569;font-weight:600">Mỗi ngày chia đôi: <b style="color:#0E1525">nửa trái = khách trả sáng</b>, <b style="color:#0E1525">nửa phải = khách đến chiều</b>.</div></div>
       <div class="card cal hcal"><div style="width:${width};padding:8px 8px 10px 0">
         <div class="cg" style="grid-template-columns:${cols};padding-bottom:6px;border-bottom:1px solid #EEF0F4"><div class="cst"></div>${head}</div>${rows}</div></div>
-      <div class="legend"><span><i style="width:18px;height:11px;border-radius:3px;background:#1976D2;display:inline-block"></i>Có khách</span><span><i style="width:18px;height:11px;border-radius:3px;border:1.5px dashed #1976D2;display:inline-block"></i>Chưa xác nhận</span><span><i style="width:18px;height:11px;border-radius:3px;border:1.5px dashed #CBD5E1;display:inline-block"></i>Trống</span><span><i style="width:18px;height:11px;border-radius:3px;background:#FEF3C7;border:1.5px dashed #F59E0B;display:inline-block"></i>Chưa có số phòng</span><span><i style="width:18px;height:11px;border-radius:3px;background:#FEE2E2;border:1.5px dashed #DC2626;display:inline-block"></i>📵 Không liên lạc được</span></div>
+      <div class="legend"><span><i style="width:18px;height:11px;border-radius:3px;background:#1976D2;display:inline-block"></i>Có khách</span><span><i style="width:18px;height:11px;border-radius:3px;border:1.5px dashed #1976D2;display:inline-block"></i>Chưa xác nhận</span><span><i style="width:18px;height:11px;border-radius:3px;border:1.5px dashed #CBD5E1;display:inline-block"></i>Trống</span><span><i style="width:18px;height:11px;border-radius:3px;background:#FEF3C7;border:1.5px dashed #F59E0B;display:inline-block"></i>Chưa có số phòng</span><span><i style="width:18px;height:11px;border-radius:3px;background:#FEE2E2;border:1.5px dashed #DC2626;display:inline-block"></i>📵 Không liên lạc được</span><span><i style="width:18px;height:11px;border-radius:3px;background:#F1F5F9;border:1.5px dotted #64748B;display:inline-block"></i>📋 Mới lấy từ danh sách (chưa SĐT)</span></div>
       <div class="legend" style="padding-top:0"><span><i class="paym" style="position:static;background:#16A34A">✓</i>Đã thu</span><span><i class="paym" style="position:static;background:#F59E0B">½</i>Thu một phần</span><span><i class="paym" style="position:static;background:#DC2626">₫</i>Chưa thu (khách đã đến)</span><span><i style="width:16px;height:12px;border-radius:3px;background:#FFFBEB;border:1.5px solid #94A3B8"></i>☀ Ở trong ngày (không tính đêm)</span></div>`;
   }
-  M.cal = (dir) => { S.calStart = Math.max(-10, Math.min(20, S.calStart + dir * (S.calN === 3 ? 1 : 3))); render(); };
+  M.cal = (dir) => { S.calStart = Math.max(-10, Math.min(45 - S.calN, S.calStart + dir * (S.calN === 3 ? 1 : S.calN === 14 ? 7 : 3))); render(); };
 
   // ═════ NHẮN KHÁCH ═════
   const STEP_SUB = { welcome: 'lời chào', confirm: '+ ảnh booking', passport: 'hộ chiếu', luggage: 'tuỳ chọn', checkin: 'ảnh hướng dẫn', payment: '+ mã QR', thanks: 'khi trả phòng' };

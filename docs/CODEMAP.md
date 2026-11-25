@@ -305,7 +305,7 @@ _p16_staff — 👥 Nhân viên (owner, Nov 6): the cleaners talk to the Zalo bo
 - app_parts/p16_staff.py:886 `moi_staff` ← `/api/moi/staff` GET,POST — 👥 Nhân viên sheet in /moi: waiting requests, who is off today, month list; actions: decide, add (leave/extra),
 - app_parts/p16_staff.py:957 `staff_copy_owner` — Copy of a cleaner's message to the bot + the bot's answer → the owner(s).
 
-## app_parts/p17_mail.py (807 lines)
+## app_parts/p17_mail.py (921 lines)
 _p17_mail — 📧 Booking.com e-mails → the app (owner, Nov 12: "khi nhận được mail thì hệ thống tự cập nhật trên app là đang có_
 - app_parts/p17_mail.py:21 `_mail_ensure`
 - app_parts/p17_mail.py:37 `_mail_token`
@@ -337,6 +337,9 @@ _p17_mail — 📧 Booking.com e-mails → the app (owner, Nov 12: "khi nhận �
 - app_parts/p17_mail.py:721 `moi_mail_bot` ← `/api/moi/mail_bot` POST — Setup of the booking bot: token (checked with getMe, then setWebhook) · test · remove a receiver · off (back t
 - app_parts/p17_mail.py:758 `_mail_setup_info`
 - app_parts/p17_mail.py:800 `moi_mail_setup` ← `/api/moi/mail_setup` — 📧 setup sheet: the script to paste into Google Apps Script (with this app's private address) + the last mail r
+- app_parts/p17_mail.py:818 `_month_range_ok`
+- app_parts/p17_mail.py:824 `ext_month_sync` ← `/api/ext/month_sync` POST
+- app_parts/p17_mail.py:892 `ext_month_report` ← `/api/ext/month_report` POST — One Zalo line after the whole month run (all properties of this profile) — only when something is new / gone.
 
 ## app_parts/p18_chi.py (874 lines)
 _p18_chi — 💸 Chi tiêu = ảnh biên lai chuyển khoản gửi cho bot Zalo "Chi tiêu" (owner, Nov 22 2026:_
@@ -643,12 +646,14 @@ _p18_chi — 💸 Chi tiêu = ảnh biên lai chuyển khoản gửi cho bot Zal
 - chrome_extension/content.js: 559 `autoShot` · 581 `domAutoShot` · 588 `shotAfterReveal` · 615 `phoneWatch` · 634 `autoRevealTry` · 661 `chatBox` · 667 `putInChat` · 741 `chatThread`
 - chrome_extension/content.js: 751 `pageBookingNumber` · 758 `aiAsk` · 769 `drawAi` · 804 `stopMic` · 805 `toggleMic` · 847 `prepareShot` · 923 `finishShot` · 988 `cancelShot`
 - chrome_extension/content.js: 996 `restoreFloating` · 1042 `guestLinks` · 1076 `groupTable` · 1089 `groupProps` · 1128 `numUnder` · 1150 `arrivalsToday` · 1186 `startGroup` · 1200 `stopGroup`
-- chrome_extension/content.js: 1211 `showGroupDone` · 1222 `groupStep` · 1255 `refreshRunBtn` · 1308 `startRun` · 1332 `finishRun` · 1347 `showRunDone` · 1357 `withSes` · 1364 `logoutLoop`
-- chrome_extension/content.js: 1383 `fetchJob` · 1410 `learnHotels` · 1423 `runStep` · 1515 `autoMorning` · 1589 `startTab`
+- chrome_extension/content.js: 1211 `showGroupDone` · 1222 `groupStep` · 1255 `refreshRunBtn` · 1313 `nextPageBtn` · 1325 `readAllPages` · 1374 `monthJob` · 1413 `finishMonth` · 1418 `startRun`
+- chrome_extension/content.js: 1442 `finishRun` · 1457 `showRunDone` · 1467 `withSes` · 1474 `logoutLoop` · 1493 `fetchJob` · 1520 `learnHotels` · 1533 `runStep` · 1625 `autoMorning`
+- chrome_extension/content.js: 1699 `startTab`
 
 ## chrome_extension/background.js
 - chrome_extension/background.js: 6 `settings` · 30 `shoot` · 78 `cdpShot` · 102 `morningTime` · 107 `scheduleMorning` · 116 `stayAwake` · 125 `openTab` · 132 `morningRun`
-- chrome_extension/background.js: 149 `checkSignedOut` · 160 `signedOutAlert` · 201 `selfUpdate` · 216 `ensureAlarm` · 235 `apiCall` · 244 `pendingCheck` · 283 `logoutLoop` · 298 `cookieReset`
+- chrome_extension/background.js: 149 `checkSignedOut` · 160 `signedOutAlert` · 201 `selfUpdate` · 216 `ensureAlarm` · 235 `apiCall` · 244 `pendingCheck` · 284 `monthRange` · 290 `monthCheck`
+- chrome_extension/background.js: 312 `logoutLoop` · 327 `cookieReset`
 
 # Templates (inline JS functions)
 
@@ -658,7 +663,7 @@ _p18_chi — 💸 Chi tiêu = ảnh biên lai chuyển khoản gửi cho bot Zal
 - templates/chi.html: 563 `usePhoto` · 569 `pasteClip` · 586 `photoWire` · 594 `shrink` · 604 `form` · 608 `kindField` · 614 `catField` · 619 `kindWire`
 - templates/chi.html: 629 `add` · 667 `edit` · 703 `pick` · 717 `save` · 723 `share` · 736 `copy` · 740 `drawBot` · 755 `post`
 
-## templates/desk.html (1343 lines)
+## templates/desk.html (1347 lines)
 - templates/desk.html: 307 `load` · 320 `loadRev` · 333 `needRev` · 351 `D.tab` · 352 `D.set` · 353 `D.q` · 354 `D.reload` · 356 `D.shift`
 - templates/desk.html: 362 `D.toToday` · 363 `D.open` · 364 `D.openDay` · 365 `D.close` · 366 `closeDrawer` · 367 `D.closeModal` · 370 `D.place` · 375 `D.unplace`
 - templates/desk.html: 381 `D.room` · 388 `D.confirm` · 421 `D.zbotResend` · 428 `D.cleanCopy` · 429 `D.cancel` · 435 `D.mark` · 439 `D.status` · 443 `D.dayuse`
@@ -666,14 +671,14 @@ _p18_chi — 💸 Chi tiêu = ảnh biên lai chuyển khoản gửi cho bot Zal
 - templates/desk.html: 461 `D.renameRoom` · 469 `D.pickG` · 470 `D.auto` · 485 `D.payOpen` · 486 `D.collect` · 495 `D.partial` · 497 `D.undoPay` · 500 `D.payCycle`
 - templates/desk.html: 510 `D.edit` · 512 `D.extN` · 516 `D.splitApt` · 522 `D.extTyped` · 523 `D.editCalc` · 550 `D.editSave` · 585 `D.remind` · 586 `D.remPreset`
 - templates/desk.html: 589 `D.remSet` · 590 `D.remSave` · 597 `D.remDone` · 601 `D.add` · 602 `D.addSave` · 617 `render` · 626 `renderSide` · 649 `renderTop`
-- templates/desk.html: 678 `viewToday` · 737 `dayCard` · 769 `viewDay` · 826 `D.uncancel` · 835 `viewCal` · 958 `renderPick` · 966 `viewMsg` · 1006 `viewPay`
-- templates/desk.html: 1046 `D.payQuick` · 1052 `viewRev` · 1123 `D.revMonth` · 1124 `D.revDay` · 1125 `D.goDay` · 1126 `drawRevCharts` · 1149 `renderDrawer` · 1155 `guestCard`
-- templates/desk.html: 1216 `dayPanel` · 1237 `renderModal` · 1327 `D.mset` · 1328 `D.extOpen`
+- templates/desk.html: 678 `viewToday` · 737 `dayCard` · 769 `viewDay` · 826 `D.uncancel` · 835 `viewCal` · 962 `renderPick` · 970 `viewMsg` · 1010 `viewPay`
+- templates/desk.html: 1050 `D.payQuick` · 1056 `viewRev` · 1127 `D.revMonth` · 1128 `D.revDay` · 1129 `D.goDay` · 1130 `drawRevCharts` · 1153 `renderDrawer` · 1159 `guestCard`
+- templates/desk.html: 1220 `dayPanel` · 1241 `renderModal` · 1331 `D.mset` · 1332 `D.extOpen`
 
 ## templates/journey_settings.html (231 lines)
 - templates/journey_settings.html: 79 `load` · 88 `renderButtons` · 141 `options` · 151 `rowHtml` · 165 `render` · 178 `bind` · 210 `shrink`
 
-## templates/moi.html (1651 lines)
+## templates/moi.html (1653 lines)
 - templates/moi.html: 225 `roomKind` · 251 `M_staffBadge` · 255 `load` · 335 `M.reload` · 336 `M.tab` · 337 `M.set` · 338 `M.day` · 339 `M.open`
 - templates/moi.html: 340 `M.close` · 341 `M.add` · 342 `M.addSave` · 355 `M.place` · 360 `M.unplace` · 366 `M.room` · 373 `M.confirm` · 407 `M.cleanLink`
 - templates/moi.html: 410 `M.staffLoad` · 412 `M.staffOpen` · 414 `M.logOpen` · 416 `M.logSet` · 417 `M.staffRe` · 418 `M.calOpen` · 419 `M.stfSet` · 422 `M.st`
@@ -685,10 +690,10 @@ _p18_chi — 💸 Chi tiêu = ảnh biên lai chuyển khoản gửi cho bot Zal
 - templates/moi.html: 636 `M.splitApt` · 642 `M.extTyped` · 643 `M.editCalc` · 671 `M.editSave` · 708 `M.depLoad` · 712 `M.depOpen` · 713 `M.depBookOpen` · 714 `M.depChip`
 - templates/moi.html: 715 `M.depTyped` · 716 `M.depSave` · 724 `M.depDel` · 726 `M.depMonth` · 728 `M.payOpen` · 729 `M.collect` · 737 `M.partial` · 739 `M.undoPay`
 - templates/moi.html: 742 `M.payCycle` · 747 `M.pickG` · 748 `M.auto` · 763 `render` · 772 `renderNav` · 781 `renderFloat` · 798 `viewDay` · 907 `viewCal`
-- templates/moi.html: 1010 `M.cal` · 1014 `msgCard` · 1053 `M.outLoad` · 1063 `M.outGo` · 1065 `M.outSrc` · 1069 `M.outFind` · 1072 `M.outWa` · 1076 `M.outCopy`
-- templates/moi.html: 1077 `M.outSent` · 1083 `M.outPhone` · 1092 `M.findOpen` · 1098 `M.findRun` · 1118 `M.findWa` · 1127 `M.findWaDraw` · 1137 `M.findWaPick` · 1148 `M.findWaGo`
-- templates/moi.html: 1149 `M.findBack` · 1151 `M.outPick` · 1158 `M.outPickDraw` · 1167 `M.outChoose` · 1168 `outRow` · 1184 `viewOut` · 1221 `viewMsg` · 1258 `M.aptSheetOpen`
-- templates/moi.html: 1271 `viewPay` · 1312 `depCard` · 1323 `depRows` · 1336 `payMsgBox` · 1355 `renderSheet` · 1635 `S_set` · 1636 `renderSheetPub` · 1637 `S_put`
+- templates/moi.html: 1012 `M.cal` · 1016 `msgCard` · 1055 `M.outLoad` · 1065 `M.outGo` · 1067 `M.outSrc` · 1071 `M.outFind` · 1074 `M.outWa` · 1078 `M.outCopy`
+- templates/moi.html: 1079 `M.outSent` · 1085 `M.outPhone` · 1094 `M.findOpen` · 1100 `M.findRun` · 1120 `M.findWa` · 1129 `M.findWaDraw` · 1139 `M.findWaPick` · 1150 `M.findWaGo`
+- templates/moi.html: 1151 `M.findBack` · 1153 `M.outPick` · 1160 `M.outPickDraw` · 1169 `M.outChoose` · 1170 `outRow` · 1186 `viewOut` · 1223 `viewMsg` · 1260 `M.aptSheetOpen`
+- templates/moi.html: 1273 `viewPay` · 1314 `depCard` · 1325 `depRows` · 1338 `payMsgBox` · 1357 `renderSheet` · 1637 `S_set` · 1638 `renderSheetPub` · 1639 `S_put`
 
 ## templates/quick.html (357 lines)
 - templates/quick.html: 158 `toast` · 163 `go` · 171 `copyNow` · 179 `sendText` · 184 `copyText` · 185 `sendImgs` · 196 `setIn` · 218 `takeOut`

@@ -836,7 +836,7 @@ button.info.on{border-color:#0E1525;background:#fff}
     const N = S.calN, ws = S.calStart, we = ws + N, ca = S.ca;
     needRev(ws, we);
     const days = []; for (let o = ws; o < we; o++) days.push(o);
-    const colW = N === 7 ? 150 : 78;
+    const colW = N === 7 ? 150 : N === 14 ? 78 : 44, hc = colW / 2;   // 30 ngày (owner Nov 25: lịch dài hạn)
     const tpl = `display:grid;grid-template-columns:200px repeat(${N * 2},minmax(${colW / 2}px,1fr))`;
     const dcol = (i) => `grid-row:1;grid-column:${2 + 2 * i} / span 2;`;
     const dbg = (o) => o === 0 ? 'background:#EEF4FF;' : weekend(o) ? 'background:#FAFAFB;' : '';
@@ -850,6 +850,8 @@ button.info.on{border-color:#0E1525;background:#fff}
       let k = ends.findIndex((e) => e <= sp[0]); if (k < 0) { k = ends.length; ends.push(0); } ends[k] = sp[1]; b._ln = k; }); return Math.max(ends.length, 1); };
     const cells = (nl) => days.map((o, i) => `<div style="${dcol(i)}${nl > 1 ? 'grid-row:1 / span ' + nl + ';' : ''}border-left:1px solid #EEF0F4;${dbg(o)}"></div>`).join('');
     // x = guest without a room number ("Chưa có số phòng" / "Chưa xếp căn" lanes) → small × = Báo hủy (owner, Nov 18)
+    // 📋 read from Booking's month list only (owner Nov 25): no phone yet, not a partner booking, not arrived
+    const lo = (b) => !b.phone && !b.partner && b.ciO > 0 && !b.du;
     const bar = (b, x) => { const sp = span(b); if (!sp) return '';
       const col = aptColor(b), st = stOf(b);
       let s = at(sp, b._ln);
@@ -857,10 +859,11 @@ button.info.on{border-color:#0E1525;background:#fff}
       else if (b.coO < 0) s += 'background:#E5E7EB;color:#475569;';
       else if (b.ciO <= 0 && b.confirmed) s += `background:${col};color:#fff;`;
       else if (b.ciO <= 0) s += 'background:#FFFBEB;color:#92400E;box-shadow:inset 0 0 0 1.5px #F59E0B;';
+      else if (lo(b)) s += 'background:#F1F5F9;color:#334155;box-shadow:none;outline:1.5px dotted #64748B;outline-offset:-1.5px;';
       else s += `background:${col}1F;color:#0E1525;box-shadow:inset 0 0 0 1px ${col}70;`;
       if (S.pick === b.id || S.sel === b.id) s += 'outline:2.5px solid #F59E0B;outline-offset:1px;';
-      const tip = esc(b.name + ' · ' + dm(b.ciO) + ' → ' + dm(b.coO) + ' · ' + b.nights + ' đêm · ' + fmt(b.per_night) + '/đêm · ' + b.listing + ' · ' + st.t + ' · ' + payTxt(b) + ' — bấm để xếp phòng, bấm đúp để mở thẻ');
-      const narrow = (sp[1] - sp[0]) * (N === 7 ? 75 : 39) < 120;      // under ~120 px: name only, smaller, no dot / 2PN chip
+      const tip = esc((lo(b) ? '📋 Mới lấy từ danh sách Booking — chưa mở chi tiết (chưa SĐT, chưa ảnh; máy lấy vào sáng ngày khách đến) · ' : '') + b.name + ' · ' + dm(b.ciO) + ' → ' + dm(b.coO) + ' · ' + b.nights + ' đêm · ' + fmt(b.per_night) + '/đêm · ' + b.listing + ' · ' + st.t + ' · ' + payTxt(b) + ' — bấm để xếp phòng, bấm đúp để mở thẻ');
+      const narrow = (sp[1] - sp[0]) * hc < 120;      // under ~120 px: name only, smaller, no dot / 2PN chip
       // payment mark (owner, Nov 7 — same as the phone): ✓ đã thu · ½ thu một phần · ₫ chưa thu (only once the guest has arrived)
       const pay = b.paid ? ['✓', '#16A34A', 'Đã thu'] : b.collected ? ['½', '#F59E0B', 'Thu một phần'] : (b.ciO < 0 || (b.ciO === 0 && b.confirmed)) ? ['₫', '#DC2626', 'Chưa thu'] : null;
       const payMark = pay ? `<i class="paym" style="background:${pay[1]}" aria-label="${pay[2]}">${pay[0]}</i>` : '';
@@ -868,9 +871,9 @@ button.info.on{border-color:#0E1525;background:#fff}
       const pr = (pay ? (narrow ? 20 : 26) : 0) + (x ? 22 : 0);
       const xMark = x ? `<i class="bx" style="right:${pay ? (narrow ? 22 : 25) : 4}px" title="Báo hủy khách này (hoàn tác được)" onclick="event.stopPropagation();D.cancel('${esc(b.id)}')" ondblclick="event.stopPropagation()">×</i>` : '';
       return `<button class="bar" style="${s}${narrow ? 'padding:3px 5px;' : ''}${pr ? 'padding-right:' + pr + 'px;' : ''}" onclick="D.pickG('${esc(b.id)}')" ondblclick="D.open('${esc(b.id)}')" title="${tip}">
-        ${b.du && (sp[1] - sp[0]) * (N === 7 ? 75 : 39) < 60 ? '<b style="font-size:14px">☀</b>'
-          : narrow ? `<span class="t"><b style="font-size:11px">${b.du ? '☀ ' : ''}${esc(b.name)}</b><small>${b.du ? 'trong ngày' : b.nights + 'đ'}${b.per_night ? ' · ' + short(b.per_night) : ''}${b.tb ? ' · 2PN' : ''}</small></span>`
-          : `<span class="dot" style="background:${st.c};box-shadow:0 0 0 2px #fff"></span><span class="t"><b>${esc(b.name)}</b><small>${b.nights} đêm · ${short(b.per_night)} · ${payW}</small></span>${b.tb ? '<span class="tb">2PN</span>' : ''}`}${xMark}${payMark}</button>`; };
+        ${b.du && (sp[1] - sp[0]) * hc < 60 ? '<b style="font-size:14px">☀</b>'
+          : narrow ? `<span class="t"><b style="font-size:11px">${b.du ? '☀ ' : lo(b) ? '📋 ' : ''}${esc(b.name)}</b><small>${b.du ? 'trong ngày' : b.nights + 'đ'}${b.per_night ? ' · ' + short(b.per_night) : ''}${b.tb ? ' · 2PN' : ''}</small></span>`
+          : `<span class="dot" style="background:${st.c};box-shadow:0 0 0 2px #fff"></span><span class="t"><b>${lo(b) ? '📋 ' : ''}${esc(b.name)}</b><small>${b.nights} đêm · ${short(b.per_night)} · ${payW}</small></span>${b.tb ? '<span class="tb">2PN</span>' : ''}`}${xMark}${payMark}</button>`; };
     const lanes = (list) => { const L = []; list.slice().sort((p, q) => p.ciO - q.ciO).forEach((b) => { const l = L.find((x) => x.end <= b.ciO); if (l) { l.bs.push(b); l.end = b.coO; } else L.push({ end: b.coO, bs: [b] }); }); return L; };
     const vis = (b) => (b.du ? b.ciO >= ws : b.coO > ws) && b.ciO < we && match(b);   // left before the first night shown = not drawn
     const rowSt = tpl + ';min-height:50px;border-top:1px solid #EEF0F4;';
@@ -938,7 +941,7 @@ button.info.on{border-color:#0E1525;background:#fff}
         <div class="card kpi"><div class="l">Đêm còn nhiều phòng nhất</div><div class="v num">${quiet !== null ? wd(quiet) + ' ' + dm(quiet) : '—'}</div><div class="s">${quiet !== null ? 'còn ' + freeOn(quiet) + ' phòng trống' : ''}</div></div></div>
       <section class="card" style="overflow:hidden">
         <div class="ch"><div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center">
-            <div class="seg"><button class="${N === 7 ? 'on' : ''}" onclick="D.set('calN',7)">7 ngày</button><button class="${N === 14 ? 'on' : ''}" onclick="D.set('calN',14)">14 ngày</button></div>
+            <div class="seg"><button class="${N === 7 ? 'on' : ''}" onclick="D.set('calN',7)">7 ngày</button><button class="${N === 14 ? 'on' : ''}" onclick="D.set('calN',14)">14 ngày</button><button class="${N === 30 ? 'on' : ''}" onclick="D.set('calN',30)">30 ngày</button></div>
             <div class="apf"><button class="${!ca ? 'on' : ''}" onclick="D.set('ca','')">Tất cả căn</button>${APT.map((a) => `<button class="${ca === a.id ? 'on' : ''}" onclick="D.set('ca',${a.id})"><span class="dot" style="background:${a.color}"></span>${esc(a.short)}</button>`).join('')}</div>
             ${noNum ? `<button class="btn sm" style="border-style:dashed" onclick="D.auto()">Tự xếp phòng cho ${noNum} khách đã có căn</button>` : ''}</div>
           <div style="display:flex;flex-wrap:wrap;gap:12px;font-size:12px;color:#475569;font-weight:600">
@@ -949,7 +952,8 @@ button.info.on{border-color:#0E1525;background:#fff}
             <span style="display:flex;align-items:center;gap:6px"><i class="paym" style="position:static;transform:none;background:#16A34A">✓</i>Đã thu</span>
             <span style="display:flex;align-items:center;gap:6px"><i class="paym" style="position:static;transform:none;background:#F59E0B">½</i>Thu một phần</span>
             <span style="display:flex;align-items:center;gap:6px"><i class="paym" style="position:static;transform:none;background:#DC2626">₫</i>Chưa thu (khách đã đến)</span>
-            <span style="display:flex;align-items:center;gap:6px"><i style="width:18px;height:10px;border-radius:3px;background:#FFFBEB;box-shadow:inset 0 0 0 1.5px #94A3B8"></i>☀ Ở trong ngày (không tính đêm)</span></div></div>
+            <span style="display:flex;align-items:center;gap:6px"><i style="width:18px;height:10px;border-radius:3px;background:#FFFBEB;box-shadow:inset 0 0 0 1.5px #94A3B8"></i>☀ Ở trong ngày (không tính đêm)</span>
+            <span style="display:flex;align-items:center;gap:6px"><i style="width:18px;height:10px;border-radius:3px;background:#F1F5F9;outline:1.5px dotted #64748B;outline-offset:-1.5px"></i>📋 Mới lấy từ danh sách (chưa SĐT) · ${B.filter((b) => lo(b) && b.ciO < 60).length} khách</span></div></div>
         <div style="padding:8px 18px;font-size:12.5px;color:#475569;border-bottom:1px solid #EEF0F4">Thanh khách bắt đầu <b>giữa ngày đến</b>, hết <b>giữa ngày trả</b> — khách trả và khách đến cùng phòng một ngày thấy nối nhau. Doanh thu dưới ngày: <b>đen</b> = đã có, <b style="color:#1D4ED8">xanh</b> = dự kiến (cùng số với trang Doanh thu). Bấm tên phòng để đổi tên.</div>
         <div style="overflow-x:auto"><div style="min-width:${200 + N * colW}px">
           <div style="${tpl};position:sticky;top:0;z-index:5;background:#fff;border-bottom:1px solid #E4E7ED"><div class="rl" style="background:#FAFBFC"><b>Ngày · phòng trống</b><small>bấm ngày → chi tiết ngày</small></div>${head}</div>
