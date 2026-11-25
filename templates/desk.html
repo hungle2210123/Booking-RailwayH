@@ -209,6 +209,19 @@ button.info.on{border-color:#0E1525;background:#fff}
 .duet .r{text-align:right;white-space:nowrap}.duet .m{color:#64748B;font-weight:800;white-space:nowrap}
 .duet .nm{font-weight:700;max-width:170px}.duet .nm small{display:block;font-size:11px;color:#64748B;font-weight:600}
 .duet tfoot td{font-weight:800;border-top:1.5px solid #0E1525;background:#FAFBFC}
+.acards{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:12px}
+.acard{background:#fff;border:1px solid #E4E7ED;border-top:4px solid var(--c);border-radius:14px;padding:14px 16px;display:flex;flex-direction:column}
+.acard .ah{display:flex;align-items:center;gap:8px;font-size:14px}
+.acard .av{font-size:26px;font-weight:800;margin-top:6px;letter-spacing:-.01em}
+.acard .apay{display:flex;justify-content:space-between;gap:8px;font-size:12.5px;font-weight:700}
+.acard .asp{width:100%;height:42px;margin:10px 0 4px;display:block}
+.acard .ast{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px 10px;margin-top:6px;padding-top:10px;border-top:1px solid #EEF0F4}
+.acard .ast div{display:flex;flex-direction:column;min-width:0}.acard .ast span{font-size:11px;color:#64748B;font-weight:700}.acard .ast b{font-size:14.5px}
+.acard .aexp{margin-top:10px;font-size:12px;color:#2563EB;font-weight:700}
+.atab{width:100%;border-collapse:collapse;font-size:13px}
+.atab th{font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:#64748B;text-align:left;padding:9px 14px;border-bottom:1px solid #E4E7ED;white-space:nowrap}
+.atab td{padding:10px 14px;border-top:1px solid #F1F5F9;white-space:nowrap}
+.atab .r{text-align:right}.atab tfoot td{font-weight:800;border-top:2px solid #0E1525;background:#FAFBFC}
 </style>
 </head>
 <body>
@@ -1085,6 +1098,32 @@ button.info.on{border-color:#0E1525;background:#fff}
   const C = { paid: '#16a34a', due: '#dc2626', exp: '#2563eb', occ: '#ea580c', loc: '#0ea5e9', thao: '#f97316' };
   const pct = (v) => v === null || v === undefined ? '—' : v + '%';
   const ddmm = (iso) => iso.slice(8, 10) + '/' + iso.slice(5, 7);
+  // 🏠 Doanh thu từng căn (owner Nov 26: "số tiền doanh thu của mỗi căn riêng … làm lại chi tiết chuẩn chỉnh")
+  function aptCards(d) {
+    const apts = d.apartments.filter((a) => a.room_nights || a.expected);
+    if (!apts.length) return '';
+    const spark = (a) => { const mx = Math.max(...a.series, 1), n = a.series.length, w = 100 / n;
+      return `<svg class="asp" viewBox="0 0 100 30" preserveAspectRatio="none" aria-hidden="true">${a.series.map((v, i) => v ? `<rect x="${(i * w + w * 0.12).toFixed(2)}" y="${(30 - v / mx * 28).toFixed(2)}" width="${(w * 0.76).toFixed(2)}" height="${(v / mx * 28).toFixed(2)}" rx="0.6" fill="${a.color}"></rect>` : `<rect x="${(i * w + w * 0.12).toFixed(2)}" y="28.6" width="${(w * 0.76).toFixed(2)}" height="1.4" fill="#E2E8F0"></rect>`).join('')}</svg>`; };
+    const st = (l, v) => `<div><span>${l}</span><b class="num">${v}</b></div>`;
+    return `<section><div class="ch" style="padding:0 2px 10px;border:0"><h3>Doanh thu từng căn <span class="muted" style="font-weight:600;font-size:12.5px">· ${esc(d.month.slice(5) + '/' + d.month.slice(0, 4))} · đêm đã ở thật, cùng quy tắc với tổng</span></h3></div>
+      <div class="acards">${apts.map((a) => { const paidW = a.revenue ? a.collected / a.revenue * 100 : 0;
+        return `<div class="acard" style="--c:${a.color}"><div class="ah"><span class="dot" style="background:${a.color}"></span><b>${esc(a.name)}</b><span class="pill" style="margin-left:auto;background:#F1F5F9;color:#334155">${a.share}% tổng</span></div>
+          <div class="av num">${fmt(a.revenue)}</div>
+          <div class="mixbar" style="height:8px;margin:8px 0 6px"><span style="width:${paidW.toFixed(2)}%;background:${C.paid}"></span><span style="width:${(100 - paidW).toFixed(2)}%;background:${a.due > 0 ? C.due : C.paid}"></span></div>
+          <div class="apay"><span style="color:${C.paid}">Đã thu <b class="num">${fmt(a.collected)}</b></span><span style="color:${a.due > 0 ? C.due : '#64748B'}">Chưa thu <b class="num">${fmt(a.due)}</b></span></div>
+          ${spark(a)}
+          <div class="ast">${st('Công suất', a.occupancy === null ? '—' : pct(a.occupancy))}${st('Đêm phòng', a.room_nights + (a.capacity ? ' / ' + a.capacity : ''))}${st('Giá TB / đêm', short(a.adr))}
+            ${st('RevPAR', a.revpar === null ? '—' : short(a.revpar))}${st('Khách', a.guests)}${st('Ngày cao nhất', a.best_day ? short(a.best_day) : '—')}</div>
+          ${a.expected ? `<div class="aexp">Dự kiến thêm <b class="num">${fmt(a.expected)}</b> · ${a.exp_guests} khách đã đặt (chưa tính)</div>` : ''}</div>`; }).join('')}</div></section>`;
+  }
+  function aptTable(d) {
+    const apts = d.apartments.filter((a) => a.room_nights || a.expected);
+    if (!apts.length) return '';
+    const T = apts.reduce((t, a) => ({ r: t.r + a.revenue, c: t.c + a.collected, u: t.u + a.due, n: t.n + a.room_nights, cap: t.cap + (a.capacity || 0), g: t.g + a.guests, e: t.e + a.expected }), { r: 0, c: 0, u: 0, n: 0, cap: 0, g: 0, e: 0 });
+    return `<section class="card"><div class="ch"><h3>So sánh các căn</h3></div><div style="overflow-x:auto"><table class="atab"><thead><tr><th>Căn</th><th class="r">Doanh thu</th><th class="r">% tổng</th><th class="r">Đã thu</th><th class="r">Chưa thu</th><th class="r">Công suất</th><th class="r">Đêm phòng</th><th class="r">Giá TB/đêm</th><th class="r">RevPAR</th><th class="r">Khách</th><th class="r">Dự kiến (chưa tính)</th></tr></thead><tbody>
+      ${apts.map((a) => `<tr><td><span class="dot" style="background:${a.color};margin-right:8px"></span><b>${esc(a.name)}</b></td><td class="r num"><b>${fmt(a.revenue)}</b></td><td class="r num">${a.share}%</td><td class="r num" style="color:${C.paid}">${fmt(a.collected)}</td><td class="r num" style="color:${a.due > 0 ? C.due : '#64748B'}">${fmt(a.due)}</td><td class="r num">${a.occupancy === null ? '—' : pct(a.occupancy)}</td><td class="r num">${a.room_nights}${a.capacity ? ' / ' + a.capacity : ''}</td><td class="r num">${fmt(a.adr)}</td><td class="r num">${a.revpar === null ? '—' : fmt(a.revpar)}</td><td class="r num">${a.guests}</td><td class="r num" style="color:${C.exp}">${a.expected ? fmt(a.expected) : '—'}</td></tr>`).join('')}
+      </tbody><tfoot><tr><td>Tổng ${apts.length} căn</td><td class="r num">${fmt(T.r)}</td><td class="r">100%</td><td class="r num">${fmt(T.c)}</td><td class="r num">${fmt(T.u)}</td><td class="r num">${T.cap ? pct(Math.round(T.n / T.cap * 1000) / 10) : '—'}</td><td class="r num">${T.n}${T.cap ? ' / ' + T.cap : ''}</td><td class="r num">${T.n ? fmt(Math.round(T.r / T.n)) : '—'}</td><td class="r num">${T.cap ? fmt(Math.round(T.r / T.cap)) : '—'}</td><td class="r num">${T.g}</td><td class="r num">${T.e ? fmt(T.e) : '—'}</td></tr></tfoot></table></div></section>`;
+  }
   function viewRev() {
     const m = S.revMonth || TODAY.slice(0, 7);
     const d = REV[m];
@@ -1136,16 +1175,15 @@ button.info.on{border-color:#0E1525;background:#fff}
       <section class="card" style="padding:14px 18px"><div class="mixbar"><span style="width:${(k.collected / tot * 100).toFixed(2)}%;background:${C.paid}"></span><span style="width:${(k.due / tot * 100).toFixed(2)}%;background:${C.due}"></span></div>
         <div class="legend"><span><i style="background:${C.paid}"></i>Đã thu ${short(k.collected)} (${k.collect_rate}%)</span><span><i style="background:${C.due}"></i>Chưa thu ${short(k.due)}</span>
           <span class="muted">Không cộng vào doanh thu: <b style="color:${C.exp}">dự kiến ${short(k.expected)}</b>${k.pending_count ? ` · <b style="color:#92400E">⏳ ${k.pending_count} khách chờ xác nhận ${short(k.pending_value)}</b>` : ''}</span></div></section>
+      ${aptCards(d)}
       <div class="two"><section class="card l"><div class="ch"><h3>Doanh thu theo ngày <span class="muted" style="font-weight:600;font-size:12.5px">· bấm ngày để xem chi tiết</span></h3>
           <div class="seg"><button class="${S.revMode === 'revenue' ? 'on' : ''}" onclick="D.set('revMode','revenue')">Doanh thu</button><button class="${S.revMode === 'occupancy' ? 'on' : ''}" onclick="D.set('revMode','occupancy')">Công suất</button></div></div>
           <div style="padding:14px 18px"><div class="rcal">${cal}</div>
           <div class="legend" style="font-size:12px">${S.revMode === 'occupancy' ? '<span>Màu = công suất: nhạt = thấp, đậm = kín</span>' : `<span><i style="background:rgba(22,163,74,.1)"></i>thấp nhất ${short(minR)}</span><span><i style="background:rgba(22,163,74,.66)"></i>cao nhất ${short(maxR)}</span><span><i style="background:rgba(37,99,235,.35)"></i>ngày tới = dự kiến (chưa tính)</span>`}<span>số nhỏ: phòng có khách / tổng phòng · ⏳ chờ xác nhận · ↓ vào ↑ trả</span></div></div></section>
         <section class="card r" style="padding:14px 18px;display:block;max-height:720px;overflow-y:auto">${detail}</section></div>
       <section class="card"><div class="ch"><h3>12 tháng gần nhất <span class="muted" style="font-weight:600;font-size:12.5px">· cột: doanh thu · đường: công suất · bấm cột để xem tháng</span></h3></div><div style="height:300px;padding:12px 18px"><canvas id="revChart"></canvas></div></section>
-      <div class="two"><section class="card l"><div class="ch"><h3>Theo căn hộ</h3></div><div class="brk" style="padding:14px 18px">${apts.some((a) => a.room_nights || a.expected) ? apts.map((a) => `<div><div class="top"><b style="color:${a.color}">${esc(a.name)}</b><b class="num">${fmt(a.revenue)}</b></div>
-          <div class="bar2"><span style="width:${a.collected / maxA * 100}%;background:${a.color}"></span><span style="width:${(a.revenue - a.collected) / maxA * 100}%;background:${a.color}55"></span></div>
-          <div class="gs" style="white-space:normal">Công suất ${pct(a.occupancy)} · ${a.room_nights}${a.capacity ? '/' + a.capacity : ''} đêm phòng · TB ${short(a.adr)}/đêm · đã thu ${short(a.collected)}${a.expected ? ` · <span style="color:${C.exp}">dự kiến thêm ${short(a.expected)}</span>` : ''}</div></div>`).join('') : '<div class="empty">Chưa có khách trong tháng này</div>'}</div></section>
-        <section class="card r" style="display:block"><div class="ch"><h3>Người thu tiền</h3></div><div class="brk" style="padding:14px 18px">${d.collectors.length ? d.collectors.map((c) => `<div><div class="top"><b>${esc(c.name)}</b><b class="num">${fmt(c.amount)}</b></div>
+      ${aptTable(d)}
+      <div class="two">        <section class="card r" style="display:block"><div class="ch"><h3>Người thu tiền</h3></div><div class="brk" style="padding:14px 18px">${d.collectors.length ? d.collectors.map((c) => `<div><div class="top"><b>${esc(c.name)}</b><b class="num">${fmt(c.amount)}</b></div>
           <div class="bar2"><span style="width:${c.amount / maxC * 100}%;background:${c.name === 'LOC LE' ? C.loc : c.name === 'THAO LE' ? C.thao : '#94a3b8'}"></span></div><div class="gs">${c.share}% doanh thu đã thu trong tháng</div></div>`).join('') : '<div class="empty">Chưa thu tiền trong tháng này</div>'}
           <div style="height:190px"><canvas id="collChart"></canvas></div></div></section></div>
       <details class="card" style="padding:14px 18px;font-size:13.5px;color:#334155;line-height:1.6"><summary style="font-weight:800;cursor:pointer">Cách tính các con số</summary><ul style="margin:8px 0 0;padding-left:20px">

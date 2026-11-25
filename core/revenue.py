@@ -355,10 +355,11 @@ def build_overview(bookings, rooms, month, apartments, expenses_by_month=None, t
 
     apt = OrderedDict((str(a['id']), {'id': str(a['id']), 'name': a['name'], 'color': a.get('color', '#64748b'),
                                       'revenue': 0.0, 'collected': 0.0, 'expected': 0.0,
-                                      'room_nights': 0, 'capacity': 0})
+                                      'room_nights': 0, 'capacity': 0, 'daily': {}, 'bk': set(), 'exp_bk': set()})
                       for a in apartments)
     apt['__none__'] = {'id': '', 'name': 'Chưa xếp căn', 'color': '#94a3b8',
-                       'revenue': 0.0, 'collected': 0.0, 'expected': 0.0, 'room_nights': 0, 'capacity': 0}
+                       'revenue': 0.0, 'collected': 0.0, 'expected': 0.0, 'room_nights': 0, 'capacity': 0,
+                       'daily': {}, 'bk': set(), 'exp_bk': set()}
     for d, rows_d in night_rows.items():
         for x, kind in rows_d:
             if kind == 'pending':
@@ -366,8 +367,11 @@ def build_overview(bookings, rooms, month, apartments, expenses_by_month=None, t
             a = apt.get(x['apartment_id']) or apt['__none__']
             if kind == 'expected':
                 a['expected'] += x['per_night']
+                a['exp_bk'].add(x['booking_id'])
                 continue
             a['revenue'] += x['per_night']
+            a['daily'][d] = a['daily'].get(d, 0.0) + x['per_night']
+            a['bk'].add(x['booking_id'])
             a['room_nights'] += 1
             if kind == 'paid':
                 a['collected'] += x['per_night']
@@ -377,6 +381,15 @@ def build_overview(bookings, rooms, month, apartments, expenses_by_month=None, t
         known = a['capacity'] and a['room_nights'] <= a['capacity']
         a['occupancy'] = round(a['room_nights'] / a['capacity'] * 100, 1) if known else None
         a['adr'] = round(a['revenue'] / a['room_nights']) if a['room_nights'] else 0
+        # owner Nov 26 ("số tiền doanh thu của mỗi căn riêng … chi tiết"): per-apartment detail for the Doanh thu page
+        a['due'] = round(a['revenue'] - a['collected'])
+        a['revpar'] = round(a['revenue'] / a['capacity']) if a['capacity'] else None
+        a['share'] = round(a['revenue'] / k['revenue'] * 100, 1) if k.get('revenue') else 0
+        a['guests'], a['exp_guests'] = len(a.pop('bk')), len(a.pop('exp_bk'))
+        dl = a.pop('daily')
+        a['series'] = [round(dl.get(d, 0)) for d in days_list]
+        el = [dl.get(d, 0) for d in days_list if d <= today]
+        a['best_day'] = max(el) if el else 0
     apartments_out = [a for a in apt.values() if a['room_nights'] or a['capacity'] or a['expected']]
 
     months_available = sorted({_month_key(d) for d in by_day.keys()}, reverse=True)

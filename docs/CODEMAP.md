@@ -599,7 +599,7 @@ _p18_chi — 💸 Chi tiêu = ảnh biên lai chuyển khoản gửi cho bot Zal
 - core/optimized_railway_crawler.py:184 class `CircuitBreaker` — Circuit breaker pattern for service reliability
 - core/optimized_railway_crawler.py:227 class `OptimizedRailwayCrawler` — 100% Performance Railway Crawling Service
 
-## core/revenue.py (388 lines)
+## core/revenue.py (401 lines)
 - core/revenue.py:35 `vn_today`
 - core/revenue.py:39 `_f`
 - core/revenue.py:46 `load_bookings`
@@ -671,17 +671,17 @@ _p18_chi — 💸 Chi tiêu = ảnh biên lai chuyển khoản gửi cho bot Zal
 - templates/chi.html: 774 `bookField` · 779 `bookWire` · 786 `kindField` · 792 `catField` · 797 `kindWire` · 807 `add` · 847 `edit` · 884 `pick`
 - templates/chi.html: 900 `save` · 907 `pinSheet` · 942 `share` · 955 `copy` · 959 `drawBot` · 974 `post`
 
-## templates/desk.html (1379 lines)
-- templates/desk.html: 318 `load` · 331 `loadRev` · 344 `needRev` · 362 `D.tab` · 363 `D.set` · 364 `D.q` · 365 `D.reload` · 367 `D.shift`
-- templates/desk.html: 373 `D.toToday` · 374 `D.open` · 375 `D.openDay` · 376 `D.close` · 377 `closeDrawer` · 378 `D.closeModal` · 381 `D.place` · 386 `D.unplace`
-- templates/desk.html: 392 `D.room` · 399 `D.confirm` · 432 `D.zbotResend` · 439 `D.cleanCopy` · 440 `D.cancel` · 446 `D.mark` · 450 `D.status` · 454 `D.dayuse`
-- templates/desk.html: 458 `D.unreach` · 459 `D.replied` · 460 `D.phone` · 467 `D.send` · 468 `D.pickApt` · 469 `D.quick` · 470 `D.photo` · 471 `D.chatPhone`
-- templates/desk.html: 472 `D.renameRoom` · 480 `D.pickG` · 481 `D.auto` · 496 `D.payOpen` · 497 `D.collect` · 506 `D.partial` · 508 `D.undoPay` · 511 `D.payCycle`
-- templates/desk.html: 521 `D.edit` · 523 `D.extN` · 527 `D.splitApt` · 533 `D.extTyped` · 534 `D.editCalc` · 561 `D.editSave` · 596 `D.remind` · 597 `D.remPreset`
-- templates/desk.html: 600 `D.remSet` · 601 `D.remSave` · 608 `D.remDone` · 612 `D.add` · 613 `D.addSave` · 628 `render` · 637 `renderSide` · 660 `renderTop`
-- templates/desk.html: 689 `viewToday` · 748 `dayCard` · 780 `viewDay` · 837 `D.uncancel` · 846 `viewCal` · 994 `renderPick` · 1002 `viewMsg` · 1042 `viewPay`
-- templates/desk.html: 1082 `D.payQuick` · 1088 `viewRev` · 1159 `D.revMonth` · 1160 `D.revDay` · 1161 `D.goDay` · 1162 `drawRevCharts` · 1185 `renderDrawer` · 1191 `guestCard`
-- templates/desk.html: 1252 `dayPanel` · 1273 `renderModal` · 1363 `D.mset` · 1364 `D.extOpen`
+## templates/desk.html (1417 lines)
+- templates/desk.html: 331 `load` · 344 `loadRev` · 357 `needRev` · 375 `D.tab` · 376 `D.set` · 377 `D.q` · 378 `D.reload` · 380 `D.shift`
+- templates/desk.html: 386 `D.toToday` · 387 `D.open` · 388 `D.openDay` · 389 `D.close` · 390 `closeDrawer` · 391 `D.closeModal` · 394 `D.place` · 399 `D.unplace`
+- templates/desk.html: 405 `D.room` · 412 `D.confirm` · 445 `D.zbotResend` · 452 `D.cleanCopy` · 453 `D.cancel` · 459 `D.mark` · 463 `D.status` · 467 `D.dayuse`
+- templates/desk.html: 471 `D.unreach` · 472 `D.replied` · 473 `D.phone` · 480 `D.send` · 481 `D.pickApt` · 482 `D.quick` · 483 `D.photo` · 484 `D.chatPhone`
+- templates/desk.html: 485 `D.renameRoom` · 493 `D.pickG` · 494 `D.auto` · 509 `D.payOpen` · 510 `D.collect` · 519 `D.partial` · 521 `D.undoPay` · 524 `D.payCycle`
+- templates/desk.html: 534 `D.edit` · 536 `D.extN` · 540 `D.splitApt` · 546 `D.extTyped` · 547 `D.editCalc` · 574 `D.editSave` · 609 `D.remind` · 610 `D.remPreset`
+- templates/desk.html: 613 `D.remSet` · 614 `D.remSave` · 621 `D.remDone` · 625 `D.add` · 626 `D.addSave` · 641 `render` · 650 `renderSide` · 673 `renderTop`
+- templates/desk.html: 702 `viewToday` · 761 `dayCard` · 793 `viewDay` · 850 `D.uncancel` · 859 `viewCal` · 1007 `renderPick` · 1015 `viewMsg` · 1055 `viewPay`
+- templates/desk.html: 1095 `D.payQuick` · 1102 `aptCards` · 1119 `aptTable` · 1127 `viewRev` · 1197 `D.revMonth` · 1198 `D.revDay` · 1199 `D.goDay` · 1200 `drawRevCharts`
+- templates/desk.html: 1223 `renderDrawer` · 1229 `guestCard` · 1290 `dayPanel` · 1311 `renderModal` · 1401 `D.mset` · 1402 `D.extOpen`
 
 ## templates/journey_settings.html (231 lines)
 - templates/journey_settings.html: 79 `load` · 88 `renderButtons` · 141 `options` · 151 `rowHtml` · 165 `render` · 178 `bind` · 210 `shrink`
