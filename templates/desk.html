@@ -222,6 +222,8 @@ button.info.on{border-color:#0E1525;background:#fff}
 .atab th{font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:#64748B;text-align:left;padding:9px 14px;border-bottom:1px solid #E4E7ED;white-space:nowrap}
 .atab td{padding:10px 14px;border-top:1px solid #F1F5F9;white-space:nowrap}
 .atab .r{text-align:right}.atab tfoot td{font-weight:800;border-top:2px solid #0E1525;background:#FAFBFC}
+.asum{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px 20px;padding:10px 14px;margin-bottom:12px;background:#F8FAFC;border-radius:10px;font-size:13px;color:#475569}
+.asum > b{font-size:15px;color:#0E1525}.asum span b{color:#0E1525;font-size:14.5px}
 </style>
 </head>
 <body>
@@ -1144,7 +1146,22 @@ button.info.on{border-color:#0E1525;background:#fff}
     const occNote = k.occupancy === null ? 'chưa đủ dữ liệu số phòng' : `${k.room_nights}/${k.capacity} đêm phòng${isCur ? ' đến hôm nay' : ''}` + (isCur && k.booked_occupancy !== null ? ` · cả tháng đã đặt ${k.booked_occupancy}%` : '');
     const kp = (l, v, sub, col) => `<div class="card kpi" style="box-shadow:inset 0 3px 0 ${col}"><div class="l">${l}</div><div class="v num" style="color:${col === '#0E1525' ? '#0E1525' : col}">${v}</div><div class="s">${sub}</div></div>`;
     // month calendar
-    const days = d.days, val = (x) => x.is_future ? x.expected : x.revenue;
+    // 🏠 one apartment only (owner Nov 26: "doanh thu theo ngày … chọn theo căn để nhìn rõ số tiền mỗi ngày riêng của căn đó"):
+    // every day is rebuilt from that day's guests of the apartment (same per-night money as the totals)
+    const fa = S.revApt ? d.apartments.find((a) => a.id === String(S.revApt)) : null;
+    const capA = fa ? ((APT.find((a) => String(a.id) === fa.id) || {}).rooms || 0) : 0;
+    const days = !fa ? d.days : d.days.map((x, i, arr) => {
+      const gs = x.guests.filter((g) => g.apartment === fa.name), ps = x.pending.filter((g) => g.apartment === fa.name);
+      const sum = gs.reduce((t, g) => t + g.per_night, 0);
+      return { ...x, guests: gs, pending: ps, revenue: x.is_future ? 0 : sum, expected: x.is_future ? sum : 0, rooms: gs.length, capacity: capA,
+        occupancy: capA ? Math.round(gs.length / capA * 1000) / 10 : null, adr: gs.length ? Math.round(sum / gs.length) : 0,
+        arrivals: gs.filter((g) => g.is_arrival).length, departures: i ? arr[i - 1].guests.filter((g) => g.apartment === fa.name && g.is_last_night).length : 0,
+        pending_count: ps.length, pending_value: ps.reduce((t, g) => t + g.per_night, 0) };
+    });
+    const val = (x) => x.is_future ? x.expected : x.revenue;
+    const aSel = `<div class="apf" style="margin-left:8px"><button class="${!fa ? 'on' : ''}" onclick="D.revApt('')">Tất cả căn</button>${d.apartments.filter((a) => a.id && (a.room_nights || a.expected)).map((a) => `<button class="${fa && fa.id === a.id ? 'on' : ''}" onclick="D.revApt('${a.id}')"><span class="dot" style="background:${a.color}"></span>${esc(a.name)}</button>`).join('')}</div>`;
+    const aSum = fa ? (() => { const el = days.filter((x) => !x.is_future), tot = el.reduce((t, x) => t + x.revenue, 0), ex = days.reduce((t, x) => t + x.expected, 0);
+      return `<div class="asum" style="border-left:4px solid ${fa.color}"><b>${esc(fa.name)}</b><span>Doanh thu tháng <b class="num">${fmt(tot)}</b></span><span>TB mỗi ngày <b class="num">${fmt(el.length ? Math.round(tot / el.length) : 0)}</b></span><span>Đã thu <b class="num" style="color:${C.paid}">${fmt(fa.collected)}</b></span><span>Chưa thu <b class="num" style="color:${fa.due > 0 ? C.due : '#64748B'}">${fmt(fa.due)}</b></span><span>Công suất <b class="num">${pct(fa.occupancy)}</b></span>${ex ? `<span>Dự kiến thêm <b class="num" style="color:${C.exp}">${fmt(ex)}</b></span>` : ''}</div>`; })() : '';
     const real = days.filter((x) => !x.is_future && x.revenue > 0).map((x) => x.revenue), maxR = Math.max(...real, 1), minR = Math.min(...real, maxR);
     const futv = days.filter((x) => x.is_future && x.expected > 0).map((x) => x.expected), maxE = Math.max(...futv, 1), minE = Math.min(...futv, maxE);
     const heat = (v, lo, hi, rgb) => !v ? '#fff' : `rgba(${rgb},${(0.06 + 0.6 * Math.min(Math.max(hi > lo ? (v - lo) / (hi - lo) : 1, 0), 1)).toFixed(2)})`;
@@ -1185,9 +1202,9 @@ button.info.on{border-color:#0E1525;background:#fff}
         <div class="legend"><span><i style="background:${C.paid}"></i>Đã thu ${short(k.collected)} (${k.collect_rate}%)</span><span><i style="background:${C.due}"></i>Chưa thu ${short(k.due)}</span>
           <span class="muted">Không cộng vào doanh thu: <b style="color:${C.exp}">dự kiến ${short(k.expected)}</b>${k.pending_count ? ` · <b style="color:#92400E">⏳ ${k.pending_count} khách chờ xác nhận ${short(k.pending_value)}</b>` : ''}</span></div></section>
       ${aptCards(d)}
-      <div class="two"><section class="card l"><div class="ch"><h3>Doanh thu theo ngày <span class="muted" style="font-weight:600;font-size:12.5px">· bấm ngày để xem chi tiết</span></h3>
+      <div class="two"><section class="card l"><div class="ch"><h3>Doanh thu theo ngày${fa ? ' · <span style="color:' + fa.color + '">' + esc(fa.name) + '</span>' : ''} <span class="muted" style="font-weight:600;font-size:12.5px">· bấm ngày để xem chi tiết</span></h3>${aSel}
           <div class="seg"><button class="${S.revMode === 'revenue' ? 'on' : ''}" onclick="D.set('revMode','revenue')">Doanh thu</button><button class="${S.revMode === 'occupancy' ? 'on' : ''}" onclick="D.set('revMode','occupancy')">Công suất</button></div></div>
-          <div style="padding:14px 18px"><div class="rcal">${cal}</div>
+          <div style="padding:14px 18px">${aSum}<div class="rcal">${cal}</div>
           <div class="legend" style="font-size:12px">${S.revMode === 'occupancy' ? '<span>Màu = công suất: nhạt = thấp, đậm = kín</span>' : `<span><i style="background:rgba(22,163,74,.1)"></i>thấp nhất ${short(minR)}</span><span><i style="background:rgba(22,163,74,.66)"></i>cao nhất ${short(maxR)}</span><span><i style="background:rgba(37,99,235,.35)"></i>ngày tới = dự kiến (chưa tính)</span>`}<span>số nhỏ: phòng có khách / tổng phòng · ⏳ chờ xác nhận · ↓ vào ↑ trả</span></div></div></section>
         <section class="card r" style="padding:14px 18px;display:block;max-height:720px;overflow-y:auto">${detail}</section></div>
       <section class="card"><div class="ch"><h3>12 tháng gần nhất <span class="muted" style="font-weight:600;font-size:12.5px">· cột: doanh thu · đường: công suất · bấm cột để xem tháng</span></h3></div><div style="height:300px;padding:12px 18px"><canvas id="revChart"></canvas></div></section>
@@ -1205,6 +1222,7 @@ button.info.on{border-color:#0E1525;background:#fff}
   }
   D.revMonth = (m) => { S.revMonth = m; S.revSel = null; render(); };
   D.revDay = (iso) => { S.revSel = iso; render(); };
+  D.revApt = (id) => { S.revApt = id || ''; render(); };
   D.goDay = (o) => { S.day = o; D.tab('day'); };
   function drawRevCharts() {
     const d = REV[S.revMonth || TODAY.slice(0, 7)]; if (!d || typeof Chart === 'undefined') return;
