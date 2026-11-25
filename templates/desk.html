@@ -198,6 +198,10 @@ button.info.on{border-color:#0E1525;background:#fff}
 .shot{width:72px;height:54px;border-radius:8px;background:#E2E5EB;object-fit:cover;cursor:zoom-in}
 @media(max-width:900px){ #shell{flex-direction:column}#side{width:auto;height:auto;position:static;flex-direction:row;flex-wrap:wrap;padding:10px}
   .brand,.legend-s,.sdiv{display:none}.nav{width:auto;min-height:38px}#top{position:static;padding:10px 14px}#content{padding:16px 14px 50px}.search{width:100%}}
+.duew{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;padding:7px 12px;font-size:12.5px}
+.duew > b{font-size:13.5px}
+.duec{display:inline-flex;align-items:center;gap:8px;border:1px solid #E2E5EB;background:#fff;border-radius:9px;padding:4px 10px;font-size:12px;font-weight:700;color:#0E1525;cursor:pointer}
+.duec:hover{border-color:#94A3B8}.duec .dr{color:#64748B;font-weight:800}.duec .dn{max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 </style>
 </head>
 <body>
@@ -867,20 +871,33 @@ button.info.on{border-color:#0E1525;background:#fff}
       // payment mark (owner, Nov 7 — same as the phone): ✓ đã thu · ½ thu một phần · ₫ chưa thu (only once the guest has arrived)
       const pay = b.paid ? ['✓', '#16A34A', 'Đã thu'] : b.collected ? ['½', '#F59E0B', 'Thu một phần'] : (b.ciO < 0 || (b.ciO === 0 && b.confirmed)) ? ['₫', '#DC2626', 'Chưa thu'] : null;
       const payMark = pay ? `<i class="paym" style="background:${pay[1]}" aria-label="${pay[2]}">${pay[0]}</i>` : '';
-      const payW = b.paid ? 'đã thu' : b.collected ? 'thu ' + short(b.collected) : pay ? '<b style="font-size:inherit;font-weight:900">CHƯA THU</b>' : 'chưa thu';
+      const payW = b.paid ? 'đã thu' : b.collected ? 'còn ' + short(Math.max(b.total - b.collected, 0)) : pay ? '<b style="font-size:inherit;font-weight:900">CHƯA THU</b>' : 'chưa thu';
       const pr = (pay ? (narrow ? 20 : 26) : 0) + (x ? 22 : 0);
       const xMark = x ? `<i class="bx" style="right:${pay ? (narrow ? 22 : 25) : 4}px" title="Báo hủy khách này (hoàn tác được)" onclick="event.stopPropagation();D.cancel('${esc(b.id)}')" ondblclick="event.stopPropagation()">×</i>` : '';
       return `<button class="bar" style="${s}${narrow ? 'padding:3px 5px;' : ''}${pr ? 'padding-right:' + pr + 'px;' : ''}" onclick="D.pickG('${esc(b.id)}')" ondblclick="D.open('${esc(b.id)}')" title="${tip}">
         ${b.du && (sp[1] - sp[0]) * hc < 60 ? '<b style="font-size:14px">☀</b>'
-          : narrow ? `<span class="t"><b style="font-size:11px">${b.du ? '☀ ' : lo(b) ? '📋 ' : ''}${esc(b.name)}</b><small>${b.du ? 'trong ngày' : b.nights + 'đ'}${b.per_night ? ' · ' + short(b.per_night) : ''}${b.tb ? ' · 2PN' : ''}</small></span>`
-          : `<span class="dot" style="background:${st.c};box-shadow:0 0 0 2px #fff"></span><span class="t"><b>${lo(b) ? '📋 ' : ''}${esc(b.name)}</b><small>${b.nights} đêm · ${short(b.per_night)} · ${payW}</small></span>${b.tb ? '<span class="tb">2PN</span>' : ''}`}${xMark}${payMark}</button>`; };
+          : narrow ? `<span class="t"><b style="font-size:11px">${b.du ? '☀ ' : lo(b) ? '📋 ' : ''}${esc(b.name)}</b><small>${b.du ? 'trong ngày' : b.nights + 'đ'}${b.total ? ' · Σ' + short(b.total) : b.per_night ? ' · ' + short(b.per_night) : ''}${b.tb ? ' · 2PN' : ''}</small></span>`
+          : `<span class="dot" style="background:${st.c};box-shadow:0 0 0 2px #fff"></span><span class="t"><b>${lo(b) ? '📋 ' : ''}${esc(b.name)}</b><small>${b.nights} đêm · ${short(b.per_night)}/đêm · Tổng <b style="font-size:inherit;font-weight:900">${short(b.total)}</b> · ${payW}</small></span>${b.tb ? '<span class="tb">2PN</span>' : ''}`}${xMark}${payMark}</button>`; };
     const lanes = (list) => { const L = []; list.slice().sort((p, q) => p.ciO - q.ciO).forEach((b) => { const l = L.find((x) => x.end <= b.ciO); if (l) { l.bs.push(b); l.end = b.coO; } else L.push({ end: b.coO, bs: [b] }); }); return L; };
     const vis = (b) => (b.du ? b.ciO >= ws : b.coO > ws) && b.ciO < we && match(b);   // left before the first night shown = not drawn
     const rowSt = tpl + ';min-height:50px;border-top:1px solid #EEF0F4;';
+    // 💰 money of the guests in the apartment TODAY (owner Nov 26: "chi tiết giống điện thoại"): each guest's total and what is
+    // left, and the exact sum to collect there — one line under the apartment, tap a guest = their card
+    const dueRow = (a) => {
+      const g = B.filter((b) => b.apt === a.id && b.ciO <= 0 && b.coO >= 0 && !b.skipped && b.total > 0)
+        .sort((p, q) => (p.room_no || 99) - (q.room_no || 99) || p.ciO - q.ciO);
+      if (!g.length) return '';
+      const rest = (b) => (b.paid ? 0 : Math.max(b.total - (b.collected || 0), 0));
+      const due = g.reduce((t, b) => t + rest(b), 0), sum = g.reduce((t, b) => t + b.total, 0), nDue = g.filter((b) => rest(b) > 0).length;
+      const chip = (b) => { const r = rest(b);
+        return `<button class="duec" onclick="D.open('${esc(b.id)}')" title="${esc(b.name)} · ${b.nights} đêm · ${dm(b.ciO)} → ${dm(b.coO)}"><span class="dr">${esc(b.room_no ? rn(a.id, b.room_no) : '—')}</span><span class="dn">${esc(b.name)}</span><span class="num">Tổng ${fmt(b.total)}</span><b class="num" style="color:${r ? '#B91C1C' : '#15803D'}">${r ? 'còn ' + fmt(r) : '✓ đã thu'}</b></button>`; };
+      return `<div style="${tpl};border-top:1px solid #EEF0F4;background:${due ? '#FEF2F2' : '#F0FDF4'}"><div class="duew" style="grid-column:1 / -1">
+        <b class="num" style="color:${due ? '#B91C1C' : '#15803D'}">💰 ${due ? 'Cần thu hôm nay ' + fmt(due) + ' · ' + nDue + '/' + g.length + ' khách' : 'Đã thu đủ ' + g.length + ' khách đang ở'}</b><span class="num" style="color:#475569;font-weight:700">tổng tiền ${fmt(sum)}</span>${g.map(chip).join('')}</div></div>`;
+    };
     let rows = '';
     showA.forEach((a) => {
       rows += `<div style="${tpl};min-height:34px;border-top:1px solid #E4E7ED;background:#F8FAFC"><div class="rl" style="background:#F8FAFC;flex-direction:row;align-items:center;justify-content:flex-start;gap:8px"><span class="dot" style="background:${a.color}"></span><b>${esc(a.name)} · ${a.rooms} phòng</b></div>
-        ${days.map((o, i) => { const f = a.rooms - usedIn(a.id, o); return `<div style="${dcol(i)}display:flex;align-items:center;justify-content:center;font-size:11.5px;font-weight:800;border-left:1px solid #EEF0F4;color:${f <= 0 ? (f < 0 ? '#B91C1C' : '#475569') : f === 1 ? '#B45309' : '#15803D'}">${f > 0 ? 'Trống ' + f : f === 0 ? 'Kín' : 'Thừa ' + -f}</div>`; }).join('')}</div>`;
+        ${days.map((o, i) => { const f = a.rooms - usedIn(a.id, o); return `<div style="${dcol(i)}display:flex;align-items:center;justify-content:center;font-size:11.5px;font-weight:800;border-left:1px solid #EEF0F4;color:${f <= 0 ? (f < 0 ? '#B91C1C' : '#475569') : f === 1 ? '#B45309' : '#15803D'}">${f > 0 ? 'Trống ' + f : f === 0 ? 'Kín' : 'Thừa ' + -f}</div>`; }).join('')}</div>` + dueRow(a);
       for (let no = 1; no <= a.rooms; no++) {
         // picking: green "Xếp vào đây" only where the room is free from tonight on; a clash is a note under the room name
         let drop = '', clash = false;
