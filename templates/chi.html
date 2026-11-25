@@ -248,6 +248,27 @@
   .df { display:flex; justify-content:space-between; align-items:center; gap:10px; font-size:14px; } .df > span { color:var(--mut); font-weight:600; }
   .dact { display:flex; gap:8px; margin-top:14px; } .dact .btn { flex:1; }
   .dkey { margin-top:10px; font-size:11.5px; color:var(--soft); text-align:center; }
+  /* 📚 Sổ (owner Nov 25): 🏠 Tiền nhà · 🔨 Đầu tư phát sinh · 🔒 Riêng tôi · 📒 Sổ nộp tiền */
+  .bkh { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:8px; }
+  .bkh .h { margin:0; } .bkh button { min-height:32px; border-radius:9px; border:1px solid #DDE1E7; background:#fff; font-weight:800; font-size:12.5px; padding:0 10px; color:var(--ink); }
+  .bks { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+  .bt { text-align:left; border:1.5px solid var(--line); background:#F8FAFC; border-radius:14px; padding:11px 12px; color:var(--ink); font-family:inherit; cursor:pointer; display:flex; flex-direction:column; gap:3px; min-width:0; }
+  .bt:hover { border-color:#94A3B8; } .bt.on { border-color:var(--ink); background:#fff; box-shadow:0 0 0 2px var(--ink) inset; }
+  .bt .bh { font-size:14.5px; font-weight:800; } .bt .bs { font-size:11px; color:var(--mut); line-height:1.35; margin-bottom:4px; }
+  .bt .bv { display:flex; justify-content:space-between; gap:6px; font-size:12.5px; } .bt .bv span { color:var(--mut); font-weight:700; }
+  .bt .bv b { font-size:15px; font-variant-numeric:tabular-nums; } .bt .bv.in b { color:#15803D; }
+  .bt .bn { margin-top:3px; padding-top:5px; border-top:1px dashed #CBD5E1; font-size:12px; font-weight:800; display:flex; justify-content:space-between; }
+  .bt.lock { background:#F1F5F9; border-style:dashed; justify-content:center; } .bt.lock .bl { font-size:12.5px; color:#475569; font-weight:700; }
+  .bt.nop .bv b { color:var(--ink); }
+  .bkn { background:#EEF2FF !important; color:#3730A3 !important; }
+  .led .lh { font-size:11.5px; font-weight:800; color:var(--mut); text-transform:uppercase; letter-spacing:.04em; margin:10px 0 2px; }
+  .led .lr { display:flex; justify-content:space-between; gap:8px; width:100%; border:0; background:none; padding:6px 4px; border-top:1px solid var(--line); font-size:13.5px; color:var(--ink); text-align:left; font-family:inherit; cursor:pointer; border-radius:6px; }
+  .led .lr:hover { background:#F8FAFC; } .led .lr.on { background:#FEF3C7; } .led .lr b { font-variant-numeric:tabular-nums; white-space:nowrap; }
+  .led .lt { display:flex; justify-content:space-between; gap:8px; margin-top:10px; padding:10px 12px; border-radius:10px; background:var(--ink); color:#fff; font-weight:800; font-size:14px; }
+  .pinIn { letter-spacing:.5em; text-align:center; font-size:24px !important; font-weight:800; }
+  .privbar { display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; } .privbar button { min-height:34px; border-radius:9px; border:1px solid #DDE1E7; background:#fff; font-weight:800; font-size:12.5px; padding:0 10px; }
+  @media (max-width: 520px) { .bt .bs { display:none; } .bt .bv b { font-size:14px; } .bt .bn { flex-direction:column; gap:1px; } .bt { padding:10px; } }
+  @media (min-width: 1000px) { .bks { grid-template-columns:repeat(4, minmax(0, 1fr)); } .bt { padding:13px 15px; } .bt .bh { font-size:15.5px; } .bt .bv b { font-size:17px; } }
   @media print {
     body { background:#fff; } .top button, .tabs, #chips, #pChi, #pNop, #sum, .stTop button, .seg, .chips, .sq, #foot { display:none !important; }
     #pStat { display:block !important; } .card, .gp { break-inside:avoid; } .gp table { display:table; }
@@ -268,6 +289,7 @@
     <div class="side">
       {% if not share %}<button class="btn dark" style="width:100%;margin-top:12px" onclick="Chi.add()">➕ Thêm khoản thu / chi</button>{% endif %}
       <div id="chiSum" class="card"></div>
+      <div id="led"></div>
       <div id="kinds" class="chips"></div>
       <div id="brk"></div>
     </div>
@@ -297,7 +319,7 @@
   const attr = (v) => esc(JSON.stringify(v));
   // the bank's automatic transfer text ("X chuyen khoan nhanh qua Zalo", "… chuyen tien QR") says nothing about the expense
   const AUTO_NOTE = /chuyen (khoan|tien)( nhanh)?( qua zalo| qr)?\s*$/i;
-  let month = '', J = null, D = null, F = { apt: null, payer: null, kind: null, day: null, todo: false, q: '' };
+  let month = '', J = null, D = null, F = { apt: null, payer: null, kind: null, day: null, todo: false, q: '', cat: null };
   let TAB = location.hash === '#nop' ? 'nop' : location.hash === '#thong-ke' ? 'stat' : 'chi';
   // 🖥️ computer (owner Nov 24 "Nộp & Chi trên máy tính"): ≥1000px → 2 columns, the list as a table
   const WIDE = matchMedia('(min-width: 1000px)');
@@ -305,6 +327,18 @@
   // cost most · click = that day), a "Cần làm" strip (items missing who / apartment / hạng mục), the month as ONE compact
   // list grouped by day (one line per item, small picture), and the chosen item's BIG receipt on the right (↑ ↓ to move)
   let SEL = null;
+  // 📚 Sổ (owner Nov 25: "tách riêng tiền nhà … đầu tư cố định … còn lại là đầu tư phát sinh … và phần thu chi riêng cho
+  // tôi, chỉ mình tôi nhìn thấy"). BOOK = null → both shared books together; 'rieng' is never mixed with the others.
+  const BK = {
+    nha: { ic: '🏠', name: 'Tiền nhà', sub: 'Đầu tư cố định: tiền thuê, cọc nhà, môi giới · tiền khách thuê, gia đình góp' },
+    ps: { ic: '🔨', name: 'Đầu tư phát sinh', sub: 'Vật tư, thợ, mộc, nội thất … và vốn bỏ vào' },
+    rieng: { ic: '🔒', name: 'Riêng tôi', sub: 'Chỉ máy đã nhập mã PIN mới thấy' },
+  };
+  let BOOK = null;
+  const IT = () => (J ? J.items.filter((r) => (BOOK ? r.book === BOOK : r.book !== 'rieng')) : []);
+  const privOpen = () => !!(J && J.priv && J.priv.open);
+  const bookLbl = (b) => (BK[b] ? BK[b].ic + ' ' + BK[b].name : '');
+  const catsFor = (b, k) => ((J.bcats && J.bcats[b] && J.bcats[b][k]) || (J.cats && J.cats[k]) || []);
   const lack = (r) => [!r.payer && (r.kind === 'thu' ? 'từ ai' : 'ai trả'), r.kind !== 'thu' && !r.apt && 'căn', !r.cat && 'hạng mục'].filter(Boolean);
   const todayS = () => new Date().toLocaleDateString('sv');
   const dName = (d) => { const t = todayS(), y = new Date(Date.now() - 864e5).toLocaleDateString('sv');
@@ -323,9 +357,9 @@
       <button class="${F.todo ? 'on' : ''}" onclick="Chi.todo()">${F.todo ? '✓ Đang xem khoản thiếu · bỏ lọc' : 'Chỉ xem khoản thiếu'}</button>
       ${noApt.length >= 3 ? `<select onchange="Chi.bulkApt(this)"><option value="">🏠 Gán căn cho ${noApt.length} khoản chưa chọn căn…</option>${J.apts.map((o) => `<option value="${esc(o)}">${esc(o)}</option>`).join('')}</select>` : ''}</div>` : '';
     const kc = (k, l) => `<button class="chip${F.kind === k ? ' on' : ''}" onclick="Chi.kind(${k ? `'${k}'` : 'null'})">${l}</button>`;
-    const nThu = J.items.filter((r) => r.kind === 'thu').length;
+    const nThu = IT().filter((r) => r.kind === 'thu').length;
     const bar = `<div class="tbar"><input id="dQ" placeholder="🔍 Tìm người nhận, nội dung, số tiền…" value="${esc(F.q)}" autocomplete="off" oninput="Chi.q(this.value)">
-      ${kc(null, 'Tất cả · ' + J.items.length)}${kc('thu', '⬇️ Thu · ' + nThu)}${kc('chi', '⬆️ Chi · ' + (J.items.length - nThu))}
+      ${kc(null, 'Tất cả · ' + IT().length)}${kc('thu', '⬇️ Thu · ' + nThu)}${kc('chi', '⬆️ Chi · ' + (IT().length - nThu))}
       ${F.day ? `<button class="chip on" onclick="Chi.day('${F.day}')">📅 ${esc(dayLbl(F.day))} ✕</button>` : ''}</div>`;
     const sums = tally(shown);
     let html = '', cur = '';
@@ -341,7 +375,7 @@
         ${r.img ? `<img class="th" src="/api/chi/img/${r.id}${q}" loading="lazy" alt="">` : '<div class="th v">🎤</div>'}
         <span class="tm">${esc(r.at.split(' ')[0])}</span>
         <div class="wt"><b>${esc(v.title)}</b><small>${esc(v.sub || v.said || '')}</small></div>
-        <div class="cs">${chip(r.cat, 'hạng mục')}${!thu || r.apt ? chip(r.apt, 'căn') : ''}${chip(r.payer, thu ? 'từ ai' : 'ai trả')}</div>
+        <div class="cs">${!BOOK && r.book === 'nha' ? '<span class="c2 bkn">🏠 Tiền nhà</span>' : ''}${chip(r.cat, 'hạng mục')}${!thu || r.apt ? chip(r.apt, 'căn') : ''}${chip(r.payer, thu ? 'từ ai' : 'ai trả')}</div>
         <b class="am${thu ? ' in' : ''}${!thu && r.amount >= 5e6 ? ' big' : ''}">${thu ? '+' : ''}${money(r.amount)}</b></div>`;
     }
     return bar + rib + ban + (html ? html + '</div>' : `<div class="card mut">Không có khoản nào${F.q || F.day || F.todo ? ' khớp bộ lọc' : ''}.</div>`);
@@ -356,7 +390,7 @@
         <span class="mut"><b style="color:var(--ink)">${esc(dName(r.day))}</b> · ${esc(r.at.split(' ')[0])}${thu ? ' · <span class="pill">Thu</span>' : ''}</span></div>
       <div class="dam${thu ? ' in' : ''}" style="margin-top:0">${thu ? '+' : ''}${money(r.amount)}</div>
       <div class="dwho">${esc(v.title)}</div>${v.sub ? `<div class="dnd">${esc(v.sub)}</div>` : ''}
-      <div class="dfs">${f('payer', thu ? 'Từ ai' : 'Ai trả', r.payer, 'Chọn người')}${f('apt', 'Căn', r.apt, 'Chọn căn')}${f('cat', 'Hạng mục', r.cat, 'Chọn hạng mục')}</div>
+      <div class="dfs">${f('book', 'Sổ', bookLbl(r.book), 'Chọn sổ')}${f('payer', thu ? 'Từ ai' : 'Ai trả', r.payer, 'Chọn người')}${f('apt', 'Căn', r.apt, 'Chọn căn')}${f('cat', 'Hạng mục', r.cat, 'Chọn hạng mục')}</div>
       ${RO ? '' : `<div class="dact"><button class="btn" onclick="Chi.edit(${r.id})">✏️ Sửa số tiền / nội dung</button><button class="btn" style="color:#B91C1C;flex:0 0 auto" onclick="Chi.del(${r.id}, '${money(r.amount)}')">Xóa</button></div>`}
       <div style="margin-top:12px"></div>${r.img ? `<div class="dpic" onclick="Chi.show(${r.id})" title="Bấm để xem cả màn hình"><img src="/api/chi/img/${r.id}${q}" alt="Biên lai"></div>`
               : `<div class="dvo">🎤 ${esc(v.said ? v.said.replace(/^Lời nói: /, '') : v.title)}</div>`}
@@ -448,7 +482,7 @@
     return [...m.values()].sort((a, b) => b.sum - a.sum);
   }
   function drawGroups() {
-    const base = J.items.filter((r) => r.kind === S.kind);
+    const base = IT().filter((r) => r.kind === S.kind);
     const shown = base.filter((r) => (S.cat === null || (r.cat || '') === S.cat)
       && (!S.q || fold([r.to, r.note, r.cat, r.payer].join(' ')).includes(fold(S.q))));
     const gs = groups(shown), tot = shown.reduce((a, r) => a + r.amount, 0), top = Math.max(1, ...gs.map((g) => g.sum));
@@ -473,7 +507,7 @@
     }).join('') + (gs.length ? `<div class="gt"><span>${S.cat !== null ? esc(S.cat || 'Chưa phân loại') + ' · ' : ''}${gs.length} ${thu ? 'nguồn' : 'người / nơi nhận'} · ${shown.length} giao dịch</span><b class="num">${money(tot)}</b></div>` : '');
   }
   function drawStat() {
-    const it = J.items, out = it.filter((r) => r.kind === 'chi'), inn = it.filter((r) => r.kind === 'thu');
+    const it = IT(), out = it.filter((r) => r.kind === 'chi'), inn = it.filter((r) => r.kind === 'thu');
     const TO = out.reduce((a, r) => a + r.amount, 0), TI = inn.reduce((a, r) => a + r.amount, 0), left = TI - TO;
     const big = out.slice().sort((a, b) => b.amount - a.amount)[0];
     const noCat = it.filter((r) => !r.cat), noPay = out.filter((r) => !r.payer), cash = out.filter((r) => !r.img);
@@ -487,7 +521,7 @@
     ].filter(([xs]) => xs.length).map(([xs, l, key]) => `<details class="td"><summary><span>${l}</span><b>${xs.length} khoản · ${money(xs.reduce((a, r) => a + r.amount, 0))}</b></summary>
       ${xs.map((r) => `<div class="tdr"><span>${esc(r.day.slice(8, 10) + '/' + r.day.slice(5, 7))} · ${esc(view(r).title)}</span><b class="num">${money(r.amount)}</b>${!RO && key ? `<button class="lnk none" onclick="Chi.pick(${r.id}, '${key}')">Chọn</button>` : ''}</div>`).join('')}</details>`).join('');
     $('pStat').innerHTML = `
-      <div class="stTop"><div class="h" style="margin:0">📊 Thống kê · ${esc(monLbl(J.month))}</div><button class="shr" onclick="window.print()">🖨 In / lưu PDF</button></div>
+      <div class="stTop"><div class="h" style="margin:0">📊 Thống kê · ${esc(BOOK ? bookLbl(BOOK) : 'Cả 2 sổ chung')} · ${esc(monLbl(J.month))}</div><button class="shr" onclick="window.print()">🖨 In / lưu PDF</button></div>
       <div class="kps">${kpi('⬇️ Tổng thu', money(TI), inn.length + ' khoản', 'pos')}${kpi('⬆️ Tổng chi', money(TO), out.length + ' khoản · ' + new Set(out.map((r) => fold(r.to).replace(/\s+/g, '') || 'x')).size + ' người nhận')}
         ${kpi('Còn lại (thu − chi)', (left < 0 ? '−' : '') + money(Math.abs(left)), TI ? 'Chi bằng ' + (TO * 100 / TI).toFixed(1) + '% số thu' : 'chưa có khoản thu', left < 0 ? 'neg' : '')}
         ${kpi('Khoản chi lớn nhất', big ? money(big.amount) : '—', big ? esc(view(big).title) + ' · ' + esc(big.cat || '') : '')}</div>
@@ -564,34 +598,64 @@
         + `<div class="track"><div class="fill" style="width:${(v * 100 / top).toFixed(1)}%"></div></div></button>`;
     }).join('') + '</div>';
   }
-  function draw() {
-    const n = J.items.length, nImg = J.items.filter((r) => r.img).length;
+  // 📚 the books at the top: each one's money out / in and in − out; tap = only that book (tap again = both shared)
+  function drawBooks() {
+    const sumOf = (b) => { const xs = J.items.filter((r) => r.book === b);
+      return { o: xs.filter((r) => r.kind !== 'thu').reduce((a, r) => a + r.amount, 0), i: xs.filter((r) => r.kind === 'thu').reduce((a, r) => a + r.amount, 0), n: xs.length }; };
+    const tile = (b) => {
+      if (b === 'rieng' && !privOpen()) return `<button class="bt lock" onclick="Chi.pin()"><div class="bh">🔒 Riêng tôi</div><div class="bl">${J.priv && J.priv.set ? 'Đang khóa · bấm để mở bằng mã PIN' : 'Thu chi của riêng bạn · bấm để đặt mã PIN'}</div></button>`;
+      const x = sumOf(b), net = x.i - x.o;
+      return `<button class="bt${BOOK === b ? ' on' : ''}" onclick="Chi.book('${b}')"><div class="bh">${bookLbl(b)}</div><div class="bs">${esc(BK[b].sub)}</div>
+        <div class="bv"><span>Ra</span><b class="num">${money(x.o)}</b></div><div class="bv in"><span>Vào</span><b class="num">${money(x.i)}</b></div>
+        <div class="bn"><span class="mut">Vào − ra</span><span class="num ${net < 0 ? 'neg' : 'pos'}">${net < 0 ? '−' : ''}${money(Math.abs(net))}</span></div></button>`;
+    };
     const nop = D && D.success ? D.pots.reduce((a, p) => a + p.total, 0) : 0;
-    $('sum').innerHTML = J.month === 'all'
-      ? `<div class="h">${esc(monLbl(J.month))}</div><div class="two"><div><div class="mut">⬇️ Tổng thu</div><div class="v pos">${money(J.thu || 0)}</div></div><div><div class="mut">⬆️ Tổng chi</div><div class="v">${money(J.total)}</div></div></div>`
-      : `<div class="h">${esc(monLbl(J.month))}</div><div class="two">
-      <div><div class="mut">📒 Đã nộp</div><div class="v">${money(nop)}</div></div><div><div class="mut">💸 Đã chi</div><div class="v">${money(J.total)}</div></div></div>`;
-    // 💰 Thu riêng / chi riêng (owner, Nov 24): money in, money out, what is left
-    const thu = J.thu || 0, left = thu - J.total;
-    $('chiSum').innerHTML = `<div class="h">Thu – Chi · ${esc(monLbl(J.month))}</div><div class="three">
+    const nopT = J.month !== 'all' && D && D.success ? `<button class="bt nop" onclick="Chi.tab('nop')"><div class="bh">📒 Sổ nộp tiền</div><div class="bs">Tiền mặt cất đi (Thọ Nhuộm · 3 căn chung), ghi ở tab Thu tiền</div>
+        <div class="bv"><span>Đã nộp</span><b class="num">${money(nop)}</b></div><div class="bv"><span>Số lần</span><b class="num">${D.pots.reduce((a, p) => a + p.count, 0)}</b></div></button>` : '';
+    $('sum').innerHTML = `<div class="bkh"><div class="h">📚 Các sổ · ${esc(monLbl(J.month))}</div>${BOOK ? '<button onclick="Chi.book(null)">↩ Xem cả 2 sổ chung</button>' : ''}</div>
+      <div class="bks">${tile('nha')}${tile('ps')}${RO ? '' : tile('rieng')}${nopT}</div>`;
+  }
+  // 📋 the book by hạng mục: what went out, what came in, and the balance (tap a line = only those items)
+  function ledger(items) {
+    if (!items.length) return '';
+    const side = (k) => { const m = new Map(); for (const r of items.filter((x) => x.kind === k)) m.set(r.cat || '', (m.get(r.cat || '') || 0) + r.amount);
+      return [...m.entries()].sort((a, b) => b[1] - a[1]); };
+    const row = ([c, v]) => `<button class="lr${F.cat === c ? ' on' : ''}" onclick="Chi.cat(${attr(c)})"><span>${esc(c || 'Chưa phân loại')}</span><b>${money(v)}</b></button>`;
+    const o = side('chi'), i = side('thu'), TO = o.reduce((a, x) => a + x[1], 0), TI = i.reduce((a, x) => a + x[1], 0), net = TI - TO;
+    return `<div class="card led"><div class="h">📋 Cân đối theo hạng mục</div>
+      ${o.length ? `<div class="lh">⬆️ Tiền ra · ${money(TO)}</div>${o.map(row).join('')}` : ''}
+      ${i.length ? `<div class="lh">⬇️ Tiền vào · ${money(TI)}</div>${i.map(row).join('')}` : ''}
+      <div class="lt"><span>${net < 0 ? (BOOK === 'nha' ? 'Còn phải bù (ra > vào)' : 'Ra nhiều hơn vào') : 'Còn dư (vào > ra)'}</span><span class="num">${money(Math.abs(net))}</span></div></div>`;
+  }
+  function draw() {
+    const IX = IT(), n = IX.length, nImg = IX.filter((r) => r.img).length;
+    drawBooks();
+    // 💰 Thu riêng / chi riêng (owner, Nov 24): money in, money out, what is left — of the book shown
+    const thu = IX.filter((r) => r.kind === 'thu').reduce((a, r) => a + r.amount, 0), outT = IX.filter((r) => r.kind !== 'thu').reduce((a, r) => a + r.amount, 0), left = thu - outT;
+    $('chiSum').innerHTML = `<div class="h">${esc(BOOK ? bookLbl(BOOK) : 'Cả 2 sổ chung')} · ${esc(monLbl(J.month))}</div><div class="three">
         <div class="in"><div class="mut">⬇️ Tiền vào</div><div class="v num">${money(thu)}</div></div>
-        <div><div class="mut">⬆️ Tiền ra</div><div class="v num">${money(J.total)}</div></div>
+        <div><div class="mut">⬆️ Tiền ra</div><div class="v num">${money(outT)}</div></div>
         ${thu ? `<div class="left"><div class="mut">Còn lại (vào − ra)</div><div class="v num"${left < 0 ? ' style="color:#B91C1C"' : ''}>${left < 0 ? '−' : ''}${money(Math.abs(left))}</div></div>` : ''}</div>`
-      + `<div class="stats mut"><span>${n} khoản</span>${nImg ? `<span>🧾 ${nImg} biên lai</span>` : ''}${n - nImg ? `<span>🎤 ${n - nImg} ghi bằng lời</span>` : ''}</div>`;
-    const nThu = J.items.filter((r) => r.kind === 'thu').length;
+      + `<div class="stats mut"><span>${n} khoản</span>${nImg ? `<span>🧾 ${nImg} biên lai</span>` : ''}${n - nImg ? `<span>🎤 ${n - nImg} ghi bằng lời</span>` : ''}</div>`
+      + (BOOK === 'rieng' ? `<div class="mut" style="margin-top:8px;line-height:1.5">Chỉ máy đã nhập mã mới thấy sổ này. Link chia sẻ, tổng chung và tin bot gửi người khác <b>không bao giờ</b> có nó. Gửi biên lai vào bot kèm chữ <b>"riêng"</b> → vào thẳng đây.</div>
+          <div class="privbar"><button onclick="Chi.pinLock()">🔒 Khóa lại trên máy này</button><button onclick="Chi.pin('change')">Đổi mã PIN</button></div>` : '')
+      ;
+    $('led').innerHTML = ledger(IX);
+    const nThu = IX.filter((r) => r.kind === 'thu').length;
     const kc = (k, lbl) => `<button class="chip${F.kind === k ? ' on' : ''}" onclick="Chi.kind(${k ? `'${k}'` : 'null'})">${lbl}</button>`;
     $('kinds').innerHTML = n ? kc(null, `Tất cả · ${n}`) + kc('thu', `⬇️ Thu · ${nThu}`) + kc('chi', `⬆️ Chi · ${n - nThu}`) : '';
-    const bk = F.kind || 'chi', bItems = J.items.filter((r) => r.kind === bk);
+    const bk = F.kind || 'chi', bItems = IX.filter((r) => r.kind === bk);
     $('brk').innerHTML = bItems.length ? (bk === 'thu'
       ? breakdown(bItems, 'payer', '💰 Tiền vào từ ai', 'Chưa rõ từ ai', J.payers) + breakdown(bItems, 'apt', '🏠 Thu của căn nào', 'Chưa chọn căn', J.apts)
       : breakdown(bItems, 'payer', '💰 Ai đã bỏ tiền', 'Chưa rõ ai trả', J.payers) + breakdown(bItems, 'apt', '🏠 Chi cho căn nào', 'Chưa chọn căn', J.apts)) : '';
-    const base = J.items.filter((r) => (F.kind === null || r.kind === F.kind) && (F.apt === null || r.apt === F.apt) && (F.payer === null || r.payer === F.payer));
+    const base = IX.filter((r) => (F.kind === null || r.kind === F.kind) && (F.apt === null || r.apt === F.apt) && (F.payer === null || r.payer === F.payer)
+      && (F.cat === null || (r.cat || '') === F.cat));
     const fq = fold(F.q).trim();
     const shown = base.filter((r) => (!F.day || r.day === F.day) && (!F.todo || lack(r).length)
       && (!fq || fold([r.to, r.note, r.payer, r.apt, r.cat, r.bank, r.amount, Number(r.amount).toLocaleString('vi-VN')].join(' ')).includes(fq)));
     if (WIDE.matches && !shown.some((r) => r.id === SEL)) SEL = shown.length ? shown[0].id : null;
-    const on = F.apt !== null || F.payer !== null;
-    const what = [F.payer !== null ? (F.payer ? F.payer + (bk === 'thu' ? ' đưa' : ' trả') : 'Chưa rõ ai') : '', F.apt !== null ? (F.apt || 'Chưa chọn căn') : ''].filter(Boolean).join(' · ');
+    const on = F.apt !== null || F.payer !== null || F.cat !== null;
+    const what = [F.cat !== null ? '🏷 ' + (F.cat || 'Chưa phân loại') : '', F.payer !== null ? (F.payer ? F.payer + (bk === 'thu' ? ' đưa' : ' trả') : 'Chưa rõ ai') : '', F.apt !== null ? (F.apt || 'Chưa chọn căn') : ''].filter(Boolean).join(' · ');
     $('flt').innerHTML = on ? `<div class="flt"><span>${esc(what)} · ${money(shown.reduce((a, r) => a + r.amount, 0))} · ${shown.length} khoản</span><button onclick="Chi.filt()">✕ Bỏ lọc</button></div>` : '';
     $('list').style.display = shown.length ? '' : 'none';
     let html = '', day = '';
@@ -611,7 +675,7 @@
         ${r.img ? `<img class="thumb" src="/api/chi/img/${r.id}${SHARE ? '?t=' + encodeURIComponent(SHARE) : ''}" loading="lazy" alt="Biên lai" onclick="Chi.show(${r.id})">` : '<div class="ico">🎤</div>'}
         <div class="bd"><div class="r1"><div class="ttl">${esc(v.title)}</div><div class="amt num${r.kind === 'thu' ? ' in' : ''}">${r.kind === 'thu' ? '+' : ''}${money(r.amount)}</div></div>
           ${v.sub ? `<div class="sub">${esc(v.sub)}</div>` : ''}${v.said ? `<div class="said">${esc(v.said)}</div>` : ''}
-          <div class="tags"><span class="mut">${esc(time)}</span>${r.kind === 'thu' ? '<span class="tag in">⬇️ Thu</span>' : ''}${tag('payer', r.payer ? '👤 ' + r.payer + (r.kind === 'thu' ? ' đưa' : ' trả') : '', r.kind === 'thu' ? '👤 Từ ai?' : '👤 Ai trả?')}${tag('apt', r.apt ? '🏠 ' + r.apt : '', '🏠 Chọn căn')}${tag('cat', r.cat ? '🏷 ' + r.cat : '', '🏷 Hạng mục?')}
+          <div class="tags"><span class="mut">${esc(time)}</span>${r.kind === 'thu' ? '<span class="tag in">⬇️ Thu</span>' : ''}${tag('payer', r.payer ? '👤 ' + r.payer + (r.kind === 'thu' ? ' đưa' : ' trả') : '', r.kind === 'thu' ? '👤 Từ ai?' : '👤 Ai trả?')}${tag('apt', r.apt ? '🏠 ' + r.apt : '', '🏠 Chọn căn')}${tag('cat', r.cat ? '🏷 ' + r.cat : '', '🏷 Hạng mục?')}${!BOOK ? tag('book', bookLbl(r.book), '📚 Sổ?') : ''}
             ${RO ? '' : `<button class="tag ed" onclick="Chi.edit(${r.id})">✏️ Sửa</button><button class="x" onclick="Chi.del(${r.id}, '${money(r.amount)}')">Xóa</button>`}</div></div></div>`;
     }
     if (WIDE.matches) { $('list').style.display = ''; $('list').innerHTML = desk(base, shown); det(); }
@@ -633,8 +697,9 @@
     j = a;
     D = b;
     if (!j.success) { $('sum').innerHTML = `<div class="mut">${esc(j.error || 'Chưa tải được — kéo xuống để tải lại.')}</div>`; return; }
-    if (j.month !== month) F = { apt: null, payer: null, kind: null, day: null, todo: false, q: '' };
+    if (j.month !== month) F = { apt: null, payer: null, kind: null, day: null, todo: false, q: '', cat: null };
     month = j.month; J = j;
+    if (BOOK === 'rieng' && !privOpen()) BOOK = null;
     const dm = D && D.success ? D.months.filter((x) => D.pots.some((p) => x[p.key])).map((x) => x.month) : [];
     const ms = [...new Set([j.month, ...j.months.map((x) => x.month), ...dm])].sort().reverse();
     $('chips').innerHTML = `<button class="chip${j.month === 'all' ? ' on' : ''}" onclick="Chi.load('all')">📊 Cả dự án</button>`
@@ -699,6 +764,19 @@
     try { return await (await fetch(url, { method: 'POST', body: fd })).json(); } catch (e) { return {}; }
   }
   let KIND = 'chi';               // ⬇️ Thu / ⬆️ Chi chosen in the sheet
+  let BOOKF = 'ps';               // 📚 the book chosen in the sheet
+  function bookField(b) {
+    BOOKF = b;
+    return `<div class="fl">Sổ</div><div class="kseg" id="eBook" style="grid-template-columns:repeat(${privOpen() ? 3 : 2}, 1fr)">${['nha', 'ps', ...(privOpen() ? ['rieng'] : [])]
+      .map((k) => `<button type="button" data-b="${k}" class="${k === b ? 'on' : ''}">${bookLbl(k)}</button>`).join('')}</div>`;
+  }
+  function bookWire() {
+    $('eBook').querySelectorAll('button').forEach((b) => { b.onclick = () => {
+      BOOKF = b.dataset.b;
+      $('eBook').querySelectorAll('button').forEach((x) => x.classList.toggle('on', x === b));
+      const c = $('eCat'); if (c) c.parentElement.outerHTML = catField(KIND, '');
+    }; });
+  }
   function kindField(k) {
     KIND = k;
     return `<div class="fl">Loại</div><div class="kseg" id="eKind">
@@ -706,7 +784,7 @@
       <button type="button" data-k="thu" class="kin${k === 'thu' ? ' on' : ''}">⬇️ Thu (tiền vào)</button></div>`;
   }
   function catField(k, v) {
-    const L = (J.cats && J.cats[k]) || [];
+    const L = catsFor(BOOKF, k);
     return `<label class="fl">Hạng mục<select id="eCat" class="sel"><option value="">Tự đoán / chưa chọn</option>${[...L, ...(v && !L.includes(v) ? [v] : [])]
       .map((c) => `<option${c === v ? ' selected' : ''}>${esc(c)}</option>`).join('')}</select></label>`;
   }
@@ -725,6 +803,7 @@
     const iso = `${now.getFullYear()}-${p2(now.getMonth() + 1)}-${p2(now.getDate())}T${p2(now.getHours())}:${p2(now.getMinutes())}`;
     const opts = (arr, empty) => `<option value="">${empty}</option>` + arr.map((o) => `<option>${esc(o)}</option>`).join('');
     $('shIn').innerHTML = `<div style="font-size:16px;font-weight:800">➕ Thêm khoản thu / chi</div>
+      ${bookField(BOOK || 'ps')}
       ${kindField(F.kind === 'thu' ? 'thu' : 'chi')}
       ${catField(KIND, '')}
       <label class="fl">Số tiền (đồng)<input id="eAmt" inputmode="numeric" autocomplete="off" placeholder="vd 1.500.000"></label>
@@ -740,11 +819,12 @@
     const amt = $('eAmt');
     const show = () => { const n = Number(amt.value.replace(/\D/g, '')); $('eAmtV').textContent = n ? '= ' + money(n) : ''; };
     amt.oninput = () => { const n = amt.value.replace(/\D/g, ''); amt.value = n ? Number(n).toLocaleString('vi-VN') : ''; show(); };
-    photoWire(); kindWire();
+    photoWire(); kindWire(); bookWire();
     $('eSave').onclick = async () => {
       const n = Number(amt.value.replace(/\D/g, ''));
       if (!n) return alert('Gõ số tiền');
       const fd = new FormData();
+      fd.append('book', BOOKF);
       fd.append('amount', n); fd.append('what', $('eWhat').value); fd.append('to', $('eTo').value);
       fd.append('at', $('eAt').value); fd.append('apt', $('eApt').value); fd.append('payer', $('ePay').value); fd.append('kind', KIND); fd.append('cat', $('eCat').value);
       if (PH.file) fd.append('image', PH.file, 'bien-lai.jpg');
@@ -763,6 +843,7 @@
     const what = String(r.note || '').split('\n').filter((x) => !x.startsWith('🎤')).join(' ');
     const said = String(r.note || '').split('\n').filter((x) => x.startsWith('🎤')).join(' ');
     $('shIn').innerHTML = `<div style="font-size:16px;font-weight:800">✏️ Sửa khoản</div>
+      ${bookField(r.book)}
       ${kindField(r.kind)}
       ${catField(r.kind, r.cat)}
       ${said ? `<div class="said" style="margin-top:4px">Bạn đã nói: ${esc(said.replace(/^🎤\s*/, ''))}</div>` : ''}
@@ -777,12 +858,12 @@
     const show = () => { const n = Number(amt.value.replace(/\D/g, '')); $('eAmtV').textContent = n ? '= ' + money(n) : 'Gõ số tiền'; };
     amt.oninput = () => { const n = amt.value.replace(/\D/g, ''); amt.value = n ? Number(n).toLocaleString('vi-VN') : ''; show(); };
     show();
-    photoWire(); kindWire();
+    photoWire(); kindWire(); bookWire();
     $('eSave').onclick = async () => {
       const n = Number(amt.value.replace(/\D/g, ''));
       if (!n) return alert('Gõ số tiền');
       $('sh').style.display = 'none';
-      const j = await post('/api/chi/set', { id, amount: n, what: $('eWhat').value, to: $('eTo').value, at: $('eAt').value, kind: KIND, cat: $('eCat').value });
+      const j = await post('/api/chi/set', { id, amount: n, what: $('eWhat').value, to: $('eTo').value, at: $('eAt').value, kind: KIND, cat: $('eCat').value, book: BOOKF });
       if (!j.success) return alert('Chưa lưu được: ' + (j.error || 'lỗi mạng'));
       if (PH.file || PH.remove) {
         const fd = new FormData();
@@ -796,12 +877,14 @@
   }
   function pick(id, key) {
     const r = J.items.find((x) => x.id === id); if (!r) return;
-    const opts = key === 'apt' ? J.apts : key === 'cat' ? J.cats[r.kind] : J.payers;
+    const opts = key === 'apt' ? J.apts : key === 'cat' ? catsFor(r.book, r.kind) : key === 'book' ? ['nha', 'ps', ...(privOpen() ? ['rieng'] : [])] : J.payers;
+    const lab = (o) => (key === 'book' ? bookLbl(o) : o);
     const ttl = key === 'apt' ? '🏠 Khoản ' + money(r.amount) + ' chi cho căn nào?' : key === 'cat'
-      ? '🏷 Khoản ' + money(r.amount) + ' thuộc hạng mục nào?' : '👤 Ai bỏ tiền ra ' + money(r.amount) + '?';
+      ? '🏷 Khoản ' + money(r.amount) + ' thuộc hạng mục nào?' : key === 'book' ? '📚 Khoản ' + money(r.amount) + ' thuộc sổ nào?' : '👤 Ai bỏ tiền ra ' + money(r.amount) + '?';
     $('shIn').innerHTML = `<div style="font-size:16px;font-weight:800">${ttl}</div><div class="mut" style="margin-top:2px">${esc(view(r).title)} · ${esc(r.day.slice(8, 10) + '/' + r.day.slice(5, 7))}</div>
-      <div class="opts">${opts.map((o) => `<button class="btn${r[key] === o ? ' on' : ''}" data-v="${esc(o)}">${esc(o)}</button>`).join('')}
-        <button class="btn" data-v="">${key === 'payer' ? 'Chưa rõ' : 'Bỏ chọn'}</button></div>
+      <div class="opts">${opts.map((o) => `<button class="btn${r[key] === o ? ' on' : ''}" data-v="${esc(o)}">${esc(lab(o))}</button>`).join('')}
+        ${key === 'book' ? '' : `<button class="btn" data-v="">${key === 'payer' ? 'Chưa rõ' : 'Bỏ chọn'}</button>`}</div>
+      ${key === 'book' ? '<div class="mut" style="margin-top:8px;line-height:1.5">🏠 Tiền nhà = thuê nhà, cọc nhà, môi giới, tiền khách thuê đóng / cọc, gia đình góp tiền nhà · 🔨 Phát sinh = mọi thứ còn lại' + (privOpen() ? ' · 🔒 Riêng tôi = chỉ bạn thấy' : '') + '</div>' : ''}
       ${key === 'cat' ? '<input id="shName" placeholder="Hoặc gõ hạng mục khác" autocomplete="off"><div style="display:flex;margin-top:8px"><button class="btn dark" id="shSave">Lưu hạng mục này</button></div>' : ''}
       ${key === 'payer' ? '<input id="shName" placeholder="Hoặc gõ tên người khác" autocomplete="off"><div style="display:flex;margin-top:8px"><button class="btn dark" id="shSave">Lưu tên này</button></div>' : ''}`;
     $('shIn').querySelectorAll('.opts .btn').forEach((b) => { b.onclick = () => save(id, key, b.dataset.v); });
@@ -813,6 +896,42 @@
     const j = await post('/api/chi/set', { id, [key]: v });
     if (!j.success) return alert('Chưa lưu được: ' + (j.error || 'lỗi mạng'));
     load(month);
+  }
+  // 🔒 Riêng tôi: set / open / forgot the PIN (the server keeps only a hash; this device is remembered 1 year)
+  function pinSheet(mode) {
+    const set = J.priv && J.priv.set;
+    const m = mode || (set ? 'open' : 'set');
+    const inp = (id, ph) => `<input id="${id}" class="pinIn" type="password" inputmode="numeric" autocomplete="off" maxlength="8" placeholder="${ph}">`;
+    const head = '<div style="font-size:16px;font-weight:800">🔒 Riêng tôi</div><div class="mut" style="margin-top:4px;line-height:1.5">Thu chi của riêng bạn. Chỉ máy đã nhập đúng mã mới xem được (máy nhớ 1 năm). Link chia sẻ, tổng chung và tin bot gửi người khác <b>không bao giờ</b> có phần này.</div>';
+    $('shIn').innerHTML = head + (m === 'open'
+      ? `${inp('pA', 'Mã PIN')}<div style="display:flex;gap:8px;margin-top:10px"><button class="btn dark" id="pGo" style="flex:1">Mở</button><button class="btn" id="pForgot">Quên mã?</button></div>`
+      : m === 'forgot'
+      ? `<div class="warn">Đã gửi mã 6 số vào Zalo của bạn (bot Booking). Gõ mã đó và mã PIN mới.</div><input id="pC" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="Mã 6 số từ Zalo">${inp('pA', 'Mã PIN mới (4–8 số)')}${inp('pB', 'Gõ lại mã PIN mới')}
+         <div style="display:flex;margin-top:10px"><button class="btn dark" id="pGo" style="flex:1">Đặt mã mới</button></div>`
+      : `<div class="fl">${m === 'change' ? 'Mã PIN mới' : 'Đặt mã PIN (4–8 số) — chỉ bạn biết'}</div>${inp('pA', 'Mã PIN')}${inp('pB', 'Gõ lại mã PIN')}
+         <div style="display:flex;margin-top:10px"><button class="btn dark" id="pGo" style="flex:1">Lưu mã PIN</button></div>`)
+      + '<div class="mut" id="pMsg" style="margin-top:8px;color:#B91C1C;font-weight:700"></div>';
+    const msg = (t) => { $('pMsg').textContent = t; };
+    const done = async () => { $('sh').style.display = 'none'; BOOK = 'rieng'; await load(month); };
+    if ($('pForgot')) $('pForgot').onclick = async () => {
+      if (!confirm('Gửi mã đổi PIN vào Zalo của bạn?')) return;
+      const j = await post('/api/chi/pin', { action: 'forgot' });
+      if (!j.success) return msg(j.error || 'Chưa gửi được');
+      pinSheet('forgot');
+    };
+    $('pGo').onclick = async () => {
+      const a = $('pA').value.replace(/\D/g, ''), b = $('pB') ? $('pB').value.replace(/\D/g, '') : a;
+      if (a.length < 4) return msg('Mã PIN gồm 4 đến 8 chữ số');
+      if (a !== b) return msg('Hai lần gõ không giống nhau');
+      const body = m === 'open' ? { action: 'open', pin: a } : m === 'forgot' ? { action: 'reset', pin: a, code: $('pC').value } : { action: 'set', pin: a };
+      $('pGo').disabled = true;
+      const j = await post('/api/chi/pin', body);
+      $('pGo').disabled = false;
+      if (!j.success) return msg(j.error || 'Lỗi mạng');
+      done();
+    };
+    $('sh').style.display = 'flex';
+    setTimeout(() => $(m === 'forgot' ? 'pC' : 'pA').focus(), 50);
   }
   async function share(fresh) {
     if (fresh && !confirm('Tạo link mới? Link cũ đã gửi cho mọi người sẽ KHÔNG mở được nữa.')) return;
@@ -851,7 +970,11 @@
   }
   window.Chi = {
     load, pick, share, tab, edit, add,
-    filt: (key, v) => { if (!key) F = { ...F, apt: null, payer: null }; else F[key] = F[key] === v ? null : v; draw(); },
+    filt: (key, v) => { if (!key) F = { ...F, apt: null, payer: null, cat: null }; else F[key] = F[key] === v ? null : v; draw(); },
+    cat: (c) => { F.cat = F.cat === c ? null : c; draw(); },
+    book: (b) => { BOOK = BOOK === b ? null : b; F = { ...F, apt: null, payer: null, cat: null, day: null, todo: false }; S = { kind: 'chi', cat: null, q: S.q }; SEL = null; draw(); drawStat(); },
+    pin: (mode) => pinSheet(mode),
+    pinLock: async () => { await post('/api/chi/pin', { action: 'lock' }); BOOK = null; load(month); },
     kind: (k) => { F = { ...F, apt: null, payer: null, kind: k }; draw(); },
     day: (d) => { F.day = F.day === d ? null : d; draw(); },
     todo: () => { F.todo = !F.todo; draw(); },
@@ -861,7 +984,7 @@
       if (i < 0 || i >= ids.length) return; Chi.sel(ids[i]); const e = $('rw' + ids[i]); if (e) e.scrollIntoView({ block: 'nearest' }); },
     bulkApt: async (sel) => {          // 🏠 give one apartment to every item that has none (owner: the month's work is one place)
       const v = sel.value; if (!v) return;
-      const ids = J.items.filter((r) => (F.kind === null || r.kind === F.kind) && r.kind !== 'thu' && !r.apt).map((r) => r.id);
+      const ids = IT().filter((r) => (F.kind === null || r.kind === F.kind) && r.kind !== 'thu' && !r.apt).map((r) => r.id);
       if (!confirm('Gán căn "' + v + '" cho ' + ids.length + ' khoản chi chưa chọn căn?')) { sel.value = ''; return; }
       sel.disabled = true;
       for (const id of ids) await post('/api/chi/set', { id, apt: v });

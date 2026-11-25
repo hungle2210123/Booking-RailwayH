@@ -1,6 +1,7 @@
 """End-to-end flows on the real database with throwaway rows (ids 9990xxxxxx / templates 'ZZ TEST …', always deleted).
 Each test is one thing the owner asked for and that broke or could break."""
 import os
+import re
 
 import pytest
 from sqlalchemy import text
@@ -484,6 +485,72 @@ def test_chi_share_link(client, db, app_module):
             app_module._zbot_put(db, 'chi_share', old)
 
 
+@pytest.mark.db_write
+def test_chi_books_and_private_pin(client, db, app_module, monkeypatch):
+    # owner Nov 25: "tách riêng tiền nhà (đầu tư cố định) … còn lại là đầu tư phát sinh … và một phần thu chi riêng cho
+    # tôi, chỉ mình tôi nhìn thấy" — books nha / ps / rieng; the private book needs the PIN and never reaches the share link
+    from sqlalchemy import text as _t
+    app_module._chi_ensure(db)
+    keep = {k: app_module._zbot_get(db, k) for k in ('chi_pin', 'chi_priv_keys', 'chi_pin_fail', 'chi_pin_reset', 'chi_share')}
+    sent = []
+    monkeypatch.setattr(app_module, 'mail_notify', lambda _x, msg: sent.append(msg))
+    try:
+        for k in ('chi_pin', 'chi_priv_keys', 'chi_pin_fail', 'chi_pin_reset'):
+            app_module._zbot_put(db, k, None)
+        assert app_module.chi_guess_book('chi', 'Thuê nhà') == 'nha' and app_module.chi_guess_book('chi', 'Nhân công') == 'ps'
+        assert app_module.chi_guess_book('thu', 'Vốn đầu tư / vay', 'tiền bỏ vào tiền thuê nhà') == 'nha'
+        assert app_module.chi_guess_book('thu', 'Vốn đầu tư / vay', 'Luan Phuong chuyen khoan') == 'ps'
+        add = lambda **kw: client.post('/api/chi/add', data={'amount': '1.000.000', 'at': '2026-11-20T09:00', **kw},
+                                       content_type='multipart/form-data').get_json()
+        a = add(what='ZZ TEST tien thue nha thang 1', to='ZZ TEST CHU NHA')
+        b = add(what='ZZ TEST mua gach', to='ZZ TEST VAT TU')
+        items = lambda q='': {x['id']: x for x in client.get('/api/chi/list?month=2026-11' + q).get_json()['items']}
+        got = items()
+        assert got[a['id']]['book'] == 'nha' and got[b['id']]['book'] == 'ps'
+        # a lease hạng mục moves the item to 🏠 Tiền nhà
+        assert client.post('/api/chi/set', json={'id': b['id'], 'cat': 'Cọc nhà'}).get_json()['success']
+        assert items()[b['id']]['book'] == 'nha'
+        # 🔒 locked: no private book, cannot move into it, cannot add to it
+        assert client.post('/api/chi/set', json={'id': b['id'], 'book': 'rieng'}).status_code == 403
+        assert not add(what='ZZ TEST rieng', to='ZZ TEST R', book='rieng')['success']
+        st = client.post('/api/chi/pin', json={'action': 'status'}).get_json()
+        assert st['set'] is False and st['open'] is False
+        assert not client.post('/api/chi/pin', json={'action': 'set', 'pin': '12'}).get_json()['success']
+        assert client.post('/api/chi/pin', json={'action': 'set', 'pin': '4826'}).get_json()['success']   # this client = unlocked
+        c = add(what='ZZ TEST rieng', to='ZZ TEST R', book='rieng')
+        assert c['success'] and items()[c['id']]['book'] == 'rieng'
+        tot = client.get('/api/chi/list?month=2026-11').get_json()['total']
+        tok = client.post('/api/chi/share', json={'action': 'get'}).get_json()['path'].rsplit('/', 1)[1]
+        shared = client.get('/api/chi/list?month=2026-11&t=' + tok).get_json()
+        assert c['id'] not in {x['id'] for x in shared['items']} and shared['priv'] is None and 'rieng' not in shared['bcats']
+        assert client.get(f"/api/chi/img/{c['id']}?t={tok}").status_code == 404
+        # lock this device → the private row is gone from the list, its edit is refused, total unchanged
+        assert client.post('/api/chi/pin', json={'action': 'lock'}).get_json()['success']
+        assert c['id'] not in items() and client.get('/api/chi/list?month=2026-11').get_json()['total'] == tot
+        assert client.post('/api/chi/set', json={'id': c['id'], 'amount': '5'}).status_code == 403
+        assert client.post('/api/chi/delete', json={'id': c['id']}).status_code == 403
+        # wrong PIN counts down, right PIN opens
+        r = client.post('/api/chi/pin', json={'action': 'open', 'pin': '0000'}).get_json()
+        assert not r['success'] and 'còn 4' in r['error']
+        assert client.post('/api/chi/pin', json={'action': 'open', 'pin': '4826'}).get_json()['success']
+        assert c['id'] in items()
+        # forgot → a code to the owner's Zalo → new PIN
+        assert client.post('/api/chi/pin', json={'action': 'forgot'}).get_json()['success'] and sent
+        code = re.search(r'(\d{6})', sent[-1]).group(1)
+        assert not client.post('/api/chi/pin', json={'action': 'reset', 'code': '000000', 'pin': '1111'}).get_json()['success']
+        assert client.post('/api/chi/pin', json={'action': 'reset', 'code': code, 'pin': '9393'}).get_json()['success']
+        assert client.post('/api/chi/pin', json={'action': 'status'}).get_json()['open'] is True
+        # the bot's month total never counts the private book
+        n0, t0 = app_module.chi_month_total(db, 2026, 11)
+        db.session.execute(_t("UPDATE chi_receipts SET amount = 777777777 WHERE id = :i"), {'i': c['id']}); db.session.commit()
+        assert app_module.chi_month_total(db, 2026, 11) == (n0, t0)
+    finally:
+        db.session.execute(_t("DELETE FROM chi_receipts WHERE to_name LIKE 'ZZ TEST%'"))
+        db.session.commit()
+        for k, v in keep.items():
+            app_module._zbot_put(db, k, v)
+
+
 def test_chi_add_and_edit(client, db, app_module):
     # owner, Nov 24: "AI đọc sai … cần một cái nút để edit" + "một nút nữa để ghi nội dung và thêm hình ảnh chuyển khoản"
     import io as _io
@@ -563,7 +630,7 @@ def test_chi_categories_and_stats(client, db, app_module):
     try:
         g = app_module.chi_guess_cat
         assert g(db, 'chi', '', 'Mua 3tv') == 'Vật tư & thiết bị' and g(db, 'chi', '', 'Tien mo gioi t1') == 'Môi giới'
-        assert g(db, 'chi', '', 'ung tien xay 10tr') == 'Nhân công' and g(db, 'thu', '', 'tien khach dong tien nha') == 'Cho thuê'
+        assert g(db, 'chi', '', 'ung tien xay 10tr') == 'Nhân công' and g(db, 'thu', '', 'tien khach dong tien nha') == 'Khách thuê đóng tiền'
         assert g(db, 'chi', '', 'abc xyz') == ''
         # a new item: guessed from its words; the same receiver next time → the hạng mục it had
         r = client.post('/api/chi/add', data={'amount': '300000', 'what': 'ZZ TEST mua keo dan gach', 'to': 'ZZ TEST NGUOI A',
@@ -576,7 +643,7 @@ def test_chi_categories_and_stats(client, db, app_module):
         r2 = client.post('/api/chi/add', data={'amount': '5', 'what': 'ZZ TEST', 'to': 'ZZ TEST B', 'cat': 'Khác'},
                          content_type='multipart/form-data').get_json()
         j = lst()
-        assert 'Thuê nhà' in j['cats']['chi'] and 'Cho thuê' in j['cats']['thu'] and 'Hàng Muối' in j['apts']
+        assert 'Thuê nhà' in j['cats']['chi'] and 'Khách thuê đóng tiền' in j['cats']['thu'] and 'Hàng Muối' in j['apts']
         assert all('cat' in i for i in j['items'])
         a = lst('all')
         assert a['month'] == 'all' and len(a['items']) >= len(j['items']) and any(i['id'] == r['id'] for i in a['items'])

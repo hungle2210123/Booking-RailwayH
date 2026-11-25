@@ -341,49 +341,56 @@ _p17_mail — 📧 Booking.com e-mails → the app (owner, Nov 12: "khi nhận �
 - app_parts/p17_mail.py:824 `ext_month_sync` ← `/api/ext/month_sync` POST
 - app_parts/p17_mail.py:892 `ext_month_report` ← `/api/ext/month_report` POST — One Zalo line after the whole month run (all properties of this profile) — only when something is new / gone.
 
-## app_parts/p18_chi.py (874 lines)
+## app_parts/p18_chi.py (1039 lines)
 _p18_chi — 💸 Chi tiêu = ảnh biên lai chuyển khoản gửi cho bot Zalo "Chi tiêu" (owner, Nov 22 2026:_
 - app_parts/p18_chi.py:20 `_chi_ensure`
-- app_parts/p18_chi.py:47 `_chi_token`
-- app_parts/p18_chi.py:51 `_chi_call`
-- app_parts/p18_chi.py:66 `_chi_say`
-- app_parts/p18_chi.py:70 `chi_money`
-- app_parts/p18_chi.py:81 `chi_read_receipt` — Gemini reads the receipt picture → dict (see CHI_PROMPT). Raises RuntimeError when the AI cannot be reached.
-- app_parts/p18_chi.py:98 `_chi_ocr_engine`
-- app_parts/p18_chi.py:107 `chi_ocr_lines` — The picture's text lines, top to bottom ([] when OCR is not installed / fails).
-- app_parts/p18_chi.py:129 `chi_split_name` — "MAITHINGA" → "MAI THI NGA": the OCR drops the spaces of upper-case names; split into Vietnamese syllables
-- app_parts/p18_chi.py:159 `_chi_is_label`
-- app_parts/p18_chi.py:163 `chi_parse_ocr` — OCR lines of a bank receipt → the same dict as CHI_PROMPT (+ 'direction' in/out); None when no amount / date.
-- app_parts/p18_chi.py:227 `chi_read_fast` — OCR on the server first (2–3 s, no key); Gemini only when the OCR finds no amount / date.
-- app_parts/p18_chi.py:243 `chi_read_voice` — Gemini turns a spoken expense message into a list of items (see CHI_VOICE_PROMPT).
-- app_parts/p18_chi.py:250 `_chi_gemini` — One Gemini call (JSON answer) over the keys / models. Raises RuntimeError when the AI cannot be reached.
-- app_parts/p18_chi.py:283 `_chi_time` — "21:09 22/11/2026" (or "22/11/2026 21:09") → datetime; None when unreadable.
-- app_parts/p18_chi.py:295 `chi_month_total`
-- app_parts/p18_chi.py:327 `chi_guess_cat` — Hạng mục for a new item: what this receiver / sender got before (most often), else words in the note, else ''.
-- app_parts/p18_chi.py:346 `_chi_autocat` — Fill the hạng mục of a just-saved row (kept when one is already set).
-- app_parts/p18_chi.py:356 `chi_apt` — Apartment named in the words (place / note / caption) → one of CHI_APTS, '' when none or several.
-- app_parts/p18_chi.py:363 `chi_payer` — A payer name → the same spelling as an earlier payer when it is the same person ("LE DUC LOC" = "Lê Đức Lộc").
-- app_parts/p18_chi.py:375 `chi_save` — A read receipt → (status, row) — status 'saved' / 'dup' / 'bad'.
-- app_parts/p18_chi.py:413 `chi_save_voice` — Spoken items → saved rows [(id, at, amount, to_name, note)] (no picture; the words said are kept in the note).
-- app_parts/p18_chi.py:439 `_chi_tags`
-- app_parts/p18_chi.py:444 `_chi_summary`
-- app_parts/p18_chi.py:449 `chi_handle` — One message to the bot → the reply text (None = nothing to say).
-- app_parts/p18_chi.py:545 `zbot3_hook` ← `/zalo-bot3/hook` POST
-- app_parts/p18_chi.py:572 `_chi_run`
-- app_parts/p18_chi.py:590 `chi_month_report` — Day 1 of the month, 8–10h VN: last month's total to everyone connected to the bot (once).
-- app_parts/p18_chi.py:614 `chi_page` ← `/chi-tieu`
-- app_parts/p18_chi.py:623 `_chi_share_ok`
-- app_parts/p18_chi.py:629 `chi_share_page` ← `/chi/xem/<tok>`
-- app_parts/p18_chi.py:638 `chi_share_nop` ← `/api/chi/nop` — The shared page's 📒 Sổ nộp tiền (read-only; the owner writes it in the Thu tiền tab of /moi).
-- app_parts/p18_chi.py:648 `chi_share` ← `/api/chi/share` POST — {action: 'get'} → the current link (made once) · {action: 'new'} → a new link, the old one stops working.
-- app_parts/p18_chi.py:660 `chi_list` ← `/api/chi/list`
-- app_parts/p18_chi.py:698 `chi_img` ← `/api/chi/img/<int:rid>`
-- app_parts/p18_chi.py:710 `chi_delete` ← `/api/chi/delete` POST
-- app_parts/p18_chi.py:719 `chi_set` ← `/api/chi/set` POST — One tap on /chi-tieu: {id, apt} (one of CHI_APTS or '') or {id, payer} (any name, '' = not known).
-- app_parts/p18_chi.py:764 `_chi_upload` — The picture sent from /chi-tieu (multipart 'image') → (bytes, mime) or (None, error).
-- app_parts/p18_chi.py:778 `chi_add` ← `/api/chi/add` POST — ➕ Thêm khoản on /chi-tieu (owner, Nov 24: "một nút nữa để ghi nội dung và thêm hình ảnh chuyển khoản"):
-- app_parts/p18_chi.py:812 `chi_photo` ← `/api/chi/photo/<int:rid>` POST — ✏️ Sửa → 📎 add / change the transfer picture of one item (multipart 'image'; remove=1 takes it away).
-- app_parts/p18_chi.py:829 `chi_bot` ← `/api/chi/bot` POST — token (getMe → setWebhook) · open (30 min: new people may connect) · remove a chat · off.
+- app_parts/p18_chi.py:48 `_chi_token`
+- app_parts/p18_chi.py:52 `_chi_call`
+- app_parts/p18_chi.py:67 `_chi_say`
+- app_parts/p18_chi.py:71 `chi_money`
+- app_parts/p18_chi.py:82 `chi_read_receipt` — Gemini reads the receipt picture → dict (see CHI_PROMPT). Raises RuntimeError when the AI cannot be reached.
+- app_parts/p18_chi.py:99 `_chi_ocr_engine`
+- app_parts/p18_chi.py:108 `chi_ocr_lines` — The picture's text lines, top to bottom ([] when OCR is not installed / fails).
+- app_parts/p18_chi.py:130 `chi_split_name` — "MAITHINGA" → "MAI THI NGA": the OCR drops the spaces of upper-case names; split into Vietnamese syllables
+- app_parts/p18_chi.py:160 `_chi_is_label`
+- app_parts/p18_chi.py:164 `chi_parse_ocr` — OCR lines of a bank receipt → the same dict as CHI_PROMPT (+ 'direction' in/out); None when no amount / date.
+- app_parts/p18_chi.py:228 `chi_read_fast` — OCR on the server first (2–3 s, no key); Gemini only when the OCR finds no amount / date.
+- app_parts/p18_chi.py:244 `chi_read_voice` — Gemini turns a spoken expense message into a list of items (see CHI_VOICE_PROMPT).
+- app_parts/p18_chi.py:251 `_chi_gemini` — One Gemini call (JSON answer) over the keys / models. Raises RuntimeError when the AI cannot be reached.
+- app_parts/p18_chi.py:284 `_chi_time` — "21:09 22/11/2026" (or "22/11/2026 21:09") → datetime; None when unreadable.
+- app_parts/p18_chi.py:296 `chi_month_total`
+- app_parts/p18_chi.py:328 `chi_guess_book` — Which shared book an item belongs to: a lease hạng mục or lease words → 'nha', else 'ps' (never 'rieng').
+- app_parts/p18_chi.py:337 `_chi_book_backfill` — Rows without a book (old rows, and new rows before their hạng mục) get one. Nov 25 rename: the hạng mục
+- app_parts/p18_chi.py:372 `chi_guess_cat` — Hạng mục for a new item: what this receiver / sender got before (most often), else words in the note, else ''.
+- app_parts/p18_chi.py:391 `_chi_autocat` — Fill the hạng mục of a just-saved row (kept when one is already set).
+- app_parts/p18_chi.py:403 `chi_apt` — Apartment named in the words (place / note / caption) → one of CHI_APTS, '' when none or several.
+- app_parts/p18_chi.py:410 `chi_payer` — A payer name → the same spelling as an earlier payer when it is the same person ("LE DUC LOC" = "Lê Đức Lộc").
+- app_parts/p18_chi.py:422 `chi_save` — A read receipt → (status, row) — status 'saved' / 'dup' / 'bad'.
+- app_parts/p18_chi.py:460 `chi_save_voice` — Spoken items → saved rows [(id, at, amount, to_name, note)] (no picture; the words said are kept in the note).
+- app_parts/p18_chi.py:486 `_chi_tags`
+- app_parts/p18_chi.py:491 `_chi_summary`
+- app_parts/p18_chi.py:496 `chi_handle` — One message to the bot → the reply text (None = nothing to say).
+- app_parts/p18_chi.py:596 `zbot3_hook` ← `/zalo-bot3/hook` POST
+- app_parts/p18_chi.py:623 `_chi_run`
+- app_parts/p18_chi.py:641 `chi_month_report` — Day 1 of the month, 8–10h VN: last month's total to everyone connected to the bot (once).
+- app_parts/p18_chi.py:665 `chi_page` ← `/chi-tieu`
+- app_parts/p18_chi.py:674 `_chi_share_ok`
+- app_parts/p18_chi.py:680 `chi_share_page` ← `/chi/xem/<tok>`
+- app_parts/p18_chi.py:689 `chi_share_nop` ← `/api/chi/nop` — The shared page's 📒 Sổ nộp tiền (read-only; the owner writes it in the Thu tiền tab of /moi).
+- app_parts/p18_chi.py:699 `chi_share` ← `/api/chi/share` POST — {action: 'get'} → the current link (made once) · {action: 'new'} → a new link, the old one stops working.
+- app_parts/p18_chi.py:717 `_chi_pin_hash`
+- app_parts/p18_chi.py:721 `chi_priv_ok`
+- app_parts/p18_chi.py:728 `_chi_priv_grant`
+- app_parts/p18_chi.py:738 `chi_pin` ← `/api/chi/pin` POST — {action: status | set (first time, or a new PIN from an unlocked device) | open | lock | forgot | reset}.
+- app_parts/p18_chi.py:797 `_chi_row_private`
+- app_parts/p18_chi.py:802 `chi_list` ← `/api/chi/list`
+- app_parts/p18_chi.py:845 `chi_img` ← `/api/chi/img/<int:rid>`
+- app_parts/p18_chi.py:857 `chi_delete` ← `/api/chi/delete` POST
+- app_parts/p18_chi.py:869 `chi_set` ← `/api/chi/set` POST — One tap on /chi-tieu: {id, apt} (one of CHI_APTS or '') or {id, payer} (any name, '' = not known).
+- app_parts/p18_chi.py:925 `_chi_upload` — The picture sent from /chi-tieu (multipart 'image') → (bytes, mime) or (None, error).
+- app_parts/p18_chi.py:939 `chi_add` ← `/api/chi/add` POST — ➕ Thêm khoản on /chi-tieu (owner, Nov 24: "một nút nữa để ghi nội dung và thêm hình ảnh chuyển khoản"):
+- app_parts/p18_chi.py:975 `chi_photo` ← `/api/chi/photo/<int:rid>` POST — ✏️ Sửa → 📎 add / change the transfer picture of one item (multipart 'image'; remove=1 takes it away).
+- app_parts/p18_chi.py:994 `chi_bot` ← `/api/chi/bot` POST — token (getMe → setWebhook) · open (30 min: new people may connect) · remove a chat · off.
 
 ## core/__init__.py (3 lines)
 
@@ -657,12 +664,12 @@ _p18_chi — 💸 Chi tiêu = ảnh biên lai chuyển khoản gửi cho bot Zal
 
 # Templates (inline JS functions)
 
-## templates/chi.html (895 lines)
-- templates/chi.html: 312 `desk` · 349 `det` · 372 `catColor` · 377 `sumBy` · 382 `donut` · 394 `legend` · 398 `dayChart` · 440 `groups`
-- templates/chi.html: 450 `drawGroups` · 475 `drawStat` · 514 `tab` · 522 `drawNop` · 548 `view` · 555 `breakdown` · 567 `draw` · 622 `load`
-- templates/chi.html: 647 `photoField` · 657 `usePhoto` · 663 `pasteClip` · 680 `photoWire` · 688 `shrink` · 698 `form` · 702 `kindField` · 708 `catField`
-- templates/chi.html: 713 `kindWire` · 723 `add` · 761 `edit` · 797 `pick` · 811 `save` · 817 `share` · 830 `copy` · 834 `drawBot`
-- templates/chi.html: 849 `post`
+## templates/chi.html (1018 lines)
+- templates/chi.html: 346 `desk` · 383 `det` · 406 `catColor` · 411 `sumBy` · 416 `donut` · 428 `legend` · 432 `dayChart` · 474 `groups`
+- templates/chi.html: 484 `drawGroups` · 509 `drawStat` · 548 `tab` · 556 `drawNop` · 582 `view` · 589 `breakdown` · 602 `drawBooks` · 619 `ledger`
+- templates/chi.html: 630 `draw` · 686 `load` · 712 `photoField` · 722 `usePhoto` · 728 `pasteClip` · 745 `photoWire` · 753 `shrink` · 763 `form`
+- templates/chi.html: 768 `bookField` · 773 `bookWire` · 780 `kindField` · 786 `catField` · 791 `kindWire` · 801 `add` · 841 `edit` · 878 `pick`
+- templates/chi.html: 894 `save` · 901 `pinSheet` · 936 `share` · 949 `copy` · 953 `drawBot` · 968 `post`
 
 ## templates/desk.html (1347 lines)
 - templates/desk.html: 307 `load` · 320 `loadRev` · 333 `needRev` · 351 `D.tab` · 352 `D.set` · 353 `D.q` · 354 `D.reload` · 356 `D.shift`

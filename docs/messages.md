@@ -279,3 +279,22 @@ Owner: "lưu lại cái hóa đơn … ngày giờ, số tiền, sau đó tổng
   "Chỉ xem khoản thiếu", select "Gán căn cho N khoản chưa chọn căn" (sets /api/chi/set one by one); then ONE line per item
   grouped by day (Hôm nay / Hôm qua …, day count + Vào/Ra): small picture · time · receiver + ND · tags (missing = amber
   "+ căn") · amount (≥ 5 tr chi = amber dot). Phone list unchanged.
+
+### 📚 Sổ: Tiền nhà · Đầu tư phát sinh · 🔒 Riêng tôi (owner Nov 25)
+Owner: "tách … đầu tư cố định giống tiền nhà, tiền khách cọc, tiền gia đình nộp vào để thanh toán cho chủ nhà … còn lại là
+đầu tư phát sinh … và một phần thu chi riêng cho tôi, chỉ mình tôi nhìn thấy".
+- Column `chi_receipts.book`: 'nha' 🏠 Tiền nhà (cố định: Thuê nhà, Cọc nhà, Môi giới · Khách thuê đóng tiền, Cọc khách thuê,
+  Cọc hủy, Gia đình góp / cho mượn) · 'ps' 🔨 Đầu tư phát sinh (vật tư, thợ, mộc, nội thất … + Vốn đầu tư / vay) · 'rieng' 🔒.
+  `CHI_BOOK_CATS` (hạng mục per book), `chi_guess_book` (lease hạng mục or lease words → nha), `_chi_book_backfill` (rows
+  without a book, run by `_chi_ensure`; renamed 'Cho thuê' → 'Khách thuê đóng tiền' / 'Cọc khách thuê', the 29 tr "đặt cọc giữ
+  cho thuê nhà" → 'Cọc nhà'), `_chi_autocat` sets cat + book. Choosing a lease hạng mục moves a shared item to Tiền nhà.
+- Page: "📚 Các sổ" tiles (Ra / Vào / Vào − ra each, tap = only that book, "↩ Xem cả 2 sổ chung"), 🔒 Riêng tôi tile, 📒 Sổ nộp
+  tiền tile (→ Nộp tab). Everything (list, Thống kê, Cần làm) follows the chosen book; "Cả 2 sổ chung" never includes 🔒.
+  Side card "📋 Cân đối theo hạng mục" (tap a line = filter; Tiền nhà: "Còn phải bù"). Sheets ✏️ / ➕ have a Sổ switch; pick 'book'.
+- 🔒 PIN (the app has no login): `/api/chi/pin` {status, set, open, lock, forgot, reset}; moi_settings `chi_pin` = salted
+  pbkdf2 hash only; a device that typed it gets cookie `chi_priv` (1 year, hash in `chi_priv_keys`, last 12). 5 wrong → 15 min.
+  "Quên mã?" → 6-digit code to the owner's Zalo (`mail_notify`, booking bot), 10 min → new PIN, other devices locked.
+  Private rows: never in `/api/chi/list` without the cookie, never with `?t=` (shared link), never in `total`/`thu`/months,
+  never in `chi_month_total` (bot replies + monthly message); img / set / delete / photo → 403/404 when locked.
+  Bot: a receipt with the caption "riêng" → book 'rieng'. Test `test_chi_books_and_private_pin` (puts the PIN settings back).
+  Claude never sets the owner's PIN — the owner sets it on the page.

@@ -33,7 +33,7 @@ def _chi_ensure(_xdb):
     # (default), 'thu' = money in.
     have = {c for (c,) in _xdb.session.execute(text(
         "SELECT column_name FROM information_schema.columns WHERE table_name = 'chi_receipts'")).fetchall()}
-    for col, ddl in (('apt', 'TEXT'), ('payer', 'TEXT'), ('kind', "TEXT NOT NULL DEFAULT 'chi'"), ('cat', 'TEXT')):
+    for col, ddl in (('apt', 'TEXT'), ('payer', 'TEXT'), ('kind', "TEXT NOT NULL DEFAULT 'chi'"), ('cat', 'TEXT'), ('book', 'TEXT')):
         if col not in have:
             try:
                 _xdb.session.execute(text(f"ALTER TABLE chi_receipts ADD COLUMN IF NOT EXISTS {col} {ddl}"))
@@ -41,6 +41,7 @@ def _chi_ensure(_xdb):
             except Exception:
                 _xdb.session.rollback()     # another worker added it at the same moment
     _xdb.session.commit()
+    _chi_book_backfill(_xdb)
     CHI_READY = True
 
 
@@ -296,19 +297,62 @@ def chi_month_total(_xdb, y, mo):
     first = datetime(y, mo, 1)
     nxt = datetime(y + (mo == 12), mo % 12 + 1, 1)
     r = _xdb.session.execute(text("SELECT COUNT(*), COALESCE(SUM(amount), 0) FROM chi_receipts WHERE at >= :a AND at < :b "
-                                  "AND COALESCE(kind, 'chi') <> 'thu'"), {'a': first, 'b': nxt}).fetchone()
-    return int(r[0]), int(r[1])          # money OUT only (money in is not spending)
+                                  "AND COALESCE(kind, 'chi') <> 'thu' AND COALESCE(book, '') <> 'rieng'"), {'a': first, 'b': nxt}).fetchone()
+    return int(r[0]), int(r[1])          # money OUT only (money in is not spending) · 🔒 private book never counted
 
 
 CHI_APTS = ['Hàng Bạc', 'Hàng Bè', 'Hội Vũ', 'Thọ Nhuộm', 'Hàng Muối', 'Chung']
 
 # 📊 Hạng mục (owner Nov 24: "thống kê chi tiết nhất … bóc tách từng thứ … dùng cho những giao dịch mới nữa").
 # Money out / money in have their own lists; a new item gets a guess (same receiver as before → its hạng mục; else words).
-CHI_CATS = ['Thuê nhà', 'Vật tư & thiết bị', 'Nhân công', 'Môi giới', 'Mộc', 'Nội thất', 'Điện nước & internet',
-            'Sửa chữa & bảo trì', 'Khác']
-THU_CATS = ['Vốn đầu tư / vay', 'Cho thuê', 'Tiền phòng khách', 'Cọc hủy', 'Góp vốn', 'Khác']
+# 📚 Sổ (owner Nov 25: "tách ra … đầu tư cố định giống như tiền nhà, tiền khách cọc, tiền gia đình nộp vào để thanh toán
+# cho chủ nhà … còn lại là đầu tư phát sinh … và một phần thu chi riêng cho tôi, chỉ mình tôi nhìn thấy"):
+#  · 'nha'   🏠 Tiền nhà (cố định) — the lease: rent / deposit to the landlord, broker, the tenants' rent and deposits,
+#            the family's money put in to pay the landlord.
+#  · 'ps'    🔨 Đầu tư phát sinh — everything else (materials, labour, furniture …) and the capital for it.
+#  · 'rieng' 🔒 Riêng tôi — the owner's own money: locked by a PIN, never on the shared link / shared totals / bot totals.
+CHI_BOOKS = ('nha', 'ps', 'rieng')
+CHI_BOOK_CATS = {
+    'nha': {'chi': ['Thuê nhà', 'Cọc nhà', 'Môi giới', 'Khác'],
+            'thu': ['Khách thuê đóng tiền', 'Cọc khách thuê', 'Cọc hủy', 'Gia đình góp / cho mượn', 'Khác']},
+    'ps': {'chi': ['Vật tư & thiết bị', 'Nhân công', 'Mộc', 'Nội thất', 'Sửa chữa & bảo trì', 'Điện nước & internet', 'Khác'],
+           'thu': ['Vốn đầu tư / vay', 'Góp vốn', 'Tiền phòng khách', 'Khác']},
+    'rieng': {'chi': ['Chi cá nhân', 'Gia đình', 'Trả nợ', 'Khác'], 'thu': ['Thu nhập', 'Được trả nợ', 'Khác']},
+}
+_NHA_CATS = {c for k in ('chi', 'thu') for c in CHI_BOOK_CATS['nha'][k] if c != 'Khác'}
+_NHA_WORDS = r'tien nha|thue nha|dong tien nha|coc ?nha|coc ?can|coc hang muoi|giu cho thue|coc tang|khach t\d'
+CHI_CATS = [c for c in dict.fromkeys(CHI_BOOK_CATS['nha']['chi'] + CHI_BOOK_CATS['ps']['chi']) if c != 'Khác'] + ['Khác']
+THU_CATS = [c for c in dict.fromkeys(CHI_BOOK_CATS['nha']['thu'] + CHI_BOOK_CATS['ps']['thu']) if c != 'Khác'] + ['Khác']
+
+
+def chi_guess_book(kind, cat, note='', to=''):
+    """Which shared book an item belongs to: a lease hạng mục or lease words → 'nha', else 'ps' (never 'rieng')."""
+    if cat in _NHA_CATS:
+        return 'nha'
+    if cat and cat != 'Khác' and cat not in ('Vốn đầu tư / vay', 'Góp vốn'):
+        return 'ps'
+    return 'nha' if re.search(_NHA_WORDS, _fold(f'{note} {to}')) else 'ps'
+
+
+def _chi_book_backfill(_xdb):
+    """Rows without a book (old rows, and new rows before their hạng mục) get one. Nov 25 rename: the hạng mục
+    'Cho thuê' = the tenants' rent → 'Khách thuê đóng tiền' ('… cọc' → 'Cọc khách thuê'); the family's money for the
+    rent (lease words) → 'Gia đình góp / cho mượn'."""
+    rows = _xdb.session.execute(text("SELECT id, kind, cat, note, to_name FROM chi_receipts WHERE book IS NULL")).fetchall()
+    for rid, kind, cat, note, to in rows:
+        if cat == 'Cho thuê':
+            cat = 'Cọc khách thuê' if re.search(r'\bcoc\b', _fold(note or '')) else 'Khách thuê đóng tiền'
+        if kind == 'chi' and cat == 'Thuê nhà' and re.search(r'dat coc|coc', _fold(note or '')):
+            cat = 'Cọc nhà'
+        book = chi_guess_book(kind, cat, note, to)
+        if book == 'nha' and kind == 'thu' and cat in ('Vốn đầu tư / vay', 'Góp vốn'):
+            cat = 'Gia đình góp / cho mượn'
+        _xdb.session.execute(text("UPDATE chi_receipts SET book = :b, cat = :c WHERE id = :i"), {'b': book, 'c': cat, 'i': rid})
+    if rows:
+        _xdb.session.commit()
 _CHI_CAT_WORDS = [   # (kind, hạng mục, words in the folded note / receiver) — first match wins
-    ('chi', 'Thuê nhà', r'thue nha|tien nha|coc .*thue|giu cho thue|thue \d+ thang'),
+    ('chi', 'Cọc nhà', r'dat coc.*(nha|thue)|coc nha|coc giu|giu cho thue'),
+    ('chi', 'Thuê nhà', r'thue nha|tien nha|coc .*thue|thue \d+ thang'),
     ('chi', 'Môi giới', r'mo gioi|moi gioi|hoa hong'),
     ('chi', 'Mộc', r'\bgo\b|lam go|\bmoc\b|tu bep|canh cua go'),
     ('chi', 'Nội thất', r'\brem\b|den may|noi that|sofa|giuong|nem|chan ga|ban ghe|guong|tham'),
@@ -317,7 +361,8 @@ _CHI_CAT_WORDS = [   # (kind, hạng mục, words in the folded note / receiver)
     ('chi', 'Vật tư & thiết bị', r'gach|xi mang|\bcat\b|bon cau|voi|lavabo|binh nong lanh|\bong\b|keo|thiet bi|\d*tv\b|tivi|chau|'
                                  r'vat tu|\bson\b|\bton\b|dieu hoa|may giat|tu lanh|ho ga'),
     ('chi', 'Điện nước & internet', r'tien dien|tien nuoc|internet|wifi|cuoc mang|evn'),
-    ('thu', 'Cho thuê', r'tien nha|thue|coc tang|tien coc|dong tien nha'),
+    ('thu', 'Cọc khách thuê', r'coc tang|tien coc|chia tien coc'),
+    ('thu', 'Khách thuê đóng tiền', r'tien nha|thue|dong tien nha'),
     ('thu', 'Cọc hủy', r'coc huy|huy coc|bo coc'),
     ('thu', 'Vốn đầu tư / vay', r'muon|vay|dau tu|hang muoi|von'),
     ('thu', 'Tiền phòng khách', r'booking|tien phong|khach'),
@@ -345,12 +390,14 @@ def chi_guess_cat(_xdb, kind, to, note):
 
 def _chi_autocat(_xdb, rid):
     """Fill the hạng mục of a just-saved row (kept when one is already set)."""
-    r = _xdb.session.execute(text("SELECT kind, to_name, note, cat FROM chi_receipts WHERE id = :i"), {'i': rid}).fetchone()
-    if r and not r[3]:
-        c = chi_guess_cat(_xdb, r[0], r[1], r[2])
-        if c:
-            _xdb.session.execute(text("UPDATE chi_receipts SET cat = :c WHERE id = :i"), {'c': c, 'i': rid})
-            _xdb.session.commit()
+    r = _xdb.session.execute(text("SELECT kind, to_name, note, cat, book FROM chi_receipts WHERE id = :i"), {'i': rid}).fetchone()
+    if not r:
+        return
+    c = r[3] or chi_guess_cat(_xdb, r[0], r[1], r[2])
+    b = r[4] or chi_guess_book(r[0], c, r[2], r[1])
+    if c != (r[3] or '') or b != r[4]:
+        _xdb.session.execute(text("UPDATE chi_receipts SET cat = :c, book = :b WHERE id = :i"), {'c': c or None, 'b': b, 'i': rid})
+        _xdb.session.commit()
 
 
 def chi_apt(*texts):
@@ -482,6 +529,10 @@ def chi_handle(_xdb, m):
         except Exception as e:
             return f'⚠️ Chưa đọc được ảnh ({str(e)[:80]}). Gửi lại sau 1 phút giúp em.'
         st, row = chi_save(_xdb, info, img, mime, cid, sender)
+        if st == 'saved' and re.search(r'\brieng\b', _fold(cap)):     # 🔒 caption "riêng" → the owner's private book
+            _xdb.session.execute(text("UPDATE chi_receipts SET book = 'rieng' WHERE id = :i"), {'i': row[0]})
+            _xdb.session.commit()
+            return f"🔒 Đã lưu vào phần RIÊNG TÔI: {chi_money(row[2])}" + (f" → {row[3]}" if row[3] else '') + f"\n🕘 {row[1]:%H:%M %d/%m/%Y}"
         if st == 'bad':
             return '⚠️ Ảnh này không giống biên lai chuyển khoản (không thấy số tiền). Gửi ảnh "Giao dịch thành công" giúp em.'
         if st == 'dup':
@@ -656,6 +707,97 @@ def chi_share():
     return jsonify({'success': True, 'path': f'/chi/xem/{tok}'})
 
 
+# 🔒 Riêng tôi — the app has no login, so the private book is locked by a PIN the owner types on the page (only a salted
+# hash is kept, `moi_settings` chi_pin). A device that typed it gets a random cookie (1 year; its hash in chi_priv_keys,
+# last 12 devices). 5 wrong PINs → 15 minutes wait. "Quên mã" → a 6-digit code to the owner's Zalo (booking bot,
+# mail_notify), 10 minutes, 5 tries → new PIN, every other device locked again.
+import hashlib
+
+
+def _chi_pin_hash(pin, salt):
+    return hashlib.pbkdf2_hmac('sha256', str(pin).encode(), bytes.fromhex(salt), 120_000).hex()
+
+
+def chi_priv_ok(_xdb):
+    tok = request.cookies.get('chi_priv') or ''
+    if not tok or not _zbot_get(_xdb, 'chi_pin'):
+        return False
+    return hashlib.sha256(tok.encode()).hexdigest() in (_zbot_get(_xdb, 'chi_priv_keys', []) or [])
+
+
+def _chi_priv_grant(_xdb, resp, fresh=False):
+    tok = secrets.token_urlsafe(24)
+    keys = [] if fresh else list(_zbot_get(_xdb, 'chi_priv_keys', []) or [])
+    _zbot_put(_xdb, 'chi_priv_keys', (keys + [hashlib.sha256(tok.encode()).hexdigest()])[-12:])
+    resp.set_cookie('chi_priv', tok, max_age=365 * 86400, httponly=True, samesite='Lax',
+                    secure=request.is_secure or request.headers.get('X-Forwarded-Proto', '') == 'https')
+    return resp
+
+
+@app.route('/api/chi/pin', methods=['POST'])
+def chi_pin():
+    """{action: status | set (first time, or a new PIN from an unlocked device) | open | lock | forgot | reset}."""
+    from core.models import db as _xdb
+    _moi_ensure()
+    d = request.get_json(silent=True) or {}
+    act, pin = d.get('action'), re.sub(r'\D', '', str(d.get('pin') or ''))
+    cur = _zbot_get(_xdb, 'chi_pin') or {}
+    ok = chi_priv_ok(_xdb)
+    if act == 'status':
+        return jsonify({'success': True, 'set': bool(cur), 'open': ok})
+    if act in ('set', 'reset') and not 4 <= len(pin) <= 8:
+        return jsonify({'success': False, 'error': 'Mã PIN gồm 4 đến 8 chữ số'})
+    if act == 'set':
+        if cur and not ok:
+            return jsonify({'success': False, 'error': 'Mở khóa bằng mã cũ trước'})
+        salt = secrets.token_hex(16)
+        _zbot_put(_xdb, 'chi_pin', {'s': salt, 'h': _chi_pin_hash(pin, salt)})
+        return _chi_priv_grant(_xdb, jsonify({'success': True}), fresh=not cur)
+    if act == 'open':
+        if not cur:
+            return jsonify({'success': False, 'error': 'Chưa đặt mã PIN'})
+        fail = _zbot_get(_xdb, 'chi_pin_fail') or {}
+        if float(fail.get('until') or 0) > time.time():
+            return jsonify({'success': False, 'error': f"Sai nhiều lần — thử lại sau {int((fail['until'] - time.time()) // 60) + 1} phút"})
+        if not secrets.compare_digest(_chi_pin_hash(pin, cur['s']), cur['h']):
+            n = int(fail.get('n') or 0) + 1
+            _zbot_put(_xdb, 'chi_pin_fail', {'n': 0, 'until': time.time() + 900} if n >= 5 else {'n': n})
+            return jsonify({'success': False, 'error': 'Sai mã PIN' + (' — khóa 15 phút' if n >= 5 else f' (còn {5 - n} lần)')})
+        _zbot_put(_xdb, 'chi_pin_fail', {})
+        return _chi_priv_grant(_xdb, jsonify({'success': True}))
+    if act == 'lock':
+        tok = request.cookies.get('chi_priv') or ''
+        keys = [k for k in (_zbot_get(_xdb, 'chi_priv_keys', []) or []) if k != hashlib.sha256(tok.encode()).hexdigest()]
+        _zbot_put(_xdb, 'chi_priv_keys', keys)
+        resp = jsonify({'success': True})
+        resp.delete_cookie('chi_priv')
+        return resp
+    if act == 'forgot':
+        code = f'{secrets.randbelow(10 ** 6):06d}'
+        _zbot_put(_xdb, 'chi_pin_reset', {'h': hashlib.sha256(code.encode()).hexdigest(), 'until': time.time() + 600, 'n': 0})
+        mail_notify(_xdb, f'🔒 Mã đổi PIN phần "Riêng tôi" (trang Nộp & Chi): {code}\nDùng trong 10 phút. Không phải bạn bấm "Quên mã"? Bỏ qua tin này.')
+        return jsonify({'success': True})
+    if act == 'reset':
+        rs = _zbot_get(_xdb, 'chi_pin_reset') or {}
+        code = re.sub(r'\D', '', str(d.get('code') or ''))
+        if not rs or float(rs.get('until') or 0) < time.time() or int(rs.get('n') or 0) >= 5:
+            return jsonify({'success': False, 'error': 'Mã hết hạn — bấm "Quên mã" lại'})
+        if not secrets.compare_digest(hashlib.sha256(code.encode()).hexdigest(), rs['h']):
+            rs['n'] = int(rs.get('n') or 0) + 1
+            _zbot_put(_xdb, 'chi_pin_reset', rs)
+            return jsonify({'success': False, 'error': 'Sai mã Zalo'})
+        _zbot_put(_xdb, 'chi_pin_reset', {})
+        salt = secrets.token_hex(16)
+        _zbot_put(_xdb, 'chi_pin', {'s': salt, 'h': _chi_pin_hash(pin, salt)})
+        _zbot_put(_xdb, 'chi_pin_fail', {})
+        return _chi_priv_grant(_xdb, jsonify({'success': True}), fresh=True)
+    return jsonify({'success': False, 'error': 'Không rõ việc cần làm'})
+
+
+def _chi_row_private(_xdb, rid):
+    return (_xdb.session.execute(text("SELECT book FROM chi_receipts WHERE id = :i"), {'i': rid}).scalar() or '') == 'rieng'
+
+
 @app.route('/api/chi/list')
 def chi_list():
     from core.models import db as _xdb
@@ -673,21 +815,26 @@ def chi_list():
     nxt = datetime(y + (mo == 12), mo % 12 + 1, 1)
     if all_months:
         first, nxt = datetime(2000, 1, 1), datetime(2100, 1, 1)
-    rows = _xdb.session.execute(text("""SELECT id, at, amount, to_name, to_bank, note, sender, image IS NOT NULL, apt, payer, kind, cat FROM chi_receipts
-        WHERE at >= :a AND at < :b ORDER BY at DESC"""), {'a': first, 'b': nxt}).fetchall()
+    priv = not viewer and chi_priv_ok(_xdb)
+    rows = _xdb.session.execute(text("""SELECT id, at, amount, to_name, to_bank, note, sender, image IS NOT NULL, apt, payer, kind, cat,
+        COALESCE(book, 'ps') FROM chi_receipts
+        WHERE at >= :a AND at < :b AND (COALESCE(book, '') <> 'rieng' OR :p) ORDER BY at DESC"""), {'a': first, 'b': nxt, 'p': priv}).fetchall()
     months = _xdb.session.execute(text("""SELECT to_char(at, 'YYYY-MM'), COUNT(*), SUM(CASE WHEN kind = 'thu' THEN 0 ELSE amount END) FROM chi_receipts
-        GROUP BY 1 ORDER BY 1 DESC LIMIT 12""")).fetchall()
+        WHERE COALESCE(book, '') <> 'rieng' OR :p GROUP BY 1 ORDER BY 1 DESC LIMIT 12"""), {'p': priv}).fetchall()
     chats = _zbot_get(_xdb, 'zbot3_chats', {}) or {}
     return jsonify({'success': True, 'month': 'all' if all_months else f'{y}-{mo:02d}',
                     'items': [{'id': r[0], 'at': f'{r[1]:%H:%M %d/%m/%Y}', 'day': f'{r[1]:%Y-%m-%d}', 'iso': f'{r[1]:%Y-%m-%dT%H:%M}', 'amount': int(r[2]), 'to': r[3] or '',
                                'bank': r[4] or '', 'note': r[5] or '', 'by': r[6] or '', 'img': bool(r[7]),
-                               'apt': r[8] or '', 'payer': r[9] or '', 'kind': 'thu' if r[10] == 'thu' else 'chi', 'cat': r[11] or ''} for r in rows],
+                               'apt': r[8] or '', 'payer': r[9] or '', 'kind': 'thu' if r[10] == 'thu' else 'chi', 'cat': r[11] or '',
+                               'book': r[12] if r[12] in CHI_BOOKS else 'ps'} for r in rows],
                     'cats': {'chi': CHI_CATS, 'thu': THU_CATS},
+                    'bcats': {k: v for k, v in CHI_BOOK_CATS.items() if k != 'rieng' or priv},
+                    'priv': {'set': bool(_zbot_get(_xdb, 'chi_pin')), 'open': priv} if not viewer else None,
                     'apts': CHI_APTS,
                     'payers': [p for (p,) in _xdb.session.execute(text("""SELECT payer FROM chi_receipts
                         WHERE COALESCE(payer, '') <> '' GROUP BY payer ORDER BY COUNT(*) DESC""")).fetchall()],
-                    'total': sum(int(r[2]) for r in rows if r[10] != 'thu'),      # money out
-                    'thu': sum(int(r[2]) for r in rows if r[10] == 'thu'),          # money in
+                    'total': sum(int(r[2]) for r in rows if r[10] != 'thu' and r[12] != 'rieng'),      # money out (shared books)
+                    'thu': sum(int(r[2]) for r in rows if r[10] == 'thu' and r[12] != 'rieng'),          # money in (shared books)
                     'months': [{'month': r[0], 'n': int(r[1]), 'total': int(r[2])} for r in months],
                     'bot': bool(_chi_token(_xdb)), 'bot_name': _zbot_get(_xdb, 'zbot3_name') or '',
                     'chats': [] if viewer else [{'id': k, 'name': c.get('name') or 'Không tên'} for k, c in chats.items()],
@@ -698,8 +845,8 @@ def chi_list():
 def chi_img(rid):
     from core.models import db as _xdb
     _chi_ensure(_xdb)
-    row = _xdb.session.execute(text("SELECT image, mime FROM chi_receipts WHERE id = :i"), {'i': rid}).fetchone()
-    if not row or not row[0]:
+    row = _xdb.session.execute(text("SELECT image, mime, book FROM chi_receipts WHERE id = :i"), {'i': rid}).fetchone()
+    if not row or not row[0] or (row[2] == 'rieng' and (request.args.get('t') or not chi_priv_ok(_xdb))):
         return 'Not found', 404
     resp = app.response_class(bytes(row[0]), mimetype=row[1] or 'image/jpeg')
     resp.headers['Cache-Control'] = 'private, max-age=86400'
@@ -710,7 +857,10 @@ def chi_img(rid):
 def chi_delete():
     from core.models import db as _xdb
     _chi_ensure(_xdb)
-    _xdb.session.execute(text("DELETE FROM chi_receipts WHERE id = :i"), {'i': int((request.get_json(silent=True) or {}).get('id') or 0)})
+    rid = int((request.get_json(silent=True) or {}).get('id') or 0)
+    if _chi_row_private(_xdb, rid) and not chi_priv_ok(_xdb):
+        return jsonify({'success': False, 'error': 'Phần riêng đang khóa'}), 403
+    _xdb.session.execute(text("DELETE FROM chi_receipts WHERE id = :i"), {'i': rid})
     _xdb.session.commit()
     return jsonify({'success': True})
 
@@ -724,6 +874,12 @@ def chi_set():
     _chi_ensure(_xdb)
     d = request.get_json(silent=True) or {}
     rid = int(d.get('id') or 0)
+    if (_chi_row_private(_xdb, rid) or d.get('book') == 'rieng') and not chi_priv_ok(_xdb):
+        return jsonify({'success': False, 'error': 'Phần riêng đang khóa — mở bằng mã PIN'}), 403
+    if 'book' in d:                     # 📚 move to another book (🔒 'rieng' only from an unlocked device, checked above)
+        if d.get('book') not in CHI_BOOKS:
+            return jsonify({'success': False, 'error': 'Sổ không đúng'})
+        _xdb.session.execute(text("UPDATE chi_receipts SET book = :v WHERE id = :i"), {'v': d['book'], 'i': rid})
     if 'apt' in d:
         apt = str(d.get('apt') or '')
         if apt and apt not in CHI_APTS:
@@ -732,8 +888,13 @@ def chi_set():
     if d.get('kind') in ('thu', 'chi'):
         _xdb.session.execute(text("UPDATE chi_receipts SET kind = :v WHERE id = :i"), {'v': d['kind'], 'i': rid})
     if 'cat' in d:                      # 🏷 hạng mục — one of the lists, or a short name the owner typed
-        _xdb.session.execute(text("UPDATE chi_receipts SET cat = :v WHERE id = :i"),
-                             {'v': ' '.join(str(d.get('cat') or '').split())[:40], 'i': rid})
+        cat = ' '.join(str(d.get('cat') or '').split())[:40]
+        _xdb.session.execute(text("UPDATE chi_receipts SET cat = :v WHERE id = :i"), {'v': cat, 'i': rid})
+        # a lease hạng mục moves a shared item to 🏠 Tiền nhà, a renovation one to 🔨 Phát sinh (private items stay private)
+        if 'book' not in d and cat and cat != 'Khác':
+            to = 'nha' if cat in _NHA_CATS else 'ps' if any(cat in v[k] for b, v in CHI_BOOK_CATS.items() if b == 'ps' for k in v) else ''
+            if to:
+                _xdb.session.execute(text("UPDATE chi_receipts SET book = :b WHERE id = :i AND COALESCE(book, '') <> 'rieng'"), {'b': to, 'i': rid})
     if 'payer' in d:
         _xdb.session.execute(text("UPDATE chi_receipts SET payer = :v WHERE id = :i"),
                              {'v': chi_payer(_xdb, d.get('payer')), 'i': rid})
@@ -784,6 +945,9 @@ def chi_add():
     amount = int(re.sub(r'[^\d]', '', str(d.get('amount') or '')) or 0)
     if amount <= 0 or amount > 100_000_000_000:
         return jsonify({'success': False, 'error': 'Gõ số tiền'})
+    book = d.get('book') if d.get('book') in CHI_BOOKS else ''
+    if book == 'rieng' and not chi_priv_ok(_xdb):
+        return jsonify({'success': False, 'error': 'Phần riêng đang khóa — mở bằng mã PIN'})
     try:
         at = datetime.strptime(str(d.get('at') or '')[:16], '%Y-%m-%dT%H:%M')
     except ValueError:
@@ -800,11 +964,10 @@ def chi_add():
          'k': 'thu' if d.get('kind') == 'thu' else 'chi'}).scalar()
     _xdb.session.commit()
     cat = ' '.join(str(d.get('cat') or '').split())[:40]
-    if cat:
-        _xdb.session.execute(text("UPDATE chi_receipts SET cat = :c WHERE id = :i"), {'c': cat, 'i': rid})
+    if cat or book:
+        _xdb.session.execute(text("UPDATE chi_receipts SET cat = :c, book = :b WHERE id = :i"), {'c': cat or None, 'b': book or None, 'i': rid})
         _xdb.session.commit()
-    else:
-        _chi_autocat(_xdb, rid)
+    _chi_autocat(_xdb, rid)
     return jsonify({'success': True, 'id': rid})
 
 
@@ -813,6 +976,8 @@ def chi_photo(rid):
     """✏️ Sửa → 📎 add / change the transfer picture of one item (multipart 'image'; remove=1 takes it away)."""
     from core.models import db as _xdb
     _chi_ensure(_xdb)
+    if _chi_row_private(_xdb, rid) and not chi_priv_ok(_xdb):
+        return jsonify({'success': False, 'error': 'Phần riêng đang khóa'}), 403
     if request.form.get('remove'):
         _xdb.session.execute(text("UPDATE chi_receipts SET image = NULL, mime = NULL WHERE id = :i"), {'i': rid})
     else:
