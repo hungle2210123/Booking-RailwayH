@@ -271,3 +271,11 @@ Owner: "lưu lại cái hóa đơn … ngày giờ, số tiền, sau đó tổng
   expense (the owner's old group has running totals). Only chats connected while "Cho thêm người" is open (30 min) may send.
 - Day 1 of the month, 8–10h (zbot_tick): last month's total to the connected chats. /chi-tieu = month list + pictures + delete.
 - Test: test_flows `test_chi_receipt_bot`.
+
+### Nộp & Chi on the computer, re-done (owner Nov 25: "rất rối … không biết ngày nào quan trọng, khoản nào cần làm")
+- ≥1000px Thu chi tab = 3 columns: summary/breakdowns · list · the chosen item's BIG receipt (`det()`, sticky; ↑ ↓ keys move).
+- List (`desk()` in chi.html): search + Tất cả/Thu/Chi chips; "Chi theo ngày" bars (click = that day only, amber = chosen,
+  green dot = money in); "⚠️ Cần làm" strip = items missing ai trả / từ ai / căn (chi only) / hạng mục (`lack`), button
+  "Chỉ xem khoản thiếu", select "Gán căn cho N khoản chưa chọn căn" (sets /api/chi/set one by one); then ONE line per item
+  grouped by day (Hôm nay / Hôm qua …, day count + Vào/Ra): small picture · time · receiver + ND · tags (missing = amber
+  "+ căn") · amount (≥ 5 tr chi = amber dot). Phone list unchanged.

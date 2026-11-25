@@ -657,11 +657,12 @@ _p18_chi — 💸 Chi tiêu = ảnh biên lai chuyển khoản gửi cho bot Zal
 
 # Templates (inline JS functions)
 
-## templates/chi.html (782 lines)
-- templates/chi.html: 251 `gallery` · 283 `catColor` · 288 `sumBy` · 293 `donut` · 305 `legend` · 309 `dayChart` · 351 `groups` · 361 `drawGroups`
-- templates/chi.html: 386 `drawStat` · 425 `tab` · 433 `drawNop` · 459 `view` · 466 `breakdown` · 478 `draw` · 528 `load` · 553 `photoField`
-- templates/chi.html: 563 `usePhoto` · 569 `pasteClip` · 586 `photoWire` · 594 `shrink` · 604 `form` · 608 `kindField` · 614 `catField` · 619 `kindWire`
-- templates/chi.html: 629 `add` · 667 `edit` · 703 `pick` · 717 `save` · 723 `share` · 736 `copy` · 740 `drawBot` · 755 `post`
+## templates/chi.html (895 lines)
+- templates/chi.html: 312 `desk` · 349 `det` · 372 `catColor` · 377 `sumBy` · 382 `donut` · 394 `legend` · 398 `dayChart` · 440 `groups`
+- templates/chi.html: 450 `drawGroups` · 475 `drawStat` · 514 `tab` · 522 `drawNop` · 548 `view` · 555 `breakdown` · 567 `draw` · 622 `load`
+- templates/chi.html: 647 `photoField` · 657 `usePhoto` · 663 `pasteClip` · 680 `photoWire` · 688 `shrink` · 698 `form` · 702 `kindField` · 708 `catField`
+- templates/chi.html: 713 `kindWire` · 723 `add` · 761 `edit` · 797 `pick` · 811 `save` · 817 `share` · 830 `copy` · 834 `drawBot`
+- templates/chi.html: 849 `post`
 
 ## templates/desk.html (1347 lines)
 - templates/desk.html: 307 `load` · 320 `loadRev` · 333 `needRev` · 351 `D.tab` · 352 `D.set` · 353 `D.q` · 354 `D.reload` · 356 `D.shift`
