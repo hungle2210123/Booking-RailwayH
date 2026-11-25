@@ -281,3 +281,10 @@ sheet opens (`M.payMsgLoad`); a tap also copies the text and logs journey `payme
 `/api/moi/data` also returns `clean` (= `clean_board` of today, `_moi_clean_now`); moi.html `load()` copies it into
 `S.zbot.clean`. Before, "🧹 Dọn xong hôm nay" was read once at app open (`/api/moi/zbot`), so after "gia hạn" the
 rooms Hội Vũ 101/102 stayed on it although the server list was already right.
+
+## 💰 Money on the phone calendar (owner Nov 25)
+- Every bar shows the guest's TOTAL ("Tổng 3,82tr · CHƯA THU / đã thu / còn …"; narrow bars just "Tổng …"; 7/14-day views `Σ`).
+- Under each apartment header a "💰 Cần thu hôm nay" box (`dueBox` in viewCal): guests in that apartment today
+  (`ciO <= 0 && coO >= 0`, not skipped, total > 0) one line each — room · name · nights · Tổng tiền · Còn thu (exact đồng),
+  then "Cộng". Header = sum still to collect; tap it → Thu tiền filtered on that apartment; tap a guest → guest sheet.
+  Sticky left, so it stays visible when the 7/14-day grid scrolls sideways.
