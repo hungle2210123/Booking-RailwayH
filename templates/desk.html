@@ -198,10 +198,17 @@ button.info.on{border-color:#0E1525;background:#fff}
 .shot{width:72px;height:54px;border-radius:8px;background:#E2E5EB;object-fit:cover;cursor:zoom-in}
 @media(max-width:900px){ #shell{flex-direction:column}#side{width:auto;height:auto;position:static;flex-direction:row;flex-wrap:wrap;padding:10px}
   .brand,.legend-s,.sdiv{display:none}.nav{width:auto;min-height:38px}#top{position:static;padding:10px 14px}#content{padding:16px 14px 50px}.search{width:100%}}
-.duew{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;padding:7px 12px;font-size:12.5px}
-.duew > b{font-size:13.5px}
-.duec{display:inline-flex;align-items:center;gap:8px;border:1px solid #E2E5EB;background:#fff;border-radius:9px;padding:4px 10px;font-size:12px;font-weight:700;color:#0E1525;cursor:pointer}
-.duec:hover{border-color:#94A3B8}.duec .dr{color:#64748B;font-weight:800}.duec .dn{max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dueg{display:grid;grid-template-columns:repeat(auto-fill,minmax(285px,1fr));gap:12px}
+.duek{border:1px solid #E4E7ED;border-radius:12px;overflow:hidden;background:#fff}
+.dueh{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:9px 12px;background:#F8FAFC;font-weight:800;font-size:13.5px}
+.dueh .dot{margin-right:6px}.dueh b{font-size:16px}
+.duet{width:100%;border-collapse:collapse;font-size:12.5px}
+.duet th{font-size:10.5px;text-transform:uppercase;letter-spacing:.04em;color:#64748B;text-align:left;padding:6px 12px;font-weight:800;border-bottom:1px solid #EEF0F4}
+.duet td{padding:6px 12px;border-top:1px solid #F1F5F9;vertical-align:middle}
+.duet tbody tr{cursor:pointer}.duet tbody tr:hover{background:#F8FAFC}
+.duet .r{text-align:right;white-space:nowrap}.duet .m{color:#64748B;font-weight:800;white-space:nowrap}
+.duet .nm{font-weight:700;max-width:170px}.duet .nm small{display:block;font-size:11px;color:#64748B;font-weight:600}
+.duet tfoot td{font-weight:800;border-top:1.5px solid #0E1525;background:#FAFBFC}
 </style>
 </head>
 <body>
@@ -883,21 +890,28 @@ button.info.on{border-color:#0E1525;background:#fff}
     const rowSt = tpl + ';min-height:50px;border-top:1px solid #EEF0F4;';
     // 💰 money of the guests in the apartment TODAY (owner Nov 26: "chi tiết giống điện thoại"): each guest's total and what is
     // left, and the exact sum to collect there — one line under the apartment, tap a guest = their card
-    const dueRow = (a) => {
-      const g = B.filter((b) => b.apt === a.id && b.ciO <= 0 && b.coO >= 0 && !b.skipped && b.total > 0)
+    const restOf = (b) => (b.paid ? 0 : Math.max(b.total - (b.collected || 0), 0));
+    const dueOf = (a) => { const g = B.filter((b) => b.apt === a.id && b.ciO <= 0 && b.coO >= 0 && !b.skipped && b.total > 0)
         .sort((p, q) => (p.room_no || 99) - (q.room_no || 99) || p.ciO - q.ciO);
-      if (!g.length) return '';
-      const rest = (b) => (b.paid ? 0 : Math.max(b.total - (b.collected || 0), 0));
-      const due = g.reduce((t, b) => t + rest(b), 0), sum = g.reduce((t, b) => t + b.total, 0), nDue = g.filter((b) => rest(b) > 0).length;
-      const chip = (b) => { const r = rest(b);
-        return `<button class="duec" onclick="D.open('${esc(b.id)}')" title="${esc(b.name)} · ${b.nights} đêm · ${dm(b.ciO)} → ${dm(b.coO)}"><span class="dr">${esc(b.room_no ? rn(a.id, b.room_no) : '—')}</span><span class="dn">${esc(b.name)}</span><span class="num">Tổng ${fmt(b.total)}</span><b class="num" style="color:${r ? '#B91C1C' : '#15803D'}">${r ? 'còn ' + fmt(r) : '✓ đã thu'}</b></button>`; };
-      return `<div style="${tpl};border-top:1px solid #EEF0F4;background:${due ? '#FEF2F2' : '#F0FDF4'}"><div class="duew" style="grid-column:1 / -1">
-        <b class="num" style="color:${due ? '#B91C1C' : '#15803D'}">💰 ${due ? 'Cần thu hôm nay ' + fmt(due) + ' · ' + nDue + '/' + g.length + ' khách' : 'Đã thu đủ ' + g.length + ' khách đang ở'}</b><span class="num" style="color:#475569;font-weight:700">tổng tiền ${fmt(sum)}</span>${g.map(chip).join('')}</div></div>`;
+      return { g, due: g.reduce((t, b) => t + restOf(b), 0), sum: g.reduce((t, b) => t + b.total, 0) }; };
+    // 💰 one card per apartment above the calendar (owner Nov 26: the strip inside the grid was "rất khó nhìn"): the guests
+    // staying there today, each one's total and what is left, and the exact sum to collect in that apartment
+    const duePanel = () => {
+      const cards = showA.map((a) => ({ a, ...dueOf(a) })).filter((x) => x.g.length);
+      if (!cards.length) return '';
+      const all = cards.reduce((t, x) => t + x.due, 0);
+      return `<section class="card" style="padding:14px 16px"><div style="display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin-bottom:10px">
+          <b style="font-size:15px">💰 Cần thu hôm nay · khách đang ở</b><span class="num" style="font-size:13px;color:#475569;font-weight:700">Tất cả: <b style="font-size:16px;color:${all ? '#B91C1C' : '#15803D'}">${fmt(all)}</b></span></div>
+        <div class="dueg">${cards.map(({ a, g, due, sum }) => `<div class="duek">
+          <div class="dueh" style="border-top:3px solid ${a.color}"><span><span class="dot" style="background:${a.color}"></span>${esc(a.short || a.name)}</span><b class="num" style="color:${due ? '#B91C1C' : '#15803D'}">${due ? fmt(due) : '✓ Đã thu đủ'}</b></div>
+          <table class="duet"><thead><tr><th>Phòng</th><th>Khách</th><th class="r">Tổng tiền</th><th class="r">Còn thu</th></tr></thead><tbody>
+          ${g.map((b) => { const r = restOf(b); return `<tr onclick="D.open('${esc(b.id)}')" title="${b.nights} đêm · ${dm(b.ciO)} → ${dm(b.coO)} · bấm để mở thẻ khách"><td class="m">${esc(b.room_no ? rn(a.id, b.room_no) : '—')}</td><td class="nm">${esc(b.name)}<small>${b.nights} đêm · ${b.coO === 0 ? 'trả hôm nay' : b.ciO === 0 ? 'đến hôm nay' : 'trả ' + dm(b.coO)}</small></td><td class="r num">${fmt(b.total)}</td><td class="r num" style="font-weight:800;color:${r ? '#B91C1C' : '#15803D'}">${r ? fmt(r) : '✓'}</td></tr>`; }).join('')}
+          </tbody><tfoot><tr><td></td><td>Cộng ${g.length} khách</td><td class="r num">${fmt(sum)}</td><td class="r num" style="color:${due ? '#B91C1C' : '#15803D'}">${fmt(due)}</td></tr></tfoot></table></div>`).join('')}</div></section>`;
     };
     let rows = '';
     showA.forEach((a) => {
-      rows += `<div style="${tpl};min-height:34px;border-top:1px solid #E4E7ED;background:#F8FAFC"><div class="rl" style="background:#F8FAFC;flex-direction:row;align-items:center;justify-content:flex-start;gap:8px"><span class="dot" style="background:${a.color}"></span><b>${esc(a.name)} · ${a.rooms} phòng</b></div>
-        ${days.map((o, i) => { const f = a.rooms - usedIn(a.id, o); return `<div style="${dcol(i)}display:flex;align-items:center;justify-content:center;font-size:11.5px;font-weight:800;border-left:1px solid #EEF0F4;color:${f <= 0 ? (f < 0 ? '#B91C1C' : '#475569') : f === 1 ? '#B45309' : '#15803D'}">${f > 0 ? 'Trống ' + f : f === 0 ? 'Kín' : 'Thừa ' + -f}</div>`; }).join('')}</div>` + dueRow(a);
+      rows += `<div style="${tpl};min-height:34px;border-top:1px solid #E4E7ED;background:#F8FAFC"><div class="rl" style="background:#F8FAFC;flex-direction:row;align-items:center;justify-content:flex-start;gap:8px"><span class="dot" style="background:${a.color}"></span><b>${esc(a.name)} · ${a.rooms} phòng</b>${(() => { const d = dueOf(a); return d.g.length ? `<span class="num" style="margin-left:auto;font-size:11.5px;font-weight:800;color:${d.due ? '#B91C1C' : '#15803D'}">${d.due ? 'còn ' + short(d.due) : '✓ đủ'}</span>` : ''; })()}</div>
+        ${days.map((o, i) => { const f = a.rooms - usedIn(a.id, o); return `<div style="${dcol(i)}display:flex;align-items:center;justify-content:center;font-size:11.5px;font-weight:800;border-left:1px solid #EEF0F4;color:${f <= 0 ? (f < 0 ? '#B91C1C' : '#475569') : f === 1 ? '#B45309' : '#15803D'}">${f > 0 ? 'Trống ' + f : f === 0 ? 'Kín' : 'Thừa ' + -f}</div>`; }).join('')}</div>`;
       for (let no = 1; no <= a.rooms; no++) {
         // picking: green "Xếp vào đây" only where the room is free from tonight on; a clash is a note under the room name
         let drop = '', clash = false;
@@ -956,6 +970,7 @@ button.info.on{border-color:#0E1525;background:#fff}
         <div class="card kpi"><div class="l">Công suất phòng</div><div class="v num">${have && capS ? Math.round(sold * 100 / capS) + '%' : '…'}</div><div class="s">${sold} / ${capS} đêm phòng có khách</div></div>
         <div class="card kpi"><div class="l">Khách đến · trả</div><div class="v num">${insW} · ${outsW}</div><div class="s">${tbW ? '<b style="color:#6D28D9">' + tbW + ' lần trả phòng 2 ngủ</b>' : 'không có phòng 2 ngủ trả'}</div></div>
         <div class="card kpi"><div class="l">Đêm còn nhiều phòng nhất</div><div class="v num">${quiet !== null ? wd(quiet) + ' ' + dm(quiet) : '—'}</div><div class="s">${quiet !== null ? 'còn ' + freeOn(quiet) + ' phòng trống' : ''}</div></div></div>
+      ${duePanel()}
       <section class="card" style="overflow:hidden">
         <div class="ch"><div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center">
             <div class="seg"><button class="${N === 7 ? 'on' : ''}" onclick="D.set('calN',7)">7 ngày</button><button class="${N === 14 ? 'on' : ''}" onclick="D.set('calN',14)">14 ngày</button><button class="${N === 30 ? 'on' : ''}" onclick="D.set('calN',30)">30 ngày</button></div>
