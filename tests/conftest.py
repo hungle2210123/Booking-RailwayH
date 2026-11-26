@@ -98,3 +98,44 @@ def booking(client, throwaway):
         assert r.status_code == 200, r.get_json()
         return bid
     return make
+
+
+# 🛡 Nov 26: a test run killed half-way (outer `timeout`) left TEST receivers in the real bot settings → the 8:00 cleaning
+# message went to "Hường ZZTEST" and the cleaners got nothing. Before the tests, the real receivers are copied to a file;
+# a later run that finds test data still in these keys (zz- / ZZTEST / ZZ Bot) puts the real values back first.
+GUARD_KEYS = ('zbot_chats', 'zbot2_chats', 'zbot2_name', 'zbot2_token', 'zbot3_chats', 'chi_pin', 'chi_priv_keys', 'chi_share')
+GUARD_FILE = os.path.join(ROOT, 'tests', '.real_settings.json')
+
+
+def _looks_test(v):
+    s = str(v)
+    return 'zz-' in s or 'ZZTEST' in s or 'ZZ Bot' in s
+
+
+@pytest.fixture(scope='session', autouse=True)
+def _guard_real_settings(app_module, app):
+    import json
+    with app.app_context():
+        from core.models import db
+        saved = {}
+        if os.path.exists(GUARD_FILE):
+            try:
+                saved = json.load(open(GUARD_FILE, encoding='utf-8'))
+            except Exception:
+                saved = {}
+        for k in GUARD_KEYS:                       # leftovers of a killed run → the real value comes back
+            if k in saved and _looks_test(app_module._zbot_get(db, k)) and not _looks_test(saved[k]):
+                app_module._zbot_put(db, k, saved[k])
+        cur = {k: app_module._zbot_get(db, k) for k in GUARD_KEYS}
+        json.dump({k: v for k, v in cur.items() if not _looks_test(v)} | {k: saved[k] for k in saved if _looks_test(cur.get(k))},
+                  open(GUARD_FILE, 'w', encoding='utf-8'), ensure_ascii=False)
+    yield
+    with app.app_context():
+        from core.models import db
+        for k in GUARD_KEYS:                       # normal end: same check (a test that failed to restore)
+            try:
+                saved = json.load(open(GUARD_FILE, encoding='utf-8'))
+            except Exception:
+                break
+            if k in saved and _looks_test(app_module._zbot_get(db, k)):
+                app_module._zbot_put(db, k, saved[k])
