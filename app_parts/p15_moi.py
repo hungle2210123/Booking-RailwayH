@@ -1130,6 +1130,12 @@ def _dep_ensure(_xdb):
         CREATE TABLE IF NOT EXISTS cash_deposits (
             id SERIAL PRIMARY KEY, pot VARCHAR(10) NOT NULL, amount BIGINT NOT NULL, note TEXT NOT NULL DEFAULT '',
             deposited_at TIMESTAMP NOT NULL, created_at TIMESTAMP NOT NULL DEFAULT NOW())"""))
+    # 📝 every ✏️ Sửa / Xóa is kept for good (owner Nov 27: "lịch sử edit phải được lưu lại") — old and new values
+    _xdb.session.execute(text("""
+        CREATE TABLE IF NOT EXISTS cash_deposit_log (
+            id SERIAL PRIMARY KEY, deposit_id INTEGER NOT NULL, action VARCHAR(10) NOT NULL, changed_at TIMESTAMP NOT NULL,
+            deposited_at TIMESTAMP, old_pot VARCHAR(10), old_amount BIGINT, old_note TEXT,
+            new_pot VARCHAR(10), new_amount BIGINT, new_note TEXT)"""))
     _xdb.session.commit()
     _DEP_READY = True
 
@@ -1147,6 +1153,7 @@ def moi_deposits():
     if request.method == 'POST':
         d = request.get_json(silent=True) or {}
         if d.get('delete'):
+            _dep_log(_xdb, int(d['delete']), 'xoa', now)
             n = _xdb.session.execute(text("DELETE FROM cash_deposits WHERE id = :i"), {'i': int(d['delete'])}).rowcount
             _xdb.session.commit()
             return jsonify({'success': bool(n)})
@@ -1161,10 +1168,14 @@ def moi_deposits():
             pot = d.get('pot') or None
             if amount <= 0 or amount > 10_000_000_000 or (pot and pot not in pots):
                 return jsonify({'success': False, 'error': 'Số tiền không đúng'}), 400
+            _dep_log(_xdb, int(d['edit']), 'sua', now)
             n = _xdb.session.execute(text("""UPDATE cash_deposits SET amount = :a, pot = COALESCE(:p, pot),
                                              note = COALESCE(:n, note) WHERE id = :i"""),
                                      {'a': amount, 'p': pot, 'i': int(d['edit']),
                                       'n': None if d.get('note') is None else str(d['note']).strip()[:200]}).rowcount
+            _xdb.session.execute(text("""UPDATE cash_deposit_log l SET new_pot = d.pot, new_amount = d.amount, new_note = d.note
+                                         FROM cash_deposits d WHERE d.id = l.deposit_id AND l.id = (SELECT MAX(id) FROM cash_deposit_log
+                                         WHERE deposit_id = :i AND action = 'sua')"""), {'i': int(d['edit'])})
             _xdb.session.commit()
             return jsonify({'success': bool(n)})
         try:
@@ -1208,4 +1219,21 @@ def moi_deposits():
                               'count': sum(1 for r in rows if r[1] == k)} for k, n, s in DEPOSIT_POTS],
                     'rows': [{'id': r[0], 'pot': r[1], 'amount': int(r[2]), 'note': r[3] or '',
                               'day': r[4].strftime('%Y-%m-%d'), 'at': r[4].strftime('%H:%M %d/%m')} for r in rows],
-                    'months': months[::-1]})
+                    'months': months[::-1], 'log': _dep_log_list(_xdb, pots_names={k: n for k, n, _ in DEPOSIT_POTS})})
+
+
+def _dep_log(_xdb, did, action, now):
+    """Copy the row as it is NOW into cash_deposit_log before it is changed / deleted (same transaction)."""
+    _xdb.session.execute(text("""INSERT INTO cash_deposit_log (deposit_id, action, changed_at, deposited_at, old_pot, old_amount, old_note)
+                                  SELECT id, :a, :t, deposited_at, pot, amount, note FROM cash_deposits WHERE id = :i"""),
+                         {'a': action, 't': now, 'i': did})
+
+
+def _dep_log_list(_xdb, pots_names, limit=100):
+    rows = _xdb.session.execute(text("""SELECT id, deposit_id, action, changed_at, deposited_at, old_pot, old_amount, old_note,
+                                         new_pot, new_amount, new_note FROM cash_deposit_log ORDER BY id DESC LIMIT :n"""),
+                                {'n': limit}).fetchall()
+    return [{'id': r[0], 'deposit_id': r[1], 'action': r[2], 'at': r[3].strftime('%H:%M %d/%m/%Y'),
+             'of': r[4].strftime('%H:%M %d/%m') if r[4] else '', 'old_pot': pots_names.get(r[5], r[5] or ''),
+             'old_amount': int(r[6] or 0), 'old_note': r[7] or '', 'new_pot': pots_names.get(r[8], r[8] or ''),
+             'new_amount': int(r[9] or 0), 'new_note': r[10] or ''} for r in rows]

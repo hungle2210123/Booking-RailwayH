@@ -204,7 +204,7 @@ _p12_sync_crawl_duplicates — sync services, crawl admin bookings, bulk save, d
 - app_parts/p13_misc_railway.py:1087 `extract_meter_data_with_openrouter` — Extract electricity meter data using various free models via OpenRouter API
 - app_parts/p13_misc_railway.py:1198 `extract_meter_data_with_multi_api` — Extract electricity meter data using multiple APIs with automatic fallback
 
-## app_parts/p15_moi.py (1211 lines)
+## app_parts/p15_moi.py (1239 lines)
 _p15_moi — /moi: the new phone-first app (owner, Oct 26), built from the approved mockup. Runs NEXT TO the old pages_
 - app_parts/p15_moi.py:12 `_moi_ensure` — bookings.room_no (room 1..N inside the placed apartment) — added once per process.
 - app_parts/p15_moi.py:37 `_moi_apartments` — Active apartments with short name, colour (index among ALL apartments, like the calendar) and room count.
@@ -249,7 +249,9 @@ _p15_moi — /moi: the new phone-first app (owner, Oct 26), built from the appro
 - app_parts/p15_moi.py:1069 `pay_remind_step` — ⏰ Nhắc thanh toán as a step of the send sheet (p03 journey_guest) — shown for guests already marked arrived.
 - app_parts/p15_moi.py:1084 `moi_pay_msg` ← `/api/moi/pay_msg/<booking_id>` GET,POST — GET → {wa, ask, remind} filled in for this guest. POST {kind} → remember that the message was opened (journey 
 - app_parts/p15_moi.py:1125 `_dep_ensure`
-- app_parts/p15_moi.py:1138 `moi_deposits` ← `/api/moi/deposits` GET,POST — GET ?month=YYYY-MM → that month's rows + total per pot + the last 6 months' totals.
+- app_parts/p15_moi.py:1144 `moi_deposits` ← `/api/moi/deposits` GET,POST — GET ?month=YYYY-MM → that month's rows + total per pot + the last 6 months' totals.
+- app_parts/p15_moi.py:1225 `_dep_log` — Copy the row as it is NOW into cash_deposit_log before it is changed / deleted (same transaction).
+- app_parts/p15_moi.py:1232 `_dep_log_list`
 
 ## app_parts/p16_staff.py (968 lines)
 _p16_staff — 👥 Nhân viên (owner, Nov 6): the cleaners talk to the Zalo bot (p15_moi zbot_*) in plain words._
@@ -665,12 +667,12 @@ _p18_chi — 💸 Chi tiêu = ảnh biên lai chuyển khoản gửi cho bot Zal
 
 # Templates (inline JS functions)
 
-## templates/chi.html (1047 lines)
+## templates/chi.html (1053 lines)
 - templates/chi.html: 348 `desk` · 389 `det` · 412 `catColor` · 417 `sumBy` · 422 `donut` · 434 `legend` · 438 `dayChart` · 480 `groups`
-- templates/chi.html: 490 `drawGroups` · 515 `drawStat` · 554 `tab` · 562 `drawNop` · 588 `view` · 595 `breakdown` · 608 `drawBooks` · 625 `ledger`
-- templates/chi.html: 636 `draw` · 692 `load` · 718 `photoField` · 728 `usePhoto` · 734 `pasteClip` · 751 `photoWire` · 759 `shrink` · 769 `form`
-- templates/chi.html: 774 `bookField` · 779 `bookWire` · 786 `kindField` · 792 `catField` · 797 `kindWire` · 807 `add` · 847 `nopEdit` · 870 `edit`
-- templates/chi.html: 907 `pick` · 923 `save` · 930 `pinSheet` · 965 `share` · 978 `copy` · 982 `drawBot` · 997 `post`
+- templates/chi.html: 490 `drawGroups` · 515 `drawStat` · 554 `tab` · 562 `drawNop` · 594 `view` · 601 `breakdown` · 614 `drawBooks` · 631 `ledger`
+- templates/chi.html: 642 `draw` · 698 `load` · 724 `photoField` · 734 `usePhoto` · 740 `pasteClip` · 757 `photoWire` · 765 `shrink` · 775 `form`
+- templates/chi.html: 780 `bookField` · 785 `bookWire` · 792 `kindField` · 798 `catField` · 803 `kindWire` · 813 `add` · 853 `nopEdit` · 876 `edit`
+- templates/chi.html: 913 `pick` · 929 `save` · 936 `pinSheet` · 971 `share` · 984 `copy` · 988 `drawBot` · 1003 `post`
 
 ## templates/desk.html (1451 lines)
 - templates/desk.html: 339 `load` · 352 `loadRev` · 365 `needRev` · 383 `D.tab` · 384 `D.set` · 385 `D.q` · 386 `D.reload` · 388 `D.shift`

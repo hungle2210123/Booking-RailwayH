@@ -567,6 +567,7 @@
         <div class="mut" style="font-size:12px">${esc(p.sub)}</div><div class="v">${money(p.total)}</div><div class="mut">${p.count} lần nộp</div></div>`).join('')}</div>
       ${RO ? '' : '<div class="mut" style="margin-top:10px">Ghi thêm: trang chính → tab Thu tiền → 📒 Sổ nộp tiền.</div>'}</div>`;
     const name = Object.fromEntries(D.pots.map((p) => [p.key, p.name]));
+    const edited = new Set((D.log || []).filter((l) => l.action === 'sua').map((l) => l.deposit_id));
     if (D.rows.length) {
       const sumDay = {};
       for (const r of D.rows) sumDay[r.day] = (sumDay[r.day] || 0) + r.amount;
@@ -575,10 +576,15 @@
       for (const r of D.rows) {
         if (r.day !== day) { day = r.day; html += `<div class="day"><span>${esc(dayLbl(day))}</span><span class="num">${money(sumDay[day])}</span></div>`; }
         html += `<div class="it" style="align-items:center"><div class="ico" style="height:44px">📒</div><div class="bd"><div class="r1"><div class="ttl">Nộp ${esc(name[r.pot] || r.pot)}</div>
-          <div class="amt num">${money(r.amount)}</div></div>${r.note ? `<div class="sub">${esc(r.note)}</div>` : ''}<div class="mut">${esc(r.at.split(' ')[0])}</div></div>${RO ? '' : `<button class="tag ed" style="flex:none" onclick="Chi.nopEdit(${r.id})">✏️ Sửa</button>`}</div>`;
+          <div class="amt num">${money(r.amount)}</div></div>${r.note ? `<div class="sub">${esc(r.note)}</div>` : ''}<div class="mut">${esc(r.at.split(' ')[0])}${edited.has(r.id) ? ' · <b style="color:#B45309">đã sửa</b>' : ''}</div></div>${RO ? '' : `<button class="tag ed" style="flex:none" onclick="Chi.nopEdit(${r.id})">✏️ Sửa</button>`}</div>`;
       }
       html += '</div>';
     } else html += '<div class="card mut">Tháng này chưa có lần nộp nào.</div>';
+    // 📝 Lịch sử sửa / xóa — kept for good, newest first (owner Nov 27)
+    if ((D.log || []).length) html += `<div class="card"><div class="h">📝 Lịch sử sửa / xóa</div>` + D.log.map((l) => {
+      const ch = l.action === 'xoa' ? `<b style="color:#B91C1C">Đã xóa</b> ${esc(l.old_pot)} ${money(l.old_amount)}`
+        : `${l.old_pot !== l.new_pot ? esc(l.old_pot) + ' → ' + esc(l.new_pot) + ' · ' : esc(l.new_pot) + ' · '}${l.old_amount !== l.new_amount ? `<s>${money(l.old_amount)}</s> → <b>${money(l.new_amount)}</b>` : money(l.new_amount)}${l.old_note !== l.new_note ? ' · ghi chú: “' + esc(l.old_note) + '” → “' + esc(l.new_note) + '”' : ''}`;
+      return `<div style="padding:8px 0;border-top:1px solid #F1F5F9;font-size:13px"><div>${ch}</div><div class="mut" style="font-size:12px">Lần nộp ${esc(l.of)} · ${l.action === 'xoa' ? 'xóa' : 'sửa'} lúc ${esc(l.at)}</div></div>`; }).join('') + '</div>';
     const hist = D.months.filter((m) => D.pots.some((p) => m[p.key]));
     if (hist.length) html += `<div class="card"><div class="h">6 tháng gần đây</div><table class="hist"><tr><th>Tháng</th>${D.pots.map((p) => `<th>${esc(p.name)}</th>`).join('')}<th>Tổng</th></tr>`
       + hist.map((m) => `<tr><td>${esc(monLbl(m.month))}</td>${D.pots.map((p) => `<td>${money(m[p.key])}</td>`).join('')}<td>${money(D.pots.reduce((a, p) => a + m[p.key], 0))}</td></tr>`).join('') + '</table></div>';

@@ -1070,7 +1070,9 @@ def test_cash_deposit_book(app, db, client):
         assert tot['tn'] - base['tn'] == 10_000_000 and tot['chung'] - base['chung'] == 6_500_000
         assert any(r['id'] == ids[0] and r['at'] for r in j['rows']) and len(j['months']) == 6
         assert j['months'][0]['month'] == j['month']
-        assert client.post('/api/moi/deposits', json={'delete': ids.pop()}).get_json()['success']
+        gone = ids.pop()
+        assert client.post('/api/moi/deposits', json={'delete': gone}).get_json()['success']
+        ids.append(-gone)   # (negative = only its log rows to clean)
         # ✏️ Sửa a mistyped row only with the 🔒 PIN (owner Nov 27) — the PIN check is stubbed so the real fail counter is untouched
         real = appmod.chi_pin_check
         try:
@@ -1082,8 +1084,15 @@ def test_cash_deposit_book(app, db, client):
             appmod.chi_pin_check = real
         row = next(r for r in client.get('/api/moi/deposits').get_json()['rows'] if r['id'] == ids[0])
         assert row['amount'] == 7_000_000 and row['pot'] == 'chung' and row['note'] == 'ZZ TEST sửa'
+        # 📝 history kept: the edit (old → new) and the delete
+        log = client.get('/api/moi/deposits').get_json()['log']
+        e = [l for l in log if l['deposit_id'] == ids[0]]
+        assert len(e) == 1 and e[0]['action'] == 'sua' and e[0]['old_amount'] == 10_000_000 and e[0]['new_amount'] == 7_000_000
+        assert e[0]['old_pot'] == 'Thọ Nhuộm' and e[0]['new_pot'] == '3 căn chung' and e[0]['new_note'] == 'ZZ TEST sửa'
+        assert any(l['deposit_id'] == gone and l['action'] == 'xoa' and l['old_amount'] == 1_500_000 for l in log)
     finally:
         with app.app_context():
             for i in ids:
-                db.session.execute(appmod.text("DELETE FROM cash_deposits WHERE id = :i"), {'i': i})
+                db.session.execute(appmod.text("DELETE FROM cash_deposits WHERE id = :i"), {'i': abs(i)})
+                db.session.execute(appmod.text("DELETE FROM cash_deposit_log WHERE deposit_id = :i"), {'i': abs(i)})
             db.session.commit()

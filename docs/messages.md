@@ -232,6 +232,7 @@ Tests: `test_pulse_call_dialog_phone`, `test_photo_call_dialog_updates_existing_
 
 ### **📒 Sổ nộp tiền (Thu tiền tab, owner Nov 21 2026)**
 - ✏️ Sửa (owner Nov 27, a mistyped amount): /chi-tieu Nộp tab, each row → `Chi.nopEdit` sheet (pot, amount, note) + 🔒 PIN = the Riêng tôi PIN, checked every time by `chi_pin_check` (p18, same 5 tries / 15 min) → POST /api/moi/deposits {edit, pin, …}.
+- 📝 History kept for good (owner Nov 27): every Sửa / Xóa copies the row first into `cash_deposit_log` (`_dep_log`, old + new pot/amount/note); GET returns `log` (last 100) → card "📝 Lịch sử sửa / xóa" on the Nộp tab, edited rows marked "đã sửa".
 Card under the hero of the Thu tiền tab (`depCard` in moi.html): two big buttons "＋ Nộp Thọ Nhuộm" / "＋ Nộp 3 căn chung"
 (118 Hàng Bạc · 18 Hàng Bè · 25 Hội Vũ share one pot) showing this month's total; tap → sheet: amount (10tr / 5,5tr / 800k,
 quick chips), date (default today, time = now VN), note → "Ghi vào sổ". "Xem sổ ›" = month book: ‹ › months, total per pot +
