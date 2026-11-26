@@ -225,7 +225,8 @@ Tests: `test_pulse_call_dialog_phone`, `test_photo_call_dialog_updates_existing_
   `out_list` {ids, at}; newest list replaces the old). It does NOT open the web (ext 1.41, owner: save on the PC, send later from the phone); `/moi?hoitham=1` still opens that tab. after_stay `?list=1` = only those
   bookings (any date, `<id>-2` rooms too); the tab shows a seg "📋 Từ Booking · N | Tất cả từ 1/11" (localStorage
   `moi.outAll` = list time the owner switched to Tất cả; a newer list switches back). Báo hủy on the web stay hidden.
-- 🔍 Tìm khách → 🟢 WhatsApp (`M.findWa`): pick a Mẫu Câu by title → `/api/journey/compose?greet=1` fills it (name after Hi)
+- 🔍 Tìm khách → 🟢 WhatsApp = ONE TAP (owner Nov 26): the button is a wa.me link pre-filled with the FIXED template (`M.findTplGet`: last picked via "Đổi mẫu" (LS findTpl), else the "payment … HỦY" one); texts are composed right after the search so the iPhone opens WhatsApp in one tap (`M.findWaOne` also copies). "Đổi mẫu" (`M.findWa(null)`) only sets the fixed template.
+- (old flow, still used by "Đổi mẫu") 🔍 Tìm khách → 🟢 WhatsApp (`M.findWa`): pick a Mẫu Câu by title → `/api/journey/compose?greet=1` fills it (name after Hi)
   → "🟢 Mở WhatsApp kèm tin" copies + opens wa.me with the text.
 
 

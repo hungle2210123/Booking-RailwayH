@@ -1151,15 +1151,36 @@ button.info.on{border-color:#0E1525;background:#fff}
         <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px">
           ${byId[g.id] ? `<button onclick="M.open('${g.id}')" style="${btn};border:none;background:#0E1525;color:#fff">Thẻ khách</button>` : ''}
           <button onclick="M.close();M.send('${g.id}','__more')" style="${btn};border:1px solid #E2E5EB;background:#fff;color:#0E1525">💬 Nhắn mẫu</button>
-          ${g.wa ? `<button onclick="M.findWa('${g.id}')" style="${btn};border:none;background:#16A34A;color:#fff">🟢 WhatsApp</button><a href="tel:${esc(g.phone)}" style="${btn};border:1px solid #E2E5EB;background:#fff;color:#0E1525">📞</a>` : ''}</div></div>`; }).join('')
+          ${g.wa ? `<a id="fwa_${g.id}" href="https://wa.me/${g.wa}" target="_blank" rel="noopener" onclick="return M.findWaOne(event,'${g.id}')" style="${btn};border:none;background:#16A34A;color:#fff">🟢 WhatsApp</a><a href="tel:${esc(g.phone)}" style="${btn};border:1px solid #E2E5EB;background:#fff;color:#0E1525">📞</a>` : ''}</div></div>`; }).join('')
       || '<div class="empty" style="padding:20px 0">Không thấy khách nào.</div>';
+    const ft = await M.findTplGet();
+    if (j.guests.some((g) => g.wa)) box.insertAdjacentHTML('afterbegin', `<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;font-size:12px;color:#64748B;font-weight:700"><span style="flex:1;min-width:0">🟢 WhatsApp gửi mẫu: <b style="color:#0E1525">${ft ? esc(ft.name) : 'chưa chọn'}</b></span><button onclick="M.findWa(null)" style="min-height:34px;border-radius:10px;border:1px solid #E2E5EB;background:#fff;font-size:12px;font-weight:800;padding:0 10px">Đổi mẫu</button></div>`);
+    // fill each WhatsApp link with the ready text now, so ONE tap opens WhatsApp with the message (iPhone needs the link ready before the tap)
+    S.findTxt = {};
+    if (ft) j.guests.filter((g) => g.wa).slice(0, 10).forEach(async (g) => {
+      const c = await fetch('/api/journey/compose?greet=1&template_id=' + ft.id + '&booking_id=' + encodeURIComponent(g.id)).then((r) => r.json()).catch(() => null);
+      if (!c || !c.success) return;
+      const t = (g.vn && c.template.text_vi) || c.text || c.template.text_vi || ''; S.findTxt[g.id] = t;
+      const a = document.getElementById('fwa_' + g.id); if (a) a.href = 'https://wa.me/' + g.wa + '?text=' + encodeURIComponent(t);
+    });
   }, 300); };
+  // fixed template for the one-tap WhatsApp button: the one the owner picked last ("Đổi mẫu"), else "payment … HỦY"
+  M.findTplGet = async () => {
+    if (!S.tpls) { const j = await fetch('/api/journey/templates').then((r) => r.json()).catch(() => null); S.tpls = (j && j.templates) || []; }
+    const last = LS.get('findTpl', null);
+    return S.tpls.find((t) => t.id === last) || S.tpls.find((t) => /payment/i.test(t.name) && /hủy|huỷ/i.test(t.name)) || null;
+  };
+  M.findWaOne = (ev, id) => {
+    const t = (S.findTxt || {})[id];
+    if (!t) { ev.preventDefault(); toast(LS.get('findTpl', null) || (S.tpls || []).length ? 'Đang chuẩn bị tin — bấm lại sau 1 giây' : 'Chưa chọn mẫu — bấm "Đổi mẫu"'); return false; }
+    copyNow(t); return true;   // copy too, in case WhatsApp drops the text
+  };
   // 🟢 WhatsApp in Tìm khách (owner, Nov 19): pick a Mẫu Câu by its title → text filled with the guest's name →
   // one tap copies it (backup) and opens the guest's WhatsApp chat with the text already typed
   M.findWa = async (id) => {
-    const g = (S.findG || {})[id]; if (!g) return; S.findCur = g;
+    const g = id ? (S.findG || {})[id] : null; if (id && !g) return; S.findCur = g;
     if (!S.tpls) { const j = await fetch('/api/journey/templates').then((r) => r.json()).catch(() => null); S.tpls = (j && j.templates) || []; }
-    $('#sheet').innerHTML = `<div class="ov" onclick="if(event.target===this)M.close()"><div class="sh"><div class="handle"></div><div style="display:flex;align-items:center;justify-content:space-between;gap:8px"><b style="font-size:17px;min-width:0">Chọn mẫu cho ${esc(g.name)}</b><button class="x" onclick="M.close()" aria-label="Đóng">${svg('x', 18, 2.4)}</button></div>
+    $('#sheet').innerHTML = `<div class="ov" onclick="if(event.target===this)M.close()"><div class="sh"><div class="handle"></div><div style="display:flex;align-items:center;justify-content:space-between;gap:8px"><b style="font-size:17px;min-width:0">${g ? 'Chọn mẫu cho ' + esc(g.name) : 'Chọn mẫu cố định cho nút WhatsApp'}</b><button class="x" onclick="M.close()" aria-label="Đóng">${svg('x', 18, 2.4)}</button></div>
       <input id="fwQ" placeholder="Tìm mẫu…" oninput="M.findWaDraw()" style="width:100%;margin-top:12px;min-height:46px;border-radius:12px;border:1px solid #E2E5EB;padding:0 12px;font-size:16px">
       <div id="fwList" style="margin-top:10px;max-height:60vh;overflow:auto"></div>
       <button onclick="M.findBack()" style="width:100%;margin-top:8px;min-height:44px;border-radius:12px;border:1px solid #E2E5EB;background:#fff;font-weight:800">← Quay lại tìm khách</button></div></div>`;
@@ -1176,7 +1197,8 @@ button.info.on{border-color:#0E1525;background:#fff}
     $('#fwList').innerHTML = html || '<div class="empty" style="padding:20px 0">Không có mẫu nào.</div>';
   };
   M.findWaPick = async (tid) => {
-    const g = S.findCur; if (!g) return; LS.set('findTpl', tid);
+    const g = S.findCur; LS.set('findTpl', tid);
+    if (!g) { toast('Đã đặt mẫu cho nút WhatsApp'); return M.findBack(); }
     const j = await fetch('/api/journey/compose?greet=1&template_id=' + tid + '&booking_id=' + encodeURIComponent(g.id)).then((r) => r.json()).catch(() => null);
     if (!j || !j.success) return toast('Không lấy được mẫu — thử lại');
     const t = (g.vn && j.template.text_vi) || j.text || j.template.text_vi || ''; S.findText = t;
