@@ -299,3 +299,4 @@ Owner: "tách … đầu tư cố định giống tiền nhà, tiền khách c�
   never in `chi_month_total` (bot replies + monthly message); img / set / delete / photo → 403/404 when locked.
   Bot: a receipt with the caption "riêng" → book 'rieng'. Test `test_chi_books_and_private_pin` (puts the PIN settings back).
   Claude never sets the owner's PIN — the owner sets it on the page.
+- Lịch phòng 💰 Cần thu box (owner Nov 27): every unpaid guest row has a green "✓ Đã thu" button (`.dpay` → `M.payOpen`) = the collect sheet straight away (LOC LE / THAO LE, one tap saves) — no need to open the guest card.
