@@ -294,3 +294,6 @@ page applied the date filter. `/api/ext/month_report` → one Zalo line (new gue
 - Calendar: guests with no phone (not partner, not arrived) = 📋 "Mới lấy từ danh sách (chưa SĐT)" — dotted grey bar on
   /moi and /may-tinh (legend + count); the morning run opens them on their arrival day. /may-tinh Lịch has 30 ngày;
   /moi loads 45 days ahead (`?ahead=45`) and pages up to day 45.
+- 1.57 (owner Nov 26: "đừng lấy tất cả khách tới cuối tháng … xếp sai rất nhiều … chỉ lấy khách 1 tới 2 ngày"): the daily
+  list job (`monthRange`) reads arrivals TODAY + TOMORROW only (was: to the end of the month). The 57 guests already taken
+  for 29/11–31/12 were kept (owner chose "Giữ lại"). Manual "📅 Lưu cả danh sách vào lịch" still saves whatever range is shown.

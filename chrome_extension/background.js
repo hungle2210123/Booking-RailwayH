@@ -220,7 +220,7 @@ function ensureAlarm(name, periodInMinutes) {
 ensureAlarm('hp-selfupdate', 5);
 // written in THIS script (getManifest() would give the new manifest even when the script is an old cached copy);
 // tests/test_parsers.py checks it equals manifest.json
-const BG_VER = '1.56.0';
+const BG_VER = '1.57.0';
 // 1.51: the popup / options page asks which version the BACKGROUND runs (Nov 22: after a Chrome restart the manifest
 // was new but Chrome kept the cached 1.47 background script — only a reload replaces it)
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
@@ -281,11 +281,11 @@ async function pendingCheck() {
 // 📅 1.55 (owner Nov 25: "lấy cả tháng … để có cái nhìn bao quát hơn về lịch"): once a day, after the morning run, read
 // Booking's reservation LIST of every property of this profile (Nhận phòng from today → end of the month — the end of
 // NEXT month when fewer than 7 days are left, status OK, every page) → /api/ext/month_sync adds the guests the web lacks.
+// 1.57 (owner Nov 26: "đừng lấy tất cả khách tới cuối tháng … xếp sai rất nhiều … chỉ lấy khách 1 tới 2 ngày"):
+// the daily list = arrivals TODAY and TOMORROW only
 function monthRange() {
-  const t = new Date();
-  let end = new Date(t.getFullYear(), t.getMonth() + 1, 0);
-  if ((end - t) / 864e5 < 7) end = new Date(t.getFullYear(), t.getMonth() + 2, 0);
-  return { from: today(), to: end.toLocaleDateString('sv') };
+  const t = new Date(), tm = new Date(t.getFullYear(), t.getMonth(), t.getDate() + 1);
+  return { from: today(), to: tm.toLocaleDateString('sv') };
 }
 async function monthCheck(hotels) {
   const { hpMonthDay, hpMonth } = await chrome.storage.local.get(['hpMonthDay', 'hpMonth']);

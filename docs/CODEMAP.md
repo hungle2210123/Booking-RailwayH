@@ -659,7 +659,7 @@ _p18_chi — 💸 Chi tiêu = ảnh biên lai chuyển khoản gửi cho bot Zal
 
 ## chrome_extension/background.js
 - chrome_extension/background.js: 6 `settings` · 30 `shoot` · 78 `cdpShot` · 102 `morningTime` · 107 `scheduleMorning` · 116 `stayAwake` · 125 `openTab` · 132 `morningRun`
-- chrome_extension/background.js: 149 `checkSignedOut` · 160 `signedOutAlert` · 201 `selfUpdate` · 216 `ensureAlarm` · 235 `apiCall` · 244 `pendingCheck` · 284 `monthRange` · 290 `monthCheck`
+- chrome_extension/background.js: 149 `checkSignedOut` · 160 `signedOutAlert` · 201 `selfUpdate` · 216 `ensureAlarm` · 235 `apiCall` · 244 `pendingCheck` · 286 `monthRange` · 290 `monthCheck`
 - chrome_extension/background.js: 312 `logoutLoop` · 327 `cookieReset`
 
 # Templates (inline JS functions)

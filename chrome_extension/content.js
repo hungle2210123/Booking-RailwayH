@@ -1401,7 +1401,7 @@
       if (ses) location.href = monthUrl(hid, ses, job);      // no session yet = sign-in page: Tampermonkey signs in first
       return;
     }
-    toast(`📅 Đang lấy lịch cả tháng · chỗ nghỉ ${job.i + 1}/${job.hotels.length} · ${esc(job.from)} → ${esc(job.to)}`, 'ok', 5000);
+    toast(`📅 Đang lấy khách hôm nay + ngày mai · chỗ nghỉ ${job.i + 1}/${job.hotels.length} · ${esc(job.from)} → ${esc(job.to)}`, 'ok', 5000);
     const { pages, complete } = await readAllPages(20);
     let r = null;
     try { r = await api('/api/ext/month_sync', { pages, date_from: job.from, date_to: job.to, account: await hpAccount(), complete }); } catch (e) {}
