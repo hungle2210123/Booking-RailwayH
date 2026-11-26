@@ -575,7 +575,7 @@
       for (const r of D.rows) {
         if (r.day !== day) { day = r.day; html += `<div class="day"><span>${esc(dayLbl(day))}</span><span class="num">${money(sumDay[day])}</span></div>`; }
         html += `<div class="it" style="align-items:center"><div class="ico" style="height:44px">📒</div><div class="bd"><div class="r1"><div class="ttl">Nộp ${esc(name[r.pot] || r.pot)}</div>
-          <div class="amt num">${money(r.amount)}</div></div>${r.note ? `<div class="sub">${esc(r.note)}</div>` : ''}<div class="mut">${esc(r.at.split(' ')[0])}</div></div></div>`;
+          <div class="amt num">${money(r.amount)}</div></div>${r.note ? `<div class="sub">${esc(r.note)}</div>` : ''}<div class="mut">${esc(r.at.split(' ')[0])}</div></div>${RO ? '' : `<button class="tag ed" style="flex:none" onclick="Chi.nopEdit(${r.id})">✏️ Sửa</button>`}</div>`;
       }
       html += '</div>';
     } else html += '<div class="card mut">Tháng này chưa có lần nộp nào.</div>';
@@ -844,6 +844,29 @@
     $('sh').style.display = 'flex';
     amt.focus();
   }
+  function nopEdit(id) {       // ✏️ Sửa a mistyped Sổ nộp tiền row — only with the 🔒 PIN (owner, Nov 27)
+    const r = D && D.rows.find((x) => x.id === id); if (!r) return;
+    $('shIn').innerHTML = `<div style="font-size:16px;font-weight:800">✏️ Sửa lần nộp ${esc(r.at)}</div>
+      <label class="fl">Nộp vào<select id="nPot">${D.pots.map((p) => `<option value="${esc(p.key)}"${p.key === r.pot ? ' selected' : ''}>${esc(p.name)}</option>`).join('')}</select></label>
+      <label class="fl">Số tiền (đồng)<input id="nAmt" inputmode="numeric" autocomplete="off" value="${esc(Number(r.amount).toLocaleString('vi-VN'))}"></label>
+      <div class="mut" id="nAmtV" style="margin-top:4px"></div>
+      <label class="fl">Ghi chú<input id="nNote" autocomplete="off" value="${esc(r.note)}"></label>
+      <label class="fl">🔒 Mã PIN<input id="nPin" type="password" inputmode="numeric" autocomplete="off" placeholder="Mã PIN của phần Riêng tôi"></label>
+      <div style="display:flex;gap:8px;margin-top:12px"><button class="btn dark" id="nSave" style="flex:1">Lưu</button><button class="btn" onclick="document.getElementById('sh').style.display='none'">Thôi</button></div>`;
+    const amt = $('nAmt');
+    const show = () => { const n = Number(amt.value.replace(/\D/g, '')); $('nAmtV').textContent = n ? '= ' + money(n) : 'Gõ số tiền'; };
+    amt.oninput = () => { const n = amt.value.replace(/\D/g, ''); amt.value = n ? Number(n).toLocaleString('vi-VN') : ''; show(); };
+    show();
+    $('sh').style.display = 'flex'; $('nPin').focus();
+    $('nSave').onclick = async () => {
+      const n = Number(amt.value.replace(/\D/g, '')), pin = $('nPin').value.replace(/\D/g, '');
+      if (!n) return alert('Gõ số tiền');
+      if (!pin) return alert('Gõ mã PIN');
+      const j = await post('/api/moi/deposits', { edit: id, pin, amount: n, pot: $('nPot').value, note: $('nNote').value });
+      if (!j.success) return alert('Chưa lưu được: ' + (j.error || 'lỗi mạng'));
+      $('sh').style.display = 'none'; load(month);
+    };
+  }
   function edit(id) {          // ✏️ Sửa — the AI misread the amount / the words (owner, Nov 24)
     const r = J.items.find((x) => x.id === id); if (!r) return;
     const what = String(r.note || '').split('\n').filter((x) => !x.startsWith('🎤')).join(' ');
@@ -975,7 +998,7 @@
     try { return await (await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })).json(); } catch (e) { return {}; }
   }
   window.Chi = {
-    load, pick, share, tab, edit, add,
+    load, pick, share, tab, edit, add, nopEdit,
     filt: (key, v) => { if (!key) F = { ...F, apt: null, payer: null, cat: null }; else F[key] = F[key] === v ? null : v; draw(); },
     cat: (c) => { F.cat = F.cat === c ? null : c; draw(); },
     book: (b) => { BOOK = BOOK === b ? null : b; F = { ...F, apt: null, payer: null, cat: null, day: null, todo: false }; S = { kind: 'chi', cat: null, q: S.q }; SEL = null; draw(); drawStat(); },

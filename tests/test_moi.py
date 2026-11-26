@@ -1071,6 +1071,17 @@ def test_cash_deposit_book(app, db, client):
         assert any(r['id'] == ids[0] and r['at'] for r in j['rows']) and len(j['months']) == 6
         assert j['months'][0]['month'] == j['month']
         assert client.post('/api/moi/deposits', json={'delete': ids.pop()}).get_json()['success']
+        # ✏️ Sửa a mistyped row only with the 🔒 PIN (owner Nov 27) — the PIN check is stubbed so the real fail counter is untouched
+        real = appmod.chi_pin_check
+        try:
+            appmod.chi_pin_check = lambda _db, pin: None if pin == '1234' else 'Sai mã PIN'
+            r = client.post('/api/moi/deposits', json={'edit': ids[0], 'pin': '9999', 'amount': 1})
+            assert r.status_code == 403 and not r.get_json()['success']
+            assert client.post('/api/moi/deposits', json={'edit': ids[0], 'pin': '1234', 'amount': '7.000.000', 'pot': 'chung', 'note': 'ZZ TEST sửa'}).get_json()['success']
+        finally:
+            appmod.chi_pin_check = real
+        row = next(r for r in client.get('/api/moi/deposits').get_json()['rows'] if r['id'] == ids[0])
+        assert row['amount'] == 7_000_000 and row['pot'] == 'chung' and row['note'] == 'ZZ TEST sửa'
     finally:
         with app.app_context():
             for i in ids:

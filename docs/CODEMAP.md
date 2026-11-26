@@ -204,7 +204,7 @@ _p12_sync_crawl_duplicates — sync services, crawl admin bookings, bulk save, d
 - app_parts/p13_misc_railway.py:1087 `extract_meter_data_with_openrouter` — Extract electricity meter data using various free models via OpenRouter API
 - app_parts/p13_misc_railway.py:1198 `extract_meter_data_with_multi_api` — Extract electricity meter data using multiple APIs with automatic fallback
 
-## app_parts/p15_moi.py (1193 lines)
+## app_parts/p15_moi.py (1211 lines)
 _p15_moi — /moi: the new phone-first app (owner, Oct 26), built from the approved mockup. Runs NEXT TO the old pages_
 - app_parts/p15_moi.py:12 `_moi_ensure` — bookings.room_no (room 1..N inside the placed apartment) — added once per process.
 - app_parts/p15_moi.py:37 `_moi_apartments` — Active apartments with short name, colour (index among ALL apartments, like the calendar) and room count.
@@ -341,7 +341,7 @@ _p17_mail — 📧 Booking.com e-mails → the app (owner, Nov 12: "khi nhận �
 - app_parts/p17_mail.py:824 `ext_month_sync` ← `/api/ext/month_sync` POST
 - app_parts/p17_mail.py:892 `ext_month_report` ← `/api/ext/month_report` POST — One Zalo line after the whole month run (all properties of this profile) — only when something is new / gone.
 
-## app_parts/p18_chi.py (1039 lines)
+## app_parts/p18_chi.py (1056 lines)
 _p18_chi — 💸 Chi tiêu = ảnh biên lai chuyển khoản gửi cho bot Zalo "Chi tiêu" (owner, Nov 22 2026:_
 - app_parts/p18_chi.py:20 `_chi_ensure`
 - app_parts/p18_chi.py:48 `_chi_token`
@@ -381,16 +381,17 @@ _p18_chi — 💸 Chi tiêu = ảnh biên lai chuyển khoản gửi cho bot Zal
 - app_parts/p18_chi.py:717 `_chi_pin_hash`
 - app_parts/p18_chi.py:721 `chi_priv_ok`
 - app_parts/p18_chi.py:728 `_chi_priv_grant`
-- app_parts/p18_chi.py:738 `chi_pin` ← `/api/chi/pin` POST — {action: status | set (first time, or a new PIN from an unlocked device) | open | lock | forgot | reset}.
-- app_parts/p18_chi.py:797 `_chi_row_private`
-- app_parts/p18_chi.py:802 `chi_list` ← `/api/chi/list`
-- app_parts/p18_chi.py:845 `chi_img` ← `/api/chi/img/<int:rid>`
-- app_parts/p18_chi.py:857 `chi_delete` ← `/api/chi/delete` POST
-- app_parts/p18_chi.py:869 `chi_set` ← `/api/chi/set` POST — One tap on /chi-tieu: {id, apt} (one of CHI_APTS or '') or {id, payer} (any name, '' = not known).
-- app_parts/p18_chi.py:925 `_chi_upload` — The picture sent from /chi-tieu (multipart 'image') → (bytes, mime) or (None, error).
-- app_parts/p18_chi.py:939 `chi_add` ← `/api/chi/add` POST — ➕ Thêm khoản on /chi-tieu (owner, Nov 24: "một nút nữa để ghi nội dung và thêm hình ảnh chuyển khoản"):
-- app_parts/p18_chi.py:975 `chi_photo` ← `/api/chi/photo/<int:rid>` POST — ✏️ Sửa → 📎 add / change the transfer picture of one item (multipart 'image'; remove=1 takes it away).
-- app_parts/p18_chi.py:994 `chi_bot` ← `/api/chi/bot` POST — token (getMe → setWebhook) · open (30 min: new people may connect) · remove a chat · off.
+- app_parts/p18_chi.py:737 `chi_pin_check` — The 🔒 PIN typed for one action (✏️ Sửa a Sổ nộp tiền row, owner Nov 27) → None if right, else the error text.
+- app_parts/p18_chi.py:755 `chi_pin` ← `/api/chi/pin` POST — {action: status | set (first time, or a new PIN from an unlocked device) | open | lock | forgot | reset}.
+- app_parts/p18_chi.py:814 `_chi_row_private`
+- app_parts/p18_chi.py:819 `chi_list` ← `/api/chi/list`
+- app_parts/p18_chi.py:862 `chi_img` ← `/api/chi/img/<int:rid>`
+- app_parts/p18_chi.py:874 `chi_delete` ← `/api/chi/delete` POST
+- app_parts/p18_chi.py:886 `chi_set` ← `/api/chi/set` POST — One tap on /chi-tieu: {id, apt} (one of CHI_APTS or '') or {id, payer} (any name, '' = not known).
+- app_parts/p18_chi.py:942 `_chi_upload` — The picture sent from /chi-tieu (multipart 'image') → (bytes, mime) or (None, error).
+- app_parts/p18_chi.py:956 `chi_add` ← `/api/chi/add` POST — ➕ Thêm khoản on /chi-tieu (owner, Nov 24: "một nút nữa để ghi nội dung và thêm hình ảnh chuyển khoản"):
+- app_parts/p18_chi.py:992 `chi_photo` ← `/api/chi/photo/<int:rid>` POST — ✏️ Sửa → 📎 add / change the transfer picture of one item (multipart 'image'; remove=1 takes it away).
+- app_parts/p18_chi.py:1011 `chi_bot` ← `/api/chi/bot` POST — token (getMe → setWebhook) · open (30 min: new people may connect) · remove a chat · off.
 
 ## core/__init__.py (3 lines)
 
@@ -664,12 +665,12 @@ _p18_chi — 💸 Chi tiêu = ảnh biên lai chuyển khoản gửi cho bot Zal
 
 # Templates (inline JS functions)
 
-## templates/chi.html (1024 lines)
+## templates/chi.html (1047 lines)
 - templates/chi.html: 348 `desk` · 389 `det` · 412 `catColor` · 417 `sumBy` · 422 `donut` · 434 `legend` · 438 `dayChart` · 480 `groups`
 - templates/chi.html: 490 `drawGroups` · 515 `drawStat` · 554 `tab` · 562 `drawNop` · 588 `view` · 595 `breakdown` · 608 `drawBooks` · 625 `ledger`
 - templates/chi.html: 636 `draw` · 692 `load` · 718 `photoField` · 728 `usePhoto` · 734 `pasteClip` · 751 `photoWire` · 759 `shrink` · 769 `form`
-- templates/chi.html: 774 `bookField` · 779 `bookWire` · 786 `kindField` · 792 `catField` · 797 `kindWire` · 807 `add` · 847 `edit` · 884 `pick`
-- templates/chi.html: 900 `save` · 907 `pinSheet` · 942 `share` · 955 `copy` · 959 `drawBot` · 974 `post`
+- templates/chi.html: 774 `bookField` · 779 `bookWire` · 786 `kindField` · 792 `catField` · 797 `kindWire` · 807 `add` · 847 `nopEdit` · 870 `edit`
+- templates/chi.html: 907 `pick` · 923 `save` · 930 `pinSheet` · 965 `share` · 978 `copy` · 982 `drawBot` · 997 `post`
 
 ## templates/desk.html (1451 lines)
 - templates/desk.html: 339 `load` · 352 `loadRev` · 365 `needRev` · 383 `D.tab` · 384 `D.set` · 385 `D.q` · 386 `D.reload` · 388 `D.shift`

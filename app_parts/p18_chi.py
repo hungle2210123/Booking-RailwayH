@@ -734,6 +734,23 @@ def _chi_priv_grant(_xdb, resp, fresh=False):
     return resp
 
 
+def chi_pin_check(_xdb, pin):
+    """The 🔒 PIN typed for one action (✏️ Sửa a Sổ nộp tiền row, owner Nov 27) → None if right, else the error text.
+    Same PIN and same 5-tries / 15-minutes rule as opening 🔒 Riêng tôi."""
+    cur = _zbot_get(_xdb, 'chi_pin') or {}
+    if not cur:
+        return 'Chưa đặt mã PIN — đặt ở phần 🔒 Riêng tôi (trang Nộp & Chi)'
+    fail = _zbot_get(_xdb, 'chi_pin_fail') or {}
+    if float(fail.get('until') or 0) > time.time():
+        return f"Sai nhiều lần — thử lại sau {int((fail['until'] - time.time()) // 60) + 1} phút"
+    if not secrets.compare_digest(_chi_pin_hash(re.sub(r'\D', '', str(pin or '')), cur['s']), cur['h']):
+        n = int(fail.get('n') or 0) + 1
+        _zbot_put(_xdb, 'chi_pin_fail', {'n': 0, 'until': time.time() + 900} if n >= 5 else {'n': n})
+        return 'Sai mã PIN' + (' — khóa 15 phút' if n >= 5 else f' (còn {5 - n} lần)')
+    _zbot_put(_xdb, 'chi_pin_fail', {})
+    return None
+
+
 @app.route('/api/chi/pin', methods=['POST'])
 def chi_pin():
     """{action: status | set (first time, or a new PIN from an unlocked device) | open | lock | forgot | reset}."""

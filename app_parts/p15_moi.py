@@ -1138,7 +1138,8 @@ def _dep_ensure(_xdb):
 def moi_deposits():
     """GET ?month=YYYY-MM → that month's rows + total per pot + the last 6 months' totals.
     POST {pot, amount, note?, day?} → add a row (day = YYYY-MM-DD, default today; time = now, Vietnam time).
-    POST {delete: id} → remove a mistyped row."""
+    POST {delete: id} → remove a mistyped row.
+    POST {edit: id, pin, amount, pot?, note?} → ✏️ fix a mistyped row (owner Nov 27), only with the 🔒 PIN (p18 chi_pin_check)."""
     from core.models import db as _xdb
     _dep_ensure(_xdb)
     pots = {k for k, _, _ in DEPOSIT_POTS}
@@ -1147,6 +1148,23 @@ def moi_deposits():
         d = request.get_json(silent=True) or {}
         if d.get('delete'):
             n = _xdb.session.execute(text("DELETE FROM cash_deposits WHERE id = :i"), {'i': int(d['delete'])}).rowcount
+            _xdb.session.commit()
+            return jsonify({'success': bool(n)})
+        if d.get('edit'):
+            err = chi_pin_check(_xdb, d.get('pin'))
+            if err:
+                return jsonify({'success': False, 'error': err}), 403
+            try:
+                amount = int(re.sub(r'[^\d]', '', str(d.get('amount') or '')) or 0)
+            except ValueError:
+                amount = 0
+            pot = d.get('pot') or None
+            if amount <= 0 or amount > 10_000_000_000 or (pot and pot not in pots):
+                return jsonify({'success': False, 'error': 'Số tiền không đúng'}), 400
+            n = _xdb.session.execute(text("""UPDATE cash_deposits SET amount = :a, pot = COALESCE(:p, pot),
+                                             note = COALESCE(:n, note) WHERE id = :i"""),
+                                     {'a': amount, 'p': pot, 'i': int(d['edit']),
+                                      'n': None if d.get('note') is None else str(d['note']).strip()[:200]}).rowcount
             _xdb.session.commit()
             return jsonify({'success': bool(n)})
         try:
