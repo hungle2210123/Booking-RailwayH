@@ -1115,6 +1115,8 @@ def test_ask_whatsapp_from_phone(client, db, booking, app_module):
         assert client.post('/api/ext/chat_jobs', json={'hotels': ['1']}).get_json()['jobs'] == []   # other account
         jobs = [j for j in client.post('/api/ext/chat_jobs', json={'hotels': [hid[0]], 'take': False}).get_json()['jobs']]
         assert jobs and jobs[0]['bid'] == bid and 'Zed' in jobs[0]['text'] and '{ten}' not in jobs[0]['text']
+        # the button's own message (owner Nov 27): 'Hỏi WhatsApp qua Booking (EN)' = the owner's WhatsApp link
+        assert r['job']['tpl'] == A.ASK_WA_EN and 'wa.me/' in jobs[0]['text'] and '{cho}' not in jobs[0]['text']
         j = client.post('/api/ext/chat_jobs', json={'hotels': [hid[0]], 'pid': 'zz-test'}).get_json()['jobs'][0]
         assert client.post('/api/ext/chat_jobs', json={'hotels': [hid[0]]}).get_json()['jobs'] == []   # taken
         assert client.post('/api/ext/chat_done', json={'job': j['job'], 'ok': True}).get_json()['status'] == 'sent'

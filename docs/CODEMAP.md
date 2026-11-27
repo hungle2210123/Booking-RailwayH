@@ -307,7 +307,7 @@ _p16_staff — 👥 Nhân viên (owner, Nov 6): the cleaners talk to the Zalo bo
 - app_parts/p16_staff.py:886 `moi_staff` ← `/api/moi/staff` GET,POST — 👥 Nhân viên sheet in /moi: waiting requests, who is off today, month list; actions: decide, add (leave/extra),
 - app_parts/p16_staff.py:957 `staff_copy_owner` — Copy of a cleaner's message to the bot + the bot's answer → the owner(s).
 
-## app_parts/p17_mail.py (1074 lines)
+## app_parts/p17_mail.py (1085 lines)
 _p17_mail — 📧 Booking.com e-mails → the app (owner, Nov 12: "khi nhận được mail thì hệ thống tự cập nhật trên app là đang có_
 - app_parts/p17_mail.py:21 `_mail_ensure`
 - app_parts/p17_mail.py:37 `_mail_token`
@@ -335,19 +335,19 @@ _p17_mail — 📧 Booking.com e-mails → the app (owner, Nov 12: "khi nhận �
 - app_parts/p17_mail.py:590 `mail_fetched` — The extension saved this booking from its Booking page → it is no longer waiting to be fetched.
 - app_parts/p17_mail.py:606 `ext_pending` ← `/api/ext/pending` POST
 - app_parts/p17_mail.py:684 `_chat_ensure`
-- app_parts/p17_mail.py:698 `_ask_wa_text` — (job fields, error) for the 'ask for a number' Booking-chat message of this booking.
-- app_parts/p17_mail.py:731 `_chat_job_info`
-- app_parts/p17_mail.py:737 `moi_ask_wa` ← `/api/moi/ask_wa` GET,POST — GET ?booking_id= → the last job of this guest. POST {booking_id, again?} → queue the message (the PC sends it)
-- app_parts/p17_mail.py:767 `ext_chat_jobs` ← `/api/ext/chat_jobs` POST — The extension asks for ONE waiting job of its Booking account's properties (and takes it).
-- app_parts/p17_mail.py:802 `ext_chat_done` ← `/api/ext/chat_done` POST — {job, ok, clicked, final, why} — the extension finished one job → status + one Zalo line.
-- app_parts/p17_mail.py:827 `_claim_today` — True for the first caller of the day only (several gunicorn workers tick at the same minute).
-- app_parts/p17_mail.py:837 `morning_watch` — 7:20–7:59 VN: no run started today → one warning; a run started > 30 min ago and not finished → one warning.
-- app_parts/p17_mail.py:874 `moi_mail_bot` ← `/api/moi/mail_bot` POST — Setup of the booking bot: token (checked with getMe, then setWebhook) · test · remove a receiver · off (back t
-- app_parts/p17_mail.py:911 `_mail_setup_info`
-- app_parts/p17_mail.py:953 `moi_mail_setup` ← `/api/moi/mail_setup` — 📧 setup sheet: the script to paste into Google Apps Script (with this app's private address) + the last mail r
-- app_parts/p17_mail.py:971 `_month_range_ok`
-- app_parts/p17_mail.py:977 `ext_month_sync` ← `/api/ext/month_sync` POST
-- app_parts/p17_mail.py:1045 `ext_month_report` ← `/api/ext/month_report` POST — One Zalo line after the whole month run (all properties of this profile) — only when something is new / gone.
+- app_parts/p17_mail.py:701 `_ask_wa_text` — (job fields, error) for the 'ask for a number' Booking-chat message of this booking.
+- app_parts/p17_mail.py:742 `_chat_job_info`
+- app_parts/p17_mail.py:748 `moi_ask_wa` ← `/api/moi/ask_wa` GET,POST — GET ?booking_id= → the last job of this guest. POST {booking_id, again?} → queue the message (the PC sends it)
+- app_parts/p17_mail.py:778 `ext_chat_jobs` ← `/api/ext/chat_jobs` POST — The extension asks for ONE waiting job of its Booking account's properties (and takes it).
+- app_parts/p17_mail.py:813 `ext_chat_done` ← `/api/ext/chat_done` POST — {job, ok, clicked, final, why} — the extension finished one job → status + one Zalo line.
+- app_parts/p17_mail.py:838 `_claim_today` — True for the first caller of the day only (several gunicorn workers tick at the same minute).
+- app_parts/p17_mail.py:848 `morning_watch` — 7:20–7:59 VN: no run started today → one warning; a run started > 30 min ago and not finished → one warning.
+- app_parts/p17_mail.py:885 `moi_mail_bot` ← `/api/moi/mail_bot` POST — Setup of the booking bot: token (checked with getMe, then setWebhook) · test · remove a receiver · off (back t
+- app_parts/p17_mail.py:922 `_mail_setup_info`
+- app_parts/p17_mail.py:964 `moi_mail_setup` ← `/api/moi/mail_setup` — 📧 setup sheet: the script to paste into Google Apps Script (with this app's private address) + the last mail r
+- app_parts/p17_mail.py:982 `_month_range_ok`
+- app_parts/p17_mail.py:988 `ext_month_sync` ← `/api/ext/month_sync` POST
+- app_parts/p17_mail.py:1056 `ext_month_report` ← `/api/ext/month_report` POST — One Zalo line after the whole month run (all properties of this profile) — only when something is new / gone.
 
 ## app_parts/p18_chi.py (1056 lines)
 _p18_chi — 💸 Chi tiêu = ảnh biên lai chuyển khoản gửi cho bot Zalo "Chi tiêu" (owner, Nov 22 2026:_

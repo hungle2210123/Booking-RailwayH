@@ -312,3 +312,6 @@ for it to be SENT — one guest per tap, never bulk), sent = box emptied → `/a
 Test `test_ask_whatsapp_from_phone` (Zalo stubbed).
 Nov 27 (owner: "nút đấy nằm ở đâu" — a Không liên lạc được guest WITH a number had none): the button also shows on the
 Nhắn khách cards (`msgCard`) and the guest card when the guest has no number, OR is Không liên lạc được, OR Không dùng WhatsApp.
+Nov 27 (owner: the button's message is for guests we could not reach): `_ask_wa_text` uses its OWN templates
+'Hỏi WhatsApp qua Booking (EN)' / '(VI)' (category 'Hỏi WhatsApp qua Booking', DB only — they hold the owner's WhatsApp
+number + wa.me link, editable in Mẫu Câu); Chinese guests keep WeChat; 'Xin số …' only as a fallback.

@@ -695,6 +695,9 @@ def _chat_ensure(_xdb):
     _CHAT_READY = True
 
 
+ASK_WA_EN, ASK_WA_VI = 'Hỏi WhatsApp qua Booking (EN)', 'Hỏi WhatsApp qua Booking (VI)'
+
+
 def _ask_wa_text(_xdb, bid):
     """(job fields, error) for the 'ask for a number' Booking-chat message of this booking."""
     _ensure_partner_column()
@@ -715,8 +718,16 @@ def _ask_wa_text(_xdb, bid):
         return None, 'Chưa biết chỗ nghỉ Booking của khách này — mở đặt phòng này trên máy tính một lần'
     name = r[0] or ''
     tpls = {t['name']: t for t in _auto_msg_templates()}
+    # owner Nov 27 ("câu bấm trên đt cho khách không liên lạc được"): the button has its OWN messages, editable in Mẫu Câu,
+    # category 'Hỏi WhatsApp qua Booking' — "we could not reach you, message me on WhatsApp <owner's number>".
+    # Chinese guests keep the WeChat one; the 'Xin số …' ones are only a fallback.
+    own = {n: {'name': n, 'content': c} for n, c in _xdb.session.execute(text(
+        "SELECT template_name, template_content FROM message_templates WHERE template_name = ANY(:n)"),
+        {'n': [ASK_WA_EN, ASK_WA_VI]}).fetchall()}
+    vn = _is_vn_guest(name)
     t = (tpls.get(AUTO_MSG_ZH_NAME) if _is_chinese_guest(name) else None) \
-        or tpls.get(AUTO_MSG_PARTNER_VI_NAME if _is_vn_guest(name) else AUTO_MSG_PARTNER_NAME)
+        or own.get(ASK_WA_VI if vn else ASK_WA_EN) \
+        or tpls.get(AUTO_MSG_PARTNER_VI_NAME if vn else AUTO_MSG_PARTNER_NAME)
     if not t:
         return None, 'Không thấy mẫu "Xin số …" — kiểm tra Mẫu Câu'
     cho = r[4] or ''
