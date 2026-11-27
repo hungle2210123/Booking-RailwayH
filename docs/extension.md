@@ -310,3 +310,5 @@ never a note field; opens "Trò chuyện với khách" if needed), types, `chatS
 for it to be SENT — one guest per tap, never bulk), sent = box emptied → `/api/ext/chat_done` {ok, clicked, final}
 → Zalo line; tab closes. Not finished in 10 min → offered again (2 tries); once Gửi was clicked it is never re-sent.
 Test `test_ask_whatsapp_from_phone` (Zalo stubbed).
+Nov 27 (owner: "nút đấy nằm ở đâu" — a Không liên lạc được guest WITH a number had none): the button also shows on the
+Nhắn khách cards (`msgCard`) and the guest card when the guest has no number, OR is Không liên lạc được, OR Không dùng WhatsApp.
