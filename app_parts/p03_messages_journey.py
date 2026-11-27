@@ -809,7 +809,7 @@ def _journey_booking(_xdb, booking_id):
     _ensure_partner_column()
     row = _xdb.session.execute(text("""
         SELECT b.booking_id, COALESCE(g.full_name, b.guest_name), b.checkin_date, b.checkout_date,
-               b.accommodation_name, g.phone, b.actual_apartment, b.via_partner, b.property_name
+               b.accommodation_name, g.phone, b.actual_apartment, b.via_partner, b.property_name, b.room_no
         FROM bookings b LEFT JOIN guests g ON g.guest_id = b.guest_id WHERE b.booking_id = :b"""),
         {'b': booking_id}).fetchone()
     if not row:
@@ -820,6 +820,10 @@ def _journey_booking(_xdb, booking_id):
     guest = {'ten': row[1] or '', 'nhan': row[2].strftime('%d/%m') if row[2] else '',
              'tra': row[3].strftime('%d/%m') if row[3] else '', 'phong': _room_label(row[4]),
              'can': apt['name'] if apt else '', 'cho': row[8] or ''}
+    if apt_id is not None and row[9]:        # {so_phong}: the owner's room name ("101") when it is a number
+        nm = _xdb.session.execute(text("SELECT name FROM moi_room_names WHERE apartment_id = :a AND room_no = :n"),
+                                  {'a': apt_id, 'n': row[9]}).scalar() or ''
+        guest['so'] = nm.strip() if re.fullmatch(r'\s*[\w-]{1,6}\s*', nm or '') else ''
     partner = bool(row[7])
     return {'id': row[0], 'name': row[1] or row[0], 'checkin': row[2], 'checkout': row[3], 'guest': guest,
             'phone': _real_guest_phone(row[5], partner),

@@ -174,3 +174,10 @@ def test_room_picture_label_is_not_a_room():
     p2 = parse_reservation_page({'text': chr(10).join(lines2), 'pairs': [['Room', 'photo']],
                                  'url': 'https://admin.booking.com/x?res_id=9990001234'})
     assert p2['listing'] == 'Deluxe King Studio'
+
+
+def test_fill_room_number_token():
+    """{so_phong} (owner Nov 27, 19 Thọ Nhuộm check-in): the placed room's number, nothing when not placed."""
+    from core import journey as J
+    assert J.fill('your room{so_phong} is', {'so': '102'}) == 'your room 102 is'
+    assert J.fill('your room{so_phong} is', {}) == 'your room is'

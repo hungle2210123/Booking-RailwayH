@@ -61,7 +61,7 @@ _p01_health_cancellations — health, cancellations centre, OK status, auto-sync
 - app_parts/p02_pages_extension.py:803 `ext_booking_phone` ← `/api/ext/booking/phone` POST — A reservation page now shows the guest phone (the owner clicked Booking's own
 - app_parts/p02_pages_extension.py:885 `_typed_phone` — A number the owner typed / pasted ("0905 123 456", "+33 6 12 34 56 78", "0033…") → '+<digits>' or ''.
 
-## app_parts/p03_messages_journey.py (1373 lines)
+## app_parts/p03_messages_journey.py (1377 lines)
 _p03_messages_journey — phone from chat screenshots, /api/messages/phone, auto messages, AI reply, Booking screenshots, journey, Thu tiền (pay), /tin-nhanh, /messages_
 - app_parts/p03_messages_journey.py:13 `_owner_numbers` — Last 9 digits of every number written in the message templates (the owner's WhatsApp / WeChat / hotline).
 - app_parts/p03_messages_journey.py:25 `parse_chat_shot`
@@ -99,30 +99,30 @@ _p03_messages_journey — phone from chat screenshots, /api/messages/phone, auto
 - app_parts/p03_messages_journey.py:786 `journey_image_delete` ← `/api/journey/images/<int:image_id>` DELETE
 - app_parts/p03_messages_journey.py:794 `journey_image` ← `/api/journey/image/<int:image_id>`
 - app_parts/p03_messages_journey.py:805 `_journey_booking`
-- app_parts/p03_messages_journey.py:830 `_journey_texts`
-- app_parts/p03_messages_journey.py:838 `_journey_tpl` — The template as the send sheet gets it: id, name and its Vietnamese text (for 🔵 Zalo), filled in.
-- app_parts/p03_messages_journey.py:847 `_vn_guest_name` — Vietnamese guest: country code 'vn' after the name, or Vietnamese letters in it.
-- app_parts/p03_messages_journey.py:853 `journey_guest` ← `/api/journey/guest/<booking_id>` — Everything the 'send' sheet needs for one guest: each step's message (for the guest's apartment),
-- app_parts/p03_messages_journey.py:914 `journey_templates` ← `/api/journey/templates`
-- app_parts/p03_messages_journey.py:920 `journey_compose` ← `/api/journey/compose` — Any Mẫu Câu template, filled in for this guest ('➕ Tin khác').
-- app_parts/p03_messages_journey.py:943 `journey_template_vi` ← `/api/journey/vi/<int:template_id>` GET,POST — The Vietnamese text of a template (raw, with tokens) — read / saved from the send sheet's ✏️ Sửa mẫu gốc.
-- app_parts/p03_messages_journey.py:958 `journey_sent` ← `/api/journey/sent` POST
-- app_parts/p03_messages_journey.py:977 `_ensure_pay_table`
-- app_parts/p03_messages_journey.py:992 `_vnd`
-- app_parts/p03_messages_journey.py:996 `_vn_now`
-- app_parts/p03_messages_journey.py:1000 `_pay_items`
-- app_parts/p03_messages_journey.py:1063 `pay_mark` ← `/api/pay/mark` POST — 🙋 khách báo đã trả (method) / bỏ · 📝 note · 🙈 không cần thu / bỏ.
-- app_parts/p03_messages_journey.py:1091 `pay_collect` ← `/api/pay/collect` POST — 💰 the money actually gathered for a booking: added to collected_amount (an undo sends the same amount
-- app_parts/p03_messages_journey.py:1134 `_pay_by_apartment` — [{apt, n, left, max_over, items}] — one block per apartment (unplaced last). Inside: the guest who has owed th
-- app_parts/p03_messages_journey.py:1165 `quick_page` ← `/tin-nhanh` · `/quick`
-- app_parts/p03_messages_journey.py:1231 `_quick_custom` — The owner's own /tin-nhanh groups (owner, Oct 30: "thêm được các mục tùy muốn") — journey_prefs 'quick_groups'
-- app_parts/p03_messages_journey.py:1243 `_quick_groups`
-- app_parts/p03_messages_journey.py:1247 `_quick_extra` — {group key: [template ids]} added by the owner to /tin-nhanh groups (journey_prefs 'quick_extra'), or with
-- app_parts/p03_messages_journey.py:1260 `quick_extra_set` ← `/api/quick/extra` POST — Add / remove a template in one /tin-nhanh group (📌 Hay dùng uses the journey favorites instead).
-- app_parts/p03_messages_journey.py:1287 `_quick_labels` — {template id (str): title shown in Tin nhanh} — journey_prefs 'quick_labels' (🏷 Đổi tên, owner Nov 7).
-- app_parts/p03_messages_journey.py:1298 `quick_label_set` ← `/api/quick/label` POST — 🏷 Đổi tên: {id, label} — the title of that sentence in Tin nhanh; the template's own name (Mẫu Câu) follows.
-- app_parts/p03_messages_journey.py:1323 `quick_group_set` ← `/api/quick/group` POST — The owner's own Tin nhanh groups: {action: 'add', title} · {action: 'rename', key, title} · {action: 'delete',
-- app_parts/p03_messages_journey.py:1363 `quick_manifest` ← `/tin-nhanh.webmanifest`
+- app_parts/p03_messages_journey.py:834 `_journey_texts`
+- app_parts/p03_messages_journey.py:842 `_journey_tpl` — The template as the send sheet gets it: id, name and its Vietnamese text (for 🔵 Zalo), filled in.
+- app_parts/p03_messages_journey.py:851 `_vn_guest_name` — Vietnamese guest: country code 'vn' after the name, or Vietnamese letters in it.
+- app_parts/p03_messages_journey.py:857 `journey_guest` ← `/api/journey/guest/<booking_id>` — Everything the 'send' sheet needs for one guest: each step's message (for the guest's apartment),
+- app_parts/p03_messages_journey.py:918 `journey_templates` ← `/api/journey/templates`
+- app_parts/p03_messages_journey.py:924 `journey_compose` ← `/api/journey/compose` — Any Mẫu Câu template, filled in for this guest ('➕ Tin khác').
+- app_parts/p03_messages_journey.py:947 `journey_template_vi` ← `/api/journey/vi/<int:template_id>` GET,POST — The Vietnamese text of a template (raw, with tokens) — read / saved from the send sheet's ✏️ Sửa mẫu gốc.
+- app_parts/p03_messages_journey.py:962 `journey_sent` ← `/api/journey/sent` POST
+- app_parts/p03_messages_journey.py:981 `_ensure_pay_table`
+- app_parts/p03_messages_journey.py:996 `_vnd`
+- app_parts/p03_messages_journey.py:1000 `_vn_now`
+- app_parts/p03_messages_journey.py:1004 `_pay_items`
+- app_parts/p03_messages_journey.py:1067 `pay_mark` ← `/api/pay/mark` POST — 🙋 khách báo đã trả (method) / bỏ · 📝 note · 🙈 không cần thu / bỏ.
+- app_parts/p03_messages_journey.py:1095 `pay_collect` ← `/api/pay/collect` POST — 💰 the money actually gathered for a booking: added to collected_amount (an undo sends the same amount
+- app_parts/p03_messages_journey.py:1138 `_pay_by_apartment` — [{apt, n, left, max_over, items}] — one block per apartment (unplaced last). Inside: the guest who has owed th
+- app_parts/p03_messages_journey.py:1169 `quick_page` ← `/tin-nhanh` · `/quick`
+- app_parts/p03_messages_journey.py:1235 `_quick_custom` — The owner's own /tin-nhanh groups (owner, Oct 30: "thêm được các mục tùy muốn") — journey_prefs 'quick_groups'
+- app_parts/p03_messages_journey.py:1247 `_quick_groups`
+- app_parts/p03_messages_journey.py:1251 `_quick_extra` — {group key: [template ids]} added by the owner to /tin-nhanh groups (journey_prefs 'quick_extra'), or with
+- app_parts/p03_messages_journey.py:1264 `quick_extra_set` ← `/api/quick/extra` POST — Add / remove a template in one /tin-nhanh group (📌 Hay dùng uses the journey favorites instead).
+- app_parts/p03_messages_journey.py:1291 `_quick_labels` — {template id (str): title shown in Tin nhanh} — journey_prefs 'quick_labels' (🏷 Đổi tên, owner Nov 7).
+- app_parts/p03_messages_journey.py:1302 `quick_label_set` ← `/api/quick/label` POST — 🏷 Đổi tên: {id, label} — the title of that sentence in Tin nhanh; the template's own name (Mẫu Câu) follows.
+- app_parts/p03_messages_journey.py:1327 `quick_group_set` ← `/api/quick/group` POST — The owner's own Tin nhanh groups: {action: 'add', title} · {action: 'rename', key, title} · {action: 'delete',
+- app_parts/p03_messages_journey.py:1367 `quick_manifest` ← `/tin-nhanh.webmanifest`
 
 ## app_parts/p04_bookings_expenses.py (335 lines)
 _p04_bookings_expenses — /bookings list + add/edit/cancel/delete, manual entry, expenses API, save extracted_
@@ -498,7 +498,7 @@ _p18_chi — 💸 Chi tiêu = ảnh biên lai chuyển khoản gửi cho bot Zal
 - core/database_service_postgresql.py:786 `get_use_postgresql` — Always return True - PostgreSQL only
 - core/database_service_postgresql.py:790 `get_primary_backend` — Always return postgresql
 
-## core/journey.py (332 lines)
+## core/journey.py (334 lines)
 - core/journey.py:62 `ensure` — Create the tables / columns once per process and seed the first mapping.
 - core/journey.py:96 `_seed`
 - core/journey.py:114 `load_map` — {step: {apartment_id: template_id}}
@@ -512,15 +512,15 @@ _p18_chi — 💸 Chi tiêu = ảnh biên lai chuyển khoản gửi cho bot Zal
 - core/journey.py:185 `_fold`
 - core/journey.py:190 `clean_name` — Booking names often end with the country code ("Lucas de Kok nl").
 - core/journey.py:195 `fill` — Tokens: {ten} guest · {nhan} check-in dd/mm · {tra} check-out · {phong} " (room)" · {can} apartment ·
-- core/journey.py:208 `log_sent`
-- core/journey.py:240 `is_step_key` — Keys that can be logged: journey steps, pinned templates (not groups), the manual, unreachable and
-- core/journey.py:251 `unreachable_at` — VN time of a "📵 không liên lạc được" mark that still holds, else None. A guest who confirmed arrival, or got
-- core/journey.py:262 `vn_time` — 'HH:MM dd/mm' in Vietnam time for a journey_log time (stored in UTC).
-- core/journey.py:272 `last_contact` — The latest thing sent to a guest → {'label', 'at'} (VN time 'HH:MM dd/mm'), None when nothing yet.
-- core/journey.py:284 `_clean_fav`
-- core/journey.py:294 `get_prefs`
-- core/journey.py:305 `set_prefs`
-- core/journey.py:315 `favorites_named` — Pinned buttons ready to show: label (own, else the template / group name), key, kind.
+- core/journey.py:210 `log_sent`
+- core/journey.py:242 `is_step_key` — Keys that can be logged: journey steps, pinned templates (not groups), the manual, unreachable and
+- core/journey.py:253 `unreachable_at` — VN time of a "📵 không liên lạc được" mark that still holds, else None. A guest who confirmed arrival, or got
+- core/journey.py:264 `vn_time` — 'HH:MM dd/mm' in Vietnam time for a journey_log time (stored in UTC).
+- core/journey.py:274 `last_contact` — The latest thing sent to a guest → {'label', 'at'} (VN time 'HH:MM dd/mm'), None when nothing yet.
+- core/journey.py:286 `_clean_fav`
+- core/journey.py:296 `get_prefs`
+- core/journey.py:307 `set_prefs`
+- core/journey.py:317 `favorites_named` — Pinned buttons ready to show: label (own, else the template / group name), key, kind.
 
 ## core/logic_postgresql.py (1881 lines)
 - core/logic_postgresql.py:24 `clear_booking_cache` — Clear the global booking data cache - call after any data modification

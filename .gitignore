@@ -132,3 +132,7 @@ node_modules/
 # tool installers / launchers the web app hands out (owner, Nov 17) — must reach Railway
 !tools/**/*.bat
 tests/.real_settings.json
+
+# local only: prompts with door codes / Wi-Fi passwords, old template backups (owner data, never on GitHub)
+docs/prompts/
+BACKUP_BEFORE_CLEANUP/

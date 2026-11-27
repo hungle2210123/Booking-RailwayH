@@ -302,3 +302,8 @@ Owner: "tách … đầu tư cố định giống tiền nhà, tiền khách c�
   Bot: a receipt with the caption "riêng" → book 'rieng'. Test `test_chi_books_and_private_pin` (puts the PIN settings back).
   Claude never sets the owner's PIN — the owner sets it on the page.
 - Lịch phòng 💰 Cần thu box (owner Nov 27): every unpaid guest row has a green "✓ Đã thu" button (`.dpay` → `M.payOpen`) = the collect sheet straight away (LOC LE / THAO LE, one tap saves) — no need to open the guest card.
+- Nov 27 (owner): payment templates 67/71/120/130/158/224 ask the guest to RECORD A VIDEO (show the cash, then putting it in
+  the box, send it) instead of a photo; 19 TN check-in 178 (EN + VI) / 184 (VI) rewritten: key INSIDE the room, "to go out
+  press the button by the door", Wi-Fi list; new token `{so_phong}` = " 102" (placed room's number, `_journey_booking` from
+  moi_room_names). Ask templates 217/214 now give the owner's own WhatsApp number. Prompt for a new 19 TN check-in picture +
+  old template texts: local only (docs/prompts/, BACKUP_BEFORE_CLEANUP/ — git-ignored, they hold door codes).
