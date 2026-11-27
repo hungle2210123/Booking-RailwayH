@@ -1129,6 +1129,15 @@ button.info.on{border-color:#0E1525;background:#fff}
     if (r.j.status === 'duplicate' && confirm('Số này đang là của khách "' + (r.j.other_name || '') + '".\n\nVẫn lưu cho ' + g.name + '?')) r = await post('/api/messages/phone', { booking_id: id, phone: v.trim(), force: true });
     if (!r.ok) return toast('Lỗi: ' + (r.j.error || 'không lưu được')); toast('Đã lưu số'); M.outLoad();
   };
+  // 📩 Hỏi WhatsApp qua Booking (owner, Nov 27): a guest without a number → ONE tap → the PC at home (Chrome extension)
+  // opens the reservation, types the 'Xin số …' message into Booking's chat and presses Gửi; Zalo tells when it is done
+  M.askWa = async (id, again) => {
+    const r = await post('/api/moi/ask_wa', { booking_id: id, again: !!again });
+    const j = r.j || {};
+    if (j.already) { if (confirm(j.error)) M.askWa(id, true); return; }
+    if (!r.ok || !j.success) return toast('Chưa gửi lệnh: ' + (j.error || 'lỗi mạng'));
+    toast(j.queued ? 'Đã có lệnh lúc ' + j.job.at + ' — máy tính đang nhắn, Zalo sẽ báo' : '📩 Đã gửi lệnh — máy tính ở nhà nhắn khách qua Booking trong 1–2 phút, Zalo báo khi xong');
+  };
   // 🔍 Tìm khách (owner, Nov 19): every booking, past or future — by name, phone digits or booking id
   let findT = null;
   M.findOpen = () => {
@@ -1152,6 +1161,7 @@ button.info.on{border-color:#0E1525;background:#fff}
         <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px">
           ${byId[g.id] ? `<button onclick="M.open('${g.id}')" style="${btn};border:none;background:#0E1525;color:#fff">Thẻ khách</button>` : ''}
           <button onclick="M.close();M.send('${g.id}','__more')" style="${btn};border:1px solid #E2E5EB;background:#fff;color:#0E1525">💬 Nhắn mẫu</button>
+          ${!g.wa && !g.state ? `<button onclick="M.askWa('${g.id}')" style="${btn};border:none;background:#16A34A;color:#fff">📩 Hỏi WhatsApp</button>` : ''}
           ${g.wa ? `<a id="fwa_${g.id}" href="https://wa.me/${g.wa}" target="_blank" rel="noopener" onclick="return M.findWaOne(event,'${g.id}')" style="${btn};border:none;background:#16A34A;color:#fff">🟢 WhatsApp</a><a href="tel:${esc(g.phone)}" style="${btn};border:1px solid #E2E5EB;background:#fff;color:#0E1525">📞</a>` : ''}</div></div>`; }).join('')
       || '<div class="empty" style="padding:20px 0">Không thấy khách nào.</div>';
     const ft = await M.findTplGet();
@@ -1236,6 +1246,7 @@ button.info.on{border-color:#0E1525;background:#fff}
     const action = g.asked ? `<button onclick="M.outSent('${g.id}',false)" style="${btn};flex:1;border:1px solid #BBF7D0;background:#F0FDF4;color:#15803D">✅ Đã hỏi thăm · ${esc(g.asked)}</button>`
       : !g.wa ? (g.partner ? `<span style="${btn};flex:1;background:#F5F3FF;color:#5B21B6;font-size:12px">Đối tác · không có số</span><button onclick="M.outPhone('${g.id}')" style="${btn};border:1.5px dashed #A78BFA;background:#fff;color:#5B21B6">+ Số</button>`
         : `<button onclick="M.outPhone('${g.id}')" style="${btn};flex:1;border:1.5px dashed #F59E0B;background:#FFFBEB;color:#92400E">+ Thêm số WhatsApp</button>`)
+        + `<button onclick="M.askWa('${g.id}')" style="${btn};flex-basis:100%;border:none;background:#16A34A;color:#fff">📩 Hỏi WhatsApp qua Booking</button>`
       : !txt ? `<button onclick="M.outPick()" style="${btn};flex:1;border:1.5px dashed #94A3B8;background:#fff;color:#0E1525">Chọn mẫu câu trước</button>`
       : `<a href="${href}" target="_blank" rel="noopener" onclick="M.outWa('${g.id}')" style="${btn};flex:1;background:#16A34A;color:#fff">🟢 Nhắn WhatsApp</a>`
         + `<button onclick="M.outCopy('${g.id}')" style="${btn};border:1px solid #E2E5EB;background:#fff;color:#0E1525" aria-label="Chép tin">📋</button>`
@@ -1677,7 +1688,8 @@ button.info.on{border-color:#0E1525;background:#fff}
       <div style="display:flex;flex-wrap:wrap;align-items:center;gap:6px 8px;margin-top:8px;background:#EFF6FF;border-radius:12px;padding:6px 6px 6px 12px">
         <span class="num" style="flex:1 0 auto;white-space:nowrap;font-size:14px;font-weight:800;color:#1D4ED8">${b.phone ? `<a href="tel:${esc(b.phone)}" style="text-decoration:none">${esc(b.phone)}</a>` : b.partner ? 'Đối tác — chưa có số khách' : 'Chưa có số điện thoại'}</span>
         ${b.phone ? `<a href="tel:${esc(b.phone)}" style="min-height:36px;border-radius:9px;border:none;font-size:12px;font-weight:800;padding:0 10px;display:inline-flex;align-items:center;text-decoration:none;min-height:38px;background:#16A34A;color:#fff">📞 Gọi</a><button onclick="M.copyPhone('${b.id}')" style="min-height:36px;border-radius:9px;border:none;font-size:12px;font-weight:800;padding:0 10px;display:inline-flex;align-items:center;text-decoration:none;min-height:38px;background:#fff;color:#1D4ED8">📋 Copy</button><a href="https://wa.me/${waNum(b.phone)}" target="_blank" rel="noopener" style="min-height:38px;border-radius:9px;font-size:12px;font-weight:800;padding:0 10px;display:inline-flex;align-items:center;text-decoration:none;background:#fff;color:#15803D;border:1.5px solid #86EFAC">💬 WhatsApp</a>` : ''}
-        <button onclick="M.phone('${b.id}')" style="min-height:38px;border-radius:10px;border:none;background:#fff;color:#1D4ED8;font-size:12px;font-weight:800;padding:0 12px">${b.phone ? 'Sửa' : 'Thêm số'}</button></div>
+        <button onclick="M.phone('${b.id}')" style="min-height:38px;border-radius:10px;border:none;background:#fff;color:#1D4ED8;font-size:12px;font-weight:800;padding:0 12px">${b.phone ? 'Sửa' : 'Thêm số'}</button>
+        ${b.phone ? '' : `<button onclick="M.askWa('${b.id}')" style="flex-basis:100%;min-height:44px;border-radius:10px;border:none;background:#16A34A;color:#fff;font-size:14px;font-weight:800">📩 Hỏi WhatsApp qua Booking</button>`}</div>
       ${payMsgBox(b)}
       <div style="display:flex;gap:10px;align-items:center;margin-top:8px;background:#F7F8FA;border-radius:12px;padding:8px">
         <img src="/api/booking_screenshot/${encodeURIComponent(b.id)}?v=full" alt="Ảnh đặt phòng" loading="lazy" style="width:72px;height:96px;object-fit:cover;border-radius:8px;background:#E2E5EB;flex-shrink:0" onerror="this.replaceWith(Object.assign(document.createElement('div'),{textContent:'Chưa có ảnh đặt phòng',style:'font-size:12px;color:#64748B;font-weight:700;padding:8px'}))" onclick="window.Journey && Journey.zoom && Journey.zoom(this.src)">

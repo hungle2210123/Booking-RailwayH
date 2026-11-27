@@ -297,3 +297,16 @@ page applied the date filter. `/api/ext/month_report` → one Zalo line (new gue
 - 1.57 (owner Nov 26: "đừng lấy tất cả khách tới cuối tháng … xếp sai rất nhiều … chỉ lấy khách 1 tới 2 ngày"): the daily
   list job (`monthRange`) reads arrivals TODAY + TOMORROW only (was: to the end of the month). The 57 guests already taken
   for 29/11–31/12 were kept (owner chose "Giữ lại"). Manual "📅 Lưu cả danh sách vào lịch" still saves whatever range is shown.
+
+### 1.58 (owner Nov 27) — 📩 Hỏi WhatsApp từ điện thoại
+Owner: guests with no number / booked via a partner could only be asked for WhatsApp from the PC. Now /moi (guest card
+phone row, 🔍 Tìm khách, Hỏi thăm list) has "📩 Hỏi WhatsApp qua Booking" (`M.askWa`) → POST `/api/moi/ask_wa` (p17) →
+one row in `ext_chat_jobs` with the ready text (same 'Xin số …' message 💬 Điền tin preselects: cn → WeChat, vn → VI,
+others → EN; tokens filled server-side) + hotel_id (bookings.property_name → booking_properties). A second tap while
+waiting = same job; after 'sent' the phone asks before sending again. background `chatCheck` (inside pendingCheck, every
+minute, BEFORE the morning-done gate) → `/api/ext/chat_jobs` {hotels} (only this profile's account) → visible window on
+GROUP_URL → content `chatJob`: navigates to the reservation with `ses`, `chatBoxStrict` (placeholder/label says message,
+never a note field; opens "Trò chuyện với khách" if needed), types, `chatSendBtn` clicks Booking's **Gửi** (owner asked
+for it to be SENT — one guest per tap, never bulk), sent = box emptied → `/api/ext/chat_done` {ok, clicked, final}
+→ Zalo line; tab closes. Not finished in 10 min → offered again (2 tries); once Gửi was clicked it is never re-sent.
+Test `test_ask_whatsapp_from_phone` (Zalo stubbed).

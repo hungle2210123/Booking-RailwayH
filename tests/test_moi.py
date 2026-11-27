@@ -1096,3 +1096,40 @@ def test_cash_deposit_book(app, db, client):
                 db.session.execute(appmod.text("DELETE FROM cash_deposits WHERE id = :i"), {'i': abs(i)})
                 db.session.execute(appmod.text("DELETE FROM cash_deposit_log WHERE deposit_id = :i"), {'i': abs(i)})
             db.session.commit()
+
+
+@pytest.mark.db_write
+def test_ask_whatsapp_from_phone(client, db, booking, app_module):
+    """📩 Hỏi WhatsApp từ điện thoại (owner Nov 27): /moi tap → job → the extension of the right Booking account takes it
+    (text = the 'Xin số WhatsApp' message with the guest's name) → chat_done → Zalo line (stubbed here)."""
+    A = app_module
+    hid = db.session.execute(text("SELECT hotel_id, name FROM booking_properties ORDER BY hotel_id LIMIT 1")).fetchone()
+    assert hid, 'no Booking property known'
+    bid = booking(guest_name='Zed Tester', property_name=hid[1])
+    told, real = [], A.mail_notify
+    A.mail_notify = lambda _db, msg: told.append(msg)
+    try:
+        r = client.post('/api/moi/ask_wa', json={'booking_id': bid}).get_json()
+        assert r['success'] and r['job']['status'] == 'wait' and 'WhatsApp' in r['job']['tpl']
+        assert client.post('/api/moi/ask_wa', json={'booking_id': bid}).get_json()['queued']        # no double job
+        assert client.post('/api/ext/chat_jobs', json={'hotels': ['1']}).get_json()['jobs'] == []   # other account
+        jobs = [j for j in client.post('/api/ext/chat_jobs', json={'hotels': [hid[0]], 'take': False}).get_json()['jobs']]
+        assert jobs and jobs[0]['bid'] == bid and 'Zed' in jobs[0]['text'] and '{ten}' not in jobs[0]['text']
+        j = client.post('/api/ext/chat_jobs', json={'hotels': [hid[0]], 'pid': 'zz-test'}).get_json()['jobs'][0]
+        assert client.post('/api/ext/chat_jobs', json={'hotels': [hid[0]]}).get_json()['jobs'] == []   # taken
+        assert client.post('/api/ext/chat_done', json={'job': j['job'], 'ok': True}).get_json()['status'] == 'sent'
+        assert told and '✅' in told[-1] and bid in told[-1]
+        again = client.post('/api/moi/ask_wa', json={'booking_id': bid}).get_json()
+        assert not again['success'] and again['already']                                           # asks first
+        j2 = client.post('/api/moi/ask_wa', json={'booking_id': bid, 'again': True}).get_json()['job']
+        client.post('/api/ext/chat_jobs', json={'hotels': [hid[0]]})
+        # not sent and Gửi never clicked → waits for another try; clicked but not sent → fail + Zalo, never re-sent
+        assert client.post('/api/ext/chat_done', json={'job': j2['id'], 'ok': False, 'why': 'x'}).get_json()['status'] == 'wait'
+        client.post('/api/ext/chat_jobs', json={'hotels': [hid[0]]})
+        assert client.post('/api/ext/chat_done', json={'job': j2['id'], 'ok': False, 'clicked': True, 'why': 'x'}).get_json()['status'] == 'fail'
+        assert '⚠️' in told[-1]
+        assert not client.post('/api/moi/ask_wa', json={'booking_id': 'PHOTO_X'}).get_json()['success']
+    finally:
+        A.mail_notify = real
+        db.session.execute(text("DELETE FROM ext_chat_jobs WHERE booking_id = :b"), {'b': bid})
+        db.session.commit()

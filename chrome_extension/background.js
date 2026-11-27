@@ -220,7 +220,7 @@ function ensureAlarm(name, periodInMinutes) {
 ensureAlarm('hp-selfupdate', 5);
 // written in THIS script (getManifest() would give the new manifest even when the script is an old cached copy);
 // tests/test_parsers.py checks it equals manifest.json
-const BG_VER = '1.57.0';
+const BG_VER = '1.58.0';
 // 1.51: the popup / options page asks which version the BACKGROUND runs (Nov 22: after a Chrome restart the manifest
 // was new but Chrome kept the cached 1.47 background script — only a reload replaces it)
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
@@ -258,6 +258,7 @@ async function pendingCheck() {
     const [h, mi] = await morningTime(), now = new Date(), m = now.getHours() * 60 + now.getMinutes();
     if (m >= h * 60 + mi && m < h * 60 + mi + 240) { await morningRun(true); return; }
   }
+  if (await chatCheck(st.hpHotels || [])) return;   // 📩 1.58: a "Hỏi WhatsApp" tapped on the phone comes first
   if (st.hpLastMorning !== today()) return;
   const hotels = st.hpHotels || [];
   if (!hotels.length) return;
@@ -277,6 +278,29 @@ async function pendingCheck() {
   if (!tab) tab = await openTab(GROUP_URL, false);
   await chrome.storage.local.set({ hpFetch: { at: Date.now(), tabId: tab.id, items: r.items } });
   setTimeout(() => checkSignedOut(tab.id), 25000);
+}
+// 📩 1.58 Hỏi WhatsApp từ điện thoại (owner Nov 27): the owner taps "Hỏi WhatsApp" on /moi for a guest without a
+// number → the server keeps ONE job per tap → the profile whose Booking account has that property opens the reservation
+// (content.js chatJob) in a visible window, types the 'Xin số …' message into Booking's chat box and presses Gửi,
+// reports /api/ext/chat_done (→ Zalo) and the tab closes. One job at a time; a stuck tab is closed after 6 minutes.
+async function chatCheck(hotels) {
+  const { hpChat } = await chrome.storage.local.get('hpChat');
+  if (hpChat) {
+    if (Date.now() - hpChat.at < 6 * 60000) { try { await chrome.tabs.get(hpChat.tabId); return true; } catch (e) {} }
+    try { await chrome.tabs.remove(hpChat.tabId); } catch (e) {}
+    await chrome.storage.local.remove('hpChat');
+  }
+  if (!hotels.length) return false;
+  let r, { hpPid } = await chrome.storage.local.get('hpPid');
+  try { r = await apiCall('/api/ext/chat_jobs', { hotels, pid: hpPid || '' }); } catch (e) { return false; }
+  const job = r?.jobs?.[0];
+  if (!job) return false;
+  stayAwake(10);
+  let tab = null;
+  try { tab = (await chrome.windows.create({ url: GROUP_URL, focused: true, state: 'normal' })).tabs[0]; } catch (e) {}
+  if (!tab) tab = await openTab(GROUP_URL, true);
+  await chrome.storage.local.set({ hpChat: { at: Date.now(), tabId: tab.id, job } });
+  return true;
 }
 // 📅 1.55 (owner Nov 25: "lấy cả tháng … để có cái nhìn bao quát hơn về lịch"): once a day, after the morning run, read
 // Booking's reservation LIST of every property of this profile (Nhận phòng from today → end of the month — the end of
@@ -367,6 +391,18 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     chrome.storage.local.get('hpFetch').then(({ hpFetch }) =>
       sendResponse(hpFetch && hpFetch.tabId === sender.tab?.id ? { items: hpFetch.items } : null));
     return true;
+  }
+  if (msg?.type === 'chat-job') {                     // 1.58: is this tab the "Hỏi WhatsApp" tab?
+    chrome.storage.local.get('hpChat').then(({ hpChat }) => sendResponse(hpChat && hpChat.tabId === sender.tab?.id ? hpChat.job : null));
+    return true;
+  }
+  if (msg?.type === 'chat-done') {
+    chrome.storage.local.get('hpChat').then(async ({ hpChat }) => {
+      if (!hpChat || hpChat.tabId !== sender.tab?.id) return;
+      await chrome.storage.local.remove('hpChat');
+      setTimeout(() => chrome.tabs.remove(sender.tab.id).catch(() => {}), 4000);
+    });
+    return false;
   }
   if (msg?.type === 'month-job') {                    // 1.55: is this tab the month-list tab?
     chrome.storage.local.get('hpMonth').then(({ hpMonth }) => sendResponse(hpMonth && hpMonth.tabId === sender.tab?.id ? hpMonth : null));

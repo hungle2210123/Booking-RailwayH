@@ -1516,6 +1516,83 @@
     await wait(1500);
     startRun(items);
   }
+  // 📩 1.58 Hỏi WhatsApp từ điện thoại (owner, Nov 27): background.js opened this tab for ONE guest the owner tapped on
+  // /moi → open that reservation, type the 'Xin số …' message into Booking's chat box, press Booking's Gửi, check the
+  // box emptied, report /api/ext/chat_done (→ Zalo) and the tab closes. Only the message box itself (placeholder /
+  // label says message) is used — never another text field of the page.
+  function chatBoxStrict() {
+    const cands = [...document.querySelectorAll('textarea, [contenteditable="true"], [role="textbox"]')]
+      .filter(el => !host.contains(el) && el.offsetParent !== null);
+    const hint = el => fold([el.getAttribute('placeholder'), el.getAttribute('aria-label'), el.getAttribute('data-placeholder'),
+      el.getAttribute('name'), el.id].join(' '));
+    return cands.find(el => /soan tin nhan|tin nhan|message|reply|tra loi/.test(hint(el)) && !/ghi chu|note|remark/.test(hint(el))) || null;
+  }
+  function chatOpenSection() {
+    const els = [...document.querySelectorAll('button, a, [role="button"], [role="tab"]')].filter(el => !host.contains(el) && el.offsetParent !== null);
+    const el = els.find(e => /tro chuyen voi khach|nhan tin cho khach|gui tin nhan cho khach|message guest|message the guest/.test(fold(e.textContent + ' ' + (e.getAttribute('aria-label') || ''))));
+    if (el) el.click();
+    return !!el;
+  }
+  function chatSendBtn(box) {
+    const ok = el => !host.contains(el) && el.offsetParent !== null && !el.disabled && el.getAttribute('aria-disabled') !== 'true';
+    const isSend = el => /^(gui|send)$|gui tin nhan|^gui tin|send message/.test(fold((el.textContent || '').trim() + ' ' + (el.getAttribute('aria-label') || '')).trim());
+    if (box.form) { const b = [...box.form.querySelectorAll('button')].find(b => ok(b) && (isSend(b) || b.type === 'submit')); if (b) return b; }
+    let p = box.parentElement;
+    for (let i = 0; i < 8 && p; i++, p = p.parentElement) {
+      const b = [...p.querySelectorAll('button, [role="button"]')].find(b => ok(b) && isSend(b));
+      if (b) return b;
+    }
+    return null;
+  }
+  async function chatJob() {
+    if (!chrome.runtime?.id) return;
+    let job = null;
+    try { job = await chrome.runtime.sendMessage({ type: 'chat-job' }); } catch (e) {}
+    if (!job) return;
+    const key = 'hp_chat_' + job.job;
+    try { if (sessionStorage.getItem(key + '_busy')) return; } catch (e) {}
+    const done = async (ok, why, extra = {}) => {
+      await Promise.race([api('/api/ext/chat_done', { job: job.job, ok, why, ...extra }).catch(() => {}), wait(8000)]);
+      try { sessionStorage.removeItem(key); sessionStorage.removeItem(key + '_busy'); } catch (e) {}
+      toast(ok ? '✅ Đã nhắn hỏi WhatsApp' : '⚠️ Chưa nhắn được: ' + esc(why), ok ? 'ok' : 'err', 4000);
+      chrome.runtime.sendMessage({ type: 'chat-done' }).catch(() => {});
+    };
+    if (resId() !== String(job.bid)) {
+      let n = 0;
+      try { n = +(sessionStorage.getItem(key) || 0); } catch (e) {}
+      if (n >= 3) return done(false, 'Booking không mở được đặt phòng này');
+      await wait(2500);                              // the overview after the sign-in redirects carries `ses`
+      if (resId() === String(job.bid)) return chatJob();
+      const ses = new URL(location.href).searchParams.get('ses') || '';
+      try { sessionStorage.setItem(key, String(n + 1)); } catch (e) {}
+      location.href = `https://admin.booking.com/hotel/hoteladmin/extranet_ng/manage/booking.html?hotel_id=${job.hotel_id}&lang=vi` +
+        (ses ? '&ses=' + encodeURIComponent(ses) : '') + `&res_id=${job.bid}&source=homepage`;
+      return;
+    }
+    try { sessionStorage.setItem(key + '_busy', '1'); } catch (e) {}
+    toast('📩 Lệnh từ điện thoại: nhắn hỏi WhatsApp cho ' + esc(job.guest || job.bid) + '…', 'ok', 8000);
+    let box = null;
+    for (let i = 0; i < 40 && !box; i++) {          // the reservation page draws its parts after loading
+      box = chatBoxStrict();
+      if (!box && (i === 10 || i === 25)) chatOpenSection();
+      if (!box) await wait(1000);
+    }
+    if (!box) return done(false, 'không thấy khung "Soạn tin nhắn" trên trang đặt phòng', { final: true });
+    putInChat(box, job.text);
+    await wait(2000);                                // Booking enables its Gửi after the text is in
+    const btn = chatSendBtn(box);
+    if (!btn) return done(false, 'đã điền tin nhưng không thấy nút Gửi — mở Booking bấm Gửi giúp', { final: true });
+    btn.click();
+    let sent = false;
+    for (let i = 0; i < 15 && !sent; i++) {          // sent = Booking emptied its message box
+      await wait(1000);
+      const b = box.isConnected ? box : chatBoxStrict();
+      const v = b ? String(b.value !== undefined ? b.value : b.textContent || '') : '';
+      sent = !v.trim();
+    }
+    return done(sent, sent ? '' : 'đã bấm Gửi nhưng tin vẫn nằm trong khung — mở Booking xem giúp', { clicked: true });
+  }
+
   // the properties of THIS Booking account (a new guest is only opened in the profile whose account has it)
   function learnHotels() {
     if (!chrome.runtime?.id || /403/.test(location.pathname)) return;
@@ -1699,6 +1776,6 @@
   function startTab() {
   if (runGet()) setTimeout(runStep, 1500);
   else if (groupGet()) { setTimeout(showRunDone, 1500); setTimeout(groupStep, 3000); }
-  else { setTimeout(showRunDone, 1500); setTimeout(showGroupDone, 1500); setTimeout(autoMorning, 3000); setTimeout(fetchJob, 2000); setTimeout(monthJob, 2500); }
+  else { setTimeout(showRunDone, 1500); setTimeout(showGroupDone, 1500); setTimeout(autoMorning, 3000); setTimeout(fetchJob, 2000); setTimeout(monthJob, 2500); setTimeout(chatJob, 2000); }
   }
 })();

@@ -671,6 +671,159 @@ def ext_pending():
     return jsonify({'success': True, 'items': items})
 
 
+# ── 📩 Hỏi WhatsApp từ điện thoại (owner, Nov 27: "khách không có số / đặt qua đối tác … chỉ ngồi máy tính mới bấm được
+# tin xin WhatsApp — tạo nút trên app điện thoại … tự động nhắn cho khách, mở Chrome và mở đặt phòng của khách đó").
+# /moi button → a job in `ext_chat_jobs` → the extension of the Chrome profile whose Booking account HAS that property
+# (polls /api/ext/chat_jobs every minute, PC at home on) opens the reservation, types the 'Xin số …' message (the same
+# one 💬 Điền tin preselects: cn → WeChat, vn → Zalo/WhatsApp VI, others → WhatsApp EN) into Booking's chat box and
+# presses Booking's Gửi (owner asked for it to be sent, one guest per tap — never in bulk) → /api/ext/chat_done → one
+# Zalo line. A job not finished in 10 min is offered again (2 tries); a job that reached the Gửi click is never re-sent.
+_CHAT_READY = False
+
+
+def _chat_ensure(_xdb):
+    global _CHAT_READY
+    if _CHAT_READY:
+        return
+    _xdb.session.execute(text("""
+        CREATE TABLE IF NOT EXISTS ext_chat_jobs (
+            id SERIAL PRIMARY KEY, booking_id VARCHAR(40) NOT NULL, hotel_id VARCHAR(20) NOT NULL, guest VARCHAR(200),
+            tpl VARCHAR(200), body TEXT NOT NULL, status VARCHAR(10) NOT NULL DEFAULT 'wait', note TEXT,
+            tries INTEGER NOT NULL DEFAULT 0, pid VARCHAR(40), created_at TIMESTAMP NOT NULL, taken_at TIMESTAMP,
+            done_at TIMESTAMP)"""))
+    _xdb.session.commit()
+    _CHAT_READY = True
+
+
+def _ask_wa_text(_xdb, bid):
+    """(job fields, error) for the 'ask for a number' Booking-chat message of this booking."""
+    _ensure_partner_column()
+    _ensure_property_column()
+    r = _xdb.session.execute(text("""
+        SELECT COALESCE(g.full_name, b.guest_name), b.checkin_date, b.checkout_date, b.accommodation_name,
+               b.property_name, b.booking_status, p.hotel_id
+        FROM bookings b LEFT JOIN guests g ON g.guest_id = b.guest_id
+        LEFT JOIN booking_properties p ON lower(p.name) = lower(b.property_name)
+        WHERE b.booking_id = :b"""), {'b': bid}).fetchone()
+    if not r:
+        return None, 'Không thấy đặt phòng này'
+    if (r[5] or '').lower() in ('cancelled', 'deleted'):
+        return None, 'Đặt phòng này đã hủy'
+    if not re.fullmatch(r'\d{6,12}', bid):
+        return None, 'Không phải đặt phòng Booking (không có mã số Booking)'
+    if not r[6]:
+        return None, 'Chưa biết chỗ nghỉ Booking của khách này — mở đặt phòng này trên máy tính một lần'
+    name = r[0] or ''
+    tpls = {t['name']: t for t in _auto_msg_templates()}
+    t = (tpls.get(AUTO_MSG_ZH_NAME) if _is_chinese_guest(name) else None) \
+        or tpls.get(AUTO_MSG_PARTNER_VI_NAME if _is_vn_guest(name) else AUTO_MSG_PARTNER_NAME)
+    if not t:
+        return None, 'Không thấy mẫu "Xin số …" — kiểm tra Mẫu Câu'
+    cho = r[4] or ''
+    room = _room_label(r[3])
+    ten = re.sub(r'\s+[a-z]{2}$', '', name).strip() or 'bạn'
+    body = ((t['content'] or '').replace('{cho}', f' {cho}' if cho else '').replace('{ten}', ten)
+            .replace('{nhan}', r[1].strftime('%d/%m') if r[1] else '').replace('{tra}', r[2].strftime('%d/%m') if r[2] else '')
+            .replace('{phong}', f' ({room})' if room else ''))
+    return {'hotel_id': str(r[6]), 'guest': name[:200], 'tpl': t['name'][:200], 'body': body}, None
+
+
+def _chat_job_info(row):
+    return {'id': row[0], 'status': row[1], 'note': row[2] or '', 'at': row[3].strftime('%H:%M %d/%m'),
+            'done': row[4].strftime('%H:%M %d/%m') if row[4] else '', 'tpl': row[5] or ''}
+
+
+@app.route('/api/moi/ask_wa', methods=['GET', 'POST'])
+def moi_ask_wa():
+    """GET ?booking_id= → the last job of this guest. POST {booking_id, again?} → queue the message (the PC sends it)."""
+    from core.models import db as _xdb
+    _chat_ensure(_xdb)
+    d = (request.get_json(silent=True) or {}) if request.method == 'POST' else {}
+    bid = str(d.get('booking_id') or request.args.get('booking_id') or '').strip()[:40]
+    last = _xdb.session.execute(text("""SELECT id, status, note, created_at, done_at, tpl FROM ext_chat_jobs
+                                         WHERE booking_id = :b ORDER BY id DESC LIMIT 1"""), {'b': bid}).fetchone()
+    info = _chat_job_info(last) if last else None
+    if request.method == 'GET':
+        return jsonify({'success': True, 'job': info})
+    if last and last[1] in ('wait', 'taken'):
+        return jsonify({'success': True, 'job': info, 'queued': True})
+    if last and last[1] == 'sent' and not d.get('again'):
+        return jsonify({'success': False, 'job': info, 'already': True,
+                        'error': f"Đã nhắn khách này lúc {info['done']}. Gửi lại lần nữa?"})
+    job, err = _ask_wa_text(_xdb, bid)
+    if err:
+        return jsonify({'success': False, 'error': err})
+    now = _vn_now()
+    i = _xdb.session.execute(text("""INSERT INTO ext_chat_jobs (booking_id, hotel_id, guest, tpl, body, created_at)
+                                     VALUES (:b, :h, :g, :t, :x, :now) RETURNING id"""),
+                             {'b': bid, 'h': job['hotel_id'], 'g': job['guest'], 't': job['tpl'], 'x': job['body'],
+                              'now': now}).scalar()
+    _xdb.session.commit()
+    return jsonify({'success': True, 'job': {'id': i, 'status': 'wait', 'note': '', 'tpl': job['tpl'],
+                                             'at': now.strftime('%H:%M %d/%m'), 'done': ''}})
+
+
+@app.route('/api/ext/chat_jobs', methods=['POST'])
+def ext_chat_jobs():
+    """The extension asks for ONE waiting job of its Booking account's properties (and takes it)."""
+    err = _ext_auth_error()
+    if err:
+        return err
+    from core.models import db as _xdb
+    _chat_ensure(_xdb)
+    d = request.get_json(silent=True) or {}
+    hotels = [str(h) for h in (d.get('hotels') or []) if str(h).isdigit()]
+    pid = re.sub(r'[^\w-]', '', str(d.get('pid') or ''))[:40]
+    now = _vn_now()
+    # taken but never finished (tab closed, PC asleep …) and the Gửi click never reported → offered again, 2 tries
+    stale = _xdb.session.execute(text("""UPDATE ext_chat_jobs SET status = CASE WHEN tries >= 2 THEN 'fail' ELSE 'wait' END,
+                                     note = CASE WHEN tries >= 2 THEN 'máy tính không mở được đặt phòng (2 lần)' ELSE note END,
+                                     done_at = CASE WHEN tries >= 2 THEN :now ELSE done_at END
+                                 WHERE status = 'taken' AND taken_at < :old RETURNING status, guest, booking_id"""),
+                                 {'now': now, 'old': now - timedelta(minutes=10)}).fetchall()
+    _xdb.session.commit()
+    for f in stale:
+        if f[0] == 'fail':
+            mail_notify(_xdb, f"⚠️ Chưa nhắn hỏi WhatsApp được: {f[1] or f[2]} ({f[2]}) — máy tính không mở được đặt phòng")
+    row = None
+    if hotels:
+        row = _xdb.session.execute(text("""SELECT id, booking_id, hotel_id, body, guest FROM ext_chat_jobs
+                WHERE status = 'wait' AND hotel_id = ANY(:h) AND created_at > :young
+                  AND (booking_id NOT LIKE '9990%' OR NOT :live) ORDER BY id LIMIT 1"""),
+                {'h': hotels, 'young': now - timedelta(hours=6), 'live': is_railway}).fetchone()
+    if row and d.get('take', True):
+        _xdb.session.execute(text("UPDATE ext_chat_jobs SET status = 'taken', taken_at = :now, tries = tries + 1, pid = :p WHERE id = :i"),
+                             {'now': now, 'p': pid, 'i': row[0]})
+        _xdb.session.commit()
+    return jsonify({'success': True, 'jobs': [{'job': row[0], 'bid': row[1], 'hotel_id': row[2], 'text': row[3], 'guest': row[4]}] if row else []})
+
+
+@app.route('/api/ext/chat_done', methods=['POST'])
+def ext_chat_done():
+    """{job, ok, clicked, final, why} — the extension finished one job → status + one Zalo line."""
+    err = _ext_auth_error()
+    if err:
+        return err
+    from core.models import db as _xdb
+    _chat_ensure(_xdb)
+    d = request.get_json(silent=True) or {}
+    jid = int(d.get('job') or 0)
+    r = _xdb.session.execute(text("SELECT guest, booking_id, status, tries FROM ext_chat_jobs WHERE id = :i"), {'i': jid}).fetchone()
+    if not r:
+        return jsonify({'success': False, 'error': 'no job'}), 404
+    ok, why = bool(d.get('ok')), str(d.get('why') or '').strip()[:200]
+    # not sent and Gửi never clicked → offered again by the 10-minute rule ('wait'); clicked / final → never again
+    st = 'sent' if ok else ('fail' if d.get('clicked') or d.get('final') or (r[3] or 0) >= 2 else 'wait')
+    _xdb.session.execute(text("UPDATE ext_chat_jobs SET status = :s, note = :n, done_at = :now WHERE id = :i"),
+                         {'s': st, 'n': why, 'now': _vn_now(), 'i': jid})
+    _xdb.session.commit()
+    if st == 'sent':
+        mail_notify(_xdb, f"✅ Đã nhắn hỏi WhatsApp qua Booking: {r[0] or r[1]} ({r[1]})")
+    elif st == 'fail':
+        mail_notify(_xdb, f"⚠️ Chưa nhắn hỏi WhatsApp được: {r[0] or r[1]} ({r[1]}) — {why or 'lỗi không rõ'}. Mở Booking xem giúp")
+    return jsonify({'success': True, 'status': st})
+
+
 def _claim_today(_xdb, key, day):
     """True for the first caller of the day only (several gunicorn workers tick at the same minute)."""
     got = _xdb.session.execute(text(
