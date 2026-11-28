@@ -1264,7 +1264,7 @@ button.info.on{border-color:#0E1525;background:#fff}
         + `<button onclick="M.outCopy('${g.id}')" style="${btn};border:1px solid #E2E5EB;background:#fff;color:#0E1525" aria-label="Chép tin">📋</button>`
         + (opened ? `<button onclick="M.outSent('${g.id}',true)" style="${btn};flex-basis:100%;border:none;background:#0E1525;color:#fff">✅ Đã gửi xong</button>` : '');
     return `<div class="card" style="padding:12px;${g.asked ? 'opacity:.6' : ''}"><div style="display:flex;align-items:baseline;gap:8px"><div style="flex:1;min-width:0;font-size:16px;font-weight:800;line-height:1.25">${esc(g.name)}</div>
-        <span class="num" style="font-size:11px;font-weight:700;color:#475569;background:#F1F5F9;border-radius:6px;padding:2px 7px;flex-shrink:0">${g.vn ? 'VI' : 'EN'}</span></div>
+        ${g.state ? `<span style="font-size:11px;font-weight:800;color:#B91C1C;background:#FEF2F2;border-radius:6px;padding:2px 7px;flex-shrink:0">${esc(g.state)}</span>` : ''}<span class="num" style="font-size:11px;font-weight:700;color:#475569;background:#F1F5F9;border-radius:6px;padding:2px 7px;flex-shrink:0">${g.vn ? 'VI' : 'EN'}</span></div>
       <div class="num" style="font-size:12px;color:#64748B;font-weight:600;margin-top:3px">Trả phòng ${dmIso(g.co)} · ${dmIso(g.ci)} → ${dmIso(g.co)} · ${g.nights} đêm${g.room_no && g.apt ? ' · ' + esc(rn(g.apt, g.room_no)) : ''}${g.phone ? ' · ' + esc(g.phone) : ''}</div>
       <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px">${action}</div></div>`;
   }

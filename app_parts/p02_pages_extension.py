@@ -314,8 +314,13 @@ def _ext_diff(existing, f):
         updates['checkout_date'] = f['checkout_date']; changes.append(f"trả phòng {existing['checkout_date']} → {f['checkout_date']}")
     if f['room_amount'] and abs(f['room_amount'] - existing['room_amount']) >= 1:
         updates['room_amount'] = f['room_amount']; changes.append(f"giá {existing['room_amount']:,.0f} → {f['room_amount']:,.0f}")
-    # Commission is left alone on existing bookings (owner decision — tracked later);
-    # it is only stored when a new booking is created.
+    # Commission (owner Nov 28: Booking's list now hides it — "N/A · Net Rate" — only the reservation page shows it):
+    # every read that HAS a commission updates the stored one (was: stored only when the booking was created, so guests
+    # first saved from the list kept 0). A list read without it (None) never clears it. Sanity: below the room price.
+    c = f.get('commission')
+    if c and c > 0 and not existing.get('split') and (not existing['room_amount'] or c < existing['room_amount']) \
+            and abs(c - (existing.get('commission') or 0)) >= 1:
+        updates['commission'] = c; changes.append(f"hoa hồng {existing.get('commission') or 0:,.0f} → {c:,.0f}")
     if f['listing'] and f['listing'] != existing['listing']:
         updates['accommodation_name'] = f['listing']; changes.append(f"phòng: {existing['listing'] or '—'} → {f['listing']}")
     # Cancelled on Booking → the calendar's "Báo hủy" (checkin_status 'cancelling'), NOT booking_status 'cancelled':

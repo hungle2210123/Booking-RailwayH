@@ -254,6 +254,29 @@ def _out_list_get(session):
     return v if isinstance(v, dict) and v.get('ids') else None
 
 
+@app.route('/api/ext/commissions', methods=['POST'])
+def ext_commissions():
+    """💰 1.61 (owner Nov 28): Booking's list hides the commission ("N/A · Net Rate"). The extension sends the booking
+    numbers of the list on screen → the commission the web saved from each reservation page (0 = not known yet)."""
+    err = _ext_auth_error()
+    if err:
+        return err
+    from core.models import db as _xdb
+    ids = []
+    for x in (request.get_json(silent=True) or {}).get('ids') or []:
+        x = re.sub(r'\D', '', str(x))
+        if 6 <= len(x) <= 14 and x not in ids:
+            ids.append(x)
+    rows = _xdb.session.execute(text("""
+        SELECT split_part(b.booking_id, '-', 1), MAX(COALESCE(g.full_name, b.guest_name)), MIN(b.checkin_date),
+               MAX(b.checkout_date), SUM(COALESCE(b.room_amount, 0)), SUM(COALESCE(b.commission, 0))
+        FROM bookings b LEFT JOIN guests g ON g.guest_id = b.guest_id
+        WHERE split_part(b.booking_id, '-', 1) = ANY(:ids) GROUP BY 1"""), {'ids': ids[:200]}).fetchall() if ids else []
+    return jsonify({'success': True, 'items': {r[0]: {'name': r[1] or '', 'ci': r[2].isoformat() if r[2] else '',
+                                                      'co': r[3].isoformat() if r[3] else '', 'price': float(r[4] or 0),
+                                                      'commission': float(r[5] or 0)} for r in rows}})
+
+
 @app.route('/api/ext/out_list', methods=['POST'])
 def ext_out_list():
     """💬 Hỏi thăm các khách này (owner, Nov 19): the extension sends the booking numbers of the Booking list the owner
@@ -321,13 +344,17 @@ def moi_after_stay():
     # list from Booking: exactly those bookings (any date, extra rooms "<id>-2" too); otherwise checked out 1 Nov → today
     where = ("split_part(b.booking_id, '-', 1) = ANY(:ids)" if use_list
              else "b.checkout_date >= :f AND b.checkout_date <= :u")
+    # owner Nov 28: guests the owner picked on Booking are shown WHATEVER their state — the first picked ones were two
+    # "Báo hủy" guests (asked about the cancellation payment) and the list showed "0 khách"
+    states = ("AND COALESCE(b.booking_status, '') <> 'deleted'" if use_list else
+              "AND COALESCE(b.booking_status, '') NOT IN ('cancelled', 'deleted') "
+              "AND COALESCE(b.checkin_status, '') NOT IN ('cancelling', 'no_show')")
     rows = _xdb.session.execute(text(f"""
         SELECT b.booking_id, COALESCE(g.full_name, b.guest_name), b.checkin_date, b.checkout_date, b.accommodation_name,
-               g.phone, b.via_partner, b.actual_apartment, b.room_no, b.property_name
+               g.phone, b.via_partner, b.actual_apartment, b.room_no, b.property_name, b.booking_status, b.checkin_status
         FROM bookings b LEFT JOIN guests g ON g.guest_id = b.guest_id
         WHERE {where} AND b.checkin_date IS NOT NULL AND b.checkout_date IS NOT NULL
-          AND COALESCE(b.booking_status, '') NOT IN ('cancelled', 'deleted')
-          AND COALESCE(b.checkin_status, '') NOT IN ('cancelling', 'no_show')
+          {states}
         ORDER BY b.checkout_date DESC, b.booking_id"""),
         {'f': first, 'u': until, 'ids': lst['ids'] if lst else []}).fetchall()
     if use_list:
@@ -351,6 +378,8 @@ def moi_after_stay():
             'nights': max((co - ci).days, 1), 'apt': apt, 'room_no': r[8], 'listing': _room_label(r[4], keep_note=True) or '',
             'phone': phone, 'wa': links['wa'] if links else '', 'partner': bool(r[6]) and not phone,
             'vn': _vn_guest_name(r[1]), 'asked': J.vn_time(asked) if asked else '',
+            'state': ('Đã hủy' if (r[10] or '') == 'cancelled' else 'Báo hủy' if r[11] == 'cancelling'
+                      else 'Không đến' if r[11] == 'no_show' else ''),
             'text': _greet_name(J.fill(t['content'], guest), r[1]) if t else '',
             'text_vi': _greet_name(J.fill(t['content_vi'], guest, 'vi'), r[1]) if t and t.get('content_vi') else '',
         })

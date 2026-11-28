@@ -1355,6 +1355,85 @@
   }
   document.addEventListener('click', pickSend, true);
   document.addEventListener('auxclick', pickSend, true);
+  // ── 💰 1.61 Hoa hồng (owner Nov 28: Booking's list now hides the commission — "N/A · Net Rate" — only a reservation
+  // page shows it). The web saves it from every reservation page opened (morning run, new guests, ▶ runs); here, on a
+  // reservations list, each booking number gets a small purple "HH …" label with the commission the web knows, and the
+  // button "💰 Hoa hồng" shows the same list (page order) with the commission of every guest + the total.
+  // Reads the page only (the booking numbers on screen); the labels are drawn by the extension, Booking is not changed.
+  const commBtn = document.createElement('button');
+  commBtn.className = 'fab'; commBtn.type = 'button'; commBtn.style.cssText = 'display:none;background:#0f766e;margin-right:8px';
+  commBtn.textContent = '💰 Hoa hồng';
+  root.insertBefore(commBtn, $('#ai'));
+  const commData = {}, commAt = {};   // bid → {name, ci, co, price, commission} from the web; when it was asked
+  let commBusy = false;
+  const commMoney = n => Math.round(n || 0).toLocaleString('vi-VN') + 'đ';
+  function commLinks() {           // the booking-number links of the list on screen, in page order
+    if (resId() || runGet() || groupGet() || groupTable()) return [];
+    const out = [], seen = new Set();
+    for (const doc of allDocs()) {
+      doc.querySelectorAll('a[href]').forEach(a => {
+        const n = rawText(a).trim();
+        if (!BID_RE.test(n) || a.offsetParent === null || host.contains(a) || seen.has(n)) return;
+        seen.add(n); out.push({ bid: n, a });
+      });
+    }
+    return out;
+  }
+  async function commRefresh() {
+    if (commBusy || !chrome.runtime?.id) return;
+    const links = askRows() ? commLinks() : [];
+    commBtn.style.display = links.length ? '' : 'none';
+    if (!links.length) return;
+    // not known yet → asked again after 1 minute (the owner may have just opened that guest's page)
+    const need = links.map(l => l.bid).filter(b => !(b in commData) || (!(commData[b]?.commission > 0) && Date.now() - (commAt[b] || 0) > 60000));
+    if (need.length) {
+      commBusy = true;
+      try {
+        const r = await api('/api/ext/commissions', { ids: need }).catch(() => null);
+        if (r?.success) need.forEach(b => { commData[b] = r.items[b] || null; commAt[b] = Date.now(); });
+      } finally { commBusy = false; }
+    }
+    let known = 0, sum = 0;
+    links.forEach(({ bid, a }) => {
+      const d = commData[bid];
+      if (d && d.commission > 0) { known += 1; sum += d.commission; }
+      let tag = a.nextElementSibling;
+      if (!tag || !tag.classList || !tag.classList.contains('hp-comm')) {
+        tag = a.ownerDocument.createElement('span'); tag.className = 'hp-comm';
+        tag.style.cssText = 'display:inline-block;margin-left:6px;padding:1px 6px;border-radius:6px;font:700 11px/16px system-ui,sans-serif;white-space:nowrap';
+        a.insertAdjacentElement('afterend', tag);
+      }
+      const txt = d && d.commission > 0 ? 'HH ' + commMoney(d.commission) : d ? 'HH chưa có' : 'chưa có trên web';
+      if (tag.textContent !== txt) tag.textContent = txt;
+      tag.style.background = d && d.commission > 0 ? '#ede9fe' : '#f1f5f9';
+      tag.style.color = d && d.commission > 0 ? '#5b21b6' : '#64748b';
+    });
+    commBtn.textContent = `💰 Hoa hồng (${known}/${links.length})`;
+    commBtn.dataset.sum = String(sum);
+  }
+  setInterval(commRefresh, 3000);
+  commBtn.addEventListener('click', () => {
+    const links = commLinks();
+    let sum = 0, price = 0;
+    const rows = links.map(({ bid }) => {
+      const d = commData[bid];
+      if (d) { sum += d.commission || 0; price += d.price || 0; }
+      const dm = x => x ? +x.slice(8, 10) + '/' + +x.slice(5, 7) : '';
+      return `<tr><td style="padding:4px 6px">${esc(d ? d.name : '—')}<br><small style="color:#64748b">${esc(bid)}${d ? ' · ' + dm(d.ci) + '→' + dm(d.co) : ''}</small></td>
+        <td style="padding:4px 6px;text-align:right">${d ? commMoney(d.price) : ''}</td>
+        <td style="padding:4px 6px;text-align:right;font-weight:800;color:${d && d.commission > 0 ? '#5b21b6' : '#94a3b8'}">${d ? (d.commission > 0 ? commMoney(d.commission) : 'chưa có') : 'chưa có trên web'}</td></tr>`;
+    }).join('');
+    panel.innerHTML = `<h3>💰 Hoa hồng — danh sách trên trang này</h3>
+      <p class="hint">Số hoa hồng web đã lưu từ trang chi tiết của từng khách (Booking che ở danh sách). "chưa có" = chưa mở trang chi tiết khách đó lần nào — mở khách đó một lần là có.</p>
+      <div style="max-height:55vh;overflow:auto"><table style="width:100%;border-collapse:collapse;font-size:12px">
+        <tr style="background:#f1f5f9"><th style="padding:4px 6px;text-align:left">Khách</th><th style="padding:4px 6px;text-align:right">Giá</th><th style="padding:4px 6px;text-align:right">Hoa hồng</th></tr>
+        ${rows}
+        <tr style="border-top:2px solid #cbd5e1;font-weight:800"><td style="padding:6px">Cộng (${links.length} khách)</td><td style="padding:6px;text-align:right">${commMoney(price)}</td><td style="padding:6px;text-align:right;color:#5b21b6">${commMoney(sum)}</td></tr>
+      </table></div>
+      <div class="row"><button class="close" id="b_close" type="button">Đóng</button></div>`;
+    panel.classList.add('open');
+    $('#b_close').onclick = () => panel.classList.remove('open');
+  });
   // ── 📅 Lấy cả tháng (1.55, owner Nov 25: "lấy khách ở phần Đặt phòng … Nhận phòng, từ ngày hiện tại đến cuối tháng,
   // tình trạng OK, lấy toàn bộ") ── reads Booking's reservation LIST, every page ("Tiếp theo"), and sends the rows to
   // /api/ext/month_sync, which ADDS only the guests the web does not have (never changes existing ones). Reads the page

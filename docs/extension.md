@@ -327,3 +327,13 @@ hotel_id, sent as `page`): the first click on another page REPLACES the list (`f
 nhắn MỚI"); `at` now has seconds. (b) /moi did not show new clicks until the app was closed: `load()` (Tải lại, back to
 the app, every 45 s) now also reloads the list (`M.outLoad`), the Đã trả phòng tab checks every 15 s and draws again only
 when something changed (+ toast "Danh sách nhắn vừa cập nhật").
+
+### 1.61 (owner Nov 28) — 💰 Hoa hồng (Booking's list hides it: "N/A · Net Rate")
+- Server `_ext_diff`: every read WITH a commission updates the stored one (was: only when the booking was created → guests
+  first saved from the list kept 0). None (list read) never clears it; ignored when ≥ the room price or on split bookings.
+- `POST /api/ext/commissions` {ids} → {bid: name, ci, co, price, commission} (p15). content.js `commRefresh` (every 3 s on
+  a reservations list): purple "HH 224.921đ" label after each booking number ("HH chưa có" = reservation page never read;
+  asked again after 1 min); button "💰 Hoa hồng (known/total)" → panel with the same list + totals. Display only.
+- Test `test_commission_from_reservation_page_and_list_labels`.
+Nov 28 (owner: "vẫn không thấy khách nào" — the 2 clicked guests were Báo hủy): `/api/moi/after_stay?list=1` shows the
+listed guests WHATEVER their state (only 'deleted' left out), with `state` (Báo hủy / Đã hủy / Không đến) as a red tag.

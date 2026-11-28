@@ -364,6 +364,12 @@ def test_after_stay_booking_list(client, db, booking):
         r = client.post('/api/ext/out_list', json={'ids': [bid], 'add': True, 'page': 'B'}).get_json()
         assert r['n'] == 1 and r['fresh']
         assert [g['id'] for g in client.get('/api/moi/after_stay?list=1').get_json()['guests']] == [bid]
+        # owner Nov 28 ("vẫn không thấy khách nào"): picked "Báo hủy" guests are shown too, marked
+        db.session.execute(text("UPDATE bookings SET checkin_status = 'cancelling' WHERE booking_id = :b"), {'b': bid})
+        db.session.commit()
+        g = client.get('/api/moi/after_stay?list=1').get_json()['guests']
+        assert [x['id'] for x in g] == [bid] and g[0]['state'] == 'Báo hủy'
+        assert bid not in [x['id'] for x in client.get('/api/moi/after_stay?list=0').get_json()['guests']]
     finally:
         if old is None:
             db.session.execute(text("DELETE FROM journey_prefs WHERE key = 'out_list'"))
@@ -707,3 +713,19 @@ def test_month_sync_adds_only_new(client, db, app_module, throwaway, monkeypatch
         db.session.execute(text("DELETE FROM bookings WHERE booking_id IN ('9990000001')"))
         db.session.commit()
         app_module._zbot_put(db, 'month_sync', state or {})
+
+
+def test_commission_from_reservation_page_and_list_labels(client, db, booking):
+    """Owner Nov 28: Booking's list hides the commission ("N/A · Net Rate"). A guest first saved WITHOUT it gets it from
+    the next reservation-page read (was: only on creation → stayed 0); a read without it never clears it; the list
+    labels come from /api/ext/commissions."""
+    bid = booking(guest_name='Zz Commtest', room_amount=1_000_000)
+    assert client.post('/api/ext/commissions', json={'ids': [bid]}).get_json()['items'][bid]['commission'] == 0
+    body = {'booking_id': bid, 'guest_name': 'Zz Commtest', 'checkin_date': '2030-01-10', 'checkout_date': '2030-01-12',
+            'room_amount': 1_000_000, 'listing': 'Studio Test Room'}
+    assert client.post('/api/ext/booking/save', json={**body, 'commission': 150000}).status_code == 200
+    it = client.post('/api/ext/commissions', json={'ids': [bid, '9990000000']}).get_json()['items']
+    assert it[bid]['commission'] == 150_000 and it[bid]['price'] == 1_000_000 and '9990000000' not in it
+    client.post('/api/ext/booking/save', json={**body, 'commission': None})                 # list read: N/A
+    client.post('/api/ext/booking/save', json={**body, 'commission': 5000000})          # nonsense (> price)
+    assert client.post('/api/ext/commissions', json={'ids': [bid]}).get_json()['items'][bid]['commission'] == 150_000
