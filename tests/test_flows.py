@@ -351,13 +351,19 @@ def test_after_stay_booking_list(client, db, booking):
         assert [g['id'] for g in client.get('/api/moi/after_stay?list=1').get_json()['guests']] == [early, bid]
         # 1.59 (owner Nov 28): the guests the owner CLICKS on Booking's list — the first click replaces a whole-table
         # list, the next ones are ADDED (click order), "fresh" starts again
-        assert client.post('/api/ext/out_list', json={'ids': [bid], 'add': True}).get_json()['n'] == 1
-        assert client.post('/api/ext/out_list', json={'ids': [early], 'add': True}).get_json()['n'] == 2
-        assert client.post('/api/ext/out_list', json={'ids': [early], 'add': True}).get_json()['n'] == 2
+        r = client.post('/api/ext/out_list', json={'ids': [bid], 'add': True, 'page': 'A'}).get_json()
+        assert r['n'] == 1 and r['fresh']
+        r = client.post('/api/ext/out_list', json={'ids': [early], 'add': True, 'page': 'A'}).get_json()
+        assert r['n'] == 2 and not r['fresh']
+        assert client.post('/api/ext/out_list', json={'ids': [early], 'add': True, 'page': 'A'}).get_json()['n'] == 2
         assert [g['id'] for g in client.get('/api/moi/after_stay?list=1').get_json()['guests']] == [bid, early]
-        r =client.post('/api/ext/out_list', json={'ids': [early], 'add': True, 'fresh': True}).get_json()
-        assert r['n'] == 1
+        r = client.post('/api/ext/out_list', json={'ids': [early], 'add': True, 'fresh': True, 'page': 'A'}).get_json()
+        assert r['n'] == 1 and r['fresh']
         assert [g['id'] for g in client.get('/api/moi/after_stay?list=1').get_json()['guests']] == [early]
+        # 1.60 (owner Nov 28): the first click on ANOTHER list page replaces the list completely
+        r = client.post('/api/ext/out_list', json={'ids': [bid], 'add': True, 'page': 'B'}).get_json()
+        assert r['n'] == 1 and r['fresh']
+        assert [g['id'] for g in client.get('/api/moi/after_stay?list=1').get_json()['guests']] == [bid]
     finally:
         if old is None:
             db.session.execute(text("DELETE FROM journey_prefs WHERE key = 'out_list'"))

@@ -277,6 +277,9 @@ button.info.on{border-color:#0E1525;background:#fff}
       byId = {}; B.forEach((b) => { byId[b.id] = b; });
       if (d.clean && S.zbot) S.zbot.clean = d.clean;   // the cleaning board follows every reload (gia hạn, đổi phòng…)
       render();
+      // owner Nov 28: Tải lại / back to the app / the 45-s refresh did not bring the guests just clicked on Booking
+      // (only closing the app did) → the Nhắn khách list is reloaded with everything else
+      if (S.out && M.outLoad) M.outLoad();
     } catch (e) { if (!quiet) $('#app').innerHTML = '<div class="empty" style="padding-top:80px">Không tải được dữ liệu — kéo xuống để tải lại.</div>'; }
   }
   window.MsgLive = { refresh: () => load(true) };
@@ -1099,11 +1102,19 @@ button.info.on{border-color:#0E1525;background:#fff}
     try { const j = await (await fetch('/api/moi/after_stay?list=' + (allAt ? 0 : 1) + '&tid=' + (S.outTpl ? S.outTpl.id : ''), { cache: 'no-store' })).json();
       if (S.outKey !== key) return; if (!j.success) throw new Error('x');
       if (j.list && !j.list.on && allAt && allAt !== j.list.at) { LS.set('outAll', null); return M.outLoad(); }   // a NEW list came from Booking
-      S.out = j; }
-    catch (e) { S.out = { error: true, guests: [] }; }
+      // draw again only when something changed (the list is checked every 15 s — no flicker, the search box keeps focus)
+      const sig = (o) => o && !o.error ? JSON.stringify([o.list && o.list.at, (o.guests || []).map((g) => g.id + '|' + (g.asked || '') + '|' + (g.phone || '') + '|' + (g.text || '').length)]) : '';
+      const before = S.out, same = sig(before) === sig(j);
+      S.out = j;
+      if (same) return;
+      if (before && !before.error && j.list && j.list.on && (before.list || {}).at !== j.list.at && S.tab === 'msg' && S.mtab === 'out')
+        toast('💬 Danh sách nhắn vừa cập nhật · ' + (j.guests || []).length + ' khách'); }
+    catch (e) { if (S.out && !S.out.error) return; S.out = { error: true, guests: [] }; }
     if (S.tab === 'msg' && S.mtab === 'out') render();
   };
-  M.outGo = () => { S.mtab = 'out'; if (!S.out) M.outLoad(); render(); };
+  M.outGo = () => { S.mtab = 'out'; M.outLoad(); render(); };
+  // while the list is on screen: check every 15 s, so guests clicked on Booking show up by themselves
+  setInterval(() => { if (!document.hidden && S.tab === 'msg' && S.mtab === 'out' && !$('.ov') && !$('.jr-ov')) M.outLoad(); }, 15000);
   // 📋 list sent from a Booking reservations page (extension "💬 Hỏi thăm các khách này") ↔ every guest since 1/11
   M.outSrc = (v) => { LS.set('outAll', v === 'all' ? ((S.out || {}).list || {}).at || 'x' : null); S.out = null; S.mapt = null; render(); M.outLoad(); };
   if (/[?&]hoitham=1/.test(location.search)) { S.tab = 'msg'; S.mtab = 'out'; LS.set('outAll', null); M.outLoad();

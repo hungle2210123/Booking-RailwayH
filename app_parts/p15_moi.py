@@ -274,24 +274,29 @@ def ext_out_list():
         return jsonify({'success': False, 'error': 'Không có mã đặt phòng nào'}), 400
     now = datetime.utcnow() + timedelta(hours=7)
     at = now.strftime('%Y-%m-%dT%H:%M')
-    pick = bool(d.get('add'))
+    pick, fresh = bool(d.get('add')), True
     if pick:
         # 1.59 (owner Nov 28): a guest the owner CLICKED on Booking's list → ADDED to the list of clicked guests. A new
         # list starts with the first click after 3 hours, after a whole-table list, or when the owner asked ("fresh").
         cur = _out_list_get(_xdb.session)
         try:
-            recent = bool(cur) and now - datetime.strptime(cur.get('at', ''), '%Y-%m-%dT%H:%M') < timedelta(hours=3)
+            recent = bool(cur) and now - datetime.strptime(str(cur.get('at', ''))[:16], '%Y-%m-%dT%H:%M') < timedelta(hours=3)
         except ValueError:
             recent = False
-        if cur and cur.get('pick') and recent and not d.get('fresh'):
+        # 1.60 (owner Nov 28): a click on ANOTHER list page (other tab / property / kind of list) → a new list
+        page = str(d.get('page') or '')[:200]
+        if cur and cur.get('pick') and recent and not d.get('fresh') and (cur.get('page') or '') == page:
             ids = list(cur['ids']) + [x for x in ids if x not in cur['ids']]
+            fresh = False
     _xdb.session.execute(text("""
         INSERT INTO journey_prefs (key, value) VALUES ('out_list', :v)
-        ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value"""), {'v': json.dumps({'ids': ids[:300], 'at': at, 'pick': pick})})
+        ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value"""),
+        {'v': json.dumps({'ids': ids[:300], 'at': now.strftime('%Y-%m-%dT%H:%M:%S'), 'pick': pick,
+                          **({'page': str(d.get('page') or '')[:200]} if pick else {})})})
     _xdb.session.commit()
     found = _xdb.session.execute(text("SELECT COUNT(DISTINCT split_part(booking_id, '-', 1)) FROM bookings WHERE split_part(booking_id, '-', 1) = ANY(:ids)"),
                                  {'ids': ids}).scalar() or 0
-    return jsonify({'success': True, 'n': len(ids), 'found': int(found), 'at': at})
+    return jsonify({'success': True, 'n': len(ids), 'found': int(found), 'at': at, 'fresh': fresh})
 
 
 @app.route('/api/moi/after_stay')

@@ -322,3 +322,8 @@ number — capture-phase listeners, `pickBid`: res_id of the link, else the 10-d
 `/api/ext/out_list` {ids:[bid], add:true} → ADDED to the /moi Nhắn khách › Đã trả phòng list (click order). A new list
 starts with the first click after 3 h, after a whole-table "💬 Hỏi thăm khách" list, or after "Danh sách mới" in the
 note (`fresh`). Reads the page only. Test in `test_after_stay_booking_list`.
+1.60 (owner Nov 28): (a) the list belongs to ONE list page (`pickPage` = this tab's id in sessionStorage + path +
+hotel_id, sent as `page`): the first click on another page REPLACES the list (`fresh` in the answer → note "Danh sách
+nhắn MỚI"); `at` now has seconds. (b) /moi did not show new clicks until the app was closed: `load()` (Tải lại, back to
+the app, every 45 s) now also reloads the list (`M.outLoad`), the Đã trả phòng tab checks every 15 s and draws again only
+when something changed (+ toast "Danh sách nhắn vừa cập nhật").

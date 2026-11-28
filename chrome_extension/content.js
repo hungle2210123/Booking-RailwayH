@@ -1312,6 +1312,16 @@
   // Reads the page only (the booking number of the row clicked); nothing on Booking is changed.
   const pickSent = new Set();
   let pickFresh = false;
+  // 1.60 (owner Nov 28: "bắt đầu bấm ở một trang khác thì trang đấy phải được cập nhật hoàn toàn"): the list belongs to
+  // ONE list page — this browser tab + this property (hotel_id) + this kind of list. The first click on another page
+  // REPLACES the list; clicks on the same page (also after a reload / next page of results) add to it.
+  function pickPage() {
+    let t = '';
+    try { t = sessionStorage.getItem('hp_pick_tab') || ''; if (!t) { t = Math.random().toString(36).slice(2, 10); sessionStorage.setItem('hp_pick_tab', t); } } catch (e) {}
+    let h = '';
+    try { h = new URL(location.href).searchParams.get('hotel_id') || ''; } catch (e) {}
+    return [t, location.pathname, h].join('|');
+  }
   function pickBid(ev) {
     const a = ev.target && ev.target.closest ? ev.target.closest('a[href]') : null;
     if (!a || host.contains(a) || resId() || runGet() || groupGet() || !askRows()) return '';
@@ -1330,10 +1340,11 @@
     const bid = pickBid(ev);
     if (!bid || pickSent.has(bid)) return;
     pickSent.add(bid);
-    const o = await api('/api/ext/out_list', { ids: [bid], add: true, fresh: pickFresh }).catch(() => null);
+    const o = await api('/api/ext/out_list', { ids: [bid], add: true, fresh: pickFresh, page: pickPage() }).catch(() => null);
     if (!o?.success) { pickSent.delete(bid); toast('❌ Chưa thêm được ' + esc(bid) + ' vào danh sách nhắn: ' + esc(o?.error || 'lỗi mạng'), 'warn'); return; }
     pickFresh = false;
-    toast(`💬 Đã thêm <b>${esc(bid)}</b> vào danh sách nhắn — đang có <b>${o.n}</b> khách (Nhắn khách › Đã trả phòng).` +
+    toast((o.fresh ? '🆕 Danh sách nhắn MỚI (trang này). ' : '') +
+      `💬 Đã thêm <b>${esc(bid)}</b> vào danh sách nhắn — đang có <b>${o.n}</b> khách (Nhắn khách › Đã trả phòng).` +
       ` <a href="#" id="hp_newlist" style="color:inherit;text-decoration:underline">Danh sách mới</a>`, 'ok', 8000);
     const nl = $('#hp_newlist');
     if (nl) nl.addEventListener('click', e => {
