@@ -349,6 +349,15 @@ def test_after_stay_booking_list(client, db, booking):
                         checkout_date=(today + timedelta(days=21)).isoformat())
         client.post('/api/ext/out_list', json={'ids': [early, bid]})
         assert [g['id'] for g in client.get('/api/moi/after_stay?list=1').get_json()['guests']] == [early, bid]
+        # 1.59 (owner Nov 28): the guests the owner CLICKS on Booking's list — the first click replaces a whole-table
+        # list, the next ones are ADDED (click order), "fresh" starts again
+        assert client.post('/api/ext/out_list', json={'ids': [bid], 'add': True}).get_json()['n'] == 1
+        assert client.post('/api/ext/out_list', json={'ids': [early], 'add': True}).get_json()['n'] == 2
+        assert client.post('/api/ext/out_list', json={'ids': [early], 'add': True}).get_json()['n'] == 2
+        assert [g['id'] for g in client.get('/api/moi/after_stay?list=1').get_json()['guests']] == [bid, early]
+        r =client.post('/api/ext/out_list', json={'ids': [early], 'add': True, 'fresh': True}).get_json()
+        assert r['n'] == 1
+        assert [g['id'] for g in client.get('/api/moi/after_stay?list=1').get_json()['guests']] == [early]
     finally:
         if old is None:
             db.session.execute(text("DELETE FROM journey_prefs WHERE key = 'out_list'"))

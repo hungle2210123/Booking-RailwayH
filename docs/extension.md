@@ -315,3 +315,10 @@ Nhắn khách cards (`msgCard`) and the guest card when the guest has no number,
 Nov 27 (owner: the button's message is for guests we could not reach): `_ask_wa_text` uses its OWN templates
 'Hỏi WhatsApp qua Booking (EN)' / '(VI)' (category 'Hỏi WhatsApp qua Booking', DB only — they hold the owner's WhatsApp
 number + wa.me link, editable in Mẫu Câu); Chinese guests keep WeChat; 'Xin số …' only as a fallback.
+
+### 1.59 (owner Nov 28) — 💬 Chọn khách để nhắn bằng cách bấm vào khách
+On a Booking reservations list, every guest the owner OPENS (click / Ctrl+click / middle click on the name or booking
+number — capture-phase listeners, `pickBid`: res_id of the link, else the 10-digit number of its row) → POST
+`/api/ext/out_list` {ids:[bid], add:true} → ADDED to the /moi Nhắn khách › Đã trả phòng list (click order). A new list
+starts with the first click after 3 h, after a whole-table "💬 Hỏi thăm khách" list, or after "Danh sách mới" in the
+note (`fresh`). Reads the page only. Test in `test_after_stay_booking_list`.

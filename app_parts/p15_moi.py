@@ -264,17 +264,30 @@ def ext_out_list():
     from core.models import db as _xdb
     from core import journey as J
     J.ensure(_xdb.session)
+    d = request.get_json(silent=True) or {}
     ids = []
-    for x in (request.get_json(silent=True) or {}).get('ids') or []:
+    for x in d.get('ids') or []:
         x = re.sub(r'\D', '', str(x))
         if 6 <= len(x) <= 14 and x not in ids:
             ids.append(x)
     if not ids:
         return jsonify({'success': False, 'error': 'Không có mã đặt phòng nào'}), 400
-    at = (datetime.utcnow() + timedelta(hours=7)).strftime('%Y-%m-%dT%H:%M')
+    now = datetime.utcnow() + timedelta(hours=7)
+    at = now.strftime('%Y-%m-%dT%H:%M')
+    pick = bool(d.get('add'))
+    if pick:
+        # 1.59 (owner Nov 28): a guest the owner CLICKED on Booking's list → ADDED to the list of clicked guests. A new
+        # list starts with the first click after 3 hours, after a whole-table list, or when the owner asked ("fresh").
+        cur = _out_list_get(_xdb.session)
+        try:
+            recent = bool(cur) and now - datetime.strptime(cur.get('at', ''), '%Y-%m-%dT%H:%M') < timedelta(hours=3)
+        except ValueError:
+            recent = False
+        if cur and cur.get('pick') and recent and not d.get('fresh'):
+            ids = list(cur['ids']) + [x for x in ids if x not in cur['ids']]
     _xdb.session.execute(text("""
         INSERT INTO journey_prefs (key, value) VALUES ('out_list', :v)
-        ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value"""), {'v': json.dumps({'ids': ids[:300], 'at': at})})
+        ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value"""), {'v': json.dumps({'ids': ids[:300], 'at': at, 'pick': pick})})
     _xdb.session.commit()
     found = _xdb.session.execute(text("SELECT COUNT(DISTINCT split_part(booking_id, '-', 1)) FROM bookings WHERE split_part(booking_id, '-', 1) = ANY(:ids)"),
                                  {'ids': ids}).scalar() or 0

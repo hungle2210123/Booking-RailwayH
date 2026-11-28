@@ -1305,6 +1305,45 @@
         (o.found < o.n ? `<br>${o.n - o.found} khách chưa có trên web (không hiện trong danh sách nhắn).` : ''), 'ok', 10000);
     } finally { askBusy = false; askBtn.textContent = '💬 Hỏi thăm khách'; }
   });
+  // ── 💬 1.59 Chọn khách để nhắn (owner Nov 28: "những khách mà tôi bấm vào … tự động lưu vào, gửi về danh sách nhắn
+  // khách, danh sách đó chỉ gồm những khách mà tôi nhấn vào chọn") ── on a reservations list, every guest the owner
+  // OPENS (click / Ctrl+click / middle click on the name or the booking number) is added to the /moi Nhắn khách ›
+  // Đã trả phòng list. The first click after 3 hours — or after "Danh sách mới" in the note — starts a new list.
+  // Reads the page only (the booking number of the row clicked); nothing on Booking is changed.
+  const pickSent = new Set();
+  let pickFresh = false;
+  function pickBid(ev) {
+    const a = ev.target && ev.target.closest ? ev.target.closest('a[href]') : null;
+    if (!a || host.contains(a) || resId() || runGet() || groupGet() || !askRows()) return '';
+    let bid = '';
+    try { bid = new URL(a.href, location.href).searchParams.get('res_id') || ''; } catch (e) {}
+    if (!/^\d{8,12}$/.test(bid) && BID_RE.test(rawText(a))) bid = rawText(a).trim();
+    if (!/^\d{8,12}$/.test(bid)) {                  // the guest-name link → the booking number in the same row
+      const row = a.closest('tr, [role="row"]');
+      const m = row && (row.textContent || '').match(/\b\d{10}\b/);
+      bid = m ? m[0] : '';
+    }
+    return /^\d{8,12}$/.test(bid) ? bid : '';
+  }
+  async function pickSend(ev) {
+    if (ev.type === 'auxclick' && ev.button !== 1) return;
+    const bid = pickBid(ev);
+    if (!bid || pickSent.has(bid)) return;
+    pickSent.add(bid);
+    const o = await api('/api/ext/out_list', { ids: [bid], add: true, fresh: pickFresh }).catch(() => null);
+    if (!o?.success) { pickSent.delete(bid); toast('❌ Chưa thêm được ' + esc(bid) + ' vào danh sách nhắn: ' + esc(o?.error || 'lỗi mạng'), 'warn'); return; }
+    pickFresh = false;
+    toast(`💬 Đã thêm <b>${esc(bid)}</b> vào danh sách nhắn — đang có <b>${o.n}</b> khách (Nhắn khách › Đã trả phòng).` +
+      ` <a href="#" id="hp_newlist" style="color:inherit;text-decoration:underline">Danh sách mới</a>`, 'ok', 8000);
+    const nl = $('#hp_newlist');
+    if (nl) nl.addEventListener('click', e => {
+      e.preventDefault(); e.stopPropagation();
+      pickFresh = true; pickSent.clear();
+      toast('🆕 Khách bấm tiếp theo sẽ bắt đầu một danh sách nhắn mới.', 'ok', 5000);
+    });
+  }
+  document.addEventListener('click', pickSend, true);
+  document.addEventListener('auxclick', pickSend, true);
   // ── 📅 Lấy cả tháng (1.55, owner Nov 25: "lấy khách ở phần Đặt phòng … Nhận phòng, từ ngày hiện tại đến cuối tháng,
   // tình trạng OK, lấy toàn bộ") ── reads Booking's reservation LIST, every page ("Tiếp theo"), and sends the rows to
   // /api/ext/month_sync, which ADDS only the guests the web does not have (never changes existing ones). Reads the page

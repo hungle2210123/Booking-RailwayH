@@ -204,7 +204,7 @@ _p12_sync_crawl_duplicates — sync services, crawl admin bookings, bulk save, d
 - app_parts/p13_misc_railway.py:1087 `extract_meter_data_with_openrouter` — Extract electricity meter data using various free models via OpenRouter API
 - app_parts/p13_misc_railway.py:1198 `extract_meter_data_with_multi_api` — Extract electricity meter data using multiple APIs with automatic fallback
 
-## app_parts/p15_moi.py (1239 lines)
+## app_parts/p15_moi.py (1252 lines)
 _p15_moi — /moi: the new phone-first app (owner, Oct 26), built from the approved mockup. Runs NEXT TO the old pages_
 - app_parts/p15_moi.py:12 `_moi_ensure` — bookings.room_no (room 1..N inside the placed apartment) — added once per process.
 - app_parts/p15_moi.py:37 `_moi_apartments` — Active apartments with short name, colour (index among ALL apartments, like the calendar) and room count.
@@ -217,41 +217,41 @@ _p15_moi — /moi: the new phone-first app (owner, Oct 26), built from the appro
 - app_parts/p15_moi.py:239 `_greet_name` — "Hi , I hope…" → "Hi John Werner, I hope…" (owner, Nov 19): the guest's full name after a bare greeting, for
 - app_parts/p15_moi.py:247 `_out_list_get` — The guest list sent from a Booking reservations page ('💬 Hỏi thăm các khách này', ext 1.39): {ids, at}.
 - app_parts/p15_moi.py:258 `ext_out_list` ← `/api/ext/out_list` POST — 💬 Hỏi thăm các khách này (owner, Nov 19): the extension sends the booking numbers of the Booking list the owne
-- app_parts/p15_moi.py:285 `moi_after_stay` ← `/api/moi/after_stay` — 💬 Hỏi thăm khách đã trả phòng (owner, Nov 19): guests who checked out from 1 Nov 2026 (owner: "từ tháng 11 này
-- app_parts/p15_moi.py:348 `_moi_room_clash` — Guests (other than bid) who have room `room` of apartment `apt` on any night of `ranges` [(ci, co), …].
-- app_parts/p15_moi.py:372 `moi_set_room` ← `/api/moi/room` POST — Put a guest in room N of an apartment (or only the apartment when room_no is empty). Refused (409) when anothe
-- app_parts/p15_moi.py:405 `moi_set_stay` ← `/api/moi/stay` POST — Edit a guest's dates and/or total from the guest card (owner, Oct 29: tap "Ngày ở" / "Giá / đêm" / "Tổng tiền"
-- app_parts/p15_moi.py:444 `moi_split` ← `/api/moi/split` POST — Split a stay over two rooms (owner, Nov 5: "ngày 3 ở một phòng, ngày 4 một phòng khác"): {booking_id, at (the
-- app_parts/p15_moi.py:502 `moi_reminder` ← `/api/moi/reminder` POST — ⏰ Add a reminder on a guest ({booking_id, at: 'YYYY-MM-DDTHH:MM' Vietnam time, note}), or tick / untick one
-- app_parts/p15_moi.py:528 `_ics_text`
-- app_parts/p15_moi.py:533 `moi_ics` ← `/api/moi/ics` — An iPhone Calendar event with an alarm for one guest — opened by a plain link, so Safari shows "Thêm vào Lịch"
-- app_parts/p15_moi.py:580 `_moi_feed_token` — Secret part of the calendar-subscription link (made once, kept in moi_settings).
-- app_parts/p15_moi.py:594 `moi_feed_link` ← `/api/moi/feed` — The webcal:// link the owner subscribes to ONCE on the iPhone (Lịch → every reminder and promised arrival time
-- app_parts/p15_moi.py:606 `moi_feed` ← `/cal/<token>.ics` — Subscribed calendar: open reminders (alarm at the time) + promised arrival times of guests not arrived yet
-- app_parts/p15_moi.py:682 `_moi_clean_text` — The cleaners' message for `day` (owner, Nov 5: short — "Dọn phòng thứ năm 5/11 / Hàng Bạc: 102, 201"): the roo
-- app_parts/p15_moi.py:708 `moi_clean_feed` ← `/don-phong/<token>.txt` — Plain text of today's cleaning message (?d=1 tomorrow) — for an iPhone Shortcut that sends it at 8:00. The tok
-- app_parts/p15_moi.py:736 `_zbot_token` — Railway Variable ZALO_BOT_TOKEN, or the one the owner pasted in the /moi bot tab (moi_settings 'zbot_token' —
-- app_parts/p15_moi.py:749 `_zbot_call`
-- app_parts/p15_moi.py:767 `_zbot_get`
-- app_parts/p15_moi.py:778 `_zbot_put`
-- app_parts/p15_moi.py:785 `moi_dayuse` ← `/api/moi/dayuse` POST — ☀ Ở trong ngày {booking_id, on}: the guest used the room only during the day of arrival (owner, Nov 7: 104 Hội
-- app_parts/p15_moi.py:800 `_zbot_secret`
-- app_parts/p15_moi.py:809 `_zbot_send_clean` — Send the cleaning message of `day` to every chat that is on (or only `only`). Returns [(name, ok, error)].
-- app_parts/p15_moi.py:841 `zbot_tick` — One check (called every minute by zbot_loop): between 8:00 and 10:00 Vietnam time, the first worker that claim
-- app_parts/p15_moi.py:886 `zbot_loop`
-- app_parts/p15_moi.py:901 `zbot_hook` ← `/zalo-bot/hook` POST — Zalo calls this when someone messages the bot: remember the chat (new people are switched on) and answer.
-- app_parts/p15_moi.py:945 `moi_zbot` ← `/api/moi/zbot` GET,POST — Setup sheet in /moi: status · connect (setWebhook) · switch a person on/off · rename · send a test now.
-- app_parts/p15_moi.py:1007 `_moi_room_label` — The owner's name for room `no` of this apartment, else "Phòng N".
-- app_parts/p15_moi.py:1013 `moi_room_name` ← `/api/moi/room_name` POST — Rename room N of an apartment ({apartment_id, room_no, name}); an empty name goes back to "Phòng N".
-- app_parts/p15_moi.py:1047 `_pay_remind_id` — Id of the reminder template — made the first time (the owner edits it in Mẫu Câu afterwards).
-- app_parts/p15_moi.py:1059 `_pay_left`
-- app_parts/p15_moi.py:1065 `_pay_tien`
-- app_parts/p15_moi.py:1069 `pay_remind_step` — ⏰ Nhắc thanh toán as a step of the send sheet (p03 journey_guest) — shown for guests already marked arrived.
-- app_parts/p15_moi.py:1084 `moi_pay_msg` ← `/api/moi/pay_msg/<booking_id>` GET,POST — GET → {wa, ask, remind} filled in for this guest. POST {kind} → remember that the message was opened (journey 
-- app_parts/p15_moi.py:1125 `_dep_ensure`
-- app_parts/p15_moi.py:1144 `moi_deposits` ← `/api/moi/deposits` GET,POST — GET ?month=YYYY-MM → that month's rows + total per pot + the last 6 months' totals.
-- app_parts/p15_moi.py:1225 `_dep_log` — Copy the row as it is NOW into cash_deposit_log before it is changed / deleted (same transaction).
-- app_parts/p15_moi.py:1232 `_dep_log_list`
+- app_parts/p15_moi.py:298 `moi_after_stay` ← `/api/moi/after_stay` — 💬 Hỏi thăm khách đã trả phòng (owner, Nov 19): guests who checked out from 1 Nov 2026 (owner: "từ tháng 11 này
+- app_parts/p15_moi.py:361 `_moi_room_clash` — Guests (other than bid) who have room `room` of apartment `apt` on any night of `ranges` [(ci, co), …].
+- app_parts/p15_moi.py:385 `moi_set_room` ← `/api/moi/room` POST — Put a guest in room N of an apartment (or only the apartment when room_no is empty). Refused (409) when anothe
+- app_parts/p15_moi.py:418 `moi_set_stay` ← `/api/moi/stay` POST — Edit a guest's dates and/or total from the guest card (owner, Oct 29: tap "Ngày ở" / "Giá / đêm" / "Tổng tiền"
+- app_parts/p15_moi.py:457 `moi_split` ← `/api/moi/split` POST — Split a stay over two rooms (owner, Nov 5: "ngày 3 ở một phòng, ngày 4 một phòng khác"): {booking_id, at (the
+- app_parts/p15_moi.py:515 `moi_reminder` ← `/api/moi/reminder` POST — ⏰ Add a reminder on a guest ({booking_id, at: 'YYYY-MM-DDTHH:MM' Vietnam time, note}), or tick / untick one
+- app_parts/p15_moi.py:541 `_ics_text`
+- app_parts/p15_moi.py:546 `moi_ics` ← `/api/moi/ics` — An iPhone Calendar event with an alarm for one guest — opened by a plain link, so Safari shows "Thêm vào Lịch"
+- app_parts/p15_moi.py:593 `_moi_feed_token` — Secret part of the calendar-subscription link (made once, kept in moi_settings).
+- app_parts/p15_moi.py:607 `moi_feed_link` ← `/api/moi/feed` — The webcal:// link the owner subscribes to ONCE on the iPhone (Lịch → every reminder and promised arrival time
+- app_parts/p15_moi.py:619 `moi_feed` ← `/cal/<token>.ics` — Subscribed calendar: open reminders (alarm at the time) + promised arrival times of guests not arrived yet
+- app_parts/p15_moi.py:695 `_moi_clean_text` — The cleaners' message for `day` (owner, Nov 5: short — "Dọn phòng thứ năm 5/11 / Hàng Bạc: 102, 201"): the roo
+- app_parts/p15_moi.py:721 `moi_clean_feed` ← `/don-phong/<token>.txt` — Plain text of today's cleaning message (?d=1 tomorrow) — for an iPhone Shortcut that sends it at 8:00. The tok
+- app_parts/p15_moi.py:749 `_zbot_token` — Railway Variable ZALO_BOT_TOKEN, or the one the owner pasted in the /moi bot tab (moi_settings 'zbot_token' —
+- app_parts/p15_moi.py:762 `_zbot_call`
+- app_parts/p15_moi.py:780 `_zbot_get`
+- app_parts/p15_moi.py:791 `_zbot_put`
+- app_parts/p15_moi.py:798 `moi_dayuse` ← `/api/moi/dayuse` POST — ☀ Ở trong ngày {booking_id, on}: the guest used the room only during the day of arrival (owner, Nov 7: 104 Hội
+- app_parts/p15_moi.py:813 `_zbot_secret`
+- app_parts/p15_moi.py:822 `_zbot_send_clean` — Send the cleaning message of `day` to every chat that is on (or only `only`). Returns [(name, ok, error)].
+- app_parts/p15_moi.py:854 `zbot_tick` — One check (called every minute by zbot_loop): between 8:00 and 10:00 Vietnam time, the first worker that claim
+- app_parts/p15_moi.py:899 `zbot_loop`
+- app_parts/p15_moi.py:914 `zbot_hook` ← `/zalo-bot/hook` POST — Zalo calls this when someone messages the bot: remember the chat (new people are switched on) and answer.
+- app_parts/p15_moi.py:958 `moi_zbot` ← `/api/moi/zbot` GET,POST — Setup sheet in /moi: status · connect (setWebhook) · switch a person on/off · rename · send a test now.
+- app_parts/p15_moi.py:1020 `_moi_room_label` — The owner's name for room `no` of this apartment, else "Phòng N".
+- app_parts/p15_moi.py:1026 `moi_room_name` ← `/api/moi/room_name` POST — Rename room N of an apartment ({apartment_id, room_no, name}); an empty name goes back to "Phòng N".
+- app_parts/p15_moi.py:1060 `_pay_remind_id` — Id of the reminder template — made the first time (the owner edits it in Mẫu Câu afterwards).
+- app_parts/p15_moi.py:1072 `_pay_left`
+- app_parts/p15_moi.py:1078 `_pay_tien`
+- app_parts/p15_moi.py:1082 `pay_remind_step` — ⏰ Nhắc thanh toán as a step of the send sheet (p03 journey_guest) — shown for guests already marked arrived.
+- app_parts/p15_moi.py:1097 `moi_pay_msg` ← `/api/moi/pay_msg/<booking_id>` GET,POST — GET → {wa, ask, remind} filled in for this guest. POST {kind} → remember that the message was opened (journey 
+- app_parts/p15_moi.py:1138 `_dep_ensure`
+- app_parts/p15_moi.py:1157 `moi_deposits` ← `/api/moi/deposits` GET,POST — GET ?month=YYYY-MM → that month's rows + total per pot + the last 6 months' totals.
+- app_parts/p15_moi.py:1238 `_dep_log` — Copy the row as it is NOW into cash_deposit_log before it is changed / deleted (same transaction).
+- app_parts/p15_moi.py:1245 `_dep_log_list`
 
 ## app_parts/p16_staff.py (968 lines)
 _p16_staff — 👥 Nhân viên (owner, Nov 6): the cleaners talk to the Zalo bot (p15_moi zbot_*) in plain words._
@@ -662,9 +662,9 @@ _p18_chi — 💸 Chi tiêu = ảnh biên lai chuyển khoản gửi cho bot Zal
 - chrome_extension/content.js: 559 `autoShot` · 581 `domAutoShot` · 588 `shotAfterReveal` · 615 `phoneWatch` · 634 `autoRevealTry` · 661 `chatBox` · 667 `putInChat` · 741 `chatThread`
 - chrome_extension/content.js: 751 `pageBookingNumber` · 758 `aiAsk` · 769 `drawAi` · 804 `stopMic` · 805 `toggleMic` · 847 `prepareShot` · 923 `finishShot` · 988 `cancelShot`
 - chrome_extension/content.js: 996 `restoreFloating` · 1042 `guestLinks` · 1076 `groupTable` · 1089 `groupProps` · 1128 `numUnder` · 1150 `arrivalsToday` · 1186 `startGroup` · 1200 `stopGroup`
-- chrome_extension/content.js: 1211 `showGroupDone` · 1222 `groupStep` · 1255 `refreshRunBtn` · 1313 `nextPageBtn` · 1325 `readAllPages` · 1374 `monthJob` · 1413 `finishMonth` · 1418 `startRun`
-- chrome_extension/content.js: 1442 `finishRun` · 1457 `showRunDone` · 1467 `withSes` · 1474 `logoutLoop` · 1493 `fetchJob` · 1523 `chatBoxStrict` · 1530 `chatOpenSection` · 1536 `chatSendBtn`
-- chrome_extension/content.js: 1547 `chatJob` · 1597 `learnHotels` · 1610 `runStep` · 1702 `autoMorning` · 1776 `startTab`
+- chrome_extension/content.js: 1211 `showGroupDone` · 1222 `groupStep` · 1255 `refreshRunBtn` · 1315 `pickBid` · 1328 `pickSend` · 1352 `nextPageBtn` · 1364 `readAllPages` · 1413 `monthJob`
+- chrome_extension/content.js: 1452 `finishMonth` · 1457 `startRun` · 1481 `finishRun` · 1496 `showRunDone` · 1506 `withSes` · 1513 `logoutLoop` · 1532 `fetchJob` · 1562 `chatBoxStrict`
+- chrome_extension/content.js: 1569 `chatOpenSection` · 1575 `chatSendBtn` · 1586 `chatJob` · 1636 `learnHotels` · 1649 `runStep` · 1741 `autoMorning` · 1815 `startTab`
 
 ## chrome_extension/background.js
 - chrome_extension/background.js: 6 `settings` · 30 `shoot` · 78 `cdpShot` · 102 `morningTime` · 107 `scheduleMorning` · 116 `stayAwake` · 125 `openTab` · 132 `morningRun`
